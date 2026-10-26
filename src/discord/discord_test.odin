@@ -410,7 +410,8 @@ launch_signature_shape :: proc(t: ^testing.T) {
 analytics_batch_shape :: proc(t: ^testing.T) {
 	c := client_create(Config{token = "T", disable_gateway = true, disable_startup = true, workers = 1})
 	defer client_destroy(c)
-	c.id.heartbeat = {"H", 1, now_ms()}
+	delete(c.id.heartbeat.uuid)
+	c.id.heartbeat = {strings.clone("H"), 1, now_ms()} // owned by the identity (freed in client_destroy)
 	analytics_track(c, "libdiscore_loaded", `"success":true`)
 	testing.expect_value(t, len(c.analytics.queue), 0) // viewport/accessibility unknown: dropped
 	client_set_viewport(c, 1280, 720)

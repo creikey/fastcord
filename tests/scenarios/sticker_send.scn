@@ -1,3 +1,5 @@
+# NOT AUTOMATABLE YET: picker stickers are Nitro-only for these accounts (no message is sent);
+# needs a guild sticker uploaded to the test guild first.
 # Sticker picker: send a default (free) sticker.
 include _open_test_channel.scn
 mark open_sticker_picker

@@ -150,6 +150,9 @@ Client :: struct {
 	command_index_user: bool,
 	emoji_picker_opened: bool,
 	home_opened:      bool,
+	session_guild_set_done: bool,
+	account_verified: bool, // READY user.verified, persisted (startup set selection before READY)
+	pending_guild_create: bool,
 	soundboard_loaded: bool,
 	pending_soundboard_at: i64, // guilds whose open-time requests ran this session
 	// traffic observers (tooling): see every gateway frame
@@ -199,6 +202,7 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c.start_route_guild = cfg.initial_guild_id
 	c.start_route_channel = cfg.initial_channel_id
 	c.etags = make(map[string]string)
+	c.account_verified = true
 	client_load_state(c)
 	return c
 }
@@ -385,6 +389,8 @@ client_load_state :: proc(c: ^Client) {
 			switch k {
 			case "installation_id":
 				c.id.installation_id = strings.clone(v, c.allocator)
+			case "verified":
+				c.account_verified = v == "1"
 			case "heartbeat_session":
 				f := strings.split(v, "\t", context.temp_allocator)
 				if len(f) == 3 {
@@ -421,6 +427,9 @@ client_save_state :: proc(c: ^Client) {
 	}
 	sb := strings.builder_make(context.temp_allocator)
 	sync.mutex_lock(&c.id.mu)
+	strings.write_string(&sb, "verified\t")
+	strings.write_string(&sb, "1" if c.account_verified else "0")
+	strings.write_byte(&sb, '\n')
 	if c.id.installation_id != "" {
 		strings.write_string(&sb, "installation_id\t")
 		strings.write_string(&sb, c.id.installation_id)

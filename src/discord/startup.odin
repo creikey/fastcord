@@ -53,22 +53,27 @@ Startup_Flag :: enum u8 {
 	Disabled,
 	Etag, // remembers ETag, sends If-None-Match + cache-control: max-age=0 (fetch cache 'no-cache')
 	No_Super_Props, // sent before the super properties are initialised
+	Verified_Only, // account signal: READY user.verified (persisted for the next launch)
+	Unverified_Only,
 }
 Startup_Flags :: bit_set[Startup_Flag]
 
 STARTUP_REQUESTS := [?]Startup_Entry {
 	{.Launch, 767, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", {.Home, .Private}, {}, ""},
-	{.Launch, 775, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Launch, 775, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
+	{.Launch, 5500, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", ALL_ROUTES, {.Unverified_Only}, "unverified accounts load quests late (fixtures: B 4.2-6.4 s)"},
 	{.Launch, 775, .Api_Put_Json, "", "/guilds/{guild}/members/@me?lurker=true", "{}", .Same_Origin, "{}", {.Guild}, {}, "GuildJoinRequest lurker check"},
-	{.Launch, 776, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, ALL_ROUTES, {}, "ads decision"},
+	{.Launch, 776, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, ALL_ROUTES, {.Verified_Only}, "ads decision"},
 	{.Ready, 0, .Web_Get, "status.discord.com", "/api/v2/scheduled-maintenances/upcoming.json", "", .Same_Site, "", ALL_ROUTES, {}, ""},
 	{.Ready, 2, .Api_Get, "", "/users/%40me/badges", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Disabled}, "account-dependent (seen for B only)"},
+	{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, "B (unverified) only"},
+	{.Launch, 3177, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, ""},
+	{.Launch, 3500, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, "re-polled ~320 ms after the cluster"},
 	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
 	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
 	{.Launch, 3177, .Api_Get, "", "/users/@me/mfa/webauthn/credentials", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3177, .Api_Post_Json, "", "/users/@me/billing/user-offer", `{"allow_triggers":true}`, .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3177, .Api_Get, "", "/users/@me/billing/checkout-recovery", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Launch, 3177, .Api_Post_Json, "", "/users/@me/billing/user-offer", `{"allow_triggers":true}`, .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
+	{.Launch, 3177, .Api_Get, "", "/users/@me/billing/checkout-recovery", "", .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
 	{.Launch, 3177, .Api_Get, "", "/users/@me/collectibles-marketing?platform=0", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Launch, 3178, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", {.Home, .Private}, {}, "guild route: part of the guild-open set"},
 	{.Launch, 3178, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
@@ -112,6 +117,8 @@ schedule_startup :: proc(c: ^Client, anchor: Startup_Anchor) {
 	route := client_route_kind(c.start_route_guild, c.start_route_channel)
 	for e in STARTUP_REQUESTS {
 		if e.anchor != anchor || .Disabled in e.flags || route not_in e.routes do continue
+		if .Verified_Only in e.flags && !c.account_verified do continue
+		if .Unverified_Only in e.flags && c.account_verified do continue
 		j: ^Job
 		switch e.kind {
 		case .Api_Get, .Api_Post_Json, .Api_Put_Json:
@@ -151,12 +158,17 @@ schedule_startup :: proc(c: ^Client, anchor: Startup_Anchor) {
 // ---- guild open (CHANNEL_SELECT into a guild / reopening on a guild route) ----
 // When the first message page of the channel arrives: op 43 and this set;
 // integrations ~470 ms later. promotions joins the set on a guild start route.
-GUILD_OPEN_REQUESTS := [?]string {
+// Session-once (first guild shown) and per-guild sets, issued when the first
+// message page of a guild channel arrives (fixtures send_message, create_guild).
+SESSION_GUILD_REQUESTS := [?]string {
 	"/users/@me/unclaimed-games",
-	"POST /guilds/{guild}/migrate-command-scope", // only when we own/administer the guild
-	"/guilds/{guild}/entitlements?with_sku=true&with_application=true",
 	"/users/@me/entitlements?with_sku=false&with_application=false&entitlement_type=11&exclude_ended=true",
 	"/users/@me/applications/521842831262875670/entitlements?exclude_consumed=true",
+}
+
+PER_GUILD_REQUESTS := [?]string {
+	"POST /guilds/{guild}/migrate-command-scope", // only when we own/administer the guild
+	"/guilds/{guild}/entitlements?with_sku=true&with_application=true",
 }
 
 // schedule_guild_open: per-guild requests on first open in a session.
@@ -165,7 +177,12 @@ schedule_guild_open :: proc(c: ^Client, guild_id: Snowflake, with_promotions := 
 	g := guild_get(&c.store, guild_id)
 	owner := g != nil && g.owner_id == c.store.me && c.store.me != 0
 	gs := snowflake_string(guild_id)
-	for p in GUILD_OPEN_REQUESTS {
+	if !c.session_guild_set_done {
+		c.session_guild_set_done = true
+		for p in SESSION_GUILD_REQUESTS do api_get_later(c, p, 0)
+		if with_promotions do api_get_later(c, startup_expand(c, "/promotions?locale={locale}&platform=0"), 0)
+	}
+	for p in PER_GUILD_REQUESTS {
 		path := p
 		method := "GET"
 		if strings.has_prefix(path, "POST ") {
@@ -179,13 +196,6 @@ schedule_guild_open :: proc(c: ^Client, guild_id: Snowflake, with_promotions := 
 		j.path = job_str(j, expanded)
 		j.not_before = now
 		job_submit(c, j)
-		if with_promotions && strings.has_prefix(path, "/guilds/{guild}/entitlements") {
-			pj := job_new(.Api, .Startup)
-			pj.method = "GET"
-			pj.path = job_str(pj, startup_expand(c, "/promotions?locale={locale}&platform=0"))
-			pj.not_before = now
-			job_submit(c, pj)
-		}
 	}
 	ij := job_new(.Api, .Guild_Open)
 	ij.method = "GET"

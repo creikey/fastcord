@@ -625,6 +625,7 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 	switch name {
 	case "READY":
 		analytics_on_ready(c)
+		c.account_verified = fbool(fmap(vmap(data), "user"), "verified")
 		// The window reopens on its last route: the guild is subscribed and its
 		// channel info requested on CONNECTION_OPEN, as when it was selected.
 		sync.mutex_lock(&c.route_mu)
@@ -643,6 +644,28 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 			else do subscribe_guild(c, g)
 			c.pending_guild_open = g
 			c.guild_open_promotions = true
+		}
+	case "GUILD_CREATE":
+		if c.pending_guild_create {
+			c.pending_guild_create = false
+			d := vmap(data)
+			gid := fsnow(d, "id")
+			g := guild_get(&c.store, gid)
+			ch: Snowflake = 0
+			if g != nil {
+				ch = g.system_channel_id
+				if ch == 0 {
+					for cid in guild_channels_sorted(&c.store, gid) {
+						if c.store.channels[cid].kind == .Guild_Text {
+							ch = cid
+							break
+						}
+					}
+				}
+			}
+			guild_created_followups(c, gid)
+			h := c.analytics.viewport_h if c.analytics.viewport_h > 0 else 720
+			select_channel(c, gid, ch, initial_message_limit(h))
 		}
 	case "MESSAGE_CREATE":
 		d := vmap(data)
@@ -916,3 +939,94 @@ home_open :: proc(c: ^Client) {
 	c.start_route_guild = saved
 	api_get_later(c, "/users/@me/entitlements?with_sku=false&with_application=false&entitlement_type=11&exclude_ended=true", 0)
 }
+
+// ---- guilds ----
+
+// GUILD_TEMPLATE_FRIENDS: "Create My Own" -> "For me and my friends".
+GUILD_TEMPLATE_FRIENDS :: "2TffvPucqHkN"
+
+// create_guild: POST /guilds as the create-guild modal sends it
+// ({name, icon, channels: [], system_channel_id, guild_template_code}); when
+// GUILD_CREATE arrives the client navigates into it (select_channel) and loads
+// the new-guild extras (guild_created_followups).
+create_guild :: proc(c: ^Client, name: string, icon_data_uri := "", template := GUILD_TEMPLATE_FRIENDS) {
+	w: Json
+	json_init(&w)
+	json_obj(&w)
+	json_kstr(&w, "name", name)
+	if icon_data_uri != "" do json_kstr(&w, "icon", icon_data_uri)
+	else do json_knull(&w, "icon")
+	json_key(&w, "channels")
+	json_raw(&w, "[]")
+	json_knull(&w, "system_channel_id")
+	json_kstr(&w, "guild_template_code", template)
+	json_obj_end(&w)
+	j := job_new(.Api, .None)
+	j.method = "POST"
+	j.path = "/guilds"
+	j.body = transmute([]byte)job_str(j, json_string(&w))
+	j.content_type = "application/json"
+	job_submit(c, j)
+	c.pending_guild_create = true
+}
+
+// guild_created_followups: requests seen right after creating a guild
+// (boost/premium panels of the new guild): payment sources and
+// subscriptions (twice, from two components), the server-shop listing ~310 ms
+// and powerups ~650 ms later.
+guild_created_followups :: proc(c: ^Client, guild_id: Snowflake) {
+	gs := snowflake_string(guild_id)
+	api_get_later(c, "/users/@me/billing/payment-sources", 0)
+	api_get_later(c, "/users/@me/billing/subscriptions?sync_level=2", 0)
+	api_get_later(c, "/users/@me/billing/payment-sources", 1)
+	api_get_later(c, "/users/@me/billing/subscriptions?sync_level=2", 1)
+	cc := c.store.country_code if c.store.country_code != "" else "US"
+	api_get_later(c, strings.concatenate({"/store/published-listings/skus?country_code=", cc, "&application_id=1340102344645283891&guild_id=", gs}, context.temp_allocator), 313)
+	api_get_later(c, strings.concatenate({"/guilds/", gs, "/powerups?country_code=", cc, "&include_ends_at=true"}, context.temp_allocator), 650)
+}
+
+// ---- group DMs ----
+
+// create_group_dm: "New Group DM" with no one selected: POST /users/@me/channels
+// {"recipients":[]} (location "New Group DM"); the new channel opens.
+create_group_dm :: proc(c: ^Client, user_ids: []Snowflake = nil, tag: u64 = 0) {
+	create_private_channel(c, user_ids, "New Group DM", tag)
+}
+
+// create_group_dm_invite: opening "Invite to Group DM" creates an invite link:
+// POST /channels/{id}/invites {"max_age":86400} (location "Group DM Invite Create").
+create_group_dm_invite :: proc(c: ^Client, channel_id: Snowflake) {
+	j := job_new(.Api, .None)
+	j.method = "POST"
+	j.path = job_str(j, channel_path(channel_id, "/invites"))
+	j.body = transmute([]byte)job_str(j, `{"max_age":86400}`)
+	j.content_type = "application/json"
+	j.context_b64 = job_str(j, context_location("Group DM Invite Create"))
+	job_submit(c, j)
+}
+
+// add_group_recipient: PUT /channels/{id}/recipients/{user} (friends only).
+add_group_recipient :: proc(c: ^Client, channel_id, user_id: Snowflake) {
+	j := job_new(.Api, .None)
+	j.method = "PUT"
+	j.path = job_str(j, channel_path(channel_id, "/recipients/", snowflake_string(user_id)))
+	job_submit(c, j)
+}
+
+remove_group_recipient :: proc(c: ^Client, channel_id, user_id: Snowflake) {
+	j := job_new(.Api, .None)
+	j.method = "DELETE"
+	j.path = job_str(j, channel_path(channel_id, "/recipients/", snowflake_string(user_id)))
+	job_submit(c, j)
+}
+
+// delete_guild: POST /guilds/{id}/delete {} (owner).
+delete_guild :: proc(c: ^Client, guild_id: Snowflake) {
+	j := job_new(.Api, .None)
+	j.method = "POST"
+	j.path = job_str(j, strings.concatenate({"/guilds/", snowflake_string(guild_id), "/delete"}, context.temp_allocator))
+	j.body = transmute([]byte)job_str(j, "{}")
+	j.content_type = "application/json"
+	job_submit(c, j)
+}
+

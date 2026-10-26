@@ -264,7 +264,13 @@ connect :: proc(host: string, cfg: Config) -> (c: ^Conn, err: Error) {
 	conn_init(c, cfg)
 	c.io_thread = thread.create_and_start_with_poly_data(c, io_loop)
 
+	// The handshake may outlive this call (0-RTT), so the config's strings are
+	// copied into connection-owned memory.
 	c.hs.cfg = cfg.tls
+	c.hs.cfg.server_name = strings.clone(cfg.tls.server_name if cfg.tls.server_name != "" else host)
+	alpn := make([]string, len(cfg.tls.alpn))
+	for p, i in cfg.tls.alpn do alpn[i] = strings.clone(p)
+	c.hs.cfg.alpn = alpn
 	c.hs.allocator = context.allocator
 	c.hs.quic_params = chrome_transport_params(cached_rtt_us(cfg.tls.server_name))
 
@@ -454,6 +460,9 @@ conn_destroy :: proc(c: ^Conn) {
 	for m in c.hs_msgs do delete(m)
 	delete(c.hs_msgs)
 	tls.handshake_state_destroy(&c.hs)
+	for p in c.hs.cfg.alpn do delete(p)
+	delete(c.hs.cfg.alpn)
+	delete(c.hs.cfg.server_name)
 	delete(c.hs.quic_params)
 	for _, st in c.streams do stream_free(st)
 	delete(c.streams)

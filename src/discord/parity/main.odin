@@ -282,6 +282,15 @@ last_message :: proc(channel: discord.Snowflake) -> discord.Snowflake {
 	return 0
 }
 
+newest_group_dm :: proc() -> discord.Snowflake {
+	best: discord.Snowflake = 0
+	for cid in cur.c.store.private_channels {
+		ch := discord.channel_get(&cur.c.store, cid)
+		if ch != nil && ch.kind == .Group_DM && cid > best do best = cid
+	}
+	return best
+}
+
 open_test_channel :: proc() {
 	use("a")
 	mark("setup")
@@ -580,6 +589,79 @@ run :: proc(name: string) -> bool {
 		use("b")
 		wait_gw("RELATIONSHIP_REMOVE", 20000)
 		settle(2500)
+	case "create_guild":
+		use("a")
+		reload()
+		mark("create_guild_open")
+		click()
+		wait_for()
+		pause()
+		click() // Create My Own
+		pause()
+		click() // For me and my friends
+		wait_for()
+		mark("create_guild_name")
+		click()
+		human(80, 200) // key a meta (does not select in the official run)
+		typed(0, "fastcord test")
+		pause()
+		mark("create_guild_submit")
+		human(80, 400)
+		human(80, 220)
+		action()
+		discord.create_guild(cur.c, "Dingus Battle's serverfastcord test")
+		wait_gw("GUILD_CREATE", 20000)
+		settle(2500)
+	case "start_group_dm":
+		use("b")
+		mark("setup_b")
+		reload()
+		use("a")
+		mark("setup")
+		reload()
+		friends_home()
+		mark("start_group_dm")
+		click()
+		wait_for()
+		pause()
+		click()
+		action()
+		discord.create_group_dm(cur.c)
+		wait_gw("CHANNEL_CREATE")
+		gdm := newest_group_dm()
+		discord.select_channel(cur.c, 0, gdm, discord.initial_message_limit(VIEW_H))
+		wait_for()
+		settle(2000)
+		mark("invite_to_group_dm")
+		click()
+		discord.create_group_dm_invite(cur.c, gdm)
+		wait_for()
+		click() // bobbles checkbox
+		pause()
+		click() // Add (the official run issues no PUT here: B was not a friend)
+		wait_gw("CHANNEL_RECIPIENT_ADD", 3000)
+		use("b")
+		wait_gw("CHANNEL_CREATE", 5000)
+		settle(2500)
+	case "_cleanup":
+		// not a fixture: removes guilds/group DMs the create_* scenarios left behind
+		use("a")
+		reload()
+		for gid in cur.c.store.guild_order {
+			g := discord.guild_get(&cur.c.store, gid)
+			if gid != TGUILD && g != nil && g.owner_id == A_ID && g.name == "Dingus Battle's serverfastcord test" {
+				discord.delete_guild(cur.c, gid)
+				pump(1500)
+			}
+		}
+		for cid in cur.c.store.private_channels {
+			ch := discord.channel_get(&cur.c.store, cid)
+			if ch != nil && ch.kind == .Group_DM && ch.owner_id == A_ID && len(ch.recipient_ids) == 0 {
+				discord.close_private_channel(cur.c, cid)
+				pump(1500)
+			}
+		}
+		settle(2000)
 	case "_reset_friendship":
 		// not a fixture: puts A and B back to "not friends" before friend_request_send
 		use("a")
