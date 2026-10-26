@@ -85,6 +85,22 @@ All code imports siblings through the `fc` collection: `import "fc:netio"`.
      6 hours; when the tag is newer than its own `FASTCORD_VERSION`, an **Update** pill appears
      in the title bar and opens creikey.com/fastcord (right-click it to dismiss). Dev builds never check.
 
+### macOS signing
+
+Without Apple credentials releases are ad-hoc signed and macOS blocks the first
+launch (users click **Open Anyway** in System Settings → Privacy & Security).
+To ship notarized builds, join the Apple Developer Program and add these repo
+secrets (Settings → Secrets and variables → Actions); the release workflow then
+signs, notarizes and staples automatically (`scripts/notarize_macos.sh`):
+
+| Secret | Value |
+|---|---|
+| `MACOS_CERT_P12_BASE64` | your "Developer ID Application" certificate + key exported as .p12, base64 |
+| `MACOS_CERT_PASSWORD` | the .p12 export password |
+| `MACOS_SIGN_IDENTITY` | e.g. `Developer ID Application: Cameron Reikes (TEAMID)` |
+| `ASC_KEY_ID`, `ASC_ISSUER_ID` | App Store Connect API key id and issuer id |
+| `ASC_KEY_P8_BASE64` | the downloaded AuthKey_XXXX.p8, base64 |
+
 Local package: `scripts/package_macos.sh v0.1.0` → `dist/fastcord-macos.zip`.
 
 ## Website

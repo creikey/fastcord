@@ -634,7 +634,7 @@ dm_profile_panel :: proc(uid: dc.Snowflake) {
 					if ui.parent(banner) {
 						btns := row("btns", {.Floating_X, .Floating_Y})
 						btns.semantic_size = {.X = ui.children(), .Y = ui.px(DMP_BTN)}
-						btns.fixed_pos = {DMP_COL_W - 2 * DMP_INSET - 4 - 12 - 2 * DMP_BTN - 8, 8}
+						btns.fixed_pos = {DMP_COL_W - 2 * DMP_INSET - 4 - 9 - 2 * DMP_BTN - 8, 8}
 						if ui.parent(btns) {
 							rel := s.relationships[uid].kind
 							names := []string{rel == .Friend ? "user-check" : "user-plus", "more-horizontal"}
@@ -658,11 +658,11 @@ dm_profile_panel :: proc(uid: dc.Snowflake) {
 					spacer(.X, 2)
 				}
 				av := ui.box("avrow")
-				av.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+				av.semantic_size = {.X = ui.pct(1), .Y = ui.px(48)}
 				if ui.parent(av) {
 					ring := ui.box("ring", {.Draw_Background, .Floating_X, .Floating_Y})
 					ring.semantic_size = {.X = ui.px(92), .Y = ui.px(92)}
-					ring.fixed_pos = {16, -52}
+					ring.fixed_pos = {13, -52}
 					ring.style.radius = 46
 					ring.style.bg = surface
 					if ui.parent(ring) {
@@ -680,7 +680,7 @@ dm_profile_panel :: proc(uid: dc.Snowflake) {
 						l.flags += {.Selectable_Text}
 					}
 				}
-				line("name", dc.display_name(u), .Bold, 20, 24, T("--text-strong"))
+				line("name", dc.display_name(u), .Semibold, 20, 24, T("--text-strong"))
 				spacer(.Y, 2)
 				line("user", u.username, .Normal, 14, 18, T("--text-strong"))
 				spacer(.Y, 20)
@@ -793,19 +793,19 @@ dm_welcome :: proc(ch: ^dc.Channel) -> ^ui.Box {
 			switch rel {
 			case .Friend:
 				if btn("Remove Friend", false) && app.client != nil do dc.remove_relationship(app.client, uid, "DM Header")
-				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			case .Blocked:
 				if btn("Unblock", false) && app.client != nil do dc.remove_relationship(app.client, uid, "DM Header")
 			case .Outgoing_Request:
 				btn("Friend Request Sent", false)
-				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			case .Incoming_Request:
 				if btn("Accept", true) && app.client != nil do dc.accept_friend_request(app.client, uid)
 				if btn("Ignore", false) && app.client != nil do dc.ignore_friend_request(app.client, uid)
-				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			case .None, .Implicit:
 				if btn("Add Friend", true) && app.client != nil do dc.add_relationship(app.client, uid, "DM Header")
-				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			}
 		}
 	}
@@ -841,4 +841,174 @@ group_dm_icon :: proc(id: string, ch: ^dc.Channel, size: f32) -> ^ui.Box {
 		set_icon(inner, "group", {1, 1, 1, 1})
 	}
 	return g
+}
+
+// "Block <name>?" confirmation (the client's confirm modal, same frame as Delete Message).
+Block_Confirm :: struct {
+	user:     dc.Snowflake,
+	location: string, // X-Context-Properties location of the button that asked
+}
+block_confirm: Block_Confirm
+
+block_confirm_modal :: proc() {
+	uid := block_confirm.user
+	u := dc.user_get(store(), uid)
+	if u == nil {
+		block_confirm = {}
+		return
+	}
+	name := dc.display_name(u)
+	scrim := ui.box("block_scrim", {.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay})
+	scrim.semantic_size = {.X = ui.px(app.ui.window.x), .Y = ui.px(app.ui.window.y)}
+	scrim.style.bg = {0, 0, 0, 0.7}
+	if ui.signal(scrim).clicked {
+		block_confirm = {}
+		return
+	}
+	W :: 480
+	PAD :: 24
+	confirm := false
+	d := ui.box("blockmodal", {.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable})
+	d.semantic_size = {.X = ui.px(W), .Y = ui.children()}
+	d.fixed_pos = {(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2}
+	d.style.bg = T("--modal-background")
+	d.style.border_color = T("--border-subtle")
+	d.style.border = 1
+	d.style.radius = 12
+	d.layout_axis = .Y
+	ui.signal(d)
+	if ui.parent(d) {
+		x := ui.box("close", {.Clickable, .Floating_X, .Floating_Y})
+		x.semantic_size = {.X = ui.px(24), .Y = ui.px(24)}
+		x.fixed_pos = {W - 17 - 24, 17}
+		xs := ui.signal(x)
+		set_icon(x, "x-large", xs.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+		if xs.clicked do block_confirm = {}
+		spacer(.Y, PAD + 1)
+		t := row("t")
+		t.semantic_size = {.X = ui.pct(1), .Y = ui.px(24)}
+		if ui.parent(t) {
+			spacer(.X, PAD + 1)
+			label(fmt.tprintf("Block %s?", name), .Semibold, 20, T("--text-strong"), 24)
+		}
+		spacer(.Y, 8)
+		br := row("body")
+		br.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
+		if ui.parent(br) {
+			spacer(.X, PAD + 1)
+			b := ui.box("text", {.Wrap_Text})
+			b.semantic_size = {.X = ui.fill(), .Y = ui.text_size()}
+			b.style.line_height = 20
+			b.style.text_color = T("--text-subtle")
+			spans := make([]ui.Span, 3, context.temp_allocator)
+			spans[0] = {text = "Are you sure you want to block ", font = F(.Normal), size = 16}
+			spans[1] = {text = name, font = F(.Bold), size = 16}
+			spans[2] = {text = "? Blocking this user will also remove them from your friends list.", font = F(.Normal), size = 16}
+			ui.set_spans(b, spans)
+			spacer(.X, PAD + 1)
+		}
+		spacer(.Y, 24)
+		btns := row("btns")
+		btns.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+		btns.style.child_gap = 8
+		if ui.parent(btns) {
+			spacer(.X, PAD + 1 - 8)
+			cancel := ui.box("Cancel##c", {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
+			cancel.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
+			cancel.style.radius = 8
+			cancel.style.font = F(.Medium)
+			cancel.style.font_size = 16
+			cancel.style.text_align = .Center
+			cancel.style.text_color = T("--text-strong")
+			cancel.style.bg = T("--background-mod-normal")
+			cancel.style.bg_hot = T("--background-mod-strong")
+			if ui.signal(cancel).clicked do block_confirm = {}
+			ok := ui.box("Block##b", {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
+			ok.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
+			ok.style.radius = 8
+			ok.style.font = F(.Medium)
+			ok.style.font_size = 16
+			ok.style.text_align = .Center
+			ok.style.text_color = {1, 1, 1, 1}
+			ok.style.bg = T("--status-danger")
+			ok.style.bg_hot = T("--control-critical-primary-background-hover")
+			if ui.signal(ok).clicked do confirm = true
+			spacer(.X, PAD + 1 - 8)
+		}
+		spacer(.Y, PAD + 1)
+	}
+	for e in app.ui.events {
+		if e.kind == .Key_Down && e.key == .Escape do block_confirm = {}
+		if e.kind == .Key_Down && e.key == .Enter do confirm = true
+	}
+	if confirm {
+		if app.client != nil do dc.block_user(app.client, uid, block_confirm.location)
+		block_confirm = {}
+	}
+}
+
+// Top of a guild text channel's history: a 68px circle with the channel icon,
+// "Welcome to #name!" and "This is the start of the #name channel." (+ the
+// topic), and "Edit Channel" for members who can manage channels.
+CHW_ICON :: 68
+PERM_MANAGE_CHANNELS :: u64(1) << 4
+
+channel_welcome_height :: proc(ch: ^dc.Channel) -> f32 {
+	h: f32 = 16 + CHW_ICON + 8 + 40 + 8 + 20
+	if my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS != 0 do h += 8 + 20
+	return h
+}
+
+channel_welcome :: proc(ch: ^dc.Channel) {
+	w := ui.box("chwelcome")
+	w.semantic_size = {.X = ui.pct(1), .Y = ui.px(channel_welcome_height(ch))}
+	w.layout_axis = .Y
+	if ui.parent(w) {
+		spacer(.Y, 16)
+		r := row("icon")
+		r.semantic_size = {.X = ui.pct(1), .Y = ui.px(CHW_ICON)}
+		if ui.parent(r) {
+			spacer(.X, 16)
+			c := ui.box("circle", {.Draw_Background})
+			c.semantic_size = {.X = ui.px(CHW_ICON), .Y = ui.px(CHW_ICON)}
+			c.style.radius = CHW_ICON / 2
+			c.style.bg = T("--background-mod-normal")
+			if ui.parent(c) {
+				ic := icon("i", channel_icon_name(ch), 42, T("--text-strong"))
+				ic.flags += {.Floating_X, .Floating_Y}
+				ic.fixed_pos = {(CHW_ICON - 42) / 2, (CHW_ICON - 42) / 2}
+			}
+		}
+		spacer(.Y, 8)
+		h := row("h")
+		h.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+		if ui.parent(h) {
+			spacer(.X, 16)
+			label(fmt.tprintf("Welcome to #%s!", ch.name), .Bold, 32, T("--text-strong"), 40)
+		}
+		spacer(.Y, 8)
+		t := row("t")
+		t.semantic_size = {.X = ui.pct(1), .Y = ui.px(20)}
+		if ui.parent(t) {
+			spacer(.X, 16)
+			label(fmt.tprintf("This is the start of the #%s channel.", ch.name), .Normal, 16, T("--text-muted"), 20)
+		}
+		if my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS != 0 {
+			spacer(.Y, 8)
+			e := row("edit")
+			e.semantic_size = {.X = ui.pct(1), .Y = ui.px(20)}
+			if ui.parent(e) {
+				spacer(.X, 16)
+				b := row("editbtn", {.Clickable})
+				b.semantic_size = {.X = ui.children(), .Y = ui.px(20)}
+				hov := ui.signal(b).hovering
+				if ui.parent(b) {
+					icon("i", "pencil", 16, T("--text-link"))
+					spacer(.X, 4)
+					l := label("Edit Channel", .Medium, 14, T("--text-link"), 18)
+					if hov do l.style.text_color = T("--text-link")
+				}
+			}
+		}
+	}
 }

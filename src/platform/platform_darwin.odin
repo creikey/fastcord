@@ -15,6 +15,14 @@ Id :: objc.Id
 
 @(require) foreign import "system:Cocoa.framework"
 @(require) foreign import "system:QuartzCore.framework"
+foreign import coregraphics "system:CoreGraphics.framework"
+
+@(private = "file", default_calling_convention = "c")
+foreign coregraphics {
+	kCGColorSpaceSRGB: rawptr // CFStringRef
+	CGColorSpaceCreateWithName :: proc(name: rawptr) -> rawptr ---
+	CGColorSpaceRelease :: proc(cs: rawptr) ---
+}
 
 @(private = "file")
 NSRect :: NS.Rect
@@ -628,6 +636,11 @@ view_make_backing_layer :: proc "c" (self: Id, cmd: objc.SEL) -> Id {
 	msg(Void, layer, "setOpaque:", NS.BOOL(true))
 	msg(Void, layer, "setNeedsDisplayOnBoundsChange:", NS.BOOL(false))
 	msg(Void, layer, "setPixelFormat:", NS.UInteger(80) /*BGRA8Unorm*/)
+	// Our colors are sRGB (the client's CSS); tag the layer so macOS converts to
+	// the display's space like Chrome does, instead of showing raw values (oversaturated on P3).
+	srgb := CGColorSpaceCreateWithName(kCGColorSpaceSRGB)
+	msg(Void, layer, "setColorspace:", srgb)
+	CGColorSpaceRelease(srgb)
 	msg(Void, layer, "setMaximumDrawableCount:", NS.UInteger(3))
 	if msg(NS.BOOL, layer, "respondsToSelector:", sel("setDisplaySyncEnabled:")) {
 		msg(Void, layer, "setDisplaySyncEnabled:", NS.BOOL(true))

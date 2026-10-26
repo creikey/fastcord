@@ -169,7 +169,8 @@ token_b :: proc() -> string {
 
 use :: proc(n: string) {cur = &accts[0] if n == "a" else &accts[1]}
 
-mark :: proc(n: string) {discord.recorder_mark(rec, cur.name, n)}
+// tools/capture records every scenario mark on account A's stream.
+mark :: proc(n: string) {discord.recorder_mark(rec, "a", n)}
 
 // reload: the app restarts on the same profile (cookies, alt-svc, heartbeat
 // session persisted) and reopens on the route the official instance was on.
@@ -579,6 +580,12 @@ run :: proc(name: string) -> bool {
 		use("b")
 		wait_gw("RELATIONSHIP_REMOVE", 20000)
 		settle(2500)
+	case "_reset_friendship":
+		// not a fixture: puts A and B back to "not friends" before friend_request_send
+		use("a")
+		reload()
+		discord.remove_relationship(cur.c, B_ID, "Friends")
+		settle(2000)
 	case:
 		return false
 	}

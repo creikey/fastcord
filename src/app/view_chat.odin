@@ -174,14 +174,24 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 	TOP_PAD :: 16
 	BOTTOM_PAD :: 8
 	total: f32 = TOP_PAD + BOTTOM_PAD
-	// the start of a 1:1 DM's history carries the welcome header (avatar, names, friend actions)
+	// the start of a 1:1 DM's history carries the welcome header (avatar, names, friend actions);
+	// a guild text channel's carries "Welcome to #channel!"
 	welcome_ch := dc.channel_get(s, channel_id)
-	if welcome_ch != nil && (welcome_ch.kind != .DM || len(welcome_ch.recipient_ids) != 1) do welcome_ch = nil
+	welcome_h: f32 = 0
 	if welcome_ch != nil {
 		l, ok := s.messages[channel_id]
 		if !ok || l.has_more_before || l.loading do welcome_ch = nil
 	}
-	if welcome_ch != nil do total += DMW_H + DMW_GAP - TOP_PAD
+	if welcome_ch != nil {
+		#partial switch welcome_ch.kind {
+		case .DM:
+			if len(welcome_ch.recipient_ids) == 1 do welcome_h = DMW_H
+		case .Guild_Text, .Guild_Announcement:
+			welcome_h = channel_welcome_height(welcome_ch)
+		}
+		if welcome_h == 0 do welcome_ch = nil
+	}
+	if welcome_ch != nil do total += welcome_h + DMW_GAP - TOP_PAD
 	for &m in msgs {
 		h, ok := cs.heights[m.id]
 		total += ok ? h : MSG_LINE_H + 4
@@ -232,7 +242,8 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 		if ui.parent(col) {
 			if i0 == 0 {
 				if welcome_ch != nil {
-					dm_welcome(welcome_ch)
+					if welcome_ch.kind == .DM do dm_welcome(welcome_ch)
+					else do channel_welcome(welcome_ch)
 					spacer(.Y, DMW_GAP)
 				} else {
 					spacer(.Y, TOP_PAD)
@@ -1009,5 +1020,5 @@ divider_row :: proc(id: dc.Snowflake, new_day, show_new: bool) {
 
 // Any overlay that takes keyboard input away from the composer.
 modal_open :: proc() -> bool {
-	return sw.open || ma.deleting != 0 || app.settings_open || viewer_url != ""
+	return sw.open || ma.deleting != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0
 }

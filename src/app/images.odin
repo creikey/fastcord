@@ -133,6 +133,7 @@ avatar_url_for :: proc(uid: dc.Snowflake, size: f32) -> string {
 // Discord's default avatars: white Clyde on one of six colors, picked by
 // (id >> 22) % 6 for pomelo users or discriminator % 5 for legacy ones.
 DEFAULT_AVATAR_COLORS := [6]u32{0x5865f2, 0x757e8a, 0x3ba55c, 0xfaa61a, 0xed4245, 0xeb459f}
+DEFAULT_AVATAR_GLYPH :: 0.65 // clyde icon box / avatar size (its glyph fills 22/24 of the box)
 
 default_avatar_index :: proc(uid: dc.Snowflake) -> int {
 	u := dc.user_get(store(), uid)
@@ -168,7 +169,7 @@ avatar_draw :: proc(b: ^ui.Box, user: rawptr) {
 	gfx.push_rect({dst = gfx.Rect(b.rect), colors = {c, c, c, c}, radii = b.style.radius})
 	w := b.rect.x1 - b.rect.x0
 	h := b.rect.y1 - b.rect.y0
-	gw := w * 0.62
+	gw := w * DEFAULT_AVATAR_GLYPH // official glyph spans 154/256 of the avatar width
 	gx := b.rect.x0 + (w - gw) / 2
 	gy := b.rect.y0 + (h - gw) / 2
 	if ic := icon_texture("clyde", gw); ic != 0 {
@@ -199,7 +200,7 @@ avatar_box :: proc(id: string, uid: dc.Snowflake, size: f32) -> ^ui.Box {
 // Avatar with the status dot cut out of the bottom-right, ringed in the surface color.
 avatar_with_status :: proc(id: string, uid: dc.Snowflake, size: f32, surface: ui.Color) -> ^ui.Box {
 	b := avatar_box(id, uid, size)
-	dot := size >= 40 ? f32(12) : f32(10)
+	dot := size >= 80 ? f32(16) : (size >= 40 ? f32(12) : f32(10)) // 80px profile avatars: 16px dot
 	ring := size >= 40 ? f32(4) : f32(3)
 	if ui.parent(b) {
 		r := ui.box("ring", {.Draw_Background, .Floating_X, .Floating_Y})
