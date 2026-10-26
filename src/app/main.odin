@@ -120,6 +120,7 @@ main :: proc() {
 		os.exit(1)
 	}
 	app.focused = true
+	watchdog_start()
 	voice_set_headless(headless)
 	app.stats = os.get_env("FASTCORD_STATS", context.temp_allocator) != ""
 	fonts_load()
@@ -205,6 +206,8 @@ main :: proc() {
 
 frame :: proc() {
 	defer free_all(context.temp_allocator)
+	watchdog_frame_begin()
+	defer watchdog_frame_end()
 	now := platform.time_now()
 	dt := f32(now - app.last_time)
 	if app.last_time == 0 || dt > 0.1 do dt = 1.0 / 60
@@ -221,12 +224,14 @@ frame :: proc() {
 		login_check_auth()
 	}
 	t_media := platform.time_now()
+	watchdog_phase(.Media)
 	sounds_frame()
 	settings_frame()
 	images_receive()
 	features_receive()
 	notify_tick()
 	t_ui := platform.time_now()
+	watchdog_phase(.UI)
 	for e in platform.events() {
 		#partial switch e.kind {
 		case .File_Drop:
@@ -253,6 +258,7 @@ frame :: proc() {
 	}
 
 	t_render := platform.time_now()
+	watchdog_phase(.Render)
 	gfx.begin_frame(gfx.Color(tok(&app.theme, "--background-base-lowest")))
 	render(cmds)
 	gfx.end_frame()
