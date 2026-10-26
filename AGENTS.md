@@ -18,3 +18,9 @@ Read README.md first: build, testing, performance and conventions are there. Thi
   not only at test results.
 - Live runs (`-live:N`) use the real account in `<state>/token`. Keep them read-only: don't type, send,
   react or join voice.
+- Prefer the fewest lines where possible: no speculative API surface, delete dead paths.
+- Formats from the network (images, compression, codecs) go through vetted libraries, not hand-written
+  decoders: Wuffs first, else the reference C library or Odin's core library. Vendor upstream files
+  unmodified in `vendor/<lib>/` with a small `fc_<lib>.c` wrapper and a README (URL, version, sha256,
+  licence); `build.sh` / `build.bat` compile it. Hand-written code stays only where the library lacks a
+  feature (animated WebP's container).
