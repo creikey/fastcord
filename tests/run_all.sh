@@ -3,6 +3,7 @@
 # Live network tests stay off unless FASTCORD_LIVE=1 is set by the caller.
 cd "$(dirname "$0")/.."
 mkdir -p build
+./build.sh c || exit 1
 fail=0
 EXE=""
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXE=.exe ;; esac

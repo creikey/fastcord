@@ -1,2 +1,4 @@
 # Test inputs are compared byte for byte; never convert their line endings.
 **/testdata/** -text
+# Vendored sources stay byte-identical to upstream, so their checksums still match.
+vendor/** -text

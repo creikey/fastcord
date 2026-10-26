@@ -41,6 +41,10 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 ./build/fastcord      # logs in with $FASTCORD_TOKEN or <state>/token
 ```
 
+Needs `odin` and a C compiler: clang (macOS: Xcode command line tools), or on Windows clang or MSVC.
+Every build first compiles the vendored C (`vendor/`) into `build/`; `./build.sh c` does only that step.
+`build.bat` has the same targets for cmd.exe and finds MSVC itself.
+
 `<state>` is `~/Library/Application Support/fastcord/state` on macOS and `%LOCALAPPDATA%\fastcord\state`
 on Windows. With no token (or a rejected one) the app opens an intro screen that explains how to copy
 the token from a browser and saves it there.

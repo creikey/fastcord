@@ -7,6 +7,7 @@ VERSION="${1:-dev}"
 PLAIN="${VERSION#v}"
 FLAGS="-collection:fc=src -o:speed -define:FASTCORD_VERSION=$VERSION"
 rm -rf dist build/pkg && mkdir -p dist build/pkg
+./build.sh c
 
 odin build src/app -out:build/pkg/fastcord-arm64 -target:darwin_arm64 $FLAGS -extra-linker-flags:"-mmacosx-version-min=13.0"
 odin build src/app -out:build/pkg/fastcord-x86_64 -target:darwin_amd64 $FLAGS -extra-linker-flags:"-mmacosx-version-min=13.0"
