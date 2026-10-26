@@ -12,11 +12,10 @@ settle 1000
 mark friend_remove
 rclick_text main div[class*="peopleListItem"] | bobbles
 wait_for [role="menu"]
-js [...document.querySelectorAll('[role=menuitem]')].map(e=>e.id).join(' ')
 click #user-context-remove-friend
-wait_for [role="dialog"]
+wait_for [role="alertdialog"]
 pause
-click_text [role="dialog"] button | Remove Friend
+click_text [role="alertdialog"] button | Remove Friend
 wait_gw RELATIONSHIP_REMOVE
 use b
 wait_gw RELATIONSHIP_REMOVE 20000

@@ -74,7 +74,7 @@ Transport :: struct {
 	allocator: Allocator,
 	closed:    bool,
 	// observer sees every request as sent (header order included) and its response: traffic tooling.
-	observer:  proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error),
+	observer:  proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error, start_ms: i64),
 	observer_data: rawptr,
 }
 
@@ -152,7 +152,8 @@ transport_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> 
 	req := req
 	if req.scheme == "" do req.scheme = "https"
 	if req.authority == "" do req.authority = host
-	defer if t.observer != nil do t.observer(t.observer_data, host, req, &resp, err)
+	start_ms := now_ms()
+	defer if t.observer != nil do t.observer(t.observer_data, host, req, &resp, err, start_ms)
 
 	if t.override.round_trip != nil {
 		resp, err = t.override.round_trip(t.override.data, host, req)

@@ -923,7 +923,6 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	M := 1 << uint(LM)
 	N := M * SHORT_MDCT_SIZE
 	tell: i32 = 1
-	tell0_frac: i32 = 1
 	nb_filled_bytes := 0
 	nb_compressed_bytes := min(len(compressed), 1275)
 	nb_available_bytes := nb_compressed_bytes - nb_filled_bytes

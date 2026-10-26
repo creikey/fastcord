@@ -7,6 +7,7 @@ import "core:strconv"
 import "core:strings"
 import "core:sync"
 import "core:thread"
+import "fc:http"
 
 // ---- public configuration ----
 
@@ -136,6 +137,9 @@ Client :: struct {
 	// traffic observers (tooling): see every gateway frame
 	on_gateway_send:  proc(data: rawptr, op: Op, d: V),
 	on_gateway_recv:  proc(data: rawptr, op: Op, t: string, d: V),
+	on_gateway_frame: proc(data: rawptr, sent: bool, payload: V, wire_len: int), // whole {op,d,s,t} as sent/received
+	on_ws_open:       proc(data: rawptr, url: string, headers: []http.Header),
+	on_ws_close:      proc(data: rawptr, code: int),
 	observer_data:    rawptr,
 }
 

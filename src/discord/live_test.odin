@@ -62,7 +62,7 @@ live_login_send_react_delete :: proc(t: ^testing.T) {
 	if !testing.expect(t, token != "", "no IDENTIFY token in .secrets/raw/gw_a.jsonl") do return
 	c := client_create(Config{token = token, state_dir = strings.concatenate({repo_root(), "/.secrets/live-state-a"}, context.temp_allocator), initial_guild_id = LIVE_GUILD, initial_channel_id = LIVE_CHANNEL})
 	defer client_destroy(c)
-	c.transport.observer = proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error) {
+	c.transport.observer = proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error, start_ms: i64) {
 		log.infof("%v %s %s %s -> %d", resp.version, req.method, host, req.path[:min(len(req.path), 60)], resp.status)
 	}
 	client_set_viewport(c, 1280, 720) // the app reports these (here: the captured window)

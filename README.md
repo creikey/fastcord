@@ -32,13 +32,35 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 | `traffic/` | Committed scrubbed captures, one per e2e scenario. |
 | `tests/` | End-to-end scenarios driving both the official client and ours. |
 
-## Build
+## Build and run
 
 ```sh
-./build.sh            # build/fastcord
-./build.sh test tls   # odin test src/tls
-./build.sh tool capture
+./build.sh            # build/fastcord (-o:speed)
+./build.sh debug      # build/fastcord-debug
+./build/fastcord      # logs in with $FASTCORD_TOKEN or ~/Library/Application Support/fastcord/state/token
 ```
+
+## Testing
+
+```sh
+tests/run_all.sh                 # every package's unit tests + headless UI scripts
+FASTCORD_LIVE=1 ./build.sh test discord   # live tests against Discord as the test accounts
+tests/ui/run.sh                  # just the UI scripts (tests/ui/*.txt) against tests/ui/chat.jsonl
+```
+
+Headless app runs render offscreen and write a PNG, driven by a script of
+input events with assertions (`click`, `dclick`, `down`/`move`/`up`, `rclick`,
+`type`, `key enter cmd`, `scroll`, `wait`, `shot`, `expect_selection`,
+`expect_clipboard`):
+
+```sh
+./build/fastcord-debug -shot:out.png -dpi:1 -fixture:tests/ui/chat.jsonl \
+    -channel:1546820603343016006 -script:tests/ui/select_across_messages.txt
+./build/fastcord-debug -shot:out.png -dpi:1 -live:12 -channel:<id>   # real network
+```
+
+`FASTCORD_STATS=1` prints the frame rate and what is animating (idle should be ~0 fps).
+Run `python3 -I tools/check_secrets.py` before committing.
 
 All code imports siblings through the `fc` collection: `import "fc:netio"`.
 

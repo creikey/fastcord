@@ -2,8 +2,6 @@ package opus
 
 // Opus decoder (opus_decoder.c + packet parsing from opus.c).
 
-import "base:runtime"
-
 Error :: enum i32 {
 	None             = 0,
 	Bad_Arg          = -1,
@@ -626,5 +624,3 @@ pcm_soft_clip :: proc "contextless" (x_: []f32, n, C: int, declip_mem: ^[2]f32) 
 	}
 }
 
-@(private = "file")
-_unused_rt :: runtime.Allocator

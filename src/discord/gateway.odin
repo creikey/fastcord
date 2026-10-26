@@ -182,12 +182,14 @@ gateway_send :: proc(g: ^Gateway, op: Op, d: V) -> bool {
 	b := etf.map_builder(2, context.temp_allocator)
 	etf.map_put(&b, "op", i64(op))
 	etf.map_put(&b, "d", d)
-	buf, err := etf.encode(etf.map_done(&b), context.temp_allocator)
+	frame := etf.map_done(&b)
+	buf, err := etf.encode(frame, context.temp_allocator)
 	if err != .None do return false
 	sync.mutex_lock(&g.send_mu)
 	defer sync.mutex_unlock(&g.send_mu)
 	if g.ws == nil do return false
 	if g.c.on_gateway_send != nil do g.c.on_gateway_send(g.c.observer_data, op, d)
+	if g.c.on_gateway_frame != nil do g.c.on_gateway_frame(g.c.observer_data, true, frame, len(buf))
 	return http.ws_send(g.ws, .Binary, buf) == .None
 }
 
@@ -378,6 +380,7 @@ gateway_close_socket :: proc(g: ^Gateway, code: int) {
 	g.ws = nil
 	sync.mutex_unlock(&g.send_mu)
 	if ws == nil do return
+	if g.c.on_ws_close != nil do g.c.on_ws_close(g.c.observer_data, code)
 	_ = http.ws_close(ws, code)
 	netio.shutdown(stream)
 	sync.mutex_lock(&g.mu)
@@ -411,6 +414,7 @@ gateway_connect :: proc(g: ^Gateway) {
 	now := now_ms()
 	cookie := cookie_header(&c.jar, host, path, true, now)
 	req := http.Request{method = "GET", scheme = "https", authority = host, path = path, headers = gateway_ws_headers(c.id.platform, host, cookie)}
+	if c.on_ws_open != nil do c.on_ws_open(c.observer_data, url, req.headers)
 	ws, resp, err := http.ws_connect(stream, req, {}, c.allocator)
 	if err != .None {
 		http.response_destroy(&resp)
@@ -620,6 +624,7 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 	sv := vget(m, "s")
 	c := g.c
 	if c.on_gateway_recv != nil do c.on_gateway_recv(c.observer_data, op, t, d)
+	if c.on_gateway_frame != nil do c.on_gateway_frame(c.observer_data, false, v, 0)
 
 	sync.mutex_lock(&g.mu)
 	defer {
