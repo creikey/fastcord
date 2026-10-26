@@ -1,6 +1,5 @@
 package discord
 
-import "core:math/rand"
 import "core:mem/virtual"
 import "core:strings"
 import "core:sync"
@@ -47,6 +46,8 @@ Job :: struct {
 	files:        []Upload_File,
 	message_json: proc(j: ^Job, attachments_json: string) -> []byte, // builds the final send body
 	upload_ctx:   rawptr,
+	no_auth:      bool, // logged-out request (no authorization header)
+	media:        Media_Request,
 }
 
 job_new :: proc(kind: Job_Kind, op: Rest_Op) -> ^Job {
@@ -111,13 +112,15 @@ run_job :: proc(c: ^Client, j: ^Job) {
 	case .Api:
 		run_api(c, j)
 	case .Web:
-		run_web(c, j)
+		if j.op == .Media do run_media(c, j)
+		else do run_web(c, j)
 	case .Upload:
 		run_upload(c, j)
 	}
 }
 
 API_PREFIX :: "/api/v9"
+
 
 // Result of one API call, body parsed into the event arena.
 Api_Response :: struct {
@@ -130,7 +133,7 @@ Api_Response :: struct {
 
 // api_call performs one authenticated request with the HTTP util's retry and
 // rate-limit semantics. The returned arena (if any) owns body.
-api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, context_b64: string, extra: []http.Header, retries: int, retry_429: int) -> (r: Api_Response) {
+api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false) -> (r: Api_Response) {
 	full_path := strings.concatenate({API_PREFIX, path}, context.temp_allocator)
 	url_key := strings.concatenate({API_ORIGIN, full_path}, context.temp_allocator)
 	retries_left := retries
@@ -155,7 +158,7 @@ api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, c
 			has_body        = len(body) > 0,
 			body_len        = len(body),
 			content_type    = content_type,
-			token           = c.token,
+			token           = "" if no_auth else c.token,
 			installation_id = c.id.installation_id,
 			super_props_b64 = super_properties_b64(&c.id, now),
 			context_b64     = context_b64,
@@ -223,7 +226,7 @@ push_result :: proc(c: ^Client, j: ^Job, r: Api_Response) {
 
 @(private)
 run_api :: proc(c: ^Client, j: ^Job) {
-	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, j.extra, j.retries, j.retry_429)
+	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, j.extra, j.retries, j.retry_429, j.no_auth)
 	if j.op == .Ack && r.ok {
 		if m := vmap(r.body); m != nil {
 			tok := fstr(m, "token")
@@ -432,7 +435,9 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 				if vhas(prof, "pronouns") {free_str(u.pronouns, s.allocator); u.pronouns = clone_str(fstr(prof, "pronouns"), s.allocator)}
 			}
 		}
-	case .None, .Add_Reaction, .Remove_Reaction, .Typing, .Ack, .Relationship, .Experiments, .Startup, .Guild_Open:
+	case .Settings:
+		if r.ok do if sp := fstr(vmap(e.data), "settings"); sp != "" do apply_settings_proto(s, sp)
+	case .None, .Media, .Add_Reaction, .Remove_Reaction, .Typing, .Ack, .Relationship, .Experiments, .Startup, .Guild_Open:
 	}
 }
 

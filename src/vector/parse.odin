@@ -18,6 +18,7 @@ Paint :: struct {
 	type:     Paint_Type,
 	color:    [4]u8,
 	gradient: bool,
+	grad:     i32, // index into Icon.gradients (valid when gradient)
 }
 
 @(private)
@@ -33,7 +34,10 @@ Style :: struct {
 	cap:            Line_Cap,
 	join:           Line_Join,
 	secondary:      bool,
-	mask, clip:     i32, // inherited from <g mask=...>
+	mask, clip:     i32, // this element's own mask / clip-path
+	anc_mask:       i32, // nearest ancestor group's mask / clip-path (applied in anc_ctm space)
+	anc_clip:       i32,
+	anc_ctm:        Mat,
 }
 
 @(private)
@@ -46,6 +50,9 @@ DEFAULT_STYLE :: Style {
 	miter_limit    = 4,
 	mask           = -1,
 	clip           = -1,
+	anc_mask       = -1,
+	anc_clip       = -1,
+	anc_ctm        = MAT_IDENTITY,
 }
 
 @(private)
@@ -53,6 +60,7 @@ Parser :: struct {
 	doc:       Doc,
 	icon:      ^Icon,
 	groups:    map[i32]i32, // mask/clip node -> group index (-2 = in progress)
+	grads:     map[i32]i32, // gradient node -> index in icon.gradients
 	depth:     int,
 	allocator: mem.Allocator, // the icon's allocator
 }
@@ -67,10 +75,12 @@ parse_svg :: proc(src: string, allocator := context.allocator) -> (icon: Icon, o
 	p := Parser{icon = &icon, allocator = allocator}
 	if !xml_parse(src, &p.doc, scratch) do return {}, false
 	p.groups = make(map[i32]i32, 8, scratch)
+	p.grads = make(map[i32]i32, 8, scratch)
 	icon.verbs = make([dynamic]Verb, allocator)
 	icon.points = make([dynamic][2]f32, allocator)
 	icon.ops = make([dynamic]Op, allocator)
 	icon.groups = make([dynamic]Group, allocator)
+	icon.gradients = make([dynamic]Gradient, allocator)
 
 	root := p.doc.nodes[0].first_child
 	for root >= 0 && p.doc.nodes[root].name != "svg" do root = p.doc.nodes[root].next
@@ -161,7 +171,14 @@ walk :: proc(p: ^Parser, ni: i32, parent_ctm: Mat, parent_st: Style, group: i32)
 				}
 			}
 		}
-		walk_children(p, ni, ctm, st, group)
+		cst := st
+		if st.clip >= 0 || st.mask >= 0 {
+			// a group's clip/mask applies to every descendant, in the group's user space
+			if st.clip >= 0 do cst.anc_clip = st.clip
+			if st.mask >= 0 do cst.anc_mask = st.mask
+			cst.anc_ctm = ctm
+		}
+		walk_children(p, ni, ctm, cst, group)
 	case "use":
 		href, has := attr(&p.doc, ni, "href")
 		if !has do href, has = attr(&p.doc, ni, "xlink:href")
@@ -283,35 +300,15 @@ parse_paint :: proc(p: ^Parser, v: string, inherited: Paint) -> Paint {
 	if id, ok := url_id(s); ok {
 		ref, found := p.doc.ids[id]
 		if !found do return {type = .None}
-		// Flat approximation: average of the gradient's stops.
+		gi := build_gradient(p, ref)
+		if gi < 0 do return {type = .None}
+		g := &p.icon.gradients[gi]
+		if len(g.stops) == 0 do return {type = .None}
 		sum: [4]f32
-		count := 0
-		c := p.doc.nodes[ref].first_child
-		for c >= 0 {
-			if local_name(p.doc.nodes[c].name) == "stop" {
-				col := [4]u8{0, 0, 0, 255}
-				op: f32 = 1
-				if sc, has := attr(&p.doc, c, "stop-color"); has do col = parse_color(sc)
-				if so, has := attr(&p.doc, c, "stop-opacity"); has do op = parse_opacity(so)
-				if sv, has := attr(&p.doc, c, "style"); has {
-					for decl in strings.split_iterator(&sv, ";") {
-						k := strings.index_byte(decl, ':')
-						if k < 0 do continue
-						key := strings.trim_space(decl[:k])
-						val := strings.trim_space(decl[k + 1:])
-						if key == "stop-color" do col = parse_color(val)
-						if key == "stop-opacity" do op = parse_opacity(val)
-					}
-				}
-				for j in 0 ..< 3 do sum[j] += f32(col[j])
-				sum[3] += f32(col[3]) * op
-				count += 1
-			}
-			c = p.doc.nodes[c].next
-		}
-		if count == 0 do return {type = .None}
-		out := Paint{type = .Color, gradient = true}
-		for j in 0 ..< 4 do out.color[j] = u8(sum[j] / f32(count) + 0.5)
+		for st in g.stops do sum += st.color
+		avg := sum / f32(len(g.stops))
+		out := Paint{type = .Color, gradient = true, grad = gi}
+		for j in 0 ..< 4 do out.color[j] = u8(clamp(avg[j], 0, 1) * 255 + 0.5)
 		return out
 	}
 	return {type = .Color, color = parse_color(s)}
@@ -530,6 +527,10 @@ emit_shape :: proc(p: ^Parser, ni: i32, name: string, ctm: Mat, st: Style, group
 		clip        = clip,
 		ctm         = ctm,
 		bbox        = bbox,
+		gradient    = -1,
+		anc_mask    = st.anc_mask,
+		anc_clip    = st.anc_clip,
+		anc_ctm     = st.anc_ctm,
 	}
 	if st.secondary do icon.has_secondary = true
 	if in_clip {
@@ -555,6 +556,10 @@ emit_shape :: proc(p: ^Parser, ni: i32, name: string, ctm: Mat, st: Style, group
 		} else {
 			op.color = paint.color
 			op.alpha *= f32(paint.color[3]) / 255
+			if paint.gradient {
+				op.gradient = paint.grad
+				op.grad_fold = f32(paint.color[3]) / 255
+			}
 			c := paint.color
 			c[3] = 255
 			op.luminance = luminance(c)
@@ -947,4 +952,114 @@ parse_transform :: proc(s: string) -> Mat {
 		m = mat_mul(m, t)
 	}
 	return m
+}
+
+// Gradient attribute chain: own attribute, else inherited through href.
+@(private)
+grad_attr :: proc(p: ^Parser, ni: i32, name: string) -> (string, bool) {
+	n := ni
+	for _ in 0 ..< 8 {
+		if v, has := attr(&p.doc, n, name); has do return v, true
+		href, has := attr(&p.doc, n, "href")
+		if !has do href, has = attr(&p.doc, n, "xlink:href")
+		if !has || !strings.has_prefix(href, "#") do return "", false
+		next, found := p.doc.ids[href[1:]]
+		if !found do return "", false
+		n = next
+	}
+	return "", false
+}
+
+@(private)
+build_gradient :: proc(p: ^Parser, ni: i32) -> i32 {
+	if gi, ok := p.grads[ni]; ok do return gi
+	kind := local_name(p.doc.nodes[ni].name)
+	if kind != "linearGradient" && kind != "radialGradient" do return -1
+	g := Gradient {
+		radial    = kind == "radialGradient",
+		transform = MAT_IDENTITY,
+	}
+	units, _ := grad_attr(p, ni, "gradientUnits")
+	g.bbox_units = units != "userSpaceOnUse"
+	if t, has := grad_attr(p, ni, "gradientTransform"); has do g.transform = parse_transform(t)
+	if sm, has := grad_attr(p, ni, "spreadMethod"); has {
+		g.spread = sm == "reflect" ? .Reflect : sm == "repeat" ? .Repeat : .Pad
+	}
+	coord :: proc(p: ^Parser, ni: i32, name: string, def: f32, bbox: bool, axis: int) -> f32 {
+		v, has := grad_attr(p, ni, name)
+		if !has do return def
+		sc := Scanner{s = v}
+		x, ok := scan_number(&sc)
+		if !ok do return def
+		if sc.i < len(v) && v[sc.i] == '%' {
+			x /= 100
+			if !bbox {
+				vb := p.icon.view_box
+				ref := axis == 0 ? vb[2] : axis == 1 ? vb[3] : math.sqrt((vb[2] * vb[2] + vb[3] * vb[3]) / 2)
+				x *= ref
+			}
+		}
+		return x
+	}
+	bb := g.bbox_units
+	vb := p.icon.view_box
+	pct :: proc(bb: bool, v, ref: f32) -> f32 {return bb ? v : v * ref}
+	diag := math.sqrt((vb[2] * vb[2] + vb[3] * vb[3]) / 2)
+	if !g.radial {
+		g.p0 = {coord(p, ni, "x1", 0, bb, 0), coord(p, ni, "y1", 0, bb, 1)}
+		g.p1 = {coord(p, ni, "x2", pct(bb, 1, vb[2]), bb, 0), coord(p, ni, "y2", 0, bb, 1)}
+	} else {
+		g.p0 = {coord(p, ni, "cx", pct(bb, 0.5, vb[2]), bb, 0), coord(p, ni, "cy", pct(bb, 0.5, vb[3]), bb, 1)}
+		g.r = coord(p, ni, "r", pct(bb, 0.5, diag), bb, 2)
+		g.p1 = {coord(p, ni, "fx", g.p0.x, bb, 0), coord(p, ni, "fy", g.p0.y, bb, 1)}
+		g.fr = coord(p, ni, "fr", 0, bb, 2)
+	}
+	// stops: first gradient in the href chain that has any
+	stops := make([dynamic]Gradient_Stop, p.allocator)
+	n := ni
+	for _ in 0 ..< 8 {
+		c := p.doc.nodes[n].first_child
+		for c >= 0 {
+			if local_name(p.doc.nodes[c].name) == "stop" {
+				col := [4]u8{0, 0, 0, 255}
+				op: f32 = 1
+				off: f32 = 0
+				if ov, has := attr(&p.doc, c, "offset"); has {
+					sc := Scanner{s = ov}
+					if x, ok := scan_number(&sc); ok {
+						off = sc.i < len(ov) && ov[sc.i] == '%' ? x / 100 : x
+					}
+				}
+				if sc, has := attr(&p.doc, c, "stop-color"); has do col = parse_color(sc)
+				if so, has := attr(&p.doc, c, "stop-opacity"); has do op = parse_opacity(so)
+				if sv, has := attr(&p.doc, c, "style"); has {
+					for decl in strings.split_iterator(&sv, ";") {
+						k := strings.index_byte(decl, ':')
+						if k < 0 do continue
+						key := strings.trim_space(decl[:k])
+						val := strings.trim_space(decl[k + 1:])
+						if key == "stop-color" do col = parse_color(val)
+						if key == "stop-opacity" do op = parse_opacity(val)
+					}
+				}
+				off = clamp(off, 0, 1)
+				if len(stops) > 0 do off = max(off, stops[len(stops) - 1].offset)
+				append(&stops, Gradient_Stop{off, {f32(col[0]) / 255, f32(col[1]) / 255, f32(col[2]) / 255, f32(col[3]) / 255 * op}})
+			}
+			c = p.doc.nodes[c].next
+		}
+		if len(stops) > 0 do break
+		href, has := attr(&p.doc, n, "href")
+		if !has do href, has = attr(&p.doc, n, "xlink:href")
+		if !has || !strings.has_prefix(href, "#") do break
+		next, found := p.doc.ids[href[1:]]
+		if !found do break
+		n = next
+	}
+	shrink(&stops)
+	g.stops = stops[:]
+	gi := i32(len(p.icon.gradients))
+	append(&p.icon.gradients, g)
+	p.grads[ni] = gi
+	return gi
 }

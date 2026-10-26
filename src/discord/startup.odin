@@ -106,12 +106,15 @@ schedule_startup :: proc(c: ^Client, anchor: Startup_Anchor) {
 }
 
 // schedule_experiments_fetch: a fresh install has no installation id; the
-// client gets one from GET /experiments (response field `installation`).
+// client gets one from the logged-out GET /experiments (AuthenticationStore
+// fetches it before login; response field `installation`, persisted as
+// installation_id_v3). Sent without authorization like the login screen does.
 schedule_experiments_fetch :: proc(c: ^Client) {
 	j := job_new(.Api, .Experiments)
 	j.method = "GET"
 	j.path = "/experiments?with_guild_experiments=true"
 	j.retries = 3
+	j.no_auth = true
 	job_submit(c, j)
 }
 

@@ -13,6 +13,7 @@ Font_Id :: enum u32 {
 	Medium,
 	Semibold,
 	Bold,
+	Mono,
 }
 
 fonts: [Font_Id]gfx.Font_Face
@@ -33,8 +34,10 @@ fonts_load :: proc() {
 		.Medium   = .Medium,
 		.Semibold = .Semibold,
 		.Bold     = .Bold,
+		.Mono     = .Regular,
 	}
 	for id in Font_Id do fonts[id] = gfx.font_system("system", weights[id])
+	fonts[.Mono] = gfx.font_system("Menlo")
 	dir := font_cache_dir()
 	fd, err := os.open(dir)
 	if err != nil do return
@@ -78,6 +81,10 @@ render :: proc(cmds: []ui.Draw_Cmd) {
 			gfx.push_rect({dst = gfx.Rect(c.rect), colors = transmute([4]gfx.Color)c.colors, radii = c.radii, border = c.border, softness = c.softness})
 		case .Text:
 			tl := c.layout
+			if tl.spans != nil {
+				render_rich(tl, c.origin, c.colors[0])
+				continue
+			}
 			run := (^gfx.Shaped_Run)(tl.run.handle)
 			if run == nil do continue
 			for l in tl.lines {
@@ -195,4 +202,42 @@ map_cursor :: proc(c: ui.Cursor) -> platform.Cursor {
 		return .Resize_V
 	}
 	return .Arrow
+}
+
+// Inline objects in rich text (custom emoji etc.) are drawn by this hook.
+draw_inline_object: proc(sp: ui.Span, r: ui.Rect, opacity: f32)
+
+render_rich :: proc(tl: ^ui.Text_Layout, origin: ui.Vec2, box_color: ui.Color) {
+	for l in tl.lines {
+		gi := l.glyph_start
+		for gi < l.glyph_end {
+			si := tl.run.glyphs[gi].span
+			start := gi
+			for gi < l.glyph_end && tl.run.glyphs[gi].span == si do gi += 1
+			sp := tl.spans[si]
+			g0 := tl.run.glyphs[start]
+			g1 := tl.run.glyphs[gi - 1]
+			x := origin.x + g0.x - l.x_shift
+			y := origin.y + l.y
+			if sp.object != {} {
+				oy := y + (tl.line_h - sp.object.y) / 2
+				r := ui.Rect{x, oy, x + sp.object.x, oy + sp.object.y}
+				if draw_inline_object != nil do draw_inline_object(sp, r, box_color.a)
+				continue
+			}
+			color := sp.color.a > 0 ? sp.color : box_color
+			color.a *= box_color.a > 0 ? 1 : 0
+			run := (^gfx.Shaped_Run)(tl.span_runs[si].handle)
+			if run == nil do continue
+			h0 := int(g0.handle)
+			h1 := int(g1.handle)
+			sub := run^
+			sub.glyphs = run.glyphs[h0:h1 + 1]
+			gfx.draw_run(sub, {x - run.glyphs[h0].pos.x, y + tl.baseline}, gfx.Color(color))
+			if sp.underline {
+				w := g1.x + g1.advance - g0.x
+				gfx.rect({x, y + tl.baseline + 2, x + w, y + tl.baseline + 3}, gfx.Color(color))
+			}
+		}
+	}
 }

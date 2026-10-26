@@ -128,6 +128,7 @@ Session :: struct {
 	peer_alert:     u8,
 	got_close:      bool,
 	sent_close:     bool,
+	shut:           bool, // atomic; shutdown() was called
 	handshake_done: bool,
 	allocator:      mem.Allocator,
 }
@@ -158,7 +159,7 @@ connect :: proc(under: netio.Stream, cfg: Config, allocator := context.allocator
 }
 
 stream :: proc(s: ^Session) -> netio.Stream {
-	return netio.Stream{data = s, read = stream_read, write = stream_write, close = stream_close}
+	return netio.Stream{data = s, read = stream_read, write = stream_write, close = stream_close, shutdown = stream_shutdown}
 }
 
 // negotiated_alpn returns the protocol the server selected, or "" if none.
@@ -176,7 +177,7 @@ resumed :: proc(s: ^Session) -> bool {return s.resumed}
 // close sends close_notify, closes the underlying stream and frees the session.
 close :: proc(s: ^Session) {
 	if s == nil do return
-	if get_failed(s) == .None do send_alert(s, 1, ALERT_CLOSE_NOTIFY)
+	if get_failed(s) == .None && !is_shut(s) do send_alert(s, 1, ALERT_CLOSE_NOTIFY)
 	netio.close(s.under)
 	destroy(s)
 }
@@ -224,13 +225,29 @@ stream_write :: proc(data: rawptr, src: []byte) -> netio.Error {
 @(private)
 stream_close :: proc(data: rawptr) {close(cast(^Session)data)}
 
+@(private)
+stream_shutdown :: proc(data: rawptr) {shutdown(cast(^Session)data)}
+
+// shutdown wakes a thread blocked in read (it returns .Closed) and makes
+// later reads and writes fail, without freeing anything. It forwards to the
+// underlying stream's shutdown and is safe to call from any thread. close()
+// is still required afterwards (once other threads have returned).
+shutdown :: proc(s: ^Session) {
+	intrinsics.atomic_store(&s.shut, true)
+	netio.shutdown(s.under)
+}
+
+@(private)
+is_shut :: proc(s: ^Session) -> bool {return intrinsics.atomic_load(&s.shut)}
+
 // read returns at least one byte of application data, blocking as needed.
 read :: proc(s: ^Session, dst: []byte) -> (int, Error) {
 	if len(dst) == 0 do return 0, .None
 	for len(s.pending) == 0 {
-		if s.got_close do return 0, .Closed
+		if s.got_close || is_shut(s) do return 0, .Closed
 		if f := get_failed(s); f != .None do return 0, f
 		if e := read_record_app(s); e != .None {
+			if is_shut(s) do return 0, .Closed // woken by shutdown: not a failure
 			if e == .Closed {
 				s.got_close = true
 			} else {
@@ -247,6 +264,7 @@ read :: proc(s: ^Session, dst: []byte) -> (int, Error) {
 // write sends all of src as application data.
 write :: proc(s: ^Session, src: []byte) -> Error {
 	if f := get_failed(s); f != .None do return f
+	if is_shut(s) do return .Closed
 	sync.mutex_lock(&s.wmu)
 	defer sync.mutex_unlock(&s.wmu)
 	if s.sent_close do return .Closed

@@ -397,7 +397,9 @@ put_ctrl_frames :: proc(c: ^Conn, b: ^Packet_Builder, budget: int) {
 		case .Max_Streams_Uni:
 			put_varint(&b.payload, 0x13)
 			put_varint(&b.payload, ct.id)
-		case .Ack, .Crypto, .Stream, .Ping:
+		case .Ping:
+			put_varint(&b.payload, 0x01)
+		case .Ack, .Crypto, .Stream:
 		}
 		append(&b.frames, sf)
 		b.ack_eliciting = true

@@ -97,7 +97,7 @@ NET_ENABLE :: `{"maxTotalBufferSize":10000000,"maxResourceBufferSize":5000000,"m
 AUTO_ATTACH :: `{"autoAttach":true,"waitForDebuggerOnStart":false,"flatten":true}`
 AUTO_ATTACH_OFF :: `{"autoAttach":false,"waitForDebuggerOnStart":false}`
 HEAP_LIMIT :: 1536 * 1024 * 1024
-MAX_CAPTURE_SECONDS :: 600 // nothing runs unattended for long
+MAX_CAPTURE_SECONDS :: 900 // nothing runs unattended for long
 WATCHDOG_EVERY :: 5 * time.Second
 
 recorder_start :: proc(acct: string, port: int, out: ^Out) -> (r: ^Recorder, ok: bool) {

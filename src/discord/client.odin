@@ -7,8 +7,6 @@ import "core:strconv"
 import "core:strings"
 import "core:sync"
 import "core:thread"
-import "core:time"
-import "fc:http"
 
 // ---- public configuration ----
 
@@ -29,7 +27,8 @@ Config :: struct {
 	wakeup:                proc(data: rawptr),
 	wakeup_data:           rawptr,
 	round_tripper:         Round_Tripper, // replaces the network (tests / replay)
-	h3:                    H3_Hook, // HTTP/3 seam (src/quic)
+	h3:                    H3_Hook, // optional h3 override (default: fc:quic/h3 via fc:quic/altsvc)
+	disable_h3:            bool,
 	initial_guild_id:      Snowflake, // the route the window opens on (referer)
 	initial_channel_id:    Snowflake,
 }
@@ -59,6 +58,8 @@ Rest_Op :: enum u8 {
 	Experiments,
 	Startup,
 	Guild_Open,
+	Media,
+	Settings,
 }
 
 Rest_Result :: struct {
@@ -120,10 +121,13 @@ Client :: struct {
 	ready_qos_token:  string,
 	// UI-thread state
 	results:          [dynamic]Rest_Result,
+	media_mu:         sync.Mutex,
+	media_results:    [dynamic]Media_Result,
 	subs:             Subscriptions,
 	typing_local:     Typing_Local,
 	pending_acks:     [dynamic]Pending_Ack,
 	focused:          bool,
+	settings_edit:    Settings_Edit,
 	upload_seq:       int,
 	started_guilds:   map[Snowflake]bool, // guilds whose open-time requests ran this session
 	// traffic observers (tooling): see every gateway frame
@@ -150,6 +154,7 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	transport_init(&c.transport, &c.jar, allocator)
 	c.transport.override = cfg.round_tripper
 	c.transport.h3 = cfg.h3
+	c.transport.use_h3 = !cfg.disable_h3
 	rate_limiter_init(&c.limiter, allocator)
 	store_init(&c.store, allocator)
 	c.events = make([dynamic]Event)
@@ -170,7 +175,6 @@ client_start :: proc(c: ^Client) {
 		th := thread.create_and_start_with_poly_data(c, worker_proc, c.ctx)
 		append(&c.workers, th)
 	}
-	if c.id.installation_id == "" do schedule_experiments_fetch(c)
 	if !c.cfg.disable_startup do schedule_startup(c, .Launch)
 	if !c.cfg.disable_gateway {
 		c.gw = gateway_create(c)
@@ -199,8 +203,24 @@ client_destroy :: proc(c: ^Client) {
 	cookie_jar_destroy(&c.jar)
 	rate_limiter_destroy(&c.limiter)
 	delete(c.results)
+	for &m in c.media_results do media_result_free(c, &m)
+	delete(c.media_results)
 	delete(c.pending_acks)
 	delete(c.started_guilds)
+	store_destroy(&c.store)
+	delete(c.subs.guilds)
+	for _, l in c.subs.channels do delete(l)
+	delete(c.subs.channels)
+	delete(c.subs.pending)
+	delete(c.ack_token)
+	delete(c.ready_qos_token)
+	delete(c.token)
+	id := &c.id
+	delete(id.client_launch_id)
+	delete(id.fast_connect_launch_id)
+	delete(id.launch_signature)
+	delete(id.installation_id)
+	delete(id.heartbeat.uuid)
 	free(c)
 }
 
@@ -257,6 +277,7 @@ client_poll :: proc(c: ^Client) -> bool {
 	subscriptions_flush(c)
 	flush_due_acks(c, now)
 	flush_typing_local(c, now)
+	flush_settings(c, now)
 	if changed do c.store.changed += 1
 	return changed
 }
@@ -300,9 +321,7 @@ client_load_state :: proc(c: ^Client) {
 	_ = os.make_directory_all(c.cfg.state_dir)
 	now := now_ms()
 	cookie_jar_load(&c.jar, state_path(c, "cookies.tsv"), now)
-	if data, err := os.read_entire_file(state_path(c, "alt_svc.tsv"), context.temp_allocator); err == nil {
-		transport_load_alt_svc(&c.transport, string(data))
-	}
+	transport_set_altsvc_path(&c.transport, state_path(c, "altsvc.txt"))
 	if data, err := os.read_entire_file(state_path(c, "identity.tsv"), context.temp_allocator); err == nil {
 		text := string(data)
 		for line in strings.split_lines_iterator(&text) {
@@ -330,7 +349,6 @@ client_save_state :: proc(c: ^Client) {
 	_ = os.make_directory_all(c.cfg.state_dir)
 	now := now_ms()
 	cookie_jar_save(&c.jar, state_path(c, "cookies.tsv"), now)
-	transport_save_alt_svc(&c.transport, state_path(c, "alt_svc.tsv"))
 	sb := strings.builder_make(context.temp_allocator)
 	sync.mutex_lock(&c.id.mu)
 	if c.id.installation_id != "" {

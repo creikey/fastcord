@@ -46,6 +46,7 @@ Handshake_State :: struct {
 	early_offered:  bool,
 	early_accepted: bool,
 	server_params:  []byte, // allocated; QUIC transport parameters from EncryptedExtensions
+	early_params:   []byte, // allocated; remembered server parameters for 0-RTT (QUIC)
 	res_master:     [MAX_HASH]byte,
 	allocator:      mem.Allocator,
 }
@@ -53,6 +54,8 @@ Handshake_State :: struct {
 handshake_state_destroy :: proc(hs: ^Handshake_State) {
 	delete(hs.alpn, hs.allocator)
 	delete(hs.server_params, hs.allocator)
+	delete(hs.early_params, hs.allocator)
+	hs.early_params = nil
 	crypto.zero_explicit(&hs.res_master, size_of(hs.res_master))
 	hs.alpn = ""
 	hs.server_params = nil
@@ -150,9 +153,9 @@ run_handshake :: proc(hs: ^Handshake_State, io: Handshake_Io) -> (err: Error) {
 	}
 	build_and_bind(&h, &t, psk_suite, &ch)
 	transcript_update(&t, ch[:])
-	io.send(io.data, .Initial, ch[:], true, false) or_return
 
-	// 0-RTT secret (QUIC may use it; TCP never offers early data).
+	// 0-RTT secret, installed before the ClientHello leaves so QUIC can send
+	// early data right behind it (TCP never offers early data).
 	if h.early_data {
 		early, ce, th0: [MAX_HASH]byte
 		defer crypto.zero_explicit(&early, size_of(early))
@@ -164,8 +167,14 @@ run_handshake :: proc(hs: ^Handshake_State, io: Handshake_Io) -> (err: Error) {
 		hash.final(&ctx, th0[:hl])
 		derive_secret(psk_suite, early[:hl], "c e traffic", th0[:hl], ce[:])
 		log_secret(&h, "CLIENT_EARLY_TRAFFIC_SECRET", ce[:hl])
+		if len(ticket.quic_params) > 0 {
+			hs.early_params = make([]byte, len(ticket.quic_params), hs.allocator)
+			copy(hs.early_params, ticket.quic_params)
+		}
 		io.set_secret(io.data, .Early, true, psk_suite, ce[:hl]) or_return
 	}
+
+	io.send(io.data, .Initial, ch[:], true, false) or_return
 
 	// ServerHello, possibly preceded by one HelloRetryRequest.
 	sent_ccs := false

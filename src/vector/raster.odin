@@ -35,6 +35,64 @@ view_transform :: proc(icon: ^Icon, w, h: int) -> Mat {
 	return {s, 0, 0, s, tx, ty}
 }
 
+// rasterize_rgba renders all layers in color: fixed paints and gradients as
+// authored, currentColor as `current_color`. Returns STRAIGHT-alpha RGBA8
+// (row-major, w*h*4), composited src-over in sRGB like Chrome. Group opacity is
+// applied per element (no offscreen group compositing).
+rasterize_rgba :: proc(icon: ^Icon, w, h: int, current_color := [4]u8{0, 0, 0, 255}, allocator := context.allocator) -> []u8 {
+	if w <= 0 || h <= 0 do return nil
+	out := make([]u8, w * h * 4, allocator)
+	canvas := make([]f32, w * h * 4)
+	defer delete(canvas)
+	rasterize_premul(icon, w, h, canvas, current_color)
+	premul_to_rgba8(canvas, out)
+	return out
+}
+
+// rasterize_premul composites the icon (src-over) onto a premultiplied RGBA f32
+// canvas of w*h*4 floats (0..1), using the view-box fit of view_transform.
+rasterize_premul :: proc(icon: ^Icon, w, h: int, canvas: []f32, current_color := [4]u8{0, 0, 0, 255}) {
+	arena: virtual.Arena
+	if virtual.arena_init_growing(&arena) != nil do return
+	defer virtual.arena_destroy(&arena)
+	r := Raster {
+		w     = w,
+		h     = h,
+		arena = virtual.arena_allocator(&arena),
+	}
+	r.stride = w + 2
+	r.acc = make([]f32, r.stride * h, r.arena)
+	r.pts = make([dynamic][2]f32, r.arena)
+	r.polys = make([dynamic]Poly, r.arena)
+	view := view_transform(icon, w, h)
+	cc := [4]f32{f32(current_color[0]) / 255, f32(current_color[1]) / 255, f32(current_color[2]) / 255, f32(current_color[3]) / 255}
+	for &op in icon.ops {
+		if op.group >= 0 do continue
+		cov := op_coverage(&r, icon, &op, view)
+		if op.gradient >= 0 {
+			if op.grad_fold <= 0 do continue
+			inv := 1 / op.grad_fold
+			for &v in cov do v *= inv
+			g := &icon.gradients[op.gradient]
+			m := mat_mul(view, op.ctm)
+			if g.bbox_units {
+				b := op.bbox
+				m = mat_mul(m, {b[2] - b[0], 0, 0, b[3] - b[1], b[0], b[1]})
+			}
+			gradient_fill_premul(g, mat_mul(m, g.transform), cov, canvas, w, h)
+		} else if op.current_color {
+			solid_fill_premul(cc, cov, canvas)
+		} else {
+			c := op.color
+			solid_fill_premul({f32(c[0]) / 255, f32(c[1]) / 255, f32(c[2]) / 255, 1}, cov, canvas)
+		}
+		virtual.arena_free_all(&arena)
+		r.acc = make([]f32, r.stride * h, r.arena)
+		r.pts = make([dynamic][2]f32, r.arena)
+		r.polys = make([dynamic]Poly, r.arena)
+	}
+}
+
 // rasterize_f32 returns float coverage (allocated with context.allocator).
 rasterize_f32 :: proc(icon: ^Icon, w, h: int, layers: Layers) -> []f32 {
 	dst := make([]f32, w * h)
@@ -97,6 +155,9 @@ op_coverage :: proc(r: ^Raster, icon: ^Icon, op: ^Op, g: Mat) -> []f32 {
 	if op.alpha != 1 do for &v in cov do v *= op.alpha
 	if op.mask >= 0 do multiply_group(r, icon, cov, op.mask, mat_mul(g, op.ctm), op.bbox)
 	if op.clip >= 0 do multiply_group(r, icon, cov, op.clip, mat_mul(g, op.ctm), op.bbox)
+	// ancestor group clip/mask (bbox units use the element's bbox: an approximation)
+	if op.anc_mask >= 0 do multiply_group(r, icon, cov, op.anc_mask, mat_mul(g, op.anc_ctm), op.bbox)
+	if op.anc_clip >= 0 do multiply_group(r, icon, cov, op.anc_clip, mat_mul(g, op.anc_ctm), op.bbox)
 	return cov
 }
 
@@ -134,9 +195,15 @@ multiply_group :: proc(r: ^Raster, icon: ^Icon, cov: []f32, gi: i32, t: Mat, bbo
 // flatten converts the op's path (transformed by g) into polylines in r.pts / r.polys.
 @(private)
 flatten :: proc(r: ^Raster, icon: ^Icon, op: ^Op, g: Mat) {
+	verbs := icon.verbs[op.first_verb:op.first_verb + op.verb_count]
+	flatten_path(r, verbs, icon.points[op.first_point:], g)
+}
+
+@(private)
+flatten_path :: proc(r: ^Raster, verbs: []Verb, points: [][2]f32, g: Mat) {
 	clear(&r.pts)
 	clear(&r.polys)
-	pi := int(op.first_point)
+	pi := 0
 	start := -1
 	cur: [2]f32
 	finish :: proc(r: ^Raster, start: int, closed: bool) {
@@ -144,21 +211,29 @@ flatten :: proc(r: ^Raster, icon: ^Icon, op: ^Op, g: Mat) {
 		n := len(r.pts) - start
 		if n > 0 do append(&r.polys, Poly{start, n, closed})
 	}
-	for vi in op.first_verb ..< op.first_verb + op.verb_count {
-		switch icon.verbs[vi] {
+	for v in verbs {
+		switch v {
 		case .Move:
 			finish(r, start, false)
-			cur = mat_apply(g, icon.points[pi])
+			cur = mat_apply(g, points[pi])
 			pi += 1
 			start = len(r.pts)
 			append(&r.pts, cur)
 		case .Line:
-			cur = mat_apply(g, icon.points[pi])
+			if start < 0 {
+				start = len(r.pts)
+				append(&r.pts, cur)
+			}
+			cur = mat_apply(g, points[pi])
 			pi += 1
 			append(&r.pts, cur)
 		case .Quad:
-			c := mat_apply(g, icon.points[pi])
-			p := mat_apply(g, icon.points[pi + 1])
+			if start < 0 {
+				start = len(r.pts)
+				append(&r.pts, cur)
+			}
+			c := mat_apply(g, points[pi])
+			p := mat_apply(g, points[pi + 1])
 			pi += 2
 			dd := cur - 2 * c + p
 			n := int(math.ceil(math.sqrt(math.sqrt(dd.x * dd.x + dd.y * dd.y) / (4 * TOLERANCE))))
@@ -170,9 +245,13 @@ flatten :: proc(r: ^Raster, icon: ^Icon, op: ^Op, g: Mat) {
 			}
 			cur = p
 		case .Cubic:
-			c1 := mat_apply(g, icon.points[pi])
-			c2 := mat_apply(g, icon.points[pi + 1])
-			p := mat_apply(g, icon.points[pi + 2])
+			if start < 0 {
+				start = len(r.pts)
+				append(&r.pts, cur)
+			}
+			c1 := mat_apply(g, points[pi])
+			c2 := mat_apply(g, points[pi + 1])
+			p := mat_apply(g, points[pi + 2])
 			pi += 3
 			d1 := cur - 2 * c1 + c2
 			d2 := c1 - 2 * c2 + p
@@ -186,12 +265,96 @@ flatten :: proc(r: ^Raster, icon: ^Icon, op: ^Op, g: Mat) {
 			}
 			cur = p
 		case .Close:
+			if start >= 0 do cur = r.pts[start]
 			finish(r, start, true)
-			// The builder always emits a Move after Close.
 			start = -1
 		}
 	}
 	finish(r, start, false)
+}
+
+// ---- public path API (used by fc:lottie) ----
+
+// Path is a standalone path: verbs and their points (Move/Line 1, Quad 2, Cubic 3, Close 0).
+Path :: struct {
+	verbs:  [dynamic]Verb,
+	points: [dynamic][2]f32,
+}
+
+path_clear :: proc(p: ^Path) {clear(&p.verbs); clear(&p.points)}
+path_destroy :: proc(p: ^Path) {delete(p.verbs); delete(p.points)}
+path_move :: proc(p: ^Path, a: [2]f32) {append(&p.verbs, Verb.Move); append(&p.points, a)}
+path_line :: proc(p: ^Path, a: [2]f32) {append(&p.verbs, Verb.Line); append(&p.points, a)}
+path_cubic :: proc(p: ^Path, c1, c2, a: [2]f32) {append(&p.verbs, Verb.Cubic); append(&p.points, c1, c2, a)}
+path_close :: proc(p: ^Path) {append(&p.verbs, Verb.Close)}
+
+Stroke :: struct {
+	width:       f32, // in path units (scaled by the transform's area scale)
+	cap:         Line_Cap,
+	join:        Line_Join,
+	miter_limit: f32,
+}
+
+// Rasterizer is reusable scratch for path coverage at a fixed size. Buffers it
+// returns stay valid until rasterizer_reset / rasterizer_destroy.
+Rasterizer :: struct {
+	r:     Raster,
+	arena: virtual.Arena,
+}
+
+rasterizer_init :: proc(rz: ^Rasterizer, w, h: int) -> bool {
+	if virtual.arena_init_growing(&rz.arena) != nil do return false
+	rz.r = Raster {
+		w      = w,
+		h      = h,
+		stride = w + 2,
+		arena  = virtual.arena_allocator(&rz.arena),
+	}
+	rasterizer_reset(rz)
+	return true
+}
+
+rasterizer_reset :: proc(rz: ^Rasterizer) {
+	virtual.arena_free_all(&rz.arena)
+	rz.r.acc = make([]f32, rz.r.stride * rz.r.h, rz.r.arena)
+	rz.r.pts = make([dynamic][2]f32, rz.r.arena)
+	rz.r.polys = make([dynamic]Poly, rz.r.arena)
+}
+
+rasterizer_destroy :: proc(rz: ^Rasterizer) {
+	virtual.arena_destroy(&rz.arena)
+	rz^ = {}
+}
+
+// rasterizer_buffer returns a zeroed w*h*n f32 scratch buffer (valid until reset).
+rasterizer_buffer :: proc(rz: ^Rasterizer, n := 1) -> []f32 {
+	return make([]f32, rz.r.w * rz.r.h * n, rz.r.arena)
+}
+
+// fill_coverage returns w*h coverage (0..1) of the path under transform m.
+fill_coverage :: proc(rz: ^Rasterizer, verbs: []Verb, points: [][2]f32, m: Mat, rule: Fill_Rule) -> []f32 {
+	r := &rz.r
+	flatten_path(r, verbs, points, m)
+	for pl in r.polys {
+		pts := r.pts[pl.first:pl.first + pl.count]
+		for i in 0 ..< len(pts) do acc_line(r, pts[i], pts[(i + 1) % len(pts)])
+	}
+	cov := make([]f32, r.w * r.h, r.arena)
+	integrate(r, cov, rule)
+	return cov
+}
+
+// stroke_coverage returns w*h coverage of the path stroked under transform m.
+stroke_coverage :: proc(rz: ^Rasterizer, verbs: []Verb, points: [][2]f32, m: Mat, s: Stroke) -> []f32 {
+	r := &rz.r
+	flatten_path(r, verbs, points, m)
+	scale := math.sqrt(abs(m[0] * m[3] - m[1] * m[2]))
+	hw := s.width * scale / 2
+	polys := r.polys[:]
+	for pl in polys do stroke_poly(r, r.pts[pl.first:pl.first + pl.count], pl.closed, hw, s.cap, s.join, max(s.miter_limit, 1))
+	cov := make([]f32, r.w * r.h, r.arena)
+	integrate(r, cov, .Nonzero)
+	return cov
 }
 
 // ---- stroking ----

@@ -1,0 +1,12 @@
+# Memory soak for the capture tooling: ~10 minutes of recording with periodic
+# cold starts (each ~1900 requests). Watch peak heap + supervisor RSS log.
+use a
+mark soak
+reload
+wait 150000
+reload
+wait 150000
+reload
+wait 150000
+reload
+wait 120000

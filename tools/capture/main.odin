@@ -4,6 +4,8 @@
 //   capture record <port> <out.jsonl> <secs>  passive recording of one instance
 //   capture run   <scenario.scn> [out.jsonl]  run a scenario on the A (9333) / B (9334)
 //                                             test instances while recording both
+//   capture supervise <minutes>               launch + memory-police the test instances
+//   capture instances-stop                    shut the test instances down
 //
 // Only ever point this at the test instances (ports 9333/9334, launched with
 // DISCORD_USER_DATA_DIR inside .secrets/); `check_test_instance` enforces it.
@@ -44,6 +46,12 @@ main :: proc() {
 		secs, _ := strconv.parse_int(args[4])
 		if !check_test_instance(port) do os.exit(1)
 		os.exit(record_passive(port, args[3], secs) ? 0 : 1)
+	case "supervise":
+		if len(args) < 3 do usage()
+		mins, _ := strconv.parse_int(args[2])
+		os.exit(0 if supervise(mins) else 1)
+	case "instances-stop":
+		for inst in INSTANCES do kill_instance(inst, "instances-stop")
 	case "run":
 		if len(args) < 3 do usage()
 		out := args[3] if len(args) > 3 else ""
@@ -54,7 +62,7 @@ main :: proc() {
 }
 
 usage :: proc() -> ! {
-	fmt.eprintln("usage: capture eval <port> <js> | record <port> <out> <secs> | run <scenario.scn> [out]")
+	fmt.eprintln("usage: capture eval <port> <js> | record <port> <out> <secs> | run <scenario.scn> [out] | supervise <min> | instances-stop")
 	os.exit(2)
 }
 

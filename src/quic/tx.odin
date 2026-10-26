@@ -53,6 +53,7 @@ on_ack_frame :: proc(c: ^Conn, space: Space, largest, delay: u64, ranges: []Rang
 	if largest_found && acked_any_eliciting {
 		ack_delay := time.Duration(delay << c.params.ack_delay_exp) * time.Microsecond if space == .App else 0
 		rtt_update(&c.rtt, time.tick_diff(largest_time, now), ack_delay, space_max_ack_delay(c, space), c.handshake_confirmed)
+		cubic_on_rtt_sample(&c.cc, &c.rtt, largest, c.next_pn)
 	}
 	detect_lost(c, space, now)
 	c.pto_count = 0
@@ -102,7 +103,8 @@ detect_lost :: proc(c: ^Conn, space: Space, now: time.Tick) {
 	if sp.largest_acked < 0 do return
 	delay := loss_delay(&c.rtt)
 	lost_any := false
-	latest_lost: time.Tick
+	latest_lost, earliest_lost: time.Tick
+	have_earliest := false
 	i := 0
 	for i < len(sp.sent) {
 		p := &sp.sent[i]
@@ -117,6 +119,10 @@ detect_lost :: proc(c: ^Conn, space: Space, now: time.Tick) {
 				cubic_on_removed(&c.cc, p.size)
 				lost_any = true
 				latest_lost = p.time
+				if !have_earliest {
+					earliest_lost = p.time
+					have_earliest = true
+				}
 			}
 			delete(p.frames)
 			ordered_remove(&sp.sent, i)
@@ -129,7 +135,14 @@ detect_lost :: proc(c: ^Conn, space: Space, now: time.Tick) {
 		}
 		i += 1
 	}
-	if lost_any do cubic_on_congestion(&c.cc, latest_lost, now)
+	if lost_any {
+		cubic_on_congestion(&c.cc, latest_lost, now)
+		// Persistent congestion (RFC 9002 7.6): losses spanning 3 PTOs.
+		span := time.tick_diff(earliest_lost, latest_lost)
+		if c.rtt.has_sample && span > 3 * pto_base(&c.rtt, space_max_ack_delay(c, space)) {
+			cubic_persistent_congestion(&c.cc)
+		}
+	}
 }
 
 // pto_deadline returns the earliest probe timeout across spaces.
@@ -189,8 +202,16 @@ on_timers_locked :: proc(c: ^Conn, now: time.Tick) {
 			sp.ack_timer = false
 		}
 	}
+	// Keepalive: PING when a request is outstanding and the line has been
+	// quiet for 15s (QUICHE ping_timeout).
+	if keepalive_needed(c) && time.tick_diff(max_tick(c.last_activity, c.last_tx), now) >= KEEPALIVE {
+		append(&c.ctrl, Ctrl{kind = .Ping})
+		c.last_tx = now
+	}
 	if t, s, ok := pto_deadline(c); ok && time.tick_diff(t, now) >= 0 {
 		c.pto_count += 1
+		// QUICHE skips a packet number before PTO probes (optimistic-ACK defence).
+		c.next_pn += 1
 		sp := &c.spaces[s]
 		// Probe with the unacknowledged data of that space (or a PING).
 		for p in sp.sent do if p.ack_eliciting do on_frames_lost(c, s, p.frames[:])
@@ -212,6 +233,8 @@ next_timeout_locked :: proc(c: ^Conn, now: time.Tick) -> time.Duration {
 		if sp.ack_timer do consider(&best, now, sp.ack_deadline)
 	}
 	if t, _, ok := pto_deadline(c); ok do consider(&best, now, t)
+	if c.pacer.has_next && has_eliciting_data(c, .App) do consider(&best, now, c.pacer.next_send)
+	if keepalive_needed(c) do consider(&best, now, time.tick_add(max_tick(c.last_activity, c.last_tx), KEEPALIVE))
 	return clamp(best, time.Millisecond, 5 * time.Second)
 }
 
@@ -219,6 +242,7 @@ next_timeout_locked :: proc(c: ^Conn, now: time.Tick) -> time.Duration {
 
 Packet_Builder :: struct {
 	space:         Space,
+	zero_rtt:      bool, // App data protected with 0-RTT keys
 	payload:       [dynamic]byte,
 	frames:        [dynamic]Sent_Frame,
 	ack_eliciting: bool,
@@ -236,8 +260,15 @@ long_header_len :: proc(c: ^Conn, space: Space, pn_len: int) -> int {
 	return n
 }
 
+// in_zero_rtt reports whether App data currently goes out as 0-RTT.
+@(private)
+in_zero_rtt :: proc(c: ^Conn) -> bool {
+	return !c.spaces[.App].tx.valid && c.early_tx.valid
+}
+
 @(private)
 header_len :: proc(c: ^Conn, space: Space, pn_len: int) -> int {
+	if space == .App && in_zero_rtt(c) do return 1 + 4 + 1 + c.dcid_len + 1 + 2 + pn_len
 	if space == .App do return 1 + c.dcid_len + pn_len
 	return long_header_len(c, space, pn_len)
 }
@@ -299,6 +330,12 @@ fill_packet :: proc(c: ^Conn, space: Space, b: ^Packet_Builder, budget: int, all
 	sp := &c.spaces[space]
 	b.space = space
 	b.last_stream = -1
+	if space == .App && in_zero_rtt(c) {
+		// 0-RTT carries only stream data (no ACK, CRYPTO or control frames).
+		b.zero_rtt = true
+		if allow_eliciting do put_stream_frames(c, b, budget)
+		return
+	}
 	will_elicit := allow_eliciting && has_eliciting_data(c, space)
 	if sp.ack_now || (will_elicit && sp.unacked_eliciting > 0) || (sp.ack_timer && will_elicit) {
 		put_ack_frame(c, sp, b, now)
@@ -327,8 +364,11 @@ has_eliciting_data :: proc(c: ^Conn, space: Space) -> bool {
 @(private)
 needs_send :: proc(c: ^Conn, space: Space) -> bool {
 	sp := &c.spaces[space]
+	if space == .App && in_zero_rtt(c) {
+		for _, st in c.streams do if stream_can_send(c, st) do return true
+		return false
+	}
 	if sp.discarded || !sp.tx.valid do return false
-	if space == .App && !c.handshake_complete && !sb_has_pending(&sp.crypto_send) && !sp.ack_now do return false
 	return sp.ack_now || has_eliciting_data(c, space)
 }
 
@@ -336,18 +376,19 @@ needs_send :: proc(c: ^Conn, space: Space) -> bool {
 @(private)
 seal_packet :: proc(c: ^Conn, b: ^Packet_Builder, pn_len: int, out: ^[dynamic]byte, now: time.Tick) -> int {
 	sp := &c.spaces[b.space]
+	keys := &c.early_tx if b.zero_rtt else &sp.tx
 	// Header protection samples 16 bytes starting 4 after the packet number.
 	for pn_len + len(b.payload) < 4 do append(&b.payload, 0)
 	pn := c.next_pn
 	c.next_pn += 1
 	start := len(out)
 	pn_off: int
-	if b.space == .App {
+	if b.space == .App && !b.zero_rtt {
 		append(out, 0x40 | c.key_phase << 2 | u8(pn_len - 1))
 		append(out, ..c.dcid[:c.dcid_len])
 		pn_off = len(out) - start
 	} else {
-		typ: u8 = 0 if b.space == .Initial else 2
+		typ: u8 = 0 if b.space == .Initial else (1 if b.zero_rtt else 2)
 		append(out, 0xc0 | typ << 4 | u8(pn_len - 1))
 		put_u32(out, QUIC_V1)
 		append(out, u8(c.dcid_len))
@@ -366,12 +407,12 @@ seal_packet :: proc(c: ^Conn, b: ^Packet_Builder, pn_len: int, out: ^[dynamic]by
 	for _ in 0 ..< AEAD_TAG do append(out, 0)
 	pkt := out[start:]
 	if debug_log do fmt.eprintfln("[quic] %v tx %v pn=%d len=%d frames=%v", time.tick_now(), b.space, pn, len(pkt), b.frames[:])
-	seal(&sp.tx, pkt, hdr, pn_off, pn_len, pn)
+	seal(keys, pkt, hdr, pn_off, pn_len, pn)
 
 	in_flight := b.ack_eliciting || b.has_padding
 	frames := b.frames
 	b.frames = nil
-	append(&sp.sent, Sent_Packet{pn = pn, time = now, size = len(pkt), ack_eliciting = b.ack_eliciting, in_flight = in_flight, frames = frames})
+	append(&sp.sent, Sent_Packet{pn = pn, time = now, size = len(pkt), ack_eliciting = b.ack_eliciting, in_flight = in_flight, zero_rtt = b.zero_rtt, frames = frames})
 	if in_flight do cubic_on_sent(&c.cc, len(pkt))
 	if b.ack_eliciting {
 		sp.last_ack_eliciting = now
@@ -388,6 +429,7 @@ builder_reset :: proc(b: ^Packet_Builder) {
 	b.frames = nil
 	b.ack_eliciting = false
 	b.has_padding = false
+	b.zero_rtt = false
 	b.last_stream = -1
 }
 
@@ -434,11 +476,16 @@ send_pending_locked :: proc(c: ^Conn, now: time.Tick) {
 		active: [Space]bool
 		for s in Space {
 			if !needs_send(c, s) do continue
+			// Chrome sends each 0-RTT packet in a datagram of its own.
+			if s == .App && in_zero_rtt(c) && used > 0 do break
+			// An ACK-only Handshake packet is not coalesced behind an ACK-only
+			// Initial: Chrome sends them as separate datagrams.
+			if s == .Handshake && active[.Initial] && !builders[.Initial].ack_eliciting && !has_eliciting_data(c, .Handshake) do break
 			pn_lens[s] = pn_length(c, s)
 			overhead := header_len(c, s, pn_lens[s]) + AEAD_TAG
 			budget := MAX_DATAGRAM - used - overhead
 			if budget < 32 do break
-			allow := cubic_can_send(&c.cc, MAX_DATAGRAM) || c.spaces[s].probes > 0
+			allow := (cubic_can_send(&c.cc, MAX_DATAGRAM) && pacer_can_send(&c.pacer, now)) || c.spaces[s].probes > 0
 			builder_reset(&builders[s])
 			fill_packet(c, s, &builders[s], budget, allow, now)
 			if len(builders[s].payload) == 0 do continue
@@ -462,6 +509,10 @@ send_pending_locked :: proc(c: ^Conn, now: time.Tick) {
 			if s == .Handshake do sent_handshake = true
 		}
 		send_datagram(c, dgram[:])
+		c.last_tx = now
+		in_flight := false
+		for s in Space do if active[s] && (builders[s].ack_eliciting || builders[s].has_padding) do in_flight = true
+		if in_flight do pacer_on_sent(&c.pacer, &c.cc, &c.rtt, len(dgram), now)
 		sync.cond_broadcast(&c.cond) // wake flush() waiters
 		// A client drops Initial keys once it sends a Handshake packet (RFC 9001 4.9.1).
 		if sent_handshake do discard_space(c, .Initial)
@@ -633,3 +684,18 @@ sort_u64 :: proc(a: []u64) {
 
 // debug_log prints every packet sent and received to stderr.
 debug_log := false
+
+KEEPALIVE :: 15 * time.Second
+
+@(private)
+max_tick :: proc(a, b: time.Tick) -> time.Tick {return b if time.tick_diff(a, b) > 0 else a}
+
+// keepalive_needed: a request stream is still waiting for its response.
+@(private)
+keepalive_needed :: proc(c: ^Conn) -> bool {
+	if !c.handshake_complete do return false
+	for _, st in c.streams {
+		if !st.uni && st.local && !st.reset_received && !(st.final_size >= 0 && st.recv.highest >= u64(st.final_size)) do return true
+	}
+	return false
+}

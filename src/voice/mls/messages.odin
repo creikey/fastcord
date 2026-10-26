@@ -745,3 +745,30 @@ find_extension :: proc(exts: []Extension, type: u16) -> (Extension, bool) {
 	for e in exts do if e.type == type do return e, true
 	return {}, false
 }
+
+// r_mls_message_raw consumes one MLSMessage from r (inside a vector of
+// messages) and returns its bytes.
+r_mls_message_raw :: proc(r: ^Reader) -> []byte {
+	start := r.pos
+	version := r_u16(r)
+	wf := Wire_Format(r_u16(r))
+	if !r_ok(r) || version != PROTOCOL_VERSION {
+		r_fail(r)
+		return nil
+	}
+	a := context.temp_allocator
+	#partial switch wf {
+	case .Public_Message:
+		_ = r_public_message(r, a)
+	case .Welcome:
+		_ = r_welcome(r, a)
+	case .Group_Info:
+		_ = r_group_info(r, a)
+	case .Key_Package:
+		_ = r_key_package(r, a)
+	case:
+		r_fail(r)
+	}
+	if !r_ok(r) do return nil
+	return r.data[start:r.pos]
+}

@@ -638,3 +638,46 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 		_ = gid
 	}
 }
+
+// ---- voice hand-off (src/voice) ----
+
+// Voice_Server_Info is everything voice.voice_connect needs, assembled from
+// our VOICE_STATE_UPDATE (session_id, channel) and VOICE_SERVER_UPDATE
+// (endpoint, token, guild or private channel id).
+Voice_Server_Info :: struct {
+	endpoint:            string, // host[:port] without scheme, as sent by Discord
+	token:               string,
+	guild_or_channel_id: Snowflake, // server_id: guild id, or the DM/group channel for calls
+	user_id:             Snowflake,
+	session_id:          string,
+	channel_id:          Snowflake,
+}
+
+// voice_server_info returns the current voice connection parameters once both
+// events for our session arrived (strings point into the store: copy them if
+// they must outlive the next client_poll). `version` changes on every
+// VOICE_SERVER_UPDATE so the app can reconnect when the server moves.
+voice_server_info :: proc(c: ^Client) -> (info: Voice_Server_Info, version: u64, ok: bool) {
+	s := &c.store
+	vs, have := s.voice_states[s.me]
+	if !have || s.voice_server.token == "" || s.voice_server.endpoint == "" do return {}, 0, false
+	server := s.voice_server.guild_id if s.voice_server.guild_id != 0 else s.voice_server.channel_id
+	if server != (vs.guild_id if vs.guild_id != 0 else vs.channel_id) do return {}, 0, false
+	return Voice_Server_Info{
+		endpoint = s.voice_server.endpoint,
+		token = s.voice_server.token,
+		guild_or_channel_id = server,
+		user_id = s.me,
+		session_id = vs.session_id,
+		channel_id = vs.channel_id,
+	}, s.voice_server.version, true
+}
+
+// voice_join / voice_leave: op 4 the way VoiceStateStore sends it (flags 2).
+voice_join :: proc(c: ^Client, guild_id, channel_id: Snowflake, self_mute := false, self_deaf := false) {
+	voice_update(c, guild_id, channel_id, self_mute, self_deaf)
+}
+
+voice_leave :: proc(c: ^Client) {
+	voice_update(c, 0, 0, true, false)
+}

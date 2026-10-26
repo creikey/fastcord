@@ -59,6 +59,18 @@ loss_delay :: proc(r: ^Rtt) -> time.Duration {
 	return max(time.Duration(f64(max(r.latest, r.smoothed)) * 9.0 / 8.0), GRANULARITY)
 }
 
+// CUBIC as QUICHE's TcpCubicSenderBytes configures it for Chrome: windows
+// in 1460-byte MSS units, 2-connection emulation (beta 0.85, last-max 0.925),
+// Reno-friendly region, hybrid slow start, 32-packet initial window.
+CUBIC_NUM_CONNECTIONS :: 2
+CUBIC_BETA_EFF :: (CUBIC_NUM_CONNECTIONS - 1 + CUBIC_BETA) / CUBIC_NUM_CONNECTIONS // 0.85
+CUBIC_BETA_LAST_MAX :: (CUBIC_NUM_CONNECTIONS - 1 + 0.85) / CUBIC_NUM_CONNECTIONS // 0.925
+CUBIC_ALPHA :: 3 * CUBIC_NUM_CONNECTIONS * CUBIC_NUM_CONNECTIONS * (1 - CUBIC_BETA_EFF) / (1 + CUBIC_BETA_EFF)
+HYSTART_LOW_WINDOW :: 16 * CUBIC_MSS
+HYSTART_MIN_SAMPLES :: 8
+HYSTART_DELAY_MIN :: 4 * time.Millisecond
+HYSTART_DELAY_MAX :: 16 * time.Millisecond
+
 Cubic :: struct {
 	cwnd:            int,
 	ssthresh:        int,
@@ -70,6 +82,11 @@ Cubic :: struct {
 	w_max:           f64, // in MSS
 	k:               f64,
 	acked_in_epoch:  int,
+	// Hybrid slow start round tracking.
+	hs_round_end:    u64,
+	hs_in_round:     bool,
+	hs_samples:      int,
+	hs_round_min:    time.Duration,
 }
 
 cubic_init :: proc(c: ^Cubic) {
@@ -86,6 +103,25 @@ cubic_on_sent :: proc(c: ^Cubic, bytes: int) {c.in_flight += bytes}
 
 cubic_on_removed :: proc(c: ^Cubic, bytes: int) {c.in_flight = max(c.in_flight - bytes, 0)}
 
+// cubic_on_rtt_sample runs hybrid slow start (QUICHE HybridSlowStart).
+cubic_on_rtt_sample :: proc(c: ^Cubic, rtt: ^Rtt, largest_acked, next_pn: u64) {
+	if c.cwnd >= c.ssthresh do return
+	if !c.hs_in_round || largest_acked >= c.hs_round_end {
+		c.hs_in_round = true
+		c.hs_round_end = next_pn
+		c.hs_samples = 0
+		c.hs_round_min = max(time.Duration)
+	}
+	if c.hs_samples < HYSTART_MIN_SAMPLES {
+		c.hs_samples += 1
+		c.hs_round_min = min(c.hs_round_min, rtt.latest)
+		return
+	}
+	if c.cwnd < HYSTART_LOW_WINDOW do return
+	thresh := clamp(rtt.min / 8, HYSTART_DELAY_MIN, HYSTART_DELAY_MAX)
+	if c.hs_round_min > rtt.min + thresh do c.ssthresh = c.cwnd
+}
+
 cubic_on_ack :: proc(c: ^Cubic, bytes: int, sent: time.Tick, now: time.Tick, rtt: ^Rtt) {
 	cubic_on_removed(c, bytes)
 	if c.in_recovery && time.tick_diff(c.recovery_start, sent) <= 0 do return
@@ -97,15 +133,21 @@ cubic_on_ack :: proc(c: ^Cubic, bytes: int, sent: time.Tick, now: time.Tick, rtt
 	if !c.has_epoch {
 		c.has_epoch = true
 		c.epoch_start = now
-		if c.w_max < f64(c.cwnd) / CUBIC_MSS do c.w_max = f64(c.cwnd) / CUBIC_MSS
-		c.k = math.cbrt(c.w_max * (1 - CUBIC_BETA) / CUBIC_C)
+		c.acked_in_epoch = 0
+		cw := f64(c.cwnd) / CUBIC_MSS
+		if c.w_max <= cw {
+			c.k = 0
+			c.w_max = cw
+		} else {
+			c.k = math.cbrt((c.w_max - cw) / CUBIC_C)
+		}
 	}
 	t := time.duration_seconds(time.tick_diff(c.epoch_start, now)) + time.duration_seconds(rtt.min)
 	target := CUBIC_C * math.pow(t - c.k, 3) + c.w_max
 	cw := f64(c.cwnd) / CUBIC_MSS
-	// Reno-friendly region (RFC 9438 4.3) keeps growth at least TCP-like.
+	// Reno-friendly region with N-connection alpha.
 	c.acked_in_epoch += bytes
-	reno := c.w_max * CUBIC_BETA + 3 * (1 - CUBIC_BETA) / (1 + CUBIC_BETA) * f64(c.acked_in_epoch) / f64(c.cwnd)
+	reno := cw + CUBIC_ALPHA * f64(bytes) / f64(c.cwnd)
 	target = max(target, reno)
 	if target > cw {
 		inc := (target - cw) / cw * f64(bytes)
@@ -120,14 +162,60 @@ cubic_on_congestion :: proc(c: ^Cubic, sent: time.Tick, now: time.Tick) {
 	c.recovery_start = now
 	w := f64(c.cwnd) / CUBIC_MSS
 	// Fast convergence.
-	c.w_max = w * (1 + CUBIC_BETA) / 2 if w < c.w_max else w
-	c.cwnd = max(int(f64(c.cwnd) * CUBIC_BETA), MIN_CWND)
+	c.w_max = w * CUBIC_BETA_LAST_MAX if w < c.w_max else w
+	c.cwnd = max(int(f64(c.cwnd) * CUBIC_BETA_EFF), MIN_CWND)
 	c.ssthresh = c.cwnd
 	c.has_epoch = false
-	c.acked_in_epoch = 0
 }
 
 cubic_persistent_congestion :: proc(c: ^Cubic) {
 	c.cwnd = MIN_CWND
 	c.has_epoch = false
+	c.in_recovery = false
+}
+
+// Pacer follows QUICHE's PacingSender: 10 packets unpaced at start and
+// after quiescence, then pacing at cwnd/srtt * (2 in slow start, 1.25
+// after), with "lumpy" bursts of 2 packets.
+PACER_INITIAL_BURST :: 10
+PACER_LUMPY :: 2
+
+Pacer :: struct {
+	burst_tokens: int,
+	lumpy_tokens: int,
+	next_send:    time.Tick,
+	has_next:     bool,
+}
+
+pacer_init :: proc(p: ^Pacer) {
+	p^ = {}
+	p.burst_tokens = PACER_INITIAL_BURST
+}
+
+pacer_can_send :: proc(p: ^Pacer, now: time.Tick) -> bool {
+	if p.burst_tokens > 0 || !p.has_next do return true
+	return time.tick_diff(p.next_send, now) >= 0
+}
+
+pacer_on_sent :: proc(p: ^Pacer, c: ^Cubic, rtt: ^Rtt, bytes: int, now: time.Tick) {
+	// Quiescence: refill the initial burst.
+	if c.in_flight <= bytes && !c.in_recovery {
+		p.burst_tokens = min(PACER_INITIAL_BURST, c.cwnd / CUBIC_MSS)
+	}
+	if p.burst_tokens > 0 {
+		p.burst_tokens -= 1
+		return
+	}
+	// One pacing delay per pair of packets ("lumpy" pacing).
+	p.lumpy_tokens += 1
+	if p.lumpy_tokens < PACER_LUMPY do return
+	p.lumpy_tokens = 0
+	gain := 2.0 if c.cwnd < c.ssthresh else 1.25
+	srtt := max(rtt.smoothed, time.Millisecond)
+	rate := gain * f64(c.cwnd) / time.duration_seconds(srtt) // bytes/s
+	delay := time.Duration(f64(bytes * PACER_LUMPY) / rate * f64(time.Second))
+	base := now
+	if p.has_next && time.tick_diff(now, p.next_send) > 0 do base = p.next_send
+	p.next_send = time.tick_add(base, delay)
+	p.has_next = true
 }

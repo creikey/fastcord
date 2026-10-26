@@ -1,13 +1,13 @@
 package discord
 
-import "core:strconv"
 import "core:strings"
 import "core:sync"
 import "core:thread"
-import "core:time"
 import "fc:brotli"
 import "fc:http"
 import "fc:netio"
+import "fc:quic/altsvc"
+import "fc:quic/h3"
 import "fc:zstd"
 
 // Transport: one connection pool per origin, like Chrome's socket pools.
@@ -45,13 +45,6 @@ Round_Tripper :: struct {
 	round_trip: proc(data: rawptr, host: string, req: http.Request) -> (http.Response, http.Error),
 }
 
-Alt_Svc :: struct {
-	h3_port:      int,
-	expires:      i64, // unix ms
-	broken_until: i64,
-	broken_count: int,
-}
-
 @(private)
 H2_Ref :: struct {
 	c:       ^http.H2_Conn,
@@ -72,8 +65,10 @@ Transport :: struct {
 	mu:        sync.Mutex,
 	cond:      sync.Cond,
 	origins:   map[string]^Origin,
-	alt_svc:   map[string]Alt_Svc,
-	h3:        H3_Hook,
+	alt:       altsvc.Cache, // Chrome alternative-service state (fc:quic/altsvc)
+	use_h3:    bool, // race QUIC per Alt-Svc (default on)
+	race_mu:   sync.Mutex,
+	h3:        H3_Hook, // optional override of the built-in h3 path
 	override:  Round_Tripper,
 	jar:       ^Cookie_Jar,
 	allocator: Allocator,
@@ -114,7 +109,7 @@ transport_init :: proc(t: ^Transport, jar: ^Cookie_Jar, allocator := context.all
 	t.allocator = allocator
 	t.jar = jar
 	t.origins = make(map[string]^Origin, allocator = allocator)
-	t.alt_svc = make(map[string]Alt_Svc, allocator = allocator)
+	t.use_h3 = true
 }
 
 transport_destroy :: proc(t: ^Transport) {
@@ -143,8 +138,7 @@ transport_destroy :: proc(t: ^Transport) {
 		delete(k, t.allocator)
 	}
 	delete(origins)
-	for k in t.alt_svc do delete(k, t.allocator)
-	delete(t.alt_svc)
+	altsvc.destroy(&t.alt)
 }
 
 @(private)
@@ -171,7 +165,7 @@ transport_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> 
 		if strings.equal_fold(h.name, "set-cookie") && t.jar != nil {
 			cookie_set_from_header(t.jar, host, req.path, h.value, now)
 		} else if strings.equal_fold(h.name, "alt-svc") {
-			transport_note_alt_svc(t, host, h.value, now)
+			altsvc.record(&t.alt, host, h.value)
 		}
 	}
 	if derr := http.decode_body(&resp); derr != .None do err = derr
@@ -181,11 +175,13 @@ transport_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> 
 @(private)
 network_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> (resp: http.Response, err: http.Error) {
 	if t.h3.round_trip != nil {
-		if port, ok := transport_h3_alternative(t, host); ok {
+		if port, ok := altsvc.usable(&t.alt, host); ok {
 			resp, err = t.h3.round_trip(t.h3.data, host, port, req)
 			if err == .None do return
-			transport_mark_h3_broken(t, host)
+			altsvc.mark_broken(&t.alt, host)
 		}
+	} else if t.use_h3 {
+		if r, handled := h3_round_trip(t, host, req); handled do return r.resp, r.err
 	}
 	for attempt in 0 ..< 2 {
 		o, ref := origin_get_h2(t, host)
@@ -361,107 +357,76 @@ origin_put_h1 :: proc(t: ^Transport, o: ^Origin, c: ^http.H1_Conn) {
 	}
 }
 
-// ---- Alt-Svc ----
+// ---- HTTP/3 (Chrome job racing via fc:quic/altsvc) ----
 
-// transport_note_alt_svc parses `h3=":443"; ma=86400, h3-29=":443"` (and `clear`).
-transport_note_alt_svc :: proc(t: ^Transport, host, value: string, now: i64) {
-	sync.mutex_lock(&t.mu)
-	defer sync.mutex_unlock(&t.mu)
-	v := strings.trim_space(value)
-	if v == "clear" {
-		if k, _, ok := map_entry_key(t, host); ok {
-			delete_key(&t.alt_svc, k)
-			delete(k, t.allocator)
-		}
-		return
-	}
-	it := v
-	for entry in strings.split_iterator(&it, ",") {
-		e := strings.trim_space(entry)
-		parts := strings.split(e, ";", context.temp_allocator)
-		alpn_auth := strings.trim_space(parts[0])
-		eq := strings.index_byte(alpn_auth, '=')
-		if eq < 0 do continue
-		proto := alpn_auth[:eq]
-		if proto != "h3" do continue
-		auth := strings.trim(alpn_auth[eq + 1:], "\"")
-		colon := strings.last_index_byte(auth, ':')
-		if colon < 0 do continue
-		if colon > 0 && auth[:colon] != host do continue // alternative host: not supported
-		port, pok := strconv.parse_int(auth[colon + 1:])
-		if !pok do continue
-		ma := 86400
-		for p in parts[1:] {
-			kv := strings.trim_space(p)
-			if strings.has_prefix(kv, "ma=") {
-				if m, ok := strconv.parse_int(kv[3:]); ok do ma = m
-			}
-		}
-		prev, had := t.alt_svc[host]
-		entry_v := Alt_Svc{h3_port = port, expires = now + i64(ma) * 1000}
-		if had {
-			entry_v.broken_until = prev.broken_until
-			entry_v.broken_count = prev.broken_count
-			t.alt_svc[host] = entry_v
-		} else {
-			t.alt_svc[strings.clone(host, t.allocator)] = entry_v
-		}
-		return
-	}
+@(private)
+H3_Outcome :: struct {
+	resp: http.Response,
+	err:  http.Error,
+}
+
+// The race's "TCP job": our pooled h2 session (dialed or reused).
+@(private)
+tcp_dialer :: proc(host: string, user: rawptr) -> (conn: rawptr, ok: bool) {
+	t := cast(^Transport)user
+	_, ref := origin_get_h2(t, host)
+	return ref, ref != nil
 }
 
 @(private)
-map_entry_key :: proc(t: ^Transport, host: string) -> (string, Alt_Svc, bool) {
-	for k, v in t.alt_svc do if k == host do return k, v, true
-	return "", {}, false
+tcp_closer :: proc(conn: rawptr, user: rawptr) {
+	if conn != nil do h2_release(cast(^Transport)user, cast(^H2_Ref)conn)
 }
 
-transport_h3_alternative :: proc(t: ^Transport, host: string) -> (port: int, ok: bool) {
-	sync.mutex_lock(&t.mu)
-	defer sync.mutex_unlock(&t.mu)
-	a, found := t.alt_svc[host]
-	now := now_ms()
-	if !found || a.expires <= now || a.broken_until > now do return 0, false
-	return a.h3_port, true
-}
-
-transport_mark_h3_broken :: proc(t: ^Transport, host: string) {
-	sync.mutex_lock(&t.mu)
-	defer sync.mutex_unlock(&t.mu)
-	a, found := t.alt_svc[host]
-	if !found do return
-	a.broken_count += 1
-	a.broken_until = now_ms() + i64(5 * 60 * 1000) << uint(min(a.broken_count - 1, 6))
-	t.alt_svc[host] = a
-}
-
-transport_save_alt_svc :: proc(t: ^Transport, path: string) -> bool {
-	sync.mutex_lock(&t.mu)
-	sb := strings.builder_make(context.temp_allocator)
-	for k, v in t.alt_svc {
-		strings.write_string(&sb, k)
-		strings.write_byte(&sb, '\t')
-		strings.write_int(&sb, v.h3_port)
-		strings.write_byte(&sb, '\t')
-		strings.write_i64(&sb, v.expires)
-		strings.write_byte(&sb, '\n')
+// h3_round_trip: when the origin has a usable h3 alternative (or a live h3
+// session), race QUIC against TCP like Chrome and send on the winner.
+// handled=false means no alternative is known: caller uses h2.
+@(private)
+h3_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> (out: H3_Outcome, handled: bool) {
+	sync.mutex_lock(&t.alt.mu)
+	_, live := t.alt.conns[host]
+	sync.mutex_unlock(&t.alt.mu)
+	if !live {
+		if _, ok := altsvc.usable(&t.alt, host); !ok do return {}, false
+		// An established h2 session is preferred over starting a QUIC job
+		// (Chrome reuses the SPDY session the main job finds).
+		sync.mutex_lock(&t.mu)
+		o, has := t.origins[host]
+		h2_live := has && o.h2 != nil && http.h2_can_open(o.h2.c)
+		sync.mutex_unlock(&t.mu)
+		if h2_live do return {}, false
 	}
-	sync.mutex_unlock(&t.mu)
-	return write_file_atomic(path, transmute([]byte)strings.to_string(sb))
+	// One job per origin at a time (Chrome joins requests onto the pending
+	// job instead of racing again).
+	if !live do sync.mutex_lock(&t.race_mu)
+	res, ok := altsvc.connect(&t.alt, host, tcp_dialer, tcp_closer, t)
+	if !live do sync.mutex_unlock(&t.race_mu)
+	if !ok do return {}, false
+	switch res.proto {
+	case .H3:
+		resp, err := h3.request(res.h3, req, t.allocator)
+		if err != .None && err != .Stream_Reset {
+			// Session-level failure after it was established: fall back to h2 this time.
+			http.response_destroy(&resp)
+			return {}, false
+		}
+		return {resp, err}, true
+	case .H2:
+		ref := cast(^H2_Ref)res.tcp
+		if ref == nil do return {}, false
+		resp, err := http.h2_request(ref.c, req)
+		h2_release(t, ref)
+		return {resp, err}, true
+	}
+	return {}, false
 }
 
-transport_load_alt_svc :: proc(t: ^Transport, data: string) {
-	sync.mutex_lock(&t.mu)
-	defer sync.mutex_unlock(&t.mu)
-	text := data
-	now := now_ms()
-	for line in strings.split_lines_iterator(&text) {
-		f := strings.split(line, "\t", context.temp_allocator)
-		if len(f) != 3 do continue
-		port, _ := strconv.parse_int(f[1])
-		exp, _ := strconv.parse_i64(f[2])
-		if exp <= now do continue
-		if _, had := t.alt_svc[f[0]]; had do continue
-		t.alt_svc[strings.clone(f[0], t.allocator)] = Alt_Svc{h3_port = port, expires = exp}
-	}
+// Wrappers kept for callers/tests.
+transport_note_alt_svc :: proc(t: ^Transport, host, value: string, now: i64) {altsvc.record(&t.alt, host, value)}
+transport_h3_alternative :: proc(t: ^Transport, host: string) -> (int, bool) {return altsvc.usable(&t.alt, host)}
+transport_mark_h3_broken :: proc(t: ^Transport, host: string) {altsvc.mark_broken(&t.alt, host)}
+
+// transport_set_altsvc_path enables persistence (Chrome's Network Persistent State).
+transport_set_altsvc_path :: proc(t: ^Transport, path: string) {
+	_ = altsvc.load(&t.alt, path)
 }

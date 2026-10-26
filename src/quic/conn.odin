@@ -12,6 +12,7 @@ package quic
 
 import "base:runtime"
 import "core:crypto"
+import "core:fmt"
 import "core:net"
 import "core:strings"
 import "core:sync"
@@ -68,6 +69,7 @@ Sent_Packet :: struct {
 	size:          int,
 	ack_eliciting: bool,
 	in_flight:     bool,
+	zero_rtt:      bool,
 	frames:        [dynamic]Sent_Frame,
 }
 
@@ -109,6 +111,18 @@ Config :: struct {
 	endpoint:       net.Endpoint,
 	has_endpoint:   bool,
 	handshake_timeout: time.Duration, // default 10s
+	// enable_0rtt lets connect return as soon as the ClientHello is out when
+	// a ticket allows early data, so the caller's first requests go in 0-RTT
+	// (Chrome does this for safe methods). The handshake finishes in the
+	// background; wait_handshake blocks until it does.
+	enable_0rtt:    bool,
+}
+
+Early_State :: enum u8 {
+	None, // no 0-RTT this connection
+	Sending,
+	Accepted,
+	Rejected,
 }
 
 // Uni_Handler receives data on peer-initiated unidirectional streams. It is
@@ -140,6 +154,11 @@ Conn :: struct {
 	next_pn:            u64,
 	initial_sent:       bool,
 	app_rx_next:        Keys, // next key phase
+	early_tx:           Keys, // 0-RTT
+	early:              Early_State,
+	ch_sent:            bool,
+	hs_thread:          ^thread.Thread,
+	hs_done:            bool, // handshake thread finished (ok or not)
 	key_phase:          u8,
 
 	// TLS.
@@ -169,6 +188,8 @@ Conn :: struct {
 	// Recovery.
 	rtt:                Rtt,
 	cc:                 Cubic,
+	pacer:              Pacer,
+	last_tx:            time.Tick,
 	pto_count:          int,
 	app_packets_rx:     int,
 	idle_timeout:       time.Duration,
@@ -243,19 +264,60 @@ connect :: proc(host: string, cfg: Config) -> (c: ^Conn, err: Error) {
 	conn_init(c, cfg)
 	c.io_thread = thread.create_and_start_with_poly_data(c, io_loop)
 
-	// The TLS handshake runs on this thread; the I/O thread feeds it.
+	c.hs.cfg = cfg.tls
+	c.hs.allocator = context.allocator
+	c.hs.quic_params = chrome_transport_params(cached_rtt_us(cfg.tls.server_name))
+
+	if cfg.enable_0rtt {
+		// Run the handshake in the background; return once we know whether
+		// 0-RTT is possible (the early secret is installed before the
+		// ClientHello is handed to us).
+		c.hs_thread = thread.create_and_start_with_poly_data(c, handshake_thread)
+		sync.mutex_lock(&c.mu)
+		for !c.ch_sent && !c.hs_done do sync.cond_wait(&c.cond, &c.mu)
+		early := c.early == .Sending
+		sync.mutex_unlock(&c.mu)
+		if !early {
+			if e := wait_handshake(c); e != .None {
+				close(c)
+				return nil, e
+			}
+		}
+		return c, .None
+	}
+	run_handshake_thread_body(c)
+	sync.mutex_lock(&c.mu)
+	e := c.err
+	sync.mutex_unlock(&c.mu)
+	if e != .None {
+		close(c)
+		return nil, e
+	}
+	return c, .None
+}
+
+@(private)
+handshake_thread :: proc(c: ^Conn) {
+	context.allocator = conn_allocator()
+	run_handshake_thread_body(c)
+}
+
+// run_handshake_thread_body runs TLS and finalizes the connection state.
+@(private)
+run_handshake_thread_body :: proc(c: ^Conn) {
 	io := tls.Handshake_Io {
 		data         = c,
 		next_message = hs_next_message,
 		send         = hs_send,
 		set_secret   = hs_set_secret,
 	}
-	c.hs.cfg = cfg.tls
-	c.hs.allocator = context.allocator
-	c.hs.quic_params = chrome_transport_params(cached_rtt_us(cfg.tls.server_name))
 	terr := tls.quic_handshake(&c.hs, io)
-
 	sync.mutex_lock(&c.mu)
+	defer sync.mutex_unlock(&c.mu)
+	defer {
+		c.hs_done = true
+		sync.cond_broadcast(&c.cond)
+	}
 	if terr == .None && c.err == .None {
 		terr = finish_handshake_locked(c)
 	}
@@ -266,15 +328,40 @@ connect :: proc(host: string, cfg: Config) -> (c: ^Conn, err: Error) {
 			// CRYPTO_ERROR = 0x100 + alert.
 			start_close_locked(c, 0x100 + u64(tls.alert_code(terr)), false)
 		}
-		e := c.err
-		sync.mutex_unlock(&c.mu)
-		close(c)
-		return nil, e
+		return
 	}
 	c.handshake_complete = true
-	sync.mutex_unlock(&c.mu)
+	if c.early == .Sending {
+		if c.hs.early_accepted {
+			c.early = .Accepted
+		} else {
+			reject_zero_rtt_locked(c)
+		}
+	}
+	keys_clear(&c.early_tx)
 	wake(c)
-	return c, .None
+}
+
+// wait_handshake blocks until the handshake completed (or failed).
+wait_handshake :: proc(c: ^Conn) -> Error {
+	sync.mutex_lock(&c.mu)
+	defer sync.mutex_unlock(&c.mu)
+	for !c.handshake_complete && c.err == .None do sync.cond_wait(&c.cond, &c.mu)
+	return c.err
+}
+
+// handshake_complete reports whether 1-RTT is up (requests are no longer early).
+is_handshake_complete :: proc(c: ^Conn) -> bool {
+	sync.mutex_lock(&c.mu)
+	defer sync.mutex_unlock(&c.mu)
+	return c.handshake_complete
+}
+
+// early_state reports the 0-RTT outcome.
+early_state :: proc(c: ^Conn) -> Early_State {
+	sync.mutex_lock(&c.mu)
+	defer sync.mutex_unlock(&c.mu)
+	return c.early
 }
 
 @(private)
@@ -293,6 +380,7 @@ conn_init :: proc(c: ^Conn, cfg: Config) {
 	c.local_max_data = CHROME_MAX_DATA
 	rtt_init(&c.rtt, INITIAL_RTT)
 	cubic_init(&c.cc)
+	pacer_init(&c.pacer)
 	c.idle_timeout = CHROME_MAX_IDLE_MS * time.Millisecond
 	c.last_activity = time.tick_now()
 	c.streams = make(map[u64]^Stream)
@@ -316,9 +404,9 @@ finish_handshake_locked :: proc(c: ^Conn) -> tls.Error {
 	}
 	c.params = p
 	// Slices into server_params stay valid; it lives as long as c.hs.
-	c.peer_max_data = p.max_data
-	c.peer_max_bidi = p.max_streams_bidi
-	c.peer_max_uni = p.max_streams_uni
+	c.peer_max_data = max(c.peer_max_data, p.max_data)
+	c.peer_max_bidi = max(c.peer_max_bidi, p.max_streams_bidi)
+	c.peer_max_uni = max(c.peer_max_uni, p.max_streams_uni)
 	if p.max_idle_ms > 0 do c.idle_timeout = min(c.idle_timeout, time.Duration(p.max_idle_ms) * time.Millisecond)
 	for _, st in c.streams do stream_apply_peer_limits(c, st)
 	return .None
@@ -338,6 +426,10 @@ close :: proc(c: ^Conn) {
 	wake(c)
 	thread.join(c.io_thread)
 	thread.destroy(c.io_thread)
+	if c.hs_thread != nil {
+		thread.join(c.hs_thread)
+		thread.destroy(c.hs_thread)
+	}
 	if c.rtt.has_sample do remember_rtt(c.hs.cfg.server_name, c.rtt.smoothed)
 	net.close(c.sock)
 	net.close(c.wake_sock)
@@ -358,6 +450,7 @@ conn_destroy :: proc(c: ^Conn) {
 		delete(sp.undecryptable)
 	}
 	keys_clear(&c.app_rx_next)
+	keys_clear(&c.early_tx)
 	for m in c.hs_msgs do delete(m)
 	delete(c.hs_msgs)
 	tls.handshake_state_destroy(&c.hs)
@@ -406,6 +499,7 @@ hs_next_message :: proc(data: rawptr) -> ([]byte, tls.Error) {
 	}
 	m := c.hs_msgs[0]
 	ordered_remove(&c.hs_msgs, 0)
+	if debug_log do fmt.eprintfln("[quic] %v hs_next got type %d", time.tick_now(), m[0])
 	return m, .None
 }
 
@@ -414,6 +508,11 @@ hs_send :: proc(data: rawptr, level: tls.Level, flight: []byte, first: bool, ccs
 	c := cast(^Conn)data
 	sync.mutex_lock(&c.mu)
 	sb_write(&c.spaces[space_of(level)].crypto_send, flight)
+	if debug_log do fmt.eprintfln("[quic] %v hs_send %v %d", time.tick_now(), level, len(flight))
+	if first {
+		c.ch_sent = true
+		sync.cond_broadcast(&c.cond)
+	}
 	sync.mutex_unlock(&c.mu)
 	wake(c)
 	return .None
@@ -422,7 +521,22 @@ hs_send :: proc(data: rawptr, level: tls.Level, flight: []byte, first: bool, ccs
 @(private)
 hs_set_secret :: proc(data: rawptr, level: tls.Level, is_write: bool, suite: tls.Suite, secret: []byte) -> tls.Error {
 	c := cast(^Conn)data
-	if level == .Early do return .None // no 0-RTT yet
+	if level == .Early {
+		sync.mutex_lock(&c.mu)
+		defer sync.mutex_unlock(&c.mu)
+		// 0-RTT needs the server's remembered transport parameters (RFC 9000 7.4.1).
+		p, ok := parse_peer_params(c.hs.early_params)
+		if !ok || len(c.hs.early_params) == 0 do return .None
+		keys_set(&c.early_tx, suite, secret)
+		c.early = .Sending
+		c.params = p
+		c.params.original_dcid = nil
+		c.params.initial_scid = nil
+		c.peer_max_data = p.max_data
+		c.peer_max_bidi = p.max_streams_bidi
+		c.peer_max_uni = p.max_streams_uni
+		return .None
+	}
 	// New keys may arm timers (ACKs for buffered packets): re-plan the I/O loop.
 	defer wake(c)
 	sync.mutex_lock(&c.mu)
@@ -522,5 +636,25 @@ remember_rtt :: proc(host: string, rtt: time.Duration) {
 		rtt_cache[host] = us
 	} else {
 		rtt_cache[strings.clone(host)] = us
+	}
+}
+
+// reject_zero_rtt_locked requeues everything sent as 0-RTT for 1-RTT
+// retransmission (QUICHE MarkZeroRttPacketsForRetransmission); no
+// congestion response, since nothing was lost on the path.
+reject_zero_rtt_locked :: proc(c: ^Conn) {
+	c.early = .Rejected
+	sp := &c.spaces[.App]
+	i := 0
+	for i < len(sp.sent) {
+		p := &sp.sent[i]
+		if !p.zero_rtt {
+			i += 1
+			continue
+		}
+		on_frames_lost(c, .App, p.frames[:])
+		if p.in_flight do cubic_on_removed(&c.cc, p.size)
+		delete(p.frames)
+		ordered_remove(&sp.sent, i)
 	}
 }

@@ -54,6 +54,8 @@ CHROME_BLOCKED_STREAMS :: 100
 Config :: struct {
 	quic:         quic.Config, // tls.alpn defaults to {"h3"}, server_name to host
 	max_response: int, // body limit, default 256 MiB
+	// no_0rtt disables early data (Chrome uses it on resumed connections).
+	no_0rtt:      bool,
 }
 
 Peer_Settings :: struct {
@@ -84,8 +86,15 @@ Conn :: struct {
 }
 
 Stream :: struct {
-	c:  ^Conn,
-	qs: ^quic.Stream,
+	c:     ^Conn,
+	qs:    ^quic.Stream,
+	early: bool, // sent before the handshake completed (0-RTT)
+}
+
+// is_safe_method: Chrome only lets safe methods go out as 0-RTT
+// (HttpUtil::IsMethodSafe); others wait for the handshake.
+is_safe_method :: proc(m: string) -> bool {
+	return m == "GET" || m == "HEAD" || m == "OPTIONS" || m == "TRACE"
 }
 
 @(private)
@@ -113,6 +122,7 @@ connect :: proc(host: string, cfg := Config{}) -> (c: ^Conn, err: http.Error) {
 	qcfg := cfg.quic
 	if len(qcfg.tls.alpn) == 0 do qcfg.tls.alpn = {"h3"}
 	if qcfg.tls.server_name == "" do qcfg.tls.server_name = host
+	qcfg.enable_0rtt = !cfg.no_0rtt
 	q, qerr := quic.connect(host, qcfg)
 	if qerr != .None do return nil, to_http(qerr)
 	c = new(Conn)
@@ -217,6 +227,10 @@ open :: proc(c: ^Conn, req: http.Request) -> (st: ^Stream, err: http.Error) {
 	block := make([dynamic]byte, 0, 512, context.temp_allocator)
 	encode_section(&block, fields[:])
 
+	if !is_safe_method(req.method) {
+		if e := quic.wait_handshake(c.q); e != .None do return nil, to_http(e)
+	}
+	early := !quic.is_handshake_complete(c.q)
 	quic.lock(c.q)
 	qs := quic.open_bidi_locked(c.q)
 	for qs == nil {
@@ -254,6 +268,7 @@ open :: proc(c: ^Conn, req: http.Request) -> (st: ^Stream, err: http.Error) {
 	st = new(Stream)
 	st.c = c
 	st.qs = qs
+	st.early = early
 	return st, .None
 }
 
@@ -362,11 +377,21 @@ open_uni_locked :: proc(c: ^Conn) -> (^quic.Stream, bool) {
 	return s, s != nil
 }
 
-// request is open + wait.
+// request is open + wait. A 425 (Too Early) answer to a request sent in
+// 0-RTT is retried once after the handshake, as Chrome does.
 request :: proc(c: ^Conn, req: http.Request, allocator := context.allocator) -> (http.Response, http.Error) {
 	st, err := open(c, req)
 	if err != .None do return {}, err
-	return wait(c, st, allocator)
+	early := st.early
+	resp, werr := wait(c, st, allocator)
+	if werr == .None && resp.status == 425 && early {
+		http.response_destroy(&resp)
+		if e := quic.wait_handshake(c.q); e != .None do return {}, to_http(e)
+		st, err = open(c, req)
+		if err != .None do return {}, err
+		return wait(c, st, allocator)
+	}
+	return resp, werr
 }
 
 // close sends CONNECTION_CLOSE (H3_NO_ERROR) and frees the connection.

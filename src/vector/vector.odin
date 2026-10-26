@@ -6,7 +6,9 @@
 // transform (matrix translate scale rotate skewX skewY), fill / stroke (paint,
 // -opacity, -rule, -width, -linecap, -linejoin, -miterlimit), opacity, style="",
 // <mask> (luminance, maskUnits / maskContentUnits) and <clipPath> (clip-rule,
-// clipPathUnits). Gradients are treated as a flat color (average of stops).
+// clipPathUnits), <linearGradient>/<radialGradient> (units, gradientTransform,
+// spreadMethod, href inheritance). Coverage output (rasterize) uses the average
+// stop color; rasterize_rgba evaluates gradients per pixel.
 //
 // Icons are recolored at draw time, so the output is coverage only. Shapes with
 // class="secondary" (Discord's secondaryColor slot, e.g. the dot behind
@@ -81,6 +83,11 @@ Op :: struct {
 	clip:          i32, // group index or -1
 	ctm:           Mat, // element transform (for the mask/clip of this op)
 	bbox:          [4]f32, // local (pre-ctm) bounds: min x, min y, max x, max y
+	anc_mask:      i32, // ancestor <g> mask / clip-path (group index or -1), in anc_ctm space
+	anc_clip:      i32,
+	anc_ctm:       Mat,
+	gradient:      i32, // index into Icon.gradients or -1
+	grad_fold:     f32, // average gradient alpha folded into `alpha` (undone by rasterize_rgba)
 }
 
 Group_Kind :: enum u8 {
@@ -102,6 +109,7 @@ Icon :: struct {
 	points:        [dynamic][2]f32,
 	ops:           [dynamic]Op,
 	groups:        [dynamic]Group,
+	gradients:     [dynamic]Gradient, // stops owned by the icon's allocator
 	multicolor:    bool, // has fixed (non-currentColor) paints: brand / payment icons
 	has_secondary: bool,
 }
@@ -111,6 +119,8 @@ destroy :: proc(icon: ^Icon) {
 	delete(icon.points)
 	delete(icon.ops)
 	delete(icon.groups)
+	for g in icon.gradients do delete(g.stops, icon.gradients.allocator)
+	delete(icon.gradients)
 	icon^ = {}
 }
 

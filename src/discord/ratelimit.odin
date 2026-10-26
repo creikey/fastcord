@@ -104,6 +104,11 @@ rate_limiter_destroy :: proc(r: ^Rate_Limiter) {
 // share one route; query strings are ignored.
 route_key :: proc(method, path: string, allocator := context.temp_allocator) -> string {
 	p := path
+	if strings.has_prefix(p, "https://") {
+		rest := p[len("https://"):]
+		sl := strings.index_byte(rest, '/')
+		p = rest[sl:] if sl >= 0 else "/"
+	}
 	if q := strings.index_byte(p, '?'); q >= 0 do p = p[:q]
 	parts := strings.split(p, "/", context.temp_allocator)
 	sb := strings.builder_make(allocator)

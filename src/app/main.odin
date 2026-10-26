@@ -4,16 +4,33 @@ import "core:fmt"
 import "core:os"
 import "core:strconv"
 import "core:strings"
+import dc "fc:discord"
 import "fc:gfx"
 import "fc:platform"
 import "fc:ui"
 
+UI_Rect :: ui.Rect
+
 App :: struct {
-	theme:      Theme,
-	ui:         ui.State,
-	last_time:  f64,
-	frame:      u64,
-	view:       View_State,
+	theme:           Theme,
+	ui:              ui.State,
+	last_time:       f64,
+	frame:           u64,
+	view:            View_State,
+	client:          ^dc.Client, // nil when offline (fixture / tests)
+	offline_store:   dc.Store,
+	chats:           map[dc.Snowflake]Chat_State,
+	chat_hover:      dc.Snowflake,
+	utc_offset_ms:   i64,
+	self_mute:       bool,
+	self_deaf:       bool,
+	voice_channel:   dc.Snowflake,
+	settings_open:   bool,
+	profile_user:    dc.Snowflake,
+	profile_anchor:  UI_Rect,
+	profile_open_t:  f32,
+	pending_dm_user: dc.Snowflake,
+	caret_reset_t:   f64,
 }
 
 app: App
@@ -25,6 +42,8 @@ Options :: struct {
 	dpi:       f32,
 	theme:     Theme_Name,
 	script:    string, // e2e script of injected input (tests/ui/*.txt)
+	fixture:   string, // offline: load the store from a recorded gateway fixture
+	channel:   string, // open this channel id at start (with fixture)
 }
 
 parse_options :: proc() -> Options {
@@ -53,6 +72,10 @@ parse_options :: proc() -> Options {
 			}
 		case strings.has_prefix(a, "-script:"):
 			o.script = a[len("-script:"):]
+		case strings.has_prefix(a, "-fixture:"):
+			o.fixture = a[len("-fixture:"):]
+		case strings.has_prefix(a, "-channel:"):
+			o.channel = a[len("-channel:"):]
 		}
 	}
 	return o
@@ -74,6 +97,21 @@ main :: proc() {
 	theme_load(&app.theme, opt.theme)
 	ui.init(&app.ui, ui.Backend{shape = ui_shape})
 	view_init(&app.view)
+	draw_inline_object = draw_custom_emoji
+	app.utc_offset_ms = local_offset_ms()
+	dc.store_init(&app.offline_store)
+	if opt.fixture != "" {
+		if _, fok := dc.store_load_fixture(&app.offline_store, opt.fixture); !fok {
+			fmt.eprintln("cannot load fixture", opt.fixture)
+			os.exit(1)
+		}
+		if opt.channel != "" {
+			id, _ := strconv.parse_u64(opt.channel)
+			if ch := dc.channel_get(&app.offline_store, dc.Snowflake(id)); ch != nil do select_channel(ch.guild_id, ch.id)
+		}
+	} else if !headless {
+		connect()
+	}
 
 	if headless {
 		platform.set_time_override(0)
@@ -108,10 +146,25 @@ frame :: proc() {
 	app.last_time = now
 	app.frame += 1
 
+	if app.client != nil {
+		dc.client_poll(app.client)
+		handle_results()
+	}
+	images_receive()
 	evs := map_events(platform.events())
+	for e in evs do if e.kind == .Key_Down || e.kind == .Text do app.caret_reset_t = now
 	ui.begin(platform.window_size(), dt, now, evs)
 	build_ui()
 	cmds := ui.end()
+	// Cmd+C with a message selection (a focused field with its own selection copied first).
+	// Runs after end(): the selection's boxes are collected during layout.
+	for &e in app.ui.events {
+		if e.consumed || e.kind != .Key_Down || e.key != .C || .Cmd not_in e.mods do continue
+		if ui.has_selection() {
+			clipboard_set(ui.selection_text())
+			e.consumed = true
+		}
+	}
 
 	gfx.begin_frame(gfx.Color(tok(&app.theme, "--background-base-lowest")))
 	render(cmds)
@@ -240,4 +293,35 @@ run_script :: proc(path: string) {
 		platform.wait_events(0)
 		frame()
 	}
+}
+
+// Token: $FASTCORD_TOKEN, else <state>/token (written by the login flow).
+connect :: proc() {
+	home := os.get_env("HOME", context.temp_allocator)
+	state_dir := strings.concatenate({home, "/Library/Application Support/fastcord/state"})
+	os.make_directory(state_dir)
+	token := os.get_env("FASTCORD_TOKEN", context.temp_allocator)
+	if token == "" {
+		data, err := os.read_entire_file(strings.concatenate({state_dir, "/token"}, context.temp_allocator), context.temp_allocator)
+		if err == nil do token = strings.trim_space(string(data))
+	}
+	if token == "" do return
+	app.client = dc.client_create({token = strings.clone(token), state_dir = state_dir, wakeup = proc(_: rawptr) {platform.request_frame()}})
+	dc.client_start(app.client)
+}
+
+handle_results :: proc() {
+	for r in dc.client_take_results(app.client) {
+		#partial switch r.op {
+		case .Open_Dm:
+			if r.ok && r.id != 0 && app.pending_dm_user != 0 {
+				select_channel(0, r.id)
+				app.pending_dm_user = 0
+			}
+		}
+	}
+}
+
+local_offset_ms :: proc() -> i64 {
+	return tz_offset_seconds() * 1000
 }

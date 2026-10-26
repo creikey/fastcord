@@ -4,6 +4,7 @@ import "core:crypto"
 import "core:sync"
 import "core:testing"
 import "core:thread"
+import "core:time"
 
 import "fc:netio"
 
@@ -62,7 +63,7 @@ end_close :: proc(data: rawptr) {
 keyed_session :: proc(end: ^Test_End, rd_secret, wr_secret: []byte) -> ^Session {
 	s := new(Session)
 	s.allocator = context.allocator
-	s.under = netio.Stream{data = end, read = end_read, write = end_write, close = end_close}
+	s.under = netio.Stream{data = end, read = end_read, write = end_write, close = end_close, shutdown = end_close}
 	s.suite = SUITES[0]
 	s.handshake_done = true
 	set_keys(&s.rd, s.suite, rd_secret)
@@ -158,4 +159,34 @@ concurrent_read_write_with_key_updates :: proc(t: ^testing.T) {
 sa_secret_copy :: proc(s: []byte) -> (out: [MAX_HASH]byte) {
 	copy(out[:], s)
 	return
+}
+
+@(private = "file")
+Blocked_Reader :: struct {
+	s:   ^Session,
+	err: Error,
+}
+
+// shutdown wakes a reader blocked inside TLS (h2_close relies on this).
+@(test)
+shutdown_wakes_blocked_reader :: proc(t: ^testing.T) {
+	ab, ba: Test_Pipe
+	defer delete(ab.buf)
+	defer delete(ba.buf)
+	ea := Test_End{rx = &ba, tx = &ab}
+	secret: [32]byte
+	a := keyed_session(&ea, secret[:], secret[:])
+	br := Blocked_Reader{s = a}
+	th := thread.create_and_start_with_poly_data(&br, proc(br: ^Blocked_Reader) {
+		buf: [64]byte
+		_, br.err = read(br.s, buf[:])
+	})
+	time.sleep(50 * time.Millisecond)
+	netio.shutdown(stream(a))
+	thread.join(th)
+	thread.destroy(th)
+	testing.expect_value(t, br.err, Error.Closed)
+	testing.expect_value(t, write(a, {1, 2, 3}), Error.Closed)
+	testing.expect_value(t, get_failed(a), Error.None) // shutdown is not a failure
+	close(a)
 }

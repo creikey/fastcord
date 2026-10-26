@@ -2,7 +2,6 @@ package discord
 
 import "core:encoding/base64"
 import "core:slice"
-import "core:strings"
 import "fc:etf"
 import "fc:protobuf"
 
@@ -1255,6 +1254,7 @@ store_apply_dispatch :: proc(s: ^Store, name: string, data: V, now: i64) -> bool
 		vs.channel_id = fsnow(d, "channel_id")
 		vs.token = clone_str(fstr(d, "token"), s.allocator)
 		vs.endpoint = clone_str(fstr(d, "endpoint"), s.allocator)
+		vs.version += 1
 	case:
 		return false
 	}
@@ -1361,3 +1361,74 @@ typing_users :: proc(s: ^Store, channel_id: Snowflake) -> []Typing {
 	return l[:] if ok else nil
 }
 
+
+// store_destroy frees everything the store owns.
+store_destroy :: proc(s: ^Store) {
+	context.allocator = s.allocator
+	a := s.allocator
+	for _, &u in s.users do free_user(s, &u)
+	delete(s.users)
+	for _, &g in s.guilds do free_guild(s, &g)
+	delete(s.guilds)
+	delete(s.guild_order)
+	for _, &c in s.channels do free_channel(s, &c)
+	delete(s.channels)
+	delete(s.private_channels)
+	for _, &gm in s.members {
+		for _, &m in gm do free_member(s, &m)
+		delete(gm)
+	}
+	delete(s.members)
+	for _, &l in s.messages {
+		for &m in l.messages do free_message(s, &m)
+		delete(l.messages)
+	}
+	delete(s.messages)
+	for _, p in s.presences do free_str(p.activity, a)
+	delete(s.presences)
+	for _, r in s.relationships {
+		free_str(r.nickname, a)
+		free_str(r.since, a)
+	}
+	delete(s.relationships)
+	delete(s.read_states)
+	for _, gs in s.guild_settings {
+		delete(gs.muted_channels)
+		delete(gs.collapsed_channels)
+	}
+	delete(s.guild_settings)
+	for _, v in s.voice_states do free_str(v.session_id, a)
+	delete(s.voice_states)
+	for _, l in s.typing do delete(l)
+	delete(s.typing)
+	for _, ml in s.member_lists {
+		for it in ml.items do free_list_item(s, it)
+		delete(ml.items)
+		free_str(ml.id, a)
+	}
+	delete(s.member_lists)
+	for ss in s.sessions {
+		free_str(ss.session_id, a)
+		free_str(ss.client, a)
+		free_str(ss.os, a)
+	}
+	delete(s.sessions)
+	st := &s.settings
+	free_str(st.custom_status_text, a)
+	free_str(st.custom_status_emoji, a)
+	free_str(st.locale, a)
+	for fo in st.guild_folders {
+		free_str(fo.name, a)
+		delete(fo.guild_ids)
+	}
+	delete(st.guild_folders)
+	delete(st.guild_positions)
+	free_str(s.voice_server.token, a)
+	free_str(s.voice_server.endpoint, a)
+	free_str(s.session_id, a)
+	free_str(s.resume_gateway_url, a)
+	free_str(s.analytics_token, a)
+	free_str(s.qos_token, a)
+	free_str(s.country_code, a)
+	s^ = {}
+}

@@ -335,10 +335,11 @@ Session_Info :: struct {
 }
 
 Voice_Server :: struct {
-	guild_id: Snowflake,
+	guild_id:   Snowflake,
 	channel_id: Snowflake,
-	token:    string,
-	endpoint: string,
+	token:      string,
+	endpoint:   string,
+	version:    u64, // bumped per VOICE_SERVER_UPDATE
 }
 
 Connection_State :: enum u8 {

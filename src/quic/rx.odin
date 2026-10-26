@@ -210,9 +210,12 @@ received_packet :: proc(c: ^Conn, space: Space, pn: u64, pt: []byte, now: time.T
 	if !eliciting do return
 	sp.unacked_eliciting += 1
 	if space != .App {
-		// QUICHE delays Initial/Handshake ACKs by 1ms (Chrome's first Initial
-		// ACK reports ~1.3ms), so a quick Handshake flight supersedes them.
-		if !sp.ack_timer {
+		// QUICHE: ACK every 2nd ack-eliciting packet, otherwise after 1ms
+		// (Chrome's first Initial ACK reports ~1.3ms), so a quick Handshake
+		// flight can supersede it.
+		if sp.unacked_eliciting >= 2 {
+			sp.ack_now = true
+		} else if !sp.ack_timer {
 			sp.ack_timer = true
 			sp.ack_deadline = time.tick_add(now, INITIAL_ACK_DELAY)
 		}

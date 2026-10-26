@@ -659,6 +659,12 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 			g.resume_url = strings.clone(strings.trim_right(fstr(dm, "resume_gateway_url"), "/"))
 			g.state = .Established
 			backoff_succeed(&g.backoff)
+			// AuthenticationStore CONNECTION_OPEN: apex_experiments.installation -> installation_id_v3.
+			if inst := fstr(fmap(dm, "apex_experiments"), "installation"); inst != "" {
+				sync.mutex_lock(&c.id.mu)
+				if c.id.installation_id == "" do c.id.installation_id = strings.clone(inst, c.allocator)
+				sync.mutex_unlock(&c.id.mu)
+			}
 			sync.mutex_lock(&c.qos_mu)
 			delete(c.ready_qos_token, c.allocator)
 			c.ready_qos_token = strings.clone(fstr(dm, "qos_token"), c.allocator)

@@ -131,6 +131,7 @@ Box :: struct {
 	rel_pos:                         Vec2,
 	rect:                            Rect,
 	text_layout:                     ^Text_Layout,
+	spans:                           []Span, // rich text; text must be their concatenation (see set_spans)
 
 	// persistent state
 	hot_t, active_t, appear_t:       f32,
@@ -251,6 +252,7 @@ Shaped_Glyph :: struct {
 	x, advance:                 f32, // x relative to run start
 	cluster_start, cluster_end: int, // UTF-8 byte range in the source text
 	handle:                     u64, // opaque to ui, passed back to the app at draw time
+	span:                       i32, // rich text: index of the span this glyph came from
 }
 
 Shaped_Run :: struct {
@@ -495,6 +497,7 @@ box_make_key :: proc(k: Key, flags: Box_Flags) -> ^Box {
 	b.style = top_style()
 	b.semantic_size = {.X = {}, .Y = {}}
 	b.text_layout = nil
+	b.spans = nil
 	b.fixed_pos = {}
 	b.layout_axis = .Y
 	b.sel_order = 0
@@ -771,7 +774,13 @@ text_layout_for :: proc(b: ^Box, wrap_width: f32) -> ^Text_Layout {
 	if b.text_layout != nil && (b.text_layout.wrap_width == wrap_width || .Wrap_Text not_in b.flags) {
 		return b.text_layout
 	}
-	b.text_layout = layout_text(b.style.font, b.style.font_size, b.text, .Wrap_Text in b.flags ? wrap_width : -1, b.style.line_height)
+	ww := .Wrap_Text in b.flags ? wrap_width : -1
+	if b.spans != nil {
+		b.text_layout = layout_rich(b.spans, ww, b.style.line_height)
+		b.text = b.text_layout.text
+	} else {
+		b.text_layout = layout_text(b.style.font, b.style.font_size, b.text, ww, b.style.line_height)
+	}
 	return b.text_layout
 }
 
@@ -1008,6 +1017,7 @@ emit_draw :: proc(b: ^Box, in_overlay_pass: bool) {
 			o.y = b.rect.y0 + (b.fixed_size.y - tl.height) / 2
 		}
 		tl.origin = o
+		if tl.spans != nil do draw_span_backgrounds(tl)
 		if .Selectable_Text in b.flags do draw_selection_highlight(b, tl)
 		c := st.text_color
 		c.a *= alpha
@@ -1033,3 +1043,34 @@ emit_overlays :: proc(b: ^Box) {
 // Has any box requested another frame (animation, smooth scroll)?
 needs_frame :: proc() -> bool {return ui.animating}
 cursor :: proc() -> Cursor {return ui.cursor}
+
+// Concatenates span texts into the box text so selection/copy see them.
+set_spans :: proc(b: ^Box, spans: []Span) {
+	b.spans = spans
+	sb := strings.builder_make(ui.frame_alloc)
+	for sp in spans do strings.write_string(&sb, sp.text)
+	b.text = strings.to_string(sb)
+	b.flags += {.Draw_Text}
+}
+
+@(private)
+draw_span_backgrounds :: proc(tl: ^Text_Layout) {
+	for l in tl.lines {
+		gi := l.glyph_start
+		for gi < l.glyph_end {
+			si := tl.run.glyphs[gi].span
+			start := gi
+			for gi < l.glyph_end && tl.run.glyphs[gi].span == si do gi += 1
+			sp := tl.spans[si]
+			if sp.bg.a <= 0 do continue
+			g0 := tl.run.glyphs[start]
+			g1 := tl.run.glyphs[gi - 1]
+			x0 := tl.origin.x + g0.x - l.x_shift
+			x1 := tl.origin.x + g1.x + g1.advance - l.x_shift
+			y0 := tl.origin.y + l.y
+			r := Rect{x0 - 2, y0 + 1, x1 + 2, y0 + tl.line_h - 1}
+			c := sp.bg
+			append(&ui.draw, Draw_Cmd{kind = .Rect, rect = r, colors = {c, c, c, c}, radii = sp.bg_radius})
+		}
+	}
+}

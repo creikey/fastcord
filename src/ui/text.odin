@@ -15,7 +15,9 @@ Text_Layout :: struct {
 	text:       string,
 	font:       Font,
 	size:       f32,
-	run:        Shaped_Run,
+	run:        Shaped_Run, // all spans merged; glyph x is continuous across spans
+	spans:      []Span, // nil for plain text
+	span_runs:  []Shaped_Run, // backend run per span (glyph.handle indexes into it)
 	lines:      []Text_Line,
 	width:      f32,
 	height:     f32,
@@ -23,6 +25,21 @@ Text_Layout :: struct {
 	wrap_width: f32,
 	baseline:   f32, // from line top, CSS half-leading
 	origin:     Vec2, // screen position of the first line, set when drawn
+}
+
+// A run of rich text. Spans with object != 0 are inline objects (custom
+// emoji, images) that occupy object.x by object.y and copy as their text.
+Span :: struct {
+	text:      string,
+	font:      Font,
+	size:      f32,
+	color:     Color, // zero alpha = the box's text color
+	bg:        Color, // inline code / mention highlight
+	bg_radius: f32,
+	underline: bool,
+	object:    Vec2,
+	id:        u64, // app-defined (link index, mention id) for hit testing
+	user:      rawptr,
 }
 
 @(private)
@@ -35,10 +52,73 @@ layout_text :: proc(font: Font, size: f32, text: string, wrap_width: f32, line_h
 	tl.text = text
 	tl.font = font
 	tl.size = size
-	tl.wrap_width = wrap_width
 	tl.run = s.backend.shape(font, size, text)
 	tl.line_h = line_height > 0 ? line_height : tl.run.line_h
 	tl.baseline = (tl.line_h - (tl.run.ascent + tl.run.descent)) / 2 + tl.run.ascent
+	wrap_layout(tl, wrap_width)
+	return tl
+}
+
+// Shape spans into one paragraph. The text of the layout is the spans' texts concatenated.
+layout_rich :: proc(spans: []Span, wrap_width: f32, line_height: f32 = 0) -> ^Text_Layout {
+	s := ui
+	tl := new(Text_Layout, s.frame_alloc)
+	tl.spans = spans
+	tl.span_runs = make([]Shaped_Run, len(spans), s.frame_alloc)
+	sb := strings.builder_make(s.frame_alloc)
+	glyphs := make([dynamic]Shaped_Glyph, 0, 64, s.frame_alloc)
+	x: f32
+	ascent, descent, lh: f32
+	for sp, si in spans {
+		base := strings.builder_len(sb)
+		strings.write_string(&sb, sp.text)
+		if sp.object != {} {
+			append(&glyphs, Shaped_Glyph{x = x, advance = sp.object.x, cluster_start = base, cluster_end = base + len(sp.text), handle = 0, span = i32(si)})
+			x += sp.object.x
+			continue
+		}
+		run := s.backend.shape(sp.font, sp.size, sp.text)
+		tl.span_runs[si] = run
+		ascent = max(ascent, run.ascent)
+		descent = max(descent, run.descent)
+		lh = max(lh, run.line_h)
+		for g, gi in run.glyphs {
+			append(&glyphs, Shaped_Glyph{x = x + g.x, advance = g.advance, cluster_start = base + g.cluster_start, cluster_end = base + g.cluster_end, handle = u64(gi), span = i32(si)})
+		}
+		x += run.width
+	}
+	tl.text = strings.to_string(sb)
+	if len(spans) > 0 {
+		tl.font = spans[0].font
+		tl.size = spans[0].size
+	}
+	tl.run = Shaped_Run{glyphs = glyphs[:], width = x, ascent = ascent, descent = descent, line_h = lh}
+	tl.line_h = line_height > 0 ? line_height : lh
+	tl.baseline = (tl.line_h - (ascent + descent)) / 2 + ascent
+	wrap_layout(tl, wrap_width)
+	return tl
+}
+
+// Index of the span under point p (screen space), or -1.
+span_at :: proc(tl: ^Text_Layout, p: Vec2) -> int {
+	if tl == nil || tl.spans == nil do return -1
+	local := p - tl.origin
+	if local.y < 0 || local.y >= tl.height do return -1
+	li := clamp(int(local.y / tl.line_h), 0, len(tl.lines) - 1)
+	l := tl.lines[li]
+	for gi in l.glyph_start ..< l.glyph_end {
+		g := tl.run.glyphs[gi]
+		gx := g.x - l.x_shift
+		if local.x >= gx && local.x < gx + g.advance do return int(g.span)
+	}
+	return -1
+}
+
+@(private)
+wrap_layout :: proc(tl: ^Text_Layout, wrap_width: f32) {
+	s := ui
+	text := tl.text
+	tl.wrap_width = wrap_width
 	lines := make([dynamic]Text_Line, 0, 4, s.frame_alloc)
 	g := tl.run.glyphs
 
@@ -81,7 +161,6 @@ layout_text :: proc(font: Font, size: f32, text: string, wrap_width: f32, line_h
 		tl.width = max(tl.width, l.width)
 	}
 	tl.height = f32(len(tl.lines)) * tl.line_h
-	return tl
 }
 
 @(private)
@@ -109,7 +188,13 @@ line_of :: proc(tl: ^Text_Layout, pos: int) -> int {
 // x of the caret before byte `pos`, relative to the layout origin.
 caret_x :: proc(tl: ^Text_Layout, pos: int) -> f32 {
 	if len(tl.lines) == 0 do return 0
-	l := tl.lines[line_of(tl, pos)]
+	return caret_x_in_line(tl, line_of(tl, pos), pos)
+}
+
+// Like caret_x, but on a given line (pos == line end is that line's end, not the next line's start).
+caret_x_in_line :: proc(tl: ^Text_Layout, li: int, pos: int) -> f32 {
+	if len(tl.lines) == 0 do return 0
+	l := tl.lines[li]
 	g := tl.run.glyphs
 	for gi in l.glyph_start ..< l.glyph_end {
 		gl := g[gi]
@@ -418,8 +503,8 @@ draw_selection_highlight :: proc(b: ^Box, tl: ^Text_Layout) {
 		z := min(s1, l.end)
 		continues := s1 > l.end && li + 1 < len(tl.lines) || (li + 1 == len(tl.lines) && b.sel_order < hi.order)
 		if a > z || (a == z && !continues) do continue
-		x0 := caret_x(tl, a)
-		x1 := a == z ? x0 : caret_x(tl, z)
+		x0 := caret_x_in_line(tl, li, a)
+		x1 := a == z ? x0 : caret_x_in_line(tl, li, z)
 		if continues do x1 += tl.size * 0.3 // show that the newline is selected
 		_ = lo
 		r := Rect{tl.origin.x + x0, tl.origin.y + l.y, tl.origin.x + x1, tl.origin.y + l.y + tl.line_h}

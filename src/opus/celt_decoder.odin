@@ -268,7 +268,7 @@ celt_decode_lost :: proc(st: ^Celt_Decoder, n: int, LM: int) {
 				if !(s1 > 0.2 * s2) {
 					for i in 0 ..< extrapolation_len do buf[DECODE_BUFFER_SIZE - n + i] = 0
 				} else if s1 < s2 {
-					ratio := celt_sqrt((s1 * 0.5 + 1) / (s2 + 1))
+					ratio := celt_sqrt((s1 + 1) / (s2 + 1)) // SHR32 is identity in the float build
 					for i in 0 ..< OVERLAP {
 						tmp_g := 1 - window120[i] * (1 - ratio)
 						buf[DECODE_BUFFER_SIZE - n + i] = tmp_g * buf[DECODE_BUFFER_SIZE - n + i]
