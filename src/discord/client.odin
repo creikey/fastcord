@@ -391,7 +391,11 @@ client_load_state :: proc(c: ^Client) {
 					created, _ := strconv.parse_i64(f[1])
 					last, _ := strconv.parse_i64(f[2])
 					h := Heartbeat_Session{strings.clone(f[0], c.allocator), created, last}
-					if !heartbeat_session_expired(h, now) do c.id.heartbeat = h
+					if !heartbeat_session_expired(h, now) {
+						c.id.heartbeat = h
+					} else {
+						delete(h.uuid, c.allocator)
+					}
 				}
 			}
 		}
