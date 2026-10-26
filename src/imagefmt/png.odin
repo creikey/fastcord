@@ -245,7 +245,7 @@ png_decode :: proc(c: ^Decode_Ctx, data: []byte, img: ^Image) -> Error {
 		p += 12 + n
 		switch typ {
 		case "IHDR":
-			if n < 13 do return .Corrupt
+			if n < 13 || have_hdr do return .Corrupt
 			h.w, h.h = be32(cd), be32(cd[4:])
 			h.depth, h.ctype = int(cd[8]), int(cd[9])
 			h.interlace = cd[12] == 1
@@ -269,7 +269,7 @@ png_decode :: proc(c: ^Decode_Ctx, data: []byte, img: ^Image) -> Error {
 				num_plays = be32(cd[4:])
 			}
 		case "fcTL":
-			if n < 26 do return .Corrupt
+			if n < 26 || !have_hdr do return .Corrupt
 			f := Apng_Frame {
 				w       = be32(cd[4:]),
 				h       = be32(cd[8:]),
@@ -286,6 +286,7 @@ png_decode :: proc(c: ^Decode_Ctx, data: []byte, img: ^Image) -> Error {
 			f.data = make([dynamic]byte, c.allocator)
 			append(&frames, f)
 		case "IDAT":
+			if !have_hdr do return .Corrupt
 			seen_idat = true
 			append(&idat, ..cd)
 		case "fdAT":
