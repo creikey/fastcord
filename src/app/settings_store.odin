@@ -67,9 +67,8 @@ st: struct {
 	theme_from_user: bool,
 }
 
-app_state_dir :: proc() -> string {
-	home := os.get_env("HOME", context.temp_allocator)
-	return strings.concatenate({home, "/Library/Application Support/fastcord/state"}, context.temp_allocator)
+app_state_dir :: proc(allocator := context.temp_allocator) -> string {
+	return app_data_dir("state", allocator)
 }
 
 // settings_load: called once at startup (before the window opens: it may

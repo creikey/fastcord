@@ -242,8 +242,7 @@ frec_score_of :: proc(m: map[string]Frec_Entry, key: string) -> f64 {
 
 @(private = "file")
 frecency_path :: proc() -> string {
-	home := os.get_env("HOME", context.temp_allocator)
-	return strings.concatenate({home, "/Library/Application Support/fastcord/state/expressions.txt"}, context.temp_allocator)
+	return strings.concatenate({app_state_dir(), "/expressions.txt"}, context.temp_allocator)
 }
 
 // Local persistence (offline / fixture runs never touch the file).
