@@ -6,7 +6,9 @@ import "core:encoding/base64"
 import "core:math/rand"
 import "core:mem"
 import "core:mem/virtual"
+import "core:slice"
 import "core:strings"
+import "core:sync"
 import "core:thread"
 import "core:time"
 import "fc:etf"
@@ -95,6 +97,12 @@ Gateway :: struct {
 	mu:                locks.Mutex,
 	cond:              locks.Cond,
 	send_mu:           locks.Mutex, // guards ws for senders
+	// Frames sent from the UI thread, written by the writer thread: a socket write can block.
+	out_mu:            locks.Mutex,
+	out_cond:          locks.Cond,
+	outbox:            [dynamic][]byte,
+	out_stop:          bool,
+	writer:            ^thread.Thread,
 	ws:                ^http.Ws_Conn,
 	stream:            netio.Stream,
 	gen:               int,
@@ -146,11 +154,36 @@ gateway_create :: proc(c: ^Client) -> ^Gateway {
 	g.state = .Closed
 	g.presence_status = .Online
 	g.inflated = make([dynamic]byte)
+	g.outbox = make([dynamic][]byte, c.allocator)
 	return g
 }
 
 gateway_start :: proc(g: ^Gateway) {
 	g.control = thread.create_and_start_with_poly_data(g, gateway_control_proc, g.c.ctx)
+	g.writer = thread.create_and_start_with_poly_data(g, gateway_writer_proc, g.c.ctx)
+}
+
+@(private)
+gateway_writer_proc :: proc(g: ^Gateway) {
+	locks.lock(&g.out_mu)
+	for !g.out_stop {
+		if len(g.outbox) == 0 {
+			locks.cond_wait(&g.out_cond, &g.out_mu)
+			continue
+		}
+		batch := g.outbox
+		g.outbox = make([dynamic][]byte, g.c.allocator)
+		locks.unlock(&g.out_mu)
+		for b in batch {
+			locks.lock(&g.send_mu)
+			if g.ws != nil do _ = http.ws_send(g.ws, .Binary, b)
+			locks.unlock(&g.send_mu)
+			delete(b, g.c.allocator)
+		}
+		delete(batch)
+		locks.lock(&g.out_mu)
+	}
+	locks.unlock(&g.out_mu)
 }
 
 gateway_stop :: proc(g: ^Gateway) {
@@ -161,12 +194,20 @@ gateway_stop :: proc(g: ^Gateway) {
 	locks.unlock(&g.mu)
 	gateway_close_socket(g, 1000)
 	if g.control != nil {
-		thread.join(g.control)
-		thread.destroy(g.control)
+		locks.join(g.control)
 	}
 	// The control thread may have finished a connect after the close above, leaving a live socket
 	// and reader thread behind; close and join them before the free.
 	gateway_close_socket(g, 1000)
+	if g.writer != nil {
+		locks.lock(&g.out_mu)
+		g.out_stop = true
+		locks.cond_signal(&g.out_cond)
+		locks.unlock(&g.out_mu)
+		locks.join(g.writer)
+	}
+	for b in g.outbox do delete(b, g.c.allocator)
+	delete(g.outbox)
 	delete(g.session_id)
 	delete(g.resume_url)
 	delete(g.inflated)
@@ -190,6 +231,17 @@ gateway_send :: proc(g: ^Gateway, op: Op, d: V) -> bool {
 	frame := etf.map_done(&b)
 	buf, err := etf.encode(frame, context.temp_allocator)
 	if err != .None do return false
+	if locks.on_ui_thread() {
+		// Queued: true means accepted for sending, as a send can still fail on a dying socket.
+		if sync.atomic_load(&g.ws) == nil do return false
+		if g.c.on_gateway_send != nil do g.c.on_gateway_send(g.c.observer_data, op, d)
+		if g.c.on_gateway_frame != nil do g.c.on_gateway_frame(g.c.observer_data, true, frame, len(buf))
+		locks.lock(&g.out_mu)
+		append(&g.outbox, slice.clone(buf, g.c.allocator))
+		locks.cond_signal(&g.out_cond)
+		locks.unlock(&g.out_mu)
+		return true
+	}
 	locks.lock(&g.send_mu)
 	defer locks.unlock(&g.send_mu)
 	if g.ws == nil do return false
@@ -393,8 +445,7 @@ gateway_close_socket :: proc(g: ^Gateway, code: int) {
 	g.reader = nil
 	locks.unlock(&g.mu)
 	if rd != nil {
-		thread.join(rd)
-		thread.destroy(rd)
+		locks.join(rd)
 	}
 	http.ws_close_stream(ws)
 	zstd.stream_destroy(&g.zs)

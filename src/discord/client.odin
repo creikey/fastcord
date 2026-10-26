@@ -229,8 +229,7 @@ client_destroy :: proc(c: ^Client) {
 	locks.cond_broadcast(&c.job_cond)
 	locks.unlock(&c.job_mu)
 	for th in c.workers {
-		thread.join(th)
-		thread.destroy(th)
+		locks.join(th)
 	}
 	delete(c.workers)
 	expr_pool_stop(c)

@@ -330,8 +330,7 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 h2_finalize :: proc(t: ^Transport, r: ^H2_Ref) {
 	http.h2_close(r.c) // wakes the service thread, waits for users, frees the conn
 	if r.svc != nil {
-		thread.join(r.svc)
-		thread.destroy(r.svc)
+		locks.join(r.svc)
 	}
 	free(r, t.allocator)
 }

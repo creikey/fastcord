@@ -6,6 +6,7 @@ package netio
 import "core:net"
 import "core:sync"
 import "core:time"
+import "fc:locks"
 
 Error :: enum {
 	None,
@@ -64,7 +65,8 @@ Tcp :: struct {
 	shut:     bool, // atomic
 }
 
-dial_tcp :: proc(host: string, port: int) -> (t: ^Tcp, err: Error) {
+dial_tcp :: proc(host: string, port: int, loc := #caller_location) -> (t: ^Tcp, err: Error) {
+	locks.may_block("TCP dial", loc)
 	sock, nerr := net.dial_tcp_from_hostname_with_port_override(host, port)
 	if nerr != nil do return nil, .Dial
 	net.set_option(sock, .TCP_Nodelay, true)
@@ -98,6 +100,7 @@ tcp_shutdown :: proc(data: rawptr) {
 tcp_read :: proc(data: rawptr, dst: []byte) -> (int, Error) {
 	t := cast(^Tcp)data
 	if t.closed || sync.atomic_load(&t.shut) do return 0, .Closed
+	locks.may_block("TCP read")
 	n, err := net.recv_tcp(t.sock, dst)
 	if sync.atomic_load(&t.shut) do return 0, .Closed
 	if err != nil {
@@ -112,6 +115,7 @@ tcp_read :: proc(data: rawptr, dst: []byte) -> (int, Error) {
 tcp_write :: proc(data: rawptr, src: []byte) -> Error {
 	t := cast(^Tcp)data
 	if t.closed || sync.atomic_load(&t.shut) do return .Closed
+	locks.may_block("TCP write")
 	off := 0
 	for off < len(src) {
 		n, err := net.send_tcp(t.sock, src[off:])

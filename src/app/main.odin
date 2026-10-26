@@ -6,6 +6,7 @@ import "core:strconv"
 import "core:strings"
 import dc "fc:discord"
 import "fc:gfx"
+import "fc:locks"
 import "fc:platform"
 import "fc:ui"
 
@@ -21,6 +22,7 @@ App :: struct {
 	view:            View_State,
 	client:          ^dc.Client, // nil when offline (fixture / tests)
 	needs_login:     bool, // no token, or Discord rejected it: show the intro (view_login.odin)
+	connect_pending: bool, // connect() waits for the previous client's teardown (teardown.odin)
 	login_error:     string,
 	offline_store:   dc.Store,
 	chats:           map[dc.Snowflake]Chat_State,
@@ -120,6 +122,7 @@ main :: proc() {
 		os.exit(1)
 	}
 	app.focused = true
+	locks.set_ui_thread()
 	watchdog_start()
 	voice_set_headless(headless)
 	app.stats = os.get_env("FASTCORD_STATS", context.temp_allocator) != ""
@@ -171,8 +174,10 @@ main :: proc() {
 				dc.client_poll(app.client)
 				platform.wait_events(0.05)
 			}
-			dc.client_destroy(app.client)
+			client_release(app.client)
+			app.client = nil
 		}
+		teardown_wait()
 		return
 	}
 	if headless {
@@ -217,6 +222,7 @@ frame :: proc() {
 	app.focused_editor = nil
 
 	t_poll := platform.time_now()
+	if app.connect_pending && !teardown_busy() do connect()
 	if app.client != nil {
 		dc.client_poll(app.client)
 		handle_results()
@@ -440,6 +446,12 @@ run_script :: proc(path: string) {
 
 // Token: $FASTCORD_TOKEN, else <state>/token (written by the login flow).
 connect :: proc() {
+	if teardown_busy() {
+		// The previous client is still shutting down; frame() retries when it is done.
+		app.connect_pending = true
+		return
+	}
+	app.connect_pending = false
 	state_dir := app_state_dir(context.allocator)
 	os.make_directory_all(state_dir)
 	token := os.get_env("FASTCORD_TOKEN", context.temp_allocator)

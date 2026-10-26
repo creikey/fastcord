@@ -174,7 +174,7 @@ login_with_token :: proc(token: string) {
 // Called each frame while connected: a rejected token sends the user back to the intro.
 login_check_auth :: proc() {
 	if app.client == nil || app.client.store.connection != .Auth_Failed do return
-	dc.client_destroy(app.client)
+	client_release(app.client)
 	app.client = nil
 	os.remove(strings.concatenate({app_state_dir(), "/token"}, context.temp_allocator))
 	app.needs_login = true

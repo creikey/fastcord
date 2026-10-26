@@ -267,12 +267,10 @@ voice_disconnect :: proc(c: ^Conn) {
 	}
 	locks.unlock(&c.ws_mu)
 	// The ws thread starts udp_th and audio_th, so read those handles only after it has exited.
-	thread.join(c.ws_th)
-	thread.destroy(c.ws_th)
+	locks.join(c.ws_th)
 	for th in ([]^thread.Thread{c.timer_th, c.udp_th, c.audio_th}) {
 		if th != nil {
-			thread.join(th)
-			thread.destroy(th)
+			locks.join(th)
 		}
 	}
 	if c.capture_on do audio.capture_stop()

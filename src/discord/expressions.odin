@@ -153,8 +153,7 @@ expr_pool_stop :: proc(c: ^Client) {
 	locks.cond_broadcast(&pool.cond)
 	locks.unlock(&pool.mu)
 	for th in threads {
-		thread.join(th)
-		thread.destroy(th)
+		locks.join(th)
 	}
 	delete(threads)
 	for &j in pool.jobs do expr_job_free(&j)

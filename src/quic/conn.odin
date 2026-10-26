@@ -426,11 +426,9 @@ close :: proc(c: ^Conn) {
 	c.stop = true
 	locks.unlock(&c.mu)
 	wake(c)
-	thread.join(c.io_thread)
-	thread.destroy(c.io_thread)
+	locks.join(c.io_thread)
 	if c.hs_thread != nil {
-		thread.join(c.hs_thread)
-		thread.destroy(c.hs_thread)
+		locks.join(c.hs_thread)
 	}
 	if c.rtt.has_sample do remember_rtt(c.hs.cfg.server_name, c.rtt.smoothed)
 	net.close(c.sock)

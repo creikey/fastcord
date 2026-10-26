@@ -278,8 +278,7 @@ extras_destroy :: proc() {
 	locks.cond_broadcast(&fpool.cond)
 	locks.unlock(&fpool.mu)
 	for t in threads {
-		thread.join(t)
-		thread.destroy(t)
+		locks.join(t)
 	}
 	delete(threads)
 	for j in fpool.jobs {
