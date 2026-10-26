@@ -75,7 +75,7 @@ nsstr :: proc(str: string) -> Id {
 	return msg(Id, s1, "autorelease")
 }
 
-@(private = "file")
+@(private)
 odin_str :: proc(nss: Id, allocator: runtime.Allocator) -> string {
 	if nss == nil do return ""
 	c := msg(cstring, nss, "UTF8String")

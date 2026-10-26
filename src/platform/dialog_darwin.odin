@@ -1,3 +1,4 @@
+#+build darwin
 package platform
 
 import "base:runtime"

@@ -1,3 +1,4 @@
+#+build windows
 package platform
 
 // Modal "open file" dialog. Returns absolute paths (empty if cancelled).
