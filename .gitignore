@@ -4,3 +4,10 @@ discord_credentials.txt
 .secrets/
 build/
 .DS_Store
+
+# Local authentication and raw recordings must never become test fixtures.
+.env
+.env.*
+*.token
+*.netlog
+test-results/
