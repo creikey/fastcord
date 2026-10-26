@@ -63,7 +63,10 @@ input events with assertions (`click`, `dclick`, `down`/`move`/`up`, `rclick`,
 ./build/fastcord-debug -shot:out.png -dpi:1 -live:12 -channel:<id>   # real network
 ```
 
-`FASTCORD_STATS=1` prints the frame rate and what is animating (idle should be ~0 fps).
+`FASTCORD_STATS=1` prints the frame rate and what is animating (idle should be ~0 fps), plus
+per-phase timings for frames over 25 ms. A frame stuck for 5 s writes a hang report (the lock the UI
+thread waits on, its holder, and on Windows every thread's stack) to stderr and to `logs/` beside `<state>`.
+All mutexes go through `fc:locks`, which panics at the faulty call on misuse instead of deadlocking.
 Run `python3 -I tools/check_secrets.py` before committing.
 
 All code imports siblings through the `fc` collection: `import "fc:netio"`.
@@ -80,7 +83,9 @@ All code imports siblings through the `fc` collection: `import "fc:netio"`.
 
 1. Bump nothing by hand: the version comes from the tag.
 2. `git tag v0.1.0 && git push origin v0.1.0` (or publish a release with that tag in the GitHub UI).
-3. `.github/workflows/release.yml` creates the GitHub release for the tag and builds `fastcord-macos.zip` (universal `Fastcord.app`,
+3. `.github/workflows/release.yml` first runs `check.yml` (debug build + unit tests on macOS and
+   Windows, also run on every push to main) on the tagged commit; only if that passes does it create
+   the GitHub release for the tag and build `fastcord-macos.zip` (universal `Fastcord.app`,
    ad-hoc signed, not notarized) and attaches it to the release. Windows and Linux are
    not built yet; the site shows them as coming soon.
 4. The site and the in-app updater both use the latest release:
