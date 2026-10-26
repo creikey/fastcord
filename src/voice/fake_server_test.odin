@@ -454,6 +454,7 @@ test_fake_voice_server :: proc(t: ^testing.T) {
 	uth := thread.create_and_start_with_data(f, udp_thread)
 
 	g_playback_b = 0
+	set_codec(stub_codec())
 	opts := Options {
 		dial = proc(host: string, port: int) -> (netio.Stream, bool) {
 			tcp, err := netio.dial_tcp(host, port)
@@ -659,6 +660,7 @@ test_fake_voice_resume :: proc(t: ^testing.T) {
 	uep, _ := net.bound_endpoint(usock)
 	f.udp_port = uep.port
 	lep, _ := net.bound_endpoint(lsock)
+	set_codec(stub_codec())
 	gth := thread.create_and_start_with_data(f, resume_gw)
 	uth := thread.create_and_start_with_data(f, resume_udp)
 	opts := Options {

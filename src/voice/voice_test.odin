@@ -201,3 +201,44 @@ test_vad :: proc(t: ^testing.T) {
 	testing.expect(t, !a, "released after trailing")
 	testing.expect(t, audio_level_byte(-200) == 127 && audio_level_byte(0) == 0)
 }
+
+// tone_stats: RMS energy and dominant frequency (zero crossings) of the left channel.
+tone_stats :: proc(stereo: []f32) -> (rms: f64, freq: f64) {
+	n := len(stereo) / 2
+	acc := 0.0
+	zc := 0
+	for i in 0 ..< n {
+		x := f64(stereo[2 * i])
+		acc += x * x
+		if i > 0 && (stereo[2 * (i - 1)] < 0) != (stereo[2 * i] < 0) do zc += 1
+	}
+	return math.sqrt(acc / f64(n)), f64(zc) / 2 * 48000 / f64(n)
+}
+
+@(test)
+test_opus_codec_tone :: proc(t: ^testing.T) {
+	c := opus_codec()
+	enc := c.encoder_create()
+	dec := c.decoder_create()
+	defer c.encoder_destroy(enc)
+	defer c.decoder_destroy(dec)
+	testing.expect(t, enc != nil && dec != nil)
+	phase := 0.0
+	pcm: [960]f32
+	out: [1920]f32
+	all := make([dynamic]f32, context.temp_allocator)
+	for f in 0 ..< 25 {
+		for i in 0 ..< 960 {
+			pcm[i] = 0.3 * f32(math.sin(phase))
+			phase += 2 * math.PI * 440 / 48000
+		}
+		pkt: [MAX_OPUS_PACKET]byte
+		n := c.encode(enc, pcm[:], pkt[:])
+		testing.expect(t, n > 3)
+		m := c.decode(dec, pkt[:n], false, out[:])
+		testing.expect(t, m == 960)
+		if f >= 5 do append(&all, ..out[:])
+	}
+	rms, freq := tone_stats(all[:])
+	testing.expectf(t, rms > 0.1 && abs(freq - 440) < 20, "rms %v freq %v", rms, freq)
+}

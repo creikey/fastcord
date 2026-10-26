@@ -658,7 +658,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 					}
 				}
 			}
-			res := text_field("input", &cs.editor, placeholder, (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0)
+			res := text_field("input", &cs.editor, placeholder, (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open())
 			if res == .Submit {
 				text := strings.trim_space(ui.editor_text(&cs.editor))
 				if composer_send(ch, text) do cs.scroll_target = 0
@@ -699,12 +699,12 @@ dm_name :: proc(ch: ^dc.Channel) -> string {
 }
 
 // Multi-line text field; grows with content. Returns the editor result of this frame's events.
-text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: bool) -> ui.Edit_Result {
+text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: bool, font_size: f32 = 16, line_h: f32 = 22) -> ui.Edit_Result {
 	f := ui.box(id, {.Clickable, .Draw_Text, .Wrap_Text, .Focusable})
 	f.semantic_size = {.X = ui.fill(), .Y = ui.text_size()}
 	f.style.font = F(.Normal)
-	f.style.font_size = 16
-	f.style.line_height = 22
+	f.style.font_size = font_size
+	f.style.line_height = line_h
 	f.style.padding = {0, 15}
 	f.hover_cursor = .IBeam
 	text := ui.editor_text(ed)
@@ -807,4 +807,9 @@ divider_row :: proc(id: dc.Snowflake, new_day, show_new: bool) {
 		spacer(.X, 14)
 	}
 	spacer(.Y, 8)
+}
+
+// Any overlay that takes keyboard input away from the composer.
+modal_open :: proc() -> bool {
+	return sw.open || ma.deleting != 0 || app.settings_open || viewer_url != ""
 }

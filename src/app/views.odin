@@ -630,6 +630,13 @@ join_voice :: proc(gid, cid: dc.Snowflake) {
 }
 
 overlays :: proc() {
+	for &e in app.ui.events {
+		if !e.consumed && e.kind == .Key_Down && e.key == .K && .Cmd in e.mods {
+			switcher_toggle()
+			e.consumed = true
+		}
+	}
+	if sw.open do quick_switcher()
 	if ma.menu_msg != 0 do message_menu()
 	if ma.deleting != 0 do delete_modal()
 	if app.profile_user != 0 do profile_popout()

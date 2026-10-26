@@ -2,10 +2,9 @@ package voice
 
 import "core:sync"
 
-// Opus codec interface. src/opus (from-scratch codec) plugs in with
-// set_codec(); until then a stub is used that sends Opus silence frames
-// (0xF8 0xFF 0xFE: a valid 20 ms CELT packet) and decodes to silence, so the
-// whole protocol path (RTP, DAVE, jitter buffer, speaking) still runs.
+// Opus codec interface. The default is opus_codec() (fc:opus); set_codec()
+// overrides it (e.g. stub_codec(), which sends Opus silence frames
+// 0xF8 0xFF 0xFE and decodes to silence, for protocol tests).
 //
 // Contract (all at 48 kHz, 20 ms = 960 samples per channel):
 //   encode(enc, pcm_mono[960], out) -> bytes written (0 = drop frame)
@@ -43,7 +42,7 @@ set_codec :: proc(c: Codec) {
 get_codec :: proc() -> Codec {
 	sync.mutex_lock(&g_codec_mu)
 	defer sync.mutex_unlock(&g_codec_mu)
-	if g_codec.encode == nil do return stub_codec()
+	if g_codec.encode == nil do return opus_codec()
 	return g_codec
 }
 

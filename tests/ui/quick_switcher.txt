@@ -1,0 +1,9 @@
+# Cmd+K opens the switcher; typing filters; Enter jumps to the channel.
+wait 3
+key k cmd
+wait 5
+type gen
+wait 10
+shot build/ui-switcher.png
+key enter
+wait 5
