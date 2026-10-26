@@ -346,6 +346,25 @@ guild_acronym_size :: proc(n: int) -> f32 {
 	return 12
 }
 
+PERM_ADMINISTRATOR :: u64(1) << 3
+PERM_MANAGE_GUILD_EXPRESSIONS :: u64(1) << 30
+
+// Guild-level permissions of the current user (owner = everything).
+my_guild_permissions :: proc(gid: dc.Snowflake) -> u64 {
+	s := store()
+	g := dc.guild_get(s, gid)
+	if g == nil do return 0
+	if g.owner_id == s.me do return max(u64)
+	perms: u64
+	mem := dc.member_get(s, gid, s.me)
+	for r in g.roles {
+		if r.id == gid do perms |= r.permissions // @everyone
+		if mem != nil do for rid in mem.roles do if rid == r.id do perms |= r.permissions
+	}
+	if perms & PERM_ADMINISTRATOR != 0 do return max(u64)
+	return perms
+}
+
 guild_has_unread :: proc(gid: dc.Snowflake) -> bool {
 	s := store()
 	for id in dc.guild_channels_sorted(s, gid) {

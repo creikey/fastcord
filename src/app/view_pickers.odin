@@ -43,6 +43,7 @@ PK_SEARCH_RADIUS :: 8
 PK_SEARCH_PAD_X :: 12
 PK_HEADER_PAD_BOTTOM :: 12
 PK_HEADER_GAP :: 12 // search bar to skin tone selector
+PK_ADD_EMOJI_PAD_X :: 14 // "Add Emoji" button padding (102px wide at 16px)
 
 PK_SCROLLBAR_W :: 4
 
@@ -439,6 +440,21 @@ picker_header :: proc(r: ui.Rect) {
 			if pk.tab == .Emoji {
 				spacer(.X, PK_HEADER_GAP)
 				skin_tone_button()
+				// "Add Emoji" when you can manage this guild's expressions (official: 102x40)
+				pch := dc.channel_get(store(), pk.channel)
+				if gid := pch != nil ? pch.guild_id : 0; gid != 0 && my_guild_permissions(gid) & PERM_MANAGE_GUILD_EXPRESSIONS != 0 {
+					spacer(.X, PK_HEADER_GAP)
+					add := ui.box("Add Emoji##addemoji", {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
+					add.semantic_size = {.X = ui.text_size(PK_ADD_EMOJI_PAD_X), .Y = ui.px(PK_SEARCH_H)}
+					add.style.radius = PK_SEARCH_RADIUS
+					add.style.font = F(.Medium)
+					add.style.font_size = 16
+					add.style.text_align = .Center
+					add.style.text_color = T("--text-strong")
+					add.style.bg = T("--background-mod-normal")
+					add.style.bg_hot = T("--background-mod-strong")
+					ui.signal(add)
+				}
 			}
 			spacer(.X, PK_HEADER_PAD_X)
 		}
@@ -456,8 +472,8 @@ pk_search_field :: proc(ed: ^ui.Editor, placeholder: string) -> ui.Edit_Result {
 	wrap := row("search", {.Draw_Background, .Draw_Border, .Clickable})
 	wrap.semantic_size = {.X = ui.fill(), .Y = ui.px(PK_SEARCH_H)}
 	wrap.style.bg = T("--input-background-default")
-	wrap.style.border_color = T("--border-focus") // the search input has focus while open
-	wrap.style.border = 1
+	wrap.style.border_color = T("--input-border-active") // focused while open: 2px brand border
+	wrap.style.border = 2
 	wrap.style.radius = PK_SEARCH_RADIUS
 	wrap.hover_cursor = .IBeam
 	result := ui.Edit_Result.None

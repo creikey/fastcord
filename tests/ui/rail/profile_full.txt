@@ -1,0 +1,15 @@
+# Author name -> profile popout -> avatar -> full profile modal, then the
+# Mutual Servers tab; Escape closes. (The message list settles for ~12 frames
+# after a channel opens, so wait before clicking rows.)
+wait 30
+click 476 129
+wait 20
+shot build/ui-profile_full-popout.png
+click 570 219
+wait 30
+shot build/ui-profile_full-about.png
+click 515 363
+wait 10
+shot build/ui-profile_full-servers.png
+key escape
+wait 20

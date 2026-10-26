@@ -63,7 +63,6 @@ profile_popout :: proc() {
 	uid := app.profile_user
 	u := dc.user_get(s, uid)
 	if u == nil {
-		fmt.eprintln("DBGP nil user", uid)
 		app.profile_user = 0
 		return
 	}

@@ -59,6 +59,7 @@ Box_Flag :: enum u32 {
 	Draw_Shadow,
 	Floating_X,
 	Floating_Y,
+	Anchor_End_Y, // with Floating_Y: fixed_pos.y is the distance from the parent's bottom edge to this box's bottom
 	Hot_Animation,
 	Active_Animation,
 	Focusable,
@@ -301,6 +302,7 @@ State :: struct {
 	next_hot:         Key,
 	cursor:           Cursor,
 	animating:        bool,
+	overlay_under_mouse: bool, // last frame's overlay (popout, modal, menu) covers the mouse
 	animating_loc:    runtime.Source_Code_Location, // last animate() still in motion (debugging idle wakeups)
 	scroll_consumed:  bool,
 	selection:        Selection,
@@ -371,6 +373,7 @@ begin :: proc(window: Vec2, dt: f32, time: f64, events: []Input_Event) {
 	// The hot box is whatever was topmost under the mouse in last frame's
 	// layout; last frame's boxes (and their arena) are still alive here.
 	s.hot = hit_test_prev(s.mouse)
+	s.overlay_under_mouse = overlay_at(s.mouse)
 
 	s.frame += 1
 	s.dt = dt
@@ -663,6 +666,15 @@ hit_test_prev :: proc(p: Vec2) -> Key {
 	return best
 }
 
+// Does any box of last frame's overlay layer (popups, modals) contain p?
+@(private)
+overlay_at :: proc(p: Vec2) -> bool {
+	for b in ui.order {
+		if .Overlay in b.flags && contains(b.rect, p) do return true
+	}
+	return false
+}
+
 @(private)
 in_overlay :: proc(b: ^Box) -> bool {
 	for x := b; x != nil; x = x.parent {
@@ -673,6 +685,7 @@ in_overlay :: proc(b: ^Box) -> bool {
 
 // Is the mouse over this box's last-frame rect (ignoring occlusion)?
 mouse_over :: proc(b: ^Box) -> bool {
+	if ui.overlay_under_mouse && !in_overlay(b) do return false
 	return contains(visible_rect(b), ui.mouse)
 }
 
@@ -932,6 +945,7 @@ layout_position :: proc(b: ^Box) {
 		for axis in Axis {
 			if is_floating(c, axis) {
 				c.rel_pos[axis] = c.fixed_pos[axis]
+				if axis == .Y && .Anchor_End_Y in c.flags do c.rel_pos.y = b.fixed_size.y - c.fixed_size.y - c.fixed_pos.y
 			} else if axis == b.layout_axis {
 				c.rel_pos[axis] = cursor
 			} else {

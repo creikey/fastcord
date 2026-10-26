@@ -125,7 +125,6 @@ chat_view :: proc(channel_id: dc.Snowflake) {
 	}
 
 	picker_capture_input() // expression picker owns keys/wheel while open
-	fmt.eprintln("DBGC", app.ui.frame, app.ui.mouse, app.ui.hot, len(app.ui.events))
 	col := ui.box("chatcol")
 	col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 	col.layout_axis = .Y
@@ -190,30 +189,50 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 		}
 	}
 
-	top := total - cs.scroll_from_bottom - view_h // content y at the top of the viewport
+	// Render the contiguous run of rows near the viewport as one column anchored
+	// to the list's bottom edge. Its offset only depends on rows *below* it, so
+	// at the bottom (the common case) placement is exact on the first frame and
+	// rows never jump while their real heights get measured.
+	est :: proc(cs: ^Chat_State, id: dc.Snowflake) -> f32 {
+		h, ok := cs.heights[id]
+		return ok ? h : MSG_LINE_H + 4
+	}
+	MARGIN :: 200
+	i1 := len(msgs) - 1
+	below: f32 = 0 // height of rows after i1
+	for i1 >= 0 && below + est(cs, msgs[i1].id) < cs.scroll_from_bottom - MARGIN {
+		below += est(cs, msgs[i1].id)
+		i1 -= 1
+	}
+	i0 := i1
+	span: f32 = 0
+	for i0 >= 0 && below + span < cs.scroll_from_bottom + view_h + MARGIN {
+		span += est(cs, msgs[i0].id)
+		i0 -= 1
+	}
+	i0 += 1
 	if ui.parent(list) {
-		y: f32 = TOP_PAD
-		prev: ^dc.Message
-		for &m, i in msgs {
-			h, ok := cs.heights[m.id]
-			if !ok do h = MSG_LINE_H + 4
-			visible := y + h >= top - 200 && y <= top + view_h + 200
-			if visible {
+		col := ui.box("rows", {.Floating_Y, .Anchor_End_Y})
+		col.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
+		col.layout_axis = .Y
+		col.fixed_pos = {0, BOTTOM_PAD + below - cs.scroll_from_bottom}
+		if ui.parent(col) {
+			if i0 == 0 do spacer(.Y, TOP_PAD)
+			for i in max(i0, 0) ..= i1 {
+				if i < 0 do break
+				m := &msgs[i]
+				prev: ^dc.Message = i > 0 ? &msgs[i - 1] : nil
 				new_day := prev == nil || day_of(prev.id) != day_of(m.id)
 				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == nil || prev.id <= cs.unread_after) && m.author_id != s.me
-				grouped := continues_group(prev, &m) && !show_new
+				grouped := continues_group(prev, m) && !show_new
 				// consecutive call notices stack with no group gap
 				if m.kind == MSG_CALL do grouped = prev != nil && prev.kind == MSG_CALL && !new_day && !show_new
 				if ui.id_scope(u64(m.id)) {
-					row := message_row(&m, grouped, i, new_day, show_new)
-					row.flags += {.Floating_Y}
-					row.fixed_pos = {0, y - top}
+					row := message_row(m, grouped, i, new_day, show_new)
 					// remember measured height (from last frame's layout)
 					if row.rect.y1 > row.rect.y0 do cs.heights[m.id] = row.rect.y1 - row.rect.y0
 				}
 			}
-			y += h
-			prev = &m
 		}
 	}
 }
@@ -386,10 +405,8 @@ message_header :: proc(m: ^dc.Message) {
 		n := label(name, .Medium, 16, author_color(m), MSG_LINE_H)
 		n.flags += {.Clickable, .Selectable_Text}
 		n.sel_order = u64(m.id) * 8
-		for e in app.ui.events do if e.kind == .Mouse_Down && n.rect.y0 > 100 && n.rect.y0 < 140 do fmt.eprintln("DBGE", e.consumed, e.pos, app.ui.hot == n.key, n.rect)
 		nsig := ui.signal(n)
 		if nsig.clicked do open_profile(m.author_id, n.rect)
-		if nsig.pressed || nsig.clicked || nsig.released do fmt.eprintln("DBGN", nsig.pressed, nsig.released, nsig.clicked, app.profile_user)
 		if nsig.right_clicked do open_user_menu(m.author_id, app.ui.mouse)
 		spacer(.X, 8)
 		// copies as "Name — 4:56 AM" like the client's hidden separator
@@ -804,6 +821,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			}
 			spacer(.X, 24)
 			placeholder := ch.kind == .DM ? fmt.tprintf("Message @%s", dm_name(ch)) : fmt.tprintf("Message #%s", ch.name)
+			if ch.kind == .Group_DM do placeholder = fmt.tprintf("Message %s", dm_name(ch))
 			// Up in an empty composer edits your last message, like the client
 			if ui.editor_text(&cs.editor) == "" && ma.editing == 0 {
 				for &e in app.ui.events {
