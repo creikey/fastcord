@@ -165,6 +165,7 @@ wav_scan :: proc(d: ^Demuxer) -> Scan_Status {
 		t.channels = int(le16(f[2:]))
 		t.sample_rate = int(le32(f[4:]))
 		t.bits = int(le16(f[14:]))
+		if t.sample_rate < 8000 || t.sample_rate > 384000 do return .Error
 		t.timescale = i64(t.sample_rate)
 		if tag == 0xFFFE && len(f) >= 26 do tag = le16(f[24:])
 		t.pcm_float = tag == 3
