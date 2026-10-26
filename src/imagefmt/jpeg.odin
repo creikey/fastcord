@@ -304,6 +304,7 @@ j_scan :: proc(d: ^J_Dec, data: []byte, p: int, sc: []int, ss, se, ah, al: int) 
 			d.eobrun = 0
 			for ci in sc do d.comps[ci].dc_pred = 0
 		}
+		if b.nbits == 0 && (b.marker || b.pos >= len(data)) do break
 		if single {
 			c := &d.comps[sc[0]]
 			x, y := m % bx, m / bx
@@ -715,6 +716,7 @@ jpeg_decode :: proc(c: ^Decode_Ctx, data: []byte, img: ^Image) -> Error {
 				if (ss == 0 && ah == 0 || !d.progressive) && !d.dc[cp.td].ok do return .Corrupt
 				if (se > 0) && !d.ac[cp.ta].ok do return .Corrupt
 			}
+			if scans >= 64 do return .Corrupt
 			p = j_scan(d, data, p + ln, sc[:ns], ss, se, ah, al)
 			scans += 1
 			continue
