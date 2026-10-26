@@ -1001,12 +1001,11 @@ channel_welcome :: proc(ch: ^dc.Channel) {
 				spacer(.X, 16)
 				b := row("editbtn", {.Clickable})
 				b.semantic_size = {.X = ui.children(), .Y = ui.px(20)}
-				hov := ui.signal(b).hovering
+				ui.signal(b)
 				if ui.parent(b) {
 					icon("i", "pencil", 16, T("--text-link"))
 					spacer(.X, 4)
-					l := label("Edit Channel", .Medium, 14, T("--text-link"), 18)
-					if hov do l.style.text_color = T("--text-link")
+					label("Edit Channel", .Medium, 14, T("--text-link"), 18)
 				}
 			}
 		}
