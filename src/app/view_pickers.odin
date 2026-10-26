@@ -1,6 +1,7 @@
 package app
 
 import "core:math"
+import "core:os"
 import "core:strings"
 import dc "fc:discord"
 import "fc:gfx"
@@ -72,6 +73,8 @@ Picker_State :: struct {
 	search_focus:   bool,
 	opened_once:    bool,
 	keys:           [dynamic]ui.Input_Event, // keyboard events for the active tab this frame
+	hidden_mouse:   Maybe(ui.Vec2), // real mouse while hidden from the views under the popout
+	buttons:        [Picker_Tab]ui.Rect, // composer buttons (clicks on them switch tabs, not close)
 }
 
 pk: Picker_State
@@ -94,6 +97,7 @@ picker_composer_button :: proc(name: string, sig: ui.Signal, rect: ui.Rect, chan
 	case:
 		return sig.hovering
 	}
+	pk.buttons[tab] = rect
 	active := picker_is_open() && pk.mode == .Composer && pk.tab == tab && pk.channel == channel_id
 	if sig.clicked {
 		if active {
@@ -123,6 +127,9 @@ picker_open :: proc(mode: Picker_Mode, tab: Picker_Tab, channel_id, message_id: 
 		pk.opened_once = true
 		pickers_first_open()
 	}
+	if tab == .Emoji || mode == .Reaction {
+		if c := dc.channel_get(store(), channel_id); c != nil do pickers_on_open_guild(c.guild_id)
+	}
 }
 
 picker_set_tab :: proc(tab: Picker_Tab) {
@@ -149,6 +156,11 @@ picker_capture_input :: proc() {
 	clear(&pk.captured)
 	if !picker_is_open() do return
 	over := pk_contains(pk.rect, app.ui.mouse)
+	if over {
+		// the message list hovers by rect (ui.mouse_over); keep it from reacting under the popout
+		pk.hidden_mouse = app.ui.mouse
+		app.ui.mouse = {-1e6, -1e6}
+	}
 	for &e, i in app.ui.events {
 		if e.consumed do continue
 		take := false
@@ -178,7 +190,13 @@ release_captured :: proc() {
 
 // Overlay entry (views.odin overlays()): network results every frame, the popout when open.
 picker_overlay :: proc() {
+	if m, ok := pk.hidden_mouse.?; ok {
+		app.ui.mouse = m
+		pk.hidden_mouse = nil
+	}
 	pickers_poll()
+	clear(&pk.keys)
+	picker_debug_autopen()
 	// toolbar / context menu "Add Reaction" set app.reaction_target
 	if app.reaction_target != 0 && !(picker_is_open() && pk.mode == .Reaction && pk.message == app.reaction_target) {
 		m := find_message(app.reaction_target)
@@ -219,12 +237,13 @@ picker_overlay :: proc() {
 // Escape, click-outside, and the keyboard routed to the active tab.
 @(private = "file")
 picker_input :: proc() {
-	clear(&pk.keys)
 	for &e in app.ui.events {
 		if e.consumed do continue
 		#partial switch e.kind {
 		case .Mouse_Down:
-			if !pk_contains(pk.rect, e.pos) && !pk_contains(pk.anchor, e.pos) {
+			on_button := false
+			if pk.mode == .Composer do for r in pk.buttons do if pk_contains(r, e.pos) do on_button = true
+			if !pk_contains(pk.rect, e.pos) && !pk_contains(pk.anchor, e.pos) && !on_button {
 				picker_close()
 				return
 			}
@@ -381,15 +400,17 @@ picker_header :: proc(r: ui.Rect) {
 		srow.semantic_size = {.X = ui.pct(1), .Y = ui.px(PK_SEARCH_H)}
 		if ui.parent(srow) {
 			spacer(.X, PK_HEADER_PAD_X)
-			placeholder := "Find the perfect emoji"
+			placeholder := pk.mode == .Reaction ? "Find the perfect reaction" : "Find the perfect emoji"
 			switch pk.tab {
 			case .Gif:
-				placeholder = "Search Tenor"
+				placeholder = "Search Klipy"
 			case .Sticker:
 				placeholder = "Find the perfect sticker"
 			case .Emoji:
 			}
-			res := pk_search_field(&pk.search[pk.tab], placeholder)
+			res := ui.Edit_Result.None
+			if pk.tab == .Gif do gif_header_back()
+			if !(pk.tab == .Gif && gif_header_title()) do res = pk_search_field(&pk.search[pk.tab], placeholder)
 			if res == .Changed {
 				switch pk.tab {
 				case .Emoji:
@@ -574,3 +595,62 @@ pk_query :: proc(tab: Picker_Tab) -> string {
 }
 
 pk_round :: proc(v: f32) -> f32 {return math.round(v)}
+
+// "Add Reaction" button after a message's reactions (shown while the message is hovered).
+reaction_add_button :: proc(m: ^dc.Message) {
+	open := picker_is_open() && pk.mode == .Reaction && pk.message == m.id
+	if app.chat_hover != m.id && !open do return
+	b := row("addreaction", {.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation})
+	b.semantic_size = {.X = ui.px(34), .Y = ui.px(26)}
+	b.style.radius = 8
+	b.style.border = 1
+	b.style.bg = T("--reaction-background-default")
+	b.style.bg_hot = T("--reaction-background-hover")
+	b.style.border_color = T("--reaction-border-default")
+	sig := ui.signal(b)
+	if ui.parent(b) {
+		spacer(.X, 8)
+		icon("i", "reaction-plus", 18, sig.hovering || open ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+	}
+	if sig.clicked {
+		if open {
+			picker_close()
+		} else {
+			app.reaction_target = m.id
+			picker_open(.Reaction, .Emoji, m.channel_id, m.id, b.rect)
+		}
+	}
+}
+
+// FASTCORD_PICKER=gif|sticker|emoji (+ FASTCORD_PICKER_QUERY=...) opens the picker
+// once a channel is showing — for headless -live checks of the real REST data.
+@(private = "file")
+picker_debug_autopen :: proc() {
+	@(static) done: bool
+	if done || app.view.channel == 0 || pk.composer_top == 0 do return
+	which := os.get_env("FASTCORD_PICKER", context.temp_allocator)
+	if which == "" {
+		done = true
+		return
+	}
+	done = true
+	tab := Picker_Tab.Emoji
+	switch which {
+	case "gif":
+		tab = .Gif
+	case "sticker":
+		tab = .Sticker
+	}
+	picker_open(.Composer, tab, app.view.channel, 0, {pk.composer_right - 48, pk.composer_top, pk.composer_right - 8, pk.composer_top + 52})
+	if q := os.get_env("FASTCORD_PICKER_QUERY", context.temp_allocator); q != "" {
+		ui.editor_set_text(&pk.search[tab], q)
+		switch tab {
+		case .Emoji:
+			emoji_picker_query_changed()
+		case .Gif:
+			gif_picker_query_changed()
+		case .Sticker:
+			sticker_picker_query_changed()
+		}
+	}
+}

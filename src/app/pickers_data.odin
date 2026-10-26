@@ -105,26 +105,48 @@ emoji_toned :: proc(idx: int, tone: int) -> int {
 	return int(e.children[ci])
 }
 
-EMOJI_CATEGORY_TITLES := map[string]string {
-	"people"   = "People",
-	"nature"   = "Nature",
-	"food"     = "Food & Drink",
-	"activity" = "Activities",
-	"travel"   = "Travel & Places",
-	"objects"  = "Objects",
-	"symbols"  = "Symbols",
-	"flags"    = "Flags",
+emoji_category_title :: proc(key: string) -> string {
+	switch key {
+	case "people":
+		return "People"
+	case "nature":
+		return "Nature"
+	case "food":
+		return "Food & Drink"
+	case "activity":
+		return "Activities"
+	case "travel":
+		return "Travel & Places"
+	case "objects":
+		return "Objects"
+	case "symbols":
+		return "Symbols"
+	case "flags":
+		return "Flags"
+	}
+	return key
 }
 
-EMOJI_CATEGORY_ICONS := map[string]string {
-	"people"   = "emoji-people",
-	"nature"   = "nature",
-	"food"     = "food",
-	"activity" = "game-controller",
-	"travel"   = "bicycle",
-	"objects"  = "object",
-	"symbols"  = "heart",
-	"flags"    = "flag",
+emoji_category_icon :: proc(key: string) -> string {
+	switch key {
+	case "people":
+		return "emoji-people"
+	case "nature":
+		return "nature"
+	case "food":
+		return "food"
+	case "activity":
+		return "game-controller"
+	case "travel":
+		return "bicycle"
+	case "objects":
+		return "object"
+	case "symbols":
+		return "heart"
+	case "flags":
+		return "flag"
+	}
+	return "reaction"
 }
 
 // ---- frecency ----

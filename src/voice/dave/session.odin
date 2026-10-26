@@ -396,16 +396,12 @@ adopt :: proc(s: ^Session, g: ^mls.Group, tid: int) {
 	s.pending = nil
 	s.invalid_in_a_row = 0
 	now := s.now_ms()
-	clear(&s.roster)
+	set_roster(s, g)
 	for l in 0 ..< mls.n_leaves(&g.tree) {
 		n := mls.leaf_at(&g.tree, l)
 		if n.kind != .Leaf do continue
 		uid, ok := user_of(n.leaf.credential)
-		if !ok do continue
-		key: [mls.NPK]byte
-		copy(key[:], n.leaf.signature_key)
-		s.roster[uid] = key
-		if uid == s.self_user do continue
+		if !ok || uid == s.self_user do continue
 		d := s.decryptors[uid]
 		if d.cryptors == nil do d.cryptors = make([dynamic]Cryptor)
 		// drop expired
@@ -427,6 +423,20 @@ adopt :: proc(s: ^Session, g: ^mls.Group, tid: int) {
 		execute_locked(s, 0, s.protocol_version)
 	} else {
 		push(s, Outgoing{op = OP_READY_FOR_TRANSITION, transition_id = tid})
+	}
+}
+
+@(private)
+set_roster :: proc(s: ^Session, g: ^mls.Group) {
+	clear(&s.roster)
+	for l in 0 ..< mls.n_leaves(&g.tree) {
+		n := mls.leaf_at(&g.tree, l)
+		if n.kind != .Leaf do continue
+		uid, ok := user_of(n.leaf.credential)
+		if !ok do continue
+		key: [mls.NPK]byte
+		copy(key[:], n.leaf.signature_key)
+		s.roster[uid] = key
 	}
 }
 
@@ -527,7 +537,11 @@ execute_locked :: proc(s: ^Session, tid: int, version: int) {
 		return
 	}
 	g := s.current
-	if g == nil && tid == 0 do g = s.pending // sole member reset: switch to the local group
+	if g == nil && tid == 0 && s.pending != nil {
+		// sole member reset: switch to the local one-member group
+		g = s.pending
+		set_roster(s, g)
+	}
 	if g == nil do return
 	// sender switches to the new epoch's key
 	if s.send_active do ratchet_destroy(&s.send_ratchet)

@@ -124,7 +124,7 @@ header_orders :: proc(t: ^testing.T) {
 	et.method = "GET"
 	et.extra = {{"cache-control", "max-age=0"}, {"if-none-match", `W/"x"`}}
 	testing.expect_value(t, names(api_headers(p, et)), API_ETAG_ORDER)
-	testing.expect_value(t, names(preflight_headers(p, "PUT", "content-type")), PREFLIGHT_ORDER)
+	testing.expect_value(t, names(preflight_headers(p, "PUT", "content-type", false)), PREFLIGHT_ORDER)
 	testing.expect_value(t, names(upload_put_headers(p, 22)), UPLOAD_PUT_ORDER)
 	testing.expect_value(t, names(gateway_ws_headers(p, "gateway.discord.gg", "c=1")), WS_ORDER)
 	testing.expect_value(t, names(web_headers(p, {method = "GET", site = .Same_Site, referer = "https://discord.com/"})), STATUS_ORDER)

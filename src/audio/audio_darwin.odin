@@ -277,3 +277,7 @@ _capture_stop :: proc() {
 	mac.vpio = false
 	update_latency()
 }
+
+// Hook for devices_darwin.odin: the unit currently doing I/O (VPIO while capturing).
+@(private)
+_darwin_unit :: proc() -> (unit: AudioUnit, vpio: bool) {return mac.out_unit, mac.vpio}

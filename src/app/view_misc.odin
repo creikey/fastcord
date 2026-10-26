@@ -200,13 +200,13 @@ settings_modal :: proc() {
 			if ui.parent(nav) {
 				spacer(.Y, 60)
 				for name in ([]string{"My Account", "Profiles", "Appearance", "Voice & Video", "Notifications"}) {
-					sel := name == "Appearance"
+					sel := name == settings_page
 					it := row(name, {.Clickable, .Draw_Background, .Hot_Animation})
 					it.semantic_size = {.X = ui.pct(1), .Y = ui.px(32)}
 					it.style.radius = 6
 					it.style.bg = sel ? T("--background-mod-normal") : {}
 					it.style.bg_hot = T("--background-mod-subtle")
-					ui.signal(it)
+					if ui.signal(it).clicked do settings_page = name
 					if ui.parent(it) {
 						spacer(.X, 20)
 						label(name, .Medium, 16, sel ? T("--interactive-text-active") : T("--interactive-text-default"), 20)
@@ -222,7 +222,7 @@ settings_modal :: proc() {
 				t.semantic_size = {.X = ui.pct(1), .Y = ui.px(28)}
 				if ui.parent(t) {
 					spacer(.X, 40)
-					label("Appearance", .Semibold, 20, T("--text-strong"), 24)
+					label(settings_page, .Semibold, 20, T("--text-strong"), 24)
 					filler(.X)
 					close := ui.box("close", {.Clickable, .Draw_Border})
 					close.semantic_size = {.X = ui.px(36), .Y = ui.px(36)}
@@ -239,24 +239,28 @@ settings_modal :: proc() {
 					spacer(.X, 40)
 				}
 				spacer(.Y, 24)
+				if settings_page == "Voice & Video" do voice_settings_page()
 				th := row("themes")
-				th.semantic_size = {.X = ui.pct(1), .Y = ui.px(60)}
-				if ui.parent(th) {
-					spacer(.X, 40)
-					for name in Theme_Name {
-						tokens: Theme
-						defer delete(tokens.tokens)
-						theme_load(&tokens, name)
-						sw := ui.box(fmt.tprint(name), {.Clickable, .Draw_Background, .Draw_Border})
-						sw.semantic_size = {.X = ui.px(60), .Y = ui.px(60)}
-						sw.style.radius = 30
-						sw.style.bg = tok(&tokens, "--background-base-lower")
-						sw.style.border = app.theme.name == name ? 2 : 1
-						sw.style.border_color = app.theme.name == name ? T("--background-brand") : T("--border-strong")
-						if ui.signal(sw).clicked do theme_load(&app.theme, name)
-						spacer(.X, 16)
+				th.semantic_size = {.X = ui.pct(1), .Y = ui.px(60 if settings_page == "Appearance" else 0)}
+				if settings_page == "Appearance" {
+					if ui.parent(th) {
+						spacer(.X, 40)
+						for name in Theme_Name {
+							tokens: Theme
+							defer delete(tokens.tokens)
+							theme_load(&tokens, name)
+							sw := ui.box(fmt.tprint(name), {.Clickable, .Draw_Background, .Draw_Border})
+							sw.semantic_size = {.X = ui.px(60), .Y = ui.px(60)}
+							sw.style.radius = 30
+							sw.style.bg = tok(&tokens, "--background-base-lower")
+							sw.style.border = app.theme.name == name ? 2 : 1
+							sw.style.border_color = app.theme.name == name ? T("--background-brand") : T("--border-strong")
+							if ui.signal(sw).clicked do theme_load(&app.theme, name)
+							spacer(.X, 16)
+						}
 					}
 				}
+
 			}
 		}
 	}

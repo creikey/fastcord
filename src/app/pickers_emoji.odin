@@ -168,7 +168,7 @@ emoji_guilds :: proc() -> []dc.Snowflake {
 }
 
 @(private = "file")
-build_sections :: proc() -> []Em_Section {
+build_sections :: proc(ignore_query := false) -> []Em_Section {
 	emoji_db_load()
 	s := store()
 	here := current_guild()
@@ -187,7 +187,7 @@ build_sections :: proc() -> []Em_Section {
 		return {}, false
 	}
 
-	q := pk_query(.Emoji)
+	q := ignore_query ? "" : pk_query(.Emoji)
 	if q != "" {
 		append(&secs, Em_Section{kind = .Search, key = 1, items = emoji_search(q, by_id, here, nitro)})
 		return secs[:]
@@ -198,7 +198,7 @@ build_sections :: proc() -> []Em_Section {
 		for k in frecency.favorite_emojis do if it, ok := key_item(k, by_id, here, nitro); ok do append(&items, it)
 		if len(items) > 0 do append(&secs, Em_Section{kind = .Favorites, key = 2, title = "Favorites", icon = "star", items = items[:]})
 	}
-	{
+	frequent: {
 		reaction := pk.mode == .Reaction
 		items := make([dynamic]Pk_Emoji, context.temp_allocator)
 		seen := make(map[string]bool, allocator = context.temp_allocator)
@@ -227,62 +227,78 @@ build_sections :: proc() -> []Em_Section {
 	for c, ci in emoji_db.cats {
 		items := make([]Pk_Emoji, c.end - c.start, context.temp_allocator)
 		for i in c.start ..< c.end do items[i - c.start] = uni_item(i)
-		append(&secs, Em_Section{kind = .Unicode, key = 100 + u64(ci), title = EMOJI_CATEGORY_TITLES[c.key] or_else c.key, icon = EMOJI_CATEGORY_ICONS[c.key] or_else "reaction", items = items})
+		append(&secs, Em_Section{kind = .Unicode, key = 100 + u64(ci), title = emoji_category_title(c.key), icon = emoji_category_icon(c.key), items = items})
 	}
 	return secs[:]
 }
 
-// Names only (every alias), ranked exact > prefix > word prefix > substring, then frecency.
+// EmojiStore.searchWithoutFetchingLatest: the query (lowercased, spaces and
+// underscores removed) is a substring of a name with underscores removed; then
+// getSearchResultsOrder: score 1 + 4*exact + 2*word match + 1*prefix, times
+// max(1, frecency/100), descending, ties by name. Unlocked before locked.
 emoji_search :: proc(q: string, by_id: map[dc.Snowflake]dc.Emoji, here: dc.Snowflake, nitro: bool) -> []Pk_Emoji {
 	Hit :: struct {
 		e:     Pk_Emoji,
-		rank:  int,
 		score: f64,
-		order: int,
 	}
-	qq, _ := strings.replace_all(q, ":", "", context.temp_allocator)
-	if qq == "" do return nil
-	rank_of :: proc(name, q: string) -> int {
-		n := strings.to_lower(name, context.temp_allocator)
-		if n == q do return 0
-		if strings.has_prefix(n, q) do return 1
-		if strings.contains(n, strings.concatenate({"_", q}, context.temp_allocator)) do return 2
-		if strings.contains(n, q) do return 3
-		return -1
+	raw := strings.trim_prefix(strings.trim_suffix(q, ":"), ":")
+	needle, _ := strings.replace_all(raw, "_", "", context.temp_allocator)
+	needle, _ = strings.replace_all(needle, " ", "", context.temp_allocator)
+	if needle == "" do return nil
+	matches :: proc(name, needle: string) -> bool {
+		n, _ := strings.replace_all(strings.to_lower(name, context.temp_allocator), "_", "", context.temp_allocator)
+		return strings.contains(n, needle)
 	}
-	hits := make([dynamic]Hit, context.temp_allocator)
+	// (^|_|[A-Z])q s?([A-Z]|_|$) on the lowercased name
+	word_match :: proc(name, q: string) -> bool {
+		for i := 0; i + len(q) <= len(name); i += 1 {
+			if name[i:i + len(q)] != q || (i > 0 && name[i - 1] != '_') do continue
+			j := i + len(q)
+			if j == len(name) || name[j] == '_' do return true
+			if name[j] == 's' && (j + 1 == len(name) || name[j + 1] == '_') do return true
+		}
+		return false
+	}
+	score_of :: proc(name0, q: string, frec: f64) -> f64 {
+		n := strings.to_lower(name0, context.temp_allocator)
+		d: f64 = 1
+		if n == q do d += 4
+		if word_match(n, q) do d += 2
+		if strings.has_prefix(n, q) do d += 1
+		return d * max(1, frec / 100)
+	}
+	ql := strings.to_lower(raw, context.temp_allocator)
 	fm := pk.mode == .Reaction ? frecency.reaction : frecency.emoji
-	order := 0
+	unlocked := make([dynamic]Hit, context.temp_allocator)
+	locked := make([dynamic]Hit, context.temp_allocator)
 	for gid in emoji_guilds() {
 		g := dc.guild_get(store(), gid)
 		if g == nil do continue
 		for e in g.emojis {
-			r := rank_of(e.name, qq)
-			order += 1
-			if r < 0 do continue
+			if !matches(e.name, needle) do continue
 			it := custom_item(e, here, nitro)
-			append(&hits, Hit{it, r, frec_score_of(fm, frec_key(it)), order})
+			h := Hit{it, score_of(e.name, ql, frec_score_of(fm, frec_key(it)))}
+			if it.locked do append(&locked, h)
+			else do append(&unlocked, h)
 		}
 	}
 	for i in 0 ..< emoji_db.parents {
-		best := -1
-		for n in emoji_db.emojis[i].names {
-			r := rank_of(n, qq)
-			if r >= 0 && (best < 0 || r < best) do best = r
-		}
-		order += 1
-		if best < 0 do continue
+		hit := false
+		for n in emoji_db.emojis[i].names do if matches(n, needle) {hit = true; break}
+		if !hit do continue
 		it := uni_item(i)
-		append(&hits, Hit{it, best, frec_score_of(fm, it.name), order})
+		append(&unlocked, Hit{it, score_of(it.name, ql, frec_score_of(fm, it.name))})
 	}
-	slice.sort_by(hits[:], proc(a, b: Hit) -> bool {
-		if a.rank != b.rank do return a.rank < b.rank
+	order :: proc(a, b: Hit) -> bool {
 		if a.score != b.score do return a.score > b.score
-		return a.order < b.order
-	})
-	out := make([]Pk_Emoji, len(hits), context.temp_allocator)
-	for h, i in hits do out[i] = h.e
-	return out
+		return a.e.name < b.e.name
+	}
+	slice.stable_sort_by(unlocked[:], order)
+	slice.stable_sort_by(locked[:], order)
+	out := make([dynamic]Pk_Emoji, 0, len(unlocked) + len(locked), context.temp_allocator)
+	for h in unlocked do append(&out, h.e)
+	for h in locked do append(&out, h.e)
+	return out[:]
 }
 
 @(private = "file")
@@ -320,8 +336,14 @@ emoji_picker_body :: proc(r: ui.Rect) {
 	content_h := layout_sections(secs, cols)
 	emoji_keyboard(secs, cols)
 	pk_scroll_update(&ev.scroll, grid_rect, content_h)
+	nav_secs := secs
+	searching := len(secs) > 0 && secs[0].kind == .Search
+	if searching {
+		nav_secs = build_sections(true)
+		layout_sections(nav_secs, cols)
+	}
 	if ui.parent(body) {
-		category_nav(secs, r.y1 - r.y0)
+		category_nav(nav_secs, r.y1 - r.y0, searching)
 		col := ui.box("emoji_main")
 		col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 		col.layout_axis = .Y
@@ -334,7 +356,7 @@ emoji_picker_body :: proc(r: ui.Rect) {
 }
 
 @(private = "file")
-category_nav :: proc(secs: []Em_Section, h: f32) {
+category_nav :: proc(secs: []Em_Section, h: f32, searching: bool) {
 	nav := ui.box("emoji_nav", {.Draw_Background, .Clip, .Scroll_Y})
 	nav.semantic_size = {.X = ui.px(EM_NAV_W), .Y = ui.px(h)}
 	nav.style.bg = T("--background-base-lower")
@@ -347,7 +369,7 @@ category_nav :: proc(secs: []Em_Section, h: f32) {
 		line.fixed_pos = {EM_NAV_W - 1, 0}
 		line.style.bg = T("--border-subtle")
 		spacer(.Y, 4)
-		cur := current_section(secs)
+		cur := searching ? -1 : current_section(secs)
 		prev_kind := Em_Section_Kind.Favorites
 		for &sc, i in secs {
 			if sc.kind == .Search do continue
@@ -394,6 +416,7 @@ category_nav :: proc(secs: []Em_Section, h: f32) {
 					}
 				}
 				if sig.clicked {
+					if searching do ui.editor_set_text(&pk.search[.Emoji], "")
 					ev.collapsed[sc.key] = false
 					ev.scroll.target = sc.y
 				}
@@ -524,7 +547,7 @@ emoji_grid :: proc(secs: []Em_Section, cols: int, view: ui.Rect) {
 // Arrow keys move the inspected emoji through the grid; Enter selects.
 @(private = "file")
 emoji_keyboard :: proc(secs: []Em_Section, cols: int) {
-	if len(pk.keys) == 0 || pk.tab != .Emoji do return
+	if len(pk.keys) == 0 || pk.tab != .Emoji || pk.closing do return
 	// item rows in order: (section, first index)
 	Row :: struct {
 		sec, start, count: int,

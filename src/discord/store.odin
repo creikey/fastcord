@@ -501,6 +501,7 @@ parse_message_fields :: proc(s: ^Store, msg: ^Message, m: etf.Map) {
 	if vhas(m, "sticker_items") {
 		clear(&msg.sticker_ids)
 		for sv in flist(m, "sticker_items") do append(&msg.sticker_ids, fsnow(vmap(sv), "id"))
+		note_sticker_items(s, flist(m, "sticker_items"))
 	}
 	if ref := fmap(m, "message_reference"); ref != nil do msg.referenced_id = fsnow(ref, "message_id")
 	if rm := fmap(m, "referenced_message"); rm != nil {

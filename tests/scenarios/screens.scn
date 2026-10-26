@@ -1,0 +1,85 @@
+# Reference screenshots + layout dumps for the UI (no traffic fixture).
+# Output: .secrets/screens/screens/<name>.{png,json}. Only harmless actions:
+# every menu/modal opened here is cancelled.
+use a
+reload
+include _friends_home.scn
+click_text [role="tab"] | Online
+settle 1000
+snap friends_online
+click_text [role="tab"] | All
+settle 1000
+snap friends_all
+optional click_text [role="tab"] | Pending
+optional wait 1000
+optional snap friends_pending
+click_text [role="tab"] | Add Friend
+wait 1000
+snap friends_add_friend
+click [data-list-item-id$="___${DM_AB}"]
+wait_for div[role="textbox"][aria-label^="Message @"]
+settle 1500
+snap dm_channel
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id="channels___${TTEXT}"]
+click [data-list-item-id="channels___${TTEXT}"]
+wait_for div[role="textbox"][aria-label^="Message "]
+settle 2000
+snap guild_channel
+probe selection_copy | tools/capture/probes/selection.js
+hover_last li[id^="chat-messages-"]
+wait 600
+snap message_hover_toolbar
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+wait_for [role="menu"]
+snap message_context_menu
+key Escape
+wait 600
+click_last li[id^="chat-messages-"] [id^="message-username-"] span
+wait_for [role="dialog"]
+wait 800
+snap profile_popout
+key Escape
+wait 600
+optional click [aria-label="Add Emoji"]
+optional wait 1200
+optional snap emoji_picker
+optional key Escape
+wait 600
+optional click [aria-label="Open GIF picker"]
+optional wait 1500
+optional snap gif_picker
+optional key Escape
+wait 600
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-reply
+wait 800
+snap reply_bar
+key Escape
+wait 600
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-edit
+wait 800
+snap edit_mode
+key Escape
+wait 600
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-delete
+wait_for [role="dialog"]
+wait 600
+snap delete_modal
+click_text [role="dialog"] button | Cancel
+wait 800
+key k meta
+wait 1000
+snap quick_switcher
+key Escape
+wait 600
+click button[aria-label="User Settings"]
+wait_for [role="link"]
+click_text [role="link"] | Appearance
+wait_for [role="radio"][aria-label="Dark"]
+wait 1000
+snap settings_appearance
+key Escape
+wait 800

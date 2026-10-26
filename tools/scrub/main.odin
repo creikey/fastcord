@@ -12,6 +12,7 @@ import "core:fmt"
 import "core:mem/virtual"
 import "core:os"
 import "core:slice"
+import "core:strconv"
 import "core:strings"
 import "fc:etf"
 
@@ -34,7 +35,7 @@ main :: proc() {
 		return
 	}
 	if len(args) < 3 {
-		fmt.eprintln("usage: scrub <raw.jsonl> <out.jsonl> [env] | scrub verify <raw.jsonl> <out.jsonl>")
+		fmt.eprintln("usage: scrub <raw.jsonl> <out.jsonl> [env] [-netlog-a:FILE] [-netlog-b:FILE] | scrub verify <raw.jsonl> <out.jsonl>")
 		os.exit(2)
 	}
 	raw, err := os.read_entire_file(args[1], context.allocator)
@@ -43,9 +44,20 @@ main :: proc() {
 		os.exit(2)
 	}
 	env := ""
-	envp := args[3] if len(args) > 3 else "tests/scenarios/env"
+	envp := "tests/scenarios/env"
+	netlogs: [2]string
+	for a in args[3:] {
+		switch {
+		case strings.has_prefix(a, "-netlog-a:"):
+			netlogs[0] = a[len("-netlog-a:"):]
+		case strings.has_prefix(a, "-netlog-b:"):
+			netlogs[1] = a[len("-netlog-b:"):]
+		case:
+			envp = a
+		}
+	}
 	if data, eerr := os.read_entire_file(envp, context.allocator); eerr == nil do env = string(data)
-	out := convert(string(raw), env)
+	out := convert(string(raw), env, netlogs)
 	if werr := os.write_entire_file(args[2], transmute([]byte)out); werr != nil {
 		fmt.eprintln("cannot write", args[2])
 		os.exit(1)
@@ -196,6 +208,20 @@ headers_list :: proc(c: ^Ctx, h: etf.Value) -> etf.Value {
 }
 
 @(private)
+wire_list :: proc(c: ^Ctx, hs: [][2]string) -> etf.Value {
+	out := make([]etf.Value, len(hs))
+	for h, i in hs {
+		sv, special := header_rule(c, h[0], h[1])
+		if !special do sv = scrub_text(c, h[1])
+		pair := make([]etf.Value, 2)
+		pair[0] = h[0]
+		pair[1] = sv
+		out[i] = etf.List(pair)
+	}
+	return etf.List(out)
+}
+
+@(private)
 body_value :: proc(c: ^Ctx, body: string, is_b64: bool) -> etf.Value {
 	data := transmute([]byte)body
 	if is_b64 {
@@ -232,7 +258,7 @@ utf8_ok :: proc(s: string) -> bool {
 }
 
 // convert turns raw capture text into fixture text.
-convert :: proc(raw: string, env: string) -> string {
+convert :: proc(raw: string, env: string, netlogs := [2]string{}) -> string {
 	c: Ctx
 	c.allow = make(map[string]bool)
 	c.others = make(map[string]bool)
@@ -257,6 +283,32 @@ convert :: proc(raw: string, env: string) -> string {
 		free_all(context.temp_allocator)
 	}
 
+	last_rt := 0.0
+	for l in lines {
+		if i := strings.index(l, `"rt":`); i >= 0 {
+			j := i + 5
+			k := j
+			for k < len(l) && (l[k] == '.' || (l[k] >= '0' && l[k] <= '9')) do k += 1
+			if v, ok := strconv.parse_f64(l[j:k]); ok do last_rt = max(last_rt, v)
+		}
+	}
+	nls: [2]Netlog
+	for path, i in netlogs {
+		if path == "" || c.run_start_ms == 0 do continue
+		start := f64(c.run_start_ms)
+		if nl, ok := netlog_load(path, start - 5000, start + last_rt + 5000); ok {
+			nls[i] = nl
+		} else {
+			fmt.eprintln("cannot read netlog", path)
+		}
+	}
+	conn_ids := make(map[int]i64)
+	conn_id :: proc(m: ^map[int]i64, id: int) -> i64 {
+		if v, ok := m[id]; ok do return v
+		n := i64(len(m) + 1)
+		m[id] = n
+		return n
+	}
 	reqs := make(map[string]^Req)
 	order := make([dynamic]^Req)
 	sockets := make(map[string]^Ws)
@@ -377,7 +429,20 @@ convert :: proc(raw: string, env: string) -> string {
 		// accept-encoding...) when CDP reports it; CDP sorts these by name, so
 		// the true wire order is only in a netlog.
 		append(&pairs, P("headers", headers_list(&c, r.headers)))
-		if r.wire_headers != nil do append(&pairs, P("wire", headers_list(&c, r.wire_headers)))
+		ai := 1 if r.acct == "b" else 0
+		nr: ^Net_Req
+		if nls[ai].loaded do nr = netlog_match(&nls[ai], r.method, r.url, f64(c.run_start_ms) + r.t)
+		if nr != nil {
+			// true wire order from the netlog (Chrome strips cookie/auth values there)
+			append(&pairs, P("wire", wire_list(&c, nr.headers[:])), P("wire_src", string("netlog")))
+			if nr.proto == "h2" || nr.proto == "h3" do append(&pairs, P("session", conn_id(&conn_ids, nr.session)))
+			if nr.extra != nil do append(&pairs, P("h2", nr.extra))
+			if r.proto == "" {
+				for &pp in pairs do if (pp.key.(string) or_else "") == "proto" do pp.value = nr.proto
+			}
+		} else if r.wire_headers != nil {
+			append(&pairs, P("wire", headers_list(&c, r.wire_headers)), P("wire_src", string("cdp_sorted")))
+		}
 		if len(r.post) > 0 {
 			append(&pairs, P("body", body_value(&c, r.post, false)))
 		} else if r.has_post {
@@ -399,6 +464,13 @@ convert :: proc(raw: string, env: string) -> string {
 		append(&pairs, P("t", w.t), P("k", string("ws_open")))
 		if w.acct != "a" do append(&pairs, P("acct", w.acct))
 		append(&pairs, P("id", i64(w.id)), P("url", scrub_text(&c, w.url)), P("headers", headers_list(&c, w.headers)))
+		ai := 1 if w.acct == "b" else 0
+		if nls[ai].loaded {
+			hu, _ := strings.replace(w.url, "wss://", "https://", 1)
+			if nr := netlog_match(&nls[ai], "GET", hu, f64(c.run_start_ms) + w.t); nr != nil {
+				append(&pairs, P("wire", wire_list(&c, nr.headers[:])), P("wire_src", string("netlog")))
+			}
+		}
 		emit(&out, &seq, w.t, etf.Map(pairs[:]))
 		if w.closed > 0 {
 			cp := make([dynamic]etf.Pair)
@@ -406,6 +478,19 @@ convert :: proc(raw: string, env: string) -> string {
 			if w.acct != "a" do append(&cp, P("acct", w.acct))
 			append(&cp, P("id", i64(w.id)), P("code", nil))
 			emit(&out, &seq, w.closed, etf.Map(cp[:]))
+		}
+	}
+	for nl, i in nls {
+		if !nl.loaded do continue
+		for cn in nl.order {
+			t := cn.wall - f64(c.run_start_ms)
+			pairs := make([dynamic]etf.Pair)
+			append(&pairs, P("t", t), P("k", string("conn")))
+			if i == 1 do append(&pairs, P("acct", string("b")))
+			if cn.kind != "alt_svc" do append(&pairs, P("session", conn_id(&conn_ids, cn.id)))
+			append(&pairs, P("kind", cn.kind), P("host", cn.host))
+			for f in cn.facts do append(&pairs, etf.Pair{key = f.key, value = scrub_value(&c, f.value, f.key.(string) or_else "")})
+			emit(&out, &seq, t, etf.Map(pairs[:]))
 		}
 	}
 	slice.sort_by(out[:], proc(a, b: Line) -> bool {return a.t < b.t || (a.t == b.t && a.seq < b.seq)})

@@ -1,6 +1,7 @@
 package app
 
 import "core:fmt"
+import "core:math"
 import "core:os"
 import "core:strconv"
 import "core:strings"
@@ -74,6 +75,7 @@ voice_shutdown :: proc() {
 }
 
 voice_frame :: proc() {
+	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready)
 	if app.client == nil do return
 	if !vc.auto_checked && app.client.store.ready {
 		vc.auto_checked = true
@@ -112,7 +114,7 @@ voice_frame :: proc() {
 			stage               = is_stage(app.voice_channel),
 			user_agent          = app.client.id.platform.browser_user_agent,
 			accept_language     = app.client.id.platform.accept_language,
-		}, voice.Options{no_audio_devices = vc.headless || !vc.audio_ready})
+		}, voice_options())
 		vc.version = ver
 		vc.channel = app.voice_channel
 		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf)
@@ -139,6 +141,26 @@ voice_frame :: proc() {
 		// speaking rings and the ping readout change without input events
 		request_wake(platform.time_now() + 0.1)
 	}
+}
+
+@(private = "file")
+tone_phase: f64
+
+// Headless runs never open the mic; FASTCORD_VOICE_TEST_TONE=1 sends a 440 Hz
+// tone instead (to exercise speaking indicators in screenshots).
+@(private = "file")
+voice_options :: proc() -> voice.Options {
+	o := voice.Options{no_audio_devices = vc.headless || !vc.audio_ready}
+	if o.no_audio_devices && os.get_env("FASTCORD_VOICE_TEST_TONE", context.temp_allocator) == "1" {
+		o.capture = proc(_: rawptr, out: []f32) -> int {
+			for i in 0 ..< len(out) {
+				out[i] = 0.2 * f32(math.sin(tone_phase))
+				tone_phase += 2 * math.PI * 440 / 48000
+			}
+			return len(out)
+		}
+	}
+	return o
 }
 
 @(private = "file")
@@ -185,6 +207,7 @@ voice_panel :: proc() {
 		st, _ := voice.state(vc.conn)
 		stats := voice.get_stats(vc.conn)
 		ping = stats.rtt_ms if stats.rtt_ms > 0 else stats.ws_ping_ms
+		if ping <= 0 do ping = -1 // no heartbeat ack / RTCP round trip yet
 		e2ee = voice.e2ee_status(vc.conn, context.temp_allocator).active
 		#partial switch st {
 		case .Connected:
@@ -244,7 +267,7 @@ voice_panel :: proc() {
 			tip.style.shadow_offset = {0, 4}
 			if ui.parent(tip) {
 				spacer(.X, 12)
-				text := ping >= 0 ? fmt.tprintf("Ping: %d ms", ping) : "Ping: —"
+				text := ping > 0 ? fmt.tprintf("Ping: %d ms", ping) : "Ping: measuring…"
 				if e2ee do text = strings.concatenate({text, " · End-to-end encrypted"}, context.temp_allocator)
 				label(text, .Semibold, 14, T("--text-strong"), 18)
 				spacer(.X, 12)

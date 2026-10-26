@@ -1,0 +1,13 @@
+# Add Reaction from the message hover toolbar opens the emoji-only reaction
+# picker next to the button; Escape closes it.
+wait 5
+move 700 480
+wait 5
+click 916 425
+wait 20
+shot build/ui-pickers_reaction-open.png
+type fire
+wait 5
+shot build/ui-pickers_reaction-search.png
+key escape
+wait 20

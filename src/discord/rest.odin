@@ -48,6 +48,10 @@ Job :: struct {
 	message_json: proc(j: ^Job, attachments_json: string) -> []byte, // builds the final send body
 	upload_ctx:   rawptr,
 	no_auth:      bool, // logged-out request (no authorization header)
+	no_super_props: bool,
+	etag:         bool, // fetch(cache:'no-cache') + remembered If-None-Match
+	preflight_if_etag: bool,
+	no_cookies:   bool, // cross-origin: If-None-Match makes it a preflighted request
 	media:        Media_Request,
 }
 
@@ -134,7 +138,7 @@ Api_Response :: struct {
 
 // api_call performs one authenticated request with the HTTP util's retry and
 // rate-limit semantics. The returned arena (if any) owns body.
-api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false) -> (r: Api_Response) {
+api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false, no_super_props := false) -> (r: Api_Response) {
 	full_path := strings.concatenate({API_PREFIX, path}, context.temp_allocator)
 	url_key := strings.concatenate({API_ORIGIN, full_path}, context.temp_allocator)
 	retries_left := retries
@@ -161,7 +165,7 @@ api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, c
 			content_type    = content_type,
 			token           = "" if no_auth else c.token,
 			installation_id = c.id.installation_id,
-			super_props_b64 = super_properties_b64(&c.id, now),
+			super_props_b64 = "" if no_super_props else super_properties_b64(&c.id, now),
 			context_b64     = context_b64,
 			referer         = client_route_referer(c),
 			cookie          = cookie_header(&c.jar, API_HOST, full_path, true, now),
@@ -227,7 +231,16 @@ push_result :: proc(c: ^Client, j: ^Job, r: Api_Response) {
 
 @(private)
 run_api :: proc(c: ^Client, j: ^Job) {
-	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, j.extra, j.retries, j.retry_429, j.no_auth)
+	extra := j.extra
+	url := strings.concatenate({API_ORIGIN, API_PREFIX, j.path}, context.temp_allocator)
+	if j.etag {
+		e := make([dynamic]http.Header, 0, 2, context.temp_allocator)
+		append(&e, http.Header{"cache-control", "max-age=0"})
+		if tag := etag_get(c, url); tag != "" do append(&e, http.Header{"if-none-match", tag})
+		extra = e[:]
+	}
+	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props)
+	if j.etag && r.status == 200 do if tag, ok := http.header_get(r.headers, "etag"); ok do etag_put(c, url, tag)
 	if j.op == .Ack && r.ok {
 		if m := vmap(r.body); m != nil {
 			tok := fstr(m, "token")
@@ -287,6 +300,8 @@ note_quest_applications :: proc(c: ^Client, body: V) {
 }
 
 schedule_applications_public :: proc(c: ^Client, ready_ms: i64) {
+	// Hydrated by the home (friends/quests) surface only.
+	if client_route_kind(c.start_route_guild, c.start_route_channel) != .Home do return
 	sync.mutex_lock(&c.job_mu)
 	ids := c.quest_app_ids
 	c.quest_app_ids = nil
@@ -299,7 +314,7 @@ schedule_applications_public :: proc(c: ^Client, ready_ms: i64) {
 	j := job_new(.Api, .Startup)
 	j.method = "GET"
 	j.path = job_str(j, query_string(&q))
-	j.not_before = max(ready_ms + 435, now_ms())
+	j.not_before = max(ready_ms + 315, now_ms())
 	job_submit(c, j)
 }
 
@@ -311,16 +326,31 @@ run_web :: proc(c: ^Client, j: ^Job) {
 	if referer == "" {
 		referer = client_route_referer(c) if j.site == .Same_Origin else API_ORIGIN + "/"
 	}
-	cookie := cookie_header(&c.jar, j.host, j.path, true, now)
+	cookie := "" if j.no_cookies else cookie_header(&c.jar, j.host, j.path, true, now)
+	url := strings.concatenate({"https://", j.host, j.path}, context.temp_allocator)
+	js := j.js_headers
+	if j.etag {
+		e := make([dynamic]http.Header, 0, 2, context.temp_allocator)
+		append(&e, http.Header{"cache-control", "max-age=0"})
+		tag := etag_get(c, url)
+		if tag != "" do append(&e, http.Header{"if-none-match", tag})
+		js = e[:]
+		if tag != "" && j.preflight_if_etag && j.site != .Same_Origin {
+			pre := http.Request{method = "OPTIONS", scheme = "https", authority = j.host, path = j.path, headers = preflight_headers(c.id.platform, "GET", "if-none-match", true)}
+			presp, _ := transport_round_trip(&c.transport, j.host, pre)
+			http.response_destroy(&presp)
+		}
+	}
 	hin := Web_Headers_Input{
 		method     = j.method,
 		site       = j.site,
 		referer    = referer,
 		cookie     = cookie,
-		js_headers = j.js_headers,
+		js_headers = js,
 	}
 	req := http.Request{method = j.method, scheme = "https", authority = j.host, path = j.path, headers = web_headers(c.id.platform, hin), body = j.body}
 	resp, err := transport_round_trip(&c.transport, j.host, req)
+	if j.etag && err == .None && resp.status == 200 do if tag, ok := http.header_get(resp.headers[:], "etag"); ok do etag_put(c, url, tag)
 	res := j.result
 	res.status = resp.status
 	res.ok = err == .None && resp.status >= 200 && resp.status < 400
@@ -412,7 +442,7 @@ split_url :: proc(url: string) -> (host, path: string, ok: bool) {
 upload_put :: proc(c: ^Client, url: string, data: []byte) -> bool {
 	host, path, ok := split_url(url)
 	if !ok do return false
-	pre := http.Request{method = "OPTIONS", scheme = "https", authority = host, path = path, headers = preflight_headers(c.id.platform, "PUT", "content-type")}
+	pre := http.Request{method = "OPTIONS", scheme = "https", authority = host, path = path, headers = preflight_headers(c.id.platform, "PUT", "content-type", false)}
 	presp, perr := transport_round_trip(&c.transport, host, pre)
 	pstatus := presp.status
 	http.response_destroy(&presp)
@@ -442,9 +472,11 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 		if r.ok {
 			items := vlist(e.data)
 			for mv in items do upsert_message(s, vmap(mv))
+			first := !l.loaded
 			l.loaded = true
 			if r.before != 0 || len(items) > 0 do l.has_more_before = len(items) >= r.limit
 			if len(items) < r.limit do l.has_more_before = false
+			if first && r.before == 0 do on_channel_page(c, r.channel_id, len(items), len(items) >= r.limit)
 		}
 	case .Send_Message, .Upload:
 		if rt, ok := &c.analytics.roundtrips[r.nonce]; ok && rt.api == 0 do rt.api = now_ms()

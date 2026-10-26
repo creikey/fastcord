@@ -22,21 +22,17 @@ select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limi
 	c.route_channel = channel_id
 	sync.mutex_unlock(&c.route_mu)
 	if guild_id != 0 && guild_id != prev_guild {
-		if c.gw != nil {
-			b := etf.map_builder(2, context.temp_allocator)
-			etf.map_put(&b, "guild_id", snowflake_string(guild_id))
-			etf.map_put(&b, "fields", etf.List{string("status"), string("voice_start_time")})
-			gateway_send(c.gw, .Request_Channel_Info, etf.map_done(&b))
-		}
 		subscribe_guild(c, guild_id)
-		if !c.started_guilds[guild_id] {
-			c.started_guilds[guild_id] = true
-			schedule_guild_open(c, guild_id)
-		}
+		c.pending_guild_open = guild_id
 	}
+	if guild_id == 0 && channel_id != 0 do c.pending_private_open = channel_id
 	if channel_id != 0 {
 		l := message_list(&c.store, channel_id)
-		if !l.loaded && !l.loading do fetch_messages(c, channel_id, 0, message_limit)
+		if !l.loaded && !l.loading {
+			fetch_messages(c, channel_id, 0, message_limit)
+		} else {
+			on_channel_page(c, channel_id, 0, false)
+		}
 	}
 }
 
@@ -639,17 +635,13 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 			if !l.loaded && !l.loading do fetch_messages(c, ch, 0, initial_message_limit(h))
 		}
 		if g != 0 {
-			if c.gw != nil {
-				b := etf.map_builder(2, context.temp_allocator)
-				etf.map_put(&b, "guild_id", snowflake_string(g))
-				etf.map_put(&b, "fields", etf.List{string("status"), string("voice_start_time")})
-				gateway_send(c.gw, .Request_Channel_Info, etf.map_done(&b))
-			}
-			subscribe_guild(c, g)
-			if !c.started_guilds[g] {
-				c.started_guilds[g] = true
-				schedule_guild_open(c, g)
-			}
+			sync.mutex_lock(&c.job_mu)
+			already := c.ready_subscribed_guild == g
+			sync.mutex_unlock(&c.job_mu)
+			if already do c.subs.guilds[g] = true
+			else do subscribe_guild(c, g)
+			c.pending_guild_open = g
+			c.guild_open_promotions = true
 		}
 	case "MESSAGE_CREATE":
 		d := vmap(data)
@@ -709,4 +701,100 @@ voice_join :: proc(c: ^Client, guild_id, channel_id: Snowflake, self_mute := fal
 
 voice_leave :: proc(c: ^Client) {
 	voice_update(c, 0, 0, true, false)
+}
+
+// guild_channel_info: op 43 sent when a guild's channel is shown.
+guild_channel_info :: proc(c: ^Client, guild_id: Snowflake) {
+	if c.gw == nil do return
+	b := etf.map_builder(2, context.temp_allocator)
+	etf.map_put(&b, "guild_id", snowflake_string(guild_id))
+	etf.map_put(&b, "fields", etf.List{string("status"), string("voice_start_time")})
+	gateway_send(c.gw, .Request_Channel_Info, etf.map_done(&b))
+}
+
+// on_channel_page runs when the first page of a selected channel arrives
+// (or immediately when cached): the follow-ups the official client issues
+// once the channel renders.
+on_channel_page :: proc(c: ^Client, channel_id: Snowflake, got: int, full: bool) {
+	ch := c.store.channels[channel_id]
+	if g := c.pending_guild_open; g != 0 && (ch.guild_id == g || ch.guild_id == 0) {
+		c.pending_guild_open = 0
+		guild_channel_info(c, g)
+		if !c.started_guilds[g] {
+			c.started_guilds[g] = true
+			schedule_guild_open(c, g, c.guild_open_promotions)
+		}
+		c.guild_open_promotions = false
+	}
+	if full {
+		// Fill the viewport: one older page of 20.
+		msgs := messages_get(&c.store, channel_id)
+		if len(msgs) > 0 do fetch_messages(c, channel_id, msgs[0].id, 20)
+	}
+	if pc := c.pending_private_open; pc != 0 && pc == channel_id {
+		c.pending_private_open = 0
+		if c.gw != nil {
+			cb := etf.map_builder(1, context.temp_allocator)
+			etf.map_put(&cb, "channel_id", snowflake_string(channel_id))
+			gateway_send(c.gw, .Call_Connect, etf.map_done(&cb))
+		}
+		if ch.kind == .DM && len(ch.recipient_ids) == 1 {
+			u := ch.recipient_ids[0]
+			fetch_profile_ex(c, u, {mutual_guilds = false, mutual_friends = false, mutual_friends_count = false})
+			fetch_profile_ex(c, u, {mutual_guilds = true, mutual_friends = false, mutual_friends_count = false, delay_ms = 223})
+			fetch_note(c, u, 223)
+			fetch_profile_ex(c, u, {kind = "sidebar", mutual_guilds = true, mutual_friends = true, mutual_friends_count = false, delay_ms = 476})
+		}
+	}
+	// Viewing a channel with unread messages acks it (ReadState, 3 s timer).
+	if channel_unread(&c.store, channel_id) {
+		msgs := messages_get(&c.store, channel_id)
+		if len(msgs) > 0 do ack_message(c, channel_id, msgs[len(msgs) - 1].id)
+	}
+}
+
+Profile_Options :: struct {
+	kind:                 string, // "" (DM header), "popout", "sidebar", "modal"
+	mutual_guilds:        bool,
+	mutual_friends:       bool,
+	mutual_friends_count: bool,
+	guild_id:             Snowflake,
+	delay_ms:             i64,
+}
+
+// fetch_profile_ex: GET /users/{id}/profile?[type=]&with_mutual_guilds=&with_mutual_friends=&with_mutual_friends_count=[&guild_id=]
+fetch_profile_ex :: proc(c: ^Client, user_id: Snowflake, o: Profile_Options, tag: u64 = 0) {
+	q: Query
+	query_init(&q, strings.concatenate({"/users/", snowflake_string(user_id), "/profile"}, context.temp_allocator))
+	if o.kind != "" do query_add(&q, "type", o.kind)
+	query_add_bool(&q, "with_mutual_guilds", o.mutual_guilds)
+	query_add_bool(&q, "with_mutual_friends", o.mutual_friends)
+	query_add_bool(&q, "with_mutual_friends_count", o.mutual_friends_count)
+	if o.guild_id != 0 do query_add_snow(&q, "guild_id", o.guild_id)
+	j := job_new(.Api, .Fetch_Profile)
+	j.method = "GET"
+	j.path = job_str(j, query_string(&q))
+	j.not_before = now_ms() + o.delay_ms
+	j.result = Rest_Result{op = .Fetch_Profile, user_id = user_id, tag = tag}
+	job_submit(c, j)
+}
+
+// fetch_note: GET /users/@me/notes/{id} (profile popouts/sidebars).
+fetch_note :: proc(c: ^Client, user_id: Snowflake, delay_ms: i64 = 0) {
+	j := job_new(.Api, .None)
+	j.method = "GET"
+	j.path = job_str(j, strings.concatenate({"/users/@me/notes/", snowflake_string(user_id)}, context.temp_allocator))
+	j.not_before = now_ms() + delay_ms
+	job_submit(c, j)
+}
+
+// open_profile_popout: what clicking a username does (popout + note ~300 ms later).
+open_profile_popout :: proc(c: ^Client, user_id, guild_id: Snowflake) {
+	fetch_profile_ex(c, user_id, {kind = "popout", guild_id = guild_id})
+	fetch_note(c, user_id, 300)
+}
+
+// open_full_profile: "View Full Profile" from a popout.
+open_full_profile :: proc(c: ^Client, user_id, guild_id: Snowflake) {
+	fetch_profile_ex(c, user_id, {kind = "modal", mutual_guilds = true, mutual_friends_count = true, guild_id = guild_id})
 }

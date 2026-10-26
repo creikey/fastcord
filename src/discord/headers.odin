@@ -144,8 +144,11 @@ web_headers :: proc(p: Platform_Info, in_: Web_Headers_Input, allocator := conte
 
 // preflight_headers: CORS preflight Chrome sends before a cross-origin PUT
 // (attachment upload to storage.googleapis.com).
-preflight_headers :: proc(p: Platform_Info, method, request_headers: string, allocator := context.temp_allocator) -> []http.Header {
-	h := make([dynamic]http.Header, 0, 12, allocator)
+// no_cache: the actual request is fetch(cache:'no-cache'), so Chrome sends
+// cache-control: max-age=0 first on the preflight too.
+preflight_headers :: proc(p: Platform_Info, method, request_headers: string, no_cache: bool, allocator := context.temp_allocator) -> []http.Header {
+	h := make([dynamic]http.Header, 0, 13, allocator)
+	if no_cache do append(&h, http.Header{"cache-control", "max-age=0"})
 	append(&h, http.Header{"accept", "*/*"})
 	append(&h, http.Header{"access-control-request-method", method})
 	if request_headers != "" do append(&h, http.Header{"access-control-request-headers", request_headers})

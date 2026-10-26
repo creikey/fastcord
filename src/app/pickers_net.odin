@@ -1,5 +1,6 @@
 package app
 
+import "core:fmt"
 import dc "fc:discord"
 
 // Expression picker network results (src/discord/expressions.odin) -> picker state.
@@ -30,7 +31,10 @@ pickers_poll :: proc() {
 		case .Frecency:
 			if r.ok {
 				if sp := dc.fstr(dc.vmap(r.body), "settings"); sp != "" {
-					if fs, ok := dc.frecency_settings_decode(sp, context.temp_allocator); ok do frecency_merge_server(fs)
+					if fs, ok := dc.frecency_settings_decode(sp, context.temp_allocator); ok {
+						frecency_merge_server(fs)
+						if pickers_debug() do fmt.eprintfln("[pickers] frecency: %d emoji, %d reaction, %d sticker, %d fav emoji, %d fav gifs", len(fs.emoji), len(fs.emoji_reaction), len(fs.sticker), len(fs.favorite_emojis), len(fs.favorite_gifs))
+					}
 				}
 			}
 			frecency.loaded_server = true
@@ -41,6 +45,7 @@ pickers_poll :: proc() {
 		case .Media:
 			lottie_receive(&r)
 		case .Gif_Select, .Top_Emojis:
+			if pickers_debug() do fmt.eprintfln("[pickers] %v status=%d body=%v", r.op, r.status, r.body)
 		}
 	}
 }

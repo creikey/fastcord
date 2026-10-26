@@ -1,5 +1,6 @@
 package app
 
+import "core:slice"
 import "core:strings"
 import dc "fc:discord"
 import "fc:ui"
@@ -171,23 +172,34 @@ guild_rail :: proc() {
 	}
 }
 
-// Guilds in sidebar order: settings.guild_folders flattened, then any not listed.
+// Guilds in sidebar order, like the client: guilds missing from
+// settings.guild_folders first (newest join first), then the folders flattened.
 guild_order :: proc() -> []dc.Snowflake {
 	s := store()
 	out := make([dynamic]dc.Snowflake, context.temp_allocator)
 	seen := make(map[dc.Snowflake]bool, allocator = context.temp_allocator)
+	for f in s.settings.guild_folders {
+		for id in f.guild_ids do seen[id] = true
+	}
+	for id in s.guild_order {
+		if id in s.guilds && !seen[id] do append(&out, id)
+	}
+	newer :: proc(a, b: dc.Snowflake) -> bool {
+		ga, gb := dc.guild_get(store(), a), dc.guild_get(store(), b)
+		ja := ga != nil ? ga.joined_at : ""
+		jb := gb != nil ? gb.joined_at : ""
+		if ja != jb do return ja > jb
+		return a > b
+	}
+	slice.sort_by(out[:], newer)
+	clear(&seen)
+	for id in out do seen[id] = true
 	for f in s.settings.guild_folders {
 		for id in f.guild_ids {
 			if id in s.guilds && !seen[id] {
 				append(&out, id)
 				seen[id] = true
 			}
-		}
-	}
-	for id in s.guild_order {
-		if !seen[id] {
-			append(&out, id)
-			seen[id] = true
 		}
 	}
 	return out[:]
@@ -485,8 +497,9 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 		for uid, vs in s.voice_states {
 			if vs.channel_id != ch.id do continue
 			if ui.id_scope(u64(uid)) {
-				vr := row("voiceuser")
+				vr := row("voiceuser", {.Clickable})
 				vr.semantic_size = {.X = ui.pct(1), .Y = ui.px(32)}
+				if ui.signal(vr).right_clicked do open_voice_user_menu(uid, app.ui.mouse)
 				if ui.parent(vr) {
 					spacer(.X, 44)
 					voice_avatar("av", uid, 24, T("--background-base-lower"))
@@ -635,6 +648,7 @@ join_voice :: proc(gid, cid: dc.Snowflake) {
 }
 
 overlays :: proc() {
+	picker_overlay()
 	for &e in app.ui.events {
 		if !e.consumed && e.kind == .Key_Down && e.key == .K && .Cmd in e.mods {
 			switcher_toggle()
@@ -647,4 +661,5 @@ overlays :: proc() {
 	if app.profile_user != 0 do profile_popout()
 	if viewer_url != "" do image_viewer()
 	if app.settings_open do settings_modal()
+	voice_user_menu()
 }

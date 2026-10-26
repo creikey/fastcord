@@ -33,14 +33,40 @@ msgs = [
     (wumpus, 1260, 'a long message that should wrap across multiple lines in the chat view because it keeps going and going with plenty of words so that the wrapping logic is exercised properly at typical window widths 🎉'),
     (meu, 1300, '👍'),
 ]
-for i, (u, dt, content) in enumerate(msgs):
-    mid = sf(base_ms + dt * 1000, i)
-    d = {'id': mid, 'channel_id': CH, 'guild_id': GUILD, 'author': u, 'content': content, 'timestamp': '', 'edited_timestamp': None,
-         'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}
-    if i == 2:
-        d['reactions'] = [{'emoji': {'id': None, 'name': '👍'}, 'count': 2, 'me': True, 'burst_count': 0, 'me_burst': False},
-                          {'emoji': {'id': None, 'name': '🔥'}, 'count': 1, 'me': False, 'burst_count': 0, 'me_burst': False}]
-    out.append({'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': 'MESSAGE_CREATE', 's': 100 + i, 'd': d}})
-with open(os.path.join(here, 'chat.jsonl'), 'w') as f:
+# chat_emoji.jsonl adds Twemoji / sticker messages (kept out of chat.jsonl so the
+# coordinate-based UI scripts keep their layout). Offline media for it:
+# FASTCORD_MEDIA_DIR with the twemoji svgs / sticker files (see src/app/emoji.odin).
+emoji_msgs = [
+    (wumpus, 1320, 'emoji inline: hi 😀 there 👍🏽 family 👨\u200d👩\u200d👧\u200d👦 flag 🇯🇵 keycap 1\ufe0f\u20e3 heart ❤️ and ™ stays text'),
+    (wumpus, 1330, '**bold 🔥** and `code 😀 stays text`'),
+    (meu, 1340, '😂🎉👀'),
+    (wumpus, 1350, ''),
+    (meu, 1360, ''),
+]
+# messages with stickers (index -> sticker_items); standard stickers from the client bundle
+STICKERS = {
+    12: [{'id': 749054660769218631, 'name': 'Wave', 'format_type': 3}],
+    13: [{'id': 781291131828699156, 'name': 'Wave', 'format_type': 2}],
+}
+base_out = list(out)
+def build(msgs):
+  out = list(base_out)
+  for i, (u, dt, content) in enumerate(msgs):
+      mid = sf(base_ms + dt * 1000, i)
+      d = {'id': mid, 'channel_id': CH, 'guild_id': GUILD, 'author': u, 'content': content, 'timestamp': '', 'edited_timestamp': None,
+           'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}
+      if i in STICKERS:
+          d['sticker_items'] = STICKERS[i]
+      if i == 10:
+          d['reactions'] = [{'emoji': {'id': None, 'name': '👍🏽'}, 'count': 1, 'me': False, 'burst_count': 0, 'me_burst': False},
+                            {'emoji': {'id': None, 'name': '❤️'}, 'count': 3, 'me': True, 'burst_count': 0, 'me_burst': False}]
+      if i == 2:
+          d['reactions'] = [{'emoji': {'id': None, 'name': '👍'}, 'count': 2, 'me': True, 'burst_count': 0, 'me_burst': False},
+                            {'emoji': {'id': None, 'name': '🔥'}, 'count': 1, 'me': False, 'burst_count': 0, 'me_burst': False}]
+      out.append({'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': 'MESSAGE_CREATE', 's': 100 + i, 'd': d}})
+  return out
+for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs)):
+  out = build(ms)
+  with open(os.path.join(here, name), 'w') as f:
     for o in out: f.write(json.dumps(o, ensure_ascii=False) + '\n')
-print('wrote', len(out), 'lines')
+  print('wrote', name, len(out), 'lines')

@@ -36,6 +36,8 @@ image_get :: proc(url: string, visible := true) -> ^Remote_Image {
 	images[key] = Remote_Image{state = .Loading, last_use = app.frame}
 	if app.client != nil {
 		dc.fetch_media(app.client, {url = key, kind = .Image, visible = visible})
+	} else if data, ok := offline_media(key); ok {
+		images[key] = image_decode(data)
 	} else {
 		images[key] = Remote_Image{state = .Failed}
 	}
@@ -51,6 +53,7 @@ images_receive :: proc() {
 			app.ui.animating = true
 			continue
 		}
+		if twemoji_receive(r.url, r.status, r.data) do continue
 		im, ok := &images[r.url]
 		if !ok do continue
 		if r.status != 200 || len(r.data) == 0 {
@@ -60,25 +63,9 @@ images_receive :: proc() {
 		if strings.has_suffix(r.url, ".woff2") || strings.contains(r.content_type, "font") {
 			continue
 		}
-		img, err := imagefmt.decode(r.data, context.temp_allocator)
-		if err != nil || len(img.frames) == 0 {
-			im.state = .Failed
-			continue
-		}
-		im.size = {img.width, img.height}
-		if len(img.frames) == 1 {
-			im.tex = gfx.texture_from_rgba(img.width, img.height, img.frames[0].pixels)
-		} else {
-			im.frames = make([]gfx.Texture, len(img.frames))
-			im.durations = make([]int, len(img.frames))
-			for f, i in img.frames {
-				im.frames[i] = gfx.texture_from_rgba(img.width, img.height, f.pixels)
-				im.durations[i] = f.duration_ms
-				im.total_ms += f.duration_ms
-			}
-			im.tex = im.frames[0]
-		}
-		im.state = .Ready
+		last := im.last_use
+		im^ = image_decode(r.data)
+		im.last_use = last
 		app.ui.animating = true // repaint with the new texture
 	}
 }
@@ -199,6 +186,7 @@ emoji_inline :: proc(id: string, e: dc.Emoji, size: f32) -> ^ui.Box {
 
 // Rich-text inline object hook: custom emoji spans carry their id in user.
 draw_custom_emoji :: proc(sp: ui.Span, r: ui.Rect, opacity: f32) {
+	if draw_unicode_emoji_span(sp, r, opacity) do return
 	id := dc.Snowflake(uintptr(sp.user))
 	if id == 0 do return
 	im := image_get(dc.custom_emoji_url(id, false, 48))
@@ -206,4 +194,26 @@ draw_custom_emoji :: proc(sp: ui.Span, r: ui.Rect, opacity: f32) {
 	if tex == 0 do return
 	c := gfx.Color{1, 1, 1, opacity}
 	gfx.push_rect({dst = gfx.Rect(r), tex = tex, colors = {c, c, c, c}})
+}
+
+// Decode image bytes into textures (all frames for animations).
+image_decode :: proc(data: []byte) -> Remote_Image {
+	im := Remote_Image{state = .Failed, last_use = app.frame}
+	img, err := imagefmt.decode(data, context.temp_allocator)
+	if err != nil || len(img.frames) == 0 do return im
+	im.size = {img.width, img.height}
+	if len(img.frames) == 1 {
+		im.tex = gfx.texture_from_rgba(img.width, img.height, img.frames[0].pixels)
+	} else {
+		im.frames = make([]gfx.Texture, len(img.frames))
+		im.durations = make([]int, len(img.frames))
+		for f, i in img.frames {
+			im.frames[i] = gfx.texture_from_rgba(img.width, img.height, f.pixels)
+			im.durations[i] = f.duration_ms
+			im.total_ms += f.duration_ms
+		}
+		im.tex = im.frames[0]
+	}
+	im.state = .Ready
+	return im
 }

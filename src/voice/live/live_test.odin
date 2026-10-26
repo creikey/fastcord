@@ -25,11 +25,9 @@ CANDIDATES :: [][2]dc.Snowflake{
 	{1564227669971832975, 1564227670806364345}, // "fastcord test" voice
 }
 
-@(private = "file")
 live_enabled :: proc() -> bool {return os.get_env("FASTCORD_LIVE", context.temp_allocator) == "1"}
 
 // token_a: the captured IDENTIFY in gw_a.jsonl
-@(private = "file")
 token_a :: proc() -> string {
 	data, err := os.read_entire_file(".secrets/raw/gw_a.jsonl", context.temp_allocator)
 	if err != nil do return ""
@@ -46,7 +44,6 @@ token_a :: proc() -> string {
 }
 
 // token_b: the Authorization header of account B's captured REST requests
-@(private = "file")
 token_b :: proc() -> string {
 	for name in ([]string{".secrets/raw/coldstart_b.jsonl"}) {
 		data, err := os.read_entire_file(name, context.temp_allocator)
@@ -71,6 +68,7 @@ Side :: struct {
 	mu:       sync.Mutex,
 	heard:    [dynamic]f32, // left channel of audio from the peer
 	peer:     u64,
+	version:  u64,
 }
 
 @(private = "file")

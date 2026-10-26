@@ -1,5 +1,6 @@
 package capture
 
+import "core:encoding/base64"
 import "core:fmt"
 import "core:math"
 import "core:math/rand"
@@ -31,6 +32,8 @@ import "fc:etf"
 //   upload SEL | PATH         DOM.setFileInputFiles on an <input type=file>
 //   scroll SEL | DY           mouse wheel over SEL
 //   js EXPR                   evaluate and print
+//   snap NAME                 screenshot + layout dump -> .secrets/screens/<scenario>/NAME.{png,json} (also at every mark)
+//   probe NAME | FILE.js      evaluate a JS file returning a string, save as NAME.json
 //   optional CMD...           run CMD; failure is noted, not fatal
 //   include FILE              inline another file (shared preludes, e.g. _open_test_channel.scn)
 //
@@ -48,6 +51,7 @@ Driver :: struct {
 	gw_cursor: [2]int,
 	failed:    bool,
 	abort:     bool, // watchdog tripped (atomic)
+	name:      string,
 	done:      bool, // scenario finished (atomic)
 }
 
@@ -122,6 +126,7 @@ run_scenario :: proc(path: string, out_path: string) -> bool {
 	}
 	d: Driver
 	d.vars = make(map[string]string)
+	d.name = name
 	load_vars(&d, filepath.dir(path))
 	lines := expand_includes(string(src), filepath.dir(path))
 	uses_b := false
@@ -241,6 +246,23 @@ exec :: proc(d: ^Driver, line: string) -> (bool, string) {
 		return true, ""
 	case "mark":
 		for acc in d.accts do if acc != nil do out_line(d.out, acc.acct, fmt.tprintf(`"mark":%s`, cdp.quote(rest)))
+		snap(d, rest)
+		return true, ""
+	case "snap":
+		if !snap(d, rest) do return false, "snap failed"
+		return true, ""
+	case "probe":
+		bar := strings.index(rest, " | ")
+		if bar < 0 do return false, "syntax: probe NAME | FILE.js"
+		pname, file := rest[:bar], rest[bar + 3:]
+		src, ferr := os.read_entire_file(file, context.temp_allocator)
+		if ferr != nil do return false, "cannot read probe"
+		v, ok := evaluate(r.c, r.page_session, string(src))
+		if !ok do return false, "probe failed"
+		text, _ := v.(string)
+		path := screen_path(d, pname, "json")
+		_ = os.write_entire_file(path, transmute([]byte)text)
+		fmt.println("  probe ->", path)
 		return true, ""
 	case "wait":
 		ms, _ := strconv.parse_int(rest)
@@ -359,6 +381,36 @@ exec :: proc(d: ^Driver, line: string) -> (bool, string) {
 		return ok, "js failed"
 	}
 	return false, "unknown command"
+}
+
+SCREENS_DIR :: "/Users/creikey/Documents/fastcord/.secrets/screens"
+
+@(private)
+screen_path :: proc(d: ^Driver, name, ext: string) -> string {
+	dir := fmt.tprintf("%s/%s", SCREENS_DIR, d.name)
+	_ = os.make_directory_all(dir)
+	safe, _ := strings.replace_all(name, "/", "_", context.temp_allocator)
+	who := "" if d.cur == 0 else ".b"
+	return fmt.tprintf("%s/%s%s.%s", dir, safe, who, ext)
+}
+
+// snap saves a screenshot and a layout dump of the current account's page.
+// Screens show other people's content: they stay in .secrets/screens.
+@(private)
+snap :: proc(d: ^Driver, name: string) -> bool {
+	r := cur(d)
+	shot, ok := cdp.call_value(r.c, "Page.captureScreenshot", `{"format":"png"}`, r.page_session, 15 * time.Second)
+	if !ok do return false
+	png, _ := base64.decode(cdp.str(shot, "data"), allocator = context.temp_allocator)
+	_ = os.write_entire_file(screen_path(d, name, "png"), png)
+	layout, _ := evaluate(r.c, r.page_session, #load("probes/layout.js", string), quiet = true)
+	geometry, _ := evaluate(r.c, r.page_session, #load("../probes/layout_geometry.js", string), quiet = true)
+	ls, _ := layout.(string)
+	gs, _ := geometry.(string)
+	if ls == "" do ls = "null"
+	body := fmt.tprintf(`{{"layout":%s,"geometry":%s}}`, ls, cdp.quote(gs))
+	_ = os.write_entire_file(screen_path(d, name, "json"), transmute([]byte)body)
+	return true
 }
 
 @(private)

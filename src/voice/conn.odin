@@ -182,6 +182,9 @@ Conn :: struct {
 	udp_started:       bool,
 	audio_started:     bool,
 	capture_on:        bool,
+	input_gain:        f32, // software input volume (1 = unchanged)
+	input_db:          f32, // level of the last mic frame (after gain)
+	vad_open:          bool,
 	allocator:         runtime.Allocator, // long-lived allocations from every thread
 	debug:             bool, // FASTCORD_VOICE_DEBUG=1: protocol trace on stderr (no secrets)
 }
@@ -225,6 +228,8 @@ voice_connect :: proc(info: Voice_Server_Info, opts := Options{}) -> ^Conn {
 	c.settings = make(map[u64]User_Settings)
 	c.experiments = make([dynamic]string)
 	c.last_seq = -1
+	c.input_gain = 1
+	c.input_db = -127
 	c.codec = get_codec()
 	c.encoder = c.codec.encoder_create()
 	vad_init(&c.vad)
@@ -332,6 +337,28 @@ set_user_mute :: proc(c: ^Conn, user_id: u64, muted: bool) {
 	s.muted = muted
 	c.settings[user_id] = s
 	sync.mutex_unlock(&c.mu)
+}
+
+// set_input_sensitivity: auto threshold (the client's default) or a manual dB threshold.
+set_input_sensitivity :: proc(c: ^Conn, auto_threshold: bool, threshold_db: f32) {
+	sync.mutex_lock(&c.mu)
+	c.vad.auto_threshold = auto_threshold
+	c.vad.threshold_db = threshold_db
+	sync.mutex_unlock(&c.mu)
+}
+
+// set_input_gain: input volume, 0..2 (Settings > Voice > Input Volume).
+set_input_gain :: proc(c: ^Conn, gain: f32) {
+	sync.mutex_lock(&c.mu)
+	c.input_gain = clamp(gain, 0, 2)
+	sync.mutex_unlock(&c.mu)
+}
+
+// input_level: last mic frame level in dBFS and whether the VAD is open (for meters).
+input_level :: proc(c: ^Conn) -> (db: f32, open: bool) {
+	sync.mutex_lock(&c.mu)
+	defer sync.mutex_unlock(&c.mu)
+	return c.input_db, c.vad_open
 }
 
 SPEAKING_HOLD_MS :: 250
@@ -842,7 +869,10 @@ on_session_description :: proc(c: ^Conn, d: json.Value) {
 	set_state(c, .Connected)
 	if !c.audio_started {
 		c.audio_started = true
-		if !c.opts.no_audio_devices do c.capture_on = audio.capture_start(true)
+		if !c.opts.no_audio_devices {
+			c.capture_on = audio.capture_start(true)
+			if c.capture_on do audio.apply_device_selection() // chosen devices + DSP switches
+		}
 		c.next_rtcp_ms = now_ms() + 1000
 		c.audio_th = thread.create_and_start_with_data(c, audio_thread_proc, priority = .High)
 	}
@@ -1111,8 +1141,14 @@ tx_tick :: proc(c: ^Conn, pcm: []f32) {
 	read_mic(c, pcm)
 	sync.mutex_lock(&c.mu)
 	muted := c.self_mute || c.self_deaf
+	gain := c.input_gain
 	sync.mutex_unlock(&c.mu)
+	if gain != 1 do for &x in pcm do x = clamp(x * gain, -1, 1)
 	active, db := vad_process(&c.vad, pcm)
+	sync.mutex_lock(&c.mu)
+	c.input_db = db
+	c.vad_open = active
+	sync.mutex_unlock(&c.mu)
 	if muted do active = false
 	frame_ts := c.ts
 	c.ts += SAMPLES_PER_FRAME

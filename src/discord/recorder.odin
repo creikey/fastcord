@@ -3,6 +3,7 @@ package discord
 import "core:encoding/base64"
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import "core:strings"
 import "core:sync"
 import "fc:etf"
@@ -27,6 +28,7 @@ Recorder :: struct {
 	start:   i64,
 	next_id: int,
 	ws_id:   string,
+	last_net: i64, // ms of the last recorded network event (settle)
 }
 
 Recorder_Tap :: struct {
@@ -52,8 +54,16 @@ recorder_close :: proc(r: ^Recorder) {
 rec_line :: proc(r: ^Recorder, acct, rest: string) {
 	sync.mutex_lock(&r.mu)
 	defer sync.mutex_unlock(&r.mu)
-	line := fmt.tprintf(`{{"rt":%.1f,"acct":"%s",%s}}`+"\n", f64(now_ms() - r.start), acct, rest)
+	n := now_ms()
+	line := fmt.tprintf(`{{"rt":%.1f,"acct":"%s",%s}}`+"\n", f64(n - r.start), acct, rest)
 	os.write_string(r.f, line)
+	if !strings.has_prefix(rest, `"mark"`) do r.last_net = n
+}
+
+recorder_last_net :: proc(r: ^Recorder) -> i64 {
+	sync.mutex_lock(&r.mu)
+	defer sync.mutex_unlock(&r.mu)
+	return r.last_net
 }
 
 @(private)
@@ -62,6 +72,7 @@ rec_line_at :: proc(r: ^Recorder, acct: string, at_ms: i64, rest: string) {
 	defer sync.mutex_unlock(&r.mu)
 	line := fmt.tprintf(`{{"rt":%.1f,"acct":"%s",%s}}`+"\n", f64(at_ms - r.start), acct, rest)
 	os.write_string(r.f, line)
+	r.last_net = max(r.last_net, now_ms())
 }
 
 recorder_mark :: proc(r: ^Recorder, acct, name: string) {
@@ -154,7 +165,7 @@ renderer_view :: proc(method: string, wire: []http.Header, kind: string) -> []ht
 		for n in ([]string{"accept", "access-control-request-headers", "access-control-request-method", "origin", "sec-fetch-mode", "user-agent"}) do add(&out, wire, n)
 		return out[:]
 	}
-	standard := []string{"content-length", "sec-ch-ua-platform", "authorization", "x-installation-id", "x-debug-options", "accept-language", "sec-ch-ua", "sec-ch-ua-mobile", "x-discord-timezone", "x-context-properties", "x-super-properties", "x-discord-locale", "user-agent", "content-type", "accept", "origin", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest", "sec-fetch-storage-access", "referer", "accept-encoding", "cookie", "priority", "if-modified-since"}
+	standard := []string{"content-length", "sec-ch-ua-platform", "authorization", "x-installation-id", "x-debug-options", "accept-language", "sec-ch-ua", "sec-ch-ua-mobile", "x-discord-timezone", "x-context-properties", "x-super-properties", "x-discord-locale", "user-agent", "content-type", "accept", "origin", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest", "sec-fetch-storage-access", "referer", "accept-encoding", "cookie", "priority", "if-modified-since", "cache-control"}
 	is_std :: proc(standard: []string, n: string) -> bool {
 		for s in standard do if s == n do return true
 		return false
@@ -175,7 +186,7 @@ renderer_view :: proc(method: string, wire: []http.Header, kind: string) -> []ht
 	}
 	// unauthenticated XHR / fetch / image
 	if v, ok := hval(wire, "if-none-match"); ok && kind != "Image" do append(&out, http.Header{"If-None-Match", v})
-	for e in extras do add(&out, wire, e)
+	for e in extras do if e != "if-none-match" do add(&out, wire, e)
 	for n in ([]string{"sec-ch-ua-platform", "referer", "user-agent", "sec-ch-ua", "content-type", "sec-ch-ua-mobile"}) do add(&out, wire, n)
 	return out[:]
 }
@@ -249,6 +260,8 @@ rec_http :: proc(data: rawptr, host: string, req: http.Request, resp: ^http.Resp
 		append(&wire, http.Header{":authority", host}, http.Header{":method", req.method}, http.Header{":path", req.path}, http.Header{":scheme", "https"})
 	}
 	for h in req.headers do append(&wire, h)
+	// DevTools reports ExtraInfo headers sorted by name.
+	slice.sort_by(wire[:], proc(a, b: http.Header) -> bool {return a.name < b.name})
 	headers_object(&sb2, wire[:])
 	strings.write_string(&sb2, "}}")
 	rec_line_at(r, tap.acct, start_ms, strings.to_string(sb2))

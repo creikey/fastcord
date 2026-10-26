@@ -15,6 +15,8 @@ import "core:time"
 // "/discord" itself; that is where the logged-in profiles live), --multi-instance,
 // --remote-debugging-port=9333/9334, output to .secrets/discord-{a,b}.log.
 // Never --user-data-dir (Discord ignores it and opens the user's real profile).
+// Each launch also writes a netlog: .secrets/raw/netlog_{a,b}_<unix>.json, the
+// current path in .secrets/raw/netlog_{a,b}.latest (scrub -netlog reads it).
 //
 // Every POLL: total RSS of each instance's process tree; a tree above
 // TREE_LIMIT is killed, and when free+inactive system memory drops below
@@ -131,9 +133,14 @@ launch_instance :: proc(inst: Instance) -> bool {
 	logf, lerr := os.open(fmt.tprintf("%s/.secrets/discord-%s.log", REPO, inst.name), {.Write, .Create, .Append}, {.Read_User, .Write_User})
 	if lerr != nil do return false
 	defer os.close(logf)
+	// Netlog in the default capture mode: request header order and values,
+	// h2/h3 session facts; cookie/authorization values are stripped by Chrome,
+	// no socket bytes (the Everything mode grew to ~2 GB). Stays in .secrets.
+	netlog := fmt.tprintf("%s/.secrets/raw/netlog_%s_%d.json", REPO, inst.name, time.time_to_unix(time.now()))
+	_ = os.write_entire_file(fmt.tprintf("%s/.secrets/raw/netlog_%s.latest", REPO, inst.name), transmute([]byte)netlog)
 	p, err := os.process_start(
 		{
-			command = {DISCORD_BIN, "--multi-instance", fmt.tprintf("--remote-debugging-port=%d", inst.port)},
+			command = {DISCORD_BIN, "--multi-instance", fmt.tprintf("--remote-debugging-port=%d", inst.port), fmt.tprintf("--log-net-log=%s", netlog)},
 			env = full[:],
 			stdout = logf,
 			stderr = logf,

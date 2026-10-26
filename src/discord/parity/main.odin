@@ -40,6 +40,43 @@ Acct :: struct {
 }
 
 rec: ^discord.Recorder
+scenario: string
+reloads: [2]int
+
+// start_route: the route the official instance reopened on at the n-th reload
+// of this account, read from traffic/<scenario>.jsonl (first messages?limit=
+// page and lurker PUT after each ws_open).
+start_route :: proc(acct: string, n: int) -> (guild, channel: discord.Snowflake) {
+	data, err := os.read_entire_file(fmt.tprintf("traffic/%s.jsonl", scenario), context.temp_allocator)
+	if err != nil do return 0, 0
+	text := string(data)
+	opens := -1
+	for line in strings.split_lines_iterator(&text) {
+		v, jerr := etf.from_json(line, context.temp_allocator)
+		if jerr != .None do continue
+		m := discord.vmap(v)
+		a := discord.fstr(m, "acct")
+		if a == "" do a = "a"
+		if a != acct do continue
+		k := discord.fstr(m, "k")
+		if k == "ws_open" {
+			opens += 1
+			if opens > n do break
+			continue
+		}
+		if opens != n || k != "req" do continue
+		url := discord.fstr(m, "url")
+		if i := strings.index(url, "/guilds/"); i >= 0 && strings.contains(url, "lurker=true") {
+			rest := url[i + 8:]
+			guild = discord.parse_snowflake(rest[:strings.index_byte(rest, '/')])
+		}
+		if i := strings.index(url, "/channels/"); i >= 0 && strings.contains(url, "/messages?limit=") && channel == 0 {
+			rest := url[i + 10:]
+			channel = discord.parse_snowflake(rest[:strings.index_byte(rest, '/')])
+		}
+	}
+	return
+}
 accts: [2]Acct
 cur: ^Acct
 
@@ -50,6 +87,7 @@ main :: proc() {
 		os.exit(2)
 	}
 	name := args[1]
+	scenario = name
 	out := args[2] if len(args) > 2 else fmt.tprintf(".secrets/raw/ours_%s.jsonl", name)
 	accts[0] = {name = "a", token = token_a(), state = ".secrets/parity-state-a"}
 	accts[1] = {name = "b", token = token_b(), state = ".secrets/parity-state-b"}
@@ -65,6 +103,7 @@ main :: proc() {
 	}
 	cur = &accts[0]
 	ran := run(name)
+	if ran do settle(2000, 15000)
 	for &a in accts do if a.c != nil do stop(&a)
 	discord.recorder_close(rec)
 	if !ran {
@@ -120,9 +159,13 @@ use :: proc(n: string) {cur = &accts[0] if n == "a" else &accts[1]}
 
 mark :: proc(n: string) {discord.recorder_mark(rec, cur.name, n)}
 
-// reload: the app restarts on the same profile (cookies, alt-svc, heartbeat session persisted).
-reload :: proc(guild: discord.Snowflake = 0, channel: discord.Snowflake = 0) {
+// reload: the app restarts on the same profile (cookies, alt-svc, heartbeat
+// session persisted) and reopens on the route the official instance was on.
+reload :: proc() {
 	a := cur
+	idx := 0 if a.name == "a" else 1
+	guild, channel := start_route(a.name, reloads[idx])
+	reloads[idx] += 1
 	if a.c != nil do stop(a)
 	clear(&a.events)
 	a.cursor = 0
@@ -132,6 +175,9 @@ reload :: proc(guild: discord.Snowflake = 0, channel: discord.Snowflake = 0) {
 	a.c.user_data = a
 	a.c.on_dispatch = proc(user: rawptr, name: string) {
 		acct := cast(^Acct)user
+		// The capture instances lose window focus once loaded: AppStateStore
+		// reports "unfocused" from READY on (QoS stays foregrounded).
+		if name == "READY" do discord.identity_set_app_state(&acct.c.id, .Unfocused)
 		sync.mutex_lock(&names_mu)
 		append(&acct.events, strings.clone(name))
 		sync.mutex_unlock(&names_mu)
@@ -139,8 +185,8 @@ reload :: proc(guild: discord.Snowflake = 0, channel: discord.Snowflake = 0) {
 	discord.client_set_viewport(a.c, VIEW_W, VIEW_H)
 	discord.client_set_accessibility(a.c, discord.A11Y_PREFERS_COLOR_SCHEME_LIGHT)
 	discord.client_start(a.c)
-	wait_gw("READY", 30000)
-	settle(1500)
+	wait_gw("READY", 45000)
+	settle(2500, 30000)
 }
 
 names_mu: sync.Mutex
@@ -160,7 +206,15 @@ pump :: proc(ms: int) {
 
 human :: proc(lo, hi: int) {pump(lo + int(rand.uint32() % u32(hi - lo + 1)))}
 pause :: proc() {human(700, 1600)}
-settle :: proc(ms: int) {pump(ms)}
+
+// settle: like tools/capture — wait until no network event for quiet_ms (max max_ms).
+settle :: proc(quiet_ms: int, max_ms := 20000) {
+	start := time.tick_now()
+	for time.tick_since(start) < time.Duration(max_ms) * time.Millisecond {
+		if discord.now_ms() - discord.recorder_last_net(rec) >= i64(quiet_ms) do return
+		pump(200)
+	}
+}
 
 // wait_gw: until a dispatch arrives on the current account since the last action.
 wait_gw :: proc(ev: string, timeout_ms := 15000) -> bool {
@@ -206,9 +260,7 @@ last_message :: proc(channel: discord.Snowflake) -> discord.Snowflake {
 open_test_channel :: proc() {
 	use("a")
 	mark("setup")
-	reload(TGUILD, TTEXT)
-	human(500, 1100)
-	discord.select_channel(cur.c, TGUILD, 0)
+	reload()
 	human(500, 1100)
 	discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
 	settle(1500)
@@ -368,9 +420,21 @@ run :: proc(name: string) -> bool {
 		send_setup_message()
 		mark("open_profile_popout")
 		human(500, 1100)
-		discord.fetch_profile(cur.c, A_ID, TGUILD)
+		discord.open_profile_popout(cur.c, A_ID, TGUILD)
 		settle(2000)
 		mark("close_profile_popout")
+		settle(1000)
+	case "open_full_profile":
+		open_test_channel()
+		send_setup_message()
+		human(500, 1100)
+		discord.open_profile_popout(cur.c, A_ID, TGUILD)
+		settle(1500)
+		mark("open_full_profile")
+		human(500, 1100)
+		discord.open_full_profile(cur.c, A_ID, TGUILD)
+		settle(2500)
+		mark("close_full_profile")
 		settle(1000)
 	case "join_voice_channel":
 		open_test_channel()

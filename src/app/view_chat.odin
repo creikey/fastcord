@@ -91,6 +91,7 @@ chat_view :: proc(channel_id: dc.Snowflake) {
 		if last > s.read_states[channel_id].last_message_id && !msgs[len(msgs) - 1].pending do dc.ack_message(app.client, channel_id, last)
 	}
 
+	picker_capture_input() // expression picker owns keys/wheel while open
 	col := ui.box("chatcol")
 	col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 	col.layout_axis = .Y
@@ -240,6 +241,7 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 				if !grouped do message_header(m)
 				if editing do edit_box(m)
 				else do message_body(m)
+				if len(m.sticker_ids) > 0 do message_stickers_view(m)
 				if len(m.attachments) > 0 do attachments_view(m)
 				if len(m.embeds) > 0 do embeds_view(m)
 				if len(m.reactions) > 0 do reactions_view(m)
@@ -406,6 +408,10 @@ tokens_to_spans :: proc(toks: []Token, base: Font_Id, size: f32, m: ^dc.Message)
 		}
 		switch tk.kind {
 		case .Text:
+			if .Code not_in tk.styles {
+				emoji_text_spans(&spans, sp)
+				continue
+			}
 		case .Link:
 			sp.color = T("--text-link")
 		case .User_Mention:
@@ -552,7 +558,7 @@ reactions_view :: proc(m: ^dc.Message) {
 			sig := ui.signal(pill)
 			if ui.parent(pill) {
 				spacer(.X, 6)
-				emoji_inline("e", re.emoji, 16)
+				emoji_box("e", re.emoji, 16)
 				spacer(.X, 6)
 				label(fmt.tprintf("%d", re.count), .Semibold, 14, re.me ? T("--reaction-text-reacted-default") : T("--reaction-text-default"), 16)
 				spacer(.X, 6)
@@ -565,6 +571,7 @@ reactions_view :: proc(m: ^dc.Message) {
 				}
 			}
 		}
+		reaction_add_button(m)
 	}
 	spacer(.Y, 2)
 }
@@ -677,7 +684,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			res := text_field("input", &cs.editor, placeholder, (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open())
 			if res == .Submit {
 				text := strings.trim_space(ui.editor_text(&cs.editor))
-				if composer_send(ch, text) do cs.scroll_target = 0
+				if composer_send(ch, emoji_convert_shortcodes(text)) do cs.scroll_target = 0
 				ui.editor_set_text(&cs.editor, "")
 			} else if res == .Escape {
 				ma.replying = 0
@@ -689,7 +696,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 				b.semantic_size = {.X = ui.px(40), .Y = ui.px(52)}
 				b.layout_axis = .Y
 				b.cross_align = .Center
-				hov := ui.signal(b).hovering
+				hov := picker_composer_button(name, ui.signal(b), b.rect, ch.id)
 				if ui.parent(b) {
 					spacer(.Y, 14)
 					icon("i", name, 24, hov ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
@@ -771,15 +778,9 @@ is_emoji_only :: proc(toks: []Token) -> bool {
 		case .Custom_Emoji:
 			n += 1
 		case .Text:
-			for r in tk.text {
-				switch {
-				case r == ' ' || r == '\n':
-				case r >= 0x1F000 || (r >= 0x2600 && r <= 0x27BF) || r == 0x200D || (r >= 0xFE00 && r <= 0xFE0F) || (r >= 0x1F3FB && r <= 0x1F3FF):
-					if r != 0x200D && !(r >= 0xFE00 && r <= 0xFE0F) do n += 1
-				case:
-					return false
-				}
-			}
+			k, only := emoji_count(tk.text)
+			if !only do return false
+			n += k
 		case .Link, .User_Mention, .Role_Mention, .Channel_Mention, .Everyone, .Timestamp:
 			return false
 		}

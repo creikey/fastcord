@@ -30,6 +30,9 @@ Config :: struct {
 	round_tripper:         Round_Tripper, // replaces the network (tests / replay)
 	h3:                    H3_Hook, // optional h3 override (default: fc:quic/h3 via fc:quic/altsvc)
 	disable_h3:            bool,
+	ws_open_delay_ms:      i64, // gateway socket open after client_start (0 = 190, <0 = immediately)
+	fast_identify_delay_ms: i64, // fast-connect IDENTIFY after open (0 = 300, <0 = immediately)
+	voice_self_mute:       bool, // op 4 self_mute sent on READY (the client's persisted mute state)
 	disable_analytics:     bool, // no /science telemetry (the official client always sends it)
 	initial_guild_id:      Snowflake, // the route the window opens on (referer)
 	initial_channel_id:    Snowflake,
@@ -132,7 +135,16 @@ Client :: struct {
 	settings_edit:    Settings_Edit,
 	analytics:        Analytics,
 	upload_seq:       int,
-	quest_app_ids:    []Snowflake, // from /quests/@me, for applications/public
+	quest_app_ids:    []Snowflake,
+	start_route_guild:   Snowflake, // route the window opened on (startup table selection)
+	start_route_channel: Snowflake,
+	etag_mu:          sync.Mutex,
+	etags:            map[string]string, // persisted If-None-Match memory
+	ready_subscribed_guild: Snowflake, // op 37 already sent by the gateway on READY
+	pending_guild_open: Snowflake,
+	guild_open_promotions: bool, // op 43 + guild-open set wait for the first message page
+	pending_private_open: Snowflake, // op 13 + recipient profile wait for the first page
+	route_page_pending: bool, // first page of the start route channel not yet loaded (op 43 / guild open follow it) // from /quests/@me, for applications/public
 	started_guilds:   map[Snowflake]bool, // guilds whose open-time requests ran this session
 	// traffic observers (tooling): see every gateway frame
 	on_gateway_send:  proc(data: rawptr, op: Op, d: V),
@@ -177,6 +189,9 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c.analytics.enabled = !cfg.disable_analytics
 	c.route_guild = cfg.initial_guild_id
 	c.route_channel = cfg.initial_channel_id
+	c.start_route_guild = cfg.initial_guild_id
+	c.start_route_channel = cfg.initial_channel_id
+	c.etags = make(map[string]string)
 	client_load_state(c)
 	return c
 }
@@ -221,6 +236,11 @@ client_destroy :: proc(c: ^Client) {
 	delete(c.pending_acks)
 	delete(c.started_guilds)
 	delete(c.quest_app_ids)
+	for k, v in c.etags {
+		delete(k)
+		delete(v)
+	}
+	delete(c.etags)
 	store_destroy(&c.store)
 	analytics_destroy(&c.analytics)
 	delete(c.subs.guilds)
@@ -339,6 +359,13 @@ client_load_state :: proc(c: ^Client) {
 	now := now_ms()
 	cookie_jar_load(&c.jar, state_path(c, "cookies.tsv"), now)
 	transport_set_altsvc_path(&c.transport, state_path(c, "altsvc.txt"))
+	if data, err := os.read_entire_file(state_path(c, "etags.tsv"), context.temp_allocator); err == nil {
+		text := string(data)
+		for line in strings.split_lines_iterator(&text) {
+			tab := strings.index_byte(line, '\t')
+			if tab > 0 do c.etags[strings.clone(line[:tab], c.allocator)] = strings.clone(line[tab + 1:], c.allocator)
+		}
+	}
 	if data, err := os.read_entire_file(state_path(c, "identity.tsv"), context.temp_allocator); err == nil {
 		text := string(data)
 		for line in strings.split_lines_iterator(&text) {
@@ -366,6 +393,18 @@ client_save_state :: proc(c: ^Client) {
 	_ = os.make_directory_all(c.cfg.state_dir)
 	now := now_ms()
 	cookie_jar_save(&c.jar, state_path(c, "cookies.tsv"), now)
+	{
+		eb := strings.builder_make(context.temp_allocator)
+		sync.mutex_lock(&c.etag_mu)
+		for k, v in c.etags {
+			strings.write_string(&eb, k)
+			strings.write_byte(&eb, '\t')
+			strings.write_string(&eb, v)
+			strings.write_byte(&eb, '\n')
+		}
+		sync.mutex_unlock(&c.etag_mu)
+		write_file_atomic(state_path(c, "etags.tsv"), transmute([]byte)strings.to_string(eb))
+	}
 	sb := strings.builder_make(context.temp_allocator)
 	sync.mutex_lock(&c.id.mu)
 	if c.id.installation_id != "" {

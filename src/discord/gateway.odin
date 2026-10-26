@@ -466,6 +466,9 @@ gateway_connect :: proc(g: ^Gateway) {
 		g.last_ack = now_ms()
 		sync.mutex_unlock(&g.mu)
 		client_push_state(c, .Identifying)
+		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
+		d := c.cfg.fast_identify_delay_ms if c.cfg.fast_identify_delay_ms != 0 else 300
+		if d > 0 do time.sleep(time.Duration(d) * time.Millisecond)
 		gateway_send(g, .Identify, identify_fast_connect_value(&c.id, c.token))
 	} else {
 		g.fast_connect_done = true
@@ -713,7 +716,34 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 gateway_on_ready_locked :: proc(g: ^Gateway) {
 	c := g.c
 	sync.mutex_unlock(&g.mu)
-	gateway_send(g, .Voice_State_Update, voice_state_value(0, 0, true, false, false, 2))
+	gateway_send(g, .Voice_State_Update, voice_state_value(0, 0, c.cfg.voice_self_mute, false, false, 2))
+	// Reopening on a route: GuildSubscriptions re-sends the guild's full
+	// subscription state on CONNECTION_OPEN; a private channel route connects the call (op 13).
+	sync.mutex_lock(&c.route_mu)
+	rg, rch := c.route_guild, c.route_channel
+	sync.mutex_unlock(&c.route_mu)
+	if rg != 0 {
+		sync.mutex_lock(&c.job_mu)
+		c.ready_subscribed_guild = rg
+		sync.mutex_unlock(&c.job_mu)
+		gb := etf.map_builder(7, context.temp_allocator)
+		etf.map_put(&gb, "typing", true)
+		etf.map_put(&gb, "threads", true)
+		etf.map_put(&gb, "activities", true)
+		etf.map_put(&gb, "members", etf.List{})
+		etf.map_put(&gb, "member_updates", false)
+		etf.map_put(&gb, "channels", etf.Map{})
+		etf.map_put(&gb, "thread_member_lists", etf.List{})
+		sb := etf.map_builder(1, context.temp_allocator)
+		etf.map_put(&sb, snowflake_string(rg), etf.map_done(&gb))
+		db := etf.map_builder(1, context.temp_allocator)
+		etf.map_put(&db, "subscriptions", etf.map_done(&sb))
+		gateway_send(g, .Guild_Subscriptions_Bulk, etf.map_done(&db))
+	} else if rch != 0 {
+		cb := etf.map_builder(1, context.temp_allocator)
+		etf.map_put(&cb, "channel_id", snowflake_string(rch))
+		gateway_send(g, .Call_Connect, etf.map_done(&cb))
+	}
 	now := now_ms()
 	identity_touch_heartbeat(&c.id, now)
 	hb := identity_heartbeat_snapshot(&c.id)
@@ -740,7 +770,8 @@ send_heartbeat_if_due_locked :: proc(g: ^Gateway) {
 @(private)
 gateway_control_proc :: proc(g: ^Gateway) {
 	sync.mutex_lock(&g.mu)
-	g.reconnect_at = now_ms()
+	// The HTML bootstrap opens the socket ~190 ms after navigation (fixtures median).
+	g.reconnect_at = g.c.launch_ms + (g.c.cfg.ws_open_delay_ms if g.c.cfg.ws_open_delay_ms != 0 else 190)
 	for !g.stop {
 		now := now_ms()
 		if g.pending_teardown {
