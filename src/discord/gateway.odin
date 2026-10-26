@@ -127,6 +127,9 @@ Gateway :: struct {
 	// what the server must see on (re)connect
 	presence_status:   Status,
 	initial_beat:      bool,
+	connected_once:    bool,
+	first_attempt:     i64,
+	attempt_start:     i64,
 	// teardown requested by the reader / timers, executed by the control thread
 	pending_teardown:  bool,
 	pending_code:      int,
@@ -393,6 +396,8 @@ gateway_close_socket :: proc(g: ^Gateway, code: int) {
 gateway_connect :: proc(g: ^Gateway) {
 	c := g.c
 	url := gateway_url(g)
+	g.attempt_start = now_ms()
+	if g.first_attempt == 0 do g.first_attempt = g.attempt_start
 	host := url[len("wss://"):]
 	host = host[:strings.index_byte(host, '/')]
 	path := url[len("wss://") + len(host):]
@@ -627,8 +632,15 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 	case .Hello:
 		g.hello_deadline = 0
 		g.received_hello = true
-		g.failed_attempts = 0
 		g.interval = fint(vmap(d), "heartbeat_interval")
+		{
+			now := now_ms()
+			url := g.resume_url if g.resume_url != "" else (c.cfg.gateway_url if c.cfg.gateway_url != "" else GATEWAY_DEFAULT_URL)
+			analytics_gateway_connected(c, g.failed_attempts, url, g.connected_once, !g.connected_once && c.cfg.fast_connect, now - g.first_attempt, now - g.attempt_start)
+			g.connected_once = true
+			g.first_attempt = 0
+			g.failed_attempts = 0
+		}
 		// _startHeartbeater: first beat after floor(random*interval).
 		g.next_beat = now_ms() + i64(rand.float64() * f64(g.interval))
 		g.initial_beat = true

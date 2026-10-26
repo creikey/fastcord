@@ -47,6 +47,10 @@ images_receive :: proc() {
 	if app.client == nil do return
 	for &r in dc.client_take_media(app.client) {
 		defer dc.media_result_free(app.client, &r)
+		if blob_receive(&r) {
+			app.ui.animating = true
+			continue
+		}
 		im, ok := &images[r.url]
 		if !ok do continue
 		if r.status != 200 || len(r.data) == 0 {

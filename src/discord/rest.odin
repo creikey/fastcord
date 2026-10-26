@@ -4,6 +4,7 @@ import "core:mem/virtual"
 import "core:strings"
 import "core:sync"
 import "core:time"
+import "fc:etf"
 import "fc:http"
 
 // REST execution. Jobs are built on the UI thread (actions.odin) or by the
@@ -246,7 +247,60 @@ run_api :: proc(c: ^Client, j: ^Job) {
 			}
 		}
 	}
+	if j.op == .Startup && r.ok && strings.has_prefix(j.path, "/quests/@me") do note_quest_applications(c, r.body)
 	push_result(c, j, r)
+}
+
+// QuestsStore loads /quests/@me; the application of every quest is then
+// hydrated with GET /applications/public?application_ids=..(one param per id,
+// in quest order). Fired ≈435 ms after READY in the coldstart capture.
+@(private)
+collect_app_ids :: proc(v: V, out: ^[dynamic]Snowflake) {
+	#partial switch x in v {
+	case etf.Map:
+		if app := fmap(x, "application"); app != nil {
+			id := fsnow(app, "id")
+			if id != 0 {
+				dup := false
+				for e in out do if e == id do dup = true
+				if !dup do append(out, id)
+			}
+		}
+		for p in x do collect_app_ids(p.value, out)
+	case etf.List:
+		for e in x do collect_app_ids(e, out)
+	}
+}
+
+@(private)
+note_quest_applications :: proc(c: ^Client, body: V) {
+	ids := make([dynamic]Snowflake, context.temp_allocator)
+	collect_app_ids(body, &ids)
+	if len(ids) == 0 do return
+	sync.mutex_lock(&c.job_mu)
+	delete(c.quest_app_ids)
+	c.quest_app_ids = make([]Snowflake, len(ids), c.allocator)
+	copy(c.quest_app_ids, ids[:])
+	ready := c.ready_ms
+	sync.mutex_unlock(&c.job_mu)
+	if ready != 0 do schedule_applications_public(c, ready)
+}
+
+schedule_applications_public :: proc(c: ^Client, ready_ms: i64) {
+	sync.mutex_lock(&c.job_mu)
+	ids := c.quest_app_ids
+	c.quest_app_ids = nil
+	sync.mutex_unlock(&c.job_mu)
+	if len(ids) == 0 do return
+	defer delete(ids, c.allocator)
+	q: Query
+	query_init(&q, "/applications/public")
+	for id in ids do query_add_snow(&q, "application_ids", id)
+	j := job_new(.Api, .Startup)
+	j.method = "GET"
+	j.path = job_str(j, query_string(&q))
+	j.not_before = max(ready_ms + 435, now_ms())
+	job_submit(c, j)
 }
 
 // run_web: unauthenticated XHR (startup table entries for status/cdn/latency).
@@ -393,6 +447,7 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 			if len(items) < r.limit do l.has_more_before = false
 		}
 	case .Send_Message, .Upload:
+		if rt, ok := &c.analytics.roundtrips[r.nonce]; ok && rt.api == 0 do rt.api = now_ms()
 		if r.ok {
 			upsert_message(s, vmap(e.data))
 		} else if l, ok := &s.messages[r.channel_id]; ok {

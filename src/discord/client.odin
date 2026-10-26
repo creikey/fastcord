@@ -29,6 +29,8 @@ Config :: struct {
 	round_tripper:         Round_Tripper, // replaces the network (tests / replay)
 	h3:                    H3_Hook, // optional h3 override (default: fc:quic/h3 via fc:quic/altsvc)
 	disable_h3:            bool,
+	disable_analytics:     bool, // no /science telemetry (the official client always sends it)
+	cpu_core_count:        int, // reported in telemetry (default 14)
 	initial_guild_id:      Snowflake, // the route the window opens on (referer)
 	initial_channel_id:    Snowflake,
 }
@@ -128,7 +130,10 @@ Client :: struct {
 	pending_acks:     [dynamic]Pending_Ack,
 	focused:          bool,
 	settings_edit:    Settings_Edit,
+	analytics:        Analytics,
+	analytics_last_channel: Snowflake,
 	upload_seq:       int,
+	quest_app_ids:    []Snowflake, // from /quests/@me, for applications/public
 	started_guilds:   map[Snowflake]bool, // guilds whose open-time requests ran this session
 	// traffic observers (tooling): see every gateway frame
 	on_gateway_send:  proc(data: rawptr, op: Op, d: V),
@@ -163,6 +168,8 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c.pending_acks = make([dynamic]Pending_Ack)
 	c.started_guilds = make(map[Snowflake]bool)
 	subscriptions_init(&c.subs, allocator)
+	analytics_init(&c.analytics, allocator)
+	c.analytics.enabled = !cfg.disable_analytics
 	c.route_guild = cfg.initial_guild_id
 	c.route_channel = cfg.initial_channel_id
 	client_load_state(c)
@@ -207,7 +214,9 @@ client_destroy :: proc(c: ^Client) {
 	delete(c.media_results)
 	delete(c.pending_acks)
 	delete(c.started_guilds)
+	delete(c.quest_app_ids)
 	store_destroy(&c.store)
+	analytics_destroy(&c.analytics)
 	delete(c.subs.guilds)
 	for _, l in c.subs.channels do delete(l)
 	delete(c.subs.channels)
@@ -278,6 +287,8 @@ client_poll :: proc(c: ^Client) -> bool {
 	flush_due_acks(c, now)
 	flush_typing_local(c, now)
 	flush_settings(c, now)
+	analytics_tick(c, now)
+	analytics_flush(c, now)
 	if changed do c.store.changed += 1
 	return changed
 }
@@ -376,6 +387,9 @@ client_on_ready :: proc(c: ^Client) {
 	first := c.ready_ms == 0
 	c.ready_ms = now_ms()
 	sync.mutex_unlock(&c.job_mu)
-	if first && !c.cfg.disable_startup do schedule_startup(c, .Ready)
+	if first && !c.cfg.disable_startup {
+		schedule_startup(c, .Ready)
+		schedule_applications_public(c, c.ready_ms)
+	}
 }
 

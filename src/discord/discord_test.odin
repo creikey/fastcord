@@ -405,3 +405,25 @@ launch_signature_shape :: proc(t: ^testing.T) {
 	}
 	testing.expect(t, !launch_signature_is_clean("00001000-0000-4000-8000-000000000000")) // BetterDiscord bit
 }
+
+@(test)
+analytics_batch_shape :: proc(t: ^testing.T) {
+	c := client_create(Config{token = "T", disable_gateway = true, disable_startup = true, workers = 1})
+	defer client_destroy(c)
+	c.id.heartbeat = {"H", 1, now_ms()}
+	analytics_track(c, "libdiscore_loaded", `"success":true`)
+	c.store.me = 1546819257420087346
+	c.analytics.user_id = c.store.me
+	analytics_track(c, "notification_permission_status", `"os_enabled":true`)
+	e0 := c.analytics.queue[0]
+	testing.expect(t, strings.has_prefix(e0, `{"type":"libdiscore_loaded","properties":{"client_track_timestamp":`), e0)
+	testing.expect(t, strings.contains(e0, `"client_heartbeat_session_id":"H","event_sequence_number":1,"success":true,"client_performance_cpu":0`), e0)
+	testing.expect(t, !strings.contains(e0, "client_uuid") && !strings.contains(e0, "client_rtc_state"), e0)
+	e1 := c.analytics.queue[1]
+	testing.expect(t, strings.contains(e1, `"client_rtc_state":"DISCONNECTED","client_app_state":"focused","client_viewport_width":1280,"client_viewport_height":720,"client_uuid":"MgBCUutndx`), e1)
+	// client_uuid layout: user id LE | random | creation ms LE | seq
+	i := strings.index(e1, `"client_uuid":"`) + len(`"client_uuid":"`)
+	raw, _ := base64.decode(e1[i:i + 32], allocator = context.temp_allocator)
+	testing.expect_value(t, len(raw), 24)
+	testing.expect_value(t, raw[20], 0)
+}

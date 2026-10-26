@@ -285,7 +285,7 @@ scrub_value :: proc(c: ^Ctx, v: etf.Value, key: string) -> etf.Value {
 		out := make([]etf.Pair, len(x))
 		for p, i in x {
 			k, _ := p.key.(string)
-			out[i].key = p.key
+			out[i].key = scrub_value(c, p.key, "") // keys can be ids (e.g. guild_versions)
 			switch {
 			case foreign_user && user_fields(k):
 				out[i].value = placeholder(c, "user", map_str(x, "id")) if k == "username" || k == "global_name" || k == "display_name" || k == "nick" else nil

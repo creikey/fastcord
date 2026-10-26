@@ -34,6 +34,10 @@ select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limi
 			schedule_guild_open(c, guild_id)
 		}
 	}
+	if channel_id != 0 && channel_id != c.analytics_last_channel {
+		c.analytics_last_channel = channel_id
+		analytics_channel_opened(c, channel_id)
+	}
 	if channel_id != 0 {
 		l := message_list(&c.store, channel_id)
 		if !l.loaded && !l.loading do fetch_messages(c, channel_id, 0, message_limit)
@@ -306,6 +310,7 @@ send_message :: proc(c: ^Client, channel_id: Snowflake, content: string, opts :=
 	j.retry_429 = 3 // MessageQueue re-sends after Retry-After
 	j.result = Rest_Result{op = .Send_Message, channel_id = channel_id, nonce = nonce, tag = opts.tag}
 	job_submit(c, j)
+	c.analytics.roundtrips[nonce] = Roundtrip{channel_id = channel_id, start = now_ms()}
 	return
 }
 
@@ -625,8 +630,13 @@ fetch_profile :: proc(c: ^Client, user_id: Snowflake, guild_id: Snowflake = 0, t
 // events (e.g. op 8 for unknown message authors in a subscribed guild).
 client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 	switch name {
+	case "READY":
+		analytics_on_ready(c)
 	case "MESSAGE_CREATE":
 		d := vmap(data)
+		if nv := fstr(d, "nonce"); nv != "" {
+			if rt, ok := &c.analytics.roundtrips[parse_snowflake(nv)]; ok && rt.gateway == 0 do rt.gateway = now_ms()
+		}
 		gid := fsnow(d, "guild_id")
 		sync.mutex_lock(&c.route_mu)
 		viewing := c.route_channel == fsnow(d, "channel_id")

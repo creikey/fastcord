@@ -210,6 +210,7 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int) -> ^ui.Box {
 				if editing do edit_box(m)
 				else do message_body(m)
 				if len(m.attachments) > 0 do attachments_view(m)
+				if len(m.embeds) > 0 do embeds_view(m)
 				if len(m.reactions) > 0 do reactions_view(m)
 			}
 			spacer(.X, 48)
@@ -444,7 +445,16 @@ handle_span_clicks :: proc(b: ^ui.Box) {
 @(private = "file")
 attachments_view :: proc(m: ^dc.Message) {
 	for &a, i in m.attachments {
-		if a.width > 0 && a.height > 0 {
+		if is_video(&a) && a.width > 0 && a.height > 0 {
+			w := f32(a.width)
+			h := f32(a.height)
+			sc := min(1, min(400 / w, 300 / h))
+			video_attachment(&a, w * sc, h * sc)
+			spacer(.Y, 4)
+		} else if is_audio(&a) {
+			audio_attachment(&a)
+			spacer(.Y, 4)
+		} else if a.width > 0 && a.height > 0 {
 			// images scale to fit 400x300 like the client
 			w := f32(a.width)
 			h := f32(a.height)
@@ -454,6 +464,7 @@ attachments_view :: proc(m: ^dc.Message) {
 			img.style.radius = 8
 			img.style.bg = T("--background-mod-subtle")
 			set_remote_image(img, attachment_image_url(&a, int(w * sc), int(h * sc)))
+			if ui.signal(img).clicked do open_viewer(a.proxy_url != "" ? a.proxy_url : a.url, {a.width, a.height})
 			spacer(.Y, 4)
 		} else {
 			f := row(fmt.tprintf("file%d", i), {.Draw_Background, .Draw_Border})

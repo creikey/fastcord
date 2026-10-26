@@ -173,7 +173,8 @@ inline_into :: proc(p: ^Md_Parser, src: string) {
 	for i < len(src) {
 		c := src[i]
 		// escapes
-		if c == '\\' && i + 1 < len(src) && strings.contains_rune("*_~|`<>\\#-[]()", rune(src[i + 1])) {
+		// a backslash escapes any ASCII punctuation (simple-markdown's escape rule)
+		if c == '\\' && i + 1 < len(src) && is_ascii_punct(src[i + 1]) {
 			emit(p, .Text, src[text_start:i])
 			emit(p, .Text, src[i + 1:i + 2])
 			i += 2
@@ -334,4 +335,9 @@ try_entity :: proc(p: ^Md_Parser, s: string, pending: string) -> (int, bool) {
 	tok.styles = p.styles
 	append(&p.out, tok)
 	return n, true
+}
+
+@(private = "file")
+is_ascii_punct :: proc(c: byte) -> bool {
+	return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') || (c >= '[' && c <= '`') || (c >= '{' && c <= '~')
 }

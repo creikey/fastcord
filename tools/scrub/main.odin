@@ -364,13 +364,17 @@ convert :: proc(raw: string, env: string) -> string {
 		if !keep_request(r) do continue
 		id := i64(next_id)
 		next_id += 1
-		h := r.wire_headers if r.wire_headers != nil else r.headers
 		pairs := make([dynamic]etf.Pair)
 		append(&pairs, P("t", r.t), P("k", string("req")))
 		if r.acct != "a" do append(&pairs, P("acct", r.acct))
 		append(&pairs, P("id", id), P("proto", r.proto), P("method", r.method), P("url", scrub_text(&c, r.url)))
 		append(&pairs, P("conn", i64(r.conn)), P("reused", r.reused))
-		append(&pairs, P("headers", headers_list(&c, h)))
+		// headers: Chrome's request header list in its own order (always present).
+		// wire: what the network stack actually sent (pseudo-headers, cookie,
+		// accept-encoding...) when CDP reports it; CDP sorts these by name, so
+		// the true wire order is only in a netlog.
+		append(&pairs, P("headers", headers_list(&c, r.headers)))
+		if r.wire_headers != nil do append(&pairs, P("wire", headers_list(&c, r.wire_headers)))
 		if len(r.post) > 0 {
 			append(&pairs, P("body", body_value(&c, r.post, false)))
 		} else if r.has_post {
@@ -382,8 +386,7 @@ convert :: proc(raw: string, env: string) -> string {
 			append(&rp, P("t", r.resp_t), P("k", string("resp")))
 			if r.acct != "a" do append(&rp, P("acct", r.acct))
 			append(&rp, P("id", id), P("status", i64(r.status)))
-			rh := r.resp_wire if r.resp_wire != nil else r.resp_headers
-			append(&rp, P("headers", headers_list(&c, rh)))
+			append(&rp, P("headers", headers_list(&c, r.resp_headers)))
 			if r.has_body do append(&rp, P("body", body_value(&c, r.body, r.body_b64)))
 			emit(&out, &seq, r.resp_t, etf.Map(rp[:]))
 		}

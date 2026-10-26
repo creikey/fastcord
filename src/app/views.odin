@@ -633,5 +633,6 @@ overlays :: proc() {
 	if ma.menu_msg != 0 do message_menu()
 	if ma.deleting != 0 do delete_modal()
 	if app.profile_user != 0 do profile_popout()
+	if viewer_url != "" do image_viewer()
 	if app.settings_open do settings_modal()
 }

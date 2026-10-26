@@ -1045,8 +1045,11 @@ needs_frame :: proc() -> bool {return ui.animating}
 cursor :: proc() -> Cursor {return ui.cursor}
 
 // Concatenates span texts into the box text so selection/copy see them.
+// The spans are copied, so callers may pass slice literals.
 set_spans :: proc(b: ^Box, spans: []Span) {
-	b.spans = spans
+	copied := make([]Span, len(spans), ui.frame_alloc)
+	copy(copied, spans)
+	b.spans = copied
 	sb := strings.builder_make(ui.frame_alloc)
 	for sp in spans do strings.write_string(&sb, sp.text)
 	b.text = strings.to_string(sb)

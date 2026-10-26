@@ -284,10 +284,18 @@ apply_masks :: proc(p: ^Player, l: ^Layer, t: f32, lm: Mat, buf: []f32) {
 // ---------------------------------------------------------------------------
 // Shape items
 
+// A path slot: trims replace slot.path in place, so (as in lottie-web, where
+// modifiers rewrite the shared shape data) they also affect styles listed
+// above the trim.
+@(private)
+Slot :: struct {
+	path: ^vector.Path,
+}
+
 @(private)
 Draw :: struct {
 	item:    ^Item,
-	paths:   []^vector.Path, // pixel space
+	paths:   []^Slot, // pixel space
 	m:       Mat, // the style's group matrix (gradients, stroke width)
 	opacity: f32,
 }
@@ -397,7 +405,7 @@ build_primitive :: proc(p: ^Player, it: ^Item, t: f32, m: Mat) -> ^vector.Path {
 // Walks a group's items top to bottom: paths accumulate in `geo`, groups add
 // their (transformed) geometry, trims rewrite geo, styles snapshot geo.
 @(private)
-walk_items :: proc(p: ^Player, items: []Item, t: f32, m: Mat, opacity: f32, geo: ^[dynamic]^vector.Path, draws: ^[dynamic]Draw) {
+walk_items :: proc(p: ^Player, items: []Item, t: f32, m: Mat, opacity: f32, geo: ^[dynamic]^Slot, draws: ^[dynamic]Draw) {
 	for &it in items {
 		if it.hidden do continue
 		switch it.kind {
@@ -410,16 +418,16 @@ walk_items :: proc(p: ^Player, items: []Item, t: f32, m: Mat, opacity: f32, geo:
 				gm = mat_mul(m, tm)
 				go *= o
 			}
-			sub := make([dynamic]^vector.Path, p.falloc)
+			sub := make([dynamic]^Slot, p.falloc)
 			walk_items(p, it.items, t, gm, go, &sub, draws)
 			append(geo, ..sub[:])
 		case .Path:
 			sd := eval_shape(&it.shape, t, p.falloc)
-			append(geo, shape_to_path(p, sd, it.reversed, m))
+			append(geo, new_slot(p, shape_to_path(p, sd, it.reversed, m)))
 		case .Rect, .Ellipse, .Star:
-			append(geo, build_primitive(p, &it, t, m))
+			append(geo, new_slot(p, build_primitive(p, &it, t, m)))
 		case .Fill, .Stroke, .Gradient_Fill, .Gradient_Stroke:
-			snap := make([]^vector.Path, len(geo), p.falloc)
+			snap := make([]^Slot, len(geo), p.falloc)
 			copy(snap, geo[:])
 			append(draws, Draw{item = &it, paths = snap, m = m, opacity = opacity})
 		case .Trim:
@@ -429,8 +437,15 @@ walk_items :: proc(p: ^Player, items: []Item, t: f32, m: Mat, opacity: f32, geo:
 }
 
 @(private)
+new_slot :: proc(p: ^Player, path: ^vector.Path) -> ^Slot {
+	sl := new(Slot, p.falloc)
+	sl.path = path
+	return sl
+}
+
+@(private)
 draw_shapes :: proc(p: ^Player, items: []Item, t: f32, m: Mat, buf: []f32) {
-	geo := make([dynamic]^vector.Path, p.falloc)
+	geo := make([dynamic]^Slot, p.falloc)
 	draws := make([dynamic]Draw, p.falloc)
 	walk_items(p, items, t, m, 1, &geo, &draws)
 	// the first style in document order is on top
@@ -441,9 +456,9 @@ draw_shapes :: proc(p: ^Player, items: []Item, t: f32, m: Mat, buf: []f32) {
 		if op <= 0 || len(d.paths) == 0 do continue
 		// merge the snapshot into one path so overlapping sub-paths fill once
 		merged := new_path(p)
-		for sp in d.paths {
-			append(&merged.verbs, ..sp.verbs[:])
-			append(&merged.points, ..sp.points[:])
+		for sl in d.paths {
+			append(&merged.verbs, ..sl.path.verbs[:])
+			append(&merged.points, ..sl.path.points[:])
 		}
 		if len(merged.verbs) == 0 do continue
 		cov: []f32
@@ -651,7 +666,7 @@ emit_range :: proc(dst: ^vector.Path, contours: [][dynamic]Seg, a, b: f32) {
 }
 
 @(private)
-apply_trim :: proc(p: ^Player, it: ^Item, t: f32, geo: ^[dynamic]^vector.Path) {
+apply_trim :: proc(p: ^Player, it: ^Item, t: f32, geo: ^[dynamic]^Slot) {
 	s := ev1(&it.t_start, t) / 100
 	e := ev1(&it.t_end, t, 100) / 100
 	o := ev1(&it.t_off, t) / 360
@@ -660,35 +675,45 @@ apply_trim :: proc(p: ^Player, it: ^Item, t: f32, geo: ^[dynamic]^vector.Path) {
 	e += o
 	if e - s >= 1 do return // full
 	if e - s <= 0 {
-		clear(geo)
+		for sl in geo do sl.path = new_path(p)
 		return
 	}
 	k := math.floor(s)
 	s -= k
 	e -= k
-	trim_one :: proc(p: ^Player, contours: [][dynamic]Seg, s, e: f32) -> ^vector.Path {
-		total: f32
-		for sl in contours do for sg in sl do total += sg.l
-		dst := new_path(p)
-		if e <= 1 {
-			emit_range(dst, contours, s * total, e * total)
-		} else {
-			emit_range(dst, contours, s * total, total)
-			emit_range(dst, contours, 0, (e - 1) * total)
-		}
-		return dst
+	// keep [lo, hi] (absolute lengths) of a contour list whose run is [base, base+len] of total
+	keep :: proc(p: ^Player, cs: [][dynamic]Seg, base, length, a, b: f32, dst: ^vector.Path) {
+		lo := max(a, base)
+		hi := min(b, base + length)
+		if hi > lo do emit_range(dst, cs, lo - base, hi - base)
 	}
 	if it.t_mode == 2 {
-		// individually: all paths as one sequence
-		all := make([dynamic][dynamic]Seg, p.falloc)
-		for gp in geo do append(&all, ..path_segments(p, gp)[:])
-		res := trim_one(p, all[:], s, e)
-		clear(geo)
-		append(geo, res)
+		// individually: the paths form one sequence
+		segs := make([][dynamic][dynamic]Seg, len(geo), p.falloc)
+		lens := make([]f32, len(geo), p.falloc)
+		total: f32
+		for sl, i in geo {
+			segs[i] = path_segments(p, sl.path)
+			for c in segs[i] do for sg in c do lens[i] += sg.l
+			total += lens[i]
+		}
+		base: f32
+		for sl, i in geo {
+			dst := new_path(p)
+			keep(p, segs[i][:], base, lens[i], s * total, min(e, 1) * total, dst)
+			if e > 1 do keep(p, segs[i][:], base, lens[i], 0, (e - 1) * total, dst)
+			sl.path = dst
+			base += lens[i]
+		}
 		return
 	}
-	for &gp in geo {
-		cs := path_segments(p, gp)
-		gp = trim_one(p, cs[:], s, e)
+	for sl in geo {
+		cs := path_segments(p, sl.path)
+		total: f32
+		for c in cs do for sg in c do total += sg.l
+		dst := new_path(p)
+		keep(p, cs[:], 0, total, s * total, min(e, 1) * total, dst)
+		if e > 1 do keep(p, cs[:], 0, total, 0, (e - 1) * total, dst)
+		sl.path = dst
 	}
 }

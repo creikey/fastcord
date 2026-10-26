@@ -309,7 +309,10 @@ diff_window :: proc(wa, wb: Window, opts: Opts, sb: ^strings.Builder) -> int {
 	for e in wa.events do if e.k == "req" && !ignored(e, opts) do append(&ra, e)
 	for e in wb.events do if e.k == "req" && !ignored(e, opts) do append(&rb, e)
 	taken := make([]bool, len(rb), context.temp_allocator)
-	last := -1
+	// matched (official t, ours index) pairs, to detect order changes between
+	// requests that are not part of the same burst (> ORDER_SLACK ms apart)
+	ORDER_SLACK :: 100.0
+	seen := make([dynamic][2]f64, context.temp_allocator)
 	for e in ra {
 		key := req_key(e)
 		match := -1
@@ -325,11 +328,14 @@ diff_window :: proc(wa, wb: Window, opts: Opts, sb: ^strings.Builder) -> int {
 			continue
 		}
 		taken[match] = true
-		if match < last {
-			fmt.sbprintfln(sb, "  ~ order    %s comes earlier in ours", key)
-			n += 1
+		for prev in seen {
+			if f64(match) < prev[1] && (e.t - wa.start) - prev[0] > ORDER_SLACK {
+				fmt.sbprintfln(sb, "  ~ order    %s comes earlier in ours", key)
+				n += 1
+				break
+			}
 		}
-		last = max(last, match)
+		append(&seen, [2]f64{e.t - wa.start, f64(match)})
 		n += diff_request(e, rb[match], wa.start, wb.start, opts, sb)
 	}
 	for f, j in rb do if !taken[j] {
@@ -366,6 +372,22 @@ diff_request :: proc(a, b: Event, sa, sb_start: f64, opts: Opts, sb: ^strings.Bu
 				n += 1
 			}
 			break
+		}
+	}
+	// wire header sets (CDP sorts them, so names only, when both sides have them)
+	if wa, wb := get(a.v, "wire"), get(b.v, "wire"); wa != nil && wb != nil {
+		set :: proc(v: etf.Value) -> string {
+			l, _ := v.(etf.List)
+			names := make([dynamic]string, context.temp_allocator)
+			for h in l {
+				p, _ := h.(etf.List)
+				if len(p) == 2 do append(&names, strings.to_lower(p[0].(string) or_else "", context.temp_allocator))
+			}
+			return strings.join(names[:], ",", context.temp_allocator)
+		}
+		if x, y := set(wa), set(wb); x != y {
+			fmt.sbprintfln(sb, "  ~ %s: wire header set\n      official: %s\n      ours:     %s", key, x, y)
+			n += 1
 		}
 	}
 	if ba, bb := shape_of(get(a.v, "body")), shape_of(get(b.v, "body")); ba != bb {
