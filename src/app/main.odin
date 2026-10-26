@@ -44,6 +44,7 @@ Options :: struct {
 	script:    string, // e2e script of injected input (tests/ui/*.txt)
 	fixture:   string, // offline: load the store from a recorded gateway fixture
 	channel:   string, // open this channel id at start (with fixture)
+	live:      f64, // headless: connect for real and run this many seconds before the shot
 }
 
 parse_options :: proc() -> Options {
@@ -74,6 +75,8 @@ parse_options :: proc() -> Options {
 			o.script = a[len("-script:"):]
 		case strings.has_prefix(a, "-fixture:"):
 			o.fixture = a[len("-fixture:"):]
+		case strings.has_prefix(a, "-live:"):
+			o.live, _ = strconv.parse_f64(a[len("-live:"):])
 		case strings.has_prefix(a, "-channel:"):
 			o.channel = a[len("-channel:"):]
 		}
@@ -109,10 +112,29 @@ main :: proc() {
 			id, _ := strconv.parse_u64(opt.channel)
 			if ch := dc.channel_get(&app.offline_store, dc.Snowflake(id)); ch != nil do select_channel(ch.guild_id, ch.id)
 		}
-	} else if !headless {
+	} else if !headless || opt.live > 0 {
 		connect()
 	}
 
+	if headless && opt.live > 0 {
+		// Real time: let the gateway connect and REST land, then capture.
+		start := platform.time_now()
+		opened := false
+		for platform.time_now() - start < opt.live {
+			platform.wait_events(1.0 / 60)
+			frame()
+			if !opened && opt.channel != "" && app.client != nil && app.client.store.ready {
+				id, _ := strconv.parse_u64(opt.channel)
+				if ch := dc.channel_get(store(), dc.Snowflake(id)); ch != nil do select_channel(ch.guild_id, ch.id)
+				opened = true
+			}
+		}
+		run_script(opt.script)
+		pixels, w, h := gfx.read_pixels()
+		gfx.write_png(opt.shot, pixels, w, h)
+		if app.client != nil do dc.client_destroy(app.client)
+		return
+	}
 	if headless {
 		platform.set_time_override(0)
 		run_script(opt.script)

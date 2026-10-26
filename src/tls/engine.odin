@@ -336,7 +336,7 @@ run_handshake :: proc(hs: ^Handshake_State, io: Handshake_Io) -> (err: Error) {
 	// possession. A resumed session inherits the original verification.
 	if !hs.resumed && !cfg.insecure_skip_verify {
 		if x509.verify_hostname(&leaf, cfg.server_name) != .None do return .Untrusted_Certificate
-		verify_chain_os(chain, cfg.server_name) or_return
+		verify_chain_cached(chain, cfg.server_name) or_return
 	}
 
 	// Application secrets from the transcript through server Finished.
