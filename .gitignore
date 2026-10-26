@@ -1,0 +1,6 @@
+discord_credentials.txt
+.discord_credentials.txt.swp
+*.swp
+.secrets/
+build/
+.DS_Store
