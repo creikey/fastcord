@@ -1,4 +1,4 @@
-# file width height frames loop_count fnv1a64-of-reference-RGBA (or ~ref.z maxdiff)
+# file width height frames loop_count fnv1a64-of-reference-RGBA (or ~ref.z maxdiff; colour under alpha 0 is not compared)
 w_rose.o1.webp 70 46 1 1 1198888e9bcddc5c
 w_rose.o2.webp 70 46 1 1 f5a4f20cd14615f6
 w_odd.o9.webp 17 33 1 1 6de42e77121915c9
@@ -26,13 +26,13 @@ p_rose.p8.png 70 46 1 1 d8cd0c0d03ae8db0
 p_rose.g4.png 70 46 1 1 1122da520bf41b0d
 p_rose.g1.png 70 46 1 1 0b34d05df3a2244d
 p_rose.g2.png 70 46 1 1 b080228c8b8d3a65
-p_rose.ga16.png 70 46 1 1 e7489b59e219e669
+p_rose.ga16.png 70 46 1 1 ~p_rose.ga16.magick.rgba.z 1
 p_rose.stored.png 70 46 1 1 1b91ba24ef12b200
 p_odd.rgb16i.png 17 33 1 1 6ade69c5c1bfa5d8
 p_odd.i.png 17 33 1 1 6ade69c5c1bfa5d8
-t_trns_rgb.png 48 48 1 1 41184833f6b150f1
-t_trns_gray.png 48 48 1 1 f7849ad4eedc595a
-t_trns_rgb16.png 48 48 1 1 41184833f6b150f1
+t_trns_rgb.png 48 48 1 1 ~t_trns_rgb.magick.rgba.z 0
+t_trns_gray.png 48 48 1 1 ~t_trns_gray.magick.rgba.z 0
+t_trns_rgb16.png 48 48 1 1 ~t_trns_rgb.magick.rgba.z 0
 t_sa_p8.png 48 48 1 1 d73a1c99e83bd20e
 ap_anim8m.png 96 96 6 1 d8570dd6d051e65a
 j_rose.base.jpg 70 46 1 1 a71064ce543b261c

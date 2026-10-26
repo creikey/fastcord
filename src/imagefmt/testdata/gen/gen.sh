@@ -8,6 +8,8 @@
 #   PNG             magick in.png -depth 8 rgba:-
 #   APNG            ffmpeg -i in.png -fps_mode passthrough -f rawvideo -pix_fmt rgba -
 #                   (apng_hand.png is checked with tolerance 3: OVER-blend rounding differs)
+#   *.magick.rgba.z are that same magick output, zlib-compressed, for PNGs Wuffs decodes within
+#   tolerance rather than bit for bit (16-bit rounding, colour under alpha 0).
 #   JPEG            djpeg -rgb (libjpeg-turbo islow + fancy upsampling); EXIF/CMYK via magick -auto-orient / -colorspace sRGB
 # Sources are synthetic (ImageMagick built-ins rose:/logo:/wizard:, plasma:fractal, gradients).
 set -e

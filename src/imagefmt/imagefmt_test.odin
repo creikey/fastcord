@@ -1,5 +1,7 @@
 package imagefmt
 
+import "core:bytes"
+import "core:compress/zlib"
 import "core:math/rand"
 import "core:strconv"
 import "core:strings"
@@ -43,15 +45,20 @@ test_vectors :: proc(t: ^testing.T) {
 		testing.expectf(t, img.width == w && img.height == h && len(img.frames) == nf && img.loop_count == loop, "%s: got %dx%d %d frames loop %d", name, img.width, img.height, len(img.frames), img.loop_count)
 		if f[5][0] == '~' {
 			ref := file(f[5][1:])
-			raw := make([]u8, w * h * nf * 4, context.temp_allocator)
-			got, ierr := inflate_zlib(ref, raw)
-			testing.expect(t, ierr == .None && got == len(raw))
+			zbuf: bytes.Buffer
+			defer bytes.buffer_destroy(&zbuf)
+			ierr := zlib.inflate(ref, &zbuf, expected_output_size = w * h * nf * 4)
+			raw := bytes.buffer_to_bytes(&zbuf)
+			testing.expect(t, ierr == nil && len(raw) == w * h * nf * 4)
 			tol, _ := strconv.parse_int(f[6])
 			maxd := 0
 			i := 0
-			for fr in img.frames do for b in fr.pixels {
-				maxd = max(maxd, abs(int(b) - int(raw[i])))
-				i += 1
+			for fr in img.frames do for j := 0; j < len(fr.pixels); j += 4 {
+				p, q := fr.pixels[j:][:4], raw[i:][:4]
+				i += 4
+				// The colour of a pixel with alpha 0 never shows, and decoders disagree on it.
+				if p[3] == 0 && q[3] == 0 do continue
+				for k in 0 ..< 4 do maxd = max(maxd, abs(int(p[k]) - int(q[k])))
 			}
 			testing.expectf(t, maxd <= tol, "%s: max diff %d > %d", name, maxd, tol)
 		} else {
