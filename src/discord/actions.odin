@@ -717,7 +717,10 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 			}
 			guild_created_followups(c, gid)
 			h := c.analytics.viewport_h if c.analytics.viewport_h > 0 else 720
-			select_channel(c, gid, ch, initial_message_limit(h))
+			// the new guild renders at once: op 43 and its guild-open set go out with the
+			// page fetch, the subscription right after (fixture create_guild)
+			select_channel(c, gid, ch, initial_message_limit(h), prefetch = true)
+			if c.pending_guild_open == gid do guild_open_now(c, gid)
 		}
 	case "MESSAGE_CREATE":
 		d := vmap(data)
@@ -812,20 +815,23 @@ guild_channel_info :: proc(c: ^Client, guild_id: Snowflake) {
 	gateway_send(c.gw, .Request_Channel_Info, etf.map_done(&b))
 }
 
+// guild_open_now: op 43 and the guild-open set for the guild being entered.
+guild_open_now :: proc(c: ^Client, g: Snowflake) {
+	c.pending_guild_open = 0
+	guild_channel_info(c, g)
+	if !c.started_guilds[g] {
+		c.started_guilds[g] = true
+		schedule_guild_open(c, g, c.guild_open_promotions)
+	}
+	c.guild_open_promotions = false
+}
+
 // on_channel_page runs when the first page of a selected channel arrives
 // (or immediately when cached): the follow-ups the official client issues
 // once the channel renders.
 on_channel_page :: proc(c: ^Client, channel_id: Snowflake, got: int, full: bool) {
 	ch := c.store.channels[channel_id]
-	if g := c.pending_guild_open; g != 0 && (ch.guild_id == g || ch.guild_id == 0) {
-		c.pending_guild_open = 0
-		guild_channel_info(c, g)
-		if !c.started_guilds[g] {
-			c.started_guilds[g] = true
-			schedule_guild_open(c, g, c.guild_open_promotions)
-		}
-		c.guild_open_promotions = false
-	}
+	if g := c.pending_guild_open; g != 0 && (ch.guild_id == g || ch.guild_id == 0) do guild_open_now(c, g)
 	if full {
 		// Fill the viewport: one older page of 20.
 		msgs := messages_get(&c.store, channel_id)

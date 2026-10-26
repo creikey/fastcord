@@ -226,6 +226,10 @@ gateway_url :: proc(g: ^Gateway, allocator := context.temp_allocator) -> string 
 
 // gateway_send packs {op, d} (key order op, d) with the client's ETF layout.
 gateway_send :: proc(g: ^Gateway, op: Op, d: V) -> bool {
+	if g.c.cfg.gateway_sink != nil {
+		g.c.cfg.gateway_sink(g.c.cfg.gateway_sink_data, op, d)
+		return true
+	}
 	b := etf.map_builder(2, context.temp_allocator)
 	etf.map_put(&b, "op", i64(op))
 	etf.map_put(&b, "d", d)

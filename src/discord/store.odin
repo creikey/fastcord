@@ -754,8 +754,10 @@ apply_settings_proto :: proc(s: ^Store, b64: string) {
 	if f, ok := protobuf.find_path(raw, 11, 5, 1); ok do st.status_created_ms = i64(f.value)
 	if f, ok := protobuf.find_path(raw, 12, 1, 1); ok {free_str(st.locale, a); st.locale = clone_str(string(f.bytes), a)}
 	if f, ok := protobuf.find_path(raw, 12, 2, 1); ok do st.timezone_offset = int(i32(f.value))
-	if f, ok := protobuf.find_path(raw, 13, 1); ok do st.theme = Theme(f.value)
-	else do st.theme = .Dark
+	// The official client maps an absent/UNSET theme to its UI "Dark", which is
+	// proto DARKER (bundle: {[UNSET]: DARK, [DARK]: ASH, [DARKER]: DARK, ...}).
+	if f, ok := protobuf.find_path(raw, 13, 1); ok && f.value != 0 do st.theme = Theme(f.value)
+	else do st.theme = .Darker
 	if f, ok := protobuf.find_path(raw, 13, 2); ok do st.developer_mode = f.value != 0
 	if gf, ok := protobuf.find(raw, 14); ok {
 		for &fo in st.guild_folders {

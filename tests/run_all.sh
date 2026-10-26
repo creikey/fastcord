@@ -1,6 +1,10 @@
 #!/bin/sh
 # Runs every package's unit tests, then the headless UI scripts. Exits non-zero on any failure.
-# Live network tests stay off unless FASTCORD_LIVE=1 is set by the caller.
+# Never touches the network: live tests (FASTCORD_LIVE) are switched off here even
+# if the caller's environment sets it, and the live parity session
+# (src/discord/parity/session.sh) is a separate manual tool that nothing here runs.
+# Traffic parity runs offline: the discord package's parity_* tests replay traffic/*.jsonl.
+unset FASTCORD_LIVE
 cd "$(dirname "$0")/.."
 mkdir -p build
 ./build.sh c || exit 1

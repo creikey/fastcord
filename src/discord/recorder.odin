@@ -29,6 +29,7 @@ Recorder :: struct {
 	next_id: int,
 	ws_id:   string,
 	last_net: i64, // ms of the last recorded network event (settle)
+	closed:   bool, // retired (session runner): late callbacks write nothing
 	// Chrome-netlog-shaped side files (<path>.netlog-a / -b) carrying the true
 	// wire header order and session setup facts; tools/scrub -netlog-a:/-b: read them.
 	nl_path:  string,
@@ -58,13 +59,23 @@ recorder_close :: proc(r: ^Recorder) {
 	free(r)
 }
 
+// recorder_retire closes the files but keeps r valid: a live client may still
+// deliver callbacks from requests started before it was re-attached elsewhere.
+recorder_retire :: proc(r: ^Recorder) {
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
+	r.closed = true
+	os.close(r.f)
+	netlog_close(r)
+}
+
 @(private)
 rec_line :: proc(r: ^Recorder, acct, rest: string) {
 	locks.lock(&r.mu)
 	defer locks.unlock(&r.mu)
 	n := now_ms()
 	line := fmt.tprintf(`{{"rt":%.1f,"acct":"%s",%s}}`+"\n", f64(n - r.start), acct, rest)
-	os.write_string(r.f, line)
+	if !r.closed do os.write_string(r.f, line)
 	if !strings.has_prefix(rest, `"mark"`) do r.last_net = n
 }
 
@@ -79,7 +90,7 @@ rec_line_at :: proc(r: ^Recorder, acct: string, at_ms: f64, rest: string) {
 	locks.lock(&r.mu)
 	defer locks.unlock(&r.mu)
 	line := fmt.tprintf(`{{"rt":%.3f,"acct":"%s",%s}}`+"\n", at_ms - f64(r.start), acct, rest)
-	os.write_string(r.f, line)
+	if !r.closed do os.write_string(r.f, line)
 	r.last_net = max(r.last_net, now_ms())
 }
 

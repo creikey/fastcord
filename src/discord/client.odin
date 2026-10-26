@@ -28,6 +28,10 @@ Config :: struct {
 	wakeup:                proc(data: rawptr),
 	wakeup_data:           rawptr,
 	round_tripper:         Round_Tripper, // replaces the network (tests / replay)
+	// gateway_sink replaces the gateway socket (offline replay): every frame the
+	// client would send goes here; dispatches are fed with client_inject_dispatch.
+	gateway_sink:          proc(data: rawptr, op: Op, d: V),
+	gateway_sink_data:     rawptr,
 	h3:                    H3_Hook, // optional h3 override (default: fc:quic/h3 via fc:quic/altsvc)
 	disable_h3:            bool,
 	ws_open_delay_ms:      i64, // gateway socket open after client_start (0 = 190, <0 = immediately)
@@ -226,7 +230,9 @@ client_start :: proc(c: ^Client) {
 	if c.focused do identity_touch_heartbeat(&c.id, now_ms())
 	if !c.cfg.disable_startup do schedule_startup(c, .Launch)
 	if !c.cfg.disable_startup do schedule_rtc_probe(c, c.launch_ms)
-	if !c.cfg.disable_gateway {
+	if c.cfg.gateway_sink != nil {
+		c.gw = gateway_create(c) // never connects: gateway_send hands frames to the sink
+	} else if !c.cfg.disable_gateway {
 		c.gw = gateway_create(c)
 		gateway_set_active(c.gw, qos_from_state(c.focused, false))
 		gateway_start(c.gw)
@@ -294,6 +300,12 @@ client_push_event :: proc(c: ^Client, ev: Event) {
 	append(&c.events, ev)
 	locks.unlock(&c.ev_mu)
 	if c.cfg.wakeup != nil do c.cfg.wakeup(c.cfg.wakeup_data)
+}
+
+// client_inject_dispatch delivers a gateway dispatch as if received (offline
+// replay with Config.gateway_sink). data must outlive the next client_poll.
+client_inject_dispatch :: proc(c: ^Client, name: string, data: V) {
+	client_push_event(c, Event{kind = .Dispatch, name = name, data = data})
 }
 
 client_push_state :: proc(c: ^Client, s: Connection_State) {

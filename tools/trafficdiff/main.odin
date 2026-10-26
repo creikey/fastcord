@@ -1,7 +1,7 @@
 // trafficdiff: compares two traffic fixtures (official vs ours) mark window by
 // mark window and exits 1 when they differ.
 //
-//   trafficdiff [-tol:MS] [-ignore:SUBSTR]... [-recv] official.jsonl ours.jsonl
+//   trafficdiff [-tol:MS] [-ignore:SUBSTR]... [-recv] [-actions] official.jsonl ours.jsonl
 //
 // Per window (events between consecutive marks with the same name):
 //   - requests matched by (account, method, URL template); missing/extra listed,
@@ -39,6 +39,7 @@ Opts :: struct {
 	tol:    f64,
 	ignore: [dynamic]string,
 	recv:   bool,
+	actions: bool, // compare only action windows (session runs: preludes and launches differ)
 }
 
 main :: proc() {
@@ -55,12 +56,14 @@ main :: proc() {
 			append(&opts.ignore, a[8:])
 		case a == "-recv":
 			opts.recv = true
+		case a == "-actions":
+			opts.actions = true
 		case:
 			append(&files, a)
 		}
 	}
 	if len(files) != 2 {
-		fmt.eprintln("usage: trafficdiff [-tol:MS] [-ignore:SUBSTR]... [-recv] official.jsonl ours.jsonl")
+		fmt.eprintln("usage: trafficdiff [-tol:MS] [-ignore:SUBSTR]... [-recv] [-actions] official.jsonl ours.jsonl")
 		os.exit(2)
 	}
 	a, aok := load(files[0])
@@ -306,6 +309,7 @@ conn_facts :: proc(wins: []Window) -> map[string]string {
 diff :: proc(a, b: []Window, opts: Opts, sb: ^strings.Builder) -> int {
 	n := 0
 	ca, cb := conn_facts(a), conn_facts(b)
+	if opts.actions do clear(&ca) // sessions are compared once, in cold_start
 	for k, va in ca {
 		if vb, ok := cb[k]; ok && va != vb {
 			fmt.sbprintfln(sb, "== connection %s\n      official: %s\n      ours:     %s", k, va, vb)
@@ -313,7 +317,12 @@ diff :: proc(a, b: []Window, opts: Opts, sb: ^strings.Builder) -> int {
 		}
 	}
 	used := make([]bool, len(b))
+	prelude :: proc(name: string) -> bool {return name == "setup" || name == "setup_b" || name == "(before first mark)"}
+	if opts.actions {
+		for wb, j in b do if prelude(wb.name) do used[j] = true
+	}
 	for wa in a {
+		if opts.actions && prelude(wa.name) do continue
 		bi := -1
 		for wb, j in b {
 			if !used[j] && wb.name == wa.name {

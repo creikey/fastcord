@@ -43,6 +43,7 @@ nl_type :: proc(name: string) -> int {
 @(private = "file")
 nl_file :: proc(r: ^Recorder, acct: string) -> ^os.File {
 	i := 1 if acct == "b" else 0
+	if r.closed do return nil
 	if r.nl[i] != nil || r.nl_path == "" do return r.nl[i]
 	f, err := os.create(fmt.tprintf("%s.netlog-%s", r.nl_path, "b" if i == 1 else "a"))
 	if err != nil do return nil

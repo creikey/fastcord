@@ -41,6 +41,9 @@ Acct :: struct {
 
 rec: ^discord.Recorder
 scenario: string
+// session mode: one long-lived client per account performs every scenario in
+// turn, like one person using the app; "reload" only happens at launch.
+session_mode: bool
 reloads: [2]int
 
 // start_route: the route the official instance reopened on at the n-th reload
@@ -120,8 +123,12 @@ cur: ^Acct
 main :: proc() {
 	args := os.args
 	if len(args) < 2 {
-		fmt.eprintln("usage: parity <scenario> [out.jsonl]")
+		fmt.eprintln("usage: parity <scenario> [out.jsonl] | parity session <raw_dir> <scenario>...")
 		os.exit(2)
+	}
+	if args[1] == "session" && len(args) > 3 {
+		session(args[2], args[3:])
+		return
 	}
 	name := args[1]
 	scenario = name
@@ -201,6 +208,10 @@ mark :: proc(n: string) {discord.recorder_mark(rec, "a", n)}
 // session persisted) and reopens on the route the official instance was on.
 reload :: proc() {
 	a := cur
+	if session_mode && a.c != nil {
+		human(1500, 4000) // back to the app
+		return
+	}
 	idx := 0 if a.name == "a" else 1
 	guild, channel := start_route(a.name, reloads[idx])
 	fast := fixture_fast_connect(a.name, reloads[idx])
@@ -978,4 +989,37 @@ run :: proc(name: string) -> bool {
 		return false
 	}
 	return true
+}
+
+// session: one launch of A (B launches the first time a scenario uses it), then
+// every scenario at human pace. Each scenario gets its own recording; requests
+// already in flight when it switches stay in the previous one.
+session :: proc(dir: string, names: []string) {
+	session_mode = true
+	accts[0] = {name = "a", token = token_a(), state = ".secrets/parity-state-a"}
+	accts[1] = {name = "b", token = token_b(), state = ".secrets/parity-state-b"}
+	if accts[0].token == "" {
+		fmt.eprintln("no token for A")
+		os.exit(1)
+	}
+	for name, i in names {
+		scenario = name
+		out := fmt.tprintf("%s/ours_%s.jsonl", dir, name)
+		next, ok := discord.recorder_open(out)
+		if !ok {
+			fmt.eprintln("cannot open", out)
+			os.exit(1)
+		}
+		for &a in accts do if a.c != nil do discord.recorder_attach(next, a.c, a.name)
+		prev := rec
+		rec = next
+		if prev != nil do discord.recorder_retire(prev)
+		cur = &accts[0]
+		if !run(name) do fmt.eprintln("unknown or failed scenario:", name)
+		settle(2000, 15000)
+		fmt.println(name, "->", out)
+		if i + 1 < len(names) do human(3000, 7000) // reading before the next thing
+	}
+	for &a in accts do if a.c != nil do stop(&a)
+	discord.recorder_retire(rec)
 }

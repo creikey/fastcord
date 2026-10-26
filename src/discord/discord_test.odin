@@ -489,3 +489,15 @@ settings_custom_status :: proc(t: ^testing.T) {
 	e2 := Settings_Edit{status = Status.Online, status_ms = 1793017734992, clear_custom = true}
 	testing.expect_value(t, hex(settings_delta_proto(&e2)), "5a130a080a066f6e6c696e652a0708d0cebdc19734")
 }
+
+// No appearance theme in the settings proto: the official client shows its
+// "Dark" theme, which is proto DARKER (3), not DARK (= UI "Ash").
+@(test)
+settings_theme_default :: proc(t: ^testing.T) {
+	s: Store
+	store_init(&s, context.temp_allocator)
+	apply_settings_proto(&s, "")
+	testing.expect_value(t, s.settings.theme, Theme.Darker)
+	apply_settings_proto(&s, base64.encode([]byte{0x6a, 0x02, 0x08, 0x02}, allocator = context.temp_allocator)) // 13 { 1: LIGHT }
+	testing.expect_value(t, s.settings.theme, Theme.Light)
+}
