@@ -47,7 +47,9 @@ process_cpu_percent :: proc() -> (pct: int, ok: bool) {
 	defer sync.mutex_unlock(&cpu_sampler.mu)
 	now := time.tick_now()
 	if !cpu_sampler.have {
-		cpu_sampler = {last_cpu = cpu, last = now, have = true}
+		cpu_sampler.last_cpu = cpu
+		cpu_sampler.last = now
+		cpu_sampler.have = true
 		return 0, true
 	}
 	wall := time.tick_diff(cpu_sampler.last, now)
