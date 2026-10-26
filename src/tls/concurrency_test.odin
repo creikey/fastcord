@@ -1,7 +1,7 @@
 package tls
 
+import "fc:locks"
 import "core:crypto"
-import "core:sync"
 import "core:testing"
 import "core:thread"
 import "core:time"
@@ -11,8 +11,8 @@ import "fc:netio"
 // Test_Pipe is one direction of a blocking in-memory byte pipe.
 @(private = "file")
 Test_Pipe :: struct {
-	mu:     sync.Mutex,
-	cond:   sync.Cond,
+	mu:     locks.Mutex,
+	cond:   locks.Cond,
 	buf:    [dynamic]byte,
 	closed: bool,
 }
@@ -26,9 +26,9 @@ Test_End :: struct {
 end_read :: proc(data: rawptr, dst: []byte) -> (int, netio.Error) {
 	e := cast(^Test_End)data
 	p := e.rx
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
-	for len(p.buf) == 0 && !p.closed do sync.cond_wait(&p.cond, &p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
+	for len(p.buf) == 0 && !p.closed do locks.cond_wait(&p.cond, &p.mu)
 	if len(p.buf) == 0 do return 0, .Closed
 	n := copy(dst, p.buf[:])
 	remove_range(&p.buf, 0, n)
@@ -39,11 +39,11 @@ end_read :: proc(data: rawptr, dst: []byte) -> (int, netio.Error) {
 end_write :: proc(data: rawptr, src: []byte) -> netio.Error {
 	e := cast(^Test_End)data
 	p := e.tx
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
 	if p.closed do return .Closed
 	append(&p.buf, ..src)
-	sync.cond_broadcast(&p.cond)
+	locks.cond_broadcast(&p.cond)
 	return .None
 }
 
@@ -51,10 +51,10 @@ end_write :: proc(data: rawptr, src: []byte) -> netio.Error {
 end_close :: proc(data: rawptr) {
 	e := cast(^Test_End)data
 	for p in ([]^Test_Pipe{e.rx, e.tx}) {
-		sync.mutex_lock(&p.mu)
+		locks.lock(&p.mu)
 		p.closed = true
-		sync.cond_broadcast(&p.cond)
-		sync.mutex_unlock(&p.mu)
+		locks.cond_broadcast(&p.cond)
+		locks.unlock(&p.mu)
 	}
 }
 

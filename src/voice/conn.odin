@@ -11,6 +11,7 @@
 // timer (heartbeats, hello timeout), UDP receive, audio (20 ms send/playout).
 package voice
 
+import "fc:locks"
 import "base:runtime"
 import "core:crypto"
 import "core:encoding/json"
@@ -122,12 +123,12 @@ Conn :: struct {
 	host:              string,
 	port:              int,
 	rtc_connection_id: string,
-	mu:                sync.Mutex, // users, stats, state
-	ws_mu:             sync.Mutex, // ws pointer + sends
+	mu:                locks.Mutex, // users, stats, state
+	ws_mu:             locks.Mutex, // ws pointer + sends
 	state:             Conn_State,
 	close_code:        int,
 	stop:              bool, // atomic
-	state_cond:        sync.Cond,
+	state_cond:        locks.Cond,
 
 	ws:                ^http.Ws_Conn,
 	ws_stream:         netio.Stream,
@@ -138,7 +139,7 @@ Conn :: struct {
 	hb_acked:          bool,
 	last_ack_ms:       i64,
 	hello_deadline_ms: i64,
-	hb_mu:             sync.Mutex, // heartbeat fields above (gateway <-> timer thread)
+	hb_mu:             locks.Mutex, // heartbeat fields above (gateway <-> timer thread)
 	session_ok:        bool, // READY/RESUMED seen on the current socket (backoff.succeed)
 	last_seq:          i64,
 	resumable:         bool,
@@ -206,10 +207,10 @@ stopped :: proc(c: ^Conn) -> bool {return sync.atomic_load(&c.stop)}
 
 @(private)
 set_state :: proc(c: ^Conn, s: Conn_State) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.state = s
-	sync.cond_broadcast(&c.state_cond)
-	sync.mutex_unlock(&c.mu)
+	locks.cond_broadcast(&c.state_cond)
+	locks.unlock(&c.mu)
 }
 
 // ---------------------------------------------------------------------------
@@ -259,12 +260,12 @@ voice_connect :: proc(info: Voice_Server_Info, opts := Options{}) -> ^Conn {
 voice_disconnect :: proc(c: ^Conn) {
 	if c == nil do return
 	sync.atomic_store(&c.stop, true)
-	sync.mutex_lock(&c.ws_mu)
+	locks.lock(&c.ws_mu)
 	if c.ws != nil && c.ws_open {
 		_ = http.ws_close(c.ws, CLOSE_FORCE, "")
 		netio.shutdown(c.ws_stream)
 	}
-	sync.mutex_unlock(&c.ws_mu)
+	locks.unlock(&c.ws_mu)
 	for th in ([]^thread.Thread{c.ws_th, c.timer_th, c.udp_th, c.audio_th}) {
 		if th != nil {
 			thread.join(th)
@@ -294,67 +295,67 @@ voice_disconnect :: proc(c: ^Conn) {
 }
 
 state :: proc(c: ^Conn) -> (Conn_State, int) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	return c.state, c.close_code
 }
 
 // wait_state blocks until the connection reaches s (or Disconnected) or timeout.
 wait_state :: proc(c: ^Conn, s: Conn_State, timeout: time.Duration) -> bool {
 	deadline := time.tick_now()._nsec + i64(timeout)
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	for c.state != s && c.state != .Disconnected {
 		left := deadline - time.tick_now()._nsec
 		if left <= 0 do break
-		_ = sync.cond_wait_with_timeout(&c.state_cond, &c.mu, time.Duration(left))
+		_ = locks.cond_wait_with_timeout(&c.state_cond, &c.mu, time.Duration(left))
 	}
 	return c.state == s
 }
 
 set_self_mute :: proc(c: ^Conn, muted: bool) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.self_mute = muted
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 // set_self_deaf: deafened implies no playout and no sending (like the client).
 set_self_deaf :: proc(c: ^Conn, deaf: bool) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.self_deaf = deaf
 	if deaf do for _, u in c.users do if u.source != 0 do audio.source_flush(u.source)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 set_user_volume :: proc(c: ^Conn, user_id: u64, volume: f32) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	s := c.settings[user_id] or_else User_Settings{volume = 1}
 	s.volume = clamp(volume, 0, 2)
 	c.settings[user_id] = s
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 set_user_mute :: proc(c: ^Conn, user_id: u64, muted: bool) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	s := c.settings[user_id] or_else User_Settings{volume = 1}
 	s.muted = muted
 	c.settings[user_id] = s
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 // set_input_sensitivity: auto threshold (the client's default) or a manual dB threshold.
 set_input_sensitivity :: proc(c: ^Conn, auto_threshold: bool, threshold_db: f32) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.vad.auto_threshold = auto_threshold
 	c.vad.threshold_db = threshold_db
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 // set_push_to_talk: PTT mode transmits only while pressed (+ release delay,
 // the client's pttReleaseDelay default 20 ms) instead of on voice activity.
 set_push_to_talk :: proc(c: ^Conn, enabled: bool, pressed: bool, release_delay_ms := 20) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	c.ptt_mode = enabled
 	if c.ptt_pressed && !pressed do c.ptt_until_ms = now_ms() + i64(release_delay_ms)
 	c.ptt_pressed = pressed
@@ -362,15 +363,15 @@ set_push_to_talk :: proc(c: ^Conn, enabled: bool, pressed: bool, release_delay_m
 
 // set_input_gain: input volume, 0..2 (Settings > Voice > Input Volume).
 set_input_gain :: proc(c: ^Conn, gain: f32) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.input_gain = clamp(gain, 0, 2)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 // input_level: last mic frame level in dBFS and whether the VAD is open (for meters).
 input_level :: proc(c: ^Conn) -> (db: f32, open: bool) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	return c.input_db, c.vad_open
 }
 
@@ -379,8 +380,8 @@ SPEAKING_HOLD_MS :: 250
 // speaking_users: users heard within the last 250 ms (and ourselves while
 // our VAD is open and we are not muted).
 speaking_users :: proc(c: ^Conn, allocator := context.allocator) -> []u64 {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	now := now_ms()
 	out := make([dynamic]u64, 0, len(c.users) + 1, allocator)
 	if c.self_speaking do append(&out, c.info.user_id)
@@ -397,8 +398,8 @@ is_speaking :: proc(c: ^Conn, user_id: u64) -> bool {
 }
 
 get_stats :: proc(c: ^Conn) -> Stats {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	s := c.stats
 	s.remote_users = len(c.users)
 	s.jitter = {}
@@ -490,8 +491,8 @@ voice_ws_headers :: proc(c: ^Conn) -> []http.Header {
 
 @(private)
 send_text :: proc(c: ^Conn, s: string) -> bool {
-	sync.mutex_lock(&c.ws_mu)
-	defer sync.mutex_unlock(&c.ws_mu)
+	locks.lock(&c.ws_mu)
+	defer locks.unlock(&c.ws_mu)
 	if c.ws == nil || !c.ws_open do return false
 	return http.ws_send(c.ws, .Text, transmute([]byte)s) == .None
 }
@@ -501,16 +502,16 @@ send_binary :: proc(c: ^Conn, op: int, payload: []byte) -> bool {
 	buf := make([]byte, len(payload) + 1, context.temp_allocator)
 	buf[0] = u8(op)
 	copy(buf[1:], payload)
-	sync.mutex_lock(&c.ws_mu)
-	defer sync.mutex_unlock(&c.ws_mu)
+	locks.lock(&c.ws_mu)
+	defer locks.unlock(&c.ws_mu)
 	if c.ws == nil || !c.ws_open do return false
 	return http.ws_send(c.ws, .Binary, buf) == .None
 }
 
 @(private)
 close_ws :: proc(c: ^Conn, code: int) {
-	sync.mutex_lock(&c.ws_mu)
-	defer sync.mutex_unlock(&c.ws_mu)
+	locks.lock(&c.ws_mu)
+	defer locks.unlock(&c.ws_mu)
 	if c.ws != nil && c.ws_open {
 		_ = http.ws_close(c.ws, code, "")
 		netio.shutdown(c.ws_stream)
@@ -543,9 +544,9 @@ ws_thread_proc :: proc(data: rawptr) {
 		// RTCControlSocket.handleClose: backoff (1 s .. 5 s), give up after 4 failures
 		if c.session_ok do fails = 0
 		c.session_ok = false
-		sync.mutex_lock(&c.hb_mu)
+		locks.lock(&c.hb_mu)
 		last_ack := c.last_ack_ms
-		sync.mutex_unlock(&c.hb_mu)
+		locks.unlock(&c.hb_mu)
 		if fails > 3 || !c.resumable || (last_ack != 0 && now_ms() - last_ack > 60_000) {
 			finish(c, CLOSE_UNRESUMABLE if code == 0 || !c.resumable else code)
 			return
@@ -554,20 +555,20 @@ ws_thread_proc :: proc(data: rawptr) {
 		fails += 1
 		resuming = true
 		set_state(c, .Resuming)
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		c.stats.reconnects += 1
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		for i := 0; i < delay / 50 && !stopped(c); i += 1 do time.sleep(50 * time.Millisecond)
 	}
 }
 
 @(private)
 finish :: proc(c: ^Conn, code: int) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.close_code = code
 	c.state = .Disconnected
-	sync.cond_broadcast(&c.state_cond)
-	sync.mutex_unlock(&c.mu)
+	locks.cond_broadcast(&c.state_cond)
+	locks.unlock(&c.mu)
 	sync.atomic_store(&c.stop, true)
 }
 
@@ -591,15 +592,15 @@ ws_session :: proc(c: ^Conn, resume: bool) -> int {
 		netio.close(stream)
 		return 0
 	}
-	sync.mutex_lock(&c.ws_mu)
+	locks.lock(&c.ws_mu)
 	c.ws = ws
 	c.ws_stream = stream
 	c.ws_open = true
-	sync.mutex_unlock(&c.ws_mu)
-	sync.mutex_lock(&c.hb_mu)
+	locks.unlock(&c.ws_mu)
+	locks.lock(&c.hb_mu)
 	c.hello_deadline_ms = now_ms() + 20_000
 	c.hb_interval_ms = 0
-	sync.mutex_unlock(&c.hb_mu)
+	locks.unlock(&c.hb_mu)
 	if resume {
 		send_text(c, msg_resume(c.info.token, c.info.session_id, c.info.guild_or_channel_id, c.info.channel_id, c.last_seq))
 	} else {
@@ -628,14 +629,14 @@ ws_session :: proc(c: ^Conn, resume: bool) -> int {
 		}
 		free_all(context.temp_allocator)
 	}
-	sync.mutex_lock(&c.ws_mu)
+	locks.lock(&c.ws_mu)
 	c.ws_open = false
 	c.ws = nil
-	sync.mutex_unlock(&c.ws_mu)
-	sync.mutex_lock(&c.hb_mu)
+	locks.unlock(&c.ws_mu)
+	locks.lock(&c.hb_mu)
 	c.hb_interval_ms = 0
 	c.hello_deadline_ms = 0
-	sync.mutex_unlock(&c.hb_mu)
+	locks.unlock(&c.hb_mu)
 	http.ws_destroy(ws)
 	netio.close(stream)
 	return code
@@ -667,13 +668,13 @@ handle_json :: proc(c: ^Conn, text: string) {
 	case OP_HELLO:
 		c.server_version = int(jint(jget(d, "v"), 3))
 		iv := jint(jget(d, "heartbeat_interval"), 13750)
-		sync.mutex_lock(&c.hb_mu)
+		locks.lock(&c.hb_mu)
 		c.hello_deadline_ms = 0
 		// desktop (isPlatformEmbedded): interval * modifier, no 5 s cap; v<=3: 25 %
 		c.hb_interval_ms = iv / 4 if c.server_version <= 3 else iv
 		c.hb_acked = true
 		c.next_hb_ms = now_ms() + c.hb_interval_ms
-		sync.mutex_unlock(&c.hb_mu)
+		locks.unlock(&c.hb_mu)
 	case OP_READY:
 		on_ready(c, d)
 	case OP_SESSION_DESCRIPTION:
@@ -686,22 +687,22 @@ handle_json :: proc(c: ^Conn, text: string) {
 	case OP_HEARTBEAT_ACK:
 		t := jint(jget(d, "t"), 0) if c.server_version >= 8 else jint(d, 0)
 		now := now_ms()
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		c.stats.ws_ping_ms = int(now - t)
-		sync.mutex_unlock(&c.mu)
-		sync.mutex_lock(&c.hb_mu)
+		locks.unlock(&c.mu)
+		locks.lock(&c.hb_mu)
 		c.last_ack_ms = now
 		c.hb_acked = true
-		sync.mutex_unlock(&c.hb_mu)
+		locks.unlock(&c.hb_mu)
 	case OP_SPEAKING:
 		uid := jsnow(jget(d, "user_id"))
 		ssrc := u32(jint(jget(d, "ssrc"), 0))
 		flags := int(jint(jget(d, "speaking"), 0))
 		if uid != 0 && ssrc != 0 {
 			u := map_user(c, uid, ssrc)
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			u.speaking_flag = flags
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 		}
 	case OP_VIDEO:
 		uid := jsnow(jget(d, "user_id"))
@@ -714,7 +715,7 @@ handle_json :: proc(c: ^Conn, text: string) {
 	case OP_CLIENT_DISCONNECT:
 		uid := jsnow(jget(d, "user_id"))
 		dave.on_client_disconnect(&c.dave, uid)
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		if ssrc, ok := c.user_ssrc[uid]; ok {
 			if u, uok := c.users[ssrc]; uok {
 				destroy_user(c, u)
@@ -722,7 +723,7 @@ handle_json :: proc(c: ^Conn, text: string) {
 			}
 			delete_key(&c.user_ssrc, uid)
 		}
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 	case dave.OP_PREPARE_TRANSITION:
 		tid := jint(jget(d, "transition_id"))
 		pv := jint(jget(d, "protocol_version"))
@@ -865,12 +866,12 @@ on_session_description :: proc(c: ^Conn, d: json.Value) {
 	for x, i in ka do key[i] = u8(jint(x, 0))
 	mode := mode_from_name(jstr(jget(d, "mode")))
 	if mode == .None do return
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.mode = mode
 	transport_init(&c.tx_crypto, mode, key[:])
 	transport_init(&c.rx_crypto, mode, key[:])
 	c.have_key = true
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	crypto.zero_explicit(&key, size_of(key))
 	dv := jint(jget(d, "dave_protocol_version"))
 	if dv < 0 || dv > 65535 {
@@ -893,8 +894,8 @@ on_session_description :: proc(c: ^Conn, d: json.Value) {
 
 @(private)
 map_user :: proc(c: ^Conn, uid: u64, ssrc: u32) -> ^Remote_User {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	if old, ok := c.user_ssrc[uid]; ok && old != ssrc {
 		if u, uok := c.users[old]; uok {
 			delete_key(&c.users, old)
@@ -937,7 +938,7 @@ timer_thread_proc :: proc(data: rawptr) {
 		time.sleep(25 * time.Millisecond)
 		now := now_ms()
 		hello_timeout, beat, timeout := false, false, false
-		sync.mutex_lock(&c.hb_mu)
+		locks.lock(&c.hb_mu)
 		if c.hello_deadline_ms != 0 && now > c.hello_deadline_ms {
 			c.hello_deadline_ms = 0
 			hello_timeout = true
@@ -952,7 +953,7 @@ timer_thread_proc :: proc(data: rawptr) {
 				timeout = true
 			}
 		}
-		sync.mutex_unlock(&c.hb_mu)
+		locks.unlock(&c.hb_mu)
 		// HELLO timeout / HEARTBEAT ACK TIMEOUT: close(4000) and resume
 		if hello_timeout || timeout do close_ws(c, CLOSE_FORCE)
 		if beat do send_heartbeat(c)
@@ -975,10 +976,10 @@ udp_thread_proc :: proc(data: rawptr) {
 		if err != nil || n <= 0 do continue
 		_ = from
 		pkt := buf[:n]
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		c.stats.udp_datagrams += 1
 		have := c.have_key
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		if !have do continue
 		now := now_ms()
 		if is_rtcp(pkt) {
@@ -987,9 +988,9 @@ udp_thread_proc :: proc(data: rawptr) {
 				count_failure(c)
 				continue
 			}
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			c.stats.rtcp_received += 1
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			on_rtcp(c, plain[:m], now)
 			continue
 		}
@@ -1001,9 +1002,9 @@ udp_thread_proc :: proc(data: rawptr) {
 			continue
 		}
 		if h.pt != OPUS_PT || h.payload_off > m {
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			c.stats.other_pt += 1
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			continue
 		}
 		end := m
@@ -1013,16 +1014,16 @@ udp_thread_proc :: proc(data: rawptr) {
 			end -= pad
 		}
 		payload := plain[h.payload_off:end]
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		u, known := c.users[h.ssrc]
 		uid: u64 = u.user_id if known else 0
 		c.stats.packets_received += 1
 		c.stats.bytes_received += u64(n)
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		if !known || uid == 0 {
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			c.stats.unknown_ssrc += 1
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			continue // no op 5 yet: can't attribute (DAVE needs the sender)
 		}
 		fl, res := dave.session_decrypt(&c.dave, uid, payload, frame[:])
@@ -1030,21 +1031,21 @@ udp_thread_proc :: proc(data: rawptr) {
 		opus := frame[:fl]
 		silent := fl == 3 && opus[0] == 0xF8 && opus[1] == 0xFF && opus[2] == 0xFE
 		if level, voice, lok := ext_audio_level(plain[:m], h); lok && !voice && level >= 127 do silent = true
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		if uu, still := c.users[h.ssrc]; still {
 			jb_push(&uu.jb, h.seq, h.ts, opus, f64(now))
 			rx_update(&uu.rx, h.seq, h.ts, now)
 			if !silent do uu.last_voice_ms = now
 		}
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 	}
 }
 
 @(private)
 count_failure :: proc(c: ^Conn) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.stats.transport_failures += 1
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 // rx_update: RFC 3550 A.1 / A.8 receiver statistics.
@@ -1083,8 +1084,8 @@ on_rtcp :: proc(c: ^Conn, b: []byte, now: i64) {
 		bl := rep.blocks[i]
 		dbg(c, "  block ssrc=%d lost=%d frac=%d maxseq=%d jitter=%d", bl.ssrc, bl.cum_lost, bl.fraction_lost, bl.ext_max_seq, bl.jitter)
 	}
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	if rep.is_sr {
 		if u, has := c.users[rep.ssrc]; has {
 			u.rx.lsr = u32(rep.ntp >> 16)
@@ -1152,28 +1153,28 @@ read_mic :: proc(c: ^Conn, pcm: []f32) {
 @(private)
 tx_tick :: proc(c: ^Conn, pcm: []f32) {
 	read_mic(c, pcm)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	muted := c.self_mute || c.self_deaf
 	gain := c.input_gain
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	if gain != 1 do for &x in pcm do x = clamp(x * gain, -1, 1)
 	active, db := vad_process(&c.vad, pcm)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.input_db = db
 	c.vad_open = active
-	sync.mutex_unlock(&c.mu)
-	sync.mutex_lock(&c.mu)
+	locks.unlock(&c.mu)
+	locks.lock(&c.mu)
 	if c.ptt_mode do active = c.ptt_pressed || now_ms() < c.ptt_until_ms
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	if muted do active = false
 	frame_ts := c.ts
 	c.ts += SAMPLES_PER_FRAME
 	if active {
 		if !c.self_speaking {
 			send_text(c, msg_speaking(SPEAKING_VOICE, c.ssrc))
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			c.self_speaking = true
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			// leading frames (pre-roll), with their original timestamps
 			for i in 0 ..< c.preroll_n {
 				pts := frame_ts - u32(c.preroll_n - i) * SAMPLES_PER_FRAME
@@ -1193,9 +1194,9 @@ tx_tick :: proc(c: ^Conn, pcm: []f32) {
 			send_opus(c, s[:], frame_ts, 127, false)
 			if c.silence_left == 0 {
 				send_text(c, msg_speaking(0, c.ssrc))
-				sync.mutex_lock(&c.mu)
+				locks.lock(&c.mu)
 				c.self_speaking = false
-				sync.mutex_unlock(&c.mu)
+				locks.unlock(&c.mu)
 			}
 		}
 		return
@@ -1230,9 +1231,9 @@ send_opus :: proc(c: ^Conn, opus: []byte, ts: u32, level: u8, voice: bool) {
 	pkt: [MAX_OPUS_PACKET + 128]byte
 	sealed: [MAX_OPUS_PACKET + 160]byte
 	plen, aad := build_audio_rtp(pkt[:], c.seq, ts, c.ssrc, level, voice, frame[:fl])
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	if !c.have_key {
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return
 	}
 	nonce := c.tx_nonce
@@ -1240,7 +1241,7 @@ send_opus :: proc(c: ^Conn, opus: []byte, ts: u32, level: u8, voice: bool) {
 	sl := transport_seal(&c.tx_crypto, pkt[:plen], aad, nonce, sealed[:])
 	c.stats.packets_sent += 1
 	c.stats.bytes_sent += u64(sl)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	c.seq += 1
 	c.packets_sent += 1
 	c.octets_sent += u32(fl)
@@ -1250,8 +1251,8 @@ send_opus :: proc(c: ^Conn, opus: []byte, ts: u32, level: u8, voice: bool) {
 
 @(private)
 rx_tick :: proc(c: ^Conn, out: []f32) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	deaf := c.self_deaf
 	for _, u in c.users {
 		kind, data := jb_pop(&u.jb)
@@ -1288,7 +1289,7 @@ send_rtcp :: proc(c: ^Conn) {
 	c.next_rtcp_ms = now + 2500 + i64(rand.int31_max(5000))
 	if !c.udp_open do return
 	blocks := make([dynamic]Report_Block, 0, 8, context.temp_allocator)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	for _, u in c.users {
 		r := &u.rx
 		if !r.init do continue
@@ -1307,16 +1308,16 @@ send_rtcp :: proc(c: ^Conn) {
 		append(&blocks, Report_Block{u.ssrc, frac, lost, ext_max, u32(r.jitter), r.lsr, dlsr})
 	}
 	have := c.have_key
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	if !have do return
 	pkt: [512]byte
 	sealed: [600]byte
 	sender := c.packets_sent > 0
 	n := build_report(pkt[:], c.ssrc, sender, ntp_now(), c.last_sent_ts, c.packets_sent, c.octets_sent, blocks[:])
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	nonce := c.tx_nonce
 	c.tx_nonce += 1
 	sl := transport_seal(&c.tx_crypto, pkt[:n], 8, nonce, sealed[:])
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	net.send_udp(c.udp, sealed[:sl], c.server_ep)
 }

@@ -1,10 +1,10 @@
 package discord
 
+import "fc:locks"
 import "core:crypto"
 import "core:mem"
 import "core:strconv"
 import "core:strings"
-import "core:sync"
 import "core:time"
 
 Allocator :: mem.Allocator
@@ -75,14 +75,14 @@ uuid_parse :: proc(s: string) -> (b: [16]byte, ok: bool) {
 // Nonce_Gen reproduces the client's nonce: SnowflakeUtils.fromTimestampWithSequence
 // with a sequence that resets whenever Date.now() changes.
 Nonce_Gen :: struct {
-	mu:      sync.Mutex,
+	mu:      locks.Mutex,
 	last_ms: i64,
 	seq:     u64,
 }
 
 nonce_at :: proc(g: ^Nonce_Gen, ms: i64) -> Snowflake {
-	sync.mutex_lock(&g.mu)
-	defer sync.mutex_unlock(&g.mu)
+	locks.lock(&g.mu)
+	defer locks.unlock(&g.mu)
 	if g.last_ms != ms {
 		g.seq = 0
 		g.last_ms = ms

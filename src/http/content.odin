@@ -4,8 +4,8 @@ import "core:bytes"
 import "core:compress/gzip"
 import "core:compress/zlib"
 import "core:strings"
-import "core:sync"
 import "fc:brotli"
+import "fc:locks"
 import "fc:zstd"
 
 // Content decoding registry (Content-Encoding). Built in: gzip/deflate
@@ -21,7 +21,7 @@ Registered_Decoder :: struct {
 }
 
 @(private)
-registry_mu: sync.RW_Mutex
+registry_mu: locks.Mutex
 @(private)
 registry: [16]Registered_Decoder
 @(private)
@@ -39,8 +39,7 @@ register_builtin_decoders :: proc "contextless" () {
 
 // register_decoder adds or replaces a decoder for a content-coding name (case-insensitive).
 register_decoder :: proc(name: string, fn: Decoder_Proc) -> bool {
-	sync.rw_mutex_lock(&registry_mu)
-	defer sync.rw_mutex_unlock(&registry_mu)
+	locks.guard(&registry_mu)
 	for i in 0 ..< registry_len {
 		if strings.equal_fold(registry[i].name, name) {
 			registry[i].fn = fn
@@ -54,8 +53,7 @@ register_decoder :: proc(name: string, fn: Decoder_Proc) -> bool {
 }
 
 find_decoder :: proc(name: string) -> (Decoder_Proc, bool) {
-	sync.rw_mutex_shared_lock(&registry_mu)
-	defer sync.rw_mutex_shared_unlock(&registry_mu)
+	locks.guard(&registry_mu)
 	for i in 0 ..< registry_len {
 		if strings.equal_fold(registry[i].name, name) do return registry[i].fn, true
 	}

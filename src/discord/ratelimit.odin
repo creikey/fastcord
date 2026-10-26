@@ -1,9 +1,9 @@
 package discord
 
+import "fc:locks"
 import "core:math/rand"
 import "core:strconv"
 import "core:strings"
-import "core:sync"
 import "fc:http"
 
 // Backoff mirrors the client's Backoff class (min, max, jitter):
@@ -68,7 +68,7 @@ Bucket :: struct {
 }
 
 Rate_Limiter :: struct {
-	mu:          sync.Mutex,
+	mu:          locks.Mutex,
 	holds:       map[string]Url_Hold,
 	buckets:     map[string]Bucket, // bucket hash -> state
 	route_bucket: map[string]string, // "METHOD route-key" -> bucket hash
@@ -141,8 +141,8 @@ is_digits :: proc(s: string) -> bool {
 
 // rate_wait_ms returns how long a request to url must wait before being sent (0 = now).
 rate_wait_ms :: proc(r: ^Rate_Limiter, method, url: string, now: i64) -> i64 {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	wait: i64 = 0
 	if h, ok := r.holds[url]; ok && h.until > now do wait = h.until - now
 	if r.proactive {
@@ -170,8 +170,8 @@ retry_after_seconds :: proc(headers: []http.Header, body: V) -> (f64, bool) {
 // rate_note_response records the outcome of a request (official hold logic + bucket headers).
 // Returns the hold in ms when the response was 429/503.
 rate_note_response :: proc(r: ^Rate_Limiter, method, url: string, status: int, headers: []http.Header, body: V, now: i64, jitter_r: f64 = -1) -> i64 {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	note_bucket_locked(r, method, url, headers, now)
 	if status == 429 || status == 503 {
 		ra, has := retry_after_seconds(headers, body)
@@ -237,8 +237,8 @@ note_bucket_locked :: proc(r: ^Rate_Limiter, method, url: string, headers: []htt
 }
 
 rate_bucket_for :: proc(r: ^Rate_Limiter, method, url: string) -> (Bucket, bool) {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	bh, ok := r.route_bucket[route_key(method, url)]
 	if !ok do return {}, false
 	b, bok := r.buckets[bh]

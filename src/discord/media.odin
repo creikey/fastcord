@@ -1,11 +1,11 @@
 package discord
 
+import "fc:locks"
 import "core:crypto/hash"
 import "core:encoding/hex"
 import "core:os"
 import "core:strconv"
 import "core:strings"
-import "core:sync"
 import "fc:http"
 
 // Media loading, the way Chromium loads the official client's <img>, CSS
@@ -251,9 +251,9 @@ media_deliver :: proc(c: ^Client, j: ^Job, status: int, from_cache: bool, ctype:
 		r.data = make([]byte, len(body), c.allocator)
 		copy(r.data, body)
 	}
-	sync.mutex_lock(&c.media_mu)
+	locks.lock(&c.media_mu)
 	append(&c.media_results, r)
-	sync.mutex_unlock(&c.media_mu)
+	locks.unlock(&c.media_mu)
 	if c.cfg.wakeup != nil do c.cfg.wakeup(c.cfg.wakeup_data)
 }
 
@@ -309,8 +309,8 @@ run_media :: proc(c: ^Client, j: ^Job) {
 
 // client_take_media returns finished media loads (UI thread). Free each with media_result_free.
 client_take_media :: proc(c: ^Client, allocator := context.temp_allocator) -> []Media_Result {
-	sync.mutex_lock(&c.media_mu)
-	defer sync.mutex_unlock(&c.media_mu)
+	locks.lock(&c.media_mu)
+	defer locks.unlock(&c.media_mu)
 	out := make([]Media_Result, len(c.media_results), allocator)
 	copy(out, c.media_results[:])
 	clear(&c.media_results)

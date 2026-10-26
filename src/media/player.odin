@@ -17,8 +17,8 @@ package media
 // sample position minus output latency — otherwise the wall clock. Video frames
 // are presented when their pts <= clock (frame-accurate, B-frame reordered).
 
+import "fc:locks"
 import "core:math"
-import "core:sync"
 import "core:thread"
 import "core:time"
 import "fc:audio"
@@ -54,8 +54,8 @@ Player :: struct {
 	vdec:           ^Video_Decoder,
 	adec:           ^Audio_Decoder,
 	thread:         ^thread.Thread,
-	mu:             sync.Mutex,
-	cond:           sync.Cond,
+	mu:             locks.Mutex,
+	cond:           locks.Cond,
 
 	// ---- shared (mu)
 	quit:           bool,
@@ -127,10 +127,10 @@ player_open :: proc(src: Byte_Source, autoplay := false, looping := false, muted
 
 player_destroy :: proc(p: ^Player) {
 	if p == nil do return
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.quit = true
-	sync.mutex_unlock(&p.mu)
-	sync.cond_broadcast(&p.cond)
+	locks.unlock(&p.mu)
+	locks.cond_broadcast(&p.cond)
 	thread.join(p.thread)
 	thread.destroy(p.thread)
 	for &f in p.frames do video_frame_release(&f)
@@ -149,7 +149,7 @@ player_destroy :: proc(p: ^Player) {
 }
 
 player_play :: proc(p: ^Player) {
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	if p.state == .Ended {
 		p.seek_req = true
 		p.seek_to = 0
@@ -159,17 +159,17 @@ player_play :: proc(p: ^Player) {
 		p.playing = true
 		p.anchor_wall = now_s()
 	}
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	audio.source_set_paused(p.asrc, false)
-	sync.cond_broadcast(&p.cond)
+	locks.cond_broadcast(&p.cond)
 }
 
 player_pause :: proc(p: ^Player) {
 	t := player_clock(p, now_s())
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.playing = false
 	p.anchor_media = t
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	audio.source_set_paused(p.asrc, true)
 	p.audio_driving = false
 }
@@ -181,7 +181,7 @@ player_toggle :: proc(p: ^Player) {
 
 // Frame-accurate seek (seconds). The frame covering `t` is shown next.
 player_seek :: proc(p: ^Player, t: f64) {
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.seek_req = true
 	p.seek_to = max(t, 0)
 	// Frames decoded for the old position must never be shown.
@@ -191,17 +191,17 @@ player_seek :: proc(p: ^Player, t: f64) {
 	p.anchor_media = p.seek_to
 	p.anchor_wall = now_s()
 	if p.state == .Ended do p.state = .Ready
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	p.audio_driving = false
 	p.shown_any = false
-	sync.cond_broadcast(&p.cond)
+	locks.cond_broadcast(&p.cond)
 }
 
 player_set_loop :: proc(p: ^Player, on: bool) {
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.looping = on
-	sync.mutex_unlock(&p.mu)
-	sync.cond_broadcast(&p.cond)
+	locks.unlock(&p.mu)
+	locks.cond_broadcast(&p.cond)
 }
 
 player_set_volume :: proc(p: ^Player, v: f32) {
@@ -218,20 +218,20 @@ player_set_muted :: proc(p: ^Player, m: bool) {
 }
 
 player_is_playing :: proc(p: ^Player) -> bool {
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
 	return p.playing && p.state != .Ended
 }
 
 player_state :: proc(p: ^Player) -> Player_State {
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
 	return p.state
 }
 
 player_duration :: proc(p: ^Player) -> f64 {
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
 	return p.duration
 }
 
@@ -249,8 +249,8 @@ player_position :: proc(p: ^Player) -> f64 {
 player_has_video :: proc(p: ^Player) -> bool {return p.vtrack >= 0}
 player_has_audio :: proc(p: ^Player) -> bool {return p.atrack >= 0}
 player_stats :: proc(p: ^Player) -> Player_Stats {
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
 	return p.stats
 }
 
@@ -260,14 +260,14 @@ now_s :: proc() -> f64 {return f64(time.tick_now()._nsec) / 1e9}
 // Global media clock (seconds, not wrapped).
 @(private)
 player_clock :: proc(p: ^Player, now: f64) -> f64 {
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	playing := p.playing && p.state == .Ready
 	audio_on := p.audio_active && !p.muted
 	segs := p.segments
 	nseg := p.nseg
 	eos_audio := p.eos_audio
 	buffering := p.starved && len(p.frames) == 0
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	if !playing do return p.anchor_media
 	if audio_on && nseg > 0 {
 		rp := audio.source_read_pos(p.asrc)
@@ -308,7 +308,7 @@ player_clock :: proc(p: ^Player, now: f64) -> f64 {
 player_update :: proc(p: ^Player) -> (Video_Image, bool) {
 	clock := player_clock(p, now_s())
 	changed := false
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	pick := -1
 	for f, i in p.frames {
 		if f.pts <= clock + 0.0005 do pick = i
@@ -341,8 +341,8 @@ player_update :: proc(p: ^Player) -> (Video_Image, bool) {
 			p.anchor_media = min(clock, p.duration)
 		}
 	}
-	sync.mutex_unlock(&p.mu)
-	if consumed do sync.cond_broadcast(&p.cond)
+	locks.unlock(&p.mu)
+	if consumed do locks.cond_broadcast(&p.cond)
 	audio.update()
 	return p.img, changed
 }
@@ -354,21 +354,21 @@ player_update :: proc(p: ^Player) -> (Video_Image, bool) {
 worker :: proc(th: ^thread.Thread) {
 	p := (^Player)(th.data)
 	if !worker_open(p) {
-		sync.mutex_lock(&p.mu)
+		locks.lock(&p.mu)
 		p.state = .Error
-		sync.mutex_unlock(&p.mu)
+		locks.unlock(&p.mu)
 		return
 	}
 	for {
-		sync.mutex_lock(&p.mu)
+		locks.lock(&p.mu)
 		if p.quit {
-			sync.mutex_unlock(&p.mu)
+			locks.unlock(&p.mu)
 			return
 		}
 		seek := p.seek_req
 		target := p.seek_to
 		p.seek_req = false
-		sync.mutex_unlock(&p.mu)
+		locks.unlock(&p.mu)
 		if seek do worker_seek(p, target)
 
 		// Keep the index growing (streaming sources).
@@ -382,35 +382,35 @@ worker :: proc(th: ^thread.Thread) {
 				}
 				if s != .Progress do break
 			}
-			sync.mutex_lock(&p.mu)
+			locks.lock(&p.mu)
 			p.duration = max(p.duration, demux_duration(p.demux))
-			sync.mutex_unlock(&p.mu)
+			locks.unlock(&p.mu)
 		}
 
 		did := worker_step(p)
 		if did {
-			sync.mutex_lock(&p.mu)
+			locks.lock(&p.mu)
 			p.starved = false
-			sync.mutex_unlock(&p.mu)
+			locks.unlock(&p.mu)
 		}
 		if !did {
-			sync.mutex_lock(&p.mu)
+			locks.lock(&p.mu)
 			if !p.quit && !p.seek_req {
 				// Audio drains continuously: poll while playing it; otherwise sleep until poked.
 				if p.playing && p.audio_active && !p.eos_audio {
-					sync.cond_wait_with_timeout(&p.cond, &p.mu, 40 * time.Millisecond)
+					locks.cond_wait_with_timeout(&p.cond, &p.mu, 40 * time.Millisecond)
 				} else if scan_blocked && p.src.wait != nil {
-					sync.mutex_unlock(&p.mu)
+					locks.unlock(&p.mu)
 					avail, _ := source_extent(&p.src)
 					p.src.wait(p.src.user, avail, 100 * time.Millisecond)
-					sync.mutex_lock(&p.mu)
+					locks.lock(&p.mu)
 				} else if scan_blocked {
-					sync.cond_wait_with_timeout(&p.cond, &p.mu, 50 * time.Millisecond)
+					locks.cond_wait_with_timeout(&p.cond, &p.mu, 50 * time.Millisecond)
 				} else {
-					sync.cond_wait(&p.cond, &p.mu)
+					locks.cond_wait(&p.cond, &p.mu)
 				}
 			}
-			sync.mutex_unlock(&p.mu)
+			locks.unlock(&p.mu)
 		}
 	}
 }
@@ -418,9 +418,9 @@ worker :: proc(th: ^thread.Thread) {
 @(private = "file")
 worker_open :: proc(p: ^Player) -> bool {
 	for {
-		sync.mutex_lock(&p.mu)
+		locks.lock(&p.mu)
 		q := p.quit
-		sync.mutex_unlock(&p.mu)
+		locks.unlock(&p.mu)
 		if q do return false
 		if p.demux == nil {
 			d, s := demux_open(&p.src)
@@ -447,14 +447,14 @@ worker_open :: proc(p: ^Player) -> bool {
 		if ok do p.adec = ad
 		else do p.atrack = -1
 	}
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.duration = demux_duration(d)
 	p.state = .Ready
 	p.eos_video = p.vtrack < 0
 	p.audio_active = p.atrack >= 0 && !p.muted
 	p.eos_audio = !p.audio_active
 	if p.audio_active do add_segment(p, 0)
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	if p.playing do audio.source_set_paused(p.asrc, false)
 	return true
 }
@@ -484,7 +484,7 @@ add_segment :: proc(p: ^Player, base: f64) {
 @(private = "file")
 worker_seek :: proc(p: ^Player, target: f64) {
 	d := p.demux
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	for &f in p.frames do video_frame_release(&f)
 	clear(&p.frames)
 	p.seek_ready = p.vtrack < 0
@@ -494,7 +494,7 @@ worker_seek :: proc(p: ^Player, target: f64) {
 	p.audio_active = p.atrack >= 0 && !p.muted
 	p.eos_audio = !p.audio_active
 	p.nseg = 0
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 
 	if p.vtrack >= 0 {
 		t := &d.tracks[p.vtrack]
@@ -513,9 +513,9 @@ worker_seek :: proc(p: ^Player, target: f64) {
 		clear(&p.pcm)
 		p.discard_a = target
 		audio.source_flush(p.asrc)
-		sync.mutex_lock(&p.mu)
+		locks.lock(&p.mu)
 		add_segment(p, target)
-		sync.mutex_unlock(&p.mu)
+		locks.unlock(&p.mu)
 	} else if p.atrack >= 0 {
 		audio.source_flush(p.asrc)
 	}
@@ -525,7 +525,7 @@ worker_seek :: proc(p: ^Player, target: f64) {
 @(private = "file")
 worker_step :: proc(p: ^Player) -> bool {
 	d := p.demux
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	playing := p.playing
 	nframes := len(p.frames)
 	need_v := !p.eos_video && nframes < MAX_FRAMES && (playing || nframes == 0 || !p.seek_ready)
@@ -533,7 +533,7 @@ worker_step :: proc(p: ^Player) -> bool {
 		audio.source_queued_frames(p.asrc) + len(p.pcm) / 2 < int(AUDIO_AHEAD * audio.SAMPLE_RATE)
 	looping := p.looping
 	both_eos := p.eos_video && p.eos_audio
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 
 	// Flush leftover PCM into the ring first.
 	if len(p.pcm) > 0 {
@@ -562,26 +562,26 @@ worker_step :: proc(p: ^Player) -> bool {
 
 @(private = "file")
 set_starved :: proc(p: ^Player) -> bool {
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.starved = true
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	return false
 }
 
 // True while playback is stalled waiting for download.
 player_is_buffering :: proc(p: ^Player) -> bool {
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
 	return p.starved && len(p.frames) == 0 && p.state == .Ready
 }
 
 @(private = "file")
 worker_loop :: proc(p: ^Player) {
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.loop_offset += p.duration
 	p.eos_video = p.vtrack < 0
 	p.eos_audio = !p.audio_active
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	p.vnext = 0
 	p.anext = 0
 	p.discard_v = 0
@@ -596,10 +596,10 @@ video_step :: proc(p: ^Player) -> bool {
 		if !d.complete do return set_starved(p)
 		if p.vdec != nil do video_decoder_flush(p.vdec)
 		collect_frames(p)
-		sync.mutex_lock(&p.mu)
+		locks.lock(&p.mu)
 		p.eos_video = true
 		p.seek_ready = true
-		sync.mutex_unlock(&p.mu)
+		locks.unlock(&p.mu)
 		return true
 	}
 	pk := t.packets[p.vnext]
@@ -608,9 +608,9 @@ video_step :: proc(p: ^Player) -> bool {
 		vd, ok := video_decoder_create(t, p.pkt[:])
 		if !ok {
 			p.vtrack = -1
-			sync.mutex_lock(&p.mu)
+			locks.lock(&p.mu)
 			p.eos_video = true
-			sync.mutex_unlock(&p.mu)
+			locks.unlock(&p.mu)
 			return true
 		}
 		p.vdec = vd
@@ -626,8 +626,8 @@ collect_frames :: proc(p: ^Player) {
 	clear(&p.vframes_tmp)
 	video_decoder_take(p.vdec, &p.vframes_tmp)
 	if len(p.vframes_tmp) == 0 do return
-	sync.mutex_lock(&p.mu)
-	defer sync.mutex_unlock(&p.mu)
+	locks.lock(&p.mu)
+	defer locks.unlock(&p.mu)
 	stale := p.seek_req // a seek arrived while decoding: these belong to the old position
 	for &f in p.vframes_tmp {
 		p.stats.video_decoded += 1
@@ -659,9 +659,9 @@ audio_step :: proc(p: ^Player) -> bool {
 	t := &d.tracks[p.atrack]
 	if p.anext >= len(t.packets) {
 		if !d.complete do return set_starved(p)
-		sync.mutex_lock(&p.mu)
+		locks.lock(&p.mu)
 		p.eos_audio = true
-		sync.mutex_unlock(&p.mu)
+		locks.unlock(&p.mu)
 		return true
 	}
 	pk := t.packets[p.anext]
@@ -669,9 +669,9 @@ audio_step :: proc(p: ^Player) -> bool {
 	p.anext += 1
 	start := len(p.pcm)
 	audio_decode(p.adec, p.pkt[:], &p.pcm)
-	sync.mutex_lock(&p.mu)
+	locks.lock(&p.mu)
 	p.stats.audio_packets += 1
-	sync.mutex_unlock(&p.mu)
+	locks.unlock(&p.mu)
 	// Trim samples before the seek target / pre-skip (pts < 0).
 	pts := track_seconds(t, pk.pts)
 	cut_before := max(p.discard_a, 0)

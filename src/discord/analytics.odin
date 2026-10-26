@@ -1,10 +1,10 @@
 package discord
 
+import "fc:locks"
 import "core:encoding/base64"
 import "core:math/rand"
 import "core:os"
 import "core:strings"
-import "core:sync"
 import "fc:http"
 
 // Client telemetry (AnalyticsTrackingStore): events are queued with
@@ -25,7 +25,7 @@ CLIENT_HEARTBEAT_INTERVAL_MS :: 15 * 60 * 1000
 AD_HEARTBEAT_INTERVAL_MS :: 5 * 60 * 1000
 
 Analytics :: struct {
-	mu:            sync.Mutex,
+	mu:            locks.Mutex,
 	enabled:       bool,
 	queue:         [dynamic]string, // {"type":..,"properties":{... (no closing brace)
 	seq:           int,
@@ -108,14 +108,14 @@ analytics_track :: proc(c: ^Client, event_type, props_json: string) {
 	// measurable and the app must have reported viewport + accessibility state.
 	mem_kb, mok := process_memory_kb()
 	cpu, cok := process_cpu_percent()
-	sync.mutex_lock(&a.mu)
+	locks.lock(&a.mu)
 	known := a.viewport_w > 0 && a.accessibility_known
-	sync.mutex_unlock(&a.mu)
+	locks.unlock(&a.mu)
 	if !mok || !cok || !known do return
 	now := now_ms()
 	hb := identity_heartbeat_snapshot(&c.id)
-	sync.mutex_lock(&a.mu)
-	defer sync.mutex_unlock(&a.mu)
+	locks.lock(&a.mu)
+	defer locks.unlock(&a.mu)
 	a.seq += 1
 	sb := strings.builder_make(context.temp_allocator)
 	strings.write_string(&sb, `{"type":`)
@@ -169,11 +169,11 @@ analytics_track :: proc(c: ^Client, event_type, props_json: string) {
 // analytics_flush posts the queued batch when due (called from client_poll).
 analytics_flush :: proc(c: ^Client, now: i64, force := false) {
 	a := &c.analytics
-	sync.mutex_lock(&a.mu)
+	locks.lock(&a.mu)
 	// The tracker only flushes once it has the READY analytics_token (events
 	// queued earlier ride along in the first batch, as in the capture).
 	if len(a.queue) == 0 || c.store.analytics_token == "" || (!force && (a.flush_at == 0 || now < a.flush_at)) {
-		sync.mutex_unlock(&a.mu)
+		locks.unlock(&a.mu)
 		return
 	}
 	token := c.store.analytics_token
@@ -194,7 +194,7 @@ analytics_flush :: proc(c: ^Client, now: i64, force := false) {
 	a.flush_at = 0
 	first := !a.sent_first
 	a.sent_first = true
-	sync.mutex_unlock(&a.mu)
+	locks.unlock(&a.mu)
 
 	j := job_new(.Api, .None)
 	j.method = "POST"
@@ -323,19 +323,19 @@ A11Y_FORCED_COLORS_FROM_USER_SETTINGS :: 524288
 
 // client_set_viewport: window content size in CSS px (client_viewport_width/height).
 client_set_viewport :: proc(c: ^Client, w, h: int) {
-	sync.mutex_lock(&c.analytics.mu)
+	locks.lock(&c.analytics.mu)
 	c.analytics.viewport_w = w
 	c.analytics.viewport_h = h
-	sync.mutex_unlock(&c.analytics.mu)
+	locks.unlock(&c.analytics.mu)
 }
 
 // client_set_accessibility: the AccessibilityStore bitmask (OS color scheme,
 // reduced motion, user accessibility settings) as the UI knows it.
 client_set_accessibility :: proc(c: ^Client, flags: u64) {
-	sync.mutex_lock(&c.analytics.mu)
+	locks.lock(&c.analytics.mu)
 	c.analytics.accessibility = flags
 	c.analytics.accessibility_known = true
-	sync.mutex_unlock(&c.analytics.mu)
+	locks.unlock(&c.analytics.mu)
 }
 
 // Events the official client sends that we deliberately do NOT send because a

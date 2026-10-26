@@ -1,6 +1,6 @@
 package voice
 
-import "core:sync"
+import "fc:locks"
 
 // Opus codec interface. The default is opus_codec() (fc:opus); set_codec()
 // overrides it (e.g. stub_codec(), which sends Opus silence frames
@@ -30,18 +30,18 @@ Codec :: struct {
 @(private)
 g_codec: Codec
 @(private)
-g_codec_mu: sync.Mutex
+g_codec_mu: locks.Mutex
 
 // set_codec installs the Opus implementation for connections created afterwards.
 set_codec :: proc(c: Codec) {
-	sync.mutex_lock(&g_codec_mu)
+	locks.lock(&g_codec_mu)
 	g_codec = c
-	sync.mutex_unlock(&g_codec_mu)
+	locks.unlock(&g_codec_mu)
 }
 
 get_codec :: proc() -> Codec {
-	sync.mutex_lock(&g_codec_mu)
-	defer sync.mutex_unlock(&g_codec_mu)
+	locks.lock(&g_codec_mu)
+	defer locks.unlock(&g_codec_mu)
 	if g_codec.encode == nil do return opus_codec()
 	return g_codec
 }

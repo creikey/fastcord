@@ -1,10 +1,10 @@
 package discord
 
+import "fc:locks"
 import "core:os"
 import "core:slice"
 import "core:strconv"
 import "core:strings"
-import "core:sync"
 import "core:time"
 
 // Cookie jar with Chrome's selection and ordering rules: domain/path match,
@@ -22,7 +22,7 @@ Cookie :: struct {
 }
 
 Cookie_Jar :: struct {
-	mu:        sync.Mutex,
+	mu:        locks.Mutex,
 	cookies:   [dynamic]Cookie,
 	last_ctime: i64,
 	dirty:     bool,
@@ -114,8 +114,8 @@ cookie_set_from_header :: proc(j: ^Cookie_Jar, host, req_path, header: string, n
 	}
 	if path == "" || path[0] != '/' do path = default_path(req_path)
 
-	sync.mutex_lock(&j.mu)
-	defer sync.mutex_unlock(&j.mu)
+	locks.lock(&j.mu)
+	defer locks.unlock(&j.mu)
 	for i := 0; i < len(j.cookies); i += 1 {
 		o := j.cookies[i]
 		if o.name == name && o.domain == domain && o.path == path && o.host_only == c.host_only {
@@ -148,8 +148,8 @@ path_match :: proc(req_path, cookie_path: string) -> bool {
 
 // cookie_header returns the Cookie header value for a request ("" if none).
 cookie_header :: proc(j: ^Cookie_Jar, host, path: string, secure: bool, now: i64, allocator := context.temp_allocator) -> string {
-	sync.mutex_lock(&j.mu)
-	defer sync.mutex_unlock(&j.mu)
+	locks.lock(&j.mu)
+	defer locks.unlock(&j.mu)
 	lhost := strings.to_lower(host, context.temp_allocator)
 	sel := make([dynamic]Cookie, 0, 8, context.temp_allocator)
 	for c in j.cookies {
@@ -179,8 +179,8 @@ cookie_header :: proc(j: ^Cookie_Jar, host, path: string, secure: bool, now: i64
 }
 
 cookie_get :: proc(j: ^Cookie_Jar, name, domain: string) -> (string, bool) {
-	sync.mutex_lock(&j.mu)
-	defer sync.mutex_unlock(&j.mu)
+	locks.lock(&j.mu)
+	defer locks.unlock(&j.mu)
 	for c in j.cookies do if c.name == name && c.domain == domain do return c.value, true
 	return "", false
 }
@@ -188,7 +188,7 @@ cookie_get :: proc(j: ^Cookie_Jar, name, domain: string) -> (string, bool) {
 // ---- persistence (tab separated, persistent cookies only) ----
 
 cookie_jar_save :: proc(j: ^Cookie_Jar, path: string, now: i64) -> bool {
-	sync.mutex_lock(&j.mu)
+	locks.lock(&j.mu)
 	sb := strings.builder_make(context.temp_allocator)
 	for c in j.cookies {
 		if c.expires == 0 || c.expires <= now do continue
@@ -212,15 +212,15 @@ cookie_jar_save :: proc(j: ^Cookie_Jar, path: string, now: i64) -> bool {
 		strings.write_byte(&sb, '\n')
 	}
 	j.dirty = false
-	sync.mutex_unlock(&j.mu)
+	locks.unlock(&j.mu)
 	return write_file_atomic(path, transmute([]byte)strings.to_string(sb))
 }
 
 cookie_jar_load :: proc(j: ^Cookie_Jar, path: string, now: i64) {
 	data, err := os.read_entire_file(path, context.temp_allocator)
 	if err != nil do return
-	sync.mutex_lock(&j.mu)
-	defer sync.mutex_unlock(&j.mu)
+	locks.lock(&j.mu)
+	defer locks.unlock(&j.mu)
 	text := string(data)
 	for line in strings.split_lines_iterator(&text) {
 		f := strings.split(line, "\t", context.temp_allocator)

@@ -1,9 +1,9 @@
 package quic
 
+import "fc:locks"
 import "core:crypto"
 import "core:fmt"
 import "core:crypto/aead"
-import "core:sync"
 import "core:time"
 
 import "fc:tls"
@@ -343,7 +343,7 @@ process_frames :: proc(c: ^Conn, space: Space, pt: []byte, now: time.Tick) -> (e
 			}
 			if typ == 0x12 && v > c.peer_max_bidi do c.peer_max_bidi = v
 			if typ == 0x13 && v > c.peer_max_uni do c.peer_max_uni = v
-			sync.cond_broadcast(&c.cond)
+			locks.cond_broadcast(&c.cond)
 		case 0x14, 0x16, 0x17:
 			r_varint(&r)
 		case 0x15:
@@ -380,13 +380,13 @@ process_frames :: proc(c: ^Conn, space: Space, pt: []byte, now: time.Tick) -> (e
 			if c.err == .None do c.err = .Peer_Closed
 			c.closing = true
 			c.close_sent = true
-			sync.cond_broadcast(&c.cond)
+			locks.cond_broadcast(&c.cond)
 			return eliciting, false
 		case 0x1e:
 			if !c.handshake_confirmed {
 				c.handshake_confirmed = true
 				discard_space(c, .Handshake)
-				sync.cond_broadcast(&c.cond)
+				locks.cond_broadcast(&c.cond)
 			}
 		case 0x30:
 			r.b = nil
@@ -449,7 +449,7 @@ on_crypto :: proc(c: ^Conn, space: Space, off: u64, data: []byte) -> bool {
 			}
 		} else {
 			append(&c.hs_msgs, msg)
-			sync.cond_broadcast(&c.cond)
+			locks.cond_broadcast(&c.cond)
 		}
 	}
 	return true

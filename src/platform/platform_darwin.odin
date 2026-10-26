@@ -1,6 +1,7 @@
 #+build darwin
 package platform
 
+import "fc:locks"
 import "base:runtime"
 import "core:strings"
 import "core:sync"
@@ -745,9 +746,9 @@ view_key_down :: proc "c" (self: Id, cmd: objc.SEL, ev: Id) {
 	}
 	consumed_by_ime := had_marked || len(m.marked) > 0
 	if !consumed_by_ime {
-		sync.mutex_lock(&s.queue_lock)
+		locks.lock(&s.queue_lock)
 		inject_at(&s.pending, min(idx, len(s.pending)), e)
-		sync.mutex_unlock(&s.queue_lock)
+		locks.unlock(&s.queue_lock)
 	}
 }
 

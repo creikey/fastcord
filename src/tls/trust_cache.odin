@@ -1,8 +1,8 @@
 package tls
 
+import "fc:locks"
 import "base:runtime"
 import "core:crypto/hash"
-import "core:sync"
 import "core:time"
 
 // Chrome's CachingCertVerifier keeps verification results for 30 minutes,
@@ -15,7 +15,7 @@ TRUST_CACHE_MAX :: 256
 Trust_Key :: [32]byte
 
 @(private)
-trust_cache_mu: sync.Mutex
+trust_cache_mu: locks.Mutex
 @(private)
 trust_cache: map[Trust_Key]time.Tick
 
@@ -39,15 +39,15 @@ trust_key :: proc(chain: [][]byte, host: string) -> (k: Trust_Key) {
 verify_chain_cached :: proc(chain: [][]byte, host: string) -> Error {
 	k := trust_key(chain, host)
 	now := time.tick_now()
-	sync.mutex_lock(&trust_cache_mu)
+	locks.lock(&trust_cache_mu)
 	if exp, ok := trust_cache[k]; ok && time.tick_diff(now, exp) > 0 {
-		sync.mutex_unlock(&trust_cache_mu)
+		locks.unlock(&trust_cache_mu)
 		return .None
 	}
-	sync.mutex_unlock(&trust_cache_mu)
+	locks.unlock(&trust_cache_mu)
 	verify_chain_os(chain, host) or_return
-	sync.mutex_lock(&trust_cache_mu)
-	defer sync.mutex_unlock(&trust_cache_mu)
+	locks.lock(&trust_cache_mu)
+	defer locks.unlock(&trust_cache_mu)
 	context.allocator = runtime.heap_allocator()
 	if len(trust_cache) >= TRUST_CACHE_MAX {
 		// Drop expired entries; if still full, start over (rare).

@@ -9,12 +9,12 @@
 // alert and connect fails.
 package tls
 
+import "fc:locks"
 import "base:intrinsics"
 import "core:crypto/aead"
 import "core:crypto/hash"
 import "core:mem"
 import "core:strings"
-import "core:sync"
 import "core:time"
 
 import "fc:netio"
@@ -111,7 +111,7 @@ Session :: struct {
 	cache:          ^Ticket_Cache,
 	rd:             Direction,
 	wr:             Direction,
-	wmu:            sync.Mutex, // guards wr and the underlying write side
+	wmu:            locks.Mutex, // guards wr and the underlying write side
 	// Buffered ciphertext from the underlying stream.
 	inbuf:          [MAX_CIPHERTEXT + 5 + 1024]byte,
 	in_lo, in_hi:   int,
@@ -265,8 +265,8 @@ read :: proc(s: ^Session, dst: []byte) -> (int, Error) {
 write :: proc(s: ^Session, src: []byte) -> Error {
 	if f := get_failed(s); f != .None do return f
 	if is_shut(s) do return .Closed
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	if s.sent_close do return .Closed
 	rest := src
 	for len(rest) > 0 {
@@ -284,8 +284,8 @@ write :: proc(s: ^Session, src: []byte) -> Error {
 // server is asked to rotate its keys too; its KeyUpdate is handled by read.
 key_update :: proc(s: ^Session, request_peer := false) -> Error {
 	if f := get_failed(s); f != .None do return f
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	if s.sent_close do return .Closed
 	if e := send_key_update_locked(s, request_peer); e != .None {
 		set_failed(s, e)
@@ -353,8 +353,8 @@ tcp_set_secret :: proc(data: rawptr, level: Level, is_write: bool, suite: Suite,
 		set_keys(&s.rd, suite, secret)
 		return .None
 	}
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	set_keys(&s.wr, suite, secret)
 	return .None
 }

@@ -7,12 +7,12 @@
 //	FASTCORD_LIVE=1 ./build.sh test voice/live
 package voice_live
 
+import "fc:locks"
 import "core:fmt"
 import "core:log"
 import "core:math"
 import "core:os"
 import "core:strings"
-import "core:sync"
 import "core:testing"
 import "core:time"
 import dc "fc:discord"
@@ -65,7 +65,7 @@ Side :: struct {
 	conn:     ^voice.Conn,
 	tone:     bool,
 	phase:    f64,
-	mu:       sync.Mutex,
+	mu:       locks.Mutex,
 	heard:    [dynamic]f32, // left channel of audio from the peer
 	peer:     u64,
 	version:  u64,
@@ -183,9 +183,9 @@ live_voice_two_accounts :: proc(t: ^testing.T) {
 			playback = proc(data: rawptr, user_id: u64, pcm: []f32) {
 				s := cast(^Side)data
 				if user_id != s.peer do return
-				sync.mutex_lock(&s.mu)
+				locks.lock(&s.mu)
 				for i := 0; i < len(pcm); i += 2 do append(&s.heard, pcm[i])
-				sync.mutex_unlock(&s.mu)
+				locks.unlock(&s.mu)
 			},
 		}
 		s.conn = voice.voice_connect(voice.Voice_Server_Info{
@@ -222,7 +222,7 @@ live_voice_two_accounts :: proc(t: ^testing.T) {
 	}
 	testing.expect(t, voice.is_speaking(b.conn, b.peer), "B sees A speaking")
 
-	sync.mutex_lock(&b.mu)
+	locks.lock(&b.mu)
 	heard := b.heard[:]
 	n := len(heard)
 	rms, freq := 0.0, 0.0
@@ -237,7 +237,7 @@ live_voice_two_accounts :: proc(t: ^testing.T) {
 		rms = math.sqrt(acc / f64(len(w)))
 		freq = f64(zc) / 2 * 48000 / f64(len(w))
 	}
-	sync.mutex_unlock(&b.mu)
+	locks.unlock(&b.mu)
 	log.infof("B heard %d samples of A: rms %.3f, %.1f Hz", n, rms, freq)
 	testing.expectf(t, rms > 0.05 && abs(freq - 440) < 30, "B decodes A's tone: rms %.3f freq %.1f", rms, freq)
 

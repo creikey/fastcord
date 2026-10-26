@@ -1,8 +1,8 @@
 package http
 
+import "fc:locks"
 import "core:mem"
 import "core:strings"
-import "core:sync"
 import "core:time"
 import "fc:netio"
 
@@ -131,9 +131,9 @@ H2_Conn :: struct {
 	r:                    Reader,
 	allocator:            mem.Allocator,
 	cfg:                  H2_Config,
-	mu:                   sync.Mutex,
-	cond:                 sync.Cond,
-	wmu:                  sync.Mutex,
+	mu:                   locks.Mutex,
+	cond:                 locks.Cond,
+	wmu:                  locks.Mutex,
 	enc:                  Hpack_Encoder, // under wmu
 	dec:                  Hpack_Decoder, // reader only
 	reading:              bool,
@@ -242,24 +242,24 @@ h2_close :: proc(c: ^H2_Conn) {
 	if c.cfg.goaway_on_close && c.dead == .None {
 		buf := make([dynamic]byte, 0, 17, context.temp_allocator)
 		put_goaway(&buf, 0, .No_Error)
-		sync.mutex_lock(&c.wmu)
+		locks.lock(&c.wmu)
 		_ = netio.write(c.s, buf[:])
-		sync.mutex_unlock(&c.wmu)
+		locks.unlock(&c.wmu)
 	}
 	netio.shutdown(c.s)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	fail_conn_locked(c, .Closed)
-	sync.cond_broadcast(&c.cond)
+	locks.cond_broadcast(&c.cond)
 	deadline := time.tick_now()
 	c.closing = true
 	for c.reading || c.users > 0 {
 		if time.tick_since(deadline) > 5 * time.Second {
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			return // leak: a reader is still blocked inside the stream
 		}
-		sync.cond_wait_with_timeout(&c.cond, &c.mu, 100 * time.Millisecond)
+		locks.cond_wait_with_timeout(&c.cond, &c.mu, 100 * time.Millisecond)
 	}
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	netio.close(c.s)
 	h2_destroy(c)
 }
@@ -346,8 +346,8 @@ spdy_priority :: proc(p: Priority) -> u8 {
 // enter/leave bracket every public call so h2_close can wait for callers.
 @(private)
 enter :: proc(c: ^H2_Conn) -> bool {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	if c.closing do return false
 	c.users += 1
 	return true
@@ -355,10 +355,10 @@ enter :: proc(c: ^H2_Conn) -> bool {
 
 @(private)
 leave :: proc(c: ^H2_Conn) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.users -= 1
-	sync.cond_broadcast(&c.cond)
-	sync.mutex_unlock(&c.mu)
+	locks.cond_broadcast(&c.cond)
+	locks.unlock(&c.mu)
 }
 
 @(private)
@@ -371,14 +371,14 @@ drive_until :: proc(c: ^H2_Conn, pred: Wait_Pred, data: rawptr) {
 		if c.dead != .None do return
 		if !c.reading {
 			c.reading = true
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			err := read_one_frame(c)
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			c.reading = false
 			if err != .None do fail_conn_locked(c, err)
-			sync.cond_broadcast(&c.cond)
+			locks.cond_broadcast(&c.cond)
 		} else {
-			sync.cond_wait(&c.cond, &c.mu)
+			locks.cond_wait(&c.cond, &c.mu)
 		}
 	}
 }
@@ -412,8 +412,8 @@ prio_remove :: proc(c: ^H2_Conn, st: ^H2_Stream) {
 // Writes from the reader / control paths.
 @(private)
 write_locked_w :: proc(c: ^H2_Conn, data: []byte) -> Error {
-	sync.mutex_lock(&c.wmu)
-	defer sync.mutex_unlock(&c.wmu)
+	locks.lock(&c.wmu)
+	defer locks.unlock(&c.wmu)
 	return map_net_error(netio.write(c.s, data))
 }
 
@@ -423,9 +423,9 @@ conn_error :: proc(c: ^H2_Conn, code: H2_Code) -> Error {
 	buf := make([dynamic]byte, 0, 17, context.temp_allocator)
 	put_goaway(&buf, 0, code)
 	_ = write_locked_w(c, buf[:])
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.goaway_code = u32(code)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	return .Protocol if code != .Flow_Control_Error else .Flow_Control
 }
 
@@ -434,9 +434,9 @@ stream_error :: proc(c: ^H2_Conn, id: u32, code: H2_Code) {
 	buf := make([dynamic]byte, 0, 13, context.temp_allocator)
 	put_rst(&buf, id, code)
 	_ = write_locked_w(c, buf[:])
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	if st, ok := c.streams[id]; ok do fail_stream_locked(c, st, .Protocol if code != .Flow_Control_Error else .Flow_Control, u32(code))
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 // read_one_frame reads and handles one frame. Called by the reading leader without c.mu.
@@ -483,11 +483,11 @@ read_one_frame :: proc(c: ^H2_Conn) -> Error {
 		if length != 4 do return conn_error(c, .Frame_Size_Error)
 		if !opened(c, sid) do return conn_error(c, .Protocol_Error) // idle stream
 		code := be32(p)
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		if st, ok := c.streams[sid]; ok {
 			fail_stream_locked(c, st, .Refused if code == u32(H2_Code.Refused_Stream) else .Stream_Reset, code)
 		}
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return .None
 	case .Settings:
 		return on_settings(c, sid, flags, p)
@@ -497,9 +497,9 @@ read_one_frame :: proc(c: ^H2_Conn) -> Error {
 		if sid != 0 do return conn_error(c, .Protocol_Error)
 		if length != 8 do return conn_error(c, .Frame_Size_Error)
 		if flags & FLAG_ACK != 0 {
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			c.ping_acks += 1
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			return .None
 		}
 		buf := make([dynamic]byte, 0, 17, context.temp_allocator)
@@ -511,24 +511,24 @@ read_one_frame :: proc(c: ^H2_Conn) -> Error {
 		if length < 8 do return conn_error(c, .Frame_Size_Error)
 		last := be32(p) & 0x7fffffff
 		code := be32(p[4:])
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		c.goaway = true
 		c.goaway_last = last
 		c.goaway_code = code
 		for id, st in c.streams {
 			if id > last do fail_stream_locked(c, st, .Refused, code)
 		}
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return .None
 	case .Window_Update:
 		if length != 4 do return conn_error(c, .Frame_Size_Error)
 		inc := i64(be32(p) & 0x7fffffff)
 		if sid == 0 {
 			if inc == 0 do return conn_error(c, .Protocol_Error)
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			c.conn_send_window += inc
 			over := c.conn_send_window > MAX_WINDOW
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			if over do return conn_error(c, .Flow_Control_Error)
 			return .None
 		}
@@ -536,13 +536,13 @@ read_one_frame :: proc(c: ^H2_Conn) -> Error {
 			stream_error(c, sid, .Protocol_Error)
 			return .None
 		}
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		over := false
 		if st, ok := c.streams[sid]; ok {
 			st.send_window += inc
 			over = st.send_window > MAX_WINDOW
 		}
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		if over do stream_error(c, sid, .Flow_Control_Error)
 		return .None
 	}
@@ -552,8 +552,8 @@ read_one_frame :: proc(c: ^H2_Conn) -> Error {
 // opened: sid was assigned by us (client-initiated, not idle).
 @(private)
 opened :: proc(c: ^H2_Conn, sid: u32) -> bool {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	return sid % 2 == 1 && sid < c.next_id
 }
 
@@ -572,9 +572,9 @@ on_data :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
 	if !opened(c, sid) do return conn_error(c, .Protocol_Error)
 	n := i64(len(p))
 	out := make([dynamic]byte, 0, 32, context.temp_allocator)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	if n > c.conn_recv_window {
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return conn_error(c, .Flow_Control_Error)
 	}
 	c.conn_recv_window -= n
@@ -589,7 +589,7 @@ on_data :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
 	st, found := c.streams[sid]
 	rst_code := H2_Code.No_Error
 	if !ok {
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return conn_error(c, .Protocol_Error)
 	}
 	if found && !st.done {
@@ -617,7 +617,7 @@ on_data :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
 			}
 		}
 	}
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	if rst_code != .No_Error {
 		if rst_code == .Cancel {
 			put_rst(&out, sid, .Cancel)
@@ -661,15 +661,15 @@ on_header_block :: proc(c: ^H2_Conn, sid: u32, flags: u8, block: []byte) -> Erro
 	if derr == .Protocol do return conn_error(c, .Compression_Error)
 	end_stream := flags & FLAG_END_STREAM != 0
 
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	st, found := c.streams[sid]
 	if !found || st.done {
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return .None
 	}
 	if derr == .Too_Large {
 		fail_stream_locked(c, st, .Too_Large, u32(H2_Code.Protocol_Error))
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		buf := make([dynamic]byte, 0, 13, context.temp_allocator)
 		put_rst(&buf, sid, .Protocol_Error)
 		return write_locked_w(c, buf[:])
@@ -718,7 +718,7 @@ on_header_block :: proc(c: ^H2_Conn, sid: u32, flags: u8, block: []byte) -> Erro
 		st.done = true
 		prio_remove(c, st)
 	}
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	if bad do stream_error(c, sid, .Protocol_Error)
 	return .None
 }
@@ -739,9 +739,9 @@ on_settings :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
 	if sid != 0 do return conn_error(c, .Protocol_Error)
 	if flags & FLAG_ACK != 0 {
 		if len(p) != 0 do return conn_error(c, .Frame_Size_Error)
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		c.settings_acked = true
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return .None
 	}
 	if len(p) % 6 != 0 do return conn_error(c, .Frame_Size_Error)
@@ -759,7 +759,7 @@ on_settings :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
 			if v < 16384 || v > 16777215 do return conn_error(c, .Protocol_Error)
 		}
 	}
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	for i := 0; i < len(p); i += 6 {
 		id := u16(p[i]) << 8 | u16(p[i + 1])
 		v := be32(p[i + 2:])
@@ -781,15 +781,15 @@ on_settings :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
 		}
 	}
 	c.got_settings = true
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	// Apply the encoder table size and ACK under wmu so every HEADERS block
 	// written after the ACK uses the new size.
 	buf := make([dynamic]byte, 0, 9, context.temp_allocator)
 	put_frame_header(&buf, 0, .Settings, FLAG_ACK, 0)
-	sync.mutex_lock(&c.wmu)
+	locks.lock(&c.wmu)
 	if new_table >= 0 do hpack_encoder_set_peer_table_size(&c.enc, new_table)
 	werr := netio.write(c.s, buf[:])
-	sync.mutex_unlock(&c.wmu)
+	locks.unlock(&c.wmu)
 	return map_net_error(werr)
 }
 
@@ -838,19 +838,19 @@ h2_open :: proc(c: ^H2_Conn, req: Request) -> (st: ^H2_Stream, err: Error) {
 	if !enter(c) do return nil, .Closed
 	defer leave(c)
 
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	drive_until(c, pred_slot, nil)
 	if c.dead != .None {
 		err = c.dead
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return nil, err
 	}
 	if c.goaway {
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		return nil, .Goaway
 	}
 	c.active += 1
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 
 	fields := make([dynamic]Header, 0, len(req.headers) + 4, context.temp_allocator)
 	append(&fields, Header{":method", req.method})
@@ -860,13 +860,13 @@ h2_open :: proc(c: ^H2_Conn, req: Request) -> (st: ^H2_Stream, err: Error) {
 	append(&fields, ..req.headers)
 	has_body := len(req.body) > 0
 
-	sync.mutex_lock(&c.wmu)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.wmu)
+	locks.lock(&c.mu)
 	if c.dead != .None || c.goaway || c.next_id > MAX_WINDOW {
 		err = c.dead if c.dead != .None else .Goaway
 		c.active -= 1
-		sync.mutex_unlock(&c.mu)
-		sync.mutex_unlock(&c.wmu)
+		locks.unlock(&c.mu)
+		locks.unlock(&c.wmu)
 		return nil, err
 	}
 	st = new(H2_Stream, c.allocator)
@@ -893,7 +893,7 @@ h2_open :: proc(c: ^H2_Conn, req: Request) -> (st: ^H2_Stream, err: Error) {
 	append(&c.prio_lists[st.priority], st.id)
 	c.streams[st.id] = st
 	max_frame := c.peer_max_frame
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 
 	block := make([dynamic]byte, 0, 512, context.temp_allocator)
 	hpack_encode(&c.enc, fields[:], &block)
@@ -915,12 +915,12 @@ h2_open :: proc(c: ^H2_Conn, req: Request) -> (st: ^H2_Stream, err: Error) {
 		rest = rest[n:]
 	}
 	werr := map_net_error(netio.write(c.s, out[:]))
-	sync.mutex_unlock(&c.wmu)
+	locks.unlock(&c.wmu)
 	if werr != .None {
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		fail_conn_locked(c, werr)
-		sync.cond_broadcast(&c.cond)
-		sync.mutex_unlock(&c.mu)
+		locks.cond_broadcast(&c.cond)
+		locks.unlock(&c.mu)
 		return st, .None // h2_wait reports the error
 	}
 	if !has_body {
@@ -935,26 +935,26 @@ h2_open :: proc(c: ^H2_Conn, req: Request) -> (st: ^H2_Stream, err: Error) {
 send_body :: proc(c: ^H2_Conn, st: ^H2_Stream, body: []byte) {
 	rest := body
 	for len(rest) > 0 {
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		drive_until(c, pred_window, st)
 		if st.done || c.dead != .None {
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			return
 		}
 		n := min(len(rest), c.cfg.data_chunk, c.peer_max_frame, int(c.conn_send_window), int(st.send_window))
 		c.conn_send_window -= i64(n)
 		st.send_window -= i64(n)
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		last := n == len(rest)
 		buf := make([dynamic]byte, 0, n + 9, context.temp_allocator)
 		put_frame_header(&buf, n, .Data, FLAG_END_STREAM if last else 0, st.id)
 		append(&buf, ..rest[:n])
 		werr := write_locked_w(c, buf[:])
 		if werr != .None {
-			sync.mutex_lock(&c.mu)
+			locks.lock(&c.mu)
 			fail_conn_locked(c, werr)
-			sync.cond_broadcast(&c.cond)
-			sync.mutex_unlock(&c.mu)
+			locks.cond_broadcast(&c.cond)
+			locks.unlock(&c.mu)
 			return
 		}
 		rest = rest[n:]
@@ -967,7 +967,7 @@ send_body :: proc(c: ^H2_Conn, st: ^H2_Stream, body: []byte) {
 h2_wait :: proc(c: ^H2_Conn, st: ^H2_Stream) -> (resp: Response, err: Error) {
 	if !enter(c) do return {}, .Closed // stream is freed by h2_close
 	defer leave(c)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	drive_until(c, pred_done, st)
 	if !st.done do fail_stream_locked(c, st, c.dead if c.dead != .None else .Io, 0)
 	delete_key(&c.streams, st.id)
@@ -975,8 +975,8 @@ h2_wait :: proc(c: ^H2_Conn, st: ^H2_Stream) -> (resp: Response, err: Error) {
 	resp = st.resp
 	err = st.err
 	sent_end := st.sent_end
-	sync.cond_broadcast(&c.cond)
-	sync.mutex_unlock(&c.mu)
+	locks.cond_broadcast(&c.cond)
+	locks.unlock(&c.mu)
 	// Server finished before our body was fully sent: tell it we're done.
 	if err == .None && !sent_end {
 		buf := make([dynamic]byte, 0, 13, context.temp_allocator)
@@ -1009,15 +1009,15 @@ h2_ping :: proc(c: ^H2_Conn, payload: [8]byte = {}) -> Error {
 	payload := payload
 	if !enter(c) do return .Closed
 	defer leave(c)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	want := c.ping_acks + 1
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	buf := make([dynamic]byte, 0, 17, context.temp_allocator)
 	put_frame_header(&buf, 8, .Ping, 0, 0)
 	append(&buf, ..payload[:])
 	write_locked_w(c, buf[:]) or_return
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	drive_until(c, pred_ping, &want)
 	return c.dead
 }
@@ -1030,15 +1030,15 @@ pred_never :: proc(c: ^H2_Conn, _: rawptr) -> bool {return false}
 h2_service :: proc(c: ^H2_Conn) -> Error {
 	if !enter(c) do return .Closed
 	defer leave(c)
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	drive_until(c, pred_never, nil)
 	return c.dead
 }
 
 // h2_can_open reports whether new streams may be opened on this connection.
 h2_can_open :: proc(c: ^H2_Conn) -> bool {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	return c.dead == .None && !c.goaway && c.next_id <= MAX_WINDOW
 }

@@ -16,6 +16,7 @@
 // checks twice a second) and restarted on the next source_write.
 package audio
 
+import "fc:locks"
 import "base:runtime"
 import "core:math"
 import "core:sync"
@@ -110,7 +111,7 @@ State :: struct {
 	voice_proc:    bool,
 	ctx:           runtime.Context,
 	latency:       f64,
-	device_mu:     sync.Mutex, // start/stop
+	device_mu:     locks.Mutex, // start/stop
 	watchdog:      ^thread.Thread,
 	callbacks:     u64, // atomic, device callbacks (diagnostics)
 	frames_out:    u64, // atomic, frames rendered (diagnostics)
@@ -154,14 +155,14 @@ shutdown :: proc() {
 	if !st.initialized do return
 	if st.capturing do capture_stop()
 	if st.device_ok {
-		sync.mutex_lock(&st.device_mu)
+		locks.lock(&st.device_mu)
 		_device_shutdown()
-		sync.mutex_unlock(&st.device_mu)
+		locks.unlock(&st.device_mu)
 		for {
 			// wait for the watchdog to notice
-			sync.mutex_lock(&st.device_mu)
+			locks.lock(&st.device_mu)
 			w := st.watchdog
-			sync.mutex_unlock(&st.device_mu)
+			locks.unlock(&st.device_mu)
 			if w == nil do break
 			time.sleep(10 * time.Millisecond)
 		}
@@ -285,8 +286,8 @@ apply_flush :: proc "contextless" (sl: ^Slot) {
 
 @(private)
 start_output :: proc() {
-	sync.mutex_lock(&st.device_mu)
-	defer sync.mutex_unlock(&st.device_mu)
+	locks.lock(&st.device_mu)
+	defer locks.unlock(&st.device_mu)
 	if st.running do return
 	sync.atomic_store(&st.idle_frames, 0)
 	_device_start()
@@ -299,19 +300,19 @@ start_output :: proc() {
 watchdog :: proc() {
 	for {
 		time.sleep(500 * time.Millisecond)
-		sync.mutex_lock(&st.device_mu)
+		locks.lock(&st.device_mu)
 		if !st.running {
 			st.watchdog = nil
-			sync.mutex_unlock(&st.device_mu)
+			locks.unlock(&st.device_mu)
 			return
 		}
 		if !st.capturing && f64(sync.atomic_load(&st.idle_frames)) > OUTPUT_IDLE_STOP * SAMPLE_RATE {
 			_device_stop()
 			st.watchdog = nil
-			sync.mutex_unlock(&st.device_mu)
+			locks.unlock(&st.device_mu)
 			return
 		}
-		sync.mutex_unlock(&st.device_mu)
+		locks.unlock(&st.device_mu)
 	}
 }
 
@@ -360,18 +361,18 @@ mix :: proc "contextless" (out: []f32) {
 capture_start :: proc(voice_processing := true) -> bool {
 	if !st.device_ok || st.capturing do return st.capturing
 	sync.atomic_store(&st.capture.r, sync.atomic_load(&st.capture.w))
-	sync.mutex_lock(&st.device_mu)
+	locks.lock(&st.device_mu)
 	st.capturing = _capture_start(voice_processing)
-	sync.mutex_unlock(&st.device_mu)
+	locks.unlock(&st.device_mu)
 	st.voice_proc = st.capturing && voice_processing
 	return st.capturing
 }
 
 capture_stop :: proc() {
 	if !st.capturing do return
-	sync.mutex_lock(&st.device_mu)
+	locks.lock(&st.device_mu)
 	_capture_stop()
-	sync.mutex_unlock(&st.device_mu)
+	locks.unlock(&st.device_mu)
 	st.capturing = false
 	st.voice_proc = false
 }

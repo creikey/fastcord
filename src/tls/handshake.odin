@@ -1,11 +1,11 @@
 package tls
 
+import "fc:locks"
 import "core:crypto"
 import "core:crypto/ecdh"
 import "core:crypto/mlkem"
 import "core:crypto/x509"
 import "core:strings"
-import "core:sync"
 
 import "fc:brotli"
 import "fc:netio"
@@ -196,8 +196,8 @@ post_handshake :: proc(s: ^Session, typ: u8, body: []byte, rest: int) -> Error {
 		expand_label(s.suite, s.rd.secret[:hl], "traffic upd", nil, next[:hl])
 		set_keys(&s.rd, s.suite, next[:hl])
 		if body[0] == 1 {
-			sync.mutex_lock(&s.wmu)
-			defer sync.mutex_unlock(&s.wmu)
+			locks.lock(&s.wmu)
+			defer locks.unlock(&s.wmu)
 			if s.sent_close do return .None
 			send_key_update_locked(s, false) or_return
 		}

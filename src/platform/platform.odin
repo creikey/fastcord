@@ -24,6 +24,7 @@
 // wait_events (handle events(), draw).
 package platform
 
+import "fc:locks"
 import "base:runtime"
 import "core:mem/virtual"
 import "core:sync"
@@ -129,7 +130,7 @@ State :: struct {
 	current:         [dynamic]Event,
 	pending_arena:   virtual.Arena,
 	current_arena:   virtual.Arena,
-	queue_lock:      sync.Mutex, // inject_event may be called from any thread
+	queue_lock:      locks.Mutex, // inject_event may be called from any thread
 }
 
 @(private)
@@ -196,8 +197,8 @@ wait_events :: proc(timeout_seconds: f64) {
 
 @(private)
 _swap_queues :: proc() {
-	sync.mutex_lock(&s.queue_lock)
-	defer sync.mutex_unlock(&s.queue_lock)
+	locks.lock(&s.queue_lock)
+	defer locks.unlock(&s.queue_lock)
 	s.pending, s.current = s.current, s.pending
 	s.pending_arena, s.current_arena = s.current_arena, s.pending_arena
 	clear(&s.pending)
@@ -290,8 +291,8 @@ headless_resize :: proc(width, height: f32, dpi: f32 = 0) {
 
 @(private)
 push_event :: proc(e: Event) {
-	sync.mutex_lock(&s.queue_lock)
-	defer sync.mutex_unlock(&s.queue_lock)
+	locks.lock(&s.queue_lock)
+	defer locks.unlock(&s.queue_lock)
 	ev := e
 	if len(ev.text) > 0 {
 		ev.text = clone_string(ev.text, virtual.arena_allocator(&s.pending_arena))
@@ -301,8 +302,8 @@ push_event :: proc(e: Event) {
 
 @(private)
 pending_count :: proc() -> int {
-	sync.mutex_lock(&s.queue_lock)
-	defer sync.mutex_unlock(&s.queue_lock)
+	locks.lock(&s.queue_lock)
+	defer locks.unlock(&s.queue_lock)
 	return len(s.pending)
 }
 

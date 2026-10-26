@@ -1,6 +1,6 @@
 package dave
 
-import "core:sync"
+import "fc:locks"
 import "core:time"
 import "fc:voice/mls"
 
@@ -66,7 +66,7 @@ Stats :: struct {
 }
 
 Session :: struct {
-	mu:               sync.Mutex,
+	mu:               locks.Mutex,
 	self_user:        u64,
 	group_id:         [8]byte,
 	stage_channel:    bool,
@@ -166,8 +166,8 @@ push :: proc(s: ^Session, o: Outgoing) {append(&s.out, o)}
 
 // session_take_outgoing moves queued messages to the caller (who frees each .data).
 session_take_outgoing :: proc(s: ^Session, allocator := context.allocator) -> []Outgoing {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	out := make([]Outgoing, len(s.out), allocator)
 	copy(out, s.out[:])
 	clear(&s.out)
@@ -175,8 +175,8 @@ session_take_outgoing :: proc(s: ^Session, allocator := context.allocator) -> []
 }
 
 session_close_request :: proc(s: ^Session) -> Close_Request {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	return s.close_request
 }
 
@@ -242,8 +242,8 @@ refuse_downgrade :: proc(s: ^Session, version: int, at_init: bool) -> bool {
 
 // on_select_protocol_ack: dave_protocol_version from op 4.
 on_select_protocol_ack :: proc(s: ^Session, version: int) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	if version > 0 {
 		init_epoch(s, version)
 	} else {
@@ -255,8 +255,8 @@ on_select_protocol_ack :: proc(s: ^Session, version: int) {
 }
 
 on_prepare_epoch :: proc(s: ^Session, ep: u64, version: int) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	if refuse_downgrade(s, version, false) do return
 	if ep == 1 {
 		init_epoch(s, version)
@@ -266,8 +266,8 @@ on_prepare_epoch :: proc(s: ^Session, ep: u64, version: int) {
 }
 
 on_external_sender :: proc(s: ^Session, payload: []byte) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	r := mls.reader_make(payload)
 	_ = mls.r_external_sender(&r)
 	if !mls.r_done(&r) {
@@ -280,14 +280,14 @@ on_external_sender :: proc(s: ^Session, payload: []byte) {
 }
 
 on_clients_connect :: proc(s: ^Session, users: []u64) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	for u in users do s.recognized[u] = true
 }
 
 on_client_disconnect :: proc(s: ^Session, user: u64) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	if user != s.self_user do delete_key(&s.recognized, user)
 }
 
@@ -301,8 +301,8 @@ user_of :: proc(cred: mls.Credential) -> (u64, bool) {
 
 // on_proposals: op 27 payload (after seq/opcode).
 on_proposals :: proc(s: ^Session, payload: []byte) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	g := s.current if s.current != nil else s.pending
 	if g == nil || len(payload) < 1 do return // no local group: ignored
 	r := mls.reader_make(payload[1:])
@@ -449,8 +449,8 @@ sender_base_secret :: proc(g: ^mls.Group, uid: u64) -> (out: [16]byte) {
 
 // on_announce_commit: op 29 (transition id, MLSMessage commit).
 on_announce_commit :: proc(s: ^Session, tid: int, commit: []byte) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	if s.has_outbound && mls.bytes_equal(s.outbound.commit, commit) {
 		g := s.outbound.group
 		s.outbound.group = nil
@@ -479,8 +479,8 @@ on_announce_commit :: proc(s: ^Session, tid: int, commit: []byte) {
 
 // on_welcome: op 30 (transition id, Welcome).
 on_welcome :: proc(s: ^Session, tid: int, welcome: []byte) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	if s.current != nil || s.kp_msg == nil do return
 	jp := mls.Join_Params {
 		key_package = &s.kp,
@@ -505,8 +505,8 @@ on_welcome :: proc(s: ^Session, tid: int, welcome: []byte) {
 }
 
 on_prepare_transition :: proc(s: ^Session, tid: int, version: int) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	if refuse_downgrade(s, version, false) do return
 	s.transitions[tid] = version
 	if version == 0 do s.passthrough_forever = true // receive side accepts plain frames
@@ -518,8 +518,8 @@ on_prepare_transition :: proc(s: ^Session, tid: int, version: int) {
 }
 
 on_execute_transition :: proc(s: ^Session, tid: int) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	version, ok := s.transitions[tid]
 	if !ok do version = s.protocol_version
 	execute_locked(s, tid, version)
@@ -571,8 +571,8 @@ MAX_SUPPLEMENTAL :: TAG_SIZE + 5 + 1 + 2
 // session_encrypt: out must hold len(frame) + MAX_SUPPLEMENTAL. Returns the
 // frame to send (encrypted, or passthrough when DAVE is not active).
 session_encrypt :: proc(s: ^Session, frame: []byte, out: []byte) -> int {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	if !s.send_active {
 		// libdave encryptor: plain frames only in passthrough (protocol 0);
 		// with E2EE negotiated but no key yet, media is dropped
@@ -591,8 +591,8 @@ session_encrypt :: proc(s: ^Session, frame: []byte, out: []byte) -> int {
 
 // session_decrypt: out must hold len(frame).
 session_decrypt :: proc(s: ^Session, user: u64, frame: []byte, out: []byte) -> (n: int, res: Decrypt_Result) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	passthrough_ok := s.passthrough_forever || s.now_ms() < s.passthrough_until
 	if len(frame) == 3 && frame[0] == 0xF8 && frame[1] == 0xFF && frame[2] == 0xFE {
 		copy(out, frame)
@@ -641,8 +641,8 @@ Status :: struct {
 }
 
 session_status :: proc(s: ^Session, allocator := context.allocator) -> (st: Status) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	st.protocol_version = s.protocol_version
 	st.e2ee_active = s.send_active
 	st.epoch = s.executed_epoch
@@ -657,19 +657,19 @@ session_status :: proc(s: ^Session, allocator := context.allocator) -> (st: Stat
 // session_verification_code: 45-digit pairwise code with another member
 // (scrypt; takes ~100 ms). ok=false if the user is not in the group.
 session_verification_code :: proc(s: ^Session, user: u64, allocator := context.allocator) -> (code: string, ok: bool) {
-	sync.mutex_lock(&s.mu)
+	locks.lock(&s.mu)
 	their, has := s.roster[user]
 	mine := s.identity.sig_pub
 	self := s.self_user
-	sync.mutex_unlock(&s.mu)
+	locks.unlock(&s.mu)
 	if !has do return "", false
 	fp := pairwise_fingerprint(self, mine[:], user, their[:])
 	return verification_code(fp[:], allocator)
 }
 
 session_user_ids :: proc(s: ^Session, allocator := context.allocator) -> []u64 {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	out := make([dynamic]u64, 0, len(s.roster), allocator)
 	for k in s.roster do append(&out, k)
 	return out[:]

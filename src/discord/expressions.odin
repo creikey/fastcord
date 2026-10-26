@@ -1,9 +1,9 @@
 package discord
 
+import "fc:locks"
 import "core:encoding/base64"
 import "core:mem/virtual"
 import "core:strings"
-import "core:sync"
 import "core:thread"
 import "core:time"
 import "fc:http"
@@ -70,8 +70,8 @@ Expr_Job :: struct {
 
 @(private = "file")
 Expr_Pool :: struct {
-	mu:      sync.Mutex,
-	cond:    sync.Cond,
+	mu:      locks.Mutex,
+	cond:    locks.Cond,
 	jobs:    [dynamic]Expr_Job,
 	results: [dynamic]Expr_Result,
 	threads: [dynamic]^thread.Thread,
@@ -86,17 +86,17 @@ EXPR_THREADS :: 3
 @(private = "file")
 expr_worker :: proc(_: rawptr) {
 	for {
-		sync.mutex_lock(&pool.mu)
+		locks.lock(&pool.mu)
 		for len(pool.jobs) == 0 {
 			if pool.owner == nil || pool.owner.quit {
-				sync.mutex_unlock(&pool.mu)
+				locks.unlock(&pool.mu)
 				return
 			}
-			sync.cond_wait_with_timeout(&pool.cond, &pool.mu, 500 * time.Millisecond)
+			locks.cond_wait_with_timeout(&pool.cond, &pool.mu, 500 * time.Millisecond)
 		}
 		j := pool.jobs[0]
 		ordered_remove(&pool.jobs, 0)
-		sync.mutex_unlock(&pool.mu)
+		locks.unlock(&pool.mu)
 		if j.client.quit {
 			expr_job_free(&j)
 			continue
@@ -117,8 +117,8 @@ expr_job_free :: proc(j: ^Expr_Job) {
 
 @(private = "file")
 expr_submit :: proc(c: ^Client, j: Expr_Job) {
-	sync.mutex_lock(&pool.mu)
-	defer sync.mutex_unlock(&pool.mu)
+	locks.lock(&pool.mu)
+	defer locks.unlock(&pool.mu)
 	if pool.owner != c {
 		pool.owner = c
 		clear(&pool.threads)
@@ -136,14 +136,14 @@ expr_submit :: proc(c: ^Client, j: Expr_Job) {
 	jj.body = strings.clone(j.body)
 	jj.query = strings.clone(j.query)
 	append(&pool.jobs, jj)
-	sync.cond_signal(&pool.cond)
+	locks.cond_signal(&pool.cond)
 }
 
 @(private = "file")
 expr_deliver :: proc(c: ^Client, r: Expr_Result) {
-	sync.mutex_lock(&pool.mu)
+	locks.lock(&pool.mu)
 	append(&pool.results, r)
-	sync.mutex_unlock(&pool.mu)
+	locks.unlock(&pool.mu)
 	if c.cfg.wakeup != nil do c.cfg.wakeup(c.cfg.wakeup_data)
 }
 
@@ -217,8 +217,8 @@ expr_media_get :: proc(c: ^Client, url: string, kind: Media_Kind) -> (body: []by
 
 // expr_take returns finished expression requests (UI thread). Free each with expr_result_free.
 expr_take :: proc(c: ^Client, allocator := context.temp_allocator) -> []Expr_Result {
-	sync.mutex_lock(&pool.mu)
-	defer sync.mutex_unlock(&pool.mu)
+	locks.lock(&pool.mu)
+	defer locks.unlock(&pool.mu)
 	out := make([]Expr_Result, len(pool.results), allocator)
 	copy(out, pool.results[:])
 	clear(&pool.results)

@@ -1,8 +1,8 @@
 package discord
 
+import "fc:locks"
 import "core:slice"
 import "core:strings"
-import "core:sync"
 import "fc:etf"
 
 // User actions. Each mirrors what the official client sends when the user
@@ -16,11 +16,11 @@ import "fc:etf"
 // session), requests channel info (op 43) on guild entry, and loads messages
 // if the channel has none.
 select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limit := 50) {
-	sync.mutex_lock(&c.route_mu)
+	locks.lock(&c.route_mu)
 	prev_guild := c.route_guild
 	c.route_guild = guild_id
 	c.route_channel = channel_id
-	sync.mutex_unlock(&c.route_mu)
+	locks.unlock(&c.route_mu)
 	if guild_id != 0 && guild_id != prev_guild {
 		subscribe_guild(c, guild_id)
 		c.pending_guild_open = guild_id
@@ -485,10 +485,10 @@ send_ack :: proc(c: ^Client, channel_id, message_id: Snowflake, now: i64) {
 	w: Json
 	json_init(&w)
 	json_obj(&w)
-	sync.mutex_lock(&c.ack_mu)
+	locks.lock(&c.ack_mu)
 	if c.ack_token != "" do json_kstr(&w, "token", c.ack_token)
 	else do json_knull(&w, "token")
-	sync.mutex_unlock(&c.ack_mu)
+	locks.unlock(&c.ack_mu)
 	lv := rs.last_viewed if rs.last_viewed > 0 else days_since_epoch(now)
 	json_kint(&w, "last_viewed", i64(lv))
 	if flags != rs.flags {
@@ -628,18 +628,18 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 		c.account_verified = fbool(fmap(vmap(data), "user"), "verified")
 		// The window reopens on its last route: the guild is subscribed and its
 		// channel info requested on CONNECTION_OPEN, as when it was selected.
-		sync.mutex_lock(&c.route_mu)
+		locks.lock(&c.route_mu)
 		g, ch := c.route_guild, c.route_channel
-		sync.mutex_unlock(&c.route_mu)
+		locks.unlock(&c.route_mu)
 		if ch != 0 {
 			l := message_list(&c.store, ch)
 			h := c.analytics.viewport_h if c.analytics.viewport_h > 0 else 720
 			if !l.loaded && !l.loading do fetch_messages(c, ch, 0, initial_message_limit(h))
 		}
 		if g != 0 {
-			sync.mutex_lock(&c.job_mu)
+			locks.lock(&c.job_mu)
 			already := c.ready_subscribed_guild == g
-			sync.mutex_unlock(&c.job_mu)
+			locks.unlock(&c.job_mu)
 			if already do c.subs.guilds[g] = true
 			else do subscribe_guild(c, g)
 			c.pending_guild_open = g
@@ -673,9 +673,9 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 			if rt, ok := &c.analytics.roundtrips[parse_snowflake(nv)]; ok && rt.gateway == 0 do rt.gateway = now_ms()
 		}
 		gid := fsnow(d, "guild_id")
-		sync.mutex_lock(&c.route_mu)
+		locks.lock(&c.route_mu)
 		viewing := c.route_channel == fsnow(d, "channel_id")
-		sync.mutex_unlock(&c.route_mu)
+		locks.unlock(&c.route_mu)
 		if viewing && c.focused {
 			aid := fsnow(fmap(d, "author"), "id")
 			if aid != c.store.me do ack_message(c, fsnow(d, "channel_id"), fsnow(d, "id"))
@@ -929,9 +929,9 @@ home_open :: proc(c: ^Client) {
 	c.home_opened = true
 	if client_route_kind(c.start_route_guild, c.start_route_channel) == .Home do return // startup table covers it
 	api_get_later(c, "/users/@me/referrals/eligibility", 0)
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	ready := c.ready_ms
-	sync.mutex_unlock(&c.job_mu)
+	locks.unlock(&c.job_mu)
 	saved := c.start_route_guild
 	c.start_route_guild = 0
 	c.start_route_channel = 0

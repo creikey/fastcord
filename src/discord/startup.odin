@@ -1,7 +1,7 @@
 package discord
 
+import "fc:locks"
 import "core:strings"
-import "core:sync"
 
 // Startup requests: the REST calls the official client makes on its own
 // after launch / after READY. Kept as a table so tools/trafficdiff can check
@@ -221,16 +221,16 @@ schedule_experiments_fetch :: proc(c: ^Client) {
 // ---- ETag memory for no-cache fetches (detectables, exclusions) ----
 
 etag_get :: proc(c: ^Client, url: string) -> string {
-	sync.mutex_lock(&c.etag_mu)
-	defer sync.mutex_unlock(&c.etag_mu)
+	locks.lock(&c.etag_mu)
+	defer locks.unlock(&c.etag_mu)
 	v, ok := c.etags[url]
 	return strings.clone(v, context.temp_allocator) if ok else ""
 }
 
 etag_put :: proc(c: ^Client, url, etag: string) {
 	if etag == "" do return
-	sync.mutex_lock(&c.etag_mu)
-	defer sync.mutex_unlock(&c.etag_mu)
+	locks.lock(&c.etag_mu)
+	defer locks.unlock(&c.etag_mu)
 	if old, ok := c.etags[url]; ok {
 		if old == etag do return
 		delete(old, c.allocator)

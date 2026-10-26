@@ -1,10 +1,10 @@
 package discord
 
+import "fc:locks"
 import "core:fmt"
 import "core:os"
 import "core:slice"
 import "core:strings"
-import "core:sync"
 import "fc:http"
 import "fc:quic/h3"
 
@@ -97,8 +97,8 @@ nl_session :: proc(r: ^Recorder, key: string) -> int {
 rec_conn :: proc(data: rawptr, ev: Conn_Event) {
 	tap := cast(^Recorder_Tap)data
 	r := tap.r
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	f := nl_file(r, tap.acct)
 	if f == nil do return
 	at := now_ms()
@@ -148,8 +148,8 @@ rec_conn :: proc(data: rawptr, ev: Conn_Event) {
 
 // nl_request_headers writes the request's header block in send order.
 nl_request_headers :: proc(r: ^Recorder, acct, host: string, req: http.Request, version: http.Version, at_ms: i64) {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	f := nl_file(r, acct)
 	if f == nil do return
 	fields := make([dynamic]http.Header, 0, len(req.headers) + 5, context.temp_allocator)

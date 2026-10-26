@@ -1,10 +1,10 @@
 package tls
 
+import "fc:locks"
 import "base:runtime"
 import "core:crypto"
 import "core:mem"
 import "core:strings"
-import "core:sync"
 import "core:time"
 
 // Ticket_Cache holds TLS 1.3 session tickets keyed by "<host>|tcp" or
@@ -12,7 +12,7 @@ import "core:time"
 // newest valid ticket and the server's fresh tickets replace it. Safe for
 // concurrent use.
 Ticket_Cache :: struct {
-	mu:        sync.Mutex,
+	mu:        locks.Mutex,
 	entries:   map[string][dynamic]Ticket,
 	allocator: mem.Allocator,
 }
@@ -39,8 +39,8 @@ ticket_destroy :: proc(t: ^Ticket, allocator: mem.Allocator) {
 // ticket_cache_put stores a ticket (taking ownership of its slices, which must
 // have been allocated with the cache's allocator), evicting the oldest.
 ticket_cache_put :: proc(c: ^Ticket_Cache, host: string, quic: bool, t: Ticket) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	context.allocator = cache_allocator_locked(c)
 	key := cache_key(host, quic)
 	list, found := &c.entries[key]
@@ -59,8 +59,8 @@ ticket_cache_put :: proc(c: ^Ticket_Cache, host: string, quic: bool, t: Ticket) 
 // ticket_cache_take removes and returns the newest unexpired ticket. The
 // caller owns it and frees it with ticket_free.
 ticket_cache_take :: proc(c: ^Ticket_Cache, host: string, quic: bool) -> (t: Ticket, ok: bool) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	list, found := &c.entries[cache_key(host, quic)]
 	if !found do return {}, false
 	now := time.now()
@@ -75,16 +75,16 @@ ticket_cache_take :: proc(c: ^Ticket_Cache, host: string, quic: bool) -> (t: Tic
 
 // ticket_cache_count reports how many tickets are cached for host.
 ticket_cache_count :: proc(c: ^Ticket_Cache, host: string, quic: bool) -> int {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	list, found := c.entries[cache_key(host, quic)]
 	return len(list) if found else 0
 }
 
 // ticket_cache_clear drops every ticket.
 ticket_cache_clear :: proc(c: ^Ticket_Cache) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	for k, &list in c.entries {
 		for &t in list do ticket_destroy(&t, c.allocator)
 		delete(list)
@@ -100,8 +100,8 @@ ticket_free :: proc(c: ^Ticket_Cache, t: ^Ticket) {
 // cache_allocator is what ticket slices must be allocated with. Defaults to
 // the heap so the global cache never captures a per-test or arena allocator.
 cache_allocator :: proc(c: ^Ticket_Cache) -> mem.Allocator {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	return cache_allocator_locked(c)
 }
 
