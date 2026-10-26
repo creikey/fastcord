@@ -79,6 +79,11 @@ zones_destroy :: proc(z: ^Zones) {
 // Times the rest of the enclosing scope. name must outlive the Zones (use a literal).
 @(deferred_out = zone_end)
 zone :: #force_inline proc(name: string) -> Zone_Mark {
+	return zone_begin(name)
+}
+
+// Starts a zone that zone_end closes, for spans that are not a scope.
+zone_begin :: #force_inline proc(name: string) -> Zone_Mark {
 	if zones_on == nil do return {}
 	return {name, time.tick_now()}
 }

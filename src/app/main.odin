@@ -4,11 +4,13 @@ import "core:fmt"
 import "core:os"
 import "core:strconv"
 import "core:strings"
+import "core:time"
 import "core:unicode/utf8"
 import dc "fc:discord"
 import "fc:gfx"
 import "fc:locks"
 import "fc:platform"
+import "fc:prof"
 import "fc:ui"
 
 UI_Rect :: ui.Rect
@@ -226,7 +228,7 @@ frame :: proc() {
 	defer bench_frame_end()
 	now := platform.time_now()
 	dt := f32(now - app.last_time)
-	if app.last_time == 0 || dt > 0.1 do dt = 1.0 / 60
+	if app.last_time == 0 || dt <= 0 || dt > 0.1 do dt = 1.0 / 60
 	app.last_time = now
 	app.frame += 1
 	app.wake_at = 0
@@ -289,9 +291,17 @@ frame :: proc() {
 
 	t_render := platform.time_now()
 	watchdog_phase(.Render)
+	bench_render_begin()
 	gfx.begin_frame(gfx.Color(tok(&app.theme, "--background-base-lowest")))
-	render(cmds)
-	gfx.end_frame()
+	{
+		prof.zone("app.render")
+		render(cmds)
+	}
+	{
+		prof.zone("gfx.end_frame")
+		gfx.end_frame()
+	}
+	bench_render_end()
 	t_end := platform.time_now()
 
 	platform.set_cursor(map_cursor(ui.cursor()))
@@ -400,8 +410,11 @@ script_command :: proc(path: string, f: []string, t: ^f64) {
 		}
 		return
 	case "bench":
-		// bench <name>: frames from here to the next `bench` or the end are measured (bench.odin)
+		// bench <name>: frames from here to the next `bench`, `bench_off` or the end are measured (bench.odin)
 		bench_section(f[1])
+		return
+	case "bench_off":
+		bench_pause()
 		return
 	case "move":
 		platform.inject_event({kind = .Mouse_Move, pos = {num(f[1]), num(f[2])}})
@@ -414,8 +427,12 @@ script_command :: proc(path: string, f: []string, t: ^f64) {
 	case "go_home":
 		go_home()
 	case "open":
-		// open <channel id>
+		// open <channel id> | open unread_dm (the newest DM on the rail; works on live accounts too)
 		id, _ := strconv.parse_u64(f[1])
+		if f[1] == "unread_dm" {
+			dms := unread_dms()
+			if len(dms) > 0 do id = u64(dms[0])
+		}
 		if ch := dc.channel_get(store(), dc.Snowflake(id)); ch != nil {
 			select_channel(ch.guild_id, ch.id)
 		} else {
@@ -517,6 +534,14 @@ script_command :: proc(path: string, f: []string, t: ^f64) {
 		n := int(num(f[1]))
 		for _ in 0 ..< max(n, 1) do script_frame(t)
 		return
+	case "settle":
+		// Real seconds of 60 Hz frames, so network loads and image decodes can finish (live runs).
+		start := time.tick_now()
+		for time.duration_seconds(time.tick_since(start)) < f64(num(f[1])) {
+			script_frame(t)
+			time.sleep(16 * time.Millisecond)
+		}
+		return
 	}
 	script_frame(t)
 }
@@ -525,7 +550,14 @@ script_frame :: proc(t: ^f64) {
 	t^ += 1.0 / 60
 	platform.set_time_override(t^)
 	platform.wait_events(0)
+	start := time.tick_now()
 	frame()
+	// Measured frames keep a real 60 Hz cadence: the app idles between inputs, so CPU and GPU clocks
+	// drop between frames, and back-to-back frames would report better latency than a user sees.
+	if bench.measuring {
+		left := time.Second / 60 - time.tick_since(start)
+		if left > 0 do time.sleep(left)
+	}
 }
 
 // Token: $FASTCORD_TOKEN, else <state>/token (written by the login flow).

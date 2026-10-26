@@ -140,6 +140,8 @@ Frame_Stats :: struct {
 	instances:   int,
 	draw_calls:  int,
 	frames:      u64, // total frames submitted
+	gpu_ns:      i64, // GPU time of the latest frame whose timer finished (a few frames back); 0 if unknown
+	gpu_frame:   u64, // which frame (frame_index) gpu_ns belongs to
 }
 
 @(private)
@@ -178,6 +180,16 @@ shutdown :: proc() {
 }
 
 stats :: proc() -> Frame_Stats {return g.stats}
+
+// Live textures (for benchmarks: each distinct texture costs per-draw-call driver work).
+texture_count :: proc() -> int {
+	n := 0
+	for s in g.textures do if s.alive do n += 1
+	return n
+}
+
+// Blocks until the GPU has finished every submitted frame. For latency measurement and shutdown only.
+wait_gpu :: proc() {_backend_wait_idle()}
 
 // Points -> pixels factor for the current frame.
 scale :: proc() -> f32 {return g.scale}

@@ -1,0 +1,14 @@
+# A whole account (tests/bench/shape.json), the same script for the synthetic fixture and -live: runs.
+settle 3
+bench acct_home_idle
+wait 60
+bench acct_home_hover
+sweep 120 120 300 650 40
+sweep 420 140 900 650 40
+bench_off
+open unread_dm
+settle 3
+bench acct_dm_idle
+wait 60
+bench acct_dm_hover
+sweep 420 120 1000 600 60

@@ -1,4 +1,4 @@
-# Home: the friends list (150 friends, 120 DMs in the sidebar), then a DM with 300 messages.
+# Home: the friends list (All tab) and DM sidebar, then a DM with 300 messages.
 go_home
 wait 10
 click_text "All"
@@ -7,7 +7,7 @@ bench home_idle
 wait 60
 bench home_hover
 sweep 420 140 900 650 60
-open 1700000000000100001
+open 1300000000000100001
 wait 30
 bench dm_idle
 wait 120

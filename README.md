@@ -74,31 +74,44 @@ All code imports siblings through the `fc` collection: `import "fc:netio"`.
 
 ## Performance
 
-The UI is immediate-mode and rebuilt twice per frame, so its cost is paid every frame. Measure before
-and after any UI change:
+The UI is immediate-mode and rebuilt twice per frame, so its cost is paid every frame. The app sleeps
+until input arrives, so what a user feels is latency: input to the GPU finishing the frame, starting
+from idle clocks. That is the headline number, not throughput. Measure before and after any UI or
+rendering change:
 
 ```sh
-tools/bench.sh           # build dev, run tests/bench/*.txt on a heavy fixture, compare, check budget
+tools/bench.sh           # build dev, run tests/bench/*.txt on the fixture, compare, check budget
 tools/bench.sh --save    # same, then keep this run as build/bench/baseline.jsonl
 tools/bench.sh chat      # one script
+tools/bench.sh --live    # tests/bench/account.txt on the real account and on the fixture, side by side
 python3 -I tools/folded.py build/bench/chat.folded top 30              # hottest procedures
 python3 -I tools/folded.py build/bench/chat.folded callees 'message_row' 3
 python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
 ```
 
-- `tests/bench/make_bench_fixture.py` writes `build/bench/heavy.jsonl`: 60 guilds, 120 DMs, 150
-  friends, and long channels with every kind of markdown. It is synthetic and deterministic.
-- `tests/bench/*.txt` are scripts. `bench <name>` starts a measured section and `repeat N <cmd>` repeats a
-  command. `sweep x0 y0 x1 y1 n` moves the mouse in steps, and `open <channel id>` opens a channel.
-- Any app run takes `-bench[:<file.jsonl>]` (per-section median/p95 of each UI pass, plus `ui.Stats`
-  counters) and `-prof:<prefix>` (samples the UI thread at ~1 kHz during UI passes; writes
+- `tests/bench/make_bench_fixture.py` writes `build/bench/heavy.jsonl` and generated images in
+  `build/bench/media` from `tests/bench/shape.json`: the counts of a real account (users, avatars,
+  guilds and folders in sidebar order, channels, roles, emoji, unreads, mutes, read states). No names,
+  ids or content. It adds a 400-message guild channel and a 300-message DM for the chat benches.
+  `tools/bench.sh --live` writes the live account's shape to `build/bench/shape.json` and diffs it
+  with the fixture's; copy it over `tests/bench/shape.json` when the account has drifted.
+- `FASTCORD_MEDIA_DIR=<dir>` serves CDN images from files named by the URL's last path component, so
+  fixture runs load avatars, icons and emoji like a live run, offline.
+- `tests/bench/*.txt` are scripts. `bench <name>` starts a measured section, `bench_off` ends it,
+  `repeat N <cmd>` repeats a command, `sweep x0 y0 x1 y1 n` moves the mouse in steps, `open <channel id>`
+  or `open unread_dm` opens a channel, and `settle <seconds>` runs real-time frames so loads finish.
+  `account.txt` runs unchanged on the fixture and live.
+- Measured frames run at a real 60 Hz cadence and each waits for the GPU, so CPU and GPU start every
+  frame from idle, as in use. Per section the report gives latency, UI pass and render CPU time, GPU
+  time (D3D11 timestamp queries; Metal reports none yet), `ui.Stats` counters, and quads and draw calls.
+- Any app run takes `-bench[:<file.jsonl>]` (the report, plus one JSON line per section),
+  `-prof:<prefix>` (samples the UI thread at ~1 kHz during UI passes and rendering; writes
   `<prefix>.txt` and `<prefix>.folded` for speedscope.app; on macOS self time is exact but callers are
-  approximate). It also takes `-trace:<file>` (a Chrome
-  trace of `prof.zone` scopes).
+  approximate), `-trace:<file>` (a Chrome trace of `prof.zone` scopes) and `-shape:<file>`.
 - On a real account, read-only: `./build/fastcord-dev -bench -dpi:1 -live:15 -script:<s> -prof:build/bench/live`.
   Don't type in such a script: typing sends "is typing" from the account.
-- `tests/bench/budget.json` caps the deterministic counters (boxes, text layouts, draw commands)
-  per section; `tests/run_all.sh` fails when one grows. Timings are never checked: they vary by machine.
+- `tests/bench/budget.json` caps the deterministic counters (boxes, text layouts, draw commands, draw
+  calls) per section; `tests/run_all.sh` fails when one grows. Timings are never checked: they vary by machine.
 - `prof.zone("name")` times a scope (one thread-local check when no section is measuring). Zones show in
   the bench report and the trace. The sampler (`fc:prof`) also backs the hang watchdog's stacks.
 

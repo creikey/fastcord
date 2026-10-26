@@ -1,10 +1,12 @@
 #+build windows
 package gfx
 
+import "base:intrinsics"
 import "base:runtime"
 import "core:fmt"
 import "core:mem"
 import "fc:platform"
+import "fc:prof"
 import win "core:sys/windows"
 import D3D11 "vendor:directx/d3d11"
 import DXGI "vendor:directx/dxgi"
@@ -53,6 +55,34 @@ Dx :: struct {
 	inst_cap:    int,
 	cbuf:        ^D3D11.IBuffer,
 	swap_flags:  DXGI.SWAP_CHAIN,
+	timers:      [GPU_TIMERS]Gpu_Timer,
+	idle_query:  ^D3D11.IQuery,
+}
+
+// GPU time per frame from timestamp queries, read back GPU_TIMERS frames later so nothing waits.
+@(private = "file")
+GPU_TIMERS :: 6
+@(private = "file")
+Gpu_Timer :: struct {
+	disjoint, t0, t1: ^D3D11.IQuery,
+	frame:            u64,
+	pending:          bool,
+}
+
+@(private = "file")
+timer_read :: proc(t: ^Gpu_Timer) {
+	if !t.pending do return
+	dj: D3D11.QUERY_DATA_TIMESTAMP_DISJOINT
+	a, b: u64
+	flags := u32(transmute(D3D11.ASYNC_GETDATA_FLAGS)D3D11.ASYNC_GETDATA_FLAGS{.DONOTFLUSH})
+	if dx.ctx->GetData(t.disjoint, &dj, size_of(dj), flags) != 0 do return // S_FALSE: not done yet
+	t.pending = false
+	if dj.Disjoint || dj.Frequency == 0 do return
+	if dx.ctx->GetData(t.t0, &a, size_of(a), flags) != 0 || dx.ctx->GetData(t.t1, &b, size_of(b), flags) != 0 do return
+	if t.frame >= g.stats.gpu_frame {
+		g.stats.gpu_ns = i64(f64(b - a) * 1e9 / f64(dj.Frequency))
+		g.stats.gpu_frame = t.frame
+	}
 }
 
 @(private = "file")
@@ -102,6 +132,11 @@ _backend_init :: proc() -> bool {
 	dx.device->CreateSamplerState(&sd, &dx.sampler)
 	cbd := D3D11.BUFFER_DESC{ByteWidth = 16, Usage = .DYNAMIC, BindFlags = {.CONSTANT_BUFFER}, CPUAccessFlags = {.WRITE}}
 	dx.device->CreateBuffer(&cbd, nil, &dx.cbuf)
+	for &t in dx.timers {
+		dx.device->CreateQuery(&{Query = .TIMESTAMP_DISJOINT}, &t.disjoint)
+		dx.device->CreateQuery(&{Query = .TIMESTAMP}, &t.t0)
+		dx.device->CreateQuery(&{Query = .TIMESTAMP}, &t.t1)
+	}
 
 	if !platform.is_headless() {
 		hwnd := win.HWND(platform.native_window())
@@ -140,7 +175,18 @@ _backend_native_device :: proc() -> rawptr {return rawptr(dx.device)}
 
 @(private)
 _backend_wait_idle :: proc() {
-	if dx.ctx != nil do dx.ctx->Flush()
+	if dx.ctx == nil do return
+	if dx.idle_query == nil do dx.device->CreateQuery(&{Query = .EVENT}, &dx.idle_query)
+	if dx.idle_query == nil {
+		dx.ctx->Flush()
+		return
+	}
+	dx.ctx->End(dx.idle_query)
+	done: win.BOOL
+	// The first call flushes the queued commands; S_OK means the GPU has finished all of them.
+	for dx.ctx->GetData(dx.idle_query, &done, size_of(done), 0) != 0 {
+		intrinsics.cpu_relax()
+	}
 }
 
 @(private)
@@ -152,6 +198,12 @@ _backend_shutdown :: proc() {
 	if dx.inst_srv != nil do dx.inst_srv->Release()
 	if dx.inst_buf != nil do dx.inst_buf->Release()
 	dx.cbuf->Release()
+	if dx.idle_query != nil do dx.idle_query->Release()
+	for t in dx.timers {
+		if t.disjoint != nil do t.disjoint->Release()
+		if t.t0 != nil do t.t0->Release()
+		if t.t1 != nil do t.t1->Release()
+	}
 	dx.sampler->Release()
 	dx.raster->Release()
 	dx.blend->Release()
@@ -217,6 +269,15 @@ ensure_instances :: proc(n: int) {
 _backend_submit :: proc(insts: []Instance, batches: []Batch, clear: Color, fb: [2]i32) {
 	if fb.x <= 0 || fb.y <= 0 do return
 	if !ensure_target(fb) do return
+	for &t in dx.timers do timer_read(&t)
+	timer := &dx.timers[g.frame_index % GPU_TIMERS]
+	timer_read(timer)
+	if !timer.pending && timer.disjoint != nil && timer.t0 != nil && timer.t1 != nil {
+		dx.ctx->Begin(timer.disjoint)
+		dx.ctx->End(timer.t0)
+	} else {
+		timer = nil // still in flight from GPU_TIMERS frames ago: skip timing this frame
+	}
 	ensure_instances(len(insts))
 	if len(insts) > 0 {
 		// WRITE_DISCARD: the driver renames the buffer (ring-buffered under the hood).
@@ -242,6 +303,7 @@ _backend_submit :: proc(insts: []Instance, batches: []Batch, clear: Color, fb: [
 	dx.ctx->PSSetSamplers(0, 1, &dx.sampler)
 
 	Uniforms :: struct {viewport: [2]f32, base: u32, pad: u32}
+	zb := prof.zone_begin("gfx.batches")
 	for b in batches {
 		x := clamp(b.clip[0], 0, fb.x)
 		y := clamp(b.clip[1], 0, fb.y)
@@ -263,6 +325,14 @@ _backend_submit :: proc(insts: []Instance, batches: []Batch, clear: Color, fb: [
 		dx.ctx->PSSetShaderResources(2, 1, &dt2.srv)
 		dx.ctx->DrawInstanced(4, b.count, 0, 0)
 	}
+	prof.zone_end(zb)
+	if timer != nil {
+		dx.ctx->End(timer.t1)
+		dx.ctx->End(timer.disjoint)
+		timer.frame = g.frame_index
+		timer.pending = true
+	}
+	prof.zone("gfx.present")
 	if dx.swap != nil {
 		dx.swap->Present(1, {})
 	} else {

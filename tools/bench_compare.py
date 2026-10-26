@@ -4,13 +4,15 @@
 # deterministic for a given fixture and script, so the budget fails the run when one grows past its cap.
 import json, sys
 
-COUNTERS = ('boxes', 'keyed_boxes', 'text_layouts', 'shape_calls', 'glyphs', 'draw_cmds', 'arena_bytes')
+COUNTERS = ('boxes', 'keyed_boxes', 'text_layouts', 'shape_calls', 'glyphs', 'draw_cmds', 'arena_bytes', 'instances', 'batches')
 
 def load(path):
     out = {}
     for line in open(path, encoding='utf-8'):
         line = line.strip()
-        if line: o = json.loads(line); out[o['name']] = o  # the last run of a section wins
+        if not line: continue
+        o = json.loads(line)
+        if 'name' in o: out[o['name']] = o  # the last run of a section wins
     return out
 
 def main(argv):
@@ -28,13 +30,18 @@ def main(argv):
             budget = json.load(open(argv[i + 1], encoding='utf-8')); i += 2
         else:
             print('unknown argument', argv[i]); return 2
-    print('%-16s %9s %9s %7s %9s %7s %6s' % ('section', 'pass ms', 'baseline', 'speedup', 'frame ms', 'boxes', 'texts'))
+    # Latency (frame start until the GPU finished it) is the headline: the app sleeps until input, so
+    # that is what a user waits for. The UI pass and render columns say where it went.
+    def ms(o, k): return o.get(k, {}).get('median', 0.0)
+    def speedup(b, o, k): return '%6.2fx' % (ms(b, k) / ms(o, k)) if b and ms(b, k) > 0 and ms(o, k) > 0 else '%7s' % '-'
+    print('%-16s %10s %9s %7s %8s %7s %9s %7s %8s %6s %6s %6s' % ('section', 'latency ms', 'baseline', 'speedup', 'ui pass', 'speedup',
+          'render ms', 'speedup', 'gpu ms', 'boxes', 'texts', 'draws'))
     for name, o in latest.items():
-        med = o['pass_ms']['median']
         b = baseline.get(name)
-        base = '%9.3f' % b['pass_ms']['median'] if b else '%9s' % '-'
-        speed = '%6.2fx' % (b['pass_ms']['median'] / med) if b and med > 0 else '%7s' % '-'
-        print('%-16s %9.3f %s %s %9.3f %7d %6d' % (name, med, base, speed, o['frame_ms']['median'], o['boxes'], o['text_layouts']))
+        base = '%9.3f' % ms(b, 'latency_ms') if b else '%9s' % '-'
+        print('%-16s %10.3f %s %s %8.3f %s %9.3f %s %8.3f %6d %6d %6d' % (name, ms(o, 'latency_ms'), base, speedup(b, o, 'latency_ms'),
+              ms(o, 'pass_ms'), speedup(b, o, 'pass_ms'), ms(o, 'render_ms'), speedup(b, o, 'render_ms'), ms(o, 'gpu_ms'),
+              o['boxes'], o['text_layouts'], o.get('batches', 0)))
     fail = False
     for name, caps in budget.items():
         if name.startswith('_'): continue
