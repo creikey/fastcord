@@ -376,15 +376,16 @@ build_sample_table :: proc(t: ^Track, stbl: []u8, shift: i64) {
 	co64, _ := find(stbl, "co64")
 	if len(stsz) < 12 || len(stts) < 8 || len(stsc) < 8 do return
 
-	count := int(be32(stsz[8:]))
+	count := min(int(be32(stsz[8:])), 10_000_000)
 	fixed_size := be32(stsz[4:])
-	reserve(&t.packets, count)
+	if fixed_size == 0 do count = min(count, (len(stsz) - 12) / 4)
+	if reserve(&t.packets, count) != nil do return
 
 	// sizes + dts
-	stts_n := int(be32(stts[4:]))
+	stts_n := min(int(be32(stts[4:])), (len(stts) - 8) / 8)
 	e, left: int
 	dts: i64 = 0
-	ctts_n := has_ctts && len(ctts) >= 8 ? int(be32(ctts[4:])) : 0
+	ctts_n := has_ctts && len(ctts) >= 8 ? min(int(be32(ctts[4:])), (len(ctts) - 8) / 8) : 0
 	ce, cleft: int
 	if stts_n > 0 do left = int(be32(stts[8:]))
 	if ctts_n > 0 do cleft = int(be32(ctts[8:]))

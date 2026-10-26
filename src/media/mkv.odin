@@ -412,6 +412,7 @@ index_block :: proc(d: ^Demuxer, m: ^Mkv, at: i64, size: i64, simple: bool, bloc
 	total: i64
 	for k in 0 ..< count - 1 do total += sizes[k]
 	if lacing != 2 do sizes[count - 1] = payload_size - i64(p) - total
+	for k in 0 ..< count do if sizes[k] < 0 || sizes[k] > payload_size do return
 	off := payload_at + i64(p)
 	frame_dur := dur > 0 ? dur / i32(count) : 0
 	for k in 0 ..< count {
