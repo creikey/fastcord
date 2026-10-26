@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:strings"
 import "core:time"
 import dc "fc:discord"
+import "fc:platform"
 import "fc:ui"
 
 // Cozy message layout, measured from the official client.
@@ -635,6 +636,9 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 		if ui.parent(box) {
 			spacer(.X, 16)
 			plus := ui.box("plus", {.Clickable})
+			if ui.signal(plus).clicked {
+				for path in platform.open_file_dialog(true, context.temp_allocator) do stage_upload(path)
+			}
 			plus.semantic_size = {.X = ui.px(24), .Y = ui.px(52)}
 			plus.layout_axis = .Y
 			plus.cross_align = .Center
