@@ -1,5 +1,6 @@
 package discord
 
+import "core:crypto"
 import "core:encoding/base64"
 import "core:strings"
 import "core:sync"
@@ -104,7 +105,7 @@ identity_init :: proc(id: ^Identity, platform: Platform_Info, allocator := conte
 	id.allocator = allocator
 	id.client_launch_id = uuid4(allocator)
 	id.fast_connect_launch_id = uuid4(allocator)
-	id.launch_signature = uuid4(allocator)
+	id.launch_signature = launch_signature(allocator)
 	id.app_state = .Focused
 }
 
@@ -217,4 +218,28 @@ identity_heartbeat_snapshot :: proc(id: ^Identity, allocator := context.temp_all
 	h := id.heartbeat
 	h.uuid = strings.clone(h.uuid, allocator)
 	return h
+}
+
+// launch_signature reproduces libdiscore's generateLaunchSignature(globalThis)
+// (derived by running the captured wasm and probing it): a random uuid whose
+// version nibble is 4 and variant 8/9, with one "detection" bit per client-mod
+// family (BetterDiscord, rambox, revenge/vendetta/bunny/kettu, Vencord/Vesktop,
+// replugged, legcord, Dorion, GCDP, openasar, shelter, moonlight) that is set
+// when the family's global exists. A clean client has all of them cleared:
+//   sig = random & ~LAUNCH_SIG_ZERO | LAUNCH_SIG_ONE
+LAUNCH_SIG_ZERO := [16]byte{0x00, 0x80, 0x10, 0x10, 0x08, 0x10, 0xb8, 0x00, 0x60, 0x81, 0x00, 0x40, 0x01, 0x00, 0x08, 0x00}
+LAUNCH_SIG_ONE := [16]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+
+launch_signature :: proc(allocator := context.allocator) -> string {
+	b: [16]byte
+	crypto.rand_bytes(b[:])
+	for i in 0 ..< 16 do b[i] = (b[i] & ~LAUNCH_SIG_ZERO[i]) | LAUNCH_SIG_ONE[i]
+	return uuid_format(b, allocator)
+}
+
+launch_signature_is_clean :: proc(sig: string) -> bool {
+	b, ok := uuid_parse(sig)
+	if !ok do return false
+	for i in 0 ..< 16 do if b[i] & LAUNCH_SIG_ZERO[i] != 0 || b[i] & LAUNCH_SIG_ONE[i] != LAUNCH_SIG_ONE[i] do return false
+	return true
 }

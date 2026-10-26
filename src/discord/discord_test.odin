@@ -323,6 +323,28 @@ store_message_lifecycle :: proc(t: ^testing.T) {
 	store_apply_dispatch(&s, "GUILD_MEMBER_LIST_UPDATE", mlu, 0)
 	ml := s.member_lists[1]
 	testing.expect(t, len(ml.items) == 2 && ml.items[0].is_group && ml.items[1].user_id == 11)
+	// Role groups arrive as integers over ETF; counts come from top-level groups.
+	b := etf.map_builder(4, context.temp_allocator)
+	etf.map_put(&b, "guild_id", i64(1))
+	grp := etf.map_builder(2, context.temp_allocator)
+	etf.map_put(&grp, "id", i64(1546822593921679420))
+	etf.map_put(&grp, "count", i64(3))
+	gitem := etf.map_builder(1, context.temp_allocator)
+	etf.map_put(&gitem, "id", i64(1546822593921679420))
+	item := etf.map_builder(1, context.temp_allocator)
+	etf.map_put(&item, "group", etf.map_done(&gitem))
+	op := etf.map_builder(3, context.temp_allocator)
+	etf.map_put(&op, "op", string("UPDATE"))
+	etf.map_put(&op, "index", i64(0))
+	etf.map_put(&op, "item", etf.map_done(&item))
+	etf.map_put(&b, "groups", etf.List{etf.map_done(&grp)})
+	etf.map_put(&b, "ops", etf.List{etf.map_done(&op)})
+	store_apply_dispatch(&s, "GUILD_MEMBER_LIST_UPDATE", etf.map_done(&b), 0)
+	ml2 := s.member_lists[1]
+	testing.expect_value(t, ml2.items[0].role_id, Snowflake(1546822593921679420))
+	testing.expect_value(t, ml2.items[0].group_id, "1546822593921679420")
+	testing.expect_value(t, ml2.items[0].count, 3)
+	testing.expect_value(t, len(ml2.groups), 1)
 }
 
 @(test)
@@ -372,4 +394,14 @@ settings_delta :: proc(t: ^testing.T) {
 	store_init(&s, context.temp_allocator)
 	apply_settings_proto(&s, base64.encode(got, allocator = context.temp_allocator))
 	testing.expect_value(t, s.settings.status, Status.Dnd)
+}
+
+@(test)
+launch_signature_shape :: proc(t: ^testing.T) {
+	for _ in 0 ..< 100 do testing.expect(t, launch_signature_is_clean(launch_signature(context.temp_allocator)))
+	// Values produced by the official client.
+	for sig in ([]string{"b12ecf05-0367-432c-920a-8d8588a95331", "31316908-8449-4328-8578-c68e6622a68b", "123d47c4-f783-42c9-862c-7b2efcaa3493"}) {
+		testing.expect(t, launch_signature_is_clean(sig), sig)
+	}
+	testing.expect(t, !launch_signature_is_clean("00001000-0000-4000-8000-000000000000")) // BetterDiscord bit
 }

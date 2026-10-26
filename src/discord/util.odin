@@ -22,6 +22,10 @@ uuid4 :: proc(allocator := context.allocator) -> string {
 	crypto.rand_bytes(b[:])
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
+	return uuid_format(b, allocator)
+}
+
+uuid_format :: proc(b: [16]byte, allocator := context.allocator) -> string {
 	HEX := "0123456789abcdef"
 	out := make([]byte, 36, allocator)
 	j := 0
@@ -35,6 +39,30 @@ uuid4 :: proc(allocator := context.allocator) -> string {
 		j += 2
 	}
 	return string(out)
+}
+
+uuid_parse :: proc(s: string) -> (b: [16]byte, ok: bool) {
+	j := 0
+	hv :: proc(c: u8) -> (u8, bool) {
+		switch c {
+		case '0' ..= '9':
+			return c - '0', true
+		case 'a' ..= 'f':
+			return c - 'a' + 10, true
+		case 'A' ..= 'F':
+			return c - 'A' + 10, true
+		}
+		return 0, false
+	}
+	for i := 0; i < len(s); i += 1 {
+		if s[i] == '-' do continue
+		if j >= 32 || i + 1 >= len(s) + 1 do return {}, false
+		v := hv(s[i]) or_return
+		if j % 2 == 0 do b[j / 2] = v << 4
+		else do b[j / 2] |= v
+		j += 1
+	}
+	return b, j == 32
 }
 
 // ---- snowflakes / nonces ----

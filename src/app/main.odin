@@ -10,6 +10,7 @@ import "fc:platform"
 import "fc:ui"
 
 UI_Rect :: ui.Rect
+UI_Mods :: ui.Mods
 
 App :: struct {
 	theme:           Theme,
@@ -31,6 +32,8 @@ App :: struct {
 	profile_open_t:  f32,
 	pending_dm_user: dc.Snowflake,
 	caret_reset_t:   f64,
+	reaction_target: dc.Snowflake, // message whose reaction picker is open
+	ui_mods:         UI_Mods, // modifier keys as of the latest event
 }
 
 app: App
@@ -173,7 +176,11 @@ frame :: proc() {
 		handle_results()
 	}
 	images_receive()
+	for e in platform.events() {
+		if e.kind == .File_Drop && app.view.channel != 0 do stage_upload(e.text)
+	}
 	evs := map_events(platform.events())
+	for e in evs do app.ui_mods = e.mods
 	for e in evs do if e.kind == .Key_Down || e.kind == .Text do app.caret_reset_t = now
 	ui.begin(platform.window_size(), dt, now, evs)
 	build_ui()
@@ -256,6 +263,11 @@ run_script :: proc(path: string) {
 			platform.inject_event({kind = .Mouse_Move, pos = p})
 			platform.inject_event({kind = .Mouse_Down, pos = p, button = .Left, click_count = n})
 			platform.inject_event({kind = .Mouse_Up, pos = p, button = .Left, click_count = n})
+		case "rclick":
+			p := [2]f32{num(f[1]), num(f[2])}
+			platform.inject_event({kind = .Mouse_Move, pos = p})
+			platform.inject_event({kind = .Mouse_Down, pos = p, button = .Right, click_count = 1})
+			platform.inject_event({kind = .Mouse_Up, pos = p, button = .Right, click_count = 1})
 		case "down":
 			platform.inject_event({kind = .Mouse_Down, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
 		case "up":

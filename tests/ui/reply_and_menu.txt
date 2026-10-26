@@ -1,0 +1,11 @@
+# Hover a message, open its context menu, choose Reply; the composer shows the reply bar.
+wait 5
+move 600 500
+wait 2
+shot build/ui-hover-toolbar.png
+rclick 600 500
+wait 10
+shot build/ui-context-menu.png
+click 520 540
+wait 10
+type thanks for testing

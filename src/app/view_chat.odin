@@ -163,9 +163,24 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int) -> ^ui.Box {
 	hovered := ui.mouse_over(r0) && !app.ui.selection.dragging
 	if hovered do app.chat_hover = m.id
 	if hovered do r0.style.bg = T("--message-background-hover")
+	editing := ma.editing == m.id
+	if (hovered || ma.menu_msg == m.id) && !editing do r0.style.bg = T("--message-background-hover")
+	if ma.replying == m.id do r0.style.bg = T("--message-highlight-background-default")
+	for e in app.ui.events {
+		if e.kind == .Mouse_Down && e.button == .Right && hovered do open_message_menu(m, e.pos)
+	}
 	if ui.parent(r0) {
 		if !grouped do spacer(.Y, MSG_GROUP_GAP - 2)
 		spacer(.Y, 2)
+		if m.referenced_id != 0 {
+			rr := row("replyrow")
+			rr.semantic_size = {.X = ui.pct(1), .Y = ui.px(22)}
+			if ui.parent(rr) {
+				spacer(.X, MSG_GUTTER)
+				reply_preview(m)
+			}
+		}
+		if hovered && !editing && ma.menu_msg == 0 do message_toolbar(m)
 		body := row("body")
 		body.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
 		body.cross_align = .Start
@@ -192,7 +207,8 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int) -> ^ui.Box {
 			content.layout_axis = .Y
 			if ui.parent(content) {
 				if !grouped do message_header(m)
-				message_body(m)
+				if editing do edit_box(m)
+				else do message_body(m)
 				if len(m.attachments) > 0 do attachments_view(m)
 				if len(m.reactions) > 0 do reactions_view(m)
 			}
@@ -572,6 +588,12 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 	outer.cross_align = .Start
 	if ui.parent(outer) {
 		spacer(.X, 8)
+		stack := ui.box("composer_stack")
+		stack.semantic_size = {.X = ui.fill(), .Y = ui.children()}
+		stack.layout_axis = .Y
+		ui.push_parent(stack)
+		if ma.replying != 0 do reply_bar()
+		uploads_bar()
 		box := row("composer", {.Draw_Background, .Draw_Border, .Clickable})
 		box.semantic_size = {.X = ui.fill(), .Y = ui.children()}
 		box.style.bg = T("--channeltextarea-background")
@@ -593,14 +615,27 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			}
 			spacer(.X, 12)
 			placeholder := ch.kind == .DM ? fmt.tprintf("Message @%s", dm_name(ch)) : fmt.tprintf("Message #%s", ch.name)
-			res := text_field("input", &cs.editor, placeholder, app.ui.focus == box.key || app.ui.focus == 0)
+			// Up in an empty composer edits your last message, like the client
+			if ui.editor_text(&cs.editor) == "" && ma.editing == 0 {
+				for &e in app.ui.events {
+					if e.consumed || e.kind != .Key_Down || e.key != .Up || e.mods != {} do continue
+					msgs := dc.messages_get(s, ch.id)
+					#reverse for &m in msgs {
+						if m.author_id == s.me {
+							start_edit(&m)
+							e.consumed = true
+							break
+						}
+					}
+				}
+			}
+			res := text_field("input", &cs.editor, placeholder, (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0)
 			if res == .Submit {
 				text := strings.trim_space(ui.editor_text(&cs.editor))
-				if text != "" && app.client != nil {
-					dc.send_message(app.client, ch.id, text)
-					cs.scroll_target = 0
-				}
+				if composer_send(ch, text) do cs.scroll_target = 0
 				ui.editor_set_text(&cs.editor, "")
+			} else if res == .Escape {
+				ma.replying = 0
 			} else if res == .Changed && app.client != nil && ui.editor_text(&cs.editor) != "" {
 				dc.typing_keystroke(app.client, ch.id)
 			}
@@ -617,6 +652,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			}
 			spacer(.X, 8)
 		}
+		ui.pop_parent() // composer_stack
 		spacer(.X, 8)
 	}
 	spacer(.Y, 8)

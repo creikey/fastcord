@@ -541,7 +541,7 @@ remove_doubling :: proc(x_: []f32, maxperiod_, minperiod_, N_: int, T0_: ^int, p
 	yy_lookup[0] = xx
 	yy := xx
 	for i in 1 ..= maxperiod {
-		yy = yy + xm(x_, maxperiod, -i) * xm(x_, maxperiod, -i) - x[N - i] * x[N - i]
+		yy = yy + xm(x_, maxperiod, -i) * xm(x_, maxperiod, -i) - xm(x_, maxperiod, N - i) * xm(x_, maxperiod, N - i)
 		yy_lookup[i] = max(0, yy)
 	}
 	yy = yy_lookup[T0]

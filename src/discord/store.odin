@@ -871,12 +871,29 @@ apply_sessions :: proc(s: ^Store, l: []V) {
 @(private)
 member_list_item :: proc(s: ^Store, guild_id: Snowflake, iv: etf.Map) -> Member_List_Item {
 	if g := fmap(iv, "group"); g != nil {
-		return Member_List_Item{is_group = true, group_id = clone_str(fstr(g, "id"), s.allocator), count = int(fint(g, "count"))}
+		gid, rid := group_id_of(vget(g, "id"))
+		return Member_List_Item{is_group = true, group_id = clone_str(gid, s.allocator), role_id = rid, count = int(fint(g, "count"))}
 	}
 	if mm := fmap(iv, "member"); mm != nil {
 		return Member_List_Item{user_id = parse_member_into(s, guild_id, mm)}
 	}
 	return {}
+}
+
+// group ids are "online"/"offline" strings or role snowflakes (ETF integers).
+@(private)
+group_id_of :: proc(v: V) -> (id: string, role: Snowflake) {
+	#partial switch x in v {
+	case string:
+		r := parse_snowflake(x)
+		return x, r
+	case etf.Atom:
+		return string(x), 0
+	case i64, etf.Big:
+		r := vsnow(v)
+		return snowflake_string(r), r
+	}
+	return "", 0
 }
 
 @(private)
@@ -898,6 +915,23 @@ apply_member_list_update :: proc(s: ^Store, d: etf.Map) {
 	}
 	ml.member_count = int(fint(d, "member_count"))
 	ml.online_count = int(fint(d, "online_count"))
+	if vhas(d, "groups") {
+		for g in ml.groups do free_str(g.id, s.allocator)
+		clear(&ml.groups)
+		if ml.groups == nil do ml.groups = make([dynamic]Member_List_Group, s.allocator)
+		for gv in flist(d, "groups") {
+			gm := vmap(gv)
+			gid, rid := group_id_of(vget(gm, "id"))
+			append(&ml.groups, Member_List_Group{clone_str(gid, s.allocator), rid, int(fint(gm, "count"))})
+		}
+	}
+	defer {
+		// Group header items carry their size from the top-level groups array.
+		for &it in ml.items {
+			if !it.is_group do continue
+			for g in ml.groups do if g.id == it.group_id do it.count = g.count
+		}
+	}
 	for opv in flist(d, "ops") {
 		op := vmap(opv)
 		switch fstr(op, "op") {
@@ -1404,6 +1438,8 @@ store_destroy :: proc(s: ^Store) {
 	for _, ml in s.member_lists {
 		for it in ml.items do free_list_item(s, it)
 		delete(ml.items)
+		for g in ml.groups do free_str(g.id, a)
+		delete(ml.groups)
 		free_str(ml.id, a)
 	}
 	delete(s.member_lists)

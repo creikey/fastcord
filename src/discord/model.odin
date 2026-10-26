@@ -287,15 +287,23 @@ Message_List :: struct {
 
 Member_List_Item :: struct {
 	is_group: bool,
-	group_id: string, // "online", "offline" or a role id (groups)
-	count:    int, // group size
+	group_id: string, // "online", "offline", or the role id in decimal (groups)
+	role_id:  Snowflake, // non-zero for role (hoisted) groups
+	count:    int, // group size (kept in sync with Member_List.groups)
 	user_id:  Snowflake, // members
+}
+
+Member_List_Group :: struct {
+	id:      string, // "online" / "offline" / role id in decimal
+	role_id: Snowflake,
+	count:   int,
 }
 
 Member_List :: struct {
 	id:           string, // "everyone" or the channel permission hash
 	member_count: int,
 	online_count: int,
+	groups:       [dynamic]Member_List_Group, // top-level "groups" of the latest update
 	items:        [dynamic]Member_List_Item,
 }
 

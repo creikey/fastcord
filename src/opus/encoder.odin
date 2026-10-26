@@ -70,25 +70,20 @@ encoder_reset :: proc(st: ^Encoder) {
 	st.hp_mem = {}
 }
 
-// One-pole DC reject (3 Hz), as opus_encoder.c dc_reject.
+// One-pole DC reject (3 Hz), as opus_encoder.c dc_reject (float).
 @(private = "file")
 dc_reject :: proc(st: ^Encoder, in_: []f32, out: []f32, len: int) {
 	coef := 6.3 * 3.0 / f32(st.fs)
 	coef2 := 1 - coef
 	C := st.channels
 	for c in 0 ..< C {
-		m0 := st.hp_mem[2 * c]
-		m2 := st.hp_mem[2 * c + 1]
+		m := st.hp_mem[c]
 		for i in 0 ..< len {
 			x := in_[C * i + c]
-			y := x - m0
-			m0 = coef * x + VERY_SMALL + coef2 * m0
-			out[C * i + c] = y - m2
-			m2 = coef * y + VERY_SMALL + coef2 * m2
-			_ = m2
+			out[C * i + c] = x - m
+			m = coef * x + VERY_SMALL + coef2 * m
 		}
-		st.hp_mem[2 * c] = m0
-		st.hp_mem[2 * c + 1] = m2
+		st.hp_mem[c] = m
 	}
 }
 
