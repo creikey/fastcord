@@ -5,11 +5,13 @@ import "core:testing"
 
 @(test)
 test_roundtrip_celt :: proc(t: ^testing.T) {
-	enc: Encoder
+	// RESTRICTED_LOWDELAY: CELT only, no delay compensation (120-sample codec delay).
+	enc := new(Encoder)
+	defer free(enc)
 	dec: Decoder
-	testing.expect_value(t, encoder_init(&enc, 48000, 2, .VOIP), Error.None)
+	testing.expect_value(t, encoder_init(enc, 48000, 2, .Restricted_Lowdelay), Error.None)
 	testing.expect_value(t, decoder_init(&dec, 48000, 2), Error.None)
-	encoder_set_bitrate(&enc, 64000)
+	encoder_set_bitrate(enc, 64000)
 	pcm: [960 * 2]f32
 	out: [960 * 2]f32
 	pkt: [1500]u8
@@ -23,12 +25,12 @@ test_roundtrip_celt :: proc(t: ^testing.T) {
 			pcm[2 * i] = v
 			pcm[2 * i + 1] = -v
 		}
-		n, e := encode(&enc, pcm[:], pkt[:])
+		n, e := encode(enc, pcm[:], pkt[:])
 		testing.expect_value(t, e, Error.None)
 		got, de := decode(&dec, pkt[:n], out[:])
 		testing.expect_value(t, de, Error.None)
 		testing.expect_value(t, got, 960)
-		testing.expect_value(t, decoder_final_range(&dec), encoder_final_range(&enc))
+		testing.expect_value(t, decoder_final_range(&dec), encoder_final_range(enc))
 		// shift history and compare with 120-sample delay after warmup
 		copy(hist[:960 * 2], hist[960 * 2:960 * 4])
 		copy(hist[960 * 2:960 * 4], pcm[:])

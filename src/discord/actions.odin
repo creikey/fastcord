@@ -26,6 +26,7 @@ select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limi
 		c.pending_guild_open = guild_id
 	}
 	if guild_id == 0 && channel_id != 0 do c.pending_private_open = channel_id
+	if guild_id == 0 && channel_id == 0 do home_open(c)
 	if channel_id != 0 {
 		l := message_list(&c.store, channel_id)
 		if !l.loaded && !l.loading {
@@ -694,9 +695,33 @@ voice_server_info :: proc(c: ^Client) -> (info: Voice_Server_Info, version: u64,
 	}, s.voice_server.version, true
 }
 
-// voice_join / voice_leave: op 4 the way VoiceStateStore sends it (flags 2).
+// voice_join: op 4 (flags 2) plus what selecting a voice channel loads: its
+// text-in-voice page, the activity shelf (~155 ms), soundboard sounds with
+// op 31 for every guild (~700 ms, once per session).
 voice_join :: proc(c: ^Client, guild_id, channel_id: Snowflake, self_mute := false, self_deaf := false) {
 	voice_update(c, guild_id, channel_id, self_mute, self_deaf)
+	l := message_list(&c.store, channel_id)
+	h := c.analytics.viewport_h if c.analytics.viewport_h > 0 else 720
+	if !l.loaded && !l.loading do fetch_messages(c, channel_id, 0, initial_message_limit(h))
+	if guild_id != 0 do api_get_later(c, strings.concatenate({"/activities/shelf?guild_id=", snowflake_string(guild_id)}, context.temp_allocator), 155)
+	if !c.soundboard_loaded {
+		c.soundboard_loaded = true
+		c.pending_soundboard_at = now_ms() + 705
+		api_get_later(c, "/soundboard-default-sounds", 705)
+	}
+}
+
+// flush_soundboard: op 31 REQUEST_SOUNDBOARD_SOUNDS for all guilds (READY order).
+@(private)
+flush_soundboard :: proc(c: ^Client, now: i64) {
+	if c.pending_soundboard_at == 0 || now < c.pending_soundboard_at do return
+	c.pending_soundboard_at = 0
+	if c.gw == nil do return
+	ids := make([]V, len(c.store.guild_order), context.temp_allocator)
+	for g, i in c.store.guild_order do ids[i] = snowflake_string(g)
+	b := etf.map_builder(1, context.temp_allocator)
+	etf.map_put(&b, "guild_ids", etf.List(ids))
+	gateway_send(c.gw, .Request_Soundboard_Sounds, etf.map_done(&b))
 }
 
 voice_leave :: proc(c: ^Client) {
@@ -871,4 +896,23 @@ open_emoji_picker :: proc(c: ^Client, guild_id: Snowflake) {
 	b.path = "/users/@me/billing/subscriptions?sync_level=2"
 	job_submit(c, b)
 	fetch_profile_ex(c, c.store.me, {})
+}
+
+// home_open: the friends/home surface's first render in a session (when the
+// client did not start on it): referral eligibility, quest applications and
+// the premium-guild entitlements, together (fixture open_dm, ~6.9 s).
+home_open :: proc(c: ^Client) {
+	if c.home_opened do return
+	c.home_opened = true
+	if client_route_kind(c.start_route_guild, c.start_route_channel) == .Home do return // startup table covers it
+	api_get_later(c, "/users/@me/referrals/eligibility", 0)
+	sync.mutex_lock(&c.job_mu)
+	ready := c.ready_ms
+	sync.mutex_unlock(&c.job_mu)
+	saved := c.start_route_guild
+	c.start_route_guild = 0
+	c.start_route_channel = 0
+	schedule_applications_public(c, ready)
+	c.start_route_guild = saved
+	api_get_later(c, "/users/@me/entitlements?with_sku=false&with_application=false&entitlement_type=11&exclude_ended=true", 0)
 }

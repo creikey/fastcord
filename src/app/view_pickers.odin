@@ -43,7 +43,7 @@ PK_SEARCH_RADIUS :: 8
 PK_SEARCH_PAD_X :: 12
 PK_HEADER_PAD_BOTTOM :: 12
 PK_HEADER_GAP :: 12 // search bar to skin tone selector
-PK_ADD_EMOJI_PAD_X :: 14 // "Add Emoji" button padding (102px wide at 16px)
+PK_ADD_EMOJI_PAD_X :: 16 // "Add Emoji" button padding (102px wide at 16px)
 
 PK_SCROLLBAR_W :: 4
 
@@ -479,7 +479,7 @@ pk_search_field :: proc(ed: ^ui.Editor, placeholder: string) -> ui.Edit_Result {
 	result := ui.Edit_Result.None
 	if ui.parent(wrap) {
 		spacer(.X, PK_SEARCH_PAD_X)
-		icon("mag", "magnifying-glass", 20, T("--icon-muted"))
+		icon("mag", "magnifying-glass", 20, T("--icon-default"))
 		spacer(.X, 8)
 		f := ui.box("picker_search###pk_search", {.Clickable, .Draw_Text, .Focusable, .Clip})
 		f.semantic_size = {.X = ui.fill(), .Y = ui.px(PK_SEARCH_H - 2)}

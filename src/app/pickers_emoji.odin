@@ -793,7 +793,7 @@ skin_tone_button :: proc() {
 
 @(private = "file")
 tone_glyph :: proc(id: string, tone: int, size: f32) {
-	idx, ok := emoji_db.by_name["raised_hand"]
+	idx, ok := emoji_db.by_name["clap"] // the client's tone selector shows clapping hands
 	if ok {
 		pk_emoji_box(id, Pk_Emoji{uni = i32(idx)}, size, false)
 		return

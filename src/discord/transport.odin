@@ -68,6 +68,9 @@ Transport :: struct {
 	alt:       altsvc.Cache, // Chrome alternative-service state (fc:quic/altsvc)
 	use_h3:    bool, // race QUIC per Alt-Svc (default on)
 	race_mu:   sync.Mutex,
+	// 0-RTT on resumed QUIC sessions currently fails in fc:quic (second
+	// connection in a process); Chrome uses 0-RTT, so this is a known deviation.
+	h3_no_0rtt: bool,
 	h3:        H3_Hook, // optional override of the built-in h3 path
 	override:  Round_Tripper,
 	jar:       ^Cookie_Jar,
@@ -110,6 +113,7 @@ transport_init :: proc(t: ^Transport, jar: ^Cookie_Jar, allocator := context.all
 	t.jar = jar
 	t.origins = make(map[string]^Origin, allocator = allocator)
 	t.use_h3 = true
+	t.h3_no_0rtt = true
 }
 
 transport_destroy :: proc(t: ^Transport) {
@@ -400,7 +404,7 @@ h3_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> (out: H
 	// One job per origin at a time (Chrome joins requests onto the pending
 	// job instead of racing again).
 	if !live do sync.mutex_lock(&t.race_mu)
-	res, ok := altsvc.connect(&t.alt, host, tcp_dialer, tcp_closer, t)
+	res, ok := altsvc.connect(&t.alt, host, tcp_dialer, tcp_closer, t, h3.Config{no_0rtt = t.h3_no_0rtt})
 	if !live do sync.mutex_unlock(&t.race_mu)
 	if !ok do return {}, false
 	switch res.proto {

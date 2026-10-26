@@ -28,14 +28,14 @@ test_rfc8251_vectors :: proc(t: ^testing.T) {
 	found := 0
 	for v in 1 ..= 12 {
 		bit_path := fmt.tprintf("%s/testvector%02d.bit", dir, v)
-		bits, ok := os.read_entire_file(bit_path, context.temp_allocator)
-		if !ok do continue
+		bits, e1 := os.read_entire_file(bit_path, context.temp_allocator)
+		if e1 != nil do continue
 		found += 1
-		ref, ok2 := os.read_entire_file(fmt.tprintf("%s/testvector%02d.dec", dir, v), context.temp_allocator)
-		testing.expectf(t, ok2, "missing testvector%02d.dec", v)
-		if !ok2 do continue
-		refm, okm := os.read_entire_file(fmt.tprintf("%s/testvector%02d.m.dec", dir, v), context.temp_allocator)
-		if !okm do refm, okm = os.read_entire_file(fmt.tprintf("%s/testvector%02dm.dec", dir, v), context.temp_allocator)
+		ref, e2 := os.read_entire_file(fmt.tprintf("%s/testvector%02d.dec", dir, v), context.temp_allocator)
+		testing.expectf(t, e2 == nil, "missing testvector%02d.dec", v)
+		if e2 != nil do continue
+		refm, e3 := os.read_entire_file(fmt.tprintf("%s/testvector%02dm.dec", dir, v), context.temp_allocator)
+		okm := e3 == nil
 
 		stereo, rng_bad_s := vector_decode(bits, 2)
 		mono, rng_bad_m := vector_decode(bits, 1)

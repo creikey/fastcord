@@ -51,6 +51,7 @@ Op :: enum i64 {
 	Heartbeat_Ack                = 11,
 	Call_Connect                 = 13,
 	Guild_Subscriptions          = 14,
+	Request_Soundboard_Sounds    = 31,
 	Request_Last_Messages        = 34,
 	Search_Recent_Members        = 35,
 	Guild_Subscriptions_Bulk     = 37,

@@ -51,7 +51,11 @@ start_route :: proc(acct: string, n: int) -> (guild, channel: discord.Snowflake)
 	if err != nil do return 0, 0
 	text := string(data)
 	opens := -1
+	ready_seen := false
+	route_done := false
 	for line in strings.split_lines_iterator(&text) {
+		// the start route's page is requested right at READY; later pages are clicks
+		if ready_seen && channel == 0 do route_done = true
 		v, jerr := etf.from_json(line, context.temp_allocator)
 		if jerr != .None do continue
 		m := discord.vmap(v)
@@ -59,6 +63,14 @@ start_route :: proc(acct: string, n: int) -> (guild, channel: discord.Snowflake)
 		if a == "" do a = "a"
 		if a != acct do continue
 		k := discord.fstr(m, "k")
+		if k == "mark" && opens == n && n >= 0 && (guild != 0 || channel != 0 || true) {
+			// the route is what the client reopened on: stop at the next step
+			name := discord.fstr(m, "name")
+			if name != "setup" && name != "setup_b" do break
+		}
+		if k == "ws_recv" && opens == n && discord.fstr(m, "ev") == "READY_SUPPLEMENTAL" {
+			ready_seen = true
+		}
 		if k == "ws_open" {
 			opens += 1
 			if opens > n do break
@@ -70,7 +82,7 @@ start_route :: proc(acct: string, n: int) -> (guild, channel: discord.Snowflake)
 			rest := url[i + 8:]
 			guild = discord.parse_snowflake(rest[:strings.index_byte(rest, '/')])
 		}
-		if i := strings.index(url, "/channels/"); i >= 0 && strings.contains(url, "/messages?limit=") && channel == 0 {
+		if i := strings.index(url, "/channels/"); i >= 0 && strings.contains(url, "/messages?limit=") && channel == 0 && !route_done {
 			rest := url[i + 10:]
 			channel = discord.parse_snowflake(rest[:strings.index_byte(rest, '/')])
 		}

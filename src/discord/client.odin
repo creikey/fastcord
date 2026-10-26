@@ -148,7 +148,10 @@ Client :: struct {
 	started_guilds:   map[Snowflake]bool,
 	command_index_guilds: map[Snowflake]bool,
 	command_index_user: bool,
-	emoji_picker_opened: bool, // guilds whose open-time requests ran this session
+	emoji_picker_opened: bool,
+	home_opened:      bool,
+	soundboard_loaded: bool,
+	pending_soundboard_at: i64, // guilds whose open-time requests ran this session
 	// traffic observers (tooling): see every gateway frame
 	on_gateway_send:  proc(data: rawptr, op: Op, d: V),
 	on_gateway_recv:  proc(data: rawptr, op: Op, t: string, d: V),
@@ -319,6 +322,7 @@ client_poll :: proc(c: ^Client) -> bool {
 	flush_due_acks(c, now)
 	flush_typing_local(c, now)
 	flush_settings(c, now)
+	flush_soundboard(c, now)
 	analytics_tick(c, now)
 	analytics_flush(c, now)
 	if changed do c.store.changed += 1
