@@ -21,6 +21,8 @@ Chat_State :: struct {
 	loading_older:      bool,
 	editor:             ui.Editor,
 	hovered_msg:        dc.Snowflake,
+	unread_after:       dc.Snowflake, // read marker when the channel was opened ("NEW" divider)
+	opened:             bool,
 }
 
 chat_state :: proc(channel_id: dc.Snowflake) -> ^Chat_State {
@@ -77,6 +79,16 @@ chat_view :: proc(channel_id: dc.Snowflake) {
 	ch := dc.channel_get(s, channel_id)
 	if ch == nil do return
 	cs := chat_state(channel_id)
+	if !cs.opened {
+		cs.opened = true
+		cs.unread_after = s.read_states[channel_id].last_message_id
+	}
+	// Ack what's on screen while focused and scrolled to the bottom, like the client.
+	msgs := dc.messages_get(s, channel_id)
+	if app.client != nil && app.focused && len(msgs) > 0 && cs.scroll_from_bottom < 2 {
+		last := msgs[len(msgs) - 1].id
+		if last > s.read_states[channel_id].last_message_id && !msgs[len(msgs) - 1].pending do dc.ack_message(app.client, channel_id, last)
+	}
 
 	col := ui.box("chatcol")
 	col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
@@ -138,9 +150,11 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 			if !ok do h = MSG_LINE_H + 4
 			visible := y + h >= top - 200 && y <= top + view_h + 200
 			if visible {
-				grouped := continues_group(prev, &m)
+				new_day := prev == nil || day_of(prev.id) != day_of(m.id)
+				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == nil || prev.id <= cs.unread_after) && m.author_id != s.me
+				grouped := continues_group(prev, &m) && !show_new
 				if ui.id_scope(u64(m.id)) {
-					row := message_row(&m, grouped, i)
+					row := message_row(&m, grouped, i, new_day, show_new)
 					row.flags += {.Floating_Y}
 					row.fixed_pos = {0, y - top}
 					// remember measured height (from last frame's layout)
@@ -155,7 +169,7 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 
 // One message: either a group start (avatar, name, time) or a continuation.
 @(private = "file")
-message_row :: proc(m: ^dc.Message, grouped: bool, index: int) -> ^ui.Box {
+message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new: bool) -> ^ui.Box {
 	s := store()
 	r0 := ui.box("msg", {.Draw_Background})
 	r0.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
@@ -170,7 +184,11 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int) -> ^ui.Box {
 		if e.kind == .Mouse_Down && e.button == .Right && hovered do open_message_menu(m, e.pos)
 	}
 	if ui.parent(r0) {
-		if !grouped do spacer(.Y, MSG_GROUP_GAP - 2)
+		if new_day || show_new {
+			divider_row(m.id, new_day, show_new)
+		} else if !grouped {
+			spacer(.Y, MSG_GROUP_GAP - 2)
+		}
 		spacer(.Y, 2)
 		if m.referenced_id != 0 {
 			rr := row("replyrow")
@@ -751,4 +769,42 @@ is_emoji_only :: proc(toks: []Token) -> bool {
 		}
 	}
 	return n > 0 && n <= 27
+}
+
+// Date separator ("October 25, 2026") and/or the red "NEW" unread line above a message.
+divider_row :: proc(id: dc.Snowflake, new_day, show_new: bool) {
+	spacer(.Y, 8)
+	d := row("divider")
+	d.semantic_size = {.X = ui.pct(1), .Y = ui.px(16)}
+	line_color := show_new ? T("--status-danger") : T("--border-subtle")
+	if ui.parent(d) {
+		spacer(.X, 16)
+		l1 := ui.box("l1", {.Draw_Background})
+		l1.semantic_size = {.X = ui.fill(), .Y = ui.px(1)}
+		l1.style.bg = line_color
+		if new_day {
+			spacer(.X, 8)
+			ms := dc.snowflake_time_ms(id) + local_utc_offset_ms()
+			t := time.unix(ms / 1000, 0)
+			y, mo, dd := time.date(t)
+			label(fmt.tprintf("%v %d, %d", mo, dd, y), .Semibold, 12, show_new ? T("--status-danger") : T("--text-muted"), 13)
+			spacer(.X, 8)
+			l2 := ui.box("l2", {.Draw_Background})
+			l2.semantic_size = {.X = ui.fill(), .Y = ui.px(1)}
+			l2.style.bg = line_color
+		}
+		if show_new {
+			pill := row("new", {.Draw_Background})
+			pill.semantic_size = {.X = ui.children(), .Y = ui.px(14)}
+			pill.style.bg = T("--status-danger")
+			pill.style.radius = {0, 4, 0, 4}
+			if ui.parent(pill) {
+				spacer(.X, 4)
+				label("NEW", .Bold, 10, {1, 1, 1, 1}, 13)
+				spacer(.X, 4)
+			}
+		}
+		spacer(.X, 14)
+	}
+	spacer(.Y, 8)
 }

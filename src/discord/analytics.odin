@@ -170,15 +170,16 @@ analytics_track :: proc(c: ^Client, event_type, props_json: string) {
 analytics_flush :: proc(c: ^Client, now: i64, force := false) {
 	a := &c.analytics
 	sync.mutex_lock(&a.mu)
-	if len(a.queue) == 0 || (!force && (a.flush_at == 0 || now < a.flush_at)) {
+	// The tracker only flushes once it has the READY analytics_token (events
+	// queued earlier ride along in the first batch, as in the capture).
+	if len(a.queue) == 0 || c.store.analytics_token == "" || (!force && (a.flush_at == 0 || now < a.flush_at)) {
 		sync.mutex_unlock(&a.mu)
 		return
 	}
 	token := c.store.analytics_token
 	sb := strings.builder_make(context.temp_allocator)
 	strings.write_string(&sb, `{"token":`)
-	if token != "" do json_write_escaped(&sb, token)
-	else do strings.write_string(&sb, "null")
+	json_write_escaped(&sb, token)
 	strings.write_string(&sb, `,"events":[`)
 	for e, i in a.queue {
 		if i > 0 do strings.write_byte(&sb, ',')

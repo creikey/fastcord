@@ -34,7 +34,8 @@ App :: struct {
 	caret_reset_t:   f64,
 	reaction_target: dc.Snowflake, // message whose reaction picker is open
 	ui_mods:         UI_Mods, // modifier keys as of the latest event
-	stats:           bool, // FASTCORD_STATS=1: print frame rate periodically
+	stats:           bool,
+	focused:         bool, // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
 	wake_at:         f64, // earliest timed repaint requested this frame (caret blink, timers); 0 = none
 }
 
@@ -106,6 +107,7 @@ main :: proc() {
 		fmt.eprintln("gfx init failed")
 		os.exit(1)
 	}
+	app.focused = true
 	app.stats = os.get_env("FASTCORD_STATS", context.temp_allocator) != ""
 	fonts_load()
 	theme_load(&app.theme, opt.theme)
@@ -188,7 +190,13 @@ frame :: proc() {
 	}
 	images_receive()
 	for e in platform.events() {
-		if e.kind == .File_Drop && app.view.channel != 0 do stage_upload(e.text)
+		#partial switch e.kind {
+		case .File_Drop:
+			if app.view.channel != 0 do stage_upload(e.text)
+		case .Focus_Gained, .Focus_Lost:
+			app.focused = e.kind == .Focus_Gained
+			if app.client != nil do dc.client_set_focused(app.client, app.focused)
+		}
 	}
 	evs := map_events(platform.events())
 	for e in evs do app.ui_mods = e.mods
