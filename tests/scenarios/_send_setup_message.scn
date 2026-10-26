@@ -1,0 +1,6 @@
+# Prelude: post a message to act on (part of the setup window).
+click div[role="textbox"][aria-label^="Message "]
+type setup message for the next step
+key Enter
+wait_gw MESSAGE_CREATE
+settle 1500

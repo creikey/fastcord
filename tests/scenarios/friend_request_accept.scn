@@ -1,0 +1,22 @@
+# B accepts A's pending friend request from the Pending tab; A sees it live.
+use a
+mark setup
+reload
+include _friends_home.scn
+use b
+mark setup_b
+reload
+include _friends_home.scn
+mark friend_request_accept
+click_text [role="tab"] | Pending
+wait_for [aria-label^="Accept friend request"]
+pause
+click [aria-label^="Accept friend request"]
+# No mutual servers: Discord asks to confirm a stranger's request (the first
+# PUT fails with 80013, the confirmed one sends confirm_stranger_request=true).
+optional wait_for [role="dialog"] 5000
+optional click_text [role="dialog"] button | Accept
+wait_gw RELATIONSHIP_ADD 20000
+use a
+optional wait_gw RELATIONSHIP_ADD 20000
+settle 2500

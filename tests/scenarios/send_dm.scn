@@ -1,0 +1,20 @@
+# A sends B a direct message; B receives it live.
+use b
+mark setup_b
+reload
+include _friends_home.scn
+use a
+mark setup
+reload
+include _friends_home.scn
+click [data-list-item-id$="___${DM_AB}"]
+wait_for div[role="textbox"][aria-label^="Message @"]
+settle 1500
+mark send_dm
+click div[role="textbox"][aria-label^="Message @"]
+type hey bobbles, this is a dm
+key Enter
+wait_gw MESSAGE_CREATE
+use b
+wait_gw MESSAGE_CREATE 20000
+settle 2500

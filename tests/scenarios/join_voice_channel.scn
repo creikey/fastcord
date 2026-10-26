@@ -1,0 +1,9 @@
+# Join the test guild's voice channel, stay a few seconds, disconnect.
+include _open_test_channel.scn
+mark join_voice
+click [data-list-item-id="channels___${TVOICE}"]
+wait_gw VOICE_SERVER_UPDATE 20000
+wait 8000
+mark leave_voice
+click button[aria-label="Disconnect"]
+settle 3000

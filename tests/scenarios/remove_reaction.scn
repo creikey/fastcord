@@ -1,0 +1,11 @@
+# Add a quick reaction, then remove it by clicking the reaction pill.
+include _open_test_channel.scn
+include _send_setup_message.scn
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-quickreact-0
+wait_gw MESSAGE_REACTION_ADD
+settle 1500
+mark remove_reaction
+click_last [role="button"][aria-label*="press to remove your reaction"]
+wait_gw MESSAGE_REACTION_REMOVE
+settle 2000

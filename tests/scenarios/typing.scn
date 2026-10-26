@@ -1,0 +1,12 @@
+# Type in the composer without sending (typing indicator), then clear it.
+include _open_test_channel.scn
+mark typing
+click div[role="textbox"][aria-label^="Message "]
+type i am typing something but will not send it
+wait 4000
+type  and still typing
+wait 3000
+mark typing_clear
+key a meta
+key Backspace
+settle 2000

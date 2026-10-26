@@ -1,0 +1,11 @@
+# Reply to our last message.
+include _open_test_channel.scn
+include _send_setup_message.scn
+mark reply
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-reply
+wait 500
+type this is a reply
+key Enter
+wait_gw MESSAGE_CREATE
+settle 2000

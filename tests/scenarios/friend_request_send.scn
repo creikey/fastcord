@@ -1,0 +1,24 @@
+# A sends a friend request to B by username; B receives it live.
+use b
+mark setup_b
+reload
+include _friends_home.scn
+use a
+mark setup
+reload
+include _friends_home.scn
+mark friend_request_send
+click_text [role="tab"] | Add Friend
+wait_for input[aria-label="Enter a username"]
+click input[aria-label="Enter a username"]
+type ${B_NAME}
+pause
+click_text button | Send Friend Request
+wait_gw RELATIONSHIP_ADD
+use b
+wait_gw RELATIONSHIP_ADD 20000
+settle 2000
+use a
+js [...document.querySelectorAll("[role=tab]")].map(e=>e.innerText).join(" ;; ")
+use b
+js [...document.querySelectorAll("[role=tab]")].map(e=>e.innerText).join(" ;; ")

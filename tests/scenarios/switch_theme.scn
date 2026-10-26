@@ -1,0 +1,17 @@
+# Settings -> Appearance: switch to Light, then back to Dark.
+include _open_test_channel.scn
+mark open_settings
+click button[aria-label="User Settings"]
+wait_for [role="link"]
+click_text [role="link"] | Appearance
+wait_for [role="radio"][aria-label="Light"]
+settle 1500
+mark theme_light
+click [role="radio"][aria-label="Light"]
+settle 2500
+mark theme_dark
+click [role="radio"][aria-label="Dark"]
+settle 2500
+mark close_settings
+key Escape
+settle 1500

@@ -1,0 +1,8810 @@
+{
+"--ansi-black": [
+0,
+0,
+0,
+1
+],
+"--ansi-blue": [
+69,
+145,
+236,
+1
+],
+"--ansi-bright-black": [
+112,
+113,
+122,
+1
+],
+"--ansi-bright-blue": [
+160,
+169,
+250,
+1
+],
+"--ansi-bright-cyan": [
+95,
+191,
+200,
+1
+],
+"--ansi-bright-green": [
+33,
+187,
+99,
+1
+],
+"--ansi-bright-magenta": [
+253,
+153,
+233,
+1
+],
+"--ansi-bright-red": [
+255,
+147,
+142,
+1
+],
+"--ansi-bright-white": [
+255,
+255,
+255,
+1
+],
+"--ansi-bright-yellow": [
+231,
+148,
+24,
+1
+],
+"--ansi-cyan": [
+4,
+159,
+170,
+1
+],
+"--ansi-green": [
+69,
+163,
+102,
+1
+],
+"--ansi-magenta": [
+245,
+73,
+201,
+1
+],
+"--ansi-red": [
+236,
+99,
+97,
+1
+],
+"--ansi-white": [
+182,
+183,
+188,
+1
+],
+"--ansi-yellow": [
+206,
+129,
+0,
+1
+],
+"--app-frame-background": [
+37,
+38,
+42,
+1
+],
+"--app-frame-border": [
+148,
+148,
+156,
+0.122
+],
+"--app-message-embed-secondary-text": [
+255,
+255,
+255,
+0.698
+],
+"--application-subscription-end": [
+1,
+119,
+164,
+1
+],
+"--application-subscription-start": [
+52,
+66,
+217,
+1
+],
+"--background-accent": [
+65,
+66,
+74,
+1
+],
+"--background-base-low": [
+54,
+55,
+62,
+1
+],
+"--background-base-lower": [
+50,
+51,
+57,
+1
+],
+"--background-base-lowest": [
+44,
+45,
+50,
+1
+],
+"--background-brand": [
+88,
+101,
+242,
+1
+],
+"--background-code": [
+89,
+102,
+242,
+0.078
+],
+"--background-code-addition": [
+0,
+132,
+66,
+0.122
+],
+"--background-code-deletion": [
+214,
+41,
+58,
+0.122
+],
+"--background-feedback-critical": [
+204,
+51,
+51,
+0.078
+],
+"--background-feedback-info": [
+0,
+115,
+230,
+0.078
+],
+"--background-feedback-notification": [
+210,
+45,
+57,
+1
+],
+"--background-feedback-positive": [
+0,
+128,
+64,
+0.078
+],
+"--background-feedback-warning": [
+242,
+166,
+0,
+0.078
+],
+"--background-mod-muted": [
+153,
+153,
+153,
+0.078
+],
+"--background-mod-normal": [
+149,
+149,
+162,
+0.161
+],
+"--background-mod-strong": [
+150,
+150,
+160,
+0.2
+],
+"--background-mod-subtle": [
+148,
+148,
+156,
+0.122
+],
+"--background-scrim": [
+0,
+0,
+0,
+0.722
+],
+"--background-scrim-lightbox": [
+0,
+0,
+0,
+0.922
+],
+"--background-secondary-alt": [
+36,
+36,
+41,
+1
+],
+"--background-surface-high": [
+57,
+58,
+65,
+1
+],
+"--background-surface-higher": [
+60,
+61,
+69,
+1
+],
+"--background-surface-highest": [
+63,
+64,
+72,
+1
+],
+"--background-voice-muted": [
+214,
+41,
+58,
+0.122
+],
+"--bg-surface-raised": [
+57,
+58,
+65,
+1
+],
+"--black": [
+0,
+0,
+0,
+1
+],
+"--blue-new-1": [
+229,
+239,
+255,
+1
+],
+"--blue-new-10": [
+189,
+217,
+255,
+1
+],
+"--blue-new-100": [
+0,
+0,
+7,
+1
+],
+"--blue-new-11": [
+184,
+215,
+255,
+1
+],
+"--blue-new-12": [
+180,
+212,
+255,
+1
+],
+"--blue-new-13": [
+176,
+210,
+255,
+1
+],
+"--blue-new-14": [
+171,
+207,
+255,
+1
+],
+"--blue-new-15": [
+167,
+205,
+254,
+1
+],
+"--blue-new-16": [
+163,
+203,
+253,
+1
+],
+"--blue-new-17": [
+159,
+200,
+253,
+1
+],
+"--blue-new-18": [
+155,
+198,
+252,
+1
+],
+"--blue-new-19": [
+151,
+195,
+252,
+1
+],
+"--blue-new-2": [
+224,
+236,
+255,
+1
+],
+"--blue-new-20": [
+146,
+193,
+251,
+1
+],
+"--blue-new-21": [
+142,
+190,
+250,
+1
+],
+"--blue-new-22": [
+138,
+188,
+250,
+1
+],
+"--blue-new-23": [
+134,
+185,
+249,
+1
+],
+"--blue-new-24": [
+130,
+183,
+248,
+1
+],
+"--blue-new-25": [
+126,
+180,
+248,
+1
+],
+"--blue-new-26": [
+122,
+178,
+247,
+1
+],
+"--blue-new-27": [
+118,
+175,
+246,
+1
+],
+"--blue-new-28": [
+114,
+173,
+245,
+1
+],
+"--blue-new-29": [
+110,
+170,
+245,
+1
+],
+"--blue-new-3": [
+220,
+234,
+255,
+1
+],
+"--blue-new-30": [
+106,
+168,
+244,
+1
+],
+"--blue-new-31": [
+102,
+165,
+243,
+1
+],
+"--blue-new-32": [
+98,
+163,
+242,
+1
+],
+"--blue-new-33": [
+94,
+160,
+241,
+1
+],
+"--blue-new-34": [
+90,
+158,
+241,
+1
+],
+"--blue-new-35": [
+86,
+155,
+240,
+1
+],
+"--blue-new-36": [
+82,
+153,
+239,
+1
+],
+"--blue-new-37": [
+77,
+150,
+238,
+1
+],
+"--blue-new-38": [
+73,
+147,
+237,
+1
+],
+"--blue-new-39": [
+69,
+145,
+236,
+1
+],
+"--blue-new-4": [
+215,
+231,
+255,
+1
+],
+"--blue-new-40": [
+64,
+142,
+236,
+1
+],
+"--blue-new-41": [
+60,
+140,
+235,
+1
+],
+"--blue-new-42": [
+55,
+137,
+234,
+1
+],
+"--blue-new-43": [
+50,
+134,
+233,
+1
+],
+"--blue-new-44": [
+45,
+132,
+232,
+1
+],
+"--blue-new-45": [
+39,
+129,
+231,
+1
+],
+"--blue-new-46": [
+33,
+127,
+231,
+1
+],
+"--blue-new-47": [
+26,
+124,
+230,
+1
+],
+"--blue-new-48": [
+18,
+121,
+229,
+1
+],
+"--blue-new-49": [
+5,
+119,
+228,
+1
+],
+"--blue-new-5": [
+211,
+229,
+255,
+1
+],
+"--blue-new-50": [
+0,
+116,
+227,
+1
+],
+"--blue-new-51": [
+0,
+114,
+222,
+1
+],
+"--blue-new-52": [
+0,
+111,
+217,
+1
+],
+"--blue-new-53": [
+0,
+109,
+212,
+1
+],
+"--blue-new-54": [
+1,
+107,
+207,
+1
+],
+"--blue-new-55": [
+2,
+104,
+202,
+1
+],
+"--blue-new-56": [
+2,
+102,
+198,
+1
+],
+"--blue-new-57": [
+3,
+99,
+193,
+1
+],
+"--blue-new-58": [
+3,
+97,
+188,
+1
+],
+"--blue-new-59": [
+3,
+95,
+184,
+1
+],
+"--blue-new-6": [
+206,
+227,
+255,
+1
+],
+"--blue-new-60": [
+2,
+92,
+179,
+1
+],
+"--blue-new-61": [
+2,
+90,
+175,
+1
+],
+"--blue-new-62": [
+1,
+88,
+171,
+1
+],
+"--blue-new-63": [
+1,
+85,
+166,
+1
+],
+"--blue-new-64": [
+0,
+83,
+162,
+1
+],
+"--blue-new-65": [
+0,
+81,
+158,
+1
+],
+"--blue-new-66": [
+0,
+79,
+154,
+1
+],
+"--blue-new-67": [
+0,
+76,
+150,
+1
+],
+"--blue-new-68": [
+0,
+74,
+146,
+1
+],
+"--blue-new-69": [
+0,
+72,
+142,
+1
+],
+"--blue-new-7": [
+202,
+224,
+255,
+1
+],
+"--blue-new-70": [
+0,
+70,
+138,
+1
+],
+"--blue-new-71": [
+0,
+67,
+134,
+1
+],
+"--blue-new-72": [
+0,
+65,
+130,
+1
+],
+"--blue-new-73": [
+0,
+63,
+126,
+1
+],
+"--blue-new-74": [
+0,
+61,
+122,
+1
+],
+"--blue-new-75": [
+0,
+58,
+118,
+1
+],
+"--blue-new-76": [
+0,
+56,
+115,
+1
+],
+"--blue-new-77": [
+0,
+54,
+111,
+1
+],
+"--blue-new-78": [
+0,
+52,
+107,
+1
+],
+"--blue-new-79": [
+0,
+50,
+104,
+1
+],
+"--blue-new-8": [
+197,
+222,
+255,
+1
+],
+"--blue-new-80": [
+0,
+48,
+100,
+1
+],
+"--blue-new-81": [
+0,
+46,
+96,
+1
+],
+"--blue-new-82": [
+0,
+43,
+93,
+1
+],
+"--blue-new-83": [
+0,
+41,
+89,
+1
+],
+"--blue-new-84": [
+0,
+39,
+86,
+1
+],
+"--blue-new-85": [
+0,
+37,
+82,
+1
+],
+"--blue-new-86": [
+0,
+35,
+79,
+1
+],
+"--blue-new-87": [
+0,
+33,
+75,
+1
+],
+"--blue-new-88": [
+0,
+31,
+72,
+1
+],
+"--blue-new-89": [
+0,
+29,
+69,
+1
+],
+"--blue-new-9": [
+193,
+220,
+255,
+1
+],
+"--blue-new-90": [
+0,
+27,
+65,
+1
+],
+"--blue-new-91": [
+0,
+25,
+62,
+1
+],
+"--blue-new-92": [
+0,
+23,
+59,
+1
+],
+"--blue-new-93": [
+0,
+21,
+55,
+1
+],
+"--blue-new-94": [
+0,
+19,
+51,
+1
+],
+"--blue-new-95": [
+0,
+16,
+47,
+1
+],
+"--blue-new-96": [
+0,
+13,
+42,
+1
+],
+"--blue-new-97": [
+0,
+10,
+36,
+1
+],
+"--blue-new-98": [
+0,
+6,
+29,
+1
+],
+"--blue-new-99": [
+0,
+3,
+20,
+1
+],
+"--blurple-1": [
+230,
+234,
+255,
+1
+],
+"--blurple-10": [
+199,
+210,
+255,
+1
+],
+"--blurple-100": [
+0,
+0,
+0,
+1
+],
+"--blurple-11": [
+195,
+208,
+255,
+1
+],
+"--blurple-12": [
+192,
+205,
+255,
+1
+],
+"--blurple-13": [
+188,
+202,
+255,
+1
+],
+"--blurple-14": [
+185,
+200,
+255,
+1
+],
+"--blurple-15": [
+182,
+197,
+255,
+1
+],
+"--blurple-16": [
+179,
+195,
+255,
+1
+],
+"--blurple-17": [
+176,
+192,
+255,
+1
+],
+"--blurple-18": [
+172,
+189,
+255,
+1
+],
+"--blurple-19": [
+169,
+187,
+255,
+1
+],
+"--blurple-2": [
+227,
+231,
+255,
+1
+],
+"--blurple-20": [
+166,
+184,
+255,
+1
+],
+"--blurple-21": [
+163,
+181,
+255,
+1
+],
+"--blurple-22": [
+160,
+179,
+255,
+1
+],
+"--blurple-23": [
+157,
+176,
+255,
+1
+],
+"--blurple-24": [
+154,
+173,
+255,
+1
+],
+"--blurple-25": [
+151,
+171,
+255,
+1
+],
+"--blurple-26": [
+148,
+168,
+255,
+1
+],
+"--blurple-27": [
+145,
+165,
+254,
+1
+],
+"--blurple-28": [
+143,
+163,
+254,
+1
+],
+"--blurple-29": [
+140,
+160,
+253,
+1
+],
+"--blurple-3": [
+223,
+228,
+255,
+1
+],
+"--blurple-30": [
+137,
+157,
+253,
+1
+],
+"--blurple-31": [
+134,
+155,
+252,
+1
+],
+"--blurple-32": [
+131,
+152,
+251,
+1
+],
+"--blurple-33": [
+129,
+149,
+251,
+1
+],
+"--blurple-34": [
+126,
+146,
+250,
+1
+],
+"--blurple-35": [
+124,
+144,
+250,
+1
+],
+"--blurple-36": [
+121,
+141,
+249,
+1
+],
+"--blurple-37": [
+118,
+138,
+249,
+1
+],
+"--blurple-38": [
+116,
+135,
+248,
+1
+],
+"--blurple-39": [
+113,
+133,
+248,
+1
+],
+"--blurple-4": [
+219,
+226,
+255,
+1
+],
+"--blurple-40": [
+111,
+130,
+247,
+1
+],
+"--blurple-41": [
+108,
+127,
+246,
+1
+],
+"--blurple-42": [
+106,
+124,
+246,
+1
+],
+"--blurple-43": [
+104,
+121,
+245,
+1
+],
+"--blurple-44": [
+101,
+118,
+245,
+1
+],
+"--blurple-45": [
+99,
+116,
+244,
+1
+],
+"--blurple-46": [
+97,
+113,
+244,
+1
+],
+"--blurple-47": [
+95,
+110,
+243,
+1
+],
+"--blurple-48": [
+93,
+107,
+243,
+1
+],
+"--blurple-49": [
+90,
+104,
+242,
+1
+],
+"--blurple-5": [
+216,
+223,
+255,
+1
+],
+"--blurple-50": [
+88,
+101,
+242,
+1
+],
+"--blurple-51": [
+86,
+99,
+236,
+1
+],
+"--blurple-52": [
+84,
+97,
+230,
+1
+],
+"--blurple-53": [
+82,
+95,
+224,
+1
+],
+"--blurple-54": [
+80,
+93,
+219,
+1
+],
+"--blurple-55": [
+78,
+91,
+213,
+1
+],
+"--blurple-56": [
+76,
+89,
+208,
+1
+],
+"--blurple-57": [
+74,
+88,
+203,
+1
+],
+"--blurple-58": [
+72,
+86,
+197,
+1
+],
+"--blurple-59": [
+70,
+84,
+192,
+1
+],
+"--blurple-6": [
+212,
+221,
+255,
+1
+],
+"--blurple-60": [
+68,
+82,
+187,
+1
+],
+"--blurple-61": [
+66,
+80,
+182,
+1
+],
+"--blurple-62": [
+64,
+78,
+177,
+1
+],
+"--blurple-63": [
+62,
+76,
+173,
+1
+],
+"--blurple-64": [
+60,
+74,
+168,
+1
+],
+"--blurple-65": [
+58,
+72,
+163,
+1
+],
+"--blurple-66": [
+56,
+70,
+159,
+1
+],
+"--blurple-67": [
+54,
+68,
+154,
+1
+],
+"--blurple-68": [
+52,
+66,
+150,
+1
+],
+"--blurple-69": [
+50,
+64,
+145,
+1
+],
+"--blurple-7": [
+209,
+218,
+255,
+1
+],
+"--blurple-70": [
+48,
+62,
+141,
+1
+],
+"--blurple-71": [
+46,
+60,
+136,
+1
+],
+"--blurple-72": [
+44,
+58,
+132,
+1
+],
+"--blurple-73": [
+43,
+56,
+128,
+1
+],
+"--blurple-74": [
+41,
+54,
+124,
+1
+],
+"--blurple-75": [
+39,
+52,
+120,
+1
+],
+"--blurple-76": [
+37,
+50,
+115,
+1
+],
+"--blurple-77": [
+35,
+49,
+111,
+1
+],
+"--blurple-78": [
+33,
+47,
+107,
+1
+],
+"--blurple-79": [
+31,
+45,
+103,
+1
+],
+"--blurple-8": [
+205,
+215,
+255,
+1
+],
+"--blurple-80": [
+30,
+43,
+99,
+1
+],
+"--blurple-81": [
+28,
+41,
+95,
+1
+],
+"--blurple-82": [
+26,
+39,
+91,
+1
+],
+"--blurple-83": [
+24,
+37,
+87,
+1
+],
+"--blurple-84": [
+23,
+35,
+84,
+1
+],
+"--blurple-85": [
+21,
+34,
+80,
+1
+],
+"--blurple-86": [
+20,
+32,
+76,
+1
+],
+"--blurple-87": [
+18,
+30,
+72,
+1
+],
+"--blurple-88": [
+16,
+28,
+69,
+1
+],
+"--blurple-89": [
+15,
+26,
+65,
+1
+],
+"--blurple-9": [
+202,
+213,
+255,
+1
+],
+"--blurple-90": [
+13,
+25,
+61,
+1
+],
+"--blurple-91": [
+12,
+23,
+58,
+1
+],
+"--blurple-92": [
+10,
+21,
+54,
+1
+],
+"--blurple-93": [
+9,
+19,
+50,
+1
+],
+"--blurple-94": [
+8,
+17,
+46,
+1
+],
+"--blurple-95": [
+6,
+15,
+41,
+1
+],
+"--blurple-96": [
+5,
+13,
+36,
+1
+],
+"--blurple-97": [
+4,
+10,
+30,
+1
+],
+"--blurple-98": [
+3,
+7,
+22,
+1
+],
+"--blurple-99": [
+1,
+3,
+12,
+1
+],
+"--border-feedback-critical": [
+255,
+160,
+155,
+1
+],
+"--border-feedback-info": [
+142,
+190,
+250,
+1
+],
+"--border-feedback-positive": [
+126,
+203,
+148,
+1
+],
+"--border-feedback-warning": [
+252,
+181,
+41,
+1
+],
+"--border-focus": [
+106,
+168,
+244,
+1
+],
+"--border-muted": [
+153,
+153,
+153,
+0.039
+],
+"--border-normal": [
+150,
+150,
+160,
+0.2
+],
+"--border-strong": [
+150,
+150,
+159,
+0.439
+],
+"--border-subtle": [
+148,
+148,
+156,
+0.122
+],
+"--border-voice-muted": [
+214,
+41,
+58,
+0.122
+],
+"--button-danger-background-disabled": [
+210,
+45,
+57,
+1
+],
+"--button-outline-brand-background-hover": [
+88,
+101,
+242,
+1
+],
+"--button-outline-brand-border-active": [
+70,
+84,
+192,
+1
+],
+"--button-outline-primary-text": [
+255,
+255,
+255,
+1
+],
+"--card-background-default": [
+57,
+58,
+65,
+1
+],
+"--card-border-default": [
+148,
+148,
+156,
+0.122
+],
+"--card-primary-pressed-bg": [
+41,
+42,
+47,
+1
+],
+"--card-secondary-bg": [
+148,
+148,
+156,
+0.122
+],
+"--card-secondary-pressed-bg": [
+41,
+42,
+47,
+1
+],
+"--channel-background-default": [
+50,
+51,
+57,
+1
+],
+"--channel-icon": [
+153,
+154,
+161,
+1
+],
+"--channel-text-area-placeholder": [
+108,
+109,
+118,
+1
+],
+"--channels-default": [
+153,
+154,
+161,
+1
+],
+"--channeltextarea-background": [
+57,
+58,
+65,
+1
+],
+"--chart-brand": [
+99,
+116,
+244,
+1
+],
+"--chart-categorical-1": [
+99,
+116,
+244,
+1
+],
+"--chart-categorical-10": [
+157,
+90,
+0,
+1
+],
+"--chart-categorical-2": [
+254,
+146,
+66,
+1
+],
+"--chart-categorical-3": [
+160,
+86,
+242,
+1
+],
+"--chart-categorical-4": [
+71,
+179,
+188,
+1
+],
+"--chart-categorical-5": [
+98,
+183,
+124,
+1
+],
+"--chart-categorical-6": [
+213,
+63,
+174,
+1
+],
+"--chart-categorical-7": [
+254,
+189,
+69,
+1
+],
+"--chart-categorical-8": [
+220,
+66,
+71,
+1
+],
+"--chart-categorical-9": [
+0,
+70,
+138,
+1
+],
+"--chart-mono-1": [
+182,
+197,
+255,
+1
+],
+"--chart-mono-2": [
+137,
+157,
+253,
+1
+],
+"--chart-mono-3": [
+88,
+101,
+242,
+1
+],
+"--chart-mono-4": [
+62,
+76,
+173,
+1
+],
+"--chart-mono-5": [
+39,
+52,
+120,
+1
+],
+"--chart-mono-6": [
+21,
+34,
+80,
+1
+],
+"--chart-mono-7": [
+6,
+15,
+41,
+1
+],
+"--chart-mono-text-1": [
+27,
+28,
+31,
+1
+],
+"--chart-mono-text-2": [
+0,
+0,
+0,
+1
+],
+"--chart-mono-text-3": [
+255,
+255,
+255,
+1
+],
+"--chart-mono-text-4": [
+255,
+255,
+255,
+1
+],
+"--chart-mono-text-5": [
+243,
+243,
+244,
+1
+],
+"--chart-mono-text-6": [
+209,
+209,
+213,
+1
+],
+"--chart-mono-text-7": [
+190,
+190,
+195,
+1
+],
+"--chart-negative": [
+229,
+84,
+85,
+1
+],
+"--chart-neutral": [
+150,
+151,
+158,
+1
+],
+"--chart-positive": [
+98,
+183,
+124,
+1
+],
+"--chat-background": [
+50,
+51,
+57,
+1
+],
+"--chat-background-default": [
+57,
+58,
+65,
+1
+],
+"--chat-border": [
+148,
+148,
+156,
+0.122
+],
+"--chat-text-muted": [
+157,
+158,
+165,
+1
+],
+"--checkbox-background-active": [
+58,
+72,
+163,
+1
+],
+"--checkbox-background-default": [
+0,
+0,
+0,
+0.078
+],
+"--checkbox-background-hover": [
+0,
+0,
+0,
+0.078
+],
+"--checkbox-background-selected-default": [
+88,
+101,
+242,
+1
+],
+"--checkbox-background-selected-hover": [
+68,
+82,
+187,
+1
+],
+"--checkbox-border-active": [
+148,
+148,
+156,
+0.122
+],
+"--checkbox-border-default": [
+152,
+152,
+160,
+0.639
+],
+"--checkbox-border-hover": [
+151,
+151,
+159,
+0.8
+],
+"--checkbox-border-selected-default": [
+148,
+148,
+156,
+0.122
+],
+"--checkbox-border-selected-hover": [
+148,
+148,
+156,
+0.122
+],
+"--checkbox-icon-active": [
+255,
+255,
+255,
+1
+],
+"--checkpoint-emojis-primary": [
+202,
+158,
+249,
+1
+],
+"--checkpoint-emojis-secondary": [
+163,
+101,
+230,
+1
+],
+"--checkpoint-end-primary": [
+43,
+236,
+118,
+1
+],
+"--checkpoint-end-secondary": [
+20,
+167,
+78,
+1
+],
+"--checkpoint-friends-primary": [
+160,
+169,
+250,
+1
+],
+"--checkpoint-friends-secondary": [
+97,
+106,
+187,
+1
+],
+"--checkpoint-gaming-primary": [
+255,
+150,
+6,
+1
+],
+"--checkpoint-gaming-secondary": [
+203,
+99,
+15,
+1
+],
+"--checkpoint-guilds-primary": [
+94,
+253,
+226,
+1
+],
+"--checkpoint-guilds-secondary": [
+28,
+150,
+129,
+1
+],
+"--checkpoint-messages-primary": [
+255,
+76,
+210,
+1
+],
+"--checkpoint-messages-secondary": [
+170,
+29,
+134,
+1
+],
+"--checkpoint-persona-eight-background-overlay": [
+40,
+26,
+10,
+1
+],
+"--checkpoint-persona-eight-primary": [
+217,
+183,
+119,
+1
+],
+"--checkpoint-persona-eight-secondary": [
+173,
+138,
+70,
+1
+],
+"--checkpoint-persona-five-background-overlay": [
+55,
+11,
+26,
+1
+],
+"--checkpoint-persona-five-primary": [
+247,
+89,
+144,
+1
+],
+"--checkpoint-persona-five-secondary": [
+212,
+35,
+97,
+1
+],
+"--checkpoint-persona-four-background-overlay": [
+56,
+2,
+45,
+1
+],
+"--checkpoint-persona-four-primary": [
+242,
+98,
+213,
+1
+],
+"--checkpoint-persona-four-secondary": [
+170,
+29,
+134,
+1
+],
+"--checkpoint-persona-nine-background-overlay": [
+38,
+38,
+38,
+1
+],
+"--checkpoint-persona-nine-primary": [
+238,
+238,
+238,
+1
+],
+"--checkpoint-persona-nine-secondary": [
+169,
+169,
+169,
+1
+],
+"--checkpoint-persona-one-background-overlay": [
+6,
+46,
+39,
+1
+],
+"--checkpoint-persona-one-primary": [
+94,
+253,
+226,
+1
+],
+"--checkpoint-persona-one-secondary": [
+28,
+150,
+129,
+1
+],
+"--checkpoint-persona-seven-background-overlay": [
+31,
+23,
+0,
+1
+],
+"--checkpoint-persona-seven-primary": [
+255,
+224,
+71,
+1
+],
+"--checkpoint-persona-seven-secondary": [
+182,
+156,
+27,
+1
+],
+"--checkpoint-persona-six-background-overlay": [
+45,
+23,
+5,
+1
+],
+"--checkpoint-persona-six-primary": [
+255,
+145,
+56,
+1
+],
+"--checkpoint-persona-six-secondary": [
+203,
+99,
+15,
+1
+],
+"--checkpoint-persona-three-background-overlay": [
+28,
+7,
+64,
+1
+],
+"--checkpoint-persona-three-primary": [
+202,
+158,
+249,
+1
+],
+"--checkpoint-persona-three-secondary": [
+163,
+101,
+230,
+1
+],
+"--checkpoint-persona-two-background-overlay": [
+26,
+10,
+57,
+1
+],
+"--checkpoint-persona-two-primary": [
+142,
+182,
+251,
+1
+],
+"--checkpoint-persona-two-secondary": [
+97,
+106,
+187,
+1
+],
+"--checkpoint-persona-zero-background-overlay": [
+8,
+33,
+20,
+1
+],
+"--checkpoint-persona-zero-primary": [
+53,
+237,
+126,
+1
+],
+"--checkpoint-persona-zero-secondary": [
+20,
+167,
+78,
+1
+],
+"--checkpoint-voice-primary": [
+255,
+224,
+71,
+1
+],
+"--checkpoint-voice-secondary": [
+182,
+156,
+27,
+1
+],
+"--checkpoint-welcome-primary": [
+43,
+236,
+118,
+1
+],
+"--checkpoint-welcome-secondary": [
+20,
+167,
+78,
+1
+],
+"--chip-blurple-dark-background": [
+48,
+62,
+141,
+1
+],
+"--chip-blurple-dark-text": [
+230,
+234,
+255,
+1
+],
+"--chip-blurple-light-background": [
+166,
+184,
+255,
+1
+],
+"--chip-blurple-light-text": [
+12,
+23,
+58,
+1
+],
+"--chip-gray-dark-background": [
+41,
+42,
+47,
+1
+],
+"--chip-gray-dark-text": [
+235,
+236,
+237,
+1
+],
+"--chip-gray-light-background": [
+220,
+220,
+223,
+1
+],
+"--chip-gray-light-text": [
+52,
+52,
+58,
+1
+],
+"--chip-gray-medium-background": [
+112,
+113,
+122,
+1
+],
+"--chip-gray-medium-text": [
+255,
+255,
+255,
+1
+],
+"--chip-green-dark-background": [
+0,
+84,
+40,
+1
+],
+"--chip-green-dark-text": [
+200,
+255,
+216,
+1
+],
+"--chip-green-light-background": [
+132,
+208,
+154,
+1
+],
+"--chip-green-light-text": [
+0,
+37,
+10,
+1
+],
+"--chip-orange-light-background": [
+242,
+168,
+125,
+1
+],
+"--chip-orange-light-text": [
+55,
+2,
+0,
+1
+],
+"--chip-red-dark-background": [
+133,
+22,
+33,
+1
+],
+"--chip-red-dark-text": [
+255,
+222,
+221,
+1
+],
+"--chip-red-light-background": [
+255,
+154,
+148,
+1
+],
+"--chip-red-light-text": [
+50,
+0,
+7,
+1
+],
+"--chip-yellow-light-background": [
+255,
+206,
+118,
+1
+],
+"--chip-yellow-light-text": [
+86,
+32,
+0,
+1
+],
+"--content-inventory-media-seekbar-container": [
+201,
+201,
+205,
+0.239
+],
+"--content-inventory-overlay-text-primary": [
+255,
+255,
+255,
+0.851
+],
+"--content-inventory-overlay-text-secondary": [
+255,
+255,
+255,
+0.698
+],
+"--context-menu-backdrop-background": [
+0,
+0,
+0,
+0.722
+],
+"--control-brand-foreground": [
+140,
+160,
+253,
+1
+],
+"--control-brand-foreground-new": [
+140,
+160,
+253,
+1
+],
+"--control-connected-background-active": [
+0,
+95,
+48,
+1
+],
+"--control-connected-background-default": [
+0,
+133,
+69,
+1
+],
+"--control-connected-background-hover": [
+0,
+108,
+55,
+1
+],
+"--control-connected-border-active": [
+255,
+255,
+255,
+0.078
+],
+"--control-connected-border-default": [
+255,
+255,
+255,
+0.078
+],
+"--control-connected-border-hover": [
+255,
+255,
+255,
+0.078
+],
+"--control-connected-icon-active": [
+255,
+255,
+255,
+1
+],
+"--control-connected-icon-default": [
+255,
+255,
+255,
+1
+],
+"--control-connected-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--control-connected-text-active": [
+255,
+255,
+255,
+1
+],
+"--control-connected-text-default": [
+255,
+255,
+255,
+1
+],
+"--control-connected-text-hover": [
+255,
+255,
+255,
+1
+],
+"--control-critical-primary-background-active": [
+151,
+29,
+40,
+1
+],
+"--control-critical-primary-background-default": [
+210,
+45,
+57,
+1
+],
+"--control-critical-primary-background-hover": [
+169,
+35,
+46,
+1
+],
+"--control-critical-primary-border-active": [
+255,
+255,
+255,
+0.078
+],
+"--control-critical-primary-border-default": [
+255,
+255,
+255,
+0.078
+],
+"--control-critical-primary-border-hover": [
+255,
+255,
+255,
+0.078
+],
+"--control-critical-primary-icon-active": [
+255,
+255,
+255,
+1
+],
+"--control-critical-primary-icon-default": [
+255,
+255,
+255,
+1
+],
+"--control-critical-primary-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--control-critical-primary-text-active": [
+255,
+255,
+255,
+1
+],
+"--control-critical-primary-text-default": [
+255,
+255,
+255,
+1
+],
+"--control-critical-primary-text-hover": [
+255,
+255,
+255,
+1
+],
+"--control-critical-secondary-background-active": [
+150,
+150,
+160,
+0.2
+],
+"--control-critical-secondary-background-default": [
+148,
+148,
+156,
+0.122
+],
+"--control-critical-secondary-background-hover": [
+149,
+149,
+162,
+0.161
+],
+"--control-critical-secondary-border-active": [
+153,
+153,
+153,
+0.039
+],
+"--control-critical-secondary-border-default": [
+153,
+153,
+153,
+0.039
+],
+"--control-critical-secondary-border-hover": [
+153,
+153,
+153,
+0.039
+],
+"--control-critical-secondary-icon-active": [
+255,
+160,
+155,
+1
+],
+"--control-critical-secondary-icon-default": [
+255,
+160,
+155,
+1
+],
+"--control-critical-secondary-icon-hover": [
+255,
+160,
+155,
+1
+],
+"--control-critical-secondary-text-active": [
+255,
+160,
+155,
+1
+],
+"--control-critical-secondary-text-default": [
+255,
+160,
+155,
+1
+],
+"--control-critical-secondary-text-hover": [
+255,
+160,
+155,
+1
+],
+"--control-expressive-background-active": [
+239,
+239,
+241,
+1
+],
+"--control-expressive-background-default": [
+255,
+255,
+255,
+1
+],
+"--control-expressive-background-hover": [
+255,
+255,
+255,
+1
+],
+"--control-expressive-border-active": [
+148,
+148,
+156,
+0.122
+],
+"--control-expressive-border-default": [
+148,
+148,
+156,
+0.122
+],
+"--control-expressive-border-hover": [
+148,
+148,
+156,
+0.122
+],
+"--control-expressive-icon-active": [
+0,
+0,
+0,
+1
+],
+"--control-expressive-icon-default": [
+0,
+0,
+0,
+1
+],
+"--control-expressive-icon-hover": [
+0,
+0,
+0,
+1
+],
+"--control-expressive-text-active": [
+0,
+0,
+0,
+1
+],
+"--control-expressive-text-default": [
+0,
+0,
+0,
+1
+],
+"--control-expressive-text-hover": [
+0,
+0,
+0,
+1
+],
+"--control-icon-only-background-active": [
+150,
+150,
+160,
+0.2
+],
+"--control-icon-only-background-hover": [
+149,
+149,
+162,
+0.161
+],
+"--control-icon-only-border-active": [
+153,
+153,
+153,
+0.039
+],
+"--control-icon-only-border-hover": [
+153,
+153,
+153,
+0.039
+],
+"--control-icon-only-icon-active": [
+255,
+255,
+255,
+1
+],
+"--control-icon-only-icon-default": [
+197,
+198,
+202,
+1
+],
+"--control-icon-only-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--control-overlay-primary-background-active": [
+194,
+194,
+199,
+1
+],
+"--control-overlay-primary-background-default": [
+255,
+255,
+255,
+1
+],
+"--control-overlay-primary-background-hover": [
+224,
+224,
+227,
+1
+],
+"--control-overlay-primary-border-active": [
+148,
+148,
+156,
+0.122
+],
+"--control-overlay-primary-border-default": [
+148,
+148,
+156,
+0.122
+],
+"--control-overlay-primary-border-hover": [
+148,
+148,
+156,
+0.122
+],
+"--control-overlay-primary-icon-active": [
+0,
+0,
+0,
+1
+],
+"--control-overlay-primary-icon-default": [
+0,
+0,
+0,
+1
+],
+"--control-overlay-primary-icon-hover": [
+0,
+0,
+0,
+1
+],
+"--control-overlay-primary-text-active": [
+0,
+0,
+0,
+1
+],
+"--control-overlay-primary-text-default": [
+0,
+0,
+0,
+1
+],
+"--control-overlay-primary-text-hover": [
+0,
+0,
+0,
+1
+],
+"--control-overlay-secondary-background-active": [
+0,
+0,
+0,
+0.561
+],
+"--control-overlay-secondary-background-default": [
+0,
+0,
+0,
+0.561
+],
+"--control-overlay-secondary-background-hover": [
+0,
+0,
+0,
+0.639
+],
+"--control-overlay-secondary-border-active": [
+153,
+153,
+153,
+0.039
+],
+"--control-overlay-secondary-border-default": [
+153,
+153,
+153,
+0.039
+],
+"--control-overlay-secondary-border-hover": [
+153,
+153,
+153,
+0.039
+],
+"--control-overlay-secondary-icon-active": [
+255,
+255,
+255,
+1
+],
+"--control-overlay-secondary-icon-default": [
+255,
+255,
+255,
+1
+],
+"--control-overlay-secondary-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--control-overlay-secondary-text-active": [
+255,
+255,
+255,
+1
+],
+"--control-overlay-secondary-text-default": [
+255,
+255,
+255,
+1
+],
+"--control-overlay-secondary-text-hover": [
+255,
+255,
+255,
+1
+],
+"--control-primary-background-active": [
+58,
+72,
+163,
+1
+],
+"--control-primary-background-default": [
+88,
+101,
+242,
+1
+],
+"--control-primary-background-hover": [
+68,
+82,
+187,
+1
+],
+"--control-primary-border-active": [
+255,
+255,
+255,
+0.078
+],
+"--control-primary-border-default": [
+255,
+255,
+255,
+0.078
+],
+"--control-primary-border-hover": [
+255,
+255,
+255,
+0.078
+],
+"--control-primary-icon-active": [
+255,
+255,
+255,
+1
+],
+"--control-primary-icon-default": [
+255,
+255,
+255,
+1
+],
+"--control-primary-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--control-primary-text-active": [
+255,
+255,
+255,
+1
+],
+"--control-primary-text-default": [
+255,
+255,
+255,
+1
+],
+"--control-primary-text-hover": [
+255,
+255,
+255,
+1
+],
+"--control-secondary-background-active": [
+150,
+150,
+160,
+0.2
+],
+"--control-secondary-background-default": [
+148,
+148,
+156,
+0.122
+],
+"--control-secondary-background-hover": [
+149,
+149,
+162,
+0.161
+],
+"--control-secondary-border-active": [
+153,
+153,
+153,
+0.039
+],
+"--control-secondary-border-default": [
+153,
+153,
+153,
+0.039
+],
+"--control-secondary-border-hover": [
+153,
+153,
+153,
+0.039
+],
+"--control-secondary-icon-active": [
+255,
+255,
+255,
+1
+],
+"--control-secondary-icon-default": [
+255,
+255,
+255,
+1
+],
+"--control-secondary-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--control-secondary-text-active": [
+255,
+255,
+255,
+1
+],
+"--control-secondary-text-default": [
+255,
+255,
+255,
+1
+],
+"--control-secondary-text-hover": [
+255,
+255,
+255,
+1
+],
+"--custom-channel-members-bg": [
+50,
+51,
+57,
+1
+],
+"--custom-header-icon-color-expired": [
+78,
+80,
+88,
+1
+],
+"--custom-text-widget-background-color-header-default": [
+50,
+51,
+57,
+1
+],
+"--datepicker-range-background-default": [
+87,
+100,
+242,
+0.4
+],
+"--datepicker-range-background-hover": [
+88,
+102,
+242,
+0.6
+],
+"--embed-background": [
+57,
+58,
+65,
+1
+],
+"--embed-background-alternate": [
+57,
+58,
+65,
+1
+],
+"--experimental-avatar-embed-bg": [
+0,
+0,
+0,
+0.522
+],
+"--green-new-1": [
+200,
+255,
+216,
+1
+],
+"--green-new-10": [
+168,
+234,
+186,
+1
+],
+"--green-new-100": [
+0,
+16,
+2,
+1
+],
+"--green-new-11": [
+164,
+232,
+182,
+1
+],
+"--green-new-12": [
+160,
+229,
+179,
+1
+],
+"--green-new-13": [
+157,
+226,
+176,
+1
+],
+"--green-new-14": [
+153,
+224,
+173,
+1
+],
+"--green-new-15": [
+150,
+221,
+169,
+1
+],
+"--green-new-16": [
+146,
+219,
+166,
+1
+],
+"--green-new-17": [
+143,
+216,
+163,
+1
+],
+"--green-new-18": [
+139,
+214,
+160,
+1
+],
+"--green-new-19": [
+136,
+211,
+157,
+1
+],
+"--green-new-2": [
+197,
+255,
+213,
+1
+],
+"--green-new-20": [
+132,
+208,
+154,
+1
+],
+"--green-new-21": [
+129,
+206,
+151,
+1
+],
+"--green-new-22": [
+126,
+203,
+148,
+1
+],
+"--green-new-23": [
+122,
+201,
+145,
+1
+],
+"--green-new-24": [
+119,
+198,
+142,
+1
+],
+"--green-new-25": [
+115,
+196,
+139,
+1
+],
+"--green-new-26": [
+112,
+193,
+136,
+1
+],
+"--green-new-27": [
+108,
+191,
+133,
+1
+],
+"--green-new-28": [
+105,
+188,
+130,
+1
+],
+"--green-new-29": [
+101,
+186,
+127,
+1
+],
+"--green-new-3": [
+193,
+252,
+209,
+1
+],
+"--green-new-30": [
+98,
+183,
+124,
+1
+],
+"--green-new-31": [
+94,
+180,
+121,
+1
+],
+"--green-new-32": [
+91,
+178,
+119,
+1
+],
+"--green-new-33": [
+87,
+175,
+116,
+1
+],
+"--green-new-34": [
+83,
+173,
+113,
+1
+],
+"--green-new-35": [
+80,
+170,
+110,
+1
+],
+"--green-new-36": [
+76,
+168,
+107,
+1
+],
+"--green-new-37": [
+72,
+165,
+104,
+1
+],
+"--green-new-38": [
+69,
+163,
+102,
+1
+],
+"--green-new-39": [
+65,
+160,
+99,
+1
+],
+"--green-new-4": [
+189,
+249,
+206,
+1
+],
+"--green-new-40": [
+61,
+158,
+96,
+1
+],
+"--green-new-41": [
+57,
+155,
+93,
+1
+],
+"--green-new-42": [
+52,
+153,
+91,
+1
+],
+"--green-new-43": [
+48,
+150,
+88,
+1
+],
+"--green-new-44": [
+43,
+148,
+85,
+1
+],
+"--green-new-45": [
+38,
+145,
+83,
+1
+],
+"--green-new-46": [
+33,
+143,
+80,
+1
+],
+"--green-new-47": [
+27,
+141,
+77,
+1
+],
+"--green-new-48": [
+19,
+138,
+74,
+1
+],
+"--green-new-49": [
+9,
+136,
+72,
+1
+],
+"--green-new-5": [
+186,
+247,
+202,
+1
+],
+"--green-new-50": [
+0,
+133,
+69,
+1
+],
+"--green-new-51": [
+0,
+131,
+68,
+1
+],
+"--green-new-52": [
+0,
+128,
+67,
+1
+],
+"--green-new-53": [
+1,
+125,
+65,
+1
+],
+"--green-new-54": [
+1,
+123,
+64,
+1
+],
+"--green-new-55": [
+1,
+120,
+62,
+1
+],
+"--green-new-56": [
+1,
+118,
+61,
+1
+],
+"--green-new-57": [
+1,
+115,
+60,
+1
+],
+"--green-new-58": [
+1,
+113,
+58,
+1
+],
+"--green-new-59": [
+1,
+110,
+57,
+1
+],
+"--green-new-6": [
+182,
+244,
+199,
+1
+],
+"--green-new-60": [
+0,
+108,
+55,
+1
+],
+"--green-new-61": [
+0,
+105,
+54,
+1
+],
+"--green-new-62": [
+0,
+103,
+52,
+1
+],
+"--green-new-63": [
+0,
+100,
+51,
+1
+],
+"--green-new-64": [
+0,
+98,
+49,
+1
+],
+"--green-new-65": [
+0,
+95,
+48,
+1
+],
+"--green-new-66": [
+0,
+93,
+46,
+1
+],
+"--green-new-67": [
+0,
+91,
+45,
+1
+],
+"--green-new-68": [
+0,
+88,
+43,
+1
+],
+"--green-new-69": [
+0,
+86,
+42,
+1
+],
+"--green-new-7": [
+178,
+242,
+195,
+1
+],
+"--green-new-70": [
+0,
+84,
+40,
+1
+],
+"--green-new-71": [
+0,
+81,
+39,
+1
+],
+"--green-new-72": [
+0,
+79,
+37,
+1
+],
+"--green-new-73": [
+0,
+77,
+36,
+1
+],
+"--green-new-74": [
+0,
+74,
+34,
+1
+],
+"--green-new-75": [
+0,
+72,
+33,
+1
+],
+"--green-new-76": [
+0,
+70,
+31,
+1
+],
+"--green-new-77": [
+0,
+67,
+30,
+1
+],
+"--green-new-78": [
+0,
+65,
+28,
+1
+],
+"--green-new-79": [
+0,
+63,
+27,
+1
+],
+"--green-new-8": [
+175,
+239,
+192,
+1
+],
+"--green-new-80": [
+0,
+61,
+25,
+1
+],
+"--green-new-81": [
+0,
+59,
+24,
+1
+],
+"--green-new-82": [
+0,
+56,
+22,
+1
+],
+"--green-new-83": [
+0,
+54,
+21,
+1
+],
+"--green-new-84": [
+0,
+52,
+20,
+1
+],
+"--green-new-85": [
+0,
+50,
+18,
+1
+],
+"--green-new-86": [
+0,
+48,
+17,
+1
+],
+"--green-new-87": [
+0,
+46,
+15,
+1
+],
+"--green-new-88": [
+0,
+43,
+14,
+1
+],
+"--green-new-89": [
+0,
+41,
+13,
+1
+],
+"--green-new-9": [
+171,
+237,
+189,
+1
+],
+"--green-new-90": [
+0,
+39,
+12,
+1
+],
+"--green-new-91": [
+0,
+37,
+10,
+1
+],
+"--green-new-92": [
+0,
+35,
+9,
+1
+],
+"--green-new-93": [
+0,
+33,
+8,
+1
+],
+"--green-new-94": [
+0,
+31,
+7,
+1
+],
+"--green-new-95": [
+0,
+29,
+6,
+1
+],
+"--green-new-96": [
+0,
+27,
+5,
+1
+],
+"--green-new-97": [
+0,
+25,
+4,
+1
+],
+"--green-new-98": [
+0,
+22,
+3,
+1
+],
+"--green-new-99": [
+0,
+19,
+3,
+1
+],
+"--guild-profile-banner-background-default": [
+44,
+45,
+50,
+1
+],
+"--home-background": [
+41,
+42,
+47,
+1
+],
+"--hypesquad-house-1": [
+156,
+132,
+239,
+1
+],
+"--hypesquad-house-2": [
+244,
+123,
+103,
+1
+],
+"--hypesquad-house-3": [
+69,
+221,
+192,
+1
+],
+"--icon-brand": [
+148,
+168,
+255,
+1
+],
+"--icon-default": [
+243,
+243,
+244,
+1
+],
+"--icon-feedback-critical": [
+255,
+160,
+155,
+1
+],
+"--icon-feedback-info": [
+142,
+190,
+250,
+1
+],
+"--icon-feedback-notification": [
+210,
+45,
+57,
+1
+],
+"--icon-feedback-positive": [
+126,
+203,
+148,
+1
+],
+"--icon-feedback-warning": [
+252,
+181,
+41,
+1
+],
+"--icon-invert": [
+47,
+48,
+53,
+1
+],
+"--icon-link": [
+118,
+175,
+246,
+1
+],
+"--icon-muted": [
+171,
+172,
+178,
+1
+],
+"--icon-overlay-dark": [
+0,
+0,
+0,
+1
+],
+"--icon-overlay-light": [
+255,
+255,
+255,
+1
+],
+"--icon-status-dnd": [
+220,
+66,
+71,
+1
+],
+"--icon-status-idle": [
+255,
+203,
+110,
+1
+],
+"--icon-status-offline": [
+157,
+158,
+165,
+1
+],
+"--icon-status-online": [
+61,
+158,
+96,
+1
+],
+"--icon-strong": [
+255,
+255,
+255,
+1
+],
+"--icon-subtle": [
+197,
+198,
+202,
+1
+],
+"--icon-transparent": [
+0,
+0,
+0,
+0
+],
+"--icon-voice-connected": [
+115,
+196,
+139,
+1
+],
+"--icon-voice-disconnected": [
+255,
+160,
+155,
+1
+],
+"--icon-voice-muted": [
+218,
+62,
+68,
+1
+],
+"--icon-voice-speaking": [
+61,
+158,
+96,
+1
+],
+"--illo-pink-10": [
+251,
+230,
+255,
+1
+],
+"--illo-pink-20": [
+252,
+192,
+244,
+1
+],
+"--illo-pink-30": [
+253,
+153,
+233,
+1
+],
+"--illo-pink-40": [
+255,
+76,
+210,
+1
+],
+"--illo-pink-50": [
+179,
+38,
+156,
+1
+],
+"--illo-pink-60": [
+140,
+19,
+129,
+1
+],
+"--illo-pink-70": [
+102,
+0,
+102,
+1
+],
+"--illo-purple-10": [
+243,
+230,
+255,
+1
+],
+"--illo-purple-20": [
+222,
+194,
+252,
+1
+],
+"--illo-purple-30": [
+202,
+158,
+249,
+1
+],
+"--illo-purple-40": [
+160,
+86,
+242,
+1
+],
+"--illo-purple-50": [
+97,
+44,
+175,
+1
+],
+"--illo-purple-60": [
+62,
+22,
+137,
+1
+],
+"--illo-purple-70": [
+29,
+0,
+102,
+1
+],
+"--inlinenotice-border-critical": [
+211,
+44,
+58,
+0.522
+],
+"--inlinenotice-border-info": [
+0,
+117,
+226,
+0.522
+],
+"--inlinenotice-border-positive": [
+0,
+132,
+69,
+0.522
+],
+"--inlinenotice-border-warning": [
+249,
+162,
+0,
+0.322
+],
+"--input-background-default": [
+0,
+0,
+0,
+0.078
+],
+"--input-background-error-default": [
+204,
+51,
+51,
+0.039
+],
+"--input-border-active": [
+88,
+101,
+242,
+1
+],
+"--input-border-default": [
+150,
+150,
+160,
+0.2
+],
+"--input-border-error-default": [
+255,
+160,
+155,
+1
+],
+"--input-border-hover": [
+150,
+150,
+160,
+0.2
+],
+"--input-border-readonly": [
+255,
+255,
+255,
+0.078
+],
+"--input-icon-default": [
+197,
+198,
+202,
+1
+],
+"--input-placeholder-text-default": [
+164,
+165,
+171,
+1
+],
+"--input-text-default": [
+243,
+243,
+244,
+1
+],
+"--input-text-error-default": [
+243,
+243,
+244,
+1
+],
+"--interactive-accent-background-active": [
+58,
+72,
+163,
+1
+],
+"--interactive-accent-background-default": [
+148,
+148,
+156,
+0.122
+],
+"--interactive-accent-background-hover": [
+88,
+101,
+242,
+1
+],
+"--interactive-accent-background-selected": [
+88,
+101,
+242,
+1
+],
+"--interactive-background-active": [
+149,
+149,
+162,
+0.161
+],
+"--interactive-background-default": [
+153,
+153,
+153,
+0.078
+],
+"--interactive-background-hover": [
+148,
+148,
+156,
+0.122
+],
+"--interactive-background-selected": [
+150,
+150,
+160,
+0.2
+],
+"--interactive-icon-active": [
+255,
+255,
+255,
+1
+],
+"--interactive-icon-default": [
+197,
+198,
+202,
+1
+],
+"--interactive-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--interactive-muted": [
+79,
+80,
+90,
+1
+],
+"--interactive-text-active": [
+255,
+255,
+255,
+1
+],
+"--interactive-text-default": [
+197,
+198,
+202,
+1
+],
+"--interactive-text-hover": [
+255,
+255,
+255,
+1
+],
+"--keyword-highlight-background": [
+150,
+150,
+160,
+0.2
+],
+"--logo-primary": [
+255,
+255,
+255,
+1
+],
+"--lol-text-dark": [
+148,
+98,
+15,
+1
+],
+"--lol-text-light": [
+203,
+170,
+98,
+1
+],
+"--mention-background": [
+88,
+100,
+242,
+0.239
+],
+"--mention-foreground": [
+205,
+215,
+255,
+1
+],
+"--message-automod-background-default": [
+216,
+59,
+59,
+0.051
+],
+"--message-automod-background-hover": [
+216,
+59,
+69,
+0.102
+],
+"--message-background-hover": [
+148,
+148,
+156,
+0.122
+],
+"--message-highlight-background-default": [
+87,
+100,
+243,
+0.161
+],
+"--message-highlight-background-hover": [
+90,
+99,
+239,
+0.122
+],
+"--message-mentioned-background-default": [
+242,
+166,
+0,
+0.078
+],
+"--message-mentioned-background-hover": [
+255,
+153,
+0,
+0.039
+],
+"--modal-background": [
+57,
+58,
+65,
+1
+],
+"--modal-footer-background": [
+57,
+58,
+65,
+1
+],
+"--navigator-header-tint": [
+255,
+255,
+255,
+1
+],
+"--notice-background-critical": [
+115,
+14,
+27,
+1
+],
+"--notice-background-info": [
+0,
+56,
+115,
+1
+],
+"--notice-background-positive": [
+0,
+67,
+30,
+1
+],
+"--notice-background-warning": [
+98,
+42,
+0,
+1
+],
+"--notice-text-critical": [
+255,
+222,
+221,
+1
+],
+"--notice-text-info": [
+229,
+239,
+255,
+1
+],
+"--notice-text-positive": [
+193,
+252,
+209,
+1
+],
+"--notice-text-warning": [
+255,
+231,
+207,
+1
+],
+"--opacity-1": [
+153,
+153,
+153,
+0.02
+],
+"--opacity-12": [
+148,
+148,
+156,
+0.122
+],
+"--opacity-16": [
+149,
+149,
+162,
+0.161
+],
+"--opacity-20": [
+150,
+150,
+160,
+0.2
+],
+"--opacity-24": [
+150,
+150,
+159,
+0.239
+],
+"--opacity-28": [
+151,
+151,
+158,
+0.278
+],
+"--opacity-32": [
+152,
+152,
+159,
+0.322
+],
+"--opacity-36": [
+150,
+150,
+158,
+0.361
+],
+"--opacity-4": [
+153,
+153,
+153,
+0.039
+],
+"--opacity-40": [
+150,
+150,
+160,
+0.4
+],
+"--opacity-44": [
+150,
+150,
+159,
+0.439
+],
+"--opacity-48": [
+150,
+150,
+159,
+0.478
+],
+"--opacity-52": [
+151,
+151,
+159,
+0.522
+],
+"--opacity-56": [
+152,
+152,
+159,
+0.561
+],
+"--opacity-60": [
+152,
+152,
+158,
+0.6
+],
+"--opacity-64": [
+152,
+152,
+160,
+0.639
+],
+"--opacity-68": [
+150,
+150,
+159,
+0.678
+],
+"--opacity-72": [
+151,
+151,
+159,
+0.722
+],
+"--opacity-76": [
+151,
+151,
+159,
+0.761
+],
+"--opacity-8": [
+153,
+153,
+153,
+0.078
+],
+"--opacity-80": [
+151,
+151,
+159,
+0.8
+],
+"--opacity-84": [
+151,
+151,
+158,
+0.839
+],
+"--opacity-88": [
+151,
+151,
+159,
+0.878
+],
+"--opacity-92": [
+151,
+151,
+160,
+0.922
+],
+"--opacity-96": [
+151,
+151,
+159,
+0.961
+],
+"--opacity-blurple-1": [
+102,
+102,
+255,
+0.02
+],
+"--opacity-blurple-12": [
+90,
+99,
+239,
+0.122
+],
+"--opacity-blurple-16": [
+87,
+100,
+243,
+0.161
+],
+"--opacity-blurple-20": [
+90,
+100,
+240,
+0.2
+],
+"--opacity-blurple-24": [
+88,
+100,
+242,
+0.239
+],
+"--opacity-blurple-28": [
+90,
+101,
+241,
+0.278
+],
+"--opacity-blurple-32": [
+87,
+100,
+243,
+0.322
+],
+"--opacity-blurple-36": [
+89,
+100,
+241,
+0.361
+],
+"--opacity-blurple-4": [
+77,
+102,
+230,
+0.039
+],
+"--opacity-blurple-40": [
+87,
+100,
+242,
+0.4
+],
+"--opacity-blurple-44": [
+89,
+100,
+241,
+0.439
+],
+"--opacity-blurple-48": [
+88,
+100,
+242,
+0.478
+],
+"--opacity-blurple-52": [
+88,
+102,
+242,
+0.522
+],
+"--opacity-blurple-56": [
+87,
+102,
+243,
+0.561
+],
+"--opacity-blurple-60": [
+88,
+102,
+242,
+0.6
+],
+"--opacity-blurple-64": [
+88,
+102,
+242,
+0.639
+],
+"--opacity-blurple-68": [
+88,
+102,
+242,
+0.678
+],
+"--opacity-blurple-72": [
+87,
+101,
+243,
+0.722
+],
+"--opacity-blurple-76": [
+88,
+101,
+242,
+0.761
+],
+"--opacity-blurple-8": [
+89,
+102,
+242,
+0.078
+],
+"--opacity-blurple-80": [
+87,
+101,
+242,
+0.8
+],
+"--opacity-blurple-84": [
+88,
+101,
+242,
+0.839
+],
+"--opacity-blurple-88": [
+88,
+101,
+242,
+0.878
+],
+"--opacity-blurple-92": [
+88,
+101,
+242,
+0.922
+],
+"--opacity-blurple-96": [
+88,
+101,
+243,
+0.961
+],
+"--opacity-pink-1": [
+255,
+51,
+204,
+0.02
+],
+"--opacity-pink-12": [
+255,
+74,
+214,
+0.122
+],
+"--opacity-pink-16": [
+255,
+75,
+211,
+0.161
+],
+"--opacity-pink-20": [
+255,
+75,
+210,
+0.2
+],
+"--opacity-pink-24": [
+255,
+75,
+209,
+0.239
+],
+"--opacity-pink-28": [
+255,
+75,
+208,
+0.278
+],
+"--opacity-pink-32": [
+255,
+75,
+211,
+0.322
+],
+"--opacity-pink-36": [
+255,
+75,
+211,
+0.361
+],
+"--opacity-pink-4": [
+255,
+77,
+204,
+0.039
+],
+"--opacity-pink-40": [
+255,
+75,
+210,
+0.4
+],
+"--opacity-pink-44": [
+255,
+75,
+209,
+0.439
+],
+"--opacity-pink-48": [
+255,
+75,
+209,
+0.478
+],
+"--opacity-pink-52": [
+255,
+75,
+211,
+0.522
+],
+"--opacity-pink-56": [
+255,
+75,
+210,
+0.561
+],
+"--opacity-pink-60": [
+255,
+75,
+210,
+0.6
+],
+"--opacity-pink-64": [
+255,
+75,
+210,
+0.639
+],
+"--opacity-pink-68": [
+255,
+75,
+209,
+0.678
+],
+"--opacity-pink-72": [
+255,
+75,
+211,
+0.722
+],
+"--opacity-pink-76": [
+255,
+75,
+210,
+0.761
+],
+"--opacity-pink-8": [
+255,
+77,
+204,
+0.078
+],
+"--opacity-pink-80": [
+255,
+75,
+210,
+0.8
+],
+"--opacity-pink-84": [
+255,
+75,
+210,
+0.839
+],
+"--opacity-pink-88": [
+255,
+75,
+209,
+0.878
+],
+"--opacity-pink-92": [
+255,
+75,
+211,
+0.922
+],
+"--opacity-pink-96": [
+255,
+75,
+210,
+0.961
+],
+"--orange-new-1": [
+255,
+227,
+217,
+1
+],
+"--orange-new-10": [
+253,
+198,
+170,
+1
+],
+"--orange-new-100": [
+24,
+0,
+2,
+1
+],
+"--orange-new-11": [
+253,
+195,
+165,
+1
+],
+"--orange-new-12": [
+252,
+192,
+161,
+1
+],
+"--orange-new-13": [
+250,
+189,
+156,
+1
+],
+"--orange-new-14": [
+249,
+186,
+151,
+1
+],
+"--orange-new-15": [
+248,
+183,
+147,
+1
+],
+"--orange-new-16": [
+247,
+180,
+142,
+1
+],
+"--orange-new-17": [
+246,
+177,
+138,
+1
+],
+"--orange-new-18": [
+245,
+174,
+134,
+1
+],
+"--orange-new-19": [
+243,
+171,
+129,
+1
+],
+"--orange-new-2": [
+255,
+224,
+211,
+1
+],
+"--orange-new-20": [
+242,
+168,
+125,
+1
+],
+"--orange-new-21": [
+241,
+165,
+121,
+1
+],
+"--orange-new-22": [
+239,
+162,
+117,
+1
+],
+"--orange-new-23": [
+238,
+159,
+113,
+1
+],
+"--orange-new-24": [
+236,
+156,
+109,
+1
+],
+"--orange-new-25": [
+235,
+153,
+105,
+1
+],
+"--orange-new-26": [
+233,
+150,
+101,
+1
+],
+"--orange-new-27": [
+232,
+147,
+97,
+1
+],
+"--orange-new-28": [
+230,
+144,
+93,
+1
+],
+"--orange-new-29": [
+228,
+141,
+90,
+1
+],
+"--orange-new-3": [
+255,
+220,
+206,
+1
+],
+"--orange-new-30": [
+227,
+138,
+86,
+1
+],
+"--orange-new-31": [
+225,
+135,
+82,
+1
+],
+"--orange-new-32": [
+223,
+132,
+78,
+1
+],
+"--orange-new-33": [
+222,
+129,
+75,
+1
+],
+"--orange-new-34": [
+220,
+126,
+71,
+1
+],
+"--orange-new-35": [
+218,
+123,
+67,
+1
+],
+"--orange-new-36": [
+216,
+120,
+63,
+1
+],
+"--orange-new-37": [
+214,
+117,
+60,
+1
+],
+"--orange-new-38": [
+213,
+114,
+56,
+1
+],
+"--orange-new-39": [
+211,
+111,
+52,
+1
+],
+"--orange-new-4": [
+255,
+217,
+201,
+1
+],
+"--orange-new-40": [
+209,
+108,
+49,
+1
+],
+"--orange-new-41": [
+207,
+105,
+45,
+1
+],
+"--orange-new-42": [
+205,
+103,
+41,
+1
+],
+"--orange-new-43": [
+203,
+100,
+37,
+1
+],
+"--orange-new-44": [
+201,
+97,
+33,
+1
+],
+"--orange-new-45": [
+199,
+94,
+29,
+1
+],
+"--orange-new-46": [
+197,
+91,
+24,
+1
+],
+"--orange-new-47": [
+195,
+88,
+19,
+1
+],
+"--orange-new-48": [
+193,
+85,
+13,
+1
+],
+"--orange-new-49": [
+191,
+82,
+6,
+1
+],
+"--orange-new-5": [
+255,
+214,
+195,
+1
+],
+"--orange-new-50": [
+189,
+79,
+0,
+1
+],
+"--orange-new-51": [
+185,
+77,
+1,
+1
+],
+"--orange-new-52": [
+182,
+75,
+2,
+1
+],
+"--orange-new-53": [
+178,
+74,
+3,
+1
+],
+"--orange-new-54": [
+175,
+72,
+3,
+1
+],
+"--orange-new-55": [
+171,
+70,
+4,
+1
+],
+"--orange-new-56": [
+167,
+68,
+4,
+1
+],
+"--orange-new-57": [
+164,
+67,
+4,
+1
+],
+"--orange-new-58": [
+161,
+65,
+4,
+1
+],
+"--orange-new-59": [
+157,
+63,
+4,
+1
+],
+"--orange-new-6": [
+255,
+211,
+190,
+1
+],
+"--orange-new-60": [
+154,
+61,
+3,
+1
+],
+"--orange-new-61": [
+150,
+59,
+3,
+1
+],
+"--orange-new-62": [
+147,
+58,
+3,
+1
+],
+"--orange-new-63": [
+144,
+56,
+2,
+1
+],
+"--orange-new-64": [
+141,
+54,
+2,
+1
+],
+"--orange-new-65": [
+137,
+52,
+1,
+1
+],
+"--orange-new-66": [
+134,
+50,
+1,
+1
+],
+"--orange-new-67": [
+131,
+49,
+0,
+1
+],
+"--orange-new-68": [
+128,
+47,
+0,
+1
+],
+"--orange-new-69": [
+125,
+45,
+0,
+1
+],
+"--orange-new-7": [
+255,
+208,
+185,
+1
+],
+"--orange-new-70": [
+121,
+43,
+0,
+1
+],
+"--orange-new-71": [
+118,
+41,
+0,
+1
+],
+"--orange-new-72": [
+115,
+39,
+0,
+1
+],
+"--orange-new-73": [
+112,
+38,
+0,
+1
+],
+"--orange-new-74": [
+109,
+36,
+0,
+1
+],
+"--orange-new-75": [
+106,
+34,
+0,
+1
+],
+"--orange-new-76": [
+103,
+32,
+0,
+1
+],
+"--orange-new-77": [
+100,
+30,
+0,
+1
+],
+"--orange-new-78": [
+97,
+28,
+0,
+1
+],
+"--orange-new-79": [
+94,
+26,
+0,
+1
+],
+"--orange-new-8": [
+255,
+205,
+180,
+1
+],
+"--orange-new-80": [
+91,
+25,
+0,
+1
+],
+"--orange-new-81": [
+88,
+23,
+0,
+1
+],
+"--orange-new-82": [
+85,
+21,
+0,
+1
+],
+"--orange-new-83": [
+83,
+19,
+0,
+1
+],
+"--orange-new-84": [
+80,
+17,
+0,
+1
+],
+"--orange-new-85": [
+77,
+15,
+0,
+1
+],
+"--orange-new-86": [
+74,
+13,
+0,
+1
+],
+"--orange-new-87": [
+71,
+11,
+0,
+1
+],
+"--orange-new-88": [
+68,
+9,
+0,
+1
+],
+"--orange-new-89": [
+66,
+8,
+0,
+1
+],
+"--orange-new-9": [
+254,
+202,
+175,
+1
+],
+"--orange-new-90": [
+63,
+6,
+0,
+1
+],
+"--orange-new-91": [
+60,
+4,
+0,
+1
+],
+"--orange-new-92": [
+57,
+3,
+0,
+1
+],
+"--orange-new-93": [
+55,
+2,
+0,
+1
+],
+"--orange-new-94": [
+52,
+1,
+0,
+1
+],
+"--orange-new-95": [
+49,
+0,
+1,
+1
+],
+"--orange-new-96": [
+45,
+0,
+1,
+1
+],
+"--orange-new-97": [
+41,
+0,
+1,
+1
+],
+"--orange-new-98": [
+37,
+0,
+2,
+1
+],
+"--orange-new-99": [
+31,
+0,
+2,
+1
+],
+"--overlay-backdrop-lightbox": [
+0,
+0,
+0,
+0.922
+],
+"--panel-bg": [
+50,
+51,
+57,
+1
+],
+"--pink-1": [
+255,
+215,
+244,
+1
+],
+"--pink-10": [
+255,
+190,
+239,
+1
+],
+"--pink-100": [
+11,
+0,
+6,
+1
+],
+"--pink-11": [
+255,
+187,
+239,
+1
+],
+"--pink-12": [
+255,
+184,
+238,
+1
+],
+"--pink-13": [
+255,
+182,
+237,
+1
+],
+"--pink-14": [
+255,
+179,
+236,
+1
+],
+"--pink-15": [
+255,
+177,
+236,
+1
+],
+"--pink-16": [
+255,
+174,
+235,
+1
+],
+"--pink-17": [
+255,
+172,
+234,
+1
+],
+"--pink-18": [
+255,
+169,
+233,
+1
+],
+"--pink-19": [
+255,
+167,
+233,
+1
+],
+"--pink-2": [
+255,
+212,
+243,
+1
+],
+"--pink-20": [
+255,
+164,
+232,
+1
+],
+"--pink-21": [
+255,
+161,
+231,
+1
+],
+"--pink-22": [
+255,
+159,
+231,
+1
+],
+"--pink-23": [
+255,
+156,
+230,
+1
+],
+"--pink-24": [
+255,
+153,
+229,
+1
+],
+"--pink-25": [
+255,
+151,
+229,
+1
+],
+"--pink-26": [
+255,
+148,
+228,
+1
+],
+"--pink-27": [
+255,
+145,
+227,
+1
+],
+"--pink-28": [
+255,
+142,
+227,
+1
+],
+"--pink-29": [
+255,
+139,
+226,
+1
+],
+"--pink-3": [
+255,
+209,
+243,
+1
+],
+"--pink-30": [
+255,
+136,
+225,
+1
+],
+"--pink-31": [
+255,
+134,
+224,
+1
+],
+"--pink-32": [
+255,
+131,
+224,
+1
+],
+"--pink-33": [
+255,
+128,
+223,
+1
+],
+"--pink-34": [
+255,
+125,
+222,
+1
+],
+"--pink-35": [
+255,
+123,
+221,
+1
+],
+"--pink-36": [
+255,
+120,
+221,
+1
+],
+"--pink-37": [
+255,
+117,
+220,
+1
+],
+"--pink-38": [
+255,
+114,
+219,
+1
+],
+"--pink-39": [
+255,
+111,
+218,
+1
+],
+"--pink-4": [
+255,
+206,
+242,
+1
+],
+"--pink-40": [
+255,
+108,
+217,
+1
+],
+"--pink-41": [
+255,
+105,
+217,
+1
+],
+"--pink-42": [
+255,
+102,
+216,
+1
+],
+"--pink-43": [
+255,
+99,
+215,
+1
+],
+"--pink-44": [
+255,
+96,
+214,
+1
+],
+"--pink-45": [
+255,
+93,
+214,
+1
+],
+"--pink-46": [
+255,
+89,
+213,
+1
+],
+"--pink-47": [
+255,
+86,
+212,
+1
+],
+"--pink-48": [
+255,
+83,
+211,
+1
+],
+"--pink-49": [
+255,
+79,
+211,
+1
+],
+"--pink-5": [
+255,
+203,
+242,
+1
+],
+"--pink-50": [
+255,
+75,
+210,
+1
+],
+"--pink-51": [
+250,
+74,
+205,
+1
+],
+"--pink-52": [
+245,
+73,
+201,
+1
+],
+"--pink-53": [
+239,
+71,
+196,
+1
+],
+"--pink-54": [
+234,
+70,
+192,
+1
+],
+"--pink-55": [
+228,
+68,
+187,
+1
+],
+"--pink-56": [
+223,
+66,
+183,
+1
+],
+"--pink-57": [
+218,
+65,
+179,
+1
+],
+"--pink-58": [
+213,
+63,
+174,
+1
+],
+"--pink-59": [
+208,
+61,
+170,
+1
+],
+"--pink-6": [
+255,
+201,
+241,
+1
+],
+"--pink-60": [
+203,
+59,
+166,
+1
+],
+"--pink-61": [
+198,
+57,
+162,
+1
+],
+"--pink-62": [
+193,
+56,
+157,
+1
+],
+"--pink-63": [
+188,
+54,
+153,
+1
+],
+"--pink-64": [
+183,
+52,
+149,
+1
+],
+"--pink-65": [
+178,
+50,
+145,
+1
+],
+"--pink-66": [
+174,
+48,
+141,
+1
+],
+"--pink-67": [
+169,
+46,
+137,
+1
+],
+"--pink-68": [
+164,
+43,
+133,
+1
+],
+"--pink-69": [
+160,
+41,
+130,
+1
+],
+"--pink-7": [
+255,
+198,
+241,
+1
+],
+"--pink-70": [
+155,
+39,
+126,
+1
+],
+"--pink-71": [
+151,
+37,
+122,
+1
+],
+"--pink-72": [
+146,
+35,
+118,
+1
+],
+"--pink-73": [
+142,
+33,
+114,
+1
+],
+"--pink-74": [
+137,
+31,
+110,
+1
+],
+"--pink-75": [
+133,
+29,
+107,
+1
+],
+"--pink-76": [
+128,
+27,
+103,
+1
+],
+"--pink-77": [
+124,
+24,
+99,
+1
+],
+"--pink-78": [
+120,
+22,
+96,
+1
+],
+"--pink-79": [
+115,
+20,
+92,
+1
+],
+"--pink-8": [
+255,
+195,
+240,
+1
+],
+"--pink-80": [
+111,
+18,
+88,
+1
+],
+"--pink-81": [
+107,
+16,
+85,
+1
+],
+"--pink-82": [
+102,
+13,
+81,
+1
+],
+"--pink-83": [
+98,
+11,
+78,
+1
+],
+"--pink-84": [
+94,
+9,
+74,
+1
+],
+"--pink-85": [
+90,
+7,
+71,
+1
+],
+"--pink-86": [
+86,
+5,
+67,
+1
+],
+"--pink-87": [
+82,
+3,
+64,
+1
+],
+"--pink-88": [
+78,
+2,
+61,
+1
+],
+"--pink-89": [
+74,
+1,
+57,
+1
+],
+"--pink-9": [
+255,
+193,
+240,
+1
+],
+"--pink-90": [
+70,
+0,
+54,
+1
+],
+"--pink-91": [
+66,
+0,
+51,
+1
+],
+"--pink-92": [
+62,
+0,
+47,
+1
+],
+"--pink-93": [
+58,
+0,
+44,
+1
+],
+"--pink-94": [
+54,
+0,
+41,
+1
+],
+"--pink-95": [
+50,
+0,
+37,
+1
+],
+"--pink-96": [
+45,
+0,
+34,
+1
+],
+"--pink-97": [
+40,
+0,
+29,
+1
+],
+"--pink-98": [
+33,
+0,
+24,
+1
+],
+"--pink-99": [
+25,
+0,
+17,
+1
+],
+"--platform-battlenet": [
+0,
+154,
+229,
+1
+],
+"--platform-bungie": [
+0,
+163,
+227,
+1
+],
+"--platform-crunchyroll": [
+247,
+139,
+36,
+1
+],
+"--platform-ebay": [
+0,
+100,
+210,
+1
+],
+"--platform-epic-games": [
+60,
+57,
+53,
+1
+],
+"--platform-facebook": [
+53,
+80,
+137,
+1
+],
+"--platform-github": [
+25,
+23,
+23,
+1
+],
+"--platform-gold": [
+255,
+200,
+25,
+1
+],
+"--platform-lol": [
+2,
+31,
+37,
+1
+],
+"--platform-partner": [
+64,
+135,
+237,
+1
+],
+"--platform-paypal": [
+19,
+33,
+107,
+1
+],
+"--platform-playstation": [
+3,
+47,
+135,
+1
+],
+"--platform-reddit": [
+255,
+69,
+0,
+1
+],
+"--platform-riot-games": [
+234,
+0,
+41,
+1
+],
+"--platform-samsung": [
+20,
+41,
+160,
+1
+],
+"--platform-skype": [
+0,
+157,
+215,
+1
+],
+"--platform-spotify": [
+29,
+185,
+84,
+1
+],
+"--platform-steam": [
+24,
+35,
+50,
+1
+],
+"--platform-twitch": [
+145,
+71,
+255,
+1
+],
+"--platform-twitch-secondary": [
+119,
+44,
+232,
+1
+],
+"--platform-twitter": [
+29,
+161,
+242,
+1
+],
+"--platform-xbox": [
+16,
+124,
+16,
+1
+],
+"--platform-youtube": [
+203,
+33,
+32,
+1
+],
+"--polls-normal-image-background": [
+36,
+36,
+41,
+1
+],
+"--polls-victor-fill": [
+60,
+160,
+95,
+0.2
+],
+"--polls-voted-fill": [
+90,
+100,
+240,
+0.2
+],
+"--progressbar-indicator-background": [
+88,
+101,
+242,
+1
+],
+"--progressbar-track-background": [
+150,
+150,
+160,
+0.2
+],
+"--radio-background-active": [
+58,
+72,
+163,
+1
+],
+"--radio-background-default": [
+0,
+0,
+0,
+0.078
+],
+"--radio-background-hover": [
+0,
+0,
+0,
+0.078
+],
+"--radio-background-selected-default": [
+88,
+101,
+242,
+1
+],
+"--radio-background-selected-hover": [
+68,
+82,
+187,
+1
+],
+"--radio-border-active": [
+148,
+148,
+156,
+0.122
+],
+"--radio-border-default": [
+152,
+152,
+160,
+0.639
+],
+"--radio-border-hover": [
+151,
+151,
+159,
+0.8
+],
+"--radio-border-selected-default": [
+148,
+148,
+156,
+0.122
+],
+"--radio-border-selected-hover": [
+148,
+148,
+156,
+0.122
+],
+"--radio-foreground-active": [
+88,
+101,
+242,
+1
+],
+"--radio-foreground-default": [
+0,
+0,
+0,
+0.078
+],
+"--radio-foreground-hover": [
+0,
+0,
+0,
+0.078
+],
+"--radio-thumb-background-active": [
+255,
+255,
+255,
+1
+],
+"--reaction-background-active": [
+150,
+150,
+160,
+0.2
+],
+"--reaction-background-default": [
+148,
+148,
+156,
+0.122
+],
+"--reaction-background-hover": [
+149,
+149,
+162,
+0.161
+],
+"--reaction-background-reacted-default": [
+88,
+100,
+242,
+0.239
+],
+"--reaction-background-reacted-hover": [
+88,
+100,
+242,
+0.239
+],
+"--reaction-border-active": [
+150,
+150,
+159,
+0.439
+],
+"--reaction-border-default": [
+148,
+148,
+156,
+0.122
+],
+"--reaction-border-hover": [
+153,
+153,
+153,
+0.039
+],
+"--reaction-border-reacted-default": [
+88,
+101,
+242,
+1
+],
+"--reaction-text-active": [
+255,
+255,
+255,
+1
+],
+"--reaction-text-default": [
+197,
+198,
+202,
+1
+],
+"--reaction-text-hover": [
+255,
+255,
+255,
+1
+],
+"--reaction-text-reacted-default": [
+223,
+228,
+255,
+1
+],
+"--red-new-1": [
+255,
+222,
+221,
+1
+],
+"--red-new-10": [
+255,
+189,
+185,
+1
+],
+"--red-new-100": [
+20,
+0,
+2,
+1
+],
+"--red-new-11": [
+255,
+185,
+181,
+1
+],
+"--red-new-12": [
+255,
+182,
+177,
+1
+],
+"--red-new-13": [
+255,
+178,
+174,
+1
+],
+"--red-new-14": [
+255,
+174,
+170,
+1
+],
+"--red-new-15": [
+255,
+171,
+166,
+1
+],
+"--red-new-16": [
+255,
+167,
+163,
+1
+],
+"--red-new-17": [
+255,
+164,
+159,
+1
+],
+"--red-new-18": [
+255,
+160,
+155,
+1
+],
+"--red-new-19": [
+255,
+157,
+152,
+1
+],
+"--red-new-2": [
+255,
+218,
+217,
+1
+],
+"--red-new-20": [
+255,
+154,
+148,
+1
+],
+"--red-new-21": [
+255,
+150,
+145,
+1
+],
+"--red-new-22": [
+255,
+147,
+142,
+1
+],
+"--red-new-23": [
+254,
+143,
+138,
+1
+],
+"--red-new-24": [
+253,
+140,
+135,
+1
+],
+"--red-new-25": [
+252,
+136,
+132,
+1
+],
+"--red-new-26": [
+251,
+133,
+128,
+1
+],
+"--red-new-27": [
+250,
+130,
+125,
+1
+],
+"--red-new-28": [
+248,
+126,
+122,
+1
+],
+"--red-new-29": [
+247,
+123,
+119,
+1
+],
+"--red-new-3": [
+255,
+214,
+213,
+1
+],
+"--red-new-30": [
+246,
+119,
+116,
+1
+],
+"--red-new-31": [
+244,
+116,
+112,
+1
+],
+"--red-new-32": [
+243,
+112,
+109,
+1
+],
+"--red-new-33": [
+241,
+109,
+106,
+1
+],
+"--red-new-34": [
+240,
+106,
+103,
+1
+],
+"--red-new-35": [
+238,
+102,
+100,
+1
+],
+"--red-new-36": [
+236,
+99,
+97,
+1
+],
+"--red-new-37": [
+235,
+95,
+94,
+1
+],
+"--red-new-38": [
+233,
+92,
+91,
+1
+],
+"--red-new-39": [
+231,
+88,
+88,
+1
+],
+"--red-new-4": [
+255,
+211,
+209,
+1
+],
+"--red-new-40": [
+229,
+84,
+85,
+1
+],
+"--red-new-41": [
+228,
+81,
+82,
+1
+],
+"--red-new-42": [
+226,
+77,
+80,
+1
+],
+"--red-new-43": [
+224,
+73,
+77,
+1
+],
+"--red-new-44": [
+222,
+70,
+74,
+1
+],
+"--red-new-45": [
+220,
+66,
+71,
+1
+],
+"--red-new-46": [
+218,
+62,
+68,
+1
+],
+"--red-new-47": [
+216,
+58,
+65,
+1
+],
+"--red-new-48": [
+214,
+54,
+63,
+1
+],
+"--red-new-49": [
+212,
+49,
+60,
+1
+],
+"--red-new-5": [
+255,
+207,
+205,
+1
+],
+"--red-new-50": [
+210,
+45,
+57,
+1
+],
+"--red-new-51": [
+206,
+44,
+56,
+1
+],
+"--red-new-52": [
+202,
+43,
+55,
+1
+],
+"--red-new-53": [
+197,
+42,
+54,
+1
+],
+"--red-new-54": [
+193,
+41,
+53,
+1
+],
+"--red-new-55": [
+189,
+41,
+52,
+1
+],
+"--red-new-56": [
+185,
+39,
+51,
+1
+],
+"--red-new-57": [
+181,
+38,
+49,
+1
+],
+"--red-new-58": [
+177,
+37,
+48,
+1
+],
+"--red-new-59": [
+173,
+36,
+47,
+1
+],
+"--red-new-6": [
+255,
+203,
+201,
+1
+],
+"--red-new-60": [
+169,
+35,
+46,
+1
+],
+"--red-new-61": [
+166,
+34,
+45,
+1
+],
+"--red-new-62": [
+162,
+33,
+43,
+1
+],
+"--red-new-63": [
+158,
+31,
+42,
+1
+],
+"--red-new-64": [
+154,
+30,
+41,
+1
+],
+"--red-new-65": [
+151,
+29,
+40,
+1
+],
+"--red-new-66": [
+147,
+27,
+38,
+1
+],
+"--red-new-67": [
+143,
+26,
+37,
+1
+],
+"--red-new-68": [
+140,
+24,
+36,
+1
+],
+"--red-new-69": [
+136,
+23,
+35,
+1
+],
+"--red-new-7": [
+255,
+200,
+197,
+1
+],
+"--red-new-70": [
+133,
+22,
+33,
+1
+],
+"--red-new-71": [
+129,
+20,
+32,
+1
+],
+"--red-new-72": [
+126,
+19,
+31,
+1
+],
+"--red-new-73": [
+122,
+17,
+30,
+1
+],
+"--red-new-74": [
+119,
+16,
+28,
+1
+],
+"--red-new-75": [
+115,
+14,
+27,
+1
+],
+"--red-new-76": [
+112,
+12,
+26,
+1
+],
+"--red-new-77": [
+108,
+11,
+25,
+1
+],
+"--red-new-78": [
+105,
+9,
+23,
+1
+],
+"--red-new-79": [
+102,
+8,
+22,
+1
+],
+"--red-new-8": [
+255,
+196,
+193,
+1
+],
+"--red-new-80": [
+98,
+6,
+21,
+1
+],
+"--red-new-81": [
+95,
+5,
+20,
+1
+],
+"--red-new-82": [
+92,
+4,
+19,
+1
+],
+"--red-new-83": [
+88,
+3,
+18,
+1
+],
+"--red-new-84": [
+85,
+2,
+17,
+1
+],
+"--red-new-85": [
+82,
+1,
+16,
+1
+],
+"--red-new-86": [
+79,
+0,
+15,
+1
+],
+"--red-new-87": [
+75,
+0,
+14,
+1
+],
+"--red-new-88": [
+72,
+0,
+13,
+1
+],
+"--red-new-89": [
+69,
+0,
+12,
+1
+],
+"--red-new-9": [
+255,
+192,
+189,
+1
+],
+"--red-new-90": [
+66,
+0,
+11,
+1
+],
+"--red-new-91": [
+63,
+0,
+10,
+1
+],
+"--red-new-92": [
+60,
+0,
+9,
+1
+],
+"--red-new-93": [
+57,
+0,
+8,
+1
+],
+"--red-new-94": [
+53,
+0,
+7,
+1
+],
+"--red-new-95": [
+50,
+0,
+7,
+1
+],
+"--red-new-96": [
+45,
+0,
+6,
+1
+],
+"--red-new-97": [
+41,
+0,
+5,
+1
+],
+"--red-new-98": [
+35,
+0,
+4,
+1
+],
+"--red-new-99": [
+29,
+0,
+4,
+1
+],
+"--redesign-button-tertiary-background": [
+0,
+0,
+0,
+0
+],
+"--redesign-button-tertiary-pressed-background": [
+150,
+150,
+160,
+0.2
+],
+"--redesign-button-tertiary-pressed-text": [
+186,
+187,
+192,
+1
+],
+"--redesign-button-tertiary-text": [
+243,
+243,
+244,
+1
+],
+"--role-blue": [
+32,
+102,
+148,
+1
+],
+"--role-brown": [
+168,
+67,
+0,
+1
+],
+"--role-burgundy": [
+173,
+20,
+87,
+1
+],
+"--role-dark-blue": [
+84,
+110,
+122,
+1
+],
+"--role-dark-grey": [
+96,
+125,
+139,
+1
+],
+"--role-dark-purple": [
+113,
+54,
+138,
+1
+],
+"--role-dark-teal": [
+17,
+128,
+106,
+1
+],
+"--role-default": [
+153,
+170,
+181,
+1
+],
+"--role-green": [
+31,
+139,
+76,
+1
+],
+"--role-grey": [
+151,
+156,
+159,
+1
+],
+"--role-light-blue": [
+153,
+170,
+181,
+1
+],
+"--role-light-green": [
+46,
+204,
+113,
+1
+],
+"--role-light-grey": [
+149,
+165,
+166,
+1
+],
+"--role-magenta": [
+233,
+30,
+99,
+1
+],
+"--role-orange": [
+230,
+126,
+34,
+1
+],
+"--role-purple": [
+155,
+89,
+182,
+1
+],
+"--role-salmon": [
+231,
+76,
+60,
+1
+],
+"--role-sky-blue": [
+52,
+152,
+219,
+1
+],
+"--role-tan": [
+194,
+124,
+14,
+1
+],
+"--role-teal": [
+26,
+188,
+156,
+1
+],
+"--role-terracotta": [
+153,
+45,
+34,
+1
+],
+"--role-yellow": [
+241,
+196,
+15,
+1
+],
+"--scrollbar-auto-scrollbar-color-thumb": [
+115,
+116,
+125,
+1
+],
+"--scrollbar-auto-scrollbar-color-track": [
+43,
+43,
+49,
+1
+],
+"--scrollbar-auto-thumb": [
+125,
+126,
+135,
+1
+],
+"--scrollbar-auto-track": [
+0,
+0,
+0,
+0
+],
+"--scrollbar-thin-thumb": [
+118,
+119,
+128,
+1
+],
+"--scrollbar-thin-track": [
+0,
+0,
+0,
+0
+],
+"--slider-track-background": [
+89,
+90,
+99,
+1
+],
+"--spoiler-hidden-background": [
+125,
+126,
+135,
+1
+],
+"--spoiler-hidden-background-hover": [
+157,
+158,
+165,
+1
+],
+"--spoiler-revealed-background": [
+36,
+36,
+41,
+1
+],
+"--status-danger": [
+218,
+62,
+68,
+1
+],
+"--status-online": [
+61,
+158,
+96,
+1
+],
+"--status-positive": [
+61,
+158,
+96,
+1
+],
+"--status-positive-background": [
+0,
+128,
+67,
+1
+],
+"--status-positive-text": [
+255,
+255,
+255,
+1
+],
+"--status-speaking": [
+61,
+158,
+96,
+1
+],
+"--status-warning": [
+253,
+184,
+51,
+1
+],
+"--status-warning-background": [
+253,
+184,
+51,
+1
+],
+"--status-warning-text": [
+0,
+0,
+0,
+1
+],
+"--steam-review-text-mixed": [
+255,
+194,
+82,
+1
+],
+"--steam-review-text-negative": [
+253,
+140,
+135,
+1
+],
+"--steam-review-text-positive": [
+122,
+178,
+247,
+1
+],
+"--switch-background-active": [
+58,
+72,
+163,
+1
+],
+"--switch-background-default": [
+0,
+0,
+0,
+0.122
+],
+"--switch-background-hover": [
+0,
+0,
+0,
+0.122
+],
+"--switch-background-selected-default": [
+88,
+101,
+242,
+1
+],
+"--switch-background-selected-hover": [
+68,
+82,
+187,
+1
+],
+"--switch-border-default": [
+150,
+150,
+160,
+0.2
+],
+"--switch-border-hover": [
+150,
+150,
+160,
+0.4
+],
+"--switch-border-selected-default": [
+148,
+148,
+156,
+0.122
+],
+"--switch-border-selected-hover": [
+148,
+148,
+156,
+0.122
+],
+"--switch-thumb-background-default": [
+255,
+255,
+255,
+1
+],
+"--switch-thumb-background-selected-default": [
+255,
+255,
+255,
+1
+],
+"--switch-thumb-icon-active": [
+88,
+101,
+242,
+1
+],
+"--switch-thumb-icon-default": [
+47,
+48,
+53,
+1
+],
+"--tabs-indicator-default": [
+148,
+168,
+255,
+1
+],
+"--tabs-indicator-overlay": [
+255,
+255,
+255,
+1
+],
+"--teal-new-1": [
+202,
+252,
+255,
+1
+],
+"--teal-new-10": [
+163,
+230,
+237,
+1
+],
+"--teal-new-100": [
+0,
+13,
+22,
+1
+],
+"--teal-new-11": [
+159,
+227,
+235,
+1
+],
+"--teal-new-12": [
+155,
+225,
+232,
+1
+],
+"--teal-new-13": [
+151,
+223,
+230,
+1
+],
+"--teal-new-14": [
+147,
+220,
+228,
+1
+],
+"--teal-new-15": [
+142,
+218,
+225,
+1
+],
+"--teal-new-16": [
+138,
+215,
+223,
+1
+],
+"--teal-new-17": [
+134,
+213,
+221,
+1
+],
+"--teal-new-18": [
+130,
+210,
+219,
+1
+],
+"--teal-new-19": [
+125,
+208,
+216,
+1
+],
+"--teal-new-2": [
+198,
+249,
+255,
+1
+],
+"--teal-new-20": [
+121,
+205,
+214,
+1
+],
+"--teal-new-21": [
+117,
+203,
+212,
+1
+],
+"--teal-new-22": [
+113,
+201,
+209,
+1
+],
+"--teal-new-23": [
+108,
+198,
+207,
+1
+],
+"--teal-new-24": [
+104,
+196,
+205,
+1
+],
+"--teal-new-25": [
+99,
+193,
+202,
+1
+],
+"--teal-new-26": [
+95,
+191,
+200,
+1
+],
+"--teal-new-27": [
+90,
+188,
+198,
+1
+],
+"--teal-new-28": [
+86,
+186,
+195,
+1
+],
+"--teal-new-29": [
+81,
+184,
+193,
+1
+],
+"--teal-new-3": [
+194,
+247,
+253,
+1
+],
+"--teal-new-30": [
+76,
+181,
+191,
+1
+],
+"--teal-new-31": [
+71,
+179,
+188,
+1
+],
+"--teal-new-32": [
+65,
+176,
+186,
+1
+],
+"--teal-new-33": [
+60,
+174,
+184,
+1
+],
+"--teal-new-34": [
+54,
+171,
+182,
+1
+],
+"--teal-new-35": [
+47,
+169,
+179,
+1
+],
+"--teal-new-36": [
+40,
+167,
+177,
+1
+],
+"--teal-new-37": [
+32,
+164,
+175,
+1
+],
+"--teal-new-38": [
+21,
+162,
+172,
+1
+],
+"--teal-new-39": [
+4,
+159,
+170,
+1
+],
+"--teal-new-4": [
+189,
+244,
+251,
+1
+],
+"--teal-new-40": [
+0,
+157,
+168,
+1
+],
+"--teal-new-41": [
+0,
+155,
+166,
+1
+],
+"--teal-new-42": [
+0,
+152,
+163,
+1
+],
+"--teal-new-43": [
+0,
+150,
+161,
+1
+],
+"--teal-new-44": [
+0,
+147,
+159,
+1
+],
+"--teal-new-45": [
+0,
+145,
+157,
+1
+],
+"--teal-new-46": [
+0,
+143,
+154,
+1
+],
+"--teal-new-47": [
+0,
+140,
+151,
+1
+],
+"--teal-new-48": [
+0,
+137,
+149,
+1
+],
+"--teal-new-49": [
+0,
+134,
+146,
+1
+],
+"--teal-new-5": [
+185,
+242,
+248,
+1
+],
+"--teal-new-50": [
+0,
+132,
+143,
+1
+],
+"--teal-new-51": [
+0,
+129,
+140,
+1
+],
+"--teal-new-52": [
+0,
+127,
+138,
+1
+],
+"--teal-new-53": [
+0,
+124,
+135,
+1
+],
+"--teal-new-54": [
+0,
+122,
+132,
+1
+],
+"--teal-new-55": [
+0,
+119,
+130,
+1
+],
+"--teal-new-56": [
+0,
+117,
+127,
+1
+],
+"--teal-new-57": [
+0,
+114,
+125,
+1
+],
+"--teal-new-58": [
+0,
+112,
+122,
+1
+],
+"--teal-new-59": [
+0,
+109,
+120,
+1
+],
+"--teal-new-6": [
+181,
+240,
+246,
+1
+],
+"--teal-new-60": [
+0,
+107,
+117,
+1
+],
+"--teal-new-61": [
+0,
+104,
+115,
+1
+],
+"--teal-new-62": [
+0,
+102,
+112,
+1
+],
+"--teal-new-63": [
+0,
+99,
+110,
+1
+],
+"--teal-new-64": [
+0,
+97,
+107,
+1
+],
+"--teal-new-65": [
+0,
+94,
+105,
+1
+],
+"--teal-new-66": [
+0,
+92,
+102,
+1
+],
+"--teal-new-67": [
+0,
+89,
+100,
+1
+],
+"--teal-new-68": [
+0,
+87,
+97,
+1
+],
+"--teal-new-69": [
+0,
+85,
+95,
+1
+],
+"--teal-new-7": [
+176,
+237,
+244,
+1
+],
+"--teal-new-70": [
+0,
+82,
+92,
+1
+],
+"--teal-new-71": [
+0,
+80,
+90,
+1
+],
+"--teal-new-72": [
+0,
+78,
+88,
+1
+],
+"--teal-new-73": [
+0,
+75,
+85,
+1
+],
+"--teal-new-74": [
+0,
+73,
+83,
+1
+],
+"--teal-new-75": [
+0,
+71,
+80,
+1
+],
+"--teal-new-76": [
+0,
+68,
+78,
+1
+],
+"--teal-new-77": [
+0,
+66,
+76,
+1
+],
+"--teal-new-78": [
+0,
+64,
+73,
+1
+],
+"--teal-new-79": [
+0,
+61,
+71,
+1
+],
+"--teal-new-8": [
+172,
+235,
+242,
+1
+],
+"--teal-new-80": [
+0,
+59,
+69,
+1
+],
+"--teal-new-81": [
+0,
+57,
+66,
+1
+],
+"--teal-new-82": [
+0,
+55,
+64,
+1
+],
+"--teal-new-83": [
+0,
+52,
+62,
+1
+],
+"--teal-new-84": [
+0,
+50,
+59,
+1
+],
+"--teal-new-85": [
+0,
+48,
+57,
+1
+],
+"--teal-new-86": [
+0,
+46,
+55,
+1
+],
+"--teal-new-87": [
+0,
+44,
+53,
+1
+],
+"--teal-new-88": [
+0,
+42,
+51,
+1
+],
+"--teal-new-89": [
+0,
+39,
+48,
+1
+],
+"--teal-new-9": [
+168,
+232,
+239,
+1
+],
+"--teal-new-90": [
+0,
+37,
+46,
+1
+],
+"--teal-new-91": [
+0,
+35,
+44,
+1
+],
+"--teal-new-92": [
+0,
+33,
+42,
+1
+],
+"--teal-new-93": [
+0,
+31,
+40,
+1
+],
+"--teal-new-94": [
+0,
+29,
+38,
+1
+],
+"--teal-new-95": [
+0,
+27,
+36,
+1
+],
+"--teal-new-96": [
+0,
+25,
+33,
+1
+],
+"--teal-new-97": [
+0,
+22,
+31,
+1
+],
+"--teal-new-98": [
+0,
+20,
+28,
+1
+],
+"--teal-new-99": [
+0,
+17,
+25,
+1
+],
+"--text-brand": [
+148,
+168,
+255,
+1
+],
+"--text-code": [
+255,
+255,
+255,
+1
+],
+"--text-code-addition": [
+153,
+224,
+173,
+1
+],
+"--text-code-attribute": [
+171,
+207,
+255,
+1
+],
+"--text-code-builtin": [
+255,
+194,
+82,
+1
+],
+"--text-code-bullet": [
+171,
+207,
+255,
+1
+],
+"--text-code-comment": [
+179,
+179,
+185,
+1
+],
+"--text-code-deletion": [
+255,
+189,
+185,
+1
+],
+"--text-code-error": [
+255,
+189,
+185,
+1
+],
+"--text-code-escape": [
+255,
+182,
+237,
+1
+],
+"--text-code-keyword": [
+255,
+189,
+185,
+1
+],
+"--text-code-link": [
+171,
+207,
+255,
+1
+],
+"--text-code-namespace": [
+171,
+207,
+255,
+1
+],
+"--text-code-number": [
+252,
+192,
+161,
+1
+],
+"--text-code-operator": [
+255,
+207,
+205,
+1
+],
+"--text-code-property": [
+142,
+218,
+225,
+1
+],
+"--text-code-regexp": [
+150,
+221,
+169,
+1
+],
+"--text-code-section": [
+255,
+189,
+185,
+1
+],
+"--text-code-string": [
+150,
+221,
+169,
+1
+],
+"--text-code-tag": [
+255,
+182,
+237,
+1
+],
+"--text-code-title": [
+188,
+202,
+255,
+1
+],
+"--text-code-type": [
+255,
+182,
+237,
+1
+],
+"--text-code-variable": [
+255,
+255,
+255,
+1
+],
+"--text-default": [
+243,
+243,
+244,
+1
+],
+"--text-feedback-critical": [
+255,
+160,
+155,
+1
+],
+"--text-feedback-info": [
+142,
+190,
+250,
+1
+],
+"--text-feedback-positive": [
+126,
+203,
+148,
+1
+],
+"--text-feedback-warning": [
+252,
+181,
+41,
+1
+],
+"--text-invert": [
+47,
+48,
+53,
+1
+],
+"--text-link": [
+118,
+175,
+246,
+1
+],
+"--text-muted": [
+171,
+172,
+178,
+1
+],
+"--text-overlay-dark": [
+0,
+0,
+0,
+1
+],
+"--text-overlay-light": [
+255,
+255,
+255,
+1
+],
+"--text-status-dnd": [
+220,
+66,
+71,
+1
+],
+"--text-status-idle": [
+255,
+203,
+110,
+1
+],
+"--text-status-offline": [
+157,
+158,
+165,
+1
+],
+"--text-status-online": [
+61,
+158,
+96,
+1
+],
+"--text-strong": [
+255,
+255,
+255,
+1
+],
+"--text-subtle": [
+197,
+198,
+202,
+1
+],
+"--text-voice-connected": [
+115,
+196,
+139,
+1
+],
+"--text-voice-disconnected": [
+255,
+160,
+155,
+1
+],
+"--text-voice-speaking": [
+61,
+158,
+96,
+1
+],
+"--textbox-markdown-syntax": [
+153,
+154,
+161,
+1
+],
+"--toast-critical-background": [
+210,
+45,
+55,
+0.2
+],
+"--toast-critical-border": [
+226,
+77,
+80,
+1
+],
+"--toast-success-background": [
+0,
+135,
+70,
+0.2
+],
+"--toast-success-border": [
+52,
+153,
+91,
+1
+],
+"--togglebutton-background-selected": [
+87,
+100,
+243,
+0.161
+],
+"--togglebutton-background-selected-active": [
+150,
+150,
+160,
+0.2
+],
+"--togglebutton-background-selected-hover": [
+88,
+100,
+242,
+0.239
+],
+"--togglebutton-border-active": [
+88,
+101,
+242,
+0.839
+],
+"--togglebutton-border-selected": [
+88,
+101,
+242,
+1
+],
+"--togglebutton-critical-background-selected": [
+214,
+41,
+58,
+0.122
+],
+"--togglebutton-critical-background-selected-hover": [
+211,
+44,
+56,
+0.161
+],
+"--togglebutton-critical-border-active": [
+211,
+44,
+56,
+0.322
+],
+"--togglebutton-critical-icon-active": [
+218,
+62,
+68,
+1
+],
+"--togglebutton-critical-icon-default": [
+243,
+243,
+244,
+1
+],
+"--togglebutton-critical-icon-hover": [
+243,
+243,
+244,
+1
+],
+"--togglebutton-critical-icon-selected": [
+218,
+62,
+68,
+1
+],
+"--togglebutton-critical-icon-selected-hover": [
+218,
+62,
+68,
+1
+],
+"--togglebutton-icon-active": [
+243,
+243,
+244,
+1
+],
+"--togglebutton-icon-default": [
+243,
+243,
+244,
+1
+],
+"--togglebutton-icon-hover": [
+243,
+243,
+244,
+1
+],
+"--togglebutton-icon-only-icon-active": [
+255,
+255,
+255,
+1
+],
+"--togglebutton-icon-only-icon-default": [
+243,
+243,
+244,
+1
+],
+"--togglebutton-icon-only-icon-hover": [
+255,
+255,
+255,
+1
+],
+"--togglebutton-icon-only-icon-selected": [
+255,
+255,
+255,
+1
+],
+"--togglebutton-icon-only-icon-selected-hover": [
+255,
+255,
+255,
+1
+],
+"--togglebutton-icon-selected": [
+255,
+255,
+255,
+1
+],
+"--togglebutton-icon-selected-hover": [
+255,
+255,
+255,
+1
+],
+"--user-profile-background-hover": [
+148,
+148,
+156,
+0.122
+],
+"--user-profile-border": [
+148,
+148,
+156,
+0.122
+],
+"--user-profile-note-background-focus": [
+44,
+45,
+50,
+1
+],
+"--user-profile-overlay-background": [
+63,
+64,
+72,
+1
+],
+"--user-profile-overlay-background-hover": [
+148,
+148,
+156,
+0.122
+],
+"--user-profile-toolbar-background": [
+63,
+64,
+72,
+1
+],
+"--user-profile-toolbar-border": [
+153,
+153,
+153,
+0.039
+],
+"--white": [
+255,
+255,
+255,
+1
+],
+"--yellow-new-1": [
+255,
+231,
+207,
+1
+],
+"--yellow-new-10": [
+255,
+220,
+161,
+1
+],
+"--yellow-new-100": [
+27,
+0,
+0,
+1
+],
+"--yellow-new-11": [
+255,
+218,
+157,
+1
+],
+"--yellow-new-12": [
+255,
+217,
+152,
+1
+],
+"--yellow-new-13": [
+255,
+216,
+148,
+1
+],
+"--yellow-new-14": [
+255,
+214,
+143,
+1
+],
+"--yellow-new-15": [
+255,
+213,
+139,
+1
+],
+"--yellow-new-16": [
+255,
+212,
+135,
+1
+],
+"--yellow-new-17": [
+255,
+210,
+130,
+1
+],
+"--yellow-new-18": [
+255,
+209,
+126,
+1
+],
+"--yellow-new-19": [
+255,
+208,
+122,
+1
+],
+"--yellow-new-2": [
+255,
+230,
+202,
+1
+],
+"--yellow-new-20": [
+255,
+206,
+118,
+1
+],
+"--yellow-new-21": [
+255,
+205,
+114,
+1
+],
+"--yellow-new-22": [
+255,
+203,
+110,
+1
+],
+"--yellow-new-23": [
+255,
+202,
+106,
+1
+],
+"--yellow-new-24": [
+255,
+201,
+102,
+1
+],
+"--yellow-new-25": [
+255,
+199,
+98,
+1
+],
+"--yellow-new-26": [
+255,
+198,
+94,
+1
+],
+"--yellow-new-27": [
+255,
+196,
+90,
+1
+],
+"--yellow-new-28": [
+255,
+195,
+86,
+1
+],
+"--yellow-new-29": [
+255,
+194,
+82,
+1
+],
+"--yellow-new-3": [
+255,
+229,
+196,
+1
+],
+"--yellow-new-30": [
+255,
+192,
+78,
+1
+],
+"--yellow-new-31": [
+255,
+191,
+74,
+1
+],
+"--yellow-new-32": [
+254,
+189,
+69,
+1
+],
+"--yellow-new-33": [
+254,
+188,
+65,
+1
+],
+"--yellow-new-34": [
+254,
+186,
+61,
+1
+],
+"--yellow-new-35": [
+253,
+185,
+56,
+1
+],
+"--yellow-new-36": [
+253,
+184,
+51,
+1
+],
+"--yellow-new-37": [
+253,
+182,
+46,
+1
+],
+"--yellow-new-38": [
+252,
+181,
+41,
+1
+],
+"--yellow-new-39": [
+252,
+179,
+35,
+1
+],
+"--yellow-new-4": [
+255,
+228,
+191,
+1
+],
+"--yellow-new-40": [
+252,
+178,
+28,
+1
+],
+"--yellow-new-41": [
+252,
+176,
+20,
+1
+],
+"--yellow-new-42": [
+251,
+175,
+7,
+1
+],
+"--yellow-new-43": [
+251,
+173,
+0,
+1
+],
+"--yellow-new-44": [
+251,
+172,
+0,
+1
+],
+"--yellow-new-45": [
+250,
+170,
+0,
+1
+],
+"--yellow-new-46": [
+250,
+169,
+0,
+1
+],
+"--yellow-new-47": [
+249,
+167,
+0,
+1
+],
+"--yellow-new-48": [
+249,
+166,
+0,
+1
+],
+"--yellow-new-49": [
+249,
+164,
+0,
+1
+],
+"--yellow-new-5": [
+255,
+226,
+186,
+1
+],
+"--yellow-new-50": [
+248,
+163,
+0,
+1
+],
+"--yellow-new-51": [
+244,
+159,
+0,
+1
+],
+"--yellow-new-52": [
+239,
+155,
+0,
+1
+],
+"--yellow-new-53": [
+234,
+152,
+0,
+1
+],
+"--yellow-new-54": [
+229,
+148,
+0,
+1
+],
+"--yellow-new-55": [
+224,
+144,
+0,
+1
+],
+"--yellow-new-56": [
+220,
+141,
+0,
+1
+],
+"--yellow-new-57": [
+215,
+137,
+0,
+1
+],
+"--yellow-new-58": [
+210,
+133,
+0,
+1
+],
+"--yellow-new-59": [
+206,
+129,
+0,
+1
+],
+"--yellow-new-6": [
+255,
+225,
+181,
+1
+],
+"--yellow-new-60": [
+201,
+126,
+0,
+1
+],
+"--yellow-new-61": [
+196,
+122,
+0,
+1
+],
+"--yellow-new-62": [
+192,
+118,
+0,
+1
+],
+"--yellow-new-63": [
+187,
+115,
+0,
+1
+],
+"--yellow-new-64": [
+183,
+111,
+0,
+1
+],
+"--yellow-new-65": [
+179,
+108,
+0,
+1
+],
+"--yellow-new-66": [
+174,
+104,
+0,
+1
+],
+"--yellow-new-67": [
+170,
+100,
+0,
+1
+],
+"--yellow-new-68": [
+165,
+97,
+0,
+1
+],
+"--yellow-new-69": [
+161,
+93,
+0,
+1
+],
+"--yellow-new-7": [
+255,
+224,
+176,
+1
+],
+"--yellow-new-70": [
+157,
+90,
+0,
+1
+],
+"--yellow-new-71": [
+153,
+86,
+0,
+1
+],
+"--yellow-new-72": [
+148,
+83,
+0,
+1
+],
+"--yellow-new-73": [
+144,
+79,
+0,
+1
+],
+"--yellow-new-74": [
+140,
+76,
+0,
+1
+],
+"--yellow-new-75": [
+136,
+72,
+0,
+1
+],
+"--yellow-new-76": [
+131,
+69,
+0,
+1
+],
+"--yellow-new-77": [
+127,
+65,
+0,
+1
+],
+"--yellow-new-78": [
+123,
+62,
+0,
+1
+],
+"--yellow-new-79": [
+119,
+59,
+0,
+1
+],
+"--yellow-new-8": [
+255,
+222,
+171,
+1
+],
+"--yellow-new-80": [
+115,
+55,
+0,
+1
+],
+"--yellow-new-81": [
+111,
+52,
+0,
+1
+],
+"--yellow-new-82": [
+107,
+49,
+0,
+1
+],
+"--yellow-new-83": [
+103,
+45,
+0,
+1
+],
+"--yellow-new-84": [
+98,
+42,
+0,
+1
+],
+"--yellow-new-85": [
+94,
+39,
+0,
+1
+],
+"--yellow-new-86": [
+90,
+36,
+0,
+1
+],
+"--yellow-new-87": [
+86,
+32,
+0,
+1
+],
+"--yellow-new-88": [
+82,
+29,
+0,
+1
+],
+"--yellow-new-89": [
+79,
+26,
+0,
+1
+],
+"--yellow-new-9": [
+255,
+221,
+166,
+1
+],
+"--yellow-new-90": [
+75,
+23,
+0,
+1
+],
+"--yellow-new-91": [
+71,
+19,
+0,
+1
+],
+"--yellow-new-92": [
+67,
+16,
+0,
+1
+],
+"--yellow-new-93": [
+63,
+13,
+0,
+1
+],
+"--yellow-new-94": [
+59,
+9,
+0,
+1
+],
+"--yellow-new-95": [
+55,
+6,
+0,
+1
+],
+"--yellow-new-96": [
+51,
+4,
+0,
+1
+],
+"--yellow-new-97": [
+47,
+1,
+0,
+1
+],
+"--yellow-new-98": [
+42,
+0,
+0,
+1
+],
+"--yellow-new-99": [
+36,
+0,
+0,
+1
+]
+}

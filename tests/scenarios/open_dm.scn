@@ -1,0 +1,9 @@
+# A opens the existing DM with B from the Direct Messages sidebar.
+use a
+mark setup
+reload
+include _friends_home.scn
+mark open_dm
+click [data-list-item-id$="___${DM_AB}"]
+wait_for div[role="textbox"][aria-label^="Message @"]
+settle 2500

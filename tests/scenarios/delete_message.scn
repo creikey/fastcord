@@ -1,0 +1,11 @@
+# Delete our last message (context menu + confirmation dialog).
+include _open_test_channel.scn
+include _send_setup_message.scn
+mark delete_message
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-delete
+wait_for [role="dialog"]
+pause
+click_text [role="dialog"] button | Delete
+wait_gw MESSAGE_DELETE
+settle 2000

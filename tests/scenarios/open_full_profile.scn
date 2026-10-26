@@ -1,0 +1,13 @@
+# Profile popout -> click its avatar (opens the full profile modal), then close.
+include _open_test_channel.scn
+include _send_setup_message.scn
+click_last li[id^="chat-messages-"] [id^="message-username-"] span
+wait_for [role="dialog"] [aria-label="View Full Profile"]
+settle 1500
+mark open_full_profile
+click [role="dialog"] div[class*="avatar__"][class*="clickable__"]
+js document.querySelectorAll('[role="dialog"]').length
+settle 2500
+mark close_full_profile
+key Escape
+settle 1000

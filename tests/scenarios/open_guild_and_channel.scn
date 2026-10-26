@@ -1,0 +1,11 @@
+# Open the test guild from the server list, then its text channel.
+use a
+reload
+mark open_guild
+click [data-list-item-id="guildsnav___${GUILD}"]
+wait_for [data-list-item-id="channels___${TEXT}"]
+settle 1500
+mark open_channel
+click [data-list-item-id="channels___${TEXT}"]
+wait_for [data-slate-editor="true"]
+settle 2000

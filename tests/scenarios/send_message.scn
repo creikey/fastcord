@@ -1,0 +1,8 @@
+# Send a plain message in the private test guild's #general.
+include _open_test_channel.scn
+mark send_message
+click div[role="textbox"][aria-label^="Message "]
+type hello from the official client
+key Enter
+wait_gw MESSAGE_CREATE
+settle 2000

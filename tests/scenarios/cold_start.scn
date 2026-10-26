@@ -1,0 +1,5 @@
+# Cold start: reload the app (fresh gateway connection, READY, initial REST burst).
+use a
+mark cold_start
+reload
+settle 3000

@@ -1,0 +1,15 @@
+# React to our last message with a unicode emoji through the full picker.
+include _open_test_channel.scn
+include _send_setup_message.scn
+mark add_reaction
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+hover #message-add-reaction
+pause
+click #message-add-reaction
+wait_for input[placeholder="Find the perfect reaction"]
+type thumbsup
+wait 800
+click #emoji-picker-grid-0-0 button
+wait_gw MESSAGE_REACTION_ADD
+settle 2000
+js [...document.querySelectorAll('li[id^=chat-messages-]:last-child [class*=reaction] [role=button]')].map(e=>e.getAttribute('aria-label')).join(' ;; ')

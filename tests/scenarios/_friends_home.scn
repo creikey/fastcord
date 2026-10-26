@@ -1,0 +1,6 @@
+# Prelude: open Home -> Friends on the current account.
+click [data-list-item-id="guildsnav___home"]
+wait_for a[data-list-item-id$="___friends"]
+click a[data-list-item-id$="___friends"]
+wait_for [aria-label="Add Friend"]
+settle 1000

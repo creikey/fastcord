@@ -1,0 +1,26 @@
+# A creates a group DM from Friends -> New Group DM, then invites B into it.
+use b
+mark setup_b
+reload
+use a
+mark setup
+reload
+include _friends_home.scn
+mark start_group_dm
+click [aria-label="New Group DM"]
+wait_for [role="dialog"] [role="checkbox"]
+pause
+click_text [role="dialog"] button | Create Message
+wait_gw CHANNEL_CREATE
+wait_for [aria-label="Invite to Group DM"]
+settle 2000
+mark invite_to_group_dm
+click [aria-label="Invite to Group DM"]
+wait_for [role="dialog"] [role="checkbox"]
+click_text [role="dialog"] [role="checkbox"] | bobbles
+pause
+click_text [role="dialog"] button | Add
+wait_gw CHANNEL_RECIPIENT_ADD
+use b
+wait_gw CHANNEL_CREATE 20000
+settle 2500

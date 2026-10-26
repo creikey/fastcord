@@ -1,0 +1,12 @@
+# Edit our last message via its context menu.
+include _open_test_channel.scn
+include _send_setup_message.scn
+mark edit_message
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-edit
+wait 600
+key a meta
+type this message was edited
+key Enter
+wait_gw MESSAGE_UPDATE
+settle 2000

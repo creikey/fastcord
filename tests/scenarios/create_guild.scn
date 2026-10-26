@@ -1,0 +1,21 @@
+# Setup scenario: account A creates a private test guild ("fastcord test").
+# Run once; later scenarios use its ids (tests/scenarios/env TGUILD/TTEXT/TVOICE).
+use a
+reload
+mark create_guild_open
+click [data-list-item-id="guildsnav___create-join-button"]
+wait_for [role="dialog"]
+pause
+click_text [role="dialog"] button | Create My Own
+pause
+click_text [role="dialog"] button | For me and my friends
+wait_for [role="dialog"] input[type="text"]
+mark create_guild_name
+click [role="dialog"] input[type="text"]
+key a meta
+type fastcord test
+pause
+mark create_guild_submit
+click_text [role="dialog"] button | Create
+wait_gw GUILD_CREATE 20000
+settle 2500

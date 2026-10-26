@@ -1,0 +1,9 @@
+# Attach a small PNG and send it.
+include _open_test_channel.scn
+mark upload_image
+upload input.file-input[type="file"] | tests/scenarios/assets/test.png
+wait 1500
+click div[role="textbox"][aria-label^="Message "]
+key Enter
+wait_gw MESSAGE_CREATE 30000
+settle 3000

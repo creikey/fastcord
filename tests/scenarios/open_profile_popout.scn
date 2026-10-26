@@ -1,0 +1,10 @@
+# Click a message author's name to open the profile popout, then dismiss it.
+include _open_test_channel.scn
+include _send_setup_message.scn
+mark open_profile_popout
+click_last li[id^="chat-messages-"] [id^="message-username-"] span
+wait_for [role="dialog"] [aria-label="View Full Profile"]
+settle 2000
+mark close_profile_popout
+key Escape
+settle 1000
