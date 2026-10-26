@@ -98,7 +98,7 @@ set_keys :: proc(d: ^Direction, suite: Suite, secret: []byte) {
 	expand_label(suite, secret, "key", nil, key[:suite.key_len])
 	expand_label(suite, secret, "iv", nil, d.iv[:])
 	aead.reset(&d.ctx)
-	aead.init(&d.ctx, suite.aead, key[:suite.key_len])
+	aead.init(&d.ctx, suite.aead, key[:suite.key_len], aead_impl(suite.aead))
 	d.seq = 0
 	d.active = true
 }

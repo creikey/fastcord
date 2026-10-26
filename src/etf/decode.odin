@@ -6,7 +6,9 @@ import "core:mem"
 import "core:strconv"
 import "core:strings"
 
-DEFAULT_MAX_DEPTH :: 512
+// Discord nests about ten deep. A debug build spends about 2.7 KiB of stack per level (release about
+// 0.5 KiB), so this must stay well under 1 MiB / 2.7 KiB, the default thread stack.
+DEFAULT_MAX_DEPTH :: 128
 DEFAULT_MAX_INFLATED :: 64 << 20
 
 Decode_Options :: struct {

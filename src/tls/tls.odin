@@ -12,6 +12,7 @@ package tls
 import "fc:locks"
 import "base:intrinsics"
 import "core:crypto/aead"
+import "core:crypto/chacha20"
 import "core:crypto/hash"
 import "core:mem"
 import "core:strings"
@@ -89,6 +90,20 @@ SUITES := [?]Suite {
 	{0x1301, .AES_GCM_128, 16, .SHA256, 32},
 	{0x1302, .AES_GCM_256, 32, .SHA384, 48},
 	{0x1303, .CHACHA20POLY1305, 32, .SHA256, 32},
+}
+
+// Odin dev-2026-10 miscompiles the AVX2 ChaCha20 in -debug builds on Windows: its round helper is not
+// inlined, reads its stack arguments from the wrong slots and faults. Every ChaCha20 user in fastcord
+// passes this implementation (tests/run_all.sh checks), so debug builds use the SSE one instead.
+CHACHA20_IMPL :: chacha20.Implementation.Simd128 when ODIN_DEBUG else chacha20.DEFAULT_IMPLEMENTATION
+
+// aead_impl is the implementation argument for aead.init(_, alg, _).
+aead_impl :: proc(alg: aead.Algorithm) -> aead.Implementation {
+	#partial switch alg {
+	case .CHACHA20POLY1305, .XCHACHA20POLY1305:
+		return CHACHA20_IMPL
+	}
+	return nil
 }
 
 // Direction is one half of the record protection state.
