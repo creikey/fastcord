@@ -1,0 +1,20 @@
+# Regression (rail fixture): the DM profile column's "…" on the banner did nothing;
+# it opens the user menu. Clicking the composer while Select Friends is open
+# closes the popout (outside presses used to be ignored when a control took them).
+open 1700000000000000001
+wait 30
+click 1245 116
+wait 10
+expect_visible "Copy Username"
+shot build/ui-dm_banner_menu-open.png
+key escape
+wait 10
+click 349 286
+wait 20
+expect_visible "Select Friends"
+click 600 683
+wait 30
+expect_not_visible "Select Friends"
+type yo
+wait 2
+expect_input "yo"

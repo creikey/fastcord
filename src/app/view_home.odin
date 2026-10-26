@@ -23,7 +23,8 @@ home_sidebar :: proc() {
 		btn.style.font_size = 14
 		btn.style.text_color = T("--text-strong")
 		btn.style.text_align = .Center
-		ui.signal(btn)
+		// opens the quick switcher, like the client (it used to do nothing)
+		if ui.signal(btn).clicked && !sw.open do switcher_toggle()
 		spacer(.X, 8)
 	}
 	line := ui.box("hline", {.Draw_Background})
@@ -279,6 +280,19 @@ friends_page :: proc() {
 		case .Add_Friend:
 		}
 	}
+	// the search field filters by display name or username, like the client
+	if q := strings.to_lower(strings.trim_space(ui.editor_text(&app.view.friends_search)), context.temp_allocator); q != "" {
+		kept := 0
+		for uid in ids {
+			u := dc.user_get(s, uid)
+			if u == nil do continue
+			if strings.contains(strings.to_lower(dc.display_name(u), context.temp_allocator), q) || strings.contains(strings.to_lower(u.username, context.temp_allocator), q) {
+				ids[kept] = uid
+				kept += 1
+			}
+		}
+		resize(&ids, kept)
+	}
 	sort_users_by_name(ids[:])
 	if ui.parent(list) {
 		spacer(.Y, 12)
@@ -286,17 +300,22 @@ friends_page :: proc() {
 		sr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
 		if ui.parent(sr) {
 			spacer(.X, FRIENDS_PAD_L)
-			search := row("search", {.Draw_Background, .Draw_Border})
+			// was drawn as an input but took no clicks or typing
+			search := row("search", {.Draw_Background, .Draw_Border, .Clickable})
 			search.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
 			search.style.bg = T("--input-background-default")
-			search.style.border_color = T("--input-border-default")
+			search.style.border_color = app.ui.focus == search.key ? T("--input-border-active") : T("--input-border-default")
 			search.style.border = 1
 			search.style.radius = 8
+			search.hover_cursor = .IBeam
+			if ui.signal(search).pressed do app.ui.focus = search.key
 			if ui.parent(search) {
 				spacer(.X, 11)
 				icon("mag", "magnifying-glass", 16, T("--icon-strong"))
 				spacer(.X, 12)
-				label("Search", .Normal, 16, T("--input-placeholder-text-default"), 20)
+				res := text_field("field", &app.view.friends_search, "Search", app.ui.focus == search.key && !modal_open(), 16, 20, 9, T("--input-placeholder-text-default"))
+				if res == .Escape do ui.editor_set_text(&app.view.friends_search, "")
+				spacer(.X, 12)
 			}
 			spacer(.X, FRIENDS_PAD_R)
 		}
@@ -349,6 +368,13 @@ FRIENDS_PAD_R :: 16
 FRIEND_ROW_H :: 61
 ACTIVE_NOW_W :: 360 // including its 1px left border
 
+// Opens (or creates) the DM with a friend, like clicking their row.
+friend_open_dm :: proc(uid: dc.Snowflake) {
+	if !net_action() do return
+	if existing := dc.open_dm(app.client, uid, "Friends"); existing != 0 do select_channel(0, existing)
+	else do app.pending_dm_user = uid
+}
+
 friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 	s := store()
 	div := row("div")
@@ -369,10 +395,8 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 		item.style.radius = 8
 		item.style.bg_hot = T("--background-mod-subtle")
 		sig := ui.signal(item)
-		if sig.clicked && net_action() {
-			if existing := dc.open_dm(app.client, uid, "Friends"); existing != 0 do select_channel(0, existing)
-			else do app.pending_dm_user = uid
-		}
+		if sig.clicked do friend_open_dm(uid)
+		if sig.right_clicked do open_user_menu(uid, app.ui.mouse)
 		u := dc.user_get(s, uid)
 		if ui.parent(item) {
 			spacer(.X, 10)
@@ -404,9 +428,11 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				spacer(.X, 10)
 			}
 			if kind == .Friend {
-				round_icon_button("msg", "chat", T("--interactive-icon-hover"))
+				// were drawn but did nothing: Message opens the DM, More the user menu
+				if round_icon_button("msg", "chat", T("--interactive-icon-hover")).clicked do friend_open_dm(uid)
 				spacer(.X, 10)
-				round_icon_button("more", "more-vertical", T("--interactive-icon-hover"))
+				more := round_icon_button("more", "more-vertical", T("--interactive-icon-hover"))
+				if more.clicked do open_user_menu(uid, {more.box.rect.x0, more.box.rect.y1 + 4})
 			} else {
 				if round_icon_button("deny", "x-small", T("--status-danger")).clicked && net_action() do dc.remove_relationship(app.client, uid)
 			}
@@ -517,7 +543,7 @@ add_friend_view :: proc() {
 			if ui.signal(box).pressed do app.ui.focus = box.key
 			if ui.parent(box) {
 				spacer(.X, 16)
-				res := text_field("field", &app.view.add_friend, "You can add friends with their Discord username.", app.ui.focus == box.key)
+				res := text_field("field", &app.view.add_friend, "You can add friends with their Discord username.", app.ui.focus == box.key && !modal_open())
 				name := strings.trim_space(ui.editor_text(&app.view.add_friend))
 				spacer(.X, 12)
 				btn := ui.box("Send Friend Request##send", {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
@@ -530,6 +556,7 @@ add_friend_view :: proc() {
 				btn.style.bg = enabled ? T("--background-brand") : with_alpha(T("--background-brand"), 0.5)
 				btn.style.bg_hot = btn.style.bg
 				btn.style.text_color = enabled ? {1, 1, 1, 1} : {1, 1, 1, 0.5}
+				if !enabled do btn.flags += {.Disabled}
 				if (ui.signal(btn).clicked || res == .Submit) && enabled && net_action() {
 					dc.send_friend_request(app.client, name)
 					ui.editor_set_text(&app.view.add_friend, "")
@@ -691,6 +718,8 @@ dm_profile_panel :: proc(uid: dc.Snowflake) {
 									ic.fixed_pos = {7, 7}
 								}
 								if sig.clicked && i == 0 && rel == .None && net_action() do dc.add_relationship(app.client, uid, "User Profile")
+								// "…" and the friends check open the user menu (Remove Friend, Block, …)
+								if sig.clicked && (i == 1 || rel == .Friend) do open_user_menu(uid, {b.rect.x0, b.rect.y1 + 4})
 								if i == 0 do spacer(.X, 8)
 							}
 						}

@@ -1,0 +1,12 @@
+# Regression: with the emoji picker open, pressing the composer (or any other
+# control) left the picker open and it kept the keyboard; the press now closes it.
+wait 5
+click 940 683
+wait 20
+expect_visible "Find the perfect emoji"
+click 600 683
+wait 30
+expect_not_visible "Find the perfect emoji"
+type hi
+wait 2
+expect_input "hi"

@@ -23,6 +23,7 @@ CATEGORY_ROW_H :: 24
 GUILD_ICON :: 40
 USER_PANEL_H :: 58
 MEMBER_LIST_W :: 264
+CHAT_MIN_W :: 480 // narrower than this, the member list / profile column hides
 
 Friends_Tab :: enum u8 {
 	Online,
@@ -40,6 +41,7 @@ View_State :: struct {
 	show_members: bool,
 	hide_dm_profile: bool, // 1:1 DM user profile column (header toggle)
 	add_friend:   ui.Editor,
+	friends_search: ui.Editor, // Friends page search (filters the list)
 	token_input:  ui.Editor,
 }
 
@@ -437,10 +439,14 @@ page :: proc() {
 		if ui.parent(body) {
 			if ch.kind == .Guild_Forum || ch.kind == .Guild_Media do forum_view(ch)
 			else do chat_view(ch.id)
+			// side columns only when the chat keeps a usable width (narrow windows
+			// used to squeeze the composer until its placeholder wrapped per letter)
+			room := app.ui.window.x - RAIL_W - SIDEBAR_W - CHAT_MIN_W
 			if search_panel_open() do search_panel()
+			else if room < MEMBER_LIST_W {}
 			else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) do member_list(ch)
 			else if ch.kind == .Group_DM && app.view.show_members do group_dm_members(ch)
-			else if ch.kind == .DM && !app.view.hide_dm_profile && len(ch.recipient_ids) == 1 do dm_profile_panel(ch.recipient_ids[0])
+			else if ch.kind == .DM && !app.view.hide_dm_profile && len(ch.recipient_ids) == 1 && room >= DMP_COL_W do dm_profile_panel(ch.recipient_ids[0])
 		}
 	}
 }
@@ -461,15 +467,22 @@ chat_header :: proc(ch: ^dc.Channel) {
 			thread_header_prefix(ch)
 			icon("hash", channel_icon_name(ch), 20, T("--channel-icon"))
 			spacer(.X, 8)
-			label(ch.name, .Medium, 16, T("--text-strong"), 20)
+			label(ch.name, .Medium, 16, T("--text-strong"), 20).semantic_size[.X].strictness = 1
 			if ch.topic != "" {
 				spacer(.X, 12)
 				d := ui.box("div", {.Draw_Background})
 				d.semantic_size = {.X = ui.px(1), .Y = ui.px(24)}
 				d.style.bg = T("--border-subtle")
 				spacer(.X, 12)
-				t := label(first_line(ch.topic), .Medium, 14, T("--text-muted"), 18)
-				t.flags += {.Clip}
+				// the topic gives way first on narrow windows (clipped by its wrapper;
+				// a label can't clip its own text)
+				topic := first_line(ch.topic)
+				tw := ui.box("topic", {.Clip})
+				tw.semantic_size = {.X = ui.px(ui.layout_text(F(.Medium), 14, topic, -1).width, 0), .Y = ui.px(18)}
+				if ui.parent(tw) {
+					t := label(topic, .Medium, 14, T("--text-muted"), 18)
+					t.semantic_size[.X].strictness = 1
+				}
 			}
 		}
 		filler(.X)
@@ -721,7 +734,8 @@ user_panel :: proc() {
 			who.semantic_size = {.X = ui.fill(), .Y = ui.px(42)}
 			who.style.radius = 8
 			who.style.bg_hot = T("--background-mod-subtle")
-			ui.signal(who)
+			// your own profile card (the client also lists status options there)
+			if ui.signal(who).clicked do open_profile(s.me, who.rect)
 			if ui.parent(who) {
 				spacer(.X, 4)
 				avatar_with_status("av", s.me, 32, T("--background-base-low"))

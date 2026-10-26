@@ -104,6 +104,11 @@ profile_popout :: proc() {
 			more.fixed_pos = {W - 12 - 28, 12}
 			more.style.radius = 14
 			more.style.bg = {0, 0, 0, 0.5}
+			if ui.signal(more).clicked {
+				// the user menu draws below this popout, so hand over to it
+				open_user_menu(uid, {more.rect.x0, more.rect.y1 + 4})
+				app.profile_user = 0
+			}
 			if ui.parent(more) {
 				ic := icon("i", "more-horizontal", 16, {1, 1, 1, 1})
 				ic.flags += {.Floating_X, .Floating_Y}
@@ -170,6 +175,12 @@ profile_popout :: proc() {
 					eb.style.radius = 8
 					eb.style.bg = T("--background-brand")
 					eb.style.bg_hot = with_alpha(T("--background-brand"), 0.85)
+					if ui.signal(eb).clicked {
+						// opens Settings > Profiles, like the client (it used to do nothing)
+						app.profile_user = 0
+						settings_page = "Profiles"
+						app.settings_open = true
+					}
 					if ui.parent(eb) {
 						filler(.X)
 						icon("i", "pencil", 16, {1, 1, 1, 1})

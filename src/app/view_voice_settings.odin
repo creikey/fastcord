@@ -273,7 +273,7 @@ toggle_row :: proc(id, text, help: string, value: ^bool) -> bool {
 
 @(private = "file")
 device_dropdown :: proc(which: int, input: bool, w: f32) {
-	devs := audio.list_devices(input, context.temp_allocator)
+	devs := vs_list_devices(input)
 	sel := audio.selected_device(input)
 	current := "Default"
 	for d in devs do if sel != 0 && d.id == sel do current = d.name
@@ -529,7 +529,7 @@ voice_user_menu :: proc() {
 	if app.settings_open && settings_page == "Voice & Video" && vs.open_dropdown != 0 && vs.dd_anchor.x1 > vs.dd_anchor.x0 {
 		input := vs.open_dropdown == 1
 		r := vs.dd_anchor
-		device_list(audio.list_devices(input, context.temp_allocator), audio.selected_device(input), input, r.x1 - r.x0, {r.x0, r.y1 + 4})
+		device_list(vs_list_devices(input), audio.selected_device(input), input, r.x1 - r.x0, {r.x0, r.y1 + 4})
 	}
 	if vs.menu_user == 0 do return
 	uid := vs.menu_user
@@ -600,4 +600,14 @@ voice_user_menu :: proc() {
 		if sig.clicked do vs.user_muted[uid] = !m
 	}
 	for e in app.ui.events do if e.kind == .Key_Down && e.key == .Escape do vs.menu_user = 0
+}
+
+// Headless runs (UI scripts, the control sweep) list fixed devices instead of
+// this machine's, so screenshots and sweep descriptors match everywhere.
+vs_list_devices :: proc(input: bool) -> []audio.Device_Info {
+	if !platform.is_headless() do return audio.list_devices(input, context.temp_allocator)
+	out := make([]audio.Device_Info, 2, context.temp_allocator)
+	out[0] = {id = 0, name = "Default", is_default = true}
+	out[1] = {id = 1001, name = input ? "Test Microphone" : "Test Speakers", uid = "test"}
+	return out
 }

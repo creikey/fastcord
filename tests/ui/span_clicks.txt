@@ -1,0 +1,12 @@
+# Regression: links and @mentions in messages did nothing when clicked (the
+# click handler was a stub and looked at a layout that is never set yet).
+wait 30
+move 600 300
+scroll 0 120
+wait 30
+click 840 128
+wait 5
+expect_opened_url "https://discord.com/developers"
+click 651 293
+wait 20
+expect_profile_open

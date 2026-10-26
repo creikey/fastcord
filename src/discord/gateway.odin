@@ -136,6 +136,7 @@ Gateway :: struct {
 	inflated:          [dynamic]byte,
 	// what the server must see on (re)connect
 	presence_status:   Status,
+	identified:        bool, // an IDENTIFY went out in this launch
 	initial_beat:      bool,
 	connected_once:    bool,
 	first_attempt:     i64,
@@ -388,11 +389,14 @@ identify_value :: proc(g: ^Gateway, allocator := context.temp_allocator) -> V {
 		for pr in vmap(spv) do etf.map_put(&props, vstr(pr.key), pr.value)
 	}
 	etf.map_put(&props, "is_fast_connect", false)
-	etf.map_put(&props, "gateway_connect_reasons", string("NO_REASONS"))
+	// the launch's first connect comes from the app skeleton (fixtures: typing,
+	// add_reaction, open_image_attachment when native fast connect was not used)
+	etf.map_put(&props, "gateway_connect_reasons", string("NO_REASONS" if g.identified else "AppSkeleton"))
 	if id.installation_id != "" do etf.map_put(&props, "installation_id", id.installation_id)
 
 	pres := etf.map_builder(4)
-	etf.map_put(&pres, "status", status_name(g.presence_status))
+	// before the settings proto is loaded the presence store reports "unknown"
+	etf.map_put(&pres, "status", status_name(g.presence_status) if g.identified else string("unknown"))
 	etf.map_put(&pres, "since", i64(0))
 	etf.map_put(&pres, "activities", etf.List{})
 	etf.map_put(&pres, "afk", false)
@@ -520,6 +524,7 @@ gateway_connect :: proc(g: ^Gateway) {
 		g.session_id = ""
 		g.state = .Identifying
 		g.last_ack = now_ms()
+		g.identified = true
 		locks.unlock(&g.mu)
 		client_push_state(c, .Identifying)
 		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
@@ -561,6 +566,7 @@ identify_locked :: proc(g: ^Gateway) {
 	g.session_id = ""
 	g.state = .Identifying
 	d := identify_value(g)
+	g.identified = true
 	locks.unlock(&g.mu)
 	client_push_state(g.c, .Identifying)
 	gateway_send(g, .Identify, d)

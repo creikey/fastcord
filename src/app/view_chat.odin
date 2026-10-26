@@ -300,7 +300,9 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 			bar.style.bg = T("--background-brand")
 		}
 		for e in app.ui.events {
-			if e.kind == .Mouse_Down && e.button == .Right && hovered do open_message_menu(m, e.pos)
+			// a control under the press (author name → user menu, avatar, …) takes its
+			// own right-click; both menus used to open, the message menu on top
+			if e.kind == .Mouse_Down && e.button == .Right && hovered && app.ui.hot == 0 do open_message_menu(m, e.pos)
 		}
 		if (hovered || ma.menu_msg == m.id) && !editing && m.kind != MSG_CALL {
 			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)
@@ -539,7 +541,10 @@ message_body :: proc(m: ^dc.Message) {
 					label(blk.depth == 0 ? "•" : "◦", .Normal, size, color, line_h)
 					spacer(.X, 8)
 				}
-				b = ui.box("p", {.Selectable_Text, .Wrap_Text})
+				// keyed per block: ids resolve against the message's id_scope, not the
+				// row, so a plain "p" collided from the second block on and became an
+				// anonymous box (no selection anchor, no link/mention clicks)
+				b = ui.box(fmt.tprintf("p%d", bi), {.Selectable_Text, .Wrap_Text})
 				b.semantic_size = {.X = ui.fill(), .Y = ui.text_size()}
 				b.style.text_color = color
 				b.style.line_height = line_h
@@ -563,7 +568,7 @@ message_body :: proc(m: ^dc.Message) {
 				ui.set_spans(b, spans)
 				b.sel_order = u64(m.id) * 8 + 2 + u64(bi) % 4
 			}
-			if b != nil && b.text_layout != nil do handle_span_clicks(b)
+			if b != nil do handle_span_clicks(b, blk.tokens)
 		}
 	}
 	if m.edited_timestamp != "" && !edited_inline {
@@ -654,14 +659,28 @@ format_unix :: proc(secs: i64, style: string) -> string {
 	return fmt.tprintf("%v %d, %d %d:%02d %s", mo, d, y, h12, mi, ampm)
 }
 
-@(private = "file")
-handle_span_clicks :: proc(b: ^ui.Box) {
-	// Clicks on links/mentions: resolved against last frame's layout position.
+// Clicks on links / mentions in a paragraph, against last frame's layout of the
+// box (spans carry their token index in id).
+handle_span_clicks :: proc(b: ^ui.Box, toks: []Token) {
+	tl := b.prev_layout
+	if tl == nil || tl.spans == nil do return
 	for e in app.ui.events {
-		if e.kind != .Mouse_Up || e.button != .Left || ui.has_selection() do continue
-		si := ui.span_at(b.text_layout, e.pos)
-		if si < 0 do continue
-		_ = si
+		if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() do continue
+		if ui.overlay_at(e.pos) do continue
+		si := ui.span_at(tl, e.pos)
+		if si < 0 || si >= len(tl.spans) do continue
+		ti := int(tl.spans[si].id)
+		if ti < 0 || ti >= len(toks) do continue
+		tk := toks[ti]
+		#partial switch tk.kind {
+		case .Link:
+			open_url(tk.text)
+		case .User_Mention:
+			r := ui.Rect{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10}
+			open_profile(dc.Snowflake(tk.id), r)
+		case .Channel_Mention:
+			if c := dc.channel_get(store(), dc.Snowflake(tk.id)); c != nil do select_channel(c.guild_id, c.id)
+		}
 	}
 }
 

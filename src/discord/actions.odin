@@ -1,6 +1,7 @@
 package discord
 
 import "fc:locks"
+import "core:math/rand"
 import "core:slice"
 import "core:strings"
 import "fc:etf"
@@ -171,7 +172,49 @@ request_guild_members :: proc(c: ^Client, guild_id: Snowflake, user_ids: []Snowf
 // voice_join / voice_leave: op 4 as VoiceStateStore sends it.
 voice_update :: proc(c: ^Client, guild_id, channel_id: Snowflake, self_mute, self_deaf: bool) {
 	if c.gw == nil do return
-	gateway_send(c.gw, .Voice_State_Update, voice_state_value(guild_id, channel_id, self_mute, self_deaf, false, 2))
+	v := voice_state_value(guild_id, channel_id, self_mute, self_deaf, false, 2)
+	// joining: RTCRegionStore's preferred regions (latency probe order, top 5)
+	if channel_id != 0 {
+		locks.lock(&c.id.mu)
+		regions := strings.split(c.rtc_regions, ",", context.temp_allocator) if c.rtc_regions != "" else nil
+		locks.unlock(&c.id.mu)
+		if len(regions) > 0 {
+			m := vmap(v)
+			list := make([]V, min(len(regions), 5), context.temp_allocator)
+			for r, i in regions[:len(list)] do list[i] = V(r)
+			ext := make([]etf.Pair, len(m) + 2, context.temp_allocator)
+			copy(ext, ([]etf.Pair)(m))
+			ext[len(m)] = {key = V(string("preferred_region")), value = V(regions[0])}
+			ext[len(m) + 1] = {key = V(string("preferred_regions")), value = etf.List(list)}
+			v = etf.Map(ext)
+		}
+	}
+	gateway_send(c.gw, .Voice_State_Update, v)
+}
+
+// schedule_rtc_probe: GET latency.discord.media/rtc?v=2 (RTCRegionStore);
+// the fixtures see it 3-25 s after start. The response's region order is what
+// op 4 sends as preferred_regions (persisted for the next launch).
+schedule_rtc_probe :: proc(c: ^Client, base: i64) {
+	j := job_new(.Web, .Startup)
+	j.method = "GET"
+	j.host = "latency.discord.media"
+	j.path = "/rtc?v=2"
+	j.site = .Cross_Site
+	j.not_before = base + 8000 + i64(rand.uint32() % 17000)
+	j.on_body = proc(c: ^Client, body: V) {
+		sb := strings.builder_make(context.temp_allocator)
+		for r, i in vlist(body) {
+			if i > 0 do strings.write_byte(&sb, ',')
+			strings.write_string(&sb, fstr(vmap(r), "region"))
+		}
+		if len(sb.buf) == 0 do return
+		locks.lock(&c.id.mu)
+		delete(c.rtc_regions, c.allocator)
+		c.rtc_regions = strings.clone(strings.to_string(sb), c.allocator)
+		locks.unlock(&c.id.mu)
+	}
+	job_submit(c, j)
 }
 
 // ---- messages ----
@@ -757,7 +800,7 @@ flush_soundboard :: proc(c: ^Client, now: i64) {
 }
 
 voice_leave :: proc(c: ^Client) {
-	voice_update(c, 0, 0, true, false)
+	voice_update(c, 0, 0, c.cfg.voice_self_mute, false)
 }
 
 // guild_channel_info: op 43 sent when a guild's channel is shown.
@@ -803,8 +846,9 @@ on_channel_page :: proc(c: ^Client, channel_id: Snowflake, got: int, full: bool)
 			fetch_profile_ex(c, u, {kind = "sidebar", mutual_guilds = true, mutual_friends = true, mutual_friends_count = false, delay_ms = 476})
 		}
 	}
-	// Viewing a channel with unread messages acks it (ReadState, 3 s timer).
-	if channel_unread(&c.store, channel_id) {
+	// Viewing a channel with unread messages acks it (ReadState, 3 s timer),
+	// only while the window has focus (fixtures, unfocused: mark_as_read sends no ack).
+	if channel_unread(&c.store, channel_id) && identity_app_state(&c.id) == .Focused {
 		msgs := messages_get(&c.store, channel_id)
 		if len(msgs) > 0 do ack_message(c, channel_id, msgs[len(msgs) - 1].id)
 	}
@@ -1084,4 +1128,28 @@ users_me_refresh :: proc(c: ^Client, delay_ms: i64) {
 	j.js_lower_auth = true
 	j.not_before = now_ms() + delay_ms
 	job_submit(c, j)
+}
+
+// request_page_members: GuildMemberRequester. Authors and mentioned users of a
+// fetched guild page with no known member are asked for at once with op 8
+// (presences false), each once (fixture scroll_history: the older page's one
+// unknown author).
+request_page_members :: proc(c: ^Client, channel_id: Snowflake, items: []V) {
+	ch := channel_get(&c.store, channel_id)
+	if ch == nil || ch.guild_id == 0 do return
+	gid := ch.guild_id
+	ids := make([dynamic]Snowflake, context.temp_allocator)
+	want :: proc(c: ^Client, gid, uid: Snowflake, ids: ^[dynamic]Snowflake) {
+		if uid == 0 || member_get(&c.store, gid, uid) != nil do return
+		key := [2]Snowflake{gid, uid}
+		if c.members_requested[key] do return
+		c.members_requested[key] = true
+		append(ids, uid)
+	}
+	for mv in items {
+		m := vmap(mv)
+		if vget(m, "webhook_id") == nil do want(c, gid, fsnow(fmap(m, "author"), "id"), &ids)
+		for u in flist(m, "mentions") do want(c, gid, fsnow(vmap(u), "id"), &ids)
+	}
+	if len(ids) > 0 do request_guild_members(c, gid, ids[:])
 }

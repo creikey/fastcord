@@ -13,6 +13,7 @@ import "core:hash/xxhash"
 import "core:os"
 import "core:strconv"
 import "core:strings"
+import "fc:audio"
 import dc "fc:discord"
 import "fc:gfx"
 import "fc:platform"
@@ -25,6 +26,7 @@ Sweep_Screen :: struct {
 	channel:    string,
 	setup:      [dynamic]string,
 	hold_mouse: bool, // the screen needs the mouse where setup left it (hover toolbars)
+	login:      bool, // show the intro / token screen
 	size:       [2]int,
 }
 
@@ -55,12 +57,15 @@ Sweep_State :: struct {
 	collect: bool,
 	boxes:   [dynamic]Sweep_Box,
 	anon:    [dynamic]string, // clickable boxes without a key (unreachable)
+	geom:    [dynamic]Sweep_Box, // hit area doesn't match what is drawn (desc carries the detail)
 	neutral: ui.Vec2,
 	issues:  [dynamic]Sweep_Issue,
 	allow:   [dynamic]Sweep_Allow,
 	out:     string,
 	crops:   int,
 	capped:  int,
+	tested:  map[string]bool, // fixture|overlay|desc already pressed on an earlier screen
+	overlay_open: bool, // last collected frame had a popout / modal open
 	verbose: bool,
 }
 
@@ -106,6 +111,8 @@ app_reset_state :: proc() {
 	rail_reset_for_test()
 	pf_reset_for_test()
 	vs_reset_for_test()
+	audio.select_device(true, 0)
+	audio.select_device(false, 0)
 	settings_page = "Appearance"
 	gdm_reset_for_test()
 	pins_reset_for_test()
@@ -135,6 +142,7 @@ sweep_fresh :: proc(sc: ^Sweep_Screen) {
 		id, _ := strconv.parse_u64(sc.channel)
 		if ch := dc.channel_get(&app.offline_store, dc.Snowflake(id)); ch != nil do select_channel(ch.guild_id, ch.id)
 	}
+	app.needs_login = sc.login
 	script_frame(&script_t)
 	script_frame(&script_t)
 	script_exec(sc.setup[:], sc.name)
@@ -145,11 +153,21 @@ sweep_fresh :: proc(sc: ^Sweep_Screen) {
 @(private = "file")
 sweep_settle :: proc() {
 	for i in 0 ..< 90 {
-		script_frame(&script_t)
+		sweep_frame()
 		if i >= 3 && !ui.needs_frame() do return
 	}
 	swp.capped += 1
 	if swp.verbose do fmt.eprintln("sweep: still animating after 90 frames at", app.ui.animating_loc)
+}
+
+// A frame 50 ms after the last (animations settle in a third of the frames;
+// under frame()'s 0.1 s dt clamp).
+@(private = "file")
+sweep_frame :: proc() {
+	script_t += 0.05
+	platform.set_time_override(script_t)
+	platform.wait_events(0)
+	frame()
 }
 
 @(private = "file")
@@ -177,7 +195,7 @@ sweep_key :: proc(k: platform.Key) {
 sweep_measure :: proc() -> u64 {
 	app.no_render = false
 	swp.collect = true
-	script_frame(&script_t)
+	sweep_frame()
 	swp.collect = false
 	app.no_render = true
 	pixels, _, _ := gfx.read_pixels(context.temp_allocator)
@@ -249,13 +267,61 @@ sweep_desc :: proc(b: ^ui.Box) -> string {
 	return sweep_clean(strings.to_string(sb), 90)
 }
 
+// Hit area vs drawn area: a control cut off by its parents or the window
+// (outside a scroll view) can't be pressed where it is drawn as being, and a
+// control drawing outside its own rect looks clickable where presses miss it.
+@(private = "file")
+sweep_geometry :: proc(b: ^ui.Box, vr: ui.Rect) {
+	area :: proc(r: ui.Rect) -> f32 {return max(0, r.x1 - r.x0) * max(0, r.y1 - r.y0)}
+	_ = vr
+	scrolled := false
+	for p := b.parent; p != nil; p = p.parent do if p.flags & {.Scroll_X, .Scroll_Y} != {} do scrolled = true
+	// vertical cuts are list viewports (some scroll by hand, without Scroll_Y)
+	win := ui.Rect{0, 0, app.ui.window.x, app.ui.window.y}
+	cut_x := (vr.x1 - vr.x0) < 0.9 * (b.rect.x1 - b.rect.x0)
+	cut_win := area(ui.intersect(b.rect, win)) < 0.9 * area(b.rect)
+	if !scrolled && (cut_x || cut_win) {
+		append(&swp.geom, Sweep_Box{key = b.key, rect = vr, desc = fmt.aprintf("%s|cut off: drawn rect %v, pressable %v", sweep_desc(b), b.rect, vr)})
+		return
+	}
+	outside :: proc(c: ^ui.Box, r: ui.Rect) -> ^ui.Box {
+		for x := c.first; x != nil; x = x.next {
+			if .Clickable in x.flags do continue // its own control
+			drawn := x.flags & {.Draw_Text, .Draw_Background, .Draw_Border} != {} || x.custom_draw != nil
+			if drawn && x.flags & {.Floating_X, .Floating_Y} == {} && (x.rect.x0 < r.x0 - 2 || x.rect.y0 < r.y0 - 2 || x.rect.x1 > r.x1 + 2 || x.rect.y1 > r.y1 + 2) do return x
+			if o := outside(x, r); o != nil do return o
+		}
+		return nil
+	}
+	if o := outside(b, b.rect); o != nil {
+		append(&swp.geom, Sweep_Box{key = b.key, rect = b.rect, desc = fmt.aprintf("%s|draws outside its hit area: %v beyond %v", sweep_desc(b), o.rect, b.rect)})
+	}
+}
+
+// The descriptor without its label: look-alike cells share it.
+@(private = "file")
+sweep_signature :: proc(desc: string) -> string {
+	q0 := strings.index_byte(desc, '\'')
+	q1 := strings.last_index_byte(desc, '\'')
+	if q0 < 0 || q1 <= q0 do return desc
+	return strings.concatenate({desc[:q0], desc[q1 + 1:]}, context.temp_allocator)
+}
+
 @(private = "file")
 sweep_collect :: proc() {
 	if !swp.collect do return
 	clear(&swp.boxes)
 	clear(&swp.anon)
+	clear(&swp.geom)
+	swp.overlay_open = false
+	for b in app.ui.order do if .Overlay in b.flags && .Clickable in b.flags do swp.overlay_open = true
 	win := ui.Rect{0, 0, app.ui.window.x, app.ui.window.y}
 	for b in app.ui.order {
+		// selectable text needs a key too: the selection anchors on it
+		if b.key == 0 && .Selectable_Text in b.flags && .Clickable not_in b.flags && b.text != "" {
+			append(&swp.anon, sweep_desc(b))
+			continue
+		}
 		if .Clickable not_in b.flags || .Disabled in b.flags do continue
 		vr := ui.intersect(ui.visible_rect(b), win)
 		if vr.x1 - vr.x0 < 2 || vr.y1 - vr.y0 < 2 || b.opacity <= 0.01 do continue
@@ -263,6 +329,7 @@ sweep_collect :: proc() {
 			append(&swp.anon, sweep_desc(b))
 			continue
 		}
+		sweep_geometry(b, vr)
 		// popout / modal panels absorb clicks on their empty parts on purpose
 		if .Overlay in b.flags && b.flags & {.Draw_Border, .Draw_Shadow} != {} do continue
 		in_ov := ui.in_overlay(b)
@@ -385,12 +452,34 @@ sweep_screen :: proc(sc: ^Sweep_Screen) {
 		pixels, w, h := gfx.read_pixels(context.temp_allocator)
 		gfx.write_png(fmt.tprintf("%s/%s.png", swp.out, sc.name), pixels, w, h)
 	}
+	// Controls repeated across screens (rail, header, user panel) are pressed once
+	// per fixture and overlay context; a grid of look-alike cells (emoji, GIFs)
+	// at most SAME_MAX times per screen.
+	SAME_MAX :: 3
 	targets := make([dynamic]Sweep_Box, context.allocator)
-	append(&targets, ..swp.boxes[:])
-	for a in swp.anon {
-		sweep_issue("anon", sc.name, {desc = a}, "clickable box has no key (duplicate id?): presses can never reach it", false)
+	same := make(map[string]int, allocator = context.temp_allocator)
+	for b in swp.boxes {
+		k := fmt.aprintf("%s|%v|%s", sc.fixture, swp.overlay_open, b.desc)
+		if k in swp.tested do continue
+		swp.tested[k] = true
+		sig := sweep_signature(b.desc)
+		if same[sig] >= SAME_MAX do continue
+		same[sig] += 1
+		append(&targets, b)
 	}
-	fmt.eprintfln("sweep: %s: %d controls", sc.name, len(targets))
+	for a in swp.anon {
+		sweep_issue("anon", sc.name, Sweep_Box{desc = a}, "clickable or selectable box has no key (duplicate id in its id scope?): presses and selections can never anchor on it", false)
+	}
+	for g in swp.geom {
+		i := strings.index_byte(g.desc, '|')
+		k := fmt.aprintf("geom|%s|%s", sc.fixture, g.desc[:i])
+		if k in swp.tested do continue
+		swp.tested[k] = true
+		gb := g
+		gb.desc = g.desc[:i]
+		sweep_issue("hitarea", sc.name, gb, g.desc[i + 1:])
+	}
+	fmt.eprintfln("sweep: %s: %d controls (%d pressed)", sc.name, len(swp.boxes), len(targets))
 	nondet := false
 	for t in targets {
 		if swp.verbose do fmt.eprintfln("sweep:   %s at %v", t.desc, t.p)
@@ -447,6 +536,8 @@ sweep_parse :: proc(path: string) -> [dynamic]Sweep_Screen {
 					sc.size.y, _ = strconv.parse_int(wh[1])
 				case o == "hold_mouse":
 					sc.hold_mouse = true
+				case o == "login":
+					sc.login = true
 				}
 			}
 			append(&out, sc)
@@ -520,6 +611,7 @@ sweep_run :: proc(opt: Options) -> int {
 	for line in strings.split_lines(report) {
 		if strings.has_prefix(line, "FAIL") || strings.has_prefix(line, "stale") do fmt.eprintln(line)
 	}
+	if swp.verbose do fmt.eprintfln("sweep: %d frames, %d settles hit the cap", app.frame, swp.capped)
 	fmt.eprintfln("sweep: %d issues, %d not allowlisted (report: %s/report.txt)", len(swp.issues), bad, swp.out)
 	return bad > 0 ? 1 : 0
 }

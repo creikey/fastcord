@@ -626,13 +626,44 @@ cached_rtt_us :: proc(host: string) -> u64 {
 	return rtt_cache[host] or_else 0
 }
 
+// set_cached_rtt_us seeds the cache (Chrome's persisted server network stats).
+set_cached_rtt_us :: proc(host: string, us: u64) {
+	if us == 0 || host == "" do return
+	context.allocator = conn_allocator()
+	locks.lock(&rtt_cache_mu)
+	defer locks.unlock(&rtt_cache_mu)
+	rtt_store_locked(host, us)
+}
+
+Rtt_Entry :: struct {
+	host: string,
+	us:   u64,
+}
+
+// cached_rtts copies the cache (for persistence).
+cached_rtts :: proc(allocator := context.allocator) -> []Rtt_Entry {
+	locks.lock(&rtt_cache_mu)
+	defer locks.unlock(&rtt_cache_mu)
+	out := make([]Rtt_Entry, len(rtt_cache), allocator)
+	i := 0
+	for h, us in rtt_cache {
+		out[i] = {strings.clone(h, allocator), us}
+		i += 1
+	}
+	return out
+}
+
 @(private)
 remember_rtt :: proc(host: string, rtt: time.Duration) {
 	if rtt <= 0 do return
 	context.allocator = conn_allocator()
 	locks.lock(&rtt_cache_mu)
 	defer locks.unlock(&rtt_cache_mu)
-	us := u64(time.duration_microseconds(rtt))
+	rtt_store_locked(host, u64(time.duration_microseconds(rtt)))
+}
+
+@(private)
+rtt_store_locked :: proc(host: string, us: u64) {
 	if _, ok := rtt_cache[host]; ok {
 		rtt_cache[host] = us
 	} else {

@@ -4,7 +4,8 @@
 set -e
 cd "$(dirname "$0")/../../.."
 FLAGS="-collection:fc=src -vet-shadowing -strict-style"
-odin build src/discord/parity -out:build/parity $FLAGS
+# PARITY_NOBUILD=1: use the existing build/parity (keeps a long pass stable while sources change)
+[ -n "$PARITY_NOBUILD" ] || odin build src/discord/parity -out:build/parity $FLAGS
 [ -x build/scrub ] || ./build.sh tool scrub
 [ -x build/trafficdiff ] || ./build.sh tool trafficdiff
 mkdir -p .secrets/raw .secrets/ours

@@ -137,6 +137,8 @@ Client :: struct {
 	upload_seq:       int,
 	account_popout_opened: bool,
 	quick_switcher:   Quick_Switcher,
+	members_requested: map[[2]Snowflake]bool, // (guild, user) asked for with op 8
+	rtc_regions:      string, // comma list from the latency probe (under id.mu; persisted)
 	quest_app_ids:    []Snowflake,
 	start_route_guild:   Snowflake, // route the window opened on (startup table selection)
 	start_route_channel: Snowflake,
@@ -223,6 +225,7 @@ client_start :: proc(c: ^Client) {
 	}
 	if c.focused do identity_touch_heartbeat(&c.id, now_ms())
 	if !c.cfg.disable_startup do schedule_startup(c, .Launch)
+	if !c.cfg.disable_startup do schedule_rtc_probe(c, c.launch_ms)
 	if !c.cfg.disable_gateway {
 		c.gw = gateway_create(c)
 		gateway_set_active(c.gw, qos_from_state(c.focused, false))
@@ -262,6 +265,8 @@ client_destroy :: proc(c: ^Client) {
 	}
 	delete(c.etags)
 	quick_switcher_destroy(c)
+	delete(c.members_requested)
+	delete(c.rtc_regions, c.allocator)
 	for k in c.preflights do delete(k, c.allocator)
 	delete(c.preflights)
 	store_destroy(&c.store)
@@ -403,6 +408,8 @@ client_load_state :: proc(c: ^Client) {
 				c.id.installation_id = strings.clone(v, c.allocator)
 			case "verified":
 				c.account_verified = v == "1"
+			case "rtc_regions":
+				c.rtc_regions = strings.clone(v, c.allocator)
 			case "heartbeat_session":
 				f := strings.split(v, "\t", context.temp_allocator)
 				if len(f) == 3 {
@@ -442,6 +449,11 @@ client_save_state :: proc(c: ^Client) {
 	strings.write_string(&sb, "verified\t")
 	strings.write_string(&sb, "1" if c.account_verified else "0")
 	strings.write_byte(&sb, '\n')
+	if c.rtc_regions != "" {
+		strings.write_string(&sb, "rtc_regions\t")
+		strings.write_string(&sb, c.rtc_regions)
+		strings.write_byte(&sb, '\n')
+	}
 	if c.id.installation_id != "" {
 		strings.write_string(&sb, "installation_id\t")
 		strings.write_string(&sb, c.id.installation_id)

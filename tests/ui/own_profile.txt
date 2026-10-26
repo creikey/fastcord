@@ -1,0 +1,10 @@
+# Regression: the user panel's name/avatar did nothing; it opens your profile
+# card, whose Edit Profile button (also dead) opens Settings > Profiles.
+wait 5
+click 112 683
+wait 20
+expect_profile_open
+click_text "Edit Profile"
+wait 20
+expect_no_profile_open
+expect_visible "Profiles"

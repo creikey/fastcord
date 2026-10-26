@@ -183,6 +183,11 @@ _common_init :: proc() {
 	_ = virtual.arena_init_growing(&s.current_arena)
 }
 
+// Smallest window content size (points), like the official client's 940x500:
+// below it the sidebars, composer and user panel no longer fit.
+MIN_WINDOW_W :: 940
+MIN_WINDOW_H :: 500
+
 is_headless :: proc() -> bool {return s.headless}
 
 // Headless only: change the window size (points); the offscreen target follows on the next frame.

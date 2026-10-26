@@ -179,6 +179,16 @@ scrub_text :: proc(c: ^Ctx, s: string) -> string {
 			i += n
 			continue
 		}
+		// GCS resumable-upload session ids (a capability for the upload URL)
+		if strings.has_prefix(s[i:], "upload_id=") {
+			j := i + len("upload_id=")
+			k := j
+			for k < len(s) && s[k] != '&' && s[k] != '"' && s[k] != ' ' do k += 1
+			strings.write_string(&sb, "upload_id=")
+			if k > j do strings.write_string(&sb, placeholder(c, "upload_id", s[j:k]))
+			i = k
+			continue
+		}
 		if uuid_at(s, i) {
 			strings.write_string(&sb, placeholder(c, "uuid", strings.to_lower(s[i:i + 36], context.temp_allocator)))
 			i += 36

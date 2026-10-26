@@ -1,0 +1,35 @@
+# Regression (run with -fixture:tests/ui/rail.jsonl): Friends-page controls that
+# were drawn but did nothing: a friend row's "…" (user menu), the list's search
+# field (now filters), and the sidebar's "Find or start a conversation" (switcher).
+go_home
+wait 10
+click_text "All"
+wait 10
+click 866 224
+wait 10
+expect_visible "Copy Username"
+key escape
+wait 10
+expect_not_visible "Copy Username"
+click_text "Search"
+wait 3
+type phi
+wait 5
+expect_input "phi"
+expect_visible "Phibi"
+expect_not_visible "Wumpus"
+click_text "Find or start a conversation"
+wait 10
+expect_visible "Where would you like to go?"
+# with Select Friends open, a press on the friends search closes the popout and
+# focuses the field (the popout used to drop the focus it had just been given)
+key escape
+wait 10
+click 349 286
+wait 20
+click 650 114
+wait 20
+expect_not_visible "Select Friends"
+type x
+wait 2
+expect_input "phix"

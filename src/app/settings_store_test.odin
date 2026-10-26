@@ -39,3 +39,19 @@ test_settings_roundtrip :: proc(t: ^testing.T) {
 	th, ok := app_theme_pending.?
 	testing.expect(t, ok && th == .Ash)
 }
+
+// settings-proto AppearanceSettings.theme: DARK=1 is the refresh's "Ash",
+// DARKER=3 its "Dark" (account A runs Dark and must not come up as Ash).
+@(test)
+test_theme_proto_mapping :: proc(t: ^testing.T) {
+	th, ok := theme_from_proto(.Darker)
+	testing.expect(t, ok && th == .Dark)
+	th, ok = theme_from_proto(.Dark)
+	testing.expect(t, ok && th == .Ash)
+	th, ok = theme_from_proto(.Midnight)
+	testing.expect(t, ok && th == .Onyx)
+	for n in Theme_Name {
+		back, bok := theme_from_proto(theme_to_proto(n))
+		testing.expect(t, bok && back == n)
+	}
+}

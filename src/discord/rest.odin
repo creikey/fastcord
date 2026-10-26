@@ -4,6 +4,7 @@ import "fc:locks"
 import "core:mem/virtual"
 import "core:strings"
 import "core:time"
+import "fc:etf"
 import "fc:http"
 
 // REST execution. Jobs are built on the UI thread (actions.odin) or by the
@@ -454,6 +455,9 @@ run_web :: proc(c: ^Client, j: ^Job) {
 		}
 	}
 	if j.etag && err == .None && resp.status == 200 do if tag, ok := http.header_get(resp.headers[:], "etag"); ok do etag_put(c, url, tag)
+	if j.on_body != nil && err == .None && resp.status == 200 {
+		if v, perr := etf.from_json(string(resp.body[:]), context.temp_allocator); perr == .None do j.on_body(c, v)
+	}
 	res := j.result
 	res.status = resp.status
 	res.ok = err == .None && resp.status >= 200 && resp.status < 400
@@ -581,6 +585,7 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 			if r.before != 0 || len(items) > 0 do l.has_more_before = len(items) >= r.limit
 			if len(items) < r.limit do l.has_more_before = false
 			if first && r.before == 0 do on_channel_page(c, r.channel_id, len(items), len(items) >= r.limit)
+			request_page_members(c, r.channel_id, items)
 		}
 	case .Send_Message, .Upload:
 		if rt, ok := &c.analytics.roundtrips[r.nonce]; ok && rt.api == 0 do rt.api = now_ms()

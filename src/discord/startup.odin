@@ -68,26 +68,26 @@ STARTUP_REQUESTS := [?]Startup_Entry {
 	{.Ready, 0, .Web_Get, "status.discord.com", "/api/v2/scheduled-maintenances/upcoming.json", "", .Same_Site, "", ALL_ROUTES, {}, ""},
 	{.Ready, 2, .Api_Get, "", "/users/%40me/badges", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, "B (unverified) only"},
-	{.Launch, 3177, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, ""},
-	{.Launch, 3500, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, "re-polled ~320 ms after the cluster"},
+	{.Ready, 2062, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, ""},
+	{.Ready, 2385, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, "re-polled ~320 ms after the cluster"},
 	// DevTools shows both preflights first, then the requests in fetch order
-	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag, .Preflight_Only}, ""},
-	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag, .Preflight_Only}, ""},
-	{.Launch, 3177, .Api_Get, "", "/users/@me/mfa/webauthn/credentials", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3177, .Api_Post_Json, "", "/users/@me/billing/user-offer", `{"allow_triggers":true}`, .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
-	{.Launch, 3177, .Api_Get, "", "/users/@me/billing/checkout-recovery", "", .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
-	{.Launch, 3177, .Api_Get, "", "/users/@me/collectibles-marketing?platform=0", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3178, .Api_Get, "", "/users/@me/library?country_code={country}", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3178, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
-	{.Launch, 3178, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, {.Etag}, ""},
-	{.Launch, 3178, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
+	{.Ready, 2060, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag, .Preflight_Only}, ""},
+	{.Ready, 2060, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag, .Preflight_Only}, ""},
+	{.Ready, 2062, .Api_Get, "", "/users/@me/mfa/webauthn/credentials", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Ready, 2062, .Api_Post_Json, "", "/users/@me/billing/user-offer", `{"allow_triggers":true}`, .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
+	{.Ready, 2062, .Api_Get, "", "/users/@me/billing/checkout-recovery", "", .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
+	{.Ready, 2062, .Api_Get, "", "/users/@me/collectibles-marketing?platform=0", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Ready, 2063, .Api_Get, "", "/users/@me/library?country_code={country}", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Ready, 2063, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
+	{.Ready, 2063, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, {.Etag}, ""},
+	{.Ready, 2063, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
 	// x is the 5-minute bucket within the hour (max-age=300): within one
 	// bucket Chrome serves it from its HTTP cache, so it is often absent.
-	{.Launch, 3178, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x={x5m}", "", .Cross_Site, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3178, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", {.Home, .Private}, {}, "guild route: part of the guild-open set"},
-	{.Launch, 3178, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3178, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 6700, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", {.Guild}, {}, "FrecencyUserSettings lazy load (fixtures: 6.0-8.1 s)"},
+	{.Ready, 2063, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x={x5m}", "", .Cross_Site, "", ALL_ROUTES, {}, ""},
+	{.Ready, 2063, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", {.Home, .Private}, {}, "guild route: part of the guild-open set"},
+	{.Ready, 2063, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Ready, 2063, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Ready, 5130, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", {.Guild}, {}, "FrecencyUserSettings lazy load (fixtures: mode READY +4.9-5.2 s, later after UI use)"},
 	{.Launch, 7577, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, ALL_ROUTES, {}, "ads decision"},
 	{.Launch, 16571, .Web_Get, "cdn.discordapp.com", "/bad-domains/current_revision.txt", "", .Cross_Site, "", ALL_ROUTES, {}, "from coldstart_a/b (outside fixture windows)"},
 }
@@ -122,6 +122,8 @@ schedule_startup :: proc(c: ^Client, anchor: Startup_Anchor) {
 	base := now_ms()
 	if anchor == .Launch do base = c.launch_ms
 	route := client_route_kind(c.start_route_guild, c.start_route_channel)
+	// The post-READY burst (detectables, billing, library...) comes READY +
+	// ~2.06 s, ~0.23 s later on the home route (33 fixtures: 2057-2109 vs 2295-2329).
 	for e in STARTUP_REQUESTS {
 		if e.anchor != anchor || .Disabled in e.flags || route not_in e.routes do continue
 		if .Verified_Only in e.flags && !c.account_verified do continue
@@ -160,6 +162,7 @@ schedule_startup :: proc(c: ^Client, anchor: Startup_Anchor) {
 			j.no_cookies = e.kind == .Detectables // fetch(credentials:"omit")
 		}
 		j.not_before = base + e.at_ms
+		if anchor == .Ready && route == .Home && e.at_ms >= 2000 do j.not_before += 230
 		// PremiumManager tracks the fetch as it starts (fixtures: batch +21-49 ms)
 		if strings.has_prefix(e.path, "/users/@me/billing/user-offer") do analytics_schedule(c, j.not_before, "fetch_user_offer_started", `"call_location":"PremiumManager"`)
 		job_submit(c, j)

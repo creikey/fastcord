@@ -128,6 +128,7 @@ _init :: proc(title: string, width, height: int) -> bool {
 	msg(Void, m.window, "setAcceptsMouseMovedEvents:", NS.BOOL(true))
 	msg(Void, m.window, "setRestorable:", NS.BOOL(false))
 	msg(Void, m.window, "setTabbingMode:", NS.Integer(2) /*disallowed*/)
+	msg(Void, m.window, "setContentMinSize:", NSSize{MIN_WINDOW_W, MIN_WINDOW_H})
 	wdel := msg(Id, msg(Id, cls("FCWindowDelegate"), "alloc"), "init")
 	msg(Void, m.window, "setDelegate:", wdel)
 

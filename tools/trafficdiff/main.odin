@@ -353,6 +353,27 @@ diff_window :: proc(wa, wb: Window, opts: Opts, sb: ^strings.Builder) -> int {
 	for e in wa.events do if e.k == "req" && !ignored(e, opts) do append(&ra, e)
 	for e in wb.events do if e.k == "req" && !ignored(e, opts) do append(&rb, e)
 	taken := make([]bool, len(rb), context.temp_allocator)
+	// A window that restarts the app is timed from its gateway open: how long
+	// the official app took to boot varies run to run (1-2 s), and every
+	// request after it would otherwise carry that offset.
+	// Requests after READY are timed from READY (the server's READY latency
+	// varies 0.6-2.3 s), earlier ones from the gateway open.
+	sa, sbs := wa.start, wb.start
+	ready_a, ready_b := -1.0, -1.0
+	{
+		oa, ob := -1.0, -1.0
+		for e in wa.events do if e.k == "ws_open" {oa = e.t; break}
+		for e in wb.events do if e.k == "ws_open" {ob = e.t; break}
+		if oa >= 0 && ob >= 0 {
+			sa, sbs = oa, ob
+		}
+		for e in wa.events do if e.k == "ws_recv" && str(e.v, "ev") == "READY" {ready_a = e.t; break}
+		for e in wb.events do if e.k == "ws_recv" && str(e.v, "ev") == "READY" {ready_b = e.t; break}
+	}
+	anchors :: proc(ea, eb: Event, sa, sbs, ra, rb_: f64) -> (f64, f64) {
+		if ra >= 0 && rb_ >= 0 && ea.t >= ra && eb.t >= rb_ do return ra, rb_
+		return sa, sbs
+	}
 	// matched (official t, ours index) pairs, to detect order changes between
 	// requests that are not part of the same burst (> ORDER_SLACK ms apart)
 	ORDER_SLACK :: 100.0
@@ -366,7 +387,8 @@ diff_window :: proc(wa, wb: Window, opts: Opts, sb: ^strings.Builder) -> int {
 		best := max(f64)
 		for f, j in rb {
 			if !taken[j] && req_key(f) == key {
-				d := abs((f.t - wb.start) - (e.t - wa.start))
+				x, y := anchors(e, f, sa, sbs, ready_a, ready_b)
+				d := abs((f.t - y) - (e.t - x))
 				if d < best {
 					best = d
 					match = j
@@ -388,7 +410,8 @@ diff_window :: proc(wa, wb: Window, opts: Opts, sb: ^strings.Builder) -> int {
 		}
 		append(&seen, [2]f64{e.t - wa.start, f64(match)})
 		append(&seen_key, key)
-		n += diff_request(e, rb[match], wa.start, wb.start, opts, sb)
+		xa, xb := anchors(e, rb[match], sa, sbs, ready_a, ready_b)
+		n += diff_request(e, rb[match], xa, xb, opts, sb)
 	}
 	for f, j in rb do if !taken[j] {
 		fmt.sbprintfln(sb, "  + extra    %s", req_key(f))

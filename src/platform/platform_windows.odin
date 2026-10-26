@@ -342,6 +342,14 @@ wndproc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wp: win.WPARAM, lp: win
 		push_event({kind = .Resize, pos = s.size, time = time_now()})
 		if w.in_size_move do run_frame_callback()
 		return 0
+	case win.WM_GETMINMAXINFO:
+		mm := (^win.MINMAXINFO)(uintptr(lp))
+		dpi := win.GetDpiForWindow(hwnd)
+		sc := f32(dpi) / 96
+		r := win.RECT{0, 0, i32(MIN_WINDOW_W * sc), i32(MIN_WINDOW_H * sc)}
+		win.AdjustWindowRectExForDpi(&r, win.WS_OVERLAPPEDWINDOW, false, 0, dpi)
+		mm.ptMinTrackSize = {r.right - r.left, r.bottom - r.top}
+		return 0
 	case win.WM_DPICHANGED:
 		r := (^win.RECT)(uintptr(lp))
 		win.SetWindowPos(hwnd, nil, r.left, r.top, r.right - r.left, r.bottom - r.top, win.SWP_NOZORDER | win.SWP_NOACTIVATE)

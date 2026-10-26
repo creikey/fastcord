@@ -175,6 +175,11 @@ load :: proc(c: ^Cache, path: string) -> bool {
 	text := string(data)
 	for line in strings.split_lines_iterator(&text) {
 		f := strings.fields(line, context.temp_allocator)
+		// "rtt <host> <us>": the server's smoothed RTT (Chrome network_stats.srtt)
+		if len(f) == 3 && f[0] == "rtt" {
+			if us, ok := strconv.parse_u64(f[2]); ok do quic.set_cached_rtt_us(f[1], us)
+			continue
+		}
 		if len(f) != 5 do continue
 		port, ok1 := strconv.parse_int(f[1])
 		exp, ok2 := strconv.parse_i64(f[2])
@@ -195,6 +200,7 @@ save_locked :: proc(c: ^Cache) {
 	for host, e in c.entries {
 		fmt.sbprintf(&b, "%s %d %d %d %d\n", host, e.port, time.to_unix_seconds(e.expires), time.to_unix_seconds(e.broken_until), e.broken_count)
 	}
+	for r in quic.cached_rtts(context.temp_allocator) do fmt.sbprintf(&b, "rtt %s %d\n", r.host, r.us)
 	tmp := strings.concatenate({c.path, ".tmp"}, context.temp_allocator)
 	if os.write_entire_file(tmp, transmute([]byte)strings.to_string(b)) == nil {
 		os.rename(tmp, c.path)
@@ -202,13 +208,17 @@ save_locked :: proc(c: ^Cache) {
 }
 
 destroy :: proc(c: ^Cache) {
-	for k in c.entries do delete(k)
-	delete(c.entries)
 	for k, conn in c.conns {
-		h3.close(conn)
+		h3.close(conn) // records the session's RTT
 		delete(k)
 	}
 	delete(c.conns)
+	// persist the RTTs learned this session with the alternatives
+	locks.lock(&c.mu)
+	save_locked(c)
+	locks.unlock(&c.mu)
+	for k in c.entries do delete(k)
+	delete(c.entries)
 	delete(c.path)
 }
 

@@ -1,0 +1,11 @@
+# Regression: pressing the header search box outside its text (the magnifier,
+# the padding) did nothing; only the placeholder text focused it.
+wait 5
+click 1258 57
+wait 3
+type hello
+wait 2
+expect_input "hello"
+key escape
+wait 3
+expect_input ""

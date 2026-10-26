@@ -3,7 +3,6 @@ package app
 import "core:os"
 import "core:strings"
 import dc "fc:discord"
-import "fc:platform"
 import "fc:ui"
 
 // Shown instead of the client when there is no token (or Discord rejected it):
@@ -98,7 +97,7 @@ login_card_body :: proc() {
 	open.style.font_size = 14
 	open.style.text_color = T("--text-link")
 	open.hover_cursor = .Pointer
-	if ui.signal(open).clicked do platform.open_url("https://discord.com/app")
+	if ui.signal(open).clicked do open_url("https://discord.com/app")
 	spacer(.Y, 16)
 
 	submitted := false
@@ -138,6 +137,7 @@ login_card_body :: proc() {
 		btn.style.bg_hot = btn.style.bg
 		btn.style.text_color = enabled ? {1, 1, 1, 1} : {1, 1, 1, 0.5}
 		btn.hover_cursor = enabled ? .Pointer : .Default
+		if !enabled do btn.flags += {.Disabled}
 		if (ui.signal(btn).clicked || submitted) && enabled do login_with_token(token)
 	}
 	spacer(.Y, 24)

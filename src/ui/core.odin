@@ -134,6 +134,7 @@ Box :: struct {
 	rel_pos:                         Vec2,
 	rect:                            Rect,
 	text_layout:                     ^Text_Layout,
+	prev_layout:                     ^Text_Layout, // last frame's layout (its arena lives until the next begin); for hit testing spans while declaring
 	spans:                           []Span, // rich text; text must be their concatenation (see set_spans)
 
 	// persistent state
@@ -539,6 +540,7 @@ box_make_key :: proc(k: Key, flags: Box_Flags) -> ^Box {
 	b.opacity = 1
 	b.style = top_style()
 	b.semantic_size = {.X = {}, .Y = {}}
+	b.prev_layout = b.text_layout
 	b.text_layout = nil
 	b.spans = nil
 	b.fixed_pos = {}
@@ -920,7 +922,10 @@ layout_solve :: proc(b: ^Box, axis: Axis) {
 			for c := b.first; c != nil; c = c.next {
 				if !is_floating(c, axis) && c.semantic_size[axis].kind == .Fill do c.fixed_size[axis] = each
 			}
-		} else if total > avail && b.flags & {.Scroll_X, .Scroll_Y} == {} {
+		}
+		// Overflowing (fills got 0): shrink the rest too, or rows with a filler
+		// (headers) pushed their right side out of the window instead.
+		if total > avail && b.flags & {.Scroll_X, .Scroll_Y} == {} {
 			// Shrink children proportionally to their slack (1 - strictness).
 			over := total - avail
 			slack: f32

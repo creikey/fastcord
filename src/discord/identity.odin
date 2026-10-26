@@ -243,3 +243,9 @@ launch_signature_is_clean :: proc(sig: string) -> bool {
 	for i in 0 ..< 16 do if b[i] & LAUNCH_SIG_ZERO[i] != 0 || b[i] & LAUNCH_SIG_ONE[i] != LAUNCH_SIG_ONE[i] do return false
 	return true
 }
+
+identity_app_state :: proc(id: ^Identity) -> App_State {
+	locks.lock(&id.mu)
+	defer locks.unlock(&id.mu)
+	return id.app_state
+}

@@ -2,10 +2,12 @@ package altsvc
 
 import "core:log"
 import "core:os"
+import "core:strings"
 import "core:testing"
 import "core:time"
 
 import "fc:netio"
+import "fc:quic"
 import "fc:tls"
 
 @(test)
@@ -104,4 +106,26 @@ live_race :: proc(t: ^testing.T) {
 	testing.expect(t, ok3 && r3.proto == .H3, "QUIC session reused")
 	if ok3 && r2.proto == .H3 do testing.expect(t, r3.h3 == r2.h3, "same session")
 	testing.expect(t, c.quic_works)
+}
+
+// The servers' RTTs persist with the alternatives (Chrome network_stats.srtt),
+// so a fresh process sends initial_round_trip_time on its first connection.
+@(test)
+rtt_persistence :: proc(t: ^testing.T) {
+	path := "build/altsvc_test_rtt.txt"
+	defer os.remove(path)
+	{
+		c: Cache
+		c.path = path
+		quic.set_cached_rtt_us("rtt-test.example", 39864)
+		record(&c, "rtt-test.example", `h3=":443"; ma=86400`)
+		destroy(&c)
+	}
+	data, _ := os.read_entire_file(path, context.temp_allocator)
+	testing.expect(t, strings.contains(string(data), "rtt rtt-test.example 39864"), string(data))
+	quic.set_cached_rtt_us("rtt-test.example", 1)
+	c: Cache
+	defer destroy(&c)
+	testing.expect(t, load(&c, path))
+	testing.expect_value(t, quic.cached_rtt_us("rtt-test.example"), u64(39864))
 }

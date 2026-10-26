@@ -1,0 +1,12 @@
+# Regression: right-clicking an author name opened the user menu *and* the
+# message menu on top of it; the name's own menu wins now.
+wait 30
+rclick 476 129
+wait 10
+expect_visible "Copy Username"
+expect_not_visible "Copy Message Link"
+key escape
+wait 10
+rclick 700 151
+wait 10
+expect_visible "Copy Message Link"

@@ -1,0 +1,12 @@
+# Regression: at the minimum window size (940x500) the member list squeezed the
+# chat until the composer placeholder wrapped one letter per line, and the
+# header's search box was pushed out of the window; the user panel must stay whole.
+resize 940 500
+wait 10
+expect_visible "Message #dingus-battle"
+expect_in_window "userpanel"
+expect_in_window "search"
+resize 1280 720
+wait 10
+expect_in_window "userpanel"
+expect_in_window "search"

@@ -111,9 +111,15 @@ jump_highlighted :: proc(id: dc.Snowflake) -> bool {
 
 // ---- header search box ----
 
+// The box's width as laid out last frame (it shrinks on narrow windows).
+search_box_w :: proc(b: ^ui.Box) -> f32 {
+	w := b.rect.x1 - b.rect.x0
+	return w > 0 ? w : SEARCH_W
+}
+
 search_box :: proc(ch: ^dc.Channel, hint: string) {
 	b := row("search", {.Draw_Background, .Draw_Border, .Clickable})
-	b.semantic_size = {.X = ui.px(SEARCH_W), .Y = ui.px(32)}
+	b.semantic_size = {.X = ui.px(SEARCH_W, 0.4), .Y = ui.px(32)} // narrow windows: gives up to 40% before the header overflows
 	b.style.bg = T("--input-background-default")
 	b.style.border_color = search.focused ? T("--input-border-active") : T("--input-border-default")
 	b.style.border = 1
@@ -141,7 +147,7 @@ search_box :: proc(ch: ^dc.Channel, hint: string) {
 	}
 	if ui.parent(b) {
 		spacer(.X, 9)
-		res := text_field("q", &search.editor, ellipsize(hint, .Medium, 14, SEARCH_W - 46), search.focused, 14, 18, 6, T("--input-placeholder-text-default"))
+		res := text_field("q", &search.editor, ellipsize(hint, .Medium, 14, search_box_w(b) - 46), search.focused, 14, 18, 6, T("--input-placeholder-text-default"))
 		if search.key == 0 || app.ui.focus == 0 {
 			// remember the field's key so app.ui.focus keeps the composer quiet
 			search.key = b.key

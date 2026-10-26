@@ -51,6 +51,7 @@ App :: struct {
 	focused_field:   UI_Rect, // rect of the field box behind focused_editor (tests)
 	net_actions:     int, // network actions attempted from the UI (counted even offline; the sweep reads it)
 	ext_actions:     int, // URL opens / file dialogs asked for (headless never shows them)
+	last_opened_url: string, // tests: the last URL open_url was asked to open
 	no_render:       bool, // headless sweep: build and lay out frames without drawing them
 	sweep:           bool, // headless sweep running: deterministic caret, no OS dialogs
 }
@@ -70,6 +71,8 @@ note_focused_editor :: proc(ed: ^UI_Editor, field: ^ui.Box) {
 
 open_url :: proc(url: string) {
 	app.ext_actions += 1
+	delete(app.last_opened_url)
+	app.last_opened_url = strings.clone(url)
 	if !platform.is_headless() do platform.open_url(url)
 }
 
@@ -152,8 +155,9 @@ main :: proc() {
 	opt := parse_options()
 	headless := opt.shot != "" || bench.on
 	if sw, sh := settings_load(headless); sw >= 400 && sh >= 300 {
-		opt.width = sw
-		opt.height = sh
+		// an old save may be below today's minimum window size
+		opt.width = max(sw, platform.MIN_WINDOW_W)
+		opt.height = max(sh, platform.MIN_WINDOW_H)
 	}
 	ok := headless ? platform.init_headless(opt.width, opt.height, opt.dpi) : platform.init("Discord", opt.width, opt.height)
 	if !ok {
@@ -262,7 +266,10 @@ main :: proc() {
 }
 
 frame :: proc() {
-	defer free_all(context.temp_allocator)
+	// Freed at the start, not the end: box texts and layouts of the last frame
+	// (often fmt.tprintf) stay valid until the next one, so scripted tests can
+	// read them (click_text, expect_visible) without reading freed memory.
+	free_all(context.temp_allocator)
 	watchdog_frame_begin()
 	defer watchdog_frame_end()
 	bench_frame_begin()
@@ -525,6 +532,16 @@ script_command :: proc(path: string, f: []string, t: ^f64) {
 		platform.set_headless_size(int(num(f[1])), int(num(f[2])))
 	case "theme":
 		if th, ok := theme_by_name(f[1]); ok do theme_load(&app.theme, th)
+	case "show_login":
+		// the intro / token screen (normally shown when there is no token)
+		app.needs_login = true
+	case "expect_opened_url":
+		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+		if app.last_opened_url != want do script_fail(path, "expect_opened_url failed\n  want %q\n  got  %q", want, app.last_opened_url)
+		return
+	case "expect_profile_open", "expect_no_profile_open":
+		if (app.profile_user != 0) != (f[0] == "expect_profile_open") do script_fail(path, "%s failed", f[0])
+		return
 	case "expect_theme":
 		if th, ok := theme_by_name(f[1]); !ok || th != app.theme.name do script_fail(path, "expect_theme %s failed: got %v", f[1], app.theme.name)
 		return

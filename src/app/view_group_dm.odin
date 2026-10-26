@@ -87,6 +87,7 @@ friends_sorted :: proc() -> []dc.Snowflake {
 // Overlay entry (views.odin overlays()).
 group_dm_overlay :: proc() {
 	if !gdm.open do return
+	focus_before := app.ui.focus // a field pressed this frame (the popout's field takes focus below)
 	s := store()
 	ui.animate(&gdm.t, 1, 30)
 	r := ui.Rect{gdm.anchor.x0 - 20, gdm.anchor.y1 + 8, gdm.anchor.x0 - 20 + GDM_W, 0}
@@ -187,14 +188,20 @@ group_dm_overlay :: proc() {
 		spacer(.Y, GDM_PAD)
 	}
 	for &e in app.ui.events {
+		// a press outside closes the popout even when a control under it took the press
+		if e.kind == .Mouse_Down && gdm.rect.x1 > gdm.rect.x0 && !pk_contains(gdm.rect, e.pos) && !pk_contains(gdm.anchor, e.pos) do gdm.open = false
 		if e.consumed do continue
 		if e.kind == .Key_Down && e.key == .Escape {
 			e.consumed = true
 			gdm.open = false
 		}
-		if e.kind == .Mouse_Down && gdm.rect.x1 > gdm.rect.x0 && !pk_contains(gdm.rect, e.pos) && !pk_contains(gdm.anchor, e.pos) do gdm.open = false
 	}
-	if !gdm.open do app.ui.focus = 0
+	// give up the keyboard only if the popout still has it (a press outside may
+	// have just focused another field)
+	if !gdm.open {
+		own := ui.key_from_string("gdmq###gdm_search", 0)
+		app.ui.focus = focus_before == own ? 0 : focus_before
+	}
 	pk_fade(pop, gdm.t)
 }
 

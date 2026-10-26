@@ -1,0 +1,54 @@
+# Known-inert controls for the dead-control sweep (tests/ui/sweep.txt).
+# <kind> <screen|*> "<descriptor substring>" <reason (required)>
+# kinds: dead (click and right-click changed nothing), hover (hover state stays
+# after the mouse leaves), input (typing didn't land in the clicked field),
+# hitarea (drawn and pressable areas differ). Descriptors are
+# "ancestor/ids 'first text' [first icon]" as printed in build/sweep/report.txt.
+# A new inert control fails the sweep until it is fixed or listed here.
+
+# already selected / already focused: pressing again changes nothing (same in the client)
+dead * "body/rail/guild 'DB'" already the selected server
+dead * "body/rail/home [clyde]" already on Home
+dead * "channels/chan/item 'dingus-battle'" already the selected channel
+dead * "channels/thread/item 'wrapping discussion'" already the selected thread
+dead * "dms/dm/item" already the open DM
+dead * "rail/dmslot/dmicon" already the open DM
+dead * "body/page/header 'Online'" already the selected friends tab
+dead * "pf/tabs/About Me" already the selected profile tab
+dead * "picker_header/tabs" already the selected picker tab
+dead * "picker_header/searchrow/search" the picker's search field always has focus while it is open
+dead * "emoji_nav/slot [clock]" jumps to Frequently Used, which is already at the top
+dead * "nav/Appearance/item" already the selected settings page
+dead * "col/swatches/Dark" already the selected theme
+dead * "vcol/mode_va 'Voice Activity'" already the selected input mode
+dead * "devices/outputcol/outvol" the press lands on the current value (slider center = 100%)
+dead * "card/body/input 'Paste your token'" the token field is focused from the start
+dead * "gdm/searchrow/search" the Select Friends field is focused while the popout is open
+
+# popout / modal bodies swallow presses on their empty parts on purpose
+dead * "settings_scrim/settings" settings modal body
+dead * "tbanchor/toolbar" message hover toolbar: presses between its buttons are absorbed
+
+# not built yet (they need features or network flows fastcord doesn't have)
+dead * "body/rail/add [circle-plus]" Add a Server (create/join flow) not implemented
+dead * "body/rail/discover [compass]" server Discovery not implemented
+dead * "body/sidebar/guildheader" server menu (invite, settings, leave) not implemented
+dead * "channels/events/item 'Events'" scheduled events not implemented
+dead * "channels/boosts/item 'Server Boosts'" Nitro boost promo, not implemented
+dead * "page/header/thread [thread]" threads browser popout not implemented
+dead * "page/header/bell [bell]" channel notification settings not implemented
+dead * "page/header/phone-call" DM voice calls not implemented
+dead * "page/header/video" DM video calls not implemented
+dead * "composer/gift [gift]" Nitro gifting (promo) not implemented
+dead * "composer/apps [apps]" app launcher / slash commands not implemented
+dead * "picker_header/searchrow 'Add Emoji'" uploading server emoji not implemented
+dead * "dms/Nitro/item" Nitro promo page not implemented
+dead * "dms/Shop/item" Shop promo page not implemented
+dead * "dms/Quests/item" Quests promo page not implemented
+
+# input-looking boxes that aren't editors
+input * "profile/info/msgrow 'Message @" opens the DM (a network action) like the client; not an editor
+
+# hover that lasts on purpose (same as the client)
+hover * "emoji_grid/cell" the picker footer keeps showing the last hovered emoji
+hover * "switcher/it" hovering a quick-switcher row moves the selection, which stays

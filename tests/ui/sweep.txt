@@ -5,8 +5,15 @@
 # the screen is clicked from that fresh state; anything inert must be listed in
 # tests/ui/sweep_allow.txt with a reason.
 
+screen login tests/ui/chat.jsonl login
+  wait 5
 screen guild_channel tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
+# the smallest window the platform allows (MIN_WINDOW_W x MIN_WINDOW_H)
+screen narrow tests/ui/chat.jsonl channel=1546820603343016006 size=940x500
+  wait 5
+screen narrow_dm tests/ui/rail.jsonl channel=1700000000000000001 size=940x500
+  wait 30
 screen hover_toolbar tests/ui/chat.jsonl channel=1546820603343016006 hold_mouse
   wait 5
   move 600 500
@@ -43,7 +50,7 @@ screen quick_switcher tests/ui/chat.jsonl channel=1546820603343016006
   wait 10
 screen search_results tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
-  click_text "Search Dingus Battle"
+  click 1142 57
   wait 3
   type message
   key enter
@@ -62,6 +69,26 @@ screen settings_voice tests/ui/chat.jsonl channel=1546820603343016006
   wait 20
   click_text "Voice & Video"
   wait 20
+screen voice_dropdown tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Voice & Video"
+  wait 20
+  click 492 133
+  wait 10
+screen search_suggestions tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 1142 57
+  wait 10
+screen user_menu tests/ui/chat.jsonl channel=1546820603343016006
+  wait 30
+  rclick 476 129
+  wait 10
+screen own_profile tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 112 683
+  wait 20
 screen friends_online tests/ui/rail.jsonl
   go_home
   wait 10
@@ -69,11 +96,6 @@ screen friends_all tests/ui/rail.jsonl
   go_home
   wait 10
   click_text "All"
-  wait 10
-screen friends_pending tests/ui/rail.jsonl
-  go_home
-  wait 10
-  click_text "Pending"
   wait 10
 screen add_friend tests/ui/rail.jsonl
   go_home

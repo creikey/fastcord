@@ -180,27 +180,30 @@ settings_save :: proc() {
 
 // ---- theme: local choice <-> settings-proto ----
 
+// The visual refresh renamed the themes: its "Ash" is the classic dark theme
+// (proto DARK = 1) and its "Dark" is theme-darker (proto DARKER = 3); see
+// tools/probes/theme_tokens.js.
 theme_to_proto :: proc(t: Theme_Name) -> dc.Theme {
 	switch t {
 	case .Light:
 		return .Light
 	case .Ash:
-		return .Darker
-	case .Dark:
 		return .Dark
+	case .Dark:
+		return .Darker
 	case .Onyx:
 		return .Midnight
 	}
-	return .Dark
+	return .Darker
 }
 
 theme_from_proto :: proc(t: dc.Theme) -> (Theme_Name, bool) {
 	#partial switch t {
 	case .Light:
 		return .Light, true
-	case .Darker:
-		return .Ash, true
 	case .Dark:
+		return .Ash, true
+	case .Darker:
 		return .Dark, true
 	case .Midnight:
 		return .Onyx, true

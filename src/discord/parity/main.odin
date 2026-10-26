@@ -46,6 +46,31 @@ reloads: [2]int
 // start_route: the route the official instance reopened on at the n-th reload
 // of this account, read from traffic/<scenario>.jsonl (first messages?limit=
 // page and lurker PUT after each ws_open).
+// fixture_fast_connect: whether the official n-th start of acct identified
+// through the native fast connect (before HELLO) or from the web app after
+// HELLO (gateway_connect_reasons "AppSkeleton"); both happen in the captures.
+fixture_fast_connect :: proc(acct: string, n: int) -> bool {
+	data, err := os.read_entire_file(fmt.tprintf("traffic/%s.jsonl", scenario), context.temp_allocator)
+	if err != nil do return true
+	text := string(data)
+	seen := 0
+	for line in strings.split_lines_iterator(&text) {
+		if !strings.contains(line, `"op":2,`) || !strings.contains(line, `"ws_send"`) do continue
+		v, jerr := etf.from_json(line, context.temp_allocator)
+		if jerr != .None do continue
+		m := discord.vmap(v)
+		a := discord.fstr(m, "acct")
+		if a == "" do a = "a"
+		if a != acct do continue
+		if seen == n {
+			fc, _ := discord.vget(discord.fmap(discord.fmap(m, "d"), "properties"), "is_fast_connect").(bool)
+			return fc
+		}
+		seen += 1
+	}
+	return true
+}
+
 start_route :: proc(acct: string, n: int) -> (guild, channel: discord.Snowflake) {
 	data, err := os.read_entire_file(fmt.tprintf("traffic/%s.jsonl", scenario), context.temp_allocator)
 	if err != nil do return 0, 0
@@ -178,11 +203,12 @@ reload :: proc() {
 	a := cur
 	idx := 0 if a.name == "a" else 1
 	guild, channel := start_route(a.name, reloads[idx])
+	fast := fixture_fast_connect(a.name, reloads[idx])
 	reloads[idx] += 1
 	if a.c != nil do stop(a)
 	clear(&a.events)
 	a.cursor = 0
-	a.c = discord.client_create(discord.Config{token = a.token, state_dir = a.state, initial_guild_id = guild, initial_channel_id = channel})
+	a.c = discord.client_create(discord.Config{token = a.token, state_dir = a.state, initial_guild_id = guild, initial_channel_id = channel, disable_fast_connect = !fast})
 	discord.recorder_attach(rec, a.c, a.name)
 	// recorder_attach owns observer_data; route gateway dispatch names to us via the recv hook data
 	a.c.user_data = a
@@ -195,6 +221,9 @@ reload :: proc() {
 		append(&acct.events, strings.clone(name))
 		locks.unlock(&names_mu)
 	}
+	// without native fast connect the app's IDENTIFY carries client_app_state:
+	// the capture windows are already unfocused then
+	if !fast do discord.identity_set_app_state(&a.c.id, .Unfocused)
 	discord.client_set_viewport(a.c, VIEW_W, VIEW_H)
 	discord.client_set_accessibility(a.c, discord.A11Y_PREFERS_COLOR_SCHEME_LIGHT)
 	discord.client_start(a.c)
@@ -292,6 +321,9 @@ newest_group_dm :: proc() -> discord.Snowflake {
 }
 
 CUSTOM_EMOJI :: discord.Snowflake(1564250154838528071) // fastcord_test (upload_custom_emoji)
+// ${GUILD}/${TEXT} of the scenarios: the long-history guild "Dingus Battle"
+HGUILD :: discord.Snowflake(1546820558300258304)
+HTEXT :: discord.Snowflake(1546820603343016006)
 
 // quick_type: the quick switcher input, one keystroke at a time.
 quick_type :: proc(text: string) {
@@ -423,7 +455,7 @@ run :: proc(name: string) -> bool {
 		click()
 		click()
 		pump(600)
-		typed(TTEXT, "this message was edited")
+		typed(0, "this message was edited") // the inline editor sends no typing
 		action()
 		discord.edit_message(cur.c, TTEXT, last_message(TTEXT), "this message was edited")
 		wait_gw("MESSAGE_UPDATE")
@@ -741,7 +773,7 @@ run :: proc(name: string) -> bool {
 		click()
 		wait_for()
 		click()
-		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+		discord.select_channel(cur.c, HGUILD, HTEXT, discord.initial_message_limit(VIEW_H), prefetch = true)
 		wait_for()
 		settle(2000)
 		// the older pages are already loaded by the channel open (fixture: no requests)
@@ -853,6 +885,69 @@ run :: proc(name: string) -> bool {
 		wait_gw("CHANNEL_CREATE", 10000)
 		discord.select_channel(cur.c, 0, DM_AB, discord.initial_message_limit(VIEW_H))
 		wait_for()
+		settle(2500)
+	case "mark_as_read":
+		use("b")
+		mark("setup_b")
+		reload()
+		click()
+		wait_for()
+		click()
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H), prefetch = true)
+		wait_for()
+		use("a")
+		mark("setup")
+		reload()
+		friends_home()
+		use("b")
+		mark("b_sends")
+		click()
+		typed(TTEXT, "unread message for the ack test")
+		human(80, 200) // Enter
+		action()
+		discord.send_message(cur.c, TTEXT, "unread message for the ack test")
+		wait_gw("MESSAGE_CREATE")
+		use("a")
+		wait_gw("MESSAGE_CREATE", 20000)
+		settle(2000)
+		mark("open_unread_channel")
+		click()
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H), prefetch = true)
+		wait_for()
+		click()
+		wait_for()
+		settle(4000)
+	case "voice_with_b":
+		use("b")
+		mark("setup_b")
+		reload()
+		click()
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H), prefetch = true)
+		wait_for()
+		settle(1000)
+		open_test_channel()
+		use("b")
+		mark("b_join_voice")
+		click()
+		action()
+		discord.voice_join(cur.c, TGUILD, TVOICE)
+		wait_gw("VOICE_SERVER_UPDATE", 20000)
+		pump(3000)
+		use("a")
+		mark("a_join_voice")
+		click()
+		action()
+		discord.voice_join(cur.c, TGUILD, TVOICE)
+		wait_gw("VOICE_SERVER_UPDATE", 20000)
+		pump(8000)
+		mark("a_leave_voice")
+		click()
+		discord.voice_leave(cur.c)
+		settle(2000)
+		use("b")
+		mark("b_leave_voice")
+		click()
+		discord.voice_leave(cur.c)
 		settle(2500)
 	case "_cleanup":
 		// not a fixture: removes guilds/group DMs the create_* scenarios left behind

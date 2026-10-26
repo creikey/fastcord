@@ -161,7 +161,8 @@ picker_close :: proc() {
 	if !pk.open || pk.closing do return
 	pk.closing = true
 	if pk.mode == .Reaction do app.reaction_target = 0
-	app.ui.focus = 0
+	// only if the picker still has the keyboard: the press that closed it may have focused a field
+	if app.ui.focus == ui.key_from_string("picker_search###pk_search", 0) do app.ui.focus = 0
 }
 
 // Called at the top of chat_view, before anything else reads input: while the
@@ -252,7 +253,10 @@ picker_overlay :: proc() {
 @(private = "file")
 picker_input :: proc() {
 	for &e in app.ui.events {
-		if e.consumed do continue
+		// a press outside closes the picker even when the control under it took the
+		// press (composer, header search, ...), like the client; otherwise the picker
+		// stayed open and kept the keyboard focus that control just asked for
+		if e.consumed && e.kind != .Mouse_Down do continue
 		#partial switch e.kind {
 		case .Mouse_Down:
 			on_button := false
