@@ -428,6 +428,8 @@ run :: proc(name: string) -> bool {
 		// reload): one start, on the home route.
 		use("a")
 		mark("setup")
+		click() // home
+		pump(1500)
 		reload()
 		mark("open_guild")
 		click()

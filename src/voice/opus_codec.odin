@@ -12,6 +12,14 @@ opus_codec :: proc() -> Codec {
 			if err != .None do return nil
 			opus.encoder_set_bitrate(e, 64000)
 			opus.encoder_set_inband_fec(e, true)
+			// The native client's op-1 select_protocol (msg_select_protocol /
+			// CODECS_JSON) carries no SDP fmtp, so nothing negotiates "usedtx":
+			// DTX stays off (libopus default). Loss starts at 0% (libopus
+			// default); with 0% libopus codes no LBRR even with FEC on, so a
+			// caller that measures loss should raise it via
+			// opus.encoder_set_packet_loss_perc.
+			opus.encoder_set_dtx(e, false)
+			opus.encoder_set_packet_loss_perc(e, 0)
 			return e
 		},
 		encoder_destroy = proc(enc: rawptr) {if enc != nil do opus.encoder_destroy(cast(^opus.Encoder)enc)},

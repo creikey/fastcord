@@ -95,11 +95,7 @@ profile_popout :: proc() {
 		banner := ui.box("banner", {.Draw_Background})
 		banner.semantic_size = {.X = ui.pct(1), .Y = ui.px(105)}
 		banner.style.radius = {8, 8, 0, 0}
-		if ac, ok := u.accent_color.?; ok {
-			banner.style.bg = rgb_u32(ac)
-		} else {
-			banner.style.bg = T("--background-brand")
-		}
+		banner.style.bg = profile_banner_color(uid)
 		if u.banner != "" do set_remote_image(banner, dc.banner_url(uid, u.banner, 600))
 		if ui.parent(banner) {
 			// "..." on the banner's top-right (official: 28px dark circle, 12px in)

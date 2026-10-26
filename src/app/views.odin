@@ -37,6 +37,7 @@ View_State :: struct {
 	friends_tab:  Friends_Tab,
 	collapsed:    map[dc.Snowflake]bool, // collapsed categories
 	show_members: bool,
+	hide_dm_profile: bool, // 1:1 DM user profile column (header toggle)
 	add_friend:   ui.Editor,
 }
 
@@ -412,6 +413,7 @@ page :: proc() {
 			if search_panel_open() do search_panel()
 			else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) do member_list(ch)
 			else if ch.kind == .Group_DM && app.view.show_members do group_dm_members(ch)
+			else if ch.kind == .DM && !app.view.hide_dm_profile && len(ch.recipient_ids) == 1 do dm_profile_panel(ch.recipient_ids[0])
 		}
 	}
 }
@@ -453,13 +455,14 @@ chat_header :: proc(ch: ^dc.Channel) {
 			b.layout_axis = .X
 			b.cross_align = .Center
 			sig := ui.signal(b)
-			active := name == "group" && app.view.show_members
+			active := (name == "group" && app.view.show_members) || (name == "user-circle" && !app.view.hide_dm_profile)
 			color := sig.hovering || active ? T("--interactive-icon-hover") : T("--icon-muted")
 			if ui.parent(b) {
 				spacer(.X, (HEADER_TOOL_W - 20) / 2)
 				icon("i", name, 20, color)
 			}
 			if sig.clicked && name == "group" do app.view.show_members = !app.view.show_members
+			if sig.clicked && name == "user-circle" do app.view.hide_dm_profile = !app.view.hide_dm_profile
 			if sig.clicked && name == "pin" do pins_toggle(ch.id, b.rect)
 			if sig.clicked && name == "group-plus" && ch.kind == .DM do group_dm_popout_open(b.rect, ch.id)
 		}
@@ -529,7 +532,7 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	if ui.parent(list) {
 		spacer(.Y, 12)
 		guild_action_row("events", "calendar", "Events")
-		guild_action_row("boosts", "boost-tier1", "Server Boosts")
+		guild_action_row("boosts", "boost-gem", "Server Boosts")
 		spacer(.Y, 11)
 		sep := row("sep")
 		sep.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
@@ -592,8 +595,8 @@ category_row :: proc(ch: ^dc.Channel) {
 	if ui.parent(r) {
 		spacer(.X, 16)
 		label(ch.name, .Medium, 14, color, 18)
-		spacer(.X, 2)
-		icon("chev", collapsed ? "chevron-small-right" : "chevron-small-down", 16, color)
+		spacer(.X, 4)
+		icon("chev", collapsed ? "chevron-small-right" : "chevron-small-down", 12, color)
 		filler(.X)
 		icon("plus", "plus-small", 18, T("--interactive-icon-default"))
 		spacer(.X, 16)

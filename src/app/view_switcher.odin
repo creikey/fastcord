@@ -173,7 +173,7 @@ quick_switcher :: proc() {
 				case .DM:
 					ch := dc.channel_get(store(), it.id)
 					if ch != nil && ch.kind == .DM && len(ch.recipient_ids) > 0 do avatar_box("av", ch.recipient_ids[0], 20)
-					else do icon("ic", "group", 20, T("--interactive-icon-default"))
+					else if ch != nil do group_dm_icon("ic", ch, 20)
 				case .Channel:
 					ch := dc.channel_get(store(), it.id)
 					icon("ic", ch != nil ? channel_icon_name(ch) : "text", 20, T("--interactive-icon-default"))

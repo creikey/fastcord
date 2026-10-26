@@ -13,6 +13,9 @@ MSG_AVATAR :: 40
 MSG_GROUP_GAP :: 17 // space above the first message of a group
 MSG_LINE_H :: 22
 MSG_FONT :: 16
+MSG_SCROLL_GUTTER :: 16
+MSG_PAD_R :: 48 // content padding-right (room for the hover toolbar)
+MSG_EDIT_PAD_R :: 23 // the inline edit form ends 23px from the item edge
 MSG_CALL :: 3 // message type CALL
 CALL_ROW_H :: 26 // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58 // official form height (1px border included): 22px line + 18px padding
@@ -171,6 +174,14 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 	TOP_PAD :: 16
 	BOTTOM_PAD :: 8
 	total: f32 = TOP_PAD + BOTTOM_PAD
+	// the start of a 1:1 DM's history carries the welcome header (avatar, names, friend actions)
+	welcome_ch := dc.channel_get(s, channel_id)
+	if welcome_ch != nil && (welcome_ch.kind != .DM || len(welcome_ch.recipient_ids) != 1) do welcome_ch = nil
+	if welcome_ch != nil {
+		l, ok := s.messages[channel_id]
+		if !ok || l.has_more_before || l.loading do welcome_ch = nil
+	}
+	if welcome_ch != nil do total += DMW_H + DMW_GAP - TOP_PAD
 	for &m in msgs {
 		h, ok := cs.heights[m.id]
 		total += ok ? h : MSG_LINE_H + 4
@@ -214,10 +225,19 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 	if ui.parent(list) {
 		col := ui.box("rows", {.Floating_Y, .Anchor_End_Y})
 		col.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
+		// items stop short of the scrollbar gutter (official: 375..1264 in a 905px list)
+		if lw := list.rect.x1 - list.rect.x0; lw > MSG_SCROLL_GUTTER do col.semantic_size[.X] = ui.px(lw - MSG_SCROLL_GUTTER)
 		col.layout_axis = .Y
 		col.fixed_pos = {0, BOTTOM_PAD + below - cs.scroll_from_bottom}
 		if ui.parent(col) {
-			if i0 == 0 do spacer(.Y, TOP_PAD)
+			if i0 == 0 {
+				if welcome_ch != nil {
+					dm_welcome(welcome_ch)
+					spacer(.Y, DMW_GAP)
+				} else {
+					spacer(.Y, TOP_PAD)
+				}
+			}
 			for i in max(i0, 0) ..= i1 {
 				if i < 0 do break
 				m := &msgs[i]
@@ -325,7 +345,8 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 				if len(m.embeds) > 0 do embeds_view(m)
 				if len(m.reactions) > 0 do reactions_view(m)
 			}
-			spacer(.X, 48)
+			spacer(.X, editing ? MSG_EDIT_PAD_R : MSG_PAD_R) // the edit form reaches further right
+
 		}
 		spacer(.Y, 2)
 	}

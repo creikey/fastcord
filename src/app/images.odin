@@ -20,6 +20,7 @@ Remote_Image :: struct {
 	durations: []int,
 	total_ms: int,
 	last_use: u64,
+	dominant: ui.Color, // most common opaque color of the first frame (profile banner fallback)
 }
 
 // url -> image. Requests go through the discord library so they look like the
@@ -129,12 +130,69 @@ avatar_url_for :: proc(uid: dc.Snowflake, size: f32) -> string {
 	return dc.avatar_url(uid, u.avatar, sz)
 }
 
+// Discord's default avatars: white Clyde on one of six colors, picked by
+// (id >> 22) % 6 for pomelo users or discriminator % 5 for legacy ones.
+DEFAULT_AVATAR_COLORS := [6]u32{0x5865f2, 0x757e8a, 0x3ba55c, 0xfaa61a, 0xed4245, 0xeb459f}
+
+default_avatar_index :: proc(uid: dc.Snowflake) -> int {
+	u := dc.user_get(store(), uid)
+	if u != nil && u.discriminator != "" && u.discriminator != "0" {
+		d := 0
+		for c in u.discriminator do if c >= '0' && c <= '9' do d = d * 10 + int(c - '0')
+		return d % 5
+	}
+	return int((u64(uid) >> 22) % 6)
+}
+
+@(private = "file")
+Avatar_Draw :: struct {
+	url:     string,
+	default: int, // >= 0: draw the default avatar until (or instead of) the image
+}
+
+@(private = "file")
+avatar_draw :: proc(b: ^ui.Box, user: rawptr) {
+	d := (^Avatar_Draw)(user)
+	im := image_get(d.url)
+	tex := image_texture(im)
+	if tex != 0 {
+		if len(im.frames) > 1 do app.ui.animating = true
+		white := gfx.Color{1, 1, 1, b.opacity}
+		gfx.push_rect({dst = gfx.Rect(b.rect), tex = tex, colors = {white, white, white, white}, radii = b.style.radius})
+		return
+	}
+	if d.default < 0 do return
+	// Local rendering of the default avatar: identical to the CDN image, shown instantly and offline.
+	c := gfx.Color(rgb_u32(DEFAULT_AVATAR_COLORS[d.default]))
+	c.a = b.opacity
+	gfx.push_rect({dst = gfx.Rect(b.rect), colors = {c, c, c, c}, radii = b.style.radius})
+	w := b.rect.x1 - b.rect.x0
+	h := b.rect.y1 - b.rect.y0
+	gw := w * 0.62
+	gx := b.rect.x0 + (w - gw) / 2
+	gy := b.rect.y0 + (h - gw) / 2
+	if ic := icon_texture("clyde", gw); ic != 0 {
+		wc := gfx.Color{1, 1, 1, b.opacity}
+		gfx.push_rect({dst = {gx, gy, gx + gw, gy + gw}, tex = ic, colors = {wc, wc, wc, wc}})
+	}
+}
+
 avatar_box :: proc(id: string, uid: dc.Snowflake, size: f32) -> ^ui.Box {
 	b := ui.box(id, {.Draw_Background})
 	b.semantic_size = {.X = ui.px(size), .Y = ui.px(size)}
 	b.style.radius = size / 2
 	b.style.bg = T("--background-mod-normal")
-	set_remote_image(b, avatar_url_for(uid, size))
+	u := dc.user_get(store(), uid)
+	d := new(Avatar_Draw, context.temp_allocator)
+	d.url = avatar_url_for(uid, size)
+	d.default = -1
+	if u == nil || u.avatar == "" {
+		d.default = default_avatar_index(uid)
+		b.style.bg = {}
+	}
+	image_get(d.url)
+	b.custom_draw = avatar_draw
+	b.custom_user = d
 	return b
 }
 
@@ -197,12 +255,33 @@ draw_custom_emoji :: proc(sp: ui.Span, r: ui.Rect, opacity: f32) {
 	gfx.push_rect({dst = gfx.Rect(r), tex = tex, colors = {c, c, c, c}})
 }
 
+// The client tints banner-less profiles with the avatar's dominant color: the
+// most populated 4-bit-per-channel bucket among opaque pixels, averaged.
+dominant_color :: proc(rgba: []u8) -> ui.Color {
+	counts := make([]u32, 4096, context.temp_allocator)
+	sums := make([][3]u32, 4096, context.temp_allocator)
+	step := max(1, len(rgba) / 4 / 16384) // sample at most ~16k pixels
+	for i := 0; i + 3 < len(rgba); i += 4 * step {
+		if rgba[i + 3] < 128 do continue
+		r, g, b := rgba[i], rgba[i + 1], rgba[i + 2]
+		k := (int(r) >> 4) << 8 | (int(g) >> 4) << 4 | int(b) >> 4
+		counts[k] += 1
+		sums[k] += {u32(r), u32(g), u32(b)}
+	}
+	best := -1
+	for c, k in counts do if c > 0 && (best < 0 || c > counts[best]) do best = k
+	if best < 0 do return {}
+	n := f32(counts[best])
+	return {f32(sums[best][0]) / n / 255, f32(sums[best][1]) / n / 255, f32(sums[best][2]) / n / 255, 1}
+}
+
 // Decode image bytes into textures (all frames for animations).
 image_decode :: proc(data: []byte) -> Remote_Image {
 	im := Remote_Image{state = .Failed, last_use = app.frame}
 	img, err := imagefmt.decode(data, context.temp_allocator)
 	if err != nil || len(img.frames) == 0 do return im
 	im.size = {img.width, img.height}
+	im.dominant = dominant_color(img.frames[0].pixels)
 	if len(img.frames) == 1 {
 		im.tex = gfx.texture_from_rgba(img.width, img.height, img.frames[0].pixels)
 	} else {

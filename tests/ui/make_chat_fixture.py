@@ -20,7 +20,7 @@ GUILD = 1546820558300258304
 EPOCH = 1420070400000
 base_ms = 1793000000000  # 2026-10-25
 def sf(ms, n): return ((ms - EPOCH) << 22) | n
-wumpus = {'id': 1000000000000000001, 'username': 'wumpus', 'global_name': 'Wumpus', 'avatar': None, 'discriminator': '0'}
+wumpus = {'id': 1000000000020971521, 'username': 'wumpus', 'global_name': 'Wumpus', 'avatar': None, 'discriminator': '0'}
 meu = {'id': me, 'username': 'dingus', 'global_name': 'Dingus Battle', 'avatar': None, 'discriminator': '0'}
 msgs = [
     (wumpus, 0, 'hey! welcome to **fastcord** testing'),

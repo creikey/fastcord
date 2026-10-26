@@ -1,8 +1,12 @@
-# Builds release binaries when a GitHub release is published and attaches them
-# to it. The download page links to releases/latest/download/<asset>.
+# Release = push a tag:  git tag v0.1.0 && git push origin v0.1.0
+# CI builds and tests, creates the GitHub release for the tag (if it doesn't
+# exist yet) and attaches the binaries. Publishing a release by hand in the
+# GitHub UI works too. The site links to releases/latest/download/<asset>.
 name: Release
 
 on:
+  push:
+    tags: ["v*"]
   release:
     types: [published]
   workflow_dispatch:
@@ -23,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
 
       - name: Install Odin ${{ env.ODIN_VERSION }}
         run: |
@@ -44,12 +48,15 @@ jobs:
         run: tests/run_all.sh
 
       - name: Package
-        run: scripts/package_macos.sh "${{ github.event.release.tag_name || inputs.tag }}"
+        run: scripts/package_macos.sh "${{ github.event.release.tag_name || inputs.tag || github.ref_name }}"
 
       - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name || inputs.tag }}" dist/fastcord-macos.zip --clobber
+          TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Fastcord $TAG" --generate-notes
+          gh release upload "${{ github.event.release.tag_name || inputs.tag || github.ref_name }}" dist/fastcord-macos.zip --clobber
 
   # Windows and Linux backends are not finished yet. When they are, add jobs here
   # that upload fastcord-windows.zip (single fastcord.exe) and fastcord-linux.tar.gz.

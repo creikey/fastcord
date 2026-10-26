@@ -210,7 +210,7 @@ rail_dm :: proc(cid: dc.Snowflake) {
 		sig := ui.signal(ic)
 		ui.animate(&ic.user_t, sig.hovering ? 1 : 0, 25)
 		ic.style.radius = GUILD_ICON / 2 - (GUILD_ICON / 2 - 12) * ic.user_t
-		ic.style.bg = T("--background-brand")
+		ic.style.bg = ch.kind == .Group_DM ? group_icon_color(ch.id) : T("--background-brand")
 		if ch.kind == .DM && len(ch.recipient_ids) > 0 {
 			set_remote_image(ic, avatar_url_for(ch.recipient_ids[0], GUILD_ICON))
 		} else if ui.parent(ic) {

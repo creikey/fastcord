@@ -3,6 +3,7 @@ package app
 import "core:fmt"
 import "core:slice"
 import "core:strings"
+import "core:time"
 import dc "fc:discord"
 import "fc:ui"
 
@@ -132,16 +133,7 @@ dm_row :: proc(ch: ^dc.Channel) {
 			if ch.kind == .DM && len(ch.recipient_ids) > 0 {
 				avatar_with_status("av", ch.recipient_ids[0], 32, item.style.bg.a > 0 ? T("--background-base-lower") : T("--background-base-lower"))
 			} else {
-				g := ui.box("gicon", {.Draw_Background})
-				g.semantic_size = {.X = ui.px(32), .Y = ui.px(32)}
-				g.style.radius = 16
-				g.style.bg = T("--background-brand")
-				if ui.parent(g) {
-					inner := ui.box("i", {.Floating_X, .Floating_Y})
-					inner.semantic_size = {.X = ui.px(20), .Y = ui.px(20)}
-					inner.fixed_pos = {6, 6}
-					set_icon(inner, "group", {1, 1, 1, 1})
-				}
+				group_dm_icon("gicon", ch, 32)
 			}
 			spacer(.X, 12)
 			col := ui.box("col")
@@ -585,4 +577,268 @@ member_row :: proc(gid, uid: dc.Snowflake) {
 		}
 		spacer(.X, 8)
 	}
+}
+
+// Banner color for a profile without a banner image: the user's accent color,
+// else the avatar's dominant color (as the client does), else brand.
+profile_banner_color :: proc(uid: dc.Snowflake) -> ui.Color {
+	if u := dc.user_get(store(), uid); u != nil {
+		if ac, ok := u.accent_color.?; ok do return rgb_u32(ac)
+	}
+	if im := image_get(avatar_url_for(uid, 80)); im != nil && im.state == .Ready && im.dominant.a > 0 do return im.dominant
+	return T("--background-brand")
+}
+
+// 1:1 DM user profile column (official: 306x(h-14) card inset 7px, banner 105,
+// 80px avatar in a 6px ring, name/username, Member Since, View Full Profile).
+DMP_COL_W :: 320
+MONTH_SHORT := [12]string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+DMP_INSET :: 7
+DMP_BANNER_H :: 105
+DMP_PAD :: 19
+DMP_BTN :: 32
+
+dm_profile_panel :: proc(uid: dc.Snowflake) {
+	s := store()
+	u := dc.user_get(s, uid)
+	if u == nil do return
+	col := ui.box("dmprofile")
+	col.semantic_size = {.X = ui.px(DMP_COL_W), .Y = ui.pct(1)}
+	col.layout_axis = .Y
+	if ui.parent(col) {
+		spacer(.Y, DMP_INSET)
+		r := row("r")
+		r.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
+		r.cross_align = .Start
+		if ui.parent(r) {
+			spacer(.X, DMP_INSET)
+			card := ui.box("card", {.Draw_Background, .Draw_Border, .Clip})
+			card.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
+			card.layout_axis = .Y
+			card.style.bg = T("--chat-background-default")
+			card.style.border_color = T("--border-subtle")
+			card.style.border = 1
+			card.style.radius = 8
+			surface := card.style.bg
+			if ui.parent(card) {
+				bw := row("bannerrow")
+				bw.semantic_size = {.X = ui.pct(1), .Y = ui.px(DMP_BANNER_H + 3)}
+				bw.cross_align = .End
+				if ui.parent(bw) {
+					spacer(.X, 2)
+					banner := ui.box("banner", {.Draw_Background})
+					banner.semantic_size = {.X = ui.fill(), .Y = ui.px(DMP_BANNER_H)}
+					banner.style.radius = {6, 6, 0, 0}
+					banner.style.bg = profile_banner_color(uid)
+					if u.banner != "" do set_remote_image(banner, dc.banner_url(uid, u.banner, 600))
+					if ui.parent(banner) {
+						btns := row("btns", {.Floating_X, .Floating_Y})
+						btns.semantic_size = {.X = ui.children(), .Y = ui.px(DMP_BTN)}
+						btns.fixed_pos = {DMP_COL_W - 2 * DMP_INSET - 4 - 12 - 2 * DMP_BTN - 8, 8}
+						if ui.parent(btns) {
+							rel := s.relationships[uid].kind
+							names := []string{rel == .Friend ? "user-check" : "user-plus", "more-horizontal"}
+							for name, i in names {
+								b := ui.box(name, {.Clickable, .Draw_Background, .Hot_Animation})
+								b.semantic_size = {.X = ui.px(DMP_BTN), .Y = ui.px(DMP_BTN)}
+								b.style.radius = DMP_BTN / 2
+								b.style.bg = {0, 0, 0, 0.36}
+								b.style.bg_hot = {0, 0, 0, 0.5}
+								sig := ui.signal(b)
+								if ui.parent(b) {
+									ic := icon("i", name, 18, {1, 1, 1, 1})
+									ic.flags += {.Floating_X, .Floating_Y}
+									ic.fixed_pos = {7, 7}
+								}
+								if sig.clicked && i == 0 && rel == .None && app.client != nil do dc.add_relationship(app.client, uid, "User Profile")
+								if i == 0 do spacer(.X, 8)
+							}
+						}
+					}
+					spacer(.X, 2)
+				}
+				av := ui.box("avrow")
+				av.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+				if ui.parent(av) {
+					ring := ui.box("ring", {.Draw_Background, .Floating_X, .Floating_Y})
+					ring.semantic_size = {.X = ui.px(92), .Y = ui.px(92)}
+					ring.fixed_pos = {16, -52}
+					ring.style.radius = 46
+					ring.style.bg = surface
+					if ui.parent(ring) {
+						a := avatar_with_status("av", uid, 80, surface)
+						a.flags += {.Floating_X, .Floating_Y}
+						a.fixed_pos = {6, 6}
+					}
+				}
+				line :: proc(id, text: string, font: Font_Id, size, lh: f32, color: ui.Color) {
+					r := row(id)
+					r.semantic_size = {.X = ui.pct(1), .Y = ui.px(lh)}
+					if ui.parent(r) {
+						spacer(.X, DMP_PAD)
+						l := label(text, font, size, color, lh)
+						l.flags += {.Selectable_Text}
+					}
+				}
+				line("name", dc.display_name(u), .Bold, 20, 24, T("--text-strong"))
+				spacer(.Y, 2)
+				line("user", u.username, .Normal, 14, 18, T("--text-strong"))
+				spacer(.Y, 20)
+				line("since_h", "Member Since", .Semibold, 12, 16, T("--text-strong"))
+				spacer(.Y, 6)
+				created := dc.snowflake_time_ms(uid) + local_utc_offset_ms()
+				t := time.unix(created / 1000, 0)
+				y, mo, d := time.date(t)
+				line("since", fmt.tprintf("%s %d, %d", MONTH_SHORT[int(mo) - 1], d, y), .Normal, 14, 18, T("--text-default"))
+				filler(.Y)
+				br := row("viewfull")
+				br.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+				if ui.parent(br) {
+					spacer(.X, DMP_PAD)
+					b := ui.box("View Full Profile##vfp", {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
+					b.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
+					b.style.radius = 8
+					b.style.bg = T("--background-mod-subtle")
+					b.style.bg_hot = T("--background-mod-normal")
+					b.style.font = F(.Medium)
+					b.style.font_size = 16
+					b.style.text_align = .Center
+					b.style.text_color = T("--text-strong")
+					if ui.signal(b).clicked do profile_full_open(uid)
+					spacer(.X, 16)
+				}
+				spacer(.Y, 18)
+			}
+			spacer(.X, DMP_INSET)
+		}
+		spacer(.Y, DMP_INSET)
+	}
+}
+
+// Top of a DM's history: big avatar, names, "This is the beginning of your
+// direct message history with **name**.", mutual servers and friend actions.
+DMW_AVATAR :: 80
+DMW_GAP :: 8 // welcome header to the first date divider
+DMW_H :: 16 + DMW_AVATAR + 12 + 40 + 8 + 32 + 20 + 20 + 8 + 32 // see dm_welcome
+
+dm_welcome :: proc(ch: ^dc.Channel) -> ^ui.Box {
+	s := store()
+	uid := ch.recipient_ids[0]
+	u := dc.user_get(s, uid)
+	w := ui.box("dmwelcome")
+	w.semantic_size = {.X = ui.pct(1), .Y = ui.px(DMW_H)}
+	w.layout_axis = .Y
+	if u == nil do return w
+	if ui.parent(w) {
+		pad :: proc(id: string, h: f32) -> ^ui.Box {
+			r := row(id)
+			r.semantic_size = {.X = ui.pct(1), .Y = ui.px(h)}
+			return r
+		}
+		spacer(.Y, 16)
+		if r := pad("av", DMW_AVATAR); ui.parent(r) {
+			spacer(.X, 16)
+			avatar_box("a", uid, DMW_AVATAR)
+		}
+		spacer(.Y, 12)
+		if r := pad("name", 40); ui.parent(r) {
+			spacer(.X, 16)
+			label(dc.display_name(u), .Bold, 32, T("--text-strong"), 40)
+		}
+		spacer(.Y, 8)
+		if r := pad("user", 32); ui.parent(r) {
+			spacer(.X, 16)
+			label(u.username, .Medium, 24, T("--text-strong"), 32)
+		}
+		spacer(.Y, 20)
+		if r := pad("begin", 20); ui.parent(r) {
+			spacer(.X, 16)
+			t := ui.box("t")
+			t.semantic_size = {.X = ui.text_size(0, 0), .Y = ui.px(20)}
+			t.style.line_height = 20
+			t.style.text_color = T("--text-default")
+			spans := make([]ui.Span, 3, context.temp_allocator)
+			spans[0] = {text = "This is the beginning of your direct message history with ", font = F(.Normal), size = 16}
+			spans[1] = {text = dc.display_name(u), font = F(.Bold), size = 16}
+			spans[2] = {text = ".", font = F(.Normal), size = 16}
+			ui.set_spans(t, spans)
+		}
+		spacer(.Y, 8)
+		if r := pad("actions", 32); ui.parent(r) {
+			spacer(.X, 16)
+			mutual := "No servers in common"
+			if u.mutual_guilds > 0 do mutual = fmt.tprintf("%d Mutual Server%s", u.mutual_guilds, u.mutual_guilds == 1 ? "" : "s")
+			label(mutual, .Normal, 14, T("--text-default"), 18)
+			spacer(.X, 12)
+			dot := ui.box("dot", {.Draw_Background})
+			dot.semantic_size = {.X = ui.px(4), .Y = ui.px(4)}
+			dot.style.radius = 2
+			dot.style.bg = T("--interactive-muted")
+			spacer(.X, 12)
+			rel := s.relationships[uid].kind
+			btn :: proc(text: string, primary: bool) -> bool {
+				b := ui.box(text, {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
+				b.semantic_size = {.X = ui.text_size(12), .Y = ui.px(32)}
+				b.style.radius = 8
+				b.style.font = F(.Medium)
+				b.style.font_size = 14
+				b.style.text_align = .Center
+				b.style.text_color = primary ? ui.Color{1, 1, 1, 1} : T("--text-strong")
+				b.style.bg = primary ? T("--background-brand") : T("--background-mod-normal")
+				b.style.bg_hot = primary ? with_alpha(T("--background-brand"), 0.85) : T("--background-mod-strong")
+				clicked := ui.signal(b).clicked
+				spacer(.X, 8)
+				return clicked
+			}
+			switch rel {
+			case .Friend:
+				if btn("Remove Friend", false) && app.client != nil do dc.remove_relationship(app.client, uid, "DM Header")
+				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+			case .Blocked:
+				if btn("Unblock", false) && app.client != nil do dc.remove_relationship(app.client, uid, "DM Header")
+			case .Outgoing_Request:
+				btn("Friend Request Sent", false)
+				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+			case .Incoming_Request:
+				if btn("Accept", true) && app.client != nil do dc.accept_friend_request(app.client, uid)
+				if btn("Ignore", false) && app.client != nil do dc.ignore_friend_request(app.client, uid)
+				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+			case .None, .Implicit:
+				if btn("Add Friend", true) && app.client != nil do dc.add_relationship(app.client, uid, "DM Header")
+				if btn("Block", false) && app.client != nil do dc.block_user(app.client, uid, "DM Header")
+			}
+		}
+	}
+	return w
+}
+
+// Icon-less group DMs get one of 8 default icons by snowflake timestamp
+// ((id >> 22) % 8). Colors measured from the client; unmeasured slots fall back to brand.
+group_icon_color :: proc(cid: dc.Snowflake) -> ui.Color {
+	switch (u64(cid) >> 22) % 8 {
+	case 0:
+		return {0xd3 / 255.0, 0x78 / 255.0, 0x37 / 255.0, 1}
+	case 5:
+		return {0x88 / 255.0, 0x52 / 255.0, 0xa8 / 255.0, 1}
+	case 7:
+		return {0xd3 / 255.0, 0x4f / 255.0, 0x3f / 255.0, 1}
+	}
+	return T("--background-brand")
+}
+
+// A group DM's round icon: its custom icon, else the default colored one.
+group_dm_icon :: proc(id: string, ch: ^dc.Channel, size: f32) -> ^ui.Box {
+	g := ui.box(id, {.Draw_Background})
+	g.semantic_size = {.X = ui.px(size), .Y = ui.px(size)}
+	g.style.radius = size / 2
+	g.style.bg = group_icon_color(ch.id)
+	if ch.icon != "" {
+		set_remote_image(g, fmt.tprintf("https://cdn.discordapp.com/channel-icons/%d/%s.webp?size=%d", u64(ch.id), ch.icon, int(size * 2)))
+	} else if ui.parent(g) {
+		inner := ui.box("i", {.Floating_X, .Floating_Y})
+		inner.semantic_size = {.X = ui.px(size * 0.625), .Y = ui.px(size * 0.625)}
+		inner.fixed_pos = {size * 0.1875, size * 0.1875}
+		set_icon(inner, "group", {1, 1, 1, 1})
+	}
+	return g
 }

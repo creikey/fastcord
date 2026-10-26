@@ -74,9 +74,9 @@ All code imports siblings through the `fc` collection: `import "fc:netio"`.
 
 ## Releasing
 
-1. Bump nothing by hand: the version comes from the release tag.
-2. On GitHub, create a release with a tag like `v0.1.0` and publish it.
-3. `.github/workflows/release.yml` builds `fastcord-macos.zip` (universal `Fastcord.app`,
+1. Bump nothing by hand: the version comes from the tag.
+2. `git tag v0.1.0 && git push origin v0.1.0` (or publish a release with that tag in the GitHub UI).
+3. `.github/workflows/release.yml` creates the GitHub release for the tag and builds `fastcord-macos.zip` (universal `Fastcord.app`,
    ad-hoc signed, not notarized) and attaches it to the release. Windows and Linux are
    not built yet; the site shows them as coming soon.
 4. The site and the in-app updater both use the latest release:

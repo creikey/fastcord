@@ -17,6 +17,6 @@ for s in "$@"; do
   else
     echo "no official fixture traffic/$s.jsonl yet"
   fi
-  sleep 5
+  sleep 20
 done
 exit $status
