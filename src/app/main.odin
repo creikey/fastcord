@@ -324,6 +324,8 @@ run_script :: proc(path: string) {
 			platform.inject_event({kind = .Mouse_Move, pos = p})
 			platform.inject_event({kind = .Mouse_Down, pos = p, button = .Left, click_count = n})
 			platform.inject_event({kind = .Mouse_Up, pos = p, button = .Left, click_count = n})
+		case "go_home":
+			go_home()
 		case "click_text":
 			// clicks the center of the (last drawn) box whose text is exactly the label
 			want := unquote(strings.join(f[1:], " ", context.temp_allocator))

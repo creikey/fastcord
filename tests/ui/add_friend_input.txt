@@ -1,5 +1,6 @@
 # Regression: clicking the Add Friend input focuses it and typing lands in it.
 # (Used to do nothing: the field's own focus key didn't match the container's.)
+go_home
 wait 5
 click_text "Add Friend"
 wait 5
