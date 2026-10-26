@@ -1,5 +1,7 @@
 package prof
 
+import "core:fmt"
+import "core:log"
 import "core:strings"
 import "core:testing"
 import "core:time"
@@ -76,7 +78,23 @@ test_sampler_finds_hot_procedure :: proc(t: ^testing.T) {
 		}
 		return true
 	}, &c)
-	testing.expectf(t, c.hits * 2 >= s.samples, "busy_work on %d of %d stacks", c.hits, s.samples)
+	if !testing.expectf(t, c.hits * 2 >= s.samples, "busy_work on %d of %d stacks", c.hits, s.samples) {
+		// Show what the unwinder and resolver did see, since this fails only on machines we can't debug on.
+		Dump :: struct {
+			syms: ^map[u64]Symbol,
+			b:    strings.Builder,
+			left: int,
+		}
+		d := Dump{syms = &syms, b = strings.builder_make(context.temp_allocator), left = 3}
+		each_sample(&s, proc(frames: []u64, user: rawptr) -> bool {
+			d := (^Dump)(user)
+			strings.write_string(&d.b, "\n  sample:")
+			for a in frames do fmt.sbprintf(&d.b, " %x=%s", a, d.syms[a].procedure)
+			d.left -= 1
+			return d.left > 0
+		}, &d)
+		log.error(strings.to_string(d.b))
+	}
 	report := sampler_report(&s, 10)
 	testing.expect(t, strings.contains(report, "spin"), report)
 }
