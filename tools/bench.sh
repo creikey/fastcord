@@ -7,7 +7,6 @@
 #   tools/bench.sh --save     run all, then save the result as the new local baseline
 #   tools/bench.sh --live     run tests/bench/account.txt on the real account (read-only) and on the
 #                             fixture, side by side; writes build/bench/shape.json, the live account's shape.
-#                             Copy it to tests/bench/shape.json to make the fixture follow the account.
 # Outputs in build/bench/: latest.jsonl, <script>.txt (profile report), <script>.folded (stacks for
 # tools/folded.py or speedscope.app). See README "Performance".
 cd "$(dirname "$0")/.."
@@ -26,9 +25,8 @@ $PY -c '' >/dev/null 2>&1 || PY=python
 ./build.sh dev
 mkdir -p build/bench
 GEN=tests/bench/make_bench_fixture.py
-SHAPE=tests/bench/shape.json
-if [ ! -f build/bench/heavy.jsonl ] || [ $GEN -nt build/bench/heavy.jsonl ] || [ $SHAPE -nt build/bench/heavy.jsonl ]; then
-  $PY -I $GEN build/bench/heavy.jsonl $SHAPE
+if [ ! -f build/bench/heavy.jsonl ] || [ $GEN -nt build/bench/heavy.jsonl ]; then
+  $PY -I $GEN build/bench/heavy.jsonl
 fi
 # Avatars, icons and emoji come from build/bench/media instead of the CDN. TZ and -now pin timestamps
 # and grouping, so counters are the same on every machine.

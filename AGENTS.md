@@ -12,8 +12,8 @@ Read README.md first: build, testing, performance and conventions are there. Thi
   `-prof:` and query the stacks with `tools/folded.py`. If the counters grew on purpose, update
   `tests/bench/budget.json` in the same commit. The UI must stay immediate-mode (README "Performance").
 - Judge speed by the bench's latency column (input to GPU done, from idle), not by throughput. The fixture
-  is shaped like a real account (`tests/bench/shape.json`); `tools/bench.sh --live` checks that it still
-  matches, read-only.
+  is shaped like a made-up heavy account; `tools/bench.sh --live` compares it with the real one, read-only.
+  Never commit a real account's shape.
 - Headless runs (`-shot:`, `-bench`) render offscreen. Check UI changes by looking at the PNG they write,
   not only at test results.
 - Live runs (`-live:N`) use the real account in `<state>/token`. Keep them read-only: don't type, send,

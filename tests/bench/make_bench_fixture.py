@@ -1,17 +1,33 @@
 # Builds the benchmark account (default build/bench/heavy.jsonl plus build/bench/media/; tools/bench.sh runs
-# this). Its shape copies tests/bench/shape.json, which `-shape:` captures from a real account (counts only:
-# users, avatars, guilds in sidebar order with their channels/roles/emoji/unreads, folders, DMs, read states,
-# mutes...). So an optimisation speeds up the synthetic run and the real account alike. On top of that shape
-# it adds two long channels for the chat benches: guild channel 1600000000000100003 (400 messages) and DM
-# 1300000000000100001 (300). Images (avatars, guild icons, emoji) are generated PNGs served offline through
-# FASTCORD_MEDIA_DIR, so the GPU sees as many distinct textures as on the real account.
+# this). Its shape is a made-up heavy account: round totals, and a sidebar of 30 guilds whose sizes are
+# heavy-tailed like a real one. Pass a shape.json captured with `-shape:` to copy a real account instead
+# (counts only; keep it out of the repo). On top of that shape it adds two long channels for the chat
+# benches: guild channel 1600000000000100003 (400 messages) and DM 1300000000000100001 (300). Images
+# (avatars, guild icons, emoji) are generated PNGs served offline through FASTCORD_MEDIA_DIR, so the GPU
+# sees as many distinct textures as on a real account.
 # All names and text are synthetic. Changing it changes every benchmark's numbers: update tests/bench/budget.json.
 # Run: python3 -I tests/bench/make_bench_fixture.py [out.jsonl] [shape.json]
 import base64, json, os, random, struct, sys, zlib
 here = os.path.dirname(os.path.abspath(__file__))
 out_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, '..', '..', 'build', 'bench', 'heavy.jsonl')
-shape_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(here, 'shape.json')
-shape = json.load(open(shape_path, encoding='utf-8'))
+
+def synthetic_shape():
+    r = random.Random(7)
+    def tail(top): return int(top * r.random() ** 4)
+    guilds = [{'channels': 1 + tail(110), 'categories': tail(17), 'voice': tail(13), 'threads': tail(12), 'roles': 1 + tail(100),
+               'emojis': tail(200), 'members': 1 + tail(60), 'unread': tail(45), 'mentions': int(r.random() < 0.15),
+               'muted': r.random() < 0.4} for _ in range(30)]
+    rail = []
+    while guilds:
+        n = min(r.choice((1, 1, 3, 4, 5)), len(guilds))
+        rail.append({'folder': n > 1, 'guilds': guilds[:n]})
+        guilds = guilds[n:]
+    return {'users': 500, 'users_with_avatar': 470, 'guilds_with_icon': 22, 'emojis': 700, 'animated_emojis': 100,
+            'muted_channels': 50, 'collapsed_categories': 65, 'muted_guilds': 120, 'guild_settings': 190, 'dms': 100,
+            'group_dms': 5, 'unread_dms': 9, 'mention_dms': 5, 'read_states': 630, 'friends': 500,
+            'other_relationships': 1, 'presences': 200, 'rail': rail}
+
+shape = json.load(open(sys.argv[2], encoding='utf-8')) if len(sys.argv) > 2 else synthetic_shape()
 media_dir = os.path.join(os.path.dirname(os.path.abspath(out_path)), 'media')
 os.makedirs(media_dir, exist_ok=True)
 

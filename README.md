@@ -94,11 +94,10 @@ python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
 ```
 
 - `tests/bench/make_bench_fixture.py` writes `build/bench/heavy.jsonl` and generated images in
-  `build/bench/media` from `tests/bench/shape.json`: the counts of a real account (users, avatars,
-  guilds and folders in sidebar order, channels, roles, emoji, unreads, mutes, read states). No names,
-  ids or content. It adds a 400-message guild channel and a 300-message DM for the chat benches.
-  `tools/bench.sh --live` writes the live account's shape to `build/bench/shape.json` and diffs it
-  with the fixture's; copy it over `tests/bench/shape.json` when the account has drifted.
+  `build/bench/media` shaped like a made-up heavy account (users, avatars, guilds and folders,
+  channels, roles, emoji, unreads, mutes, read states). It adds a 400-message guild channel and a
+  300-message DM for the chat benches. `tools/bench.sh --live` writes a real account's shape to
+  `build/bench/shape.json` and diffs it with the fixture's; never commit that file.
 - `FASTCORD_MEDIA_DIR=<dir>` serves CDN images from files named by the URL's last path component, so
   fixture runs load avatars, icons and emoji like a live run, offline.
 - `tests/bench/*.txt` are scripts. `bench <name>` starts a measured section, `bench_off` ends it,

@@ -1,4 +1,4 @@
-# A whole account (tests/bench/shape.json), the same script for the synthetic fixture and -live: runs.
+# A whole account, the same script for the synthetic fixture and -live: runs.
 settle 3
 bench acct_home_idle
 wait 60
