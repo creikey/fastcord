@@ -1,8 +1,9 @@
-// Package http: HTTP/1.1, HTTP/2 (+HPACK) and WebSocket clients over netio.Stream.
+// Package http: HTTP/1.1, HTTP/2 and WebSocket clients over netio.Stream, on
+// vendored parsers: picohttpparser (HTTP/1.1), nghttp2 (HTTP/2), wslay (WebSocket).
 //
 // Everything here runs on a netio.Stream, so TLS (fc:tls), plain TCP and the
 // in-memory Pipe (tests) are interchangeable. Request/Response are shared by
-// the h1 and h2 paths (and later h3) so callers can swap transports.
+// the h1, h2 and h3 paths so callers can swap transports.
 //
 // Header fidelity: request headers are written in exactly the order and
 // casing given. Nothing is added implicitly except, for HTTP/1.1, a leading
@@ -61,7 +62,7 @@ Request :: struct {
 	path:      string, // "/api/v9/users/@me"
 	headers:   []Header, // exact order/case; for h2 names must already be lowercase
 	body:      []byte,
-	priority:  Priority, // h2 HEADERS priority (Chrome dependency chain)
+	priority:  Priority, // h3 priority header (nghttp2 sends no h2 priority)
 }
 
 Response :: struct {

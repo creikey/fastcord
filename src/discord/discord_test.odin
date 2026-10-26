@@ -419,9 +419,7 @@ gateway_ui_send_goes_through_writer :: proc(t: ^testing.T) {
 	a, b := http.pipe_make()
 	defer netio.close(b)
 	g := gateway_create(c)
-	g.ws = new(http.Ws_Conn)
-	g.ws.s = a
-	g.ws.allocator = context.allocator
+	g.ws = http.ws_attach(a)
 
 	locks.set_ui_thread()
 	ok := gateway_send(g, .Request_Channel_Info, i64(7))
@@ -435,7 +433,6 @@ gateway_ui_send_goes_through_writer :: proc(t: ^testing.T) {
 	testing.expect_value(t, err, netio.Error.None)
 	testing.expect(t, n >= 2 && buf[0] == 0x82, "expected a binary websocket frame") // FIN | binary
 
-	g.ws.sent_close = true // no close frame: nothing reads it
 	gateway_stop(g)
 }
 

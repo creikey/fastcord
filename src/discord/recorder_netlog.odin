@@ -137,7 +137,7 @@ rec_conn :: proc(data: rawptr, ev: Conn_Event) {
 		strings.write_string(&sb, `{"settings":[`)
 		for s, i in ev.h2_settings {
 			if i > 0 do strings.write_byte(&sb, ',')
-			fmt.sbprintf(&sb, `"[id:%d (%s) value:%d]"`, s.id, h2_setting_name(s.id), s.value)
+			fmt.sbprintf(&sb, `"[id:%d (%s) value:%d]"`, s.id, h2_setting_name(u16(s.id)), s.value)
 		}
 		strings.write_string(&sb, "]}")
 		nl_event(f, "HTTP2_SESSION_SEND_SETTINGS", id, 0, at, strings.to_string(sb))

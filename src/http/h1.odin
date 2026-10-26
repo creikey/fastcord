@@ -1,5 +1,6 @@
 package http
 
+import "core:c"
 import "core:mem"
 import "core:strings"
 import "fc:netio"
@@ -9,6 +10,7 @@ import "fc:netio"
 //   h1_init(&c, stream)
 //   resp, err := h1_round_trip(&c, req)
 //   if !c.reusable { reconnect }
+// Response heads and chunked bodies are parsed by picohttpparser (vendor/picohttpparser).
 H1_Conn :: struct {
 	s:         netio.Stream,
 	r:         Reader,
@@ -23,6 +25,36 @@ H1_Limits :: struct {
 	max_body:         int, // 0 = 256 MiB
 }
 
+when ODIN_OS == .Windows {
+	foreign import pico "../../build/fc_picohttpparser.obj"
+} else {
+	foreign import pico "../../build/fc_picohttpparser.o"
+}
+
+@(private)
+Phr_Header :: struct {
+	name:      [^]byte,
+	name_len:  c.size_t,
+	value:     [^]byte,
+	value_len: c.size_t,
+}
+
+@(private)
+Phr_Chunked_Decoder :: struct {
+	bytes_left_in_chunk: c.size_t,
+	consume_trailer:     c.char,
+	_hex_count:          c.char,
+	_state:              c.char,
+	_total_read:         u64,
+	_total_overhead:     u64,
+}
+
+@(private, default_calling_convention = "c")
+foreign pico {
+	phr_parse_response :: proc(buf: [^]byte, len: c.size_t, minor_version: ^c.int, status: ^c.int, msg: ^[^]byte, msg_len: ^c.size_t, headers: [^]Phr_Header, num_headers: ^c.size_t, last_len: c.size_t) -> c.int ---
+	phr_decode_chunked :: proc(decoder: ^Phr_Chunked_Decoder, buf: [^]byte, bufsz: ^c.size_t) -> int ---
+}
+
 h1_init :: proc(c: ^H1_Conn, s: netio.Stream, limits := H1_Limits{}, allocator := context.allocator) {
 	c.s = s
 	c.allocator = allocator
@@ -35,7 +67,7 @@ h1_init :: proc(c: ^H1_Conn, s: netio.Stream, limits := H1_Limits{}, allocator :
 }
 
 h1_destroy :: proc(c: ^H1_Conn, close_stream := true) {
-	reader_destroy(&c.r, c.allocator)
+	reader_destroy(&c.r)
 	if close_stream do netio.close(c.s)
 }
 
@@ -90,48 +122,37 @@ h1_write_request :: proc(s: netio.Stream, req: Request) -> Error {
 	return map_net_error(netio.write(s, buf[:]))
 }
 
-// h1_read_head reads a status line + headers. Returns after the blank line.
+// h1_read_head reads a status line + headers, growing the reader's buffer up to
+// limits.max_header_bytes. Returns after the blank line.
 h1_read_head :: proc(r: ^Reader, resp: ^Response, limits: H1_Limits, allocator: mem.Allocator) -> Error {
-	context.allocator = allocator
 	resp.allocator = allocator
-	line, err := read_line(r)
-	if err != .None do return err
-	// "HTTP/1.1 200 OK"
-	if !strings.has_prefix(line, "HTTP/1.") || len(line) < 12 || line[8] != ' ' do return .Protocol
-	switch line[7] {
-	case '0':
-		resp.version = .Http1_0
-	case '1':
-		resp.version = .Http1_1
-	case:
-		return .Protocol
-	}
-	code := line[9:12]
-	status := 0
-	for c in transmute([]byte)code {
-		if c < '0' || c > '9' do return .Protocol
-		status = status * 10 + int(c - '0')
-	}
-	if len(line) > 12 && line[12] != ' ' do return .Protocol
-	resp.status = status
-	if len(resp.reason) > 0 do delete(resp.reason)
-	resp.reason = strings.clone(line[13:]) if len(line) > 13 else ""
-	total := len(line)
+	fields := make([]Phr_Header, limits.max_headers, context.temp_allocator)
+	last := 0
 	for {
-		hl, herr := read_line(r)
-		if herr != .None do return herr
-		if len(hl) == 0 do break
-		total += len(hl) + 2
-		if total > limits.max_header_bytes || len(resp.headers) >= limits.max_headers do return .Too_Large
-		if hl[0] == ' ' || hl[0] == '\t' do return .Protocol // obs-fold rejected
-		colon := strings.index_byte(hl, ':')
-		if colon <= 0 do return .Protocol
-		name := hl[:colon]
-		if !valid_token(name) do return .Protocol
-		value := strings.trim(hl[colon + 1:], " \t")
-		append(&resp.headers, Header{strings.clone(name), strings.clone(value)})
+		buf := r.buf[r.start:r.end]
+		minor, status: c.int
+		msg: [^]byte
+		msg_len: c.size_t
+		n := c.size_t(len(fields))
+		ret := phr_parse_response(raw_data(buf), len(buf), &minor, &status, &msg, &msg_len, raw_data(fields), &n, c.size_t(last))
+		if ret == -1 do return .Protocol
+		if ret > 0 {
+			resp.version = .Http1_0 if minor == 0 else .Http1_1
+			resp.status = int(status)
+			if len(resp.reason) > 0 do delete(resp.reason, allocator)
+			resp.reason = strings.clone(string(msg[:msg_len]), allocator) if msg_len > 0 else ""
+			for f in fields[:n] {
+				if f.name == nil do return .Protocol // obs-fold
+				append(&resp.headers, Header{strings.clone(string(f.name[:f.name_len]), allocator), strings.clone(string(f.value[:f.value_len]), allocator)})
+			}
+			consume(r, int(ret))
+			return .None
+		}
+		last = len(buf)
+		if last >= limits.max_header_bytes do return .Too_Large
+		if r.start == 0 && r.end == len(r.buf) do reader_grow(r, min(2 * len(r.buf), limits.max_header_bytes))
+		fill(r) or_return
 	}
-	return .None
 }
 
 @(private)
@@ -244,19 +265,6 @@ read_body_n :: proc(r: ^Reader, body: ^[dynamic]byte, n: int) -> Error {
 }
 
 @(private)
-hexval :: proc(c: u8) -> int {
-	switch c {
-	case '0' ..= '9':
-		return int(c - '0')
-	case 'a' ..= 'f':
-		return int(c - 'a' + 10)
-	case 'A' ..= 'F':
-		return int(c - 'A' + 10)
-	}
-	return -1
-}
-
-@(private)
 read_until_close :: proc(r: ^Reader, resp: ^Response, limits: H1_Limits) -> Error {
 	tmp: [16 * 1024]byte
 	for {
@@ -268,41 +276,28 @@ read_until_close :: proc(r: ^Reader, resp: ^Response, limits: H1_Limits) -> Erro
 	}
 }
 
+// read_chunked moves the reader's buffered bytes onto the end of the body and lets
+// phr_decode_chunked decode them in place. Bytes after the last chunk and its
+// trailers (discarded) belong to the next response: they are still in the reader's
+// buffer, so they are given back by rewinding r.start.
 @(private)
 read_chunked :: proc(r: ^Reader, resp: ^Response, limits: H1_Limits) -> Error {
+	dec := Phr_Chunked_Decoder{consume_trailer = 1}
 	for {
-		line, err := read_line(r)
-		if err != .None do return err
-		if i := strings.index_byte(line, ';'); i >= 0 do line = line[:i] // chunk extensions
-		line = strings.trim_right(line, " \t")
-		if len(line) == 0 || len(line) > 15 do return .Protocol
-		size := 0
-		for c in transmute([]byte)line {
-			d := hexval(c)
-			if d < 0 do return .Protocol
-			size = size << 4 | d
+		if r.start == r.end do fill(r) or_return
+		raw := r.end - r.start
+		done := len(resp.body)
+		append(&resp.body, ..r.buf[r.start:r.end])
+		r.start = r.end
+		n := c.size_t(raw)
+		ret := phr_decode_chunked(&dec, raw_data(resp.body[done:]), &n)
+		resize(&resp.body, done + int(n))
+		if ret == -1 do return .Protocol
+		if len(resp.body) > limits.max_body do return .Too_Large
+		if ret >= 0 {
+			r.start -= ret
+			return .None
 		}
-		if size == 0 do break
-		if len(resp.body) + size > limits.max_body do return .Too_Large
-		if e := read_body_n(r, &resp.body, size); e != .None do return e
-		crlf, cerr := read_line(r)
-		if cerr != .None do return cerr
-		if len(crlf) != 0 do return .Protocol
-	}
-	// trailers
-	total := 0
-	for {
-		line, err := read_line(r)
-		if err != .None do return err
-		if len(line) == 0 do return .None
-		total += len(line)
-		if total > limits.max_header_bytes || len(resp.trailers) >= limits.max_headers do return .Too_Large
-		colon := strings.index_byte(line, ':')
-		if colon <= 0 do return .Protocol
-		append(
-			&resp.trailers,
-			Header{strings.clone(line[:colon], resp.allocator), strings.clone(strings.trim(line[colon + 1:], " \t"), resp.allocator)},
-		)
 	}
 }
 

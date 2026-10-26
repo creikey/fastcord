@@ -1,70 +1,9 @@
 package http
 
-// HPACK static table (RFC 7541 Appendix A), 1-based on the wire: STATIC_TABLE[i-1].
-@(rodata)
-STATIC_TABLE := [61]Header{
-	{":authority", ""},
-	{":method", "GET"},
-	{":method", "POST"},
-	{":path", "/"},
-	{":path", "/index.html"},
-	{":scheme", "http"},
-	{":scheme", "https"},
-	{":status", "200"},
-	{":status", "204"},
-	{":status", "206"},
-	{":status", "304"},
-	{":status", "400"},
-	{":status", "404"},
-	{":status", "500"},
-	{"accept-charset", ""},
-	{"accept-encoding", "gzip, deflate"},
-	{"accept-language", ""},
-	{"accept-ranges", ""},
-	{"accept", ""},
-	{"access-control-allow-origin", ""},
-	{"age", ""},
-	{"allow", ""},
-	{"authorization", ""},
-	{"cache-control", ""},
-	{"content-disposition", ""},
-	{"content-encoding", ""},
-	{"content-language", ""},
-	{"content-length", ""},
-	{"content-location", ""},
-	{"content-range", ""},
-	{"content-type", ""},
-	{"cookie", ""},
-	{"date", ""},
-	{"etag", ""},
-	{"expect", ""},
-	{"expires", ""},
-	{"from", ""},
-	{"host", ""},
-	{"if-match", ""},
-	{"if-modified-since", ""},
-	{"if-none-match", ""},
-	{"if-range", ""},
-	{"if-unmodified-since", ""},
-	{"last-modified", ""},
-	{"link", ""},
-	{"location", ""},
-	{"max-forwards", ""},
-	{"proxy-authenticate", ""},
-	{"proxy-authorization", ""},
-	{"range", ""},
-	{"referer", ""},
-	{"refresh", ""},
-	{"retry-after", ""},
-	{"server", ""},
-	{"set-cookie", ""},
-	{"strict-transport-security", ""},
-	{"transfer-encoding", ""},
-	{"user-agent", ""},
-	{"vary", ""},
-	{"via", ""},
-	{"www-authenticate", ""},
-}
+import "core:strings"
+
+// @Temporary: HPACK's Huffman code, kept only for src/quic/h3/qpack.odin; delete both when nghttp3
+// replaces it.
 
 // HPACK Huffman code (RFC 7541 Appendix B). Index = byte value; EOS (256) is 0x3fffffff/30.
 
@@ -122,4 +61,85 @@ HUFFMAN_LENS := [256]u8{
 	19, 21, 26, 27, 27, 26, 27, 24, 21, 21, 26, 26, 28, 27, 27, 27,
 	20, 24, 20, 21, 22, 21, 21, 23, 22, 22, 25, 25, 24, 24, 26, 23,
 	26, 27, 26, 26, 27, 27, 27, 27, 27, 28, 27, 27, 27, 27, 27, 26,
+}
+
+
+huffman_encoded_len :: proc(s: string) -> int {
+	bits := 0
+	for c in transmute([]byte)s do bits += int(HUFFMAN_LENS[c])
+	return (bits + 7) / 8
+}
+
+huffman_encode :: proc(out: ^[dynamic]byte, s: string) {
+	acc: u64
+	nbits: uint
+	for c in transmute([]byte)s {
+		l := uint(HUFFMAN_LENS[c])
+		acc = acc << l | u64(HUFFMAN_CODES[c])
+		nbits += l
+		for nbits >= 8 {
+			nbits -= 8
+			append(out, u8(acc >> nbits))
+		}
+	}
+	if nbits > 0 {
+		// pad with the EOS prefix (all ones)
+		append(out, u8(acc << (8 - nbits)) | u8(0xff >> nbits))
+	}
+}
+
+// Decoding tree: node i has children [0],[1]; value >= 0 is a node, < 0 is -(sym+1).
+@(private)
+huff_tree: [512][2]i16
+@(private)
+huff_nodes: int
+
+@(init, private)
+build_huffman_tree :: proc "contextless" () {
+	huff_nodes = 1
+	add :: proc "contextless" (sym: int, code: u32, length: uint) {
+		node := 0
+		for i := int(length) - 1; i >= 0; i -= 1 {
+			bit := (code >> uint(i)) & 1
+			if i == 0 {
+				huff_tree[node][bit] = i16(-(sym + 1))
+			} else {
+				if huff_tree[node][bit] == 0 {
+					huff_tree[node][bit] = i16(huff_nodes)
+					huff_nodes += 1
+				}
+				node = int(huff_tree[node][bit])
+			}
+		}
+	}
+	for s in 0 ..< 256 do add(s, HUFFMAN_CODES[s], uint(HUFFMAN_LENS[s]))
+	add(256, 0x3fffffff, 30)
+}
+
+huffman_decode :: proc(sb: ^strings.Builder, data: []byte) -> Error {
+	node := 0
+	depth := 0
+	ones := true
+	for b in data {
+		for i := 7; i >= 0; i -= 1 {
+			bit := (b >> uint(i)) & 1
+			next := huff_tree[node][bit]
+			depth += 1
+			if bit == 0 do ones = false
+			if next < 0 {
+				sym := int(-next) - 1
+				if sym == 256 do return .Protocol // EOS in string
+				strings.write_byte(sb, u8(sym))
+				node = 0
+				depth = 0
+				ones = true
+			} else if next == 0 {
+				return .Protocol
+			} else {
+				node = int(next)
+			}
+		}
+	}
+	if depth > 7 || !ones do return .Protocol
+	return .None
 }

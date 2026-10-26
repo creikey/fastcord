@@ -21,7 +21,7 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 | `src/tls` | TLS client over vendored BoringSSL, configured like Chrome (the official client is Electron); OS trust store. |
 | `src/zstd`, `src/brotli` | Decoders (gateway uses zstd-stream; HTTP responses may be br/zstd/gzip). |
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`). |
-| `src/http` | HTTP/1.1, HTTP/2 + HPACK, WebSocket client. |
+| `src/http` | HTTP/1.1, HTTP/2, WebSocket client over vendored picohttpparser, nghttp2, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, voice, state store. |
 | `src/platform` | Window, input, display-link, clipboard. `darwin/` and `windows/`. |
 | `src/gfx` | Renderer: rects/rounded rects/borders/shadows/glyphs/images. Metal / D3D11. |
