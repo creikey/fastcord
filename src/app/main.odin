@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:os"
 import "core:strconv"
 import "core:strings"
+import "core:unicode/utf8"
 import dc "fc:discord"
 import "fc:gfx"
 import "fc:locks"
@@ -206,6 +207,7 @@ main :: proc() {
 		platform.wait_events(timeout)
 		frame()
 	}
+	if app.stats && app.focused_editor != nil do fmt.eprintfln("[input] %q", ui.editor_text(app.focused_editor))
 	settings_save()
 }
 
@@ -380,6 +382,17 @@ run_script :: proc(path: string) {
 			platform.inject_event({kind = .Mouse_Up, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
 		case "type":
 			platform.inject_event({kind = .Text, text = strings.join(f[1:], " ", context.temp_allocator)})
+		case "burst":
+			// Every character as a keystroke (key down, text, key up), all within one frame, like
+			// typing faster than the frame rate.
+			for r in unquote(strings.join(f[1:], " ", context.temp_allocator)) {
+				k := key_by_name(utf8.runes_to_string({r}, context.temp_allocator))
+				if r == ' ' do k = .Space
+				buf, n := utf8.encode_rune(r)
+				platform.inject_event({kind = .Key_Down, key = k})
+				platform.inject_event({kind = .Text, text = string(buf[:n])})
+				platform.inject_event({kind = .Key_Up, key = k})
+			}
 		case "key":
 			// key <name> [shift] [cmd] [alt] [ctrl]
 			ev := platform.Event{kind = .Key_Down, key = key_by_name(f[1])}

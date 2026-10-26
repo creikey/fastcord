@@ -36,7 +36,8 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 
 ```sh
 ./build.sh            # build/fastcord (-o:speed)
-./build.sh debug      # build/fastcord-debug
+./build.sh debug      # build/fastcord-debug (unoptimised: frames take ~5x longer)
+./build.sh dev        # build/fastcord-dev (debug checks and symbols, optimised; for daily use)
 ./build/fastcord      # logs in with $FASTCORD_TOKEN or <state>/token
 ```
 
@@ -64,7 +65,7 @@ input events with assertions (`click`, `dclick`, `down`/`move`/`up`, `rclick`,
 ```
 
 `FASTCORD_STATS=1` prints the frame rate and what is animating (idle should be ~0 fps), plus
-per-phase timings for frames over 25 ms. A frame stuck for 5 s writes a hang report (the lock the UI
+per-phase timings for frames over 25 ms, and on exit the focused field's text. A frame stuck for 5 s writes a hang report (the lock the UI
 thread waits on, its holder, and on Windows every thread's stack) to stderr and to `logs/` beside `<state>`.
 All mutexes go through `fc:locks`, which panics at the faulty call on misuse instead of deadlocking.
 Run `python3 -I tools/check_secrets.py` before committing.

@@ -1,0 +1,11 @@
+# Keystrokes arriving faster than frames (many per frame) must all land, in order.
+wait 5
+burst "the quick brown fox jumps over the lazy dog 0123456789"
+wait 1
+expect_input "the quick brown fox jumps over the lazy dog 0123456789"
+burst " and"
+burst " more"
+key backspace
+burst "e!"
+wait 1
+expect_input "the quick brown fox jumps over the lazy dog 0123456789 and more!"
