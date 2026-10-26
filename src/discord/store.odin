@@ -1403,6 +1403,7 @@ typing_users :: proc(s: ^Store, channel_id: Snowflake) -> []Typing {
 // store_destroy frees everything the store owns.
 store_destroy :: proc(s: ^Store) {
 	context.allocator = s.allocator
+	extras_destroy()
 	a := s.allocator
 	for _, &u in s.users do free_user(s, &u)
 	delete(s.users)

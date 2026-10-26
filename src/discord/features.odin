@@ -213,7 +213,10 @@ extras_dispatch :: proc(s: ^Store, allocator: Allocator, name: string, data: V) 
 			for uv in flist(d, "removed_member_ids") do if vsnow(uv) == me do tm.joined = false
 		}
 	case "THREAD_DELETE":
-		delete_key(&extras.threads, fsnow(d, "id"))
+		if tid := fsnow(d, "id"); tid in extras.threads {
+			_, tm := delete_key(&extras.threads, tid)
+			free_thread_meta(&tm)
+		}
 	case "CHANNEL_PINS_UPDATE":
 		cid := fsnow(d, "channel_id")
 		extras.pins_epoch[cid] = extras.pins_epoch[cid] + 1
@@ -236,7 +239,7 @@ extras_dispatch :: proc(s: ^Store, allocator: Allocator, name: string, data: V) 
 		}
 		au := fmap(d, "author")
 		aid := fsnow(au, "id")
-		if aid == me || aid == 0 do break
+		if aid == me || aid == 0 || len(extras.new_msgs) >= 256 do break
 		nm := New_Message {
 			id               = fsnow(d, "id"),
 			channel_id       = cid,
@@ -253,8 +256,63 @@ extras_dispatch :: proc(s: ^Store, allocator: Allocator, name: string, data: V) 
 		}
 		for mv in flist(d, "mentions") do if fsnow(vmap(mv), "id") == me do nm.mentions_me = true
 		for rv in flist(d, "mention_roles") do append(&nm.mention_roles, vsnow(rv))
-		if len(extras.new_msgs) < 256 do append(&extras.new_msgs, nm)
+		append(&extras.new_msgs, nm)
 	}
+}
+
+@(private = "file")
+free_thread_meta :: proc(tm: ^Thread_Meta) {
+	a := x_alloc()
+	delete(tm.applied_tags)
+	delete(tm.create_ts, a)
+	delete(tm.first_content, a)
+}
+
+// extras_destroy frees the side tables and stops the feature workers (called
+// from store_destroy, after the client has set quit).
+extras_destroy :: proc() {
+	sync.mutex_lock(&fpool.mu)
+	threads := fpool.threads
+	fpool.threads = {}
+	fpool.owner = nil
+	sync.cond_broadcast(&fpool.cond)
+	sync.mutex_unlock(&fpool.mu)
+	for t in threads {
+		thread.join(t)
+		thread.destroy(t)
+	}
+	delete(threads)
+	for j in fpool.jobs {
+		delete(j.method)
+		delete(j.path)
+		delete(j.body)
+	}
+	delete(fpool.jobs)
+	for &r in fpool.results do feature_result_free(&r)
+	delete(fpool.results)
+	fpool = {}
+
+	if extras.threads == nil do return
+	a := x_alloc()
+	for _, &tm in extras.threads do free_thread_meta(&tm)
+	delete(extras.threads)
+	for _, list in extras.tags {
+		for t in list {
+			delete(t.name, a)
+			delete(t.emoji_name, a)
+		}
+		delete(list)
+	}
+	delete(extras.tags)
+	delete(extras.pins_epoch)
+	for &m in extras.new_msgs {
+		delete(m.content, a)
+		delete(m.mention_roles)
+	}
+	delete(extras.new_msgs)
+	for _, list in extras.my_roles do delete(list)
+	delete(extras.my_roles)
+	extras = {}
 }
 
 // take_new_messages returns MESSAGE_CREATEs (from others) since the last call.
