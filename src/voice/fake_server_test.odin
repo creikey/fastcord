@@ -1,5 +1,6 @@
 package voice
 
+import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
 import "core:math"
@@ -64,6 +65,7 @@ Fake :: struct {
 	close_code:   int,
 	discovery:    bool,
 	failure:      string,
+	allocator:    runtime.Allocator,
 }
 
 @(private = "file")
@@ -187,6 +189,7 @@ fail :: proc(f: ^Fake, msg: string) {
 @(private = "file")
 gw_thread :: proc(data: rawptr) {
 	f := cast(^Fake)data
+	context.allocator = f.allocator
 	sock, _, aerr := net.accept_tcp(f.listen)
 	if aerr != nil {
 		fail(f, "accept")
@@ -325,6 +328,7 @@ gw_thread :: proc(data: rawptr) {
 @(private = "file")
 udp_thread :: proc(data: rawptr) {
 	f := cast(^Fake)data
+	context.allocator = f.allocator
 	buf: [2048]byte
 	plain: [2048]byte
 	tc: Transport_Crypto
@@ -418,6 +422,7 @@ g_playback_b: int
 test_fake_voice_server :: proc(t: ^testing.T) {
 	f := new(Fake)
 	defer free(f)
+	f.allocator = context.allocator
 	for i in 0 ..< 32 do f.key[i] = u8(i + 1)
 	pub: [mls.NPK]byte
 	f.ext_priv, pub = mls.generate_signature_key()
@@ -533,4 +538,152 @@ test_fake_voice_server :: proc(t: ^testing.T) {
 		dave.ratchet_destroy(&f.a_ratchet)
 		mls.group_destroy(f.b_group)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Resume: the server drops the TCP connection after SESSION_DESCRIPTION; the
+// client must reconnect and send RESUME (op 7) with seq_ack, then accept
+// RESUMED (op 9) and be Connected again without a new IDENTIFY.
+
+@(private = "file")
+Resume_Fake :: struct {
+	listen:     net.TCP_Socket,
+	udp:        net.UDP_Socket,
+	udp_port:   int,
+	allocator:  runtime.Allocator,
+	stop:       bool,
+	resume_msg: string,
+	second:     bool,
+	failure:    string,
+}
+
+@(private = "file")
+upgrade :: proc(listen: net.TCP_Socket) -> (s: Srv, ok: bool) {
+	sock, _, aerr := net.accept_tcp(listen)
+	if aerr != nil do return
+	s = Srv{sock = sock, buf = make([dynamic]byte)}
+	for !strings.contains(string(s.buf[:]), "\r\n\r\n") {
+		if !srv_fill(&s, len(s.buf) + 1) do return s, false
+	}
+	head := string(s.buf[:strings.index(string(s.buf[:]), "\r\n\r\n")])
+	key := ""
+	for l in strings.split(head, "\r\n", context.temp_allocator) {
+		if strings.has_prefix(l, "Sec-WebSocket-Key:") do key = strings.trim_space(l[len("Sec-WebSocket-Key:"):])
+	}
+	remove_range(&s.buf, 0, len(head) + 4)
+	resp := fmt.tprintf("HTTP/1.1 101 Switching Protocols\r\nupgrade: websocket\r\nConnection: upgrade\r\nsec-websocket-accept: %s\r\n\r\n", http.ws_accept_for_key(key, context.temp_allocator))
+	net.send_tcp(sock, transmute([]byte)resp)
+	return s, true
+}
+
+@(private = "file")
+next_text :: proc(s: ^Srv) -> (string, bool) {
+	for {
+		op, p, ok := srv_read_frame(s)
+		if !ok || op == 8 do return "", false
+		if op == 1 {
+			if strings.has_prefix(string(p), `{"op":3`) do continue
+			return strings.clone(string(p), context.temp_allocator), true
+		}
+	}
+}
+
+@(private = "file")
+resume_gw :: proc(data: rawptr) {
+	f := cast(^Resume_Fake)data
+	context.allocator = f.allocator
+	s, ok := upgrade(f.listen)
+	if !ok {
+		f.failure = "upgrade 1"
+		return
+	}
+	_, _ = next_text(&s) // identify
+	srv_text(&s, `{"op":8,"d":{"v":8,"heartbeat_interval":5000}}`)
+	srv_text(&s, fmt.tprintf(`{{"op":2,"d":{{"ssrc":77,"port":%d,"modes":["aead_xchacha20_poly1305_rtpsize"],"ip":"127.0.0.1","experiments":[]}}}}`, f.udp_port))
+	for {
+		t, tok := next_text(&s)
+		if !tok {
+			f.failure = "no select"
+			break
+		}
+		if strings.has_prefix(t, `{"op":1,`) do break
+	}
+	key := strings.repeat("7,", 31, context.temp_allocator)
+	srv_text(&s, fmt.tprintf(`{{"op":4,"d":{{"secret_key":[%s7],"mode":"aead_xchacha20_poly1305_rtpsize","dave_protocol_version":1,"audio_codec":"opus"}},"seq":3}}`, key))
+	time.sleep(200 * time.Millisecond)
+	net.close(s.sock) // abrupt drop (1006)
+	delete(s.buf)
+
+	s2, ok2 := upgrade(f.listen)
+	if !ok2 {
+		f.failure = "upgrade 2"
+		return
+	}
+	defer delete(s2.buf)
+	defer net.close(s2.sock)
+	m, mok := next_text(&s2)
+	if mok do f.resume_msg = strings.clone(m)
+	srv_text(&s2, `{"op":9,"d":null}`)
+	f.second = true
+	for {
+		if _, more := next_text(&s2); !more do break
+	}
+}
+
+@(private = "file")
+resume_udp :: proc(data: rawptr) {
+	f := cast(^Resume_Fake)data
+	context.allocator = f.allocator
+	buf: [2048]byte
+	for !sync.atomic_load(&f.stop) {
+		n, from, err := net.recv_udp(f.udp, buf[:])
+		if err != nil || n != DISCOVERY_LEN do continue
+		resp: [DISCOVERY_LEN]byte
+		build_discovery_response(resp[:], get_u32(buf[4:]), "127.0.0.1", u16(from.port))
+		net.send_udp(f.udp, resp[:], from)
+	}
+}
+
+@(test)
+test_fake_voice_resume :: proc(t: ^testing.T) {
+	f := new(Resume_Fake)
+	defer free(f)
+	f.allocator = context.allocator
+	lsock, lerr := net.listen_tcp(net.Endpoint{net.IP4_Loopback, 0})
+	usock, uerr := net.make_bound_udp_socket(net.IP4_Loopback, 0)
+	testing.expect(t, lerr == nil && uerr == nil)
+	if lerr != nil || uerr != nil do return
+	f.listen = lsock
+	f.udp = usock
+	net.set_option(usock, .Receive_Timeout, 20 * time.Millisecond)
+	uep, _ := net.bound_endpoint(usock)
+	f.udp_port = uep.port
+	lep, _ := net.bound_endpoint(lsock)
+	gth := thread.create_and_start_with_data(f, resume_gw)
+	uth := thread.create_and_start_with_data(f, resume_udp)
+	opts := Options {
+		dial = proc(host: string, port: int) -> (netio.Stream, bool) {
+			tcp, err := netio.dial_tcp(host, port)
+			if err != .None do return {}, false
+			return netio.tcp_stream(tcp), true
+		},
+		no_audio_devices = true,
+	}
+	c := voice_connect(Voice_Server_Info{endpoint = fmt.tprintf("127.0.0.1:%d", lep.port), token = "TK", guild_or_channel_id = 5, user_id = 6, session_id = "SS", channel_id = 7}, opts)
+	testing.expect(t, wait_state(c, .Connected, 3 * time.Second), "first connect")
+	testing.expect(t, wait_state(c, .Resuming, 3 * time.Second), "resuming after drop")
+	testing.expect(t, wait_state(c, .Connected, 5 * time.Second), "resumed")
+	st := get_stats(c)
+	testing.expect(t, st.reconnects == 1)
+	voice_disconnect(c)
+	sync.atomic_store(&f.stop, true)
+	thread.join(gth)
+	thread.join(uth)
+	thread.destroy(gth)
+	thread.destroy(uth)
+	net.close(lsock)
+	net.close(usock)
+	testing.expectf(t, f.failure == "", "server: %s", f.failure)
+	testing.expectf(t, f.resume_msg == `{"op":7,"d":{"token":"TK","session_id":"SS","server_id":"5","channel_id":"7","seq_ack":3}}`, "resume: %q", f.resume_msg)
+	delete(f.resume_msg)
 }

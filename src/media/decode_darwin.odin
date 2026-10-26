@@ -46,8 +46,6 @@ foreign CoreFoundation {
 	CFStringCreateWithBytes :: proc(alloc: CFRef, bytes: [^]u8, n: int, enc: u32, ext: b8) -> CFRef ---
 	CFDictionaryCreate :: proc(alloc: CFRef, keys: [^]CFRef, values: [^]CFRef, n: int, kcb: rawptr, vcb: rawptr) -> CFRef ---
 	CFNumberCreate :: proc(alloc: CFRef, type: int, value: rawptr) -> CFRef ---
-	kCFTypeDictionaryKeyCallBacks: [6]uintptr
-	kCFTypeDictionaryValueCallBacks: [6]uintptr
 	kCFBooleanTrue: CFRef
 	kCFAllocatorNull: CFRef
 }
@@ -115,7 +113,8 @@ cfstr :: proc(s: string) -> CFRef {return CFStringCreateWithBytes(nil, raw_data(
 
 @(private = "file")
 dict :: proc(keys: []CFRef, vals: []CFRef) -> CFRef {
-	return CFDictionaryCreate(nil, raw_data(keys), raw_data(vals), len(keys), &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks)
+	cf_keys_cb, cf_vals_cb := gfx.cf_type_dictionary_callbacks()
+	return CFDictionaryCreate(nil, raw_data(keys), raw_data(vals), len(keys), cf_keys_cb, cf_vals_cb)
 }
 
 // ---------------------------------------------------------------------------

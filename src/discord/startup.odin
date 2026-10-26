@@ -39,7 +39,7 @@ Startup_Entry :: struct {
 STARTUP_REQUESTS := [?]Startup_Entry {
 	{.Launch, 155, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", true, "before READY (IDENTIFY+155ms)"},
 	{.Launch, 158, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", true, ""},
-	{.Launch, 158, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, false, "ads decision"},
+	{.Launch, 158, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, true, "ads decision"},
 	{.Ready, 0, .Web_Get, "status.discord.com", "/api/v2/scheduled-maintenances/upcoming.json", "", .Same_Site, "", true, ""},
 	{.Ready, 1, .Api_Get, "", "/users/%40me/badges", "", .Same_Origin, "", true, ""},
 	{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", true, "seen in coldstart_b"},
@@ -55,7 +55,7 @@ STARTUP_REQUESTS := [?]Startup_Entry {
 	{.Launch, 5580, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", true, ""},
 	{.Launch, 5580, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", true, ""},
 	{.Launch, 5840, .Web_Get, "discord.com", "/assets/version.stable.json?_={v5m}", "", .Same_Origin, "", true, "Date.now()/300000"},
-	{.Launch, 13571, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, false, "ads decision"},
+	{.Launch, 13571, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, true, "ads decision"},
 	{.Launch, 16571, .Web_Get, "cdn.discordapp.com", "/bad-domains/current_revision.txt", "", .Cross_Site, "", true, ""},
 }
 
@@ -72,7 +72,7 @@ startup_expand :: proc(c: ^Client, path: string) -> string {
 		hb := identity_heartbeat_snapshot(&c.id)
 		out, _ = strings.replace_all(out, "{hb}", hb.uuid, context.temp_allocator)
 	}
-	if strings.contains(out, "{ad}") do out, _ = strings.replace_all(out, "{ad}", uuid4(context.temp_allocator), context.temp_allocator)
+	if strings.contains(out, "{ad}") do out, _ = strings.replace_all(out, "{ad}", c.analytics.ad_session, context.temp_allocator)
 	return out
 }
 

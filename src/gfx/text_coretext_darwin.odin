@@ -420,3 +420,9 @@ _font_name :: proc(inst: u32, allocator: runtime.Allocator) -> string {
 	for l < len(buf) && buf[l] != 0 do l += 1
 	return clone_str(string(buf[:l]), allocator)
 }
+
+// The CFDictionary callback tables, shared with other packages so the foreign
+// globals are declared once (two declarations break -o:speed links).
+cf_type_dictionary_callbacks :: proc() -> (keys, values: rawptr) {
+	return &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks
+}

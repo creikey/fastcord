@@ -11,6 +11,7 @@
 // timer (heartbeats, hello timeout), UDP receive, audio (20 ms send/playout).
 package voice
 
+import "base:runtime"
 import "core:crypto"
 import "core:encoding/json"
 import "core:math/rand"
@@ -130,6 +131,8 @@ Conn :: struct {
 	hb_acked:          bool,
 	last_ack_ms:       i64,
 	hello_deadline_ms: i64,
+	hb_mu:             sync.Mutex, // heartbeat fields above (gateway <-> timer thread)
+	session_ok:        bool, // READY/RESUMED seen on the current socket (backoff.succeed)
 	last_seq:          i64,
 	resumable:         bool,
 
@@ -173,6 +176,7 @@ Conn :: struct {
 	udp_started:       bool,
 	audio_started:     bool,
 	capture_on:        bool,
+	allocator:         runtime.Allocator, // long-lived allocations from every thread
 }
 
 now_ms :: proc() -> i64 {return time.to_unix_nanoseconds(time.now()) / 1e6}
@@ -221,6 +225,7 @@ voice_connect :: proc(info: Voice_Server_Info, opts := Options{}) -> ^Conn {
 	c.ts = get_u32(rb[2:])
 	dave.session_init(&c.dave, info.user_id, info.channel_id, info.stage)
 	c.state = .Connecting
+	c.allocator = context.allocator
 	c.ws_th = thread.create_and_start_with_data(c, ws_thread_proc)
 	c.timer_th = thread.create_and_start_with_data(c, timer_thread_proc)
 	return c
@@ -468,6 +473,7 @@ terminal_close :: proc(code: int) -> bool {
 @(private)
 ws_thread_proc :: proc(data: rawptr) {
 	c := cast(^Conn)data
+	context.allocator = c.allocator
 	fails := 0
 	resuming := false
 	for !stopped(c) {
@@ -479,7 +485,12 @@ ws_thread_proc :: proc(data: rawptr) {
 			return
 		}
 		// RTCControlSocket.handleClose: backoff (1 s .. 5 s), give up after 4 failures
-		if fails > 3 || !c.resumable || (c.last_ack_ms != 0 && now_ms() - c.last_ack_ms > 60_000) {
+		if c.session_ok do fails = 0
+		c.session_ok = false
+		sync.mutex_lock(&c.hb_mu)
+		last_ack := c.last_ack_ms
+		sync.mutex_unlock(&c.hb_mu)
+		if fails > 3 || !c.resumable || (last_ack != 0 && now_ms() - last_ack > 60_000) {
 			finish(c, CLOSE_UNRESUMABLE if code == 0 || !c.resumable else code)
 			return
 		}
@@ -491,7 +502,6 @@ ws_thread_proc :: proc(data: rawptr) {
 		c.stats.reconnects += 1
 		sync.mutex_unlock(&c.mu)
 		for i := 0; i < delay / 50 && !stopped(c); i += 1 do time.sleep(50 * time.Millisecond)
-		if c.state == .Connected do fails = 0
 	}
 }
 
@@ -530,8 +540,10 @@ ws_session :: proc(c: ^Conn, resume: bool) -> int {
 	c.ws_stream = stream
 	c.ws_open = true
 	sync.mutex_unlock(&c.ws_mu)
+	sync.mutex_lock(&c.hb_mu)
 	c.hello_deadline_ms = now_ms() + 20_000
 	c.hb_interval_ms = 0
+	sync.mutex_unlock(&c.hb_mu)
 	if resume {
 		send_text(c, msg_resume(c.info.token, c.info.session_id, c.info.guild_or_channel_id, c.info.channel_id, c.last_seq))
 	} else {
@@ -564,7 +576,10 @@ ws_session :: proc(c: ^Conn, resume: bool) -> int {
 	c.ws_open = false
 	c.ws = nil
 	sync.mutex_unlock(&c.ws_mu)
+	sync.mutex_lock(&c.hb_mu)
 	c.hb_interval_ms = 0
+	c.hello_deadline_ms = 0
+	sync.mutex_unlock(&c.hb_mu)
 	http.ws_destroy(ws)
 	netio.close(stream)
 	return code
@@ -593,18 +608,21 @@ handle_json :: proc(c: ^Conn, text: string) {
 	d := jget(v, "d")
 	switch op {
 	case OP_HELLO:
-		c.hello_deadline_ms = 0
 		c.server_version = int(jint(jget(d, "v"), 3))
 		iv := jint(jget(d, "heartbeat_interval"), 13750)
+		sync.mutex_lock(&c.hb_mu)
+		c.hello_deadline_ms = 0
 		// desktop (isPlatformEmbedded): interval * modifier, no 5 s cap; v<=3: 25 %
 		c.hb_interval_ms = iv / 4 if c.server_version <= 3 else iv
 		c.hb_acked = true
 		c.next_hb_ms = now_ms() + c.hb_interval_ms
+		sync.mutex_unlock(&c.hb_mu)
 	case OP_READY:
 		on_ready(c, d)
 	case OP_SESSION_DESCRIPTION:
 		on_session_description(c, d)
 	case OP_RESUMED:
+		c.session_ok = true
 		set_state(c, .Connected)
 	case OP_HEARTBEAT:
 		send_heartbeat(c)
@@ -614,8 +632,10 @@ handle_json :: proc(c: ^Conn, text: string) {
 		sync.mutex_lock(&c.mu)
 		c.stats.ws_ping_ms = int(now - t)
 		sync.mutex_unlock(&c.mu)
+		sync.mutex_lock(&c.hb_mu)
 		c.last_ack_ms = now
 		c.hb_acked = true
+		sync.mutex_unlock(&c.hb_mu)
 	case OP_SPEAKING:
 		uid := jsnow(jget(d, "user_id"))
 		ssrc := u32(jint(jget(d, "ssrc"), 0))
@@ -731,6 +751,7 @@ on_ready :: proc(c: ^Conn, d: json.Value) {
 	for e in jarr(jget(d, "experiments")) {
 		for s in SUPPORTED_EXPERIMENTS do if jstr(e) == s do append(&c.experiments, strings.clone(s))
 	}
+	c.session_ok = true
 	if c.server_version >= 6 do send_text(c, MSG_VOICE_BACKEND_VERSION)
 	c.mode = choose_mode(modes[:])
 	set_state(c, .Discovering)
@@ -805,7 +826,7 @@ on_session_description :: proc(c: ^Conn, d: json.Value) {
 		c.audio_started = true
 		if !c.opts.no_audio_devices do c.capture_on = audio.capture_start(true)
 		c.next_rtcp_ms = now_ms() + 1000
-		c.audio_th = thread.create_and_start_with_data(c, audio_thread_proc)
+		c.audio_th = thread.create_and_start_with_data(c, audio_thread_proc, priority = .High)
 	}
 }
 
@@ -850,24 +871,30 @@ destroy_user :: proc(c: ^Conn, u: ^Remote_User) {
 @(private)
 timer_thread_proc :: proc(data: rawptr) {
 	c := cast(^Conn)data
+	context.allocator = c.allocator
 	for !stopped(c) {
 		time.sleep(25 * time.Millisecond)
 		now := now_ms()
+		hello_timeout, beat, timeout := false, false, false
+		sync.mutex_lock(&c.hb_mu)
 		if c.hello_deadline_ms != 0 && now > c.hello_deadline_ms {
 			c.hello_deadline_ms = 0
-			close_ws(c, CLOSE_FORCE)
+			hello_timeout = true
 		}
 		if c.hb_interval_ms > 0 && now >= c.next_hb_ms {
 			c.next_hb_ms = now + c.hb_interval_ms
 			if c.hb_acked {
 				c.hb_acked = false
-				send_heartbeat(c)
+				beat = true
 			} else {
-				// HEARTBEAT ACK TIMEOUT: close(4000) and resume
 				c.hb_interval_ms = 0
-				close_ws(c, CLOSE_FORCE)
+				timeout = true
 			}
 		}
+		sync.mutex_unlock(&c.hb_mu)
+		// HELLO timeout / HEARTBEAT ACK TIMEOUT: close(4000) and resume
+		if hello_timeout || timeout do close_ws(c, CLOSE_FORCE)
+		if beat do send_heartbeat(c)
 		free_all(context.temp_allocator)
 	}
 }
@@ -878,6 +905,7 @@ timer_thread_proc :: proc(data: rawptr) {
 @(private)
 udp_thread_proc :: proc(data: rawptr) {
 	c := cast(^Conn)data
+	context.allocator = c.allocator
 	buf: [2048]byte
 	plain: [2048]byte
 	frame: [2048]byte
@@ -1004,6 +1032,7 @@ ntp_now :: proc() -> u64 {
 @(private)
 audio_thread_proc :: proc(data: rawptr) {
 	c := cast(^Conn)data
+	context.allocator = c.allocator
 	pcm: [SAMPLES_PER_FRAME]f32
 	out: [SAMPLES_PER_FRAME * 2]f32
 	next := time.tick_now()

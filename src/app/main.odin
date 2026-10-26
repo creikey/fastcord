@@ -34,6 +34,12 @@ App :: struct {
 	caret_reset_t:   f64,
 	reaction_target: dc.Snowflake, // message whose reaction picker is open
 	ui_mods:         UI_Mods, // modifier keys as of the latest event
+	wake_at:         f64, // earliest timed repaint requested this frame (caret blink, timers); 0 = none
+}
+
+// Ask for a repaint at time t without animating continuously.
+request_wake :: proc(t: f64) {
+	if app.wake_at == 0 || t < app.wake_at do app.wake_at = t
 }
 
 app: App
@@ -158,7 +164,9 @@ main :: proc() {
 	platform.set_frame_callback(frame)
 	frame()
 	for !platform.should_quit() {
-		platform.wait_events(-1)
+		timeout := -1.0
+		if app.wake_at > 0 do timeout = max(0, app.wake_at - platform.time_now())
+		platform.wait_events(timeout)
 		frame()
 	}
 }
@@ -170,6 +178,7 @@ frame :: proc() {
 	if app.last_time == 0 || dt > 0.1 do dt = 1.0 / 60
 	app.last_time = now
 	app.frame += 1
+	app.wake_at = 0
 
 	if app.client != nil {
 		dc.client_poll(app.client)

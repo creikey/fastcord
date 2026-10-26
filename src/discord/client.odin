@@ -182,6 +182,7 @@ client_start :: proc(c: ^Client) {
 		th := thread.create_and_start_with_poly_data(c, worker_proc, c.ctx)
 		append(&c.workers, th)
 	}
+	if c.focused do identity_touch_heartbeat(&c.id, now_ms())
 	if !c.cfg.disable_startup do schedule_startup(c, .Launch)
 	if !c.cfg.disable_gateway {
 		c.gw = gateway_create(c)

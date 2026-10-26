@@ -41,7 +41,9 @@ field_draw :: proc(b: ^ui.Box, user: rawptr) {
 	x := text == "" ? 0 : ui.caret_x(tl, pos)
 	li := text == "" ? 0 : ui.line_of(tl, pos)
 	y := origin.y + f32(li) * tl.line_h
+	// solid for 0.5 s after typing, then toggles every 0.5 s; only wake at toggles
 	phase := app.ui.time - app.caret_reset_t
+	request_wake(app.caret_reset_t + (f64(int(phase * 2)) + 1) * 0.5)
 	if phase < 0.5 || int(phase * 2) % 2 == 0 {
 		gfx.rect({origin.x + x, y + 2, origin.x + x + 1.5, y + tl.line_h - 2}, gfx.Color(T("--text-default")))
 	}

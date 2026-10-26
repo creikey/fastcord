@@ -120,7 +120,7 @@ msg_resume :: proc(token, session_id: string, server_id, channel_id: u64, seq_ac
 	json_str(&b, snowflake(server_id))
 	strings.write_string(&b, `,"channel_id":`)
 	json_str(&b, snowflake(channel_id))
-	fmt.sbprintf(&b, `,"seq_ack":%d}}`, seq_ack)
+	fmt.sbprintf(&b, `,"seq_ack":%d}}}}`, seq_ack)
 	return strings.to_string(b)
 }
 

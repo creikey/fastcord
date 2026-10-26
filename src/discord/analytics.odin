@@ -69,6 +69,9 @@ analytics_init :: proc(a: ^Analytics, allocator := context.allocator) {
 	a.viewport_w = 1280
 	a.viewport_h = 720
 	a.timers = make([dynamic]Analytics_Timer, allocator)
+	// The ad session (AdSessionStore) exists from launch: quests/decision uses it before READY.
+	a.ad_session = uuid4(allocator)
+	a.ad_created = now_ms()
 	a.roundtrips = make(map[Snowflake]Roundtrip, allocator = allocator)
 }
 

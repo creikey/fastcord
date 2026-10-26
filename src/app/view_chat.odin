@@ -725,7 +725,6 @@ text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: boo
 		draw^ = {ed = ed, blink_t = app.ui.time}
 		f.custom_draw = field_draw
 		f.custom_user = draw
-		app.ui.animating = true // caret blink
 	}
 	return result
 }
