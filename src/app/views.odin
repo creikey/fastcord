@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:slice"
 import "core:strings"
 import dc "fc:discord"
+import "fc:prof"
 import "fc:ui"
 
 // Layout constants measured from the official client (tools/probes/layout_geometry.js).
@@ -145,17 +146,30 @@ build_ui :: proc() {
 		login_view()
 		return
 	}
+	prof.zone("app.build_ui")
 	title_bar()
 	body := row("body")
 	body.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
 	body.cross_align = .Start
 	if ui.parent(body) {
-		rail_view() // view_rail_folders.odin (folders, badges, DM unreads, drag)
-		sidebar()
-		page()
+		{
+			prof.zone("app.rail")
+			rail_view() // view_rail_folders.odin (folders, badges, DM unreads, drag)
+		}
+		{
+			prof.zone("app.sidebar")
+			sidebar()
+		}
+		{
+			prof.zone("app.page")
+			page()
+		}
 	}
 	user_panel()
-	overlays()
+	{
+		prof.zone("app.overlays")
+		overlays()
+	}
 }
 
 title_bar :: proc() {
@@ -252,17 +266,19 @@ guild_order :: proc() -> []dc.Snowflake {
 	for f in s.settings.guild_folders {
 		for id in f.guild_ids do seen[id] = true
 	}
+	Joined :: struct {
+		at: string,
+		id: dc.Snowflake,
+	}
+	loose := make([dynamic]Joined, 0, len(s.guild_order), context.temp_allocator)
 	for id in s.guild_order {
-		if id in s.guilds && !seen[id] do append(&out, id)
+		if g, ok := &s.guilds[id]; ok && !seen[id] do append(&loose, Joined{g.joined_at, id})
 	}
-	newer :: proc(a, b: dc.Snowflake) -> bool {
-		ga, gb := dc.guild_get(store(), a), dc.guild_get(store(), b)
-		ja := ga != nil ? ga.joined_at : ""
-		jb := gb != nil ? gb.joined_at : ""
-		if ja != jb do return ja > jb
-		return a > b
-	}
-	slice.sort_by(out[:], newer)
+	slice.sort_by(loose[:], proc(a, b: Joined) -> bool {
+		if a.at != b.at do return a.at > b.at
+		return a.id > b.id
+	})
+	for j in loose do append(&out, j.id)
 	clear(&seen)
 	for id in out do seen[id] = true
 	for f in s.settings.guild_folders {
@@ -290,6 +306,7 @@ rail_item :: proc(id: string, selected: bool, text: string, icon_name: string, g
 	slot := ui.box(id)
 	slot.semantic_size = {.X = ui.pct(1), .Y = ui.px(GUILD_ICON + 8)}
 	sig: ui.Signal
+	if ui.offscreen(slot) do return sig // box nil: the caller skips its own additions too
 	if ui.parent(slot) {
 		pill := ui.box("pill", {.Draw_Background, .Floating_X, .Floating_Y})
 		ic := ui.box("icon", {.Clickable, .Draw_Background, .Floating_X, .Floating_Y, .Draw_Text, .Hot_Animation})
@@ -376,7 +393,9 @@ my_guild_permissions :: proc(gid: dc.Snowflake) -> u64 {
 
 guild_has_unread :: proc(gid: dc.Snowflake) -> bool {
 	s := store()
-	for id in dc.guild_channels_sorted(s, gid) {
+	g := dc.guild_get(s, gid)
+	if g == nil do return false
+	for id in g.channels {
 		if dc.channel_unread(s, id) do return true
 	}
 	return false

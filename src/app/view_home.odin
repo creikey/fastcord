@@ -62,11 +62,18 @@ home_sidebar :: proc() {
 			dm_create_button() // view_group_dm.odin: "Select Friends" popout
 			spacer(.X, 16)
 		}
-		for cid in dc.private_channels_sorted(s) {
+		dms := dc.private_channels_sorted(s)
+		w := ui.list_window(list, DM_ROW_PITCH, len(dms))
+		for cid in dms[w.first:w.last] {
+			// A missing channel still takes its row, keeping the window's arithmetic exact.
 			ch := dc.channel_get(s, cid)
-			if ch == nil do continue
+			if ch == nil {
+				spacer(.Y, DM_ROW_PITCH)
+				continue
+			}
 			if ui.id_scope(u64(cid)) do dm_row(ch)
 		}
+		ui.list_window_end(w)
 		spacer(.Y, USER_PANEL_H + 16)
 	}
 }
@@ -162,6 +169,42 @@ dm_row :: proc(ch: ^dc.Channel) {
 	}
 }
 
+// Sorts user ids by display name, case-insensitively; unknown users last, by id.
+sort_users_by_name :: proc(ids: []dc.Snowflake) {
+	// The first 8 lowercased bytes, big-endian, decide almost every comparison without touching the strings.
+	Named :: struct {
+		prefix: u64,
+		name:   string,
+		id:     dc.Snowflake,
+		ok:     bool,
+	}
+	named := make([]Named, len(ids), context.temp_allocator)
+	for id, i in ids {
+		u := dc.user_get(store(), id)
+		named[i] = {id = id, ok = u != nil}
+		if u == nil do continue
+		name := dc.display_name(u)
+		ascii := true
+		for c in transmute([]byte)name do if c >= 0x80 {ascii = false; break}
+		if ascii {
+			buf := make([]byte, len(name), context.temp_allocator)
+			for c, j in transmute([]byte)name do buf[j] = c >= 'A' && c <= 'Z' ? c + 32 : c
+			name = string(buf)
+		} else {
+			name = strings.to_lower(name, context.temp_allocator)
+		}
+		named[i].name = name
+		for j in 0 ..< 8 do named[i].prefix = named[i].prefix << 8 | u64(j < len(name) ? name[j] : 0)
+	}
+	slice.sort_by(named, proc(a, b: Named) -> bool {
+		if a.ok != b.ok do return a.ok
+		if a.prefix != b.prefix do return a.prefix < b.prefix
+		if a.name != b.name do return a.name < b.name
+		return a.id < b.id
+	})
+	for n, i in named do ids[i] = n.id
+}
+
 friends_page :: proc() {
 	s := store()
 	h := row("header", {.Draw_Background})
@@ -236,12 +279,7 @@ friends_page :: proc() {
 		case .Add_Friend:
 		}
 	}
-	slice.sort_by(ids[:], proc(a, b: dc.Snowflake) -> bool {
-		ua := dc.user_get(store(), a)
-		ub := dc.user_get(store(), b)
-		if ua == nil || ub == nil do return a < b
-		return strings.to_lower(dc.display_name(ua), context.temp_allocator) < strings.to_lower(dc.display_name(ub), context.temp_allocator)
-	})
+	sort_users_by_name(ids[:])
 	if ui.parent(list) {
 		spacer(.Y, 12)
 		sr := row("searchrow")
@@ -278,9 +316,11 @@ friends_page :: proc() {
 			label(fmt.tprintf("%s — %d", title, len(ids)), .Medium, 14, T("--text-default"), 18)
 		}
 		spacer(.Y, 16)
-		for uid in ids {
+		w := ui.list_window(list, FRIEND_ROW_H + 1, len(ids))
+		for uid in ids[w.first:w.last] {
 			if ui.id_scope(u64(uid)) do friend_row(uid, s.relationships[uid].kind)
 		}
+		ui.list_window_end(w)
 		if len(ids) == 0 {
 			spacer(.Y, 80)
 			msg := app.view.friends_tab == .Pending ? "There are no pending friend requests." : "No one's around to play with Wumpus."

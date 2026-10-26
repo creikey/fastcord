@@ -1342,10 +1342,10 @@ messages_get :: proc(s: ^Store, channel_id: Snowflake) -> []Message {
 }
 
 channel_unread :: proc(s: ^Store, channel_id: Snowflake) -> bool {
-	c, ok := s.channels[channel_id]
+	c, ok := &s.channels[channel_id]
 	if !ok do return false
-	rs := s.read_states[channel_id]
-	return c.last_message_id > rs.last_message_id
+	rs, has_rs := &s.read_states[channel_id]
+	return c.last_message_id > (has_rs ? rs.last_message_id : 0)
 }
 
 // guild_channels_sorted returns channel ids in sidebar order: uncategorized
@@ -1353,44 +1353,59 @@ channel_unread :: proc(s: ^Store, channel_id: Snowflake) -> bool {
 guild_channels_sorted :: proc(s: ^Store, guild_id: Snowflake, allocator := context.temp_allocator) -> []Snowflake {
 	g, ok := &s.guilds[guild_id]
 	if !ok do return nil
-	ids := slice.clone(g.channels[:], allocator)
-	Ctx :: struct {
-		s: ^Store,
+	// Keys are computed once per channel, not per comparison: map lookups dominate otherwise.
+	Keyed :: struct {
+		parent_pos: int,
+		parent_id:  Snowflake,
+		is_cat:     bool,
+		voiceish:   bool,
+		pos:        int,
+		id:         Snowflake,
 	}
-	key :: proc(s: ^Store, id: Snowflake) -> (parent_pos: int, parent_id: Snowflake, is_cat: bool, voiceish: bool, pos: int) {
-		c := s.channels[id]
-		voiceish = c.kind == .Guild_Voice || c.kind == .Guild_Stage_Voice
-		if c.kind == .Guild_Category do return c.position, c.id, true, false, -1
-		if c.parent_id == 0 do return -1, 0, false, voiceish, c.position
-		p := s.channels[c.parent_id]
-		return p.position, p.id, false, voiceish, c.position
+	keyed := make([]Keyed, len(g.channels), context.temp_allocator)
+	for id, i in g.channels {
+		k := Keyed{id = id}
+		if c, has := &s.channels[id]; has {
+			k.voiceish = c.kind == .Guild_Voice || c.kind == .Guild_Stage_Voice
+			switch {
+			case c.kind == .Guild_Category:
+				k.parent_pos, k.parent_id, k.is_cat, k.voiceish, k.pos = c.position, c.id, true, false, -1
+			case c.parent_id == 0:
+				k.parent_pos, k.pos = -1, c.position
+			case:
+				if p, has_p := &s.channels[c.parent_id]; has_p do k.parent_pos, k.parent_id = p.position, p.id
+				k.pos = c.position
+			}
+		}
+		keyed[i] = k
 	}
-	store_ptr := s
-	context.user_ptr = store_ptr
-	slice.sort_by(ids, proc(a, b: Snowflake) -> bool {
-		st := cast(^Store)context.user_ptr
-		apos, apid, acat, avoice, ap := key(st, a)
-		bpos, bpid, bcat, bvoice, bp := key(st, b)
-		if apos != bpos do return apos < bpos
-		if apid != bpid do return apid < bpid
-		if acat != bcat do return acat
-		if avoice != bvoice do return !avoice
-		if ap != bp do return ap < bp
-		return a < b
+	slice.sort_by(keyed, proc(a, b: Keyed) -> bool {
+		if a.parent_pos != b.parent_pos do return a.parent_pos < b.parent_pos
+		if a.parent_id != b.parent_id do return a.parent_id < b.parent_id
+		if a.is_cat != b.is_cat do return a.is_cat
+		if a.voiceish != b.voiceish do return !a.voiceish
+		if a.pos != b.pos do return a.pos < b.pos
+		return a.id < b.id
 	})
+	ids := make([]Snowflake, len(keyed), allocator)
+	for k, i in keyed do ids[i] = k.id
 	return ids
 }
 
 // private_channels_sorted: DMs by last activity, newest first.
 private_channels_sorted :: proc(s: ^Store, allocator := context.temp_allocator) -> []Snowflake {
-	ids := slice.clone(s.private_channels[:], allocator)
-	context.user_ptr = s
-	slice.sort_by(ids, proc(a, b: Snowflake) -> bool {
-		st := cast(^Store)context.user_ptr
-		la := max(st.channels[a].last_message_id, a)
-		lb := max(st.channels[b].last_message_id, b)
-		return la > lb
-	})
+	Keyed :: struct {
+		last, id: Snowflake,
+	}
+	keyed := make([]Keyed, len(s.private_channels), context.temp_allocator)
+	for id, i in s.private_channels {
+		last := id
+		if c, ok := &s.channels[id]; ok do last = max(c.last_message_id, id)
+		keyed[i] = {last, id}
+	}
+	slice.sort_by(keyed, proc(a, b: Keyed) -> bool {return a.last > b.last})
+	ids := make([]Snowflake, len(keyed), allocator)
+	for k, i in keyed do ids[i] = k.id
 	return ids
 }
 

@@ -57,15 +57,20 @@ Md_Block :: struct {
 
 md_parse :: proc(src: string, allocator := context.temp_allocator) -> []Md_Block {
 	context.allocator = allocator
-	blocks := make([dynamic]Md_Block)
-	para := strings.builder_make()
-	flush :: proc(blocks: ^[dynamic]Md_Block, para: ^strings.Builder, kind: Block_Kind, depth := 0) {
-		if strings.builder_len(para^) == 0 do return
-		txt := strings.clone(strings.to_string(para^))
+	blocks := make([dynamic]Md_Block, 0, 4)
+	// Paragraph lines are always consecutive in src (any other line flushes first), so a paragraph
+	// is the slice src[para_lo:para_hi] and needs no copy.
+	Para :: struct {
+		src:    string,
+		lo, hi: int,
+	}
+	para := Para{src = src}
+	flush :: proc(blocks: ^[dynamic]Md_Block, para: ^Para, kind: Block_Kind, depth := 0) {
+		if para.hi <= para.lo do return
 		// a trailing newline belongs to the block separator, not the paragraph
-		txt = strings.trim_right(txt, "\n")
+		txt := strings.trim_right(para.src[para.lo:para.hi], "\n")
 		append(blocks, Md_Block{kind = kind, tokens = md_inline(txt), depth = depth})
-		strings.builder_reset(para)
+		para.lo, para.hi = 0, 0
 	}
 	rest := src
 	for len(rest) > 0 {
@@ -115,8 +120,9 @@ md_parse :: proc(src: string, allocator := context.temp_allocator) -> []Md_Block
 			for indent < len(line) && line[indent] == ' ' do indent += 1
 			append(&blocks, Md_Block{kind = .List_Item, tokens = md_inline(line[indent + 2:]), depth = indent / 2})
 		case:
-			strings.write_string(&para, line)
-			if nl >= 0 do strings.write_byte(&para, '\n')
+			at := len(src) - len(rest)
+			if para.hi <= para.lo do para.lo = at
+			para.hi = at + len(line) + (nl >= 0 ? 1 : 0)
 		}
 		rest = next
 	}
@@ -145,7 +151,11 @@ md_inline :: proc(src: string) -> []Token {
 		if n := len(merged); n > 0 && t.kind == .Text && merged[n - 1].kind == .Text && merged[n - 1].styles == t.styles {
 			prev := &merged[n - 1]
 			// tokens are slices of contiguous source only when adjacent; join otherwise
-			prev.text = strings.concatenate({prev.text, t.text})
+			if raw_data(prev.text)[len(prev.text):] == raw_data(t.text) {
+				prev.text = string(raw_data(prev.text)[:len(prev.text) + len(t.text)])
+			} else {
+				prev.text = strings.concatenate({prev.text, t.text})
+			}
 			continue
 		}
 		append(&merged, t)
@@ -166,12 +176,30 @@ DELIMS := [?]struct {
 	style: Inline_Style,
 }{{"***", .Bold}, {"**", .Bold}, {"__", .Underline}, {"~~", .Strike}, {"||", .Spoiler}, {"*", .Italic}, {"_", .Italic}}
 
+// Bytes that can start an inline rule in inline_into; every other byte is plain text.
+@(private = "file")
+MD_SPECIAL := [256]bool {
+	'\\' = true,
+	'`'  = true,
+	'<'  = true,
+	'h'  = true,
+	'@'  = true,
+	'*'  = true,
+	'_'  = true,
+	'~'  = true,
+	'|'  = true,
+}
+
 @(private = "file")
 inline_into :: proc(p: ^Md_Parser, src: string) {
 	i := 0
 	text_start := 0
 	for i < len(src) {
 		c := src[i]
+		if !MD_SPECIAL[c] {
+			i += 1
+			continue
+		}
 		// escapes
 		// a backslash escapes any ASCII punctuation (simple-markdown's escape rule)
 		if c == '\\' && i + 1 < len(src) && is_ascii_punct(src[i + 1]) {

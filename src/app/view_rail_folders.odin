@@ -97,15 +97,22 @@ channel_mentions :: proc(cid: dc.Snowflake) -> int {
 	s := store()
 	ch := dc.channel_get(s, cid)
 	if ch == nil do return 0
-	r := s.read_states[cid]
-	if ch.last_message_id <= r.last_message_id do return 0
+	r, _ := &s.read_states[cid]
+	return channel_mentions_of(s, ch, r)
+}
+
+// channel_mentions for a channel already looked up; r may be nil (never read).
+channel_mentions_of :: proc(s: ^dc.Store, ch: ^dc.Channel, r: ^dc.Read_State) -> int {
+	last_read := r != nil ? r.last_message_id : 0
+	if ch.last_message_id <= last_read do return 0
+	cid := ch.id
 	dm := ch.kind == .DM || ch.kind == .Group_DM
 	n := 0
 	for &m in dc.messages_get(s, cid) {
-		if m.id <= r.last_message_id || m.author_id == s.me || m.pending do continue
+		if m.id <= last_read || m.author_id == s.me || m.pending do continue
 		if dm || m.mention_everyone || slice.contains(m.mentions[:], s.me) do n += 1
 	}
-	return max(n, r.mention_count)
+	return max(n, r != nil ? r.mention_count : 0)
 }
 
 guild_mentions :: proc(gid: dc.Snowflake) -> int {
@@ -121,7 +128,10 @@ unread_dms :: proc() -> []dc.Snowflake {
 	s := store()
 	out := make([dynamic]dc.Snowflake, context.temp_allocator)
 	for cid in s.private_channels {
-		if dc.channel_unread(s, cid) && channel_mentions(cid) > 0 do append(&out, cid)
+		ch := dc.channel_get(s, cid)
+		if ch == nil do continue
+		r, _ := &s.read_states[cid]
+		if channel_mentions_of(s, ch, r) > 0 do append(&out, cid)
 	}
 	slice.sort_by(out[:], proc(a, b: dc.Snowflake) -> bool {
 		ca, cb := dc.channel_get(store(), a), dc.channel_get(store(), b)
@@ -203,6 +213,7 @@ rail_dm :: proc(cid: dc.Snowflake) {
 	if ch == nil do return
 	slot := ui.box("dmslot")
 	slot.semantic_size = {.X = ui.pct(1), .Y = ui.px(RAIL_SLOT)}
+	if ui.offscreen(slot) do return
 	if ui.parent(slot) {
 		ic := ui.box("dmicon", {.Clickable, .Draw_Background, .Floating_X, .Floating_Y})
 		ic.semantic_size = {.X = ui.px(GUILD_ICON), .Y = ui.px(GUILD_ICON)}
@@ -239,6 +250,7 @@ rail_guild :: proc(gid: dc.Snowflake, entry, inner: int) {
 	if ui.id_scope(u64(gid)) {
 		sig := rail_item("guild", app.view.guild == gid, guild_initials(g.name), "", gid)
 		slot := ui.top_parent().last
+		if sig.box == nil do return // offscreen
 		if ui.parent(slot) do mention_badge(guild_mentions(gid), 0)
 		if sig.clicked && !rs.drag_active do select_guild(gid)
 		drag_source(sig, entry, inner)
@@ -258,6 +270,13 @@ rail_folder :: proc(e: ^Rail_Entry, entry: int) {
 	t := rs.open_t[e.id]
 	ui.animate(&t, open ? 1 : 0, FOLDER_EXPAND_RATE)
 	rs.open_t[e.id] = t
+	group := ui.box("folder")
+	group.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
+	group.layout_axis = .Y
+	if ui.offscreen(group) {
+		group.semantic_size[.Y] = ui.px(group.rect.y1 - group.rect.y0)
+		return
+	}
 	selected_inside := false
 	unread := false
 	mentions := 0
@@ -267,9 +286,6 @@ rail_folder :: proc(e: ^Rail_Entry, entry: int) {
 		mentions += guild_mentions(gid)
 	}
 	color := folder_color(e)
-	group := ui.box("folder")
-	group.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
-	group.layout_axis = .Y
 	if ui.parent(group) {
 		// expanded background behind header + guilds
 		if t > 0.01 {

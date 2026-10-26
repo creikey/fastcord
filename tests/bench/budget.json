@@ -1,0 +1,8 @@
+{
+  "_note": "Per-pass caps on deterministic UI counters for tools/bench.sh (peak over the section), about 10% above the counts when set. Raise a cap only when the growth is intended; lower it after an optimisation.",
+  "chat_idle": {"boxes": 820, "text_layouts": 95, "draw_cmds": 280},
+  "chat_scroll": {"boxes": 1030, "text_layouts": 125, "draw_cmds": 360},
+  "home_idle": {"boxes": 760, "text_layouts": 75, "draw_cmds": 300},
+  "home_hover": {"boxes": 1380, "text_layouts": 215},
+  "dm_idle": {"boxes": 680, "text_layouts": 84, "draw_cmds": 270}
+}
