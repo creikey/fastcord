@@ -89,3 +89,21 @@ pto_skips_packet_number :: proc(t: ^testing.T) {
 	testing.expect_value(t, c.pto_count, 1)
 	conn_destroy(c)
 }
+
+// Regression for the 0-RTT round failures: the connection must own its TLS
+// config strings because the handshake outlives connect().
+@(test)
+tls_config_is_owned :: proc(t: ^testing.T) {
+	context.allocator = conn_allocator()
+	alpn := make([]string, 1)
+	buf := make([]byte, 2)
+	buf[0], buf[1] = 'h', '3'
+	alpn[0] = string(buf)
+	owned := own_tls_config({alpn = alpn, server_name = ""}, "discord.com")
+	defer free_tls_config(&owned)
+	buf[0], buf[1] = 'x', 'x' // the caller's memory changes after connect returns
+	delete(buf)
+	delete(alpn)
+	testing.expect_value(t, owned.alpn[0], "h3")
+	testing.expect_value(t, owned.server_name, "discord.com")
+}

@@ -320,36 +320,28 @@ race_release :: proc(r: ^Race) {
 	}
 }
 
+// quic_job: Chrome's QUIC job. With 0-RTT the session is usable as soon as
+// the ClientHello is out, so it wins at once and the first requests go early;
+// otherwise it wins when the handshake completes. Only a handshake failure
+// (while TCP works) marks the alternative broken; a rejected 0-RTT attempt is
+// not a failure (the data is resent in 1-RTT), matching Chrome.
 @(private)
 quic_job :: proc(r: ^Race) {
 	conn, err := h3.connect(r.host, r.h3cfg)
+	early := err == .None && quic.early_state(conn.q) == .Sending
+	if early do quic_job_result(r, conn, true)
+	if err == .None && quic.wait_handshake(conn.q) != .None {
+		err = .Io
+	}
+	if !early {
+		if err != .None && conn != nil {
+			h3.close(conn)
+			conn = nil
+		}
+		quic_job_result(r, conn, err == .None)
+	}
 	if err == .None {
-		// Wait for the handshake so a 0-RTT start still proves QUIC works.
-		if quic.wait_handshake(conn.q) != .None {
-			h3.close(conn)
-			err = .Io
-		}
-	}
-	sync.mutex_lock(&r.mu)
-	r.quic_done = true
-	r.quic_ok = err == .None
-	if r.quic_ok {
-		r.quic_conn = conn
-		if r.winner == 0 do r.winner = 1
-	}
-	tcp_won := r.winner == 2
-	sync.cond_broadcast(&r.cond)
-	sync.mutex_unlock(&r.mu)
-	if r.quic_ok {
 		mark_working(r.cache, r.host)
-		// Keep the session for reuse whether or not it won this race.
-		sync.mutex_lock(&r.cache.mu)
-		if _, found := r.cache.conns[r.host]; !found {
-			r.cache.conns[strings.clone(r.host)] = conn
-		} else if tcp_won {
-			h3.close(conn)
-		}
-		sync.mutex_unlock(&r.cache.mu)
 	} else {
 		// Broken only if TCP works (else the network/origin is just down).
 		sync.mutex_lock(&r.mu)
@@ -357,8 +349,33 @@ quic_job :: proc(r: ^Race) {
 		tcp_ok := r.tcp_ok
 		sync.mutex_unlock(&r.mu)
 		if tcp_ok do mark_broken(r.cache, r.host)
+		// A failed early session stays in the cache with an error; the next
+		// connect sees !can_open and closes it.
 	}
 	race_release(r)
+}
+
+@(private)
+quic_job_result :: proc(r: ^Race, conn: ^h3.Conn, ok: bool) {
+	sync.mutex_lock(&r.mu)
+	r.quic_done = true
+	r.quic_ok = ok
+	if ok {
+		r.quic_conn = conn
+		if r.winner == 0 do r.winner = 1
+	}
+	tcp_won := r.winner == 2
+	sync.cond_broadcast(&r.cond)
+	sync.mutex_unlock(&r.mu)
+	if !ok do return
+	// Keep the session for reuse whether or not it won this race.
+	sync.mutex_lock(&r.cache.mu)
+	if _, found := r.cache.conns[r.host]; !found {
+		r.cache.conns[strings.clone(r.host)] = conn
+	} else if tcp_won {
+		h3.close(conn)
+	}
+	sync.mutex_unlock(&r.cache.mu)
 }
 
 @(private)

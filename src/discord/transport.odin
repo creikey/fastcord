@@ -113,7 +113,6 @@ transport_init :: proc(t: ^Transport, jar: ^Cookie_Jar, allocator := context.all
 	t.jar = jar
 	t.origins = make(map[string]^Origin, allocator = allocator)
 	t.use_h3 = true
-	t.h3_no_0rtt = true
 }
 
 transport_destroy :: proc(t: ^Transport) {
