@@ -1,7 +1,7 @@
 @echo off
 rem build.bat [app|debug|dev|test <pkg>|tool <name>|c] -- build.sh's targets, for cmd.exe.
-rem Compiles the vendored C (vendor\wuffs) with clang, or MSVC's cl (found with vswhere if it is not
-rem on PATH), then runs odin, which must be on PATH.
+rem Compiles each vendored C library (vendor\<lib>\fc_<lib>.c) with clang, or MSVC's cl (found with
+rem vswhere if it is not on PATH), then runs odin, which must be on PATH.
 setlocal
 cd /d "%~dp0"
 if not exist build mkdir build
@@ -9,16 +9,22 @@ set FLAGS=-collection:fc=src -vet-shadowing -strict-style
 
 where clang >nul 2>nul
 if not errorlevel 1 (
-    clang -c -O2 -std=c99 -DWUFFS_CONFIG__AVOID_CPU_ARCH -o build\fc_wuffs.obj vendor\wuffs\fc_wuffs.c || exit /b 1
-    goto c_done
+    set CC=clang -c -O2 -D_CRT_SECURE_NO_WARNINGS -o
+    goto have_cc
 )
 where cl >nul 2>nul
 if errorlevel 1 (
     for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set VS=%%i
 )
 if defined VS call "%VS%\VC\Auxiliary\Build\vcvars64.bat" >nul
-cl -nologo -c -O2 -DWUFFS_CONFIG__DISABLE_MSVC_CPU_ARCH__X86_64_FAMILY -Fobuild\fc_wuffs.obj vendor\wuffs\fc_wuffs.c >nul || exit /b 1
-:c_done
+set CC=cl -nologo -c -O2 -D_CRT_SECURE_NO_WARNINGS -Fo
+:have_cc
+for /d %%D in (vendor\*) do (
+    for %%F in (%%D\fc_*.c) do (
+        echo cc %%F
+        %CC%build\%%~nF.obj %%F >nul || exit /b 1
+    )
+)
 
 set T=%1
 if "%T%"=="" set T=app

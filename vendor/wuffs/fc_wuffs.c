@@ -2,6 +2,11 @@
 // call-and-return API where the caller owns every byte (decoder state, work buffer, pixels).
 // Built by build.sh / build.bat into build/fc_wuffs.obj (.o elsewhere); bound in src/imagefmt.
 
+// Scalar code on Windows: clang 11's MSVC-mode headers lack the AVX2 types Wuffs' SIMD paths use, and
+// MSVC needs /arch:AVX2 for them.
+#if defined(_WIN32)
+#define WUFFS_CONFIG__AVOID_CPU_ARCH
+#endif
 #define WUFFS_IMPLEMENTATION
 #define WUFFS_CONFIG__STATIC_FUNCTIONS
 #define WUFFS_CONFIG__MODULES
