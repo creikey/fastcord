@@ -114,34 +114,40 @@ key :: proc(k: Key_Code, mods: Mods = {}) -> Input_Event {return {kind = .Key_Do
 @(private = "file")
 txt :: proc(s: string) -> Input_Event {return {kind = .Text, text = s}}
 
+// The editor's word-wise and shortcut modifiers per platform.
+@(private = "file")
+WORD :: Mod.Alt when ODIN_OS == .Darwin else Mod.Ctrl
+@(private = "file")
+SHORT :: Mod.Cmd when ODIN_OS == .Darwin else Mod.Ctrl
+
 @(test)
 test_editor :: proc(t: ^testing.T) {
 	e: Editor
 	defer editor_destroy(&e)
 	for c in ([]string{"h", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d"}) do editor_event(&e, txt(c), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "hello world")
-	editor_event(&e, key(.Backspace, {.Alt}), nil, cget, cset)
+	editor_event(&e, key(.Backspace, {WORD}), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "hello ")
-	editor_event(&e, key(.Z, {.Cmd}), nil, cget, cset)
+	editor_event(&e, key(.Z, {SHORT}), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "hello world")
-	editor_event(&e, key(.Left, {.Alt, .Shift}), nil, cget, cset)
+	editor_event(&e, key(.Left, {WORD, .Shift}), nil, cget, cset)
 	testing.expect_value(t, editor_selected_text(&e), "world")
-	editor_event(&e, key(.X, {.Cmd}), nil, cget, cset)
+	editor_event(&e, key(.X, {SHORT}), nil, cget, cset)
 	testing.expect_value(t, clip_buf, "world")
 	testing.expect_value(t, editor_text(&e), "hello ")
-	editor_event(&e, key(.Left, {.Cmd}), nil, cget, cset)
-	editor_event(&e, key(.V, {.Cmd}), nil, cget, cset)
+	editor_event(&e, key(.Home), nil, cget, cset)
+	editor_event(&e, key(.V, {SHORT}), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "worldhello ")
 	testing.expect_value(t, editor_event(&e, key(.Enter), nil, cget, cset), Edit_Result.Submit)
 	editor_event(&e, key(.Enter, {.Shift}), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "world\nhello ")
 	// typing over a selection then undo restores it in one step
-	editor_event(&e, key(.A, {.Cmd}), nil, cget, cset)
+	editor_event(&e, key(.A, {SHORT}), nil, cget, cset)
 	editor_event(&e, txt("x"), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "x")
-	editor_event(&e, key(.Z, {.Cmd}), nil, cget, cset)
+	editor_event(&e, key(.Z, {SHORT}), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "world\nhello ")
-	editor_event(&e, key(.Z, {.Cmd, .Shift}), nil, cget, cset)
+	editor_event(&e, key(.Z, {SHORT, .Shift}), nil, cget, cset)
 	testing.expect_value(t, editor_text(&e), "x")
 }
 

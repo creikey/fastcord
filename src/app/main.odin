@@ -242,7 +242,7 @@ frame :: proc() {
 	// Cmd+C with a message selection (a focused field with its own selection copied first).
 	// Runs after end(): the selection's boxes are collected during layout.
 	for &e in app.ui.events {
-		if e.consumed || e.kind != .Key_Down || e.key != .C || .Cmd not_in e.mods do continue
+		if e.consumed || e.kind != .Key_Down || e.key != .C || PRIMARY_MOD not_in e.mods do continue
 		if ui.has_selection() {
 			clipboard_set(ui.selection_text())
 			e.consumed = true
@@ -367,7 +367,7 @@ run_script :: proc(path: string) {
 				case "shift":
 					ev.mods += {.Shift}
 				case "cmd":
-					ev.mods += {.Cmd}
+					ev.mods += {platform.PRIMARY_MOD} // the platform's shortcut key, so scripts run anywhere
 				case "alt":
 					ev.mods += {.Alt}
 				case "ctrl":

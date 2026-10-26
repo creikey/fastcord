@@ -47,6 +47,9 @@ view_init :: proc(v: ^View_State) {
 	v.show_members = true
 }
 
+// Shortcut modifier: Cmd on macOS, Ctrl elsewhere.
+PRIMARY_MOD :: ui.Mod.Cmd when ODIN_OS == .Darwin else ui.Mod.Ctrl
+
 store :: proc() -> ^dc.Store {
 	if app.client != nil do return &app.client.store
 	return &app.offline_store
@@ -825,7 +828,7 @@ overlays :: proc() {
 	group_dm_overlay()
 	profile_full_overlay()
 	for &e in app.ui.events {
-		if !e.consumed && e.kind == .Key_Down && e.key == .K && .Cmd in e.mods {
+		if !e.consumed && e.kind == .Key_Down && e.key == .K && PRIMARY_MOD in e.mods {
 			switcher_toggle()
 			e.consumed = true
 		}
