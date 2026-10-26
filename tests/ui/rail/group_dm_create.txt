@@ -1,0 +1,18 @@
+# DM list "+" (run with -fixture:tests/ui/rail.jsonl): Select Friends popout,
+# check two friends (button turns into "Create Group DM"), filter by typing,
+# Escape closes.
+wait 5
+click 36 52
+wait 10
+click 349 286
+wait 20
+shot build/ui-group_dm_create-open.png
+click 600 443
+click 600 485
+wait 5
+shot build/ui-group_dm_create-two.png
+type phi
+wait 5
+shot build/ui-group_dm_create-search.png
+key escape
+wait 10

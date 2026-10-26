@@ -17,6 +17,7 @@ package trafficdiff
 import "core:fmt"
 import "core:mem/virtual"
 import "core:os"
+import "core:slice"
 import "core:strconv"
 import "core:strings"
 import "fc:etf"
@@ -266,8 +267,51 @@ shape_of :: proc(v: etf.Value) -> string {
 	return strings.to_string(sb)
 }
 
+// conn_facts: first h2/h3 session per (account, kind, host) and its
+// client-side facts, with per-run noise (RTT estimate, GREASE ids) removed.
+conn_facts :: proc(wins: []Window) -> map[string]string {
+	out := make(map[string]string, allocator = context.temp_allocator)
+	for w in wins {
+		for e in w.events {
+			if e.k != "conn" do continue
+			kind := str(e.v, "kind")
+			if kind != "h2" && kind != "h3" do continue
+			key := fmt.tprintf("%s %s %s", acct(e.v), kind, str(e.v, "host"))
+			if key in out do continue
+			sb := strings.builder_make(context.temp_allocator)
+			for f in ([]string{"send_settings", "send_window_update", "http3_settings_sent", "transport_parameters_sent"}) {
+				if v := get(e.v, f); v != nil do fmt.sbprintf(&sb, "%s=%s ", f, value_text(v))
+			}
+			if t := get(e.v, "tls"); t != nil do fmt.sbprintf(&sb, "alpn=%s ", str(t, "next_proto"))
+			txt := strings.to_string(sb)
+			// GREASE settings and the RTT estimate differ on every connection
+			for {
+				i := strings.index(txt, "UNSUPPORTED_SETTINGS_TYPE(")
+				if i < 0 do break
+				j := strings.index_byte(txt[i:], ',')
+				if j < 0 do j = strings.index_byte(txt[i:], '}')
+				txt = strings.concatenate({txt[:i], "GREASE", txt[i + j:]}, context.temp_allocator)
+			}
+			if i := strings.index(txt, "initial_round_trip_time "); i >= 0 {
+				j := i + len("initial_round_trip_time ")
+				for j < len(txt) && txt[j] >= '0' && txt[j] <= '9' do j += 1
+				txt = strings.concatenate({txt[:i], "initial_round_trip_time *", txt[j:]}, context.temp_allocator)
+			}
+			out[key] = txt
+		}
+	}
+	return out
+}
+
 diff :: proc(a, b: []Window, opts: Opts, sb: ^strings.Builder) -> int {
 	n := 0
+	ca, cb := conn_facts(a), conn_facts(b)
+	for k, va in ca {
+		if vb, ok := cb[k]; ok && va != vb {
+			fmt.sbprintfln(sb, "== connection %s\n      official: %s\n      ours:     %s", k, va, vb)
+			n += 1
+		}
+	}
 	used := make([]bool, len(b))
 	for wa in a {
 		bi := -1
@@ -374,20 +418,37 @@ diff_request :: proc(a, b: Event, sa, sb_start: f64, opts: Opts, sb: ^strings.Bu
 			break
 		}
 	}
-	// wire header sets (CDP sorts them, so names only, when both sides have them)
+	// wire headers: from a netlog the order is real and is compared; from
+	// DevTools (sorted) only the set of names is compared
 	if wa, wb := get(a.v, "wire"), get(b.v, "wire"); wa != nil && wb != nil {
-		set :: proc(v: etf.Value) -> string {
+		ordered := str(a.v, "wire_src") == "netlog" && str(b.v, "wire_src") == "netlog"
+		names :: proc(v: etf.Value, sorted: bool) -> string {
 			l, _ := v.(etf.List)
-			names := make([dynamic]string, context.temp_allocator)
+			out := make([dynamic]string, context.temp_allocator)
 			for h in l {
 				p, _ := h.(etf.List)
-				if len(p) == 2 do append(&names, strings.to_lower(p[0].(string) or_else "", context.temp_allocator))
+				if len(p) == 2 do append(&out, strings.to_lower(p[0].(string) or_else "", context.temp_allocator))
 			}
-			return strings.join(names[:], ",", context.temp_allocator)
+			if sorted do slice.sort(out[:])
+			return strings.join(out[:], ",", context.temp_allocator)
 		}
-		if x, y := set(wa), set(wb); x != y {
-			fmt.sbprintfln(sb, "  ~ %s: wire header set\n      official: %s\n      ours:     %s", key, x, y)
+		if x, y := names(wa, !ordered), names(wb, !ordered); x != y {
+			fmt.sbprintfln(sb, "  ~ %s: wire headers (%s)\n      official: %s\n      ours:     %s", key, "order" if ordered else "set", x, y)
 			n += 1
+		}
+		if ordered {
+			la, _ := wa.(etf.List)
+			lb, _ := wb.(etf.List)
+			for h, i in la {
+				if i >= len(lb) do break
+				pa, _ := h.(etf.List)
+				pb, _ := lb[i].(etf.List)
+				if len(pa) != 2 || len(pb) != 2 do continue
+				if va, vb := value_text(pa[1]), value_text(pb[1]); va != vb && !strings.contains(va, "bytes were stripped") {
+					fmt.sbprintfln(sb, "  ~ %s: wire %v\n      official: %s\n      ours:     %s", key, pa[0], va, vb)
+					n += 1
+				}
+			}
 		}
 	}
 	if ba, bb := shape_of(get(a.v, "body")), shape_of(get(b.v, "body")); ba != bb {

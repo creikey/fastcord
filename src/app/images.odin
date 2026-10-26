@@ -53,6 +53,7 @@ images_receive :: proc() {
 			app.ui.animating = true
 			continue
 		}
+		if sounds_receive(&r) do continue
 		if twemoji_receive(r.url, r.status, r.data) do continue
 		im, ok := &images[r.url]
 		if !ok do continue

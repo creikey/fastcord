@@ -16,10 +16,11 @@ import "fc:ui"
 
 GIF_PAD_X :: 16
 GIF_GUTTER :: 12
-GIF_DESIRED_W :: 200
+GIF_DESIRED_W :: 200 // category tiles (GIFPickerCategories desiredItemWidth)
+GIF_RESULTS_DESIRED_W :: 160 // --custom-gif-picker-search-results-desired-item-width
 GIF_MAX_COLS :: 6
 GIF_TILE_H :: 110
-GIF_TILE_RADIUS :: 8
+GIF_TILE_RADIUS :: 5
 GIF_DEBOUNCE_S :: 0.25
 GIF_SUGGEST_WITHIN :: 1180
 GIF_FOOTER_H :: 120
@@ -213,7 +214,7 @@ gif_picker_body :: proc(r: ui.Rect) {
 	}
 	view := ui.Rect{r.x0, r.y0, r.x1, r.y1}
 	inner_w := (r.x1 - r.x0) - 2 * GIF_PAD_X
-	cols := columns_for(inner_w)
+	cols := gv.kind == .None ? columns_for(inner_w) : clamp(int(inner_w / GIF_RESULTS_DESIRED_W), 1, GIF_MAX_COLS)
 	col_w := (inner_w - f32(cols - 1) * GIF_GUTTER) / f32(cols)
 	list := ui.box("gif_list", {.Clip})
 	list.semantic_size = {.X = ui.pct(1), .Y = ui.pct(1)}
@@ -271,10 +272,13 @@ gif_front_page :: proc(list: ^ui.Box, view: ui.Rect, cols: int, col_w: f32) {
 					img.semantic_size = {.X = ui.px(col_w), .Y = ui.px(GIF_TILE_H)}
 					img.style.radius = GIF_TILE_RADIUS
 					set_cover_image(img, t.src)
-					shade := ui.box("shade", {.Floating_X, .Floating_Y, .Draw_Background})
+					// .categoryFade (favorites: .categoryFadeBlurple); hover darkens + 1px --border-strong
+					shade := ui.box("shade", {.Floating_X, .Floating_Y, .Draw_Background, .Draw_Border})
 					shade.semantic_size = {.X = ui.px(col_w), .Y = ui.px(GIF_TILE_H)}
 					shade.style.radius = GIF_TILE_RADIUS
-					shade.style.bg = {0, 0, 0, sig.hovering ? 0.35 : 0.5}
+					shade.style.bg = t.kind == .Favorites ? with_alpha(T("--background-brand"), 0.8) : {0, 0, 0, sig.hovering ? 0.6 : 0.45}
+					shade.style.border = sig.hovering ? 1 : 0
+					shade.style.border_color = T("--border-strong")
 					lab := row("lab", {.Floating_X, .Floating_Y})
 					lab.semantic_size = {.X = ui.px(col_w), .Y = ui.px(GIF_TILE_H)}
 					lab.cross_align = .Center
@@ -282,9 +286,9 @@ gif_front_page :: proc(list: ^ui.Box, view: ui.Rect, cols: int, col_w: f32) {
 						filler(.X)
 						if t.icon != "" {
 							icon("i", t.icon, 20, {1, 1, 1, 1})
-							spacer(.X, 6)
+							spacer(.X, 4)
 						}
-						label(t.name, .Bold, 16, {1, 1, 1, 1}, 20)
+						label(t.name, .Semibold, 16, {1, 1, 1, 1}, 16)
 						filler(.X)
 					}
 				}
@@ -374,11 +378,11 @@ gif_results :: proc(list: ^ui.Box, view: ui.Rect, cols: int, col_w: f32) {
 				cell := ui.box("gif", {.Clickable, .Floating_X, .Floating_Y, .Draw_Background, .Draw_Border})
 				cell.semantic_size = {.X = ui.px(col_w), .Y = ui.px(p.h)}
 				cell.fixed_pos = {p.x, y}
-				cell.style.radius = 4
-				cell.style.bg = T("--background-mod-normal")
+				cell.style.radius = GIF_TILE_RADIUS
+				cell.style.bg = T("--background-mod-muted")
 				sig := ui.signal(cell)
-				cell.style.border = sig.hovering ? 2 : 0
-				cell.style.border_color = T("--background-brand")
+				cell.style.border = sig.hovering ? 1 : 0
+				cell.style.border_color = T("--border-strong")
 				set_cover_image(cell, gif_render_url(it.src, it.gif_src))
 				if sig.clicked do gif_select(it, .Shift in app.ui_mods)
 			}
@@ -422,15 +426,19 @@ gif_results :: proc(list: ^ui.Box, view: ui.Rect, cols: int, col_w: f32) {
 	}
 }
 
-// Sends the GIF's url as a message (the client's onSelectGIF), then POST /gifs/select.
+// The client's onSelectGIF (chunk "n_"): shift-click inserts the url into the
+// composer, otherwise the url is sent as its own message; then POST /gifs/select,
+// close the picker and refocus the composer.
 @(private = "file")
-gif_select :: proc(it: Gif_Item, keep_open: bool) {
-	if app.client != nil && it.url != "" {
+gif_select :: proc(it: Gif_Item, insert: bool) {
+	if insert {
+		ui.editor_insert(&chat_state(pk.channel).editor, it.url)
+	} else if app.client != nil && it.url != "" {
 		dc.send_message(app.client, pk.channel, it.url)
-		dc.gif_select(app.client, it.id, gv.result_query)
 		chat_state(pk.channel).scroll_target = 0
 	}
-	if !keep_open do picker_close()
+	if app.client != nil do dc.gif_select(app.client, it.id, gv.result_query)
+	picker_close()
 }
 
 // What we can decode: the API's media_format rendition is webm (video); its

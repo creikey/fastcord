@@ -19,6 +19,7 @@ Media_Kind :: enum u8 {
 	Image, // <img>: no-cors, dest image
 	Font, // @font-face from the app CSS: cors, dest font
 	Fetch, // fetch()/XHR of media json/text (lottie stickers, .riv): cors, dest empty
+	Audio, // new Audio(url) (UI sounds): no-cors, dest audio, identity encoding, range bytes=0- (206)
 }
 
 Media_Request :: struct {
@@ -56,6 +57,24 @@ IMAGE_ACCEPT :: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.
 //   fetch cross-site: ...,accept,origin,site,cors,empty,referer,...
 media_headers :: proc(p: Platform_Info, kind: Media_Kind, site: Fetch_Site, visible: bool, referer, cookie, etag, last_modified: string, allocator := context.temp_allocator) -> []http.Header {
 	h := make([dynamic]http.Header, 0, 20, allocator)
+	if kind == .Audio {
+		// netlog (join_voice_channel): /assets/<hash>.mp3 played by WebAudioSound
+		append(&h, http.Header{"sec-ch-ua-platform", p.sec_ch_ua_platform})
+		append(&h, http.Header{"accept-encoding", "identity;q=1, *;q=0"})
+		append(&h, http.Header{"user-agent", p.browser_user_agent})
+		append(&h, http.Header{"sec-ch-ua", p.sec_ch_ua})
+		append(&h, http.Header{"sec-ch-ua-mobile", "?0"})
+		append(&h, http.Header{"accept", "*/*"})
+		append(&h, http.Header{"sec-fetch-site", fetch_site_name(site)})
+		append(&h, http.Header{"sec-fetch-mode", "no-cors"})
+		append(&h, http.Header{"sec-fetch-dest", "audio"})
+		append(&h, http.Header{"referer", referer})
+		append(&h, http.Header{"accept-language", p.accept_language})
+		if cookie != "" do append(&h, http.Header{"cookie", cookie})
+		append(&h, http.Header{"range", "bytes=0-"})
+		append(&h, http.Header{"priority", "i"})
+		return h[:]
+	}
 	if kind == .Font do append(&h, http.Header{"origin", API_ORIGIN})
 	append(&h, http.Header{"sec-ch-ua-platform", p.sec_ch_ua_platform})
 	append(&h, http.Header{"user-agent", p.browser_user_agent})
@@ -73,6 +92,7 @@ media_headers :: proc(p: Platform_Info, kind: Media_Kind, site: Fetch_Site, visi
 		append(&h, http.Header{"sec-fetch-site", fetch_site_name(site)})
 		append(&h, http.Header{"sec-fetch-mode", "cors"})
 		append(&h, http.Header{"sec-fetch-dest", "font"})
+	case .Audio:
 	case .Fetch:
 		append(&h, http.Header{"accept", "*/*"})
 		if site != .Same_Origin do append(&h, http.Header{"origin", API_ORIGIN})

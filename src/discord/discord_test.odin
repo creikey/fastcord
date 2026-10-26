@@ -388,7 +388,7 @@ settings_delta :: proc(t: ^testing.T) {
 	want := []byte{0x5a, 0x10, 0x0a, 0x05, 0x0a, 0x03, 'd', 'n', 'd', 0x2a, 0x07, 0x08, 0xd2, 0xca, 0xd2, 0x87, 0x88, 0x34}
 	testing.expect(t, bytes.equal(got, want), fmt.tprint(got))
 	e2 := Settings_Edit{theme = Theme.Light}
-	testing.expect(t, bytes.equal(settings_delta_proto(&e2), []byte{0x6a, 0x02, 0x08, 0x02}))
+	testing.expect_value(t, base64.encode(settings_delta_proto(&e2), allocator = context.temp_allocator), "agQIAhoA") // captured Light
 	// round trip through the reader used for READY
 	s: Store
 	store_init(&s, context.temp_allocator)

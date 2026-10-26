@@ -188,6 +188,7 @@ Key_Code :: enum u16 {
 	Y,
 	Z,
 	K,
+	F,
 	Other,
 }
 

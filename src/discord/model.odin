@@ -160,6 +160,7 @@ Guild :: struct {
 	stickers:          [dynamic]Sticker,
 	features:          [dynamic]string,
 	system_channel_id: Snowflake,
+	default_message_notifications: int, // 0 all messages, 1 only mentions
 	unavailable:       bool,
 	lazy:              bool,
 	joined_at:         string,
@@ -218,6 +219,7 @@ Message :: struct {
 	content:          string,
 	timestamp:        string,
 	edited_timestamp: string,
+	call_ended:       string, // CALL (type 3): call.ended_timestamp, "" while ongoing
 	attachments:      [dynamic]Attachment,
 	embeds:           [dynamic]Embed,
 	reactions:        [dynamic]Reaction,

@@ -185,6 +185,9 @@ Conn :: struct {
 	input_gain:        f32, // software input volume (1 = unchanged)
 	input_db:          f32, // level of the last mic frame (after gain)
 	vad_open:          bool,
+	ptt_mode:          bool, // push-to-talk instead of voice activity
+	ptt_pressed:       bool,
+	ptt_until_ms:      i64, // release delay end
 	allocator:         runtime.Allocator, // long-lived allocations from every thread
 	debug:             bool, // FASTCORD_VOICE_DEBUG=1: protocol trace on stderr (no secrets)
 }
@@ -345,6 +348,16 @@ set_input_sensitivity :: proc(c: ^Conn, auto_threshold: bool, threshold_db: f32)
 	c.vad.auto_threshold = auto_threshold
 	c.vad.threshold_db = threshold_db
 	sync.mutex_unlock(&c.mu)
+}
+
+// set_push_to_talk: PTT mode transmits only while pressed (+ release delay,
+// the client's pttReleaseDelay default 20 ms) instead of on voice activity.
+set_push_to_talk :: proc(c: ^Conn, enabled: bool, pressed: bool, release_delay_ms := 20) {
+	sync.mutex_lock(&c.mu)
+	defer sync.mutex_unlock(&c.mu)
+	c.ptt_mode = enabled
+	if c.ptt_pressed && !pressed do c.ptt_until_ms = now_ms() + i64(release_delay_ms)
+	c.ptt_pressed = pressed
 }
 
 // set_input_gain: input volume, 0..2 (Settings > Voice > Input Volume).
@@ -1148,6 +1161,9 @@ tx_tick :: proc(c: ^Conn, pcm: []f32) {
 	sync.mutex_lock(&c.mu)
 	c.input_db = db
 	c.vad_open = active
+	sync.mutex_unlock(&c.mu)
+	sync.mutex_lock(&c.mu)
+	if c.ptt_mode do active = c.ptt_pressed || now_ms() < c.ptt_until_ms
 	sync.mutex_unlock(&c.mu)
 	if muted do active = false
 	frame_ts := c.ts

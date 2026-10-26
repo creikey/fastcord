@@ -26,7 +26,7 @@ import "fc:etf"
 //   wait_gw EVENT [MS]        until a gateway dispatch EVENT is received (since last action)
 //   click SEL | rclick SEL | hover SEL | click_last SEL | hover_last SEL | rclick_last SEL
 //   click_text SEL | TEXT     first SEL whose trimmed text, first text line or aria-label equals TEXT
-//   rclick_text SEL | TEXT    same, right button
+//   rclick_text SEL | TEXT    same, right button (TEXT may list alternatives: A || B)
 //   type TEXT                 human-paced key events
 //   key NAME [ctrl|meta|shift|alt...]   Enter Escape Backspace Tab ArrowUp ArrowDown ...
 //   upload SEL | PATH         DOM.setFileInputFiles on an <input type=file>
@@ -319,7 +319,7 @@ exec :: proc(d: ^Driver, line: string) -> (bool, string) {
 		if bar < 0 do return false, "syntax: click_text SEL | TEXT"
 		sel, text := rest[:bar], rest[bar + 3:]
 		finder := fmt.tprintf(
-			"(()=>{{const t=%s;return [...document.querySelectorAll(%s)].find(e=>e.textContent.trim()===t||e.getAttribute('aria-label')===t||(e.innerText||'').trim().split('\\n')[0].trim()===t)}})()",
+			"(()=>{{const ts=%s.split(' || ');return [...document.querySelectorAll(%s)].find(e=>ts.some(t=>e.textContent.trim()===t||e.getAttribute('aria-label')===t||(e.innerText||'').trim().split('\\n')[0].trim()===t))}})()",
 			cdp.quote(text),
 			cdp.quote(sel),
 		)

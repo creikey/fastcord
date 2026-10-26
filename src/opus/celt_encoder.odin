@@ -1,6 +1,6 @@
 package opus
 
-// CELT encoder (celt_encoder.c, float path, no tonality analysis).
+// CELT encoder (celt_encoder.c, float path).
 
 import "core:math"
 
@@ -45,6 +45,14 @@ Celt_Encoder :: struct {
 	old_log_e:         [2 * NB_EBANDS]f32,
 	old_log_e2:        [2 * NB_EBANDS]f32,
 	energy_error:      [2 * NB_EBANDS]f32,
+	// set per frame by the Opus layer (CELT_SET_ANALYSIS / CELT_SET_SILK_INFO)
+	analysis:          Analysis_Info,
+	silk_info:         Silk_Info,
+}
+
+Silk_Info :: struct {
+	signal_type: int,
+	offset:      int,
 }
 
 BITRATE_MAX :: -1
@@ -90,6 +98,8 @@ celt_encoder_reset :: proc(st: ^Celt_Encoder) {
 	st.prefilter_mem = {}
 	st.old_band_e = {}
 	st.energy_error = {}
+	st.analysis = {}
+	st.silk_info = {}
 	for i in 0 ..< 2 * NB_EBANDS {
 		st.old_log_e[i] = -28
 		st.old_log_e2[i] = -28
@@ -141,8 +151,8 @@ transient_analysis :: proc(in_: []f32, len, C: int, tf_estimate: ^f32, tf_chan: 
 			mem0 = tmp[i]
 			max_e = max(max_e, mem0)
 		}
-		mean = celt_sqrt(mean * max_e * 0.5 * f32(len2))
-		norm := f32(len2) / (EPSILON + mean * 0.5)
+		mean = f32(math.sqrt(f64(mean * max_e) * 0.5 * f64(len2)))
+		norm := f32(len2) / (EPSILON + mean)
 		unmask := 0
 		for i := 12; i < len2 - 5; i += 4 {
 			id := int(max(0, min(127, math.floor(64 * norm * (tmp[i] + EPSILON)))))
@@ -160,7 +170,8 @@ transient_analysis :: proc(in_: []f32, len, C: int, tf_estimate: ^f32, tf_chan: 
 		weak_transient^ = true
 	}
 	tf_max := max(0, celt_sqrt(f32(27 * mask_metric)) - 42)
-	tf_estimate^ = celt_sqrt(max(0, 0.0069 * min(163, tf_max) - 0.139))
+	// MULT16_16 casts to float, then the QCONST32 double literal promotes.
+	tf_estimate^ = f32(math.sqrt(max(0, f64(0.0069 * min(163, tf_max)) - 0.139)))
 	return is_transient
 }
 
@@ -336,7 +347,7 @@ tf_encode :: proc(start, end: int, is_transient: bool, tf_res: []i32, LM: int, t
 }
 
 @(private = "file")
-alloc_trim_analysis :: proc(X: []f32, band_log_e: []f32, end, LM, C, N0: int, stereo_saving: ^f32, tf_estimate: f32, intensity: int, equiv_rate: i32) -> i32 {
+alloc_trim_analysis :: proc(X: []f32, band_log_e: []f32, end, LM, C, N0: int, analysis: ^Analysis_Info, stereo_saving: ^f32, tf_estimate: f32, intensity: int, equiv_rate: i32) -> i32 {
 	trim: f32 = 5
 	if equiv_rate < 64000 {
 		trim = 4
@@ -371,6 +382,7 @@ alloc_trim_analysis :: proc(X: []f32, band_log_e: []f32, end, LM, C, N0: int, st
 	diff /= f32(C * (end - 1))
 	trim -= max(-2, min(2, (diff + 1) / 6))
 	trim -= 2 * tf_estimate
+	if analysis.valid do trim -= max(-2, min(2, 2 * (analysis.tonality_slope + 0.05)))
 	trim_index := i32(math.floor(0.5 + trim))
 	return clamp(trim_index, 0, 10)
 }
@@ -424,7 +436,7 @@ median_of_3 :: proc(x: []f32) -> f32 {
 
 @(private = "file")
 dynalloc_analysis :: proc(band_log_e, band_log_e2: []f32, start, end, C: int, offsets: []i32, lsb_depth: int, is_transient, vbr, constrained_vbr: bool,
-	LM: int, effective_bytes: int, tot_boost_out: ^i32, importance, spread_weight: []int) -> f32 {
+	LM: int, effective_bytes: int, tot_boost_out: ^i32, analysis: ^Analysis_Info, importance, spread_weight: []int) -> f32 {
 	follower, noise_floor: [2 * NB_EBANDS]f32
 	tot_boost: i32 = 0
 	for i in 0 ..< NB_EBANDS do offsets[i] = 0
@@ -483,6 +495,9 @@ dynalloc_analysis :: proc(band_log_e, band_log_e2: []f32, start, end, C: int, of
 		for i in start ..< end {
 			if i < 8 do follower[i] *= 2
 			if i >= 12 do follower[i] = 0.5 * follower[i]
+		}
+		if analysis.valid {
+			for i in start ..< min(LEAK_BANDS, end) do follower[i] = follower[i] + (1.0 / 64) * f32(analysis.leak_boost[i])
 		}
 		for i in start ..< end {
 			follower[i] = min(follower[i], 4)
@@ -596,7 +611,7 @@ remove_doubling :: proc(x_: []f32, maxperiod_, minperiod_, N_: int, T0_: ^int, p
 }
 
 @(private = "file")
-run_prefilter :: proc(st: ^Celt_Encoder, in_: [2][]f32, CC, N: int, prefilter_tapset: int, pitch: ^int, gain: ^f32, qgain: ^int, enabled: bool, nb_available_bytes: int) -> bool {
+run_prefilter :: proc(st: ^Celt_Encoder, in_: [2][]f32, CC, N: int, prefilter_tapset: int, pitch: ^int, gain: ^f32, qgain: ^int, enabled: bool, nb_available_bytes: int, analysis: ^Analysis_Info) -> bool {
 	pre_buf: [2][COMBFILTER_MAXPERIOD + 960]f32
 	for c in 0 ..< CC {
 		copy(pre_buf[c][:COMBFILTER_MAXPERIOD], st.prefilter_mem[c][:])
@@ -612,6 +627,7 @@ run_prefilter :: proc(st: ^Celt_Encoder, in_: [2][]f32, CC, N: int, prefilter_ta
 		gain1 = remove_doubling(pitch_buf[:], COMBFILTER_MAXPERIOD, COMBFILTER_MINPERIOD, N, &pitch_index, st.prefilter_period, st.prefilter_gain)
 		if pitch_index > COMBFILTER_MAXPERIOD - 2 do pitch_index = COMBFILTER_MAXPERIOD - 2
 		gain1 = 0.7 * gain1
+		if analysis.valid do gain1 = gain1 * analysis.max_pitch_ratio
 		if st.loss_rate > 2 do gain1 *= 0.5
 		if st.loss_rate > 4 do gain1 *= 0.5
 		if st.loss_rate > 8 do gain1 = 0
@@ -664,13 +680,14 @@ run_prefilter :: proc(st: ^Celt_Encoder, in_: [2][]f32, CC, N: int, prefilter_ta
 }
 
 @(private = "file")
-compute_vbr :: proc(base_target: i32, LM: int, bitrate: i32, last_coded_bands: i32, C: int, intensity: int, constrained_vbr: bool, stereo_saving_: f32,
-	tot_boost: i32, tf_estimate: f32, max_depth: f32, temporal_vbr: f32) -> i32 {
+compute_vbr :: proc(analysis: ^Analysis_Info, base_target: i32, LM: int, bitrate: i32, last_coded_bands: i32, C: int, intensity: int, constrained_vbr: bool,
+	stereo_saving_: f32, tot_boost: i32, tf_estimate: f32, pitch_change: bool, max_depth: f32, temporal_vbr: f32) -> i32 {
 	stereo_saving := stereo_saving_
 	coded_bands := last_coded_bands != 0 ? int(last_coded_bands) : NB_EBANDS
 	coded_bins := int(eband5ms[coded_bands]) << uint(LM)
 	if C == 2 do coded_bins += int(eband5ms[min(intensity, coded_bands)]) << uint(LM)
 	target := base_target
+	if analysis.valid && f64(analysis.activity) < 0.4 do target -= i32(f32(coded_bins << BITRES) * (0.4 - analysis.activity))
 	if C == 2 {
 		coded_stereo_bands := min(intensity, coded_bands)
 		coded_stereo_dof := (int(eband5ms[coded_stereo_bands]) << uint(LM)) - coded_stereo_bands
@@ -680,13 +697,17 @@ compute_vbr :: proc(base_target: i32, LM: int, bitrate: i32, last_coded_bands: i
 	}
 	target += tot_boost - (19 << uint(LM))
 	tf_calibration: f32 = 0.044
-	target += i32(2 * ((tf_estimate - tf_calibration) * f32(target)))
-	{
-		bins := int(eband5ms[NB_EBANDS - 2]) << uint(LM)
-		floor_depth := i32(f32(C * bins << BITRES) * max_depth)
-		floor_depth = max(floor_depth, target >> 2)
-		target = min(target, floor_depth)
+	target += i32((tf_estimate - tf_calibration) * f32(target)) // SHL32(.., 1) is a no-op in the float build
+	if analysis.valid {
+		tonal := max(0, analysis.tonality - 0.15) - 0.12
+		tonal_target := target + i32(f32(coded_bins << BITRES) * 1.2 * tonal)
+		if pitch_change do tonal_target += i32(f32(coded_bins << BITRES) * 0.8)
+		target = tonal_target
 	}
+	bins := int(eband5ms[NB_EBANDS - 2]) << uint(LM)
+	floor_depth := i32(f32(C * bins << BITRES) * max_depth)
+	floor_depth = max(floor_depth, target >> 2)
+	target = min(target, floor_depth)
 	if constrained_vbr do target = base_target + i32(0.67 * f32(target - base_target))
 	if tf_estimate < 0.2 {
 		amount := 0.0000031 * f32(max(0, min(32000, 96000 - bitrate)))
@@ -909,7 +930,11 @@ INTENSITY_HISTERESIS := [21]f32{1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 
 
 // Encodes one CELT frame of interleaved float pcm (±1.0) into compressed
 // (whose length is the max size). Returns bytes written.
-celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: []u8) -> (int, Celt_Error) {
+//
+// enc_ext != nil: continue on the caller's range coder (hybrid; SILK has
+// already written into it). compressed is then the whole packet buffer the
+// coder was initialised on, and the result counts all its bytes.
+celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: []u8, enc_ext: ^Range = nil) -> (int, Celt_Error) {
 	CC := st.channels
 	C := st.stream_channels
 	start := st.start
@@ -923,7 +948,13 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	M := 1 << uint(LM)
 	N := M * SHORT_MDCT_SIZE
 	tell: i32 = 1
+	tell0_frac: i32 = 1
 	nb_filled_bytes := 0
+	if enc_ext != nil {
+		tell0_frac = i32(ec_tell_frac(enc_ext))
+		tell = ec_tell(enc_ext)
+		nb_filled_bytes = int(tell + 4) >> 3
+	}
 	nb_compressed_bytes := min(len(compressed), 1275)
 	nb_available_bytes := nb_compressed_bytes - nb_filled_bytes
 	vbr_rate: i32
@@ -944,8 +975,11 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	equiv_rate := (i32(nb_compressed_bytes) * 8 * 50 >> uint(3 - LM)) - i32(40 * C + 20) * i32((400 >> uint(LM)) - 50)
 	if st.bitrate != BITRATE_MAX do equiv_rate = min(equiv_rate, st.bitrate - i32(40 * C + 20) * i32((400 >> uint(LM)) - 50))
 	enc_: Range
-	ec_enc_init(&enc_, compressed[:nb_compressed_bytes])
-	enc := &enc_
+	enc := enc_ext
+	if enc == nil {
+		ec_enc_init(&enc_, compressed[:nb_compressed_bytes])
+		enc = &enc_
+	}
 	if vbr_rate > 0 && st.constrained_vbr {
 		vbr_bound := vbr_rate
 		max_allowed := min(max(tell == 1 ? 2 : 0, int((vbr_rate + vbr_bound - st.vbr_reservoir) >> (BITRES + 3))), nb_available_bytes)
@@ -995,11 +1029,16 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	gain1: f32 = 0
 	prefilter_tapset := 0
 	pf_on := false
+	pitch_change := false
 	{
 		enabled := nb_available_bytes > 12 * C && !hybrid && !silence && !st.disable_pf && st.complexity >= 5
 		prefilter_tapset = st.tapset_decision
 		qg: int
-		pf_on = run_prefilter(st, in_, CC, N, prefilter_tapset, &pitch_index, &gain1, &qg, enabled, nb_available_bytes)
+		pf_on = run_prefilter(st, in_, CC, N, prefilter_tapset, &pitch_index, &gain1, &qg, enabled, nb_available_bytes, &st.analysis)
+		if (gain1 > 0.4 || st.prefilter_gain > 0.4) && (!st.analysis.valid || f64(st.analysis.tonality) > 0.3) &&
+		   (f64(pitch_index) > 1.26 * f64(st.prefilter_period) || f64(pitch_index) < 0.79 * f64(st.prefilter_period)) {
+			pitch_change = true
+		}
 		if !pf_on {
 			if !hybrid && tell + 16 <= total_bits do ec_enc_bit_logp(enc, false, 1)
 		} else {
@@ -1021,7 +1060,8 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	if st.complexity >= 1 {
 		planar: [2 * (960 + OVERLAP)]f32
 		for c in 0 ..< CC do copy(planar[c * (N + OVERLAP):(c + 1) * (N + OVERLAP)], in_[c][:N + OVERLAP])
-		is_transient = transient_analysis(planar[:], N + OVERLAP, CC, &tf_estimate, &tf_chan, false, &weak_transient)
+		allow_weak := hybrid && effective_bytes < 15 && st.silk_info.signal_type != 2
+		is_transient = transient_analysis(planar[:], N + OVERLAP, CC, &tf_estimate, &tf_chan, allow_weak, &weak_transient)
 	}
 	if LM > 0 && ec_tell(enc) + 3 <= total_bits {
 		if is_transient do short_blocks = M
@@ -1077,13 +1117,19 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	importance, spread_weight: [NB_EBANDS]int
 	tot_boost: i32
 	max_depth := dynalloc_analysis(band_log_e[:], band_log_e2[:], start, end, C, offsets[:], st.lsb_depth, is_transient, st.vbr, st.constrained_vbr, LM,
-		effective_bytes, &tot_boost, importance[:], spread_weight[:])
+		effective_bytes, &tot_boost, &st.analysis, importance[:], spread_weight[:])
 	tf_res: [NB_EBANDS]i32
 	tf_select := 0
 	if enable_tf_analysis {
 		lambda := max(80, 20480 / effective_bytes + 2)
 		tf_select = tf_analysis(eff_end, is_transient, tf_res[:], lambda, X[:], N, LM, tf_estimate, tf_chan, importance[:])
 		for i in eff_end ..< end do tf_res[i] = tf_res[eff_end - 1]
+	} else if hybrid && weak_transient {
+		for i in 0 ..< end do tf_res[i] = 1
+		tf_select = 0
+	} else if hybrid && effective_bytes < 15 && st.silk_info.signal_type != 2 {
+		for i in 0 ..< end do tf_res[i] = 0
+		tf_select = int(is_transient)
 	} else {
 		for i in 0 ..< end do tf_res[i] = i32(is_transient)
 		tf_select = 0
@@ -1100,7 +1146,11 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 		&st.delayed_intra, st.complexity >= 4, st.loss_rate)
 	tf_encode(start, end, is_transient, tf_res[:], LM, tf_select, enc)
 	if ec_tell(enc) + 4 <= total_bits {
-		if short_blocks != 0 || st.complexity < 3 || nb_available_bytes < 10 * C {
+		if hybrid {
+			if st.complexity == 0 do st.spread_decision = SPREAD_NONE
+			else if is_transient do st.spread_decision = SPREAD_NORMAL
+			else do st.spread_decision = SPREAD_AGGRESSIVE
+		} else if short_blocks != 0 || st.complexity < 3 || nb_available_bytes < 10 * C {
 			st.spread_decision = st.complexity == 0 ? SPREAD_NONE : SPREAD_NORMAL
 		} else {
 			st.spread_decision = spreading_decision(X[:], &st.tonal_average, st.spread_decision, &st.hf_average, &st.tapset_decision,
@@ -1140,19 +1190,36 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	}
 	alloc_trim: i32 = 5
 	if tellf + (6 << BITRES) <= total_bits - total_boost {
-		alloc_trim = alloc_trim_analysis(X[:], band_log_e[:], end, LM, C, N, &st.stereo_saving, tf_estimate, st.intensity, equiv_rate)
+		if start > 0 {
+			st.stereo_saving = 0
+			alloc_trim = 5
+		} else {
+			alloc_trim = alloc_trim_analysis(X[:], band_log_e[:], end, LM, C, N, &st.analysis, &st.stereo_saving, tf_estimate, st.intensity, equiv_rate)
+		}
 		ec_enc_icdf(enc, alloc_trim, trim_icdf[:], 7)
 		tellf = i32(ec_tell_frac(enc))
 	}
 	if vbr_rate > 0 {
 		lm_diff := u32(MAX_LM - LM)
 		nb_compressed_bytes = min(nb_compressed_bytes, 1275 >> uint(3 - LM))
-		base_target := vbr_rate - i32((40 * C + 20) << BITRES)
+		base_target: i32
+		if !hybrid do base_target = vbr_rate - i32((40 * C + 20) << BITRES)
+		else do base_target = max(0, vbr_rate - i32((9 * C + 4) << BITRES))
 		if st.constrained_vbr do base_target += st.vbr_offset >> lm_diff
-		target := compute_vbr(base_target, LM, equiv_rate, st.last_coded_bands, C, st.intensity, st.constrained_vbr, st.stereo_saving, tot_boost, tf_estimate,
-			max_depth, temporal_vbr)
+		target: i32
+		if !hybrid {
+			target = compute_vbr(&st.analysis, base_target, LM, equiv_rate, st.last_coded_bands, C, st.intensity, st.constrained_vbr, st.stereo_saving,
+				tot_boost, tf_estimate, pitch_change, max_depth, temporal_vbr)
+		} else {
+			target = base_target
+			if st.silk_info.offset < 100 do target += 12 << BITRES >> uint(3 - LM)
+			if st.silk_info.offset > 100 do target -= 18 << BITRES >> uint(3 - LM)
+			target += i32((tf_estimate - 0.25) * f32(50 << BITRES))
+			if tf_estimate > 0.7 do target = max(target, 50 << BITRES)
+		}
 		target = target + tellf
 		min_allowed := int((tellf + total_boost + (1 << (BITRES + 3)) - 1) >> (BITRES + 3)) + 2
+		if hybrid do min_allowed = max(min_allowed, int((tell0_frac + (37 << BITRES) + total_boost + (1 << (BITRES + 3)) - 1) >> (BITRES + 3)))
 		nb_available_bytes = int((target + (1 << (BITRES + 2))) >> (BITRES + 3))
 		nb_available_bytes = max(min_allowed, nb_available_bytes)
 		nb_available_bytes = min(nb_compressed_bytes, nb_available_bytes)
@@ -1188,7 +1255,7 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 	anti_collapse_rsv: i32 = is_transient && LM >= 2 && bits >= i32(LM + 2) << BITRES ? 1 << BITRES : 0
 	bits -= anti_collapse_rsv
 	signal_bandwidth := i32(end - 1)
-	{
+	if st.analysis.valid {
 		min_bw: i32
 		switch {
 		case equiv_rate < 32000 * i32(C): min_bw = 13
@@ -1197,7 +1264,7 @@ celt_encode :: proc(st: ^Celt_Encoder, pcm: []f32, frame_size: int, compressed: 
 		case equiv_rate < 80000 * i32(C): min_bw = 19
 		case: min_bw = 20
 		}
-		signal_bandwidth = max(signal_bandwidth, min_bw)
+		signal_bandwidth = max(i32(st.analysis.bandwidth), min_bw)
 	}
 	intensity_ := i32(st.intensity)
 	dual_stereo_ := i32(dual_stereo)

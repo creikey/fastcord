@@ -1,0 +1,7 @@
+# Group DM (run with -fixture:tests/ui/rail.jsonl): header has the member list
+# toggle; the member list shows everyone with the owner's crown.
+wait 5
+click 36 52
+wait 10
+click 170 322
+wait 30

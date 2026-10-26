@@ -1,5 +1,6 @@
 package app
 
+import "core:fmt"
 import "core:slice"
 import "core:strings"
 import dc "fc:discord"
@@ -7,6 +8,9 @@ import "fc:ui"
 
 // Layout constants measured from the official client (tools/probes/layout_geometry.js).
 TITLE_BAR_H :: 33
+HEADER_TOOL_W :: 40 // channel header icon buttons (20px icons on a 40px pitch)
+SEARCH_W :: 244 // header search box (official 1028..1272 at 1280 wide)
+TITLE_SIDE_W :: 140 // back/forward on the left, inbox/help on the right
 RAIL_W :: 72
 SIDEBAR_W :: 303 // includes the 1px left border
 HEADER_H :: 49
@@ -137,7 +141,7 @@ build_ui :: proc() {
 	body.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
 	body.cross_align = .Start
 	if ui.parent(body) {
-		guild_rail()
+		rail_view() // view_rail_folders.odin (folders, badges, DM unreads, drag)
 		sidebar()
 		page()
 	}
@@ -149,15 +153,55 @@ title_bar :: proc() {
 	b := row("titlebar")
 	b.semantic_size = {.X = ui.pct(1), .Y = ui.px(TITLE_BAR_H)}
 	if ui.parent(b) {
+		// equal-width sides keep the title centered on the window
+		left := row("left")
+		left.semantic_size = {.X = ui.px(TITLE_SIDE_W), .Y = ui.pct(1)}
+		if ui.parent(left) {
+			spacer(.X, 88)
+			icon("back", "arrow-large-left", 18, T("--interactive-icon-default"))
+			spacer(.X, 6)
+			icon("fwd", "arrow-large-right", 18, with_alpha(T("--interactive-icon-default"), 0.3))
+		}
 		filler(.X)
 		title := "Friends"
+		glyph := "friends"
+		g: ^dc.Guild
 		if app.view.guild != 0 {
-			if g := dc.guild_get(store(), app.view.guild); g != nil do title = g.name
+			g = dc.guild_get(store(), app.view.guild)
+			if g != nil do title = g.name
 		} else if app.view.channel != 0 {
-			if c := dc.channel_get(store(), app.view.channel); c != nil do title = dm_name(c)
+			title, glyph = "Direct Messages", "clyde"
 		}
-		label(title, .Medium, 14, T("--text-default"))
+		if g != nil {
+			gi := ui.box("gicon", {.Draw_Background, .Draw_Text})
+			gi.semantic_size = {.X = ui.px(16), .Y = ui.px(16)}
+			gi.style.radius = 4
+			gi.style.bg = T("--background-mod-subtle")
+			gi.style.text_color = T("--text-default")
+			gi.style.text_align = .Center
+			gi.style.font = F(.Medium)
+			gi.style.font_size = 6
+			gi.text = guild_initials(g.name)
+			if g.icon != "" {
+				set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 32))
+				gi.text = ""
+			}
+		} else {
+			icon("gicon", glyph, 16, T("--text-default"))
+		}
+		spacer(.X, 8)
+		label(title, .Medium, 14, T("--text-default"), 18)
 		filler(.X)
+		update_button()
+		right := row("right")
+		right.semantic_size = {.X = ui.px(TITLE_SIDE_W), .Y = ui.pct(1)}
+		if ui.parent(right) {
+			filler(.X)
+			icon("inbox", "inbox", 20, T("--icon-muted"))
+			spacer(.X, 16)
+			icon("help", "circle-question", 20, T("--icon-muted"))
+			spacer(.X, 14)
+		}
 	}
 }
 
@@ -344,8 +388,11 @@ page :: proc() {
 		body.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
 		body.cross_align = .Start
 		if ui.parent(body) {
-			chat_view(ch.id)
-			if ch.guild_id != 0 && app.view.show_members do member_list(ch)
+			if ch.kind == .Guild_Forum || ch.kind == .Guild_Media do forum_view(ch)
+			else do chat_view(ch.id)
+			if search_panel_open() do search_panel()
+			else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) do member_list(ch)
+			else if ch.kind == .Group_DM && app.view.show_members do group_dm_members(ch)
 		}
 	}
 }
@@ -358,14 +405,15 @@ chat_header :: proc(ch: ^dc.Channel) {
 		spacer(.X, 16)
 		if ch.kind == .DM || ch.kind == .Group_DM {
 			if ch.kind == .DM && len(ch.recipient_ids) > 0 {
-				avatar_box("av", ch.recipient_ids[0], 24)
+				avatar_box("av", ch.recipient_ids[0], 20)
 				spacer(.X, 8)
 			}
-			label(dm_name(ch), .Semibold, 16, T("--text-strong"), 20)
+			label(dm_name(ch), .Medium, 16, T("--text-strong"), 20)
 		} else {
-			icon("hash", channel_icon_name(ch), 24, T("--channel-icon"))
+			thread_header_prefix(ch)
+			icon("hash", channel_icon_name(ch), 20, T("--channel-icon"))
 			spacer(.X, 8)
-			label(ch.name, .Semibold, 16, T("--text-strong"), 20)
+			label(ch.name, .Medium, 16, T("--text-strong"), 20)
 			if ch.topic != "" {
 				spacer(.X, 12)
 				d := ui.box("div", {.Draw_Background})
@@ -377,23 +425,36 @@ chat_header :: proc(ch: ^dc.Channel) {
 			}
 		}
 		filler(.X)
-		if ch.guild_id != 0 {
-			for name in ([]string{"threads", "bell", "pin", "group"}) {
-				b := ui.box(name, {.Clickable})
-				b.semantic_size = {.X = ui.px(40), .Y = ui.px(24)}
-				b.layout_axis = .X
-				b.cross_align = .Center
-				sig := ui.signal(b)
-				active := name == "group" && app.view.show_members
-				color := sig.hovering || active ? T("--interactive-icon-hover") : T("--interactive-icon-default")
-				if ui.parent(b) {
-					spacer(.X, 8)
-					icon("i", name, 24, color)
-				}
-				if sig.clicked && name == "group" do app.view.show_members = !app.view.show_members
+		tools := []string{"thread", "bell", "pin", "group"}
+		if ch.guild_id == 0 do tools = {"phone-call", "video", "pin", "group-plus", "user-circle"}
+		if ch.kind == .Group_DM do tools = {"phone-call", "video", "pin", "group-plus", "group"} // member list toggle
+		for name in tools {
+			b := ui.box(name, {.Clickable})
+			b.semantic_size = {.X = ui.px(HEADER_TOOL_W), .Y = ui.px(24)}
+			b.layout_axis = .X
+			b.cross_align = .Center
+			sig := ui.signal(b)
+			active := name == "group" && app.view.show_members
+			color := sig.hovering || active ? T("--interactive-icon-hover") : T("--icon-muted")
+			if ui.parent(b) {
+				spacer(.X, (HEADER_TOOL_W - 20) / 2)
+				icon("i", name, 20, color)
 			}
+			if sig.clicked && name == "group" do app.view.show_members = !app.view.show_members
+			if sig.clicked && name == "pin" do pins_toggle(ch.id, b.rect)
+			if sig.clicked && name == "group-plus" && ch.kind == .DM do group_dm_popout_open(b.rect, ch.id)
 		}
-		spacer(.X, 16)
+		spacer(.X, 8)
+		search_hint := ch.name
+		if ch.guild_id != 0 {
+			if g := dc.guild_get(store(), ch.guild_id); g != nil do search_hint = g.name
+		} else if ch.kind == .DM && len(ch.recipient_ids) > 0 {
+			if u := dc.user_get(store(), ch.recipient_ids[0]); u != nil do search_hint = u.username
+		} else {
+			search_hint = dm_name(ch)
+		}
+		search_box(ch, fmt.tprintf("Search %s", search_hint))
+		spacer(.X, 8)
 	}
 	line := ui.box("hline", {.Draw_Background})
 	line.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
@@ -432,7 +493,7 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	if ui.parent(hdr) {
 		spacer(.X, 16)
 		label(ellipsize(g.name, .Semibold, 16, GUILD_NAME_MAX_W), .Semibold, 16, T("--text-strong"), 20)
-		spacer(.X, 1)
+		spacer(.X, 5)
 		icon("chev", "chevron-small-down", 18, T("--interactive-icon-hover"))
 		filler(.X)
 		icon("invite", "group-plus", 20, T("--interactive-icon-hover"))
@@ -449,7 +510,7 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	if ui.parent(list) {
 		spacer(.Y, 12)
 		guild_action_row("events", "calendar", "Events")
-		guild_action_row("boosts", "boost-tier1-simple", "Server Boosts")
+		guild_action_row("boosts", "boost-tier1", "Server Boosts")
 		spacer(.Y, 11)
 		sep := row("sep")
 		sep.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
@@ -469,7 +530,9 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 					continue
 				}
 				if ch.parent_id != 0 && app.view.collapsed[ch.parent_id] && cid != app.view.channel do continue
+				if dc.is_thread(ch) do continue // drawn under their parent
 				channel_row(ch, gid)
+				sidebar_thread_rows(ch, gid)
 			}
 		}
 		spacer(.Y, USER_PANEL_H + voice_panel_height() + 16)
@@ -626,8 +689,10 @@ user_panel :: proc() {
 				}
 			}
 			for name in ([]string{"microphone", "headphones", "settings"}) {
+				// mic / headphones carry a device-menu chevron (official: 54px wide, 3px apart)
+				has_chev := name != "settings"
 				b := ui.box(name, {.Clickable, .Draw_Background, .Hot_Animation})
-				b.semantic_size = {.X = ui.px(32), .Y = ui.px(32)}
+				b.semantic_size = {.X = ui.px(has_chev ? 54 : 32), .Y = ui.px(32)}
 				b.style.radius = 8
 				b.style.bg_hot = T("--background-mod-subtle")
 				b.layout_axis = .X
@@ -638,8 +703,14 @@ user_panel :: proc() {
 				if muted do ic = strings.concatenate({name, "-slash"}, context.temp_allocator)
 				if ui.parent(b) {
 					spacer(.X, 6)
-					icon("i", ic, 20, muted ? T("--status-danger") : (sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default")))
+					color := muted ? T("--status-danger") : (sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+					icon("i", ic, 20, color)
+					if has_chev {
+						spacer(.X, 7)
+						icon("chev", "chevron-small-down", 16, sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+					}
 				}
+				if has_chev do spacer(.X, 3)
 				if sig.clicked {
 					switch name {
 					case "microphone":
@@ -651,7 +722,7 @@ user_panel :: proc() {
 					}
 				}
 			}
-			spacer(.X, 8)
+			spacer(.X, 13)
 		}
 	}
 }
@@ -724,6 +795,8 @@ join_voice :: proc(gid, cid: dc.Snowflake) {
 
 overlays :: proc() {
 	picker_overlay()
+	group_dm_overlay()
+	profile_full_overlay()
 	for &e in app.ui.events {
 		if !e.consumed && e.kind == .Key_Down && e.key == .K && .Cmd in e.mods {
 			switcher_toggle()
@@ -737,4 +810,6 @@ overlays :: proc() {
 	if viewer_url != "" do image_viewer()
 	if app.settings_open do settings_modal()
 	voice_user_menu()
+	pins_popout()
+	search_suggestions()
 }

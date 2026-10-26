@@ -58,7 +58,7 @@ home_sidebar :: proc() {
 			spacer(.X, 17)
 			label("Direct Messages", .Medium, 14, T("--channels-default"), 18)
 			filler(.X)
-			icon("plus", "plus-small", 18, T("--interactive-icon-default"))
+			dm_create_button() // view_group_dm.odin: "Select Friends" popout
 			spacer(.X, 16)
 		}
 		for cid in dc.private_channels_sorted(s) {
@@ -164,9 +164,9 @@ friends_page :: proc() {
 	h.semantic_size = {.X = ui.pct(1), .Y = ui.px(HEADER_H - 1)}
 	h.style.bg = T("--background-base-lower")
 	if ui.parent(h) {
-		spacer(.X, 16)
-		icon("ficon", "friends", 24, T("--channel-icon"))
-		spacer(.X, 8)
+		spacer(.X, 22)
+		icon("ficon", "friends", 20, T("--channel-icon"))
+		spacer(.X, 6)
 		label("Friends", .Semibold, 16, T("--text-strong"), 20)
 		spacer(.X, 12)
 		dot := ui.box("dot", {.Draw_Background})
@@ -196,20 +196,28 @@ friends_page :: proc() {
 				tb.style.bg_hot = tb.style.bg
 			}
 			if ui.signal(tb).clicked do app.view.friends_tab = t.tab
-			spacer(.X, 8)
+			spacer(.X, 16)
 		}
 		filler(.X)
+		icon("newgroup", "chat-plus", 20, T("--icon-muted")) // New Group DM
+		spacer(.X, 22)
 	}
 	line := ui.box("hline", {.Draw_Background})
 	line.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
 	line.style.bg = T("--border-subtle")
 
+	body := row("fbody")
+	body.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
+	body.cross_align = .Start
+	ui.push_parent(body)
+	defer ui.pop_parent()
+	defer active_now_column()
 	if app.view.friends_tab == .Add_Friend {
 		add_friend_view()
 		return
 	}
 	list := ui.box("friends", {.Scroll_Y, .Clip})
-	list.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
+	list.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 	list.layout_axis = .Y
 	ui.signal(list)
 	ids := make([dynamic]dc.Snowflake, context.temp_allocator)
@@ -231,10 +239,30 @@ friends_page :: proc() {
 		return strings.to_lower(dc.display_name(ua), context.temp_allocator) < strings.to_lower(dc.display_name(ub), context.temp_allocator)
 	})
 	if ui.parent(list) {
+		spacer(.Y, 12)
+		sr := row("searchrow")
+		sr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+		if ui.parent(sr) {
+			spacer(.X, FRIENDS_PAD_L)
+			search := row("search", {.Draw_Background, .Draw_Border})
+			search.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
+			search.style.bg = T("--input-background-default")
+			search.style.border_color = T("--input-border-default")
+			search.style.border = 1
+			search.style.radius = 8
+			if ui.parent(search) {
+				spacer(.X, 11)
+				icon("mag", "magnifying-glass", 16, T("--icon-strong"))
+				spacer(.X, 12)
+				label("Search", .Normal, 16, T("--input-placeholder-text-default"), 20)
+			}
+			spacer(.X, FRIENDS_PAD_R)
+		}
+		spacer(.Y, 24)
 		hdr := row("count")
-		hdr.semantic_size = {.X = ui.pct(1), .Y = ui.px(52)}
+		hdr.semantic_size = {.X = ui.pct(1), .Y = ui.px(18)}
 		if ui.parent(hdr) {
-			spacer(.X, 30)
+			spacer(.X, FRIENDS_PAD_L)
 			title := "Online"
 			switch app.view.friends_tab {
 			case .All:
@@ -243,8 +271,9 @@ friends_page :: proc() {
 				title = "Pending"
 			case .Online, .Add_Friend:
 			}
-			label(fmt.tprintf("%s — %d", title, len(ids)), .Medium, 14, T("--text-muted"), 18)
+			label(fmt.tprintf("%s — %d", title, len(ids)), .Medium, 14, T("--text-default"), 18)
 		}
+		spacer(.Y, 16)
 		for uid in ids {
 			if ui.id_scope(u64(uid)) do friend_row(uid, s.relationships[uid].kind)
 		}
@@ -270,14 +299,29 @@ pending_count :: proc() -> int {
 	return n
 }
 
+// Friends list geometry (official: search 399..904 at y=95, rows 389..894, 61px + 1px divider).
+FRIENDS_PAD_L :: 24
+FRIENDS_PAD_R :: 16
+FRIEND_ROW_H :: 61
+ACTIVE_NOW_W :: 360 // including its 1px left border
+
 friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 	s := store()
+	div := row("div")
+	div.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
+	if ui.parent(div) {
+		spacer(.X, 30)
+		l := ui.box("l", {.Draw_Background})
+		l.semantic_size = {.X = ui.fill(), .Y = ui.px(1)}
+		l.style.bg = T("--border-subtle")
+		spacer(.X, 36)
+	}
 	outer := row("f")
-	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(62)}
+	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(FRIEND_ROW_H)}
 	if ui.parent(outer) {
-		spacer(.X, 20)
+		spacer(.X, 14)
 		item := row("item", {.Clickable, .Draw_Background, .Hot_Animation})
-		item.semantic_size = {.X = ui.fill(), .Y = ui.px(62)}
+		item.semantic_size = {.X = ui.fill(), .Y = ui.px(FRIEND_ROW_H)}
 		item.style.radius = 8
 		item.style.bg_hot = T("--background-mod-subtle")
 		sig := ui.signal(item)
@@ -324,7 +368,59 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 			}
 			spacer(.X, 10)
 		}
-		spacer(.X, 20)
+		spacer(.X, 26)
+	}
+}
+
+// Right column on the friends page: "Active Now" with the empty-state card.
+active_now_column :: proc() {
+	edge := ui.box("activenow_edge", {.Draw_Background})
+	edge.semantic_size = {.X = ui.px(1), .Y = ui.pct(1)}
+	edge.style.bg = T("--border-subtle")
+	col := ui.box("activenow")
+	col.semantic_size = {.X = ui.px(ACTIVE_NOW_W - 1), .Y = ui.pct(1)}
+	col.layout_axis = .Y
+	if ui.parent(col) {
+		spacer(.Y, 14)
+		h := row("h")
+		h.semantic_size = {.X = ui.pct(1), .Y = ui.px(24)}
+		if ui.parent(h) {
+			spacer(.X, 16)
+			label("Active Now", .Semibold, 20, T("--text-strong"), 24)
+		}
+		spacer(.Y, 9)
+		cr := row("cardrow")
+		cr.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
+		cr.cross_align = .Start
+		if ui.parent(cr) {
+			spacer(.X, 16)
+			card := ui.box("card", {.Draw_Background})
+			card.semantic_size = {.X = ui.fill(), .Y = ui.children()}
+			card.layout_axis = .Y
+			card.style.bg = T("--background-base-low")
+			card.style.radius = 8
+			if ui.parent(card) {
+				spacer(.Y, 16)
+				t := ui.box("It's quiet for now...##t", {.Draw_Text})
+				t.semantic_size = {.X = ui.pct(1), .Y = ui.text_size()}
+				t.style.font = F(.Semibold)
+				t.style.font_size = 16
+				t.style.line_height = 20
+				t.style.text_color = T("--text-strong")
+				t.style.text_align = .Center
+				spacer(.Y, 2)
+				b := ui.box("When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!##b", {.Draw_Text, .Wrap_Text})
+				b.semantic_size = {.X = ui.pct(1), .Y = ui.text_size()}
+				b.style.font = F(.Normal)
+				b.style.font_size = 14
+				b.style.line_height = 18
+				b.style.padding = {16, 0}
+				b.style.text_color = T("--text-muted")
+				b.style.text_align = .Center
+				spacer(.Y, 16)
+			}
+			spacer(.X, 16)
+		}
 	}
 }
 
@@ -332,8 +428,7 @@ round_icon_button :: proc(id, icon_name: string, hover_color: ui.Color) -> ui.Si
 	b := ui.box(id, {.Clickable, .Draw_Background, .Hot_Animation})
 	b.semantic_size = {.X = ui.px(36), .Y = ui.px(36)}
 	b.style.radius = 18
-	b.style.bg = T("--background-base-lowest")
-	b.style.bg_hot = T("--background-base-lowest")
+	b.style.bg_hot = T("--background-mod-subtle")
 	b.layout_axis = .X
 	b.cross_align = .Center
 	sig := ui.signal(b)
@@ -346,7 +441,7 @@ round_icon_button :: proc(id, icon_name: string, hover_color: ui.Color) -> ui.Si
 
 add_friend_view :: proc() {
 	col := ui.box("addfriend")
-	col.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
+	col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 	col.layout_axis = .Y
 	if ui.parent(col) {
 		spacer(.Y, 20)
@@ -458,6 +553,7 @@ member_row :: proc(gid, uid: dc.Snowflake) {
 		item.style.bg_hot = T("--background-mod-subtle")
 		sig := ui.signal(item)
 		if sig.clicked do open_profile(uid, item.rect)
+		if sig.right_clicked do open_user_menu(uid, app.ui.mouse)
 		offline := user_status(uid) == .Offline
 		if ui.parent(item) {
 			spacer(.X, 8)

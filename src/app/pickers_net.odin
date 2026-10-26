@@ -44,6 +44,8 @@ pickers_poll :: proc() {
 			sticker_packs_receive(&r)
 		case .Media:
 			lottie_receive(&r)
+		case .Profile_Modal, .Mutual_Friends, .App_Identities:
+			profile_full_receive(&r)
 		case .Gif_Select, .Top_Emojis:
 			if pickers_debug() do fmt.eprintfln("[pickers] %v status=%d body=%v", r.op, r.status, r.body)
 		}

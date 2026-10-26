@@ -1,0 +1,55 @@
+# Builds release binaries when a GitHub release is published and attaches them
+# to it. The download page links to releases/latest/download/<asset>.
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build and upload to (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  ODIN_VERSION: dev-2026-10
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Install Odin ${{ env.ODIN_VERSION }}
+        run: |
+          set -e
+          curl -fsSL -o odin.tar.gz "https://github.com/odin-lang/Odin/releases/download/$ODIN_VERSION/odin-macos-arm64-$ODIN_VERSION.tar.gz"
+          mkdir -p "$RUNNER_TEMP/odin" && tar -xzf odin.tar.gz -C "$RUNNER_TEMP/odin"
+          ODIN_DIR="$(dirname "$(find "$RUNNER_TEMP/odin" -type f -name odin -perm -u+x | head -1)")"
+          echo "$ODIN_DIR" >> "$GITHUB_PATH"
+          if ! "$ODIN_DIR/odin" version; then
+            # The release binary links against Homebrew's LLVM.
+            brew install llvm@20 || brew install llvm
+            "$ODIN_DIR/odin" version
+          fi
+
+      - name: Test
+        env:
+          FASTCORD_CI: "1"
+        run: tests/run_all.sh
+
+      - name: Package
+        run: scripts/package_macos.sh "${{ github.event.release.tag_name || inputs.tag }}"
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name || inputs.tag }}" dist/fastcord-macos.zip --clobber
+
+  # Windows and Linux backends are not finished yet. When they are, add jobs here
+  # that upload fastcord-windows.zip (single fastcord.exe) and fastcord-linux.tar.gz.

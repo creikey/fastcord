@@ -12,25 +12,33 @@ import "fc:ui"
 // grid, inspector bar, skin tones, keyboard navigation, search, frecency.
 
 // ---- geometry ----
+// --custom-emoji-picker-constants-*: list padding 0 0 8 8 (search results +8 top),
+// section margin-bottom 12, item 40 + 4 padding, category icons 24 + 4 padding
+// (margin 2), guild/recent icons 32 (margin 8), separators 1px with 12 margin,
+// diversity emoji 24 + 7 padding; section heading 32, inspector 48 (graphic 28).
 EM_NAV_W :: 48
-EM_NAV_SLOT :: 36 // height per nav entry
-EM_NAV_GUILD :: 32 // guild icon size in the nav
+EM_NAV_PAD_TOP :: 8
+EM_NAV_ITEM :: 32
 EM_NAV_ICON :: 24
-EM_NAV_SEP_H :: 9
+EM_NAV_MARGIN_UNICODE :: 2
+EM_NAV_MARGIN_GUILD :: 8
+EM_NAV_SEP_MARGIN :: 12
 EM_GRID_PAD_L :: 8
-EM_GRID_PAD_TOP :: 0
 EM_GRID_PAD_BOTTOM :: 8
+EM_SEARCH_PAD_TOP :: 8
+EM_SECTION_GAP :: 12
 EM_CELL :: 48
-EM_SIZE :: 40 // emoji draw size (sprite sheet 40)
-EM_CELL_RADIUS :: 8
+EM_SIZE :: 40 // EmojiSize.MEDIUM
+EM_CELL_RADIUS :: 4
 EM_HEADER_H :: 32
-EM_HEADER_FONT :: 12
+EM_HEADER_FONT :: 14 // text-sm/semibold
 EM_HEADER_ICON :: 16
 EM_INSPECTOR_H :: 48
 EM_INSPECTOR_EMOJI :: 28
 EM_FREQUENT_MAX :: 27 // three rows
-EM_TONE_BUTTON :: 32
-EM_TONE_ITEM :: 32
+EM_TONE_GLYPH :: 24
+EM_TONE_BUTTON :: 38 // 24 + 7 * 2
+EM_TONE_ITEM :: 38
 EM_SPRITE_PX :: 40 // which spritesheet set (40 or 48)
 
 // Spritesheets from the client bundle (spritesheet-emoji-{40,48}, spritesheet-{tone}-{40,48}).
@@ -208,8 +216,9 @@ build_sections :: proc(ignore_query := false) -> []Em_Section {
 				seen[k] = true
 			}
 		}
+		// defaults only seed an empty history (the reference shows just the 3 real entries)
 		for k in (reaction ? emoji_db.default_reaction : emoji_db.default_frecency) {
-			if len(items) >= EM_FREQUENT_MAX do break
+			if len(items) >= EM_FREQUENT_MAX || frec_had(reaction) do break
 			if it, ok := key_item(k, by_id, here, nitro); ok && !seen[k] {
 				append(&items, it)
 				seen[k] = true
@@ -307,13 +316,16 @@ cols_for :: proc(w: f32) -> int {return max(1, int((w - EM_GRID_PAD_L) / EM_CELL
 // Lay sections out in content space; returns total height.
 @(private = "file")
 layout_sections :: proc(secs: []Em_Section, cols: int) -> f32 {
-	y: f32 = EM_GRID_PAD_TOP
-	for &sc in secs {
+	y: f32 = 0
+	for &sc, i in secs {
+		if sc.kind == .Search do y += EM_SEARCH_PAD_TOP
 		sc.y = y
 		if sc.kind != .Search do y += EM_HEADER_H
 		sc.rows = (len(sc.items) + cols - 1) / cols
-		if ev.collapsed[sc.key] && sc.kind != .Search do sc.rows = 0
+		collapsed := ev.collapsed[sc.key] && sc.kind != .Search
+		if collapsed do sc.rows = 0
 		y += f32(sc.rows) * EM_CELL
+		if !collapsed && i + 1 < len(secs) do y += EM_SECTION_GAP
 	}
 	return y + EM_GRID_PAD_BOTTOM
 }
@@ -357,46 +369,42 @@ emoji_picker_body :: proc(r: ui.Rect) {
 
 @(private = "file")
 category_nav :: proc(secs: []Em_Section, h: f32, searching: bool) {
-	nav := ui.box("emoji_nav", {.Draw_Background, .Clip, .Scroll_Y})
+	nav := ui.box("emoji_nav", {.Clip, .Scroll_Y})
 	nav.semantic_size = {.X = ui.px(EM_NAV_W), .Y = ui.px(h)}
-	nav.style.bg = T("--background-base-lower")
 	nav.layout_axis = .Y
+	nav.cross_align = .Center
 	ui.signal(nav)
-	// border between nav and grid
 	if ui.parent(nav) {
-		line := ui.box("navline", {.Draw_Background, .Floating_X, .Floating_Y})
-		line.semantic_size = {.X = ui.px(1), .Y = ui.px(max(h, nav.content_size.y))}
-		line.fixed_pos = {EM_NAV_W - 1, 0}
-		line.style.bg = T("--border-subtle")
-		spacer(.Y, 4)
+		spacer(.Y, EM_NAV_PAD_TOP)
 		cur := searching ? -1 : current_section(secs)
-		prev_kind := Em_Section_Kind.Favorites
+		had_custom := false
+		first_unicode := true
 		for &sc, i in secs {
 			if sc.kind == .Search do continue
-			if i > 0 && sc.kind == .Unicode && prev_kind != .Unicode {
-				sep := ui.box(fmt.tprintf("sep%d", i))
-				sep.semantic_size = {.X = ui.pct(1), .Y = ui.px(EM_NAV_SEP_H)}
-				if ui.parent(sep) {
-					l := ui.box("l", {.Draw_Background, .Floating_X, .Floating_Y})
-					l.semantic_size = {.X = ui.px(24), .Y = ui.px(1)}
-					l.fixed_pos = {(EM_NAV_W - 24) / 2, 4}
-					l.style.bg = T("--border-subtle")
+			if sc.kind == .Unicode && first_unicode {
+				first_unicode = false
+				if had_custom {
+					// .guildCategorySeparator: 1px --border-subtle, 12px margins
+					sep := ui.box(fmt.tprintf("sep%d", i), {.Draw_Background})
+					sep.semantic_size = {.X = ui.px(EM_NAV_ITEM), .Y = ui.px(1)}
+					sep.style.bg = T("--border-subtle")
+					spacer(.Y, EM_NAV_SEP_MARGIN)
+					// (the margin above comes from the previous item's 8 + 4)
 				}
 			}
-			prev_kind = sc.kind
+			if sc.kind == .Guild do had_custom = true
+			active := cur == i
 			if ui.id_scope(sc.key) {
-				slot := ui.box("slot", {.Clickable})
-				slot.semantic_size = {.X = ui.pct(1), .Y = ui.px(EM_NAV_SLOT)}
+				slot := ui.box("slot", {.Clickable, .Draw_Background, .Hot_Animation})
+				slot.semantic_size = {.X = ui.px(EM_NAV_ITEM), .Y = ui.px(EM_NAV_ITEM)}
 				slot.layout_axis = .X
 				slot.cross_align = .Center
 				sig := ui.signal(slot)
-				active := cur == i
 				if ui.parent(slot) {
 					if sc.kind == .Guild {
-						spacer(.X, (EM_NAV_W - EM_NAV_GUILD) / 2)
-						gi := ui.box("gicon", {.Draw_Background, .Draw_Text})
-						gi.semantic_size = {.X = ui.px(EM_NAV_GUILD), .Y = ui.px(EM_NAV_GUILD)}
-						gi.style.radius = active || sig.hovering ? 10 : EM_NAV_GUILD / 2
+						gi := ui.box("##gicon", {.Draw_Background, .Draw_Text})
+						gi.semantic_size = {.X = ui.px(EM_NAV_ITEM), .Y = ui.px(EM_NAV_ITEM)}
+						gi.style.radius = active || sig.hovering ? 10 : EM_NAV_ITEM / 2
 						gi.style.bg = T("--background-mod-subtle")
 						gi.style.text_align = .Center
 						gi.style.font = F(.Medium)
@@ -409,9 +417,21 @@ category_nav :: proc(secs: []Em_Section, h: f32, searching: bool) {
 								gi.text = guild_initials(g.name)
 							}
 						}
+						if active {
+							// .categoryPill on the nav's left edge
+							pill := ui.box("pill", {.Draw_Background, .Floating_X, .Floating_Y})
+							pill.semantic_size = {.X = ui.px(4), .Y = ui.px(20)}
+							pill.fixed_pos = {-8, 6}
+							pill.style.bg = T("--text-strong")
+							pill.style.radius = {0, 4, 0, 4}
+						}
 					} else {
-						spacer(.X, (EM_NAV_W - EM_NAV_ICON) / 2)
-						c := active ? T("--interactive-icon-active") : (sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+						// .categoryItemDefaultCategory: 24 icon, 4 padding, radius 4
+						slot.style.radius = 4
+						slot.style.bg = active ? T("--background-base-low") : {}
+						slot.style.bg_hot = active ? slot.style.bg : T("--interactive-background-hover")
+						spacer(.X, (EM_NAV_ITEM - EM_NAV_ICON) / 2)
+						c := active ? T("--interactive-text-active") : (sig.hovering ? T("--interactive-text-hover") : T("--interactive-text-default"))
 						icon("ic", sc.icon, EM_NAV_ICON, c)
 					}
 				}
@@ -421,6 +441,7 @@ category_nav :: proc(secs: []Em_Section, h: f32, searching: bool) {
 					ev.scroll.target = sc.y
 				}
 			}
+			spacer(.Y, sc.kind == .Unicode ? EM_NAV_MARGIN_UNICODE : EM_NAV_MARGIN_GUILD)
 		}
 		spacer(.Y, 8)
 	}
@@ -434,6 +455,8 @@ current_section :: proc(secs: []Em_Section) -> int {
 	return cur
 }
 
+// ExpressionPickerListSectionHeading: 32 high, padding 8/4, icon, text-sm/semibold
+// label, collapse chevron; --text-default, --interactive-text-active on hover.
 @(private = "file")
 section_header :: proc(sc: ^Em_Section, id: string, y: f32, w: f32) {
 	h := row(id, {.Floating_X, .Floating_Y, .Clickable, .Draw_Background})
@@ -442,9 +465,9 @@ section_header :: proc(sc: ^Em_Section, id: string, y: f32, w: f32) {
 	h.style.bg = T("--background-surface-high")
 	sig := ui.signal(h)
 	collapsed := ev.collapsed[sc.key]
-	c := sig.hovering ? T("--interactive-text-hover") : T("--text-muted")
+	c := sig.hovering ? T("--interactive-text-active") : T("--text-default")
 	if ui.parent(h) {
-		spacer(.X, EM_GRID_PAD_L)
+		spacer(.X, 8)
 		if sc.kind == .Guild {
 			gi := ui.box("gi", {.Draw_Background})
 			gi.semantic_size = {.X = ui.px(EM_HEADER_ICON), .Y = ui.px(EM_HEADER_ICON)}
@@ -454,8 +477,8 @@ section_header :: proc(sc: ^Em_Section, id: string, y: f32, w: f32) {
 		} else {
 			icon("hi", sc.icon, EM_HEADER_ICON, c)
 		}
-		spacer(.X, 8)
-		t := label(strings.to_upper(sc.title, context.temp_allocator), .Semibold, EM_HEADER_FONT, c, 16)
+		spacer(.X, 4)
+		t := label(sc.title, .Semibold, EM_HEADER_FONT, c, 18)
 		t.flags += {.Clip}
 		spacer(.X, 4)
 		icon("chev", collapsed ? "chevron-small-right" : "chevron-small-down", 16, c)
@@ -496,7 +519,7 @@ emoji_grid :: proc(secs: []Em_Section, cols: int, view: ui.Rect) {
 							sig := ui.signal(cell)
 							if sig.hovering && (moved || !ev.keyboard) do ev.inspected = {si, i}
 							inspected := ev.inspected.sec == si && ev.inspected.idx == i
-							if inspected do cell.style.bg = T("--background-mod-normal")
+							if inspected do cell.style.bg = T("--interactive-background-selected")
 							if ui.parent(cell) {
 								e := pk_emoji_box("e", it, EM_SIZE, inspected && sig.hovering)
 								e.flags += {.Floating_X, .Floating_Y}
@@ -601,10 +624,15 @@ emoji_keyboard :: proc(secs: []Em_Section, cols: int) {
 	}
 }
 
+// .inspector: --background-base-lower, 1px --border-normal top, padding 0 16,
+// graphic 28, text 8 after; secondary title --interactive-text-default.
 @(private = "file")
 emoji_inspector :: proc(secs: []Em_Section) {
+	line := ui.box("insline", {.Draw_Background})
+	line.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
+	line.style.bg = T("--border-normal")
 	bar := row("inspector", {.Draw_Background})
-	bar.semantic_size = {.X = ui.pct(1), .Y = ui.px(EM_INSPECTOR_H)}
+	bar.semantic_size = {.X = ui.pct(1), .Y = ui.px(EM_INSPECTOR_H - 1)}
 	bar.style.bg = T("--background-base-lower")
 	it: Pk_Emoji
 	has := false
@@ -629,18 +657,34 @@ emoji_inspector :: proc(secs: []Em_Section) {
 				if it.uni < 0 {
 					gname := ""
 					if g := dc.guild_get(store(), it.guild); g != nil do gname = g.name
-					label(fmt.tprintf("from %s", gname), .Normal, 12, T("--text-muted"), 16)
+					label(fmt.tprintf("from %s", gname), .Normal, 12, T("--interactive-text-default"), 16)
 				}
+			}
+			if it.uni < 0 {
+				if g := dc.guild_get(store(), it.guild); g != nil {
+					gi := ui.box("gs", {.Draw_Background})
+					gi.semantic_size = {.X = ui.px(32), .Y = ui.px(32)}
+					gi.style.radius = 10
+					gi.style.bg = T("--background-mod-subtle")
+					if g.icon != "" do set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 64))
+				}
+				spacer(.X, 16)
 			}
 		}
 	}
 }
 
 @(private = "file")
+frec_had :: proc(reaction: bool) -> bool {
+	return len(reaction ? frecency.reaction : frecency.emoji) > 0
+}
+
+// Inspector title: every alias, ":thumbsup: :+1: :thumbup: :thumbs_up:" like the client.
+@(private = "file")
 emoji_display_name :: proc(it: Pk_Emoji) -> string {
 	if it.uni >= 0 {
 		t := emoji_toned(int(it.uni), frecency.skin_tone)
-		return emoji_db.emojis[t].names[0]
+		return strings.join(emoji_db.emojis[t].names, ": :", context.temp_allocator)
 	}
 	return it.name
 }
@@ -735,14 +779,14 @@ emoji_select :: proc(it: Pk_Emoji, keep_open: bool) {
 skin_tone_button :: proc() {
 	b := ui.box("tone", {.Clickable, .Draw_Background, .Hot_Animation})
 	b.semantic_size = {.X = ui.px(EM_TONE_BUTTON), .Y = ui.px(EM_TONE_BUTTON)}
-	b.style.radius = 8
-	b.style.bg_hot = T("--background-mod-subtle")
+	b.style.radius = 4
+	b.style.bg_hot = T("--interactive-background-hover")
 	b.layout_axis = .X
 	b.cross_align = .Center
 	sig := ui.signal(b)
 	if ui.parent(b) {
-		spacer(.X, 4)
-		tone_glyph("g", frecency.skin_tone, 24)
+		spacer(.X, (EM_TONE_BUTTON - EM_TONE_GLYPH) / 2)
+		tone_glyph("g", frecency.skin_tone, EM_TONE_GLYPH)
 	}
 	if sig.clicked do ev.tone_open = !ev.tone_open
 }
@@ -762,15 +806,19 @@ tone_glyph :: proc(id: string, tone: int, size: f32) {
 @(private = "file")
 skin_tone_menu :: proc() {
 	r := pk.rect
-	x := r.x1 - PK_HEADER_PAD_X - EM_TONE_BUTTON
-	y := r.y0 + picker_header_h() - PK_HEADER_PAD_BOTTOM - PK_SEARCH_H
+	// .diversitySelectorOptions: over the button (top -1, right -1), growing down
+	x := r.x1 - PK_HEADER_PAD_X - EM_TONE_BUTTON - 1
+	y := r.y0 + picker_header_h() - 1 - PK_HEADER_PAD_BOTTOM - PK_SEARCH_H + (PK_SEARCH_H - EM_TONE_BUTTON) / 2 - 1
 	m := ui.box("tonemenu", {.Floating_X, .Floating_Y, .Draw_Background, .Draw_Border, .Draw_Shadow, .Clickable})
-	m.semantic_size = {.X = ui.px(EM_TONE_BUTTON), .Y = ui.px(EM_TONE_ITEM * 6)}
+	m.semantic_size = {.X = ui.px(EM_TONE_BUTTON + 2), .Y = ui.px(EM_TONE_ITEM * 6 + 2)}
 	m.fixed_pos = {x - r.x0, y - r.y0 - picker_header_h()}
 	m.style.bg = T("--background-surface-higher")
 	m.style.border_color = T("--border-subtle")
 	m.style.border = 1
-	m.style.radius = 8
+	m.style.radius = 4
+	for e in app.ui.events {
+		if e.kind == .Mouse_Down && !pk_contains(m.rect, e.pos) && m.rect.x1 > m.rect.x0 do ev.tone_open = false
+	}
 	m.style.shadow_color = {0, 0, 0, 0.24}
 	m.style.shadow_blur = 8
 	m.layout_axis = .Y
@@ -781,18 +829,18 @@ skin_tone_menu :: proc() {
 		// current first, then the rest in order
 		n := 1
 		for t in 0 ..< 6 do if t != saved {order[n] = t; n += 1}
+		spacer(.Y, 1)
 		for t in order {
 			it := ui.box(fmt.tprintf("t%d", t), {.Clickable, .Draw_Background, .Hot_Animation})
 			it.semantic_size = {.X = ui.pct(1), .Y = ui.px(EM_TONE_ITEM)}
-			it.style.radius = 6
-			it.style.bg_hot = T("--background-mod-normal")
+			it.style.bg_hot = T("--interactive-background-hover")
 			it.layout_axis = .X
 			it.cross_align = .Center
 			sig := ui.signal(it)
 			frecency.skin_tone = t
 			if ui.parent(it) {
-				spacer(.X, 4)
-				tone_glyph("g", t, 24)
+				spacer(.X, 1 + (EM_TONE_BUTTON - EM_TONE_GLYPH) / 2)
+				tone_glyph("g", t, EM_TONE_GLYPH)
 			}
 			frecency.skin_tone = saved
 			if sig.clicked {

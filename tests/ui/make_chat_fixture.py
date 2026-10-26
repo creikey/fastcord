@@ -65,8 +65,35 @@ def build(msgs):
                             {'emoji': {'id': None, 'name': '🔥'}, 'count': 1, 'me': False, 'burst_count': 0, 'me_burst': False}]
       out.append({'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': 'MESSAGE_CREATE', 's': 100 + i, 'd': d}})
   return out
-for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs)):
+def ev(t, d, seq=500):
+  return {'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': t, 's': seq, 'd': d}}
+# chat_threads.jsonl: a thread started from a message (sidebar row + summary
+# pill), messages inside it, and a forum channel with tagged posts.
+FORUM = 1546820603343016100
+def threads_extra(base_msgs):
+  out = []
+  starter = sf(base_ms + 1260 * 1000, 7)  # the long message starts a thread
+  meta = lambda: {'archived': False, 'locked': False, 'auto_archive_duration': 1440, 'archive_timestamp': '2026-10-25T00:00:00+00:00', 'create_timestamp': '2026-10-25T00:20:00+00:00'}
+  out.append(ev('THREAD_CREATE', {'id': starter, 'guild_id': GUILD, 'parent_id': CH, 'type': 11, 'name': 'wrapping discussion', 'owner_id': wumpus['id'],
+      'message_count': 0, 'member_count': 2, 'thread_metadata': meta(), 'member': {'id': starter, 'user_id': me, 'flags': 1, 'join_timestamp': '2026-10-25T00:21:00+00:00'}, 'last_message_id': None}))
+  for k, (u, txt) in enumerate([(wumpus, 'does the wrap look right to you?'), (meu, 'yes, matches the client'), (wumpus, 'great 🎉')]):
+    out.append(ev('MESSAGE_CREATE', {'id': sf(base_ms + 1270 * 1000 + k * 10000, 40 + k), 'channel_id': starter, 'guild_id': GUILD, 'author': u, 'content': txt, 'timestamp': '', 'edited_timestamp': None,
+      'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
+  out.append(ev('CHANNEL_CREATE', {'id': FORUM, 'guild_id': GUILD, 'type': 15, 'name': 'feedback', 'position': 1, 'parent_id': None, 'topic': 'Ideas and bug reports',
+      'available_tags': [{'id': 1, 'name': 'Bug', 'emoji_name': '🐛', 'emoji_id': None, 'moderated': False}, {'id': 2, 'name': 'Idea', 'emoji_name': '💡', 'emoji_id': None, 'moderated': False}]}))
+  posts = [('Scrolling stutters on long channels', [1], wumpus, 'When I scroll fast through a big channel the frame rate drops.', 7, 1100),
+           ('Add a compact mode', [2], meu, 'Would love the compact message layout from the official client.', 2, 1200),
+           ('Emoji picker search', [2, 1], wumpus, 'Searching :thumbs in the picker should show skin tones.', 0, 1300)]
+  for k, (title, tags, u, body, count, dt) in enumerate(posts):
+    tid = sf(base_ms + dt * 1000, 60 + k)
+    out.append(ev('THREAD_CREATE', {'id': tid, 'guild_id': GUILD, 'parent_id': FORUM, 'type': 11, 'name': title, 'owner_id': u['id'], 'applied_tags': tags,
+        'message_count': count, 'member_count': 1, 'thread_metadata': meta(), 'last_message_id': None}))
+    out.append(ev('MESSAGE_CREATE', {'id': tid, 'channel_id': tid, 'guild_id': GUILD, 'author': u, 'content': body, 'timestamp': '', 'edited_timestamp': None,
+      'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
+  return out
+for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs)):
   out = build(ms)
+  if name == 'chat_threads.jsonl': out += threads_extra(ms)
   with open(os.path.join(here, name), 'w') as f:
     for o in out: f.write(json.dumps(o, ensure_ascii=False) + '\n')
   print('wrote', name, len(out), 'lines')

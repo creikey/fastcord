@@ -48,7 +48,7 @@ add_method :: proc "contextless" (c: Id, name: cstring, imp: rawptr, types: cstr
 when ODIN_ARCH == .amd64 {
 	@(default_calling_convention = "c")
 	foreign lib {
-		objc_msgSend_stret :: proc() ---
+		objc_msgSend_stret :: proc(self: ^intrinsics.objc_object, op: ^intrinsics.objc_selector, #c_vararg args: ..any) ---
 	}
 	@(private) STRET :: true
 } else {

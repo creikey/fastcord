@@ -1,8 +1,11 @@
 package app
 
 import "core:fmt"
+import "core:reflect"
+import "core:strconv"
 import "fc:audio"
 import dc "fc:discord"
+import "fc:platform"
 import "fc:ui"
 import "fc:voice"
 
@@ -33,6 +36,12 @@ Voice_Settings :: struct {
 	dd_anchor:     ui.Rect, // open dropdown's rect (popup drawn from overlays)
 	menu_pos:      ui.Vec2,
 	inited:        bool,
+	// input mode (MediaEngineStore: mode VOICE_ACTIVITY | PUSH_TO_TALK, delay 20 ms)
+	ptt_mode:      bool,
+	ptt_key:       platform.Key, // .None = unbound (the client has no default keybind)
+	ptt_delay_ms:  f32,
+	ptt_held:      bool,
+	recording_key: bool,
 }
 
 vs: Voice_Settings
@@ -47,14 +56,92 @@ vs_init :: proc() {
 	vs.threshold_db = voice.VAD_DEFAULT_THRESHOLD
 	vs.processing = audio.Voice_Processing{true, true, true}
 	vs.meter_db = -127
+	vs.ptt_delay_ms = 20
 	voice.vad_init(&vs.meter_vad)
+}
+
+// ---- persistence (settings_store.odin) ----
+
+vs_reset_for_test :: proc() {
+	delete(vs.user_volume)
+	delete(vs.user_muted)
+	vs = {}
+	vs_init()
+}
+
+voice_settings_restore :: proc(p: ^Persisted_Voice) {
+	vs_init()
+	vs.input_volume = clamp(p.input_volume, 0, 100)
+	vs.output_volume = clamp(p.output_volume, 0, 200)
+	vs.auto_sens = p.auto_sens
+	vs.threshold_db = clamp(p.threshold_db, -100, 0)
+	vs.processing = audio.Voice_Processing{p.echo, p.noise, p.agc}
+	audio.set_voice_processing(vs.processing)
+	vs.ptt_mode = p.mode == "PUSH_TO_TALK"
+	if k, ok := reflect.enum_from_name(platform.Key, p.ptt_key); ok do vs.ptt_key = k
+	vs.ptt_delay_ms = clamp(f32(p.ptt_delay_ms), 0, 2000)
+	if id := device_by_uid(true, p.input_device); id != 0 do audio.select_device(true, id)
+	if id := device_by_uid(false, p.output_device); id != 0 do audio.select_device(false, id)
+	for k, v in p.user_volume {
+		if n, ok := strconv.parse_u64(k); ok do vs.user_volume[dc.Snowflake(n)] = clamp(v, 0, 200)
+	}
+	for k, v in p.user_muted {
+		if n, ok := strconv.parse_u64(k); ok && v do vs.user_muted[dc.Snowflake(n)] = true
+	}
+}
+
+voice_settings_snapshot :: proc(p: ^Persisted_Voice) {
+	vs_init()
+	p.input_device = device_uid(true)
+	p.output_device = device_uid(false)
+	p.input_volume = vs.input_volume
+	p.output_volume = vs.output_volume
+	p.auto_sens = vs.auto_sens
+	p.threshold_db = vs.threshold_db
+	p.echo = vs.processing.echo_cancellation
+	p.noise = vs.processing.noise_suppression
+	p.agc = vs.processing.auto_gain_control
+	p.mode = "PUSH_TO_TALK" if vs.ptt_mode else "VOICE_ACTIVITY"
+	p.ptt_key, _ = reflect.enum_name_from_value(vs.ptt_key)
+	p.ptt_delay_ms = int(vs.ptt_delay_ms)
+	p.user_volume = make(map[string]f32, len(vs.user_volume), context.temp_allocator)
+	p.user_muted = make(map[string]bool, len(vs.user_muted), context.temp_allocator)
+	for k, v in vs.user_volume do if v != 100 do p.user_volume[fmt.tprint(u64(k))] = v
+	for k, v in vs.user_muted do if v do p.user_muted[fmt.tprint(u64(k))] = true
+}
+
+// push-to-talk key state (focused window only: a global hotkey on macOS
+// needs an event tap and the Accessibility permission).
+@(private = "file")
+ptt_input :: proc() {
+	for e in platform.events() {
+		#partial switch e.kind {
+		case .Key_Down:
+			if vs.recording_key {
+				if e.key != .Escape && e.key != .None do vs.ptt_key = e.key
+				vs.recording_key = false
+				continue
+			}
+			if vs.ptt_key != .None && e.key == vs.ptt_key do vs.ptt_held = true
+		case .Key_Up:
+			if e.key == vs.ptt_key do vs.ptt_held = false
+		case .Focus_Lost:
+			vs.ptt_held = false
+		}
+	}
 }
 
 // voice_settings_frame: applies settings to the live connection / devices and
 // runs the meter. Called from voice_frame every frame.
 voice_settings_frame :: proc(conn: ^voice.Conn, headless: bool, audio_ready: bool) {
 	vs_init()
+	was_held := vs.ptt_held
+	ptt_input()
+	if vs.ptt_mode && vs.ptt_held != was_held && conn != nil && !(app.self_mute || app.self_deaf) {
+		sound_play("ptt_start" if vs.ptt_held else "ptt_stop")
+	}
 	if conn != nil {
+		voice.set_push_to_talk(conn, vs.ptt_mode, vs.ptt_held, int(vs.ptt_delay_ms))
 		voice.set_input_gain(conn, vs.input_volume / 100)
 		voice.set_input_sensitivity(conn, vs.auto_sens, vs.threshold_db)
 		for uid, v in vs.user_volume do voice.set_user_volume(conn, u64(uid), v / 100)
@@ -292,6 +379,13 @@ voice_settings_page :: proc() {
 					}
 				}
 				spacer(.Y, 32)
+				section_title("INPUT MODE")
+				mode_radio()
+				if vs.ptt_mode {
+					spacer(.Y, 16)
+					keybind_row()
+				}
+				spacer(.Y, 32)
 				section_title("INPUT SENSITIVITY")
 				toggle_row("autosens", "Automatically determine input sensitivity", "", &vs.auto_sens)
 				spacer(.Y, 12)
@@ -314,6 +408,81 @@ voice_settings_page :: proc() {
 				}
 				spacer(.Y, 40)
 			}
+		}
+	}
+}
+
+@(private = "file")
+mode_radio :: proc() {
+	for ptt in ([]bool{false, true}) {
+		r := row("mode_ptt" if ptt else "mode_va", {.Clickable, .Draw_Background, .Hot_Animation})
+		r.semantic_size = {.X = ui.px(660), .Y = ui.px(44)}
+		r.style.radius = 4
+		r.style.bg = vs.ptt_mode == ptt ? T("--background-mod-normal") : {}
+		r.style.bg_hot = T("--background-mod-subtle")
+		if ui.signal(r).clicked do vs.ptt_mode = ptt
+		if ui.parent(r) {
+			spacer(.X, 12)
+			dot := ui.box("dot", {.Draw_Border})
+			dot.semantic_size = {.X = ui.px(20), .Y = ui.px(20)}
+			dot.style.radius = 10
+			dot.style.border = 2
+			dot.style.border_color = vs.ptt_mode == ptt ? T("--background-brand") : T("--interactive-icon-default")
+			if vs.ptt_mode == ptt {
+				if ui.parent(dot) {
+					in_ := ui.box("in", {.Draw_Background, .Floating_X, .Floating_Y})
+					in_.semantic_size = {.X = ui.px(10), .Y = ui.px(10)}
+					in_.fixed_pos = {5, 5}
+					in_.style.radius = 5
+					in_.style.bg = T("--background-brand")
+				}
+			}
+			spacer(.X, 12)
+			label("Push to Talk" if ptt else "Voice Activity", .Medium, 16, T("--text-strong"), 20)
+		}
+		spacer(.Y, 8)
+	}
+}
+
+@(private = "file")
+keybind_row :: proc() {
+	r := row("ptt")
+	r.semantic_size = {.X = ui.px(660), .Y = ui.children()}
+	r.cross_align = .Start
+	if ui.parent(r) {
+		c := ui.box("kb")
+		c.semantic_size = {.X = ui.px(320), .Y = ui.children()}
+		c.layout_axis = .Y
+		if ui.parent(c) {
+			section_title("SHORTCUT")
+			b := row("rec", {.Clickable, .Draw_Background, .Draw_Border})
+			b.semantic_size = {.X = ui.px(320), .Y = ui.px(40)}
+			b.style.radius = 8
+			b.style.border = 1
+			b.style.border_color = vs.recording_key ? T("--status-danger") : T("--border-subtle")
+			b.style.bg = T("--background-base-lowest")
+			if ui.signal(b).clicked do vs.recording_key = !vs.recording_key
+			if ui.parent(b) {
+				spacer(.X, 12)
+				name := "No Keybind Set"
+				if vs.ptt_key != .None do name, _ = reflect.enum_name_from_value(vs.ptt_key)
+				if vs.recording_key do name = "Press a key…"
+				label(name, .Medium, 16, T("--text-default"), 20)
+				filler(.X)
+				label("Stop Recording" if vs.recording_key else "Record Keybind", .Semibold, 14, T("--text-strong"), 18)
+				spacer(.X, 12)
+			}
+			spacer(.Y, 6)
+			label("Works while Discord is focused.", .Normal, 12, T("--text-muted"), 16)
+		}
+		spacer(.X, 20)
+		d := ui.box("delay")
+		d.semantic_size = {.X = ui.px(320), .Y = ui.children()}
+		d.layout_axis = .Y
+		if ui.parent(d) {
+			section_title("PUSH TO TALK RELEASE DELAY")
+			spacer(.Y, 8)
+			slider("pttdelay", &vs.ptt_delay_ms, 0, 2000, 320, fmt.tprintf("%.0fms", vs.ptt_delay_ms))
 		}
 	}
 }

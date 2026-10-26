@@ -303,6 +303,7 @@ client_poll :: proc(c: ^Client) -> bool {
 		case .Dispatch:
 			if store_apply_dispatch(&c.store, e.name, e.data, now) do changed = true
 			client_after_dispatch(c, e.name, e.data)
+			extras_on_dispatch(c, e.name, e.data)
 		case .State:
 			c.store.connection = e.state
 			changed = true

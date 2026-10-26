@@ -71,3 +71,25 @@ All code imports siblings through the `fc` collection: `import "fc:netio"`.
 - Allocations: explicit allocators on long-lived things; `context.temp_allocator` per frame.
 - Secrets (tokens, passwords, raw captures) live only in `.secrets/` and
   `discord_credentials.txt`, both gitignored. Never commit them.
+
+## Releasing
+
+1. Bump nothing by hand: the version comes from the release tag.
+2. On GitHub, create a release with a tag like `v0.1.0` and publish it.
+3. `.github/workflows/release.yml` builds `fastcord-macos.zip` (universal `Fastcord.app`,
+   ad-hoc signed, not notarized) and attaches it to the release. Windows and Linux are
+   not built yet; the site shows them as coming soon.
+4. The site and the in-app updater both use the latest release:
+   - download link: `https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip`
+   - the app checks `api.github.com/repos/creikey/fastcord/releases/latest` at launch and every
+     6 hours; when the tag is newer than its own `FASTCORD_VERSION`, an **Update** pill appears
+     in the title bar and opens creikey.com/fastcord (right-click it to dismiss). Dev builds never check.
+
+Local package: `scripts/package_macos.sh v0.1.0` → `dist/fastcord-macos.zip`.
+
+## Website
+
+`site/` is the page served at creikey.com/fastcord. `.github/workflows/pages.yml` deploys it on
+pushes to `main` that touch `site/`. One-time setup: repo Settings → Pages → Source: **GitHub Actions**.
+Because creikey.com is the custom domain of the creikey.github.io user site, this project's
+Pages site is served at creikey.com/fastcord automatically.

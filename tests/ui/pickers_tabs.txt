@@ -1,18 +1,18 @@
 # GIF and sticker buttons open the expression picker on their tabs; tab bar
 # switches; the same button toggles it closed; Escape closes.
 wait 5
-click 900 686
+click 860 683
 wait 20
 shot build/ui-pickers_tabs-gif.png
-click 940 686
+click 900 683
 wait 20
 shot build/ui-pickers_tabs-sticker.png
-click 674 236
+click 672 191
 wait 10
 shot build/ui-pickers_tabs-emoji.png
 key escape
 wait 20
-click 940 686
+click 900 683
 wait 20
-click 940 686
+click 900 683
 wait 20

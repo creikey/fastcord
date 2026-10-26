@@ -52,6 +52,7 @@ store_load_fixture_text :: proc(s: ^Store, text: string) -> int {
 			continue
 		}
 		if store_apply_dispatch(s, name, de_atom(d), 0) do n += 1
+		extras_dispatch(s, s.allocator, name, de_atom(d))
 	}
 	if n > 0 do s.changed += 1
 	return n

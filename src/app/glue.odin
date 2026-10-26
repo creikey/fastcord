@@ -145,6 +145,8 @@ map_key :: proc(k: platform.Key) -> ui.Key_Code {
 		return .Z
 	case .K:
 		return .K
+	case .F:
+		return .F
 	case .None:
 		return .None
 	}

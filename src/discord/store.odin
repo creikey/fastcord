@@ -148,6 +148,7 @@ free_message :: proc(s: ^Store, m: ^Message) {
 	free_str(m.content, a)
 	free_str(m.timestamp, a)
 	free_str(m.edited_timestamp, a)
+	free_str(m.call_ended, a)
 	free_str(m.nonce, a)
 	for &at in m.attachments do free_attachment(s, &at)
 	delete(m.attachments)
@@ -307,6 +308,7 @@ parse_guild_props :: proc(s: ^Store, g: ^Guild, p: etf.Map) {
 	if vhas(p, "banner") {free_str(g.banner, a); g.banner = clone_str(fstr(p, "banner"), a)}
 	if vhas(p, "owner_id") do g.owner_id = fsnow(p, "owner_id")
 	if vhas(p, "system_channel_id") do g.system_channel_id = fsnow(p, "system_channel_id")
+	if vhas(p, "default_message_notifications") do g.default_message_notifications = int(fint(p, "default_message_notifications"))
 	if vhas(p, "features") {
 		for f in g.features do free_str(f, a)
 		clear(&g.features)
@@ -466,6 +468,7 @@ parse_message_fields :: proc(s: ^Store, msg: ^Message, m: etf.Map) {
 	if vhas(m, "content") {free_str(msg.content, a); msg.content = clone_str(fstr(m, "content"), a)}
 	if vhas(m, "timestamp") {free_str(msg.timestamp, a); msg.timestamp = clone_str(fstr(m, "timestamp"), a)}
 	if vhas(m, "edited_timestamp") {free_str(msg.edited_timestamp, a); msg.edited_timestamp = clone_str(fstr(m, "edited_timestamp"), a)}
+	if c := fmap(m, "call"); c != nil {free_str(msg.call_ended, a); msg.call_ended = clone_str(fstr(c, "ended_timestamp"), a)}
 	if vhas(m, "nonce") {
 		free_str(msg.nonce, a)
 		nv := vget(m, "nonce")

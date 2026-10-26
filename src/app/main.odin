@@ -37,6 +37,7 @@ App :: struct {
 	stats:           bool,
 	focused:         bool, // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
 	wake_at:         f64, // earliest timed repaint requested this frame (caret blink, timers); 0 = none
+	now_override_ms: i64, // -now: wall clock for timestamp formatting; 0 = real time
 }
 
 // Ask for a repaint at time t without animating continuously.
@@ -56,6 +57,7 @@ Options :: struct {
 	fixture:   string, // offline: load the store from a recorded gateway fixture
 	channel:   string, // open this channel id at start (with fixture)
 	live:      f64, // headless: connect for real and run this many seconds before the shot
+	now:       i64, // unix seconds treated as "now" for timestamps (deterministic UI tests)
 }
 
 parse_options :: proc() -> Options {
@@ -90,6 +92,8 @@ parse_options :: proc() -> Options {
 			o.live, _ = strconv.parse_f64(a[len("-live:"):])
 		case strings.has_prefix(a, "-channel:"):
 			o.channel = a[len("-channel:"):]
+		case strings.has_prefix(a, "-now:"):
+			o.now, _ = strconv.parse_i64(a[len("-now:"):])
 		}
 	}
 	return o
@@ -98,6 +102,10 @@ parse_options :: proc() -> Options {
 main :: proc() {
 	opt := parse_options()
 	headless := opt.shot != ""
+	if sw, sh := settings_load(headless); sw >= 400 && sh >= 300 {
+		opt.width = sw
+		opt.height = sh
+	}
 	ok := headless ? platform.init_headless(opt.width, opt.height, opt.dpi) : platform.init("Discord", opt.width, opt.height)
 	if !ok {
 		fmt.eprintln("platform init failed")
@@ -112,10 +120,12 @@ main :: proc() {
 	app.stats = os.get_env("FASTCORD_STATS", context.temp_allocator) != ""
 	fonts_load()
 	theme_load(&app.theme, opt.theme)
+	if t, has := app_theme_pending.?; has do theme_load(&app.theme, t)
 	ui.init(&app.ui, ui.Backend{shape = ui_shape})
 	view_init(&app.view)
 	draw_inline_object = draw_custom_emoji
 	app.utc_offset_ms = local_offset_ms()
+	app.now_override_ms = opt.now * 1000
 	dc.store_init(&app.offline_store)
 	if opt.fixture != "" {
 		if _, fok := dc.store_load_fixture(&app.offline_store, opt.fixture); !fok {
@@ -175,6 +185,7 @@ main :: proc() {
 		return
 	}
 
+	update_start()
 	platform.set_frame_callback(frame)
 	frame()
 	for !platform.should_quit() {
@@ -183,6 +194,7 @@ main :: proc() {
 		platform.wait_events(timeout)
 		frame()
 	}
+	settings_save()
 }
 
 frame :: proc() {
@@ -199,7 +211,11 @@ frame :: proc() {
 		handle_results()
 		voice_frame()
 	}
+	sounds_frame()
+	settings_frame()
 	images_receive()
+	features_receive()
+	notify_tick()
 	for e in platform.events() {
 		#partial switch e.kind {
 		case .File_Drop:
@@ -271,11 +287,13 @@ key_by_name :: proc(name: string) -> platform.Key {
 	return .None
 }
 
-// Strips surrounding double quotes and turns \n into newlines.
+// Strips surrounding double quotes and turns \n into newlines, \u202f into U+202F
+// (fields() would split on it).
 unquote :: proc(s: string) -> string {
 	t := s
 	if len(t) >= 2 && t[0] == '"' && t[len(t) - 1] == '"' do t = t[1:len(t) - 1]
 	out, _ := strings.replace_all(t, "\\n", "\n", context.temp_allocator)
+	out, _ = strings.replace_all(out, "\\u202f", "\u202f", context.temp_allocator)
 	return out
 }
 

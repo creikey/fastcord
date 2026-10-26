@@ -67,7 +67,7 @@ native_metal_layer :: proc() -> rawptr {return rawptr(m.layer)}
 cls :: objc.cls
 sel :: objc.sel
 
-@(private = "file")
+@(private)
 nsstr :: proc(str: string) -> Id {
 	// Copies; autoreleased.
 	s0 := msg(Id, cls("NSString"), "alloc")

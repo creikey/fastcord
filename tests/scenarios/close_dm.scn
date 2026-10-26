@@ -10,3 +10,12 @@ js [...document.querySelectorAll('[role=menuitem]')].map(e=>e.id).join(' ')
 click_text [role="menuitem"] | Close DM
 optional wait_gw CHANNEL_DELETE 10000
 settle 2500
+mark reopen_dm
+# reopen it through the quick switcher so later scenarios find the DM in the sidebar
+key k meta
+wait 1000
+type bobbles
+wait 1200
+key Enter
+wait_for div[role="textbox"][aria-label^="Message @"]
+settle 2500

@@ -489,7 +489,21 @@ convert :: proc(raw: string, env: string, netlogs := [2]string{}) -> string {
 			if i == 1 do append(&pairs, P("acct", string("b")))
 			if cn.kind != "alt_svc" do append(&pairs, P("session", conn_id(&conn_ids, cn.id)))
 			append(&pairs, P("kind", cn.kind), P("host", cn.host))
-			for f in cn.facts do append(&pairs, etf.Pair{key = f.key, value = scrub_value(&c, f.value, f.key.(string) or_else "")})
+			// repeated events (priority updates, version notes...) become one list
+			grouped := make(map[string][dynamic]etf.Value, context.temp_allocator)
+			keys := make([dynamic]string, context.temp_allocator)
+			for f in cn.facts {
+				k := f.key.(string) or_else ""
+				if _, seen := grouped[k]; !seen {
+					grouped[k] = make([dynamic]etf.Value)
+					append(&keys, k)
+				}
+				append(&grouped[k], scrub_value(&c, f.value, k))
+			}
+			for k in keys {
+				vals := grouped[k]
+				append(&pairs, etf.Pair{key = strings.clone(k), value = vals[0] if len(vals) == 1 else etf.List(vals[:])})
+			}
 			emit(&out, &seq, t, etf.Map(pairs[:]))
 		}
 	}

@@ -1213,26 +1213,52 @@ celt_lpc :: proc "contextless" (lpc: []f32, ac: []f32, p: int) {
 }
 
 // y[i] = x[i] + sum num[j]*x[i-j-1]; x must have `ord` history before xo.
+// celt_fir_c / celt_iir (float): same summation order as libopus (reversed
+// taps through xcorr_kernel, IIR patch-up of the unrolled-by-4 block), so the
+// PLC is bit-exact with a non-FMA libopus build.
 celt_fir :: proc "contextless" (x: []f32, xo: int, num: []f32, y: []f32, n, ord: int) {
+	rnum: [LPC_ORDER]f32
+	for i in 0 ..< ord do rnum[i] = num[ord - i - 1]
 	for i in 0 ..< n {
 		sum := x[xo + i]
-		for j in 0 ..< ord do sum += num[j] * x[xo + i - j - 1]
+		for j in 0 ..< ord do sum += rnum[j] * x[xo + i + j - ord]
 		y[i] = sum
 	}
 }
 
-celt_iir :: proc "contextless" (x: []f32, den: []f32, y: []f32, n, ord: int, mem: []f32) {
-	// direct form, mem[0] = most recent output
-	m: [LPC_ORDER]f32
-	for i in 0 ..< ord do m[i] = mem[i]
-	for i in 0 ..< n {
-		sum := x[i]
-		for j in 0 ..< ord do sum -= den[j] * m[j]
-		for j := ord - 1; j >= 1; j -= 1 do m[j] = m[j - 1]
-		m[0] = sum
-		y[i] = sum
+celt_iir :: proc "contextless" (x: []f32, den: []f32, y_out: []f32, n, ord: int, mem: []f32) {
+	rden: [LPC_ORDER]f32
+	y: [MAX_PERIOD + 2 * OVERLAP + LPC_ORDER + 960]f32
+	for i in 0 ..< ord do rden[i] = den[ord - i - 1]
+	for i in 0 ..< ord do y[i] = -mem[ord - i - 1]
+	i := 0
+	for ; i < n - 3; i += 4 {
+		sum := [4]f32{x[i], x[i + 1], x[i + 2], x[i + 3]}
+		for j in 0 ..< ord {
+			for k in 0 ..< 4 do sum[k] += rden[j] * y[i + j + k]
+		}
+		y[i + ord] = -sum[0]
+		y_out[i] = sum[0]
+		sum[1] += y[i + ord] * den[0]
+		y[i + ord + 1] = -sum[1]
+		y_out[i + 1] = sum[1]
+		sum[2] += y[i + ord + 1] * den[0]
+		sum[2] += y[i + ord] * den[1]
+		y[i + ord + 2] = -sum[2]
+		y_out[i + 2] = sum[2]
+		sum[3] += y[i + ord + 2] * den[0]
+		sum[3] += y[i + ord + 1] * den[1]
+		sum[3] += y[i + ord] * den[2]
+		y[i + ord + 3] = -sum[3]
+		y_out[i + 3] = sum[3]
 	}
-	for i in 0 ..< ord do mem[i] = y[n - i - 1]
+	for ; i < n; i += 1 {
+		sum := x[i]
+		for j in 0 ..< ord do sum -= rden[j] * y[i + j]
+		y[i + ord] = sum
+		y_out[i] = sum
+	}
+	for k in 0 ..< ord do mem[k] = y_out[n - k - 1]
 }
 
 celt_autocorr :: proc "contextless" (x: []f32, ac: []f32, window: []f32, overlap, lag, n: int) {
@@ -1244,10 +1270,15 @@ celt_autocorr :: proc "contextless" (x: []f32, ac: []f32, window: []f32, overlap
 			xx[n - i - 1] = x[n - i - 1] * window[i]
 		}
 	}
+	// Same summation order as _celt_autocorr: celt_pitch_xcorr over the first
+	// n-lag samples, then the tail added as a separate partial sum.
+	fast_n := n - lag
 	for k in 0 ..= lag {
 		d: f32 = 0
-		for i in k ..< n do d += xx[i] * xx[i - k]
-		ac[k] = d
+		for j in 0 ..< fast_n do d += xx[j] * xx[j + k]
+		d2: f32 = 0
+		for i in k + fast_n ..< n do d2 += xx[i] * xx[i - k]
+		ac[k] = d + d2
 	}
 }
 

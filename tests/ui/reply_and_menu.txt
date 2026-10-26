@@ -6,6 +6,6 @@ shot build/ui-hover-toolbar.png
 rclick 600 500
 wait 10
 shot build/ui-context-menu.png
-click 520 540
+click 660 596
 wait 10
 type thanks for testing

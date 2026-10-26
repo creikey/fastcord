@@ -788,15 +788,53 @@ fetch_note :: proc(c: ^Client, user_id: Snowflake, delay_ms: i64 = 0) {
 	job_submit(c, j)
 }
 
-// open_profile_popout: what clicking a username does (popout + note ~300 ms later).
+// open_profile_popout: what clicking a username does: profile, application
+// identities and featured widgets at once, referral eligibility ~460 ms and
+// the note ~720 ms later (fixture open_profile_popout).
 open_profile_popout :: proc(c: ^Client, user_id, guild_id: Snowflake) {
 	fetch_profile_ex(c, user_id, {kind = "popout", guild_id = guild_id})
-	fetch_note(c, user_id, 300)
+	api_get_later(c, strings.concatenate({"/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"}, context.temp_allocator), 0)
+	api_get_later(c, "/widget-configs/featured", 0)
+	api_get_later(c, "/users/@me/referrals/eligibility", 463)
+	fetch_note(c, user_id, 723)
 }
 
-// open_full_profile: "View Full Profile" from a popout.
+// open_user_settings: requests the settings modal makes when it opens.
+open_user_settings :: proc(c: ^Client) {
+	j := job_new(.Web, .None)
+	j.method = "GET"
+	j.host = API_HOST
+	j.path = "/__development/build_overrides"
+	j.site = .Same_Origin
+	job_submit(c, j)
+	api_get_later(c, "/users/@me/billing/payment-sources", 0)
+	api_get_later(c, "/users/@me/billing/location-info", 0)
+	api_get_later(c, "/auth/sessions", 0)
+	api_get_later(c, "/safety-hub/@me", 0)
+	api_get_later(c, "/users/@me/custom-themes", 964)
+}
+
+// api_get_later: a plain authenticated GET (fire and forget).
+api_get_later :: proc(c: ^Client, path: string, delay_ms: i64) {
+	j := job_new(.Api, .None)
+	j.method = "GET"
+	j.path = job_str(j, path)
+	j.not_before = now_ms() + delay_ms
+	job_submit(c, j)
+}
+
+// open_full_profile: "View Full Profile" from a popout (fixture open_full_profile).
+// The applications/public, games and oauth2/tokens follow-ups depend on the
+// profile's widget/app data and are not issued (see traffic/PARITY.md).
 open_full_profile :: proc(c: ^Client, user_id, guild_id: Snowflake) {
+	us := snowflake_string(user_id)
+	api_get_later(c, strings.concatenate({"/content-inventory/users/", us, "/outbox"}, context.temp_allocator), 0)
 	fetch_profile_ex(c, user_id, {kind = "modal", mutual_guilds = true, mutual_friends_count = true, guild_id = guild_id})
+	api_get_later(c, "/collectibles-categories/v2?include_bundles=true&variants_return_style=2&skip_num_categories=0", 100)
+	api_get_later(c, "/users/@me/collectibles-purchases?variants_return_style=2", 100)
+	api_get_later(c, "/users/@me/activities/statistics/applications", 100)
+	api_get_later(c, "/users/@me/widgets/suggested-games", 100)
+	api_get_later(c, strings.concatenate({"/users/", us, "/application-identities?with_profiles=true"}, context.temp_allocator), 100)
 }
 
 // open_message_context_menu: right-clicking a message loads the application

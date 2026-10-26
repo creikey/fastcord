@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fastcord</title>
+<meta name="description" content="A fast, native Discord client. No browser inside. Instant, smooth, and light on battery.">
+<meta property="og:title" content="Fastcord">
+<meta property="og:description" content="A fast, native Discord client. No browser inside.">
+<meta property="og:image" content="https://creikey.com/fastcord/screenshot.jpg">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #0f0f12;
+    --panel: #18181d;
+    --line: #26262d;
+    --text: #efeff1;
+    --muted: #9a9ba3;
+    --brand: #5865f2;
+    --brand-hi: #6d78ff;
+    --ok: #3d9e60;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #fbfbfb; --panel: #ffffff; --line: #e6e6ea; --text: #2e2e34; --muted: #6c6d76;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 24px 0; }
+  header img { width: 36px; height: 36px; }
+  header b { font-size: 18px; letter-spacing: -0.01em; }
+  header a { margin-left: auto; color: var(--muted); text-decoration: none; font-size: 14px; }
+  header a:hover { color: var(--text); }
+  .hero { text-align: center; padding: 48px 0 32px; }
+  h1 { font-size: clamp(36px, 7vw, 64px); line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.03em; }
+  h1 span { color: var(--brand-hi); }
+  .lede { color: var(--muted); font-size: clamp(17px, 2.4vw, 20px); max-width: 620px; margin: 0 auto 32px; }
+  .downloads { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 12px;
+    font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--panel);
+    transition: transform .12s ease, background .12s ease;
+  }
+  .btn.primary { background: var(--brand); border-color: transparent; color: #fff; }
+  .btn.primary:hover { background: var(--brand-hi); transform: translateY(-1px); }
+  .btn.soon { opacity: .55; cursor: default; }
+  .btn small { font-weight: 500; opacity: .8; }
+  .version { color: var(--muted); font-size: 13px; margin-top: 14px; min-height: 20px; }
+  .shot { margin: 40px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
+    box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+  .shot img { display: block; width: 100%; height: auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; padding: 64px 0 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .note { color: var(--muted); font-size: 14px; text-align: center; padding: 8px 0 40px; }
+  .note code { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 24px 0 40px; text-align: center; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon.svg" alt="">
+    <b>Fastcord</b>
+    <a href="https://github.com/creikey/fastcord">GitHub</a>
+  </header>
+
+  <section class="hero">
+    <h1>Discord, <span>native</span>.</h1>
+    <p class="lede">A fast Discord client written from scratch. No browser inside — just a native renderer that starts instantly, scrolls smoothly, and idles at zero CPU.</p>
+    <div class="downloads">
+      <a class="btn primary" id="dl-mac" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">Download for macOS <small>Apple silicon &amp; Intel</small></a>
+      <span class="btn soon" aria-disabled="true">Windows <small>coming soon</small></span>
+      <span class="btn soon" aria-disabled="true">Linux <small>coming soon</small></span>
+    </div>
+    <div class="version" id="version"></div>
+    <div class="shot"><img src="screenshot.jpg" width="2560" height="1440" alt="Fastcord showing a server channel with messages"></div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><h3>Instant</h3><p>Native Metal rendering with an immediate-mode UI. Every interaction lands on the next frame.</p></div>
+    <div class="card"><h3>Light on battery</h3><p>Nothing renders unless something changes. Idle is zero frames, zero wakeups.</p></div>
+    <div class="card"><h3>Small</h3><p>One ~5 MB app. No Chromium, no Node, no bundled browser.</p></div>
+    <div class="card"><h3>Familiar</h3><p>Servers, channels, DMs, friends, reactions, emoji, GIFs, stickers and the layout you already know.</p></div>
+    <div class="card"><h3>Voice</h3><p>Voice chat with Discord's end-to-end encryption, written from the ground up.</p></div>
+    <div class="card"><h3>Well-behaved</h3><p>Talks to Discord the same way the official desktop client does, tested request by request.</p></div>
+  </section>
+
+  <p class="note">First launch on macOS: the app isn't notarized yet, so right-click <code>Fastcord.app</code> → <b>Open</b>. It checks for updates and shows an Update button when a new release is out.</p>
+
+  <footer>
+    Fastcord is an unofficial client and is not affiliated with or endorsed by Discord Inc.
+    · <a href="https://github.com/creikey/fastcord/releases">Releases</a>
+  </footer>
+</div>
+<script>
+  // Show the latest release tag next to the download button (best effort).
+  fetch("https://api.github.com/repos/creikey/fastcord/releases/latest")
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      const v = document.getElementById("version");
+      if (j && j.tag_name) v.textContent = "Latest: " + j.tag_name + " · " + new Date(j.published_at).toLocaleDateString();
+      else v.textContent = "No release published yet.";
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>

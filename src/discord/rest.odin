@@ -399,7 +399,7 @@ run_upload :: proc(c: ^Client, j: ^Job) {
 	cid := j.result.channel_id
 	alloc := job_alloc(j)
 	// 1. upload URLs (one request per file, as each CloudUpload does)
-	uploaded := make([dynamic][2]string, 0, len(j.files), alloc) // filename, upload_filename
+	uploaded := make([dynamic][3]string, 0, len(j.files), alloc) // filename, upload_filename, mime
 	for f in j.files {
 		w: Json
 		json_init(&w)
@@ -431,7 +431,7 @@ run_upload :: proc(c: ^Client, j: ^Job) {
 			push_result(c, j, r)
 			return
 		}
-		up_url := fstr(vmap(att[0]), "upload_url")
+		up_url := strings.clone(fstr(vmap(att[0]), "upload_url"), alloc)
 		up_name := strings.clone(fstr(vmap(att[0]), "upload_filename"), alloc)
 		virtual.arena_destroy(r.arena)
 		free(r.arena)
@@ -440,7 +440,7 @@ run_upload :: proc(c: ^Client, j: ^Job) {
 			client_push_event(c, Event{kind = .Rest, result = Rest_Result{op = .Upload, channel_id = cid, nonce = j.result.nonce, ok = false}})
 			return
 		}
-		append(&uploaded, [2]string{f.filename, up_name})
+		append(&uploaded, [3]string{f.filename, up_name, f.mime})
 	}
 	// 3. the message
 	w: Json
@@ -451,6 +451,7 @@ run_upload :: proc(c: ^Client, j: ^Job) {
 		json_kstr(&w, "id", itoa(i))
 		json_kstr(&w, "filename", u[0])
 		json_kstr(&w, "uploaded_filename", u[1])
+		if u[2] != "" do json_kstr(&w, "original_content_type", u[2])
 		json_obj_end(&w)
 	}
 	json_arr_end(&w)

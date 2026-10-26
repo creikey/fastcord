@@ -1,5 +1,6 @@
 package app
 
+import "core:fmt"
 import "core:math"
 import dc "fc:discord"
 import "fc:gfx"
@@ -48,6 +49,7 @@ lottie_receive :: proc(r: ^dc.Expr_Result) {
 		return
 	}
 	anim, err := lottie.load(r.data)
+	if pickers_debug() do fmt.eprintfln("[pickers] lottie %d: %d bytes, err=%v", u64(id), len(r.data), err)
 	if err != .None || anim == nil {
 		ls.state = .Failed
 		return

@@ -170,7 +170,10 @@ netlog_load :: proc(path: string, from, to: f64) -> (nl: Netlog, ok: bool) {
 		case "HTTP_STREAM_JOB_CONTROLLER_ALT_SVC_FOUND":
 			host := controller_host[src]
 			a := alt_entry(&nl, host, wall)
-			add_unique(a, "alt_svc", gs(params, "alt_svc"))
+			// drop the per-response expiry so repeated advertisements collapse
+			adv := gs(params, "alt_svc")
+			if i := strings.index(adv, ", expires"); i >= 0 do adv = adv[:i]
+			add_unique(a, "alt_svc", adv)
 		case "HTTP_STREAM_JOB_BOUND_TO_REQUEST":
 			// a job (not the controller) bound to the request = race winner
 			if job, is_job := nl.jobs[src]; is_job {

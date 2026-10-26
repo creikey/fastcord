@@ -205,6 +205,17 @@ pump :: proc(ms: int) {
 }
 
 human :: proc(lo, hi: int) {pump(lo + int(rand.uint32() % u32(hi - lo + 1)))}
+
+// click: tools/capture's mouse move (4-25 steps of 8-22 ms, then 80-220 ms),
+// the click, then 500-1100 ms.
+click :: proc() {
+	human(80, 400)
+	human(80, 220)
+	human(500, 1100)
+}
+
+// wait_for: DOM polling every 250 ms (half a period on average).
+wait_for :: proc() {pump(125 + int(rand.uint32() % 250))}
 pause :: proc() {human(700, 1600)}
 
 // settle: like tools/capture — wait until no network event for quiet_ms (max max_ms).
@@ -246,7 +257,8 @@ typed :: proc(channel: discord.Snowflake, text: string) {
 	action()
 	for _ in text {
 		if channel != 0 do discord.typing_keystroke(cur.c, channel)
-		human(80, 220)
+		human(20, 50)
+		human(60, 170)
 	}
 	human(300, 700)
 }
@@ -261,12 +273,16 @@ open_test_channel :: proc() {
 	use("a")
 	mark("setup")
 	reload()
-	human(500, 1100)
+	click()
+	wait_for()
+	click()
 	discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+	wait_for()
 	settle(1500)
 }
 
 send_setup_message :: proc() {
+	click()
 	typed(TTEXT, "setup message for the next step")
 	discord.send_message(cur.c, TTEXT, "setup message for the next step")
 	wait_gw("MESSAGE_CREATE")
@@ -274,8 +290,11 @@ send_setup_message :: proc() {
 }
 
 friends_home :: proc() {
-	human(500, 1100)
+	click()
 	discord.select_channel(cur.c, 0, 0)
+	wait_for()
+	click()
+	wait_for()
 	settle(1000)
 }
 
@@ -289,6 +308,7 @@ run :: proc(name: string) -> bool {
 	case "send_message":
 		open_test_channel()
 		mark("send_message")
+		click()
 		typed(TTEXT, "hello from the official client")
 		discord.send_message(cur.c, TTEXT, "hello from fastcord")
 		wait_gw("MESSAGE_CREATE")
@@ -296,6 +316,7 @@ run :: proc(name: string) -> bool {
 	case "typing":
 		open_test_channel()
 		mark("typing")
+		click()
 		typed(TTEXT, "i am typing something but will not send it")
 		pump(4000)
 		typed(TTEXT, " and still typing")
@@ -308,12 +329,15 @@ run :: proc(name: string) -> bool {
 		send_setup_message()
 		mark("add_reaction")
 		discord.open_message_context_menu(cur.c, TGUILD)
-		human(500, 1100)
+		click()
+		human(80, 400) // hover #message-add-reaction
 		pause()
-		human(500, 1100)
+		click()
 		discord.open_emoji_picker(cur.c, TGUILD)
+		wait_for()
 		typed(0, "thumbsup")
 		pump(800)
+		click()
 		action()
 		discord.add_reaction(cur.c, TTEXT, last_message(TTEXT), "👍", 0, false, "Message Reaction Picker")
 		wait_gw("MESSAGE_REACTION_ADD")
@@ -322,14 +346,16 @@ run :: proc(name: string) -> bool {
 		open_test_channel()
 		send_setup_message()
 		discord.open_message_context_menu(cur.c, TGUILD)
-		human(500, 1100)
+		click()
+		click()
 		action()
 		discord.add_reaction(cur.c, TTEXT, last_message(TTEXT), "👍", 0, false, "Message Context Menu")
 		wait_gw("MESSAGE_REACTION_ADD")
 		settle(1500)
 		mark("remove_reaction")
 		action()
-		human(500, 1100)
+		human(80, 400)
+		human(80, 220)
 		discord.remove_reaction(cur.c, TTEXT, last_message(TTEXT), "👍", 0, false, "Message Inline Button")
 		wait_gw("MESSAGE_REACTION_REMOVE")
 		settle(2000)
@@ -338,8 +364,12 @@ run :: proc(name: string) -> bool {
 		send_setup_message()
 		mark("delete_message")
 		discord.open_message_context_menu(cur.c, TGUILD)
-		human(500, 1100)
+		click()
+		click()
+		wait_for()
 		pause()
+		human(80, 400)
+		human(80, 220)
 		action()
 		discord.delete_message(cur.c, TTEXT, last_message(TTEXT))
 		wait_gw("MESSAGE_DELETE")
@@ -349,7 +379,8 @@ run :: proc(name: string) -> bool {
 		send_setup_message()
 		mark("edit_message")
 		discord.open_message_context_menu(cur.c, TGUILD)
-		human(500, 1100)
+		click()
+		click()
 		pump(600)
 		typed(TTEXT, "this message was edited")
 		action()
@@ -362,10 +393,11 @@ run :: proc(name: string) -> bool {
 		mark("reply")
 		target := last_message(TTEXT)
 		discord.open_message_context_menu(cur.c, TGUILD)
-		human(500, 1100)
+		click()
+		click()
 		pump(500)
 		typed(TTEXT, "this is a reply")
-		discord.send_message(cur.c, TTEXT, "this is a reply", {reply_to = target, reply_guild_id = TGUILD, mention_replied = true})
+		discord.send_message(cur.c, TTEXT, "this is a reply", {reply_to = target, reply_guild_id = TGUILD, mention_replied = false})
 		wait_gw("MESSAGE_CREATE")
 		settle(2000)
 	case "upload_image":
@@ -380,20 +412,19 @@ run :: proc(name: string) -> bool {
 		wait_gw("MESSAGE_CREATE", 30000)
 		settle(3000)
 	case "open_guild_and_channel":
+		// The official instance was already running on @me (click home, wait,
+		// reload): one start, on the home route.
 		use("a")
 		mark("setup")
 		reload()
-		discord.select_channel(cur.c, 0, 0)
-		pump(1500)
-		stop(cur)
-		reload()
 		mark("open_guild")
-		human(500, 1100)
-		discord.select_channel(cur.c, TGUILD, 0)
+		click()
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+		wait_for()
 		settle(1500)
 		mark("open_channel")
-		human(500, 1100)
-		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+		click()
+		wait_for()
 		settle(2000)
 	case "open_dm":
 		use("a")
@@ -427,8 +458,10 @@ run :: proc(name: string) -> bool {
 		open_test_channel()
 		send_setup_message()
 		mark("open_profile_popout")
-		human(500, 1100)
+		human(80, 400)
 		discord.open_profile_popout(cur.c, A_ID, TGUILD)
+		human(500, 1100)
+		wait_for()
 		settle(2000)
 		mark("close_profile_popout")
 		settle(1000)
@@ -459,13 +492,21 @@ run :: proc(name: string) -> bool {
 	case "switch_theme":
 		open_test_channel()
 		mark("open_settings")
-		human(1000, 2000)
+		click()
+		discord.open_user_settings(cur.c)
+		wait_for()
+		click()
+		wait_for()
 		settle(1500)
 		mark("theme_light")
+		human(80, 400)
 		discord.set_theme(cur.c, .Light)
+		human(500, 1100)
 		settle(2500)
 		mark("theme_dark")
-		discord.set_theme(cur.c, .Dark)
+		human(80, 400)
+		discord.set_theme(cur.c, .Darker) // the UI's "Dark" is proto DARKER (3)
+		human(500, 1100)
 		settle(2500)
 		mark("close_settings")
 		settle(1500)

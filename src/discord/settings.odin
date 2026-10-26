@@ -77,8 +77,10 @@ settings_delta_proto :: proc(e: ^Settings_Edit) -> []byte {
 		pb_msg(&root, 11, &st)
 	}
 	if th, ok := e.theme.?; ok {
-		ap := pb_new() // AppearanceSettings (13)
+		ap := pb_new() // AppearanceSettings (13): theme + client_theme_settings (3, empty)
 		protobuf.write_uint(&ap, 1, u64(th))
+		cts := pb_new()
+		pb_msg(&ap, 3, &cts)
 		pb_msg(&root, 13, &ap)
 	}
 	if folders, ok := e.folders.?; ok {

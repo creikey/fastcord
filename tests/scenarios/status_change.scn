@@ -1,4 +1,4 @@
-# Status: Online -> Idle -> Online via the account popout.
+# Status: Online -> Idle -> Online via the account popout (the popout stays open).
 use a
 mark setup
 reload
@@ -6,17 +6,17 @@ include _friends_home.scn
 mark open_status_menu
 click div[class*="accountPopoutButton"]
 wait 1200
-click_text div[role="button"][class*="menuItemContent"] | Online
+click_text [role="dialog"] div[role="button"][class*="menuItemContent"] | Your Status: || Idle || Online || Do Not Disturb || Invisible
 wait 1200
 mark set_idle
-click_text div[role="button"][class*="menuItemContent"] | Idle
-optional wait_gw SESSIONS_REPLACE 10000
+click #set-status-submenu-idle
+optional wait_gw USER_SETTINGS_PROTO_UPDATE 10000
 settle 2500
 mark set_online
-click div[class*="accountPopoutButton"]
+click_text [role="dialog"] div[role="button"][class*="menuItemContent"] | Your Status: || Idle || Online || Do Not Disturb || Invisible
 wait 1200
-click_text div[role="button"][class*="menuItemContent"] | Idle
-wait 1200
-click_text div[role="button"][class*="menuItemContent"] | Online
-optional wait_gw SESSIONS_REPLACE 10000
+click #set-status-submenu-online
+optional wait_gw USER_SETTINGS_PROTO_UPDATE 10000
 settle 2500
+key Escape
+wait 500

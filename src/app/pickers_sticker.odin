@@ -11,14 +11,23 @@ import "fc:ui"
 // headers, 4-column grid, inspector, search by name. PNG/APNG/GIF stickers go
 // through the image pipeline (animating on hover); Lottie ones through src/lottie.
 
+// --custom-stickers-constants-*: preview 96 (margin 12), list padding-left 8,
+// search results padding-top 8, category list padding 8, icons 32 (unicode 24)
+// with 8 margin; the section heading / inspector are the shared expression ones.
 ST_NAV_W :: 48
+ST_NAV_PAD :: 8
+ST_NAV_ICON :: 32
+ST_NAV_UNICODE_ICON :: 24
+ST_NAV_MARGIN :: 8
 ST_GRID_PAD_L :: 8
-ST_CELL_MIN :: 104
-ST_PAD :: 4 // inside a cell
+ST_SEARCH_PAD_TOP :: 8
+ST_PREVIEW :: 96
+ST_PREVIEW_MARGIN :: 12
+ST_PREVIEW_RADIUS :: 4
 ST_HEADER_H :: 32
 ST_INSPECTOR_H :: 48
 ST_FREQUENT_MAX :: 8
-ST_URL_SIZE :: 160
+ST_URL_SIZE :: 160 // --custom-stickers-constants-sticker-dimension
 
 Pk_Sticker :: struct {
 	id:          dc.Snowflake,
@@ -151,10 +160,10 @@ build_sections :: proc(ignore_query := false) -> []St_Section {
 
 sticker_picker_body :: proc(r: ui.Rect) {
 	secs := build_sections()
-	grid := ui.Rect{r.x0 + ST_NAV_W + 1, r.y0, r.x1, r.y1 - ST_INSPECTOR_H}
-	inner := grid.x1 - grid.x0 - ST_GRID_PAD_L - PK_SCROLLBAR_W - 4
-	cols := max(1, int(inner / ST_CELL_MIN))
-	cell := pk_round(inner / f32(cols))
+	grid := ui.Rect{r.x0 + ST_NAV_W, r.y0, r.x1, r.y1 - ST_INSPECTOR_H}
+	inner := grid.x1 - grid.x0 - ST_GRID_PAD_L
+	cols := max(1, int(inner / (ST_PREVIEW + ST_PREVIEW_MARGIN)))
+	cell: f32 = ST_PREVIEW + ST_PREVIEW_MARGIN
 	content_h := st_layout(secs, cols, cell)
 	nav_secs := secs
 	searching := len(secs) > 0 && secs[0].flat
@@ -182,13 +191,14 @@ sticker_picker_body :: proc(r: ui.Rect) {
 st_layout :: proc(secs: []St_Section, cols: int, cell: f32) -> f32 {
 	y: f32 = 0
 	for &sc in secs {
+		if sc.flat do y += ST_SEARCH_PAD_TOP
 		sc.y = y
 		if !sc.flat do y += ST_HEADER_H
 		sc.rows = (len(sc.items) + cols - 1) / cols
 		if sv.collapsed[sc.key] && !sc.flat do sc.rows = 0
 		y += f32(sc.rows) * cell
 	}
-	return y + 8
+	return y
 }
 
 @(private = "file")
@@ -200,34 +210,30 @@ cur_section :: proc(secs: []St_Section) -> int {
 
 @(private = "file")
 sticker_nav :: proc(secs: []St_Section, h: f32, searching: bool) {
-	nav := ui.box("st_nav", {.Draw_Background, .Clip, .Scroll_Y})
+	nav := ui.box("st_nav", {.Clip, .Scroll_Y})
 	nav.semantic_size = {.X = ui.px(ST_NAV_W), .Y = ui.px(h)}
-	nav.style.bg = T("--background-base-lower")
 	nav.layout_axis = .Y
+	nav.cross_align = .Center
 	ui.signal(nav)
 	if ui.parent(nav) {
-		line := ui.box("navline", {.Draw_Background, .Floating_X, .Floating_Y})
-		line.semantic_size = {.X = ui.px(1), .Y = ui.px(max(h, nav.content_size.y))}
-		line.fixed_pos = {ST_NAV_W - 1, 0}
-		line.style.bg = T("--border-subtle")
-		spacer(.Y, 4)
+		spacer(.Y, ST_NAV_PAD)
 		cur := searching ? -1 : cur_section(secs)
 		for &sc, i in secs {
 			if sc.flat do continue
+			active := cur == i
 			if ui.id_scope(sc.key) {
-				slot := ui.box("slot", {.Clickable})
-				slot.semantic_size = {.X = ui.pct(1), .Y = ui.px(EM_NAV_SLOT)}
+				slot := ui.box("slot", {.Clickable, .Draw_Background, .Hot_Animation})
+				slot.semantic_size = {.X = ui.px(ST_NAV_ICON), .Y = ui.px(ST_NAV_ICON)}
 				slot.layout_axis = .X
 				slot.cross_align = .Center
+				slot.style.radius = 4
 				sig := ui.signal(slot)
-				active := cur == i
 				if ui.parent(slot) {
-					spacer(.X, (ST_NAV_W - EM_NAV_GUILD) / 2)
 					switch {
 					case sc.guild != 0:
-						gi := ui.box("gicon", {.Draw_Background, .Draw_Text})
-						gi.semantic_size = {.X = ui.px(EM_NAV_GUILD), .Y = ui.px(EM_NAV_GUILD)}
-						gi.style.radius = active || sig.hovering ? 10 : EM_NAV_GUILD / 2
+						gi := ui.box("##gicon", {.Draw_Background, .Draw_Text})
+						gi.semantic_size = {.X = ui.px(ST_NAV_ICON), .Y = ui.px(ST_NAV_ICON)}
+						gi.style.radius = active || sig.hovering ? 10 : ST_NAV_ICON / 2
 						gi.style.bg = T("--background-mod-subtle")
 						gi.style.text_align = .Center
 						gi.style.font = F(.Medium)
@@ -238,10 +244,14 @@ sticker_nav :: proc(secs: []St_Section, h: f32, searching: bool) {
 							else do gi.text = guild_initials(g.name)
 						}
 					case sc.cover.id != 0:
-						sticker_box("cover", sc.cover, EM_NAV_GUILD, false)
+						slot.style.bg = active ? T("--background-base-low") : {}
+						slot.style.bg_hot = active ? slot.style.bg : T("--interactive-background-hover")
+						sticker_box("cover", sc.cover, ST_NAV_ICON, false)
 					case:
-						spacer(.X, (EM_NAV_GUILD - EM_NAV_ICON) / 2)
-						icon("ic", sc.icon, EM_NAV_ICON, active ? T("--interactive-icon-active") : (sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default")))
+						slot.style.bg = active ? T("--background-base-low") : {}
+						slot.style.bg_hot = active ? slot.style.bg : T("--interactive-background-hover")
+						spacer(.X, (ST_NAV_ICON - ST_NAV_UNICODE_ICON) / 2)
+						icon("ic", sc.icon, ST_NAV_UNICODE_ICON, active ? T("--interactive-text-active") : (sig.hovering ? T("--interactive-text-hover") : T("--interactive-text-default")))
 					}
 				}
 				if sig.clicked {
@@ -250,6 +260,7 @@ sticker_nav :: proc(secs: []St_Section, h: f32, searching: bool) {
 					sv.scroll.target = sc.y
 				}
 			}
+			spacer(.Y, ST_NAV_MARGIN)
 		}
 	}
 }
@@ -262,14 +273,14 @@ st_header :: proc(sc: ^St_Section, id: string, y, w: f32) {
 	h.style.bg = T("--background-surface-high")
 	sig := ui.signal(h)
 	collapsed := sv.collapsed[sc.key]
-	c := sig.hovering ? T("--interactive-text-hover") : T("--text-muted")
+	c := sig.hovering ? T("--interactive-text-active") : T("--text-default")
 	if ui.parent(h) {
-		spacer(.X, ST_GRID_PAD_L)
+		spacer(.X, 8)
 		if sc.icon != "" {
 			icon("hi", sc.icon, EM_HEADER_ICON, c)
-			spacer(.X, 8)
+			spacer(.X, 4)
 		}
-		t := label(strings.to_upper(sc.title, context.temp_allocator), .Semibold, EM_HEADER_FONT, c, 16)
+		t := label(sc.title, .Semibold, EM_HEADER_FONT, c, 18)
 		t.flags += {.Clip}
 		spacer(.X, 4)
 		icon("chev", collapsed ? "chevron-small-right" : "chevron-small-down", 16, c)
@@ -298,16 +309,16 @@ sticker_grid :: proc(secs: []St_Section, cols: int, cell: f32, view: ui.Rect) {
 					if y + cell < 0 || y > vh do continue
 					if ui.id_scope(u64(i)) {
 						b := ui.box("cell", {.Clickable, .Floating_X, .Floating_Y, .Draw_Background})
-						b.semantic_size = {.X = ui.px(cell), .Y = ui.px(cell)}
+						b.semantic_size = {.X = ui.px(ST_PREVIEW), .Y = ui.px(ST_PREVIEW)}
 						b.fixed_pos = {ST_GRID_PAD_L + f32(cc) * cell, y}
-						b.style.radius = 8
+						b.style.radius = ST_PREVIEW_RADIUS
 						sig := ui.signal(b)
 						if sig.hovering do sv.inspected = {si, i}
-						if sig.hovering do b.style.bg = T("--background-mod-normal")
+						if sig.hovering do b.style.bg = T("--interactive-background-selected")
 						if ui.parent(b) {
-							sb := sticker_box("st", it, cell - 2 * ST_PAD, sig.hovering)
+							sb := sticker_box("st", it, ST_PREVIEW - 8, sig.hovering)
 							sb.flags += {.Floating_X, .Floating_Y}
-							sb.fixed_pos = {ST_PAD, ST_PAD}
+							sb.fixed_pos = {4, 4}
 							if it.locked do sb.opacity = 0.3
 						}
 						if sig.clicked do sticker_select(it, .Shift in app.ui_mods)
@@ -340,8 +351,11 @@ sticker_grid :: proc(secs: []St_Section, cols: int, cell: f32, view: ui.Rect) {
 
 @(private = "file")
 sticker_inspector :: proc(secs: []St_Section) {
+	line := ui.box("insline", {.Draw_Background})
+	line.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
+	line.style.bg = T("--border-normal")
 	bar := row("inspector", {.Draw_Background})
-	bar.semantic_size = {.X = ui.pct(1), .Y = ui.px(ST_INSPECTOR_H)}
+	bar.semantic_size = {.X = ui.pct(1), .Y = ui.px(ST_INSPECTOR_H - 1)}
 	bar.style.bg = T("--background-base-lower")
 	si, ii := sv.inspected[0], sv.inspected[1]
 	if si < 0 || si >= len(secs) || ii >= len(secs[si].items) do return
@@ -358,11 +372,14 @@ sticker_inspector :: proc(secs: []St_Section) {
 			from := ""
 			if g := dc.guild_get(store(), it.guild); g != nil do from = g.name
 			for p in sv.packs do if p.id == it.pack do from = p.name
-			if from != "" do label(fmt.tprintf("from %s", from), .Normal, 12, T("--text-muted"), 16)
+			if from != "" do label(fmt.tprintf("from %s", from), .Normal, 12, T("--interactive-text-default"), 16)
 		}
 	}
 }
 
+// The client's onSelectSticker: an empty composer sends the sticker right away
+// ({content:"", sticker_ids:[id]}); the picker closes and the composer refocuses.
+// (With text in the composer the client stages a sticker preview instead; we send.)
 @(private = "file")
 sticker_select :: proc(it: Pk_Sticker, keep_open: bool) {
 	if it.locked do return
@@ -372,7 +389,8 @@ sticker_select :: proc(it: Pk_Sticker, keep_open: bool) {
 		dc.send_message(app.client, pk.channel, "", {sticker_ids = slice.clone(ids, context.temp_allocator)})
 		chat_state(pk.channel).scroll_target = 0
 	}
-	if !keep_open do picker_close()
+	_ = keep_open
+	picker_close()
 }
 
 // A sticker drawn aspect-fit in a size x size box; animates only when `animate`.

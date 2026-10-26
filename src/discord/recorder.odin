@@ -184,8 +184,14 @@ renderer_view :: proc(method: string, wire: []http.Header, kind: string) -> []ht
 		}
 		return out[:]
 	}
-	// unauthenticated XHR / fetch / image
-	if v, ok := hval(wire, "if-none-match"); ok && kind != "Image" do append(&out, http.Header{"If-None-Match", v})
+	// unauthenticated XHR / fetch / image. A JS-set If-None-Match comes before
+	// the client hints; one appended by the HTTP cache (at the end) is not renderer-visible.
+	inm_js := false
+	for h in wire {
+		if h.name == "sec-ch-ua-platform" do break
+		if h.name == "if-none-match" do inm_js = true
+	}
+	if v, ok := hval(wire, "if-none-match"); ok && inm_js && kind != "Image" do append(&out, http.Header{"If-None-Match", v})
 	for e in extras do if e != "if-none-match" do add(&out, wire, e)
 	for n in ([]string{"sec-ch-ua-platform", "referer", "user-agent", "sec-ch-ua", "content-type", "sec-ch-ua-mobile"}) do add(&out, wire, n)
 	return out[:]

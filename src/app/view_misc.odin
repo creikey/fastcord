@@ -63,6 +63,7 @@ profile_popout :: proc() {
 	uid := app.profile_user
 	u := dc.user_get(s, uid)
 	if u == nil {
+		fmt.eprintln("DBGP nil user", uid)
 		app.profile_user = 0
 		return
 	}
@@ -101,6 +102,19 @@ profile_popout :: proc() {
 			banner.style.bg = T("--background-brand")
 		}
 		if u.banner != "" do set_remote_image(banner, dc.banner_url(uid, u.banner, 600))
+		if ui.parent(banner) {
+			// "..." on the banner's top-right (official: 28px dark circle, 12px in)
+			more := ui.box("more", {.Clickable, .Draw_Background, .Floating_X, .Floating_Y})
+			more.semantic_size = {.X = ui.px(28), .Y = ui.px(28)}
+			more.fixed_pos = {W - 12 - 28, 12}
+			more.style.radius = 14
+			more.style.bg = {0, 0, 0, 0.5}
+			if ui.parent(more) {
+				ic := icon("i", "more-horizontal", 16, {1, 1, 1, 1})
+				ic.flags += {.Floating_X, .Floating_Y}
+				ic.fixed_pos = {6, 6}
+			}
+		}
 		av_row := ui.box("avrow")
 		av_row.semantic_size = {.X = ui.pct(1), .Y = ui.px(44)}
 		if ui.parent(av_row) {
@@ -113,6 +127,7 @@ profile_popout :: proc() {
 				av := avatar_with_status("av", uid, 80, p.style.bg)
 				av.flags += {.Floating_X, .Floating_Y}
 				av.fixed_pos = {6, 6}
+				profile_full_avatar_hook(av, uid) // click: full profile modal
 			}
 		}
 		info := ui.box("info")
@@ -150,6 +165,27 @@ profile_popout :: proc() {
 				if len(blocks) > 0 do ui.set_spans(bio, tokens_to_spans(blocks[0].tokens, .Normal, 14, nil))
 			}
 			spacer(.Y, 16)
+			if uid == s.me {
+				er := row("editrow")
+				er.semantic_size = {.X = ui.pct(1), .Y = ui.px(32)}
+				if ui.parent(er) {
+					spacer(.X, 16)
+					eb := row("editprofile", {.Clickable, .Draw_Background, .Hot_Animation})
+					eb.semantic_size = {.X = ui.fill(), .Y = ui.px(32)}
+					eb.style.radius = 8
+					eb.style.bg = T("--background-brand")
+					eb.style.bg_hot = with_alpha(T("--background-brand"), 0.85)
+					if ui.parent(eb) {
+						filler(.X)
+						icon("i", "pencil", 16, {1, 1, 1, 1})
+						spacer(.X, 4)
+						label("Edit Profile", .Medium, 14, {1, 1, 1, 1}, 18)
+						filler(.X)
+					}
+					spacer(.X, 16)
+				}
+				spacer(.Y, 16)
+			}
 			if uid != s.me {
 				mr := row("msgrow")
 				mr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
@@ -255,7 +291,7 @@ settings_modal :: proc() {
 							sw.style.bg = tok(&tokens, "--background-base-lower")
 							sw.style.border = app.theme.name == name ? 2 : 1
 							sw.style.border_color = app.theme.name == name ? T("--background-brand") : T("--border-strong")
-							if ui.signal(sw).clicked do theme_load(&app.theme, name)
+							if ui.signal(sw).clicked do theme_set_by_user(name)
 							spacer(.X, 16)
 						}
 					}

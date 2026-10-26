@@ -39,6 +39,9 @@ Expr_Op :: enum u8 {
 	Top_Emojis,
 	Frecency,
 	Media, // raw bytes (lottie json, svg) through the media cache
+	Profile_Modal, // full profile modal (tag = user id)
+	Mutual_Friends,
+	App_Identities,
 }
 
 Expr_Result :: struct {
@@ -471,4 +474,26 @@ frecency_settings_decode :: proc(b64: string, allocator := context.allocator) ->
 		}
 	}
 	return fs, true
+}
+
+// ---- full profile modal (UserProfileModalActionCreators) ----
+// Opening the modal: GET /users/{id}/profile?type=modal&with_mutual_guilds=true
+// &with_mutual_friends=false&with_mutual_friends_count=<!bot>[&guild_id=] and
+// GET /users/{id}/application-identities?with_profiles=true (open_full_profile
+// capture). The Mutual Friends tab: GET /users/{id}/relationships.
+
+profile_modal_fetch :: proc(c: ^Client, user_id: Snowflake, guild_id: Snowflake = 0, bot := false) {
+	q: Query
+	query_init(&q, strings.concatenate({"/users/", snowflake_string(user_id), "/profile"}, context.temp_allocator))
+	query_add(&q, "type", "modal")
+	query_add_bool(&q, "with_mutual_guilds", true)
+	query_add_bool(&q, "with_mutual_friends", false)
+	query_add_bool(&q, "with_mutual_friends_count", !bot)
+	if guild_id != 0 do query_add_snow(&q, "guild_id", guild_id)
+	expr_get(c, .Profile_Modal, query_string(&q), "", u64(user_id))
+	expr_get(c, .App_Identities, strings.concatenate({"/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"}, context.temp_allocator), "", u64(user_id))
+}
+
+mutual_friends_fetch :: proc(c: ^Client, user_id: Snowflake) {
+	expr_get(c, .Mutual_Friends, strings.concatenate({"/users/", snowflake_string(user_id), "/relationships"}, context.temp_allocator), "", u64(user_id))
 }

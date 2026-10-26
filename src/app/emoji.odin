@@ -191,23 +191,43 @@ twemoji_texture :: proc(hash: string, px: int) -> gfx.Texture {
 	return tex
 }
 
-twemoji_draw_rect :: proc(hash: string, r: ui.Rect, opacity: f32) {
+// Twemoji in r; until its texture exists (loading, failed, offline) the unicode
+// `fallback` is drawn with the system emoji font in the same rect, so emoji
+// never render invisible (progressive load).
+twemoji_draw_rect :: proc(hash: string, r: ui.Rect, opacity: f32, fallback := "") {
 	px := int(math.round((r.x1 - r.x0) * max(gfx.scale(), 1)))
 	tex := twemoji_texture(hash, px)
-	if tex == 0 do return
+	if tex == 0 {
+		emoji_text_fallback(fallback, r, opacity)
+		return
+	}
 	c := gfx.Color{1, 1, 1, opacity}
 	gfx.push_rect({dst = gfx.Rect(r), tex = tex, colors = {c, c, c, c}})
+}
+
+// The unicode text centered in r (system font; CoreText / DirectWrite fall back to the color emoji font).
+emoji_text_fallback :: proc(text: string, r: ui.Rect, opacity: f32) {
+	if text == "" || opacity <= 0 do return
+	h := r.y1 - r.y0
+	size := h * 0.8
+	face := fonts[.Normal]
+	run := gfx.shape(face, size, text)
+	m := gfx.font_metrics(face, size)
+	x := r.x0 + ((r.x1 - r.x0) - run.width) / 2
+	y := r.y0 + (h - (m.ascent + m.descent)) / 2 + m.ascent
+	gfx.draw_run(run, {x, y}, {1, 1, 1, opacity})
 }
 
 @(private = "file")
 Tw_Draw :: struct {
 	hash: string,
+	text: string, // unicode fallback while the svg loads
 }
 
 @(private = "file")
 tw_box_draw :: proc(b: ^ui.Box, user: rawptr) {
 	d := (^Tw_Draw)(user)
-	twemoji_draw_rect(d.hash, b.rect, b.opacity)
+	twemoji_draw_rect(d.hash, b.rect, b.opacity, d.text)
 }
 
 // Draw emoji `index` (emoji_db) filling the box.
@@ -215,10 +235,10 @@ set_twemoji :: proc(b: ^ui.Box, index: int) {
 	emoji_db_load()
 	if index < 0 || index >= len(emoji_db.emojis) do return
 	h := emoji_db.emojis[index].asset
-	if h == "" do return
-	twemoji_get(h)
+	if h != "" do twemoji_get(h)
 	d := new(Tw_Draw, context.temp_allocator)
 	d.hash = h
+	d.text = emoji_db.emojis[index].surr
 	b.custom_draw = tw_box_draw
 	b.custom_user = d
 }
@@ -264,8 +284,11 @@ emoji_text_spans :: proc(out: ^[dynamic]ui.Span, sp: ui.Span, size: f32 = 22) {
 draw_unicode_emoji_span :: proc(sp: ui.Span, r: ui.Rect, opacity: f32) -> bool {
 	if sp.id & EMOJI_SPAN_FLAG == 0 do return false
 	idx := int(uintptr(sp.user)) - 1
-	if idx < 0 || idx >= len(emoji_db.emojis) do return true
-	twemoji_draw_rect(emoji_db.emojis[idx].asset, r, opacity)
+	if idx < 0 || idx >= len(emoji_db.emojis) {
+		emoji_text_fallback(sp.text, r, opacity)
+		return true
+	}
+	twemoji_draw_rect(emoji_db.emojis[idx].asset, r, opacity, sp.text)
 	return true
 }
 

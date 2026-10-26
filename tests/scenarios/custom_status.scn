@@ -16,10 +16,8 @@ settle 2500
 mark clear_custom_status
 click div[class*="accountPopoutButton"]
 wait 1500
-js [...document.querySelectorAll('[aria-label]')].map(e=>e.getAttribute('aria-label')).filter(a=>/status/i.test(a)).join(' ;; ')
 optional hover [aria-label*="status" i][class*="outer"]
 optional wait 800
-optional click [aria-label="Clear Custom Status"]
 optional click [aria-label="Clear custom status"]
 optional wait_gw USER_SETTINGS_PROTO_UPDATE 10000
 settle 2500

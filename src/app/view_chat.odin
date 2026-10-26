@@ -13,6 +13,8 @@ MSG_AVATAR :: 40
 MSG_GROUP_GAP :: 17 // space above the first message of a group
 MSG_LINE_H :: 22
 MSG_FONT :: 16
+MSG_CALL :: 3 // message type CALL
+CALL_ROW_H :: 26 // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58 // official form height (1px border included): 22px line + 18px padding
 GROUP_WINDOW_MS :: 7 * 60 * 1000 // messages from the same author within 7 minutes group
 
@@ -38,6 +40,7 @@ chat_state :: proc(channel_id: dc.Snowflake) -> ^Chat_State {
 continues_group :: proc(prev, m: ^dc.Message) -> bool {
 	if prev == nil do return false
 	if prev.author_id != m.author_id do return false
+	if prev.kind == MSG_CALL do return false
 	if m.referenced_id != 0 || (m.kind != 0 && m.kind != 19) do return false
 	if dc.snowflake_time_ms(m.id) - dc.snowflake_time_ms(prev.id) > GROUP_WINDOW_MS do return false
 	return day_of(prev.id) == day_of(m.id)
@@ -56,7 +59,7 @@ local_utc_offset_ms :: proc() -> i64 {
 // "3:04 PM" today, "Yesterday at 3:04 PM", or "10/24/2026 3:04 PM" — the client's calendar format.
 format_timestamp :: proc(id: dc.Snowflake, short := false) -> string {
 	ms := dc.snowflake_time_ms(id) + local_utc_offset_ms()
-	now_ms := time.time_to_unix_nano(time.now()) / 1e6 + local_utc_offset_ms()
+	now_ms := wall_ms() + local_utc_offset_ms()
 	t := time.unix(ms / 1000, 0)
 	h, mi, _ := time.clock_from_time(t)
 	ampm := h >= 12 ? "PM" : "AM"
@@ -76,6 +79,35 @@ format_timestamp :: proc(id: dc.Snowflake, short := false) -> string {
 	return fmt.tprintf("%d/%d/%d %s", int(mo), d, y, clock)
 }
 
+// format_timestamp kept alive across frames: header timestamps are selectable,
+// and a selection is read (copy, scripts) after the frame's temp memory is gone.
+@(private = "file")
+Stamp_Cache :: struct {
+	day:   i64,
+	texts: map[dc.Snowflake]string,
+}
+@(private = "file")
+stamps: Stamp_Cache
+
+// Unix ms now (or the -now: override).
+wall_ms :: proc() -> i64 {
+	if app.now_override_ms != 0 do return app.now_override_ms
+	return time.time_to_unix_nano(time.now()) / 1e6
+}
+
+header_timestamp :: proc(id: dc.Snowflake) -> string {
+	today := (wall_ms() + local_utc_offset_ms()) / 86_400_000
+	if today != stamps.day {
+		for _, v in stamps.texts do delete(v)
+		clear(&stamps.texts)
+		stamps.day = today
+	}
+	if s, ok := stamps.texts[id]; ok do return s
+	s := strings.clone(format_timestamp(id))
+	stamps.texts[id] = s
+	return s
+}
+
 chat_view :: proc(channel_id: dc.Snowflake) {
 	s := store()
 	ch := dc.channel_get(s, channel_id)
@@ -93,6 +125,7 @@ chat_view :: proc(channel_id: dc.Snowflake) {
 	}
 
 	picker_capture_input() // expression picker owns keys/wheel while open
+	for e in app.ui.events do if e.kind == .Mouse_Down do fmt.eprintln("DBGC", e.consumed, e.pos, app.ui.hot)
 	col := ui.box("chatcol")
 	col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 	col.layout_axis = .Y
@@ -144,6 +177,7 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 		total += ok ? h : MSG_LINE_H + 4
 	}
 	max_scroll := max(0, total - view_h)
+	jump_apply(channel_id, cs, msgs, view_h, BOTTOM_PAD)
 	cs.scroll_target = clamp(cs.scroll_target, 0, max_scroll)
 	ui.animate(&cs.scroll_from_bottom, cs.scroll_target, 40)
 	cs.scroll_from_bottom = clamp(cs.scroll_from_bottom, 0, max_scroll)
@@ -168,6 +202,8 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 				new_day := prev == nil || day_of(prev.id) != day_of(m.id)
 				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == nil || prev.id <= cs.unread_after) && m.author_id != s.me
 				grouped := continues_group(prev, &m) && !show_new
+				// consecutive call notices stack with no group gap
+				if m.kind == MSG_CALL do grouped = prev != nil && prev.kind == MSG_CALL && !new_day && !show_new
 				if ui.id_scope(u64(m.id)) {
 					row := message_row(&m, grouped, i, new_day, show_new)
 					row.flags += {.Floating_Y}
@@ -186,23 +222,41 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 @(private = "file")
 message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new: bool) -> ^ui.Box {
 	s := store()
-	r0 := ui.box("msg", {.Draw_Background})
+	r0 := ui.box("msg")
 	r0.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
 	r0.layout_axis = .Y
-	hovered := ui.mouse_over(r0) && !app.ui.selection.dragging
-	if hovered do app.chat_hover = m.id
-	if hovered do r0.style.bg = T("--message-background-hover")
 	editing := ma.editing == m.id
-	if (hovered || ma.menu_msg == m.id) && !editing do r0.style.bg = T("--message-background-hover")
-	if ma.replying == m.id do r0.style.bg = T("--message-highlight-background-default")
-	for e in app.ui.events {
-		if e.kind == .Mouse_Down && e.button == .Right && hovered do open_message_menu(m, e.pos)
-	}
 	if ui.parent(r0) {
 		if new_day || show_new {
 			divider_row(m.id, new_day, show_new)
 		} else if !grouped {
 			spacer(.Y, MSG_GROUP_GAP - 2)
+		}
+		// the list item proper: hover/highlight cover it, not the group gap above (a margin in the client)
+		li := ui.box("li", {.Draw_Background})
+		li.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
+		li.layout_axis = .Y
+		ui.push_parent(li)
+		defer ui.pop_parent()
+		hovered := ui.mouse_over(li) && !app.ui.selection.dragging
+		if hovered do app.chat_hover = m.id
+		if (hovered || ma.menu_msg == m.id) && !editing do li.style.bg = T("--message-background-hover")
+		highlighted := ma.replying == m.id || jump_highlighted(m.id)
+		if highlighted {
+			li.style.bg = T("--message-highlight-background-default")
+			li.style.radius = {0, 4, 4, 0}
+			bar := ui.box("hlbar", {.Draw_Background, .Floating_X, .Floating_Y})
+			bar.semantic_size = {.X = ui.px(2), .Y = ui.px(li.rect.y1 - li.rect.y0)}
+			bar.style.bg = T("--background-brand")
+		}
+		for e in app.ui.events {
+			if e.kind == .Mouse_Down && e.button == .Right && hovered do open_message_menu(m, e.pos)
+		}
+		if (hovered || ma.menu_msg == m.id) && !editing && m.kind != MSG_CALL {
+			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)
+			anchor := ui.box("tbanchor")
+			anchor.semantic_size = {.X = ui.pct(1), .Y = ui.px(0)}
+			if ui.parent(anchor) do message_toolbar(m)
 		}
 		spacer(.Y, 2)
 		if m.referenced_id != 0 {
@@ -213,7 +267,11 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 				reply_preview(m)
 			}
 		}
-		if hovered && !editing && ma.menu_msg == 0 do message_toolbar(m)
+		if m.kind == MSG_CALL {
+			call_notice(m)
+			spacer(.Y, 2)
+			return r0
+		}
 		body := row("body")
 		body.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
 		body.cross_align = .Start
@@ -243,6 +301,7 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 				if editing do edit_box(m)
 				else do message_body(m)
 				if len(m.sticker_ids) > 0 do message_stickers_view(m)
+				thread_summary_pill(m)
 				if len(m.attachments) > 0 do attachments_view(m)
 				if len(m.embeds) > 0 do embeds_view(m)
 				if len(m.reactions) > 0 do reactions_view(m)
@@ -254,6 +313,65 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 	_ = s
 	_ = index
 	return r0
+}
+
+// "Name started a call that lasted a few seconds. 4:43 AM" with a phone icon in the gutter.
+@(private = "file")
+call_notice :: proc(m: ^dc.Message) {
+	s := store()
+	r := row("call")
+	r.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
+	r.cross_align = .Start
+	if ui.parent(r) {
+		g := ui.box("gutter")
+		g.semantic_size = {.X = ui.px(MSG_GUTTER), .Y = ui.px(CALL_ROW_H)}
+		if ui.parent(g) {
+			ic := icon("phone", "phone", 16, T("--icon-feedback-positive"))
+			ic.flags += {.Floating_X, .Floating_Y}
+			ic.fixed_pos = {28, (CALL_ROW_H - 16) / 2}
+		}
+		name := "Unknown"
+		if u := dc.user_get(s, m.author_id); u != nil do name = dc.display_name(u)
+		what := " started a call."
+		if m.call_ended != "" {
+			start, _ := time.rfc3339_to_time_utc(m.timestamp)
+			end, _ := time.rfc3339_to_time_utc(m.call_ended)
+			what = fmt.tprintf(" started a call that lasted %s.", humanize_duration(time.diff(start, end)))
+		}
+		spans := make([]ui.Span, 3, context.temp_allocator)
+		spans[0] = {text = name, font = F(.Medium), size = MSG_FONT, color = T("--text-strong")}
+		spans[1] = {text = what, font = F(.Normal), size = MSG_FONT, color = T("--text-muted")}
+		spans[2] = {text = fmt.tprintf(" %s", header_timestamp(m.id)), font = F(.Medium), size = 12, color = T("--chat-text-muted")}
+		b := ui.box("text", {.Selectable_Text, .Wrap_Text})
+		b.semantic_size = {.X = ui.fill(), .Y = ui.text_size()}
+		b.style.line_height = MSG_LINE_H
+		b.style.padding = {0, (CALL_ROW_H - MSG_LINE_H) / 2}
+		ui.set_spans(b, spans)
+		b.sel_order = u64(m.id) * 8 + 2
+		spacer(.X, 48)
+	}
+}
+
+// moment.js-style relative duration ("a few seconds", "a minute", "5 minutes", "an hour").
+humanize_duration :: proc(d: time.Duration) -> string {
+	secs := i64(time.duration_seconds(d))
+	mins := (secs + 30) / 60
+	hours := (mins + 30) / 60
+	switch {
+	case secs < 45:
+		return "a few seconds"
+	case secs < 90:
+		return "a minute"
+	case mins < 45:
+		return fmt.tprintf("%d minutes", mins)
+	case mins < 90:
+		return "an hour"
+	case hours < 22:
+		return fmt.tprintf("%d hours", hours)
+	case hours < 36:
+		return "a day"
+	}
+	return fmt.tprintf("%d days", (hours + 12) / 24)
 }
 
 @(private = "file")
@@ -268,10 +386,14 @@ message_header :: proc(m: ^dc.Message) {
 		n := label(name, .Medium, 16, author_color(m), MSG_LINE_H)
 		n.flags += {.Clickable, .Selectable_Text}
 		n.sel_order = u64(m.id) * 8
-		if ui.signal(n).clicked do open_profile(m.author_id, n.rect)
+		for e in app.ui.events do if e.kind == .Mouse_Down && n.rect.y0 > 100 && n.rect.y0 < 140 do fmt.eprintln("DBGE", e.consumed, e.pos, app.ui.hot == n.key, n.rect)
+		nsig := ui.signal(n)
+		if nsig.clicked do open_profile(m.author_id, n.rect)
+		if nsig.pressed || nsig.clicked || nsig.released do fmt.eprintln("DBGN", nsig.pressed, nsig.released, nsig.clicked, app.profile_user)
+		if nsig.right_clicked do open_user_menu(m.author_id, app.ui.mouse)
 		spacer(.X, 8)
 		// copies as "Name — 4:56 AM" like the client's hidden separator
-		ts := label(format_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20)
+		ts := label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20)
 		ts.flags += {.Selectable_Text}
 		ts.sel_order = u64(m.id) * 8 + 1
 		ts.sel_join = " — "
@@ -315,6 +437,7 @@ rgb_u32 :: proc(c: u32) -> ui.Color {
 message_body :: proc(m: ^dc.Message) {
 	if m.content == "" do return
 	blocks := md_parse(m.content)
+	edited_inline := false
 	for blk, bi in blocks {
 		color := T("--text-default")
 		if m.pending do color = T("--text-muted")
@@ -380,13 +503,21 @@ message_body :: proc(m: ^dc.Message) {
 					}
 					b.style.line_height = 56
 				}
+				if bi == len(blocks) - 1 && m.edited_timestamp != "" {
+					// "(edited)" rides at the end of the last paragraph, like the client
+					edited := make([]ui.Span, len(spans) + 1, context.temp_allocator)
+					copy(edited, spans)
+					edited[len(spans)] = {text = " (edited)", font = F(.Normal), size = 10, color = T("--text-muted")}
+					spans = edited
+					edited_inline = true
+				}
 				ui.set_spans(b, spans)
 				b.sel_order = u64(m.id) * 8 + 2 + u64(bi) % 4
 			}
 			if b != nil && b.text_layout != nil do handle_span_clicks(b)
 		}
 	}
-	if m.edited_timestamp != "" {
+	if m.edited_timestamp != "" && !edited_inline {
 		label("(edited)", .Normal, 10, T("--text-muted"), 22)
 	}
 }
@@ -641,18 +772,19 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 	outer.cross_align = .Start
 	if ui.parent(outer) {
 		spacer(.X, 8)
-		stack := ui.box("composer_stack")
+		// one bordered form holds the reply bar, staged uploads and the text area
+		stack := ui.box("composer_stack", {.Draw_Background, .Draw_Border})
 		stack.semantic_size = {.X = ui.fill(), .Y = ui.children()}
 		stack.layout_axis = .Y
+		stack.style.bg = T("--chat-background-default")
+		stack.style.border_color = T("--border-subtle")
+		stack.style.border = 1
+		stack.style.radius = 8
 		ui.push_parent(stack)
 		if ma.replying != 0 do reply_bar()
 		uploads_bar()
-		box := row("composer", {.Draw_Background, .Draw_Border, .Clickable})
+		box := row("composer", {.Clickable})
 		box.semantic_size = {.X = ui.fill(), .Y = ui.children()}
-		box.style.bg = T("--chat-background-default")
-		box.style.border_color = T("--border-subtle")
-		box.style.border = 1
-		box.style.radius = 8
 		box.cross_align = .Start
 		box.hover_cursor = .IBeam
 		if ui.signal(box).pressed do app.ui.focus = box.key
@@ -833,7 +965,7 @@ divider_row :: proc(id: dc.Snowflake, new_day, show_new: bool) {
 		}
 		spacer(.X, 14)
 	}
-	spacer(.Y, 8)
+	spacer(.Y, 10) // official: the next item's top sits 18px below the divider line
 }
 
 // Any overlay that takes keyboard input away from the composer.

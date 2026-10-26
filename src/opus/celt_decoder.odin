@@ -219,7 +219,7 @@ celt_decode_lost :: proc(st: ^Celt_Decoder, n: int, LM: int) {
 				ac: [LPC_ORDER + 1]f32
 				celt_autocorr(exc, ac[:], window120[:], OVERLAP, LPC_ORDER, MAX_PERIOD)
 				ac[0] *= 1.0001
-				for i in 1 ..= LPC_ORDER do ac[i] -= ac[i] * (0.008 * 0.008) * f32(i) * f32(i)
+				for i in 1 ..= LPC_ORDER do ac[i] -= ac[i] * (f32(0.008) * f32(0.008)) * f32(i) * f32(i) // float product, as .008f*.008f
 				celt_lpc(st.lpc[c][:], ac[:], LPC_ORDER)
 			}
 			celt_fir(exc_buf[:], LPC_ORDER + MAX_PERIOD - exc_length, st.lpc[c][:], fir_tmp[:], exc_length, LPC_ORDER)

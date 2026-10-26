@@ -13,12 +13,18 @@ import "fc:ui"
 // can be tuned against screenshots of the official client.
 
 // ---- geometry (points) ----
-PK_W :: 498 // popout width
-PK_H :: 444 // popout height
-PK_RADIUS :: 8
+// From the client's CSS (expression picker chunk 678906 + emoji picker 31544):
+// .positionContainer height 486 (only-emoji 396), .contentWrapper padding-top 16,
+// rows 30px (nav) / gap 12, .navButton 14px/600 padding 8px 12px, gap 8, nav
+// padding 0 16; emoji picker standalone 498x440; header padding 0 16 12 16
+// (16 top when standalone) with a 1px --border-subtle bottom; search bar 40.
+PK_W :: 498 // popout width (--custom-emoji-picker-constants-min-emoji-picker-width)
+PK_H :: 486 // .positionContainer height
+PK_RADIUS :: 8 // --radius-sm
 PK_COMPOSER_GAP :: 8 // space between the popout and the composer's top edge
+PK_RIGHT_INSET :: 24 // .drawerSizingWrapper inset-inline-end (matches the reference screenshot)
 PK_REACTION_W :: 498
-PK_REACTION_H :: 430
+PK_REACTION_H :: 440 // --custom-emoji-picker-constants-emoji-picker-height
 PK_SCREEN_MARGIN :: 8
 PK_OPEN_SECONDS :: 0.15 // scale + fade in
 PK_CLOSE_SECONDS :: 0.1
@@ -26,16 +32,17 @@ PK_OPEN_SCALE :: 0.95 // starting scale of the open animation
 
 PK_HEADER_PAD_X :: 16
 PK_HEADER_PAD_TOP :: 16
-PK_TAB_H :: 24
-PK_TAB_PAD_X :: 8
+PK_TAB_H :: 30
+PK_TAB_PAD_X :: 12
 PK_TAB_GAP :: 8
 PK_TAB_FONT :: 14
-PK_TABS_TO_SEARCH :: 16
-PK_SEARCH_H :: 32
+PK_TABS_TO_SEARCH :: 12
+PK_SEARCH_H :: 40
 PK_SEARCH_FONT :: 16
 PK_SEARCH_RADIUS :: 8
-PK_SEARCH_PAD_X :: 8
-PK_HEADER_PAD_BOTTOM :: 8
+PK_SEARCH_PAD_X :: 12
+PK_HEADER_PAD_BOTTOM :: 12
+PK_HEADER_GAP :: 12 // search bar to skin tone selector
 
 PK_SCROLLBAR_W :: 4
 
@@ -92,10 +99,16 @@ picker_composer_button :: proc(name: string, sig: ui.Signal, rect: ui.Rect, chan
 		tab = .Sticker
 	case "reaction":
 		tab = .Emoji
-		pk.composer_right = rect.x1 + 8
-		pk.composer_top = rect.y0
 	case:
 		return sig.hovering
+	}
+	// the popout aligns to the composer box (the buttons' parent), like the client's positionTargetRef
+	if p := sig.box.parent; p != nil && p.rect.x1 > p.rect.x0 {
+		pk.composer_right = p.rect.x1
+		pk.composer_top = p.rect.y0
+	} else {
+		pk.composer_right = rect.x1 + 8
+		pk.composer_top = rect.y0
 	}
 	pk.buttons[tab] = rect
 	active := picker_is_open() && pk.mode == .Composer && pk.tab == tab && pk.channel == channel_id
@@ -273,7 +286,7 @@ picker_target_rect :: proc() -> ui.Rect {
 	if pk.mode == .Composer {
 		w = min(w, win.x - 2 * PK_SCREEN_MARGIN)
 		h = min(h, max(200, pk.composer_top - PK_COMPOSER_GAP - TITLE_BAR_H - PK_SCREEN_MARGIN))
-		right := pk.composer_right != 0 ? pk.composer_right : pk.anchor.x1
+		right := (pk.composer_right != 0 ? pk.composer_right : pk.anchor.x1) - PK_RIGHT_INSET
 		bottom := pk.composer_top != 0 ? pk.composer_top - PK_COMPOSER_GAP : pk.anchor.y0 - PK_COMPOSER_GAP
 		r = {right - w, bottom - h, right, bottom}
 	} else {
@@ -361,7 +374,7 @@ pk_fade :: proc(b: ^ui.Box, a: f32) {
 }
 
 picker_header_h :: proc() -> f32 {
-	h: f32 = PK_HEADER_PAD_TOP + PK_SEARCH_H + PK_HEADER_PAD_BOTTOM
+	h: f32 = PK_HEADER_PAD_TOP + PK_SEARCH_H + PK_HEADER_PAD_BOTTOM + 1
 	if pk.mode == .Composer do h += PK_TAB_H + PK_TABS_TO_SEARCH
 	return h
 }
@@ -382,14 +395,16 @@ picker_header :: proc(r: ui.Rect) {
 					sel := pk.tab == tab
 					b := ui.box(PICKER_TAB_LABELS[tab], {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
 					b.semantic_size = {.X = ui.text_size(PK_TAB_PAD_X), .Y = ui.px(PK_TAB_H)}
-					b.style.font = F(.Medium)
+					b.style.font = F(.Semibold)
 					b.style.font_size = PK_TAB_FONT
-					b.style.radius = 4
+					b.style.line_height = 14
+					b.style.radius = PK_RADIUS
 					b.style.text_align = .Center
 					sig := ui.signal(b)
+					// .navButton / .navButtonActive
 					b.style.bg = sel ? T("--background-mod-normal") : {}
-					b.style.bg_hot = sel ? b.style.bg : T("--background-mod-subtle")
-					b.style.text_color = sel ? T("--interactive-text-active") : (sig.hovering ? T("--interactive-text-hover") : T("--interactive-text-default"))
+					b.style.bg_hot = sel ? T("--background-mod-strong") : T("--control-secondary-background-hover")
+					b.style.text_color = sel ? (sig.hovering ? T("--interactive-text-active") : T("--text-strong")) : (sig.hovering ? T("--interactive-text-hover") : T("--text-default"))
 					if sig.clicked && !sel do picker_set_tab(tab)
 					spacer(.X, PK_TAB_GAP)
 				}
@@ -422,11 +437,15 @@ picker_header :: proc(r: ui.Rect) {
 				}
 			}
 			if pk.tab == .Emoji {
-				spacer(.X, 8)
+				spacer(.X, PK_HEADER_GAP)
 				skin_tone_button()
 			}
 			spacer(.X, PK_HEADER_PAD_X)
 		}
+		spacer(.Y, PK_HEADER_PAD_BOTTOM)
+		line := ui.box("hdrline", {.Draw_Background})
+		line.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
+		line.style.bg = T("--border-subtle")
 	}
 	_ = r
 }
@@ -437,13 +456,15 @@ pk_search_field :: proc(ed: ^ui.Editor, placeholder: string) -> ui.Edit_Result {
 	wrap := row("search", {.Draw_Background, .Draw_Border, .Clickable})
 	wrap.semantic_size = {.X = ui.fill(), .Y = ui.px(PK_SEARCH_H)}
 	wrap.style.bg = T("--input-background-default")
-	wrap.style.border_color = T("--input-border-default")
+	wrap.style.border_color = T("--border-focus") // the search input has focus while open
 	wrap.style.border = 1
 	wrap.style.radius = PK_SEARCH_RADIUS
 	wrap.hover_cursor = .IBeam
 	result := ui.Edit_Result.None
 	if ui.parent(wrap) {
 		spacer(.X, PK_SEARCH_PAD_X)
+		icon("mag", "magnifying-glass", 20, T("--icon-muted"))
+		spacer(.X, 8)
 		f := ui.box("picker_search###pk_search", {.Clickable, .Draw_Text, .Focusable, .Clip})
 		f.semantic_size = {.X = ui.fill(), .Y = ui.px(PK_SEARCH_H - 2)}
 		f.style.font = F(.Normal)
@@ -507,8 +528,6 @@ pk_search_field :: proc(ed: ^ui.Editor, placeholder: string) -> ui.Edit_Result {
 				ui.editor_set_text(ed, "")
 				result = .Changed
 			}
-		} else {
-			icon("mag", "magnifying-glass", 20, T("--icon-muted"))
 		}
 		spacer(.X, PK_SEARCH_PAD_X)
 	}
@@ -516,12 +535,11 @@ pk_search_field :: proc(ed: ^ui.Editor, placeholder: string) -> ui.Edit_Result {
 	return result
 }
 
-@(private = "file")
 Search_Draw :: struct {
 	ed: ^ui.Editor,
 }
 
-@(private = "file")
+// Caret + selection for a single-line field whose text is vertically centered.
 search_caret_draw :: proc(b: ^ui.Box, user: rawptr) {
 	d := (^Search_Draw)(user)
 	tl := b.text_layout

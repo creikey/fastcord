@@ -1,7 +1,7 @@
 # Emoji picker from the composer: open, hover, keyboard navigation, search,
 # select (inserts into the composer), reopen with shift-click keeping it open.
 wait 5
-click 980 686
+click 940 683
 wait 20
 move 640 490
 wait 3
