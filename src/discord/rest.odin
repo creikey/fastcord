@@ -552,6 +552,9 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 				u := &s.users[uid]
 				if vhas(prof, "bio") {free_str(u.bio, s.allocator); u.bio = clone_str(fstr(prof, "bio"), s.allocator)}
 				if vhas(prof, "pronouns") {free_str(u.pronouns, s.allocator); u.pronouns = clone_str(fstr(prof, "pronouns"), s.allocator)}
+				if vhas(m, "mutual_guilds") do u.mutual_guilds = len(flist(m, "mutual_guilds"))
+				if vhas(m, "mutual_friends") do u.mutual_friends = len(flist(m, "mutual_friends"))
+				else if vhas(m, "mutual_friends_count") do u.mutual_friends = int(fint(m, "mutual_friends_count"))
 			}
 		}
 	case .Settings:

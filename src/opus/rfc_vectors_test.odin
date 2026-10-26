@@ -6,7 +6,10 @@ package opus
 // opus-codec.org somewhere and point OPUS_TESTVECTORS at the directory that
 // holds testvector01.bit ... testvector12.bit / .dec / m.dec:
 //
-//   OPUS_TESTVECTORS=/path/to/opus_newvectors odin test src/opus -collection:fc=src
+//   OPUS_TESTVECTORS=/path/to/opus_newvectors odin test src/opus -collection:fc=src -o:speed \
+//     -define:ODIN_TEST_NAMES=opus.test_rfc8251_vectors
+//
+// (-o:speed matters: the opus_compare port is a direct DFT, minutes in a debug build.)
 //
 // Mirrors tests/run_vectors.sh: every vector is decoded at 48 kHz stereo and
 // compared to testvectorNN.dec with opus_compare -s, then at 48 kHz mono and

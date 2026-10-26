@@ -153,6 +153,18 @@ dm_row :: proc(ch: ^dc.Channel) {
 					label(fmt.tprintf("%d Member%s", n, n == 1 ? "" : "s"), .Medium, 12, T("--text-muted"), 16)
 				}
 			}
+			if selected || sig.hovering {
+				// close DM / leave group: DELETE /channels/{id}
+				x := ui.box("close", {.Clickable})
+				x.semantic_size = {.X = ui.px(16), .Y = ui.px(16)}
+				xs := ui.signal(x)
+				set_icon(x, "x-small", xs.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+				if xs.clicked && app.client != nil {
+					dc.close_private_channel(app.client, ch.id)
+					if selected do select_channel(0, 0)
+				}
+				spacer(.X, 6)
+			}
 		}
 		spacer(.X, 12) // official rows are 282 wide (scrollbar gutter)
 	}

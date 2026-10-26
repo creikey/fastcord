@@ -217,88 +217,222 @@ profile_popout :: proc() {
 	}
 }
 
-// Settings: appearance (theme) for now; mirrors the client's modal layout.
+// Settings: a floating modal like the visual-refresh client's (1200x640 at 1280x720):
+// a 252px nav (profile, search, sections) and a content pane with a 48px title bar.
+SET_INSET :: 40
+SET_NAV_W :: 252
+SET_TITLE_H :: 48
+SET_CONTENT_MAX_W :: 696
+SET_SWATCH :: 48
+SET_SWATCH_PITCH :: 56
+
+Settings_Item :: struct {
+	name: string,
+	icon: string,
+}
+
 settings_modal :: proc() {
+	s := store()
 	scrim := ui.box("settings_scrim", {.Draw_Background, .Floating_X, .Floating_Y, .Overlay, .Clickable})
 	scrim.semantic_size = {.X = ui.px(app.ui.window.x), .Y = ui.px(app.ui.window.y)}
-	scrim.style.bg = T("--background-base-lowest")
-	ui.signal(scrim)
+	scrim.style.bg = {0, 0, 0, 0.7}
+	if ui.signal(scrim).clicked do app.settings_open = false
 	if ui.parent(scrim) {
-		layout := row("layout")
-		layout.semantic_size = {.X = ui.pct(1), .Y = ui.pct(1)}
-		layout.cross_align = .Start
-		if ui.parent(layout) {
-			nav := ui.box("nav", {.Draw_Background})
-			nav.semantic_size = {.X = ui.pct(0.3), .Y = ui.pct(1)}
-			nav.style.bg = T("--background-base-lower")
+		m := row("settings", {.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Clickable, .Clip})
+		m.semantic_size = {.X = ui.px(app.ui.window.x - 2 * SET_INSET), .Y = ui.px(app.ui.window.y - 2 * SET_INSET)}
+		m.fixed_pos = {SET_INSET, SET_INSET}
+		m.cross_align = .Start
+		m.style.bg = T("--background-base-lower")
+		m.style.border_color = T("--border-subtle")
+		m.style.border = 1
+		m.style.radius = 12
+		ui.signal(m)
+		if ui.parent(m) {
+			nav := ui.box("nav")
+			nav.semantic_size = {.X = ui.px(SET_NAV_W), .Y = ui.pct(1)}
 			nav.layout_axis = .Y
 			if ui.parent(nav) {
-				spacer(.Y, 60)
-				for name in ([]string{"My Account", "Profiles", "Appearance", "Voice & Video", "Notifications"}) {
-					sel := name == settings_page
-					it := row(name, {.Clickable, .Draw_Background, .Hot_Animation})
-					it.semantic_size = {.X = ui.pct(1), .Y = ui.px(32)}
-					it.style.radius = 6
-					it.style.bg = sel ? T("--background-mod-normal") : {}
-					it.style.bg_hot = T("--background-mod-subtle")
-					if ui.signal(it).clicked do settings_page = name
-					if ui.parent(it) {
-						spacer(.X, 20)
-						label(name, .Medium, 16, sel ? T("--interactive-text-active") : T("--interactive-text-default"), 20)
+				spacer(.Y, 24)
+				me := row("me")
+				me.semantic_size = {.X = ui.pct(1), .Y = ui.px(48)}
+				if ui.parent(me) {
+					spacer(.X, 24)
+					avatar_box("av", s.me, 48)
+					spacer(.X, 10)
+					col := ui.box("names")
+					col.semantic_size = {.X = ui.fill(), .Y = ui.children()}
+					if ui.parent(col) {
+						name := "…"
+						if u := dc.user_get(s, s.me); u != nil do name = dc.display_name(u)
+						label(name, .Semibold, 16, T("--text-strong"), 20)
+						er := row("edit")
+						er.semantic_size = {.X = ui.pct(1), .Y = ui.px(18)}
+						if ui.parent(er) {
+							label("Edit Profiles", .Medium, 14, T("--text-muted"), 18)
+							spacer(.X, 4)
+							icon("pen", "pencil", 12, T("--text-muted"))
+						}
+					}
+				}
+				spacer(.Y, 16)
+				sr := row("searchrow")
+				sr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+				if ui.parent(sr) {
+					spacer(.X, 16)
+					sb := row("search", {.Draw_Background, .Draw_Border})
+					sb.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
+					sb.style.bg = T("--input-background-default")
+					sb.style.border_color = T("--input-border-default")
+					sb.style.border = 1
+					sb.style.radius = 8
+					if ui.parent(sb) {
+						spacer(.X, 12)
+						icon("mag", "magnifying-glass", 16, T("--icon-default"))
+						spacer(.X, 8)
+						label("Search", .Normal, 16, T("--input-placeholder-text-default"), 20)
+					}
+					spacer(.X, 16)
+				}
+				spacer(.Y, 8)
+				items := []Settings_Item{{"My Account", "user-circle"}, {"Profiles", "pencil"}, {"Appearance", "paint-palette"}, {"Voice & Video", "microphone"}, {"Notifications", "bell"}}
+				for it in items {
+					sel := it.name == settings_page
+					outer := row(it.name)
+					outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(37)}
+					if ui.parent(outer) {
+						spacer(.X, 16)
+						r := row("item", {.Clickable, .Draw_Background, .Hot_Animation})
+						r.semantic_size = {.X = ui.fill(), .Y = ui.px(33)}
+						r.style.radius = 8
+						r.style.bg = sel ? T("--background-mod-normal") : {}
+						r.style.bg_hot = sel ? r.style.bg : T("--background-mod-subtle")
+						sig := ui.signal(r)
+						if sig.clicked do settings_page = it.name
+						c := sel || sig.hovering ? T("--interactive-text-active") : T("--interactive-text-default")
+						if ui.parent(r) {
+							spacer(.X, 8)
+							icon("i", it.icon, 20, c)
+							spacer(.X, 8)
+							label(it.name, .Medium, 16, c, 20)
+						}
+						spacer(.X, 16)
 					}
 				}
 			}
-			content := ui.box("content")
+			edge := ui.box("navedge", {.Draw_Background})
+			edge.semantic_size = {.X = ui.px(1), .Y = ui.pct(1)}
+			edge.style.bg = T("--border-muted")
+			content := ui.box("content", {.Draw_Background})
 			content.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 			content.layout_axis = .Y
+			content.style.bg = T("--background-base-low")
 			if ui.parent(content) {
-				spacer(.Y, 60)
 				t := row("t")
-				t.semantic_size = {.X = ui.pct(1), .Y = ui.px(28)}
+				t.semantic_size = {.X = ui.pct(1), .Y = ui.px(SET_TITLE_H)}
 				if ui.parent(t) {
-					spacer(.X, 40)
-					label(settings_page, .Semibold, 20, T("--text-strong"), 24)
+					spacer(.X, 20)
+					label(settings_page, .Semibold, 16, T("--text-strong"), 20)
 					filler(.X)
-					close := ui.box("close", {.Clickable, .Draw_Border})
-					close.semantic_size = {.X = ui.px(36), .Y = ui.px(36)}
-					close.style.radius = 18
-					close.style.border = 2
-					close.style.border_color = T("--interactive-icon-default")
-					close.layout_axis = .X
-					close.cross_align = .Center
-					if ui.parent(close) {
-						spacer(.X, 8)
-						icon("x", "x-small", 20, T("--interactive-icon-default"))
-					}
-					if ui.signal(close).clicked do app.settings_open = false
-					spacer(.X, 40)
+					close := ui.box("close", {.Clickable})
+					close.semantic_size = {.X = ui.px(20), .Y = ui.px(20)}
+					cs := ui.signal(close)
+					set_icon(close, "x-large", cs.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+					if cs.clicked do app.settings_open = false
+					spacer(.X, 16)
 				}
-				spacer(.Y, 24)
-				if settings_page == "Voice & Video" do voice_settings_page()
-				th := row("themes")
-				th.semantic_size = {.X = ui.pct(1), .Y = ui.px(60 if settings_page == "Appearance" else 0)}
-				if settings_page == "Appearance" {
-					if ui.parent(th) {
-						spacer(.X, 40)
-						for name in Theme_Name {
-							tokens: Theme
-							defer delete(tokens.tokens)
-							theme_load(&tokens, name)
-							sw := ui.box(fmt.tprint(name), {.Clickable, .Draw_Background, .Draw_Border})
-							sw.semantic_size = {.X = ui.px(60), .Y = ui.px(60)}
-							sw.style.radius = 30
-							sw.style.bg = tok(&tokens, "--background-base-lower")
-							sw.style.border = app.theme.name == name ? 2 : 1
-							sw.style.border_color = app.theme.name == name ? T("--background-brand") : T("--border-strong")
-							if ui.signal(sw).clicked do theme_set_by_user(name)
-							spacer(.X, 16)
-						}
-					}
+				tl := ui.box("tline", {.Draw_Background})
+				tl.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
+				tl.style.bg = T("--border-muted")
+				if settings_page == "Voice & Video" {
+					voice_settings_page()
+				} else if settings_page == "Appearance" {
+					appearance_page()
 				}
 			}
 		}
 	}
 	for e in app.ui.events {
 		if e.kind == .Key_Down && e.key == .Escape do app.settings_open = false
+	}
+}
+
+// Appearance > Theme: heading, "Same as Device Theme" row, the default theme swatches.
+@(private = "file")
+appearance_page :: proc() {
+	page := row("appearance")
+	page.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
+	page.cross_align = .Start
+	if ui.parent(page) {
+		filler(.X)
+		col := ui.box("col")
+		col.semantic_size = {.X = ui.px(SET_CONTENT_MAX_W), .Y = ui.children()}
+		col.layout_axis = .Y
+		if ui.parent(col) {
+			spacer(.Y, 64)
+			label("Theme", .Medium, 24, T("--text-strong"), 32)
+			spacer(.Y, 30)
+			dr := row("device")
+			dr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+			if ui.parent(dr) {
+				c := ui.box("c")
+				c.semantic_size = {.X = ui.fill(), .Y = ui.children()}
+				if ui.parent(c) {
+					label("Same as Device Theme", .Medium, 16, T("--text-strong"), 20)
+					spacer(.Y, 2)
+					label("Match your device's light or dark mode.", .Normal, 14, T("--text-subtle"), 18)
+				}
+				// toggle (off): 40x24 track with a white knob
+				tr := ui.box("toggle", {.Draw_Background, .Draw_Border})
+				tr.semantic_size = {.X = ui.px(40), .Y = ui.px(24)}
+				tr.style.radius = 12
+				tr.style.bg = T("--background-mod-strong")
+				tr.style.border = 1
+				tr.style.border_color = T("--border-subtle")
+				if ui.parent(tr) {
+					k := ui.box("knob", {.Draw_Background, .Floating_X, .Floating_Y})
+					k.semantic_size = {.X = ui.px(16), .Y = ui.px(16)}
+					k.fixed_pos = {4, 4}
+					k.style.radius = 8
+					k.style.bg = {1, 1, 1, 1}
+				}
+			}
+			spacer(.Y, 32)
+			label("Default Themes", .Semibold, 16, T("--text-default"), 20)
+			spacer(.Y, 24)
+			sw := row("swatches")
+			sw.semantic_size = {.X = ui.pct(1), .Y = ui.px(SET_SWATCH)}
+			if ui.parent(sw) {
+				for name in Theme_Name {
+					tokens: Theme
+					defer delete(tokens.tokens)
+					theme_load(&tokens, name)
+					sel := app.theme.name == name
+					b := ui.box(fmt.tprint(name), {.Clickable, .Draw_Background, .Draw_Border})
+					b.semantic_size = {.X = ui.px(SET_SWATCH), .Y = ui.px(SET_SWATCH)}
+					b.style.radius = 8
+					b.style.bg = name == .Light ? ui.Color{1, 1, 1, 1} : tok(&tokens, "--background-base-lower")
+					b.style.border = sel ? 2 : 1
+					b.style.border_color = sel ? T("--background-brand") : T("--interactive-icon-default")
+					if ui.signal(b).clicked do theme_set_by_user(name)
+					if sel {
+						if ui.parent(b) {
+							// check badge on the selected swatch's top-right corner
+							badge := ui.box("check", {.Draw_Background, .Floating_X, .Floating_Y})
+							badge.semantic_size = {.X = ui.px(20), .Y = ui.px(20)}
+							badge.fixed_pos = {SET_SWATCH - 14, -6}
+							badge.style.radius = 10
+							badge.style.bg = T("--background-brand")
+							if ui.parent(badge) {
+								ic := icon("i", "checkmark-small-bold", 16, {1, 1, 1, 1})
+								ic.flags += {.Floating_X, .Floating_Y}
+								ic.fixed_pos = {2, 2}
+							}
+						}
+					}
+					spacer(.X, SET_SWATCH_PITCH - SET_SWATCH)
+				}
+			}
+		}
+		filler(.X)
 	}
 }

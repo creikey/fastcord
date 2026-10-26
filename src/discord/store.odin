@@ -169,7 +169,7 @@ parse_user_into :: proc(s: ^Store, m: etf.Map) -> Snowflake {
 	a := s.allocator
 	u, exists := &s.users[id]
 	if !exists {
-		s.users[id] = User{id = id}
+		s.users[id] = User{id = id, mutual_guilds = -1, mutual_friends = -1}
 		u = &s.users[id]
 	}
 	// Partial user objects (presence updates) only carry what changed.

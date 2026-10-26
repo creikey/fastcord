@@ -87,6 +87,9 @@ User :: struct {
 	bot:           bool,
 	flags:         u64,
 	premium_type:  int,
+	// from GET /users/{id}/profile (with_mutual_guilds / with_mutual_friends)
+	mutual_guilds:  int, // -1 until a profile with mutual guilds arrived
+	mutual_friends: int, // -1 until known
 }
 
 display_name :: proc(u: ^User) -> string {

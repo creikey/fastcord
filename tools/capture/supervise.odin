@@ -16,7 +16,9 @@ import "core:time"
 // --remote-debugging-port=9333/9334, output to .secrets/discord-{a,b}.log.
 // Never --user-data-dir (Discord ignores it and opens the user's real profile).
 // Each launch also writes a netlog: .secrets/raw/netlog_{a,b}_<unix>.json, the
-// current path in .secrets/raw/netlog_{a,b}.latest (scrub -netlog reads it).
+// current path in .secrets/raw/netlog_{a,b}.latest. Chrome rewrites the file
+// on exit without the events, so before stopping an instance the supervisor
+// copies it to netlog_{a,b}_<unix>.events.json — pass that one to scrub.
 //
 // Every POLL: total RSS of each instance's process tree; a tree above
 // TREE_LIMIT is killed, and when free+inactive system memory drops below
@@ -110,6 +112,17 @@ signal_tree :: proc(pids: []int, sig: string) {
 kill_instance :: proc(inst: Instance, why: string) {
 	root := instance_root(inst.port)
 	if root == 0 do return
+	// Chrome rewrites the netlog on shutdown and drops the event stream, so
+	// keep a copy of what it wrote while running: <netlog>.events.json
+	if latest, lerr := os.read_entire_file(fmt.tprintf("%s/.secrets/raw/netlog_%s.latest", REPO, inst.name), context.temp_allocator); lerr == nil {
+		src := strings.trim_space(string(latest))
+		dst := strings.concatenate({strings.trim_suffix(src, ".json"), ".events.json"}, context.temp_allocator)
+		if data, rerr := os.read_entire_file(src, context.allocator); rerr == nil {
+			_ = os.write_entire_file(dst, data)
+			sup_log("netlog snapshot %s (%d MB)", dst, len(data) >> 20)
+			delete(data)
+		}
+	}
 	pids, rss := tree(root)
 	sup_log("stopping %s (pid %d, %d procs, %.0f MB): %s", inst.name, root, len(pids), f64(rss) / (1 << 20), why)
 	signal_tree(pids, "-TERM")
