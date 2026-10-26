@@ -20,6 +20,8 @@ App :: struct {
 	frame:           u64,
 	view:            View_State,
 	client:          ^dc.Client, // nil when offline (fixture / tests)
+	needs_login:     bool, // no token, or Discord rejected it: show the intro (view_login.odin)
+	login_error:     string,
 	offline_store:   dc.Store,
 	chats:           map[dc.Snowflake]Chat_State,
 	chat_hover:      dc.Snowflake,
@@ -141,6 +143,7 @@ main :: proc() {
 	} else if !headless || opt.live > 0 {
 		connect()
 	}
+	if app.client == nil && opt.fixture == "" do app.needs_login = true
 
 	if headless do update_start()
 	if headless && opt.live > 0 {
@@ -214,6 +217,7 @@ frame :: proc() {
 		dc.client_poll(app.client)
 		handle_results()
 		voice_frame()
+		login_check_auth()
 	}
 	sounds_frame()
 	settings_frame()

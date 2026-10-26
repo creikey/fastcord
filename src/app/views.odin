@@ -39,6 +39,7 @@ View_State :: struct {
 	show_members: bool,
 	hide_dm_profile: bool, // 1:1 DM user profile column (header toggle)
 	add_friend:   ui.Editor,
+	token_input:  ui.Editor,
 }
 
 view_init :: proc(v: ^View_State) {
@@ -137,6 +138,10 @@ select_channel :: proc(gid, cid: dc.Snowflake) {
 build_ui :: proc() {
 	root := ui.top_parent()
 	root.layout_axis = .Y
+	if app.needs_login {
+		login_view()
+		return
+	}
 	title_bar()
 	body := row("body")
 	body.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}

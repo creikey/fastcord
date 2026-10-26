@@ -37,8 +37,12 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 ```sh
 ./build.sh            # build/fastcord (-o:speed)
 ./build.sh debug      # build/fastcord-debug
-./build/fastcord      # logs in with $FASTCORD_TOKEN or ~/Library/Application Support/fastcord/state/token
+./build/fastcord      # logs in with $FASTCORD_TOKEN or <state>/token
 ```
+
+`<state>` is `~/Library/Application Support/fastcord/state` on macOS and `%LOCALAPPDATA%\fastcord\state`
+on Windows. With no token (or a rejected one) the app opens an intro screen that explains how to copy
+the token from a browser and saves it there.
 
 ## Testing
 
