@@ -213,17 +213,20 @@ frame :: proc() {
 	app.wake_at = 0
 	app.focused_editor = nil
 
+	t_poll := platform.time_now()
 	if app.client != nil {
 		dc.client_poll(app.client)
 		handle_results()
 		voice_frame()
 		login_check_auth()
 	}
+	t_media := platform.time_now()
 	sounds_frame()
 	settings_frame()
 	images_receive()
 	features_receive()
 	notify_tick()
+	t_ui := platform.time_now()
 	for e in platform.events() {
 		#partial switch e.kind {
 		case .File_Drop:
@@ -249,13 +252,19 @@ frame :: proc() {
 		}
 	}
 
+	t_render := platform.time_now()
 	gfx.begin_frame(gfx.Color(tok(&app.theme, "--background-base-lowest")))
 	render(cmds)
 	gfx.end_frame()
+	t_end := platform.time_now()
 
 	platform.set_cursor(map_cursor(ui.cursor()))
 	if ui.needs_frame() do platform.request_frame()
 	if app.stats {
+		if t_end - t_poll > 0.025 {
+			ms :: proc(a, b: f64) -> f64 {return (b - a) * 1000}
+			fmt.eprintfln("[slow] %.1f ms: poll %.1f, media %.1f, ui %.1f, render %.1f", ms(t_poll, t_end), ms(t_poll, t_media), ms(t_media, t_ui), ms(t_ui, t_render), ms(t_render, t_end))
+		}
 		@(static) last_report: f64
 		@(static) last_frame: u64
 		if now - last_report > 2 {
