@@ -101,7 +101,7 @@ message_toolbar :: proc(m: ^dc.Message) {
 			b.style.bg_hot = T("--background-mod-subtle")
 			b.layout_axis = .X
 			b.cross_align = .Center
-			if ui.signal(b).clicked && app.client != nil do dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id)
+			if ui.signal(b).clicked && net_action() do dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id)
 			if ui.parent(b) {
 				spacer(.X, 4)
 				emoji_box("e", e, 20)
@@ -224,7 +224,7 @@ edit_box :: proc(m: ^dc.Message) {
 			text := strings.trim_space(ui.editor_text(&ma.edit_editor))
 			if text == "" {
 				ma.deleting = m.id
-			} else if text != m.content && app.client != nil {
+			} else if text != m.content && net_action() {
 				dc.edit_message(app.client, m.channel_id, m.id, text)
 			}
 			ma.editing = 0
@@ -384,7 +384,7 @@ uploads_bar :: proc() {
 
 // Send what's in the composer: text, reply, staged files.
 composer_send :: proc(ch: ^dc.Channel, text: string) -> bool {
-	if app.client == nil do return false
+	if !net_action() do return false
 	if text == "" && len(ma.uploads) == 0 do return false
 	opts: dc.Send_Options
 	if ma.replying != 0 {
@@ -471,7 +471,7 @@ message_menu :: proc() {
 					b.layout_axis = .X
 					b.cross_align = .Center
 					if ui.signal(b).clicked {
-						if app.client != nil do dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id)
+						if net_action() do dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id)
 						ma.menu_msg = 0
 					}
 					if ui.parent(b) {
@@ -544,7 +544,7 @@ message_menu :: proc() {
 }
 
 delete_now :: proc(m: ^dc.Message) {
-	if app.client != nil do dc.delete_message(app.client, m.channel_id, m.id)
+	if net_action() do dc.delete_message(app.client, m.channel_id, m.id)
 }
 
 // "Delete Message — Are you sure?" modal with a preview of the message.

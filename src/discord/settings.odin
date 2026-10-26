@@ -1,6 +1,8 @@
 package discord
 
 import "core:encoding/base64"
+import "core:strings"
+import "fc:etf"
 import "fc:protobuf"
 
 // PreloadedUserSettings writes (UserSettingsProtoStore.updateAsync):
@@ -26,6 +28,7 @@ Settings_Edit :: struct {
 	status:       Maybe(Status),
 	status_ms:    i64, // status_created_at_ms
 	custom:       Maybe(Custom_Status),
+	custom_ms:    i64, // CustomStatus.created_at_ms
 	clear_custom: bool,
 	theme:        Maybe(Theme),
 	folders:      Maybe([]Guild_Folder),
@@ -63,13 +66,11 @@ settings_delta_proto :: proc(e: ^Settings_Edit) -> []byte {
 			if cs.emoji_id != 0 do pb_fixed64(&cm, 2, u64(cs.emoji_id))
 			if cs.emoji_name != "" do protobuf.write_string(&cm, 3, cs.emoji_name)
 			if cs.expires_at_ms != 0 do pb_fixed64(&cm, 4, u64(cs.expires_at_ms))
-			pb_fixed64(&cm, 5, u64(e.status_ms))
-			pb_msg(&st, 2, &cm)
-		} else if e.clear_custom {
-			cm := pb_new()
+			pb_fixed64(&cm, 5, u64(e.custom_ms))
 			pb_msg(&st, 2, &cm)
 		}
-		if has_status {
+		// clearing: StatusSettings without custom_status (fixture custom_status)
+		if has_status && e.status_ms != 0 {
 			created := pb_new() // UInt64Value
 			protobuf.write_uint(&created, 1, u64(e.status_ms))
 			pb_msg(&st, 5, &created)
@@ -124,9 +125,11 @@ settings_mark :: proc(c: ^Client, delay_ms: i64) {
 
 // set_status: online / idle / dnd / invisible.
 set_status :: proc(c: ^Client, s: Status) {
+	now := now_ms()
 	c.settings_edit.status = s
-	c.settings_edit.status_ms = now_ms()
+	c.settings_edit.status_ms = now
 	c.store.settings.status = s
+	c.store.settings.status_created_ms = now
 	c.store.changed += 1
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS)
 }
@@ -143,10 +146,61 @@ set_custom_status :: proc(c: ^Client, cs: Custom_Status) {
 			free_str(old.emoji_name, c.allocator)
 		}
 		e.custom = Custom_Status{clone_str(cs.text, c.allocator), cs.emoji_id, clone_str(cs.emoji_name, c.allocator), cs.expires_at_ms}
+		e.custom_ms = now_ms()
 		e.clear_custom = false
 	}
-	if e.status_ms == 0 do e.status_ms = now_ms()
+	// The whole StatusSettings is written: current status and its created time.
+	if _, has := e.status.?; !has {
+		e.status = c.store.settings.status
+		e.status_ms = c.store.settings.status_created_ms
+	}
+	st := &c.store.settings
+	free_str(st.custom_status_text, c.allocator)
+	free_str(st.custom_status_emoji, c.allocator)
+	st.custom_status_text = clone_str(cs.text, c.allocator)
+	st.custom_status_emoji = clone_str(cs.emoji_name, c.allocator)
+	st.custom_status_emoji_id = cs.emoji_id
+	st.custom_status_expires_ms = cs.expires_at_ms
+	c.store.changed += 1
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS)
+}
+
+// presence_value: op 3 as the client sends it after a status change.
+presence_value :: proc(c: ^Client, allocator := context.temp_allocator) -> V {
+	context.allocator = allocator
+	st := &c.store.settings
+	acts := make([dynamic]V, 0, 1)
+	if st.custom_status_text != "" || st.custom_status_emoji != "" {
+		a := etf.map_builder(8)
+		etf.map_put(&a, "name", string("Custom Status"))
+		etf.map_put(&a, "type", i64(4))
+		if st.custom_status_text != "" do etf.map_put(&a, "state", V(strings.clone(st.custom_status_text)))
+		if st.custom_status_expires_ms != 0 {
+			ts := etf.map_builder(1)
+			etf.map_put(&ts, "end", st.custom_status_expires_ms)
+			etf.map_put(&a, "timestamps", etf.map_done(&ts))
+		}
+		if st.custom_status_emoji != "" {
+			em := etf.map_builder(3)
+			etf.map_put(&em, "name", V(strings.clone(st.custom_status_emoji)))
+			etf.map_put(&em, "id", nil if st.custom_status_emoji_id == 0 else V(snowflake_string(st.custom_status_emoji_id)))
+			etf.map_put(&em, "animated", false)
+			etf.map_put(&a, "emoji", etf.map_done(&em))
+		} else {
+			etf.map_put(&a, "emoji", nil)
+		}
+		etf.map_put(&a, "details", nil)
+		md := etf.map_builder(1)
+		etf.map_put(&md, "label", nil)
+		etf.map_put(&a, "metadata", etf.map_done(&md))
+		append(&acts, etf.map_done(&a))
+	}
+	b := etf.map_builder(4)
+	etf.map_put(&b, "status", V(status_name(st.status)))
+	etf.map_put(&b, "since", i64(0))
+	etf.map_put(&b, "activities", etf.List(acts[:]))
+	etf.map_put(&b, "afk", false)
+	return etf.map_done(&b)
 }
 
 set_theme :: proc(c: ^Client, t: Theme) {
@@ -187,6 +241,10 @@ flush_settings :: proc(c: ^Client, now: i64) {
 	e := &c.settings_edit
 	if e.due == 0 || now < e.due do return
 	delta := settings_delta_proto(e)
+	_, status_part := e.status.?
+	if _, cp := e.custom.?; cp || e.clear_custom do status_part = true
+	// PresenceStore: the gateway presence goes out with the settings write
+	if status_part && c.gw != nil do gateway_send(c.gw, .Presence_Update, presence_value(c))
 	if cus, ok := e.custom.?; ok {
 		free_str(cus.text, c.allocator)
 		free_str(cus.emoji_name, c.allocator)

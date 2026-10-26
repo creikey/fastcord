@@ -43,7 +43,7 @@ voice_set_headless :: proc(h: bool) {vc.headless = h}
 
 // voice_join_channel: op 4 join (or move) and remember the guild for later op 4s.
 voice_join_channel :: proc(gid, cid: dc.Snowflake) {
-	if app.client == nil do return
+	if !net_action() do return
 	if app.voice_channel == cid do return
 	vc.guild = gid
 	app.voice_channel = cid
@@ -291,3 +291,5 @@ voice_panel :: proc() {
 	div.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
 	div.style.bg = T("--border-subtle")
 }
+
+voice_reset_for_test :: proc() {vc = {headless = true}}

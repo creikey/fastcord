@@ -349,6 +349,7 @@ shutdown :: proc(s: ^State) {
 	delete(s.selectables)
 	delete(s.prev_selectables)
 	if ui == s do ui = nil
+	s^ = {} // no dangling free list / table for a later init
 }
 
 // Begin a frame. events are borrowed for the frame.
@@ -637,7 +638,6 @@ intersect :: proc(a, b: Rect) -> Rect {
 }
 
 // Clip rect a box is visible within, from last frame's layout.
-@(private)
 visible_rect :: proc(b: ^Box) -> Rect {
 	r := b.rect
 	for p := b.parent; p != nil; p = p.parent {
@@ -645,6 +645,10 @@ visible_rect :: proc(b: ^Box) -> Rect {
 	}
 	return r
 }
+
+// The clickable box a press at p goes to, against the most recently laid-out
+// boxes (after end(): this frame's; tests use it to find reachable controls).
+hit_box :: proc(p: Vec2) -> Key {return hit_test_prev(p)}
 
 // Hit test against the previous frame's boxes; overlays win, later boxes win.
 @(private)
@@ -667,7 +671,6 @@ hit_test_prev :: proc(p: Vec2) -> Key {
 }
 
 // Does any box of last frame's overlay layer (popups, modals) contain p?
-@(private)
 overlay_at :: proc(p: Vec2) -> bool {
 	for b in ui.order {
 		if .Overlay in b.flags && contains(b.rect, p) do return true
@@ -675,7 +678,6 @@ overlay_at :: proc(p: Vec2) -> bool {
 	return false
 }
 
-@(private)
 in_overlay :: proc(b: ^Box) -> bool {
 	for x := b; x != nil; x = x.parent {
 		if .Overlay in x.flags do return true

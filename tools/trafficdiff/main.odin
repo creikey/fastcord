@@ -357,13 +357,20 @@ diff_window :: proc(wa, wb: Window, opts: Opts, sb: ^strings.Builder) -> int {
 	// requests that are not part of the same burst (> ORDER_SLACK ms apart)
 	ORDER_SLACK :: 100.0
 	seen := make([dynamic][2]f64, context.temp_allocator)
+	seen_key := make([dynamic]string, context.temp_allocator)
 	for e in ra {
 		key := req_key(e)
+		// same-key requests (science batches, repeated GETs): the unused one
+		// closest in window time, so one early/late batch does not shift the rest
 		match := -1
+		best := max(f64)
 		for f, j in rb {
 			if !taken[j] && req_key(f) == key {
-				match = j
-				break
+				d := abs((f.t - wb.start) - (e.t - wa.start))
+				if d < best {
+					best = d
+					match = j
+				}
 			}
 		}
 		if match < 0 {
@@ -372,14 +379,15 @@ diff_window :: proc(wa, wb: Window, opts: Opts, sb: ^strings.Builder) -> int {
 			continue
 		}
 		taken[match] = true
-		for prev in seen {
+		for prev, pi in seen {
 			if f64(match) < prev[1] && (e.t - wa.start) - prev[0] > ORDER_SLACK {
-				fmt.sbprintfln(sb, "  ~ order    %s comes earlier in ours", key)
+				fmt.sbprintfln(sb, "  ~ order    %s comes earlier in ours (than %s)", key, seen_key[pi])
 				n += 1
 				break
 			}
 		}
 		append(&seen, [2]f64{e.t - wa.start, f64(match)})
+		append(&seen_key, key)
 		n += diff_request(e, rb[match], wa.start, wb.start, opts, sb)
 	}
 	for f, j in rb do if !taken[j] {

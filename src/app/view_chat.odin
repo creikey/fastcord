@@ -747,7 +747,7 @@ reactions_view :: proc(m: ^dc.Message) {
 				label(fmt.tprintf("%d", re.count), .Semibold, 14, re.me ? T("--reaction-text-reacted-default") : T("--reaction-text-default"), 16)
 				spacer(.X, 6)
 			}
-			if sig.clicked && app.client != nil {
+			if sig.clicked && net_action() {
 				if re.me {
 					dc.remove_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id)
 				} else {
@@ -841,7 +841,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			spacer(.X, 16)
 			plus := ui.box("plus", {.Clickable})
 			if ui.signal(plus).clicked {
-				for path in platform.open_file_dialog(true, context.temp_allocator) do stage_upload(path)
+				for path in pick_files() do stage_upload(path)
 			}
 			plus.semantic_size = {.X = ui.px(24), .Y = ui.px(COMPOSER_H)}
 			plus.layout_axis = .Y
@@ -947,7 +947,7 @@ text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: boo
 		ui.editor_mouse_drag(ed, tl, app.ui.mouse)
 	}
 	if focused {
-		app.focused_editor = ed
+		note_focused_editor(ed, f)
 		for &e in app.ui.events {
 			if e.consumed do continue
 			if e.kind != .Key_Down && e.kind != .Text do continue

@@ -151,7 +151,7 @@ dm_row :: proc(ch: ^dc.Channel) {
 				x.semantic_size = {.X = ui.px(16), .Y = ui.px(16)}
 				xs := ui.signal(x)
 				set_icon(x, "x-small", xs.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
-				if xs.clicked && app.client != nil {
+				if xs.clicked && net_action() {
 					dc.close_private_channel(app.client, ch.id)
 					if selected do select_channel(0, 0)
 				}
@@ -329,7 +329,7 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 		item.style.radius = 8
 		item.style.bg_hot = T("--background-mod-subtle")
 		sig := ui.signal(item)
-		if sig.clicked && app.client != nil {
+		if sig.clicked && net_action() {
 			if existing := dc.open_dm(app.client, uid, "Friends"); existing != 0 do select_channel(0, existing)
 			else do app.pending_dm_user = uid
 		}
@@ -360,7 +360,7 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				label(sub, .Medium, 14, T("--text-muted"), 18)
 			}
 			if kind == .Incoming_Request {
-				if round_icon_button("accept", "check", T("--status-positive")).clicked && app.client != nil do dc.accept_friend_request(app.client, uid)
+				if round_icon_button("accept", "check", T("--status-positive")).clicked && net_action() do dc.accept_friend_request(app.client, uid)
 				spacer(.X, 10)
 			}
 			if kind == .Friend {
@@ -368,7 +368,7 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				spacer(.X, 10)
 				round_icon_button("more", "more-vertical", T("--interactive-icon-hover"))
 			} else {
-				if round_icon_button("deny", "x-small", T("--status-danger")).clicked && app.client != nil do dc.remove_relationship(app.client, uid)
+				if round_icon_button("deny", "x-small", T("--status-danger")).clicked && net_action() do dc.remove_relationship(app.client, uid)
 			}
 			spacer(.X, 10)
 		}
@@ -490,7 +490,7 @@ add_friend_view :: proc() {
 				btn.style.bg = enabled ? T("--background-brand") : with_alpha(T("--background-brand"), 0.5)
 				btn.style.bg_hot = btn.style.bg
 				btn.style.text_color = enabled ? {1, 1, 1, 1} : {1, 1, 1, 0.5}
-				if (ui.signal(btn).clicked || res == .Submit) && enabled && app.client != nil {
+				if (ui.signal(btn).clicked || res == .Submit) && enabled && net_action() {
 					dc.send_friend_request(app.client, name)
 					ui.editor_set_text(&app.view.add_friend, "")
 				}
@@ -650,7 +650,7 @@ dm_profile_panel :: proc(uid: dc.Snowflake) {
 									ic.flags += {.Floating_X, .Floating_Y}
 									ic.fixed_pos = {7, 7}
 								}
-								if sig.clicked && i == 0 && rel == .None && app.client != nil do dc.add_relationship(app.client, uid, "User Profile")
+								if sig.clicked && i == 0 && rel == .None && net_action() do dc.add_relationship(app.client, uid, "User Profile")
 								if i == 0 do spacer(.X, 8)
 							}
 						}
@@ -792,19 +792,19 @@ dm_welcome :: proc(ch: ^dc.Channel) -> ^ui.Box {
 			}
 			switch rel {
 			case .Friend:
-				if btn("Remove Friend", false) && app.client != nil do dc.remove_relationship(app.client, uid, "DM Header")
+				if btn("Remove Friend", false) && net_action() do dc.remove_relationship(app.client, uid, "DM Header")
 				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			case .Blocked:
-				if btn("Unblock", false) && app.client != nil do dc.remove_relationship(app.client, uid, "DM Header")
+				if btn("Unblock", false) && net_action() do dc.remove_relationship(app.client, uid, "DM Header")
 			case .Outgoing_Request:
 				btn("Friend Request Sent", false)
 				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			case .Incoming_Request:
-				if btn("Accept", true) && app.client != nil do dc.accept_friend_request(app.client, uid)
-				if btn("Ignore", false) && app.client != nil do dc.ignore_friend_request(app.client, uid)
+				if btn("Accept", true) && net_action() do dc.accept_friend_request(app.client, uid)
+				if btn("Ignore", false) && net_action() do dc.ignore_friend_request(app.client, uid)
 				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			case .None, .Implicit:
-				if btn("Add Friend", true) && app.client != nil do dc.add_relationship(app.client, uid, "DM Header")
+				if btn("Add Friend", true) && net_action() do dc.add_relationship(app.client, uid, "DM Header")
 				if btn("Block", false) do block_confirm = {uid, "DM Header"}
 			}
 		}
@@ -942,7 +942,7 @@ block_confirm_modal :: proc() {
 		if e.kind == .Key_Down && e.key == .Enter do confirm = true
 	}
 	if confirm {
-		if app.client != nil do dc.block_user(app.client, uid, block_confirm.location)
+		if net_action() do dc.block_user(app.client, uid, block_confirm.location)
 		block_confirm = {}
 	}
 }

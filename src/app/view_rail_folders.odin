@@ -505,7 +505,7 @@ rail_save :: proc(entries: []Rail_Entry) {
 		if len(e.guilds) == 0 do continue
 		append(&folders, dc.Guild_Folder{id = e.id, name = e.name, color = e.color, has_color = e.has_color, guild_ids = e.guilds})
 	}
-	if app.client != nil do dc.set_guild_folders(app.client, folders[:])
+	if net_action() do dc.set_guild_folders(app.client, folders[:])
 	old := s.settings.guild_folders
 	nf := make([dynamic]dc.Guild_Folder, a)
 	for f in folders {
@@ -521,3 +521,6 @@ rail_save :: proc(entries: []Rail_Entry) {
 	s.settings.guild_folders = nf
 	s.changed += 1
 }
+
+rail_reset_for_test :: proc() {rs = {}}
+rail_state_for_test :: proc() -> string {return fmt.tprint(rs.open, rs.drag_active)}

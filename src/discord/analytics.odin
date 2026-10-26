@@ -19,7 +19,7 @@ import "fc:http"
 // Events tracked before READY have no client_uuid, and the first ones (before
 // the RTC/app-state/viewport decorators register) omit those fields too.
 
-ANALYTICS_FLUSH_DELAY_MS :: 400
+ANALYTICS_FLUSH_DELAY_MS :: 30 // fixtures: batches leave 21-49 ms after the event
 ANALYTICS_MAX_FLUSH_MS :: 1500
 CLIENT_HEARTBEAT_INTERVAL_MS :: 15 * 60 * 1000
 AD_HEARTBEAT_INTERVAL_MS :: 5 * 60 * 1000
@@ -310,8 +310,6 @@ analytics_on_ready :: proc(c: ^Client) {
 	now := now_ms()
 	a.next_client_hb = now
 	a.next_ad_hb = now
-	// Launch-anchored events seen in coldstart captures (PremiumManager, notification check).
-	analytics_schedule(c, c.launch_ms + 5579, "fetch_user_offer_started", `"call_location":"PremiumManager"`)
 }
 
 // AccessibilityFeatureFlags bits the platform layer can know.

@@ -78,3 +78,9 @@ set_icon :: proc(b: ^ui.Box, name: string, color: ui.Color) {
 	b.custom_draw = icon_draw
 	b.custom_user = d
 }
+
+// Name of the icon drawn by b (set_icon), or "" (tests describe controls by it).
+box_icon_name :: proc(b: ^ui.Box) -> string {
+	if b.custom_draw != icon_draw || b.custom_user == nil do return ""
+	return (^Icon_Draw)(b.custom_user).name
+}

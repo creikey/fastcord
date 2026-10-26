@@ -184,6 +184,11 @@ _common_init :: proc() {
 
 is_headless :: proc() -> bool {return s.headless}
 
+// Headless only: change the window size (points); the offscreen target follows on the next frame.
+set_headless_size :: proc(width, height: int) {
+	if s.headless do s.size = {f32(width), f32(height)}
+}
+
 // Blocks until at least one event, until timeout (0 = poll, <0 = forever),
 // or (if request_frame was called) until the next display refresh.
 wait_events :: proc(timeout_seconds: f64) {

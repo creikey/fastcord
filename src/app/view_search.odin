@@ -127,8 +127,8 @@ search_box :: proc(ch: ^dc.Channel, hint: string) {
 			e.consumed = true
 		}
 	}
-	// the field child takes the press, so test the box rect directly
-	ui.signal(b)
+	// a press on the box itself (icon, padding) or on the field child focuses it
+	if ui.signal(b).pressed do search.focused = true
 	for e in app.ui.events {
 		if !e.consumed && e.kind == .Mouse_Down && e.button == .Left && rect_has(search.box_rect, e.pos) do search.focused = true
 	}
@@ -435,3 +435,10 @@ search_panel :: proc() {
 
 @(private = "file")
 rect_has :: proc(r: ui.Rect, p: ui.Vec2) -> bool {return p.x >= r.x0 && p.x < r.x1 && p.y >= r.y0 && p.y < r.y1}
+
+// Headless control sweep (sweep.odin): back to program start / what to compare.
+search_reset_for_test :: proc() {
+	virtual.arena_destroy(&search.arena)
+	search, jump, highlight_id, highlight_until, sugg_rect = {}, {}, 0, 0, {}
+}
+search_state_for_test :: proc() -> string {return fmt.tprint(search.active, search.focused, search.query, jump.message)}

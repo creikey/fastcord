@@ -15,7 +15,11 @@ import "fc:etf"
 // referer, subscribes to the guild (op 37 typing/activities/threads, once per
 // session), requests channel info (op 43) on guild entry, and loads messages
 // if the channel has none.
-select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limit := 50) {
+// prefetch: the sidebar's mousedown preloads the channel before the route
+// changes, so the first page carries the previous route as Referer
+// (fixtures open_guild_and_channel, open_dm); quick switcher / create flows don't.
+select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limit := 50, prefetch := false) {
+	prev_referer := strings.clone(client_route_referer(c), context.temp_allocator) if prefetch else ""
 	sync.mutex_lock(&c.route_mu)
 	prev_guild := c.route_guild
 	c.route_guild = guild_id
@@ -23,6 +27,7 @@ select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limi
 	sync.mutex_unlock(&c.route_mu)
 	if guild_id != 0 && guild_id != prev_guild {
 		subscribe_guild(c, guild_id)
+		if prefetch do c.subs.not_before = now_ms() + 2
 		c.pending_guild_open = guild_id
 	}
 	if guild_id == 0 && channel_id != 0 do c.pending_private_open = channel_id
@@ -30,7 +35,7 @@ select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limi
 	if channel_id != 0 {
 		l := message_list(&c.store, channel_id)
 		if !l.loaded && !l.loading {
-			fetch_messages(c, channel_id, 0, message_limit)
+			fetch_messages(c, channel_id, 0, message_limit, referer = prev_referer)
 		} else {
 			on_channel_page(c, channel_id, 0, false)
 		}
@@ -53,6 +58,7 @@ Subscriptions :: struct {
 	guilds:   map[Snowflake]bool, // typing/activities/threads sent
 	channels: map[Snowflake][dynamic]Member_Range, // guild -> channel list ranges (one channel at a time)
 	pending:  [dynamic]Pending_Sub,
+	not_before: i64, // prefetching select: op 37 follows the route change (after the fetch)
 }
 
 Member_Range :: struct {
@@ -106,6 +112,8 @@ subscribe_members :: proc(c: ^Client, guild_id: Snowflake, user_ids: []Snowflake
 
 subscriptions_flush :: proc(c: ^Client) {
 	if len(c.subs.pending) == 0 do return
+	if c.subs.not_before != 0 && now_ms() < c.subs.not_before do return
+	c.subs.not_before = 0
 	defer {
 		for &p in c.subs.pending {
 			delete(p.ranges)
@@ -177,7 +185,7 @@ channel_path :: proc(channel_id: Snowflake, rest: ..string) -> string {
 }
 
 // fetch_messages: GET /channels/{id}/messages?before=&limit= (retries 2).
-fetch_messages :: proc(c: ^Client, channel_id: Snowflake, before: Snowflake = 0, limit := 50, tag: u64 = 0) {
+fetch_messages :: proc(c: ^Client, channel_id: Snowflake, before: Snowflake = 0, limit := 50, tag: u64 = 0, referer := "") {
 	q: Query
 	query_init(&q, channel_path(channel_id, "/messages"))
 	if before != 0 do query_add_snow(&q, "before", before)
@@ -186,6 +194,7 @@ fetch_messages :: proc(c: ^Client, channel_id: Snowflake, before: Snowflake = 0,
 	j.method = "GET"
 	j.path = job_str(j, query_string(&q))
 	j.retries = 2
+	if referer != "" do j.referer = job_str(j, referer)
 	j.result.channel_id = channel_id
 	j.result.limit = limit
 	j.result.before = before
@@ -982,6 +991,7 @@ guild_created_followups :: proc(c: ^Client, guild_id: Snowflake) {
 	api_get_later(c, "/users/@me/billing/subscriptions?sync_level=2", 1)
 	cc := c.store.country_code if c.store.country_code != "" else "US"
 	api_get_later(c, strings.concatenate({"/store/published-listings/skus?country_code=", cc, "&application_id=1340102344645283891&guild_id=", gs}, context.temp_allocator), 313)
+	api_get_later(c, strings.concatenate({"/guilds/", gs, "/integrations?include_applications=true&include_role_connections_metadata=true"}, context.temp_allocator), 649)
 	api_get_later(c, strings.concatenate({"/guilds/", gs, "/powerups?country_code=", cc, "&include_ends_at=true"}, context.temp_allocator), 650)
 }
 
@@ -1030,3 +1040,48 @@ delete_guild :: proc(c: ^Client, guild_id: Snowflake) {
 	job_submit(c, j)
 }
 
+
+// open_account_popout: the account panel's popout (status / custom status).
+// First open in a session: own profile (type=account_popout), application
+// identities and the featured widget configs; when those arrive the popout
+// loads activity statistics, the featured applications and /users/@me.
+// Later opens only refresh /users/@me (fixtures status_change, custom_status).
+open_account_popout :: proc(c: ^Client) {
+	if c.account_popout_opened {
+		users_me_refresh(c, 650)
+		return
+	}
+	c.account_popout_opened = true
+	fetch_profile_ex(c, c.store.me, {kind = "account_popout"})
+	api_get_later(c, strings.concatenate({"/users/", snowflake_string(c.store.me), "/application-identities?with_profiles=true"}, context.temp_allocator), 0)
+	j := job_new(.Api, .None)
+	j.method = "GET"
+	j.path = "/widget-configs/featured"
+	j.on_body = proc(c: ^Client, body: V) {
+		api_get_later(c, "/users/@me/activities/statistics/applications", 55)
+		q: Query
+		query_init(&q, "/applications/public")
+		n := 0
+		for a in flist(vmap(body), "applications") {
+			if id := fsnow(vmap(a), "id"); id != 0 {
+				query_add_snow(&q, "application_ids", id)
+				n += 1
+			}
+		}
+		if n > 0 do api_get_later(c, query_string(&q), 55)
+		users_me_refresh(c, 55)
+	}
+	job_submit(c, j)
+}
+
+// users_me_refresh: the popout's GET /users/@me (its fetch spells the header
+// "authorization" in lowercase).
+@(private = "file")
+users_me_refresh :: proc(c: ^Client, delay_ms: i64) {
+	j := job_new(.Api, .None)
+	j.method = "GET"
+	j.path = "/users/@me"
+	j.js_lower_auth = true
+	j.not_before = now_ms() + delay_ms
+	job_submit(c, j)
+}

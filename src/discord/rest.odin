@@ -51,6 +51,9 @@ Job :: struct {
 	etag:         bool, // fetch(cache:'no-cache') + remembered If-None-Match
 	preflight_if_etag: bool,
 	no_cookies:   bool, // cross-origin: If-None-Match makes it a preflighted request
+	preflight_only: bool, // send only the CORS preflight (the request is a later job)
+	on_body:      proc(c: ^Client, body: V), // worker-side follow-up on a 2xx JSON body
+	js_lower_auth: bool, // page code set "authorization" (lowercase): only DevTools' view differs
 	media:        Media_Request,
 }
 
@@ -101,6 +104,9 @@ worker_proc :: proc(c: ^Client) {
 		}
 		j := c.jobs[pick]
 		ordered_remove(&c.jobs, pick)
+		// the moment the page would call fetch(): picks are serialized here, so
+		// requests due together keep their queue order (traffic recording)
+		tl_dispatch_ms = now_ms_f()
 		sync.mutex_unlock(&c.job_mu)
 		run_job(c, j)
 		job_free(j)
@@ -137,7 +143,7 @@ Api_Response :: struct {
 
 // api_call performs one authenticated request with the HTTP util's retry and
 // rate-limit semantics. The returned arena (if any) owns body.
-api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false, no_super_props := false) -> (r: Api_Response) {
+api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false, no_super_props := false, referer := "") -> (r: Api_Response) {
 	full_path := strings.concatenate({API_PREFIX, path}, context.temp_allocator)
 	url_key := strings.concatenate({API_ORIGIN, full_path}, context.temp_allocator)
 	retries_left := retries
@@ -166,7 +172,7 @@ api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, c
 			installation_id = c.id.installation_id,
 			super_props_b64 = "" if no_super_props else super_properties_b64(&c.id, now),
 			context_b64     = context_b64,
-			referer         = client_route_referer(c),
+			referer         = referer if referer != "" else client_route_referer(c),
 			cookie          = cookie_header(&c.jar, API_HOST, full_path, true, now),
 			extra           = ex,
 		}
@@ -238,7 +244,9 @@ run_api :: proc(c: ^Client, j: ^Job) {
 		if tag := etag_get(c, url); tag != "" do append(&e, http.Header{"if-none-match", tag})
 		extra = e[:]
 	}
-	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props)
+	tl_js_lower_auth = j.js_lower_auth
+	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer)
+	tl_js_lower_auth = false
 	if j.etag && r.status == 200 do if tag, ok := http.header_get(r.headers, "etag"); ok do etag_put(c, url, tag)
 	if j.op == .Ack && r.ok {
 		if m := vmap(r.body); m != nil {
@@ -260,6 +268,7 @@ run_api :: proc(c: ^Client, j: ^Job) {
 		}
 	}
 	if j.op == .Startup && r.ok && strings.has_prefix(j.path, "/quests/@me") do note_quest_applications(c, r.body)
+	if j.on_body != nil && r.ok do j.on_body(c, r.body)
 	push_result(c, j, r)
 }
 
@@ -321,6 +330,63 @@ schedule_applications_public :: proc(c: ^Client, ready_ms: i64) {
 	job_submit(c, j)
 }
 
+// Thread-local fetch() time of the job a worker is running; the transport
+// takes it as the request's start (once) for the recorder.
+@(thread_local)
+tl_dispatch_ms: f64
+
+// Thread-local: the running job's page code spelled the header "authorization"
+// (read by the recorder's renderer view; the wire is lowercase either way).
+@(thread_local)
+tl_js_lower_auth: bool
+
+@(private)
+send_preflight :: proc(c: ^Client, j: ^Job) {
+	pre := http.Request{method = "OPTIONS", scheme = "https", authority = j.host, path = j.path, headers = preflight_headers(c.id.platform, "GET", "if-none-match", true)}
+	presp, _ := transport_round_trip(&c.transport, j.host, pre)
+	http.response_destroy(&presp)
+}
+
+// preflight_note: a request to url is scheduled; pending = its preflight is
+// a separate, earlier job.
+preflight_note :: proc(c: ^Client, host, path: string, pending: bool) {
+	if !pending do return
+	url := strings.concatenate({"https://", host, path}, context.temp_allocator)
+	sync.mutex_lock(&c.preflight_mu)
+	defer sync.mutex_unlock(&c.preflight_mu)
+	if url in c.preflights {
+		c.preflights[url] = 1
+	} else {
+		c.preflights[strings.clone(url, c.allocator)] = 1
+	}
+}
+
+@(private)
+preflight_finish :: proc(c: ^Client, url: string) {
+	sync.mutex_lock(&c.preflight_mu)
+	if url in c.preflights do c.preflights[url] = 2
+	sync.cond_broadcast(&c.preflight_cond)
+	sync.mutex_unlock(&c.preflight_mu)
+}
+
+// preflight_wait: true when an earlier job sent (or is sending) url's
+// preflight; waits for it to finish (at most 10 s).
+@(private)
+preflight_wait :: proc(c: ^Client, url: string) -> bool {
+	sync.mutex_lock(&c.preflight_mu)
+	defer sync.mutex_unlock(&c.preflight_mu)
+	st, ok := c.preflights[url]
+	if !ok do return false
+	deadline := time.tick_now()
+	for st == 1 && time.tick_since(deadline) < 10 * time.Second {
+		sync.cond_wait_with_timeout(&c.preflight_cond, &c.preflight_mu, 250 * time.Millisecond)
+		st = c.preflights[url]
+	}
+	key, _ := delete_key(&c.preflights, url)
+	delete(key, c.allocator)
+	return true
+}
+
 // run_web: unauthenticated XHR (startup table entries for status/cdn/latency).
 @(private)
 run_web :: proc(c: ^Client, j: ^Job) {
@@ -355,10 +421,13 @@ run_web :: proc(c: ^Client, j: ^Job) {
 		tag := etag_get(c, url)
 		if tag != "" do append(&e, http.Header{"if-none-match", tag})
 		js = e[:]
-		if tag != "" && j.preflight_if_etag && j.site != .Same_Origin {
-			pre := http.Request{method = "OPTIONS", scheme = "https", authority = j.host, path = j.path, headers = preflight_headers(c.id.platform, "GET", "if-none-match", true)}
-			presp, _ := transport_round_trip(&c.transport, j.host, pre)
-			http.response_destroy(&presp)
+		if j.preflight_if_etag && j.site != .Same_Origin {
+			if j.preflight_only {
+				if tag != "" do send_preflight(c, j)
+				preflight_finish(c, url)
+				return
+			}
+			if tag != "" && !preflight_wait(c, url) do send_preflight(c, j)
 		}
 	}
 	hin := Web_Headers_Input{

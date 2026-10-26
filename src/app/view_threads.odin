@@ -361,3 +361,5 @@ inset_end :: proc(px, py: f32) {
 	ui.pop_parent() // row
 	spacer(.Y, py)
 }
+
+forums_reset_for_test :: proc() {forums = {}}

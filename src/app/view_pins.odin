@@ -292,3 +292,9 @@ highlight_spans :: proc(spans: []ui.Span, terms: []string) -> []ui.Span {
 	}
 	return out[:]
 }
+
+pins_reset_for_test :: proc() {
+	virtual.arena_destroy(&pins.arena)
+	pins = {}
+}
+pins_state_for_test :: proc() -> string {return fmt.tprint(pins.open, pins.channel)}

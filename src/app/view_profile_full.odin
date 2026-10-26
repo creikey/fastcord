@@ -281,9 +281,9 @@ profile_actions :: proc(uid: dc.Snowflake) {
 		if !friend {
 			pending := has_rel && rel.kind == .Outgoing_Request
 			add := action_button(pending ? "Pending" : "Add Friend", "user-plus", 120, false)
-			if add && !pending && app.client != nil do dc.add_relationship(app.client, uid, "User Profile")
+			if add && !pending && net_action() do dc.add_relationship(app.client, uid, "User Profile")
 		}
-		if action_button("Message", "chat", 110, true) && app.client != nil {
+		if action_button("Message", "chat", 110, true) && net_action() {
 			if existing := dc.open_dm(app.client, uid, "User Profile"); existing != 0 do select_channel(0, existing)
 			else do app.pending_dm_user = uid
 			pf.user = 0
@@ -619,7 +619,7 @@ user_context_menu :: proc() {
 				case "Profile":
 					profile_full_open(uid, app.view.guild)
 				case "Message":
-					if app.client != nil {
+					if net_action() {
 						if existing := dc.open_dm(app.client, uid, "Context Menu"); existing != 0 do select_channel(0, existing)
 						else do app.pending_dm_user = uid
 					}
@@ -634,3 +634,6 @@ user_context_menu :: proc() {
 	}
 	for e in app.ui.events do if e.kind == .Key_Down && e.key == .Escape do pf.menu_user = 0
 }
+
+pf_reset_for_test :: proc() {pf = {}}
+pf_state_for_test :: proc() -> string {return fmt.tprint(pf.user, pf.tab, pf.menu_user)}

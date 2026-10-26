@@ -260,7 +260,9 @@ rec_http :: proc(data: rawptr, host: string, req: http.Request, resp: ^http.Resp
 	strings.write_string(&sb, `,"method":`)
 	json_write_escaped(&sb, req.method)
 	strings.write_string(&sb, `,"headers":`)
-	headers_object(&sb, renderer_view(req.method, req.headers, kind))
+	rv := renderer_view(req.method, req.headers, kind)
+	if tl_js_lower_auth do for &h in rv do if h.name == "Authorization" do h.name = "authorization"
+	headers_object(&sb, rv)
 	if len(req.body) > 0 {
 		strings.write_string(&sb, `,"hasPostData":true,"postData":`)
 		json_write_escaped(&sb, string(req.body))

@@ -91,7 +91,6 @@ settings_load_from :: proc(dir: string) -> (window_w, window_h: int) {
 	return p.window_width, p.window_height
 }
 
-@(private = "file")
 theme_by_name :: proc(s: string) -> (Theme_Name, bool) {
 	return reflect.enum_from_name(Theme_Name, s)
 }

@@ -170,6 +170,10 @@ transport_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> 
 	if req.scheme == "" do req.scheme = "https"
 	if req.authority == "" do req.authority = host
 	start_ms := now_ms_f()
+	if tl_dispatch_ms > 0 {
+		start_ms = tl_dispatch_ms
+		tl_dispatch_ms = 0
+	}
 	defer if t.observer != nil do t.observer(t.observer_data, host, req, &resp, err, start_ms)
 
 	if t.override.round_trip != nil {

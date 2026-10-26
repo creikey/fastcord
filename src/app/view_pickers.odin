@@ -531,6 +531,7 @@ pk_search_field :: proc(ed: ^ui.Editor, placeholder: string) -> ui.Edit_Result {
 				if r != .Moved || result == .None do result = r
 			}
 		}
+		note_focused_editor(ed, f)
 		d := new(Search_Draw, context.temp_allocator)
 		d.ed = ed
 		f.custom_draw = search_caret_draw
@@ -572,7 +573,7 @@ search_caret_draw :: proc(b: ^ui.Box, user: rawptr) {
 	x := text == "" ? 0 : ui.caret_x(tl, d.ed.caret)
 	phase := app.ui.time - app.caret_reset_t
 	request_wake(app.caret_reset_t + (f64(int(phase * 2)) + 1) * 0.5)
-	if phase < 0.5 || int(phase * 2) % 2 == 0 {
+	if app.sweep || phase < 0.5 || int(phase * 2) % 2 == 0 {
 		gfx.rect({o.x + x, o.y + 2, o.x + x + 1.5, o.y + tl.line_h - 2}, gfx.Color(with_alpha(T("--text-default"), b.opacity)))
 	}
 	platform.set_ime_rect(o.x + x, o.y, 1, tl.line_h)

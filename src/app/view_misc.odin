@@ -44,7 +44,7 @@ field_draw :: proc(b: ^ui.Box, user: rawptr) {
 	// solid for 0.5 s after typing, then toggles every 0.5 s; only wake at toggles
 	phase := app.ui.time - app.caret_reset_t
 	request_wake(app.caret_reset_t + (f64(int(phase * 2)) + 1) * 0.5)
-	if phase < 0.5 || int(phase * 2) % 2 == 0 {
+	if app.sweep || phase < 0.5 || int(phase * 2) % 2 == 0 {
 		gfx.rect({origin.x + x, y + 2, origin.x + x + 1.5, y + tl.line_h - 2}, gfx.Color(T("--text-default")))
 	}
 	platform.set_ime_rect(origin.x + x, y, 1, tl.line_h)
@@ -197,7 +197,7 @@ profile_popout :: proc() {
 					mb.style.font_size = 14
 					mb.style.text_color = T("--text-muted")
 					mb.hover_cursor = .IBeam
-					if ui.signal(mb).clicked && app.client != nil {
+					if ui.signal(mb).clicked && net_action() {
 						if existing := dc.open_dm(app.client, uid, "Profile"); existing != 0 do select_channel(0, existing)
 						else do app.pending_dm_user = uid
 						app.profile_user = 0

@@ -22,7 +22,7 @@ Config :: struct {
 	fast_connect:          bool, // derived: !disable_fast_connect
 	disable_gateway:       bool, // REST only (tests)
 	disable_startup:       bool, // skip the startup_requests table
-	workers:               int, // REST worker threads (default 4)
+	workers:               int, // REST worker threads (default 16)
 	// Called from network threads whenever events are queued: the app calls
 	// platform.request_frame() (or similar) and then client_poll on its thread.
 	wakeup:                proc(data: rawptr),
@@ -135,11 +135,17 @@ Client :: struct {
 	settings_edit:    Settings_Edit,
 	analytics:        Analytics,
 	upload_seq:       int,
+	account_popout_opened: bool,
+	quick_switcher:   Quick_Switcher,
 	quest_app_ids:    []Snowflake,
 	start_route_guild:   Snowflake, // route the window opened on (startup table selection)
 	start_route_channel: Snowflake,
 	etag_mu:          sync.Mutex,
 	etags:            map[string]string, // persisted If-None-Match memory
+	// CORS preflights sent ahead of their request (url -> 1 pending, 2 done)
+	preflight_mu:     sync.Mutex,
+	preflight_cond:   sync.Cond,
+	preflights:       map[string]int,
 	ready_subscribed_guild: Snowflake, // op 37 already sent by the gateway on READY
 	pending_guild_open: Snowflake,
 	guild_open_promotions: bool, // op 43 + guild-open set wait for the first message page
@@ -172,7 +178,7 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c := new(Client)
 	c.cfg = cfg
 	c.cfg.fast_connect = !cfg.disable_fast_connect
-	if c.cfg.workers <= 0 do c.cfg.workers = 8 // Chrome issues the startup burst concurrently
+	if c.cfg.workers <= 0 do c.cfg.workers = 16 // Chrome issues the startup burst (13 requests) concurrently
 	plat := cfg.platform
 	if plat.os == "" do plat = DEFAULT_PLATFORM
 	c.allocator = allocator
@@ -202,6 +208,8 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c.start_route_guild = cfg.initial_guild_id
 	c.start_route_channel = cfg.initial_channel_id
 	c.etags = make(map[string]string)
+	c.quick_switcher.fetched = make(map[Snowflake]bool, allocator = c.allocator)
+	c.preflights = make(map[string]int, allocator = c.allocator)
 	c.account_verified = true
 	client_load_state(c)
 	return c
@@ -253,6 +261,9 @@ client_destroy :: proc(c: ^Client) {
 		delete(v)
 	}
 	delete(c.etags)
+	quick_switcher_destroy(c)
+	for k in c.preflights do delete(k, c.allocator)
+	delete(c.preflights)
 	store_destroy(&c.store)
 	analytics_destroy(&c.analytics)
 	delete(c.subs.guilds)
@@ -325,6 +336,7 @@ client_poll :: proc(c: ^Client) -> bool {
 	subscriptions_flush(c)
 	flush_due_acks(c, now)
 	flush_typing_local(c, now)
+	flush_quick_switcher(c, now)
 	flush_settings(c, now)
 	flush_soundboard(c, now)
 	analytics_tick(c, now)

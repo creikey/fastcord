@@ -55,6 +55,7 @@ Startup_Flag :: enum u8 {
 	No_Super_Props, // sent before the super properties are initialised
 	Verified_Only, // account signal: READY user.verified (persisted for the next launch)
 	Unverified_Only,
+	Preflight_Only, // Detectables: only the CORS preflight; the request is its own entry later
 }
 Startup_Flags :: bit_set[Startup_Flag]
 
@@ -69,19 +70,22 @@ STARTUP_REQUESTS := [?]Startup_Entry {
 	{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, "B (unverified) only"},
 	{.Launch, 3177, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, ""},
 	{.Launch, 3500, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", {.Home}, {.Unverified_Only}, "re-polled ~320 ms after the cluster"},
-	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
-	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
+	// DevTools shows both preflights first, then the requests in fetch order
+	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag, .Preflight_Only}, ""},
+	{.Launch, 3175, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag, .Preflight_Only}, ""},
 	{.Launch, 3177, .Api_Get, "", "/users/@me/mfa/webauthn/credentials", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Launch, 3177, .Api_Post_Json, "", "/users/@me/billing/user-offer", `{"allow_triggers":true}`, .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
 	{.Launch, 3177, .Api_Get, "", "/users/@me/billing/checkout-recovery", "", .Same_Origin, "", ALL_ROUTES, {.Verified_Only}, ""},
 	{.Launch, 3177, .Api_Get, "", "/users/@me/collectibles-marketing?platform=0", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3178, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", {.Home, .Private}, {}, "guild route: part of the guild-open set"},
-	{.Launch, 3178, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Launch, 3178, .Api_Get, "", "/users/@me/library?country_code={country}", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
+	{.Launch, 3178, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
+	{.Launch, 3178, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, {.Etag}, ""},
+	{.Launch, 3178, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, {.Etag}, ""},
 	// x is the 5-minute bucket within the hour (max-age=300): within one
 	// bucket Chrome serves it from its HTTP cache, so it is often absent.
 	{.Launch, 3178, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x={x5m}", "", .Cross_Site, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3178, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, {.Etag}, ""},
+	{.Launch, 3178, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", {.Home, .Private}, {}, "guild route: part of the guild-open set"},
+	{.Launch, 3178, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Launch, 3178, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Launch, 6700, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", {.Guild}, {}, "FrecencyUserSettings lazy load (fixtures: 6.0-8.1 s)"},
 	{.Launch, 7577, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, ALL_ROUTES, {}, "ads decision"},
@@ -151,16 +155,20 @@ schedule_startup :: proc(c: ^Client, anchor: Startup_Anchor) {
 			j.site = e.site
 			j.etag = .Etag in e.flags
 			j.preflight_if_etag = e.kind == .Detectables
+			j.preflight_only = .Preflight_Only in e.flags
+			if e.kind == .Detectables do preflight_note(c, j.host, j.path, j.preflight_only)
 			j.no_cookies = e.kind == .Detectables // fetch(credentials:"omit")
 		}
 		j.not_before = base + e.at_ms
+		// PremiumManager tracks the fetch as it starts (fixtures: batch +21-49 ms)
+		if strings.has_prefix(e.path, "/users/@me/billing/user-offer") do analytics_schedule(c, j.not_before, "fetch_user_offer_started", `"call_location":"PremiumManager"`)
 		job_submit(c, j)
 	}
 }
 
 // ---- guild open (CHANNEL_SELECT into a guild / reopening on a guild route) ----
 // When the first message page of the channel arrives: op 43 and this set;
-// integrations ~470 ms later. promotions joins the set on a guild start route.
+// promotions joins the set on a guild start route.
 // Session-once (first guild shown) and per-guild sets, issued when the first
 // message page of a guild channel arrives (fixtures send_message, create_guild).
 SESSION_GUILD_REQUESTS := [?]string {
@@ -200,11 +208,6 @@ schedule_guild_open :: proc(c: ^Client, guild_id: Snowflake, with_promotions := 
 		j.not_before = now
 		job_submit(c, j)
 	}
-	ij := job_new(.Api, .Guild_Open)
-	ij.method = "GET"
-	ij.path = job_str(ij, strings.concatenate({"/guilds/", gs, "/integrations?include_applications=true&include_role_connections_metadata=true"}, context.temp_allocator))
-	ij.not_before = now + 470
-	job_submit(c, ij)
 }
 
 // schedule_experiments_fetch: kept for logged-out flows (the installation id

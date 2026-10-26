@@ -291,6 +291,25 @@ newest_group_dm :: proc() -> discord.Snowflake {
 	return best
 }
 
+CUSTOM_EMOJI :: discord.Snowflake(1564250154838528071) // fastcord_test (upload_custom_emoji)
+
+// quick_type: the quick switcher input, one keystroke at a time.
+quick_type :: proc(text: string) {
+	for i in 1 ..= len(text) {
+		discord.quick_switcher_type(cur.c, text[:i])
+		human(20, 50)
+		human(60, 170)
+	}
+}
+
+last_image :: proc(channel: discord.Snowflake) -> string {
+	msgs := discord.messages_get(&cur.c.store, channel)
+	for i := len(msgs) - 1; i >= 0; i -= 1 {
+		for a in msgs[i].attachments do if strings.has_prefix(a.content_type, "image/") do return a.proxy_url
+	}
+	return ""
+}
+
 open_test_channel :: proc() {
 	use("a")
 	mark("setup")
@@ -298,7 +317,7 @@ open_test_channel :: proc() {
 	click()
 	wait_for()
 	click()
-	discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+	discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H), prefetch = true)
 	wait_for()
 	settle(1500)
 }
@@ -332,7 +351,7 @@ run :: proc(name: string) -> bool {
 		mark("send_message")
 		click()
 		typed(TTEXT, "hello from the official client")
-		discord.send_message(cur.c, TTEXT, "hello from fastcord")
+		discord.send_message(cur.c, TTEXT, "hello from the official client") // same text: same body length
 		wait_gw("MESSAGE_CREATE")
 		settle(2000)
 	case "typing":
@@ -443,7 +462,7 @@ run :: proc(name: string) -> bool {
 		reload()
 		mark("open_guild")
 		click()
-		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H), prefetch = true)
 		wait_for()
 		settle(1500)
 		mark("open_channel")
@@ -457,7 +476,7 @@ run :: proc(name: string) -> bool {
 		friends_home()
 		mark("open_dm")
 		human(500, 1100)
-		discord.select_channel(cur.c, 0, DM_AB, discord.initial_message_limit(VIEW_H))
+		discord.select_channel(cur.c, 0, DM_AB, discord.initial_message_limit(VIEW_H), prefetch = true)
 		settle(2500)
 	case "send_dm":
 		use("b")
@@ -642,6 +661,198 @@ run :: proc(name: string) -> bool {
 		wait_gw("CHANNEL_RECIPIENT_ADD", 3000)
 		use("b")
 		wait_gw("CHANNEL_CREATE", 5000)
+		settle(2500)
+	case "add_custom_reaction":
+		open_test_channel()
+		send_setup_message()
+		mark("add_custom_reaction")
+		discord.open_message_context_menu(cur.c, TGUILD)
+		click()
+		human(80, 400) // hover #message-add-reaction
+		pause()
+		click()
+		discord.open_emoji_picker(cur.c, TGUILD)
+		wait_for()
+		typed(0, "fastcord")
+		pump(1000)
+		click()
+		action()
+		discord.add_reaction(cur.c, TTEXT, last_message(TTEXT), "fastcord_test", CUSTOM_EMOJI, false, "Message Reaction Picker")
+		wait_gw("MESSAGE_REACTION_ADD")
+		settle(2000)
+	case "emoji_picker_reaction":
+		open_test_channel()
+		send_setup_message()
+		discord.open_message_context_menu(cur.c, TGUILD)
+		click()
+		click() // #message-quickreact-0
+		action()
+		discord.add_reaction(cur.c, TTEXT, last_message(TTEXT), "👍", 0, false, "Message Context Menu")
+		wait_gw("MESSAGE_REACTION_ADD")
+		settle(1500)
+		mark("emoji_picker_reaction")
+		click() // the reaction bar's add-reaction button
+		discord.open_emoji_picker(cur.c, TGUILD)
+		wait_for()
+		typed(0, "fire")
+		pump(800)
+		click()
+		action()
+		discord.add_reaction(cur.c, TTEXT, last_message(TTEXT), "🔥", 0, false, "Message Inline Button")
+		wait_gw("MESSAGE_REACTION_ADD")
+		settle(2000)
+	case "gif_send":
+		open_test_channel()
+		mark("open_gif_picker")
+		click()
+		discord.gifs_trending(cur.c)
+		wait_for()
+		settle(1500)
+		mark("search_gif")
+		click()
+		typed(0, "cat")
+		pump(250) // the picker's search debounce
+		discord.gifs_search(cur.c, "cat")
+		pump(2250)
+		settle(1500)
+		mark("send_gif")
+		click()
+		action()
+		// the first result of the official run; the picker sends its page URL
+		discord.gif_select(cur.c, "goatplaybanjo-chat-4", "cat")
+		discord.send_message(cur.c, TTEXT, "https://klipy.com/gifs/goatplaybanjo-chat-4")
+		wait_gw("MESSAGE_CREATE", 20000)
+		settle(2500)
+	case "open_image_attachment":
+		open_test_channel()
+		mark("open_image")
+		click()
+		img := last_image(TTEXT)
+		if img != "" do discord.fetch_media(cur.c, {url = discord.media_viewer_url(img), kind = .Image, visible = true})
+		wait_for()
+		settle(2500)
+		mark("close_image")
+		human(80, 200) // Escape
+		settle(1500)
+	case "scroll_history":
+		use("a")
+		mark("setup")
+		reload()
+		click()
+		wait_for()
+		click()
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+		wait_for()
+		settle(2000)
+		// the older pages are already loaded by the channel open (fixture: no requests)
+		for n in 1 ..= 3 {
+			mark(fmt.tprintf("scroll_up_%d", n))
+			settle(2500)
+		}
+	case "quick_switcher_nav":
+		open_test_channel()
+		mark("switch_to_dm")
+		human(80, 200) // Cmd+K
+		pump(1000)
+		quick_type("bobbles")
+		pump(1200)
+		discord.quick_switcher_close(cur.c)
+		discord.select_channel(cur.c, 0, DM_AB, discord.initial_message_limit(VIEW_H))
+		wait_for()
+		settle(2500)
+		mark("switch_to_channel")
+		human(80, 200)
+		pump(1000)
+		quick_type("general")
+		pump(1200)
+		discord.quick_switcher_close(cur.c)
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H))
+		wait_for()
+		settle(2500)
+	case "status_change":
+		use("a")
+		mark("setup")
+		reload()
+		friends_home()
+		mark("open_status_menu")
+		click()
+		discord.open_account_popout(cur.c)
+		pump(1200)
+		click() // "Your Status" submenu
+		pump(1200)
+		mark("set_idle")
+		click()
+		action()
+		discord.set_status(cur.c, .Idle)
+		wait_gw("USER_SETTINGS_PROTO_UPDATE", 10000)
+		settle(2500)
+		mark("set_online")
+		click()
+		pump(1200)
+		click()
+		action()
+		discord.set_status(cur.c, .Online)
+		wait_gw("USER_SETTINGS_PROTO_UPDATE", 10000)
+		settle(2500)
+		human(80, 200) // Escape
+		pump(500)
+	case "custom_status":
+		use("a")
+		mark("setup")
+		reload()
+		friends_home()
+		mark("open_custom_status")
+		click()
+		discord.open_account_popout(cur.c)
+		pump(1200)
+		click() // Add custom status
+		pump(1500)
+		mark("set_custom_status")
+		typed(0, "testing fastcord")
+		human(80, 200) // Enter
+		action()
+		discord.set_custom_status(cur.c, {text = "testing fastcord", expires_at_ms = discord.now_ms() + 24 * 3600 * 1000})
+		wait_gw("USER_SETTINGS_PROTO_UPDATE", 10000)
+		settle(2500)
+		mark("clear_custom_status")
+		click()
+		discord.open_account_popout(cur.c)
+		pump(1500)
+		human(80, 400) // hover
+		pump(800)
+		click() // Clear custom status
+		action()
+		discord.set_custom_status(cur.c, {})
+		wait_gw("USER_SETTINGS_PROTO_UPDATE", 10000)
+		settle(2500)
+		human(80, 200)
+		settle(1000)
+	case "close_dm":
+		use("a")
+		mark("setup")
+		reload()
+		friends_home()
+		mark("close_dm")
+		discord.open_message_context_menu(cur.c, 0) // right click loads the user command index
+		click()
+		wait_for()
+		click() // Close DM
+		action()
+		discord.close_private_channel(cur.c, DM_AB)
+		wait_gw("CHANNEL_DELETE", 10000)
+		settle(2500)
+		mark("reopen_dm")
+		human(80, 200)
+		pump(1000)
+		quick_type("bobbles")
+		pump(1200)
+		human(80, 200) // Enter
+		discord.quick_switcher_close(cur.c)
+		action()
+		discord.open_dm(cur.c, B_ID, "Quickswitcher")
+		wait_gw("CHANNEL_CREATE", 10000)
+		discord.select_channel(cur.c, 0, DM_AB, discord.initial_message_limit(VIEW_H))
+		wait_for()
 		settle(2500)
 	case "_cleanup":
 		// not a fixture: removes guilds/group DMs the create_* scenarios left behind

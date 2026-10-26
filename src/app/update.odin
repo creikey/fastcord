@@ -123,7 +123,7 @@ update_button :: proc() {
 		label(strings.concatenate({"Update ", latest}, context.temp_allocator), .Semibold, 12, {1, 1, 1, 1}, 16)
 		spacer(.X, 10)
 	}
-	if sig.clicked do platform.open_url(UPDATE_PAGE)
+	if sig.clicked do open_url(UPDATE_PAGE)
 	if sig.right_clicked do upd.dismissed = true
 	spacer(.X, 8)
 }

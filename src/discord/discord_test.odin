@@ -443,3 +443,17 @@ netlog_conn_facts :: proc(t: ^testing.T) {
 	s := h3_settings_json()
 	testing.expect(t, strings.has_prefix(s, `{"SETTINGS_H3_DATAGRAM":1,"SETTINGS_MAX_FIELD_SECTION_SIZE":262144,"SETTINGS_QPACK_BLOCKED_STREAMS":100,"SETTINGS_QPACK_MAX_TABLE_CAPACITY":65536,"UNSUPPORTED_SETTINGS_TYPE(`), s)
 }
+
+// Custom status set / clear exactly as captured (fixture custom_status).
+@(test)
+settings_custom_status :: proc(t: ^testing.T) {
+	e := Settings_Edit{status = Status.Online, status_ms = 1793017734992, custom = Custom_Status{text = "testing fastcord", expires_at_ms = 1793105876128}, custom_ms = 1793019476128}
+	hex :: proc(b: []byte) -> string {
+		sb := strings.builder_make(context.temp_allocator)
+		for x in b do fmt.sbprintf(&sb, "%02x", x)
+		return strings.to_string(sb)
+	}
+	testing.expect_value(t, hex(settings_delta_proto(&e)), "5a390a080a066f6e6c696e6512240a1074657374696e672066617374636f726421a054707da101000029a0f84978a10100002a0708d0cebdc19734")
+	e2 := Settings_Edit{status = Status.Online, status_ms = 1793017734992, clear_custom = true}
+	testing.expect_value(t, hex(settings_delta_proto(&e2)), "5a130a080a066f6e6c696e652a0708d0cebdc19734")
+}

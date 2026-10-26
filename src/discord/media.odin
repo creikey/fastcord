@@ -381,3 +381,11 @@ media_proxy_url :: proc(proxy_url: string, width, height: int, allocator := cont
 	return strings.concatenate({proxy_url, sep, "format=webp&width=", itoa(width), "&height=", itoa(height)}, allocator)
 }
 
+
+// media_viewer_url: the full-size image the media viewer loads for an
+// attachment (proxy_url + "=&format=webp&quality=lossless"; fixture open_image_attachment).
+media_viewer_url :: proc(proxy_url: string, allocator := context.temp_allocator) -> string {
+	sep := "&" if strings.contains(proxy_url, "?") else "?"
+	if strings.has_suffix(proxy_url, "&") do sep = ""
+	return strings.concatenate({proxy_url, sep, "=&format=webp&quality=lossless"}, allocator)
+}

@@ -116,3 +116,5 @@ notification_body :: proc(s: ^dc.Store, m: ^dc.New_Message) -> string {
 }
 
 notifications_sent :: proc() -> int {return ns.notified}
+
+notify_reset_for_test :: proc() {ns = {}}

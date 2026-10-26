@@ -749,6 +749,9 @@ apply_settings_proto :: proc(s: ^Store, b64: string) {
 	if f, ok := protobuf.find_path(raw, 11, 1, 1); ok do st.status = status_from_string(string(f.bytes))
 	if f, ok := protobuf.find_path(raw, 11, 2, 1); ok {free_str(st.custom_status_text, a); st.custom_status_text = clone_str(string(f.bytes), a)}
 	if f, ok := protobuf.find_path(raw, 11, 2, 3); ok {free_str(st.custom_status_emoji, a); st.custom_status_emoji = clone_str(string(f.bytes), a)}
+	if f, ok := protobuf.find_path(raw, 11, 2, 2); ok do st.custom_status_emoji_id = Snowflake(f.value)
+	if f, ok := protobuf.find_path(raw, 11, 2, 4); ok do st.custom_status_expires_ms = i64(f.value)
+	if f, ok := protobuf.find_path(raw, 11, 5, 1); ok do st.status_created_ms = i64(f.value)
 	if f, ok := protobuf.find_path(raw, 12, 1, 1); ok {free_str(st.locale, a); st.locale = clone_str(string(f.bytes), a)}
 	if f, ok := protobuf.find_path(raw, 12, 2, 1); ok do st.timezone_offset = int(i32(f.value))
 	if f, ok := protobuf.find_path(raw, 13, 1); ok do st.theme = Theme(f.value)

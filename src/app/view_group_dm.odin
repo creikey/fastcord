@@ -261,6 +261,7 @@ gdm_search_row :: proc() {
 				}
 				if ui.editor_event(&gdm.search, e, tl, clipboard_get, clipboard_set) != .None do e.consumed = true
 			}
+			note_focused_editor(&gdm.search, f)
 			d := new(Search_Draw, context.temp_allocator)
 			d.ed = &gdm.search
 			f.custom_draw = search_caret_draw
@@ -328,7 +329,7 @@ gdm_create :: proc(fixed: dc.Snowflake) {
 	append(&ids, ..gdm.selected[:])
 	gdm.open = false
 	app.ui.focus = 0
-	if app.client == nil do return
+	if !net_action() do return
 	if len(ids) == 1 {
 		if existing := dc.open_dm(app.client, ids[0], "Create DM"); existing != 0 {
 			select_channel(0, existing)
@@ -382,3 +383,6 @@ group_dm_members :: proc(ch: ^dc.Channel) {
 		spacer(.Y, 16)
 	}
 }
+
+gdm_reset_for_test :: proc() {gdm = {}}
+gdm_state_for_test :: proc() -> string {return fmt.tprint(gdm.open, gdm.selected[:])}
