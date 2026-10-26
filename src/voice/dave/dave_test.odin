@@ -235,11 +235,11 @@ test_session_end_to_end :: proc(t: ^testing.T) {
 	rb, ok6 := take(&b, OP_READY_FOR_TRANSITION)
 	testing.expect(t, ok5 && ok6 && ra.transition_id == TID && rb.transition_id == TID, "ready for transition")
 
-	// before execute: still passthrough
+	// before execute: E2EE negotiated but not keyed -> dropped, never plaintext
 	frame := []byte{0xfc, 0xff, 0xfe, 9, 8, 7}
 	buf: [64]byte
 	n := session_encrypt(&a, frame, buf[:])
-	testing.expect(t, n == len(frame), "passthrough before execute")
+	testing.expect(t, n == 0, "dropped before execute")
 
 	on_execute_transition(&a, TID)
 	on_execute_transition(&b, TID)

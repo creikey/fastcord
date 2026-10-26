@@ -412,12 +412,16 @@ analytics_batch_shape :: proc(t: ^testing.T) {
 	defer client_destroy(c)
 	c.id.heartbeat = {"H", 1, now_ms()}
 	analytics_track(c, "libdiscore_loaded", `"success":true`)
+	testing.expect_value(t, len(c.analytics.queue), 0) // viewport/accessibility unknown: dropped
+	client_set_viewport(c, 1280, 720)
+	client_set_accessibility(c, A11Y_PREFERS_COLOR_SCHEME_LIGHT)
+	analytics_track(c, "libdiscore_loaded", `"success":true`)
 	c.store.me = 1546819257420087346
 	c.analytics.user_id = c.store.me
 	analytics_track(c, "notification_permission_status", `"os_enabled":true`)
 	e0 := c.analytics.queue[0]
 	testing.expect(t, strings.has_prefix(e0, `{"type":"libdiscore_loaded","properties":{"client_track_timestamp":`), e0)
-	testing.expect(t, strings.contains(e0, `"client_heartbeat_session_id":"H","event_sequence_number":1,"success":true,"client_performance_cpu":0`), e0)
+	testing.expect(t, strings.contains(e0, `"client_heartbeat_session_id":"H","event_sequence_number":1,"success":true,"client_performance_cpu":`), e0)
 	testing.expect(t, !strings.contains(e0, "client_uuid") && !strings.contains(e0, "client_rtc_state"), e0)
 	e1 := c.analytics.queue[1]
 	testing.expect(t, strings.contains(e1, `"client_rtc_state":"DISCONNECTED","client_app_state":"focused","client_viewport_width":1280,"client_viewport_height":720,"client_uuid":"MgBCUutndx`), e1)

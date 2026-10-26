@@ -527,6 +527,7 @@ execute_locked :: proc(s: ^Session, tid: int, version: int) {
 		return
 	}
 	g := s.current
+	if g == nil && tid == 0 do g = s.pending // sole member reset: switch to the local group
 	if g == nil do return
 	// sender switches to the new epoch's key
 	if s.send_active do ratchet_destroy(&s.send_ratchet)
@@ -559,6 +560,9 @@ session_encrypt :: proc(s: ^Session, frame: []byte, out: []byte) -> int {
 	sync.mutex_lock(&s.mu)
 	defer sync.mutex_unlock(&s.mu)
 	if !s.send_active {
+		// libdave encryptor: plain frames only in passthrough (protocol 0);
+		// with E2EE negotiated but no key yet, media is dropped
+		if s.protocol_version != 0 do return 0
 		copy(out, frame)
 		s.stats.passthrough_out += 1
 		return len(frame)

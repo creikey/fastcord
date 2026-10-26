@@ -8,6 +8,7 @@
 // asks the app's Backend to shape text.
 package ui
 
+import "base:runtime"
 import "core:hash"
 import "core:math"
 import "core:mem"
@@ -137,8 +138,7 @@ Box :: struct {
 	hot_t, active_t, appear_t:       f32,
 	view_off, view_off_target:       Vec2,
 	content_size:                    Vec2,
-	user_t:                          f32, // free animation slot for app code
-	user_t_target:                   f32,
+	user_t:                          f32, // free animation slot for app code (animate it yourself)
 	cross_align:                     Align, // where children sit on the axis perpendicular to layout_axis
 	sel_order:                       u64, // reading order for Selectable_Text; 0 = declaration order
 }
@@ -299,6 +299,7 @@ State :: struct {
 	next_hot:         Key,
 	cursor:           Cursor,
 	animating:        bool,
+	animating_loc:    runtime.Source_Code_Location, // last animate() still in motion (debugging idle wakeups)
 	scroll_consumed:  bool,
 	selection:        Selection,
 	selection_color:  Color,
@@ -730,15 +731,19 @@ is_focused :: proc(b: ^Box) -> bool {return b.key != 0 && ui.focus == b.key}
 set_focus :: proc(b: ^Box) {ui.focus = b.key}
 
 // Frame-rate independent exponential approach. rate is ~1/seconds to settle.
-animate :: proc(v: ^f32, target: f32, rate: f32 = 18) {
+animate :: proc(v: ^f32, target: f32, rate: f32 = 18, loc := #caller_location) {
 	s := ui
 	if abs(v^ - target) < 0.001 {
 		v^ = target
 		return
 	}
 	v^ += (target - v^) * (1 - math.pow(2, -rate * s.dt))
-	if abs(v^ - target) < 0.001 do v^ = target
-	else do s.animating = true
+	if abs(v^ - target) < 0.001 {
+		v^ = target
+	} else {
+		s.animating = true
+		s.animating_loc = loc
+	}
 }
 
 // Hot/active/appear animations are updated as boxes are signaled; call this
@@ -752,7 +757,6 @@ update_anims :: proc(b: ^Box) {
 	if .Hot_Animation in b.flags do animate(&b.hot_t, is_hot ? 1 : 0, 30)
 	if .Active_Animation in b.flags do animate(&b.active_t, is_active ? 1 : 0, 40)
 	animate(&b.appear_t, 1, 20)
-	if b.user_t != b.user_t_target do animate(&b.user_t, b.user_t_target, 20)
 }
 
 //////////////////////////////////////////////////////////////////////////////

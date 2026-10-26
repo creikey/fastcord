@@ -30,7 +30,6 @@ Config :: struct {
 	h3:                    H3_Hook, // optional h3 override (default: fc:quic/h3 via fc:quic/altsvc)
 	disable_h3:            bool,
 	disable_analytics:     bool, // no /science telemetry (the official client always sends it)
-	cpu_core_count:        int, // reported in telemetry (default 14)
 	initial_guild_id:      Snowflake, // the route the window opens on (referer)
 	initial_channel_id:    Snowflake,
 }
@@ -131,7 +130,6 @@ Client :: struct {
 	focused:          bool,
 	settings_edit:    Settings_Edit,
 	analytics:        Analytics,
-	analytics_last_channel: Snowflake,
 	upload_seq:       int,
 	quest_app_ids:    []Snowflake, // from /quests/@me, for applications/public
 	started_guilds:   map[Snowflake]bool, // guilds whose open-time requests ran this session

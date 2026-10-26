@@ -220,7 +220,12 @@ open :: proc(c: ^Conn, req: http.Request) -> (st: ^Stream, err: http.Error) {
 	append(&fields, http.Header{":path", req.path})
 	has_priority := false
 	for h in req.headers {
-		if h.name == "priority" do has_priority = true
+		if h.name == "priority" {
+			// PRIORITY_UPDATE carries exactly the request's Priority field value
+			// (e.g. "i" for images, "u=0" for fonts), as Chrome does.
+			has_priority = true
+			prio = h.value
+		}
 		append(&fields, h)
 	}
 	if !has_priority do append(&fields, http.Header{"priority", prio})

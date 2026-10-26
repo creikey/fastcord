@@ -419,3 +419,23 @@ test_group_lifecycle :: proc(t: ^testing.T) {
 		group_destroy(gb3)
 	}
 }
+
+// Byte layout of our KeyPackage vs the one captured from the official client
+// (op 26 payload): 0001 0002 | init_key<65> | enc_key<65> | sig_key<65> |
+// 0001 08 <user id BE> | 02 0001 02 0002 00 00 02 0001 | 01 | 0^8 ff^8 | 00 |
+// sig<V> | 00 | sig<V>
+@(test)
+test_key_package_layout :: proc(t: ^testing.T) {
+	id: Identity
+	id.sig_priv, id.sig_pub = generate_signature_key()
+	uid := []byte{0x15, 0x77, 0x67, 0xeb, 0x52, 0x42, 0x00, 0x32}
+	id.credential = Credential{CRED_BASIC, uid}
+	msg, kp, _ := key_package_create(&id, context.temp_allocator)
+	b := msg[4:]
+	testing.expect(t, msg[0] == 0 && msg[1] == 1 && msg[2] == 0 && msg[3] == 5, "MLSMessage key_package")
+	testing.expect(t, bytes_equal(b[:6], {0, 1, 0, 2, 0x40, 0x41}))
+	p := 4 + 3 * 67
+	want := []byte{0, 1, 8, 0x15, 0x77, 0x67, 0xeb, 0x52, 0x42, 0x00, 0x32, 2, 0, 1, 2, 0, 2, 0, 0, 2, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0}
+	testing.expect(t, bytes_equal(b[p:p + len(want)], want), "credential/capabilities/lifetime/extensions")
+	testing.expect(t, validate_key_package(&kp) == .None)
+}

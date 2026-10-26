@@ -34,6 +34,7 @@ App :: struct {
 	caret_reset_t:   f64,
 	reaction_target: dc.Snowflake, // message whose reaction picker is open
 	ui_mods:         UI_Mods, // modifier keys as of the latest event
+	stats:           bool, // FASTCORD_STATS=1: print frame rate periodically
 	wake_at:         f64, // earliest timed repaint requested this frame (caret blink, timers); 0 = none
 }
 
@@ -105,6 +106,7 @@ main :: proc() {
 		fmt.eprintln("gfx init failed")
 		os.exit(1)
 	}
+	app.stats = os.get_env("FASTCORD_STATS", context.temp_allocator) != ""
 	fonts_load()
 	theme_load(&app.theme, opt.theme)
 	ui.init(&app.ui, ui.Backend{shape = ui_shape})
@@ -210,6 +212,15 @@ frame :: proc() {
 
 	platform.set_cursor(map_cursor(ui.cursor()))
 	if ui.needs_frame() do platform.request_frame()
+	if app.stats {
+		@(static) last_report: f64
+		@(static) last_frame: u64
+		if now - last_report > 2 {
+			fmt.eprintfln("[stats] %.1f fps animating=%v at %v", f64(app.frame - last_frame) / (now - last_report), ui.needs_frame(), app.ui.animating_loc)
+			last_report = now
+			last_frame = app.frame
+		}
+	}
 }
 
 key_by_name :: proc(name: string) -> platform.Key {

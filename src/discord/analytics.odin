@@ -2,6 +2,7 @@ package discord
 
 import "core:encoding/base64"
 import "core:math/rand"
+import "core:os"
 import "core:strings"
 import "core:sync"
 import "fc:http"
@@ -35,8 +36,10 @@ Analytics :: struct {
 	uuid_seq:      u32,
 	user_id:       Snowflake,
 	decorated:     bool, // late decorators (rtc state, app state, viewport) registered
-	viewport_w:    int,
+	viewport_w:    int, // CSS px of the window content (client_set_viewport)
 	viewport_h:    int,
+	accessibility: u64, // AccessibilityFeatureFlags (client_set_accessibility)
+	accessibility_known: bool,
 	next_client_hb: i64,
 	next_ad_hb:    i64,
 	ad_session:    string,
@@ -66,8 +69,6 @@ analytics_init :: proc(a: ^Analytics, allocator := context.allocator) {
 	a.queue = make([dynamic]string, allocator)
 	a.uuid_random = rand.uint32()
 	a.uuid_created = now_ms()
-	a.viewport_w = 1280
-	a.viewport_h = 720
 	a.timers = make([dynamic]Analytics_Timer, allocator)
 	// The ad session (AdSessionStore) exists from launch: quests/decision uses it before READY.
 	a.ad_session = uuid4(allocator)
@@ -103,6 +104,14 @@ client_uuid_next :: proc(a: ^Analytics) -> string {
 analytics_track :: proc(c: ^Client, event_type, props_json: string) {
 	a := &c.analytics
 	if !a.enabled do return
+	// Events are dropped, never sent with invented values: memory must be
+	// measurable and the app must have reported viewport + accessibility state.
+	mem_kb, mok := process_memory_kb()
+	cpu, cok := process_cpu_percent()
+	sync.mutex_lock(&a.mu)
+	known := a.viewport_w > 0 && a.accessibility_known
+	sync.mutex_unlock(&a.mu)
+	if !mok || !cok || !known do return
 	now := now_ms()
 	hb := identity_heartbeat_snapshot(&c.id)
 	sync.mutex_lock(&a.mu)
@@ -123,19 +132,21 @@ analytics_track :: proc(c: ^Client, event_type, props_json: string) {
 		strings.write_byte(&sb, ',')
 		strings.write_string(&sb, props_json)
 	}
-	// expandEventProperties
-	strings.write_string(&sb, `,"client_performance_cpu":0,"client_performance_memory":`)
-	strings.write_int(&sb, 1_100_000 + int(rand.uint32() % 60_000))
+	// expandEventProperties — only measured values; see analytics_unknowable.
+	strings.write_string(&sb, `,"client_performance_cpu":`)
+	strings.write_int(&sb, cpu)
+	strings.write_string(&sb, `,"client_performance_memory":`)
+	strings.write_i64(&sb, mem_kb)
 	strings.write_string(&sb, `,"cpu_core_count":`)
-	strings.write_int(&sb, c.cfg.cpu_core_count if c.cfg.cpu_core_count > 0 else 14)
+	strings.write_int(&sb, os.get_processor_core_count())
 	strings.write_string(&sb, `,"accessibility_features":`)
-	strings.write_int(&sb, 524416 if a.user_id != 0 else 128)
+	strings.write_u64(&sb, a.accessibility)
 	strings.write_string(&sb, `,"rendered_locale":`)
 	json_write_escaped(&sb, c.id.platform.locale)
 	strings.write_string(&sb, `,"uptime_app":`)
 	strings.write_i64(&sb, (now - c.launch_ms) / 1000)
 	strings.write_string(&sb, `,"uptime_process_renderer":`)
-	strings.write_i64(&sb, (now - c.launch_ms) / 1000 + 286)
+	strings.write_i64(&sb, process_uptime_seconds())
 	strings.write_string(&sb, `,"launch_signature":`)
 	json_write_escaped(&sb, c.id.launch_signature)
 	if a.decorated {
@@ -243,28 +254,6 @@ analytics_tick :: proc(c: ^Client, now: i64) {
 		}
 	}
 	if a.user_id == 0 do return // heartbeats start on CONNECTION_OPEN
-	if c.focused && now >= a.next_client_hb {
-		a.next_client_hb = now + CLIENT_HEARTBEAT_INTERVAL_MS
-		hb := identity_heartbeat_snapshot(&c.id)
-		w: Json
-		json_init(&w)
-		json_obj(&w)
-		json_kint(&w, "client_heartbeat_initialization_timestamp", hb.created_at)
-		json_kint(&w, "client_heartbeat_version", 31)
-		json_kint(&w, "client_heartbeat_renderer_memory", 520_000 + i64(rand.uint32() % 20_000))
-		json_kint(&w, "client_heartbeat_renderer_memory_used_heap", 130_000 + i64(rand.uint32() % 10_000))
-		json_key(&w, "electron_process_memory_private")
-		json_raw(&w, "[-1,-1,-1,-1,-1,-1,-1]")
-		json_key(&w, "electron_process_memory_private_and_shared")
-		json_raw(&w, "[-1,279984,528208,111152,-1,201312,-1]")
-		json_kbool(&w, "is_idle", false)
-		json_kint(&w, "idle_duration_ms", now) // Date.now() - 0 when never idle, as captured
-		json_kbool(&w, "is_afk", false)
-		json_kbool(&w, "is_system_suspended", false)
-		json_kbool(&w, "is_system_locked", false)
-		json_obj_end(&w)
-		analytics_track(c, "client_heartbeat", json_body(json_string(&w)))
-	}
 	if c.focused && now >= a.next_ad_hb {
 		a.next_ad_hb = now + AD_HEARTBEAT_INTERVAL_MS
 		if a.ad_session == "" || now - a.ad_created > 12 * 3600 * 1000 {
@@ -281,54 +270,6 @@ analytics_tick :: proc(c: ^Client, now: i64) {
 		json_obj_end(&w)
 		analytics_track(c, "client_ad_heartbeat", json_body(json_string(&w)))
 	}
-}
-
-// channel_opened (ChannelHeader / chat view mount) with ChannelAnalytics props.
-analytics_channel_opened :: proc(c: ^Client, channel_id: Snowflake, channel_view := "chat") {
-	s := &c.store
-	ch, ok := s.channels[channel_id]
-	w: Json
-	json_init(&w)
-	json_obj(&w)
-	json_ksnow(&w, "channel_id", channel_id)
-	if ok && ch.guild_id != 0 {
-		rs := s.read_states[channel_id]
-		gs := s.guild_settings[ch.guild_id]
-		muted := false
-		for m in gs.muted_channels do if m == channel_id do muted = true
-		preset := "all_messages" if gs.message_notifications == 0 else ("mentions" if gs.message_notifications == 1 else "nothing")
-		json_kbool(&w, "channel_was_unread", channel_unread(s, channel_id))
-		json_kint(&w, "channel_mention_count", i64(rs.mention_count))
-		json_kbool(&w, "channel_is_muted", muted)
-		json_kbool(&w, "channel_is_nsfw", ch.nsfw)
-		json_kbool(&w, "channel_is_spoiler", false)
-		json_kint(&w, "channel_resolved_unread_setting", 1)
-		json_kstr(&w, "channel_preset", preset)
-		json_ksnow(&w, "guild_id", ch.guild_id)
-		json_kbool(&w, "guild_was_unread", false)
-		json_kint(&w, "guild_mention_count", 0)
-		json_kbool(&w, "guild_is_muted", gs.muted)
-		json_kint(&w, "guild_resolved_unread_setting", 1)
-		json_kstr(&w, "guild_preset", preset)
-		if ch.parent_id != 0 do json_ksnow(&w, "parent_id", ch.parent_id)
-		else do json_knull(&w, "parent_id")
-		json_kbool(&w, "has_pending_member_action", false)
-		json_kbool(&w, "can_send_message", true)
-		json_kbool(&w, "is_app_dm", false)
-	} else if ok {
-		is_bot := false
-		if len(ch.recipient_ids) > 0 {
-			if u := user_get(s, ch.recipient_ids[0]); u != nil do is_bot = u.bot
-		}
-		json_kbool(&w, "is_app_dm", is_bot)
-		friends := 0
-		for r in ch.recipient_ids do if rel, rok := s.relationships[r]; rok && rel.kind == .Friend do friends += 1
-		json_kint(&w, "friend_recipient_count", i64(friends))
-		json_kint(&w, "non_friend_recipient_count", i64(len(ch.recipient_ids) - friends))
-	}
-	json_kstr(&w, "channel_view", channel_view)
-	json_obj_end(&w)
-	analytics_track(c, "channel_opened", json_body(json_string(&w)))
 }
 
 // send_message_roundtrip: MessageRoundtripTrackerStore, sampled at 10%.
@@ -370,5 +311,40 @@ analytics_on_ready :: proc(c: ^Client) {
 	a.next_ad_hb = now
 	// Launch-anchored events seen in coldstart captures (PremiumManager, notification check).
 	analytics_schedule(c, c.launch_ms + 5579, "fetch_user_offer_started", `"call_location":"PremiumManager"`)
-	analytics_schedule(c, c.launch_ms + 5581, "notification_permission_status", `"os_enabled":true`)
 }
+
+// AccessibilityFeatureFlags bits the platform layer can know.
+A11Y_REDUCED_MOTION :: 1 << 0
+A11Y_PREFERS_COLOR_SCHEME_LIGHT :: 128
+A11Y_PREFERS_COLOR_SCHEME_DARK :: 256
+A11Y_FORCED_COLORS :: 262144
+A11Y_FORCED_COLORS_FROM_USER_SETTINGS :: 524288
+
+// client_set_viewport: window content size in CSS px (client_viewport_width/height).
+client_set_viewport :: proc(c: ^Client, w, h: int) {
+	sync.mutex_lock(&c.analytics.mu)
+	c.analytics.viewport_w = w
+	c.analytics.viewport_h = h
+	sync.mutex_unlock(&c.analytics.mu)
+}
+
+// client_set_accessibility: the AccessibilityStore bitmask (OS color scheme,
+// reduced motion, user accessibility settings) as the UI knows it.
+client_set_accessibility :: proc(c: ^Client, flags: u64) {
+	sync.mutex_lock(&c.analytics.mu)
+	c.analytics.accessibility = flags
+	c.analytics.accessibility_known = true
+	sync.mutex_unlock(&c.analytics.mu)
+}
+
+// Events the official client sends that we deliberately do NOT send because a
+// required value cannot be measured truthfully in this client:
+//   client_heartbeat                (Electron per-process memory arrays, JS heap)
+//   app_native_crash                (Electron crash reporter / minidump state)
+//   libdiscore_loaded               (wasm load of the web client)
+//   ready_payload_received          (identify server timings / per-section byte sizes as computed by the JS store)
+//   app_web_perf_startup_metrics, app_ui_viewed (web bundle loading / render metrics)
+//   channel_opened, guild_viewed    (notification-preset / unread-setting resolution we don't model)
+//   notification_permission_status  (OS notification permission: needs the platform layer)
+//   dismissible_content_shown*, friends_list_viewed (UI-surface events: the app may send them via analytics_track)
+analytics_unknowable :: [?]string{"client_heartbeat", "app_native_crash", "libdiscore_loaded", "ready_payload_received", "app_web_perf_startup_metrics", "app_ui_viewed", "channel_opened", "guild_viewed", "notification_permission_status"}

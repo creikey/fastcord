@@ -34,10 +34,6 @@ select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limi
 			schedule_guild_open(c, guild_id)
 		}
 	}
-	if channel_id != 0 && channel_id != c.analytics_last_channel {
-		c.analytics_last_channel = channel_id
-		analytics_channel_opened(c, channel_id)
-	}
 	if channel_id != 0 {
 		l := message_list(&c.store, channel_id)
 		if !l.loaded && !l.loading do fetch_messages(c, channel_id, 0, message_limit)

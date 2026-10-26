@@ -65,6 +65,8 @@ live_login_send_react_delete :: proc(t: ^testing.T) {
 	c.transport.observer = proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error) {
 		log.infof("%v %s %s %s -> %d", resp.version, req.method, host, req.path[:min(len(req.path), 60)], resp.status)
 	}
+	client_set_viewport(c, 1280, 720) // the app reports these (here: the captured window)
+	client_set_accessibility(c, A11Y_PREFERS_COLOR_SCHEME_LIGHT)
 	client_start(c)
 
 	ok := wait_until(c, 30 * time.Second, proc(c: ^Client, _: rawptr) -> bool {return c.store.ready || c.store.connection == .Auth_Failed})
