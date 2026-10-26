@@ -17,13 +17,16 @@ build_c() {
     if [ -n "$EXE" ]; then obj=build/$name.obj; else obj=build/$name.o; fi
     if [ -f "$obj" ] && [ -z "$(find "$(dirname "$src")" build.sh -newer "$obj" | head -1)" ]; then continue; fi
     echo "cc $src"
+    # Optional fc_<lib>.cflags: one line of extra -I/-D flags (paths from the repo root).
+    extra=""
+    [ -f "${src%.c}.cflags" ] && extra=$(tr -d '\r\n' < "${src%.c}.cflags")
     if [ -z "$EXE" ]; then
       # Both architectures in one object, for the universal macOS app.
-      clang -c -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=13.0 -o "$obj" "$src"
+      clang -c -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=13.0 $extra -o "$obj" "$src"
     elif command -v clang >/dev/null 2>&1; then
-      clang -c -O2 -D_CRT_SECURE_NO_WARNINGS -o "$obj" "$src"
+      clang -c -O2 -D_CRT_SECURE_NO_WARNINGS $extra -o "$obj" "$src"
     else
-      cl -nologo -c -O2 -D_CRT_SECURE_NO_WARNINGS -Fo"$obj" "$src"
+      cl -nologo -c -O2 -D_CRT_SECURE_NO_WARNINGS $extra -Fo"$obj" "$src"
     fi
   done
 }

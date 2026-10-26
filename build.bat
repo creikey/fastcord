@@ -19,12 +19,16 @@ if errorlevel 1 (
 if defined VS call "%VS%\VC\Auxiliary\Build\vcvars64.bat" >nul
 set CC=cl -nologo -c -O2 -D_CRT_SECURE_NO_WARNINGS -Fo
 :have_cc
+setlocal enabledelayedexpansion
 for /d %%D in (vendor\*) do (
     for %%F in (%%D\fc_*.c) do (
         echo cc %%F
-        %CC%build\%%~nF.obj %%F >nul || exit /b 1
+        set EXTRA=
+        if exist %%D\%%~nF.cflags set /p EXTRA=<%%D\%%~nF.cflags
+        %CC%build\%%~nF.obj !EXTRA! %%F >nul || exit /b 1
     )
 )
+endlocal
 
 set T=%1
 if "%T%"=="" set T=app

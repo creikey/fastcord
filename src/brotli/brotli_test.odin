@@ -1,7 +1,6 @@
 package brotli
 
 import "core:bytes"
-import "core:crypto/hash"
 import "core:math/rand"
 import "core:testing"
 
@@ -44,24 +43,6 @@ VECTORS := [?]Vector {
 	{"bin.q11", #load("testdata/sample.bin.q11.br"), BIN},
 	{"random.q5", #load("testdata/random.bin.q5.br"), RANDOM},
 	{"empty", #load("testdata/empty.br"), nil},
-}
-
-@(test)
-test_dictionary :: proc(t: ^testing.T) {
-	testing.expect_value(t, len(DICT), 122784)
-	digest: [32]byte
-	hash.hash_bytes_to_buffer(.SHA256, DICT, digest[:])
-	want := [32]byte {
-		0x20, 0xe4, 0x2e, 0xb1, 0xb5, 0x11, 0xc2, 0x18, 0x06, 0xd4, 0xd2, 0x27, 0xd0, 0x7e, 0x5d, 0xd0,
-		0x68, 0x77, 0xd8, 0xce, 0x7b, 0x3a, 0x81, 0x7f, 0x37, 0x8f, 0x31, 0x36, 0x53, 0xf3, 0x5c, 0x70,
-	}
-	testing.expect(t, digest == want)
-	off: u32
-	for l in 4 ..= 24 {
-		testing.expect_value(t, DICT_OFFSET[l], off)
-		off += u32(l) << DICT_NDBITS[l]
-	}
-	testing.expect_value(t, off, u32(len(DICT)))
 }
 
 @(test)

@@ -150,6 +150,9 @@ test_split_every_point :: proc(t: ^testing.T) {
 	testing.expect(t, bytes.equal(out[:], SAMPLE_JSON))
 }
 
+@(private = "file")
+le32 :: proc(p: []byte) -> u32 {return u32(p[0]) | u32(p[1]) << 8 | u32(p[2]) << 16 | u32(p[3]) << 24}
+
 // Gateway: one endless frame, flushed after each message. Every message's
 // bytes must decode to exactly that message as soon as they arrive.
 @(private = "file")
