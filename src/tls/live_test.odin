@@ -19,7 +19,7 @@ live :: proc() -> bool {
 dial :: proc(t: ^testing.T, host: string, alpn: []string) -> ^Session {
 	tcp, err := netio.dial_tcp(host, 443)
 	if !testing.expect_value(t, err, netio.Error.None) do return nil
-	netio.tcp_set_read_timeout(tcp, 10 * time.Second)
+	netio.tcp_set_timeout(tcp, 10 * time.Second)
 	under := netio.tcp_stream(tcp)
 	s, terr := connect(under, {alpn = alpn, server_name = host})
 	if terr != .None {
@@ -119,7 +119,7 @@ live_resumption :: proc(t: ^testing.T) {
 	for round in 0 ..< 2 {
 		tcp, err := netio.dial_tcp("discord.com", 443)
 		if !testing.expect_value(t, err, netio.Error.None) do return
-		netio.tcp_set_read_timeout(tcp, 10 * time.Second)
+		netio.tcp_set_timeout(tcp, 10 * time.Second)
 		s, terr := connect(netio.tcp_stream(tcp), {alpn = {"http/1.1"}, server_name = "discord.com", ticket_cache = &cache})
 		if terr != .None {
 			testing.expectf(t, false, "round %d: %v / %v", round, terr, last_error())

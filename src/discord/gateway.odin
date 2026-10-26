@@ -164,6 +164,9 @@ gateway_stop :: proc(g: ^Gateway) {
 		thread.join(g.control)
 		thread.destroy(g.control)
 	}
+	// The control thread may have finished a connect after the close above, leaving a live socket
+	// and reader thread behind; close and join them before the free.
+	gateway_close_socket(g, 1000)
 	delete(g.session_id)
 	delete(g.resume_url)
 	delete(g.inflated)
@@ -432,6 +435,7 @@ gateway_connect :: proc(g: ^Gateway) {
 		if strings.equal_fold(h.name, "set-cookie") do cookie_set_from_header(&c.jar, host, path, h.value, now)
 	}
 	http.response_destroy(&resp)
+	netio.set_timeout(stream, 0)
 
 	locks.lock(&g.mu)
 	g.gen += 1

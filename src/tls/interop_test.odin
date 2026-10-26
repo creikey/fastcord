@@ -20,7 +20,7 @@ interop_openssl :: proc(t: ^testing.T) {
 	port, _ := strconv.parse_int(port_s)
 	tcp, err := netio.dial_tcp("127.0.0.1", port)
 	if !testing.expect_value(t, err, netio.Error.None) do return
-	netio.tcp_set_read_timeout(tcp, 10 * time.Second)
+	netio.tcp_set_timeout(tcp, 10 * time.Second)
 	under := netio.tcp_stream(tcp)
 	s, terr := connect(under, {alpn = {"http/1.1"}, server_name = "localhost", insecure_skip_verify = true})
 	if terr != .None {

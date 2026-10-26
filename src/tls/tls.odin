@@ -159,7 +159,7 @@ connect :: proc(under: netio.Stream, cfg: Config, allocator := context.allocator
 }
 
 stream :: proc(s: ^Session) -> netio.Stream {
-	return netio.Stream{data = s, read = stream_read, write = stream_write, close = stream_close, shutdown = stream_shutdown}
+	return netio.Stream{data = s, read = stream_read, write = stream_write, close = stream_close, shutdown = stream_shutdown, set_timeout = stream_set_timeout}
 }
 
 // negotiated_alpn returns the protocol the server selected, or "" if none.
@@ -227,6 +227,9 @@ stream_close :: proc(data: rawptr) {close(cast(^Session)data)}
 
 @(private)
 stream_shutdown :: proc(data: rawptr) {shutdown(cast(^Session)data)}
+
+@(private)
+stream_set_timeout :: proc(data: rawptr, d: time.Duration) {netio.set_timeout((cast(^Session)data).under, d)}
 
 // shutdown wakes a thread blocked in read (it returns .Closed) and makes
 // later reads and writes fail, without freeing anything. It forwards to the

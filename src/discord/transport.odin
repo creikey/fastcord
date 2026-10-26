@@ -288,6 +288,8 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 			c, herr := http.h2_connect(stream, {}, t.allocator)
 			if herr == .None {
 				new_h2 = c
+				// The h2 reader idles in read between requests; HTTP/1.1 keeps the dial timeout per request.
+				netio.set_timeout(stream, 0)
 				// h2_connect with a zero config sends CHROME_SETTINGS and the
 				// connection WINDOW_UPDATE.
 				if t.conn_observer != nil {

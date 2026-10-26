@@ -266,7 +266,10 @@ voice_disconnect :: proc(c: ^Conn) {
 		netio.shutdown(c.ws_stream)
 	}
 	locks.unlock(&c.ws_mu)
-	for th in ([]^thread.Thread{c.ws_th, c.timer_th, c.udp_th, c.audio_th}) {
+	// The ws thread starts udp_th and audio_th, so read those handles only after it has exited.
+	thread.join(c.ws_th)
+	thread.destroy(c.ws_th)
+	for th in ([]^thread.Thread{c.timer_th, c.udp_th, c.audio_th}) {
 		if th != nil {
 			thread.join(th)
 			thread.destroy(th)
@@ -592,10 +595,13 @@ ws_session :: proc(c: ^Conn, resume: bool) -> int {
 		netio.close(stream)
 		return 0
 	}
+	netio.set_timeout(stream, 0)
 	locks.lock(&c.ws_mu)
 	c.ws = ws
 	c.ws_stream = stream
 	c.ws_open = true
+	// voice_disconnect found no socket to shut down while this one was connecting.
+	if sync.atomic_load(&c.stop) do netio.shutdown(stream)
 	locks.unlock(&c.ws_mu)
 	locks.lock(&c.hb_mu)
 	c.hello_deadline_ms = now_ms() + 20_000

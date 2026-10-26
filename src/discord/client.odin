@@ -233,6 +233,7 @@ client_destroy :: proc(c: ^Client) {
 		thread.destroy(th)
 	}
 	delete(c.workers)
+	expr_pool_stop(c)
 	client_save_state(c)
 	for j in c.jobs do job_free(j)
 	delete(c.jobs)

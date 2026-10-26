@@ -139,6 +139,30 @@ expr_submit :: proc(c: ^Client, j: Expr_Job) {
 	locks.cond_signal(&pool.cond)
 }
 
+// expr_pool_stop joins the expression workers serving c and frees its queued jobs and unread
+// results. client_destroy calls it after setting quit and before freeing c.
+expr_pool_stop :: proc(c: ^Client) {
+	locks.lock(&pool.mu)
+	if pool.owner != c {
+		locks.unlock(&pool.mu)
+		return
+	}
+	threads := pool.threads
+	pool.threads = {}
+	pool.owner = nil
+	locks.cond_broadcast(&pool.cond)
+	locks.unlock(&pool.mu)
+	for th in threads {
+		thread.join(th)
+		thread.destroy(th)
+	}
+	delete(threads)
+	for &j in pool.jobs do expr_job_free(&j)
+	clear(&pool.jobs)
+	for &r in pool.results do expr_result_free(c, &r)
+	clear(&pool.results)
+}
+
 @(private = "file")
 expr_deliver :: proc(c: ^Client, r: Expr_Result) {
 	locks.lock(&pool.mu)
