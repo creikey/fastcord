@@ -279,7 +279,7 @@ dominant_color :: proc(rgba: []u8) -> ui.Color {
 // Decode image bytes into textures (all frames for animations).
 image_decode :: proc(data: []byte) -> Remote_Image {
 	im := Remote_Image{state = .Failed, last_use = app.frame}
-	img, err := imagefmt.decode(data, context.temp_allocator)
+	img, err := imagefmt.decode(data, context.temp_allocator, 16 << 20)
 	if err != nil || len(img.frames) == 0 do return im
 	im.size = {img.width, img.height}
 	im.dominant = dominant_color(img.frames[0].pixels)
