@@ -1,0 +1,1 @@
+-Ivendor/nghttp3/lib -Ivendor/nghttp3/lib/includes -Ivendor/nghttp3/lib/sfparse -DNGHTTP3_STATICLIB

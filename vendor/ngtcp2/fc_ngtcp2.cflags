@@ -1,0 +1,1 @@
+-Ivendor/ngtcp2/lib -Ivendor/ngtcp2/lib/includes -Ivendor/ngtcp2/crypto -Ivendor/ngtcp2/crypto/includes -Ivendor/boringssl/include -DNGTCP2_STATICLIB

@@ -55,5 +55,10 @@ if exist %OUT% rd /s /q %OUT%
 mkdir %OUT%
 set EXTRA=
 if exist %~dpn1.cflags set /p EXTRA=<%~dpn1.cflags
-cl -nologo -c -O2 -MP -std:c++17 -GR- -D_HAS_EXCEPTIONS=0 -D_CRT_SECURE_NO_WARNINGS %EXTRA% -Fo%OUT%\ @%1 >%OUT%.log || (type %OUT%.log & exit /b 1)
+rem A list with any .cc file is C++17 for cl. C-only lists use clang-cl when present: MSVC up to 2022
+rem rejects nghttp3's _Generic (C7700).
+set CC_=cl -std:c++17 -GR- -D_HAS_EXCEPTIONS=0
+findstr /l /c:".cc" %1 >nul
+if errorlevel 1 (set CC_=cl -std:c17& where clang-cl >nul 2>nul && set CC_=clang-cl)
+%CC_% -nologo -c -O2 -MP -D_CRT_SECURE_NO_WARNINGS %EXTRA% -Fo%OUT%\ @%1 >%OUT%.log || (type %OUT%.log & exit /b 1)
 lib -nologo -out:build\%N%.lib %OUT%\*.obj
