@@ -14,7 +14,7 @@ import "fc:ui"
 // desiredItemWidth 200, maxColumns 6, itemGutter 12, category tiles 110 high,
 // 250 ms search debounce, suggestions once within 1180 px of the end.
 
-GIF_PAD_X :: 16
+GIF_PAD_X :: 12 // grid inset (official tiles at 12px from the picker edge and the header line)
 GIF_GUTTER :: 12
 GIF_DESIRED_W :: 200 // category tiles (GIFPickerCategories desiredItemWidth)
 GIF_RESULTS_DESIRED_W :: 160 // --custom-gif-picker-search-results-desired-item-width
@@ -216,8 +216,9 @@ gif_picker_body :: proc(r: ui.Rect) {
 	inner_w := (r.x1 - r.x0) - 2 * GIF_PAD_X
 	cols := gv.kind == .None ? columns_for(inner_w) : clamp(int(inner_w / GIF_RESULTS_DESIRED_W), 1, GIF_MAX_COLS)
 	col_w := (inner_w - f32(cols - 1) * GIF_GUTTER) / f32(cols)
-	list := ui.box("gif_list", {.Clip})
+	list := ui.box("gif_list", {.Clip, .Draw_Background})
 	list.semantic_size = {.X = ui.pct(1), .Y = ui.pct(1)}
+	list.style.bg = T("--background-base-lower") // the GIF grid sits on a darker well
 	if gv.kind == .None {
 		gif_front_page(list, view, cols, col_w)
 	} else {
@@ -252,13 +253,13 @@ gif_front_page :: proc(list: ^ui.Box, view: ui.Rect, cols: int, col_w: f32) {
 			for i in 0 ..< cols * 4 {
 				ph := ui.box(fmt.tprintf("ph%d", i), {.Floating_X, .Floating_Y, .Draw_Background})
 				ph.semantic_size = {.X = ui.px(col_w), .Y = ui.px(GIF_TILE_H)}
-				ph.fixed_pos = {GIF_PAD_X + f32(i % cols) * (col_w + GIF_GUTTER), f32(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top}
+				ph.fixed_pos = {GIF_PAD_X + f32(i % cols) * (col_w + GIF_GUTTER), GIF_GUTTER + f32(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top}
 				ph.style.radius = GIF_TILE_RADIUS
 				ph.style.bg = T("--background-mod-subtle")
 			}
 		}
 		for t, i in tiles {
-			y := f32(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top
+			y := GIF_GUTTER + f32(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top
 			if y + GIF_TILE_H < 0 || y > vh do continue
 			if ui.id_scope(u64(i)) {
 				tile := ui.box("tile", {.Clickable, .Floating_X, .Floating_Y, .Draw_Background, .Clip})
