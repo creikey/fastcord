@@ -78,7 +78,9 @@ STARTUP_REQUESTS := [?]Startup_Entry {
 	{.Launch, 3178, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", {.Home, .Private}, {}, "guild route: part of the guild-open set"},
 	{.Launch, 3178, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Launch, 3178, .Api_Get, "", "/users/@me/library?country_code={country}", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 3178, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x=5", "", .Cross_Site, "", {.Home}, {}, ""},
+	// x is the 5-minute bucket within the hour (max-age=300): within one
+	// bucket Chrome serves it from its HTTP cache, so it is often absent.
+	{.Launch, 3178, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x={x5m}", "", .Cross_Site, "", ALL_ROUTES, {}, ""},
 	{.Launch, 3178, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, {.Etag}, ""},
 	{.Launch, 3178, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
 	{.Launch, 6700, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", {.Guild}, {}, "FrecencyUserSettings lazy load (fixtures: 6.0-8.1 s)"},
@@ -94,6 +96,7 @@ startup_expand :: proc(c: ^Client, path: string) -> string {
 		out, _ = strings.replace_all(out, "{country}", cc, context.temp_allocator)
 	}
 	if strings.contains(out, "{locale}") do out, _ = strings.replace_all(out, "{locale}", c.id.platform.locale, context.temp_allocator)
+	if strings.contains(out, "{x5m}") do out, _ = strings.replace_all(out, "{x5m}", itoa(int(now_ms() / 300_000 % 12)), context.temp_allocator)
 	if strings.contains(out, "{v5m}") do out, _ = strings.replace_all(out, "{v5m}", itoa(int(now_ms() / 300_000)), context.temp_allocator)
 	if strings.contains(out, "{hb}") {
 		hb := identity_heartbeat_snapshot(&c.id)

@@ -15,6 +15,11 @@ now_ms :: proc() -> i64 {
 	return time.time_to_unix_nano(time.now()) / 1e6
 }
 
+// now_ms_f: unix ms with sub-millisecond precision (traffic tooling ordering).
+now_ms_f :: proc() -> f64 {
+	return f64(time.time_to_unix_nano(time.now())) / 1e6
+}
+
 // ---- uuid v4 (crypto/random based, like the client's uuid module) ----
 
 uuid4 :: proc(allocator := context.allocator) -> string {

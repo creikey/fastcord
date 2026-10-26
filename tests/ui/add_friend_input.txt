@@ -1,0 +1,12 @@
+# Regression: clicking the Add Friend input focuses it and typing lands in it.
+# (Used to do nothing: the field's own focus key didn't match the container's.)
+wait 5
+click_text "Add Friend"
+wait 5
+click_text "You can add friends with their Discord username."
+wait 2
+type wumpus
+wait 2
+expect_input "wumpus"
+key backspace
+expect_input "wumpu"

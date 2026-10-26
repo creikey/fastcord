@@ -61,6 +61,16 @@ Origin :: struct {
 	dialing: bool,
 }
 
+// Conn_Event: a new session and the setup bytes/values we sent on it.
+Conn_Event :: struct {
+	kind:                string, // "h2" | "h3"
+	host:                string,
+	alpn:                string,
+	quic_params:         []byte, // h3: encoded client transport parameters (borrowed)
+	h2_settings:         []http.Setting,
+	h2_window_increment: u32,
+}
+
 Transport :: struct {
 	mu:        sync.Mutex,
 	cond:      sync.Cond,
@@ -68,8 +78,7 @@ Transport :: struct {
 	alt:       altsvc.Cache, // Chrome alternative-service state (fc:quic/altsvc)
 	use_h3:    bool, // race QUIC per Alt-Svc (default on)
 	race_mu:   sync.Mutex,
-	// 0-RTT on resumed QUIC sessions currently fails in fc:quic (second
-	// connection in a process); Chrome uses 0-RTT, so this is a known deviation.
+	// no 0-RTT on resumed QUIC sessions (off by default: Chrome uses 0-RTT).
 	h3_no_0rtt: bool,
 	h3:        H3_Hook, // optional override of the built-in h3 path
 	override:  Round_Tripper,
@@ -77,8 +86,12 @@ Transport :: struct {
 	allocator: Allocator,
 	closed:    bool,
 	// observer sees every request as sent (header order included) and its response: traffic tooling.
-	observer:  proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error, start_ms: i64),
+	observer:  proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error, start_ms: f64),
 	observer_data: rawptr,
+	// conn_observer sees each new h2/h3 session and what we sent to set it up
+	// (same observer_data): traffic tooling writes it as a Chrome netlog.
+	conn_observer: proc(data: rawptr, ev: Conn_Event),
+	h3_seen:   map[rawptr]bool,
 }
 
 @(private)
@@ -141,6 +154,7 @@ transport_destroy :: proc(t: ^Transport) {
 		delete(k, t.allocator)
 	}
 	delete(origins)
+	delete(t.h3_seen)
 	altsvc.destroy(&t.alt)
 }
 
@@ -155,7 +169,7 @@ transport_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> 
 	req := req
 	if req.scheme == "" do req.scheme = "https"
 	if req.authority == "" do req.authority = host
-	start_ms := now_ms()
+	start_ms := now_ms_f()
 	defer if t.observer != nil do t.observer(t.observer_data, host, req, &resp, err, start_ms)
 
 	if t.override.round_trip != nil {
@@ -273,6 +287,11 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 			c, herr := http.h2_connect(stream, {}, t.allocator)
 			if herr == .None {
 				new_h2 = c
+				// h2_connect with a zero config sends CHROME_SETTINGS and the
+				// connection WINDOW_UPDATE.
+				if t.conn_observer != nil {
+					t.conn_observer(t.observer_data, {kind = "h2", host = host, alpn = alpn, h2_settings = http.CHROME_SETTINGS[:], h2_window_increment = http.CHROME_CONNECTION_WINDOW_INCREMENT})
+				}
 			} else {
 				netio.close(stream)
 			}
@@ -408,6 +427,14 @@ h3_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> (out: H
 	if !ok do return {}, false
 	switch res.proto {
 	case .H3:
+		if t.conn_observer != nil {
+			sync.mutex_lock(&t.mu)
+			seen := res.h3 in t.h3_seen
+			if !seen do t.h3_seen[res.h3] = true
+			sync.mutex_unlock(&t.mu)
+			// the transport parameters bytes this session's ClientHello carried
+			if !seen do t.conn_observer(t.observer_data, {kind = "h3", host = host, alpn = "h3", quic_params = res.h3.q.hs.quic_params})
+		}
 		resp, err := h3.request(res.h3, req, t.allocator)
 		if err != .None && err != .Stream_Reset {
 			// Session-level failure after it was established: fall back to h2 this time.

@@ -29,6 +29,12 @@ Recorder :: struct {
 	next_id: int,
 	ws_id:   string,
 	last_net: i64, // ms of the last recorded network event (settle)
+	// Chrome-netlog-shaped side files (<path>.netlog-a / -b) carrying the true
+	// wire header order and session setup facts; tools/scrub -netlog-a:/-b: read them.
+	nl_path:  string,
+	nl:       [2]^os.File,
+	nl_next:  int,
+	sessions: map[string]int, // "h2 host" / "h3 host" -> netlog source id
 }
 
 Recorder_Tap :: struct {
@@ -42,11 +48,13 @@ recorder_open :: proc(path: string) -> (^Recorder, bool) {
 	r := new(Recorder)
 	r.f = f
 	r.start = now_ms()
+	r.nl_path = strings.clone(path)
 	return r, true
 }
 
 recorder_close :: proc(r: ^Recorder) {
 	os.close(r.f)
+	netlog_close(r)
 	free(r)
 }
 
@@ -67,10 +75,10 @@ recorder_last_net :: proc(r: ^Recorder) -> i64 {
 }
 
 @(private)
-rec_line_at :: proc(r: ^Recorder, acct: string, at_ms: i64, rest: string) {
+rec_line_at :: proc(r: ^Recorder, acct: string, at_ms: f64, rest: string) {
 	sync.mutex_lock(&r.mu)
 	defer sync.mutex_unlock(&r.mu)
-	line := fmt.tprintf(`{{"rt":%.1f,"acct":"%s",%s}}`+"\n", f64(at_ms - r.start), acct, rest)
+	line := fmt.tprintf(`{{"rt":%.3f,"acct":"%s",%s}}`+"\n", at_ms - f64(r.start), acct, rest)
 	os.write_string(r.f, line)
 	r.last_net = max(r.last_net, now_ms())
 }
@@ -98,6 +106,7 @@ recorder_attach :: proc(r: ^Recorder, c: ^Client, acct: string) {
 	c.transport.observer_data = tap
 	c.transport.observer = rec_http
 	c.on_gateway_frame = rec_gw
+	c.transport.conn_observer = rec_conn
 	c.on_ws_open = rec_ws_open
 	c.on_ws_close = rec_ws_close
 }
@@ -238,7 +247,7 @@ proto_name :: proc(v: http.Version) -> string {
 }
 
 @(private)
-rec_http :: proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error, start_ms: i64) {
+rec_http :: proc(data: rawptr, host: string, req: http.Request, resp: ^http.Response, err: http.Error, start_ms: f64) {
 	tap := cast(^Recorder_Tap)data
 	r := tap.r
 	rid := rec_next_id(r)
@@ -246,7 +255,7 @@ rec_http :: proc(data: rawptr, host: string, req: http.Request, resp: ^http.Resp
 	kind := request_kind(req)
 	// requestWillBeSent
 	sb := strings.builder_make(context.temp_allocator)
-	fmt.sbprintf(&sb, `"m":{{"method":"Network.requestWillBeSent","params":{{"requestId":"%s","type":"%s","wallTime":%.3f,"request":{{"url":`, rid, kind, f64(start_ms) / 1000)
+	fmt.sbprintf(&sb, `"m":{{"method":"Network.requestWillBeSent","params":{{"requestId":"%s","type":"%s","wallTime":%.6f,"request":{{"url":`, rid, kind, start_ms / 1000)
 	json_write_escaped(&sb, url)
 	strings.write_string(&sb, `,"method":`)
 	json_write_escaped(&sb, req.method)
@@ -271,6 +280,7 @@ rec_http :: proc(data: rawptr, host: string, req: http.Request, resp: ^http.Resp
 	headers_object(&sb2, wire[:])
 	strings.write_string(&sb2, "}}")
 	rec_line_at(r, tap.acct, start_ms, strings.to_string(sb2))
+	if resp != nil do nl_request_headers(r, tap.acct, host, req, resp.version, i64(start_ms))
 	if err != .None || resp == nil {
 		rec_line(r, tap.acct, fmt.tprintf(`"m":{{"method":"Network.loadingFailed","params":{{"requestId":"%s"}}}}`, rid))
 		return
@@ -317,6 +327,11 @@ rec_ws_open :: proc(data: rawptr, url: string, headers: []http.Header) {
 	headers_object(&sb2, headers)
 	strings.write_string(&sb2, "}}}")
 	rec_line(r, tap.acct, strings.to_string(sb2))
+	// the upgrade request goes out over HTTP/1.1 exactly in this order
+	rest := url[len("wss://"):]
+	host, path := rest, "/"
+	if i := strings.index_byte(rest, '/'); i >= 0 do host, path = rest[:i], rest[i:]
+	nl_request_headers(r, tap.acct, host, http.Request{method = "GET", scheme = "https", authority = host, path = path, headers = headers}, .Http1_1, now_ms())
 }
 
 @(private)

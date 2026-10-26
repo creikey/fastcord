@@ -915,7 +915,9 @@ dm_name :: proc(ch: ^dc.Channel) -> string {
 
 // Multi-line text field; grows with content. Returns the editor result of this frame's events.
 text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: bool, font_size: f32 = 16, line_h: f32 = 22, pad_y: f32 = 15, placeholder_color: ui.Color = {}) -> ui.Edit_Result {
-	f := ui.box(id, {.Clickable, .Draw_Text, .Wrap_Text, .Focusable})
+	// Not .Focusable: callers decide focus by their container's key (the bordered
+	// input box), so a click on the text itself must focus that container.
+	f := ui.box(id, {.Clickable, .Draw_Text, .Wrap_Text})
 	f.semantic_size = {.X = ui.fill(), .Y = ui.text_size()}
 	f.style.font = F(.Normal)
 	f.style.font_size = font_size
@@ -934,6 +936,7 @@ text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: boo
 	tl := f.text_layout
 	if text == "" do tl = nil
 	if sig.pressed {
+		if f.parent != nil do app.ui.focus = f.parent.key
 		for e in app.ui.events {
 			if e.kind == .Mouse_Down && e.button == .Left {
 				ui.editor_mouse_down(ed, tl, e.pos, e.click_count, .Shift in e.mods)
@@ -944,6 +947,7 @@ text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: boo
 		ui.editor_mouse_drag(ed, tl, app.ui.mouse)
 	}
 	if focused {
+		app.focused_editor = ed
 		for &e in app.ui.events {
 			if e.consumed do continue
 			if e.kind != .Key_Down && e.kind != .Text do continue

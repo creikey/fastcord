@@ -11,6 +11,7 @@ import "fc:ui"
 
 UI_Rect :: ui.Rect
 UI_Mods :: ui.Mods
+UI_Editor :: ui.Editor
 
 App :: struct {
 	theme:           Theme,
@@ -36,6 +37,7 @@ App :: struct {
 	ui_mods:         UI_Mods, // modifier keys as of the latest event
 	stats:           bool,
 	focused:         bool, // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
+	focused_editor:  ^UI_Editor, // the text field that took keyboard input last frame (tests)
 	wake_at:         f64, // earliest timed repaint requested this frame (caret blink, timers); 0 = none
 	now_override_ms: i64, // -now: wall clock for timestamp formatting; 0 = real time
 }
@@ -206,6 +208,7 @@ frame :: proc() {
 	app.last_time = now
 	app.frame += 1
 	app.wake_at = 0
+	app.focused_editor = nil
 
 	if app.client != nil {
 		dc.client_poll(app.client)
@@ -321,6 +324,24 @@ run_script :: proc(path: string) {
 			platform.inject_event({kind = .Mouse_Move, pos = p})
 			platform.inject_event({kind = .Mouse_Down, pos = p, button = .Left, click_count = n})
 			platform.inject_event({kind = .Mouse_Up, pos = p, button = .Left, click_count = n})
+		case "click_text":
+			// clicks the center of the (last drawn) box whose text is exactly the label
+			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+			found := false
+			#reverse for b in app.ui.order {
+				if b.text == want && b.rect.x1 > b.rect.x0 {
+					p := [2]f32{(b.rect.x0 + b.rect.x1) / 2, (b.rect.y0 + b.rect.y1) / 2}
+					platform.inject_event({kind = .Mouse_Move, pos = p})
+					platform.inject_event({kind = .Mouse_Down, pos = p, button = .Left, click_count = 1})
+					platform.inject_event({kind = .Mouse_Up, pos = p, button = .Left, click_count = 1})
+					found = true
+					break
+				}
+			}
+			if !found {
+				fmt.eprintfln("%s: click_text: no box with text %q", path, want)
+				os.exit(1)
+			}
 		case "rclick":
 			p := [2]f32{num(f[1]), num(f[2])}
 			platform.inject_event({kind = .Mouse_Move, pos = p})
@@ -357,6 +378,15 @@ run_script :: proc(path: string) {
 			got := ui.selection_text()
 			if got != want {
 				fmt.eprintfln("%s: expect_selection failed\n  want %q\n  got  %q", path, want, got)
+				os.exit(1)
+			}
+			continue
+		case "expect_input":
+			// text of the field that currently has keyboard focus
+			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+			got := app.focused_editor != nil ? ui.editor_text(app.focused_editor) : "<no focused field>"
+			if got != want {
+				fmt.eprintfln("%s: expect_input failed\n  want %q\n  got  %q", path, want, got)
 				os.exit(1)
 			}
 			continue

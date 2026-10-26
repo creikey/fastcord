@@ -4,7 +4,6 @@ import "core:mem/virtual"
 import "core:strings"
 import "core:sync"
 import "core:time"
-import "fc:etf"
 import "fc:http"
 
 // REST execution. Jobs are built on the UI thread (actions.odin) or by the
@@ -269,19 +268,23 @@ run_api :: proc(c: ^Client, j: ^Job) {
 // in quest order). Fired ≈435 ms after READY in the coldstart capture.
 @(private)
 collect_app_ids :: proc(v: V, out: ^[dynamic]Snowflake) {
-	#partial switch x in v {
-	case etf.Map:
-		if app := fmap(x, "application"); app != nil {
-			id := fsnow(app, "id")
-			if id != 0 {
-				dup := false
-				for e in out do if e == id do dup = true
-				if !dup do append(out, id)
-			}
+	// Only quests with a console task (PLAY_ON_XBOX / PLAY_ON_PLAYSTATION)
+	// hydrate their application (console-linking UI); first-appearance order
+	// (fixture cold_start: 15 of 29 quest applications).
+	for q in flist(vmap(v), "quests") {
+		cfg := fmap(vmap(q), "config")
+		tasks := fmap(fmap(cfg, "task_config_v2"), "tasks")
+		console := false
+		for p in tasks {
+			k, _ := p.key.(string)
+			if k == "PLAY_ON_XBOX" || k == "PLAY_ON_PLAYSTATION" do console = true
 		}
-		for p in x do collect_app_ids(p.value, out)
-	case etf.List:
-		for e in x do collect_app_ids(e, out)
+		if !console do continue
+		id := fsnow(fmap(cfg, "application"), "id")
+		if id == 0 do continue
+		dup := false
+		for e in out do if e == id do dup = true
+		if !dup do append(out, id)
 	}
 }
 
