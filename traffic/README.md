@@ -45,7 +45,7 @@ Headers are ordered `[[name, value], ...]`:
   order for h2/h3 is only in a Chrome netlog (`--log-net-log`).
 
 Bodies are JSON when the content is JSON, else `{"$b64": "...", "len": n}`
-(≤ 4 KiB; text is scrubbed first), else `{"$sha256": "...", "len": n}`.
+(≤ 4 KiB; text is scrubbed first), else `{"$sha256": "...", "len": n}`. JSON bodies over 256 KiB (static catalogs such as game detectables) are also reduced to a hash.
 `{"$omitted": true}` means the request had a body DevTools did not expose.
 
 Included requests: network traffic a native client could also produce —

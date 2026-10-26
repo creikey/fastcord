@@ -400,7 +400,7 @@ udp_thread :: proc(data: rawptr) {
 			fl := dave.encrypt_opus_frame(k[:], dnonce, opus, frame[:])
 			dnonce += 1
 			rp: [128]byte
-			pl, aad := build_audio_rtp(rp[:], seq, ts, FAKE_SSRC_B, 20, true, seq, frame[:fl])
+			pl, aad := build_audio_rtp(rp[:], seq, ts, FAKE_SSRC_B, 20, true, frame[:fl])
 			sealed: [200]byte
 			sl := transport_seal(&tx, rp[:pl], aad, nonce, sealed[:])
 			nonce += 1

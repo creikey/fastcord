@@ -10,12 +10,12 @@ import "core:testing"
 test_rtp_build_parse :: proc(t: ^testing.T) {
 	payload := []byte{1, 2, 3, 4, 5}
 	buf: [64]byte
-	n, aad := build_audio_rtp(buf[:], 0x1234, 0xdeadbeef, 8597, 30, true, 7, payload)
-	testing.expect(t, n == 24 + 5 && aad == 16)
+	n, aad := build_audio_rtp(buf[:], 0x1234, 0xdeadbeef, 8597, 30, true, payload)
+	testing.expect(t, n == 20 + 5 && aad == 16)
 	testing.expect(t, buf[0] == 0x90 && buf[1] == 120 && buf[12] == 0xBE && buf[13] == 0xDE)
 	h, ok := parse_rtp_header(buf[:n])
 	testing.expect(t, ok && h.seq == 0x1234 && h.ts == 0xdeadbeef && h.ssrc == 8597 && h.pt == 120)
-	testing.expect(t, h.aad_len == 16 && h.payload_off == 24 && h.ext_words == 2)
+	testing.expect(t, h.aad_len == 16 && h.payload_off == 20 && h.ext_words == 1)
 	lvl, voice, lok := ext_audio_level(buf[:n], h)
 	testing.expect(t, lok && lvl == 30 && voice)
 	testing.expect(t, !is_rtcp(buf[:n]))
@@ -32,7 +32,7 @@ test_transport_roundtrip :: proc(t: ^testing.T) {
 		defer transport_reset(&tx)
 		defer transport_reset(&rx)
 		pkt: [64]byte
-		n, aad := build_audio_rtp(pkt[:], 1, 960, 42, 127, false, 0, {0xF8, 0xFF, 0xFE})
+		n, aad := build_audio_rtp(pkt[:], 1, 960, 42, 127, false, {0xF8, 0xFF, 0xFE})
 		sealed: [128]byte
 		sl := transport_seal(&tx, pkt[:n], aad, 0x01020304, sealed[:])
 		testing.expect(t, sl == n + 16 + 4)

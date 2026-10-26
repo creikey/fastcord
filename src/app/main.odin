@@ -108,6 +108,7 @@ main :: proc() {
 		os.exit(1)
 	}
 	app.focused = true
+	voice_set_headless(headless)
 	app.stats = os.get_env("FASTCORD_STATS", context.temp_allocator) != ""
 	fonts_load()
 	theme_load(&app.theme, opt.theme)
@@ -145,7 +146,16 @@ main :: proc() {
 		run_script(opt.script)
 		pixels, w, h := gfx.read_pixels()
 		gfx.write_png(opt.shot, pixels, w, h)
-		if app.client != nil do dc.client_destroy(app.client)
+		voice_leave_channel()
+		voice_shutdown()
+		if app.client != nil {
+			// let op 4 (leave) go out before the gateway closes
+			for _ in 0 ..< 10 {
+				dc.client_poll(app.client)
+				platform.wait_events(0.05)
+			}
+			dc.client_destroy(app.client)
+		}
 		return
 	}
 	if headless {
@@ -187,6 +197,7 @@ frame :: proc() {
 	if app.client != nil {
 		dc.client_poll(app.client)
 		handle_results()
+		voice_frame()
 	}
 	images_receive()
 	for e in platform.events() {

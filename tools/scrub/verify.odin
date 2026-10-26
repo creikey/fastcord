@@ -26,7 +26,11 @@ verify :: proc(raw: string, fixture: string) -> []string {
 	problems := make([dynamic]string)
 	for val, kind in secrets {
 		if len(val) < 8 do continue
-		if strings.contains(fixture, val) do append(&problems, fmt.aprintf("%s value (len %d) survives in fixture", kind, len(val)))
+		if at := strings.index(fixture, val); at >= 0 {
+			// context before the value, never the value itself
+			ctx := fixture[max(at - 60, 0):at]
+			append(&problems, fmt.aprintf("%s value (len %d) survives in fixture after %q", kind, len(val), ctx))
+		}
 	}
 	for i in 0 ..< len(fixture) {
 		if n := token_at(fixture, i); n > 0 {

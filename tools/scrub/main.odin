@@ -202,7 +202,8 @@ body_value :: proc(c: ^Ctx, body: string, is_b64: bool) -> etf.Value {
 		d, ok := b64_decode(body)
 		if ok do data = d
 	}
-	if v, err := etf.from_json(string(data), context.temp_allocator); err == .None && len(data) > 0 {
+	// Huge bodies (game detectables, shop catalogs) are static: hash only, keeps the repo small.
+	if v, err := etf.from_json(string(data), context.temp_allocator); err == .None && len(data) > 0 && len(data) <= MAX_JSON_BODY {
 		#partial switch _ in v {
 		case etf.Map, etf.List:
 			return scrub_value(c, v, "")
@@ -221,6 +222,8 @@ body_value :: proc(c: ^Ctx, body: string, is_b64: bool) -> etf.Value {
 	sha2.final(&ctx, sum[:])
 	return obj(P("$sha256", string(hex.encode(sum[:]))), P("len", i64(len(data))))
 }
+
+MAX_JSON_BODY :: 256 * 1024
 
 @(private)
 utf8_ok :: proc(s: string) -> bool {

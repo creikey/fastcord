@@ -30,6 +30,8 @@ placeholder :: proc(c: ^Ctx, kind, original: string) -> string {
 // Keys whose whole value is a secret or per-run identifier.
 @(private)
 key_rule :: proc(key: string) -> (kind: string, numbered: bool, ok: bool) {
+	if key == "client_heartbeat_session_id" || key == "heartbeat_session_id" do return fmt.tprintf("id:%s", key), true, true
+	if strings.has_suffix(key, "session_id") || strings.has_suffix(key, "session_id_hash") || key == "id_hash" do return "sid", true, true
 	switch key {
 	case "token", "authorization", "auth_token", "captcha_key", "password", "new_password", "ticket", "mfa_token", "access_token", "refresh_token":
 		return "token", false, true

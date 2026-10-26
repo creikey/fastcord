@@ -416,7 +416,7 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 				channel_row(ch, gid)
 			}
 		}
-		spacer(.Y, USER_PANEL_H + 16)
+		spacer(.Y, USER_PANEL_H + voice_panel_height() + 16)
 	}
 }
 
@@ -489,7 +489,7 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 				vr.semantic_size = {.X = ui.pct(1), .Y = ui.px(32)}
 				if ui.parent(vr) {
 					spacer(.X, 44)
-					avatar_box("av", uid, 24)
+					voice_avatar("av", uid, 24, T("--background-base-lower"))
 					spacer(.X, 8)
 					name := "unknown"
 					if u := dc.user_get(s, uid); u != nil do name = dc.display_name(u)
@@ -502,62 +502,69 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 
 user_panel :: proc() {
 	s := store()
-	p := row("userpanel", {.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y})
-	p.semantic_size = {.X = ui.px(359), .Y = ui.px(USER_PANEL_H)}
-	p.fixed_pos = {8, app.ui.window.y - USER_PANEL_H - 8}
-	p.style.bg = T("--background-base-low")
-	p.style.border_color = T("--border-muted")
-	p.style.border = 1
-	p.style.radius = 8
-	if ui.parent(p) {
-		spacer(.X, 8)
-		who := row("who", {.Clickable, .Draw_Background, .Hot_Animation})
-		who.semantic_size = {.X = ui.fill(), .Y = ui.px(42)}
-		who.style.radius = 8
-		who.style.bg_hot = T("--background-mod-subtle")
-		ui.signal(who)
-		if ui.parent(who) {
-			spacer(.X, 4)
-			avatar_with_status("av", s.me, 32, T("--background-base-low"))
+	vh := voice_panel_height()
+	panel := ui.box("userpanel", {.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y})
+	panel.layout_axis = .Y
+	panel.semantic_size = {.X = ui.px(359), .Y = ui.px(USER_PANEL_H + vh)}
+	panel.fixed_pos = {8, app.ui.window.y - USER_PANEL_H - vh - 8}
+	panel.style.bg = T("--background-base-low")
+	panel.style.border_color = T("--border-muted")
+	panel.style.border = 1
+	panel.style.radius = 8
+	if ui.parent(panel) {
+		if vh > 0 do voice_panel()
+		p := row("userrow")
+		p.semantic_size = {.X = ui.pct(1), .Y = ui.px(USER_PANEL_H)}
+		if ui.parent(p) {
 			spacer(.X, 8)
-			names := ui.box("names")
-			names.semantic_size = {.X = ui.fill(), .Y = ui.children()}
-			if ui.parent(names) {
-				name := "…"
-				if u := dc.user_get(s, s.me); u != nil do name = dc.display_name(u)
-				label(name, .Medium, 14, T("--text-strong"), 18)
-				status := status_text(user_status(s.me))
-				if s.settings.custom_status_text != "" do status = s.settings.custom_status_text
-				label(status, .Normal, 12, T("--text-muted"), 14)
-			}
-		}
-		for name in ([]string{"microphone", "headphones", "settings"}) {
-			b := ui.box(name, {.Clickable, .Draw_Background, .Hot_Animation})
-			b.semantic_size = {.X = ui.px(32), .Y = ui.px(32)}
-			b.style.radius = 8
-			b.style.bg_hot = T("--background-mod-subtle")
-			b.layout_axis = .X
-			b.cross_align = .Center
-			sig := ui.signal(b)
-			ic := name
-			muted := (name == "microphone" && app.self_mute) || (name == "headphones" && app.self_deaf)
-			if muted do ic = strings.concatenate({name, "-slash"}, context.temp_allocator)
-			if ui.parent(b) {
-				spacer(.X, 6)
-				icon("i", ic, 20, muted ? T("--status-danger") : (sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default")))
-			}
-			if sig.clicked {
-				switch name {
-				case "microphone":
-					app.self_mute = !app.self_mute
-				case "headphones":
-					app.self_deaf = !app.self_deaf
-				case "settings":
-					app.settings_open = true
+			who := row("who", {.Clickable, .Draw_Background, .Hot_Animation})
+			who.semantic_size = {.X = ui.fill(), .Y = ui.px(42)}
+			who.style.radius = 8
+			who.style.bg_hot = T("--background-mod-subtle")
+			ui.signal(who)
+			if ui.parent(who) {
+				spacer(.X, 4)
+				avatar_with_status("av", s.me, 32, T("--background-base-low"))
+				spacer(.X, 8)
+				names := ui.box("names")
+				names.semantic_size = {.X = ui.fill(), .Y = ui.children()}
+				if ui.parent(names) {
+					name := "…"
+					if u := dc.user_get(s, s.me); u != nil do name = dc.display_name(u)
+					label(name, .Medium, 14, T("--text-strong"), 18)
+					status := status_text(user_status(s.me))
+					if s.settings.custom_status_text != "" do status = s.settings.custom_status_text
+					label(status, .Normal, 12, T("--text-muted"), 14)
 				}
 			}
+			for name in ([]string{"microphone", "headphones", "settings"}) {
+				b := ui.box(name, {.Clickable, .Draw_Background, .Hot_Animation})
+				b.semantic_size = {.X = ui.px(32), .Y = ui.px(32)}
+				b.style.radius = 8
+				b.style.bg_hot = T("--background-mod-subtle")
+				b.layout_axis = .X
+				b.cross_align = .Center
+				sig := ui.signal(b)
+				ic := name
+				muted := (name == "microphone" && app.self_mute) || (name == "headphones" && app.self_deaf)
+				if muted do ic = strings.concatenate({name, "-slash"}, context.temp_allocator)
+				if ui.parent(b) {
+					spacer(.X, 6)
+					icon("i", ic, 20, muted ? T("--status-danger") : (sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default")))
+				}
+				if sig.clicked {
+					switch name {
+					case "microphone":
+						app.self_mute = !app.self_mute
+					case "headphones":
+						app.self_deaf = !app.self_deaf
+					case "settings":
+						app.settings_open = true
+					}
+				}
+			}
+			spacer(.X, 8)
 		}
-		spacer(.X, 8)
 	}
 }
 
@@ -624,9 +631,7 @@ tooltip_right :: proc(text: string) {
 }
 
 join_voice :: proc(gid, cid: dc.Snowflake) {
-	if app.client == nil do return
-	dc.voice_update(app.client, gid, cid, app.self_mute, app.self_deaf)
-	app.voice_channel = cid
+	voice_join_channel(gid, cid)
 }
 
 overlays :: proc() {

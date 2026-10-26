@@ -169,7 +169,6 @@ Conn :: struct {
 	vad:               Vad,
 	seq:               u16,
 	ts:                u32,
-	twcc:              u16,
 	packets_sent:      u32,
 	octets_sent:       u32,
 	last_sent_ts:      u32,
@@ -242,8 +241,6 @@ voice_connect :: proc(info: Voice_Server_Info, opts := Options{}) -> ^Conn {
 	c.state = .Connecting
 	c.allocator = context.allocator
 	c.debug = os.get_env("FASTCORD_VOICE_DEBUG", context.temp_allocator) == "1"
-	if os.get_env("FASTCORD_VOICE_NOEXT", context.temp_allocator) == "1" do rtp_no_extensions = true
-	if os.get_env("FASTCORD_VOICE_EXT", context.temp_allocator) == "level" do rtp_ext_variant = 1
 	c.ws_th = thread.create_and_start_with_data(c, ws_thread_proc)
 	c.timer_th = thread.create_and_start_with_data(c, timer_thread_proc)
 	return c
@@ -1180,7 +1177,7 @@ send_opus :: proc(c: ^Conn, opus: []byte, ts: u32, level: u8, voice: bool) {
 	if fl <= 0 do return
 	pkt: [MAX_OPUS_PACKET + 128]byte
 	sealed: [MAX_OPUS_PACKET + 160]byte
-	plen, aad := build_audio_rtp(pkt[:], c.seq, ts, c.ssrc, level, voice, c.twcc, frame[:fl])
+	plen, aad := build_audio_rtp(pkt[:], c.seq, ts, c.ssrc, level, voice, frame[:fl])
 	sync.mutex_lock(&c.mu)
 	if !c.have_key {
 		sync.mutex_unlock(&c.mu)
@@ -1193,7 +1190,6 @@ send_opus :: proc(c: ^Conn, opus: []byte, ts: u32, level: u8, voice: bool) {
 	c.stats.bytes_sent += u64(sl)
 	sync.mutex_unlock(&c.mu)
 	c.seq += 1
-	c.twcc += 1
 	c.packets_sent += 1
 	c.octets_sent += u32(fl)
 	c.last_sent_ts = ts
