@@ -1,0 +1,1 @@
+-Ivendor/opus/include -Ivendor/opus/celt -Ivendor/opus/silk -Ivendor/opus/silk/float -Ivendor/opus/src -DOPUS_BUILD -DUSE_ALLOCA -DENABLE_HARDENING

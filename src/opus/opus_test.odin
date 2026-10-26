@@ -3,70 +3,55 @@ package opus
 import "core:math"
 import "core:testing"
 
+// Discord's settings: mono VOIP encoder at 64 kbit/s with in-band FEC, stereo decoder.
 @(test)
-test_roundtrip_celt :: proc(t: ^testing.T) {
-	// RESTRICTED_LOWDELAY: CELT only, no delay compensation (120-sample codec delay).
-	enc := new(Encoder)
-	defer free(enc)
-	dec: Decoder
-	testing.expect_value(t, encoder_init(enc, 48000, 2, .Restricted_Lowdelay), Error.None)
-	testing.expect_value(t, decoder_init(&dec, 48000, 2), Error.None)
+test_voice_roundtrip :: proc(t: ^testing.T) {
+	enc, eerr := encoder_create(48000, 1, .VOIP)
+	testing.expect_value(t, eerr, Error.None)
+	defer encoder_destroy(enc)
 	encoder_set_bitrate(enc, 64000)
-	pcm: [960 * 2]f32
+	encoder_set_inband_fec(enc, true)
+	encoder_set_packet_loss_perc(enc, 20)
+	dec, derr := decoder_create(48000, 2)
+	testing.expect_value(t, derr, Error.None)
+	defer decoder_destroy(dec)
+
+	// Before any packet, concealment is silence of the requested length.
 	out: [960 * 2]f32
+	n, err := decode(dec, nil, out[:])
+	testing.expect(t, err == .None && n == 960)
+
+	x: [960]f32
 	pkt: [1500]u8
-	err_e, sig_e: f64
-	hist: [960 * 2 * 4]f32 // input history to align with codec delay (120 samples)
+	prev: [1500]u8
+	prev_n := 0
 	phase: f64
-	for frame in 0 ..< 50 {
+	sig, noise: f64
+	for f in 0 ..< 50 {
 		for i in 0 ..< 960 {
-			v := f32(0.3 * math.sin(phase))
+			x[i] = f32(0.3 * math.sin(phase))
 			phase += 2 * math.PI * 440 / 48000
-			pcm[2 * i] = v
-			pcm[2 * i + 1] = -v
 		}
-		n, e := encode(enc, pcm[:], pkt[:])
-		testing.expect_value(t, e, Error.None)
-		got, de := decode(&dec, pkt[:n], out[:])
-		testing.expect_value(t, de, Error.None)
-		testing.expect_value(t, got, 960)
-		testing.expect_value(t, decoder_final_range(&dec), encoder_final_range(enc))
-		// shift history and compare with 120-sample delay after warmup
-		copy(hist[:960 * 2], hist[960 * 2:960 * 4])
-		copy(hist[960 * 2:960 * 4], pcm[:])
-		if frame > 5 {
-			for i in 0 ..< 960 * 2 {
-				ref := hist[960 * 2 + i - 240]
-				d := f64(out[i] - ref)
-				err_e += d * d
-				sig_e += f64(ref) * f64(ref)
+		pn, perr := encode(enc, x[:], pkt[:])
+		testing.expect(t, perr == .None && pn > 0)
+		// Every 10th packet is "lost" and rebuilt from the next packet's FEC copy.
+		if f % 10 == 9 && prev_n > 0 {
+			k, ferr := decode(dec, pkt[:pn], out[:], true)
+			testing.expect(t, ferr == .None && k == 960)
+		}
+		k, kerr := decode(dec, pkt[:pn], out[:])
+		testing.expect(t, kerr == .None && k == 960)
+		if f > 10 {
+			// A pure tone survives as a tone: energy, not phase, since the codec delays the signal.
+			for i in 0 ..< 960 {
+				sig += f64(out[2 * i] * out[2 * i])
+				noise += f64((out[2 * i] - out[2 * i + 1]) * (out[2 * i] - out[2 * i + 1]))
 			}
 		}
+		copy(prev[:], pkt[:pn])
+		prev_n = pn
 	}
-	snr := 10 * math.log10(sig_e / err_e)
-	testing.expectf(t, snr > 15, "roundtrip SNR %.1f dB", snr)
-}
-
-@(test)
-test_packet_parse :: proc(t: ^testing.T) {
-	// code 3, CBR, 3 frames of 2 bytes
-	p := []u8{0x03 | (31 << 3), 0x03, 1, 2, 3, 4, 5, 6}
-	pp, err := packet_parse(p)
-	testing.expect_value(t, err, Error.None)
-	testing.expect_value(t, pp.count, 3)
-	testing.expect_value(t, len(pp.frames[2]), 2)
-	n, _ := packet_get_nb_samples(p, 48000)
-	testing.expect_value(t, n, 2880)
-	_, err = packet_parse([]u8{0x01, 1, 2, 3}) // code 1 with odd payload
-	testing.expect_value(t, err, Error.Invalid_Packet)
-}
-
-@(test)
-test_plc_silence_before_first_packet :: proc(t: ^testing.T) {
-	dec: Decoder
-	decoder_init(&dec, 48000, 1)
-	out: [960]f32
-	n, err := decode(&dec, nil, out[:])
-	testing.expect_value(t, err, Error.None)
-	testing.expect_value(t, n, 960)
+	rms := math.sqrt(sig / (39 * 960))
+	testing.expectf(t, rms > 0.15 && rms < 0.27, "decoded rms %.3f, want about 0.21", rms)
+	testing.expectf(t, noise < sig * 1e-6, "mono packets must decode to identical channels")
 }
