@@ -121,6 +121,18 @@ message_list :: proc(channel_id: dc.Snowflake, cs: ^Chat_State) {
 		}
 	}
 
+	// dragging a text selection past the list edges scrolls, faster the further out
+	if app.ui.selection.dragging && list.rect.y1 > list.rect.y0 {
+		my := app.ui.mouse.y
+		if my < list.rect.y0 + 24 {
+			cs.scroll_target += (list.rect.y0 + 24 - my) * 0.5 + 2
+			app.ui.animating = true
+		} else if my > list.rect.y1 - 24 {
+			cs.scroll_target -= (my - (list.rect.y1 - 24)) * 0.5 + 2
+			app.ui.animating = true
+		}
+	}
+
 	// total height from measured rows (estimates for unmeasured)
 	TOP_PAD :: 16
 	BOTTOM_PAD :: 8

@@ -1,5 +1,6 @@
 package discord
 
+import "core:crypto"
 import "core:encoding/base64"
 import "core:math/rand"
 import "core:mem"
@@ -413,7 +414,11 @@ gateway_connect :: proc(g: ^Gateway) {
 	}
 	now := now_ms()
 	cookie := cookie_header(&c.jar, host, path, true, now)
-	req := http.Request{method = "GET", scheme = "https", authority = host, path = path, headers = gateway_ws_headers(c.id.platform, host, cookie)}
+	hdrs := gateway_ws_headers(c.id.platform, host, cookie)
+	key_raw: [16]byte
+	crypto.rand_bytes(key_raw[:])
+	for &h in hdrs do if h.name == "Sec-WebSocket-Key" do h.value = base64.encode(key_raw[:], allocator = context.temp_allocator)
+	req := http.Request{method = "GET", scheme = "https", authority = host, path = path, headers = hdrs}
 	if c.on_ws_open != nil do c.on_ws_open(c.observer_data, url, req.headers)
 	ws, resp, err := http.ws_connect(stream, req, {}, c.allocator)
 	if err != .None {

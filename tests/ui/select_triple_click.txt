@@ -1,0 +1,6 @@
+# Triple-click selects the whole paragraph; shift-click extends to the next message.
+wait 5
+tclick 600 497
+expect_selection "a long message that should wrap across multiple lines in the chat view because it keeps going and going with plenty of words so that the wrapping logic is exercised properly at typical window widths 🎉"
+dclick 520 474
+expect_selection "message"
