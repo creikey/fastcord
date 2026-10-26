@@ -92,7 +92,8 @@ python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
   command. `sweep x0 y0 x1 y1 n` moves the mouse in steps, and `open <channel id>` opens a channel.
 - Any app run takes `-bench[:<file.jsonl>]` (per-section median/p95 of each UI pass, plus `ui.Stats`
   counters) and `-prof:<prefix>` (samples the UI thread at ~1 kHz during UI passes; writes
-  `<prefix>.txt` and `<prefix>.folded` for speedscope.app). It also takes `-trace:<file>` (a Chrome
+  `<prefix>.txt` and `<prefix>.folded` for speedscope.app; on macOS self time is exact but callers are
+  approximate). It also takes `-trace:<file>` (a Chrome
   trace of `prof.zone` scopes).
 - On a real account, read-only: `./build/fastcord-dev -bench -dpi:1 -live:15 -script:<s> -prof:build/bench/live`.
   Don't type in such a script: typing sends "is typing" from the account.
