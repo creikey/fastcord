@@ -1,0 +1,15 @@
+# GIF picker: open, search, send the first result.
+include _open_test_channel.scn
+mark open_gif_picker
+click [aria-label="Open GIF picker"]
+wait_for input[placeholder="Search Klipy"]
+settle 1500
+mark search_gif
+click input[placeholder="Search Klipy"]
+type cat
+wait 2500
+settle 1500
+mark send_gif
+click [class*="results__"] video[class*="gif__"]
+wait_gw MESSAGE_CREATE 20000
+settle 2500

@@ -16,3 +16,7 @@ wait 3
 shot build/ui-pickers_emoji-search.png
 key enter
 wait 20
+# Enter picked the first result (:cat:) into the composer, which has focus again.
+key a cmd
+key c cmd
+expect_clipboard "🐱"

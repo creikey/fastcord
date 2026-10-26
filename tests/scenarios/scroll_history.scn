@@ -1,0 +1,18 @@
+# Scroll up in a channel with long history to load older messages (read only).
+use a
+mark setup
+reload
+click [data-list-item-id="guildsnav___${GUILD}"]
+wait_for [data-list-item-id="channels___${TEXT}"]
+click [data-list-item-id="channels___${TEXT}"]
+wait_for ol[data-list-id="chat-messages"]
+settle 2000
+mark scroll_up_1
+scroll ol[data-list-id="chat-messages"] | -2500
+settle 2500
+mark scroll_up_2
+scroll ol[data-list-id="chat-messages"] | -2500
+settle 2500
+mark scroll_up_3
+scroll ol[data-list-id="chat-messages"] | -2500
+settle 2500

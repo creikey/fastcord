@@ -260,7 +260,6 @@ settings_modal :: proc() {
 						}
 					}
 				}
-
 			}
 		}
 	}

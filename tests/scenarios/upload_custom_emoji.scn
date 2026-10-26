@@ -1,0 +1,22 @@
+# Setup (run once): upload a custom emoji "fastcord_test" to the private test guild.
+include _open_test_channel.scn
+mark open_server_settings
+click [aria-label$="server actions"]
+wait_for [role="menu"]
+click_text [role="menuitem"] | Server Settings
+wait 1500
+settle 1000
+mark open_emoji_settings
+click_text div | Emoji
+wait_for input[type="file"][accept*="png"]
+settle 1500
+mark upload_emoji
+upload input[type="file"][accept*="png"] | tests/scenarios/assets/fastcord_test.png
+wait 2000
+snap emoji_upload_modal
+click_text [role="dialog"] button | Finish
+wait_gw GUILD_EMOJIS_UPDATE 20000
+settle 2500
+mark close_settings
+key Escape
+settle 1500

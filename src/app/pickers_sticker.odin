@@ -91,7 +91,7 @@ sticker_packs_receive :: proc(r: ^dc.Expr_Result) {
 }
 
 @(private = "file")
-build_sections :: proc() -> []St_Section {
+build_sections :: proc(ignore_query := false) -> []St_Section {
 	s := store()
 	here: dc.Snowflake
 	if c := dc.channel_get(s, pk.channel); c != nil do here = c.guild_id
@@ -112,7 +112,7 @@ build_sections :: proc() -> []St_Section {
 	for p in sv.packs do for it in p.stickers do all[it.id] = it
 
 	secs := make([dynamic]St_Section, context.temp_allocator)
-	q := pk_query(.Sticker)
+	q := ignore_query ? "" : pk_query(.Sticker)
 	if q != "" {
 		hits := make([dynamic]Pk_Sticker, context.temp_allocator)
 		for gid in guilds {
@@ -155,21 +155,19 @@ sticker_picker_body :: proc(r: ui.Rect) {
 	inner := grid.x1 - grid.x0 - ST_GRID_PAD_L - PK_SCROLLBAR_W - 4
 	cols := max(1, int(inner / ST_CELL_MIN))
 	cell := pk_round(inner / f32(cols))
-	y: f32 = 0
-	for &sc in secs {
-		sc.y = y
-		if !sc.flat do y += ST_HEADER_H
-		sc.rows = (len(sc.items) + cols - 1) / cols
-		if sv.collapsed[sc.key] && !sc.flat do sc.rows = 0
-		y += f32(sc.rows) * cell
+	content_h := st_layout(secs, cols, cell)
+	nav_secs := secs
+	searching := len(secs) > 0 && secs[0].flat
+	if searching {
+		nav_secs = build_sections(true)
+		st_layout(nav_secs, cols, cell)
 	}
-	content_h := y + 8
 	pk_scroll_update(&sv.scroll, grid, content_h)
 	body := row("st_body")
 	body.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
 	body.cross_align = .Start
 	if ui.parent(body) {
-		sticker_nav(secs, r.y1 - r.y0)
+		sticker_nav(nav_secs, r.y1 - r.y0, searching)
 		col := ui.box("st_main")
 		col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 		col.layout_axis = .Y
@@ -181,6 +179,19 @@ sticker_picker_body :: proc(r: ui.Rect) {
 }
 
 @(private = "file")
+st_layout :: proc(secs: []St_Section, cols: int, cell: f32) -> f32 {
+	y: f32 = 0
+	for &sc in secs {
+		sc.y = y
+		if !sc.flat do y += ST_HEADER_H
+		sc.rows = (len(sc.items) + cols - 1) / cols
+		if sv.collapsed[sc.key] && !sc.flat do sc.rows = 0
+		y += f32(sc.rows) * cell
+	}
+	return y + 8
+}
+
+@(private = "file")
 cur_section :: proc(secs: []St_Section) -> int {
 	cur := 0
 	for sc, i in secs do if sc.y <= sv.scroll.y + 1 do cur = i
@@ -188,7 +199,7 @@ cur_section :: proc(secs: []St_Section) -> int {
 }
 
 @(private = "file")
-sticker_nav :: proc(secs: []St_Section, h: f32) {
+sticker_nav :: proc(secs: []St_Section, h: f32, searching: bool) {
 	nav := ui.box("st_nav", {.Draw_Background, .Clip, .Scroll_Y})
 	nav.semantic_size = {.X = ui.px(ST_NAV_W), .Y = ui.px(h)}
 	nav.style.bg = T("--background-base-lower")
@@ -200,7 +211,7 @@ sticker_nav :: proc(secs: []St_Section, h: f32) {
 		line.fixed_pos = {ST_NAV_W - 1, 0}
 		line.style.bg = T("--border-subtle")
 		spacer(.Y, 4)
-		cur := cur_section(secs)
+		cur := searching ? -1 : cur_section(secs)
 		for &sc, i in secs {
 			if sc.flat do continue
 			if ui.id_scope(sc.key) {
@@ -234,6 +245,7 @@ sticker_nav :: proc(secs: []St_Section, h: f32) {
 					}
 				}
 				if sig.clicked {
+					if searching do ui.editor_set_text(&pk.search[.Sticker], "")
 					sv.collapsed[sc.key] = false
 					sv.scroll.target = sc.y
 				}

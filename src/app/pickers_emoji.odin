@@ -13,7 +13,7 @@ import "fc:ui"
 
 // ---- geometry ----
 EM_NAV_W :: 48
-EM_NAV_SLOT :: 40 // height per nav entry
+EM_NAV_SLOT :: 36 // height per nav entry
 EM_NAV_GUILD :: 32 // guild icon size in the nav
 EM_NAV_ICON :: 24
 EM_NAV_SEP_H :: 9

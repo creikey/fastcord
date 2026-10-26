@@ -1,0 +1,25 @@
+# B joins the test guild's voice channel, then A joins; both talk-idle, A then B leave.
+use b
+mark setup_b
+reload
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id="channels___${TVOICE}"]
+settle 1000
+include _open_test_channel.scn
+use b
+mark b_join_voice
+click [data-list-item-id="channels___${TVOICE}"]
+wait_gw VOICE_SERVER_UPDATE 20000
+wait 3000
+use a
+mark a_join_voice
+click [data-list-item-id="channels___${TVOICE}"]
+wait_gw VOICE_SERVER_UPDATE 20000
+wait 8000
+mark a_leave_voice
+click button[aria-label="Disconnect"]
+settle 2000
+use b
+mark b_leave_voice
+click button[aria-label="Disconnect"]
+settle 2500

@@ -1,0 +1,15 @@
+# Add a second reaction with the "add reaction" button next to an existing reaction.
+include _open_test_channel.scn
+include _send_setup_message.scn
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+click #message-quickreact-0
+wait_gw MESSAGE_REACTION_ADD
+settle 1500
+mark emoji_picker_reaction
+click_last [class*="reactionBtn"]
+wait_for input[placeholder="Find the perfect reaction"]
+type fire
+wait 800
+click #emoji-picker-grid-0-0 button
+wait_gw MESSAGE_REACTION_ADD
+settle 2000

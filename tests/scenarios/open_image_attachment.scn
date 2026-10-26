@@ -1,0 +1,9 @@
+# Open an image attachment in the media viewer, then close it.
+include _open_test_channel.scn
+mark open_image
+click_last li[id^="chat-messages-"] div[class*="imageWrapper"] img
+wait_for [role="dialog"]
+settle 2500
+mark close_image
+key Escape
+settle 1500

@@ -1,0 +1,12 @@
+# Close the DM with B from its context menu (the DM stays reachable from Friends).
+use a
+mark setup
+reload
+include _friends_home.scn
+mark close_dm
+rclick [data-list-item-id$="___${DM_AB}"]
+wait_for [role="menu"]
+js [...document.querySelectorAll('[role=menuitem]')].map(e=>e.id).join(' ')
+click_text [role="menuitem"] | Close DM
+optional wait_gw CHANNEL_DELETE 10000
+settle 2500

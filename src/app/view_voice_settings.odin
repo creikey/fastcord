@@ -30,6 +30,7 @@ Voice_Settings :: struct {
 	meter_db:      f32,
 	meter_open:    bool,
 	menu_user:     dc.Snowflake,
+	dd_anchor:     ui.Rect, // open dropdown's rect (popup drawn from overlays)
 	menu_pos:      ui.Vec2,
 	inited:        bool,
 }
@@ -206,14 +207,24 @@ device_dropdown :: proc(which: int, input: bool, w: f32) {
 		icon("chev", vs.open_dropdown == which ? "chevron-small-up" : "chevron-small-down", 20, T("--interactive-icon-default"))
 		spacer(.X, 8)
 	}
-	if vs.open_dropdown != which do return
-	list := ui.box(input ? "inlist" : "outlist", {.Draw_Background, .Draw_Border})
+	if vs.open_dropdown == which do vs.dd_anchor = box.rect
+}
+
+// popup list under the dropdown (overlay, like the client's select menu)
+@(private = "file")
+device_list :: proc(devs: []audio.Device_Info, sel: u32, input: bool, w: f32, at: ui.Vec2) {
+	list := ui.box(input ? "inlist" : "outlist", {.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable})
 	list.semantic_size = {.X = ui.px(w), .Y = ui.children()}
+	list.fixed_pos = at
 	list.layout_axis = .Y
 	list.style.bg = T("--background-surface-higher")
 	list.style.border = 1
 	list.style.border_color = T("--border-subtle")
 	list.style.radius = 8
+	list.style.shadow_color = {0, 0, 0, 0.24}
+	list.style.shadow_blur = 16
+	list.style.shadow_offset = {0, 8}
+	ui.signal(list)
 	if ui.parent(list) {
 		opt :: proc(name: string, id: u32, input: bool, selected: bool) {
 			it := row(name, {.Clickable, .Draw_Background, .Hot_Animation})
@@ -345,6 +356,12 @@ open_voice_user_menu :: proc(uid: dc.Snowflake, at: ui.Vec2) {
 }
 
 voice_user_menu :: proc() {
+	// device dropdown popup: drawn here so it lands above the settings modal
+	if app.settings_open && settings_page == "Voice & Video" && vs.open_dropdown != 0 && vs.dd_anchor.x1 > vs.dd_anchor.x0 {
+		input := vs.open_dropdown == 1
+		r := vs.dd_anchor
+		device_list(audio.list_devices(input, context.temp_allocator), audio.selected_device(input), input, r.x1 - r.x0, {r.x0, r.y1 + 4})
+	}
 	if vs.menu_user == 0 do return
 	uid := vs.menu_user
 	scrim := ui.box("vmenu_scrim", {.Clickable, .Floating_X, .Floating_Y, .Overlay})

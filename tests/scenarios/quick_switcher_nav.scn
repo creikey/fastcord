@@ -1,0 +1,18 @@
+# Quick switcher (Cmd+K): jump to the DM with B, then back to the test channel.
+include _open_test_channel.scn
+mark switch_to_dm
+key k meta
+wait 1000
+type bobbles
+wait 1200
+key Enter
+wait_for div[role="textbox"][aria-label^="Message @"]
+settle 2500
+mark switch_to_channel
+key k meta
+wait 1000
+type general
+wait 1200
+key Enter
+wait_for div[role="textbox"][aria-label="Message #general"]
+settle 2500

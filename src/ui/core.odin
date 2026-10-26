@@ -141,6 +141,7 @@ Box :: struct {
 	user_t:                          f32, // free animation slot for app code (animate it yourself)
 	cross_align:                     Align, // where children sit on the axis perpendicular to layout_axis
 	sel_order:                       u64, // reading order for Selectable_Text; 0 = declaration order
+	sel_join:                        string, // copied before this box when the selection continues from an earlier one; "" = newline
 }
 
 Cursor :: enum u8 {
@@ -502,6 +503,7 @@ box_make_key :: proc(k: Key, flags: Box_Flags) -> ^Box {
 	b.fixed_pos = {}
 	b.layout_axis = .Y
 	b.sel_order = 0
+	b.sel_join = ""
 	b.cross_align = .Start
 
 	if len(s.parents) > 0 {

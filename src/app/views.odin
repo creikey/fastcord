@@ -10,6 +10,11 @@ TITLE_BAR_H :: 33
 RAIL_W :: 72
 SIDEBAR_W :: 303 // includes the 1px left border
 HEADER_H :: 49
+GUILD_NAME_MAX_W :: SIDEBAR_W - 86 // name ellipsized before the chevron and invite button
+CHANNEL_ROW_H :: 32
+CHANNEL_ROW_PITCH :: 34
+CATEGORY_GAP :: 16
+CATEGORY_ROW_H :: 24
 GUILD_ICON :: 40
 USER_PANEL_H :: 58
 MEMBER_LIST_W :: 264
@@ -68,6 +73,19 @@ filler :: proc(axis: ui.Axis) {
 	b := ui.box("")
 	b.semantic_size[axis] = ui.fill()
 	b.semantic_size[axis == .X ? .Y : .X] = ui.px(0)
+}
+
+// text cut with "…" to fit max_w (single line).
+ellipsize :: proc(text: string, font: Font_Id, size: f32, max_w: f32) -> string {
+	tl := ui.layout_text(F(font), size, text, -1)
+	if tl.width <= max_w do return text
+	dots := ui.layout_text(F(font), size, "…", -1).width
+	cut := 0
+	for g in tl.run.glyphs {
+		if g.x + g.advance + dots > max_w do break
+		cut = g.cluster_end
+	}
+	return strings.concatenate({strings.trim_right_space(text[:cut]), "…"}, context.temp_allocator)
 }
 
 label :: proc(text: string, font: Font_Id, size: f32, color: ui.Color, line_h: f32 = 0) -> ^ui.Box {
@@ -227,7 +245,7 @@ rail_item :: proc(id: string, selected: bool, text: string, icon_name: string, g
 		ic.style.radius = 12
 		ic.style.text_align = .Center
 		ic.style.font = F(.Medium)
-		ic.style.font_size = len(text) > 3 ? 12 : 16
+		ic.style.font_size = guild_acronym_size(len(text))
 		ic.text = text
 		sig = ui.signal(ic)
 		unread := guild_id != 0 && guild_has_unread(guild_id)
@@ -273,6 +291,17 @@ rail_item :: proc(id: string, selected: bool, text: string, icon_name: string, g
 	return sig
 }
 
+// Acronym font size on a guild icon without an image (official: "DB" 18px, "DBst" 16px).
+guild_acronym_size :: proc(n: int) -> f32 {
+	switch {
+	case n <= 2:
+		return 18
+	case n <= 4:
+		return 16
+	}
+	return 12
+}
+
 guild_has_unread :: proc(gid: dc.Snowflake) -> bool {
 	s := store()
 	for id in dc.guild_channels_sorted(s, gid) {
@@ -284,12 +313,13 @@ guild_has_unread :: proc(gid: dc.Snowflake) -> bool {
 sidebar :: proc() {
 	b := ui.box("sidebar", {.Draw_Background, .Draw_Border, .Clip})
 	b.semantic_size = {.X = ui.px(SIDEBAR_W), .Y = ui.pct(1)}
-	b.style.bg = T("--background-base-lower")
+	b.style.bg = T("--background-base-lowest") // same as the rail in the visual refresh
 	b.style.border_color = T("--border-subtle")
 	b.style.border = 1
 	b.style.radius = {12, 0, 0, 0}
 	b.layout_axis = .Y
 	if ui.parent(b) {
+		spacer(.Y, 1) // under the top border
 		if app.view.guild == 0 {
 			home_sidebar()
 		} else {
@@ -401,10 +431,12 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	ui.signal(hdr)
 	if ui.parent(hdr) {
 		spacer(.X, 16)
-		label(g.name, .Semibold, 16, T("--text-strong"), 20)
+		label(ellipsize(g.name, .Semibold, 16, GUILD_NAME_MAX_W), .Semibold, 16, T("--text-strong"), 20)
+		spacer(.X, 1)
+		icon("chev", "chevron-small-down", 18, T("--interactive-icon-hover"))
 		filler(.X)
-		icon("chev", "chevron-small-down", 18, T("--interactive-icon-default"))
-		spacer(.X, 12)
+		icon("invite", "group-plus", 20, T("--interactive-icon-hover"))
+		spacer(.X, 14)
 	}
 	line := ui.box("hline", {.Draw_Background})
 	line.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
@@ -415,7 +447,19 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	list.layout_axis = .Y
 	ui.signal(list)
 	if ui.parent(list) {
-		spacer(.Y, 8)
+		spacer(.Y, 12)
+		guild_action_row("events", "calendar", "Events")
+		guild_action_row("boosts", "boost-tier1-simple", "Server Boosts")
+		spacer(.Y, 11)
+		sep := row("sep")
+		sep.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
+		if ui.parent(sep) {
+			spacer(.X, 16)
+			l := ui.box("l", {.Draw_Background})
+			l.semantic_size = {.X = ui.fill(), .Y = ui.px(1)}
+			l.style.bg = T("--border-subtle")
+			spacer(.X, 16)
+		}
 		for cid in dc.guild_channels_sorted(s, gid) {
 			ch := dc.channel_get(s, cid)
 			if ch == nil do continue
@@ -432,10 +476,33 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	}
 }
 
+// "Events" / "Server Boosts" rows above the channel list (32px on a 34px pitch).
+guild_action_row :: proc(id, icon_name, text: string) {
+	outer := row(id)
+	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(CHANNEL_ROW_PITCH)}
+	if ui.parent(outer) {
+		spacer(.X, 8)
+		item := row("item", {.Clickable, .Draw_Background, .Hot_Animation})
+		item.semantic_size = {.X = ui.fill(), .Y = ui.px(CHANNEL_ROW_H)}
+		item.style.radius = 8
+		item.style.bg_hot = T("--background-mod-subtle")
+		sig := ui.signal(item)
+		color := sig.hovering ? T("--interactive-text-hover") : T("--channels-default")
+		if ui.parent(item) {
+			spacer(.X, 8)
+			icon("ic", icon_name, 20, color)
+			spacer(.X, 8)
+			label(text, .Medium, 16, color, 20)
+		}
+		spacer(.X, 9)
+	}
+}
+
+// Category: 16px gap, then a 24px row (14px medium name, chevron, "create channel" plus).
 category_row :: proc(ch: ^dc.Channel) {
+	spacer(.Y, CATEGORY_GAP)
 	r := row("cat", {.Clickable})
-	r.semantic_size = {.X = ui.pct(1), .Y = ui.px(36)}
-	r.cross_align = .End
+	r.semantic_size = {.X = ui.pct(1), .Y = ui.px(CATEGORY_ROW_H)}
 	sig := ui.signal(r)
 	collapsed := app.view.collapsed[ch.id]
 	if sig.clicked do app.view.collapsed[ch.id] = !collapsed
@@ -446,19 +513,20 @@ category_row :: proc(ch: ^dc.Channel) {
 		spacer(.X, 2)
 		icon("chev", collapsed ? "chevron-small-right" : "chevron-small-down", 16, color)
 		filler(.X)
+		icon("plus", "plus-small", 18, T("--interactive-icon-default"))
+		spacer(.X, 16)
 	}
-	spacer(.Y, 4)
 }
 
 channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 	selected := app.view.channel == ch.id
 	unread := dc.channel_unread(store(), ch.id)
 	outer := row("chan")
-	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(34)}
+	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(CHANNEL_ROW_PITCH)}
 	if ui.parent(outer) {
 		spacer(.X, 8)
 		item := row("item", {.Clickable, .Draw_Background, .Hot_Animation})
-		item.semantic_size = {.X = ui.fill(), .Y = ui.px(32)}
+		item.semantic_size = {.X = ui.fill(), .Y = ui.px(CHANNEL_ROW_H)}
 		item.style.radius = 8
 		item.style.bg = selected ? T("--background-mod-normal") : {}
 		item.style.bg_hot = selected ? item.style.bg : T("--background-mod-subtle")
@@ -479,9 +547,15 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 		if ui.parent(item) {
 			spacer(.X, 8)
 			icon("ic", channel_icon_name(ch), 20, selected || sig.hovering ? color : T("--channel-icon"))
-			spacer(.X, 6)
+			spacer(.X, 8)
 			label(ch.name, unread || selected ? .Semibold : .Medium, 16, color, 20)
 			filler(.X)
+			if selected || sig.hovering {
+				// invite / settings, shown on the selected or hovered row
+				icon("invite", "group-plus", 16, T("--interactive-icon-hover"))
+				spacer(.X, 4)
+				icon("settings", "settings", 16, T("--interactive-icon-hover"))
+			}
 			spacer(.X, 8)
 		}
 		if unread && !selected {
@@ -491,6 +565,7 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 			dot.style.bg = T("--text-strong")
 			dot.style.radius = {0, 4, 0, 4}
 		}
+		spacer(.X, 9)
 	}
 	if ch.kind == .Guild_Voice {
 		s := store()

@@ -326,9 +326,26 @@ run_web :: proc(c: ^Client, j: ^Job) {
 	if referer == "" {
 		referer = client_route_referer(c) if j.site == .Same_Origin else API_ORIGIN + "/"
 	}
-	cookie := "" if j.no_cookies else cookie_header(&c.jar, j.host, j.path, true, now)
+	// XHR/fetch without credentials: cookies only go to the same origin.
+	cookie := "" if j.no_cookies || j.site != .Same_Origin else cookie_header(&c.jar, j.host, j.path, true, now)
 	url := strings.concatenate({"https://", j.host, j.path}, context.temp_allocator)
 	js := j.js_headers
+	// Chrome's HTTP cache: fresh entries are served without a request; stale
+	// ones are revalidated with the stored validators (appended after the
+	// request's own headers). Not for cache:'no-cache' fetches (etag jobs).
+	validators: []http.Header
+	centry, cbody, cached := cache_read(c, url)
+	if cached && !j.etag {
+		if centry.fresh_until > now {
+			client_push_event(c, Event{kind = .Rest, result = Rest_Result{op = j.result.op, ok = true, status = 200, tag = j.result.tag}})
+			return
+		}
+		v := make([dynamic]http.Header, 0, 2, context.temp_allocator)
+		if centry.etag != "" do append(&v, http.Header{"if-none-match", centry.etag})
+		if centry.last_modified != "" do append(&v, http.Header{"if-modified-since", centry.last_modified})
+		validators = v[:]
+	}
+	_ = cbody
 	if j.etag {
 		e := make([dynamic]http.Header, 0, 2, context.temp_allocator)
 		append(&e, http.Header{"cache-control", "max-age=0"})
@@ -347,9 +364,23 @@ run_web :: proc(c: ^Client, j: ^Job) {
 		referer    = referer,
 		cookie     = cookie,
 		js_headers = js,
+		cache_validator = validators,
 	}
 	req := http.Request{method = j.method, scheme = "https", authority = j.host, path = j.path, headers = web_headers(c.id.platform, hin), body = j.body}
 	resp, err := transport_round_trip(&c.transport, j.host, req)
+	if err == .None && !j.etag && j.method == "GET" {
+		fresh, storable := freshness_ms(resp.headers[:], now_ms())
+		if resp.status == 200 && storable {
+			ce := Cache_Entry{status = 200, fresh_until = fresh}
+			ce.content_type, _ = http.header_get(resp.headers[:], "content-type")
+			ce.etag, _ = http.header_get(resp.headers[:], "etag")
+			ce.last_modified, _ = http.header_get(resp.headers[:], "last-modified")
+			cache_write(c, url, ce, resp.body[:], true)
+		} else if resp.status == 304 && cached {
+			centry.fresh_until = fresh
+			cache_write(c, url, centry, nil, false)
+		}
+	}
 	if j.etag && err == .None && resp.status == 200 do if tag, ok := http.header_get(resp.headers[:], "etag"); ok do etag_put(c, url, tag)
 	res := j.result
 	res.status = resp.status

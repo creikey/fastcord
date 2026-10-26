@@ -7,9 +7,10 @@ import "core:math"
 // autoThreshold on for desktop, vadLeading 5, vadTrailing 25 frames).
 //
 // Manual mode: speech when frame level > threshold_db.
-// Auto mode: an adaptive noise floor (fast attack downward, slow rise) and
-// speech when the level clears floor + AUTO_MARGIN_DB (never below the
-// manual -60 dB threshold, never above AUTO_CEILING_DB).
+// Auto mode: noise floor = minimum frame level over the last 2 s (minimum
+// statistics; digital silence below -100 dBFS is ignored, e.g. VPIO warm-up),
+// speech when the level clears floor + AUTO_MARGIN_DB (never below the manual
+// -60 dB threshold, never above AUTO_CEILING_DB).
 // Trailing: activity holds for `trailing` frames after the last speech frame.
 // Leading: the sender keeps `leading` frames of pre-roll that are flushed
 // when speech starts, so word onsets are not clipped.
@@ -19,6 +20,7 @@ VAD_DEFAULT_LEADING :: 5
 VAD_DEFAULT_TRAILING :: 25
 AUTO_MARGIN_DB :: 12.0
 AUTO_CEILING_DB :: -30.0
+NOISE_WINDOW :: 100 // frames (2 s)
 
 Vad :: struct {
 	auto_threshold: bool,
@@ -29,6 +31,9 @@ Vad :: struct {
 	hang:           int,
 	active:         bool,
 	primed:         bool,
+	history:        [NOISE_WINDOW]f32,
+	hist_n:         int,
+	hist_i:         int,
 }
 
 vad_init :: proc(v: ^Vad) {
@@ -58,13 +63,14 @@ vad_process :: proc(v: ^Vad, pcm: []f32) -> (active: bool, db: f32) {
 	db = frame_level_db(pcm)
 	thresh := v.threshold_db
 	if v.auto_threshold {
-		if !v.primed {
-			v.noise_db = db
+		if db > -100 {
+			v.history[v.hist_i] = db
+			v.hist_i = (v.hist_i + 1) % NOISE_WINDOW
+			v.hist_n = min(v.hist_n + 1, NOISE_WINDOW)
+			m := v.history[0]
+			for i in 0 ..< v.hist_n do m = min(m, v.history[i])
+			v.noise_db = m
 			v.primed = true
-		} else if db < v.noise_db {
-			v.noise_db += (db - v.noise_db) * 0.3
-		} else {
-			v.noise_db += min(db - v.noise_db, 0.05)
 		}
 		thresh = clamp(v.noise_db + AUTO_MARGIN_DB, VAD_DEFAULT_THRESHOLD, AUTO_CEILING_DB)
 	}

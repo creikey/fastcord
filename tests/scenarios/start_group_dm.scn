@@ -21,6 +21,10 @@ wait_for [role="dialog"] [role="checkbox"]
 click_text [role="dialog"] [role="checkbox"] | bobbles
 wait_for [role="dialog"] [role="checkbox"][aria-checked="true"] 5000
 pause
+# The "Add" button ignores synthetic clicks intermittently; Enter in the
+# popout's search field triggers the same action.
+key Enter
+wait 1500
 optional click_text [role="dialog"] button | Add
 optional wait_gw CHANNEL_RECIPIENT_ADD
 use b

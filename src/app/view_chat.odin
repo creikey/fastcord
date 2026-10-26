@@ -13,6 +13,7 @@ MSG_AVATAR :: 40
 MSG_GROUP_GAP :: 17 // space above the first message of a group
 MSG_LINE_H :: 22
 MSG_FONT :: 16
+COMPOSER_H :: 58 // official form height (1px border included): 22px line + 18px padding
 GROUP_WINDOW_MS :: 7 * 60 * 1000 // messages from the same author within 7 minutes group
 
 Chat_State :: struct {
@@ -52,7 +53,7 @@ local_utc_offset_ms :: proc() -> i64 {
 	return app.utc_offset_ms
 }
 
-// "Today at 3:04 PM", "Yesterday at ...", or "10/24/2026 3:04 PM" — the client's calendar format.
+// "3:04 PM" today, "Yesterday at 3:04 PM", or "10/24/2026 3:04 PM" — the client's calendar format.
 format_timestamp :: proc(id: dc.Snowflake, short := false) -> string {
 	ms := dc.snowflake_time_ms(id) + local_utc_offset_ms()
 	now_ms := time.time_to_unix_nano(time.now()) / 1e6 + local_utc_offset_ms()
@@ -61,13 +62,13 @@ format_timestamp :: proc(id: dc.Snowflake, short := false) -> string {
 	ampm := h >= 12 ? "PM" : "AM"
 	h12 := h % 12
 	if h12 == 0 do h12 = 12
-	clock := fmt.tprintf("%d:%02d %s", h12, mi, ampm)
+	clock := fmt.tprintf("%d:%02d\u202f%s", h12, mi, ampm) // narrow no-break space, as Intl formats it
 	if short do return clock
 	day := ms / 86_400_000
 	today := now_ms / 86_400_000
 	switch day {
 	case today:
-		return fmt.tprintf("Today at %s", clock)
+		return clock
 	case today - 1:
 		return fmt.tprintf("Yesterday at %s", clock)
 	}
@@ -230,7 +231,7 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 				gutter.cross_align = .Center
 				if ui.parent(gutter) {
 					filler(.X)
-					label(format_timestamp(m.id, true), .Normal, 11, T("--text-muted"), MSG_LINE_H)
+					label(format_timestamp(m.id, true), .Medium, 11, T("--text-muted"), MSG_LINE_H)
 					spacer(.X, 8)
 				}
 			}
@@ -266,11 +267,14 @@ message_header :: proc(m: ^dc.Message) {
 	if ui.parent(h) {
 		n := label(name, .Medium, 16, author_color(m), MSG_LINE_H)
 		n.flags += {.Clickable, .Selectable_Text}
-		n.sel_order = u64(m.id) * 8 + 1
+		n.sel_order = u64(m.id) * 8
 		if ui.signal(n).clicked do open_profile(m.author_id, n.rect)
 		spacer(.X, 8)
-		ts := label(format_timestamp(m.id), .Normal, 12, T("--text-muted"), 20)
-		_ = ts
+		// copies as "Name — 4:56 AM" like the client's hidden separator
+		ts := label(format_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20)
+		ts.flags += {.Selectable_Text}
+		ts.sel_order = u64(m.id) * 8 + 1
+		ts.sel_join = " — "
 	}
 }
 
@@ -645,7 +649,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 		uploads_bar()
 		box := row("composer", {.Draw_Background, .Draw_Border, .Clickable})
 		box.semantic_size = {.X = ui.fill(), .Y = ui.children()}
-		box.style.bg = T("--channeltextarea-background")
+		box.style.bg = T("--chat-background-default")
 		box.style.border_color = T("--border-subtle")
 		box.style.border = 1
 		box.style.radius = 8
@@ -658,14 +662,15 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			if ui.signal(plus).clicked {
 				for path in platform.open_file_dialog(true, context.temp_allocator) do stage_upload(path)
 			}
-			plus.semantic_size = {.X = ui.px(24), .Y = ui.px(52)}
+			plus.semantic_size = {.X = ui.px(24), .Y = ui.px(COMPOSER_H)}
 			plus.layout_axis = .Y
 			plus.cross_align = .Center
+			plus_hov := ui.signal(plus).hovering
 			if ui.parent(plus) {
-				spacer(.Y, 14)
-				icon("i", "circle-plus", 24, T("--interactive-icon-default"))
+				spacer(.Y, (COMPOSER_H - 24) / 2)
+				icon("i", "plus-large", 24, plus_hov ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
 			}
-			spacer(.X, 12)
+			spacer(.X, 24)
 			placeholder := ch.kind == .DM ? fmt.tprintf("Message @%s", dm_name(ch)) : fmt.tprintf("Message #%s", ch.name)
 			// Up in an empty composer edits your last message, like the client
 			if ui.editor_text(&cs.editor) == "" && ma.editing == 0 {
@@ -681,7 +686,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 					}
 				}
 			}
-			res := text_field("input", &cs.editor, placeholder, (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open())
+			res := text_field("input", &cs.editor, placeholder, (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open(), pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"))
 			if res == .Submit {
 				text := strings.trim_space(ui.editor_text(&cs.editor))
 				if composer_send(ch, emoji_convert_shortcodes(text)) do cs.scroll_target = 0
@@ -691,14 +696,14 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			} else if res == .Changed && app.client != nil && ui.editor_text(&cs.editor) != "" {
 				dc.typing_keystroke(app.client, ch.id)
 			}
-			for name in ([]string{"gift", "gif", "sticker", "reaction"}) {
+			for name in ([]string{"gift", "gif", "sticker", "reaction", "apps"}) {
 				b := ui.box(name, {.Clickable})
-				b.semantic_size = {.X = ui.px(40), .Y = ui.px(52)}
+				b.semantic_size = {.X = ui.px(40), .Y = ui.px(COMPOSER_H)}
 				b.layout_axis = .Y
 				b.cross_align = .Center
 				hov := picker_composer_button(name, ui.signal(b), b.rect, ch.id)
 				if ui.parent(b) {
-					spacer(.Y, 14)
+					spacer(.Y, (COMPOSER_H - 24) / 2)
 					icon("i", name, 24, hov ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
 				}
 			}
@@ -718,24 +723,29 @@ dm_name :: proc(ch: ^dc.Channel) -> string {
 	for id in ch.recipient_ids {
 		if u := dc.user_get(s, id); u != nil do append(&names, dc.display_name(u))
 	}
+	if len(names) == 0 && ch.kind == .Group_DM {
+		// an unnamed group with nobody else in it: "<owner>'s Group", like the client
+		owner := ch.owner_id != 0 ? ch.owner_id : s.me
+		if u := dc.user_get(s, owner); u != nil do return fmt.tprintf("%s's Group", dc.display_name(u))
+	}
 	return strings.join(names[:], ", ", context.temp_allocator)
 }
 
 // Multi-line text field; grows with content. Returns the editor result of this frame's events.
-text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: bool, font_size: f32 = 16, line_h: f32 = 22) -> ui.Edit_Result {
+text_field :: proc(id: string, ed: ^ui.Editor, placeholder: string, focused: bool, font_size: f32 = 16, line_h: f32 = 22, pad_y: f32 = 15, placeholder_color: ui.Color = {}) -> ui.Edit_Result {
 	f := ui.box(id, {.Clickable, .Draw_Text, .Wrap_Text, .Focusable})
 	f.semantic_size = {.X = ui.fill(), .Y = ui.text_size()}
 	f.style.font = F(.Normal)
 	f.style.font_size = font_size
 	f.style.line_height = line_h
-	f.style.padding = {0, 15}
+	f.style.padding = {0, pad_y}
 	f.hover_cursor = .IBeam
 	text := ui.editor_text(ed)
 	f.text = text
 	f.style.text_color = T("--text-default")
 	if text == "" {
 		f.text = placeholder
-		f.style.text_color = T("--text-muted")
+		f.style.text_color = placeholder_color.a > 0 ? placeholder_color : T("--text-muted")
 	}
 	result := ui.Edit_Result.None
 	sig := ui.signal(f)

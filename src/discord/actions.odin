@@ -798,3 +798,39 @@ open_profile_popout :: proc(c: ^Client, user_id, guild_id: Snowflake) {
 open_full_profile :: proc(c: ^Client, user_id, guild_id: Snowflake) {
 	fetch_profile_ex(c, user_id, {kind = "modal", mutual_guilds = true, mutual_friends_count = true, guild_id = guild_id})
 }
+
+// open_message_context_menu: right-clicking a message loads the application
+// command indexes (guild once per guild, user once per session).
+open_message_context_menu :: proc(c: ^Client, guild_id: Snowflake) {
+	if guild_id != 0 && !c.command_index_guilds[guild_id] {
+		c.command_index_guilds[guild_id] = true
+		j := job_new(.Api, .None)
+		j.method = "GET"
+		j.path = job_str(j, strings.concatenate({"/guilds/", snowflake_string(guild_id), "/application-command-index"}, context.temp_allocator))
+		job_submit(c, j)
+	}
+	if !c.command_index_user {
+		c.command_index_user = true
+		j := job_new(.Api, .None)
+		j.method = "GET"
+		j.path = "/users/@me/application-command-index"
+		job_submit(c, j)
+	}
+}
+
+// open_emoji_picker: the reaction/emoji picker's first open in a session.
+open_emoji_picker :: proc(c: ^Client, guild_id: Snowflake) {
+	if c.emoji_picker_opened do return
+	c.emoji_picker_opened = true
+	if guild_id != 0 {
+		j := job_new(.Api, .None)
+		j.method = "GET"
+		j.path = job_str(j, strings.concatenate({"/guilds/", snowflake_string(guild_id), "/top-emojis"}, context.temp_allocator))
+		job_submit(c, j)
+	}
+	b := job_new(.Api, .None)
+	b.method = "GET"
+	b.path = "/users/@me/billing/subscriptions?sync_level=2"
+	job_submit(c, b)
+	fetch_profile_ex(c, c.store.me, {})
+}

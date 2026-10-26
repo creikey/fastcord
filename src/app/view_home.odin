@@ -40,17 +40,25 @@ home_sidebar :: proc() {
 				select_channel(0, 0)
 			}
 		}
-		spacer(.Y, 8)
-		sep := ui.box("sep", {.Draw_Background})
+		spacer(.Y, DM_SEP_GAP)
+		sep := row("sep")
 		sep.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
-		sep.style.bg = T("--border-subtle")
-		header := row("dmheader")
-		header.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
-		if ui.parent(header) {
+		if ui.parent(sep) {
+			spacer(.X, 17)
+			l := ui.box("l", {.Draw_Background})
+			l.semantic_size = {.X = ui.fill(), .Y = ui.px(1)}
+			l.style.bg = T("--border-subtle")
 			spacer(.X, 16)
+		}
+		spacer(.Y, DM_SEP_GAP - 1)
+		header := row("dmheader")
+		header.semantic_size = {.X = ui.pct(1), .Y = ui.px(DM_HEADER_H)}
+		header.cross_align = .Start
+		if ui.parent(header) {
+			spacer(.X, 17)
 			label("Direct Messages", .Medium, 14, T("--channels-default"), 18)
 			filler(.X)
-			icon("plus", "plus-small", 16, T("--interactive-icon-default"))
+			icon("plus", "plus-small", 18, T("--interactive-icon-default"))
 			spacer(.X, 16)
 		}
 		for cid in dc.private_channels_sorted(s) {
@@ -62,14 +70,23 @@ home_sidebar :: proc() {
 	}
 }
 
+// Home sidebar geometry (official: nav rows 38px on a 40px pitch at x=81,
+// "Direct Messages" heading at y=276, DM rows 42px on a 44px pitch).
+DM_NAV_H :: 38
+DM_NAV_PITCH :: 40
+DM_SEP_GAP :: 13
+DM_HEADER_H :: 24
+DM_ROW_H :: 42
+DM_ROW_PITCH :: 44
+
 dm_nav_item :: proc(name: string, selected: bool) -> ui.Signal {
 	outer := row(name)
-	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(42)}
+	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(DM_NAV_PITCH)}
 	sig: ui.Signal
 	if ui.parent(outer) {
-		spacer(.X, 8)
+		spacer(.X, 9)
 		item := row("item", {.Clickable, .Draw_Background, .Hot_Animation})
-		item.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
+		item.semantic_size = {.X = ui.fill(), .Y = ui.px(DM_NAV_H)}
 		item.style.radius = 8
 		item.style.bg = selected ? T("--background-mod-normal") : {}
 		item.style.bg_hot = selected ? item.style.bg : T("--background-mod-subtle")
@@ -86,7 +103,7 @@ dm_nav_item :: proc(name: string, selected: bool) -> ui.Signal {
 		if ui.parent(item) {
 			color := selected || sig.hovering ? T("--interactive-text-active") : T("--channels-default")
 			spacer(.X, 8)
-			icon("ic", icon_name, 24, color)
+			icon("ic", icon_name, 20, color)
 			spacer(.X, 12)
 			label(name, .Medium, 16, color, 20)
 		}
@@ -98,11 +115,11 @@ dm_nav_item :: proc(name: string, selected: bool) -> ui.Signal {
 dm_row :: proc(ch: ^dc.Channel) {
 	selected := app.view.channel == ch.id
 	outer := row("dm")
-	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(44)}
+	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(DM_ROW_PITCH)}
 	if ui.parent(outer) {
-		spacer(.X, 8)
+		spacer(.X, 9)
 		item := row("item", {.Clickable, .Draw_Background, .Hot_Animation})
-		item.semantic_size = {.X = ui.fill(), .Y = ui.px(42)}
+		item.semantic_size = {.X = ui.fill(), .Y = ui.px(DM_ROW_H)}
 		item.style.radius = 8
 		item.style.bg = selected ? T("--background-mod-normal") : {}
 		item.style.bg_hot = selected ? item.style.bg : T("--background-mod-subtle")
@@ -132,11 +149,12 @@ dm_row :: proc(ch: ^dc.Channel) {
 			if ui.parent(col) {
 				label(dm_name(ch), unread ? .Semibold : .Medium, 16, color, 20)
 				if ch.kind == .Group_DM {
-					label(fmt.tprintf("%d Members", len(ch.recipient_ids) + 1), .Medium, 12, T("--text-muted"), 16)
+					n := len(ch.recipient_ids) + 1
+					label(fmt.tprintf("%d Member%s", n, n == 1 ? "" : "s"), .Medium, 12, T("--text-muted"), 16)
 				}
 			}
 		}
-		spacer(.X, 8)
+		spacer(.X, 12) // official rows are 282 wide (scrollbar gutter)
 	}
 }
 

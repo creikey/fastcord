@@ -76,7 +76,7 @@ STARTUP_REQUESTS := [?]Startup_Entry {
 	{.Launch, 3178, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x=5", "", .Cross_Site, "", {.Home}, {}, ""},
 	{.Launch, 3178, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, {.Etag}, ""},
 	{.Launch, 3178, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, {}, ""},
-	{.Launch, 6050, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", ALL_ROUTES, {}, "FrecencyUserSettings lazy load"},
+	{.Launch, 6700, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", {.Guild}, {}, "FrecencyUserSettings lazy load (fixtures: 6.0-8.1 s)"},
 	{.Launch, 7577, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, `{"connection_type":"unknown"}`, ALL_ROUTES, {}, "ads decision"},
 	{.Launch, 16571, .Web_Get, "cdn.discordapp.com", "/bad-domains/current_revision.txt", "", .Cross_Site, "", ALL_ROUTES, {}, "from coldstart_a/b (outside fixture windows)"},
 }

@@ -523,7 +523,10 @@ selection_text :: proc(fetch: proc(order: u64) -> string = nil, allocator := con
 		if b.sel_order < lo.order || b.sel_order > hi.order do continue
 		s0, s1, in_sel := selection_in_box(b)
 		if !in_sel do continue
-		if !first do strings.write_byte(&sb, '\n')
+		if !first {
+			if b.sel_join != "" do strings.write_string(&sb, b.sel_join)
+			else do strings.write_byte(&sb, '\n')
+		}
 		first = false
 		strings.write_string(&sb, b.text[clamp(s0, 0, len(b.text)):clamp(s1, 0, len(b.text))])
 	}

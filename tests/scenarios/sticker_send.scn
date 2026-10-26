@@ -1,0 +1,10 @@
+# Sticker picker: send a default (free) sticker.
+include _open_test_channel.scn
+mark open_sticker_picker
+click [aria-label="Open sticker picker"]
+wait_for [aria-label^="Sticker, "]
+settle 1500
+mark send_sticker
+click [aria-label^="Sticker, "]
+wait_gw MESSAGE_CREATE 20000
+settle 2500

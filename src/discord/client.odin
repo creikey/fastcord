@@ -145,7 +145,10 @@ Client :: struct {
 	guild_open_promotions: bool, // op 43 + guild-open set wait for the first message page
 	pending_private_open: Snowflake, // op 13 + recipient profile wait for the first page
 	route_page_pending: bool, // first page of the start route channel not yet loaded (op 43 / guild open follow it) // from /quests/@me, for applications/public
-	started_guilds:   map[Snowflake]bool, // guilds whose open-time requests ran this session
+	started_guilds:   map[Snowflake]bool,
+	command_index_guilds: map[Snowflake]bool,
+	command_index_user: bool,
+	emoji_picker_opened: bool, // guilds whose open-time requests ran this session
 	// traffic observers (tooling): see every gateway frame
 	on_gateway_send:  proc(data: rawptr, op: Op, d: V),
 	on_gateway_recv:  proc(data: rawptr, op: Op, t: string, d: V),
@@ -184,6 +187,7 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c.results = make([dynamic]Rest_Result)
 	c.pending_acks = make([dynamic]Pending_Ack)
 	c.started_guilds = make(map[Snowflake]bool)
+	c.command_index_guilds = make(map[Snowflake]bool)
 	subscriptions_init(&c.subs, allocator)
 	analytics_init(&c.analytics, allocator)
 	c.analytics.enabled = !cfg.disable_analytics
@@ -235,6 +239,7 @@ client_destroy :: proc(c: ^Client) {
 	delete(c.media_results)
 	delete(c.pending_acks)
 	delete(c.started_guilds)
+	delete(c.command_index_guilds)
 	delete(c.quest_app_ids)
 	for k, v in c.etags {
 		delete(k)

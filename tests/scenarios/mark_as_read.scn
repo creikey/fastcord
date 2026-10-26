@@ -1,0 +1,27 @@
+# B posts in the test channel while A is on the Friends page; A opens the channel (ack).
+use b
+mark setup_b
+reload
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id="channels___${TTEXT}"]
+click [data-list-item-id="channels___${TTEXT}"]
+wait_for div[role="textbox"][aria-label^="Message "]
+use a
+mark setup
+reload
+include _friends_home.scn
+use b
+mark b_sends
+click div[role="textbox"][aria-label^="Message "]
+type unread message for the ack test
+key Enter
+wait_gw MESSAGE_CREATE
+use a
+wait_gw MESSAGE_CREATE 20000
+settle 2000
+mark open_unread_channel
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id="channels___${TTEXT}"]
+click [data-list-item-id="channels___${TTEXT}"]
+wait_for div[role="textbox"][aria-label^="Message "]
+settle 4000

@@ -1,0 +1,14 @@
+# React with the test guild's custom emoji (uploaded by upload_custom_emoji.scn).
+include _open_test_channel.scn
+include _send_setup_message.scn
+mark add_custom_reaction
+rclick_last li[id^="chat-messages-"] [id^="message-content-"]
+hover #message-add-reaction
+pause
+click #message-add-reaction
+wait_for input[placeholder="Find the perfect reaction"]
+type fastcord
+wait 1000
+click #emoji-picker-grid-0-0 button
+wait_gw MESSAGE_REACTION_ADD
+settle 2000
