@@ -6,6 +6,7 @@ import "core:strings"
 import "core:sync"
 import "core:thread"
 import "core:time"
+import "fc:gfx"
 import "fc:locks"
 
 // A frame that runs longer than this is reported as a hang: once per stuck frame, to stderr and to
@@ -51,10 +52,68 @@ watchdog_frame_end :: proc() {
 	sync.atomic_store(&wd.phase, Frame_Phase.Idle)
 }
 
+// gfx failures (draws with dead texture handles, failed texture creation or Present, atlas resets)
+// go to <data>/logs/gfx.txt. The watchdog thread writes the file so the UI thread never waits on disk.
+@(private = "file")
+Gfx_Report :: struct {
+	diag:        gfx.Diag,
+	stats:       gfx.Frame_Stats,
+	textures:    int,
+	atlas_pages: int,
+	frame:       u64,
+	seq:         u64,
+}
+
+@(private = "file")
+gfx_report_mu: locks.Mutex
+@(private = "file")
+gfx_report: Gfx_Report
+
+// Main thread, after each rendered frame.
+watchdog_gfx :: proc() {
+	@(static) last: gfx.Diag
+	d := gfx.diag()
+	if d == last do return
+	last = d
+	r := Gfx_Report{diag = d, stats = gfx.stats(), textures = gfx.texture_count(), atlas_pages = gfx.text_stats().atlas_pages, frame = app.frame}
+	locks.lock(&gfx_report_mu)
+	r.seq = gfx_report.seq + 1
+	gfx_report = r
+	locks.unlock(&gfx_report_mu)
+}
+
+@(private = "file")
+write_gfx_report :: proc() {
+	@(static) written: u64
+	@(static) written_at: time.Time
+	locks.lock(&gfx_report_mu)
+	r := gfx_report
+	locks.unlock(&gfx_report_mu)
+	// A failure that repeats every frame would otherwise add a line every second.
+	if r.seq == written || time.since(written_at) < 5 * time.Second do return
+	written = r.seq
+	written_at = time.now()
+	d := r.diag
+	stamp, _ := time.time_to_rfc3339(written_at, include_nanos = false, allocator = context.temp_allocator)
+	line := fmt.tprintfln(
+		"%s frame %d: dead_tex_draws %d (last handle %d), tex_create_fails %d, present_fails %d, hresult 0x%08x, device_removed 0x%08x, atlas_resets %d; instances %d, draw_calls %d, textures %d, atlas_pages %d",
+		stamp, r.frame, d.dead_tex_draws, d.last_dead_tex, d.tex_create_fails, d.present_fails, u32(d.last_hresult), u32(d.device_removed), d.atlas_resets,
+		r.stats.instances, r.stats.draw_calls, r.textures, r.atlas_pages,
+	)
+	dir := app_data_dir("logs")
+	os.make_directory_all(dir)
+	f, err := os.open(fmt.tprintf("%s/gfx.txt", dir), {.Write, .Create, .Append})
+	if err != nil do return
+	os.write_string(f, line)
+	os.close(f)
+}
+
 @(private = "file")
 watchdog_proc :: proc() {
 	for {
 		time.sleep(time.Second)
+		write_gfx_report()
+		free_all(context.temp_allocator)
 		start := sync.atomic_load(&wd.frame_start)
 		if start == 0 || start == wd.reported do continue
 		stuck := time.Duration(time.to_unix_nanoseconds(time.now()) - start)

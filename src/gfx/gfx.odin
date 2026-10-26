@@ -140,6 +140,18 @@ G :: struct {
 	destroy_queue: [dynamic]Pending_Destroy,
 	white:         Texture,
 	stats:         Frame_Stats,
+	diag:          Diag,
+}
+
+// Running totals of things that should never happen; the app logs them when they change.
+Diag :: struct {
+	dead_tex_draws:   int, // rects whose texture handle was not alive (drawn untextured)
+	last_dead_tex:    Texture,
+	tex_create_fails: int,
+	present_fails:    int,
+	last_hresult:     i32, // of the latest failed backend call
+	device_removed:   i32, // GetDeviceRemovedReason after a failure; 0 = device fine
+	atlas_resets:     int,
 }
 
 Frame_Stats :: struct {
@@ -186,6 +198,8 @@ shutdown :: proc() {
 }
 
 stats :: proc() -> Frame_Stats {return g.stats}
+
+diag :: proc() -> Diag {return g.diag}
 
 // Live textures (for benchmarks: each distinct texture costs per-draw-call driver work).
 texture_count :: proc() -> int {
@@ -318,6 +332,9 @@ push_rect_px :: proc(p: Rect_Params, d: Rect) {
 			tex_kind = 3
 			tex2 = p.tex2
 		}
+	} else if p.tex != 0 {
+		g.diag.dead_tex_draws += 1
+		g.diag.last_dead_tex = p.tex
 	}
 	for c, i in p.colors do inst.colors[i] = premul(c)
 	half_min := min(d.x1 - d.x0, d.y1 - d.y0) * 0.5
@@ -369,7 +386,10 @@ push_rect_px :: proc(p: Rect_Params, d: Rect) {
 
 texture_create :: proc(w, h: int, format: Texture_Format, pixels: []u8 = nil) -> Texture {
 	native := _backend_texture_create(i32(w), i32(h), format, pixels)
-	if native == nil do return 0
+	if native == nil {
+		g.diag.tex_create_fails += 1
+		return 0
+	}
 	slot := Tex_Slot{native = native, w = i32(w), h = i32(h), format = format, alive = true}
 	if len(g.free_textures) > 0 {
 		t := pop(&g.free_textures)

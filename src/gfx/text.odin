@@ -163,6 +163,12 @@ text_begin_frame :: proc() {
 	tx.frame += 1
 	tx.stats.shape_hits = 0
 	tx.stats.shape_misses = 0
+}
+
+@(private)
+text_end_frame :: proc() {
+	// The atlas is rebuilt after the frame is submitted, never in begin_frame: the UI shapes text
+	// before begin_frame, so a reset there would destroy the pages that frame's glyphs point at.
 	if tx.reset_atlas {
 		tx.reset_atlas = false
 		for p in tx.pages do texture_destroy(p.tex)
@@ -170,11 +176,8 @@ text_begin_frame :: proc() {
 		clear(&tx.glyphs)
 		for _, e in tx.shape_cache do free_entry(e)
 		clear(&tx.shape_cache)
+		g.diag.atlas_resets += 1
 	}
-}
-
-@(private)
-text_end_frame :: proc() {
 	// LRU sweep: drop runs not drawn/shaped for SHAPE_CACHE_MAX_AGE frames (amortized).
 	if tx.frame % 30 == 0 {
 		for k, e in tx.shape_cache {

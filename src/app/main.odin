@@ -350,6 +350,7 @@ frame :: proc() {
 			prof.zone("gfx.end_frame")
 			gfx.end_frame()
 		}
+		if !platform.is_headless() do watchdog_gfx()
 		bench_render_end()
 	}
 	if sweep_hook != nil do sweep_hook() // while this frame's boxes and temp strings are alive

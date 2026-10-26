@@ -334,10 +334,19 @@ _backend_submit :: proc(insts: []Instance, batches: []Batch, clear: Color, fb: [
 	}
 	prof.zone("gfx.present")
 	if dx.swap != nil {
-		dx.swap->Present(1, {})
+		if hr := dx.swap->Present(1, {}); hr < 0 {
+			g.diag.present_fails += 1
+			note_failure(i32(hr))
+		}
 	} else {
 		dx.ctx->Flush()
 	}
+}
+
+@(private = "file")
+note_failure :: proc(hr: i32) {
+	g.diag.last_hresult = hr
+	g.diag.device_removed = i32(dx.device->GetDeviceRemovedReason())
 }
 
 @(private)
@@ -354,11 +363,17 @@ _backend_texture_create :: proc(w, h: i32, format: Texture_Format, pixels: []u8)
 		init = {pSysMem = raw_data(pixels), SysMemPitch = u32(w) * u32(format_bpp(format))}
 		pinit = &init
 	}
-	if dx.device->CreateTexture2D(&td, pinit, &dt.tex) < 0 {
+	if hr := dx.device->CreateTexture2D(&td, pinit, &dt.tex); hr < 0 {
+		note_failure(i32(hr))
 		free(dt)
 		return nil
 	}
-	dx.device->CreateShaderResourceView(dt.tex, nil, &dt.srv)
+	if hr := dx.device->CreateShaderResourceView(dt.tex, nil, &dt.srv); hr < 0 {
+		note_failure(i32(hr))
+		dt.tex->Release()
+		free(dt)
+		return nil
+	}
 	return dt
 }
 
