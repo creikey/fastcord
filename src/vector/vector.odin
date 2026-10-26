@@ -10,6 +10,12 @@
 // spreadMethod, href inheritance). Coverage output (rasterize) uses the average
 // stop color; rasterize_rgba evaluates gradients per pixel.
 //
+// Colour output: rasterize_rgba (straight-alpha RGBA8, e.g. Twemoji) / rasterize_premul.
+// Group `opacity` is folded into each element (no offscreen group pass), and a
+// <g> clip/mask applies in the group's space using the element's bbox for
+// objectBoundingBox units. Path-level API for other renderers (fc:lottie):
+// Path, Rasterizer, fill_coverage, stroke_coverage, Gradient, *_fill_premul.
+//
 // Icons are recolored at draw time, so the output is coverage only. Shapes with
 // class="secondary" (Discord's secondaryColor slot, e.g. the dot behind
 // circle-x) form a second layer that rasterize skips; see rasterize_layers.

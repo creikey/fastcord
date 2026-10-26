@@ -18,12 +18,9 @@ TAG :: 16
 NONCE_LEN :: 4
 SAMPLES_PER_FRAME :: 960 // 20 ms @ 48 kHz
 
-// One-byte header extension elements (RFC 8285) on audio packets, the
-// WebRTC defaults Discord's SFU maps for audio:
+// One-byte header extension (RFC 8285) on audio packets:
 //   id 1: urn:ietf:params:rtp-hdrext:ssrc-audio-level (1 byte: V | level)
-//   id 3: transport-wide-cc sequence number (2 bytes)
 EXT_ID_AUDIO_LEVEL :: 1
-EXT_ID_TRANSPORT_CC :: 3
 
 Mode :: enum u8 {
 	None,
@@ -174,28 +171,25 @@ put_u32 :: proc(b: []byte, v: u32) {
 get_u16 :: proc(b: []byte) -> u16 {return u16(b[0]) << 8 | u16(b[1])}
 get_u32 :: proc(b: []byte) -> u32 {return u32(b[0]) << 24 | u32(b[1]) << 16 | u32(b[2]) << 8 | u32(b[3])}
 
-// build_audio_rtp writes the RTP header + one-byte extensions + payload.
-// Returns (length, aad_len).
-build_audio_rtp :: proc(out: []byte, seq: u16, ts: u32, ssrc: u32, audio_level: u8, voice: bool, twcc_seq: u16, payload: []byte) -> (int, int) {
+// build_audio_rtp writes the RTP header + one-byte extension block + payload.
+// Returns (length, aad_len). Verified live against Discord's SFU: the
+// ssrc-audio-level element alone (id 1, one 32-bit word) is accepted; adding
+// a transport-wide-cc element made the SFU drop every packet.
+build_audio_rtp :: proc(out: []byte, seq: u16, ts: u32, ssrc: u32, audio_level: u8, voice: bool, payload: []byte) -> (int, int) {
 	out[0] = 0x90 // V=2, X=1
 	out[1] = OPUS_PT
 	put_u16(out[2:], seq)
 	put_u32(out[4:], ts)
 	put_u32(out[8:], ssrc)
-	// extension header: 0xBEDE, 2 words
 	out[12] = 0xBE
 	out[13] = 0xDE
-	put_u16(out[14:], 2)
-	e := out[16:24]
-	e[0] = EXT_ID_AUDIO_LEVEL << 4 | 0 // len-1 = 0
-	e[1] = (0x80 if voice else 0) | (audio_level & 0x7f)
-	e[2] = EXT_ID_TRANSPORT_CC << 4 | 1
-	put_u16(e[3:], twcc_seq)
-	e[5] = 0
-	e[6] = 0
-	e[7] = 0
-	copy(out[24:], payload)
-	return 24 + len(payload), 16
+	put_u16(out[14:], 1)
+	out[16] = EXT_ID_AUDIO_LEVEL << 4 // len-1 = 0
+	out[17] = (0x80 if voice else 0) | (audio_level & 0x7f)
+	out[18] = 0
+	out[19] = 0
+	copy(out[20:], payload)
+	return 20 + len(payload), 16
 }
 
 is_rtcp :: proc(b: []byte) -> bool {

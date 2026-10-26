@@ -628,6 +628,29 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 	switch name {
 	case "READY":
 		analytics_on_ready(c)
+		// The window reopens on its last route: the guild is subscribed and its
+		// channel info requested on CONNECTION_OPEN, as when it was selected.
+		sync.mutex_lock(&c.route_mu)
+		g, ch := c.route_guild, c.route_channel
+		sync.mutex_unlock(&c.route_mu)
+		if ch != 0 {
+			l := message_list(&c.store, ch)
+			h := c.analytics.viewport_h if c.analytics.viewport_h > 0 else 720
+			if !l.loaded && !l.loading do fetch_messages(c, ch, 0, initial_message_limit(h))
+		}
+		if g != 0 {
+			if c.gw != nil {
+				b := etf.map_builder(2, context.temp_allocator)
+				etf.map_put(&b, "guild_id", snowflake_string(g))
+				etf.map_put(&b, "fields", etf.List{string("status"), string("voice_start_time")})
+				gateway_send(c.gw, .Request_Channel_Info, etf.map_done(&b))
+			}
+			subscribe_guild(c, g)
+			if !c.started_guilds[g] {
+				c.started_guilds[g] = true
+				schedule_guild_open(c, g)
+			}
+		}
 	case "MESSAGE_CREATE":
 		d := vmap(data)
 		if nv := fstr(d, "nonce"); nv != "" {

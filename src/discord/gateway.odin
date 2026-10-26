@@ -630,6 +630,7 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 	c := g.c
 	if c.on_gateway_recv != nil do c.on_gateway_recv(c.observer_data, op, t, d)
 	if c.on_gateway_frame != nil do c.on_gateway_frame(c.observer_data, false, v, 0)
+	if c.on_dispatch != nil && op == .Dispatch do c.on_dispatch(c.user_data, t)
 
 	sync.mutex_lock(&g.mu)
 	defer {

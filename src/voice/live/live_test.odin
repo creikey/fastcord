@@ -137,7 +137,23 @@ live_voice_two_accounts :: proc(t: ^testing.T) {
 			if guild != 0 do break
 		}
 	}
-	if !testing.expect(t, guild != 0, "no voice channel shared by A and B") do return
+	for sd in sides {
+		log.infof("%s me=%v guilds=%d private=%d", sd.name, sd.client.store.me, len(sd.client.store.guilds), len(sd.client.store.private_channels))
+		for gid in sd.client.store.guild_order {
+			g := dc.guild_get(&sd.client.store, gid)
+			log.infof("  %s guild %v %q channels=%d", sd.name, gid, g.name if g != nil else "?", len(g.channels) if g != nil else 0)
+		}
+	}
+	if guild == 0 {
+		// B shares no guild: a DM call between A and B (op 4 with guild_id null)
+		for cid in b.client.store.private_channels {
+			ch := dc.channel_get(&b.client.store, cid)
+			if ch == nil || ch.kind != .DM do continue
+			for r in ch.recipient_ids do if u64(r) == b.peer do channel = cid
+		}
+		if channel != 0 do log.infof("using DM call in channel %v", channel)
+	}
+	if !testing.expect(t, channel != 0, "no voice channel or DM shared by A and B") do return
 	log.infof("voice channel %v in guild %v", channel, guild)
 
 	time.sleep(1 * time.Second)
@@ -204,7 +220,7 @@ live_voice_two_accounts :: proc(t: ^testing.T) {
 	testing.expectf(t, ea.privacy_code != "" && ea.privacy_code == eb.privacy_code, "privacy codes match (%d / %d digits)", len(ea.privacy_code), len(eb.privacy_code))
 	for s in sides {
 		st := voice.get_stats(s.conn)
-		log.infof("%s: ping %d ms rtt %d ms sent %d recv %d transport_fail %d e2ee_fail %d jitter %.1f ms lost %d", s.name, st.ws_ping_ms, st.rtt_ms, st.packets_sent, st.packets_received, st.transport_failures, st.e2ee_failures, st.jitter.jitter_ms, st.jitter.lost)
+		log.infof("%s: ping %d ms rtt %d ms sent %d recv %d udp %d rtcp %d other_pt %d unknown_ssrc %d users %d transport_fail %d e2ee_fail %d jitter %.1f ms lost %d", s.name, st.ws_ping_ms, st.rtt_ms, st.packets_sent, st.packets_received, st.udp_datagrams, st.rtcp_received, st.other_pt, st.unknown_ssrc, st.remote_users, st.transport_failures, st.e2ee_failures, st.jitter.jitter_ms, st.jitter.lost)
 	}
 	testing.expect(t, voice.is_speaking(b.conn, b.peer), "B sees A speaking")
 

@@ -14,6 +14,8 @@ package voice
 import "base:runtime"
 import "core:crypto"
 import "core:encoding/json"
+import "core:fmt"
+import "core:os"
 import "core:math/rand"
 import "core:net"
 import "core:strconv"
@@ -75,6 +77,11 @@ Stats :: struct {
 	bytes_sent:       u64,
 	bytes_received:   u64,
 	transport_failures: u64,
+	udp_datagrams:    u64, // everything that arrived on the socket
+	rtcp_received:    u64,
+	other_pt:         u64, // RTP with a payload type other than opus
+	unknown_ssrc:     u64, // audio from an SSRC no op 5 mapped yet
+	remote_users:     int,
 	e2ee_failures:    u64,
 	reconnects:       int,
 	jitter:           Jitter_Stats, // summed over remote users
@@ -177,6 +184,14 @@ Conn :: struct {
 	audio_started:     bool,
 	capture_on:        bool,
 	allocator:         runtime.Allocator, // long-lived allocations from every thread
+	debug:             bool, // FASTCORD_VOICE_DEBUG=1: protocol trace on stderr (no secrets)
+}
+
+@(private)
+dbg :: proc(c: ^Conn, format: string, args: ..any) {
+	if !c.debug do return
+	fmt.eprintf("[voice %v] ", c.info.user_id)
+	fmt.eprintfln(format, ..args)
 }
 
 now_ms :: proc() -> i64 {return time.to_unix_nanoseconds(time.now()) / 1e6}
@@ -226,6 +241,9 @@ voice_connect :: proc(info: Voice_Server_Info, opts := Options{}) -> ^Conn {
 	dave.session_init(&c.dave, info.user_id, info.channel_id, info.stage)
 	c.state = .Connecting
 	c.allocator = context.allocator
+	c.debug = os.get_env("FASTCORD_VOICE_DEBUG", context.temp_allocator) == "1"
+	if os.get_env("FASTCORD_VOICE_NOEXT", context.temp_allocator) == "1" do rtp_no_extensions = true
+	if os.get_env("FASTCORD_VOICE_EXT", context.temp_allocator) == "level" do rtp_ext_variant = 1
 	c.ws_th = thread.create_and_start_with_data(c, ws_thread_proc)
 	c.timer_th = thread.create_and_start_with_data(c, timer_thread_proc)
 	return c
@@ -345,6 +363,7 @@ get_stats :: proc(c: ^Conn) -> Stats {
 	sync.mutex_lock(&c.mu)
 	defer sync.mutex_unlock(&c.mu)
 	s := c.stats
+	s.remote_users = len(c.users)
 	s.jitter = {}
 	for _, u in c.users {
 		js := u.jb.stats
@@ -604,6 +623,7 @@ handle_json :: proc(c: ^Conn, text: string) {
 	v, err := json.parse_string(text, parse_integers = true, allocator = context.temp_allocator)
 	if err != nil do return
 	op := int(jint(jget(v, "op")))
+	if c.debug && op != OP_HEARTBEAT_ACK && op != OP_SESSION_DESCRIPTION do dbg(c, "<~ %s", text[:min(len(text), 400)])
 	if s := jint(jget(v, "seq"), 0); s != 0 do c.last_seq = s // `r && (lastRecvSeqNum = r)`
 	d := jget(v, "d")
 	switch op {
@@ -711,6 +731,7 @@ handle_binary :: proc(c: ^Conn, b: []byte) {
 	if seq != 0 do c.last_seq = seq
 	op := int(b[2])
 	p := b[3:]
+	dbg(c, "<~ binary op %d (%d bytes)", op, len(p))
 	switch op {
 	case dave.OP_MLS_EXTERNAL_SENDER:
 		dave.on_external_sender(&c.dave, p)
@@ -915,6 +936,7 @@ udp_thread_proc :: proc(data: rawptr) {
 		_ = from
 		pkt := buf[:n]
 		sync.mutex_lock(&c.mu)
+		c.stats.udp_datagrams += 1
 		have := c.have_key
 		sync.mutex_unlock(&c.mu)
 		if !have do continue
@@ -925,6 +947,9 @@ udp_thread_proc :: proc(data: rawptr) {
 				count_failure(c)
 				continue
 			}
+			sync.mutex_lock(&c.mu)
+			c.stats.rtcp_received += 1
+			sync.mutex_unlock(&c.mu)
 			on_rtcp(c, plain[:m], now)
 			continue
 		}
@@ -935,7 +960,12 @@ udp_thread_proc :: proc(data: rawptr) {
 			count_failure(c)
 			continue
 		}
-		if h.pt != OPUS_PT || h.payload_off > m do continue
+		if h.pt != OPUS_PT || h.payload_off > m {
+			sync.mutex_lock(&c.mu)
+			c.stats.other_pt += 1
+			sync.mutex_unlock(&c.mu)
+			continue
+		}
 		end := m
 		if plain[0] & 0x20 != 0 { 	// padding
 			pad := int(plain[m - 1])
@@ -949,7 +979,12 @@ udp_thread_proc :: proc(data: rawptr) {
 		c.stats.packets_received += 1
 		c.stats.bytes_received += u64(n)
 		sync.mutex_unlock(&c.mu)
-		if !known || uid == 0 do continue // no op 5 yet: can't attribute (DAVE needs the sender)
+		if !known || uid == 0 {
+			sync.mutex_lock(&c.mu)
+			c.stats.unknown_ssrc += 1
+			sync.mutex_unlock(&c.mu)
+			continue // no op 5 yet: can't attribute (DAVE needs the sender)
+		}
 		fl, res := dave.session_decrypt(&c.dave, uid, payload, frame[:])
 		if res == .Failed do continue
 		opus := frame[:fl]
@@ -999,7 +1034,15 @@ rx_update :: proc(r: ^Rx_Stats, seq: u16, ts: u32, now: i64) {
 @(private)
 on_rtcp :: proc(c: ^Conn, b: []byte, now: i64) {
 	rep, ok := parse_report(b)
-	if !ok do return
+	if !ok {
+		dbg(c, "rtcp pt=%d len=%d (unparsed)", b[1], len(b))
+		return
+	}
+	dbg(c, "rtcp %s ssrc=%d blocks=%d", "SR" if rep.is_sr else "RR", rep.ssrc, rep.n_blocks)
+	for i in 0 ..< rep.n_blocks {
+		bl := rep.blocks[i]
+		dbg(c, "  block ssrc=%d lost=%d frac=%d maxseq=%d jitter=%d", bl.ssrc, bl.cum_lost, bl.fraction_lost, bl.ext_max_seq, bl.jitter)
+	}
 	sync.mutex_lock(&c.mu)
 	defer sync.mutex_unlock(&c.mu)
 	if rep.is_sr {

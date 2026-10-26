@@ -139,6 +139,9 @@ Client :: struct {
 	on_gateway_recv:  proc(data: rawptr, op: Op, t: string, d: V),
 	on_gateway_frame: proc(data: rawptr, sent: bool, payload: V, wire_len: int), // whole {op,d,s,t} as sent/received
 	on_ws_open:       proc(data: rawptr, url: string, headers: []http.Header),
+	// app hook: every dispatch name as it arrives (network thread), with user_data
+	on_dispatch:      proc(user_data: rawptr, name: string),
+	user_data:        rawptr,
 	on_ws_close:      proc(data: rawptr, code: int),
 	observer_data:    rawptr,
 }
@@ -148,7 +151,7 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c := new(Client)
 	c.cfg = cfg
 	c.cfg.fast_connect = !cfg.disable_fast_connect
-	if c.cfg.workers <= 0 do c.cfg.workers = 4
+	if c.cfg.workers <= 0 do c.cfg.workers = 8 // Chrome issues the startup burst concurrently
 	plat := cfg.platform
 	if plat.os == "" do plat = DEFAULT_PLATFORM
 	c.allocator = allocator

@@ -16,6 +16,7 @@ Player :: struct {
 	frame:  virtual.Arena, // per-frame geometry
 	falloc: mem.Allocator,
 	out:    []u8, // last rendered frame, straight RGBA8
+	depth:  int, // precomp nesting guard
 }
 
 player_init :: proc(p: ^Player, anim: ^Animation, w, h: int, allocator := context.allocator) -> bool {
@@ -202,7 +203,10 @@ render_layer :: proc(p: ^Player, c: ^Comp, l: ^Layer, frame: f32, m: Mat) -> ([]
 	case 0:
 		if l.ref < 0 do return nil, 0
 		pc := &p.anim.assets[l.ref]
+		if p.depth > 16 do return nil, 0 // self-referencing precomps
+		p.depth += 1
 		render_comp(p, pc, precomp_time(l, frame), lm, buf)
+		p.depth -= 1
 		// precomps are clipped to their bounds
 		w := l.w > 0 ? l.w : pc.w
 		h := l.h > 0 ? l.h : pc.h
@@ -383,8 +387,9 @@ build_primitive :: proc(p: ^Player, it: ^Item, t: f32, m: Mat) -> ^vector.Path {
 		}
 	case .Star:
 		c := ev2(&it.p, t)
-		n := int(ev1(&it.pt, t))
-		if n < 2 do return new_path(p)
+		pts := ev1(&it.pt, t)
+		if !(pts >= 2) do return new_path(p) // also rejects NaN
+		n := int(min(pts, 1000))
 		rot := ev1(&it.r, t) * math.PI / 180
 		or_ := ev1(&it.or_, t)
 		ir := ev1(&it.ir, t)
@@ -492,8 +497,7 @@ build_gradient :: proc(p: ^Player, it: ^Item, t: f32, opacity: f32) -> vector.Gr
 	}
 	vals: [256]f32
 	n := eval(&it.g_colors, t, vals[:])
-	cnt := it.g_count
-	if cnt * 4 > n do cnt = n / 4
+	cnt := clamp(it.g_count, 0, n / 4)
 	stops := make([]vector.Gradient_Stop, cnt, p.falloc)
 	nop := (n - cnt * 4) / 2 // opacity stops follow the colour stops
 	for k in 0 ..< cnt {
