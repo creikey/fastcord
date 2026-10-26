@@ -43,6 +43,7 @@ App :: struct {
 	stats:           bool,
 	focused:         bool, // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
 	focused_editor:  ^UI_Editor, // the text field that took keyboard input last frame (tests)
+	expect_drawn:    string, // script check: text the next frame must draw (tests)
 	wake_at:         f64, // earliest timed repaint requested this frame (caret blink, timers); 0 = none
 	now_override_ms: i64, // -now: wall clock for timestamp formatting; 0 = real time
 }
@@ -254,7 +255,7 @@ frame :: proc() {
 	for e in evs do if e.kind == .Key_Down || e.kind == .Text do app.caret_reset_t = now
 	ui.begin(platform.window_size(), dt, now, evs)
 	build_ui()
-	cmds := ui.end()
+	_ = ui.end()
 	// Cmd+C with a message selection (a focused field with its own selection copied first).
 	// Runs after end(): the selection's boxes are collected during layout.
 	for &e in app.ui.events {
@@ -264,6 +265,15 @@ frame :: proc() {
 			e.consumed = true
 		}
 	}
+	// The UI runs twice and only this second pass is drawn. A widget handles input after it has
+	// declared what it shows (a text field's text, a list's scroll), so the first pass draws the state
+	// from before the input. This pass gets no input and no time step: it draws the new state now
+	// instead of on the next event.
+	app.focused_editor = nil
+	ui.begin(platform.window_size(), 0, now, nil)
+	build_ui()
+	cmds := ui.end()
+	if app.expect_drawn != "" do check_expect_drawn(cmds)
 
 	t_render := platform.time_now()
 	watchdog_phase(.Render)
@@ -326,6 +336,19 @@ unquote :: proc(s: string) -> string {
 	out, _ := strings.replace_all(t, "\\n", "\n", context.temp_allocator)
 	out, _ = strings.replace_all(out, "\\u202f", "\u202f", context.temp_allocator)
 	return out
+}
+
+check_expect_drawn :: proc(cmds: []ui.Draw_Cmd) {
+	want := app.expect_drawn
+	app.expect_drawn = ""
+	for c in cmds {
+		if c.kind == .Text && c.box != nil && c.box.text == want {
+			delete(want)
+			return
+		}
+	}
+	fmt.eprintfln("expect_drawn failed: the frame did not draw %q", want)
+	os.exit(1)
 }
 
 // Scripted input for headless e2e runs: one command per line, e.g.
@@ -420,6 +443,10 @@ run_script :: proc(path: string) {
 				fmt.eprintfln("%s: expect_selection failed\n  want %q\n  got  %q", path, want, got)
 				os.exit(1)
 			}
+			continue
+		case "expect_drawn":
+			// The frame run by the next command must draw this exact text (checked in frame()).
+			app.expect_drawn = strings.clone(unquote(strings.join(f[1:], " ", context.temp_allocator)))
 			continue
 		case "expect_input":
 			// text of the field that currently has keyboard focus
