@@ -135,8 +135,8 @@ sweep_fresh :: proc(sc: ^Sweep_Screen) {
 		id, _ := strconv.parse_u64(sc.channel)
 		if ch := dc.channel_get(&app.offline_store, dc.Snowflake(id)); ch != nil do select_channel(ch.guild_id, ch.id)
 	}
-	script_frame()
-	script_frame()
+	script_frame(&script_t)
+	script_frame(&script_t)
 	script_exec(sc.setup[:], sc.name)
 	if !sc.hold_mouse do platform.inject_event({kind = .Mouse_Move, pos = SWEEP_OFF})
 	sweep_settle()
@@ -145,7 +145,7 @@ sweep_fresh :: proc(sc: ^Sweep_Screen) {
 @(private = "file")
 sweep_settle :: proc() {
 	for i in 0 ..< 90 {
-		script_frame()
+		script_frame(&script_t)
 		if i >= 3 && !ui.needs_frame() do return
 	}
 	swp.capped += 1
@@ -177,7 +177,7 @@ sweep_key :: proc(k: platform.Key) {
 sweep_measure :: proc() -> u64 {
 	app.no_render = false
 	swp.collect = true
-	script_frame()
+	script_frame(&script_t)
 	swp.collect = false
 	app.no_render = true
 	pixels, _, _ := gfx.read_pixels(context.temp_allocator)

@@ -13,11 +13,11 @@
 //     (Chrome keeps one QUIC session per origin; it idles out after 30s).
 package altsvc
 
+import "fc:locks"
 import "core:fmt"
 import "core:os"
 import "core:strconv"
 import "core:strings"
-import "core:sync"
 import "core:thread"
 import "core:time"
 
@@ -37,7 +37,7 @@ Entry :: struct {
 }
 
 Cache :: struct {
-	mu:            sync.Mutex,
+	mu:            locks.Mutex,
 	entries:       map[string]Entry,
 	conns:         map[string]^h3.Conn, // live h3 connection per origin
 	quic_works:    bool, // QUIC succeeded on this network (enables delaying TCP)
@@ -89,8 +89,8 @@ parse :: proc(value: string, allocator := context.temp_allocator) -> (alts: [dyn
 record :: proc(c: ^Cache, host: string, header_value: string, now_ := time.Time{}) {
 	now := now_ if now_ != {} else time.now()
 	alts, clear := parse(header_value)
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	if clear {
 		if k, _, ok := map_entry_key(c, host); ok {
 			delete_key(&c.entries, host)
@@ -129,8 +129,8 @@ set_entry_locked :: proc(c: ^Cache, host: string, e: Entry) {
 // usable reports whether h3 should be tried for host, and on which port.
 usable :: proc(c: ^Cache, host: string, now_ := time.Time{}) -> (port: int, ok: bool) {
 	now := now_ if now_ != {} else time.now()
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	e, found := c.entries[host]
 	if !found || time.diff(now, e.expires) <= 0 do return 0, false
 	if time.diff(now, e.broken_until) > 0 do return 0, false
@@ -140,8 +140,8 @@ usable :: proc(c: ^Cache, host: string, now_ := time.Time{}) -> (port: int, ok: 
 // mark_broken records a QUIC failure for host (exponential backoff).
 mark_broken :: proc(c: ^Cache, host: string, now_ := time.Time{}) {
 	now := now_ if now_ != {} else time.now()
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	e, found := c.entries[host]
 	if !found do return
 	d := BROKEN_INITIAL * time.Duration(1 << uint(min(e.broken_count, 10)))
@@ -153,8 +153,8 @@ mark_broken :: proc(c: ^Cache, host: string, now_ := time.Time{}) {
 
 // mark_working clears the backoff after QUIC succeeded.
 mark_working :: proc(c: ^Cache, host: string) {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	c.quic_works = true
 	e, found := c.entries[host]
 	if !found || e.broken_count == 0 do return
@@ -170,8 +170,8 @@ load :: proc(c: ^Cache, path: string) -> bool {
 	data, err := os.read_entire_file(path, context.temp_allocator)
 	if err != nil do return false
 	now := time.now()
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	text := string(data)
 	for line in strings.split_lines_iterator(&text) {
 		f := strings.fields(line, context.temp_allocator)
@@ -229,8 +229,8 @@ Result :: struct {
 
 @(private)
 Race :: struct {
-	mu:         sync.Mutex,
-	cond:       sync.Cond,
+	mu:         locks.Mutex,
+	cond:       locks.Cond,
 	cache:      ^Cache,
 	host:       string,
 	h3cfg:      h3.Config,
@@ -253,10 +253,10 @@ Race :: struct {
 // usable alternative it dials TCP only; otherwise it races QUIC and TCP.
 connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user: rawptr, h3cfg := h3.Config{}) -> (res: Result, ok: bool) {
 	// Reuse a live session.
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	if conn, found := c.conns[host]; found {
 		if h3.can_open(conn) {
-			sync.mutex_unlock(&c.mu)
+			locks.unlock(&c.mu)
 			return {proto = .H3, h3 = conn}, true
 		}
 		h3.close(conn)
@@ -266,7 +266,7 @@ connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, u
 			break
 		}
 	}
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 
 	port, use_h3 := usable(c, host)
 	if !use_h3 {
@@ -283,9 +283,9 @@ connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, u
 	r.closer = closer
 	r.user = user
 	r.refs = 3
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	known := c.quic_works
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	if known {
 		rtt := time.Duration(quic.cached_rtt_us(host)) * time.Microsecond
 		r.delay = min(time.Duration(f64(rtt) * DELAY_MAIN_JOB_MULTIPLIER), DELAY_MAIN_JOB_MAX)
@@ -293,8 +293,8 @@ connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, u
 	thread.run_with_poly_data(r, quic_job, init_context = context)
 	thread.run_with_poly_data(r, tcp_job, init_context = context)
 
-	sync.mutex_lock(&r.mu)
-	for r.winner == 0 && !(r.quic_done && r.tcp_done) do sync.cond_wait(&r.cond, &r.mu)
+	locks.lock(&r.mu)
+	for r.winner == 0 && !(r.quic_done && r.tcp_done) do locks.cond_wait(&r.cond, &r.mu)
 	switch r.winner {
 	case 1:
 		res = {proto = .H3, h3 = r.quic_conn}
@@ -303,17 +303,17 @@ connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, u
 		res = {proto = .H2, tcp = r.tcp_conn}
 		ok = true
 	}
-	sync.mutex_unlock(&r.mu)
+	locks.unlock(&r.mu)
 	race_release(r)
 	return
 }
 
 @(private)
 race_release :: proc(r: ^Race) {
-	sync.mutex_lock(&r.mu)
+	locks.lock(&r.mu)
 	r.refs -= 1
 	last := r.refs == 0
-	sync.mutex_unlock(&r.mu)
+	locks.unlock(&r.mu)
 	if last {
 		delete(r.host, quic.conn_allocator())
 		free(r, quic.conn_allocator())
@@ -344,10 +344,10 @@ quic_job :: proc(r: ^Race) {
 		mark_working(r.cache, r.host)
 	} else {
 		// Broken only if TCP works (else the network/origin is just down).
-		sync.mutex_lock(&r.mu)
-		for !r.tcp_done do sync.cond_wait(&r.cond, &r.mu)
+		locks.lock(&r.mu)
+		for !r.tcp_done do locks.cond_wait(&r.cond, &r.mu)
 		tcp_ok := r.tcp_ok
-		sync.mutex_unlock(&r.mu)
+		locks.unlock(&r.mu)
 		if tcp_ok do mark_broken(r.cache, r.host)
 		// A failed early session stays in the cache with an error; the next
 		// connect sees !can_open and closes it.
@@ -357,7 +357,7 @@ quic_job :: proc(r: ^Race) {
 
 @(private)
 quic_job_result :: proc(r: ^Race, conn: ^h3.Conn, ok: bool) {
-	sync.mutex_lock(&r.mu)
+	locks.lock(&r.mu)
 	r.quic_done = true
 	r.quic_ok = ok
 	if ok {
@@ -365,41 +365,41 @@ quic_job_result :: proc(r: ^Race, conn: ^h3.Conn, ok: bool) {
 		if r.winner == 0 do r.winner = 1
 	}
 	tcp_won := r.winner == 2
-	sync.cond_broadcast(&r.cond)
-	sync.mutex_unlock(&r.mu)
+	locks.cond_broadcast(&r.cond)
+	locks.unlock(&r.mu)
 	if !ok do return
 	// Keep the session for reuse whether or not it won this race.
-	sync.mutex_lock(&r.cache.mu)
+	locks.lock(&r.cache.mu)
 	if _, found := r.cache.conns[r.host]; !found {
 		r.cache.conns[strings.clone(r.host)] = conn
 	} else if tcp_won {
 		h3.close(conn)
 	}
-	sync.mutex_unlock(&r.cache.mu)
+	locks.unlock(&r.cache.mu)
 }
 
 @(private)
 tcp_job :: proc(r: ^Race) {
 	if r.delay > 0 {
 		deadline := time.tick_add(time.tick_now(), r.delay)
-		sync.mutex_lock(&r.mu)
+		locks.lock(&r.mu)
 		for !r.quic_done && time.tick_diff(time.tick_now(), deadline) > 0 {
-			sync.cond_wait_with_timeout(&r.cond, &r.mu, time.tick_diff(time.tick_now(), deadline))
+			locks.cond_wait_with_timeout(&r.cond, &r.mu, time.tick_diff(time.tick_now(), deadline))
 		}
 		skip := r.quic_ok
-		sync.mutex_unlock(&r.mu)
+		locks.unlock(&r.mu)
 		if skip {
 			// QUIC won before TCP was needed (Chrome cancels the main job).
-			sync.mutex_lock(&r.mu)
+			locks.lock(&r.mu)
 			r.tcp_done = true
-			sync.cond_broadcast(&r.cond)
-			sync.mutex_unlock(&r.mu)
+			locks.cond_broadcast(&r.cond)
+			locks.unlock(&r.mu)
 			race_release(r)
 			return
 		}
 	}
 	conn, ok := r.dial(r.host, r.user)
-	sync.mutex_lock(&r.mu)
+	locks.lock(&r.mu)
 	r.tcp_done = true
 	r.tcp_ok = ok
 	lost := false
@@ -411,8 +411,8 @@ tcp_job :: proc(r: ^Race) {
 			lost = true
 		}
 	}
-	sync.cond_broadcast(&r.cond)
-	sync.mutex_unlock(&r.mu)
+	locks.cond_broadcast(&r.cond)
+	locks.unlock(&r.mu)
 	if lost && r.closer != nil do r.closer(conn, r.user)
 	race_release(r)
 }

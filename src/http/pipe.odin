@@ -1,6 +1,6 @@
 package http
 
-import "core:sync"
+import "fc:locks"
 import "core:time"
 import "fc:netio"
 
@@ -17,8 +17,8 @@ Pipe_Half :: struct {
 
 @(private)
 Pipe_Shared :: struct {
-	mu:           sync.Mutex,
-	cond:         sync.Cond,
+	mu:           locks.Mutex,
+	cond:         locks.Cond,
 	dir:          [2]Pipe_Half, // dir[i]: bytes flowing towards end i
 	ends_open:    int,
 	read_timeout: time.Duration,
@@ -54,8 +54,8 @@ pipe_make :: proc(read_timeout := 10 * time.Second, max_chunk := 0) -> (a, b: ne
 pipe_read :: proc(data: rawptr, dst: []byte) -> (int, netio.Error) {
 	e := cast(^Pipe_End)data
 	sh := e.shared
-	sync.mutex_lock(&sh.mu)
-	defer sync.mutex_unlock(&sh.mu)
+	locks.lock(&sh.mu)
+	defer locks.unlock(&sh.mu)
 	if e.closed do return 0, .Closed
 	h := &sh.dir[e.side]
 	deadline := time.tick_now()
@@ -64,9 +64,9 @@ pipe_read :: proc(data: rawptr, dst: []byte) -> (int, netio.Error) {
 		if sh.read_timeout > 0 {
 			left := sh.read_timeout - time.tick_since(deadline)
 			if left <= 0 do return 0, .Timeout
-			sync.cond_wait_with_timeout(&sh.cond, &sh.mu, left)
+			locks.cond_wait_with_timeout(&sh.cond, &sh.mu, left)
 		} else {
-			sync.cond_wait(&sh.cond, &sh.mu)
+			locks.cond_wait(&sh.cond, &sh.mu)
 		}
 	}
 	want := len(dst)
@@ -80,13 +80,13 @@ pipe_read :: proc(data: rawptr, dst: []byte) -> (int, netio.Error) {
 pipe_write :: proc(data: rawptr, src: []byte) -> netio.Error {
 	e := cast(^Pipe_End)data
 	sh := e.shared
-	sync.mutex_lock(&sh.mu)
-	defer sync.mutex_unlock(&sh.mu)
+	locks.lock(&sh.mu)
+	defer locks.unlock(&sh.mu)
 	if e.closed do return .Closed
 	peer := &sh.dir[1 - e.side]
 	if peer.closed do return .Closed // peer end closed: nobody will read
 	append(&peer.data, ..src)
-	sync.cond_broadcast(&sh.cond)
+	locks.cond_broadcast(&sh.cond)
 	return .None
 }
 
@@ -95,20 +95,20 @@ pipe_write :: proc(data: rawptr, src: []byte) -> netio.Error {
 pipe_shutdown :: proc(data: rawptr) {
 	e := cast(^Pipe_End)data
 	sh := e.shared
-	sync.mutex_lock(&sh.mu)
+	locks.lock(&sh.mu)
 	sh.dir[0].closed = true
 	sh.dir[1].closed = true
-	sync.cond_broadcast(&sh.cond)
-	sync.mutex_unlock(&sh.mu)
+	locks.cond_broadcast(&sh.cond)
+	locks.unlock(&sh.mu)
 }
 
 @(private)
 pipe_close :: proc(data: rawptr) {
 	e := cast(^Pipe_End)data
 	sh := e.shared
-	sync.mutex_lock(&sh.mu)
+	locks.lock(&sh.mu)
 	if e.closed {
-		sync.mutex_unlock(&sh.mu)
+		locks.unlock(&sh.mu)
 		return
 	}
 	e.closed = true
@@ -117,8 +117,8 @@ pipe_close :: proc(data: rawptr) {
 	sh.dir[e.side].closed = true
 	sh.ends_open -= 1
 	last := sh.ends_open == 0
-	sync.cond_broadcast(&sh.cond)
-	sync.mutex_unlock(&sh.mu)
+	locks.cond_broadcast(&sh.cond)
+	locks.unlock(&sh.mu)
 	if last {
 		delete(sh.dir[0].data)
 		delete(sh.dir[1].data)

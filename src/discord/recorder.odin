@@ -1,11 +1,11 @@
 package discord
 
+import "fc:locks"
 import "core:encoding/base64"
 import "core:fmt"
 import "core:os"
 import "core:slice"
 import "core:strings"
-import "core:sync"
 import "fc:etf"
 import "fc:http"
 
@@ -23,7 +23,7 @@ import "fc:http"
 // order, JS casing); the ExtraInfo `headers` carry our real wire list.
 
 Recorder :: struct {
-	mu:      sync.Mutex,
+	mu:      locks.Mutex,
 	f:       ^os.File,
 	start:   i64,
 	next_id: int,
@@ -60,8 +60,8 @@ recorder_close :: proc(r: ^Recorder) {
 
 @(private)
 rec_line :: proc(r: ^Recorder, acct, rest: string) {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	n := now_ms()
 	line := fmt.tprintf(`{{"rt":%.1f,"acct":"%s",%s}}`+"\n", f64(n - r.start), acct, rest)
 	os.write_string(r.f, line)
@@ -69,15 +69,15 @@ rec_line :: proc(r: ^Recorder, acct, rest: string) {
 }
 
 recorder_last_net :: proc(r: ^Recorder) -> i64 {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	return r.last_net
 }
 
 @(private)
 rec_line_at :: proc(r: ^Recorder, acct: string, at_ms: f64, rest: string) {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	line := fmt.tprintf(`{{"rt":%.3f,"acct":"%s",%s}}`+"\n", at_ms - f64(r.start), acct, rest)
 	os.write_string(r.f, line)
 	r.last_net = max(r.last_net, now_ms())
@@ -92,8 +92,8 @@ recorder_mark :: proc(r: ^Recorder, acct, name: string) {
 
 @(private)
 rec_next_id :: proc(r: ^Recorder) -> string {
-	sync.mutex_lock(&r.mu)
-	defer sync.mutex_unlock(&r.mu)
+	locks.lock(&r.mu)
+	defer locks.unlock(&r.mu)
 	r.next_id += 1
 	return fmt.tprintf("ours.%d", r.next_id)
 }
@@ -315,9 +315,9 @@ rec_ws_open :: proc(data: rawptr, url: string, headers: []http.Header) {
 	tap := cast(^Recorder_Tap)data
 	r := tap.r
 	rid := rec_next_id(r)
-	sync.mutex_lock(&r.mu)
+	locks.lock(&r.mu)
 	r.ws_id = strings.clone(rid)
-	sync.mutex_unlock(&r.mu)
+	locks.unlock(&r.mu)
 	full := strings.concatenate({"wss://", url[len("wss://"):]}, context.temp_allocator)
 	sb := strings.builder_make(context.temp_allocator)
 	fmt.sbprintf(&sb, `"m":{{"method":"Network.webSocketCreated","params":{{"requestId":"%s","url":`, rid)

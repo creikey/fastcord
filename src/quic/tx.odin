@@ -1,9 +1,9 @@
 package quic
 
+import "fc:locks"
 import "core:fmt"
 import "core:math/rand"
 import "core:net"
-import "core:sync"
 import "core:time"
 
 PTO_MAX_BACKOFF :: 8
@@ -70,7 +70,7 @@ on_frames_acked :: proc(c: ^Conn, space: Space, frames: []Sent_Frame) {
 		case .Stream:
 			if st, ok := c.streams[f.id]; ok {
 				sb_on_ack(&st.send, f.lo, f.hi, f.fin)
-				sync.cond_broadcast(&c.cond)
+				locks.cond_broadcast(&c.cond)
 				maybe_free_stream(c, st)
 			}
 		case .Ack:
@@ -187,7 +187,7 @@ on_timers_locked :: proc(c: ^Conn, now: time.Tick) {
 		if c.err == .None do c.err = .Timeout
 		c.closing = true
 		c.close_sent = true
-		sync.cond_broadcast(&c.cond)
+		locks.cond_broadcast(&c.cond)
 		return
 	}
 	if !c.handshake_complete && time.tick_diff(c.handshake_deadline, now) > 0 {
@@ -513,7 +513,7 @@ send_pending_locked :: proc(c: ^Conn, now: time.Tick) {
 		in_flight := false
 		for s in Space do if active[s] && (builders[s].ack_eliciting || builders[s].has_padding) do in_flight = true
 		if in_flight do pacer_on_sent(&c.pacer, &c.cc, &c.rtt, len(dgram), now)
-		sync.cond_broadcast(&c.cond) // wake flush() waiters
+		locks.cond_broadcast(&c.cond) // wake flush() waiters
 		// A client drops Initial keys once it sends a Handshake packet (RFC 9001 4.9.1).
 		if sent_handshake do discard_space(c, .Initial)
 	}

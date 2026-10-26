@@ -1,10 +1,10 @@
 package voice_live
 
+import "fc:locks"
 import "core:log"
 import "core:math"
 import "core:os"
 import "core:strings"
-import "core:sync"
 import "core:testing"
 import "core:time"
 import dc "fc:discord"
@@ -48,9 +48,9 @@ side_options :: proc(s: ^Side) -> voice.Options {
 		playback = proc(data: rawptr, user_id: u64, pcm: []f32) {
 			s := cast(^Side)data
 			if user_id != s.peer do return
-			sync.mutex_lock(&s.mu)
+			locks.lock(&s.mu)
 			for i := 0; i < len(pcm); i += 2 do append(&s.heard, pcm[i])
-			sync.mutex_unlock(&s.mu)
+			locks.unlock(&s.mu)
 		},
 	}
 }
@@ -73,8 +73,8 @@ side_connect :: proc(s: ^Side) -> bool {
 
 // tone_heard: rms / frequency of the last 200 ms B heard from the peer.
 tone_heard :: proc(s: ^Side) -> (n: int, rms, freq: f64) {
-	sync.mutex_lock(&s.mu)
-	defer sync.mutex_unlock(&s.mu)
+	locks.lock(&s.mu)
+	defer locks.unlock(&s.mu)
 	n = len(s.heard)
 	if n < 9600 do return
 	w := s.heard[n - 9600:]
@@ -174,9 +174,9 @@ live_voice_guild_leave_rejoin :: proc(t: ^testing.T) {
 	testing.expect(t, ea.members <= 1, "B removed from A's group")
 
 	// 3. B rejoins: new group
-	sync.mutex_lock(&b.mu)
+	locks.lock(&b.mu)
 	clear(&b.heard)
-	sync.mutex_unlock(&b.mu)
+	locks.unlock(&b.mu)
 	dc.voice_join(b.client, TGUILD, TVOICE)
 	start = time.tick_now()
 	for time.tick_since(start) < 15 * time.Second {

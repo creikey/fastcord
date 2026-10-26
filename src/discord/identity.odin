@@ -1,9 +1,9 @@
 package discord
 
+import "fc:locks"
 import "core:crypto"
 import "core:encoding/base64"
 import "core:strings"
-import "core:sync"
 
 // What the official desktop client reports about itself. Defaults are the
 // captured Discord 0.0.419 / Electron 42.11.15 / macOS 27 arm64 build.
@@ -80,7 +80,7 @@ App_State :: enum u8 {
 }
 
 Identity :: struct {
-	mu:                     sync.Mutex,
+	mu:                     locks.Mutex,
 	platform:               Platform_Info,
 	// The main bundle's client_launch_id (super properties, op 41).
 	client_launch_id:       string,
@@ -111,8 +111,8 @@ identity_init :: proc(id: ^Identity, platform: Platform_Info, allocator := conte
 
 // identity_touch_heartbeat renews / creates the heartbeat session when the app is active.
 identity_touch_heartbeat :: proc(id: ^Identity, now: i64) -> (created: bool) {
-	sync.mutex_lock(&id.mu)
-	defer sync.mutex_unlock(&id.mu)
+	locks.lock(&id.mu)
+	defer locks.unlock(&id.mu)
 	return touch_heartbeat_locked(id, now)
 }
 
@@ -162,8 +162,8 @@ write_base_properties :: proc(w: ^Json, p: Platform_Info, launch_id: string) {
 
 // super_properties_json is the decoded x-super-properties header.
 super_properties_json :: proc(id: ^Identity, now: i64, allocator := context.temp_allocator) -> string {
-	sync.mutex_lock(&id.mu)
-	defer sync.mutex_unlock(&id.mu)
+	locks.lock(&id.mu)
+	defer locks.unlock(&id.mu)
 	touch_heartbeat_locked(id, now)
 	hb := current_heartbeat_locked(id, now)
 	if !id.hb_key_order_fixed {
@@ -207,14 +207,14 @@ context_b64 :: proc(json_text: string, allocator := context.temp_allocator) -> s
 }
 
 identity_set_app_state :: proc(id: ^Identity, s: App_State) {
-	sync.mutex_lock(&id.mu)
+	locks.lock(&id.mu)
 	id.app_state = s
-	sync.mutex_unlock(&id.mu)
+	locks.unlock(&id.mu)
 }
 
 identity_heartbeat_snapshot :: proc(id: ^Identity, allocator := context.temp_allocator) -> Heartbeat_Session {
-	sync.mutex_lock(&id.mu)
-	defer sync.mutex_unlock(&id.mu)
+	locks.lock(&id.mu)
+	defer locks.unlock(&id.mu)
 	h := id.heartbeat
 	h.uuid = strings.clone(h.uuid, allocator)
 	return h

@@ -1,10 +1,10 @@
 package app
 
+import "fc:locks"
 import "core:encoding/json"
 import "core:os"
 import "core:strconv"
 import "core:strings"
-import "core:sync"
 import "core:thread"
 import "core:time"
 import "fc:http"
@@ -20,7 +20,7 @@ UPDATE_PAGE :: "https://creikey.com/fastcord"
 UPDATE_INTERVAL :: 6 * time.Hour
 
 Update_State :: struct {
-	mu:        sync.Mutex,
+	mu:        locks.Mutex,
 	latest:    string, // newest release tag seen, owned
 	available: bool,
 	dismissed: bool,
@@ -46,11 +46,11 @@ update_start :: proc() {
 update_loop :: proc() {
 	for {
 		if tag, ok := fetch_latest_tag(UPDATE_REPO); ok {
-			sync.mutex_lock(&upd.mu)
+			locks.lock(&upd.mu)
 			delete(upd.latest)
 			upd.latest = tag
 			upd.available = version_newer(tag, FASTCORD_VERSION)
-			sync.mutex_unlock(&upd.mu)
+			locks.unlock(&upd.mu)
 			if upd.available do platform.request_frame()
 		}
 		time.sleep(UPDATE_INTERVAL)
@@ -103,10 +103,10 @@ version_newer :: proc(a, b: string) -> bool {
 
 // Small "Update" pill in the title bar's right corner; opens the download page.
 update_button :: proc() {
-	sync.mutex_lock(&upd.mu)
+	locks.lock(&upd.mu)
 	show := upd.available && !upd.dismissed
 	latest := strings.clone(upd.latest, context.temp_allocator)
-	sync.mutex_unlock(&upd.mu)
+	locks.unlock(&upd.mu)
 	if !show do return
 	ui.animate(&upd.t, 1, 20)
 	b := row("update", {.Clickable, .Draw_Background, .Hot_Animation})

@@ -1,11 +1,11 @@
 package http
 
+import "fc:locks"
 import "core:crypto"
 import "core:crypto/legacy/sha1"
 import "core:encoding/base64"
 import "core:mem"
 import "core:strings"
-import "core:sync"
 import "core:unicode/utf8"
 import "fc:netio"
 
@@ -54,7 +54,7 @@ Ws_Conn :: struct {
 	r:              Reader,
 	allocator:      mem.Allocator,
 	max_message:    int,
-	wmu:            sync.Mutex,
+	wmu:            locks.Mutex,
 	sent_close:     bool, // under wmu
 	recv_close:     bool,
 	close_code:     int, // peer's close code (WS_NO_STATUS if none)
@@ -230,8 +230,8 @@ ws_send :: proc(c: ^Ws_Conn, type: Ws_Message_Type, payload: []byte) -> Error {
 
 // ws_send_fragmented splits the message into frames of at most fragment_size (0 = one frame).
 ws_send_fragmented :: proc(c: ^Ws_Conn, type: Ws_Message_Type, payload: []byte, fragment_size: int) -> Error {
-	sync.mutex_lock(&c.wmu)
-	defer sync.mutex_unlock(&c.wmu)
+	locks.lock(&c.wmu)
+	defer locks.unlock(&c.wmu)
 	if c.sent_close do return .Closed
 	op := Ws_Opcode.Text if type == .Text else .Binary
 	if fragment_size <= 0 || len(payload) <= fragment_size {
@@ -249,8 +249,8 @@ ws_send_fragmented :: proc(c: ^Ws_Conn, type: Ws_Message_Type, payload: []byte, 
 
 ws_ping :: proc(c: ^Ws_Conn, payload: []byte = nil) -> Error {
 	if len(payload) > 125 do return .Bad_Request
-	sync.mutex_lock(&c.wmu)
-	defer sync.mutex_unlock(&c.wmu)
+	locks.lock(&c.wmu)
+	defer locks.unlock(&c.wmu)
 	if c.sent_close do return .Closed
 	return ws_write_frame_locked(c, true, .Ping, payload)
 }
@@ -258,8 +258,8 @@ ws_ping :: proc(c: ^Ws_Conn, payload: []byte = nil) -> Error {
 // ws_close starts (or answers) the close handshake. Keep calling ws_recv
 // until it returns .Closed, then ws_close_stream.
 ws_close :: proc(c: ^Ws_Conn, code := WS_NORMAL, reason := "") -> Error {
-	sync.mutex_lock(&c.wmu)
-	defer sync.mutex_unlock(&c.wmu)
+	locks.lock(&c.wmu)
+	defer locks.unlock(&c.wmu)
 	return ws_close_locked(c, code, reason)
 }
 
@@ -339,9 +339,9 @@ ws_recv :: proc(c: ^Ws_Conn, msg: ^[dynamic]byte) -> (type: Ws_Message_Type, err
 			read_exact(&c.r, p) or_return
 			#partial switch op {
 			case .Ping:
-				sync.mutex_lock(&c.wmu)
+				locks.lock(&c.wmu)
 				if !c.sent_close do ws_write_frame_locked(c, true, .Pong, p)
-				sync.mutex_unlock(&c.wmu)
+				locks.unlock(&c.wmu)
 			case .Pong:
 				clear(&c.last_pong)
 				append(&c.last_pong, ..p)
@@ -359,9 +359,9 @@ ws_recv :: proc(c: ^Ws_Conn, msg: ^[dynamic]byte) -> (type: Ws_Message_Type, err
 				c.recv_close = true
 				c.close_code = code
 				if len(reason) > 0 do c.close_reason = strings.clone(reason, c.allocator)
-				sync.mutex_lock(&c.wmu)
+				locks.lock(&c.wmu)
 				ws_close_locked(c, code if code != WS_NO_STATUS else WS_NO_STATUS, "")
-				sync.mutex_unlock(&c.wmu)
+				locks.unlock(&c.wmu)
 				return type, .Closed
 			case:
 				return type, ws_fail(c, WS_PROTOCOL_ERROR, .Protocol)
@@ -401,8 +401,8 @@ valid_close_code :: proc(code: int) -> bool {
 
 @(private)
 ws_fail :: proc(c: ^Ws_Conn, code: int, err: Error) -> Error {
-	sync.mutex_lock(&c.wmu)
+	locks.lock(&c.wmu)
 	ws_close_locked(c, code, "")
-	sync.mutex_unlock(&c.wmu)
+	locks.unlock(&c.wmu)
 	return err
 }

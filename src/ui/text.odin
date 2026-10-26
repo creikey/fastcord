@@ -37,6 +37,7 @@ Span :: struct {
 	bg:        Color, // inline code / mention highlight
 	bg_radius: f32,
 	underline: bool,
+	strike:    bool,
 	object:    Vec2,
 	id:        u64, // app-defined (link index, mention id) for hit testing
 	user:      rawptr,
@@ -53,6 +54,9 @@ layout_text :: proc(font: Font, size: f32, text: string, wrap_width: f32, line_h
 	tl.font = font
 	tl.size = size
 	tl.run = s.backend.shape(font, size, text)
+	s.stats.text_layouts += 1
+	s.stats.shape_calls += 1
+	s.stats.glyphs += len(tl.run.glyphs)
 	tl.line_h = line_height > 0 ? line_height : tl.run.line_h
 	tl.baseline = (tl.line_h - (tl.run.ascent + tl.run.descent)) / 2 + tl.run.ascent
 	wrap_layout(tl, wrap_width)
@@ -78,6 +82,7 @@ layout_rich :: proc(spans: []Span, wrap_width: f32, line_height: f32 = 0) -> ^Te
 			continue
 		}
 		run := s.backend.shape(sp.font, sp.size, sp.text)
+		s.stats.shape_calls += 1
 		tl.span_runs[si] = run
 		ascent = max(ascent, run.ascent)
 		descent = max(descent, run.descent)
@@ -93,6 +98,8 @@ layout_rich :: proc(spans: []Span, wrap_width: f32, line_height: f32 = 0) -> ^Te
 		tl.size = spans[0].size
 	}
 	tl.run = Shaped_Run{glyphs = glyphs[:], width = x, ascent = ascent, descent = descent, line_h = lh}
+	s.stats.text_layouts += 1
+	s.stats.glyphs += len(glyphs)
 	tl.line_h = line_height > 0 ? line_height : lh
 	tl.baseline = (tl.line_h - (ascent + descent)) / 2 + ascent
 	wrap_layout(tl, wrap_width)

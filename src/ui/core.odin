@@ -13,6 +13,7 @@ import "core:hash"
 import "core:math"
 import "core:mem"
 import "core:strings"
+import "fc:prof"
 
 Vec2 :: [2]f32
 Color :: [4]f32
@@ -273,7 +274,20 @@ Backend :: struct {
 
 STACK_MAX :: 64
 
+// Work done by the last pass (begin to end). Deterministic for a given input, so benchmarks can
+// guard against regressions with them where timings are too noisy.
+Stats :: struct {
+	boxes:        int,
+	keyed_boxes:  int,
+	text_layouts: int, // layout_text / layout_rich calls
+	shape_calls:  int, // backend.shape calls
+	glyphs:       int, // glyphs laid out
+	draw_cmds:    int,
+	arena_bytes:  int, // frame arena in use
+}
+
 State :: struct {
+	stats:            Stats,
 	backend:          Backend,
 	frame:            u64,
 	dt:               f32,
@@ -373,16 +387,21 @@ begin :: proc(window: Vec2, dt: f32, time: f64, events: []Input_Event) {
 	}
 	// The hot box is whatever was topmost under the mouse in last frame's
 	// layout; last frame's boxes (and their arena) are still alive here.
-	s.hot = hit_test_prev(s.mouse)
-	s.overlay_under_mouse = overlay_at(s.mouse)
+	{
+		prof.zone("ui.hit_test")
+		s.hot = hit_test_prev(s.mouse)
+		s.overlay_under_mouse = overlay_at(s.mouse)
+	}
 
+	s.stats = {}
 	s.frame += 1
 	s.dt = dt
 	s.time = time
 	s.window = window
 	// Two arenas: anonymous boxes from frame N-1 must survive into frame N's hit test.
 	s.frame_alloc = mem.dynamic_arena_allocator(&s.arenas[s.frame % 2])
-	mem.dynamic_arena_free_all(&s.arenas[s.frame % 2])
+	// Reset keeps the blocks for reuse; free_all would hand them back to the OS every pass.
+	mem.dynamic_arena_reset(&s.arenas[s.frame % 2])
 	clear(&s.parents)
 	clear(&s.style_stack)
 	clear(&s.seed_stack)
@@ -409,11 +428,27 @@ default_style :: proc() -> Style {
 // End the frame: lay out, run selection, emit draw commands, prune stale boxes.
 end :: proc() -> []Draw_Cmd {
 	s := ui
-	layout(s.root)
-	update_selection()
-	emit_draw(s.root, false)
-	emit_overlays(s.root)
-	prune()
+	{
+		prof.zone("ui.layout")
+		layout(s.root)
+	}
+	{
+		prof.zone("ui.selection")
+		update_selection()
+	}
+	{
+		prof.zone("ui.emit_draw")
+		emit_draw(s.root, false)
+		emit_overlays(s.root)
+	}
+	{
+		prof.zone("ui.prune")
+		prune()
+	}
+	s.stats.boxes = len(s.order)
+	s.stats.draw_cmds = len(s.draw)
+	a := &s.arenas[s.frame % 2]
+	if a.current_block != nil do s.stats.arena_bytes = (len(a.used_blocks) + 1) * a.block_size - a.bytes_left
 	// Unhandled mouse-up clears active.
 	for e in s.events {
 		if e.kind == .Mouse_Up && e.button == .Left do s.active = 0
@@ -492,6 +527,7 @@ box_make_key :: proc(k: Key, flags: Box_Flags) -> ^Box {
 		b.hash_next = s.table[slot]
 		s.table[slot] = b
 	}
+	s.stats.keyed_boxes += 1
 	b.first, b.last, b.next, b.prev, b.parent = nil, nil, nil, nil, nil
 	b.child_count = 0
 	b.last_frame_touched = s.frame
@@ -1061,6 +1097,67 @@ emit_overlays :: proc(b: ^Box) {
 			emit_overlays(c)
 		}
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// list windows: declare only the rows of a long list that can be on screen
+
+List_Window :: struct {
+	first, last: int, // declare rows [first, last)
+	n:           int,
+	pitch:       f32,
+}
+
+// For n rows `pitch` apart (gaps included) in the scrolling box `scroll`: declares a spacer standing
+// in for the rows above the window and returns the rows that may be visible this frame, at the
+// current scroll offset or anywhere it is animating to, plus `margin` rows each side. Declare those
+// rows, then call list_window_end. Call it where the first row would go, after ui.signal(scroll)
+// so this frame's wheel input is counted, in a parent with no child_gap.
+list_window :: proc(scroll: ^Box, pitch: f32, n: int, margin := 2, id := "list_window") -> List_Window {
+	w := List_Window{n = n, pitch = pitch}
+	top_box := box_make_key(key_from_string(id, current_seed()), {})
+	// Where the rows started in the scroll content, from last frame's layout. A new box has no rect
+	// yet: assume the rows start at the top, which can only make the window larger.
+	top: f32
+	if top_box.first_frame_touched != ui.frame do top = top_box.rect.y0 - scroll.rect.y0 + scroll.view_off.y
+	h := scroll.rect.y1 - scroll.rect.y0
+	if h <= 0 do h = ui.window.y
+	y0 := min(scroll.view_off.y, scroll.view_off_target.y) - top
+	y1 := max(scroll.view_off.y, scroll.view_off_target.y) + h - top
+	if pitch <= 0 {
+		w.last = n
+	} else {
+		w.first = clamp(int(math.floor(y0 / pitch)) - margin, 0, n)
+		w.last = clamp(int(math.ceil(y1 / pitch)) + margin, w.first, n)
+	}
+	top_box.semantic_size = {.X = px(0), .Y = px(f32(w.first) * pitch)}
+	return w
+}
+
+list_window_end :: proc(w: List_Window) {
+	b := box_make_anon({})
+	b.semantic_size = {.X = px(0), .Y = px(f32(w.n - w.last) * w.pitch)}
+}
+
+// Was b out of view last frame (outside a clipping ancestor by more than margin), with room for the
+// scrolling still pending? A caller may then declare b at its size but without its contents: it
+// stays keyed and laid out, and the frame it can come into view it is declared in full again.
+// Boxes new this frame, or under a new clipping ancestor, are never offscreen.
+offscreen :: proc(b: ^Box, margin: f32 = 64) -> bool {
+	if b.first_frame_touched == ui.frame do return false
+	r := b.rect
+	if r.x1 <= r.x0 && r.y1 <= r.y0 do return false
+	m := Vec2{margin, margin}
+	for p := b.parent; p != nil; p = p.parent {
+		if p.first_frame_touched == ui.frame && .Clip in p.flags do return false
+		if p.flags & {.Scroll_X, .Scroll_Y} != {} do m += {abs(p.view_off_target.x - p.view_off.x), abs(p.view_off_target.y - p.view_off.y)}
+	}
+	for p := b.parent; p != nil; p = p.parent {
+		if .Clip not_in p.flags do continue
+		c := p.rect
+		if r.y1 < c.y0 - m.y || r.y0 > c.y1 + m.y || r.x1 < c.x0 - m.x || r.x0 > c.x1 + m.x do return true
+	}
+	return false
 }
 
 // Has any box requested another frame (animation, smooth scroll)?

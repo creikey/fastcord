@@ -2,6 +2,7 @@ package voice
 
 import "core:crypto/aes"
 import "core:crypto/chacha20poly1305"
+import "fc:tls"
 
 // RTP / RTCP framing and Discord's transport encryption ("rtpsize" modes).
 //
@@ -76,7 +77,7 @@ transport_init :: proc(tc: ^Transport_Crypto, mode: Mode, key: []byte) {
 	case .Aes256_Gcm_Rtpsize:
 		aes.init_gcm(&tc.gcm, tc.key[:])
 	case .Xchacha20_Poly1305_Rtpsize:
-		chacha20poly1305.init_xchacha(&tc.cha, tc.key[:])
+		chacha20poly1305.init_xchacha(&tc.cha, tc.key[:], tls.CHACHA20_IMPL)
 	case .None:
 		return
 	}

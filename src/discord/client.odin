@@ -1,11 +1,11 @@
 package discord
 
+import "fc:locks"
 import "base:runtime"
 import "core:mem/virtual"
 import "core:os"
 import "core:strconv"
 import "core:strings"
-import "core:sync"
 import "core:thread"
 import "fc:http"
 
@@ -107,26 +107,26 @@ Client :: struct {
 	launch_ms:        i64,
 	ready_ms:         i64,
 	// event queue
-	ev_mu:            sync.Mutex,
+	ev_mu:            locks.Mutex,
 	events:           [dynamic]Event,
 	// jobs
-	job_mu:           sync.Mutex,
-	job_cond:         sync.Cond,
+	job_mu:           locks.Mutex,
+	job_cond:         locks.Cond,
 	jobs:             [dynamic]^Job,
 	workers:          [dynamic]^thread.Thread,
 	quit:             bool,
 	// route (referer) — written by the UI thread, read by workers
-	route_mu:         sync.Mutex,
+	route_mu:         locks.Mutex,
 	route_guild:      Snowflake,
 	route_channel:    Snowflake,
 	// ack token chain (POST .../ack returns the next token)
-	ack_mu:           sync.Mutex,
+	ack_mu:           locks.Mutex,
 	ack_token:        string,
-	qos_mu:           sync.Mutex,
+	qos_mu:           locks.Mutex,
 	ready_qos_token:  string,
 	// UI-thread state
 	results:          [dynamic]Rest_Result,
-	media_mu:         sync.Mutex,
+	media_mu:         locks.Mutex,
 	media_results:    [dynamic]Media_Result,
 	subs:             Subscriptions,
 	typing_local:     Typing_Local,
@@ -140,11 +140,11 @@ Client :: struct {
 	quest_app_ids:    []Snowflake,
 	start_route_guild:   Snowflake, // route the window opened on (startup table selection)
 	start_route_channel: Snowflake,
-	etag_mu:          sync.Mutex,
+	etag_mu:          locks.Mutex,
 	etags:            map[string]string, // persisted If-None-Match memory
 	// CORS preflights sent ahead of their request (url -> 1 pending, 2 done)
-	preflight_mu:     sync.Mutex,
-	preflight_cond:   sync.Cond,
+	preflight_mu:     locks.Mutex,
+	preflight_cond:   locks.Cond,
 	preflights:       map[string]int,
 	ready_subscribed_guild: Snowflake, // op 37 already sent by the gateway on READY
 	pending_guild_open: Snowflake,
@@ -232,15 +232,15 @@ client_start :: proc(c: ^Client) {
 
 client_destroy :: proc(c: ^Client) {
 	if c.gw != nil do gateway_stop(c.gw)
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	c.quit = true
-	sync.cond_broadcast(&c.job_cond)
-	sync.mutex_unlock(&c.job_mu)
+	locks.cond_broadcast(&c.job_cond)
+	locks.unlock(&c.job_mu)
 	for th in c.workers {
-		thread.join(th)
-		thread.destroy(th)
+		locks.join(th)
 	}
 	delete(c.workers)
+	expr_pool_stop(c)
 	client_save_state(c)
 	for j in c.jobs do job_free(j)
 	delete(c.jobs)
@@ -285,9 +285,9 @@ client_destroy :: proc(c: ^Client) {
 // ---- events ----
 
 client_push_event :: proc(c: ^Client, ev: Event) {
-	sync.mutex_lock(&c.ev_mu)
+	locks.lock(&c.ev_mu)
 	append(&c.events, ev)
-	sync.mutex_unlock(&c.ev_mu)
+	locks.unlock(&c.ev_mu)
 	if c.cfg.wakeup != nil do c.cfg.wakeup(c.cfg.wakeup_data)
 }
 
@@ -308,10 +308,10 @@ event_free :: proc(e: ^Event) {
 // thread (each frame, or after the wakeup callback). Returns true when the
 // store changed (store.changed was bumped).
 client_poll :: proc(c: ^Client) -> bool {
-	sync.mutex_lock(&c.ev_mu)
+	locks.lock(&c.ev_mu)
 	evs := c.events
 	c.events = make([dynamic]Event, 0, max(len(evs), 8), c.allocator)
-	sync.mutex_unlock(&c.ev_mu)
+	locks.unlock(&c.ev_mu)
 	defer delete(evs)
 	changed := false
 	now := now_ms()
@@ -356,9 +356,9 @@ client_take_results :: proc(c: ^Client, allocator := context.temp_allocator) -> 
 // ---- route / focus ----
 
 client_route_referer :: proc(c: ^Client, allocator := context.temp_allocator) -> string {
-	sync.mutex_lock(&c.route_mu)
+	locks.lock(&c.route_mu)
 	g, ch := c.route_guild, c.route_channel
-	sync.mutex_unlock(&c.route_mu)
+	locks.unlock(&c.route_mu)
 	return referer_for_route(g, ch, allocator)
 }
 
@@ -427,18 +427,18 @@ client_save_state :: proc(c: ^Client) {
 	cookie_jar_save(&c.jar, state_path(c, "cookies.tsv"), now)
 	{
 		eb := strings.builder_make(context.temp_allocator)
-		sync.mutex_lock(&c.etag_mu)
+		locks.lock(&c.etag_mu)
 		for k, v in c.etags {
 			strings.write_string(&eb, k)
 			strings.write_byte(&eb, '\t')
 			strings.write_string(&eb, v)
 			strings.write_byte(&eb, '\n')
 		}
-		sync.mutex_unlock(&c.etag_mu)
+		locks.unlock(&c.etag_mu)
 		write_file_atomic(state_path(c, "etags.tsv"), transmute([]byte)strings.to_string(eb))
 	}
 	sb := strings.builder_make(context.temp_allocator)
-	sync.mutex_lock(&c.id.mu)
+	locks.lock(&c.id.mu)
 	strings.write_string(&sb, "verified\t")
 	strings.write_string(&sb, "1" if c.account_verified else "0")
 	strings.write_byte(&sb, '\n')
@@ -456,17 +456,17 @@ client_save_state :: proc(c: ^Client) {
 		strings.write_i64(&sb, c.id.heartbeat.last_used)
 		strings.write_byte(&sb, '\n')
 	}
-	sync.mutex_unlock(&c.id.mu)
+	locks.unlock(&c.id.mu)
 	write_file_atomic(state_path(c, "identity.tsv"), transmute([]byte)strings.to_string(sb))
 }
 
 // ---- READY hook (gateway thread) ----
 
 client_on_ready :: proc(c: ^Client) {
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	first := c.ready_ms == 0
 	c.ready_ms = now_ms()
-	sync.mutex_unlock(&c.job_mu)
+	locks.unlock(&c.job_mu)
 	if first && !c.cfg.disable_startup {
 		schedule_startup(c, .Ready)
 		schedule_applications_public(c, c.ready_ms)

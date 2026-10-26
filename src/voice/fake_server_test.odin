@@ -1,5 +1,6 @@
 package voice
 
+import "fc:locks"
 import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
@@ -45,7 +46,7 @@ Fake :: struct {
 	a_ratchet:    dave.Ratchet,
 	client_ep:    net.Endpoint,
 	have_client:  bool,
-	mu:           sync.Mutex,
+	mu:           locks.Mutex,
 	stop:         bool,
 	// results
 	request_line: string,
@@ -151,25 +152,25 @@ srv_next :: proc(f: ^Fake, s: ^Srv) -> (text: string, bin: []byte, is_bin: bool,
 		switch op {
 		case 8:
 			code := int(p[0]) << 8 | int(p[1]) if len(p) >= 2 else 1005
-			sync.mutex_lock(&f.mu)
+			locks.lock(&f.mu)
 			f.close_code = code
-			sync.mutex_unlock(&f.mu)
+			locks.unlock(&f.mu)
 			return
 		case 1:
 			v, err := json.parse_string(string(p), parse_integers = true, allocator = context.temp_allocator)
 			if err == nil && jint(jget(v, "op")) == 3 {
 				d := jget(v, "d")
-				sync.mutex_lock(&f.mu)
+				locks.lock(&f.mu)
 				f.heartbeats += 1
 				f.last_seq_ack = jint(jget(d, "seq_ack"))
-				sync.mutex_unlock(&f.mu)
+				locks.unlock(&f.mu)
 				srv_text(s, fmt.tprintf(`{{"op":6,"d":{{"t":%d}}}}`, jint(jget(d, "t"))))
 				continue
 			}
 			if err == nil && jint(jget(v, "op")) == 5 {
-				sync.mutex_lock(&f.mu)
+				locks.lock(&f.mu)
 				if jint(jget(jget(v, "d"), "speaking")) == 1 do f.speaking_on = true
-				sync.mutex_unlock(&f.mu)
+				locks.unlock(&f.mu)
 				continue
 			}
 			return strings.clone(string(p), context.temp_allocator), nil, false, true
@@ -181,9 +182,9 @@ srv_next :: proc(f: ^Fake, s: ^Srv) -> (text: string, bin: []byte, is_bin: bool,
 
 @(private = "file")
 fail :: proc(f: ^Fake, msg: string) {
-	sync.mutex_lock(&f.mu)
+	locks.lock(&f.mu)
 	if f.failure == "" do f.failure = msg
-	sync.mutex_unlock(&f.mu)
+	locks.unlock(&f.mu)
 }
 
 @(private = "file")
@@ -296,10 +297,10 @@ gw_thread :: proc(data: rawptr) {
 	ab := dave.sender_base_secret(g, FAKE_USER_A)
 	dave.ratchet_init(&f.b_ratchet, bb[:])
 	dave.ratchet_init(&f.a_ratchet, ab[:])
-	sync.mutex_lock(&f.mu)
+	locks.lock(&f.mu)
 	f.b_group = g
 	f.commit_ok = true
-	sync.mutex_unlock(&f.mu)
+	locks.unlock(&f.mu)
 	tb := make([]byte, 2 + len(commit), context.temp_allocator)
 	tb[1] = 1 // transition id 1
 	copy(tb[2:], commit)
@@ -312,9 +313,9 @@ gw_thread :: proc(data: rawptr) {
 	}
 	v, _ := json.parse_string(text, parse_integers = true, allocator = context.temp_allocator)
 	if jint(jget(v, "op")) == 23 {
-		sync.mutex_lock(&f.mu)
+		locks.lock(&f.mu)
 		f.ready_tid = int(jint(jget(jget(v, "d"), "transition_id")))
-		sync.mutex_unlock(&f.mu)
+		locks.unlock(&f.mu)
 	}
 	srv_text(&s, `{"op":22,"d":{"transition_id":1},"seq":5}`)
 	srv_text(&s, fmt.tprintf(`{{"op":5,"d":{{"user_id":"%d","ssrc":%d,"speaking":1}},"seq":6}}`, FAKE_USER_B, FAKE_SSRC_B))
@@ -350,26 +351,26 @@ udp_thread :: proc(data: rawptr) {
 				resp: [DISCOVERY_LEN]byte
 				build_discovery_response(resp[:], get_u32(pkt[4:]), "127.0.0.1", u16(from.port))
 				net.send_udp(f.udp, resp[:], from)
-				sync.mutex_lock(&f.mu)
+				locks.lock(&f.mu)
 				f.client_ep = from
 				f.have_client = true
 				f.discovery = true
-				sync.mutex_unlock(&f.mu)
+				locks.unlock(&f.mu)
 			} else if is_rtcp(pkt) {
 				m, ok := transport_open(&tc, pkt, 8, plain[:])
 				if ok {
 					if _, rok := parse_report(plain[:m]); rok {
-						sync.mutex_lock(&f.mu)
+						locks.lock(&f.mu)
 						f.rtcp += 1
-						sync.mutex_unlock(&f.mu)
+						locks.unlock(&f.mu)
 					}
 				}
 			} else if h, hok := parse_rtp_header(pkt); hok {
 				m, ok := transport_open(&tc, pkt, h.aad_len, plain[:])
 				good := false
-				sync.mutex_lock(&f.mu)
+				locks.lock(&f.mu)
 				bg := f.b_group
-				sync.mutex_unlock(&f.mu)
+				locks.unlock(&f.mu)
 				if ok && h.ssrc == FAKE_SSRC_A && bg != nil {
 					p, pok := dave.parse_protocol_frame(plain[h.payload_off:m])
 					if pok {
@@ -381,17 +382,17 @@ udp_thread :: proc(data: rawptr) {
 						}
 					}
 				}
-				sync.mutex_lock(&f.mu)
+				locks.lock(&f.mu)
 				if good do f.rtp_e2ee_ok += 1
 				else do f.rtp_bad += 1
-				sync.mutex_unlock(&f.mu)
+				locks.unlock(&f.mu)
 			}
 		}
 		// B talks: one DAVE + transport encrypted Opus frame every 20 ms
-		sync.mutex_lock(&f.mu)
+		locks.lock(&f.mu)
 		have := f.have_client && f.b_group != nil && f.ready_tid == 1
 		ep := f.client_ep
-		sync.mutex_unlock(&f.mu)
+		locks.unlock(&f.mu)
 		if have && time.tick_diff(next_send, time.tick_now()) >= 0 {
 			next_send = time.tick_add(next_send, 20 * time.Millisecond)
 			opus := []byte{0xFC, 0x01, 0x02, 0x03, 0x04}

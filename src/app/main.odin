@@ -4,9 +4,13 @@ import "core:fmt"
 import "core:os"
 import "core:strconv"
 import "core:strings"
+import "core:time"
+import "core:unicode/utf8"
 import dc "fc:discord"
 import "fc:gfx"
+import "fc:locks"
 import "fc:platform"
+import "fc:prof"
 import "fc:ui"
 
 UI_Rect :: ui.Rect
@@ -20,6 +24,9 @@ App :: struct {
 	frame:           u64,
 	view:            View_State,
 	client:          ^dc.Client, // nil when offline (fixture / tests)
+	needs_login:     bool, // no token, or Discord rejected it: show the intro (view_login.odin)
+	connect_pending: bool, // connect() waits for the previous client's teardown (teardown.odin)
+	login_error:     string,
 	offline_store:   dc.Store,
 	chats:           map[dc.Snowflake]Chat_State,
 	chat_hover:      dc.Snowflake,
@@ -38,6 +45,7 @@ App :: struct {
 	stats:           bool,
 	focused:         bool, // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
 	focused_editor:  ^UI_Editor, // the text field that took keyboard input last frame (tests)
+	expect_drawn:    string, // script check: text the next frame must draw (tests)
 	wake_at:         f64, // earliest timed repaint requested this frame (caret blink, timers); 0 = none
 	now_override_ms: i64, // -now: wall clock for timestamp formatting; 0 = real time
 	focused_field:   UI_Rect, // rect of the field box behind focused_editor (tests)
@@ -134,6 +142,7 @@ parse_options :: proc() -> Options {
 			o.sweep_only = a[len("-sweep-only:"):]
 		case strings.has_prefix(a, "-sweep-out:"):
 			o.sweep_out = a[len("-sweep-out:"):]
+		case bench_parse_flag(a):
 		}
 	}
 	return o
@@ -141,7 +150,7 @@ parse_options :: proc() -> Options {
 
 main :: proc() {
 	opt := parse_options()
-	headless := opt.shot != ""
+	headless := opt.shot != "" || bench.on
 	if sw, sh := settings_load(headless); sw >= 400 && sh >= 300 {
 		opt.width = sw
 		opt.height = sh
@@ -156,6 +165,8 @@ main :: proc() {
 		os.exit(1)
 	}
 	app.focused = true
+	locks.set_ui_thread()
+	watchdog_start()
 	voice_set_headless(headless)
 	app.stats = os.get_env("FASTCORD_STATS", context.temp_allocator) != ""
 	fonts_load()
@@ -181,6 +192,7 @@ main :: proc() {
 	} else if !headless || opt.live > 0 {
 		connect()
 	}
+	if app.client == nil && opt.fixture == "" do app.needs_login = true
 
 	if headless && opt.sweep != "" do os.exit(sweep_run(opt))
 	if headless do update_start()
@@ -198,8 +210,11 @@ main :: proc() {
 			}
 		}
 		run_script(opt.script)
-		pixels, w, h := gfx.read_pixels()
-		gfx.write_png(opt.shot, pixels, w, h)
+		bench_finish()
+		if opt.shot != "" {
+			pixels, w, h := gfx.read_pixels()
+			gfx.write_png(opt.shot, pixels, w, h)
+		}
 		voice_leave_channel()
 		voice_shutdown()
 		if app.client != nil {
@@ -208,13 +223,17 @@ main :: proc() {
 				dc.client_poll(app.client)
 				platform.wait_events(0.05)
 			}
-			dc.client_destroy(app.client)
+			client_release(app.client)
+			app.client = nil
 		}
+		teardown_wait()
 		return
 	}
 	if headless {
 		platform.set_time_override(0)
 		run_script(opt.script)
+		bench_finish()
+		if opt.shot == "" do return
 		// Settle animations, then capture.
 		for i in 0 ..< 120 {
 			platform.set_time_override(f64(i + 1) / 60)
@@ -238,29 +257,41 @@ main :: proc() {
 		platform.wait_events(timeout)
 		frame()
 	}
+	if app.stats && app.focused_editor != nil do fmt.eprintfln("[input] %q", ui.editor_text(app.focused_editor))
 	settings_save()
 }
 
 frame :: proc() {
 	defer free_all(context.temp_allocator)
+	watchdog_frame_begin()
+	defer watchdog_frame_end()
+	bench_frame_begin()
+	defer bench_frame_end()
 	now := platform.time_now()
 	dt := f32(now - app.last_time)
-	if app.last_time == 0 || dt > 0.1 do dt = 1.0 / 60
+	if app.last_time == 0 || dt <= 0 || dt > 0.1 do dt = 1.0 / 60
 	app.last_time = now
 	app.frame += 1
 	app.wake_at = 0
 	app.focused_editor = nil
 
+	t_poll := platform.time_now()
+	if app.connect_pending && !teardown_busy() do connect()
 	if app.client != nil {
 		dc.client_poll(app.client)
 		handle_results()
 		voice_frame()
+		login_check_auth()
 	}
+	t_media := platform.time_now()
+	watchdog_phase(.Media)
 	sounds_frame()
 	settings_frame()
 	images_receive()
 	features_receive()
 	notify_tick()
+	t_ui := platform.time_now()
+	watchdog_phase(.UI)
 	for e in platform.events() {
 		#partial switch e.kind {
 		case .File_Drop:
@@ -273,29 +304,57 @@ frame :: proc() {
 	evs := map_events(platform.events())
 	for e in evs do app.ui_mods = e.mods
 	for e in evs do if e.kind == .Key_Down || e.kind == .Text do app.caret_reset_t = now
+	bench_pass_begin()
 	ui.begin(platform.window_size(), dt, now, evs)
 	build_ui()
-	cmds := ui.end()
+	_ = ui.end()
+	bench_pass_end()
 	// Cmd+C with a message selection (a focused field with its own selection copied first).
 	// Runs after end(): the selection's boxes are collected during layout.
 	for &e in app.ui.events {
-		if e.consumed || e.kind != .Key_Down || e.key != .C || .Cmd not_in e.mods do continue
+		if e.consumed || e.kind != .Key_Down || e.key != .C || PRIMARY_MOD not_in e.mods do continue
 		if ui.has_selection() {
 			clipboard_set(ui.selection_text())
 			e.consumed = true
 		}
 	}
+	// The UI runs twice and only this second pass is drawn. A widget handles input after it has
+	// declared what it shows (a text field's text, a list's scroll), so the first pass draws the state
+	// from before the input. This pass gets no input and no time step: it draws the new state now
+	// instead of on the next event.
+	app.focused_editor = nil
+	bench_pass_begin()
+	ui.begin(platform.window_size(), 0, now, nil)
+	build_ui()
+	cmds := ui.end()
+	bench_pass_end()
+	if app.expect_drawn != "" do check_expect_drawn(cmds)
 
+	t_render := platform.time_now()
+	watchdog_phase(.Render)
 	if !app.no_render {
+		bench_render_begin()
 		gfx.begin_frame(gfx.Color(tok(&app.theme, "--background-base-lowest")))
-		render(cmds)
-		gfx.end_frame()
+		{
+			prof.zone("app.render")
+			render(cmds)
+		}
+		{
+			prof.zone("gfx.end_frame")
+			gfx.end_frame()
+		}
+		bench_render_end()
 	}
 	if sweep_hook != nil do sweep_hook() // while this frame's boxes and temp strings are alive
+	t_end := platform.time_now()
 
 	platform.set_cursor(map_cursor(ui.cursor()))
 	if ui.needs_frame() do platform.request_frame()
 	if app.stats {
+		if t_end - t_poll > 0.025 {
+			ms :: proc(a, b: f64) -> f64 {return (b - a) * 1000}
+			fmt.eprintfln("[slow] %.1f ms: poll %.1f, media %.1f, ui %.1f, render %.1f", ms(t_poll, t_end), ms(t_poll, t_media), ms(t_media, t_ui), ms(t_ui, t_render), ms(t_render, t_end))
+		}
 		@(static) last_report: f64
 		@(static) last_frame: u64
 		if now - last_report > 2 {
@@ -345,6 +404,19 @@ unquote :: proc(s: string) -> string {
 	return out
 }
 
+check_expect_drawn :: proc(cmds: []ui.Draw_Cmd) {
+	want := app.expect_drawn
+	app.expect_drawn = ""
+	for c in cmds {
+		if c.kind == .Text && c.box != nil && c.box.text == want {
+			delete(want)
+			return
+		}
+	}
+	fmt.eprintfln("expect_drawn failed: the frame did not draw %q", want)
+	os.exit(1)
+}
+
 // Scripted input for headless e2e runs: one command per line, e.g.
 //   click 120 300 / move 10 10 / type hello / key enter cmd / scroll 0 -100 / wait 30
 run_script :: proc(path: string) {
@@ -354,17 +426,213 @@ run_script :: proc(path: string) {
 		fmt.eprintln("cannot read script", path)
 		os.exit(1)
 	}
-	script_exec(strings.split_lines(string(data), context.allocator), path)
+	t := 0.0
+	for line in strings.split_lines(string(data), context.allocator) {
+		// Not the temp allocator: frames free it, and `repeat` reuses f across frames.
+		f := strings.fields(line, context.allocator)
+		defer delete(f)
+		if len(f) == 0 || strings.has_prefix(f[0], "#") do continue
+		script_command(path, f, &t)
+	}
 }
 
-script_t: f64 // headless clock (seconds), advanced 1/60 per scripted frame
+// Runs one script command; most inject input and run one frame.
+script_command :: proc(path: string, f: []string, t: ^f64) {
+	num :: proc(s: string) -> f32 {v, _ := strconv.parse_f32(s); return v}
+	switch f[0] {
+	case "repeat":
+		// repeat <n> <command...>
+		for _ in 0 ..< int(num(f[1])) do script_command(path, f[2:], t)
+		return
+	case "sweep":
+		// sweep x0 y0 x1 y1 n: the mouse moves from one point to the other, one step per frame
+		p0, p1 := [2]f32{num(f[1]), num(f[2])}, [2]f32{num(f[3]), num(f[4])}
+		n := max(int(num(f[5])), 1)
+		for i in 0 ..< n {
+			platform.inject_event({kind = .Mouse_Move, pos = p0 + (p1 - p0) * f32(i + 1) / f32(n)})
+			script_frame(t)
+		}
+		return
+	case "bench":
+		// bench <name>: frames from here to the next `bench`, `bench_off` or the end are measured (bench.odin)
+		bench_section(f[1])
+		return
+	case "bench_off":
+		bench_pause()
+		return
+	case "move":
+		platform.inject_event({kind = .Mouse_Move, pos = {num(f[1]), num(f[2])}})
+	case "click", "dclick", "tclick":
+		n := f[0] == "click" ? 1 : (f[0] == "dclick" ? 2 : 3)
+		p := [2]f32{num(f[1]), num(f[2])}
+		platform.inject_event({kind = .Mouse_Move, pos = p})
+		platform.inject_event({kind = .Mouse_Down, pos = p, button = .Left, click_count = n})
+		platform.inject_event({kind = .Mouse_Up, pos = p, button = .Left, click_count = n})
+	case "go_home":
+		go_home()
+	case "open":
+		// open <channel id> | open unread_dm (the newest DM on the rail; works on live accounts too)
+		id, _ := strconv.parse_u64(f[1])
+		if f[1] == "unread_dm" {
+			dms := unread_dms()
+			if len(dms) > 0 do id = u64(dms[0])
+		}
+		if ch := dc.channel_get(store(), dc.Snowflake(id)); ch != nil {
+			select_channel(ch.guild_id, ch.id)
+		} else {
+			fmt.eprintfln("%s: open: no channel %s", path, f[1])
+			os.exit(1)
+		}
+	case "click_text", "rclick_text", "move_text":
+		// clicks (right-clicks, hovers) the center of the last drawn box whose text is exactly the label
+		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+		b := find_text_box(want)
+		if b == nil do script_fail(path, "%s: no box with text %q", f[0], want)
+		p := [2]f32{(b.rect.x0 + b.rect.x1) / 2, (b.rect.y0 + b.rect.y1) / 2}
+		platform.inject_event({kind = .Mouse_Move, pos = p})
+		if f[0] != "move_text" {
+			btn: platform.Mouse_Button = f[0] == "click_text" ? .Left : .Right
+			platform.inject_event({kind = .Mouse_Down, pos = p, button = btn, click_count = 1})
+			platform.inject_event({kind = .Mouse_Up, pos = p, button = btn, click_count = 1})
+		}
+	case "expect_visible", "expect_not_visible":
+		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+		vis := false
+		for b in app.ui.order {
+			if b.text == want && .Draw_Text in b.flags && box_visible(b) {
+				vis = true
+				break
+			}
+		}
+		if vis != (f[0] == "expect_visible") do script_fail(path, "%s failed: %q", f[0], want)
+		return
+	case "expect_in_window":
+		// the box (by label or id) lies entirely inside the window, unclipped
+		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+		b := find_text_box(want)
+		if b == nil do script_fail(path, "expect_in_window: no box %q", want)
+		r, v := b.rect, ui.visible_rect(b)
+		w := app.ui.window
+		if r.x0 < 0 || r.y0 < 0 || r.x1 > w.x || r.y1 > w.y || v != r {
+			script_fail(path, "expect_in_window %q failed: rect %v visible %v window %v", want, r, v, w)
+		}
+		return
+	case "expect_focus_input", "expect_no_focus_input":
+		has := app.focused_editor != nil
+		if has != (f[0] == "expect_focus_input") do script_fail(path, "%s failed", f[0])
+		return
+	case "resize":
+		platform.set_headless_size(int(num(f[1])), int(num(f[2])))
+	case "theme":
+		if th, ok := theme_by_name(f[1]); ok do theme_load(&app.theme, th)
+	case "expect_theme":
+		if th, ok := theme_by_name(f[1]); !ok || th != app.theme.name do script_fail(path, "expect_theme %s failed: got %v", f[1], app.theme.name)
+		return
+	case "rclick":
+		p := [2]f32{num(f[1]), num(f[2])}
+		platform.inject_event({kind = .Mouse_Move, pos = p})
+		platform.inject_event({kind = .Mouse_Down, pos = p, button = .Right, click_count = 1})
+		platform.inject_event({kind = .Mouse_Up, pos = p, button = .Right, click_count = 1})
+	case "down":
+		platform.inject_event({kind = .Mouse_Down, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
+	case "up":
+		platform.inject_event({kind = .Mouse_Up, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
+	case "type":
+		platform.inject_event({kind = .Text, text = strings.join(f[1:], " ", context.temp_allocator)})
+	case "burst":
+		// Every character as a keystroke (key down, text, key up), all within one frame, like
+		// typing faster than the frame rate.
+		for r in unquote(strings.join(f[1:], " ", context.temp_allocator)) {
+			k := key_by_name(utf8.runes_to_string({r}, context.temp_allocator))
+			if r == ' ' do k = .Space
+			buf, n := utf8.encode_rune(r)
+			platform.inject_event({kind = .Key_Down, key = k})
+			platform.inject_event({kind = .Text, text = string(buf[:n])})
+			platform.inject_event({kind = .Key_Up, key = k})
+		}
+	case "key":
+		// key <name> [shift] [cmd] [alt] [ctrl]
+		ev := platform.Event{kind = .Key_Down, key = key_by_name(f[1])}
+		for m in f[2:] {
+			switch m {
+			case "shift":
+				ev.mods += {.Shift}
+			case "cmd":
+				ev.mods += {platform.PRIMARY_MOD} // the platform's shortcut key, so scripts run anywhere
+			case "alt":
+				ev.mods += {.Alt}
+			case "ctrl":
+				ev.mods += {.Ctrl}
+			}
+		}
+		platform.inject_event(ev)
+	case "shot":
+		pixels, w, h := gfx.read_pixels(context.temp_allocator)
+		gfx.write_png(f[1], pixels, w, h)
+		return
+	case "expect_selection":
+		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+		got := ui.selection_text()
+		if got != want {
+			fmt.eprintfln("%s: expect_selection failed\n  want %q\n  got  %q", path, want, got)
+			os.exit(1)
+		}
+		return
+	case "expect_drawn":
+		// The frame run by the next command must draw this exact text (checked in frame()).
+		app.expect_drawn = strings.clone(unquote(strings.join(f[1:], " ", context.temp_allocator)))
+		return
+	case "expect_input":
+		// text of the field that currently has keyboard focus
+		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+		got := app.focused_editor != nil ? ui.editor_text(app.focused_editor) : "<no focused field>"
+		if got != want {
+			fmt.eprintfln("%s: expect_input failed\n  want %q\n  got  %q", path, want, got)
+			os.exit(1)
+		}
+		return
+	case "expect_clipboard":
+		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
+		got := platform.clipboard_get()
+		if got != want {
+			fmt.eprintfln("%s: expect_clipboard failed\n  want %q\n  got  %q", path, want, got)
+			os.exit(1)
+		}
+		return
+	case "scroll":
+		platform.inject_event({kind = .Scroll, delta = {num(f[1]), num(f[2])}, precise = true})
+	case "wait":
+		n := int(num(f[1]))
+		for _ in 0 ..< max(n, 1) do script_frame(t)
+		return
+	case "settle":
+		// Real seconds of 60 Hz frames, so network loads and image decodes can finish (live runs).
+		start := time.tick_now()
+		for time.duration_seconds(time.tick_since(start)) < f64(num(f[1])) {
+			script_frame(t)
+			time.sleep(16 * time.Millisecond)
+		}
+		return
+	case:
+		script_fail(path, "unknown script command %q", f[0])
+	}
+	script_frame(t)
+}
 
-// One scripted frame at the next 1/60 s tick.
-script_frame :: proc() {
-	script_t += 1.0 / 60
-	platform.set_time_override(script_t)
+script_frame :: proc(t: ^f64) {
+	t^ += 1.0 / 60
+	platform.set_time_override(t^)
 	platform.wait_events(0)
+	start := time.tick_now()
 	frame()
+	// Measured frames keep a real 60 Hz cadence: the app idles between inputs, so CPU and GPU clocks
+	// drop between frames, and back-to-back frames would report better latency than a user sees.
+	if bench.measuring {
+		left := time.Second / 60 - time.tick_since(start)
+		if left > 0 do time.sleep(left)
+
+
+	}
 }
 
 // Last-built box whose text (label, or the id when it draws no text) is exactly want.
@@ -390,138 +658,27 @@ script_fail :: proc(path, what: string, args: ..any) {
 	os.exit(1)
 }
 
+
+script_t: f64 // headless clock for scripts run outside run_script (the sweep)
+
+// Runs script lines on the shared clock (the sweep replays per-screen setup this way).
 script_exec :: proc(lines: []string, path: string) {
 	for line in lines {
-		f := strings.fields(line, context.temp_allocator)
+		f := strings.fields(line, context.allocator)
+		defer delete(f)
 		if len(f) == 0 || strings.has_prefix(f[0], "#") do continue
-		num :: proc(s: string) -> f32 {v, _ := strconv.parse_f32(s); return v}
-		switch f[0] {
-		case "move":
-			platform.inject_event({kind = .Mouse_Move, pos = {num(f[1]), num(f[2])}})
-		case "click", "dclick", "tclick":
-			n := f[0] == "click" ? 1 : (f[0] == "dclick" ? 2 : 3)
-			p := [2]f32{num(f[1]), num(f[2])}
-			platform.inject_event({kind = .Mouse_Move, pos = p})
-			platform.inject_event({kind = .Mouse_Down, pos = p, button = .Left, click_count = n})
-			platform.inject_event({kind = .Mouse_Up, pos = p, button = .Left, click_count = n})
-		case "go_home":
-			go_home()
-		case "click_text", "rclick_text", "move_text":
-			// clicks (right-clicks, hovers) the center of the last drawn box whose text is exactly the label
-			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
-			b := find_text_box(want)
-			if b == nil do script_fail(path, "%s: no box with text %q", f[0], want)
-			p := [2]f32{(b.rect.x0 + b.rect.x1) / 2, (b.rect.y0 + b.rect.y1) / 2}
-			platform.inject_event({kind = .Mouse_Move, pos = p})
-			if f[0] != "move_text" {
-				btn: platform.Mouse_Button = f[0] == "click_text" ? .Left : .Right
-				platform.inject_event({kind = .Mouse_Down, pos = p, button = btn, click_count = 1})
-				platform.inject_event({kind = .Mouse_Up, pos = p, button = btn, click_count = 1})
-			}
-		case "expect_visible", "expect_not_visible":
-			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
-			vis := false
-			for b in app.ui.order {
-				if b.text == want && .Draw_Text in b.flags && box_visible(b) {
-					vis = true
-					break
-				}
-			}
-			if vis != (f[0] == "expect_visible") do script_fail(path, "%s failed: %q", f[0], want)
-			continue
-		case "expect_in_window":
-			// the box (by label or id) lies entirely inside the window, unclipped
-			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
-			b := find_text_box(want)
-			if b == nil do script_fail(path, "expect_in_window: no box %q", want)
-			r, v := b.rect, ui.visible_rect(b)
-			w := app.ui.window
-			if r.x0 < 0 || r.y0 < 0 || r.x1 > w.x || r.y1 > w.y || v != r {
-				script_fail(path, "expect_in_window %q failed: rect %v visible %v window %v", want, r, v, w)
-			}
-			continue
-		case "expect_focus_input", "expect_no_focus_input":
-			has := app.focused_editor != nil
-			if has != (f[0] == "expect_focus_input") do script_fail(path, "%s failed", f[0])
-			continue
-		case "resize":
-			platform.set_headless_size(int(num(f[1])), int(num(f[2])))
-		case "theme":
-			if t, ok := theme_by_name(f[1]); ok do theme_load(&app.theme, t)
-		case "expect_theme":
-			if t, ok := theme_by_name(f[1]); !ok || t != app.theme.name do script_fail(path, "expect_theme %s failed: got %v", f[1], app.theme.name)
-			continue
-		case "rclick":
-			p := [2]f32{num(f[1]), num(f[2])}
-			platform.inject_event({kind = .Mouse_Move, pos = p})
-			platform.inject_event({kind = .Mouse_Down, pos = p, button = .Right, click_count = 1})
-			platform.inject_event({kind = .Mouse_Up, pos = p, button = .Right, click_count = 1})
-		case "down":
-			platform.inject_event({kind = .Mouse_Down, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
-		case "up":
-			platform.inject_event({kind = .Mouse_Up, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
-		case "type":
-			platform.inject_event({kind = .Text, text = strings.join(f[1:], " ", context.temp_allocator)})
-		case "key":
-			// key <name> [shift] [cmd] [alt] [ctrl]
-			ev := platform.Event{kind = .Key_Down, key = key_by_name(f[1])}
-			for m in f[2:] {
-				switch m {
-				case "shift":
-					ev.mods += {.Shift}
-				case "cmd":
-					ev.mods += {.Cmd}
-				case "alt":
-					ev.mods += {.Alt}
-				case "ctrl":
-					ev.mods += {.Ctrl}
-				}
-			}
-			platform.inject_event(ev)
-		case "shot":
-			pixels, w, h := gfx.read_pixels(context.temp_allocator)
-			gfx.write_png(f[1], pixels, w, h)
-			continue
-		case "expect_selection":
-			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
-			got := ui.selection_text()
-			if got != want {
-				fmt.eprintfln("%s: expect_selection failed\n  want %q\n  got  %q", path, want, got)
-				os.exit(1)
-			}
-			continue
-		case "expect_input":
-			// text of the field that currently has keyboard focus
-			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
-			got := app.focused_editor != nil ? ui.editor_text(app.focused_editor) : "<no focused field>"
-			if got != want {
-				fmt.eprintfln("%s: expect_input failed\n  want %q\n  got  %q", path, want, got)
-				os.exit(1)
-			}
-			continue
-		case "expect_clipboard":
-			want := unquote(strings.join(f[1:], " ", context.temp_allocator))
-			got := platform.clipboard_get()
-			if got != want {
-				fmt.eprintfln("%s: expect_clipboard failed\n  want %q\n  got  %q", path, want, got)
-				os.exit(1)
-			}
-			continue
-		case "scroll":
-			platform.inject_event({kind = .Scroll, delta = {num(f[1]), num(f[2])}, precise = true})
-		case "wait":
-			n := int(num(f[1]))
-			for _ in 0 ..< max(n, 1) do script_frame()
-			continue
-		case:
-			script_fail(path, "unknown command %q", f[0])
-		}
-		script_frame()
+		script_command(path, f, &script_t)
 	}
 }
 
 // Token: $FASTCORD_TOKEN, else <state>/token (written by the login flow).
 connect :: proc() {
+	if teardown_busy() {
+		// The previous client is still shutting down; frame() retries when it is done.
+		app.connect_pending = true
+		return
+	}
+	app.connect_pending = false
 	state_dir := app_state_dir(context.allocator)
 	os.make_directory_all(state_dir)
 	token := os.get_env("FASTCORD_TOKEN", context.temp_allocator)

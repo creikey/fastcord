@@ -1,6 +1,6 @@
 package discord
 
-import "core:sync"
+import "fc:locks"
 import "core:time"
 
 // Real process metrics for telemetry (the official client reports its own
@@ -30,7 +30,7 @@ process_memory_kb :: proc() -> (kb: i64, ok: bool) {
 
 @(private)
 Cpu_Sampler :: struct {
-	mu:       sync.Mutex,
+	mu:       locks.Mutex,
 	last_cpu: time.Duration,
 	last:     time.Tick,
 	have:     bool,
@@ -43,11 +43,13 @@ cpu_sampler: Cpu_Sampler
 process_cpu_percent :: proc() -> (pct: int, ok: bool) {
 	cpu, cok := _process_cpu_time()
 	if !cok do return 0, false
-	sync.mutex_lock(&cpu_sampler.mu)
-	defer sync.mutex_unlock(&cpu_sampler.mu)
+	locks.lock(&cpu_sampler.mu)
+	defer locks.unlock(&cpu_sampler.mu)
 	now := time.tick_now()
 	if !cpu_sampler.have {
-		cpu_sampler = {last_cpu = cpu, last = now, have = true}
+		cpu_sampler.last_cpu = cpu
+		cpu_sampler.last = now
+		cpu_sampler.have = true
 		return 0, true
 	}
 	wall := time.tick_diff(cpu_sampler.last, now)

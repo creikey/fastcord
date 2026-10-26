@@ -11,11 +11,11 @@
 // UI action triggers, the same waits; human pacing like tools/capture.
 package parity
 
+import "fc:locks"
 import "core:fmt"
 import "core:math/rand"
 import "core:os"
 import "core:strings"
-import "core:sync"
 import "core:time"
 import "fc:discord"
 import "fc:etf"
@@ -191,9 +191,9 @@ reload :: proc() {
 		// The capture instances lose window focus once loaded: AppStateStore
 		// reports "unfocused" from READY on (QoS stays foregrounded).
 		if name == "READY" do discord.identity_set_app_state(&acct.c.id, .Unfocused)
-		sync.mutex_lock(&names_mu)
+		locks.lock(&names_mu)
 		append(&acct.events, strings.clone(name))
-		sync.mutex_unlock(&names_mu)
+		locks.unlock(&names_mu)
 	}
 	discord.client_set_viewport(a.c, VIEW_W, VIEW_H)
 	discord.client_set_accessibility(a.c, discord.A11Y_PREFERS_COLOR_SCHEME_LIGHT)
@@ -202,7 +202,7 @@ reload :: proc() {
 	settle(2500, 30000)
 }
 
-names_mu: sync.Mutex
+names_mu: locks.Mutex
 
 stop :: proc(a: ^Acct) {
 	discord.client_destroy(a.c)
@@ -245,15 +245,15 @@ wait_gw :: proc(ev: string, timeout_ms := 15000) -> bool {
 	deadline := time.tick_now()
 	for time.tick_since(deadline) < time.Duration(timeout_ms) * time.Millisecond {
 		for &a in accts do if a.c != nil do discord.client_poll(a.c)
-		sync.mutex_lock(&names_mu)
+		locks.lock(&names_mu)
 		for i := cur.cursor; i < len(cur.events); i += 1 {
 			if cur.events[i] == ev {
 				cur.cursor = i + 1
-				sync.mutex_unlock(&names_mu)
+				locks.unlock(&names_mu)
 				return true
 			}
 		}
-		sync.mutex_unlock(&names_mu)
+		locks.unlock(&names_mu)
 		time.sleep(16 * time.Millisecond)
 	}
 	fmt.eprintln("timeout waiting for", ev)
@@ -261,9 +261,9 @@ wait_gw :: proc(ev: string, timeout_ms := 15000) -> bool {
 }
 
 action :: proc() {
-	sync.mutex_lock(&names_mu)
+	locks.lock(&names_mu)
 	cur.cursor = len(cur.events)
-	sync.mutex_unlock(&names_mu)
+	locks.unlock(&names_mu)
 }
 
 typed :: proc(channel: discord.Snowflake, text: string) {

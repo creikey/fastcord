@@ -1,0 +1,12 @@
+# Keystrokes arriving faster than frames (many per frame) must all land, in order, and the frame
+# that receives them must already draw them (not the next one).
+wait 5
+expect_drawn "the quick brown fox jumps over the lazy dog 0123456789"
+burst "the quick brown fox jumps over the lazy dog 0123456789"
+expect_input "the quick brown fox jumps over the lazy dog 0123456789"
+burst " and"
+burst " more"
+key backspace
+expect_drawn "the quick brown fox jumps over the lazy dog 0123456789 and more!"
+burst "e!"
+expect_input "the quick brown fox jumps over the lazy dog 0123456789 and more!"

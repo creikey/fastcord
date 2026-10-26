@@ -1,0 +1,16 @@
+# A busy guild channel (400 messages, 60 guilds in the rail): idle redraws, the mouse sweeping over
+# messages, scrolling back through history, and typing in the composer.
+wait 30
+bench chat_idle
+wait 120
+bench chat_hover
+repeat 2 sweep 420 120 1000 600 60
+bench chat_scroll
+move 700 400
+repeat 60 scroll 0 40
+repeat 60 scroll 0 -40
+wait 5
+# The composer has keyboard focus when nothing else does.
+bench typing
+repeat 4 burst "the quick brown fox jumps "
+repeat 20 type x

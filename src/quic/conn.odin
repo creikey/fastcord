@@ -10,12 +10,12 @@
 // threads (one reader and one writer per stream at a time).
 package quic
 
+import "fc:locks"
 import "base:runtime"
 import "core:crypto"
 import "core:fmt"
 import "core:net"
 import "core:strings"
-import "core:sync"
 import "core:thread"
 import "core:time"
 
@@ -131,8 +131,8 @@ Early_State :: enum u8 {
 Uni_Handler :: proc(user: rawptr, st: ^Stream, data: []byte, fin: bool)
 
 Conn :: struct {
-	mu:                 sync.Mutex,
-	cond:               sync.Cond,
+	mu:                 locks.Mutex,
+	cond:               locks.Cond,
 	sock:               net.UDP_Socket,
 	peer:               net.Endpoint,
 	wake_sock:          net.UDP_Socket,
@@ -275,10 +275,10 @@ connect :: proc(host: string, cfg: Config) -> (c: ^Conn, err: Error) {
 		// 0-RTT is possible (the early secret is installed before the
 		// ClientHello is handed to us).
 		c.hs_thread = thread.create_and_start_with_poly_data(c, handshake_thread)
-		sync.mutex_lock(&c.mu)
-		for !c.ch_sent && !c.hs_done do sync.cond_wait(&c.cond, &c.mu)
+		locks.lock(&c.mu)
+		for !c.ch_sent && !c.hs_done do locks.cond_wait(&c.cond, &c.mu)
 		early := c.early == .Sending
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 		if !early {
 			if e := wait_handshake(c); e != .None {
 				close(c)
@@ -288,9 +288,9 @@ connect :: proc(host: string, cfg: Config) -> (c: ^Conn, err: Error) {
 		return c, .None
 	}
 	run_handshake_thread_body(c)
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	e := c.err
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	if e != .None {
 		close(c)
 		return nil, e
@@ -314,11 +314,11 @@ run_handshake_thread_body :: proc(c: ^Conn) {
 		set_secret   = hs_set_secret,
 	}
 	terr := tls.quic_handshake(&c.hs, io)
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	defer {
 		c.hs_done = true
-		sync.cond_broadcast(&c.cond)
+		locks.cond_broadcast(&c.cond)
 	}
 	if terr == .None && c.err == .None {
 		terr = finish_handshake_locked(c)
@@ -346,23 +346,23 @@ run_handshake_thread_body :: proc(c: ^Conn) {
 
 // wait_handshake blocks until the handshake completed (or failed).
 wait_handshake :: proc(c: ^Conn) -> Error {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
-	for !c.handshake_complete && c.err == .None do sync.cond_wait(&c.cond, &c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
+	for !c.handshake_complete && c.err == .None do locks.cond_wait(&c.cond, &c.mu)
 	return c.err
 }
 
 // handshake_complete reports whether 1-RTT is up (requests are no longer early).
 is_handshake_complete :: proc(c: ^Conn) -> bool {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	return c.handshake_complete
 }
 
 // early_state reports the 0-RTT outcome.
 early_state :: proc(c: ^Conn) -> Early_State {
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	return c.early
 }
 
@@ -419,18 +419,16 @@ finish_handshake_locked :: proc(c: ^Conn) -> tls.Error {
 close :: proc(c: ^Conn) {
 	if c == nil do return
 	context.allocator = conn_allocator()
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	if c.err == .None && !c.closing {
 		start_close_locked(c, 0x100, true)
 	}
 	c.stop = true
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	wake(c)
-	thread.join(c.io_thread)
-	thread.destroy(c.io_thread)
+	locks.join(c.io_thread)
 	if c.hs_thread != nil {
-		thread.join(c.hs_thread)
-		thread.destroy(c.hs_thread)
+		locks.join(c.hs_thread)
 	}
 	if c.rtt.has_sample do remember_rtt(c.hs.cfg.server_name, c.rtt.smoothed)
 	net.close(c.sock)
@@ -473,7 +471,7 @@ start_close_locked :: proc(c: ^Conn, code: u64, app: bool) {
 	c.close_code = code
 	c.close_app = app
 	if c.err == .None do c.err = .Closed
-	sync.cond_broadcast(&c.cond)
+	locks.cond_broadcast(&c.cond)
 }
 
 // fail_locked records a local protocol error and closes the connection.
@@ -494,11 +492,11 @@ wake :: proc(c: ^Conn) {
 @(private)
 hs_next_message :: proc(data: rawptr) -> ([]byte, tls.Error) {
 	c := cast(^Conn)data
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	for len(c.hs_msgs) == 0 {
 		if c.err != .None do return nil, .Io
-		sync.cond_wait(&c.cond, &c.mu)
+		locks.cond_wait(&c.cond, &c.mu)
 	}
 	m := c.hs_msgs[0]
 	ordered_remove(&c.hs_msgs, 0)
@@ -509,14 +507,14 @@ hs_next_message :: proc(data: rawptr) -> ([]byte, tls.Error) {
 @(private)
 hs_send :: proc(data: rawptr, level: tls.Level, flight: []byte, first: bool, ccs: bool) -> tls.Error {
 	c := cast(^Conn)data
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	sb_write(&c.spaces[space_of(level)].crypto_send, flight)
 	if debug_log do fmt.eprintfln("[quic] %v hs_send %v %d", time.tick_now(), level, len(flight))
 	if first {
 		c.ch_sent = true
-		sync.cond_broadcast(&c.cond)
+		locks.cond_broadcast(&c.cond)
 	}
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	wake(c)
 	return .None
 }
@@ -525,8 +523,8 @@ hs_send :: proc(data: rawptr, level: tls.Level, flight: []byte, first: bool, ccs
 hs_set_secret :: proc(data: rawptr, level: tls.Level, is_write: bool, suite: tls.Suite, secret: []byte) -> tls.Error {
 	c := cast(^Conn)data
 	if level == .Early {
-		sync.mutex_lock(&c.mu)
-		defer sync.mutex_unlock(&c.mu)
+		locks.lock(&c.mu)
+		defer locks.unlock(&c.mu)
 		// 0-RTT needs the server's remembered transport parameters (RFC 9000 7.4.1).
 		p, ok := parse_peer_params(c.hs.early_params)
 		if !ok || len(c.hs.early_params) == 0 do return .None
@@ -542,8 +540,8 @@ hs_set_secret :: proc(data: rawptr, level: tls.Level, is_write: bool, suite: tls
 	}
 	// New keys may arm timers (ACKs for buffered packets): re-plan the I/O loop.
 	defer wake(c)
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	sp := &c.spaces[space_of(level)]
 	if is_write {
 		keys_set(&sp.tx, suite, secret)
@@ -572,30 +570,30 @@ hs_set_secret :: proc(data: rawptr, level: tls.Level, is_write: bool, suite: tls
 io_loop :: proc(c: ^Conn) {
 	buf: [2048]byte
 	for {
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		now := time.tick_now()
 		on_timers_locked(c, now)
 		send_pending_locked(c, now)
 		if c.stop || (c.closing && c.close_sent) {
 			if c.err == .None do c.err = .Closed
-			sync.cond_broadcast(&c.cond)
+			locks.cond_broadcast(&c.cond)
 			if c.stop {
-				sync.mutex_unlock(&c.mu)
+				locks.unlock(&c.mu)
 				return
 			}
 		}
 		timeout := next_timeout_locked(c, now)
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 
 		net.set_option(c.sock, .Receive_Timeout, max(timeout, time.Millisecond))
 		n, from, rerr := net.recv_udp(c.sock, buf[:])
 		if rerr != nil || n == 0 do continue
 		if from.port != c.peer.port || !address_equal(from.address, c.peer.address) do continue // wake-up or stray
-		sync.mutex_lock(&c.mu)
+		locks.lock(&c.mu)
 		if !c.closing {
 			process_datagram_locked(c, buf[:n], time.tick_now())
 		}
-		sync.mutex_unlock(&c.mu)
+		locks.unlock(&c.mu)
 	}
 }
 
@@ -618,13 +616,13 @@ conn_allocator :: proc() -> runtime.Allocator {return runtime.heap_allocator()}
 // Chrome remembers each server's RTT and sends it as initial_rtt on the next
 // connection; this is that cache (microseconds of smoothed RTT).
 @(private)
-rtt_cache_mu: sync.Mutex
+rtt_cache_mu: locks.Mutex
 @(private)
 rtt_cache: map[string]u64
 
 cached_rtt_us :: proc(host: string) -> u64 {
-	sync.mutex_lock(&rtt_cache_mu)
-	defer sync.mutex_unlock(&rtt_cache_mu)
+	locks.lock(&rtt_cache_mu)
+	defer locks.unlock(&rtt_cache_mu)
 	return rtt_cache[host] or_else 0
 }
 
@@ -632,8 +630,8 @@ cached_rtt_us :: proc(host: string) -> u64 {
 remember_rtt :: proc(host: string, rtt: time.Duration) {
 	if rtt <= 0 do return
 	context.allocator = conn_allocator()
-	sync.mutex_lock(&rtt_cache_mu)
-	defer sync.mutex_unlock(&rtt_cache_mu)
+	locks.lock(&rtt_cache_mu)
+	defer locks.unlock(&rtt_cache_mu)
 	us := u64(time.duration_microseconds(rtt))
 	if _, ok := rtt_cache[host]; ok {
 		rtt_cache[host] = us

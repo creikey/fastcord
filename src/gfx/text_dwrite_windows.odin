@@ -6,11 +6,10 @@ package gfx
 // IDWriteFactory2::CreateGlyphRunAnalysis (grayscale).
 //
 // COM calls go through raw vtable indices (no DirectWrite bindings ship with Odin).
-// Compile-verified only; not yet run on Windows.
-// Gaps: font_load_memory (needs IDWriteFactory5 in-memory loader) returns 0;
-// color emoji layers (TranslateColorGlyphRun) are not rendered in color.
+// Gap: font_load_memory (needs IDWriteFactory5 in-memory loader) returns 0.
 
 import "base:runtime"
+import "core:math"
 import "core:unicode/utf8"
 import win "core:sys/windows"
 
@@ -88,9 +87,20 @@ DWRITE_FONT_METRICS :: struct {
 }
 
 @(private = "file")
+DWRITE_LINE_METRICS :: struct {
+	length:                   u32,
+	trailingWhitespaceLength: u32,
+	newlineLength:            u32,
+	height:                   f32,
+	baseline:                 f32,
+	isTrimmed:                win.BOOL,
+}
+
+@(private = "file")
 Native_Face :: struct {
 	family: []u16, // NUL-terminated
 	weight: u32,
+	style:  u32, // DWRITE_FONT_STYLE
 }
 
 @(private = "file")
@@ -159,8 +169,9 @@ _font_load_memory :: proc(data: []byte) -> rawptr {
 }
 
 @(private)
-_font_system :: proc(name: string, weight: Font_Weight) -> rawptr {
+_font_system :: proc(name: string, weight: Font_Weight, italic: bool) -> rawptr {
 	nf := new(Native_Face)
+	nf.style = italic ? 2 /*ITALIC*/ : 0
 	fam := name == "" || name == "system" ? "Segoe UI" : name
 	nf.family = win.utf8_to_utf16(fam, context.allocator)
 	// utf8_to_utf16 is NUL-terminated in its backing storage; ensure explicitly
@@ -204,7 +215,7 @@ _font_instance :: proc(native: rawptr, size_px: f32) -> u32 {
 	if family == nil do return 0
 	defer release(family)
 	font: rawptr
-	(cast(proc "system" (rawptr, u32, u32, u32, ^rawptr) -> HRESULT)vt(family, 7))(family, nf.weight, 5 /*NORMAL stretch*/, 0 /*NORMAL style*/, &font)
+	(cast(proc "system" (rawptr, u32, u32, u32, ^rawptr) -> HRESULT)vt(family, 7))(family, nf.weight, 5 /*NORMAL stretch*/, nf.style, &font)
 	if font == nil do return 0
 	defer release(font)
 	face: rawptr
@@ -244,6 +255,11 @@ _shape :: proc(inst: u32, text: string, out: ^[dynamic]Raw_Glyph) -> f32 {
 			rr := r - 0x10000
 			append(&wide, u16(0xD800 + (rr >> 10)), u16(0xDC00 + (rr & 0x3ff)))
 			append(&map16, i, i)
+		} else if r == '\n' || r == '\r' || r == '\t' {
+			// DirectWrite would start a new layout line; ui breaks lines itself and needs one glyph here.
+			// Tabs are widened below, once line starts are known.
+			append(&wide, u16(' '))
+			append(&map16, i)
 		} else {
 			append(&wide, u16(r))
 			append(&map16, i)
@@ -255,7 +271,7 @@ _shape :: proc(inst: u32, text: string, out: ^[dynamic]Raw_Glyph) -> f32 {
 
 	format: rawptr
 	(cast(proc "system" (rawptr, [^]u16, rawptr, u32, u32, u32, f32, [^]u16, ^rawptr) -> HRESULT)vt(dw.factory, 15))(
-		dw.factory, raw_data(fi.family.family), nil, fi.family.weight, 0, 5, fi.size, &locale[0], &format)
+		dw.factory, raw_data(fi.family.family), nil, fi.family.weight, fi.family.style, 5, fi.size, &locale[0], &format)
 	if format == nil do return 0
 	defer release(format)
 	(cast(proc "system" (rawptr, u32) -> HRESULT)vt(format, 5))(format, 1 /*NO_WRAP*/)
@@ -271,8 +287,34 @@ _shape :: proc(inst: u32, text: string, out: ^[dynamic]Raw_Glyph) -> f32 {
 	dw.cur_family = fi.family
 	dw.cur_width = 0
 	// Draw(context, renderer, originX, originY)
+	first := len(out)
 	(cast(proc "system" (rawptr, rawptr, rawptr, f32, f32) -> HRESULT)vt(layout, 58))(layout, nil, &dw.renderer, 0, 0)
 	dw.cur_out = nil
+
+	// Draw reports y from the layout's top; callers want it from the baseline, as CoreText gives it.
+	line: DWRITE_LINE_METRICS
+	nlines: u32
+	(cast(proc "system" (rawptr, ^DWRITE_LINE_METRICS, u32, ^u32) -> HRESULT)vt(layout, 59))(layout, &line, 1, &nlines)
+	for &g in out[first:] do g.y -= line.baseline
+
+	// Tab stops every 4 spaces from the start of each hard line (CSS tab-size: 4).
+	line_x, shift: f32
+	for &g in out[first:] {
+		g.x += shift
+		if g.cluster_start >= len(text) do continue
+		switch text[g.cluster_start] {
+		case '\n':
+			line_x = g.x + g.advance
+		case '\t':
+			stop := 4 * g.advance // the tab was shaped as a space
+			if stop <= 0 do continue
+			col := g.x - line_x
+			adv := (math.floor(col / stop) + 1) * stop - col
+			shift += adv - g.advance
+			g.advance = adv
+		}
+	}
+	dw.cur_width += shift
 
 	// cluster_end = next distinct cluster start
 	for &r, i in out {
@@ -356,6 +398,33 @@ r_draw_glyph_run :: proc "system" (this: rawptr, ctx: rawptr, x, y: f32, mode: u
 
 // ---- Rasterization
 
+@(private = "file")
+DWRITE_COLOR_GLYPH_RUN :: struct {
+	glyphRun:            DWRITE_GLYPH_RUN,
+	glyphRunDescription: ^DWRITE_GLYPH_RUN_DESCRIPTION,
+	baselineOriginX:     f32,
+	baselineOriginY:     f32,
+	runColor:            [4]f32,
+	paletteIndex:        u16,
+}
+
+// Grayscale coverage of a glyph run with its baseline origin at (x, y); r is in pixels, y down.
+@(private = "file")
+rasterize_alpha :: proc(run: ^DWRITE_GLYPH_RUN, x, y: f32, allocator: runtime.Allocator) -> (pixels: []u8, r: win.RECT) {
+	analysis: rawptr
+	// IDWriteFactory2::CreateGlyphRunAnalysis(run, transform, renderingMode, measuringMode, gridFitMode, antialiasMode, x, y, out)
+	hr := (cast(proc "system" (rawptr, ^DWRITE_GLYPH_RUN, rawptr, u32, u32, u32, u32, f32, f32, ^rawptr) -> HRESULT)vt(dw.factory, 30))(
+		dw.factory, run, nil, 5 /*NATURAL_SYMMETRIC*/, 0 /*NATURAL*/, 1 /*GRID_FIT_DISABLED*/, 1 /*GRAYSCALE*/, x, y, &analysis)
+	if hr < 0 || analysis == nil do return
+	defer release(analysis)
+	(cast(proc "system" (rawptr, u32, ^win.RECT) -> HRESULT)vt(analysis, 3))(analysis, 0 /*ALIASED_1x1*/, &r)
+	w, h := r.right - r.left, r.bottom - r.top
+	if w <= 0 || h <= 0 do return nil, {}
+	pixels = make([]u8, int(w * h), allocator)
+	(cast(proc "system" (rawptr, u32, ^win.RECT, [^]u8, u32) -> HRESULT)vt(analysis, 4))(analysis, 0, &r, raw_data(pixels), u32(len(pixels)))
+	return
+}
+
 @(private)
 _rasterize :: proc(inst: u32, glyph: u32, subpx: f32, allocator: runtime.Allocator) -> Glyph_Bitmap {
 	fi := dw.insts[inst]
@@ -364,17 +433,68 @@ _rasterize :: proc(inst: u32, glyph: u32, subpx: f32, allocator: runtime.Allocat
 	adv: f32 = 0
 	off := DWRITE_GLYPH_OFFSET{}
 	run := DWRITE_GLYPH_RUN{fontFace = fi.face, fontEmSize = fi.size, glyphCount = 1, glyphIndices = &idx, glyphAdvances = &adv, glyphOffsets = &off}
-	analysis: rawptr
-	// IDWriteFactory2::CreateGlyphRunAnalysis(run, transform, renderingMode, measuringMode, gridFitMode, antialiasMode, x, y, out)
-	hr := (cast(proc "system" (rawptr, ^DWRITE_GLYPH_RUN, rawptr, u32, u32, u32, u32, f32, f32, ^rawptr) -> HRESULT)vt(dw.factory, 30))(
-		dw.factory, &run, nil, 5 /*NATURAL_SYMMETRIC*/, 0 /*NATURAL*/, 1 /*GRID_FIT_DISABLED*/, 1 /*GRAYSCALE*/, subpx, 0, &analysis)
-	if hr < 0 || analysis == nil do return {}
-	defer release(analysis)
-	r: win.RECT
-	(cast(proc "system" (rawptr, u32, ^win.RECT) -> HRESULT)vt(analysis, 3))(analysis, 0 /*ALIASED_1x1*/, &r)
-	w, h := r.right - r.left, r.bottom - r.top
-	if w <= 0 || h <= 0 do return {}
-	pixels := make([]u8, int(w * h), allocator)
-	(cast(proc "system" (rawptr, u32, ^win.RECT, [^]u8, u32) -> HRESULT)vt(analysis, 4))(analysis, 0, &r, raw_data(pixels), u32(len(pixels)))
-	return {w = w, h = h, left = r.left, top = r.top, pixels = pixels}
+
+	// Color fonts (Segoe UI Emoji's COLR layers): IDWriteFactory2::TranslateColorGlyphRun fails with
+	// DWRITE_E_NOCOLOR for plain glyphs, which then take the grayscale path.
+	layers: rawptr
+	hr := (cast(proc "system" (rawptr, f32, f32, ^DWRITE_GLYPH_RUN, rawptr, u32, rawptr, u32, ^rawptr) -> HRESULT)vt(dw.factory, 28))(
+		dw.factory, subpx, 0, &run, nil, 0 /*NATURAL*/, nil, 0, &layers)
+	if hr >= 0 && layers != nil {
+		defer release(layers)
+		return rasterize_color(layers, allocator)
+	}
+
+	pixels, r := rasterize_alpha(&run, subpx, 0, allocator)
+	if pixels == nil do return {}
+	return {w = r.right - r.left, h = r.bottom - r.top, left = r.left, top = r.top, pixels = pixels}
+}
+
+// Composites each color layer over the previous ones; output is straight-alpha RGBA like the CoreText path.
+@(private = "file")
+rasterize_color :: proc(layers: rawptr, allocator: runtime.Allocator) -> Glyph_Bitmap {
+	Layer :: struct {
+		pixels: []u8,
+		r:      win.RECT,
+		color:  [4]f32,
+	}
+	list := make([dynamic]Layer, 0, 8, context.temp_allocator)
+	bounds := win.RECT{max(i32), max(i32), min(i32), min(i32)}
+	for {
+		has_run: win.BOOL
+		if (cast(proc "system" (rawptr, ^win.BOOL) -> HRESULT)vt(layers, 3))(layers, &has_run) < 0 || !has_run do break
+		cr: ^DWRITE_COLOR_GLYPH_RUN
+		if (cast(proc "system" (rawptr, ^^DWRITE_COLOR_GLYPH_RUN) -> HRESULT)vt(layers, 4))(layers, &cr) < 0 || cr == nil do break
+		pixels, r := rasterize_alpha(&cr.glyphRun, cr.baselineOriginX, cr.baselineOriginY, context.temp_allocator)
+		if pixels == nil do continue
+		// Palette index 0xFFFF means "the text color"; emoji are drawn untinted, so use black as CoreText does.
+		color := cr.paletteIndex == 0xFFFF ? [4]f32{0, 0, 0, 1} : cr.runColor
+		append(&list, Layer{pixels, r, color})
+		bounds.left, bounds.top = min(bounds.left, r.left), min(bounds.top, r.top)
+		bounds.right, bounds.bottom = max(bounds.right, r.right), max(bounds.bottom, r.bottom)
+	}
+	if len(list) == 0 do return {}
+	w, h := bounds.right - bounds.left, bounds.bottom - bounds.top
+	if w <= 0 || h <= 0 || w > 1024 || h > 1024 do return {}
+
+	acc := make([][4]f32, int(w * h), context.temp_allocator) // premultiplied
+	for l in list {
+		lw := l.r.right - l.r.left
+		for y in l.r.top ..< l.r.bottom {
+			for x in l.r.left ..< l.r.right {
+				a := f32(l.pixels[(y - l.r.top) * lw + (x - l.r.left)]) / 255 * l.color.a
+				if a == 0 do continue
+				d := &acc[(y - bounds.top) * w + (x - bounds.left)]
+				d^ = {l.color.r * a, l.color.g * a, l.color.b * a, a} + d^ * (1 - a)
+			}
+		}
+	}
+	out := make([]u8, int(w * h) * 4, allocator)
+	for p, i in acc {
+		if p.a <= 0 do continue
+		out[i * 4 + 0] = u8(min(p.r / p.a * 255 + 0.5, 255))
+		out[i * 4 + 1] = u8(min(p.g / p.a * 255 + 0.5, 255))
+		out[i * 4 + 2] = u8(min(p.b / p.a * 255 + 0.5, 255))
+		out[i * 4 + 3] = u8(min(p.a * 255 + 0.5, 255))
+	}
+	return {w = w, h = h, left = bounds.left, top = bounds.top, pixels = out, is_color = true}
 }

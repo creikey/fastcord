@@ -1,8 +1,8 @@
 package discord
 
+import "fc:locks"
 import "core:mem/virtual"
 import "core:strings"
-import "core:sync"
 import "core:thread"
 import "core:time"
 import "fc:etf"
@@ -271,15 +271,14 @@ free_thread_meta :: proc(tm: ^Thread_Meta) {
 // extras_destroy frees the side tables and stops the feature workers (called
 // from store_destroy, after the client has set quit).
 extras_destroy :: proc() {
-	sync.mutex_lock(&fpool.mu)
+	locks.lock(&fpool.mu)
 	threads := fpool.threads
 	fpool.threads = {}
 	fpool.owner = nil
-	sync.cond_broadcast(&fpool.cond)
-	sync.mutex_unlock(&fpool.mu)
+	locks.cond_broadcast(&fpool.cond)
+	locks.unlock(&fpool.mu)
 	for t in threads {
-		thread.join(t)
-		thread.destroy(t)
+		locks.join(t)
 	}
 	delete(threads)
 	for j in fpool.jobs {
@@ -478,8 +477,8 @@ F_Job :: struct {
 
 @(private = "file")
 F_Pool :: struct {
-	mu:      sync.Mutex,
-	cond:    sync.Cond,
+	mu:      locks.Mutex,
+	cond:    locks.Cond,
 	jobs:    [dynamic]F_Job,
 	results: [dynamic]Feature_Result,
 	threads: [dynamic]^thread.Thread,
@@ -492,24 +491,24 @@ fpool: F_Pool
 @(private = "file")
 f_worker :: proc(_: rawptr) {
 	for {
-		sync.mutex_lock(&fpool.mu)
+		locks.lock(&fpool.mu)
 		for len(fpool.jobs) == 0 {
 			if fpool.owner == nil || fpool.owner.quit {
-				sync.mutex_unlock(&fpool.mu)
+				locks.unlock(&fpool.mu)
 				return
 			}
-			sync.cond_wait_with_timeout(&fpool.cond, &fpool.mu, 500 * time.Millisecond)
+			locks.cond_wait_with_timeout(&fpool.cond, &fpool.mu, 500 * time.Millisecond)
 		}
 		j := fpool.jobs[0]
 		ordered_remove(&fpool.jobs, 0)
-		sync.mutex_unlock(&fpool.mu)
+		locks.unlock(&fpool.mu)
 		if !j.client.quit {
 			ctype := "application/json" if j.body != "" else ""
 			r := api_call(j.client, j.method, j.path, transmute([]byte)j.body, ctype, "", nil, j.retries, 1)
 			res := Feature_Result{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena}
-			sync.mutex_lock(&fpool.mu)
+			locks.lock(&fpool.mu)
 			append(&fpool.results, res)
-			sync.mutex_unlock(&fpool.mu)
+			locks.unlock(&fpool.mu)
 			if j.client.cfg.wakeup != nil do j.client.cfg.wakeup(j.client.cfg.wakeup_data)
 		}
 		delete(j.method)
@@ -521,8 +520,8 @@ f_worker :: proc(_: rawptr) {
 
 @(private = "file")
 f_submit :: proc(c: ^Client, j: F_Job) {
-	sync.mutex_lock(&fpool.mu)
-	defer sync.mutex_unlock(&fpool.mu)
+	locks.lock(&fpool.mu)
+	defer locks.unlock(&fpool.mu)
 	if fpool.owner != c {
 		fpool.owner = c
 		clear(&fpool.threads)
@@ -536,13 +535,13 @@ f_submit :: proc(c: ^Client, j: F_Job) {
 	jj.path = strings.clone(j.path)
 	jj.body = strings.clone(j.body)
 	append(&fpool.jobs, jj)
-	sync.cond_signal(&fpool.cond)
+	locks.cond_signal(&fpool.cond)
 }
 
 // feature_take returns finished feature requests (UI thread). Free each with feature_result_free.
 feature_take :: proc(c: ^Client, allocator := context.temp_allocator) -> []Feature_Result {
-	sync.mutex_lock(&fpool.mu)
-	defer sync.mutex_unlock(&fpool.mu)
+	locks.lock(&fpool.mu)
+	defer locks.unlock(&fpool.mu)
 	out := make([]Feature_Result, len(fpool.results), allocator)
 	copy(out, fpool.results[:])
 	clear(&fpool.results)

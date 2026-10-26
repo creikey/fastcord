@@ -1,5 +1,6 @@
 package discord
 
+import "fc:locks"
 import "core:strings"
 import "core:sync"
 import "core:thread"
@@ -72,12 +73,12 @@ Conn_Event :: struct {
 }
 
 Transport :: struct {
-	mu:        sync.Mutex,
-	cond:      sync.Cond,
+	mu:        locks.Mutex,
+	cond:      locks.Cond,
 	origins:   map[string]^Origin,
 	alt:       altsvc.Cache, // Chrome alternative-service state (fc:quic/altsvc)
 	use_h3:    bool, // race QUIC per Alt-Svc (default on)
-	race_mu:   sync.Mutex,
+	race_mu:   locks.Mutex,
 	// no 0-RTT on resumed QUIC sessions (off by default: Chrome uses 0-RTT).
 	h3_no_0rtt: bool,
 	h3:        H3_Hook, // optional override of the built-in h3 path
@@ -129,19 +130,19 @@ transport_init :: proc(t: ^Transport, jar: ^Cookie_Jar, allocator := context.all
 }
 
 transport_destroy :: proc(t: ^Transport) {
-	sync.mutex_lock(&t.mu)
+	locks.lock(&t.mu)
 	t.closed = true
 	origins := t.origins
 	t.origins = {}
-	sync.mutex_unlock(&t.mu)
+	locks.unlock(&t.mu)
 	for k, o in origins {
 		if o.h2 != nil {
-			sync.mutex_lock(&t.mu)
+			locks.lock(&t.mu)
 			r := o.h2
 			o.h2 = nil
 			r.retired = true
 			fin := r.refs == 0
-			sync.mutex_unlock(&t.mu)
+			locks.unlock(&t.mu)
 			if fin do h2_finalize(t, r)
 		}
 		for c in o.idle_h1 {
@@ -249,9 +250,9 @@ origin_lookup :: proc(t: ^Transport, host: string) -> ^Origin {
 // server negotiated http/1.1 the connection is parked as an idle h1 conn and ref=nil.
 @(private)
 origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref) {
-	sync.mutex_lock(&t.mu)
+	locks.lock(&t.mu)
 	if t.closed {
-		sync.mutex_unlock(&t.mu)
+		locks.unlock(&t.mu)
 		return nil, nil
 	}
 	o = origin_lookup(t, host)
@@ -259,7 +260,7 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 		if o.h2 != nil && http.h2_can_open(o.h2.c) {
 			o.h2.refs += 1
 			r := o.h2
-			sync.mutex_unlock(&t.mu)
+			locks.unlock(&t.mu)
 			return o, r
 		}
 		if o.h2 != nil {
@@ -267,21 +268,21 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 			o.h2 = nil
 			r.retired = true
 			if r.refs == 0 {
-				sync.mutex_unlock(&t.mu)
+				locks.unlock(&t.mu)
 				h2_finalize(t, r)
-				sync.mutex_lock(&t.mu)
+				locks.lock(&t.mu)
 			}
 			continue
 		}
 		if len(o.idle_h1) > 0 {
-			sync.mutex_unlock(&t.mu)
+			locks.unlock(&t.mu)
 			return o, nil
 		}
 		if !o.dialing do break
-		sync.cond_wait(&t.cond, &t.mu)
+		locks.cond_wait(&t.cond, &t.mu)
 	}
 	o.dialing = true
-	sync.mutex_unlock(&t.mu)
+	locks.unlock(&t.mu)
 
 	stream, alpn, dok := dial_tls_stream(host, {"h2", "http/1.1"})
 	new_h2: ^http.H2_Conn
@@ -291,6 +292,8 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 			c, herr := http.h2_connect(stream, {}, t.allocator)
 			if herr == .None {
 				new_h2 = c
+				// The h2 reader idles in read between requests; HTTP/1.1 keeps the dial timeout per request.
+				netio.set_timeout(stream, 0)
 				// h2_connect with a zero config sends CHROME_SETTINGS and the
 				// connection WINDOW_UPDATE.
 				if t.conn_observer != nil {
@@ -305,10 +308,10 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 		}
 	}
 
-	sync.mutex_lock(&t.mu)
-	defer sync.mutex_unlock(&t.mu)
+	locks.lock(&t.mu)
+	defer locks.unlock(&t.mu)
 	o.dialing = false
-	sync.cond_broadcast(&t.cond)
+	locks.cond_broadcast(&t.cond)
 	if new_h2 != nil {
 		r := new(H2_Ref, t.allocator)
 		r.c = new_h2
@@ -331,25 +334,24 @@ origin_get_h2 :: proc(t: ^Transport, host: string) -> (o: ^Origin, ref: ^H2_Ref)
 h2_finalize :: proc(t: ^Transport, r: ^H2_Ref) {
 	http.h2_close(r.c) // wakes the service thread, waits for users, frees the conn
 	if r.svc != nil {
-		thread.join(r.svc)
-		thread.destroy(r.svc)
+		locks.join(r.svc)
 	}
 	free(r, t.allocator)
 }
 
 @(private)
 h2_release :: proc(t: ^Transport, r: ^H2_Ref) {
-	sync.mutex_lock(&t.mu)
+	locks.lock(&t.mu)
 	r.refs -= 1
 	fin := r.retired && r.refs == 0
-	sync.mutex_unlock(&t.mu)
+	locks.unlock(&t.mu)
 	if fin do h2_finalize(t, r)
 }
 
 @(private)
 origin_drop_h2 :: proc(t: ^Transport, o: ^Origin, r: ^H2_Ref) {
-	sync.mutex_lock(&t.mu)
-	defer sync.mutex_unlock(&t.mu)
+	locks.lock(&t.mu)
+	defer locks.unlock(&t.mu)
 	if o != nil && o.h2 == r {
 		o.h2 = nil
 		r.retired = true // finalized by the last h2_release
@@ -358,13 +360,13 @@ origin_drop_h2 :: proc(t: ^Transport, o: ^Origin, r: ^H2_Ref) {
 
 @(private)
 origin_take_h1 :: proc(t: ^Transport, o: ^Origin) -> ^http.H1_Conn {
-	sync.mutex_lock(&t.mu)
+	locks.lock(&t.mu)
 	if n := len(o.idle_h1); n > 0 {
 		c := pop(&o.idle_h1)
-		sync.mutex_unlock(&t.mu)
+		locks.unlock(&t.mu)
 		return c
 	}
-	sync.mutex_unlock(&t.mu)
+	locks.unlock(&t.mu)
 	stream, _, dok := dial_tls_stream(o.host, {"h2", "http/1.1"})
 	if !dok do return nil
 	c := new(http.H1_Conn, t.allocator)
@@ -374,8 +376,8 @@ origin_take_h1 :: proc(t: ^Transport, o: ^Origin) -> ^http.H1_Conn {
 
 @(private)
 origin_put_h1 :: proc(t: ^Transport, o: ^Origin, c: ^http.H1_Conn) {
-	sync.mutex_lock(&t.mu)
-	defer sync.mutex_unlock(&t.mu)
+	locks.lock(&t.mu)
+	defer locks.unlock(&t.mu)
 	if len(o.idle_h1) < 6 && !t.closed {
 		append(&o.idle_h1, c)
 	} else {
@@ -410,32 +412,32 @@ tcp_closer :: proc(conn: rawptr, user: rawptr) {
 // handled=false means no alternative is known: caller uses h2.
 @(private)
 h3_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> (out: H3_Outcome, handled: bool) {
-	sync.mutex_lock(&t.alt.mu)
+	locks.lock(&t.alt.mu)
 	_, live := t.alt.conns[host]
-	sync.mutex_unlock(&t.alt.mu)
+	locks.unlock(&t.alt.mu)
 	if !live {
 		if _, ok := altsvc.usable(&t.alt, host); !ok do return {}, false
 		// An established h2 session is preferred over starting a QUIC job
 		// (Chrome reuses the SPDY session the main job finds).
-		sync.mutex_lock(&t.mu)
+		locks.lock(&t.mu)
 		o, has := t.origins[host]
 		h2_live := has && o.h2 != nil && http.h2_can_open(o.h2.c)
-		sync.mutex_unlock(&t.mu)
+		locks.unlock(&t.mu)
 		if h2_live do return {}, false
 	}
 	// One job per origin at a time (Chrome joins requests onto the pending
 	// job instead of racing again).
-	if !live do sync.mutex_lock(&t.race_mu)
+	if !live do locks.lock(&t.race_mu)
 	res, ok := altsvc.connect(&t.alt, host, tcp_dialer, tcp_closer, t, h3.Config{no_0rtt = t.h3_no_0rtt})
-	if !live do sync.mutex_unlock(&t.race_mu)
+	if !live do locks.unlock(&t.race_mu)
 	if !ok do return {}, false
 	switch res.proto {
 	case .H3:
 		if t.conn_observer != nil {
-			sync.mutex_lock(&t.mu)
+			locks.lock(&t.mu)
 			seen := res.h3 in t.h3_seen
 			if !seen do t.h3_seen[res.h3] = true
-			sync.mutex_unlock(&t.mu)
+			locks.unlock(&t.mu)
 			// the transport parameters bytes this session's ClientHello carried
 			if !seen do t.conn_observer(t.observer_data, {kind = "h3", host = host, alpn = "h3", quic_params = res.h3.q.hs.quic_params})
 		}

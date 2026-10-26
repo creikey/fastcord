@@ -1,8 +1,8 @@
 package discord
 
+import "fc:locks"
 import "core:mem/virtual"
 import "core:strings"
-import "core:sync"
 import "core:time"
 import "fc:http"
 
@@ -76,15 +76,15 @@ job_free :: proc(j: ^Job) {
 }
 
 job_submit :: proc(c: ^Client, j: ^Job) {
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	append(&c.jobs, j)
-	sync.cond_broadcast(&c.job_cond)
-	sync.mutex_unlock(&c.job_mu)
+	locks.cond_broadcast(&c.job_cond)
+	locks.unlock(&c.job_mu)
 }
 
 @(private)
 worker_proc :: proc(c: ^Client) {
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	for !c.quit {
 		now := now_ms()
 		pick := -1
@@ -99,7 +99,7 @@ worker_proc :: proc(c: ^Client) {
 		if pick < 0 {
 			wait := time.Duration(1000) * time.Millisecond
 			if next_due != max(i64) do wait = time.Duration(max(next_due - now, 1)) * time.Millisecond
-			sync.cond_wait_with_timeout(&c.job_cond, &c.job_mu, wait)
+			locks.cond_wait_with_timeout(&c.job_cond, &c.job_mu, wait)
 			continue
 		}
 		j := c.jobs[pick]
@@ -107,13 +107,13 @@ worker_proc :: proc(c: ^Client) {
 		// the moment the page would call fetch(): picks are serialized here, so
 		// requests due together keep their queue order (traffic recording)
 		tl_dispatch_ms = now_ms_f()
-		sync.mutex_unlock(&c.job_mu)
+		locks.unlock(&c.job_mu)
 		run_job(c, j)
 		job_free(j)
 		free_all(context.temp_allocator)
-		sync.mutex_lock(&c.job_mu)
+		locks.lock(&c.job_mu)
 	}
-	sync.mutex_unlock(&c.job_mu)
+	locks.unlock(&c.job_mu)
 }
 
 @(private)
@@ -251,19 +251,19 @@ run_api :: proc(c: ^Client, j: ^Job) {
 	if j.op == .Ack && r.ok {
 		if m := vmap(r.body); m != nil {
 			tok := fstr(m, "token")
-			sync.mutex_lock(&c.ack_mu)
+			locks.lock(&c.ack_mu)
 			delete(c.ack_token, c.allocator)
 			c.ack_token = strings.clone(tok, c.allocator) if tok != "" else ""
-			sync.mutex_unlock(&c.ack_mu)
+			locks.unlock(&c.ack_mu)
 		}
 	}
 	if j.op == .Experiments && r.ok {
 		if m := vmap(r.body); m != nil {
 			inst := fstr(m, "installation")
 			if inst != "" {
-				sync.mutex_lock(&c.id.mu)
+				locks.lock(&c.id.mu)
 				if c.id.installation_id == "" do c.id.installation_id = strings.clone(inst, c.allocator)
-				sync.mutex_unlock(&c.id.mu)
+				locks.unlock(&c.id.mu)
 			}
 		}
 	}
@@ -302,22 +302,22 @@ note_quest_applications :: proc(c: ^Client, body: V) {
 	ids := make([dynamic]Snowflake, context.temp_allocator)
 	collect_app_ids(body, &ids)
 	if len(ids) == 0 do return
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	delete(c.quest_app_ids)
 	c.quest_app_ids = make([]Snowflake, len(ids), c.allocator)
 	copy(c.quest_app_ids, ids[:])
 	ready := c.ready_ms
-	sync.mutex_unlock(&c.job_mu)
+	locks.unlock(&c.job_mu)
 	if ready != 0 do schedule_applications_public(c, ready)
 }
 
 schedule_applications_public :: proc(c: ^Client, ready_ms: i64) {
 	// Hydrated by the home (friends/quests) surface only.
 	if client_route_kind(c.start_route_guild, c.start_route_channel) != .Home do return
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	ids := c.quest_app_ids
 	c.quest_app_ids = nil
-	sync.mutex_unlock(&c.job_mu)
+	locks.unlock(&c.job_mu)
 	if len(ids) == 0 do return
 	defer delete(ids, c.allocator)
 	q: Query
@@ -352,8 +352,8 @@ send_preflight :: proc(c: ^Client, j: ^Job) {
 preflight_note :: proc(c: ^Client, host, path: string, pending: bool) {
 	if !pending do return
 	url := strings.concatenate({"https://", host, path}, context.temp_allocator)
-	sync.mutex_lock(&c.preflight_mu)
-	defer sync.mutex_unlock(&c.preflight_mu)
+	locks.lock(&c.preflight_mu)
+	defer locks.unlock(&c.preflight_mu)
 	if url in c.preflights {
 		c.preflights[url] = 1
 	} else {
@@ -363,23 +363,23 @@ preflight_note :: proc(c: ^Client, host, path: string, pending: bool) {
 
 @(private)
 preflight_finish :: proc(c: ^Client, url: string) {
-	sync.mutex_lock(&c.preflight_mu)
+	locks.lock(&c.preflight_mu)
 	if url in c.preflights do c.preflights[url] = 2
-	sync.cond_broadcast(&c.preflight_cond)
-	sync.mutex_unlock(&c.preflight_mu)
+	locks.cond_broadcast(&c.preflight_cond)
+	locks.unlock(&c.preflight_mu)
 }
 
 // preflight_wait: true when an earlier job sent (or is sending) url's
 // preflight; waits for it to finish (at most 10 s).
 @(private)
 preflight_wait :: proc(c: ^Client, url: string) -> bool {
-	sync.mutex_lock(&c.preflight_mu)
-	defer sync.mutex_unlock(&c.preflight_mu)
+	locks.lock(&c.preflight_mu)
+	defer locks.unlock(&c.preflight_mu)
 	st, ok := c.preflights[url]
 	if !ok do return false
 	deadline := time.tick_now()
 	for st == 1 && time.tick_since(deadline) < 10 * time.Second {
-		sync.cond_wait_with_timeout(&c.preflight_cond, &c.preflight_mu, 250 * time.Millisecond)
+		locks.cond_wait_with_timeout(&c.preflight_cond, &c.preflight_mu, 250 * time.Millisecond)
 		st = c.preflights[url]
 	}
 	key, _ := delete_key(&c.preflights, url)
@@ -481,10 +481,10 @@ run_upload :: proc(c: ^Client, j: ^Job) {
 		json_obj(&w)
 		json_kstr(&w, "filename", f.filename)
 		json_kint(&w, "file_size", i64(len(f.data)))
-		sync.mutex_lock(&c.job_mu)
+		locks.lock(&c.job_mu)
 		c.upload_seq += 1
 		uid := c.upload_seq
-		sync.mutex_unlock(&c.job_mu)
+		locks.unlock(&c.job_mu)
 		json_kstr(&w, "id", itoa(uid))
 		json_kbool(&w, "is_clip", false)
 		if f.mime != "" do json_kstr(&w, "original_content_type", f.mime)

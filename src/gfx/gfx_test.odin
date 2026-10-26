@@ -1,6 +1,7 @@
 package gfx
 
 import "core:testing"
+import "core:thread"
 import "fc:platform"
 
 @(private = "file")
@@ -15,8 +16,18 @@ px :: proc(pixels: []u8, w, x, y: int) -> [4]u8 {
 	return {pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]}
 }
 
+// GPU drivers may throw and catch a C++ exception inside D3D11CreateDevice. The test runner's
+// exception handler fails the test on it but ignores threads the test started, so the body runs on
+// one: all of it, since text callbacks reuse the context captured at init.
 @(test)
 test_render_and_clusters :: proc(t: ^testing.T) {
+	th := thread.create_and_start_with_poly_data(t, render_and_clusters, context)
+	thread.join(th)
+	thread.destroy(th)
+}
+
+@(private = "file")
+render_and_clusters :: proc(t: ^testing.T) {
 	testing.expect(t, setup(t), "init")
 
 	begin_frame({0, 0, 0, 1})
@@ -58,12 +69,12 @@ test_render_and_clusters :: proc(t: ^testing.T) {
 		testing.expect_value(t, g.cluster_end, len(fam))
 	}
 	testing.expect(t, len(run.glyphs) > 0 && run.glyphs[0].is_color, "emoji is color")
+	// macOS draws one glyph per flag; Windows has no flag glyphs and draws each letter as its own cluster.
 	run = shape(face, 16, "🇺🇸🇯🇵")
-	testing.expect_value(t, len(run.glyphs), 2)
-	if len(run.glyphs) == 2 {
-		testing.expect_value(t, run.glyphs[1].cluster_start, 8)
-		testing.expect_value(t, run_caret_x(run, 8), run.glyphs[1].pos.x)
-	}
+	second := -1
+	for g, i in run.glyphs do if second < 0 && g.cluster_start == 8 do second = i
+	testing.expect(t, second > 0, "second flag starts a cluster at byte 8")
+	if second > 0 do testing.expect_value(t, run_caret_x(run, 8), run.glyphs[second].pos.x)
 
 	// cache hit
 	_ = shape(face, 16, "hello")

@@ -9,12 +9,13 @@
 // alert and connect fails.
 package tls
 
+import "fc:locks"
 import "base:intrinsics"
 import "core:crypto/aead"
+import "core:crypto/chacha20"
 import "core:crypto/hash"
 import "core:mem"
 import "core:strings"
-import "core:sync"
 import "core:time"
 
 import "fc:netio"
@@ -91,6 +92,20 @@ SUITES := [?]Suite {
 	{0x1303, .CHACHA20POLY1305, 32, .SHA256, 32},
 }
 
+// Odin dev-2026-10 miscompiles the AVX2 ChaCha20 in -debug builds on Windows: its round helper is not
+// inlined, reads its stack arguments from the wrong slots and faults. Every ChaCha20 user in fastcord
+// passes this implementation (tests/run_all.sh checks), so debug builds use the SSE one instead.
+CHACHA20_IMPL :: chacha20.Implementation.Simd128 when ODIN_DEBUG else chacha20.DEFAULT_IMPLEMENTATION
+
+// aead_impl is the implementation argument for aead.init(_, alg, _).
+aead_impl :: proc(alg: aead.Algorithm) -> aead.Implementation {
+	#partial switch alg {
+	case .CHACHA20POLY1305, .XCHACHA20POLY1305:
+		return CHACHA20_IMPL
+	}
+	return nil
+}
+
 // Direction is one half of the record protection state.
 Direction :: struct {
 	active: bool,
@@ -111,7 +126,7 @@ Session :: struct {
 	cache:          ^Ticket_Cache,
 	rd:             Direction,
 	wr:             Direction,
-	wmu:            sync.Mutex, // guards wr and the underlying write side
+	wmu:            locks.Mutex, // guards wr and the underlying write side
 	// Buffered ciphertext from the underlying stream.
 	inbuf:          [MAX_CIPHERTEXT + 5 + 1024]byte,
 	in_lo, in_hi:   int,
@@ -159,7 +174,7 @@ connect :: proc(under: netio.Stream, cfg: Config, allocator := context.allocator
 }
 
 stream :: proc(s: ^Session) -> netio.Stream {
-	return netio.Stream{data = s, read = stream_read, write = stream_write, close = stream_close, shutdown = stream_shutdown}
+	return netio.Stream{data = s, read = stream_read, write = stream_write, close = stream_close, shutdown = stream_shutdown, set_timeout = stream_set_timeout}
 }
 
 // negotiated_alpn returns the protocol the server selected, or "" if none.
@@ -228,6 +243,9 @@ stream_close :: proc(data: rawptr) {close(cast(^Session)data)}
 @(private)
 stream_shutdown :: proc(data: rawptr) {shutdown(cast(^Session)data)}
 
+@(private)
+stream_set_timeout :: proc(data: rawptr, d: time.Duration) {netio.set_timeout((cast(^Session)data).under, d)}
+
 // shutdown wakes a thread blocked in read (it returns .Closed) and makes
 // later reads and writes fail, without freeing anything. It forwards to the
 // underlying stream's shutdown and is safe to call from any thread. close()
@@ -265,8 +283,8 @@ read :: proc(s: ^Session, dst: []byte) -> (int, Error) {
 write :: proc(s: ^Session, src: []byte) -> Error {
 	if f := get_failed(s); f != .None do return f
 	if is_shut(s) do return .Closed
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	if s.sent_close do return .Closed
 	rest := src
 	for len(rest) > 0 {
@@ -284,8 +302,8 @@ write :: proc(s: ^Session, src: []byte) -> Error {
 // server is asked to rotate its keys too; its KeyUpdate is handled by read.
 key_update :: proc(s: ^Session, request_peer := false) -> Error {
 	if f := get_failed(s); f != .None do return f
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	if s.sent_close do return .Closed
 	if e := send_key_update_locked(s, request_peer); e != .None {
 		set_failed(s, e)
@@ -353,8 +371,8 @@ tcp_set_secret :: proc(data: rawptr, level: Level, is_write: bool, suite: Suite,
 		set_keys(&s.rd, suite, secret)
 		return .None
 	}
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	set_keys(&s.wr, suite, secret)
 	return .None
 }

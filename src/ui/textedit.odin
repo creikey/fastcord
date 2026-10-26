@@ -182,9 +182,18 @@ editor_event :: proc(
 	}
 	if ev.kind != .Key_Down do return .None
 	shift := .Shift in ev.mods
-	cmd := .Cmd in ev.mods
-	alt := .Alt in ev.mods
-	ctrl := .Ctrl in ev.mods
+	// cmd: line-wise moves; alt: word-wise; ctrl: emacs keys; short: clipboard/undo shortcuts.
+	when ODIN_OS == .Darwin {
+		cmd := .Cmd in ev.mods
+		alt := .Alt in ev.mods
+		ctrl := .Ctrl in ev.mods
+		short := cmd
+	} else {
+		cmd := false
+		alt := .Ctrl in ev.mods
+		ctrl := false
+		short := .Ctrl in ev.mods
+	}
 	a, b := editor_sel(e)
 
 	#partial switch ev.key {
@@ -261,7 +270,7 @@ editor_event :: proc(
 	case .Escape:
 		return .Escape
 	case .A:
-		if cmd {
+		if short {
 			e.mark = 0
 			e.caret = len(s)
 			return .Moved
@@ -271,18 +280,18 @@ editor_event :: proc(
 			return .Moved
 		}
 	case .C:
-		if cmd && editor_has_sel(e) {
+		if short && editor_has_sel(e) {
 			clip_set(editor_selected_text(e))
 			return .None
 		}
 	case .X:
-		if cmd && editor_has_sel(e) {
+		if short && editor_has_sel(e) {
 			clip_set(editor_selected_text(e))
 			delete_to(e, e.caret)
 			return .Changed
 		}
 	case .V:
-		if cmd {
+		if short {
 			t := clip_get()
 			if !multiline do t, _ = strings.replace_all(t, "\n", " ", context.temp_allocator)
 			if t != "" {
@@ -293,10 +302,12 @@ editor_event :: proc(
 			}
 		}
 	case .Z:
-		if cmd {
+		if short {
 			if shift do return editor_redo(e) ? .Changed : .None
 			return editor_undo(e) ? .Changed : .None
 		}
+	case .Y:
+		if short && ODIN_OS != .Darwin do return editor_redo(e) ? .Changed : .None
 	case .K:
 		if ctrl {
 			delete_to(e, line_end_of(tl, s, e.caret))

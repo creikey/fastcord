@@ -1,6 +1,6 @@
 package discord
 
-import "core:sync"
+import "fc:locks"
 
 // Quick switcher (Cmd+K) game search, as the official client issues it
 // (fixtures quick_switcher_nav, close_dm):
@@ -83,7 +83,7 @@ qs_results :: proc(c: ^Client, body: V, shown: int) {
 	q: Query
 	query_init(&q, "/games")
 	n := 0
-	sync.mutex_lock(&c.job_mu)
+	locks.lock(&c.job_mu)
 	for g, i in vlist(body) {
 		if i >= shown do break
 		m := vmap(g)
@@ -94,7 +94,7 @@ qs_results :: proc(c: ^Client, body: V, shown: int) {
 		query_add_snow(&q, "game_ids", id)
 		n += 1
 	}
-	sync.mutex_unlock(&c.job_mu)
+	locks.unlock(&c.job_mu)
 	if n == 0 do return
 	j := job_new(.Api, .None)
 	j.method = "GET"

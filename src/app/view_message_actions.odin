@@ -153,9 +153,7 @@ quick_reactions :: proc() -> []dc.Emoji {
 		e: dc.Emoji
 		if id, ok := strconv.parse_u64(key); ok {
 			found := false
-			for gid in guild_order() {
-				g := dc.guild_get(store(), gid)
-				if g == nil do continue
+			for _, &g in store().guilds {
 				for ge in g.emojis do if u64(ge.id) == id {e, found = ge, true}
 			}
 			if !found do return

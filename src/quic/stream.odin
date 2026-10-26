@@ -1,6 +1,6 @@
 package quic
 
-import "core:sync"
+import "fc:locks"
 import "core:time"
 
 Stream :: struct {
@@ -78,8 +78,8 @@ open_uni :: proc(c: ^Conn) -> (^Stream, Error) {return open_stream(c, true)}
 @(private)
 open_stream :: proc(c: ^Conn, uni: bool) -> (^Stream, Error) {
 	context.allocator = conn_allocator()
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	for {
 		if c.err != .None do return nil, c.err
 		n := c.next_uni if uni else c.next_bidi
@@ -92,7 +92,7 @@ open_stream :: proc(c: ^Conn, uni: bool) -> (^Stream, Error) {
 			}
 			return stream_new(c, n << 2 | (2 if uni else 0)), .None
 		}
-		sync.cond_wait(&c.cond, &c.mu)
+		locks.cond_wait(&c.cond, &c.mu)
 	}
 }
 
@@ -112,9 +112,9 @@ stream_id :: proc(st: ^Stream) -> u64 {return st.id}
 write :: proc(st: ^Stream, data: []byte, fin := false) -> Error {
 	c := st.conn
 	context.allocator = conn_allocator()
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	e := write_locked(st, data, fin)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	wake(c)
 	return e
 }
@@ -134,8 +134,8 @@ write_locked :: proc(st: ^Stream, data: []byte, fin := false) -> Error {
 read :: proc(st: ^Stream, dst: []byte) -> (int, Error) {
 	c := st.conn
 	context.allocator = conn_allocator()
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	for {
 		if st.reset_received do return 0, .Stream_Reset
 		avail := rb_readable(&st.recv)
@@ -147,7 +147,7 @@ read :: proc(st: ^Stream, dst: []byte) -> (int, Error) {
 		}
 		if st.final_size >= 0 && st.recv.read_off == u64(st.final_size) do return 0, .Closed
 		if c.err != .None do return 0, c.err
-		sync.cond_wait(&c.cond, &c.mu)
+		locks.cond_wait(&c.cond, &c.mu)
 	}
 }
 
@@ -174,9 +174,9 @@ consumed_locked :: proc(c: ^Conn, st: ^Stream, n: int) {
 reset :: proc(st: ^Stream, code: u64) {
 	c := st.conn
 	context.allocator = conn_allocator()
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	reset_locked(st, code)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	wake(c)
 }
 
@@ -192,9 +192,9 @@ reset_locked :: proc(st: ^Stream, code: u64) {
 stop_sending :: proc(st: ^Stream, code: u64) {
 	c := st.conn
 	context.allocator = conn_allocator()
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	stop_sending_locked(st, code)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 	wake(c)
 }
 
@@ -208,10 +208,10 @@ stop_sending_locked :: proc(st: ^Stream, code: u64) {
 // both directions are finished.
 release :: proc(st: ^Stream) {
 	c := st.conn
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	st.released = true
 	maybe_free_stream(c, st)
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 @(private)
@@ -302,7 +302,7 @@ on_stream_frame :: proc(c: ^Conn, id, off: u64, data: []byte, fin: bool) -> bool
 		return c.err == .None
 	}
 	rb_insert(&st.recv, off, data)
-	sync.cond_broadcast(&c.cond)
+	locks.cond_broadcast(&c.cond)
 	return true
 }
 
@@ -322,7 +322,7 @@ on_reset_stream :: proc(c: ^Conn, id, code, final: u64) -> bool {
 	st.final_size = i64(final)
 	st.reset_received = true
 	st.reset_code = code
-	sync.cond_broadcast(&c.cond)
+	locks.cond_broadcast(&c.cond)
 	maybe_free_stream(c, st)
 	return true
 }
@@ -340,7 +340,7 @@ on_stop_sending :: proc(c: ^Conn, id, code: u64) -> bool {
 	st.stop_code = code
 	// Answer with RESET_STREAM carrying the same code (RFC 9000 3.5).
 	reset_locked(st, code)
-	sync.cond_broadcast(&c.cond)
+	locks.cond_broadcast(&c.cond)
 	return true
 }
 
@@ -462,24 +462,24 @@ put_stream_frames :: proc(c: ^Conn, b: ^Packet_Builder, budget: int) {
 
 // set_uni_handler installs the callback for peer-initiated uni streams.
 set_uni_handler :: proc(c: ^Conn, h: Uni_Handler, user: rawptr) {
-	sync.mutex_lock(&c.mu)
+	locks.lock(&c.mu)
 	c.uni_handler = h
 	c.uni_user = user
-	sync.mutex_unlock(&c.mu)
+	locks.unlock(&c.mu)
 }
 
 // lock / unlock give layered protocols (h3) access to the connection lock
 // for state shared with the I/O thread.
-lock :: proc(c: ^Conn) {sync.mutex_lock(&c.mu)}
-unlock :: proc(c: ^Conn) {sync.mutex_unlock(&c.mu)}
+lock :: proc(c: ^Conn) {locks.lock(&c.mu)}
+unlock :: proc(c: ^Conn) {locks.unlock(&c.mu)}
 
 // wait blocks on the connection condition (lock held); returns c.err.
 wait_locked :: proc(c: ^Conn) -> Error {
-	sync.cond_wait(&c.cond, &c.mu)
+	locks.cond_wait(&c.cond, &c.mu)
 	return c.err
 }
 
-broadcast_locked :: proc(c: ^Conn) {sync.cond_broadcast(&c.cond)}
+broadcast_locked :: proc(c: ^Conn) {locks.cond_broadcast(&c.cond)}
 
 conn_error :: proc(c: ^Conn) -> Error {return c.err}
 
@@ -506,11 +506,11 @@ open_uni_locked :: proc(c: ^Conn) -> ^Stream {
 flush :: proc(st: ^Stream) -> Error {
 	c := st.conn
 	wake(c)
-	sync.mutex_lock(&c.mu)
-	defer sync.mutex_unlock(&c.mu)
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
 	for st.send_high < st.send.end && len(st.send.pending) > 0 {
 		if c.err != .None do return c.err
-		sync.cond_wait(&c.cond, &c.mu)
+		locks.cond_wait(&c.cond, &c.mu)
 	}
 	return .None
 }

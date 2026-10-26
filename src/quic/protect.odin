@@ -38,7 +38,7 @@ keys_set :: proc(k: ^Keys, suite: tls.Suite, secret: []byte) {
 	tls.expand_label(suite, secret, "quic key", nil, key[:suite.key_len])
 	tls.expand_label(suite, secret, "quic iv", nil, k.iv[:])
 	tls.expand_label(suite, secret, "quic hp", nil, hp[:suite.key_len])
-	aead.init(&k.ctx, suite.aead, key[:suite.key_len])
+	aead.init(&k.ctx, suite.aead, key[:suite.key_len], tls.aead_impl(suite.aead))
 	if suite.aead == .CHACHA20POLY1305 {
 		k.hp_chacha = hp
 	} else {
@@ -91,7 +91,7 @@ initial_keys :: proc(client, server: ^Keys, dcid: []byte) {
 hp_mask :: proc(k: ^Keys, sample: []byte) -> (mask: [5]byte) {
 	if k.suite.aead == .CHACHA20POLY1305 {
 		ctx: chacha20.Context
-		chacha20.init(&ctx, k.hp_chacha[:], sample[4:16])
+		chacha20.init(&ctx, k.hp_chacha[:], sample[4:16], tls.CHACHA20_IMPL)
 		counter := u64(sample[0]) | u64(sample[1]) << 8 | u64(sample[2]) << 16 | u64(sample[3]) << 24
 		chacha20.seek(&ctx, counter)
 		chacha20.keystream_bytes(&ctx, mask[:])

@@ -1,10 +1,12 @@
 package discord
 
+import "fc:locks"
 import "core:crypto"
 import "core:encoding/base64"
 import "core:math/rand"
 import "core:mem"
 import "core:mem/virtual"
+import "core:slice"
 import "core:strings"
 import "core:sync"
 import "core:thread"
@@ -92,9 +94,15 @@ Gw_State :: enum u8 {
 
 Gateway :: struct {
 	c:                 ^Client,
-	mu:                sync.Mutex,
-	cond:              sync.Cond,
-	send_mu:           sync.Mutex, // guards ws for senders
+	mu:                locks.Mutex,
+	cond:              locks.Cond,
+	send_mu:           locks.Mutex, // guards ws for senders
+	// Frames sent from the UI thread, written by the writer thread: a socket write can block.
+	out_mu:            locks.Mutex,
+	out_cond:          locks.Cond,
+	outbox:            [dynamic][]byte,
+	out_stop:          bool,
+	writer:            ^thread.Thread,
 	ws:                ^http.Ws_Conn,
 	stream:            netio.Stream,
 	gen:               int,
@@ -146,24 +154,60 @@ gateway_create :: proc(c: ^Client) -> ^Gateway {
 	g.state = .Closed
 	g.presence_status = .Online
 	g.inflated = make([dynamic]byte)
+	g.outbox = make([dynamic][]byte, c.allocator)
 	return g
 }
 
 gateway_start :: proc(g: ^Gateway) {
 	g.control = thread.create_and_start_with_poly_data(g, gateway_control_proc, g.c.ctx)
+	g.writer = thread.create_and_start_with_poly_data(g, gateway_writer_proc, g.c.ctx)
+}
+
+@(private)
+gateway_writer_proc :: proc(g: ^Gateway) {
+	locks.lock(&g.out_mu)
+	for !g.out_stop {
+		if len(g.outbox) == 0 {
+			locks.cond_wait(&g.out_cond, &g.out_mu)
+			continue
+		}
+		batch := g.outbox
+		g.outbox = make([dynamic][]byte, g.c.allocator)
+		locks.unlock(&g.out_mu)
+		for b in batch {
+			locks.lock(&g.send_mu)
+			if g.ws != nil do _ = http.ws_send(g.ws, .Binary, b)
+			locks.unlock(&g.send_mu)
+			delete(b, g.c.allocator)
+		}
+		delete(batch)
+		locks.lock(&g.out_mu)
+	}
+	locks.unlock(&g.out_mu)
 }
 
 gateway_stop :: proc(g: ^Gateway) {
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	g.stop = true
 	g.state = .Stopped
-	sync.cond_broadcast(&g.cond)
-	sync.mutex_unlock(&g.mu)
+	locks.cond_broadcast(&g.cond)
+	locks.unlock(&g.mu)
 	gateway_close_socket(g, 1000)
 	if g.control != nil {
-		thread.join(g.control)
-		thread.destroy(g.control)
+		locks.join(g.control)
 	}
+	// The control thread may have finished a connect after the close above, leaving a live socket
+	// and reader thread behind; close and join them before the free.
+	gateway_close_socket(g, 1000)
+	if g.writer != nil {
+		locks.lock(&g.out_mu)
+		g.out_stop = true
+		locks.cond_signal(&g.out_cond)
+		locks.unlock(&g.out_mu)
+		locks.join(g.writer)
+	}
+	for b in g.outbox do delete(b, g.c.allocator)
+	delete(g.outbox)
 	delete(g.session_id)
 	delete(g.resume_url)
 	delete(g.inflated)
@@ -187,8 +231,19 @@ gateway_send :: proc(g: ^Gateway, op: Op, d: V) -> bool {
 	frame := etf.map_done(&b)
 	buf, err := etf.encode(frame, context.temp_allocator)
 	if err != .None do return false
-	sync.mutex_lock(&g.send_mu)
-	defer sync.mutex_unlock(&g.send_mu)
+	if locks.on_ui_thread() {
+		// Queued: true means accepted for sending, as a send can still fail on a dying socket.
+		if sync.atomic_load(&g.ws) == nil do return false
+		if g.c.on_gateway_send != nil do g.c.on_gateway_send(g.c.observer_data, op, d)
+		if g.c.on_gateway_frame != nil do g.c.on_gateway_frame(g.c.observer_data, true, frame, len(buf))
+		locks.lock(&g.out_mu)
+		append(&g.outbox, slice.clone(buf, g.c.allocator))
+		locks.cond_signal(&g.out_cond)
+		locks.unlock(&g.out_mu)
+		return true
+	}
+	locks.lock(&g.send_mu)
+	defer locks.unlock(&g.send_mu)
 	if g.ws == nil do return false
 	if g.c.on_gateway_send != nil do g.c.on_gateway_send(g.c.observer_data, op, d)
 	if g.c.on_gateway_frame != nil do g.c.on_gateway_frame(g.c.observer_data, true, frame, len(buf))
@@ -227,15 +282,15 @@ send_heartbeat_locked :: proc(g: ^Gateway) {
 	}
 	g.last_beat = now_ms()
 	d := etf.map_done(&b)
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 	gateway_send(g, .Qos_Heartbeat, d)
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 }
 
 // gateway_set_active mirrors handleActiveStateChange(K()).
 gateway_set_active :: proc(g: ^Gateway, q: Qos) {
-	sync.mutex_lock(&g.mu)
-	defer sync.mutex_unlock(&g.mu)
+	locks.lock(&g.mu)
+	defer locks.unlock(&g.mu)
 	cur, have := g.qos_current.?
 	was_inactive := !have || !cur.active
 	if !have {
@@ -376,22 +431,21 @@ voice_state_value :: proc(guild_id, channel_id: Snowflake, self_mute, self_deaf,
 
 @(private)
 gateway_close_socket :: proc(g: ^Gateway, code: int) {
-	sync.mutex_lock(&g.send_mu)
+	locks.lock(&g.send_mu)
 	ws := g.ws
 	stream := g.stream
 	g.ws = nil
-	sync.mutex_unlock(&g.send_mu)
+	locks.unlock(&g.send_mu)
 	if ws == nil do return
 	if g.c.on_ws_close != nil do g.c.on_ws_close(g.c.observer_data, code)
 	_ = http.ws_close(ws, code)
 	netio.shutdown(stream)
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	rd := g.reader
 	g.reader = nil
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 	if rd != nil {
-		thread.join(rd)
-		thread.destroy(rd)
+		locks.join(rd)
 	}
 	http.ws_close_stream(ws)
 	zstd.stream_destroy(&g.zs)
@@ -432,32 +486,33 @@ gateway_connect :: proc(g: ^Gateway) {
 		if strings.equal_fold(h.name, "set-cookie") do cookie_set_from_header(&c.jar, host, path, h.value, now)
 	}
 	http.response_destroy(&resp)
+	netio.set_timeout(stream, 0)
 
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	g.gen += 1
 	gen := g.gen
 	zstd.stream_init(&g.zs)
 	g.received_hello = false
 	g.hello_deadline = now_ms() + 30_000
 	g.next_beat = 0
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 
-	sync.mutex_lock(&g.send_mu)
+	locks.lock(&g.send_mu)
 	g.ws = ws
 	g.stream = stream
-	sync.mutex_unlock(&g.send_mu)
+	locks.unlock(&g.send_mu)
 
 	rd := thread.create(gateway_reader_proc)
 	rd.data = g
 	rd.user_index = gen
 	rd.init_context = c.ctx
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	g.reader = rd
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 	thread.start(rd)
 
 	// onOpen
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	if !g.fast_connect_done && c.cfg.fast_connect {
 		g.fast_connect_done = true
 		g.seq = 0
@@ -465,7 +520,7 @@ gateway_connect :: proc(g: ^Gateway) {
 		g.session_id = ""
 		g.state = .Identifying
 		g.last_ack = now_ms()
-		sync.mutex_unlock(&g.mu)
+		locks.unlock(&g.mu)
 		client_push_state(c, .Identifying)
 		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
 		d := c.cfg.fast_identify_delay_ms if c.cfg.fast_identify_delay_ms != 0 else 300
@@ -474,7 +529,7 @@ gateway_connect :: proc(g: ^Gateway) {
 	} else {
 		g.fast_connect_done = true
 		resume_or_identify_locked(g)
-		sync.mutex_unlock(&g.mu)
+		locks.unlock(&g.mu)
 	}
 }
 
@@ -489,10 +544,10 @@ resume_or_identify_locked :: proc(g: ^Gateway) {
 		etf.map_put(&b, "session_id", g.session_id)
 		etf.map_put(&b, "seq", g.seq)
 		d := etf.map_done(&b)
-		sync.mutex_unlock(&g.mu)
+		locks.unlock(&g.mu)
 		client_push_state(g.c, .Resuming)
 		gateway_send(g, .Resume, d)
-		sync.mutex_lock(&g.mu)
+		locks.lock(&g.mu)
 	} else {
 		identify_locked(g)
 	}
@@ -506,17 +561,17 @@ identify_locked :: proc(g: ^Gateway) {
 	g.session_id = ""
 	g.state = .Identifying
 	d := identify_value(g)
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 	client_push_state(g.c, .Identifying)
 	gateway_send(g, .Identify, d)
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 }
 
 // gateway_on_closed: _handleClose. Called from the reader (socket died) or connect failure.
 @(private)
 gateway_on_closed :: proc(g: ^Gateway, gen: int, clean: bool, code: int) {
-	sync.mutex_lock(&g.mu)
-	defer sync.mutex_unlock(&g.mu)
+	locks.lock(&g.mu)
+	defer locks.unlock(&g.mu)
 	if gen != g.gen || g.stop do return
 	g.next_beat = 0
 	g.hello_deadline = 0
@@ -526,9 +581,9 @@ gateway_on_closed :: proc(g: ^Gateway, gen: int, clean: bool, code: int) {
 		delete(g.session_id)
 		g.session_id = ""
 		g.seq = 0
-		sync.mutex_unlock(&g.mu)
+		locks.unlock(&g.mu)
 		client_push_state(g.c, .Auth_Failed)
-		sync.mutex_lock(&g.mu)
+		locks.lock(&g.mu)
 		return
 	}
 	if !g.received_hello do g.failed_attempts += 1
@@ -547,10 +602,10 @@ gateway_on_closed :: proc(g: ^Gateway, gen: int, clean: bool, code: int) {
 		}
 	}
 	g.gen += 1 // invalidate the dead reader's generation
-	sync.cond_broadcast(&g.cond)
-	sync.mutex_unlock(&g.mu)
+	locks.cond_broadcast(&g.cond)
+	locks.unlock(&g.mu)
 	client_push_state(g.c, .Disconnected)
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 }
 
 @(private)
@@ -559,9 +614,9 @@ gateway_reader_proc :: proc(th: ^thread.Thread) {
 	gen := th.user_index
 	msg := make([dynamic]byte)
 	defer delete(msg)
-	sync.mutex_lock(&g.send_mu)
+	locks.lock(&g.send_mu)
 	ws := g.ws
-	sync.mutex_unlock(&g.send_mu)
+	locks.unlock(&g.send_mu)
 	if ws == nil do return
 	for {
 		clear(&msg)
@@ -570,9 +625,9 @@ gateway_reader_proc :: proc(th: ^thread.Thread) {
 			code := ws.close_code if ws.recv_close else 0
 			// Detach and tear down on the control thread.
 			go_closed := false
-			sync.mutex_lock(&g.mu)
+			locks.lock(&g.mu)
 			go_closed = gen == g.gen && !g.stop
-			sync.mutex_unlock(&g.mu)
+			locks.unlock(&g.mu)
 			if go_closed do gateway_schedule_teardown(g, gen, code)
 			return
 		}
@@ -587,14 +642,14 @@ gateway_reader_proc :: proc(th: ^thread.Thread) {
 // Teardown runs on the control thread (it must join this reader).
 @(private)
 gateway_schedule_teardown :: proc(g: ^Gateway, gen: int, code: int) {
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	if gen == g.gen && !g.stop {
 		g.pending_teardown = true
 		g.pending_code = code
 		g.pending_gen = gen
-		sync.cond_broadcast(&g.cond)
+		locks.cond_broadcast(&g.cond)
 	}
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 }
 
 // gateway_handle_frame: inflate (zstd-stream), unpack, act. Returns false on a decode error.
@@ -636,10 +691,10 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 	if c.on_gateway_frame != nil do c.on_gateway_frame(c.observer_data, false, v, 0)
 	if c.on_dispatch != nil && op == .Dispatch do c.on_dispatch(c.user_data, t)
 
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	defer {
 		send_heartbeat_if_due_locked(g)
-		sync.mutex_unlock(&g.mu)
+		locks.unlock(&g.mu)
 	}
 	if gen != g.gen do return false
 	if sv != nil do g.seq = vint(sv)
@@ -659,7 +714,7 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 		// _startHeartbeater: first beat after floor(random*interval).
 		g.next_beat = now_ms() + i64(rand.float64() * f64(g.interval))
 		g.initial_beat = true
-		sync.cond_broadcast(&g.cond)
+		locks.cond_broadcast(&g.cond)
 	case .Heartbeat_Ack:
 		g.last_ack = now_ms()
 		g.beat_acked = true
@@ -672,7 +727,7 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 		g.pending_code = 4000
 		g.pending_gen = gen
 		g.pending_send_close = true
-		sync.cond_broadcast(&g.cond)
+		locks.cond_broadcast(&g.cond)
 	case .Invalid_Session:
 		if vbool(d) do resume_or_identify_locked(g)
 		else do identify_locked(g)
@@ -688,14 +743,14 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 			backoff_succeed(&g.backoff)
 			// AuthenticationStore CONNECTION_OPEN: apex_experiments.installation -> installation_id_v3.
 			if inst := fstr(fmap(dm, "apex_experiments"), "installation"); inst != "" {
-				sync.mutex_lock(&c.id.mu)
+				locks.lock(&c.id.mu)
 				if c.id.installation_id == "" do c.id.installation_id = strings.clone(inst, c.allocator)
-				sync.mutex_unlock(&c.id.mu)
+				locks.unlock(&c.id.mu)
 			}
-			sync.mutex_lock(&c.qos_mu)
+			locks.lock(&c.qos_mu)
 			delete(c.ready_qos_token, c.allocator)
 			c.ready_qos_token = strings.clone(fstr(dm, "qos_token"), c.allocator)
-			sync.mutex_unlock(&c.qos_mu)
+			locks.unlock(&c.qos_mu)
 			gateway_on_ready_locked(g)
 		case "READY_SUPPLEMENTAL", "RESUMED":
 			g.state = .Established
@@ -703,9 +758,9 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 		}
 		ev := Event{kind = .Dispatch, data = d, arena = arena}
 		ev.name = strings.clone(t, alloc)
-		sync.mutex_unlock(&g.mu)
+		locks.unlock(&g.mu)
 		client_push_event(c, ev)
-		sync.mutex_lock(&g.mu)
+		locks.lock(&g.mu)
 		return true
 	}
 	return false
@@ -716,17 +771,17 @@ gateway_handle_payload :: proc(g: ^Gateway, gen: int, v: V, arena: ^virtual.Aren
 @(private)
 gateway_on_ready_locked :: proc(g: ^Gateway) {
 	c := g.c
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 	gateway_send(g, .Voice_State_Update, voice_state_value(0, 0, c.cfg.voice_self_mute, false, false, 2))
 	// Reopening on a route: GuildSubscriptions re-sends the guild's full
 	// subscription state on CONNECTION_OPEN; a private channel route connects the call (op 13).
-	sync.mutex_lock(&c.route_mu)
+	locks.lock(&c.route_mu)
 	rg, rch := c.route_guild, c.route_channel
-	sync.mutex_unlock(&c.route_mu)
+	locks.unlock(&c.route_mu)
 	if rg != 0 {
-		sync.mutex_lock(&c.job_mu)
+		locks.lock(&c.job_mu)
 		c.ready_subscribed_guild = rg
-		sync.mutex_unlock(&c.job_mu)
+		locks.unlock(&c.job_mu)
 		gb := etf.map_builder(7, context.temp_allocator)
 		etf.map_put(&gb, "typing", true)
 		etf.map_put(&gb, "threads", true)
@@ -756,7 +811,7 @@ gateway_on_ready_locked :: proc(g: ^Gateway) {
 		gateway_send(g, .Update_Time_Spent_Session_Id, etf.map_done(&b))
 	}
 	client_on_ready(c)
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	send_heartbeat_locked(g)
 }
 
@@ -770,7 +825,7 @@ send_heartbeat_if_due_locked :: proc(g: ^Gateway) {
 
 @(private)
 gateway_control_proc :: proc(g: ^Gateway) {
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	// The HTML bootstrap opens the socket ~190 ms after navigation (fixtures median).
 	g.reconnect_at = g.c.launch_ms + (g.c.cfg.ws_open_delay_ms if g.c.cfg.ws_open_delay_ms != 0 else 190)
 	for !g.stop {
@@ -781,19 +836,19 @@ gateway_control_proc :: proc(g: ^Gateway) {
 			send_close := g.pending_send_close
 			g.pending_teardown = false
 			g.pending_send_close = false
-			sync.mutex_unlock(&g.mu)
+			locks.unlock(&g.mu)
 			gateway_close_socket(g, 4000 if send_close else 1000)
 			gateway_on_closed(g, gen, false, code)
-			sync.mutex_lock(&g.mu)
+			locks.lock(&g.mu)
 			continue
 		}
 		switch g.state {
 		case .Closed:
 			if now >= g.reconnect_at {
 				g.state = .Connecting
-				sync.mutex_unlock(&g.mu)
+				locks.unlock(&g.mu)
 				gateway_connect(g)
-				sync.mutex_lock(&g.mu)
+				locks.lock(&g.mu)
 				continue
 			}
 		case .Connecting, .Identifying, .Resuming, .Established:
@@ -833,24 +888,24 @@ gateway_control_proc :: proc(g: ^Gateway) {
 		if g.next_beat != 0 do wake = min(wake, g.next_beat)
 		if g.hello_deadline != 0 do wake = min(wake, g.hello_deadline)
 		d := max(wake - now, 1)
-		sync.cond_wait_with_timeout(&g.cond, &g.mu, time.Duration(d) * time.Millisecond)
+		locks.cond_wait_with_timeout(&g.cond, &g.mu, time.Duration(d) * time.Millisecond)
 	}
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 }
 
 // gateway_expedite: resetBackoff (app became active / network online).
 gateway_reset_backoff :: proc(g: ^Gateway) {
-	sync.mutex_lock(&g.mu)
-	defer sync.mutex_unlock(&g.mu)
+	locks.lock(&g.mu)
+	defer locks.unlock(&g.mu)
 	backoff_succeed(&g.backoff)
 	if g.state == .Closed {
 		g.reconnect_at = now_ms()
-		sync.cond_broadcast(&g.cond)
+		locks.cond_broadcast(&g.cond)
 	}
 }
 
 gateway_state :: proc(g: ^Gateway) -> Gw_State {
-	sync.mutex_lock(&g.mu)
-	defer sync.mutex_unlock(&g.mu)
+	locks.lock(&g.mu)
+	defer locks.unlock(&g.mu)
 	return g.state
 }

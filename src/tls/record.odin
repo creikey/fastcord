@@ -1,9 +1,9 @@
 package tls
 
+import "fc:locks"
 import "core:crypto"
 import "core:crypto/aead"
 import "core:encoding/endian"
-import "core:sync"
 
 import "fc:netio"
 
@@ -82,8 +82,8 @@ fail :: proc(s: ^Session, e: Error) {
 // send_alert writes an alert best-effort; errors are ignored.
 @(private)
 send_alert :: proc(s: ^Session, level, desc: u8) {
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	if s.sent_close do return
 	msg := [2]byte{level, desc}
 	write_record_locked(s, CT_ALERT, msg[:])
@@ -98,7 +98,7 @@ set_keys :: proc(d: ^Direction, suite: Suite, secret: []byte) {
 	expand_label(suite, secret, "key", nil, key[:suite.key_len])
 	expand_label(suite, secret, "iv", nil, d.iv[:])
 	aead.reset(&d.ctx)
-	aead.init(&d.ctx, suite.aead, key[:suite.key_len])
+	aead.init(&d.ctx, suite.aead, key[:suite.key_len], aead_impl(suite.aead))
 	d.seq = 0
 	d.active = true
 }
@@ -279,8 +279,8 @@ seal_record :: proc(s: ^Session, ct: u8, data: []byte, legacy_version: u16, buf:
 // middlebox-compat ChangeCipherSpec record goes first.
 @(private)
 write_handshake :: proc(s: ^Session, msg: []byte, legacy_version: u16 = 0x0303, ccs := false) -> Error {
-	sync.mutex_lock(&s.wmu)
-	defer sync.mutex_unlock(&s.wmu)
+	locks.lock(&s.wmu)
+	defer locks.unlock(&s.wmu)
 	flight := make([dynamic]byte, 0, len(msg) + 64)
 	defer delete(flight)
 	if ccs do append(&flight, CT_CHANGE_CIPHER_SPEC, 3, 3, 0, 1, 1)

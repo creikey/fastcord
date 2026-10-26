@@ -5,8 +5,8 @@ package media
 // available returns .Pending and the caller retries later. Blocking is opt-in
 // (read_wait) and only done on the player's worker thread.
 
+import "fc:locks"
 import "core:os"
-import "core:sync"
 import "core:time"
 
 Read_Status :: enum u8 {
@@ -109,8 +109,8 @@ source_from_memory :: proc(data: []u8) -> Byte_Source {
 // ---- Growing buffer: a downloader appends, the player reads concurrently.
 
 Growing_Buffer :: struct {
-	mu:       sync.Mutex,
-	cond:     sync.Cond,
+	mu:       locks.Mutex,
+	cond:     locks.Cond,
 	data:     [dynamic]u8,
 	complete: bool,
 	failed:   bool,
@@ -126,25 +126,25 @@ growing_create :: proc(expected_size: int = 0) -> ^Growing_Buffer {
 
 // Called by the downloader (any thread).
 growing_append :: proc(g: ^Growing_Buffer, bytes: []u8) {
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	append(&g.data, ..bytes)
-	sync.mutex_unlock(&g.mu)
-	sync.cond_broadcast(&g.cond)
+	locks.unlock(&g.mu)
+	locks.cond_broadcast(&g.cond)
 }
 
 growing_finish :: proc(g: ^Growing_Buffer, ok := true) {
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	g.complete = true
 	g.failed = !ok
-	sync.mutex_unlock(&g.mu)
-	sync.cond_broadcast(&g.cond)
+	locks.unlock(&g.mu)
+	locks.cond_broadcast(&g.cond)
 }
 
 growing_release :: proc(g: ^Growing_Buffer) {
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	g.refs -= 1
 	last := g.refs == 0
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 	if last {
 		delete(g.data)
 		free(g)
@@ -153,14 +153,14 @@ growing_release :: proc(g: ^Growing_Buffer) {
 
 // The source holds a reference; the downloader keeps its own (release both).
 source_from_growing :: proc(g: ^Growing_Buffer) -> Byte_Source {
-	sync.mutex_lock(&g.mu)
+	locks.lock(&g.mu)
 	g.refs += 1
-	sync.mutex_unlock(&g.mu)
+	locks.unlock(&g.mu)
 	return Byte_Source {
 		read_at = proc(user: rawptr, offset: i64, buf: []u8) -> (int, Read_Status) {
 			g := (^Growing_Buffer)(user)
-			sync.mutex_lock(&g.mu)
-			defer sync.mutex_unlock(&g.mu)
+			locks.lock(&g.mu)
+			defer locks.unlock(&g.mu)
 			if offset >= i64(len(g.data)) {
 				if g.failed do return 0, .Error
 				return 0, g.complete ? .Eof : .Pending
@@ -170,16 +170,16 @@ source_from_growing :: proc(g: ^Growing_Buffer) -> Byte_Source {
 		},
 		extent = proc(user: rawptr) -> (i64, bool) {
 			g := (^Growing_Buffer)(user)
-			sync.mutex_lock(&g.mu)
-			defer sync.mutex_unlock(&g.mu)
+			locks.lock(&g.mu)
+			defer locks.unlock(&g.mu)
 			return i64(len(g.data)), g.complete
 		},
 		wait = proc(user: rawptr, have: i64, timeout: time.Duration) {
 			g := (^Growing_Buffer)(user)
-			sync.mutex_lock(&g.mu)
-			defer sync.mutex_unlock(&g.mu)
+			locks.lock(&g.mu)
+			defer locks.unlock(&g.mu)
 			if i64(len(g.data)) <= have && !g.complete {
-				sync.cond_wait_with_timeout(&g.cond, &g.mu, timeout)
+				locks.cond_wait_with_timeout(&g.cond, &g.mu, timeout)
 			}
 		},
 		destroy = proc(user: rawptr) {growing_release((^Growing_Buffer)(user))},

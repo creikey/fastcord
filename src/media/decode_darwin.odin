@@ -5,8 +5,8 @@ package media
 // CVPixelBuffers, wrapped as Metal textures through CVMetalTextureCache, zero
 // copy) and AudioToolbox AudioConverter (AAC/MP3/Opus/FLAC/PCM -> f32 @ 48 kHz).
 
+import "fc:locks"
 import "base:runtime"
-import "core:sync"
 import "fc:gfx"
 import "fc:audio"
 
@@ -135,7 +135,7 @@ last_video_error: i32
 Video_Decoder :: struct {
 	session:   CFRef,
 	format:    CFRef,
-	mu:        sync.Mutex,
+	mu:        locks.Mutex,
 	out:       [dynamic]Video_Frame, // decoded, in output order (caller sorts)
 	errors:    int,
 	ctx:       runtime.Context,
@@ -234,9 +234,9 @@ vt_callback :: proc "c" (ref: rawptr, frame_ref: rawptr, status: OSStatus, flags
 	if CVPixelBufferGetPixelFormatType(image) == fourcc("420f") {
 		f.yuv = f.yuv == .BT709 ? .BT709_Full : .BT601_Full
 	}
-	sync.mutex_lock(&vd.mu)
+	locks.lock(&vd.mu)
 	append(&vd.out, f)
-	sync.mutex_unlock(&vd.mu)
+	locks.unlock(&vd.mu)
 }
 
 // first_packet: needed for VP9 in WebM (no vpcC in the container).
@@ -320,10 +320,10 @@ video_decoder_flush :: proc(vd: ^Video_Decoder) {
 
 // Take decoded frames (caller owns them; release with video_frame_release).
 video_decoder_take :: proc(vd: ^Video_Decoder, out: ^[dynamic]Video_Frame) {
-	sync.mutex_lock(&vd.mu)
+	locks.lock(&vd.mu)
 	append(out, ..vd.out[:])
 	clear(&vd.out)
-	sync.mutex_unlock(&vd.mu)
+	locks.unlock(&vd.mu)
 }
 
 video_decoder_destroy :: proc(vd: ^Video_Decoder) {

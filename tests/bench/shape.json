@@ -1,0 +1,458 @@
+{
+	"users": 513,
+	"users_with_avatar": 483,
+	"guilds": 30,
+	"guilds_with_icon": 22,
+	"guild_channels": 621,
+	"categories": 96,
+	"voice": 79,
+	"threads": 15,
+	"dms": 97,
+	"group_dms": 5,
+	"roles": 365,
+	"emojis": 717,
+	"animated_emojis": 107,
+	"members": 268,
+	"presences": 192,
+	"friends": 504,
+	"other_relationships": 1,
+	"read_states": 634,
+	"unread_channels": 213,
+	"unread_dms": 9,
+	"mention_channels": 9,
+	"mention_dms": 5,
+	"guild_settings": 191,
+	"muted_guilds": 120,
+	"muted_channels": 52,
+	"collapsed_categories": 65,
+	"channels_with_messages": 2,
+	"messages": 2,
+	"max_messages_in_channel": 1,
+	"view_messages": 0,
+	"view_reactions": 0,
+	"view_attachments": 0,
+	"view_embeds": 0,
+	"view_replies": 0,
+	"view_mentions": 0,
+	"view_content_bytes": 0,
+	"images": 46,
+	"images_ready": 46,
+	"textures": 77,
+	"rail": [
+		{
+			"folder": false,
+			"guilds": [
+				{
+					"channels": 3,
+					"categories": 0,
+					"voice": 1,
+					"threads": 2,
+					"roles": 1,
+					"emojis": 2,
+					"members": 1,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				}
+			]
+		},
+		{
+			"folder": true,
+			"guilds": [
+				{
+					"channels": 45,
+					"categories": 7,
+					"voice": 2,
+					"threads": 0,
+					"roles": 6,
+					"emojis": 11,
+					"members": 6,
+					"unread": 18,
+					"mentions": 0,
+					"muted": true
+				},
+				{
+					"channels": 111,
+					"categories": 17,
+					"voice": 13,
+					"threads": 0,
+					"roles": 102,
+					"emojis": 196,
+					"members": 6,
+					"unread": 46,
+					"mentions": 0,
+					"muted": true
+				},
+				{
+					"channels": 28,
+					"categories": 5,
+					"voice": 2,
+					"threads": 0,
+					"roles": 10,
+					"emojis": 46,
+					"members": 2,
+					"unread": 11,
+					"mentions": 0,
+					"muted": true
+				}
+			]
+		},
+		{
+			"folder": false,
+			"guilds": [
+				{
+					"channels": 1,
+					"categories": 0,
+					"voice": 1,
+					"threads": 0,
+					"roles": 3,
+					"emojis": 0,
+					"members": 3,
+					"unread": 2,
+					"mentions": 0,
+					"muted": false
+				}
+			]
+		},
+		{
+			"folder": false,
+			"guilds": [
+				{
+					"channels": 5,
+					"categories": 0,
+					"voice": 8,
+					"threads": 0,
+					"roles": 18,
+					"emojis": 36,
+					"members": 2,
+					"unread": 1,
+					"mentions": 0,
+					"muted": false
+				}
+			]
+		},
+		{
+			"folder": true,
+			"guilds": [
+				{
+					"channels": 4,
+					"categories": 2,
+					"voice": 2,
+					"threads": 0,
+					"roles": 2,
+					"emojis": 0,
+					"members": 5,
+					"unread": 1,
+					"mentions": 0,
+					"muted": true
+				},
+				{
+					"channels": 2,
+					"categories": 2,
+					"voice": 2,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 4,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 98,
+					"categories": 8,
+					"voice": 10,
+					"threads": 0,
+					"roles": 20,
+					"emojis": 20,
+					"members": 8,
+					"unread": 25,
+					"mentions": 0,
+					"muted": true
+				},
+				{
+					"channels": 23,
+					"categories": 5,
+					"voice": 2,
+					"threads": 0,
+					"roles": 17,
+					"emojis": 1,
+					"members": 19,
+					"unread": 1,
+					"mentions": 0,
+					"muted": false
+				}
+			]
+		},
+		{
+			"folder": true,
+			"guilds": [
+				{
+					"channels": 3,
+					"categories": 0,
+					"voice": 1,
+					"threads": 0,
+					"roles": 2,
+					"emojis": 0,
+					"members": 3,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 18,
+					"categories": 2,
+					"voice": 1,
+					"threads": 12,
+					"roles": 10,
+					"emojis": 22,
+					"members": 5,
+					"unread": 1,
+					"mentions": 1,
+					"muted": true
+				},
+				{
+					"channels": 1,
+					"categories": 0,
+					"voice": 1,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 7,
+					"unread": 1,
+					"mentions": 1,
+					"muted": false
+				},
+				{
+					"channels": 10,
+					"categories": 2,
+					"voice": 1,
+					"threads": 0,
+					"roles": 2,
+					"emojis": 0,
+					"members": 23,
+					"unread": 8,
+					"mentions": 1,
+					"muted": true
+				},
+				{
+					"channels": 4,
+					"categories": 0,
+					"voice": 0,
+					"threads": 0,
+					"roles": 8,
+					"emojis": 8,
+					"members": 14,
+					"unread": 4,
+					"mentions": 0,
+					"muted": true
+				}
+			]
+		},
+		{
+			"folder": false,
+			"guilds": [
+				{
+					"channels": 14,
+					"categories": 3,
+					"voice": 1,
+					"threads": 1,
+					"roles": 10,
+					"emojis": 29,
+					"members": 21,
+					"unread": 1,
+					"mentions": 0,
+					"muted": false
+				}
+			]
+		},
+		{
+			"folder": true,
+			"guilds": [
+				{
+					"channels": 1,
+					"categories": 0,
+					"voice": 0,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 1,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 3,
+					"categories": 0,
+					"voice": 0,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 2,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 1,
+					"categories": 2,
+					"voice": 1,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 2,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 7,
+					"categories": 1,
+					"voice": 0,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 1,
+					"members": 4,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 1,
+					"categories": 1,
+					"voice": 0,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 2,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				}
+			]
+		},
+		{
+			"folder": true,
+			"guilds": [
+				{
+					"channels": 4,
+					"categories": 0,
+					"voice": 0,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 1,
+					"unread": 1,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 8,
+					"categories": 5,
+					"voice": 1,
+					"threads": 0,
+					"roles": 4,
+					"emojis": 7,
+					"members": 2,
+					"unread": 4,
+					"mentions": 1,
+					"muted": false
+				},
+				{
+					"channels": 5,
+					"categories": 2,
+					"voice": 1,
+					"threads": 0,
+					"roles": 2,
+					"emojis": 0,
+					"members": 2,
+					"unread": 0,
+					"mentions": 0,
+					"muted": false
+				}
+			]
+		},
+		{
+			"folder": true,
+			"guilds": [
+				{
+					"channels": 19,
+					"categories": 7,
+					"voice": 9,
+					"threads": 0,
+					"roles": 5,
+					"emojis": 10,
+					"members": 11,
+					"unread": 4,
+					"mentions": 0,
+					"muted": true
+				},
+				{
+					"channels": 89,
+					"categories": 13,
+					"voice": 7,
+					"threads": 0,
+					"roles": 61,
+					"emojis": 158,
+					"members": 58,
+					"unread": 29,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 1,
+					"categories": 2,
+					"voice": 1,
+					"threads": 0,
+					"roles": 1,
+					"emojis": 0,
+					"members": 2,
+					"unread": 1,
+					"mentions": 0,
+					"muted": false
+				},
+				{
+					"channels": 14,
+					"categories": 0,
+					"voice": 0,
+					"threads": 0,
+					"roles": 9,
+					"emojis": 5,
+					"members": 29,
+					"unread": 4,
+					"mentions": 0,
+					"muted": true
+				},
+				{
+					"channels": 76,
+					"categories": 9,
+					"voice": 10,
+					"threads": 0,
+					"roles": 48,
+					"emojis": 162,
+					"members": 19,
+					"unread": 36,
+					"mentions": 0,
+					"muted": true
+				}
+			]
+		},
+		{
+			"folder": false,
+			"guilds": [
+				{
+					"channels": 22,
+					"categories": 1,
+					"voice": 1,
+					"threads": 0,
+					"roles": 16,
+					"emojis": 3,
+					"members": 4,
+					"unread": 5,
+					"mentions": 0,
+					"muted": true
+				}
+			]
+		}
+	]
+}

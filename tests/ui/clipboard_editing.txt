@@ -1,0 +1,19 @@
+# Select-all, cut, paste and copy in a text field use the platform's shortcut key
+# ("cmd" in scripts is Cmd on macOS, Ctrl on Windows).
+go_home
+wait 5
+click_text "Add Friend"
+wait 5
+click_text "You can add friends with their Discord username."
+wait 2
+type abc
+key a cmd
+key x cmd
+expect_input ""
+expect_clipboard "abc"
+key v cmd
+key v cmd
+expect_input "abcabc"
+key a cmd
+key c cmd
+expect_clipboard "abcabc"

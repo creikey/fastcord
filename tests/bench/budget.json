@@ -1,0 +1,15 @@
+{
+  "_note": "Per-pass caps on deterministic UI counters for tools/bench.sh (peak over the section; batches are gfx draw calls per frame), about 10% above the counts when set. Raise a cap only when the growth is intended; lower it after an optimisation.",
+  "acct_home_idle": {"boxes": 730, "text_layouts": 80, "draw_cmds": 370, "batches": 160},
+  "acct_home_hover": {"boxes": 740, "text_layouts": 80, "draw_cmds": 380, "batches": 160},
+  "acct_dm_idle": {"boxes": 680, "text_layouts": 80, "draw_cmds": 360, "batches": 140},
+  "acct_dm_hover": {"boxes": 710, "text_layouts": 80, "draw_cmds": 370, "batches": 150},
+  "chat_idle": {"boxes": 490, "text_layouts": 70, "draw_cmds": 270, "batches": 110},
+  "chat_hover": {"boxes": 520, "text_layouts": 70, "draw_cmds": 280, "batches": 110},
+  "chat_scroll": {"boxes": 620, "text_layouts": 90, "draw_cmds": 340, "batches": 120},
+  "typing": {"boxes": 520, "text_layouts": 70, "draw_cmds": 280, "batches": 120},
+  "home_idle": {"boxes": 730, "text_layouts": 80, "draw_cmds": 370, "batches": 160},
+  "home_hover": {"boxes": 1320, "text_layouts": 200, "draw_cmds": 680, "batches": 160},
+  "dm_idle": {"boxes": 660, "text_layouts": 90, "draw_cmds": 340, "batches": 140},
+  "dm_hover": {"boxes": 690, "text_layouts": 90, "draw_cmds": 350, "batches": 140}
+}

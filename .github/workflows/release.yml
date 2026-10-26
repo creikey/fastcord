@@ -22,7 +22,14 @@ env:
   ODIN_VERSION: dev-2026-10
 
 jobs:
+  # Debug build and unit tests on the tagged commit; packaging only runs if they pass.
+  check:
+    uses: ./.github/workflows/check.yml
+    with:
+      ref: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+
   macos:
+    needs: check
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -41,11 +48,6 @@ jobs:
             brew install llvm@20 || brew install llvm
             "$ODIN_DIR/odin" version
           fi
-
-      - name: Test
-        env:
-          FASTCORD_CI: "1"
-        run: tests/run_all.sh
 
       - name: Package
         run: scripts/package_macos.sh "${{ github.event.release.tag_name || inputs.tag || github.ref_name }}"

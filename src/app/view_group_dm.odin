@@ -80,12 +80,7 @@ friends_sorted :: proc() -> []dc.Snowflake {
 	s := store()
 	out := make([dynamic]dc.Snowflake, context.temp_allocator)
 	for uid, rel in s.relationships do if rel.kind == .Friend do append(&out, uid)
-	slice.sort_by(out[:], proc(a, b: dc.Snowflake) -> bool {
-		ua, ub := dc.user_get(store(), a), dc.user_get(store(), b)
-		na := ua != nil ? strings.to_lower(dc.display_name(ua), context.temp_allocator) : ""
-		nb := ub != nil ? strings.to_lower(dc.display_name(ub), context.temp_allocator) : ""
-		return na < nb
-	})
+	sort_users_by_name(out[:])
 	return out[:]
 }
 

@@ -5,8 +5,11 @@ import "core:encoding/base64"
 import "core:fmt"
 import "core:strings"
 import "core:testing"
+import "core:thread"
 import "fc:etf"
 import "fc:http"
+import "fc:locks"
+import "fc:netio"
 import "fc:quic"
 
 GW_FIXTURE :: #load("testdata/gw_a.jsonl", string)
@@ -405,6 +408,35 @@ launch_signature_shape :: proc(t: ^testing.T) {
 		testing.expect(t, launch_signature_is_clean(sig), sig)
 	}
 	testing.expect(t, !launch_signature_is_clean("00001000-0000-4000-8000-000000000000")) // BetterDiscord bit
+}
+
+// A send from the UI thread must not touch the socket there: it is queued and the writer thread
+// puts it on the wire.
+@(test)
+gateway_ui_send_goes_through_writer :: proc(t: ^testing.T) {
+	c := client_create(Config{token = "T", disable_gateway = true, disable_startup = true, workers = 1})
+	defer client_destroy(c)
+	a, b := http.pipe_make()
+	defer netio.close(b)
+	g := gateway_create(c)
+	g.ws = new(http.Ws_Conn)
+	g.ws.s = a
+	g.ws.allocator = context.allocator
+
+	locks.set_ui_thread()
+	ok := gateway_send(g, .Request_Channel_Info, i64(7))
+	locks.clear_ui_thread()
+	testing.expect(t, ok)
+	testing.expect_value(t, len(g.outbox), 1)
+
+	g.writer = thread.create_and_start_with_poly_data(g, gateway_writer_proc)
+	buf: [64]byte
+	n, err := netio.read(b, buf[:])
+	testing.expect_value(t, err, netio.Error.None)
+	testing.expect(t, n >= 2 && buf[0] == 0x82, "expected a binary websocket frame") // FIN | binary
+
+	g.ws.sent_close = true // no close frame: nothing reads it
+	gateway_stop(g)
 }
 
 @(test)

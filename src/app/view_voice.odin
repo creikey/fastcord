@@ -61,7 +61,7 @@ voice_leave_channel :: proc() {
 @(private = "file")
 voice_drop :: proc() {
 	if vc.conn != nil {
-		voice.voice_disconnect(vc.conn)
+		voice_release(vc.conn)
 		vc.conn = nil
 	}
 	vc.channel = 0
@@ -100,9 +100,9 @@ voice_frame :: proc() {
 	}
 
 	info, ver, ok := dc.voice_server_info(app.client)
-	if ok && dc.Snowflake(info.channel_id) == app.voice_channel && (vc.conn == nil || ver != vc.version) {
-		// first connect, channel move or server migration
-		voice_drop()
+	// Channel move or server migration: drop the old connection, then connect once its teardown is done.
+	if ok && vc.conn != nil && ver != vc.version && dc.Snowflake(info.channel_id) == app.voice_channel do voice_drop()
+	if ok && vc.conn == nil && !teardown_busy() && dc.Snowflake(info.channel_id) == app.voice_channel {
 		if !vc.headless && !vc.audio_ready do vc.audio_ready = audio.init()
 		vc.conn = voice.voice_connect(voice.Voice_Server_Info {
 			endpoint            = info.endpoint,
@@ -123,7 +123,7 @@ voice_frame :: proc() {
 	if vc.conn != nil {
 		st, code := voice.state(vc.conn)
 		if st == .Disconnected {
-			voice.voice_disconnect(vc.conn)
+			voice_release(vc.conn)
 			vc.conn = nil
 			switch code {
 			case voice.CLOSE_DISCONNECTED, voice.CLOSE_CALL_TERMINATED, voice.CLOSE_AUTHENTICATION_FAILED:
