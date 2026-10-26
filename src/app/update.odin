@@ -1,6 +1,7 @@
 package app
 
 import "core:encoding/json"
+import "core:os"
 import "core:strconv"
 import "core:strings"
 import "core:sync"
@@ -31,6 +32,12 @@ upd: Update_State
 
 // Starts a background thread that checks GitHub's latest release now and every few hours.
 update_start :: proc() {
+	// FASTCORD_FAKE_UPDATE=v9.9.9 shows the button without the network (headless UI tests).
+	if fake := os.get_env("FASTCORD_FAKE_UPDATE", context.temp_allocator); fake != "" {
+		upd.latest = strings.clone(fake)
+		upd.available = true
+		return
+	}
 	if FASTCORD_VERSION == "dev" || platform.is_headless() do return
 	upd.thread = thread.create_and_start(update_loop, context)
 }
@@ -38,7 +45,7 @@ update_start :: proc() {
 @(private = "file")
 update_loop :: proc() {
 	for {
-		if tag, ok := fetch_latest_tag(); ok {
+		if tag, ok := fetch_latest_tag(UPDATE_REPO); ok {
 			sync.mutex_lock(&upd.mu)
 			delete(upd.latest)
 			upd.latest = tag
@@ -51,8 +58,7 @@ update_loop :: proc() {
 }
 
 // GET https://api.github.com/repos/<repo>/releases/latest -> tag_name.
-@(private = "file")
-fetch_latest_tag :: proc() -> (tag: string, ok: bool) {
+fetch_latest_tag :: proc(repo: string) -> (tag: string, ok: bool) {
 	host :: "api.github.com"
 	tcp, derr := netio.dial_tcp(host, 443)
 	if derr != .None do return "", false
@@ -68,10 +74,11 @@ fetch_latest_tag :: proc() -> (tag: string, ok: bool) {
 		method    = "GET",
 		scheme    = "https",
 		authority = host,
-		path      = "/repos/" + UPDATE_REPO + "/releases/latest",
+		path      = strings.concatenate({"/repos/", repo, "/releases/latest"}, context.temp_allocator),
 		headers   = {{"User-Agent", "fastcord/" + FASTCORD_VERSION}, {"Accept", "application/vnd.github+json"}, {"Connection", "close"}},
 	}
 	resp, herr := http.h1_round_trip(&conn, req)
+	defer http.response_destroy(&resp)
 	if herr != .None || resp.status != 200 do return "", false
 	http.decode_body(&resp)
 	v, jerr := json.parse(resp.body[:], allocator = context.temp_allocator)

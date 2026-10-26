@@ -125,7 +125,7 @@ chat_view :: proc(channel_id: dc.Snowflake) {
 	}
 
 	picker_capture_input() // expression picker owns keys/wheel while open
-	for e in app.ui.events do if e.kind == .Mouse_Down do fmt.eprintln("DBGC", e.consumed, e.pos, app.ui.hot)
+	fmt.eprintln("DBGC", app.ui.frame, app.ui.mouse, app.ui.hot, len(app.ui.events))
 	col := ui.box("chatcol")
 	col.semantic_size = {.X = ui.fill(), .Y = ui.pct(1)}
 	col.layout_axis = .Y

@@ -140,6 +140,7 @@ main :: proc() {
 		connect()
 	}
 
+	if headless do update_start()
 	if headless && opt.live > 0 {
 		// Real time: let the gateway connect and REST land, then capture.
 		start := platform.time_now()
