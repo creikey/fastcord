@@ -221,7 +221,7 @@ replay_round_trip :: proc(data: rawptr, host: string, req: http.Request) -> (res
 	}
 	_ = official_wire
 	if r.marked && !r_ignored(url) {
-		// our wire order, as fc:http (h2) / fc:quic/h3 put it on the wire
+		// our wire order, as fc:http (h2) / fc:quic put it on the wire
 		sb := strings.builder_make(context.temp_allocator)
 		strings.write_string(&sb, ":method,:authority,:scheme,:path")
 		has_priority := false

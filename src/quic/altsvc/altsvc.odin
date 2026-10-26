@@ -13,7 +13,7 @@
 //     (Chrome keeps one QUIC session per origin; it idles out after 30s).
 package altsvc
 
-import "fc:locks"
+import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:strconv"
@@ -21,8 +21,8 @@ import "core:strings"
 import "core:thread"
 import "core:time"
 
+import "fc:locks"
 import "fc:quic"
-import "fc:quic/h3"
 
 BROKEN_INITIAL :: 5 * time.Minute
 BROKEN_MAX :: 48 * time.Hour
@@ -39,7 +39,7 @@ Entry :: struct {
 Cache :: struct {
 	mu:            locks.Mutex,
 	entries:       map[string]Entry,
-	conns:         map[string]^h3.Conn, // live h3 connection per origin
+	conns:         map[string]^quic.Conn, // live h3 connection per origin
 	quic_works:    bool, // QUIC succeeded on this network (enables delaying TCP)
 	path:          string, // persistence file, "" for memory only
 }
@@ -209,7 +209,7 @@ save_locked :: proc(c: ^Cache) {
 
 destroy :: proc(c: ^Cache) {
 	for k, conn in c.conns {
-		h3.close(conn) // records the session's RTT
+		quic.close(conn) // records the session's RTT
 		delete(k)
 	}
 	delete(c.conns)
@@ -233,7 +233,7 @@ Tcp_Closer :: proc(conn: rawptr, user: rawptr)
 
 Result :: struct {
 	proto: Protocol,
-	h3:    ^h3.Conn, // owned by the cache (reused); do not close
+	h3:    ^quic.Conn, // owned by the cache (reused); do not close
 	tcp:   rawptr, // owned by the caller
 }
 
@@ -243,7 +243,7 @@ Race :: struct {
 	cond:       locks.Cond,
 	cache:      ^Cache,
 	host:       string,
-	h3cfg:      h3.Config,
+	port:       int,
 	dial:       Tcp_Dialer,
 	closer:     Tcp_Closer,
 	user:       rawptr,
@@ -251,7 +251,7 @@ Race :: struct {
 	start_tcp:  bool,
 	quic_done:  bool,
 	quic_ok:    bool,
-	quic_conn:  ^h3.Conn,
+	quic_conn:  ^quic.Conn,
 	tcp_done:   bool,
 	tcp_ok:     bool,
 	tcp_conn:   rawptr,
@@ -261,15 +261,15 @@ Race :: struct {
 
 // connect returns a connection for host following Chrome's logic. With no
 // usable alternative it dials TCP only; otherwise it races QUIC and TCP.
-connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user: rawptr, h3cfg := h3.Config{}) -> (res: Result, ok: bool) {
+connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user: rawptr) -> (res: Result, ok: bool) {
 	// Reuse a live session.
 	locks.lock(&c.mu)
 	if conn, found := c.conns[host]; found {
-		if h3.can_open(conn) {
+		if quic.can_open(conn) {
 			locks.unlock(&c.mu)
 			return {proto = .H3, h3 = conn}, true
 		}
-		h3.close(conn)
+		quic.close(conn)
 		for k in c.conns do if k == host {
 			delete_key(&c.conns, host)
 			delete(k)
@@ -284,11 +284,10 @@ connect :: proc(c: ^Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, u
 		return {proto = .H2, tcp = tc}, tok
 	}
 
-	r := new(Race, quic.conn_allocator())
+	r := new(Race, runtime.heap_allocator())
 	r.cache = c
-	r.host = strings.clone(host, quic.conn_allocator())
-	r.h3cfg = h3cfg
-	r.h3cfg.quic.port = port
+	r.host = strings.clone(host, runtime.heap_allocator())
+	r.port = port
 	r.dial = dial
 	r.closer = closer
 	r.user = user
@@ -325,48 +324,32 @@ race_release :: proc(r: ^Race) {
 	last := r.refs == 0
 	locks.unlock(&r.mu)
 	if last {
-		delete(r.host, quic.conn_allocator())
-		free(r, quic.conn_allocator())
+		delete(r.host, runtime.heap_allocator())
+		free(r, runtime.heap_allocator())
 	}
 }
 
-// quic_job: Chrome's QUIC job. With 0-RTT the session is usable as soon as
-// the ClientHello is out, so it wins at once and the first requests go early;
-// otherwise it wins when the handshake completes. Only a handshake failure
-// (while TCP works) marks the alternative broken; a rejected 0-RTT attempt is
-// not a failure (the data is resent in 1-RTT), matching Chrome.
+// quic_job: Chrome's QUIC job. It wins when the handshake completes. A handshake failure while TCP works
+// marks the alternative broken.
 @(private)
 quic_job :: proc(r: ^Race) {
-	conn, err := h3.connect(r.host, r.h3cfg)
-	early := err == .None && quic.early_state(conn.q) == .Sending
-	if early do quic_job_result(r, conn, true)
-	if err == .None && quic.wait_handshake(conn.q) != .None {
-		err = .Io
-	}
-	if !early {
-		if err != .None && conn != nil {
-			h3.close(conn)
-			conn = nil
-		}
-		quic_job_result(r, conn, err == .None)
-	}
+	conn, err := quic.connect(r.host, r.port)
+	quic_job_result(r, conn, err == .None)
 	if err == .None {
 		mark_working(r.cache, r.host)
 	} else {
-		// Broken only if TCP works (else the network/origin is just down).
+		// Broken only if TCP works (else the network or origin is just down).
 		locks.lock(&r.mu)
 		for !r.tcp_done do locks.cond_wait(&r.cond, &r.mu)
 		tcp_ok := r.tcp_ok
 		locks.unlock(&r.mu)
 		if tcp_ok do mark_broken(r.cache, r.host)
-		// A failed early session stays in the cache with an error; the next
-		// connect sees !can_open and closes it.
 	}
 	race_release(r)
 }
 
 @(private)
-quic_job_result :: proc(r: ^Race, conn: ^h3.Conn, ok: bool) {
+quic_job_result :: proc(r: ^Race, conn: ^quic.Conn, ok: bool) {
 	locks.lock(&r.mu)
 	r.quic_done = true
 	r.quic_ok = ok
@@ -383,7 +366,7 @@ quic_job_result :: proc(r: ^Race, conn: ^h3.Conn, ok: bool) {
 	if _, found := r.cache.conns[r.host]; !found {
 		r.cache.conns[strings.clone(r.host)] = conn
 	} else if tcp_won {
-		h3.close(conn)
+		quic.close(conn)
 	}
 	locks.unlock(&r.cache.mu)
 }

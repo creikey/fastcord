@@ -18,6 +18,10 @@ its BoringSSL backend lets the handshake use the same TLS library and Chrome-sha
 (Windows, with clang-cl when present) or `build/libfc_ngtcp2.a` (macOS); `fc_ngtcp2.cflags` holds the
 include paths and `NGTCP2_STATICLIB`. No `config.h`: the code's fallbacks cover Windows and macOS.
 
+`fc_ngtcp2.c` is ours, not upstream: the glue `src/quic` calls, bridging ngtcp2 and nghttp3. Its
+`client_initial` uses `ngtcp2_crypto_derive_and_install_initial_key`, which is exported but declared only
+in `crypto/shared.h`, so that we can set Chrome's exact transport parameter bytes; recheck it on update.
+
 To update: download the new release tarball, copy the same files, regenerate `fc_ngtcp2.sources`
 (`lib/*.c` plus the two crypto files, sorted), record the version and sha256 here, then run
 `./build.sh test quic`.
