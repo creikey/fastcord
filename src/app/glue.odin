@@ -23,8 +23,19 @@ F :: proc(f: Font_Id) -> ui.Font {return ui.Font(f)}
 // gg sans is fetched from discord.com/assets at runtime (as the official client
 // does) and cached here; until then the system font stands in.
 font_cache_dir :: proc(allocator := context.temp_allocator) -> string {
-	home := os.get_env("HOME", context.temp_allocator)
-	p, _ := filepath.join({home, "Library", "Application Support", "fastcord", "fonts"}, allocator)
+	return app_data_dir("fonts", allocator)
+}
+
+// Per-user app data: ~/Library/Application Support/fastcord on macOS,
+// %LOCALAPPDATA%\fastcord on Windows.
+app_data_dir :: proc(sub: string, allocator := context.temp_allocator) -> string {
+	when ODIN_OS == .Windows {
+		base := os.get_env("LOCALAPPDATA", context.temp_allocator)
+		p, _ := filepath.join({base, "fastcord", sub}, allocator)
+	} else {
+		home := os.get_env("HOME", context.temp_allocator)
+		p, _ := filepath.join({home, "Library", "Application Support", "fastcord", sub}, allocator)
+	}
 	return p
 }
 
@@ -37,7 +48,7 @@ fonts_load :: proc() {
 		.Mono     = .Regular,
 	}
 	for id in Font_Id do fonts[id] = gfx.font_system("system", weights[id])
-	fonts[.Mono] = gfx.font_system("Menlo")
+	fonts[.Mono] = gfx.font_system("Consolas" when ODIN_OS == .Windows else "Menlo")
 	dir := font_cache_dir()
 	fd, err := os.open(dir)
 	if err != nil do return

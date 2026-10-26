@@ -389,9 +389,8 @@ run_script :: proc(path: string) {
 
 // Token: $FASTCORD_TOKEN, else <state>/token (written by the login flow).
 connect :: proc() {
-	home := os.get_env("HOME", context.temp_allocator)
-	state_dir := strings.concatenate({home, "/Library/Application Support/fastcord/state"})
-	os.make_directory(state_dir)
+	state_dir := app_state_dir(context.allocator)
+	os.make_directory_all(state_dir)
 	token := os.get_env("FASTCORD_TOKEN", context.temp_allocator)
 	if token == "" {
 		data, err := os.read_entire_file(strings.concatenate({state_dir, "/token"}, context.temp_allocator), context.temp_allocator)
