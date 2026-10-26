@@ -1,12 +1,12 @@
 # file width height frames loop_count fnv1a64-of-reference-RGBA (or ~ref.z maxdiff; colour under alpha 0 is not compared)
-w_rose.o1.webp 70 46 1 1 1198888e9bcddc5c
+w_rose.o1.webp 70 46 1 1 ~w_rose.o1.dwebp.rgba.z 2
 w_rose.o2.webp 70 46 1 1 f5a4f20cd14615f6
 w_odd.o9.webp 17 33 1 1 6de42e77121915c9
-w_rose.o10.webp 70 46 1 1 8dded67bba33ccb0
+w_rose.o10.webp 70 46 1 1 ~w_rose.o10.dwebp.rgba.z 6
 w_odd.o18.webp 17 33 1 1 6ade69c5c1bfa5d8
 w_rose.o20.webp 70 46 1 1 1b91ba24ef12b200
 w_rose.o21.webp 70 46 1 1 8a6028298aa0e975
-w_avatar.o13.webp 128 128 1 1 0294c93209a1571e
+w_avatar.o13.webp 128 128 1 1 ~w_avatar.o13.dwebp.rgba.z 0
 v_rose.1.webp 70 46 1 1 1deef2001df46a80
 v_odd.3.webp 17 33 1 1 af49c5d12022425e
 t_sa_am0.webp 48 48 1 1 44f0d4070a58e941

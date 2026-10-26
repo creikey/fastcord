@@ -19,6 +19,8 @@
 #define WUFFS_CONFIG__MODULE__LZW
 #define WUFFS_CONFIG__MODULE__GIF
 #define WUFFS_CONFIG__MODULE__JPEG
+#define WUFFS_CONFIG__MODULE__VP8
+#define WUFFS_CONFIG__MODULE__WEBP
 #include "wuffs-v0.4.c"
 
 enum {
@@ -35,6 +37,7 @@ enum {
     FC_PNG = 1,
     FC_GIF = 2,
     FC_JPEG = 3,
+    FC_WEBP = 4, // Still images only: Wuffs v0.4 can't animate WebP, so each frame comes as its own file.
 };
 
 typedef struct {
@@ -72,6 +75,7 @@ static size_t fc__decoder_size(int format) {
     case FC_PNG: return sizeof__wuffs_png__decoder();
     case FC_GIF: return sizeof__wuffs_gif__decoder();
     case FC_JPEG: return sizeof__wuffs_jpeg__decoder();
+    case FC_WEBP: return sizeof__wuffs_webp__decoder();
     }
     return 0;
 }
@@ -101,9 +105,13 @@ int fc_image_open(void *state, size_t state_len, int format, const uint8_t *src,
         st = wuffs_gif__decoder__initialize(d, n, WUFFS_VERSION, opt);
         im->dec = wuffs_gif__decoder__upcast_as__wuffs_base__image_decoder(d);
         break;
-    default:
+    case FC_JPEG:
         st = wuffs_jpeg__decoder__initialize(d, n, WUFFS_VERSION, opt);
         im->dec = wuffs_jpeg__decoder__upcast_as__wuffs_base__image_decoder(d);
+        break;
+    default:
+        st = wuffs_webp__decoder__initialize(d, n, WUFFS_VERSION, opt);
+        im->dec = wuffs_webp__decoder__upcast_as__wuffs_base__image_decoder(d);
         break;
     }
     if (st.repr) return fc__status(st);
@@ -142,8 +150,9 @@ int fc_image_next_frame(void *state, fc_frame_info *fi) {
 }
 
 // Draws the frame fc_image_next_frame just read onto the canvas: width*height RGBA pixels (straight
-// alpha), rows `stride` bytes apart. Only the frame's rectangle changes.
-int fc_image_decode_frame(void *state, uint8_t *canvas, size_t canvas_len, size_t stride, uint8_t *work, size_t work_len) {
+// alpha), rows `stride` bytes apart. Only the frame's rectangle changes, which `replace` overwrites even
+// where the frame asks to be blended.
+int fc_image_decode_frame(void *state, uint8_t *canvas, size_t canvas_len, size_t stride, uint8_t *work, size_t work_len, int replace) {
     fc__image *im = (fc__image *)state;
     uint32_t w = wuffs_base__pixel_config__width(&im->ic.pixcfg);
     uint32_t h = wuffs_base__pixel_config__height(&im->ic.pixcfg);
@@ -151,7 +160,7 @@ int fc_image_decode_frame(void *state, uint8_t *canvas, size_t canvas_len, size_
     wuffs_base__pixel_buffer pb;
     wuffs_base__table_u8 t = wuffs_base__make_table_u8(canvas, (size_t)w * 4, h, stride);
     if (wuffs_base__pixel_buffer__set_interleaved(&pb, &im->ic.pixcfg, t, wuffs_base__empty_slice_u8()).repr) return FC_BAD_ARGUMENT;
-    wuffs_base__pixel_blend blend = wuffs_base__frame_config__overwrite_instead_of_blend(&im->fc)
+    wuffs_base__pixel_blend blend = replace || wuffs_base__frame_config__overwrite_instead_of_blend(&im->fc)
         ? WUFFS_BASE__PIXEL_BLEND__SRC : WUFFS_BASE__PIXEL_BLEND__SRC_OVER;
     int r = fc__status(wuffs_base__image_decoder__decode_frame(im->dec, &pb, &im->io, blend,
                                                               wuffs_base__make_slice_u8(work, work_len), NULL));

@@ -1,6 +1,6 @@
 # Wuffs
 
-PNG/APNG, GIF and JPEG decoding. `wuffs-v0.4.c` is upstream's single-file release, unmodified:
+PNG/APNG, GIF, JPEG and WebP decoding. `wuffs-v0.4.c` is upstream's single-file release, unmodified:
 
 - Source: https://github.com/google/wuffs, `release/c/wuffs-v0.4.c` at commit
   4be865da258c4b5e6d3e716fd4f36be016496a46
@@ -11,8 +11,9 @@ Why Wuffs: its decoders are memory-safe by construction (the Wuffs compiler prov
 overflow check), never allocate, and cover progressive JPEG and APNG. stb_image is smaller but has a run
 of memory-safety CVEs in its decoders (e.g. CVE-2022-28041, CVE-2023-45661..45667).
 
-WebP stays in Odin (`src/imagefmt/webp.odin`): v0.4 decodes still WebP but not animated WebP, which
-Discord serves for stickers and animated avatars. Revisit when a Wuffs release adds it.
+v0.4 decodes still WebP but not animated WebP, which Discord serves for stickers and animated avatars,
+so `src/imagefmt/webp.odin` parses the animation container and gives Wuffs each frame as a still file.
+Drop that when a Wuffs release animates WebP.
 
 `fc_wuffs.c` is ours: it compiles only the modules we use and exposes a few plain C calls where the caller
 owns all memory. `build.sh` / `build.bat` compile it into `build/fc_wuffs.obj` (`.o` on macOS), which

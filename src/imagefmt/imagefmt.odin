@@ -1,8 +1,8 @@
 // Package imagefmt decodes the image formats Discord serves into RGBA8
 // (straight alpha) canvases: WebP (VP8 lossy, VP8L lossless, alpha,
 // animation), GIF, PNG/APNG and JPEG (baseline + progressive, EXIF
-// orientation). PNG, GIF and JPEG are Wuffs (vendor/wuffs, linked as C);
-// WebP is written here, because Wuffs can't yet decode animated WebP.
+// orientation). Every pixel decoder is Wuffs (vendor/wuffs, linked as C);
+// only animated WebP's container and compositing are written here.
 //
 // Animated images come back fully composited: every Frame is a whole canvas.
 // Frame durations follow browsers: anything <= 10 ms becomes 100 ms.
