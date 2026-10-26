@@ -55,6 +55,7 @@ foreign CoreText {
 	CTFontCopyFontDescriptor :: proc(font: CFRef) -> CFRef ---
 	CTFontCopyFullName :: proc(font: CFRef) -> CFRef ---
 	CTFontDescriptorCreateCopyWithAttributes :: proc(desc: CFRef, attrs: CFRef) -> CFRef ---
+	CTFontDescriptorCreateCopyWithSymbolicTraits :: proc(desc: CFRef, value, mask: u32) -> CFRef ---
 	CTFontGetAscent :: proc(font: CFRef) -> CGFloat ---
 	CTFontGetDescent :: proc(font: CFRef) -> CGFloat ---
 	CTFontGetLeading :: proc(font: CFRef) -> CGFloat ---
@@ -187,7 +188,7 @@ _font_load_memory :: proc(data: []byte) -> rawptr {
 }
 
 @(private)
-_font_system :: proc(name: string, weight: Font_Weight) -> rawptr {
+_font_system :: proc(name: string, weight: Font_Weight, italic: bool) -> rawptr {
 	nf := new(Native_Face)
 	nf.weight = weight
 	if name == "" || name == "system" {
@@ -203,13 +204,22 @@ _font_system :: proc(name: string, weight: Font_Weight) -> rawptr {
 		nf.desc = CTFontCopyFontDescriptor(f)
 		CFRelease(f)
 	}
-	if weight != .Regular {
+	if weight != .Regular || italic {
 		if nf.is_system {
 			f := CTFontCreateUIFontForLanguage(2 /*kCTFontUIFontSystem*/, 12, nil)
 			nf.desc = CTFontCopyFontDescriptor(f)
 			CFRelease(f)
 			nf.is_system = false
 		}
+	}
+	if italic {
+		kCTFontItalicTrait :: 1 << 0
+		if nd := CTFontDescriptorCreateCopyWithSymbolicTraits(nf.desc, kCTFontItalicTrait, kCTFontItalicTrait); nd != nil {
+			CFRelease(nf.desc)
+			nf.desc = nd
+		}
+	}
+	if weight != .Regular {
 		wv := weight_value(weight)
 		num := CFNumberCreate(nil, 13 /*kCFNumberDoubleType*/, &wv)
 		defer CFRelease(num)

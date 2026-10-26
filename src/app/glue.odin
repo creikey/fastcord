@@ -1,5 +1,6 @@
 package app
 
+import "core:math"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
@@ -14,6 +15,7 @@ Font_Id :: enum u32 {
 	Semibold,
 	Bold,
 	Mono,
+	Italic,
 }
 
 fonts: [Font_Id]gfx.Font_Face
@@ -46,9 +48,11 @@ fonts_load :: proc() {
 		.Semibold = .Semibold,
 		.Bold     = .Bold,
 		.Mono     = .Regular,
+		.Italic   = .Regular,
 	}
 	for id in Font_Id do fonts[id] = gfx.font_system("system", weights[id])
 	fonts[.Mono] = gfx.font_system("Consolas" when ODIN_OS == .Windows else "Menlo")
+	fonts[.Italic] = gfx.font_system("system", .Regular, italic = true)
 	dir := font_cache_dir()
 	fd, err := os.open(dir)
 	if err != nil do return
@@ -60,6 +64,8 @@ fonts_load :: proc() {
 		if face == 0 do continue
 		name := gfx.font_name(face)
 		switch {
+		case strings.contains(name, "Italic"):
+			if strings.contains(name, "NormalItalic") do fonts[.Italic] = face
 		case strings.contains(name, "SemiBold"):
 			fonts[.Semibold] = face
 		case strings.contains(name, "Medium"):
@@ -250,6 +256,11 @@ render_rich :: proc(tl: ^ui.Text_Layout, origin: ui.Vec2, box_color: ui.Color) {
 			if sp.underline {
 				w := g1.x + g1.advance - g0.x
 				gfx.rect({x, y + tl.baseline + 2, x + w, y + tl.baseline + 3}, gfx.Color(color))
+			}
+			if sp.strike {
+				w := g1.x + g1.advance - g0.x
+				sy := math.round(y + tl.baseline - sp.size * 0.3)
+				gfx.rect({x, sy, x + w, sy + 1}, gfx.Color(color))
 			}
 		}
 	}

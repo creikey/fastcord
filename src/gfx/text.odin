@@ -215,8 +215,8 @@ font_load_file :: proc(path: string) -> Font_Face {
 }
 
 // "system" (or "") = the OS UI font (SF Pro on macOS, Segoe UI on Windows); otherwise a family/PostScript name.
-font_system :: proc(name: string, weight: Font_Weight = .Regular) -> Font_Face {
-	native := _font_system(name, weight)
+font_system :: proc(name: string, weight: Font_Weight = .Regular, italic := false) -> Font_Face {
+	native := _font_system(name, weight, italic)
 	if native == nil do return 0
 	append(&tx.faces, Face{native = native})
 	return Font_Face(len(tx.faces) - 1)

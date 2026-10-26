@@ -37,6 +37,7 @@ Span :: struct {
 	bg:        Color, // inline code / mention highlight
 	bg_radius: f32,
 	underline: bool,
+	strike:    bool,
 	object:    Vec2,
 	id:        u64, // app-defined (link index, mention id) for hit testing
 	user:      rawptr,

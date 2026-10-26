@@ -9,6 +9,7 @@ package gfx
 // Gap: font_load_memory (needs IDWriteFactory5 in-memory loader) returns 0.
 
 import "base:runtime"
+import "core:math"
 import "core:unicode/utf8"
 import win "core:sys/windows"
 
@@ -99,6 +100,7 @@ DWRITE_LINE_METRICS :: struct {
 Native_Face :: struct {
 	family: []u16, // NUL-terminated
 	weight: u32,
+	style:  u32, // DWRITE_FONT_STYLE
 }
 
 @(private = "file")
@@ -167,8 +169,9 @@ _font_load_memory :: proc(data: []byte) -> rawptr {
 }
 
 @(private)
-_font_system :: proc(name: string, weight: Font_Weight) -> rawptr {
+_font_system :: proc(name: string, weight: Font_Weight, italic: bool) -> rawptr {
 	nf := new(Native_Face)
+	nf.style = italic ? 2 /*ITALIC*/ : 0
 	fam := name == "" || name == "system" ? "Segoe UI" : name
 	nf.family = win.utf8_to_utf16(fam, context.allocator)
 	// utf8_to_utf16 is NUL-terminated in its backing storage; ensure explicitly
@@ -212,7 +215,7 @@ _font_instance :: proc(native: rawptr, size_px: f32) -> u32 {
 	if family == nil do return 0
 	defer release(family)
 	font: rawptr
-	(cast(proc "system" (rawptr, u32, u32, u32, ^rawptr) -> HRESULT)vt(family, 7))(family, nf.weight, 5 /*NORMAL stretch*/, 0 /*NORMAL style*/, &font)
+	(cast(proc "system" (rawptr, u32, u32, u32, ^rawptr) -> HRESULT)vt(family, 7))(family, nf.weight, 5 /*NORMAL stretch*/, nf.style, &font)
 	if font == nil do return 0
 	defer release(font)
 	face: rawptr
@@ -252,8 +255,9 @@ _shape :: proc(inst: u32, text: string, out: ^[dynamic]Raw_Glyph) -> f32 {
 			rr := r - 0x10000
 			append(&wide, u16(0xD800 + (rr >> 10)), u16(0xDC00 + (rr & 0x3ff)))
 			append(&map16, i, i)
-		} else if r == '\n' || r == '\r' {
+		} else if r == '\n' || r == '\r' || r == '\t' {
 			// DirectWrite would start a new layout line; ui breaks lines itself and needs one glyph here.
+			// Tabs are widened below, once line starts are known.
 			append(&wide, u16(' '))
 			append(&map16, i)
 		} else {
@@ -267,7 +271,7 @@ _shape :: proc(inst: u32, text: string, out: ^[dynamic]Raw_Glyph) -> f32 {
 
 	format: rawptr
 	(cast(proc "system" (rawptr, [^]u16, rawptr, u32, u32, u32, f32, [^]u16, ^rawptr) -> HRESULT)vt(dw.factory, 15))(
-		dw.factory, raw_data(fi.family.family), nil, fi.family.weight, 0, 5, fi.size, &locale[0], &format)
+		dw.factory, raw_data(fi.family.family), nil, fi.family.weight, fi.family.style, 5, fi.size, &locale[0], &format)
 	if format == nil do return 0
 	defer release(format)
 	(cast(proc "system" (rawptr, u32) -> HRESULT)vt(format, 5))(format, 1 /*NO_WRAP*/)
@@ -292,6 +296,25 @@ _shape :: proc(inst: u32, text: string, out: ^[dynamic]Raw_Glyph) -> f32 {
 	nlines: u32
 	(cast(proc "system" (rawptr, ^DWRITE_LINE_METRICS, u32, ^u32) -> HRESULT)vt(layout, 59))(layout, &line, 1, &nlines)
 	for &g in out[first:] do g.y -= line.baseline
+
+	// Tab stops every 4 spaces from the start of each hard line (CSS tab-size: 4).
+	line_x, shift: f32
+	for &g in out[first:] {
+		g.x += shift
+		if g.cluster_start >= len(text) do continue
+		switch text[g.cluster_start] {
+		case '\n':
+			line_x = g.x + g.advance
+		case '\t':
+			stop := 4 * g.advance // the tab was shaped as a space
+			if stop <= 0 do continue
+			col := g.x - line_x
+			adv := (math.floor(col / stop) + 1) * stop - col
+			shift += adv - g.advance
+			g.advance = adv
+		}
+	}
+	dw.cur_width += shift
 
 	// cluster_end = next distinct cluster start
 	for &r, i in out {

@@ -578,6 +578,7 @@ tokens_to_spans :: proc(toks: []Token, base: Font_Id, size: f32, m: ^dc.Message)
 	for tk, i in toks {
 		sp := ui.Span{text = tk.text, font = F(base), size = size, id = u64(i)}
 		if .Bold in tk.styles do sp.font = F(.Bold)
+		else if .Italic in tk.styles && base == .Normal do sp.font = F(.Italic)
 		if .Code in tk.styles {
 			sp.font = F(.Mono)
 			sp.size = size * 0.85
@@ -585,6 +586,7 @@ tokens_to_spans :: proc(toks: []Token, base: Font_Id, size: f32, m: ^dc.Message)
 			sp.bg_radius = 4
 		}
 		if .Underline in tk.styles do sp.underline = true
+		if .Strike in tk.styles do sp.strike = true
 		if .Spoiler in tk.styles {
 			sp.bg = T("--spoiler-hidden-background")
 			sp.color = sp.bg
