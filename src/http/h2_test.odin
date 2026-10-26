@@ -8,6 +8,8 @@ import "core:strings"
 import "core:sync"
 import "core:testing"
 import "core:thread"
+import "core:time"
+import "fc:locks"
 import "fc:netio"
 
 // ---- fake server: raw frames, HPACK by nghttp2's standalone coder ----
@@ -184,6 +186,8 @@ Req_In :: struct {
 	flags:  u8,
 	fields: [dynamic]Header,
 	path:   string,
+	prio:   []byte, // the HEADERS priority fields, if flagged
+	block:  []byte, // the raw header block
 }
 
 // fk_read_request reads HEADERS (+CONTINUATION) and decodes it.
@@ -194,6 +198,10 @@ fk_read_request :: proc(f: ^Fake) -> (req: Req_In, err: Error) {
 	req.sid = fr.sid
 	req.flags = fr.flags
 	block := make([dynamic]byte, context.temp_allocator)
+	if fr.flags & PRIORITY != 0 && len(fr.payload) >= 5 {
+		req.prio = fr.payload[:5]
+		fr.payload = fr.payload[5:]
+	}
 	append(&block, ..fr.payload)
 	for flags := fr.flags; flags & END_HEADERS == 0; {
 		cf := fk_read(f) or_return
@@ -202,6 +210,7 @@ fk_read_request :: proc(f: ^Fake) -> (req: Req_In, err: Error) {
 		flags = cf.flags
 	}
 	req.fields = make([dynamic]Header, context.temp_allocator)
+	req.block = block[:]
 	p := block[:]
 	for {
 		nv: Ng_Nv
@@ -309,7 +318,8 @@ basic_server :: proc(f: ^Fake) {
 	fk_write(f, F_WINDOW, 0, 0, {0x7f, 0xff, 0, 0})
 	req, err := fk_read_request(f)
 	fk_check(f, err == .None, "read req")
-	fk_check(f, req.sid == 1 && req.flags == END_STREAM | END_HEADERS, "sid/flags %d %x", req.sid, req.flags)
+	fk_check(f, req.sid == 1 && req.flags == END_STREAM | END_HEADERS | PRIORITY, "sid/flags %d %x", req.sid, req.flags)
+	fk_check(f, bytes.equal(req.prio, []byte{0x80, 0, 0, 0, 219}), "priority %x", req.prio)
 	want := ":method: GET|:authority: discord.com|:scheme: https|:path: /api/v9/a|user-agent: " + UA + "|accept: */*|priority: u=1, i|"
 	fk_check(f, fields_str(req.fields[:]) == want, "fields %s", fields_str(req.fields[:]))
 	// response: 103 interim, then headers split over HEADERS+2xCONTINUATION with padding
@@ -322,6 +332,10 @@ basic_server :: proc(f: ^Fake) {
 
 	req2, err2 := fk_read_request(f)
 	fk_check(f, err2 == .None && req2.sid == 3 && req2.path == "/api/v9/b", "req2")
+	// Stream 1 closed, so no parent. Everything but :path is now an exact dynamic or static match.
+	fk_check(f, bytes.equal(req2.prio, []byte{0x80, 0, 0, 0, 219}), "priority 2 %x", req2.prio)
+	b2 := req2.block
+	fk_check(f, len(b2) > 7 && bytes.equal(b2[:4], []byte{0x82, 0xc1, 0x87, 0x04}) && bytes.equal(b2[len(b2) - 3:], []byte{0xc0, 0xbf, 0xbe}), "block 2 %x", b2)
 	fk_check(f, f.acks == 1, "client must ACK our SETTINGS (acks=%d)", f.acks)
 	fk_send_headers(f, 3, {{":status", "204"}}, true)
 	fr, _ := fk_read(f)
@@ -501,15 +515,14 @@ flow_recv_server :: proc(f: ^Fake) {
 		fr, err := fk_read(f)
 		if err != .None || fr.type == F_GOAWAY do break
 	}
-	// stream: >= 3145728 unacked (half of 6291456) -> 192 frames of 16384
-	// conn: >= 7864320 unacked (half of 15728640); nghttp2 counts partly read
-	// frames, so the exact amount depends on read boundaries.
-	want := [][2]u32{{1, 192 * 16384}, {0, 7864320}, {3, 192 * 16384}}
+	// Chrome acks once more than half the window (6291456 per stream, 15728640 per connection) is
+	// unacked, counting what each 8 KiB read delivered, so the amounts depend on read boundaries.
+	want := [][2]u32{{1, 3145728}, {0, 7864320}, {3, 3145728}}
 	fk_check(f, len(f.wus) == len(want), "updates %v", f.wus[:])
 	for w, i in want {
 		if i >= len(f.wus) do break
 		got := f.wus[i]
-		fk_check(f, got[0] == w[0] && got[1] >= w[1] && got[1] < w[1] + 16384, "update %d: %v want %v", i, got, w)
+		fk_check(f, got[0] == w[0] && got[1] > w[1] && got[1] <= w[1] + 8192, "update %d: %v want %v", i, got, w)
 	}
 }
 
@@ -755,4 +768,132 @@ test_h2_close_while_reading :: proc(t: ^testing.T) {
 	netio.close(b)
 	thread.join(th)
 	thread.destroy(th)
+}
+
+// HEADERS priority fields as Chrome sends them: exclusive, parent = newest open stream of the same or
+// higher priority, weight by priority.
+@(private = "file")
+prio_server :: proc(f: ^Fake) {
+	fk_handshake(f, CF_SETTINGS)
+	want := [3][5]byte{{0x80, 0, 0, 0, 219}, {0x80, 0, 0, 1, 182}, {0x80, 0, 0, 0, 255}}
+	for i in 0 ..< 3 {
+		r, _ := fk_read_request(f)
+		fk_check(f, r.sid == u32(2 * i + 1) && bytes.equal(r.prio, want[i][:]), "stream %d priority %x", r.sid, r.prio)
+	}
+	for sid in ([]u32{5, 3, 1}) do fk_send_headers(f, sid, {{":status", "204"}}, true)
+	for {
+		if _, err := fk_read(f); err != .None do return
+	}
+}
+
+@(test)
+test_h2_priority :: proc(t: ^testing.T) {
+	a, b := pipe_make()
+	f: Fake
+	fk_init(&f, b)
+	defer fk_destroy(&f)
+	th := run_server(&f, prio_server)
+	c, _ := h2_connect(a)
+	Job :: struct {
+		c:   ^H2_Conn,
+		req: Request,
+		ok:  bool,
+	}
+	jobs := [2]Job{{c = c, req = basic_req("/1")}, {c = c, req = basic_req("/2")}}
+	jobs[1].req.priority = .Low
+	threads: [2]^thread.Thread
+	for &j, i in jobs {
+		threads[i] = thread.create_and_start_with_poly_data(&j, proc(j: ^Job) {
+			resp, err := h2_request(j.c, j.req)
+			j.ok = err == .None && resp.status == 204
+			response_destroy(&resp)
+			free_all(context.temp_allocator)
+		})
+		for {
+			locks.lock(&c.mu)
+			n := len(c.streams)
+			locks.unlock(&c.mu)
+			if n == i + 1 do break
+			thread.yield()
+		}
+	}
+	top := basic_req("/3")
+	top.priority = .Highest
+	resp, err := h2_request(c, top)
+	testing.expect_value(t, err, Error.None)
+	response_destroy(&resp)
+	for th2, i in threads {
+		thread.join(th2)
+		thread.destroy(th2)
+		testing.expectf(t, jobs[i].ok, "job %d", i)
+	}
+	h2_close(c)
+	fk_finish(t, &f, th, b)
+}
+
+// A PING before the request after 10 s without reading; a connection WINDOW_UPDATE for even a small
+// amount once 5 s passed since the last.
+@(private = "file")
+timers_server :: proc(f: ^Fake) {
+	fk_handshake(f, nil)
+	fr, _ := fk_read(f)
+	fk_check(f, fr.type == F_PING && fr.flags == 0 && bytes.equal(fr.payload, []byte{0, 0, 0, 0, 0, 0, 0, 1}), "preface ping %v %x", fr.type, fr.payload)
+	fk_write(f, F_PING, ACK, 0, fr.payload)
+	req, _ := fk_read_request(f)
+	fk_send_headers(f, req.sid, {{":status", "200"}}, false)
+	fk_send_data(f, req.sid, make([]byte, 100, context.temp_allocator), true)
+	for {
+		fr2, err := fk_read(f)
+		fk_check(f, err != .None || fr2.type == F_GOAWAY, "unexpected frame %v", fr2.type)
+		if err != .None || fr2.type == F_GOAWAY do break
+	}
+	fk_check(f, len(f.wus) == 1 && f.wus[0] == {0, 100}, "updates %v", f.wus[:])
+}
+
+@(test)
+test_h2_timers :: proc(t: ^testing.T) {
+	a, b := pipe_make()
+	f: Fake
+	fk_init(&f, b)
+	defer fk_destroy(&f)
+	th := run_server(&f, timers_server)
+	c, _ := h2_connect(a)
+	locks.lock(&c.mu)
+	c.last_read._nsec -= i64(11 * time.Second)
+	c.acked_at._nsec -= i64(6 * time.Second)
+	locks.unlock(&c.mu)
+	resp, err := h2_request(c, basic_req("/"))
+	testing.expect_value(t, err, Error.None)
+	testing.expect_value(t, len(resp.body), 100)
+	response_destroy(&resp)
+	h2_close(c)
+	fk_finish(t, &f, th, b)
+}
+
+// RFC 7541 C.4 in Chrome's pseudo-header order, then cookie crumbs and a table size update.
+@(test)
+test_hpack_chrome :: proc(t: ^testing.T) {
+	e: Hpack_Encoder
+	hpack_init(&e, context.allocator)
+	defer hpack_destroy(&e)
+	out := make([dynamic]byte)
+	defer delete(out)
+	check :: proc(t: ^testing.T, e: ^Hpack_Encoder, out: ^[dynamic]byte, req: Request, want: []byte, loc := #caller_location) {
+		clear(out)
+		hpack_encode(e, out, req)
+		testing.expectf(t, bytes.equal(out[:], want), "got %x want %x", out[:], want, loc = loc)
+	}
+	r := Request{method = "GET", scheme = "http", authority = "www.example.com", path = "/"}
+	check(t, &e, &out, r, {0x82, 0x41, 0x8c, 0xf1, 0xe3, 0xc2, 0xe5, 0xf2, 0x3a, 0x6b, 0xa0, 0xab, 0x90, 0xf4, 0xff, 0x86, 0x84})
+	r.headers = {{"cache-control", "no-cache"}}
+	check(t, &e, &out, r, {0x82, 0xbe, 0x86, 0x84, 0x58, 0x86, 0xa8, 0xeb, 0x10, 0x64, 0x9c, 0xbf})
+	r.scheme, r.path, r.headers = "https", "/index.html", {{"custom-key", "custom-value"}}
+	check(t, &e, &out, r, {0x82, 0xbf, 0x87, 0x85, 0x40, 0x88, 0x25, 0xa8, 0x49, 0xe9, 0x5b, 0xa9, 0x7d, 0x7f, 0x89, 0x25, 0xa8, 0x49, 0xe9, 0x5b, 0xb8, 0xe8, 0xb4, 0xbf})
+	// Table: custom-key 62, cache-control 63, :authority 64. Crumbs are indexed one by one.
+	r.headers = {{"cookie", " a=b; x=y "}}
+	check(t, &e, &out, r, {0x82, 0xc0, 0x87, 0x85, 0x60, 0x03, 'a', '=', 'b', 0x60, 0x03, 'x', '=', 'y'})
+	check(t, &e, &out, r, {0x82, 0xc2, 0x87, 0x85, 0xbf, 0xbe})
+	hpack_set_table_size(&e, 0)
+	hpack_set_table_size(&e, 4096)
+	check(t, &e, &out, r, {0x20, 0x3f, 0xe1, 0x1f, 0x82, 0x41, 0x8c, 0xf1, 0xe3, 0xc2, 0xe5, 0xf2, 0x3a, 0x6b, 0xa0, 0xab, 0x90, 0xf4, 0xff, 0x87, 0x85, 0x60, 0x03, 'a', '=', 'b', 0x60, 0x03, 'x', '=', 'y'})
 }

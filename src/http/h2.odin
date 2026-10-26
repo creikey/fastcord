@@ -28,11 +28,14 @@ import "fc:netio"
 //   - preface + SETTINGS [1:65536, 2:0, 4:6291456, 6:262144] in that order
 //   - WINDOW_UPDATE stream 0 increment 15663105 (window 15728640)
 //   - pseudo-header order :method :authority :scheme :path
-//   - receive windows refreshed once half the window is consumed
 //   - request bodies sent in DATA frames of at most 2851 bytes (2*MSS - 9)
-// Not reproduced: nghttp2 1.65+ never sends RFC 7540 priority, so HEADERS lack
-// Chrome's PRIORITY flag (exclusive, weight from Request.priority), and its
-// HPACK encoder makes its own indexing choices.
+// Chrome behaviours nghttp2 lacks, done in rewrite_frames and give_back (from Chrome 148's
+// net/spdy and quiche sources, not directly visible in a netlog):
+//   - HEADERS blocks from hpack.odin, with the PRIORITY flag: exclusive, weight from
+//     Request.priority, parent from Http2PriorityDependencies; split at 16383-byte frames
+//   - receive windows acked once more than half is unacked or 5 s after the last update,
+//     counted per 8 KiB read
+//   - a PING before HEADERS or DATA when nothing was read for 10 s
 
 when ODIN_OS == .Windows {
 	foreign import ng {"../../build/fc_nghttp2.obj", "../../build/fc_nghttp2_http.obj"}
@@ -46,15 +49,31 @@ Setting :: struct {
 }
 
 @(rodata)
-CHROME_SETTINGS := [4]Setting{{1, 65536}, {2, 0}, {4, 6291456}, {6, 262144}}
-CHROME_CONNECTION_WINDOW_INCREMENT :: 15663105
+CHROME_SETTINGS := [4]Setting{{1, 65536}, {2, 0}, {4, CHROME_STREAM_WINDOW}, {6, 262144}}
+CHROME_STREAM_WINDOW :: 6291456
+CHROME_CONNECTION_WINDOW :: 15728640
+CHROME_CONNECTION_WINDOW_INCREMENT :: CHROME_CONNECTION_WINDOW - 65535
 @(private)
 CHROME_DATA_CHUNK :: 2 * 1430 - 9
+// Spdy3PriorityToHttp2Weight - 1 for each Priority, by its SPDY priority (Highest 0 .. Throttled 5).
+@(private, rodata)
+CHROME_SPDY_PRIORITY := [Priority]u8 {
+	.Highest   = 0,
+	.Medium    = 1,
+	.Low       = 2,
+	.Lowest    = 3,
+	.Idle      = 4,
+	.Throttled = 5,
+}
+@(private, rodata)
+CHROME_WEIGHT := [6]u8{255, 219, 182, 146, 109, 73}
 
 @(private)
 Ng_Session :: struct {}
 @(private)
 Ng_Callbacks :: struct {}
+@(private)
+Ng_Option :: struct {}
 
 // nghttp2_frame_hd, the first member of every nghttp2_frame.
 @(private)
@@ -64,6 +83,19 @@ Ng_Frame_Hd :: struct {
 	type:      u8,
 	flags:     u8,
 	reserved:  u8,
+}
+
+@(private)
+Ng_Data :: struct {
+	hd:     Ng_Frame_Hd,
+	padlen: c.size_t,
+}
+
+@(private)
+Ng_Settings :: struct {
+	hd:  Ng_Frame_Hd,
+	niv: c.size_t,
+	iv:  [^]Setting,
 }
 
 @(private)
@@ -87,7 +119,19 @@ NG_FRAME_DATA :: 0
 @(private)
 NG_FRAME_HEADERS :: 1
 @(private)
+NG_FRAME_SETTINGS :: 4
+@(private)
+NG_FRAME_PING :: 6
+@(private)
+NG_FRAME_CONTINUATION :: 9
+@(private)
 NG_FLAG_END_STREAM :: 0x1
+@(private)
+NG_FLAG_ACK :: 0x1
+@(private)
+NG_FLAG_END_HEADERS :: 0x4
+@(private)
+NG_FLAG_PRIORITY :: 0x20
 @(private)
 NG_DATA_FLAG_EOF :: 0x1
 @(private)
@@ -109,7 +153,10 @@ foreign ng {
 	nghttp2_session_callbacks_set_on_header_callback :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, name: [^]byte, namelen: c.size_t, value: [^]byte, valuelen: c.size_t, flags: u8, user: rawptr) -> c.int) ---
 	nghttp2_session_callbacks_set_on_frame_not_send_callback :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, code: c.int, user: rawptr) -> c.int) ---
 	nghttp2_session_callbacks_set_data_source_read_length_callback2 :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, type: u8, id: i32, conn_window, stream_window: i32, max_frame: u32, user: rawptr) -> int) ---
-	nghttp2_session_client_new :: proc(s: ^^Ng_Session, cbs: ^Ng_Callbacks, user: rawptr) -> c.int ---
+	nghttp2_option_new :: proc(opt: ^^Ng_Option) -> c.int ---
+	nghttp2_option_del :: proc(opt: ^Ng_Option) ---
+	nghttp2_option_set_no_auto_window_update :: proc(opt: ^Ng_Option, val: c.int) ---
+	nghttp2_session_client_new2 :: proc(s: ^^Ng_Session, cbs: ^Ng_Callbacks, user: rawptr, opt: ^Ng_Option) -> c.int ---
 	nghttp2_session_del :: proc(s: ^Ng_Session) ---
 	nghttp2_submit_settings :: proc(s: ^Ng_Session, flags: u8, iv: [^]Setting, niv: c.size_t) -> c.int ---
 	nghttp2_submit_window_update :: proc(s: ^Ng_Session, flags: u8, id: i32, increment: i32) -> c.int ---
@@ -133,29 +180,41 @@ H2_Config :: struct {
 @(private)
 H2_Stream :: struct {
 	id:           i32,
+	req:          Request, // the caller's memory, for its HEADERS (sent before h2_request returns)
 	body:         []byte, // request body still to send; the caller's memory
 	resp:         Response,
 	header_bytes: int,
 	got_headers:  bool, // final (non-1xx) response headers received
 	done:         bool, // response complete or failed (err)
 	err:          Error,
+	in_tree:      bool, // listed in H2_Conn.tree (its HEADERS went out, not yet done)
+	unacked:      int, // received bytes not yet given back in a WINDOW_UPDATE
+	acked_at:     time.Tick,
 }
 
 H2_Conn :: struct {
-	s:         netio.Stream,
-	allocator: mem.Allocator,
-	cfg:       H2_Config,
-	mu:        locks.Mutex,
-	cond:      locks.Cond,
-	wmu:       locks.Mutex,
-	session:   ^Ng_Session, // under mu
-	streams:   map[i32]^H2_Stream, // under mu
-	rbuf:      []byte, // reader only
-	wbuf:      [dynamic]byte, // under wmu
-	reading:   bool,
-	users:     int, // threads inside public h2_* calls (h2_close waits for 0)
-	closing:   bool,
-	dead:      Error,
+	s:              netio.Stream,
+	allocator:      mem.Allocator,
+	cfg:            H2_Config,
+	mu:             locks.Mutex,
+	cond:           locks.Cond,
+	wmu:            locks.Mutex,
+	session:        ^Ng_Session, // under mu
+	streams:        map[i32]^H2_Stream, // under mu
+	rbuf:           []byte, // reader only
+	wbuf, out:      [dynamic]byte, // under wmu and mu: nghttp2's output, then what goes on the wire
+	sent_preface:   bool, // under wmu and mu
+	enc:            Hpack_Encoder, // under mu
+	tree:           [6][dynamic]i32, // under mu: open streams by SPDY priority, oldest first
+	unacked:        int, // under mu: connection bytes not yet given back
+	acked_at:       time.Tick, // under mu
+	last_read:      time.Tick, // under mu
+	ping_in_flight: bool, // under mu
+	next_ping:      u64, // under mu
+	reading:        bool,
+	users:          int, // threads inside public h2_* calls (h2_close waits for 0)
+	closing:        bool,
+	dead:           Error,
 }
 
 // h2_connect sends the client preface, Chrome's SETTINGS and WINDOW_UPDATE (one write).
@@ -168,8 +227,14 @@ h2_connect :: proc(s: netio.Stream, cfg := H2_Config{}, allocator := context.all
 	if c.cfg.max_response_body <= 0 do c.cfg.max_response_body = 256 << 20
 	if c.cfg.max_header_block <= 0 do c.cfg.max_header_block = 1 << 20
 	c.streams = make(map[i32]^H2_Stream)
-	c.rbuf = make([]byte, READER_SIZE)
+	c.rbuf = make([]byte, 8 * 1024) // Chrome's kReadBufferSize: window updates follow its reads.
 	c.wbuf = make([dynamic]byte)
+	c.out = make([dynamic]byte)
+	hpack_init(&c.enc, allocator)
+	for &l in c.tree do l = make([dynamic]i32)
+	c.acked_at = time.tick_now()
+	c.last_read = c.acked_at
+	c.next_ping = 1
 	cbs: ^Ng_Callbacks
 	if nghttp2_session_callbacks_new(&cbs) != 0 do panic("nghttp2: out of memory")
 	nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, on_frame_recv)
@@ -178,7 +243,11 @@ h2_connect :: proc(s: netio.Stream, cfg := H2_Config{}, allocator := context.all
 	nghttp2_session_callbacks_set_on_header_callback(cbs, on_header)
 	nghttp2_session_callbacks_set_on_frame_not_send_callback(cbs, on_not_sent)
 	nghttp2_session_callbacks_set_data_source_read_length_callback2(cbs, data_chunk_len)
-	rv := nghttp2_session_client_new(&c.session, cbs, c)
+	opt: ^Ng_Option
+	if nghttp2_option_new(&opt) != 0 do panic("nghttp2: out of memory")
+	nghttp2_option_set_no_auto_window_update(opt, 1) // give_back() sends them, as Chrome does.
+	rv := nghttp2_session_client_new2(&c.session, cbs, c, opt)
+	nghttp2_option_del(opt)
 	nghttp2_session_callbacks_del(cbs)
 	if rv != 0 do panic("nghttp2: out of memory")
 	nghttp2_submit_settings(c.session, 0, raw_data(CHROME_SETTINGS[:]), len(CHROME_SETTINGS))
@@ -231,6 +300,9 @@ h2_destroy :: proc(c: ^H2_Conn) {
 	delete(c.streams)
 	delete(c.rbuf)
 	delete(c.wbuf)
+	delete(c.out)
+	hpack_destroy(&c.enc)
+	for l in c.tree do delete(l)
 	free(c)
 }
 
@@ -244,11 +316,36 @@ stream_of :: proc "contextless" (s: ^Ng_Session, id: i32) -> ^H2_Stream {
 }
 
 @(private)
-finish :: proc "contextless" (st: ^H2_Stream, err: Error, code: u32) {
+finish :: proc(c: ^H2_Conn, st: ^H2_Stream, err: Error, code: u32) {
 	if st.done do return
 	st.done = true
 	st.err = err
 	st.resp.h2_error = code
+	if !st.in_tree do return
+	l := &c.tree[CHROME_SPDY_PRIORITY[st.req.priority]]
+	for id, i in l do if id == st.id {
+		ordered_remove(l, i)
+		break
+	}
+}
+
+// give_back returns received bytes to the windows as Chrome's IncreaseRecvWindowSize does: a
+// WINDOW_UPDATE once more than half the window is unacked or 5 s passed since the last one; the
+// connection's first.
+@(private)
+give_back :: proc(c: ^H2_Conn, st: ^H2_Stream, id: i32, n: int) {
+	now := time.tick_now()
+	c.unacked += n
+	if c.unacked > CHROME_CONNECTION_WINDOW / 2 || time.tick_diff(c.acked_at, now) >= 5 * time.Second {
+		nghttp2_submit_window_update(c.session, 0, 0, i32(c.unacked))
+		c.unacked, c.acked_at = 0, now
+	}
+	if st == nil do return
+	st.unacked += n
+	if st.unacked > CHROME_STREAM_WINDOW / 2 || time.tick_diff(st.acked_at, now) >= 5 * time.Second {
+		nghttp2_submit_window_update(c.session, 0, id, i32(st.unacked))
+		st.unacked, st.acked_at = 0, now
+	}
 }
 
 @(private)
@@ -260,7 +357,7 @@ on_header :: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, name: [^]byte, namelen: 
 	context.allocator = conn.allocator
 	st.header_bytes += int(namelen + valuelen) + 32
 	if st.header_bytes > conn.cfg.max_header_block {
-		finish(st, .Too_Large, NG_CANCEL) // h2_request resets the stream
+		finish(conn, st, .Too_Large, NG_CANCEL) // h2_request resets the stream
 		return 0
 	}
 	n, v := string(name[:namelen]), string(value[:valuelen])
@@ -274,40 +371,54 @@ on_header :: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, name: [^]byte, namelen: 
 
 @(private)
 on_frame_recv :: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, user: rawptr) -> c.int {
+	conn := cast(^H2_Conn)user
+	context = runtime.default_context()
+	switch {
+	case f.type == NG_FRAME_SETTINGS && f.flags & NG_FLAG_ACK == 0:
+		set := cast(^Ng_Settings)f
+		for iv in set.iv[:set.niv] do if iv.id == 1 do hpack_set_table_size(&conn.enc, int(iv.value))
+	case f.type == NG_FRAME_PING && f.flags & NG_FLAG_ACK != 0:
+		conn.ping_in_flight = false
+	}
 	if f.type != NG_FRAME_HEADERS && f.type != NG_FRAME_DATA do return 0
 	st := stream_of(s, f.stream_id)
-	if st == nil || st.done do return 0
+	if st != nil && st.done do st = nil
+	// Chrome counts padding as consumed at once.
+	if pad := int((cast(^Ng_Data)f).padlen); f.type == NG_FRAME_DATA && pad > 0 do give_back(conn, st, f.stream_id, pad)
+	if st == nil do return 0
 	if f.type == NG_FRAME_HEADERS && !st.got_headers {
 		if st.resp.status < 200 {
 			// Interim response (100/103): drop it and wait for the final one.
-			context = runtime.default_context()
 			clear_headers(&st.resp)
 			st.resp.status = 0
 			return 0
 		}
 		st.got_headers = true
 	}
-	if f.flags & NG_FLAG_END_STREAM != 0 do finish(st, .None, 0)
+	if f.flags & NG_FLAG_END_STREAM != 0 do finish(conn, st, .None, 0)
 	return 0
 }
 
 @(private)
 on_data_chunk :: proc "c" (s: ^Ng_Session, flags: u8, id: i32, data: [^]byte, n: c.size_t, user: rawptr) -> c.int {
 	conn := cast(^H2_Conn)user
+	context = runtime.default_context()
 	st := stream_of(s, id)
-	if st == nil || st.done do return 0
+	if st != nil && st.done do st = nil
+	give_back(conn, st, id, int(n))
+	if st == nil do return 0
 	if len(st.resp.body) + int(n) > conn.cfg.max_response_body {
-		finish(st, .Too_Large, NG_CANCEL) // h2_request resets the stream
+		finish(conn, st, .Too_Large, NG_CANCEL) // h2_request resets the stream
 		return 0
 	}
-	context = runtime.default_context()
 	append(&st.resp.body, ..data[:n])
 	return 0
 }
 
 @(private)
 on_stream_close :: proc "c" (s: ^Ng_Session, id: i32, code: u32, user: rawptr) -> c.int {
-	if st := stream_of(s, id); st != nil do finish(st, .Refused if code == NG_REFUSED_STREAM else .Stream_Reset, code)
+	context = runtime.default_context()
+	if st := stream_of(s, id); st != nil do finish(cast(^H2_Conn)user, st, .Refused if code == NG_REFUSED_STREAM else .Stream_Reset, code)
 	return 0
 }
 
@@ -318,8 +429,8 @@ on_not_sent :: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, code: c.int, user: raw
 	conn := cast(^H2_Conn)user
 	context = runtime.default_context()
 	if st := conn.streams[f.stream_id]; f.type == NG_FRAME_HEADERS && st != nil {
-		if code == NG_ERR_START_STREAM_NOT_ALLOWED do finish(st, .Refused, NG_REFUSED_STREAM)
-		else do finish(st, .Io, 0)
+		if code == NG_ERR_START_STREAM_NOT_ALLOWED do finish(conn, st, .Refused, NG_REFUSED_STREAM)
+		else do finish(conn, st, .Io, 0)
 	}
 	return 0
 }
@@ -355,9 +466,78 @@ flush :: proc(c: ^H2_Conn) -> Error {
 		if n <= 0 do break
 		append(&c.wbuf, ..p[:n])
 	}
+	rewrite_frames(c)
 	locks.unlock(&c.mu)
-	if len(c.wbuf) == 0 do return .None
-	return map_net_error(netio.write(c.s, c.wbuf[:]))
+	if len(c.out) == 0 do return .None
+	return map_net_error(netio.write(c.s, c.out[:]))
+}
+
+// rewrite_frames copies nghttp2's output (whole frames) to c.out, replacing each HEADERS and its
+// CONTINUATIONs with Chrome's: hpack.odin's block, PRIORITY, 16383-byte frames (kHttp2MaxControlFrameSendSize).
+@(private)
+rewrite_frames :: proc(c: ^H2_Conn) {
+	put_u32 :: proc(out: ^[dynamic]byte, v: u32) {append(out, u8(v >> 24), u8(v >> 16), u8(v >> 8), u8(v))}
+	clear(&c.out)
+	b := c.wbuf[:]
+	if !c.sent_preface && len(b) >= 24 {
+		append(&c.out, ..b[:24])
+		b = b[24:]
+		c.sent_preface = true
+	}
+	block := make([dynamic]byte, c.allocator)
+	defer delete(block)
+	for len(b) >= 9 {
+		n := 9 + (int(b[0]) << 16 | int(b[1]) << 8 | int(b[2]))
+		type, flags := b[3], b[4]
+		id := i32((u32(b[5]) << 24 | u32(b[6]) << 16 | u32(b[7]) << 8 | u32(b[8])) & 0x7fffffff)
+		frame := b[:n]
+		b = b[n:]
+		if type == NG_FRAME_HEADERS || type == NG_FRAME_DATA && n > 9 do preface_ping(c)
+		if type == NG_FRAME_CONTINUATION do continue
+		st := c.streams[id]
+		if type != NG_FRAME_HEADERS || st == nil {
+			append(&c.out, ..frame)
+			continue
+		}
+		p := CHROME_SPDY_PRIORITY[st.req.priority]
+		parent: i32
+		for i := int(p); i >= 0 && parent == 0; i -= 1 do if len(c.tree[i]) > 0 do parent = c.tree[i][len(c.tree[i]) - 1]
+		if !st.done {
+			append(&c.tree[p], id)
+			st.in_tree = true
+		}
+		clear(&block)
+		hpack_encode(&c.enc, &block, st.req)
+		rest := block[:]
+		for first := true; ; first = false {
+			k := min(len(rest), 16383 - 9 - (5 if first else 0))
+			end: u8 = NG_FLAG_END_HEADERS if k == len(rest) else 0
+			plen := u32(k + (5 if first else 0))
+			append(&c.out, u8(plen >> 16), u8(plen >> 8), u8(plen))
+			if first {
+				append(&c.out, NG_FRAME_HEADERS, flags & NG_FLAG_END_STREAM | NG_FLAG_PRIORITY | end)
+				put_u32(&c.out, u32(id))
+				put_u32(&c.out, u32(parent) | 0x80000000)
+				append(&c.out, CHROME_WEIGHT[p])
+			} else {
+				append(&c.out, NG_FRAME_CONTINUATION, end)
+				put_u32(&c.out, u32(id))
+			}
+			append(&c.out, ..rest[:k])
+			rest = rest[k:]
+			if end != 0 do break
+		}
+	}
+}
+
+// preface_ping is Chrome's MaybeSendPrefacePing: a PING ahead of a request when nothing was read for 10 s.
+@(private)
+preface_ping :: proc(c: ^H2_Conn) {
+	if c.ping_in_flight || time.tick_since(c.last_read) <= 10 * time.Second do return
+	append(&c.out, 0, 0, 8, NG_FRAME_PING, 0, 0, 0, 0, 0)
+	for i in 0 ..< 8 do append(&c.out, u8(c.next_ping >> uint(56 - 8 * i)))
+	c.ping_in_flight = true
+	c.next_ping += 1
 }
 
 // read_once reads what the socket has, gives it to nghttp2 and sends its replies.
@@ -367,6 +547,7 @@ read_once :: proc(c: ^H2_Conn) -> Error {
 	n, rerr := netio.read(c.s, c.rbuf)
 	if rerr != .None do return map_net_error(rerr)
 	locks.lock(&c.mu)
+	c.last_read = time.tick_now()
 	rv := nghttp2_session_mem_recv2(c.session, raw_data(c.rbuf), uint(n))
 	locks.unlock(&c.mu)
 	ferr := flush(c) // on a connection error this sends nghttp2's GOAWAY
@@ -400,7 +581,7 @@ leave :: proc(c: ^H2_Conn) {
 @(private)
 fail_conn_locked :: proc(c: ^H2_Conn, err: Error) {
 	if c.dead == .None do c.dead = err
-	for _, st in c.streams do finish(st, c.dead, 0)
+	for _, st in c.streams do finish(c, st, c.dead, 0)
 }
 
 // drive_until: called and returns with c.mu held; st == nil waits until the connection dies.
@@ -457,7 +638,9 @@ h2_request :: proc(c: ^H2_Conn, req: Request) -> (resp: Response, err: Error) {
 	for h in req.headers do append(&nva, nv(h.name, h.value))
 
 	st := new(H2_Stream, c.allocator)
+	st.req = req
 	st.body = req.body
+	st.acked_at = time.tick_now()
 	st.resp = Response {
 		version   = .Http2,
 		allocator = c.allocator,
@@ -493,7 +676,7 @@ h2_request :: proc(c: ^H2_Conn, req: Request) -> (resp: Response, err: Error) {
 
 	locks.lock(&c.mu)
 	drive_until(c, st)
-	if !st.done do finish(st, c.dead if c.dead != .None else .Io, 0)
+	if !st.done do finish(c, st, c.dead if c.dead != .None else .Io, 0)
 	delete_key(&c.streams, st.id)
 	// The stream may outlive this call (our body still sending, or a reset not yet
 	// sent): detach it so nghttp2 never reads req.body or st again, and end it.

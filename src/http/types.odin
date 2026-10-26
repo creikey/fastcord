@@ -62,7 +62,7 @@ Request :: struct {
 	path:      string, // "/api/v9/users/@me"
 	headers:   []Header, // exact order/case; for h2 names must already be lowercase
 	body:      []byte,
-	priority:  Priority, // h3 priority header (nghttp2 sends no h2 priority)
+	priority:  Priority, // h2 HEADERS priority fields, h3 priority header
 }
 
 Response :: struct {
