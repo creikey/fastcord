@@ -19,7 +19,7 @@ import "core:strings"
 import "core:thread"
 import "core:time"
 
-import "fc:tls"
+import "fc:quic/tls13"
 
 Error :: enum u8 {
 	None,
@@ -105,7 +105,7 @@ Pn_Space :: struct {
 }
 
 Config :: struct {
-	tls:            tls.Config, // alpn should be {"h3"}
+	tls:            tls13.Config, // alpn should be {"h3"}
 	port:           int, // default 443
 	// Overrides DNS (tests / host mapping).
 	endpoint:       net.Endpoint,
@@ -162,10 +162,10 @@ Conn :: struct {
 	key_phase:          u8,
 
 	// TLS.
-	hs:                 tls.Handshake_State,
+	hs:                 tls13.Handshake_State,
 	hs_msgs:            [dynamic][]byte,
 	hs_level_rx:        Space,
-	tls_error:          tls.Error,
+	tls_error:          tls13.Error,
 	handshake_complete: bool,
 	handshake_confirmed: bool,
 	params:             Peer_Params,
@@ -206,7 +206,7 @@ Conn :: struct {
 }
 
 @(private)
-space_of :: proc(l: tls.Level) -> Space {
+space_of :: proc(l: tls13.Level) -> Space {
 	switch l {
 	case .Initial:
 		return .Initial
@@ -307,13 +307,13 @@ handshake_thread :: proc(c: ^Conn) {
 // run_handshake_thread_body runs TLS and finalizes the connection state.
 @(private)
 run_handshake_thread_body :: proc(c: ^Conn) {
-	io := tls.Handshake_Io {
+	io := tls13.Handshake_Io {
 		data         = c,
 		next_message = hs_next_message,
 		send         = hs_send,
 		set_secret   = hs_set_secret,
 	}
-	terr := tls.quic_handshake(&c.hs, io)
+	terr := tls13.quic_handshake(&c.hs, io)
 	locks.lock(&c.mu)
 	defer locks.unlock(&c.mu)
 	defer {
@@ -328,7 +328,7 @@ run_handshake_thread_body :: proc(c: ^Conn) {
 			c.tls_error = terr
 			c.err = .Tls
 			// CRYPTO_ERROR = 0x100 + alert.
-			start_close_locked(c, 0x100 + u64(tls.alert_code(terr)), false)
+			start_close_locked(c, 0x100 + u64(tls13.alert_code(terr)), false)
 		}
 		return
 	}
@@ -395,7 +395,7 @@ conn_init :: proc(c: ^Conn, cfg: Config) {
 
 // finish_handshake_locked validates the server's transport parameters.
 @(private)
-finish_handshake_locked :: proc(c: ^Conn) -> tls.Error {
+finish_handshake_locked :: proc(c: ^Conn) -> tls13.Error {
 	p, ok := parse_peer_params(c.hs.server_params)
 	if !ok do return .Illegal_Parameter
 	// Connection ID authentication (RFC 9000 7.3).
@@ -453,7 +453,7 @@ conn_destroy :: proc(c: ^Conn) {
 	keys_clear(&c.early_tx)
 	for m in c.hs_msgs do delete(m)
 	delete(c.hs_msgs)
-	tls.handshake_state_destroy(&c.hs)
+	tls13.handshake_state_destroy(&c.hs)
 	free_tls_config(&c.hs.cfg)
 	delete(c.hs.quic_params)
 	for _, st in c.streams do stream_free(st)
@@ -490,7 +490,7 @@ wake :: proc(c: ^Conn) {
 // --- Handshake_Io for the TLS engine ---
 
 @(private)
-hs_next_message :: proc(data: rawptr) -> ([]byte, tls.Error) {
+hs_next_message :: proc(data: rawptr) -> ([]byte, tls13.Error) {
 	c := cast(^Conn)data
 	locks.lock(&c.mu)
 	defer locks.unlock(&c.mu)
@@ -505,7 +505,7 @@ hs_next_message :: proc(data: rawptr) -> ([]byte, tls.Error) {
 }
 
 @(private)
-hs_send :: proc(data: rawptr, level: tls.Level, flight: []byte, first: bool, ccs: bool) -> tls.Error {
+hs_send :: proc(data: rawptr, level: tls13.Level, flight: []byte, first: bool, ccs: bool) -> tls13.Error {
 	c := cast(^Conn)data
 	locks.lock(&c.mu)
 	sb_write(&c.spaces[space_of(level)].crypto_send, flight)
@@ -520,7 +520,7 @@ hs_send :: proc(data: rawptr, level: tls.Level, flight: []byte, first: bool, ccs
 }
 
 @(private)
-hs_set_secret :: proc(data: rawptr, level: tls.Level, is_write: bool, suite: tls.Suite, secret: []byte) -> tls.Error {
+hs_set_secret :: proc(data: rawptr, level: tls13.Level, is_write: bool, suite: tls13.Suite, secret: []byte) -> tls13.Error {
 	c := cast(^Conn)data
 	if level == .Early {
 		locks.lock(&c.mu)
@@ -691,11 +691,11 @@ reject_zero_rtt_locked :: proc(c: ^Conn) {
 	}
 }
 
-// own_tls_config deep-copies the strings of a tls.Config so the handshake
+// own_tls_config deep-copies the strings of a tls13.Config so the handshake
 // thread never reads the caller's (possibly stack) memory after connect
 // returns early for 0-RTT. Regression: h3 passed alpn = {"h3"} from its
 // stack frame and resumed connections failed with Illegal_Parameter.
-own_tls_config :: proc(src: tls.Config, host: string) -> tls.Config {
+own_tls_config :: proc(src: tls13.Config, host: string) -> tls13.Config {
 	cfg := src
 	cfg.server_name = strings.clone(src.server_name if src.server_name != "" else host)
 	alpn := make([]string, len(src.alpn))
@@ -704,7 +704,7 @@ own_tls_config :: proc(src: tls.Config, host: string) -> tls.Config {
 	return cfg
 }
 
-free_tls_config :: proc(cfg: ^tls.Config) {
+free_tls_config :: proc(cfg: ^tls13.Config) {
 	for p in cfg.alpn do delete(p)
 	delete(cfg.alpn)
 	delete(cfg.server_name)

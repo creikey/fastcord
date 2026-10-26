@@ -4,7 +4,7 @@ import "core:log"
 import "core:os"
 import "core:testing"
 
-import "fc:tls"
+import "fc:quic/tls13"
 
 @(private = "file")
 live :: proc() -> bool {
@@ -15,13 +15,13 @@ live :: proc() -> bool {
 live_quic_handshake :: proc(t: ^testing.T) {
 	if !live() do return
 	debug_log = os.get_env("FASTCORD_QUIC_DEBUG", context.temp_allocator) == "1"
-	cache: tls.Ticket_Cache
-	defer tls.ticket_cache_clear(&cache)
+	cache: tls13.Ticket_Cache
+	defer tls13.ticket_cache_clear(&cache)
 	defer delete(cache.entries)
 	for round in 0 ..< 2 {
 		c, err := connect("discord.com", {tls = {alpn = {"h3"}, server_name = "discord.com", ticket_cache = &cache}})
 		if err != .None {
-			testing.expectf(t, false, "round %d: connect: %v (tls %v, peer code %x)", round, err, tls.last_error(), 0)
+			testing.expectf(t, false, "round %d: connect: %v", round, err)
 			return
 		}
 		testing.expect_value(t, c.hs.alpn, "h3")
@@ -29,7 +29,7 @@ live_quic_handshake :: proc(t: ^testing.T) {
 		if round == 1 do testing.expect(t, c.hs.resumed, "second connection should resume")
 		// Give the server time to send NewSessionTicket + HANDSHAKE_DONE.
 		wait_confirmed(c)
-		log.infof("confirmed=%v tickets=%d", c.handshake_confirmed, tls.ticket_cache_count(&cache, "discord.com", true))
+		log.infof("confirmed=%v tickets=%d", c.handshake_confirmed, tls13.ticket_cache_count(&cache, "discord.com", true))
 		close(c)
 	}
 }

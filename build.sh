@@ -29,6 +29,25 @@ build_c() {
       cl -nologo -c -O2 -D_CRT_SECURE_NO_WARNINGS $extra -Fo"$obj" "$src"
     fi
   done
+  # Larger libraries list their files in vendor/<lib>/fc_<lib>.sources (one path per line, from the repo
+  # root): each is compiled in parallel into build/<lib>/, then archived into build/libfc_<lib>.a (fat on
+  # macOS) or, on Windows, build/fc_<lib>.lib by build.bat, since it needs MSVC 2022's cl for C++17.
+  for list in vendor/*/fc_*.sources; do
+    [ -f "$list" ] || continue
+    name=$(basename "$list" .sources)
+    if [ -n "$EXE" ]; then lib=build/$name.lib; else lib=build/lib$name.a; fi
+    if [ -f "$lib" ] && [ -z "$(find "$(dirname "$list")" build.sh build.bat -newer "$lib" | head -1)" ]; then continue; fi
+    if [ -n "$EXE" ]; then cmd //c '.\build.bat' c; return; fi
+    echo "cc $list"
+    out=build/${name#fc_}
+    rm -rf "$out" && mkdir -p "$out"
+    extra=""
+    [ -f "${list%.sources}.cflags" ] && extra=$(tr -d '\r\n' < "${list%.sources}.cflags")
+    tr -d '\r' < "$list" | xargs -P "$(getconf _NPROCESSORS_ONLN)" -I{} sh -c 'case "$1" in *.c) x="";;
+      *) x="-std=c++17 -fno-exceptions -fno-rtti";; esac
+      clang -c -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=13.0 $x $2 -o "$3/$(basename "$1").o" "$1"' _ {} "$extra" "$out"
+    rm -f "$lib" && libtool -static -o "$lib" "$out"/*.o
+  done
 }
 build_c
 

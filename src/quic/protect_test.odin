@@ -4,7 +4,7 @@ import "core:encoding/hex"
 import "core:slice"
 import "core:testing"
 
-import "fc:tls"
+import "fc:quic/tls13"
 
 @(private = "file")
 unhex :: proc(s: string) -> []byte {
@@ -45,7 +45,7 @@ rfc9001_chacha_short_header :: proc(t: ^testing.T) {
 	secret := unhex("9ac312a7f877468ebe69422748ad00a15443f18203a07d6060f688f30f21632b")
 	defer delete(secret)
 	k: Keys
-	keys_set(&k, tls.SUITES[2], secret)
+	keys_set(&k, tls13.SUITES[2], secret)
 	defer keys_clear(&k)
 	expect_hex(t, k.iv[:], "e0459b3474bdd0e44a41c144")
 	expect_hex(t, k.hp_chacha[:], "25a282b9e82f06f21f488917a4fc8f1b73573685608597d0efcb076b0ab7a7a4")

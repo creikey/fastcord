@@ -6,7 +6,7 @@ import "core:fmt"
 import "core:crypto/aead"
 import "core:time"
 
-import "fc:tls"
+import "fc:quic/tls13"
 
 // Transport error codes (RFC 9000 20.1).
 ERR_NO_ERROR :: 0x00
@@ -441,10 +441,10 @@ on_crypto :: proc(c: ^Conn, space: Space, off: u64, data: []byte) -> bool {
 		copy(msg, avail[:n])
 		rb_consume(&sp.crypto_recv, n)
 		if space == .App {
-			e := tls.quic_post_handshake(&c.hs, msg)
+			e := tls13.quic_post_handshake(&c.hs, msg)
 			delete(msg)
 			if e != .None {
-				fail_locked(c, .Tls, 0x100 + u64(tls.alert_code(e)))
+				fail_locked(c, .Tls, 0x100 + u64(tls13.alert_code(e)))
 				return false
 			}
 		} else {

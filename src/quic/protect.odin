@@ -6,6 +6,7 @@ import "core:crypto/aes"
 import "core:crypto/chacha20"
 import "core:crypto/hkdf"
 
+import "fc:quic/tls13"
 import "fc:tls"
 
 // Packet protection (RFC 9001 5).
@@ -20,7 +21,7 @@ AEAD_TAG :: 16
 // Keys protects one direction of one encryption level.
 Keys :: struct {
 	valid:     bool,
-	suite:     tls.Suite,
+	suite:     tls13.Suite,
 	secret:    [48]byte,
 	ctx:       aead.Context,
 	iv:        [12]byte,
@@ -28,17 +29,17 @@ Keys :: struct {
 	hp_chacha: [32]byte,
 }
 
-keys_set :: proc(k: ^Keys, suite: tls.Suite, secret: []byte) {
+keys_set :: proc(k: ^Keys, suite: tls13.Suite, secret: []byte) {
 	keys_clear(k)
 	k.suite = suite
 	copy(k.secret[:], secret)
 	key, hp: [32]byte
 	defer crypto.zero_explicit(&key, size_of(key))
 	defer crypto.zero_explicit(&hp, size_of(hp))
-	tls.expand_label(suite, secret, "quic key", nil, key[:suite.key_len])
-	tls.expand_label(suite, secret, "quic iv", nil, k.iv[:])
-	tls.expand_label(suite, secret, "quic hp", nil, hp[:suite.key_len])
-	aead.init(&k.ctx, suite.aead, key[:suite.key_len], tls.aead_impl(suite.aead))
+	tls13.expand_label(suite, secret, "quic key", nil, key[:suite.key_len])
+	tls13.expand_label(suite, secret, "quic iv", nil, k.iv[:])
+	tls13.expand_label(suite, secret, "quic hp", nil, hp[:suite.key_len])
+	aead.init(&k.ctx, suite.aead, key[:suite.key_len], tls13.aead_impl(suite.aead))
 	if suite.aead == .CHACHA20POLY1305 {
 		k.hp_chacha = hp
 	} else {
@@ -60,7 +61,7 @@ keys_next :: proc(dst, cur: ^Keys) {
 	hl := cur.suite.hash_len
 	next: [48]byte
 	defer crypto.zero_explicit(&next, size_of(next))
-	tls.expand_label(cur.suite, cur.secret[:hl], "quic ku", nil, next[:hl])
+	tls13.expand_label(cur.suite, cur.secret[:hl], "quic ku", nil, next[:hl])
 	hp_aes := cur.hp_aes
 	hp_chacha := cur.hp_chacha
 	keys_set(dst, cur.suite, next[:hl])
@@ -75,14 +76,14 @@ keys_next :: proc(dst, cur: ^Keys) {
 // initial_keys derives the client and server Initial keys from the client's
 // first Destination Connection ID.
 initial_keys :: proc(client, server: ^Keys, dcid: []byte) {
-	suite := tls.SUITES[0] // AES-128-GCM / SHA-256
+	suite := tls13.SUITES[0] // AES-128-GCM / SHA-256
 	initial, cs, ss: [32]byte
 	defer crypto.zero_explicit(&initial, size_of(initial))
 	defer crypto.zero_explicit(&cs, size_of(cs))
 	defer crypto.zero_explicit(&ss, size_of(ss))
 	hkdf.extract(.SHA256, INITIAL_SALT[:], dcid, initial[:])
-	tls.expand_label(suite, initial[:], "client in", nil, cs[:])
-	tls.expand_label(suite, initial[:], "server in", nil, ss[:])
+	tls13.expand_label(suite, initial[:], "client in", nil, cs[:])
+	tls13.expand_label(suite, initial[:], "server in", nil, ss[:])
 	keys_set(client, suite, cs[:])
 	keys_set(server, suite, ss[:])
 }

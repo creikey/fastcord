@@ -18,7 +18,7 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 | Path | What |
 |---|---|
 | `src/netio` | `Stream` interface (read/write/close) + TCP. Every protocol sits on a `Stream`. |
-| `src/tls` | TLS 1.3 client, ClientHello byte-identical in shape to Chrome (the official client is Electron). |
+| `src/tls` | TLS client over vendored BoringSSL, configured like Chrome (the official client is Electron); OS trust store. |
 | `src/zstd`, `src/brotli` | Decoders (gateway uses zstd-stream; HTTP responses may be br/zstd/gzip). |
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`). |
 | `src/http` | HTTP/1.1, HTTP/2 + HPACK, WebSocket client. |
@@ -41,8 +41,9 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 ./build/fastcord      # logs in with $FASTCORD_TOKEN or <state>/token
 ```
 
-Needs `odin` and a C compiler: clang (macOS: Xcode command line tools), or on Windows clang or MSVC.
-Every build first compiles the vendored C (`vendor/`) into `build/`; `./build.sh c` does only that step.
+Needs `odin` and a C compiler: clang (macOS: Xcode command line tools), or on Windows clang or MSVC;
+BoringSSL also needs MSVC 2022 on Windows. Every build first compiles the vendored C (`vendor/`) into
+`build/` (BoringSSL takes about a minute the first time); `./build.sh c` does only that step.
 `build.bat` has the same targets for cmd.exe and finds MSVC itself.
 
 `<state>` is `~/Library/Application Support/fastcord/state` on macOS and `%LOCALAPPDATA%\fastcord\state`
