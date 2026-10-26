@@ -302,26 +302,26 @@ _backend_submit :: proc(insts: []Instance, batches: []Batch, clear: Color, fb: [
 	dx.ctx->VSSetConstantBuffers(0, 1, &dx.cbuf)
 	dx.ctx->PSSetSamplers(0, 1, &dx.sampler)
 
+	sr := D3D11.RECT{0, 0, fb.x, fb.y}
+	dx.ctx->RSSetScissorRects(1, &sr)
+
 	Uniforms :: struct {viewport: [2]f32, base: u32, pad: u32}
 	zb := prof.zone_begin("gfx.batches")
+	white := (^D3D_Tex)(g.textures[g.white].native).srv
 	for b in batches {
-		x := clamp(b.clip[0], 0, fb.x)
-		y := clamp(b.clip[1], 0, fb.y)
-		x1 := clamp(b.clip[0] + b.clip[2], 0, fb.x)
-		y1 := clamp(b.clip[1] + b.clip[3], 0, fb.y)
-		if x1 <= x || y1 <= y do continue
-		sr := D3D11.RECT{x, y, x1, y1}
-		dx.ctx->RSSetScissorRects(1, &sr)
 		mapped: D3D11.MAPPED_SUBRESOURCE
 		if dx.ctx->Map(dx.cbuf, 0, .WRITE_DISCARD, {}, &mapped) >= 0 {
 			(^Uniforms)(mapped.pData)^ = {viewport = {f32(fb.x), f32(fb.y)}, base = b.first}
 			dx.ctx->Unmap(dx.cbuf, 0)
 		}
-		t := b.tex != 0 ? b.tex : g.white
-		dt := (^D3D_Tex)(g.textures[t].native)
+		srvs: [TEX_SLOTS]^D3D11.IShaderResourceView
+		for i in 0 ..< TEX_SLOTS {
+			srvs[i] = white
+			if u32(i) < b.n_slots do srvs[i] = (^D3D_Tex)(g.textures[b.slots[i]].native).srv
+		}
+		dx.ctx->PSSetShaderResources(3, u32(max(b.n_slots, 1)), &srvs[0])
 		t2 := b.tex2 != 0 ? b.tex2 : g.white
 		dt2 := (^D3D_Tex)(g.textures[t2].native)
-		dx.ctx->PSSetShaderResources(0, 1, &dt.srv)
 		dx.ctx->PSSetShaderResources(2, 1, &dt2.srv)
 		dx.ctx->DrawInstanced(4, b.count, 0, 0)
 	}

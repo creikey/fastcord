@@ -65,8 +65,6 @@ pool_push :: proc() -> Id {return objc.new_obj("NSAutoreleasePool")}
 pool_pop :: proc(p: Id) {msg(Void, p, "drain")}
 
 @(private = "file")
-Scissor :: struct {x, y, w, h: int}
-@(private = "file")
 Region :: struct {x, y, z, w, h, d: uint}
 
 @(private)
@@ -221,25 +219,25 @@ _backend_submit :: proc(insts: []Instance, batches: []Batch, clear: Color, fb: [
 	msg(Void, enc, "setVertexBytes:length:atIndex:", rawptr(&u), uint(size_of(u)), uint(1))
 	msg(Void, enc, "setVertexBuffer:offset:atIndex:", slot.buf, uint(0), uint(0))
 
-	bound_tex, bound_tex2: Id
+	white := Id(g.textures[g.white].native)
+	bound: [TEX_SLOTS + 1]Id
+	for &t, i in bound {
+		msg(Void, enc, "setFragmentTexture:atIndex:", white, uint(i))
+		t = white
+	}
 	for b in batches {
-		x := clamp(b.clip[0], 0, tw)
-		y := clamp(b.clip[1], 0, th)
-		w := clamp(b.clip[0] + b.clip[2], 0, tw) - x
-		h := clamp(b.clip[1] + b.clip[3], 0, th) - y
-		if w <= 0 || h <= 0 do continue
-		msg(Void, enc, "setScissorRect:", Scissor{int(x), int(y), int(w), int(h)})
-		t := b.tex != 0 ? b.tex : g.white
-		tex := Id(g.textures[t].native)
-		if tex != bound_tex {
-			msg(Void, enc, "setFragmentTexture:atIndex:", tex, uint(0))
-			bound_tex = tex
+		for i in 0 ..< b.n_slots {
+			tex := Id(g.textures[b.slots[i]].native)
+			if tex != bound[i] {
+				msg(Void, enc, "setFragmentTexture:atIndex:", tex, uint(i))
+				bound[i] = tex
+			}
 		}
 		t2 := b.tex2 != 0 ? b.tex2 : g.white
 		tex2 := Id(g.textures[t2].native)
-		if tex2 != bound_tex2 {
-			msg(Void, enc, "setFragmentTexture:atIndex:", tex2, uint(1))
-			bound_tex2 = tex2
+		if tex2 != bound[TEX_SLOTS] {
+			msg(Void, enc, "setFragmentTexture:atIndex:", tex2, uint(TEX_SLOTS))
+			bound[TEX_SLOTS] = tex2
 		}
 		msg(Void, enc, "setVertexBufferOffset:atIndex:", uint(b.first) * size_of(Instance), uint(0))
 		msg(Void, enc, "drawPrimitives:vertexStart:vertexCount:instanceCount:", uint(MTL.PrimitiveType.TriangleStrip), uint(0), uint(4), uint(b.count))

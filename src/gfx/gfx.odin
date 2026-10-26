@@ -81,21 +81,27 @@ rgb :: proc(hex: u32) -> Color {
 }
 
 // ---------------------------------------------------------------------------
-// GPU instance layout (shared with the shaders; 128 bytes)
+// GPU instance layout (shared with the shaders; 144 bytes)
 
 Instance :: struct #align (16) {
 	dst:    [4]f32, // pixels x0 y0 x1 y1 (quad = dst grown by softness)
 	src:    [4]f32, // texels
 	colors: [4][4]f32, // premultiplied, TL TR BL BR
 	radii:  [4]f32, // pixels TL TR BL BR
-	params: [4]f32, // border px, softness px, tex kind (0 none, 1 R8 mask, 2 RGBA, 3 NV12), yuv matrix
+	params: [4]f32, // border px, softness px, tex kind (0 none, 1 R8 mask, 2 RGBA, 3 NV12) + 4 * slot, yuv matrix
+	clip:   [4]f32, // pixels x0 y0 x1 y1; the vertex shader clamps the quad to it
 }
+
+// Each draw call binds up to TEX_SLOTS textures and instances pick one by slot, and clipping is per
+// instance, so a frame is a few draw calls rather than one per clip rect or texture change: per-draw
+// driver work was most of the render time.
+TEX_SLOTS :: 16
 
 Batch :: struct {
 	first, count: u32,
-	tex:          Texture,
+	slots:        [TEX_SLOTS]Texture,
+	n_slots:      u32,
 	tex2:         Texture,
-	clip:         [4]i32, // pixels x y w h
 }
 
 @(private)
@@ -318,29 +324,45 @@ push_rect_px :: proc(p: Rect_Params, d: Rect) {
 	for r, i in p.radii do inst.radii[i] = min(max(r * sc, 0), half_min)
 	border: f32 = 0
 	if p.border > 0 do border = max(1, math.round(p.border * sc))
-	inst.params = {border, soft, tex_kind, f32(p.yuv)}
+	inst.clip = {f32(clip[0]), f32(clip[1]), f32(clip[2]), f32(clip[3])}
 
-	// Batch: same clip and compatible textures (untextured rects fit anywhere).
+	// Batch: the texture needs a slot in the current draw (untextured rects fit anywhere), and video
+	// needs its second plane bound; otherwise start a new draw.
 	tex := tex_kind != 0 ? p.tex : 0
 	nb := len(g.batches)
-	if nb > 0 {
-		b := &g.batches[nb - 1]
-		tex_ok := tex == 0 || b.tex == 0 || b.tex == tex
-		tex2_ok := tex2 == 0 || b.tex2 == 0 || b.tex2 == tex2
-		if b.clip == clip_xywh(clip) && tex_ok && tex2_ok {
-			if b.tex == 0 do b.tex = tex
-			if b.tex2 == 0 do b.tex2 = tex2
-			append(&g.instances, inst)
-			b.count += 1
-			return
+	b := nb > 0 ? &g.batches[nb - 1] : nil
+	slot := -1
+	if b != nil && (tex2 == 0 || b.tex2 == 0 || b.tex2 == tex2) {
+		if tex == 0 {
+			slot = 0
+		} else {
+			for i in 0 ..< b.n_slots {
+				if b.slots[i] == tex {
+					slot = int(i)
+					break
+				}
+			}
+			if slot < 0 && b.n_slots < TEX_SLOTS {
+				slot = int(b.n_slots)
+				b.slots[slot] = tex
+				b.n_slots += 1
+			}
 		}
 	}
-	append(&g.batches, Batch{first = u32(len(g.instances)), count = 1, tex = tex, tex2 = tex2, clip = clip_xywh(clip)})
+	if slot < 0 {
+		append(&g.batches, Batch{first = u32(len(g.instances))})
+		b = &g.batches[nb]
+		slot = 0
+		if tex != 0 {
+			b.slots[0] = tex
+			b.n_slots = 1
+		}
+	}
+	if tex2 != 0 do b.tex2 = tex2
+	inst.params = {border, soft, tex_kind + 4 * f32(slot), f32(p.yuv)}
 	append(&g.instances, inst)
+	b.count += 1
 }
-
-@(private)
-clip_xywh :: #force_inline proc(c: [4]i32) -> [4]i32 {return {c[0], c[1], c[2] - c[0], c[3] - c[1]}}
 
 // ---------------------------------------------------------------------------
 // Textures
