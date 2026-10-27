@@ -20,17 +20,17 @@ GUILD = 1546820558300258304
 EPOCH = 1420070400000
 base_ms = 1793000000000  # 2026-10-25
 def sf(ms, n): return ((ms - EPOCH) << 22) | n
-wumpus = {'id': 1000000000020971521, 'username': 'wumpus', 'global_name': 'Wumpus', 'avatar': None, 'discriminator': '0'}
+robin = {'id': 1000000000020971521, 'username': 'robin', 'global_name': 'Robin', 'avatar': None, 'discriminator': '0'}
 meu = {'id': me, 'username': 'dingus', 'global_name': 'Dingus Battle', 'avatar': None, 'discriminator': '0'}
 msgs = [
-    (wumpus, 0, 'hey! welcome to **fastcord** testing'),
-    (wumpus, 20, 'this message should group with the one above'),
+    (robin, 0, 'hey! welcome to **fastcord** testing'),
+    (robin, 20, 'this message should group with the one above'),
     (meu, 60, 'nice. here is some `inline code` and a link https://discord.com/developers'),
     (meu, 90, 'multi-line\nmessage with *italic*, __underline__, ~~strike~~ and ||a spoiler||'),
-    (wumpus, 600, '> quoted text\nreply below the quote <@%d>' % (me or 0)),
-    (wumpus, 640, '```odin\nmain :: proc() {\n\tfmt.println("hellope")\n}\n```'),
+    (robin, 600, '> quoted text\nreply below the quote <@%d>' % (me or 0)),
+    (robin, 640, '```odin\nmain :: proc() {\n\tfmt.println("hellope")\n}\n```'),
     (meu, 1200, '# Heading one\nsome text after a heading\n- list item one\n- list item two\n-# subtext line'),
-    (wumpus, 1260, 'a long message that should wrap across multiple lines in the chat view because it keeps going and going with plenty of words so that the wrapping logic is exercised properly at typical window widths 🎉'),
+    (robin, 1260, 'a long message that should wrap across multiple lines in the chat view because it keeps going and going with plenty of words so that the wrapping logic is exercised properly at typical window widths 🎉'),
     (meu, 1300, '👍'),
 ]
 # chat_emoji.jsonl adds Twemoji / sticker messages (kept out of chat.jsonl so the
@@ -38,10 +38,10 @@ msgs = [
 # tests/ui/emoji/media (FASTCORD_MEDIA_DIR for tests/ui/emoji scripts): the Twemoji
 # svgs they show, as served from discord.com/assets (Twemoji, CC-BY 4.0).
 emoji_msgs = [
-    (wumpus, 1320, 'emoji inline: hi 😀 there 👍🏽 family 👨\u200d👩\u200d👧\u200d👦 flag 🇯🇵 keycap 1\ufe0f\u20e3 heart ❤️ and ™ stays text'),
-    (wumpus, 1330, '**bold 🔥** and `code 😀 stays text`'),
+    (robin, 1320, 'emoji inline: hi 😀 there 👍🏽 family 👨\u200d👩\u200d👧\u200d👦 flag 🇯🇵 keycap 1\ufe0f\u20e3 heart ❤️ and ™ stays text'),
+    (robin, 1330, '**bold 🔥** and `code 😀 stays text`'),
     (meu, 1340, '😂🎉👀'),
-    (wumpus, 1350, ''),
+    (robin, 1350, ''),
     (meu, 1360, ''),
 ]
 # messages with stickers (index -> sticker_items); standard stickers from the client bundle
@@ -75,16 +75,16 @@ def threads_extra(base_msgs):
   out = []
   starter = sf(base_ms + 1260 * 1000, 7)  # the long message starts a thread
   meta = lambda: {'archived': False, 'locked': False, 'auto_archive_duration': 1440, 'archive_timestamp': '2026-10-25T00:00:00+00:00', 'create_timestamp': '2026-10-25T00:20:00+00:00'}
-  out.append(ev('THREAD_CREATE', {'id': starter, 'guild_id': GUILD, 'parent_id': CH, 'type': 11, 'name': 'wrapping discussion', 'owner_id': wumpus['id'],
+  out.append(ev('THREAD_CREATE', {'id': starter, 'guild_id': GUILD, 'parent_id': CH, 'type': 11, 'name': 'wrapping discussion', 'owner_id': robin['id'],
       'message_count': 0, 'member_count': 2, 'thread_metadata': meta(), 'member': {'id': starter, 'user_id': me, 'flags': 1, 'join_timestamp': '2026-10-25T00:21:00+00:00'}, 'last_message_id': None}))
-  for k, (u, txt) in enumerate([(wumpus, 'does the wrap look right to you?'), (meu, 'yes, matches the client'), (wumpus, 'great 🎉')]):
+  for k, (u, txt) in enumerate([(robin, 'does the wrap look right to you?'), (meu, 'yes, matches the client'), (robin, 'great 🎉')]):
     out.append(ev('MESSAGE_CREATE', {'id': sf(base_ms + 1270 * 1000 + k * 10000, 40 + k), 'channel_id': starter, 'guild_id': GUILD, 'author': u, 'content': txt, 'timestamp': '', 'edited_timestamp': None,
       'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
   out.append(ev('CHANNEL_CREATE', {'id': FORUM, 'guild_id': GUILD, 'type': 15, 'name': 'feedback', 'position': 1, 'parent_id': None, 'topic': 'Ideas and bug reports',
       'available_tags': [{'id': 1, 'name': 'Bug', 'emoji_name': '🐛', 'emoji_id': None, 'moderated': False}, {'id': 2, 'name': 'Idea', 'emoji_name': '💡', 'emoji_id': None, 'moderated': False}]}))
-  posts = [('Scrolling stutters on long channels', [1], wumpus, 'When I scroll fast through a big channel the frame rate drops.', 7, 1100),
+  posts = [('Scrolling stutters on long channels', [1], robin, 'When I scroll fast through a big channel the frame rate drops.', 7, 1100),
            ('Add a compact mode', [2], meu, 'Would love the compact message layout from the official client.', 2, 1200),
-           ('Emoji picker search', [2, 1], wumpus, 'Searching :thumbs in the picker should show skin tones.', 0, 1300)]
+           ('Emoji picker search', [2, 1], robin, 'Searching :thumbs in the picker should show skin tones.', 0, 1300)]
   for k, (title, tags, u, body, count, dt) in enumerate(posts):
     tid = sf(base_ms + dt * 1000, 60 + k)
     out.append(ev('THREAD_CREATE', {'id': tid, 'guild_id': GUILD, 'parent_id': FORUM, 'type': 11, 'name': title, 'owner_id': u['id'], 'applied_tags': tags,
@@ -95,23 +95,23 @@ def threads_extra(base_msgs):
   out.append(ev('GUILD_SCHEDULED_EVENT_CREATE', {'id': 1546820603343016200, 'guild_id': GUILD, 'channel_id': 1546820558950371411, 'creator_id': me,
       'name': 'Friday game night', 'description': 'Bring snacks.', 'scheduled_start_time': '2026-10-25T23:00:00+00:00', 'scheduled_end_time': None,
       'privacy_level': 2, 'status': 2, 'entity_type': 2, 'entity_id': None, 'entity_metadata': None, 'user_count': 3}))
-  out.append(ev('GUILD_SCHEDULED_EVENT_CREATE', {'id': 1546820603343016201, 'guild_id': GUILD, 'channel_id': None, 'creator_id': wumpus['id'],
+  out.append(ev('GUILD_SCHEDULED_EVENT_CREATE', {'id': 1546820603343016201, 'guild_id': GUILD, 'channel_id': None, 'creator_id': robin['id'],
       'name': 'fastcord release party', 'description': 'Celebrating the first public build. Everyone is welcome; we will demo the new client and take questions.',
       'scheduled_start_time': '2026-10-28T18:00:00+00:00', 'scheduled_end_time': '2026-10-28T20:00:00+00:00',
-      'privacy_level': 2, 'status': 1, 'entity_type': 3, 'entity_id': None, 'entity_metadata': {'location': 'Wumpus HQ, San Francisco'}, 'user_count': 12}))
+      'privacy_level': 2, 'status': 1, 'entity_type': 3, 'entity_id': None, 'entity_metadata': {'location': 'Robin HQ, San Francisco'}, 'user_count': 12}))
   return out
 # code/code.jsonl: ``` blocks in several of the client's highlighted languages, an alias, an
 # unknown language (plain) and ANSI colours (tests/ui/code scripts).
 code_msgs = [
-    (wumpus, 0, '```js\n// fetch a user\nasync function getUser(id) {\n  const res = await fetch(`/api/users/${id}`);\n  if (!res.ok) throw new Error("bad status: " + res.status);\n  return res.json(); /* parsed */\n}\n```'),
+    (robin, 0, '```js\n// fetch a user\nasync function getUser(id) {\n  const res = await fetch(`/api/users/${id}`);\n  if (!res.ok) throw new Error("bad status: " + res.status);\n  return res.json(); /* parsed */\n}\n```'),
     (meu, 20, '```py\n@dataclass\nclass Point:\n    x: int = 0\n    def norm(self) -> float:\n        """Length."""\n        return (self.x ** 2) ** 0.5  # sqrt\n```'),
-    (wumpus, 40, '```rust\n#[derive(Debug)]\nstruct Ping<\'a> { name: &\'a str }\nfn main() {\n    let n: u32 = 42;\n    println!("hi {} {}\\n", n, \'c\');\n}\n```'),
+    (robin, 40, '```rust\n#[derive(Debug)]\nstruct Ping<\'a> { name: &\'a str }\nfn main() {\n    let n: u32 = 42;\n    println!("hi {} {}\\n", n, \'c\');\n}\n```'),
     (meu, 60, '```c\n#include <stdio.h>\nint main(void) {\n    printf("%d\\n", 0x1F); // hex\n    return NULL == 0;\n}\n```'),
-    (wumpus, 80, '```json\n{"name": "fastcord", "stars": 42, "native": true, "deps": null}\n```'),
+    (robin, 80, '```json\n{"name": "fastcord", "stars": 42, "native": true, "deps": null}\n```'),
     (meu, 100, '```diff\n@@ -1,3 +1,3 @@\n context line\n-removed line\n+added line\n```'),
-    (wumpus, 120, '```sh\n# list files\nls -la ~/src | grep "jai" && echo done\nfor f in *.txt; do cat "$f"; done\n```'),
+    (robin, 120, '```sh\n# list files\nls -la ~/src | grep "jai" && echo done\nfor f in *.txt; do cat "$f"; done\n```'),
     (meu, 140, '```whatever\nunknown language stays plain: if (x) { return 1; }\n```'),
-    (wumpus, 160, '```ansi\n\u001b[1;31mred bold\u001b[0m and \u001b[32mgreen\u001b[0m and \u001b[4;34munderlined blue\u001b[0m\n```'),
+    (robin, 160, '```ansi\n\u001b[1;31mred bold\u001b[0m and \u001b[32mgreen\u001b[0m and \u001b[4;34munderlined blue\u001b[0m\n```'),
 ]
 for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs), ('code/code.jsonl', code_msgs)):
   out = build(ms)

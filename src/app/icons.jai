@@ -37,7 +37,7 @@ box_icon_name :: (b: *ui.Box) -> string {
 
 #scope_file
 
-// Icons extracted from the official client (tools/probes/discord_icons.py), embedded so the binary is
+// Icons from assets/icons (Phosphor, MIT; see its README), embedded so the binary is
 // self-contained: names without ".svg", and the file contents. On the host: a cross-compile can't run the
 // target's File module.
 ICON_NAMES, ICON_DATA := #run,host -> []string, []string {

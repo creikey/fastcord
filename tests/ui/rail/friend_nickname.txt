@@ -13,7 +13,7 @@ wait 3
 type bean
 wait 5
 expect_visible "Lil Bean"
-expect_not_visible "Wumpus"
+expect_not_visible "Robin"
 open 1700000000000000001
 wait 30
 expect_visible "Lil Bean"

@@ -106,10 +106,9 @@ avatar_url_for :: (uid: dc.Snowflake, size: float32) -> string {
 	return dc.avatar_url(uid, u.avatar, sz);
 }
 
-// Discord's default avatars: white Clyde on one of six colors, picked by
-// (id >> 22) % 6 for pomelo users or discriminator % 5 for legacy ones.
+// Background colors of Discord's default avatars, picked by (id >> 22) % 6 for pomelo users or
+// discriminator % 5 for legacy ones. The image itself comes from the CDN; the color stands in until then.
 DEFAULT_AVATAR_COLORS := u32.[0x5865f2, 0x757e8a, 0x3ba55c, 0xfaa61a, 0xed4245, 0xeb459f];
-DEFAULT_AVATAR_GLYPH :: 0.65; // clyde icon box / avatar size (its glyph fills 22/24 of the box)
 
 default_avatar_index :: (uid: dc.Snowflake) -> int {
 	u := dc.user_get(store(), uid);
@@ -464,17 +463,8 @@ avatar_draw :: (b: *ui.Box, user: *void) {
 		return;
 	}
 	if d.default < 0 return;
-	// Local rendering of the default avatar: identical to the CDN image, shown instantly and offline.
+	// Until the CDN image arrives, its background color.
 	c := cast(gfx.Color)(rgb_u32(DEFAULT_AVATAR_COLORS[d.default]));
 	c.w = b.opacity;
 	gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), colors = .[c, c, c, c], radii = b.style.radius});
-	w := b.rect.x1 - b.rect.x0;
-	h := b.rect.y1 - b.rect.y0;
-	gw := w * DEFAULT_AVATAR_GLYPH; // official glyph spans 154/256 of the avatar width
-	gx := b.rect.x0 + (w - gw) / 2;
-	gy := b.rect.y0 + (h - gw) / 2;
-	ic := icon_texture("clyde", gw);
-	if ic == 0 return;
-	wc := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = .{gx, gy, gx + gw, gy + gw}, tex = ic, colors = .[wc, wc, wc, wc]});
 }

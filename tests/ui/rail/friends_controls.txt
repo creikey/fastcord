@@ -17,7 +17,7 @@ type phi
 wait 5
 expect_input "phi"
 expect_visible "Phibi"
-expect_not_visible "Wumpus"
+expect_not_visible "Robin"
 click_text "Find or start a conversation"
 wait 10
 expect_visible "Where would you like to go?"

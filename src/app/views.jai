@@ -268,7 +268,7 @@ title_bar :: () {
 			g = dc.guild_get(store(), app.view.guild);
 			if g != null { title = g.name; }
 		} else if app.view.channel != 0 {
-			title, glyph = "Direct Messages", "clyde";
+			title, glyph = "Direct Messages", "logo";
 		}
 		if g != null {
 			gi := ui.box("gicon", .Draw_Background | .Draw_Text);

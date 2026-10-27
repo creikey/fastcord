@@ -151,7 +151,7 @@ main :: () {
 		opt.width = max(sw, platform.MIN_WINDOW_W);
 		opt.height = max(sh, platform.MIN_WINDOW_H);
 	}
-	ok := ifx headless then platform.init_headless(opt.width, opt.height, opt.dpi) else platform.init("Discord", opt.width, opt.height);
+	ok := ifx headless then platform.init_headless(opt.width, opt.height, opt.dpi) else platform.init("Fastcord", opt.width, opt.height);
 	if !ok fail("platform init failed");
 	if !gfx.init() fail("gfx init failed");
 	app.focused = true;

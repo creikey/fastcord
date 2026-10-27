@@ -136,7 +136,7 @@ rail_view :: () {
 	ui.signal(rail);
 	entries := rail_entries();
 	{ ui.parent(rail); defer ui.pop_parent();
-		home := rail_item("home", app.view.guild == 0, "", "clyde", 0);
+		home := rail_item("home", app.view.guild == 0, "", "logo", 0);
 		if home.clicked { go_home(); }
 		{ ui.parent(rail.last); defer ui.pop_parent(); mention_badge(pending_count(), 0); }
 		for cid: unread_dms() {
