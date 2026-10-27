@@ -31,10 +31,20 @@ Store :: struct {
 	analytics_token: string;
 	qos_token: string; // READY qos_token (base64 DerivedQosData) for reconnect IDENTIFY
 	country_code: string;
+	// Our own reaction requests whose gateway echo hasn't come yet, per reaction_key. Those
+	// echoes are skipped: the store already shows the outcome, and an old echo arriving
+	// after a newer click would undo it (on, off, on ended off).
+	reaction_echoes: Table(u64, int);
+}
+
+reaction_key :: (message_id: Snowflake, e: Emoji, burst: bool) -> u64 {
+	h := get_hash(message_id, ifx e.id then get_hash(e.id) else get_hash(e.name));
+	return (cast(u64) h << 1) | cast(u64) burst;
 }
 
 store_init :: (s: *Store, allocator := context.allocator) {
 	s.allocator = allocator;
+	s.reaction_echoes.allocator = allocator;
 	s.users.allocator = allocator;
 	s.guilds.allocator = allocator;
 	s.guild_order.allocator = allocator;
@@ -984,7 +994,12 @@ emoji_matches :: (e: Emoji, id: Snowflake, name: string) -> bool {
 apply_reaction :: (s: *Store, d: etf.Map, add: bool) {
 	em := fmap(d, "emoji");
 	e := Emoji.{id = fsnow(em, "id"), name = fstr(em, "name"), animated = fbool(em, "animated"), available = true};
-	store_reaction(s, fsnow(d, "channel_id"), fsnow(d, "message_id"), e, fsnow(d, "user_id") == s.me, add, fbool(d, "burst"));
+	mine := fsnow(d, "user_id") == s.me;
+	if mine {
+		n := table_find_pointer(*s.reaction_echoes, reaction_key(fsnow(d, "message_id"), e, fbool(d, "burst")));
+		if n && n.* > 0 { n.* -= 1; return; } // the echo of a request we predicted
+	}
+	store_reaction(s, fsnow(d, "channel_id"), fsnow(d, "message_id"), e, mine, add, fbool(d, "burst"));
 }
 
 // store_reaction: MessageRecord.addReaction / removeReaction. Our own add or remove
@@ -1083,6 +1098,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 	d := vmap(data);
 	if name == {
 		case "READY";
+			table_reset(*s.reaction_echoes); // a new session: echoes of the old one won't come
 			apply_ready(s, d);
 		case "READY_SUPPLEMENTAL";
 			apply_ready_supplemental(s, d);
@@ -1367,6 +1383,7 @@ typing_users :: (s: *Store, channel_id: Snowflake) -> []Typing {
 // store_destroy frees everything the store owns.
 store_destroy :: (s: *Store) {
 	push_allocator(s.allocator);
+	deinit(*s.reaction_echoes);
 	extras_destroy();
 	a := s.allocator;
 	for * s.users free_user(s, it);
