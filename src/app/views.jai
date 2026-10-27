@@ -818,21 +818,31 @@ user_panel :: () {
 			who.style.radius = all4(8);
 			who.style.bg_hot = T("--background-mod-subtle");
 			// your own profile card (the client also lists status options there)
-			if ui.signal(who).clicked {
+			if ui.signal(who).clicked && dc.user_get(s, s.me) != null {
 				open_profile(s.me, panel.rect, .Account_Panel);
 				app.profile_above = true;
 			}
-			{ ui.parent(who); defer ui.pop_parent();
+			u := dc.user_get(s, s.me);
+			if u == null { // before READY: placeholders, not a made-up name and status
+				who.flags &= ~.Clickable;
+				ui.parent(who); defer ui.pop_parent();
+				spacer(.X, 4);
+				skel("av", 32, 32, true);
+				spacer(.X, 8);
+				names := ui.box("names");
+				names.semantic_size = .[ui.fill(), ui.children()];
+				ui.parent(names); defer ui.pop_parent();
+				skel("name", 90, 12);
+				spacer(.Y, 6);
+				skel("status", 50, 10);
+			} else { ui.parent(who); defer ui.pop_parent();
 				spacer(.X, 4);
 				avatar_with_status("av", s.me, 32, T("--background-base-low"));
 				spacer(.X, 8);
 				names := ui.box("names");
 				names.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(names); defer ui.pop_parent();
-					name := "…";
-					u := dc.user_get(s, s.me);
-					if u != null { name = dc.display_name(u); }
-					label(name, .Medium, 14, T("--text-strong"), 18);
+					label(dc.display_name(u), .Medium, 14, T("--text-strong"), 18);
 					status := status_text(user_status(s.me));
 					if s.settings.custom_status_text != "" { status = s.settings.custom_status_text; }
 					label(status, .Normal, 12, T("--text-muted"), 14);
@@ -997,6 +1007,7 @@ overlays :: () {
 	events_modal();
 	guild_admin_overlays();
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
+	req_toast(); // requests.jai: a failed request, on top
 }
 
 #scope_file

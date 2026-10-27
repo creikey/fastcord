@@ -1,0 +1,15 @@
+# Chat history as the network leaves it: the first page loading shows
+# placeholder messages (no made-up content), a failed page the client's
+# "Messages Failed To Load" bar whose Try Again reloads it.
+wait 5
+history loading
+wait 5
+expect_not_visible "this message should group with the one above"
+shot build/ui-history_states-loading.png
+history failed
+wait 5
+expect_visible "Messages Failed To Load"
+click_text "Try Again"
+wait 5
+expect_not_visible "Try Again"
+shot build/ui-history_states-failed.png

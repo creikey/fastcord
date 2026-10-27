@@ -219,3 +219,17 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | Channel sidebar drag-resize: width is `--custom-guild-sidebar-width` (guild rail included, default 375), clamped 264..432, 4px handle at its right edge (`ew-resize`, `--background-mod-strong` on hover/drag); saved to localStorage `resizable-sidebar-width-2` and `channel_sidebar_resized {width}` tracked when the drag ends | code | `minDimension:264,maxDimension:432`, `CHANNEL_SIDEBAR_RESIZED`, `.sidebarResizeHandle_` | `views.jai` `resize_handle`, `settings_store.jai` `sidebar_width`, `dc.track_channel_sidebar_resized` |
 | Not copied: the handle's 0.1 s delayed colour fade, the overdrag stretch, `e-resize`/`w-resize` cursors at the limits, arrow-key resizing | known gap | same | — |
 | Member list drag-resize (224..400, left edge, saved as `member_list_width`): the official member list is a fixed width; added on request | guess | — | `view_home.jai` `members_column` |
+
+## Loading states and request feedback
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| A failed message page (`LOAD_MESSAGES_FAILURE`, once `api_call` has used the endpoint's `retries`) sets the channel's `error` and stops loading; the UI adds no retry of its own. A bar reads "Messages Failed To Load" with "Try Again"; while the retry runs, `PULSING_ELLIPSIS` replaces "Try Again" | code | `LOAD_MESSAGES_FAILURE:function`, string `1zUvlw`; component with `"1zUvlw"` and `PULSING_ELLIPSIS` | `view_chat.jai` `history_failed_bar`, `history_retry`; `rest.jai` `Message_List.failed` |
+| Older pages are not re-requested by scrolling after a failure (only Try Again) | guess | — | `message_list` (`older` gate) |
+| A failed jump (`around=`) shows the same bar | guess | — | `features.jai` `apply_around` |
+| Bar colour (danger red), 32px, under the header | guess | — | `history_failed_bar` |
+| Loading placeholders (first page, older history, DM list, friends, member list, own user panel before READY): grey static shapes, no shimmer | guess (shape only) | — | `requests.jai` `skel`, `view_chat.jai` `skeleton_message` |
+| A button waiting on its request shows `PULSING_ELLIPSIS` in place of its label and ignores presses (Button `submitting`) | code | `PULSING_ELLIPSIS`, Button `submitting` | `requests.jai` `req_button` |
+| Add Friend page: failure text "Hm, didn’t work. Double check that the username is correct." (generic; the client picks a per-error-code text) under a red field; success "Success! Your friend request to **name** was sent." under a green field | code (strings `paDJBM`, `Rtl1Ep`); per-code texts not ported | `sendRequest`, `RELATIONSHIP_ALREADY_FRIENDS` | `view_home.jai` `add_friend_view` |
+| Other failed requests: a red toast "Something went wrong. Try again." (429: "You're doing that too fast. Try again in a moment.") for 5 s; the client shows a "Friend request failed" alert for relationship errors | guess (toast); code (alert, `6moJ8s`) not ported | `6moJ8s` | `requests.jai` `req_toast` |
+

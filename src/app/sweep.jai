@@ -2,7 +2,7 @@
 // in the spec, every reachable clickable box is pressed from a fresh fixture
 // state and the sweep records whether anything observable changed (pixels,
 // app/view state, focus, clipboard, attempted network or OS actions). Controls
-// that do nothing, hover states that stick after the mouse leaves, and text
+// that do nothing, that make a request without any visible feedback (silent), hover states that stick after the mouse leaves, and text
 // inputs that don't take typing are reported; tests/ui/sweep_allow.txt lists
 // the known inert ones with a reason each, and anything else fails the run.
 
@@ -103,6 +103,7 @@ Sweep_State :: struct {
 	tested: Table(string, bool); // fixture|overlay|desc already pressed on an earlier screen
 	overlay_open: bool; // last collected frame had a popout / modal open
 	verbose: bool;
+	seen: u64; // last sweep_measure without app.net_actions (what the user can see)
 }
 
 swp: Sweep_State;
@@ -180,6 +181,7 @@ app_reset_state :: () {
 	events_reset_for_test();
 	guild_admin_reset_for_test();
 	block_confirm = .{};
+	req_reset_for_test();
 	fnick = .{};
 	attachments_reset_for_test();
 	viewer_url, viewer_size, viewer_t = "", .{}, 0;
@@ -277,10 +279,12 @@ sweep_measure :: () -> u64 {
 		sw.open, ma.menu_msg, ma.deleting, ma.editing, ma.replying, ma.reply_mention, staged_count(app.view.channel), att.mod_key, att.notice, att.drag,
 		pk.open, pk.tab, pins_state_for_test(), gdm_state_for_test(), pf_state_for_test(), rail_state_for_test(),
 		search_state_for_test(), guild_menu_state_for_test(), viewer_url, block_confirm.user, vs.open_dropdown, vs.menu_user,
-		app.theme.name, platform.clipboard_get(), app.net_actions, app.ext_actions, app.view.collapsed,
+		app.theme.name, platform.clipboard_get(), app.ext_actions, app.view.collapsed,
 		events_state_for_test(), guild_admin_state_for_test(),
 	);
-	return fnv1a_hash(pixels.data, pixels.count) ^ (fnv1a_hash(state.data, state.count) * 31);
+	// without the network-attempt count: a press that only tried the network shows nothing
+	swp.seen = fnv1a_hash(pixels.data, pixels.count) ^ (fnv1a_hash(state.data, state.count) * 31);
+	return swp.seen ^ (cast(u64) app.net_actions * 0x9e3779b97f4a7c15);
 }
 
 sweep_clean :: (s: string, max_runes := 40) -> string {
@@ -581,8 +585,12 @@ sweep_screen :: (sc: *Sweep_Screen) {
 		if sweep_measure() != hf sweep_issue("hover", sc.name, t, "hover state stays after the mouse leaves");
 		sweep_move(t.p);
 		hh := sweep_measure();
+		seen := swp.seen;
 		sweep_press(t.p, .Left);
-		if sweep_measure() == hh {
+		after := sweep_measure();
+		if after != hh && swp.seen == seen {
+			sweep_issue("silent", sc.name, t, "the press made a network request and showed nothing (use req_button / req_begin: requests.jai)");
+		} else if after == hh {
 			// right-click-only targets (messages, members) are alive too
 			sweep_fresh(sc);
 			sweep_move(t.p);

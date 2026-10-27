@@ -696,8 +696,12 @@ fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowfla
 }
 
 apply_around :: (c: *Client, r: *Feature_Result) {
-	if !r.ok return;
 	push_allocator(c.store.allocator);
+	if !r.ok {
+		message_list(*c.store, r.channel_id).failed = true; // "Messages Failed To Load"
+		c.store.changed += 1;
+		return;
+	}
 	for vlist(r.body) upsert_message(*c.store, vmap(it));
 	c.store.changed += 1;
 }

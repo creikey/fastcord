@@ -434,11 +434,18 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	total: float32 = TOP_PAD + BOTTOM_PAD;
 	// the start of a 1:1 DM's history carries the welcome header (avatar, names, friend actions);
 	// a guild text channel's carries "Welcome to #channel!"
+	// What the network has given so far: the first page still loading shows
+	// placeholder messages, a failed page the client's "Messages Failed To Load"
+	// bar, older history still to come placeholders above the oldest message.
+	// Offline (fixtures) a channel without a list has nothing to load.
+	l := table_find_pointer(*s.messages, channel_id);
+	failed := l && l.failed;
+	first_loading := !msgs && !failed && ifx l then (l.loading || !l.loaded) else app.client != null;
+	older := l && l.has_more_before && msgs && !failed;
 	welcome_ch := dc.channel_get(s, channel_id);
 	welcome_h: float32 = 0;
 	if welcome_ch {
-		l := table_find_pointer(*s.messages, channel_id);
-		if !l || l.has_more_before || l.loading welcome_ch = null;
+		if ifx l then l.has_more_before || l.loading || failed else app.client != null welcome_ch = null;
 	}
 	if welcome_ch {
 		if welcome_ch.kind == {
@@ -450,6 +457,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		if welcome_h == 0 welcome_ch = null;
 	}
 	if welcome_ch total += welcome_h + DMW_GAP - TOP_PAD;
+	if older total += SKEL_OLDER_H;
 	// measured row heights, estimates for unmeasured ones
 	est :: (cs: *Chat_State, id: dc.Snowflake) -> float32 {
 		ok, h := table_find(*cs.heights, id);
@@ -462,10 +470,21 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	ui.animate(*cs.scroll_from_bottom, cs.scroll_target, 40);
 	cs.scroll_from_bottom = clamp(cs.scroll_from_bottom, 0, max_scroll);
 
-	// load older history when within a screen of the top
-	if total - cs.scroll_from_bottom - view_h < view_h && msgs {
-		l := table_find_pointer(*s.messages, channel_id);
-		if l && !l.loading && l.has_more_before && app.client dc.fetch_messages(app.client, channel_id, msgs[0].id);
+	// load older history when within a screen of the top (not again after a failure:
+	// the client waits for Try Again)
+	if total - cs.scroll_from_bottom - view_h < view_h && older && !l.loading && app.client {
+		dc.fetch_messages(app.client, channel_id, msgs[0].id);
+	}
+	if failed && history_failed_bar(l.loading) history_retry(channel_id, l);
+	if first_loading {
+		ui.parent(list); defer ui.pop_parent();
+		sk := ui.box("skeleton", .Floating_Y | .Anchor_End_Y);
+		sk.semantic_size = .[ui.pct(1), ui.children()];
+		sk.layout_axis = .Y;
+		sk.fixed_pos = .{0, BOTTOM_PAD};
+		ui.parent(sk); defer ui.pop_parent();
+		for i: 0..cast(int) (view_h / 70) skeleton_message(i);
+		return;
 	}
 
 	// Render the contiguous run of rows near the viewport as one column anchored
@@ -496,7 +515,10 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		col.fixed_pos = .{0, BOTTOM_PAD + below - cs.scroll_from_bottom};
 		{ ui.parent(col); defer ui.pop_parent();
 			if i0 == 0 {
-				if welcome_ch != null {
+				if older {
+					spacer(.Y, SKEL_OLDER_H - 3 * SKEL_MSG_H);
+					for k: 0..2 skeleton_message(k);
+				} else if welcome_ch != null {
 					if welcome_ch.kind == .DM { dm_welcome(welcome_ch); } else { channel_welcome(welcome_ch); }
 					spacer(.Y, DMW_GAP);
 				} else {
@@ -513,11 +535,77 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				if m.kind == MSG_CALL grouped = prev != null && prev.kind == MSG_CALL && !new_day && !show_new;
 				ui.id_scope(m.id); defer ui.pop_seed();
 				row := message_row(m, grouped, new_day, show_new);
-				// remember measured height (from last frame's layout)
-				if row.rect.y1 > row.rect.y0 table_set(*cs.heights, m.id, row.rect.y1 - row.rect.y0);
+				// remember measured height (from last frame's layout); a changed height moves the
+				// rows and the scroll range, so lay out again rather than idle on a stale frame
+				// (a short DM used to stay drawn with its newest message pushed under the list)
+				if row.rect.y1 > row.rect.y0 {
+					h := row.rect.y1 - row.rect.y0;
+					ok, old := table_find(*cs.heights, m.id);
+					if !ok || abs(old - h) > 0.5 {
+						table_set(*cs.heights, m.id, h);
+						app.ui.animating = true;
+					}
+				}
 			}
 		}
 		ui.scrollbar(list, .Auto, *cs.scroll_from_bottom, *cs.scroll_target, total, from_end = true);
+	}
+}
+
+SKEL_MSG_H :: MSG_GROUP_GAP + 4 + 18 + 10 + 18; // a placeholder group with one line
+SKEL_OLDER_H :: 3 * SKEL_MSG_H + 16 + 2 * 26; // the three placeholders above the oldest message
+
+// A placeholder message group (the client's loading placeholders): avatar circle,
+// name bar and 1-3 lines of varying width, the same for the same i.
+skeleton_message :: (i: int) {
+	ui.id_scope(cast(u64) i); defer ui.pop_seed();
+	r := row("skel");
+	r.semantic_size = .[ui.pct(1), ui.children()];
+	r.cross_align = .Start;
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, 16);
+	c0 := ui.box("avc");
+	c0.semantic_size = .[ui.px(40), ui.children()];
+	c0.layout_axis = .Y;
+	{ ui.parent(c0); defer ui.pop_parent(); spacer(.Y, MSG_GROUP_GAP); skel("av", 40, 40, true); }
+	spacer(.X, 16);
+	c := ui.box("lines");
+	c.semantic_size = .[ui.fill(), ui.children()];
+	c.layout_axis = .Y;
+	ui.parent(c); defer ui.pop_parent();
+	spacer(.Y, MSG_GROUP_GAP + 4);
+	skel("name", cast(float32) (70 + (i * 37) % 90), 14);
+	lines := ifx i < 3 then 1 else 1 + (i * 5) % 3; // the first (and the "older" ones) stay one line
+	for k: 0..lines - 1 {
+		spacer(.Y, 10);
+		skel(tprint("l%", k), cast(float32) (140 + ((i * 7 + k * 13) * 53) % 320), 14);
+	}
+}
+
+// The client's bar over the top of the messages when a page failed:
+// "Messages Failed To Load" and Try Again (the pulsing ellipsis while it reloads).
+history_failed_bar :: (loading: bool) -> bool {
+	bar := row("loadfailed", .Clickable | .Draw_Background | .Floating_X | .Floating_Y | .Hot_Animation);
+	bar.semantic_size = .[ui.pct(1), ui.px(32)];
+	bar.style.bg = T("--status-danger");
+	bar.style.bg_hot = with_alpha(T("--status-danger"), 0.9);
+	bar.style.radius = .[0, 0, 8, 8];
+	ui.parent(bar); defer ui.pop_parent();
+	spacer(.X, 16);
+	label("Messages Failed To Load", .Medium, 14, .{1, 1, 1, 1}, 18);
+	filler(.X);
+	if loading { pulsing_dots(.{1, 1, 1, 1}); } else { label("Try Again", .Semibold, 14, .{1, 1, 1, 1}, 18); }
+	spacer(.X, 16);
+	return ui.signal(bar).clicked && !loading;
+}
+
+// Try Again: the page that failed (the first, or the one before the oldest loaded).
+history_retry :: (channel_id: dc.Snowflake, l: *dc.Message_List) {
+	before := ifx l.messages.count then l.messages[0].id else 0;
+	if net_action() {
+		dc.fetch_messages(app.client, channel_id, before);
+	} else {
+		l.loading = true; // offline: as if the request went out (scripts end it with `history`)
 	}
 }
 
@@ -869,27 +957,9 @@ typing_line :: (channel_id: dc.Snowflake) {
 	case;
 		msg = "Several people are typing...";
 	}
-	typing_dots();
+	pulsing_dots(T("--text-default")); // requests.jai
 	spacer(.X, 4);
 	label(msg, .Medium, 14, T("--text-default"), 24);
-}
-
-// Three dots pulsing in sequence (the client's typing animation).
-typing_dots :: () {
-	r := row("dots");
-	r.semantic_size = .[ui.px(24), ui.px(8)];
-	{ ui.parent(r); defer ui.pop_parent();
-		for i: 0..2 {
-			phase := cast(float32) (app.ui.time * 1.4) - cast(float32) i * 0.15;
-			k := 0.5 + 0.5 * abs(fract(phase) * 2 - 1);
-			d := ui.box(tprint("d%", i), .Draw_Background);
-			d.semantic_size = .[ui.px(6), ui.px(6)];
-			d.style.radius = all4(3);
-			d.style.bg = with_alpha(T("--text-default"), 0.3 + 0.7 * k);
-			spacer(.X, 2);
-		}
-	}
-	app.ui.animating = true;
 }
 
 composer :: (ch: *dc.Channel, cs: *Chat_State) {

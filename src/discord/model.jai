@@ -277,6 +277,7 @@ Message_List :: struct {
 	messages: [..]Message; // ascending by id
 	loaded: bool;
 	loading: bool;
+	failed: bool; // the last page request failed (LOAD_MESSAGES_FAILURE: "Messages Failed To Load")
 	has_more_before: bool;
 }
 

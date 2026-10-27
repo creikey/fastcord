@@ -78,6 +78,10 @@ job_free :: (j: *Job) {
 }
 
 job_submit :: (c: *Client, j: *Job) {
+	if context.req_tag && j.result.tag == 0 {
+		j.result.tag = context.req_tag;
+		context.req_jobs += 1;
+	}
 	locks.lock(*c.job_mu);
 	array_add(*c.jobs, j);
 	locks.cond_broadcast(*c.job_cond);
@@ -337,6 +341,11 @@ schedule_applications_public :: (c: *Client, ready_ms: s64) {
 // (read by the recorder's renderer view; the wire is lowercase either way).
 #add_context tl_js_lower_auth: bool;
 
+// Set by the app around a user action: the jobs it submits carry this result tag
+// (when they have none) and are counted, so a button can wait for its request.
+#add_context req_tag: u64;
+#add_context req_jobs: int;
+
 send_preflight :: (c: *Client, j: *Job) {
 	pre := http.Request.{method = "OPTIONS", scheme = "https", authority = j.host, path = j.path, headers = preflight_headers(c.id.platform, "GET", "if-none-match", true)};
 	presp := transport_round_trip(*c.transport, j.host, pre);
@@ -528,6 +537,7 @@ client_apply_rest :: (c: *Client, e: *Event) {
 		case .Fetch_Messages;
 			l := message_list(s, r.channel_id);
 			l.loading = false;
+			l.failed = !r.ok;
 			if r.ok {
 				items := vlist(e.data);
 				for items upsert_message(s, vmap(it));
