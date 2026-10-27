@@ -136,7 +136,7 @@ ogg_scan :: (d: *Demuxer) -> Scan_Status {
 	if granule >= 0 && len(st.pending) > 0 && st.track >= 0 {
 		t := *d.tracks[st.track];
 		end := granule;
-		for < k: len(st.pending) - 1..0 {
+		for < k: 0..len(st.pending) - 1 {
 			p := *t.packets[st.pending[k]];
 			p.pts = end - cast(s64)(p.dur) - cast(s64)(t.pre_skip);
 			p.dts = p.pts;

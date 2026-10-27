@@ -70,7 +70,7 @@ Glyph_Bitmap :: struct {
 
 // Glyph cache key: font instance << 40 | glyph << 8 | subpixel bin (Map keys must be scalars: struct == is not
 // visible to Hash_Table).
-glyph_key :: (font: u32, glyph: u32, subpx: u8) -> u64 { return (cast(u64) font << 40) | (cast(u64) glyph << 8) | subpx; }
+glyph_key :: (font: u32, glyph: u32, subpx: u8) -> u64 { return ((cast(u64) font) << 40) | ((cast(u64) glyph) << 8) | subpx; }
 
 Glyph_Info :: struct {
 	tex: Texture;
@@ -248,7 +248,7 @@ shape :: (face: Font_Face, size_pt: float32, text: string, allocator := temp) ->
 
 	h := hash.fnv64a(transmute([]u8, text));
 	h ^= cast(u64)(face) * 0x9E3779B97F4A7C15;
-	h ^= cast(u64)(q) << 32 ^ cast(u64)(transmute(u32, sc)) * 0xff51afd7ed558ccd;
+	h ^= ((cast(u64)(q)) << 32) ^ (cast(u64)(transmute(u32, sc)) * 0xff51afd7ed558ccd);
 	{ e, ok := map_find_ptr(*tx.shape_cache, h);
 	if ok && e.text == text && e.face == face && e.size_q == q && e.scale == sc {
 		e.last_frame = tx.frame;

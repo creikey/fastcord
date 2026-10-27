@@ -472,7 +472,7 @@ map_vk :: (vk: win.WPARAM, lparam: win.LPARAM) -> Key {
 	if (vk >= #char "A" && vk <= #char "Z") { return cast(Key)(cast(int)(Key.A) + cast(int)(vk - #char "A"));
 	} else if (vk >= #char "0" && vk <= #char "9") { return cast(Key)(cast(int)(Key.N0) + cast(int)(vk - #char "0"));
 	} else if vk == win.VK_SPACE {  return .Space;
-	} else if vk == win.VK_RETURN { return ifx (lparam >> 24) & 1 != 0 then .Keypad_Enter else .Enter;
+	} else if vk == win.VK_RETURN { return ifx ((lparam >> 24) & 1) != 0 then .Keypad_Enter else .Enter;
 	} else if vk == win.VK_TAB {    return .Tab;
 	} else if vk == win.VK_BACK {   return .Backspace;
 	} else if vk == win.VK_DELETE { return .Delete;
@@ -596,7 +596,7 @@ wndproc :: (hwnd: win.HWND, msg: win.UINT, wp: win.WPARAM, lp: win.LPARAM) -> wi
 		}
 	case win.WM_KEYDOWN; #through; case win.WM_SYSKEYDOWN;
 		k := map_vk(wp, lp);
-		push_event(.{kind = .Key_Down, key = k, mods = current_mods(), is_repeat = (lp >> 30) & 1 != 0, time = time_now()});
+		push_event(.{kind = .Key_Down, key = k, mods = current_mods(), is_repeat = ((lp >> 30) & 1) != 0, time = time_now()});
 		if msg == win.WM_SYSKEYDOWN && wp == win.VK_F4 { break __sw8; } // let Alt+F4 through
 		if msg == win.WM_SYSKEYDOWN { return 0; }
 		return 0;
@@ -631,7 +631,7 @@ wndproc :: (hwnd: win.HWND, msg: win.UINT, wp: win.WPARAM, lp: win.LPARAM) -> wi
 		w.composing = true;
 	case win.WM_IME_COMPOSITION;
 		update_ime_window();
-		if lp & 0x0008 /*GCS_COMPSTR*/ != 0 {
+		if (lp & 0x0008) /*GCS_COMPSTR*/ != 0 {
 			himc := ImmGetContext(hwnd);
 			if himc != null {
 				bytes := ImmGetCompositionStringW(himc, 0x0008, null, 0);

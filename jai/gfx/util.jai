@@ -46,7 +46,7 @@ encode_png :: (pixels: []u8, w: int, h: int, allocator := context.allocator) -> 
 	while off < raw_len || raw_len == 0 {
 		n := min(65535, raw_len - off);
 		final: u8 = cast(u8) ifx off + n >= raw_len then 1 else 0;
-		hdr := u8.[final, cast,trunc(u8)(n), cast,trunc(u8)(n >> 8), cast,trunc(u8)(~cast(u16)(n)), cast,trunc(u8)(~cast(u16)(n) >> 8)];
+		hdr := u8.[final, cast,trunc(u8)(n), cast,trunc(u8)(n >> 8), cast,trunc(u8)(~cast(u16)(n)), cast,trunc(u8)((~cast(u16)(n)) >> 8)];
 		bytes.buffer_write(*z, view(hdr));
 		bytes.buffer_write(*z, sub(sub_from(raw, off), 0, n));
 		off += n;

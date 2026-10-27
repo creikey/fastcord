@@ -205,7 +205,7 @@ register_font :: (font: CFRef, size: float32) -> u32 {
 		if f.font != null && (f.font == font || CFEqual(f.font, font)) { return cast(u32)(i); }
 	}
 	CFRetain(font);
-	append(*ct.insts, Font_Inst.{font = font, size = size, is_color = CTFontGetSymbolicTraits(font) & kCTFontColorGlyphsTrait != 0});
+	append(*ct.insts, Font_Inst.{font = font, size = size, is_color = (CTFontGetSymbolicTraits(font) & kCTFontColorGlyphsTrait) != 0});
 	return cast(u32)(len(ct.insts) - 1);
 }
 #scope_module

@@ -313,8 +313,8 @@ parse_es_descriptor :: (b: []u8) -> u8, []u8 {
 			if i.* >= len(b) { return tag, size, ok; }
 			c := b[i.*];
 			i.* += 1;
-			size = size << 7 | cast(int)(c & 0x7f);
-			if c & 0x80 == 0 { break; }
+			size = (size << 7) | (cast(int)(c & 0x7f));
+			if (c & 0x80) == 0 { break; }
 		}
 		ok = true;
 		return tag, size, ok;
@@ -325,11 +325,11 @@ parse_es_descriptor :: (b: []u8) -> u8, []u8 {
 	if i + 3 > end { return oti, dsi; }
 	flags := b[i + 2];
 	i += 3;
-	if flags & 0x80 != 0 { i += 2; }
-	if flags & 0x40 != 0 {
+	if (flags & 0x80) != 0 { i += 2; }
+	if (flags & 0x40) != 0 {
 		if i < end { i += 1 + cast(int)(b[i]); }
 	}
-	if flags & 0x20 != 0 { i += 2; }
+	if (flags & 0x20) != 0 { i += 2; }
 	while i < end {
 		t2, s2, ok2 := read_desc(b, *i);
 		if !ok2 { return oti, dsi; }
@@ -464,14 +464,14 @@ parse_moof :: (d: *Demuxer, m: *Mp4, moof: []u8, moof_start: s64) {
 		tid := be32(sub_from(tfhd, 4));
 		i := 8;
 		base := moof_start;
-		if fl & 0x1 != 0 {base = cast(s64)(be64(sub_from(tfhd, i))); i += 8;}
-		if fl & 0x2 != 0 { i += 4; }
+		if (fl & 0x1) != 0 {base = cast(s64)(be64(sub_from(tfhd, i))); i += 8;}
+		if (fl & 0x2) != 0 { i += 4; }
 		trex: Trex;
 		for tr: m.trex { if tr.track_id == tid { trex = tr; } }
 		def_dur, def_size, def_flags := trex.def_dur, trex.def_size, trex.def_flags;
-		if fl & 0x8 != 0 {def_dur = be32(sub_from(tfhd, i)); i += 4;}
-		if fl & 0x10 != 0 {def_size = be32(sub_from(tfhd, i)); i += 4;}
-		if fl & 0x20 != 0 {def_flags = be32(sub_from(tfhd, i)); i += 4;}
+		if (fl & 0x8) != 0 {def_dur = be32(sub_from(tfhd, i)); i += 4;}
+		if (fl & 0x10) != 0 {def_size = be32(sub_from(tfhd, i)); i += 4;}
+		if (fl & 0x20) != 0 {def_flags = be32(sub_from(tfhd, i)); i += 4;}
 		track: *Track;
 		for * t: d.tracks { if cast(u32)(t.id) == tid { track = t; } }
 		if track == null { continue; }
@@ -491,28 +491,28 @@ parse_moof :: (d: *Demuxer, m: *Mp4, moof: []u8, moof_start: s64) {
 			n := cast(int)(be32(sub_from(b, 4)));
 			j := 8;
 			ptr := data_end;
-			if tf & 0x1 != 0 {ptr = base + cast(s64)(cast(s32)(be32(sub_from(b, j)))); j += 4;}
+			if (tf & 0x1) != 0 {ptr = base + cast(s64)(cast(s32)(be32(sub_from(b, j)))); j += 4;}
 			first_flags := def_flags;
-			has_first := tf & 0x4 != 0;
+			has_first := (tf & 0x4) != 0;
 			if has_first {first_flags = be32(sub_from(b, j)); j += 4;}
 			for k: 0..n-1 {
 				dur, size, sfl: u32 = def_dur, def_size, ifx (k == 0 && has_first) then first_flags else def_flags;
 				cto: s64 = 0;
-				if tf & 0x100 != 0 {dur = be32(sub_from(b, j)); j += 4;}
-				if tf & 0x200 != 0 {size = be32(sub_from(b, j)); j += 4;}
-				if tf & 0x400 != 0 {
+				if (tf & 0x100) != 0 {dur = be32(sub_from(b, j)); j += 4;}
+				if (tf & 0x200) != 0 {size = be32(sub_from(b, j)); j += 4;}
+				if (tf & 0x400) != 0 {
 					f := be32(sub_from(b, j));
 					j += 4;
 					if !(k == 0 && has_first) { sfl = f; }
 				}
-				if tf & 0x800 != 0 {
+				if (tf & 0x800) != 0 {
 					cto = ifx b[0] == 0 then cast(s64)(be32(sub_from(b, j))) else cast(s64)(cast(s32)(be32(sub_from(b, j))));
 					j += 4;
 				}
 				if j > len(b) { break; }
 				append(*track.packets, Packet_Ref.{
 					offset = ptr, size = cast(s32)(size), dts = dts - shift, pts = dts + cto - shift,
-					dur = cast(s32)(dur), key = sfl & 0x10000 == 0
+					dur = cast(s32)(dur), key = (sfl & 0x10000) == 0
 				});
 				ptr += cast(s64)(size);
 				dts += cast(s64)(dur);

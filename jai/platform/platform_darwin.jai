@@ -480,10 +480,10 @@ msg_class_cursor :: (name: *u8) -> Id {
 
 mods_from_flags :: (flags: NS.UInteger) -> Mods {
 	r: Mods;
-	if flags & (1 << 17) != 0 { r |= .Shift; }
-	if flags & (1 << 18) != 0 { r |= .Ctrl; }
-	if flags & (1 << 19) != 0 { r |= .Alt; }
-	if flags & (1 << 20) != 0 { r |= .Cmd; }
+	if (flags & (1 << 17)) != 0 { r |= .Shift; }
+	if (flags & (1 << 18)) != 0 { r |= .Ctrl; }
+	if (flags & (1 << 19)) != 0 { r |= .Alt; }
+	if (flags & (1 << 20)) != 0 { r |= .Cmd; }
 	return r;
 }
 
@@ -621,12 +621,12 @@ push_mouse :: (kind: Event_Kind, ev: Id) {
 _apply_cursor_force :: () {_apply_cursor();}
 
 phase_from :: (p: NS.UInteger) -> Scroll_Phase {
-	if p & 1 != 0 { return .Began; }
-	if p & 4 != 0 { return .Changed; }
-	if p & 8 != 0 { return .Ended; }
-	if p & 16 != 0 { return .Cancelled; }
-	if p & 32 != 0 { return .May_Begin; }
-	if p & 2 != 0 { return .Changed; }
+	if (p & 1) != 0 { return .Began; }
+	if (p & 4) != 0 { return .Changed; }
+	if (p & 8) != 0 { return .Ended; }
+	if (p & 16) != 0 { return .Cancelled; }
+	if (p & 32) != 0 { return .May_Begin; }
+	if (p & 2) != 0 { return .Changed; }
 	return .None;
 }
 
@@ -802,7 +802,7 @@ view_update_tracking_areas :: (self: Id, cmd: objc.SEL) #c_call {
 	__ctx11 := s.ctx; push_context,defer_pop __ctx11;
 	areas := msg(Id, self, "trackingAreas");
 	n := msg(NS.UInteger, areas, "count");
-	for < i: cast(int)(n) - 1..0 {
+	for < i: 0..cast(int)(n) - 1 {
 		a := msg(Id, areas, "objectAtIndex:", cast(NS.UInteger)(i));
 		msg(Void, self, "removeTrackingArea:", a);
 	}

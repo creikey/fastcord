@@ -689,7 +689,7 @@ hit_test_prev :: (p: Vec2) -> Key {
 	best_overlay := false;
 	for b: s.order { 	// order still holds last frame's boxes at this point
 		if b.key == 0 { continue; }
-		if b.flags & (Box_Flags.Clickable | .Scroll_X | .Scroll_Y | .Selectable_Text) == 0 { continue; }
+		if (b.flags & (Box_Flags.Clickable | .Scroll_X | .Scroll_Y | .Selectable_Text)) == 0 { continue; }
 		if has(b.flags, .Disabled) { continue; }
 		ov := in_overlay(b);
 		if best_overlay && !ov { continue; }
@@ -768,7 +768,7 @@ signal :: (b: *Box) -> Signal {
 	if sig.dragging { sig.drag_delta = s.mouse - s.press_pos; }
 
 	// scrolling: the innermost scrollable under the mouse takes the wheel
-	if b.flags & (Box_Flags.Scroll_X | .Scroll_Y) != 0 && !s.scroll_consumed && contains(visible_rect(b), s.mouse) {
+	if (b.flags & (Box_Flags.Scroll_X | .Scroll_Y)) != 0 && !s.scroll_consumed && contains(visible_rect(b), s.mouse) {
 		for * e: s.events {
 			if e.kind != .Scroll || e.consumed { continue; }
 			if has(b.flags, .Scroll_Y) { b.view_off_target.y -= e.delta.y; }
@@ -925,7 +925,7 @@ layout_solve :: (b: *Box, axis: Axis) {
 		}
 		// Overflowing (fills got 0): shrink the rest too, or rows with a filler
 		// (headers) pushed their right side out of the window instead.
-		if total > avail && b.flags & (Box_Flags.Scroll_X | .Scroll_Y) == 0 {
+		if total > avail && (b.flags & (Box_Flags.Scroll_X | .Scroll_Y)) == 0 {
 			// Shrink children proportionally to their slack (1 - strictness).
 			over := total - avail;
 			slack: float32;
@@ -951,7 +951,7 @@ layout_solve :: (b: *Box, axis: Axis) {
 			if is_floating(c, axis) { { c = c.next; continue; } }
 			if c.semantic_size[axis].kind == .Fill {
 				c.fixed_size.component[axis] = avail;
-			} else if c.fixed_size.component[axis] > avail && b.flags & (Box_Flags.Scroll_X | .Scroll_Y) == 0 {
+			} else if c.fixed_size.component[axis] > avail && (b.flags & (Box_Flags.Scroll_X | .Scroll_Y)) == 0 {
 				s := c.semantic_size[axis].strictness;
 				c.fixed_size.component[axis] -= (c.fixed_size.component[axis] - avail) * (1 - s);
 			}
@@ -1023,7 +1023,7 @@ layout_position :: (b: *Box) {
 	b.content_size = content;
 
 	// scroll: clamp target, animate offset
-	if b.flags & (Box_Flags.Scroll_X | .Scroll_Y) != 0 {
+	if (b.flags & (Box_Flags.Scroll_X | .Scroll_Y)) != 0 {
 		for axis_i: 0..enum_count(Axis)-1 { axis := cast(Axis) axis_i;
 			max_off := max(0.0, content.component[axis] - b.fixed_size.component[axis]);
 			b.view_off_target.component[axis] = clamp(b.view_off_target.component[axis], 0, max_off);
@@ -1174,7 +1174,7 @@ offscreen :: (b: *Box, margin: float32 = 64) -> bool {
 	{ p := b.parent;
 	while p != null {
 		if p.first_frame_touched == context.ui.frame && has(p.flags, .Clip) { return false; }
-		if p.flags & (Box_Flags.Scroll_X | .Scroll_Y) != 0 { m += .{abs(p.view_off_target.x - p.view_off.x), abs(p.view_off_target.y - p.view_off.y)}; }
+		if (p.flags & (Box_Flags.Scroll_X | .Scroll_Y)) != 0 { m += .{abs(p.view_off_target.x - p.view_off.x), abs(p.view_off_target.y - p.view_off.y)}; }
 		p = p.parent;
 } }
 	{ p := b.parent;

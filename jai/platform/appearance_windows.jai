@@ -20,7 +20,7 @@ system_a11y :: () -> System_A11y {
 	anim: win.BOOL = true;
 	if win.SystemParametersInfoW(win.SPI_GETCLIENTAREAANIMATION, 0, *anim, 0) { a.reduce_motion = !cast(bool)(anim); }
 	hc := HIGHCONTRASTW.{cbSize = size_of(HIGHCONTRASTW)};
-	if win.SystemParametersInfoW(win.SPI_GETHIGHCONTRAST, size_of(HIGHCONTRASTW), *hc, 0) && hc.dwFlags & HCF_HIGHCONTRASTON != 0 {
+	if win.SystemParametersInfoW(win.SPI_GETHIGHCONTRAST, size_of(HIGHCONTRASTW), *hc, 0) && (hc.dwFlags & HCF_HIGHCONTRASTON) != 0 {
 		a.forced_colors = true;
 		a.contrast_more = true;
 	}

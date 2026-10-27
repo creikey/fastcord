@@ -291,7 +291,7 @@ _shape :: (inst: u32, text: string, out: *[..]Raw_Glyph) -> float32 {
 	for * r, i: out {
 		r.cluster_end = len(text);
 		for j: 0..len(out)-1 {
-			if j != i && __MAPIDX__(out|j).cluster_start > r.cluster_start && __MAPIDX__(out|j).cluster_start < r.cluster_end { r.cluster_end = get(out, j).cluster_start; }
+			if j != i && get(out, j).cluster_start > r.cluster_start && get(out, j).cluster_start < r.cluster_end { r.cluster_end = get(out, j).cluster_start; }
 		}
 	}
 	return dw.cur_width;
@@ -344,7 +344,7 @@ r_draw_glyph_run :: (this: *void, ctx: *void, x: float32, y: float32, mode: u32,
 		last = glyph_char[gi];
 	}
 	pen := x;
-	rtl := run.bidiLevel & 1 != 0;
+	rtl := (run.bidiLevel & 1) != 0;
 	for gi: 0..n-1 {
 		adv := ifx run.glyphAdvances != null then run.glyphAdvances[gi] else 0;
 		off := ifx run.glyphOffsets != null then run.glyphOffsets[gi] else DWRITE_GLYPH_OFFSET.{};

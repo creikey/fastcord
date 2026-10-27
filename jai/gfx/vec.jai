@@ -1,7 +1,5 @@
-// Odin's [2]f32 / [4]f32 are Jai Math's Vector2 / Vector4 (fc exports Math named: it can't be imported
-// unnamed next to fc, so the arithmetic is declared here). ui/gfx/platform each carry this same file.
-Vector2 :: Math.Vector2;
-Vector4 :: Math.Vector4;
+// Odin's [2]f32 / [4]f32 are Math's Vector2 / Vector4. These per-component operators take precedence over
+// Math's (its / multiplies by the reciprocal, which would change pixels).
 operator + :: (a: Vector2, b: Vector2) -> Vector2 { return .{a.x + b.x, a.y + b.y}; }
 operator - :: (a: Vector2, b: Vector2) -> Vector2 { return .{a.x - b.x, a.y - b.y}; }
 operator - :: (a: Vector2) -> Vector2 { return .{-a.x, -a.y}; }

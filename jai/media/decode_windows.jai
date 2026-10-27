@@ -62,7 +62,7 @@ audio_decode :: (ad: *Audio_Decoder, data: []u8, out: *[..]float32) -> bool {
 			if ad.is_float && bps == 4 { v = transmute(float32, le32(b));
 			} else if bps == 1 { v = (cast(float32)(b[0]) - 128) / 128;
 			} else if bps == 2 { v = cast(float32)(cast(s16)(ifx ad.big then be16(b) else le16(b))) / 32768;
-			} else if bps == 3 { v = cast(float32)(cast(s32)(cast(u32)(b[0]) << 8 | cast(u32)(b[1]) << 16 | cast(u32)(b[2]) << 24) >> 8) / 8388608;
+			} else if bps == 3 { v = cast(float32)((cast(s32)(((cast(u32)(b[0])) << 8) | ((cast(u32)(b[1])) << 16) | ((cast(u32)(b[2])) << 24))) >> 8) / 8388608;
 			} else if bps == 4 { v = cast(float32)(cast(s32)(le32(b))) / 2147483648;
 			}
 			append(*ad.tmp, v);

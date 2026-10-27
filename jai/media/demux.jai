@@ -101,7 +101,7 @@ demux_open :: (src: *Byte_Source) -> *Demuxer, Scan_Status {
 		wav_init(d);
 	} else if len(h) >= 4 && as_string(sub(h, 0, 4)) == "fLaC" {
 		flac_init(d);
-	} else if len(h) >= 3 && (as_string(sub(h, 0, 3)) == "ID3" || (h[0] == 0xFF && h[1] & 0xE0 == 0xE0)) {
+	} else if len(h) >= 3 && (as_string(sub(h, 0, 3)) == "ID3" || (h[0] == 0xFF && (h[1] & 0xE0) == 0xE0)) {
 		mp3_init(d);
 	} else {
 		free(d);

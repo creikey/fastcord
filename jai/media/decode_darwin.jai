@@ -133,19 +133,19 @@ vpcc_from_keyframe :: (frame: []u8) -> []u8 {
 		pos := 0;
 		bit :: (b: []u8, pos: *int) -> int {
 			if pos.* / 8 >= len(b) { return 0; }
-			v := cast(int)(b[pos.* / 8] >> cast(u64)(7 - pos.* % 8)) & 1;
+			v := (cast(int)(b[pos.* / 8] >> (cast(u64)(7 - pos.* % 8)))) & 1;
 			pos.* += 1;
 			return v;
 		}
 		bits :: (b: []u8, pos: *int, n: int) -> int {
 			v := 0;
-			for _: 0..n-1 { v = v << 1 | bit(b, pos); }
+			for _: 0..n-1 { v = (v << 1) | bit(b, pos); }
 			return v;
 		}
 		bits(frame, *pos, 2); // frame marker
 		lo := bit(frame, *pos);
 		hi := bit(frame, *pos);
-		profile = hi << 1 | lo;
+		profile = (hi << 1) | lo;
 		if profile == 3 { pos += 1; }
 		if bit(frame, *pos) == 0 { 	// show_existing_frame == 0
 			ftype := bit(frame, *pos);
@@ -172,7 +172,7 @@ vpcc_from_keyframe :: (frame: []u8) -> []u8 {
 	out[0] = 1; // version
 	out[4] = cast(u8)(profile);
 	out[5] = 10; // level 1.0 (unknown; decoder ignores)
-	out[6] = cast(u8)(bit_depth << 4 | chroma << 1 | full);
+	out[6] = cast(u8)((bit_depth << 4) | (chroma << 1) | full);
 	out[7] = 1;
 	out[8] = 1;
 	out[9] = 1;
@@ -449,7 +449,7 @@ audio_decoder_create :: (t: *Track) -> *Audio_Decoder, bool {
 			owned = esds_from_asc(t.aac_asc);
 			cookie = owned;
 			// sample rate from ASC
-			idx := cast(int)((t.aac_asc[0] & 7) << 1 | t.aac_asc[1] >> 7);
+			idx := cast(int)(((t.aac_asc[0] & 7) << 1) | (t.aac_asc[1] >> 7));
 			RATES := int.[96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
 			if idx < 13 { f.mSampleRate = cast(float64)(RATES[idx]); }
 		} else {
@@ -473,7 +473,7 @@ audio_decoder_create :: (t: *Track) -> *Audio_Decoder, bool {
 	case .PCM;
 		bits := max(t.bits, 8);
 		f.mFormatID = audio.kAudioFormatLinearPCM;
-		f.mFormatFlags = cast(u32) audio.kAudioFormatFlagIsPacked | (ifx t.pcm_float then audio.kAudioFormatFlagIsFloat else (ifx bits > 8 then audio.kAudioFormatFlagIsSignedInteger else 0));
+		f.mFormatFlags = (cast(u32) audio.kAudioFormatFlagIsPacked) | cast(u32) (ifx t.pcm_float then audio.kAudioFormatFlagIsFloat else (ifx bits > 8 then audio.kAudioFormatFlagIsSignedInteger else 0));
 		if t.pcm_big { f.mFormatFlags |= 2; }
 		f.mBitsPerChannel = cast(u32)(bits);
 		f.mBytesPerFrame = cast(u32)(bits / 8 * ch);

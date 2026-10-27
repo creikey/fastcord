@@ -30,7 +30,7 @@ Mp3_Header :: struct {
 
 mp3_parse_header :: (h: []u8) -> Mp3_Header {
 	r: Mp3_Header;
-	if len(h) < 4 || h[0] != 0xFF || h[1] & 0xE0 != 0xE0 { return r; }
+	if len(h) < 4 || h[0] != 0xFF || (h[1] & 0xE0) != 0xE0 { return r; }
 	ver := (h[1] >> 3) & 3; // 3 = MPEG1, 2 = MPEG2, 0 = MPEG2.5
 	layer := (h[1] >> 1) & 3; // 1 = Layer III
 	if ver == 1 || layer == 0 { return r; }
@@ -83,7 +83,7 @@ mp3_scan :: (d: *Demuxer) -> Scan_Status {
 		h, s := peek(*d.reader, 0, 10);
 		if s != .Ok { return ifx complete then .Error else .Need_Data; }
 		if as_string(sub(h, 0, 3)) == "ID3" {
-			sz := cast(s64)(h[6]) << 21 | cast(s64)(h[7]) << 14 | cast(s64)(h[8]) << 7 | cast(s64)(h[9]);
+			sz := ((cast(s64)(h[6])) << 21) | ((cast(s64)(h[7])) << 14) | ((cast(s64)(h[8])) << 7) | (cast(s64)(h[9]));
 			d.scan_pos = 10 + sz + (ifx (h[5] & 0x10) != 0 then 10 else 0);
 		}
 		m.started = true;
@@ -236,27 +236,27 @@ flac_frame_header :: (h: []u8, si_rate: int) -> int {
 	bs_code := cast(int)(h[2] >> 4);
 	sr_code := cast(int)(h[2] & 0xF);
 	if bs_code == 0 || sr_code == 15 { return 0; }
-	if (h[3] >> 4) >= 11 || (h[3] >> 1) & 7 == 3 || (h[3] >> 1) & 7 == 7 { return 0; }
+	if (h[3] >> 4) >= 11 || ((h[3] >> 1) & 7) == 3 || ((h[3] >> 1) & 7) == 7 { return 0; }
 	i := 4;
 	// UTF-8-style coded number
 	c := h[i];
 	extra := 0;
-	if c & 0x80 == 0 { extra = 0;
-	} else if c & 0xE0 == 0xC0 { extra = 1;
-	} else if c & 0xF0 == 0xE0 { extra = 2;
-	} else if c & 0xF8 == 0xF0 { extra = 3;
-	} else if c & 0xFC == 0xF8 { extra = 4;
-	} else if c & 0xFE == 0xFC { extra = 5;
+	if (c & 0x80) == 0 { extra = 0;
+	} else if (c & 0xE0) == 0xC0 { extra = 1;
+	} else if (c & 0xF0) == 0xE0 { extra = 2;
+	} else if (c & 0xF8) == 0xF0 { extra = 3;
+	} else if (c & 0xFC) == 0xF8 { extra = 4;
+	} else if (c & 0xFE) == 0xFC { extra = 5;
 	} else if c == 0xFE { extra = 6;
 	} else { return 0;
 	}
 	i += 1 + extra;
 	bs := 0;
 	if bs_code == 1 { bs = 192;
-	} else if (bs_code >= 2 && bs_code <= 5) { bs = 576 << cast(u64)(bs_code - 2);
+	} else if (bs_code >= 2 && bs_code <= 5) { bs = 576 << (cast(u64)(bs_code - 2));
 	} else if bs_code == 6 { bs = cast(int)(h[i]) + 1; i += 1;
 	} else if bs_code == 7 { bs = cast(int)(be16(sub_from(h, i))) + 1; i += 2;
-	} else if (bs_code >= 8 && bs_code <= 15) { bs = 256 << cast(u64)(bs_code - 8);
+	} else if (bs_code >= 8 && bs_code <= 15) { bs = 256 << (cast(u64)(bs_code - 8));
 	}
 	if sr_code == {
 	case 12; i += 1;
@@ -273,7 +273,7 @@ flac_scan :: (d: *Demuxer) -> Scan_Status {
 	if !f.in_frames {
 		h, s := peek(*d.reader, d.scan_pos, 4);
 		if s != .Ok { return ifx complete then .Error else .Need_Data; }
-		last := h[0] & 0x80 != 0;
+		last := (h[0] & 0x80) != 0;
 		btype := h[0] & 0x7F;
 		size := cast(s64)(be24(sub_from(h, 1)));
 		if btype == 0 {
@@ -287,7 +287,7 @@ flac_scan :: (d: *Demuxer) -> Scan_Status {
 			t.channels = cast(int)((si[12] >> 1) & 7) + 1;
 			t.bits = cast(int)(((si[12] & 1) << 4) | (si[13] >> 4)) + 1;
 			t.timescale = cast(s64)(t.sample_rate);
-			t.duration = cast(s64)(si[13] & 0xF) << 32 | cast(s64)(be32(sub_from(si, 14)));
+			t.duration = ((cast(s64)(si[13] & 0xF)) << 32) | (cast(s64)(be32(sub_from(si, 14))));
 			t.extradata = clone_bytes(sub(b, 0, 38)); // metadata block header + STREAMINFO
 			t.extradata[0] |= 0x80; // mark as last block
 			append(*d.tracks, t);

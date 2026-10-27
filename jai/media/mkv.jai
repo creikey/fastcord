@@ -80,7 +80,7 @@ vint :: (b: []u8, keep_marker: bool) -> s64, int, bool {
 	first := b[0];
 	n = 1;
 	mask: u8 = 0x80;
-	while first & mask == 0 {
+	while (first & mask) == 0 {
 		n += 1;
 		mask >>= 1;
 	}
@@ -88,7 +88,7 @@ vint :: (b: []u8, keep_marker: bool) -> s64, int, bool {
 	v = cast(s64)(ifx keep_marker then first else first & (mask - 1));
 	all_ones := (first & (mask - 1)) == mask - 1;
 	for i: 1..n-1 {
-		v = v << 8 | cast(s64)(b[i]);
+		v = (v << 8) | (cast(s64)(b[i]));
 		if b[i] != 0xFF { all_ones = false; }
 	}
 	if !keep_marker && all_ones { v = UNKNOWN_SIZE; }
@@ -121,7 +121,7 @@ read_elem :: (d: *Demuxer, at: s64) -> Elem, Read_Status {
 
 uint_of :: (b: []u8) -> s64 {
 	v: s64;
-	for x: b { v = v << 8 | cast(s64)(x); }
+	for x: b { v = (v << 8) | (cast(s64)(x)); }
 	return v;
 }
 
@@ -356,7 +356,7 @@ index_block :: (d: *Demuxer, m: *Mkv, at: s64, size: s64, simple: bool, block_du
 	t := *d.tracks[ti];
 	rel := cast(s64)(cast(s16)(be16(sub_from(hb, n))));
 	flags := hb[n + 2];
-	key := ifx simple then flags & 0x80 != 0 else group_key;
+	key := ifx simple then (flags & 0x80) != 0 else group_key;
 	if t.kind == .Audio { key = true; }
 	pts := m.cluster_tc + rel;
 	hdr := cast(s64)(n + 3);
@@ -399,7 +399,7 @@ index_block :: (d: *Demuxer, m: *Mkv, at: s64, size: s64, simple: bool, block_du
 			raw, rn, rok := vint(sub_from(lb, p), false);
 			if !rok { return; }
 			p += rn;
-			bias := (cast(s64)(1) << cast(u64)(7 * rn - 1)) - 1;
+			bias := ((cast(s64)(1)) << (cast(u64)(7 * rn - 1))) - 1;
 			sizes[k] = get(sizes, k - 1) + (raw - bias);
 		}
 	case 2; // fixed

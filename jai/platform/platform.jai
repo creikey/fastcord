@@ -401,19 +401,19 @@ dib_to_rgba :: (dib: []u8, allocator := context.allocator) -> []u8, int, int, bo
 	width: int;
 	height: int;
 	ok: bool;
-	le32 :: (b: []u8) -> u32 {return cast(u32)(b[0]) | cast(u32)(b[1]) << 8 | cast(u32)(b[2]) << 16 | cast(u32)(b[3]) << 24;}
+	le32 :: (b: []u8) -> u32 {return (cast(u32)(b[0])) | ((cast(u32)(b[1])) << 8) | ((cast(u32)(b[2])) << 16) | ((cast(u32)(b[3])) << 24);}
 	if len(dib) < 40 { return rgba, width, height, ok; }
 	hsize := cast(int)(le32(sub_from(dib, 0)));
 	width = cast(int)(cast(s32)(le32(sub_from(dib, 4))));
 	hraw := cast(s32)(le32(sub_from(dib, 8)));
-	bpp := cast(int)(cast(u16)(dib[14]) | cast(u16)(dib[15]) << 8);
+	bpp := cast(int)((cast(u16)(dib[14])) | ((cast(u16)(dib[15])) << 8));
 	compression := le32(sub_from(dib, 16));
 	clr_used := cast(int)(le32(sub_from(dib, 32)));
 	if bpp != 24 && bpp != 32 { return rgba, width, height, ok; }
 	if compression != 0 /*BI_RGB*/ && compression != 3 { return rgba, width, height, ok; }
 	height = cast(int)(ifx hraw < 0 then -hraw else hraw);
 	top_down := hraw < 0;
-	if hsize < 40 || width <= 0 || height <= 0 || width * height > 64 << 20 { return rgba, width, height, ok; }
+	if hsize < 40 || width <= 0 || height <= 0 || width * height > (64 << 20) { return rgba, width, height, ok; }
 	off := hsize;
 	if compression == 3 && hsize == 40 { off += 12; } // masks follow a plain header
 	off += clr_used * 4;

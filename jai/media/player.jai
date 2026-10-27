@@ -270,7 +270,7 @@ player_clock :: (p: *Player, now: float64) -> float64 {
 		rp := audio.source_read_pos(p.asrc);
 		lat := audio.output_latency();
 		// latest segment that has started playing
-		for < i: nseg - 1..0 {
+		for < i: 0..nseg - 1 {
 			sg := segs[i];
 			if rp < sg.mark { continue; }
 			played := cast(float64)(rp - sg.mark) / audio.SAMPLE_RATE - lat;
