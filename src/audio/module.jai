@@ -211,8 +211,14 @@ mix :: (out: []float32) {
 // Capture (mono f32 @48 kHz).
 // voice_processing: macOS VoiceProcessingIO (echo cancellation, AGC, noise
 // suppression); output is routed through the same unit so the canceller hears it.
+// Without it (the settings mic meter) macOS opens only the input device, at its own
+// rate, so other apps aren't ducked and Bluetooth headsets stay in A2DP. A
+// voice-processing start replaces a running plain capture.
 capture_start :: (voice_processing := true) -> bool {
-	if !st.device_ok || st.capturing return st.capturing;
+	if !st.device_ok return false;
+	if st.capturing && (st.capture_vp || !voice_processing) return true;
+	if st.capturing capture_stop();
+	st.capture_vp = voice_processing;
 	atomic_store(*st.capture.r, atomic_load(*st.capture.w));
 	locks.lock(*st.device_mu);
 	st.capturing = device_capture_start(voice_processing);
@@ -250,6 +256,7 @@ to_stereo :: (out: *[..]float32, src: []float32, ch: int) {
 #import "Basic";
 #import "Atomics";
 #import "Thread";
+#import "String";
 locks :: #import "locks";
 
 #if OS == .MACOS #load "darwin.jai";
@@ -275,6 +282,7 @@ State :: struct {
 	idle_frames: u64; // atomic, frames mixed with no source data
 	capture: Ring;
 	capturing: bool;
+	capture_vp: bool; // the running capture has voice processing
 	ctx: #Context;
 	latency: float64;
 	device_mu: locks.Mutex; // start/stop

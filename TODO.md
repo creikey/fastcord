@@ -171,6 +171,7 @@
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
 - [ ] Voice: the device dropdown in Voice & Video doesn't close on an outside click, Escape or page switch.
+- [ ] Voice: a chosen audio device that is unplugged stays selected by its dead id (`sel_input`/`sel_output` in `audio/darwin.jai`), so the page shows "Default" while capture keeps the old device instead of falling back.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Voice: while deafened the mic button shows unmuted, and clicking it only flips `self_mute` instead of undeafening (`views.jai`).
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
@@ -189,3 +190,4 @@
 - [x] Markdown: masked links `[text](url)` render as links (messages and embed descriptions), and embed descriptions draw their quotes with a bar.
 - [x] Embeds: proxied video embeds (FxTwitter, Reddit…) play in the card with a large poster instead of a side thumbnail.
 - [x] Tray (Windows): a tray icon with a red dot for unread mentions, a click opens the window, the menu has Open and Quit; closing the window hides it to the tray.
+- [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
