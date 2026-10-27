@@ -155,10 +155,9 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 
 timer_make :: () -> *void { return null; }
 timer_destroy :: (_: *void) {}
-timer_wait :: (_: *void, ns: s64) {
-	ts := timespec.{tv_sec = ns / 1_000_000_000, tv_nsec = ns % 1_000_000_000};
-	nanosleep(*ts, null);
-}
+// usleep, not nanosleep: Basic and POSIX declare nanosleep with different return types, and a program
+// that uses both fails to compile.
+timer_wait :: (_: *void, ns: s64) { usleep(cast(u32) (ns / 1000)); }
 
 // Procedure and source line for a code address, through the private CoreSymbolication framework
 // (what Odin's core:debug/trace uses on macOS), loaded on first use.
