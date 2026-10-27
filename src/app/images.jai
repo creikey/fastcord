@@ -73,11 +73,13 @@ image_texture :: (im: *Remote_Image) -> gfx.Texture {
 }
 
 // Draw a remote image filling the box (rounded like the box). Background shows while loading.
-set_remote_image :: (b: *ui.Box, url: string) {
+// cover crops the image to the box's shape instead of stretching it.
+set_remote_image :: (b: *ui.Box, url: string, cover := false) {
 	if url == "" return;
 	image_get(url);
 	d := New(Image_Draw,, temp);
 	d.url = url;
+	d.cover = cover;
 	b.custom_draw = image_draw;
 	b.custom_user = d;
 }
@@ -435,6 +437,7 @@ decode_upload :: () {
 
 Image_Draw :: struct {
 	url: string;
+	cover: bool;
 }
 
 image_draw :: (b: *ui.Box, user: *void) {
@@ -444,7 +447,16 @@ image_draw :: (b: *ui.Box, user: *void) {
 	if tex == 0 return;
 	if im.frames.count > 1 app.ui.animating = true;
 	white := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), tex = tex, colors = .[white, white, white, white], radii = b.style.radius});
+	src: gfx.Rect;
+	bw, bh := b.rect.x1 - b.rect.x0, b.rect.y1 - b.rect.y0;
+	if d.cover && bw > 0 && bh > 0 {
+		ts := gfx.texture_size(tex);
+		tw, th := cast(float32) ts[0], cast(float32) ts[1];
+		// the centre of the texture with the box's aspect
+		if tw / th > bw / bh { cw := th * bw / bh; src = .{(tw - cw) / 2, 0, (tw + cw) / 2, th}; }
+		else { ch := tw * bh / bw; src = .{0, (th - ch) / 2, tw, (th + ch) / 2}; }
+	}
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), src = src, tex = tex, colors = .[white, white, white, white], radii = b.style.radius});
 }
 
 Avatar_Draw :: struct {

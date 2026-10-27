@@ -20,11 +20,8 @@ Voice_Processing :: struct {
 	auto_gain_control: bool;
 }
 
-list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
-	out := NewArray(1, Device_Info,, allocator);
-	out[0] = .{id = 0, name = "Default", is_default = true};
-	return out;
-}
+// No device choice yet: the settings page offers only "Default".
+list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info { return .[]; }
 
 selected_device :: (input: bool) -> u32 { return 0; }
 select_device :: (input: bool, id: u32) {}

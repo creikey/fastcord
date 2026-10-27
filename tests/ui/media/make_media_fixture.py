@@ -35,9 +35,25 @@ fx = {'type': 'video', 'url': TW, 'color': 6513919, 'author': {'name': 'Jay (@ja
                      '**[💬](https://x.com/intent/tweet?in_reply_to=2115114109049967088) 169 [🔁](https://x.com/intent/retweet?tweet_id=2115114109049967088) 161**',
       'thumbnail': {'url': 'https://pbs.twimg.com/poster.webp', 'proxy_url': FX + 'poster.webp', 'width': 640, 'height': 360, 'flags': 0},
       'video': {'url': 'https://video.twimg.com/clip.mp4', 'proxy_url': FX + 'clip.mp4', 'width': 640, 'height': 360, 'flags': 0}}
+# older still: a link card with a tall side thumbnail (IMDb), a YouTube video (no proxied video: a large
+# poster that opens the link) and a post whose 4 images arrive as 4 embeds sharing its url (one grid)
+IMG = 'https://images-ext-1.discordapp.net/external/z/https/'
+imdb = {'type': 'link', 'url': 'https://www.imdb.com/title/tt1231583/', 'title': 'Due Date (2010) ⭐ 6.5 | Comedy, Drama',
+        'description': '1h 35m | R', 'provider': {'name': 'IMDb'},
+        'thumbnail': {'url': 'https://m.media-amazon.com/poster.webp', 'proxy_url': IMG + 'imdb/poster.webp', 'width': 182, 'height': 268, 'flags': 0}}
+yt = {'type': 'video', 'url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'title': 'A video', 'color': 16711680,
+      'provider': {'name': 'YouTube', 'url': 'https://www.youtube.com'}, 'author': {'name': 'A channel'},
+      'thumbnail': {'url': 'https://i.ytimg.com/vi/x/hqdefault.jpg', 'proxy_url': IMG + 'yt/poster.webp', 'width': 480, 'height': 360, 'flags': 0},
+      'video': {'url': 'https://www.youtube.com/embed/dQw4w9WgXcQ', 'width': 1280, 'height': 720, 'flags': 0}}
+POST = 'https://x.com/someone/status/1'
+grid = [dict({'type': 'rich', 'url': POST, 'image': {'url': 'https://pbs.twimg.com/%d/poster.webp' % k, 'proxy_url': IMG + '%d/poster.webp' % k, 'width': 640, 'height': 360, 'flags': 0}},
+             **({'description': 'Four images', 'author': {'name': 'Someone (@someone)'}} if k == 0 else {})) for k in range(4)]
+old_msgs = [msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [], [imdb]),
+            msg(sf(base_ms - 15000, 6), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', [], [yt]),
+            msg(sf(base_ms - 10000, 7), POST, [], grid)]
 with open(os.path.join(here, 'media.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     f.writelines(head)
-    for o in (msg(fx_msg, TW, [], [fx]), msg(gif_msg, '', [att], []), msg(gifv_msg, 'https://klipy.com/gifs/goat-banjo', [], [gifv])):
+    for o in (*old_msgs, msg(fx_msg, TW, [], [fx]), msg(gif_msg, '', [att], []), msg(gifv_msg, 'https://klipy.com/gifs/goat-banjo', [], [gifv])):
         f.write(json.dumps(o, ensure_ascii=False) + '\n')
 
 # dance.gif: 80x60, 4 frames of moving stripes (uncompressed LZW: 9-bit literals, clear every 254 codes)

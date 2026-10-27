@@ -119,7 +119,7 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		vs.meter_db, vs.meter_open = voice.input_level(conn);
 	} else {
 		if !vs.meter_owner {
-			if audio.init() && audio.capture_start(true) {
+			if audio.init() && audio.capture_start(false) {
 				audio.apply_device_selection();
 				vs.meter_owner = true;
 			}
@@ -340,9 +340,8 @@ voice_user_menu :: () {
 // this machine's, so screenshots and sweep descriptors match everywhere.
 vs_list_devices :: (input: bool) -> []audio.Device_Info {
 	if !platform.is_headless() return audio.list_devices(input, temp);
-	out := NewArray(2, audio.Device_Info,, temp);
-	out[0] = .{id = 0, name = "Default", is_default = true};
-	out[1] = .{id = 1001, name = ifx input then "Test Microphone" else "Test Speakers", uid = "test"};
+	out := NewArray(1, audio.Device_Info,, temp);
+	out[0] = .{id = 1001, name = ifx input then "Test Microphone" else "Test Speakers", uid = "test", is_default = true};
 	return out;
 }
 
@@ -447,6 +446,7 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 	sel := audio.selected_device(input);
 	current := "Default";
 	for d: devs { if sel != 0 && d.id == sel { current = d.name; } }
+	hint := ifx current == "Default" then default_name(devs) else "";
 	box := row(ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
 	box.semantic_size = .[ui.px(w), ui.px(40)];
 	box.style.bg = T("--background-base-lowest");
@@ -459,6 +459,10 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 12);
 		t := label(current, .Medium, 16, T("--text-default"), 20);
+		if hint != "" {
+			spacer(.X, 6);
+			t = label(hint, .Normal, 14, T("--text-muted"), 20);
+		}
 		t.flags |= .Clip;
 		filler(.X);
 		icon("chev", ifx vs.open_dropdown == which then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
@@ -482,22 +486,32 @@ device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at
 	list.style.shadow_offset = .{0, 8};
 	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
-		opt :: (name: string, id: u32, input: bool, selected: bool) {
+		opt :: (name: string, id: u32, input: bool, selected: bool, hint := "") {
 			it_ := row(name, .Clickable | .Draw_Background | .Hot_Animation);
 			it_.semantic_size = .[ui.pct(1), ui.px(36)];
 			it_.style.bg_hot = T("--background-mod-normal");
 			{ ui.parent(it_); defer ui.pop_parent();
 				spacer(.X, 12);
 				label(name, ifx selected then .Semibold else .Medium, 15, ifx selected then T("--text-strong") else T("--text-default"), 20);
+				if hint != "" {
+					spacer(.X, 6);
+					label(hint, .Normal, 14, T("--text-muted"), 20).flags |= .Clip;
+				}
 			}
 			if ui.signal(it_).clicked {
 				audio.select_device(input, id);
 				vs.open_dropdown = 0;
 			}
 		}
-		opt("Default", 0, input, sel == 0);
+		opt("Default", 0, input, sel == 0, default_name(devs));
 		for d: devs { { ui.id_scope(cast(u64)(d.id) + 1); defer ui.pop_seed(); opt(d.name, d.id, input, d.id == sel); } }
 	}
+}
+
+// default_name: the device "Default" resolves to right now, as a hint next to it.
+default_name :: (devs: []audio.Device_Info) -> string {
+	for devs if it.is_default && it.id != 0 return it.name;
+	return "";
 }
 
 tok_has :: (name: string) -> bool { return table_contains(*app.theme.tokens, name); }
