@@ -28,7 +28,7 @@ OP_NO_ROUTE :: 32;
 OP_SFU_UPDATE :: 33;
 
 // close codes
-CLOSE_FORCE :: 4000; // client close()
+CLOSE_FORCE :: 4000;  // client close()
 CLOSE_AUTHENTICATION_FAILED :: 4004;
 CLOSE_INVALID_SESSION :: 4006;
 CLOSE_SERVER_NOT_FOUND :: 4011;
@@ -52,153 +52,126 @@ CODECS_JSON :: "[{\"name\":\"opus\",\"type\":\"audio\",\"priority\":1000,\"paylo
 SUPPORTED_EXPERIMENTS :: string.["fixed_keyframe_interval"];
 
 DEFAULT_USER_AGENT :: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.419 Chrome/148.0.7778.280 Electron/42.11.15 Safari/537.36";
-#scope_module
 
-json_str :: (b: *strings.Builder, s: string) {
-	strings.write_byte(b, 34);
-	for c: transmute([]u8, s) {
-		if c == 34 {
-			strings.write_string(b, "\\\"");
-		} else if c == 92 {
-			strings.write_string(b, "\\\\");
-		} else if c == 10 {
-			strings.write_string(b, "\\n");
-		} else if c == 13 {
-			strings.write_string(b, "\\r");
-		} else if c == 9 {
-			strings.write_string(b, "\\t");
-		} else {
-			if c < 0x20 {
-				fmt.sbprintf(b, "\\u%04x", c);
-			} else {
-				strings.write_byte(b, c);
-			}
-		}
-	}
-	strings.write_byte(b, 34);
+// json_str writes s as a JSON string; control bytes as \u00XX, everything else verbatim.
+json_str :: (b: *String_Builder, s: string) {
+    append(b, "\"");
+    for cast([]u8) s {
+        if it == {
+          case #char "\""; append(b, "\\\"");
+          case #char "\\"; append(b, "\\\\");
+          case #char "\n"; append(b, "\\n");
+          case #char "\r"; append(b, "\\r");
+          case #char "\t"; append(b, "\\t");
+          case;
+            if it < 0x20 print_to_builder(b, "\\u%", formatInt(it, base = 16, minimum_digits = 4));
+            else append(b, it);
+        }
+    }
+    append(b, "\"");
 }
-#scope_export
 
-snowflake :: (v: u64, allocator := temp) -> string {
-	buf: [24]u8;
-	return clone(strconv.write_uint(view(buf), v, 10), allocator);
+// json_msg builds a message from parts: a string part is raw JSON, a Str part a JSON string (in temp).
+Str :: struct { s: string; }
+json_msg :: (parts: ..Any) -> string {
+    b: String_Builder;
+    b.allocator = temp;
+    for parts {
+        if it.type == type_info(Str) json_str(*b, (cast(*Str) it.value_pointer).s);
+        else print_to_builder(*b, "%", it);
+    }
+    return builder_to_string(*b,, temp);
 }
+
+snowflake :: (v: u64) -> Str { return .{tprint("%", v)}; }
 
 msg_identify :: (server_id: u64, channel_id: u64, user_id: u64, session_id: string, token: string, video: bool) -> string {
-	b := strings.builder_make(temp);
-	strings.write_string(*b, "{\"op\":0,\"d\":{\"server_id\":");
-	json_str(*b, snowflake(server_id));
-	strings.write_string(*b, ",\"channel_id\":");
-	json_str(*b, snowflake(channel_id));
-	strings.write_string(*b, ",\"user_id\":");
-	json_str(*b, snowflake(user_id));
-	strings.write_string(*b, ",\"session_id\":");
-	json_str(*b, session_id);
-	strings.write_string(*b, ",\"token\":");
-	json_str(*b, token);
-	strings.write_string(*b, ",\"max_dave_protocol_version\":1,\"video\":");
-	strings.write_string(*b, ifx video then "true" else "false");
-	strings.write_string(*b, ",\"streams\":[{\"type\":\"video\",\"rid\":\"100\",\"quality\":100}]}}");
-	return strings.to_string(b);
+    return json_msg("{\"op\":0,\"d\":{\"server_id\":", snowflake(server_id), ",\"channel_id\":", snowflake(channel_id),
+        ",\"user_id\":", snowflake(user_id), ",\"session_id\":", Str.{session_id}, ",\"token\":", Str.{token},
+        ",\"max_dave_protocol_version\":1,\"video\":", ifx video then "true" else "false",
+        ",\"streams\":[{\"type\":\"video\",\"rid\":\"100\",\"quality\":100}]}}");
 }
 
 msg_resume :: (token: string, session_id: string, server_id: u64, channel_id: u64, seq_ack: s64) -> string {
-	b := strings.builder_make(temp);
-	strings.write_string(*b, "{\"op\":7,\"d\":{\"token\":");
-	json_str(*b, token);
-	strings.write_string(*b, ",\"session_id\":");
-	json_str(*b, session_id);
-	strings.write_string(*b, ",\"server_id\":");
-	json_str(*b, snowflake(server_id));
-	strings.write_string(*b, ",\"channel_id\":");
-	json_str(*b, snowflake(channel_id));
-	fmt.sbprintf(*b, ",\"seq_ack\":%d}}}}", seq_ack);
-	return strings.to_string(b);
+    return json_msg("{\"op\":7,\"d\":{\"token\":", Str.{token}, ",\"session_id\":", Str.{session_id},
+        ",\"server_id\":", snowflake(server_id), ",\"channel_id\":", snowflake(channel_id), ",\"seq_ack\":", seq_ack, "}}");
 }
 
 msg_select_protocol :: (address: string, port: int, mode: Mode, rtc_connection_id: string, experiments: []string) -> string {
-	b := strings.builder_make(temp);
-	strings.write_string(*b, "{\"op\":1,\"d\":{\"protocol\":\"udp\",\"data\":{\"address\":");
-	json_str(*b, address);
-	fmt.sbprintf(*b, ",\"port\":%d,\"mode\":", port);
-	json_str(*b, mode_name(mode));
-	strings.write_string(*b, "},\"address\":");
-	json_str(*b, address);
-	fmt.sbprintf(*b, ",\"port\":%d,\"mode\":", port);
-	json_str(*b, mode_name(mode));
-	strings.write_string(*b, ",\"codecs\":");
-	strings.write_string(*b, CODECS_JSON);
-	strings.write_string(*b, ",\"rtc_connection_id\":");
-	json_str(*b, rtc_connection_id);
-	strings.write_string(*b, ",\"experiments\":[");
-	for e, i: experiments {
-		if i > 0 { strings.write_byte(*b, #char ","); }
-		json_str(*b, e);
-	}
-	strings.write_string(*b, "]}}");
-	return strings.to_string(b);
+    b: String_Builder;
+    b.allocator = temp;
+    append(*b, json_msg("{\"op\":1,\"d\":{\"protocol\":\"udp\",\"data\":{\"address\":", Str.{address}, ",\"port\":", port,
+        ",\"mode\":", Str.{mode_name(mode)}, "},\"address\":", Str.{address}, ",\"port\":", port, ",\"mode\":", Str.{mode_name(mode)},
+        ",\"codecs\":", CODECS_JSON, ",\"rtc_connection_id\":", Str.{rtc_connection_id}, ",\"experiments\":["));
+    for experiments {
+        if it_index append(*b, ",");
+        json_str(*b, it);
+    }
+    append(*b, "]}}");
+    return builder_to_string(*b,, temp);
 }
 
 msg_heartbeat :: (t_ms: s64, seq_ack: s64) -> string {
-	return fmt.tprintf("{{\"op\":3,\"d\":{{\"t\":%d,\"seq_ack\":%d}}}}", t_ms, seq_ack);
+    return tprint("{\"op\":3,\"d\":{\"t\":%,\"seq_ack\":%}}", t_ms, seq_ack);
 }
 
 msg_speaking :: (flags: int, ssrc: u32) -> string {
-	return fmt.tprintf("{{\"op\":5,\"d\":{{\"speaking\":%d,\"delay\":0,\"ssrc\":%d}}}}", flags, ssrc);
+    return tprint("{\"op\":5,\"d\":{\"speaking\":%,\"delay\":0,\"ssrc\":%}}", flags, ssrc);
 }
 
 msg_transition :: (op: int, transition_id: int) -> string {
-	return fmt.tprintf("{{\"op\":%d,\"d\":{{\"transition_id\":%d}}}}", op, transition_id);
+    return tprint("{\"op\":%,\"d\":{\"transition_id\":%}}", op, transition_id);
 }
 
 MSG_VOICE_BACKEND_VERSION :: "{\"op\":16,\"d\":{}}";
 
-// uuid4 in the canonical lowercase form (rtc_connection_id).
-uuid4 :: (allocator := context.allocator) -> string {
-	r: [16]u8;
-	crypto.rand_bytes(view(r));
-	r[6] = (r[6] & 0x0f) | 0x40;
-	r[8] = (r[8] & 0x3f) | 0x80;
-	return fmt.aprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], allocator = allocator);
+// uuid4 in the canonical lowercase form (rtc_connection_id), in context.allocator.
+uuid4 :: () -> string {
+    r: [16]u8;
+    crypto.random_bytes(r);
+    r[6] = (r[6] & 0x0f) | 0x40;
+    r[8] = (r[8] & 0x3f) | 0x80;
+    b: String_Builder;
+    for r {
+        if it_index == 4 || it_index == 6 || it_index == 8 || it_index == 10 append(*b, "-");
+        print_to_builder(*b, "%", formatInt(it, base = 16, minimum_digits = 2));
+    }
+    return builder_to_string(*b);
 }
 
 // ---------------------------------------------------------------------------
-// JSON access helpers (values from json.parse)
+// JSON access helpers (values from etf.from_json)
 
-jget :: (v: json.Value, key: string) -> json.Value {
-	if v.kind != .Map { return .{}; }
-	return get(v.map, key);
+jget :: (v: etf.Value, key: string) -> etf.Value {
+    if v.kind != .Map return .{};
+    x := etf.map_get(v.map, key);
+    return x;
 }
 
-jint :: (v: json.Value, def: s64 = -1) -> s64 {
-	if v.kind == {
-	case .Int; x := v.i;
-		return x;
-	case .Float; x := v.f;
-		return cast(s64)(x);
-	case .Bool; x := v.b;
-		return ifx x then 1 else 0;
-	}
-	return def;
+jint :: (v: etf.Value, def: s64 = -1) -> s64 {
+    if v.kind == .Int   return v.i;
+    if v.kind == .Float return cast(s64) v.f;
+    if v.kind == .Bool  return ifx v.b then 1 else 0;
+    return def;
 }
 
-jstr :: (v: json.Value) -> string {
-	return ifx v.kind == .String then v.s else "";
+jstr :: (v: etf.Value) -> string { return ifx v.kind == .String then v.s else ""; }
+
+// jsnow reads a snowflake given as a decimal string or a number (0 if neither).
+jsnow :: (v: etf.Value) -> u64 {
+    if v.kind == .String {
+        n: u64;
+        if !v.s return 0;
+        for cast([]u8) v.s {
+            d := cast(u64) (it - #char "0");
+            if it < #char "0" || it > #char "9" || n > (U64_MAX - d) / 10 return 0;
+            n = n * 10 + d;
+        }
+        return n;
+    }
+    n, ok := etf.as_u64(v);
+    if ok return n;
+    return ifx v.kind == .Int then cast,no_check(u64) v.i else 0;
 }
 
-jsnow :: (v: json.Value) -> u64 {
-	if v.kind == {
-	case .String; x := v.s;
-		n, ok := strconv.parse_u64(as_string(x));
-		return ifx ok then n else 0;
-	case .Int; x := v.i;
-		return cast(u64)(x);
-	}
-	return 0;
-}
-
-jarr :: (v: json.Value) -> []json.Value {
-	if v.kind != .List { return .[]; }
-	return v.list;
-}
-
+jarr :: (v: etf.Value) -> []etf.Value { return ifx v.kind == .List then v.list else .[]; }
