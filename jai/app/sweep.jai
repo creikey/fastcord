@@ -14,7 +14,7 @@ SWEEP_OFF :: ui.Vec2.{-50, -50}; // mouse parked outside the window
 // Runs the sweep and returns the process exit code.
 sweep_run :: (opt: Options) -> int {
 	swp.opt = opt;
-	swp.verbose = env("FASTCORD_SWEEP_VERBOSE") != "";
+	swp.verbose = env_var("FASTCORD_SWEEP_VERBOSE") != "";
 	swp.out = ifx opt.sweep_out != "" then opt.sweep_out else "build/sweep";
 	make_directory_if_it_does_not_exist(swp.out, recursive = true);
 	app.sweep = true;
@@ -108,12 +108,6 @@ Sweep_State :: struct {
 swp: Sweep_State;
 
 eprint :: (format: string, args: ..Any) { print(format, ..args, to_standard_error = true); }
-
-env :: (name: string) -> string {
-	getenv :: (name: *u8) -> *u8 #foreign libc;
-	p := getenv(temp_c_string(name));
-	return ifx p then to_string(p) else "";
-}
 
 // s left-aligned in a column of w bytes, then a space
 column :: (sb: *String_Builder, s: string, w: int) {

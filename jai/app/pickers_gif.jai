@@ -64,8 +64,7 @@ gif_picker_on_show :: () {
 }
 
 pickers_debug :: () -> bool {
-	v := getenv("FASTCORD_PICKER_DEBUG");
-	return v != null && v.* != 0;
+	return env_var("FASTCORD_PICKER_DEBUG") != "";
 }
 
 gif_picker_query_changed :: () {
@@ -213,7 +212,6 @@ set_cover_image :: (b: *ui.Box, url: string) {
 
 #scope_file
 
-getenv :: (name: *u8) -> *u8 #foreign libc;
 
 gif_query :: () -> string { return trim(ui.editor_text(*pk.search[Picker_Tab.Gif])); }
 

@@ -899,7 +899,6 @@ login_test_state :: (state: string) -> bool {
 }
 
 #scope_file
-getenv :: (name: *u8) -> *u8 #foreign libc;
 
 lg: Login_State;
 
@@ -916,7 +915,7 @@ zero_editor :: (ed: *ui.Editor) {
 }
 
 login_save_token :: (token: string) {
-	if token == "" || getenv("FASTCORD_TOKEN") { return; }
+	if token == "" || env_var("FASTCORD_TOKEN") != "" { return; }
 	dir := app_state_dir();
 	make_directory_if_it_does_not_exist(dir, recursive = true);
 	dc.write_file_atomic(tprint("%/token", dir), cast([]u8) token);

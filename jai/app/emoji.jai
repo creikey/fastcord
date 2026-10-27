@@ -272,14 +272,14 @@ emoji_convert_shortcodes :: (text: string) -> string {
 // Offline runs (fixtures / UI tests): FASTCORD_MEDIA_DIR holds media files named
 // by the last URL path component (e.g. f753793200a49ad6.svg, <id>.json).
 offline_media :: (url: string) -> []u8, bool {
-	p := getenv("FASTCORD_MEDIA_DIR");
-	if p == null || p.* == 0 return .[], false;
+	dir := env_var("FASTCORD_MEDIA_DIR");
+	if dir == "" return .[], false;
 	u := url;
 	q := find_index_from_left(u, #char "?");
 	if q >= 0 u.count = q;
 	name := u;
 	advance(*name, find_index_from_right(u, #char "/") + 1);
-	data, ok := read_entire_file(tprint("%/%", to_string(p), name), log_errors = false,, temp);
+	data, ok := read_entire_file(tprint("%/%", dir, name), log_errors = false,, temp);
 	return cast([]u8) data, ok;
 }
 
@@ -309,7 +309,6 @@ by_norm: Table(string, int); // FE0F-stripped surrogates -> index (emoji with an
 by_norm_built: bool;
 max_runes: int;
 
-getenv :: (name: *u8) -> *u8 #foreign libc;
 
 strip_fe0f :: (s: string) -> string {
 	return ifx contains(s, FE0F) then replace(s, FE0F, "") else s;

@@ -141,7 +141,6 @@ parse_options :: () -> Options {
 }
 
 main :: () {
-	register_thread_context();
 	dc.record_process_start(); // Odin @(init) in discord
 	opt := parse_options();
 	headless := opt.shot != "" || bench.on;

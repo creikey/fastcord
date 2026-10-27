@@ -1,5 +1,5 @@
-// Build version, set by CI: -define:FASTCORD_VERSION=v0.2.0. "dev" never prompts.
-FASTCORD_VERSION :: "dev";
+// Build version: jai build.jai - release vX.Y.Z passes it as the module parameter VERSION. "dev" never prompts.
+FASTCORD_VERSION :: VERSION;
 UPDATE_REPO :: "creikey/fastcord";
 UPDATE_PAGE :: "https://creikey.com/fastcord";
 UPDATE_INTERVAL_MS :: 6 * 60 * 60 * 1000;

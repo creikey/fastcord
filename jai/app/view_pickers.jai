@@ -628,11 +628,11 @@ autopen_done: bool;
 picker_debug_autopen :: () {
 	if autopen_done || app.view.channel == 0 || pk.composer_top == 0 return;
 	autopen_done = true;
-	which := env("FASTCORD_PICKER");
+	which := env_var("FASTCORD_PICKER");
 	if which == "" return;
 	tab := ifx which == "gif" then Picker_Tab.Gif else ifx which == "sticker" then Picker_Tab.Sticker else .Emoji;
 	picker_open(.Composer, tab, app.view.channel, 0, .{pk.composer_right - 48, pk.composer_top, pk.composer_right - 8, pk.composer_top + 52});
-	q := env("FASTCORD_PICKER_QUERY");
+	q := env_var("FASTCORD_PICKER_QUERY");
 	if q != "" {
 		ui.editor_set_text(*pk.search[tab], q);
 		query_changed(tab);
@@ -647,9 +647,3 @@ query_changed :: (tab: Picker_Tab) {
 	}
 }
 
-getenv :: (name: *u8) -> *u8 #foreign libc;
-
-env :: (name: *u8) -> string {
-	v := getenv(name);
-	return ifx v then to_string(v) else "";
-}

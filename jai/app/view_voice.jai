@@ -64,7 +64,7 @@ voice_frame :: () {
 	if app.client == null { return; }
 	if !vc.auto_checked && app.client.store.ready {
 		vc.auto_checked = true;
-		id, _ := dc.parse_u64(env("FASTCORD_JOIN_VOICE"));
+		id, _ := dc.parse_u64(env_var("FASTCORD_JOIN_VOICE"));
 		ch := dc.channel_get(store(), cast(dc.Snowflake) id);
 		if ch voice_join_channel(ch.guild_id, ch.id);
 	}
@@ -377,7 +377,7 @@ tone_phase: float64;
 // tone instead (to exercise speaking indicators in screenshots).
 voice_options :: () -> voice.Options {
 	o := voice.Options.{no_audio_devices = vc.headless || !vc.audio_ready};
-	if o.no_audio_devices && env("FASTCORD_VOICE_TEST_TONE") == "1" {
+	if o.no_audio_devices && env_var("FASTCORD_VOICE_TEST_TONE") == "1" {
 		o.capture = (_: *void, out: []float32) -> int {
 			for * out {
 				it.* = 0.2 * cast(float32) sin(tone_phase);
@@ -392,10 +392,4 @@ voice_options :: () -> voice.Options {
 is_stage :: (cid: dc.Snowflake) -> bool {
 	ch := dc.channel_get(store(), cid);
 	return ch != null && ch.kind == .Guild_Stage_Voice;
-}
-
-env :: (name: string) -> string {
-	getenv :: (name: *u8) -> *u8 #foreign libc;
-	p := getenv(temp_c_string(name));
-	return ifx p then to_string(p) else "";
 }

@@ -25,8 +25,7 @@ teardown_wait :: () {
 #scope_file
 
 teardowns: int;
-threads: [..]Spawned; // UI thread only; finished ones are freed by the next release or teardown_wait
-Spawned :: type_of(dc.spawn(0, (_: int) {})); // *Thread (the Thread module's)
+threads: [..]*Thread; // UI thread only; finished ones are freed by the next release or teardown_wait
 
 teardown_start :: (data: $D, proc: (D)) {
 	reap_teardowns();

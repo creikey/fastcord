@@ -47,7 +47,7 @@ Att_State :: struct {
 	by_channel: Table(dc.Snowflake, [..]Staged); // the client keeps a draft per channel
 	next_key: u64;
 	// workers (UI thread only) and their results
-	threads: [..]Worker;
+	threads: [..]*Thread;
 	mu: locks.Mutex;
 	results: [..]Att_Result;
 	// overlays
@@ -709,7 +709,6 @@ Att_Job :: struct {
 }
 
 // A worker's Jai *Thread (local.jai's fc Thread alias hides the name for now).
-Worker :: type_of(dc.spawn(Att_Job.{}, att_work));
 
 // The worker owns copies of the job's strings.
 att_spawn :: (j: Att_Job) {

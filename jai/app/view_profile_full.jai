@@ -135,7 +135,7 @@ profile_full_overlay :: () {
 	// FASTCORD_PROFILE=<id>|me|friend opens a profile once the first channel shows (screenshots)
 	if !env_profile_done && app.view.channel != 0 {
 		env_profile_done = true;
-		v := to_string(getenv("FASTCORD_PROFILE"));
+		v := env_var("FASTCORD_PROFILE");
 		if v != "" {
 			id := dc.parse_u64(v);
 			if v == "me" { id = cast(u64) store().me; }
@@ -626,5 +626,4 @@ pf_state_for_test :: () -> string {return tprint("% % %", pf.user, pf.tab, pf.me
 
 #scope_file
 env_profile_done: bool;
-getenv :: (name: *u8) -> *u8 #foreign libc;
 

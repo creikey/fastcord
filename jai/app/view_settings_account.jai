@@ -78,7 +78,7 @@ account_logout :: () {
 	acct.logout_confirm = false;
 	voice_leave_channel();
 	if net_action() { dc.client_logout(app.client, "settings"); }
-	if !platform.is_headless() && !getenv("FASTCORD_TOKEN") {
+	if !platform.is_headless() && env_var("FASTCORD_TOKEN") == "" {
 		file_delete(tprint("%/token", app_state_dir()));
 	}
 	login_reset();
@@ -537,7 +537,6 @@ profile_save_bar :: () {
 	spacer(.X, 12);
 }
 
-getenv :: (name: *u8) -> *u8 #foreign libc;
 
 set_error :: (dst: *string, s: string) {
 	free(dst.*);
