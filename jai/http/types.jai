@@ -60,6 +60,7 @@ Response :: struct {
 }
 
 response_destroy :: (r: *Response) {
+	if !r.allocator.proc { return; } // no allocator: nothing was allocated for it (Odin's nil allocator frees nothing)
 	push_allocator(r.allocator);
 	for h: r.headers {
 		delete(h.name);
