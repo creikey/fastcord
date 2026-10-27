@@ -15,7 +15,7 @@ GROUP_WINDOW_MS :: 7 * 60 * 1000; // messages from the same author within 7 minu
 Chat_State :: struct {
 	scroll_from_bottom: float32; // 0 = stuck to the newest message
 	scroll_target: float32;
-	heights: Map(dc.Snowflake, float32); // measured row heights
+	heights: Table(dc.Snowflake, float32); // measured row heights
 	loading_older: bool;
 	editor: ui.Editor;
 	hovered_msg: dc.Snowflake;
@@ -78,7 +78,7 @@ format_timestamp :: (id: dc.Snowflake, short := false) -> string {
 // and a selection is read (copy, scripts) after the frame's temp memory is gone.
 Stamp_Cache :: struct {
 	day: s64;
-	texts: Map(dc.Snowflake, string);
+	texts: Table(dc.Snowflake, string);
 }
 stamps: Stamp_Cache;
 #scope_export
@@ -92,7 +92,7 @@ wall_ms :: () -> s64 {
 header_timestamp :: (id: dc.Snowflake) -> string {
 	today := (wall_ms() + local_utc_offset_ms()) / 86_400_000;
 	if today != stamps.day {
-		for _, v: stamps.texts { delete(v); }
+		for v: stamps.texts { delete(v); }
 		clear(*stamps.texts);
 		stamps.day = today;
 	}

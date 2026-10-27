@@ -177,7 +177,7 @@ bench_shape :: () -> Bench_Shape {
 		sh.collapsed_categories += len(gs.collapsed_channels);
 	}
 	sh.images = len(images);
-	for url, im: images {
+	for im, url: images {
 		if im.state == .Ready { sh.images_ready += 1; }
 		if strings.contains(url, "/embed/avatars/") { sh.default_avatar_images += 1;
 		} else if strings.contains(url, "/avatars/") {       sh.avatar_images += 1;

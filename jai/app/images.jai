@@ -17,7 +17,7 @@ Remote_Image :: struct {
 
 // url -> image. Requests go through the discord library so they look like the
 // official client's <img> loads and hit its HTTP cache.
-images: Map(string, Remote_Image);
+images: Table(string, Remote_Image);
 
 image_get :: (url: string, visible := true) -> *Remote_Image {
 	if url == "" { return null; }

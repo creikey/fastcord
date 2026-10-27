@@ -97,7 +97,7 @@ Playing :: struct {
 }
 
 snd: struct {
-	sounds: Map(string, *Sound); // by asset url
+	sounds: Table(string, *Sound); // by asset url
 	playing: [..]Playing;
 	soundpack: string; // "" = classic
 	disable_all: bool;
@@ -107,7 +107,7 @@ snd: struct {
 	prev_mute: bool;
 	prev_deaf: bool;
 	prev_channel: dc.Snowflake;
-	members: Map(dc.Snowflake, bool); // others in our voice channel
+	members: Table(dc.Snowflake, bool); // others in our voice channel
 	members_ch: dc.Snowflake;
 };
 #scope_export
@@ -319,14 +319,14 @@ voice_members :: () {
 		return;
 	}
 	if ch == 0 { return; }
-	now := Map(dc.Snowflake, bool).{};
+	now := Table(dc.Snowflake, bool).{};
 	for v, uid: s.voice_states { if v.channel_id == ch && uid != s.me { at(*now, uid).* = true; } }
 	joined, left := false, false;
-	for uid: now { if !get(snd.members, uid) { joined = true; } }
-	for uid: snd.members { if !get(now, uid) { left = true; } }
+	for _, uid: now { if !get(snd.members, uid) { joined = true; } }
+	for _, uid: snd.members { if !get(now, uid) { left = true; } }
 	if joined { sound_play("user_join"); } else if left { sound_play("user_leave"); }
 	clear(*snd.members);
-	for uid: now { at(*snd.members, uid).* = true; }
+	for _, uid: now { at(*snd.members, uid).* = true; }
 }
 #scope_export
 

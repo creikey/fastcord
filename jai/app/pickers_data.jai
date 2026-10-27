@@ -28,8 +28,8 @@ Emoji_DB :: struct {
 	loaded: bool;
 	emojis: []Uni_Emoji;
 	cats: []Emoji_Category;
-	by_name: Map(string, int); // every alias -> index
-	by_surr: Map(string, int);
+	by_name: Table(string, int); // every alias -> index
+	by_surr: Table(string, int);
 	default_frecency: []string;
 	default_reaction: []string;
 	parents: int; // emojis [0, parents) are pickable; children follow
@@ -158,9 +158,9 @@ Frec_Entry :: struct {
 }
 
 Frecency :: struct {
-	emoji: Map(string, Frec_Entry); // unicode canonical name or custom emoji id
-	reaction: Map(string, Frec_Entry);
-	sticker: Map(string, Frec_Entry);
+	emoji: Table(string, Frec_Entry); // unicode canonical name or custom emoji id
+	reaction: Table(string, Frec_Entry);
+	sticker: Table(string, Frec_Entry);
 	favorite_emojis: [..]string;
 	favorite_stickers: [..]dc.Snowflake;
 	favorite_gifs: [..]dc.Favorite_Gif;
@@ -199,7 +199,7 @@ frec_score :: (e: Frec_Entry, now: s64) -> float64 {
 	return cast(float64)(e.total) * sum / cast(float64)(len(e.recent));
 }
 
-frec_use :: (m: *Map(string, Frec_Entry), key: string) {
+frec_use :: (m: *Table(string, Frec_Entry), key: string) {
 	if key == "" { return; }
 	e, ok := map_find_ptr(m, key);
 	if !ok {
@@ -214,14 +214,14 @@ frec_use :: (m: *Map(string, Frec_Entry), key: string) {
 }
 
 // Keys by descending score.
-frec_top :: (m: Map(string, Frec_Entry), n: int) -> []string {
+frec_top :: (m: Table(string, Frec_Entry), n: int) -> []string {
 	Pair :: struct {
 		key: string;
 		score: float64;
 	}
 	now := frec_now_ms();
 	pairs := make_dynamic(Pair, 0, len(m), temp);
-	for k, e: m { append(*pairs, Pair.{k, frec_score(e, now)}); }
+	for e, k: m { append(*pairs, Pair.{k, frec_score(e, now)}); }
 	slice.sort_by(view(pairs), (a: Pair, b: Pair) -> bool {return a.score > b.score || (a.score == b.score && compare(a.key, b.key) < 0);});
 	out := make_dynamic(string, 0, n, temp);
 	for p: pairs {
@@ -232,7 +232,7 @@ frec_top :: (m: Map(string, Frec_Entry), n: int) -> []string {
 	return view(out);
 }
 
-frec_score_of :: (m: Map(string, Frec_Entry), key: string) -> float64 {
+frec_score_of :: (m: Table(string, Frec_Entry), key: string) -> float64 {
 	{ e, ok := map_find(m, key);
 	if ok { return frec_score(e, frec_now_ms()); } }
 	return 0;
@@ -281,8 +281,8 @@ frecency_save :: () {
 	sb := strings.builder_make(temp);
 	fmt.sbprintf(*sb, "tone\t%d\n", frecency.skin_tone);
 	for name: frecency.favorite_emojis { fmt.sbprintf(*sb, "fav_emoji\t%s\n", name); }
-	write_map :: (sb: *strings.Builder, kind: string, m: Map(string, Frec_Entry)) {
-		for k, e: m {
+	write_map :: (sb: *strings.Builder, kind: string, m: Table(string, Frec_Entry)) {
+		for e, k: m {
 			fmt.sbprintf(sb, "%s\t%s\t%d", kind, k, e.total);
 			for t: e.recent { fmt.sbprintf(sb, "\t%d", t); }
 			strings.write_byte(sb, 10);
@@ -298,7 +298,7 @@ frecency_save :: () {
 // Merge GET /users/@me/settings-proto/2 into the local tables (max of counts, union of uses).
 frecency_merge_server :: (fs: dc.Frecency_Settings) {
 	frecency.loaded_server = true;
-	merge :: (m: *Map(string, Frec_Entry), items: []dc.Frecency_Item) {
+	merge :: (m: *Table(string, Frec_Entry), items: []dc.Frecency_Item) {
 		for it_: items {
 			e, ok := map_find_ptr(m, it_.key);
 			if !ok {

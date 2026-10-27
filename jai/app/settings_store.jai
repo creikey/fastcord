@@ -156,13 +156,13 @@ snapshot :: () -> string {
 	voice_settings_snapshot(*p.voice);
 	sounds_snapshot(*p.sounds);
 	col := make_dynamic(string, 0, len(app.view.collapsed), temp);
-	for id, on: app.view.collapsed { if on { append(*col, snowflake_str(id)); } }
+	for on, id: app.view.collapsed { if on { append(*col, snowflake_str(id)); } }
 	p.collapsed = view(col);
 	hm := make_dynamic(string, 0, len(app.view.hide_muted), temp);
-	for id, on: app.view.hide_muted { if on { append(*hm, snowflake_str(id)); } }
+	for on, id: app.view.hide_muted { if on { append(*hm, snowflake_str(id)); } }
 	p.hide_muted = view(hm);
 	p.last_channel = Map(string, string).{};
-	for g, c: app.view.last_channel { if c != 0 { at(*p.last_channel, snowflake_str(g)).* = snowflake_str(c); } }
+	for c, g: app.view.last_channel { if c != 0 { at(*p.last_channel, snowflake_str(g)).* = snowflake_str(c); } }
 	ws := platform.window_size();
 	p.window_width = cast(int)(ws.x);
 	p.window_height = cast(int)(ws.y);

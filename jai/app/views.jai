@@ -26,10 +26,10 @@ Friends_Tab :: enum u8 {
 View_State :: struct {
 	guild: dc.Snowflake; // 0 = home (friends / DMs)
 	channel: dc.Snowflake; // selected channel in the current guild, or DM channel at home
-	last_channel: Map(dc.Snowflake, dc.Snowflake); // guild -> last selected channel
+	last_channel: Table(dc.Snowflake, dc.Snowflake); // guild -> last selected channel
 	friends_tab: Friends_Tab;
-	collapsed: Map(dc.Snowflake, bool); // collapsed categories
-	hide_muted: Map(dc.Snowflake, bool); // guild -> "Hide Muted Channels" (device-local)
+	collapsed: Table(dc.Snowflake, bool); // collapsed categories
+	hide_muted: Table(dc.Snowflake, bool); // guild -> "Hide Muted Channels" (device-local)
 	show_members: bool;
 	hide_dm_profile: bool; // 1:1 DM user profile column (header toggle)
 	add_friend: ui.Editor;
@@ -318,7 +318,7 @@ guild_rail :: () {
 guild_order :: () -> []dc.Snowflake {
 	s := store();
 	out := make_dynamic(dc.Snowflake, 0, 0, temp);
-	seen := Map(dc.Snowflake, bool).{};
+	seen := Table(dc.Snowflake, bool).{};
 	for f: s.settings.guild_folders {
 		for id: f.guild_ids { at(*seen, id).* = true; }
 	}

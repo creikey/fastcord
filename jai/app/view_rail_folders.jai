@@ -40,8 +40,8 @@ Rail_Target :: struct {
 }
 
 Rail_State :: struct {
-	open: Map(s64, bool);
-	open_t: Map(s64, float32);
+	open: Table(s64, bool);
+	open_t: Table(s64, float32);
 	drag_entry: int; // entry being pressed / dragged
 	drag_inner: int; // guild index inside a folder (-1 = whole entry)
 	drag_active: bool;
@@ -59,7 +59,7 @@ rs: Rail_State;
 rail_entries :: () -> [..]Rail_Entry {
 	s := store();
 	out := make_dynamic(Rail_Entry, 0, 0, temp);
-	listed := Map(dc.Snowflake, bool).{};
+	listed := Table(dc.Snowflake, bool).{};
 	for f: s.settings.guild_folders { for id: f.guild_ids { at(*listed, id).* = true; } }
 	for gid: guild_order() {
 		if get(listed, gid) { break; }

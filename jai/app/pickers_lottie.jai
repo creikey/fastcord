@@ -17,7 +17,7 @@ Lottie_Sticker :: struct {
 	frame: float32; // last rendered frame (-1 = none)
 }
 
-lottie_stickers: Map(dc.Snowflake, Lottie_Sticker);
+lottie_stickers: Table(dc.Snowflake, Lottie_Sticker);
 #scope_file
 
 lottie_get :: (id: dc.Snowflake) -> *Lottie_Sticker {

@@ -18,11 +18,11 @@ THEME_JSON := string.[
 
 Theme :: struct {
 	name: Theme_Name;
-	tokens: Map(string, ui.Color);
+	tokens: Table(string, ui.Color);
 }
 
 theme_load :: (t: *Theme, name: Theme_Name) {
-	for k: t.tokens { delete(k); }
+	for _, k: t.tokens { delete(k); }
 	clear(*t.tokens);
 	t.name = name;
 	v, err := json.parse(THEME_JSON[name], allocator = temp);

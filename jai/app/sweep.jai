@@ -58,7 +58,7 @@ Sweep_State :: struct {
 	out: string;
 	crops: int;
 	capped: int;
-	tested: Map(string, bool); // fixture|overlay|desc already pressed on an earlier screen
+	tested: Table(string, bool); // fixture|overlay|desc already pressed on an earlier screen
 	overlay_open: bool; // last collected frame had a popout / modal open
 	verbose: bool;
 }
@@ -468,7 +468,7 @@ sweep_screen :: (sc: *Sweep_Screen) {
 	// at most SAME_MAX times per screen.
 	SAME_MAX :: 3;
 	targets := make_dynamic(Sweep_Box, 0, 0, context.allocator);
-	same := Map(string, int).{};
+	same := Table(string, int).{};
 	for b: swp.boxes {
 		k := fmt.aprintf("%s|%v|%s", sc.fixture, swp.overlay_open, b.desc);
 		if has(swp.tested, k) { continue; }

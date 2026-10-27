@@ -9,7 +9,7 @@ pickers_first_open :: () {
 }
 #scope_file
 
-top_emojis_fetched: Map(dc.Snowflake, bool);
+top_emojis_fetched: Table(dc.Snowflake, bool);
 #scope_export
 
 // Per open: the guild's top emojis once per session, like the client's picker.

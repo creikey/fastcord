@@ -53,7 +53,7 @@ Sticker_View :: struct {
 	packs: [..]Sticker_Pack;
 	scroll: Pk_Scroll;
 	inspected: [2]int; // section, index; -1 = none
-	collapsed: Map(u64, bool);
+	collapsed: Table(u64, bool);
 }
 
 sv: Sticker_View;
@@ -99,7 +99,7 @@ build_sections :: (ignore_query := false) -> []St_Section {
 	nitro := false;
 	{ u := dc.user_get(s, s.me);
 	if u != null { nitro = u.premium_type > 0; } }
-	all := Map(dc.Snowflake, Pk_Sticker).{};
+	all := Table(dc.Snowflake, Pk_Sticker).{};
 	guilds := make_dynamic(dc.Snowflake, 0, 0, temp);
 	if here != 0 { append(*guilds, here); }
 	for gid: guild_order() { if gid != here { append(*guilds, gid); } }

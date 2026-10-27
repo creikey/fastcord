@@ -59,7 +59,7 @@ Att_Notice :: enum u8 {
 }
 
 Att_State :: struct {
-	by_channel: Map(dc.Snowflake, [..]Staged); // the client keeps a draft per channel
+	by_channel: Table(dc.Snowflake, [..]Staged); // the client keeps a draft per channel
 	next_key: u64;
 	// worker results
 	mu: locks.Mutex;
@@ -76,7 +76,7 @@ Att_State :: struct {
 	mod_spoiler: bool;
 	mod_focus: int; // 0 filename, 1 description
 	// sent messages still uploading: nonce -> what they carry
-	sending: Map(dc.Snowflake, Att_Sending);
+	sending: Table(dc.Snowflake, Att_Sending);
 	limit_override: s64; // UI scripts: a small limit to show the too-large notice
 }
 
@@ -454,7 +454,7 @@ attachments_frame :: () {
 		app.ui.animating = true;
 	}
 	// video posters: the player decodes its first frame on its own thread
-	for * _, l: att.by_channel {
+	for * l: att.by_channel {
 		for * u: l.* {
 			if u.player == null || u.poster.y != 0 { continue; }
 			img, _ := media.player_update(u.player);
@@ -462,7 +462,7 @@ attachments_frame :: () {
 		}
 	}
 	// sent messages: forget the ones that landed
-	for nonce, sn: att.sending {
+	for sn, nonce: att.sending {
 		done := true;
 		for d: sn.drafts {
 			{ st, _, _, ok := dc.upload_draft_status(app.client, d);
@@ -1040,12 +1040,12 @@ attachments_reset_for_test :: () {
 		attachments_frame();
 		thread.yield();
 	}
-	for * _, l: att.by_channel {
+	for * l: att.by_channel {
 		for * u: l.* { staged_free(u); }
 		delete(l.*);
 	}
 	delete(att.by_channel);
-	for _, sn: att.sending {
+	for sn: att.sending {
 		delete(sn.drafts);
 		for n: sn.names { delete(n); }
 		delete(sn.names);

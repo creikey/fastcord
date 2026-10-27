@@ -13,7 +13,7 @@ App :: struct {
 	connect_pending: bool; // connect() waits for the previous client's teardown (teardown.odin)
 	login_error: string;
 	offline_store: dc.Store;
-	chats: Map(dc.Snowflake, Chat_State);
+	chats: Table(dc.Snowflake, Chat_State);
 	chat_hover: dc.Snowflake;
 	utc_offset_ms: s64;
 	self_mute: bool;

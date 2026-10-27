@@ -102,7 +102,7 @@ Em_Pos :: struct {
 Emoji_View :: struct {
 	scroll: Pk_Scroll;
 	inspected: Em_Pos; // sec = -1: none
-	collapsed: Map(u64, bool);
+	collapsed: Table(u64, bool);
 	tone_open: bool;
 	nav_scroll: float32;
 	last_mouse: ui.Vec2;
@@ -179,12 +179,12 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 	here := current_guild();
 	nitro := premium();
 	secs := make_dynamic(Em_Section, 0, 0, temp);
-	by_id := Map(dc.Snowflake, dc.Emoji).{};
+	by_id := Table(dc.Snowflake, dc.Emoji).{};
 	for gid: emoji_guilds() {
 		{ g := dc.guild_get(s, gid);
 		if g != null { for e: g.emojis { at(*by_id, e.id).* = e; } } }
 	}
-	key_item :: (key: string, by_id: Map(dc.Snowflake, dc.Emoji), here: dc.Snowflake, nitro: bool) -> Pk_Emoji, bool {
+	key_item :: (key: string, by_id: Table(dc.Snowflake, dc.Emoji), here: dc.Snowflake, nitro: bool) -> Pk_Emoji, bool {
 		{ id, ok := strconv.parse_u64(key);
 		if ok && len(key) > 6 {
 			{ e, found := map_find(by_id, cast(dc.Snowflake)(id));
@@ -211,7 +211,7 @@ if ok { append(*items, it_); } } }
 	/*label frequent*/ {
 		reaction := pk.mode == .Reaction;
 		items := make_dynamic(Pk_Emoji, 0, 0, temp);
-		seen := Map(string, bool).{};
+		seen := Table(string, bool).{};
 		for k: frec_top(ifx reaction then frecency.reaction else frecency.emoji, EM_FREQUENT_MAX) {
 			{ it_, ok := key_item(k, by_id, here, nitro);
 			if ok && !get(seen, k) {
@@ -250,7 +250,7 @@ if ok { append(*items, it_); } } }
 // underscores removed) is a substring of a name with underscores removed; then
 // getSearchResultsOrder: score 1 + 4*exact + 2*word match + 1*prefix, times
 // max(1, frecency/100), descending, ties by name. Unlocked before locked.
-emoji_search :: (q: string, by_id: Map(dc.Snowflake, dc.Emoji), here: dc.Snowflake, nitro: bool) -> []Pk_Emoji {
+emoji_search :: (q: string, by_id: Table(dc.Snowflake, dc.Emoji), here: dc.Snowflake, nitro: bool) -> []Pk_Emoji {
 	Hit :: struct {
 		e: Pk_Emoji;
 		score: float64;
@@ -346,7 +346,7 @@ item_y :: (sc: *Em_Section, idx: int, cols: int) -> float32 {
 picker_expression_counts :: (reaction: bool, here: dc.Snowflake) -> dc.Expression_Counts {
 	n: dc.Expression_Counts;
 	s := store();
-	animated := Map(dc.Snowflake, bool).{};
+	animated := Table(dc.Snowflake, bool).{};
 	for gid: emoji_guilds() {
 		g := dc.guild_get(s, gid);
 		if g == null { continue; }
@@ -354,7 +354,7 @@ picker_expression_counts :: (reaction: bool, here: dc.Snowflake) -> dc.Expressio
 		n.custom_total += len(g.emojis);
 		if gid == here { n.current_guild = len(g.emojis); }
 	}
-	count :: (key: string, animated: Map(dc.Snowflake, bool), total: *int, anim: *int, custom: *int, standard: *int) {
+	count :: (key: string, animated: Table(dc.Snowflake, bool), total: *int, anim: *int, custom: *int, standard: *int) {
 		total.* += 1;
 		{ id, ok := strconv.parse_u64(key);
 		if ok && len(key) > 6 {
@@ -364,7 +364,7 @@ picker_expression_counts :: (reaction: bool, here: dc.Snowflake) -> dc.Expressio
 			standard.* += 1;
 		} }
 	}
-	for k: (ifx reaction then frecency.reaction else frecency.emoji) { count(k, animated, *n.frecent, *n.animated_frecent, *n.custom_frecent, *n.standard_frecent); }
+	for _, k: (ifx reaction then frecency.reaction else frecency.emoji) { count(k, animated, *n.frecent, *n.animated_frecent, *n.custom_frecent, *n.standard_frecent); }
 	for k: frecency.favorite_emojis { count(k, animated, *n.favorites, *n.animated_favorites, *n.custom_favorites, *n.standard_favorites); }
 	return n;
 }

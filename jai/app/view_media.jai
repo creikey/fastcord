@@ -6,7 +6,7 @@ Blob :: struct {
 }
 
 // Raw downloads (videos, audio) keyed by URL; they share the media fetch path with images.
-blobs: Map(string, Blob);
+blobs: Table(string, Blob);
 
 Inline_Player :: struct {
 	player: *media.Player;
@@ -14,7 +14,7 @@ Inline_Player :: struct {
 	img: media.Video_Image;
 }
 
-players: Map(dc.Snowflake, Inline_Player); // attachment id -> player
+players: Table(dc.Snowflake, Inline_Player); // attachment id -> player
 viewer_url: string; // image viewer overlay
 viewer_size: Int2;
 viewer_t: float32;

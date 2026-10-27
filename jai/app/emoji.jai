@@ -30,7 +30,7 @@
 
 // ---- lookup ----
 
-by_norm: Map(string, int);
+by_norm: Table(string, int);
 #scope_export
 #scope_file // FE0F-stripped surrogates -> index (emoji with an image only)
 // FE0F-stripped surrogates -> index (emoji with an image only)
@@ -46,7 +46,7 @@ strip_fe0f :: (s: string, allocator := temp) -> string {
 ensure_index :: () {
 	emoji_db_load();
 	if !is_null(by_norm) { return; }
-	by_norm = Map(string, int).{};
+	by_norm = Table(string, int).{};
 	for e, i: emoji_db.emojis {
 		if e.asset == "" { continue; } // ™ © ®: text, like the client
 		k := strip_fe0f(e.surr, context.allocator);
@@ -142,7 +142,7 @@ Twemoji :: struct {
 }
 
 
-twemojis: Map(string, Twemoji);
+twemojis: Table(string, Twemoji);
 tw_tex: Name_Px_Map;
 
 twemoji_get :: (hash: string, visible := true) -> *Twemoji {

@@ -53,7 +53,7 @@ Pf_State :: struct {
 	guild: dc.Snowflake;
 	tab: Pf_Tab;
 	t: float32;
-	profiles: Map(dc.Snowflake, Pf_Profile);
+	profiles: Table(dc.Snowflake, Pf_Profile);
 	menu_user: dc.Snowflake; // user context menu
 	menu_pos: ui.Vec2;
 }

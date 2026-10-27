@@ -12,6 +12,11 @@ get :: inline (m: Table, k: m.Key_Type) -> m.Value_Type { mm := m; p := table_fi
 has :: inline (m: Table, k: m.Key_Type) -> bool { mm := m; return table_find_pointer(*mm, k) != null; }
 at :: inline (m: *Table, k: m.Key_Type) -> *m.Value_Type { return find_or_add(m, k); }
 len :: inline (m: Table) -> int { return m.count; }
+map_set :: inline (m: *Table, k: m.Key_Type, v: m.Value_Type) { table_set(m, k, v); }
+delete_key :: inline (m: *Table, k: m.Key_Type) { table_remove(m, k); }
+clear :: (m: *Table) { table_reset_keeping_memory(m); }
+delete :: (m: Table) { mm := m; deinit(*mm); }
+reserve :: (m: *Table, n: int) { table_ensure_space(m, n); }
 
 // Int2: Odin [2]int, used with .x / .y swizzles.
 Int2 :: struct { x, y: int; }

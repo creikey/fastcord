@@ -20,7 +20,7 @@ Voice_App :: struct {
 	headless: bool; // no audio devices (screenshots / CI never open the mic)
 	auto_join: dc.Snowflake; // FASTCORD_JOIN_VOICE=<channel id>
 	auto_checked: bool;
-	speaking: Map(dc.Snowflake, bool); // this frame's speaking set
+	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
 }
 
 vc: Voice_App;

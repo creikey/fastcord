@@ -13,8 +13,8 @@ Voice_Settings :: struct {
 	auto_sens: bool;
 	threshold_db: float32; // -100..0
 	processing: audio.Voice_Processing;
-	user_volume: Map(dc.Snowflake, float32); // 0..200 %
-	user_muted: Map(dc.Snowflake, bool);
+	user_volume: Table(dc.Snowflake, float32); // 0..200 %
+	user_muted: Table(dc.Snowflake, bool);
 	// UI state
 	open_dropdown: int; // 0 none, 1 input, 2 output
 	meter_owner: bool; // the meter started the capture
@@ -101,8 +101,8 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.ptt_delay_ms = cast(int)(vs.ptt_delay_ms);
 	p.user_volume = Map(string, float32).{};
 	p.user_muted = Map(string, bool).{};
-	for k, v: vs.user_volume { if v != 100 { at(*p.user_volume, fmt.tprint(cast(u64)(k))).* = v; } }
-	for k, v: vs.user_muted { if v { at(*p.user_muted, fmt.tprint(cast(u64)(k))).* = true; } }
+	for v, k: vs.user_volume { if v != 100 { at(*p.user_volume, fmt.tprint(cast(u64)(k))).* = v; } }
+	for v, k: vs.user_muted { if v { at(*p.user_muted, fmt.tprint(cast(u64)(k))).* = true; } }
 }
 #scope_file
 
@@ -140,8 +140,8 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		voice.set_push_to_talk(conn, vs.ptt_mode, vs.ptt_held, cast(int)(vs.ptt_delay_ms));
 		voice.set_input_gain(conn, vs.input_volume / 100);
 		voice.set_input_sensitivity(conn, vs.auto_sens, vs.threshold_db);
-		for uid, v: vs.user_volume { voice.set_user_volume(conn, cast(u64)(uid), v / 100); }
-		for uid, m: vs.user_muted { voice.set_user_mute(conn, cast(u64)(uid), m); }
+		for v, uid: vs.user_volume { voice.set_user_volume(conn, cast(u64)(uid), v / 100); }
+		for m, uid: vs.user_muted { voice.set_user_mute(conn, cast(u64)(uid), m); }
 	}
 	if audio_ready { audio.set_volume(vs.output_volume / 100); }
 

@@ -10,10 +10,10 @@
 
 Forum_State :: struct {
 	requested_archived: bool;
-	requested_posts: Map(dc.Snowflake, bool);
+	requested_posts: Table(dc.Snowflake, bool);
 }
 
-forums: Map(dc.Snowflake, Forum_State);
+forums: Table(dc.Snowflake, Forum_State);
 #scope_export
 
 // ---- sidebar ----
