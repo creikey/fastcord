@@ -1,6 +1,6 @@
 // fastcord's one translation unit for Wuffs: compiles only the modules we use and wraps them in a
 // call-and-return API where the caller owns every byte (decoder state, work buffer, pixels).
-// Built by build.sh / build.bat into build/fc_wuffs.obj (.o elsewhere); bound in src/imagefmt.
+// Built by build.jai into build/fc_vendor.a; bound in src/imagefmt.
 
 // Scalar code on Windows: clang 11's MSVC-mode headers lack the AVX2 types Wuffs' SIMD paths use, and
 // MSVC needs /arch:AVX2 for them.

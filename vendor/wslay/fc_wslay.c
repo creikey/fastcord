@@ -1,5 +1,5 @@
-// fastcord's one translation unit for wslay: upstream's lib/. Bound in src/http/ws.odin. Built by
-// build.sh / build.bat into build/fc_wslay.obj (.o elsewhere).
+// fastcord's one translation unit for wslay: upstream's lib/. Bound in src/http/ws.jai. Built by
+// build.jai into build/fc_vendor.a.
 
 #define WSLAY_VERSION "1.1.1-0e7d106"
 #ifdef _WIN32

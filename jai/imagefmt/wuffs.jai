@@ -1,6 +1,6 @@
 // Every pixel decoder comes from Wuffs (vendor/wuffs), whose decoders are memory-safe by
-// construction: every bounds and overflow check is proven at compile time. build.sh / build.bat
-// compile it into build/fc_vendor. Wuffs draws each frame onto our canvas; disposal between frames
+// construction: every bounds and overflow check is proven at compile time. build.jai
+// compiles it into build/fc_vendor. Wuffs draws each frame onto our canvas; disposal between frames
 // happens here, and animated WebP's container is parsed in webp.jai.
 
 #scope_module

@@ -16,4 +16,4 @@ hand-written Odin decoder it replaced turned bounds checks off on network input.
 
 To update: replace `common/`, `dec/` and `include/brotli/` (decode.h, port.h, shared_dictionary.h,
 types.h) with the new release's files, record the version, commit and sha256 here, then run
-`./build.sh test brotli`.
+`jai build.jai - test`.

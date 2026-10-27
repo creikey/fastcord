@@ -1,7 +1,7 @@
 # nghttp2
 
 HTTP/2 client: framing, HPACK, flow control, stream states and validation of everything the server
-sends (`src/http/h2.odin` binds it). Upstream's `lib/` sources and headers, unmodified (build files
+sends (`src/http/h2.jai` binds it). Upstream's `lib/` sources and headers, unmodified (build files
 dropped), plus `COPYING`.
 
 - Source: https://github.com/nghttp2/nghttp2/releases/tag/v1.70.0, `nghttp2-1.70.0.tar.gz`

@@ -16,4 +16,4 @@ hand-written Odin decoder it replaced turned bounds checks off on network input.
 decoder (`build/single_file_libs/zstddeclib-in.c`) uses. `src/zstd` binds it.
 
 To update: replace `lib/` with the new release's files (same subset), record the version, commit and
-sha256 here, then run `./build.sh test zstd`.
+sha256 here, then run `jai build.jai - test`.

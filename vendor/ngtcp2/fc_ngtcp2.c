@@ -1,6 +1,6 @@
 // fc_ngtcp2.c: the HTTP/3 client connection src/quic drives. It owns every ngtcp2 and nghttp3 object, so
-// their struct layouts never cross into Odin; Odin owns the UDP socket, threads, locks and timing, and calls
-// these functions with its connection lock held. Events reach Odin through fc_quic_events, synchronously,
+// their struct layouts never cross into Jai; Jai owns the UDP socket, threads, locks and timing, and calls
+// these functions with its connection lock held. Events reach Jai through fc_quic_events, synchronously,
 // from inside fc_quic_read and fc_quic_handle_expiry; the pointers they pass are valid only during the call.
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN // wincrypt.h's macros clash with BoringSSL's X509_NAME and others.
@@ -155,7 +155,7 @@ static int new_cid(ngtcp2_conn *conn, ngtcp2_cid *cid, ngtcp2_stateless_reset_to
     return RAND_bytes(cid->data, cidlen) == 1 && RAND_bytes(token->data, sizeof token->data) == 1 ? 0 : NGTCP2_ERR_CALLBACK_FAILURE;
 }
 
-// nghttp3 -> Odin and ngtcp2.
+// nghttp3 -> Jai and ngtcp2.
 
 static void consume(fc_quic *q, int64_t id, size_t n) {
     ngtcp2_conn_extend_max_stream_offset(q->conn, id, n);

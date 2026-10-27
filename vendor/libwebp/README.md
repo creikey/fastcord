@@ -1,6 +1,6 @@
 # libwebp
 
-WebP encoding for uploads (`src/imagefmt/webp_encode.odin`, used by `src/discord/webp_convert.odin`).
+WebP encoding for uploads (`src/imagefmt/webp_encode.jai`, used by `src/discord/webp_convert.jai`).
 Upstream's release files, unmodified: `src/{enc,dsp,utils,dec,webp}`, `src/mux/{muxedit,muxinternal,muxread}.c`
 and `muxi.h`, `sharpyuv/`, plus `COPYING` and `PATENTS`. Only `.c` / `.h` files; no MIPS / MSA sources, demux,
 animation encoder, examples, tests or build files. The decoder (`src/dec`) is here only because the mux
@@ -17,12 +17,11 @@ could not match Chrome's output.
 
 `fc_libwebp.c` is ours: one call that encodes as Skia's `SkWebpEncoder` does for a lossless canvas
 (`WebPConfigPreset` default at quality 75, `lossless = 1`, `method = 0`, `use_argb = 1`,
-`WebPPictureImportRGBA`, then `WebPMux` adds the ICC profile). `build.sh` / `build.bat` compile it into
-`build/fc_libwebp.obj` (`.o` on macOS); `fc_libwebp.sources` lists the 99 library files they compile into
-`build/fc_libwebp.lib` (Windows, with MSVC's `cl`: its SSE4.1 / AVX2 files need no `-m` flags there, unlike
-clang-cl) or `build/libfc_libwebp.a` (macOS, arm64 + x86_64); `fc_libwebp.cflags` holds the include path.
+`WebPPictureImportRGBA`, then `WebPMux` adds the ICC profile). `build.jai` compiles it into
+`build/fc_vendor.a` with the 99 library files `fc_libwebp.sources` lists (arm64 + x86_64);
+`fc_libwebp.cflags` holds the include path.
 
 To update: download the new release tarball, copy the same directories (`.c` / `.h` only, without
 `*mips*` / `*msa*`, `src/demux`, `src/webp/demux.h`, `src/mux/anim_encode.c`, `src/mux/animi.h`), regenerate
 `fc_libwebp.sources` (every `.c` but `fc_libwebp.c`, sorted), record the version and sha256 here, then run
-`./build.sh test discord` (`webp_conversion_rules` checks the bytes against Chrome's).
+`jai build.jai - test` (`webp_conversion_rules` checks the bytes against Chrome's).

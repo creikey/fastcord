@@ -1,6 +1,6 @@
 # picohttpparser
 
-HTTP/1.1 response-head parser and chunked-body decoder (`src/http/h1.odin` binds it).
+HTTP/1.1 response-head parser and chunked-body decoder (`src/http/h1.jai` binds it).
 `picohttpparser.c` and `picohttpparser.h`, unmodified.
 
 - Source: https://github.com/h2o/picohttpparser at commit 465a7ff09fbd3432fe56c673451f5460154d1f07

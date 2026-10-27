@@ -13,8 +13,8 @@ filters them: the decoder must be the most-tested one there is.
 Only the float build's files are kept: `include/`, `celt/`, `silk/`, `silk/float/` and the `src/` files
 the single-stream codec needs (no SIMD, DNN, multistream or demo code). `fc_opus.c` compiles them as one
 translation unit with the flags in `fc_opus.cflags` (`ENABLE_HARDENING` is upstream's default) and adds a
-non-variadic ctl wrapper. `src/opus/opus.odin` binds it.
+non-variadic ctl wrapper. `src/opus/opus.jai` binds it.
 
 To update: unpack a newer release, copy the same directories over (check `celt_sources.mk`,
 `silk_sources.mk` and `opus_sources.mk` for added files and mirror them in `fc_opus.c`), record the
-version and sha256 here, then run `./build.sh test opus`.
+version and sha256 here, then run `jai build.jai - test`.

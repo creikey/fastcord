@@ -1,5 +1,5 @@
 // fastcord's wrapper over libwebp's encoder and mux (vendor/libwebp, the library itself is built from
-// fc_libwebp.sources). Built by build.sh / build.bat into build/fc_libwebp.obj (.o elsewhere); bound
+// fc_libwebp.sources). Built by build.jai into build/fc_vendor.a; bound
 // in src/imagefmt.
 //
 // fc_webp_lossless encodes as Chromium's canvas.toBlob("image/webp", 1) does: blink's

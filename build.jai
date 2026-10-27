@@ -1,4 +1,4 @@
-// jai build.jai - [app|dev|debug|parity|test [names]|run <file.jai>|tool <name>|release <vX.Y.Z> [publish]|c]
+// jai build.jai - <target>: see USAGE below.
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
 // into build/, then the Jai program, then links everything with the system clang.
 #import "Basic";
@@ -8,6 +8,7 @@
 #import "File_Utilities";
 #import "String";
 #import "Thread";
+#import "System";
 
 #run build();
 
@@ -36,11 +37,44 @@ build :: () {
                 for 1..args.count-1 array_add(*a, args[it]);
                 ok = run_command(..a).exit_code == 0;
             }
+        case "module"; ok = compile(tprint("sm_%", args[1]), tprint("m :: #import \"%\"; main :: () {}", args[1]));  // type-check one module
+        case "ui";     ok = compile("fastcord-dev", APP, .OPTIMIZED) && ui_scripts();
+        case "bench";  ok = compile("fastcord-dev", APP, .OPTIMIZED) && bench(args);
+        case "check";
+            // everything before a commit: the offline parity tests, the UI scripts and sweep, the bench budget, secrets
+            ok = compile("test-discord-jai", file = "jai/tests/discord.jai", optimization = .OPTIMIZED)
+                && run_command("build/test-discord-jai").exit_code == 0
+                && compile("fastcord-dev", APP, .OPTIMIZED) && ui_scripts() && bench(.["bench"])
+                && run_command("python3", "-I", "tools/check_secrets.py").exit_code == 0;
+            print(ifx ok then "check: all passed\n" else "check: FAILED\n");
         case "release"; ok = release(args);
-        case; log_error("usage: jai build.jai - [app|dev|debug|parity|test [names]|run <file.jai>|tool <name>|release <vX.Y.Z> [publish]|c]"); return;
+        case "release_x64"; ok = compile("fastcord-x86_64", tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", args[1]), .VERY_OPTIMIZED);
+        case "og";
+            // site/og.jpg, the 1200x630 link preview, from tools/og/card.html with headless Chrome
+            ok = run_command("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--headless=new", "--disable-gpu",
+                    "--hide-scrollbars", "--force-device-scale-factor=1", "--window-size=1200,630", "--screenshot=build/og.png",
+                    tprint("file://%/tools/og/card.html", get_working_directory())).exit_code == 0
+                && run_command("sips", "-s", "format", "jpeg", "-s", "formatOptions", "88", "build/og.png", "--out", "site/og.jpg").exit_code == 0;
+        case; log_error(USAGE); return;
     }
     if !ok compiler_set_workspace_status(.FAILED);
 }
+
+USAGE :: #string END
+usage: jai build.jai - <target>
+  app | dev | debug           the app: build/fastcord, fastcord-dev (optimised + symbols), fastcord-debug
+  test [names]                offline traffic-parity tests (substrings pick tests)
+  ui                          headless UI scripts (tests/ui) and the dead-control sweep
+  bench [name] [save]         UI benchmark against the fixture; "save" keeps it as the local baseline
+  check                       test + ui + bench budget + secrets scan: run before committing
+  module <name>               type-check one module (every procedure)
+  parity                      build/parity (live traffic sessions; human-run only)
+  tool <name>                 build/<name> from jai/tool_<name>
+  run <file.jai>              build any program file
+  release <vX.Y.Z> [publish]  dist/fastcord-macos.zip; publish uploads it to the GitHub release
+  og                          site/og.jpg (link preview) from tools/og/card.html
+  c                           only the vendored C libraries
+END
 
 // compile builds one program into build/<name>: the root is a file or a build string.
 compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG, file := "", cpu := CPU) -> bool {
@@ -56,7 +90,8 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     o.output_path = "build";
     o.cpu_target = cpu;
     set_optimization(*o, optimization);   // first: it resets the checks below
-    o.dead_code_elimination = .NONE; // type-check every procedure, not only the ones called
+    // type-check every procedure, not only the ones called; shipping builds drop the dead ones
+    if optimization != .VERY_OPTIMIZED o.dead_code_elimination = .NONE;
     o.cast_bounds_check = .OFF;      // integer casts truncate, as the wire encoders expect
     set_build_options(o, w);
     compiler_begin_intercept(w);
@@ -86,7 +121,9 @@ release :: (args: []string) -> bool {
     version := args[1];
     root := tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", version);
     if !compile("fastcord-arm64", root, .VERY_OPTIMIZED, cpu = .ARM64) return false;
-    if !compile("fastcord-x86_64", root, .VERY_OPTIMIZED, cpu = .X64) return false;
+    // The x86_64 half comes from the compiler's own x86_64 slice under Rosetta, not a cross-compile: the
+    // ARM compiler can't run Basic's x86 #asm (print, calendar math) in the x86_64 program's #run code.
+    if run_command("arch", "-x86_64", get_path_of_running_executable(), "build.jai", "-", "release_x64", version).exit_code != 0 return false;
     app := "build/pkg/Fastcord.app";
     run_command("rm", "-rf", "build/pkg", "dist");
     make_directory_if_it_does_not_exist(tprint("%/Contents/MacOS", app), recursive = true);
@@ -95,6 +132,7 @@ release :: (args: []string) -> bool {
     plain := slice(version, 1, version.count - 1);
     plist := tprint(INFO_PLIST, plain, plain);
     ok := run_command("lipo", "-create", "build/fastcord-arm64", "build/fastcord-x86_64", "-output", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0
+        && run_command("strip", "-x", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0  // local symbols: ~2 MB per arch
         && run_command("cp", "assets/Fastcord.icns", tprint("%/Contents/Resources/", app)).exit_code == 0
         && write_entire_file(tprint("%/Contents/Info.plist", app), plist)
         // ad-hoc signature (required to launch on Apple silicon); not notarized
@@ -109,6 +147,85 @@ release :: (args: []string) -> bool {
         return run_command("gh", "release", "create", version, "dist/fastcord-macos.zip", "--target", head, "--title", version, "--generate-notes").exit_code == 0;
     }
     return run_command("gh", "release", "upload", version, "dist/fastcord-macos.zip", "--clobber").exit_code == 0;
+}
+
+// Runs a program with TZ=UTC (fixed clocks in fixtures), saving its output to log; true on exit 0.
+run_logged :: (log: string, args: ..string) -> bool {
+    a: [..]string;
+    array_add(*a, "/usr/bin/env", "TZ=UTC");
+    for args array_add(*a, it);
+    r, out, err := run_command(..a, capture_and_return_output = true);
+    write_entire_file(log, join(out, err));
+    return r.exit_code == 0;
+}
+
+// Every tests/ui script (chat fixture), tests/ui/rail script (rail fixture) and the dead-control sweep, as
+// parallel headless processes; results print in a fixed order.
+ui_scripts :: () -> bool {
+    Job :: struct { name: string; args: [..]string; ok: bool; }
+    jobs: [..]Job;
+    BIN :: "build/fastcord-dev";
+    add :: (jobs: *[..]Job, name: string, fixture: string, script: string) {
+        j := array_add(jobs);
+        j.name = name;
+        array_add(*j.args, BIN, tprint("-shot:build/ui-%.png", path_strip_extension(path_filename(script))), "-dpi:1", "-now:1793016000",
+            tprint("-fixture:%", fixture), "-channel:1546820603343016006", tprint("-script:%", script));
+    }
+    for file_list("tests/ui") if ends_with(it, ".txt") && !ends_with(it, "sweep.txt") && !ends_with(it, "sweep_allow.txt")
+        add(*jobs, path_strip_extension(path_filename(it)), "tests/ui/chat.jsonl", it);
+    for file_list("tests/ui/rail") if ends_with(it, ".txt")
+        add(*jobs, tprint("rail_%", path_strip_extension(path_filename(it))), "tests/ui/rail.jsonl", it);
+    sweep := array_add(*jobs);
+    sweep.name = "sweep";
+    array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");
+    make_directory_if_it_does_not_exist("build/uires");
+    threads := NewArray(jobs.count, Thread);
+    for * threads {
+        thread_init(it, (t: *Thread) -> s64 {
+            j := cast(*Job) t.data;
+            j.ok = run_logged(tprint("build/uires/%.log", j.name), ..j.args);
+            return 0;
+        });
+        it.data = *jobs[it_index];
+        thread_start(it);
+    }
+    ok := true;
+    for * threads { thread_is_done(it, -1); thread_deinit(it); }
+    for jobs {
+        print("% %\n", ifx it.ok then "PASS" else "FAIL", it.name);
+        if !it.ok {
+            ok = false;
+            log := read_entire_file(tprint("build/uires/%.log", it.name));
+            print("    %\n", replace(log, "\n", "\n    "));
+        }
+    }
+    return ok;
+}
+
+// The UI benchmark: every tests/bench script headless against the generated heavy fixture, profiled, compared
+// with the local baseline and the counter budget (tests/bench/budget.json). See README "Performance".
+bench :: (args: []string) -> bool {
+    only, save := "", false;
+    for 1..args.count-1 { if args[it] == "save" save = true; else only = args[it]; }
+    make_directory_if_it_does_not_exist("build/bench");
+    if file_modtime_and_size("tests/bench/make_bench_fixture.py") > file_modtime_and_size("build/bench/heavy.jsonl")
+        if run_command("python3", "-I", "tests/bench/make_bench_fixture.py", "build/bench/heavy.jsonl").exit_code != 0 return false;
+    file_delete("build/bench/latest.jsonl");
+    for file_list("tests/bench") {
+        if !ends_with(it, ".txt") continue;
+        name := path_strip_extension(path_filename(it));
+        if only && only != name continue;
+        // account.txt starts at home like a fresh launch; the others open the bench channel
+        a: [..]string;
+        array_add(*a, "FASTCORD_MEDIA_DIR=build/bench/media", "build/fastcord-dev", "-dpi:1", "-now:1793016000",
+            "-fixture:build/bench/heavy.jsonl", "-bench:build/bench/latest.jsonl", tprint("-prof:build/bench/%", name), tprint("-script:%", it));
+        if name != "account" array_add(*a, "-channel:1600000000000100003");
+        if !run_logged(tprint("build/bench/%.log", name), ..a) { print("FAIL % (see build/bench/%.log)\n", it, name); return false; }
+    }
+    ok := run_command("python3", "-I", "tools/bench_compare.py", "build/bench/latest.jsonl", "--baseline", "build/bench/baseline.jsonl",
+        "--budget", "tests/bench/budget.json").exit_code == 0;
+    if save { write_entire_file("build/bench/baseline.jsonl", read_entire_file("build/bench/latest.jsonl")); print("saved build/bench/baseline.jsonl\n"); }
+    return ok;
 }
 
 INFO_PLIST :: #string XML

@@ -7,7 +7,7 @@ compare fastcord with them.
 
 ## 1. Offline parity tests (day to day, no network)
 
-`src/discord/replay_test.odin` runs the library against a fixture with no
+`src/discord/replay_test.jai` runs the library against a fixture with no
 network:
 
 - HTTP is answered from the recorded responses (`Config.round_tripper`). Each
@@ -29,18 +29,15 @@ network:
   1 s), so response-time events land as far apart as they did officially.
 - Gaps that are known and documented are passed per test as an allow-list.
 
-Run all of them (they run with the rest of the discord tests, about 4 s):
+Run all of them (about 4 s):
 
-    ./build.sh test discord
+    jai build.jai - test
 
-Run one:
+Run one (names are substrings):
 
-    odin test src/discord -collection:fc=src -out:build/test-discord -define:ODIN_TEST_NAMES=discord.parity_send_message
+    jai build.jai - test parity_send_message
 
-Tests cover these windows:
-There are 25 tests covering these windows:
 The tests cover these windows:
-There are 28 tests covering these windows:
 
 - messages: send_message, typing, reply, edit_message, delete_message
 - reactions: add_reaction, remove_reaction, emoji_picker_reaction, add_custom_reaction
@@ -106,9 +103,8 @@ in parallel): they use the heap allocator and are torn down with the last client
 windows). All pass. A test that fails prints what differs from the official client
 (missing / extra request, wire order, body or gateway payload shape).
 
-`tests/run_all.sh` and CI only run these offline tests. `run_all.sh` unsets
-`FASTCORD_LIVE`, so no live test runs even if the caller's environment sets it.
-Nothing in `run_all.sh`, `tests/ui/run.sh` or CI calls the live session runner.
+`jai build.jai - check` runs only these offline tests; nothing in it calls the
+live session runner.
 
 When a feature changes, update its offline test. A new feature needs a fixture
 window (capture tooling) and a `parity_<feature>` test.
@@ -142,34 +138,34 @@ Allow-list entries for telemetry:
 never sends: NUX / upsell / quest events, experiment exposures and the official
 media engine's voice events (`voice_connection_*`, `start_speaking`,
 `leave_voice_channel`...); they and the other unsendable events are in
-`analytics_unknowable` (analytics.odin) with the reason. `send_message_roundtrip`
+`analytics_unknowable` (analytics.jai) with the reason. `send_message_roundtrip`
 is sampled at 10 % and disabled offline.
 
 Every event needs the window's viewport and the accessibility flags: the
 library drops events until both are reported. The app reports them right after
-creating the client and then every frame (`src/app/analytics_env.odin`);
+creating the client and then every frame (`src/app/analytics_env.jai`);
 `app.test_analytics_env_lets_events_through` guards that (the replay tests set
 them themselves).
 
 The tracker's per-event throttles are the library's (`SCI_THROTTLES` in
-analytics.odin, from the bundle's `throttlePeriod` table): `channel_opened` per
+analytics.jai, from the bundle's `throttlePeriod` table): `channel_opened` per
 channel and view for 15 min, `guild_viewed` per guild, `friends_list_viewed` per
 tab, `keyboard_shortcut_used` per shortcut for 2 min, `ack_messages`... So
 returning to a channel opened earlier sends nothing, as officially; a test that
 starts on a channel has already sent its `channel_opened` (the launch route's
 `channel_opened` / `guild_viewed` / Friends views go out on READY).
 
-Reporting a UI event (`src/discord/analytics_events.odin`): one typed helper
+Reporting a UI event (`src/discord/analytics_events.jai`): one typed helper
 per event, which builds the event's own properties in the fixture's key order
 and hands them to `analytics_track` (the decorations are added there):
 
-```odin
-analytics_<event> :: proc(c: ^Client, ...) {
-	w := aw_begin()
-	json_kstr(&w, "location", ...)    // the event's own keys, in fixture order
-	aw_guild(&w, c, guild_id)         // shared groups: guild / channel decorations
-	aw_channel(&w, c, channel_id)
-	aw_track(c, "<event>", &w)
+```jai
+analytics_<event> :: (c: *Client, ...) {
+	w := aw_begin();
+	json_kstr(*w, "location", ...);   // the event's own keys, in fixture order
+	aw_guild(*w, c, guild_id);        // shared groups: guild / channel decorations
+	aw_channel(*w, c, channel_id);
+	aw_track(c, "<event>", *w);
 }
 ```
 
@@ -206,7 +202,7 @@ Events sent now, by scenario:
 
 ## 2. Live session (rare, manual)
 
-`src/discord/parity/session.sh [scenario...]` is the only live runner, and
+`jai build.jai - parity && build/parity session [scenario...]` is the only live runner, and
 nothing invokes it automatically. It behaves like one person using the app:
 
 - A launches once (that start is the `cold_start` measurement). B launches the
@@ -216,7 +212,7 @@ nothing invokes it automatically. It behaves like one person using the app:
   steps. There is no relaunch per scenario and no padding between scenarios.
 - Each scenario is recorded separately (`.secrets/raw/ours_<s>.jsonl` plus a
   Chrome-format netlog per account).
-- Each recording is scrubbed and compared with `tools/trafficdiff -actions`:
+- Each recording is scrubbed and compared with `build/trafficdiff -actions`:
   only the action windows, because the fixtures' preludes and launches are the
   official run's own. `cold_start` is compared whole, with its connection facts
   (QUIC transport parameters, h3/h2 SETTINGS, ALPN).
@@ -226,7 +222,7 @@ When a live run is warranted:
 - before a release;
 - when the official client version changes;
 - when the fixtures are re-captured;
-- for one targeted scenario of the feature being changed: `session.sh send_message`.
+- for one targeted scenario of the feature being changed: `build/parity session send_message`.
 
 Don't run full sweeps in the normal loop.
 
@@ -236,7 +232,9 @@ session (32 scenarios, about 35 minutes) got no 429s. Retries honour
 `Retry-After` and the per-URL hold. A 429 in a session is a bug in our traffic,
 not something to wait out.
 
-### Last full session (2026-10-26)
+### Last full session (2026-10-27, Jai build)
+
+32 scenarios in 14 minutes, no 429s. Totals: 438 all / 189 core (the last Odin session: 404 / 196).
 
 - `all` counts every trafficdiff difference in the action windows (cold_start
   whole).
@@ -245,37 +243,37 @@ not something to wait out.
 
 | scenario | all | core | remaining core differences |
 |---|---:|---:|---|
-| cold_start | 34 | 9 | detectables ETag values (server), status page 200 vs 304, config_0 cache bucket, op 41 init timestamp, ads-decision timing, first-connection `initial_round_trip_time` |
-| send_message | 1 | 1 | settings-proto/2 frecency PATCH |
+| cold_start | 18 | 8 | detectables ETag values (server), status page 200 vs 304, config_0 cache bucket, op 41 init timestamp, ads-decision timing, first-connection `initial_round_trip_time` |
+| send_message | 2 | 1 | settings-proto/2 frecency PATCH |
 | typing | 1 | 1 | first-heartbeat op 40 timing |
-| add_reaction | 13 | 1 | session state: command index / emoji picker already loaded earlier in the session |
+| add_reaction | 19 | 0 | session state: command index / emoji picker already loaded earlier in the session |
 | remove_reaction | 2 | 1 | heartbeat timing |
-| delete_message | 6 | 2 | session state (command index loaded) |
-| edit_message | 7 | 3 | session state, settings-proto/2 |
-| reply | 7 | 3 | session state, settings-proto/2 |
-| upload_image | 13 | 9 | GCS `upload_id` (fixture predates the scrub fix), DevTools `$omitted` PUT body, upload timing |
-| open_profile_popout | 4 | 1 | session state |
-| open_full_profile | 17 | 11 | profile-widget follow-ups (applications/public, games, oauth2/tokens) not modelled |
+| delete_message | 8 | 2 | session state (command index loaded) |
+| edit_message | 8 | 2 | session state, settings-proto/2 |
+| reply | 8 | 2 | session state, settings-proto/2 |
+| upload_image | 10 | 6 | GCS `upload_id` (fixture predates the scrub fix), DevTools `$omitted` PUT body, upload timing |
+| open_profile_popout | 5 | 0 | session state |
+| open_full_profile | 17 | 8 | profile-widget follow-ups (applications/public, games, oauth2/tokens) not modelled |
 | emoji_picker_reaction | 15 | 3 | picker data already loaded in the session |
-| add_custom_reaction | 20 | 6 | picker data already loaded |
-| gif_send | 5 | 0 | |
-| open_image_attachment | 5 | 3 | media viewer image timing |
-| scroll_history | 0 | 0 | |
-| quick_switcher_nav | 46 | 39 | autocomplete throttling, Chrome HTTP-cache revalidation (`if-modified-since`) of autocomplete GETs, `/games?game_ids` lookups |
-| switch_theme | 11 | 0 | |
-| join_voice_channel | 13 | 2 | `preferred_regions`, voice RTC not connected |
-| status_change | 6 | 0 | |
-| custom_status | 19 | 8 | popout already loaded in the session, expiry timestamp value, heartbeat |
-| open_guild_and_channel | 10 | 9 | session state: guild-open set already sent (a launch-time effect in the fixture) |
-| open_dm | 8 | 3 | DM header profile variants |
-| close_dm | 31 | 23 | quick-switcher autocomplete (as above), DM profile variants |
-| start_group_dm | 11 | 4 | the official run sent no recipient PUT; session state |
-| create_guild | 29 | 20 | Referer (route), op 37/43 order (fixed since, offline test passes) |
-| mark_as_read | 15 | 10 | session state, heartbeats |
-| voice_with_b | 32 | 8 | RTC not connected (`rtc_connected` QoS), op 31 order |
-| friend_request_send | 4 | 2 | |
-| friend_request_accept | 8 | 7 | B's account-state startup items |
-| send_dm | 3 | 2 | |
+| add_custom_reaction | 25 | 5 | picker data already loaded |
+| gif_send | 6 | 1 | |
+| open_image_attachment | 4 | 2 | media viewer image timing |
+| scroll_history | 1 | 1 | |
+| quick_switcher_nav | 57 | 41 | autocomplete throttling, Chrome HTTP-cache revalidation (`if-modified-since`) of autocomplete GETs, `/games?game_ids` lookups |
+| switch_theme | 12 | 1 | |
+| join_voice_channel | 15 | 2 | `preferred_regions`, voice RTC not connected |
+| status_change | 10 | 0 | |
+| custom_status | 23 | 9 | popout already loaded in the session, expiry timestamp value, heartbeat |
+| open_guild_and_channel | 11 | 10 | session state: guild-open set already sent (a launch-time effect in the fixture) |
+| open_dm | 9 | 4 | DM header profile variants |
+| close_dm | 32 | 23 | quick-switcher autocomplete (as above), DM profile variants |
+| start_group_dm | 16 | 4 | the official run sent no recipient PUT; session state |
+| create_guild | 31 | 21 | Referer (route), op 37/43 order (fixed since, offline test passes) |
+| mark_as_read | 16 | 11 | session state, heartbeats |
+| voice_with_b | 36 | 6 | RTC not connected (`rtc_connected` QoS), op 31 order |
+| friend_request_send | 3 | 1 | |
+| friend_request_accept | 5 | 4 | B's account-state startup items |
+| send_dm | 5 | 4 | |
 | friend_remove | 8 | 5 | |
 
 "Session state" differences are expected. Each official fixture was recorded

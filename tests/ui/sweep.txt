@@ -1,7 +1,7 @@
-# Dead-control sweep screens (tests/ui/run.sh runs: fastcord-dev -sweep:tests/ui/sweep.txt).
+# Dead-control sweep screens (jai build.jai - ui runs: fastcord-dev -sweep:tests/ui/sweep.txt).
 # screen <name> <fixture> [channel=<id>] [size=WxH] [hold_mouse]
 # Indented lines are the script commands that reach the screen from a fresh
-# state (see run_script in src/app/main.odin). Every reachable clickable box on
+# state (see run_script in src/app/main.jai). Every reachable clickable box on
 # the screen is clicked from that fresh state; anything inert must be listed in
 # tests/ui/sweep_allow.txt with a reason.
 

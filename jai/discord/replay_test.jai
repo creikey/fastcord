@@ -1082,7 +1082,7 @@ parity_upload_custom_emoji :: (t: *T) {
 	replay_mark(*run);
 	// fastcord uploads from the emoji picker's "Add Emoji"; the capture is the
 	// server settings upload (same request)
-	upload_guild_emoji(run.c, R_GUILD, "src/imagefmt/testdata/t_trns_gray.png", "fastcord_test");
+	upload_guild_emoji(run.c, R_GUILD, "tests/data/t_trns_gray.png", "fastcord_test");
 	replay_dispatches(*run, "upload_emoji", "GUILD_EMOJIS_UPDATE");
 	replay_settle(*run, 600);
 	// the upload's result, as the app takes it (the feature pool is shared by the parallel tests)
@@ -1483,7 +1483,7 @@ parity_upload_options :: (t: *T) {
 
 	replay_mark(*run);
 	// the official paste was a PNG the WebP didn't shrink (insufficient_savings): so is this one
-	small, sok := read_entire_file("src/imagefmt/testdata/t_trns_gray.png");
+	small, sok := read_entire_file("tests/data/t_trns_gray.png");
 	expect(t, sok);
 	defer free(small);
 	h3 := upload_draft(c, R_UPLOAD_CH, "image.png", "image/png", cast([]u8) small, "clipboard");
