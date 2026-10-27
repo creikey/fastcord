@@ -94,4 +94,4 @@ zstd :: #import "zstd";
 #load "value.jai";
 #load "webp_convert.jai";
 #load "local.jai";
-#if TESTS { #import "File"; #import "Sort"; #import "System"; #load "testing.jai"; #load "replay_test.jai"; }
+#if TESTS { #import "File"; #import "Sort"; #import "System"; POSIX :: #import "POSIX"; #load "testing.jai"; #load "replay_test.jai"; }

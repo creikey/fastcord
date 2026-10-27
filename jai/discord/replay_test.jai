@@ -11,24 +11,27 @@
 
 #scope_file
 
-R_GUILD :: cast(Snowflake)(1564227669971832975);
-R_TEXT :: cast(Snowflake)(1564227670806364343);
-R_VOICE :: cast(Snowflake)(1564227670806364345);
-R_DM :: cast(Snowflake)(1564228964451356713);
-R_B :: cast(Snowflake)(1564202918369042442);
+STRING_TMP :: #import "String"; slice :: STRING_TMP.slice; // TEMP until module.jai drops fc_slice
+
+R_GUILD :: cast(Snowflake) 1564227669971832975;
+R_TEXT :: cast(Snowflake) 1564227670806364343;
+R_VOICE :: cast(Snowflake) 1564227670806364345;
+R_DM :: cast(Snowflake) 1564228964451356713;
+R_B :: cast(Snowflake) 1564202918369042442;
 // the test guild's text channel after it was recreated (fixtures threads_browser,
 // history_nav, discover...: no system channel)
-R_TEXT2 :: cast(Snowflake)(1564405699197407414);
+R_TEXT2 :: cast(Snowflake) 1564405699197407414;
 
 // Requests the comparison leaves out: UI assets and images the app fetches
 // itself, the RTC probe and Cloudflare's page challenge. Telemetry (/science)
 // is compared on its own, per event (r_science_check).
-R_IGNORE := string.["/assets/", "collectibles-shop", "latency.discord.media", "/cdn-cgi/", "media.discordapp.net", "/app-icons/", "/emojis/", "/avatars/", "/stickers/", "images-ext"];
-#scope_export
+R_IGNORE :: string.["/assets/", "collectibles-shop", "latency.discord.media", "/cdn-cgi/", "media.discordapp.net", "/app-icons/", "/emojis/", "/avatars/", "/stickers/", "images-ext"];
 
+// A replay is shared by the test thread and the client's workers: everything below mu, and every
+// allocation from pool (a Flat_Pool is single-threaded) happens with mu held or before the client starts.
 Replay :: struct {
 	mu: locks.Mutex;
-	arena: Flat_Pool;
+	pool: Flat_Pool;
 	events: [..]etf.Map; // fixture lines (acct a), placeholders turned into ids
 	used: [..]bool;
 	ours: [..]Replay_Req;
@@ -47,7 +50,6 @@ Replay_Send :: struct {
 	op: s64;
 	shape: string;
 }
-#scope_file
 
 // ---- fixture ----
 
@@ -56,270 +58,225 @@ Replay_Send :: struct {
 // New objects ("<new:N>") sort after the fixture's real ids, in creation order.
 r_unscrub :: (v: V) -> V {
 	if v.kind == {
-	case .String; x := v.s;
-		if len(x) > 3 && x[0] == #char "<" && x[len(x) - 1] == #char ">" && strings.contains(x, ":") {
-			// "<new:N>": created during the capture, in N order, after every real id
-			if strings.has_prefix(x, "<new:") {
-				{ n, ok := strconv.parse_u64(sub(x, 5, len(x) - 1));
-				if ok { return to_v(fmt.aprintf("%d", 1_700_000_000_000_000_000 + (n << 22))); } }
+		case .String;
+			x := v.s;
+			if x.count > 3 && x[0] == #char "<" && x[x.count - 1] == #char ">" && contains(x, ":") {
+				// "<new:N>": created during the capture, in N order, after every real id
+				if begins_with(x, "<new:") {
+					n, ok := parse_u64(slice(x, 5, x.count - 6));
+					if ok return etf.vstring(sprint("%", 1_700_000_000_000_000_000 + (n << 22)));
+				}
+				return etf.vstring(sprint("%", 1_100_000_000_000_000_000 + cast(u64) fnv32a(x)));
 			}
-			return to_v(fmt.aprintf("%d", 1_100_000_000_000_000_000 + cast(u64)(fnv32a(x))));
-		}
-	case .List; x := v.list;
-		for * e: x { e.* = r_unscrub(e.*); }
-	case .Map; x := v.map;
-		for * p: x { p.value = r_unscrub(p.value); }
+		case .List; for * v.list it.* = r_unscrub(it.*);
+		case .Map;  for * v.map it.value = r_unscrub(it.value);
 	}
 	return v;
 }
 
-fnv32a :: (s: string) -> u32 { // Odin's hash.fnv32a
+fnv32a :: (s: string) -> u32 {
 	h: u32 = 0x811c9dc5;
-	for i: 0..s.count-1 { h ^= s[i]; h *= 0x01000193; }
+	for cast([]u8) s { h ^= it; h *= 0x01000193; }
 	return h;
 }
 
 replay_load :: (r: *Replay, scenario: string, acct := "a") -> bool {
-	push_allocator(pool_allocator(*r.arena));
-	// appended to from worker threads later: keep them in the replay arena too
-	r.ours = make_dynamic(Replay_Req, 0, 0);
-	r.sends = make_dynamic(Replay_Send, 0, 0);
-	r.science = make_dynamic(Sci_Batch, 0, 0);
-	data, err := os.read_entire_file(fmt.tprintf("traffic/%s.jsonl", scenario), context.allocator); // tests run from the repo root
-	if err != null { return false; }
-	text := as_string(data);
-	while true { line, __ok2 := strings.split_lines_iterator(*text); if !__ok2 break;
-		v, perr := etf.from_json(line);
-		if perr != .None { continue; }
+	push_allocator(pool_allocator(*r.pool));
+	// appended to from worker threads later (under mu): keep them in the pool too
+	r.ours.allocator, r.sends.allocator, r.science.allocator = context.allocator, context.allocator, context.allocator;
+	text, ok := read_entire_file(tprint("traffic/%.jsonl", scenario)); // tests run from the repo root
+	if !ok return false;
+	for line: split(text, "\n") {
+		v, err := etf.from_json(line);
+		if err != .None continue;
 		m := vmap(v);
 		// account a's lines carry no "acct" (or "a"); marks belong to both
 		a := fstr(m, "acct");
-		if a == "" { a = "a"; }
-		if a != acct && fstr(m, "k") != "mark" { continue; }
-		append(*r.events, vmap(r_unscrub(v)));
-		append(*r.used, false);
+		if a == "" a = "a";
+		if a != acct && fstr(m, "k") != "mark" continue;
+		array_add(*r.events, vmap(r_unscrub(v)));
+		array_add(*r.used, false);
 	}
 	return true;
 }
 
 // window: the fixture events between mark `name` and the next mark.
 replay_window :: (r: *Replay, name: string) -> []etf.Map {
-	start, end := -1, len(r.events);
-	for e, i: r.events {
-		if fstr(e, "k") != "mark" { continue; }
+	start, end := -1, r.events.count;
+	for r.events {
+		if fstr(it, "k") != "mark" continue;
 		if start >= 0 {
-			end = i;
+			end = it_index;
 			break;
 		}
-		if fstr(e, "name") == name { start = i + 1; }
+		if fstr(it, "name") == name start = it_index + 1;
 	}
-	if start < 0 { return .{}; }
-	return sub(r.events, start, end);
+	if start < 0 return .[];
+	return array_view(r.events, start, end - start);
 }
 
 // URL key: host + path with ids folded to {id}, query names without values.
 r_key :: (method: string, url: string) -> string {
 	u := url;
-	{ i := strings.index(u, "://");
-	if i >= 0 { u = sub_from(u, i + 3); } }
+	i := find_index_from_left(u, "://");
+	if i >= 0 u = advance(u, i + 3);
 	path, query := u, "";
-	{ i := strings.index_byte(u, #char "?");
-	if i >= 0 { path, query = sub(u, 0, i), sub_from(u, i + 1); } }
-	sb := strings.builder_make(temp);
-	fmt.sbprintf(*sb, "%s ", method);
-	for seg, i: strings.split(path, "/", temp) {
-		if i > 0 { strings.write_byte(*sb, #char "/"); }
-		digits := len(seg) >= 15;
-		for ch: seg { if ch < #char "0" || ch > #char "9" { digits = false; } }
-		strings.write_string(*sb, ifx digits || (strings.has_prefix(seg, "%3C") || strings.has_prefix(seg, "<")) then "{id}" else seg);
+	i = find_index_from_left(u, #char "?");
+	if i >= 0 path, query = slice(u, 0, i), advance(u, i + 1);
+	sb: String_Builder;
+	sb.allocator = temp;
+	print_to_builder(*sb, "% ", method);
+	for seg: split(path, "/",, temp) {
+		if it_index > 0 append(*sb, "/");
+		digits := seg.count >= 15;
+		for cast([]u8) seg if !is_digit(it) digits = false;
+		append(*sb, ifx digits || begins_with(seg, "%3C") || begins_with(seg, "<") then "{id}" else seg);
 	}
-	if query != "" {
-		strings.write_byte(*sb, #char "?");
-		for kv, i: strings.split(query, "&", temp) {
-			if i > 0 { strings.write_byte(*sb, #char "&"); }
-			strings.write_string(*sb, ifx strings.contains(kv, "=") then sub(kv, 0, strings.index_byte(kv, #char "=")) else kv);
+	if query {
+		append(*sb, "?");
+		for kv: split(query, "&",, temp) {
+			if it_index > 0 append(*sb, "&");
+			eq := find_index_from_left(kv, #char "=");
+			append(*sb, ifx eq >= 0 then slice(kv, 0, eq) else kv);
 		}
 	}
-	return strings.to_string(sb);
+	return builder_to_string(*sb,, temp);
 }
 
-r_ignored :: (url: string) -> bool {
-	for s: R_IGNORE { if strings.contains(url, s) { return true; } }
+r_ignored :: (url: string) -> bool { return r_allowed(R_IGNORE, url); }
+
+r_allowed :: (allow: []string, s: string) -> bool {
+	for allow if contains(s, it) return true;
 	return false;
 }
 
-r_shape :: (v: V, sb: *strings.Builder, depth := 0) {
+r_shape :: (v: V, sb: *String_Builder, depth := 0) {
 	if v.kind == {
-	case .Nil;
-		strings.write_string(sb, "null");
-	case .Bool; x := v.b;
-		strings.write_string(sb, "bool");
-	case .Int; #through; case .Float; #through; case .Big; x := v;
-		strings.write_string(sb, "num");
-	case .String; #through; case .Atom; #through; case .Charlist; x := v;
-		// unscrubbed ids are numeric strings on both sides
-		strings.write_string(sb, "str");
-	case .List; x := v.list;
-		strings.write_byte(sb, #char "[");
-		if len(x) > 0 && depth < 12 { r_shape(x[0], sb, depth + 1); }
-		strings.write_byte(sb, #char "]");
-	case .Tuple; x := v.list;
-		strings.write_string(sb, "tuple");
-	case .Map; x := v.map;
-		strings.write_byte(sb, #char "{");
-		for p, i: x {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			fmt.sbprintf(sb, "%s:", vstr(p.key)); // JSON keys are strings
-			r_shape(p.value, sb, depth + 1);
-		}
-		strings.write_byte(sb, #char "}");
+		case .Nil;  append(sb, "null");
+		case .Bool; append(sb, "bool");
+		case .Int; #through;
+		case .Float; #through;
+		case .Big;  append(sb, "num");
+		case .String; #through;
+		case .Atom; #through;
+		case .Charlist; append(sb, "str"); // unscrubbed ids are numeric strings on both sides
+		case .List;
+			append(sb, "[");
+			if v.list && depth < 12 r_shape(v.list[0], sb, depth + 1);
+			append(sb, "]");
+		case .Tuple; append(sb, "tuple");
+		case .Map;
+			append(sb, "{");
+			for v.map {
+				if it_index > 0 append(sb, ",");
+				print_to_builder(sb, "%:", vstr(it.key)); // JSON keys are strings
+				r_shape(it.value, sb, depth + 1);
+			}
+			append(sb, "}");
 	}
 }
 
 shape_text :: (v: V) -> string {
-	sb := strings.builder_make(temp);
+	sb: String_Builder;
+	sb.allocator = temp;
 	r_shape(v, *sb);
-	return strings.to_string(sb);
+	return builder_to_string(*sb,, temp);
 }
 
-// fixture body value -> the JSON the server sent (or "" when only a hash was kept)
+// fixture body value -> the JSON the server sent (false when only a hash was kept)
 r_body_value :: (v: V) -> V, bool {
-	{ m := vmap(v);
-	if len(m) == 1 {
+	m := vmap(v);
+	if m.count == 1 {
 		k := vstr(m[0].key);
-		if k == "$b64json" { return m[0].value, true; }
-		if strings.has_prefix(k, "$") { return .{}, false; }
-	} }
-	return v, !is_null(v);
-}
-
-// Science event signature: its type and property names in order, without the
-// per-event decorations (timestamps, uuids, performance) every event carries.
-R_SCIENCE_DECOR := string.["client_track_timestamp", "client_heartbeat_session_id", "event_sequence_number", "client_performance_cpu", "client_performance_memory", "cpu_core_count", "accessibility_features", "rendered_locale", "uptime_app", "uptime_process_renderer", "launch_signature", "client_rtc_state", "client_app_state", "client_viewport_width", "client_viewport_height", "client_uuid", "client_send_timestamp"];
-
-r_event_sig :: (e: etf.Map) -> string {
-	sb := strings.builder_make(temp);
-	strings.write_string(*sb, fstr(e, "type"));
-	strings.write_byte(*sb, #char "{");
-	first := true;
-	for p: fmap(e, "properties") {
-		k := vstr(p.key);
-		for d: R_SCIENCE_DECOR { if d == k { continue p; } }
-		if !first { strings.write_byte(*sb, #char ","); }
-		first = false;
-		strings.write_string(*sb, k);
+		if k == "$b64json" return m[0].value, true;
+		if begins_with(k, "$") return .{}, false;
 	}
-	strings.write_byte(*sb, #char "}");
-	return strings.to_string(sb);
+	return v, v.kind != .Nil;
 }
 
 // ---- network stand-ins ----
 
 replay_round_trip :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
-	resp: http.Response;
-	err: http.Error;
-	delay: float64;
-	resp, err, delay = replay_exchange(cast(*Replay)data, host, req);
+	resp, err, delay_ms := replay_exchange(cast(*Replay) data, host, req);
 	// after the mark, answer after the recorded latency (capped): response-time
 	// events (telemetry, follow-ups) then land as far apart as they did officially
-	if delay > 0 { time.sleep(cast(time.Duration)(min(delay, 1000) * cast(float64)(time.Millisecond))); }
+	if delay_ms > 0 sleep_milliseconds(cast(s32) ceil(min(delay_ms, 1000)));
 	return resp, err;
 }
 
 replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Response, http.Error, float64 {
-	resp: http.Response;
-	err: http.Error;
 	delay_ms: float64;
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
-	url := strings.concatenate(string.["https://", host, req.path], temp);
+	url := join("https://", host, req.path,, temp);
 	key := r_key(req.method, url);
 	// the recorded exchange with the same URL shape, earliest first
 	ri := -1;
-	for e, i: r.events {
-		if r.used[i] || fstr(e, "k") != "req" { continue; }
-		if r_key(fstr(e, "method"), fstr(e, "url")) == key {
-			ri = i;
+	for r.events {
+		if r.used[it_index] || fstr(it, "k") != "req" continue;
+		if r_key(fstr(it, "method"), fstr(it, "url")) == key {
+			ri = it_index;
 			break;
 		}
 	}
 	proto := "h3";
-	official_wire: etf.List;
 	if ri >= 0 {
 		r.used[ri] = true;
 		proto = fstr(r.events[ri], "proto");
-		official_wire, _ = vget(r.events[ri], "wire").list, vget(r.events[ri], "wire").kind == .List;
 	}
 	if r.marked && !r_ignored(url) {
-		// our wire order, as fc:http (h2) / fc:quic put it on the wire
-		sb := strings.builder_make(temp);
-		strings.write_string(*sb, ":method,:authority,:scheme,:path");
+		// our wire order, as http (h2) / quic put it on the wire
+		sb: String_Builder;
+		sb.allocator = temp;
+		append(*sb, ":method,:authority,:scheme,:path");
 		has_priority := false;
-		for h: req.headers {
-			n := strings.to_lower(h.name, temp);
-			if n == "priority" { has_priority = true; }
-			if n == "cookie" || n == "if-none-match" || n == "if-modified-since" { continue; }
-			fmt.sbprintf(*sb, ",%s", n);
+		for req.headers {
+			n := to_lower_copy(it.name,, temp);
+			if n == "priority" has_priority = true;
+			if n == "cookie" || n == "if-none-match" || n == "if-modified-since" continue;
+			print_to_builder(*sb, ",%", n);
 		}
-		if proto == "h3" && !has_priority { strings.write_string(*sb, ",priority"); }
-		shape := "";
-		if len(req.body) > 0 {
-			{ v, perr := etf.from_json(as_string(req.body),, temp);
-			if perr == .None { shape = shape_text(v); } }
-		}
-		alloc := pool_allocator(*r.arena);
+		if proto == "h3" && !has_priority append(*sb, ",priority");
+		wire := builder_to_string(*sb,, temp);
+		body, perr := etf.from_json(cast(string) req.body,, temp);
+		push_allocator(pool_allocator(*r.pool));
 		if r_is_science(url) {
-			{ v, perr := etf.from_json(as_string(req.body),, temp);
 			if perr == .None {
-				b := r_sci_parse(v, alloc);
-				b.wire = clone(strings.to_string(sb), alloc);
-				append(*r.science, b);
-			} }
+				b := r_sci_parse(body);
+				b.wire = copy_string(wire);
+				array_add(*r.science, b);
+			}
 		} else {
-			append(*r.ours, Replay_Req.{clone(key, alloc), clone(strings.to_string(sb), alloc), clone(shape, alloc)});
+			shape := ifx req.body && perr == .None then shape_text(body) else "";
+			array_add(*r.ours, .{copy_string(key), copy_string(wire), copy_string(shape)});
 		}
 	}
-	// Odin frees a nil-allocator response's strings as no-ops; here they live in the replay arena
-	resp.allocator = pool_allocator(*r.arena);
+	// the transport owns the response (response_destroy): give it the heap, not the replay's pool,
+	// which the caller's thread would use without mu
+	resp := http.make_response(ifx proto == "h3" then .Http3 else .Http2,, context.default_allocator);
 	push_allocator(resp.allocator);
-	resp.version = ifx proto == "h3" then .Http3 else .Http2;
 	resp.status = 200;
 	body := "{}";
 	if ri >= 0 {
 		id := fnum(r.events[ri], "id");
 		for e: r.events {
-			if fstr(e, "k") != "resp" || fnum(e, "id") != id { continue; }
-			if r.marked { delay_ms = r_num_f(vget(e, "t")) - r_num_f(vget(r.events[ri], "t")); }
-			resp.status = cast(int)(fnum(e, "status"));
+			if fstr(e, "k") != "resp" || fnum(e, "id") != id continue;
+			if r.marked delay_ms = vf64(vget(e, "t")) - vf64(vget(r.events[ri], "t"));
+			resp.status = fnum(e, "status");
 			for h: flist(e, "headers") {
 				l := vlist(h);
-				if len(l) != 2 { continue; }
+				if l.count != 2 continue;
 				n := vstr(l[0]);
-				if n == "content-encoding" || n == "content-length" { continue; } // the body below is decoded
-				ha := pool_allocator(*r.arena); // the response is the transport's; strings live with the replay
-				append(*resp.headers, http.Header.{clone(n, ha), clone(vstr(l[1]), ha)});
+				if n == "content-encoding" || n == "content-length" continue; // the body below is decoded
+				array_add(*resp.headers, .{copy_string(n), copy_string(vstr(l[1]))});
 			}
-			{ bv, ok := r_body_value(vget(e, "body"));
-			if ok {
-				body = etf_json(bv);
-			} else {
-				body = "";
-			} }
+			bv, ok := r_body_value(vget(e, "body"));
+			body = ifx ok then etf_json(bv) else "";
 			break;
 		}
 	}
-	append(*resp.body, ..transmute([]u8, body));
+	append_string(*resp.body, body);
 	return resp, .None, delay_ms;
-}
-
-r_num_f :: (v: V) -> float64 {
-	if v.kind == {
-	case .Float; x := v.f;
-		return x;
-	case .Int; x := v.i;
-		return cast(float64)(x);
-	}
-	return 0;
 }
 
 etf_json :: (v: V) -> string {
@@ -330,25 +287,18 @@ etf_json :: (v: V) -> string {
 }
 
 fnum :: (m: etf.Map, k: string) -> s64 {
-	{ __v6 := vget(m, k);
-	if __v6.kind == {
-	case .Int; x := __v6.i;
-		return x;
-	case .Float; x := __v6.f;
-		return cast(s64)(x);
-	} }
-	return 0;
+	v := vget(m, k);
+	return ifx v.kind == .Int || v.kind == .Float then vint(v) else 0;
 }
 
 replay_sink :: (data: *void, op: Op, d: V) {
-	r := cast(*Replay)data;
-	if op == .Heartbeat || op == .Qos_Heartbeat { return; }
+	r := cast(*Replay) data;
+	if op == .Heartbeat || op == .Qos_Heartbeat return;
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
-	if !r.marked { return; }
-	append(*r.sends, Replay_Send.{cast(s64)(op), clone(shape_text(d), pool_allocator(*r.arena))});
+	if !r.marked return;
+	array_add(*r.sends, .{xx op, copy_string(shape_text(d),, pool_allocator(*r.pool))});
 }
-#scope_export
 
 // ---- driving ----
 
@@ -359,24 +309,21 @@ Replay_Run :: struct {
 	donor: Replay; // ready_from's fixture (its READY)
 	science: bool; // also compare /science events (type + property names); allow "science <type>"
 }
-#scope_file
 
 replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, channel: Snowflake, acct := "a", ready_from := "") -> bool {
 	run.t = t;
 	if !replay_load(*run.r, scenario, acct) {
-		expectf(t, false, "no fixture traffic/%s.jsonl", scenario);
+		expectf(t, false, "no fixture traffic/%.jsonl", scenario);
 		return false;
 	}
-	ready_events := view(run.r.events);
+	ready_events: []etf.Map = run.r.events;
 	if ready_from != "" {
-		donor: Replay;
-		if !replay_load(*donor, ready_from, acct) {
-			expectf(t, false, "no fixture traffic/%s.jsonl", ready_from);
+		// the donor's pool lives as long as the run: its values are injected below
+		if !replay_load(*run.donor, ready_from, acct) {
+			expectf(t, false, "no fixture traffic/%.jsonl", ready_from);
 			return false;
 		}
-		// the donor's arena lives as long as the run: its values are injected below
-		ready_events = clone(view(donor.events), pool_allocator(*donor.arena));
-		run.donor = donor;
+		ready_events = run.donor.events;
 	}
 	run.c = client_create(Config.{
 		token = "<token>",
@@ -394,21 +341,18 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 	identity_set_app_state(*run.c.id, .Unfocused);
 	client_start(run.c);
 	// session state from the fixture's READY
-	for name: (string.["READY", "READY_SUPPLEMENTAL"]) {
+	for name: string.["READY", "READY_SUPPLEMENTAL"] {
 		for e: ready_events {
-			if fstr(e, "k") == "ws_recv" && fstr(e, "ev") == name {
-				// what the gateway reader does with READY before dispatching it
-				{ inst := fstr(fmap(vmap(vget(e, "d")), "apex_experiments"), "installation");
-				if inst != "" && name == "READY" {
-					run.c.id.installation_id = clone(inst, run.c.allocator);
-				} }
-				client_inject_dispatch(run.c, name, vget(e, "d"));
-				break;
-			}
+			if fstr(e, "k") != "ws_recv" || fstr(e, "ev") != name continue;
+			// what the gateway reader does with READY before dispatching it
+			inst := fstr(fmap(fmap(e, "d"), "apex_experiments"), "installation");
+			if inst != "" && name == "READY" run.c.id.installation_id = copy_string(inst,, run.c.allocator);
+			client_inject_dispatch(run.c, name, vget(e, "d"));
+			break;
 		}
 	}
 	// READY's apex_experiments.installation is scrubbed from the fixtures
-	if run.c.id.installation_id == "" { run.c.id.installation_id = clone("1100000000000000001", run.c.allocator); }
+	if run.c.id.installation_id == "" run.c.id.installation_id = copy_string("1100000000000000001",, run.c.allocator);
 	replay_settle(run, 300);
 	if channel != 0 || guild != 0 {
 		select_channel(run.c, guild, channel, 10);
@@ -423,47 +367,46 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 // after a mark, so on a slow machine (CI) the setup's first /science batch
 // could otherwise land in the action window.
 replay_drain :: (run: *Replay_Run, max_ms := 3000) {
-	start := time.tick_now();
-	while time.tick_since(start) < cast(time.Duration)(max_ms) * time.Millisecond {
+	start := mono_ms();
+	while mono_ms() - start < max_ms {
 		client_poll(run.c);
 		locks.lock(*run.c.analytics.mu);
-		queued := len(run.c.analytics.queue);
+		queued := run.c.analytics.queue.count;
 		locks.unlock(*run.c.analytics.mu);
 		locks.lock(*run.c.job_mu);
-		jobs := 0;
-		for j: run.c.jobs { if j.not_before <= now_ms() { jobs += 1; } } // timers due later belong to the session
-		jobs += run.c.jobs_running;
+		jobs := run.c.jobs_running;
+		for run.c.jobs if it.not_before <= now_ms() jobs += 1; // timers due later belong to the session
 		locks.unlock(*run.c.job_mu);
-		if queued == 0 && jobs == 0 { return; }
-		time.sleep(5 * time.Millisecond);
+		if queued == 0 && jobs == 0 return;
+		sleep_milliseconds(5);
 	}
 }
 
 // replay_settle: poll until nothing new was sent for quiet_ms (bounded).
 replay_settle :: (run: *Replay_Run, quiet_ms: int, max_ms := 4000) {
-	start := time.tick_now();
-	last := time.tick_now();
+	start := mono_ms();
+	last := start;
 	n := -1;
-	while time.tick_since(start) < cast(time.Duration)(max_ms) * time.Millisecond {
+	while mono_ms() - start < max_ms {
 		client_poll(run.c);
 		locks.lock(*run.r.mu);
-		k := len(run.r.ours) + len(run.r.sends) + cast(int)(run.r.marked);
+		k := run.r.ours.count + run.r.sends.count + cast(int) run.r.marked;
 		locks.unlock(*run.r.mu);
 		if k != n {
 			n = k;
-			last = time.tick_now();
+			last = mono_ms();
 		}
-		if time.tick_since(last) >= cast(time.Duration)(quiet_ms) * time.Millisecond { return; }
-		time.sleep(5 * time.Millisecond);
+		if mono_ms() - last >= quiet_ms return;
+		sleep_milliseconds(5);
 	}
 }
 
 // replay_pump: poll for a fixed time (library timers: typing 1.5 s...).
 replay_pump :: (run: *Replay_Run, ms: int) {
-	start := time.tick_now();
-	while time.tick_since(start) < cast(time.Duration)(ms) * time.Millisecond {
+	start := mono_ms();
+	while mono_ms() - start < ms {
 		client_poll(run.c);
-		time.sleep(5 * time.Millisecond);
+		sleep_milliseconds(5);
 	}
 }
 
@@ -471,18 +414,16 @@ replay_pump :: (run: *Replay_Run, ms: int) {
 replay_mark :: (run: *Replay_Run) {
 	locks.lock(*run.r.mu);
 	run.r.marked = true;
-	clear(*run.r.ours);
-	clear(*run.r.sends);
-	clear(*run.r.science);
+	run.r.ours.count, run.r.sends.count, run.r.science.count = 0, 0, 0;
 	locks.unlock(*run.r.mu);
 }
 
 // replay_dispatches feeds the window's recorded dispatches (MESSAGE_CREATE...).
 replay_dispatches :: (run: *Replay_Run, window: string, only := "") {
 	for e: replay_window(*run.r, window) {
-		if fstr(e, "k") != "ws_recv" || fnum(e, "op") != 0 { continue; }
+		if fstr(e, "k") != "ws_recv" || fnum(e, "op") != 0 continue;
 		ev := fstr(e, "ev");
-		if only != "" && ev != only { continue; }
+		if only != "" && ev != only continue;
 		client_inject_dispatch(run.c, ev, vget(e, "d"));
 	}
 }
@@ -490,120 +431,111 @@ replay_dispatches :: (run: *Replay_Run, window: string, only := "") {
 // replay_end frees a run whose windows were checked with keep = true.
 replay_end :: (run: *Replay_Run) {
 	client_destroy(run.c);
-	fini(*run.r.arena);
-	if run.donor.events.count { fini(*run.donor.arena); }
+	fini(*run.r.pool);
+	fini(*run.donor.pool);
 }
-#scope_export
 
 // replay_compare: one window of a multi-window run (the client is kept).
-replay_compare :: (run: *Replay_Run, window: string, allow: []string = .{}) {
+replay_compare :: (run: *Replay_Run, window: string, allow: []string = .[]) {
 	replay_check(run, window, allow, keep = true);
 }
-#scope_file
 
 // replay_check compares our traffic since the mark with the official window.
 // allow: keys / "op N" that may differ (known, documented gaps).
 // keep: the run goes on to the next window (finish with replay_end).
 // science_only: compare only /science (windows whose request differences are
 // session state documented in traffic/PARITY.md, not this test's subject).
-replay_check :: (run: *Replay_Run, window: string, extra_allow: []string = .{}, keep := false, science_only := false) {
+replay_check :: (run: *Replay_Run, window: string, extra_allow: []string = .[], keep := false, science_only := false) {
 	t := run.t;
-	defer if !keep { replay_end(run); }
-	all := make_dynamic(string, 0, 0, temp);
-	append(*all, ..R_SCI_NEVER);
-	append(*all, ..extra_allow);
-	allow := view(all);
-	official := make_dynamic(etf.Map, 0, 0, temp);
-	official_sci := make_dynamic(Sci_Batch, 0, 0, temp);
-	ops := make_dynamic(etf.Map, 0, 0, temp);
+	defer if !keep replay_end(run);
+	push_allocator(temp);
+	all: [..]string;
+	array_add(*all, ..R_SCI_NEVER);
+	array_add(*all, ..extra_allow);
+	allow: []string = all;
+	official: [..]etf.Map;
+	official_sci: [..]Sci_Batch;
+	ops: [..]etf.Map;
 	for e: replay_window(*run.r, window) {
 		if fstr(e, "k") == {
-		case "req";
-			url := fstr(e, "url");
-			if r_is_science(url) {
-				{ bv, ok := r_body_value(vget(e, "body"));
-				if ok {
-					b := r_sci_parse(bv, temp);
-					b.wire = r_official_wire(e);
-					append(*official_sci, b);
-				} }
-			} else if !r_ignored(url) {
-				append(*official, e);
-			}
-		case "ws_send";
-			{ op := fnum(e, "op");
-			if op != 1 && op != 40 { append(*ops, e); } }
+			case "req";
+				url := fstr(e, "url");
+				if r_is_science(url) {
+					bv, ok := r_body_value(vget(e, "body"));
+					if ok {
+						b := r_sci_parse(bv);
+						b.wire = r_official_wire(e);
+						array_add(*official_sci, b);
+					}
+				} else if !r_ignored(url) {
+					array_add(*official, e);
+				}
+			case "ws_send";
+				op := fnum(e, "op");
+				if op != 1 && op != 40 array_add(*ops, e);
 		}
 	}
-	allowed :: (allow: []string, s: string) -> bool {
-		for a: allow { if strings.contains(s, a) { return true; } }
-		return false;
-	}
 	locks.lock(*run.r.mu);
-	ours := clone(view(run.r.ours), temp);
-	sends := clone(view(run.r.sends), temp);
-	ours_sci := clone(view(run.r.science), temp);
+	ours := array_copy(run.r.ours);
+	sends := array_copy(run.r.sends);
+	ours_sci := array_copy(run.r.science);
 	locks.unlock(*run.r.mu);
 	if science_only {
-		clear(*official);
-		clear(*ops);
+		official.count, ops.count = 0, 0;
 		ours, sends = .[], .[];
 	}
-	taken := make_slice(bool, len(ours), temp);
-	diffs := strings.builder_make(temp);
+	taken := NewArray(ours.count, bool);
+	diffs: String_Builder;
 	for e: official {
 		key := r_key(fstr(e, "method"), fstr(e, "url"));
 		j := -1;
-		for o, i: ours { if !taken[i] && o.key == key {j = i; break;} }
+		for ours if !taken[it_index] && it.key == key { j = it_index; break; }
 		if j < 0 {
-			if !allowed(allow, key) { fmt.sbprintfln(*diffs, "  - missing  %s", key); }
+			if !r_allowed(allow, key) print_to_builder(*diffs, "  - missing  %\n", key);
 			continue;
 		}
 		taken[j] = true;
 		// wire order (netlog), cache validators and cookies left out on both sides
-		{ w := r_official_wire(e);
-		if w != "" && w != ours[j].wire && !allowed(allow, key) {
-			fmt.sbprintfln(*diffs, "  ~ wire     %s\n      official: %s\n      ours:     %s", key, w, ours[j].wire);
-		} }
-		{ bv, ok := r_body_value(vget(e, "body"));
+		w := r_official_wire(e);
+		if w != "" && w != ours[j].wire && !r_allowed(allow, key) {
+			print_to_builder(*diffs, "  ~ wire     %\n      official: %\n      ours:     %\n", key, w, ours[j].wire);
+		}
+		bv, ok := r_body_value(vget(e, "body"));
 		if ok && ours[j].shape != "" {
-			{ s := shape_text(bv);
-			if s != ours[j].shape && !allowed(allow, key) {
-				fmt.sbprintfln(*diffs, "  ~ body     %s\n      official: %s\n      ours:     %s", key, s, ours[j].shape);
-			} }
-		} }
+			s := shape_text(bv);
+			if s != ours[j].shape && !r_allowed(allow, key) {
+				print_to_builder(*diffs, "  ~ body     %\n      official: %\n      ours:     %\n", key, s, ours[j].shape);
+			}
+		}
 	}
-	for o, i: ours { if !taken[i] && !allowed(allow, o.key) { fmt.sbprintfln(*diffs, "  + extra    %s", o.key); } }
+	for ours if !taken[it_index] && !r_allowed(allow, it.key) print_to_builder(*diffs, "  + extra    %\n", it.key);
 	// gateway: same ops in the same order, same payload shapes (allowed ops left out)
-	{
-		k := 0;
-		for e: ops { if !allowed(allow, fmt.tprintf("op %d", fnum(e, "op"))) {ops[k] = e; k += 1;} }
-		resize(*ops, k);
-		f := make_dynamic(Replay_Send, 0, 0, temp);
-		for x: sends { if !allowed(allow, fmt.tprintf("op %d", x.op)) { append(*f, x); } }
-		sends = view(f);
-	}
-	for i: 0..(max(len(ops), len(sends)))-1 {
-		if i >= len(ops) {
-			if !allowed(allow, fmt.tprintf("op %d", sends[i].op)) { fmt.sbprintfln(*diffs, "  + extra    gateway op %d", sends[i].op); }
+	op_allowed :: (allow: []string, op: s64) -> bool { return r_allowed(allow, tprint("op %", op)); }
+	official_ops: [..]etf.Map;
+	for ops if !op_allowed(allow, fnum(it, "op")) array_add(*official_ops, it);
+	our_ops: [..]Replay_Send;
+	for sends if !op_allowed(allow, it.op) array_add(*our_ops, it);
+	for i: 0..max(official_ops.count, our_ops.count) - 1 {
+		if i >= official_ops.count {
+			print_to_builder(*diffs, "  + extra    gateway op %\n", our_ops[i].op);
 			continue;
 		}
-		op := fnum(ops[i], "op");
-		if i >= len(sends) {
-			if !allowed(allow, fmt.tprintf("op %d", op)) { fmt.sbprintfln(*diffs, "  - missing  gateway op %d", op); }
+		op := fnum(official_ops[i], "op");
+		if i >= our_ops.count {
+			print_to_builder(*diffs, "  - missing  gateway op %\n", op);
 			continue;
 		}
-		if sends[i].op != op {
-			fmt.sbprintfln(*diffs, "  ~ gateway #%d: op %d vs %d", i + 1, op, sends[i].op);
-		} else { s := shape_text(vget(ops[i], "d"));
-if s != sends[i].shape && !allowed(allow, fmt.tprintf("op %d", op)) {
-			fmt.sbprintfln(*diffs, "  ~ gateway op %d payload\n      official: %s\n      ours:     %s", op, s, sends[i].shape);
-		} }
+		if our_ops[i].op != op {
+			print_to_builder(*diffs, "  ~ gateway #%: op % vs %\n", i + 1, op, our_ops[i].op);
+		} else {
+			s := shape_text(vget(official_ops[i], "d"));
+			if s != our_ops[i].shape print_to_builder(*diffs, "  ~ gateway op % payload\n      official: %\n      ours:     %\n", op, s, our_ops[i].shape);
+		}
 	}
-	r_science_check(view(official_sci), ours_sci, allow, *diffs);
-	if len(diffs.buf) > 0 { expectf(t, false, "window %q differs from the official client:\n%s", window, strings.to_string(diffs)); }
+	r_science_check(official_sci, ours_sci, allow, *diffs);
+	text := builder_to_string(*diffs);
+	if text expectf(t, false, "window \"%\" differs from the official client:\n%", window, text);
 }
-#scope_export
 
 // ---- telemetry (/science) ----
 //
@@ -634,264 +566,238 @@ Sci_Batch :: struct {
 	send: s64;
 	wire: string;
 }
-#scope_file
 
 SCI_SAME_STEP_MS :: 3;
 // officially separate batches closer than this are flush timing, not steps
 SCI_SEPARATE_MS :: 100;
 
-r_is_science :: (url: string) -> bool {return strings.contains(url, "/api/v9/science");}
-
-r_allowed :: (allow: []string, s: string) -> bool {
-	for a: allow { if strings.contains(s, a) { return true; } }
-	return false;
-}
+r_is_science :: (url: string) -> bool { return contains(url, "/api/v9/science"); }
 
 // r_official_wire: the netlog header order of a fixture request (cookies and
 // cache validators left out), "" without a netlog.
 r_official_wire :: (e: etf.Map) -> string {
-	wl, ok := vget(e, "wire").list, vget(e, "wire").kind == .List;
-	if !ok || fstr(e, "wire_src") != "netlog" { return ""; }
-	sb := strings.builder_make(temp);
-	first := true;
-	for h: wl {
-		n := strings.to_lower(vstr(vlist(h)[0]), temp);
-		if n == "cookie" || n == "if-none-match" || n == "if-modified-since" { continue; }
-		if !first { strings.write_byte(*sb, #char ","); }
-		first = false;
-		strings.write_string(*sb, n);
+	wl := vget(e, "wire");
+	if wl.kind != .List || fstr(e, "wire_src") != "netlog" return "";
+	names: [..]string;
+	names.allocator = temp;
+	for wl.list {
+		n := to_lower_copy(vstr(vlist(it)[0]),, temp);
+		if n != "cookie" && n != "if-none-match" && n != "if-modified-since" array_add(*names, n);
 	}
-	return strings.to_string(sb);
+	return join(..names, separator = ",",, temp);
 }
 
 // Keys whose numeric values are enums (compared by value).
-SCI_NUM_ENUMS := string.["channel_type", "parent_channel_type", "current_channel_type", "relationship_type", "content_id", "status_code", "channel_resolved_unread_setting", "guild_resolved_unread_setting", "version"];
+SCI_NUM_ENUMS :: string.["channel_type", "parent_channel_type", "current_channel_type", "relationship_type", "content_id", "status_code", "channel_resolved_unread_setting", "guild_resolved_unread_setting", "version"];
 
 // r_sci_const: the value of a constant-valued property, "" when it varies by nature.
 r_sci_const :: (key: string, v: V) -> string {
 	if v.kind == {
-	case .Nil;
-		return "null";
-	case .Bool; x := v.b;
-		return ifx x then "true" else "false";
-	case .Int; x := v.i;
-		for k: SCI_NUM_ENUMS { if k == key { return fmt.tprintf("%d", x); } }
-	case .String; x := v.s;
-		if len(x) == 0 { return "\"\""; }
-		digits := true;
-		for ch: x { if ch < #char "0" || ch > #char "9" { digits = false; } }
-		if digits { return ""; } // ids
-		if len(x) >= 20 && !strings.contains(x, " ") && strings.contains_any(x, "0123456789") { return ""; } // uuids, base64, hex load ids
-		if len(x) >= 19 && x[4] == #char "-" && strings.contains(x, "T") { return ""; } // ISO times
-		if key == {
-		case "query"; #through; case "emoji_name"; #through; case "launch_signature"; #through; case "client_heartbeat_session_id"; #through; case "client_uuid"; #through; case "load_id";
-			return "";
-		}
-		return fmt.tprintf("%q", x);
+		case .Nil;  return "null";
+		case .Bool; return ifx v.b then "true" else "false";
+		case .Int;  for SCI_NUM_ENUMS if it == key return tprint("%", v.i);
+		case .String;
+			x := v.s;
+			if !x return "\"\"";
+			digits := true;
+			for cast([]u8) x if !is_digit(it) digits = false;
+			if digits return ""; // ids
+			if x.count >= 20 && !contains(x, " ") && contains_any_character(x, "0123456789") return ""; // uuids, base64, hex load ids
+			if x.count >= 19 && x[4] == #char "-" && contains(x, "T") return ""; // ISO times
+			if key == {
+				case "query"; #through;
+				case "emoji_name"; #through;
+				case "launch_signature"; #through;
+				case "client_heartbeat_session_id"; #through;
+				case "client_uuid"; #through;
+				case "load_id"; return "";
+			}
+			q: [..]u8;
+			q.allocator = temp;
+			json_write_escaped(*q, x); // quoted as the allow entries write them
+			return cast(string) q;
 	}
 	return "";
 }
 
-r_sci_kind :: (v: V) -> string {
-	if v.kind == {
-	case .List; #through; case .Map;
-		return shape_text(v);
-	}
-	sb := strings.builder_make(temp);
-	r_shape(v, *sb);
-	return strings.to_string(sb);
-}
-
-// r_sci_parse: one /science body. Strings live in `alloc`.
-r_sci_parse :: (body: V, alloc: Allocator) -> Sci_Batch {
+// r_sci_parse: one /science body, into context.allocator.
+r_sci_parse :: (body: V) -> Sci_Batch {
 	b: Sci_Batch;
-	evs := make_dynamic(Sci_Event, 0, 0, alloc);
+	evs: [..]Sci_Event;
 	for ev: flist(vmap(body), "events") {
 		m := vmap(ev);
 		props := fmap(m, "properties");
-		e := Sci_Event.{type = clone(fstr(m, "type"), alloc)};
-		keys := make_dynamic(string, 0, 0, alloc);
-		kinds := make_dynamic(string, 0, 0, alloc);
-		consts := make_dynamic(string, 0, 0, alloc);
+		e := Sci_Event.{type = copy_string(fstr(m, "type"))};
+		keys, kinds, consts := NewArray(props.count, string), NewArray(props.count, string), NewArray(props.count, string);
 		for p: props {
 			k := vstr(p.key);
-			if k == {
-			case "client_track_timestamp";
-				e.track = vint(p.value);
-			case "client_send_timestamp";
-				b.send = vint(p.value);
-			}
-			append(*keys, clone(k, alloc));
-			append(*kinds, clone(r_sci_kind(p.value), alloc));
-			append(*consts, clone(r_sci_const(k, p.value), alloc));
+			if k == "client_track_timestamp" e.track = vint(p.value);
+			if k == "client_send_timestamp" b.send = vint(p.value);
+			keys[it_index] = copy_string(k);
+			kinds[it_index] = copy_string(shape_text(p.value));
+			consts[it_index] = copy_string(r_sci_const(k, p.value));
 		}
-		e.keys, e.kinds, e.consts = view(keys), view(kinds), view(consts);
-		append(*evs, e);
+		e.keys, e.kinds, e.consts = keys, kinds, consts;
+		array_add(*evs, e);
 	}
-	b.events = view(evs);
+	b.events = evs;
 	return b;
 }
 
 // r_sci_filtered: an allow entry `science:<type>/<key>=<const>` drops the events
 // of that type whose property has that constant value (e.g. one profile_action).
 r_sci_filtered :: (allow: []string, e: Sci_Event) -> bool {
+	PREFIX :: "science:";
 	for a: allow {
-		if !strings.has_prefix(a, "science:") { continue; }
-		slash := strings.index_byte(a, #char "/");
-		eq := strings.index_byte(a, #char "=");
-		if slash < 0 || eq < slash || sub(a, len("science:"), slash) != e.type { continue; }
-		k, v := sub(a, slash + 1, eq), sub_from(a, eq + 1);
-		for key, i: e.keys { if key == k && e.consts[i] == v { return true; } }
+		if !begins_with(a, PREFIX) continue;
+		slash := find_index_from_left(a, #char "/");
+		eq := find_index_from_left(a, #char "=");
+		if slash < 0 || eq < slash || slice(a, PREFIX.count, slash - PREFIX.count) != e.type continue;
+		k, v := slice(a, slash + 1, eq - slash - 1), advance(a, eq + 1);
+		for e.keys if it == k && e.consts[it_index] == v return true;
 	}
 	return false;
 }
 
 r_sci_flatten :: (batches: []Sci_Batch, allow: []string) -> []Sci_Event {
-	out := make_dynamic(Sci_Event, 0, 0, temp);
+	out: [..]Sci_Event;
+	out.allocator = temp;
 	for b, bi: batches {
-		for e: b.events {
-			if r_allowed(allow, fmt.tprintf("science:%s", e.type)) { continue; }
-			if r_sci_filtered(allow, e) { continue; }
-			x := e;
+		for b.events {
+			if r_allowed(allow, tprint("science:%", it.type)) || r_sci_filtered(allow, it) continue;
+			x := it;
 			x.batch = bi;
-			append(*out, x);
+			array_add(*out, x);
 		}
 	}
-	return view(out);
+	return out;
 }
 
 // r_sci_key_diff: missing / extra keys, else the first out-of-order key.
-r_sci_key_diff :: (diffs: *strings.Builder, o: Sci_Event, u: Sci_Event) {
-	has :: (l: []string, k: string) -> bool {
-		for x: l { if x == k { return true; } }
-		return false;
-	}
-	missing, extra := make_dynamic(string, 0, 0, temp), make_dynamic(string, 0, 0, temp);
-	for k: o.keys { if !has(u.keys, k) { append(*missing, k); } }
-	for k: u.keys { if !has(o.keys, k) { append(*extra, k); } }
-	if len(missing) > 0 || len(extra) > 0 {
-		fmt.sbprintfln(diffs, "  ~ science  %s keys: missing [%s] extra [%s]", o.type, strings.join(view(missing), ",", temp), strings.join(view(extra), ",", temp));
+r_sci_key_diff :: (diffs: *String_Builder, o: Sci_Event, u: Sci_Event) {
+	missing, extra: [..]string;
+	missing.allocator, extra.allocator = temp, temp;
+	for o.keys if !array_find(u.keys, it) array_add(*missing, it);
+	for u.keys if !array_find(o.keys, it) array_add(*extra, it);
+	if missing || extra {
+		print_to_builder(diffs, "  ~ science  % keys: missing [%] extra [%]\n", o.type, join(..missing, separator = ",",, temp), join(..extra, separator = ",",, temp));
 		return;
 	}
-	for k, i: o.keys { if u.keys[i] != k {
-		fmt.sbprintfln(diffs, "  ~ science  %s key order: official %s at #%d, ours %s", o.type, k, i, u.keys[i]);
+	for o.keys if u.keys[it_index] != it {
+		print_to_builder(diffs, "  ~ science  % key order: official % at #%, ours %\n", o.type, it, it_index, u.keys[it_index]);
 		return;
-	} }
+	}
 }
 
 // r_science_check compares our /science batches with the official window's.
-r_science_check :: (official: []Sci_Batch, ours: []Sci_Batch, allow: []string, diffs: *strings.Builder) {
+r_science_check :: (official: []Sci_Batch, ours: []Sci_Batch, allow: []string, diffs: *String_Builder) {
 	// header order: every batch of ours against the official window's (no
 	// x-science-test after the first batch of a launch)
-	if len(official) > 0 && official[0].wire != "" {
-		for b: ours { if b.wire != official[0].wire {
-			fmt.sbprintfln(diffs, "  ~ wire     POST /science\n      official: %s\n      ours:     %s", official[0].wire, b.wire);
+	if official && official[0].wire != "" {
+		for ours if it.wire != official[0].wire {
+			print_to_builder(diffs, "  ~ wire     POST /science\n      official: %\n      ours:     %\n", official[0].wire, it.wire);
 			break;
-		} }
+		}
 	}
 	off := r_sci_flatten(official, allow);
 	our := r_sci_flatten(ours, allow);
 	// FASTCORD_SCI_DEBUG=1: print both event sequences (batch, type, constants)
-	if os.get_env("FASTCORD_SCI_DEBUG", temp) != "" {
-		for e: off { fmt.eprintfln("official  #%d %s %v", e.batch, e.type, e.consts); }
-		for e: our { fmt.eprintfln("ours      #%d %s %v", e.batch, e.type, e.consts); }
-		for b: ours { fmt.eprintfln("ours wire %s", b.wire); }
-		for b: official { fmt.eprintfln("official wire %s", b.wire); }
+	if POSIX.getenv("FASTCORD_SCI_DEBUG") {
+		for off print("official  #% % %\n", it.batch, it.type, it.consts, to_standard_error = true);
+		for our print("ours      #% % %\n", it.batch, it.type, it.consts, to_standard_error = true);
+		for ours print("ours wire %\n", it.wire, to_standard_error = true);
+		for official print("official wire %\n", it.wire, to_standard_error = true);
 	}
 	// longest common subsequence of the event types
-	n, m := len(off), len(our);
-	lcs := make_slice(int, (n + 1) * (m + 1), temp);
+	n, m := off.count, our.count;
+	lcs := NewArray((n + 1) * (m + 1), int,, temp);
 	for < i: 0..n - 1 {
-		{ j := m - 1;
-		while j >= 0 {
+		for < j: 0..m - 1 {
 			lcs[i * (m + 1) + j] = ifx off[i].type == our[j].type then lcs[(i + 1) * (m + 1) + j + 1] + 1 else max(lcs[(i + 1) * (m + 1) + j], lcs[i * (m + 1) + j + 1]);
-			j -= 1;
-} }
+		}
 	}
-	pairs := make_dynamic([2]int, 0, 0, temp);
+	pairs: [..][2]int;
+	pairs.allocator = temp;
 	i, j := 0, 0;
 	while i < n || j < m {
 		if i < n && j < m && off[i].type == our[j].type {
-			append(*pairs, int.[i, j]);
+			array_add(*pairs, .[i, j]);
 			i += 1;
 			j += 1;
 		} else if j < m && (i >= n || lcs[i * (m + 1) + j + 1] >= lcs[(i + 1) * (m + 1) + j]) {
-			fmt.sbprintfln(diffs, "  + extra    science %s", our[j].type);
+			print_to_builder(diffs, "  + extra    science %\n", our[j].type);
 			j += 1;
 		} else {
-			fmt.sbprintfln(diffs, "  - missing  science %s", off[i].type);
+			print_to_builder(diffs, "  - missing  science %\n", off[i].type);
 			i += 1;
 		}
 	}
 	// same-type events of one step (responses racing each other) may come in
 	// either order: pair them by their constant values
 	same_consts :: (a: Sci_Event, b: Sci_Event) -> bool {
-		if len(a.consts) != len(b.consts) { return false; }
-		for x, i: a.consts { if x != b.consts[i] { return false; } }
+		if a.consts.count != b.consts.count return false;
+		for a.consts if it != b.consts[it_index] return false;
 		return true;
 	}
-	for pi: 0..len(pairs)-1 {
-		if same_consts(off[pairs[pi][0]], our[pairs[pi][1]]) { continue; }
-		{ pj := pi + 1;
-		while pj < len(pairs) && off[pairs[pj][0]].type == off[pairs[pi][0]].type {
-			if same_consts(off[pairs[pi][0]], our[pairs[pj][1]]) && same_consts(off[pairs[pj][0]], our[pairs[pi][1]]) {
-				tmp := pairs[pi][1]; pairs[pi][1] = pairs[pj][1]; pairs[pj][1] = tmp;
+	for * p, pi: pairs {
+		if same_consts(off[p.*[0]], our[p.*[1]]) continue;
+		for pj: pi + 1..pairs.count - 1 {
+			q := *pairs[pj];
+			if off[q.*[0]].type != off[p.*[0]].type break;
+			if same_consts(off[p.*[0]], our[q.*[1]]) && same_consts(off[q.*[0]], our[p.*[1]]) {
+				tmp := p.*[1];
+				p.*[1] = q.*[1];
+				q.*[1] = tmp;
 				break;
 			}
-			pj += 1;
-} }
+		}
 	}
 	for p: pairs {
 		o, u := off[p[0]], our[p[1]];
-		ok_keys := len(o.keys) == len(u.keys);
-		if ok_keys { for k, ki: o.keys { if k != u.keys[ki] { ok_keys = false; } } }
+		ok_keys := o.keys.count == u.keys.count;
+		if ok_keys for o.keys if it != u.keys[it_index] ok_keys = false;
 		if !ok_keys {
 			r_sci_key_diff(diffs, o, u);
 			continue;
 		}
 		for k, ki: o.keys {
-			if r_allowed(allow, fmt.tprintf("science:%s.%s", o.type, k)) { continue; }
+			if r_allowed(allow, tprint("science:%.%", o.type, k)) continue;
 			if o.kinds[ki] != u.kinds[ki] {
-				fmt.sbprintfln(diffs, "  ~ science  %s.%s type: official %s, ours %s", o.type, k, o.kinds[ki], u.kinds[ki]);
+				print_to_builder(diffs, "  ~ science  %.% type: official %, ours %\n", o.type, k, o.kinds[ki], u.kinds[ki]);
 			} else if o.consts[ki] != "" && o.consts[ki] != u.consts[ki] {
-				fmt.sbprintfln(diffs, "  ~ science  %s.%s: official %s, ours %s", o.type, k, o.consts[ki], ifx u.consts[ki] != "" then u.consts[ki] else "(variable)");
+				print_to_builder(diffs, "  ~ science  %.%: official %, ours %\n", o.type, k, o.consts[ki], ifx u.consts[ki] != "" then u.consts[ki] else "(variable)");
 			}
 		}
 	}
-	// batching
-	if !r_allowed(allow, "science:batching") {
-		for pi: 1..len(pairs)-1 {
-			a, b := pairs[pi - 1], pairs[pi];
-			oa, ob, ua, ub := off[a[0]], off[b[0]], our[a[1]], our[b[1]];
-			same_off := oa.batch == ob.batch;
-			if same_off && ob.track - oa.track <= SCI_SAME_STEP_MS && ua.batch != ub.batch {
-				fmt.sbprintfln(diffs, "  ~ science  %s and %s: one batch officially, two in ours", oa.type, ob.type);
-			} else if !same_off && ob.track - oa.track > SCI_SEPARATE_MS && ua.batch == ub.batch {
-				fmt.sbprintfln(diffs, "  ~ science  %s and %s: two batches officially, one in ours", oa.type, ob.type);
-			}
+	if r_allowed(allow, "science:batching") return;
+	for pi: 1..pairs.count - 1 {
+		a, b := pairs[pi - 1], pairs[pi];
+		oa, ob, ua, ub := off[a[0]], off[b[0]], our[a[1]], our[b[1]];
+		same_off := oa.batch == ob.batch;
+		if same_off && ob.track - oa.track <= SCI_SAME_STEP_MS && ua.batch != ub.batch {
+			print_to_builder(diffs, "  ~ science  % and %: one batch officially, two in ours\n", oa.type, ob.type);
+		} else if !same_off && ob.track - oa.track > SCI_SEPARATE_MS && ua.batch == ub.batch {
+			print_to_builder(diffs, "  ~ science  % and %: two batches officially, one in ours\n", oa.type, ob.type);
 		}
-		max_delay: s64 = -1;
-		for b: official { if len(b.events) > 0 { max_delay = max(max_delay, b.send - b.events[0].track); } }
-		if max_delay >= 0 {
-			for b: ours { if len(b.events) > 0 {
-				d := b.send - b.events[0].track;
-				if d < 0 || d > max_delay + 50 {
-					fmt.sbprintfln(diffs, "  ~ science  flush %d ms after the first event (official at most %d ms)", d, max_delay);
-				}
-			} }
-		}
+	}
+	max_delay: s64 = -1;
+	for official if it.events max_delay = max(max_delay, it.send - it.events[0].track);
+	if max_delay < 0 return;
+	for ours if it.events {
+		d := it.send - it.events[0].track;
+		if d < 0 || d > max_delay + 50 print_to_builder(diffs, "  ~ science  flush % ms after the first event (official at most % ms)\n", d, max_delay);
 	}
 }
 
 // last message by us in the channel (the fixture's own setup message)
 r_last_own :: (c: *Client, channel: Snowflake) -> Snowflake {
 	msgs := messages_get(*c.store, channel);
-	for < i: 0..len(msgs) - 1 { if msgs[i].author_id == c.store.me { return msgs[i].id; } }
-	return ifx len(msgs) > 0 then msgs[len(msgs) - 1].id else 0;
+	for < msgs if it.author_id == c.store.me return it.id;
+	return ifx msgs then msgs[msgs.count - 1].id else 0;
 }
 
 r_type :: (c: *Client, channel: Snowflake, text: string) {
-	for _: text { typing_keystroke(c, channel); }
+	for 1..text.count typing_keystroke(c, channel);
 }
 
 // Telemetry fastcord never sends (traffic/PARITY.md "Telemetry"): every window allows these (replay_check).
@@ -921,11 +827,11 @@ r_react_via_menu :: (run: *Replay_Run, msg: Snowflake, query: string, results: [
 }
 
 r_search :: (run: *Replay_Run, query: string, results: []int) {
-	picker_search_typed(run.c, sub(query, 0, 1));
+	picker_search_typed(run.c, slice(query, 0, 1));
 	replay_settle(run, 200);
 	for n, i: results {
 		// results render for the query typed so far (the last one is the full query)
-		q := ifx i == len(results) - 1 then query else sub(query, 0, min(len(query), i + 1));
+		q := ifx i == results.count - 1 then query else slice(query, 0, i + 1);
 		picker_search_results(run.c, q, n);
 		replay_settle(run, 200);
 	}
@@ -1067,8 +973,8 @@ parity_add_custom_reaction :: (t: *T) {
 	replay_mark(*run);
 	msg := r_last_own(run.c, R_TEXT);
 	r_react_via_menu(*run, msg, "fastcord", int.[624, 300, 40, 1]);
-	picker_emoji_selected(run.c, "fastcord_test", cast(Snowflake)(1564250154838528071), R_GUILD);
-	add_reaction(run.c, R_TEXT, msg, "fastcord_test", cast(Snowflake)(1564250154838528071), false, "Message Reaction Picker");
+	picker_emoji_selected(run.c, "fastcord_test", cast(Snowflake) 1564250154838528071, R_GUILD);
+	add_reaction(run.c, R_TEXT, msg, "fastcord_test", cast(Snowflake) 1564250154838528071, false, "Message Reaction Picker");
 	replay_settle(*run, 600);
 	replay_check(*run, "add_custom_reaction");
 }
@@ -1283,8 +1189,8 @@ parity_guild_mark_read :: (t: *T) {
 	replay_dispatches(*run, "b_sends", "MESSAGE_CREATE");
 	// B's message id is scrubbed ("<new:2>") and unscrubs below the real ids: put the
 	// read state behind it so the channel is unread, as it was officially
-	{ rs := table_find_pointer(*run.c.store.read_states, R_TEXT); ok := rs != null;
-	if ok { rs.last_message_id = 1; } }
+	rs := table_find_pointer(*run.c.store.read_states, R_TEXT);
+	if rs rs.last_message_id = 1;
 	replay_settle(*run, 300);
 	replay_mark(*run);
 	ack_guild(run.c, R_GUILD);
@@ -1410,7 +1316,6 @@ parity_invite_people :: (t: *T) {
 	replay_settle(*run, 500);
 	replay_check(*run, "invite_from_menu");
 }
-#scope_file
 
 // later opens: validate is the first open's code; the suggestions' memberships are known
 r_invite_reopen :: (t: *T, window: string, location: string) {
@@ -1426,7 +1331,6 @@ r_invite_reopen :: (t: *T, window: string, location: string) {
 	replay_settle(*run, 500);
 	replay_check(*run, window);
 }
-#scope_export
 
 parity_invite_people_header_icon :: (t: *T) {r_invite_reopen(t, "invite_from_header_icon", INVITE_LOC_HEADER_BUTTON);}
 
@@ -1447,7 +1351,6 @@ parity_invite_people_copy_close :: (t: *T) {
 	replay_settle(*run, 300);
 	replay_check(*run, "close_invite");
 }
-#scope_file
 
 // B leaves the test guild: the DELETE, then (on GUILD_DELETE) Friends' first render.
 r_leave :: (run: *Replay_Run) {
@@ -1459,7 +1362,6 @@ r_leave :: (run: *Replay_Run) {
 	friends_page_viewed(run.c);
 	replay_settle(run, 600);
 }
-#scope_export
 
 parity_leave_server :: (t: *T) {
 	locks.lock(*r_guild_side_tables);
@@ -1490,9 +1392,9 @@ parity_join_server :: (t: *T) {
 	replay_settle(*run, 300);
 	{
 		locks.lock(*run.r.mu);
-		n := len(run.r.ours) + len(run.r.sends);
+		n := run.r.ours.count + run.r.sends.count;
 		locks.unlock(*run.r.mu);
-		expectf(t, n == 0, "opening Add a Server / Join a Server sent %d requests or gateway ops (official: science only)", n);
+		expectf(t, n == 0, "opening Add a Server / Join a Server sent % requests or gateway ops (official: science only)", n);
 	}
 	replay_mark(*run);
 	// the app runs join_invite on a worker while the UI thread polls (science flushes)
@@ -1510,7 +1412,7 @@ parity_join_server :: (t: *T) {
 	});
 	while !atomic_load(*jn.done) {
 		client_poll(run.c);
-		time.sleep(5 * time.Millisecond);
+		sleep_milliseconds(5);
 	}
 	locks.join(th);
 	expect(t, jn.ok, "the invite was not accepted");
@@ -1519,13 +1421,11 @@ parity_join_server :: (t: *T) {
 	locks.lock(*run.c.route_mu);
 	g, ch := run.c.route_guild, run.c.route_channel;
 	locks.unlock(*run.c.route_mu);
-	expectf(t, g == R_GUILD && ch == R_TEXT, "the joined guild opened at %v/%v", g, ch);
+	expectf(t, g == R_GUILD && ch == R_TEXT, "the joined guild opened at %/%", g, ch);
 	replay_check(*run, "b_join_submit");
 }
-#scope_file
 
-R_UPLOAD_CH :: cast(Snowflake)(1564405699197407414);
-#scope_export // upload_options was recorded in a second text channel
+R_UPLOAD_CH :: cast(Snowflake) 1564405699197407414; // upload_options was recorded in a second text channel
 
 // Staged attachments: each staged file uploads at once; spoiler / modify send nothing;
 // the trash deletes the uploaded file once (no retry after the capture's 429); Send posts
@@ -1533,19 +1433,19 @@ R_UPLOAD_CH :: cast(Snowflake)(1564405699197407414);
 parity_upload_options :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "upload_options", R_GUILD, R_UPLOAD_CH) { return; }
-	png, err := os.read_entire_file("tests/scenarios/assets/test.png", context.allocator);
-	if !expect(t, err == null) { return; }
-	defer delete(png);
+	png, ok := read_entire_file("tests/scenarios/assets/test.png");
+	if !expect(t, ok) { return; }
+	defer free(png);
 	c := run.c;
 
 	replay_mark(*run);
-	h1 := upload_draft(c, R_UPLOAD_CH, "test.png", "image/png", png, "file_picker");
+	h1 := upload_draft(c, R_UPLOAD_CH, "test.png", "image/png", cast([]u8) png, "file_picker");
 	// the upload PUT answers after its recorded latency: wait for it, then settle
 	for i: 0..600-1 {
 		client_poll(c);
 		{ st, _, _, _ := upload_draft_status(c, h1);
 		if st == .Done || st == .Failed { break; } }
-		time.sleep(5 * time.Millisecond);
+		sleep_milliseconds(5);
 	}
 	replay_settle(*run, 500);
 	st, sent, _, _ := upload_draft_status(c, h1);
@@ -1553,7 +1453,7 @@ parity_upload_options :: (t: *T) {
 	// the fixture's READY puts this user in the WebP experiment (variation 1): the PNG
 	// is uploaded as a smaller lossless WebP, as the official client did (6302 -> 758)
 	expect_value(t, c.webp_variation, 1);
-	expect(t, sent > 0 && sent < cast(s64)(len(png)));
+	expect(t, sent > 0 && sent < png.count);
 	replay_check(*run, "stage_file", string.["settings-proto/2"], keep = true);
 
 	replay_mark(*run);
@@ -1567,7 +1467,7 @@ parity_upload_options :: (t: *T) {
 	replay_check(*run, "modify_save", keep = true);
 
 	replay_mark(*run);
-	h2 := upload_draft(c, R_UPLOAD_CH, "fastcord_test.png", "image/png", png, "file_picker");
+	h2 := upload_draft(c, R_UPLOAD_CH, "fastcord_test.png", "image/png", cast([]u8) png, "file_picker");
 	replay_settle(*run, 500);
 	replay_check(*run, "stage_second_file", keep = true);
 
@@ -1584,17 +1484,17 @@ parity_upload_options :: (t: *T) {
 
 	replay_mark(*run);
 	// the official paste was a PNG the WebP didn't shrink (insufficient_savings): so is this one
-	small, serr := os.read_entire_file("src/imagefmt/testdata/t_trns_gray.png", context.allocator);
-	expect(t, serr == null);
-	defer delete(small);
-	h3 := upload_draft(c, R_UPLOAD_CH, "image.png", "image/png", small, "clipboard");
+	small, sok := read_entire_file("src/imagefmt/testdata/t_trns_gray.png");
+	expect(t, sok);
+	defer free(small);
+	h3 := upload_draft(c, R_UPLOAD_CH, "image.png", "image/png", cast([]u8) small, "clipboard");
 	replay_settle(*run, 500);
 	{
 		d := drafts_of(c);
 		locks.lock(*d.mu);
 		u, _ := draft_find(d, h3);
 		if u != null { expect_value(t, u.conv.failure, "insufficient_savings"); }
-		if u != null { expect_value(t, u.size, cast(s64)(len(small))); }
+		if u != null { expect_value(t, u.size, small.count); }
 		locks.unlock(*d.mu);
 	}
 	replay_check(*run, "paste_image", keep = true);
@@ -1621,7 +1521,6 @@ inbox_begin :: (run: *Replay_Run, t: *T) -> bool {
 	replay_settle(run, 300);
 	return true;
 }
-#scope_export
 
 parity_inbox_open :: (t: *T) {
 	run: Replay_Run;
@@ -1658,7 +1557,7 @@ parity_inbox_mark_read :: (t: *T) {
 	for e: replay_window(*run.r, "b_mentions") {
 		if fstr(e, "k") != "ws_recv" || fstr(e, "ev") != "MESSAGE_CREATE" { continue; }
 		d := fmap(e, "d");
-		analytics_notification_shown(run.c, fsnow(d, "id"), fsnow(d, "channel_id"), fsnow(fmap(d, "author"), "id"), cast(int)(fint(d, "type")), true);
+		analytics_notification_shown(run.c, fsnow(d, "id"), fsnow(d, "channel_id"), fsnow(fmap(d, "author"), "id"), fint(d, "type"), true);
 	}
 	replay_mark(*run);
 	last := table_find_pointer(*run.c.store.channels, R_TEXT).last_message_id;
@@ -1697,7 +1596,7 @@ parity_inbox_jump :: (t: *T) {
 	replay_mark(*run);
 	msg := messages_get(*run.c.store, R_TEXT);
 	select_channel(run.c, R_GUILD, R_TEXT, 10);
-	if len(msg) > 0 { track_jump(run.c, "Recent Mentions", R_TEXT, msg[len(msg) - 1].id); }
+	if msg { track_jump(run.c, "Recent Mentions", R_TEXT, msg[msg.count - 1].id); }
 	replay_settle(*run, 500);
 	replay_check(*run, "inbox_jump_to_mention");
 }
@@ -1730,16 +1629,15 @@ parity_threads_browser :: (t: *T) {
 	replay_mark(*run);
 	create_thread(c, R_TEXT2, "fastcord test thread", tag = 77);
 	thread: Snowflake;
-	{ i := 0;
-	while i < 400 && thread == 0 {
+	for 1..400 {
+		if thread != 0 break;
 		client_poll(c);
 		for * r: feature_take(c) {
 			if r.op == .Thread_Create && r.tag == 77 && r.ok { thread = apply_created_thread(c, r.body); }
 			feature_result_free(r);
 		}
-		time.sleep(5 * time.Millisecond);
-		i += 1;
-} }
+		sleep_milliseconds(5);
+	}
 	expect(t, thread != 0, "no thread from POST /threads");
 	replay_dispatches(*run, "create_thread_submit");
 	select_channel(c, R_GUILD, thread, 30);
@@ -1848,7 +1746,6 @@ parity_discover :: (t: *T) {
 	// returning to the guild re-renders its channel officially (integrations)
 	replay_check(*run, "leave_discover", string.["/integrations"], keep = true);
 }
-#scope_file
 
 // ---- guild events and channel management (traffic/guild_events.jsonl, create_channel.jsonl) ----
 
@@ -1856,19 +1753,19 @@ parity_discover :: (t: *T) {
 // delete the test guild (leave/join) must not run while parity_guild_events does.
 r_guild_side_tables: locks.Mutex;
 
-R_TEXT_CATEGORY :: cast(Snowflake)(1564227670806364341);
+R_TEXT_CATEGORY :: cast(Snowflake) 1564227670806364341;
 
 // r_apply_features: what the app does with finished feature requests
 // (guild_admin_apply sends the follow-ups), polled for ms.
 r_apply_features :: (run: *Replay_Run, ms: int) {
-	start := time.tick_now();
-	while time.tick_since(start) < cast(time.Duration)(ms) * time.Millisecond {
+	start := mono_ms();
+	while mono_ms() - start < ms {
 		client_poll(run.c);
 		for * r: feature_take_for(run.c) {
 			guild_admin_apply(run.c, r);
 			feature_result_free(r);
 		}
-		time.sleep(5 * time.Millisecond);
+		sleep_milliseconds(5);
 	}
 }
 
@@ -1879,7 +1776,6 @@ r_new_channel :: (run: *Replay_Run) -> Snowflake {
 	}
 	return 0;
 }
-#scope_export
 
 parity_guild_events :: (t: *T) {
 	locks.lock(*r_guild_side_tables);
@@ -1915,8 +1811,8 @@ parity_guild_events :: (t: *T) {
 	r_apply_features(*run, EVENT_ACK_DELAY_MS + 1000);
 	replay_compare(*run, "create_event_submit");
 	evs := guild_events(R_GUILD);
-	expect_value(t, len(evs), 1);
-	if len(evs) != 1 { return; }
+	expect_value(t, evs.count, 1);
+	if evs.count != 1 { return; }
 	ev := evs[0].id;
 	expect(t, evs[0].interested, "the creator is interested");
 	expect_value(t, evs[0].user_count, 1);
@@ -1954,7 +1850,7 @@ parity_guild_events :: (t: *T) {
 	replay_dispatches(*run, "event_cancel_confirm");
 	r_apply_features(*run, 200);
 	replay_compare(*run, "event_cancel_confirm");
-	expect_value(t, len(guild_events(R_GUILD)), 0);
+	expect_value(t, guild_events(R_GUILD).count, 0);
 }
 
 parity_create_channel :: (t: *T) {
@@ -1972,17 +1868,16 @@ parity_create_channel :: (t: *T) {
 	replay_dispatches(*run, "create_channel_submit"); // CHANNEL_CREATE comes before the response
 	// the app opens the new channel when the POST's response is applied
 	created := false;
-	{ i := 0;
-	while i < 400 && !created {
+	for 1..400 {
+		if created break;
 		client_poll(run.c);
 		for * r: feature_take_for(run.c) {
 			if r.op == .Channel_Create { created = true; }
 			guild_admin_apply(run.c, r);
 			feature_result_free(r);
 		}
-		time.sleep(5 * time.Millisecond);
-		i += 1;
-} }
+		sleep_milliseconds(5);
+	}
 	expect(t, created, "no response to the POST");
 	nc := r_new_channel(*run);
 	expect(t, channel_get(*run.c.store, nc) != null, "the new channel is in the Store");
@@ -2232,7 +2127,7 @@ parity_friend_add_context_menu :: (t: *T) {
 	analytics_friends_list(run2.c, "friends_list_clicked", .Pending);
 	analytics_friends_list(run2.c, "friends_list_viewed", .Pending);
 	replay_settle(*run2, 300);
-	accept_friend_request(run2.c, ifx run2.c.store.me == R_B then cast(Snowflake)(1546819257420087346) else R_B);
+	accept_friend_request(run2.c, ifx run2.c.store.me == R_B then cast(Snowflake) 1546819257420087346 else R_B);
 	replay_settle(*run2, 400);
 	// GET relationships: the Pending tab's refresh (Friends page)
 	replay_check(*run2, "friend_request_accept", string.["GET discord.com/api/v9/users/@me/relationships", "referrals/eligibility"]);
@@ -2271,7 +2166,7 @@ parity_dm_call :: (t: *T) {
 	analytics_permissions_requested(run2.c, "audio"); // the app opens the microphone
 	client_set_rtc_state(run2.c, .Rtc_Connected);
 	replay_settle(*run2, 1500);
-	expect_value(t, incoming_call(run2.c), cast(Snowflake)(0));
+	expect_value(t, incoming_call(run2.c), cast(Snowflake) 0);
 	replay_check(*run2, "b_join_from_ring", string.["op 4", "settings-proto/2"]);
 	run3: Replay_Run;
 	if !replay_begin(*run3, t, "dm_call", 0, R_DM) { return; }
@@ -2320,13 +2215,12 @@ parity_login_submit :: (t: *T) {
 	auth_take_events(c); // Logged_Out
 	replay_mark(*run);
 	// the fixture's values are scrubbed placeholders: the body shape is compared
-	auth_login(c, "<email>", transmute([]u8, as_string("<token>")));
-	{ i := 0;
-	while i < 400 && client_logged_out(c) { replay_pump(*run, 5);  i += 1; } }
+	auth_login(c, "<email>", cast([]u8) "<token>");
+	for 1..400 { if !client_logged_out(c) break; replay_pump(*run, 5); }
 	expect(t, !client_logged_out(c));
 	if c.gw == null { return; }
 	evs := auth_take_events(c);
-	expect(t, len(evs) == 1 && evs[0].kind == .Logged_In && evs[0].token == "<token>");
+	expect(t, evs.count == 1 && evs[0].kind == .Logged_In && evs[0].token == "<token>");
 	// what the gateway does on its own when it connects (the sink never does)
 	gateway_send(c.gw, .Identify, identify_value(c.gw));
 	analytics_gateway_connected(c, 0, "wss://gateway.discord.gg", false, false, 160, 160);
@@ -2346,7 +2240,6 @@ parity_login_submit :: (t: *T) {
 		"science:client_heartbeat", "science:session_start_client", "science:ready_payload_received", "science:game_profile_entry_point_available"
 	]);
 }
-#scope_file
 
 // ---- username change (fixture account_edits: a passive recording on the home route) ----
 
@@ -2357,7 +2250,6 @@ r_account_begin :: (run: *Replay_Run, t: *T) -> bool {
 	identity_set_app_state(*run.c.id, .Focused); // recorded by hand: the window had focus
 	return true;
 }
-#scope_export
 
 // Settings > My Account, then "Edit" on the username: the field opens with the
 // current name, which is checked 800 ms later (next window).
@@ -2405,16 +2297,15 @@ parity_username_submit :: (t: *T) {
 	update_username(run.c, "dingusbattle2", "fastcord-test-password");
 	replay_settle(*run, 1200);
 	got_patch := false;
-	{ i := 0;
-	while i < 200 && !got_patch {
+	for 1..200 {
+		if got_patch break;
 		client_poll(run.c);
 		for * r: feature_take(run.c) {
 			if r.op == .User_Patch { got_patch = r.ok; }
 			feature_result_free(r);
 		}
-		time.sleep(5 * time.Millisecond);
-		i += 1;
-} }
+		sleep_milliseconds(5);
+	}
 	expect(t, got_patch, "the PATCH was not answered");
 	analytics_ui_setting(run.c, "account_info_username_setting"); // the app: Edit again
 	replay_settle(*run, 300);
