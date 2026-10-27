@@ -412,6 +412,11 @@ modal_open :: () -> bool {
 	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0;
 }
 
+// The hover toolbar drawn this pass, and the one from the pass before (rows test the
+// mouse against it: it floats above its own row).
+Chat_Toolbar :: struct { msg: dc.Snowflake; rect: ui.Rect; }
+chat_toolbar, chat_toolbar_prev: Chat_Toolbar;
+
 #scope_file
 
 stamps: struct {
@@ -440,6 +445,8 @@ day_of :: (id: dc.Snowflake) -> s64 {
 
 message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	s := store();
+	chat_toolbar_prev = chat_toolbar;
+	chat_toolbar = .{};
 	list := ui.box("messages", .Clip | .Scroll_Y);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	// Scrolling is managed here (anchored to the bottom), not by ui's scroll offset.
@@ -707,7 +714,12 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		li.layout_axis = .Y;
 		ui.push_parent(li);
 		defer ui.pop_parent();
-		hovered := ui.mouse_over(li) && !app.ui.selection.dragging;
+		// over a message's toolbar (it hangs over the row above) that message stays hovered
+		tb := chat_toolbar_prev;
+		mp := app.ui.mouse;
+		over_tb := tb.msg != 0 && mp.x >= tb.rect.x0 && mp.x < tb.rect.x1 && mp.y >= tb.rect.y0 && mp.y < tb.rect.y1;
+		hovered := ifx over_tb then tb.msg == m.id else ui.mouse_over(li);
+		hovered = hovered && !app.ui.selection.dragging;
 		if hovered app.chat_hover = m.id;
 		if (hovered || ma.menu_msg == m.id) && !editing li.style.bg = T("--message-background-hover");
 		highlighted := ma.replying == m.id || jump_highlighted(m.id);
@@ -816,30 +828,37 @@ system_notice :: (m: *dc.Message) {
 		muted := ui.Span.{font = F(.Normal), size = MSG_FONT, color = T("--text-muted")};
 		strong := ui.Span.{font = F(.Medium), size = MSG_FONT, color = T("--text-strong")};
 		add :: (spans: *[..]ui.Span, s: ui.Span, text: string) { x := s; x.text = text; array_add(spans, x); }
+		// a user's name: clicking it opens their profile, as in the client
+		name :: (spans: *[..]ui.Span, s: ui.Span, uid: dc.Snowflake, channel_id: dc.Snowflake) {
+			x := s;
+			x.text = name_in(uid, channel_id);
+			x.user = cast(*void) uid;
+			array_add(spans, x);
+		}
 		if friend {
 			// the other user's name, whoever sent it; their note (content) is quoted when there is one
 			ch := dc.channel_get(store(), m.channel_id);
 			other := ifx ch && ch.recipient_ids.count then ch.recipient_ids[0] else m.author_id;
 			mine := m.author_id == store().me;
-			if mine { add(*spans, muted, "You accepted "); add(*spans, strong, name_in(other, m.channel_id)); add(*spans, muted, "'s friend request."); }
-			else { add(*spans, strong, name_in(other, m.channel_id)); add(*spans, muted, " accepted your friend request."); }
+			if mine { add(*spans, muted, "You accepted "); name(*spans, strong, other, m.channel_id); add(*spans, muted, "'s friend request."); }
+			else { name(*spans, strong, other, m.channel_id); add(*spans, muted, " accepted your friend request."); }
 			if m.content != "" {
 				add(*spans, muted, ifx mine then " They said: " else " You said: ");
 				add(*spans, strong, m.content);
 			}
 		} else if m.kind == MSG_RECIPIENT_ADD || m.kind == MSG_RECIPIENT_REMOVE {
 			// the other user is the first mention; removing yourself is leaving
-			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			name(*spans, strong, m.author_id, m.channel_id);
 			other := ifx m.mentions.count then m.mentions[0] else 0;
 			if m.kind == MSG_RECIPIENT_REMOVE && (other == 0 || other == m.author_id) {
 				add(*spans, muted, " left the group.");
 			} else {
 				add(*spans, muted, ifx m.kind == MSG_RECIPIENT_ADD then " added " else " removed ");
-				add(*spans, strong, name_in(other, m.channel_id));
+				name(*spans, strong, other, m.channel_id);
 				add(*spans, muted, ifx m.kind == MSG_RECIPIENT_ADD then " to the group." else " from the group.");
 			}
 		} else if m.kind == MSG_NAME_CHANGE {
-			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			name(*spans, strong, m.author_id, m.channel_id);
 			if m.content == "" { add(*spans, muted, " removed the custom group name."); }
 			else {
 				ch := dc.channel_get(store(), m.channel_id);
@@ -848,17 +867,17 @@ system_notice :: (m: *dc.Message) {
 				add(*spans, muted, ".");
 			}
 		} else if m.kind == MSG_ICON_CHANGE {
-			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, " changed the group icon.");
 		} else if pin {
-			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, " pinned ");
 			add(*spans, strong, "a message");
 			add(*spans, muted, " to this channel. See all ");
 			add(*spans, strong, "pinned messages");
 			add(*spans, muted, ".");
 		} else {
-			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, ifx m.call_ended then tprint(" started a call that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))) else " started a call.");
 		}
 		add(*spans, .{font = F(.Medium), size = 12, color = T("--chat-text-muted")}, tprint(" %", header_timestamp(m.id)));
@@ -868,6 +887,13 @@ system_notice :: (m: *dc.Message) {
 		b.style.padding = .{0, (CALL_ROW_H - MSG_LINE_H) / 2};
 		ui.set_spans(b, spans);
 		b.sel_order = m.id * 8 + 2;
+		tl := b.prev_layout;
+		if tl for e: app.ui.events {
+			if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() || ui.overlay_at(e.pos) continue;
+			si := ui.span_at(tl, e.pos);
+			if si < 0 || si >= tl.spans.count || tl.spans[si].user == null continue;
+			open_profile(cast(dc.Snowflake) tl.spans[si].user, .{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10});
+		}
 		spacer(.X, 48);
 	}
 }

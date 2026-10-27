@@ -182,6 +182,7 @@ app_reset_state :: () {
 	guild_admin_reset_for_test();
 	block_confirm = .{};
 	edit_menu_state = .{};
+	chat_toolbar, chat_toolbar_prev = .{}, .{};
 	req_reset_for_test();
 	fnick = .{};
 	attachments_reset_for_test();

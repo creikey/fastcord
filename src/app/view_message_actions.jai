@@ -55,6 +55,7 @@ message_toolbar :: (m: *dc.Message) {
 	bar := row("toolbar", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Clickable);
 	bar.semantic_size = .[ui.px(w), ui.px(TOOLBAR_BTN + 2 * TOOLBAR_PAD)];
 	bar.fixed_pos = .{ui.top_parent().rect.x1 - ui.top_parent().rect.x0 - w - 14, -16};
+	chat_toolbar = .{m.id, bar.rect};
 	bar.style.bg = T("--background-surface-higher");
 	bar.style.border_color = T("--border-subtle");
 	bar.style.border = 1;
