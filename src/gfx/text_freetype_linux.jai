@@ -80,7 +80,12 @@ native_font_system :: (name: string, weight: Font_Weight, italic: bool) -> *void
         }
         if !nf for ft.paths if ends_with(it_index, ".ttf") { nf = open_file(it, 0, 0); break; }
     }
-    if nf { nf.weight = weight; nf.italic = italic; }
+    if nf {
+        nf.weight = weight;
+        nf.italic = italic;
+        // no italic face installed: slant the upright one, as DirectWrite and CoreText do
+        nf.oblique = italic && nf.scalable && (fc_ft_style_flags(nf.ft) & 1 /*FT_STYLE_FLAG_ITALIC*/) == 0;
+    }
     return nf;
 }
 
@@ -212,7 +217,8 @@ native_rasterize :: (inst: u32, glyph: u32, subpx: float32, allocator: Allocator
     f := fi.face.ft;
     FT_Activate_Size(fi.ft_size);
     delta := FT_Vector.{x = cast(s64) round(subpx * 64)};
-    FT_Set_Transform(f, null, *delta);
+    shear := FT_Matrix.{0x10000, 0x366A, 0, 0x10000}; // a shear of about 12 degrees, as FT_GlyphSlot_Oblique
+    FT_Set_Transform(f, ifx fi.face.oblique then *shear else null, *delta);
     flags: s32 = FT_LOAD_RENDER | FT_LOAD_NO_HINTING;
     if fi.face.color  flags |= FT_LOAD_COLOR;
     else if fi.face.scalable  flags |= FT_LOAD_NO_BITMAP; // outlines, as macOS, not embedded strikes
@@ -278,6 +284,7 @@ Native_Face :: struct {
     color, scalable: bool;
     weight: Font_Weight; // the style fallback fonts are matched in
     italic: bool;
+    oblique: bool; // italic asked for, upright face found: glyphs are sheared when drawn
 }
 
 Font_Inst :: struct {
@@ -501,6 +508,7 @@ FT_Library :: *void;
 FT_Face :: *void;
 FT_Size :: *void;
 FT_Vector :: struct { x, y: s64; }
+FT_Matrix :: struct { m_xx, m_xy, m_yx, m_yy: s64; } // FT_Fixed 16.16 in a C long
 Ft_Bitmap :: struct {
     width, rows, pitch, pixel_mode: s32;
     left, top: s32;
@@ -532,6 +540,7 @@ FT_Get_Char_Index :: (face: FT_Face, charcode: u64) -> u32 #foreign ft_vendor;
 FT_Load_Sfnt_Table :: (face: FT_Face, tag: u64, offset: s64, buffer: *u8, length: *u64) -> s32 #foreign ft_vendor;
 fc_ft_glyph_bitmap :: (face: FT_Face, b: *Ft_Bitmap) #foreign ft_vendor;
 fc_ft_face_flags :: (face: FT_Face) -> s32 #foreign ft_vendor;
+fc_ft_style_flags :: (face: FT_Face) -> s32 #foreign ft_vendor;
 fc_ft_select_strike :: (face: FT_Face, px: float32) -> float32 #foreign ft_vendor;
 fc_ft_set_axis :: (face: FT_Face, tag: u64, value: float64) #foreign ft_vendor;
 

@@ -102,6 +102,7 @@ void fc_ft_glyph_bitmap(FT_Face face, fc_ft_bitmap *b) {
 
 // FT_FACE_FLAG_* bits.
 int fc_ft_face_flags(FT_Face face) { return (int)face->face_flags; }
+int fc_ft_style_flags(FT_Face face) { return (int)face->style_flags; }
 
 // For a face without outlines (CBDT emoji): selects the smallest strike of at least px pixels, else the
 // largest. Returns its size in pixels, 0 if none.
