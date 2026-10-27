@@ -1,10 +1,10 @@
-A_ID :: cast(discord.Snowflake)(1546819257420087346);
-B_ID :: cast(discord.Snowflake)(1564202918369042442);
+A_ID :: cast(discord.Snowflake) 1546819257420087346;
+B_ID :: cast(discord.Snowflake) 1564202918369042442;
 B_NAME :: "bobbles_2345";
-TGUILD :: cast(discord.Snowflake)(1564227669971832975);
-TTEXT :: cast(discord.Snowflake)(1564405699197407414); // #general, recreated 2026-10-26
-TVOICE :: cast(discord.Snowflake)(1564227670806364345);
-DM_AB :: cast(discord.Snowflake)(1564228964451356713);
+TGUILD :: cast(discord.Snowflake) 1564227669971832975;
+TTEXT :: cast(discord.Snowflake) 1564405699197407414; // #general, recreated 2026-10-26
+TVOICE :: cast(discord.Snowflake) 1564227670806364345;
+DM_AB :: cast(discord.Snowflake) 1564228964451356713;
 VIEW_W :: 1280;
 VIEW_H :: 720;
 
@@ -31,131 +31,124 @@ reloads: [2]int;
 // through the native fast connect (before HELLO) or from the web app after
 // HELLO (gateway_connect_reasons "AppSkeleton"); both happen in the captures.
 fixture_fast_connect :: (acct: string, n: int) -> bool {
-	data, err := os.read_entire_file(fmt.tprintf("traffic/%s.jsonl", scenario), temp);
-	if err != null { return true; }
-	text := as_string(data);
+	text, ok := read_entire_file(tprint("traffic/%.jsonl", scenario),, temp);
+	if !ok return true;
 	seen := 0;
-	while true { line, __ok1 := strings.split_lines_iterator(*text); if !__ok1 break;
-		if !strings.contains(line, "\"op\":2,") || !strings.contains(line, "\"ws_send\"") { continue; }
-		v, jerr := etf.from_json(line,, temp);
-		if jerr != .None { continue; }
-		m := discord.vmap(v);
-		a := discord.fstr(m, "acct");
-		if a == "" { a = "a"; }
-		if a != acct { continue; }
+	for line: split(text, "\n",, temp) {
+		if !contains(line, "\"op\":2,") || !contains(line, "\"ws_send\"") continue;
+		m := fixture_line(line, acct);
+		if !m continue;
 		if seen == n {
-			fc, _ := discord.vget(discord.fmap(discord.fmap(m, "d"), "properties"), "is_fast_connect").b, discord.vget(discord.fmap(discord.fmap(m, "d"), "properties"), "is_fast_connect").kind == .Bool;
-			return fc;
+			fc := discord.vget(discord.fmap(discord.fmap(m, "d"), "properties"), "is_fast_connect");
+			return fc.kind == .Bool && fc.b;
 		}
 		seen += 1;
 	}
 	return true;
 }
 
+// fixture_line: a fixture line of account acct (lines without "acct" are a's), or empty.
+fixture_line :: (line: string, acct: string) -> etf.Map {
+	v, err := etf.from_json(line,, temp);
+	if err != .None return .[];
+	m := discord.vmap(v);
+	a := discord.fstr(m, "acct");
+	if a == "" a = "a";
+	return ifx a == acct then m else .[];
+}
+
 start_route :: (acct: string, n: int) -> discord.Snowflake, discord.Snowflake {
-	guild: discord.Snowflake;
-	channel: discord.Snowflake;
-	data, err := os.read_entire_file(fmt.tprintf("traffic/%s.jsonl", scenario), temp);
-	if err != null { return 0, 0; }
-	text := as_string(data);
+	guild, channel: discord.Snowflake;
+	text, ok := read_entire_file(tprint("traffic/%.jsonl", scenario),, temp);
+	if !ok return 0, 0;
 	opens := -1;
 	ready_seen := false;
 	route_done := false;
-	while true { line, __ok2 := strings.split_lines_iterator(*text); if !__ok2 break;
+	// the id after `prefix` in url, up to the next '/'
+	id_after :: (url: string, i: int, prefix: string) -> discord.Snowflake {
+		rest := advance(url, i + prefix.count);
+		e := find_index_from_left(rest, #char "/");
+		return discord.parse_snowflake(ifx e >= 0 then slice(rest, 0, e) else rest);
+	}
+	for line: split(text, "\n",, temp) {
 		// the start route's page is requested right at READY; later pages are clicks
-		if ready_seen && channel == 0 { route_done = true; }
-		v, jerr := etf.from_json(line,, temp);
-		if jerr != .None { continue; }
-		m := discord.vmap(v);
-		a := discord.fstr(m, "acct");
-		if a == "" { a = "a"; }
-		if a != acct { continue; }
+		if ready_seen && channel == 0 route_done = true;
+		m := fixture_line(line, acct);
+		if !m continue;
 		k := discord.fstr(m, "k");
-		if k == "mark" && opens == n && n >= 0 && (guild != 0 || channel != 0 || true) {
+		if k == "mark" && opens == n && n >= 0 {
 			// the route is what the client reopened on: stop at the next step
 			name := discord.fstr(m, "name");
-			if name != "setup" && name != "setup_b" { break; }
+			if name != "setup" && name != "setup_b" break;
 		}
-		if k == "ws_recv" && opens == n && discord.fstr(m, "ev") == "READY_SUPPLEMENTAL" {
-			ready_seen = true;
-		}
+		if k == "ws_recv" && opens == n && discord.fstr(m, "ev") == "READY_SUPPLEMENTAL" ready_seen = true;
 		if k == "ws_open" {
 			opens += 1;
-			if opens > n { break; }
+			if opens > n break;
 			continue;
 		}
-		if opens != n || k != "req" { continue; }
+		if opens != n || k != "req" continue;
 		url := discord.fstr(m, "url");
-		{ i := strings.index(url, "/guilds/");
-		if i >= 0 && strings.contains(url, "lurker=true") {
-			rest := sub_from(url, i + 8);
-			guild = discord.parse_snowflake(sub(rest, 0, strings.index_byte(rest, #char "/")));
-		} }
-		{ i := strings.index(url, "/channels/");
-		if i >= 0 && strings.contains(url, "/messages?limit=") && channel == 0 && !route_done {
-			rest := sub_from(url, i + 10);
-			channel = discord.parse_snowflake(sub(rest, 0, strings.index_byte(rest, #char "/")));
-		} }
+		i := find_index_from_left(url, "/guilds/");
+		if i >= 0 && contains(url, "lurker=true") guild = id_after(url, i, "/guilds/");
+		i = find_index_from_left(url, "/channels/");
+		if i >= 0 && contains(url, "/messages?limit=") && channel == 0 && !route_done channel = id_after(url, i, "/channels/");
 	}
 	return guild, channel;
 }
+
 accts: [2]Acct;
 cur: *Acct;
 
 main :: () {
-	register_thread_context();
+	random_seed(cast(u64) to_nanoseconds(current_time_consensus())); // human pacing differs per run
 	args := get_command_line_arguments();
-	if len(args) < 2 {
-		fmt.eprintln("usage: parity <scenario> [out.jsonl] | parity session [scenario...]");
-		os.exit(2);
-	}
+	if args.count < 2 fail("usage: parity <scenario> [out.jsonl] | parity session [scenario...]", 2);
 	if args[1] == "session" {
-		session_report(sub_from(args, 2));
+		session_report(array_view(args, 2));
 		return;
 	}
 	name := args[1];
 	scenario = name;
-	out := ifx len(args) > 2 then args[2] else fmt.tprintf(".secrets/raw/ours_%s.jsonl", name);
-	accts[0] = .{name = "a", token = token_a(), state = ".secrets/parity-state-a"};
-	accts[1] = .{name = "b", token = token_b(), state = ".secrets/parity-state-b"};
-	if accts[0].token == "" {
-		fmt.eprintln("no token for A");
-		os.exit(1);
-	}
+	out := ifx args.count > 2 then args[2] else tprint(".secrets/raw/ours_%.jsonl", name);
+	accounts_init();
 	ok: bool;
 	rec, ok = discord.recorder_open(out);
-	if !ok {
-		fmt.eprintln("cannot open", out);
-		os.exit(1);
-	}
+	if !ok fail(tprint("cannot open %", out));
 	cur = *accts[0];
 	ran := run(name);
-	if ran { settle(2000, 15000); }
-	for * a: accts { if a.c != null { stop(a); } }
+	if ran settle(2000, 15000);
+	for * accts if it.c stop(it);
 	discord.recorder_close(rec);
-	if !ran {
-		fmt.eprintln("unknown or failed scenario:", name);
-		os.exit(1);
-	}
-	fmt.println(name, "->", out);
+	if !ran fail(tprint("unknown or failed scenario: %", name));
+	print("% -> %\n", name, out);
+}
+
+fail :: (msg: string, code := 1) {
+	print("%\n", msg, to_standard_error = true);
+	exit(xx code);
+}
+
+accounts_init :: () {
+	accts[0] = .{name = "a", token = token("a"), state = ".secrets/parity-state-a"};
+	accts[1] = .{name = "b", token = token("b"), state = ".secrets/parity-state-b"};
+	if accts[0].token == "" fail("no token for A");
 }
 
 // ---- tokens (never printed) ----
 
 // .secrets/token_<a|b>: the test account's Authorization value (written from the official test client).
 token :: (acct: string) -> string {
-	data, err := os.read_entire_file(tprint(".secrets/token_%", acct));
-	return ifx err == null then strings.trim_space(as_string(data)) else "";
+	data, ok := read_entire_file(tprint(".secrets/token_%", acct));
+	return ifx ok then trim(data) else "";
 }
-token_a :: () -> string { return token("a"); }
-token_b :: () -> string { return token("b"); }
 
 // ---- driving ----
 
-use :: (n: string) {cur = ifx n == "a" then *accts[0] else *accts[1];}
+use :: (n: string) { cur = ifx n == "a" then *accts[0] else *accts[1]; }
 
 // tools/capture records every scenario mark on account A's stream.
-mark :: (n: string) {discord.recorder_mark(rec, "a", n);}
+mark :: (n: string) { discord.recorder_mark(rec, "a", n); }
 
 // reload: the app restarts on the same profile (cookies, alt-svc, heartbeat
 // session persisted) and reopens on the route the official instance was on.
@@ -169,20 +162,20 @@ reload :: () {
 	guild, channel := start_route(a.name, reloads[idx]);
 	fast := fixture_fast_connect(a.name, reloads[idx]);
 	reloads[idx] += 1;
-	if a.c != null { stop(a); }
-	clear(*a.events);
+	if a.c stop(a);
+	array_reset(*a.events);
 	a.cursor = 0;
 	a.c = discord.client_create(discord.Config.{token = a.token, state_dir = a.state, initial_guild_id = guild, initial_channel_id = channel, disable_fast_connect = !fast});
 	discord.recorder_attach(rec, a.c, a.name);
 	// recorder_attach owns observer_data; route gateway dispatch names to us via the recv hook data
 	a.c.user_data = a;
 	a.c.on_dispatch = (user: *void, name: string) {
-		acct := cast(*Acct)user;
+		acct := cast(*Acct) user;
 		// The capture instances lose window focus once loaded: AppStateStore
 		// reports "unfocused" from READY on (QoS stays foregrounded).
 		if name == "READY" { discord.identity_set_app_state(*acct.c.id, .Unfocused); }
 		locks.lock(*names_mu);
-		append(*acct.events, clone(name));
+		array_add(*acct.events, copy_string(name));
 		locks.unlock(*names_mu);
 	};
 	// without native fast connect the app's IDENTIFY carries client_app_state:
@@ -203,14 +196,17 @@ stop :: (a: *Acct) {
 }
 
 pump :: (ms: int) {
-	deadline := time.tick_now();
-	while time.tick_since(deadline) < cast(time.Duration)(ms) * time.Millisecond {
-		for * a: accts { if a.c != null { discord.client_poll(a.c); } }
-		time.sleep(16 * time.Millisecond);
+	start := discord.mono_ms();
+	while discord.mono_ms() - start < ms {
+		for accts if it.c discord.client_poll(it.c);
+		sleep_milliseconds(16);
 	}
 }
 
-human :: (lo: int, hi: int) {pump(lo + cast(int)(rand.uint32_() % cast(u32)(hi - lo + 1)));}
+// rand_ms: a uniform pick in lo..hi.
+rand_ms :: (lo: int, hi: int) -> int { return lo + cast(int) (random_get() % cast(u64) (hi - lo + 1)); }
+
+human :: (lo: int, hi: int) { pump(rand_ms(lo, hi)); }
 
 // click: tools/capture's mouse move (4-25 steps of 8-22 ms, then 80-220 ms),
 // the click, then 500-1100 ms.
@@ -221,25 +217,25 @@ click :: () {
 }
 
 // wait_for: DOM polling every 250 ms (half a period on average).
-wait_for :: () {pump(125 + cast(int)(rand.uint32_() % 250));}
-pause :: () {human(700, 1600);}
+wait_for :: () { human(125, 374); }
+pause :: () { human(700, 1600); }
 
 // settle: like tools/capture — wait until no network event for quiet_ms (max max_ms).
 settle :: (quiet_ms: int, max_ms := 20000) {
-	start := time.tick_now();
-	while time.tick_since(start) < cast(time.Duration)(max_ms) * time.Millisecond {
-		if discord.now_ms() - discord.recorder_last_net(rec) >= cast(s64)(quiet_ms) { return; }
+	start := discord.mono_ms();
+	while discord.mono_ms() - start < max_ms {
+		if discord.now_ms() - discord.recorder_last_net(rec) >= quiet_ms return;
 		pump(200);
 	}
 }
 
 // wait_gw: until a dispatch arrives on the current account since the last action.
 wait_gw :: (ev: string, timeout_ms := 15000) -> bool {
-	deadline := time.tick_now();
-	while time.tick_since(deadline) < cast(time.Duration)(timeout_ms) * time.Millisecond {
-		for * a: accts { if a.c != null { discord.client_poll(a.c); } }
+	start := discord.mono_ms();
+	while discord.mono_ms() - start < timeout_ms {
+		for accts if it.c discord.client_poll(it.c);
 		locks.lock(*names_mu);
-		for i: cur.cursor..len(cur.events)-1 {
+		for i: cur.cursor..cur.events.count - 1 {
 			if cur.events[i] == ev {
 				cur.cursor = i + 1;
 				locks.unlock(*names_mu);
@@ -247,22 +243,22 @@ wait_gw :: (ev: string, timeout_ms := 15000) -> bool {
 			}
 		}
 		locks.unlock(*names_mu);
-		time.sleep(16 * time.Millisecond);
+		sleep_milliseconds(16);
 	}
-	fmt.eprintln("timeout waiting for", ev);
+	print("timeout waiting for %\n", ev, to_standard_error = true);
 	return false;
 }
 
 action :: () {
 	locks.lock(*names_mu);
-	cur.cursor = len(cur.events);
+	cur.cursor = cur.events.count;
 	locks.unlock(*names_mu);
 }
 
 typed :: (channel: discord.Snowflake, text: string) {
 	action();
-	for _: text {
-		if channel != 0 { discord.typing_keystroke(cur.c, channel); }
+	for 1..text.count {
+		if channel != 0 discord.typing_keystroke(cur.c, channel);
 		human(20, 50);
 		human(60, 170);
 	}
@@ -274,9 +270,9 @@ typed :: (channel: discord.Snowflake, text: string) {
 // counts), so this driver does not send it: expect it missing in the diff.
 picker_typed :: (query: string) {
 	action();
-	discord.picker_search_typed(cur.c, sub(query, 0, 1));
+	discord.picker_search_typed(cur.c, slice(query, 0, 1));
 	discord.picker_search_typed(cur.c, query);
-	for _: query {
+	for 1..query.count {
 		human(20, 50);
 		human(60, 170);
 	}
@@ -285,7 +281,7 @@ picker_typed :: (query: string) {
 
 last_message :: (channel: discord.Snowflake) -> discord.Snowflake {
 	msgs := discord.messages_get(*cur.c.store, channel);
-	for < i: 0..len(msgs) - 1 { if msgs[i].author_id == cur.c.store.me && !msgs[i].pending { return msgs[i].id; } }
+	for < msgs if it.author_id == cur.c.store.me && !it.pending return it.id;
 	return 0;
 }
 
@@ -298,15 +294,15 @@ newest_group_dm :: () -> discord.Snowflake {
 	return best;
 }
 
-CUSTOM_EMOJI :: cast(discord.Snowflake)(1564250154838528071); // fastcord_test (upload_custom_emoji)
+CUSTOM_EMOJI :: cast(discord.Snowflake) 1564250154838528071; // fastcord_test (upload_custom_emoji)
 // ${GUILD}/${TEXT} of the scenarios: the long-history guild "Dingus Battle"
-HGUILD :: cast(discord.Snowflake)(1546820558300258304);
-HTEXT :: cast(discord.Snowflake)(1546820603343016006);
+HGUILD :: cast(discord.Snowflake) 1546820558300258304;
+HTEXT :: cast(discord.Snowflake) 1546820603343016006;
 
 // quick_type: the quick switcher input, one keystroke at a time.
 quick_type :: (text: string) {
-	for i: 1..len(text) {
-		discord.quick_switcher_type(cur.c, sub(text, 0, i));
+	for i: 1..text.count {
+		discord.quick_switcher_type(cur.c, slice(text, 0, i));
 		human(20, 50);
 		human(60, 170);
 	}
@@ -314,9 +310,7 @@ quick_type :: (text: string) {
 
 last_image :: (channel: discord.Snowflake) -> string {
 	msgs := discord.messages_get(*cur.c.store, channel);
-	for < i: 0..len(msgs) - 1 {
-		for a: msgs[i].attachments { if strings.has_prefix(a.content_type, "image/") { return a.proxy_url; } }
-	}
+	for < msgs for a: it.attachments if begins_with(a.content_type, "image/") return a.proxy_url;
 	return "";
 }
 
@@ -465,11 +459,11 @@ run :: (name: string) -> bool {
 	case "upload_image";
 		open_test_channel();
 		mark("upload_image");
-		png, err := os.read_entire_file("tests/scenarios/assets/test.png", context.allocator);
-		if err != null { return false; }
+		png, ok := read_entire_file("tests/scenarios/assets/test.png");
+		if !ok return false;
 		pump(1500);
 		action();
-		files := discord.Upload_File.[.{filename = "test.png", mime = "image/png", data = png}];
+		files := discord.Upload_File.[.{filename = "test.png", mime = "image/png", data = cast([]u8) png}];
 		discord.send_message(cur.c, TTEXT, "", .{files = files});
 		wait_gw("MESSAGE_CREATE", 30000);
 		settle(3000);
@@ -778,7 +772,7 @@ run :: (name: string) -> bool {
 		settle(2000);
 		// the older pages are already loaded by the channel open (fixture: no requests)
 		for n: 1..3 {
-			mark(fmt.tprintf("scroll_up_%d", n));
+			mark(tprint("scroll_up_%", n));
 			settle(2500);
 		}
 	case "quick_switcher_nav";
@@ -962,7 +956,7 @@ run :: (name: string) -> bool {
 		}
 		for cid: cur.c.store.private_channels {
 			ch := discord.channel_get(*cur.c.store, cid);
-			if ch != null && ch.kind == .Group_DM && ch.owner_id == A_ID && len(ch.recipient_ids) == 0 {
+			if ch != null && ch.kind == .Group_DM && ch.owner_id == A_ID && !ch.recipient_ids {
 				discord.close_private_channel(cur.c, cid);
 				pump(1500);
 			}
@@ -985,31 +979,23 @@ run :: (name: string) -> bool {
 // already in flight when it switches stay in the previous one.
 session :: (dir: string, names: []string) {
 	session_mode = true;
-	accts[0] = .{name = "a", token = token_a(), state = ".secrets/parity-state-a"};
-	accts[1] = .{name = "b", token = token_b(), state = ".secrets/parity-state-b"};
-	if accts[0].token == "" {
-		fmt.eprintln("no token for A");
-		os.exit(1);
-	}
+	accounts_init();
 	for name, i: names {
 		scenario = name;
-		out := fmt.tprintf("%s/ours_%s.jsonl", dir, name);
+		out := tprint("%/ours_%.jsonl", dir, name);
 		next, ok := discord.recorder_open(out);
-		if !ok {
-			fmt.eprintln("cannot open", out);
-			os.exit(1);
-		}
-		for * a: accts { if a.c != null { discord.recorder_attach(next, a.c, a.name); } }
+		if !ok fail(tprint("cannot open %", out));
+		for accts if it.c discord.recorder_attach(next, it.c, it.name);
 		prev := rec;
 		rec = next;
-		if prev != null { discord.recorder_retire(prev); }
+		if prev discord.recorder_retire(prev);
 		cur = *accts[0];
-		if !run(name) { fmt.eprintln("unknown or failed scenario:", name); }
+		if !run(name) print("unknown or failed scenario: %\n", name, to_standard_error = true);
 		settle(2000, 15000);
-		fmt.println(name, "->", out);
-		if i + 1 < len(names) { human(3000, 7000); } // reading before the next thing
+		print("% -> %\n", name, out);
+		if i + 1 < names.count human(3000, 7000); // reading before the next thing
 	}
-	for * a: accts { if a.c != null { stop(a); } }
+	for * accts if it.c stop(it);
 	discord.recorder_retire(rec);
 }
 
@@ -1026,41 +1012,64 @@ CORE_IGNORES :: string.["-ignore:/science", "-ignore:/assets/", "-ignore:collect
 // recorded into .secrets/raw, then scrubbed into .secrets/ours and diffed against
 // its fixture's action windows. Run from the repo root after `jai build.jai - parity`.
 session_report :: (args: []string) {
-	names := ifx len(args) then args else SESSION_SCENARIOS;
+	names := ifx args then args else SESSION_SCENARIOS;
 	jai := ifx OS == .MACOS then "jai-macos" else ifx OS == .WINDOWS then "jai.exe" else "jai-linux";
-	for t: string.["scrub", "trafficdiff"] { must(run_cmd(string.[jai, "build.jai", "-", "tool", t])); }
-	os.make_directory_all(".secrets/raw");
-	os.make_directory_all(".secrets/ours");
+	for t: string.["scrub", "trafficdiff"] run_cmd(jai, "build.jai", "-", "tool", t);
+	make_directory_if_it_does_not_exist(".secrets/raw", recursive = true);
+	make_directory_if_it_does_not_exist(".secrets/ours", recursive = true);
 	for s: names for x: string.["a", "b"] {
-		nl := fmt.tprintf(".secrets/raw/ours_%s.jsonl.netlog-%s", s, x);
-		if os.exists(nl) { os.remove_(nl); }
+		nl := tprint(".secrets/raw/ours_%.jsonl.netlog-%", s, x);
+		if file_exists(nl) file_delete(nl);
 	}
 	session(".secrets/raw", names);
-	fmt.printf("%-24s %5s %5s\n", "scenario", "all", "core");
+	print("%1 %2 %3\n", pad("scenario", 24), pad("all", -5), pad("core", -5));
 	for s: names {
-		raw := fmt.tprintf(".secrets/raw/ours_%s.jsonl", s);
-		ours := fmt.tprintf(".secrets/ours/%s.jsonl", s);
-		fix := fmt.tprintf("traffic/%s.jsonl", s);
+		raw := tprint(".secrets/raw/ours_%.jsonl", s);
+		ours := tprint(".secrets/ours/%.jsonl", s);
+		fix := tprint("traffic/%.jsonl", s);
 		scrub: [..]string;
 		array_add(*scrub, "build/scrub", raw, ours);
 		for x: string.["a", "b"] {
-			nl := fmt.tprintf("%s.netlog-%s", raw, x);
-			if os.exists(nl) { array_add(*scrub, fmt.tprintf("-netlog-%s:%s", x, nl)); }
+			nl := tprint("%.netlog-%", raw, x);
+			if file_exists(nl) array_add(*scrub, tprint("-netlog-%:%", x, nl));
 		}
-		must(run_cmd(scrub));
-		if !os.exists(fix) { continue; }
+		run_cmd(..scrub);
+		if !file_exists(fix) continue;
 		all: [..]string;
 		array_add(*all, "build/trafficdiff");
-		if s != "cold_start" { array_add(*all, "-actions"); }
+		if s != "cold_start" array_add(*all, "-actions");
 		core: [..]string;
 		array_add(*core, ..all);
 		array_add(*core, ..CORE_IGNORES);
 		array_add(*all, fix, ours);
 		array_add(*core, fix, ours);
-		_, all_out := run_cmd(all);
-		os.write_entire_file(fmt.tprintf(".secrets/ours/%s.diff", s), all_out);
-		_, core_out := run_cmd(core);
-		fmt.printf("%-24s %5s %5s\n", s, diff_count(all_out), diff_count(core_out));
+		all_out := run_cmd(..all, must = false);
+		write_entire_file(tprint(".secrets/ours/%.diff", s), all_out);
+		core_out := run_cmd(..core, must = false);
+		print("%1 %2 %3\n", pad(s, 24), pad(diff_count(all_out), -5), pad(diff_count(core_out), -5));
 	}
 }
 
+// pad: s padded with spaces to |width| (width < 0: right-aligned), like printf's %-24s / %5s.
+pad :: (s: string, width: int) -> string {
+	n := max((ifx width < 0 then -width else width) - s.count, 0);
+	spaces := slice("                        ", 0, n);
+	return ifx width < 0 then join(spaces, s,, temp) else join(s, spaces,, temp);
+}
+
+// run_cmd: run a command, pass its stderr through, return its stdout; exit on failure when must.
+run_cmd :: (cmd: ..string, must := true) -> string {
+	result, out, err := run_command(..cmd, capture_and_return_output = true);
+	if err print("%", err, to_standard_error = true);
+	if must && (result.type != .EXITED || result.exit_code != 0) exit(1);
+	return out;
+}
+
+// diff_count: the count on trafficdiff's last line ("traffic matches" is 0).
+diff_count :: (out: string) -> string {
+	line := trim_right(out);
+	line = advance(line, find_index_from_right(line, #char "\n") + 1);
+	if line == "traffic matches" return "0";
+	i := find_index_from_left(line, #char " ");
+	return ifx i < 0 then line else slice(line, 0, i);
+}
