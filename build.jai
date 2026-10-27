@@ -136,9 +136,14 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
         }
     }
     compiler_end_intercept(w);
-    // Every Windows build of the app gets the icon; the window loads it from the exe as resource 2.
+    // Every Windows build of the app gets the icon; the window loads it from the exe as resource 2. Right
+    // after the link the exe can still be held open (EndUpdateResource fails with error 110), so retry.
     #if OS == .WINDOWS if ok && !LINUX && begins_with(source, "app :: #import \"app\"") {
-        ok = WR.set_icon_by_filename(tprint("build/%.exe", name), "assets/fastcord.ico");
+        for 1..30 {
+            ok = WR.set_icon_by_filename(tprint("build/%.exe", name), "assets/fastcord.ico");
+            if ok break;
+            sleep_milliseconds(200);
+        }
     }
     return ok;
 }
