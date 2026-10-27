@@ -54,8 +54,8 @@ home_sidebar :: () {
 			spacer(.X, 16);
 		}
 		dms := dc.private_channels_sorted(s);
-		w := ui.list_window(list, DM_ROW_PITCH, len(dms));
-		for cid: sub(dms, w.first, w.last) {
+		w := ui.list_window(list, DM_ROW_PITCH, dms.count);
+		for cid: array_view(dms, w.first, w.last - w.first) {
 			// A missing channel still takes its row, keeping the window's arithmetic exact.
 			ch := dc.channel_get(s, cid);
 			if ch == null {
@@ -117,13 +117,13 @@ dm_row :: (ch: *dc.Channel) {
 		sig := ui.signal(item);
 		if sig.clicked { select_channel(0, ch.id); }
 		// 1:1 DM rows: the user menu (Add Friend, friend nickname, ...)
-		if sig.right_clicked && ch.kind == .DM && len(ch.recipient_ids) > 0 { open_user_menu(ch.recipient_ids[0], app.ui.mouse, dm_row = true); }
+		if sig.right_clicked && ch.kind == .DM && ch.recipient_ids.count > 0 { open_user_menu(ch.recipient_ids[0], app.ui.mouse, dm_row = true); }
 		unread := dc.channel_unread(store(), ch.id);
 		color := ifx selected || sig.hovering || unread then T("--interactive-text-active") else T("--channels-default");
 		{ ui.parent(item); defer ui.pop_parent();
 			spacer(.X, 8);
-			if ch.kind == .DM && len(ch.recipient_ids) > 0 {
-				avatar_with_status("av", ch.recipient_ids[0], 32, ifx item.style.bg.w > 0 then T("--background-base-lower") else T("--background-base-lower"));
+			if ch.kind == .DM && ch.recipient_ids.count > 0 {
+				avatar_with_status("av", ch.recipient_ids[0], 32, T("--background-base-lower"));
 			} else {
 				group_dm_icon("gicon", ch, 32);
 			}
@@ -133,8 +133,8 @@ dm_row :: (ch: *dc.Channel) {
 			{ ui.parent(col); defer ui.pop_parent();
 				label(dm_name(ch), ifx unread then .Semibold else .Medium, 16, color, 20);
 				if ch.kind == .Group_DM {
-					n := len(ch.recipient_ids) + 1;
-					label(fmt.tprintf("%d Member%s", n, ifx n == 1 then "" else "s"), .Medium, 12, T("--text-muted"), 16);
+					n := ch.recipient_ids.count + 1;
+					label(tprint("% Member%", n, ifx n == 1 then "" else "s"), .Medium, 12, T("--text-muted"), 16);
 				}
 			}
 			if selected || sig.hovering {
@@ -163,39 +163,20 @@ sort_users_by_name :: (ids: []dc.Snowflake) {
 		id: dc.Snowflake;
 		ok: bool;
 	}
-	named := make_slice(Named, len(ids), temp);
+	named := NewArray(ids.count, Named,, temp);
 	for id, i: ids {
-		name := dc.user_name(store(), id);
-		named[i] = .{id = id, ok = name != ""};
-		if name == "" { continue; }
-		ascii := true;
-		for c: transmute([]u8, name) { if c >= 0x80 {ascii = false; break;} }
-		if ascii {
-			buf := make_slice(u8, len(name), temp);
-			for c, j: transmute([]u8, name) { buf[j] = ifx c >= #char "A" && c <= #char "Z" then c + 32 else c; }
-			name = as_string(buf);
-		} else {
-			name = strings.to_lower(name, temp);
-		}
-		named[i].name = name;
-		for j: 0..7 { named[i].prefix = (named[i].prefix << 8) | (cast(u64)(ifx j < len(name) then name[j] else 0)); }
+		name := to_lower_copy(dc.user_name(store(), id),, temp); // ASCII only (Odin lowered Unicode)
+		named[i] = .{id = id, ok = name != "", name = name};
+		for j: 0..7 { named[i].prefix = (named[i].prefix << 8) | (cast(u64) ifx j < name.count then name[j] else 0); }
 	}
-	slice.sort_by(named, (a: Named, b: Named) -> bool {
-		if a.ok != b.ok { return a.ok; }
-		if a.prefix != b.prefix { return a.prefix < b.prefix; }
-		if a.name != b.name { return compare(a.name, b.name) < 0; }
-		return a.id < b.id;
+	quick_sort(named, (a: Named, b: Named) -> int {
+		if a.ok != b.ok { return ifx a.ok then -1 else 1; }
+		if a.prefix != b.prefix { return ifx a.prefix < b.prefix then -1 else 1; }
+		if a.name != b.name { return compare(a.name, b.name); }
+		return ifx a.id < b.id then -1 else ifx a.id > b.id then 1 else 0;
 	});
-	for n, i: named { at(*ids, i).* = n.id; }
+	for named ids[it_index] = it.id;
 }
-#scope_file
-
-friends_tab_telemetry :: (event: string) {
-	if app.client == null { return; }
-	tabs := dc.Friends_List_Tab.[.Online, .All, .Pending, .Add_Friend];
-	dc.analytics_friends_list(app.client, event, tabs[app.view.friends_tab]);
-}
-#scope_export
 
 friends_page :: () {
 	s := store();
@@ -265,33 +246,34 @@ friends_page :: () {
 	list.semantic_size = .[ui.fill(), ui.pct(1)];
 	list.layout_axis = .Y;
 	ui.signal(list);
-	ids := make_dynamic(dc.Snowflake, 0, 0, temp);
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
 	for rel, uid: s.relationships {
 		if app.view.friends_tab == {
 		case .Online;
-			if rel.kind == .Friend && user_status(uid) != .Offline { append(*ids, uid); }
+			if rel.kind == .Friend && user_status(uid) != .Offline { array_add(*ids, uid); }
 		case .All;
-			if rel.kind == .Friend { append(*ids, uid); }
+			if rel.kind == .Friend { array_add(*ids, uid); }
 		case .Pending;
-			if rel.kind == .Incoming_Request || rel.kind == .Outgoing_Request { append(*ids, uid); }
+			if rel.kind == .Incoming_Request || rel.kind == .Outgoing_Request { array_add(*ids, uid); }
 		case .Add_Friend;
 		}
 	}
 	// the search field filters by display name or username, like the client
-	{ q := strings.to_lower(strings.trim_space(ui.editor_text(*app.view.friends_search)), temp);
+	q := to_lower_copy(trim(ui.editor_text(*app.view.friends_search)),, temp);
 	if q != "" {
 		kept := 0;
 		for uid: ids {
 			u := dc.user_get(s, uid);
 			if u == null { continue; }
-			if strings.contains(strings.to_lower(dc.user_name(s, uid), temp), q) || strings.contains(strings.to_lower(dc.display_name(u), temp), q) || strings.contains(strings.to_lower(u.username, temp), q) {
-				at(*ids, kept).* = uid;
+			if contains(to_lower_copy(dc.user_name(s, uid),, temp), q) || contains(to_lower_copy(dc.display_name(u),, temp), q) || contains(to_lower_copy(u.username,, temp), q) {
+				ids[kept] = uid;
 				kept += 1;
 			}
 		}
-		resize(*ids, kept);
-	} }
-	sort_users_by_name(view(ids));
+		ids.count = kept;
+	}
+	sort_users_by_name(ids);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 12);
 		sr := row("searchrow");
@@ -330,15 +312,16 @@ friends_page :: () {
 				title = "Pending";
 			case .Online; #through; case .Add_Friend;
 			}
-			label(fmt.tprintf("%s — %d", title, len(ids)), .Medium, 14, T("--text-default"), 18);
+			label(tprint("% — %", title, ids.count), .Medium, 14, T("--text-default"), 18);
 		}
 		spacer(.Y, 16);
-		w := ui.list_window(list, FRIEND_ROW_H + 1, len(ids));
-		for uid: sub(ids, w.first, w.last) {
-			{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed(); friend_row(uid, get(s.relationships, uid).kind); }
+		w := ui.list_window(list, FRIEND_ROW_H + 1, ids.count);
+		for uid: array_view(ids, w.first, w.last - w.first) {
+			ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
+			friend_row(uid, relationship(uid));
 		}
 		ui.list_window_end(w);
-		if len(ids) == 0 {
+		if ids.count == 0 {
 			spacer(.Y, 80);
 			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else "No one's around to play with Wumpus.";
 			e := row("empty");
@@ -369,8 +352,8 @@ ACTIVE_NOW_W :: 360; // including its 1px left border
 // Opens (or creates) the DM with a friend, like clicking their row.
 friend_open_dm :: (uid: dc.Snowflake) {
 	if !net_action() { return; }
-	{ existing := dc.open_dm(app.client, uid, "Friends");
-	if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; } }
+	existing := dc.open_dm(app.client, uid, "Friends");
+	if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
 }
 
 friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
@@ -542,7 +525,7 @@ add_friend_view :: () {
 			{ ui.parent(box); defer ui.pop_parent();
 				spacer(.X, 16);
 				res := text_field("field", *app.view.add_friend, "You can add friends with their Discord username.", app.ui.focus == box.key && !modal_open());
-				name := strings.trim_space(ui.editor_text(*app.view.add_friend));
+				name := trim(ui.editor_text(*app.view.add_friend));
 				spacer(.X, 12);
 				btn := ui.box("Send Friend Request##send", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 				btn.semantic_size = .[ui.text_size(16), ui.px(32)];
@@ -573,37 +556,37 @@ member_list :: (ch: *dc.Channel) {
 	list.layout_axis = .Y;
 	list.style.bg = T("--background-base-lower");
 	ui.signal(list);
-	ml, ok := map_find(s.member_lists, ch.guild_id);
-	if app.client != null && (!ok || len(ml.items) == 0) {
+	ml := table_find_pointer(*s.member_lists, ch.guild_id);
+	if app.client != null && (!ml || ml.items.count == 0) {
 		dc.subscribe_member_list(app.client, ch.guild_id, ch.id, ([2]int).[.[0, 99]]);
 	}
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
-		for it_, i: ml.items {
+		if ml for item, i: ml.items {
 			{ ui.id_scope(cast(u64)(i)); defer ui.pop_seed();
-				if it_.is_group {
+				if item.is_group {
 					gr := row("group");
 					gr.semantic_size = .[ui.pct(1), ui.px(40)];
 					gr.cross_align = .End;
 					{ ui.parent(gr); defer ui.pop_parent();
 						spacer(.X, 16);
-						name := it_.group_id;
-						if it_.group_id == {
+						name := item.group_id;
+						if item.group_id == {
 						case "online";
 							name = "Online";
 						case "offline";
 							name = "Offline";
 						case;
-							{ g := dc.guild_get(s, ch.guild_id);
+							g := dc.guild_get(s, ch.guild_id);
 							if g != null {
-								for r: g.roles { if fmt.tprint(cast(u64)(r.id)) == it_.group_id { name = r.name; } }
-							} }
+								for r: g.roles { if tprint("%", cast(u64) r.id) == item.group_id { name = r.name; } }
+							}
 						}
-						label(fmt.tprintf("%s — %d", name, it_.count), .Medium, 12, T("--channels-default"), 16);
+						label(tprint("% — %", name, item.count), .Medium, 12, T("--channels-default"), 16);
 					}
 					spacer(.Y, 4);
 				} else {
-					member_row(ch.guild_id, it_.user_id);
+					member_row(ch.guild_id, item.user_id);
 				}
 			}
 		}
@@ -631,8 +614,8 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
 			if offline { av.opacity = 0.3; }
 			spacer(.X, 12);
 			name := dc.user_name(s, uid, gid, "unknown");
-			color, has := member_color(gid, uid);
-			if !has { color = T("--interactive-text-default"); }
+			color, ok := member_color(gid, uid);
+			if !ok { color = T("--interactive-text-default"); }
 			if offline { color = with_alpha(color, 0.3); }
 			label(name, .Medium, 16, color, 20);
 		}
@@ -643,12 +626,10 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
 // Banner color for a profile without a banner image: the user's accent color,
 // else the avatar's dominant color (as the client does), else brand.
 profile_banner_color :: (uid: dc.Snowflake) -> ui.Color {
-	{ u := dc.user_get(store(), uid);
-	if u != null {
-		if u.has_accent_color { return rgb_u32(u.accent_color); }
-	} }
-	{ im := image_get(avatar_url_for(uid, 80));
-	if im != null && im.state == .Ready && im.dominant.w > 0 { return im.dominant; } }
+	u := dc.user_get(store(), uid);
+	if u != null && u.has_accent_color { return rgb_u32(u.accent_color); }
+	im := image_get(avatar_url_for(uid, 80));
+	if im != null && im.state == .Ready && im.dominant.w > 0 { return im.dominant; }
 	return T("--background-brand");
 }
 
@@ -699,7 +680,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 						btns.semantic_size = .[ui.children(), ui.px(DMP_BTN)];
 						btns.fixed_pos = .{DMP_COL_W - 2 * DMP_INSET - 4 - 9 - 2 * DMP_BTN - 8, 8};
 						{ ui.parent(btns); defer ui.pop_parent();
-							rel := get(s.relationships, uid).kind;
+							rel := relationship(uid);
 							names := string.[ifx rel == .Friend then "user-check" else "user-plus", "more-horizontal"];
 							for name, i: names {
 								b := ui.box(name, .Clickable | .Draw_Background | .Hot_Animation);
@@ -752,9 +733,8 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				line("since_h", "Member Since", .Semibold, 12, 16, T("--text-strong"));
 				spacer(.Y, 6);
 				created := dc.snowflake_time_ms(uid) + local_utc_offset_ms();
-				t := time.unix(created / 1000, 0);
-				y, mo, d := time.date(t);
-				line("since", fmt.tprintf("%s %d, %d", MONTH_SHORT[cast(int)(mo) - 1], d, y), .Normal, 14, 18, T("--text-default"));
+				t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(created), .UTC);
+				line("since", tprint("% %, %", MONTH_SHORT[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year), .Normal, 14, 18, T("--text-default"));
 				filler(.Y);
 				br := row("viewfull");
 				br.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -801,43 +781,38 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 			return r;
 		}
 		spacer(.Y, 16);
-		{ r := pad("av", DMW_AVATAR);
-		{ ui.parent(r); defer ui.pop_parent();
+		{ ui.parent(pad("av", DMW_AVATAR)); defer ui.pop_parent();
 			spacer(.X, 16);
 			avatar_box("a", uid, DMW_AVATAR);
-		} }
+		}
 		spacer(.Y, 12);
-		{ r := pad("name", 40);
-		{ ui.parent(r); defer ui.pop_parent();
+		{ ui.parent(pad("name", 40)); defer ui.pop_parent();
 			spacer(.X, 16);
 			label(dc.user_name(store(), uid), .Bold, 32, T("--text-strong"), 40);
-		} }
+		}
 		spacer(.Y, 8);
-		{ r := pad("user", 32);
-		{ ui.parent(r); defer ui.pop_parent();
+		{ ui.parent(pad("user", 32)); defer ui.pop_parent();
 			spacer(.X, 16);
 			label(u.username, .Medium, 24, T("--text-strong"), 32);
-		} }
+		}
 		spacer(.Y, 20);
-		{ r := pad("begin", 20);
-		{ ui.parent(r); defer ui.pop_parent();
+		{ ui.parent(pad("begin", 20)); defer ui.pop_parent();
 			spacer(.X, 16);
 			t := ui.box("t");
 			t.semantic_size = .[ui.text_size(0, 0), ui.px(20)];
 			t.style.line_height = 20;
 			t.style.text_color = T("--text-default");
-			spans := make_slice(ui.Span, 3, temp);
+			spans := NewArray(3, ui.Span,, temp);
 			spans[0] = .{text = "This is the beginning of your direct message history with ", font = F(.Normal), size = 16};
 			spans[1] = .{text = dc.user_name(store(), uid), font = F(.Bold), size = 16};
 			spans[2] = .{text = ".", font = F(.Normal), size = 16};
 			ui.set_spans(t, spans);
-		} }
+		}
 		spacer(.Y, 8);
-		{ r := pad("actions", 32);
-		{ ui.parent(r); defer ui.pop_parent();
+		{ ui.parent(pad("actions", 32)); defer ui.pop_parent();
 			spacer(.X, 16);
 			mutual := "No servers in common";
-			if u.mutual_guilds > 0 { mutual = fmt.tprintf("%d Mutual Server%s", u.mutual_guilds, ifx u.mutual_guilds == 1 then "" else "s"); }
+			if u.mutual_guilds > 0 { mutual = tprint("% Mutual Server%", u.mutual_guilds, ifx u.mutual_guilds == 1 then "" else "s"); }
 			label(mutual, .Normal, 14, T("--text-default"), 18);
 			spacer(.X, 12);
 			dot := ui.box("dot", .Draw_Background);
@@ -845,7 +820,7 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 			dot.style.radius = all4(2);
 			dot.style.bg = T("--interactive-muted");
 			spacer(.X, 12);
-			rel := get(s.relationships, uid).kind;
+			rel := relationship(uid);
 			btn :: (text: string, primary: bool) -> bool {
 				b := ui.box(text, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 				b.semantic_size = .[ui.text_size(12), ui.px(32)];
@@ -877,7 +852,7 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 				if btn("Add Friend", true) && net_action() { dc.add_relationship(app.client, uid, "DM Header"); }
 				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
 			}
-		} }
+		}
 	}
 	return w;
 }
@@ -903,7 +878,7 @@ group_dm_icon :: (id: string, ch: *dc.Channel, size: float32) -> *ui.Box {
 	g.style.radius = all4(size / 2);
 	g.style.bg = group_icon_color(ch.id);
 	if ch.icon != "" {
-		set_remote_image(g, fmt.tprintf("https://cdn.discordapp.com/channel-icons/%d/%s.webp?size=%d", cast(u64)(ch.id), ch.icon, cast(int)(size * 2)));
+		set_remote_image(g, tprint("https://cdn.discordapp.com/channel-icons/%/%.webp?size=%", cast(u64) ch.id, ch.icon, cast(int)(size * 2)));
 	} else { ui.parent(g); defer ui.pop_parent();
 		inner := ui.box("i", .Floating_X | .Floating_Y);
 		inner.semantic_size = .[ui.px(size * 0.625), ui.px(size * 0.625)];
@@ -959,7 +934,7 @@ block_confirm_modal :: () {
 		t.semantic_size = .[ui.pct(1), ui.px(24)];
 		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
-			label(fmt.tprintf("Block %s?", name), .Semibold, 20, T("--text-strong"), 24);
+			label(tprint("Block %?", name), .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 8);
 		br := row("body");
@@ -970,7 +945,7 @@ block_confirm_modal :: () {
 			b.semantic_size = .[ui.fill(), ui.text_size()];
 			b.style.line_height = 20;
 			b.style.text_color = T("--text-subtle");
-			spans := make_slice(ui.Span, 3, temp);
+			spans := NewArray(3, ui.Span,, temp);
 			spans[0] = .{text = "Are you sure you want to block ", font = F(.Normal), size = 16};
 			spans[1] = .{text = name, font = F(.Bold), size = 16};
 			spans[2] = .{text = "? Blocking this user will also remove them from your friends list.", font = F(.Normal), size = 16};
@@ -1054,14 +1029,14 @@ channel_welcome :: (ch: *dc.Channel) {
 		h.semantic_size = .[ui.pct(1), ui.px(40)];
 		{ ui.parent(h); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(fmt.tprintf("Welcome to #%s!", ch.name), .Bold, 32, T("--text-strong"), 40);
+			label(tprint("Welcome to #%!", ch.name), .Bold, 32, T("--text-strong"), 40);
 		}
 		spacer(.Y, 8);
 		t := row("t");
 		t.semantic_size = .[ui.pct(1), ui.px(20)];
 		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, 16);
-			label(fmt.tprintf("This is the start of the #%s channel.", ch.name), .Normal, 16, T("--text-muted"), 20);
+			label(tprint("This is the start of the #% channel.", ch.name), .Normal, 16, T("--text-muted"), 20);
 		}
 		if (my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS) != 0 {
 			spacer(.Y, 8);
@@ -1082,3 +1057,15 @@ channel_welcome :: (ch: *dc.Channel) {
 	}
 }
 
+#scope_file
+
+friends_tab_telemetry :: (event: string) {
+	if app.client == null { return; }
+	tabs := dc.Friends_List_Tab.[.Online, .All, .Pending, .Add_Friend];
+	dc.analytics_friends_list(app.client, event, tabs[app.view.friends_tab]);
+}
+
+relationship :: (uid: dc.Snowflake) -> dc.Relationship_Type {
+	r := table_find_pointer(*store().relationships, uid);
+	return ifx r then r.kind else .None;
+}

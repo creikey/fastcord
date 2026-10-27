@@ -90,7 +90,9 @@ ellipsize :: (text: string, font: Font_Id, size: float32, max_w: float32) -> str
 		if g.x + g.advance + dots > max_w { break; }
 		cut = g.cluster_end;
 	}
-	return strings.concatenate(string.[strings.trim_right_space(sub(text, 0, cut)), "…"], temp);
+	kept := text;
+	kept.count = cut;
+	return join(trim_right(kept), "…",, temp);
 }
 
 label :: (text: string, font: Font_Id, size: float32, color: ui.Color, line_h: float32 = 0) -> *ui.Box {
@@ -107,11 +109,12 @@ label :: (text: string, font: Font_Id, size: float32, color: ui.Color, line_h: f
 }
 
 go_home :: () {
-	select_channel(0, get(app.view.last_channel, 0));
+	_, ch := table_find(*app.view.last_channel, 0);
+	select_channel(0, ch);
 }
 
 select_guild :: (gid: dc.Snowflake) {
-	ch := get(app.view.last_channel, gid);
+	_, ch := table_find(*app.view.last_channel, gid);
 	if ch == 0 {
 		for id: dc.guild_channels_sorted(store(), gid) {
 			c := dc.channel_get(store(), id);
@@ -128,19 +131,12 @@ select_guild :: (gid: dc.Snowflake) {
 select_channel :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
 	if gid != app.view.guild || cid != app.view.channel {
 		history_push(*app.view.back, .[app.view.guild, app.view.channel]);
-		clear(*app.view.fwd);
+		array_reset_keeping_memory(*app.view.fwd);
 	}
 	go_to(gid, cid, source);
 }
 
 HISTORY_MAX :: 50;
-#scope_file
-
-history_push :: (h: *[..][2]dc.Snowflake, place: [2]dc.Snowflake) {
-	if len(h) >= HISTORY_MAX { ordered_remove(h, 0); }
-	append(h, place);
-}
-#scope_export
 
 // Back / forward (title bar arrows "Go back" / "Go forward", Cmd/Ctrl+[ and ]):
 // places whose guild or channel no longer exists are skipped. The move is a
@@ -149,7 +145,7 @@ history_push :: (h: *[..][2]dc.Snowflake, place: [2]dc.Snowflake) {
 history_step :: (forward: bool, keybind := false) {
 	from, to := *app.view.back, *app.view.fwd;
 	if forward { from, to = to, from; }
-	while len(from) > 0 {
+	while from.count > 0 {
 		place := pop(from);
 		if place[0] != 0 && dc.guild_get(store(), place[0]) == null { continue; }
 		if place[1] != 0 && dc.channel_get(store(), place[1]) == null { continue; }
@@ -159,20 +155,6 @@ history_step :: (forward: bool, keybind := false) {
 		return;
 	}
 }
-#scope_file
-
-go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
-	was_home := app.view.guild == 0 && app.view.channel == 0;
-	app.view.guild = gid;
-	app.view.channel = cid;
-	at(*app.view.last_channel, gid).* = cid;
-	if app.client != null {
-		limit := dc.initial_message_limit(cast(int)(app.ui.window.y));
-		dc.select_channel(app.client, gid, cid, limit, source = source);
-		if gid == 0 && cid == 0 && !was_home { dc.friends_page_viewed(app.client); } // the Friends page renders
-	}
-}
-#scope_export
 
 build_ui :: () {
 	root := ui.top_parent();
@@ -218,7 +200,7 @@ title_bar :: () {
 		{ ui.parent(left); defer ui.pop_parent();
 			spacer(.X, 85);
 			for fwd: (bool.[false, true]) {
-				n := ifx fwd then len(app.view.fwd) else len(app.view.back);
+				n := ifx fwd then app.view.fwd.count else app.view.back.count;
 				nb := ui.box(ifx fwd then "fwd" else "back", ifx n > 0 then ui.Box_Flag.Clickable else 0);
 				nb.semantic_size = .[ui.px(24), ui.px(24)];
 				nb.layout_axis = .X;
@@ -284,78 +266,56 @@ title_bar :: () {
 	}
 }
 
-guild_rail :: () {
-	s := store();
-	rail := ui.box("rail", .Scroll_Y | .Clip);
-	rail.semantic_size = .[ui.px(RAIL_W), ui.pct(1)];
-	rail.layout_axis = .Y;
-	ui.signal(rail);
-	{ ui.parent(rail); defer ui.pop_parent();
-		if rail_item("home", app.view.guild == 0, "", "clyde", 0).clicked { go_home(); }
-		sep := ui.box("sep");
-		sep.semantic_size = .[ui.pct(1), ui.px(9)];
-		{ ui.parent(sep); defer ui.pop_parent();
-			line := ui.box("line", .Draw_Background | .Floating_X | .Floating_Y);
-			line.semantic_size = .[ui.px(32), ui.px(1)];
-			line.fixed_pos = .{20, 0};
-			line.style.bg = T("--background-mod-subtle");
-			line.style.radius = all4(1);
-		}
-		for gid: guild_order() {
-			g := dc.guild_get(s, gid);
-			if g == null { continue; }
-			{ ui.id_scope(cast(u64)(gid)); defer ui.pop_seed();
-				if rail_item("guild", app.view.guild == gid, guild_initials(g.name), "", gid).clicked { select_guild(gid); }
-			}
-		}
-		rail_item("add", false, "", "circle-plus", 0);
-		rail_item("discover", false, "", "compass", 0);
-	}
-}
-
 // Guilds in sidebar order, like the client: guilds missing from
 // settings.guild_folders first (newest join first), then the folders flattened.
 guild_order :: () -> []dc.Snowflake {
 	s := store();
-	out := make_dynamic(dc.Snowflake, 0, 0, temp);
-	seen := Table(dc.Snowflake, bool).{};
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	seen: Table(dc.Snowflake, bool);
+	seen.allocator = temp;
 	for f: s.settings.guild_folders {
-		for id: f.guild_ids { at(*seen, id).* = true; }
+		for f.guild_ids table_set(*seen, it, true);
 	}
 	Joined :: struct {
 		at: string;
 		id: dc.Snowflake;
 	}
-	loose := make_dynamic(Joined, 0, len(s.guild_order), temp);
+	loose: [..]Joined;
+	loose.allocator = temp;
 	for id: s.guild_order {
-		{ g, ok := map_find_ptr(*s.guilds, id);
-		if ok && !get(seen, id) { append(*loose, Joined.{g.joined_at, id}); } }
+		g := table_find_pointer(*s.guilds, id);
+		if g && !table_contains(*seen, id) { array_add(*loose, .{g.joined_at, id}); }
 	}
-	slice.sort_by(view(loose), (a: Joined, b: Joined) -> bool {
-		if a.at != b.at { return compare(a.at, b.at) > 0; }
-		return a.id > b.id;
+	quick_sort(loose, (a: Joined, b: Joined) -> int {
+		if a.at != b.at { return compare(b.at, a.at); }
+		return ifx a.id > b.id then -1 else ifx a.id < b.id then 1 else 0;
 	});
-	for j: loose { append(*out, j.id); }
-	clear(*seen);
-	for id: out { at(*seen, id).* = true; }
+	for loose array_add(*out, it.id);
+	table_reset_keeping_memory(*seen);
+	for out table_set(*seen, it, true);
 	for f: s.settings.guild_folders {
 		for id: f.guild_ids {
-			if has(s.guilds, id) && !get(seen, id) {
-				append(*out, id);
-				at(*seen, id).* = true;
+			if table_contains(*s.guilds, id) && !table_contains(*seen, id) {
+				array_add(*out, id);
+				table_set(*seen, id, true);
 			}
 		}
 	}
-	return view(out);
+	return out;
 }
 
+// The first byte of each space-separated word, at most 5.
 guild_initials :: (name: string) -> string {
-	sb := strings.builder_make(temp);
-	for w: strings.fields(name, temp) {
-		strings.write_byte(*sb, w[0]);
-		if strings.builder_len(sb) >= 5 { break; }
+	out := talloc_string(5);
+	out.count = 0;
+	for i: 0..name.count-1 {
+		if is_space(name[i]) || (i > 0 && !is_space(name[i-1])) { continue; }
+		out.data[out.count] = name[i];
+		out.count += 1;
+		if out.count >= 5 { break; }
 	}
-	return strings.to_string(sb);
+	return out;
 }
 
 // One 72x48 rail slot: unread/selection pill on the left edge and a 40x40 squircle.
@@ -372,7 +332,7 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 		ic.style.radius = all4(12);
 		ic.style.text_align = .Center;
 		ic.style.font = F(.Medium);
-		ic.style.font_size = guild_acronym_size(len(text));
+		ic.style.font_size = guild_acronym_size(text.count);
 		ic.text = text;
 		sig = ui.signal(ic);
 		unread := guild_id != 0 && guild_unread_shown(guild_id);
@@ -395,11 +355,11 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 		case;
 			ic.style.bg = ifx selected then T("--background-brand") else T("--background-mod-subtle");
 			ic.style.bg_hot = ifx selected then ic.style.bg else T("--background-brand");
-			{ g := dc.guild_get(store(), guild_id);
+			g := dc.guild_get(store(), guild_id);
 			if g != null && g.icon != "" {
 				set_remote_image(ic, dc.guild_icon_url(guild_id, g.icon, 96));
 				ic.text = "";
-			} }
+			}
 		}
 		ic.style.text_color = T("--text-default");
 		if icon_name != "" {
@@ -413,8 +373,8 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 			}
 		}
 		if sig.hovering && guild_id != 0 {
-			{ g := dc.guild_get(store(), guild_id);
-			if g != null { tooltip_right(g.name); } }
+			g := dc.guild_get(store(), guild_id);
+			if g != null { tooltip_right(g.name); }
 		}
 	}
 	return sig;
@@ -430,7 +390,6 @@ guild_acronym_size :: (n: int) -> float32 {
 	return 12;
 }
 
-PERM_ADMINISTRATOR :: dc.PERM_ADMINISTRATOR;
 PERM_MANAGE_GUILD_EXPRESSIONS :: dc.PERM_MANAGE_GUILD_EXPRESSIONS;
 
 // Guild-level permissions of the current user (owner / administrator = everything).
@@ -499,7 +458,7 @@ page :: () {
 			// side columns only when the chat keeps a usable width (narrow windows
 			// used to squeeze the composer until its placeholder wrapped per letter)
 			room := app.ui.window.x - RAIL_W - SIDEBAR_W - CHAT_MIN_W;
-			if search_panel_open() { search_panel(); } else if room < MEMBER_LIST_W {} else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) { member_list(ch); } else if ch.kind == .Group_DM && app.view.show_members { group_dm_members(ch); } else if ch.kind == .DM && !app.view.hide_dm_profile && len(ch.recipient_ids) == 1 && room >= DMP_COL_W { dm_profile_panel(ch.recipient_ids[0]); }
+			if search_panel_open() { search_panel(); } else if room < MEMBER_LIST_W {} else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) { member_list(ch); } else if ch.kind == .Group_DM && app.view.show_members { group_dm_members(ch); } else if ch.kind == .DM && !app.view.hide_dm_profile && ch.recipient_ids.count == 1 && room >= DMP_COL_W { dm_profile_panel(ch.recipient_ids[0]); }
 		}
 	}
 }
@@ -511,7 +470,7 @@ chat_header :: (ch: *dc.Channel) {
 	{ ui.parent(h); defer ui.pop_parent();
 		spacer(.X, 16);
 		if ch.kind == .DM || ch.kind == .Group_DM {
-			if ch.kind == .DM && len(ch.recipient_ids) > 0 {
+			if ch.kind == .DM && ch.recipient_ids.count > 0 {
 				avatar_box("av", ch.recipient_ids[0], 20);
 				spacer(.X, 8);
 			}
@@ -565,15 +524,15 @@ chat_header :: (ch: *dc.Channel) {
 		spacer(.X, 8);
 		search_hint := ch.name;
 		if ch.guild_id != 0 {
-			{ g := dc.guild_get(store(), ch.guild_id);
-			if g != null { search_hint = g.name; } }
-		} else if ch.kind == .DM && len(ch.recipient_ids) > 0 {
-			{ u := dc.user_get(store(), ch.recipient_ids[0]);
-			if u != null { search_hint = u.username; } }
+			g := dc.guild_get(store(), ch.guild_id);
+			if g != null { search_hint = g.name; }
+		} else if ch.kind == .DM && ch.recipient_ids.count > 0 {
+			u := dc.user_get(store(), ch.recipient_ids[0]);
+			if u != null { search_hint = u.username; }
 		} else {
 			search_hint = dm_name(ch);
 		}
-		search_box(ch, fmt.tprintf("Search %s", search_hint));
+		search_box(ch, tprint("Search %", search_hint));
 		spacer(.X, 8);
 	}
 	line := ui.box("hline", .Draw_Background);
@@ -582,9 +541,10 @@ chat_header :: (ch: *dc.Channel) {
 }
 
 first_line :: (s: string) -> string {
-	{ i := strings.index_byte(s, 10);
-	if i >= 0 { return sub(s, 0, i); } }
-	return s;
+	line := s;
+	i := find_index_from_left(s, #char "\n");
+	if i >= 0 { line.count = i; }
+	return line;
 }
 
 channel_icon_name :: (ch: *dc.Channel) -> string {
@@ -643,7 +603,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 			spacer(.X, 16);
 		}
 		now := wall_ms();
-		hide_muted := get(app.view.hide_muted, gid);
+		_, hide_muted := table_find(*app.view.hide_muted, gid);
 		for cid: dc.guild_channels_sorted(s, gid) {
 			ch := dc.channel_get(s, cid);
 			if ch == null { continue; }
@@ -654,7 +614,8 @@ channel_sidebar :: (gid: dc.Snowflake) {
 					category_row(ch);
 					continue;
 				}
-				if ch.parent_id != 0 && get(app.view.collapsed, ch.parent_id) && cid != app.view.channel { continue; }
+				_, parent_collapsed := table_find(*app.view.collapsed, ch.parent_id);
+				if ch.parent_id != 0 && parent_collapsed && cid != app.view.channel { continue; }
 				if dc.is_thread(ch) { continue; } // drawn under their parent
 				channel_row(ch, gid);
 				sidebar_thread_rows(ch, gid);
@@ -694,8 +655,8 @@ category_row :: (ch: *dc.Channel) {
 	r := row("cat", .Clickable);
 	r.semantic_size = .[ui.pct(1), ui.px(CATEGORY_ROW_H)];
 	sig := ui.signal(r);
-	collapsed := get(app.view.collapsed, ch.id);
-	if sig.clicked { at(*app.view.collapsed, ch.id).* = !collapsed; }
+	_, collapsed := table_find(*app.view.collapsed, ch.id);
+	if sig.clicked { table_set(*app.view.collapsed, ch.id, !collapsed); }
 	color := ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
 	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 16);
@@ -829,8 +790,8 @@ user_panel :: () {
 				names.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(names); defer ui.pop_parent();
 					name := "…";
-					{ u := dc.user_get(s, s.me);
-					if u != null { name = dc.display_name(u); } }
+					u := dc.user_get(s, s.me);
+					if u != null { name = dc.display_name(u); }
 					label(name, .Medium, 14, T("--text-strong"), 18);
 					status := status_text(user_status(s.me));
 					if s.settings.custom_status_text != "" { status = s.settings.custom_status_text; }
@@ -849,7 +810,7 @@ user_panel :: () {
 				sig := ui.signal(b);
 				ic := name;
 				muted := (name == "microphone" && app.self_mute) || (name == "headphones" && app.self_deaf);
-				if muted { ic = strings.concatenate(string.[name, "-slash"], temp); }
+				if muted { ic = tprint("%-slash", name); }
 				{ ui.parent(b); defer ui.pop_parent();
 					spacer(.X, 6);
 					color := ifx muted then T("--status-danger") else (ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
@@ -931,9 +892,8 @@ user_status :: (uid: dc.Snowflake) -> dc.Status {
 		}
 		return .Online;
 	}
-	{ p, ok := map_find(s.presences, uid);
-	if ok { return p.status; } }
-	return .Offline;
+	p := table_find_pointer(*s.presences, uid);
+	return ifx p then p.status else .Offline;
 }
 
 // Tooltip to the right of the current parent (guild names on the rail).
@@ -967,7 +927,7 @@ overlays :: () {
 	group_dm_overlay();
 	profile_full_overlay();
 	for * e: app.ui.events {
-		if !e.consumed && e.kind == .Key_Down && e.key == .K && has(e.mods, PRIMARY_MOD) {
+		if !e.consumed && e.kind == .Key_Down && e.key == .K && (e.mods & PRIMARY_MOD) != 0 {
 			if !sw.open && app.client != null {
 				dc.analytics_keyboard_shortcut(app.client, "QUICKSWITCHER_SHOW", "mod+k");
 				dc.analytics_quickswitcher_opened(app.client, app.view.guild, app.view.channel);
@@ -998,3 +958,21 @@ overlays :: () {
 	attachments_overlays(); // attachments.odin: Modify modal, drag target, limit notices
 }
 
+#scope_file
+
+history_push :: (h: *[..][2]dc.Snowflake, place: [2]dc.Snowflake) {
+	if h.count >= HISTORY_MAX { array_ordered_remove_by_index(h, 0); }
+	array_add(h, place);
+}
+
+go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
+	was_home := app.view.guild == 0 && app.view.channel == 0;
+	app.view.guild = gid;
+	app.view.channel = cid;
+	table_set(*app.view.last_channel, gid, cid);
+	if app.client != null {
+		limit := dc.initial_message_limit(cast(int)(app.ui.window.y));
+		dc.select_channel(app.client, gid, cid, limit, source = source);
+		if gid == 0 && cid == 0 && !was_home { dc.friends_page_viewed(app.client); } // the Friends page renders
+	}
+}

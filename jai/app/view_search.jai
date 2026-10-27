@@ -21,7 +21,7 @@ Search_State :: struct {
 	terms: [..]string; // lowercase content words for highlighting
 	total: int;
 	results: [..]Result;
-	arena: virtual.Arena;
+	pool: Flat_Pool; // results, terms, query and the request's lists
 	seq: u64;
 	box_rect: ui.Rect;
 	offset: int;
@@ -73,11 +73,11 @@ jump_apply :: (channel_id: dc.Snowflake, cs: *Chat_State, msgs: []dc.Message, vi
 		return;
 	}
 	below := bottom_pad;
-	for i: idx + 1..len(msgs)-1 {
-		h, ok := map_find(cs.heights, msgs[i].id);
+	for i: idx + 1..msgs.count-1 {
+		ok, h := table_find(*cs.heights, msgs[i].id);
 		below += ifx ok then h else MSG_LINE_H + 4;
 	}
-	h, ok := map_find(cs.heights, msgs[idx].id);
+	ok, h := table_find(*cs.heights, msgs[idx].id);
 	if !ok { h = MSG_LINE_H + 4; }
 	cs.scroll_target = max(0.0, below + h / 2 - view_h / 2);
 	app.ui.animating = true;
@@ -115,7 +115,7 @@ search_box :: (ch: *dc.Channel, hint: string) {
 	search.box_rect = b.rect;
 	// Cmd/Ctrl+F focuses search, like the client
 	for * e: app.ui.events {
-		if !e.consumed && e.kind == .Key_Down && e.key == .F && (has(e.mods, .Cmd) || has(e.mods, .Ctrl)) && !modal_open() {
+		if !e.consumed && e.kind == .Key_Down && e.key == .F && (e.mods & (ui.Mod.Cmd | .Ctrl)) != 0 && !modal_open() {
 			search.focused = true;
 			e.consumed = true;
 		}
@@ -144,7 +144,7 @@ search_box :: (ch: *dc.Channel, hint: string) {
 		}
 		if res == {
 		case .Submit;
-			search_run(ch, strings.trim_space(ui.editor_text(*search.editor)));
+			search_run(ch, trim(ui.editor_text(*search.editor)));
 		case .Escape;
 			search.focused = false;
 			app.ui.focus = 0;
@@ -166,16 +166,8 @@ search_box :: (ch: *dc.Channel, hint: string) {
 	}
 	if !search.focused && app.ui.focus == search.key { app.ui.focus = 0; }
 }
-#scope_file
 
 // ---- suggestions ----
-
-// ---- suggestions ----
-
-sugg_rect: ui.Rect;
-
-in_suggestions :: (p: ui.Vec2) -> bool {return rect_has(sugg_rect, p);}
-#scope_export
 
 // The filter popout under the focused search box (overlay pass).
 search_suggestions :: () {
@@ -186,58 +178,57 @@ search_suggestions :: () {
 	text := ui.editor_text(*search.editor);
 	// the token being typed
 	last := text;
-	{ i := strings.last_index_byte(text, #char " ");
-	if i >= 0 { last = sub_from(text, i + 1); } }
+	i := find_index_from_right(text, #char " ");
+	if i >= 0 { advance(*last, i + 1); }
 	Item :: struct {
 		label, detail, insert: string;
 	}
-	items := make_dynamic(Item, 0, 0, temp);
+	items: [..]Item;
+	items.allocator = temp;
 	title := "Search Options";
 	s := store();
-	if strings.has_prefix(last, "from:") || strings.has_prefix(last, "mentions:") {
-		prefix := sub(last, 0, strings.index_byte(last, #char ":") + 1);
-		q := strings.to_lower(sub_from(last, len(prefix)), temp);
+	if begins_with(last, "from:") || begins_with(last, "mentions:") {
+		prefix := ifx begins_with(last, "from:") then "from:" else "mentions:";
+		q := to_lower_copy(advance(last, prefix.count),, temp);
 		title = ifx prefix == "from:" then "From User" else "Mentions User";
+		gm := ifx ch.guild_id != 0 then table_find_pointer(*s.members, ch.guild_id) else null;
 		n := 0;
 		for * u, uid: s.users {
 			if n >= 8 { break; }
-			if ch.guild_id != 0 {
-				{ gm, ok := map_find(s.members, ch.guild_id);
-				if ok && !has(gm, uid) { continue; } }
-			}
-			name := strings.to_lower(u.username, temp);
+			if gm && !table_contains(gm, uid) { continue; }
+			name := to_lower_copy(u.username,, temp);
 			shown := dc.user_name(s, uid, ch.guild_id);
-			if q != "" && !strings.contains(name, q) && !strings.contains(strings.to_lower(shown, temp), q) { continue; }
-			append(*items, Item.{shown, u.username, fmt.tprintf("%s%s ", prefix, u.username)});
+			if q != "" && !contains(name, q) && !contains(to_lower_copy(shown,, temp), q) { continue; }
+			array_add(*items, .{shown, u.username, tprint("%1%2 ", prefix, u.username)});
 			n += 1;
 		}
-	} else if strings.has_prefix(last, "has:") {
+	} else if begins_with(last, "has:") {
 		title = "Message Contains";
-		for h: (string.["link", "embed", "poll", "file", "video", "image", "sound", "sticker", "forward"]) {
-			if strings.has_prefix(h, sub_from(last, 4)) { append(*items, Item.{h, "", fmt.tprintf("has:%s ", h)}); }
+		for h: string.["link", "embed", "poll", "file", "video", "image", "sound", "sticker", "forward"] {
+			if begins_with(h, advance(last, 4)) { array_add(*items, .{h, "", tprint("has:% ", h)}); }
 		}
-	} else if strings.has_prefix(last, "in:") {
+	} else if begins_with(last, "in:") {
 		title = "In Channel";
-		q := strings.to_lower(sub_from(last, 3), temp);
+		q := to_lower_copy(advance(last, 3),, temp);
 		if ch.guild_id != 0 {
 			n := 0;
 			for cid: dc.guild_channels_sorted(s, ch.guild_id) {
 				c := dc.channel_get(s, cid);
 				if c == null || c.kind == .Guild_Category || c.kind == .Guild_Voice { continue; }
-				if q != "" && !strings.contains(strings.to_lower(c.name, temp), q) { continue; }
-				append(*items, Item.{fmt.tprintf("#%s", c.name), "", fmt.tprintf("in:%s ", c.name)});
+				if q != "" && !contains(to_lower_copy(c.name,, temp), q) { continue; }
+				array_add(*items, .{tprint("#%", c.name), "", tprint("in:% ", c.name)});
 				n += 1;
 				if n >= 8 { break; }
 			}
 		}
 	} else {
-		append(*items, Item.{"from:", "user", "from:"});
-		append(*items, Item.{"mentions:", "user", "mentions:"});
-		append(*items, Item.{"has:", "link, embed or file", "has:"});
-		append(*items, Item.{"in:", "channel", "in:"});
-		append(*items, Item.{"pinned:", "true or false", "pinned:true "});
+		array_add(*items, .{"from:", "user", "from:"});
+		array_add(*items, .{"mentions:", "user", "mentions:"});
+		array_add(*items, .{"has:", "link, embed or file", "has:"});
+		array_add(*items, .{"in:", "channel", "in:"});
+		array_add(*items, .{"pinned:", "true or false", "pinned:true "});
 	}
-	if len(items) == 0 { return; }
+	if items.count == 0 { return; }
 	r := search.box_rect;
 	W :: 320;
 	p := ui.box("search_sugg", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
@@ -257,112 +248,39 @@ search_suggestions :: () {
 		inset_begin(8, 8);
 		defer inset_end(8, 8);
 		label(title, .Semibold, 12, T("--text-muted"), 24);
-		for it_, i: items {
-			ir := row(fmt.tprintf("s%d", i), .Clickable | .Draw_Background | .Hot_Animation);
+		for item, i: items {
+			ir := row(tprint("s%", i), .Clickable | .Draw_Background | .Hot_Animation);
 			ir.semantic_size = .[ui.pct(1), ui.px(32)];
 			ir.style.radius = all4(4);
 			ir.style.bg_hot = T("--background-mod-subtle");
 			if ui.signal(ir).clicked {
-				base := sub(text, 0, len(text) - len(last));
-				ui.editor_set_text(*search.editor, strings.concatenate(string.[base, it_.insert], temp));
+				base := text;
+				base.count -= last.count;
+				ui.editor_set_text(*search.editor, join(base, item.insert,, temp));
 			}
 			{ ui.parent(ir); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(it_.label, .Medium, 14, T("--text-strong"), 18);
-				if it_.detail != "" {
+				label(item.label, .Medium, 14, T("--text-strong"), 18);
+				if item.detail != "" {
 					spacer(.X, 6);
-					label(it_.detail, .Normal, 14, T("--text-muted"), 18);
+					label(item.detail, .Normal, 14, T("--text-muted"), 18);
 				}
 			}
 		}
 	}
 }
-#scope_file
-
-// ---- running a search ----
-
-search_run :: (ch: *dc.Channel, text: string) {
-	if text == "" { return; }
-	s := store();
-	virtual.arena_destroy(*search.arena);
-	search.arena = .{};
-	if virtual.arena_init_growing(*search.arena) != .None { return; }
-	a := virtual.arena_allocator(*search.arena);
-	search.results = make_dynamic(Result, 0, 0, a);
-	search.terms = make_dynamic(string, 0, 0, a);
-	search.query = clone(text, a);
-	search.active = true;
-	search.focused = false;
-	search.total = 0;
-	search.offset = 0;
-	search.scope = ifx ch.guild_id != 0 then ch.guild_id else ch.id;
-	authors := make_dynamic(dc.Snowflake, 0, 0, a);
-	mentions := make_dynamic(dc.Snowflake, 0, 0, a);
-	has := make_dynamic(string, 0, 0, a);
-	chans := make_dynamic(dc.Snowflake, 0, 0, a);
-	content := make_dynamic(string, 0, 0, a);
-	pinned := false;
-	find_user :: (s: *dc.Store, name: string) -> dc.Snowflake {
-		ln := strings.to_lower(name, temp);
-		for * u, uid: s.users {
-			if strings.to_lower(u.username, temp) == ln { return uid; }
-		}
-		for * u, uid: s.users {
-			if strings.to_lower(dc.user_name(s, uid), temp) == ln || strings.to_lower(dc.display_name(u), temp) == ln { return uid; }
-		}
-		return 0;
-	}
-	rest := text;
-	while true { tok, __ok3 := strings.fields_iterator(*rest); if !__ok3 break;
-		if strings.has_prefix(tok, "from:") {
-			{ id := find_user(s, sub_from(tok, 5));
-			if id != 0 { append(*authors, id); } }
-		} else if strings.has_prefix(tok, "mentions:") {
-			{ id := find_user(s, sub_from(tok, 9));
-			if id != 0 { append(*mentions, id); } }
-		} else if strings.has_prefix(tok, "has:") {
-			append(*has, clone(sub_from(tok, 4), a));
-		} else if strings.has_prefix(tok, "in:") {
-			name := strings.trim_left(sub_from(tok, 3), "#");
-			for cid: dc.guild_channels_sorted(s, ch.guild_id) {
-				c := dc.channel_get(s, cid);
-				if c != null && c.name == name {
-					append(*chans, cid);
-					break;
-				}
-			}
-		} else if tok == "pinned:true" {
-			pinned = true;
-		} else {
-			append(*content, tok);
-			append(*search.terms, strings.to_lower(tok, a));
-		}
-	}
-	search.sq = .{
-		content = strings.join(view(content), " ", a),
-		author_ids = view(authors),
-		mentions = view(mentions),
-		has = view(has),
-		channel_ids = view(chans),
-		pinned = pinned
-	};
-	search.seq += 1;
-	search.loading = app.client != null;
-	if app.client != null { dc.search_messages(app.client, ch.guild_id, ch.id, search.sq, search.seq); }
-}
-#scope_export
 
 search_receive :: (r: *dc.Feature_Result) {
 	if r.tag != search.seq { return; }
 	search.loading = false;
 	if !r.ok { return; }
-	a := virtual.arena_allocator(*search.arena);
+	a := dc.pool_allocator(*search.pool);
 	body := dc.vmap(r.body);
 	search.total = cast(int)(dc.fint(body, "total_results"));
 	// messages: [[message], ...]
 	for group: dc.flist(body, "messages") {
 		for mv: dc.vlist(group) {
-			append(*search.results, Result.{msg = dc.parse_loose_message(store(), dc.vmap(mv), a)});
+			array_add(*search.results, .{msg = dc.parse_loose_message(store(), dc.vmap(mv), a)});
 		}
 	}
 	app.ui.animating = true;
@@ -384,7 +302,7 @@ search_panel :: () {
 		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
 		{ ui.parent(hdr); defer ui.pop_parent();
 			spacer(.X, 16);
-			txt := ifx search.loading then "Searching..." else ifx search.total == 1 then "1 Result" else fmt.tprintf("%d Results", search.total);
+			txt := ifx search.loading then "Searching..." else ifx search.total == 1 then "1 Result" else tprint("% Results", search.total);
 			label(txt, .Semibold, 16, T("--text-strong"), 20);
 			filler(.X);
 			x := ui.box("close", .Clickable);
@@ -398,7 +316,7 @@ search_panel :: () {
 		list.layout_axis = .Y;
 		ui.signal(list);
 		{ ui.parent(list); defer ui.pop_parent();
-			if !search.loading && len(search.results) == 0 {
+			if !search.loading && search.results.count == 0 {
 				r := row("none");
 				r.semantic_size = .[ui.pct(1), ui.px(80)];
 				{ ui.parent(r); defer ui.pop_parent();
@@ -424,7 +342,7 @@ search_panel :: () {
 							}
 						}
 					}
-					if loose_message_card(*res.msg, view(search.terms), true) {
+					if loose_message_card(*res.msg, search.terms, true) {
 						search.active = true;
 						jump_to_message(res.msg.channel_id, res.msg.id);
 					}
@@ -434,15 +352,97 @@ search_panel :: () {
 		}
 	}
 }
-#scope_file
-
-rect_has :: (r: ui.Rect, p: ui.Vec2) -> bool {return p.x >= r.x0 && p.x < r.x1 && p.y >= r.y0 && p.y < r.y1;}
-#scope_export
 
 // Headless control sweep (sweep.odin): back to program start / what to compare.
 search_reset_for_test :: () {
-	virtual.arena_destroy(*search.arena);
+	fini(*search.pool);
 	search, jump, highlight_id, highlight_until, sugg_rect = .{}, .{}, 0, 0, .{};
 }
-search_state_for_test :: () -> string {return fmt.tprint(search.active, search.focused, search.query, jump.message);}
+search_state_for_test :: () -> string {return tprint("% % % %", search.active, search.focused, search.query, jump.message);}
+
+#scope_file
+
+sugg_rect: ui.Rect;
+
+in_suggestions :: (p: ui.Vec2) -> bool {return rect_has(sugg_rect, p);}
+
+rect_has :: (r: ui.Rect, p: ui.Vec2) -> bool {return p.x >= r.x0 && p.x < r.x1 && p.y >= r.y0 && p.y < r.y1;}
+
+search_run :: (ch: *dc.Channel, text: string) {
+	if text == "" { return; }
+	s := store();
+	array_reset(*search.results);
+	array_reset(*search.terms);
+	fini(*search.pool);
+	a := dc.pool_allocator(*search.pool);
+	search.results.allocator = a;
+	search.terms.allocator = a;
+	search.query = copy_string(text,, a);
+	search.active = true;
+	search.focused = false;
+	search.total = 0;
+	search.offset = 0;
+	search.scope = ifx ch.guild_id != 0 then ch.guild_id else ch.id;
+	authors, mentions, chans: [..]dc.Snowflake;
+	has, content: [..]string;
+	authors.allocator, mentions.allocator, chans.allocator, has.allocator = a, a, a, a;
+	content.allocator = temp;
+	pinned := false;
+	find_user :: (s: *dc.Store, name: string) -> dc.Snowflake {
+		ln := to_lower_copy(name,, temp);
+		for * u, uid: s.users {
+			if to_lower_copy(u.username,, temp) == ln { return uid; }
+		}
+		for * u, uid: s.users {
+			if to_lower_copy(dc.user_name(s, uid),, temp) == ln || to_lower_copy(dc.display_name(u),, temp) == ln { return uid; }
+		}
+		return 0;
+	}
+	rest := text;
+	while true {
+		// space-separated tokens
+		rest = trim_left(rest);
+		if !rest { break; }
+		n := 0;
+		while n < rest.count && !is_space(rest[n]) { n += 1; }
+		tok := rest;
+		tok.count = n;
+		advance(*rest, n);
+		if begins_with(tok, "from:") {
+			id := find_user(s, advance(tok, 5));
+			if id != 0 { array_add(*authors, id); }
+		} else if begins_with(tok, "mentions:") {
+			id := find_user(s, advance(tok, 9));
+			if id != 0 { array_add(*mentions, id); }
+		} else if begins_with(tok, "has:") {
+			array_add(*has, copy_string(advance(tok, 4),, a));
+		} else if begins_with(tok, "in:") {
+			name := trim_left(advance(tok, 3), "#");
+			for cid: dc.guild_channels_sorted(s, ch.guild_id) {
+				c := dc.channel_get(s, cid);
+				if c != null && c.name == name {
+					array_add(*chans, cid);
+					break;
+				}
+			}
+		} else if tok == "pinned:true" {
+			pinned = true;
+		} else {
+			array_add(*content, tok);
+			array_add(*search.terms, to_lower_copy(tok,, a));
+		}
+	}
+	search.sq = .{
+		content = join(..content, " ",, a),
+		author_ids = authors,
+		mentions = mentions,
+		has = has,
+		channel_ids = chans,
+		pinned = pinned
+	};
+	search.seq += 1;
+	search.loading = app.client != null;
+	if app.client != null { dc.search_messages(app.client, ch.guild_id, ch.id, search.sq, search.seq); }
+}
+
 

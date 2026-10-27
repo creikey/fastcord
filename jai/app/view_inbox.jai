@@ -37,17 +37,15 @@ Inbox_State :: struct {
 	requested: bool; // first mentions page asked for
 	loading: bool;
 	has_more: bool;
-	items: [..]Mention;
-	arena: virtual.Arena;
+	items: [..]Mention; // in pool
+	pool: Flat_Pool;
 }
 
 inbox: Inbox_State;
+UNREAD_PITCH :: 48;
 #scope_export
 
 INBOX_W :: 480;
-#scope_file
-UNREAD_PITCH :: 48;
-#scope_export
 
 inbox_button :: () {
 	b := ui.box("inbox", .Clickable);
@@ -64,15 +62,15 @@ inbox_button :: () {
 	total := 0;
 	for * ch, id: s.channels {
 		if ch.last_message_id == 0 { continue; }
-		rs, _ := map_find_ptr(*s.read_states, id);
+		rs := table_find_pointer(*s.read_states, id);
 		if rs != null && rs.last_message_id >= ch.last_message_id { continue; }
 		total += channel_mentions_of(s, ch, rs);
 	}
 	if total <= 0 { return; }
 	{ ui.parent(b); defer ui.pop_parent();
-		text := ifx total > 99 then "99+" else fmt.tprint(total);
-		w := max(cast(float32)(14), cast(float32)(len(text)) * 6 + 6);
-		badge := ui.box(fmt.tprintf("%s##inboxbadge", text), .Draw_Background | .Draw_Text | .Floating_X | .Floating_Y);
+		text := ifx total > 99 then "99+" else tprint("%", total);
+		w := max(cast(float32)(14), cast(float32)(text.count) * 6 + 6);
+		badge := ui.box(tprint("%##inboxbadge", text), .Draw_Background | .Draw_Text | .Floating_X | .Floating_Y);
 		badge.semantic_size = .[ui.px(w), ui.px(14)];
 		badge.fixed_pos = .{20 - w + 6, 10};
 		badge.style.bg = T("--status-danger");
@@ -92,55 +90,6 @@ help_button :: () {
 	if sig.hovering { tooltip_below("Help", b.rect); }
 	if sig.clicked { open_url("https://support.discord.com"); }
 }
-#scope_file
-
-inbox_open :: (anchor: ui.Rect) {
-	inbox.open = true;
-	inbox.anchor = anchor;
-	inbox.tab = ifx store().settings.inbox_tab == .Mentions then .Mentions else .Unreads;
-	if inbox.tab == .Mentions { mentions_first_page(); }
-	track_tab();
-}
-
-track_tab :: () {
-	if app.client != null { dc.track_open_popout(app.client, ifx inbox.tab == .Mentions then "Recent Mentions" else "Inbox"); }
-}
-
-mentions_first_page :: () {
-	if inbox.requested { return; }
-	inbox.requested = true;
-	if !net_action() {
-		local_mentions();
-		return;
-	}
-	inbox.loading = true;
-	dc.open_mentions(app.client);
-}
-
-// Offline (fixtures): the loaded messages that mention us, newest first, so
-// the tab and its controls work without the REST call.
-local_mentions :: () {
-	s := store();
-	if virtual.arena_init_growing(*inbox.arena) != .None { return; }
-	alloc := virtual.arena_allocator(*inbox.arena);
-	inbox.items = make_dynamic(Mention, 0, 0, alloc);
-	for * l, cid: s.messages {
-		ch := dc.channel_get(s, cid);
-		for * m: l.messages {
-			if m.author_id == s.me || !(m.mention_everyone || slice.contains(view(m.mentions), s.me)) { continue; }
-			mm := m;
-			mm.content = clone(m.content, alloc);
-			append(*inbox.items, Mention.{guild_id = ifx ch != null then ch.guild_id else 0, msg = mm});
-		}
-	}
-	items := view(inbox.items);
-	for i: 1..len(items)-1 {
-		{ j := i;
-		while j > 0 && items[j].msg.id > items[j - 1].msg.id { items[j], items[j - 1] = items[j - 1], items[j];  j -= 1; } }
-	}
-	if len(inbox.items) > 25 { resize(*inbox.items, 25); }
-}
-#scope_export
 
 inbox_receive :: (r: *dc.Feature_Result) {
 	if r.op == {
@@ -149,18 +98,15 @@ inbox_receive :: (r: *dc.Feature_Result) {
 		inbox.loading = false;
 		if !r.ok { return; }
 		// a reply to an older page after a reset (first page = tag 0) is dropped
-		if r.tag != 0 && (len(inbox.items) == 0 || cast(u64)(inbox.items[len(inbox.items) - 1].msg.id) != r.tag) { return; }
-		if is_null(inbox.items) {
-			if virtual.arena_init_growing(*inbox.arena) != .None { return; }
-			inbox.items = make_dynamic(Mention, 0, 0, virtual.arena_allocator(*inbox.arena));
-		}
-		alloc := virtual.arena_allocator(*inbox.arena);
+		if r.tag != 0 && (inbox.items.count == 0 || cast(u64)(peek(inbox.items).msg.id) != r.tag) { return; }
+		alloc := dc.pool_allocator(*inbox.pool);
+		inbox.items.allocator = alloc;
 		list := dc.vlist(r.body);
 		for mv: list {
 			mm := dc.vmap(mv);
-			append(*inbox.items, Mention.{guild_id = dc.fsnow(mm, "guild_id"), msg = dc.parse_loose_message(store(), mm, alloc)});
+			array_add(*inbox.items, .{guild_id = dc.fsnow(mm, "guild_id"), msg = dc.parse_loose_message(store(), mm, alloc)});
 		}
-		inbox.has_more = len(list) >= 25;
+		inbox.has_more = list.count >= 25;
 		app.ui.animating = true;
 	case .Mention_Delete;
 	}
@@ -207,7 +153,7 @@ inbox_popout :: () {
 			filler(.X);
 			if inbox.tab == .Unreads {
 				rows := unread_rows();
-				if len(rows) > 0 {
+				if rows.count > 0 {
 					mb := row("markall", .Clickable | .Draw_Background | .Hot_Animation);
 					mb.semantic_size = .[ui.px(32), ui.px(32)];
 					mb.style.radius = all4(8);
@@ -219,9 +165,10 @@ inbox_popout :: () {
 					}
 					if msig.hovering { tooltip_below("Mark All as Read", mb.rect); }
 					if msig.clicked && net_action() {
-						ids := make_dynamic(dc.Snowflake, 0, len(rows), temp);
-						for r: rows { if r.channel != 0 { append(*ids, r.channel); } }
-						dc.ack_channels(app.client, view(ids));
+						ids: [..]dc.Snowflake;
+						ids.allocator = temp;
+						for rows { if it.channel != 0 { array_add(*ids, it.channel); } }
+						dc.ack_channels(app.client, ids);
 					}
 				}
 				spacer(.X, 12);
@@ -268,7 +215,62 @@ inbox_popout :: () {
 		}
 	}
 }
+
+inbox_reset_for_test :: () {
+	fini(*inbox.pool);
+	inbox = .{};
+}
+
 #scope_file
+
+inbox_open :: (anchor: ui.Rect) {
+	inbox.open = true;
+	inbox.anchor = anchor;
+	inbox.tab = ifx store().settings.inbox_tab == .Mentions then .Mentions else .Unreads;
+	if inbox.tab == .Mentions { mentions_first_page(); }
+	track_tab();
+}
+
+track_tab :: () {
+	if app.client != null { dc.track_open_popout(app.client, ifx inbox.tab == .Mentions then "Recent Mentions" else "Inbox"); }
+}
+
+mentions_first_page :: () {
+	if inbox.requested { return; }
+	inbox.requested = true;
+	if !net_action() {
+		local_mentions();
+		return;
+	}
+	inbox.loading = true;
+	dc.open_mentions(app.client);
+}
+
+// Offline (fixtures): the loaded messages that mention us, newest first, so
+// the tab and its controls work without the REST call.
+local_mentions :: () {
+	s := store();
+	alloc := dc.pool_allocator(*inbox.pool);
+	inbox.items.allocator = alloc;
+	for * l, cid: s.messages {
+		ch := dc.channel_get(s, cid);
+		for m: l.messages {
+			if m.author_id == s.me || !(m.mention_everyone || array_find(m.mentions, s.me)) { continue; }
+			mm := m;
+			mm.content = copy_string(m.content,, alloc);
+			array_add(*inbox.items, .{guild_id = ifx ch != null then ch.guild_id else 0, msg = mm});
+		}
+	}
+	items := inbox.items;
+	for i: 1..items.count-1 {
+		j := i;
+		while j > 0 && items[j].msg.id > items[j - 1].msg.id {
+			swap(*items[j], *items[j - 1]);
+			j -= 1;
+		}
+	}
+	if inbox.items.count > 25 { inbox.items.count = 25; }
+}
 
 empty_note :: (text: string) {
 	r := row("empty");
@@ -292,43 +294,45 @@ unread_rows :: () -> []Unread_Row {
 	Keyed :: struct {
 		key, guild, id: dc.Snowflake;
 	}
-	list := make_dynamic(Keyed, 0, 0, temp);
+	list: [..]Keyed;
+	list.allocator = temp;
 	for * ch, id: s.channels {
 		if ch.last_message_id == 0 || ch.kind == .Guild_Category { continue; }
-		{ rs, ok := map_find_ptr(*s.read_states, id);
-		if ok && rs.last_message_id >= ch.last_message_id { continue; } }
+		rs := table_find_pointer(*s.read_states, id);
+		if rs && rs.last_message_id >= ch.last_message_id { continue; }
 		if dc.is_thread(ch) {
 			tm := dc.thread_meta(id);
 			if tm == null || !tm.joined || tm.archived { continue; }
 		}
 		if ch.guild_id != 0 {
-			{ gs, ok := map_find_ptr(*s.guild_settings, ch.guild_id);
-			if ok {
+			gs := table_find_pointer(*s.guild_settings, ch.guild_id);
+			if gs {
 				if gs.muted { continue; }
 				muted := false;
 				for m: gs.muted_channels { if m == id || (m == ch.parent_id && m != 0) { muted = true; } }
 				if muted { continue; }
-			} }
+			}
 		}
-		append(*list, Keyed.{ch.last_message_id, ch.guild_id, id});
+		array_add(*list, .{ch.last_message_id, ch.guild_id, id});
 	}
-	for i: 1..len(list)-1 {
-		{ j := i;
-		while j > 0 && get(list, j).key > get(list, j - 1).key { swap(*list[j], *list[j - 1]); j -= 1; } }
+	for i: 1..list.count-1 {
+		j := i;
+		while j > 0 && list[j].key > list[j - 1].key {
+			swap(*list[j], *list[j - 1]);
+			j -= 1;
+		}
 	}
 	// guilds in order of their newest unread channel
-	guilds := make_dynamic(dc.Snowflake, 0, 0, temp);
-	for k: list {
-		seen := false;
-		for g: guilds { if g == k.guild { seen = true; } }
-		if !seen { append(*guilds, k.guild); }
-	}
-	out := make_dynamic(Unread_Row, 0, len(list) + len(guilds), temp);
+	guilds: [..]dc.Snowflake;
+	guilds.allocator = temp;
+	for list { array_add_if_unique(*guilds, it.guild); }
+	out: [..]Unread_Row;
+	out.allocator = temp;
 	for g: guilds {
-		append(*out, Unread_Row.{guild = g});
-		for k: list { if k.guild == g { append(*out, Unread_Row.{guild = g, channel = k.id}); } }
+		array_add(*out, .{guild = g});
+		for list { if it.guild == g { array_add(*out, .{guild = g, channel = it.id}); } }
 	}
-	return view(out);
+	return out;
 }
 
 unreads_list :: () {
@@ -340,26 +344,25 @@ unreads_list :: () {
 	ui.signal(list);
 	ui.push_parent(list);
 	defer ui.pop_parent();
-	if len(rows) == 0 {
+	if rows.count == 0 {
 		spacer(.Y, 8);
 		empty_note("You're all caught up!");
 		return;
 	}
-	w := ui.list_window(list, UNREAD_PITCH, len(rows));
+	w := ui.list_window(list, UNREAD_PITCH, rows.count);
 	for i: w.first..w.last-1 {
-		r := get(rows, i);
-		{ ui.id_scope(cast(u64)(ifx r.channel != 0 then r.channel else r.guild) * 2 + cast(u64) (ifx r.channel != 0 then 1 else 0)); defer ui.pop_seed();
-			if r.channel == 0 {
-				unread_header(r.guild);
-				continue;
-			}
-			ch := dc.channel_get(s, r.channel);
-			if ch == null {
-				spacer(.Y, UNREAD_PITCH);
-				continue;
-			}
-			unread_row(ch);
+		r := rows[i];
+		ui.id_scope(cast(u64)(ifx r.channel != 0 then r.channel else r.guild) * 2 + cast(u64) (ifx r.channel != 0 then 1 else 0)); defer ui.pop_seed();
+		if r.channel == 0 {
+			unread_header(r.guild);
+			continue;
 		}
+		ch := dc.channel_get(s, r.channel);
+		if ch == null {
+			spacer(.Y, UNREAD_PITCH);
+			continue;
+		}
+		unread_row(ch);
 	}
 	ui.list_window_end(w);
 }
@@ -371,7 +374,7 @@ unread_header :: (gid: dc.Snowflake) {
 	defer ui.pop_parent();
 	spacer(.X, 16);
 	name := "Direct Messages";
-	{ g := dc.guild_get(store(), gid);
+	g := dc.guild_get(store(), gid);
 	if g != null {
 		name = g.name;
 		gi := ui.box("gicon", .Draw_Background | .Draw_Text);
@@ -389,7 +392,7 @@ unread_header :: (gid: dc.Snowflake) {
 		}
 	} else {
 		icon("gicon", "clyde", 24, T("--text-muted"));
-	} }
+	}
 	spacer(.X, 10);
 	label(ellipsize(name, .Semibold, 16, INBOX_W - 80), .Semibold, 16, T("--text-strong"), 20);
 }
@@ -409,7 +412,7 @@ unread_row :: (ch: *dc.Channel) {
 	{ ui.parent(item); defer ui.pop_parent();
 		spacer(.X, 12);
 		name: string;
-		if ch.kind == .DM && len(ch.recipient_ids) > 0 {
+		if ch.kind == .DM && ch.recipient_ids.count > 0 {
 			avatar_box("av", ch.recipient_ids[0], 24);
 			name = dm_name(ch);
 		} else if ch.kind == .Group_DM {
@@ -427,21 +430,20 @@ unread_row :: (ch: *dc.Channel) {
 		{ ui.parent(col); defer ui.pop_parent();
 			label(ellipsize(name, .Semibold, 15, INBOX_W - 180), .Semibold, 15, T("--text-strong"), 19);
 			// the newest loaded message, when there is one
-			{ msgs := dc.messages_get(s, ch.id);
-			if len(msgs) > 0 {
-				m := *msgs[len(msgs) - 1];
+			msgs := dc.messages_get(s, ch.id);
+			if msgs.count > 0 {
+				m := *msgs[msgs.count - 1];
 				author := name_in(m.author_id, ch.id, "unknown");
-				snippet := fmt.tprintf("%s: %s", author, snippet_text(s, first_line(m.content)));
+				snippet := tprint("%: %", author, snippet_text(s, first_line(m.content)));
 				t := label(ellipsize(snippet, .Normal, 13, INBOX_W - 180), .Normal, 13, T("--text-muted"), 17);
 				t.flags |= .Clip;
-			} }
+			}
 		}
-		rs, _ := map_find_ptr(*s.read_states, ch.id);
-		{ n := channel_mentions_of(s, ch, rs);
+		n := channel_mentions_of(s, ch, table_find_pointer(*s.read_states, ch.id));
 		if n > 0 {
-			bt := ifx n > 99 then "99+" else fmt.tprint(n);
-			bw := max(cast(float32)(16), cast(float32)(len(bt)) * 7 + 8);
-			b := ui.box(fmt.tprintf("%s##mb", bt), .Draw_Background | .Draw_Text);
+			bt := ifx n > 99 then "99+" else tprint("%", n);
+			bw := max(cast(float32)(16), cast(float32)(bt.count) * 7 + 8);
+			b := ui.box(tprint("%##mb", bt), .Draw_Background | .Draw_Text);
 			b.semantic_size = .[ui.px(bw), ui.px(16)];
 			b.style.bg = T("--status-danger");
 			b.style.radius = all4(8);
@@ -450,7 +452,7 @@ unread_row :: (ch: *dc.Channel) {
 			b.style.text_color = .{1, 1, 1, 1};
 			b.style.text_align = .Center;
 			spacer(.X, 8);
-		} }
+		}
 		ack := ui.box("ack", .Clickable | .Draw_Background | .Hot_Animation);
 		ack.semantic_size = .[ui.px(28), ui.px(28)];
 		ack.style.radius = all4(14);
@@ -479,28 +481,30 @@ unread_row :: (ch: *dc.Channel) {
 
 // One line of content with <@id> user mentions shown as @name.
 snippet_text :: (s: *dc.Store, line: string) -> string {
-	if strings.index(line, "<@") < 0 { return line; }
-	sb := strings.builder_make(temp);
+	if find_index_from_left(line, "<@") < 0 { return line; }
+	sb: String_Builder;
+	sb.allocator = temp;
 	c := line;
-	while len(c) > 0 {
-		i := strings.index(c, "<@");
-		end := ifx i >= 0 then strings.index_byte(sub_from(c, i), #char ">") else -1;
+	while c.count > 0 {
+		i := find_index_from_left(c, "<@");
+		end := ifx i >= 0 then find_index_from_left(c, #char ">", i) - i else -1;
 		if i < 0 || end < 0 {
-			strings.write_string(*sb, c);
+			append(*sb, c);
 			break;
 		}
-		strings.write_string(*sb, sub(c, 0, i));
-		tag := sub(c, i + 2, i + end);
-		c = sub_from(c, i + end + 1);
-		if strings.has_prefix(tag, "&") {
-			strings.write_string(*sb, "@role");
+		before := c;
+		before.count = i;
+		append(*sb, before);
+		tag := advance(c, i + 2);
+		tag.count = end - 2;
+		advance(*c, i + end + 1);
+		if begins_with(tag, "&") {
+			append(*sb, "@role");
 			continue;
 		}
-		name := dc.user_name(s, dc.parse_snowflake(strings.trim_left(tag, "!")), 0, "unknown-user");
-		strings.write_byte(*sb, #char "@");
-		strings.write_string(*sb, name);
+		print_to_builder(*sb, "@%", dc.user_name(s, dc.parse_snowflake(trim_left(tag, "!")), 0, "unknown-user"));
 	}
-	return strings.to_string(sb);
+	return builder_to_string(*sb,, temp);
 }
 
 // ---- Mentions ----
@@ -513,11 +517,11 @@ mentions_list :: () {
 	sig := ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
-		if len(inbox.items) == 0 { empty_note(ifx inbox.loading then "Loading..." else "Nobody has mentioned you recently."); }
-		remove_ := -1;
-		for * it_, i: inbox.items {
-			{ ui.id_scope(cast(u64)(it_.msg.id)); defer ui.pop_seed();
-				ch := dc.channel_get(s, it_.msg.channel_id);
+		if inbox.items.count == 0 { empty_note(ifx inbox.loading then "Loading..." else "Nobody has mentioned you recently."); }
+		removed := -1;
+		for * item, i: inbox.items {
+			{ ui.id_scope(cast(u64)(item.msg.id)); defer ui.pop_seed();
+				ch := dc.channel_get(s, item.msg.channel_id);
 				hr := row("mhdr");
 				hr.semantic_size = .[ui.pct(1), ui.px(32)];
 				{ ui.parent(hr); defer ui.pop_parent();
@@ -525,12 +529,12 @@ mentions_list :: () {
 					cname := "unknown channel";
 					gname := "";
 					if ch != null {
-						cname = ifx ch.kind == .DM || ch.kind == .Group_DM then dm_name(ch) else fmt.tprintf("#%s", ch.name);
+						cname = ifx ch.kind == .DM || ch.kind == .Group_DM then dm_name(ch) else tprint("#%", ch.name);
 					}
-					gid := it_.guild_id;
+					gid := item.guild_id;
 					if gid == 0 && ch != null { gid = ch.guild_id; }
-					{ g := dc.guild_get(s, gid);
-					if g != null { gname = g.name; } }
+					g := dc.guild_get(s, gid);
+					if g != null { gname = g.name; }
 					label(ellipsize(cname, .Semibold, 14, 220), .Semibold, 14, T("--text-strong"), 18);
 					if gname != "" {
 						spacer(.X, 6);
@@ -550,33 +554,28 @@ mentions_list :: () {
 					}
 					if xs.hovering { tooltip_below("Mark As Read", x.rect); }
 					if xs.clicked && net_action() {
-						dc.delete_mention(app.client, it_.msg.id);
-						remove_ = i;
+						dc.delete_mention(app.client, item.msg.id);
+						removed = i;
 					}
 					spacer(.X, 12);
 				}
-				if loose_message_card(*it_.msg, .[], true) {
-					jump_to_message(it_.msg.channel_id, it_.msg.id);
-					if app.client != null { dc.track_jump(app.client, "Recent Mentions", it_.msg.channel_id, it_.msg.id); }
+				if loose_message_card(*item.msg, .[], true) {
+					jump_to_message(item.msg.channel_id, item.msg.id);
+					if app.client != null { dc.track_jump(app.client, "Recent Mentions", item.msg.channel_id, item.msg.id); }
 					inbox.open = false;
 				}
 			}
 		}
-		if remove_ >= 0 { ordered_remove(*inbox.items, remove_); }
+		if removed >= 0 { array_ordered_remove_by_index(*inbox.items, removed); }
 		spacer(.Y, 8);
 	}
 	// load more near the end
-	if inbox.has_more && !inbox.loading && app.client != null && len(inbox.items) > 0 && sig.hovering {
+	if inbox.has_more && !inbox.loading && app.client != null && inbox.items.count > 0 && sig.hovering {
 		if list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
 			inbox.loading = true;
-			dc.fetch_mentions(app.client, inbox.items[len(inbox.items) - 1].msg.id);
+			dc.fetch_mentions(app.client, peek(inbox.items).msg.id);
 		}
 	}
 }
-#scope_export
 
-inbox_reset_for_test :: () {
-	virtual.arena_destroy(*inbox.arena);
-	inbox = .{};
-}
 
