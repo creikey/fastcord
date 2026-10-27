@@ -120,6 +120,7 @@ Client :: struct {
 	job_mu:           locks.Mutex,
 	job_cond:         locks.Cond,
 	jobs:             [dynamic]^Job,
+	jobs_running:     int, // jobs taken off the queue and not finished (under job_mu)
 	workers:          [dynamic]^thread.Thread,
 	quit:             bool,
 	// route (referer) — written by the UI thread, read by workers

@@ -113,6 +113,7 @@ worker_proc :: proc(c: ^Client) {
 		}
 		j := c.jobs[pick]
 		ordered_remove(&c.jobs, pick)
+		c.jobs_running += 1
 		// the moment the page would call fetch(): picks are serialized here, so
 		// requests due together keep their queue order (traffic recording)
 		tl_dispatch_ms = now_ms_f()
@@ -120,6 +121,7 @@ worker_proc :: proc(c: ^Client) {
 		run_job(c, j)
 		free_all(context.temp_allocator)
 		locks.lock(&c.job_mu)
+		c.jobs_running -= 1
 		if j.requeue && !c.quit {
 			j.requeue = false
 			append(&c.jobs, j)

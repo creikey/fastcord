@@ -430,7 +430,30 @@ replay_begin :: proc(run: ^Replay_Run, t: ^testing.T, scenario: string, guild, c
 		select_channel(run.c, guild, channel, 10)
 		replay_settle(run, 400)
 	}
+	replay_drain(run)
 	return true
+}
+
+// replay_drain: before the first mark, wait (bounded) until the setup's queued
+// analytics and REST jobs have gone out. replay_settle only sees requests made
+// after a mark, so on a slow machine (CI) the setup's first /science batch
+// could otherwise land in the action window.
+@(private = "file")
+replay_drain :: proc(run: ^Replay_Run, max_ms := 3000) {
+	start := time.tick_now()
+	for time.tick_since(start) < time.Duration(max_ms) * time.Millisecond {
+		client_poll(run.c)
+		locks.lock(&run.c.analytics.mu)
+		queued := len(run.c.analytics.queue)
+		locks.unlock(&run.c.analytics.mu)
+		locks.lock(&run.c.job_mu)
+		jobs := 0
+		for j in run.c.jobs do if j.not_before <= now_ms() do jobs += 1 // timers due later belong to the session
+		jobs += run.c.jobs_running
+		locks.unlock(&run.c.job_mu)
+		if queued == 0 && jobs == 0 do return
+		time.sleep(5 * time.Millisecond)
+	}
 }
 
 // replay_settle: poll until nothing new was sent for quiet_ms (bounded).
