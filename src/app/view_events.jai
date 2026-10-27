@@ -127,10 +127,10 @@ wide_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> 
 // (GuildScheduledEventInviteEmbed): Join outside the guild; inside it Interested before the
 // start, Join / Go To Channel / View Details while live, "Event is over" after. Clicking the
 // card opens the guild's Events (the client opens the event's details).
-event_invite_card :: (id: string, key: string, p: dc.Invite_Preview) {
+event_invite_card :: (id: string, key: string, p: dc.Invite_Preview, m: *dc.Message) {
 	W :: 432.0;
 	ICON :: 48.0;
-	member := dc.guild_get(store(), p.guild_id) != null;
+	member := is_member_of(p);
 	// a guild we're in has the live event (interest, counts) in the events table; the count
 	// comes from its counts request (0 until then, and outside the guild)
 	e := ifx member then dc.event_get(p.event.id);
@@ -186,7 +186,10 @@ event_invite_card :: (id: string, key: string, p: dc.Invite_Preview) {
 		}
 		secondary, fg := T("--background-mod-normal"), T("--text-strong");
 		if !member || (e && e.status == .Active && e.entity != .External && app.voice_channel != e.channel_id) {
-			if pill_button("join", ifx p.joining then "Joining…" else "Join", "", T("--status-positive-background"), T("--status-positive-text"), 40) && !p.joining invite_follow(key);
+			if pill_button("join", ifx p.joining then "Joining…" else "Join", "", T("--status-positive-background"), T("--status-positive-text"), 40) && !p.joining && net_action() {
+				if member go_to_invite(p);
+				else dc.join_invite_preview(app.client, key, dc.INVITE_LOC_EMBED, invite_instance(m.id, key));
+			}
 		} else if e && e.status == .Scheduled {
 			interested_button(e, 40);
 		} else if e && e.status == .Active && e.entity == .External {
