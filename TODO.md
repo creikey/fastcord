@@ -183,7 +183,8 @@
 - [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
 - [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
 - [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
-- [ ] Appearance: no compact mode, chat font scaling, zoom (and no Ctrl +/-/0), message spacing, or accessibility options (reduced motion, saturation, role colours).
+- [ ] Zoom: Ctrl+= / Ctrl+- / Ctrl+0 zoom the whole UI in, out and back to 100%, and a "Zoom Level" slider sits in the settings page where the official client has it (check whether that's Appearance or Accessibility before building). Match the official steps and range, the browser zoom levels from 50% to 200%, by checking the bundle. Scale on top of the DPI scale and persist it. Today none of it exists (no `.Equals` / `.Minus` handling in `src/app` or `src/ui`).
+- [ ] Appearance: no compact mode, chat font scaling, message spacing, or accessibility options (reduced motion, saturation, role colours).
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Keybinds: no Ctrl+Shift+M (mute) or Ctrl+Shift+D (deafen).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
