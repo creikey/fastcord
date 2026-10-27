@@ -1,16 +1,9 @@
 #import "Basic";
-#import "Math";
 #import "String";
 #import "Hash_Table";
-#import "Atomics";
-#import "fc";
+#import "Thread";
 etf :: #import "etf";
-fmt :: #import "fc_fmt";
 http :: #import "http";
 netio :: #import "netio";
-strconv :: #import "fc_strconv";
-strings :: #import "fc_strings";
-sync :: #import "fc_sync";
-thread :: #import "fc_thread";
-time :: #import "fc_time";
+locks :: #import "locks";
 #load "cdp.jai";
