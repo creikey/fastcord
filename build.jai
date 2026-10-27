@@ -466,7 +466,8 @@ cc :: (a: *[..]string, cpp: bool) {
         if cpp array_add(a, "-nostdinc++", "-D_USE_STD_VECTOR_ALGORITHMS=0");
     } else {
         array_add(a, "-target", tprint("%-macos.13.0", MAC_ARCH), tprint("--sysroot=%", MAC_SDK));
-        if cpp array_add(a, "-nostdinc++", "-isystem", tprint("%/usr/include/c++/v1", MAC_SDK));
+        // -I, not -isystem: zig puts a user -isystem after its own C headers, and libc++ must come first.
+        if cpp array_add(a, "-nostdinc++", "-I", tprint("%/usr/include/c++/v1", MAC_SDK));
     }
     if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
 }
@@ -490,6 +491,7 @@ build_c :: () -> bool {
 }
 
 build_c_target :: () -> bool {
+    make_directory_if_it_does_not_exist(OBJ(), recursive = true);
     jobs: [..][..]string;
     stamps: [..]string;
     for src: c_units() {
@@ -506,7 +508,7 @@ build_c_target :: () -> bool {
         stamp := tprint("%.stamp", list_dir(list));
         if !stale(stamp, path_strip_filename(list)) continue;
         dir := list_dir(list);
-        make_directory_if_it_does_not_exist(dir);
+        make_directory_if_it_does_not_exist(dir, recursive = true);
         text := read_entire_file(list);
         extra := cflags(path_strip_extension(list));
         for line: split(text, "\n") {
