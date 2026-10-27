@@ -64,7 +64,7 @@ os_init :: (title: string, width: int, height: int) -> bool {
         lpfnWndProc = xx wndproc,
         hInstance = w.instance,
         hCursor = win.LoadCursorA(null, win.IDC_ARROW),
-        hIcon = win.LoadIconA(w.instance, cast(*u8) 2), // the exe's icon (release builds embed it as resource 2)
+        hIcon = win.LoadIconA(w.instance, cast(*u8) 2), // the exe's icon (build.jai embeds it as resource 2)
         lpszClassName = class_name,
     };
     if win.RegisterClassExW(*wc) == 0 return false;
