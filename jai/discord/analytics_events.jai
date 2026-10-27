@@ -156,7 +156,7 @@ aw_strs :: (w: *Json, k: string, items: []string) {
 
 // load_id / session ids: the client's uuid v4 (hex without dashes for load ids).
 analytics_load_id :: (allocator := context.allocator) -> string {
-	u := uuid4(temp);
+	u := uuid4(,, temp);
 	out, _ := strings.remove_all(u, "-", allocator);
 	return out;
 }
@@ -519,7 +519,7 @@ profile_view_begin :: (c: *Client, layout: Profile_Layout, user_id: Snowflake, g
 	profile_view_free(c, *a.profile);
 	u := user_get(*c.store, user_id);
 	known := u != null && u.mutual_guilds >= 0 && u.mutual_friends >= 0;
-	a.profile = .{pending = true, layout = layout, user_id = user_id, guild_id = guild_id, channel_id = channel_id, message_id = message_id, session = uuid4(c.allocator), source_session = src, wait = wait, mutuals_known = known};
+	a.profile = .{pending = true, layout = layout, user_id = user_id, guild_id = guild_id, channel_id = channel_id, message_id = message_id, session = uuid4(,, c.allocator), source_session = src, wait = wait, mutuals_known = known};
 }
 #scope_module
 
@@ -919,7 +919,7 @@ analytics_join_voice :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake)
 	json_knull(*w, "game_id");
 	json_kbool(*w, "was_moved", false);
 	delete(c.analytics.join_voice_id, c.allocator);
-	c.analytics.join_voice_id = uuid4(c.allocator);
+	c.analytics.join_voice_id = uuid4(,, c.allocator);
 	json_kstr(*w, "join_voice_id", c.analytics.join_voice_id);
 	json_kint(*w, "custom_status_count", cast(s64)(custom));
 	json_kint(*w, "voice_state_count", cast(s64)(in_channel));

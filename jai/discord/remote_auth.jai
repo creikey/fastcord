@@ -82,7 +82,7 @@ ra_session_destroy :: (s: *Ra_Session) {
 	delete(s.discriminator, s.allocator);
 	delete(s.avatar, s.allocator);
 	delete(s.username, s.allocator);
-	if len(s.ticket) > 0 { crypto.zero_explicit(raw_data(s.ticket), len(s.ticket)); }
+	if len(s.ticket) > 0 { crypto.zero(cast([]u8) s.ticket); }
 	delete(s.ticket, s.allocator);
 	s.* = .{};
 }
@@ -106,7 +106,7 @@ ra_handle :: (s: *Ra_Session, msg: []u8, allocator := temp) -> Ra_Action, string
 	arena: virtual.Arena;
 	virtual.arena_init_growing(*arena);
 	defer virtual.arena_destroy(*arena);
-	v, ok := parse_json(msg, virtual.arena_allocator(*arena));
+	v, ok := parse_json(msg,, virtual.arena_allocator(*arena));
 	if !ok { return .None, ""; }
 	m := vmap(v);
 	if fstr(m, "op") == {
@@ -178,7 +178,7 @@ ra_decrypt_token :: (s: *Ra_Session, encrypted_token: string, allocator := conte
 	pt, ok := ra_decrypt(s, encrypted_token, temp);
 	if !ok { return "", false; }
 	tok := clone(as_string(pt), allocator);
-	crypto.zero_explicit(raw_data(pt), len(pt));
+	crypto.zero(cast([]u8) pt);
 	return tok, true;
 }
 
@@ -475,7 +475,7 @@ ra_run_socket :: (c: *Client, backoff: *Backoff) -> Ra_End {
 	cookie := cookie_header(*c.jar, host, path, true, now);
 	hdrs := gateway_ws_headers(c.id.platform, host, cookie);
 	key_raw: [16]u8;
-	crypto.rand_bytes(view(key_raw));
+	crypto.random_bytes(key_raw);
 	for * h: hdrs { if h.name == "Sec-WebSocket-Key" { h.value = base64.encode(view(key_raw), allocator = temp); } }
 	req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, headers = hdrs};
 	if c.on_ws_open != null { c.on_ws_open(c.observer_data, REMOTE_AUTH_URL, req.headers); }
@@ -601,7 +601,7 @@ ra_ticket_login :: (c: *Client, s: *Ra_Session) -> bool {
 	if !r.ok { return false; }
 	tok, ok := ra_decrypt_token(s, fstr(vmap(r.body), "encrypted_token"), temp);
 	if !ok { return false; }
-	defer crypto.zero_explicit(raw_data(tok), len(tok));
+	defer crypto.zero(cast([]u8) tok);
 	auth_push_token(c, tok, s.fingerprint, .Remote_Token);
 	return true;
 }

@@ -88,7 +88,7 @@ rec_line_at :: (r: *Recorder, acct: string, at_ms: float64, rest: string) {
 recorder_mark :: (r: *Recorder, acct: string, name: string) {
 	sb := strings.builder_make(temp);
 	strings.write_string(*sb, "\"mark\":");
-	json_write_escaped(*sb, name);
+	json_write_escaped(*sb.buf, name);
 	rec_line(r, acct, strings.to_string(sb));
 }
 #scope_module
@@ -216,9 +216,9 @@ headers_object :: (sb: *strings.Builder, h: []http.Header) {
 	strings.write_byte(sb, #char "{");
 	for x, i: h {
 		if i > 0 { strings.write_byte(sb, #char ","); }
-		json_write_escaped(sb, x.name);
+		json_write_escaped(*sb.buf, x.name);
 		strings.write_byte(sb, #char ":");
-		json_write_escaped(sb, x.value);
+		json_write_escaped(*sb.buf, x.value);
 	}
 	strings.write_byte(sb, #char "}");
 }
@@ -259,16 +259,16 @@ rec_http :: (data: *void, host: string, req: http.Request, resp: *http.Response,
 	// requestWillBeSent
 	sb := strings.builder_make(temp);
 	fmt.sbprintf(*sb, "\"m\":{{\"method\":\"Network.requestWillBeSent\",\"params\":{{\"requestId\":\"%s\",\"type\":\"%s\",\"wallTime\":%.6f,\"request\":{{\"url\":", rid, kind, start_ms / 1000);
-	json_write_escaped(*sb, url);
+	json_write_escaped(*sb.buf, url);
 	strings.write_string(*sb, ",\"method\":");
-	json_write_escaped(*sb, req.method);
+	json_write_escaped(*sb.buf, req.method);
 	strings.write_string(*sb, ",\"headers\":");
 	rv := renderer_view(req.method, req.headers, kind);
 	if context.tl_js_lower_auth { for * h: rv { if h.name == "Authorization" { h.name = "authorization"; } } }
 	headers_object(*sb, rv);
 	if len(req.body) > 0 {
 		strings.write_string(*sb, ",\"hasPostData\":true,\"postData\":");
-		json_write_escaped(*sb, as_string(req.body));
+		json_write_escaped(*sb.buf, as_string(req.body));
 	}
 	strings.write_string(*sb, "}}}");
 	rec_line_at(r, tap.acct, start_ms, strings.to_string(sb));
@@ -292,7 +292,7 @@ rec_http :: (data: *void, host: string, req: http.Request, resp: *http.Response,
 	}
 	sb3 := strings.builder_make(temp);
 	fmt.sbprintf(*sb3, "\"m\":{{\"method\":\"Network.responseReceived\",\"params\":{{\"requestId\":\"%s\",\"type\":\"%s\",\"response\":{{\"url\":", rid, kind);
-	json_write_escaped(*sb3, url);
+	json_write_escaped(*sb3.buf, url);
 	fmt.sbprintf(*sb3, ",\"status\":%d,\"protocol\":\"%s\",\"connectionId\":0,\"connectionReused\":false,\"headers\":", resp.status, proto_name(resp.version));
 	headers_object(*sb3, view(resp.headers));
 	strings.write_string(*sb3, "}}}");
@@ -302,10 +302,10 @@ rec_http :: (data: *void, host: string, req: http.Request, resp: *http.Response,
 		fmt.sbprintf(*sb4, "\"body_for\":\"%s\",\"s\":\"\",\"m\":{{\"result\":{{\"body\":", rid);
 		ct, _ := http.header_get(view(resp.headers), "content-type");
 		if strings.contains(ct, "json") || strings.has_prefix(ct, "text/") {
-			json_write_escaped(*sb4, as_string(view(resp.body)));
+			json_write_escaped(*sb4.buf, as_string(view(resp.body)));
 			strings.write_string(*sb4, ",\"base64Encoded\":false}}");
 		} else {
-			json_write_escaped(*sb4, base64.encode(view(resp.body), allocator = temp));
+			json_write_escaped(*sb4.buf, base64.encode(view(resp.body), allocator = temp));
 			strings.write_string(*sb4, ",\"base64Encoded\":true}}");
 		}
 		rec_line(r, tap.acct, strings.to_string(sb4));
@@ -323,7 +323,7 @@ rec_ws_open :: (data: *void, url: string, headers: []http.Header) {
 	full := strings.concatenate(string.["wss://", sub_from(url, len("wss://"))], temp);
 	sb := strings.builder_make(temp);
 	fmt.sbprintf(*sb, "\"m\":{{\"method\":\"Network.webSocketCreated\",\"params\":{{\"requestId\":\"%s\",\"url\":", rid);
-	json_write_escaped(*sb, full);
+	json_write_escaped(*sb.buf, full);
 	strings.write_string(*sb, "}}");
 	rec_line(r, tap.acct, strings.to_string(sb));
 	sb2 := strings.builder_make(temp);

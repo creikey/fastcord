@@ -82,7 +82,7 @@ analytics_init :: (a: *Analytics, allocator := context.allocator) {
 	a.uuid_created = now_ms();
 	a.timers = make_dynamic(Analytics_Timer, 0, 0, allocator);
 	// The ad session (AdSessionStore) exists from launch: quests/decision uses it before READY.
-	a.ad_session = uuid4(allocator);
+	a.ad_session = uuid4(,, allocator);
 	a.ad_created = now_ms();
 	a.roundtrips.allocator = allocator;
 	a.throttled.allocator = allocator;
@@ -145,12 +145,12 @@ analytics_track :: (c: *Client, event_type: string, props_json: string) {
 	a.seq += 1;
 	sb := strings.builder_make(temp);
 	strings.write_string(*sb, "{\"type\":");
-	json_write_escaped(*sb, event_type);
+	json_write_escaped(*sb.buf, event_type);
 	strings.write_string(*sb, ",\"properties\":{\"client_track_timestamp\":");
 	strings.write_i64(*sb, now);
 	if hb.uuid != "" {
 		strings.write_string(*sb, ",\"client_heartbeat_session_id\":");
-		json_write_escaped(*sb, hb.uuid);
+		json_write_escaped(*sb.buf, hb.uuid);
 	}
 	strings.write_string(*sb, ",\"event_sequence_number\":");
 	strings.write_int(*sb, a.seq);
@@ -168,18 +168,18 @@ analytics_track :: (c: *Client, event_type: string, props_json: string) {
 	strings.write_string(*sb, ",\"accessibility_features\":");
 	strings.write_u64(*sb, a.accessibility);
 	strings.write_string(*sb, ",\"rendered_locale\":");
-	json_write_escaped(*sb, c.id.platform.locale);
+	json_write_escaped(*sb.buf, c.id.platform.locale);
 	strings.write_string(*sb, ",\"uptime_app\":");
 	strings.write_i64(*sb, (now - c.launch_ms) / 1000);
 	strings.write_string(*sb, ",\"uptime_process_renderer\":");
 	strings.write_i64(*sb, process_uptime_seconds());
 	strings.write_string(*sb, ",\"launch_signature\":");
-	json_write_escaped(*sb, c.id.launch_signature);
+	json_write_escaped(*sb.buf, c.id.launch_signature);
 	if a.decorated {
 		strings.write_string(*sb, ",\"client_rtc_state\":");
-		json_write_escaped(*sb, rtc_state_name(a.rtc_state));
+		json_write_escaped(*sb.buf, rtc_state_name(a.rtc_state));
 		strings.write_string(*sb, ",\"client_app_state\":");
-		json_write_escaped(*sb, app_state_name(c.id.app_state));
+		json_write_escaped(*sb.buf, app_state_name(c.id.app_state));
 		strings.write_string(*sb, ",\"client_viewport_width\":");
 		strings.write_int(*sb, a.viewport_w);
 		strings.write_string(*sb, ",\"client_viewport_height\":");
@@ -187,7 +187,7 @@ analytics_track :: (c: *Client, event_type: string, props_json: string) {
 	}
 	if a.user_id != 0 {
 		strings.write_string(*sb, ",\"client_uuid\":");
-		json_write_escaped(*sb, client_uuid_next(a));
+		json_write_escaped(*sb.buf, client_uuid_next(a));
 	}
 	append(*a.queue, clone(strings.to_string(sb), a.allocator));
 	if a.flush_at == 0 { a.flush_at = now + ANALYTICS_FLUSH_DELAY_MS; }
@@ -294,7 +294,7 @@ analytics_flush :: (c: *Client, now: s64, force := false) {
 	}
 	sb := strings.builder_make(temp);
 	strings.write_string(*sb, "{\"token\":");
-	if token == "" && logged_out { strings.write_string(*sb, "null"); } else { json_write_escaped(*sb, token); }
+	if token == "" && logged_out { strings.write_string(*sb, "null"); } else { json_write_escaped(*sb.buf, token); }
 	strings.write_string(*sb, ",\"events\":[");
 	for e, i: a.queue {
 		if i > 0 { strings.write_byte(*sb, #char ","); }
@@ -319,7 +319,7 @@ analytics_flush :: (c: *Client, now: s64, force := false) {
 	j.retries = 3;
 	if first {
 		hdr := make_slice(http.Header, 1, job_alloc(j));
-		hdr[0] = .{"x-science-test", job_str(j, uuid4(temp))};
+		hdr[0] = .{"x-science-test", job_str(j, uuid4(,, temp))};
 		j.extra = hdr;
 	}
 	job_submit(c, j);
@@ -387,7 +387,7 @@ analytics_tick :: (c: *Client, now: s64) {
 		a.next_ad_hb = now + AD_HEARTBEAT_INTERVAL_MS;
 		if a.ad_session == "" || now - a.ad_created > 12 * 3600 * 1000 {
 			delete(a.ad_session, a.allocator);
-			a.ad_session = uuid4(a.allocator);
+			a.ad_session = uuid4(,, a.allocator);
 			a.ad_created = now;
 		}
 		w: Json;

@@ -181,7 +181,7 @@ open_profile_editor :: (c: *Client) {
 	me := c.store.me;
 	us := snowflake_string(me);
 	api_get_later(c, strings.concatenate(string.["/content-inventory/users/", us, "/outbox"], temp), 0);
-	sid := uuid4(temp);
+	sid := uuid4(,, temp);
 	{
 		q: Query;
 		query_init(*q, strings.concatenate(string.["/users/", us, "/profile"], temp));

@@ -101,8 +101,8 @@ Identity :: struct {
 identity_init :: (id: *Identity, platform: Platform_Info, allocator := context.allocator) {
 	id.platform = platform;
 	id.allocator = allocator;
-	id.client_launch_id = uuid4(allocator);
-	id.fast_connect_launch_id = uuid4(allocator);
+	id.client_launch_id = uuid4(,, allocator);
+	id.fast_connect_launch_id = uuid4(,, allocator);
 	id.launch_signature = launch_signature(allocator);
 	id.app_state = .Focused;
 }
@@ -121,7 +121,7 @@ touch_heartbeat_locked :: (id: *Identity, now: s64) -> bool {
 	if id.app_state != .Focused || id.logged_out { return false; }
 	if heartbeat_session_expired(id.heartbeat, now) {
 		if id.heartbeat.uuid != "" { delete(id.heartbeat.uuid, id.allocator); }
-		id.heartbeat = .{uuid4(id.allocator), now, now};
+		id.heartbeat = .{uuid4(,, id.allocator), now, now};
 		created = true;
 	}
 	id.heartbeat.last_used = now;
@@ -266,9 +266,9 @@ LAUNCH_SIG_ONE := u8.[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x80, 0x00
 
 launch_signature :: (allocator := context.allocator) -> string {
 	b: [16]u8;
-	crypto.rand_bytes(view(b));
+	crypto.random_bytes(b);
 	for i: 0..15 { b[i] = (b[i] & ~LAUNCH_SIG_ZERO[i]) | LAUNCH_SIG_ONE[i]; }
-	return uuid_format(b, allocator);
+	return uuid_format(b,, allocator);
 }
 
 launch_signature_is_clean :: (sig: string) -> bool {

@@ -221,7 +221,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 		arena := new(virtual.Arena);
 		virtual.arena_init_growing(arena);
 		alloc := virtual.arena_allocator(arena);
-		bv, _ := parse_json(view(resp.body), alloc);
+		bv, _ := parse_json(resp.body,, alloc);
 		hold := rate_note_response(*c.limiter, method, url_key, resp.status, view(resp.headers), bv, now_ms());
 		if resp.status == 429 && retry_429_left > 0 {
 			retry_429_left -= 1;

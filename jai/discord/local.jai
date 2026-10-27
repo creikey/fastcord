@@ -30,11 +30,6 @@ is_null :: inline (x: $T) -> bool {
 	else return x == null;
 }
 
-// Snowflake_Pair_Set: Odin's map[[2]Snowflake]bool (Jai arrays have no ==).
-Snowflake_Pair_Set :: Table([2]Snowflake, bool, given_hash_function = sf_pair_hash, given_compare_function = sf_pair_eq);
-sf_pair_hash :: (k: [2]Snowflake) -> u32 { return get_hash(k[0], get_hash(k[1])); }
-sf_pair_eq :: (a: [2]Snowflake, b: [2]Snowflake) -> bool { return a[0] == b[0] && a[1] == b[1]; }
-
 // make_map: Odin's make(map[K]V, allocator); the table keeps the allocator (and is non-nil) from here on.
 make_map :: ($K: Type, $V: Type, allocator := context.allocator) -> Map(K, V) {
 	m: Map(K, V);

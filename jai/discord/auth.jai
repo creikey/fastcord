@@ -242,9 +242,9 @@ auth_login :: (c: *Client, login: string, password: []u8) {
 	json_knull(*w, "gift_code_sku_id");
 	json_obj_end(*w);
 	auth_login_dispatched(c);
-	j := auth_job(c, "/auth/login", view(w.sb.buf), .Login, retries = 2);
-	crypto.zero_explicit(raw_data(w.sb.buf), len(w.sb.buf));
-	j.on_done = (c: *Client, j: *Job, status: int) {crypto.zero_explicit(raw_data(j.body), len(j.body));};
+	j := auth_job(c, "/auth/login", w.buf, .Login, retries = 2);
+	crypto.zero(w.buf);
+	j.on_done = (c: *Client, j: *Job, status: int) {crypto.zero(cast([]u8) j.body);};
 	job_submit(c, j);
 }
 
@@ -273,7 +273,7 @@ auth_mfa :: (c: *Client, method: Mfa_Method, code: string) {
 	json_obj_end(*w);
 	a.mfa_kind = method;
 	auth_login_dispatched(c);
-	j := auth_job(c, strings.concatenate(string.["/auth/mfa/", kind], temp), view(w.sb.buf), .Mfa, retries = 2);
+	j := auth_job(c, strings.concatenate(string.["/auth/mfa/", kind], temp), w.buf, .Mfa, retries = 2);
 	job_submit(c, j);
 }
 #scope_module
@@ -294,7 +294,7 @@ auth_mfa_sms_send :: (c: *Client) {
 	json_obj(*w);
 	json_kstr(*w, "ticket", c.auth.mfa_ticket);
 	json_obj_end(*w);
-	job_submit(c, auth_job(c, "/auth/mfa/sms/send", view(w.sb.buf), .Sms_Send));
+	job_submit(c, auth_job(c, "/auth/mfa/sms/send", w.buf, .Sms_Send));
 }
 
 // auth_forgot: "Forgot your password?" POST /auth/forgot {"login"}.
@@ -304,7 +304,7 @@ auth_forgot :: (c: *Client, login: string) {
 	json_obj(*w);
 	json_kstr(*w, "login", auth_login_value(c, login));
 	json_obj_end(*w);
-	job_submit(c, auth_job(c, "/auth/forgot", view(w.sb.buf), .Forgot));
+	job_submit(c, auth_job(c, "/auth/forgot", w.buf, .Forgot));
 }
 
 // auth_login_reset: the MFA step's close / "Go back" (LOGIN_RESET, no request).
@@ -504,7 +504,7 @@ auth_take_events :: (c: *Client) -> []Auth_Event {
 		at(*out, i).*.phone = clone(e.phone, t);
 		at(*out, i).*.login = clone(e.login, t);
 		at(*out, i).*.token = clone(e.token, t);
-		if len(e.token) > 0 { crypto.zero_explicit(raw_data(e.token), len(e.token)); }
+		if len(e.token) > 0 { crypto.zero(cast([]u8) e.token); }
 	}
 	clear(*a.events);
 	virtual.arena_free_all(*a.arena);

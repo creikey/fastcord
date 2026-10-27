@@ -11,7 +11,7 @@ altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";
 brotli :: #import "brotli";
 bytes :: #import "fc_bytes";
-crypto :: #import "fc_crypto";
+crypto :: #import "crypto";
 #if OS == .MACOS darwin :: #import "fc_darwin";
 etf :: #import "etf";
 fmt :: #import "fc_fmt";

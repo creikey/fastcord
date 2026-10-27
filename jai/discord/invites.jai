@@ -217,7 +217,7 @@ escape_shortcut_used :: (c: *Client) {
 
 json_quote :: (s: string) -> string {
 	sb := strings.builder_make(temp);
-	json_write_escaped(*sb, s);
+	json_write_escaped(*sb.buf, s);
 	return strings.to_string(sb);
 }
 #scope_export

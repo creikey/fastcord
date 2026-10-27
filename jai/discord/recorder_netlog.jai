@@ -103,19 +103,19 @@ rec_conn :: (data: *void, ev: Conn_Event) {
 	if ev.kind == {
 	case "h3";
 		strings.write_string(*sb, "{\"host\":");
-		json_write_escaped(*sb, ev.host);
+		json_write_escaped(*sb.buf, ev.host);
 		strings.write_string(*sb, ",\"port\":443,\"versions\":\"RFCv1\"}");
 		nl_event(f, "QUIC_SESSION", id, 1, at_ms, strings.to_string(sb));
 		strings.builder_reset(*sb);
 		strings.write_string(*sb, "{\"quic_transport_parameters\":");
-		json_write_escaped(*sb, quic_params_text(ev.quic_params, "Client"));
+		json_write_escaped(*sb.buf, quic_params_text(ev.quic_params, "Client"));
 		strings.write_string(*sb, "}");
 		nl_event(f, "QUIC_SESSION_TRANSPORT_PARAMETERS_SENT", id, 0, at_ms, strings.to_string(sb));
 		nl_event(f, "HTTP3_SETTINGS_SENT", id, 0, at_ms, h3_settings_json());
 	case "h2";
 		sock := nl_source(r);
 		strings.write_string(*sb, "{\"next_proto\":");
-		json_write_escaped(*sb, ev.alpn);
+		json_write_escaped(*sb.buf, ev.alpn);
 		strings.write_string(*sb, ",\"version\":\"TLS 1.3\"}");
 		nl_event(f, "SSL_CONNECT", sock, 2, at_ms, strings.to_string(sb));
 		strings.builder_reset(*sb);
@@ -181,12 +181,12 @@ nl_request_headers :: (r: *Recorder, acct: string, host: string, req: http.Reque
 		v := h.value;
 		lname := strings.to_lower(h.name, temp);
 		if lname == "cookie" || lname == "authorization" { v = fmt.tprintf("[%d bytes were stripped]", len(h.value)); }
-		json_write_escaped(*sb, fmt.tprintf("%s: %s", h.name, v));
+		json_write_escaped(*sb.buf, fmt.tprintf("%s: %s", h.name, v));
 	}
 	strings.write_string(*sb, "]");
 	if version == .Http1_1 || version == .Http1_0 {
 		strings.write_string(*sb, ",\"line\":");
-		json_write_escaped(*sb, fmt.tprintf("%s %s HTTP/1.1\r\n", req.method, req.path));
+		json_write_escaped(*sb.buf, fmt.tprintf("%s %s HTTP/1.1\r\n", req.method, req.path));
 	}
 	strings.write_string(*sb, "}");
 	nl_event(f, name, src, 0, at_ms, strings.to_string(sb));

@@ -478,7 +478,7 @@ gateway_connect :: (g: *Gateway) {
 	cookie := cookie_header(*c.jar, host, path, true, now);
 	hdrs := gateway_ws_headers(c.id.platform, host, cookie);
 	key_raw: [16]u8;
-	crypto.rand_bytes(view(key_raw));
+	crypto.random_bytes(key_raw);
 	for * h: hdrs { if h.name == "Sec-WebSocket-Key" { h.value = base64.encode(view(key_raw), allocator = temp); } }
 	req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, headers = hdrs};
 	if c.on_ws_open != null { c.on_ws_open(c.observer_data, url, req.headers); }

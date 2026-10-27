@@ -12,63 +12,60 @@ spawn :: (data: $D, proc: (D)) -> *Thread {
 
 // ---- time ----
 
-now_ms :: () -> s64 {
-	return time.time_to_unix_nano(time.now()) / 1000000;
-}
+UNIX_EPOCH :: #run calendar_to_apollo(.{year = 1970});
+
+now_ms :: () -> s64 { return to_milliseconds(current_time_consensus() - UNIX_EPOCH); }
 
 // now_ms_f: unix ms with sub-millisecond precision (traffic tooling ordering).
-now_ms_f :: () -> float64 {
-	return cast(float64)(time.time_to_unix_nano(time.now())) / 1000000;
-}
+now_ms_f :: () -> float64 { return cast(float64) to_nanoseconds(current_time_consensus() - UNIX_EPOCH) / 1_000_000; }
+
+// mono_ms: monotonic milliseconds, for timeouts and durations.
+mono_ms :: () -> s64 { return to_milliseconds(current_time_monotonic()); }
 
 // ---- uuid v4 (crypto/random based, like the client's uuid module) ----
 
-uuid4 :: (allocator := context.allocator) -> string {
+uuid4 :: () -> string {
 	b: [16]u8;
-	crypto.rand_bytes(view(b));
+	crypto.random_bytes(b);
 	b[6] = (b[6] & 0x0f) | 0x40;
 	b[8] = (b[8] & 0x3f) | 0x80;
-	return uuid_format(b, allocator);
+	return uuid_format(b);
 }
 
-uuid_format :: (b: [16]u8, allocator := context.allocator) -> string {
-	HEX := "0123456789abcdef";
-	out := make_slice(u8, 36, allocator);
+uuid_format :: (b: [16]u8) -> string {
+	HEX :: "0123456789abcdef";
+	out := alloc_string(36);
 	j := 0;
-	for i: 0..15 {
-		if i == 4 || i == 6 || i == 8 || i == 10 {
-			at(*out, j).* = #char "-";
+	for b {
+		if it_index == 4 || it_index == 6 || it_index == 8 || it_index == 10 {
+			out[j] = #char "-";
 			j += 1;
 		}
-		at(*out, j).* = HEX[b[i] >> 4];
-		at(*out, j + 1).* = HEX[b[i] & 15];
+		out[j] = HEX[it >> 4];
+		out[j + 1] = HEX[it & 15];
 		j += 2;
 	}
-	return as_string(out);
+	return out;
 }
 
 uuid_parse :: (s: string) -> [16]u8, bool {
 	b: [16]u8;
-	ok: bool;
 	j := 0;
-	hv :: (c: u8) -> u8, bool {
-		if (c >= #char "0" && c <= #char "9") {
-			return c - #char "0", true;
-		} else if (c >= #char "a" && c <= #char "f") {
-			return c - #char "a" + 10, true;
-		} else if (c >= #char "A" && c <= #char "F") {
-			return c - #char "A" + 10, true;
-		}
-		return 0, false;
-	}
-	for i: 0..len(s)-1 {
-		if s[i] == #char "-" { continue; }
-		if j >= 32 || i + 1 >= len(s) + 1 { return zero([16]u8), false; }
-		v, __e2 := hv(s[i]); if failed(__e2) return b, __e2;
-		if j % 2 == 0 { b[j / 2] = v << 4; } else { b[j / 2] |= v; }
+	for c: cast([]u8) s {
+		if c == #char "-" continue;
+		v := hex_digit(c);
+		if j >= 32 || v < 0 return b, false;
+		if j % 2 == 0 b[j / 2] = cast(u8) (v << 4); else b[j / 2] |= cast(u8) v;
 		j += 1;
 	}
 	return b, j == 32;
+}
+
+hex_digit :: (c: u8) -> int {
+	if c >= #char "0" && c <= #char "9" return c - #char "0";
+	if c >= #char "a" && c <= #char "f" return c - #char "a" + 10;
+	if c >= #char "A" && c <= #char "F" return c - #char "A" + 10;
+	return -1;
 }
 
 // ---- snowflakes / nonces ----
@@ -88,42 +85,51 @@ nonce_at :: (g: *Nonce_Gen, ms: s64) -> Snowflake {
 		g.seq = 0;
 		g.last_ms = ms;
 	}
-	d := ms - DISCORD_EPOCH_MS;
-	if d < 0 { d = 0; }
-	s := cast(Snowflake)(((cast(u64)(d)) << 22) + g.seq);
+	s := ((cast(u64) max(ms - DISCORD_EPOCH_MS, 0)) << 22) + g.seq;
 	g.seq += 1;
 	return s;
 }
 
-nonce_next :: (g: *Nonce_Gen) -> Snowflake {
-	return nonce_at(g, now_ms());
-}
+nonce_next :: (g: *Nonce_Gen) -> Snowflake { return nonce_at(g, now_ms()); }
 
 snowflake_from_ms :: (ms: s64) -> Snowflake {
 	d := ms - DISCORD_EPOCH_MS;
-	if d <= 0 { return 0; }
-	return cast(Snowflake)((cast(u64)(d)) << 22);
+	return ifx d <= 0 then 0 else (cast(u64) d) << 22;
 }
 
-snowflake_string :: (id: Snowflake, allocator := temp) -> string {
-	buf: [24]u8;
-	return clone(strconv.write_uint(view(buf), cast(u64)(id), 10), allocator);
-}
+snowflake_string :: (id: Snowflake, allocator := temp) -> string { return sprint("%", id,, allocator); }
 
+// parse_snowflake: a decimal id (0 if s is not one).
 parse_snowflake :: (s: string) -> Snowflake {
-	v, ok := strconv.parse_u64(s, 10);
-	return ifx ok then cast(Snowflake)(v) else 0;
+	v, ok := parse_u64(s);
+	return ifx ok then v else 0;
+}
+
+// parse_u64 / parse_s64: all of s as a decimal number.
+parse_u64 :: (s: string) -> u64, bool {
+	if s && (s[0] < #char "0" || s[0] > #char "9") return 0, false; // no sign or spaces
+	v, ok, rest := string_to_int(s, 10, u64);
+	return v, ok && !rest;
+}
+
+parse_s64 :: (s: string) -> s64, bool {
+	if s && s[0] == #char " " return 0, false;
+	v, ok, rest := string_to_int(s, 10, s64);
+	return v, ok && !rest;
 }
 
 // Days since the Discord epoch: the read state `last_viewed` unit.
-days_since_epoch :: (ms: s64) -> int {
-	return cast(int)((ms - DISCORD_EPOCH_MS) / 86_400_000);
-}
+days_since_epoch :: (ms: s64) -> int { return (ms - DISCORD_EPOCH_MS) / 86_400_000; }
+
+// Snowflake_Pair_Set: a set of (guild, user) pairs.
+Snowflake_Pair_Set :: Table([2]Snowflake, bool, given_hash_function = sf_pair_hash, given_compare_function = sf_pair_eq);
+sf_pair_hash :: (k: [2]Snowflake) -> u32 { return get_hash(k[0], get_hash(k[1])); }
+sf_pair_eq :: (a: [2]Snowflake, b: [2]Snowflake) -> bool { return a[0] == b[0] && a[1] == b[1]; }
 
 // ---- ordered JSON writer (JSON.stringify layout: no spaces) ----
 
 Json :: struct {
-	sb: strings.Builder;
+	buf: [..]u8;
 	comma: [64]bool;
 	depth: int;
 	pending_value: bool; // a key was just written
@@ -131,180 +137,136 @@ Json :: struct {
 
 json_init :: (w: *Json, allocator := temp) {
 	w.* = .{};
-	w.sb = strings.builder_make(allocator);
+	w.buf.allocator = allocator;
 }
 
-json_string :: (w: *Json) -> string {return strings.to_string(w.sb);}
-#scope_module
+// json_string: the text so far (a view of the writer's buffer).
+json_string :: (w: *Json) -> string { return cast(string) w.buf; }
 
 json_value_sep :: (w: *Json) {
 	if w.pending_value {
 		w.pending_value = false;
 		return;
 	}
-	if w.comma[w.depth] { strings.write_byte(*w.sb, #char ","); }
+	if w.comma[w.depth] array_add(*w.buf, #char ",");
 	w.comma[w.depth] = true;
 }
-#scope_export
 
-json_obj :: (w: *Json) {
+json_open :: (w: *Json, c: u8) {
 	json_value_sep(w);
-	strings.write_byte(*w.sb, #char "{");
+	array_add(*w.buf, c);
 	w.depth += 1;
 	w.comma[w.depth] = false;
 }
 
-json_obj_end :: (w: *Json) {
-	strings.write_byte(*w.sb, #char "}");
+json_close :: (w: *Json, c: u8) {
+	array_add(*w.buf, c);
 	w.depth -= 1;
 	w.comma[w.depth] = true;
 }
 
-json_arr :: (w: *Json) {
-	json_value_sep(w);
-	strings.write_byte(*w.sb, #char "[");
-	w.depth += 1;
-	w.comma[w.depth] = false;
-}
-
-json_arr_end :: (w: *Json) {
-	strings.write_byte(*w.sb, #char "]");
-	w.depth -= 1;
-	w.comma[w.depth] = true;
-}
+json_obj :: (w: *Json) { json_open(w, #char "{"); }
+json_obj_end :: (w: *Json) { json_close(w, #char "}"); }
+json_arr :: (w: *Json) { json_open(w, #char "["); }
+json_arr_end :: (w: *Json) { json_close(w, #char "]"); }
 
 // json_key writes `"k":`; the next value is written without a separator.
 json_key :: (w: *Json, k: string) {
-	if w.comma[w.depth] { strings.write_byte(*w.sb, #char ","); }
+	if w.comma[w.depth] array_add(*w.buf, #char ",");
 	w.comma[w.depth] = true;
-	json_write_escaped(*w.sb, k);
-	strings.write_byte(*w.sb, #char ":");
+	json_write_escaped(*w.buf, k);
+	array_add(*w.buf, #char ":");
 	w.pending_value = true;
 }
 
 json_str :: (w: *Json, s: string) {
 	json_value_sep(w);
-	json_write_escaped(*w.sb, s);
-}
-
-json_int :: (w: *Json, v: s64) {
-	json_value_sep(w);
-	strings.write_i64(*w.sb, v);
-}
-
-json_bool :: (w: *Json, v: bool) {
-	json_value_sep(w);
-	strings.write_string(*w.sb, ifx v then "true" else "false");
-}
-
-json_null :: (w: *Json) {
-	json_value_sep(w);
-	strings.write_string(*w.sb, "null");
+	json_write_escaped(*w.buf, s);
 }
 
 // json_raw writes pre-encoded JSON as a value.
 json_raw :: (w: *Json, raw: string) {
 	json_value_sep(w);
-	strings.write_string(*w.sb, raw);
+	append_string(*w.buf, raw);
 }
 
-json_snowflake :: (w: *Json, id: Snowflake) {
-	json_value_sep(w);
-	strings.write_byte(*w.sb, 34);
-	strings.write_u64(*w.sb, cast(u64)(id));
-	strings.write_byte(*w.sb, 34);
-}
+json_int :: (w: *Json, v: s64) { json_raw(w, tprint("%", v)); }
+json_bool :: (w: *Json, v: bool) { json_raw(w, ifx v then "true" else "false"); }
+json_null :: (w: *Json) { json_raw(w, "null"); }
+json_snowflake :: (w: *Json, id: Snowflake) { json_raw(w, tprint("\"%\"", id)); }
 
 // Key/value shorthands.
-json_kstr :: (w: *Json, k: string, v: string) {json_key(w, k); json_str(w, v);}
-json_kint :: (w: *Json, k: string, v: s64) {json_key(w, k); json_int(w, v);}
-json_kbool :: (w: *Json, k: string, v: bool) {json_key(w, k); json_bool(w, v);}
-json_knull :: (w: *Json, k: string) {json_key(w, k); json_null(w);}
-json_ksnow :: (w: *Json, k: string, v: Snowflake) {json_key(w, k); json_snowflake(w, v);}
+json_kstr :: (w: *Json, k: string, v: string) { json_key(w, k); json_str(w, v); }
+json_kint :: (w: *Json, k: string, v: s64) { json_key(w, k); json_int(w, v); }
+json_kbool :: (w: *Json, k: string, v: bool) { json_key(w, k); json_bool(w, v); }
+json_knull :: (w: *Json, k: string) { json_key(w, k); json_null(w); }
+json_ksnow :: (w: *Json, k: string, v: Snowflake) { json_key(w, k); json_snowflake(w, v); }
+
+append_string :: (buf: *[..]u8, s: string) { array_add(buf, ..cast([]u8) s); }
 
 // JSON.stringify string escaping.
-json_write_escaped :: (sb: *strings.Builder, s: string) {
-	HEX := "0123456789abcdef";
-	strings.write_byte(sb, 34);
-	for i: 0..len(s)-1 {
-		c := s[i];
-		if c == 34 {
-			strings.write_string(sb, "\\\"");
-		} else if c == 92 {
-			strings.write_string(sb, "\\\\");
-		} else if c == 8 {
-			strings.write_string(sb, "\\b");
-		} else if c == 12 {
-			strings.write_string(sb, "\\f");
-		} else if c == 10 {
-			strings.write_string(sb, "\\n");
-		} else if c == 13 {
-			strings.write_string(sb, "\\r");
-		} else if c == 9 {
-			strings.write_string(sb, "\\t");
-		} else {
-			if c < 0x20 {
-				strings.write_string(sb, "\\u00");
-				strings.write_byte(sb, HEX[c >> 4]);
-				strings.write_byte(sb, HEX[c & 15]);
-			} else {
-				strings.write_byte(sb, c);
-			}
+json_write_escaped :: (buf: *[..]u8, s: string) {
+	HEX :: "0123456789abcdef";
+	array_add(buf, #char "\"");
+	for c: cast([]u8) s {
+		if c == {
+			case #char "\""; append_string(buf, "\\\"");
+			case #char "\\"; append_string(buf, "\\\\");
+			case 8;  append_string(buf, "\\b");
+			case 12; append_string(buf, "\\f");
+			case 10; append_string(buf, "\\n");
+			case 13; append_string(buf, "\\r");
+			case 9;  append_string(buf, "\\t");
+			case;
+				if c < 0x20 {
+					append_string(buf, "\\u00");
+					array_add(buf, HEX[c >> 4], HEX[c & 15]);
+				} else {
+					array_add(buf, c);
+				}
 		}
 	}
-	strings.write_byte(sb, 34);
+	array_add(buf, #char "\"");
 }
 
 // encodeURIComponent.
 uri_component :: (s: string, allocator := temp) -> string {
-	HEX := "0123456789ABCDEF";
-	sb := strings.builder_make(allocator);
-	for i: 0..len(s)-1 {
-		c := s[i];
-		if (c >= #char "A" && c <= #char "Z") || (c >= #char "a" && c <= #char "z") || (c >= #char "0" && c <= #char "9") || c == #char "-" || c == #char "_" || c == #char "." || c == #char "!" || c == #char "~" || c == #char "*" || c == #char "'" || c == #char "(" || c == #char ")" {
-			strings.write_byte(*sb, c);
+	HEX :: "0123456789ABCDEF";
+	out: [..]u8;
+	out.allocator = allocator;
+	for c: cast([]u8) s {
+		if is_alnum(c) || contains("-.!~*'()", c) {
+			array_add(*out, c);
 		} else {
-			strings.write_byte(*sb, #char "%");
-			strings.write_byte(*sb, HEX[c >> 4]);
-			strings.write_byte(*sb, HEX[c & 15]);
+			array_add(*out, #char "%", HEX[c >> 4], HEX[c & 15]);
 		}
 	}
-	return strings.to_string(sb);
+	return cast(string) out;
 }
 
 // Query builds a superagent-style query string: keys in insertion order,
 // null/undefined values skipped, values encodeURIComponent'd.
 Query :: struct {
-	sb: strings.Builder;
-	empty: bool;
+	buf: [..]u8;
+	empty := true;
 }
 
 query_init :: (q: *Query, path: string, allocator := temp) {
-	q.sb = strings.builder_make(allocator);
-	strings.write_string(*q.sb, path);
-	q.empty = true;
+	q.* = .{};
+	q.buf.allocator = allocator;
+	append_string(*q.buf, path);
 }
 
 query_add :: (q: *Query, k: string, v: string) {
-	strings.write_byte(*q.sb, xx ifx q.empty then #char "?" else #char "&");
+	array_add(*q.buf, cast(u8) ifx q.empty then #char "?" else #char "&");
 	q.empty = false;
-	strings.write_string(*q.sb, uri_component(k));
-	strings.write_byte(*q.sb, #char "=");
-	strings.write_string(*q.sb, uri_component(v));
+	append_string(*q.buf, uri_component(k));
+	array_add(*q.buf, #char "=");
+	append_string(*q.buf, uri_component(v));
 }
 
-query_add_int :: (q: *Query, k: string, v: int) {
-	buf: [24]u8;
-	query_add(q, k, strconv.write_int(view(buf), cast(s64)(v), 10));
-}
+query_add_int :: (q: *Query, k: string, v: int) { query_add(q, k, tprint("%", v)); }
+query_add_bool :: (q: *Query, k: string, v: bool) { query_add(q, k, ifx v then "true" else "false"); }
+query_add_snow :: (q: *Query, k: string, v: Snowflake) { query_add(q, k, tprint("%", v)); }
 
-query_add_bool :: (q: *Query, k: string, v: bool) {
-	query_add(q, k, ifx v then "true" else "false");
-}
-
-query_add_snow :: (q: *Query, k: string, v: Snowflake) {
-	query_add(q, k, snowflake_string(v));
-}
-
-query_string :: (q: *Query) -> string {return strings.to_string(q.sb);}
-
+query_string :: (q: *Query) -> string { return cast(string) q.buf; }
