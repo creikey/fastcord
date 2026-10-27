@@ -2,6 +2,7 @@
 #import "Basic";
 #import "fc";
 S :: #import "Socket";
+P :: #import "POSIX";
 time :: #import "fc_time";
 
 Address :: struct {
@@ -151,10 +152,10 @@ set_option :: (s: S.Socket, o: Socket_Option, v: $T) -> Error {
         one: s32 = xx v;
         S.setsockopt(s, xx S.IPPROTO.TCP, S.TCP_NODELAY, *one, size_of(s32));
     } else {
-        tv: S.timeval;
+        tv: P.timeval;
         tv.tv_sec = xx (v / time.Second);
         tv.tv_usec = xx ((v % time.Second) / time.Microsecond);
-        S.setsockopt(s, S.SOL_SOCKET, xx ifx o == .Receive_Timeout then S.SO_RCVTIMEO else S.SO_SNDTIMEO, *tv, size_of(S.timeval));
+        S.setsockopt(s, S.SOL_SOCKET, xx ifx o == .Receive_Timeout then S.SO_RCVTIMEO else S.SO_SNDTIMEO, *tv, size_of(P.timeval));
     }
     return .None;
 }

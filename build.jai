@@ -67,15 +67,16 @@ link :: (p: *Message_Phase, exe: string) -> bool {
     array_add(*a, ..p.compiler_generated_object_files);
     array_add(*a, ..p.support_object_files);
     for p.user_libraries array_add(*a, it);
+    // Jai lists "-lX" and "-framework", "X" pairs; drop duplicates.
     seen: [..]string;
-    for lib: p.system_libraries {
-        name := path_strip_extension(path_filename(lib));
-        if begins_with(name, "-l") name = slice(name, 2, name.count - 2);
-        if begins_with(name, "lib") name = slice(name, 3, name.count - 3);
-        if array_find(seen, name) continue;
-        array_add(*seen, name);
-        if file_exists(tprint("/System/Library/Frameworks/%.framework", name)) array_add(*a, "-framework", name);
-        else array_add(*a, tprint("-l%", name));
+    libs := p.system_libraries;
+    for i: 0..libs.count-1 {
+        if i > 0 && libs[i-1] == "-framework" continue;
+        arg := ifx libs[i] == "-framework" then tprint("-framework %", libs[i+1]) else libs[i];
+        if array_find(seen, arg) continue;
+        array_add(*seen, arg);
+        if libs[i] == "-framework" array_add(*a, "-framework", libs[i+1]);
+        else array_add(*a, libs[i]);
     }
     array_add(*a, "-lc++");
     r := run_command(..a);

@@ -8,8 +8,6 @@ linear_search :: (a: []$T, x: T) -> int, bool { for a if it == x return it_index
 sort_by :: (a: []$T, less: (T, T) -> bool) { stable_sort_by(a, less); }
 stable_sort_by :: (a: []$T, less: (T, T) -> bool) {
     if a.count < 2 return;
-    tmp := NewArray(a.count, T, false,, temp);
-    merge(a, tmp, less);
     merge :: (a: []T, tmp: []T, less: (T, T) -> bool) {
         if a.count < 2 return;
         if a.count <= 16 {
@@ -29,6 +27,8 @@ stable_sort_by :: (a: []$T, less: (T, T) -> bool) {
         while j < a.count { tmp[k] = a[j]; j += 1; k += 1; }
         memcpy(a.data, tmp.data, a.count * size_of(T));
     }
+    tmp := NewArray(a.count, T, false,, temp);
+    merge(a, tmp, less);
 }
 sort :: (a: []$T) { stable_sort_by(a, (x: T, y: T) -> bool { return x < y; }); }
 binary_search_by :: (a: []$T, key: $K, cmp: (T, K) -> Ordering) -> int, bool {
