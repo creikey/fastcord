@@ -55,6 +55,10 @@ New_Message :: struct {
 	sticker: bool;
 }
 
+// The side tables are process-wide (the app runs one client). Several clients
+// at once (the parallel offline tests) share them: changes are serialized by
+// extras_mu, everything in them is on the heap (context.default_allocator, not
+// one client's), and they are freed when the last client goes (extras_destroy).
 Extras :: struct {
 	threads: Table(Snowflake, Thread_Meta);
 	tags: Table(Snowflake, [..]Forum_Tag); // forum channel -> available_tags
@@ -64,109 +68,122 @@ Extras :: struct {
 }
 
 extras: Extras;
-#scope_file
+extras_mu: locks.Mutex;
+extras_clients: int;
 
-// ---- dispatch side ----
-
-// ---- dispatch side ----
-
-x_allocator: Allocator;
-
-x_alloc :: () -> Allocator {return x_allocator;}
+// ---- dispatch side (extras_mu held, heap allocator pushed) ----
 
 note_thread :: (t: etf.Map, me: Snowflake) {
-	if is_null(t) { return; }
 	id := fsnow(t, "id");
-	if id == 0 { return; }
-	a := x_alloc();
-	had, tm := table_find(*extras.threads, id);
-	if !had {
-		tm.id = id;
-		tm.applied_tags = make_dynamic(Snowflake, 0, 0, a);
-	}
-	if vhas(t, "parent_id") { tm.parent_id = fsnow(t, "parent_id"); }
-	if vhas(t, "owner_id") { tm.owner_id = fsnow(t, "owner_id"); }
-	if vhas(t, "message_count") { tm.message_count = cast(int)(fint(t, "message_count")); }
-	if vhas(t, "member_count") { tm.member_count = cast(int)(fint(t, "member_count")); }
-	if vhas(t, "last_message_id") { tm.last_message_id = fsnow(t, "last_message_id"); }
-	{ md := fmap(t, "thread_metadata");
-	if !is_null(md) {
+	if id == 0 return;
+	tm, added := find_or_add(*extras.threads, id);
+	if added tm.id = id;
+	if vhas(t, "parent_id") tm.parent_id = fsnow(t, "parent_id");
+	if vhas(t, "owner_id") tm.owner_id = fsnow(t, "owner_id");
+	if vhas(t, "message_count") tm.message_count = fint(t, "message_count");
+	if vhas(t, "member_count") tm.member_count = fint(t, "member_count");
+	if vhas(t, "last_message_id") tm.last_message_id = fsnow(t, "last_message_id");
+	md := fmap(t, "thread_metadata");
+	if md {
 		tm.archived = fbool(md, "archived");
 		tm.locked = fbool(md, "locked");
-		if vhas(md, "auto_archive_duration") { tm.auto_archive_minutes = cast(int)(fint(md, "auto_archive_duration")); }
-		{ ts := fstr(md, "create_timestamp");
-		if ts != "" && tm.create_ts == "" { tm.create_ts = clone(ts, a); } }
-	} }
-	if vhas(t, "applied_tags") {
-		clear(*tm.applied_tags);
-		for tv: flist(t, "applied_tags") { append(*tm.applied_tags, vsnow(tv)); }
+		if vhas(md, "auto_archive_duration") tm.auto_archive_minutes = fint(md, "auto_archive_duration");
+		ts := fstr(md, "create_timestamp");
+		if ts && !tm.create_ts tm.create_ts = copy_string(ts);
 	}
-	{ mm := fmap(t, "member");
-	if !is_null(mm) {
+	if vhas(t, "applied_tags") {
+		tm.applied_tags.count = 0;
+		for flist(t, "applied_tags") array_add(*tm.applied_tags, vsnow(it));
+	}
+	mm := fmap(t, "member");
+	if mm {
 		uid := fsnow(mm, "user_id");
-		if uid == 0 || uid == me { tm.joined = true; }
-	} }
-	table_set(*extras.threads, id, tm);
+		if uid == 0 || uid == me tm.joined = true;
+	}
 }
 
 note_tags :: (ch: etf.Map) {
-	if is_null(ch) || !vhas(ch, "available_tags") { return; }
-	id := fsnow(ch, "id");
-	a := x_alloc();
-	had, list := table_find(*extras.tags, id);
-	if !had { list = make_dynamic(Forum_Tag, 0, 0, a); }
-	for t: list {
-		delete(t.name, a);
-		delete(t.emoji_name, a);
+	if !vhas(ch, "available_tags") return;
+	list := find_or_add(*extras.tags, fsnow(ch, "id"));
+	for list.* {
+		free(it.name);
+		free(it.emoji_name);
 	}
-	clear(*list);
-	for tv: flist(ch, "available_tags") {
-		tm := vmap(tv);
-		append(*list, Forum_Tag.{id = fsnow(tm, "id"), name = clone(fstr(tm, "name"), a), emoji_name = clone(fstr(tm, "emoji_name"), a), emoji_id = fsnow(tm, "emoji_id")});
+	list.count = 0;
+	for flist(ch, "available_tags") {
+		tm := vmap(it);
+		array_add(list, .{id = fsnow(tm, "id"), name = copy_string(fstr(tm, "name")), emoji_name = copy_string(fstr(tm, "emoji_name")), emoji_id = fsnow(tm, "emoji_id")});
 	}
-	table_set(*extras.tags, id, list);
 }
 
 note_guild :: (g: etf.Map, me: Snowflake) {
-	if is_null(g) { return; }
-	for cv: flist(g, "channels") { note_tags(vmap(cv)); }
-	for tv: flist(g, "threads") { note_thread(vmap(tv), me); }
+	for flist(g, "channels") note_tags(vmap(it));
+	for flist(g, "threads") note_thread(vmap(it), me);
 	gid := fsnow(g, "id");
-	for mv: flist(g, "members") {
-		mm := vmap(mv);
+	for flist(g, "members") {
+		mm := vmap(it);
 		uid := fsnow(mm, "user_id");
-		{ u := fmap(mm, "user");
-		if !is_null(u) { uid = fsnow(u, "id"); } }
-		if uid == me { note_roles(gid, flist(mm, "roles")); }
+		u := fmap(mm, "user");
+		if u uid = fsnow(u, "id");
+		if uid == me note_roles(gid, flist(mm, "roles"));
 	}
 }
 
 note_roles :: (gid: Snowflake, roles: []V) {
-	had, list := table_find(*extras.my_roles, gid);
-	if !had { list = make_dynamic(Snowflake, 0, 0, x_alloc()); }
-	clear(*list);
-	for r: roles { append(*list, vsnow(r)); }
-	table_set(*extras.my_roles, gid, list);
+	list := find_or_add(*extras.my_roles, gid);
+	list.count = 0;
+	for roles array_add(list, vsnow(it));
 }
-#scope_export
+
+note_joined :: (thread_id: Snowflake, joined := true) {
+	tm := table_find_pointer(*extras.threads, thread_id);
+	if tm tm.joined = joined;
+}
+
+note_message :: (d: etf.Map, me: Snowflake) {
+	cid := fsnow(d, "channel_id");
+	tm := table_find_pointer(*extras.threads, cid);
+	if tm {
+		mid := fsnow(d, "id");
+		// a forum post's starter message shares the thread's id and isn't a reply
+		if mid == cid {
+			if !tm.first_content {
+				tm.first_author = fsnow(fmap(d, "author"), "id");
+				tm.first_content = copy_string(fstr(d, "content"));
+			}
+		} else {
+			tm.message_count += 1;
+		}
+		tm.last_message_id = mid;
+	}
+	aid := fsnow(fmap(d, "author"), "id");
+	if aid == me || aid == 0 || extras.new_msgs.count >= 256 return;
+	nm := array_add(*extras.new_msgs);
+	nm.* = .{
+		id = fsnow(d, "id"),
+		channel_id = cid,
+		guild_id = fsnow(d, "guild_id"),
+		author_id = aid,
+		kind = fint(d, "type"),
+		flags = cast(u64) fint(d, "flags"),
+		content = copy_string(fstr(d, "content")),
+		mention_everyone = fbool(d, "mention_everyone"),
+		attachments = flist(d, "attachments").count,
+		embeds = flist(d, "embeds").count,
+		sticker = flist(d, "sticker_items").count > 0
+	};
+	for flist(d, "mentions") if fsnow(vmap(it), "id") == me nm.mentions_me = true;
+	for flist(d, "mention_roles") array_add(*nm.mention_roles, vsnow(it));
+}
+
+free_thread_meta :: (tm: *Thread_Meta) {
+	array_free(tm.applied_tags);
+	free(tm.create_ts);
+	free(tm.first_content);
+}
 
 // extras_on_dispatch: called by client_poll after the Store applied `name`.
-extras_on_dispatch :: (c: *Client, name: string, data: V) {
-	extras_dispatch(*c.store, c.allocator, name, data);
-}
-#scope_file
-
-// The side tables are process-wide (the app runs one client). Several clients
-// at once (the parallel offline tests) share them: dispatches and teardown are
-// serialized, the tables live on the heap allocator (not one client's), and
-// they are freed when the last client goes (extras_retain / extras_release).
-// The side tables are process-wide (the app runs one client). Several clients
-// at once (the parallel offline tests) share them: dispatches and teardown are
-// serialized, the tables live on the heap allocator (not one client's), and
-// they are freed when the last client goes (extras_retain / extras_release).
-extras_mu: locks.Mutex;
-extras_clients: int;
-#scope_export
+extras_on_dispatch :: (c: *Client, name: string, data: V) { extras_dispatch(*c.store, c.allocator, name, data); }
 
 extras_retain :: () {
 	locks.lock(*extras_mu);
@@ -178,129 +195,67 @@ extras_retain :: () {
 // feature jobs were already ended by feature_pool_release.
 extras_release :: (c: *Client) {
 	locks.lock(*extras_mu);
-	if extras_clients > 0 { extras_clients -= 1; }
+	if extras_clients > 0 extras_clients -= 1;
 	locks.unlock(*extras_mu);
 }
 
 // extras_dispatch: the same for a bare Store (offline fixtures).
 extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
-	// heap, not the client's allocator: the side tables are shared by every live client
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
-	x_allocator = context.default_allocator;
-	if is_null(extras.threads) {
-		a := x_alloc();
-		extras.threads.allocator = a;
-		extras.tags.allocator = a;
-		extras.pins_epoch.allocator = a;
-		extras.new_msgs = make_dynamic(New_Message, 0, 0, a);
-		extras.my_roles.allocator = a;
-	}
 	account_dispatch(s, allocator, name, data);
+	push_allocator(context.default_allocator); // the side tables are shared by every live client
 	me := s.me;
 	d := vmap(data);
-	events_dispatch(x_alloc(), me, name, d);
-	for __sw1: 0..0 { if name == {
-	case "READY";
-		guilds := flist(d, "guilds");
-		for gv: guilds { note_guild(vmap(gv), me); }
-		// user READY: merged_members[i] holds our member object for guilds[i]
-		for lv, i: flist(d, "merged_members") {
-			if i >= len(guilds) { break; }
-			for mv: vlist(lv) {
-				mm := vmap(mv);
-				if fsnow(mm, "user_id") == me { note_roles(fsnow(vmap(get(guilds, i)), "id"), flist(mm, "roles")); }
-			}
-		}
-	case "GUILD_CREATE";
-		note_guild(d, me);
-	case "CHANNEL_CREATE"; #through; case "CHANNEL_UPDATE";
-		note_tags(d);
-	case "THREAD_CREATE"; #through; case "THREAD_UPDATE";
-		note_thread(d, me);
-		// creating a thread (or being added on create) makes us a member
-		if name == "THREAD_CREATE" && fsnow(d, "owner_id") == me {
-			{ tm := table_find_pointer(*extras.threads, fsnow(d, "id")); ok := tm != null;
-			if ok { tm.joined = true; } }
-		}
-	case "THREAD_LIST_SYNC";
-		for tv: flist(d, "threads") { note_thread(vmap(tv), me); }
-		for mv: flist(d, "members") {
-			mm := vmap(mv);
-			if fsnow(mm, "user_id") == me {
-				{ tm := table_find_pointer(*extras.threads, fsnow(mm, "id")); ok := tm != null;
-				if ok { tm.joined = true; } }
-			}
-		}
-	case "THREAD_MEMBER_UPDATE";
-		{ tm := table_find_pointer(*extras.threads, fsnow(d, "id")); ok := tm != null;
-		if ok { tm.joined = true; } }
-	case "THREAD_MEMBERS_UPDATE";
-		tid := fsnow(d, "id");
-		{ tm := table_find_pointer(*extras.threads, tid); ok := tm != null;
-		if ok {
-			if vhas(d, "member_count") { tm.member_count = cast(int)(fint(d, "member_count")); }
-			for mv: flist(d, "added_members") { if fsnow(vmap(mv), "user_id") == me { tm.joined = true; } }
-			for uv: flist(d, "removed_member_ids") { if vsnow(uv) == me { tm.joined = false; } }
-		} }
-	case "THREAD_DELETE";
-		{ tid := fsnow(d, "id");
-		if table_contains(*extras.threads, tid) {
-			_, tm := table_remove(*extras.threads, tid);
-			free_thread_meta(*tm);
-		} }
-	case "CHANNEL_PINS_UPDATE";
-		cid := fsnow(d, "channel_id");
-		find_or_add(*extras.pins_epoch, cid).* += 1;
-	case "GUILD_MEMBER_UPDATE";
-		if fsnow(fmap(d, "user"), "id") == me { note_roles(fsnow(d, "guild_id"), flist(d, "roles")); }
-	case "MESSAGE_CREATE";
-		cid := fsnow(d, "channel_id");
-		{ tm := table_find_pointer(*extras.threads, cid); ok := tm != null;
-		if ok {
-			mid := fsnow(d, "id");
-			// a forum post's starter message shares the thread's id and isn't a reply
-			if mid == cid {
-				if tm.first_content == "" {
-					tm.first_author = fsnow(fmap(d, "author"), "id");
-					tm.first_content = clone(fstr(d, "content"), x_alloc());
+	events_dispatch(context.default_allocator, me, name, d);
+	if name == {
+		case "READY";
+			guilds := flist(d, "guilds");
+			for guilds note_guild(vmap(it), me);
+			// user READY: merged_members[i] holds our member object for guilds[i]
+			for lv, i: flist(d, "merged_members") {
+				if i >= guilds.count break;
+				for vlist(lv) {
+					mm := vmap(it);
+					if fsnow(mm, "user_id") == me note_roles(fsnow(vmap(guilds[i]), "id"), flist(mm, "roles"));
 				}
-			} else {
-				tm.message_count += 1;
 			}
-			tm.last_message_id = mid;
-		} }
-		au := fmap(d, "author");
-		aid := fsnow(au, "id");
-		if aid == me || aid == 0 || len(extras.new_msgs) >= 256 { break __sw1; }
-		nm := New_Message.{
-			id = fsnow(d, "id"),
-			channel_id = cid,
-			guild_id = fsnow(d, "guild_id"),
-			author_id = aid,
-			kind = cast(int)(fint(d, "type")),
-			flags = cast(u64)(fint(d, "flags")),
-			content = clone(fstr(d, "content"), x_alloc()),
-			mention_everyone = fbool(d, "mention_everyone"),
-			attachments = len(flist(d, "attachments")),
-			embeds = len(flist(d, "embeds")),
-			sticker = len(flist(d, "sticker_items")) > 0,
-			mention_roles = make_dynamic(Snowflake, 0, 0, x_alloc())
-		};
-		for mv: flist(d, "mentions") { if fsnow(vmap(mv), "id") == me { nm.mentions_me = true; } }
-		for rv: flist(d, "mention_roles") { append(*nm.mention_roles, vsnow(rv)); }
-		append(*extras.new_msgs, nm);
-	} }
+		case "GUILD_CREATE";
+			note_guild(d, me);
+		case "CHANNEL_CREATE"; #through;
+		case "CHANNEL_UPDATE";
+			note_tags(d);
+		case "THREAD_CREATE"; #through;
+		case "THREAD_UPDATE";
+			note_thread(d, me);
+			// creating a thread (or being added on create) makes us a member
+			if name == "THREAD_CREATE" && fsnow(d, "owner_id") == me note_joined(fsnow(d, "id"));
+		case "THREAD_LIST_SYNC";
+			for flist(d, "threads") note_thread(vmap(it), me);
+			for flist(d, "members") {
+				mm := vmap(it);
+				if fsnow(mm, "user_id") == me note_joined(fsnow(mm, "id"));
+			}
+		case "THREAD_MEMBER_UPDATE";
+			note_joined(fsnow(d, "id"));
+		case "THREAD_MEMBERS_UPDATE";
+			tm := table_find_pointer(*extras.threads, fsnow(d, "id"));
+			if tm {
+				if vhas(d, "member_count") tm.member_count = fint(d, "member_count");
+				for flist(d, "added_members") if fsnow(vmap(it), "user_id") == me tm.joined = true;
+				for flist(d, "removed_member_ids") if vsnow(it) == me tm.joined = false;
+			}
+		case "THREAD_DELETE";
+			found, tm := table_remove(*extras.threads, fsnow(d, "id"));
+			if found free_thread_meta(*tm);
+		case "CHANNEL_PINS_UPDATE";
+			find_or_add(*extras.pins_epoch, fsnow(d, "channel_id")).* += 1;
+		case "GUILD_MEMBER_UPDATE";
+			if fsnow(fmap(d, "user"), "id") == me note_roles(fsnow(d, "guild_id"), flist(d, "roles"));
+		case "MESSAGE_CREATE";
+			note_message(d, me);
+	}
 }
-#scope_file
-
-free_thread_meta :: (tm: *Thread_Meta) {
-	a := x_alloc();
-	delete(tm.applied_tags);
-	delete(tm.create_ts, a);
-	delete(tm.first_content, a);
-}
-#scope_export
 
 // feature_pool_retain / feature_pool_release: client_create / client_destroy.
 // Release drops the client's queued jobs and unread results and waits for its
@@ -312,40 +267,31 @@ feature_pool_retain :: (c: *Client) {
 }
 
 feature_pool_release :: (c: *Client) {
-	push_allocator(context.default_allocator);
 	locks.lock(*fpool.mu);
 	fpool.clients -= 1;
-	if fpool.owner == c { fpool.owner = null; }
-	{ i := 0;
-	while i < len(fpool.jobs) {
-		j := get(fpool.jobs, i);
-		if j.client != c {
+	if fpool.owner == c fpool.owner = null;
+	i := 0;
+	while i < fpool.jobs.count {
+		if fpool.jobs[i].client != c {
 			i += 1;
 			continue;
 		}
-		delete(j.method);
-		delete(j.path);
-		delete(j.body);
-		delete(j.context_b64);
-		delete(j.file);
-		ordered_remove(*fpool.jobs, i);
-	} }
-	{ i := 0;
-	while i < len(fpool.results) {
-		if get(fpool.results, i).client != c {
+		f_job_free(*fpool.jobs[i]);
+		array_ordered_remove_by_index(*fpool.jobs, i);
+	}
+	i = 0;
+	while i < fpool.results.count {
+		if fpool.results[i].client != c {
 			i += 1;
 			continue;
 		}
-		feature_result_free(at(*fpool.results, i));
-		ordered_remove(*fpool.results, i);
-	} }
+		feature_result_free(*fpool.results[i]);
+		array_ordered_remove_by_index(*fpool.results, i);
+	}
 	locks.cond_broadcast(*fpool.cond);
-	while true {
-		busy := false;
-		for x: fpool.inflight { if x == c { busy = true; } }
-		if !busy { break; }
+	while array_find(fpool.inflight, c) {
 		locks.unlock(*fpool.mu);
-		time.sleep(2 * time.Millisecond);
+		sleep_milliseconds(2);
 		locks.lock(*fpool.mu);
 	}
 	locks.unlock(*fpool.mu);
@@ -358,138 +304,124 @@ extras_destroy :: () {
 	push_allocator(context.default_allocator);
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
-	if extras_clients > 0 { return; } // another client still uses them
+	if extras_clients > 0 return; // another client still uses them
 	locks.lock(*fpool.mu);
 	if fpool.clients > 0 {
 		locks.unlock(*fpool.mu);
 		return;
 	}
 	threads := fpool.threads;
-	fpool.threads = zero(type_of(fpool.threads));
+	fpool.threads.count = 0; // the workers stop; threads keeps the array until fpool is reset below
 	fpool.owner = null;
 	locks.cond_broadcast(*fpool.cond);
 	locks.unlock(*fpool.mu);
-	for t: threads {
-		locks.join(t);
-	}
-	delete(threads);
-	for j: fpool.jobs {
-		delete(j.method);
-		delete(j.path);
-		delete(j.body);
-		delete(j.context_b64);
-		delete(j.file);
-	}
-	delete(fpool.jobs);
-	for * r: fpool.results { feature_result_free(r); }
-	delete(fpool.results);
-	delete(fpool.inflight);
-	fpool = zero(type_of(fpool));
+	for threads locks.join(it);
+	array_free(threads);
+	for * fpool.jobs f_job_free(it);
+	array_free(fpool.jobs);
+	for * fpool.results feature_result_free(it);
+	array_free(fpool.results);
+	array_free(fpool.inflight);
+	fpool = .{};
 	events_destroy();
 
-	if is_null(extras.threads) { return; }
-	a := x_alloc();
-	for * tm: extras.threads { free_thread_meta(tm); }
+	for * extras.threads free_thread_meta(it);
 	deinit(*extras.threads);
 	for list: extras.tags {
-		for t: list {
-			delete(t.name, a);
-			delete(t.emoji_name, a);
+		for list {
+			free(it.name);
+			free(it.emoji_name);
 		}
-		delete(list);
+		array_free(list);
 	}
 	deinit(*extras.tags);
 	deinit(*extras.pins_epoch);
-	for * m: extras.new_msgs {
-		delete(m.content, a);
-		delete(m.mention_roles);
+	for extras.new_msgs {
+		free(it.content);
+		array_free(it.mention_roles);
 	}
-	delete(extras.new_msgs);
-	for list: extras.my_roles { delete(list); }
+	array_free(extras.new_msgs);
+	for extras.my_roles array_free(it);
 	deinit(*extras.my_roles);
-	extras = zero(type_of(extras));
+	extras = .{};
 }
 
 // take_new_messages returns MESSAGE_CREATEs (from others) since the last call.
 // Free with new_messages_free.
 take_new_messages :: (c: *Client, allocator := temp) -> []New_Message {
-	out := make_slice(New_Message, len(extras.new_msgs), allocator);
-	copy(out, view(extras.new_msgs));
-	clear(*extras.new_msgs);
+	locks.lock(*extras_mu);
+	defer locks.unlock(*extras_mu);
+	out := array_copy(extras.new_msgs,, allocator);
+	extras.new_msgs.count = 0;
 	return out;
 }
 
 new_messages_free :: (c: *Client, msgs: []New_Message) {
-	for * m: msgs {
-		delete(m.content, c.allocator);
-		delete(m.mention_roles);
+	push_allocator(context.default_allocator); // they were the side table's
+	for msgs {
+		free(it.content);
+		array_free(it.mention_roles);
 	}
 }
 
-thread_meta :: (id: Snowflake) -> *Thread_Meta {
-	{ tm := table_find_pointer(*extras.threads, id); ok := tm != null;
-	if ok { return tm; } }
-	return null;
-}
+thread_meta :: (id: Snowflake) -> *Thread_Meta { return table_find_pointer(*extras.threads, id); }
 
 forum_tags :: (forum_id: Snowflake) -> []Forum_Tag {
-	{ ok, l := table_find(*extras.tags, forum_id);
-	if ok { return view(l); } }
-	return .{};
+	_, l := table_find(*extras.tags, forum_id);
+	return l;
 }
 
-pins_epoch :: (channel_id: Snowflake) -> int { _, n := table_find(*extras.pins_epoch, channel_id); return n; }
+pins_epoch :: (channel_id: Snowflake) -> int {
+	_, n := table_find(*extras.pins_epoch, channel_id);
+	return n;
+}
 
+// my_guild_roles: our role ids in the guild (a temp copy).
 my_guild_roles :: (guild_id: Snowflake) -> []Snowflake {
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
-	{ ok, l := table_find(*extras.my_roles, guild_id);
-	if ok { return slice_clone_temp(view(l)); } }
-	return .{};
+	_, l := table_find(*extras.my_roles, guild_id);
+	return array_copy(l,, temp);
 }
-#scope_file
-
-slice_clone_temp :: (l: []Snowflake) -> []Snowflake {
-	out := make_slice(Snowflake, len(l), temp);
-	copy(out, l);
-	return out;
-}
-#scope_export
 
 is_thread :: (ch: *Channel) -> bool {
-	return ch != null && (ch.kind == .Public_Thread || ch.kind == .Private_Thread || ch.kind == .Announcement_Thread);
+	return ch && (ch.kind == .Public_Thread || ch.kind == .Private_Thread || ch.kind == .Announcement_Thread);
 }
 
 // Active threads under parent_id we're a member of, oldest first (the sidebar's order).
 joined_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snowflake {
-	out := make_dynamic(Snowflake, 0, 0, allocator);
+	out: [..]Snowflake;
+	out.allocator = allocator;
 	for tm, id: extras.threads {
-		if tm.parent_id != parent_id || !tm.joined || tm.archived { continue; }
-		if !table_contains(*s.channels, id) { continue; }
-		append(*out, id);
+		if tm.parent_id == parent_id && tm.joined && !tm.archived && table_contains(*s.channels, id) array_add(*out, id);
 	}
-	for i: 1..len(out)-1 {
-		{ j := i;
-		while j > 0 && get(out, j) < get(out, j - 1) { swap(*out[j], *out[j - 1]);  j -= 1; } }
+	for i: 1..out.count-1 {
+		j := i;
+		while j > 0 && out[j] < out[j - 1] {
+			swap(*out[j], *out[j - 1]);
+			j -= 1;
+		}
 	}
-	return view(out);
+	return out;
 }
 
 // Threads (any state we know of) whose parent is the forum, newest activity first.
 forum_threads :: (s: *Store, forum_id: Snowflake, allocator := temp) -> []Snowflake {
-	out := make_dynamic(Snowflake, 0, 0, allocator);
-	for tm, id: extras.threads {
-		if tm.parent_id == forum_id { append(*out, id); }
-	}
+	out: [..]Snowflake;
+	out.allocator = allocator;
+	for tm, id: extras.threads if tm.parent_id == forum_id array_add(*out, id);
 	key :: (id: Snowflake) -> Snowflake {
 		_, tm := table_find(*extras.threads, id);
 		return max(tm.last_message_id, id);
 	}
-	for i: 1..len(out)-1 {
-		{ j := i;
-		while j > 0 && key(out[j]) > key(out[j - 1]) { swap(*out[j], *out[j - 1]); j -= 1; } }
+	for i: 1..out.count-1 {
+		j := i;
+		while j > 0 && key(out[j]) > key(out[j - 1]) {
+			swap(*out[j], *out[j - 1]);
+			j -= 1;
+		}
 	}
-	return view(out);
+	return out;
 }
 
 // Applies forum post bodies (post-data / threads/search) to the side tables and Store.
@@ -498,43 +430,37 @@ apply_forum_threads :: (c: *Client, body: V) {
 	m := vmap(body);
 	me := s.me;
 	// threads/search: {threads:[...], members:[...], first_messages:[...]}
-	for tv: flist(m, "threads") {
-		tmap := vmap(tv);
+	for flist(m, "threads") {
+		tmap := vmap(it);
 		cid := parse_channel_into(s, tmap, fsnow(tmap, "guild_id"));
-		{ g := table_find_pointer(*s.guilds, fsnow(tmap, "guild_id")); ok := g != null;
-		if ok && cid != 0 {
-			found := false;
-			for x: g.channels { if x == cid { found = true; } }
-			if !found { append(*g.channels, cid); }
-		} }
-		note_thread(tmap, me);
+		g := table_find_pointer(*s.guilds, fsnow(tmap, "guild_id"));
+		if g && cid != 0 && !array_find(g.channels, cid) array_add(*g.channels, cid);
+		locks.lock(*extras_mu);
+		note_thread(tmap, me,, context.default_allocator);
+		locks.unlock(*extras_mu);
 	}
-	for mv: flist(m, "members") {
-		mm := vmap(mv);
-		if fsnow(mm, "user_id") == me {
-			{ tm := table_find_pointer(*extras.threads, fsnow(mm, "id")); ok := tm != null;
-			if ok { tm.joined = true; } }
-		}
+	locks.lock(*extras_mu);
+	for flist(m, "members") {
+		mm := vmap(it);
+		if fsnow(mm, "user_id") == me note_joined(fsnow(mm, "id"));
 	}
+	locks.unlock(*extras_mu);
 	note_first :: (c: *Client, msg: etf.Map) {
-		if is_null(msg) { return; }
-		tid := fsnow(msg, "channel_id");
-		tm := table_find_pointer(*extras.threads, tid); ok := tm != null;
-		if !ok { return; }
-		{ au := fmap(msg, "author");
-		if !is_null(au) { tm.first_author = parse_user_into(*c.store, au); } }
-		delete(tm.first_content, c.allocator);
-		tm.first_content = clone(fstr(msg, "content"), c.allocator);
+		if !msg return;
+		au := fmap(msg, "author");
+		author := ifx au then parse_user_into(*c.store, au) else 0;
+		locks.lock(*extras_mu);
+		defer locks.unlock(*extras_mu);
+		tm := table_find_pointer(*extras.threads, fsnow(msg, "channel_id"));
+		if !tm return;
+		if au tm.first_author = author;
+		push_allocator(context.default_allocator); // the side table's
+		free(tm.first_content);
+		tm.first_content = copy_string(fstr(msg, "content"));
 	}
-	for fv: flist(m, "first_messages") { note_first(c, vmap(fv)); }
+	for flist(m, "first_messages") note_first(c, vmap(it));
 	// post-data: {threads: {"<id>": {first_message: {...}, owner: {...}}}}
-	{ tobj := fmap(m, "threads");
-	if !is_null(tobj) {
-		for pr: tobj {
-			pm := vmap(pr.value);
-			note_first(c, fmap(pm, "first_message"));
-		}
-	} }
+	for fmap(m, "threads") note_first(c, fmap(vmap(it.value), "first_message"));
 }
 
 // Parses a REST message object without inserting it into the channel's list
@@ -543,17 +469,18 @@ parse_loose_message :: (s: *Store, m: etf.Map, allocator := temp) -> Message {
 	msg := Message.{
 		id = fsnow(m, "id"),
 		channel_id = fsnow(m, "channel_id"),
-		kind = cast(int)(fint(m, "type")),
-		content = clone(fstr(m, "content"), allocator),
-		timestamp = clone(fstr(m, "timestamp"), allocator),
-		flags = cast(u64)(fint(m, "flags"))
+		kind = fint(m, "type"),
+		content = copy_string(fstr(m, "content"),, allocator),
+		timestamp = copy_string(fstr(m, "timestamp"),, allocator),
+		flags = cast(u64) fint(m, "flags")
 	};
-	{ au := fmap(m, "author");
-	if !is_null(au) { msg.author_id = parse_user_into(s, au); } }
-	msg.attachments = make_dynamic(Attachment, 0, 0, allocator);
-	for av: flist(m, "attachments") {
-		am := vmap(av);
-		append(*msg.attachments, Attachment.{id = fsnow(am, "id"), filename = clone(fstr(am, "filename"), allocator), url = clone(fstr(am, "url"), allocator), proxy_url = clone(fstr(am, "proxy_url"), allocator), width = cast(int)(fint(am, "width")), height = cast(int)(fint(am, "height")), size = cast(int)(fint(am, "size")), content_type = clone(fstr(am, "content_type"), allocator)});
+	au := fmap(m, "author");
+	if au msg.author_id = parse_user_into(s, au);
+	msg.attachments.allocator = allocator;
+	push_allocator(allocator);
+	for flist(m, "attachments") {
+		am := vmap(it);
+		array_add(*msg.attachments, .{id = fsnow(am, "id"), filename = copy_string(fstr(am, "filename")), url = copy_string(fstr(am, "url")), proxy_url = copy_string(fstr(am, "proxy_url")), width = fint(am, "width"), height = fint(am, "height"), size = fint(am, "size"), content_type = copy_string(fstr(am, "content_type"))});
 	}
 	return msg;
 }
@@ -567,13 +494,13 @@ Feature_Op :: enum u8 {
 	Forum_Posts;
 	Thread_Search;
 	Search;
-	Thread_Browse; // inbox.odin
+	Thread_Browse; // inbox.jai
 	Mentions;
 	Mention_Delete;
 	Thread_Create;
-	User_Patch; // account.odin
+	User_Patch; // account.jai
 	Profile_Patch;
-	// guild_admin.odin (guild_admin_apply first)
+	// guild_admin.jai (guild_admin_apply first)
 	Event_Create;
 	Event_Counts;
 	Event_Rsvps;
@@ -598,8 +525,8 @@ Feature_Result :: struct {
 	arena: *Flat_Pool;
 	client: *Client; // the client that submitted it
 }
-#scope_module
 
+// F_Job: one queued feature request; f_submit copies its strings to the heap.
 F_Job :: struct {
 	op: Feature_Op;
 	tag: u64;
@@ -612,8 +539,18 @@ F_Job :: struct {
 	context_b64: string; // x-context-properties
 	file: string; // read and encoded on the worker (file_job_body)
 }
-#scope_file
 
+f_job_free :: (j: *F_Job) {
+	push_allocator(context.default_allocator);
+	free(j.method);
+	free(j.path);
+	free(j.body);
+	free(j.context_b64);
+	free(j.file);
+}
+
+// The feature pool outlives the client that started it: its threads, jobs and
+// results are on the heap.
 F_Pool :: struct {
 	mu: locks.Mutex;
 	cond: locks.Cond;
@@ -628,68 +565,60 @@ F_Pool :: struct {
 fpool: F_Pool;
 
 f_worker :: (_: *void) {
-	context.allocator = context.default_allocator; // the pool outlives the client that started it
+	context.allocator = context.default_allocator;
 	while true {
 		locks.lock(*fpool.mu);
-		while len(fpool.jobs) == 0 {
+		while !fpool.jobs {
 			// stop only in extras_destroy (no live client): a test client going
 			// away must not take the workers from the clients still running
-			if len(fpool.threads) == 0 {
+			if !fpool.threads {
 				locks.unlock(*fpool.mu);
 				return;
 			}
 			locks.cond_wait_with_timeout(*fpool.cond, *fpool.mu, 500);
 		}
-		j := get(fpool.jobs, 0);
-		ordered_remove(*fpool.jobs, 0);
-		append(*fpool.inflight, j.client);
+		j := fpool.jobs[0];
+		array_ordered_remove_by_index(*fpool.jobs, 0);
+		array_add(*fpool.inflight, j.client);
 		locks.unlock(*fpool.mu);
 		if !j.client.quit {
 			body, file_status := j.body, 0;
 			extra: []http.Header;
-			if j.file != "" { body, extra, file_status = file_job_body(j.file, j.body); }
-			ctype := ifx body != "" then "application/json" else "";
+			if j.file body, extra, file_status = file_job_body(j.file, j.body);
 			r: Api_Response;
-			if file_status == 0 { r = api_call(j.client, j.method, j.path, transmute([]u8, body), ctype, j.context_b64, extra, j.retries, 1); }
+			if file_status == 0 r = api_call(j.client, j.method, j.path, cast([]u8) body, ifx body then "application/json" else "", j.context_b64, extra, j.retries, 1);
 			res := Feature_Result.{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena, client = j.client};
-			if file_status != 0 { res.status = file_status; } // the file couldn't be read / is too large
+			if file_status != 0 res.status = file_status; // the file couldn't be read / is too large
 			locks.lock(*fpool.mu);
-			append(*fpool.results, res);
+			array_add(*fpool.results, res);
 			locks.unlock(*fpool.mu);
-			if j.client.cfg.wakeup != null { j.client.cfg.wakeup(j.client.cfg.wakeup_data); }
+			if j.client.cfg.wakeup j.client.cfg.wakeup(j.client.cfg.wakeup_data);
 		}
 		locks.lock(*fpool.mu);
-		for x, i: fpool.inflight { if x == j.client {unordered_remove(*fpool.inflight, i); break;} }
+		found, i := array_find(fpool.inflight, j.client);
+		if found array_unordered_remove_by_index(*fpool.inflight, i);
 		locks.unlock(*fpool.mu);
-		delete(j.method);
-		delete(j.path);
-		delete(j.body);
-		delete(j.context_b64);
-		delete(j.file);
+		f_job_free(*j);
 		reset_temporary_storage();
 	}
 }
-#scope_module
 
 f_submit :: (c: *Client, j: F_Job) {
 	push_allocator(context.default_allocator);
 	locks.lock(*fpool.mu);
 	defer locks.unlock(*fpool.mu);
 	fpool.owner = c; // the workers serve every client's jobs (j.client); they stop in extras_destroy
-	if len(fpool.threads) == 0 {
-		for _: 0..1 { append(*fpool.threads, spawn(null, f_worker)); }
-	}
+	if !fpool.threads for 1..2 array_add(*fpool.threads, spawn(null, f_worker));
 	jj := j;
 	jj.client = c;
-	jj.method = clone(j.method);
-	jj.path = clone(j.path);
-	jj.body = clone(j.body);
-	jj.context_b64 = clone(j.context_b64);
-	jj.file = clone(j.file);
-	append(*fpool.jobs, jj);
+	jj.method = copy_string(j.method);
+	jj.path = copy_string(j.path);
+	jj.body = copy_string(j.body);
+	jj.context_b64 = copy_string(j.context_b64);
+	jj.file = copy_string(j.file);
+	array_add(*fpool.jobs, jj);
 	locks.cond_signal(*fpool.cond);
 }
-#scope_export
 
 // feature_submit queues a REST call whose result comes back through feature_take
 // (for feature files outside this one). `file`: read and encoded on the worker.
@@ -701,18 +630,19 @@ feature_submit :: (c: *Client, op: Feature_Op, method: string, path: string, bod
 feature_take :: (c: *Client, allocator := temp) -> []Feature_Result {
 	locks.lock(*fpool.mu);
 	defer locks.unlock(*fpool.mu);
-	out := make_dynamic(Feature_Result, 0, len(fpool.results), allocator);
+	out: [..]Feature_Result;
+	out.allocator = allocator;
 	k := 0;
-	for r: fpool.results {
-		if r.client == c || r.client == null {
-			append(*out, r);
+	for fpool.results {
+		if it.client == c || !it.client {
+			array_add(*out, it);
 		} else {
-			at(*fpool.results, k).* = r; // another client's (tests run several at once)
+			fpool.results[k] = it; // another client's (tests run several at once)
 			k += 1;
 		}
 	}
-	resize(*fpool.results, k);
-	return view(out);
+	fpool.results.count = k;
+	return out;
 }
 
 // feature_take_for: like feature_take, only the results of client c (tests run
@@ -720,26 +650,25 @@ feature_take :: (c: *Client, allocator := temp) -> []Feature_Result {
 feature_take_for :: (c: *Client, allocator := temp) -> []Feature_Result {
 	locks.lock(*fpool.mu);
 	defer locks.unlock(*fpool.mu);
-	out := make_dynamic(Feature_Result, 0, 0, allocator);
-	{ i := 0;
-	while i < len(fpool.results) {
-		if get(fpool.results, i).client == c {
-			append(*out, get(fpool.results, i));
-			ordered_remove(*fpool.results, i);
+	out: [..]Feature_Result;
+	out.allocator = allocator;
+	i := 0;
+	while i < fpool.results.count {
+		if fpool.results[i].client == c {
+			array_add(*out, fpool.results[i]);
+			array_ordered_remove_by_index(*fpool.results, i);
 		} else {
 			i += 1;
 		}
-	} }
-	return view(out);
+	}
+	return out;
 }
 
 feature_result_free :: (r: *Feature_Result) {
-	push_allocator(context.default_allocator);
-	if r.arena != null {
-		fini(r.arena);
-		free(r.arena);
-		r.arena = null;
-	}
+	if !r.arena return;
+	fini(r.arena);
+	free(r.arena,, context.default_allocator);
+	r.arena = null;
 }
 
 // GET /channels/{id}/messages/pins?limit=25[&before=<pinned_at ISO>]
@@ -747,7 +676,7 @@ fetch_pins :: (c: *Client, channel_id: Snowflake, before_iso := "", tag: u64 = 0
 	q: Query;
 	query_init(*q, channel_path(channel_id, "/messages/pins"));
 	query_add_int(*q, "limit", 25);
-	if before_iso != "" { query_add(*q, "before", before_iso); }
+	if before_iso query_add(*q, "before", before_iso);
 	f_submit(c, .{op = .Pins, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 2});
 }
 
@@ -756,7 +685,7 @@ ack_pins :: (c: *Client, channel_id: Snowflake) {
 	f_submit(c, .{op = .Pins_Ack, channel_id = channel_id, method = "POST", path = channel_path(channel_id, "/pins/ack")});
 }
 
-// GET /channels/{id}/messages?limit=50&around={mid}; the page is merged into
+// GET /channels/{id}/messages?limit=30&around={mid}; the page is merged into
 // the channel's message list by apply_around (UI thread).
 fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, tag: u64 = 0) {
 	q: Query;
@@ -767,27 +696,26 @@ fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowfla
 }
 
 apply_around :: (c: *Client, r: *Feature_Result) {
-	if !r.ok { return; }
+	if !r.ok return;
 	push_allocator(c.store.allocator);
-	for mv: vlist(r.body) { upsert_message(*c.store, vmap(mv)); }
+	for vlist(r.body) upsert_message(*c.store, vmap(it));
 	c.store.changed += 1;
 }
 
 // POST /channels/{forum}/post-data {"thread_ids":[...]} (up to 10 per request, like the client).
 fetch_forum_posts :: (c: *Client, forum_id: Snowflake, thread_ids: []Snowflake) {
-	{ start := 0;
-	while start < len(thread_ids) {
+	for start: 0..thread_ids.count-1 {
+		if start % 10 continue;
 		w: Json;
 		json_init(*w);
 		json_obj(*w);
 		json_key(*w, "thread_ids");
 		json_arr(*w);
-		for id: sub(thread_ids, start, min(start + 10, len(thread_ids))) { json_snowflake(*w, id); }
+		for array_view(thread_ids, start, min(10, thread_ids.count - start)) json_snowflake(*w, it);
 		json_arr_end(*w);
 		json_obj_end(*w);
 		f_submit(c, .{op = .Forum_Posts, channel_id = forum_id, method = "POST", path = channel_path(forum_id, "/post-data"), body = json_string(*w)});
-		start += 10;
-} }
+	}
 }
 
 // GET /channels/{forum}/threads/search?archived=true&sort_by=last_message_time&sort_order=desc&limit=25&tag_setting=match_some&offset=N
@@ -818,20 +746,16 @@ Search_Query :: struct {
 // channel_id, pinned), then content, then the default sort.
 search_messages :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, sq: Search_Query, tag: u64 = 0) {
 	q: Query;
-	if guild_id != 0 {
-		query_init(*q, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/messages/search"], temp));
-	} else {
-		query_init(*q, channel_path(channel_id, "/messages/search"));
-	}
-	for id: sq.author_ids { query_add_snow(*q, "author_id", id); }
-	for id: sq.mentions { query_add_snow(*q, "mentions", id); }
-	for h: sq.has { query_add(*q, "has", h); }
-	for id: sq.channel_ids { query_add_snow(*q, "channel_id", id); }
-	if sq.pinned { query_add(*q, "pinned", "true"); }
-	if sq.content != "" { query_add(*q, "content", sq.content); }
+	if guild_id != 0 query_init(*q, tprint("/guilds/%/messages/search", guild_id));
+	else query_init(*q, channel_path(channel_id, "/messages/search"));
+	for sq.author_ids query_add_snow(*q, "author_id", it);
+	for sq.mentions query_add_snow(*q, "mentions", it);
+	for sq.has query_add(*q, "has", it);
+	for sq.channel_ids query_add_snow(*q, "channel_id", it);
+	if sq.pinned query_add(*q, "pinned", "true");
+	if sq.content query_add(*q, "content", sq.content);
 	query_add(*q, "sort_by", "timestamp");
 	query_add(*q, "sort_order", "desc");
-	if sq.offset > 0 { query_add_int(*q, "offset", sq.offset); }
+	if sq.offset > 0 query_add_int(*q, "offset", sq.offset);
 	f_submit(c, .{op = .Search, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 0});
 }
-

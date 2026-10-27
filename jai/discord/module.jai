@@ -12,6 +12,7 @@
 #import "Random";
 #import "Sort";
 inflate :: #import "inflate";
+#import "System";
 #import "fc";
 altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";
