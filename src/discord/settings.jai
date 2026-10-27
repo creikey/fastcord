@@ -207,8 +207,9 @@ set_custom_status :: (c: *Client, cs: Custom_Status) {
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
 }
 
-// presence_value: op 3 as the client sends it after a status change (in context.allocator).
-presence_value :: (c: *Client) -> V {
+// presence_value: op 3 (SelfPresenceStore.getLocalPresence) in context.allocator. While idle an
+// online status reads "idle", since = idleSince for every status, afk = IdleStore.isAFK.
+presence_value :: (c: *Client, old_afk := false) -> V {
 	st := *c.store.settings;
 	acts: [..]V;
 	if st.custom_status_text || st.custom_status_emoji {
@@ -237,10 +238,10 @@ presence_value :: (c: *Client) -> V {
 		array_add(*acts, etf.vmap(etf.map_done(*a)));
 	}
 	b := etf.map_builder(4);
-	etf.map_put(*b, "status", etf.vstring(status_name(st.status)));
-	etf.map_put(*b, "since", etf.vint(0));
+	etf.map_put(*b, "status", etf.vstring(status_name(ifx st.status == .Online && c.idle_sent then .Idle else st.status)));
+	etf.map_put(*b, "since", etf.vint(c.idle_sent));
 	etf.map_put(*b, "activities", etf.vlist(acts));
-	etf.map_put(*b, "afk", etf.vbool(false));
+	etf.map_put(*b, "afk", etf.vbool((c.idle_sent != 0) != old_afk)); // old_afk: the AFK flag before an idle change
 	return etf.vmap(etf.map_done(*b));
 }
 

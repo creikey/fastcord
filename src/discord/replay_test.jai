@@ -1006,6 +1006,33 @@ parity_set_idle :: (t: *T) {
 	replay_check(*run, "set_idle");
 }
 
+// IdleStore: 10 min without input sends op 3 idle (IDLE, then AFK), input sends online again.
+idle_presence :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "status_change", 0, 0) { return; }
+	defer replay_end(*run);
+	replay_mark(*run);
+	since := now_ms() - IDLE_AFTER_MS - 1;
+	atomic_store(*run.c.idle_since, since);
+	replay_pump(*run, 50);
+	expect_value(t, run.c.idle_sent, since);
+	v := presence_value(run.c,, temp);
+	expect_value(t, fstr(v.map, "status"), "idle");
+	expect_value(t, fint(v.map, "since"), since);
+	expect(t, vbool(vget(v.map, "afk")), "afk");
+	expect(t, !vbool(vget(presence_value(run.c, old_afk = true,, temp).map, "afk")), "the IDLE update has the old afk");
+	atomic_store(*run.c.idle_since, 0);
+	replay_pump(*run, 50);
+	v = presence_value(run.c,, temp);
+	expect_value(t, fstr(v.map, "status"), "online");
+	expect_value(t, fint(v.map, "since"), 0);
+	n := 0;
+	locks.lock(*run.r.mu);
+	for run.r.sends if it.op == 3 n += 1;
+	locks.unlock(*run.r.mu);
+	expect_value(t, n, 4);
+}
+
 parity_custom_status :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "custom_status", 0, 0) { return; }
@@ -2334,5 +2361,39 @@ username_rules :: (t: *T) {
 	expect_value(t, username_rule_error("a"), "This must be 2-32 characters.");
 	expect_value(t, username_rule_error("a..b"), "Username cannot contain repeating dots.");
 	expect_value(t, username_rule_error("no spaces"), "Please only use numbers, letters, underscores _ , or periods.");
+}
+
+// HTTPUtils' per-URL hold: after a 429, requests queued for the URL go one per response, in order.
+rate_limit_queue :: (t: *T) {
+	R :: struct { r: *Rate_Limiter; n: int; done: *[3]s64; }
+	URL :: "https://discord.com/api/v9/x";
+	r: Rate_Limiter;
+	rate_limiter_init(*r);
+	defer rate_limiter_destroy(*r);
+	expect(t, rate_note_response(*r, URL, 429, .[.{"retry-after", "1"}], .{}, now_ms()) >= 1000);
+	done: [3]s64;
+	threads: [3]*Thread;
+	for 0..2 {
+		threads[it] = spawn(R.{*r, it, *done}, (a: R) {
+			rate_acquire(a.r, URL);
+			a.done.*[a.n] = now_ms();
+		});
+		sleep_milliseconds(20); // queue order
+	}
+	locks.lock(*r.mu);
+	table_find_pointer(*r.holds, URL).until = now_ms() + 50; // shorten the hold
+	locks.cond_broadcast(*r.cond);
+	locks.unlock(*r.mu);
+	sleep_milliseconds(250);
+	expect(t, done[0] != 0 && done[1] == 0 && done[2] == 0, "the timer releases one request");
+	rate_note_response(*r, URL, 200, .[], .{}, now_ms());
+	sleep_milliseconds(50);
+	expect(t, done[1] != 0 && done[2] == 0, "a response releases the next");
+	rate_note_response(*r, URL, 200, .[], .{}, now_ms());
+	for threads locks.join(it);
+	rate_note_response(*r, URL, 200, .[], .{}, now_ms());
+	expect(t, table_find_pointer(*r.holds, URL) == null, "an empty queue drops the hold");
+	ra := retry_after_seconds(.[.{"retry-after", "2.5"}], .{});
+	expect_value(t, ra, 2.0);
 }
 
