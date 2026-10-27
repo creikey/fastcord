@@ -86,6 +86,12 @@ timings for frames over 25 ms, and on exit the focused field's text. A frame stu
 report (the lock the UI thread waits on and its holder) to stderr and to `logs/` beside `<state>`. All
 mutexes go through `locks`, which panics at the faulty call on misuse instead of deadlocking.
 
+CI (`.github/workflows/ci.yml`) builds and tests on Windows, then macOS and Linux. Jai is private, so CI
+downloads it from `ci/jai-server`, a Fly.io app (`fastcord-jai`) that serves `/data/jai.zip` only to the
+`JAI_PASSWORD` repo secret; never put Jai, or a link to it, anywhere public. To rotate the password, set it
+with `fly secrets set JAI_PASSWORD=...` and `gh secret set JAI_PASSWORD`. To update Jai, upload a new zip
+(top folder `jai/`) with `fly ssh sftp put` to `/data/jai.zip`.
+
 ## Performance
 
 The UI is immediate-mode and rebuilt twice per frame, so its cost is paid every frame. The app sleeps

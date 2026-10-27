@@ -1,0 +1,52 @@
+# One CI build on one OS; ci.yml calls it. See ci.yml for the rules around Jai.
+name: CI build
+
+on:
+  workflow_call:
+    inputs:
+      os: { type: string, required: true }
+      jai: { type: string, required: true }
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    env:
+      JAI_PASSWORD: ${{ secrets.JAI_PASSWORD }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        if: env.JAI_PASSWORD != ''
+
+      - name: Fetch Jai
+        if: env.JAI_PASSWORD != ''
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/jai-dl"
+          mkdir -p "$dir"
+          # The machine stops when idle; the first request wakes it.
+          curl -fsS --retry 5 --retry-all-errors --retry-delay 5 \
+            -H "Authorization: Bearer $JAI_PASSWORD" -o "$dir/jai.zip" https://fastcord-jai.fly.dev/jai.zip
+          # Git Bash's tar is GNU tar, which can't read zips; Windows' own tar is bsdtar, as on macOS.
+          if [ "$RUNNER_OS" = Windows ]; then
+            /c/Windows/System32/tar.exe -xf "$(cygpath -w "$dir/jai.zip")" -C "$(cygpath -w "$dir")"
+          else
+            unzip -q "$dir/jai.zip" -d "$dir"
+          fi
+          rm "$dir/jai.zip"
+          chmod +x "$dir"/jai/bin/* || true
+          echo "$dir/jai/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        if: env.JAI_PASSWORD != ''
+        run: |
+          ${{ inputs.jai }} build.jai - dev
+          ${{ inputs.jai }} build.jai - test
+
+      - name: Delete Jai
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/jai-dl"

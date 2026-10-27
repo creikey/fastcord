@@ -79,9 +79,9 @@ usage: jai build.jai - <target>
   <target> linux              any target cross-compiled for x86_64 Linux (from Windows or macOS)
 END
 
-// A trailing "linux" argument cross-compiles everything for x86_64 Linux: the C with `zig cc` against
+// A trailing "linux" argument (implied on a Linux host) builds everything for x86_64 Linux: the C with `zig cc` against
 // glibc 2.17 (so one binary runs on every distro since 2014), the Jai with os_target = .LINUX.
-LINUX := false;
+LINUX := OS == .LINUX;
 GLIBC :: "x86_64-linux-gnu.2.17";
 // Native macOS compiles the C once per arch ("aarch64", "x86_64") and joins the two archives with lipo.
 MAC_ARCH := "";
@@ -333,9 +333,9 @@ XML
 
 link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
+    // zig c++ links zig's own libc++, whose headers the C++ compiled against
     if LINUX array_add(*a, ZIG, "c++", "-target", GLIBC, "-o", exe);
-    // zig cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
-    else array_add(*a, ZIG, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
+    else array_add(*a, ZIG, "c++", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
         tprint("--sysroot=%", MAC_SDK), "-F", tprint("%/System/Library/Frameworks", MAC_SDK), "-o", exe);
     array_add(*a, ..p.compiler_generated_object_files);
     array_add(*a, ..p.support_object_files);
@@ -358,7 +358,6 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
         else array_add(*a, arg);
     }
     if LINUX array_add(*a, "-ldl", "-lpthread", "-lm", "-static-libgcc");
-    else array_add(*a, "-lc++");
     r := run_command(..a);
     return r.exit_code == 0;
 }
@@ -451,8 +450,7 @@ fetch_zig :: () -> bool {
     return ok;
 }
 
-// The C++ library headers come from the system the program links against, not zig's libc++ (which would need
-// linking too): the MSVC STL on Windows, the SDK's libc++ on macOS.
+// The macOS SDK (xcrun), for the system headers and frameworks.
 MAC_SDK := "";
 
 // Every C compile goes through zig cc.
@@ -462,11 +460,11 @@ cc :: (a: *[..]string, cpp: bool) {
     if LINUX array_add(a, "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
     else if OS == .WINDOWS {
         array_add(a, "-target", "x86_64-windows-msvc", "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
-        // Zig takes the newest VS's headers while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
+        // Jai links with MSVC's linker, so C++ uses the MSVC STL, not zig's libc++. Zig takes the newest VS's
+        // headers while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
         if cpp array_add(a, "-nostdinc++", "-D_USE_STD_VECTOR_ALGORITHMS=0");
     } else {
         array_add(a, "-target", tprint("%-macos.13.0", MAC_ARCH), tprint("--sysroot=%", MAC_SDK));
-        if cpp array_add(a, "-nostdinc++", "-isystem", tprint("%/usr/include/c++/v1", MAC_SDK));
     }
     if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
 }
