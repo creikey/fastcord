@@ -54,10 +54,12 @@ Scheduled_Event :: struct {
 	interested: bool; // we RSVP'd (from our own toggles and USER_ADD/REMOVE)
 	interest_pending: bool; // a PUT/DELETE is in flight
 }
-#scope_file
 
+// The events side table is process-wide, like the feature side tables: every live client
+// (the parallel offline tests run several) shares it, on the heap, under evt_mu. The app's
+// readers (event_get, guild_events) run on its one UI thread.
 Events_Table :: struct {
-	allocator: Allocator;
+	ready: bool;
 	list: Table(Snowflake, Scheduled_Event);
 	counts_asked: Table(Snowflake, bool); // event -> its interested count was requested
 	acks: [..]Event_Ack; // new events to ack (guild_admin_tick)
@@ -72,41 +74,30 @@ Event_Ack :: struct {
 }
 
 evt: Events_Table;
+evt_mu: locks.Mutex;
 
 events_init :: () {
-	if !is_null(evt.list) { return; }
-	allocator := context.default_allocator; // shared by every live client (like the feature pool)
-	evt.allocator = allocator;
-	evt.list.allocator = allocator;
-	evt.counts_asked.allocator = allocator;
-	evt.acks = make_dynamic(Event_Ack, 0, 0, allocator);
+	if evt.ready return;
+	evt.ready = true;
+	evt.list.allocator = context.default_allocator;
+	evt.counts_asked.allocator = context.default_allocator;
+	evt.acks.allocator = context.default_allocator;
 }
 
 event_free :: (e: *Scheduled_Event) {
-	a := evt.allocator;
-	free_str(e.name, a);
-	free_str(e.description, a);
-	free_str(e.location, a);
-}
-
-iso_to_ms :: (s: string) -> s64 {
-	if s == "" { return 0; }
-	t, _, consumed := time.iso8601_to_time_and_offset(s);
-	if consumed == 0 { return 0; }
-	return time.time_to_unix_nano(t) / 1000000;
+	push_allocator(context.default_allocator);
+	free(e.name);
+	free(e.description);
+	free(e.location);
 }
 
 event_upsert :: (m: etf.Map) {
 	id := fsnow(m, "id");
-	if id == 0 { return; }
-	a := evt.allocator;
-	e := table_find_pointer(*evt.list, id); had := e != null;
-	if !had {
-		find_or_add(*evt.list, id).* = Scheduled_Event.{id = id, user_count = -1};
-		e = find_or_add(*evt.list, id);
-	} else {
-		event_free(e);
-	}
+	if !id return;
+	e := table_find_pointer(*evt.list, id);
+	if e event_free(e);
+	else e = table_set(*evt.list, id, .{id = id, user_count = -1});
+	a := context.default_allocator;
 	e.guild_id = fsnow(m, "guild_id");
 	e.channel_id = fsnow(m, "channel_id");
 	e.creator_id = fsnow(m, "creator_id");
@@ -115,89 +106,82 @@ event_upsert :: (m: etf.Map) {
 	e.location = clone_str(fstr(fmap(m, "entity_metadata"), "location"), a);
 	e.start_ms = iso_to_ms(fstr(m, "scheduled_start_time"));
 	e.end_ms = iso_to_ms(fstr(m, "scheduled_end_time"));
-	e.status = cast(Event_Status)(clamp(fint(m, "status"), 0, 4));
-	e.entity = cast(Event_Entity)(clamp(fint(m, "entity_type"), 0, 3));
-	if vhas(m, "user_count") { e.user_count = cast(int)(fint(m, "user_count")); }
+	e.status = cast(Event_Status) clamp(fint(m, "status"), 0, 4);
+	e.entity = cast(Event_Entity) clamp(fint(m, "entity_type"), 0, 3);
+	if vhas(m, "user_count") e.user_count = fint(m, "user_count");
 	evt.epoch += 1;
 }
 
 event_remove :: (id: Snowflake) {
-	{ e := table_find_pointer(*evt.list, id); ok := e != null;
-	if ok {
-		event_free(e);
-		table_remove(*evt.list, id);
-		evt.epoch += 1;
-	} }
+	e := table_find_pointer(*evt.list, id);
+	if !e return;
+	event_free(e);
+	table_remove(*evt.list, id);
+	evt.epoch += 1;
 }
-#scope_export
 
 // events_dispatch: gateway side (called from extras_dispatch).
 events_dispatch :: (allocator: Allocator, me: Snowflake, name: string, d: etf.Map) {
+	locks.guard(*evt_mu);
 	if name == {
-	case "READY";
-		events_init();
-		for gv: flist(d, "guilds") { for ev: flist(vmap(gv), "guild_scheduled_events") { event_upsert(vmap(ev)); } }
-	case "GUILD_CREATE";
-		events_init();
-		for ev: flist(d, "guild_scheduled_events") { event_upsert(vmap(ev)); }
-	case "GUILD_SCHEDULED_EVENT_CREATE"; #through; case "GUILD_SCHEDULED_EVENT_UPDATE";
-		events_init();
-		event_upsert(d);
-	case "GUILD_SCHEDULED_EVENT_DELETE";
-		if !is_null(evt.list) { event_remove(fsnow(d, "id")); }
-	case "GUILD_SCHEDULED_EVENT_USER_ADD"; #through; case "GUILD_SCHEDULED_EVENT_USER_REMOVE";
-		if is_null(evt.list) { return; }
-		e := table_find_pointer(*evt.list, fsnow(d, "guild_scheduled_event_id")); ok := e != null;
-		if !ok { return; }
-		add := name == "GUILD_SCHEDULED_EVENT_USER_ADD";
-		if fsnow(d, "user_id") == me {
-			if e.interested == add { return; } // our own toggle, already counted
-			e.interested = add;
-		}
-		if e.user_count >= 0 { e.user_count = max(0, e.user_count + (ifx add then 1 else -1)); }
-		evt.epoch += 1;
-	case "GUILD_DELETE";
-		if is_null(evt.list) { return; }
-		gid := fsnow(d, "id");
-		ids := make_dynamic(Snowflake, 0, 0, temp);
-		for e, id: evt.list { if e.guild_id == gid { append(*ids, id); } }
-		for id: ids { event_remove(id); }
+		case "READY";
+			events_init();
+			for gv: flist(d, "guilds") for ev: flist(vmap(gv), "guild_scheduled_events") event_upsert(vmap(ev));
+		case "GUILD_CREATE";
+			events_init();
+			for ev: flist(d, "guild_scheduled_events") event_upsert(vmap(ev));
+		case "GUILD_SCHEDULED_EVENT_CREATE"; #through;
+		case "GUILD_SCHEDULED_EVENT_UPDATE";
+			events_init();
+			event_upsert(d);
+		case "GUILD_SCHEDULED_EVENT_DELETE";
+			event_remove(fsnow(d, "id"));
+		case "GUILD_SCHEDULED_EVENT_USER_ADD"; #through;
+		case "GUILD_SCHEDULED_EVENT_USER_REMOVE";
+			e := table_find_pointer(*evt.list, fsnow(d, "guild_scheduled_event_id"));
+			if !e return;
+			add := name == "GUILD_SCHEDULED_EVENT_USER_ADD";
+			if fsnow(d, "user_id") == me {
+				if e.interested == add return; // our own toggle, already counted
+				e.interested = add;
+			}
+			if e.user_count >= 0 e.user_count = max(0, e.user_count + ifx add then 1 else -1);
+			evt.epoch += 1;
+		case "GUILD_DELETE";
+			gid := fsnow(d, "id");
+			ids: [..]Snowflake;
+			ids.allocator = temp;
+			for e, id: evt.list if e.guild_id == gid array_add(*ids, id);
+			for ids event_remove(it);
 	}
 }
 
 events_destroy :: () {
-	if is_null(evt.list) { return; }
-	for * e: evt.list { event_free(e); }
+	locks.guard(*evt_mu);
+	if !evt.ready return;
+	for * evt.list event_free(it);
 	deinit(*evt.list);
 	deinit(*evt.counts_asked);
-	delete(evt.acks);
-	evt = zero(type_of(evt));
+	array_free(evt.acks);
+	evt = .{};
 }
 
-events_epoch :: () -> int {return evt.epoch;}
+events_epoch :: () -> int { return evt.epoch; }
 
-event_get :: (id: Snowflake) -> *Scheduled_Event {
-	{ e := table_find_pointer(*evt.list, id); ok := e != null;
-	if ok { return e; } }
-	return null;
-}
+event_get :: (id: Snowflake) -> *Scheduled_Event { return table_find_pointer(*evt.list, id); }
 
 // guild_events: the guild's scheduled and live events, live first, then by start time.
 guild_events :: (guild_id: Snowflake, allocator := temp) -> []*Scheduled_Event {
-	out := make_dynamic(*Scheduled_Event, 0, 0, allocator);
-	for * e: evt.list {
-		if e.guild_id != guild_id || (e.status != .Scheduled && e.status != .Active) { continue; }
-		append(*out, e);
-	}
-	key :: (e: *Scheduled_Event) -> s64 {return (ifx e.status == .Active then 0 else 1 << 62) + e.start_ms;}
-	for i: 1..len(out)-1 {
-		{ j := i;
-		while j > 0 && (key(get(out, j)) < key(get(out, j - 1)) || (key(get(out, j)) == key(get(out, j - 1)) && get(out, j).id < get(out, j - 1).id)) {
-			swap(*out[j], *out[j - 1]);
-			j -= 1;
-} }
-	}
-	return view(out);
+	out: [..]*Scheduled_Event;
+	out.allocator = allocator;
+	for * evt.list if it.guild_id == guild_id && (it.status == .Scheduled || it.status == .Active) array_add(*out, it);
+	quick_sort(out, (a: *Scheduled_Event, b: *Scheduled_Event) -> s64 {
+		key :: (e: *Scheduled_Event) -> s64 { return (ifx e.status == .Active then 0 else 1 << 62) + e.start_ms; }
+		ka, kb := key(a), key(b);
+		if ka != kb return ifx ka < kb then -1 else 1;
+		return ifx a.id < b.id then -1 else xx (a.id > b.id);
+	});
+	return out;
 }
 
 // ---- science context (the client's guild / channel decorations) ----
@@ -206,27 +190,22 @@ guild_events :: (guild_id: Snowflake, allocator := temp) -> []*Scheduled_Event {
 // settings events (open_modal, impression_modal_root_legacy, settings_pane_viewed...),
 // as an object body; "" for an unknown guild.
 guild_track_props :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake) -> string {
-	if guild_get(*c.store, guild_id) == null { return ""; }
+	if !guild_get(*c.store, guild_id) return "";
 	w := aw_begin();
 	aw_route_props(*w, c, guild_id, channel_id);
 	json_obj_end(*w);
 	return json_body(json_string(*w));
 }
-#scope_file
 
-route_channel :: (c: *Client) -> Snowflake {
-	locks.lock(*c.route_mu);
-	defer locks.unlock(*c.route_mu);
+route_channel_of :: (c: *Client) -> Snowflake {
+	locks.guard(*c.route_mu);
 	return c.route_channel;
 }
 
 // impression_modal_root_legacy for a modal opened in a guild.
 track_modal_impression :: (c: *Client, guild_id: Snowflake, variant: string) {
-	ctx := guild_track_props(c, guild_id, route_channel(c));
-	props := fmt.tprintf("\"impression_type\":\"page\",%s,\"variant\":\"%s\",\"location\":\"impression_modal_root_legacy\",\"location_page\":\"impression_modal_root_legacy\"", ctx, variant);
-	analytics_track(c, "impression_modal_root_legacy", props);
+	analytics_track(c, "impression_modal_root_legacy", tprint("\"impression_type\":\"page\",%,\"variant\":\"%\",\"location\":\"impression_modal_root_legacy\",\"location_page\":\"impression_modal_root_legacy\"", guild_track_props(c, guild_id, route_channel_of(c)), variant));
 }
-#scope_export
 
 // ---- scheduled events: REST (traffic/guild_events.jsonl) ----
 //
@@ -236,13 +215,14 @@ track_modal_impression :: (c: *Client, guild_id: Snowflake, variant: string) {
 // open_guild_events: the Events modal opened. Science only, plus the interested
 // counts of listed events whose count is still unknown (once each).
 open_guild_events :: (c: *Client, guild_id: Snowflake) {
+	locks.guard(*evt_mu);
 	evs := guild_events(guild_id);
 	track_modal_impression(c, guild_id, "GuildEventsModal");
-	analytics_track(c, "open_modal", fmt.tprintf("\"type\":\"Guild Events Modal\",\"guild_id\":\"%d\",\"guild_events_count\":%d", cast(u64)(guild_id), len(evs)));
-	for e: evs {
-		if e.user_count >= 0 || table_contains(*evt.counts_asked, e.id) { continue; }
-		table_set(*evt.counts_asked, e.id, true);
-		fetch_event_counts(c, e.guild_id, e.id);
+	analytics_track(c, "open_modal", tprint("\"type\":\"Guild Events Modal\",\"guild_id\":\"%\",\"guild_events_count\":%", guild_id, evs.count));
+	for evs {
+		if it.user_count >= 0 || table_contains(*evt.counts_asked, it.id) continue;
+		table_set(*evt.counts_asked, it.id, true);
+		fetch_event_counts(c, it.guild_id, it.id);
 	}
 }
 
@@ -253,15 +233,13 @@ open_create_event :: (c: *Client, guild_id: Snowflake) {
 
 // GET /guilds/{gid}/scheduled-events/{eid}/users/counts -> {"guild_scheduled_event_count":n,..}
 fetch_event_counts :: (c: *Client, guild_id: Snowflake, event_id: Snowflake) {
-	path := fmt.tprintf("/guilds/%d/scheduled-events/%d/users/counts", cast(u64)(guild_id), cast(u64)(event_id));
-	feature_submit(c, .Event_Counts, "GET", path, channel_id = guild_id, tag = cast(u64)(event_id));
+	feature_submit(c, .Event_Counts, "GET", tprint("/guilds/%/scheduled-events/%/users/counts", guild_id, event_id), channel_id = guild_id, tag = event_id);
 }
 
 // event_preview_counts: the wizard's Review step renders a preview card with
 // event id -1 and asks for its counts; Discord answers 400 (as for the client).
 event_preview_counts :: (c: *Client, guild_id: Snowflake) {
-	path := fmt.tprintf("/guilds/%d/scheduled-events/-1/users/counts", cast(u64)(guild_id));
-	feature_submit(c, .Guild_Aux, "GET", path, channel_id = guild_id);
+	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/scheduled-events/-1/users/counts", guild_id), channel_id = guild_id);
 }
 
 // The wizard's result. entity .Voice (channel_id) or .External (location, end_ms).
@@ -293,8 +271,8 @@ event_create_body :: (d: Event_Draft) -> string {
 	json_kstr(*w, "description", d.description);
 	json_kint(*w, "privacy_level", 2); // GUILD_ONLY
 	json_kstr(*w, "scheduled_start_time", ms_to_iso(d.start_ms));
-	if d.entity == .External { json_kstr(*w, "scheduled_end_time", ms_to_iso(d.end_ms)); }
-	json_kint(*w, "entity_type", cast(s64)(d.entity));
+	if d.entity == .External json_kstr(*w, "scheduled_end_time", ms_to_iso(d.end_ms));
+	json_kint(*w, "entity_type", xx d.entity);
 	if d.entity == .External {
 		json_key(*w, "entity_metadata");
 		json_obj(*w);
@@ -310,20 +288,19 @@ event_create_body :: (d: Event_Draft) -> string {
 
 // POST /guilds/{gid}/scheduled-events. guild_admin_apply sends the follow-ups.
 create_scheduled_event :: (c: *Client, guild_id: Snowflake, d: Event_Draft) {
-	path := fmt.tprintf("/guilds/%d/scheduled-events", cast(u64)(guild_id));
-	feature_submit(c, .Event_Create, "POST", path, event_create_body(d), channel_id = guild_id);
+	feature_submit(c, .Event_Create, "POST", tprint("/guilds/%/scheduled-events", guild_id), event_create_body(d), channel_id = guild_id);
 }
 
 // The channel an event's invite points at: its own channel, else the guild's
 // system channel or first text channel.
 event_invite_channel :: (c: *Client, e: *Scheduled_Event) -> Snowflake {
-	if e.channel_id != 0 { return e.channel_id; }
+	if e.channel_id return e.channel_id;
 	s := *c.store;
-	{ g := guild_get(s, e.guild_id);
-	if g != null && g.system_channel_id != 0 { return g.system_channel_id; } }
+	g := guild_get(s, e.guild_id);
+	if g && g.system_channel_id return g.system_channel_id;
 	for id: guild_channels_sorted(s, e.guild_id) {
-		{ ch := channel_get(s, id);
-		if ch != null && (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) { return id; } }
+		ch := channel_get(s, id);
+		if ch && (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) return id;
 	}
 	return 0;
 }
@@ -331,52 +308,55 @@ event_invite_channel :: (c: *Client, e: *Scheduled_Event) -> Snowflake {
 // event_share: POST /channels/{cid}/invites {"max_age":604800,"max_uses":0},
 // X-Context-Properties {"location":"Guild Events"}. Result: op .Event_Invite, tag = event.
 event_share :: (c: *Client, event_id: Snowflake) {
+	locks.guard(*evt_mu);
+	share_event(c, event_id);
+}
+
+share_event :: (c: *Client, event_id: Snowflake) {
 	e := event_get(event_id);
-	if is_null(e) { return; }
+	if !e return;
 	cid := event_invite_channel(c, e);
-	if cid == 0 { return; }
-	feature_submit(c, .Event_Invite, "POST", channel_path(cid, "/invites"), "{\"max_age\":604800,\"max_uses\":0}", channel_id = cid, tag = cast(u64)(event_id), retries = 2, context_b64 = context_location("Guild Events"));
+	if !cid return;
+	feature_submit(c, .Event_Invite, "POST", channel_path(cid, "/invites"), "{\"max_age\":604800,\"max_uses\":0}", channel_id = cid, tag = event_id, retries = 2, context_b64 = context_location("Guild Events"));
 }
 
 // event_link: what Copy Event Link puts on the clipboard.
 event_link :: (e: *Scheduled_Event, allocator := temp) -> string {
-	return fmt.aprintf("https://discord.com/events/%d/%d", cast(u64)(e.guild_id), cast(u64)(e.id), allocator = allocator);
+	return sprint("https://discord.com/events/%/%", e.guild_id, e.id,, allocator);
 }
 
 // event_invite_link: the share dialog's link (the invite carries the event).
 event_invite_link :: (code: string, event_id: Snowflake, allocator := temp) -> string {
-	return fmt.aprintf("https://discord.gg/%s?event=%d", code, cast(u64)(event_id), allocator = allocator);
+	return sprint("https://discord.gg/%?event=%", code, event_id,, allocator);
 }
 
 // set_event_interest: PUT {"response":1} (interested) / DELETE
 // /guilds/{gid}/scheduled-events/{eid}/users/@me. Applied optimistically;
 // guild_admin_apply undoes it on failure.
 set_event_interest :: (c: *Client, event_id: Snowflake, interested: bool) {
+	locks.guard(*evt_mu);
 	e := event_get(event_id);
-	if is_null(e) || e.interest_pending || e.interested == interested { return; }
+	if !e || e.interest_pending || e.interested == interested return;
 	e.interested = interested;
 	e.interest_pending = true;
-	if e.user_count >= 0 { e.user_count = max(0, e.user_count + (ifx interested then 1 else -1)); }
+	if e.user_count >= 0 e.user_count = max(0, e.user_count + ifx interested then 1 else -1);
 	evt.epoch += 1;
-	path := fmt.tprintf("/guilds/%d/scheduled-events/%d/users/@me", cast(u64)(e.guild_id), cast(u64)(event_id));
-	feature_submit(c, .Event_Interest, ifx interested then "PUT" else "DELETE", path, ifx interested then "{\"response\":1}" else "", channel_id = e.guild_id, tag = cast(u64)(event_id));
+	feature_submit(c, .Event_Interest, ifx interested then "PUT" else "DELETE", tprint("/guilds/%/scheduled-events/%/users/@me", e.guild_id, event_id), ifx interested then "{\"response\":1}" else "", channel_id = e.guild_id, tag = event_id);
 }
 
 // cancel_scheduled_event: DELETE /guilds/{gid}/scheduled-events/{eid} ("Cancel Event").
 cancel_scheduled_event :: (c: *Client, event_id: Snowflake) {
 	e := event_get(event_id);
-	if is_null(e) { return; }
-	path := fmt.tprintf("/guilds/%d/scheduled-events/%d", cast(u64)(e.guild_id), cast(u64)(event_id));
-	feature_submit(c, .Event_Delete, "DELETE", path, channel_id = e.guild_id, tag = cast(u64)(event_id));
+	if !e return;
+	feature_submit(c, .Event_Delete, "DELETE", tprint("/guilds/%/scheduled-events/%", e.guild_id, event_id), channel_id = e.guild_id, tag = event_id);
 }
 
 // start_scheduled_event: PATCH /guilds/{gid}/scheduled-events/{eid} {"status":2}
 // ("Start Event" on a voice event; not in the captures).
 start_scheduled_event :: (c: *Client, event_id: Snowflake) {
 	e := event_get(event_id);
-	if is_null(e) { return; }
-	path := fmt.tprintf("/guilds/%d/scheduled-events/%d", cast(u64)(e.guild_id), cast(u64)(event_id));
-	feature_submit(c, .Event_Start, "PATCH", path, "{\"status\":2}", channel_id = e.guild_id, tag = cast(u64)(event_id));
+	if !e return;
+	feature_submit(c, .Event_Start, "PATCH", tprint("/guilds/%/scheduled-events/%", e.guild_id, event_id), "{\"status\":2}", channel_id = e.guild_id, tag = event_id);
 }
 
 // can_create_events / can_manage_event: the client's gates for Create Event and
@@ -387,96 +367,96 @@ can_create_events :: (s: *Store, guild_id: Snowflake) -> bool {
 
 can_manage_event :: (s: *Store, e: *Scheduled_Event) -> bool {
 	p := guild_permissions(s, e.guild_id);
-	if (p & PERM_MANAGE_EVENTS) != 0 { return true; }
-	return (p & PERM_CREATE_EVENTS) != 0 && e.creator_id == s.me;
+	return (p & PERM_MANAGE_EVENTS) != 0 || ((p & PERM_CREATE_EVENTS) != 0 && e.creator_id == s.me);
 }
 
 // ack delay after an event is created: the client acks the new event (guild
 // feature ack type 1) about 3 s after its follow-ups (+1220 -> +4220 ms).
 EVENT_ACK_DELAY_MS :: 3000;
-#scope_file
 
+// event_created (under evt_mu).
 event_created :: (c: *Client, r: *Feature_Result) {
 	m := vmap(r.body);
 	events_init();
 	event_upsert(m);
 	id := fsnow(m, "id");
 	e := event_get(id);
-	if is_null(e) { return; }
+	if !e return;
 	gid := e.guild_id;
 	// the creator is marked interested by Discord (GUILD_SCHEDULED_EVENT_USER_ADD follows)
 	e.interested = true;
 	table_set(*evt.counts_asked, id, true);
-	feature_submit(c, .Event_Rsvps, "GET", fmt.tprintf("/users/@me/scheduled-events?guild_ids=%d", cast(u64)(gid)), channel_id = gid);
+	feature_submit(c, .Event_Rsvps, "GET", tprint("/users/@me/scheduled-events?guild_ids=%", gid), channel_id = gid);
 	fetch_event_counts(c, gid, id);
-	event_share(c, id);
-	append(*evt.acks, Event_Ack.{client = c, at = now_ms() + EVENT_ACK_DELAY_MS, guild_id = gid, event_id = id});
+	share_event(c, id);
+	array_add(*evt.acks, .{client = c, at = now_ms() + EVENT_ACK_DELAY_MS, guild_id = gid, event_id = id});
 }
-#scope_export
+
 // ---- channels ----
 
 // channel_name_normalize: what the client does to a typed channel name. Text-like
 // channels: lowercase, spaces and runs of dashes become one dash, other
 // punctuation dropped; voice: trimmed only. 100 characters at most.
 channel_name_normalize :: (name: string, text: bool, allocator := temp) -> string {
-	if !text { return clone(truncate_runes(strings.trim_space(name), 100), allocator); }
-	sb := strings.builder_make(allocator);
+	if !text return copy_string(truncate_runes(trim(name), 100),, allocator);
+	out: [..]u8;
+	out.allocator = allocator;
 	dash := false;
 	n := 0;
-	for r: name {
-		if n >= 100 { break; }
-		c := r;
-		if c >= #char "A" && c <= #char "Z" { c += #char "a" - #char "A"; }
-		if c == #char " " || c == #char "-" || c == 9 {
+	i := 0;
+	while i < name.count && n < 100 {
+		_, size := character_utf8_to_utf32(name.data + i, name.count - i);
+		r := string.{size, name.data + i};
+		i += size;
+		c := to_lower(r[0]);
+		if c == #char " " || c == #char "-" || c == #char "\t" {
 			dash = true;
 			continue;
 		}
-		keep := (c >= #char "a" && c <= #char "z") || (c >= #char "0" && c <= #char "9") || c == #char "_" || c > 0x7f;
-		if !keep { continue; }
+		if size == 1 && !is_alnum(c) continue; // ASCII letters, digits and _ stay; other punctuation goes
 		if dash && n > 0 {
-			strings.write_byte(*sb, #char "-");
+			array_add(*out, #char "-");
 			n += 1;
 		}
 		dash = false;
-		strings.write_rune(*sb, c);
+		if size == 1 array_add(*out, c); else append_string(*out, r);
 		n += 1;
 	}
 	// a trailing dash is kept while typing ("new-") like the client's input
-	if dash && n > 0 && n < 100 { strings.write_byte(*sb, #char "-"); }
-	return strings.to_string(sb);
+	if dash && n > 0 && n < 100 array_add(*out, #char "-");
+	return cast(string) out;
 }
-#scope_file
 
+// truncate_runes: the first n characters of s.
 truncate_runes :: (s: string, n: int) -> string {
 	i := 0;
-	for _, off: s {
-		if i == n { return sub(s, 0, off); }
-		i += 1;
+	for 1..n {
+		if i >= s.count break;
+		_, size := character_utf8_to_utf32(s.data + i, s.count - i);
+		i += size;
 	}
-	return s;
+	return .{i, s.data};
 }
-#scope_export
 
 // ---- channels: REST (traffic/create_channel.jsonl) ----
 
 // open_create_channel: the Create Channel modal opened: GET /guilds/{id}/profile, science open_modal.
 open_create_channel :: (c: *Client, guild_id: Snowflake) {
-	feature_submit(c, .Guild_Aux, "GET", fmt.tprintf("/guilds/%d/profile", cast(u64)(guild_id)), channel_id = guild_id);
-	analytics_track(c, "open_modal", fmt.tprintf("\"type\":\"Create Channel\",%s", guild_track_props(c, guild_id, route_channel(c))));
+	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/profile", guild_id), channel_id = guild_id);
+	analytics_track(c, "open_modal", tprint("\"type\":\"Create Channel\",%", guild_track_props(c, guild_id, route_channel_of(c))));
 }
 
 // open_channel_settings: channel settings (Overview) opened: GET /guilds/{id}/regions,
 // science settings_pane_viewed.
 open_channel_settings :: (c: *Client, ch: *Channel) {
-	if ch == null || ch.guild_id == 0 { return; }
-	feature_submit(c, .Guild_Aux, "GET", fmt.tprintf("/guilds/%d/regions", cast(u64)(ch.guild_id)), channel_id = ch.guild_id);
-	props := fmt.tprintf("\"settings_type\":\"channel\",\"origin_pane\":null,\"destination_pane\":\"OVERVIEW\",\"location\":null,%s", guild_track_props(c, ch.guild_id, ch.id));
-	analytics_track(c, "settings_pane_viewed", props);
+	if !ch || !ch.guild_id return;
+	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/regions", ch.guild_id), channel_id = ch.guild_id);
+	analytics_track(c, "settings_pane_viewed", tprint("\"settings_type\":\"channel\",\"origin_pane\":null,\"destination_pane\":\"OVERVIEW\",\"location\":null,%", guild_track_props(c, ch.guild_id, ch.id)));
 }
 
 // open_delete_channel: the Delete Channel confirm opened: GET /guilds/{id}/roles/member-counts.
 open_delete_channel :: (c: *Client, guild_id: Snowflake) {
-	feature_submit(c, .Guild_Aux, "GET", fmt.tprintf("/guilds/%d/roles/member-counts", cast(u64)(guild_id)), channel_id = guild_id);
+	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/roles/member-counts", guild_id), channel_id = guild_id);
 }
 
 // POST /guilds/{id}/channels {"type","name","permission_overwrites":[],"parent_id"} -> 201.
@@ -485,19 +465,15 @@ create_channel :: (c: *Client, guild_id: Snowflake, kind: Channel_Type, name: st
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
-	json_kint(*w, "type", cast(s64)(kind));
+	json_kint(*w, "type", xx kind);
 	json_kstr(*w, "name", name);
 	json_key(*w, "permission_overwrites");
 	json_arr(*w);
 	json_arr_end(*w);
-	if parent_id != 0 {
-		json_ksnow(*w, "parent_id", parent_id);
-	} else {
-		json_knull(*w, "parent_id");
-	}
+	if parent_id json_ksnow(*w, "parent_id", parent_id);
+	else json_knull(*w, "parent_id");
 	json_obj_end(*w);
-	path := strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/channels"], temp);
-	feature_submit(c, .Channel_Create, "POST", path, json_string(*w), channel_id = guild_id, tag = cast(u64)(kind));
+	feature_submit(c, .Channel_Create, "POST", tprint("/guilds/%/channels", guild_id), json_string(*w), channel_id = guild_id, tag = xx kind);
 }
 
 // The channel settings Overview form. Save sends all of it, changed or not.
@@ -522,13 +498,13 @@ channel_edit_body :: (f: Channel_Form) -> string {
 	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "name", f.name);
-	json_kint(*w, "type", cast(s64)(f.kind));
+	json_kint(*w, "type", xx f.kind);
 	json_kstr(*w, "topic", f.topic);
-	json_kint(*w, "bitrate", cast(s64)(f.bitrate));
-	json_kint(*w, "user_limit", cast(s64)(f.user_limit));
+	json_kint(*w, "bitrate", f.bitrate);
+	json_kint(*w, "user_limit", f.user_limit);
 	json_kbool(*w, "nsfw", f.nsfw);
-	json_kint(*w, "flags", cast(s64)(f.flags));
-	json_kint(*w, "rate_limit_per_user", cast(s64)(f.rate_limit_per_user));
+	json_kint(*w, "flags", xx f.flags);
+	json_kint(*w, "rate_limit_per_user", f.rate_limit_per_user);
 	json_obj_end(*w);
 	return json_string(*w);
 }
@@ -542,85 +518,81 @@ edit_channel :: (c: *Client, channel_id: Snowflake, f: Channel_Form) {
 delete_channel :: (c: *Client, channel_id: Snowflake) {
 	feature_submit(c, .Channel_Delete, "DELETE", channel_path(channel_id), channel_id = channel_id);
 }
-#scope_file
 
 // After a channel is created, saved or deleted the client refreshes the guild's
 // templates (their "unsynced" state): GET /guilds/{id}/templates (MANAGE_GUILD only).
 refresh_templates :: (c: *Client, guild_id: Snowflake) {
-	if guild_id == 0 || (guild_permissions(*c.store, guild_id) & PERM_MANAGE_GUILD) == 0 { return; }
-	feature_submit(c, .Guild_Aux, "GET", fmt.tprintf("/guilds/%d/templates", cast(u64)(guild_id)), channel_id = guild_id);
+	if !guild_id || (guild_permissions(*c.store, guild_id) & PERM_MANAGE_GUILD) == 0 return;
+	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/templates", guild_id), channel_id = guild_id);
 }
-#scope_export
 
 // ---- results and timers ----
 
 // guild_admin_apply: the library side of a finished events / channel request
 // (UI thread; the app calls it from its feature_take loop before its own handling).
 guild_admin_apply :: (c: *Client, r: *Feature_Result) {
+	locks.guard(*evt_mu);
 	if r.op == {
-	case .Event_Create;
-		if r.ok { event_created(c, r); }
-	case .Event_Counts;
-		if !r.ok { return; }
-		{ e := event_get(cast(Snowflake)(r.tag));
-		if !is_null(e) {
-			e.user_count = cast(int)(fint(vmap(r.body), "guild_scheduled_event_count"));
+		case .Event_Create;
+			if r.ok event_created(c, r);
+		case .Event_Counts;
+			e := event_get(r.tag);
+			if !r.ok || !e return;
+			e.user_count = fint(vmap(r.body), "guild_scheduled_event_count");
 			evt.epoch += 1;
-		} }
-	case .Event_Rsvps;
-		// [{"guild_scheduled_event_id","user_id","response"}] for the guild
-		if !r.ok || is_null(evt.list) { return; }
-		mine: Table(Snowflake, bool);
-		mine.allocator = temp;
-		for v: vlist(r.body) { table_set(*mine, fsnow(vmap(v), "guild_scheduled_event_id"), true); }
-		for * e, id: evt.list {
-			if e.guild_id != r.channel_id || e.interest_pending { continue; }
-			e.interested = table_contains(*mine, id);
-		}
-		evt.epoch += 1;
-	case .Event_Interest;
-		e := event_get(cast(Snowflake)(r.tag));
-		if is_null(e) { return; }
-		e.interest_pending = false;
-		if !r.ok {
-			e.interested = !e.interested;
-			if e.user_count >= 0 { e.user_count = max(0, e.user_count + (ifx e.interested then 1 else -1)); }
-		}
-		evt.epoch += 1;
-	case .Event_Delete;
-		if r.ok && !is_null(evt.list) { event_remove(cast(Snowflake)(r.tag)); }
-	case .Event_Start;
-		if r.ok && vhas(vmap(r.body), "id") { event_upsert(vmap(r.body)); }
-	case .Channel_Create;
-		if !r.ok { return; }
-		m := vmap(r.body);
-		props := fmt.tprintf("\"status_code\":%d,\"url\":\"/guilds/%d/channels\",\"request_method\":\"post\",\"is_private\":false,\"channel_id\":\"%d\",\"channel_type\":%d", r.status, cast(u64)(r.channel_id), cast(u64)(fsnow(m, "id")), r.tag);
-		analytics_track(c, "network_action_channel_create", props);
-		refresh_templates(c, r.channel_id);
-	case .Channel_Edit; #through; case .Channel_Delete;
-		if !r.ok { return; }
-		gid := fsnow(vmap(r.body), "guild_id");
-		if gid == 0 { { ch := channel_get(*c.store, r.channel_id);
-if ch != null { gid = ch.guild_id; } } }
-		refresh_templates(c, gid);
+		case .Event_Rsvps;
+			// [{"guild_scheduled_event_id","user_id","response"}] for the guild
+			if !r.ok || !evt.ready return;
+			mine: Table(Snowflake, bool);
+			mine.allocator = temp;
+			for vlist(r.body) table_set(*mine, fsnow(vmap(it), "guild_scheduled_event_id"), true);
+			for * e, id: evt.list if e.guild_id == r.channel_id && !e.interest_pending e.interested = table_contains(*mine, id);
+			evt.epoch += 1;
+		case .Event_Interest;
+			e := event_get(r.tag);
+			if !e return;
+			e.interest_pending = false;
+			if !r.ok {
+				e.interested = !e.interested;
+				if e.user_count >= 0 e.user_count = max(0, e.user_count + ifx e.interested then 1 else -1);
+			}
+			evt.epoch += 1;
+		case .Event_Delete;
+			if r.ok event_remove(r.tag);
+		case .Event_Start;
+			if r.ok && vhas(vmap(r.body), "id") event_upsert(vmap(r.body));
+		case .Channel_Create;
+			if !r.ok return;
+			analytics_track(c, "network_action_channel_create", tprint("\"status_code\":%,\"url\":\"/guilds/%/channels\",\"request_method\":\"post\",\"is_private\":false,\"channel_id\":\"%\",\"channel_type\":%", r.status, r.channel_id, fsnow(vmap(r.body), "id"), r.tag));
+			refresh_templates(c, r.channel_id);
+		case .Channel_Edit; #through;
+		case .Channel_Delete;
+			if !r.ok return;
+			gid := fsnow(vmap(r.body), "guild_id");
+			if !gid {
+				ch := channel_get(*c.store, r.channel_id);
+				if ch gid = ch.guild_id;
+			}
+			refresh_templates(c, gid);
 	}
 }
 
 // guild_admin_tick: due new-event acks, POST /guilds/{gid}/ack/1/{eid} {} (from client_poll).
 guild_admin_tick :: (c: *Client, now: s64) {
-	if len(evt.acks) == 0 { return; }
-	{ i := 0;
-	while i < len(evt.acks) {
+	locks.guard(*evt_mu);
+	i := 0;
+	while i < evt.acks.count {
 		a := evt.acks[i];
 		if a.client != c || now < a.at {
 			i += 1;
 			continue;
 		}
-		ordered_remove(*evt.acks, i);
-		if event_get(a.event_id) == null { continue; } // cancelled meanwhile
-		feature_submit(c, .Guild_Aux, "POST", fmt.tprintf("/guilds/%d/ack/1/%d", cast(u64)(a.guild_id), cast(u64)(a.event_id)), "{}", channel_id = a.guild_id);
-	} }
+		array_ordered_remove_by_index(*evt.acks, i);
+		if !event_get(a.event_id) continue; // cancelled meanwhile
+		feature_submit(c, .Guild_Aux, "POST", tprint("/guilds/%/ack/1/%", a.guild_id, a.event_id), "{}", channel_id = a.guild_id);
+	}
 }
+
 // ---- custom emoji ----
 
 EMOJI_MAX_BYTES :: 256 * 1024;
@@ -629,99 +601,72 @@ EMOJI_MAX_BYTES :: 256 * 1024;
 // other than A-Z a-z 0-9 _ become "_"; 2..32 characters ("emoji" when shorter).
 emoji_name_from_filename :: (path: string, allocator := temp) -> string {
 	base := path;
-	{ i := strings.last_index_any(base, "/\\");
-	if i >= 0 { base = sub_from(base, i + 1); } }
-	{ i := strings.last_index_byte(base, #char ".");
-	if i > 0 { base = sub(base, 0, i); } }
-	sb := strings.builder_make(allocator);
-	n := 0;
-	for r: base {
-		if n >= 32 { break; }
-		ok := (r >= #char "a" && r <= #char "z") || (r >= #char "A" && r <= #char "Z") || (r >= #char "0" && r <= #char "9") || r == #char "_";
-		strings.write_byte(*sb, ifx ok then cast(u8)(r) else #char "_");
-		n += 1;
+	slash := find_index_of_any_from_right(base, "/\\");
+	if slash >= 0 base = advance(base, slash + 1);
+	dot := find_index_from_right(base, #char ".");
+	if dot > 0 base.count = dot;
+	out: [..]u8;
+	out.allocator = allocator;
+	i := 0;
+	while i < base.count && out.count < 32 {
+		_, size := character_utf8_to_utf32(base.data + i, base.count - i);
+		c := base[i];
+		array_add(*out, ifx size == 1 && is_alnum(c) then c else #char "_");
+		i += size;
 	}
-	if n < 2 {
-		strings.builder_destroy(*sb);
-		return clone("emoji", allocator);
+	if out.count < 2 {
+		array_free(out);
+		return copy_string("emoji",, allocator);
 	}
-	return strings.to_string(sb);
+	return cast(string) out;
 }
-#scope_file
 
 image_mime :: (path: string) -> string {
-	lower := strings.to_lower(path, temp);
-	if strings.has_suffix(lower, ".png") {
-		return "image/png";
-	} else if (strings.has_suffix(lower, ".jpg")) || (strings.has_suffix(lower, ".jpeg")) {
-		return "image/jpeg";
-	} else if strings.has_suffix(lower, ".gif") {
-		return "image/gif";
-	} else if strings.has_suffix(lower, ".webp") {
-		return "image/webp";
-	} else if strings.has_suffix(lower, ".avif") {
-		return "image/avif";
-	}
+	lower := to_lower_copy(path,, temp);
+	if ends_with(lower, ".png") return "image/png";
+	if ends_with(lower, ".jpg") || ends_with(lower, ".jpeg") return "image/jpeg";
+	if ends_with(lower, ".gif") return "image/gif";
+	if ends_with(lower, ".webp") return "image/webp";
+	if ends_with(lower, ".avif") return "image/avif";
 	return "";
 }
-#scope_export
 
 // file_job_body (feature worker thread): reads the image at path and builds
-// {"image":"data:<mime>;base64,..","name":<name>} plus X-Discord-Original-MD5.
+// {"image":"data:<mime>;base64,..","name":<name>} plus X-Discord-Original-MD5, all in temp.
 // status: 0 ok, -1 unreadable / not an image, -2 over EMOJI_MAX_BYTES.
 file_job_body :: (path: string, name: string) -> string, []http.Header, int {
-	body: string;
-	extra: []http.Header;
-	status: int;
 	mime := image_mime(path);
-	if mime == "" { return "", .{}, -1; }
-	data, err := os.read_entire_file(path, temp);
-	if err != null || len(data) == 0 { return "", .{}, -1; }
-	if len(data) > EMOJI_MAX_BYTES { return "", .{}, -2; }
-	ctx: md5.Context;
-	md5.init(*ctx);
-	md5.update(*ctx, data);
-	digest: [md5.DIGEST_SIZE]u8;
-	md5.final(*ctx, view(digest));
-	HEX := "0123456789abcdef";
-	hex := make_slice(u8, 32, temp);
-	for b, i: digest {
-		hex[i * 2] = HEX[b >> 4];
-		hex[i * 2 + 1] = HEX[b & 15];
-	}
+	if !mime return "", .[], -1;
+	data, ok := read_entire_file(path, log_errors = false,, temp);
+	if !ok || !data return "", .[], -1;
+	if data.count > EMOJI_MAX_BYTES return "", .[], -2;
+	digest := crypto.md5(cast([]u8) data);
+	sb: String_Builder;
+	sb.allocator = temp;
+	for digest print_to_builder(*sb, "%", formatInt(it, base = 16, minimum_digits = 2));
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
-	json_kstr(*w, "image", strings.concatenate(string.["data:", mime, ";base64,", base64.encode(data, allocator = temp)], temp));
+	json_kstr(*w, "image", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
 	json_kstr(*w, "name", name);
 	json_obj_end(*w);
-	ex := make_slice(http.Header, 1, temp);
-	ex[0] = .{"x-discord-original-md5", as_string(hex)};
-	return json_string(*w), ex, 0;
+	extra := NewArray(1, http.Header,, temp);
+	extra[0] = .{"x-discord-original-md5", builder_to_string(*sb,, temp)};
+	return json_string(*w), extra, 0;
 }
 
 // upload_guild_emoji: POST /guilds/{id}/emojis from an image file (read off the UI thread).
 upload_guild_emoji :: (c: *Client, guild_id: Snowflake, path: string, name: string) {
-	path_api := strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/emojis"], temp);
-	ctx := context_b64("{\"client_event_source\":\"Emoji Studio\"}");
-	feature_submit(c, .Emoji_Upload, "POST", path_api, name, channel_id = guild_id, retries = 0, context_b64 = ctx, file = path);
+	feature_submit(c, .Emoji_Upload, "POST", tprint("/guilds/%/emojis", guild_id), name, channel_id = guild_id, context_b64 = context_b64("{\"client_event_source\":\"Emoji Studio\"}"), file = path);
 }
 
 // api_error_message: the "message" of a Discord error body (first field error when present).
 api_error_message :: (body: V) -> string {
-	m := vmap(body);
-	if is_null(m) { return ""; }
 	// {"code":50035,"errors":{"name":{"_errors":[{"code":..,"message":..}]}},"message":"Invalid Form Body"}
-	{ errs := fmap(m, "errors");
-	if !is_null(errs) {
-		for kv: errs {
-			fm := vmap(kv.value);
-			for ev: flist(fm, "_errors") {
-				{ msg := fstr(vmap(ev), "message");
-				if msg != "" { return msg; } }
-			}
-		}
-	} }
+	m := vmap(body);
+	for kv: fmap(m, "errors") for ev: flist(vmap(kv.value), "_errors") {
+		msg := fstr(vmap(ev), "message");
+		if msg return msg;
+	}
 	return fstr(m, "message");
 }
-

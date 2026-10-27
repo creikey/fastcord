@@ -13,6 +13,7 @@
 #import "Sort";
 inflate :: #import "inflate";
 #import "System";
+#import "Unicode";
 #import "fc";
 altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";
