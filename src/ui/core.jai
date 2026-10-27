@@ -1044,6 +1044,12 @@ layout_standalone :: (b: *Box, axis: Axis) {
 			if axis == .X || !(b.flags & .Wrap_Text) {
 				tl := text_layout_for(b, -1);
 				b.fixed_size.component[axis] = (ifx axis == .X then tl.width else tl.height) + sz.value * 2 + b.style.padding.component[axis] * 2;
+			} else {
+				// widths are solved by now: measure wrapped text before the Y passes, so
+				// parents summing their children see a line added this frame, not last frame's
+				// height (a growing composer overlapped the list for a frame)
+				tl := text_layout_for(b, b.fixed_size.x - b.style.padding.x * 2);
+				b.fixed_size.y = tl.height + b.style.padding.y * 2 + sz.value * 2;
 			}
 	}
 	for c: each_child(b) layout_standalone(c, axis);

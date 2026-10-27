@@ -94,7 +94,6 @@ chat_view :: (channel_id: dc.Snowflake) {
 	col.layout_axis = .Y;
 	{ ui.parent(col); defer ui.pop_parent();
 		message_list(channel_id, cs);
-		typing_line(channel_id);
 		composer(ch, cs);
 	}
 }
@@ -478,7 +477,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 
 	// total height from measured rows (estimates for unmeasured)
 	TOP_PAD :: 16;
-	BOTTOM_PAD :: 8;
+	BOTTOM_PAD :: 8 + TYPING_H; // the typing line overlays the list's bottom, as in the client
 	total: float32 = TOP_PAD + BOTTOM_PAD;
 	// the start of a 1:1 DM's history carries the welcome header (avatar, names, friend actions);
 	// a guild text channel's carries "Welcome to #channel!"
@@ -601,6 +600,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 			}
 		}
 		ui.scrollbar(list, .Auto, *cs.scroll_from_bottom, *cs.scroll_target, total, from_end = true);
+		typing_line(channel_id);
 		new_messages_bar(channel_id, msgs, lw);
 	}
 }
@@ -1039,10 +1039,13 @@ reactions_view :: (m: *dc.Message) {
 	spacer(.Y, 2);
 }
 
+TYPING_H :: 24;
+
+// "Name is typing..." over the bottom of the message list (messages scroll under it).
 typing_line :: (channel_id: dc.Snowflake) {
 	s := store();
-	t := row("typing");
-	t.semantic_size = .[ui.pct(1), ui.px(24)];
+	t := row("typing", .Floating_X | .Floating_Y | .Anchor_End_Y);
+	t.semantic_size = .[ui.pct(1), ui.px(TYPING_H)];
 	typers := dc.typing_users(s, channel_id);
 	if !typers return;
 	ui.parent(t); defer ui.pop_parent();
