@@ -22,7 +22,7 @@ Doc :: struct {
 }
 
 xml_parse :: (src: string, doc: *Doc, allocator := context.allocator) -> bool {
-	context.allocator = allocator;
+	push_allocator(allocator);
 	doc.nodes = make_dynamic(Node, 0, 0);
 	doc.ids = Map(string, s32).{};
 	append(*doc.nodes, Node.{parent = -1, first_child = -1, last_child = -1, next = -1});

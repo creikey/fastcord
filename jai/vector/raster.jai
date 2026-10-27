@@ -5,7 +5,7 @@ TOLERANCE :: cast(float32)(0.01);
 // coverage bitmap (row-major, 0 = empty, 255 = full). The view box is fit with
 // xMidYMid meet.
 rasterize :: (icon: *Icon, width_px: int, height_px: int, allocator := context.allocator) -> []u8 {
-	return rasterize_layers(icon, width_px, height_px, .{.Primary}, allocator);
+	return rasterize_layers(icon, width_px, height_px, .Primary, allocator);
 }
 
 // rasterize_layers is rasterize with an explicit layer set ({.Primary, .Secondary}
@@ -47,7 +47,7 @@ rasterize_rgba :: (icon: *Icon, w: int, h: int, current_color := u8.[0, 0, 0, 25
 // canvas of w*h*4 floats (0..1), using the view-box fit of view_transform.
 rasterize_premul :: (icon: *Icon, w: int, h: int, canvas: []float32, current_color := u8.[0, 0, 0, 255]) {
 	arena: virtual.Arena;
-	if virtual.arena_init_growing(*arena) != null { return; }
+	if virtual.arena_init_growing(*arena) != .None { return; }
 	defer virtual.arena_destroy(*arena);
 	r := Raster.{
 		w = w,
@@ -56,22 +56,22 @@ rasterize_premul :: (icon: *Icon, w: int, h: int, canvas: []float32, current_col
 	};
 	r.stride = w + 2;
 	r.acc = make_slice(float32, r.stride * h, r.arena);
-	r.pts = make_dynamic([2]float32, 0, 0, r.arena);
+	r.pts = make_dynamic(Vector2, 0, 0, r.arena);
 	r.polys = make_dynamic(Poly, 0, 0, r.arena);
 	view := view_transform(icon, w, h);
-	cc := float32.[cast(float32)(current_color[0]) / 255, cast(float32)(current_color[1]) / 255, cast(float32)(current_color[2]) / 255, cast(float32)(current_color[3]) / 255];
+	cc := Vector4.{cast(float32)(current_color[0]) / 255, cast(float32)(current_color[1]) / 255, cast(float32)(current_color[2]) / 255, cast(float32)(current_color[3]) / 255};
 	for * op: icon.ops {
 		if op.group >= 0 { continue; }
-		cov := op_coverage(*r, icon, *op, view);
+		cov := op_coverage(*r, icon, op, view);
 		if op.gradient >= 0 {
 			if op.grad_fold <= 0 { continue; }
 			inv := 1 / op.grad_fold;
-			for * v: cov { v *= inv; }
+			for * v: cov { v.* *= inv; }
 			g := *icon.gradients[op.gradient];
 			m := mat_mul(view, op.ctm);
 			if g.bbox_units {
 				b := op.bbox;
-				m = mat_mul(m, .{b[2] - b[0], 0, 0, b[3] - b[1], b[0], b[1]});
+				m = mat_mul(m, .[b[2] - b[0], 0, 0, b[3] - b[1], b[0], b[1]]);
 			}
 			gradient_fill_premul(g, mat_mul(m, g.transform), cov, canvas, w, h);
 		} else if op.current_color {
@@ -82,7 +82,7 @@ rasterize_premul :: (icon: *Icon, w: int, h: int, canvas: []float32, current_col
 		}
 		virtual.arena_free_all(*arena);
 		r.acc = make_slice(float32, r.stride * h, r.arena);
-		r.pts = make_dynamic([2]float32, 0, 0, r.arena);
+		r.pts = make_dynamic(Vector2, 0, 0, r.arena);
 		r.polys = make_dynamic(Poly, 0, 0, r.arena);
 	}
 }
@@ -91,7 +91,7 @@ rasterize_premul :: (icon: *Icon, w: int, h: int, canvas: []float32, current_col
 rasterize_f32 :: (icon: *Icon, w: int, h: int, layers: Layers) -> []float32 {
 	dst := make_slice(float32, w * h);
 	arena: virtual.Arena;
-	if virtual.arena_init_growing(*arena) != null { return dst; }
+	if virtual.arena_init_growing(*arena) != .None { return dst; }
 	defer virtual.arena_destroy(*arena);
 	r := Raster.{
 		w = w,
@@ -100,12 +100,12 @@ rasterize_f32 :: (icon: *Icon, w: int, h: int, layers: Layers) -> []float32 {
 	};
 	r.stride = w + 2;
 	r.acc = make_slice(float32, r.stride * h, r.arena);
-	r.pts = make_dynamic([2]float32, 0, 0, r.arena);
+	r.pts = make_dynamic(Vector2, 0, 0, r.arena);
 	r.polys = make_dynamic(Poly, 0, 0, r.arena);
 	view := view_transform(icon, w, h);
 	for * op: icon.ops {
 		if op.group >= 0 || !has(layers, op.layer) { continue; }
-		c := op_coverage(*r, icon, *op, view);
+		c := op_coverage(*r, icon, op, view);
 		for v, i: c { dst[i] += v * (1 - dst[i]); }
 	}
 	return dst;
@@ -120,7 +120,7 @@ Poly :: struct {
 Raster :: struct {
 	w, h, stride: int;
 	acc: []float32; // h rows of stride cells
-	pts: [..][2]float32;
+	pts: [..]Vector2;
 	polys: [..]Poly;
 	arena: Allocator;
 }
@@ -144,7 +144,7 @@ op_coverage :: (r: *Raster, icon: *Icon, op: *Op, g: Mat) -> []float32 {
 	}
 	cov := make_slice(float32, r.w * r.h, r.arena);
 	integrate(r, cov, rule);
-	if op.alpha != 1 { for * v: cov { v *= op.alpha; } }
+	if op.alpha != 1 { for * v: cov { v.* *= op.alpha; } }
 	if op.mask >= 0 { multiply_group(r, icon, cov, op.mask, mat_mul(g, op.ctm), op.bbox); }
 	if op.clip >= 0 { multiply_group(r, icon, cov, op.clip, mat_mul(g, op.ctm), op.bbox); }
 	// ancestor group clip/mask (bbox units use the element's bbox: an approximation)
@@ -154,16 +154,16 @@ op_coverage :: (r: *Raster, icon: *Icon, op: *Op, g: Mat) -> []float32 {
 }
 
 // multiply_group renders a mask (luminance) or clip (union coverage) and multiplies it into cov.
-multiply_group :: (r: *Raster, icon: *Icon, cov: []float32, gi: s32, t: Mat, bbox: [4]float32) {
+multiply_group :: (r: *Raster, icon: *Icon, cov: []float32, gi: s32, t: Mat, bbox: Vector4) {
 	grp := get(icon.groups, gi);
 	bw := bbox[2] - bbox[0];
 	bh := bbox[3] - bbox[1];
 	content := t;
-	if grp.content_bbox_units { content = mat_mul(t, .{bw, 0, 0, bh, bbox[0], bbox[1]}); }
+	if grp.content_bbox_units { content = mat_mul(t, .[bw, 0, 0, bh, bbox[0], bbox[1]]); }
 	buf := make_slice(float32, r.w * r.h, r.arena);
 	for * op: icon.ops {
 		if op.group != gi { continue; }
-		c := op_coverage(r, icon, *op, content);
+		c := op_coverage(r, icon, op, content);
 		if grp.kind == .Mask {
 			for v, i: c { buf[i] = buf[i] * (1 - v) + op.luminance * v; }
 		} else {
@@ -173,14 +173,14 @@ multiply_group :: (r: *Raster, icon: *Icon, cov: []float32, gi: s32, t: Mat, bbo
 	if grp.kind == .Mask {
 		reg := grp.region;
 		if grp.region_bbox_units { reg = .{bbox[0] + reg[0] * bw, bbox[1] + reg[1] * bh, reg[2] * bw, reg[3] * bh}; }
-		corners := [2]float32.[.[reg[0], reg[1]], .[reg[0] + reg[2], reg[1]], .[reg[0] + reg[2], reg[1] + reg[3]], .[reg[0], reg[1] + reg[3]]];
-		for * c: corners { c = mat_apply(t, c); }
+		corners := Vector2.[.{reg[0], reg[1]}, .{reg[0] + reg[2], reg[1]}, .{reg[0] + reg[2], reg[1] + reg[3]}, .{reg[0], reg[1] + reg[3]}];
+		for * c: corners { c.* = mat_apply(t, c.*); }
 		for i: 0..3 { acc_line(r, corners[i], corners[(i + 1) % 4]); }
 		rc := make_slice(float32, r.w * r.h, r.arena);
 		integrate(r, rc, .Nonzero);
-		for * v, i: buf { v *= rc[i]; }
+		for * v, i: buf { v.* *= rc[i]; }
 	}
-	for * v, i: cov { v *= buf[i]; }
+	for * v, i: cov { v.* *= buf[i]; }
 }
 
 // flatten converts the op's path (transformed by g) into polylines in r.pts / r.polys.
@@ -189,12 +189,12 @@ flatten :: (r: *Raster, icon: *Icon, op: *Op, g: Mat) {
 	flatten_path(r, verbs, sub_from(icon.points, op.first_point), g);
 }
 
-flatten_path :: (r: *Raster, verbs: []Verb, points: [][2]float32, g: Mat) {
+flatten_path :: (r: *Raster, verbs: []Verb, points: []Vector2, g: Mat) {
 	clear(*r.pts);
 	clear(*r.polys);
 	pi := 0;
 	start := -1;
-	cur: [2]float32;
+	cur: Vector2;
 	finish :: (r: *Raster, start: int, closed: bool) {
 		if start < 0 { return; }
 		n := len(r.pts) - start;
@@ -268,14 +268,14 @@ flatten_path :: (r: *Raster, verbs: []Verb, points: [][2]float32, g: Mat) {
 // Path is a standalone path: verbs and their points (Move/Line 1, Quad 2, Cubic 3, Close 0).
 Path :: struct {
 	verbs: [..]Verb;
-	points: [..][2]float32;
+	points: [..]Vector2;
 }
 
 path_clear :: (p: *Path) {clear(*p.verbs); clear(*p.points);}
 path_destroy :: (p: *Path) {delete(p.verbs); delete(p.points);}
-path_move :: (p: *Path, a: [2]float32) {append(*p.verbs, Verb.Move); append(*p.points, a);}
-path_line :: (p: *Path, a: [2]float32) {append(*p.verbs, Verb.Line); append(*p.points, a);}
-path_cubic :: (p: *Path, c1: [2]float32, c2: [2]float32, a: [2]float32) {append(*p.verbs, Verb.Cubic); append(*p.points, c1, c2, a);}
+path_move :: (p: *Path, a: Vector2) {append(*p.verbs, Verb.Move); append(*p.points, a);}
+path_line :: (p: *Path, a: Vector2) {append(*p.verbs, Verb.Line); append(*p.points, a);}
+path_cubic :: (p: *Path, c1: Vector2, c2: Vector2, a: Vector2) {append(*p.verbs, Verb.Cubic); append(*p.points, c1, c2, a);}
 path_close :: (p: *Path) {append(*p.verbs, Verb.Close);}
 
 Stroke :: struct {
@@ -293,7 +293,7 @@ Rasterizer :: struct {
 }
 
 rasterizer_init :: (rz: *Rasterizer, w: int, h: int) -> bool {
-	if virtual.arena_init_growing(*rz.arena) != null { return false; }
+	if virtual.arena_init_growing(*rz.arena) != .None { return false; }
 	rz.r = Raster.{
 		w = w,
 		h = h,
@@ -307,7 +307,7 @@ rasterizer_init :: (rz: *Rasterizer, w: int, h: int) -> bool {
 rasterizer_reset :: (rz: *Rasterizer) {
 	virtual.arena_free_all(*rz.arena);
 	rz.r.acc = make_slice(float32, rz.r.stride * rz.r.h, rz.r.arena);
-	rz.r.pts = make_dynamic([2]float32, 0, 0, rz.r.arena);
+	rz.r.pts = make_dynamic(Vector2, 0, 0, rz.r.arena);
 	rz.r.polys = make_dynamic(Poly, 0, 0, rz.r.arena);
 }
 
@@ -322,7 +322,7 @@ rasterizer_buffer :: (rz: *Rasterizer, n := 1) -> []float32 {
 }
 
 // fill_coverage returns w*h coverage (0..1) of the path under transform m.
-fill_coverage :: (rz: *Rasterizer, verbs: []Verb, points: [][2]float32, m: Mat, rule: Fill_Rule) -> []float32 {
+fill_coverage :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, rule: Fill_Rule) -> []float32 {
 	r := *rz.r;
 	flatten_path(r, verbs, points, m);
 	for pl: r.polys {
@@ -335,7 +335,7 @@ fill_coverage :: (rz: *Rasterizer, verbs: []Verb, points: [][2]float32, m: Mat, 
 }
 
 // stroke_coverage returns w*h coverage of the path stroked under transform m.
-stroke_coverage :: (rz: *Rasterizer, verbs: []Verb, points: [][2]float32, m: Mat, s: Stroke) -> []float32 {
+stroke_coverage :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, s: Stroke) -> []float32 {
 	r := *rz.r;
 	flatten_path(r, verbs, points, m);
 	scale := math.sqrt(abs(get(m, 0) * get(m, 3) - get(m, 1) * get(m, 2)));
@@ -350,31 +350,31 @@ stroke_coverage :: (rz: *Rasterizer, verbs: []Verb, points: [][2]float32, m: Mat
 
 // ---- stroking ----
 
-emit_circle :: (r: *Raster, c: [2]float32, radius: float32) {
+emit_circle :: (r: *Raster, c: Vector2, radius: float32) {
 	if radius <= 0 { return; }
 	n := 8;
 	if radius > TOLERANCE {
-		n = max(8, cast(int)(math.ceil(math.PI / math.acos(1 - TOLERANCE / radius))));
+		n = max(8, cast(int)(math.ceil(PI32 / math.acos(1 - TOLERANCE / radius))));
 	}
 	n = min(n, 512);
 	// Polygon with vertices slightly outside so its area matches the circle's.
-	rr := radius * math.sqrt(2 * math.PI / (cast(float32)(n) * math.sin(2 * math.PI / cast(float32)(n))));
+	rr := radius * math.sqrt(2 * PI32 / (cast(float32)(n) * math.sin(2 * PI32 / cast(float32)(n))));
 	prev := c + .{rr, 0};
 	for i: 1..n {
-		a := 2 * math.PI * cast(float32)(i) / cast(float32)(n);
-		p := c + rr * float32.[math.cos(a), math.sin(a)];
+		a := 2 * PI32 * cast(float32)(i) / cast(float32)(n);
+		p := c + rr * Vector2.{math.cos(a), math.sin(a)};
 		acc_line(r, prev, p);
 		prev = p;
 	}
 }
 
 // emit_loop accumulates a closed polygon as-is (orientation matters).
-emit_loop :: (r: *Raster, pts: [][2]float32) {
+emit_loop :: (r: *Raster, pts: []Vector2) {
 	for i: 0..len(pts)-1 { acc_line(r, pts[i], pts[(i + 1) % len(pts)]); }
 }
 
 // arc_points appends points on a circle from angle a0 sweeping `sweep`, endpoints excluded.
-arc_points :: (out: *[..][2]float32, c: [2]float32, radius: float32, a0: float32, sweep: float32) {
+arc_points :: (out: *[..]Vector2, c: Vector2, radius: float32, a0: float32, sweep: float32) {
 	n := 1;
 	if radius > TOLERANCE {
 		step := 2 * math.acos(1 - TOLERANCE / radius);
@@ -383,30 +383,30 @@ arc_points :: (out: *[..][2]float32, c: [2]float32, radius: float32, a0: float32
 	n = min(n, 256);
 	for i: 1..n-1 {
 		a := a0 + sweep * cast(float32)(i) / cast(float32)(n);
-		append(out, c + radius * float32.[math.cos(a), math.sin(a)]);
+		append(out, c + radius * Vector2.{math.cos(a), math.sin(a)});
 	}
 }
 
-angle_of :: inline (v: [2]float32) -> float32 {
+angle_of :: inline (v: Vector2) -> float32 {
 	return math.atan2(v.y, v.x);
 };
 
 // offset_side appends the left offset (normal (-dy, dx)) of a polyline walked
 // forward, with joins. Outer joins get join geometry; inner joins pivot through
 // the vertex (the overlap stays inside the stroke, so nonzero fill is exact).
-offset_side :: (out: *[..][2]float32, pts: [][2]float32, closed: bool, hw: float32, join: Line_Join, miter_limit: float32) {
+offset_side :: (out: *[..]Vector2, pts: []Vector2, closed: bool, hw: float32, join: Line_Join, miter_limit: float32) {
 	n := len(pts);
 	nseg := ifx closed then n else n - 1;
 	for i: 0..nseg-1 {
 		a := pts[i];
 		b := pts[(i + 1) % n];
 		d := seg_dir(a, b);
-		nc := float32.[-d.y, d.x] * hw;
+		nc := Vector2.{-d.y, d.x} * hw;
 		if i == 0 && !closed {
 			append(out, a + nc);
 		} else {
 			dp := seg_dir(pts[(i - 1 + n) % n], a);
-			np := float32.[-dp.y, dp.x] * hw;
+			np := Vector2.{-dp.y, dp.x} * hw;
 			cross := dp.x * d.y - dp.y * d.x;
 			dot := dp.x * d.x + dp.y * d.y;
 			if abs(cross) < 1.0e-6 && dot > 0 {
@@ -448,16 +448,16 @@ offset_side :: (out: *[..][2]float32, pts: [][2]float32, closed: bool, hw: float
 	}
 }
 
-seg_dir :: (a: [2]float32, b: [2]float32) -> [2]float32 {
+seg_dir :: (a: Vector2, b: Vector2) -> Vector2 {
 	d := b - a;
 	return d / math.sqrt(d.x * d.x + d.y * d.y);
 }
 
 // stroke_poly fills the stroke outline of one polyline (pixel space, half width hw).
-stroke_poly :: (r: *Raster, src: [][2]float32, closed_in: bool, hw: float32, cap: Line_Cap, join: Line_Join, miter_limit: float32) {
+stroke_poly :: (r: *Raster, src: []Vector2, closed_in: bool, hw: float32, cap: Line_Cap, join: Line_Join, miter_limit: float32) {
 	if hw <= 0 || len(src) == 0 { return; }
 	// Drop repeated points.
-	pts := make_dynamic([2]float32, 0, len(src), r.arena);
+	pts := make_dynamic(Vector2, 0, len(src), r.arena);
 	for p: src {
 		if len(pts) > 0 {
 			d := p - pts[len(pts) - 1];
@@ -477,16 +477,16 @@ stroke_poly :: (r: *Raster, src: [][2]float32, closed_in: bool, hw: float32, cap
 		case .Round;
 			emit_circle(r, p, hw);
 		case .Square;
-			q := [2]float32.[p + .{-hw, -hw}, p + .{hw, -hw}, p + .{hw, hw}, p + .{-hw, hw}];
+			q := Vector2.[p + .{-hw, -hw}, p + .{hw, -hw}, p + .{hw, hw}, p + .{-hw, hw}];
 			emit_loop(r, view(q));
 		case .Butt;
 		}
 		return;
 	}
 	if n == 2 { closed = false; }
-	rev := make_slice([2]float32, n, r.arena);
+	rev := make_slice(Vector2, n, r.arena);
 	for p, i: pts { rev[n - 1 - i] = p; }
-	out := make_dynamic([2]float32, 0, 0, r.arena);
+	out := make_dynamic(Vector2, 0, 0, r.arena);
 	if closed {
 		offset_side(*out, view(pts), true, hw, join, miter_limit);
 		emit_loop(r, view(out));
@@ -506,12 +506,12 @@ stroke_poly :: (r: *Raster, src: [][2]float32, closed_in: bool, hw: float32, cap
 	offset_side(*out, view(pts), false, hw, join, miter_limit);
 	if cap == .Round {
 		de := seg_dir(pts[n - 2], pts[n - 1]);
-		arc_points(*out, pts[n - 1], hw, angle_of(.{-de.y, de.x}), -math.PI);
+		arc_points(*out, pts[n - 1], hw, angle_of(.{-de.y, de.x}), -PI32);
 	}
 	offset_side(*out, rev, false, hw, join, miter_limit);
 	if cap == .Round {
 		ds := seg_dir(pts[0], pts[1]);
-		arc_points(*out, pts[0], hw, angle_of(.{ds.y, -ds.x}), -math.PI);
+		arc_points(*out, pts[0], hw, angle_of(.{ds.y, -ds.x}), -PI32);
 	}
 	emit_loop(r, view(out));
 }
@@ -520,7 +520,7 @@ stroke_poly :: (r: *Raster, src: [][2]float32, closed_in: bool, hw: float32, cap
 
 // acc_line adds the signed area/cover of a line (pixel coords) to r.acc.
 // Parts left of x=0 are folded onto x=0; parts right of x=w are dropped.
-acc_line :: (r: *Raster, p0: [2]float32, p1: [2]float32) {
+acc_line :: (r: *Raster, p0: Vector2, p1: Vector2) {
 	a := p0;
 	b := p1;
 	if a.y == b.y { return; }
@@ -529,14 +529,14 @@ acc_line :: (r: *Raster, p0: [2]float32, p1: [2]float32) {
 	if (a.y <= 0 && b.y <= 0) || (a.y >= h && b.y >= h) { return; }
 	if a.x >= w && b.x >= w { return; }
 	// Clip y to [0, h].
-	clip_y :: (a: [2]float32, b: [2]float32, y: float32) -> [2]float32 {
+	clip_y :: (a: Vector2, b: Vector2, y: float32) -> Vector2 {
 		t := (y - a.y) / (b.y - a.y);
-		return .[a.x + (b.x - a.x) * t, y];
+		return .{a.x + (b.x - a.x) * t, y};
 	}
 	if a.y < 0 { a = clip_y(a, b, 0); } else if a.y > h { a = clip_y(a, b, h); }
 	if b.y < 0 { b = clip_y(a, b, 0); } else if b.y > h { b = clip_y(a, b, h); }
 	// Split at x = 0 and x = w.
-	ts: [4]float32;
+	ts: Vector4;
 	nt := 0;
 	ts[nt] = 0;
 	nt += 1;
@@ -568,7 +568,7 @@ acc_line :: (r: *Raster, p0: [2]float32, p1: [2]float32) {
 }
 
 // acc_line_inside: font-rs style exact-area accumulation; 0 <= x <= w, 0 <= y <= h.
-acc_line_inside :: (r: *Raster, p0: [2]float32, p1: [2]float32) {
+acc_line_inside :: (r: *Raster, p0: Vector2, p1: Vector2) {
 	if p0.y == p1.y { return; }
 	dir: float32 = 1;
 	a := p0;
@@ -635,7 +635,7 @@ integrate :: (r: *Raster, cov: []float32, rule: Fill_Rule) {
 				at(*out, x).* = ifx v > 1 then 2 - v else v;
 			}
 		}
-		for * c: row { c = 0; }
+		for * c: row { c.* = 0; }
 	}
 }
 #scope_export

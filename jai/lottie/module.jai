@@ -9,5 +9,6 @@ mem :: #import "fc_mem";
 strconv :: #import "fc_strconv";
 vector :: #import "vector";
 virtual :: #import "fc_virtual";
+#load "local.jai";
 #load "load.jai";
 #load "render.jai";

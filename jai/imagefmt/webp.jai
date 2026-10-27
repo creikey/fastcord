@@ -53,7 +53,7 @@ bits_dims :: (b: Webp_Bits) -> int, int, bool, bool {
 	ok: bool;
 	if b.kind == "VP8L" { { __r1, __r2, __r3, __r4 := vp8l_dims(b.data); return __r1, __r2, __r3, __r4; } }
 	w, h, ok = vp8_dims(b.data);
-	return w, h, b.alph != null, ok;
+	return w, h, b.alph.count != 0, ok;
 }
 
 // Decodes one frame's bitstream (w*h) into dst, rows dst_stride bytes apart, by wrapping it in a
@@ -62,21 +62,21 @@ webp_decode_bits :: (c: *Decode_Ctx, b: Webp_Bits, w: int, h: int, dst: []u8, ds
 	put_chunk :: (out: *[..]u8, fourcc: string, data: []u8) {
 		n := len(data);
 		append(out, fourcc, );
-		append(out, cast(u8)(n), cast(u8)(n >> 8), cast(u8)(n >> 16), cast(u8)(n >> 24));
+		append(out, cast,trunc(u8)(n), cast,trunc(u8)(n >> 8), cast,trunc(u8)(n >> 16), cast,trunc(u8)(n >> 24));
 		append(out, ..data);
 		if n & 1 == 1 { append(out, 0); }
 	}
 	file := make_dynamic(u8, 0, len(b.data) + len(b.alph) + 64, c.allocator);
 	defer delete(file);
 	append(*file, "RIFF\x00\x00\x00\x00WEBP");
-	if b.alph != null {
-		x := u8.[0x10, 0, 0, 0, cast(u8)(w - 1), cast(u8)((w - 1) >> 8), cast(u8)((w - 1) >> 16), cast(u8)(h - 1), cast(u8)((h - 1) >> 8), cast(u8)((h - 1) >> 16)];
+	if b.alph.count != 0 {
+		x := u8.[0x10, 0, 0, 0, cast,trunc(u8)(w - 1), cast,trunc(u8)((w - 1) >> 8), cast,trunc(u8)((w - 1) >> 16), cast,trunc(u8)(h - 1), cast,trunc(u8)((h - 1) >> 8), cast,trunc(u8)((h - 1) >> 16)];
 		put_chunk(*file, "VP8X", view(x));
 		put_chunk(*file, "ALPH", b.alph);
 	}
 	put_chunk(*file, b.kind, b.data);
 	riff := len(file) - 8;
-	file[4], file[5], file[6], file[7] = cast(u8)(riff), cast(u8)(riff >> 8), cast(u8)(riff >> 16), cast(u8)(riff >> 24);
+	file[4], file[5], file[6], file[7] = cast,trunc(u8)(riff), cast,trunc(u8)(riff >> 8), cast,trunc(u8)(riff >> 16), cast,trunc(u8)(riff >> 24);
 	return wuffs_decode_into(c, view(file), .WebP, w, h, dst, dst_stride);
 }
 
@@ -111,7 +111,7 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 			copy(plain, "RIFF\x00\x00\x00\x00WEBP");
 			copy(sub_from(plain, 12), sub(data, start, p));
 			n := len(plain) - 8;
-			plain[4], plain[5], plain[6], plain[7] = cast(u8)(n), cast(u8)(n >> 8), cast(u8)(n >> 16), cast(u8)(n >> 24);
+			plain[4], plain[5], plain[6], plain[7] = cast,trunc(u8)(n), cast,trunc(u8)(n >> 8), cast,trunc(u8)(n >> 16), cast,trunc(u8)(n >> 24);
 			return wuffs_decode(c, plain, img, .WebP);
 		}
 	}
@@ -154,7 +154,7 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 				if s.fourcc == "VP8 " || s.fourcc == "VP8L" {
 					f.bits.kind = s.fourcc;
 					f.bits.data = s.data;
-					if s.fourcc == "VP8L" { f.bits.alph = null; }
+					if s.fourcc == "VP8L" { f.bits.alph = .{}; }
 					break;
 				}
 			}

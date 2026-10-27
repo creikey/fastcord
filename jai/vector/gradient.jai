@@ -6,7 +6,7 @@ Spread :: enum u8 {
 
 Gradient_Stop :: struct {
 	offset: float32;
-	color: [4]float32; // straight RGBA, 0..1 (stop-opacity folded into alpha)
+	color: Vector4; // straight RGBA, 0..1 (stop-opacity folded into alpha)
 }
 
 // Gradient is a linear (p0 -> p1) or two-point conical radial gradient
@@ -16,7 +16,7 @@ Gradient_Stop :: struct {
 Gradient :: struct {
 	radial: bool;
 	spread: Spread;
-	p0, p1: [2]float32; // linear: start, end. radial: center, focal point
+	p0, p1: Vector2; // linear: start, end. radial: center, focal point
 	r, fr: float32; // radial: radius, focal radius
 	transform: Mat;
 	stops: []Gradient_Stop; // sorted by offset
@@ -25,7 +25,7 @@ Gradient :: struct {
 
 mat_invert :: (m: Mat) -> Mat, bool {
 	det := get(m, 0) * get(m, 3) - get(m, 1) * get(m, 2);
-	if abs(det) < 1.0e-12 { return .[], false; }
+	if abs(det) < 1.0e-12 { return zero(Mat), false; }
 	id := 1 / det;
 	return .[
 		get(m, 3) * id,
@@ -39,7 +39,7 @@ mat_invert :: (m: Mat) -> Mat, bool {
 
 // gradient_t returns the gradient parameter at point q (gradient space) or
 // ok=false where a conical gradient is undefined (drawn transparent).
-gradient_t :: (g: *Gradient, q: [2]float32) -> float32, bool {
+gradient_t :: (g: *Gradient, q: Vector2) -> float32, bool {
 	t: float32;
 	ok: bool;
 	if !g.radial {
@@ -73,9 +73,9 @@ gradient_t :: (g: *Gradient, q: [2]float32) -> float32, bool {
 }
 
 // gradient_color evaluates straight RGBA (0..1) at parameter t.
-gradient_color :: (g: *Gradient, t_in: float32) -> [4]float32 {
+gradient_color :: (g: *Gradient, t_in: float32) -> Vector4 {
 	n := len(g.stops);
-	if n == 0 { return .[]; }
+	if n == 0 { return .{}; }
 	t := t_in;
 	if g.spread == {
 	case .Pad;
@@ -86,7 +86,7 @@ gradient_color :: (g: *Gradient, t_in: float32) -> [4]float32 {
 		t = abs(t);
 		k := math.floor(t);
 		t = t - k;
-		if cast(int)(k) & 1 == 1 { t = 1 - t; }
+		if (cast(int)(k)) & 1 == 1 { t = 1 - t; }
 	}
 	if t <= g.stops[0].offset { return g.stops[0].color; }
 	for i: 1..n-1 {
@@ -127,7 +127,7 @@ gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w
 }
 
 // solid_fill_premul composites `cov * color` (straight RGBA 0..1) into dst.
-solid_fill_premul :: (color: [4]float32, cov: []float32, dst: []float32) {
+solid_fill_premul :: (color: Vector4, cov: []float32, dst: []float32) {
 	for c, i: cov {
 		if c <= 0 { continue; }
 		a := color[3] * c;
