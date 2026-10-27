@@ -989,7 +989,7 @@ overlays :: () {
 	if sw.open { quick_switcher(); }
 	if ma.menu_msg != 0 { message_menu(); }
 	if edit_menu_state.open { edit_menu(); }
-	if ma.deleting != 0 { delete_modal(); }
+	if ma.confirming != 0 { confirm_modal(); }
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
 	if app.profile_user != 0 { profile_popout(); }

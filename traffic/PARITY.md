@@ -40,7 +40,9 @@ Run one (names are substrings):
 The tests cover these windows:
 
 - messages: send_message, typing, reply, edit_message, delete_message
-- reactions: add_reaction, remove_reaction, emoji_picker_reaction, add_custom_reaction
+- reactions: add_reaction, remove_reaction, emoji_picker_reaction, add_custom_reaction; prediction
+  and rollback without a fixture (`reaction_prediction`); Mark Unread and pin/unpin requests from
+  the bundle, no capture yet (`mark_unread_and_pins`, rules in CLIENT_RULES.md)
 - profiles: open_profile_popout, open_full_profile
 - status and settings: open_status_menu, set_idle, set_custom_status, theme_light
 - inbox: open_inbox, inbox_unreads_tab, inbox_mentions_tab, inbox_unreads_mark_read,

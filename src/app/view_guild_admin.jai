@@ -82,6 +82,14 @@ emoji_upload_busy :: () -> bool { return adm.emoji_busy; }
 
 guild_admin_modal_open :: () -> bool { return adm.modal != .None; }
 
+// A one-button "Okay" notice (also the message actions' failures: pins).
+show_notice :: (title: string, text: string) {
+	adm.modal = .Notice;
+	adm.notice_title = title;
+	free(adm.notice);
+	adm.notice = copy_string(text);
+}
+
 guild_admin_reset_for_test :: () {
 	ui.editor_destroy(*adm.name);
 	ui.editor_destroy(*adm.topic);
@@ -337,13 +345,6 @@ delete_open :: () {
 	adm.slow_open = false;
 	set_error("");
 	if app.client != null dc.open_delete_channel(app.client, adm.guild);
-}
-
-show_notice :: (title: string, text: string) {
-	adm.modal = .Notice;
-	adm.notice_title = title;
-	free(adm.notice);
-	adm.notice = copy_string(text);
 }
 
 result_error :: (r: *dc.Feature_Result) -> string {

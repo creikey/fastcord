@@ -127,6 +127,8 @@ Client :: struct {
 	subs: Subscriptions;
 	typing_local: Typing_Local;
 	pending_acks: [..]Pending_Ack;
+	reaction_reqs: [..]Reaction_Req; // predicted reactions awaiting their response (actions.jai)
+	reaction_seq: u64;
 	focused: bool;
 	// IdleStore: the last input time once the system has been idle 10 min, 0 = active. Written by the
 	// gateway control thread (atomic); idle_sent is the value the last op 3 reported (UI thread).
@@ -217,6 +219,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.results.allocator = c.allocator;
 	c.media_results.allocator = c.allocator;
 	c.pending_acks.allocator = c.allocator;
+	c.reaction_reqs.allocator = c.allocator;
 	c.members_requested.allocator = c.allocator;
 	c.started_guilds.allocator = c.allocator;
 	c.left_guilds.allocator = c.allocator;
@@ -286,6 +289,8 @@ client_destroy :: (c: *Client) {
 	for * c.media_results media_result_free(c, it);
 	array_free(c.media_results);
 	array_free(c.pending_acks);
+	for c.reaction_reqs { free(it.emoji.name); free(it.location); }
+	array_free(c.reaction_reqs);
 	deinit(*c.started_guilds);
 	deinit(*c.left_guilds);
 	deinit(*c.command_index_guilds);

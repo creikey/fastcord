@@ -566,6 +566,9 @@ client_apply_rest :: (c: *Client, e: *Event) {
 					}
 				}
 			}
+		case .Add_Reaction; #through;
+		case .Remove_Reaction;
+			reaction_result(c, r.*);
 		case .Edit_Message;
 			if r.ok upsert_message(s, vmap(e.data));
 		case .Delete_Message;
