@@ -1,0 +1,25 @@
+# ``` in the composer: Enter inside an unclosed block adds a newline instead of sending (the
+# client's rule), Tab on a code line indents by two spaces, Shift+Tab outdents, and markdown is
+# styled in place (check the PNG: code lines in the code font, js highlighted, markers dimmed).
+wait 5
+click 600 683
+type ```js
+key enter
+type const x = 1;
+key enter
+key tab
+type return x;
+expect_input "```js\nconst x = 1;\n  return x;"
+key tab shift
+expect_input "```js\nconst x = 1;\nreturn x;"
+key left cmd
+key tab
+key right cmd
+key enter
+type ```
+expect_input "```js\nconst x = 1;\n  return x;\n```"
+key enter shift
+type **bold** *it* __under__ ~~strike~~ `code` ||spoil|| https://discord.com
+key enter shift
+type > a quote
+wait 5

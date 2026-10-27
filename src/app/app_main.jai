@@ -837,8 +837,12 @@ fail :: (what: string, args: ..Any) {
 // Odin's strconv.parse_int: the leading digits ("12px" -> 12, "" -> 0).
 parse_int_prefix :: (s: string) -> int { v := string_to_int(s); return v; }
 
-// Script arguments after the command, joined by spaces (temp).
-join_args :: (f: []string) -> string { return join(..array_view(f, 1), separator = " ",, temp); }
+// Script arguments after the command as written, spacing kept (fields are slices of one line).
+join_args :: (f: []string) -> string {
+	if f.count < 2 return "";
+	last := f[f.count - 1];
+	return .{last.data + last.count - f[1].data, f[1].data};
+}
 
 // Odin's strings.fields: the runs of non-space bytes (heap; free the array).
 fields :: (line: string) -> [..]string {

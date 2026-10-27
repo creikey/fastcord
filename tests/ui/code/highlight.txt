@@ -1,0 +1,13 @@
+# ``` blocks highlighted per language: js, py (alias), rust, c, json, diff, sh (alias),
+# an unknown language (plain) and ansi. Check the PNGs: build/ui-code-top.png, build/ui-code-mid.png
+# and the final shot.
+wait 30
+move 600 300
+scroll 0 2000
+wait 30
+shot build/ui-code-top.png
+scroll 0 -500
+wait 30
+shot build/ui-code-mid.png
+scroll 0 -2000
+wait 30
