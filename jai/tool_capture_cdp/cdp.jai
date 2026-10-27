@@ -20,7 +20,7 @@ browser_ws_url :: (port: int, allocator := context.allocator) -> string, bool {
 	http.h1_init(*c, netio.tcp_stream(tcp));
 	defer http.h1_destroy(*c);
 	host := fmt.tprintf("127.0.0.1:%d", port);
-	resp, rerr := http.h1_round_trip(*c, .{method = "GET", path = "/json/version", headers = .{.{"Host", host}, .{"Connection", "close"}}});
+	resp, rerr := http.h1_round_trip(*c, .{method = "GET", path = "/json/version", headers = http.Header.[.{"Host", host}, .{"Connection", "close"}]});
 	defer http.response_destroy(*resp);
 	if rerr != .None || resp.status != 200 { return "", false; }
 	v, jerr := etf.from_json(as_string(view(resp.body)), temp);
@@ -43,7 +43,7 @@ connect :: (port: int) -> *Client, bool {
 	s := netio.tcp_stream(tcp);
 	ws, resp, herr := http.ws_connect(
 		s,
-		.{path = path, headers = .{.{"Host", hostport}, .{"Connection", "Upgrade"}, .{"Upgrade", "websocket"}, .{"Sec-WebSocket-Version", "13"}, .{"Sec-WebSocket-Key", ""}}},
+		.{path = path, headers = http.Header.[.{"Host", hostport}, .{"Connection", "Upgrade"}, .{"Upgrade", "websocket"}, .{"Sec-WebSocket-Version", "13"}, .{"Sec-WebSocket-Key", ""}]},
 		.{max_message = 512 << 20},
 	);
 	http.response_destroy(*resp);
@@ -210,8 +210,7 @@ get :: (v: etf.Value, keys: ..string) -> etf.Value, bool {
 
 str :: (v: etf.Value, keys: ..string) -> string {
 	x, _ := get(v, ..keys);
-	s, _ := x.s, x.kind == .String;
-	return s;
+	return ifx x.kind == .String then x.s else "";
 }
 
 num :: (v: etf.Value, keys: ..string) -> float64 {
@@ -227,8 +226,7 @@ num :: (v: etf.Value, keys: ..string) -> float64 {
 
 boolean :: (v: etf.Value, keys: ..string) -> bool {
 	x, _ := get(v, ..keys);
-	b, _ := x.b, x.kind == .Bool;
-	return b;
+	return x.kind == .Bool && x.b;
 }
 
 // quote returns s as a JSON string literal.

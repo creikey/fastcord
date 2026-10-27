@@ -166,9 +166,8 @@ uuid4 :: (allocator := context.allocator) -> string {
 // JSON access helpers (values from json.parse)
 
 jget :: (v: json.Value, key: string) -> json.Value {
-	o, ok := v.map, v.kind == .Map;
-	if !ok { return .{}; }
-	return o[key];
+	if v.kind != .Map { return .{}; }
+	return get(v.map, key);
 }
 
 jint :: (v: json.Value, def: s64 = -1) -> s64 {
@@ -184,8 +183,7 @@ jint :: (v: json.Value, def: s64 = -1) -> s64 {
 }
 
 jstr :: (v: json.Value) -> string {
-	s, ok := v.s, v.kind == .String;
-	return ifx ok then as_string(s) else "";
+	return ifx v.kind == .String then v.s else "";
 }
 
 jsnow :: (v: json.Value) -> u64 {
@@ -199,8 +197,8 @@ jsnow :: (v: json.Value) -> u64 {
 	return 0;
 }
 
-jarr :: (v: json.Value) -> json.Array {
-	a, ok := v.list, v.kind == .List;
-	return ifx ok then a else null;
+jarr :: (v: json.Value) -> []json.Value {
+	if v.kind != .List { return .[]; }
+	return v.list;
 }
 

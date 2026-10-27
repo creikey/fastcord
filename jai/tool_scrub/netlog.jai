@@ -58,7 +58,7 @@ netlog_load :: (path: string, from: float64, to: float64) -> Netlog, bool {
 	nl_line := strings.index_byte(text, 10);
 	if nl_line < 0 { return .{}, false; }
 	first := strings.trim_right(sub(text, 0, nl_line), ",\r");
-	cv, cerr := etf.from_json(strings.concatenate(.{first, "}"}, temp), temp);
+	cv, cerr := etf.from_json(strings.concatenate(string.[first, "}"], temp), temp);
 	if cerr != .None { return .{}, false; }
 	consts := get(cv, "constants");
 	offset := gn(consts, "timeTickOffset");
@@ -66,7 +66,7 @@ netlog_load :: (path: string, from: float64, to: float64) -> Netlog, bool {
 	{ types, is_map := get(consts, "logEventTypes").map, get(consts, "logEventTypes").kind == .Map;
 	if is_map {
 		for p: types {
-			k, _ := p.key.s, p.key.kind == .String;
+			k := vs(p.key);
 			for w: WANT { if w == k { at(*names, ifx p.value.kind == .Int then p.value.i else -1).* = w; } }
 		}
 	} }
@@ -89,7 +89,7 @@ netlog_load :: (path: string, from: float64, to: float64) -> Netlog, bool {
 		tv, _ := strconv.parse_f64(tstr);
 		wall := offset + tv;
 		if wall < from || wall > to {
-			free_all(temp);
+			reset_temporary_storage();
 			continue;
 		}
 		src := cast(int)(gn(ev, "source", "id"));
@@ -101,10 +101,10 @@ netlog_load :: (path: string, from: float64, to: float64) -> Netlog, bool {
 			r.wall = wall;
 			r.session = src;
 			r.proto = ifx name == "HTTP3_HEADERS_SENT" then "h3" else (ifx name == "HTTP2_SESSION_SEND_HEADERS" then "h2" else "http/1.1");
-			hl, _ := get(params, "headers").list, get(params, "headers").kind == .List;
+			hl := vl(get(params, "headers"));
 			authority, rpath, scheme := "", "", "https";
 			for h: hl {
-				s, _ := h.s, h.kind == .String;
+				s := vs(h);
 				// h1 lines are "Name: value"; h2/h3 pseudo-headers start with ':'
 				c := ifx len(s) > 1 then strings.index(sub_from(s, 1), ": ") + 1 else -1;
 				if c <= 0 { continue; }
@@ -194,7 +194,7 @@ netlog_load :: (path: string, from: float64, to: float64) -> Netlog, bool {
 				append(*c.facts, P(clone(key), clone_value(params)));
 			} }
 		} }
-		free_all(temp);
+		reset_temporary_storage();
 	}
 	nl.loaded = true;
 	return nl, true;
@@ -222,7 +222,7 @@ add_unique :: (c: *Net_Conn, key: string, value: string) {
 bump :: (c: *Net_Conn, key: string) {
 	for * p: c.facts {
 		if (ifx p.key.kind == .String then p.key.s else "") == key {
-			p.value = (ifx p.value.kind == .Int then p.value.i else 0) + 1;
+			p.value = etf.vint((ifx p.value.kind == .Int then p.value.i else 0) + 1);
 			return;
 		}
 	}
@@ -241,7 +241,7 @@ netlog_match :: (nl: *Netlog, method: string, url: string, wall: float64) -> *Ne
 		if r.used || r.method != method { continue; }
 		if r.wall < wall - 1000 || r.wall > wall + 15000 { continue; }
 		if r.url != u { continue; }
-		if best == null || r.wall < best.wall { best = *r; }
+		if best == null || r.wall < best.wall { best = r; }
 	}
 	if best != null { best.used = true; }
 	return best;

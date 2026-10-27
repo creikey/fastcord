@@ -32,7 +32,7 @@ Driver :: struct {
 	cur: int;
 	out: *Out;
 	vars: Map(string, string);
-	mouse: [2][2]float64;
+	mouse: [2]Point;
 	gw_cursor: [2]int;
 	failed: bool;
 	abort: bool; // watchdog tripped (atomic)
@@ -55,11 +55,11 @@ watchdog_loop :: (d: *Driver) {
 }
 
 human :: (lo: int, hi: int) {
-	time.sleep(time.Duration(lo + rand.int_max(max(hi - lo, 1))) * time.Millisecond);
+	time.sleep((cast(time.Duration) (lo + rand.int_max(max(hi - lo, 1)))) * time.Millisecond);
 }
 
 load_vars :: (d: *Driver, dir: string) {
-	envp, _ := filepath.join(.{dir, "env"}, temp);
+	envp, _ := filepath.join(string.[dir, "env"], temp);
 	data, err := os.read_entire_file(envp, context.allocator);
 	if err != null { return; }
 	for line: strings.split_lines(as_string(data), temp) {
@@ -176,7 +176,7 @@ run_scenario :: (path: string, out_path: string) -> bool {
 				break;
 			}
 		}
-		free_all(temp);
+		reset_temporary_storage();
 	}
 	if !atomic_load(*d.abort) { settle(*d, 2000, 15000); }
 	for r: d.accts { if r != null { fmt.printfln("%s: peak JS heap %.0f MB", r.acct, r.heap_peak / (1 << 20)); } }
@@ -193,7 +193,7 @@ expand_includes :: (src: string, dir: string, depth := 0) -> []string {
 		if strings.has_prefix(l, "include ") && depth < 8 {
 			inc := strings.trim_space(sub_from(l, len("include ")));
 			p := inc;
-			if !strings.has_prefix(inc, "/") { p, _ = filepath.join(.{dir, inc}); }
+			if !strings.has_prefix(inc, "/") { p, _ = filepath.join(string.[dir, inc]); }
 			data, err := os.read_entire_file(p, context.allocator);
 			if err != null {
 				fmt.eprintln("cannot include", p);
@@ -242,7 +242,7 @@ exec :: (d: *Driver, line: string) -> bool, string {
 		if ferr != null { return false, "cannot read probe"; }
 		v, ok := evaluate(r.c, r.page_session, as_string(src));
 		if !ok { return false, "probe failed"; }
-		text, _ := v.s, v.kind == .String;
+		text := ifx v.kind == .String then v.s else "";
 		path := screen_path(d, pname, "json");
 		os.write_entire_file(path, transmute([]u8, text));
 		fmt.println("  probe ->", path);
@@ -250,7 +250,7 @@ exec :: (d: *Driver, line: string) -> bool, string {
 	case "wait";
 		ms, _ := strconv.parse_int(rest);
 		start := time.tick_now();
-		while time.tick_since(start) < time.Duration(ms) * time.Millisecond {
+		while time.tick_since(start) < (cast(time.Duration) (ms)) * time.Millisecond {
 			if atomic_load(*d.abort) { return false, "aborted"; }
 			time.sleep(100 * time.Millisecond);
 		}
@@ -276,9 +276,9 @@ exec :: (d: *Driver, line: string) -> bool, string {
 		js := fmt.tprintf("!!document.querySelector(%s)", cdp.quote(sel));
 		want := cmd == "wait_for";
 		start := time.tick_now();
-		while time.tick_since(start) < time.Duration(ms) * time.Millisecond {
+		while time.tick_since(start) < (cast(time.Duration) (ms)) * time.Millisecond {
 			v, _ := evaluate(r.c, r.page_session, js, quiet = true);
-			{ b, _ := v.b, v.kind == .Bool;
+			{ b := v.kind == .Bool && v.b;
 			if b == want { return true, ""; } }
 			time.sleep(250 * time.Millisecond);
 		}
@@ -397,10 +397,10 @@ snap :: (d: *Driver, name: string) -> bool {
 	if !ok { return false; }
 	png, _ := base64.decode(cdp.str(shot, "data"), allocator = temp);
 	os.write_entire_file(screen_path(d, name, "png"), png);
-	layout, _ := evaluate(r.c, r.page_session, #run load_file("probes/layout.js", #filepath), quiet = true);
-	geometry, _ := evaluate(r.c, r.page_session, #run load_file("../probes/layout_geometry.js", #filepath), quiet = true);
-	ls, _ := layout.s, layout.kind == .String;
-	gs, _ := geometry.s, geometry.kind == .String;
+	layout, _ := evaluate(r.c, r.page_session, #run load_file("../../tools/capture/probes/layout.js", #filepath), quiet = true);
+	geometry, _ := evaluate(r.c, r.page_session, #run load_file("../../tools/probes/layout_geometry.js", #filepath), quiet = true);
+	ls := ifx layout.kind == .String then layout.s else "";
+	gs := ifx geometry.kind == .String then geometry.s else "";
 	if ls == "" { ls = "null"; }
 	body := fmt.tprintf("{{\"layout\":%s,\"geometry\":%s}}", ls, cdp.quote(gs));
 	os.write_entire_file(screen_path(d, name, "json"), transmute([]u8, body));
@@ -424,7 +424,7 @@ gw_len :: (r: *Recorder) -> int {
 
 wait_gw_from :: (r: *Recorder, name: string, from: int, ms: int) -> bool {
 	start := time.tick_now();
-	while time.tick_since(start) < time.Duration(ms) * time.Millisecond {
+	while time.tick_since(start) < (cast(time.Duration) (ms)) * time.Millisecond {
 		if atomic_load(*r.aborted) { return false; }
 		sync.mutex_lock(*r.mu);
 		for i: from..len(r.gw_events)-1 {
@@ -443,7 +443,7 @@ wait_gw_from :: (r: *Recorder, name: string, from: int, ms: int) -> bool {
 // settle waits until no account had network activity for quiet_ms (cap max_ms).
 settle :: (d: *Driver, quiet_ms: int, max_ms: int) {
 	start := time.tick_now();
-	while time.tick_since(start) < time.Duration(max_ms) * time.Millisecond {
+	while time.tick_since(start) < (cast(time.Duration) (max_ms)) * time.Millisecond {
 		if atomic_load(*d.abort) { return; }
 		quiet := true;
 		now := rt_now(d.out);
@@ -459,7 +459,7 @@ settle :: (d: *Driver, quiet_ms: int, max_ms: int) {
 }
 #scope_export
 
-Point :: [2]float64;
+Point :: struct { x, y: float64; }
 #scope_module
 
 // locate scrolls the element into view if needed and returns a point inside it.
@@ -486,12 +486,12 @@ locate :: (r: *Recorder, finder: string) -> Point, bool {
 				// a point near the centre, jittered like a person would
 				px := x + w * (0.5 + (rand.float64_() - 0.5) * 0.4);
 				py := y + h * (0.5 + (rand.float64_() - 0.5) * 0.4);
-				return .[px, py], true;
+				return .{px, py}, true;
 			}
 		} }
 		time.sleep(250 * time.Millisecond);
 	}
-	return .[], false;
+	return .{}, false;
 }
 
 move_mouse :: (d: *Driver, to: Point) {

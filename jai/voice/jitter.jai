@@ -87,7 +87,7 @@ jb_push :: (jb: *Jitter_Buffer, seq: u16, ts: u32, payload: []u8, arrival_ms: fl
 	// interarrival jitter (RFC 3550 6.4.1), in ms
 	if jb.have_last {
 		d := (arrival_ms - jb.last_arrival) - cast(float64)(cast(s32)(ts - jb.last_ts)) / 48.0;
-		jb.jitter_ms += (abs(d) - jb.jitter_ms) / 16.0;
+		jb.jitter_ms += ((ifx d < 0 then -d else d) - jb.jitter_ms) / 16.0;
 	}
 	jb.have_last = true;
 	jb.last_arrival = arrival_ms;

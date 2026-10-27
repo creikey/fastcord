@@ -55,21 +55,21 @@ header_rule :: (c: *Ctx, name: string, value: string) -> etf.Value, bool {
 	lname := strings.to_lower(name, temp);
 	if lname == {
 	case "authorization";
-		return as_string("<token>"), true;
+		return etf.vstring("<token>"), true;
 	case "cookie"; #through; case "set-cookie";
-		return as_string("<cookie>"), true;
+		return etf.vstring("<cookie>"), true;
 	case "x-fingerprint";
-		return placeholder(c, "id:fingerprint", value), true;
+		return etf.vstring(placeholder(c, "id:fingerprint", value)), true;
 	case "x-installation-id";
-		return placeholder(c, "id:installation_id", value), true;
+		return etf.vstring(placeholder(c, "id:installation_id", value)), true;
 	case "x-captcha-key"; #through; case "x-captcha-rqtoken"; #through; case "x-captcha-session-id";
-		return as_string("<token>"), true;
+		return etf.vstring("<token>"), true;
 	case "x-super-properties"; #through; case "x-context-properties";
 		{ decoded, ok := decode_b64_json(value);
 		if ok {
-			m := cast(etf.Map)(make_slice(etf.Pair, 1));
-			at(*m, 0).* = .{key = as_string("$b64json"), value = scrub_value(c, decoded, "")};
-			return m, true;
+			m := make_slice(etf.Pair, 1);
+			m[0] = .{key = etf.vstring("$b64json"), value = scrub_value(c, decoded, "")};
+			return etf.vmap(m), true;
 		} }
 	}
 	return .{}, false;
@@ -258,8 +258,8 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
 		case .Map; #through; case .List; x := v;
 		// structured value under a secret-looking key: recurse instead
 		case; x := v;
-			if !numbered { return fmt.aprintf("<%s>", kind); }
-			return placeholder(c, kind, fmt.tprintf("%v", x));
+			if !numbered { return etf.vstring(fmt.aprintf("<%s>", kind)); }
+			return etf.vstring(placeholder(c, kind, vtext(x)));
 		}
 	} }
 	if v.kind == {
@@ -268,18 +268,18 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
 	case .Big; x := v.big;
 		return etf.vbig(etf.Big.{negative = x.negative, digits = clone(x.digits)});
 	case .Atom; x := v.s;
-		return scrub_text(c, as_string(x));
+		return etf.vstring(scrub_text(c, as_string(x)));
 	case .Charlist; x := v.s;
 		return etf.vcharlist(clone(as_string(x)));
 	case .Int; x := v.i;
 		s := fmt.tprintf("%d", x);
 		if is_snowflake_digits(s) {
 			{ r := classify_snowflake(c, s);
-			if r != "" { return r; } }
+			if r != "" { return etf.vstring(r); } }
 		}
 		return v;
 	case .String; x := v.s;
-		return scrub_text(c, x);
+		return etf.vstring(scrub_text(c, x));
 	case .List; x := v.list;
 		out := make_slice(etf.Value, len(x));
 		for e, i: x { at(*out, i).* = scrub_value(c, e, key); }
@@ -307,12 +307,12 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
 		} }
 		out := make_slice(etf.Pair, len(x));
 		for p, i: x {
-			k, _ := p.key.s, p.key.kind == .String;
+			k := vs(p.key);
 			at(*out, i).*.key = scrub_value(c, p.key, ""); // keys can be ids (e.g. guild_versions)
 			if foreign_user && user_fields(k) {
-				at(*out, i).*.value = ifx k == "username" || k == "global_name" || k == "display_name" || k == "nick" then placeholder(c, "user", map_str(x, "id")) else null;
+				at(*out, i).*.value = ifx k == "username" || k == "global_name" || k == "display_name" || k == "nick" then etf.vstring(placeholder(c, "user", map_str(x, "id"))) else etf.Value.{};
 			} else if foreign_author && (k == "content" || k == "attachments" || k == "embeds" || k == "components") {
-				at(*out, i).*.value = ifx k == "content" then as_string("<content>") else cast(etf.List)(null);
+				at(*out, i).*.value = ifx k == "content" then etf.vstring("<content>") else etf.vlist(.[]);
 			} else {
 				at(*out, i).*.value = scrub_value(c, p.value, k);
 			}

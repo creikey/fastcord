@@ -4,7 +4,7 @@ attach_main_page :: (c: *cdp.Client) -> string, bool {
 	ok: bool;
 	targets, __e1 := cdp.call_value(c, "Target.getTargets"); if failed(__e1) return session, __e1;
 	infos, _ := cdp.get(targets, "targetInfos");
-	list, _ := infos.list, infos.kind == .List;
+	list := ifx infos.kind == .List then infos.list else .[];
 	for t: list {
 		if cdp.str(t, "type") != "page" { continue; }
 		url := cdp.str(t, "url");

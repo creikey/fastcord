@@ -125,7 +125,7 @@ Conn :: struct {
 	external_ip: string;
 	external_port: int;
 
-	dave: dave.Session;
+	dave: DAVE.Session;
 	users: Map(u32, *Remote_User);
 	user_ssrc: Map(u64, u32);
 	settings: Map(u64, User_Settings);
@@ -215,7 +215,7 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
 	crypto.rand_bytes(view(rb));
 	c.seq = ((cast(u16)(rb[0])) << 8) | (cast(u16)(rb[1]));
 	c.ts = get_u32(sub_from(rb, 2));
-	dave.session_init(*c.dave, info.user_id, info.channel_id, info.stage);
+	DAVE.session_init(*c.dave, info.user_id, info.channel_id, info.stage);
 	c.state = .Connecting;
 	c.allocator = context.allocator;
 	c.debug = os.get_env("FASTCORD_VOICE_DEBUG", temp) == "1";
@@ -254,7 +254,7 @@ voice_disconnect :: (c: *Conn) {
 	delete(c.experiments);
 	delete(c.external_ip);
 	c.codec.encoder_destroy(c.encoder);
-	dave.session_destroy(*c.dave);
+	DAVE.session_destroy(*c.dave);
 	delete(c.info.endpoint);
 	delete(c.info.token);
 	delete(c.info.session_id);
@@ -278,7 +278,7 @@ wait_state :: (c: *Conn, s: Conn_State, timeout: time.Duration) -> bool {
 	while c.state != s && c.state != .Disconnected {
 		left := deadline - time.tick_now()._nsec;
 		if left <= 0 { break; }
-		locks.cond_wait_with_timeout(*c.state_cond, *c.mu, time.Duration(left));
+		locks.cond_wait_with_timeout(*c.state_cond, *c.mu, (cast(time.Duration) (left)));
 	}
 	return c.state == s;
 }
@@ -299,7 +299,7 @@ set_self_deaf :: (c: *Conn, deaf: bool) {
 
 set_user_volume :: (c: *Conn, user_id: u64, volume: float32) {
 	locks.lock(*c.mu);
-	s := or_else(get(c.settings, user_id), User_Settings.{volume = 1});
+	s := or_else(map_find(c.settings, user_id), User_Settings.{volume = 1});
 	s.volume = clamp(volume, 0, 2);
 	at(*c.settings, user_id).* = s;
 	locks.unlock(*c.mu);
@@ -307,7 +307,7 @@ set_user_volume :: (c: *Conn, user_id: u64, volume: float32) {
 
 set_user_mute :: (c: *Conn, user_id: u64, muted: bool) {
 	locks.lock(*c.mu);
-	s := or_else(get(c.settings, user_id), User_Settings.{volume = 1});
+	s := or_else(map_find(c.settings, user_id), User_Settings.{volume = 1});
 	s.muted = muted;
 	at(*c.settings, user_id).* = s;
 	locks.unlock(*c.mu);
@@ -386,7 +386,7 @@ get_stats :: (c: *Conn) -> Stats {
 		s.jitter.jitter_ms = max(s.jitter.jitter_ms, js.jitter_ms);
 		s.jitter.target_frames = max(s.jitter.target_frames, js.target_frames);
 	}
-	ds := dave.session_status(*c.dave, temp);
+	ds := DAVE.session_status(*c.dave, temp);
 	s.e2ee_failures = ds.stats.decrypt_failures;
 	return s;
 }
@@ -402,7 +402,7 @@ E2EE_Status :: struct {
 }
 
 e2ee_status :: (c: *Conn, allocator := context.allocator) -> E2EE_Status {
-	ds := dave.session_status(*c.dave, allocator);
+	ds := DAVE.session_status(*c.dave, allocator);
 	return E2EE_Status.{ds.protocol_version, ds.e2ee_active, ds.epoch, ds.privacy_code, ds.members};
 }
 
@@ -412,7 +412,7 @@ privacy_code :: (c: *Conn, allocator := context.allocator) -> string {
 
 // verification_code: 45-digit pairwise identity fingerprint with user (slow: scrypt).
 verification_code :: (c: *Conn, user_id: u64, allocator := context.allocator) -> string, bool {
-	{ __r1, __r2 := dave.session_verification_code(*c.dave, user_id, allocator); return __r1, __r2; }
+	{ __r1, __r2 := DAVE.session_verification_code(*c.dave, user_id, allocator); return __r1, __r2; }
 }
 #scope_module
 
@@ -438,7 +438,7 @@ default_dial :: (host: string, port: int) -> netio.Stream, bool {
 	tcp, err := netio.dial_tcp(host, port);
 	if err != .None { return .{}, false; }
 	under := netio.tcp_stream(tcp);
-	sess, terr := tls.connect(under, tls.Config.{alpn = .{"http/1.1"}, server_name = host});
+	sess, terr := tls.connect(under, tls.Config.{alpn = string.["http/1.1"], server_name = host});
 	if terr != .None {
 		netio.close(under);
 		return .{}, false;
@@ -449,7 +449,7 @@ default_dial :: (host: string, port: int) -> netio.Stream, bool {
 
 // voice_ws_headers: Chrome's WebSocket upgrade request, header order as captured.
 voice_ws_headers :: (c: *Conn) -> []http.Header {
-	host := ifx c.port == 443 then c.host else strings.concatenate(.{c.host, ":", snowflake(cast(u64)(c.port))}, temp);
+	host := ifx c.port == 443 then c.host else strings.concatenate(string.[c.host, ":", snowflake(cast(u64)(c.port))], temp);
 	h := make_dynamic(http.Header, 0, 12, temp);
 	append(*h, http.Header.{"Host", host});
 	append(*h, http.Header.{"Connection", "Upgrade"});
@@ -508,7 +508,7 @@ ws_thread_proc :: (data: *void) {
 	resuming := false;
 	while !stopped(c) {
 		code := ws_session(c, resuming);
-		free_all(temp);
+		reset_temporary_storage();
 		if stopped(c) { break; }
 		if terminal_close(code) {
 			finish(c, code);
@@ -548,7 +548,7 @@ finish :: (c: *Conn, code: int) {
 // ws_session runs one WebSocket connection; returns the close code (0 = transport error).
 ws_session :: (c: *Conn, resume: bool) -> int {
 	if !resume { set_state(c, .Connecting); }
-	dial: Dial_Proc = ifx c.opts.dial != null then c.opts.dial else Dial_Proc(default_dial);
+	dial: Dial_Proc = ifx c.opts.dial != null then c.opts.dial else default_dial;
 	stream, ok := dial(c.host, c.port);
 	if !ok { return 0; }
 	req := http.Request.{
@@ -597,13 +597,13 @@ ws_session :: (c: *Conn, resume: bool) -> int {
 			handle_binary(c, view(msg));
 		}
 		flush_dave(c);
-		{ cr := dave.session_close_request(*c.dave);
+		{ cr := DAVE.session_close_request(*c.dave);
 		if cr != .None {
 			code = CLOSE_REPEATED_MLS_INVALID + cast(int)(cr) - 1;
 			close_ws(c, code);
 			break;
 		} }
-		free_all(temp);
+		reset_temporary_storage();
 	}
 	locks.lock(*c.ws_mu);
 	c.ws_open = false;
@@ -619,12 +619,12 @@ ws_session :: (c: *Conn, resume: bool) -> int {
 }
 
 flush_dave :: (c: *Conn) {
-	outs := dave.session_take_outgoing(*c.dave, temp);
+	outs := DAVE.session_take_outgoing(*c.dave, temp);
 	for o: outs {
 		if o.op == {
-		case dave.OP_MLS_KEY_PACKAGE; #through; case dave.OP_MLS_COMMIT_WELCOME;
+		case DAVE.OP_MLS_KEY_PACKAGE; #through; case DAVE.OP_MLS_COMMIT_WELCOME;
 			send_binary(c, o.op, o.data);
-		case dave.OP_READY_FOR_TRANSITION; #through; case dave.OP_MLS_INVALID_COMMIT_WELCOME;
+		case DAVE.OP_READY_FOR_TRANSITION; #through; case DAVE.OP_MLS_INVALID_COMMIT_WELCOME;
 			send_text(c, msg_transition(o.op, o.transition_id));
 		}
 		delete(o.data);
@@ -633,7 +633,7 @@ flush_dave :: (c: *Conn) {
 
 handle_json :: (c: *Conn, text: string) {
 	v, err := json.parse_string(text, parse_integers = true, allocator = temp);
-	if err != null { return; }
+	if err != .None { return; }
 	op := cast(int)(jint(jget(v, "op")));
 	if c.debug && op != OP_HEARTBEAT_ACK && op != OP_SESSION_DESCRIPTION { dbg(c, "<~ %s", sub(text, 0, min(len(text), 400))); }
 	{ s := jint(jget(v, "seq"), 0);
@@ -686,10 +686,10 @@ handle_json :: (c: *Conn, text: string) {
 	case OP_CLIENTS_CONNECT;
 		ids := make_dynamic(u64, 0, 4, temp);
 		for x: jarr(jget(d, "user_ids")) { append(*ids, jsnow(x)); }
-		dave.on_clients_connect(*c.dave, view(ids));
+		DAVE.on_clients_connect(*c.dave, view(ids));
 	case OP_CLIENT_DISCONNECT;
 		uid := jsnow(jget(d, "user_id"));
-		dave.on_client_disconnect(*c.dave, uid);
+		DAVE.on_client_disconnect(*c.dave, uid);
 		locks.lock(*c.mu);
 		{ ssrc, ok := map_find(c.user_ssrc, uid);
 		if ok {
@@ -701,29 +701,29 @@ handle_json :: (c: *Conn, text: string) {
 			delete_key(*c.user_ssrc, uid);
 		} }
 		locks.unlock(*c.mu);
-	case dave.OP_PREPARE_TRANSITION;
+	case DAVE.OP_PREPARE_TRANSITION;
 		tid := jint(jget(d, "transition_id"));
 		pv := jint(jget(d, "protocol_version"));
 		if tid < 0 || tid > 65535 || pv < 0 || pv > 65535 {
 			dave_invalid(c);
 			return;
 		}
-		dave.on_prepare_transition(*c.dave, cast(int)(tid), cast(int)(pv));
-	case dave.OP_EXECUTE_TRANSITION;
+		DAVE.on_prepare_transition(*c.dave, cast(int)(tid), cast(int)(pv));
+	case DAVE.OP_EXECUTE_TRANSITION;
 		tid := jint(jget(d, "transition_id"));
 		if tid < 0 || tid > 65535 {
 			dave_invalid(c);
 			return;
 		}
-		dave.on_execute_transition(*c.dave, cast(int)(tid));
-	case dave.OP_PREPARE_EPOCH;
+		DAVE.on_execute_transition(*c.dave, cast(int)(tid));
+	case DAVE.OP_PREPARE_EPOCH;
 		ep := jint(jget(d, "epoch"));
 		pv := jint(jget(d, "protocol_version"));
 		if ep < 0 || pv < 0 || pv > 65535 {
 			dave_invalid(c);
 			return;
 		}
-		dave.on_prepare_epoch(*c.dave, cast(u64)(ep), cast(int)(pv));
+		DAVE.on_prepare_epoch(*c.dave, cast(u64)(ep), cast(int)(pv));
 	case OP_SESSION_UPDATE; #through; case OP_MEDIA_SINK_WANTS; #through; case OP_VOICE_BACKEND_VERSION; #through; case OP_FLAGS; #through; case OP_PLATFORM; #through; case OP_SFU_UPDATE;
 	// informational for an audio-only client
 	}
@@ -746,20 +746,20 @@ handle_binary :: (c: *Conn, b: []u8) {
 	p := sub_from(b, 3);
 	dbg(c, "<~ binary op %d (%d bytes)", op, len(p));
 	if op == {
-	case dave.OP_MLS_EXTERNAL_SENDER;
-		dave.on_external_sender(*c.dave, p);
-	case dave.OP_MLS_PROPOSALS;
-		dave.on_proposals(*c.dave, p);
-	case dave.OP_MLS_ANNOUNCE_COMMIT; #through; case dave.OP_MLS_WELCOME;
+	case DAVE.OP_MLS_EXTERNAL_SENDER;
+		DAVE.on_external_sender(*c.dave, p);
+	case DAVE.OP_MLS_PROPOSALS;
+		DAVE.on_proposals(*c.dave, p);
+	case DAVE.OP_MLS_ANNOUNCE_COMMIT; #through; case DAVE.OP_MLS_WELCOME;
 		if len(p) < 2 {
 			dave_invalid(c);
 			return;
 		}
 		tid := cast(int)(get_u16(p));
-		if op == dave.OP_MLS_ANNOUNCE_COMMIT {
-			dave.on_announce_commit(*c.dave, tid, sub_from(p, 2));
+		if op == DAVE.OP_MLS_ANNOUNCE_COMMIT {
+			DAVE.on_announce_commit(*c.dave, tid, sub_from(p, 2));
 		} else {
-			dave.on_welcome(*c.dave, tid, sub_from(p, 2));
+			DAVE.on_welcome(*c.dave, tid, sub_from(p, 2));
 		}
 	}
 }
@@ -768,7 +768,7 @@ send_heartbeat :: (c: *Conn) {
 	if c.server_version >= 8 {
 		send_text(c, msg_heartbeat(now_ms(), c.last_seq));
 	} else {
-		send_text(c, strings.concatenate(.{"{\"op\":3,\"d\":", snowflake(cast(u64)(now_ms())), "}"}, temp));
+		send_text(c, strings.concatenate(string.["{\"op\":3,\"d\":", snowflake(cast(u64)(now_ms())), "}"], temp));
 	}
 }
 
@@ -794,9 +794,9 @@ on_ready :: (c: *Conn, d: json.Value) {
 
 udp_setup :: (c: *Conn, ip: string, port: int) -> bool {
 	addr := net.parse_address(ip);
-	if addr == null {
+	if addr.kind == .None {
 		ep, err := net.resolve_ip4(ip);
-		if err != null { return false; }
+		if err != .None { return false; }
 		addr = ep.address;
 	}
 	c.server_ep = net.Endpoint.{addr, port};
@@ -805,7 +805,7 @@ udp_setup :: (c: *Conn, ip: string, port: int) -> bool {
 		{ _, is6 := addr.ip6_address, addr.kind == .IP6_Address;
 		if is6 { bind = net.IP6_Any; } }
 		sock, err := net.make_bound_udp_socket(bind, 0);
-		if err != null { return false; }
+		if err != .None { return false; }
 		c.udp = sock;
 		c.udp_open = true;
 		net.set_option(c.udp, .Receive_Timeout, 100 * time.Millisecond);
@@ -817,7 +817,7 @@ udp_setup :: (c: *Conn, ip: string, port: int) -> bool {
 	while attempt < 20 && !stopped(c) {
 		if attempt % 5 == 0 { net.send_udp(c.udp, view(req), c.server_ep); }
 		n, _, rerr := net.recv_udp(c.udp, view(buf));
-		if rerr != null || n < DISCOVERY_LEN { { attempt += 1; continue; } }
+		if rerr != .None || n < DISCOVERY_LEN { { attempt += 1; continue; } }
 		_, address, p, ok := parse_discovery(sub(buf, 0, n), 2);
 		if !ok { { attempt += 1; continue; } }
 		delete(c.external_ip);
@@ -846,13 +846,13 @@ on_session_description :: (c: *Conn, d: json.Value) {
 	transport_init(*c.rx_crypto, mode, view(key));
 	c.have_key = true;
 	locks.unlock(*c.mu);
-	crypto.zero_explicit(*key, size_of(key));
+	crypto.zero_explicit(*key, size_of(type_of(key)));
 	dv := jint(jget(d, "dave_protocol_version"));
 	if dv < 0 || dv > 65535 {
 		dave_invalid(c);
 		return;
 	}
-	dave.on_select_protocol_ack(*c.dave, cast(int)(dv));
+	DAVE.on_select_protocol_ack(*c.dave, cast(int)(dv));
 	c.resumable = true;
 	set_state(c, .Connected);
 	if !c.audio_started {
@@ -862,7 +862,7 @@ on_session_description :: (c: *Conn, d: json.Value) {
 			if c.capture_on { audio.apply_device_selection(); } // chosen devices + DSP switches
 		}
 		c.next_rtcp_ms = now_ms() + 1000;
-		c.audio_th = thread.create_and_start_with_data(c, audio_thread_proc, priority = .High);
+		c.audio_th = thread.create_and_start_with_data(c, audio_thread_proc); // Odin: priority = .High (fc_thread has none)
 	}
 }
 
@@ -931,7 +931,7 @@ timer_thread_proc :: (data: *void) {
 		// HELLO timeout / HEARTBEAT ACK TIMEOUT: close(4000) and resume
 		if hello_timeout || timeout { close_ws(c, CLOSE_FORCE); }
 		if beat { send_heartbeat(c); }
-		free_all(temp);
+		reset_temporary_storage();
 	}
 }
 
@@ -946,7 +946,7 @@ udp_thread_proc :: (data: *void) {
 	frame: [2048]u8;
 	while !stopped(c) {
 		n, from, err := net.recv_udp(c.udp, view(buf));
-		if err != null || n <= 0 { continue; }
+		if err != .None || n <= 0 { continue; }
 		pkt := sub(buf, 0, n);
 		locks.lock(*c.mu);
 		c.stats.udp_datagrams += 1;
@@ -998,7 +998,7 @@ udp_thread_proc :: (data: *void) {
 			locks.unlock(*c.mu);
 			continue; // no op 5 yet: can't attribute (DAVE needs the sender)
 		}
-		fl, res := dave.session_decrypt(*c.dave, uid, payload, view(frame));
+		fl, res := DAVE.session_decrypt(*c.dave, uid, payload, view(frame));
 		if res == .Failed { continue; }
 		opus := sub(frame, 0, fl);
 		silent := fl == 3 && opus[0] == 0xF8 && opus[1] == 0xFF && opus[2] == 0xFE;
@@ -1038,7 +1038,7 @@ rx_update :: (r: *Rx_Stats, seq: u16, ts: u32, now: s64) {
 	arrival := now * 48; // ms -> 48 kHz units
 	transit := arrival - cast(s64)(ts);
 	if r.received > 1 {
-		d := abs(transit - r.transit);
+		d := transit - r.transit; if d < 0 { d = -d; }
 		r.jitter += (cast(float64)(d) - r.jitter) / 16;
 	}
 	r.transit = transit;
@@ -1095,7 +1095,7 @@ audio_thread_proc :: (data: *void) {
 		tx_tick(c, view(pcm));
 		rx_tick(c, view(out));
 		if now_ms() >= c.next_rtcp_ms { send_rtcp(c); }
-		free_all(temp);
+		reset_temporary_storage();
 		left := time.tick_diff(time.tick_now(), next);
 		if left > 0 {
 			time.accurate_sleep(left);
@@ -1125,7 +1125,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
 	muted := c.self_mute || c.self_deaf;
 	gain := c.input_gain;
 	locks.unlock(*c.mu);
-	if gain != 1 { for * x: pcm { x = clamp(x * gain, -1, 1); } }
+	if gain != 1 { for * x: pcm { x.* = clamp(x.* * gain, -1, 1); } }
 	active, db := vad_process(*c.vad, pcm);
 	locks.lock(*c.mu);
 	c.input_db = db;
@@ -1191,8 +1191,8 @@ send_audio :: (c: *Conn, pcm: []float32, ts: u32, db: float32, voice: bool) {
 
 send_opus :: (c: *Conn, opus: []u8, ts: u32, level: u8, voice: bool) {
 	if !c.udp_open { return; }
-	frame: [MAX_OPUS_PACKET + dave.MAX_SUPPLEMENTAL]u8;
-	fl := dave.session_encrypt(*c.dave, opus, view(frame));
+	frame: [MAX_OPUS_PACKET + DAVE.MAX_SUPPLEMENTAL]u8;
+	fl := DAVE.session_encrypt(*c.dave, opus, view(frame));
 	if fl <= 0 { return; }
 	pkt: [MAX_OPUS_PACKET + 128]u8;
 	sealed: [MAX_OPUS_PACKET + 160]u8;
@@ -1229,14 +1229,14 @@ rx_tick :: (c: *Conn, out: []float32) {
 		case .Fec;
 			n = c.codec.decode(u.decoder, data, true, out);
 		case .Plc;
-			n = c.codec.decode(u.decoder, null, false, out);
+			n = c.codec.decode(u.decoder, .[], false, out);
 		case .None;
 		}
 		if n <= 0 || deaf { continue; }
-		st := or_else(get(c.settings, u.user_id), User_Settings.{volume = 1});
+		st := or_else(map_find(c.settings, u.user_id), User_Settings.{volume = 1});
 		if st.muted { continue; }
 		frames := sub(out, 0, n * 2);
-		if st.volume != 1 { for * s: frames { s *= st.volume; } }
+		if st.volume != 1 { for * s: frames { s.* *= st.volume; } }
 		if c.opts.no_audio_devices {
 			if c.opts.playback != null { c.opts.playback(c.opts.callback_data, u.user_id, frames); }
 		} else {

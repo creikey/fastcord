@@ -13,7 +13,7 @@ Out :: struct {
 }
 
 out_open :: (path: string) -> *Out, bool {
-	f, err := os.open(path, .{.Write, .Create, .Trunc}, .{.Read_User, .Write_User});
+	f, err := os.open(path, .Write | .Create | .Trunc, 0x180);
 	if err != null { return null, false; }
 	o := new(Out);
 	o.f = f;
@@ -159,7 +159,7 @@ recorder_loop :: (r: *Recorder) {
 		}
 		handle_message(r, raw);
 		delete(raw);
-		free_all(temp);
+		reset_temporary_storage();
 	}
 }
 
@@ -286,9 +286,9 @@ handle_frame :: (r: *Recorder, params: etf.Value, sent: bool) {
 		out_line(r.out, r.acct, fmt.tprintf("\"note\":\"etf error %v on %s (%d bytes)\"", eerr, rid, len(payload)));
 		return;
 	}
-	m, _ := v.map, v.kind == .Map;
+	m := ifx v.kind == .Map then v.map else .[];
 	opv, _ := etf.map_get(m, "op");
-	op, _ := opv.i, opv.kind == .Int;
+	op := ifx opv.kind == .Int then opv.i else 0;
 	tv, _ := etf.map_get(m, "t");
 	name := "";
 	if tv.kind == {
@@ -312,7 +312,7 @@ record_passive :: (port: int, path: string, secs: int) -> bool {
 	r, rok := recorder_start("a", port, out);
 	if !rok { return false; }
 	start := time.tick_now();
-	while time.tick_since(start) < time.Duration(min(secs, MAX_CAPTURE_SECONDS)) * time.Second {
+	while time.tick_since(start) < (cast(time.Duration) (min(secs, MAX_CAPTURE_SECONDS))) * time.Second {
 		time.sleep(WATCHDOG_EVERY);
 		if !heap_check(r) { break; }
 	}

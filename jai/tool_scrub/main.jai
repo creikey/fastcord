@@ -62,7 +62,7 @@ b64_decode :: (s: string) -> []u8, bool {
 	// url-safe / unpadded variants
 	u, _ := strings.replace_all(t, "-", "+");
 	u, _ = strings.replace_all(u, "_", "/");
-	while len(u) % 4 != 0 { u = strings.concatenate(.{u, "="}); }
+	while len(u) % 4 != 0 { u = strings.concatenate(string.[u, "="]); }
 	d, err := base64.decode(u);
 	return d, err == null;
 }
@@ -117,8 +117,7 @@ get :: (v: etf.Value, keys: ..string) -> etf.Value {
 }
 
 gs :: (v: etf.Value, keys: ..string) -> string {
-	s, _ := get(v, ..keys).s, get(v, ..keys).kind == .String;
-	return s;
+	return vs(get(v, ..keys));
 }
 
 gn :: (v: etf.Value, keys: ..string) -> float64 {
@@ -138,7 +137,6 @@ obj :: (pairs: ..etf.Pair) -> etf.Value {
 	return etf.vmap(m);
 }
 
-P :: (k: string, v: etf.Value) -> etf.Pair {return .{key = k, value = v};}
 
 load_allowlist :: (c: *Ctx, env: string) {
 	for line: strings.split_lines(env, temp) {
@@ -167,19 +165,19 @@ keep_request :: (r: *Req) -> bool {
 
 headers_list :: (c: *Ctx, h: etf.Value) -> etf.Value {
 	m, ok := h.map, h.kind == .Map;
-	if !ok { return etf.vlist(null); }
+	if !ok { return etf.vlist(.[]); }
 	out := make_dynamic(etf.Value, 0, 0);
 	for p: m {
-		name, _ := p.key.s, p.key.kind == .String;
-		val, _ := p.value.s, p.value.kind == .String;
+		name := vs(p.key);
+		val := vs(p.value);
 		// CDP joins repeated headers with '\n'
 		for part: strings.split(val, "\n", temp) {
 			sv, special := header_rule(c, name, part);
-			if !special { sv = scrub_text(c, part); }
+			if !special { sv = etf.vstring(scrub_text(c, part)); }
 			pair := make_slice(etf.Value, 2);
-			pair[0] = clone(name);
+			pair[0] = etf.vstring(clone(name));
 			pair[1] = sv;
-			append(*out, cast(etf.List)(pair));
+			append(*out, etf.vlist(pair));
 		}
 	}
 	return etf.vlist(view(out));
@@ -189,11 +187,11 @@ wire_list :: (c: *Ctx, hs: [][2]string) -> etf.Value {
 	out := make_slice(etf.Value, len(hs));
 	for h, i: hs {
 		sv, special := header_rule(c, h[0], h[1]);
-		if !special { sv = scrub_text(c, h[1]); }
+		if !special { sv = etf.vstring(scrub_text(c, h[1])); }
 		pair := make_slice(etf.Value, 2);
-		pair[0] = h[0];
+		pair[0] = etf.vstring(h[0]);
 		pair[1] = sv;
-		at(*out, i).* = cast(etf.List)(pair);
+		at(*out, i).* = etf.vlist(pair);
 	}
 	return etf.vlist(out);
 }
@@ -231,13 +229,18 @@ MAX_JSON_BODY :: 256 * 1024;
 #scope_module
 
 utf8_ok :: (s: string) -> bool {
-	for r: s { if r == 0xfffd { return false; } }
+	i := 0;
+	while i < len(s) {
+		r, n := utf8.decode_rune_in_string(sub_from(s, i));
+		if r == 0xfffd { return false; }
+		i += n;
+	}
 	return true;
 }
 #scope_export
 
 // convert turns raw capture text into fixture text.
-convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
+convert :: (raw: string, env: string, netlogs: [2]string = .["", ""]) -> string {
 	c: Ctx;
 	c.allow = Map(string, bool).{};
 	c.others = Map(string, bool).{};
@@ -262,10 +265,10 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			{ bv, berr := etf.from_json(b, temp);
 			if berr == .None { collect_foreign(*c, bv); } }
 		} }
-		free_all(temp);
+		reset_temporary_storage();
 	}
 
-	last_rt := 0.0;
+	last_rt: float64 = 0;
 	for l: lines {
 		{ i := strings.index(l, "\"rt\":");
 		if i >= 0 {
@@ -289,10 +292,10 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 	}
 	conn_ids := Map(int, s64).{};
 	conn_id :: (m: *Map(int, s64), id: int) -> s64 {
-		{ v, ok := map_find(m, id);
+		{ v, ok := map_find(m.*, id);
 		if ok { return v; } }
-		n := cast(s64)(len(m) + 1);
-		at(*m, id).* = n;
+		n := cast(s64)(m.count + 1);
+		at(m, id).* = n;
 		return n;
 	}
 	reqs := Map(string, *Req).{};
@@ -318,7 +321,7 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			continue;
 		} }
 		{ g := get(v, "gw");
-		if g != null {
+		if !etf.is_nil(g) {
 			ws_key := fmt.aprintf("%s/%s", acct, gs(g, "ws"));
 			w := get(sockets, ws_key);
 			e := get(v, "etf");
@@ -329,9 +332,9 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			append(*pairs, P("id", cast(s64)(ifx w != null then w.id else 0)), P("op", get(e, "op")));
 			if ev != "" { append(*pairs, P("ev", clone(ev))); }
 			{ s := get(e, "s");
-			if s != null { append(*pairs, P("seq", s)); } }
+			if !etf.is_nil(s) { append(*pairs, P("seq", s)); } }
 			append(*pairs, P("d", scrub_value(*c, get(e, "d"), "")));
-			emit(*out, *seq, rt, cast(etf.Map)(view(pairs)));
+			emit(*out, *seq, rt, etf.vmap(pairs));
 			continue;
 		} }
 		{ rid := gs(v, "body_for");
@@ -340,7 +343,7 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			{ r, ok := map_find(reqs, k);
 			if ok {
 				r.body = clone(gs(v, "m", "result", "body"));
-				r.body_b64, _ = get(v, "m", "result", "base64Encoded").b, get(v, "m", "result", "base64Encoded").kind == .Bool;
+				r.body_b64 = gb(v, "m", "result", "base64Encoded");
 				r.has_body = true;
 			} }
 			continue;
@@ -361,7 +364,7 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			r.type = clone(gs(p, "type"));
 			r.headers = clone_value(get(p, "request", "headers"));
 			r.post = clone(gs(p, "request", "postData"));
-			r.has_post, _ = get(p, "request", "hasPostData").b, get(p, "request", "hasPostData").kind == .Bool;
+			r.has_post = gb(p, "request", "hasPostData");
 			{ old, exists := map_find(reqs, key);
 			if exists { old.cached = true; } } // redirect: keep the final hop only
 			at(*reqs, key).* = r;
@@ -380,11 +383,11 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 				r.status = cast(int)(gn(p, "response", "status"));
 				r.proto = clone(gs(p, "response", "protocol"));
 				r.conn = gn(p, "response", "connectionId");
-				r.reused, _ = get(p, "response", "connectionReused").b, get(p, "response", "connectionReused").kind == .Bool;
+				r.reused = gb(p, "response", "connectionReused");
 				r.resp_headers = clone_value(get(p, "response", "headers"));
-				disk, _ := get(p, "response", "fromDiskCache").b, get(p, "response", "fromDiskCache").kind == .Bool;
-				pre, _ := get(p, "response", "fromPrefetchCache").b, get(p, "response", "fromPrefetchCache").kind == .Bool;
-				sw, _ := get(p, "response", "fromServiceWorker").b, get(p, "response", "fromServiceWorker").kind == .Bool;
+				disk := gb(p, "response", "fromDiskCache");
+				pre := gb(p, "response", "fromPrefetchCache");
+				sw := gb(p, "response", "fromServiceWorker");
 				if disk || pre || sw { r.cached = true; }
 			} }
 		case "Network.responseReceivedExtraInfo";
@@ -405,13 +408,13 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			{ w, ok := map_find(sockets, fmt.tprintf("%s/%s", acct, rid));
 			if ok {
 				{ rh := get(p, "response", "requestHeaders");
-				if rh != null { w.headers = clone_value(rh); } }
+				if !etf.is_nil(rh) { w.headers = clone_value(rh); } }
 			} }
 		case "Network.webSocketClosed";
 			{ w, ok := map_find(sockets, fmt.tprintf("%s/%s", acct, rid));
 			if ok { w.closed = rt; } }
 		}
-		free_all(temp);
+		reset_temporary_storage();
 	}
 
 	next_id := 1;
@@ -436,11 +439,11 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			// true wire order from the netlog (Chrome strips cookie/auth values there)
 			append(*pairs, P("wire", wire_list(*c, view(nr.headers))), P("wire_src", as_string("netlog")));
 			if nr.proto == "h2" || nr.proto == "h3" { append(*pairs, P("session", conn_id(*conn_ids, nr.session))); }
-			if nr.extra != null { append(*pairs, P("h2", nr.extra)); }
+			if !etf.is_nil(nr.extra) { append(*pairs, P("h2", nr.extra)); }
 			if r.proto == "" {
-				for * pp: pairs { if (ifx pp.key.kind == .String then pp.key.s else "") == "proto" { pp.value = nr.proto; } }
+				for * pp: pairs { if (ifx pp.key.kind == .String then pp.key.s else "") == "proto" { pp.value = etf.vstring(nr.proto); } }
 			}
-		} else if r.wire_headers != null {
+		} else if !etf.is_nil(r.wire_headers) {
 			append(*pairs, P("wire", headers_list(*c, r.wire_headers)), P("wire_src", as_string("cdp_sorted")));
 		}
 		if len(r.post) > 0 {
@@ -448,7 +451,7 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 		} else if r.has_post {
 			append(*pairs, P("body", obj(P("$omitted", true))));
 		}
-		emit(*out, *seq, r.t, cast(etf.Map)(view(pairs)));
+		emit(*out, *seq, r.t, etf.vmap(pairs));
 		if r.has_resp {
 			rp := make_dynamic(etf.Pair, 0, 0);
 			append(*rp, P("t", r.resp_t), P("k", as_string("resp")));
@@ -456,7 +459,7 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			append(*rp, P("id", id), P("status", cast(s64)(r.status)));
 			append(*rp, P("headers", headers_list(*c, r.resp_headers)));
 			if r.has_body { append(*rp, P("body", body_value(*c, r.body, r.body_b64))); }
-			emit(*out, *seq, r.resp_t, cast(etf.Map)(view(rp)));
+			emit(*out, *seq, r.resp_t, etf.vmap(rp));
 		}
 	}
 	for w: ws_order {
@@ -472,13 +475,13 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 				append(*pairs, P("wire", wire_list(*c, view(nr.headers))), P("wire_src", as_string("netlog")));
 			} }
 		}
-		emit(*out, *seq, w.t, cast(etf.Map)(view(pairs)));
+		emit(*out, *seq, w.t, etf.vmap(pairs));
 		if w.closed > 0 {
 			cp := make_dynamic(etf.Pair, 0, 0);
 			append(*cp, P("t", w.closed), P("k", as_string("ws_close")));
 			if w.acct != "a" { append(*cp, P("acct", w.acct)); }
-			append(*cp, P("id", cast(s64)(w.id)), P("code", null));
-			emit(*out, *seq, w.closed, cast(etf.Map)(view(cp)));
+			append(*cp, P("id", cast(s64)(w.id)), P("code", etf.Value.{}));
+			emit(*out, *seq, w.closed, etf.vmap(cp));
 		}
 	}
 	for nl, i: nls {
@@ -504,17 +507,16 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 			}
 			for k: keys {
 				vals := get(grouped, k);
-				append(*pairs, etf.Pair.{key = clone(k), value = ifx len(vals) == 1 then get(vals, 0) else cast(etf.List)(view(vals))});
+				append(*pairs, etf.Pair.{key = etf.vstring(clone(k)), value = ifx len(vals) == 1 then vals[0] else etf.vlist(vals)});
 			}
-			emit(*out, *seq, t, cast(etf.Map)(view(pairs)));
+			emit(*out, *seq, t, etf.vmap(pairs));
 		}
 	}
 	slice.sort_by(view(out), (a: Line, b: Line) -> bool {return a.t < b.t || (a.t == b.t && a.seq < b.seq);});
 	sb := strings.builder_make();
 	for ln: out {
 		// round t to 0.1 ms
-		{ m, ok := ln.v.map, ln.v.kind == .Map;
-		if ok && len(m) > 0 { at(*m, 0).*.value = cast(float64)(cast(s64)(ln.t * 10)) / 10; } }
+		if ln.v.kind == .Map && len(ln.v.map) > 0 { ln.v.map[0].value = etf.vfloat(cast(float64)(cast(s64)(ln.t * 10)) / 10); }
 		etf.to_json(ln.v, *sb);
 		strings.write_byte(*sb, 10);
 	}
@@ -529,7 +531,7 @@ clone_value :: (v: etf.Value) -> etf.Value {
 	case .Big; x := v.big;
 		return etf.vbig(etf.Big.{negative = x.negative, digits = clone(x.digits)});
 	case .String; x := v.s;
-		return clone(x);
+		return etf.vstring(clone(x));
 	case .Atom; x := v.s;
 		return etf.vatom(clone(as_string(x)));
 	case .Charlist; x := v.s;

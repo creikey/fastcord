@@ -8,7 +8,7 @@ aes :: #import "fc_aes";
 audio :: #import "audio";
 chacha20poly1305 :: #import "fc_chacha20poly1305";
 crypto :: #import "fc_crypto";
-dave :: #import "voice_dave";
+DAVE :: #import "voice_dave";
 fmt :: #import "fc_fmt";
 http :: #import "http";
 json :: #import "fc_json";
