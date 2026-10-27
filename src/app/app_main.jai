@@ -273,6 +273,7 @@ frame :: () {
 		voice_frame();
 		login_check_auth();
 	}
+	req_frame();
 	t_media := platform.time_now();
 	watchdog_phase(.Media);
 	sounds_frame();
@@ -663,6 +664,24 @@ script_command :: (path: string, f: []string, t: *float64) {
 			fail("%: expect_clipboard failed\n  want \"%\"\n  got  \"%\"", path, want, got);
 		}
 		return;
+	case "net";
+		// net hold|fail|ok: how offline requests end (requests.jai)
+		if f[1] == {
+		case "fail"; req_offline = .Fail;
+		case "ok"; req_offline = .Ok;
+		case; req_offline = .Hold;
+		}
+		return;
+	case "history";
+		// history loading|failed|older: the open channel's message list as the network left it
+		l := dc.message_list(store(), app.view.channel);
+		l.loading = f[1] == "loading" || f[1] == "older";
+		l.failed = f[1] == "failed";
+		l.loaded = f[1] != "loading";
+		l.has_more_before = f[1] != "loading";
+		if f[1] == "loading" for * l.messages dc.free_message(store(), it);
+		if f[1] == "loading" l.messages.count = 0;
+		return;
 	case "scroll";
 		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = true});
 	case "wait";
@@ -774,6 +793,7 @@ handle_results :: () {
 		case .Invite;
 			invite_receive(r);
 		}
+		req_result(r);
 	}
 }
 

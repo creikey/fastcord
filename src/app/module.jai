@@ -51,6 +51,7 @@ kernel32 :: #system_library "kernel32";
 #load "pickers_lottie.jai";
 #load "pickers_net.jai";
 #load "pickers_sticker.jai";
+#load "requests.jai";
 #load "settings_store.jai";
 #load "sounds.jai";
 #load "stickers.jai";

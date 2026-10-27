@@ -263,8 +263,8 @@ profile_actions :: (uid: dc.Snowflake) {
 	{ ui.parent(bar); defer ui.pop_parent();
 		if !friend {
 			pending := rel && rel.kind == .Outgoing_Request;
-			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false);
-			if add && !pending && net_action() { dc.add_relationship(app.client, uid, "User Profile"); }
+			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false, rel_req("Add Friend", uid));
+			if add && !pending && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "User Profile"); req_end(); }
 		}
 		if action_button("Message", "chat", 110, true) && net_action() {
 			existing := dc.open_dm(app.client, uid, "User Profile");
@@ -286,12 +286,13 @@ profile_actions :: (uid: dc.Snowflake) {
 	}
 }
 
-action_button :: (text: string, icon_name: string, w: float32, primary: bool) -> bool {
+action_button :: (text: string, icon_name: string, w: float32, primary: bool, req := "") -> bool {
 	b := row(text, .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.px(w), ui.px(32)];
 	b.style.radius = all4(8);
 	b.style.bg = ifx primary then T("--background-brand") else T("--control-secondary-background-default");
 	b.style.bg_hot = ifx primary then with_alpha(T("--background-brand"), 0.85) else T("--control-secondary-background-hover");
+	if req != "" && req_state(req) == .Pending return req_button(b, req, T("--interactive-text-active"));
 	sig := ui.signal(b);
 	{ ui.parent(b); defer ui.pop_parent();
 		filler(.X);
@@ -604,7 +605,7 @@ user_context_menu :: () {
 				case "Add Friend Nickname"; #through; case "Edit Friend Nickname";
 					friend_nick_open(uid);
 				case "Add Friend";
-					if net_action() { dc.add_relationship(app.client, uid, "ContextMenu"); } else { table_set(*s.relationships, uid, .{user_id = uid, kind = .Outgoing_Request}); } // offline (fixture) runs
+					if req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "ContextMenu"); req_end(); } else { table_set(*s.relationships, uid, .{user_id = uid, kind = .Outgoing_Request}); } // offline (fixture) runs
 				case "Change Nickname";
 					server_nick_open(uid, app.view.guild);
 				case "Copy Username";

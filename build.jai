@@ -159,7 +159,7 @@ run_logged :: (log: string, args: ..string) -> bool {
     return r.exit_code == 0;
 }
 
-// Every tests/ui script (chat fixture), tests/ui/rail script (rail fixture) and the dead-control sweep, as
+// Every tests/ui script (chat fixture), tests/ui/rail (rail fixture) and tests/ui/dm (dm fixture) script and the dead-control sweep, as
 // parallel headless processes; results print in a fixed order.
 ui_scripts :: () -> bool {
     Job :: struct { name: string; args: [..]string; ok: bool; }
@@ -175,6 +175,8 @@ ui_scripts :: () -> bool {
         add(*jobs, path_strip_extension(path_filename(it)), "tests/ui/chat.jsonl", it);
     for file_list("tests/ui/rail") if ends_with(it, ".txt")
         add(*jobs, tprint("rail_%", path_strip_extension(path_filename(it))), "tests/ui/rail.jsonl", it);
+    for file_list("tests/ui/dm") if ends_with(it, ".txt")
+        add(*jobs, tprint("dm_%", path_strip_extension(path_filename(it))), "tests/ui/dm.jsonl", it);
     sweep := array_add(*jobs);
     sweep.name = "sweep";
     array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");

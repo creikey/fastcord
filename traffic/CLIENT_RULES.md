@@ -179,3 +179,16 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | The socket's upgrade request is the gateway's (Chrome's headers, `permessage-deflate` offered); if the server accepts deflate, fastcord inflates what it receives and sends stored DEFLATE blocks (Chrome compresses) | guess | not captured whether the server negotiates it | `src/http/ws.jai` |
 | "Document not visible" (reconnect deferred while the window is hidden) is not modelled | known gap | `document is not visible` | — |
 
+## Loading states and request feedback
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| A failed message page (`LOAD_MESSAGES_FAILURE`) sets the channel's `error` and stops loading; no automatic retry. A bar reads "Messages Failed To Load" with "Try Again"; while the retry runs, `PULSING_ELLIPSIS` replaces "Try Again" | code | `LOAD_MESSAGES_FAILURE:function`, string `1zUvlw`; component with `"1zUvlw"` and `PULSING_ELLIPSIS` | `view_chat.jai` `history_failed_bar`, `history_retry`; `rest.jai` `Message_List.failed` |
+| Older pages are not re-requested by scrolling after a failure (only Try Again) | guess | — | `message_list` (`older` gate) |
+| A failed jump (`around=`) shows the same bar | guess | — | `features.jai` `apply_around` |
+| Bar colour (danger red), 32px, under the header | guess | — | `history_failed_bar` |
+| Loading placeholders (first page, older history, DM list, friends, member list, own user panel before READY): grey static shapes, no shimmer | guess (shape only) | — | `requests.jai` `skel`, `view_chat.jai` `skeleton_message` |
+| A button waiting on its request shows `PULSING_ELLIPSIS` in place of its label and ignores presses (Button `submitting`) | code | `PULSING_ELLIPSIS`, Button `submitting` | `requests.jai` `req_button` |
+| Add Friend page: failure text "Hm, didn’t work. Double check that the username is correct." (generic; the client picks a per-error-code text) under a red field; success "Success! Your friend request to **name** was sent." under a green field | code (strings `paDJBM`, `Rtl1Ep`); per-code texts not ported | `sendRequest`, `RELATIONSHIP_ALREADY_FRIENDS` | `view_home.jai` `add_friend_view` |
+| Other failed requests: a red toast "Something went wrong. Try again." (429: "You're doing that too fast. Try again in a moment.") for 5 s; the client shows a "Friend request failed" alert for relationship errors | guess (toast); code (alert, `6moJ8s`) not ported | `6moJ8s` | `requests.jai` `req_toast` |
+
