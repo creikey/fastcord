@@ -282,6 +282,7 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 	if text == "" tl = null;
 	if sig.pressed {
 		if f.parent app.ui.focus = f.parent.key;
+		ui.selection_clear(); // a press in a field drops the page's selection, as in a browser
 		for e: app.ui.events {
 			if e.kind == .Mouse_Down && e.button == .Left {
 				ui.editor_mouse_down(ed, tl, e.pos, e.click_count, (e.mods & .Shift) != 0);
@@ -291,6 +292,7 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 	} else if sig.dragging {
 		ui.editor_mouse_drag(ed, tl, app.ui.mouse);
 	}
+	if sig.right_clicked open_edit_menu(ed, f);
 	if focused {
 		note_focused_editor(ed, f);
 		for * e: app.ui.events {

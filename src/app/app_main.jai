@@ -30,6 +30,7 @@ App :: struct {
 	ui_mods: UI_Mods; // modifier keys as of the latest event
 	stats: bool;
 	focused: bool; // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
+	copy_selection: bool; // the message menu's "Copy": copy the selection after this pass
 	focused_editor: *UI_Editor; // the text field that took keyboard input last frame (tests)
 	expect_drawn: string; // script check: text the next frame must draw (tests)
 	wake_at: float64; // earliest timed repaint requested this frame (caret blink, timers); 0 = none
@@ -316,6 +317,8 @@ frame :: () {
 			e.consumed = true;
 		}
 	}
+	if app.copy_selection && ui.has_selection() clipboard_set(ui.selection_text());
+	app.copy_selection = false;
 	// The UI runs twice and only this second pass is drawn. A widget handles input after it has
 	// declared what it shows (a text field's text, a list's scroll), so the first pass draws the state
 	// from before the input. This pass gets no input and no time step: it draws the new state now

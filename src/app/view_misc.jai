@@ -42,6 +42,41 @@ field_draw :: (b: *ui.Box, user: *void) {
 	platform.set_ime_rect(origin.x + x, y, 1, tl.line_h);
 }
 
+// Right-click menu of a text field: Cut / Copy with a selection, Paste. Items send the
+// shortcut, so the focused field (and the composer's file paste) handles them as keys.
+edit_menu_state: struct { open: bool; has_sel: bool; pos: ui.Vec2; };
+
+open_edit_menu :: (ed: *ui.Editor, f: *ui.Box) {
+	if f.parent app.ui.focus = f.parent.key;
+	edit_menu_state.open = true;
+	edit_menu_state.has_sel = ui.editor_has_sel(ed);
+	edit_menu_state.pos = app.ui.mouse;
+}
+
+edit_menu :: () {
+	em := *edit_menu_state;
+	if outside_pressed("edit_scrim") || escape_pressed() {
+		em.open = false;
+		return;
+	}
+	W :: 188.0;
+	menu := menu_panel("editmenu", em.pos, W);
+	h := menu.rect.y1 - menu.rect.y0;
+	menu.fixed_pos = .{clamp(em.pos.x, 8, app.ui.window.x - W - 8), clamp(em.pos.y, 8, max(8.0, app.ui.window.y - h - 8))};
+	key: platform.Key;
+	{ ui.parent(menu); defer ui.pop_parent();
+		spacer(.Y, 8);
+		if em.has_sel && menu_item("cut", "Cut").clicked key = .X;
+		if em.has_sel && menu_item("copy", "Copy").clicked key = .C;
+		if menu_item("paste", "Paste").clicked key = .V;
+		spacer(.Y, 8);
+	}
+	if key != .None {
+		platform.inject_event(.{kind = .Key_Down, key = key, mods = platform.PRIMARY_MOD});
+		em.open = false;
+	}
+}
+
 // Where a profile popout was opened from (telemetry: user_profile_action's
 // layout and location stack; .Other sends none, its stack names are not known).
 Profile_Source :: enum u8 {

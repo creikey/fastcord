@@ -127,6 +127,8 @@ not read in code; **guess** = neither, best knowledge.
 | Thread browser Archived tab sends `thread_browser_tab_changed` | guess | not captured | `view_threads_browser.jai` |
 | External-location event body (`scheduled_end_time`, `entity_metadata.location`), Start Event (`PATCH {"status":2}`) | guess | not captured | `src/discord/guild_admin.jai` |
 | Declining a DM call sends nothing (dismissed locally) | guess | not captured | `src/discord/calls.jai` |
+| Message menu with text selected (desktop): a "Copy" item (copy icon, ⌘C) heads it and the quick-reaction row is hidden (`""===textSelection?quickReactions:null`) | code | `MessageContextMenu`: search `textSelection:` and `id:"copy",label` | `src/app/view_message_actions.jai` `message_menu` |
+| Text field right-click menu: Cut and Copy with a selection, Paste always (spellcheck items not implemented) | guess | `textarea-context` (menu chunk not cached) | `src/app/view_misc.jai` `edit_menu` |
 
 ## Login and logout
 

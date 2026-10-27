@@ -360,12 +360,15 @@ message_menu :: () {
 	}
 	items: [..]Item;
 	items.allocator = temp;
-	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true});
+	// official (MessageContextMenu): with text selected, "Copy" heads the menu and the quick reactions go
+	sel := ui.has_selection();
+	if sel array_add(*items, .{label = "Copy", icon = "copy"});
+	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel});
 	if own array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
 	array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true}, .{label = "Copy Message Link", icon = "link"});
 	if own array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = true});
-	quick := quick_reactions();
+	quick := ifx sel then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
 	h := 2 * MENU_PAD + 2 + cast(float32) items.count * MENU_ROW_H + (ifx quick then MENU_QUICK + 8 else 0);
 	for items if it.sep h += MENU_SEP_H;
@@ -452,6 +455,8 @@ message_menu :: () {
 			if sig.clicked {
 				if app.client != null dc.message_menu_item_clicked(app.client);
 				if it_.label == {
+				case "Copy";
+					app.copy_selection = true; // after end(): the selection text needs this frame's boxes
 				case "Add Reaction";
 					app.reaction_target = m.id;
 				case "Edit Message";
