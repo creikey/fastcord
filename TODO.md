@@ -37,7 +37,8 @@
 - [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
-- [ ] Video: check receiving a camera and a Go Live from the official client (fastcord → official and fastcord → fastcord work live; the test instance has no camera or screen permission). Real cameras and ScreenCaptureKit capture are also untested live.
+- [ ] Video: fastcord's own real camera (AVFoundation) and screen capture (ScreenCaptureKit) are untested live; the live tests used the synthetic pattern.
+- [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
 - [ ] Video: a dev build started from an app without a camera usage description (e.g. an IDE's terminal) is killed by macOS on the first AVFoundation call; check the authorization status first and say why the camera can't start.
 - [ ] Video: Windows (Media Foundation capture / encoder / decoder, Windows.Graphics.Capture) and Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
@@ -217,3 +218,4 @@
 - [x] Read states: regaining focus reports "Ack - Window Focus", and auto-acks use the channel's `last_message_id`.
 - [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
 - [x] Read states: incoming mentions raise the mention count, so opening that channel acks at once (checked live on the test accounts, `build/parity ack_live`).
+- [x] Video: checked live with the test accounts both ways: the official client shows fastcord's camera and Go Live, and fastcord decodes the official client's camera (1280x720) and Go Live (H265, DAVE).

@@ -117,8 +117,9 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 Not captured: the voice gateway and its UDP media are native (not in the DevTools captures). Checked
 live on 2026-10-27 with the test accounts (fastcord A with a synthetic camera and Go Live,
 `FASTCORD_VIDEO_TEST=camera,stream`): the official client (B) showed A's camera and watched A's stream
-(720p 30 fps), and fastcord as B decoded A's camera; the SFU chose H265. Not checked: receiving video
-from the official client (the test instance has no camera or screen permission).
+(720p 30 fps), and fastcord as B decoded A's camera; the SFU chose H265. The other way, fastcord decoded
+the official client's camera (1280x720) and watched its Go Live (op 20 watch, stream connection) with
+DAVE active.
 
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
