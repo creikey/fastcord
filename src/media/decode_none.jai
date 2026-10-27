@@ -1,30 +1,32 @@
-// Windows and Linux: no video decoder yet (Windows: TODO Media Foundation MFTs; Linux: VA-API or FFmpeg would
-// be a large new dependency). Audio: PCM (WAV) here, MP3 through vendor/minimp3 (the UI sounds are MP3); other
+// Linux: no video decoder yet (VA-API or FFmpeg would be a large new dependency); Windows has
+// decode_windows.jai. Audio on both: PCM (WAV) here, MP3 through vendor/minimp3 (the UI sounds are MP3); other
 // codecs report unsupported, as an unknown codec does on macOS, so players open, probe and demux but play no audio.
 
-Video_Frame :: struct {
-	pts: float64;
-	dur: float64;
-	pixbuf: *void;
-	width: int;
-	height: int;
-	yuv: gfx.Yuv_Matrix;
-}
+#if OS != .WINDOWS {
+	Video_Frame :: struct {
+		pts: float64;
+		dur: float64;
+		pixbuf: *void;
+		width: int;
+		height: int;
+		yuv: gfx.Yuv_Matrix;
+	}
 
-Video_Decoder :: struct {
-	errors: int;
-}
+	Video_Decoder :: struct {
+		errors: int;
+	}
 
-video_codec_supported :: (c: Codec) -> bool { return false; }
-video_decoder_create :: (t: *Track, first_packet: []u8 = .[]) -> *Video_Decoder, bool { return null, false; }
-video_decoder_create_from_params :: (codec: Codec, params: [][]u8) -> *Video_Decoder, bool { return null, false; }
-video_decode :: (vd: *Video_Decoder, data: []u8, pts: float64, dts: float64, dur: float64) -> bool { return false; }
-video_decoder_flush :: (vd: *Video_Decoder) {}
-video_decoder_take :: (vd: *Video_Decoder, out: *[..]Video_Frame) {}
-video_decoder_destroy :: (vd: *Video_Decoder) {}
-video_frame_release :: (f: *Video_Frame) { f.pixbuf = null; }
-video_frame_from_pixbuf :: (pixbuf: *void) -> Video_Frame { return .{}; }
-video_frame_textures :: (f: *Video_Frame) -> gfx.Texture, gfx.Texture, bool { return 0, 0, false; }
+	video_codec_supported :: (c: Codec) -> bool { return false; }
+	video_decoder_create :: (t: *Track, first_packet: []u8 = .[]) -> *Video_Decoder, bool { return null, false; }
+	video_decoder_create_from_params :: (codec: Codec, params: [][]u8) -> *Video_Decoder, bool { return null, false; }
+	video_decode :: (vd: *Video_Decoder, data: []u8, pts: float64, dts: float64, dur: float64) -> bool { return false; }
+	video_decoder_flush :: (vd: *Video_Decoder) {}
+	video_decoder_take :: (vd: *Video_Decoder, out: *[..]Video_Frame) {}
+	video_decoder_destroy :: (vd: *Video_Decoder) {}
+	video_frame_release :: (f: *Video_Frame) { f.pixbuf = null; }
+	video_frame_from_pixbuf :: (pixbuf: *void) -> Video_Frame { return .{}; }
+	video_frame_textures :: (f: *Video_Frame) -> gfx.Texture, gfx.Texture, bool { return 0, 0, false; }
+}
 
 Audio_Decoder :: struct {
 	channels: int;

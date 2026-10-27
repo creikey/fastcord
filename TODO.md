@@ -3,7 +3,6 @@
 - [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
 - [ ] When soundboard support is added, add a toggle that makes soundboards play through your call's mic instead of through discord's separate soundboard channel
 - [ ] Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
-- [ ] Bug (Windows): in a call, turning the camera on and then off again hangs the program. Suspect `capture_stop` (`video/capture_windows.jai`) waiting on the camera thread, which is blocked in a synchronous `ReadSample`, on the UI thread.
 - [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
 - [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
@@ -43,7 +42,10 @@
 - [ ] Go Live viewer (fastcord-only): zoom and pan into a stream, with the zoomed view filling the viewer's own shape, not the stream's. Zoomed into a 21:9 ultrawide stream in a 16:9 viewer, you see a 16:9 slice of it with no bars, not a 21:9 crop. Scroll to zoom at the cursor, drag to pan, double-click or Escape to reset. Clamp panning to the frame; letterbox only when zoomed out to fit. Today streams are only "contain"-fitted (`view_call.jai`).
 - [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
 - [ ] Video: a dev build started from an app without a camera usage description (e.g. an IDE's terminal) is killed by macOS on the first AVFoundation call; check the authorization status first and say why the camera can't start.
-- [ ] Video: Windows (Media Foundation capture / encoder / decoder, Windows.Graphics.Capture) and Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
+- [ ] Video: Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
+- [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
+- [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
+- [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
 - [ ] Video: VP8 / AV1 calls show no video (only H.264 / H.265 are decoded and sent); no NACK / RTX retransmission or bandwidth estimation (fixed bitrates).
 - [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
@@ -122,7 +124,7 @@
 - [ ] Windows: no toast notifications or taskbar unread badge (`notify_show` / `set_badge` are stubs). Linux has no badge either.
 - [ ] Windows, Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty).
 - [ ] Windows: gg sans never loads, so text falls back to Segoe UI (`text_dwrite_windows.jai` `native_font_load_memory` needs IDWriteFactory5's in-memory loader).
-- [ ] Windows, Linux: no video or compressed-audio decoding (`media/decode_none.jai`), so video attachments, MP4 GIFs and Ogg Opus voice messages show no frames and play no sound. Windows: Media Foundation. Possibly the cause of the Klipy GIF item.
+- [ ] Windows, Linux: no compressed-audio decoding (`media/decode_none.jai`), so Ogg Opus voice messages and AAC video soundtracks play no sound; Linux also decodes no video frames. Windows: Media Foundation.
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Windows, Linux: no echo cancellation, noise suppression or AGC in voice (`set_voice_processing` stubs).
 - [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
@@ -224,3 +226,5 @@
 - [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
 - [x] Read states: incoming mentions raise the mention count, so opening that channel acks at once (checked live on the test accounts, `build/parity ack_live`).
 - [x] Video: checked live with the test accounts both ways: the official client shows fastcord's camera and Go Live, and fastcord decodes the official client's camera (1280x720) and Go Live (H265, DAVE).
+- [x] Video: calls and Go Live on Windows: camera (Media Foundation source reader), screen sharing (DXGI desktop duplication, D3D11 video processor to NV12), H.264 encoding and H.264 / HEVC decoding through Media Foundation MFTs (`src/mf`, `video/*_windows.jai`, `media/decode_windows.jai`); video attachments and embeds now play on Windows too.
+- [x] Bug (Windows): turning the camera off in a call hung the program; `capture_stop` no longer waits on the UI thread for the capture thread to exit (fix untested with a real camera).
