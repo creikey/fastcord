@@ -269,6 +269,8 @@ Shaped_Run :: struct {
 
 Backend :: struct {
 	shape: (font: Font, size: float32, text: string) -> Shaped_Run; // result must stay valid for the frame
+	// optional: plain text with inline objects (emoji) as spans; none = shape as plain text
+	split: (font: Font, size: float32, text: string) -> []Span;
 }
 
 // Work done by the last pass (begin to end). Deterministic for a given input, so benchmarks can
@@ -990,7 +992,10 @@ text_layout_for :: (b: *Box, wrap_width: float32) -> *Text_Layout {
 		b.text_layout = layout_rich(b.spans, ww, b.style.line_height);
 		b.text = b.text_layout.text;
 	} else {
-		b.text_layout = layout_text(b.style.font, b.style.font_size, b.text, ww, b.style.line_height);
+		split: []Span;
+		if context.ui.backend.split split = context.ui.backend.split(b.style.font, b.style.font_size, b.text);
+		if split.count b.text_layout = layout_rich(split, ww, b.style.line_height);
+		else b.text_layout = layout_text(b.style.font, b.style.font_size, b.text, ww, b.style.line_height);
 	}
 	return b.text_layout;
 }

@@ -35,7 +35,8 @@ msgs = [
 ]
 # chat_emoji.jsonl adds Twemoji / sticker messages (kept out of chat.jsonl so the
 # coordinate-based UI scripts keep their layout). Offline media for it:
-# FASTCORD_MEDIA_DIR with the twemoji svgs / sticker files (see src/app/emoji.jai).
+# tests/ui/emoji/media (FASTCORD_MEDIA_DIR for tests/ui/emoji scripts): the Twemoji
+# svgs they show, as served from discord.com/assets (Twemoji, CC-BY 4.0).
 emoji_msgs = [
     (wumpus, 1320, 'emoji inline: hi 😀 there 👍🏽 family 👨\u200d👩\u200d👧\u200d👦 flag 🇯🇵 keycap 1\ufe0f\u20e3 heart ❤️ and ™ stays text'),
     (wumpus, 1330, '**bold 🔥** and `code 😀 stays text`'),
@@ -102,6 +103,9 @@ def threads_extra(base_msgs):
 for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs)):
   out = build(ms)
   if name == 'chat_threads.jsonl': out += threads_extra(ms)
+  # a custom guild emoji for the composer autocomplete (image: tests/ui/emoji/media/<id>.webp, a PNG)
+  if name == 'chat_emoji.jsonl': out.append(ev('GUILD_EMOJIS_UPDATE', {'guild_id': GUILD, 'emojis': [
+      {'id': 1546820603343016300, 'name': 'fastdog', 'animated': False, 'available': True, 'require_colons': True, 'managed': False, 'roles': []}]}))
   with open(os.path.join(here, name), 'w') as f:
     for o in out: f.write(json.dumps(o, ensure_ascii=False) + '\n')
   print('wrote', name, len(out), 'lines')

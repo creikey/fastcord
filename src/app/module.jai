@@ -39,6 +39,7 @@ kernel32 :: #system_library "kernel32";
 #load "attachments.jai";
 #load "bench.jai";
 #load "emoji.jai";
+#load "emoji_autocomplete.jai";
 #load "friend_nickname.jai";
 #load "glue.jai";
 #load "icons.jai";
