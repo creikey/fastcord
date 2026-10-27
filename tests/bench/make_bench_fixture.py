@@ -69,6 +69,77 @@ def media(name, w, seed):
 
 for i in range(6): media('%d.png' % i, 128, 'default%d' % i)
 
+# ---- expression picker (served offline like the media: by the API path's last component) ----
+# Animated GIFs: an uncompressed LZW stream (9-bit literal codes, clear every 254) keeps the encoder short;
+# decoding still costs what a real GIF frame of that size does.
+def gif(w, h, frames, seed):
+    r = random.Random(seed)
+    pal = bytes(r.randrange(256) for _ in range(256 * 3))
+    def lzw(px):
+        out, bits, n = bytearray(), 0, 0
+        codes = []
+        for i, p in enumerate(px):
+            if i % 254 == 0: codes.append(256)
+            codes.append(p)
+        codes.append(257)
+        for code in codes:
+            bits |= code << n; n += 9
+            while n >= 8: out.append(bits & 0xff); bits >>= 8; n -= 8
+        if n: out.append(bits & 0xff)
+        return b''.join(bytes([len(out[i:i + 255])]) + bytes(out[i:i + 255]) for i in range(0, len(out), 255)) + b'\x00'
+    b = bytearray(b'GIF89a' + struct.pack('<HHBBB', w, h, 0xf7, 0, 0) + pal + b'\x21\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00')
+    for f in range(frames):
+        px = bytes(((x + f * 7) // 8 + (y // 8) * 3) & 0xff for y in range(h) for x in range(w))
+        b += b'\x21\xf9\x04\x04\x05\x00\x00\x00' + b'\x2c' + struct.pack('<HHHHB', 0, 0, w, h, 0) + b'\x08' + lzw(px)
+    return bytes(b + b'\x3b')
+
+def media_file(name, make):
+    p = os.path.join(media_dir, name)
+    if not os.path.exists(p):
+        with open(p, 'wb') as f: f.write(make())
+
+def lottie(seed):
+    r = random.Random(seed)
+    def kf(a, b): return {'a': 1, 'k': [{'t': 0, 's': a, 'o': {'x': [0.4], 'y': [0]}, 'i': {'x': [0.6], 'y': [1]}}, {'t': 30, 's': b}, {'t': 60, 's': a}]}
+    def st(v): return {'a': 0, 'k': v}
+    layers = []
+    for k in range(6):
+        shape = {'ty': 'el', 'p': st([0, 0]), 's': st([r.randrange(60, 220)] * 2)} if k % 2 else \
+                {'ty': 'rc', 'p': st([0, 0]), 's': st([r.randrange(60, 220), r.randrange(60, 220)]), 'r': st(20)}
+        layers.append({'ty': 4, 'ind': k + 1, 'ip': 0, 'op': 60, 'st': 0, 'ks': {
+            'p': kf([r.randrange(100, 412), r.randrange(100, 412)], [r.randrange(100, 412), r.randrange(100, 412)]),
+            'r': kf([0], [r.randrange(-180, 180)]), 's': st([100, 100]), 'a': st([0, 0]), 'o': st(100)},
+            'shapes': [{'ty': 'gr', 'it': [shape, {'ty': 'fl', 'c': st([r.random(), r.random(), r.random(), 1]), 'o': st(100)},
+                                            {'ty': 'st', 'c': st([0, 0, 0, 1]), 'o': st(100), 'w': st(8)},
+                                            {'ty': 'tr', 'p': st([0, 0]), 'a': st([0, 0]), 's': st([100, 100]), 'r': st(0), 'o': st(100)}]}]})
+    return json.dumps({'v': '5.5.2', 'fr': 60, 'ip': 0, 'op': 60, 'w': 512, 'h': 512, 'layers': layers}).encode()
+
+# Standard sticker packs: mostly Lottie like Discord's, some still images and GIFs.
+packs = []
+for pk_i in range(10):
+    pid = 1700000000000000001 + pk_i * 100
+    stickers = []
+    for st_i in range(24):
+        sid = pid + 1 + st_i
+        fmt = 4 if st_i % 8 == 7 else 1 if st_i % 8 == 6 else 3
+        stickers.append({'id': sid, 'name': 'sticker %d %d' % (pk_i, st_i), 'format_type': fmt, 'pack_id': pid})
+        if fmt == 3: media_file('%d.json' % sid, lambda: lottie(sid))
+        elif fmt == 4: media_file('%d.gif' % sid, lambda: gif(160, 160, 12, sid))
+        else: media('%d.webp' % sid, 160, sid)
+    packs.append({'id': pid, 'name': 'Pack %d' % pk_i, 'cover_sticker_id': pid + 1, 'stickers': stickers})
+media_file('sticker-packs', lambda: json.dumps({'sticker_packs': packs}).encode())
+
+# GIF picker: 20 trending categories and 60 trending GIFs (the "Trending GIFs" tile), 24 frames each.
+gifs = []
+for g in range(60):
+    w, h = 220, 160 + (g * 37) % 120
+    name = 'tg%02d.gif' % g
+    media_file(name, lambda: gif(w, h, 24, name))
+    gifs.append({'id': str(g), 'title': '', 'url': 'https://tenor.com/view/%d' % g, 'src': 'https://media.tenor.com/x%02dAAPo/tg%02d.mp4' % (g, g),
+                 'gif_src': 'https://media.tenor.com/x%02dAAAC/%s' % (g, name), 'preview': '', 'width': w, 'height': h})
+media_file('trending-gifs', lambda: json.dumps(gifs).encode())
+media_file('trending', lambda: json.dumps({'categories': [{'name': 'category %d' % c, 'src': gifs[c]['gif_src']} for c in range(20)], 'gifs': [gifs[0]]}).encode())
+
 # ---- text ----
 
 WORDS = ('the quick brown fox jumps over lazy dog frame layout render shader buffer texture arena allocator '

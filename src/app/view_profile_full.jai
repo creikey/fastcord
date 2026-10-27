@@ -61,6 +61,9 @@ Pf_State :: struct {
 pf: Pf_State;
 #scope_export
 
+// Closes the full profile if it shows uid.
+profile_full_close_for :: (uid: dc.Snowflake) { if pf.user == uid pf.user = 0; }
+
 profile_full_open :: (uid: dc.Snowflake, guild_id: dc.Snowflake = 0) {
 	pf.user = uid;
 	pf.guild = guild_id;
@@ -131,7 +134,6 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 
 // Overlay entry (views.jai overlays()).
 profile_full_overlay :: () {
-	defer user_context_menu();
 	// FASTCORD_PROFILE=<id>|me|friend opens a profile once the first channel shows (screenshots)
 	if !env_profile_done && app.view.channel != 0 {
 		env_profile_done = true;
@@ -263,14 +265,10 @@ profile_actions :: (uid: dc.Snowflake) {
 	{ ui.parent(bar); defer ui.pop_parent();
 		if !friend {
 			pending := rel && rel.kind == .Outgoing_Request;
-			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false);
-			if add && !pending && net_action() { dc.add_relationship(app.client, uid, "User Profile"); }
+			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false, rel_req("Add Friend", uid));
+			if add && !pending && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "User Profile"); req_end(); }
 		}
-		if action_button("Message", "chat", 110, true) && net_action() {
-			existing := dc.open_dm(app.client, uid, "User Profile");
-			if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
-			pf.user = 0;
-		}
+		if action_button("Message", "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
 		more := ui.box("more", .Clickable | .Draw_Background | .Hot_Animation);
 		more.semantic_size = .[ui.px(32), ui.px(32)];
 		more.style.radius = all4(8);
@@ -286,12 +284,13 @@ profile_actions :: (uid: dc.Snowflake) {
 	}
 }
 
-action_button :: (text: string, icon_name: string, w: float32, primary: bool) -> bool {
+action_button :: (text: string, icon_name: string, w: float32, primary: bool, req := "") -> bool {
 	b := row(text, .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.px(w), ui.px(32)];
 	b.style.radius = all4(8);
 	b.style.bg = ifx primary then T("--background-brand") else T("--control-secondary-background-default");
 	b.style.bg_hot = ifx primary then with_alpha(T("--background-brand"), 0.85) else T("--control-secondary-background-hover");
+	if req != "" && req_state(req) == .Pending return req_button(b, req, T("--interactive-text-active"));
 	sig := ui.signal(b);
 	{ ui.parent(b); defer ui.pop_parent();
 		filler(.X);
@@ -539,8 +538,11 @@ open_user_menu :: (uid: dc.Snowflake, at: ui.Vec2, dm_row := false) {
 	if app.client == null || uid == 0 { return; }
 	if dm_row { dc.open_dm_row_menu(app.client, uid); } else if app.view.guild != 0 { dc.open_user_context_menu(app.client, uid, app.view.guild); }
 }
-#scope_file
 
+user_menu_open :: () -> bool { return pf.menu_user != 0; }
+
+// Drawn after the profile popout (overlays()): a menu opened from a profile's
+// "..." sits on top of it, and pressing outside the menu closes only the menu.
 user_context_menu :: () {
 	if pf.menu_user == 0 { return; }
 	uid := pf.menu_user;
@@ -597,14 +599,11 @@ user_context_menu :: () {
 				case "Profile";
 					profile_full_open(uid, app.view.guild);
 				case "Message";
-					if net_action() {
-						existing := dc.open_dm(app.client, uid, "Context Menu");
-						if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
-					}
+					open_dm_with(uid, "Context Menu");
 				case "Add Friend Nickname"; #through; case "Edit Friend Nickname";
 					friend_nick_open(uid);
 				case "Add Friend";
-					if net_action() { dc.add_relationship(app.client, uid, "ContextMenu"); } else { table_set(*s.relationships, uid, .{user_id = uid, kind = .Outgoing_Request}); } // offline (fixture) runs
+					if req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "ContextMenu"); req_end(); } else { table_set(*s.relationships, uid, .{user_id = uid, kind = .Outgoing_Request}); } // offline (fixture) runs
 				case "Change Nickname";
 					server_nick_open(uid, app.view.guild);
 				case "Copy Username";
@@ -619,7 +618,6 @@ user_context_menu :: () {
 	}
 	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { pf.menu_user = 0; } }
 }
-#scope_export
 
 pf_reset_for_test :: () {pf = .{};}
 pf_state_for_test :: () -> string {return tprint("% % %", pf.user, pf.tab, pf.menu_user);}

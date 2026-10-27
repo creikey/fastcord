@@ -16,6 +16,7 @@
 //   - RESUME only if a session exists and the last ACK is ≤ 3 min old.
 //   - op 7 reconnects immediately; op 9 resumes (d=true) or identifies.
 //   - HELLO must arrive within 30 s.
+//   - waking from sleep: expeditedHeartbeat(5000) (heartbeat now, reconnect without an ACK in 5 s).
 //
 // Threads: the control thread (timers, connects, teardown), one reader per socket and a writer for
 // frames sent from the UI thread. Each resets its temporary storage per frame or timer round; what
@@ -106,6 +107,7 @@ Gateway :: struct {
 	last_beat: s64;
 	last_ack: s64;
 	beat_acked: bool;
+	expedited_deadline: s64; // an expedited heartbeat's ACK timeout (0: none)
 	hello_deadline: s64;
 	received_hello: bool;
 	qos_current: Qos;
@@ -389,10 +391,12 @@ identify_value :: (g: *Gateway, allocator := temp) -> V {
 	pres := etf.map_builder(4);
 	// before the settings proto is loaded the presence store reports "unknown"
 	// (a login from the login page reports the presence store's "online": fixture login_submit)
-	etf.map_put(*pres, "status", etf.vstring(ifx g.identified || c.auth.login_session then status_name(g.presence_status) else "unknown"));
-	etf.map_put(*pres, "since", etf.vint(0));
+	idle_since := atomic_load(*c.idle_since);
+	status := ifx g.presence_status == .Online && idle_since then Status.Idle else g.presence_status;
+	etf.map_put(*pres, "status", etf.vstring(ifx g.identified || c.auth.login_session then status_name(status) else "unknown"));
+	etf.map_put(*pres, "since", etf.vint(idle_since));
 	etf.map_put(*pres, "activities", etf.vlist(.[]));
-	etf.map_put(*pres, "afk", etf.vbool(false));
+	etf.map_put(*pres, "afk", etf.vbool(idle_since != 0));
 
 	active := ifx g.have_qos_upcoming then g.qos_upcoming.active else g.have_qos_current && g.qos_current.active;
 
@@ -554,6 +558,7 @@ gateway_on_closed :: (g: *Gateway, gen: int, clean: bool, code: int) {
 	if gen != g.gen || g.stop return;
 	g.next_beat = 0;
 	g.hello_deadline = 0;
+	g.expedited_deadline = 0;
 	g.close_code = code;
 	if code == 4004 {
 		g.state = .Stopped;
@@ -678,6 +683,7 @@ gateway_handle_payload :: (g: *Gateway, gen: int, v: V, pool: *Flat_Pool) -> boo
 		case .Heartbeat_Ack;
 			g.last_ack = now_ms();
 			g.beat_acked = true;
+			g.expedited_deadline = 0;
 		case .Heartbeat;
 			send_heartbeat_locked(g);
 			if g.next_beat != 0 g.next_beat = now_ms() + g.interval;
@@ -785,9 +791,21 @@ gateway_control_proc :: (g: *Gateway) {
 	locks.lock(*g.mu);
 	// The HTML bootstrap opens the socket ~190 ms after navigation (fixtures median).
 	g.reconnect_at = g.c.launch_ms + ifx g.c.cfg.ws_open_delay_ms != 0 then g.c.cfg.ws_open_delay_ms else 190;
+	last_round := now_ms();
+	next_idle_poll: s64;
 	while !g.stop {
 		reset_temporary_storage(); // nothing in temp outlives a round
 		now := now_ms();
+		// A round waits at most 1 s, so a longer gap is the machine waking from sleep: the client's
+		// powerMonitor "resume" sends expeditedHeartbeat(5000).
+		if now - last_round > WAKE_GAP_MS gateway_expedited_heartbeat_locked(g, 5000);
+		last_round = now;
+		if now >= next_idle_poll {
+			next_idle_poll = now + 10_000;
+			locks.unlock(*g.mu);
+			idle_poll(g.c, now);
+			locks.lock(*g.mu);
+		}
 		if g.pending_teardown {
 			code := g.pending_code;
 			gen := g.pending_gen;
@@ -833,8 +851,18 @@ gateway_control_proc :: (g: *Gateway) {
 					if g.beat_acked {
 						g.beat_acked = false;
 						send_heartbeat_locked(g);
-					} else {
+					} else if g.expedited_deadline == 0 {
 						// ACK timeout: close 4000 and reconnect through the backoff.
+						g.pending_teardown = true;
+						g.pending_code = 0;
+						g.pending_gen = g.gen;
+						g.pending_send_close = true;
+					}
+					continue;
+				}
+				if g.expedited_deadline != 0 && now >= g.expedited_deadline {
+					g.expedited_deadline = 0;
+					if !g.beat_acked {
 						g.pending_teardown = true;
 						g.pending_code = 0;
 						g.pending_gen = g.gen;
@@ -847,20 +875,27 @@ gateway_control_proc :: (g: *Gateway) {
 		if g.state == .Closed wake = min(wake, g.reconnect_at);
 		if g.next_beat != 0 wake = min(wake, g.next_beat);
 		if g.hello_deadline != 0 wake = min(wake, g.hello_deadline);
+		if g.expedited_deadline != 0 wake = min(wake, g.expedited_deadline);
 		locks.cond_wait_with_timeout(*g.cond, *g.mu, max(wake - now, 1));
 	}
 	locks.unlock(*g.mu);
 }
 
-// gateway_reset_backoff: resetBackoff (app became active / network online).
-gateway_reset_backoff :: (g: *Gateway) {
-	locks.lock(*g.mu);
-	defer locks.unlock(*g.mu);
-	backoff_succeed(*g.backoff);
+WAKE_GAP_MS :: 15_000;
+
+// expeditedHeartbeat(timeout): connected, heartbeat now and reconnect if no ACK within timeout_ms;
+// waiting to reconnect, resetBackoff: reconnect at once.
+gateway_expedited_heartbeat_locked :: (g: *Gateway, timeout_ms: s64) {
+	if g.state == .Stopped return;
 	if g.state == .Closed {
+		backoff_succeed(*g.backoff);
 		g.reconnect_at = now_ms();
-		locks.cond_broadcast(*g.cond);
+	} else if g.state != .Connecting {
+		g.beat_acked = false;
+		send_heartbeat_locked(g);
+		g.expedited_deadline = now_ms() + timeout_ms;
 	}
+	locks.cond_broadcast(*g.cond);
 }
 
 gateway_state :: (g: *Gateway) -> Gw_State {

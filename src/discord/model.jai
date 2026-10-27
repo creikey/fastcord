@@ -184,7 +184,7 @@ Embed :: struct {
 	thumbnail_w, thumbnail_h: int;
 	image_url: string;
 	image_w, image_h: int;
-	video_url: string;
+	video_url: string; // proxy_url when there is one, like the thumbnail and image
 	provider: string;
 	author_name: string;
 }
@@ -212,6 +212,7 @@ Message :: struct {
 	sticker_ids: [..]Snowflake;
 	mentions: [..]Snowflake;
 	mention_everyone: bool;
+	pinned: bool;
 	referenced_id: Snowflake; // reply target
 	flags: u64;
 	nonce: string;
@@ -234,6 +235,7 @@ Read_State :: struct {
 	mention_count: int;
 	last_viewed: int; // days since the Discord epoch (ack body field)
 	flags: u64;
+	manual: bool; // set unread by Mark Unread (MESSAGE_ACK manual): not auto-acked until the channel is left
 }
 
 Voice_State :: struct {
@@ -277,6 +279,7 @@ Message_List :: struct {
 	messages: [..]Message; // ascending by id
 	loaded: bool;
 	loading: bool;
+	failed: bool; // the last page request failed (LOAD_MESSAGES_FAILURE: "Messages Failed To Load")
 	has_more_before: bool;
 }
 
@@ -327,6 +330,7 @@ User_Settings :: struct {
 	custom_status_emoji_id: Snowflake;
 	custom_status_expires_ms: s64;
 	status_created_ms: s64; // StatusSettings.status_created_at_ms
+	status_expires_ms: s64; // StatusSettings.status_expires_at_ms, 0 = forever
 	locale: string;
 	timezone_offset: int; // minutes
 	developer_mode: bool;

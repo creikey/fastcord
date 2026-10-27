@@ -30,6 +30,7 @@ App :: struct {
 	ui_mods: UI_Mods; // modifier keys as of the latest event
 	stats: bool;
 	focused: bool; // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
+	copy_selection: bool; // the message menu's "Copy": copy the selection after this pass
 	focused_editor: *UI_Editor; // the text field that took keyboard input last frame (tests)
 	expect_drawn: string; // script check: text the next frame must draw (tests)
 	wake_at: float64; // earliest timed repaint requested this frame (caret blink, timers); 0 = none
@@ -161,7 +162,7 @@ main :: () {
 	fonts_load();
 	theme_load(*app.theme, opt.theme);
 	if app_theme_pending_set theme_load(*app.theme, app_theme_pending);
-	ui.init(*app.ui, ui.Backend.{shape = ui_shape});
+	ui.init(*app.ui, ui.Backend.{shape = ui_shape, split = emoji_split_text});
 	view_init(*app.view);
 	draw_inline_object = draw_custom_emoji;
 	app.utc_offset_ms = local_offset_ms();
@@ -273,6 +274,7 @@ frame :: () {
 		voice_frame();
 		login_check_auth();
 	}
+	req_frame();
 	t_media := platform.time_now();
 	watchdog_phase(.Media);
 	sounds_frame();
@@ -316,6 +318,8 @@ frame :: () {
 			e.consumed = true;
 		}
 	}
+	if app.copy_selection && ui.has_selection() clipboard_set(ui.selection_text());
+	app.copy_selection = false;
 	// The UI runs twice and only this second pass is drawn. A widget handles input after it has
 	// declared what it shows (a text field's text, a list's scroll), so the first pass draws the state
 	// from before the input. This pass gets no input and no time step: it draws the new state now
@@ -349,6 +353,7 @@ frame :: () {
 
 	platform.set_cursor(map_cursor(ui.cursor()));
 	if ui.needs_frame() platform.request_frame();
+	if app.ui.wake_at > 0 request_wake(app.ui.wake_at); // a scrollbar about to fade
 	if app.stats {
 		ms :: (a: float64, b: float64) -> string { return tprint("%", formatFloat((b - a) * 1000, trailing_width = 1, zero_removal = .NO)); }
 		if t_end - t_poll > 0.025 {
@@ -663,6 +668,24 @@ script_command :: (path: string, f: []string, t: *float64) {
 			fail("%: expect_clipboard failed\n  want \"%\"\n  got  \"%\"", path, want, got);
 		}
 		return;
+	case "net";
+		// net hold|fail|ok: how offline requests end (requests.jai)
+		if f[1] == {
+		case "fail"; req_offline = .Fail;
+		case "ok"; req_offline = .Ok;
+		case; req_offline = .Hold;
+		}
+		return;
+	case "history";
+		// history loading|failed|older: the open channel's message list as the network left it
+		l := dc.message_list(store(), app.view.channel);
+		l.loading = f[1] == "loading" || f[1] == "older";
+		l.failed = f[1] == "failed";
+		l.loaded = f[1] != "loading";
+		l.has_more_before = f[1] != "loading";
+		if f[1] == "loading" for * l.messages dc.free_message(store(), it);
+		if f[1] == "loading" l.messages.count = 0;
+		return;
 	case "scroll";
 		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = true});
 	case "wait";
@@ -685,6 +708,7 @@ script_command :: (path: string, f: []string, t: *float64) {
 script_frame :: (t: *float64) {
 	t.* += 1.0 / 60;
 	platform.set_time_override(t.*);
+	decode_settle(); // decodes finish between frames, so runs are deterministic (outside the timing)
 	platform.wait_events(0);
 	start := current_time_monotonic();
 	frame();
@@ -763,17 +787,33 @@ connect :: () {
 	if token == "" app.needs_login = true;
 }
 
+// Opens the DM with uid, creating it first if there is none: the request is tracked under
+// dm_req(uid), so the control shows it pending and a failure shows the toast.
+// True when the channel is open now.
+open_dm_with :: (uid: dc.Snowflake, location: string) -> bool {
+	if !req_begin(dm_req(uid)) return false;
+	existing := dc.open_dm(app.client, uid, location);
+	req_end();
+	if existing != 0 { select_channel(0, existing); return true; }
+	app.pending_dm_user = uid;
+	return false;
+}
+
+dm_req :: (uid: dc.Snowflake) -> string { return tprint("dm:%", uid); }
+
 handle_results :: () {
 	for r: dc.client_take_results(app.client) {
 		if r.op == {
 		case .Open_Dm;
 			if r.ok && r.id != 0 && app.pending_dm_user != 0 {
 				select_channel(0, r.id);
+				profile_full_close_for(app.pending_dm_user); // it waited with its Message button pending
 				app.pending_dm_user = 0;
 			}
 		case .Invite;
 			invite_receive(r);
 		}
+		req_result(r);
 	}
 }
 

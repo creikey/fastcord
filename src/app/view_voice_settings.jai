@@ -20,6 +20,7 @@ Voice_Settings :: struct {
 	meter_owner: bool; // the meter started the capture
 	meter_vad: voice.Vad;
 	meter_db: float32;
+	meter_shown: float32; // the bar's level (0..1), smoothed toward meter_db every frame
 	meter_open: bool;
 	menu_user: dc.Snowflake;
 	dd_anchor: ui.Rect; // open dropdown's rect (popup drawn from overlays)
@@ -135,7 +136,12 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 			}
 		}
 	}
-	request_wake(app.last_time + 1.0 / 30);
+	// every frame while the page is open: the level comes in 20 ms audio frames and is
+	// eased toward each frame (fast rise, slower fall), so the bar moves smoothly
+	target := clamp((vs.meter_db + 100) / 100, 0, 1);
+	tau: float32 = ifx target > vs.meter_shown then 0.03 else 0.15;
+	vs.meter_shown += (target - vs.meter_shown) * (1 - exp(-app.ui.dt / tau));
+	platform.request_frame();
 }
 
 toggle_row :: (id: string, text: string, help: string, value: *bool) -> bool {
@@ -173,6 +179,7 @@ voice_settings_page :: () {
 	page := ui.box("voicepage", .Scroll_Y | .Clip);
 	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
+	page.scrollbar = .Auto;
 	ui.signal(page);
 	{ ui.parent(page); defer ui.pop_parent();
 		body := row("vbody");
@@ -350,6 +357,7 @@ vs_init :: () {
 	vs.threshold_db = voice.VAD_DEFAULT_THRESHOLD;
 	vs.processing = audio.Voice_Processing.{true, true, true};
 	vs.meter_db = -127;
+	vs.meter_shown = 0;
 	vs.ptt_delay_ms = 20;
 	voice.vad_init(*vs.meter_vad);
 }
@@ -574,7 +582,7 @@ meter_bar :: () {
 	bar.semantic_size = .[ui.px(W), ui.px(8)];
 	bar.style.bg = T("--background-mod-strong");
 	bar.style.radius = all4(4);
-	level := clamp((vs.meter_db + 100) / 100, 0, 1);
+	level := vs.meter_shown;
 	if !app.settings_open level = 0;
 	{ ui.parent(bar); defer ui.pop_parent();
 		f := ui.box("lvl", .Draw_Background | .Floating_X | .Floating_Y);

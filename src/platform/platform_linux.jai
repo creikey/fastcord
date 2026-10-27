@@ -191,6 +191,8 @@ os_clipboard_get :: (allocator: Allocator) -> string {
     return "";
 }
 
+os_clipboard_set_image :: (data: []u8) {} // TODO: own CLIPBOARD with image/png (as Windows, not done yet)
+
 // We own CLIPBOARD and answer SelectionRequest from the event pump.
 os_clipboard_set :: (str: string) {
     {

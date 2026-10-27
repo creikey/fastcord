@@ -1,0 +1,15 @@
+# DMs with 0, 1 and 3 messages (dm fixture): the start-of-history header and
+# the messages sit whole above the composer, nothing overlapped or cut.
+open 1800000000000000001
+wait 30
+expect_in_window "hello 0"
+expect_visible "Remove Friend"
+shot build/ui-dm_short_history-1.png
+open 1800000000000000003
+wait 30
+expect_in_window "hello 2"
+open 1800000000000000002
+wait 30
+expect_visible "Add Friend"
+expect_in_window "Add Friend"
+shot build/ui-dm_short_history-0.png

@@ -53,6 +53,8 @@ store_load_fixture_text :: (s: *Store, text: string) -> int {
 		if store_apply_dispatch(s, name, de_atom(d), 0) n += 1;
 		extras_dispatch(s, s.allocator, name, de_atom(d));
 	}
+	// a fixture holds the whole history it has: nothing older to load
+	for * s.messages { it.loaded = true; it.has_more_before = false; }
 	if n s.changed += 1;
 	return n;
 }

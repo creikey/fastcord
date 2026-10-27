@@ -48,7 +48,7 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 				else ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
 			{ ui.parent(item); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(ellipsize(th.name, .Medium, 16, SIDEBAR_W - 90), ifx unread || selected then .Semibold else .Medium, 16, color, 20);
+				label(ellipsize(th.name, .Medium, 16, app.view.sidebar_w - 90), ifx unread || selected then .Semibold else .Medium, 16, color, 20);
 				filler(.X);
 			}
 			spacer(.X, 9);
@@ -217,7 +217,7 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 							{ ui.parent(chip); defer ui.pop_parent();
 								spacer(.X, 8);
 								if t.emoji_name != "" {
-									emoji_label(t.emoji_name, .Medium, 12, T("--text-default"), 16);
+									label(t.emoji_name, .Medium, 12, T("--text-default"), 16);
 									spacer(.X, 4);
 								}
 								label(t.name, .Medium, 12, T("--text-default"), 16);
@@ -309,7 +309,11 @@ features_receive :: () {
 			app.ui.animating = true;
 		case .Pins;
 			pins_receive(r);
-		case .Pins_Ack;
+		case .Pins_Ack; #through; case .Mark_Unread;
+		case .Pin;
+			if !r.ok show_notice("Error", "An error occurred, please try again.");
+		case .Unpin;
+			if !r.ok show_notice("The Pin Is Stuck!", "Discord failed to unpin that message for some reason. Sorry about that.");
 		case .Around;
 			dc.apply_around(app.client, r);
 			app.ui.animating = true;

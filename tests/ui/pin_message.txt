@@ -1,0 +1,6 @@
+# Right-click a message, choose Pin Message: the "Pin It. Pin It Good." confirmation with a preview.
+wait 5
+rclick 600 500
+wait 10
+click 660 613
+wait 10

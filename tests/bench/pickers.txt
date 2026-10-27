@@ -1,0 +1,18 @@
+# Expression picker scrolling: the GIF tab's "Trending GIFs" results (animated GIFs) and the sticker tab's
+# standard packs (mostly Lottie), wheel down and back up, the mouse over the grid.
+wait 10
+click 900 683
+wait 20
+click 613 338
+wait 30
+move 760 450
+bench gif_scroll
+repeat 40 scroll 0 -60
+repeat 40 scroll 0 60
+bench_off
+click 940 683
+wait 30
+move 760 450
+bench sticker_scroll
+repeat 40 scroll 0 -60
+repeat 40 scroll 0 60

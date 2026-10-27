@@ -51,6 +51,20 @@ not read in code; **guess** = neither, best knowledge.
 | UI strings, and the notice "…Usernames have been truncated." | code | intl strings | same |
 | The tool table has only `win32` and `darwin` executables, matched against Node's `process.platform`: on Linux (`linux`) nothing is auto-detected | inferred (from the copied table) | `RunningGameStore`, `streamerTool` | `view_streamer.jai` `STREAMER_OS` |
 
+## Online status
+
+Captured: open_status_menu, set_idle, set_online (no duration). Durations and expiry come from the bundle.
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Account popout group: Edit Profile, then the status row (status name, sublabel = expiry "Until …"); hovering it opens `set-status-submenu`: Online, separator, Idle, Do Not Disturb ("You will not receive desktop notifications"), Invisible ("You will appear offline"); the current status's description is its expiry when it has one | code | `navId:"set-status-submenu"`, intl `tq/fMK`, `zPc6Mc` | `src/app/view_misc.jai` `account_actions`, `status_menu` |
+| Idle / DND / Invisible submenu: For 15 Minutes, For 1 Hour, For 8 Hours, For 24 Hours, For 3 Days, Forever (no duration); Online has none; every item `dontCloseOnAction` | code | `duration:15*w.A.Millis.MINUTE`, `nz="forever"` | same, `STATUS_DURATIONS` |
+| Expiry text: same day "Until 3:45 PM", next day "Until tomorrow at 3:45 PM", else "Until 10/30/26 at 3:45 PM" | code | intl `ZxxHIO`, `9OFjSe`; `kind:"today"` | `status_until` |
+| setStatus: StatusSettings `status`, `status_expires_at_ms` (field 4, fixed64; `now + duration`, omitted for Forever), `status_created_at_ms` kept when the status is unchanged; INFREQUENT_USER_ACTION | code | `statusExpiresAtMs=f`, `n===t&&null!=e.statusCreatedAtMs` | `src/discord/settings.jai` `set_status` |
+| `user_status_updated` gains `expire_duration_minutes` (duration / 60000) after the approx_* keys; tracked on every setStatus, even an unchanged status | code | `expire_duration_minutes:null!=A?A/6e4` | `analytics_status_updated` |
+| Expiry (CustomStatusManager.manageExpiringStatus, on connect and settings updates, then a timer): a status other than Online whose expiry passed becomes Online with `location: {object: "CUSTOM_STATUS_MANAGER"}` | code | `manageExpiringStatus` | `status_expiry_tick` |
+| op 3 after a timed status: same payload as an untimed one (`since: 0`) | inferred | set_idle | `presence_value` |
+
 ## Settings, theme, sounds, notifications
 
 | Rule | Kind | Anchor | fastcord |
@@ -78,6 +92,14 @@ not read in code; **guess** = neither, best knowledge.
 | Rule | Kind | Anchor | fastcord |
 |---|---|---|---|
 | Identify payload and reconnect behaviour | code | `GatewaySocket._doIdentify`, `_handleHello` | `src/discord/gateway.jai` |
+| Reconnect: close 4004 stops; otherwise `Backoff(1 s, 60 s)`, after more than 4 failures the session is dropped (IDENTIFY); op 7 reconnects at once; op 9 resumes if `d` else identifies; RESUME only with an ACK in the last 3 min; no ACK by the next interval closes 4000 and backs off | code | `_handleClose`, `_handleHeartbeatTimeout`, `_doResumeOrIdentify` | `gateway.jai` |
+| Waking from sleep (powerMonitor `resume`): `expeditedHeartbeat(5000)`: heartbeat at once, no ACK in 5 s = heartbeat timeout; if not connected, reset the backoff and connect at once. fastcord sees the wake as a gap of over 15 s between its 1 s timer rounds | code + inferred (detection) | `power monitor resumed`, `expeditedHeartbeat(e){` | `gateway.jai` `gateway_expedited_heartbeat_locked` |
+| Not modelled: network online / offline (`networkStateChange(5000 / 15000)`), suspend (IdleStore idles and the client disconnects), lock screen (idle) | known gap | `network detected online.`, `powerMonitor.on("suspend"` | — |
+| Idle: the system idle time (`powerMonitor.getSystemIdleTimeMs`, polled every 10 s) over 10 min (`6e5`) dispatches IDLE with idleSince = the last input; AFK at `min(afkTimeout, 10 min)`, afkTimeout default 600 s, so both at once | code | `getSystemIdleTimeMs`, `type:"IDLE",idle:!0,idleSince` | `client.jai` `idle_poll`, `procinfo_*.jai` `system_idle_ms` |
+| Presence while idle (`getLocalPresence`): an online status becomes `idle`; `since` = idleSince for every status (0 when active); `afk` = isAFK. SelfPresenceStore recomputes after IDLE and again after AFK: two op 3s per change, the first with the old `afk`; IDENTIFY carries the same presence | code | `S===m.clD.ONLINE&&C>0&&(S=m.clD.IDLE)` | `settings.jai` `presence_value`, `client.jai` `flush_presence`, `gateway.jai` `identify_value` |
+| Op 3 is client-limited to 5 per 20 s (later ones wait) | code | `n.length<5?(n.push(l+2e4)` | not needed yet: fastcord sends at most 2 per user action |
+| No automatic ack while idle | code | `"Is idle"` in `shouldAutomaticallyAck` | `actions.jai` |
+| Reconnect IDENTIFY uses the settings status (the gateway keeps a copy) | code | `presence:V.getInitialState()` | `client.jai` `flush_presence` |
 | `installation_id_v3` from READY `apex_experiments.installation` | code | `AuthenticationStore` CONNECTION_OPEN | `gateway.jai` |
 | `client_launch_id`; fast-connect.js has its own launch id | code | super-properties module | `src/discord/identity.jai` |
 | After READY: op 4 (VoiceStateStore reset), op 41 | code | `VoiceStateStore` | `gateway.jai` |
@@ -88,6 +110,24 @@ not read in code; **guess** = neither, best knowledge.
 | Unverified account loads `affinities/v2/users` instead of premium entitlements on Friends | inferred | fixtures `join_leave_server` vs `open_dm` | `actions.jai` `home_open` |
 | Linux super properties (IDENTIFY and `x-super-properties`): `os` "Linux", `os_version` = kernel release (`uname -r`), `os_arch`/`app_arch` "x64", no `os_sdk_version`, then `window_manager` "`$XDG_CURRENT_DESKTOP`,`$GDMSESSION`" ("unknown" for unset), `distro` = os-release `PRETTY_NAME` unquoted, `runtime_environment` "native", `display_server` = `$XDG_SESSION_TYPE`, after `browser_version`; `native_build_number` null | guess (no Linux capture) | super-properties module (`getSuperProperties`) | `src/discord/procinfo_linux.jai` `linux_platform`, `identity.jai` `write_base_properties`, `gateway.jai` `put_base_properties` |
 | Linux user agent `Mozilla/5.0 (X11; Linux x86_64) … discord/<linux version> Chrome/… Electron/…`, `sec-ch-ua-platform` "Linux"; Linux client version `LINUX_CLIENT_VERSION` (0.0.125: its own version line; the Electron and web build are the macOS baseline's) | guess | `navigator.userAgent` | same |
+
+## HTTP, retries, rate limits
+
+For features that load or send (and their retry / loading states): every REST call goes through
+`api_call` (`src/discord/rest.jai`), which already does what HTTPUtils does. A feature only picks the
+call's `retries` (the bundle's value for that call: search the endpoint) and, for user-retried sends,
+`retry_429`. Never add a retry loop of your own.
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| `retries: N` retries only network errors (not aborts) and statuses 502, 504, 507, 522, 523, 524, 598, 599; each retry waits `Backoff()` (500 ms min, 5 s max, jitter: `current += 2*current*random()`), carries `X-Failed-Requests: <n>` and skips the URL queue (calls `I`, not `g`). Other 4xx / 5xx are never retried by HTTPUtils | code | `E=new Set([502,504,507,598,599,522,523,524])`, `X-Failed-Requests` | `ratelimit.jai`, `rest.jai` `api_call` |
+| Per-call retry counts in the bundle: `retries:3` ×26, `:2` ×13, `:1` ×12, `:0` ×3 (search the endpoint constant to find a call's) | code | `retries:` | per call site |
+| 429 / 503: hold keyed by the request URL, `now + max(Backoff(1 s, 60 s).fail(), retry_after*1000)`, retry_after = `parseInt(Retry-After)` (whole seconds) else body `retry_after` (float s) else 5; a longer existing hold is kept but its backoff still fails | code | `retryAfterTimestamp`, `cleanupRequestEntry` | `ratelimit.jai` `rate_note_response` |
+| Requests to a held URL queue FIFO; the hold's timer releases one (or drops the entry when none waits); each later non-429 response for that URL after expiry releases the next. No burst after a 429 | code | `rateLimitExpirationHandler`, `makeRequest: queueing` | `ratelimit.jai` `rate_acquire` |
+| HTTPUtils does not retry a 429 itself; callers that do (MessageQueue for sends) wait `retry_after` and re-enter the queue. `failImmediatelyWhenRateLimited` calls reject at once with the hold's remaining seconds | code | `failImmediatelyWhenRateLimited` | `rest.jai` `retry_429` |
+| No proactive use of `X-RateLimit-*` headers | code | (absent) | — |
+| Message send failure: 4xx with code SLOWMODE_RATE_LIMITED sets the slowmode cooldown from body `retry_after`; automod / explicit-content codes have their own dispatches; a 429 shows no Clyde error | code | `Failed to send message`, `SLOWMODE_SET_COOLDOWN` | not modelled |
+| Attachment PUT (CloudUpload, desktop): up to 12 attempts, 1 h timeout, `Backoff()` between them, only for retryable errors; from the 2nd attempt a `Content-Range: bytes */*` status check (308 + `Range` gives the resume offset) and a fresh upload URL when stale | code | `uploadFileWithResumption`, `getResumePosition` | known gap: `upload_put` tries 3 times, no resume check |
 
 ## Analytics (`/science`)
 
@@ -130,6 +170,56 @@ not read in code; **guess** = neither, best knowledge.
 | Thread browser Archived tab sends `thread_browser_tab_changed` | guess | not captured | `view_threads_browser.jai` |
 | External-location event body (`scheduled_end_time`, `entity_metadata.location`), Start Event (`PATCH {"status":2}`) | guess | not captured | `src/discord/guild_admin.jai` |
 | Declining a DM call sends nothing (dismissed locally) | guess | not captured | `src/discord/calls.jai` |
+| Message menu with text selected (desktop): a "Copy" item (copy icon, ⌘C) heads it and the quick-reaction row is hidden (`""===textSelection?quickReactions:null`) | code | `MessageContextMenu`: search `textSelection:` and `id:"copy",label` | `src/app/view_message_actions.jai` `message_menu` |
+| Text field right-click menu: Cut and Copy with a selection, Paste always (spellcheck items not implemented) | guess | `textarea-context` (menu chunk not cached) | `src/app/view_misc.jai` `edit_menu` |
+
+## Message actions: reactions, Mark Unread, pins
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Reactions are predicted: an optimistic `MESSAGE_REACTION_ADD/REMOVE` is dispatched before the request, and the request goes at once (no per-message/emoji queue: add → remove sends PUT then DELETE right away) | code | `optimistic:!0,colors:`, `"MESSAGE_REACTION_ADD",e,t,n,{burst:O,colors:y}` | `src/discord/actions.jai` `add_reaction`, `reaction_send` |
+| Our own add / remove is idempotent (`addReaction` returns the reaction unchanged when `me` is already set; `removeReaction` keeps the count when `me` is clear), so the gateway echo of a predicted change does nothing; a quick add → remove shows the add echo briefly, then the remove echo, as officially | code | `addReaction(e){let t=arguments`, `removeReaction(e){` | `src/discord/store.jai` `store_reaction` |
+| In a DM another user's add doesn't grow a count they already fill (`isDMChannel`); burst reactions move only `burst_count` | code | same | same |
+| Failure: 429 → retried once after Retry-After; 403 → rolled back (TOO_MANY_REACTIONS shows "We appreciate the enthusiasm, but...", REACTION_BLOCKED shakes the app); any other failure (network included) → retried once at once, then rolled back. fastcord rolls back but shows neither the modal nor the shake | code + known gap | `function S(e,t,n){let{headers:i,status:r,body:a}=e;if(429===r)` | `actions.jai` `reaction_result` |
+| A 429 followed by a non-429 failure: officially rolled back; fastcord's api_call does the 429 retry itself, so it retries once more | known gap | same | same |
+| Adding a normal reaction where we have the burst one (or the reverse) sends nothing ("Oops!" modal; fastcord sends nothing, no modal) | code | `userHasReactedWithEmoji` | `add_reaction` |
+| Locations: reaction pill and the reaction picker opened from the "+" after the reactions = `Message Inline Button`; hover bar quick reactions = `Message Hover Bar` (toggle: remove when we reacted); context menu quick reactions = `Message Context Menu`; the picker from the toolbar / menu "Add Reaction" = `Message Reaction Picker` | code | `MESSAGE_INLINE_BUTTON`, `MESSAGE_HOVER_BAR`, `location:t1.qN.MESSAGE_REACTION_PICKER` | `src/app/view_message_actions.jai` `react`, `view_chat.jai`, `pickers_emoji.jai` |
+| Mark Unread: `POST /channels/{c}/messages/{before}/ack` `{"manual":true,"mention_count":n}` (no token, retries none), before = the newest loaded message older than the target, else the target's previous millisecond; n = loaded messages after it that would notify (every message in a private channel; in a guild @me / @everyone, suppress settings and role mentions not modelled); no telemetry of its own | code (+ guess for the mention test) | `new d.A("markUnread")`, `body:{manual:!0,mention_count:m}` | `src/discord/features.jai` `mark_unread` |
+| The read state moves only on the `MESSAGE_ACK` echo; `manual` holds the open channel unread (no auto-ack) until it is left, and drops the pending outgoing ack | code | `function e1(e){let{channelId:t,messageId:n,manual:i,newMentionCount:r}` | `store.jai` MESSAGE_ACK, `actions.jai` `select_channel`, `view_chat.jai` |
+| Menu: "Mark Unread" for any channel but a locked archived thread (fastcord: always); "Pin Message" / "Unpin Message" for user messages (types 0,19,20,23,26,41,45,47,68) not failed, in a private channel or with PIN_MESSAGES + READ_MESSAGE_HISTORY, not voice / stage / media threads; group order Copy Text, Pin, Apps, Mark Unread, Copy Message Link; shift skips the confirmation | code | `id:"mark-unread"`, `id:"pin",action:function(e){e.shiftKey`, `USER_MESSAGE:new Set` | `src/discord/permissions.jai` `can_pin_message`, `view_message_actions.jai` |
+| Pin: `PUT /channels/{c}/messages/pins/{m}`, unpin `DELETE` same (no body); confirmations "Pin It. Pin It Good." (primary, "Oh yeah. Pin it") and "Unpin Message" (critical, "Remove it please!", shift protip), each with a message preview; failures "Error" / "The Pin Is Stuck!" (fastcord: Okay only, no Try Again, no TOO_MANY_PINS text) | code | `PIN:(e,t)=>`, `confirmPin:function`, `confirmUnpin:function` | `features.jai` `pin_message`, `view_message_actions.jai` `confirm_modal`, `view_threads.jai` |
+| The pinned flag, the type 6 system message and the pins list follow from the gateway (MESSAGE_UPDATE, MESSAGE_CREATE, CHANNEL_PINS_UPDATE); nothing is predicted | inferred | — | `store.jai`, `view_chat.jai` `system_notice`, `view_pins.jai` |
+| "N new messages since <time>" bar with "Mark As Read" while the channel has unread messages and isn't acked (Mark Unread hold, or scrolled up); the time format and "50+" cap are guesses | guess | not captured | `view_chat.jai` `new_messages_bar` |
+
+## Composer emoji
+
+The autocomplete's type definitions (sentinel, query rules, row layout) live in a
+chunk the test profiles had not cached; only the store search and the analytics
+module were read.
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Emoji autocomplete search = `EmojiStore.searchWithoutFetchingLatest` (same as the picker), `maxCount` 10 unlocked results (`queryEmojiResults`, constant `rs7` = 10); locked results are counted, not listed | code | `queryEmojiResults(e){`, `getSearchResultsOrder` | `src/app/emoji_autocomplete.jai`, `pickers_emoji.jai` `emoji_search` |
+| Usable custom emoji: unavailable → locked; without Nitro only the current guild's non-animated ones (none in DMs). `USE_EXTERNAL_EMOJIS` and role-restricted emoji are not checked | code (picker rule) + known gap | `getEmojiUnavailableReason` | `pickers_emoji.jai` `custom_locked` |
+| `channel_autocomplete_open` when the popup goes from hidden to shown: channel then guild decorations, `autocomplete_type` "EMOJIS_AND_STICKERS", `num_emoji_results`, `num_locked_emoji_results`, `num_sticker_results` (0); no `game_mentions_available` | code (fields) + inferred (order, from the MENTIONS captures in `inbox`) | `CHANNEL_AUTOCOMPLETE_OPEN,{` | `src/discord/analytics_events.jai` `autocomplete_emoji_open` |
+| `channel_autocomplete_selected` on a pick: `selection_type` "EMOJI", `emoji_id` (custom only), counts, `emoji_name` = the emoji's name, `is_custom`, `is_animated` | code (fields) + guess (`emoji_name`, `selection_type` values) | `CHANNEL_AUTOCOMPLETE_SELECTED,{` | same, `autocomplete_emoji_selected` |
+| Trigger: a word starting with ':' plus 2+ non-space, non-':' characters before the caret; Up/Down wrap, Tab/Enter pick, Escape hides until the query changes; the first row starts selected | guess | — | `emoji_autocomplete.jai` |
+| A pick inserts the emoji plus a space; unicode in the user's skin tone, custom as `<:name:id>` / `<a:name:id>` (the composer shows it as the image) | guess | — | same, `pickers_emoji.jai` `emoji_item_text` |
+| Typing the closing ':' of a known `:name:` converts it in place (no space, no skin tone, no analytics); `:name:` left in the text converts on send. Unicode names win over custom ones (the client renames clashing custom emoji `name~1`) | guess | `getDisambiguatedEmojiContext` | `emoji.jai` `emoji_for_name`, `emoji_convert_shortcodes` |
+| Stickers are not offered in the emoji autocomplete (the client's EMOJIS_AND_STICKERS also lists matching stickers) | known gap | — | — |
+| Popup look: above the form with an 8 px gap, header "EMOJI MATCHING :query", 32 px rows with a 20 px emoji, `:name:` and the custom emoji's guild name on the right | guess | — | `emoji_autocomplete.jai` |
+| Unicode emoji in any text (messages, composer, names, statuses) draw as the bundled Twemoji svg (`/assets/<hash>.svg`), 1.375em, margin `0 .05em 0 .1em`; inline code keeps the system font; ™ © ® stay text | code (URLs, no-image set) + guess (sizes) | module 350593 `getURL` | `emoji.jai` `emoji_split_text`, `emoji_text_spans` |
+| Jumbo (emoji-only, ≤ 27): images 48 px (`.emoji.jumboable` 3rem), spaces between keep the text size | guess | — | `src/app/view_chat.jai` |
+
+## Media in messages
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Inline attachment image URL: an animated source (GIF) gets no `format` (the proxy sends the GIF); others `format=webp` + `width`/`height` | code | `getSrcWithWidthAndHeight`, `getFormatQuality` (`srcIsAnimated`) | `src/app/images.jai` `attachment_image_url` |
+| GIFV embeds (Tenor, Klipy) play `video.proxy_url` muted and looping, poster = thumbnail; only while on screen | inferred | embed `"type":"gifv"` in `traffic/gif_send.jsonl` | `src/app/view_media.jai` `media_box` |
+| Media context menu: Copy Image if the URL's extension is jpg/jpeg/jfif/png/webp/avif, Save Image for those + gif/tiff/bmp (or none), both only for Discord-hosted media; then Copy/Open Link, "Image Link" for cdn.discordapp.com png/jpg/webp/avif/bmp/svg, "Media Link" for other image/gif/mp4/webm/mov URLs | code | `"copy-image"`, `"save-image"`, `"copy-native-link"`, `canCopyImage`, `canSaveImage` | `view_media.jai` `media_menu` |
+| Copy/Save Image fetch the `XW` URL: media.discordapp.net → cdn.discordapp.com, drop width/height/quality/size/format, add `format=png` without an extension | code | module 803316 (`XW`) | `view_media.jai` `media_action` |
+| Save Image writes to ~/Downloads without a dialog; a GIFV video offers only the link items; the items stand in their own menu (the client appends them to the message menu) | guess | `NativeUtils.saveImage` | `view_media.jai` |
 
 ## Login and logout
 
@@ -182,3 +272,43 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | The socket's upgrade request is the gateway's (Chrome's headers, `permessage-deflate` offered); if the server accepts deflate, fastcord inflates what it receives and sends stored DEFLATE blocks (Chrome compresses) | guess | not captured whether the server negotiates it | `src/http/ws.jai` |
 | "Document not visible" (reconnect deferred while the window is hidden) is not modelled | known gap | `document is not visible` | — |
 
+
+## Layout: scrollbars, column borders, resizable columns
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| Scrollbars are the scroller CSS's webkit ones (Electron has `::-webkit-scrollbar`): `.thin` 8px, thumb inset 2px (border, `background-clip:padding-box`), radius 4px, `--scrollbar-thin-thumb`; `.auto` 16px, track and thumb inset 4px, radius 8px, `--scrollbar-auto-track` / `--scrollbar-auto-thumb`; thumb `min-height:40px`; `.fade` hides thumb and track until the scroller is hovered | code | CSS `.scrollerBase_`, `.thin_`, `.auto_`, `.fade_` | `src/ui/core.jai` `scrollbar` |
+| Thumb length `view * view / content` (min 40); pressing the track pages 87.5% of the view, repeating after 250 ms then every 50 ms until the thumb reaches the pointer | code (Chromium source) | `ScrollableArea::PageStep` `kMinFractionToStepWhenPaging`, `ScrollbarTheme` autoscroll delays | same |
+| Which scrollers are `.auto` (chat, settings content) and which `.thin` + fade (everything else); the guild rail shows none | guess | — | `view_chat.jai`, `view_settings_prefs.jai`, `view_misc.jai`, `view_voice_settings.jai`, `view_rail_folders.jai` |
+| Member list column: 1px `--border-subtle` left border (`border-inline-start`) before the 264px list (`--custom-member-list-width`); search results: 1px `--app-frame-border` left border only | code | CSS `.container_` with `.membersWrap_`; `.searchResultsWrap_` | `view_home.jai` `members_column`, `view_search.jai` |
+| Channel sidebar drag-resize: width is `--custom-guild-sidebar-width` (guild rail included, default 375), clamped 264..432, 4px handle at its right edge (`ew-resize`, `--background-mod-strong` on hover/drag); saved to localStorage `resizable-sidebar-width-2` and `channel_sidebar_resized {width}` tracked when the drag ends | code | `minDimension:264,maxDimension:432`, `CHANNEL_SIDEBAR_RESIZED`, `.sidebarResizeHandle_` | `views.jai` `resize_handle`, `settings_store.jai` `sidebar_width`, `dc.track_channel_sidebar_resized` |
+| Not copied: the handle's 0.1 s delayed colour fade, the overdrag stretch, `e-resize`/`w-resize` cursors at the limits, arrow-key resizing | known gap | same | — |
+| Member list drag-resize (224..400, left edge, saved as `member_list_width`): the official member list is a fixed width; added on request | guess | — | `view_home.jai` `members_column` |
+
+## Loading states and request feedback
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| A failed message page (`LOAD_MESSAGES_FAILURE`, once `api_call` has used the endpoint's `retries`) sets the channel's `error` and stops loading; the UI adds no retry of its own. A bar reads "Messages Failed To Load" with "Try Again"; while the retry runs, `PULSING_ELLIPSIS` replaces "Try Again" | code | `LOAD_MESSAGES_FAILURE:function`, string `1zUvlw`; component with `"1zUvlw"` and `PULSING_ELLIPSIS` | `view_chat.jai` `history_failed_bar`, `history_retry`; `rest.jai` `Message_List.failed` |
+| Older pages are not re-requested by scrolling after a failure (only Try Again) | guess | — | `message_list` (`older` gate) |
+| A failed jump (`around=`) shows the same bar | guess | — | `features.jai` `apply_around` |
+| Bar colour (danger red), 32px, under the header | guess | — | `history_failed_bar` |
+| Loading placeholders (first page, older history, DM list, friends, member list, own user panel before READY): grey static shapes, no shimmer | guess (shape only) | — | `requests.jai` `skel`, `view_chat.jai` `skeleton_message` |
+| A button waiting on its request shows `PULSING_ELLIPSIS` in place of its label and ignores presses (Button `submitting`) | code | `PULSING_ELLIPSIS`, Button `submitting` | `requests.jai` `req_button` |
+| Add Friend page: failure text "Hm, didn’t work. Double check that the username is correct." (generic; the client picks a per-error-code text) under a red field; success "Success! Your friend request to **name** was sent." under a green field | code (strings `paDJBM`, `Rtl1Ep`); per-code texts not ported | `sendRequest`, `RELATIONSHIP_ALREADY_FRIENDS` | `view_home.jai` `add_friend_view` |
+| Other failed requests: a red toast "Something went wrong. Try again." (429: "You're doing that too fast. Try again in a moment.") for 5 s; the client shows a "Friend request failed" alert for relationship errors | guess (toast); code (alert, `6moJ8s`) not ported | `6moJ8s` | `requests.jai` `req_toast` |
+
+
+## Spoilers and scrollbar fade
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| A `||spoiler||` run is one block (`--spoiler-hidden-background`, text and emoji hidden); a click reveals the whole run (`--spoiler-revealed-background`) and is not followed as a link; revealed state lasts while the message is kept | inferred | `spoilerContent_`, `hidden_` | `view_chat.jai` `spoiler_revealed`, `handle_span_clicks` |
+| Scrollbars fade (overlay style): shown while scrolling, held, or with the pointer over the bar's strip (thin ones also while the scroller is hovered), then hidden after 1 s with a 0.25 s fade. The official chat scroller (`.auto`) is always visible; changed on request | guess | — | `src/ui/core.jai` `scrollbar` |
+| Message type 67 (FRIEND_REQUEST_ACCEPTED) renders as a notice: "You accepted <name>'s friend request." when you sent it, "<name> accepted your friend request." otherwise, with " They said: / You said: <note>" when content is set; green icon; DMs only | code | `FRIEND_REQUEST_ACCEPTED]:function`, strings `S6PRsh`, `H/9Tlj`, `IquUXd`, `ZOZy2q` | `view_chat.jai` `system_notice` |
+| While the chat scrollbar's thumb is dragged, the content height from the grab is kept; history loaded or rows measured mid-drag apply on release | inferred | — | `src/ui/core.jai` `scrollbar` |
+| Group DM system messages render as notices: 1 "<a> added <b> to the group." (green arrow), 2 "<a> removed <b> from the group." / "<a> left the group." (red arrow; b = first mention), 4 "<a> changed the group name: <name>." / "removed the custom group name.", 5 "<a> changed the group icon." (pencil). The trailing "Edit Group" link is not drawn (no group edit screen yet) | code | `RECIPIENT_ADD]:function`, strings `MMN2Jq`, `L2FyVq`, `5v2xa8`, `geP3rU`, `AI1ZZr`, `4wLp25` | `view_chat.jai` `system_notice` |
+| Type 67 in a group DM: the client draws nothing (its component returns null unless the channel is a 1:1 DM); fastcord draws the notice | known gap | `if(!i.isDM()||null==o||null==d)return null` | `view_chat.jai` `system_notice` |
+| Names in system notices (added / removed / pinned / call / friend accepted) open the user's profile on click (the client's `usernameHook`) | code | `usernameHook:d` in `RECIPIENT_ADD]:function` | `view_chat.jai` `system_notice` |
+| A message's hover toolbar keeps that message hovered while the pointer is over it, though it overhangs the row above | inferred | — | `view_chat.jai` `chat_toolbar` |
+| The typing line ("X is typing...") overlays the bottom 24px of the message list; the list runs to the composer and its bottom padding (8 + 24) keeps the newest message clear of it at the bottom | inferred | `.typing_` absolutely positioned in the form | `view_chat.jai` `typing_line`, `BOTTOM_PAD` |

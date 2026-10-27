@@ -375,8 +375,7 @@ parse_emoji_ref :: (s: *Store, m: etf.Map) -> Emoji {
 	return .{id = fsnow(m, "id"), name = clone_str(fstr(m, "name"), s.allocator), animated = fbool(m, "animated"), available = true};
 }
 
-parse_attachment :: (s: *Store, m: etf.Map) -> Attachment {
-	a := s.allocator;
+parse_attachment :: (m: etf.Map, a: Allocator) -> Attachment {
 	return .{
 		id = fsnow(m, "id"),
 		filename = clone_str(fstr(m, "filename"), a),
@@ -392,8 +391,7 @@ parse_attachment :: (s: *Store, m: etf.Map) -> Attachment {
 	};
 }
 
-parse_embed :: (s: *Store, m: etf.Map) -> Embed {
-	a := s.allocator;
+parse_embed :: (m: etf.Map, a: Allocator) -> Embed {
 	e := Embed.{
 		kind = clone_str(fstr(m, "type"), a),
 		title = clone_str(fstr(m, "title"), a),
@@ -414,7 +412,7 @@ parse_embed :: (s: *Store, m: etf.Map) -> Embed {
 		e.image_h = fint(im, "height");
 	}
 	vd := fmap(m, "video");
-	if vd e.video_url = clone_str(fstr(vd, "url"), a);
+	if vd e.video_url = clone_str(ifx vhas(vd, "proxy_url") then fstr(vd, "proxy_url") else fstr(vd, "url"), a);
 	p := fmap(m, "provider");
 	if p e.provider = clone_str(fstr(p, "name"), a);
 	au := fmap(m, "author");
@@ -461,15 +459,16 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	if vhas(m, "nonce") set_str(s, *msg.nonce, nonce_text(vget(m, "nonce")));
 	if vhas(m, "flags") msg.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "mention_everyone") msg.mention_everyone = fbool(m, "mention_everyone");
+	if vhas(m, "pinned") msg.pinned = fbool(m, "pinned");
 	if vhas(m, "attachments") {
 		for * msg.attachments free_attachment(s, it);
 		msg.attachments.count = 0;
-		for flist(m, "attachments") array_add(*msg.attachments, parse_attachment(s, vmap(it)));
+		for flist(m, "attachments") array_add(*msg.attachments, parse_attachment(vmap(it), s.allocator));
 	}
 	if vhas(m, "embeds") {
 		for * msg.embeds free_embed(s, it);
 		msg.embeds.count = 0;
-		for flist(m, "embeds") array_add(*msg.embeds, parse_embed(s, vmap(it)));
+		for flist(m, "embeds") array_add(*msg.embeds, parse_embed(vmap(it), s.allocator));
 	}
 	if vhas(m, "reactions") parse_reactions(s, msg, flist(m, "reactions"));
 	if vhas(m, "mentions") {
@@ -709,6 +708,8 @@ apply_settings_proto :: (s: *Store, b64: string) {
 	if found st.custom_status_emoji_id = f.value;
 	f, found = protobuf.find_path(raw, 11, 2, 4);
 	if found st.custom_status_expires_ms = cast(s64) f.value;
+	f, found = protobuf.find_path(raw, 11, 4);
+	st.status_expires_ms = ifx found then cast(s64) f.value else 0;
 	f, found = protobuf.find_path(raw, 11, 5, 1);
 	if found st.status_created_ms = cast(s64) f.value;
 	f, found = protobuf.find_path(raw, 12, 1, 1);
@@ -982,43 +983,51 @@ emoji_matches :: (e: Emoji, id: Snowflake, name: string) -> bool {
 
 apply_reaction :: (s: *Store, d: etf.Map, add: bool) {
 	em := fmap(d, "emoji");
-	eid := fsnow(em, "id");
-	ename := fstr(em, "name");
-	burst := fbool(d, "burst");
-	l := table_find_pointer(*s.messages, fsnow(d, "channel_id"));
+	e := Emoji.{id = fsnow(em, "id"), name = fstr(em, "name"), animated = fbool(em, "animated"), available = true};
+	store_reaction(s, fsnow(d, "channel_id"), fsnow(d, "message_id"), e, fsnow(d, "user_id") == s.me, add, fbool(d, "burst"));
+}
+
+// store_reaction: MessageRecord.addReaction / removeReaction. Our own add or remove
+// is idempotent, so the gateway echo of a predicted change does nothing; in a DM
+// another user's add doesn't grow a count they already fill. Burst only moves
+// burst_count. e.name is copied when a reaction is added.
+store_reaction :: (s: *Store, channel_id: Snowflake, message_id: Snowflake, e: Emoji, mine: bool, add: bool, burst: bool) {
+	l := table_find_pointer(*s.messages, channel_id);
 	if !l return;
-	i := message_index(l, fsnow(d, "message_id"));
+	i := message_index(l, message_id);
 	if i < 0 return;
 	msg := *l.messages[i];
-	mine := fsnow(d, "user_id") == s.me;
 	for * r: msg.reactions {
-		if !emoji_matches(r.emoji, eid, ename) continue;
+		if !emoji_matches(r.emoji, e.id, e.name) continue;
 		if add {
-			r.count += 1;
-			if burst r.burst_count += 1;
-			if mine {
-				if burst r.me_burst = true; else r.me = true;
+			ch := channel_get(s, channel_id);
+			if ch && ch.kind == .DM && !mine && (ifx burst then r.burst_count - cast(int) r.me_burst else r.count - cast(int) r.me) >= 1 return;
+			if burst {
+				if mine && r.me_burst return;
+				r.burst_count += 1;
+				if mine r.me_burst = true;
+			} else {
+				if mine && r.me return;
+				r.count += 1;
+				if mine r.me = true;
 			}
+		} else if burst {
+			if !(mine && !r.me_burst) r.burst_count -= 1;
+			if mine r.me_burst = false;
 		} else {
-			r.count -= 1;
-			if burst r.burst_count = max(r.burst_count - 1, 0);
-			if mine {
-				if burst r.me_burst = false; else r.me = false;
-			}
-			if r.count <= 0 {
-				free_str(r.emoji.name, s.allocator);
-				array_ordered_remove_by_index(*msg.reactions, it_index);
-			}
+			if !(mine && !r.me) r.count -= 1;
+			if mine r.me = false;
+		}
+		if r.count <= 0 && r.burst_count <= 0 {
+			free_str(r.emoji.name, s.allocator);
+			array_ordered_remove_by_index(*msg.reactions, it_index);
 		}
 		return;
 	}
-	if add {
-		r := Reaction.{emoji = parse_emoji_ref(s, em), count = 1, burst_count = xx burst};
-		if mine {
-			if burst r.me_burst = true; else r.me = true;
-		}
-		array_add(*msg.reactions, r);
-	}
+	if !add return;
+	r := Reaction.{emoji = e, count = xx !burst, burst_count = xx burst, me = mine && !burst, me_burst = mine && burst};
+	r.emoji.name = clone_str(e.name, s.allocator);
+	array_add(*msg.reactions, r);
 }
 
 // ---- dispatch application ----
@@ -1134,6 +1143,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			rs.channel_id = cid;
 			rs.last_message_id = fsnow(d, "message_id");
 			rs.mention_count = fint(d, "mention_count");
+			rs.manual = fbool(d, "manual");
 		case "TYPING_START";
 			apply_typing(s, d, now);
 		case "PRESENCE_UPDATE";

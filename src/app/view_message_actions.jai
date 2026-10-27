@@ -3,7 +3,8 @@ Message_Actions :: struct {
 	reply_mention: bool; // "@ ON" toggle
 	editing: dc.Snowflake; // message in inline edit mode
 	edit_editor: ui.Editor;
-	deleting: dc.Snowflake; // delete confirmation modal
+	confirming: dc.Snowflake; // message of the confirmation modal (delete / pin / unpin)
+	confirm: Confirm;
 	menu_msg: dc.Snowflake; // context menu target
 	menu_pos: ui.Vec2;
 	menu_t: float32;
@@ -54,6 +55,7 @@ message_toolbar :: (m: *dc.Message) {
 	bar := row("toolbar", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Clickable);
 	bar.semantic_size = .[ui.px(w), ui.px(TOOLBAR_BTN + 2 * TOOLBAR_PAD)];
 	bar.fixed_pos = .{ui.top_parent().rect.x1 - ui.top_parent().rect.x0 - w - 14, -16};
+	chat_toolbar = .{m.id, bar.rect};
 	bar.style.bg = T("--background-surface-higher");
 	bar.style.border_color = T("--border-subtle");
 	bar.style.border = 1;
@@ -70,7 +72,7 @@ message_toolbar :: (m: *dc.Message) {
 			b.style.bg_hot = T("--background-mod-subtle");
 			b.layout_axis = .X;
 			b.cross_align = .Center;
-			if ui.signal(b).clicked && net_action() dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id);
+			if ui.signal(b).clicked react(m, e, "Message Hover Bar", toggle = true);
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 4);
 				emoji_box("e", e, 20);
@@ -165,6 +167,17 @@ open_message_menu :: (m: *dc.Message, at: ui.Vec2, location := "") {
 		else dc.open_message_context_menu(app.client, gid);
 	}
 }
+// react: add a reaction, or with toggle remove one we have (hover bar, reaction pills).
+// The store shows it at once (dc.add_reaction predicts); location as the client reports it.
+react :: (m: *dc.Message, e: dc.Emoji, location: string, toggle := false) {
+	if !net_action() return;
+	if toggle for m.reactions if it.me && dc.emoji_matches(it.emoji, e.id, e.name) {
+		dc.remove_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location);
+		return;
+	}
+	dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location, animated = e.animated);
+}
+
 find_message :: (id: dc.Snowflake) -> *dc.Message {
 	if id == 0 return null;
 	s := store();
@@ -199,7 +212,7 @@ edit_box :: (m: *dc.Message) {
 		case .Submit;
 			text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
 			if text == "" {
-				ma.deleting = m.id;
+				ma.confirming, ma.confirm = m.id, Confirm.Delete;
 			} else if text != m.content && net_action() {
 				dc.edit_message(app.client, m.channel_id, m.id, text);
 			}
@@ -360,12 +373,18 @@ message_menu :: () {
 	}
 	items: [..]Item;
 	items.allocator = temp;
-	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true});
+	// official (MessageContextMenu): with text selected, "Copy" heads the menu and the quick reactions go
+	sel := ui.has_selection();
+	if sel array_add(*items, .{label = "Copy", icon = "copy"});
+	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel});
 	if own array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
 	array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
-	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true}, .{label = "Copy Message Link", icon = "link"});
+	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
+	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
+	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
+	array_add(*items, .{label = "Mark Unread", icon = "chat-mark-unread"}, .{label = "Copy Message Link", icon = "link"});
 	if own array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = true});
-	quick := quick_reactions();
+	quick := ifx sel then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
 	h := 2 * MENU_PAD + 2 + cast(float32) items.count * MENU_ROW_H + (ifx quick then MENU_QUICK + 8 else 0);
 	for items if it.sep h += MENU_SEP_H;
@@ -402,7 +421,7 @@ message_menu :: () {
 					b.cross_align = .Center;
 					if ui.signal(b).clicked {
 						if app.client dc.message_menu_item_clicked(app.client);
-						if net_action() dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id);
+						react(m, e, "Message Context Menu");
 						ma.menu_msg = 0;
 					}
 					{ ui.parent(b); defer ui.pop_parent();
@@ -452,6 +471,8 @@ message_menu :: () {
 			if sig.clicked {
 				if app.client != null dc.message_menu_item_clicked(app.client);
 				if it_.label == {
+				case "Copy";
+					app.copy_selection = true; // after end(): the selection text needs this frame's boxes
 				case "Add Reaction";
 					app.reaction_target = m.id;
 				case "Edit Message";
@@ -460,12 +481,18 @@ message_menu :: () {
 					start_reply(m);
 				case "Copy Text";
 					clipboard_set(m.content);
+				case "Pin Message"; #through;
+				case "Unpin Message";
+					// shift skips the confirmation, as for Delete
+					if app.ui_mods & .Shift { pin_now(m, !m.pinned); } else { ma.confirming, ma.confirm = m.id, ifx m.pinned then Confirm.Unpin else .Pin; }
+				case "Mark Unread";
+					if net_action() dc.mark_unread(app.client, m.channel_id, m.id);
 				case "Copy Message Link";
 					ch := dc.channel_get(s, m.channel_id);
 					g := ifx ch != null && ch.guild_id != 0 then tprint("%", ch.guild_id) else "@me";
 					clipboard_set(tprint("https://discord.com/channels/%/%/%", g, m.channel_id, m.id));
 				case "Delete Message";
-					if app.ui_mods & .Shift delete_now(m); else ma.deleting = m.id;
+					if app.ui_mods & .Shift delete_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Delete;
 				}
 				ma.menu_msg = 0;
 			}
@@ -479,18 +506,38 @@ delete_now :: (m: *dc.Message) {
 	if net_action() dc.delete_message(app.client, m.channel_id, m.id);
 }
 
-// "Delete Message — Are you sure?" modal with a preview of the message.
-delete_modal :: () {
-	m := find_message(ma.deleting);
+Confirm :: enum u8 { Delete; Pin; Unpin; }
+
+// PUT / DELETE .../messages/pins/{id}; a failure shows the client's notice (features_receive).
+pin_now :: (m: *dc.Message, pin: bool) {
+	if net_action() dc.pin_message(app.client, m.channel_id, m.id, pin);
+}
+
+confirm_now :: (m: *dc.Message) {
+	if ma.confirm == .Delete delete_now(m); else pin_now(m, ma.confirm == .Pin);
+}
+
+// The message confirmations (MessageActionCreators.confirmDelete / confirmPin / confirmUnpin):
+// title, question, a preview of the message, a protip (delete, unpin) and two equal buttons.
+confirm_modal :: () {
+	m := find_message(ma.confirming);
 	if m == null {
-		ma.deleting = 0;
+		ma.confirming = 0;
 		return;
+	}
+	title, question, tip, ok := "Delete Message", "Are you sure you want to delete this message?", "delete message", "Delete";
+	if ma.confirm == .Pin {
+		ch := dc.channel_get(store(), m.channel_id);
+		title, tip, ok = "Pin It. Pin It Good.", "", "Oh yeah. Pin it";
+		question = ifx ch && ch.guild_id then tprint("Hey, just double checking that you want to pin this message to #% for posterity and greatness?", ch.name) else "Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?";
+	} else if ma.confirm == .Unpin {
+		title, question, tip, ok = "Unpin Message", "You sure you want to remove this pinned message?", "unpin message", "Remove it please!";
 	}
 	scrim := ui.box("del_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
-		ma.deleting = 0;
+		ma.confirming = 0;
 		return;
 	}
 	// official: 480 wide, 24px padding, close X, a preview card, protip, two equal buttons
@@ -511,20 +558,27 @@ delete_modal :: () {
 		x.fixed_pos = .{W - 17 - 24, 17};
 		xs := ui.signal(x);
 		set_icon(x, "x-large", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-		if xs.clicked ma.deleting = 0;
+		if xs.clicked ma.confirming = 0;
 		spacer(.Y, PAD + 1);
 		t := row("t");
 		t.semantic_size = .[ui.pct(1), ui.px(24)];
 		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
-			label("Delete Message", .Semibold, 20, T("--text-strong"), 24);
+			label(title, .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 8);
 		q := row("q");
-		q.semantic_size = .[ui.pct(1), ui.px(20)];
+		q.semantic_size = .[ui.pct(1), ui.children()];
 		{ ui.parent(q); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
-			label("Are you sure you want to delete this message?", .Normal, 16, T("--text-subtle"), 20);
+			qb := ui.box("qt", .Draw_Text | .Wrap_Text);
+			qb.semantic_size = .[ui.fill(), ui.text_size()];
+			qb.text = question;
+			qb.style.font = F(.Normal);
+			qb.style.font_size = 16;
+			qb.style.line_height = 20;
+			qb.style.text_color = T("--text-subtle");
+			spacer(.X, PAD + 1);
 		}
 		spacer(.Y, 24);
 		pr := row("prow");
@@ -558,19 +612,25 @@ delete_modal :: () {
 						spacer(.X, 8);
 						label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20);
 					}
-					c := label(first_line(m.content), .Normal, 16, T("--text-default"), 22);
-					c.flags |= .Clip;
+					c := ui.box("content", .Draw_Text | .Wrap_Text);
+					c.semantic_size = .[ui.pct(1), ui.text_size()];
+					c.text = m.content;
+					c.style.font = F(.Normal);
+					c.style.font_size = 16;
+					c.style.line_height = 22;
+					c.style.text_color = T("--text-default");
 					spacer(.Y, 10);
 				}
 				spacer(.X, 16);
 			}
 			spacer(.X, PAD + 1);
 		}
+		if tip {
 		spacer(.Y, 20);
-		tip := row("tip");
-		tip.semantic_size = .[ui.pct(1), ui.children()];
-		tip.cross_align = .Start;
-		{ ui.parent(tip); defer ui.pop_parent();
+		tr := row("tip");
+		tr.semantic_size = .[ui.pct(1), ui.children()];
+		tr.cross_align = .Start;
+		ui.parent(tr); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
 			tc := ui.box("tc");
 			tc.semantic_size = .[ui.fill(), ui.children()];
@@ -582,7 +642,7 @@ delete_modal :: () {
 				body.style.text_color = T("--text-default");
 				spans := NewArray(3, ui.Span,, temp);
 				spans[0] = .{text = "You can hold down shift when clicking ", font = F(.Normal), size = 14};
-				spans[1] = .{text = "delete message", font = F(.Bold), size = 14};
+				spans[1] = .{text = tip, font = F(.Bold), size = 14};
 				spans[2] = .{text = " to bypass this confirmation entirely.", font = F(.Normal), size = 14};
 				ui.set_spans(body, spans);
 			}
@@ -603,29 +663,30 @@ delete_modal :: () {
 			cancel.style.text_color = T("--text-strong");
 			cancel.style.bg = T("--background-mod-normal");
 			cancel.style.bg_hot = T("--background-mod-strong");
-			if ui.signal(cancel).clicked ma.deleting = 0;
-			del := ui.box("Delete##d", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			if ui.signal(cancel).clicked ma.confirming = 0;
+			del := ui.box(tprint("%##d", ok), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			del.semantic_size = .[ui.fill(), ui.px(40)];
 			del.style.radius = all4(8);
 			del.style.font = F(.Medium);
 			del.style.font_size = 16;
 			del.style.text_align = .Center;
 			del.style.text_color = .{1, 1, 1, 1};
-			del.style.bg = T("--status-danger");
-			del.style.bg_hot = T("--control-critical-primary-background-hover");
+			// pin is the primary (brand) variant, delete and unpin critical
+			del.style.bg = ifx ma.confirm == .Pin then T("--control-primary-background-default") else T("--status-danger");
+			del.style.bg_hot = ifx ma.confirm == .Pin then T("--control-primary-background-hover") else T("--control-critical-primary-background-hover");
 			if ui.signal(del).clicked {
-				delete_now(m);
-				ma.deleting = 0;
+				confirm_now(m);
+				ma.confirming = 0;
 			}
 			spacer(.X, PAD + 1 - 8);
 		}
 		spacer(.Y, PAD + 1);
 	}
 	for e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape ma.deleting = 0;
+		if e.kind == .Key_Down && e.key == .Escape ma.confirming = 0;
 		if e.kind == .Key_Down && e.key == .Enter {
-			delete_now(m);
-			ma.deleting = 0;
+			confirm_now(m);
+			ma.confirming = 0;
 		}
 	}
 }

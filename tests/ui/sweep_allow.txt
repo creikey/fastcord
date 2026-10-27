@@ -2,7 +2,8 @@
 # <kind> <screen|*> "<descriptor substring>" <reason (required)>
 # kinds: dead (click and right-click changed nothing), hover (hover state stays
 # after the mouse leaves), input (typing didn't land in the clicked field),
-# hitarea (drawn and pressable areas differ). Descriptors are
+# hitarea (drawn and pressable areas differ), silent (made a network request and
+# showed nothing: no pending / error feedback). Descriptors are
 # "ancestor/ids 'first text' [first icon]" as printed in build/sweep/report.txt.
 # A new inert control fails the sweep until it is fixed or listed here.
 
@@ -61,3 +62,34 @@ input * "profile/info/msgrow 'Message @" opens the DM (a network action) like th
 # hover that lasts on purpose (same as the client)
 hover * "emoji_grid/cell" the picker footer keeps showing the last hovered emoji
 hover * "switcher/it" hovering a quick-switcher row moves the selection, which stays
+
+# silent offline only: online these show their own pending state (busy / "Saving…" / "Creating…"
+# labels, the login form's submitting state) or apply at once; offline the request never goes out.
+# New request buttons use requests.jai (req_button / req_begin) instead of joining this list.
+silent login "cols/form 'Log In'" online the form shows its submitting state (view_login.jai)
+silent login "cols/form 'Forgot your password?'" online the form shows the reset notice when the request returns
+silent * "savebar 'Save Changes'" online the label turns "Saving…" until the PATCH returns
+silent add_server_create "addsrv/foot 'Create'" online the label turns "Creating…" until GUILD_CREATE
+silent * "chandelete/btns" online adm.busy holds the modal until the DELETE returns
+silent event_cancel "evcancel/btns 'Cancel Event'" online evu.busy holds the modal until the request returns
+silent event_wizard_review "evwizard/btns 'Create Event'" online evu.busy holds the wizard until the request returns
+silent events_list "c/bottom/interested" online the pill switches at once (interest_pending) and the gateway confirms
+# applied optimistically online (the store / gateway echo changes what is drawn at once)
+silent * "channels/chan/item 'General' [voice-normal]" online joins voice: the voice panel shows Connecting at once
+silent narrow_dm "dm/item/close" online closes the DM row at once (CHANNEL_DELETE follows)
+silent narrow_dm "page/header/phone-call" online starts the call: the call panel shows at once
+silent hover_toolbar "tbanchor/toolbar/q" online the quick reaction shows on the message at once (MESSAGE_REACTION_ADD)
+silent friends_all "friends/f/item" online the friend's existing DM opens at once (same gap)
+silent friends_all "f/item/msg" online the friend's existing DM opens at once (same gap)
+silent * "inboxpop/hdr/markall" online the unreads clear at once (local ack state)
+silent * "ur/item/ack" online the row clears at once (local ack state)
+silent * "mentions/mhdr/x" online the mention leaves the list at once
+silent guild_notify_modal "mute/c/mutetoggle" online the settings proto edit applies locally at once
+silent guild_notify_modal "nmodal/radio" online the settings proto edit applies locally at once
+silent * "c/supall" online the settings proto edit applies locally at once
+silent * "c/suproles" online the settings proto edit applies locally at once
+silent guild_ctx_notify "gnotify/suppress" online the settings proto edit applies locally at once
+
+# the status row in your own profile card opens the status menu on hover (as the client); a click shows nothing more
+hover own_profile "grp/setstatus/it 'Online'" the status menu stays open while the pointer moves into it
+dead own_profile "grp/setstatus/it 'Online'" hovering already opened the status menu

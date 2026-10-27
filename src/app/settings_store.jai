@@ -57,6 +57,7 @@ Persisted :: struct {
 	window_width: int;
 	window_height: int;
 	sidebar_width: float32;
+	member_list_width: float32;
 	streamer: Streamer_Settings;
 }
 
@@ -123,7 +124,7 @@ settings_frame :: () {
 	if now < st.next_check return;
 	st.next_check = now + 0.5;
 	theme_follow_os_check();
-	settings_save();
+	if !app.view.resizing settings_save(); // the official client saves a dragged width when the drag ends
 }
 
 settings_save :: () {
@@ -225,6 +226,8 @@ apply_persisted :: (p: *Persisted) {
 	voice_settings_restore(*p.voice);
 	sounds_restore(*p.sounds);
 	streamer_settings = p.streamer;
+	if p.sidebar_width > 0 app.view.sidebar_w = clamp(p.sidebar_width, SIDEBAR_MIN_W, SIDEBAR_MAX_W);
+	if p.member_list_width > 0 app.view.member_w = clamp(p.member_list_width, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W);
 	for p.collapsed {
 		n, ok := dc.parse_u64(it);
 		if ok table_set(*app.view.collapsed, cast(dc.Snowflake) n, true);
@@ -257,7 +260,8 @@ snapshot :: () -> string {
 	ws := platform.window_size();
 	p.window_width = cast(int) ws.x;
 	p.window_height = cast(int) ws.y;
-	p.sidebar_width = SIDEBAR_W;
+	p.sidebar_width = app.view.sidebar_w;
+	p.member_list_width = app.view.member_w;
 	p.streamer = streamer_settings;
 	return marshal_pretty(p);
 }

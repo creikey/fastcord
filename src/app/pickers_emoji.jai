@@ -104,7 +104,7 @@ emoji_picker_query_changed :: () {
 // underscores removed) is a substring of a name with underscores removed; then
 // getSearchResultsOrder: score 1 + 4*exact + 2*word match + 1*prefix, times
 // max(1, frecency/100), descending, ties by name. Unlocked before locked.
-emoji_search :: (q: string, here: dc.Snowflake, nitro: bool) -> []Pk_Emoji {
+emoji_search :: (q: string, here: dc.Snowflake, nitro: bool, reaction: bool) -> []Pk_Emoji {
 	Hit :: struct {
 		e: Pk_Emoji;
 		score: float64;
@@ -137,11 +137,11 @@ emoji_search :: (q: string, here: dc.Snowflake, nitro: bool) -> []Pk_Emoji {
 		return d * max(cast(float64) 1, frec / 100);
 	}
 	ql := to_lower_copy(raw,, temp);
-	fm := ifx pk.mode == .Reaction then *frecency.reaction else *frecency.emoji;
+	fm := ifx reaction then *frecency.reaction else *frecency.emoji;
 	unlocked, locked: [..]Hit;
 	unlocked.allocator = temp;
 	locked.allocator = temp;
-	for gid: emoji_guilds() {
+	for gid: emoji_guilds(here) {
 		g := dc.guild_get(store(), gid);
 		if g == null continue;
 		for e: g.emojis {
@@ -178,7 +178,7 @@ picker_expression_counts :: (reaction: bool, here: dc.Snowflake) -> dc.Expressio
 	s := store();
 	animated: Table(dc.Snowflake, bool);
 	animated.allocator = temp;
-	for gid: emoji_guilds() {
+	for gid: emoji_guilds(here) {
 		g := dc.guild_get(s, gid);
 		if g == null continue;
 		for g.emojis table_set(*animated, it.id, it.animated);
@@ -285,33 +285,6 @@ skin_tone_button :: () {
 	if sig.clicked ev.tone_open = !ev.tone_open;
 }
 
-#scope_file
-
-// Spritesheets from the client bundle (spritesheet-emoji-{40,48}, spritesheet-{tone}-{40,48}).
-SPRITE_EMOJI :: string.[
-	"https://cdn.discordapp.com/assets/content/c357d57faac49918709981e6fb30e526fa62b6d440f99fd8bd2b88f0542ad6c5.png", // 40
-	"https://cdn.discordapp.com/assets/content/91eab03bbed7fa52a213659925fa7af29c5d8e32d727eb2f90cc777f4edd9afb.png" // 48
-];
-// [size][tone 0..5]: tone 0 is spritesheet--{size} (diversity emoji without a tone)
-SPRITE_TONES :: [6]string.[
-	.[
-		"https://cdn.discordapp.com/assets/content/2f1adbbeee210ebdfaf92e6cdb29be32af98df2f576a85c6f18515eecb49a628.png",
-		"https://cdn.discordapp.com/assets/content/112053a6b05b0d3869dde1b52ab452dd6286515848e4dc8145095b6c757fb126.png",
-		"https://cdn.discordapp.com/assets/content/8c716c8c5de61506e1bc3df1beab3e1bb9313ae5dfbb5b555cad60fbbc2a1fa6.png",
-		"https://cdn.discordapp.com/assets/content/5885b33027a6383a93d1021abb3f7b1c4096257eac03829456430f6453154bbd.png",
-		"https://cdn.discordapp.com/assets/content/d474fadfda8e1fa265be85f90fd78232ebb8c87667435ee8d32719aec28f17de.png",
-		"https://cdn.discordapp.com/assets/content/050dcea8f727152a7eb98afdced8d85c1ccdfe9bcb81eb7a14989f2e452e4ad8.png"
-	],
-	.[
-		"https://cdn.discordapp.com/assets/content/14e7ef6e372a0fd01b5a6e0436ce962cd61e7dacc8fb49888f9a997387a16041.png",
-		"https://cdn.discordapp.com/assets/content/4e982c3eafac47f662e857b00b64b9801948b6b336f256cb8d3b768e4c8f9c7c.png",
-		"https://cdn.discordapp.com/assets/content/fca48430d7ea5c68dba8d5c78b2f5d5e15546209fb669315f51a272808e2ef73.png",
-		"https://cdn.discordapp.com/assets/content/88f20b32afd12ac9e4fe0a630cfdae8889fd810b81b79231e1991e70c0a26768.png",
-		"https://cdn.discordapp.com/assets/content/6b84fe748077d9a437df4481644802dade5d86e78120182e549ed84f408d0d21.png",
-		"https://cdn.discordapp.com/assets/content/2bbfef2ff9e844a977273ef48a15bf62ec50ff5b457743a9ba2aa2e1ebd2953f.png"
-	]
-];
-
 premium :: () -> bool {
 	u := dc.user_get(store(), store().me);
 	return u != null && u.premium_type > 0;
@@ -341,20 +314,53 @@ frec_key :: (e: Pk_Emoji) -> string {
 	return ifx e.uni >= 0 then e.name else tprint("%", e.id);
 }
 
-// Frecency / favorite keys longer than 6 digits are custom emoji ids.
-custom_id :: (key: string) -> dc.Snowflake, bool {
-	id, ok, rest := string_to_int(key, T = u64);
-	return id, ok && !rest && key.count > 6;
+// What inserting an emoji puts in the composer: the unicode in the chosen skin
+// tone, or the custom emoji markup.
+emoji_item_text :: (item: Pk_Emoji) -> string {
+	if item.uni >= 0 return emoji_db.emojis[emoji_toned(item.uni, frecency.skin_tone)].surr;
+	return custom_emoji_markup(item.name, item.id, item.animated);
 }
 
 // Guild order for custom emoji: the current guild first, then the sidebar order.
-emoji_guilds :: () -> []dc.Snowflake {
-	here := current_guild();
+emoji_guilds :: (here: dc.Snowflake) -> []dc.Snowflake {
 	out: [..]dc.Snowflake;
 	out.allocator = temp;
 	if here != 0 array_add(*out, here);
 	for guild_order() if it != here array_add(*out, it);
 	return out;
+}
+
+#scope_file
+
+// Spritesheets from the client bundle (spritesheet-emoji-{40,48}, spritesheet-{tone}-{40,48}).
+SPRITE_EMOJI :: string.[
+	"https://cdn.discordapp.com/assets/content/c357d57faac49918709981e6fb30e526fa62b6d440f99fd8bd2b88f0542ad6c5.png", // 40
+	"https://cdn.discordapp.com/assets/content/91eab03bbed7fa52a213659925fa7af29c5d8e32d727eb2f90cc777f4edd9afb.png" // 48
+];
+// [size][tone 0..5]: tone 0 is spritesheet--{size} (diversity emoji without a tone)
+SPRITE_TONES :: [6]string.[
+	.[
+		"https://cdn.discordapp.com/assets/content/2f1adbbeee210ebdfaf92e6cdb29be32af98df2f576a85c6f18515eecb49a628.png",
+		"https://cdn.discordapp.com/assets/content/112053a6b05b0d3869dde1b52ab452dd6286515848e4dc8145095b6c757fb126.png",
+		"https://cdn.discordapp.com/assets/content/8c716c8c5de61506e1bc3df1beab3e1bb9313ae5dfbb5b555cad60fbbc2a1fa6.png",
+		"https://cdn.discordapp.com/assets/content/5885b33027a6383a93d1021abb3f7b1c4096257eac03829456430f6453154bbd.png",
+		"https://cdn.discordapp.com/assets/content/d474fadfda8e1fa265be85f90fd78232ebb8c87667435ee8d32719aec28f17de.png",
+		"https://cdn.discordapp.com/assets/content/050dcea8f727152a7eb98afdced8d85c1ccdfe9bcb81eb7a14989f2e452e4ad8.png"
+	],
+	.[
+		"https://cdn.discordapp.com/assets/content/14e7ef6e372a0fd01b5a6e0436ce962cd61e7dacc8fb49888f9a997387a16041.png",
+		"https://cdn.discordapp.com/assets/content/4e982c3eafac47f662e857b00b64b9801948b6b336f256cb8d3b768e4c8f9c7c.png",
+		"https://cdn.discordapp.com/assets/content/fca48430d7ea5c68dba8d5c78b2f5d5e15546209fb669315f51a272808e2ef73.png",
+		"https://cdn.discordapp.com/assets/content/88f20b32afd12ac9e4fe0a630cfdae8889fd810b81b79231e1991e70c0a26768.png",
+		"https://cdn.discordapp.com/assets/content/6b84fe748077d9a437df4481644802dade5d86e78120182e549ed84f408d0d21.png",
+		"https://cdn.discordapp.com/assets/content/2bbfef2ff9e844a977273ef48a15bf62ec50ff5b457743a9ba2aa2e1ebd2953f.png"
+	]
+];
+
+// Frecency / favorite keys longer than 6 digits are custom emoji ids.
+custom_id :: (key: string) -> dc.Snowflake, bool {
+	id, ok, rest := string_to_int(key, T = u64);
+	return id, ok && !rest && key.count > 6;
 }
 
 build_sections :: (ignore_query := false) -> []Em_Section {
@@ -366,12 +372,12 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 	secs.allocator = temp;
 	q := ifx ignore_query then "" else pk_query(.Emoji);
 	if q != "" {
-		array_add(*secs, .{kind = .Search, key = 1, items = emoji_search(q, here, nitro)});
+		array_add(*secs, .{kind = .Search, key = 1, items = emoji_search(q, here, nitro, pk.mode == .Reaction)});
 		return secs;
 	}
 	by_id: Table(dc.Snowflake, dc.Emoji);
 	by_id.allocator = temp;
-	for gid: emoji_guilds() {
+	for gid: emoji_guilds(current_guild()) {
 		g := dc.guild_get(s, gid);
 		if g for g.emojis table_set(*by_id, it.id, it);
 	}
@@ -415,7 +421,7 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 		}
 		if items.count > 0 array_add(*secs, .{kind = .Recent, key = 3, title = "Frequently Used", icon = "clock", items = items});
 	}
-	for gid: emoji_guilds() {
+	for gid: emoji_guilds(current_guild()) {
 		g := dc.guild_get(s, gid);
 		if g == null || g.emojis.count == 0 continue;
 		items := NewArray(g.emojis.count, Pk_Emoji,, temp);
@@ -648,7 +654,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 		spacer(.Y, 4);
 		label("Try searching for something else", .Normal, 14, T("--text-muted"), 18);
 	}
-	pk_scrollbar(*ev.scroll, w - PK_SCROLLBAR_W - 2);
+	pk_scrollbar(*ev.scroll);
 }
 
 // Arrow keys move the inspected emoji through the grid; Enter selects.
@@ -789,21 +795,16 @@ sprite_draw :: (b: *ui.Box, user: *void) {
 // Insert into the composer, or react. Shift keeps the picker open.
 emoji_select :: (item: Pk_Emoji, keep_open: bool) {
 	if item.locked return;
-	text: string;
-	name := item.name;
-	if item.uni >= 0 {
-		text = emoji_db.emojis[emoji_toned(item.uni, frecency.skin_tone)].surr;
-		name = text;
-	} else {
-		text = tprint("<%1:%2:%3>", ifx item.animated then "a" else "", item.name, item.id);
-	}
+	text := emoji_item_text(item);
+	name := ifx item.uni >= 0 then text else item.name;
 	key := frec_key(item);
 	if app.client != null dc.picker_emoji_selected(app.client, item.name, item.id, item.guild, item.animated, item.locked);
 	if pk.mode == .Reaction {
 		frec_use(*frecency.reaction, key);
 		if app.client != null {
 			m := find_message(pk.message);
-			if m != null dc.add_reaction(app.client, m.channel_id, m.id, name, item.id);
+			// opened from the "+" after the reactions: Inline Button; toolbar / menu: Reaction Picker
+			if m != null react(m, .{id = item.id, name = name, animated = item.animated}, ifx pk.from_inline then "Message Inline Button" else "Message Reaction Picker");
 		}
 	} else {
 		frec_use(*frecency.emoji, key);

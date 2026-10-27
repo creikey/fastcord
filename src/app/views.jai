@@ -4,16 +4,20 @@ HEADER_TOOL_W :: 40; // channel header icon buttons (20px icons on a 40px pitch)
 SEARCH_W :: 244; // header search box (official 1028..1272 at 1280 wide)
 TITLE_SIDE_W :: 140; // back/forward on the left, inbox/help on the right
 RAIL_W :: 72;
-SIDEBAR_W :: 303; // includes the 1px left border
+SIDEBAR_W :: 303; // default width, includes the 1px left border
+// The official client clamps --custom-guild-sidebar-width (rail included) to 264..432 while dragging.
+SIDEBAR_MIN_W :: 264 - RAIL_W;
+SIDEBAR_MAX_W :: 432 - RAIL_W;
 HEADER_H :: 49;
-GUILD_NAME_MAX_W :: SIDEBAR_W - 86; // name ellipsized before the chevron and invite button
 CHANNEL_ROW_H :: 32;
 CHANNEL_ROW_PITCH :: 34;
 CATEGORY_GAP :: 16;
 CATEGORY_ROW_H :: 24;
 GUILD_ICON :: 40;
 USER_PANEL_H :: 58;
-MEMBER_LIST_W :: 264;
+MEMBER_LIST_W :: 264; // default width (--custom-member-list-width), plus the 1px left border
+MEMBER_LIST_MIN_W :: 224; // guesses: the official member list is not resizable
+MEMBER_LIST_MAX_W :: 400;
 CHAT_MIN_W :: 480; // narrower than this, the member list / profile column hides
 
 Friends_Tab :: enum u8 {
@@ -36,12 +40,41 @@ View_State :: struct {
 	friends_search: ui.Editor; // Friends page search (filters the list)
 	token_input: ui.Editor;
 	back, fwd: [..][2]dc.Snowflake; // title-bar history: {guild, channel} places left / gone back from
+	sidebar_w, member_w: float32; // dragged column widths (persisted; 0 = default)
+	resizing: bool; // a column edge is being dragged
+	resize_from: float32;
 }
 
 view_init :: (v: *View_State) {
 	v.friends_tab = .Online;
 	v.show_members = true;
+	if v.sidebar_w == 0 v.sidebar_w = SIDEBAR_W;
+	if v.member_w == 0 v.member_w = MEMBER_LIST_W;
 }
+
+// Drag handle on a column's edge, a floating child of the column at x (official
+// .sidebarResizeHandle: 4px wide, ew-resize, --background-mod-strong while hovered or dragged).
+// Dragging sets width (clamped, whole points); returns true when the drag ends.
+resize_handle :: (id: string, x: float32, width: *float32, lo: float32, hi: float32, grows_left := false) -> bool {
+	b := ui.box(id, .Clickable | .Floating_X | .Floating_Y | .Draw_Background | .Hot_Animation | .Active_Animation);
+	b.semantic_size = .[ui.px(4), ui.pct(1)];
+	b.fixed_pos = .{x, 0};
+	b.hover_cursor = .Resize_H;
+	strong := T("--background-mod-strong");
+	b.style.bg = with_alpha(strong, 0);
+	b.style.bg_hot = strong;
+	b.style.bg_active = strong;
+	sig := ui.signal(b);
+	if sig.pressed app.view.resize_from = width.*;
+	if sig.dragging {
+		d := ifx grows_left then -sig.drag_delta.x else sig.drag_delta.x;
+		width.* = clamp(floor(app.view.resize_from + d + 0.5), lo, hi);
+		app.view.resizing = true;
+	}
+	if sig.released app.view.resizing = false;
+	return sig.released;
+}
+
 
 // Shortcut modifier: Cmd on macOS, Ctrl elsewhere.
 PRIMARY_MOD :: #run ifx OS == .MACOS then ui.Mod.Cmd else ui.Mod.Ctrl;
@@ -159,6 +192,9 @@ history_step :: (forward: bool, keybind := false) {
 build_ui :: () {
 	root := ui.top_parent();
 	root.layout_axis = .Y;
+	app.ui.scrollbar_thin_thumb = T("--scrollbar-thin-thumb");
+	app.ui.scrollbar_auto_thumb = T("--scrollbar-auto-thumb");
+	app.ui.scrollbar_auto_track = T("--scrollbar-auto-track");
 	if app.needs_login {
 		login_view();
 		return;
@@ -188,6 +224,7 @@ build_ui :: () {
 		prof.zone("app.overlays");
 		overlays();
 	}
+	if app.view.resizing app.ui.cursor = .Resize_H; // also off the handle while dragging
 }
 
 title_bar :: () {
@@ -422,7 +459,7 @@ guild_has_unread :: (gid: dc.Snowflake) -> bool {
 
 sidebar :: () {
 	b := ui.box("sidebar", .Draw_Background | .Draw_Border | .Clip);
-	b.semantic_size = .[ui.px(SIDEBAR_W), ui.pct(1)];
+	b.semantic_size = .[ui.px(app.view.sidebar_w), ui.pct(1)];
 	b.style.bg = T("--background-base-lowest"); // same as the rail in the visual refresh
 	b.style.border_color = T("--border-subtle");
 	b.style.border = 1;
@@ -434,6 +471,9 @@ sidebar :: () {
 			home_sidebar();
 		} else {
 			channel_sidebar(app.view.guild);
+		}
+		if resize_handle("resize", app.view.sidebar_w - 4, *app.view.sidebar_w, SIDEBAR_MIN_W, SIDEBAR_MAX_W) && app.client != null {
+			dc.track_channel_sidebar_resized(app.client, cast(int) app.view.sidebar_w + RAIL_W);
 		}
 	}
 }
@@ -457,8 +497,8 @@ page :: () {
 			if ch.kind == .Guild_Forum || ch.kind == .Guild_Media { forum_view(ch); } else { chat_view(ch.id); }
 			// side columns only when the chat keeps a usable width (narrow windows
 			// used to squeeze the composer until its placeholder wrapped per letter)
-			room := app.ui.window.x - RAIL_W - SIDEBAR_W - CHAT_MIN_W;
-			if search_panel_open() { search_panel(); } else if room < MEMBER_LIST_W {} else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) { member_list(ch); } else if ch.kind == .Group_DM && app.view.show_members { group_dm_members(ch); } else if ch.kind == .DM && !app.view.hide_dm_profile && ch.recipient_ids.count == 1 && room >= DMP_COL_W { dm_profile_panel(ch.recipient_ids[0]); }
+			room := app.ui.window.x - RAIL_W - app.view.sidebar_w - CHAT_MIN_W;
+			if search_panel_open() { search_panel(); } else if room < app.view.member_w + 1 {} else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) { member_list(ch); } else if ch.kind == .Group_DM && app.view.show_members { group_dm_members(ch); } else if ch.kind == .DM && !app.view.hide_dm_profile && ch.recipient_ids.count == 1 && room >= DMP_COL_W { dm_profile_panel(ch.recipient_ids[0]); }
 		}
 	}
 }
@@ -574,7 +614,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 	if ui.mouse_over(hdr) { hdr.style.bg = hdr.style.bg_hot; } // also while over the invite button
 	{ ui.parent(hdr); defer ui.pop_parent();
 		spacer(.X, 16);
-		label(ellipsize(g.name, .Semibold, 16, GUILD_NAME_MAX_W), .Semibold, 16, T("--text-strong"), 20);
+		label(ellipsize(g.name, .Semibold, 16, app.view.sidebar_w - 86), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.X, 5);
 		icon("chev", "chevron-small-down", 18, T("--interactive-icon-hover"));
 		filler(.X);
@@ -761,7 +801,7 @@ user_panel :: () {
 	vh := voice_panel_height();
 	panel := ui.box("userpanel", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y);
 	panel.layout_axis = .Y;
-	panel.semantic_size = .[ui.px(359), ui.px(USER_PANEL_H + vh)];
+	panel.semantic_size = .[ui.px(RAIL_W + app.view.sidebar_w - 16), ui.px(USER_PANEL_H + vh)]; // spans the rail and sidebar, 8px inset
 	panel.fixed_pos = .{8, app.ui.window.y - USER_PANEL_H - vh - 8};
 	panel.style.bg = T("--background-base-low");
 	panel.style.border_color = T("--border-muted");
@@ -778,22 +818,34 @@ user_panel :: () {
 			who.style.radius = all4(8);
 			who.style.bg_hot = T("--background-mod-subtle");
 			// your own profile card (the client also lists status options there)
-			if ui.signal(who).clicked {
+			if ui.signal(who).clicked && dc.user_get(s, s.me) != null {
 				open_profile(s.me, panel.rect, .Account_Panel);
 				app.profile_above = true;
 			}
-			{ ui.parent(who); defer ui.pop_parent();
+			u := dc.user_get(s, s.me);
+			if u == null { // before READY: placeholders, not a made-up name and status
+				who.flags &= ~.Clickable;
+				ui.parent(who); defer ui.pop_parent();
+				spacer(.X, 4);
+				skel("av", 32, 32, true);
+				spacer(.X, 8);
+				names := ui.box("names");
+				names.semantic_size = .[ui.fill(), ui.children()];
+				ui.parent(names); defer ui.pop_parent();
+				skel("name", 90, 12);
+				spacer(.Y, 6);
+				skel("status", 50, 10);
+			} else { ui.parent(who); defer ui.pop_parent();
 				spacer(.X, 4);
 				avatar_with_status("av", s.me, 32, T("--background-base-low"));
 				spacer(.X, 8);
 				names := ui.box("names");
 				names.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(names); defer ui.pop_parent();
-					name := "…";
-					u := dc.user_get(s, s.me);
-					if u != null { name = dc.display_name(u); }
-					label(name, .Medium, 14, T("--text-strong"), 18);
-					status := status_text(user_status(s.me));
+					label(dc.display_name(u), .Medium, 14, T("--text-strong"), 18);
+					status := ifx s.settings.status == .Invisible then "Invisible" else status_text(user_status(s.me));
+					// a timed status ends in the client's tick: wake for it
+					if s.settings.status_expires_ms request_wake(app.ui.time + cast(float64) max(0, s.settings.status_expires_ms - wall_ms()) / 1000 + 0.05);
 					if s.settings.custom_status_text != "" { status = s.settings.custom_status_text; }
 					label(status, .Normal, 12, T("--text-muted"), 14);
 				}
@@ -938,11 +990,13 @@ overlays :: () {
 	}
 	if sw.open { quick_switcher(); }
 	if ma.menu_msg != 0 { message_menu(); }
-	if ma.deleting != 0 { delete_modal(); }
+	if edit_menu_state.open { edit_menu(); }
+	if ma.confirming != 0 { confirm_modal(); }
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
-	if viewer_url != "" { image_viewer(); }
+	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
+	media_overlays(); // view_media.jai: image viewer, media context menu
 	incoming_call_popout(); // view_voice.jai
 	if app.settings_open { settings_modal(); } else { settings_closed(); }
 	account_logout_modal(); // view_settings_account.jai
@@ -956,6 +1010,7 @@ overlays :: () {
 	events_modal();
 	guild_admin_overlays();
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
+	req_toast(); // requests.jai: a failed request, on top
 }
 
 #scope_file

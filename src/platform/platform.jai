@@ -214,6 +214,13 @@ clipboard_files :: (allocator := context.allocator) -> []string {
     return out;
 }
 
+// Puts encoded image bytes (PNG, JPEG, GIF, WebP...) on the clipboard as a bitmap. Decodes them: call it from
+// a worker thread.
+clipboard_set_image :: (data: []u8) {
+    if !s.headless { os_clipboard_set_image(data); return; }
+    set_headless_clipboard_image(data);
+}
+
 // Headless (UI scripts): put PNG bytes or file paths on the virtual clipboard.
 set_headless_clipboard_image :: (png: []u8) {
     locks.guard(*s.headless_lock);
@@ -239,7 +246,12 @@ set_cursor :: (c: Cursor) {
 set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = .{x, y, w, h}; }
 
 // Called from inside OS modal loops (live resize) with events swapped in; run one frame.
-set_frame_callback :: (cb: ()) { s.frame_callback = cb; }
+// Also re-captures the caller's context: frames run from OS callbacks (live resize) push it,
+// so they see what the app added (context.ui) after init.
+set_frame_callback :: (cb: ()) {
+    s.frame_callback = cb;
+    s.ctx = context;
+}
 
 // Queue a synthetic event; it is returned by events() after the next wait_events. Copies e.text. Safe from
 // any thread.

@@ -8,6 +8,8 @@
 //
 //   GET  /channels/{id}/messages/pins?limit=25[&before=<iso>]   (ChannelPinsActionCreators.fetchPins)
 //   POST /channels/{id}/pins/ack                                 (ReadStateStore.ackPins, opening pins)
+//   PUT / DELETE /channels/{id}/messages/pins/{mid}              (ChannelPinsActionCreators.pinMessage / unpinMessage)
+//   POST /channels/{id}/messages/{mid}/ack {manual, mention_count} (markUnread)
 //   GET  /channels/{id}/messages?limit=30&around={mid}           (jump to message; query order before,after,limit,around; fixture inbox)
 //   POST /channels/{forum}/post-data {"thread_ids":[..]}         (ForumPostMessagesManager, batches of 10)
 //   GET  /channels/{forum}/threads/search?archived=true&sort_by=last_message_time&sort_order=desc&limit=25&tag_setting=match_some&offset=0
@@ -476,12 +478,12 @@ parse_loose_message :: (s: *Store, m: etf.Map, allocator := temp) -> Message {
 	};
 	au := fmap(m, "author");
 	if au msg.author_id = parse_user_into(s, au);
-	msg.attachments.allocator = allocator;
-	push_allocator(allocator);
-	for flist(m, "attachments") {
-		am := vmap(it);
-		array_add(*msg.attachments, .{id = fsnow(am, "id"), filename = copy_string(fstr(am, "filename")), url = copy_string(fstr(am, "url")), proxy_url = copy_string(fstr(am, "proxy_url")), width = fint(am, "width"), height = fint(am, "height"), size = fint(am, "size"), content_type = copy_string(fstr(am, "content_type"))});
-	}
+	msg.attachments.allocator, msg.embeds.allocator, msg.sticker_ids.allocator = allocator, allocator, allocator;
+	for flist(m, "attachments") array_add(*msg.attachments, parse_attachment(vmap(it), allocator));
+	for flist(m, "embeds") array_add(*msg.embeds, parse_embed(vmap(it), allocator));
+	items := flist(m, "sticker_items");
+	for items array_add(*msg.sticker_ids, fsnow(vmap(it), "id"));
+	note_sticker_items(s, items);
 	return msg;
 }
 
@@ -513,6 +515,9 @@ Feature_Op :: enum u8 {
 	Channel_Edit;
 	Channel_Delete;
 	Emoji_Upload;
+	Mark_Unread;
+	Pin;
+	Unpin;
 }
 
 Feature_Result :: struct {
@@ -685,6 +690,39 @@ ack_pins :: (c: *Client, channel_id: Snowflake) {
 	f_submit(c, .{op = .Pins_Ack, channel_id = channel_id, method = "POST", path = channel_path(channel_id, "/pins/ack")});
 }
 
+// PUT (pin) / DELETE (unpin) /channels/{id}/messages/pins/{mid}, no body. The message,
+// the system message and the pins list follow from the gateway (MESSAGE_UPDATE,
+// MESSAGE_CREATE type 6, CHANNEL_PINS_UPDATE).
+pin_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, pin: bool) {
+	f_submit(c, .{op = ifx pin then Feature_Op.Pin else .Unpin, tag = message_id, channel_id = channel_id, method = ifx pin then "PUT" else "DELETE", path = channel_path(channel_id, "/messages/pins/", snowflake_string(message_id))});
+}
+
+// Mark Unread (markUnread): POST /channels/{id}/messages/{before}/ack {"manual":true,"mention_count":n}
+// where before = the loaded message just older than message_id, else message_id's previous
+// millisecond, and n = the loaded messages after it that would notify us. No token and no
+// local change: the read state moves on the MESSAGE_ACK echo (manual).
+mark_unread :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
+	before: Snowflake = ((message_id >> 22) - 1) << 22; // SnowflakeUtils.atPreviousMillisecond
+	n := 0;
+	l := table_find_pointer(*c.store.messages, channel_id);
+	ch := channel_get(*c.store, channel_id);
+	if l {
+		for l.messages if it.id < message_id && !it.pending before = it.id; // ascending
+		for l.messages {
+			if it.id <= before || it.pending continue;
+			if (ch && ch.guild_id == 0) || it.mention_everyone || array_find(it.mentions, c.store.me) n += 1; // private: every message
+		}
+	}
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kbool(*w, "manual", true);
+	json_kint(*w, "mention_count", n);
+	json_obj_end(*w);
+	for c.pending_acks if it.channel_id == channel_id remove it; // clearOutgoingAck
+	f_submit(c, .{op = .Mark_Unread, channel_id = channel_id, method = "POST", path = channel_path(channel_id, "/messages/", snowflake_string(before), "/ack"), body = json_string(*w)});
+}
+
 // GET /channels/{id}/messages?limit=30&around={mid}; the page is merged into
 // the channel's message list by apply_around (UI thread).
 fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, tag: u64 = 0) {
@@ -696,8 +734,12 @@ fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowfla
 }
 
 apply_around :: (c: *Client, r: *Feature_Result) {
-	if !r.ok return;
 	push_allocator(c.store.allocator);
+	if !r.ok {
+		message_list(*c.store, r.channel_id).failed = true; // "Messages Failed To Load"
+		c.store.changed += 1;
+		return;
+	}
 	for vlist(r.body) upsert_message(*c.store, vmap(it));
 	c.store.changed += 1;
 }

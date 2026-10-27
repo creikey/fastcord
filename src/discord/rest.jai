@@ -78,6 +78,10 @@ job_free :: (j: *Job) {
 }
 
 job_submit :: (c: *Client, j: *Job) {
+	if context.req_tag && j.result.tag == 0 {
+		j.result.tag = context.req_tag;
+		context.req_jobs += 1;
+	}
 	locks.lock(*c.job_mu);
 	array_add(*c.jobs, j);
 	locks.cond_broadcast(*c.job_cond);
@@ -162,9 +166,10 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 	retry_429_left := retry_429;
 	failed := 0;
 	backoff := backoff_make(500);
+	queued := true; // a retry after a network error or 5xx skips the queue (HTTPUtils calls I, not g)
 	while true {
-		w := rate_wait_ms(*c.limiter, url_key, now_ms());
-		if w > 0 sleep_milliseconds(xx w);
+		if queued rate_acquire(*c.limiter, url_key);
+		queued = false;
 		now := now_ms();
 		ex := extra;
 		if failed > 0 {
@@ -193,7 +198,10 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 		resp, err := transport_round_trip(*c.transport, API_HOST, req);
 		if err != .None || (retries_left > 0 && is_retryable_status(resp.status)) {
 			http.response_destroy(*resp);
-			if retries_left <= 0 return .{status = 0};
+			if retries_left <= 0 {
+				rate_note_response(*c.limiter, url_key, 0, .[], .{}, now_ms());
+				return .{status = 0};
+			}
 			retries_left -= 1;
 			failed += 1;
 			sleep_milliseconds(xx backoff_fail(*backoff));
@@ -211,6 +219,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			fini(pool);
 			free(pool,, context.default_allocator);
 			if wait > 0 sleep_milliseconds(xx wait);
+			queued = true;
 			continue;
 		}
 		hdrs := NewArray(resp.headers.count, http.Header,, alloc);
@@ -331,6 +340,11 @@ schedule_applications_public :: (c: *Client, ready_ms: s64) {
 // Thread-local: the running job's page code spelled the header "authorization"
 // (read by the recorder's renderer view; the wire is lowercase either way).
 #add_context tl_js_lower_auth: bool;
+
+// Set by the app around a user action: the jobs it submits carry this result tag
+// (when they have none) and are counted, so a button can wait for its request.
+#add_context req_tag: u64;
+#add_context req_jobs: int;
 
 send_preflight :: (c: *Client, j: *Job) {
 	pre := http.Request.{method = "OPTIONS", scheme = "https", authority = j.host, path = j.path, headers = preflight_headers(c.id.platform, "GET", "if-none-match", true)};
@@ -523,6 +537,7 @@ client_apply_rest :: (c: *Client, e: *Event) {
 		case .Fetch_Messages;
 			l := message_list(s, r.channel_id);
 			l.loading = false;
+			l.failed = !r.ok;
 			if r.ok {
 				items := vlist(e.data);
 				for items upsert_message(s, vmap(it));
@@ -551,6 +566,9 @@ client_apply_rest :: (c: *Client, e: *Event) {
 					}
 				}
 			}
+		case .Add_Reaction; #through;
+		case .Remove_Reaction;
+			reaction_result(c, r.*);
 		case .Edit_Message;
 			if r.ok upsert_message(s, vmap(e.data));
 		case .Delete_Message;

@@ -158,14 +158,11 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 				spacer(.X, 12);
 			}
 			content_spans(m, terms);
-			for m.attachments {
-				lr := row(tprint("att%", it_index));
-				lr.semantic_size = .[ui.pct(1), ui.px(20)];
-				ui.parent(lr); defer ui.pop_parent();
-				icon("i", "attachment", 16, T("--text-muted"));
-				spacer(.X, 4);
-				label(it.filename, .Normal, 14, T("--text-link"), 18);
-			}
+			// media as in the chat, narrowed to the card (its width from the last layout)
+			mw := ifx col.rect.x1 > col.rect.x0 then min(400.0, col.rect.x1 - col.rect.x0 - 12) else 300.0;
+			if m.sticker_ids message_stickers_view(m);
+			if m.attachments attachments_view(m, mw);
+			if m.embeds embeds_view(m, mw);
 		}
 		spacer(.X, 8);
 	}

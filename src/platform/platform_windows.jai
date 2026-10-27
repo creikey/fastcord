@@ -177,6 +177,8 @@ os_clipboard_image :: (allocator: Allocator) -> []u8, bool {
     return png, png.count > 0;
 }
 
+os_clipboard_set_image :: (data: []u8) {} // TODO: CF_DIBV5 (+ "PNG") from a WIC decode
+
 os_clipboard_files :: (allocator: Allocator) -> []string {
     if !open_clipboard_any() return .[];
     defer win.CloseClipboard();

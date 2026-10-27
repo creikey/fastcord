@@ -23,6 +23,7 @@ Settings_Edit :: struct {
 	status: Status;
 	has_status: bool;
 	status_ms: s64; // status_created_at_ms
+	status_expires_ms: s64; // status_expires_at_ms (fixed64 4), 0 = forever
 	custom: Custom_Status;
 	has_custom: bool;
 	custom_ms: s64; // CustomStatus.created_at_ms
@@ -94,6 +95,7 @@ settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 			pb_fixed64(*cm, 5, cast(u64) e.custom_ms);
 			pb_msg(*st, 2, cm);
 		}
+		if e.has_status && e.status_expires_ms pb_fixed64(*st, 4, cast(u64) e.status_expires_ms);
 		// clearing: StatusSettings without custom_status (fixture custom_status)
 		if e.has_status && e.status_ms pb_wrapped_uint(*st, 5, cast(u64) e.status_ms);
 		pb_msg(*root, 11, st);
@@ -163,17 +165,33 @@ free_folders :: (c: *Client, e: *Settings_Edit) {
 
 #scope_export
 
-// set_status: online / idle / dnd / invisible.
-set_status :: (c: *Client, s: Status) {
-	if s != c.store.settings.status analytics_status_updated(c, c.store.settings.status, s);
+// set_status: online / idle / dnd / invisible (setStatus). duration_ms > 0 is
+// a timed status ("For 15 Minutes"...): status_expires_at_ms = now + duration,
+// and status_expiry_tick sets Online back when it passes. The created time is
+// kept when the status does not change. expired: the expiry timer's call
+// (location CUSTOM_STATUS_MANAGER).
+set_status :: (c: *Client, s: Status, duration_ms: s64 = 0, expired := false) {
+	st := *c.store.settings;
+	analytics_status_updated(c, st.status, s, duration_ms, expired);
 	now := now_ms();
-	c.settings_edit.status = s;
-	c.settings_edit.has_status = true;
-	c.settings_edit.status_ms = now;
-	c.store.settings.status = s;
-	c.store.settings.status_created_ms = now;
+	if s != st.status || st.status_created_ms == 0 st.status_created_ms = now;
+	st.status = s;
+	st.status_expires_ms = ifx duration_ms > 0 then now + duration_ms else 0;
+	e := *c.settings_edit;
+	e.status = s;
+	e.has_status = true;
+	e.status_ms = st.status_created_ms;
+	e.status_expires_ms = st.status_expires_ms;
 	c.store.changed += 1;
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
+}
+
+// status_expiry_tick: CustomStatusManager.manageExpiringStatus, a timed status
+// that has passed goes back to Online.
+status_expiry_tick :: (c: *Client, now: s64) {
+	st := *c.store.settings;
+	if st.status == .Online || st.status_expires_ms == 0 || now < st.status_expires_ms return;
+	set_status(c, .Online, expired = true);
 }
 
 // set_custom_status; empty text and emoji clears it.
@@ -195,6 +213,7 @@ set_custom_status :: (c: *Client, cs: Custom_Status) {
 		e.status = c.store.settings.status;
 		e.has_status = true;
 		e.status_ms = c.store.settings.status_created_ms;
+		e.status_expires_ms = c.store.settings.status_expires_ms;
 	}
 	st := *c.store.settings;
 	free_str(st.custom_status_text, c.allocator);
@@ -207,8 +226,9 @@ set_custom_status :: (c: *Client, cs: Custom_Status) {
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
 }
 
-// presence_value: op 3 as the client sends it after a status change (in context.allocator).
-presence_value :: (c: *Client) -> V {
+// presence_value: op 3 (SelfPresenceStore.getLocalPresence) in context.allocator. While idle an
+// online status reads "idle", since = idleSince for every status, afk = IdleStore.isAFK.
+presence_value :: (c: *Client, old_afk := false) -> V {
 	st := *c.store.settings;
 	acts: [..]V;
 	if st.custom_status_text || st.custom_status_emoji {
@@ -237,10 +257,10 @@ presence_value :: (c: *Client) -> V {
 		array_add(*acts, etf.vmap(etf.map_done(*a)));
 	}
 	b := etf.map_builder(4);
-	etf.map_put(*b, "status", etf.vstring(status_name(st.status)));
-	etf.map_put(*b, "since", etf.vint(0));
+	etf.map_put(*b, "status", etf.vstring(status_name(ifx st.status == .Online && c.idle_sent then .Idle else st.status)));
+	etf.map_put(*b, "since", etf.vint(c.idle_sent));
 	etf.map_put(*b, "activities", etf.vlist(acts));
-	etf.map_put(*b, "afk", etf.vbool(false));
+	etf.map_put(*b, "afk", etf.vbool((c.idle_sent != 0) != old_afk)); // old_afk: the AFK flag before an idle change
 	return etf.vmap(etf.map_done(*b));
 }
 

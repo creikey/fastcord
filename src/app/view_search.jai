@@ -291,13 +291,15 @@ search_panel_open :: () -> bool {return search.active;}
 // Results panel (replaces the member list while a search is active).
 search_panel :: () {
 	s := store();
-	p := ui.box("searchpanel", .Draw_Background | .Draw_Border);
+	p := ui.box("searchpanel", .Draw_Background);
 	p.semantic_size = .[ui.px(SEARCH_PANEL_W), ui.pct(1)];
 	p.layout_axis = .Y;
 	p.style.bg = T("--background-base-low");
-	p.style.border_color = T("--border-subtle");
-	p.style.border = 1;
 	{ ui.parent(p); defer ui.pop_parent();
+		// official .searchResultsWrap: left border only (1px --app-frame-border)
+		edge := ui.box("edge", .Draw_Background | .Floating_X | .Floating_Y);
+		edge.semantic_size = .[ui.px(1), ui.pct(1)];
+		edge.style.bg = T("--app-frame-border");
 		hdr := row("hdr");
 		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
 		{ ui.parent(hdr); defer ui.pop_parent();

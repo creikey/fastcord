@@ -140,7 +140,7 @@ Item_Right :: enum u8 {
 
 // One menu row (inside an 8px-padded menu column): label, optional sublabel,
 // and an icon / chevron / radio / checkbox on the right.
-menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := "", sub := "", danger := false, brand := false, open := false, disabled := false, lead := "", h: float32 = GM_ROW_H) -> ui.Signal {
+menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := "", sub := "", danger := false, brand := false, open := false, disabled := false, lead := "", h: float32 = GM_ROW_H, lead_status := dc.Status.Offline, warn := false) -> ui.Signal {
 	outer := row(id);
 	outer.semantic_size = .[ui.pct(1), ui.children()];
 	sig: ui.Signal;
@@ -162,7 +162,16 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 		if disabled color = with_alpha(T("--interactive-text-default"), 0.5);
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 8);
-			if lead != "" {
+			if lead_status != .Offline {
+				// a status dot (status menus): 10px, centred in the icon column
+				slot := row("lead");
+				slot.semantic_size = .[ui.px(20), ui.px(20)];
+				{ ui.parent(slot); defer ui.pop_parent();
+					spacer(.X, 5);
+					icon("i", status_icon(lead_status), 10, status_color(lead_status));
+				}
+				spacer(.X, 8);
+			} else if lead != "" {
 				icon("lead", lead, 20, color);
 				spacer(.X, 8);
 			}
@@ -170,7 +179,17 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			{ ui.parent(col); defer ui.pop_parent();
-				label(text, .Medium, 14, color, 18);
+				if warn {
+					// Invisible: "Heads up! Your status & activity are hidden"
+					tr := row("t");
+					tr.semantic_size = .[ui.children(), ui.px(18)];
+					ui.parent(tr); defer ui.pop_parent();
+					label(text, .Medium, 14, color, 18);
+					spacer(.X, 4);
+					icon("warn", "warning", 14, T("--status-warning"));
+				} else {
+					label(text, .Medium, 14, color, 18);
+				}
 				if sub != "" label(sub, .Normal, 12, ifx hot && danger then color else T("--text-muted"), 16);
 			}
 			brand_c := T("--background-brand");

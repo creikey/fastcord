@@ -57,6 +57,10 @@ linux_platform :: () -> Platform_Info {
 	return p;
 }
 
+// system_idle_ms: not measured on Linux (X has it only through the XScreenSaver extension, Wayland not at
+// all), so presence never goes idle on its own there.
+system_idle_ms :: () -> s64, bool { return 0, false; }
+
 #scope_file
 
 // os_release_name: PRETTY_NAME from os-release, unquoted.

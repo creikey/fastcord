@@ -53,6 +53,19 @@ home_sidebar :: () {
 			dm_create_button(); // view_group_dm.jai: "Select Friends" popout
 			spacer(.X, 16);
 		}
+		if store_loading() {
+			// before READY: placeholder rows, not an empty list
+			for i: 0..9 {
+				ui.id_scope(cast(u64) i); defer ui.pop_seed();
+				r := row("skel");
+				r.semantic_size = .[ui.pct(1), ui.px(DM_ROW_PITCH)];
+				ui.parent(r); defer ui.pop_parent();
+				spacer(.X, 18);
+				skel("av", 32, 32, true);
+				spacer(.X, 12);
+				skel("name", cast(float32) (60 + (i * 41) % 80), 14);
+			}
+		}
 		dms := dc.private_channels_sorted(s);
 		w := ui.list_window(list, DM_ROW_PITCH, dms.count);
 		for cid: array_view(dms, w.first, w.last - w.first) {
@@ -312,7 +325,7 @@ friends_page :: () {
 				title = "Pending";
 			case .Online; #through; case .Add_Friend;
 			}
-			label(tprint("% — %", title, ids.count), .Medium, 14, T("--text-default"), 18);
+			label(ifx store_loading() then title else tprint("% — %", title, ids.count), .Medium, 14, T("--text-default"), 18); // no count before READY
 		}
 		spacer(.Y, 16);
 		w := ui.list_window(list, FRIEND_ROW_H + 1, ids.count);
@@ -321,7 +334,18 @@ friends_page :: () {
 			friend_row(uid, relationship(uid));
 		}
 		ui.list_window_end(w);
-		if ids.count == 0 {
+		if store_loading() {
+			for i: 0..5 {
+				ui.id_scope(cast(u64) i); defer ui.pop_seed();
+				r := row("skel");
+				r.semantic_size = .[ui.pct(1), ui.px(FRIEND_ROW_H + 1)];
+				ui.parent(r); defer ui.pop_parent();
+				spacer(.X, 24);
+				skel("av", 32, 32, true);
+				spacer(.X, 12);
+				skel("name", cast(float32) (80 + (i * 41) % 90), 14);
+			}
+		} else if ids.count == 0 {
 			spacer(.Y, 80);
 			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else "No one's around to play with Wumpus.";
 			e := row("empty");
@@ -351,9 +375,7 @@ ACTIVE_NOW_W :: 360; // including its 1px left border
 
 // Opens (or creates) the DM with a friend, like clicking their row.
 friend_open_dm :: (uid: dc.Snowflake) {
-	if !net_action() { return; }
-	existing := dc.open_dm(app.client, uid, "Friends");
-	if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
+	open_dm_with(uid, "Friends");
 }
 
 friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
@@ -405,7 +427,7 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				label(sub, .Medium, 14, T("--text-muted"), 18);
 			}
 			if kind == .Incoming_Request {
-				if round_icon_button("accept", "checkmark-large", T("--status-positive")).clicked && net_action() { dc.accept_friend_request(app.client, uid); }
+				if round_icon_button("accept", "checkmark-large", T("--status-positive"), rel_req("Accept", uid)).clicked && req_begin(rel_req("Accept", uid)) { dc.accept_friend_request(app.client, uid); req_end(); }
 				spacer(.X, 10);
 			}
 			if kind == .Friend {
@@ -415,7 +437,7 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				more := round_icon_button("more", "more-vertical", T("--interactive-icon-hover"));
 				if more.clicked { open_user_menu(uid, .{more.box.rect.x0, more.box.rect.y1 + 4}); }
 			} else {
-				if round_icon_button("deny", "x-small", T("--status-danger")).clicked && net_action() { dc.remove_relationship(app.client, uid); }
+				if round_icon_button("deny", "x-small", T("--status-danger"), rel_req("Ignore", uid)).clicked && req_begin(rel_req("Ignore", uid)) { dc.remove_relationship(app.client, uid); req_end(); }
 			}
 			spacer(.X, 10);
 		}
@@ -475,7 +497,8 @@ active_now_column :: () {
 	}
 }
 
-round_icon_button :: (id: string, icon_name: string, hover_color: ui.Color) -> ui.Signal {
+// req: the request this button makes (pulsing dots replace the icon while it runs).
+round_icon_button :: (id: string, icon_name: string, hover_color: ui.Color, req := "") -> ui.Signal {
 	b := ui.box(id, .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.px(36), ui.px(36)];
 	b.style.radius = all4(18);
@@ -483,6 +506,11 @@ round_icon_button :: (id: string, icon_name: string, hover_color: ui.Color) -> u
 	b.layout_axis = .X;
 	b.cross_align = .Center;
 	sig := ui.signal(b);
+	if req != "" && req_state(req) == .Pending {
+		req_button(b, req, T("--interactive-icon-default"));
+		sig.clicked = false;
+		return sig;
+	}
 	{ ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 8);
 		icon("i", icon_name, 20, ifx sig.hovering then hover_color else T("--interactive-icon-default"));
@@ -490,7 +518,14 @@ round_icon_button :: (id: string, icon_name: string, hover_color: ui.Color) -> u
 	return sig;
 }
 
+// The request key of a relationship button (one per action and user).
+rel_req :: (action: string, uid: dc.Snowflake) -> string { return tprint("rel:%:%", action, uid); }
+
+ADD_FRIEND_REQ :: "add_friend";
+add_friend_sent: string; // the name of the last request sent from the Add Friend page
+
 add_friend_view :: () {
+	sent := req_state(ADD_FRIEND_REQ);
 	col := ui.box("addfriend");
 	col.semantic_size = .[ui.fill(), ui.pct(1)];
 	col.layout_axis = .Y;
@@ -518,6 +553,8 @@ add_friend_view :: () {
 			box.semantic_size = .[ui.fill(), ui.px(52)];
 			box.style.bg = T("--input-background-default");
 			box.style.border_color = ifx app.ui.focus == box.key then T("--input-border-active") else T("--input-border-default");
+			if sent == .Done box.style.border_color = T("--status-positive");
+			if sent == .Failed box.style.border_color = T("--status-danger");
 			box.style.border = 1;
 			box.style.radius = all4(8);
 			box.hover_cursor = .IBeam;
@@ -526,6 +563,7 @@ add_friend_view :: () {
 				spacer(.X, 16);
 				res := text_field("field", *app.view.add_friend, "You can add friends with their Discord username.", app.ui.focus == box.key && !modal_open());
 				name := trim(ui.editor_text(*app.view.add_friend));
+				if res == .Changed && sent != .Pending req_clear(ADD_FRIEND_REQ); // editing drops the last result
 				spacer(.X, 12);
 				btn := ui.box("Send Friend Request##send", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 				btn.semantic_size = .[ui.text_size(16), ui.px(32)];
@@ -538,30 +576,85 @@ add_friend_view :: () {
 				btn.style.bg_hot = btn.style.bg;
 				btn.style.text_color = ifx enabled then ui.Color.{1, 1, 1, 1} else .{1, 1, 1, 0.5};
 				if !enabled { btn.flags |= .Disabled; }
-				if (ui.signal(btn).clicked || res == .Submit) && enabled && net_action() {
-					dc.send_friend_request(app.client, name);
-					ui.editor_set_text(*app.view.add_friend, "");
+				if (req_button(btn, ADD_FRIEND_REQ) || res == .Submit) && enabled && sent != .Pending {
+					free(add_friend_sent);
+					add_friend_sent = copy_string(name);
+					if req_begin(ADD_FRIEND_REQ, inline_error = true) {
+						dc.send_friend_request(app.client, name);
+						req_end();
+					}
 				}
 				spacer(.X, 12);
 			}
 			spacer(.X, 30);
 		}
+		// the result under the field, as the client shows it (green / red, the field keeps the name)
+		if sent == .Done || sent == .Failed {
+			spacer(.Y, 8);
+			r4 := row("result");
+			r4.semantic_size = .[ui.pct(1), ui.px(18)];
+			{ ui.parent(r4); defer ui.pop_parent();
+				spacer(.X, 30);
+				if sent == .Failed {
+					label("Hm, didn’t work. Double check that the username is correct.", .Normal, 14, T("--text-feedback-critical"), 18);
+				} else {
+					t := ui.box("ok");
+					t.semantic_size = .[ui.text_size(0, 0), ui.px(18)];
+					t.style.line_height = 18;
+					t.style.text_color = T("--text-feedback-positive");
+					spans := NewArray(3, ui.Span,, temp);
+					spans[0] = .{text = "Success! Your friend request to ", font = F(.Normal), size = 14};
+					spans[1] = .{text = add_friend_sent, font = F(.Bold), size = 14};
+					spans[2] = .{text = " was sent.", font = F(.Normal), size = 14};
+					ui.set_spans(t, spans);
+				}
+			}
+		}
+	}
+}
+
+// Right-hand member column (guild and group DM): the official .container has a 1px --border-subtle
+// left border before the --custom-member-list-width list. Its left edge drags to resize it.
+// Returns the scrolling list (signalled); declare the rows inside it.
+members_column :: (id: string) -> *ui.Box {
+	col := row(id);
+	col.semantic_size = .[ui.px(app.view.member_w + 1), ui.pct(1)];
+	{ ui.parent(col); defer ui.pop_parent();
+		line := ui.box("border", .Draw_Background);
+		line.semantic_size = .[ui.px(1), ui.pct(1)];
+		line.style.bg = T("--border-subtle");
+		list := ui.box("list", .Scroll_Y | .Clip | .Draw_Background);
+		list.semantic_size = .[ui.fill(), ui.pct(1)];
+		list.layout_axis = .Y;
+		list.style.bg = T("--background-base-lower");
+		ui.signal(list);
+		resize_handle("resize", 0, *app.view.member_w, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W, grows_left = true);
+		return list;
 	}
 }
 
 member_list :: (ch: *dc.Channel) {
 	s := store();
-	list := ui.box("members", .Scroll_Y | .Clip | .Draw_Background);
-	list.semantic_size = .[ui.px(MEMBER_LIST_W), ui.pct(1)];
-	list.layout_axis = .Y;
-	list.style.bg = T("--background-base-lower");
-	ui.signal(list);
+	list := members_column("members");
 	ml := table_find_pointer(*s.member_lists, ch.guild_id);
 	if app.client != null && (!ml || ml.items.count == 0) {
 		dc.subscribe_member_list(app.client, ch.guild_id, ch.id, ([2]int).[.[0, 99]]);
 	}
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
+		if app.client != null && (!ml || ml.items.count == 0) {
+			// the first GUILD_MEMBER_LIST_UPDATE is on its way: placeholder rows
+			for i: 0..11 {
+				ui.id_scope(cast(u64) i); defer ui.pop_seed();
+				r := row("skel");
+				r.semantic_size = .[ui.pct(1), ui.px(44)];
+				ui.parent(r); defer ui.pop_parent();
+				spacer(.X, 16);
+				skel("av", 32, 32, true);
+				spacer(.X, 12);
+				skel("name", cast(float32) (60 + (i * 37) % 70), 12);
+			}
+		}
 		if ml for item, i: ml.items {
 			{ ui.id_scope(cast(u64)(i)); defer ui.pop_seed();
 				if item.is_group {
@@ -689,12 +782,14 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 								b.style.bg = .{0, 0, 0, 0.36};
 								b.style.bg_hot = .{0, 0, 0, 0.5};
 								sig := ui.signal(b);
-								{ ui.parent(b); defer ui.pop_parent();
+								if i == 0 && req_state(rel_req("Add Friend", uid)) == .Pending {
+									req_button(b, rel_req("Add Friend", uid));
+								} else { ui.parent(b); defer ui.pop_parent();
 									ic := icon("i", name, 18, .{1, 1, 1, 1});
 									ic.flags |= .Floating_X | .Floating_Y;
 									ic.fixed_pos = .{7, 7};
 								}
-								if sig.clicked && i == 0 && rel == .None && net_action() { dc.add_relationship(app.client, uid, "User Profile"); }
+								if sig.clicked && i == 0 && rel == .None && req_state(rel_req("Add Friend", uid)) != .Pending && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "User Profile"); req_end(); }
 								// "…" and the friends check open the user menu (Remove Friend, Block, …)
 								if sig.clicked && (i == 1 || rel == .Friend) { open_user_menu(uid, .{b.rect.x0, b.rect.y1 + 4}); }
 								if i == 0 { spacer(.X, 8); }
@@ -821,7 +916,7 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 			dot.style.bg = T("--interactive-muted");
 			spacer(.X, 12);
 			rel := relationship(uid);
-			btn :: (text: string, primary: bool) -> bool {
+			btn :: (text: string, primary: bool, uid: dc.Snowflake = 0) -> bool {
 				b := ui.box(text, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 				b.semantic_size = .[ui.text_size(12), ui.px(32)];
 				b.style.radius = all4(8);
@@ -831,25 +926,25 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 				b.style.text_color = ifx primary then ui.Color.{1, 1, 1, 1} else T("--text-strong");
 				b.style.bg = ifx primary then T("--background-brand") else T("--background-mod-normal");
 				b.style.bg_hot = ifx primary then with_alpha(T("--background-brand"), 0.85) else T("--background-mod-strong");
-				clicked := ui.signal(b).clicked;
+				clicked := ifx uid then req_button(b, rel_req(text, uid), b.style.text_color) else ui.signal(b).clicked;
 				spacer(.X, 8);
 				return clicked;
 			}
 			if rel == {
 			case .Friend;
-				if btn("Remove Friend", false) && net_action() { dc.remove_relationship(app.client, uid, "DM Header"); }
+				if btn("Remove Friend", false, uid) && req_begin(rel_req("Remove Friend", uid)) { dc.remove_relationship(app.client, uid, "DM Header"); req_end(); }
 				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
 			case .Blocked;
-				if btn("Unblock", false) && net_action() { dc.remove_relationship(app.client, uid, "DM Header"); }
+				if btn("Unblock", false, uid) && req_begin(rel_req("Unblock", uid)) { dc.remove_relationship(app.client, uid, "DM Header"); req_end(); }
 			case .Outgoing_Request;
 				btn("Friend Request Sent", false);
 				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
 			case .Incoming_Request;
-				if btn("Accept", true) && net_action() { dc.accept_friend_request(app.client, uid); }
-				if btn("Ignore", false) && net_action() { dc.ignore_friend_request(app.client, uid); }
+				if btn("Accept", true, uid) && req_begin(rel_req("Accept", uid)) { dc.accept_friend_request(app.client, uid); req_end(); }
+				if btn("Ignore", false, uid) && req_begin(rel_req("Ignore", uid)) { dc.ignore_friend_request(app.client, uid); req_end(); }
 				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
 			case .None; #through; case .Implicit;
-				if btn("Add Friend", true) && net_action() { dc.add_relationship(app.client, uid, "DM Header"); }
+				if btn("Add Friend", true, uid) && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "DM Header"); req_end(); }
 				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
 			}
 		}
@@ -977,7 +1072,7 @@ block_confirm_modal :: () {
 			ok.style.text_color = .{1, 1, 1, 1};
 			ok.style.bg = T("--status-danger");
 			ok.style.bg_hot = T("--control-critical-primary-background-hover");
-			if ui.signal(ok).clicked { confirm = true; }
+			if req_button(ok, rel_req("Block", uid)) { confirm = true; }
 			spacer(.X, PAD + 1 - 8);
 		}
 		spacer(.Y, PAD + 1);
@@ -986,8 +1081,15 @@ block_confirm_modal :: () {
 		if e.kind == .Key_Down && e.key == .Escape { block_confirm = .{}; }
 		if e.kind == .Key_Down && e.key == .Enter { confirm = true; }
 	}
-	if confirm {
-		if net_action() { dc.block_user(app.client, uid, block_confirm.location); }
+	// the modal stays up (Block shows the ellipsis) until the request ends
+	key := rel_req("Block", uid);
+	st := req_state(key);
+	if confirm && st != .Pending {
+		if req_begin(key) { dc.block_user(app.client, uid, block_confirm.location); req_end(); }
+		st = req_state(key);
+	}
+	if st == .Done || st == .Failed {
+		req_clear(key);
 		block_confirm = .{};
 	}
 }
