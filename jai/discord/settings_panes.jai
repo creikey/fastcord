@@ -22,15 +22,10 @@ Settings_Pane :: enum u8 {
 
 settings_pane_name :: (p: Settings_Pane) -> string {
 	if p == {
-	case .Account;
-		return "account_panel";
-	case .Appearance;
-		return "appearance_panel";
-	case .Voice;
-		return "voice_and_video_panel";
-	case .Notifications;
-		return "notifications_panel";
-	case .None;
+		case .Account;       return "account_panel";
+		case .Appearance;    return "appearance_panel";
+		case .Voice;         return "voice_and_video_panel";
+		case .Notifications; return "notifications_panel";
 	}
 	return "";
 }
@@ -51,18 +46,16 @@ Social_State :: struct {
 }
 
 social_destroy :: (c: *Client) {
-	for * call: c.social.calls { delete(call.ringing); }
+	for c.social.calls array_free(it.ringing);
 	deinit(*c.social.calls);
 	deinit(*c.social.menu_loaded);
 	deinit(*c.social.notes_loaded);
-	delete(c.social.nick_mod_props, c.allocator);
-	c.social = zero(type_of(c.social));
+	free(c.social.nick_mod_props,, c.allocator);
+	c.social = .{};
 }
 
 // route_now: the route the UI shows (location properties of UI events).
 route_now :: (c: *Client) -> Snowflake, Snowflake {
-	guild_id: Snowflake;
-	channel_id: Snowflake;
 	locks.lock(*c.route_mu);
 	defer locks.unlock(*c.route_mu);
 	return c.route_guild, c.route_channel;
@@ -108,7 +101,7 @@ settings_pane_shown :: (c: *Client, origin: Settings_Pane, dest: Settings_Pane, 
 		c.social.theme_badge_count = 1;
 		if !c.social.upsells_shown {
 			c.social.upsells_shown = true;
-			for kind: (string.["premium_client_theme_try_it_out", "app_icon_upsell"]) {
+			for kind: string.["premium_client_theme_try_it_out", "app_icon_upsell"] {
 				w := aw_begin();
 				json_kstr(*w, "type", kind);
 				aw_strs(*w, "location_stack", string.["user settings"]);
@@ -125,7 +118,7 @@ settings_pane_shown :: (c: *Client, origin: Settings_Pane, dest: Settings_Pane, 
 settings_pane_viewed :: (c: *Client, origin: Settings_Pane, dest: Settings_Pane, guild_id: Snowflake, channel_id: Snowflake) {
 	w := aw_begin();
 	json_kstr(*w, "settings_type", "user");
-	if origin != .None { json_kstr(*w, "origin_pane", settings_pane_name(origin)); }
+	if origin != .None json_kstr(*w, "origin_pane", settings_pane_name(origin));
 	json_kstr(*w, "destination_pane", settings_pane_name(dest));
 	aw_strs(*w, "location_stack", .{});
 	json_knull(*w, "search_session_id");
@@ -145,7 +138,8 @@ analytics_ui_setting :: (c: *Client, key: string) {
 // set_friend_online_notifications: Notifications > "Friends come online"
 // (NotificationSettings field 12, a BoolValue written explicitly both ways).
 set_friend_online_notifications :: (c: *Client, on: bool) {
-	c.settings_edit.friend_online = some(on);
+	c.settings_edit.friend_online = on;
+	c.settings_edit.has_friend_online = true;
 	c.store.settings.friend_online_off = !on;
 	c.store.changed += 1;
 	analytics_ui_setting(c, "friend_online_notifications");
@@ -158,16 +152,11 @@ set_friend_online_notifications :: (c: *Client, on: bool) {
 
 // theme_analytics_name: client_theme_updated's theme_name.
 theme_analytics_name :: (t: Theme, system: bool) -> string {
-	if system { return "default system"; }
+	if system return "default system";
 	if t == {
-	case .Light;
-		return "default light";
-	case .Dark;
-		return "default dark";
-	case .Darker; #through; case .Unset;
-		return "default darker";
-	case .Midnight;
-		return "default midnight";
+		case .Light;    return "default light";
+		case .Dark;     return "default dark";
+		case .Midnight; return "default midnight";
 	}
 	return "default darker";
 }
@@ -180,11 +169,11 @@ theme_analytics_name :: (t: Theme, system: bool) -> string {
 open_profile_editor :: (c: *Client) {
 	me := c.store.me;
 	us := snowflake_string(me);
-	api_get_later(c, strings.concatenate(string.["/content-inventory/users/", us, "/outbox"], temp), 0);
+	api_get_later(c, tprint("/content-inventory/users/%/outbox", us), 0);
 	sid := uuid4(,, temp);
 	{
 		q: Query;
-		query_init(*q, strings.concatenate(string.["/users/", us, "/profile"], temp));
+		query_init(*q, tprint("/users/%/profile", us));
 		query_add(*q, "type", "modal");
 		query_add_bool(*q, "with_mutual_guilds", true);
 		query_add_bool(*q, "with_mutual_friends", false);
@@ -192,13 +181,14 @@ open_profile_editor :: (c: *Client) {
 		j := job_new(.Api, .Fetch_Profile);
 		j.method = "GET";
 		j.path = job_str(j, query_string(*q));
-		j.result = Rest_Result.{op = .Fetch_Profile, user_id = me};
-		n := copy(view(c.social.profile_sid), sid);
-		c.social.profile_sid_len = n;
+		j.result = .{op = .Fetch_Profile, user_id = me};
+		// the worker reads the session id from this fixed buffer (no allocation shared across threads)
+		c.social.profile_sid_len = min(sid.count, c.social.profile_sid.count);
+		memcpy(c.social.profile_sid.data, sid.data, c.social.profile_sid_len);
 		j.on_body = (c: *Client, body: V) {
 			m := vmap(body);
-			sid := as_string(sub(c.social.profile_sid, 0, c.social.profile_sid_len));
-			profile_action(c, sid, "VIEW", fint(m, "mutual_friends_count"), cast(s64)(len(flist(m, "mutual_guilds"))), true);
+			sid := string.{c.social.profile_sid_len, c.social.profile_sid.data};
+			profile_action(c, sid, "VIEW", fint(m, "mutual_friends_count"), flist(m, "mutual_guilds").count, true);
 		};
 		job_submit(c, j);
 	}
@@ -206,7 +196,7 @@ open_profile_editor :: (c: *Client) {
 	api_get_later(c, "/collectibles-categories/v2?include_bundles=true&variants_return_style=2&skip_num_categories=0", 75);
 	api_get_later(c, "/users/@me/collectibles-purchases?variants_return_style=2", 75);
 	fetch_note(c, me, 75);
-	api_get_later(c, strings.concatenate(string.["/users/", us, "/application-identities?with_profiles=true"], temp), 75);
+	api_get_later(c, tprint("/users/%/application-identities?with_profiles=true", us), 75);
 	api_get_later(c, "/widget-configs/featured", 75);
 	api_get_later(c, "/users/@me/widgets/suggested-games", 75);
 	api_get_later(c, "/users/@me/activities/statistics/applications", 265);
@@ -243,7 +233,7 @@ profile_action :: (c: *Client, sid: string, action: string, mutual_friends: s64,
 	aw_strs(*w, "guild_profile_properties", .{});
 	aw_strs(*w, "profile_activity_types", .{});
 	aw_strs(*w, "profile_badges", .{});
-	json_kstr(*w, "user_status", strings.concatenate(string.[status_name(c.store.settings.status), "-desktop"], temp));
+	json_kstr(*w, "user_status", tprint("%-desktop", status_name(c.store.settings.status)));
 	json_kbool(*w, "is_guild_profile", false);
 	json_kbool(*w, "is_bot_profile", false);
 	json_kbool(*w, "is_private_to_viewer", false);

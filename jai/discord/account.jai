@@ -20,13 +20,16 @@ Account_Info :: struct {
 account: Account_Info;
 #scope_file
 
+account_mu: locks.Mutex; // clients write `account` from their own threads (tests run several)
+
 note_account :: (acc: *Account_Info, u: etf.Map) {
-	if is_null(u) { return; }
+	locks.lock(*account_mu);
+	defer locks.unlock(*account_mu);
 	a := context.default_allocator; // process-wide, like `account` itself (stores come and go)
-	if vhas(u, "email") {free_str(acc.email, a); acc.email = clone_str(fstr(u, "email"), a);}
-	if vhas(u, "phone") {free_str(acc.phone, a); acc.phone = clone_str(fstr(u, "phone"), a);}
-	if vhas(u, "verified") { acc.verified = fbool(u, "verified"); }
-	if vhas(u, "mfa_enabled") { acc.mfa_enabled = fbool(u, "mfa_enabled"); }
+	if vhas(u, "email") { free_str(acc.email, a); acc.email = clone_str(fstr(u, "email"), a); }
+	if vhas(u, "phone") { free_str(acc.phone, a); acc.phone = clone_str(fstr(u, "phone"), a); }
+	if vhas(u, "verified") acc.verified = fbool(u, "verified");
+	if vhas(u, "mfa_enabled") acc.mfa_enabled = fbool(u, "mfa_enabled");
 }
 #scope_export
 
@@ -40,7 +43,7 @@ account_apply :: (acc: *Account_Info, me: Snowflake, name: string, data: V) {
 	case "READY"; #through; case "USER_UPDATE";
 		d := vmap(data);
 		u := ifx name == "READY" then fmap(d, "user") else d;
-		if fsnow(u, "id") == me { note_account(acc, u); }
+		if fsnow(u, "id") == me note_account(acc, u);
 	}
 }
 
@@ -56,9 +59,9 @@ update_global_name :: (c: *Client, name: string, tag := User_Patch_Tag.Display_N
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
-	if name == "" { json_knull(*w, "global_name"); } else { json_kstr(*w, "global_name", name); }
+	if name json_kstr(*w, "global_name", name); else json_knull(*w, "global_name");
 	json_obj_end(*w);
-	f_submit(c, .{op = .User_Patch, tag = cast(u64)(tag), method = "PATCH", path = "/users/@me", body = json_string(*w)});
+	f_submit(c, .{op = .User_Patch, tag = cast(u64) tag, method = "PATCH", path = "/users/@me", body = json_string(*w)});
 }
 
 // update_username: PATCH /users/@me {"username": .., "password": ..}.
@@ -69,7 +72,7 @@ update_username :: (c: *Client, username: string, password: string) {
 	json_kstr(*w, "username", username);
 	json_kstr(*w, "password", password);
 	json_obj_end(*w);
-	f_submit(c, .{op = .User_Patch, tag = cast(u64)(User_Patch_Tag.Username), method = "PATCH", path = "/users/@me", body = json_string(*w)});
+	f_submit(c, .{op = .User_Patch, tag = cast(u64) User_Patch_Tag.Username, method = "PATCH", path = "/users/@me", body = json_string(*w)});
 }
 
 // update_profile: PATCH /users/%40me/profile {"bio": .., "pronouns": ..} (the
@@ -88,8 +91,8 @@ update_profile :: (c: *Client, pronouns: string, bio: string) {
 // (USER_UPDATE follows on the gateway too). Returns a new token when the response has one
 // (Discord rotates it on username/password changes); "" otherwise.
 apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
+	if !r.ok return "";
 	new_token: string;
-	if !r.ok { return ""; }
 	m := vmap(r.body);
 	if r.op == {
 	case .User_Patch;
@@ -99,12 +102,12 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 		}
 		new_token = fstr(m, "token");
 	case .Profile_Patch;
-		{ u := table_find_pointer(*s.users, s.me); ok := u != null;
-		if ok {
+		u := table_find_pointer(*s.users, s.me);
+		if u {
 			a := s.allocator;
-			if vhas(m, "bio") {free_str(u.bio, a); u.bio = clone_str(fstr(m, "bio"), a);}
-			if vhas(m, "pronouns") {free_str(u.pronouns, a); u.pronouns = clone_str(fstr(m, "pronouns"), a);}
-		} }
+			if vhas(m, "bio") { free_str(u.bio, a); u.bio = clone_str(fstr(m, "bio"), a); }
+			if vhas(m, "pronouns") { free_str(u.pronouns, a); u.pronouns = clone_str(fstr(m, "pronouns"), a); }
+		}
 	}
 	s.changed += 1;
 	return new_token;
@@ -115,40 +118,34 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 api_error_text :: (body: V) -> string {
 	find :: (v: V) -> string {
 		m := vmap(v);
-		if is_null(m) { return ""; }
-		for e: flist(m, "_errors") {
-			{ t := fstr(vmap(e), "message");
-			if t != "" { return t; } }
+		for flist(m, "_errors") {
+			t := fstr(vmap(it), "message");
+			if t return t;
 		}
-		for p: m {
-			{ t := find(p.value);
-			if t != "" { return t; } }
+		for m {
+			t := find(it.value);
+			if t return t;
 		}
 		return "";
 	}
 	m := vmap(body);
-	{ t := find(vget(m, "errors"));
-	if t != "" { return t; } }
-	return fstr(m, "message");
+	t := find(vget(m, "errors"));
+	return ifx t then t else fstr(m, "message");
 }
 
 // invite_code_from_input: the code from "abc", "discord.gg/abc", "https://discord.com/invite/abc?x=1".
 invite_code_from_input :: (s: string) -> string {
-	t := strings.trim_space(s);
-	for p: (string.["https://", "http://"]) { t = strings.trim_prefix(t, p); }
-	for p: (string.["www.", "ptb.", "canary."]) { t = strings.trim_prefix(t, p); }
-	for p: (string.["discord.gg/", "discord.com/invite/", "discordapp.com/invite/", "discord.new/"]) {
-		if strings.has_prefix(t, p) {
-			t = sub_from(t, len(p));
+	t := trim(s);
+	for string.["https://", "http://", "www.", "ptb.", "canary."] if begins_with(t, it) t = advance(t, it.count);
+	for string.["discord.gg/", "discord.com/invite/", "discordapp.com/invite/", "discord.new/"] {
+		if begins_with(t, it) {
+			t = advance(t, it.count);
 			break;
 		}
 	}
-	{ i := strings.index_any(t, "?#/");
-	if i >= 0 { t = sub(t, 0, i); } }
-	for ch: t {
-		ok := ch >= #char "a" && ch <= #char "z" || ch >= #char "A" && ch <= #char "Z" || ch >= #char "0" && ch <= #char "9" || ch == #char "-" || ch == #char "_";
-		if !ok { return ""; }
-	}
+	i := find_index_of_any_from_left(t, "?#/");
+	if i >= 0 t.count = i;
+	for cast([]u8) t if !is_alnum(it) && it != #char "-" return "";
 	return t;
 }
 

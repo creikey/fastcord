@@ -7,6 +7,8 @@
 #import "Atomics";
 #import "Thread";
 #import "Flat_Pool";
+#import "File";
+#import "Base64";
 #import "fc";
 altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";
