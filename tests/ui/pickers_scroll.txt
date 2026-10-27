@@ -1,7 +1,7 @@
 # Wheel over the emoji grid scrolls it (not the messages behind); the section
 # header sticks to the top; clicking a category in the nav jumps to it.
 wait 5
-click 940 683
+click 980 683
 wait 20
 move 760 500
 scroll 0 -700

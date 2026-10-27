@@ -157,6 +157,7 @@ Guild :: struct {
 	banner:            string,
 	owner_id:          Snowflake,
 	member_count:      int,
+	premium_tier:      int, // server boost level 0..3 (raises the upload limit)
 	channels:          [dynamic]Snowflake,
 	roles:             [dynamic]Role,
 	emojis:            [dynamic]Emoji,
@@ -276,6 +277,13 @@ Guild_Settings :: struct {
 	suppress_roles:        bool,
 	muted_channels:        [dynamic]Snowflake,
 	collapsed_channels:    [dynamic]Snowflake,
+	mute_end_ms:           i64, // mute_config.end_time (unix ms); 0 = until turned back on
+	overrides:             [dynamic]Channel_Override, // channel_overrides (guild_settings.odin)
+	flags:                 i64,
+	mobile_push:           bool,
+	notify_highlights:     int,
+	mute_scheduled_events: bool,
+	hide_muted_channels:   bool, // the server's value (the app keeps its own local toggle)
 }
 
 Typing :: struct {
@@ -330,6 +338,7 @@ Guild_Folder :: struct {
 
 User_Settings :: struct {
 	theme:                Theme,
+	inbox_tab:            Inbox_Tab, // InboxSettings.current_tab
 	status:               Status,
 	custom_status_text:   string,
 	custom_status_emoji:  string,
@@ -339,6 +348,7 @@ User_Settings :: struct {
 	locale:               string,
 	timezone_offset:      int, // minutes
 	developer_mode:       bool,
+	friend_online_off:    bool, // NotificationSettings.notify_friends_on_launch = false
 	guild_folders:        [dynamic]Guild_Folder,
 	guild_positions:      [dynamic]Snowflake,
 }

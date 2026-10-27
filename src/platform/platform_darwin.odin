@@ -70,6 +70,11 @@ native_view :: proc() -> rawptr {return rawptr(m.view)}
 // CAMetalLayer backing the content view (nil in headless mode).
 native_metal_layer :: proc() -> rawptr {return rawptr(m.layer)}
 
+// set_capture_hidden: NSWindow.sharingType None (Electron's setContentProtection) or ReadOnly.
+set_capture_hidden :: proc(hidden: bool) {
+	if m.window != nil do msg(Void, m.window, "setSharingType:", NS.UInteger(0 if hidden else 1))
+}
+
 // ---------------------------------------------------------------------------
 // Small ObjC helpers
 
@@ -391,6 +396,82 @@ _clipboard_set :: proc(str: string) {
 	msg(NS.BOOL, pb, "setString:forType:", nsstr(str), nsstr("public.utf8-plain-text"))
 }
 
+@(private = "file")
+pb_has_type :: proc(pb: Id, types: []string) -> bool {
+	for t in types {
+		arr := msg(Id, cls("NSArray"), "arrayWithObject:", nsstr(t))
+		if msg(Id, pb, "availableTypeFromArray:", arr) != nil do return true
+	}
+	return false
+}
+
+@(private = "file")
+IMAGE_TYPES := []string{"public.png", "public.tiff", "public.jpeg", "com.compuserve.gif", "public.heic", "com.microsoft.bmp"}
+
+@(private)
+_clipboard_kind :: proc() -> Clipboard_Kind {
+	pool := msg(Id, msg(Id, cls("NSAutoreleasePool"), "alloc"), "init")
+	defer msg(Void, pool, "drain")
+	pb := msg(Id, cls("NSPasteboard"), "generalPasteboard")
+	if pb_has_type(pb, {"public.file-url"}) do return .Files
+	if pb_has_type(pb, IMAGE_TYPES) do return .Image
+	if pb_has_type(pb, {"public.utf8-plain-text"}) do return .Text
+	return .None
+}
+
+@(private = "file")
+ns_data_bytes :: proc(data: Id, allocator: runtime.Allocator) -> []byte {
+	if data == nil do return nil
+	n := int(msg(NS.UInteger, data, "length"))
+	p := msg(rawptr, data, "bytes")
+	if n == 0 || p == nil do return nil
+	out := make([]byte, n, allocator)
+	copy(out, ([^]byte)(p)[:n])
+	return out
+}
+
+// PNG as is; any other bitmap type (TIFF from screenshots and Preview, JPEG...) through
+// NSBitmapImageRep to PNG. Worker thread (its own autorelease pool).
+@(private)
+_clipboard_image :: proc(allocator: runtime.Allocator) -> (Clipboard_Image, bool) {
+	pool := msg(Id, msg(Id, cls("NSAutoreleasePool"), "alloc"), "init")
+	defer msg(Void, pool, "drain")
+	pb := msg(Id, cls("NSPasteboard"), "generalPasteboard")
+	if png := msg(Id, pb, "dataForType:", nsstr("public.png")); png != nil {
+		b := ns_data_bytes(png, allocator)
+		return {png = b}, len(b) > 0
+	}
+	for t in IMAGE_TYPES[1:] {
+		data := msg(Id, pb, "dataForType:", nsstr(t))
+		if data == nil do continue
+		rep := msg(Id, cls("NSBitmapImageRep"), "imageRepWithData:", data)
+		if rep == nil do continue
+		props := msg(Id, cls("NSDictionary"), "dictionary")
+		png := msg(Id, rep, "representationUsingType:properties:", NS.UInteger(4) /*NSBitmapImageFileTypePNG*/, props)
+		b := ns_data_bytes(png, allocator)
+		if len(b) > 0 do return {png = b}, true
+	}
+	return {}, false
+}
+
+@(private)
+_clipboard_files :: proc(allocator: runtime.Allocator) -> []string {
+	pool := msg(Id, msg(Id, cls("NSAutoreleasePool"), "alloc"), "init")
+	defer msg(Void, pool, "drain")
+	pb := msg(Id, cls("NSPasteboard"), "generalPasteboard")
+	classes := msg(Id, cls("NSArray"), "arrayWithObject:", cls("NSURL"))
+	urls := msg(Id, pb, "readObjectsForClasses:options:", classes, Id(nil))
+	if urls == nil do return nil
+	out := make([dynamic]string, allocator)
+	n := msg(NS.UInteger, urls, "count")
+	for i in 0 ..< n {
+		u := msg(Id, urls, "objectAtIndex:", NS.UInteger(i))
+		if !msg(NS.BOOL, u, "isFileURL") do continue
+		append(&out, odin_str(msg(Id, u, "path"), allocator))
+	}
+	return out[:]
+}
+
 @(private)
 _apply_cursor :: proc() {
 	if s.cursor == .Hidden {
@@ -600,7 +681,8 @@ register_classes :: proc() {
 
 	// Drag and drop
 	add_method(v, "draggingEntered:", rawptr(dnd_entered), "Q@:@")
-	add_method(v, "draggingUpdated:", rawptr(dnd_entered), "Q@:@")
+	add_method(v, "draggingUpdated:", rawptr(dnd_updated), "Q@:@")
+	add_method(v, "draggingExited:", rawptr(dnd_exited), "v@:@")
 	add_method(v, "performDragOperation:", rawptr(dnd_perform), "B@:@")
 
 	if p := objc.objc_getProtocol("NSTextInputClient"); p != nil do objc.class_addProtocol(v, p)
@@ -930,7 +1012,22 @@ ti_do_command :: proc "c" (self: Id, cmd: objc.SEL, command: objc.SEL) {
 // ---- Drag and drop
 
 @(private = "file")
-dnd_entered :: proc "c" (self: Id, cmd: objc.SEL, info: Id) -> NS.UInteger {return 1 /*Copy*/}
+dnd_entered :: proc "c" (self: Id, cmd: objc.SEL, info: Id) -> NS.UInteger {
+	context = s.ctx
+	p := msg(NSPoint, info, "draggingLocation")
+	v := msg(NSPoint, m.view, "convertPoint:fromView:", p, Id(nil))
+	push_event({kind = .Drag_Enter, pos = {f32(v.x), f32(v.y)}, time = time_now()})
+	return 1 /*Copy*/
+}
+
+@(private = "file")
+dnd_updated :: proc "c" (self: Id, cmd: objc.SEL, info: Id) -> NS.UInteger {return 1 /*Copy*/}
+
+@(private = "file")
+dnd_exited :: proc "c" (self: Id, cmd: objc.SEL, info: Id) {
+	context = s.ctx
+	push_event({kind = .Drag_Leave, time = time_now()})
+}
 
 @(private = "file")
 dnd_perform :: proc "c" (self: Id, cmd: objc.SEL, info: Id) -> NS.BOOL {
@@ -940,7 +1037,10 @@ dnd_perform :: proc "c" (self: Id, cmd: objc.SEL, info: Id) -> NS.BOOL {
 	v := msg(NSPoint, m.view, "convertPoint:fromView:", p, Id(nil))
 	classes := msg(Id, cls("NSArray"), "arrayWithObject:", cls("NSURL"))
 	urls := msg(Id, pb, "readObjectsForClasses:options:", classes, Id(nil))
-	if urls == nil do return false
+	if urls == nil {
+		push_event({kind = .Drag_Leave, time = time_now()})
+		return false
+	}
 	n := msg(NS.UInteger, urls, "count")
 	for i in 0 ..< n {
 		u := msg(Id, urls, "objectAtIndex:", NS.UInteger(i))
@@ -948,6 +1048,7 @@ dnd_perform :: proc "c" (self: Id, cmd: objc.SEL, info: Id) -> NS.BOOL {
 		path := odin_str(msg(Id, u, "path"), context.temp_allocator)
 		push_event({kind = .File_Drop, text = path, pos = {f32(v.x), f32(v.y)}, time = time_now()})
 	}
+	push_event({kind = .Drag_Leave, time = time_now()})
 	return true
 }
 

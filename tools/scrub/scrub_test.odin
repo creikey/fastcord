@@ -40,3 +40,23 @@ test_verify_catches_leak :: proc(t: ^testing.T) {
 	testing.expect(t, len(verify(RAW, leaky)) > 0)
 	testing.expect(t, len(verify(RAW, `{"x":"someone.private@example.org"}`)) > 0)
 }
+
+// Telemetry batches keep their structure (event types, property keys, value
+// types, constant values) so the parity tests can compare them; only secrets
+// and session ids become placeholders.
+@(private = "file")
+RAW_SCIENCE :: `{"rt":10.0,"acct":"a","m":{"method":"Network.requestWillBeSent","sessionId":"S","params":{"requestId":"5","wallTime":1793010000.0,"type":"XHR","request":{"method":"POST","url":"https://discord.com/api/v9/science","headers":{"Authorization":"` + FAKE_TOKEN + `","Content-Type":"application/json"},"postData":"{\"token\":\"QUFBQUFBQUFBQUFBQUFBQQ\",\"events\":[{\"type\":\"search_opened\",\"properties\":{\"client_track_timestamp\":1793018881613,\"client_heartbeat_session_id\":\"8a872f05-89b2-447c-a455-bbf5ed67b249\",\"event_sequence_number\":27,\"search_type\":\"EMOJI_REACTION\",\"load_id\":\"0ae6e1db9cea47448f6dd018605f46e5\",\"guild_id\":\"1564227669971832975\",\"guild_is_vip\":false,\"guild_member_perms\":\"17873661021126655\",\"location\":\"Guild Channel\",\"location_stack\":[\"username\",\"user profile popout\"],\"client_performance_cpu\":0.08049154022486228,\"client_send_timestamp\":1793018881619}}]}"}}}}
+`
+
+@(test)
+test_scrub_keeps_science_structure :: proc(t: ^testing.T) {
+	out := convert(RAW_SCIENCE, ENV)
+	problems := verify(RAW_SCIENCE, out)
+	testing.expectf(t, len(problems) == 0, "leaks: %v", problems)
+	for bad in ([]string{FAKE_TOKEN, "QUFBQUFB", "8a872f05-89b2"}) {
+		testing.expectf(t, !strings.contains(out, bad), "%q survived", bad)
+	}
+	for want in ([]string{`"events":[{"type":"search_opened","properties":{"client_track_timestamp":1793018881613,"client_heartbeat_session_id":`, `"search_type":"EMOJI_REACTION"`, `"guild_is_vip":false`, `"guild_member_perms":"17873661021126655"`, `"location":"Guild Channel"`, `"location_stack":["username","user profile popout"]`, `"client_performance_cpu":0.08049154022486228`, `"client_send_timestamp":1793018881619`}) {
+		testing.expectf(t, strings.contains(out, want), "%q missing from:\n%s", want, out)
+	}
+}

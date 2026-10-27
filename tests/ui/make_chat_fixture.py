@@ -90,6 +90,14 @@ def threads_extra(base_msgs):
         'message_count': count, 'member_count': 1, 'thread_metadata': meta(), 'last_message_id': None}))
     out.append(ev('MESSAGE_CREATE', {'id': tid, 'channel_id': tid, 'guild_id': GUILD, 'author': u, 'content': body, 'timestamp': '', 'edited_timestamp': None,
       'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
+  # scheduled events (Events modal): one live in the voice channel, one upcoming elsewhere
+  out.append(ev('GUILD_SCHEDULED_EVENT_CREATE', {'id': 1546820603343016200, 'guild_id': GUILD, 'channel_id': 1546820558950371411, 'creator_id': me,
+      'name': 'Friday game night', 'description': 'Bring snacks.', 'scheduled_start_time': '2026-10-25T23:00:00+00:00', 'scheduled_end_time': None,
+      'privacy_level': 2, 'status': 2, 'entity_type': 2, 'entity_id': None, 'entity_metadata': None, 'user_count': 3}))
+  out.append(ev('GUILD_SCHEDULED_EVENT_CREATE', {'id': 1546820603343016201, 'guild_id': GUILD, 'channel_id': None, 'creator_id': wumpus['id'],
+      'name': 'fastcord release party', 'description': 'Celebrating the first public build. Everyone is welcome; we will demo the new client and take questions.',
+      'scheduled_start_time': '2026-10-28T18:00:00+00:00', 'scheduled_end_time': '2026-10-28T20:00:00+00:00',
+      'privacy_level': 2, 'status': 1, 'entity_type': 3, 'entity_id': None, 'entity_metadata': {'location': 'Wumpus HQ, San Francisco'}, 'user_count': 12}))
   return out
 for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs)):
   out = build(ms)

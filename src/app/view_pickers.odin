@@ -89,7 +89,7 @@ pk: Picker_State
 
 picker_is_open :: proc() -> bool {return pk.open && !pk.closing}
 
-// Composer hook: one call per composer button ("gift", "gif", "sticker", "reaction").
+// Composer hook: one call per composer button ("gif", "sticker", "reaction").
 // Returns whether the button should draw highlighted.
 picker_composer_button :: proc(name: string, sig: ui.Signal, rect: ui.Rect, channel_id: dc.Snowflake) -> bool {
 	tab: Picker_Tab
@@ -144,6 +144,12 @@ picker_open :: proc(mode: Picker_Mode, tab: Picker_Tab, channel_id, message_id: 
 	if tab == .Emoji || mode == .Reaction {
 		if c := dc.channel_get(store(), channel_id); c != nil do pickers_on_open_guild(c.guild_id)
 	}
+	if app.client != nil && tab != .Sticker {
+		gid: dc.Snowflake
+		if c := dc.channel_get(store(), channel_id); c != nil do gid = c.guild_id
+		kind: dc.Picker_Kind = .Reaction if mode == .Reaction else (.Gif if tab == .Gif else .Emoji)
+		dc.expression_picker_opened(app.client, kind, gid, channel_id, picker_expression_counts(mode == .Reaction, gid), message_id, PK_W)
+	}
 }
 
 picker_set_tab :: proc(tab: Picker_Tab) {
@@ -160,6 +166,7 @@ picker_set_tab :: proc(tab: Picker_Tab) {
 picker_close :: proc() {
 	if !pk.open || pk.closing do return
 	pk.closing = true
+	if app.client != nil do dc.picker_closed(app.client)
 	if pk.mode == .Reaction do app.reaction_target = 0
 	// only if the picker still has the keyboard: the press that closed it may have focused a field
 	if app.ui.focus == ui.key_from_string("picker_search###pk_search", 0) do app.ui.focus = 0
@@ -446,9 +453,10 @@ picker_header :: proc(r: ui.Rect) {
 				skin_tone_button()
 				// "Add Emoji" when you can manage this guild's expressions (official: 102x40)
 				pch := dc.channel_get(store(), pk.channel)
-				if gid := pch != nil ? pch.guild_id : 0; gid != 0 && my_guild_permissions(gid) & PERM_MANAGE_GUILD_EXPRESSIONS != 0 {
+				if gid := pch != nil ? pch.guild_id : 0; can_upload_emoji(gid) {
 					spacer(.X, PK_HEADER_GAP)
-					add := ui.box("Add Emoji##addemoji", {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
+					busy := emoji_upload_busy()
+					add := ui.box(busy ? "Uploading...##addemoji" : "Add Emoji##addemoji", {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
 					add.semantic_size = {.X = ui.text_size(PK_ADD_EMOJI_PAD_X), .Y = ui.px(PK_SEARCH_H)}
 					add.style.radius = PK_SEARCH_RADIUS
 					add.style.font = F(.Medium)
@@ -457,7 +465,8 @@ picker_header :: proc(r: ui.Rect) {
 					add.style.text_color = T("--text-strong")
 					add.style.bg = T("--background-mod-normal")
 					add.style.bg_hot = T("--background-mod-strong")
-					ui.signal(add)
+					if busy do add.flags += {.Disabled}
+					if ui.signal(add).clicked && !busy do emoji_upload_pick(gid) // file dialog, then upload off the UI thread
 				}
 			}
 			spacer(.X, PK_HEADER_PAD_X)

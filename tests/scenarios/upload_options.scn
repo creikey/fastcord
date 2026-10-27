@@ -1,0 +1,55 @@
+# A stages test.png, marks it spoiler (card button), Modify -> rename + description ->
+# Save, stages a second file and removes it, then sends. Then pastes an image into the
+# composer and sends it. The paste is a synthetic ClipboardEvent carrying a PNG File
+# named "image.png" (what Chromium names a pasted bitmap); the real system clipboard
+# is never touched.
+include _open_test_channel.scn
+mark stage_file
+upload input.file-input[type="file"] | tests/scenarios/assets/test.png
+wait_for form [aria-label="Spoiler Attachment"]
+settle 1500
+mark spoiler_toggle
+click form [aria-label="Spoiler Attachment"]
+settle 1500
+mark modify_open
+click form [aria-label="Modify Attachment"]
+wait_for [role="dialog"] textarea
+settle 1200
+mark modify_edit
+click [role="dialog"] input[type="text"]
+key a meta
+type fc_renamed.png
+pause
+click [role="dialog"] textarea
+type a small test image
+pause
+mark modify_save
+click_text [role="dialog"] button | Save
+wait_gone [role="dialog"]
+settle 1500
+snap staged_modified
+mark stage_second_file
+upload input.file-input[type="file"] | tests/scenarios/assets/fastcord_test.png
+wait 1500
+settle 1500
+mark remove_second_file
+click_last form [aria-label="Remove Attachment"]
+settle 1500
+snap after_remove
+mark send_with_options
+click div[role="textbox"][aria-label^="Message "]
+key Enter
+wait_gw MESSAGE_CREATE 30000
+settle 3000
+snap sent
+mark paste_image
+click div[role="textbox"][aria-label^="Message "]
+js (async()=>{const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d');x.fillStyle='#5865f2';x.fillRect(0,0,64,64);const b=await new Promise(r=>c.toBlob(r,'image/png'));const f=new File([b],'image.png',{type:'image/png'});const dt=new DataTransfer();dt.items.add(f);const t=document.querySelector('div[role="textbox"][aria-label^="Message "]');t.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));return 'pasted '+b.size})()
+wait_for form [aria-label="Remove Attachment"] 5000
+settle 1500
+snap pasted
+mark send_pasted
+click div[role="textbox"][aria-label^="Message "]
+key Enter
+wait_gw MESSAGE_CREATE 30000
+settle 3000

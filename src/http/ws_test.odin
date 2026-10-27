@@ -2,6 +2,7 @@ package http
 
 import "core:fmt"
 import "core:mem"
+import "core:strconv"
 import "core:strings"
 import "core:testing"
 import "core:thread"
@@ -362,4 +363,43 @@ test_ws_shutdown_wakes_reader :: proc(t: ^testing.T) {
 	thread.destroy(rt)
 	testing.expect_value(t, r.err, Error.Closed)
 	ws_teardown(t, &f, c, th, peer)
+}
+
+// permessage-deflate: two messages from one zlib stream (raw DEFLATE, sync
+// flush, 00 00 ff ff stripped; the second refers back into the first), and our
+// stored-block encoding read back.
+@(test)
+test_ws_inflate_context_takeover :: proc(t: ^testing.T) {
+	hexb :: proc(s: string) -> []byte {
+		out := make([]byte, len(s) / 2, context.temp_allocator)
+		for i in 0 ..< len(out) {
+			v, _ := strconv.parse_u64_of_base(s[2 * i:][:2], 16)
+			out[i] = u8(v)
+		}
+		return out
+	}
+	c: Ws_Conn
+	c.deflate = true
+	c.max_message = 1 << 20
+	defer delete(c.history)
+	msg := make([dynamic]byte, context.temp_allocator)
+	append(&msg, ..hexb("aa56ca2f50b252ca48cdc9c957d201d289452549a98925f1997925a9456589394a56268646a6063a4a2599b9a9f9a525f1b9c54a5686460640500b00"))
+	testing.expect(t, ws_inflate(&c, &msg))
+	testing.expect_value(t, string(msg[:]), `{"op":"hello","heartbeat_interval":41250,"timeout_ms":120000}`)
+	clear(&msg)
+	append(&msg, ..hexb("aaa640b38e52627a62669e92554951696a2d00"))
+	testing.expect(t, ws_inflate(&c, &msg))
+	testing.expect_value(t, string(msg[:]), `{"op":"hello","heartbeat_interval":41250,"timeout_ms":120000,"again":true}`)
+	// what we send decodes with the same reader
+	d: Ws_Conn
+	d.deflate = true
+	d.max_message = 1 << 20
+	defer delete(d.history)
+	clear(&msg)
+	append(&msg, ..deflate_stored(transmute([]byte)string(`{"op":"heartbeat"}`)))
+	testing.expect(t, ws_inflate(&d, &msg))
+	testing.expect_value(t, string(msg[:]), `{"op":"heartbeat"}`)
+	ok := ws_accept_deflate(&d, "permessage-deflate; client_max_window_bits=15")
+	testing.expect(t, ok)
+	testing.expect(t, !ws_accept_deflate(&d, "x-webkit-deflate-frame"))
 }

@@ -1,0 +1,95 @@
+# Server header dropdown (0.0.419: no Mark As Read / Mute Server there), the
+# Notification Settings modal, the guild icon context menu on the rail, Hide
+# Muted Channels, the invite modal and the channel bell menu. Escape and an
+# outside click close each.
+wait 5
+click 200 57
+wait 10
+expect_visible "Invite to Server"
+expect_visible "Create Channel"
+expect_visible "Hide Muted Channels"
+expect_not_visible "Mark As Read"
+expect_not_visible "Mute Server"
+expect_not_visible "Leave Server"
+key escape
+wait 10
+expect_not_visible "Hide Muted Channels"
+click 200 57
+wait 10
+click 700 400
+wait 10
+expect_not_visible "Hide Muted Channels"
+# Notification Settings opens the modal; Done closes it
+click 200 57
+wait 10
+click_text "Notification Settings"
+wait 10
+expect_visible "Server Notification Settings"
+expect_visible "Mute Dingus Battle"
+expect_visible "Only @mentions"
+click_text "Done"
+wait 10
+expect_not_visible "Server Notification Settings"
+click 200 57
+wait 10
+click_text "Notification Settings"
+wait 10
+key escape
+wait 10
+expect_not_visible "Server Notification Settings"
+# Hide Muted Channels toggles a local setting; unmuted channels stay
+click 200 57
+wait 10
+click_text "Hide Muted Channels"
+wait 5
+key escape
+wait 10
+expect_visible "dingus-battle"
+expect_visible "General"
+# guild icon right-click
+rclick 36 110
+wait 10
+expect_visible "Mark As Read"
+expect_visible "Mute Server"
+expect_visible "Invite to Server"
+move_text "Mute Server"
+wait 10
+expect_visible "For 15 Minutes"
+expect_visible "Until I turn it back on"
+move_text "Notification Settings"
+wait 10
+expect_not_visible "For 15 Minutes"
+expect_visible "Only @mentions"
+expect_visible "Suppress @everyone and @here"
+key escape
+wait 10
+expect_not_visible "Mark As Read"
+rclick 36 110
+wait 10
+click_text "Invite to Server"
+wait 10
+expect_visible "Invite friends to Dingus Battle"
+key escape
+wait 10
+click 349 57
+wait 10
+expect_visible "Invite friends to Dingus Battle"
+key escape
+wait 10
+expect_not_visible "Invite friends to Dingus Battle"
+move 200 272
+wait 5
+click 329 272
+wait 10
+expect_visible "Invite friends to Dingus Battle"
+key escape
+wait 10
+click 920 57
+wait 10
+expect_visible "Use Category Default"
+click_text "Mute Channel"
+wait 5
+expect_visible "Until I turn it back on"
+key escape
+wait 10
+expect_not_visible "Use Category Default"

@@ -126,6 +126,10 @@ map_key :: proc(k: platform.Key) -> ui.Key_Code {
 		return .Enter
 	case .Escape:
 		return .Escape
+	case .Left_Bracket:
+		return .Left_Bracket
+	case .Right_Bracket:
+		return .Right_Bracket
 	case .Backspace:
 		return .Backspace
 	case .Delete:

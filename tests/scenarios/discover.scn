@@ -1,0 +1,12 @@
+# A clicks the compass (Discover) in the server rail once, looks, then returns to #general.
+include _open_test_channel.scn
+mark open_discover
+click [data-list-item-id="guildsnav___guild-discover-button"]
+wait 3000
+settle 3000
+snap discover
+js location.pathname
+mark leave_discover
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for div[role="textbox"][aria-label^="Message #"]
+settle 2000

@@ -18,3 +18,7 @@ Read README.md first: build, testing, performance and conventions are there. Thi
   not only at test results.
 - Live runs (`-live:N`) use the real account in `<state>/token`. Keep them read-only: don't type, send,
   react or join voice.
+- Behaviour copied from the official client's code (bundle, stores, action creators), or inferred or
+  guessed without a capture, goes in `traffic/CLIENT_RULES.md` in the same change: rule, kind, the
+  anchor to search for in the bundle, and where fastcord implements it. It is reviewed on every
+  Discord update.

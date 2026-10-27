@@ -1,0 +1,51 @@
+# B leaves the test guild (header menu -> Leave Server -> confirm), A creates an invite,
+# B rejoins it via the rail "+" -> Join a Server -> paste link -> Join Server.
+use b
+mark setup_b
+reload
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id="channels___${TTEXT}"]
+settle 1500
+mark b_open_guild_menu
+click [aria-label$="server actions"]
+wait_for [role="menu"]
+snap b_guild_menu
+pause
+mark b_leave_server
+click_text [role="menuitem"] | Leave Server
+wait_for [role="alertdialog"]
+snap leave_confirm
+pause
+mark b_leave_confirm
+click_text [role="alertdialog"] button | Leave Server
+wait_gw GUILD_DELETE 20000
+settle 2500
+use a
+mark a_create_invite
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id="channels___${TTEXT}"]
+pause
+click [aria-label="Invite to Server"]
+wait_for [role="dialog"] input[value^="https://discord.gg/"] 15000
+let INV document.querySelector('[role="dialog"] input[value^="https://discord.gg/"]').value
+settle 1500
+key Escape
+settle 1000
+use b
+mark b_open_add_server
+click [data-list-item-id="guildsnav___create-join-button"]
+wait_for [role="dialog"]
+settle 1500
+mark b_join_a_server
+click_text [role="dialog"] button | Join a Server
+wait_for [role="dialog"] input[type="text"]
+settle 1000
+mark b_paste_invite
+click [role="dialog"] input[type="text"]
+type ${INV}
+pause
+mark b_join_submit
+click_text [role="dialog"] button | Join Server
+wait_gw GUILD_CREATE 20000
+settle 3000
+snap b_joined

@@ -302,7 +302,7 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 		for e in app.ui.events {
 			// a control under the press (author name → user menu, avatar, …) takes its
 			// own right-click; both menus used to open, the message menu on top
-			if e.kind == .Mouse_Down && e.button == .Right && hovered && app.ui.hot == 0 do open_message_menu(m, e.pos)
+			if e.kind == .Mouse_Down && e.button == .Right && hovered && app.ui.hot == 0 do open_message_menu(m, e.pos, "right_click")
 		}
 		if (hovered || ma.menu_msg == m.id) && !editing && m.kind != MSG_CALL {
 			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)
@@ -355,6 +355,7 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 				if len(m.sticker_ids) > 0 do message_stickers_view(m)
 				thread_summary_pill(m)
 				if len(m.attachments) > 0 do attachments_view(m)
+				if m.pending do upload_progress_view(m)
 				if len(m.embeds) > 0 do embeds_view(m)
 				if len(m.reactions) > 0 do reactions_view(m)
 			}
@@ -371,7 +372,6 @@ message_row :: proc(m: ^dc.Message, grouped: bool, index: int, new_day, show_new
 // "Name started a call that lasted a few seconds. 4:43 AM" with a phone icon in the gutter.
 @(private = "file")
 call_notice :: proc(m: ^dc.Message) {
-	s := store()
 	r := row("call")
 	r.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
 	r.cross_align = .Start
@@ -383,8 +383,7 @@ call_notice :: proc(m: ^dc.Message) {
 			ic.flags += {.Floating_X, .Floating_Y}
 			ic.fixed_pos = {28, (CALL_ROW_H - 16) / 2}
 		}
-		name := "Unknown"
-		if u := dc.user_get(s, m.author_id); u != nil do name = dc.display_name(u)
+		name := name_in(m.author_id, m.channel_id)
 		what := " started a call."
 		if m.call_ended != "" {
 			start, _ := time.rfc3339_to_time_utc(m.timestamp)
@@ -429,9 +428,7 @@ humanize_duration :: proc(d: time.Duration) -> string {
 
 @(private = "file")
 message_header :: proc(m: ^dc.Message) {
-	s := store()
-	u := dc.user_get(s, m.author_id)
-	name := u != nil ? dc.display_name(u) : "Unknown"
+	name := name_in(m.author_id, m.channel_id)
 	h := row("header")
 	h.semantic_size = {.X = ui.pct(1), .Y = ui.px(MSG_LINE_H)}
 	h.cross_align = .End
@@ -440,7 +437,7 @@ message_header :: proc(m: ^dc.Message) {
 		n.flags += {.Clickable, .Selectable_Text}
 		n.sel_order = u64(m.id) * 8
 		nsig := ui.signal(n)
-		if nsig.clicked do open_profile(m.author_id, n.rect)
+		if nsig.clicked do open_profile(m.author_id, n.rect, .Message_Author, m.id)
 		if nsig.right_clicked do open_user_menu(m.author_id, app.ui.mouse)
 		spacer(.X, 8)
 		// copies as "Name — 4:56 AM" like the client's hidden separator
@@ -606,9 +603,7 @@ tokens_to_spans :: proc(toks: []Token, base: Font_Id, size: f32, m: ^dc.Message)
 		case .Link:
 			sp.color = T("--text-link")
 		case .User_Mention:
-			name := "unknown-user"
-			if u := dc.user_get(s, dc.Snowflake(tk.id)); u != nil do name = dc.display_name(u)
-			sp.text = fmt.tprintf("@%s", name)
+			sp.text = fmt.tprintf("@%s", name_in(dc.Snowflake(tk.id), m != nil ? m.channel_id : 0, "unknown-user"))
 			sp.bg = T("--mention-background")
 			sp.color = T("--mention-foreground")
 			sp.bg_radius = 3
@@ -793,7 +788,7 @@ typing_line :: proc(channel_id: dc.Snowflake) {
 		names := make([dynamic]string, context.temp_allocator)
 		for ty in typers {
 			if ty.user_id == s.me do continue
-			if u := dc.user_get(s, ty.user_id); u != nil do append(&names, dc.display_name(u))
+			if name := name_in(ty.user_id, channel_id, ""); name != "" do append(&names, name)
 		}
 		if len(names) == 0 do return
 		msg: string
@@ -852,7 +847,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 		stack.style.radius = 8
 		ui.push_parent(stack)
 		if ma.replying != 0 do reply_bar()
-		uploads_bar()
+		uploads_bar(ch.id)
 		box := row("composer", {.Clickable})
 		box.semantic_size = {.X = ui.fill(), .Y = ui.children()}
 		box.cross_align = .Start
@@ -862,7 +857,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			spacer(.X, 16)
 			plus := ui.box("plus", {.Clickable})
 			if ui.signal(plus).clicked {
-				for path in pick_files() do stage_upload(path)
+				stage_paths(ch.id, pick_files(), "file_picker")
 			}
 			plus.semantic_size = {.X = ui.px(24), .Y = ui.px(COMPOSER_H)}
 			plus.layout_axis = .Y
@@ -889,7 +884,15 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 					}
 				}
 			}
-			res := text_field("input", &cs.editor, placeholder, (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open(), pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"))
+			input_focused := (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open()
+			// Cmd/Ctrl+V with files or a bitmap on the clipboard stages them instead of pasting text
+			if input_focused {
+				for &e in app.ui.events {
+					if e.consumed || e.kind != .Key_Down || e.key != .V || e.mods & {.Shift, .Alt} != {} || PRIMARY_MOD not_in e.mods do continue
+					if paste_attachments(ch.id) do e.consumed = true
+				}
+			}
+			res := text_field("input", &cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"))
 			if res == .Submit {
 				text := strings.trim_space(ui.editor_text(&cs.editor))
 				if composer_send(ch, emoji_convert_shortcodes(text)) do cs.scroll_target = 0
@@ -899,7 +902,7 @@ composer :: proc(ch: ^dc.Channel, cs: ^Chat_State) {
 			} else if res == .Changed && app.client != nil && ui.editor_text(&cs.editor) != "" {
 				dc.typing_keystroke(app.client, ch.id)
 			}
-			for name in ([]string{"gift", "gif", "sticker", "reaction", "apps"}) {
+			for name in ([]string{"gif", "sticker", "reaction"}) {
 				b := ui.box(name, {.Clickable})
 				b.semantic_size = {.X = ui.px(40), .Y = ui.px(COMPOSER_H)}
 				b.layout_axis = .Y
@@ -924,12 +927,12 @@ dm_name :: proc(ch: ^dc.Channel) -> string {
 	if ch.name != "" do return ch.name
 	names := make([dynamic]string, context.temp_allocator)
 	for id in ch.recipient_ids {
-		if u := dc.user_get(s, id); u != nil do append(&names, dc.display_name(u))
+		if name := dc.user_name(s, id); name != "" do append(&names, name)
 	}
 	if len(names) == 0 && ch.kind == .Group_DM {
 		// an unnamed group with nobody else in it: "<owner>'s Group", like the client
 		owner := ch.owner_id != 0 ? ch.owner_id : s.me
-		if u := dc.user_get(s, owner); u != nil do return fmt.tprintf("%s's Group", dc.display_name(u))
+		if name := dc.user_name(s, owner); name != "" do return fmt.tprintf("%s's Group", name)
 	}
 	return strings.join(names[:], ", ", context.temp_allocator)
 }
@@ -1045,5 +1048,5 @@ divider_row :: proc(id: dc.Snowflake, new_day, show_new: bool) {
 
 // Any overlay that takes keyboard input away from the composer.
 modal_open :: proc() -> bool {
-	return sw.open || ma.deleting != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0
+	return sw.open || attachments_modal_open() || ma.deleting != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0
 }

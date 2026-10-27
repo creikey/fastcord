@@ -64,8 +64,8 @@ icon_draw :: proc(b: ^ui.Box, user: rawptr) {
 }
 
 // A size x size box drawing the named icon tinted with color.
-icon :: proc(id: string, name: string, size: f32, color: ui.Color) -> ^ui.Box {
-	b := ui.box(id)
+icon :: proc(id: string, name: string, size: f32, color: ui.Color, flags: ui.Box_Flags = {}) -> ^ui.Box {
+	b := ui.box(id, flags)
 	b.semantic_size = {.X = ui.px(size), .Y = ui.px(size)}
 	set_icon(b, name, color)
 	return b

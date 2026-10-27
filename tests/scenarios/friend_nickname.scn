@@ -1,0 +1,155 @@
+# A sets a friend nickname on B (member list / DM row context menu -> Add Friend
+# Nickname), then a server nickname on B (Change Nickname), snaps everywhere B's
+# name shows, then removes the server nickname and resets the friend nickname.
+# B must be A's friend (friend_add_context_menu.scn) and a member of the test guild.
+use b
+mark setup_b
+click [data-list-item-id="guildsnav___home"]
+wait_for [data-list-item-id$="___${DM_AB}"]
+click [data-list-item-id$="___${DM_AB}"]
+wait_for div[role="textbox"][aria-label^="Message @"]
+click div[role="textbox"][aria-label^="Message @"]
+type hi from bobbles in the dm
+key Enter
+wait 2000
+include _b_open_test_channel.scn
+click div[role="textbox"][aria-label^="Message "]
+type hi from bobbles in the guild
+key Enter
+wait 1500
+include _open_test_channel.scn
+optional wait_for [data-list-item-id^="members-"] 3000
+click div[role="textbox"][aria-label^="Message "]
+type @bobbles
+wait 1200
+key Tab
+type mention test
+key Enter
+settle 2000
+snap before_nicknames
+mark friend_nickname_open
+rclick_text [data-list-item-id^="members-"] | bobbles
+wait_for #user-context-add-friend-nickname
+pause
+click #user-context-add-friend-nickname
+wait_for [role="dialog"] input[type="text"]
+settle 1500
+mark friend_nickname_type
+click [role="dialog"] input[type="text"]
+type Bobby Nick
+pause
+mark friend_nickname_save
+click [role="dialog"] button[type="submit"]
+wait_gone [role="dialog"]
+settle 2500
+snap friend_nick_guild
+mark server_nickname_open
+rclick_text [data-list-item-id^="members-"] | Bobby Nick || bobbles
+wait_for #user-context-change-nickname
+pause
+click #user-context-change-nickname
+wait_for [role="dialog"] input[type="text"]
+settle 1500
+mark server_nickname_type
+click [role="dialog"] input[type="text"]
+type Server Bob
+pause
+mark server_nickname_save
+click [role="dialog"] button[type="submit"]
+wait_gone [role="dialog"]
+settle 2500
+snap both_nicks_guild
+mark quick_switcher
+key k meta
+wait_for input[aria-label="Quick switcher"], [role="dialog"] input 5000
+type bob
+wait 2000
+settle 1500
+snap quick_switcher
+key Escape
+settle 1000
+mark profile_popout
+click_text [data-list-item-id^="members-"] | Bobby Nick || Server Bob || bobbles
+wait 2000
+settle 1500
+snap profile_popout
+key Escape
+pause
+mark full_profile
+rclick_text [data-list-item-id^="members-"] | Bobby Nick || Server Bob || bobbles
+wait_for #user-context-user-profile
+pause
+click #user-context-user-profile
+wait 2500
+settle 1500
+snap full_profile
+key Escape
+wait 1200
+optional key Escape
+settle 1000
+mark home_views
+click [data-list-item-id="guildsnav___home"]
+wait_for a[data-list-item-id$="___friends"]
+click a[data-list-item-id$="___friends"]
+wait 1200
+optional click_text [role="tab"] | All
+wait 1500
+settle 1500
+snap friends_all_and_dm_list
+mark open_dm
+click [data-list-item-id$="___${DM_AB}"]
+wait_for div[role="textbox"][aria-label^="Message @"]
+settle 2000
+snap dm_header_messages
+use b
+click [data-list-item-id="guildsnav___home"]
+wait_for [data-list-item-id$="___${DM_AB}"]
+click [data-list-item-id$="___${DM_AB}"]
+wait_for div[role="textbox"][aria-label^="Message @"]
+click div[role="textbox"][aria-label^="Message @"]
+type still typing here
+use a
+wait 2500
+snap dm_typing_indicator
+use b
+key a meta
+key Backspace
+use a
+mark server_nickname_remove
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id^="members-"]
+settle 1500
+rclick_text [data-list-item-id^="members-"] | Bobby Nick || Server Bob || bobbles
+wait_for #user-context-change-nickname
+pause
+click #user-context-change-nickname
+wait_for [role="dialog"] input[type="text"]
+pause
+click [role="dialog"] input[type="text"]
+key a meta
+key Backspace
+pause
+mark server_nickname_remove_save
+click [role="dialog"] button[type="submit"]
+wait_gone [role="dialog"]
+settle 2500
+snap server_nick_removed
+mark friend_nickname_reset_open
+rclick_text [data-list-item-id^="members-"] | Bobby Nick || bobbles
+wait_for [role="menu"]
+pause
+js [...document.querySelectorAll('[role=menuitem]')].map(e=>e.id).filter(i=>/nick/i.test(i)).join(' ')
+click [id^="user-context-"][id*="friend-nickname"]
+wait_for [role="dialog"] input[type="text"]
+settle 1200
+mark friend_nickname_reset
+click_text [role="dialog"] button | Reset Friend Nickname
+settle 1500
+snap after_reset_click
+optional click [role="dialog"] button[type="submit"]
+optional wait_gone [role="dialog"]
+settle 2500
+snap friend_nick_removed
+mark hide_member_list
+click [aria-label="Hide Member List"]
+settle 1500

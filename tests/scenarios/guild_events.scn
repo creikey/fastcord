@@ -1,0 +1,70 @@
+# A opens Events with no events, creates a voice-channel event, opens Events again
+# (one event), marks Interested and un-marks it, then cancels (deletes) the event.
+include _open_test_channel.scn
+mark open_events_empty
+click div:has(> #upcoming-events-${TGUILD})
+wait_for [role="dialog"]
+settle 2000
+mark create_event_open
+click_text [role="dialog"] button | Create Event
+wait_for [role="dialog"] label:has(input[value="2"])
+settle 1200
+mark create_event_location
+click [role="dialog"] label:has(input[value="2"])
+pause
+click_text [role="dialog"] button | Next
+wait_for [role="dialog"] input[placeholder="What's your event?"]
+settle 1200
+mark create_event_info
+click [role="dialog"] input[placeholder="What's your event?"]
+type fastcord test event
+pause
+click_text [role="dialog"] button | Next
+wait 1500
+snap review
+settle 1200
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] button')].filter(e=>e.innerText.trim()==='Create Event');b[b.length-1].setAttribute('data-fc','create-event-submit');return b.length})()
+mark create_event_submit
+click [data-fc="create-event-submit"]
+wait_gw GUILD_SCHEDULED_EVENT_CREATE 20000
+settle 2500
+snap after_create
+js [...document.querySelectorAll('[role=dialog] button')].map(e=>(e.getAttribute('aria-label')||e.innerText||'').trim().split('\n')[0]).join(' | ')
+mark close_events
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];if(b.length)b[b.length-1].setAttribute('data-fc','close1');return b.length})()
+optional click [data-fc="close1"]
+wait 1500
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];if(b.length)b[b.length-1].setAttribute('data-fc','close2');return b.length})()
+optional click [data-fc="close2"]
+settle 1500
+mark open_events_one
+click div:has(> #upcoming-events-${TGUILD})
+wait_for [role="dialog"]
+settle 2000
+snap events_one
+js [...document.querySelectorAll('[role=dialog] button, [role=dialog] [role=button]')].map(e=>(e.getAttribute('aria-label')||e.innerText||'').trim().split('\n')[0]).join(' | ')
+mark event_uninterested
+click_text [role="dialog"] button | Interested
+settle 2000
+pause
+mark event_interested
+click_text [role="dialog"] button | Interested
+settle 2000
+pause
+mark event_open_context_menu
+rclick [role="dialog"] div:has(> [aria-label="fastcord test event"])
+wait_for [role="menu"]
+settle 1000
+mark event_cancel
+click_text [role="menuitem"] | Cancel Event
+wait 1200
+settle 1000
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] button, [role="alertdialog"] button')].filter(e=>e.innerText.trim()==='Cancel Event');b[b.length-1].setAttribute('data-fc','cancel-event-confirm');return b.length})()
+mark event_cancel_confirm
+click [data-fc="cancel-event-confirm"]
+wait_gw GUILD_SCHEDULED_EVENT_DELETE 20000
+settle 2000
+mark close_events_modal
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];if(b.length)b[b.length-1].setAttribute('data-fc','close3');return b.length})()
+optional click [data-fc="close3"]
+settle 1500

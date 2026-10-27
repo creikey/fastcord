@@ -1,4 +1,4 @@
-# Dead-control sweep screens (tests/ui/run.sh runs: fastcord-debug -sweep:tests/ui/sweep.txt).
+# Dead-control sweep screens (tests/ui/run.sh runs: fastcord-dev -sweep:tests/ui/sweep.txt).
 # screen <name> <fixture> [channel=<id>] [size=WxH] [hold_mouse]
 # Indented lines are the script commands that reach the screen from a fresh
 # state (see run_script in src/app/main.odin). Every reachable clickable box on
@@ -34,15 +34,15 @@ screen full_profile tests/ui/chat.jsonl channel=1546820603343016006
   wait 30
 screen emoji_picker tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
-  click 940 683
+  click 980 683
   wait 20
 screen gif_picker tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
-  click 860 683
+  click 900 683
   wait 20
 screen sticker_picker tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
-  click 900 683
+  click 940 683
   wait 20
 screen quick_switcher tests/ui/chat.jsonl channel=1546820603343016006
   wait 3
@@ -63,11 +63,91 @@ screen settings_appearance tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
   click 338 683
   wait 20
+  click_text "Appearance"
+  wait 20
 screen settings_voice tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
   click 338 683
   wait 20
   click_text "Voice & Video"
+  wait 20
+screen settings_account tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Account"
+  wait 20
+screen settings_account_username tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Account"
+  wait 20
+  click 1038 465
+  wait 20
+screen settings_profiles tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Profiles"
+  wait 20
+screen settings_profiles_unsaved tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Profiles"
+  wait 20
+  click_text "Add your pronouns"
+  wait 3
+  type they/them
+  wait 10
+screen settings_notifications tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Notifications"
+  wait 20
+screen settings_logout tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Log Out"
+  wait 20
+screen add_server tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 36 157
+  wait 20
+screen add_server_create tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 36 157
+  wait 20
+  click_text "Create My Own"
+  wait 20
+screen add_server_join tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 36 157
+  wait 20
+  click_text "Join a Server"
+screen settings_streamer tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Appearance"
+  wait 10
+  click 137 336
+  wait 20
+# the notice bar (Disable, close) while Streamer Mode is on
+screen streamer_notice tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 338 683
+  wait 20
+  click_text "Appearance"
+  wait 10
+  click 137 336
+  wait 20
+  click_text "Enable Streamer Mode"
+  wait 10
+  key escape
   wait 20
 screen voice_dropdown tests/ui/chat.jsonl channel=1546820603343016006
   wait 5
@@ -109,7 +189,7 @@ screen group_dm tests/ui/rail.jsonl channel=1700000000000000003
 screen group_dm_create tests/ui/rail.jsonl
   go_home
   wait 10
-  click 349 286
+  click 349 166
   wait 20
 screen thread tests/ui/chat_threads.jsonl channel=1564185397821440007
   wait 30
@@ -117,3 +197,219 @@ screen forum tests/ui/chat_threads.jsonl channel=1546820603343016100
   wait 30
 screen thread_parent tests/ui/chat_threads.jsonl channel=1546820603343016006
   wait 30
+screen threads_browser tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 30
+  click 880 57
+  wait 20
+screen threads_create tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 30
+  click 880 57
+  wait 20
+  click_text "Create"
+  wait 10
+screen thread_menu tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 30
+  rclick 186 300
+  wait 10
+screen thread_delete tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 30
+  rclick 186 300
+  wait 10
+  click_text "Delete Thread"
+  wait 10
+screen inbox_unreads tests/ui/rail.jsonl
+  wait 10
+  click 1220 16
+  wait 10
+screen inbox_mentions tests/ui/rail.jsonl
+  wait 10
+  click 1220 16
+  wait 10
+  click_text "Mentions"
+# server header dropdown (owner: Create Channel, no Leave Server)
+screen guild_menu tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 200 57
+  wait 10
+screen guild_notify_modal tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 200 57
+  wait 10
+  click_text "Notification Settings"
+  wait 10
+# guild icon context menu (rail right-click): Mark As Read, Mute Server, Notification Settings...
+screen guild_ctx tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  rclick 36 110
+  wait 10
+screen guild_ctx_mute tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  rclick 36 110
+  wait 10
+  move_text "Mute Server"
+  wait 10
+screen guild_ctx_notify tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  rclick 36 110
+  wait 10
+  move_text "Notification Settings"
+  wait 10
+# another server with unread messages: Mark As Read is enabled
+screen guild_ctx_unread tests/ui/rail.jsonl channel=1600000000000001002
+  wait 30
+  rclick 36 205
+  wait 10
+# a server we don't own (Leave Server shows) with an unread mention
+screen guild_menu_member tests/ui/rail.jsonl channel=1600000000000001002
+  wait 30
+  click 200 57
+  wait 10
+screen guild_ctx_member tests/ui/rail.jsonl channel=1600000000000001002
+  wait 30
+  rclick 36 254
+  wait 10
+screen leave_server tests/ui/rail.jsonl channel=1600000000000001002
+  wait 30
+  click 200 57
+  wait 10
+  click_text "Leave Server"
+  wait 10
+screen invite_modal tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 349 57
+  wait 10
+screen bell tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 920 57
+  wait 10
+screen bell_mute tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click 920 57
+  wait 10
+  click_text "Mute Channel"
+  wait 10
+screen events_empty tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text Events
+  wait 20
+screen events_list tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 5
+  click_text "2 Events"
+  wait 20
+screen event_menu tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 5
+  click_text "2 Events"
+  wait 10
+  rclick_text "Friday game night"
+  wait 10
+screen event_cancel tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 5
+  click_text "2 Events"
+  wait 10
+  rclick_text "Friday game night"
+  wait 10
+  click_text "Cancel Event"
+  wait 10
+screen event_share tests/ui/chat_threads.jsonl channel=1546820603343016006
+  wait 5
+  click_text "2 Events"
+  wait 10
+  click 745 367
+  wait 10
+screen event_wizard tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text Events
+  wait 10
+  click_text "Create Event"
+  wait 10
+screen event_wizard_voice tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text Events
+  wait 10
+  click_text "Create Event"
+  wait 10
+  click_text "Voice Channel"
+  wait 10
+screen event_wizard_external tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text Events
+  wait 10
+  click_text "Create Event"
+  wait 10
+  click_text "Somewhere Else"
+  wait 10
+  type the park
+  wait 5
+screen event_wizard_info tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text Events
+  wait 10
+  click_text "Create Event"
+  wait 10
+  click_text "Voice Channel"
+  wait 5
+  click_text Next
+  wait 10
+  type game night
+  wait 5
+screen event_wizard_review tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text Events
+  wait 10
+  click_text "Create Event"
+  wait 10
+  click_text "Voice Channel"
+  wait 5
+  click_text Next
+  wait 10
+  type game night
+  wait 5
+  click_text Next
+  wait 10
+screen create_channel tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text createchan
+  wait 20
+screen channel_settings tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text chansettings
+  wait 20
+screen channel_settings_unsaved tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text chansettings
+  wait 20
+  click 740 300
+  wait 5
+  type , and more
+  wait 10
+screen channel_settings_slowmode tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text chansettings
+  wait 20
+  click_text Off
+  wait 10
+screen channel_delete tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  click_text chansettings
+  wait 20
+  click_text "Delete Channel"
+screen friend_nickname tests/ui/rail.jsonl channel=1700000000000000001
+  wait 30
+  click 1245 116
+  wait 10
+  # third user-menu item: Edit Friend Nickname (Add … once a press reset it)
+  click 1150 222
+  wait 20
+# staged attachments (attachments.odin): cards with the spoiler / modify / remove bar
+screen attachment_cards tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  stage tests/scenarios/assets/test.png tests/ui/attach/notes.txt
+  wait_attachments
+  wait 5
+screen attachment_modify tests/ui/chat.jsonl channel=1546820603343016006
+  wait 5
+  stage tests/scenarios/assets/test.png
+  wait_attachments
+  wait 5
+  click 567 449
+  wait 5

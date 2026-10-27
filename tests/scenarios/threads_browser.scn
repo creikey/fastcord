@@ -1,0 +1,55 @@
+# A creates a thread from the channel header Threads popout ("Create"), then opens the
+# Threads popout again and opens the thread from it; finally deletes the thread.
+include _open_test_channel.scn
+mark open_threads_popout_empty
+click section[aria-label="Channel header"] [aria-label="Threads"]
+wait 1500
+settle 1500
+mark create_thread_open
+click_text button | Create
+wait 2000
+snap create_form
+mark create_thread_name
+click input[placeholder="New Thread"], input[aria-label="New Thread"]
+type fastcord test thread
+pause
+click [role="textbox"][aria-label="Enter a message to start the conversation!"], [role="textbox"][aria-label*="start the conversation"]
+type first thread message
+pause
+mark create_thread_submit
+key Enter
+wait_gw THREAD_CREATE 20000
+settle 2500
+# The thread opens in the side view (the route stays on #general): take its id from the
+# sidebar row, and refuse anything that is the parent channel.
+let THREAD (()=>{const e=[...document.querySelectorAll('[data-list-item-id^="channels___"]')].find(e=>e.innerText.trim()==='fastcord test thread');const id=e?e.getAttribute('data-list-item-id').slice(11):'';return id==='${TTEXT}'?'':id})()
+snap thread_created
+mark close_thread_view
+click [data-list-item-id="channels___${TTEXT}"]
+wait_for div[role="textbox"][aria-label^="Message #"]
+settle 2000
+mark open_threads_popout
+click section[aria-label="Channel header"] [aria-label="Threads"]
+wait 1500
+settle 1500
+snap threads_popout
+mark open_thread_from_popout
+click_text [role="dialog"] div, [role="dialog"] h3 | fastcord test thread
+wait 1500
+settle 2000
+snap thread_opened
+mark delete_thread_menu
+rclick [data-list-item-id="channels___${THREAD}"]
+wait_for [role="menu"]
+settle 1000
+js [...document.querySelectorAll('[role=menuitem]')].map(e=>e.id).join(' ')
+mark delete_thread
+click_text [role="menuitem"] | Delete Thread
+wait 1200
+snap delete_confirm
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] button, [role="alertdialog"] button')].filter(e=>e.innerText.trim()==='Delete Thread');b[b.length-1].setAttribute('data-fc','delete-thread-confirm');return b.length})()
+settle 800
+mark delete_thread_confirm
+click [data-fc="delete-thread-confirm"]
+wait_gw THREAD_DELETE 20000
+settle 2500

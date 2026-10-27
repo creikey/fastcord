@@ -137,8 +137,33 @@ sounds_snapshot :: proc(p: ^Persisted_Sounds) {
 	p.disabled = snd.disabled[:]
 }
 
+// Settings > Notifications > Sounds
+sounds_all_disabled :: proc() -> bool {return snd.disable_all}
+sounds_set_all_disabled :: proc(on: bool) {snd.disable_all = on}
+sound_set_disabled :: proc(name: string, off: bool) {
+	for d, i in snd.disabled {
+		if d != name do continue
+		if !off {
+			delete(d)
+			ordered_remove(&snd.disabled, i)
+		}
+		return
+	}
+	if off do append(&snd.disabled, strings.clone(name))
+}
+// one sound's own switch (ignores Disable All)
+sound_own_disabled :: proc(name: string) -> bool {
+	for d in snd.disabled do if d == name do return true
+	return false
+}
+sounds_reset_prefs_for_test :: proc() {
+	snd.disable_all = false
+	for d in snd.disabled do delete(d)
+	clear(&snd.disabled)
+}
+
 sound_disabled :: proc(name: string) -> bool {
-	if snd.disable_all do return true
+	if snd.disable_all || streamer_disable_sounds() do return true
 	for d in snd.disabled do if d == name do return true
 	return false
 }

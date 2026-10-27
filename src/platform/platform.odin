@@ -75,6 +75,8 @@ Event_Kind :: enum u8 {
 	File_Drop, // one event per file; text = absolute path
 	Quit,
 	Composition, // IME marked text changed; text = current marked string ("" = composition ended), composition_sel = selected byte range in text
+	Drag_Enter, // files are dragged over the window (pos = where)
+	Drag_Leave, // the drag left the window, was cancelled or dropped (after its File_Drop events)
 }
 
 Event :: struct {
@@ -167,6 +169,7 @@ shutdown :: proc() {
 	virtual.arena_destroy(&s.current_arena)
 	delete(s_headless_clip)
 	s_headless_clip = ""
+	headless_clip_reset()
 	s = {}
 }
 
@@ -253,6 +256,9 @@ clipboard_set :: proc(str: string) {
 	if s.headless {
 		delete(s_headless_clip)
 		s_headless_clip = clone_string(str, context.allocator)
+		locks.lock(&s_headless_lock)
+		headless_clip_reset() // copying text replaces an image / files, like a real clipboard
+		locks.unlock(&s_headless_lock)
 		return
 	}
 	_clipboard_set(str)
@@ -260,6 +266,98 @@ clipboard_set :: proc(str: string) {
 
 @(private)
 s_headless_clip: string
+
+// ---- Clipboard: images and files (the composer's paste)
+
+Clipboard_Kind :: enum u8 {
+	None,
+	Text,
+	Image, // bitmap data (screenshot, "Copy Image")
+	Files, // file URLs (copied in Finder / Explorer)
+}
+
+// A clipboard bitmap: either encoded PNG bytes (png) or raw RGBA8 pixels to encode.
+Clipboard_Image :: struct {
+	png:           []byte,
+	rgba:          []byte,
+	width, height: int,
+}
+
+// What a paste would insert. Cheap (no data is read): call it on the UI thread.
+// Files win over an image (Finder also puts the file's icon on the pasteboard),
+// an image over text, as in the official client (Chromium's clipboardData.files).
+clipboard_kind :: proc() -> Clipboard_Kind {
+	if s.headless {
+		locks.lock(&s_headless_lock)
+		defer locks.unlock(&s_headless_lock)
+		if len(s_headless_files) > 0 do return .Files
+		if len(s_headless_png) > 0 do return .Image
+		return s_headless_clip != "" ? .Text : .None
+	}
+	return _clipboard_kind()
+}
+
+// The clipboard's bitmap. Reads (and may convert) a lot of data: call it from a worker thread.
+clipboard_image :: proc(allocator := context.allocator) -> (img: Clipboard_Image, ok: bool) {
+	if s.headless {
+		locks.lock(&s_headless_lock)
+		defer locks.unlock(&s_headless_lock)
+		if len(s_headless_png) == 0 do return {}, false
+		return {png = clone_bytes(s_headless_png, allocator)}, true
+	}
+	return _clipboard_image(allocator)
+}
+
+// Absolute paths of the files on the clipboard. Any thread.
+clipboard_files :: proc(allocator := context.allocator) -> []string {
+	if s.headless {
+		locks.lock(&s_headless_lock)
+		defer locks.unlock(&s_headless_lock)
+		out := make([]string, len(s_headless_files), allocator)
+		for f, i in s_headless_files do out[i] = clone_string(f, allocator)
+		return out
+	}
+	return _clipboard_files(allocator)
+}
+
+// Headless (UI scripts): put PNG bytes or file paths on the virtual clipboard.
+set_headless_clipboard_image :: proc(png: []byte) {
+	locks.lock(&s_headless_lock)
+	defer locks.unlock(&s_headless_lock)
+	headless_clip_reset()
+	s_headless_png = clone_bytes(png, context.allocator)
+}
+
+set_headless_clipboard_files :: proc(paths: []string) {
+	locks.lock(&s_headless_lock)
+	defer locks.unlock(&s_headless_lock)
+	headless_clip_reset()
+	s_headless_files = make([]string, len(paths))
+	for p, i in paths do s_headless_files[i] = clone_string(p, context.allocator)
+}
+
+@(private)
+headless_clip_reset :: proc() {
+	delete(s_headless_png)
+	s_headless_png = nil
+	for f in s_headless_files do delete(f)
+	delete(s_headless_files)
+	s_headless_files = nil
+}
+
+@(private)
+s_headless_lock: locks.Mutex
+@(private)
+s_headless_png: []byte
+@(private)
+s_headless_files: []string
+
+@(private)
+clone_bytes :: proc(b: []byte, allocator: runtime.Allocator) -> []byte {
+	out := make([]byte, len(b), allocator)
+	copy(out, b)
+	return out
+}
 
 set_cursor :: proc(c: Cursor) {
 	if s.cursor == c do return
@@ -288,7 +386,7 @@ inject_event :: proc(e: Event) {
 		}
 	case .Quit:
 		s.quit = true
-	case .Key_Down, .Key_Up, .Text, .Mouse_Move, .Mouse_Down, .Mouse_Up, .Scroll, .Focus_Gained, .Focus_Lost, .Mouse_Leave, .File_Drop, .Composition:
+	case .Key_Down, .Key_Up, .Text, .Mouse_Move, .Mouse_Down, .Mouse_Up, .Scroll, .Focus_Gained, .Focus_Lost, .Mouse_Leave, .File_Drop, .Composition, .Drag_Enter, .Drag_Leave:
 	}
 	push_event(ev)
 }
@@ -332,4 +430,52 @@ run_frame_callback :: proc() {
 	sync.atomic_store(&s.frame_requested, false)
 	_swap_queues()
 	s.frame_callback()
+}
+
+// A packed DIB (Windows CF_DIB / CF_DIBV5: BITMAPINFOHEADER or V5, optional masks, pixels),
+// 24 or 32 bpp uncompressed, to RGBA8. Portable so it is tested everywhere.
+dib_to_rgba :: proc(dib: []byte, allocator := context.allocator) -> (Clipboard_Image, bool) {
+	le32 :: proc(b: []byte) -> u32 {return u32(b[0]) | u32(b[1]) << 8 | u32(b[2]) << 16 | u32(b[3]) << 24}
+	if len(dib) < 40 do return {}, false
+	hsize := int(le32(dib[0:]))
+	width := int(i32(le32(dib[4:])))
+	hraw := i32(le32(dib[8:]))
+	bpp := int(u16(dib[14]) | u16(dib[15]) << 8)
+	compression := le32(dib[16:])
+	clr_used := int(le32(dib[32:]))
+	if bpp != 24 && bpp != 32 do return {}, false
+	if compression != 0 /*BI_RGB*/ && compression != 3 /*BI_BITFIELDS*/ do return {}, false
+	height := int(abs(hraw))
+	top_down := hraw < 0
+	if hsize < 40 || width <= 0 || height <= 0 || width * height > 64 << 20 do return {}, false
+	off := hsize
+	if compression == 3 && hsize == 40 do off += 12 // masks follow a plain header
+	off += clr_used * 4
+	stride := (width * bpp / 8 + 3) &~ 3
+	if off + stride * height > len(dib) do return {}, false
+	rgba := make([]byte, width * height * 4, allocator)
+	any_alpha := false
+	for y in 0 ..< height {
+		src := dib[off + (top_down ? y : height - 1 - y) * stride:]
+		dst := rgba[y * width * 4:]
+		for x in 0 ..< width {
+			p := src[x * bpp / 8:]
+			dst[x * 4 + 0] = p[2]
+			dst[x * 4 + 1] = p[1]
+			dst[x * 4 + 2] = p[0]
+			dst[x * 4 + 3] = bpp == 32 ? p[3] : 255
+			if bpp == 32 && p[3] != 0 do any_alpha = true
+		}
+	}
+	// most 32-bit clipboard DIBs leave alpha 0: treat them as opaque
+	if bpp == 32 && !any_alpha do for i := 3; i < len(rgba); i += 4 do rgba[i] = 255
+	return {rgba = rgba, width = width, height = height}, true
+}
+
+// System_A11y: OS accessibility display settings (system_a11y, per OS file).
+System_A11y :: struct {
+	reduce_motion: bool,
+	contrast_more: bool,
+	invert_colors: bool,
+	forced_colors: bool,
 }

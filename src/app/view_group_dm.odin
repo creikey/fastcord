@@ -116,7 +116,7 @@ group_dm_overlay :: proc() {
 		if uid == fixed do continue
 		u := dc.user_get(s, uid)
 		if u == nil do continue
-		if q != "" && !strings.contains(strings.to_lower(dc.display_name(u), context.temp_allocator), q) && !strings.contains(strings.to_lower(u.username, context.temp_allocator), q) do continue
+		if q != "" && !strings.contains(strings.to_lower(dc.user_name(s, uid), context.temp_allocator), q) && !strings.contains(strings.to_lower(dc.display_name(u), context.temp_allocator), q) && !strings.contains(strings.to_lower(u.username, context.temp_allocator), q) do continue
 		append(&shown, uid)
 	}
 	others := len(gdm.selected) + (fixed != 0 ? 1 : 0)
@@ -225,7 +225,7 @@ gdm_search_row :: proc() {
 				u := dc.user_get(store(), uid)
 				if u == nil do continue
 				if ui.id_scope(u64(uid)) {
-					chip := ui.box(fmt.tprintf("%s##chip", dc.display_name(u)), {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
+					chip := ui.box(fmt.tprintf("%s##chip", dc.user_name(store(), uid)), {.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation})
 					chip.semantic_size = {.X = ui.text_size(6), .Y = ui.px(24)}
 					chip.style.radius = 4
 					chip.style.bg = T("--background-mod-normal")
@@ -299,7 +299,7 @@ gdm_friend_row :: proc(uid: dc.Snowflake, y: f32, others: int) {
 		spacer(.X, 8)
 		avatar_with_status("av", uid, 32, sig.hovering ? T("--background-surface-higher") : T("--background-surface-high"))
 		spacer(.X, 12)
-		label(u != nil ? dc.display_name(u) : "unknown", .Medium, 16, T("--interactive-text-active"), 20)
+		label(dc.user_name(store(), uid, 0, "unknown"), .Medium, 16, T("--interactive-text-active"), 20)
 		spacer(.X, 6)
 		label(u != nil ? u.username : "", .Normal, 14, T("--text-muted"), 18)
 		filler(.X)
@@ -375,7 +375,7 @@ group_dm_members :: proc(ch: ^dc.Channel) {
 						c := ui.box("crown", {.Floating_X, .Floating_Y})
 						c.semantic_size = {.X = ui.px(14), .Y = ui.px(14)}
 						name_w: f32 = 0
-						if u := dc.user_get(s, uid); u != nil do name_w = f32(len(dc.display_name(u))) * 8.2
+						name_w = f32(len(dc.user_name(s, uid))) * 8.2
 						c.fixed_pos = {8 + 8 + 32 + 12 + name_w + 4, 15}
 						set_icon(c, "crown", T("--text-feedback-warning"))
 					}

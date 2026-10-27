@@ -17,14 +17,6 @@ Message_Actions :: struct {
 	menu_msg:      dc.Snowflake, // context menu target
 	menu_pos:      ui.Vec2,
 	menu_t:        f32,
-	uploads:       [dynamic]Pending_Upload, // files attached to the next message
-}
-
-Pending_Upload :: struct {
-	path:     string,
-	filename: string,
-	data:     []byte,
-	mime:     string,
 }
 
 ma: Message_Actions
@@ -55,23 +47,6 @@ mime_for :: proc(name: string) -> string {
 		return "text/plain"
 	}
 	return "application/octet-stream"
-}
-
-// A file dropped on the window (or chosen in the upload dialog) is staged for the next message.
-stage_upload :: proc(path: string) {
-	data, err := os.read_entire_file(path, context.allocator)
-	if err != nil do return
-	name := filepath.base(path)
-	append(&ma.uploads, Pending_Upload{path = strings.clone(path), filename = strings.clone(name), data = data, mime = mime_for(name)})
-}
-
-uploads_clear :: proc() {
-	for u in ma.uploads {
-		delete(u.path)
-		delete(u.filename)
-		delete(u.data)
-	}
-	clear(&ma.uploads)
 }
 
 // Hover toolbar at the message's top-right: react, reply, (edit), more.
@@ -181,10 +156,24 @@ start_edit :: proc(m: ^dc.Message) {
 	ui.editor_set_text(&ma.edit_editor, m.content)
 }
 
-open_message_menu :: proc(m: ^dc.Message, at: ui.Vec2) {
+// location: how it was opened, as message_popout_menu_opened_desktop names it
+// ("right_click"); "" sends no telemetry (the "More" button's name is not known).
+open_message_menu :: proc(m: ^dc.Message, at: ui.Vec2, location := "") {
 	ma.menu_msg = m.id
 	ma.menu_pos = at
 	ma.menu_t = 0
+	if app.client != nil {
+		gid: dc.Snowflake
+		if ch := dc.channel_get(store(), m.channel_id); ch != nil do gid = ch.guild_id
+		if location != "" do dc.message_menu_opened(app.client, gid, m.channel_id, m.id, location)
+		else do dc.open_message_context_menu(app.client, gid)
+	}
+}
+
+// the menu went away this frame (item, scrim, Escape)
+@(private = "file")
+message_menu_gone :: proc() {
+	if app.client != nil do dc.message_menu_closed(app.client)
 }
 
 find_message :: proc(id: dc.Snowflake) -> ^dc.Message {
@@ -272,8 +261,7 @@ reply_preview :: proc(m: ^dc.Message) {
 		}
 		avatar_box("av", ref.author_id, 16)
 		spacer(.X, 4)
-		name := "Unknown"
-		if u := dc.user_get(s, ref.author_id); u != nil do name = dc.display_name(u)
+		name := name_in(ref.author_id, ref.channel_id)
 		// "@" only when the reply pinged the author; role color, else muted
 		pinged := false
 		for id in m.mentions do if id == ref.author_id do pinged = true
@@ -305,8 +293,7 @@ reply_bar :: proc() {
 	bar.semantic_size = {.X = ui.pct(1), .Y = ui.px(32)}
 	if ui.parent(bar) {
 		spacer(.X, 16)
-		name := "Unknown"
-		if u := dc.user_get(s, m.author_id); u != nil do name = dc.display_name(u)
+		name := name_in(m.author_id, m.channel_id)
 		label("Replying to", .Normal, 14, T("--text-default"), 18)
 		spacer(.X, 4)
 		label(name, .Semibold, 14, T("--text-default"), 18)
@@ -331,71 +318,22 @@ reply_bar :: proc() {
 	sep.style.bg = T("--border-subtle")
 }
 
-// Staged attachments above the composer, removable.
-uploads_bar :: proc() {
-	if len(ma.uploads) == 0 do return
-	bar := row("uploads", {.Draw_Background})
-	bar.semantic_size = {.X = ui.pct(1), .Y = ui.px(216)}
-	bar.style.bg = T("--channeltextarea-background")
-	bar.style.radius = {8, 8, 0, 0}
-	bar.style.child_gap = 24
-	if ui.parent(bar) {
-		spacer(.X, 0)
-		remove := -1
-		for u, i in ma.uploads {
-			card := ui.box(fmt.tprintf("up%d", i), {.Draw_Background})
-			card.semantic_size = {.X = ui.px(200), .Y = ui.px(200)}
-			card.style.bg = T("--background-base-low")
-			card.style.radius = 4
-			card.layout_axis = .Y
-			if ui.parent(card) {
-				spacer(.Y, 140)
-				r := row("name")
-				r.semantic_size = {.X = ui.pct(1), .Y = ui.px(20)}
-				if ui.parent(r) {
-					spacer(.X, 8)
-					label(u.filename, .Normal, 14, T("--text-default"), 18)
-				}
-				x := ui.box("rm", {.Clickable, .Draw_Background, .Floating_X, .Floating_Y})
-				x.semantic_size = {.X = ui.px(24), .Y = ui.px(24)}
-				x.fixed_pos = {168, 8}
-				x.style.bg = T("--background-surface-high")
-				x.style.radius = 4
-				if ui.parent(x) {
-					ic := ui.box("i", {.Floating_X, .Floating_Y})
-					ic.semantic_size = {.X = ui.px(16), .Y = ui.px(16)}
-					ic.fixed_pos = {4, 4}
-					set_icon(ic, "trash", T("--status-danger"))
-				}
-				if ui.signal(x).clicked do remove = i
-			}
-		}
-		if remove >= 0 {
-			u := ma.uploads[remove]
-			delete(u.path)
-			delete(u.filename)
-			delete(u.data)
-			ordered_remove(&ma.uploads, remove)
-		}
-	}
-}
-
 // Send what's in the composer: text, reply, staged files.
 composer_send :: proc(ch: ^dc.Channel, text: string) -> bool {
 	if !net_action() do return false
-	if text == "" && len(ma.uploads) == 0 do return false
+	atts, ready := attachments_for_send(ch.id)
+	if !ready do return false // a file is still being read
+	if text == "" && len(atts) == 0 do return false
 	opts: dc.Send_Options
 	if ma.replying != 0 {
 		opts.reply_to = ma.replying
 		opts.reply_guild_id = ch.guild_id
 		opts.mention_replied = ma.reply_mention
 	}
-	files := make([]dc.Upload_File, len(ma.uploads), context.temp_allocator)
-	for u, i in ma.uploads do files[i] = {filename = u.filename, mime = u.mime, data = u.data}
-	if len(files) > 0 do opts.files = files
-	dc.send_message(app.client, ch.id, text, opts)
+	opts.attachments = atts
+	nonce := dc.send_message(app.client, ch.id, text, opts)
 	ma.replying = 0
-	uploads_clear()
+	attachments_sent(ch.id, len(atts) > 0 ? nonce : 0)
 	return true
 }
 
@@ -409,6 +347,7 @@ message_menu :: proc() {
 	m := find_message(ma.menu_msg)
 	if m == nil {
 		ma.menu_msg = 0
+		message_menu_gone()
 		return
 	}
 	s := store()
@@ -417,6 +356,7 @@ message_menu :: proc() {
 	scrim.semantic_size = {.X = ui.px(app.ui.window.x), .Y = ui.px(app.ui.window.y)}
 	if ui.signal(scrim).pressed {
 		ma.menu_msg = 0
+		message_menu_gone()
 		return
 	}
 	ui.animate(&ma.menu_t, 1, 30)
@@ -469,6 +409,7 @@ message_menu :: proc() {
 					b.layout_axis = .X
 					b.cross_align = .Center
 					if ui.signal(b).clicked {
+						if app.client != nil do dc.message_menu_item_clicked(app.client)
 						if net_action() do dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id)
 						ma.menu_msg = 0
 					}
@@ -517,6 +458,7 @@ message_menu :: proc() {
 				spacer(.X, MENU_PAD + 1)
 			}
 			if sig.clicked {
+				if app.client != nil do dc.message_menu_item_clicked(app.client)
 				switch it.label {
 				case "Add Reaction":
 					app.reaction_target = m.id
@@ -539,6 +481,7 @@ message_menu :: proc() {
 		}
 	}
 	for e in app.ui.events do if e.kind == .Key_Down && e.key == .Escape do ma.menu_msg = 0
+	if ma.menu_msg == 0 do message_menu_gone()
 }
 
 delete_now :: proc(m: ^dc.Message) {
@@ -620,9 +563,7 @@ delete_modal :: proc() {
 					hr.semantic_size = {.X = ui.pct(1), .Y = ui.px(22)}
 					hr.cross_align = .End
 					if ui.parent(hr) {
-						name := "Unknown"
-						if u := dc.user_get(store(), m.author_id); u != nil do name = dc.display_name(u)
-						label(name, .Medium, 16, author_color(m), 22)
+						label(name_in(m.author_id, m.channel_id), .Medium, 16, author_color(m), 22)
 						spacer(.X, 8)
 						label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20)
 					}

@@ -6,6 +6,7 @@ import "core:strconv"
 import "core:strings"
 import dc "fc:discord"
 import "fc:gfx"
+import "fc:platform"
 import "fc:ui"
 
 // Emoji picker: category nav, sticky section headers, 9-column virtualized
@@ -112,7 +113,12 @@ Emoji_View :: struct {
 	nav_scroll:  f32,
 	last_mouse:  ui.Vec2,
 	keyboard:    bool, // last navigation was keyboard (mouse-over doesn't steal until it moves)
+	// telemetry: results are reported once the query rests (search_result_viewed)
+	search_changed:  f64,
+	search_reported: bool,
 }
+
+EMOJI_SEARCH_VIEWED_DELAY :: 0.3 // seconds the query rests before its results count as viewed
 
 ev: Emoji_View
 
@@ -124,6 +130,9 @@ emoji_picker_reset :: proc() {
 }
 
 emoji_picker_query_changed :: proc() {
+	if app.client != nil do dc.picker_search_typed(app.client, pk_query(.Emoji))
+	ev.search_changed = platform.time_now()
+	ev.search_reported = false
 	ev.scroll.target = 0
 	ev.scroll.y = 0
 	ev.inspected = {-1, 0}
@@ -336,6 +345,32 @@ item_y :: proc(sc: ^Em_Section, idx, cols: int) -> f32 {
 	return base + f32(idx / cols) * EM_CELL
 }
 
+// picker_expression_counts: what the emoji picker lists (expression_picker_opened):
+// frecent and favorite emoji split by kind, this guild's and all usable custom emoji.
+picker_expression_counts :: proc(reaction: bool, here: dc.Snowflake) -> (n: dc.Expression_Counts) {
+	s := store()
+	animated := make(map[dc.Snowflake]bool, allocator = context.temp_allocator)
+	for gid in emoji_guilds() {
+		g := dc.guild_get(s, gid)
+		if g == nil do continue
+		for e in g.emojis do animated[e.id] = e.animated
+		n.custom_total += len(g.emojis)
+		if gid == here do n.current_guild = len(g.emojis)
+	}
+	count :: proc(key: string, animated: map[dc.Snowflake]bool, total, anim, custom, standard: ^int) {
+		total^ += 1
+		if id, ok := strconv.parse_u64(key); ok && len(key) > 6 {
+			custom^ += 1
+			if animated[dc.Snowflake(id)] do anim^ += 1
+		} else {
+			standard^ += 1
+		}
+	}
+	for k in (frecency.reaction if reaction else frecency.emoji) do count(k, animated, &n.frecent, &n.animated_frecent, &n.custom_frecent, &n.standard_frecent)
+	for k in frecency.favorite_emojis do count(k, animated, &n.favorites, &n.animated_favorites, &n.custom_favorites, &n.standard_favorites)
+	return
+}
+
 emoji_picker_body :: proc(r: ui.Rect) {
 	emoji_db_load()
 	body := row("emoji_body")
@@ -350,6 +385,16 @@ emoji_picker_body :: proc(r: ui.Rect) {
 	pk_scroll_update(&ev.scroll, grid_rect, content_h)
 	nav_secs := secs
 	searching := len(secs) > 0 && secs[0].kind == .Search
+	if searching && app.client != nil && !ev.search_reported {
+		if platform.time_now() - ev.search_changed >= EMOJI_SEARCH_VIEWED_DELAY {
+			ev.search_reported = true
+			locked := 0
+			for it in secs[0].items do if it.locked do locked += 1
+			dc.picker_search_results(app.client, pk_query(.Emoji), len(secs[0].items), locked)
+		} else {
+			request_wake(ev.search_changed + EMOJI_SEARCH_VIEWED_DELAY)
+		}
+	}
 	if searching {
 		nav_secs = build_sections(true)
 		layout_sections(nav_secs, cols)
@@ -762,6 +807,7 @@ emoji_select :: proc(it: Pk_Emoji, keep_open: bool) {
 		text = fmt.tprintf("<%s:%s:%d>", it.animated ? "a" : "", it.name, u64(it.id))
 	}
 	key := frec_key(it)
+	if app.client != nil do dc.picker_emoji_selected(app.client, it.name, it.id, it.guild, it.animated, it.locked)
 	if pk.mode == .Reaction {
 		frec_use(&frecency.reaction, key)
 		if app.client != nil {

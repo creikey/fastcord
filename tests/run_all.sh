@@ -22,7 +22,7 @@ fi
 # FASTCORD_CI=1 skips what needs a GPU, audio devices or the gg sans font cache (UI scripts).
 # Each package's test binary builds and runs as its own job, all in parallel;
 # results print in a fixed order afterwards.
-PKGS="locks netio tls quic quic/h3 quic/altsvc http etf zstd brotli protobuf imagefmt vector ui gfx audio media discord voice voice/mls voice/dave opus lottie app"
+PKGS="locks netio tls quic quic/h3 quic/altsvc http etf zstd brotli protobuf imagefmt vector qr ui gfx audio media discord voice voice/mls voice/dave opus lottie app"
 run_pkg() {
   pkg=$1; out="build/test-$(echo $pkg | tr / _)"; t0=$(date +%s)
   if odin test "src/$pkg" -collection:fc=src -vet-shadowing -strict-style -debug -out:"$out$EXE" > "$out.log" 2>&1; then
@@ -49,14 +49,17 @@ for pkg in $PKGS; do
   cat "$res"
   grep -q "^FAIL" "$res" && fail=1
 done
-# UI scripts + sweep and the bench counter check are independent processes: run them together.
 t0=$(date +%s)
 if [ -z "$FASTCORD_CI" ]; then
-  # The bench gate compares deterministic counters (tests/bench/budget.json), so load doesn't skew it.
-  ( if tools/bench.sh > build/bench.log 2>&1; then echo "PASS bench budget" > build/bench.res
-    else { echo "FAIL bench (see build/bench.log)"; tail -15 build/bench.log | sed 's/^/    /'; } > build/bench.res; fi ) &
+  # one fast-compiling build serves both; the bench gate checks only its deterministic
+  # counters, so the check build's slightly slower UI pass doesn't matter here
+  ./build.sh check || exit 1
+  export FASTCORD_PREBUILT=1 FASTCORD_BIN=./build/fastcord-check$EXE FASTCORD_BENCH_UNPACED=1
   tests/ui/run.sh || fail=1
-  wait
+  # After the UI scripts, not beside them: the bench runs real-time 60 Hz frames, and
+  # sharing the CPU with ~50 script processes made the pair 3x slower than in turn.
+  if tools/bench.sh > build/bench.log 2>&1; then echo "PASS bench budget" > build/bench.res
+  else { echo "FAIL bench (see build/bench.log)"; tail -15 build/bench.log | sed 's/^/    /'; } > build/bench.res; fi
   cat build/bench.res
   grep -q "^FAIL" build/bench.res && fail=1
 fi

@@ -23,7 +23,8 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXE=.exe ;; esac
 PY=python3
 # Windows ships a python3 alias that only opens the Store, so probe by running it.
 $PY -c '' >/dev/null 2>&1 || PY=python
-./build.sh dev
+[ -n "$FASTCORD_PREBUILT" ] || ./build.sh dev
+BIN=${FASTCORD_BIN:-./build/fastcord-dev$EXE}
 mkdir -p build/bench
 GEN=tests/bench/make_bench_fixture.py
 SHAPE=tests/bench/shape.json
@@ -33,7 +34,7 @@ fi
 # Avatars, icons and emoji come from build/bench/media instead of the CDN. TZ and -now pin timestamps
 # and grouping, so counters are the same on every machine.
 fixture() {
-  FASTCORD_MEDIA_DIR=build/bench/media TZ=UTC ./build/fastcord-dev$EXE -dpi:1 -now:1793016000 -fixture:build/bench/heavy.jsonl "$@"
+  FASTCORD_MEDIA_DIR=build/bench/media TZ=UTC $BIN -dpi:1 -now:1793016000 -fixture:build/bench/heavy.jsonl "$@"
 }
 if [ $live = 1 ]; then
   rm -f build/bench/live.jsonl build/bench/fixture.jsonl

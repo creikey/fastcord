@@ -33,14 +33,15 @@ notify_tick :: proc() {
 	for &m in app_new_messages() {
 		if m.flags & SUPPRESS_NOTIFICATIONS != 0 do continue
 		if app.focused && m.channel_id == app.view.channel do continue
-		if s.settings.status == .Dnd do continue
+		if s.settings.status == .Dnd || streamer_disable_notifications() do continue
 		if r, ok := s.relationships[m.author_id]; ok && r.kind == .Blocked do continue
-		if !message_notifies(&m) do continue
+		if !message_notifies(&m) || notify_prefs.desktop_off do continue
 		notify_message(s, &m)
 	}
 	// dock badge: unread mentions
 	total := 0
 	for _, rs in s.read_states do total += max(rs.mention_count, 0)
+	if notify_prefs.badge_off do total = 0 // Settings > Notifications > Unread Message Badge
 	if !ns.badge_set || total != ns.badge {
 		ns.badge = total
 		ns.badge_set = true
@@ -51,8 +52,7 @@ notify_tick :: proc() {
 @(private = "file")
 notify_message :: proc(s: ^dc.Store, m: ^dc.New_Message) {
 	ch := dc.channel_get(s, m.channel_id)
-	author := "Unknown"
-	if u := dc.user_get(s, m.author_id); u != nil do author = dc.display_name(u)
+	author := name_in(m.author_id, m.channel_id)
 	title := author
 	#partial switch ch.kind {
 	case .DM:
@@ -66,7 +66,11 @@ notify_message :: proc(s: ^dc.Store, m: ^dc.New_Message) {
 		title = parent != "" ? fmt.tprintf("%s (#%s, %s)", author, ch.name, parent) : fmt.tprintf("%s (#%s)", author, ch.name)
 	}
 	body := notification_body(s, m)
+	// Streamer Mode > Hide Personal Information: no DM names or DM content on screen
+	if (ch.kind == .DM || ch.kind == .Group_DM) && streamer_hide_personal() do title, body = author, ""
 	platform.notify_show(title, body, fmt.tprintf("%v", u64(m.id)))
+	// the library reports it as acked (notification_action ACK) when the channel's MESSAGE_ACK comes
+	if app.client != nil do dc.analytics_notification_shown(app.client, m.id, m.channel_id, m.author_id, m.kind, !notify_prefs.badge_off)
 	ns.notified += 1
 }
 
@@ -97,9 +101,7 @@ notification_body :: proc(s: ^dc.Store, m: ^dc.New_Message) -> string {
 		switch {
 		case strings.has_prefix(tag, "@!") || strings.has_prefix(tag, "@") && !strings.has_prefix(tag, "@&"):
 			id := dc.parse_snowflake(strings.trim_left(tag, "@!"))
-			name := "unknown-user"
-			if u := dc.user_get(s, id); u != nil do name = dc.display_name(u)
-			fmt.sbprintf(&sb, "@%s", name)
+			fmt.sbprintf(&sb, "@%s", name_in(id, m.channel_id, "unknown-user"))
 		case strings.has_prefix(tag, "#"):
 			name := "unknown"
 			if cc := dc.channel_get(s, dc.parse_snowflake(tag[1:])); cc != nil do name = cc.name

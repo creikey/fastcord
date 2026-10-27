@@ -1,0 +1,25 @@
+# Guild rail: "Add a Server" modal steps and "Discover".
+wait 5
+click 36 205
+wait 5
+expect_opened_url https://discord.com/servers
+click 36 157
+wait 20
+expect_visible "Create Your Server"
+click_text "Create My Own"
+wait 20
+expect_visible "Customize Your Server"
+expect_input "dingus's server"
+click_text "Back"
+wait 20
+click_text "Join a Server"
+wait 20
+expect_visible "Join a Server"
+expect_focus_input
+type nope!
+key enter
+wait 10
+expect_visible " - Please enter a valid invite link or invite code."
+key escape
+wait 20
+expect_not_visible "Join a Server"

@@ -2,6 +2,7 @@
 package discord
 
 import "core:sys/darwin"
+import "core:strings"
 import "core:sys/posix"
 import "core:time"
 
@@ -33,4 +34,17 @@ _process_cpu_time :: proc() -> (time.Duration, bool) {
 	if posix.getrusage(.SELF, &ru) != .OK do return 0, false
 	us := i64(ru.ru_utime.tv_sec) * 1_000_000 + i64(ru.ru_utime.tv_usec) + i64(ru.ru_stime.tv_sec) * 1_000_000 + i64(ru.ru_stime.tv_usec)
 	return time.Duration(us) * time.Microsecond, true
+}
+
+// process_exe_paths: every running process's executable path (unreadable ones are skipped).
+process_exe_paths :: proc(allocator := context.allocator) -> []string {
+	pids: [4096]i32
+	n := int(darwin.proc_listallpids(&pids[0], size_of(pids))) // returns a count, not bytes
+	out := make([dynamic]string, 0, max(n, 0), allocator)
+	for pid in pids[:clamp(n, 0, len(pids))] {
+		buf: [darwin.PIDPATHINFO_MAXSIZE]byte
+		l := darwin.proc_pidpath(posix.pid_t(pid), &buf[0], len(buf))
+		if l > 0 do append(&out, strings.clone(string(buf[:l]), allocator))
+	}
+	return out[:]
 }

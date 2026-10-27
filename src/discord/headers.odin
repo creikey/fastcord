@@ -26,6 +26,7 @@ Api_Headers_Input :: struct {
 	context_b64:     string, // x-context-properties
 	referer:         string,
 	cookie:          string,
+	fingerprint:     string, // X-Fingerprint (logged out, once /experiments gave one)
 	// JS-set headers outside the standard set (if-none-match, cache-control,
 	// x-failed-requests, x-audit-log-reason, x-discord-original-md5 ...).
 	// Chrome places these first and moves sec-ch-ua-platform after x-installation-id.
@@ -72,6 +73,8 @@ api_headers :: proc(p: Platform_Info, in_: Api_Headers_Input, allocator := conte
 	append(&h, http.Header{"x-discord-locale", p.locale})
 	append(&h, http.Header{"user-agent", p.browser_user_agent})
 	if in_.content_type != "" do append(&h, http.Header{"content-type", in_.content_type})
+	// set last by the HTTP util (after Content-Type in DevTools' list; fixture login_submit)
+	if in_.fingerprint != "" do append(&h, http.Header{"x-fingerprint", in_.fingerprint})
 	append(&h, http.Header{"accept", "*/*"})
 	if method_sends_origin(in_.method) do append(&h, http.Header{"origin", API_ORIGIN})
 	append(&h, http.Header{"sec-fetch-site", "same-origin"})

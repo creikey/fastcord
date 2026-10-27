@@ -1,0 +1,75 @@
+# User Settings -> Notifications: toggle "Friends come online" off and on.
+# Appearance -> Streamer Mode: Enable Streamer Mode on, look around
+# (channel, My Account, invite modal, DM list), then off again.
+include _open_test_channel.scn
+mark open_settings
+click button[aria-label="User Settings"]
+wait_for [data-list-item-id="settings-sidebar___appearance_panel"]
+settle 1500
+mark open_notifications_settings
+click [data-list-item-id="settings-sidebar___notifications_panel"]
+wait_for [role="dialog"] input[role="switch"]
+settle 2000
+js (()=>{const s=[...document.querySelectorAll('[role=dialog] input[role=switch]')].find(e=>{let p=e;for(let i=0;i<6&&p;i++){p=p.parentElement;const t=(p.innerText||'').trim();if(t.length>3)return t.split('\n')[0]==='Friends come online'}return false});s.closest('label').setAttribute('data-fc','friends-online');return String(s.checked)})()
+mark notifications_toggle_off
+click [data-fc="friends-online"]
+settle 2500
+js String(document.querySelector('[data-fc="friends-online"] input').checked)
+mark notifications_toggle_on
+click [data-fc="friends-online"]
+settle 2500
+js String(document.querySelector('[data-fc="friends-online"] input').checked)
+mark open_settings_appearance
+click [data-list-item-id="settings-sidebar___appearance_panel"]
+wait_for [role="dialog"] [role="radio"][aria-label="Dark"]
+settle 2000
+js (()=>{const s=[...document.querySelectorAll('[role=dialog] input[role=switch]')].find(e=>{let p=e;for(let i=0;i<6&&p;i++){p=p.parentElement;const t=(p.innerText||'').trim();if(t.length>3)return t.split('\n')[0]==='Enable Streamer Mode'}return false});s.closest('label').setAttribute('data-fc','streamer');s.scrollIntoView({block:'center'});return String(s.checked)})()
+wait 800
+snap streamer_section
+mark streamer_mode_on
+click [data-fc="streamer"]
+settle 2500
+js String(document.querySelector('[data-fc="streamer"] input').checked)
+snap streamer_on_settings
+mark streamer_view_account
+click [data-list-item-id="settings-sidebar___account_panel"]
+wait 1500
+settle 1500
+snap streamer_account
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];b[b.length-1].setAttribute('data-fc','close-settings');return b.length})()
+mark streamer_close_settings
+click [data-fc="close-settings"]
+wait_gone [role="dialog"]
+settle 1500
+snap streamer_channel
+mark streamer_invite_modal
+click [aria-label="Invite to Server"]
+wait 2500
+settle 1500
+snap streamer_invite
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];if(b.length)b[b.length-1].setAttribute('data-fc','close-invite');return b.length})()
+optional click [data-fc="close-invite"]
+settle 1500
+mark streamer_dm_list
+click [data-list-item-id="guildsnav___home"]
+wait 2000
+settle 1500
+snap streamer_home
+mark streamer_reopen_settings
+click button[aria-label="User Settings"]
+wait_for [data-list-item-id="settings-sidebar___appearance_panel"]
+pause
+click [data-list-item-id="settings-sidebar___appearance_panel"]
+wait_for [role="dialog"] [role="radio"][aria-label="Dark"]
+settle 1500
+js (()=>{const s=[...document.querySelectorAll('[role=dialog] input[role=switch]')].find(e=>{let p=e;for(let i=0;i<6&&p;i++){p=p.parentElement;const t=(p.innerText||'').trim();if(t.length>3)return t.split('\n')[0]==='Enable Streamer Mode'}return false});s.closest('label').setAttribute('data-fc','streamer2');s.scrollIntoView({block:'center'});return String(s.checked)})()
+wait 800
+mark streamer_mode_off
+click [data-fc="streamer2"]
+settle 2500
+js String(document.querySelector('[data-fc="streamer2"] input').checked)
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];b[b.length-1].setAttribute('data-fc','close-settings2');return b.length})()
+mark close_settings
+click [data-fc="close-settings2"]
+wait_gone [role="dialog"]
+settle 1500

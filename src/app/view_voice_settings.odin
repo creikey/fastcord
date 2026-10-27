@@ -243,7 +243,6 @@ slider :: proc(id: string, value: ^f32, lo, hi: f32, w: f32, fmt_value: string =
 	return changed
 }
 
-@(private = "file")
 toggle_row :: proc(id, text, help: string, value: ^bool) -> bool {
 	r := row(id, {.Clickable})
 	r.semantic_size = {.X = ui.px(660), .Y = ui.px(help != "" ? 52 : 32)}
@@ -593,7 +592,7 @@ voice_user_menu :: proc() {
 			cb.style.border_color = T("--interactive-icon-default")
 			cb.style.bg = m ? T("--background-brand") : {}
 			if m {
-				if ui.parent(cb) do icon("ck", "check", 18, {1, 1, 1, 1})
+				if ui.parent(cb) do icon("ck", "checkmark-large", 18, {1, 1, 1, 1})
 			}
 			spacer(.X, 12)
 		}

@@ -1,0 +1,10 @@
+# Regression: the settings modal's close X sits over the header search box; the
+# press that closed the modal also focused the search box underneath.
+wait 5
+click 338 683
+wait 20
+click 1214 64
+wait 10
+type hello
+wait 3
+expect_visible "Search Dingus Battle"

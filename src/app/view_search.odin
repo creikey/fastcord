@@ -128,15 +128,18 @@ search_box :: proc(ch: ^dc.Channel, hint: string) {
 	search.box_rect = b.rect
 	// Cmd/Ctrl+F focuses search, like the client
 	for &e in app.ui.events {
-		if !e.consumed && e.kind == .Key_Down && e.key == .F && (.Cmd in e.mods || .Ctrl in e.mods) {
+		if !e.consumed && e.kind == .Key_Down && e.key == .F && (.Cmd in e.mods || .Ctrl in e.mods) && !modal_open() {
 			search.focused = true
 			e.consumed = true
 		}
 	}
-	// a press on the box itself (icon, padding) or on the field child focuses it
+	// a press on the box itself (icon, padding) or on the field child focuses it,
+	// unless a modal or popout drawn over the header took the press
 	if ui.signal(b).pressed do search.focused = true
-	for e in app.ui.events {
-		if !e.consumed && e.kind == .Mouse_Down && e.button == .Left && rect_has(search.box_rect, e.pos) do search.focused = true
+	if !app.ui.overlay_under_mouse && !modal_open() {
+		for e in app.ui.events {
+			if !e.consumed && e.kind == .Mouse_Down && e.button == .Left && rect_has(search.box_rect, e.pos) do search.focused = true
+		}
 	}
 	if search.focused {
 		app.ui.focus = search.key
@@ -213,8 +216,9 @@ search_suggestions :: proc() {
 				if gm, ok := s.members[ch.guild_id]; ok && uid not_in gm do continue
 			}
 			name := strings.to_lower(u.username, context.temp_allocator)
-			if q != "" && !strings.contains(name, q) && !strings.contains(strings.to_lower(dc.display_name(&u), context.temp_allocator), q) do continue
-			append(&items, Item{dc.display_name(&u), u.username, fmt.tprintf("%s%s ", prefix, u.username)})
+			shown := dc.user_name(s, uid, ch.guild_id)
+			if q != "" && !strings.contains(name, q) && !strings.contains(strings.to_lower(shown, context.temp_allocator), q) do continue
+			append(&items, Item{shown, u.username, fmt.tprintf("%s%s ", prefix, u.username)})
 			n += 1
 		}
 	case strings.has_prefix(last, "has:"):
@@ -314,7 +318,7 @@ search_run :: proc(ch: ^dc.Channel, text: string) {
 			if strings.to_lower(u.username, context.temp_allocator) == ln do return uid
 		}
 		for uid, &u in s.users {
-			if strings.to_lower(dc.display_name(&u), context.temp_allocator) == ln do return uid
+			if strings.to_lower(dc.user_name(s, uid), context.temp_allocator) == ln || strings.to_lower(dc.display_name(&u), context.temp_allocator) == ln do return uid
 		}
 		return 0
 	}

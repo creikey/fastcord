@@ -338,6 +338,8 @@ parse_guild_into :: proc(s: ^Store, m: etf.Map) -> Snowflake {
 		parse_guild_props(s, g, m)
 	}
 	if vhas(m, "member_count") do g.member_count = int(fint(m, "member_count"))
+	if vhas(m, "premium_tier") do g.premium_tier = int(fint(m, "premium_tier"))
+	if props := fmap(m, "properties"); props != nil && vhas(props, "premium_tier") do g.premium_tier = int(fint(props, "premium_tier"))
 	if vhas(m, "lazy") do g.lazy = fbool(m, "lazy")
 	if vhas(m, "joined_at") {free_str(g.joined_at, a); g.joined_at = clone_str(fstr(m, "joined_at"), a)}
 	if vhas(m, "roles") {
@@ -735,6 +737,7 @@ apply_guild_settings :: proc(s: ^Store, m: etf.Map) {
 		if fbool(om, "muted") do append(&gs.muted_channels, fsnow(om, "channel_id"))
 		if fbool(om, "collapsed") do append(&gs.collapsed_channels, fsnow(om, "channel_id"))
 	}
+	apply_guild_settings_extra(s, gs, m)
 }
 
 // ---- user_settings_proto (PreloadedUserSettings) ----
@@ -746,6 +749,7 @@ apply_settings_proto :: proc(s: ^Store, b64: string) {
 	if err != nil do return
 	st := &s.settings
 	a := s.allocator
+	if f, ok := protobuf.find_path(raw, 2, 1); ok do st.inbox_tab = Inbox_Tab(f.value) if f.value <= u64(max(Inbox_Tab)) else .Unspecified
 	if f, ok := protobuf.find_path(raw, 11, 1, 1); ok do st.status = status_from_string(string(f.bytes))
 	if f, ok := protobuf.find_path(raw, 11, 2, 1); ok {free_str(st.custom_status_text, a); st.custom_status_text = clone_str(string(f.bytes), a)}
 	if f, ok := protobuf.find_path(raw, 11, 2, 3); ok {free_str(st.custom_status_emoji, a); st.custom_status_emoji = clone_str(string(f.bytes), a)}
@@ -759,6 +763,10 @@ apply_settings_proto :: proc(s: ^Store, b64: string) {
 	if f, ok := protobuf.find_path(raw, 13, 1); ok && f.value != 0 do st.theme = Theme(f.value)
 	else do st.theme = .Darker
 	if f, ok := protobuf.find_path(raw, 13, 2); ok do st.developer_mode = f.value != 0
+	if _, ok := protobuf.find_path(raw, 7, 12); ok {
+		f, set := protobuf.find_path(raw, 7, 12, 1)
+		st.friend_online_off = !set || f.value == 0
+	}
 	if gf, ok := protobuf.find(raw, 14); ok {
 		for &fo in st.guild_folders {
 			free_str(fo.name, a)
@@ -1103,6 +1111,12 @@ remove_guild :: proc(s: ^Store, gid: Snowflake) {
 			free_channel(s, c)
 			delete_key(&s.channels, cid)
 		}
+		// a rejoin loads the channels again from scratch
+		if l, lok := &s.messages[cid]; lok {
+			for &m in l.messages do free_message(s, &m)
+			delete(l.messages)
+			delete_key(&s.messages, cid)
+		}
 	}
 	free_guild(s, g)
 	delete_key(&s.guilds, gid)
@@ -1142,7 +1156,16 @@ store_apply_dispatch :: proc(s: ^Store, name: string, data: V, now: i64) -> bool
 		s.connection = .Ready
 	case "MESSAGE_CREATE":
 		upsert_message(s, d)
-		remove_typing(s, fsnow(d, "channel_id"), fsnow(fmap(d, "author"), "id"))
+		cid, author := fsnow(d, "channel_id"), fsnow(fmap(d, "author"), "id")
+		remove_typing(s, cid, author)
+		// our own message is read at once (ReadStateStore MESSAGE_CREATE: a local
+		// ack, nothing sent; not type 46, SELF_MENTIONABLE_SYSTEM)
+		if author != 0 && author == s.me && fint(d, "type") != 46 {
+			rs := s.read_states[cid]
+			rs.channel_id = cid
+			rs.last_message_id = max(rs.last_message_id, fsnow(d, "id"))
+			s.read_states[cid] = rs
+		}
 	case "MESSAGE_UPDATE":
 		cid := fsnow(d, "channel_id")
 		if l, ok := &s.messages[cid]; ok {
@@ -1454,6 +1477,7 @@ store_destroy :: proc(s: ^Store) {
 	for _, gs in s.guild_settings {
 		delete(gs.muted_channels)
 		delete(gs.collapsed_channels)
+		delete(gs.overrides)
 	}
 	delete(s.guild_settings)
 	for _, v in s.voice_states do free_str(v.session_id, a)

@@ -19,7 +19,9 @@ import "fc:etf"
 // prefetch: the sidebar's mousedown preloads the channel before the route
 // changes, so the first page carries the previous route as Referer
 // (fixtures open_guild_and_channel, open_dm); quick switcher / create flows don't.
-select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limit := 50, prefetch := false) {
+// source: the route change's source (transitionTo's `source`), reported as
+// channel_opened's location (e.g. "Thread Browser").
+select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limit := 50, prefetch := false, source := "") {
 	prev_referer := strings.clone(client_route_referer(c), context.temp_allocator) if prefetch else ""
 	locks.lock(&c.route_mu)
 	prev_guild := c.route_guild
@@ -40,7 +42,9 @@ select_channel :: proc(c: ^Client, guild_id, channel_id: Snowflake, message_limi
 		} else {
 			on_channel_page(c, channel_id, 0, false)
 		}
+		analytics_channel_opened(c, guild_id, channel_id, location = source)
 	}
+	if guild_id != 0 && guild_id != prev_guild do analytics_guild_viewed(c, guild_id, channel_id)
 }
 
 // initial_message_limit reproduces the client's page size for a channel open:
@@ -254,7 +258,8 @@ Send_Options :: struct {
 	flags:           u64,
 	location:        string, // x-context-properties location ("" -> "chat_input")
 	sticker_ids:     []Snowflake,
-	files:           []Upload_File,
+	files:           []Upload_File, // uploaded at send (POST /attachments + PUT each, then the message)
+	attachments:     []Draft_Attachment, // already staged with upload_draft (the composer's flow)
 	tag:             u64,
 }
 
@@ -326,6 +331,26 @@ send_message :: proc(c: ^Client, channel_id: Snowflake, content: string, opts :=
 	typing_local_stop(c, channel_id)
 
 	location := opts.location if opts.location != "" else "chat_input"
+	if len(opts.attachments) > 0 {
+		j := job_new(.Upload, .Upload)
+		a := job_alloc(j)
+		j.path = job_str(j, channel_path(channel_id, "/messages"))
+		j.context_b64 = job_str(j, context_location(location))
+		atts := make([]Draft_Attachment, len(opts.attachments), a)
+		for d, i in opts.attachments {
+			atts[i] = Draft_Attachment{d.handle, strings.clone(d.filename, a), strings.clone(d.description, a), d.spoiler}
+		}
+		j.drafts = atts
+		o2 := opts
+		o2.files = nil
+		o2.attachments = nil
+		o2.sticker_ids = slice.clone(opts.sticker_ids, a)
+		j.result = Rest_Result{op = .Upload, channel_id = channel_id, nonce = nonce, tag = opts.tag}
+		store_upload_ctx(j, channel_id, content, nonce, o2)
+		job_submit(c, j)
+		c.analytics.roundtrips[nonce] = Roundtrip{channel_id = channel_id, start = now_ms(), attachments = len(atts)}
+		return
+	}
 	if len(opts.files) > 0 {
 		j := job_new(.Upload, .Upload)
 		a := job_alloc(j)
@@ -492,20 +517,33 @@ Pending_Ack :: struct {
 	channel_id: Snowflake,
 	message_id: Snowflake,
 	due:        i64,
+	location:   Ack_Location,
 }
+
+// Ack_Location: where an ack came from, as ack_messages reports it ({} = no event).
+Ack_Location :: struct {
+	section:     string,
+	object:      string,
+	object_type: string, // "ack_automatic" / "ack_semi_automatic" / "ack_manual"
+}
+
+// the Inbox's per-channel "Mark As Read" (fixture inbox, inbox_unreads_mark_read)
+ACK_INBOX :: Ack_Location{"Inbox", "Ack - Inbox Newest Unread Message", "ack_automatic"}
 
 // ack_message schedules the read-state ack like ReadState.ack(): sent after 3 s
 // (immediately when `immediate`), body {token, last_viewed[, flags]}.
-ack_message :: proc(c: ^Client, channel_id, message_id: Snowflake, immediate := false) {
+// location: reported in ack_messages when the ack completes ({}: none).
+ack_message :: proc(c: ^Client, channel_id, message_id: Snowflake, immediate := false, location := Ack_Location{}) {
 	due := now_ms() + (0 if immediate else ACK_DELAY_MS)
 	for &p in c.pending_acks {
 		if p.channel_id == channel_id {
 			p.message_id = max(p.message_id, message_id)
 			if immediate do p.due = due
+			if location.section != "" do p.location = location
 			return
 		}
 	}
-	append(&c.pending_acks, Pending_Ack{channel_id, message_id, due})
+	append(&c.pending_acks, Pending_Ack{channel_id, message_id, due, location})
 	rs := c.store.read_states[channel_id]
 	rs.channel_id = channel_id
 	rs.last_message_id = max(rs.last_message_id, message_id)
@@ -519,12 +557,12 @@ flush_due_acks :: proc(c: ^Client, now: i64) {
 		p := c.pending_acks[i]
 		if p.due > now do continue
 		ordered_remove(&c.pending_acks, i)
-		send_ack(c, p.channel_id, p.message_id, now)
+		send_ack(c, p.channel_id, p.message_id, now, p.location)
 	}
 }
 
 @(private)
-send_ack :: proc(c: ^Client, channel_id, message_id: Snowflake, now: i64) {
+send_ack :: proc(c: ^Client, channel_id, message_id: Snowflake, now: i64, location := Ack_Location{}) {
 	ch := c.store.channels[channel_id]
 	rs := c.store.read_states[channel_id]
 	// recalculateFlags: 2 thread, 1 guild channel, 0 private; sent only when it changed.
@@ -555,6 +593,11 @@ send_ack :: proc(c: ^Client, channel_id, message_id: Snowflake, now: i64) {
 	j.body = transmute([]byte)job_str(j, json_string(&w))
 	j.content_type = "application/json"
 	j.result = Rest_Result{op = .Ack, channel_id = channel_id, message_id = message_id}
+	if location.section != "" {
+		// the read states are already moved: the statuses are those after the ack
+		j.track_props = job_str(j, analytics_ack_props(c, channel_id, location))
+		j.on_done = analytics_ack_done
+	}
 	job_submit(c, j)
 }
 
@@ -637,7 +680,19 @@ add_relationship :: proc(c: ^Client, user_id: Snowflake, location := "Friends") 
 	job_submit(c, j)
 }
 
-accept_friend_request :: proc(c: ^Client, user_id: Snowflake) {add_relationship(c, user_id, "Friends")}
+// accept_friend_request: Friends > Pending > Accept. A mutual-guild request
+// needs no stranger confirmation: {"confirm_stranger_request":false}
+// (fixtures friend_request_accept, friend_add_context_menu).
+accept_friend_request :: proc(c: ^Client, user_id: Snowflake) {
+	j := job_new(.Api, .Relationship)
+	j.method = "PUT"
+	j.path = job_str(j, strings.concatenate({"/users/@me/relationships/", snowflake_string(user_id)}, context.temp_allocator))
+	j.body = transmute([]byte)job_str(j, `{"confirm_stranger_request":false}`)
+	j.content_type = "application/json"
+	j.context_b64 = job_str(j, context_location("Friends"))
+	j.result.user_id = user_id
+	job_submit(c, j)
+}
 
 // remove_relationship: DELETE — ignore/cancel a request, unfriend, unblock.
 remove_relationship :: proc(c: ^Client, user_id: Snowflake, location := "Friends") {
@@ -674,15 +729,22 @@ fetch_profile :: proc(c: ^Client, user_id: Snowflake, guild_id: Snowflake = 0, t
 // client_after_dispatch: requests the official client makes in response to
 // events (e.g. op 8 for unknown message authors in a subscribed guild).
 client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
+	calls_dispatch(c, name, data)
 	switch name {
 	case "READY":
-		analytics_on_ready(c)
+		first := analytics_on_ready(c)
+		note_webp_experiment(c, data)
 		c.account_verified = fbool(fmap(vmap(data), "user"), "verified")
 		// The window reopens on its last route: the guild is subscribed and its
 		// channel info requested on CONNECTION_OPEN, as when it was selected.
 		locks.lock(&c.route_mu)
 		g, ch := c.route_guild, c.route_channel
 		locks.unlock(&c.route_mu)
+		// the route's views render on CONNECTION_OPEN: channel_opened, guild_viewed
+		// (fixtures' setup windows, right after ready_payload_received)
+		if first && ch != 0 do analytics_channel_opened(c, g, ch)
+		if first && g != 0 do analytics_guild_viewed(c, g, ch)
+		if first && g == 0 && ch == 0 do friends_page_viewed(c) // fixture cold_start
 		if ch != 0 {
 			l := message_list(&c.store, ch)
 			h := c.analytics.viewport_h if c.analytics.viewport_h > 0 else 720
@@ -697,7 +759,19 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 			c.pending_guild_open = g
 			c.guild_open_promotions = true
 		}
+	case "GUILD_DELETE":
+		// left (or removed): a rejoin subscribes again and refetches
+		d := vmap(data)
+		if !fbool(d, "unavailable") {
+			gid := fsnow(d, "id")
+			delete_key(&c.subs.guilds, gid)
+			c.left_guilds[gid] = true // a rejoin sends op 43 again, but not the guild-open set
+			locks.lock(&c.job_mu)
+			if c.ready_subscribed_guild == gid do c.ready_subscribed_guild = 0
+			locks.unlock(&c.job_mu)
+		}
 	case "GUILD_CREATE":
+		if joined_guild_created(c, vmap(data)) do break
 		if c.pending_guild_create {
 			c.pending_guild_create = false
 			d := vmap(data)
@@ -722,7 +796,11 @@ client_after_dispatch :: proc(c: ^Client, name: string, data: V) {
 			select_channel(c, gid, ch, initial_message_limit(h), prefetch = true)
 			if c.pending_guild_open == gid do guild_open_now(c, gid)
 		}
+	case "MESSAGE_ACK":
+		d := vmap(data)
+		analytics_notifications_acked(c, fsnow(d, "channel_id"), fsnow(d, "message_id"))
 	case "MESSAGE_CREATE":
+		analytics_note_message(c, data)
 		d := vmap(data)
 		if nv := fstr(d, "nonce"); nv != "" {
 			if rt, ok := &c.analytics.roundtrips[parse_snowflake(nv)]; ok && rt.gateway == 0 do rt.gateway = now_ms()
@@ -776,12 +854,23 @@ voice_server_info :: proc(c: ^Client) -> (info: Voice_Server_Info, version: u64,
 // voice_join: op 4 (flags 2) plus what selecting a voice channel loads: its
 // text-in-voice page, the activity shelf (~155 ms), soundboard sounds with
 // op 31 for every guild (~700 ms, once per session).
-voice_join :: proc(c: ^Client, guild_id, channel_id: Snowflake, self_mute := false, self_deaf := false) {
+// track = false: the caller sends join_voice_channel itself, after its own events (DM calls).
+voice_join :: proc(c: ^Client, guild_id, channel_id: Snowflake, self_mute := false, self_deaf := false, track := true) {
 	voice_update(c, guild_id, channel_id, self_mute, self_deaf)
+	// the voice channel's text view opens with the call
+	analytics_channel_opened(c, guild_id, channel_id, selected_guild = false)
+	if track do analytics_join_voice(c, guild_id, channel_id)
 	l := message_list(&c.store, channel_id)
 	h := c.analytics.viewport_h if c.analytics.viewport_h > 0 else 720
 	if !l.loaded && !l.loading do fetch_messages(c, channel_id, 0, initial_message_limit(h))
-	if guild_id != 0 do api_get_later(c, strings.concatenate({"/activities/shelf?guild_id=", snowflake_string(guild_id)}, context.temp_allocator), 155)
+	if guild_id != 0 {
+		j := job_new(.Api, .None)
+		j.method = "GET"
+		j.path = job_str(j, strings.concatenate({"/activities/shelf?guild_id=", snowflake_string(guild_id)}, context.temp_allocator))
+		j.not_before = now_ms() + 155
+		j.on_done = analytics_shelf_fetched
+		job_submit(c, j)
+	}
 	if !c.soundboard_loaded {
 		c.soundboard_loaded = true
 		c.pending_soundboard_at = now_ms() + 705
@@ -815,15 +904,32 @@ guild_channel_info :: proc(c: ^Client, guild_id: Snowflake) {
 	gateway_send(c.gw, .Request_Channel_Info, etf.map_done(&b))
 }
 
-// guild_open_now: op 43 and the guild-open set for the guild being entered.
+// guild_open_now: op 43 and the guild-open set for the guild entered first in
+// the session. Re-entering a guild sends neither (fixtures history_nav: Friends
+// -> back to the guild; discover: discovery -> the guild).
 guild_open_now :: proc(c: ^Client, g: Snowflake) {
 	c.pending_guild_open = 0
-	guild_channel_info(c, g)
 	if !c.started_guilds[g] {
 		c.started_guilds[g] = true
+		guild_channel_info(c, g)
 		schedule_guild_open(c, g, c.guild_open_promotions)
+	} else if c.left_guilds[g] {
+		// rejoined after leaving (fixture join_leave_server): op 43 only
+		delete_key(&c.left_guilds, g)
+		guild_channel_info(c, g)
 	}
 	c.guild_open_promotions = false
+}
+
+// guild_channel_notice_check: a guild text channel route rendering, for a member
+// who can manage the guild, when the guild has no system channel, loads the
+// guild's integrations (every such render: fixtures history_nav, discover,
+// threads_browser, settings, streamer_mode; never with a system channel set).
+guild_channel_notice_check :: proc(c: ^Client, ch: ^Channel) {
+	if ch.guild_id == 0 || is_thread(ch) || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement) do return
+	g := guild_get(&c.store, ch.guild_id)
+	if g == nil || g.system_channel_id != 0 || guild_permissions(&c.store, g.id) & PERM_MANAGE_GUILD == 0 do return
+	api_get_later(c, strings.concatenate({"/guilds/", snowflake_string(g.id), "/integrations?include_applications=true&include_role_connections_metadata=true"}, context.temp_allocator), 0)
 }
 
 // on_channel_page runs when the first page of a selected channel arrives
@@ -832,6 +938,10 @@ guild_open_now :: proc(c: ^Client, g: Snowflake) {
 on_channel_page :: proc(c: ^Client, channel_id: Snowflake, got: int, full: bool) {
 	ch := c.store.channels[channel_id]
 	if g := c.pending_guild_open; g != 0 && (ch.guild_id == g || ch.guild_id == 0) do guild_open_now(c, g)
+	locks.lock(&c.route_mu)
+	on_route := c.route_channel == channel_id
+	locks.unlock(&c.route_mu)
+	if on_route do guild_channel_notice_check(c, &ch)
 	if full {
 		// Fill the viewport: one older page of 20.
 		msgs := messages_get(&c.store, channel_id)
@@ -846,6 +956,8 @@ on_channel_page :: proc(c: ^Client, channel_id: Snowflake, got: int, full: bool)
 		}
 		if ch.kind == .DM && len(ch.recipient_ids) == 1 {
 			u := ch.recipient_ids[0]
+			// the profile sidebar renders with the third (sidebar) profile response
+			profile_view_begin(c, .Sidebar, u, 0, channel_id, 0, wait = 3)
 			fetch_profile_ex(c, u, {mutual_guilds = false, mutual_friends = false, mutual_friends_count = false})
 			fetch_profile_ex(c, u, {mutual_guilds = true, mutual_friends = false, mutual_friends_count = false, delay_ms = 223})
 			fetch_note(c, u, 223)
@@ -898,7 +1010,9 @@ fetch_note :: proc(c: ^Client, user_id: Snowflake, delay_ms: i64 = 0) {
 // open_profile_popout: what clicking a username does: profile, application
 // identities and featured widgets at once, referral eligibility ~460 ms and
 // the note ~720 ms later (fixture open_profile_popout).
-open_profile_popout :: proc(c: ^Client, user_id, guild_id: Snowflake) {
+// channel_id / message_id: where the username was clicked (telemetry).
+open_profile_popout :: proc(c: ^Client, user_id, guild_id: Snowflake, channel_id: Snowflake = 0, message_id: Snowflake = 0) {
+	profile_view_begin(c, .Popout, user_id, guild_id, channel_id, message_id)
 	fetch_profile_ex(c, user_id, {kind = "popout", guild_id = guild_id})
 	api_get_later(c, strings.concatenate({"/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"}, context.temp_allocator), 0)
 	api_get_later(c, "/widget-configs/featured", 0)
@@ -918,7 +1032,8 @@ open_user_settings :: proc(c: ^Client) {
 	api_get_later(c, "/users/@me/billing/location-info", 0)
 	api_get_later(c, "/auth/sessions", 0)
 	api_get_later(c, "/safety-hub/@me", 0)
-	api_get_later(c, "/users/@me/custom-themes", 964)
+	// no custom-themes: that is the Appearance pane's load (settings_pane_shown);
+	// fixtures settings, streamer_mode, account_edits open without it
 }
 
 // api_get_later: a plain authenticated GET (fire and forget).
@@ -933,8 +1048,14 @@ api_get_later :: proc(c: ^Client, path: string, delay_ms: i64) {
 // open_full_profile: "View Full Profile" from a popout (fixture open_full_profile).
 // The applications/public, games and oauth2/tokens follow-ups depend on the
 // profile's widget/app data and are not issued (see traffic/PARITY.md).
-open_full_profile :: proc(c: ^Client, user_id, guild_id: Snowflake) {
+// via: the popout element clicked to open it ("avatar"), "" when not from a popout.
+open_full_profile :: proc(c: ^Client, user_id, guild_id: Snowflake, via := "avatar") {
 	us := snowflake_string(user_id)
+	v := &c.analytics.profile
+	if via != "" && v.layout == .Popout && v.user_id == user_id && v.session != "" && profile_shows_nothing_extra(c, user_id, v.guild_id) {
+		profile_action(c, v, {"username", "user profile popout", via}, "PRESS_VIEW_PROFILE")
+	}
+	profile_view_begin(c, .Modal, user_id, guild_id, v.channel_id if v.user_id == user_id else 0, v.message_id if v.user_id == user_id else 0)
 	api_get_later(c, strings.concatenate({"/content-inventory/users/", us, "/outbox"}, context.temp_allocator), 0)
 	fetch_profile_ex(c, user_id, {kind = "modal", mutual_guilds = true, mutual_friends_count = true, guild_id = guild_id})
 	api_get_later(c, "/collectibles-categories/v2?include_bundles=true&variants_return_style=2&skip_num_categories=0", 100)
@@ -952,6 +1073,7 @@ open_message_context_menu :: proc(c: ^Client, guild_id: Snowflake) {
 		j := job_new(.Api, .None)
 		j.method = "GET"
 		j.path = job_str(j, strings.concatenate({"/guilds/", snowflake_string(guild_id), "/application-command-index"}, context.temp_allocator))
+		j.on_done = analytics_command_index_loaded
 		job_submit(c, j)
 	}
 	if !c.command_index_user {
@@ -959,6 +1081,7 @@ open_message_context_menu :: proc(c: ^Client, guild_id: Snowflake) {
 		j := job_new(.Api, .None)
 		j.method = "GET"
 		j.path = "/users/@me/application-command-index"
+		j.on_done = analytics_command_index_loaded
 		job_submit(c, j)
 	}
 }
@@ -982,12 +1105,20 @@ open_emoji_picker :: proc(c: ^Client, guild_id: Snowflake) {
 
 // home_open: the friends/home surface's first render in a session (when the
 // client did not start on it): referral eligibility, quest applications and
-// the premium-guild entitlements, together (fixture open_dm, ~6.9 s).
+// the premium-guild entitlements, together (fixture open_dm, ~6.9 s). An
+// unverified account loads user affinities instead of the entitlements
+// (fixture join_leave_server, B after Leave Server).
+// Every later open of Friends loads the premium-guild entitlements again
+// (fixture history_nav: each forward to Friends).
 home_open :: proc(c: ^Client) {
-	if c.home_opened do return
+	if c.home_opened {
+		api_get_later(c, "/users/@me/entitlements?with_sku=false&with_application=false&entitlement_type=11&exclude_ended=true", 0)
+		return
+	}
 	c.home_opened = true
 	if client_route_kind(c.start_route_guild, c.start_route_channel) == .Home do return // startup table covers it
 	api_get_later(c, "/users/@me/referrals/eligibility", 0)
+	if !c.account_verified do api_get_later(c, "/users/@me/affinities/v2/users", 0)
 	locks.lock(&c.job_mu)
 	ready := c.ready_ms
 	locks.unlock(&c.job_mu)
@@ -996,7 +1127,7 @@ home_open :: proc(c: ^Client) {
 	c.start_route_channel = 0
 	schedule_applications_public(c, ready)
 	c.start_route_guild = saved
-	api_get_later(c, "/users/@me/entitlements?with_sku=false&with_application=false&entitlement_type=11&exclude_ended=true", 0)
+	if c.account_verified do api_get_later(c, "/users/@me/entitlements?with_sku=false&with_application=false&entitlement_type=11&exclude_ended=true", 0)
 }
 
 // ---- guilds ----
@@ -1008,7 +1139,9 @@ GUILD_TEMPLATE_FRIENDS :: "2TffvPucqHkN"
 // ({name, icon, channels: [], system_channel_id, guild_template_code}); when
 // GUILD_CREATE arrives the client navigates into it (select_channel) and loads
 // the new-guild extras (guild_created_followups).
-create_guild :: proc(c: ^Client, name: string, icon_data_uri := "", template := GUILD_TEMPLATE_FRIENDS) {
+// step_shown_ms: when the modal's last step ("Customize your server") was shown (telemetry).
+create_guild :: proc(c: ^Client, name: string, icon_data_uri := "", template := GUILD_TEMPLATE_FRIENDS, step_shown_ms: i64 = 0) {
+	c.analytics.guild_create_step_ms = step_shown_ms
 	w: Json
 	json_init(&w)
 	json_obj(&w)
@@ -1025,6 +1158,9 @@ create_guild :: proc(c: ^Client, name: string, icon_data_uri := "", template := 
 	j.path = "/guilds"
 	j.body = transmute([]byte)job_str(j, json_string(&w))
 	j.content_type = "application/json"
+	j.on_done = proc(c: ^Client, j: ^Job, status: int) {
+		if status != 0 do analytics_guild_create_result(c, status, c.analytics.guild_create_step_ms)
+	}
 	job_submit(c, j)
 	c.pending_guild_create = true
 }
@@ -1050,6 +1186,7 @@ guild_created_followups :: proc(c: ^Client, guild_id: Snowflake) {
 // create_group_dm: "New Group DM" with no one selected: POST /users/@me/channels
 // {"recipients":[]} (location "New Group DM"); the new channel opens.
 create_group_dm :: proc(c: ^Client, user_ids: []Snowflake = nil, tag: u64 = 0) {
+	analytics_create_dm_clicked(c, user_ids)
 	create_private_channel(c, user_ids, "New Group DM", tag)
 }
 
@@ -1097,7 +1234,9 @@ delete_guild :: proc(c: ^Client, guild_id: Snowflake) {
 // loads activity statistics, the featured applications and /users/@me.
 // Later opens only refresh /users/@me (fixtures status_change, custom_status).
 open_account_popout :: proc(c: ^Client) {
+	profile_view_begin(c, .Account_Popout, c.store.me, 0, 0, 0)
 	if c.account_popout_opened {
+		analytics_on_profile(c, c.store.me) // the profile is loaded: it shows at once
 		users_me_refresh(c, 650)
 		return
 	}

@@ -36,6 +36,7 @@ App :: struct {
 	voice_channel:   dc.Snowflake,
 	settings_open:   bool,
 	profile_user:    dc.Snowflake,
+	profile_above:   bool, // popout opens above the anchor, left-aligned (own card from the user panel)
 	profile_anchor:  UI_Rect,
 	profile_open_t:  f32,
 	pending_dm_user: dc.Snowflake,
@@ -196,7 +197,7 @@ main :: proc() {
 	} else if !headless || opt.live > 0 {
 		connect()
 	}
-	if app.client == nil && opt.fixture == "" do app.needs_login = true
+	if (app.client == nil || dc.client_logged_out(app.client)) && opt.fixture == "" do app.needs_login = true
 
 	if headless && opt.sweep != "" do os.exit(sweep_run(opt))
 	if headless do update_start()
@@ -253,6 +254,7 @@ main :: proc() {
 	}
 
 	update_start()
+	streamer_start()
 	platform.set_frame_callback(frame)
 	frame()
 	for !platform.should_quit() {
@@ -285,8 +287,10 @@ frame :: proc() {
 	t_poll := platform.time_now()
 	if app.connect_pending && !teardown_busy() do connect()
 	if app.client != nil {
+		analytics_env_sync()
 		dc.client_poll(app.client)
 		handle_results()
+		login_events()
 		voice_frame()
 		login_check_auth()
 	}
@@ -294,20 +298,27 @@ frame :: proc() {
 	watchdog_phase(.Media)
 	sounds_frame()
 	settings_frame()
+	streamer_frame()
 	images_receive()
 	features_receive()
 	notify_tick()
 	t_ui := platform.time_now()
 	watchdog_phase(.UI)
+	attachments_frame()
+	drops := make([dynamic]string, context.temp_allocator)
 	for e in platform.events() {
 		#partial switch e.kind {
 		case .File_Drop:
-			if app.view.channel != 0 do stage_upload(e.text)
+			append(&drops, e.text)
+		case .Drag_Enter, .Drag_Leave:
+			attachments_drag_event(e)
 		case .Focus_Gained, .Focus_Lost:
 			app.focused = e.kind == .Focus_Gained
 			if app.client != nil do dc.client_set_focused(app.client, app.focused)
 		}
 	}
+	// one batch per drop (the 10-file cap applies to the batch)
+	if len(drops) > 0 && app.view.channel != 0 && !app.needs_login do stage_paths(app.view.channel, drops[:], "drag_and_drop")
 	evs := map_events(platform.events())
 	for e in evs do app.ui_mods = e.mods
 	for e in evs do if e.kind == .Key_Down || e.kind == .Text do app.caret_reset_t = now
@@ -397,6 +408,10 @@ key_by_name :: proc(name: string) -> platform.Key {
 		return .Home
 	case "end":
 		return .End
+	case "[":
+		return .Left_Bracket
+	case "]":
+		return .Right_Bracket
 	}
 	if len(name) == 1 && name[0] >= 'a' && name[0] <= 'z' do return platform.Key(int(platform.Key.A) + int(name[0] - 'a'))
 	return .None
@@ -534,8 +549,11 @@ script_command :: proc(path: string, f: []string, t: ^f64) {
 	case "theme":
 		if th, ok := theme_by_name(f[1]); ok do theme_load(&app.theme, th)
 	case "show_login":
-		// the intro / token screen (normally shown when there is no token)
+		// the login page (normally shown when there is no token)
 		app.needs_login = true
+	case "login_state":
+		// the login page in a given state, without a server (view_login.odin login_test_state)
+		if !login_test_state(f[1]) do script_fail(path, "login_state: unknown state %q", f[1])
 	case "expect_opened_url":
 		want := unquote(strings.join(f[1:], " ", context.temp_allocator))
 		if app.last_opened_url != want do script_fail(path, "expect_opened_url failed\n  want %q\n  got  %q", want, app.last_opened_url)
@@ -555,6 +573,69 @@ script_command :: proc(path: string, f: []string, t: ^f64) {
 		platform.inject_event({kind = .Mouse_Down, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
 	case "up":
 		platform.inject_event({kind = .Mouse_Up, pos = {num(f[1]), num(f[2])}, button = .Left, click_count = 1})
+	case "stage":
+		// stage <path>...: what the "+" file picker returns
+		stage_paths(app.view.channel, f[1:], "file_picker")
+	case "drop":
+		// drop <path>...: a drag and drop from Finder / Explorer (enter, files, leave)
+		platform.inject_event({kind = .Drag_Enter, pos = {640, 360}})
+		for p in f[1:] do platform.inject_event({kind = .File_Drop, text = p, pos = {640, 360}})
+		platform.inject_event({kind = .Drag_Leave})
+	case "drag_enter":
+		platform.inject_event({kind = .Drag_Enter, pos = {640, 360}})
+	case "drag_leave":
+		platform.inject_event({kind = .Drag_Leave})
+	case "paste_image":
+		// paste_image <png>: the PNG goes on the (headless) clipboard, then Cmd/Ctrl+V
+		data, err := os.read_entire_file(f[1], context.temp_allocator)
+		if err != nil do script_fail(path, "paste_image: can't read %s", f[1])
+		platform.set_headless_clipboard_image(data)
+		platform.inject_event({kind = .Key_Down, key = .V, mods = {platform.PRIMARY_MOD}})
+	case "paste_files":
+		// paste_files <path>...: files copied in Finder / Explorer, then Cmd/Ctrl+V
+		platform.set_headless_clipboard_files(f[1:])
+		platform.inject_event({kind = .Key_Down, key = .V, mods = {platform.PRIMARY_MOD}})
+	case "wait_attachments":
+		// frames until every staged file has been read and thumbnailed (at most 10 s)
+		start := time.tick_now()
+		for attachments_busy() && time.duration_seconds(time.tick_since(start)) < 10 {
+			script_frame(t)
+			time.sleep(2 * time.Millisecond)
+		}
+	case "expect_attachments":
+		// expect_attachments <count> [<filename> [spoiler] [desc=<text>]]...  (in order)
+		l := staged_list(app.view.channel)
+		want, _ := strconv.parse_int(f[1])
+		if len(l) != want do script_fail(path, "expect_attachments: want %d, got %d", want, len(l))
+		i := 0
+		for k := 2; k < len(f); k += 1 {
+			if f[k] == "spoiler" {
+				if !l[i - 1].spoiler do script_fail(path, "expect_attachments: %s is not spoilered", l[i - 1].filename)
+				continue
+			}
+			if strings.has_prefix(f[k], "desc=") {
+				if l[i - 1].description != f[k][5:] do script_fail(path, "expect_attachments: %s description %q", l[i - 1].filename, l[i - 1].description)
+				continue
+			}
+			if i >= len(l) || l[i].filename != f[k] do script_fail(path, "expect_attachments: #%d want %q", i, f[k])
+			if l[i].loading do script_fail(path, "expect_attachments: %s still loading", f[k])
+			i += 1
+		}
+		return
+	case "upload_limit":
+		// upload_limit <bytes>: override the plan's limit (too-large notice without a 10 MB fixture)
+		v, _ := strconv.parse_i64(f[1])
+		att.limit_override = v
+		return
+	case "expect_notice":
+		// expect_notice too_large | too_many | none
+		want := Att_Notice.None
+		switch f[1] {
+		case "too_large": want = .Too_Large
+		case "too_many": want = .Too_Many
+		}
+		if att.notice != want do script_fail(path, "expect_notice: want %v, got %v", want, att.notice)
+		return
 	case "type":
 		platform.inject_event({kind = .Text, text = strings.join(f[1:], " ", context.temp_allocator)})
 	case "burst":
@@ -645,16 +726,26 @@ script_frame :: proc(t: ^f64) {
 	frame()
 	// Measured frames keep a real 60 Hz cadence: the app idles between inputs, so CPU and GPU clocks
 	// drop between frames, and back-to-back frames would report better latency than a user sees.
-	if bench.measuring {
+	if bench.measuring && !bench_unpaced() {
 		left := time.Second / 60 - time.tick_since(start)
 		if left > 0 do time.sleep(left)
-
-
 	}
 }
 
+// FASTCORD_BENCH_UNPACED=1: measured frames run back to back. Timings are then meaningless,
+// but the counters the budget checks are the same (tests/run_all.sh).
+bench_unpaced :: proc() -> bool {
+	@(static) v := -1
+	if v < 0 do v = os.get_env("FASTCORD_BENCH_UNPACED", context.temp_allocator) != "" ? 1 : 0
+	return v == 1
+}
+
 // Last-built box whose text (label, or the id when it draws no text) is exactly want.
+// Visible boxes win over hidden ones (a label scrolled out of its page).
 find_text_box :: proc(want: string) -> ^ui.Box {
+	#reverse for b in app.ui.order {
+		if b.text == want && b.rect.x1 > b.rect.x0 && box_visible(b) do return b
+	}
 	#reverse for b in app.ui.order {
 		if b.text == want && b.rect.x1 > b.rect.x0 do return b
 	}
@@ -690,6 +781,7 @@ script_exec :: proc(lines: []string, path: string) {
 }
 
 // Token: $FASTCORD_TOKEN, else <state>/token (written by the login flow).
+// Without one the client starts logged out and the login page shows.
 connect :: proc() {
 	if teardown_busy() {
 		// The previous client is still shutting down; frame() retries when it is done.
@@ -704,9 +796,10 @@ connect :: proc() {
 		data, err := os.read_entire_file(strings.concatenate({state_dir, "/token"}, context.temp_allocator), context.temp_allocator)
 		if err == nil do token = strings.trim_space(string(data))
 	}
-	if token == "" do return
 	app.client = dc.client_create({token = strings.clone(token), state_dir = state_dir, wakeup = proc(_: rawptr) {platform.request_frame()}})
+	analytics_env_sync(force = true) // before the first event (gateway_connected)
 	dc.client_start(app.client)
+	if token == "" do app.needs_login = true
 }
 
 handle_results :: proc() {
@@ -717,6 +810,8 @@ handle_results :: proc() {
 				select_channel(0, r.id)
 				app.pending_dm_user = 0
 			}
+		case .Invite:
+			invite_receive(r)
 		}
 	}
 }

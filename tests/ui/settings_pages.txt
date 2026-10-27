@@ -1,0 +1,46 @@
+# Settings: nav search filters, "Edit Profiles" opens Profiles, Account, Notifications,
+# Same as Device Theme, Log Out (headless: never touches <state>/token).
+wait 5
+click 338 683
+wait 20
+click_text "Search"
+wait 3
+type notif
+wait 5
+expect_visible "Notifications"
+expect_not_visible "Voice & Video"
+key backspace
+key backspace
+key backspace
+key backspace
+key backspace
+wait 5
+expect_visible "Voice & Video"
+click_text "Edit Profiles"
+wait 20
+expect_visible "About Me"
+expect_visible "PREVIEW"
+click_text "Add your pronouns"
+wait 3
+type they/them
+wait 10
+expect_visible "Careful — you have unsaved changes!"
+expect_visible "dingus • they/them"
+click_text "Reset"
+wait 20
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "Account"
+wait 20
+expect_visible "*****"
+click_text "Reveal"
+wait 5
+expect_visible "Hide"
+click_text "Notifications"
+wait 20
+expect_visible "Enable Desktop Notifications"
+click_text "Log Out"
+wait 20
+expect_visible "Are you sure you want to logout?"
+click_text "Log Out"
+wait 20
+expect_visible "Welcome back!"

@@ -14,7 +14,7 @@ import "fc:http"
 // printed. State (cookies, installation id) goes to .secrets/live-state-a.
 
 LIVE_GUILD :: Snowflake(1564227669971832975) // "fastcord test"
-LIVE_CHANNEL :: Snowflake(1564227670806364343) // #general
+LIVE_CHANNEL :: Snowflake(1564405699197407414) // #general (recreated 2026-10-26)
 
 @(private = "file")
 live_enabled :: proc() -> bool {

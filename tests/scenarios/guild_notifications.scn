@@ -1,0 +1,30 @@
+# A: header menu -> Notification Settings -> Only @mentions -> Done; then back to All Messages.
+include _open_test_channel.scn
+mark open_guild_notifications
+click [aria-label$="server actions"]
+wait_for [role="menu"]
+pause
+click #guild-header-popout-notifications
+wait_for [role="dialog"]
+settle 1500
+mark guild_notify_mentions
+click_text [role="dialog"] label, [role="dialog"] [role="radio"] | Only @mentions
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 1500
+mark guild_notifications_done
+click_text [role="dialog"] button | Done
+wait_gone [role="dialog"]
+settle 1500
+mark guild_notify_all
+click [aria-label$="server actions"]
+wait_for [role="menu"]
+pause
+click #guild-header-popout-notifications
+wait_for [role="dialog"]
+pause
+click_text [role="dialog"] label, [role="dialog"] [role="radio"] | All Messages
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 1500
+click_text [role="dialog"] button | Done
+wait_gone [role="dialog"]
+settle 2000

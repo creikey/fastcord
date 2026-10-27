@@ -1,0 +1,34 @@
+# A opens the invite modal three ways: header menu -> Invite to Server (then Copy),
+# the guild header's invite icon, and the channel row's "Invite to Channel" icon.
+include _open_test_channel.scn
+mark open_guild_menu
+click [aria-label$="server actions"]
+wait_for [role="menu"]
+pause
+mark invite_from_menu
+click #guild-header-popout-invite-people
+wait_for [role="dialog"] input[value^="https://discord.gg/"] 15000
+settle 2000
+mark copy_invite
+click_text [role="dialog"] button | Copy
+settle 1500
+mark close_invite
+key Escape
+wait_gone [role="dialog"]
+settle 1500
+mark invite_from_header_icon
+click [aria-label="Invite to Server"]
+wait_for [role="dialog"] input[value^="https://discord.gg/"] 15000
+settle 2000
+key Escape
+wait_gone [role="dialog"]
+settle 1500
+mark invite_from_channel_icon
+hover [data-list-item-id="channels___${TTEXT}"]
+pause
+click li:has([data-list-item-id="channels___${TTEXT}"]) [aria-label="Invite to Channel"]
+wait_for [role="dialog"] input[value^="https://discord.gg/"] 15000
+settle 2000
+key Escape
+wait_gone [role="dialog"]
+settle 1500

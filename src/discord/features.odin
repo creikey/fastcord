@@ -1,11 +1,13 @@
 package discord
 
 import "fc:locks"
+import "base:runtime"
 import "core:mem/virtual"
 import "core:strings"
 import "core:thread"
 import "core:time"
 import "fc:etf"
+import "fc:http"
 
 // Threads, forum posts, pins, search and notification inputs.
 //
@@ -17,7 +19,7 @@ import "fc:etf"
 //
 //   GET  /channels/{id}/messages/pins?limit=25[&before=<iso>]   (ChannelPinsActionCreators.fetchPins)
 //   POST /channels/{id}/pins/ack                                 (ReadStateStore.ackPins, opening pins)
-//   GET  /channels/{id}/messages?limit=50&around={mid}           (jump to message; query order before,after,limit,around)
+//   GET  /channels/{id}/messages?limit=30&around={mid}           (jump to message; query order before,after,limit,around; fixture inbox)
 //   POST /channels/{forum}/post-data {"thread_ids":[..]}         (ForumPostMessagesManager, batches of 10)
 //   GET  /channels/{forum}/threads/search?archived=true&sort_by=last_message_time&sort_order=desc&limit=25&tag_setting=match_some&offset=0
 //   GET  /guilds/{id}/messages/search?... /channels/{id}/messages/search?...   (search: see search_messages)
@@ -30,6 +32,7 @@ Thread_Meta :: struct {
 	member_count:    int,
 	archived:        bool,
 	locked:          bool,
+	auto_archive_minutes: int, // thread_metadata.auto_archive_duration
 	joined:          bool, // we are a thread member (shown in the sidebar)
 	applied_tags:    [dynamic]Snowflake,
 	create_ts:       string, // thread_metadata.create_timestamp
@@ -100,6 +103,7 @@ note_thread :: proc(t: etf.Map, me: Snowflake) {
 	if md := fmap(t, "thread_metadata"); md != nil {
 		tm.archived = fbool(md, "archived")
 		tm.locked = fbool(md, "locked")
+		if vhas(md, "auto_archive_duration") do tm.auto_archive_minutes = int(fint(md, "auto_archive_duration"))
 		if ts := fstr(md, "create_timestamp"); ts != "" && tm.create_ts == "" do tm.create_ts = strings.clone(ts, a)
 	}
 	if vhas(t, "applied_tags") {
@@ -160,9 +164,35 @@ extras_on_dispatch :: proc(c: ^Client, name: string, data: V) {
 	extras_dispatch(&c.store, c.allocator, name, data)
 }
 
+// The side tables are process-wide (the app runs one client). Several clients
+// at once (the parallel offline tests) share them: dispatches and teardown are
+// serialized, the tables live on the heap allocator (not one client's), and
+// they are freed when the last client goes (extras_retain / extras_release).
+@(private = "file")
+extras_mu: locks.Mutex
+@(private = "file")
+extras_clients: int
+
+extras_retain :: proc() {
+	locks.lock(&extras_mu)
+	extras_clients += 1
+	locks.unlock(&extras_mu)
+}
+
+// extras_release: c is going away (client_destroy, before store_destroy). Its
+// feature jobs were already ended by feature_pool_release.
+extras_release :: proc(c: ^Client) {
+	locks.lock(&extras_mu)
+	if extras_clients > 0 do extras_clients -= 1
+	locks.unlock(&extras_mu)
+}
+
 // extras_dispatch: the same for a bare Store (offline fixtures).
 extras_dispatch :: proc(s: ^Store, allocator: Allocator, name: string, data: V) {
-	x_allocator = allocator
+	// heap, not the client's allocator: the side tables are shared by every live client
+	locks.lock(&extras_mu)
+	defer locks.unlock(&extras_mu)
+	x_allocator = runtime.heap_allocator()
 	if extras.threads == nil {
 		a := x_alloc()
 		extras.threads = make(map[Snowflake]Thread_Meta, 64, a)
@@ -171,8 +201,10 @@ extras_dispatch :: proc(s: ^Store, allocator: Allocator, name: string, data: V) 
 		extras.new_msgs = make([dynamic]New_Message, a)
 		extras.my_roles = make(map[Snowflake][dynamic]Snowflake, 16, a)
 	}
+	account_dispatch(s, allocator, name, data)
 	me := s.me
 	d := vmap(data)
+	events_dispatch(x_alloc(), me, name, d)
 	switch name {
 	case "READY":
 		guilds := flist(d, "guilds")
@@ -268,10 +300,66 @@ free_thread_meta :: proc(tm: ^Thread_Meta) {
 	delete(tm.first_content, a)
 }
 
-// extras_destroy frees the side tables and stops the feature workers (called
-// from store_destroy, after the client has set quit).
-extras_destroy :: proc() {
+// feature_pool_retain / feature_pool_release: client_create / client_destroy.
+// Release drops the client's queued jobs and unread results and waits for its
+// running ones, so other live clients keep the pool and the side tables.
+feature_pool_retain :: proc(c: ^Client) {
 	locks.lock(&fpool.mu)
+	fpool.clients += 1
+	locks.unlock(&fpool.mu)
+}
+
+feature_pool_release :: proc(c: ^Client) {
+	context.allocator = runtime.heap_allocator()
+	locks.lock(&fpool.mu)
+	fpool.clients -= 1
+	if fpool.owner == c do fpool.owner = nil
+	for i := 0; i < len(fpool.jobs); {
+		j := fpool.jobs[i]
+		if j.client != c {
+			i += 1
+			continue
+		}
+		delete(j.method)
+		delete(j.path)
+		delete(j.body)
+		delete(j.context_b64)
+		delete(j.file)
+		ordered_remove(&fpool.jobs, i)
+	}
+	for i := 0; i < len(fpool.results); {
+		if fpool.results[i].client != c {
+			i += 1
+			continue
+		}
+		feature_result_free(&fpool.results[i])
+		ordered_remove(&fpool.results, i)
+	}
+	locks.cond_broadcast(&fpool.cond)
+	for {
+		busy := false
+		for x in fpool.inflight do if x == c do busy = true
+		if !busy do break
+		locks.unlock(&fpool.mu)
+		time.sleep(2 * time.Millisecond)
+		locks.lock(&fpool.mu)
+	}
+	locks.unlock(&fpool.mu)
+}
+
+// extras_destroy frees the side tables and stops the feature workers (called
+// from store_destroy, after the client has set quit). Nothing while another
+// client is alive (feature_pool_release).
+extras_destroy :: proc() {
+	context.allocator = runtime.heap_allocator()
+	locks.lock(&extras_mu)
+	defer locks.unlock(&extras_mu)
+	if extras_clients > 0 do return // another client still uses them
+	locks.lock(&fpool.mu)
+	if fpool.clients > 0 {
+		locks.unlock(&fpool.mu)
+		return
+	}
 	threads := fpool.threads
 	fpool.threads = {}
 	fpool.owner = nil
@@ -285,11 +373,15 @@ extras_destroy :: proc() {
 		delete(j.method)
 		delete(j.path)
 		delete(j.body)
+		delete(j.context_b64)
+		delete(j.file)
 	}
 	delete(fpool.jobs)
 	for &r in fpool.results do feature_result_free(&r)
 	delete(fpool.results)
+	delete(fpool.inflight)
 	fpool = {}
+	events_destroy()
 
 	if extras.threads == nil do return
 	a := x_alloc()
@@ -343,8 +435,17 @@ forum_tags :: proc(forum_id: Snowflake) -> []Forum_Tag {
 pins_epoch :: proc(channel_id: Snowflake) -> int {return extras.pins_epoch[channel_id]}
 
 my_guild_roles :: proc(guild_id: Snowflake) -> []Snowflake {
-	if l, ok := extras.my_roles[guild_id]; ok do return l[:]
+	locks.lock(&extras_mu)
+	defer locks.unlock(&extras_mu)
+	if l, ok := extras.my_roles[guild_id]; ok do return slice_clone_temp(l[:])
 	return nil
+}
+
+@(private = "file")
+slice_clone_temp :: proc(l: []Snowflake) -> []Snowflake {
+	out := make([]Snowflake, len(l), context.temp_allocator)
+	copy(out, l)
+	return out
 }
 
 is_thread :: proc(ch: ^Channel) -> bool {
@@ -451,6 +552,25 @@ Feature_Op :: enum u8 {
 	Forum_Posts,
 	Thread_Search,
 	Search,
+	Thread_Browse, // inbox.odin
+	Mentions,
+	Mention_Delete,
+	Thread_Create,
+	User_Patch, // account.odin
+	Profile_Patch,
+	// guild_admin.odin (guild_admin_apply first)
+	Event_Create,
+	Event_Counts,
+	Event_Rsvps,
+	Event_Interest,
+	Event_Invite,
+	Event_Delete,
+	Event_Start,
+	Guild_Aux, // GETs / acks whose bodies nothing reads
+	Channel_Create,
+	Channel_Edit,
+	Channel_Delete,
+	Emoji_Upload,
 }
 
 Feature_Result :: struct {
@@ -461,9 +581,10 @@ Feature_Result :: struct {
 	status:     int,
 	body:       V,
 	arena:      ^virtual.Arena,
+	client:     ^Client, // the client that submitted it
 }
 
-@(private = "file")
+@(private)
 F_Job :: struct {
 	op:         Feature_Op,
 	tag:        u64,
@@ -473,6 +594,8 @@ F_Job :: struct {
 	body:       string,
 	retries:    int,
 	client:     ^Client,
+	context_b64: string, // x-context-properties
+	file:       string, // read and encoded on the worker (file_job_body)
 }
 
 @(private = "file")
@@ -483,6 +606,8 @@ F_Pool :: struct {
 	results: [dynamic]Feature_Result,
 	threads: [dynamic]^thread.Thread,
 	owner:   ^Client,
+	clients: int, // live clients (tests run several at once); the pool and side tables outlive all but the last
+	inflight: [dynamic]^Client, // clients of the jobs being run now
 }
 
 @(private = "file")
@@ -490,10 +615,13 @@ fpool: F_Pool
 
 @(private = "file")
 f_worker :: proc(_: rawptr) {
+	context.allocator = runtime.heap_allocator() // the pool outlives the client that started it
 	for {
 		locks.lock(&fpool.mu)
 		for len(fpool.jobs) == 0 {
-			if fpool.owner == nil || fpool.owner.quit {
+			// stop only in extras_destroy (no live client): a test client going
+			// away must not take the workers from the clients still running
+			if len(fpool.threads) == 0 {
 				locks.unlock(&fpool.mu)
 				return
 			}
@@ -501,31 +629,40 @@ f_worker :: proc(_: rawptr) {
 		}
 		j := fpool.jobs[0]
 		ordered_remove(&fpool.jobs, 0)
+		append(&fpool.inflight, j.client)
 		locks.unlock(&fpool.mu)
 		if !j.client.quit {
-			ctype := "application/json" if j.body != "" else ""
-			r := api_call(j.client, j.method, j.path, transmute([]byte)j.body, ctype, "", nil, j.retries, 1)
-			res := Feature_Result{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena}
+			body, file_status := j.body, 0
+			extra: []http.Header
+			if j.file != "" do body, extra, file_status = file_job_body(j.file, j.body)
+			ctype := "application/json" if body != "" else ""
+			r: Api_Response
+			if file_status == 0 do r = api_call(j.client, j.method, j.path, transmute([]byte)body, ctype, j.context_b64, extra, j.retries, 1)
+			res := Feature_Result{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena, client = j.client}
+			if file_status != 0 do res.status = file_status // the file couldn't be read / is too large
 			locks.lock(&fpool.mu)
 			append(&fpool.results, res)
 			locks.unlock(&fpool.mu)
 			if j.client.cfg.wakeup != nil do j.client.cfg.wakeup(j.client.cfg.wakeup_data)
 		}
+		locks.lock(&fpool.mu)
+		for x, i in fpool.inflight do if x == j.client {unordered_remove(&fpool.inflight, i); break}
+		locks.unlock(&fpool.mu)
 		delete(j.method)
 		delete(j.path)
 		delete(j.body)
+		delete(j.context_b64)
+		delete(j.file)
 		free_all(context.temp_allocator)
 	}
 }
 
-@(private = "file")
+@(private)
 f_submit :: proc(c: ^Client, j: F_Job) {
+	context.allocator = runtime.heap_allocator()
 	locks.lock(&fpool.mu)
 	defer locks.unlock(&fpool.mu)
-	if fpool.owner != c {
-		fpool.owner = c
-		clear(&fpool.threads)
-	}
+	fpool.owner = c // the workers serve every client's jobs (j.client); they stop in extras_destroy
 	if len(fpool.threads) == 0 {
 		for _ in 0 ..< 2 do append(&fpool.threads, thread.create_and_start_with_data(nil, f_worker, c.ctx))
 	}
@@ -534,21 +671,55 @@ f_submit :: proc(c: ^Client, j: F_Job) {
 	jj.method = strings.clone(j.method)
 	jj.path = strings.clone(j.path)
 	jj.body = strings.clone(j.body)
+	jj.context_b64 = strings.clone(j.context_b64)
+	jj.file = strings.clone(j.file)
 	append(&fpool.jobs, jj)
 	locks.cond_signal(&fpool.cond)
+}
+
+// feature_submit queues a REST call whose result comes back through feature_take
+// (for feature files outside this one). `file`: read and encoded on the worker.
+feature_submit :: proc(c: ^Client, op: Feature_Op, method, path: string, body := "", channel_id: Snowflake = 0, tag: u64 = 0, retries := 0, context_b64 := "", file := "") {
+	f_submit(c, {op = op, tag = tag, channel_id = channel_id, method = method, path = path, body = body, retries = retries, context_b64 = context_b64, file = file})
 }
 
 // feature_take returns finished feature requests (UI thread). Free each with feature_result_free.
 feature_take :: proc(c: ^Client, allocator := context.temp_allocator) -> []Feature_Result {
 	locks.lock(&fpool.mu)
 	defer locks.unlock(&fpool.mu)
-	out := make([]Feature_Result, len(fpool.results), allocator)
-	copy(out, fpool.results[:])
-	clear(&fpool.results)
-	return out
+	out := make([dynamic]Feature_Result, 0, len(fpool.results), allocator)
+	k := 0
+	for r in fpool.results {
+		if r.client == c || r.client == nil {
+			append(&out, r)
+		} else {
+			fpool.results[k] = r // another client's (tests run several at once)
+			k += 1
+		}
+	}
+	resize(&fpool.results, k)
+	return out[:]
+}
+
+// feature_take_for: like feature_take, only the results of client c (tests run
+// several clients at once; the others' results stay queued).
+feature_take_for :: proc(c: ^Client, allocator := context.temp_allocator) -> []Feature_Result {
+	locks.lock(&fpool.mu)
+	defer locks.unlock(&fpool.mu)
+	out := make([dynamic]Feature_Result, allocator)
+	for i := 0; i < len(fpool.results); {
+		if fpool.results[i].client == c {
+			append(&out, fpool.results[i])
+			ordered_remove(&fpool.results, i)
+		} else {
+			i += 1
+		}
+	}
+	return out[:]
 }
 
 feature_result_free :: proc(r: ^Feature_Result) {
+	context.allocator = runtime.heap_allocator()
 	if r.arena != nil {
 		virtual.arena_destroy(r.arena)
 		free(r.arena)
@@ -575,7 +746,7 @@ ack_pins :: proc(c: ^Client, channel_id: Snowflake) {
 fetch_messages_around :: proc(c: ^Client, channel_id, message_id: Snowflake, tag: u64 = 0) {
 	q: Query
 	query_init(&q, channel_path(channel_id, "/messages"))
-	query_add_int(&q, "limit", 50)
+	query_add_int(&q, "limit", 30)
 	query_add_snow(&q, "around", message_id)
 	f_submit(c, {op = .Around, tag = tag, channel_id = channel_id, method = "GET", path = query_string(&q), retries = 2})
 }

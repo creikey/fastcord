@@ -116,3 +116,85 @@ test_corruption :: proc(t: ^testing.T) {
 		}
 	}
 }
+
+@(test)
+test_png_encode_roundtrip :: proc(t: ^testing.T) {
+	// a gradient with a flat area and noise: every filter and both literals and matches
+	w, h := 97, 61
+	px := make([]byte, w * h * 4, context.temp_allocator)
+	for y in 0 ..< h do for x in 0 ..< w {
+		p := px[(y * w + x) * 4:]
+		p[0] = u8(x * 2)
+		p[1] = y < 30 ? 40 : u8(rand.uint32())
+		p[2] = u8(x + y)
+		p[3] = u8(255 - y)
+	}
+	png := encode_png(px, w, h, context.temp_allocator)
+	testing.expect_value(t, sniff(png), Format.PNG)
+	img, err := decode(png, context.temp_allocator)
+	testing.expect_value(t, err, Error.None)
+	testing.expect_value(t, img.width, w)
+	testing.expect_value(t, img.height, h)
+	if len(img.frames) == 1 do testing.expect(t, string(img.frames[0].pixels) == string(px), "pixels differ after encode + decode")
+	// flat images compress well (stored would be > 4 * w * h)
+	flat := make([]byte, 512 * 512 * 4, context.temp_allocator)
+	testing.expect(t, len(encode_png(flat, 512, 512, context.temp_allocator)) < 16384)
+	// a 1x1 image and an empty stream are valid
+	one := []byte{1, 2, 3, 4}
+	d1, e1 := decode(encode_png(one, 1, 1, context.temp_allocator), context.temp_allocator)
+	testing.expect_value(t, e1, Error.None)
+	if len(d1.frames) == 1 do testing.expect(t, string(d1.frames[0].pixels) == string(one))
+}
+
+@(private = "file")
+webp_roundtrip :: proc(t: ^testing.T, px: []byte, w, h: int, loc := #caller_location) -> int {
+	webp := encode_webp_lossless(px, w, h, context.temp_allocator)
+	testing.expect_value(t, sniff(webp), Format.WebP, loc = loc)
+	img, err := decode(webp, context.temp_allocator)
+	testing.expect_value(t, err, Error.None, loc = loc)
+	if err == .None && len(img.frames) == 1 {
+		testing.expect_value(t, img.width, w, loc = loc)
+		testing.expect_value(t, img.height, h, loc = loc)
+		got := img.frames[0].pixels
+		for i in 0 ..< w * h {
+			if string(got[i * 4:][:4]) != string(px[i * 4:][:4]) {
+				testing.expectf(t, false, "WebP round trip: pixel %d (x %d y %d) got %v want %v", i, i % w, i / w, got[i * 4:][:4], px[i * 4:][:4], loc = loc)
+				break
+			}
+		}
+	}
+	return len(webp)
+}
+
+@(test)
+test_webp_lossless_roundtrip :: proc(t: ^testing.T) {
+	// a smooth gradient (predictors), noise (literals), flat runs (LZ77 / cache), alpha
+	w, h := 131, 77
+	px := make([]byte, w * h * 4, context.temp_allocator)
+	for y in 0 ..< h do for x in 0 ..< w {
+		p := px[(y * w + x) * 4:]
+		p[0] = u8(x * 2)
+		p[1] = y < 20 ? 40 : (y < 50 ? u8(x + y) : u8(rand.uint32()))
+		p[2] = u8(x ~ y)
+		p[3] = x < 60 ? 255 : u8(y * 3)
+	}
+	webp_roundtrip(t, px, w, h)
+	// palette images: <= 2, <= 4, <= 16, <= 256 colors (pixel bundling)
+	for ncol in ([]int{1, 2, 3, 11, 200}) {
+		for i in 0 ..< w * h {
+			c := (i * 7 + i / w) % ncol
+			px[i * 4 + 0], px[i * 4 + 1], px[i * 4 + 2], px[i * 4 + 3] = u8(c * 37), u8(c * 11), u8(c), 255
+		}
+		webp_roundtrip(t, px, w, h)
+	}
+	// 1x1 and a single row / column
+	webp_roundtrip(t, []byte{9, 8, 7, 255}, 1, 1)
+	webp_roundtrip(t, px[:w * 4], w, 1)
+	webp_roundtrip(t, px[:h * 4], 1, h)
+	// the parity test image (a 64x48 gradient PNG)
+	src := file("t_basn2c08.png")
+	if src != nil {
+		img, err := decode(src, context.temp_allocator)
+		if err == .None do webp_roundtrip(t, img.frames[0].pixels, img.width, img.height)
+	}
+}

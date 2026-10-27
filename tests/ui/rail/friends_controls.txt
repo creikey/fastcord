@@ -25,7 +25,7 @@ expect_visible "Where would you like to go?"
 # focuses the field (the popout used to drop the focus it had just been given)
 key escape
 wait 10
-click 349 286
+click 349 166
 wait 20
 click 650 114
 wait 20

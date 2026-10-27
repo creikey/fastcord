@@ -1,0 +1,45 @@
+# A creates a text channel from the Text Channels category "+", edits its topic in
+# Channel Settings (gear on hover) -> Save, then deletes it (Delete Channel -> confirm).
+include _open_test_channel.scn
+mark open_create_channel
+click [aria-label="Create Channel"]
+wait_for [role="dialog"] input[placeholder="new-channel"]
+settle 1500
+mark create_channel_name
+click [role="dialog"] input[placeholder="new-channel"]
+type fc-temp
+pause
+mark create_channel_submit
+click_text [role="dialog"] button | Create Channel
+wait_gw CHANNEL_CREATE 20000
+wait_gone [role="dialog"]
+settle 2500
+let NEWCH location.pathname.split('/')[3]
+snap created
+mark channel_settings_open
+hover [data-list-item-id="channels___${NEWCH}"]
+pause
+click li:has([data-list-item-id="channels___${NEWCH}"]) [aria-label="Edit Channel"]
+wait_for [role="dialog"] [role="textbox"][aria-label="Let everyone know how to use this channel!"]
+settle 2000
+mark channel_topic_type
+click [role="dialog"] [role="textbox"][aria-label="Let everyone know how to use this channel!"]
+type fastcord temporary channel
+wait 1200
+snap topic_typed
+mark channel_settings_save
+click_text button | Save Changes
+wait_gw CHANNEL_UPDATE 20000
+settle 2000
+mark channel_delete_open
+click_text [role="dialog"] [role="tab"], [role="dialog"] [role="button"], [role="dialog"] div | Delete Channel
+wait 1500
+snap delete_confirm
+js [...document.querySelectorAll('[role=dialog] button, [role=alertdialog] button')].map(e=>(e.getAttribute('aria-label')||e.innerText||'').trim().split('\n')[0]).join(' | ')
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] button, [role="alertdialog"] button')].filter(e=>e.innerText.trim()==='Delete Channel');b[b.length-1].setAttribute('data-fc','delete-channel-confirm');return b.length})()
+settle 1000
+mark channel_delete_confirm
+click [data-fc="delete-channel-confirm"]
+wait_gw CHANNEL_DELETE 20000
+settle 2500
+snap deleted

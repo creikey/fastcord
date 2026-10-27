@@ -1,0 +1,93 @@
+# User Settings: open (My Account), reveal email; Profiles: pronouns + About Me -> Save,
+# restore -> Save; display name -> Save, restore -> Save; Notifications: toggle
+# page view only (the toggle is in streamer_mode.scn); Appearance: theme "Sync with computer" on, back to Dark.
+include _open_test_channel.scn
+mark open_settings
+click button[aria-label="User Settings"]
+wait_for [data-list-item-id="settings-sidebar___account_panel"]
+settle 2500
+mark reveal_email
+click [aria-label="Reveal email address"]
+settle 2000
+mark open_profiles
+click [role="dialog"] [class*="editProfilesRow"]
+wait_for [role="dialog"] input[placeholder="Add pronouns"]
+settle 2500
+mark profile_edit_pronouns_bio
+click [role="dialog"] input[placeholder="Add pronouns"]
+type fc/test
+pause
+click [role="dialog"] div:has(> [aria-label="Edit bio"])
+wait_for [role="dialog"] [class*="editableContent"] [role="textbox"]
+click [role="dialog"] [class*="editableContent"] [role="textbox"]
+type fastcord test bio
+pause
+snap profile_edited
+mark profile_save
+click_text [role="dialog"] button | Save
+wait_gw USER_UPDATE 15000
+settle 2000
+mark profile_restore_pronouns_bio
+click [role="dialog"] input[placeholder="Add pronouns"]
+key a meta
+key Backspace
+pause
+click [role="dialog"] div:has(> [aria-label="Edit bio"])
+wait_for [role="dialog"] [class*="editableContent"] [role="textbox"]
+click [role="dialog"] [class*="editableContent"] [role="textbox"]
+key a meta
+key Backspace
+pause
+mark profile_restore_save
+click_text [role="dialog"] button | Save
+wait_gw USER_UPDATE 15000
+settle 2000
+mark profile_edit_display_name
+click [role="dialog"] input[placeholder="${A_NAME}"]
+key a meta
+type Dingus Test
+pause
+# The Save/Reset bar only shows once the name field loses focus.
+click [role="dialog"] section[aria-labelledby] h2
+wait_for [role="dialog"] button:not([disabled])
+pause
+mark display_name_save
+click_text [role="dialog"] button | Save
+wait_gw USER_UPDATE 15000
+settle 2000
+mark display_name_restore
+click [role="dialog"] input[placeholder="${A_NAME}"]
+key a meta
+type Dingus Battle
+pause
+click [role="dialog"] section[aria-labelledby] h2
+pause
+mark display_name_restore_save
+click_text [role="dialog"] button | Save
+wait_gw USER_UPDATE 15000
+settle 2000
+snap profile_restored
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];if(b.length)b[b.length-1].setAttribute('data-fc','close-profile');return b.length})()
+mark close_profiles
+click [data-fc="close-profile"]
+wait_gone [role="dialog"] input[placeholder="Add pronouns"]
+settle 1500
+mark open_notifications_settings
+click [data-list-item-id="settings-sidebar___notifications_panel"]
+wait_for [role="dialog"] input[role="switch"]
+settle 2000
+mark open_appearance
+click [data-list-item-id="settings-sidebar___appearance_panel"]
+wait_for [role="dialog"] [role="radio"][aria-label="Sync with computer"]
+settle 2000
+mark appearance_sync_on
+click [role="dialog"] [role="radio"][aria-label="Sync with computer"]
+settle 2500
+mark appearance_sync_off
+click [role="dialog"] [role="radio"][aria-label="Dark"]
+settle 2500
+js (()=>{const b=[...document.querySelectorAll('[role="dialog"] [aria-label="Close"]')];if(b.length)b[b.length-1].setAttribute('data-fc','close-settings');return b.length})()
+mark close_settings
+click [data-fc="close-settings"]
+wait_gone [role="dialog"]
+settle 2000

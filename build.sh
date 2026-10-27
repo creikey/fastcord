@@ -34,8 +34,11 @@ case "${1:-app}" in
   app)  odin build src/app -out:build/fastcord$EXE $FLAGS -o:speed ;;
   debug) odin build src/app -out:build/fastcord-debug$EXE $FLAGS -debug ;;
   dev) odin build src/app -out:build/fastcord-dev$EXE $FLAGS -debug -o:speed ;;
+  # dev with per-package LLVM modules: builds in ~3 s instead of ~50 s, UI pass ~10% slower.
+  # For the test suite (run_all.sh); judge speed with dev.
+  check) odin build src/app -out:build/fastcord-check$EXE $FLAGS -debug -o:speed -use-separate-modules ;;
   test) odin test "src/$2" $FLAGS -out:build/test-$(echo $2 | tr / _)$EXE ;;
   tool) odin build "tools/$2" -out:build/$2$EXE $FLAGS ;;
   c) ;;
-  *) echo "usage: $0 [app|debug|dev|test <pkg>|tool <name>|c]"; exit 2 ;;
+  *) echo "usage: $0 [app|debug|dev|check|test <pkg>|tool <name>|c]"; exit 2 ;;
 esac

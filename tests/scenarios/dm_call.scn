@@ -1,0 +1,37 @@
+# A starts a voice call in the DM with B (ring); B sees the incoming call and joins
+# from the ring; A hangs up, then B leaves.
+use b
+mark setup_b
+reload
+include _friends_home.scn
+use a
+mark setup
+reload
+click [data-list-item-id="guildsnav___home"]
+wait_for [data-list-item-id$="___${DM_AB}"]
+click [data-list-item-id$="___${DM_AB}"]
+wait_for div[role="textbox"][aria-label^="Message @"]
+settle 2000
+mark start_call
+click section[aria-label="Channel header"] [aria-label="Start Voice Call"]
+wait_gw VOICE_SERVER_UPDATE 20000
+use b
+wait_gw CALL_CREATE 20000
+wait 2500
+snap incoming_call
+js [...document.querySelectorAll('[aria-label]')].map(e=>e.getAttribute('aria-label')).filter(t=>/call|join|decline|ignore|accept/i.test(t)).join(' | ')
+mark b_join_from_ring
+optional click [aria-label="Join Call"]
+optional wait_gw VOICE_STATE_UPDATE 15000
+wait 5000
+snap b_in_call
+use a
+snap a_in_call
+mark a_hang_up
+click [aria-label="Disconnect"]
+settle 2500
+use b
+mark b_leave_call
+optional click [aria-label="Disconnect"]
+settle 3000
+snap b_after

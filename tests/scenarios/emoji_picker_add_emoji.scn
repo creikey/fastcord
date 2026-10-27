@@ -1,0 +1,17 @@
+# A opens the composer emoji picker and clicks its "Add Emoji" button (guild owner).
+# NOTE: the button is a file <input>: it opens a native macOS open panel (no traffic).
+# Close that panel by hand (Escape on the test window) after the run.
+include _open_test_channel.scn
+mark open_emoji_picker
+click form [aria-label="Add Emoji"]
+wait_for input[placeholder="Find the perfect emoji"]
+settle 2000
+mark picker_add_emoji
+click_text button | Add Emoji
+wait 2500
+snap after_add_emoji
+js [...document.querySelectorAll('[role=dialog] button, [role=dialog] input')].map(e=>(e.getAttribute('aria-label')||e.getAttribute('type')+':'+e.innerText||'').trim().split('\n')[0]).join(' | ')
+settle 2000
+mark close_add_emoji
+key Escape
+settle 2000

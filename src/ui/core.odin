@@ -192,6 +192,8 @@ Key_Code :: enum u16 {
 	Z,
 	K,
 	F,
+	Left_Bracket,
+	Right_Bracket,
 	Other,
 }
 

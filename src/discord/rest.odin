@@ -3,6 +3,7 @@ package discord
 import "fc:locks"
 import "core:mem/virtual"
 import "core:strings"
+import "core:sync"
 import "core:time"
 import "fc:etf"
 import "fc:http"
@@ -47,6 +48,9 @@ Job :: struct {
 	files:        []Upload_File,
 	message_json: proc(j: ^Job, attachments_json: string) -> []byte, // builds the final send body
 	upload_ctx:   rawptr,
+	draft:        u64, // upload of one staged draft (uploads.odin)
+	drafts:       []Draft_Attachment, // message send waiting on these drafts
+	requeue:      bool, // run again at not_before instead of being freed
 	no_auth:      bool, // logged-out request (no authorization header)
 	no_super_props: bool,
 	etag:         bool, // fetch(cache:'no-cache') + remembered If-None-Match
@@ -54,6 +58,10 @@ Job :: struct {
 	no_cookies:   bool, // cross-origin: If-None-Match makes it a preflighted request
 	preflight_only: bool, // send only the CORS preflight (the request is a later job)
 	on_body:      proc(c: ^Client, body: V), // worker-side follow-up on a 2xx JSON body
+	on_done:      proc(c: ^Client, j: ^Job, status: int), // worker-side, after any response (status 0: network failure)
+	track_props:  string, // on_done's event properties, built on the UI thread (job arena)
+	on_response:  proc(c: ^Client, j: ^Job, status: int, body: V), // worker-side, after any response, with the body
+	started_ms:   f64, // when the request was dispatched (on_done timings)
 	js_lower_auth: bool, // page code set "authorization" (lowercase): only DevTools' view differs
 	media:        Media_Request,
 }
@@ -110,9 +118,14 @@ worker_proc :: proc(c: ^Client) {
 		tl_dispatch_ms = now_ms_f()
 		locks.unlock(&c.job_mu)
 		run_job(c, j)
-		job_free(j)
 		free_all(context.temp_allocator)
 		locks.lock(&c.job_mu)
+		if j.requeue && !c.quit {
+			j.requeue = false
+			append(&c.jobs, j)
+		} else {
+			job_free(j)
+		}
 	}
 	locks.unlock(&c.job_mu)
 }
@@ -126,7 +139,16 @@ run_job :: proc(c: ^Client, j: ^Job) {
 		if j.op == .Media do run_media(c, j)
 		else do run_web(c, j)
 	case .Upload:
-		run_upload(c, j)
+		if j.draft != 0 {
+			run_draft_upload(c, j)
+		} else if len(j.drafts) > 0 {
+			if run_draft_send(c, j) {
+				j.requeue = true
+				j.not_before = now_ms() + 50
+			}
+		} else {
+			run_upload(c, j)
+		}
 	}
 }
 
@@ -169,7 +191,8 @@ api_call :: proc(c: ^Client, method, path: string, body: []byte, content_type, c
 			has_body        = len(body) > 0,
 			body_len        = len(body),
 			content_type    = content_type,
-			token           = "" if no_auth else c.token,
+			token           = "" if no_auth else client_token(c),
+			fingerprint     = auth_fingerprint(c),
 			installation_id = c.id.installation_id,
 			super_props_b64 = "" if no_super_props else super_properties_b64(&c.id, now),
 			context_b64     = context_b64,
@@ -246,6 +269,7 @@ run_api :: proc(c: ^Client, j: ^Job) {
 		extra = e[:]
 	}
 	tl_js_lower_auth = j.js_lower_auth
+	j.started_ms = tl_dispatch_ms
 	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer)
 	tl_js_lower_auth = false
 	if j.etag && r.status == 200 do if tag, ok := http.header_get(r.headers, "etag"); ok do etag_put(c, url, tag)
@@ -270,6 +294,8 @@ run_api :: proc(c: ^Client, j: ^Job) {
 	}
 	if j.op == .Startup && r.ok && strings.has_prefix(j.path, "/quests/@me") do note_quest_applications(c, r.body)
 	if j.on_body != nil && r.ok do j.on_body(c, r.body)
+	if j.on_done != nil do j.on_done(c, j, r.status)
+	if j.on_response != nil do j.on_response(c, j, r.status, r.body)
 	push_result(c, j, r)
 }
 
@@ -474,49 +500,17 @@ run_web :: proc(c: ^Client, j: ^Job) {
 run_upload :: proc(c: ^Client, j: ^Job) {
 	cid := j.result.channel_id
 	alloc := job_alloc(j)
-	// 1. upload URLs (one request per file, as each CloudUpload does)
+	// 1+2. upload URL, preflight + PUT per file (as each CloudUpload does)
 	uploaded := make([dynamic][3]string, 0, len(j.files), alloc) // filename, upload_filename, mime
-	for f in j.files {
-		w: Json
-		json_init(&w)
-		json_obj(&w)
-		json_key(&w, "files")
-		json_arr(&w)
-		json_obj(&w)
-		json_kstr(&w, "filename", f.filename)
-		json_kint(&w, "file_size", i64(len(f.data)))
-		locks.lock(&c.job_mu)
-		c.upload_seq += 1
-		uid := c.upload_seq
-		locks.unlock(&c.job_mu)
-		json_kstr(&w, "id", itoa(uid))
-		json_kbool(&w, "is_clip", false)
-		if f.mime != "" do json_kstr(&w, "original_content_type", f.mime)
-		json_obj_end(&w)
-		json_arr_end(&w)
-		json_obj_end(&w)
-		body := transmute([]byte)json_string(&w)
-		r := api_call(c, "POST", strings.concatenate({"/channels/", snowflake_string(cid), "/attachments"}, context.temp_allocator), body, "application/json", "", nil, 0, 0)
-		if !r.ok {
-			push_result(c, j, r)
-			return
-		}
-		att := flist(vmap(r.body), "attachments")
-		if len(att) == 0 {
-			r.ok = false
-			push_result(c, j, r)
-			return
-		}
-		up_url := strings.clone(fstr(vmap(att[0]), "upload_url"), alloc)
-		up_name := strings.clone(fstr(vmap(att[0]), "upload_filename"), alloc)
-		virtual.arena_destroy(r.arena)
-		free(r.arena)
-		// 2. preflight + PUT
-		if !upload_put(c, up_url, f.data) {
+	for f0 in j.files {
+		f := f0
+		if conv := webp_try_convert(sync.atomic_load(&c.webp_variation), f.mime, f.data); conv.converted do f.data = conv.data
+		name, ok, _, _ := upload_one(c, cid, f)
+		if !ok {
 			client_push_event(c, Event{kind = .Rest, result = Rest_Result{op = .Upload, channel_id = cid, nonce = j.result.nonce, ok = false}})
 			return
 		}
-		append(&uploaded, [3]string{f.filename, up_name, f.mime})
+		append(&uploaded, [3]string{f.filename, strings.clone(name, alloc), f.mime})
 	}
 	// 3. the message
 	w: Json
@@ -574,6 +568,8 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 	r := &e.result
 	context.allocator = s.allocator
 	switch r.op {
+	case .Auth:
+		auth_apply(c, e)
 	case .Fetch_Messages:
 		l := message_list(s, r.channel_id)
 		l.loading = false
@@ -619,9 +615,11 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 				found := false
 				for pc in s.private_channels do if pc == cid do found = true
 				if !found do append(&s.private_channels, cid)
+				analytics_group_dm_created(c, cid)
 			}
 		}
 	case .Fetch_Profile:
+		defer if r.ok do analytics_on_profile(c, r.user_id)
 		if r.ok {
 			m := vmap(e.data)
 			uid := parse_user_into(s, fmap(m, "user"))
@@ -636,7 +634,7 @@ client_apply_rest :: proc(c: ^Client, e: ^Event) {
 		}
 	case .Settings:
 		if r.ok do if sp := fstr(vmap(e.data), "settings"); sp != "" do apply_settings_proto(s, sp)
-	case .None, .Media, .Add_Reaction, .Remove_Reaction, .Typing, .Ack, .Relationship, .Experiments, .Startup, .Guild_Open:
+	case .None, .Media, .Add_Reaction, .Remove_Reaction, .Typing, .Ack, .Relationship, .Experiments, .Startup, .Guild_Open, .Invite:
 	}
 }
 

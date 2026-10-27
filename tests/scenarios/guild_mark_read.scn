@@ -1,0 +1,22 @@
+# B posts while A is on Friends; A marks the whole guild read from the guild icon
+# context menu (0.0.419's header dropdown has no "Mark As Read").
+include _b_open_test_channel.scn
+use a
+mark setup
+reload
+include _friends_home.scn
+use b
+mark b_sends
+click div[role="textbox"][aria-label^="Message "]
+type message for the guild mark-read test
+key Enter
+use a
+wait_gw MESSAGE_CREATE 20000
+settle 2000
+mark open_guild_context_menu
+rclick [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for #guild-context-mark-guild-read
+settle 1200
+mark guild_mark_read
+click #guild-context-mark-guild-read
+settle 3000

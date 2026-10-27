@@ -96,6 +96,11 @@ Identity :: struct {
 	// the first time the header was built (extendSuperProperties appends).
 	hb_key_order_fixed:     bool,
 	hb_before_app_state:    bool,
+	// logged out: no heartbeat session. identify_hb_stale: logged in from the
+	// login page, the super properties object IDENTIFY copies has not been
+	// refreshed with the new session id yet (the HTTP util refreshes it per request)
+	logged_out:             bool,
+	identify_hb_stale:      bool,
 	nonces:                 Nonce_Gen,
 	allocator:              Allocator,
 }
@@ -118,7 +123,7 @@ identity_touch_heartbeat :: proc(id: ^Identity, now: i64) -> (created: bool) {
 
 @(private)
 touch_heartbeat_locked :: proc(id: ^Identity, now: i64) -> (created: bool) {
-	if id.app_state != .Focused do return false
+	if id.app_state != .Focused || id.logged_out do return false
 	if heartbeat_session_expired(id.heartbeat, now) {
 		if id.heartbeat.uuid != "" do delete(id.heartbeat.uuid, id.allocator)
 		id.heartbeat = {uuid4(id.allocator), now, now}
@@ -130,7 +135,7 @@ touch_heartbeat_locked :: proc(id: ^Identity, now: i64) -> (created: bool) {
 
 @(private)
 current_heartbeat_locked :: proc(id: ^Identity, now: i64) -> string {
-	if heartbeat_session_expired(id.heartbeat, now) do return ""
+	if id.logged_out || heartbeat_session_expired(id.heartbeat, now) do return ""
 	return id.heartbeat.uuid
 }
 
@@ -204,6 +209,39 @@ context_location :: proc(location: string, allocator := context.temp_allocator) 
 
 context_b64 :: proc(json_text: string, allocator := context.temp_allocator) -> string {
 	return base64.encode(transmute([]byte)json_text, allocator = allocator)
+}
+
+// identity_set_logged_out: LOGOUT drops the heartbeat session; LOGIN_SUCCESS
+// starts a new one at once (fixture login_submit: op 41's initialization
+// timestamp is the login's), which IDENTIFY does not carry yet.
+identity_set_logged_out :: proc(id: ^Identity, logged_out: bool, now: i64 = 0) {
+	locks.lock(&id.mu)
+	defer locks.unlock(&id.mu)
+	id.logged_out = logged_out
+	if logged_out && id.heartbeat.uuid != "" {
+		delete(id.heartbeat.uuid, id.allocator)
+		id.heartbeat = {}
+	}
+	if !logged_out {
+		touch_heartbeat_locked(id, now)
+		id.identify_hb_stale = true
+	}
+}
+
+// identity_take_identify_hb_stale: true once after a login from the login page (IDENTIFY).
+identity_take_identify_hb_stale :: proc(id: ^Identity) -> bool {
+	locks.lock(&id.mu)
+	defer locks.unlock(&id.mu)
+	v := id.identify_hb_stale
+	id.identify_hb_stale = false
+	return v
+}
+
+// identity_hb_key_before_app_state: the super properties gained the heartbeat key before client_app_state.
+identity_hb_key_before_app_state :: proc(id: ^Identity) -> bool {
+	locks.lock(&id.mu)
+	defer locks.unlock(&id.mu)
+	return id.hb_key_order_fixed && id.hb_before_app_state
 }
 
 identity_set_app_state :: proc(id: ^Identity, s: App_State) {

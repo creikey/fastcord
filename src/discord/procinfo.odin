@@ -40,7 +40,7 @@ Cpu_Sampler :: struct {
 cpu_sampler: Cpu_Sampler
 
 // process_cpu_percent: like Electron's getCPUUsage().percentCPUUsage (one core = 100).
-process_cpu_percent :: proc() -> (pct: int, ok: bool) {
+process_cpu_percent :: proc() -> (pct: f64, ok: bool) {
 	cpu, cok := _process_cpu_time()
 	if !cok do return 0, false
 	locks.lock(&cpu_sampler.mu)
@@ -57,5 +57,5 @@ process_cpu_percent :: proc() -> (pct: int, ok: bool) {
 	cpu_sampler.last_cpu = cpu
 	cpu_sampler.last = now
 	if wall <= 0 do return 0, true
-	return int(f64(used) / f64(wall) * 100 + 0.5), true
+	return f64(used) / f64(wall) * 100, true
 }

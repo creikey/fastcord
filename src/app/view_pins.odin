@@ -158,7 +158,6 @@ pins_popout :: proc() {
 // A message outside the channel list (pins, search results): avatar, name,
 // time and content; `terms` are highlighted. Returns true when "Jump" was clicked.
 loose_message_card :: proc(m: ^dc.Message, terms: []string, show_jump: bool) -> (jump: bool) {
-	s := store()
 	outer := row("card")
 	outer.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
 	if ui.parent(outer) {
@@ -188,9 +187,7 @@ loose_message_card :: proc(m: ^dc.Message, terms: []string, show_jump: bool) -> 
 					nr := row("name")
 					nr.semantic_size = {.X = ui.pct(1), .Y = ui.px(22)}
 					if ui.parent(nr) {
-						name := "unknown"
-						if u := dc.user_get(s, m.author_id); u != nil do name = dc.display_name(u)
-						label(name, .Medium, 16, author_color(m), 22)
+						label(name_in(m.author_id, m.channel_id, "unknown"), .Medium, 16, author_color(m), 22)
 						spacer(.X, 8)
 						label(format_timestamp(m.id), .Medium, 12, T("--text-muted"), 22)
 						filler(.X)

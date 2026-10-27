@@ -13,6 +13,7 @@ foreign import imm32 "system:Imm32.lib"
 foreign user32 {
 	MsgWaitForMultipleObjectsEx :: proc(nCount: win.DWORD, pHandles: ^win.HANDLE, dwMilliseconds: win.DWORD, dwWakeMask: win.DWORD, dwFlags: win.DWORD) -> win.DWORD ---
 	GetDoubleClickTime :: proc() -> win.UINT ---
+	SetWindowDisplayAffinity :: proc(hwnd: win.HWND, dwAffinity: win.DWORD) -> win.BOOL ---
 }
 
 @(private = "file")
@@ -50,6 +51,7 @@ Win :: struct {
 	click_count:     int,
 	wake_posted:     bool,
 	composing:       bool,
+	drop_registered: bool,
 }
 
 @(private = "file")
@@ -58,6 +60,11 @@ w: Win
 native_window :: proc() -> rawptr {return rawptr(w.hwnd)}
 native_view :: proc() -> rawptr {return rawptr(w.hwnd)}
 native_metal_layer :: proc() -> rawptr {return nil}
+
+// set_capture_hidden: WDA_EXCLUDEFROMCAPTURE (Electron's setContentProtection) or WDA_NONE.
+set_capture_hidden :: proc(hidden: bool) {
+	if w.hwnd != nil do SetWindowDisplayAffinity(w.hwnd, 0x11 if hidden else 0)
+}
 
 // gfx registers the swap chain's frame-latency waitable object; wait_events
 // waits on it (vsync pacing) when a frame was requested.
@@ -86,7 +93,8 @@ _init :: proc(title: string, width, height: int) -> bool {
 	w.hwnd = win.CreateWindowExW(0, class_name, win.utf8_to_wstring(title), style,
 		win.CW_USEDEFAULT, win.CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nil, nil, w.instance, nil)
 	if w.hwnd == nil do return false
-	win.DragAcceptFiles(w.hwnd, true)
+	// IDropTarget gives drag enter/leave (the "Upload to #channel" overlay); WM_DROPFILES is the fallback.
+	if !drop_target_register(w.hwnd) do win.DragAcceptFiles(w.hwnd, true)
 	update_size()
 	update_refresh()
 	win.ShowWindow(w.hwnd, win.SW_SHOW)
@@ -96,6 +104,7 @@ _init :: proc(title: string, width, height: int) -> bool {
 
 @(private)
 _shutdown :: proc() {
+	if w.hwnd != nil && w.drop_registered do RevokeDragDrop(w.hwnd)
 	if w.hwnd != nil do win.DestroyWindow(w.hwnd)
 	w.hwnd = nil
 }
@@ -210,6 +219,206 @@ _clipboard_set :: proc(str: string) {
 	p[len(wide)] = 0
 	win.GlobalUnlock(win.HGLOBAL(h))
 	win.SetClipboardData(win.CF_UNICODETEXT, win.HANDLE(h))
+}
+
+// ---- Clipboard: images and files
+
+@(private = "file")
+cf_png :: proc() -> win.UINT {
+	@(static) id: win.UINT
+	if id == 0 do id = win.RegisterClipboardFormatW(win.L("PNG"))
+	return id
+}
+
+@(private)
+_clipboard_kind :: proc() -> Clipboard_Kind {
+	if win.IsClipboardFormatAvailable(win.CF_HDROP) do return .Files
+	if win.IsClipboardFormatAvailable(cf_png()) || win.IsClipboardFormatAvailable(win.CF_DIBV5) || win.IsClipboardFormatAvailable(win.CF_DIB) do return .Image
+	if win.IsClipboardFormatAvailable(win.CF_UNICODETEXT) do return .Text
+	return .None
+}
+
+// Opens the clipboard from a worker thread (no window): retried briefly, another
+// process may hold it.
+@(private = "file")
+open_clipboard_any :: proc() -> bool {
+	for _ in 0 ..< 10 {
+		if win.OpenClipboard(nil) do return true
+		win.Sleep(10)
+	}
+	return false
+}
+
+@(private = "file")
+global_bytes :: proc(h: win.HANDLE, allocator: runtime.Allocator) -> []byte {
+	if h == nil do return nil
+	p := ([^]byte)(win.GlobalLock(win.HGLOBAL(h)))
+	if p == nil do return nil
+	defer win.GlobalUnlock(win.HGLOBAL(h))
+	n := int(win.GlobalSize(rawptr(h)))
+	out := make([]byte, n, allocator)
+	copy(out, p[:n])
+	return out
+}
+
+// "PNG" (browsers, Office) as is; else CF_DIBV5 / CF_DIB (screenshots) as RGBA to encode.
+@(private)
+_clipboard_image :: proc(allocator: runtime.Allocator) -> (Clipboard_Image, bool) {
+	if !open_clipboard_any() do return {}, false
+	defer win.CloseClipboard()
+	if b := global_bytes(win.GetClipboardData(cf_png()), allocator); len(b) > 0 do return {png = b}, true
+	dib := global_bytes(win.GetClipboardData(win.CF_DIBV5), context.temp_allocator)
+	if len(dib) == 0 do dib = global_bytes(win.GetClipboardData(win.CF_DIB), context.temp_allocator)
+	return dib_to_rgba(dib, allocator)
+}
+
+@(private = "file")
+hdrop_paths :: proc(hdrop: win.HDROP, allocator: runtime.Allocator) -> []string {
+	out := make([dynamic]string, allocator)
+	n := win.DragQueryFileW(hdrop, 0xFFFFFFFF, nil, 0)
+	for i in 0 ..< n {
+		l := win.DragQueryFileW(hdrop, i, nil, 0)
+		buf := make([]u16, l + 1, context.temp_allocator)
+		win.DragQueryFileW(hdrop, i, raw_data(buf), l + 1)
+		path, _ := win.utf16_to_utf8(buf[:l], allocator)
+		append(&out, path)
+	}
+	return out[:]
+}
+
+@(private)
+_clipboard_files :: proc(allocator: runtime.Allocator) -> []string {
+	if !open_clipboard_any() do return nil
+	defer win.CloseClipboard()
+	h := win.GetClipboardData(win.CF_HDROP)
+	if h == nil do return nil
+	return hdrop_paths(win.HDROP(h), allocator)
+}
+
+// ---- IDropTarget (drag enter / leave / drop)
+
+foreign import ole32 "system:Ole32.lib"
+
+@(private = "file", default_calling_convention = "system")
+foreign ole32 {
+	OleInitialize :: proc(reserved: rawptr) -> win.HRESULT ---
+	RegisterDragDrop :: proc(hwnd: win.HWND, target: rawptr) -> win.HRESULT ---
+	RevokeDragDrop :: proc(hwnd: win.HWND) -> win.HRESULT ---
+	ReleaseStgMedium :: proc(medium: ^STGMEDIUM) ---
+}
+
+@(private = "file")
+FORMATETC :: struct {
+	cfFormat: u16,
+	ptd:      rawptr,
+	dwAspect: u32,
+	lindex:   i32,
+	tymed:    u32,
+}
+
+@(private = "file")
+STGMEDIUM :: struct {
+	tymed:          u32,
+	handle:         rawptr, // hGlobal for TYMED_HGLOBAL
+	pUnkForRelease: rawptr,
+}
+
+@(private = "file")
+IDataObject_Vtbl :: struct {
+	QueryInterface: rawptr,
+	AddRef:         rawptr,
+	Release:        rawptr,
+	GetData:        proc "system" (this: ^IDataObject, fmt: ^FORMATETC, medium: ^STGMEDIUM) -> win.HRESULT,
+	// the rest is not called
+}
+
+@(private = "file")
+IDataObject :: struct {
+	vtbl: ^IDataObject_Vtbl,
+}
+
+@(private = "file")
+POINTL :: struct {
+	x, y: i32,
+}
+
+@(private = "file")
+IDropTarget_Vtbl :: struct {
+	QueryInterface: proc "system" (this: rawptr, riid: ^win.GUID, out: ^rawptr) -> win.HRESULT,
+	AddRef:         proc "system" (this: rawptr) -> u32,
+	Release:        proc "system" (this: rawptr) -> u32,
+	DragEnter:      proc "system" (this: rawptr, data: ^IDataObject, keys: u32, pt: POINTL, effect: ^u32) -> win.HRESULT,
+	DragOver:       proc "system" (this: rawptr, keys: u32, pt: POINTL, effect: ^u32) -> win.HRESULT,
+	DragLeave:      proc "system" (this: rawptr) -> win.HRESULT,
+	Drop:           proc "system" (this: rawptr, data: ^IDataObject, keys: u32, pt: POINTL, effect: ^u32) -> win.HRESULT,
+}
+
+@(private = "file")
+Drop_Target :: struct {
+	vtbl: ^IDropTarget_Vtbl,
+}
+
+@(private = "file")
+DROPEFFECT_COPY :: 1
+
+@(private = "file")
+drop_vtbl := IDropTarget_Vtbl {
+	QueryInterface = proc "system" (this: rawptr, riid: ^win.GUID, out: ^rawptr) -> win.HRESULT {
+		// IUnknown {00000000-0000-0000-C000-000000000046} / IDropTarget {00000122-0000-0000-C000-000000000046}
+		if riid != nil && (riid.Data1 == 0 || riid.Data1 == 0x122) && riid.Data2 == 0 && riid.Data3 == 0 && riid.Data4[0] == 0xC0 && riid.Data4[7] == 0x46 {
+			out^ = this
+			return 0
+		}
+		out^ = nil
+		return transmute(win.HRESULT)u32(0x80004002) // E_NOINTERFACE
+	},
+	AddRef = proc "system" (this: rawptr) -> u32 {return 1}, // static object
+	Release = proc "system" (this: rawptr) -> u32 {return 1},
+	DragEnter = proc "system" (this: rawptr, data: ^IDataObject, keys: u32, pt: POINTL, effect: ^u32) -> win.HRESULT {
+		context = s.ctx
+		p := win.POINT{pt.x, pt.y}
+		win.ScreenToClient(w.hwnd, &p)
+		push_event({kind = .Drag_Enter, pos = {f32(p.x) / s.scale, f32(p.y) / s.scale}, time = time_now()})
+		if effect != nil do effect^ = DROPEFFECT_COPY
+		return 0
+	},
+	DragOver = proc "system" (this: rawptr, keys: u32, pt: POINTL, effect: ^u32) -> win.HRESULT {
+		if effect != nil do effect^ = DROPEFFECT_COPY
+		return 0
+	},
+	DragLeave = proc "system" (this: rawptr) -> win.HRESULT {
+		context = s.ctx
+		push_event({kind = .Drag_Leave, time = time_now()})
+		return 0
+	},
+	Drop = proc "system" (this: rawptr, data: ^IDataObject, keys: u32, pt: POINTL, effect: ^u32) -> win.HRESULT {
+		context = s.ctx
+		if data != nil {
+			f := FORMATETC{cfFormat = win.CF_HDROP, dwAspect = 1 /*DVASPECT_CONTENT*/, lindex = -1, tymed = 1 /*TYMED_HGLOBAL*/}
+			med: STGMEDIUM
+			if data.vtbl.GetData(data, &f, &med) == 0 {
+				for path in hdrop_paths(win.HDROP(med.handle), context.temp_allocator) {
+					push_event({kind = .File_Drop, text = path, time = time_now()})
+				}
+				ReleaseStgMedium(&med)
+			}
+		}
+		push_event({kind = .Drag_Leave, time = time_now()})
+		if effect != nil do effect^ = DROPEFFECT_COPY
+		return 0
+	},
+}
+
+@(private = "file")
+drop_target := Drop_Target{&drop_vtbl}
+
+@(private = "file")
+drop_target_register :: proc(hwnd: win.HWND) -> bool {
+	hr := OleInitialize(nil)
+	if hr < 0 do return false
+	if RegisterDragDrop(hwnd, &drop_target) < 0 do return false
+	w.drop_registered = true
+	return true
 }
 
 @(private)
@@ -468,12 +677,7 @@ wndproc :: proc "system" (hwnd: win.HWND, msg: win.UINT, wp: win.WPARAM, lp: win
 		return 0
 	case win.WM_DROPFILES:
 		hdrop := win.HDROP(wp)
-		n := win.DragQueryFileW(hdrop, 0xFFFFFFFF, nil, 0)
-		for i in 0 ..< n {
-			l := win.DragQueryFileW(hdrop, i, nil, 0)
-			buf := make([]u16, l + 1, context.temp_allocator)
-			win.DragQueryFileW(hdrop, i, raw_data(buf), l + 1)
-			path, _ := win.utf16_to_utf8(buf[:l], context.temp_allocator)
+		for path in hdrop_paths(hdrop, context.temp_allocator) {
 			push_event({kind = .File_Drop, text = path, time = time_now()})
 		}
 		win.DragFinish(hdrop)

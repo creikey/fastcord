@@ -1,0 +1,10 @@
+# A opens the server header dropdown, then closes it.
+include _open_test_channel.scn
+mark open_guild_menu
+click [aria-label$="server actions"]
+wait_for [role="menu"]
+settle 2000
+mark close_guild_menu
+key Escape
+wait_gone [role="menu"]
+settle 2000

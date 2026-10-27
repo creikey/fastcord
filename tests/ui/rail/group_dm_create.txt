@@ -4,7 +4,7 @@
 wait 5
 click 36 52
 wait 10
-click 349 286
+click 349 166
 wait 20
 shot build/ui-group_dm_create-open.png
 click 600 443

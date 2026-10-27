@@ -38,6 +38,7 @@ Config :: struct {
 	fast_identify_delay_ms: i64, // fast-connect IDENTIFY after open (0 = 300, <0 = immediately)
 	voice_self_mute:       bool, // op 4 self_mute sent on READY (the client's persisted mute state)
 	disable_analytics:     bool, // no /science telemetry (the official client always sends it)
+	disable_remote_auth:   bool, // no QR code socket on the login page (tests)
 	initial_guild_id:      Snowflake, // the route the window opens on (referer)
 	initial_channel_id:    Snowflake,
 }
@@ -69,6 +70,8 @@ Rest_Op :: enum u8 {
 	Guild_Open,
 	Media,
 	Settings,
+	Invite, // create_invite_async: channel_id, ok (the code: invite_code_for)
+	Auth, // login page / logout (auth.odin; result.tag = Auth_Action)
 }
 
 Rest_Result :: struct {
@@ -139,6 +142,8 @@ Client :: struct {
 	settings_edit:    Settings_Edit,
 	analytics:        Analytics,
 	upload_seq:       int,
+	drafts:           ^Drafts, // staged attachment uploads (uploads.odin)
+	webp_variation:   i32, // atomic: upload WebP conversion experiment (webp_convert.odin)
 	account_popout_opened: bool,
 	quick_switcher:   Quick_Switcher,
 	members_requested: map[[2]Snowflake]bool, // (guild, user) asked for with op 8
@@ -158,13 +163,23 @@ Client :: struct {
 	pending_private_open: Snowflake, // op 13 + recipient profile wait for the first page
 	route_page_pending: bool, // first page of the start route channel not yet loaded (op 43 / guild open follow it) // from /quests/@me, for applications/public
 	started_guilds:   map[Snowflake]bool,
+	left_guilds:      map[Snowflake]bool, // left this session: the next entry re-sends op 43
 	command_index_guilds: map[Snowflake]bool,
 	command_index_user: bool,
 	emoji_picker_opened: bool,
+	social_mu:        locks.Mutex, // social.nick_mod_props (worker reads)
+	social:           Social_State, // settings / calls / nickname UI analytics state (UI thread)
+	pomelo:           Pomelo_State, // username availability checks (username.odin)
 	home_opened:      bool,
 	session_guild_set_done: bool,
 	account_verified: bool, // READY user.verified, persisted (startup set selection before READY)
 	pending_guild_create: bool,
+	// invites (invites.odin): first code per channel (validate on later modal opens),
+	// and the guild a Join a Server accept is waiting for (set on a worker)
+	invite_mu:        locks.Mutex,
+	invite_codes:     map[Snowflake]string,
+	pending_join_guild: Snowflake,
+	pending_join_channel: Snowflake,
 	soundboard_loaded: bool,
 	pending_soundboard_at: i64, // guilds whose open-time requests ran this session
 	// traffic observers (tooling): see every gateway frame
@@ -177,6 +192,7 @@ Client :: struct {
 	user_data:        rawptr,
 	on_ws_close:      proc(data: rawptr, code: int),
 	observer_data:    rawptr,
+	auth:             Auth, // login / logout (auth.odin)
 }
 
 client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
@@ -200,12 +216,16 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c.transport.use_h3 = !cfg.disable_h3
 	rate_limiter_init(&c.limiter, allocator)
 	store_init(&c.store, allocator)
+	feature_pool_retain(c)
+	extras_retain()
 	c.events = make([dynamic]Event)
 	c.jobs = make([dynamic]^Job)
 	c.results = make([dynamic]Rest_Result)
 	c.pending_acks = make([dynamic]Pending_Ack)
 	c.started_guilds = make(map[Snowflake]bool)
+	c.left_guilds = make(map[Snowflake]bool)
 	c.command_index_guilds = make(map[Snowflake]bool)
+	c.invite_codes = make(map[Snowflake]string)
 	subscriptions_init(&c.subs, allocator)
 	analytics_init(&c.analytics, allocator)
 	c.analytics.enabled = !cfg.disable_analytics
@@ -218,6 +238,7 @@ client_create :: proc(cfg: Config, allocator := context.allocator) -> ^Client {
 	c.preflights = make(map[string]int, allocator = c.allocator)
 	c.account_verified = true
 	client_load_state(c)
+	auth_init(c)
 	return c
 }
 
@@ -228,6 +249,11 @@ client_start :: proc(c: ^Client) {
 		append(&c.workers, th)
 	}
 	if c.focused do identity_touch_heartbeat(&c.id, now_ms())
+	if client_logged_out(c) {
+		// the login page instead of the app (auth.odin)
+		if !c.cfg.disable_startup do auth_cold_start(c)
+		return
+	}
 	if !c.cfg.disable_startup do schedule_startup(c, .Launch)
 	if !c.cfg.disable_startup do schedule_rtc_probe(c, c.launch_ms)
 	if c.cfg.gateway_sink != nil {
@@ -241,6 +267,7 @@ client_start :: proc(c: ^Client) {
 
 client_destroy :: proc(c: ^Client) {
 	if c.gw != nil do gateway_stop(c.gw)
+	auth_shutdown(c)
 	locks.lock(&c.job_mu)
 	c.quit = true
 	locks.cond_broadcast(&c.job_cond)
@@ -249,10 +276,13 @@ client_destroy :: proc(c: ^Client) {
 		locks.join(th)
 	}
 	delete(c.workers)
+	feature_pool_release(c) // its feature jobs end before the transport goes
 	expr_pool_stop(c)
 	client_save_state(c)
 	for j in c.jobs do job_free(j)
 	delete(c.jobs)
+	drafts_destroy(c)
+	pomelo_destroy(c)
 	for &e in c.events do event_free(&e)
 	delete(c.events)
 	transport_destroy(&c.transport)
@@ -263,8 +293,11 @@ client_destroy :: proc(c: ^Client) {
 	delete(c.media_results)
 	delete(c.pending_acks)
 	delete(c.started_guilds)
+	delete(c.left_guilds)
 	delete(c.command_index_guilds)
 	delete(c.quest_app_ids)
+	for _, v in c.invite_codes do delete(v)
+	delete(c.invite_codes)
 	for k, v in c.etags {
 		delete(k)
 		delete(v)
@@ -275,8 +308,11 @@ client_destroy :: proc(c: ^Client) {
 	delete(c.rtc_regions, c.allocator)
 	for k in c.preflights do delete(k, c.allocator)
 	delete(c.preflights)
+	extras_release(c)
 	store_destroy(&c.store)
+	auth_destroy(c)
 	analytics_destroy(&c.analytics)
+	social_destroy(c)
 	delete(c.subs.guilds)
 	for _, l in c.subs.channels do delete(l)
 	delete(c.subs.channels)
@@ -356,6 +392,10 @@ client_poll :: proc(c: ^Client) -> bool {
 	flush_quick_switcher(c, now)
 	flush_settings(c, now)
 	flush_soundboard(c, now)
+	guild_admin_tick(c, now)
+	auth_tick(c, now)
+	flush_user_menu(c, now)
+	flush_username_check(c, now)
 	analytics_tick(c, now)
 	analytics_flush(c, now)
 	if changed do c.store.changed += 1
@@ -373,6 +413,7 @@ client_take_results :: proc(c: ^Client, allocator := context.temp_allocator) -> 
 // ---- route / focus ----
 
 client_route_referer :: proc(c: ^Client, allocator := context.temp_allocator) -> string {
+	if r := auth_referer(c, allocator); r != "" do return r // logged out: the login page
 	locks.lock(&c.route_mu)
 	g, ch := c.route_guild, c.route_channel
 	locks.unlock(&c.route_mu)
@@ -491,6 +532,7 @@ client_on_ready :: proc(c: ^Client) {
 	first := c.ready_ms == 0
 	c.ready_ms = now_ms()
 	locks.unlock(&c.job_mu)
+	if first && auth_on_ready(c, c.ready_ms) do return // logged in from the login page: its own burst
 	if first && !c.cfg.disable_startup {
 		schedule_startup(c, .Ready)
 		schedule_applications_public(c, c.ready_ms)

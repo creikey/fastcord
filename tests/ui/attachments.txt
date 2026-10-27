@@ -1,0 +1,68 @@
+# Staged attachments: cards with thumbnails (image, video poster, file icon), the action bar
+# (spoiler, modify, remove), horizontal scrolling and paste. Offline: nothing uploads.
+wait 5
+stage tests/scenarios/assets/test.png tests/ui/attach/photo.jpg tests/ui/attach/notes.txt tests/ui/attach/clip.mp4
+wait_attachments
+wait 10
+expect_attachments 4 test.png photo.jpg notes.txt clip.mp4
+shot build/ui-attachments-cards.png
+# spoiler (eye) on the first card: blurred, SPOILER pill
+click 535 449
+wait 3
+expect_attachments 4 test.png spoiler photo.jpg notes.txt clip.mp4
+expect_visible SPOILER
+shot build/ui-attachments-spoiler.png
+# modify (pencil): rename, alt text, Save
+click 567 449
+wait 5
+expect_visible Description (alt text)
+expect_visible Mark as spoiler
+expect_input "test.png"
+key a cmd
+type renamed.png
+click_text Add a description
+wait 2
+type alt
+shot build/ui-attachments-modify.png
+click_text Save
+wait 5
+expect_attachments 4 renamed.png spoiler desc=alt photo.jpg notes.txt clip.mp4
+# modify again: Cancel keeps it; unticking the spoiler box and saving clears it
+click 567 449
+wait 3
+click_text Cancel
+wait 3
+expect_attachments 4 renamed.png spoiler desc=alt photo.jpg notes.txt clip.mp4
+click 567 449
+wait 3
+click_text Mark as spoiler
+key enter
+wait 3
+expect_attachments 4 renamed.png desc=alt photo.jpg notes.txt clip.mp4
+# remove (trash) the second card
+click 823 449
+wait 3
+expect_attachments 3 renamed.png notes.txt clip.mp4
+# the row scrolls sideways with the wheel: the video poster comes into view
+move 700 530
+scroll 0 -400
+wait 30
+shot build/ui-attachments-scrolled.png
+# paste a bitmap (staged as image.png) and files copied in Finder
+paste_image tests/scenarios/assets/test.png
+wait_attachments
+wait 5
+paste_files tests/ui/attach/notes.txt
+wait_attachments
+wait 5
+expect_attachments 5 renamed.png notes.txt clip.mp4 image.png notes.txt
+# text on the clipboard still pastes as text
+click 700 683
+key a cmd
+key c cmd
+type hello
+key a cmd
+key x cmd
+key v cmd
+expect_input "hello"
+expect_attachments 5 renamed.png notes.txt clip.mp4 image.png notes.txt

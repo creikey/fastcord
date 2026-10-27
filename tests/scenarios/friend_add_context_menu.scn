@@ -1,0 +1,26 @@
+# A sends B a friend request from the DM row context menu (Add Friend); B accepts it
+# from Friends -> Pending. Also the setup that makes A and B friends again.
+use b
+mark setup_b
+reload
+include _friends_home.scn
+use a
+mark friend_request_from_dm_menu
+click [data-list-item-id="guildsnav___home"]
+wait_for [data-list-item-id$="___${DM_AB}"]
+rclick [data-list-item-id$="___${DM_AB}"]
+wait_for [role="menu"]
+pause
+click #user-context-add-friend
+settle 2000
+use b
+wait_gw RELATIONSHIP_ADD 20000
+mark friend_request_accept
+click_text [role="tab"] | Pending
+wait_for [aria-label^="Accept friend request"]
+pause
+click [aria-label^="Accept friend request"]
+optional wait_for [role="dialog"] 4000
+optional click_text [role="dialog"] button | Accept
+wait_gw RELATIONSHIP_UPDATE 20000
+settle 2000

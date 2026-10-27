@@ -390,7 +390,19 @@ identify_value :: proc(g: ^Gateway, allocator := context.temp_allocator) -> V {
 	sp := super_properties_json(id, now)
 	spv, perr := etf.from_json(sp)
 	if perr == .None {
-		for pr in vmap(spv) do etf.map_put(&props, vstr(pr.key), pr.value)
+		// After a login from the login page the properties object IDENTIFY copies
+		// still has the logout's undefined heartbeat id (null in ETF) where the key
+		// was, or no key if the launch never had a session (fixture login_submit).
+		stale := identity_take_identify_hb_stale(id)
+		before := identity_hb_key_before_app_state(id)
+		for pr in vmap(spv) {
+			k := vstr(pr.key)
+			if k == "client_heartbeat_session_id" && stale {
+				if before do etf.map_put(&props, k, nil)
+				continue
+			}
+			etf.map_put(&props, k, pr.value)
+		}
 	}
 	etf.map_put(&props, "is_fast_connect", false)
 	// the launch's first connect comes from the app skeleton (fixtures: typing,
@@ -400,7 +412,8 @@ identify_value :: proc(g: ^Gateway, allocator := context.temp_allocator) -> V {
 
 	pres := etf.map_builder(4)
 	// before the settings proto is loaded the presence store reports "unknown"
-	etf.map_put(&pres, "status", status_name(g.presence_status) if g.identified else string("unknown"))
+	// (a login from the login page reports the presence store's "online": fixture login_submit)
+	etf.map_put(&pres, "status", status_name(g.presence_status) if g.identified || c.auth.login_session else string("unknown"))
 	etf.map_put(&pres, "since", i64(0))
 	etf.map_put(&pres, "activities", etf.List{})
 	etf.map_put(&pres, "afk", false)
@@ -413,7 +426,7 @@ identify_value :: proc(g: ^Gateway, allocator := context.temp_allocator) -> V {
 	else if q2, ok2 := g.qos_current.?; ok2 do active = q2.active
 
 	d := etf.map_builder(7)
-	etf.map_put(&d, "token", c.token)
+	etf.map_put(&d, "token", client_token(c))
 	etf.map_put(&d, "capabilities", id.platform.capabilities)
 	etf.map_put(&d, "properties", etf.map_done(&props))
 	etf.map_put(&d, "presence", etf.map_done(&pres))
@@ -534,7 +547,7 @@ gateway_connect :: proc(g: ^Gateway) {
 		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
 		d := c.cfg.fast_identify_delay_ms if c.cfg.fast_identify_delay_ms != 0 else 300
 		if d > 0 do time.sleep(time.Duration(d) * time.Millisecond)
-		gateway_send(g, .Identify, identify_fast_connect_value(&c.id, c.token))
+		gateway_send(g, .Identify, identify_fast_connect_value(&c.id, client_token(c)))
 	} else {
 		g.fast_connect_done = true
 		resume_or_identify_locked(g)
@@ -549,7 +562,7 @@ resume_or_identify_locked :: proc(g: ^Gateway) {
 	if g.session_id != "" && (g.last_ack == 0 || now - g.last_ack <= 3 * 60_000) {
 		g.state = .Resuming
 		b := etf.map_builder(3, context.temp_allocator)
-		etf.map_put(&b, "token", g.c.token)
+		etf.map_put(&b, "token", client_token(g.c))
 		etf.map_put(&b, "session_id", g.session_id)
 		etf.map_put(&b, "seq", g.seq)
 		d := etf.map_done(&b)

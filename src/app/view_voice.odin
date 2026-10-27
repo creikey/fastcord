@@ -52,6 +52,33 @@ voice_join_channel :: proc(gid, cid: dc.Snowflake) {
 	vc.sent_deaf = app.self_deaf
 }
 
+// DM / group DM header phone button ("Start Voice Call"): joins the channel's
+// call, or hangs up when already in it. A new call rings the others once its
+// CALL_CREATE arrives (dc.dm_call_start).
+dm_call_toggle :: proc(ch: ^dc.Channel) {
+	if app.voice_channel == ch.id {
+		voice_leave_channel()
+		return
+	}
+	if !net_action() do return
+	if app.voice_channel == ch.id do return
+	vc.guild = 0
+	app.voice_channel = ch.id
+	dc.dm_call_start(app.client, ch.id, app.self_mute || app.self_deaf, app.self_deaf)
+	vc.sent_mute = app.self_mute
+	vc.sent_deaf = app.self_deaf
+}
+
+// The incoming call's "Join Call" (op 4 into the DM, like the caller's).
+call_join_incoming :: proc(cid: dc.Snowflake) {
+	if !net_action() do return
+	vc.guild = 0
+	app.voice_channel = cid
+	dc.call_accept(app.client, cid, app.self_mute || app.self_deaf, app.self_deaf)
+	vc.sent_mute = app.self_mute
+	vc.sent_deaf = app.self_deaf
+}
+
 voice_leave_channel :: proc() {
 	if app.client != nil && app.voice_channel != 0 do dc.voice_leave(app.client)
 	app.voice_channel = 0
@@ -74,6 +101,26 @@ voice_shutdown :: proc() {
 	delete(vc.speaking)
 }
 
+// voice_rtc_state: our voice connection as the official RTCConnectionStore names it.
+@(private = "file")
+voice_rtc_state :: proc() -> dc.Rtc_State {
+	if vc.conn == nil do return .Awaiting_Endpoint
+	st, _ := voice.state(vc.conn)
+	switch st {
+	case .Connecting, .Resuming:
+		return .Connecting
+	case .Identifying:
+		return .Authenticating
+	case .Discovering:
+		return .Rtc_Connecting
+	case .Connected:
+		return .Rtc_Connected
+	case .Disconnected:
+		return .Disconnected
+	}
+	return .Disconnected
+}
+
 voice_frame :: proc() {
 	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready)
 	if app.client == nil do return
@@ -86,6 +133,7 @@ voice_frame :: proc() {
 	}
 	if app.voice_channel == 0 {
 		if vc.conn != nil do voice_drop()
+		dc.client_set_rtc_state(app.client, .Disconnected)
 		return
 	}
 	// mute / deafen -> connection + op 4 (deafen implies mute, like the client)
@@ -103,7 +151,11 @@ voice_frame :: proc() {
 	// Channel move or server migration: drop the old connection, then connect once its teardown is done.
 	if ok && vc.conn != nil && ver != vc.version && dc.Snowflake(info.channel_id) == app.voice_channel do voice_drop()
 	if ok && vc.conn == nil && !teardown_busy() && dc.Snowflake(info.channel_id) == app.voice_channel {
-		if !vc.headless && !vc.audio_ready do vc.audio_ready = audio.init()
+		if !vc.headless {
+			// opening the microphone asks the OS for it (permissions_requested)
+			dc.analytics_permissions_requested(app.client, "audio")
+			if !vc.audio_ready do vc.audio_ready = audio.init()
+		}
 		vc.conn = voice.voice_connect(voice.Voice_Server_Info {
 			endpoint            = info.endpoint,
 			token               = info.token,
@@ -120,6 +172,7 @@ voice_frame :: proc() {
 		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf)
 		voice.set_self_deaf(vc.conn, app.self_deaf)
 	}
+	dc.client_set_rtc_state(app.client, voice_rtc_state()) // client_rtc_state while in voice
 	if vc.conn != nil {
 		st, code := voice.state(vc.conn)
 		if st == .Disconnected {
@@ -284,7 +337,10 @@ voice_panel :: proc() {
 			spacer(.X, 6)
 			icon("i", "phone-hang-up", 20, dsig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
 		}
-		if dsig.clicked do voice_leave_channel()
+		if dsig.clicked {
+			if app.client != nil do dc.analytics_call_disconnect(app.client, vc.guild, app.voice_channel)
+			voice_leave_channel()
+		}
 		spacer(.X, 8)
 	}
 	div := ui.box("div", {.Draw_Background})
@@ -293,3 +349,68 @@ voice_panel :: proc() {
 }
 
 voice_reset_for_test :: proc() {vc = {headless = true}}
+
+// The ring popout of an incoming DM call (fixture dm_call, B's view): avatar,
+// name, "Incoming Call...", Decline (red) and Join Call (green). Join sends op 4
+// into the DM; Decline only dismisses the ring here, since declining was not
+// captured (the official client's decline request is unknown).
+incoming_call_popout :: proc() {
+	if app.client == nil do return
+	cid := dc.incoming_call(app.client)
+	if cid == 0 || cid == app.voice_channel do return
+	ch := dc.channel_get(store(), cid)
+	if ch == nil do return
+	caller: dc.Snowflake
+	if call := dc.call_get(app.client, cid); call != nil {
+		for uid, vs in store().voice_states do if vs.channel_id == cid && uid != store().me {caller = uid; break}
+	}
+	if caller == 0 && len(ch.recipient_ids) > 0 do caller = ch.recipient_ids[0]
+	W :: f32(234)
+	H :: f32(270)
+	area_x := f32(72 + 240)
+	p := ui.box("incoming_call", {.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable})
+	p.semantic_size = {.X = ui.px(W), .Y = ui.px(H)}
+	p.fixed_pos = {area_x + (app.ui.window.x - area_x - W) / 2, 160}
+	p.layout_axis = .Y
+	p.cross_align = .Center
+	p.style.bg = T("--background-surface-high")
+	p.style.border = 1
+	p.style.border_color = T("--border-subtle")
+	p.style.radius = 8
+	p.style.shadow_color = {0, 0, 0, 0.3}
+	p.style.shadow_blur = 16
+	ui.signal(p)
+	if ui.parent(p) {
+		spacer(.Y, 32)
+		avatar_box("av", caller, 80)
+		spacer(.Y, 16)
+		name := ch.kind == .DM ? dc.user_name(store(), caller, 0, "Unknown") : dm_name(ch)
+		label(ellipsize(name, .Semibold, 20, W - 32), .Semibold, 20, T("--text-strong"), 24)
+		spacer(.Y, 2)
+		label("Incoming Call...", .Normal, 16, T("--text-default"), 20)
+		spacer(.Y, 24)
+		btns := row("btns")
+		btns.semantic_size = {.X = ui.children(), .Y = ui.px(50)}
+		btns.style.child_gap = 8
+		if ui.parent(btns) {
+			btn :: proc(id, ic: string, bg: ui.Color) -> bool {
+				b := ui.box(id, {.Clickable, .Draw_Background, .Hot_Animation})
+				b.semantic_size = {.X = ui.px(66), .Y = ui.px(50)}
+				b.style.radius = 8
+				b.style.bg = bg
+				b.style.bg_hot = with_alpha(bg, 0.85)
+				b.layout_axis = .X
+				b.cross_align = .Center
+				clicked := ui.signal(b).clicked
+				if ui.parent(b) {
+					filler(.X)
+					icon("i", ic, 20, {1, 1, 1, 1})
+					filler(.X)
+				}
+				return clicked
+			}
+			if btn("Decline##decline", "x-large", T("--status-danger")) do dc.call_decline(app.client, cid)
+			if btn("Join Call##join", "phone-call", T("--status-positive")) do call_join_incoming(cid)
+		}
+	}
+}

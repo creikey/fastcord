@@ -1,0 +1,7 @@
+# Prelude (B, no reload): open the private test guild's #general.
+use b
+click [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [data-list-item-id="channels___${TTEXT}"]
+click [data-list-item-id="channels___${TTEXT}"]
+wait_for div[role="textbox"][aria-label^="Message "]
+settle 1000

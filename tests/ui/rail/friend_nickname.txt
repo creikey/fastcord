@@ -1,0 +1,50 @@
+# Friend nicknames (rail fixture: Nelly is "Lil Bean"): the nickname replaces the
+# name in the friends list (and its search), the DM list, the DM header and
+# messages; the DM profile shows it with the username under it (not the global
+# name, like the client). The user menu edits it (32 chars max), Enter saves,
+# Reset clears the field and Save removes it.
+go_home
+wait 10
+click_text "All"
+wait 10
+expect_visible "Lil Bean"
+click_text "Search"
+wait 3
+type bean
+wait 5
+expect_visible "Lil Bean"
+expect_not_visible "Wumpus"
+open 1700000000000000001
+wait 30
+expect_visible "Lil Bean"
+expect_visible "Message @Lil Bean"
+click 1245 116
+wait 10
+click_text "Edit Friend Nickname"
+wait 20
+expect_input "Lil Bean"
+key a cmd
+type abcdefghijklmnopqrstuvwxyz0123456789
+wait 2
+expect_input "abcdefghijklmnopqrstuvwxyz012345"
+key a cmd
+type Beanie
+key enter
+wait 20
+expect_not_visible "Reset Friend Nickname"
+expect_visible "Message @Beanie"
+expect_not_visible "Lil Bean"
+click 1245 116
+wait 10
+click_text "Edit Friend Nickname"
+wait 20
+click_text "Reset Friend Nickname"
+wait 5
+expect_input ""
+click_text "Save"
+wait 20
+expect_not_visible "Beanie"
+expect_visible "Message @Nelly"
+click 1245 116
+wait 10
+expect_visible "Add Friend Nickname"

@@ -108,18 +108,33 @@ app_reset_state :: proc() {
 	ma = {}
 	sw = {}
 	search_reset_for_test()
+	login_reset_for_test()
 	rail_reset_for_test()
 	pf_reset_for_test()
 	vs_reset_for_test()
 	audio.select_device(true, 0)
 	audio.select_device(false, 0)
 	settings_page = "Appearance"
+	settings_reset_for_test()
 	gdm_reset_for_test()
 	pins_reset_for_test()
+	inbox_reset_for_test()
+	threads_browser_reset_for_test()
+	guild_menu_reset_for_test()
 	forums_reset_for_test()
+	events_reset_for_test()
+	guild_admin_reset_for_test()
 	block_confirm = {}
+	fnick = {}
+	attachments_reset_for_test()
 	viewer_url, viewer_size, viewer_t = "", {}, 0
 	notify_reset_for_test()
+	account_reset_for_test()
+	add_server_reset_for_test()
+	settings_nav_reset_for_test()
+	sounds_reset_prefs_for_test()
+	notify_prefs, theme_follow_os = {}, false
+	streamer_reset_for_test()
 	frecency = {}
 	voice_reset_for_test()
 	platform.clipboard_set("")
@@ -203,10 +218,11 @@ sweep_measure :: proc() -> u64 {
 	state := fmt.tprint(
 		app.view.guild, app.view.channel, app.view.friends_tab, app.view.show_members, app.view.hide_dm_profile,
 		app.settings_open, app.profile_user, settings_page, app.self_mute, app.self_deaf, app.ui.focus, ed,
-		sw.open, ma.menu_msg, ma.deleting, ma.editing, ma.replying, ma.reply_mention, len(ma.uploads),
+		sw.open, ma.menu_msg, ma.deleting, ma.editing, ma.replying, ma.reply_mention, staged_count(app.view.channel), att.mod_key, att.notice, att.drag,
 		pk.open, pk.tab, pins_state_for_test(), gdm_state_for_test(), pf_state_for_test(), rail_state_for_test(),
-		search_state_for_test(), viewer_url, block_confirm.user, vs.open_dropdown, vs.menu_user,
+		search_state_for_test(), guild_menu_state_for_test(), viewer_url, block_confirm.user, vs.open_dropdown, vs.menu_user,
 		app.theme.name, platform.clipboard_get(), app.net_actions, app.ext_actions, app.view.collapsed,
+		events_state_for_test(), guild_admin_state_for_test(),
 	)
 	return xxhash.XXH3_64(pixels) ~ (xxhash.XXH3_64(transmute([]u8)state) * 31)
 }
@@ -293,7 +309,8 @@ sweep_geometry :: proc(b: ^ui.Box, vr: ui.Rect) {
 		}
 		return nil
 	}
-	if o := outside(b, b.rect); o != nil {
+	// a clipping control (a modal panel with scrolled pages) can't draw outside itself
+	if o := outside(b, b.rect); o != nil && .Clip not_in b.flags {
 		append(&swp.geom, Sweep_Box{key = b.key, rect = b.rect, desc = fmt.aprintf("%s|draws outside its hit area: %v beyond %v", sweep_desc(b), o.rect, b.rect)})
 	}
 }

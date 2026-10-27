@@ -172,3 +172,17 @@ inflate_zlib :: proc(src: []byte, out: []u8) -> (int, Error) #no_bounds_check {
 	}
 	return min(o, n), .None
 }
+
+// zlib_inflate inflates a zlib stream of unknown size (up to max_out bytes). nil on error.
+zlib_inflate :: proc(src: []byte, max_out: int, allocator := context.allocator) -> []byte {
+	size := max(1024, len(src) * 4)
+	for size <= max_out * 2 {
+		out := make([]byte, min(size, max_out), allocator)
+		n, err := inflate_zlib(src, out)
+		if err == .None do return out[:n]
+		delete(out, allocator)
+		if size >= max_out do break
+		size *= 2
+	}
+	return nil
+}

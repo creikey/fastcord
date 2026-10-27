@@ -1,0 +1,52 @@
+# (The popout reopens on the last used tab.)
+# B @mentions A twice in the test channel while A is on Friends. A opens the Inbox:
+# Unreads tab, marks the channel read there; Mentions tab, removes one mention (x),
+# jumps to the other.
+include _b_open_test_channel.scn
+use a
+mark setup
+reload
+include _friends_home.scn
+use b
+mark b_mentions
+click div[role="textbox"][aria-label^="Message "]
+type @dingusbattle2
+wait 1200
+key Tab
+type first inbox ping
+key Enter
+wait 2500
+type @dingusbattle2
+wait 1200
+key Tab
+type second inbox ping
+key Enter
+use a
+wait_gw MESSAGE_CREATE 20000
+settle 2500
+mark open_inbox
+click [aria-label="Inbox"]
+wait_for [role="tab"]
+settle 2000
+snap inbox_open
+mark inbox_unreads_tab
+click_text [role="tab"] | Unreads
+wait 1500
+settle 1500
+snap unreads
+mark inbox_unreads_mark_read
+click button[aria-label="Mark As Read"]
+settle 2000
+mark inbox_mentions_tab
+click_text [role="tab"] | Mentions
+wait_for button[aria-label="Jump to Message"]
+settle 2000
+snap mentions
+mark inbox_remove_mention
+click button[aria-label="Mark As Read"]
+settle 2000
+mark inbox_jump_to_mention
+click button[aria-label="Jump to Message"]
+wait_for div[role="textbox"][aria-label^="Message "]
+settle 2500
+snap jumped

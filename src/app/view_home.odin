@@ -37,10 +37,9 @@ home_sidebar :: proc() {
 	ui.signal(list)
 	if ui.parent(list) {
 		spacer(.Y, 8)
-		for name in ([]string{"Friends", "Nitro", "Shop", "Quests"}) {
-			if dm_nav_item(name, name == "Friends" && app.view.channel == 0).clicked && name == "Friends" {
-				select_channel(0, 0)
-			}
+		if dm_nav_item("Friends", app.view.channel == 0).clicked {
+			friends_tab_telemetry("friends_list_clicked")
+			select_channel(0, 0)
 		}
 		spacer(.Y, DM_SEP_GAP)
 		sep := row("sep")
@@ -101,14 +100,6 @@ dm_nav_item :: proc(name: string, selected: bool) -> ui.Signal {
 		item.style.bg_hot = selected ? item.style.bg : T("--background-mod-subtle")
 		sig = ui.signal(item)
 		icon_name := "friends"
-		switch name {
-		case "Nitro":
-			icon_name = "nitro-wheel"
-		case "Shop":
-			icon_name = "shop"
-		case "Quests":
-			icon_name = "quests"
-		}
 		if ui.parent(item) {
 			color := selected || sig.hovering ? T("--interactive-text-active") : T("--channels-default")
 			spacer(.X, 8)
@@ -134,6 +125,8 @@ dm_row :: proc(ch: ^dc.Channel) {
 		item.style.bg_hot = selected ? item.style.bg : T("--background-mod-subtle")
 		sig := ui.signal(item)
 		if sig.clicked do select_channel(0, ch.id)
+		// 1:1 DM rows: the user menu (Add Friend, friend nickname, ...)
+		if sig.right_clicked && ch.kind == .DM && len(ch.recipient_ids) > 0 do open_user_menu(ch.recipient_ids[0], app.ui.mouse, dm_row = true)
 		unread := dc.channel_unread(store(), ch.id)
 		color := selected || sig.hovering || unread ? T("--interactive-text-active") : T("--channels-default")
 		if ui.parent(item) {
@@ -181,10 +174,9 @@ sort_users_by_name :: proc(ids: []dc.Snowflake) {
 	}
 	named := make([]Named, len(ids), context.temp_allocator)
 	for id, i in ids {
-		u := dc.user_get(store(), id)
-		named[i] = {id = id, ok = u != nil}
-		if u == nil do continue
-		name := dc.display_name(u)
+		name := dc.user_name(store(), id)
+		named[i] = {id = id, ok = name != ""}
+		if name == "" do continue
 		ascii := true
 		for c in transmute([]byte)name do if c >= 0x80 {ascii = false; break}
 		if ascii {
@@ -204,6 +196,13 @@ sort_users_by_name :: proc(ids: []dc.Snowflake) {
 		return a.id < b.id
 	})
 	for n, i in named do ids[i] = n.id
+}
+
+@(private = "file")
+friends_tab_telemetry :: proc(event: string) {
+	if app.client == nil do return
+	tabs := [Friends_Tab]dc.Friends_List_Tab{.Online = .Online, .All = .All, .Pending = .Pending, .Add_Friend = .Add_Friend}
+	dc.analytics_friends_list(app.client, event, tabs[app.view.friends_tab])
 }
 
 friends_page :: proc() {
@@ -243,7 +242,13 @@ friends_page :: proc() {
 				tb.style.text_color = sel ? T("--text-brand") : {1, 1, 1, 1}
 				tb.style.bg_hot = tb.style.bg
 			}
-			if ui.signal(tb).clicked do app.view.friends_tab = t.tab
+			if ui.signal(tb).clicked {
+				app.view.friends_tab = t.tab
+				// the tab click, then the tab's view (the library throttles views per
+				// tab; the page's first view is dc.friends_page_viewed on the route change)
+				friends_tab_telemetry("friends_list_clicked")
+				friends_tab_telemetry("friends_list_viewed")
+			}
 			spacer(.X, 16)
 		}
 		filler(.X)
@@ -286,7 +291,7 @@ friends_page :: proc() {
 		for uid in ids {
 			u := dc.user_get(s, uid)
 			if u == nil do continue
-			if strings.contains(strings.to_lower(dc.display_name(u), context.temp_allocator), q) || strings.contains(strings.to_lower(u.username, context.temp_allocator), q) {
+			if strings.contains(strings.to_lower(dc.user_name(s, uid), context.temp_allocator), q) || strings.contains(strings.to_lower(dc.display_name(u), context.temp_allocator), q) || strings.contains(strings.to_lower(u.username, context.temp_allocator), q) {
 				ids[kept] = uid
 				kept += 1
 			}
@@ -408,7 +413,7 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				nr := row("nr")
 				nr.semantic_size = {.X = ui.pct(1), .Y = ui.px(20)}
 				if ui.parent(nr) {
-					label(u != nil ? dc.display_name(u) : "Unknown", .Semibold, 16, T("--text-strong"), 20)
+					label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20)
 					if sig.hovering && u != nil {
 						spacer(.X, 4)
 						label(u.username, .Medium, 14, T("--text-muted"), 18)
@@ -424,7 +429,7 @@ friend_row :: proc(uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				label(sub, .Medium, 14, T("--text-muted"), 18)
 			}
 			if kind == .Incoming_Request {
-				if round_icon_button("accept", "check", T("--status-positive")).clicked && net_action() do dc.accept_friend_request(app.client, uid)
+				if round_icon_button("accept", "checkmark-large", T("--status-positive")).clicked && net_action() do dc.accept_friend_request(app.client, uid)
 				spacer(.X, 10)
 			}
 			if kind == .Friend {
@@ -631,12 +636,7 @@ member_row :: proc(gid, uid: dc.Snowflake) {
 			av := avatar_with_status("av", uid, 32, sig.hovering ? T("--background-base-low") : T("--background-base-lower"))
 			if offline do av.opacity = 0.3
 			spacer(.X, 12)
-			name := "unknown"
-			if m := dc.member_get(s, gid, uid); m != nil && m.nick != "" {
-				name = m.nick
-			} else if u := dc.user_get(s, uid); u != nil {
-				name = dc.display_name(u)
-			}
+			name := dc.user_name(s, uid, gid, "unknown")
 			color, has := member_color(gid, uid)
 			if !has do color = T("--interactive-text-default")
 			if offline do color = with_alpha(color, 0.3)
@@ -749,7 +749,7 @@ dm_profile_panel :: proc(uid: dc.Snowflake) {
 						l.flags += {.Selectable_Text}
 					}
 				}
-				line("name", dc.display_name(u), .Semibold, 20, 24, T("--text-strong"))
+				line("name", dc.user_name(s, uid), .Semibold, 20, 24, T("--text-strong"))
 				spacer(.Y, 2)
 				line("user", u.username, .Normal, 14, 18, T("--text-strong"))
 				spacer(.Y, 20)
@@ -812,7 +812,7 @@ dm_welcome :: proc(ch: ^dc.Channel) -> ^ui.Box {
 		spacer(.Y, 12)
 		if r := pad("name", 40); ui.parent(r) {
 			spacer(.X, 16)
-			label(dc.display_name(u), .Bold, 32, T("--text-strong"), 40)
+			label(dc.user_name(store(), uid), .Bold, 32, T("--text-strong"), 40)
 		}
 		spacer(.Y, 8)
 		if r := pad("user", 32); ui.parent(r) {
@@ -828,7 +828,7 @@ dm_welcome :: proc(ch: ^dc.Channel) -> ^ui.Box {
 			t.style.text_color = T("--text-default")
 			spans := make([]ui.Span, 3, context.temp_allocator)
 			spans[0] = {text = "This is the beginning of your direct message history with ", font = F(.Normal), size = 16}
-			spans[1] = {text = dc.display_name(u), font = F(.Bold), size = 16}
+			spans[1] = {text = dc.user_name(store(), uid), font = F(.Bold), size = 16}
 			spans[2] = {text = ".", font = F(.Normal), size = 16}
 			ui.set_spans(t, spans)
 		}
@@ -926,7 +926,7 @@ block_confirm_modal :: proc() {
 		block_confirm = {}
 		return
 	}
-	name := dc.display_name(u)
+	name := dc.user_name(store(), uid)
 	scrim := ui.box("block_scrim", {.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay})
 	scrim.semantic_size = {.X = ui.px(app.ui.window.x), .Y = ui.px(app.ui.window.y)}
 	scrim.style.bg = {0, 0, 0, 0.7}
@@ -1070,7 +1070,7 @@ channel_welcome :: proc(ch: ^dc.Channel) {
 				spacer(.X, 16)
 				b := row("editbtn", {.Clickable})
 				b.semantic_size = {.X = ui.children(), .Y = ui.px(20)}
-				ui.signal(b)
+				if ui.signal(b).clicked do channel_settings_open(ch)
 				if ui.parent(b) {
 					icon("i", "pencil", 16, T("--text-link"))
 					spacer(.X, 4)

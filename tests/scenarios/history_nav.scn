@@ -1,0 +1,21 @@
+# A goes channel -> Friends, then Back / Forward with Cmd+[ / Cmd+] and with the
+# title-bar arrows.
+include _open_test_channel.scn
+mark open_friends
+include _friends_home.scn
+mark history_back_key
+key [ meta
+wait_for div[role="textbox"][aria-label^="Message #"]
+settle 2000
+mark history_forward_key
+key ] meta
+wait_for [aria-label="Add Friend"]
+settle 2000
+mark history_back_button
+click [aria-label="Go back"]
+wait_for div[role="textbox"][aria-label^="Message #"]
+settle 2000
+mark history_forward_button
+click [aria-label="Go forward"]
+wait_for [aria-label="Add Friend"]
+settle 2000

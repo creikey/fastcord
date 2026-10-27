@@ -1,0 +1,37 @@
+# Events modal and the Create Event wizard (offline: Create Event itself needs the network):
+# Location -> Event Info -> Review, Back, Escape; an external event asks for an end time.
+wait 5
+click_text Events
+wait 10
+expect_visible "There are no upcoming events."
+click_text "Create Event"
+wait 10
+expect_visible "Where is your event?"
+expect_not_visible "There are no upcoming events."
+click_text "Somewhere Else"
+wait 5
+type the park
+wait 5
+click_text Next
+wait 10
+expect_visible "What's your event about?"
+expect_visible "End Date"
+expect_visible "1:00 PM"
+type picnic
+wait 5
+click_text Next
+wait 10
+expect_visible "Here's a preview of your event."
+expect_visible "picnic"
+expect_visible "the park"
+click_text Back
+wait 5
+expect_visible "What's your event about?"
+click_text Back
+wait 5
+click_text "Voice Channel"
+wait 5
+expect_visible "Select a channel"
+key escape
+wait 10
+expect_not_visible "Where is your event?"

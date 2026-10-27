@@ -38,11 +38,13 @@ View_State :: struct {
 	last_channel: map[dc.Snowflake]dc.Snowflake, // guild -> last selected channel
 	friends_tab:  Friends_Tab,
 	collapsed:    map[dc.Snowflake]bool, // collapsed categories
+	hide_muted:   map[dc.Snowflake]bool, // guild -> "Hide Muted Channels" (device-local)
 	show_members: bool,
 	hide_dm_profile: bool, // 1:1 DM user profile column (header toggle)
 	add_friend:   ui.Editor,
 	friends_search: ui.Editor, // Friends page search (filters the list)
 	token_input:  ui.Editor,
+	back, fwd:    [dynamic][2]dc.Snowflake, // title-bar history: {guild, channel} places left / gone back from
 }
 
 view_init :: proc(v: ^View_State) {
@@ -131,13 +133,51 @@ select_guild :: proc(gid: dc.Snowflake) {
 	select_channel(gid, ch)
 }
 
-select_channel :: proc(gid, cid: dc.Snowflake) {
+// source: where the route change came from, as channel_opened reports it ("Thread Browser").
+select_channel :: proc(gid, cid: dc.Snowflake, source := "") {
+	if gid != app.view.guild || cid != app.view.channel {
+		history_push(&app.view.back, {app.view.guild, app.view.channel})
+		clear(&app.view.fwd)
+	}
+	go_to(gid, cid, source)
+}
+
+HISTORY_MAX :: 50
+
+@(private = "file")
+history_push :: proc(h: ^[dynamic][2]dc.Snowflake, place: [2]dc.Snowflake) {
+	if len(h) >= HISTORY_MAX do ordered_remove(h, 0)
+	append(h, place)
+}
+
+// Back / forward (title bar arrows "Go back" / "Go forward", Cmd/Ctrl+[ and ]):
+// places whose guild or channel no longer exists are skipped. The move is a
+// normal route change (same requests as opening that place); science
+// keyboard_shortcut_used (keys only) and app_back_forward_navigated (fixture history_nav).
+history_step :: proc(forward: bool, keybind := false) {
+	from, to := &app.view.back, &app.view.fwd
+	if forward do from, to = to, from
+	for len(from) > 0 {
+		place := pop(from)
+		if place[0] != 0 && dc.guild_get(store(), place[0]) == nil do continue
+		if place[1] != 0 && dc.channel_get(store(), place[1]) == nil do continue
+		history_push(to, {app.view.guild, app.view.channel})
+		if app.client != nil do dc.track_back_forward(app.client, forward, keybind)
+		go_to(place[0], place[1])
+		return
+	}
+}
+
+@(private = "file")
+go_to :: proc(gid, cid: dc.Snowflake, source := "") {
+	was_home := app.view.guild == 0 && app.view.channel == 0
 	app.view.guild = gid
 	app.view.channel = cid
 	app.view.last_channel[gid] = cid
 	if app.client != nil {
 		limit := dc.initial_message_limit(int(app.ui.window.y))
-		dc.select_channel(app.client, gid, cid, limit)
+		dc.select_channel(app.client, gid, cid, limit, source = source)
+		if gid == 0 && cid == 0 && !was_home do dc.friends_page_viewed(app.client) // the Friends page renders
 	}
 }
 
@@ -150,6 +190,7 @@ build_ui :: proc() {
 	}
 	prof.zone("app.build_ui")
 	title_bar()
+	streamer_notice()
 	body := row("body")
 	body.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
 	body.cross_align = .Start
@@ -182,10 +223,31 @@ title_bar :: proc() {
 		left := row("left")
 		left.semantic_size = {.X = ui.px(TITLE_SIDE_W), .Y = ui.pct(1)}
 		if ui.parent(left) {
-			spacer(.X, 88)
-			icon("back", "arrow-large-left", 18, T("--interactive-icon-default"))
-			spacer(.X, 6)
-			icon("fwd", "arrow-large-right", 18, with_alpha(T("--interactive-icon-default"), 0.3))
+			spacer(.X, 85)
+			for fwd in ([]bool{false, true}) {
+				n := len(app.view.fwd) if fwd else len(app.view.back)
+				nb := ui.box(fwd ? "fwd" : "back", {.Clickable} if n > 0 else {})
+				nb.semantic_size = {.X = ui.px(24), .Y = ui.px(24)}
+				nb.layout_axis = .X
+				nb.cross_align = .Center
+				sig := ui.signal(nb)
+				c := T("--interactive-icon-default")
+				if n == 0 do c = with_alpha(c, 0.3)
+				else if sig.hovering do c = T("--interactive-icon-hover")
+				if ui.parent(nb) {
+					spacer(.X, 3)
+					icon("i", fwd ? "arrow-large-right" : "arrow-large-left", 18, c)
+				}
+				if sig.hovering do tooltip_below(fwd ? "Go forward" : "Go back", nb.rect)
+				if sig.clicked do history_step(fwd)
+			}
+		}
+		for &e in app.ui.events {
+			if e.consumed || e.kind != .Key_Down || e.mods != {PRIMARY_MOD} do continue
+			if e.key == .Left_Bracket || e.key == .Right_Bracket {
+				history_step(e.key == .Right_Bracket, keybind = true)
+				e.consumed = true
+			}
 		}
 		filler(.X)
 		title := "Friends"
@@ -222,9 +284,9 @@ title_bar :: proc() {
 		right.semantic_size = {.X = ui.px(TITLE_SIDE_W), .Y = ui.pct(1)}
 		if ui.parent(right) {
 			filler(.X)
-			icon("inbox", "inbox", 20, T("--icon-muted"))
+			inbox_button() // view_inbox.odin
 			spacer(.X, 16)
-			icon("help", "circle-question", 20, T("--icon-muted"))
+			help_button()
 			spacer(.X, 14)
 		}
 	}
@@ -320,7 +382,7 @@ rail_item :: proc(id: string, selected: bool, text: string, icon_name: string, g
 		ic.style.font_size = guild_acronym_size(len(text))
 		ic.text = text
 		sig = ui.signal(ic)
-		unread := guild_id != 0 && guild_has_unread(guild_id)
+		unread := guild_id != 0 && guild_unread_shown(guild_id)
 		target: f32 = selected ? 40 : (sig.hovering ? 20 : (unread ? 8 : 0))
 		ui.animate(&pill.user_t, target, 25)
 		h := pill.user_t
@@ -374,23 +436,25 @@ guild_acronym_size :: proc(n: int) -> f32 {
 	return 12
 }
 
-PERM_ADMINISTRATOR :: u64(1) << 3
-PERM_MANAGE_GUILD_EXPRESSIONS :: u64(1) << 30
+PERM_ADMINISTRATOR :: dc.PERM_ADMINISTRATOR
+PERM_MANAGE_GUILD_EXPRESSIONS :: dc.PERM_MANAGE_GUILD_EXPRESSIONS
 
-// Guild-level permissions of the current user (owner = everything).
+// Guild-level permissions of the current user (owner / administrator = everything).
 my_guild_permissions :: proc(gid: dc.Snowflake) -> u64 {
+	return dc.guild_permissions(store(), gid)
+}
+
+// What the rail shows: a muted server and muted channels show no unread pill.
+guild_unread_shown :: proc(gid: dc.Snowflake) -> bool {
 	s := store()
 	g := dc.guild_get(s, gid)
-	if g == nil do return 0
-	if g.owner_id == s.me do return max(u64)
-	perms: u64
-	mem := dc.member_get(s, gid, s.me)
-	for r in g.roles {
-		if r.id == gid do perms |= r.permissions // @everyone
-		if mem != nil do for rid in mem.roles do if rid == r.id do perms |= r.permissions
+	if g == nil do return false
+	now := wall_ms()
+	if dc.guild_is_muted(s, gid, now) do return false
+	for id in g.channels {
+		if dc.channel_unread(s, id) && !dc.channel_effectively_muted(s, gid, id, now) do return true
 	}
-	if perms & PERM_ADMINISTRATOR != 0 do return max(u64)
-	return perms
+	return false
 }
 
 guild_has_unread :: proc(gid: dc.Snowflake) -> bool {
@@ -487,23 +551,26 @@ chat_header :: proc(ch: ^dc.Channel) {
 		}
 		filler(.X)
 		tools := []string{"thread", "bell", "pin", "group"}
-		if ch.guild_id == 0 do tools = {"phone-call", "video", "pin", "group-plus", "user-circle"}
-		if ch.kind == .Group_DM do tools = {"phone-call", "video", "pin", "group-plus", "group"} // member list toggle
+		if ch.guild_id == 0 do tools = {"phone-call", "pin", "group-plus", "user-circle"}
+		if ch.kind == .Group_DM do tools = {"phone-call", "pin", "group-plus", "group"} // member list toggle
 		for name in tools {
 			b := ui.box(name, {.Clickable})
 			b.semantic_size = {.X = ui.px(HEADER_TOOL_W), .Y = ui.px(24)}
 			b.layout_axis = .X
 			b.cross_align = .Center
 			sig := ui.signal(b)
-			active := (name == "group" && app.view.show_members) || (name == "user-circle" && !app.view.hide_dm_profile)
+			active := (name == "group" && app.view.show_members) || (name == "user-circle" && !app.view.hide_dm_profile) || (name == "phone-call" && app.voice_channel == ch.id)
 			color := sig.hovering || active ? T("--interactive-icon-hover") : T("--icon-muted")
 			if ui.parent(b) {
 				spacer(.X, (HEADER_TOOL_W - 20) / 2)
-				icon("i", name, 20, color)
+				icon("i", name == "bell" ? bell_icon_name(ch) : name, 20, color)
 			}
+			if sig.clicked && name == "bell" && !dc.is_thread(ch) do bell_popout_toggle(ch.id, b.rect)
 			if sig.clicked && name == "group" do app.view.show_members = !app.view.show_members
 			if sig.clicked && name == "user-circle" do app.view.hide_dm_profile = !app.view.hide_dm_profile
 			if sig.clicked && name == "pin" do pins_toggle(ch.id, b.rect)
+			if sig.clicked && name == "phone-call" do dm_call_toggle(ch)
+			if sig.clicked && name == "thread" do threads_browser_toggle(ch.id, b.rect)
 			if sig.clicked && name == "group-plus" && ch.kind == .DM do group_dm_popout_open(b.rect, ch.id)
 		}
 		spacer(.X, 8)
@@ -551,14 +618,15 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	hdr := row("guildheader", {.Clickable, .Draw_Background, .Hot_Animation})
 	hdr.semantic_size = {.X = ui.pct(1), .Y = ui.px(HEADER_H - 1)}
 	hdr.style.bg_hot = T("--background-mod-subtle")
-	ui.signal(hdr)
+	if ui.signal(hdr).clicked do guild_menu_toggle(gid, hdr.rect)
+	if ui.mouse_over(hdr) do hdr.style.bg = hdr.style.bg_hot // also while over the invite button
 	if ui.parent(hdr) {
 		spacer(.X, 16)
 		label(ellipsize(g.name, .Semibold, 16, GUILD_NAME_MAX_W), .Semibold, 16, T("--text-strong"), 20)
 		spacer(.X, 5)
 		icon("chev", "chevron-small-down", 18, T("--interactive-icon-hover"))
 		filler(.X)
-		icon("invite", "group-plus", 20, T("--interactive-icon-hover"))
+		if ui.signal(icon("invite", "group-plus", 20, T("--interactive-icon-hover"), {.Clickable})).clicked do invite_open(gid, 0, dc.INVITE_LOC_HEADER_BUTTON)
 		spacer(.X, 14)
 	}
 	line := ui.box("hline", {.Draw_Background})
@@ -571,8 +639,7 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	ui.signal(list)
 	if ui.parent(list) {
 		spacer(.Y, 12)
-		guild_action_row("events", "calendar", "Events")
-		guild_action_row("boosts", "boost-gem", "Server Boosts")
+		if guild_action_row("events", "calendar", events_row_label(gid)).clicked do events_open(gid)
 		spacer(.Y, 11)
 		sep := row("sep")
 		sep.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
@@ -583,9 +650,13 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 			l.style.bg = T("--border-subtle")
 			spacer(.X, 16)
 		}
+		now := wall_ms()
+		hide_muted := app.view.hide_muted[gid]
 		for cid in dc.guild_channels_sorted(s, gid) {
 			ch := dc.channel_get(s, cid)
 			if ch == nil do continue
+			// Hide Muted Channels: muted channels (own or category mute) go, the open one stays
+			if hide_muted && cid != app.view.channel && dc.channel_effectively_muted(s, gid, cid, now) do continue
 			if ui.id_scope(u64(cid)) {
 				if ch.kind == .Guild_Category {
 					category_row(ch)
@@ -601,8 +672,8 @@ channel_sidebar :: proc(gid: dc.Snowflake) {
 	}
 }
 
-// "Events" / "Server Boosts" rows above the channel list (32px on a 34px pitch).
-guild_action_row :: proc(id, icon_name, text: string) {
+// "Events" row above the channel list (32px on a 34px pitch).
+guild_action_row :: proc(id, icon_name, text: string) -> (sig: ui.Signal) {
 	outer := row(id)
 	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(CHANNEL_ROW_PITCH)}
 	if ui.parent(outer) {
@@ -611,7 +682,7 @@ guild_action_row :: proc(id, icon_name, text: string) {
 		item.semantic_size = {.X = ui.fill(), .Y = ui.px(CHANNEL_ROW_H)}
 		item.style.radius = 8
 		item.style.bg_hot = T("--background-mod-subtle")
-		sig := ui.signal(item)
+		sig = ui.signal(item)
 		color := sig.hovering ? T("--interactive-text-hover") : T("--channels-default")
 		if ui.parent(item) {
 			spacer(.X, 8)
@@ -621,6 +692,7 @@ guild_action_row :: proc(id, icon_name, text: string) {
 		}
 		spacer(.X, 9)
 	}
+	return
 }
 
 // Category: 16px gap, then a 24px row (14px medium name, chevron, "create channel" plus).
@@ -638,14 +710,23 @@ category_row :: proc(ch: ^dc.Channel) {
 		spacer(.X, 4)
 		icon("chev", collapsed ? "chevron-small-right" : "chevron-small-down", 12, color)
 		filler(.X)
-		icon("plus", "plus-small", 18, T("--interactive-icon-default"))
+		if can_manage_channels(ch.guild_id) {
+			// "Create Channel" in this category (not a collapse toggle)
+			plus := ui.box("createchan", {.Clickable})
+			plus.semantic_size = {.X = ui.px(18), .Y = ui.px(18)}
+			ps := ui.signal(plus)
+			set_icon(plus, "plus-small", ps.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+			if ps.clicked do create_channel_open(ch.guild_id, ch.id)
+		}
 		spacer(.X, 16)
 	}
 }
 
 channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 	selected := app.view.channel == ch.id
-	unread := dc.channel_unread(store(), ch.id)
+	// muted channels are drawn dimmed and show no unread state (official --interactive-muted)
+	muted := dc.channel_effectively_muted(store(), gid, ch.id, wall_ms())
+	unread := dc.channel_unread(store(), ch.id) && !muted
 	outer := row("chan")
 	outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(CHANNEL_ROW_PITCH)}
 	if ui.parent(outer) {
@@ -656,6 +737,8 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 		item.style.bg = selected ? T("--background-mod-normal") : {}
 		item.style.bg_hot = selected ? item.style.bg : T("--background-mod-subtle")
 		sig := ui.signal(item)
+		sig.hovering ||= ui.mouse_over(item) // stays hovered over its invite / settings buttons
+		if sig.hovering && !selected do item.style.bg = item.style.bg_hot
 		if sig.clicked {
 			if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
 				join_voice(gid, ch.id)
@@ -668,18 +751,26 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 			color = T("--interactive-text-active")
 		} else if sig.hovering {
 			color = T("--interactive-text-hover")
+		} else if muted {
+			color = T("--interactive-muted")
 		}
 		if ui.parent(item) {
 			spacer(.X, 8)
-			icon("ic", channel_icon_name(ch), 20, selected || sig.hovering ? color : T("--channel-icon"))
+			icon("ic", channel_icon_name(ch), 20, selected || sig.hovering || muted ? color : T("--channel-icon"))
 			spacer(.X, 8)
 			label(ch.name, unread || selected ? .Semibold : .Medium, 16, color, 20)
 			filler(.X)
-			if selected || sig.hovering {
+			if selected || sig.hovering || ui.mouse_over(item) {
 				// invite / settings, shown on the selected or hovered row
-				icon("invite", "group-plus", 16, T("--interactive-icon-hover"))
-				spacer(.X, 4)
-				icon("settings", "settings", 16, T("--interactive-icon-hover"))
+				if ui.signal(icon("invite", "group-plus", 16, T("--interactive-icon-hover"), {.Clickable})).clicked do invite_open(gid, ch.id, dc.INVITE_LOC_CHANNELS)
+				if can_manage_channel(ch) {
+					spacer(.X, 4)
+					cog := ui.box("chansettings", {.Clickable})
+					cog.semantic_size = {.X = ui.px(16), .Y = ui.px(16)}
+					cs := ui.signal(cog) // its own click: the row doesn't select the channel
+					set_icon(cog, "settings", cs.hovering ? T("--interactive-icon-active") : T("--interactive-icon-hover"))
+					if cs.clicked do channel_settings_open(ch)
+				}
 			}
 			spacer(.X, 8)
 		}
@@ -704,9 +795,7 @@ channel_row :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 					spacer(.X, 44)
 					voice_avatar("av", uid, 24, T("--background-base-lower"))
 					spacer(.X, 8)
-					name := "unknown"
-					if u := dc.user_get(s, uid); u != nil do name = dc.display_name(u)
-					label(name, .Medium, 14, T("--channels-default"), 18)
+					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, T("--channels-default"), 18)
 				}
 			}
 		}
@@ -735,7 +824,10 @@ user_panel :: proc() {
 			who.style.radius = 8
 			who.style.bg_hot = T("--background-mod-subtle")
 			// your own profile card (the client also lists status options there)
-			if ui.signal(who).clicked do open_profile(s.me, who.rect)
+			if ui.signal(who).clicked {
+				open_profile(s.me, panel.rect, .Account_Panel)
+				app.profile_above = true
+			}
 			if ui.parent(who) {
 				spacer(.X, 4)
 				avatar_with_status("av", s.me, 32, T("--background-base-low"))
@@ -769,8 +861,21 @@ user_panel :: proc() {
 					color := muted ? T("--status-danger") : (sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
 					icon("i", ic, 20, color)
 					if has_chev {
-						spacer(.X, 7)
-						icon("chev", "chevron-small-down", 16, sig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+						// the chevron is its own button: input / output device settings
+						spacer(.X, 3)
+						cb := ui.box("chev", {.Clickable})
+						cb.semantic_size = {.X = ui.px(24), .Y = ui.px(32)}
+						cb.layout_axis = .X
+						cb.cross_align = .Center
+						csig := ui.signal(cb)
+						if ui.parent(cb) {
+							spacer(.X, 4)
+							icon("i", "chevron-small-down", 16, sig.hovering || csig.hovering ? T("--interactive-icon-hover") : T("--interactive-icon-default"))
+						}
+						if csig.clicked {
+							settings_page = "Voice & Video"
+							app.settings_open = true
+						}
 					}
 				}
 				if has_chev do spacer(.X, 3)
@@ -781,6 +886,7 @@ user_panel :: proc() {
 					case "headphones":
 						app.self_deaf = !app.self_deaf
 					case "settings":
+						settings_page = "Account" // the gear opens on Account, like the client
 						app.settings_open = true
 					}
 				}
@@ -857,11 +963,20 @@ join_voice :: proc(gid, cid: dc.Snowflake) {
 }
 
 overlays :: proc() {
+	// Escape is a global keybind in the official client (MARK_CHANNEL_READ, or
+	// POP_LAYER over settings); it is tracked whatever layer it closes
+	if app.client != nil do for e in app.ui.events do if e.kind == .Key_Down && e.key == .Escape {
+		dc.analytics_keyboard_shortcut(app.client, "POP_LAYER" if app.settings_open else "MARK_CHANNEL_READ", "esc")
+	}
 	picker_overlay()
 	group_dm_overlay()
 	profile_full_overlay()
 	for &e in app.ui.events {
 		if !e.consumed && e.kind == .Key_Down && e.key == .K && PRIMARY_MOD in e.mods {
+			if !sw.open && app.client != nil {
+				dc.analytics_keyboard_shortcut(app.client, "QUICKSWITCHER_SHOW", "mod+k")
+				dc.analytics_quickswitcher_opened(app.client, app.view.guild, app.view.channel)
+			}
 			switcher_toggle()
 			e.consumed = true
 		}
@@ -870,10 +985,21 @@ overlays :: proc() {
 	if ma.menu_msg != 0 do message_menu()
 	if ma.deleting != 0 do delete_modal()
 	if block_confirm.user != 0 do block_confirm_modal()
+	if fnick.user != 0 do friend_nick_modal()
 	if app.profile_user != 0 do profile_popout()
 	if viewer_url != "" do image_viewer()
+	incoming_call_popout() // view_voice.odin
 	if app.settings_open do settings_modal()
+	else do settings_closed()
+	account_logout_modal() // view_settings_account.odin
+	add_server_overlay() // view_add_server.odin
 	voice_user_menu()
 	pins_popout()
+	threads_browser_popout()
+	inbox_popout()
+	guild_menu_overlays()
 	search_suggestions()
+	events_modal()
+	guild_admin_overlays()
+	attachments_overlays() // attachments.odin: Modify modal, drag target, limit notices
 }

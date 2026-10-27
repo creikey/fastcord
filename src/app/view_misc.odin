@@ -50,11 +50,28 @@ field_draw :: proc(b: ^ui.Box, user: rawptr) {
 	platform.set_ime_rect(origin.x + x, y, 1, tl.line_h)
 }
 
-open_profile :: proc(uid: dc.Snowflake, anchor: ui.Rect) {
+// Where a profile popout was opened from (telemetry: user_profile_action's
+// layout and location stack; .Other sends none, its stack names are not known).
+Profile_Source :: enum u8 {
+	Other,
+	Message_Author, // a message's username (source_message_id)
+	Account_Panel, // our own panel at the bottom left (ACCOUNT_POPOUT)
+}
+
+open_profile :: proc(uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Other, message_id: dc.Snowflake = 0) {
 	app.profile_user = uid
 	app.profile_anchor = anchor
+	app.profile_above = false
 	app.profile_open_t = 0
-	if app.client != nil do dc.fetch_profile(app.client, uid, app.view.guild)
+	if app.client == nil do return
+	switch source {
+	case .Message_Author:
+		dc.profile_view_begin(app.client, .Popout, uid, app.view.guild, app.view.channel, message_id)
+	case .Account_Panel:
+		dc.profile_view_begin(app.client, .Account_Popout, uid, 0, 0, 0)
+	case .Other:
+	}
+	dc.fetch_profile(app.client, uid, app.view.guild)
 }
 
 // Profile popout: banner, avatar with status, names, and a message box like the official one.
@@ -74,11 +91,21 @@ profile_popout :: proc() {
 		return
 	}
 	ui.animate(&app.profile_open_t, 1, 25)
+	p := ui.box("profile", {.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable})
+	// clamp with the card's real height (last frame's layout; 420 before the first)
+	h := p.rect.y1 - p.rect.y0
+	if h <= 0 do h = 420
 	a := app.profile_anchor
 	x := a.x1 + 8
 	if x + W > app.ui.window.x - 8 do x = a.x0 - W - 8
-	y := clamp(a.y0, 8, app.ui.window.y - 420)
-	p := ui.box("profile", {.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable})
+	y := a.y0
+	if app.profile_above {
+		// the client's account popout: above the user panel, aligned with its left edge
+		x = a.x0
+		y = a.y0 - 8 - h
+	}
+	x = clamp(x, 8, app.ui.window.x - W - 8)
+	y = clamp(y, 8, max(8, app.ui.window.y - h - 8))
 	p.semantic_size = {.X = ui.px(W), .Y = ui.children()}
 	p.fixed_pos = {x, y + (1 - app.profile_open_t) * 8}
 	p.opacity = app.profile_open_t
@@ -138,7 +165,7 @@ profile_popout :: proc() {
 			pad.semantic_size = {.X = ui.pct(1), .Y = ui.px(26)}
 			if ui.parent(pad) {
 				spacer(.X, 16)
-				n := label(dc.display_name(u), .Bold, 20, T("--text-strong"), 24)
+				n := label(dc.user_name(s, uid, app.view.guild), .Bold, 20, T("--text-strong"), 24)
 				n.flags += {.Selectable_Text}
 				n.sel_order = 1
 			}
@@ -197,7 +224,7 @@ profile_popout :: proc() {
 				mr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
 				if ui.parent(mr) {
 					spacer(.X, 16)
-					mb := row(fmt.tprintf("Message @%s##msgbtn", dc.display_name(u)), {.Clickable, .Draw_Background, .Draw_Border, .Draw_Text})
+					mb := row(fmt.tprintf("Message @%s##msgbtn", dc.user_name(s, uid)), {.Clickable, .Draw_Background, .Draw_Border, .Draw_Text})
 					mb.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
 					mb.style.bg = T("--input-background-default")
 					mb.style.border_color = T("--border-subtle")
@@ -240,6 +267,7 @@ Settings_Item :: struct {
 
 settings_modal :: proc() {
 	s := store()
+	settings_track()
 	scrim := ui.box("settings_scrim", {.Draw_Background, .Floating_X, .Floating_Y, .Overlay, .Clickable})
 	scrim.semantic_size = {.X = ui.px(app.ui.window.x), .Y = ui.px(app.ui.window.y)}
 	scrim.style.bg = {0, 0, 0, 0.7}
@@ -272,8 +300,10 @@ settings_modal :: proc() {
 						name := "…"
 						if u := dc.user_get(s, s.me); u != nil do name = dc.display_name(u)
 						label(name, .Semibold, 16, T("--text-strong"), 20)
-						er := row("edit")
-						er.semantic_size = {.X = ui.pct(1), .Y = ui.px(18)}
+						er := row("edit", {.Clickable})
+						er.semantic_size = {.X = ui.children(), .Y = ui.px(18)}
+						er.hover_cursor = .Pointer
+						if ui.signal(er).clicked do settings_page = "Profiles"
 						if ui.parent(er) {
 							label("Edit Profiles", .Medium, 14, T("--text-muted"), 18)
 							spacer(.X, 4)
@@ -282,27 +312,12 @@ settings_modal :: proc() {
 					}
 				}
 				spacer(.Y, 16)
-				sr := row("searchrow")
-				sr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
-				if ui.parent(sr) {
-					spacer(.X, 16)
-					sb := row("search", {.Draw_Background, .Draw_Border})
-					sb.semantic_size = {.X = ui.fill(), .Y = ui.px(40)}
-					sb.style.bg = T("--input-background-default")
-					sb.style.border_color = T("--input-border-default")
-					sb.style.border = 1
-					sb.style.radius = 8
-					if ui.parent(sb) {
-						spacer(.X, 12)
-						icon("mag", "magnifying-glass", 16, T("--icon-default"))
-						spacer(.X, 8)
-						label("Search", .Normal, 16, T("--input-placeholder-text-default"), 20)
-					}
-					spacer(.X, 16)
-				}
+				settings_nav_search() // view_settings_prefs.odin: filters the items below
 				spacer(.Y, 8)
-				items := []Settings_Item{{"My Account", "user-circle"}, {"Profiles", "pencil"}, {"Appearance", "paint-palette"}, {"Voice & Video", "microphone"}, {"Notifications", "bell"}}
+				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
+				items := []Settings_Item{{"Account", "user-circle"}, {"Profiles", "pencil"}, {"Appearance", "paint-palette"}, {"Voice & Video", "microphone"}, {"Notifications", "bell"}}
 				for it in items {
+					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) do continue
 					sel := it.name == settings_page
 					outer := row(it.name)
 					outer.semantic_size = {.X = ui.pct(1), .Y = ui.px(37)}
@@ -324,7 +339,9 @@ settings_modal :: proc() {
 						}
 						spacer(.X, 16)
 					}
+					if it.name == "Appearance" && (sel || settings_nav_match("Streamer Mode") && !settings_nav_match("Appearance")) do appearance_subnav()
 				}
+				settings_nav_logout()
 			}
 			edge := ui.box("navedge", {.Draw_Background})
 			edge.semantic_size = {.X = ui.px(1), .Y = ui.pct(1)}
@@ -354,6 +371,12 @@ settings_modal :: proc() {
 					voice_settings_page()
 				} else if settings_page == "Appearance" {
 					appearance_page()
+				} else if settings_page == "Account" {
+					my_account_page() // view_settings_account.odin
+				} else if settings_page == "Profiles" {
+					profiles_page()
+				} else if settings_page == "Notifications" {
+					notifications_page() // view_settings_prefs.odin
 				}
 			}
 		}
@@ -363,11 +386,94 @@ settings_modal :: proc() {
 	}
 }
 
+// ---- settings traffic: which pane is showing (dc.settings_pane_shown) ----
+
+@(private = "file")
+set_tr: struct {
+	open:     bool,
+	pane:     dc.Settings_Pane,
+	profiles: bool,
+	jump:     string, // Appearance sub-nav: section to scroll to ("" = none)
+}
+
+@(private = "file")
+pane_of :: proc(page: string) -> dc.Settings_Pane {
+	switch page {
+	case "Account":
+		return .Account
+	case "Appearance":
+		return .Appearance
+	case "Voice & Video":
+		return .Voice
+	case "Notifications":
+		return .Notifications
+	}
+	return .None // Profiles: the profile editor opens over the settings
+}
+
+// settings_track runs each frame the modal is open: a newly shown pane loads what
+// it shows and tracks settings_pane_viewed; "Edit Profiles" opening loads the editor.
+@(private = "file")
+settings_track :: proc() {
+	opening := !set_tr.open
+	if opening do set_tr = {open = true}
+	pane := pane_of(settings_page)
+	if pane != .None && (opening || pane != set_tr.pane) {
+		if app.client != nil do dc.settings_pane_shown(app.client, set_tr.pane, pane, app.view.guild, app.view.channel, streamer_settings.enabled)
+		set_tr.pane = pane
+	}
+	in_profiles := settings_page == "Profiles"
+	if in_profiles && !set_tr.profiles && app.client != nil do dc.open_profile_editor(app.client)
+	set_tr.profiles = in_profiles
+}
+
+// settings_closed: the modal is not shown this frame (the next open starts over).
+settings_closed :: proc() {set_tr.open = false}
+
+settings_reset_for_test :: proc() {set_tr = {}}
+
+// Appearance's sub-nav (shown under it while selected, or while the search matches
+// a section): clicking a section scrolls the page to it.
+@(private = "file")
+appearance_subnav :: proc() {
+	for sub in ([]string{"Theme", "Streamer Mode"}) {
+		r := row(fmt.tprintf("sub_%s", sub), {.Clickable, .Hot_Animation})
+		r.semantic_size = {.X = ui.pct(1), .Y = ui.px(33)}
+		sig := ui.signal(r)
+		if ui.parent(r) {
+			spacer(.X, 28)
+			bar := ui.box("bar", {.Draw_Background})
+			bar.semantic_size = {.X = ui.px(2), .Y = ui.pct(1)}
+			bar.style.bg = T("--border-subtle")
+			spacer(.X, 14)
+			label(sub, .Medium, 16, sig.hovering ? T("--interactive-text-active") : T("--interactive-text-default"), 20)
+		}
+		if sig.clicked {
+			settings_page = "Appearance"
+			set_tr.jump = sub
+		}
+	}
+}
+
+// appearance_scroll_target: scroll the Appearance page to this section when the sub-nav asked.
+@(private = "file")
+appearance_scroll_target :: proc(scroll, heading: ^ui.Box, name: string) {
+	if set_tr.jump != name || heading.rect.y1 <= heading.rect.y0 do return
+	set_tr.jump = ""
+	scroll.view_off_target.y = heading.rect.y0 - scroll.rect.y0 + scroll.view_off.y - 24
+}
+
 // Appearance > Theme: heading, "Same as Device Theme" row, the default theme swatches.
 @(private = "file")
 appearance_page :: proc() {
+	scroll := ui.box("appearance_scroll", {.Scroll_Y, .Clip})
+	scroll.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
+	scroll.layout_axis = .Y
+	ui.signal(scroll)
+	ui.push_parent(scroll)
+	defer ui.pop_parent()
 	page := row("appearance")
-	page.semantic_size = {.X = ui.pct(1), .Y = ui.fill()}
+	page.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
 	page.cross_align = .Start
 	if ui.parent(page) {
 		filler(.X)
@@ -376,10 +482,12 @@ appearance_page :: proc() {
 		col.layout_axis = .Y
 		if ui.parent(col) {
 			spacer(.Y, 64)
-			label("Theme", .Medium, 24, T("--text-strong"), 32)
+			th := label("Theme", .Medium, 24, T("--text-strong"), 32)
+			appearance_scroll_target(scroll, th, "Theme")
 			spacer(.Y, 30)
-			dr := row("device")
+			dr := row("device", {.Clickable})
 			dr.semantic_size = {.X = ui.pct(1), .Y = ui.px(40)}
+			if ui.signal(dr).clicked do theme_follow_os_set(!theme_follow_os)
 			if ui.parent(dr) {
 				c := ui.box("c")
 				c.semantic_size = {.X = ui.fill(), .Y = ui.children()}
@@ -388,20 +496,7 @@ appearance_page :: proc() {
 					spacer(.Y, 2)
 					label("Match your device's light or dark mode.", .Normal, 14, T("--text-subtle"), 18)
 				}
-				// toggle (off): 40x24 track with a white knob
-				tr := ui.box("toggle", {.Draw_Background, .Draw_Border})
-				tr.semantic_size = {.X = ui.px(40), .Y = ui.px(24)}
-				tr.style.radius = 12
-				tr.style.bg = T("--background-mod-strong")
-				tr.style.border = 1
-				tr.style.border_color = T("--border-subtle")
-				if ui.parent(tr) {
-					k := ui.box("knob", {.Draw_Background, .Floating_X, .Floating_Y})
-					k.semantic_size = {.X = ui.px(16), .Y = ui.px(16)}
-					k.fixed_pos = {4, 4}
-					k.style.radius = 8
-					k.style.bg = {1, 1, 1, 1}
-				}
+				set_switch(theme_follow_os)
 			}
 			spacer(.Y, 32)
 			label("Default Themes", .Semibold, 16, T("--text-default"), 20)
@@ -413,7 +508,7 @@ appearance_page :: proc() {
 					tokens: Theme
 					defer delete(tokens.tokens)
 					theme_load(&tokens, name)
-					sel := app.theme.name == name
+					sel := app.theme.name == name && !theme_follow_os
 					b := ui.box(fmt.tprint(name), {.Clickable, .Draw_Background, .Draw_Border})
 					b.semantic_size = {.X = ui.px(SET_SWATCH), .Y = ui.px(SET_SWATCH)}
 					b.style.radius = 8
@@ -439,6 +534,16 @@ appearance_page :: proc() {
 					spacer(.X, SET_SWATCH_PITCH - SET_SWATCH)
 				}
 			}
+			spacer(.Y, 48)
+			div := ui.box("smdiv", {.Draw_Background})
+			div.semantic_size = {.X = ui.pct(1), .Y = ui.px(1)}
+			div.style.bg = T("--border-subtle")
+			spacer(.Y, 48)
+			sh := label("Streamer Mode", .Medium, 24, T("--text-strong"), 32)
+			appearance_scroll_target(scroll, sh, "Streamer Mode")
+			spacer(.Y, 24)
+			streamer_settings_section() // view_streamer.odin
+			spacer(.Y, 64)
 		}
 		filler(.X)
 	}

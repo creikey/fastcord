@@ -58,6 +58,7 @@ sidebar_thread_rows :: proc(ch: ^dc.Channel, gid: dc.Snowflake) {
 				item.style.bg_hot = selected ? item.style.bg : T("--background-mod-subtle")
 				sig := ui.signal(item)
 				if sig.clicked do select_channel(gid, tid)
+				if sig.right_clicked do thread_menu_open(tid, app.ui.mouse)
 				color := T("--channels-default")
 				if selected || unread {
 					color = T("--interactive-text-active")
@@ -115,9 +116,7 @@ thread_summary_pill :: proc(m: ^dc.Message) {
 			if ui.parent(lr) {
 				avatar_box("av", last.author_id, 16)
 				spacer(.X, 6)
-				name := "unknown"
-				if u := dc.user_get(s, last.author_id); u != nil do name = dc.display_name(u)
-				label(name, .Medium, 14, author_color(last), 18)
+				label(name_in(last.author_id, last.channel_id, "unknown"), .Medium, 14, author_color(last), 18)
 				spacer(.X, 6)
 				t := label(ellipsize(first_line(last.content), .Normal, 14, 300), .Normal, 14, T("--text-muted"), 18)
 				t.flags += {.Clip}
@@ -198,7 +197,6 @@ forum_view :: proc(ch: ^dc.Channel) {
 
 @(private = "file")
 forum_card :: proc(forum: ^dc.Channel, th: ^dc.Channel, tags: []dc.Forum_Tag) {
-	s := store()
 	tm := dc.thread_meta(th.id)
 	outer := row("cardrow")
 	outer.semantic_size = {.X = ui.pct(1), .Y = ui.children()}
@@ -249,8 +247,7 @@ forum_card :: proc(forum: ^dc.Channel, th: ^dc.Channel, tags: []dc.Forum_Tag) {
 				pr := row("preview")
 				pr.semantic_size = {.X = ui.pct(1), .Y = ui.px(18)}
 				if ui.parent(pr) {
-					name := ""
-					if u := dc.user_get(s, tm.first_author); u != nil do name = dc.display_name(u)
+					name := name_in(tm.first_author, th.id, "")
 					if name != "" {
 						label(fmt.tprintf("%s:", name), .Medium, 14, T("--text-default"), 18)
 						spacer(.X, 4)
@@ -335,6 +332,16 @@ features_receive :: proc() {
 			app.ui.animating = true
 		case .Search:
 			search_receive(&r)
+		case .Thread_Browse, .Thread_Create:
+			threads_browser_receive(&r)
+		case .Mentions, .Mention_Delete:
+			inbox_receive(&r)
+		case .User_Patch, .Profile_Patch:
+			account_receive(&r) // view_settings_account.odin
+		case .Event_Create, .Event_Counts, .Event_Rsvps, .Event_Interest, .Event_Invite, .Event_Delete, .Event_Start:
+			events_receive(&r) // view_events.odin (dc.guild_admin_apply first)
+		case .Guild_Aux, .Channel_Create, .Channel_Edit, .Channel_Delete, .Emoji_Upload:
+			guild_admin_receive(&r)
 		}
 	}
 }

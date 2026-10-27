@@ -23,3 +23,14 @@ close_private_channel :: proc(c: ^Client, channel_id: Snowflake) {
 	j.path = job_str(j, strings.concatenate({"/channels/", snowflake_string(channel_id), "?silent=false"}, context.temp_allocator))
 	job_submit(c, j)
 }
+
+// ring_call: starting a DM / group DM call rings the other recipients:
+// POST /channels/{id}/call/ring {"recipients":null} (after op 4 joins the call).
+ring_call :: proc(c: ^Client, channel_id: Snowflake) {
+	j := job_new(.Api, .None)
+	j.method = "POST"
+	j.path = job_str(j, channel_path(channel_id, "/call/ring"))
+	j.body = transmute([]byte)job_str(j, `{"recipients":null}`)
+	j.content_type = "application/json"
+	job_submit(c, j)
+}

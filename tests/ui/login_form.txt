@@ -1,0 +1,30 @@
+# The login page: the email field has focus, the password field shows bullets,
+# Register opens discord.com/register, a phone number gets the country pill,
+# and the QR panel waits for its code (no server: offline).
+show_login
+wait 5
+expect_visible "Welcome back!"
+expect_visible "EMAIL OR PHONE NUMBER"
+expect_visible "PASSWORD"
+expect_visible "Log in with QR Code"
+type dingus@example.com
+wait 2
+expect_input "dingus@example.com"
+click 487 379
+wait 2
+type hunter2
+wait 2
+expect_input "hunter2"
+expect_visible "•••••••"
+click_text "Register"
+wait 2
+expect_opened_url "https://discord.com/register"
+click 487 295
+wait 2
+key a cmd
+type 555 123 4567
+wait 2
+expect_visible "US +1"
+click_text "Log In"
+wait 2
+expect_visible "Welcome back!"

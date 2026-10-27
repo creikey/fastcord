@@ -1,6 +1,9 @@
 package http
 
 import "fc:locks"
+import "core:bytes"
+import "core:compress"
+import "core:compress/zlib"
 import "core:crypto"
 import "core:crypto/legacy/sha1"
 import "core:encoding/base64"
@@ -18,9 +21,12 @@ import "fc:netio"
 // Handshake: ws_connect writes the caller's request headers verbatim (see
 // WS_DISCORD_HEADERS-style usage below). A `Sec-WebSocket-Key` header with
 // an empty value is filled with a fresh random key in place; if absent, one
-// is appended. permessage-deflate is not implemented: offering it (as Chrome
-// does) is fine because Discord never accepts it, but if a server does accept
-// any extension the handshake fails with .Handshake.
+// is appended. permessage-deflate (offered like Chrome) is accepted only with
+// Ws_Options.allow_deflate: received compressed messages are inflated (with
+// the server's context takeover), and sent messages are wrapped in DEFLATE
+// stored blocks (RSV1 set, as Chrome compresses every message once the
+// extension is negotiated). Without allow_deflate, a server that accepts any
+// extension fails the handshake with .Handshake (the Discord gateway never does).
 
 WS_GUID :: "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
@@ -64,10 +70,15 @@ Ws_Conn :: struct {
 	// mask key entropy pool (under wmu)
 	entropy:        [256]byte,
 	entropy_pos:    int,
+	// permessage-deflate (negotiated with Ws_Options.allow_deflate)
+	deflate:        bool,
+	no_takeover:    bool, // server_no_context_takeover: no history between messages
+	history:        [dynamic]byte, // last 32 KiB of inflated output (the server's window)
 }
 
 Ws_Options :: struct {
-	max_message: int, // 0 -> 64 MiB
+	max_message:   int, // 0 -> 64 MiB
+	allow_deflate: bool, // accept the server's permessage-deflate (see the header comment)
 }
 
 // ws_connect performs the opening handshake on s and returns the connection
@@ -131,7 +142,7 @@ ws_connect :: proc(
 		}
 		break
 	}
-	if err == .None && !ws_validate_response(&resp, key) do err = .Handshake
+	if err == .None && !ws_validate_response(&resp, key, opts.allow_deflate, c) do err = .Handshake
 	if err != .None {
 		ws_destroy(c)
 		return nil, resp, err
@@ -150,14 +161,15 @@ ws_accept_for_key :: proc(key: string, allocator := context.allocator) -> string
 }
 
 @(private)
-ws_validate_response :: proc(resp: ^Response, key: string) -> bool {
+ws_validate_response :: proc(resp: ^Response, key: string, allow_deflate := false, c: ^Ws_Conn = nil) -> bool {
 	if resp.status != 101 do return false
 	if !header_has_token(resp.headers[:], "upgrade", "websocket") do return false
 	if !header_has_token(resp.headers[:], "connection", "upgrade") do return false
 	accept, ok := header_get(resp.headers[:], "sec-websocket-accept")
 	if !ok || accept != ws_accept_for_key(key, context.temp_allocator) do return false
 	if ext, has := header_get(resp.headers[:], "sec-websocket-extensions"); has && len(strings.trim_space(ext)) > 0 {
-		return false // nothing negotiated is supported (no permessage-deflate)
+		if !allow_deflate || c == nil do return false
+		return ws_accept_deflate(c, ext)
 	}
 	return true
 }
@@ -166,6 +178,7 @@ ws_destroy :: proc(c: ^Ws_Conn) {
 	context.allocator = c.allocator
 	reader_destroy(&c.r)
 	delete(c.last_pong)
+	delete(c.history)
 	if len(c.close_reason) > 0 do delete(c.close_reason)
 	free(c)
 }
@@ -213,10 +226,11 @@ ws_put_header :: proc(buf: ^[dynamic]byte, fin: bool, op: Ws_Opcode, length: int
 }
 
 @(private)
-ws_write_frame_locked :: proc(c: ^Ws_Conn, fin: bool, op: Ws_Opcode, payload: []byte) -> Error {
+ws_write_frame_locked :: proc(c: ^Ws_Conn, fin: bool, op: Ws_Opcode, payload: []byte, rsv1 := false) -> Error {
 	key := mask_key(c)
 	buf := make([dynamic]byte, 0, len(payload) + 14, context.temp_allocator)
 	ws_put_header(&buf, fin, op, len(payload), key)
+	if rsv1 do buf[0] |= 0x40
 	start := len(buf)
 	append(&buf, ..payload)
 	for i in 0 ..< len(payload) do buf[start + i] ~= key[i & 3]
@@ -234,6 +248,9 @@ ws_send_fragmented :: proc(c: ^Ws_Conn, type: Ws_Message_Type, payload: []byte, 
 	defer locks.unlock(&c.wmu)
 	if c.sent_close do return .Closed
 	op := Ws_Opcode.Text if type == .Text else .Binary
+	if c.deflate {
+		return ws_write_frame_locked(c, true, op, deflate_stored(payload), rsv1 = true)
+	}
 	if fragment_size <= 0 || len(payload) <= fragment_size {
 		return ws_write_frame_locked(c, true, op, payload)
 	}
@@ -325,12 +342,16 @@ ws_read_frame_header :: proc(r: ^Reader) -> (h: Ws_Frame_Header, err: Error) {
 ws_recv :: proc(c: ^Ws_Conn, msg: ^[dynamic]byte) -> (type: Ws_Message_Type, err: Error) {
 	clear(msg)
 	in_message := false
+	compressed := false
 	for {
 		if c.recv_close do return type, .Closed
 		h, herr := ws_read_frame_header(&c.r)
 		if herr != .None do return type, herr
 		op := Ws_Opcode(h.opcode)
-		if h.rsv != 0 || h.masked do return type, ws_fail(c, WS_PROTOCOL_ERROR, .Protocol)
+		// RSV1 marks a compressed message (its first frame) once deflate is negotiated
+		rsv1_ok := c.deflate && h.rsv == 4 && (op == .Text || op == .Binary)
+		if (h.rsv != 0 && !rsv1_ok) || h.masked do return type, ws_fail(c, WS_PROTOCOL_ERROR, .Protocol)
+		if rsv1_ok do compressed = true
 		is_control := h.opcode >= 8
 		if is_control {
 			if !h.fin || h.length > 125 do return type, ws_fail(c, WS_PROTOCOL_ERROR, .Protocol)
@@ -381,6 +402,9 @@ ws_recv :: proc(c: ^Ws_Conn, msg: ^[dynamic]byte) -> (type: Ws_Message_Type, err
 		}
 		if u64(len(msg)) + h.length > u64(c.max_message) do return type, ws_fail(c, WS_TOO_BIG, .Too_Large)
 		read_body_n(&c.r, msg, int(h.length)) or_return
+		if h.fin && compressed {
+			if !ws_inflate(c, msg) do return type, ws_fail(c, WS_INVALID_DATA, .Protocol)
+		}
 		if h.fin {
 			if type == .Text && !utf8.valid_string(string(msg[:])) do return type, ws_fail(c, WS_INVALID_DATA, .Protocol)
 			return type, .None
@@ -405,4 +429,74 @@ ws_fail :: proc(c: ^Ws_Conn, code: int, err: Error) -> Error {
 	ws_close_locked(c, code, "")
 	locks.unlock(&c.wmu)
 	return err
+}
+
+// ---- permessage-deflate (RFC 7692) ----
+
+// ws_accept_deflate: the server's answer must be permessage-deflate alone; its
+// parameters only shape what we may expect (window bits never exceed 15).
+@(private)
+ws_accept_deflate :: proc(c: ^Ws_Conn, ext: string) -> bool {
+	parts := strings.split(ext, ";", context.temp_allocator)
+	if len(parts) == 0 || strings.trim_space(parts[0]) != "permessage-deflate" || strings.contains(ext, ",") do return false
+	for p in parts[1:] {
+		kv := strings.trim_space(p)
+		name := kv
+		if i := strings.index_byte(kv, '='); i >= 0 do name = strings.trim_space(kv[:i])
+		switch name {
+		case "server_no_context_takeover":
+			c.no_takeover = true
+		case "client_no_context_takeover", "server_max_window_bits", "client_max_window_bits":
+		// our stored blocks reference nothing; any window the server picks fits 32 KiB
+		case:
+			return false
+		}
+	}
+	c.deflate = true
+	return true
+}
+
+// ws_inflate replaces msg (one compressed message) with its inflated bytes.
+@(private)
+ws_inflate :: proc(c: ^Ws_Conn, msg: ^[dynamic]byte) -> bool {
+	WINDOW :: 32768
+	// the message + the stripped sync-flush tail, then an empty final block
+	input := make([dynamic]byte, 0, len(msg) + 6, context.temp_allocator)
+	append(&input, ..msg[:])
+	append(&input, 0x00, 0x00, 0xff, 0xff, 0x03, 0x00)
+	out: bytes.Buffer
+	defer bytes.buffer_destroy(&out)
+	hist := len(c.history) if !c.no_takeover else 0
+	append(&out.buf, ..c.history[len(c.history) - hist:])
+	ctx := compress.Context_Memory_Input{input_data = input[:], output = &out, bytes_written = i64(hist)}
+	expected := min(hist + max(8 * len(msg), 4096), c.max_message + hist)
+	if zlib.inflate_raw(&ctx, expected_output_size = expected) != nil do return false
+	data := out.buf[hist:int(ctx.bytes_written)]
+	if len(data) > c.max_message do return false
+	clear(msg)
+	append(msg, ..data)
+	if !c.no_takeover {
+		all := out.buf[:int(ctx.bytes_written)]
+		keep := all[max(len(all) - WINDOW, 0):]
+		clear(&c.history)
+		append(&c.history, ..keep)
+	}
+	return true
+}
+
+// deflate_stored: payload as DEFLATE stored blocks, ending with the header byte
+// of the empty sync-flush block whose 00 00 ff ff tail RFC 7692 strips.
+@(private)
+deflate_stored :: proc(payload: []byte) -> []byte {
+	out := make([dynamic]byte, 0, len(payload) + 6 + 5 * (len(payload) / 65535), context.temp_allocator)
+	rest := payload
+	for {
+		n := min(len(rest), 65535)
+		append(&out, 0x00, u8(n), u8(n >> 8), ~u8(n), ~u8(n >> 8))
+		append(&out, ..rest[:n])
+		rest = rest[n:]
+		if len(rest) == 0 do break
+	}
+	append(&out, 0x00)
+	return out[:]
 }

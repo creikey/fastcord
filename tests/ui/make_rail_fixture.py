@@ -48,9 +48,9 @@ for k, (cid, kind, rec, unread) in enumerate(dms):
     for m in range(unread):
         out.append(ev('MESSAGE_CREATE', {'id': sf(base_ms + 6000 * 1000 + m * 1000, 80 + k * 4 + m), 'channel_id': cid, 'author': rec[0], 'content': 'ping %d' % m,
             'timestamp': '', 'edited_timestamp': None, 'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
-# friends so the Create DM popout has people to list
+# friends so the Create DM popout has people to list; Nelly has a friend nickname
 for k, u in enumerate(users):
-    out.append(ev('RELATIONSHIP_ADD', {'id': u['id'], 'type': 1, 'user': u, 'nickname': None, 'since': '2026-01-01T00:00:00+00:00'}))
+    out.append(ev('RELATIONSHIP_ADD', {'id': u['id'], 'type': 1, 'user': u, 'nickname': 'Lil Bean' if k == 1 else None, 'since': '2026-01-01T00:00:00+00:00'}))
 with open(os.path.join(here, 'rail.jsonl'), 'w') as f:
     for o in out: f.write(json.dumps(o) + '\n')
 print('wrote rail.jsonl', len(out))

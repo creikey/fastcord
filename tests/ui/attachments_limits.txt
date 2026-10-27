@@ -1,0 +1,36 @@
+# Limits like the client: the file size of the user's plan (notice "Your files are too
+# powerful") and 10 files per message ("Too many uploads!"); the drag-over overlay.
+wait 5
+drag_enter
+wait 3
+expect_visible Upload to #dingus-battle
+shot build/ui-attachments-drag.png
+drag_leave
+wait 3
+expect_not_visible Upload to #dingus-battle
+upload_limit 10000
+stage tests/ui/attach/photo.jpg
+wait_attachments
+wait 3
+expect_notice too_large
+expect_visible Your files are too powerful
+expect_visible Max file size is 0.01 MB please.
+shot build/ui-attachments-too-large.png
+key escape
+wait 3
+expect_notice none
+expect_attachments 0
+# a drop goes through the platform's drop events
+drop tests/scenarios/assets/test.png
+wait_attachments
+wait 3
+expect_attachments 1 test.png
+stage tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png tests/scenarios/assets/test.png
+wait 3
+expect_notice too_many
+expect_visible Too many uploads!
+shot build/ui-attachments-too-many.png
+click 640 360
+wait 3
+expect_notice none
+expect_attachments 1 test.png

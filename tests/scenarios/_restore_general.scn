@@ -1,0 +1,14 @@
+# Restore: recreate the test guild's #general text channel (Text Channels category).
+use a
+mark restore_general
+click [aria-label="Create Channel"]
+wait_for [role="dialog"] input[placeholder="new-channel"]
+pause
+click [role="dialog"] input[placeholder="new-channel"]
+type general
+pause
+click_text [role="dialog"] button | Create Channel
+wait 3000
+settle 2000
+js location.pathname
+js [...document.querySelectorAll("[data-list-item-id^=channels___]")].map(e=>e.getAttribute("data-list-item-id")+":"+e.innerText.split("\n")[0]).join(" | ")

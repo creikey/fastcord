@@ -38,6 +38,7 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 ./build.sh            # build/fastcord (-o:speed)
 ./build.sh debug      # build/fastcord-debug (unoptimised: frames take ~5x longer)
 ./build.sh dev        # build/fastcord-dev (debug checks and symbols, optimised; for daily use)
+./build.sh check      # build/fastcord-check: dev in ~3 s (per-package LLVM modules, UI pass ~10% slower); tests/run_all.sh uses it
 ./build/fastcord      # logs in with $FASTCORD_TOKEN or <state>/token
 ```
 
@@ -46,8 +47,10 @@ Every build first compiles the vendored C (`vendor/`) into `build/`; `./build.sh
 `build.bat` has the same targets for cmd.exe and finds MSVC itself.
 
 `<state>` is `~/Library/Application Support/fastcord/state` on macOS and `%LOCALAPPDATA%\fastcord\state`
-on Windows. With no token (or a rejected one) the app opens an intro screen that explains how to copy
-the token from a browser and saves it there.
+on Windows. With no token (or a rejected one) the app opens the login page: email or phone number and
+password (with the multi-factor step), or the QR code for the mobile app, as the official client does
+(`src/discord/auth.odin`, `remote_auth.odin`). The token it gets is saved there. A small "Log in with a
+token" link takes a token copied from a browser instead.
 
 ## Testing
 
@@ -60,7 +63,9 @@ tests/ui/run.sh                  # just the UI scripts (tests/ui/*.txt) against 
 Headless app runs render offscreen and write a PNG, driven by a script of
 input events with assertions (`click`, `dclick`, `down`/`move`/`up`, `rclick`,
 `type`, `key enter cmd`, `scroll`, `wait`, `shot`, `expect_selection`,
-`expect_clipboard`):
+`expect_clipboard`; attachments: `stage <path>...`, `drop <path>...`, `paste_image <png>`,
+`paste_files <path>...`, `drag_enter`/`drag_leave`, `wait_attachments`, `expect_attachments`,
+`upload_limit <bytes>`, `expect_notice`):
 
 ```sh
 ./build/fastcord-debug -shot:out.png -dpi:1 -fixture:tests/ui/chat.jsonl \

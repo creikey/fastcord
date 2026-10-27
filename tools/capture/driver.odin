@@ -32,6 +32,7 @@ import "fc:etf"
 //   upload SEL | PATH         DOM.setFileInputFiles on an <input type=file>
 //   scroll SEL | DY           mouse wheel over SEL
 //   js EXPR                   evaluate and print
+//   let NAME EXPR             evaluate on the current account, store the string result as ${NAME}
 //   snap NAME                 screenshot + layout dump -> .secrets/screens/<scenario>/NAME.{png,json} (also at every mark)
 //   probe NAME | FILE.js      evaluate a JS file returning a string, save as NAME.json
 //   optional CMD...           run CMD; failure is noted, not fatal
@@ -375,6 +376,14 @@ exec :: proc(d: ^Driver, line: string) -> (bool, string) {
 			human(30, 70)
 		}
 		return true, ""
+	case "let":
+		vname, expr := split_cmd(rest)
+		v, ok := evaluate(r.c, r.page_session, expr)
+		sv, is_str := v.(string)
+		if !ok || !is_str || sv == "" do return false, "let: no string result"
+		d.vars[strings.clone(vname)] = strings.clone(sv)
+		fmt.println("  let", vname)
+		return true, ""
 	case "js":
 		v, ok := evaluate(r.c, r.page_session, rest)
 		fmt.println("  =>", cdp.to_json(v))
@@ -552,6 +561,9 @@ KEYS := [?]Key_Def {
 	{"a", "KeyA", 65, "a"},
 	{"k", "KeyK", 75, "k"},
 	{",", "Comma", 188, ","},
+	{"[", "BracketLeft", 219, "["},
+	{"]", "BracketRight", 221, "]"},
+	{"v", "KeyV", 86, "v"},
 }
 
 @(private)
@@ -583,6 +595,8 @@ key :: proc(d: ^Driver, rest: string) -> (bool, string) {
 		switch def.name {
 		case "a":
 			commands = `,"commands":["selectAll"]`
+		case "v":
+			commands = `,"commands":["paste"]`
 		}
 	}
 	down := fmt.tprintf(

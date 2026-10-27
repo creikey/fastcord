@@ -16,7 +16,7 @@ import "fc:voice"
 // (MLS remove / sole member reset for A), B rejoins -> new group, audio again.
 
 TGUILD :: dc.Snowflake(1564227669971832975)
-TTEXT :: dc.Snowflake(1564227670806364343)
+TTEXT :: dc.Snowflake(1564405699197407414) // #general, recreated 2026-10-26
 TVOICE :: dc.Snowflake(1564227670806364345)
 INVITE_CACHE :: ".secrets/tguild_invite.txt"
 

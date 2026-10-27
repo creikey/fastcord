@@ -1,0 +1,43 @@
+# A: channel header bell -> Mute Channel -> For 15 Minutes; bell -> Unmute;
+# bell -> Only @mentions; bell -> Use Category Default.
+include _open_test_channel.scn
+mark open_channel_bell
+click section[aria-label="Channel header"] [aria-label="Notification Settings"]
+wait_for #channel-context-mute-channel
+settle 1200
+mark channel_mute_15m
+hover #channel-context-mute-channel
+wait 1200
+snap mute_submenu
+click_text [role="menuitem"] | For 15 Minutes
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 2000
+pause
+mark open_channel_bell_muted
+click section[aria-label="Channel header"] [aria-label="Notification Settings"]
+wait_for [role="menu"]
+snap muted_menu
+pause
+mark channel_unmute
+click_text [role="menuitem"] | Unmute Channel
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 2000
+pause
+mark channel_notify_mentions
+click section[aria-label="Channel header"] [aria-label="Notification Settings"]
+wait_for [role="menuitemradio"]
+pause
+click_text [role="menuitemradio"] | Only @mentions
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 2000
+optional key Escape
+pause
+mark channel_notify_default
+click section[aria-label="Channel header"] [aria-label="Notification Settings"]
+wait_for [role="menuitemradio"]
+pause
+click_text [role="menuitemradio"] | Use Category Default
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 2000
+optional key Escape
+settle 1000

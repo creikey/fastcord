@@ -9,7 +9,7 @@ expect_visible "Copy Username"
 shot build/ui-dm_banner_menu-open.png
 key escape
 wait 10
-click 349 286
+click 349 166
 wait 20
 expect_visible "Select Friends"
 click 600 683

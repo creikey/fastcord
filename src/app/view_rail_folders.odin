@@ -198,8 +198,8 @@ rail_view :: proc() {
 				else do rail_guild(e.guilds[0], i, -1)
 			}
 		}
-		rail_item("add", false, "", "circle-plus", 0)
-		rail_item("discover", false, "", "compass", 0)
+		if rail_item("add", add_server_is_open(), "", "circle-plus", 0).clicked do add_server_open() // view_add_server.odin
+		if rail_item("discover", false, "", "compass", 0).clicked do discover_open()
 		spacer(.Y, USER_PANEL_H + 16)
 	}
 	rail_drag(entries)
@@ -253,6 +253,7 @@ rail_guild :: proc(gid: dc.Snowflake, entry, inner: int) {
 		if sig.box == nil do return // offscreen
 		if ui.parent(slot) do mention_badge(guild_mentions(gid), 0)
 		if sig.clicked && !rs.drag_active do select_guild(gid)
+		if sig.right_clicked && !rs.drag_active do guild_context_open(gid, app.ui.mouse)
 		drag_source(sig, entry, inner)
 		if rs.drag_active && rs.drag_entry == entry && rs.drag_inner == inner do pk_fade(slot, 0)
 		append(&rs.targets, Rail_Target{slot.rect, entry, inner})
@@ -282,7 +283,7 @@ rail_folder :: proc(e: ^Rail_Entry, entry: int) {
 	mentions := 0
 	for gid in e.guilds {
 		if gid == app.view.guild do selected_inside = true
-		if guild_has_unread(gid) do unread = true
+		if guild_unread_shown(gid) do unread = true
 		mentions += guild_mentions(gid)
 	}
 	color := folder_color(e)

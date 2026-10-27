@@ -21,6 +21,7 @@ Custom_Status :: struct {
 	emoji_id:      Snowflake,
 	emoji_name:    string,
 	expires_at_ms: i64,
+	clear_after:   Clear_After, // the modal's "Clear after" choice (telemetry)
 }
 
 Settings_Edit :: struct {
@@ -31,7 +32,17 @@ Settings_Edit :: struct {
 	custom_ms:    i64, // CustomStatus.created_at_ms
 	clear_custom: bool,
 	theme:        Maybe(Theme),
+	friend_online: Maybe(bool), // NotificationSettings.notify_friends_on_launch (12)
 	folders:      Maybe([]Guild_Folder),
+	inbox_tab:    Maybe(Inbox_Tab),
+}
+
+// InboxSettings.current_tab (PreloadedUserSettings field 2): the Inbox popout
+// reopens on it.
+Inbox_Tab :: enum u8 {
+	Unspecified = 0,
+	Mentions    = 1,
+	Unreads     = 2,
 }
 
 @(private)
@@ -51,6 +62,11 @@ pb_new :: proc() -> protobuf.Writer {return protobuf.Writer{buf = make([dynamic]
 // settings_delta_proto encodes the pending edit as a PreloadedUserSettings delta.
 settings_delta_proto :: proc(e: ^Settings_Edit) -> []byte {
 	root := pb_new()
+	if tab, ok := e.inbox_tab.?; ok {
+		ib := pb_new() // InboxSettings (2)
+		if tab != .Unspecified do protobuf.write_uint(&ib, 1, u64(tab))
+		pb_msg(&root, 2, &ib)
+	}
 	_, has_status := e.status.?
 	_, has_custom := e.custom.?
 	if has_status || has_custom || e.clear_custom {
@@ -76,6 +92,13 @@ settings_delta_proto :: proc(e: ^Settings_Edit) -> []byte {
 			pb_msg(&st, 5, &created)
 		}
 		pb_msg(&root, 11, &st)
+	}
+	if on, ok := e.friend_online.?; ok {
+		ns := pb_new() // NotificationSettings (7)
+		bv := pb_new() // BoolValue: false is the empty message
+		if on do protobuf.write_uint(&bv, 1, 1)
+		pb_msg(&ns, 12, &bv)
+		pb_msg(&root, 7, &ns)
 	}
 	if th, ok := e.theme.?; ok {
 		ap := pb_new() // AppearanceSettings (13): theme + client_theme_settings (3, empty)
@@ -125,6 +148,7 @@ settings_mark :: proc(c: ^Client, delay_ms: i64) {
 
 // set_status: online / idle / dnd / invisible.
 set_status :: proc(c: ^Client, s: Status) {
+	if s != c.store.settings.status do analytics_status_updated(c, c.store.settings.status, s)
 	now := now_ms()
 	c.settings_edit.status = s
 	c.settings_edit.status_ms = now
@@ -136,6 +160,7 @@ set_status :: proc(c: ^Client, s: Status) {
 
 // set_custom_status; empty text and emoji clears it.
 set_custom_status :: proc(c: ^Client, cs: Custom_Status) {
+	if cs.text != "" || cs.emoji_name != "" || cs.emoji_id != 0 do analytics_custom_status_updated(c, cs)
 	e := &c.settings_edit
 	if cs.text == "" && cs.emoji_name == "" && cs.emoji_id == 0 {
 		e.custom = nil
@@ -145,7 +170,7 @@ set_custom_status :: proc(c: ^Client, cs: Custom_Status) {
 			free_str(old.text, c.allocator)
 			free_str(old.emoji_name, c.allocator)
 		}
-		e.custom = Custom_Status{clone_str(cs.text, c.allocator), cs.emoji_id, clone_str(cs.emoji_name, c.allocator), cs.expires_at_ms}
+		e.custom = Custom_Status{text = clone_str(cs.text, c.allocator), emoji_id = cs.emoji_id, emoji_name = clone_str(cs.emoji_name, c.allocator), expires_at_ms = cs.expires_at_ms}
 		e.custom_ms = now_ms()
 		e.clear_custom = false
 	}
@@ -203,11 +228,23 @@ presence_value :: proc(c: ^Client, allocator := context.temp_allocator) -> V {
 	return etf.map_done(&b)
 }
 
-set_theme :: proc(c: ^Client, t: Theme) {
+// set_theme: the user picked a theme (system: "Sync with computer", t resolved from the OS).
+set_theme :: proc(c: ^Client, t: Theme, system := false) {
+	analytics_theme_updated(c, t, system)
 	c.settings_edit.theme = t
 	c.store.settings.theme = t
 	c.store.changed += 1
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS)
+}
+
+// set_inbox_tab: switching the Inbox tab (FREQUENT_USER_ACTION: the 10 s
+// timer starts at the first switch and saves the tab current then; fixture
+// inbox: Unreads at +0, Mentions at +6 s, one PATCH with MENTIONS at +10 s).
+set_inbox_tab :: proc(c: ^Client, tab: Inbox_Tab) {
+	c.settings_edit.inbox_tab = tab
+	c.store.settings.inbox_tab = tab
+	c.store.changed += 1
+	settings_mark(c, SETTINGS_DELAY_FREQUENT_MS)
 }
 
 // set_guild_folders replaces the sidebar folders (copied).

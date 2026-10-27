@@ -1,0 +1,24 @@
+# A mutes the guild for 15 minutes from the guild icon context menu, then unmutes it.
+# (0.0.419's header dropdown has no Mute Server item; the header path is Notification
+# Settings -> "Mute <guild>" switch.)
+include _open_test_channel.scn
+mark open_guild_context_menu
+rclick [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for #guild-context-mute-guild
+pause
+hover #guild-context-mute-guild
+wait 1200
+snap mute_submenu
+mark guild_mute_15m
+click_text [role="menuitem"] | For 15 Minutes
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 2500
+pause
+mark guild_unmute
+rclick [data-list-item-id="guildsnav___${TGUILD}"]
+wait_for [role="menu"]
+pause
+snap unmute_menu
+click_text [role="menuitem"] | Unmute Server
+wait_gw USER_GUILD_SETTINGS_UPDATE
+settle 2500

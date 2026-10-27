@@ -1,0 +1,47 @@
+# Login page states without a server (login_state, view_login.odin): field
+# errors, the captcha message, the QR code, "Check your phone!", the
+# multi-factor step and its method list, and passkey-only accounts.
+show_login
+wait 3
+login_state error
+wait 3
+expect_visible "- Login or password is invalid."
+login_state captcha
+wait 3
+expect_visible "Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead."
+login_state qr
+wait 3
+expect_visible "Log in with QR Code"
+login_state ticket
+wait 3
+expect_visible "Check your phone!"
+expect_visible "Logging in as dingusbattle2"
+click_text "Not me, start over"
+wait 3
+expect_visible "Log in with QR Code"
+login_state mfa
+wait 3
+expect_visible "Multi-Factor Authentication"
+expect_visible "Enter Discord Auth Code"
+type 123456
+wait 2
+expect_input "123456"
+click_text "Verify with something else"
+wait 3
+expect_visible "Use your authenticator app"
+expect_visible "Use a backup code"
+click_text "Use a backup code"
+wait 3
+expect_visible "Slow down! Are you sure?"
+login_state webauthn_only
+wait 3
+expect_visible "This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead."
+click_text "Go back"
+wait 3
+expect_visible "Welcome back!"
+login_state forgot_sent
+wait 3
+expect_visible "Instructions Sent"
+click_text "Okay"
+wait 3
+expect_not_visible "Instructions Sent"

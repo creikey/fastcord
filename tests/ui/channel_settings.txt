@@ -1,0 +1,36 @@
+# Channel settings page (row cog): editing shows the unsaved-changes bar, Reset
+# restores, Escape is held while there are changes, the Slowmode select and the
+# Delete Channel confirm (Cancel returns to the page).
+wait 5
+click 350 198
+wait 10
+expect_visible "Overview"
+expect_not_visible "Careful — you have unsaved changes!"
+click 740 300
+wait 5
+type , and more
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+key escape
+wait 5
+expect_visible "Overview"
+click_text Reset
+wait 5
+expect_not_visible "Careful — you have unsaved changes!"
+click_text Off
+wait 5
+click_text 10s
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+click_text Reset
+wait 5
+click_text "Delete Channel"
+wait 5
+expect_visible "Cancel"
+click_text Cancel
+wait 5
+expect_not_visible "Cancel"
+expect_visible "Overview"
+key escape
+wait 10
+expect_not_visible "Overview"

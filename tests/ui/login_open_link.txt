@@ -1,11 +1,17 @@
-# Regression: the intro screen's "Open discord.com" called the OS directly (and
-# so opened a browser from headless runs); it goes through open_url now. The
-# token field takes typing; "Log in" is disabled until there is a token.
+# The token page (fastcord only, "Log in with a token" under the login form):
+# "Open discord.com" goes through open_url (headless runs never open a
+# browser); the token field takes typing.
 show_login
 wait 5
+click_text "Log in with a token"
+wait 3
+expect_visible "Log in with a token"
 click_text "Open discord.com"
 wait 2
 expect_opened_url "https://discord.com/app"
 type abc
 wait 2
 expect_input "abc"
+click_text "← Back to login"
+wait 3
+expect_visible "Welcome back!"

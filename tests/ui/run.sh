@@ -5,14 +5,16 @@
 # in build/sweep/). SWEEP=0 skips the sweep (it takes a minute or two).
 set -e
 cd "$(dirname "$0")/../.."
-./build.sh debug
+# the dev build (optimised, debug checks on): the sweep takes ~20 s with it, ~150 s unoptimised
+[ -n "$FASTCORD_PREBUILT" ] || ./build.sh dev
+BIN=${FASTCORD_BIN:-./build/fastcord-dev}
 fail=0
 mkdir -p build/uires
 rm -f build/uires/*
 # Every script (and the sweep) is its own headless process; they run in parallel
 # and their results print in a fixed order at the end.
 run_script() { # <result name> <fixture> <script>
-  if TZ=UTC ./build/fastcord-debug -shot:build/ui-$(basename "$3" .txt).png -dpi:1 -now:1793016000 -fixture:"$2" -channel:1546820603343016006 -script:"$3" > "build/uires/$1.log" 2>&1; then
+  if TZ=UTC $BIN -shot:build/ui-$(basename "$3" .txt).png -dpi:1 -now:1793016000 -fixture:"$2" -channel:1546820603343016006 -script:"$3" > "build/uires/$1.log" 2>&1; then
     echo "PASS $1" > "build/uires/$1.res"
   else
     { echo "FAIL $1"; sed 's/^/    /' "build/uires/$1.log"; } > "build/uires/$1.res"
@@ -32,7 +34,7 @@ done
 if [ "${SWEEP:-1}" != 0 ]; then
   rm -rf build/sweep
   names="$names sweep"
-  ( if TZ=UTC ./build/fastcord-debug -shot:build/sweep.png -dpi:1 -now:1793016000 -sweep:tests/ui/sweep.txt > build/uires/sweep.log 2>&1; then
+  ( if TZ=UTC $BIN -shot:build/sweep.png -dpi:1 -now:1793016000 -sweep:tests/ui/sweep.txt > build/uires/sweep.log 2>&1; then
       echo "PASS sweep" > build/uires/sweep.res
     else
       { echo "FAIL sweep (see build/sweep/report.txt)"; tail -30 build/uires/sweep.log | sed 's/^/    /'; } > build/uires/sweep.res

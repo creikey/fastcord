@@ -145,7 +145,7 @@ profile_full_receive :: proc(r: ^dc.Expr_Result) {
 
 // Overlay entry (views.odin overlays()).
 profile_full_overlay :: proc() {
-	user_context_menu()
+	defer user_context_menu() // above the modal: its "…" opens this menu
 	// FASTCORD_PROFILE=<user id|me> opens the modal once a channel shows (headless checks)
 	@(static) debug_done: bool
 	if !debug_done && app.view.channel != 0 {
@@ -222,7 +222,7 @@ profile_full_overlay :: proc() {
 			names.fixed_pos = {PF_PAD + 8, PF_AVATAR / 2 + 16}
 			names.layout_axis = .Y
 			if ui.parent(names) {
-				n := label(dc.display_name(u), .Bold, 24, T("--text-strong"), 30)
+				n := label(dc.user_name(s, uid, pf.guild), .Bold, 24, T("--text-strong"), 30)
 				n.flags += {.Selectable_Text}
 				n.sel_order = 1
 				un := row("un")
@@ -257,7 +257,7 @@ profile_full_overlay :: proc() {
 		}
 	}
 	for &e in app.ui.events {
-		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
+		if !e.consumed && e.kind == .Key_Down && e.key == .Escape && fnick.user == 0 {
 			e.consumed = true
 			pf.user = 0
 		}
@@ -448,7 +448,7 @@ profile_about :: proc(uid: dc.Snowflake, u: ^dc.User, prof: Pf_Profile) {
 		}
 	}
 	spacer(.Y, 16)
-	if uid != store().me {
+	if uid != store().me && !streamer_hide_personal() {
 		section_title("Note")
 		nr := row("note")
 		nr.semantic_size = {.X = ui.pct(1), .Y = ui.px(18)}
@@ -554,7 +554,7 @@ profile_mutual_friends :: proc(uid: dc.Snowflake, prof: Pf_Profile) {
 				col.semantic_size = {.X = ui.fill(), .Y = ui.children()}
 				col.layout_axis = .Y
 				if ui.parent(col) {
-					label(f.global_name != "" ? f.global_name : f.username, .Medium, 16, T("--interactive-text-active"), 20)
+					label(dc.user_name(store(), f.id, 0, f.global_name != "" ? f.global_name : f.username), .Medium, 16, T("--interactive-text-active"), 20)
 					label(f.username, .Normal, 14, T("--text-muted"), 18)
 				}
 			}
@@ -566,9 +566,15 @@ profile_mutual_friends :: proc(uid: dc.Snowflake, prof: Pf_Profile) {
 
 // ---- user context menu (right-click on a member / author) ----
 
-open_user_menu :: proc(uid: dc.Snowflake, at: ui.Vec2) {
+// open_user_menu: right-click / "More" on a user. In a guild the menu loads the
+// member's popout data (dc.open_user_context_menu); from a DM row only the note and
+// the user command index (dm_row: fixture friend_add_context_menu).
+open_user_menu :: proc(uid: dc.Snowflake, at: ui.Vec2, dm_row := false) {
 	pf.menu_user = uid
 	pf.menu_pos = at
+	if app.client == nil || uid == 0 do return
+	if dm_row do dc.open_dm_row_menu(app.client, uid)
+	else if app.view.guild != 0 do dc.open_user_context_menu(app.client, uid, app.view.guild)
 }
 
 @(private = "file")
@@ -579,6 +585,12 @@ user_context_menu :: proc() {
 	items := make([dynamic]string, context.temp_allocator)
 	append(&items, "Profile")
 	if uid != s.me do append(&items, "Message")
+	if fn := friend_nick_menu_item(uid); fn != "" do append(&items, fn)
+	if uid != s.me {
+		_, has_rel := s.relationships[uid]
+		if !has_rel || s.relationships[uid].kind == .None || s.relationships[uid].kind == .Implicit do append(&items, "Add Friend")
+	}
+	if sn := server_nick_menu_item(uid); sn != "" do append(&items, sn)
 	append(&items, "Copy Username", "Copy User ID")
 	W :: f32(188)
 	H := f32(len(items)) * 32 + 16
@@ -623,6 +635,13 @@ user_context_menu :: proc() {
 						if existing := dc.open_dm(app.client, uid, "Context Menu"); existing != 0 do select_channel(0, existing)
 						else do app.pending_dm_user = uid
 					}
+				case "Add Friend Nickname", "Edit Friend Nickname":
+					friend_nick_open(uid)
+				case "Add Friend":
+					if net_action() do dc.add_relationship(app.client, uid, "ContextMenu")
+					else do s.relationships[uid] = {user_id = uid, kind = .Outgoing_Request} // offline (fixture) runs
+				case "Change Nickname":
+					server_nick_open(uid, app.view.guild)
 				case "Copy Username":
 					if u := dc.user_get(s, uid); u != nil do clipboard_set(u.username)
 				case "Copy User ID":

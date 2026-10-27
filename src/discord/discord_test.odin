@@ -501,3 +501,12 @@ settings_theme_default :: proc(t: ^testing.T) {
 	apply_settings_proto(&s, base64.encode([]byte{0x6a, 0x02, 0x08, 0x02}, allocator = context.temp_allocator)) // 13 { 1: LIGHT }
 	testing.expect_value(t, s.settings.theme, Theme.Light)
 }
+
+// Streamer Mode's auto-detect scans this list; our own test binary must be in it.
+@(test)
+test_process_exe_paths :: proc(t: ^testing.T) {
+	paths := process_exe_paths(context.temp_allocator)
+	found := false
+	for p in paths do if strings.contains(p, "test-discord") do found = true
+	testing.expect(t, len(paths) > 1 && found)
+}
