@@ -182,6 +182,7 @@ voice_settings_page :: () {
 	page.scrollbar = .Auto;
 	ui.signal(page);
 	{ ui.parent(page); defer ui.pop_parent();
+		spacer(.Y, 32); // as set_page_begin
 		body := row("vbody");
 		body.semantic_size = .[ui.pct(1), ui.children()];
 		body.cross_align = .Start;
