@@ -38,8 +38,8 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 
 Needs Jai (beta 0.2.030 or later, `jai` on `PATH`) and a C compiler:
 - macOS: the Xcode command line tools (clang links; the Jai bundled linker can't read recent macOS SDKs).
-- Windows: LLVM (`clang`, `llvm-ar` on `PATH`; `winget install LLVM.LLVM`) and the Visual Studio Build
-  Tools (the MSVC libraries Jai links against). Also Zig for the Linux cross-compile (`winget install zig.zig`).
+- Windows: the Visual Studio Build Tools (the MSVC headers and libraries). The build downloads a pinned Zig
+  into `build/zig` on first use and compiles the C with `zig cc`, here and for the Linux cross-compile.
 - Linux builds are cross-compiled from Windows or macOS with Zig (`zig cc` against glibc 2.17): append
   `linux` to any target, e.g. `jai build.jai - dev linux` writes `build/fastcord-dev` for x86_64 Linux.
 

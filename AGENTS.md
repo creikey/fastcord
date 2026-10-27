@@ -3,6 +3,7 @@
 Read README.md first: build, testing, performance and conventions are there, and `src/STYLE.md` for how
 the Jai is written. This file lists what is easy to miss.
 
+- Trunk-based: all work lands on `main`. No feature branches or worktrees; don't push other branches.
 - Build with `jai build.jai - dev` (optimised, with symbols). `- debug` is unoptimised and about 5x
   slower per frame, so never judge speed or input lag with it.
 - `jai build.jai - check` runs the offline parity tests, the headless UI scripts, the bench budget and

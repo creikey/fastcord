@@ -1,6 +1,6 @@
 // jai build.jai - <target>: see USAGE below.
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
-// into build/, then the Jai program, then links everything with the system clang.
+// into build/, then the Jai program, then links everything. The C goes through the pinned, cached `zig cc`, except native macOS (clang).
 #import "Basic";
 #import "Compiler";
 #import "Process";
@@ -76,7 +76,7 @@ usage: jai build.jai - <target>
   release <vX.Y.Z> [publish]  dist/: the Mac app on macOS, Windows + Linux on Windows; publish uploads them
   og                          site/og.jpg (link preview) from tools/og/card.html
   c                           only the vendored C libraries
-  <target> linux              any target cross-compiled for x86_64 Linux (from Windows or macOS; needs zig)
+  <target> linux              any target cross-compiled for x86_64 Linux (from Windows or macOS)
 END
 
 // A trailing "linux" argument cross-compiles everything for x86_64 Linux: the C with `zig cc` against
@@ -327,7 +327,7 @@ MAC_C_FLAGS :: string.["-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-mi
 
 link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
-    if LINUX array_add(*a, "zig", "c++", "-target", GLIBC, "-o", exe);
+    if LINUX array_add(*a, ZIG, "c++", "-target", GLIBC, "-o", exe);
     else array_add(*a, "clang", "-o", exe);
     #if OS == .MACOS if !LINUX array_add(*a, "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0");
     array_add(*a, ..p.compiler_generated_object_files);
@@ -413,10 +413,47 @@ cflags :: (base: string) -> []string {
     return break_command_into_strings(trim(s));
 }
 
-// The C compiler for the target: clang (universal on macOS), or zig cc for the Linux cross-compile.
+// The pinned Zig, downloaded once into build/zig and checked against ziglang.org's sha256.
+ZIG_VERSION :: "0.17.0";
+#if OS == .WINDOWS {
+    ZIG_HOST :: "x86_64-windows"; ZIG_ARCHIVE :: "zip";    ZIG_SHA256 :: "b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428";
+} else #if OS == .MACOS && CPU == .ARM64 {
+    ZIG_HOST :: "aarch64-macos";  ZIG_ARCHIVE :: "tar.xz"; ZIG_SHA256 :: "b607e9b9234790a008116ae5bdb71c6243b84b9fb42a53a9e70fde41c06c536a";
+} else #if OS == .MACOS {
+    ZIG_HOST :: "x86_64-macos";   ZIG_ARCHIVE :: "tar.xz"; ZIG_SHA256 :: "4f9a1c5269aa17ebda5e6d3c2b89d6cbf36f7d2b22a0306e9ab98f25f95529c6";
+} else {
+    ZIG_HOST :: "x86_64-linux";   ZIG_ARCHIVE :: "tar.xz"; ZIG_SHA256 :: "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026";
+}
+ZIG_NAME :: #run tprint("zig-%-%", ZIG_HOST, ZIG_VERSION);
+#if OS == .WINDOWS ZIG :: #run tprint("build\\zig\\%\\zig.exe", ZIG_NAME);  // CreateProcess wants backslashes
+else               ZIG :: #run tprint("build/zig/%/zig", ZIG_NAME);
+
+fetch_zig :: () -> bool {
+    if file_exists(ZIG) return true;
+    make_directory_if_it_does_not_exist("build/zig");
+    archive := tprint("build/zig/%.%", ZIG_NAME, ZIG_ARCHIVE);
+    print("downloading %\n", archive);
+    if run_command("curl", "-fsSL", "-o", archive, tprint("https://ziglang.org/download/%/%.%", ZIG_VERSION, ZIG_NAME, ZIG_ARCHIVE)).exit_code != 0 return false;
+    #if OS == .WINDOWS r, out := run_command("certutil", "-hashfile", archive, "SHA256", capture_and_return_output = true);
+    else               r, out := run_command("shasum", "-a", "256", archive, capture_and_return_output = true);
+    ok := r.exit_code == 0 && contains(to_lower_copy(out,, temp), ZIG_SHA256);
+    if !ok log_error("% does not match sha256 %", archive, ZIG_SHA256);
+    // tar unpacks the Windows zip too (bsdtar ships with Windows 10+).
+    ok = ok && run_command("tar", "-xf", archive, "-C", "build/zig").exit_code == 0 && file_exists(ZIG);
+    file_delete(archive);
+    return ok;
+}
+
+// The C compiler for the target: zig cc, except native macOS, whose objects are universal (zig takes one -arch).
 cc :: (a: *[..]string, cpp: bool) {
     // the autoconf names the network libraries test for their byte-order headers
-    if LINUX array_add(a, "zig", ifx cpp then "c++" else "cc", "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
+    if LINUX array_add(a, ZIG, ifx cpp then "c++" else "cc", "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
+    else if OS == .WINDOWS {
+        array_add(a, ZIG, ifx cpp then "c++" else "cc", "-target", "x86_64-windows-msvc");
+        // The MSVC STL, which Jai's link has (zig's libc++ would need linking). Zig takes the newest VS's headers
+        // while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
+        if cpp array_add(a, "-nostdinc++", "-D_USE_STD_VECTOR_ALGORITHMS=0");
+    }
     else array_add(a, "clang");
     array_add(a, "-c", "-O2");
     #if OS == .MACOS if !LINUX array_add(a, ..MAC_C_FLAGS);
@@ -425,6 +462,7 @@ cc :: (a: *[..]string, cpp: bool) {
 }
 
 build_c :: () -> bool {
+    if (LINUX || OS != .MACOS) && !fetch_zig() return false;
     jobs: [..][..]string;
     stamps: [..]string;
     for src: c_units() {
@@ -479,7 +517,7 @@ build_c :: () -> bool {
     // the object list goes in a response file: it is longer than a Windows command line
     rsp := tprint("%.rsp", lib);
     write_entire_file(rsp, join(..objs, "\n"));
-    return run_command("zig", "ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
+    return run_command(ZIG, "ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
 }
 
 run_parallel :: (jobs: [][..]string) -> bool {
