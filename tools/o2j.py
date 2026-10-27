@@ -536,6 +536,7 @@ def conv_expr(items, cx, ctx='expr'):
                 if prev is not None and is_operand_end(prev):
                     # index or slice
                     ci = find_top(x.items, ':')
+                    if find_top(x.items, '?') >= 0: ci = -1
                     st = postfix_chain_start(out)
                     if ci >= 0:
                         lo = x.items[:ci]; hi = x.items[ci+1:]
@@ -792,7 +793,14 @@ def conv_expr(items, cx, ctx='expr'):
                 i += 1; continue
             out.append(t); i += 1; continue
         out.append(t); i += 1
-    # fix a..<b in non-loop contexts (case ranges handled elsewhere)
+    # "a" + "b": constant string concatenation
+    k = 0
+    while k + 2 < len(out):
+        a, op, b = out[k], out[k+1], out[k+2]
+        if isinstance(a, T) and isinstance(b, T) and is_t(op, '+') and re.fullmatch(r'"(?:[^"\\]|\\.)*"', a.s) and re.fullmatch(r'"(?:[^"\\]|\\.)*"', b.s):
+            out[k:k+3] = [tk(a.s[:-1] + b.s[1:], a.pre)]
+            continue
+        k += 1
     return out
 
 def conv_make(g, cx):

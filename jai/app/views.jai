@@ -71,13 +71,13 @@ row :: (id: string, flags: ui.Box_Flags = .{}) -> *ui.Box {
 spacer :: (axis: ui.Axis, v: float32) {
 	b := ui.box("");
 	b.semantic_size[axis] = ui.px(v);
-	sub(b.semantic_size, axis == .X ? .Y, .X) = ui.px(0);
+	b.semantic_size[ifx axis == .X then .Y else .X] = ui.px(0);
 }
 
 filler :: (axis: ui.Axis) {
 	b := ui.box("");
 	b.semantic_size[axis] = ui.fill();
-	sub(b.semantic_size, axis == .X ? .Y, .X) = ui.px(0);
+	b.semantic_size[ifx axis == .X then .Y else .X] = ui.px(0);
 }
 
 // text cut with "…" to fit max_w (single line).

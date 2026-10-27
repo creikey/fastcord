@@ -30,7 +30,7 @@ rt_now :: (o: *Out) -> float64 {return cast(float64)(time.tick_since(o.start)) /
 
 // out_line writes `{"rt":..,"acct":"x",<rest>}`; rest is pre-rendered JSON members.
 out_line :: (o: *Out, acct: string, rest: string) {
-	line := fmt.tprintf("{{\"rt\":%.1f,\"acct\":\"%s\",%s}}"+"\n", rt_now(o), acct, rest);
+	line := fmt.tprintf("{{\"rt\":%.1f,\"acct\":\"%s\",%s}}\n", rt_now(o), acct, rest);
 	sync.mutex_lock(*o.mu);
 	os.write_string(o.f, line);
 	sync.mutex_unlock(*o.mu);

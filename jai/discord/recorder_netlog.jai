@@ -65,7 +65,7 @@ netlog_close :: (r: *Recorder) {
 // nl_event writes one event; caller holds r.mu. params is a JSON object.
 nl_event :: (f: *os.File, name: string, src: int, phase: int, at_ms: s64, params: string) {
 	if f == null { return; }
-	line := fmt.tprintf("{{\"params\":%s,\"phase\":%d,\"source\":{{\"id\":%d,\"type\":0}},\"time\":\"%d\",\"type\":%d}},"+"\n", params, phase, src, at_ms, nl_type(name));
+	line := fmt.tprintf("{{\"params\":%s,\"phase\":%d,\"source\":{{\"id\":%d,\"type\":0}},\"time\":\"%d\",\"type\":%d}},\n", params, phase, src, at_ms, nl_type(name));
 	os.write_string(f, line);
 }
 

@@ -63,7 +63,7 @@ rec_line :: (r: *Recorder, acct: string, rest: string) {
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
 	n := now_ms();
-	line := fmt.tprintf("{{\"rt\":%.1f,\"acct\":\"%s\",%s}}"+"\n", cast(float64)(n - r.start), acct, rest);
+	line := fmt.tprintf("{{\"rt\":%.1f,\"acct\":\"%s\",%s}}\n", cast(float64)(n - r.start), acct, rest);
 	if !r.closed { os.write_string(r.f, line); }
 	if !strings.has_prefix(rest, "\"mark\"") { r.last_net = n; }
 }
@@ -79,7 +79,7 @@ recorder_last_net :: (r: *Recorder) -> s64 {
 rec_line_at :: (r: *Recorder, acct: string, at_ms: float64, rest: string) {
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
-	line := fmt.tprintf("{{\"rt\":%.3f,\"acct\":\"%s\",%s}}"+"\n", at_ms - cast(float64)(r.start), acct, rest);
+	line := fmt.tprintf("{{\"rt\":%.3f,\"acct\":\"%s\",%s}}\n", at_ms - cast(float64)(r.start), acct, rest);
 	if !r.closed { os.write_string(r.f, line); }
 	r.last_net = max(r.last_net, now_ms());
 }

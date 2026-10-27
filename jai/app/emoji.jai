@@ -313,7 +313,7 @@ emoji_count :: (s: string) -> int, bool {
 	only = true;
 	while true {
 		seg, ok := emoji_next(s, pos);
-		gap := sub(s, pos, ifx ok then seg.start else len(s));
+		gap := s[ifx pos:ok then seg.start else len(s)];
 		if strings.trim_space(gap) != "" { only = false; }
 		if !ok { break; }
 		n += 1;

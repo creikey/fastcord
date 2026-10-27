@@ -465,9 +465,7 @@ Point :: [2]float64;
 // locate scrolls the element into view if needed and returns a point inside it.
 locate :: (r: *Recorder, finder: string) -> Point, bool {
 	js := fmt.tprintf(
-		"(()=>{{const e=%s;if(!e)return null;let b=e.getBoundingClientRect();" +
-		"if(b.top<0||b.bottom>innerHeight||b.left<0||b.right>innerWidth){{e.scrollIntoView({{block:'center'}});b=e.getBoundingClientRect();}}" +
-		"return [b.left,b.top,b.width,b.height,innerWidth,innerHeight];}})()",
+		"(()=>{{const e=%s;if(!e)return null;let b=e.getBoundingClientRect();if(b.top<0||b.bottom>innerHeight||b.left<0||b.right>innerWidth){{e.scrollIntoView({{block:'center'}});b=e.getBoundingClientRect();}}return [b.left,b.top,b.width,b.height,innerWidth,innerHeight];}})()",
 		finder,
 	);
 	for attempt: 0..39 {
