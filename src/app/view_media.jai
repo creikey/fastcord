@@ -304,6 +304,8 @@ image_viewer :: () {
 	for app.ui.events if it.kind == .Key_Down && it.key == .Escape close_viewer();
 }
 
+media_action_receive :: (r: *dc.Media_Result) -> bool { return false; }
+
 #scope_file
 
 close_viewer :: () {
@@ -330,4 +332,3 @@ fmt_clock :: (t: float64) -> string {
 	s := cast(int) t;
 	return tprint("%:%", s / 60, formatInt(s % 60, minimum_digits = 2));
 }
-

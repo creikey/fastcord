@@ -11,5 +11,7 @@
   "home_idle": {"boxes": 730, "text_layouts": 80, "draw_cmds": 370, "batches": 10},
   "home_hover": {"boxes": 1320, "text_layouts": 200, "draw_cmds": 680, "batches": 10},
   "dm_idle": {"boxes": 660, "text_layouts": 90, "draw_cmds": 340, "batches": 10},
-  "dm_hover": {"boxes": 690, "text_layouts": 90, "draw_cmds": 350, "batches": 10}
+  "dm_hover": {"boxes": 690, "text_layouts": 90, "draw_cmds": 350, "batches": 10},
+  "gif_scroll": {"boxes": 520, "text_layouts": 70, "draw_cmds": 300, "batches": 10},
+  "sticker_scroll": {"boxes": 620, "text_layouts": 75, "draw_cmds": 340, "batches": 10}
 }

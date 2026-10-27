@@ -685,6 +685,7 @@ script_command :: (path: string, f: []string, t: *float64) {
 script_frame :: (t: *float64) {
 	t.* += 1.0 / 60;
 	platform.set_time_override(t.*);
+	decode_settle(); // decodes finish between frames, so runs are deterministic (outside the timing)
 	platform.wait_events(0);
 	start := current_time_monotonic();
 	frame();
