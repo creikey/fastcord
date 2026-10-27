@@ -77,6 +77,24 @@
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
 - [ ] Chat: NSFW channels open with no age-gate screen.
+- [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
+- [ ] Windows: no toast notifications or taskbar unread badge (`notify_show` / `set_badge` are stubs). Linux has no badge either.
+- [ ] Windows, Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty).
+- [ ] Windows: gg sans never loads, so text falls back to Segoe UI (`text_dwrite_windows.jai` `native_font_load_memory` needs IDWriteFactory5's in-memory loader).
+- [ ] Windows, Linux: no video or compressed-audio decoding (`media/decode_none.jai`), so video attachments, MP4 GIFs and Ogg Opus voice messages show no frames and play no sound. Windows: Media Foundation. Possibly the cause of the Klipy GIF item.
+- [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
+- [ ] Windows, Linux: no echo cancellation, noise suppression or AGC in voice (`set_voice_processing` stubs).
+- [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
+- [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
+- [ ] macOS: the Metal backend never sets `gpu_ns`, so the bench has no GPU time there.
+- [ ] macOS, Linux: the profiler's sampling timer is a stub, and the hang watchdog writes only a hint, not the other threads' stacks.
+- [ ] Windows: TLS chain validation through CryptoAPI is untested on a real machine (`tls/trust_windows.jai`).
+- [ ] Media: the MP4 parser trusts box sizes from the file: `mdhd` v1, `stsc` / `stco` / `co64` counts, `tfhd` optional fields, `tfdt` v1 (guarded by `>= 8`, needs 12) and `trun` samples read past the box (`media/mp4.jai`). A crafted attachment crashes or reads out of bounds.
+- [ ] Gateway: dispatches without a handler are dropped (`store.jai` default case). Matter most: `PASSIVE_UPDATE_V1/V2` and `CHANNEL_UNREAD_UPDATE` (stale unreads and voice states in unsubscribed servers), `MESSAGE_REACTION_ADD_MANY` (lost reactions in big servers). Also `VOICE_CHANNEL_STATUS_UPDATE`, `GUILD_BAN_*`, `INVITE_*`, `WEBHOOKS_UPDATE`, `STAGE_INSTANCE_*`, `USER_NOTE_UPDATE`, `RECENT_MENTION_DELETE`, `GUILD_SOUNDBOARD_SOUNDS_UPDATE`.
+- [ ] Voice: channel statuses never show; op 43 asks for them but the `CHANNEL_INFO` reply is ignored (`actions.jai`).
+- [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
+- [ ] HTTP/2: closing a connection gives up after 5 s and leaks it while a reader is still blocked (`http/h2.jai`).
+- [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
