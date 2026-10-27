@@ -79,8 +79,6 @@ silent * "channels/chan/item 'General' [voice-normal]" online joins voice: the v
 silent narrow_dm "dm/item/close" online closes the DM row at once (CHANNEL_DELETE follows)
 silent narrow_dm "page/header/phone-call" online starts the call: the call panel shows at once
 silent hover_toolbar "tbanchor/toolbar/q" online the quick reaction shows on the message at once (MESSAGE_REACTION_ADD)
-silent * "profile/info/msgrow" online an existing DM opens at once (known gap: a new DM waits for its channel without feedback)
-silent full_profile "head/actions/Message" online an existing DM opens at once (same gap)
 silent friends_all "friends/f/item" online the friend's existing DM opens at once (same gap)
 silent friends_all "f/item/msg" online the friend's existing DM opens at once (same gap)
 silent * "inboxpop/hdr/markall" online the unreads clear at once (local ack state)
@@ -91,3 +89,7 @@ silent guild_notify_modal "nmodal/radio" online the settings proto edit applies 
 silent * "c/supall" online the settings proto edit applies locally at once
 silent * "c/suproles" online the settings proto edit applies locally at once
 silent guild_ctx_notify "gnotify/suppress" online the settings proto edit applies locally at once
+
+# the status row in your own profile card opens the status menu on hover (as the client); a click shows nothing more
+hover own_profile "grp/setstatus/it 'Online'" the status menu stays open while the pointer moves into it
+dead own_profile "grp/setstatus/it 'Online'" hovering already opened the status menu

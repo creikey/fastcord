@@ -807,18 +807,21 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 	// the pointer over its strip, and for thin scrollers the pointer over the scroller.
 	if bar.bar_seen == 0 { bar.bar_seen = -100; bar.bar_off = off.*; }
 	over_strip := s.mouse.x >= r.x1 - W && s.mouse.x < r.x1 && s.mouse.y >= r.y0 && s.mouse.y < r.y1;
-	if held || over_strip || (kind == .Thin && mouse_over(host)) || abs(off.* - bar.bar_off) > 0.5 || abs(off.* - target.*) > 0.5 bar.bar_seen = s.time;
+	// hovering shows it only while hovered; scrolling and dragging leave it up a moment
+	hovered := over_strip || (kind == .Thin && mouse_over(host));
+	if held || abs(off.* - bar.bar_off) > 0.5 || abs(off.* - target.*) > 0.5 bar.bar_seen = s.time;
 	bar.bar_off = off.*;
 	LINGER :: 1.0;
 	FADE :: 0.25;
 	age := s.time - bar.bar_seen;
-	if age >= LINGER + FADE return;
+	if hovered age = 0;
+	else if age >= LINGER + FADE return;
 	alpha: float32 = 1;
-	if age < LINGER {
-		if s.wake_at == 0 || bar.bar_seen + LINGER < s.wake_at s.wake_at = bar.bar_seen + LINGER;
-	} else {
+	if age >= LINGER {
 		alpha = cast(float32) (1 - (age - LINGER) / FADE);
 		s.animating = true;
+	} else if !hovered {
+		if s.wake_at == 0 || bar.bar_seen + LINGER < s.wake_at s.wake_at = bar.bar_seen + LINGER;
 	}
 	push_parent(bar);
 	if kind == .Auto && s.scrollbar_auto_track.w > 0 {

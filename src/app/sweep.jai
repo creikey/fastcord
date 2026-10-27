@@ -181,6 +181,7 @@ app_reset_state :: () {
 	events_reset_for_test();
 	guild_admin_reset_for_test();
 	block_confirm = .{};
+	edit_menu_state = .{};
 	req_reset_for_test();
 	fnick = .{};
 	attachments_reset_for_test();

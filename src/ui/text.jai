@@ -494,10 +494,12 @@ update_selection :: () {
 		if e.consumed continue;
 		if e.kind == .Mouse_Up && e.button == .Left sel.dragging = false;
 		if e.kind != .Mouse_Down || e.button != .Left continue;
+		// what is under the press itself (hot is for the mouse after all of this frame's events)
+		on_control := hit_test_prev(e.pos) != 0;
 		pos, ok := selectable_pos_at(e.pos, .Exact);
-		if !ok && s.hot == 0 pos, ok = selectable_pos_at(e.pos, .Region);
+		if !ok && !on_control pos, ok = selectable_pos_at(e.pos, .Region);
 		if !ok {
-			if s.hot == 0 selection_clear();
+			if !on_control selection_clear();
 			continue;
 		}
 		if (e.mods & .Shift) && sel.active {
