@@ -803,7 +803,8 @@ emoji_select :: (item: Pk_Emoji, keep_open: bool) {
 		frec_use(*frecency.reaction, key);
 		if app.client != null {
 			m := find_message(pk.message);
-			if m != null dc.add_reaction(app.client, m.channel_id, m.id, name, item.id);
+			// opened from the "+" after the reactions: Inline Button; toolbar / menu: Reaction Picker
+			if m != null react(m, .{id = item.id, name = name, animated = item.animated}, ifx pk.from_inline then "Message Inline Button" else "Message Reaction Picker");
 		}
 	} else {
 		frec_use(*frecency.emoji, key);

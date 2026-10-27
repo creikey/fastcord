@@ -309,7 +309,11 @@ features_receive :: () {
 			app.ui.animating = true;
 		case .Pins;
 			pins_receive(r);
-		case .Pins_Ack;
+		case .Pins_Ack; #through; case .Mark_Unread;
+		case .Pin;
+			if !r.ok show_notice("Error", "An error occurred, please try again.");
+		case .Unpin;
+			if !r.ok show_notice("The Pin Is Stuck!", "Discord failed to unpin that message for some reason. Sorry about that.");
 		case .Around;
 			dc.apply_around(app.client, r);
 			app.ui.animating = true;

@@ -59,6 +59,7 @@ Picker_State :: struct {
 	tab: Picker_Tab;
 	channel: dc.Snowflake;
 	message: dc.Snowflake; // reaction target
+	from_inline: bool; // reaction picker opened from the "+" after the reactions (location Message Inline Button)
 	anchor: ui.Rect; // the button that opened it
 	composer_right: float32; // right edge of the composer (from the reaction button)
 	composer_top: float32;
@@ -121,6 +122,7 @@ picker_open :: (mode: Picker_Mode, tab: Picker_Tab, channel_id: dc.Snowflake, me
 	pk.mode = mode;
 	pk.channel = channel_id;
 	pk.message = message_id;
+	pk.from_inline = false;
 	pk.anchor = anchor;
 	pk.search_focus = true;
 	picker_set_tab(tab);
@@ -340,6 +342,7 @@ reaction_add_button :: (m: *dc.Message) {
 		} else {
 			app.reaction_target = m.id;
 			picker_open(.Reaction, .Emoji, m.channel_id, m.id, b.rect);
+			pk.from_inline = true;
 		}
 	}
 }

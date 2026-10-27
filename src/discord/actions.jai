@@ -17,6 +17,11 @@ select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messa
 	prev_referer := ifx prefetch then copy_string(client_route_referer(c),, temp) else "";
 	locks.lock(*c.route_mu);
 	prev_guild := c.route_guild;
+	if c.route_channel != channel_id {
+		// a Mark Unread hold ends when its channel is left (ReadStateStore CHANNEL_SELECT)
+		rs := table_find_pointer(*c.store.read_states, c.route_channel);
+		if rs rs.manual = false;
+	}
 	c.route_guild = guild_id;
 	c.route_channel = channel_id;
 	locks.unlock(*c.route_mu);
@@ -407,32 +412,84 @@ emoji_route :: (name: string, id: Snowflake) -> string {
 	return uri_component(ifx id then tprint("%:%", name, id) else name);
 }
 
-// add_reaction: PUT /channels/{c}/messages/{m}/reactions/{emoji}/%40me?location=..&type=0|1
-add_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake = 0, burst := false, location := "Message") {
-	q: Query;
-	query_init(*q, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/reactions/", emoji_route(emoji_name, emoji_id), "/%40me"));
-	query_add(*q, "location", location);
-	query_add_int(*q, "type", ifx burst then 1 else 0);
-	j := job_new(.Api, .Add_Reaction);
-	j.method = "PUT";
-	j.path = job_str(j, query_string(*q));
-	j.retry_429 = 1; // retried once after Retry-After
-	j.result = .{op = .Add_Reaction, channel_id = channel_id, message_id = message_id};
-	job_submit(c, j);
+// Reactions are predicted like ReactionActionCreators: the store changes first and the
+// request goes at once (no per-emoji queue); the gateway echo is then a no-op
+// (store_reaction). A failure is retried once (a 429 after Retry-After, in api_call),
+// then rolled back; a 403 is rolled back at once.
+Reaction_Req :: struct {
+	seq: u64;
+	channel_id: Snowflake;
+	message_id: Snowflake;
+	emoji: Emoji; // name owned (c.allocator)
+	location: string; // owned
+	add: bool;
+	burst: bool;
+	retried: bool;
+}
+
+// add_reaction: PUT /channels/{c}/messages/{m}/reactions/{emoji}/%40me?location=..&type=0|1.
+// Refused (false, nothing sent) when the message already has the emoji as the other kind
+// (normal vs burst): the client's "Oops!" modal.
+add_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake = 0, burst := false, location := "Message", animated := false) -> bool {
+	l := table_find_pointer(*c.store.messages, channel_id);
+	i := ifx l then message_index(l, message_id) else -1;
+	if i >= 0 for l.messages[i].reactions if emoji_matches(it.emoji, emoji_id, emoji_name) && (ifx burst then it.me else it.me_burst) return false;
+	reaction_send(c, .{channel_id = channel_id, message_id = message_id, emoji = .{id = emoji_id, name = emoji_name, animated = animated, available = true}, location = location, add = true, burst = burst});
+	return true;
 }
 
 // remove_reaction: DELETE .../reactions/{emoji}/{type}/%40me?location=..&burst=
 remove_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake = 0, burst := false, location := "Message") {
+	reaction_send(c, .{channel_id = channel_id, message_id = message_id, emoji = .{id = emoji_id, name = emoji_name, available = true}, location = location, burst = burst});
+}
+
+reaction_send :: (c: *Client, req: Reaction_Req) {
+	c.reaction_seq += 1;
+	r := req;
+	r.seq = c.reaction_seq;
+	if !r.retried { // copied first: the caller's name may be the reaction the store is about to drop
+		r.emoji.name = copy_string(req.emoji.name,, c.allocator);
+		r.location = copy_string(req.location,, c.allocator);
+	}
+	array_add(*c.reaction_reqs, r);
+	store_reaction(*c.store, r.channel_id, r.message_id, r.emoji, true, r.add, r.burst);
+	c.store.changed += 1;
+	base := channel_path(r.channel_id, "/messages/", snowflake_string(r.message_id), "/reactions/", emoji_route(r.emoji.name, r.emoji.id));
 	q: Query;
-	query_init(*q, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/reactions/", emoji_route(emoji_name, emoji_id), "/", ifx burst then "1" else "0", "/%40me"));
-	query_add(*q, "location", location);
-	query_add_bool(*q, "burst", burst);
-	j := job_new(.Api, .Remove_Reaction);
-	j.method = "DELETE";
+	j := job_new(.Api, ifx r.add then Rest_Op.Add_Reaction else .Remove_Reaction);
+	if r.add {
+		query_init(*q, join(base, "/%40me",, temp));
+		query_add(*q, "location", r.location);
+		query_add_int(*q, "type", ifx r.burst then 1 else 0);
+		j.method = "PUT";
+	} else {
+		query_init(*q, join(base, ifx r.burst then "/1" else "/0", "/%40me",, temp));
+		query_add(*q, "location", r.location);
+		query_add_bool(*q, "burst", r.burst);
+		j.method = "DELETE";
+	}
 	j.path = job_str(j, query_string(*q));
-	j.retry_429 = 1;
-	j.result = .{op = .Remove_Reaction, channel_id = channel_id, message_id = message_id};
+	j.retry_429 = 1; // retried once after Retry-After
+	j.result = .{op = j.op, channel_id = r.channel_id, message_id = r.message_id, tag = r.seq};
 	job_submit(c, j);
+}
+
+// reaction_result: a reaction request finished (UI thread, from client_apply_rest).
+reaction_result :: (c: *Client, res: Rest_Result) {
+	for c.reaction_reqs {
+		if it.seq != res.tag continue;
+		req := it;
+		array_ordered_remove_by_index(*c.reaction_reqs, it_index);
+		if !res.ok && !req.retried && res.status != 403 && res.status != 429 {
+			req.retried = true;
+			reaction_send(c, req);
+			return;
+		}
+		if !res.ok store_reaction(*c.store, req.channel_id, req.message_id, req.emoji, true, !req.add, req.burst);
+		free(req.emoji.name,, c.allocator);
+		free(req.location,, c.allocator);
+		return;
+	}
 }
 
 // ---- typing (TypingStore TYPING_START_LOCAL) ----
@@ -518,6 +575,7 @@ ack_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, immedi
 	rs.channel_id = channel_id;
 	rs.last_message_id = max(rs.last_message_id, message_id);
 	rs.mention_count = 0;
+	rs.manual = false;
 }
 
 flush_due_acks :: (c: *Client, now: s64) {

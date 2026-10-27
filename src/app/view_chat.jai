@@ -8,6 +8,7 @@ MSG_SCROLL_GUTTER :: 16;
 MSG_PAD_R :: 48; // content padding-right (room for the hover toolbar)
 MSG_EDIT_PAD_R :: 23; // the inline edit form ends 23px from the item edge
 MSG_CALL :: 3; // message type CALL
+MSG_PIN :: 6; // CHANNEL_PINNED_MESSAGE
 CALL_ROW_H :: 26; // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58; // official form height (1px border included): 22px line + 18px padding
 GROUP_WINDOW_MS :: 7 * 60 * 1000; // messages from the same author within 7 minutes group
@@ -64,13 +65,14 @@ chat_view :: (channel_id: dc.Snowflake) {
 	cs := chat_state(channel_id);
 	rs := table_find_pointer(*s.read_states, channel_id);
 	last_read := ifx rs then rs.last_message_id else 0;
-	if !cs.opened {
+	held := rs != null && rs.manual; // Mark Unread: the "NEW" line moves there and nothing is acked
+	if !cs.opened || held {
 		cs.opened = true;
 		cs.unread_after = last_read;
 	}
 	// Ack what's on screen while focused and scrolled to the bottom, like the client.
 	msgs := dc.messages_get(s, channel_id);
-	if app.client && app.focused && msgs && cs.scroll_from_bottom < 2 {
+	if app.client && app.focused && msgs && cs.scroll_from_bottom < 2 && !held {
 		last := *msgs[msgs.count - 1];
 		if last.id > last_read && !last.pending dc.ack_message(app.client, channel_id, last.id);
 	}
@@ -366,7 +368,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 
 // Any overlay that takes keyboard input away from the composer.
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.deleting != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0;
 }
 
 #scope_file
@@ -385,7 +387,7 @@ am_pm :: (t: Calendar_Time) -> string { return ifx t.hour >= 12 then "PM" else "
 
 // Groups with the previous message: same author, within 7 minutes, plain message type, not a reply.
 continues_group :: (prev: *dc.Message, m: *dc.Message) -> bool {
-	if prev == null || prev.author_id != m.author_id || prev.kind == MSG_CALL return false;
+	if prev == null || prev.author_id != m.author_id || prev.kind == MSG_CALL || prev.kind == MSG_PIN return false;
 	if m.referenced_id != 0 || (m.kind != 0 && m.kind != 19) return false;
 	if dc.snowflake_time_ms(m.id) - dc.snowflake_time_ms(prev.id) > GROUP_WINDOW_MS return false;
 	return day_of(prev.id) == day_of(m.id);
@@ -508,13 +510,47 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				show_new := cs.unread_after != 0 && m.id > cs.unread_after && (prev == null || prev.id <= cs.unread_after) && m.author_id != s.me;
 				grouped := continues_group(prev, m) && !show_new;
 				// consecutive call notices stack with no group gap
-				if m.kind == MSG_CALL grouped = prev != null && prev.kind == MSG_CALL && !new_day && !show_new;
+				if m.kind == MSG_CALL || m.kind == MSG_PIN grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
 				ui.id_scope(m.id); defer ui.pop_seed();
 				row := message_row(m, grouped, new_day, show_new);
 				// remember measured height (from last frame's layout)
 				if row.rect.y1 > row.rect.y0 table_set(*cs.heights, m.id, row.rect.y1 - row.rect.y0);
 			}
 		}
+		new_messages_bar(channel_id, msgs, lw);
+	}
+}
+
+// "N new messages since 3:04 PM ... Mark As Read" over the list's top while the channel has
+// unread messages and isn't being acked (Mark Unread, or scrolled up).
+new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32) {
+	rs := table_find_pointer(*store().read_states, channel_id);
+	if !rs || !msgs || msgs[msgs.count - 1].id <= rs.last_message_id || (!rs.manual && chat_state(channel_id).scroll_from_bottom < 2) return;
+	n, first := 0, cast(dc.Snowflake) 0;
+	for < msgs {
+		if it.id <= rs.last_message_id break;
+		n += 1;
+		first = it.id;
+	}
+	bar := row("newbar", .Floating_X | .Floating_Y | .Draw_Background | .Clickable);
+	bar.semantic_size = .[ui.px(max(lw - MSG_SCROLL_GUTTER - 16, 0)), ui.px(24)];
+	bar.fixed_pos = .{16, 0};
+	bar.style.bg = T("--background-brand");
+	bar.style.radius = .[0, 0, 8, 8];
+	ui.signal(bar);
+	{ ui.parent(bar); defer ui.pop_parent();
+		spacer(.X, 12);
+		label(tprint("% new message% since %", ifx n >= 50 then "50+" else tprint("%", n), ifx n == 1 then "" else "s", format_timestamp(first)), .Medium, 14, .{1, 1, 1, 1}, 18);
+		filler(.X);
+		mr := row("read", .Clickable);
+		mr.semantic_size = .[ui.children(), ui.px(24)];
+		if ui.signal(mr).clicked && app.client dc.ack_message(app.client, channel_id, msgs[msgs.count - 1].id, true);
+		{ ui.parent(mr); defer ui.pop_parent();
+			label("Mark As Read", .Semibold, 14, .{1, 1, 1, 1}, 18);
+			spacer(.X, 4);
+			icon("ic", "chat-mark-unread", 16, .{1, 1, 1, 1});
+		}
+		spacer(.X, 12);
 	}
 }
 
@@ -553,7 +589,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			// own right-click; both menus used to open, the message menu on top
 			if e.kind == .Mouse_Down && e.button == .Right && hovered && app.ui.hot == 0 open_message_menu(m, e.pos, "right_click");
 		}
-		if (hovered || ma.menu_msg == m.id) && !editing && m.kind != MSG_CALL {
+		if (hovered || ma.menu_msg == m.id) && !editing && m.kind != MSG_CALL && m.kind != MSG_PIN {
 			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)
 			anchor := ui.box("tbanchor");
 			anchor.semantic_size = .[ui.pct(1), ui.px(0)];
@@ -568,8 +604,8 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				reply_preview(m);
 			}
 		}
-		if m.kind == MSG_CALL {
-			call_notice(m);
+		if m.kind == MSG_CALL || m.kind == MSG_PIN {
+			system_notice(m);
 			spacer(.Y, 2);
 			return r0;
 		}
@@ -614,26 +650,37 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 	return r0;
 }
 
-// "Name started a call that lasted a few seconds. 4:43 AM" with a phone icon in the gutter.
-call_notice :: (m: *dc.Message) {
+// System notices: "Name started a call that lasted a few seconds. 4:43 AM" (phone icon),
+// "Name pinned a message to this channel. See all pinned messages. 4:43 AM" (pin icon).
+system_notice :: (m: *dc.Message) {
 	r := row("call");
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.cross_align = .Start;
 	{ ui.parent(r); defer ui.pop_parent();
 		g := ui.box("gutter");
 		g.semantic_size = .[ui.px(MSG_GUTTER), ui.px(CALL_ROW_H)];
+		pin := m.kind == MSG_PIN;
 		{ ui.parent(g); defer ui.pop_parent();
-			ic := icon("phone", "phone", 16, T("--icon-feedback-positive"));
+			ic := icon("ic", ifx pin then "pin" else "phone", 16, ifx pin then T("--text-muted") else T("--icon-feedback-positive"));
 			ic.flags |= .Floating_X | .Floating_Y;
 			ic.fixed_pos = .{28, (CALL_ROW_H - 16) / 2};
 		}
-		name := name_in(m.author_id, m.channel_id);
-		what := " started a call.";
-		if m.call_ended what = tprint(" started a call that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp)));
-		spans := NewArray(3, ui.Span,, temp);
-		spans[0] = .{text = name, font = F(.Medium), size = MSG_FONT, color = T("--text-strong")};
-		spans[1] = .{text = what, font = F(.Normal), size = MSG_FONT, color = T("--text-muted")};
-		spans[2] = .{text = tprint(" %", header_timestamp(m.id)), font = F(.Medium), size = 12, color = T("--chat-text-muted")};
+		spans: [..]ui.Span;
+		spans.allocator = temp;
+		muted := ui.Span.{font = F(.Normal), size = MSG_FONT, color = T("--text-muted")};
+		strong := ui.Span.{font = F(.Medium), size = MSG_FONT, color = T("--text-strong")};
+		add :: (spans: *[..]ui.Span, s: ui.Span, text: string) { x := s; x.text = text; array_add(spans, x); }
+		add(*spans, strong, name_in(m.author_id, m.channel_id));
+		if pin {
+			add(*spans, muted, " pinned ");
+			add(*spans, strong, "a message");
+			add(*spans, muted, " to this channel. See all ");
+			add(*spans, strong, "pinned messages");
+			add(*spans, muted, ".");
+		} else {
+			add(*spans, muted, ifx m.call_ended then tprint(" started a call that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))) else " started a call.");
+		}
+		add(*spans, .{font = F(.Medium), size = 12, color = T("--chat-text-muted")}, tprint(" %", header_timestamp(m.id)));
 		b := ui.box("text", .Selectable_Text | .Wrap_Text);
 		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.style.line_height = MSG_LINE_H;
@@ -826,13 +873,7 @@ reactions_view :: (m: *dc.Message) {
 				label(tprint("%", re.count), .Semibold, 14, ifx re.me then T("--reaction-text-reacted-default") else T("--reaction-text-default"), 16);
 				spacer(.X, 6);
 			}
-			if sig.clicked && net_action() {
-				if re.me {
-					dc.remove_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id);
-				} else {
-					dc.add_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id);
-				}
-			}
+			if sig.clicked react(m, re.emoji, "Message Inline Button", toggle = true);
 		}
 		reaction_add_button(m);
 	}

@@ -17,6 +17,7 @@ PERM_VIEW_CHANNEL :: (cast(u64) 1) << 10;
 PERM_SEND_MESSAGES :: (cast(u64) 1) << 11;
 PERM_MANAGE_MESSAGES :: (cast(u64) 1) << 13;
 PERM_ATTACH_FILES :: (cast(u64) 1) << 15;
+PERM_READ_MESSAGE_HISTORY :: (cast(u64) 1) << 16;
 PERM_MENTION_EVERYONE :: (cast(u64) 1) << 17;
 PERM_CONNECT :: (cast(u64) 1) << 20;
 PERM_CHANGE_NICKNAME :: (cast(u64) 1) << 26;
@@ -29,6 +30,7 @@ PERM_MANAGE_THREADS :: (cast(u64) 1) << 34;
 PERM_CREATE_PUBLIC_THREADS :: (cast(u64) 1) << 35;
 PERM_CREATE_GUILD_EXPRESSIONS :: (cast(u64) 1) << 43;
 PERM_CREATE_EVENTS :: (cast(u64) 1) << 44;
+PERM_PIN_MESSAGES :: (cast(u64) 1) << 51;
 
 PERM_ALL :: U64_MAX;
 
@@ -130,6 +132,17 @@ can_set_nickname :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> bool
 	theirs: []Snowflake;
 	if m theirs = m.roles;
 	return highest(g, my_roles(s, guild_id)) > highest(g, theirs);
+}
+
+// can_pin_message: the message menu's Pin / Unpin (canPinMessage): a user message
+// (MessageTypeSets.USER_MESSAGE), in a DM / group DM or with PIN_MESSAGES and
+// READ_MESSAGE_HISTORY, not in a voice or stage channel, not a failed send.
+can_pin_message :: (s: *Store, m: *Message) -> bool {
+	ch := channel_get(s, m.channel_id);
+	if !ch || m.failed || m.pending || ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice return false;
+	user_message := false;
+	for int.[0, 19, 20, 23, 26, 41, 45, 47, 68] if m.kind == it user_message = true;
+	return user_message && (ch.guild_id == 0 || has_permission(channel_permissions(s, ch.id), PERM_PIN_MESSAGES | PERM_READ_MESSAGE_HISTORY));
 }
 
 // has_permission: every bit of `want` is set.

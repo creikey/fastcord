@@ -212,6 +212,7 @@ Message :: struct {
 	sticker_ids: [..]Snowflake;
 	mentions: [..]Snowflake;
 	mention_everyone: bool;
+	pinned: bool;
 	referenced_id: Snowflake; // reply target
 	flags: u64;
 	nonce: string;
@@ -234,6 +235,7 @@ Read_State :: struct {
 	mention_count: int;
 	last_viewed: int; // days since the Discord epoch (ack body field)
 	flags: u64;
+	manual: bool; // set unread by Mark Unread (MESSAGE_ACK manual): not auto-acked until the channel is left
 }
 
 Voice_State :: struct {

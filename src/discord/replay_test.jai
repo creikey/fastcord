@@ -37,6 +37,8 @@ Replay :: struct {
 	sends: [..]Replay_Send;
 	science: [..]Sci_Batch; // our /science POSTs since the mark
 	marked: bool;
+	fail: string; // requests whose URL contains it are answered fail_status (failure paths)
+	fail_status: int;
 }
 
 Replay_Req :: struct {
@@ -273,6 +275,10 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 			body = ifx ok then etf_json(bv) else "";
 			break;
 		}
+	}
+	if r.fail && contains(url, r.fail) {
+		resp.status = r.fail_status;
+		body = "{}";
 	}
 	append_string(*resp.body, body);
 	return resp, .None, delay_ms;
@@ -976,6 +982,120 @@ parity_add_custom_reaction :: (t: *T) {
 	add_reaction(run.c, R_TEXT, msg, "fastcord_test", cast(Snowflake) 1564250154838528071, false, "Message Reaction Picker");
 	replay_settle(*run, 600);
 	replay_check(*run, "add_custom_reaction");
+}
+
+// our reaction to msg with this emoji: (count, me)
+r_reaction :: (c: *Client, msg: Snowflake, name: string) -> int, bool {
+	for messages_get(*c.store, R_TEXT) if it.id == msg for r: it.reactions if r.emoji.name == name return r.count, r.me;
+	return 0, false;
+}
+
+r_reaction_echo :: (run: *Replay_Run, msg: Snowflake, name: string, add: bool) {
+	d, _ := etf.from_json(tprint("{\"user_id\":\"%\",\"channel_id\":\"%\",\"message_id\":\"%\",\"emoji\":{\"id\":null,\"name\":\"%\"},\"burst\":false,\"type\":0}", run.c.store.me, R_TEXT, msg, name));
+	client_inject_dispatch(run.c, ifx add then "MESSAGE_REACTION_ADD" else "MESSAGE_REACTION_REMOVE", d);
+	replay_settle(run, 100);
+}
+
+// requests since the mark whose key starts with method and contains part
+r_count :: (run: *Replay_Run, method: string, part: string) -> int {
+	locks.lock(*run.r.mu);
+	defer locks.unlock(*run.r.mu);
+	n := 0;
+	for run.r.ours if begins_with(it.key, method) && contains(it.key, part) n += 1;
+	return n;
+}
+
+// Reactions are predicted (ReactionActionCreators): the store changes before the request,
+// the gateway echo doesn't count twice, a quick add -> remove sends PUT then DELETE and ends
+// removed, and a failure is retried once (403: not) and then rolled back.
+reaction_prediction :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	msg := r_last_own(c, R_TEXT);
+	F :: "🔥";
+	replay_mark(*run);
+	add_reaction(c, R_TEXT, msg, F, location = "Message Inline Button");
+	n, me := r_reaction(c, msg, F);
+	expect(t, n == 1 && me, "add is shown before the response");
+	replay_settle(*run, 200);
+	r_reaction_echo(*run, msg, F, true);
+	n, me = r_reaction(c, msg, F);
+	expect(t, n == 1 && me, "the add echo does not count twice");
+	remove_reaction(c, R_TEXT, msg, F, location = "Message Inline Button");
+	n = r_reaction(c, msg, F);
+	expect(t, n == 0, "remove is shown before the response");
+	replay_settle(*run, 200);
+	r_reaction_echo(*run, msg, F, false);
+	expect(t, r_reaction(c, msg, F) == 0, "the remove echo does nothing");
+	// add then remove before either answers: both requests, in order, and removed at the end
+	before := r_count(*run, "PUT", "/reactions/");
+	add_reaction(c, R_TEXT, msg, F);
+	remove_reaction(c, R_TEXT, msg, F);
+	expect(t, r_reaction(c, msg, F) == 0, "add -> remove ends removed at once");
+	replay_settle(*run, 200);
+	expect(t, r_count(*run, "PUT", "/reactions/") == before + 1 && r_count(*run, "DELETE", "/reactions/") == 2, "add -> remove sends PUT and DELETE");
+	locks.lock(*run.r.mu);
+	last_put, last_del := -1, -1;
+	for run.r.ours if contains(it.key, "/reactions/") { if begins_with(it.key, "PUT") last_put = it_index; else last_del = it_index; }
+	locks.unlock(*run.r.mu);
+	expect(t, last_put < last_del, "PUT goes before DELETE");
+	r_reaction_echo(*run, msg, F, true);
+	r_reaction_echo(*run, msg, F, false);
+	expect(t, r_reaction(c, msg, F) == 0, "both echoes leave it removed");
+	// a 500 is retried once, then the add is rolled back
+	run.r.fail, run.r.fail_status = "/reactions/", 500;
+	before = r_count(*run, "PUT", "/reactions/");
+	add_reaction(c, R_TEXT, msg, F);
+	expect(t, r_reaction(c, msg, F) == 1, "shown while the request fails");
+	replay_settle(*run, 300);
+	expect(t, r_reaction(c, msg, F) == 0, "a failed add is rolled back");
+	expect_value(t, r_count(*run, "PUT", "/reactions/") - before, 2);
+	// a 403 is not retried; a failed remove puts the reaction back
+	run.r.fail = "";
+	add_reaction(c, R_TEXT, msg, F);
+	replay_settle(*run, 200);
+	run.r.fail, run.r.fail_status = "/reactions/", 403;
+	before = r_count(*run, "DELETE", "/reactions/");
+	remove_reaction(c, R_TEXT, msg, F);
+	expect(t, r_reaction(c, msg, F) == 0, "remove shown while it fails");
+	replay_settle(*run, 300);
+	n, me = r_reaction(c, msg, F);
+	expect(t, n == 1 && me, "a failed remove is rolled back");
+	expect_value(t, r_count(*run, "DELETE", "/reactions/") - before, 1);
+}
+
+// Mark Unread (markUnread) and Pin / Unpin (ChannelPinsActionCreators), from the bundle (no
+// capture): their requests, and the manual MESSAGE_ACK holding the channel unread until left.
+mark_unread_and_pins :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	msgs := messages_get(*c.store, R_TEXT);
+	if !expect(t, msgs.count >= 2, "fixture messages") return;
+	target, prev := msgs[msgs.count - 1].id, msgs[msgs.count - 2].id;
+	replay_mark(*run);
+	mark_unread(c, R_TEXT, target);
+	pin_message(c, R_TEXT, target, true);
+	pin_message(c, R_TEXT, target, false);
+	replay_settle(*run, 300);
+	locks.lock(*run.r.mu);
+	ack_shape := "";
+	for run.r.ours if begins_with(it.key, "POST") && ends_with(it.key, "/ack") ack_shape = copy_string(it.shape,, temp);
+	locks.unlock(*run.r.mu);
+	expect_value(t, ack_shape, "{manual:bool,mention_count:num}");
+	expect_value(t, r_count(*run, "PUT", "/messages/pins/{id}"), 1);
+	expect_value(t, r_count(*run, "DELETE", "/messages/pins/{id}"), 1);
+	d, _ := etf.from_json(tprint("{\"channel_id\":\"%\",\"message_id\":\"%\",\"manual\":true,\"mention_count\":0,\"version\":3}", R_TEXT, prev));
+	client_inject_dispatch(c, "MESSAGE_ACK", d);
+	replay_settle(*run, 100);
+	_, rs := table_find(*c.store.read_states, R_TEXT);
+	expect(t, rs.manual && rs.last_message_id == prev, "the manual ack moves the read state back and holds it");
+	select_channel(c, R_GUILD, R_VOICE);
+	_, rs = table_find(*c.store.read_states, R_TEXT);
+	expect(t, !rs.manual, "leaving the channel ends the hold");
 }
 
 parity_gif_send :: (t: *T) {
