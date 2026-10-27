@@ -8,6 +8,7 @@
 #import "File_Utilities";
 #import "String";
 #import "Thread";
+#import "System";
 
 #run build();
 
@@ -47,6 +48,7 @@ build :: () {
                 && run_command("python3", "-I", "tools/check_secrets.py").exit_code == 0;
             print(ifx ok then "check: all passed\n" else "check: FAILED\n");
         case "release"; ok = release(args);
+        case "release_x64"; ok = compile("fastcord-x86_64", tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", args[1]), .VERY_OPTIMIZED);
         case "og";
             // site/og.jpg, the 1200x630 link preview, from tools/og/card.html with headless Chrome
             ok = run_command("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--headless=new", "--disable-gpu",
@@ -88,7 +90,8 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     o.output_path = "build";
     o.cpu_target = cpu;
     set_optimization(*o, optimization);   // first: it resets the checks below
-    o.dead_code_elimination = .NONE; // type-check every procedure, not only the ones called
+    // type-check every procedure, not only the ones called; shipping builds drop the dead ones
+    if optimization != .VERY_OPTIMIZED o.dead_code_elimination = .NONE;
     o.cast_bounds_check = .OFF;      // integer casts truncate, as the wire encoders expect
     set_build_options(o, w);
     compiler_begin_intercept(w);
@@ -118,7 +121,9 @@ release :: (args: []string) -> bool {
     version := args[1];
     root := tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", version);
     if !compile("fastcord-arm64", root, .VERY_OPTIMIZED, cpu = .ARM64) return false;
-    if !compile("fastcord-x86_64", root, .VERY_OPTIMIZED, cpu = .X64) return false;
+    // The x86_64 half comes from the compiler's own x86_64 slice under Rosetta, not a cross-compile: the
+    // ARM compiler can't run Basic's x86 #asm (print, calendar math) in the x86_64 program's #run code.
+    if run_command("arch", "-x86_64", get_path_of_running_executable(), "build.jai", "-", "release_x64", version).exit_code != 0 return false;
     app := "build/pkg/Fastcord.app";
     run_command("rm", "-rf", "build/pkg", "dist");
     make_directory_if_it_does_not_exist(tprint("%/Contents/MacOS", app), recursive = true);
@@ -127,6 +132,7 @@ release :: (args: []string) -> bool {
     plain := slice(version, 1, version.count - 1);
     plist := tprint(INFO_PLIST, plain, plain);
     ok := run_command("lipo", "-create", "build/fastcord-arm64", "build/fastcord-x86_64", "-output", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0
+        && run_command("strip", "-x", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0  // local symbols: ~2 MB per arch
         && run_command("cp", "assets/Fastcord.icns", tprint("%/Contents/Resources/", app)).exit_code == 0
         && write_entire_file(tprint("%/Contents/Info.plist", app), plist)
         // ad-hoc signature (required to launch on Apple silicon); not notarized

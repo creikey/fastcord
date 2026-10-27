@@ -16,7 +16,9 @@ pool_allocator :: (p: *Flat_Pool) -> Allocator { return .{flat_pool_allocator_pr
 
 // ---- time ----
 
-UNIX_EPOCH :: #run calendar_to_apollo(.{year = 1970});
+// 1970-01-01 in Apollo time (14182941 s after the Apollo epoch). A literal: Basic's calendar math uses x64
+// #asm, which the ARM compiler can't run at compile time when building the x64 half of a release.
+UNIX_EPOCH :: Apollo_Time.{low = 15841551391064358912, high = 768};
 
 now_ms :: () -> s64 { return to_milliseconds(current_time_consensus() - UNIX_EPOCH); }
 

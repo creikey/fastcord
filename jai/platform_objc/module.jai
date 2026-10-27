@@ -41,14 +41,14 @@ new_obj :: (class_name: *u8) -> Id #no_context {
 		print_to_builder(*b, #string DONE
 msg :: inline ($R: Type, o: Id, s: *u8%1) -> R #no_context {
 	#if R == Void {
-		(cast(#type (Id, SEL%2) #c_call) cast(*void) objc_msgSend)(o, sel(s)%3);
+		(cast(#type (Id, SEL%2) #c_call) cast(*void) objc.objc_msgSend)(o, sel(s)%3);
 		return .{};
 	} else #if STRET && size_of(R) > 16 {
 		r: R;
-		(cast(#type (*R, Id, SEL%2) #c_call) cast(*void) objc_msgSend_stret)(*r, o, sel(s)%3);
+		(cast(#type (*R, Id, SEL%2) #c_call) cast(*void) objc.objc_msgSend_stret)(*r, o, sel(s)%3);
 		return r;
 	} else {
-		return (cast(#type (Id, SEL%2) -> R #c_call) cast(*void) objc_msgSend)(o, sel(s)%3);
+		return (cast(#type (Id, SEL%2) -> R #c_call) cast(*void) objc.objc_msgSend)(o, sel(s)%3);
 	}
 }
 DONE, p, t, a);
@@ -62,16 +62,12 @@ DONE, p, t, a);
 libobjc :: #system_library "libobjc";
 Foundation :: #library,system,link_always "Foundation";
 
-objc_msgSend :: () #foreign libobjc;
+// objc_msgSend comes from Jai's Objective_C module (System imports it anyway): a second #foreign declaration
+// of the same symbol must have the same type, and its x64 bindings type it.
+objc :: #import "Objective_C";
 sel_registerName :: (name: *u8) -> SEL #foreign libobjc;
 objc_lookUpClass :: (name: *u8) -> Id #foreign libobjc;
 objc_allocateClassPair :: (superclass: Id, name: *u8, extraBytes: u64) -> Id #foreign libobjc;
 objc_registerClassPair :: (cls: Id) #foreign libobjc;
 class_addMethod :: (cls: Id, name: SEL, imp: *void, types: *u8) -> bool #foreign libobjc;
-#if CPU == .X64 {
-	objc_msgSend_stret :: () #foreign libobjc;
-	STRET :: true;
-} else {
-	STRET :: false;
-	objc_msgSend_stret :: objc_msgSend;
-}
+STRET :: CPU == .X64;
