@@ -7,6 +7,9 @@
 // (dc.set_theme on change, server value applied on READY / updates), guild
 // folders, status, custom status. Everything below is device-local in the
 // official client too.
+//
+// The file is written as Odin's json.marshal(pretty, sort_maps_by_key) wrote it, byte for byte: struct
+// fields in declaration order, tab indents, map keys sorted, floats with 8 decimals.
 
 SETTINGS_FILE :: "settings.json";
 SETTINGS_VERSION :: 1;
@@ -24,8 +27,8 @@ Persisted_Voice :: struct {
 	mode: string; // "VOICE_ACTIVITY" | "PUSH_TO_TALK"
 	ptt_key: string; // platform.Key name
 	ptt_delay_ms: int;
-	user_volume: Map(string, float32);
-	user_muted: Map(string, bool);
+	user_volume: Table(string, float32);
+	user_muted: Table(string, bool);
 }
 
 Persisted_Sounds :: struct {
@@ -50,81 +53,12 @@ Persisted :: struct {
 	sounds: Persisted_Sounds;
 	collapsed: []string; // category ids
 	hide_muted: []string; // guild ids with "Hide Muted Channels" on
-	last_channel: Map(string, string); // guild ("0" = home) -> channel
+	last_channel: Table(string, string); // guild ("0" = home) -> channel
 	window_width: int;
 	window_height: int;
 	sidebar_width: float32;
 	streamer: Streamer_Settings;
 }
-#scope_file
-
-st: struct {
-	dir: string;
-	last_json: string; // what is on disk
-	loaded: bool;
-	next_check: float64;
-	server_theme: dc.Theme; // last server-synced value applied
-	theme_from_user: bool;
-};
-#scope_export
-
-app_state_dir :: (allocator := temp) -> string {
-	return app_data_dir("state", allocator);
-}
-
-// settings_load: called once at startup (before the window opens: it may
-// return a saved window size). Never touches the network.
-settings_load :: (headless: bool) -> int, int {
-	window_w: int;
-	window_h: int;
-	if headless { return window_w, window_h; } // screenshots / e2e scripts run with defaults (and never save)
-	{ __r1, __r2 := settings_load_from(app_state_dir()); return __r1, __r2; }
-}
-
-settings_load_from :: (dir: string) -> int, int {
-	window_w: int;
-	window_h: int;
-	delete(st.dir);
-	st.dir = clone(dir);
-	data, err := os.read_entire_file(strings.concatenate(string.[st.dir, "/", SETTINGS_FILE], temp), temp);
-	if err != null { return window_w, window_h; }
-	p := Persisted.{streamer = STREAMER_DEFAULTS}; // fields missing from older files keep their defaults
-	if json.unmarshal(data, *p, allocator = temp) != null { return window_w, window_h; }
-	st.loaded = true;
-	st.last_json = clone(as_string(data));
-	apply_persisted(*p);
-	return p.window_width, p.window_height;
-}
-
-theme_by_name :: (s: string) -> Theme_Name, bool {
-	{ __r3, __r4 := reflect.enum_from_name(Theme_Name, s); return __r3, __r4; }
-}
-#scope_file
-
-apply_persisted :: (p: *Persisted) {
-	{ t, ok := theme_by_name(p.theme);
-	if ok { app_theme_pending, app_theme_pending_set = t, true; } }
-	theme_follow_os = p.theme_follow_os;
-	notify_prefs = p.notify;
-	v := *p.voice;
-	voice_settings_restore(v);
-	sounds_restore(*p.sounds);
-	streamer_settings = p.streamer;
-	for id: p.collapsed {
-		n, ok := strconv.parse_u64(id);
-		if ok { at(*app.view.collapsed, cast(dc.Snowflake)(n)).* = true; }
-	}
-	for id: p.hide_muted {
-		n, ok := strconv.parse_u64(id);
-		if ok { at(*app.view.hide_muted, cast(dc.Snowflake)(n)).* = true; }
-	}
-	for g, c: p.last_channel {
-		gn, ok1 := strconv.parse_u64(g);
-		cn, ok2 := strconv.parse_u64(c);
-		if ok1 && ok2 { at(*app.view.last_channel, cast(dc.Snowflake)(gn)).* = cast(dc.Snowflake)(cn); }
-	}
-}
-#scope_export
 
 // theme to apply after theme_load at startup (main applies opt.theme first)
 app_theme_pending: Theme_Name;
@@ -133,74 +67,86 @@ app_theme_pending_set: bool;
 notify_prefs: Persisted_Notify;
 theme_follow_os: bool;
 
+app_state_dir :: (allocator := temp) -> string {
+	return app_data_dir("state", allocator);
+}
+
+// settings_load: called once at startup (before the window opens: it may
+// return a saved window size). Never touches the network.
+settings_load :: (headless: bool) -> int, int {
+	if headless return 0, 0; // screenshots / e2e scripts run with defaults (and never save)
+	w, h := settings_load_from(app_state_dir());
+	return w, h;
+}
+
+settings_load_from :: (dir: string) -> int, int {
+	free(st.dir);
+	st.dir = copy_string(dir);
+	data, ok := read_entire_file(tprint("%/%", st.dir, SETTINGS_FILE), log_errors = false,, temp);
+	if !ok return 0, 0;
+	v, err := etf.from_json(data,, temp);
+	if err != .None || v.kind != .Map return 0, 0;
+	p := Persisted.{streamer = STREAMER_DEFAULTS}; // fields missing from older files keep their defaults
+	{
+		push_allocator(temp);
+		read_json(v, Any.{type_info(Persisted), *p});
+	}
+	free(st.last_json);
+	st.last_json = copy_string(data);
+	apply_persisted(*p);
+	return p.window_width, p.window_height;
+}
+
+theme_by_name :: (s: string) -> Theme_Name, bool {
+	for enum_names(Theme_Name) if it == s return cast(Theme_Name) enum_values_as_s64(Theme_Name)[it_index], true;
+	return .Light, false;
+}
+
 device_uid :: (input: bool) -> string {
 	sel := audio.selected_device(input);
-	if sel == 0 { return ""; }
-	for d: audio.list_devices(input, temp) { if d.id == sel { return d.uid; } }
+	if sel == 0 return "";
+	for audio.list_devices(input, temp) if it.id == sel return it.uid;
 	return "";
 }
 
 device_by_uid :: (input: bool, uid: string) -> u32 {
-	if uid == "" { return 0; }
-	for d: audio.list_devices(input, temp) { if d.uid == uid { return d.id; } }
+	if uid == "" return 0;
+	for audio.list_devices(input, temp) if it.uid == uid return it.id;
 	return 0;
 }
-#scope_file
-
-snapshot :: () -> string {
-	p: Persisted;
-	p.version = SETTINGS_VERSION;
-	p.theme, _ = reflect.enum_name_from_value(app.theme.name);
-	p.theme_follow_os = theme_follow_os;
-	p.notify = notify_prefs;
-	voice_settings_snapshot(*p.voice);
-	sounds_snapshot(*p.sounds);
-	col := make_dynamic(string, 0, len(app.view.collapsed), temp);
-	for on, id: app.view.collapsed { if on { append(*col, snowflake_str(id)); } }
-	p.collapsed = view(col);
-	hm := make_dynamic(string, 0, len(app.view.hide_muted), temp);
-	for on, id: app.view.hide_muted { if on { append(*hm, snowflake_str(id)); } }
-	p.hide_muted = view(hm);
-	p.last_channel = Map(string, string).{};
-	for c, g: app.view.last_channel { if c != 0 { at(*p.last_channel, snowflake_str(g)).* = snowflake_str(c); } }
-	ws := platform.window_size();
-	p.window_width = cast(int)(ws.x);
-	p.window_height = cast(int)(ws.y);
-	p.sidebar_width = SIDEBAR_W;
-	p.streamer = streamer_settings;
-	b, err := json.marshal(p, .{pretty = true, sort_maps_by_key = true}, temp);
-	if err != .None { return ""; }
-	return as_string(b);
-}
-
-snowflake_str :: (id: dc.Snowflake) -> string {
-	buf: [24]u8;
-	return clone(strconv.write_uint(view(buf), cast(u64)(id), 10), temp);
-}
-#scope_export
 
 // settings_frame: theme sync + save when something changed (checked twice a second).
 settings_frame :: () {
-	if platform.is_headless() { return; }
+	if platform.is_headless() return;
 	theme_sync();
 	now := platform.time_now();
-	if now < st.next_check { return; }
+	if now < st.next_check return;
 	st.next_check = now + 0.5;
 	theme_follow_os_check();
 	settings_save();
 }
 
 settings_save :: () {
-	if st.dir == "" || platform.is_headless() { return; }
+	if st.dir == "" || platform.is_headless() return;
 	js := snapshot();
-	if js == "" || js == st.last_json { return; }
-	os.make_directory(st.dir);
-	path := strings.concatenate(string.[st.dir, "/", SETTINGS_FILE], temp);
-	tmp := strings.concatenate(string.[path, ".tmp"], temp);
-	if os.write_entire_file(tmp, transmute([]u8, js)) != null { return; }
-	if os.rename(tmp, path) != null { return; }
-	delete(st.last_json);
-	st.last_json = clone(js);
+	if js == "" || js == st.last_json return;
+	make_directory_if_it_does_not_exist(st.dir);
+	path := tprint("%/%", st.dir, SETTINGS_FILE);
+	tmp := tprint("%.tmp", path);
+	if !write_entire_file(tmp, js) return;
+	#if OS == .WINDOWS file_delete(path); // MoveFileW does not replace
+	if !file_move(tmp, path) return;
+	free(st.last_json);
+	st.last_json = copy_string(js);
+}
+
+// Odin's json.marshal(v, {pretty = true, sort_maps_by_key = true}) of a struct of ints, floats,
+// bools, strings, slices, structs and string-keyed Tables, in temp.
+marshal_pretty :: (v: Any) -> string {
+	b: String_Builder;
+	b.allocator = temp;
+	write_json(*b, v, 0);
+	return builder_to_string(*b,, temp);
 }
 
 // ---- theme: local choice <-> settings-proto ----
@@ -210,28 +156,20 @@ settings_save :: () {
 // tools/probes/theme_tokens.js.
 theme_to_proto :: (t: Theme_Name) -> dc.Theme {
 	if t == {
-	case .Light;
-		return .Light;
-	case .Ash;
-		return .Dark;
-	case .Dark;
-		return .Darker;
-	case .Onyx;
-		return .Midnight;
+	case .Light; return .Light;
+	case .Ash;   return .Dark;
+	case .Dark;  return .Darker;
+	case .Onyx;  return .Midnight;
 	}
 	return .Darker;
 }
 
 theme_from_proto :: (t: dc.Theme) -> Theme_Name, bool {
 	if t == {
-	case .Light;
-		return .Light, true;
-	case .Dark;
-		return .Ash, true;
-	case .Darker;
-		return .Dark, true;
-	case .Midnight;
-		return .Onyx, true;
+	case .Light;    return .Light, true;
+	case .Dark;     return .Ash, true;
+	case .Darker;   return .Dark, true;
+	case .Midnight; return .Onyx, true;
 	}
 	return .Dark, false;
 }
@@ -245,26 +183,15 @@ theme_set_by_user :: (t: Theme_Name) {
 		st.server_theme = theme_to_proto(t);
 	}
 }
-#scope_file
-
-theme_sync :: () {
-	if app.client == null || !app.client.store.ready || theme_follow_os { return; }
-	srv := app.client.store.settings.theme;
-	if srv == st.server_theme { return; }
-	st.server_theme = srv;
-	{ t, ok := theme_from_proto(srv);
-	if ok && t != app.theme.name { theme_load(*app.theme, t); } }
-}
-#scope_export
 
 // "Same as Device Theme": the OS's light/dark mode picks Light or Dark (local only;
 // the synced theme is left as it was). Checked with the save, twice a second.
 theme_follow_os_check :: () {
-	if !theme_follow_os { return; }
+	if !theme_follow_os return;
 	dark, ok := platform.system_dark_mode();
-	if !ok { return; }
+	if !ok return;
 	want := ifx dark then Theme_Name.Dark else Theme_Name.Light;
-	if want != app.theme.name { theme_load(*app.theme, want); }
+	if want != app.theme.name theme_load(*app.theme, want);
 }
 
 // The toggle itself: on applies the OS mode at once.
@@ -281,3 +208,207 @@ theme_follow_os_set :: (on: bool) {
 	}
 }
 
+#scope_file
+
+st: struct {
+	dir: string;
+	last_json: string; // what is on disk
+	next_check: float64;
+	server_theme: dc.Theme; // last server-synced value applied
+};
+
+apply_persisted :: (p: *Persisted) {
+	t, ok := theme_by_name(p.theme);
+	if ok app_theme_pending, app_theme_pending_set = t, true;
+	theme_follow_os = p.theme_follow_os;
+	notify_prefs = p.notify;
+	voice_settings_restore(*p.voice);
+	sounds_restore(*p.sounds);
+	streamer_settings = p.streamer;
+	for p.collapsed {
+		n, ok := dc.parse_u64(it);
+		if ok table_set(*app.view.collapsed, cast(dc.Snowflake) n, true);
+	}
+	for p.hide_muted {
+		n, ok := dc.parse_u64(it);
+		if ok table_set(*app.view.hide_muted, cast(dc.Snowflake) n, true);
+	}
+	for c, g: p.last_channel {
+		gn, ok1 := dc.parse_u64(g);
+		cn, ok2 := dc.parse_u64(c);
+		if ok1 && ok2 table_set(*app.view.last_channel, cast(dc.Snowflake) gn, cast(dc.Snowflake) cn);
+	}
+}
+
+snapshot :: () -> string {
+	push_allocator(temp);
+	p: Persisted;
+	p.version = SETTINGS_VERSION;
+	p.theme = tprint("%", app.theme.name);
+	p.theme_follow_os = theme_follow_os;
+	p.notify = notify_prefs;
+	voice_settings_snapshot(*p.voice);
+	sounds_snapshot(*p.sounds);
+	col, hm: [..]string;
+	for on, id: app.view.collapsed if on array_add(*col, tprint("%", cast(u64) id));
+	for on, id: app.view.hide_muted if on array_add(*hm, tprint("%", cast(u64) id));
+	p.collapsed, p.hide_muted = col, hm;
+	for c, g: app.view.last_channel if c != 0 table_set(*p.last_channel, tprint("%", cast(u64) g), tprint("%", cast(u64) c));
+	ws := platform.window_size();
+	p.window_width = cast(int) ws.x;
+	p.window_height = cast(int) ws.y;
+	p.sidebar_width = SIDEBAR_W;
+	p.streamer = streamer_settings;
+	return marshal_pretty(p);
+}
+
+theme_sync :: () {
+	if app.client == null || !app.client.store.ready || theme_follow_os return;
+	srv := app.client.store.settings.theme;
+	if srv == st.server_theme return;
+	st.server_theme = srv;
+	t, ok := theme_from_proto(srv);
+	if ok && t != app.theme.name theme_load(*app.theme, t);
+}
+
+// ---- JSON <-> struct, by type info ----
+
+write_json :: (b: *String_Builder, v: Any, depth: int) {
+	p := v.value_pointer;
+	if v.type.type == {
+	case .INTEGER; print_to_builder(b, "%", v);
+	case .BOOL;    append(b, ifx (cast(*bool) p).* then "true" else "false");
+	case .STRING;  write_quoted(b, (cast(*string) p).*);
+	case .FLOAT;
+		// Odin writes a float as %.<2 * size>f of its exact value (C's printf rounds the same way).
+		buf: [512]u8;
+		if v.type.runtime_size == 4 snprintf(buf.data, buf.count, "%.8f", cast(float64) (cast(*float32) p).*);
+		else snprintf(buf.data, buf.count, "%.16f", (cast(*float64) p).*);
+		append(b, to_string(buf.data));
+	case .ARRAY;
+		ai := cast(*Type_Info_Array) v.type;
+		count, data := ai.array_count, p;
+		if ai.array_type != .FIXED count, data = (cast(*[]u8) p).count, (cast(*[]u8) p).data;
+		append(b, "[\n");
+		for 0..count - 1 {
+			if it append(b, ",\n");
+			indent(b, depth + 1);
+			write_json(b, Any.{ai.element_type, data + it * ai.element_type.runtime_size}, depth + 1);
+		}
+		close(b, "]", depth);
+	case .STRUCT;
+		if v.type == cast(*Type_Info) type_info(Table(string, float32)) { write_table(b, cast(*Table(string, float32)) p, depth); return; }
+		if v.type == cast(*Type_Info) type_info(Table(string, bool))    { write_table(b, cast(*Table(string, bool)) p, depth); return; }
+		if v.type == cast(*Type_Info) type_info(Table(string, string))  { write_table(b, cast(*Table(string, string)) p, depth); return; }
+		append(b, "{\n");
+		n := 0;
+		for m: (cast(*Type_Info_Struct) v.type).members {
+			if m.flags & .CONSTANT continue;
+			if n append(b, ",\n");
+			n += 1;
+			indent(b, depth + 1);
+			write_quoted(b, m.name);
+			append(b, ": ");
+			write_json(b, Any.{m.type, p + m.offset_in_bytes}, depth + 1);
+		}
+		close(b, "}", depth);
+	case; append(b, "null");
+	}
+}
+
+write_table :: (b: *String_Builder, t: *Table(string, $V), depth: int) {
+	keys: [..]string;
+	keys.allocator = temp;
+	for t.* array_add(*keys, it_index);
+	quick_sort(keys, compare_strings);
+	append(b, "{\n");
+	for keys {
+		if it_index append(b, ",\n");
+		indent(b, depth + 1);
+		write_quoted(b, it);
+		append(b, ": ");
+		write_json(b, table_find_pointer(t, it).*, depth + 1);
+	}
+	close(b, "}", depth);
+}
+
+indent :: (b: *String_Builder, depth: int) { for 1..depth append(b, #char "\t"); }
+
+// Odin ends every object and array, even an empty one, with a newline and the closing indent.
+close :: (b: *String_Builder, bracket: string, depth: int) {
+	append(b, #char "\n");
+	indent(b, depth);
+	append(b, bracket);
+}
+
+// Quoted like Odin's marshal for ASCII (\" \\ \b \f \n \r \t, other controls and DEL as \u00xx).
+// Bytes >= 0x80 are copied (Odin also escapes non-printable runes; both read back the same).
+write_quoted :: (b: *String_Builder, s: string) {
+	append(b, #char "\"");
+	for cast([]u8) s {
+		if it == {
+		case #char "\""; append(b, "\\\"");
+		case #char "\\"; append(b, "\\\\");
+		case 8;          append(b, "\\b");
+		case 12;         append(b, "\\f");
+		case #char "\n"; append(b, "\\n");
+		case #char "\r"; append(b, "\\r");
+		case #char "\t"; append(b, "\\t");
+		case;
+			if it < 0x20 || it == 0x7f print_to_builder(b, "\\u%", formatInt(it, base = 16, minimum_digits = 4));
+			else append(b, it);
+		}
+	}
+	append(b, #char "\"");
+}
+
+// Fills what the JSON has; anything missing or of another kind keeps its value. Allocates in context.
+read_json :: (v: etf.Value, dst: Any) {
+	p := dst.value_pointer;
+	if dst.type.type == {
+	case .INTEGER;
+		if v.kind != .Int && v.kind != .Float return;
+		n := ifx v.kind == .Int then v.i else cast(s64) v.f;
+		memcpy(p, *n, dst.type.runtime_size);
+	case .FLOAT;
+		if v.kind != .Int && v.kind != .Float return;
+		f := ifx v.kind == .Float then v.f else cast(float64) v.i;
+		if dst.type.runtime_size == 4 { (cast(*float32) p).* = cast(float32) f; }
+		else { (cast(*float64) p).* = f; }
+	case .BOOL;
+		if v.kind == .Bool { (cast(*bool) p).* = v.b; }
+	case .STRING;
+		if v.kind == .String { (cast(*string) p).* = copy_string(v.s); }
+	case .ARRAY;
+		ai := cast(*Type_Info_Array) dst.type;
+		if v.kind != .List || ai.array_type == .FIXED return;
+		size := ai.element_type.runtime_size;
+		data := alloc(v.list.count * size);
+		memset(data, 0, v.list.count * size);
+		for v.list read_json(it, Any.{ai.element_type, data + it_index * size});
+		a := cast(*Resizable_Array) p;
+		a.data, a.count = data, v.list.count;
+		if ai.array_type == .RESIZABLE a.allocated, a.allocator = v.list.count, context.allocator;
+	case .STRUCT;
+		if v.kind != .Map return;
+		if dst.type == cast(*Type_Info) type_info(Table(string, float32)) { read_table(v, cast(*Table(string, float32)) p); return; }
+		if dst.type == cast(*Type_Info) type_info(Table(string, bool))    { read_table(v, cast(*Table(string, bool)) p); return; }
+		if dst.type == cast(*Type_Info) type_info(Table(string, string))  { read_table(v, cast(*Table(string, string)) p); return; }
+		for m: (cast(*Type_Info_Struct) dst.type).members {
+			if m.flags & .CONSTANT continue;
+			x, ok := etf.map_get(v.map, m.name);
+			if ok read_json(x, Any.{m.type, p + m.offset_in_bytes});
+		}
+	}
+}
+
+read_table :: (v: etf.Value, t: *Table(string, $V)) {
+	for v.map {
+		if it.key.kind != .String continue;
+		x: V;
+		read_json(it.value, Any.{type_info(V), *x});
+		table_set(t, copy_string(it.key.s), x);
+	}
+}
+
+snprintf :: (buf: *u8, n: u64, format: *u8, args: ..Any) -> s32 #foreign libc;

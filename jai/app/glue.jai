@@ -8,69 +8,58 @@ Font_Id :: enum u32 {
 	Italic;
 }
 
-fonts: [#run enum_count(Font_Id)]gfx.Font_Face;
+fonts: [#run enum_highest_value(Font_Id) + 1]gfx.Font_Face;
 
-F :: (f: Font_Id) -> ui.Font {return cast(ui.Font)(f);}
-
-// gg sans is fetched from discord.com/assets at runtime (as the official client
-// does) and cached here; until then the system font stands in.
-font_cache_dir :: (allocator := temp) -> string {
-	return app_data_dir("fonts", allocator);
-}
+F :: (f: Font_Id) -> ui.Font { return cast(ui.Font) f; }
 
 // Per-user app data: ~/Library/Application Support/fastcord on macOS,
 // %LOCALAPPDATA%\fastcord on Windows.
 app_data_dir :: (sub: string, allocator := temp) -> string {
-	p: string;
-	#if OS == .WINDOWS {
-		base := os.get_env("LOCALAPPDATA", temp);
-		p = filepath.join(string.[base, "fastcord", sub], allocator);
-	} else {
-		home := os.get_env("HOME", temp);
-		p = filepath.join(string.[home, "Library", "Application Support", "fastcord", sub], allocator);
-	}
-	return p;
+	#if OS == .WINDOWS return tprint("%\\fastcord\\%", env_var("LOCALAPPDATA"), sub,, allocator);
+	else return tprint("%/Library/Application Support/fastcord/%", env_var("HOME"), sub,, allocator);
+}
+
+// Environment variable, "" when unset (not copied).
+env_var :: (name: string) -> string {
+	p := getenv(temp_c_string(name));
+	return ifx p then to_string(p) else "";
 }
 
 fonts_load :: () {
 	weights := gfx.Font_Weight.[.Regular, .Medium, .Semibold, .Bold, .Regular, .Regular];
-	for id: enum_values_as_enum(Font_Id) { fonts[id] = gfx.font_system("system", weights[id]); }
+	for * fonts it.* = gfx.font_system("system", weights[it_index]);
 	fonts[Font_Id.Mono] = gfx.font_system(ifx OS == .WINDOWS then "Consolas" else "Menlo");
 	fonts[Font_Id.Italic] = gfx.font_system("system", .Regular, italic = true);
-	dir := font_cache_dir();
-	fd, err := os.open(dir);
-	if err != null { return; }
-	defer os.close(fd);
-	infos, _ := os.read_dir(fd, -1, temp);
-	for fi: infos {
-		if !strings.has_suffix(fi.name, ".woff2") { continue; }
-		face := gfx.font_load_file(fi.fullpath);
-		if face == 0 { continue; }
+	// gg sans is fetched from discord.com/assets at runtime (as the official client does) and cached
+	// here; until then the system font stands in.
+	visit_files(app_data_dir("fonts"), false, null, (info: *File_Visit_Info, _: *void) {
+		if !ends_with(info.short_name, ".woff2") return;
+		face := gfx.font_load_file(info.full_name);
+		if face == 0 return;
 		name := gfx.font_name(face);
-		if strings.contains(name, "Italic") {
-			if strings.contains(name, "NormalItalic") { fonts[Font_Id.Italic] = face; }
-		} else if strings.contains(name, "SemiBold") {
+		if contains(name, "Italic") {
+			if contains(name, "NormalItalic") fonts[Font_Id.Italic] = face;
+		} else if contains(name, "SemiBold") {
 			fonts[Font_Id.Semibold] = face;
-		} else if strings.contains(name, "Medium") {
+		} else if contains(name, "Medium") {
 			fonts[Font_Id.Medium] = face;
-		} else if strings.contains(name, "Bold") {
+		} else if contains(name, "Bold") {
 			fonts[Font_Id.Bold] = face;
-		} else if strings.contains(name, "Normal") {
+		} else if contains(name, "Normal") {
 			fonts[Font_Id.Normal] = face;
 		}
-	}
-	if fonts[Font_Id.Bold] == 0 { fonts[Font_Id.Bold] = fonts[Font_Id.Semibold]; }
+	});
+	if fonts[Font_Id.Bold] == 0 fonts[Font_Id.Bold] = fonts[Font_Id.Semibold];
 }
 
 ui_shape :: (font: ui.Font, size: float32, text: string) -> ui.Shaped_Run {
 	face := fonts[cast(Font_Id)(font)];
 	run := gfx.shape(face, size, text);
 	m := gfx.font_metrics(face, size);
-	glyphs := make_slice(ui.Shaped_Glyph, len(run.glyphs), temp);
-	for g, i: run.glyphs {
-		at(*glyphs, i).* = .{x = g.pos.x, advance = g.advance, cluster_start = g.cluster_start, cluster_end = g.cluster_end, handle = cast(u64)(i)};
-	}
-	rp := new_clone(run, temp);
+	glyphs := NewArray(run.glyphs.count, ui.Shaped_Glyph,, temp);
+	for run.glyphs glyphs[it_index] = .{x = it.pos.x, advance = it.advance, cluster_start = it.cluster_start, cluster_end = it.cluster_end, handle = cast(u64) it_index};
+	rp := New(gfx.Shaped_Run,, temp);
+	rp.* = run;
 	return ui.Shaped_Run.{glyphs = glyphs, width = run.width, ascent = m.ascent, descent = m.descent, line_h = m.line_height, handle = rp};
 }
 
@@ -78,19 +67,19 @@ render :: (cmds: []ui.Draw_Cmd) {
 	for c: cmds {
 		if c.kind == {
 		case .Rect;
-			gfx.push_rect(.{dst = cast,force(gfx.Rect)(c.rect), colors = transmute([4]gfx.Color, c.colors), radii = c.radii, border = c.border, softness = c.softness});
+			gfx.push_rect(.{dst = cast,force(gfx.Rect)(c.rect), colors = (cast(*[4]gfx.Color) *c.colors).*, radii = c.radii, border = c.border, softness = c.softness});
 		case .Text;
 			tl := c.layout;
-			if !is_null(tl.spans) {
+			if tl.spans.data != null {
 				render_rich(tl, c.origin, c.colors[0]);
 				continue;
 			}
 			run := cast(*gfx.Shaped_Run)(tl.run.handle);
-			if run == null { continue; }
+			if run == null continue;
 			for l: tl.lines {
-				if l.glyph_end <= l.glyph_start { continue; }
+				if l.glyph_end <= l.glyph_start continue;
 				part := run.*;
-				part.glyphs = sub(run.glyphs, l.glyph_start, l.glyph_end);
+				part.glyphs = array_view(run.glyphs, l.glyph_start, l.glyph_end - l.glyph_start);
 				gfx.draw_run(part, .{c.origin.x - l.x_shift, c.origin.y + l.y + tl.baseline}, cast(gfx.Color)(c.colors[0]));
 			}
 		case .Clip_Push;
@@ -98,7 +87,7 @@ render :: (cmds: []ui.Draw_Cmd) {
 		case .Clip_Pop;
 			gfx.pop_clip();
 		case .Custom;
-			if c.box != null && c.box.custom_draw != null { c.box.custom_draw(c.box, c.box.custom_user); }
+			if c.box != null && c.box.custom_draw != null c.box.custom_draw(c.box, c.box.custom_user);
 		}
 	}
 }
@@ -158,10 +147,11 @@ map_key :: (k: platform.Key) -> ui.Key_Code {
 }
 
 map_events :: (evs: []platform.Event) -> []ui.Input_Event {
-	out := make_dynamic(ui.Input_Event, 0, len(evs), temp);
+	out: [..]ui.Input_Event;
+	out.allocator = temp;
+	array_reserve(*out, evs.count);
 	for e: evs {
-		mods := transmute(ui.Mods, e.mods);
-		ev := ui.Input_Event.{pos = e.pos, mods = mods, click_count = e.click_count};
+		ev := ui.Input_Event.{pos = e.pos, mods = cast,force(ui.Mods) e.mods, click_count = e.click_count};
 		if e.kind == {
 		case .Mouse_Move;
 			ev.kind = .Mouse_Move;
@@ -189,9 +179,9 @@ map_events :: (evs: []platform.Event) -> []ui.Input_Event {
 		case;
 			continue;
 		}
-		append(*out, ev);
+		array_add(*out, ev);
 	}
-	return view(out);
+	return out;
 }
 
 map_cursor :: (c: ui.Cursor) -> platform.Cursor {
@@ -217,39 +207,51 @@ render_rich :: (tl: *ui.Text_Layout, origin: ui.Vec2, box_color: ui.Color) {
 	for l: tl.lines {
 		gi := l.glyph_start;
 		while gi < l.glyph_end {
-			si := get(tl.run.glyphs, gi).span;
+			si := tl.run.glyphs[gi].span;
 			start := gi;
-			while gi < l.glyph_end && get(tl.run.glyphs, gi).span == si { gi += 1; }
+			while gi < l.glyph_end && tl.run.glyphs[gi].span == si gi += 1;
 			sp := tl.spans[si];
-			g0 := get(tl.run.glyphs, start);
-			g1 := get(tl.run.glyphs, gi - 1);
+			g0 := tl.run.glyphs[start];
+			g1 := tl.run.glyphs[gi - 1];
 			x := origin.x + g0.x - l.x_shift;
 			y := origin.y + l.y;
 			if sp.object != .{} {
 				oy := y + (tl.line_h - sp.object.y) / 2;
 				r := ui.Rect.{x, oy, x + sp.object.x, oy + sp.object.y};
-				if draw_inline_object != null { draw_inline_object(sp, r, box_color.w); }
+				if draw_inline_object != null draw_inline_object(sp, r, box_color.w);
 				continue;
 			}
 			color := ifx sp.color.w > 0 then sp.color else box_color;
 			color.w *= ifx box_color.w > 0 then 1 else 0;
 			run := cast(*gfx.Shaped_Run)(tl.span_runs[si].handle);
-			if run == null { continue; }
+			if run == null continue;
 			h0 := cast(int)(g0.handle);
 			h1 := cast(int)(g1.handle);
 			part := run.*;
-			part.glyphs = sub(run.glyphs, h0, h1 + 1);
-			gfx.draw_run(part, .{x - get(run.glyphs, h0).pos.x, y + tl.baseline}, cast(gfx.Color)(color));
+			part.glyphs = array_view(run.glyphs, h0, h1 + 1 - h0);
+			gfx.draw_run(part, .{x - run.glyphs[h0].pos.x, y + tl.baseline}, cast(gfx.Color)(color));
 			if sp.underline {
 				w := g1.x + g1.advance - g0.x;
 				gfx.rect(.{x, y + tl.baseline + 2, x + w, y + tl.baseline + 3}, cast(gfx.Color)(color));
 			}
 			if sp.strike {
 				w := g1.x + g1.advance - g0.x;
-				sy := math.round(y + tl.baseline - sp.size * 0.3);
+				sy := round(y + tl.baseline - sp.size * 0.3);
 				gfx.rect(.{x, sy, x + w, sy + 1}, cast(gfx.Color)(color));
 			}
 		}
 	}
 }
 
+
+#scope_file
+
+// Odin's math.round: halves away from zero.
+round :: (x: float32) -> float32 { return ifx x < 0 then -floor(-x + 0.5) else floor(x + 0.5); }
+
+#if OS == .WINDOWS {
+	crt :: #system_library "msvcrt";
+	getenv :: (name: *u8) -> *u8 #foreign crt;
+} else {
+	getenv :: (name: *u8) -> *u8 #foreign libc;
+}

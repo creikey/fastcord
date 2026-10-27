@@ -10,26 +10,15 @@ Frame_Phase :: enum s32 {
 	UI;
 	Render;
 }
-#scope_file
-
-Watchdog :: struct {
-	main_tid: int;
-	frame_start: s64; // time.now() in ns when the current frame began, 0 between frames.
-	phase: Frame_Phase;
-	reported: s64; // frame_start of the frame last reported.
-}
-
-wd: Watchdog;
-#scope_export
 
 watchdog_start :: () {
 	wd.main_tid = locks.current_thread_id();
-	thread.create_and_start(watchdog_proc, self_cleanup = true);
+	dc.spawn(cast(*void) null, watchdog_proc); // runs until the process exits
 }
 
 watchdog_frame_begin :: () {
 	atomic_store(*wd.phase, Frame_Phase.Poll);
-	atomic_store(*wd.frame_start, time.to_unix_nanoseconds(time.now()));
+	atomic_store(*wd.frame_start, mono_ns());
 }
 
 watchdog_phase :: (p: Frame_Phase) {
@@ -40,7 +29,29 @@ watchdog_frame_end :: () {
 	atomic_store(*wd.frame_start, 0);
 	atomic_store(*wd.phase, Frame_Phase.Idle);
 }
+
+// Main thread, after each rendered frame.
+watchdog_gfx :: () {
+	d := gfx.diag();
+	if same_diag(d, last_diag) return;
+	last_diag = d;
+	r := Gfx_Report.{diag = d, stats = gfx.stats(), textures = gfx.texture_count(), atlas_pages = gfx.text_stats().atlas_pages, frame = app.frame};
+	locks.lock(*gfx_report_mu);
+	r.seq = gfx_report.seq + 1;
+	gfx_report = r;
+	locks.unlock(*gfx_report_mu);
+}
+
 #scope_file
+
+wd: struct {
+	main_tid: int;
+	frame_start: s64; // monotonic ns when the current frame began, 0 between frames.
+	phase: Frame_Phase;
+	reported: s64; // frame_start of the frame last reported.
+};
+
+mono_ns :: () -> s64 { return to_nanoseconds(current_time_monotonic()); }
 
 // gfx failures (draws with dead texture handles, failed texture creation or Present, atlas resets)
 // go to <data>/logs/gfx.txt. The watchdog thread writes the file so the UI thread never waits on disk.
@@ -55,78 +66,71 @@ Gfx_Report :: struct {
 
 gfx_report_mu: locks.Mutex;
 gfx_report: Gfx_Report;
-#scope_export
+last_diag: gfx.Diag; // main thread
+written: u64; // watchdog thread: seq of the report last written, and when (monotonic ns)
+written_at: s64;
 
-// Main thread, after each rendered frame.
-watchdog_gfx :: () {
-	d := gfx.diag();
-	if d == static_last1 { return; }
-	static_last1 = d;
-	r := Gfx_Report.{diag = d, stats = gfx.stats(), textures = gfx.texture_count(), atlas_pages = gfx.text_stats().atlas_pages, frame = app.frame};
-	locks.lock(*gfx_report_mu);
-	r.seq = gfx_report.seq + 1;
-	gfx_report = r;
-	locks.unlock(*gfx_report_mu);
+same_diag :: (a: gfx.Diag, b: gfx.Diag) -> bool {
+	return a.dead_tex_draws == b.dead_tex_draws && a.last_dead_tex == b.last_dead_tex && a.tex_create_fails == b.tex_create_fails && a.present_fails == b.present_fails && a.last_hresult == b.last_hresult && a.device_removed == b.device_removed && a.atlas_resets == b.atlas_resets;
 }
-#scope_file
 
 write_gfx_report :: () {
 	locks.lock(*gfx_report_mu);
 	r := gfx_report;
 	locks.unlock(*gfx_report_mu);
 	// A failure that repeats every frame would otherwise add a line every second.
-	if r.seq == static_written2 || time.since(static_written_at3) < 5 * time.Second { return; }
-	static_written2 = r.seq;
-	static_written_at3 = time.now();
+	now := mono_ns();
+	if r.seq == written || (written_at != 0 && now - written_at < 5_000_000_000) return;
+	written, written_at = r.seq, now;
 	d := r.diag;
-	stamp, _ := time.time_to_rfc3339(static_written_at3, include_nanos = false, allocator = temp);
-	line := fmt.tprintfln(
-		"%s frame %d: dead_tex_draws %d (last handle %d), tex_create_fails %d, present_fails %d, hresult 0x%08x, device_removed 0x%08x, atlas_resets %d; instances %d, draw_calls %d, textures %d, atlas_pages %d",
-		stamp, r.frame, d.dead_tex_draws, d.last_dead_tex, d.tex_create_fails, d.present_fails, cast(u32)(d.last_hresult), cast(u32)(d.device_removed), d.atlas_resets,
-		r.stats.instances, r.stats.draw_calls, r.textures, r.atlas_pages,
-	);
+	t := to_calendar(current_time_consensus(), .UTC);
+	two :: (x: s64) -> string { return tprint("%", formatInt(x, minimum_digits = 2)); }
+	stamp := tprint("%-%-%T%:%:%Z", t.year, two(t.month_starting_at_0 + 1), two(t.day_of_month_starting_at_0 + 1), two(t.hour), two(t.minute), two(t.second));
+	hex8 :: (x: s32) -> string { return tprint("%", formatInt(cast,no_check(u32) x, base = 16, minimum_digits = 8)); }
+	line := tprint("% frame %: dead_tex_draws % (last handle %), tex_create_fails %, present_fails %, hresult 0x%, device_removed 0x%, atlas_resets %; instances %, draw_calls %, textures %, atlas_pages %\n",
+		stamp, r.frame, d.dead_tex_draws, d.last_dead_tex, d.tex_create_fails, d.present_fails, hex8(d.last_hresult), hex8(d.device_removed), d.atlas_resets,
+		r.stats.instances, r.stats.draw_calls, r.textures, r.atlas_pages);
 	dir := app_data_dir("logs");
-	os.make_directory_all(dir);
-	f, err := os.open(fmt.tprintf("%s/gfx.txt", dir), .Write | .Create | .Append);
-	if err != null { return; }
-	os.write_string(f, line);
-	os.close(f);
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	f, ok := file_open(tprint("%/gfx.txt", dir), for_writing = true, keep_existing_content = true, log_errors = false);
+	if !ok return;
+	file_set_position(f, file_length(f));
+	file_write(*f, line);
+	file_close(*f);
 }
 
-watchdog_proc :: () {
+watchdog_proc :: (_: *void) {
 	while true {
-		time.sleep(time.Second);
+		sleep_milliseconds(1000);
 		write_gfx_report();
 		reset_temporary_storage();
 		start := atomic_load(*wd.frame_start);
-		if start == 0 || start == wd.reported { continue; }
-		stuck := cast(time.Duration) (time.to_unix_nanoseconds(time.now()) - start);
-		if stuck < HANG_SECONDS * time.Second { continue; }
+		if start == 0 || start == wd.reported continue;
+		stuck_ns := mono_ns() - start;
+		if stuck_ns < HANG_SECONDS * 1_000_000_000 continue;
 		wd.reported = start;
-		report_hang(stuck);
+		report_hang(stuck_ns);
 		reset_temporary_storage();
 	}
 }
 
-report_hang :: (stuck: time.Duration) {
-	b := strings.builder_make(temp);
-	fmt.sbprintfln(*b, "fastcord hang: frame running for %v, phase %v, main thread %d", stuck, atomic_load(*wd.phase), wd.main_tid);
-	{ w := locks.waiting_on(wd.main_tid);
+report_hang :: (stuck_ns: s64) {
+	b: String_Builder;
+	b.allocator = temp;
+	print_to_builder(*b, "fastcord hang: frame running for %s, phase %, main thread %\n", formatFloat(cast(float64) stuck_ns / 1_000_000_000, trailing_width = 3, zero_removal = .NO), atomic_load(*wd.phase), wd.main_tid);
+	w := locks.waiting_on(wd.main_tid);
 	if w.waiting {
-		fmt.sbprintfln(*b, "main thread is waiting for the lock taken at %v", w.wait_loc);
-		if w.owner != 0 { fmt.sbprintfln(*b, "  held by thread %d since %v", w.owner, w.owner_loc); } else { fmt.sbprintln(*b, "  which no thread holds: its state was corrupted (struct overwritten or copied while locked?)"); }
-	} }
+		print_to_builder(*b, "main thread is waiting for the lock taken at %\n", loc(w.wait_loc));
+		if w.owner != 0 print_to_builder(*b, "  held by thread % since %\n", w.owner, loc(w.owner_loc));
+		else append(*b, "  which no thread holds: its state was corrupted (struct overwritten or copied while locked?)\n");
+	}
 	write_thread_stacks(*b, wd.main_tid);
-	text := strings.to_string(b);
-	fmt.eprint(text);
+	text := builder_to_string(*b,, temp);
+	print("%", text, to_standard_error = true);
 	dir := app_data_dir("logs");
-	os.make_directory_all(dir);
-	path := fmt.tprintf("%s/hang-%d.txt", dir, time.to_unix_seconds(time.now()));
-	if os.write_entire_file(path, transmute([]u8, text)) == null { fmt.eprintln("hang report written to", path); }
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	path := tprint("%/hang-%.txt", dir, to_seconds(current_time_consensus() - dc.UNIX_EPOCH));
+	if write_entire_file(path, text) print("hang report written to %\n", path, to_standard_error = true);
 }
-#scope_export
 
-#scope_file static_last1: gfx.Diag; #scope_export
-#scope_file static_written2: u64; #scope_export
-#scope_file static_written_at3: time.Time; #scope_export
-
+loc :: (l: Source_Code_Location) -> string { return tprint("%(%:%)", l.fully_pathed_filename, l.line_number, l.character_number); }

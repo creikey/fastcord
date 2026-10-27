@@ -34,27 +34,12 @@ Voice_Settings :: struct {
 }
 
 vs: Voice_Settings;
-#scope_file
 
-vs_init :: () {
-	if vs.inited { return; }
-	vs.inited = true;
-	vs.input_volume = 100;
-	vs.output_volume = 100;
-	vs.auto_sens = true;
-	vs.threshold_db = voice.VAD_DEFAULT_THRESHOLD;
-	vs.processing = audio.Voice_Processing.{true, true, true};
-	vs.meter_db = -127;
-	vs.ptt_delay_ms = 20;
-	voice.vad_init(*vs.meter_vad);
-}
-#scope_export
-
-// ---- persistence (settings_store.odin) ----
+// ---- persistence (settings_store.jai) ----
 
 vs_reset_for_test :: () {
-	delete(vs.user_volume);
-	delete(vs.user_muted);
+	deinit(*vs.user_volume);
+	deinit(*vs.user_muted);
 	vs = .{};
 	vs_init();
 }
@@ -65,23 +50,22 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.output_volume = clamp(p.output_volume, 0, 200);
 	vs.auto_sens = p.auto_sens;
 	vs.threshold_db = clamp(p.threshold_db, -100, 0);
-	vs.processing = audio.Voice_Processing.{p.echo, p.noise, p.agc};
+	vs.processing = .{p.echo, p.noise, p.agc};
 	audio.set_voice_processing(vs.processing);
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
-	{ k, ok := reflect.enum_from_name(platform.Key, p.ptt_key);
-	if ok { vs.ptt_key = k; } }
-	vs.ptt_delay_ms = clamp(cast(float32)(p.ptt_delay_ms), 0, 2000);
-	{ id := device_by_uid(true, p.input_device);
-	if id != 0 { audio.select_device(true, id); } }
-	{ id := device_by_uid(false, p.output_device);
-	if id != 0 { audio.select_device(false, id); } }
-	for k, v: p.user_volume {
-		{ n, ok := strconv.parse_u64(k);
-		if ok { at(*vs.user_volume, cast(dc.Snowflake)(n)).* = clamp(v, 0, 200); } }
+	for enum_names(platform.Key) if it == p.ptt_key vs.ptt_key = cast(platform.Key) enum_values_as_s64(platform.Key)[it_index];
+	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
+	id := device_by_uid(true, p.input_device);
+	if id != 0 audio.select_device(true, id);
+	id = device_by_uid(false, p.output_device);
+	if id != 0 audio.select_device(false, id);
+	for v, k: p.user_volume {
+		n, ok := dc.parse_u64(k);
+		if ok table_set(*vs.user_volume, cast(dc.Snowflake) n, clamp(v, 0, 200));
 	}
-	for k, v: p.user_muted {
-		{ n, ok := strconv.parse_u64(k);
-		if ok && v { at(*vs.user_muted, cast(dc.Snowflake)(n)).* = true; } }
+	for v, k: p.user_muted {
+		n, ok := dc.parse_u64(k);
+		if ok && v table_set(*vs.user_muted, cast(dc.Snowflake) n, true);
 	}
 }
 
@@ -97,35 +81,12 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.noise = vs.processing.noise_suppression;
 	p.agc = vs.processing.auto_gain_control;
 	p.mode = ifx vs.ptt_mode then "PUSH_TO_TALK" else "VOICE_ACTIVITY";
-	p.ptt_key, _ = reflect.enum_name_from_value(vs.ptt_key);
-	p.ptt_delay_ms = cast(int)(vs.ptt_delay_ms);
-	p.user_volume = Map(string, float32).{};
-	p.user_muted = Map(string, bool).{};
-	for v, k: vs.user_volume { if v != 100 { at(*p.user_volume, fmt.tprint(cast(u64)(k))).* = v; } }
-	for v, k: vs.user_muted { if v { at(*p.user_muted, fmt.tprint(cast(u64)(k))).* = true; } }
+	p.ptt_key = tprint("%", vs.ptt_key);
+	p.ptt_delay_ms = cast(int) vs.ptt_delay_ms;
+	p.user_volume, p.user_muted = .{}, .{};
+	for v, k: vs.user_volume if v != 100 table_set(*p.user_volume, tprint("%", cast(u64) k), v);
+	for v, k: vs.user_muted if v table_set(*p.user_muted, tprint("%", cast(u64) k), true);
 }
-#scope_file
-
-// push-to-talk key state (focused window only: a global hotkey on macOS
-// needs an event tap and the Accessibility permission).
-ptt_input :: () {
-	for e: platform.events() {
-		if e.kind == {
-		case .Key_Down;
-			if vs.recording_key {
-				if e.key != .Escape && e.key != .None { vs.ptt_key = e.key; }
-				vs.recording_key = false;
-				continue;
-			}
-			if vs.ptt_key != .None && e.key == vs.ptt_key { vs.ptt_held = true; }
-		case .Key_Up;
-			if e.key == vs.ptt_key { vs.ptt_held = false; }
-		case .Focus_Lost;
-			vs.ptt_held = false;
-		}
-	}
-}
-#scope_export
 
 // voice_settings_frame: applies settings to the live connection / devices and
 // runs the meter. Called from voice_frame every frame.
@@ -143,11 +104,11 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		for v, uid: vs.user_volume { voice.set_user_volume(conn, cast(u64)(uid), v / 100); }
 		for m, uid: vs.user_muted { voice.set_user_mute(conn, cast(u64)(uid), m); }
 	}
-	if audio_ready { audio.set_volume(vs.output_volume / 100); }
+	if audio_ready audio.set_volume(vs.output_volume / 100);
 
 	page_open := app.settings_open && settings_page == "Voice & Video";
 	if !page_open || headless {
-		if vs.meter_owner && conn == null { audio.capture_stop(); }
+		if vs.meter_owner && conn == null audio.capture_stop();
 		vs.meter_owner = false;
 		return;
 	}
@@ -165,18 +126,253 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		if vs.meter_owner {
 			buf: [960]float32;
 			while audio.capture_available() >= 960 {
-				audio.capture_read(view(buf));
+				audio.capture_read(buf);
 				g := vs.input_volume / 100;
 				for * x: buf { x.* *= g; }
 				vs.meter_vad.auto_threshold = vs.auto_sens;
 				vs.meter_vad.threshold_db = vs.threshold_db;
-				vs.meter_open, vs.meter_db = voice.vad_process(*vs.meter_vad, view(buf));
+				vs.meter_open, vs.meter_db = voice.vad_process(*vs.meter_vad, buf);
 			}
 		}
 	}
 	request_wake(app.last_time + 1.0 / 30);
 }
+
+toggle_row :: (id: string, text: string, help: string, value: *bool) -> bool {
+	r := row(id, .Clickable);
+	r.semantic_size = .[ui.px(660), ui.px(ifx help != "" then 52.0 else 32.0)];
+	sig := ui.signal(r);
+	{ ui.parent(r); defer ui.pop_parent();
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		{ ui.parent(col); defer ui.pop_parent();
+			label(text, .Medium, 16, T("--text-strong"), 20);
+			if help != "" label(help, .Normal, 14, T("--text-muted"), 18);
+		}
+		sw := ui.box("switch", .Draw_Background);
+		sw.semantic_size = .[ui.px(40), ui.px(24)];
+		sw.style.radius = all4(12);
+		sw.style.bg = ifx value.* then T("--status-positive") else T("--background-mod-strong");
+		{ ui.parent(sw); defer ui.pop_parent();
+			k := ui.box("k", .Draw_Background | .Floating_X | .Floating_Y);
+			k.semantic_size = .[ui.px(18), ui.px(18)];
+			k.fixed_pos = .{ifx value.* then 19.0 else 3.0, 3};
+			k.style.radius = all4(9);
+			k.style.bg = .{1, 1, 1, 1};
+		}
+	}
+	if sig.clicked value.* = !value.*;
+	return sig.clicked;
+}
+
+// ---------------------------------------------------------------------------
+// Settings > Voice & Video
+
+voice_settings_page :: () {
+	vs_init();
+	page := ui.box("voicepage", .Scroll_Y | .Clip);
+	page.semantic_size = .[ui.pct(1), ui.fill()];
+	page.layout_axis = .Y;
+	ui.signal(page);
+	{ ui.parent(page); defer ui.pop_parent();
+		body := row("vbody");
+		body.semantic_size = .[ui.pct(1), ui.children()];
+		body.cross_align = .Start;
+		{ ui.parent(body); defer ui.pop_parent();
+			spacer(.X, 40);
+			col := ui.box("vcol");
+			col.semantic_size = .[ui.px(660), ui.children()];
+			col.layout_axis = .Y;
+			{ ui.parent(col); defer ui.pop_parent();
+				devices := row("devices");
+				devices.semantic_size = .[ui.pct(1), ui.children()];
+				devices.cross_align = .Start;
+				{ ui.parent(devices); defer ui.pop_parent();
+					for input: (bool.[true, false]) {
+						c := ui.box(ifx input then "inputcol" else "outputcol");
+						c.semantic_size = .[ui.px(320), ui.children()];
+						c.layout_axis = .Y;
+						{ ui.parent(c); defer ui.pop_parent();
+							section_title(ifx input then "INPUT DEVICE" else "OUTPUT DEVICE");
+							device_dropdown(ifx input then 1 else 2, input, 320);
+							spacer(.Y, 20);
+							section_title(ifx input then "INPUT VOLUME" else "OUTPUT VOLUME");
+							if input {
+								slider("invol", *vs.input_volume, 0, 100, 320, percent(vs.input_volume));
+							} else {
+								slider("outvol", *vs.output_volume, 0, 200, 320, percent(vs.output_volume));
+							}
+						}
+						if input spacer(.X, 20);
+					}
+				}
+				spacer(.Y, 32);
+				section_title("INPUT MODE");
+				mode_radio();
+				if vs.ptt_mode {
+					spacer(.Y, 16);
+					keybind_row();
+				}
+				spacer(.Y, 32);
+				section_title("INPUT SENSITIVITY");
+				toggle_row("autosens", "Automatically determine input sensitivity", "", *vs.auto_sens);
+				spacer(.Y, 12);
+				meter_bar();
+				if !vs.auto_sens {
+					spacer(.Y, 8);
+					slider("thresh", *vs.threshold_db, -100, 0, 660, tprint("%dB", formatFloat(vs.threshold_db, trailing_width = 0, zero_removal = .NO)));
+				}
+				spacer(.Y, 32);
+				section_title("VOICE PROCESSING");
+				p := vs.processing;
+				changed := toggle_row("echo", "Echo Cancellation", "", *p.echo_cancellation);
+				spacer(.Y, 8);
+				changed |= toggle_row("noise", "Noise Suppression", "Suppress background noise from your mic.", *p.noise_suppression);
+				spacer(.Y, 8);
+				changed |= toggle_row("agc", "Automatic Gain Control", "", *p.auto_gain_control);
+				if changed {
+					vs.processing = p;
+					audio.set_voice_processing(p);
+				}
+				spacer(.Y, 40);
+			}
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Right-click on a voice participant: volume 0-200 % and mute.
+
+open_voice_user_menu :: (uid: dc.Snowflake, at: ui.Vec2) {
+	if uid == store().me return;
+	vs_init();
+	vs.menu_user = uid;
+	vs.menu_pos = at;
+}
+
+voice_user_menu :: () {
+	// device dropdown popup: drawn here so it lands above the settings modal
+	if app.settings_open && settings_page == "Voice & Video" && vs.open_dropdown != 0 && vs.dd_anchor.x1 > vs.dd_anchor.x0 {
+		input := vs.open_dropdown == 1;
+		r := vs.dd_anchor;
+		device_list(vs_list_devices(input), audio.selected_device(input), input, r.x1 - r.x0, .{r.x0, r.y1 + 4});
+	}
+	if vs.menu_user == 0 return;
+	uid := vs.menu_user;
+	scrim := ui.box("vmenu_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	if ui.signal(scrim).pressed {
+		vs.menu_user = 0;
+		return;
+	}
+	W :: cast(float32)(220);
+	H :: cast(float32)(124);
+	p := vs.menu_pos;
+	if p.y + H > app.ui.window.y - 8 p.y = app.ui.window.y - 8 - H;
+	if p.x + W > app.ui.window.x - 8 p.x = app.ui.window.x - 8 - W;
+	menu := ui.box("vmenu", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	menu.semantic_size = .[ui.px(W), ui.px(H)];
+	menu.fixed_pos = p;
+	menu.layout_axis = .Y;
+	menu.style.bg = T("--background-surface-higher");
+	menu.style.border_color = T("--border-subtle");
+	menu.style.border = 1;
+	menu.style.radius = all4(8);
+	menu.style.shadow_color = .{0, 0, 0, 0.24};
+	menu.style.shadow_blur = 16;
+	menu.style.shadow_offset = .{0, 8};
+	ui.signal(menu);
+	{ ui.parent(menu); defer ui.pop_parent();
+		spacer(.Y, 8);
+		hdr := row("hdr");
+		hdr.semantic_size = .[ui.pct(1), ui.px(24)];
+		{ ui.parent(hdr); defer ui.pop_parent();
+			spacer(.X, 12);
+			label("User Volume", .Medium, 14, T("--interactive-text-default"), 18);
+		}
+		sr := row("sl");
+		sr.semantic_size = .[ui.pct(1), ui.px(32)];
+		{ ui.parent(sr); defer ui.pop_parent();
+			spacer(.X, 12);
+			p := table_find_pointer(*vs.user_volume, uid);
+			v := ifx p then p.* else 100.0;
+			if slider("uvol", *v, 0, 200, W - 24, percent(v)) table_set(*vs.user_volume, uid, v);
+		}
+		spacer(.Y, 4);
+		sep := ui.box("sep", .Draw_Background);
+		sep.semantic_size = .[ui.pct(1), ui.px(1)];
+		sep.style.bg = T("--border-subtle");
+		spacer(.Y, 4);
+		_, m := table_find(*vs.user_muted, uid);
+		mr := row("mute", .Clickable | .Draw_Background | .Hot_Animation);
+		mr.semantic_size = .[ui.pct(1), ui.px(32)];
+		mr.style.radius = all4(4);
+		mr.style.bg_hot = T("--background-mod-normal");
+		sig := ui.signal(mr);
+		{ ui.parent(mr); defer ui.pop_parent();
+			spacer(.X, 12);
+			label("Mute", .Medium, 14, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
+			filler(.X);
+			cb := ui.box("cb", .Draw_Background | .Draw_Border);
+			cb.semantic_size = .[ui.px(18), ui.px(18)];
+			cb.style.radius = all4(4);
+			cb.style.border = ifx m then 0.0 else 1.5;
+			cb.style.border_color = T("--interactive-icon-default");
+			cb.style.bg = ifx m then T("--background-brand") else .{};
+			if m {
+				{ ui.parent(cb); defer ui.pop_parent(); icon("ck", "checkmark-large", 18, .{1, 1, 1, 1}); }
+			}
+			spacer(.X, 12);
+		}
+		if sig.clicked table_set(*vs.user_muted, uid, !m);
+	}
+	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { vs.menu_user = 0; } }
+}
+
+// Headless runs (UI scripts, the control sweep) list fixed devices instead of
+// this machine's, so screenshots and sweep descriptors match everywhere.
+vs_list_devices :: (input: bool) -> []audio.Device_Info {
+	if !platform.is_headless() return audio.list_devices(input, temp);
+	out := NewArray(2, audio.Device_Info,, temp);
+	out[0] = .{id = 0, name = "Default", is_default = true};
+	out[1] = .{id = 1001, name = ifx input then "Test Microphone" else "Test Speakers", uid = "test"};
+	return out;
+}
+
 #scope_file
+
+vs_init :: () {
+	if vs.inited return;
+	vs.inited = true;
+	vs.input_volume = 100;
+	vs.output_volume = 100;
+	vs.auto_sens = true;
+	vs.threshold_db = voice.VAD_DEFAULT_THRESHOLD;
+	vs.processing = audio.Voice_Processing.{true, true, true};
+	vs.meter_db = -127;
+	vs.ptt_delay_ms = 20;
+	voice.vad_init(*vs.meter_vad);
+}
+
+// push-to-talk key state (focused window only: a global hotkey on macOS
+// needs an event tap and the Accessibility permission).
+ptt_input :: () {
+	for e: platform.events() {
+		if e.kind == {
+		case .Key_Down;
+			if vs.recording_key {
+				if e.key != .Escape && e.key != .None vs.ptt_key = e.key;
+				vs.recording_key = false;
+				continue;
+			}
+			if vs.ptt_key != .None && e.key == vs.ptt_key vs.ptt_held = true;
+		case .Key_Up;
+			if e.key == vs.ptt_key vs.ptt_held = false;
+		case .Focus_Lost;
+			vs.ptt_held = false;
+		}
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Widgets
@@ -237,35 +433,6 @@ slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fm
 	}
 	return changed;
 }
-#scope_export
-
-toggle_row :: (id: string, text: string, help: string, value: *bool) -> bool {
-	r := row(id, .Clickable);
-	r.semantic_size = .[ui.px(660), ui.px(ifx help != "" then 52.0 else 32.0)];
-	sig := ui.signal(r);
-	{ ui.parent(r); defer ui.pop_parent();
-		col := ui.box("col");
-		col.semantic_size = .[ui.fill(), ui.children()];
-		{ ui.parent(col); defer ui.pop_parent();
-			label(text, .Medium, 16, T("--text-strong"), 20);
-			if help != "" { label(help, .Normal, 14, T("--text-muted"), 18); }
-		}
-		sw := ui.box("switch", .Draw_Background);
-		sw.semantic_size = .[ui.px(40), ui.px(24)];
-		sw.style.radius = all4(12);
-		sw.style.bg = ifx value.* then T("--status-positive") else T("--background-mod-strong");
-		{ ui.parent(sw); defer ui.pop_parent();
-			k := ui.box("k", .Draw_Background | .Floating_X | .Floating_Y);
-			k.semantic_size = .[ui.px(18), ui.px(18)];
-			k.fixed_pos = .{ifx value.* then 19.0 else 3.0, 3};
-			k.style.radius = all4(9);
-			k.style.bg = .{1, 1, 1, 1};
-		}
-	}
-	if sig.clicked { value.* = !value.*; }
-	return sig.clicked;
-}
-#scope_file
 
 device_dropdown :: (which: int, input: bool, w: float32) {
 	devs := vs_list_devices(input);
@@ -275,12 +442,12 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 	box := row(ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
 	box.semantic_size = .[ui.px(w), ui.px(40)];
 	box.style.bg = T("--background-base-lowest");
-	if tok_has("--input-background") { box.style.bg = T("--input-background"); }
+	if tok_has("--input-background") box.style.bg = T("--input-background");
 	box.style.border = 1;
 	box.style.border_color = T("--border-subtle");
 	box.style.radius = all4(8);
 	sig := ui.signal(box);
-	if sig.clicked { vs.open_dropdown = ifx vs.open_dropdown == which then 0 else which; }
+	if sig.clicked vs.open_dropdown = ifx vs.open_dropdown == which then 0 else which;
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 12);
 		t := label(current, .Medium, 16, T("--text-default"), 20);
@@ -289,7 +456,7 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 		icon("chev", ifx vs.open_dropdown == which then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 		spacer(.X, 8);
 	}
-	if vs.open_dropdown == which { vs.dd_anchor = box.rect; }
+	if vs.open_dropdown == which vs.dd_anchor = box.rect;
 }
 
 // popup list under the dropdown (overlay, like the client's select menu)
@@ -325,88 +492,7 @@ device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at
 	}
 }
 
-tok_has :: (name: string) -> bool {
-	_, ok := map_find(app.theme.tokens, name);
-	return ok;
-}
-#scope_export
-
-// ---------------------------------------------------------------------------
-// Settings > Voice & Video
-
-voice_settings_page :: () {
-	vs_init();
-	page := ui.box("voicepage", .Scroll_Y | .Clip);
-	page.semantic_size = .[ui.pct(1), ui.fill()];
-	page.layout_axis = .Y;
-	ui.signal(page);
-	{ ui.parent(page); defer ui.pop_parent();
-		body := row("vbody");
-		body.semantic_size = .[ui.pct(1), ui.children()];
-		body.cross_align = .Start;
-		{ ui.parent(body); defer ui.pop_parent();
-			spacer(.X, 40);
-			col := ui.box("vcol");
-			col.semantic_size = .[ui.px(660), ui.children()];
-			col.layout_axis = .Y;
-			{ ui.parent(col); defer ui.pop_parent();
-				devices := row("devices");
-				devices.semantic_size = .[ui.pct(1), ui.children()];
-				devices.cross_align = .Start;
-				{ ui.parent(devices); defer ui.pop_parent();
-					for input: (bool.[true, false]) {
-						c := ui.box(ifx input then "inputcol" else "outputcol");
-						c.semantic_size = .[ui.px(320), ui.children()];
-						c.layout_axis = .Y;
-						{ ui.parent(c); defer ui.pop_parent();
-							section_title(ifx input then "INPUT DEVICE" else "OUTPUT DEVICE");
-							device_dropdown(ifx input then 1 else 2, input, 320);
-							spacer(.Y, 20);
-							section_title(ifx input then "INPUT VOLUME" else "OUTPUT VOLUME");
-							if input {
-								slider("invol", *vs.input_volume, 0, 100, 320, fmt.tprintf("%.0f%%", vs.input_volume));
-							} else {
-								slider("outvol", *vs.output_volume, 0, 200, 320, fmt.tprintf("%.0f%%", vs.output_volume));
-							}
-						}
-						if input { spacer(.X, 20); }
-					}
-				}
-				spacer(.Y, 32);
-				section_title("INPUT MODE");
-				mode_radio();
-				if vs.ptt_mode {
-					spacer(.Y, 16);
-					keybind_row();
-				}
-				spacer(.Y, 32);
-				section_title("INPUT SENSITIVITY");
-				toggle_row("autosens", "Automatically determine input sensitivity", "", *vs.auto_sens);
-				spacer(.Y, 12);
-				meter_bar();
-				if !vs.auto_sens {
-					spacer(.Y, 8);
-					slider("thresh", *vs.threshold_db, -100, 0, 660, fmt.tprintf("%.0fdB", vs.threshold_db));
-				}
-				spacer(.Y, 32);
-				section_title("VOICE PROCESSING");
-				p := vs.processing;
-				changed := toggle_row("echo", "Echo Cancellation", "", *p.echo_cancellation);
-				spacer(.Y, 8);
-				changed |= toggle_row("noise", "Noise Suppression", "Suppress background noise from your mic.", *p.noise_suppression);
-				spacer(.Y, 8);
-				changed |= toggle_row("agc", "Automatic Gain Control", "", *p.auto_gain_control);
-				if changed {
-					vs.processing = p;
-					audio.set_voice_processing(p);
-				}
-				spacer(.Y, 40);
-			}
-		}
-	}
-}
-#scope_file
-
+tok_has :: (name: string) -> bool { return table_contains(*app.theme.tokens, name); }
 mode_radio :: () {
 	for ptt: (bool.[false, true]) {
 		r := row(ifx ptt then "mode_ptt" else "mode_va", .Clickable | .Draw_Background | .Hot_Animation);
@@ -414,7 +500,7 @@ mode_radio :: () {
 		r.style.radius = all4(4);
 		r.style.bg = ifx vs.ptt_mode == ptt then T("--background-mod-normal") else .{};
 		r.style.bg_hot = T("--background-mod-subtle");
-		if ui.signal(r).clicked { vs.ptt_mode = ptt; }
+		if ui.signal(r).clicked vs.ptt_mode = ptt;
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 12);
 			dot := ui.box("dot", .Draw_Border);
@@ -454,12 +540,12 @@ keybind_row :: () {
 			b.style.border = 1;
 			b.style.border_color = ifx vs.recording_key then T("--status-danger") else T("--border-subtle");
 			b.style.bg = T("--background-base-lowest");
-			if ui.signal(b).clicked { vs.recording_key = !vs.recording_key; }
+			if ui.signal(b).clicked vs.recording_key = !vs.recording_key;
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 12);
 				name := "No Keybind Set";
-				if vs.ptt_key != .None { name, _ = reflect.enum_name_from_value(vs.ptt_key); }
-				if vs.recording_key { name = "Press a key…"; }
+				if vs.ptt_key != .None name = tprint("%", vs.ptt_key);
+				if vs.recording_key name = "Press a key…";
 				label(name, .Medium, 16, T("--text-default"), 20);
 				filler(.X);
 				label(ifx vs.recording_key then "Stop Recording" else "Record Keybind", .Semibold, 14, T("--text-strong"), 18);
@@ -475,7 +561,7 @@ keybind_row :: () {
 		{ ui.parent(d); defer ui.pop_parent();
 			section_title("PUSH TO TALK RELEASE DELAY");
 			spacer(.Y, 8);
-			slider("pttdelay", *vs.ptt_delay_ms, 0, 2000, 320, fmt.tprintf("%.0fms", vs.ptt_delay_ms));
+			slider("pttdelay", *vs.ptt_delay_ms, 0, 2000, 320, tprint("%ms", formatFloat(vs.ptt_delay_ms, trailing_width = 0, zero_removal = .NO)));
 		}
 	}
 }
@@ -489,13 +575,13 @@ meter_bar :: () {
 	bar.style.bg = T("--background-mod-strong");
 	bar.style.radius = all4(4);
 	level := clamp((vs.meter_db + 100) / 100, 0, 1);
-	if !app.settings_open { level = 0; }
+	if !app.settings_open level = 0;
 	{ ui.parent(bar); defer ui.pop_parent();
 		f := ui.box("lvl", .Draw_Background | .Floating_X | .Floating_Y);
 		f.semantic_size = .[ui.px(max(W * level, 0.5)), ui.px(8)];
 		f.style.radius = all4(4);
 		f.style.bg = T("--text-feedback-warning");
-		if vs.meter_open { f.style.bg = T("--status-positive"); }
+		if vs.meter_open f.style.bg = T("--status-positive");
 		if !vs.auto_sens {
 			th := clamp((vs.threshold_db + 100) / 100, 0, 1);
 			m := ui.box("th", .Draw_Background | .Floating_X | .Floating_Y);
@@ -505,103 +591,5 @@ meter_bar :: () {
 		}
 	}
 }
-#scope_export
 
-// ---------------------------------------------------------------------------
-// Right-click on a voice participant: volume 0-200 % and mute.
-
-open_voice_user_menu :: (uid: dc.Snowflake, at: ui.Vec2) {
-	if uid == store().me { return; }
-	vs_init();
-	vs.menu_user = uid;
-	vs.menu_pos = at;
-}
-
-voice_user_menu :: () {
-	// device dropdown popup: drawn here so it lands above the settings modal
-	if app.settings_open && settings_page == "Voice & Video" && vs.open_dropdown != 0 && vs.dd_anchor.x1 > vs.dd_anchor.x0 {
-		input := vs.open_dropdown == 1;
-		r := vs.dd_anchor;
-		device_list(vs_list_devices(input), audio.selected_device(input), input, r.x1 - r.x0, .{r.x0, r.y1 + 4});
-	}
-	if vs.menu_user == 0 { return; }
-	uid := vs.menu_user;
-	scrim := ui.box("vmenu_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
-	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
-	if ui.signal(scrim).pressed {
-		vs.menu_user = 0;
-		return;
-	}
-	W :: cast(float32)(220);
-	H :: cast(float32)(124);
-	p := vs.menu_pos;
-	if p.y + H > app.ui.window.y - 8 { p.y = app.ui.window.y - 8 - H; }
-	if p.x + W > app.ui.window.x - 8 { p.x = app.ui.window.x - 8 - W; }
-	menu := ui.box("vmenu", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
-	menu.semantic_size = .[ui.px(W), ui.px(H)];
-	menu.fixed_pos = p;
-	menu.layout_axis = .Y;
-	menu.style.bg = T("--background-surface-higher");
-	menu.style.border_color = T("--border-subtle");
-	menu.style.border = 1;
-	menu.style.radius = all4(8);
-	menu.style.shadow_color = .{0, 0, 0, 0.24};
-	menu.style.shadow_blur = 16;
-	menu.style.shadow_offset = .{0, 8};
-	ui.signal(menu);
-	{ ui.parent(menu); defer ui.pop_parent();
-		spacer(.Y, 8);
-		hdr := row("hdr");
-		hdr.semantic_size = .[ui.pct(1), ui.px(24)];
-		{ ui.parent(hdr); defer ui.pop_parent();
-			spacer(.X, 12);
-			label("User Volume", .Medium, 14, T("--interactive-text-default"), 18);
-		}
-		sr := row("sl");
-		sr.semantic_size = .[ui.pct(1), ui.px(32)];
-		{ ui.parent(sr); defer ui.pop_parent();
-			spacer(.X, 12);
-			v := or_else(map_find(vs.user_volume, uid), 100.0);
-			if slider("uvol", *v, 0, 200, W - 24, fmt.tprintf("%.0f%%", v)) { at(*vs.user_volume, uid).* = v; }
-		}
-		spacer(.Y, 4);
-		sep := ui.box("sep", .Draw_Background);
-		sep.semantic_size = .[ui.pct(1), ui.px(1)];
-		sep.style.bg = T("--border-subtle");
-		spacer(.Y, 4);
-		m := get(vs.user_muted, uid);
-		mr := row("mute", .Clickable | .Draw_Background | .Hot_Animation);
-		mr.semantic_size = .[ui.pct(1), ui.px(32)];
-		mr.style.radius = all4(4);
-		mr.style.bg_hot = T("--background-mod-normal");
-		sig := ui.signal(mr);
-		{ ui.parent(mr); defer ui.pop_parent();
-			spacer(.X, 12);
-			label("Mute", .Medium, 14, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
-			filler(.X);
-			cb := ui.box("cb", .Draw_Background | .Draw_Border);
-			cb.semantic_size = .[ui.px(18), ui.px(18)];
-			cb.style.radius = all4(4);
-			cb.style.border = ifx m then 0.0 else 1.5;
-			cb.style.border_color = T("--interactive-icon-default");
-			cb.style.bg = ifx m then T("--background-brand") else .{};
-			if m {
-				{ ui.parent(cb); defer ui.pop_parent(); icon("ck", "checkmark-large", 18, .{1, 1, 1, 1}); }
-			}
-			spacer(.X, 12);
-		}
-		if sig.clicked { at(*vs.user_muted, uid).* = !m; }
-	}
-	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { vs.menu_user = 0; } }
-}
-
-// Headless runs (UI scripts, the control sweep) list fixed devices instead of
-// this machine's, so screenshots and sweep descriptors match everywhere.
-vs_list_devices :: (input: bool) -> []audio.Device_Info {
-	if !platform.is_headless() { return audio.list_devices(input, temp); }
-	out := make_slice(audio.Device_Info, 2, temp);
-	at(*out, 0).* = .{id = 0, name = "Default", is_default = true};
-	at(*out, 1).* = .{id = 1001, name = ifx input then "Test Microphone" else "Test Speakers", uid = "test"};
-	return out;
-}
-
+percent :: (v: float32) -> string { return tprint("%\%", formatFloat(v, trailing_width = 0, zero_removal = .NO)); }

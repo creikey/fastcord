@@ -30,32 +30,22 @@ Bench :: struct {
 	gate: s32; // 1 while a measured UI pass or render runs (the sampler keeps only those samples)
 	sampler: prof.Sampler;
 	zones: prof.Zones;
-	pass_start: time.Tick;
-	render_start: time.Tick;
+	pass_start: Apollo_Time; // monotonic
+	render_start: Apollo_Time;
 	gpu_frame: u64;
-	frame_start: time.Tick;
+	frame_start: Apollo_Time;
 }
 
 bench: Bench;
 
 bench_parse_flag :: (a: string) -> bool {
-	if a == "-bench" {
-		bench.on = true;
-	} else if strings.has_prefix(a, "-bench:") {
-		bench.on = true;
-		bench.out_path = sub_from(a, len("-bench:"));
-	} else if strings.has_prefix(a, "-prof:") {
-		bench.on = true;
-		bench.prof_prefix = sub_from(a, len("-prof:"));
-	} else if strings.has_prefix(a, "-trace:") {
-		bench.on = true;
-		bench.trace_path = sub_from(a, len("-trace:"));
-	} else if strings.has_prefix(a, "-shape:") {
-		bench.on = true;
-		bench.shape_path = sub_from(a, len("-shape:"));
-	} else {
-		return false;
+	flag :: (a: string, prefix: string, value: *string) -> bool {
+		if !begins_with(a, prefix) return false;
+		value.* = advance(a, prefix.count);
+		return true;
 	}
+	if !(a == "-bench" || flag(a, "-bench:", *bench.out_path) || flag(a, "-prof:", *bench.prof_prefix) || flag(a, "-trace:", *bench.trace_path) || flag(a, "-shape:", *bench.shape_path)) return false;
+	bench.on = true;
 	return true;
 }
 
@@ -86,57 +76,29 @@ Bench_Guild_Shape :: struct {
 	channels, categories, voice, threads, roles, emojis, members, unread, mentions: int;
 	muted: bool;
 }
-#scope_file
-
-bench_guild_shape :: (s: *dc.Store, g: *dc.Guild) -> Bench_Guild_Shape {
-	gs := Bench_Guild_Shape.{roles = len(g.roles), emojis = len(g.emojis)};
-	{ m, ok := map_find_ptr(*s.members, g.id);
-	if ok { gs.members = len(m); } }
-	for cid: g.channels {
-		c := dc.channel_get(s, cid);
-		if c == null { continue; }
-		if c.kind == {
-		case .Guild_Category;
-			gs.categories += 1;
-		case .Guild_Voice; #through; case .Guild_Stage_Voice;
-			gs.voice += 1;
-		case .Announcement_Thread; #through; case .Public_Thread; #through; case .Private_Thread;
-			gs.threads += 1;
-		case;
-			gs.channels += 1;
-		}
-		r, has := map_find_ptr(*s.read_states, cid);
-		if c.last_message_id > (ifx has then r.last_message_id else 0) { gs.unread += 1; }
-		if has && r.mention_count > 0 { gs.mentions += 1; }
-	}
-	{ st, ok := map_find_ptr(*s.guild_settings, g.id);
-	if ok { gs.muted = st.muted; } }
-	return gs;
-}
-#scope_export
 
 bench_shape :: () -> Bench_Shape {
 	s := store();
-	sh := Bench_Shape.{
-		rail = make_dynamic(Bench_Rail_Entry, 0, 0, temp)
-	};
-	sh.users = len(s.users);
+	sh: Bench_Shape;
+	sh.rail.allocator = temp;
+	sh.users = s.users.count;
 	for * u: s.users { if u.avatar != "" { sh.users_with_avatar += 1; } }
-	sh.guilds = len(s.guilds);
+	sh.guilds = s.guilds.count;
 	for * g: s.guilds {
-		sh.roles += len(g.roles);
-		sh.emojis += len(g.emojis);
+		sh.roles += g.roles.count;
+		sh.emojis += g.emojis.count;
 		for e: g.emojis { if e.animated { sh.animated_emojis += 1; } }
-		if g.icon != "" { sh.guilds_with_icon += 1; }
+		if g.icon != "" sh.guilds_with_icon += 1;
 	}
 	for e: rail_entries() {
-		re := Bench_Rail_Entry.{folder = e.id != 0, guilds = make_dynamic(Bench_Guild_Shape, 0, 0, temp)};
+		re := Bench_Rail_Entry.{folder = e.id != 0};
+		re.guilds.allocator = temp;
 		for gid: e.guilds {
 			g := dc.guild_get(s, gid);
-			if g == null { continue; }
-			append(*re.guilds, bench_guild_shape(s, g));
+			if g == null continue;
+			array_add(*re.guilds, bench_guild_shape(s, g));
 		}
-		append(*sh.rail, re);
+		array_add(*sh.rail, re);
 	}
 	for * c: s.channels {
 		if c.kind == {
@@ -154,77 +116,61 @@ bench_shape :: () -> Bench_Shape {
 			sh.guild_channels += 1;
 		}
 		dm := c.kind == .DM || c.kind == .Group_DM;
-		r, has := map_find_ptr(*s.read_states, c.id);
-		if c.last_message_id > (ifx has then r.last_message_id else 0) {
+		r := table_find_pointer(*s.read_states, c.id);
+		if c.last_message_id > (ifx r then r.last_message_id else 0) {
 			sh.unread_channels += 1;
-			if dm { sh.unread_dms += 1; }
+			if dm sh.unread_dms += 1;
 		}
-		if has && r.mention_count > 0 {
+		if r && r.mention_count > 0 {
 			sh.mention_channels += 1;
-			if dm { sh.mention_dms += 1; }
+			if dm sh.mention_dms += 1;
 		}
 	}
-	for m: s.members { sh.members += len(m); }
-	sh.presences = len(s.presences);
+	for s.members sh.members += it.count;
+	sh.presences = s.presences.count;
 	for r: s.relationships {
 		if r.kind == .Friend { sh.friends += 1; } else { sh.other_relationships += 1; }
 	}
-	sh.read_states = len(s.read_states);
-	sh.guild_settings = len(s.guild_settings);
+	sh.read_states = s.read_states.count;
+	sh.guild_settings = s.guild_settings.count;
 	for gs: s.guild_settings {
-		if gs.muted { sh.muted_guilds += 1; }
-		sh.muted_channels += len(gs.muted_channels);
-		sh.collapsed_categories += len(gs.collapsed_channels);
+		if gs.muted sh.muted_guilds += 1;
+		sh.muted_channels += gs.muted_channels.count;
+		sh.collapsed_categories += gs.collapsed_channels.count;
 	}
-	sh.images = len(images);
+	sh.images = images.count;
 	for im, url: images {
-		if im.state == .Ready { sh.images_ready += 1; }
-		if strings.contains(url, "/embed/avatars/") { sh.default_avatar_images += 1;
-		} else if strings.contains(url, "/avatars/") {       sh.avatar_images += 1;
-		} else if strings.contains(url, "/icons/") {         sh.icon_images += 1;
-		} else if strings.contains(url, "/emojis/") {        sh.emoji_images += 1;
-		} else {                                          sh.other_images += 1;
-		}
+		if im.state == .Ready sh.images_ready += 1;
+		if contains(url, "/embed/avatars/")  sh.default_avatar_images += 1;
+		else if contains(url, "/avatars/")   sh.avatar_images += 1;
+		else if contains(url, "/icons/")     sh.icon_images += 1;
+		else if contains(url, "/emojis/")    sh.emoji_images += 1;
+		else                                 sh.other_images += 1;
 	}
 	sh.textures = gfx.texture_count();
 	for * l: s.messages {
-		if len(l.messages) == 0 { continue; }
+		if l.messages.count == 0 continue;
 		sh.channels_with_messages += 1;
-		sh.messages += len(l.messages);
-		sh.max_messages_in_channel = max(sh.max_messages_in_channel, len(l.messages));
+		sh.messages += l.messages.count;
+		sh.max_messages_in_channel = max(sh.max_messages_in_channel, l.messages.count);
 	}
 	if app.view.channel != 0 {
 		for * m: dc.messages_get(s, app.view.channel) {
 			sh.view_messages += 1;
-			sh.view_reactions += len(m.reactions);
-			sh.view_attachments += len(m.attachments);
-			sh.view_embeds += len(m.embeds);
-			if m.referenced_id != 0 { sh.view_replies += 1; }
-			sh.view_mentions += len(m.mentions);
-			sh.view_content_bytes += len(m.content);
+			sh.view_reactions += m.reactions.count;
+			sh.view_attachments += m.attachments.count;
+			sh.view_embeds += m.embeds.count;
+			if m.referenced_id != 0 sh.view_replies += 1;
+			sh.view_mentions += m.mentions.count;
+			sh.view_content_bytes += m.content.count;
 		}
 	}
 	return sh;
 }
-#scope_file
-
-// Writes the account's shape as JSON once, at the first measured section (after the warm-up wait).
-bench_write_shape :: () {
-	if bench.shape_path == "" || bench.shape_written { return; }
-	bench.shape_written = true;
-	sh := bench_shape();
-	data, err := json.marshal(sh, .{pretty = true}, temp);
-	if err != .None || os.write_entire_file(bench.shape_path, data) != null {
-		fmt.eprintln("cannot write", bench.shape_path);
-		return;
-	}
-	fmt.println("shape written to", bench.shape_path);
-}
-#scope_export
 
 // Script command `bench <name>`: ends the current section and starts a new one.
 bench_section :: (name: string) {
-	if !bench.on { return; }
+	if !bench.on return;
 	if !bench.measuring {
 		bench.measuring = true;
 		prof.zones_begin(*bench.zones, trace = bench.trace_path != "");
@@ -233,45 +179,46 @@ bench_section :: (name: string) {
 			prof.sampler_start(*bench.sampler, prof.current_thread(), 2000, *bench.gate);
 		}
 	}
-	append(*bench.sections, Bench_Section.{name = clone(name)});
+	array_add(*bench.sections, .{name = copy_string(name)});
 	bench_write_shape();
 	s := store();
 	kind := "home";
-	{ ch := dc.channel_get(s, app.view.channel);
-	if ch != null { kind = ifx ch.kind == .DM || ch.kind == .Group_DM then "dm" else "guild channel"; } else if app.view.guild != 0 { kind = "guild"; } }
-	fmt.printfln("section %-14s view %s, %d messages loaded, %d images, %d textures", name, kind, len(dc.messages_get(s, app.view.channel)), len(images), gfx.texture_count());
+	ch := dc.channel_get(s, app.view.channel);
+	if ch kind = ifx ch.kind == .DM || ch.kind == .Group_DM then "dm" else "guild channel";
+	else if app.view.guild != 0 kind = "guild";
+	print("section % view %, % messages loaded, % images, % textures\n", left(name, 14), kind, dc.messages_get(s, app.view.channel).count, images.count, gfx.texture_count());
 }
 
 // `bench_off`: frames until the next `bench` are not measured (loading, settling, navigation).
 bench_pause :: () {
-	if !bench.measuring { return; }
+	if !bench.measuring return;
 	bench.measuring = false;
 	prof.zones_end();
 }
 
 bench_frame_begin :: () {
-	if bench.measuring { bench.frame_start = time.tick_now(); }
+	if bench.measuring bench.frame_start = current_time_monotonic();
 }
 
 bench_frame_end :: () {
-	if !bench.measuring { return; }
-	ns := cast(s64)(time.tick_since(bench.frame_start));
-	append(*bench.sections[len(bench.sections) - 1].frame_ns, ns);
+	if !bench.measuring return;
+	ns := ns_since(bench.frame_start);
+	array_add(*peek_pointer(bench.sections).frame_ns, ns);
 	prof.zone_add(*bench.zones, "frame", ns);
 }
 
 bench_pass_begin :: () {
-	if !bench.measuring { return; }
+	if !bench.measuring return;
 	atomic_store(*bench.gate, 1);
-	bench.pass_start = time.tick_now();
+	bench.pass_start = current_time_monotonic();
 }
 
 bench_pass_end :: () {
-	if !bench.measuring { return; }
-	ns := cast(s64)(time.tick_since(bench.pass_start));
+	if !bench.measuring return;
+	ns := ns_since(bench.pass_start);
 	atomic_store(*bench.gate, 0);
-	sec := *bench.sections[len(bench.sections) - 1];
-	append(*sec.pass_ns, ns);
+	sec := peek_pointer(bench.sections);
+	array_add(*sec.pass_ns, ns);
 	prof.zone_add(*bench.zones, "ui.pass", ns);
 	st := app.ui.stats;
 	p := *sec.peak;
@@ -285,92 +232,143 @@ bench_pass_end :: () {
 }
 
 bench_render_begin :: () {
-	if !bench.measuring { return; }
+	if !bench.measuring return;
 	atomic_store(*bench.gate, 1);
-	bench.render_start = time.tick_now();
+	bench.render_start = current_time_monotonic();
 }
 
 bench_render_end :: () {
-	if !bench.measuring { return; }
-	ns := cast(s64)(time.tick_since(bench.render_start));
+	if !bench.measuring return;
+	ns := ns_since(bench.render_start);
 	atomic_store(*bench.gate, 0);
-	sec := *bench.sections[len(bench.sections) - 1];
-	append(*sec.render_ns, ns);
+	sec := peek_pointer(bench.sections);
+	array_add(*sec.render_ns, ns);
 	prof.zone_add(*bench.zones, "render", ns);
 	// The app sleeps until input, so a frame starts with an idle GPU and what the user feels is
 	// latency: frame start to the GPU finishing it. Waiting here also keeps frames from overlapping.
-	w := time.tick_now();
+	w := current_time_monotonic();
 	gfx.wait_gpu();
-	wait_ns := cast(s64)(time.tick_since(w));
-	prof.zone_add(*bench.zones, "gpu.wait", wait_ns);
-	append(*sec.latency_ns, cast(s64)(time.tick_since(bench.frame_start)));
+	prof.zone_add(*bench.zones, "gpu.wait", ns_since(w));
+	array_add(*sec.latency_ns, ns_since(bench.frame_start));
 	st := gfx.stats();
 	sec.instances = max(sec.instances, st.instances);
 	sec.batches = max(sec.batches, st.draw_calls);
 	if st.gpu_frame != bench.gpu_frame && st.gpu_ns > 0 {
 		bench.gpu_frame = st.gpu_frame;
-		append(*sec.gpu_ns, st.gpu_ns);
+		array_add(*sec.gpu_ns, st.gpu_ns);
 	}
 }
+
+// Prints the sections and writes the requested files. Called once the script has run.
+bench_finish :: () {
+	if !bench.on return;
+	bench.measuring = false;
+	prof.zones_end();
+	prof.sampler_stop(*bench.sampler);
+	out: String_Builder;
+	out.allocator = temp;
+	for sec: bench.sections {
+		pass := summarize(sec.pass_ns);
+		frame := summarize(sec.frame_ns);
+		render := summarize(sec.render_ns);
+		gpu := summarize(sec.gpu_ns);
+		lat := summarize(sec.latency_ns);
+		p := sec.peak;
+		pad := left("", 14);
+		print("bench % latency median % ms  p95 %  min %  (% frames)\n", left(sec.name, 14), num7(lat.median), num7(lat.p95), num7(lat.min), sec.latency_ns.count);
+		print("      % ui pass median % ms  p95 %  min %  (% passes, 2 per frame)\n", pad, num7(pass.median), num7(pass.p95), num7(pass.min), sec.pass_ns.count);
+		print("      % render (CPU) median % ms  p95 %  GPU median % ms  p95 %  (% timed)\n", pad, num7(render.median), num7(render.p95), num7(gpu.median), num7(gpu.p95), sec.gpu_ns.count);
+		print("      % per pass: % boxes (% keyed), % text layouts, % shape calls, % glyphs, % draw cmds, % KB arena\n", pad, p.boxes, p.keyed_boxes, p.text_layouts, p.shape_calls, p.glyphs, p.draw_cmds, p.arena_bytes / 1024);
+		print("      % per frame: % quads in % draw calls\n", pad, sec.instances, sec.batches);
+		print_to_builder(*out, "{\"name\":\"%\",\"passes\":%,\"latency_ms\":%,\"pass_ms\":%,\"render_ms\":%,\"gpu_ms\":%,\"instances\":%,\"batches\":%,\"frame_ms\":%,\"boxes\":%,\"keyed_boxes\":%,\"text_layouts\":%,\"shape_calls\":%,\"glyphs\":%,\"draw_cmds\":%,\"arena_bytes\":%}\n",
+			sec.name, sec.pass_ns.count, ms_json(lat), ms_json(pass), ms_json(render), ms_json(gpu), sec.instances, sec.batches, ms_json(frame),
+			p.boxes, p.keyed_boxes, p.text_layouts, p.shape_calls, p.glyphs, p.draw_cmds, p.arena_bytes);
+	}
+	if bench.zones.stats.count > 0 write_string(prof.zones_report(*bench.zones));
+	if bench.out_path != "" && !append_file(bench.out_path, builder_to_string(*out,, temp)) print("cannot write %\n", bench.out_path, to_standard_error = true);
+	if bench.trace_path != "" && prof.write_chrome_trace(*bench.zones, bench.trace_path) print("trace written to %\n", bench.trace_path);
+	if bench.prof_prefix != "" {
+		report := prof.sampler_report(*bench.sampler, 30);
+		folded := tprint("%.folded", bench.prof_prefix);
+		txt := tprint("%.txt", bench.prof_prefix);
+		if !prof.write_folded(*bench.sampler, folded) || !write_entire_file(txt, report) print("cannot write % or %\n", txt, folded, to_standard_error = true);
+		write_string(report);
+		print("profile written to % and % (open the .folded in speedscope.app)\n", txt, folded);
+	}
+}
+
 #scope_file
+
+bench_guild_shape :: (s: *dc.Store, g: *dc.Guild) -> Bench_Guild_Shape {
+	gs := Bench_Guild_Shape.{roles = g.roles.count, emojis = g.emojis.count};
+	m := table_find_pointer(*s.members, g.id);
+	if m gs.members = m.count;
+	for cid: g.channels {
+		c := dc.channel_get(s, cid);
+		if c == null continue;
+		if c.kind == {
+		case .Guild_Category;
+			gs.categories += 1;
+		case .Guild_Voice; #through; case .Guild_Stage_Voice;
+			gs.voice += 1;
+		case .Announcement_Thread; #through; case .Public_Thread; #through; case .Private_Thread;
+			gs.threads += 1;
+		case;
+			gs.channels += 1;
+		}
+		r := table_find_pointer(*s.read_states, cid);
+		if c.last_message_id > (ifx r then r.last_message_id else 0) gs.unread += 1;
+		if r && r.mention_count > 0 gs.mentions += 1;
+	}
+	st := table_find_pointer(*s.guild_settings, g.id);
+	if st gs.muted = st.muted;
+	return gs;
+}
+
+// Writes the account's shape as JSON once, at the first measured section (after the warm-up wait).
+bench_write_shape :: () {
+	if bench.shape_path == "" || bench.shape_written return;
+	bench.shape_written = true;
+	sh := bench_shape();
+	if !write_entire_file(bench.shape_path, marshal_pretty(sh)) {
+		print("cannot write %\n", bench.shape_path, to_standard_error = true);
+		return;
+	}
+	print("shape written to %\n", bench.shape_path);
+}
 
 Ms :: struct {
 	min, median, p95, mean: float64;
 }
 
 summarize :: (ns: []s64) -> Ms {
-	if len(ns) == 0 { return .{}; }
-	s := clone(ns, temp);
-	slice.sort(s);
+	if ns.count == 0 return .{};
+	s := array_copy(ns,, temp);
+	quick_sort(s, (a: s64, b: s64) -> s64 { return a - b; });
 	sum: s64;
-	for v: s { sum += v; }
-	at :: (s: []s64, q: float64) -> float64 {return cast(float64)(s[min(cast(int)(q * cast(float64)(len(s))), len(s) - 1)]) / 1000000;}
-	return .{cast(float64)(s[0]) / 1000000, at(s, 0.5), at(s, 0.95), cast(float64)(sum) / cast(float64)(len(s)) / 1000000};
-}
-#scope_export
-
-// Prints the sections and writes the requested files. Called once the script has run.
-bench_finish :: () {
-	if !bench.on { return; }
-	bench.measuring = false;
-	prof.zones_end();
-	prof.sampler_stop(*bench.sampler);
-	out := strings.builder_make(temp);
-	for sec: bench.sections {
-		pass := summarize(view(sec.pass_ns));
-		frame := summarize(view(sec.frame_ns));
-		render := summarize(view(sec.render_ns));
-		gpu := summarize(view(sec.gpu_ns));
-		lat := summarize(view(sec.latency_ns));
-		p := sec.peak;
-		fmt.printfln("bench %-14s latency median %7s ms  p95 %7s  min %7s  (%d frames)", sec.name, prof.num(lat.median, 3), prof.num(lat.p95, 3), prof.num(lat.min, 3), len(sec.latency_ns));
-		fmt.printfln("      %-14s ui pass median %7s ms  p95 %7s  min %7s  (%d passes, 2 per frame)", "", prof.num(pass.median, 3), prof.num(pass.p95, 3), prof.num(pass.min, 3), len(sec.pass_ns));
-		fmt.printfln("      %-14s render (CPU) median %7s ms  p95 %7s  GPU median %7s ms  p95 %7s  (%d timed)", "", prof.num(render.median, 3), prof.num(render.p95, 3), prof.num(gpu.median, 3), prof.num(gpu.p95, 3), len(sec.gpu_ns));
-		fmt.printfln("      %-14s per pass: %d boxes (%d keyed), %d text layouts, %d shape calls, %d glyphs, %d draw cmds, %d KB arena", "", p.boxes, p.keyed_boxes, p.text_layouts, p.shape_calls, p.glyphs, p.draw_cmds, p.arena_bytes / 1024);
-		fmt.printfln("      %-14s per frame: %d quads in %d draw calls", "", sec.instances, sec.batches);
-		fmt.sbprintfln(*out, "{{\"name\":%q,\"passes\":%d,\"latency_ms\":{{\"min\":%.4f,\"median\":%.4f,\"p95\":%.4f,\"mean\":%.4f}},\"pass_ms\":{{\"min\":%.4f,\"median\":%.4f,\"p95\":%.4f,\"mean\":%.4f}},\"render_ms\":{{\"min\":%.4f,\"median\":%.4f,\"p95\":%.4f,\"mean\":%.4f}},\"gpu_ms\":{{\"min\":%.4f,\"median\":%.4f,\"p95\":%.4f,\"mean\":%.4f}},\"instances\":%d,\"batches\":%d,\"frame_ms\":{{\"min\":%.4f,\"median\":%.4f,\"p95\":%.4f,\"mean\":%.4f}},\"boxes\":%d,\"keyed_boxes\":%d,\"text_layouts\":%d,\"shape_calls\":%d,\"glyphs\":%d,\"draw_cmds\":%d,\"arena_bytes\":%d}}",
-			sec.name, len(sec.pass_ns), lat.min, lat.median, lat.p95, lat.mean, pass.min, pass.median, pass.p95, pass.mean, render.min, render.median, render.p95, render.mean, gpu.min, gpu.median, gpu.p95, gpu.mean, sec.instances, sec.batches, frame.min, frame.median, frame.p95, frame.mean,
-			p.boxes, p.keyed_boxes, p.text_layouts, p.shape_calls, p.glyphs, p.draw_cmds, p.arena_bytes);
-	}
-	if len(bench.zones.stats) > 0 { fmt.print(prof.zones_report(*bench.zones)); }
-	if bench.out_path != "" {
-		f, err := os.open(bench.out_path, .Write | .Create | .Append, os.Permissions_Default_File);
-		if err == null {
-			os.write_string(f, strings.to_string(out));
-			os.close(f);
-		} else {
-			fmt.eprintln("cannot write", bench.out_path);
-		}
-	}
-	if bench.trace_path != "" && prof.write_chrome_trace(*bench.zones, bench.trace_path) { fmt.println("trace written to", bench.trace_path); }
-	if bench.prof_prefix != "" {
-		report := prof.sampler_report(*bench.sampler, 30);
-		folded := strings.concatenate(string.[bench.prof_prefix, ".folded"], temp);
-		txt := strings.concatenate(string.[bench.prof_prefix, ".txt"], temp);
-		ok := prof.write_folded(*bench.sampler, folded) && os.write_entire_file(txt, transmute([]u8, report)) == null;
-		if !ok { fmt.eprintln("cannot write", txt, "or", folded); }
-		fmt.print(report);
-		fmt.printfln("profile written to %s and %s (open the .folded in speedscope.app)", txt, folded);
-	}
+	for s sum += it;
+	quantile :: (s: []s64, q: float64) -> float64 { return cast(float64) s[min(cast(int) (q * cast(float64) s.count), s.count - 1)] / 1000000; }
+	return .{cast(float64) s[0] / 1000000, quantile(s, 0.5), quantile(s, 0.95), cast(float64) sum / cast(float64) s.count / 1000000};
 }
 
+// {"min":%.4f,"median":%.4f,"p95":%.4f,"mean":%.4f}
+ms_json :: (m: Ms) -> string {
+	f :: (x: float64) -> string { return tprint("%", formatFloat(x, trailing_width = 4, zero_removal = .NO)); }
+	return tprint("{\"min\":%,\"median\":%,\"p95\":%,\"mean\":%}", f(m.min), f(m.median), f(m.p95), f(m.mean));
+}
+
+ns_since :: (t: Apollo_Time) -> s64 { return to_nanoseconds(current_time_monotonic() - t); }
+
+// Odin's %-14s and %7s.
+left :: (s: string, n: int) -> string { return ifx s.count >= n then s else tprint("%1%2", s, to_string(SPACES.data, n - s.count)); }
+num7 :: (x: float64) -> string { s := prof.num(x, 3); return ifx s.count >= 7 then s else tprint("%1%2", to_string(SPACES.data, 7 - s.count), s); }
+SPACES :: "                ";
+
+append_file :: (path: string, data: string) -> bool {
+	f, ok := file_open(path, for_writing = true, keep_existing_content = true, log_errors = false);
+	if !ok return false;
+	file_set_position(f, file_length(f));
+	ok = file_write(*f, data);
+	file_close(*f);
+	return ok;
+}

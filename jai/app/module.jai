@@ -48,6 +48,7 @@ vector :: #import "vector";
 virtual :: #import "fc_virtual";
 voice :: #import "voice";
 #if OS == .WINDOWS win :: #import "fc_windows";
+#if OS == .WINDOWS Windows :: #import "Windows";
 xxhash :: #import "fc_xxhash";
 libc :: #system_library "libc";
 kernel32 :: #system_library "kernel32";

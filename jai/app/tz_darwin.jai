@@ -1,3 +1,11 @@
+// Seconds east of UTC for the local timezone, now.
+tz_offset_seconds :: () -> s64 {
+	t := c_time(null);
+	tm: Tm;
+	localtime_r(*t, *tm);
+	return tm.gmtoff;
+}
+
 #scope_file
 
 Tm :: struct {
@@ -5,15 +13,5 @@ Tm :: struct {
 	gmtoff: s64;
 	zone: *u8;
 }
-	time :: (t: *s64) -> s64 #foreign libc;
-	localtime_r :: (t: *s64, out: *Tm) -> *Tm #foreign libc;
-#scope_export
-
-// Seconds east of UTC for the local timezone, now.
-tz_offset_seconds :: () -> s64 {
-	t := time(null);
-	tm: Tm;
-	localtime_r(*t, *tm);
-	return tm.gmtoff;
-}
-
+c_time :: (t: *s64) -> s64 #foreign libc "time";
+localtime_r :: (t: *s64, out: *Tm) -> *Tm #foreign libc;
