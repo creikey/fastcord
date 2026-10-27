@@ -42,13 +42,13 @@ build :: () {
         case "module"; ok = compile(tprint("sm_%", args[1]), tprint("m :: #import \"%\"; main :: () {}", args[1]));  // type-check one module
         case "ui";     ok = compile("fastcord-dev", APP, .OPTIMIZED) && ui_scripts();
         case "bench";  ok = compile("fastcord-dev", APP, .OPTIMIZED) && bench(args);
-        case "check";
-            // everything before a commit: the offline parity tests, the UI scripts and sweep, the bench budget, secrets
+        case "check-full";
+            // the overall check, run only on request: the offline parity tests, the UI scripts and sweep, the bench budget, secrets
             ok = compile("test-discord-jai", file = "src/tests/discord.jai", optimization = .OPTIMIZED)
                 && run_command(built("test-discord-jai")).exit_code == 0
                 && compile("fastcord-dev", APP, .OPTIMIZED) && ui_scripts() && bench(.["bench"])
                 && run_command(PYTHON, "-I", "tools/check_secrets.py").exit_code == 0;
-            print(ifx ok then "check: all passed\n" else "check: FAILED\n");
+            print(ifx ok then "check-full: all passed\n" else "check-full: FAILED\n");
         case "release"; ok = release(args);
         case "release_x64"; ok = compile("fastcord-x86_64", tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", args[1]), .VERY_OPTIMIZED);
         case "og";
@@ -68,7 +68,7 @@ usage: jai build.jai - <target>
   test [names]                offline traffic-parity tests (substrings pick tests)
   ui                          headless UI scripts (tests/ui) and the dead-control sweep
   bench [name] [save]         UI benchmark against the fixture; "save" keeps it as the local baseline
-  check                       test + ui + bench budget + secrets scan: run before committing
+  check-full                  test + ui + bench budget + secrets scan (~3 min): only on request
   module <name>               type-check one module (every procedure)
   parity                      build/parity (live traffic sessions; human-run only)
   tool <name>                 build/<name> from src/tool_<name>

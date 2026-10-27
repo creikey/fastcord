@@ -13,15 +13,18 @@ the Jai is written. This file lists what is easy to miss.
   force-push.
 - Build with `jai build.jai - dev` (optimised, with symbols). `- debug` is unoptimised and about 5x
   slower per frame, so never judge speed or input lag with it.
-- `jai build.jai - check` runs the offline parity tests, the headless UI scripts, the bench budget and
-  `tools/check_secrets.py`. Run it before committing.
+- Before committing a feature or bug fix, spot-check only that change: build `- dev`, run the one test
+  (`- test <name>`) or headless script that covers it (add one if none does) and look at its PNG. Then
+  run `python3 -I tools/check_secrets.py` (under a second), commit and push.
+- Never run `jai build.jai - check-full` (parity tests + UI scripts + bench budget + secrets, ~3 min),
+  or the full `- test`, `- ui` or `- bench` suites, unless the user asks for it.
 - Locks: only the `locks` module, never raw `Thread` mutexes. The UI thread must never wait on network or
   disk; hand work to a thread and poll.
 - `temp` is per thread and reset by its owner (the frame, a job). Anything kept past that reset or handed
   to another thread gets a real allocator.
-- UI changes: run `jai build.jai - bench` before and after (`bench save` first to keep a baseline).
-  Profile with `-prof:` and query the stacks with `tools/folded.py`. If the counters grew on purpose,
-  update `tests/bench/budget.json` in the same commit. The UI must stay immediate-mode (README
+- Performance work: run `jai build.jai - bench <name>` before and after (`bench save` first to keep a
+  baseline). Profile with `-prof:` and query the stacks with `tools/folded.py`. If the counters grew on
+  purpose, update `tests/bench/budget.json` in the same commit. The UI must stay immediate-mode (README
   "Performance").
 - Judge speed by the bench's latency column (input to GPU done, from idle), not by throughput. Never
   commit a real account's shape.
