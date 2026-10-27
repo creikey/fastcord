@@ -2,9 +2,7 @@ Snowflake :: u64;
 
 DISCORD_EPOCH_MS :: 1420070400000;
 
-snowflake_time_ms :: (id: Snowflake) -> s64 {
-	return cast(s64)((cast(u64)(id)) >> 22) + DISCORD_EPOCH_MS;
-}
+snowflake_time_ms :: (id: Snowflake) -> s64 { return cast(s64) (id >> 22) + DISCORD_EPOCH_MS; }
 
 Channel_Type :: enum u8 {
 	Guild_Text :: 0;
@@ -32,30 +30,20 @@ Status :: enum u8 {
 
 status_from_string :: (s: string) -> Status {
 	if s == {
-	case "online";
-		return .Online;
-	case "idle";
-		return .Idle;
-	case "dnd";
-		return .Dnd;
-	case "invisible";
-		return .Invisible;
+		case "online";    return .Online;
+		case "idle";      return .Idle;
+		case "dnd";       return .Dnd;
+		case "invisible"; return .Invisible;
 	}
 	return .Offline;
 }
 
 status_name :: (s: Status) -> string {
 	if s == {
-	case .Online;
-		return "online";
-	case .Idle;
-		return "idle";
-	case .Dnd;
-		return "dnd";
-	case .Invisible;
-		return "invisible";
-	case .Offline;
-		return "offline";
+		case .Online;    return "online";
+		case .Idle;      return "idle";
+		case .Dnd;       return "dnd";
+		case .Invisible; return "invisible";
 	}
 	return "offline";
 }
@@ -76,7 +64,8 @@ User :: struct {
 	discriminator: string;
 	avatar: string; // hash, "" = default avatar
 	banner: string;
-	accent_color: Maybe(u32);
+	accent_color: u32;
+	has_accent_color: bool; // the profile sets one (accent_color: null clears it)
 	bio: string;
 	pronouns: string;
 	bot: bool;
@@ -87,9 +76,7 @@ User :: struct {
 	mutual_friends: int; // -1 until known
 }
 
-display_name :: (u: *User) -> string {
-	return ifx u.global_name != "" then u.global_name else u.username;
-}
+display_name :: (u: *User) -> string { return ifx u.global_name then u.global_name else u.username; }
 
 Role :: struct {
 	id: Snowflake;
@@ -371,4 +358,3 @@ Connection_State :: enum u8 {
 	Ready;
 	Auth_Failed; // close 4004: token rejected
 }
-
