@@ -133,6 +133,7 @@ Box :: struct {
 	// on a scrollbar box: where the thumb was grabbed, page direction (0 = dragging), time to the next page
 	is_scrollbar: bool;
 	bar_grab, bar_page, bar_wait, bar_off: float32;
+	bar_content: float32; // content height when the thumb was grabbed: kept until it is let go
 	bar_seen: float64; // last time the scrollbar was in use (scrolled, hovered, held); it fades after
 }
 
@@ -750,15 +751,25 @@ offscreen :: (b: *Box, margin: float32 = 64) -> bool {
 // on the official client's scroller CSS): thin 8px wide, thumb inset 2px; auto 16px, track and thumb
 // inset 4px; thumb at least 40px. Pressing the track pages by 87.5% of the view (Chrome's
 // kMinFractionToStepWhenPaging), repeating while held until the thumb reaches the mouse.
-scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32, content: float32, from_end := false) {
+scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32, content_now: float32, from_end := false) {
 	s := context.ui;
 	r := host.rect;
 	view := r.y1 - r.y0;
+	content := content_now;
 	max_off := content - view;
 	if kind == .None || view <= 0 || max_off < 1 return;
 	W: float32 = ifx kind == .Auto then 16.0 else 8.0;
 	inset: float32 = ifx kind == .Auto then 4.0 else 2.0;
 	bar := box_make_key(key_from_int(0x5c5011ba, host.key), .Clickable | .Floating_X | .Floating_Y);
+	// While the thumb is dragged the mapping uses the content height from the grab: rows
+	// measured or history loaded mid-drag would otherwise move the thumb away from the
+	// pointer. The new height applies on release (the client's scroller does the same).
+	if s.active == bar.key && s.mouse_down[Mouse_Button.Left] && bar.bar_page == 0 && bar.bar_content > view {
+		content = bar.bar_content;
+		max_off = content - view;
+	} else {
+		bar.bar_content = content;
+	}
 	if host.flags & SCROLL bar.flags |= .Pinned;
 	bar.is_scrollbar = true;
 	bar.semantic_size = .[px(W), px(view)];
@@ -1084,6 +1095,13 @@ is_floating :: (b: *Box, axis: Axis) -> bool {
 layout_solve :: (b: *Box, axis: Axis) {
 	avail := b.fixed_size.component[axis];
 	scrolls := (b.flags & SCROLL) != 0;
+	// Percent-of-parent children took b's size in layout_upward, before a Fill b was
+	// solved (last frame's size: 0 for a new box, whose wrapped text then broke per
+	// character). b's size is final here, so take it again.
+	bk := b.semantic_size[axis].kind;
+	if bk == .Pixels || bk == .Percent_Of_Parent || bk == .Fill || bk == .Text_Content {
+		for c: each_child(b) if c.semantic_size[axis].kind == .Percent_Of_Parent c.fixed_size.component[axis] = avail * c.semantic_size[axis].value;
+	}
 	if axis == b.layout_axis {
 		total: float32;
 		fills := 0;
