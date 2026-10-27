@@ -175,7 +175,7 @@ release :: (args: []string) -> bool {
         LINUX = true;
         defer LINUX = false;
         if !build_c() || !compile("fastcord-linux", root, .VERY_OPTIMIZED) return false;
-        if run_command("zig", "objcopy", "--strip-debug", "build/fastcord-linux", "build/fastcord-linux.stripped").exit_code != 0 return false;
+        if run_command("llvm-objcopy", "--strip-debug", "build/fastcord-linux", "build/fastcord-linux.stripped").exit_code != 0 return false;
         if run_command(PYTHON, "-I", "tools/package_linux.py", "build/fastcord-linux.stripped", "dist/fastcord-linux-x86_64.tar.gz").exit_code != 0 return false;
         array_add(*assets, "dist/fastcord-linux-x86_64.tar.gz");
     } else {
