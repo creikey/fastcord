@@ -1,7 +1,7 @@
 # fastcord
 
 A fast, native Discord client written from scratch in Jai. No browser, no
-webview. Metal on macOS (later: D3D11 on Windows, iOS/Android).
+webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 
 ## Goals
 
@@ -26,8 +26,8 @@ webview. Metal on macOS (later: D3D11 on Windows, iOS/Android).
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`) and JSON. |
 | `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |
-| `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio. |
-| `src/platform`, `src/gfx` | Window, input, display link, clipboard; the Metal renderer. |
+| `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio / WASAPI / ALSA. |
+| `src/platform`, `src/gfx` | Window, input, display link, clipboard; the renderers (Metal, D3D11, OpenGL) and text (CoreText, DirectWrite, FreeType + HarfBuzz). |
 | `src/ui` | Immediate-mode UI core: keyed boxes, layout, animation, text editing. |
 | `src/app` | The client itself. |
 | `src/tool_capture*`, `src/tool_scrub`, `src/tool_trafficdiff`, `src/discord_parity` | Recording the official client (DevTools protocol), scrubbing captures, diffing traffic, the live session runner. |
@@ -36,8 +36,12 @@ webview. Metal on macOS (later: D3D11 on Windows, iOS/Android).
 
 ## Build and run
 
-Needs Jai (beta 0.2.030 or later, `jai` on `PATH`) and the Xcode command line tools (clang links; the
-Jai bundled linker can't read recent macOS SDKs).
+Needs Jai (beta 0.2.030 or later, `jai` on `PATH`) and a C compiler:
+- macOS: the Xcode command line tools (clang links; the Jai bundled linker can't read recent macOS SDKs).
+- Windows: LLVM (`clang`, `llvm-ar` on `PATH`; `winget install LLVM.LLVM`) and the Visual Studio Build
+  Tools (the MSVC libraries Jai links against). Also Zig for the Linux cross-compile (`winget install zig.zig`).
+- Linux builds are cross-compiled from Windows or macOS with Zig (`zig cc` against glibc 2.17): append
+  `linux` to any target, e.g. `jai build.jai - dev linux` writes `build/fastcord-dev` for x86_64 Linux.
 
 ```sh
 jai build.jai - dev       # build/fastcord-dev: optimised with symbols, for daily use
@@ -50,7 +54,8 @@ jai build.jai - help      # every target
 Every build first compiles the vendored C (`vendor/`) into `build/fc_vendor.a` (BoringSSL takes
 about a minute the first time); `jai build.jai - c` does only that.
 
-`<state>` is `~/Library/Application Support/fastcord/state`. With no token (or a rejected one) the app
+`<state>` is `~/Library/Application Support/fastcord/state` (macOS), `%LOCALAPPDATA%\fastcord\state`
+(Windows) or `${XDG_DATA_HOME:-~/.local/share}/fastcord/state` (Linux). With no token (or a rejected one) the app
 opens the login page: email or phone number and password (with the multi-factor step), or the QR code
 for the mobile app, as the official client does (`src/discord/auth.jai`, `remote_auth.jai`). The token
 it gets is saved there. A small "Log in with a token" link takes a token copied from a browser instead.
@@ -165,19 +170,30 @@ empty SCID, no token) match exactly.
 
 ## Releasing
 
-Jai can't be installed on CI runners, so releases are built and published from a dev machine:
+Jai can't be installed on CI runners, so releases are built and published from dev machines: the Mac app
+on a Mac, the Windows and Linux builds on a Windows machine.
 
 ```sh
 jai build.jai - check                    # all gates
-jai build.jai - release v0.2.0           # dist/fastcord-macos.zip: universal Fastcord.app, ad-hoc signed
-jai build.jai - release v0.2.0 publish   # same, then creates the GitHub release v0.2.0 at HEAD and uploads it
+jai build.jai - release v0.2.0           # macOS: dist/fastcord-macos.zip, universal Fastcord.app, ad-hoc signed
+                                         # Windows: dist/fastcord-windows.zip and dist/fastcord-linux-x86_64.tar.gz
+jai build.jai - release v0.2.0 publish   # same, then uploads them to the GitHub release v0.2.0
 ```
 
 `publish` needs `gh` logged in and HEAD pushed. It creates the release (tag at HEAD, generated notes) or,
-if it exists, replaces the zip. The version is the argument; nothing is bumped by hand.
+if it exists, adds its archives to it (replacing same-named ones, keeping the other platforms'). The
+version is the argument; nothing is bumped by hand.
+
+- Windows: `Fastcord.exe` (GUI subsystem, icon from `assets/fastcord.ico`), zipped. Not code-signed, so
+  SmartScreen warns on first launch.
+- Linux: one x86_64 binary for every distribution. It links only glibc (2.17+) and opens everything else at
+  run time with `dlopen`: libX11 (Wayland desktops through XWayland), libEGL for OpenGL 3.3, fontconfig,
+  libasound (ALSA, which PipeWire and PulseAudio serve). `tools/package_linux.py` packs it with a desktop
+  entry, the icon and `install.sh` (per user in `~/.local`, or system-wide as root).
 
 The site and the in-app updater both use the latest release:
-- download link: `https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip`
+- download links: `https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip`,
+  `fastcord-windows.zip`, `fastcord-linux-x86_64.tar.gz`
 - the app checks `api.github.com/repos/creikey/fastcord/releases/latest` at launch and every 6 hours;
   when the tag is newer than its own version, an **Update** pill appears in the title bar and opens
   creikey.com/fastcord (right-click it to dismiss). Dev builds never check.
