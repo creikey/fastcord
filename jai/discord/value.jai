@@ -117,7 +117,7 @@ free_str :: (s: string, allocator: Allocator) {
 // parse_json parses a REST body into a Value tree in allocator.
 parse_json :: (body: []u8, allocator: Allocator) -> V, bool {
 	if len(body) == 0 { return .{}, true; }
-	v, err := etf.from_json(as_string(body), allocator);
+	v, err := etf.from_json(as_string(body),, allocator);
 	return v, err == .None;
 }
 

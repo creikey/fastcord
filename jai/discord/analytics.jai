@@ -232,7 +232,7 @@ analytics_throttled :: (a: *Analytics, event_type: string, props_json: string, n
 	if is_null(th) { return false; }
 	props: etf.Map;
 	if len(th.keys) > 0 {
-		v, err := etf.from_json(strings.concatenate(string.["{", props_json, "}"], temp), temp);
+		v, err := etf.from_json(strings.concatenate(string.["{", props_json, "}"], temp),, temp);
 		if err == .None { props = vmap(v); }
 	}
 	if event_type == "ack_messages" && fstr(props, "location_object_type") == "ack_manual" { return false; }

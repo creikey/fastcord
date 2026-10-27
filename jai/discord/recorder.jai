@@ -346,10 +346,11 @@ rec_ws_close :: (data: *void, code: int) {
 
 rec_gw :: (data: *void, sent: bool, payload: V, wire_len: int) {
 	tap := cast(*Recorder_Tap)data;
-	sb := strings.builder_make(temp);
-	fmt.sbprintf(*sb, "\"gw\":{{\"dir\":\"%s\",\"ws\":\"%s\",\"len\":%d}},\"etf\":", ifx sent then "send" else "recv", tap.r.ws_id, wire_len);
+	sb: String_Builder;
+	sb.allocator = temp;
+	print_to_builder(*sb, "\"gw\":{\"dir\":\"%\",\"ws\":\"%\",\"len\":%},\"etf\":", ifx sent then "send" else "recv", tap.r.ws_id, wire_len);
 	etf.to_json(payload, *sb);
-	rec_line(tap.r, tap.acct, strings.to_string(sb));
+	rec_line(tap.r, tap.acct, builder_to_string(*sb,, temp));
 }
 #scope_export
 

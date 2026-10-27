@@ -619,7 +619,7 @@ F_Pool :: struct {
 	cond: locks.Cond;
 	jobs: [..]F_Job;
 	results: [..]Feature_Result;
-	threads: [..]*thread.Thread;
+	threads: [..]*Thread;
 	owner: *Client;
 	clients: int; // live clients (tests run several at once); the pool and side tables outlive all but the last
 	inflight: [..]*Client; // clients of the jobs being run now
@@ -638,7 +638,7 @@ f_worker :: (_: *void) {
 				locks.unlock(*fpool.mu);
 				return;
 			}
-			locks.cond_wait_with_timeout(*fpool.cond, *fpool.mu, 500 * time.Millisecond);
+			locks.cond_wait_with_timeout(*fpool.cond, *fpool.mu, 500);
 		}
 		j := get(fpool.jobs, 0);
 		ordered_remove(*fpool.jobs, 0);
@@ -677,7 +677,7 @@ f_submit :: (c: *Client, j: F_Job) {
 	defer locks.unlock(*fpool.mu);
 	fpool.owner = c; // the workers serve every client's jobs (j.client); they stop in extras_destroy
 	if len(fpool.threads) == 0 {
-		for _: 0..1 { append(*fpool.threads, thread.create_and_start_with_data(null, f_worker, *c.ctx)); }
+		for _: 0..1 { append(*fpool.threads, spawn(null, f_worker)); }
 	}
 	jj := j;
 	jj.client = c;

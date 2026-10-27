@@ -30,7 +30,7 @@ store_load_fixture_text :: (s: *Store, text: string) -> int {
 	t := text;
 	while true { line, __ok2 := strings.split_lines_iterator(*t); if !__ok2 break;
 		if len(line) == 0 { continue; }
-		v, err := etf.from_json(line, alloc);
+		v, err := etf.from_json(line,, alloc);
 		if err != .None { continue; }
 		m := vmap(v);
 		name: string;

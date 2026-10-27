@@ -79,7 +79,7 @@ Auth :: struct {
 	events: [..]Auth_Event;
 	arena: virtual.Arena; // event strings until taken
 	ra: Remote_Auth;
-	gw_stoppers: [..]*thread.Thread; // logouts' gateway teardowns (joined by auth_shutdown)
+	gw_stoppers: [..]*Thread; // logouts' gateway teardowns (joined by auth_shutdown)
 }
 
 // client_logged_out: no token (the login page is showing).
@@ -517,7 +517,7 @@ auth_push_token :: (c: *Client, token: string, fingerprint: string, action: Auth
 	arena := new(virtual.Arena);
 	virtual.arena_init_growing(arena);
 	al := virtual.arena_allocator(arena);
-	m := etf.map_builder(2, al);
+	m := etf.map_builder(2,, al);
 	etf.map_put(*m, "token", to_v(clone(token, al)));
 	etf.map_put(*m, "fingerprint", to_v(clone(fingerprint, al)));
 	ev := Event.{kind = .Rest, data = etf.vmap(etf.map_done(*m)), arena = arena};
@@ -586,7 +586,7 @@ auth_after_logout :: (c: *Client, status: int, body: etf.Map) {
 		if c.cfg.gateway_sink != null {
 			gateway_stop(gw);
 		} else {
-			append(*a.gw_stoppers, thread.create_and_start_with_poly_data(gw, (g: *Gateway) {gateway_stop(g);}));
+			append(*a.gw_stoppers, spawn(gw, gateway_stop));
 		}
 	}
 	auth_fetch_experiments(c, old_path, old_referer);

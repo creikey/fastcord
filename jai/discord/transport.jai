@@ -36,7 +36,7 @@ Round_Tripper :: struct {
 
 H2_Ref :: struct {
 	c: *http.H2_Conn;
-	svc: *thread.Thread;
+	svc: *Thread;
 	refs: int;
 	retired: bool;
 }
@@ -83,18 +83,14 @@ Transport :: struct {
 
 decoders_once: sync.Once;
 
-br_decoder :: (src: []u8, dst: *[..]u8, max_out: int) -> http.Error {
-	out, err := brotli.decompress(src, temp, max_out);
-	if err != .None { return .Decompress; }
-	append(dst, ..out);
-	return .None;
+br_decoder :: (src: []u8, max_out: int) -> []u8, http.Error {
+	out, err := brotli.decompress(src, max_out);
+	return out, ifx err then .Decompress else .None;
 }
 
-zstd_decoder :: (src: []u8, dst: *[..]u8, max_out: int) -> http.Error {
-	out, err := zstd.decompress(src, temp, max_out);
-	if err != .None { return .Decompress; }
-	append(dst, ..out);
-	return .None;
+zstd_decoder :: (src: []u8, max_out: int) -> []u8, http.Error {
+	out, err := zstd.decompress(src, max_out);
+	return out, ifx err then .Decompress else .None;
 }
 #scope_export
 
@@ -144,10 +140,6 @@ transport_destroy :: (t: *Transport) {
 }
 #scope_module
 
-h2_service_proc :: (th: *thread.Thread) {
-	c := cast(*http.H2_Conn)th.data;
-	http.h2_service(c);
-}
 #scope_export
 
 // transport_round_trip sends req to https://host and returns the decoded response.
@@ -281,7 +273,7 @@ origin_get_h2 :: (t: *Transport, host: string) -> *Origin, *H2_Ref {
 	new_h1: *http.H1_Conn;
 	if dok {
 		if alpn == "h2" {
-			c, herr := http.h2_connect(stream, .{}, t.allocator);
+			c, herr := http.h2_connect(stream, .{},, t.allocator);
 			if herr == .None {
 				new_h2 = c;
 				// The h2 reader idles in read between requests; HTTP/1.1 keeps the dial timeout per request.
@@ -296,7 +288,7 @@ origin_get_h2 :: (t: *Transport, host: string) -> *Origin, *H2_Ref {
 			}
 		} else {
 			new_h1 = new(http.H1_Conn, t.allocator);
-			http.h1_init(new_h1, stream, .{}, t.allocator);
+			http.h1_init(new_h1, stream, .{},, t.allocator);
 		}
 	}
 
@@ -307,10 +299,7 @@ origin_get_h2 :: (t: *Transport, host: string) -> *Origin, *H2_Ref {
 	if !is_null(new_h2) {
 		r := new(H2_Ref, t.allocator);
 		r.c = new_h2;
-		r.svc = thread.create(h2_service_proc);
-		r.svc.data = new_h2;
-		r.svc.ctx = context;
-		thread.start(r.svc);
+		r.svc = spawn(new_h2, (c: *http.H2_Conn) { http.h2_service(c); });
 		r.refs = 1;
 		o.h2 = r;
 		return o, r;
@@ -359,7 +348,7 @@ origin_take_h1 :: (t: *Transport, o: *Origin) -> *http.H1_Conn {
 	stream, _, dok := dial_tls_stream(o.host, string.["h2", "http/1.1"]);
 	if !dok { return null; }
 	c := new(http.H1_Conn, t.allocator);
-	http.h1_init(c, stream, .{}, t.allocator);
+	http.h1_init(c, stream, .{},, t.allocator);
 	return c;
 }
 
@@ -401,7 +390,7 @@ h3_round_trip :: (t: *Transport, host: string, req: http.Request) -> H3_Outcome,
 	out: H3_Outcome;
 	handled: bool;
 	locks.lock(*t.alt.mu);
-	_, live := map_find(t.alt.conns, host);
+	live, _ := table_find(*t.alt.conns, host);
 	locks.unlock(*t.alt.mu);
 	if !live {
 		{ _, ok := altsvc.usable(*t.alt, host);
@@ -430,7 +419,7 @@ h3_round_trip :: (t: *Transport, host: string, req: http.Request) -> H3_Outcome,
 			// the transport parameters bytes this session's ClientHello carried
 			if !seen { t.conn_observer(t.observer_data, .{kind = "h3", host = host, alpn = "h3", quic_params = quic.transport_params(res.h3)}); }
 		}
-		resp, err := quic.request(res.h3, req, t.allocator);
+		resp, err := quic.request(res.h3, req,, t.allocator);
 		if err != .None && err != .Stream_Reset {
 			// Session-level failure after it was established: fall back to h2 this time.
 			http.response_destroy(*resp);

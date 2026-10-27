@@ -5,6 +5,7 @@
 #import "Hash_Table";
 #import "Hash";
 #import "Atomics";
+#import "Thread";
 #import "fc";
 altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";
@@ -32,7 +33,6 @@ slice :: #import "fc_slice";
 strconv :: #import "fc_strconv";
 strings :: #import "fc_strings";
 sync :: #import "fc_sync";
-thread :: #import "fc_thread";
 time :: #import "fc_time";
 tls :: #import "tls";
 virtual :: #import "fc_virtual";

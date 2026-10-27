@@ -1,3 +1,15 @@
+// ---- threads ----
+
+// spawn runs proc(data) on a new thread (its own temporary storage); locks.join ends and frees it.
+spawn :: (data: $D, proc: (D)) -> *Thread {
+	Spawned :: struct { #as thread: Thread; arg: D; run: (D); }
+	s := New(Spawned);
+	s.arg, s.run = data, proc;
+	thread_init(s, (t: *Thread) -> s64 { s := cast(*Spawned) t; s.run(s.arg); return 0; });
+	thread_start(s);
+	return s;
+}
+
 // ---- time ----
 
 now_ms :: () -> s64 {

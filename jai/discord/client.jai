@@ -110,7 +110,7 @@ Client :: struct {
 	job_cond: locks.Cond;
 	jobs: [..]*Job;
 	jobs_running: int; // jobs taken off the queue and not finished (under job_mu)
-	workers: [..]*thread.Thread;
+	workers: [..]*Thread;
 	quit: bool;
 	// route (referer) — written by the UI thread, read by workers
 	route_mu: locks.Mutex;
@@ -235,7 +235,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 // client_start launches workers, the startup request schedule and the gateway.
 client_start :: (c: *Client) {
 	for _: 0..cast(int)(c.cfg.workers)-1 {
-		th := thread.create_and_start_with_poly_data(c, worker_proc, *c.ctx);
+		th := spawn(c, worker_proc);
 		append(*c.workers, th);
 	}
 	if c.focused { identity_touch_heartbeat(*c.id, now_ms()); }

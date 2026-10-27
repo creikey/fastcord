@@ -96,8 +96,7 @@ worker_proc :: (c: *Client) {
 			next_due = min(next_due, j.not_before);
 		}
 		if pick < 0 {
-			wait := cast(time.Duration)(1000) * time.Millisecond;
-			if next_due != S64_MAX { wait = cast(time.Duration)(max(next_due - now, 1)) * time.Millisecond; }
+			wait := ifx next_due == S64_MAX then 1000 else max(next_due - now, 1);
 			locks.cond_wait_with_timeout(*c.job_cond, *c.job_mu, wait);
 			continue;
 		}
@@ -400,7 +399,7 @@ preflight_wait :: (c: *Client, url: string) -> bool {
 	if !ok { return false; }
 	deadline := time.tick_now();
 	while st == 1 && time.tick_since(deadline) < 10 * time.Second {
-		locks.cond_wait_with_timeout(*c.preflight_cond, *c.preflight_mu, 250 * time.Millisecond);
+		locks.cond_wait_with_timeout(*c.preflight_cond, *c.preflight_mu, 250);
 		st = get(c.preflights, url);
 	}
 	key, _ := delete_key(*c.preflights, url);
@@ -475,7 +474,7 @@ run_web :: (c: *Client, j: *Job) {
 	if j.etag && err == .None && resp.status == 200 { { tag, ok := http.header_get(view(resp.headers), "etag");
 if ok { etag_put(c, url, tag); } } }
 	if j.on_body != null && err == .None && resp.status == 200 {
-		{ v, perr := etf.from_json(as_string(view(resp.body)), temp);
+		{ v, perr := etf.from_json(as_string(view(resp.body)),, temp);
 		if perr == .None { j.on_body(c, v); } }
 	}
 	res := j.result;

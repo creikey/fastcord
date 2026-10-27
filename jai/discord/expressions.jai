@@ -62,7 +62,7 @@ Expr_Pool :: struct {
 	cond: locks.Cond;
 	jobs: [..]Expr_Job;
 	results: [..]Expr_Result;
-	threads: [..]*thread.Thread;
+	threads: [..]*Thread;
 	owner: *Client;
 }
 
@@ -80,7 +80,7 @@ expr_worker :: (_: *void) {
 				locks.unlock(*pool.mu);
 				return;
 			}
-			locks.cond_wait_with_timeout(*pool.cond, *pool.mu, 500 * time.Millisecond);
+			locks.cond_wait_with_timeout(*pool.cond, *pool.mu, 500);
 		}
 		j := get(pool.jobs, 0);
 		ordered_remove(*pool.jobs, 0);
@@ -111,7 +111,7 @@ expr_submit :: (c: *Client, j: Expr_Job) {
 	}
 	if len(pool.threads) == 0 {
 		for _: 0..cast(int)(EXPR_THREADS)-1 {
-			th := thread.create_and_start_with_data(null, expr_worker, *c.ctx);
+			th := spawn(null, expr_worker);
 			append(*pool.threads, th);
 		}
 	}
@@ -467,7 +467,7 @@ frecency_settings_decode :: (b64: string, allocator := context.allocator) -> Fre
 		case 3;
 			{ ids, iok := protobuf.find(f.bytes, 1);
 			if iok {
-				vals := protobuf.packed_fixed64(ids.bytes, temp);
+				vals := protobuf.packed_fixed64(ids.bytes,, temp);
 				out := make_slice(Snowflake, len(vals), allocator);
 				for v, i: vals { at(*out, i).* = cast(Snowflake)(v); }
 				fs.favorite_stickers = out;

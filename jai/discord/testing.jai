@@ -69,8 +69,8 @@ run_tests :: (filters: []string, jobs := 0) -> int {
 			reset_temporary_storage();
 		}
 	}
-	threads: [..]*thread.Thread;
-	for 1..jobs array_add(*threads, thread.create_and_start_with_poly_data(*st, worker));
-	for threads thread.destroy(it);
+	threads: [..]*Thread;
+	for 1..jobs array_add(*threads, spawn(*st, worker));
+	for threads locks.join(it);
 	return st.failed;
 }

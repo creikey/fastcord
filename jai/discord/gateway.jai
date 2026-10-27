@@ -83,13 +83,13 @@ Gateway :: struct {
 	out_cond: locks.Cond;
 	outbox: [..][]u8;
 	out_stop: bool;
-	writer: *thread.Thread;
+	writer: *Thread;
 	ws: *http.Ws_Conn;
 	stream: netio.Stream;
 	gen: int;
 	state: Gw_State;
-	reader: *thread.Thread;
-	control: *thread.Thread;
+	reader: *Thread;
+	control: *Thread;
 	stop: bool;
 	// session
 	seq: s64;
@@ -141,8 +141,8 @@ gateway_create :: (c: *Client) -> *Gateway {
 }
 
 gateway_start :: (g: *Gateway) {
-	g.control = thread.create_and_start_with_poly_data(g, gateway_control_proc, *g.c.ctx);
-	g.writer = thread.create_and_start_with_poly_data(g, gateway_writer_proc, *g.c.ctx);
+	g.control = spawn(g, gateway_control_proc);
+	g.writer = spawn(g, gateway_writer_proc);
 }
 #scope_module
 
@@ -212,11 +212,11 @@ gateway_send :: (g: *Gateway, op: Op, d: V) -> bool {
 		g.c.cfg.gateway_sink(g.c.cfg.gateway_sink_data, op, d);
 		return true;
 	}
-	b := etf.map_builder(2, temp);
+	b := etf.map_builder(2,, temp);
 	etf.map_put(*b, "op", to_v(cast(s64)(op)));
 	etf.map_put(*b, "d", to_v(d));
 	frame := etf.vmap(etf.map_done(*b));
-	buf, err := etf.encode(frame, temp);
+	buf, err := etf.encode(frame,, temp);
 	if err != .None { return false; }
 	if locks.on_ui_thread() {
 		// Queued: true means accepted for sending, as a send can still fail on a dying socket.
@@ -239,7 +239,7 @@ gateway_send :: (g: *Gateway, op: Op, d: V) -> bool {
 #scope_module
 
 qos_value :: (q: Qos) -> V {
-	b := etf.map_builder(3, temp);
+	b := etf.map_builder(3,, temp);
 	etf.map_put(*b, "active", to_v(q.active));
 	etf.map_put(*b, "ver", to_v(cast(s64)(31)));
 	reasons := make_slice(V, q.n, temp);
@@ -259,7 +259,7 @@ consume_qos_locked :: (g: *Gateway) -> Maybe(Qos) {
 
 send_heartbeat_locked :: (g: *Gateway) {
 	q := consume_qos_locked(g);
-	b := etf.map_builder(2, temp);
+	b := etf.map_builder(2,, temp);
 	etf.map_put(*b, "seq", to_v(g.seq));
 	{ qq, ok := maybe_get(q);
 	if ok {
@@ -482,7 +482,7 @@ gateway_connect :: (g: *Gateway) {
 	for * h: hdrs { if h.name == "Sec-WebSocket-Key" { h.value = base64.encode(view(key_raw), allocator = temp); } }
 	req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, headers = hdrs};
 	if c.on_ws_open != null { c.on_ws_open(c.observer_data, url, req.headers); }
-	ws, resp, err := http.ws_connect(stream, req, .{}, c.allocator);
+	ws, resp, err := http.ws_connect(stream, req, .{},, c.allocator);
 	if err != .None {
 		http.response_destroy(*resp);
 		netio.close(stream);
@@ -509,14 +509,9 @@ gateway_connect :: (g: *Gateway) {
 	g.stream = stream;
 	locks.unlock(*g.send_mu);
 
-	rd := thread.create(gateway_reader_proc);
-	rd.data = g;
-	rd.user_index = gen;
-	rd.ctx = c.ctx;
 	locks.lock(*g.mu);
-	g.reader = rd;
+	g.reader = spawn(Gw_Reader.{g, gen}, gateway_reader_proc);
 	locks.unlock(*g.mu);
-	thread.start(rd);
 
 	// onOpen
 	locks.lock(*g.mu);
@@ -532,7 +527,7 @@ gateway_connect :: (g: *Gateway) {
 		client_push_state(c, .Identifying);
 		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
 		d := ifx c.cfg.fast_identify_delay_ms != 0 then c.cfg.fast_identify_delay_ms else 300;
-		if d > 0 { time.sleep(cast(time.Duration)(d) * time.Millisecond); }
+		if d > 0 { time.sleep(d); }
 		gateway_send(g, .Identify, identify_fast_connect_value(*c.id, client_token(c)));
 	} else {
 		g.fast_connect_done = true;
@@ -546,7 +541,7 @@ resume_or_identify_locked :: (g: *Gateway) {
 	now := now_ms();
 	if g.session_id != "" && (g.last_ack == 0 || now - g.last_ack <= 3 * 60_000) {
 		g.state = .Resuming;
-		b := etf.map_builder(3, temp);
+		b := etf.map_builder(3,, temp);
 		etf.map_put(*b, "token", to_v(client_token(g.c)));
 		etf.map_put(*b, "session_id", to_v(g.session_id));
 		etf.map_put(*b, "seq", to_v(g.seq));
@@ -614,9 +609,9 @@ gateway_on_closed :: (g: *Gateway, gen: int, clean: bool, code: int) {
 	locks.lock(*g.mu);
 }
 
-gateway_reader_proc :: (th: *thread.Thread) {
-	g := cast(*Gateway)th.data;
-	gen := th.user_index;
+Gw_Reader :: struct { g: *Gateway; gen: int; }
+
+gateway_reader_proc :: (using r: Gw_Reader) {
 	msg := make_dynamic(u8, 0, 0);
 	defer delete(msg);
 	locks.lock(*g.send_mu);
@@ -667,7 +662,7 @@ gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
 		return false;
 	}
 	alloc := virtual.arena_allocator(arena);
-	v, derr := etf.decode(view(g.inflated), .{}, alloc);
+	v, derr := etf.decode(view(g.inflated),, alloc);
 	if derr != .None {
 		virtual.arena_destroy(arena);
 		free(arena);
@@ -784,7 +779,7 @@ gateway_on_ready_locked :: (g: *Gateway) {
 		locks.lock(*c.job_mu);
 		c.ready_subscribed_guild = rg;
 		locks.unlock(*c.job_mu);
-		gb := etf.map_builder(7, temp);
+		gb := etf.map_builder(7,, temp);
 		etf.map_put(*gb, "typing", to_v(true));
 		etf.map_put(*gb, "threads", to_v(true));
 		etf.map_put(*gb, "activities", to_v(true));
@@ -792,13 +787,13 @@ gateway_on_ready_locked :: (g: *Gateway) {
 		etf.map_put(*gb, "member_updates", to_v(false));
 		etf.map_put(*gb, "channels", etf.vmap(.[]));
 		etf.map_put(*gb, "thread_member_lists", etf.vlist(.[]));
-		sb := etf.map_builder(1, temp);
+		sb := etf.map_builder(1,, temp);
 		etf.map_put(*sb, snowflake_string(rg), etf.vmap(etf.map_done(*gb)));
-		db := etf.map_builder(1, temp);
+		db := etf.map_builder(1,, temp);
 		etf.map_put(*db, "subscriptions", etf.vmap(etf.map_done(*sb)));
 		gateway_send(g, .Guild_Subscriptions_Bulk, etf.vmap(etf.map_done(*db)));
 	} else if rch != 0 {
-		cb := etf.map_builder(1, temp);
+		cb := etf.map_builder(1,, temp);
 		etf.map_put(*cb, "channel_id", to_v(snowflake_string(rch)));
 		gateway_send(g, .Call_Connect, etf.vmap(etf.map_done(*cb)));
 	}
@@ -806,7 +801,7 @@ gateway_on_ready_locked :: (g: *Gateway) {
 	identity_touch_heartbeat(*c.id, now);
 	hb := identity_heartbeat_snapshot(*c.id);
 	if hb.uuid != "" {
-		b := etf.map_builder(3, temp);
+		b := etf.map_builder(3,, temp);
 		etf.map_put(*b, "initialization_timestamp", to_v(hb.created_at));
 		etf.map_put(*b, "session_id", to_v(hb.uuid));
 		etf.map_put(*b, "client_launch_id", to_v(c.id.client_launch_id));

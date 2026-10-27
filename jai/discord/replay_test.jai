@@ -265,12 +265,12 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 		if proto == "h3" && !has_priority { strings.write_string(*sb, ",priority"); }
 		shape := "";
 		if len(req.body) > 0 {
-			{ v, perr := etf.from_json(as_string(req.body), temp);
+			{ v, perr := etf.from_json(as_string(req.body),, temp);
 			if perr == .None { shape = shape_text(v); } }
 		}
 		alloc := virtual.arena_allocator(*r.arena);
 		if r_is_science(url) {
-			{ v, perr := etf.from_json(as_string(req.body), temp);
+			{ v, perr := etf.from_json(as_string(req.body),, temp);
 			if perr == .None {
 				b := r_sci_parse(v, alloc);
 				b.wire = clone(strings.to_string(sb), alloc);
@@ -324,9 +324,10 @@ r_num_f :: (v: V) -> float64 {
 }
 
 etf_json :: (v: V) -> string {
-	sb := strings.builder_make(temp);
+	sb: String_Builder;
+	sb.allocator = temp;
 	etf.to_json(v, *sb);
-	return strings.to_string(sb);
+	return builder_to_string(*sb,, temp);
 }
 
 fnum :: (m: etf.Map, k: string) -> s64 {
@@ -1502,7 +1503,7 @@ parity_join_server :: (t: *T) {
 		done: bool;
 	}
 	jn := Join.{c = run.c};
-	th := thread.create_and_start_with_poly_data(*jn, (j: *Join) {
+	th := spawn(*jn, (j: *Join) {
 		res := join_invite(j.c, "https://discord.gg/w5wYynKUN", temp);
 		j.ok = res.ok;
 		reset_temporary_storage();
@@ -1512,8 +1513,7 @@ parity_join_server :: (t: *T) {
 		client_poll(run.c);
 		time.sleep(5 * time.Millisecond);
 	}
-	thread.join(th);
-	thread.destroy(th);
+	locks.join(th);
 	expect(t, jn.ok, "the invite was not accepted");
 	replay_dispatches(*run, "b_join_submit");
 	replay_settle(*run, 800);

@@ -242,7 +242,7 @@ base64url_nopad :: (b: []u8, allocator := context.allocator) -> string {
 Remote_Auth :: struct {
 	mu: locks.Mutex;
 	cond: locks.Cond;
-	th: *thread.Thread;
+	th: *Thread;
 	running: bool; // a QR session is wanted (the login page shows)
 	stop: bool; // no session: the thread idles
 	quit: bool; // the thread ends (client_destroy)
@@ -289,7 +289,7 @@ remote_auth_start :: (c: *Client) {
 	ra.stop = false;
 	ra.restart = false;
 	if ra.th == null {
-		ra.th = thread.create_and_start_with_poly_data(c, remote_auth_proc, *c.ctx);
+		ra.th = spawn(c, remote_auth_proc);
 	} else {
 		locks.cond_broadcast(*ra.cond);
 	}
@@ -415,7 +415,7 @@ remote_auth_proc :: (c: *Client) {
 	while true {
 		// idle while no login page shows
 		locks.lock(*ra.mu);
-		while ra.stop && !ra.quit { locks.cond_wait_with_timeout(*ra.cond, *ra.mu, 1000 * time.Millisecond); }
+		while ra.stop && !ra.quit { locks.cond_wait_with_timeout(*ra.cond, *ra.mu, 1000); }
 		quit := ra.quit;
 		locks.unlock(*ra.mu);
 		if quit { return; }
@@ -447,7 +447,7 @@ ra_sessions :: (c: *Client) {
 			locks.lock(*ra.mu);
 			deadline := now_ms() + wait;
 			while !ra.stop && !ra.restart && now_ms() < deadline {
-				locks.cond_wait_with_timeout(*ra.cond, *ra.mu, cast(time.Duration)(max(deadline - now_ms(), 1)) * time.Millisecond);
+				locks.cond_wait_with_timeout(*ra.cond, *ra.mu, max(deadline - now_ms(), 1));
 			}
 			locks.unlock(*ra.mu);
 		}
@@ -479,7 +479,7 @@ ra_run_socket :: (c: *Client, backoff: *Backoff) -> Ra_End {
 	for * h: hdrs { if h.name == "Sec-WebSocket-Key" { h.value = base64.encode(view(key_raw), allocator = temp); } }
 	req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, headers = hdrs};
 	if c.on_ws_open != null { c.on_ws_open(c.observer_data, REMOTE_AUTH_URL, req.headers); }
-	ws, resp, err := http.ws_connect(stream, req, .{allow_deflate = true}, c.allocator);
+	ws, resp, err := http.ws_connect(stream, req, .{allow_deflate = true},, c.allocator);
 	if err != .None {
 		http.response_destroy(*resp);
 		netio.close(stream);
@@ -495,7 +495,7 @@ ra_run_socket :: (c: *Client, backoff: *Backoff) -> Ra_End {
 	ra.stream = stream;
 	ra.reader_done = false;
 	locks.unlock(*ra.mu);
-	rd := thread.create_and_start_with_poly_data(Ra_Reader.{c, ws}, ra_reader_proc, *c.ctx);
+	rd := spawn(Ra_Reader.{c, ws}, ra_reader_proc);
 
 	end := ra_session_loop(c, ws, *s, backoff);
 
@@ -526,7 +526,7 @@ ra_session_loop :: (c: *Client, ws: *http.Ws_Conn, s: *Ra_Session, backoff: *Bac
 		while len(ra.inbox) == 0 && !ra.stop && !ra.restart && !ra.reader_done && (next_beat == 0 || now_ms() < next_beat) {
 			wait: s64 = 1000;
 			if next_beat != 0 { wait = max(next_beat - now_ms(), 1); }
-			locks.cond_wait_with_timeout(*ra.cond, *ra.mu, cast(time.Duration)(wait) * time.Millisecond);
+			locks.cond_wait_with_timeout(*ra.cond, *ra.mu, wait);
 		}
 		if ra.stop {
 			locks.unlock(*ra.mu);

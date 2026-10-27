@@ -889,7 +889,7 @@ flush_soundboard :: (c: *Client, now: s64) {
 	if c.gw == null { return; }
 	ids := make_slice(V, len(c.store.guild_order), temp);
 	for g, i: c.store.guild_order { at(*ids, i).* = to_v(snowflake_string(g)); }
-	b := etf.map_builder(1, temp);
+	b := etf.map_builder(1,, temp);
 	etf.map_put(*b, "guild_ids", etf.vlist(ids));
 	gateway_send(c.gw, .Request_Soundboard_Sounds, etf.vmap(etf.map_done(*b)));
 }
@@ -902,7 +902,7 @@ voice_leave :: (c: *Client) {
 // guild_channel_info: op 43 sent when a guild's channel is shown.
 guild_channel_info :: (c: *Client, guild_id: Snowflake) {
 	if c.gw == null { return; }
-	b := etf.map_builder(2, temp);
+	b := etf.map_builder(2,, temp);
 	etf.map_put(*b, "guild_id", to_v(snowflake_string(guild_id)));
 	etf.map_put(*b, "fields", vlist_of(etf.vstring("status"), etf.vstring("voice_start_time")));
 	gateway_send(c.gw, .Request_Channel_Info, etf.vmap(etf.map_done(*b)));
@@ -956,7 +956,7 @@ on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
 	if pc != 0 && pc == channel_id {
 		c.pending_private_open = 0;
 		if c.gw != null {
-			cb := etf.map_builder(1, temp);
+			cb := etf.map_builder(1,, temp);
 			etf.map_put(*cb, "channel_id", to_v(snowflake_string(channel_id)));
 			gateway_send(c.gw, .Call_Connect, etf.vmap(etf.map_done(*cb)));
 		}

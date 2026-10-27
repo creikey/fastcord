@@ -803,7 +803,7 @@ apply_settings_proto :: (s: *Store, b64: string) {
 				fo := Guild_Folder.{guild_ids = make_dynamic(Snowflake, 0, 0, a)};
 				{ ids, iok := protobuf.find(fld.bytes, 1);
 				if iok {
-					for id: protobuf.packed_fixed64(ids.bytes, temp) { append(*fo.guild_ids, cast(Snowflake)(id)); }
+					for id: protobuf.packed_fixed64(ids.bytes,, temp) { append(*fo.guild_ids, cast(Snowflake)(id)); }
 				} }
 				{ v, vok := protobuf.find_path(fld.bytes, 2, 1);
 				if vok { fo.id = cast(s64)(v.value); } }
@@ -816,7 +816,7 @@ apply_settings_proto :: (s: *Store, b64: string) {
 				} }
 				append(*st.guild_folders, fo);
 			case 2;
-				for id: protobuf.packed_fixed64(fld.bytes, temp) { append(*st.guild_positions, cast(Snowflake)(id)); }
+				for id: protobuf.packed_fixed64(fld.bytes,, temp) { append(*st.guild_positions, cast(Snowflake)(id)); }
 			}
 		}
 	} }
