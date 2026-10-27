@@ -1,16 +1,18 @@
+// Chrome's choice between HTTP/2 (TCP) and HTTP/3 (QUIC) for an origin:
+//   - First contact uses TCP. Alt-Svc response headers (h3=":443"; ma=N) are recorded with their expiry
+//     and persisted to disk.
+//   - Later connects race: the QUIC job starts at once; the TCP job starts immediately, or 1.5 x the cached
+//     RTT later if QUIC is known to work on this network (Chrome's delay_main_job). The first to succeed
+//     wins.
+//   - If QUIC fails while TCP works, the alternative is marked broken for 5 minutes, doubling per failure
+//     up to 2 days (BrokenAlternativeServices), and TCP is used meanwhile.
+//   - An established h3 connection is reused for the origin while it is open (Chrome keeps one QUIC
+//     session per origin; it idles out after 30s).
 #import "Basic";
-#import "Math";
 #import "String";
 #import "Hash_Table";
-#import "Atomics";
-#import "fc";
-fmt :: #import "fc_fmt";
+#import "Thread";
+#import "File";
 locks :: #import "locks";
-os :: #import "fc_os";
 quic :: #import "quic";
-runtime :: #import "fc_runtime";
-strconv :: #import "fc_strconv";
-strings :: #import "fc_strings";
-thread :: #import "fc_thread";
-time :: #import "fc_time";
 #load "altsvc.jai";

@@ -6,30 +6,31 @@
 //   - Huffman only when strictly shorter; cookies split into crumbs on ';'
 //   - a table size update starts the next block after the server's SETTINGS_HEADER_TABLE_SIZE changes
 // nghttp2's encoder never indexes authorization, short cookies, content-length and a few others, so
-// h2.odin swaps its header blocks for these. Decoding the server's headers stays nghttp2's.
+// h2.jai swaps its header blocks for these. Decoding the server's headers stays nghttp2's.
+
+#scope_module
+
+NO_MIN_BOUND :: 0x7fff_ffff_ffff_ffff;
 
 Hpack_Encoder :: struct {
-	table: [..]Header; // oldest first; owns its strings
+	table: [..]Header; // oldest first; owns its strings (from allocator)
 	size: int;
-	bound: int; // the server's SETTINGS_HEADER_TABLE_SIZE, our table's maximum
-	min_bound: int; // smallest bound since the last block
+	bound := 4096;     // the server's SETTINGS_HEADER_TABLE_SIZE, our table's maximum
+	min_bound := NO_MIN_BOUND; // smallest bound since the last block
 	emit_size: bool;
 	allocator: Allocator;
 }
 
-hpack_init :: (e: *Hpack_Encoder, allocator: Allocator) {
-	e.* = .{table = make_dynamic(Header, 0, 0, allocator), bound = 4096, min_bound = S64_MAX, allocator = allocator};
-}
-
 hpack_destroy :: (e: *Hpack_Encoder) {
-	for h: e.table { delete_header(h, e.allocator); }
-	delete(e.table);
+	push_allocator(e.allocator);
+	clear_headers(*e.table);
+	array_free(e.table);
 }
 
 // hpack_set_table_size applies one SETTINGS_HEADER_TABLE_SIZE from the server (ApplyHeaderTableSizeSetting).
 hpack_set_table_size :: (e: *Hpack_Encoder, size: int) {
-	if size == e.bound { return; }
-	if size < e.bound { e.min_bound = min(e.min_bound, size); }
+	if size == e.bound return;
+	if size < e.bound e.min_bound = min(e.min_bound, size);
 	e.bound = size;
 	evict(e, 0);
 	e.emit_size = true;
@@ -38,124 +39,103 @@ hpack_set_table_size :: (e: *Hpack_Encoder, size: int) {
 // hpack_encode appends req's header block: pseudo-headers in Chrome's order, then req.headers.
 hpack_encode :: (e: *Hpack_Encoder, out: *[..]u8, req: Request) {
 	if e.emit_size {
-		if e.min_bound < e.bound { put_int(out, 0x20, 5, e.min_bound); }
+		if e.min_bound < e.bound put_int(out, 0x20, 5, e.min_bound);
 		put_int(out, 0x20, 5, e.bound);
 		e.emit_size = false;
-		e.min_bound = S64_MAX;
+		e.min_bound = NO_MIN_BOUND;
 	}
 	field(e, out, ":method", req.method);
 	field(e, out, ":authority", req.authority);
 	field(e, out, ":scheme", req.scheme);
 	field(e, out, ":path", req.path);
 	for h: req.headers {
-		if h.name != "cookie" {
-			field(e, out, h.name, h.value);
-			continue;
-		}
-		v := strings.trim(h.value, " \t");
+		if h.name != "cookie" { field(e, out, h.name, h.value); continue; }
+		v := trim(h.value, " \t");
 		while true {
-			i := strings.index_byte(v, #char ";");
-			if i < 0 {
-				field(e, out, h.name, v);
-				break;
-			}
-			field(e, out, h.name, sub(v, 0, i));
-			v = sub_from(v, i + 1);
-			if len(v) > 0 && v[0] == #char " " { v = sub_from(v, 1); }
+			found, crumb, rest := split_from_left(v, #char ";");
+			field(e, out, h.name, crumb);
+			if !found break;
+			v = rest;
+			if v && v[0] == #char " " advance(*v);
 		}
 	}
 }
-#scope_file
 
-delete_header :: (h: Header, allocator: Allocator) {
-	delete(h.name, allocator);
-	delete(h.value, allocator);
-}
+#scope_file
 
 // evict drops the oldest entries until `room` more bytes fit.
 evict :: (e: *Hpack_Encoder, room: int) {
 	n := 0;
-	while n < len(e.table) && e.size + room > e.bound {
-		e.size -= len(e.table[n].name) + len(e.table[n].value) + 32;
-		delete_header(e.table[n], e.allocator);
+	while n < e.table.count && e.size + room > e.bound {
+		h := e.table[n];
+		e.size -= h.name.count + h.value.count + 32;
+		free_string(h.name,, e.allocator);
+		free_string(h.value,, e.allocator);
 		n += 1;
 	}
-	remove_range(*e.table, 0, n);
+	if !n return;
+	for i: n..e.table.count-1 e.table[i - n] = e.table[i];
+	e.table.count -= n;
 }
 
 field :: (e: *Hpack_Encoder, out: *[..]u8, name: string, value: string) {
 	full, by_name := 0, 0;
-	for h, i: HPACK_STATIC {
-		if h.name != name { continue; }
-		if by_name == 0 { by_name = i + 1; }
-		if h.value == value {
-			full = i + 1;
-			break;
-		}
+	for HPACK_STATIC {
+		if it.name != name continue;
+		if !by_name by_name = it_index + 1;
+		if it.value == value { full = it_index + 1; break; }
 	}
-	for < h, i: e.table {
-		if full != 0 { break; }
-		if h.name != name { continue; }
-		idx := len(HPACK_STATIC) + len(e.table) - i;
-		if by_name == 0 { by_name = idx; }
-		if h.value == value { full = idx; }
+	if !full for < e.table {
+		if it.name != name continue;
+		idx := HPACK_STATIC.count + e.table.count - it_index;
+		if !by_name by_name = idx;
+		if it.value == value { full = idx; break; }
 	}
-	if full != 0 {
-		put_int(out, 0x80, 7, full);
-		return;
-	}
+	if full { put_int(out, 0x80, 7, full); return; }
 	index := name[0] != #char ":" || name == ":authority";
-	if index { put_int(out, 0x40, 6, by_name); } else { put_int(out, 0x00, 4, by_name); }
-	if by_name == 0 { put_string(out, name); }
+	if index put_int(out, 0x40, 6, by_name);
+	else     put_int(out, 0x00, 4, by_name);
+	if !by_name put_string(out, name);
 	put_string(out, value);
-	if !index { return; }
-	size := len(name) + len(value) + 32;
+	if !index return;
+	size := name.count + value.count + 32;
 	evict(e, size);
-	if e.size + size > e.bound { return; }
-	append(*e.table, Header.{clone(name, e.allocator), clone(value, e.allocator)});
+	if e.size + size > e.bound return;
+	array_add(*e.table, copy_header(name, value, e.allocator));
 	e.size += size;
 }
 
-put_int :: (out: *[..]u8, first: u8, prefix: u64, v: int) {
+put_int :: (out: *[..]u8, first: u8, prefix: int, v: int) {
 	limit := (1 << prefix) - 1;
-	if v < limit {
-		append(out, first | (cast(u8)(v)));
-		return;
-	}
-	append(out, first | (cast(u8)(limit)));
-	{ r := v - limit;
-	while true {
-		if r < 128 {
-			append(out, cast(u8)(r));
-			return;
-		}
-		append(out, (cast(u8)(r & 0x7f)) | 0x80);
+	if v < limit { array_add(out, first | (cast(u8) v)); return; }
+	array_add(out, first | (cast(u8) limit));
+	r := v - limit;
+	while r >= 128 {
+		array_add(out, (cast(u8) (r & 0x7f)) | 0x80);
 		r >>= 7;
-} }
+	}
+	array_add(out, cast(u8) r);
 }
 
 put_string :: (out: *[..]u8, s: string) {
 	bits := 0;
-	for ch: transmute([]u8, s) { bits += cast(int)(HUFFMAN_LENS[ch]); }
-	if (bits + 7) / 8 >= len(s) {
-		put_int(out, 0, 7, len(s));
-		append(out, s);
+	for s bits += HUFFMAN_LENS[it];
+	if (bits + 7) / 8 >= s.count {
+		put_int(out, 0, 7, s.count);
+		array_add(out, ..cast([]u8) s);
 		return;
 	}
 	put_int(out, 0x80, 7, (bits + 7) / 8);
 	acc: u64;
 	n: u64;
-	for ch: transmute([]u8, s) {
-		acc = (acc << HUFFMAN_LENS[ch]) | (cast(u64)(HUFFMAN_CODES[ch]));
-		n += cast(u64)(HUFFMAN_LENS[ch]);
-		{ 
-		while n >= 8 { append(out, cast(u8)(acc >> (n - 8)));  n -= 8; } }
+	for s {
+		acc = (acc << HUFFMAN_LENS[it]) | (cast(u64) HUFFMAN_CODES[it]);
+		n += HUFFMAN_LENS[it];
+		while n >= 8 { array_add(out, cast(u8) (acc >> (n - 8))); n -= 8; }
 	}
-	if n > 0 { append(out, (cast(u8)(acc << (8 - n))) | (cast(u8)(0xff >> n))); } // Padded with EOS's leading ones.
+	if n array_add(out, (cast(u8) (acc << (8 - n))) | (cast(u8) (0xff >> n))); // padded with EOS's leading ones
 }
-#scope_export
 
-// RFC 7541 Appendix A, 1-based on the wire.
 // RFC 7541 Appendix A, 1-based on the wire.
 HPACK_STATIC := Header.[
 	.{":authority", ""}, .{":method", "GET"}, .{":method", "POST"}, .{":path", "/"}, .{":path", "/index.html"},
@@ -173,7 +153,6 @@ HPACK_STATIC := Header.[
 	.{"transfer-encoding", ""}, .{"user-agent", ""}, .{"vary", ""}, .{"via", ""}, .{"www-authenticate", ""}
 ];
 
-// RFC 7541 Appendix B. Index = byte value.
 // RFC 7541 Appendix B. Index = byte value.
 HUFFMAN_CODES := u32.[
 	0x00001ff8, 0x007fffd8, 0x0fffffe2, 0x0fffffe3, 0x0fffffe4, 0x0fffffe5, 0x0fffffe6, 0x0fffffe7,

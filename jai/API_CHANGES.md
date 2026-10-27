@@ -101,3 +101,42 @@
 ## voice_dave / voice_mls
 - voice_dave: session_take_outgoing(s), session_status(s), session_verification_code(s, user), session_user_ids(s),
   ratchet_init(r, base) lose the allocator (use `,, temp`); Session.recognized/transitions/decryptors/roster are Tables.
+
+## tls
+- connect(under, cfg, allocator) -> *Session, netio.Error  ->  connect(under, cfg) -> *Session, netio.Error, Error (third:
+  the detailed reason); the Session comes from context.allocator. last_error() and the #add_context field removed.
+- ensure_init removed: new_ssl/connect initialise on first use. New set_context(ssl, *#Context): an SSL driven outside a
+  Session (QUIC) must name the context its BoringSSL callbacks run in, on the thread that drives it (quic does).
+- CHACHA20_IMPL removed (it was fc_chacha20's; voice/rtp.jai:74 should use crypto). CHROME_TLS12_CIPHERS private.
+- TRUST_CACHE_TTL -> TRUST_CACHE_TTL_MS. OPENSSL_strdup binding removed, OPENSSL_zalloc added.
+
+## http
+- Allocator parameters removed; pass `,, a`: h1_init(c, s, limits), h2_connect(s, cfg), ws_connect(s, req, opts),
+  ws_attach(s, opts), ws_accept_for_key(key). Callers: discord/transport.jai:284,299,362, gateway.jai:485,
+  remote_auth.jai:482, app/update.jai:61.
+- Decoder_Proc (src, dst: *[..]u8, max_out) -> Error  ->  (src, max_out) -> []u8, Error, the result from
+  context.allocator (decode_body passes the response's). Callers: discord/transport.jai:86-98 (br_decoder/zstd_decoder:
+  `out, err := brotli.decompress(src, max_out); return out, ifx err then .Decompress else .None;`).
+- New make_response(version): an empty Response whose arrays and strings use context.allocator.
+- pipe_make(read_timeout: Duration, max_chunk) -> pipe_make(read_timeout_ms := 10_000, max_chunk := 0).
+- Now private: header_has_token, the Reader procs (reader_init/destroy, read_some, read_exact, consume, buffered,
+  map_net_error), h1_serialize_request, h1_write_request, h1_read_head, h1_read_response, Hpack_Encoder/hpack_*, WS_GUID,
+  H2_Stream and the nghttp2/wslay/picohttpparser bindings. nghttp2_hd_* bindings and remove_range removed.
+- Ws_Conn.ctx (wslay's context) -> Ws_Conn.wslay; Ws_Conn.inflater is an inflate.Inflater. H2_Conn.streams is a
+  Table(s32, *H2_Stream); its times are Apollo_Time.
+
+## quic
+- connect(host, port, addr) -> connect(host, port := 443); dial removed (connect is dial + wait).
+- request(c, req, allocator) -> request(c, req) with `,, a` (e.g. discord/transport.jai:433). chrome_transport_params(rtt_us)
+  and cached_rtts() take `,, a` too.
+- Conn: sock/wake_sock are Udp_Socket (Jai Socket), peer/local Udp_Addr, io a Jai Thread, streams a Table; new ssl, ctx.
+  init_quic/quic_once removed (the QUIC SSL_CTX is made on first connect).
+
+## quic_altsvc
+- record(c, host, value), usable(c, host), mark_broken(c, host): the test-only now_ parameter removed (wall clock).
+- parse(value, allocator) -> parse(value), into temp.
+- Cache.entries / Cache.conns are Tables (discord/transport.jai:404: `found, _ := table_find(*t.alt.conns, host)`); new
+  Cache.races. Entry.expires / broken_until are Apollo_Time (zero = not broken).
+- BROKEN_INITIAL -> BROKEN_INITIAL_MS, BROKEN_MAX -> BROKEN_MAX_MS, DELAY_MAIN_JOB_MAX -> DELAY_MAIN_JOB_MAX_NS.
+- connect's race jobs run on Jai Threads joined by a later connect or by destroy, which now waits for a race still running
+  (the Odin code left it running against a freed Cache).

@@ -1,26 +1,17 @@
+// fastcord's TLS client: a thin binding over vendored BoringSSL (vendor/boringssl) that wraps a netio.Stream
+// and exposes one. BoringSSL is configured the way Chrome configures it, so the ClientHello has the shape of
+// the official Discord client's (Electron 42 / Chrome 148). Certificates are checked by the OS trust store
+// for the server name (trust_*.jai), never by BoringSSL's own verifier.
 #import "Basic";
-#import "Math";
-#import "String";
 #import "Hash_Table";
 #import "Atomics";
-#import "fc";
-brotli :: #import "brotli";
-chacha20 :: #import "fc_chacha20";
-hash :: #import "fc_chash";
-intrinsics :: #import "fc_intrinsics";
 locks :: #import "locks";
-sync :: #import "fc_sync";
 netio :: #import "netio";
-runtime :: #import "fc_runtime";
-time :: #import "fc_time";
-#if OS == .WINDOWS win :: #import "fc_windows";
-bssl :: #library,no_dll "../../build/fc_vendor";
-corefoundation :: #library,system,link_always "CoreFoundation";
-sec :: #library,system,link_always "Security";
-crypt32 :: #system_library "crypt32";
+brotli :: #import "brotli";
+crypto :: #import "crypto";
 #load "boringssl.jai";
 #load "tls.jai";
 #load "trust_cache.jai";
 #if OS == .MACOS #load "trust_darwin.jai";
-#if OS != .WINDOWS && OS != .MACOS #load "trust_other.jai";
-#if OS == .WINDOWS #load "trust_windows.jai";
+else #if OS == .WINDOWS #load "trust_windows.jai";
+else #load "trust_other.jai";

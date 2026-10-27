@@ -1,21 +1,23 @@
-BROKEN_INITIAL :: 5 * time.Minute;
-BROKEN_MAX :: 48 * time.Hour;
+BROKEN_INITIAL_MS :: 5 * 60 * 1000;
+BROKEN_MAX_MS :: 48 * 60 * 60 * 1000;
 DELAY_MAIN_JOB_MULTIPLIER :: 1.5;
-DELAY_MAIN_JOB_MAX :: 3 * time.Second;
+DELAY_MAIN_JOB_MAX_NS :: 3_000_000_000;
 
 Entry :: struct {
 	port: int;
-	expires: time.Time;
-	broken_until: time.Time;
+	expires: Apollo_Time;
+	broken_until: Apollo_Time; // zero: not broken
 	broken_count: int;
 }
 
+// Cache is shared by every thread that connects; its memory is on the heap.
 Cache :: struct {
 	mu: locks.Mutex;
-	entries: Map(string, Entry);
-	conns: Map(string, *quic.Conn); // live h3 connection per origin
-	quic_works: bool; // QUIC succeeded on this network (enables delaying TCP)
-	path: string; // persistence file, "" for memory only
+	entries: Table(string, Entry);
+	conns: Table(string, *quic.Conn); // live h3 connection per origin
+	quic_works: bool;                 // QUIC succeeded on this network (enables delaying TCP)
+	path: string;                     // persistence file, "" for memory only
+	races: [..]*Race;                 // finished races whose job threads are still to be joined
 }
 
 Alternative :: struct {
@@ -25,108 +27,79 @@ Alternative :: struct {
 	ma: int; // seconds
 }
 
-// parse parses an Alt-Svc header value. clear=true for "clear".
-parse :: (value: string, allocator := temp) -> [..]Alternative, bool {
+// parse parses an Alt-Svc header value into temp; clear is true for "clear".
+parse :: (value: string) -> [..]Alternative, clear: bool {
 	alts: [..]Alternative;
-	clear: bool;
-	alts = make_dynamic(Alternative, 0, 0, allocator);
-	v := strings.trim_space(value);
-	if v == "clear" { return alts, true; }
-	it_ := v;
-	while true { part, __ok1 := strings.split_iterator(*it_, ","); if !__ok1 break;
+	alts.allocator = temp;
+	v := trim(value);
+	if v == "clear" return alts, true;
+	while v {
 		a := Alternative.{ma = 86400};
-		fields := part;
+		fields := next_part(*v, #char ",");
 		first := true;
-		while true { f, __ok2 := strings.split_iterator(*fields, ";"); if !__ok2 break;
-			kv := strings.trim_space(f);
-			eq := strings.index_byte(kv, #char "=");
-			if eq < 0 { continue; }
-			k, val := strings.trim_space(sub(kv, 0, eq)), strings.trim_space(sub_from(kv, eq + 1));
+		while fields {
+			found, k, val := split_from_left(trim(next_part(*fields, #char ";")), #char "=");
+			if !found continue;
+			k, val = trim(k), trim(val);
 			if first {
 				first = false;
 				a.proto = k;
-				val = strings.trim(val, "\"");
-				colon := strings.last_index_byte(val, #char ":");
-				if colon < 0 { break; }
-				a.host = sub(val, 0, colon);
-				p, ok := strconv.parse_int(sub_from(val, colon + 1));
-				if !ok || p <= 0 || p > 65535 { break; }
+				colon, host, port := split_from_right(trim(val, "\""), #char ":");
+				if !colon break;
+				a.host = host;
+				p, ok := parse_int(port);
+				if !ok || p <= 0 || p > 65535 break;
 				a.port = p;
 			} else if k == "ma" {
-				{ n, ok := strconv.parse_int(val);
-				if ok && n >= 0 { a.ma = n; } }
+				n, ok := parse_int(val);
+				if ok && n >= 0 a.ma = n;
 			}
 		}
-		if a.proto != "" && a.port > 0 { append(*alts, a); }
+		if a.proto && a.port > 0 array_add(*alts, a);
 	}
 	return alts, false;
 }
 
 // record stores the h3 alternative advertised by a response from host.
-record :: (c: *Cache, host: string, header_value: string, now_ := time.Time.{}) {
-	now := ifx now_._nsec != 0 then now_ else time.now();
+record :: (c: *Cache, host: string, header_value: string) {
+	now := current_time_consensus();
 	alts, clear := parse(header_value);
-	locks.lock(*c.mu);
-	defer locks.unlock(*c.mu);
+	locks.guard(*c.mu);
+	push_allocator(Context_Base.default_allocator);
 	if clear {
-		{ k, _, ok := map_entry_key(c, host);
-		if ok {
-			delete_key(*c.entries, host);
-			delete(k);
-		} }
+		for * c.entries if it_index == host { free(it_index); remove it; break; }
 		save_locked(c);
 		return;
 	}
-	for a: alts {
+	for alts {
 		// Chrome uses only "h3" (RFC 9114) here, for the same host.
-		if a.proto != "h3" || (a.host != "" && a.host != host) { continue; }
-		e := get(c.entries, host);
-		e.port = a.port;
-		e.expires = time.time_add(now, cast(time.Duration) a.ma * time.Second);
+		if it.proto != "h3" || (it.host && it.host != host) continue;
+		_, e := table_find(*c.entries, host);
+		e.port = it.port;
+		e.expires = now + seconds_to_apollo(it.ma);
 		set_entry_locked(c, host, e);
 		save_locked(c);
 		return;
 	}
 }
-#scope_module
-
-map_entry_key :: (c: *Cache, host: string) -> string, Entry, bool {
-	for k, v: c.entries { if k == host { return k, v, true; } }
-	return "", .{}, false;
-}
-
-set_entry_locked :: (c: *Cache, host: string, e: Entry) {
-	{ _, ok := map_find(c.entries, host);
-	if ok {
-		at(*c.entries, host).* = e;
-	} else {
-		at(*c.entries, clone(host)).* = e;
-	} }
-}
-#scope_export
 
 // usable reports whether h3 should be tried for host, and on which port.
-usable :: (c: *Cache, host: string, now_ := time.Time.{}) -> int, bool {
-	port: int;
-	ok: bool;
-	now := ifx now_._nsec != 0 then now_ else time.now();
-	locks.lock(*c.mu);
-	defer locks.unlock(*c.mu);
-	e, found := map_find(c.entries, host);
-	if !found || time.diff(now, e.expires) <= 0 { return 0, false; }
-	if time.diff(now, e.broken_until) > 0 { return 0, false; }
+usable :: (c: *Cache, host: string) -> port: int, ok: bool {
+	now := current_time_consensus();
+	locks.guard(*c.mu);
+	found, e := table_find(*c.entries, host);
+	if !found || e.expires <= now || e.broken_until > now return 0, false;
 	return e.port, true;
 }
 
 // mark_broken records a QUIC failure for host (exponential backoff).
-mark_broken :: (c: *Cache, host: string, now_ := time.Time.{}) {
-	now := ifx now_._nsec != 0 then now_ else time.now();
-	locks.lock(*c.mu);
-	defer locks.unlock(*c.mu);
-	e, found := map_find(c.entries, host);
-	if !found { return; }
-	d := BROKEN_INITIAL * ((cast(time.Duration) 1) << min(e.broken_count, 10));
-	e.broken_until = time.time_add(now, min(d, BROKEN_MAX));
+mark_broken :: (c: *Cache, host: string) {
+	now := current_time_consensus();
+	locks.guard(*c.mu);
+	push_allocator(Context_Base.default_allocator);
+	found, e := table_find(*c.entries, host);
+	if !found return;
+	e.broken_until = now + milliseconds_to_apollo(min(BROKEN_INITIAL_MS << min(e.broken_count, 10), BROKEN_MAX_MS));
 	e.broken_count += 1;
 	set_entry_locked(c, host, e);
 	save_locked(c);
@@ -134,75 +107,79 @@ mark_broken :: (c: *Cache, host: string, now_ := time.Time.{}) {
 
 // mark_working clears the backoff after QUIC succeeded.
 mark_working :: (c: *Cache, host: string) {
-	locks.lock(*c.mu);
-	defer locks.unlock(*c.mu);
+	locks.guard(*c.mu);
+	push_allocator(Context_Base.default_allocator);
 	c.quic_works = true;
-	e, found := map_find(c.entries, host);
-	if !found || e.broken_count == 0 { return; }
+	e := table_find_pointer(*c.entries, host);
+	if !e || !e.broken_count return;
 	e.broken_count = 0;
 	e.broken_until = .{};
-	set_entry_locked(c, host, e);
 	save_locked(c);
 }
 
 // load reads a cache saved by a previous run; expired entries are dropped.
 load :: (c: *Cache, path: string) -> bool {
-	c.path = clone(path);
-	data, err := os.read_entire_file(path, temp);
-	if err != null { return false; }
-	now := time.now();
-	locks.lock(*c.mu);
-	defer locks.unlock(*c.mu);
-	text := as_string(data);
-	while true { line, __ok3 := strings.split_lines_iterator(*text); if !__ok3 break;
-		f := strings.fields(line, temp);
+	c.path = copy_string(path,, Context_Base.default_allocator);
+	text, ok := read_entire_file(path, log_errors = false,, temp);
+	if !ok return false;
+	now := current_time_consensus();
+	locks.guard(*c.mu);
+	push_allocator(Context_Base.default_allocator);
+	while text {
+		f: [6]string;
+		n := 0;
+		line := trim_right(next_part(*text, #char "\n"), "\r");
+		while line && n < f.count {
+			line = trim_left(line, " \t");
+			if !line break;
+			end := 0;
+			while end < line.count && line[end] != #char " " && line[end] != #char "\t" end += 1;
+			f[n] = slice(line, 0, end);
+			n += 1;
+			advance(*line, end);
+		}
 		// "rtt <host> <us>": the server's smoothed RTT (Chrome network_stats.srtt)
-		if len(f) == 3 && f[0] == "rtt" {
-			{ us, ok := strconv.parse_u64(f[2]);
-			if ok { quic.set_cached_rtt_us(f[1], us); } }
+		if n == 3 && f[0] == "rtt" {
+			us, uok := parse_int(f[2], u64);
+			if uok quic.set_cached_rtt_us(f[1], us);
 			continue;
 		}
-		if len(f) != 5 { continue; }
-		port, ok1 := strconv.parse_int(f[1]);
-		exp, ok2 := strconv.parse_i64(f[2]);
-		bu, ok3 := strconv.parse_i64(f[3]);
-		bc, ok4 := strconv.parse_int(f[4]);
-		if !(ok1 && ok2 && ok3 && ok4) { continue; }
-		e := Entry.{port, time.unix(exp, 0), time.unix(bu, 0), bc};
-		if time.diff(now, e.expires) <= 0 { continue; }
+		if n != 5 continue;
+		port, ok1 := parse_int(f[1]);
+		exp, ok2 := parse_int(f[2]);
+		bu, ok3 := parse_int(f[3]);
+		bc, ok4 := parse_int(f[4]);
+		if !(ok1 && ok2 && ok3 && ok4) continue;
+		e := Entry.{port, from_unix(exp), from_unix(bu), bc};
+		if e.expires <= now continue;
 		set_entry_locked(c, f[0], e);
 	}
 	return true;
 }
-#scope_module
 
-save_locked :: (c: *Cache) {
-	if c.path == "" { return; }
-	b := strings.builder_make(temp);
-	for host, e: c.entries {
-		fmt.sbprintf(*b, "%s %d %d %d %d\n", host, e.port, time.to_unix_seconds(e.expires), time.to_unix_seconds(e.broken_until), e.broken_count);
-	}
-	for r: quic.cached_rtts(temp) { fmt.sbprintf(*b, "rtt %s %d\n", r.host, r.us); }
-	tmp := strings.concatenate(string.[c.path, ".tmp"], temp);
-	if os.write_entire_file(tmp, transmute([]u8, strings.to_string(b))) == null {
-		os.rename(tmp, c.path);
-	}
-}
-#scope_export
-
+// destroy waits for connects still racing, closes the live sessions (recording their RTTs), saves the
+// cache and frees it.
 destroy :: (c: *Cache) {
-	for k, conn: c.conns {
-		quic.close(conn); // records the session's RTT
-		delete(k);
+	locks.lock(*c.mu);
+	races := c.races;
+	c.races.data, c.races.count, c.races.allocated = null, 0, 0;
+	locks.unlock(*c.mu);
+	for races race_free(it, wait = true);
+	array_free(races,, Context_Base.default_allocator);
+	push_allocator(Context_Base.default_allocator);
+	for c.conns {
+		quic.close(it); // records the session's RTT
+		free(it_index);
 	}
-	delete(c.conns);
+	deinit(*c.conns);
 	// persist the RTTs learned this session with the alternatives
 	locks.lock(*c.mu);
 	save_locked(c);
 	locks.unlock(*c.mu);
-	for k: c.entries { delete(k); }
-	delete(c.entries);
-	delete(c.path);
+	for c.entries free(it_index);
+	deinit(*c.entries);
+	free_string(c.path);
+	c.path = "";
 }
 
 Protocol :: enum u8 {
@@ -217,8 +194,67 @@ Tcp_Closer :: #type (conn: *void, user: *void);
 Result :: struct {
 	proto: Protocol;
 	h3: *quic.Conn; // owned by the cache (reused); do not close
-	tcp: *void; // owned by the caller
+	tcp: *void;     // owned by the caller
 }
+
+// connect returns a connection for host following Chrome's logic. With no usable alternative it dials TCP
+// only; otherwise it races QUIC and TCP on two threads.
+connect :: (c: *Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user: *void) -> Result, bool {
+	// Reuse a live session.
+	{
+		locks.guard(*c.mu);
+		found, conn := table_find(*c.conns, host);
+		if found {
+			if quic.can_open(conn) return .{proto = .H3, h3 = conn}, true;
+			quic.close(conn);
+			for c.conns if it_index == host { free(it_index,, Context_Base.default_allocator); remove it; break; }
+		}
+	}
+
+	port, use_h3 := usable(c, host);
+	if !use_h3 {
+		tc, tok := dial(host, user);
+		return .{proto = .H2, tcp = tc}, tok;
+	}
+
+	r := New(Race,, Context_Base.default_allocator);
+	r.cache, r.port, r.dial, r.closer, r.user = c, port, dial, closer, user;
+	r.host = copy_string(host,, Context_Base.default_allocator);
+	locks.lock(*c.mu);
+	known := c.quic_works;
+	locks.unlock(*c.mu);
+	if known {
+		rtt_ns := cast(s64) quic.cached_rtt_us(host) * 1000;
+		r.delay_ns = min(cast(s64) (cast(float64) rtt_ns * DELAY_MAIN_JOB_MULTIPLIER), DELAY_MAIN_JOB_MAX_NS);
+	}
+	start :: (t: *Thread, r: *Race, job: (*Thread) -> s64) {
+		thread_init(t, job);
+		t.data = r;
+		thread_start(t);
+	}
+	start(*r.quic_thread, r, quic_job);
+	start(*r.tcp_thread, r, tcp_job);
+
+	res: Result;
+	ok: bool;
+	locks.lock(*r.mu);
+	while r.winner == .None && !(r.quic_done && r.tcp_done) locks.cond_wait(*r.cond, *r.mu);
+	if r.winner == .Quic { res, ok = .{proto = .H3, h3 = r.quic_conn}, true; }
+	if r.winner == .Tcp  { res, ok = .{proto = .H2, tcp = r.tcp_conn}, true; }
+	locks.unlock(*r.mu);
+
+	// The losing job may still be running: its thread is joined by a later connect, or by destroy.
+	locks.lock(*c.mu);
+	kept: [..]*Race;
+	kept.allocator = Context_Base.default_allocator;
+	for c.races if !race_free(it, wait = false) array_add(*kept, it);
+	array_add(*kept, r);
+	array_free(c.races,, Context_Base.default_allocator);
+	c.races = kept;
+	locks.unlock(*c.mu);
+	return res, ok;
+}
+
 #scope_module
 
 Race :: struct {
@@ -230,169 +266,138 @@ Race :: struct {
 	dial: Tcp_Dialer;
 	closer: Tcp_Closer;
 	user: *void;
-	delay: time.Duration;
-	start_tcp: bool;
-	quic_done: bool;
-	quic_ok: bool;
+	delay_ns: s64;
+	quic_done, quic_ok: bool;
 	quic_conn: *quic.Conn;
-	tcp_done: bool;
-	tcp_ok: bool;
+	tcp_done, tcp_ok: bool;
 	tcp_conn: *void;
-	winner: int; // 0 none, 1 quic, 2 tcp
-	refs: int;
+	winner: enum u8 { None; Quic; Tcp; };
+	jobs_done: int;
+	quic_thread, tcp_thread: Thread;
 }
-#scope_export
 
-// connect returns a connection for host following Chrome's logic. With no
-// usable alternative it dials TCP only; otherwise it races QUIC and TCP.
-connect :: (c: *Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user: *void) -> Result, bool {
-	res: Result;
-	ok: bool;
-	// Reuse a live session.
-	locks.lock(*c.mu);
-	{ conn, found := map_find(c.conns, host);
-	if found {
-		if quic.can_open(conn) {
-			locks.unlock(*c.mu);
-			return .{proto = .H3, h3 = conn}, true;
-		}
-		quic.close(conn);
-		for k: c.conns { if k == host {
-			delete_key(*c.conns, host);
-			delete(k);
-			break;
-		} }
-	} }
-	locks.unlock(*c.mu);
-
-	port, use_h3 := usable(c, host);
-	if !use_h3 {
-		tc, tok := dial(host, user);
-		return .{proto = .H2, tcp = tc}, tok;
-	}
-
-	r := new(Race, context.default_allocator);
-	r.cache = c;
-	r.host = clone(host, context.default_allocator);
-	r.port = port;
-	r.dial = dial;
-	r.closer = closer;
-	r.user = user;
-	r.refs = 3;
-	locks.lock(*c.mu);
-	known := c.quic_works;
-	locks.unlock(*c.mu);
-	if known {
-		rtt := cast(time.Duration) quic.cached_rtt_us(host) * time.Microsecond;
-		r.delay = min(cast(time.Duration)(cast(float64)(rtt) * DELAY_MAIN_JOB_MULTIPLIER), DELAY_MAIN_JOB_MAX);
-	}
-	thread.run_with_poly_data(r, quic_job);
-	thread.run_with_poly_data(r, tcp_job);
-
+// race_free joins r's threads and frees it, once both jobs are done (or, with wait, after waiting for
+// them); false if they are still running.
+race_free :: (r: *Race, wait: bool) -> bool {
 	locks.lock(*r.mu);
-	while r.winner == 0 && !(r.quic_done && r.tcp_done) { locks.cond_wait(*r.cond, *r.mu); }
-	if r.winner == {
-	case 1;
-		res = .{proto = .H3, h3 = r.quic_conn};
-		ok = true;
-	case 2;
-		res = .{proto = .H2, tcp = r.tcp_conn};
-		ok = true;
-	}
+	done := r.jobs_done == 2;
 	locks.unlock(*r.mu);
-	race_release(r);
-	return res, ok;
+	if !done && !wait return false;
+	thread_is_done(*r.quic_thread, -1);
+	thread_is_done(*r.tcp_thread, -1);
+	thread_deinit(*r.quic_thread);
+	thread_deinit(*r.tcp_thread);
+	free(r.host,, Context_Base.default_allocator);
+	free(r,, Context_Base.default_allocator);
+	return true;
 }
-#scope_module
 
-race_release :: (r: *Race) {
-	locks.lock(*r.mu);
-	r.refs -= 1;
-	last := r.refs == 0;
-	locks.unlock(*r.mu);
-	if last {
-		delete(r.host, context.default_allocator);
-		free(r,, context.default_allocator);
-	}
+job_done :: (r: *Race) {
+	locks.guard(*r.mu);
+	r.jobs_done += 1;
 }
 
 // quic_job: Chrome's QUIC job. It wins when the handshake completes. A handshake failure while TCP works
 // marks the alternative broken.
-quic_job :: (r: *Race) {
+quic_job :: (t: *Thread) -> s64 {
+	r := cast(*Race) t.data;
+	defer job_done(r);
 	conn, err := quic.connect(r.host, r.port);
-	quic_job_result(r, conn, err == .None);
-	if err == .None {
-		mark_working(r.cache, r.host);
+	ok := err == .None;
+	locks.lock(*r.mu);
+	r.quic_done, r.quic_ok = true, ok;
+	if ok {
+		r.quic_conn = conn;
+		if r.winner == .None r.winner = .Quic;
+	}
+	tcp_won := r.winner == .Tcp;
+	locks.cond_broadcast(*r.cond);
+	locks.unlock(*r.mu);
+	if ok {
+		// Keep the session for reuse whether or not it won this race.
+		c := r.cache;
+		locks.lock(*c.mu);
+		if !table_contains(*c.conns, r.host) table_add(*c.conns, copy_string(r.host,, Context_Base.default_allocator), conn);
+		else if tcp_won quic.close(conn);
+		locks.unlock(*c.mu);
+		mark_working(c, r.host);
 	} else {
 		// Broken only if TCP works (else the network or origin is just down).
 		locks.lock(*r.mu);
-		while !r.tcp_done { locks.cond_wait(*r.cond, *r.mu); }
+		while !r.tcp_done locks.cond_wait(*r.cond, *r.mu);
 		tcp_ok := r.tcp_ok;
 		locks.unlock(*r.mu);
-		if tcp_ok { mark_broken(r.cache, r.host); }
+		if tcp_ok mark_broken(r.cache, r.host);
 	}
-	race_release(r);
+	return 0;
 }
 
-quic_job_result :: (r: *Race, conn: *quic.Conn, ok: bool) {
-	locks.lock(*r.mu);
-	r.quic_done = true;
-	r.quic_ok = ok;
-	if ok {
-		r.quic_conn = conn;
-		if r.winner == 0 { r.winner = 1; }
-	}
-	tcp_won := r.winner == 2;
-	locks.cond_broadcast(*r.cond);
-	locks.unlock(*r.mu);
-	if !ok { return; }
-	// Keep the session for reuse whether or not it won this race.
-	locks.lock(*r.cache.mu);
-	{ _, found := map_find(r.cache.conns, r.host);
-	if !found {
-		at(*r.cache.conns, clone(r.host)).* = conn;
-	} else if tcp_won {
-		quic.close(conn);
-	} }
-	locks.unlock(*r.cache.mu);
-}
-
-tcp_job :: (r: *Race) {
-	if r.delay > 0 {
-		deadline := time.tick_add(time.tick_now(), r.delay);
+tcp_job :: (t: *Thread) -> s64 {
+	r := cast(*Race) t.data;
+	defer job_done(r);
+	if r.delay_ns > 0 {
+		deadline := current_time_monotonic() + nanoseconds_to_apollo(r.delay_ns);
 		locks.lock(*r.mu);
-		while !r.quic_done && time.tick_diff(time.tick_now(), deadline) > 0 {
-			locks.cond_wait_with_timeout(*r.cond, *r.mu, time.tick_diff(time.tick_now(), deadline));
+		while !r.quic_done {
+			left_ns := to_nanoseconds(deadline - current_time_monotonic());
+			if left_ns <= 0 break;
+			locks.cond_wait_with_timeout(*r.cond, *r.mu, (left_ns + 999_999) / 1_000_000);
 		}
 		skip := r.quic_ok;
-		locks.unlock(*r.mu);
 		if skip {
 			// QUIC won before TCP was needed (Chrome cancels the main job).
-			locks.lock(*r.mu);
 			r.tcp_done = true;
 			locks.cond_broadcast(*r.cond);
-			locks.unlock(*r.mu);
-			race_release(r);
-			return;
 		}
+		locks.unlock(*r.mu);
+		if skip return 0;
 	}
 	conn, ok := r.dial(r.host, r.user);
 	locks.lock(*r.mu);
-	r.tcp_done = true;
-	r.tcp_ok = ok;
+	r.tcp_done, r.tcp_ok = true, ok;
 	lost := false;
 	if ok {
 		r.tcp_conn = conn;
-		if r.winner == 0 {
-			r.winner = 2;
-		} else {
-			lost = true;
-		}
+		if r.winner == .None r.winner = .Tcp;
+		else lost = true;
 	}
 	locks.cond_broadcast(*r.cond);
 	locks.unlock(*r.mu);
-	if lost && r.closer != null { r.closer(conn, r.user); }
-	race_release(r);
+	if lost && r.closer r.closer(conn, r.user);
+	return 0;
 }
-#scope_export
 
+// next_part cuts s at its first sep and returns what came before. Looping `while s` visits every part but
+// a trailing empty one.
+next_part :: (s: *string, sep: u8) -> string {
+	found, part, rest := split_from_left(s.*, sep);
+	s.* = rest;
+	return part;
+}
+
+parse_int :: (s: string, $T := int) -> T, bool {
+	n, ok, rest := string_to_int(s, 10, T);
+	return n, ok && !rest;
+}
+
+set_entry_locked :: (c: *Cache, host: string, e: Entry) {
+	p := table_find_pointer(*c.entries, host);
+	if p p.* = e;
+	else table_add(*c.entries, copy_string(host), e);
+}
+
+// The file stores Unix seconds; 0 stands for a zero time.
+to_unix :: (t: Apollo_Time) -> s64 { return ifx t == .{} then 0 else to_seconds(t - APOLLO_TIME_FOR_JAN_1_1970); }
+from_unix :: (s: s64) -> Apollo_Time { return ifx s then seconds_to_apollo(s) + APOLLO_TIME_FOR_JAN_1_1970 else .{}; }
+
+save_locked :: (c: *Cache) {
+	if !c.path return;
+	b: String_Builder;
+	b.allocator = temp;
+	for c.entries print_to_builder(*b, "% % % % %\n", it_index, it.port, to_unix(it.expires), to_unix(it.broken_until), it.broken_count);
+	for quic.cached_rtts(,, temp) print_to_builder(*b, "rtt % %\n", it.host, it.us);
+	tmp := tprint("%.tmp", c.path);
+	if write_entire_file(tmp, *b) file_move(tmp, c.path);
+}
+
+free_string :: (s: string) { if s.count free(s.data); }

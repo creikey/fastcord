@@ -1,7 +1,7 @@
 // HTTP/1.1 client connection. Not thread-safe: one request at a time.
-//   c: H1_Conn
-//   h1_init(&c, stream)
-//   resp, err := h1_round_trip(&c, req)
+//   c: H1_Conn;
+//   h1_init(*c, stream);
+//   resp, err := h1_round_trip(*c, req);
 //   if !c.reusable { reconnect }
 // Response heads and chunked bodies are parsed by picohttpparser (vendor/picohttpparser).
 H1_Conn :: struct {
@@ -14,13 +14,39 @@ H1_Conn :: struct {
 
 H1_Limits :: struct {
 	max_header_bytes: int; // total header section; 0 = 256 KiB
-	max_headers: int; // 0 = 256
-	max_body: int; // 0 = 256 MiB
+	max_headers: int;      // 0 = 256
+	max_body: int;         // 0 = 256 MiB
 }
 
-#if OS == .WINDOWS {
-} else {
+// h1_init sets c up on s; c's buffers and responses come from context.allocator.
+h1_init :: (c: *H1_Conn, s: netio.Stream, limits := H1_Limits.{}) {
+	c.s, c.allocator, c.limits = s, context.allocator, limits;
+	if c.limits.max_header_bytes <= 0 c.limits.max_header_bytes = 256 << 10;
+	if c.limits.max_headers <= 0 c.limits.max_headers = 256;
+	if c.limits.max_body <= 0 c.limits.max_body = 256 << 20;
+	reader_init(*c.r, s);
+	c.reusable = true;
 }
+
+h1_destroy :: (c: *H1_Conn, close_stream := true) {
+	reader_destroy(*c.r);
+	if close_stream netio.close(c.s);
+}
+
+// h1_round_trip writes req and reads the response on a keep-alive connection.
+h1_round_trip :: (c: *H1_Conn, req: Request) -> Response, Error {
+	if !c.reusable return .{}, .Closed;
+	err := h1_write_request(c.s, req);
+	if err != .None {
+		c.reusable = false;
+		return .{}, err;
+	}
+	resp, keep, rerr := h1_read_response(*c.r, req.method, c.limits,, c.allocator);
+	err = rerr;
+	c.reusable = keep && err == .None && resp.status != 101;
+	return resp, err;
+}
+
 #scope_module
 
 Phr_Header :: struct {
@@ -38,199 +64,147 @@ Phr_Chunked_Decoder :: struct {
 	_total_read: u64;
 	_total_overhead: u64;
 }
-	phr_parse_response :: (buf: *u8, len: u64, minor_version: *s32, status: *s32, msg: **u8, msg_len: *u64, headers: *Phr_Header, num_headers: *u64, last_len: u64) -> s32 #foreign pico;
-	phr_decode_chunked :: (decoder: *Phr_Chunked_Decoder, buf: *u8, bufsz: *u64) -> int #foreign pico;
-#scope_export
 
-h1_init :: (c: *H1_Conn, s: netio.Stream, limits := H1_Limits.{}, allocator := context.allocator) {
-	c.s = s;
-	c.allocator = allocator;
-	c.limits = limits;
-	if c.limits.max_header_bytes <= 0 { c.limits.max_header_bytes = 256 << 10; }
-	if c.limits.max_headers <= 0 { c.limits.max_headers = 256; }
-	if c.limits.max_body <= 0 { c.limits.max_body = 256 << 20; }
-	reader_init(*c.r, s, READER_SIZE, allocator);
-	c.reusable = true;
-}
-
-h1_destroy :: (c: *H1_Conn, close_stream := true) {
-	reader_destroy(*c.r);
-	if close_stream { netio.close(c.s); }
-}
-#scope_module
+phr_parse_response :: (buf: *u8, len: u64, minor_version: *s32, status: *s32, msg: **u8, msg_len: *u64, headers: *Phr_Header, num_headers: *u64, last_len: u64) -> s32 #foreign vendor;
+phr_decode_chunked :: (decoder: *Phr_Chunked_Decoder, buf: *u8, bufsz: *u64) -> int #foreign vendor;
 
 valid_token :: (s: string) -> bool {
-	if len(s) == 0 { return false; }
-	for c: transmute([]u8, s) {
-		if c <= #char " " || c >= 0x7f || c == #char ":" { return false; }
-	}
+	if !s return false;
+	for s if it <= #char " " || it >= 0x7f || it == #char ":" return false;
 	return true;
 }
 
 valid_value :: (s: string) -> bool {
-	for c: transmute([]u8, s) {
-		if c == 13 || c == 10 || c == 0 { return false; }
-	}
+	for s if it == 13 || it == 10 || it == 0 return false;
 	return true;
 }
-#scope_export
 
-// h1_serialize_request appends the exact request bytes. Host is emitted first
-// from req.authority only if no Host header is present. Content-Length is the
-// caller's job (Chrome's position for it varies by request type).
-h1_serialize_request :: (buf: *[..]u8, req: Request) -> Error {
-	if !valid_token(req.method) { return .Bad_Request; }
-	if len(req.path) == 0 || !valid_value(req.path) || strings.contains_any(req.path, " ") { return .Bad_Request; }
-	append(buf, req.method);
-	append(buf, " ");
-	append(buf, req.path);
-	append(buf, " HTTP/1.1\r\n");
-	{ _, has_host := header_get(req.headers, "host");
-	if !has_host && len(req.authority) > 0 {
-		if !valid_value(req.authority) { return .Bad_Request; }
-		append(buf, "Host: ");
-		append(buf, req.authority);
-		append(buf, "\r\n");
-	} }
-	for h: req.headers {
-		if !valid_token(h.name) || !valid_value(h.value) { return .Bad_Request; }
-		append(buf, h.name);
-		append(buf, ": ");
-		append(buf, h.value);
-		append(buf, "\r\n");
+// h1_serialize_request appends the exact request bytes. Host is emitted first from req.authority only if
+// no Host header is present. Content-Length is the caller's job (Chrome's position for it varies by
+// request type).
+h1_serialize_request :: (buf: *String_Builder, req: Request) -> Error {
+	if !valid_token(req.method) return .Bad_Request;
+	if !req.path || !valid_value(req.path) || contains(req.path, #char " ") return .Bad_Request;
+	print_to_builder(buf, "% % HTTP/1.1\r\n", req.method, req.path);
+	_, has_host := header_get(req.headers, "host");
+	if !has_host && req.authority {
+		if !valid_value(req.authority) return .Bad_Request;
+		print_to_builder(buf, "Host: %\r\n", req.authority);
+	}
+	for req.headers {
+		if !valid_token(it.name) || !valid_value(it.value) return .Bad_Request;
+		print_to_builder(buf, "%: %\r\n", it.name, it.value);
 	}
 	append(buf, "\r\n");
-	append(buf, ..req.body);
+	append(buf, req.body.data, req.body.count);
 	return .None;
 }
 
 h1_write_request :: (s: netio.Stream, req: Request) -> Error {
-	buf := make_dynamic(u8, 0, 1024 + len(req.body), temp);
-	__e1 := h1_serialize_request(*buf, req); if failed(__e1) return __e1;
-	return map_net_error(netio.write(s, view(buf)));
+	b: String_Builder;
+	b.allocator = temp;
+	err := h1_serialize_request(*b, req);
+	if err != .None return err;
+	return map_net_error(netio.write(s, cast([]u8) builder_to_string(*b,, temp)));
 }
 
-// h1_read_head reads a status line + headers, growing the reader's buffer up to
-// limits.max_header_bytes. Returns after the blank line.
-h1_read_head :: (r: *Reader, resp: *Response, limits: H1_Limits, allocator: Allocator) -> Error {
-	resp.allocator = allocator;
-	fields := make_slice(Phr_Header, limits.max_headers, temp);
+// h1_read_head reads a status line + headers into resp (strings from context.allocator), growing the
+// reader's buffer up to limits.max_header_bytes. Returns after the blank line.
+h1_read_head :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
+	fields := NewArray(limits.max_headers, Phr_Header,, temp);
 	last := 0;
 	while true {
-		buf := sub(r.buf, r.start, r.end);
+		buf := array_view(r.buf, r.start, r.end - r.start);
 		minor, status: s32;
 		msg: *u8;
 		msg_len: u64;
-		n := cast(u64)(len(fields));
-		ret := phr_parse_response(raw_data(buf), xx len(buf), *minor, *status, *msg, *msg_len, raw_data(fields), *n, cast(u64)(last));
-		if ret == -1 { return .Protocol; }
+		n := cast(u64) fields.count;
+		ret := phr_parse_response(buf.data, xx buf.count, *minor, *status, *msg, *msg_len, fields.data, *n, xx last);
+		if ret == -1 return .Protocol;
 		if ret > 0 {
 			resp.version = ifx minor == 0 then .Http1_0 else .Http1_1;
-			resp.status = cast(int)(status);
-			if len(resp.reason) > 0 { delete(resp.reason, allocator); }
-			resp.reason = ifx msg_len > 0 then clone(as_string(sub(msg, 0, msg_len)), allocator) else "";
-			for f: sub(fields, 0, n) {
-				if f.name == null { return .Protocol; } // obs-fold
-				append(*resp.headers, Header.{clone(as_string(sub(f.name, 0, f.name_len)), allocator), clone(as_string(sub(f.value, 0, f.value_len)), allocator)});
+			resp.status = status;
+			free_string(resp.reason);
+			resp.reason = copy_string(to_string(msg, xx msg_len));
+			for array_view(fields, 0, xx n) {
+				if !it.name return .Protocol; // obs-fold
+				array_add(*resp.headers, copy_header(to_string(it.name, xx it.name_len), to_string(it.value, xx it.value_len), context.allocator));
 			}
-			consume(r, cast(int)(ret));
+			r.start += ret;
 			return .None;
 		}
-		last = len(buf);
-		if last >= limits.max_header_bytes { return .Too_Large; }
-		if r.start == 0 && r.end == len(r.buf) { reader_grow(r, min(2 * len(r.buf), limits.max_header_bytes)); }
-		__e2 := fill(r); if failed(__e2) return __e2;
+		last = buf.count;
+		if last >= limits.max_header_bytes return .Too_Large;
+		if r.start == 0 && r.end == r.buf.count reader_grow(r, min(2 * r.buf.count, limits.max_header_bytes));
+		err := fill(r);
+		if err != .None return err;
 	}
+	return .None;
 }
-#scope_module
 
-clear_headers :: (resp: *Response) {
-	for h: resp.headers {
-		delete(h.name, resp.allocator);
-		delete(h.value, resp.allocator);
-	}
-	clear(*resp.headers);
-}
-#scope_export
-
-// h1_read_response reads a full response (skipping 1xx except 101) and its body.
+// h1_read_response reads a full response (skipping 1xx except 101) and its body, from context.allocator.
 // keep_alive reports whether the connection can carry another request.
-h1_read_response :: (r: *Reader, method: string, limits: H1_Limits, allocator := context.allocator) -> Response, bool, Error {
-	resp: Response;
-	keep_alive: bool;
-	err: Error;
-	resp.allocator = allocator;
-	resp.headers = make_dynamic(Header, 0, 16, allocator);
-	resp.body = make_dynamic(u8, 0, 0, allocator);
-	resp.trailers = make_dynamic(Header, 0, 0, allocator);
+h1_read_response :: (r: *Reader, method: string, limits: H1_Limits) -> Response, keep_alive: bool, Error {
+	resp := make_response(.Http1_1);
 	while true {
-		{ err = h1_read_head(r, *resp, limits, allocator);
+		err := h1_read_head(r, *resp, limits);
 		if err != .None {
 			response_destroy(*resp);
 			return .{}, false, err;
-		} }
-		if resp.status >= 100 && resp.status < 200 && resp.status != 101 {
-			clear_headers(*resp);
-			continue;
 		}
-		break;
+		if resp.status < 100 || resp.status >= 200 || resp.status == 101 break;
+		clear_headers(*resp.headers);
 	}
-	keep_alive = resp.version == .Http1_1;
-	if header_has_token(view(resp.headers), "connection", "close") { keep_alive = false; }
-	if resp.version == .Http1_0 && header_has_token(view(resp.headers), "connection", "keep-alive") { keep_alive = true; }
+	keep_alive := resp.version == .Http1_1;
+	if header_has_token(resp.headers, "connection", "close") keep_alive = false;
+	if resp.version == .Http1_0 && header_has_token(resp.headers, "connection", "keep-alive") keep_alive = true;
 
 	no_body := method == "HEAD" || resp.status == 204 || resp.status == 304 || (resp.status >= 100 && resp.status < 200);
-	if no_body { return resp, keep_alive, .None; }
+	if no_body return resp, keep_alive, .None;
 
-	{ te, has_te := header_get(view(resp.headers), "transfer-encoding");
+	err: Error;
+	te, has_te := header_get(resp.headers, "transfer-encoding");
+	_, has_cl := header_get(resp.headers, "content-length");
 	if has_te {
 		// chunked must be the final coding; anything else is close-delimited
-		last := te;
-		{ i := strings.last_index_byte(te, #char ",");
-		if i >= 0 { last = sub_from(te, i + 1); } }
-		if strings.equal_fold(strings.trim_space(last), "chunked") {
+		found, _, last := split_from_right(te, #char ",");
+		if equal_nocase(trim(last), "chunked") {
 			err = read_chunked(r, *resp, limits);
 		} else {
 			err = read_until_close(r, *resp, limits);
 			keep_alive = false;
 		}
-	} else { _, has_cl := header_get(view(resp.headers), "content-length");
-if has_cl {
-		n, ok := parse_content_length(view(resp.headers));
-		if !ok {
-			err = .Protocol;
-		} else if n > limits.max_body {
-			err = .Too_Large;
-		} else {
-			err = read_body_n(r, *resp.body, n);
-		}
+	} else if has_cl {
+		n, ok := parse_content_length(resp.headers);
+		if !ok                     err = .Protocol;
+		else if n > limits.max_body err = .Too_Large;
+		else                        err = read_body_n(r, *resp.body, n);
 	} else {
 		err = read_until_close(r, *resp, limits);
 		keep_alive = false;
-	} } }
+	}
 	if err != .None {
 		response_destroy(*resp);
 		return .{}, false, err;
 	}
 	return resp, keep_alive, .None;
 }
-#scope_module
 
 // Multiple Content-Length headers / list values must all agree (RFC 9110 8.6).
 parse_content_length :: (headers: []Header) -> int, bool {
 	result := -1;
-	for h: headers {
-		if !strings.equal_fold(h.name, "content-length") { continue; }
-		v := h.value;
-		while true { part, __ok3 := strings.split_iterator(*v, ","); if !__ok3 break;
-			p := strings.trim_space(part);
-			if len(p) == 0 || len(p) > 18 { return 0, false; }
+	for headers {
+		if !equal_nocase(it.name, "content-length") continue;
+		v := it.value;
+		while v {
+			p := trim(next_part(*v, #char ","));
+			if !p || p.count > 18 return 0, false;
 			n := 0;
-			for c: transmute([]u8, p) {
-				if c < #char "0" || c > #char "9" { return 0, false; }
-				n = n * 10 + cast(int)(c - #char "0");
+			for p {
+				if it < #char "0" || it > #char "9" return 0, false;
+				n = n * 10 + (it - #char "0");
 			}
-			if result >= 0 && result != n { return 0, false; }
+			if result >= 0 && result != n return 0, false;
 			result = n;
 		}
 	}
@@ -242,64 +216,48 @@ read_body_n :: (r: *Reader, body: *[..]u8, n: int) -> Error {
 	left := n;
 	while left > 0 {
 		step := min(left, 64 << 10);
-		old := body.count;
-		resize(body, old + step);
-		{ e := read_exact(r, sub_from(body.*, old));
-		if e != .None { return e; } }
+		err := read_exact(r, grow(body, step));
+		if err != .None return err;
 		left -= step;
 	}
 	return .None;
 }
 
 read_until_close :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
-	tmp: [16 * 1024]u8;
+	tmp: [16 * 1024]u8 = ---;
 	while true {
-		n, err := read_some(r, view(tmp));
-		if err == .Closed { return .None; }
-		if err != .None { return err; }
-		if len(resp.body) + n > limits.max_body { return .Too_Large; }
-		append(*resp.body, ..sub(tmp, 0, n));
+		n, err := read_some(r, tmp);
+		if err == .Closed return .None;
+		if err != .None return err;
+		if resp.body.count + n > limits.max_body return .Too_Large;
+		array_add(*resp.body, ..array_view(tmp, 0, n));
 	}
+	return .None;
 }
 
-// read_chunked moves the reader's buffered bytes onto the end of the body and lets
-// phr_decode_chunked decode them in place. Bytes after the last chunk and its
-// trailers (discarded) belong to the next response: they are still in the reader's
-// buffer, so they are given back by rewinding r.start.
+// read_chunked moves the reader's buffered bytes onto the end of the body and lets phr_decode_chunked
+// decode them in place. Bytes after the last chunk and its trailers (discarded) belong to the next
+// response: they are still in the reader's buffer, so they are given back by rewinding r.start.
 read_chunked :: (r: *Reader, resp: *Response, limits: H1_Limits) -> Error {
 	dec := Phr_Chunked_Decoder.{consume_trailer = 1};
 	while true {
-		if r.start == r.end { __e4 := fill(r); if failed(__e4) return __e4; }
+		if r.start == r.end {
+			err := fill(r);
+			if err != .None return err;
+		}
 		raw := r.end - r.start;
-		done := len(resp.body);
-		append(*resp.body, ..sub(r.buf, r.start, r.end));
+		done := resp.body.count;
+		memcpy(grow(*resp.body, raw).data, r.buf.data + r.start, raw);
 		r.start = r.end;
-		n := cast(u64)(raw);
-		ret := phr_decode_chunked(*dec, raw_data(sub_from(resp.body, done)), *n);
-		resize(*resp.body, done + cast(int)(n));
-		if ret == -1 { return .Protocol; }
-		if len(resp.body) > limits.max_body { return .Too_Large; }
+		n := cast(u64) raw;
+		ret := phr_decode_chunked(*dec, resp.body.data + done, *n);
+		resp.body.count = done + cast(int) n;
+		if ret == -1 return .Protocol;
+		if resp.body.count > limits.max_body return .Too_Large;
 		if ret >= 0 {
 			r.start -= ret;
 			return .None;
 		}
 	}
+	return .None;
 }
-#scope_export
-
-// h1_round_trip writes req and reads the response on a keep-alive connection.
-h1_round_trip :: (c: *H1_Conn, req: Request) -> Response, Error {
-	resp: Response;
-	err: Error;
-	if !c.reusable { return .{}, .Closed; }
-	{ err = h1_write_request(c.s, req);
-	if err != .None {
-		c.reusable = false;
-		return resp, err;
-	} }
-	keep: bool;
-	resp, keep, err = h1_read_response(*c.r, req.method, c.limits, c.allocator);
-	c.reusable = keep && err == .None && resp.status != 101;
-	return resp, err;
-}
-
