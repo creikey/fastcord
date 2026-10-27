@@ -1,12 +1,11 @@
 package discord
 
 import "core:crypto"
-import "core:crypto/hash"
-import "core:crypto/rsa"
 import "core:encoding/base64"
 import "core:math/rand"
 import "core:mem"
 import "core:mem/virtual"
+import "core:slice"
 import "core:strconv"
 import "core:strings"
 import "core:thread"
@@ -14,6 +13,7 @@ import "core:time"
 import "fc:http"
 import "fc:locks"
 import "fc:netio"
+import "fc:tls"
 
 // QR code login: the remote auth gateway (useAuthWebsocket in the client's
 // login chunk, protocol v2). Per socket the client makes an RSA-OAEP key pair
@@ -44,7 +44,7 @@ Ra_Step :: enum u8 {
 // ---- protocol core (no I/O; unit-tested with a fake server) ----
 
 Ra_Session :: struct {
-	key:                rsa.Private_Key,
+	key:                ^tls.EVP_PKEY, // BoringSSL
 	spki:               []byte,
 	fingerprint:        string,
 	step:               Ra_Step,
@@ -70,27 +70,30 @@ Ra_Action :: enum u8 {
 	Fail, // bad message / fingerprint mismatch: restart with backoff
 }
 
-// ra_session_init makes the key pair (generateKey RSA-OAEP 2048, e = 65537).
+// ra_session_init makes the key pair (generateKey RSA-OAEP 2048; e = 65537 is BoringSSL's default).
 ra_session_init :: proc(s: ^Ra_Session, allocator := context.allocator) -> bool {
 	s.allocator = allocator
-	if !rsa.private_key_generate(&s.key, 2048) do return false
+	ctx := tls.EVP_PKEY_CTX_new_id(tls.EVP_PKEY_RSA, nil)
+	defer tls.EVP_PKEY_CTX_free(ctx)
+	if ctx == nil || tls.EVP_PKEY_keygen_init(ctx) != 1 || tls.EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) != 1 do return false
+	if tls.EVP_PKEY_keygen(ctx, &s.key) != 1 do return false
 	return ra_session_derive(s)
 }
 
-// ra_session_derive: the SPKI and the fingerprint of s.key.
+// ra_session_derive: the SubjectPublicKeyInfo DER (exportKey "spki") and the fingerprint of s.key.
 ra_session_derive :: proc(s: ^Ra_Session) -> bool {
-	allocator := s.allocator
-	n: [256]byte
-	nl := rsa.private_key_n(&s.key, n[:])
-	if nl != 256 do return false
-	s.spki = spki_rsa(n[:nl], rsa.private_key_e(&s.key), allocator)
+	der: [^]byte
+	n := tls.i2d_PUBKEY(s.key, &der)
+	if n <= 0 do return false
+	defer tls.OPENSSL_free(der)
+	s.spki = slice.clone(der[:n], s.allocator)
 	digest := sha256_bytes(s.spki)
-	s.fingerprint = base64url_nopad(digest[:], allocator)
+	s.fingerprint = base64url_nopad(digest[:], s.allocator)
 	return true
 }
 
 ra_session_destroy :: proc(s: ^Ra_Session) {
-	rsa.private_key_clear(&s.key)
+	tls.EVP_PKEY_free(s.key)
 	delete(s.spki, s.allocator)
 	delete(s.fingerprint, s.allocator)
 	delete(s.discriminator, s.allocator)
@@ -173,10 +176,16 @@ ra_handle :: proc(s: ^Ra_Session, msg: []byte, allocator := context.temp_allocat
 ra_decrypt :: proc(s: ^Ra_Session, b64: string, allocator := context.temp_allocator) -> ([]byte, bool) {
 	ct, err := base64.decode(b64, allocator = context.temp_allocator)
 	if err != nil || len(ct) != 256 do return nil, false
+	ctx := tls.EVP_PKEY_CTX_new(s.key, nil)
+	defer tls.EVP_PKEY_CTX_free(ctx)
 	out := make([]byte, 256, allocator)
-	pt, ok := rsa.decrypt_oaep(&s.key, .SHA256, ct, out)
-	if !ok do return nil, false
-	return pt, true
+	n := uint(len(out))
+	if ctx == nil || tls.EVP_PKEY_decrypt_init(ctx) != 1 || tls.EVP_PKEY_CTX_set_rsa_padding(ctx, tls.RSA_PKCS1_OAEP_PADDING) != 1 ||
+	   tls.EVP_PKEY_CTX_set_rsa_oaep_md(ctx, tls.EVP_sha256()) != 1 || tls.EVP_PKEY_decrypt(ctx, raw_data(out), &n, raw_data(ct), len(ct)) != 1 {
+		tls.ERR_clear_error() // a bad ciphertext must not linger for this thread's next TLS handshake
+		return nil, false
+	}
+	return out[:n], true
 }
 
 // ra_decrypt_token: the encrypted_token of POST /users/@me/remote-auth/login.
@@ -189,7 +198,7 @@ ra_decrypt_token :: proc(s: ^Ra_Session, encrypted_token: string, allocator := c
 }
 
 sha256_bytes :: proc(b: []byte) -> (d: [32]byte) {
-	hash.hash_bytes_to_buffer(.SHA256, b, d[:])
+	tls.SHA256(raw_data(b), len(b), &d[0])
 	return
 }
 
@@ -236,49 +245,6 @@ base64url_nopad :: proc(b: []byte, allocator := context.allocator) -> string {
 		else if ch == '+' do ch = '-'
 	}
 	return string(out[:n])
-}
-
-// SubjectPublicKeyInfo DER of an RSA public key (crypto.subtle exportKey "spki").
-spki_rsa :: proc(n: []byte, e: u32, allocator := context.allocator) -> []byte {
-	der_len :: proc(b: ^[dynamic]byte, n: int) {
-		switch {
-		case n < 0x80:
-			append(b, byte(n))
-		case n < 0x100:
-			append(b, 0x81, byte(n))
-		case:
-			append(b, 0x82, byte(n >> 8), byte(n))
-		}
-	}
-	der_int :: proc(b: ^[dynamic]byte, v: []byte) {
-		v := v
-		for len(v) > 1 && v[0] == 0 do v = v[1:]
-		pad := v[0] & 0x80 != 0
-		append(b, 0x02)
-		der_len(b, len(v) + int(pad))
-		if pad do append(b, 0)
-		append(b, ..v)
-	}
-	eb := [4]byte{byte(e >> 24), byte(e >> 16), byte(e >> 8), byte(e)}
-	rsakey := make([dynamic]byte, context.temp_allocator)
-	der_int(&rsakey, n)
-	der_int(&rsakey, eb[:])
-	seq := make([dynamic]byte, context.temp_allocator)
-	append(&seq, 0x30)
-	der_len(&seq, len(rsakey))
-	append(&seq, ..rsakey[:])
-	ALG :: []byte{0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00}
-	body := make([dynamic]byte, context.temp_allocator)
-	append(&body, ..ALG)
-	append(&body, 0x03)
-	der_len(&body, len(seq) + 1)
-	append(&body, 0x00)
-	append(&body, ..seq[:])
-	out := make([dynamic]byte, allocator)
-	append(&out, 0x30)
-	der_len(&out, len(body))
-	append(&out, ..body[:])
-	return out[:]
 }
 
 // ---- runner (one thread per logged-out client) ----
@@ -509,8 +475,8 @@ ra_sessions :: proc(c: ^Client) {
 ra_run_socket :: proc(c: ^Client, backoff: ^Backoff) -> Ra_End {
 	ra := &c.auth.ra
 	// The client makes the key pair once the socket is open (WebCrypto: tens of
-	// ms). Our constant-time keygen takes 0.1-3 s, so it runs before the dial
-	// and init still follows the open at once.
+	// ms). BoringSSL's keygen (built without assembly) can take longer, so it
+	// runs before the dial and init still follows the open at once.
 	s: Ra_Session
 	if !ra_session_init(&s, c.allocator) do return .Fail
 	defer ra_session_destroy(&s)

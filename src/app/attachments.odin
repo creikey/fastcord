@@ -248,15 +248,9 @@ att_work :: proc(j: ^Att_Job) {
 	case .Paste_Files:
 		res.paths = platform.clipboard_files()
 	case .Paste_Image:
-		img, ok := platform.clipboard_image()
-		if !ok {
-			res.err = .Empty
-		} else if len(img.png) > 0 {
-			res.data = img.png
-		} else {
-			res.data = imagefmt.encode_png(img.rgba, img.width, img.height)
-			delete(img.rgba)
-		}
+		png, ok := platform.clipboard_image()
+		if !ok do res.err = .Empty
+		else do res.data = png
 	case .File:
 		size: i64 = -1
 		if fi, err := os.stat(j.path, context.temp_allocator); err == nil do size = fi.size
