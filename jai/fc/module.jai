@@ -108,7 +108,6 @@ clone :: (a: []$T, allocator := context.allocator) -> []T {
 copy :: (dst: []$T, src: []T) -> int { n := min(dst.count, src.count); memcpy(dst.data, src.data, n * size_of(T)); return n; }
 copy :: (dst: []u8, src: string) -> int { n := min(dst.count, src.count); memcpy(dst.data, src.data, n); return n; }
 
-abs :: inline (x: $T) -> T { return ifx x < 0 then -x else x; }
 
 panic :: (msg: string, loc := #caller_location) { assert(false, "%", msg, loc = loc); }
 unreachable :: (loc := #caller_location) -> void { assert(false, "unreachable", loc = loc); }
@@ -134,4 +133,31 @@ load_directory :: (path: string, dir: string) -> []Load_Directory_File #compile_
         array_add(out, .{copy_string(info.short_name), read_entire_file(info.full_name)});
     });
     return out;
+}
+
+// Small insertion-ordered map with the Map API; used where a map must live inside its own value type
+// (a JSON object holding Values), which Hash_Table can't instantiate.
+Assoc :: struct(K: Type, V: Type) { keys: [..]K; vals: [..]V; }
+len :: inline (a: Assoc) -> int { return a.keys.count; }
+assoc_index :: (a: Assoc, k: a.K) -> int { for a.keys if it == k return it_index; return -1; }
+get :: (a: Assoc, k: a.K) -> a.V { i := assoc_index(a, k); if i >= 0 return a.vals[i]; z: a.V; return z; }
+map_find :: (a: Assoc, k: a.K) -> a.V, bool { i := assoc_index(a, k); if i >= 0 return a.vals[i], true; z: a.V; return z, false; }
+map_find_ptr :: (a: *Assoc, k: a.K) -> *a.V, bool { i := assoc_index(a, k); if i >= 0 return *a.vals[i], true; return null, false; }
+has :: (a: Assoc, k: a.K) -> bool { return assoc_index(a, k) >= 0; }
+at :: (a: *Assoc, k: a.K) -> *a.V {
+    i := assoc_index(a, k);
+    if i < 0 { array_add(*a.keys, k); z: a.V; array_add(*a.vals, z); i = a.keys.count - 1; }
+    return *a.vals[i];
+}
+map_set :: (a: *Assoc, k: a.K, v: a.V) { at(a, k).* = v; }
+delete_key :: (a: *Assoc, k: a.K) {
+    i := assoc_index(a, k);
+    if i >= 0 { array_ordered_remove_by_index(*a.keys, i); array_ordered_remove_by_index(*a.vals, i); }
+}
+for_expansion :: (a: *Assoc, body: Code, flags: For_Flags) #expand {
+    for k, i: a.keys {
+        `it := k;
+        #if flags & .POINTER { `it_index := *a.vals[i]; } else { `it_index := a.vals[i]; }
+        #insert body;
+    }
 }

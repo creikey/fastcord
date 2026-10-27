@@ -11,6 +11,7 @@ math :: #import "fc_math";
 os :: #import "fc_os";
 #if OS == .MACOS runtime :: #import "fc_runtime";
 thread :: #import "fc_thread";
+Thread :: thread.Thread;
 time :: #import "fc_time";
 CoreFoundation :: #library,system,link_always "CoreFoundation";
 CoreMedia :: #library,system,link_always "CoreMedia";

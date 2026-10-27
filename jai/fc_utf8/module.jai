@@ -40,7 +40,7 @@ runes_to_string :: (rs: []u32, allocator := context.allocator) -> string {
 // Runes as a for-loop source: `for r: runes(s)`, it_index = byte offset.
 Runes :: struct { s: string; }
 runes :: (s: string) -> Runes { return .{s}; }
-for_expansion :: (r: Runes, body: Code, flags: For_Flags) #expand {
+for_expansion :: (r: *Runes, body: Code, flags: For_Flags) #expand {
     i := 0;
     while i < r.s.count {
         `it, n := decode_rune_in_string(sub_from(r.s, i));

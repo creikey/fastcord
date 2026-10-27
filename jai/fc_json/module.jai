@@ -9,9 +9,9 @@ fmt :: #import "fc_fmt";
 Kind :: enum u8 { Nil; Bool; Int; Float; String; List; Map; }
 Value :: struct {
     kind: Kind;
-    union { b: bool; i: s64; f: float64; s: string; list: [..]Value; map: Map(string, Value); }
+    union { b: bool; i: s64; f: float64; s: string; list: [..]Value; map: Assoc(string, Value); }
 }
-Object :: Map(string, Value);
+Object :: Assoc(string, Value);
 Array :: [..]Value;
 Error :: enum { None; Invalid; Eof; }
 Specification :: enum { JSON; JSON5; SJSON; }

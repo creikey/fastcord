@@ -52,7 +52,7 @@ Player :: struct {
 	vtrack, atrack: int;
 	vdec: *Video_Decoder;
 	adec: *Audio_Decoder;
-	thread: *thread.Thread;
+	thread: *Thread;
 	mu: locks.Mutex;
 	cond: locks.Cond;
 
