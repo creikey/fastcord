@@ -2,7 +2,8 @@
 // (straight alpha) canvases: WebP (VP8 lossy, VP8L lossless, alpha,
 // animation), GIF, PNG/APNG and JPEG (baseline + progressive, EXIF
 // orientation). Every pixel decoder is Wuffs (vendor/wuffs, linked as C);
-// only animated WebP's container and compositing are written here.
+// only animated WebP's container and compositing are written here. The one
+// encoder, lossless WebP for uploads, is libwebp (vendor/libwebp).
 //
 // Animated images come back fully composited: every Frame is a whole canvas.
 // Frame durations follow browsers: anything <= 10 ms becomes 100 ms.

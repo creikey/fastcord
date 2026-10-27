@@ -105,7 +105,39 @@ foreign bssl {
 	OPENSSL_free :: proc(p: rawptr) ---
 	ERR_clear_error :: proc() ---
 	ERR_peek_error :: proc() -> u32 ---
+
+	// RSA-OAEP and SHA-256 for QR login (src/discord/remote_auth.odin)
+	EVP_PKEY_new :: proc() -> ^EVP_PKEY ---
+	EVP_PKEY_free :: proc(pkey: ^EVP_PKEY) ---
+	EVP_PKEY_assign_RSA :: proc(pkey: ^EVP_PKEY, key: ^RSA) -> c.int ---
+	EVP_PKEY_CTX_new :: proc(pkey: ^EVP_PKEY, e: rawptr) -> ^EVP_PKEY_CTX ---
+	EVP_PKEY_CTX_new_id :: proc(id: c.int, e: rawptr) -> ^EVP_PKEY_CTX ---
+	EVP_PKEY_CTX_free :: proc(ctx: ^EVP_PKEY_CTX) ---
+	EVP_PKEY_keygen_init :: proc(ctx: ^EVP_PKEY_CTX) -> c.int ---
+	EVP_PKEY_keygen :: proc(ctx: ^EVP_PKEY_CTX, out: ^^EVP_PKEY) -> c.int ---
+	EVP_PKEY_CTX_set_rsa_keygen_bits :: proc(ctx: ^EVP_PKEY_CTX, bits: c.int) -> c.int ---
+	EVP_PKEY_CTX_set_rsa_padding :: proc(ctx: ^EVP_PKEY_CTX, padding: c.int) -> c.int ---
+	EVP_PKEY_CTX_set_rsa_oaep_md :: proc(ctx: ^EVP_PKEY_CTX, md: ^EVP_MD) -> c.int ---
+	EVP_PKEY_encrypt_init :: proc(ctx: ^EVP_PKEY_CTX) -> c.int ---
+	EVP_PKEY_encrypt :: proc(ctx: ^EVP_PKEY_CTX, out: [^]u8, out_len: ^uint, input: [^]u8, in_len: uint) -> c.int ---
+	EVP_PKEY_decrypt_init :: proc(ctx: ^EVP_PKEY_CTX) -> c.int ---
+	EVP_PKEY_decrypt :: proc(ctx: ^EVP_PKEY_CTX, out: [^]u8, out_len: ^uint, input: [^]u8, in_len: uint) -> c.int ---
+	EVP_sha256 :: proc() -> ^EVP_MD ---
+	i2d_PUBKEY :: proc(pkey: ^EVP_PKEY, outp: ^[^]u8) -> c.int ---
+	d2i_PUBKEY :: proc(out: ^^EVP_PKEY, inp: ^[^]u8, n: c.long) -> ^EVP_PKEY ---
+	RSA_new_private_key :: proc(n, e, d, p, q, dmp1, dmq1, iqmp: ^BIGNUM) -> ^RSA ---
+	BN_bin2bn :: proc(data: [^]u8, n: uint, ret: ^BIGNUM) -> ^BIGNUM ---
+	BN_free :: proc(bn: ^BIGNUM) ---
+	SHA256 :: proc(data: [^]u8, n: uint, out: [^]u8) -> [^]u8 ---
 }
+
+EVP_PKEY :: struct {}
+EVP_PKEY_CTX :: struct {}
+EVP_MD :: struct {}
+RSA :: struct {}
+BIGNUM :: struct {}
+EVP_PKEY_RSA :: 6
+RSA_PKCS1_OAEP_PADDING :: 4
 
 // ERR_PACK(ERR_LIB_SSL, SSL_R_CERTIFICATE_VERIFY_FAILED): what a rejected certificate leaves first
 // on the thread's error queue.

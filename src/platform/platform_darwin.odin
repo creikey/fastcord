@@ -433,13 +433,13 @@ ns_data_bytes :: proc(data: Id, allocator: runtime.Allocator) -> []byte {
 // PNG as is; any other bitmap type (TIFF from screenshots and Preview, JPEG...) through
 // NSBitmapImageRep to PNG. Worker thread (its own autorelease pool).
 @(private)
-_clipboard_image :: proc(allocator: runtime.Allocator) -> (Clipboard_Image, bool) {
+_clipboard_image :: proc(allocator: runtime.Allocator) -> ([]byte, bool) {
 	pool := msg(Id, msg(Id, cls("NSAutoreleasePool"), "alloc"), "init")
 	defer msg(Void, pool, "drain")
 	pb := msg(Id, cls("NSPasteboard"), "generalPasteboard")
 	if png := msg(Id, pb, "dataForType:", nsstr("public.png")); png != nil {
 		b := ns_data_bytes(png, allocator)
-		return {png = b}, len(b) > 0
+		return b, len(b) > 0
 	}
 	for t in IMAGE_TYPES[1:] {
 		data := msg(Id, pb, "dataForType:", nsstr(t))
@@ -449,9 +449,9 @@ _clipboard_image :: proc(allocator: runtime.Allocator) -> (Clipboard_Image, bool
 		props := msg(Id, cls("NSDictionary"), "dictionary")
 		png := msg(Id, rep, "representationUsingType:properties:", NS.UInteger(4) /*NSBitmapImageFileTypePNG*/, props)
 		b := ns_data_bytes(png, allocator)
-		if len(b) > 0 do return {png = b}, true
+		if len(b) > 0 do return b, true
 	}
-	return {}, false
+	return nil, false
 }
 
 @(private)

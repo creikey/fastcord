@@ -53,9 +53,9 @@ attachment_thumbnails :: proc(t: ^testing.T) {
 	testing.expect_value(t, h2, 2)
 }
 
-// A clipboard DIB (Windows screenshots) becomes RGBA, then the PNG that is uploaded as image.png.
+// A clipboard DIB (Windows screenshots) becomes the RGBA that WIC encodes into image.png.
 @(test)
-clipboard_dib_to_png :: proc(t: ^testing.T) {
+clipboard_dib_to_rgba :: proc(t: ^testing.T) {
 	// 2x2, 24 bpp, bottom-up, rows padded to 8 bytes
 	dib := make([]byte, 40 + 16, context.temp_allocator)
 	put :: proc(b: []byte, v: u32) {b[0], b[1], b[2], b[3] = u8(v), u8(v >> 8), u8(v >> 16), u8(v >> 24)}
@@ -67,24 +67,20 @@ clipboard_dib_to_png :: proc(t: ^testing.T) {
 	// bottom row first (BGR): blue, green; then top row: red, white
 	copy(dib[40:], []byte{255, 0, 0, 0, 255, 0, 0, 0})
 	copy(dib[48:], []byte{0, 0, 255, 255, 255, 255, 0, 0})
-	img, ok := platform.dib_to_rgba(dib, context.temp_allocator)
-	testing.expect(t, ok)
+	rgba, w, h, ok := platform.dib_to_rgba(dib, context.temp_allocator)
+	testing.expect(t, ok && w == 2 && h == 2)
 	want := []byte{255, 0, 0, 255, 255, 255, 255, 255, 0, 0, 255, 255, 0, 255, 0, 255}
-	testing.expect(t, string(img.rgba) == string(want))
-	png := imagefmt.encode_png(img.rgba, img.width, img.height, context.temp_allocator)
-	dec, err := imagefmt.decode(png, context.temp_allocator)
-	testing.expect_value(t, err, imagefmt.Error.None)
-	if len(dec.frames) == 1 do testing.expect(t, string(dec.frames[0].pixels) == string(want))
+	testing.expect(t, string(rgba) == string(want))
 	// 32 bpp with alpha all zero is opaque
 	put(dib[0:], 40)
 	dib[14] = 32
 	d32 := make([]byte, 40 + 16, context.temp_allocator)
 	copy(d32, dib[:40])
 	copy(d32[40:], []byte{1, 2, 3, 0, 4, 5, 6, 0, 7, 8, 9, 0, 10, 11, 12, 0})
-	i32_, ok32 := platform.dib_to_rgba(d32, context.temp_allocator)
+	r32, _, _, ok32 := platform.dib_to_rgba(d32, context.temp_allocator)
 	testing.expect(t, ok32)
-	testing.expect_value(t, i32_.rgba[3], 255)
-	testing.expect_value(t, i32_.rgba[0], 9) // top row = last stored row, BGR -> R
-	_, bad := platform.dib_to_rgba(dib[:30], context.temp_allocator)
+	testing.expect_value(t, r32[3], 255)
+	testing.expect_value(t, r32[0], 9) // top row = last stored row, BGR -> R
+	_, _, _, bad := platform.dib_to_rgba(dib[:30], context.temp_allocator)
 	testing.expect(t, !bad)
 }

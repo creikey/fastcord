@@ -261,15 +261,73 @@ global_bytes :: proc(h: win.HANDLE, allocator: runtime.Allocator) -> []byte {
 	return out
 }
 
-// "PNG" (browsers, Office) as is; else CF_DIBV5 / CF_DIB (screenshots) as RGBA to encode.
+// "PNG" (browsers, Office) as is; else CF_DIBV5 / CF_DIB (screenshots) encoded as PNG by WIC.
 @(private)
-_clipboard_image :: proc(allocator: runtime.Allocator) -> (Clipboard_Image, bool) {
-	if !open_clipboard_any() do return {}, false
+_clipboard_image :: proc(allocator: runtime.Allocator) -> ([]byte, bool) {
+	if !open_clipboard_any() do return nil, false
 	defer win.CloseClipboard()
-	if b := global_bytes(win.GetClipboardData(cf_png()), allocator); len(b) > 0 do return {png = b}, true
+	if b := global_bytes(win.GetClipboardData(cf_png()), allocator); len(b) > 0 do return b, true
 	dib := global_bytes(win.GetClipboardData(win.CF_DIBV5), context.temp_allocator)
 	if len(dib) == 0 do dib = global_bytes(win.GetClipboardData(win.CF_DIB), context.temp_allocator)
-	return dib_to_rgba(dib, allocator)
+	rgba, w, h, ok := dib_to_rgba(dib, context.temp_allocator)
+	if !ok do return nil, false
+	png := wic_png(rgba, w, h, allocator)
+	return png, len(png) > 0
+}
+
+@(private = "file") CLSID_WICImagingFactory := win.GUID{0xCACAF262, 0x9370, 0x4615, {0xA1, 0x3B, 0x9F, 0x55, 0x39, 0xDA, 0x4C, 0x0A}}
+@(private = "file") IID_IWICImagingFactory := win.GUID{0xEC5EC8A9, 0xC395, 0x4314, {0x9C, 0x77, 0x54, 0xD7, 0xA9, 0x35, 0xFF, 0x70}}
+@(private = "file") GUID_ContainerFormatPng := win.GUID{0x1B7CFAF4, 0x713F, 0x473C, {0xBB, 0xCD, 0x61, 0x37, 0x42, 0x5F, 0xAE, 0xAF}}
+@(private = "file") GUID_WICPixelFormat32bppBGRA := win.GUID{0x6FDDC324, 0x4E03, 0x4BFE, {0xB1, 0x85, 0x3D, 0x77, 0x76, 0x8D, 0xC9, 0x0F}}
+
+@(private = "file")
+vt :: #force_inline proc "contextless" (obj: rawptr, idx: int) -> rawptr {return (^[^]rawptr)(obj)^[idx]}
+
+@(private = "file")
+release :: proc "contextless" (obj: rawptr) {
+	if obj != nil do (cast(proc "system" (rawptr) -> u32)vt(obj, 2))(obj)
+}
+
+// wic_png: RGBA8 pixels (swapped to BGRA in place) as PNG, by WIC's PNG encoder (the OS's, as
+// NSBitmapImageRep is on macOS). nil on failure. Worker thread.
+@(private = "file")
+wic_png :: proc(px: []byte, w, h: int, allocator: runtime.Allocator) -> []byte {
+	for i := 0; i < len(px); i += 4 do px[i], px[i + 2] = px[i + 2], px[i]
+	com := win.CoInitializeEx(nil, .MULTITHREADED) >= 0
+	defer if com do win.CoUninitialize()
+	factory, enc, frame: rawptr
+	stream: ^win.IStream
+	defer {
+		release(frame)
+		release(enc)
+		release(stream)
+		release(factory)
+	}
+	format := GUID_WICPixelFormat32bppBGRA
+	// IWICImagingFactory::CreateEncoder; IWICBitmapEncoder::Initialize (WICBitmapEncoderNoCache),
+	// CreateNewFrame, Commit; IWICBitmapFrameEncode::Initialize, SetSize, SetPixelFormat, WritePixels, Commit
+	ok :=
+		win.CoCreateInstance(&CLSID_WICImagingFactory, nil, win.CLSCTX_INPROC_SERVER, &IID_IWICImagingFactory, &factory) >= 0 &&
+		(cast(proc "system" (rawptr, ^win.GUID, ^win.GUID, ^rawptr) -> win.HRESULT)vt(factory, 8))(factory, &GUID_ContainerFormatPng, nil, &enc) >= 0 &&
+		CreateStreamOnHGlobal(nil, true, &stream) >= 0 &&
+		(cast(proc "system" (rawptr, rawptr, u32) -> win.HRESULT)vt(enc, 3))(enc, stream, 2) >= 0 &&
+		(cast(proc "system" (rawptr, ^rawptr, rawptr) -> win.HRESULT)vt(enc, 10))(enc, &frame, nil) >= 0 &&
+		(cast(proc "system" (rawptr, rawptr) -> win.HRESULT)vt(frame, 3))(frame, nil) >= 0 &&
+		(cast(proc "system" (rawptr, u32, u32) -> win.HRESULT)vt(frame, 4))(frame, u32(w), u32(h)) >= 0 &&
+		(cast(proc "system" (rawptr, ^win.GUID) -> win.HRESULT)vt(frame, 6))(frame, &format) >= 0 &&
+		format == GUID_WICPixelFormat32bppBGRA &&
+		(cast(proc "system" (rawptr, u32, u32, u32, [^]byte) -> win.HRESULT)vt(frame, 10))(frame, u32(h), u32(w * 4), u32(len(px)), raw_data(px)) >= 0 &&
+		(cast(proc "system" (rawptr) -> win.HRESULT)vt(frame, 12))(frame) >= 0 &&
+		(cast(proc "system" (rawptr) -> win.HRESULT)vt(enc, 11))(enc) >= 0
+	size: win.ULARGE_INTEGER
+	if !ok || stream->Seek(0, 2 /*STREAM_SEEK_END*/, &size) < 0 || stream->Seek(0, 0 /*STREAM_SEEK_SET*/, nil) < 0 do return nil
+	out := make([]byte, int(size), allocator)
+	got: win.ULONG
+	if stream->Read(raw_data(out), win.ULONG(size), &got) < 0 || int(got) != len(out) {
+		delete(out, allocator)
+		return nil
+	}
+	return out
 }
 
 @(private = "file")
@@ -305,6 +363,7 @@ foreign ole32 {
 	RegisterDragDrop :: proc(hwnd: win.HWND, target: rawptr) -> win.HRESULT ---
 	RevokeDragDrop :: proc(hwnd: win.HWND) -> win.HRESULT ---
 	ReleaseStgMedium :: proc(medium: ^STGMEDIUM) ---
+	CreateStreamOnHGlobal :: proc(h: win.HGLOBAL, delete_on_release: win.BOOL, stream: ^^win.IStream) -> win.HRESULT ---
 }
 
 @(private = "file")

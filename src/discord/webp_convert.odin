@@ -12,7 +12,8 @@ package discord
 //     an alpha < 255: "has_transparency"), not be APNG ("animated_image") or indexed
 //     ("png8_format"), and its ICC profile, if any, must describe sRGB
 //     ("icc_non_srgb_profile" / "icc_detection_failed");
-//   - canvas.toBlob("image/webp", 1) = lossless WebP; the result is decoded again and its
+//   - canvas.toBlob("image/webp", 1) = lossless WebP, encoded as Chromium does (imagefmt's
+//     encode_webp_lossless, with the sRGB profile Skia attaches); the result is decoded again and its
 //     pixels compared with the canvas ("pixel_hash_mismatch"; that check's time is
 //     hash_time_ms); kept only if not larger than the PNG ("insufficient_savings");
 //   - the converted file keeps its name; original_content_type stays image/png.
@@ -26,6 +27,10 @@ import "fc:etf"
 import "fc:imagefmt"
 
 WEBP_EXPERIMENT_HASH :: 881712821 // murmur3("2025-09-image-attachment-mezzanine-v2")
+
+// The ICC profile Skia's SkWriteICCProfile writes for an sRGB canvas (src/encode/SkICC.cpp), which
+// SkWebpEncoder puts in every canvas WebP: copied from Chrome 156's toBlob output.
+SKIA_SRGB_ICC :: #load("skia_srgb.icc")
 
 Webp_Conversion :: struct {
 	attempted:   bool, // false: the experiment is off or the file too big (no science fields)
@@ -124,7 +129,7 @@ webp_try_convert :: proc(variation: i32, mime: string, data: []byte) -> (r: Webp
 		r.failure = "conversion_failed" // past WebP's dimension limit: Chrome's toBlob fails too
 		return
 	}
-	webp := imagefmt.encode_webp_lossless(px, img.width, img.height, context.temp_allocator)
+	webp := imagefmt.encode_webp_lossless(px, img.width, img.height, SKIA_SRGB_ICC, context.temp_allocator)
 	// the client's pixel check: decode the WebP again and compare with the source pixels
 	th := time.tick_now()
 	back, berr := imagefmt.decode(webp, context.temp_allocator)

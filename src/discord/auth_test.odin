@@ -1,12 +1,13 @@
 package discord
 
 import "core:crypto"
-import "core:crypto/rsa"
+import "core:c"
 import "core:encoding/base64"
 import "core:strconv"
 import "core:strings"
 import "core:testing"
 import "fc:etf"
+import "fc:tls"
 
 // An RSA-OAEP (SHA-256, MGF1 SHA-256) vector made offline with OpenSSL
 // (genpkey 2048, pkeyutl -encrypt rsa_padding_mode:oaep), its public key as
@@ -40,14 +41,31 @@ unhex :: proc(s: string) -> []byte {
 	return out
 }
 
+// The vector's private key as BoringSSL's EVP_PKEY.
+@(private = "file")
+vector_key :: proc() -> ^tls.EVP_PKEY {
+	v := OAEP_VECTOR
+	bn :: proc(h: string) -> ^tls.BIGNUM {
+		b := unhex(h)
+		return tls.BN_bin2bn(raw_data(b), len(b), nil)
+	}
+	k := [8]^tls.BIGNUM{bn(v.n), bn("010001"), bn(v.d), bn(v.p), bn(v.q), bn(v.dp), bn(v.dq), bn(v.iq)}
+	defer for b in k do tls.BN_free(b)
+	rsa := tls.RSA_new_private_key(k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7])
+	if rsa == nil do return nil
+	pk := tls.EVP_PKEY_new()
+	tls.EVP_PKEY_assign_RSA(pk, rsa)
+	return pk
+}
+
 @(test)
 test_rsa_oaep_openssl_vector :: proc(t: ^testing.T) {
 	v := OAEP_VECTOR
 	s: Ra_Session
-	e := [3]byte{1, 0, 1}
-	ok := rsa.private_key_set_bytes(&s.key, unhex(v.n), e[:], unhex(v.d), unhex(v.p), unhex(v.q), unhex(v.dp), unhex(v.dq), unhex(v.iq))
-	testing.expect(t, ok)
-	defer rsa.private_key_clear(&s.key)
+	s.allocator = context.allocator
+	s.key = vector_key()
+	testing.expect(t, s.key != nil)
+	defer ra_session_destroy(&s)
 	ct := base64.encode(unhex(v.ct), allocator = context.temp_allocator)
 	pt, dok := ra_decrypt(&s, ct)
 	testing.expect(t, dok)
@@ -58,53 +76,47 @@ test_rsa_oaep_openssl_vector :: proc(t: ^testing.T) {
 	_, bok := ra_decrypt(&s, base64.encode(bad, allocator = context.temp_allocator))
 	testing.expect(t, !bok)
 	// SubjectPublicKeyInfo and fingerprint as crypto.subtle / OpenSSL export them
-	spki := spki_rsa(unhex(v.n), 65537, context.temp_allocator)
-	testing.expect(t, string(spki) == string(unhex(v.spki)))
-	digest := sha256_bytes(spki)
-	testing.expect_value(t, base64url_nopad(digest[:], context.temp_allocator), v.fingerprint)
+	testing.expect(t, ra_session_derive(&s))
+	testing.expect(t, string(s.spki) == string(unhex(v.spki)))
+	testing.expect_value(t, s.fingerprint, v.fingerprint)
 }
 
 // the fake server's side: the public key out of the client's init message
 @(private = "file")
-server_key :: proc(t: ^testing.T, init: string) -> (pk: rsa.Public_Key, ok: bool) {
+server_key :: proc(t: ^testing.T, init: string) -> ^tls.EVP_PKEY {
 	v, perr := etf.from_json(init, context.temp_allocator)
-	if perr != .None do return
+	if perr != .None do return nil
 	m := vmap(v)
 	testing.expect_value(t, fstr(m, "op"), "init")
 	der, err := base64.decode(fstr(m, "encoded_public_key"), allocator = context.temp_allocator)
-	if err != nil do return
-	// ... BIT STRING { SEQUENCE { INTEGER n (02 82 01 01 00 + 256 bytes), INTEGER e } }
-	pat := [5]byte{0x02, 0x82, 0x01, 0x01, 0x00}
-	i := strings.index(string(der), string(pat[:]))
-	if i < 0 || i + 5 + 256 + 5 > len(der) do return
-	n := der[i + 5:][:256]
-	e := der[i + 5 + 256 + 2:][:3]
-	return pk, rsa.public_key_set_bytes(&pk, n, e)
+	if err != nil do return nil
+	p := raw_data(der)
+	return tls.d2i_PUBKEY(nil, &p, c.long(len(der)))
 }
 
 @(private = "file")
-seal :: proc(pk: ^rsa.Public_Key, msg: []byte) -> string {
+seal :: proc(pk: ^tls.EVP_PKEY, msg: []byte) -> string {
 	ct: [256]byte
-	_ = rsa.encrypt_oaep(pk, .SHA256, msg, ct[:])
-	return base64.encode(ct[:], allocator = context.temp_allocator)
+	n := uint(len(ct))
+	ctx := tls.EVP_PKEY_CTX_new(pk, nil)
+	defer tls.EVP_PKEY_CTX_free(ctx)
+	_ = tls.EVP_PKEY_encrypt_init(ctx) == 1 && tls.EVP_PKEY_CTX_set_rsa_padding(ctx, tls.RSA_PKCS1_OAEP_PADDING) == 1 &&
+		tls.EVP_PKEY_CTX_set_rsa_oaep_md(ctx, tls.EVP_sha256()) == 1 && tls.EVP_PKEY_encrypt(ctx, &ct[0], &n, raw_data(msg), len(msg)) == 1
+	return base64.encode(ct[:n], allocator = context.temp_allocator)
 }
 
 // The protocol against a fake server: hello, nonce proof, the fingerprint
 // check, the scanned user, the ticket and the token.
 @(test)
 test_remote_auth_fake_server :: proc(t: ^testing.T) {
-	// the OpenSSL vector's key (ra_session_init's keygen takes seconds in a debug build)
-	v := OAEP_VECTOR
+	// a fresh key pair, as each socket makes
 	s: Ra_Session
-	s.allocator = context.allocator
-	e := [3]byte{1, 0, 1}
-	testing.expect(t, rsa.private_key_set_bytes(&s.key, unhex(v.n), e[:], unhex(v.d), unhex(v.p), unhex(v.q), unhex(v.dp), unhex(v.dq), unhex(v.iq)))
-	testing.expect(t, ra_session_derive(&s))
+	testing.expect(t, ra_session_init(&s))
 	defer ra_session_destroy(&s)
-	testing.expect_value(t, s.fingerprint, v.fingerprint)
-	pk, ok := server_key(t, ra_init_message(&s))
-	testing.expect(t, ok)
-	defer rsa.public_key_clear(&pk)
+	testing.expect_value(t, len(s.spki), 294) // RSA-2048 SPKI
+	pk := server_key(t, ra_init_message(&s))
+	testing.expect(t, pk != nil)
+	defer tls.EVP_PKEY_free(pk)
 	// the fingerprint is SHA-256 of the SPKI the server got
 	{
 		d := sha256_bytes(s.spki)
@@ -116,7 +128,7 @@ test_remote_auth_fake_server :: proc(t: ^testing.T) {
 	testing.expect_value(t, s.timeout_ms, 120000)
 	nonce: [32]byte
 	crypto.rand_bytes(nonce[:])
-	msg := strings.concatenate({`{"op":"nonce_proof","encrypted_nonce":"`, seal(&pk, nonce[:]), `"}`}, context.temp_allocator)
+	msg := strings.concatenate({`{"op":"nonce_proof","encrypted_nonce":"`, seal(pk, nonce[:]), `"}`}, context.temp_allocator)
 	act, reply = ra_handle(&s, transmute([]byte)msg)
 	testing.expect_value(t, act, Ra_Action.Send)
 	testing.expect_value(t, reply, strings.concatenate({`{"op":"nonce_proof","nonce":"`, base64url_nopad(nonce[:], context.temp_allocator), `"}`}, context.temp_allocator))
@@ -128,23 +140,23 @@ test_remote_auth_fake_server :: proc(t: ^testing.T) {
 	testing.expect_value(t, s.step, Ra_Step.Pending_Remote_Init)
 	testing.expect_value(t, ra_qr_url(s.fingerprint), strings.concatenate({"https://discord.com/ra/", s.fingerprint}, context.temp_allocator))
 	user := "1546819257420087346:0:0a1b2c3d4e5f:dingus battle"
-	act, _ = ra_handle(&s, transmute([]byte)strings.concatenate({`{"op":"pending_ticket","encrypted_user_payload":"`, seal(&pk, transmute([]byte)user), `"}`}, context.temp_allocator))
+	act, _ = ra_handle(&s, transmute([]byte)strings.concatenate({`{"op":"pending_ticket","encrypted_user_payload":"`, seal(pk, transmute([]byte)user), `"}`}, context.temp_allocator))
 	testing.expect_value(t, act, Ra_Action.Show_User)
 	testing.expect_value(t, s.user_id, Snowflake(1546819257420087346))
 	testing.expect_value(t, s.discriminator, "0")
 	testing.expect_value(t, s.avatar, "0a1b2c3d4e5f")
 	testing.expect_value(t, s.username, "dingus battle")
 	// "0" is no avatar
-	act, _ = ra_handle(&s, transmute([]byte)strings.concatenate({`{"op":"pending_ticket","encrypted_user_payload":"`, seal(&pk, transmute([]byte)string("1:1234:0:x")), `"}`}, context.temp_allocator))
+	act, _ = ra_handle(&s, transmute([]byte)strings.concatenate({`{"op":"pending_ticket","encrypted_user_payload":"`, seal(pk, transmute([]byte)string("1:1234:0:x")), `"}`}, context.temp_allocator))
 	testing.expect_value(t, act, Ra_Action.Show_User)
 	testing.expect_value(t, s.avatar, "")
-	act, _ = ra_handle(&s, transmute([]byte)strings.concatenate({`{"op":"pending_ticket","encrypted_user_payload":"`, seal(&pk, transmute([]byte)string("x:1:a:b")), `"}`}, context.temp_allocator))
+	act, _ = ra_handle(&s, transmute([]byte)strings.concatenate({`{"op":"pending_ticket","encrypted_user_payload":"`, seal(pk, transmute([]byte)string("x:1:a:b")), `"}`}, context.temp_allocator))
 	testing.expect_value(t, act, Ra_Action.Fail)
 	act, _ = ra_handle(&s, transmute([]byte)string(`{"op":"pending_login","ticket":"tkt"}`))
 	testing.expect_value(t, act, Ra_Action.Login)
 	testing.expect_value(t, s.ticket, "tkt")
 	// POST /users/@me/remote-auth/login answers {"encrypted_token"}
-	tok, tok_ok := ra_decrypt_token(&s, seal(&pk, transmute([]byte)string("mfa.token-value")), context.temp_allocator)
+	tok, tok_ok := ra_decrypt_token(&s, seal(pk, transmute([]byte)string("mfa.token-value")), context.temp_allocator)
 	testing.expect(t, tok_ok)
 	testing.expect_value(t, tok, "mfa.token-value")
 	act, _ = ra_handle(&s, transmute([]byte)string(`{"op":"pending_login"}`))

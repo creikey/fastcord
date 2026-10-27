@@ -276,13 +276,6 @@ Clipboard_Kind :: enum u8 {
 	Files, // file URLs (copied in Finder / Explorer)
 }
 
-// A clipboard bitmap: either encoded PNG bytes (png) or raw RGBA8 pixels to encode.
-Clipboard_Image :: struct {
-	png:           []byte,
-	rgba:          []byte,
-	width, height: int,
-}
-
 // What a paste would insert. Cheap (no data is read): call it on the UI thread.
 // Files win over an image (Finder also puts the file's icon on the pasteboard),
 // an image over text, as in the official client (Chromium's clipboardData.files).
@@ -297,13 +290,14 @@ clipboard_kind :: proc() -> Clipboard_Kind {
 	return _clipboard_kind()
 }
 
-// The clipboard's bitmap. Reads (and may convert) a lot of data: call it from a worker thread.
-clipboard_image :: proc(allocator := context.allocator) -> (img: Clipboard_Image, ok: bool) {
+// The clipboard's bitmap as PNG bytes (other formats converted by the OS encoder). Reads and may
+// convert a lot of data: call it from a worker thread.
+clipboard_image :: proc(allocator := context.allocator) -> (png: []byte, ok: bool) {
 	if s.headless {
 		locks.lock(&s_headless_lock)
 		defer locks.unlock(&s_headless_lock)
-		if len(s_headless_png) == 0 do return {}, false
-		return {png = clone_bytes(s_headless_png, allocator)}, true
+		if len(s_headless_png) == 0 do return nil, false
+		return clone_bytes(s_headless_png, allocator), true
 	}
 	return _clipboard_image(allocator)
 }
@@ -434,26 +428,26 @@ run_frame_callback :: proc() {
 
 // A packed DIB (Windows CF_DIB / CF_DIBV5: BITMAPINFOHEADER or V5, optional masks, pixels),
 // 24 or 32 bpp uncompressed, to RGBA8. Portable so it is tested everywhere.
-dib_to_rgba :: proc(dib: []byte, allocator := context.allocator) -> (Clipboard_Image, bool) {
+dib_to_rgba :: proc(dib: []byte, allocator := context.allocator) -> (rgba: []byte, width, height: int, ok: bool) {
 	le32 :: proc(b: []byte) -> u32 {return u32(b[0]) | u32(b[1]) << 8 | u32(b[2]) << 16 | u32(b[3]) << 24}
-	if len(dib) < 40 do return {}, false
+	if len(dib) < 40 do return
 	hsize := int(le32(dib[0:]))
-	width := int(i32(le32(dib[4:])))
+	width = int(i32(le32(dib[4:])))
 	hraw := i32(le32(dib[8:]))
 	bpp := int(u16(dib[14]) | u16(dib[15]) << 8)
 	compression := le32(dib[16:])
 	clr_used := int(le32(dib[32:]))
-	if bpp != 24 && bpp != 32 do return {}, false
-	if compression != 0 /*BI_RGB*/ && compression != 3 /*BI_BITFIELDS*/ do return {}, false
-	height := int(abs(hraw))
+	if bpp != 24 && bpp != 32 do return
+	if compression != 0 /*BI_RGB*/ && compression != 3 /*BI_BITFIELDS*/ do return
+	height = int(abs(hraw))
 	top_down := hraw < 0
-	if hsize < 40 || width <= 0 || height <= 0 || width * height > 64 << 20 do return {}, false
+	if hsize < 40 || width <= 0 || height <= 0 || width * height > 64 << 20 do return
 	off := hsize
 	if compression == 3 && hsize == 40 do off += 12 // masks follow a plain header
 	off += clr_used * 4
 	stride := (width * bpp / 8 + 3) &~ 3
-	if off + stride * height > len(dib) do return {}, false
-	rgba := make([]byte, width * height * 4, allocator)
+	if off + stride * height > len(dib) do return
+	rgba = make([]byte, width * height * 4, allocator)
 	any_alpha := false
 	for y in 0 ..< height {
 		src := dib[off + (top_down ? y : height - 1 - y) * stride:]
@@ -469,7 +463,7 @@ dib_to_rgba :: proc(dib: []byte, allocator := context.allocator) -> (Clipboard_I
 	}
 	// most 32-bit clipboard DIBs leave alpha 0: treat them as opaque
 	if bpp == 32 && !any_alpha do for i := 3; i < len(rgba); i += 4 do rgba[i] = 255
-	return {rgba = rgba, width = width, height = height}, true
+	return rgba, width, height, true
 }
 
 // System_A11y: OS accessibility display settings (system_a11y, per OS file).

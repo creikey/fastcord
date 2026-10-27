@@ -17,15 +17,11 @@ when ODIN_OS == .Windows {
 }
 
 @(private = "file")
-EVP_PKEY :: struct {}
-@(private = "file")
 EC_KEY :: struct {}
 @(private = "file")
 X509_NAME :: struct {}
 @(private = "file")
 ASN1_TIME :: struct {}
-@(private = "file")
-EVP_MD :: struct {}
 
 Quic_Method :: struct {
 	set_read_secret:    proc "c" (ssl: ^SSL, level: c.int, cipher: ^SSL_CIPHER, secret: [^]u8, n: uint) -> c.int,
@@ -50,10 +46,7 @@ foreign bssl_test {
 	SSL_process_quic_post_handshake :: proc(ssl: ^SSL) -> c.int ---
 	EC_KEY_new_by_curve_name :: proc(nid: c.int) -> ^EC_KEY ---
 	EC_KEY_generate_key :: proc(key: ^EC_KEY) -> c.int ---
-	EVP_PKEY_new :: proc() -> ^EVP_PKEY ---
 	EVP_PKEY_assign_EC_KEY :: proc(pkey: ^EVP_PKEY, key: ^EC_KEY) -> c.int ---
-	EVP_PKEY_free :: proc(pkey: ^EVP_PKEY) ---
-	EVP_sha256 :: proc() -> ^EVP_MD ---
 	X509_new :: proc() -> ^X509 ---
 	X509_set_version :: proc(x: ^X509, version: c.long) -> c.int ---
 	X509_getm_notBefore :: proc(x: ^X509) -> ^ASN1_TIME ---

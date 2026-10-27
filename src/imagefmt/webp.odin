@@ -96,6 +96,24 @@ webp_decode :: proc(c: ^Decode_Ctx, data_in: []byte, img: ^Image) -> Error {
 	pos := 12
 	first, ok := next_chunk(data, &pos) or_return
 	if !ok do return .Truncated
+	if first.fourcc == "VP8X" && len(first.data) >= 1 && first.data[0] & 0x02 == 0 {
+		// Wuffs v0.4 doesn't skip the 5-byte header of a VP8L chunk inside VP8X ("bad Huffman code"),
+		// which is how Chrome's canvas writes lossless WebP (VP8X + ICCP + VP8L): give it RIFF + VP8L.
+		p := pos
+		for {
+			ch, more := next_chunk(data, &p) or_return
+			if !more do break
+			if ch.fourcc != "VP8L" do continue
+			start := p - len(ch.data) - (len(ch.data) & 1) - 8
+			plain := make([]byte, 12 + p - start, c.allocator)
+			defer delete(plain, c.allocator)
+			copy(plain, "RIFF\x00\x00\x00\x00WEBP")
+			copy(plain[12:], data[start:p])
+			n := len(plain) - 8
+			plain[4], plain[5], plain[6], plain[7] = u8(n), u8(n >> 8), u8(n >> 16), u8(n >> 24)
+			return wuffs_decode(c, plain, img, .WebP)
+		}
+	}
 	if first.fourcc == "VP8X" && len(first.data) >= 1 && first.data[0] & 0x02 == 0 || first.fourcc == "VP8 " || first.fourcc == "VP8L" {
 		return wuffs_decode(c, data, img, .WebP)
 	}

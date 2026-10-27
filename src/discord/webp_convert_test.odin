@@ -11,55 +11,6 @@ read :: proc(path: string) -> []byte {
 	return err == nil ? d : nil
 }
 
-// PNG with an iCCP chunk holding a minimal ICC profile whose 'desc' tag says desc.
-@(private = "file")
-png_with_icc :: proc(desc: string) -> []byte {
-	be :: proc(b: []byte, v: int) {b[0], b[1], b[2], b[3] = u8(v >> 24), u8(v >> 16), u8(v >> 8), u8(v)}
-	px := make([]byte, 8 * 8 * 4, context.temp_allocator)
-	for i in 0 ..< 64 do px[i * 4], px[i * 4 + 3] = u8(i * 4), 255
-	png := imagefmt.encode_png(px, 8, 8, context.temp_allocator)
-	tag_off := 144
-	tag := make([]byte, 12 + len(desc) + 1, context.temp_allocator)
-	copy(tag, "desc")
-	be(tag[8:], len(desc) + 1)
-	copy(tag[12:], desc)
-	icc := make([]byte, tag_off + len(tag), context.temp_allocator)
-	be(icc[0:], len(icc))
-	be(icc[128:], 1)
-	copy(icc[132:], "desc")
-	be(icc[136:], tag_off)
-	be(icc[140:], len(tag))
-	copy(icc[tag_off:], tag)
-	z := imagefmt.zlib_compress(icc, context.temp_allocator)
-	body := make([dynamic]byte, context.temp_allocator)
-	append(&body, ..transmute([]byte)string("ICC Profile\x00\x00"))
-	append(&body, ..z)
-	// insert after IHDR (8 + 25 bytes)
-	out := make([dynamic]byte, context.temp_allocator)
-	append(&out, ..png[:33])
-	l: [4]byte
-	be(l[:], len(body))
-	append(&out, ..l[:])
-	start := len(out)
-	append(&out, ..transmute([]byte)string("iCCP"))
-	append(&out, ..body[:])
-	crc := crc32_of(out[start:])
-	be(l[:], int(crc))
-	append(&out, ..l[:])
-	append(&out, ..png[33:])
-	return out[:]
-}
-
-@(private = "file")
-crc32_of :: proc(b: []byte) -> u32 {
-	c := ~u32(0)
-	for x in b {
-		c ~= u32(x)
-		for _ in 0 ..< 8 do c = (c >> 1) ~ (0xEDB88320 & (0 - (c & 1)))
-	}
-	return ~c
-}
-
 @(test)
 webp_conversion_rules :: proc(t: ^testing.T) {
 	png := read("tests/scenarios/assets/test.png")
@@ -78,6 +29,8 @@ webp_conversion_rules :: proc(t: ^testing.T) {
 	back, err := imagefmt.decode(r.data, context.temp_allocator)
 	src, _ := imagefmt.decode(png, context.temp_allocator)
 	testing.expect(t, err == .None && string(back.frames[0].pixels) == string(src.frames[0].pixels))
+	// byte for byte what Chrome's canvas.toBlob("image/webp", 1) made of it (758 bytes, as in the capture)
+	testing.expect(t, string(r.data) == string(read("src/discord/testdata/test.chrome.webp")))
 	// by type
 	testing.expect_value(t, webp_try_convert(1, "image/jpeg", png).failure, "unsupported_format")
 	testing.expect_value(t, webp_try_convert(1, "text/plain", png).failure, "unsupported_format")
@@ -85,17 +38,14 @@ webp_conversion_rules :: proc(t: ^testing.T) {
 	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/imagefmt/testdata/j_rose.base.jpg")).failure, "corrupted_file")
 	// PNG analysis
 	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/imagefmt/testdata/p_rose.ga16.png")).failure, "") // gray+alpha, all opaque
-	see := make([]byte, 4 * 4 * 4, context.temp_allocator)
-	for i in 0 ..< 16 do see[i * 4 + 3] = i == 5 ? 254 : 255
-	testing.expect_value(t, webp_try_convert(1, "image/png", imagefmt.encode_png(see, 4, 4, context.temp_allocator)).failure, "has_transparency")
+	// testdata PNGs: 4x4 RGBA, one pixel at alpha 254 / all opaque; 8x8 with an iCCP 'desc'
+	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/discord/testdata/alpha254.png")).failure, "has_transparency")
 	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/imagefmt/testdata/p_rose.p8.png")).failure, "png8_format")
 	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/imagefmt/testdata/apng_hand.png")).failure, "has_transparency") // checked before animation
-	opaque := make([]byte, 4 * 4 * 4, context.temp_allocator)
-	for i in 0 ..< 16 do opaque[i * 4 + 3] = 255
-	testing.expect_value(t, webp_try_convert(1, "image/png", imagefmt.encode_png(opaque, 4, 4, context.temp_allocator)).failure, "") // RGBA but opaque: converts
-	// ICC: sRGB profiles convert, others don't
-	testing.expect_value(t, webp_try_convert(1, "image/png", png_with_icc("sRGB IEC61966-2.1")).failure, "")
-	testing.expect_value(t, webp_try_convert(1, "image/png", png_with_icc("Display P3")).failure, "icc_non_srgb_profile")
+	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/discord/testdata/opaque_rgba.png")).failure, "insufficient_savings") // RGBA but opaque: passes every check; tiny, so the WebP (with its 456-byte ICC) is larger
+	// ICC: sRGB profiles pass (and get to the size check), others don't
+	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/discord/testdata/icc_srgb.png")).failure, "insufficient_savings")
+	testing.expect_value(t, webp_try_convert(1, "image/png", read("src/discord/testdata/icc_p3.png")).failure, "icc_non_srgb_profile")
 	// a PNG that is already tiny: the WebP is not smaller
 	g1 := webp_try_convert(1, "image/png", read("src/imagefmt/testdata/p_rose.g1.png"))
 	testing.expect(t, g1.converted || g1.failure == "insufficient_savings")

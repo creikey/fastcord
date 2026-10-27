@@ -36,7 +36,8 @@ not read in code; **guess** = neither, best knowledge.
 | ms values in `attachment_upload_finished` printed in 0.1 ms steps, no ".0" | code | same | same |
 | Variation = second element of the apex assignment entry | inferred | same | `webp_convert.odin` |
 | PNG wider or taller than 16384 px reports `conversion_failed` | guess | — | same |
-| Our WebP bytes differ from Chrome's (canvas alters pixels slightly), so borderline keep/drop can differ | known gap | — | — |
+| `toBlob("image/webp", 1)` bytes = Chromium's: blink `ImageEncoder::ComputeWebpOptions` makes quality 1.0 lossless at quality 75; Skia `SkWebpEncoder` sets `lossless = 1`, `method = 0`, `use_argb = 1`, imports unpremultiplied RGBA (`WebPPictureImportRGBA`) and, since the canvas is sRGB, adds `SkWriteICCProfile`'s 456-byte sRGB profile with WebPMux (VP8X + ICCP + VP8L). Sure: headless Chrome 156 made the capture's exact size (758 bytes for `test.png`, as in `upload_options`) and those bytes equal ours; the ICC (not the VP8L) explains 758 vs libwebp's default 60 | code (Chromium source) + checked | Chromium `third_party/blink/renderer/platform/image-encoders/image_encoder.cc`, `core/html/canvas/canvas_async_blob_creator.cc`; Skia `src/encode/SkWebpEncoderImpl.cpp`, `src/encode/SkICC.cpp` | `vendor/libwebp/fc_libwebp.c`, `webp_convert.odin` `SKIA_SRGB_ICC` |
+| PNGs Chrome colour-manages on decode (gAMA / cHRM / non-sRGB ICC that still names sRGB, 16-bit) may give the canvas other pixels than Wuffs' decode, so those WebPs can differ | known gap | — | — |
 | Upload size limit 10 / 50 / 500 MB by plan, or 50 / 100 MB by boost tier 2 / 3, whichever is larger; 10 files per message | guess | search `maxFileSize`, `MAX_UPLOAD_COUNT` | `src/app` attachments |
 | Drag-and-drop `origin` = `"drag_and_drop"` | guess | search `file_picker` in the upload analytics | attachments |
 
@@ -174,7 +175,7 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | A close, error, heartbeat timeout or bad message starts over with a new key pair after Backoff(1500, 30000) (reset by `pending_remote_init`); `cancel` and "Not me, start over" start over at once; the server's `timeout_ms` close refreshes the QR code that way | code | `new w.A(1500,3e4)` | `ra_sessions` |
 | QR code: `https://discord.com/ra/<fingerprint>`, qrcode.react 1 (qr.js), level M, 160 px, logo on top; fastcord draws whole-pixel modules | code | module `414121` `level:"M"`, qr.js `getLostPoint` | `src/qr/qr.odin`, `view_login.odin` |
 | QR login success: `login_successful {source: "QR Code Login", login_source: null, gift_code_sku_id: null, is_new_user: false, login_method: "remote_auth", login_instance_id: <key fingerprint>}` | code | `login_method:"remote_auth"` | `analytics_login_successful_qr` |
-| The client makes the key pair after the socket opens (WebCrypto, tens of ms); fastcord's constant-time keygen takes 0.1-3 s, so it runs before the dial and `init` follows the open at once | known gap | `generateRsaKeyPair` | `ra_run_socket` |
+| The client makes the key pair after the socket opens (WebCrypto, tens of ms); fastcord's keygen (BoringSSL without assembly, usually tens to hundreds of ms) runs before the dial so `init` follows the open at once | known gap | `generateRsaKeyPair` | `ra_run_socket` |
 | The socket's upgrade request is the gateway's (Chrome's headers, `permessage-deflate` offered); if the server accepts deflate, fastcord inflates what it receives and sends stored DEFLATE blocks (Chrome compresses) | guess | not captured whether the server negotiates it | `src/http/ws.odin` |
 | "Document not visible" (reconnect deferred while the window is hidden) is not modelled | known gap | `document is not visible` | — |
 
