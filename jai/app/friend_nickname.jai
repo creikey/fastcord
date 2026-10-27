@@ -4,16 +4,14 @@
 // name_in: a user's name as shown in a channel (its server's nickname first).
 name_in :: (uid: dc.Snowflake, channel_id: dc.Snowflake, unknown := "Unknown") -> string {
 	s := store();
-	gid: dc.Snowflake;
-	{ ch := dc.channel_get(s, channel_id);
-	if ch != null { gid = ch.guild_id; } }
-	return dc.user_name(s, uid, gid, unknown);
+	ch := dc.channel_get(s, channel_id);
+	return dc.user_name(s, uid, ifx ch then ch.guild_id else 0, unknown);
 }
 
 // The user menu's item for this user ("" when they aren't a friend).
 friend_nick_menu_item :: (uid: dc.Snowflake) -> string {
-	r, ok := map_find_ptr(*store().relationships, uid);
-	if !ok || r.kind != .Friend { return ""; }
+	r := table_find_pointer(*store().relationships, uid);
+	if !r || r.kind != .Friend { return ""; }
 	return ifx r.nickname != "" then "Edit Friend Nickname" else "Add Friend Nickname";
 }
 
@@ -22,8 +20,8 @@ friend_nick_menu_item :: (uid: dc.Snowflake) -> string {
 server_nick_menu_item :: (uid: dc.Snowflake) -> string {
 	if app.view.guild == 0 || !dc.can_set_nickname(store(), app.view.guild, uid) { return ""; }
 	// without the member's roles the hierarchy is unknown: only the owner may then
-	{ g := dc.guild_get(store(), app.view.guild);
-	if dc.member_get(store(), app.view.guild, uid) == null && (g == null || g.owner_id != store().me) { return ""; } }
+	g := dc.guild_get(store(), app.view.guild);
+	if dc.member_get(store(), app.view.guild, uid) == null && (g == null || g.owner_id != store().me) { return ""; }
 	return "Change Nickname";
 }
 
@@ -45,10 +43,8 @@ friend_nick_open :: (uid: dc.Snowflake) {
 server_nick_open :: (uid: dc.Snowflake, guild: dc.Snowflake) {
 	fnick.user = uid;
 	fnick.guild = guild;
-	nick := "";
-	{ m := dc.member_get(store(), guild, uid);
-	if m != null { nick = m.nick; } }
-	ui.editor_set_text(*fnick.ed, nick);
+	m := dc.member_get(store(), guild, uid);
+	ui.editor_set_text(*fnick.ed, ifx m then m.nick else "");
 	if app.client != null { dc.open_change_nickname(app.client); }
 }
 #scope_file
@@ -56,17 +52,26 @@ server_nick_open :: (uid: dc.Snowflake, guild: dc.Snowflake) {
 friend_nick_save :: (nick: string) {
 	uid, gid := fnick.user, fnick.guild;
 	fnick.user = 0;
-	n := strings.trim_space(nick);
+	n := trim(nick);
 	if gid != 0 {
-		old := "";
-		{ m := dc.member_get(store(), gid, uid);
-		if m != null { old = m.nick; } }
-		if n == old { return; }
+		m := dc.member_get(store(), gid, uid);
+		if n == (ifx m then m.nick else "") { return; }
 		if net_action() { dc.set_server_nickname(app.client, gid, uid, n); } else { dc.store_set_server_nickname(store(), gid, uid, n); }
 		return;
 	}
 	if n == dc.friend_nickname(store(), uid) { return; }
 	if net_action() { dc.set_friend_nickname(app.client, uid, n); } else { dc.store_set_friend_nickname(store(), uid, n); } // offline (fixture) runs show the result
+}
+
+// cut_runes: s cut to its first n runes (the limits count runes, not bytes).
+cut_runes :: (s: string, n: int) -> string {
+	k := 0;
+	for i: 0..s.count-1 {
+		if (s[i] & 0xC0) == 0x80 continue;
+		if k == n return string.{i, s.data};
+		k += 1;
+	}
+	return s;
 }
 #scope_export
 
@@ -158,7 +163,7 @@ friend_nick_modal :: () {
 	} else {
 		text_row("t", ifx had then "Edit Friend Nickname" else "Add Friend Nickname", .Semibold, 20, 24, T("--text-strong"));
 		spacer(.Y, 8);
-		text_row("sub", fmt.tprintf("Only you can see the nickname you give %s.", dc.display_name(u)), .Normal, 14, 18, T("--text-default"));
+		text_row("sub", tprint("Only you can see the nickname you give %.", dc.display_name(u)), .Normal, 14, 18, T("--text-default"));
 		spacer(.Y, 16);
 		text_row("lbl", "Friend Nickname", .Semibold, 14, 18, T("--text-strong"));
 	}
@@ -178,15 +183,9 @@ friend_nick_modal :: () {
 		{ ui.parent(field); defer ui.pop_parent();
 			spacer(.X, 12);
 			res := text_field("field", *fnick.ed, dc.display_name(u), true, 16, 20, 10, T("--input-placeholder-text-default"));
-			{ t := ui.editor_text(*fnick.ed);
-			if utf8.rune_count_in_string(t) > dc.FRIEND_NICKNAME_MAX {
-				n, cut := 0, 0;
-				for _, i: t {
-					if n == dc.FRIEND_NICKNAME_MAX {cut = i; break;}
-					n += 1;
-				}
-				ui.editor_set_text(*fnick.ed, clone(sub(t, 0, cut), temp));
-			} }
+			t := ui.editor_text(*fnick.ed);
+			cut := cut_runes(t, dc.FRIEND_NICKNAME_MAX);
+			if cut.count < t.count { ui.editor_set_text(*fnick.ed, copy_string(cut,, temp)); }
 			if res == .Submit { save = true; }
 			if res == .Escape { fnick.user = 0; }
 			spacer(.X, 12);

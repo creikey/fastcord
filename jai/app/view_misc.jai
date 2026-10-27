@@ -169,7 +169,7 @@ profile_popout :: () {
 				un.flags |= .Selectable_Text;
 				un.sel_order = 2;
 				if u.pronouns != "" {
-					label(fmt.tprintf(" • %s", u.pronouns), .Normal, 14, T("--text-default"), 18);
+					label(tprint(" • %", u.pronouns), .Normal, 14, T("--text-default"), 18);
 				}
 			}
 			if u.bio != "" {
@@ -181,7 +181,7 @@ profile_popout :: () {
 				bio.style.text_color = T("--text-default");
 				bio.sel_order = 3;
 				blocks := md_parse(u.bio);
-				if len(blocks) > 0 { ui.set_spans(bio, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
+				if blocks.count > 0 { ui.set_spans(bio, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
 			}
 			spacer(.Y, 16);
 			if uid == s.me {
@@ -216,7 +216,7 @@ profile_popout :: () {
 				mr.semantic_size = .[ui.pct(1), ui.px(40)];
 				{ ui.parent(mr); defer ui.pop_parent();
 					spacer(.X, 16);
-					mb := row(fmt.tprintf("Message @%s##msgbtn", dc.user_name(s, uid)), .Clickable | .Draw_Background | .Draw_Border | .Draw_Text);
+					mb := row(tprint("Message @%##msgbtn", dc.user_name(s, uid)), .Clickable | .Draw_Background | .Draw_Border | .Draw_Text);
 					mb.semantic_size = .[ui.fill(), ui.px(40)];
 					mb.style.bg = T("--input-background-default");
 					mb.style.border_color = T("--border-subtle");
@@ -228,8 +228,8 @@ profile_popout :: () {
 					mb.style.text_color = T("--text-muted");
 					mb.hover_cursor = .IBeam;
 					if ui.signal(mb).clicked && net_action() {
-						{ existing := dc.open_dm(app.client, uid, "Profile");
-						if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; } }
+						existing := dc.open_dm(app.client, uid, "Profile");
+						if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
 						app.profile_user = 0;
 					}
 					spacer(.X, 16);
@@ -289,10 +289,8 @@ settings_modal :: () {
 					col := ui.box("names");
 					col.semantic_size = .[ui.fill(), ui.children()];
 					{ ui.parent(col); defer ui.pop_parent();
-						name := "…";
-						{ u := dc.user_get(s, s.me);
-						if u != null { name = dc.display_name(u); } }
-						label(name, .Semibold, 16, T("--text-strong"), 20);
+						u := dc.user_get(s, s.me);
+						label(ifx u then dc.display_name(u) else "…", .Semibold, 16, T("--text-strong"), 20);
 						er := row("edit", .Clickable);
 						er.semantic_size = .[ui.children(), ui.px(18)];
 						er.hover_cursor = .Pointer;
@@ -309,10 +307,10 @@ settings_modal :: () {
 				spacer(.Y, 8);
 				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
 				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}];
-				for it_: items {
-					if !settings_nav_match(it_.name) && !(it_.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
-					sel := it_.name == settings_page;
-					outer := row(it_.name);
+				for items {
+					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
+					sel := it.name == settings_page;
+					outer := row(it.name);
 					outer.semantic_size = .[ui.pct(1), ui.px(37)];
 					{ ui.parent(outer); defer ui.pop_parent();
 						spacer(.X, 16);
@@ -322,17 +320,17 @@ settings_modal :: () {
 						r.style.bg = ifx sel then T("--background-mod-normal") else .{};
 						r.style.bg_hot = ifx sel then r.style.bg else T("--background-mod-subtle");
 						sig := ui.signal(r);
-						if sig.clicked { settings_page = it_.name; }
+						if sig.clicked { settings_page = it.name; }
 						c := ifx sel || sig.hovering then T("--interactive-text-active") else T("--interactive-text-default");
 						{ ui.parent(r); defer ui.pop_parent();
 							spacer(.X, 8);
-							icon("i", it_.icon, 20, c);
+							icon("i", it.icon, 20, c);
 							spacer(.X, 8);
-							label(it_.name, .Medium, 16, c, 20);
+							label(it.name, .Medium, 16, c, 20);
 						}
 						spacer(.X, 16);
 					}
-					if it_.name == "Appearance" && (sel || settings_nav_match("Streamer Mode") && !settings_nav_match("Appearance")) { appearance_subnav(); }
+					if it.name == "Appearance" && (sel || settings_nav_match("Streamer Mode") && !settings_nav_match("Appearance")) { appearance_subnav(); }
 				}
 				settings_nav_logout();
 			}
@@ -378,12 +376,10 @@ settings_modal :: () {
 		if e.kind == .Key_Down && e.key == .Escape { app.settings_open = false; }
 	}
 }
+
+// ---- settings traffic: which pane is showing (dc.settings_pane_shown) ----
+
 #scope_file
-
-// ---- settings traffic: which pane is showing (dc.settings_pane_shown) ----
-
-// ---- settings traffic: which pane is showing (dc.settings_pane_shown) ----
-
 set_tr: struct {
 	open: bool;
 	pane: dc.Settings_Pane;
@@ -431,7 +427,7 @@ settings_reset_for_test :: () {set_tr = .{};}
 // a section): clicking a section scrolls the page to it.
 appearance_subnav :: () {
 	for sub: (string.["Theme", "Streamer Mode"]) {
-		r := row(fmt.tprintf("sub_%s", sub), .Clickable | .Hot_Animation);
+		r := row(tprint("sub_%", sub), .Clickable | .Hot_Animation);
 		r.semantic_size = .[ui.pct(1), ui.px(33)];
 		sig := ui.signal(r);
 		{ ui.parent(r); defer ui.pop_parent();
@@ -498,10 +494,10 @@ appearance_page :: () {
 			{ ui.parent(sw); defer ui.pop_parent();
 				for name: enum_values_as_enum(Theme_Name) {
 					tokens: Theme;
-					defer delete(tokens.tokens);
+					defer deinit(*tokens.tokens);
 					theme_load(*tokens, name);
 					sel := app.theme.name == name && !theme_follow_os;
-					b := ui.box(fmt.tprint(name), .Clickable | .Draw_Background | .Draw_Border);
+					b := ui.box(tprint("%", name), .Clickable | .Draw_Background | .Draw_Border);
 					b.semantic_size = .[ui.px(SET_SWATCH), ui.px(SET_SWATCH)];
 					b.style.radius = all4(8);
 					b.style.bg = ifx name == .Light then ui.Color.{1, 1, 1, 1} else tok(*tokens, "--background-base-lower");
@@ -540,5 +536,3 @@ appearance_page :: () {
 		filler(.X);
 	}
 }
-#scope_export
-

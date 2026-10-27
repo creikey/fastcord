@@ -1,17 +1,7 @@
-#scope_file
-
 // Settings pages that edit local preferences (Notifications), the settings nav's
 // search field and Log Out item, and the small widgets the settings pages share
 // (page column, toggle rows, inputs, buttons).
 
-// Settings pages that edit local preferences (Notifications), the settings nav's
-// search field and Log Out item, and the small widgets the settings pages share
-// (page column, toggle rows, inputs, buttons).
-
-nav: struct {
-	search: ui.Editor;
-};
-#scope_export
 
 settings_nav_reset_for_test :: () {
 	ui.editor_set_text(*nav.search, "");
@@ -55,9 +45,9 @@ settings_nav_search :: () {
 
 // Nav item visible under the search text (case-insensitive substring).
 settings_nav_match :: (name: string) -> bool {
-	q := strings.trim_space(ui.editor_text(*nav.search));
+	q := trim(ui.editor_text(*nav.search));
 	if q == "" { return true; }
-	return strings.contains(strings.to_lower(name, temp), strings.to_lower(q, temp));
+	return contains(to_lower_copy(name,, temp), to_lower_copy(q,, temp));
 }
 
 // "Log Out" at the bottom of the nav (red, like the client), below a divider.
@@ -93,13 +83,11 @@ settings_nav_logout :: () {
 		spacer(.X, 16);
 	}
 }
+
+// ---- Notifications ----
+
 #scope_file
-
-// ---- Notifications ----
-
-// ---- Notifications ----
-
-SOUND_ROWS := [2]string.[
+SOUND_ROWS :: [2]string.[
 	.["message1", "Message"],
 	.["deafen", "Deafen"],
 	.["undeafen", "Undeafen"],
@@ -323,15 +311,16 @@ set_input :: (id: string, ed: *ui.Editor, placeholder: string, multiline := fals
 		}
 		spacer(.X, 12);
 	}
-	if max_runes > 0 && utf8.rune_count_in_string(ui.editor_text(ed)) > max_runes {
+	if max_runes > 0 {
 		t := ui.editor_text(ed);
-		n := 0;
-		for _, i: t {
-			if n == max_runes {
-				ui.editor_set_text(ed, clone(sub(t, 0, i), temp));
+		k := 0;
+		for i: 0..t.count-1 {
+			if (t[i] & 0xC0) == 0x80 continue; // count runes, not bytes
+			if k == max_runes {
+				ui.editor_set_text(ed, copy_string(string.{i, t.data},, temp));
 				break;
 			}
-			n += 1;
+			k += 1;
 		}
 	}
 	return res;
@@ -340,7 +329,8 @@ set_input :: (id: string, ed: *ui.Editor, placeholder: string, multiline := fals
 // Single-line field showing bullets; never copies its text out.
 password_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool) -> ui.Edit_Result {
 	text := ui.editor_text(ed);
-	n := utf8.rune_count_in_string(text);
+	n := 0;
+	for i: 0..text.count-1 if (text[i] & 0xC0) != 0x80 n += 1; // runes
 	f := ui.box(id, .Clickable | .Draw_Text);
 	f.semantic_size = .[ui.fill(), ui.text_size()];
 	f.style.font = F(.Normal);
@@ -348,7 +338,11 @@ password_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: boo
 	f.style.line_height = 20;
 	f.style.padding = .{0, 10};
 	f.hover_cursor = .IBeam;
-	f.text = ifx n > 0 then strings.repeat("•", n, temp) else placeholder;
+	f.text = placeholder;
+	if n > 0 {
+		f.text = talloc_string(n * BULLET.count);
+		for 0..n-1 memcpy(f.text.data + it * BULLET.count, BULLET.data, BULLET.count);
+	}
 	f.style.text_color = ifx n > 0 then T("--text-default") else T("--input-placeholder-text-default");
 	if ui.signal(f).pressed && f.parent != null { app.ui.focus = f.parent.key; }
 	result := ui.Edit_Result.None;
@@ -363,18 +357,22 @@ password_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: boo
 			}
 		}
 		f.custom_draw = password_caret;
-		f.custom_user = transmute(*void, cast(u64)(n));
+		f.custom_user = cast(*void) n;
 	}
 	return result;
 }
 #scope_file
 
+BULLET :: "•";
+
+nav: struct {
+	search: ui.Editor;
+};
+
 password_caret :: (b: *ui.Box, user: *void) {
-	n := cast(int)(cast(u64)(user));
+	n := cast(int) user;
 	x := b.rect.x0 + b.style.padding.x;
 	if n > 0 && b.text_layout != null { x += b.text_layout.width; }
 	y := b.rect.y0 + b.style.padding.y;
 	gfx.rect(.{x, y + 2, x + 1.5, y + 18}, cast(gfx.Color)(T("--text-default")));
 }
-#scope_export
-
