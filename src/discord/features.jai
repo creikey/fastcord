@@ -476,12 +476,12 @@ parse_loose_message :: (s: *Store, m: etf.Map, allocator := temp) -> Message {
 	};
 	au := fmap(m, "author");
 	if au msg.author_id = parse_user_into(s, au);
-	msg.attachments.allocator = allocator;
-	push_allocator(allocator);
-	for flist(m, "attachments") {
-		am := vmap(it);
-		array_add(*msg.attachments, .{id = fsnow(am, "id"), filename = copy_string(fstr(am, "filename")), url = copy_string(fstr(am, "url")), proxy_url = copy_string(fstr(am, "proxy_url")), width = fint(am, "width"), height = fint(am, "height"), size = fint(am, "size"), content_type = copy_string(fstr(am, "content_type"))});
-	}
+	msg.attachments.allocator, msg.embeds.allocator, msg.sticker_ids.allocator = allocator, allocator, allocator;
+	for flist(m, "attachments") array_add(*msg.attachments, parse_attachment(vmap(it), allocator));
+	for flist(m, "embeds") array_add(*msg.embeds, parse_embed(vmap(it), allocator));
+	items := flist(m, "sticker_items");
+	for items array_add(*msg.sticker_ids, fsnow(vmap(it), "id"));
+	note_sticker_items(s, items);
 	return msg;
 }
 

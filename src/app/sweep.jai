@@ -182,7 +182,7 @@ app_reset_state :: () {
 	block_confirm = .{};
 	fnick = .{};
 	attachments_reset_for_test();
-	viewer_url, viewer_size, viewer_t = "", .{}, 0;
+	media_reset_for_test();
 	notify_reset_for_test();
 	account_reset_for_test();
 	add_server_reset_for_test();

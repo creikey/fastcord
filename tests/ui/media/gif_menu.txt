@@ -1,0 +1,30 @@
+# A GIF attachment and a Klipy GIFV embed (make_media_fixture.py): right-click opens the client's media
+# items for each (a GIF on the CDN: Save Image and "Media Link"; a GIFV link: Copy / Open Link only), in the
+# chat and in the media viewer.
+wait 20
+rclick 520 340
+wait 2
+expect_visible "Save Image"
+expect_not_visible "Copy Image"
+click_text "Copy Media Link"
+wait 2
+expect_clipboard "https://cdn.discordapp.com/attachments/1546820603343016006/1564180112998400002/dance.gif?ex=6ae09da0&is=6adf4c20&hm=00&"
+rclick 600 520
+wait 2
+expect_not_visible "Save Image"
+click_text "Copy Link"
+wait 2
+expect_clipboard "https://klipy.com/gifs/goat-banjo"
+# the viewer: the GIF animates there too, and right-click gives the same menu
+click 520 340
+wait 30
+rclick 640 360
+wait 2
+expect_visible "Open Media Link"
+shot build/ui-gif_menu-viewer.png
+key escape
+wait 2
+expect_not_visible "Open Media Link"
+key escape
+wait 30
+expect_visible "dingus-battle"

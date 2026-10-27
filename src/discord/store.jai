@@ -375,8 +375,7 @@ parse_emoji_ref :: (s: *Store, m: etf.Map) -> Emoji {
 	return .{id = fsnow(m, "id"), name = clone_str(fstr(m, "name"), s.allocator), animated = fbool(m, "animated"), available = true};
 }
 
-parse_attachment :: (s: *Store, m: etf.Map) -> Attachment {
-	a := s.allocator;
+parse_attachment :: (m: etf.Map, a: Allocator) -> Attachment {
 	return .{
 		id = fsnow(m, "id"),
 		filename = clone_str(fstr(m, "filename"), a),
@@ -392,8 +391,7 @@ parse_attachment :: (s: *Store, m: etf.Map) -> Attachment {
 	};
 }
 
-parse_embed :: (s: *Store, m: etf.Map) -> Embed {
-	a := s.allocator;
+parse_embed :: (m: etf.Map, a: Allocator) -> Embed {
 	e := Embed.{
 		kind = clone_str(fstr(m, "type"), a),
 		title = clone_str(fstr(m, "title"), a),
@@ -414,7 +412,7 @@ parse_embed :: (s: *Store, m: etf.Map) -> Embed {
 		e.image_h = fint(im, "height");
 	}
 	vd := fmap(m, "video");
-	if vd e.video_url = clone_str(fstr(vd, "url"), a);
+	if vd e.video_url = clone_str(ifx vhas(vd, "proxy_url") then fstr(vd, "proxy_url") else fstr(vd, "url"), a);
 	p := fmap(m, "provider");
 	if p e.provider = clone_str(fstr(p, "name"), a);
 	au := fmap(m, "author");
@@ -464,12 +462,12 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	if vhas(m, "attachments") {
 		for * msg.attachments free_attachment(s, it);
 		msg.attachments.count = 0;
-		for flist(m, "attachments") array_add(*msg.attachments, parse_attachment(s, vmap(it)));
+		for flist(m, "attachments") array_add(*msg.attachments, parse_attachment(vmap(it), s.allocator));
 	}
 	if vhas(m, "embeds") {
 		for * msg.embeds free_embed(s, it);
 		msg.embeds.count = 0;
-		for flist(m, "embeds") array_add(*msg.embeds, parse_embed(s, vmap(it)));
+		for flist(m, "embeds") array_add(*msg.embeds, parse_embed(vmap(it), s.allocator));
 	}
 	if vhas(m, "reactions") parse_reactions(s, msg, flist(m, "reactions"));
 	if vhas(m, "mentions") {

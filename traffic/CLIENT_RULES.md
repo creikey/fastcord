@@ -128,6 +128,16 @@ not read in code; **guess** = neither, best knowledge.
 | External-location event body (`scheduled_end_time`, `entity_metadata.location`), Start Event (`PATCH {"status":2}`) | guess | not captured | `src/discord/guild_admin.jai` |
 | Declining a DM call sends nothing (dismissed locally) | guess | not captured | `src/discord/calls.jai` |
 
+## Media in messages
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Inline attachment image URL: an animated source (GIF) gets no `format` (the proxy sends the GIF); others `format=webp` + `width`/`height` | code | `getSrcWithWidthAndHeight`, `getFormatQuality` (`srcIsAnimated`) | `src/app/images.jai` `attachment_image_url` |
+| GIFV embeds (Tenor, Klipy) play `video.proxy_url` muted and looping, poster = thumbnail; only while on screen | inferred | embed `"type":"gifv"` in `traffic/gif_send.jsonl` | `src/app/view_media.jai` `media_box` |
+| Media context menu: Copy Image if the URL's extension is jpg/jpeg/jfif/png/webp/avif, Save Image for those + gif/tiff/bmp (or none), both only for Discord-hosted media; then Copy/Open Link, "Image Link" for cdn.discordapp.com png/jpg/webp/avif/bmp/svg, "Media Link" for other image/gif/mp4/webm/mov URLs | code | `"copy-image"`, `"save-image"`, `"copy-native-link"`, `canCopyImage`, `canSaveImage` | `view_media.jai` `media_menu` |
+| Copy/Save Image fetch the `XW` URL: media.discordapp.net → cdn.discordapp.com, drop width/height/quality/size/format, add `format=png` without an extension | code | module 803316 (`XW`) | `view_media.jai` `media_action` |
+| Save Image writes to ~/Downloads without a dialog; a GIFV video offers only the link items; the items stand in their own menu (the client appends them to the message menu) | guess | `NativeUtils.saveImage` | `view_media.jai` |
+
 ## Login and logout
 
 Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`

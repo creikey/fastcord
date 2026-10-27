@@ -57,6 +57,7 @@ images_receive :: () {
 		r.data = .[];
 	}
 	decode_upload();
+	gifv_frame();
 }
 
 // Current frame texture (animated images advance with time).
@@ -84,7 +85,11 @@ set_remote_image :: (b: *ui.Box, url: string) {
 attachment_image_url :: (a: *dc.Attachment, w: int, h: int) -> string {
 	if a.proxy_url == "" return a.url;
 	sc := max(gfx.scale(), 1);
-	return dc.media_proxy_url(a.proxy_url, cast(int)(cast(float32)(w) * sc), cast(int)(cast(float32)(h) * sc));
+	pw, ph := cast(int)(cast(float32)(w) * sc), cast(int)(cast(float32)(h) * sc);
+	// The client's getSrcWithWidthAndHeight asks no format for an animated source: the proxy then sends
+	// the GIF itself (format=webp would be its first frame).
+	if a.content_type == "image/gif" return tprint("%1%2width=%3&height=%4", a.proxy_url, dc.proxy_sep(a.proxy_url), pw, ph);
+	return dc.media_proxy_url(a.proxy_url, pw, ph);
 }
 
 avatar_url_for :: (uid: dc.Snowflake, size: float32) -> string {
@@ -228,6 +233,9 @@ Decode_Kind :: enum u8 {
 	Image;
 	Lottie_Load;
 	Lottie_Still; // first frame of a loaded animation at px x px
+	Fetch; // offline: a blob's bytes from FASTCORD_MEDIA_DIR
+	Copy_Image; // the media menu's actions, with the downloaded bytes
+	Save_Image;
 }
 
 Decode_Job :: struct {
@@ -330,14 +338,41 @@ decode_run :: (j: Decode_Job) -> Decoded {
 		gfx.premultiply_in_place(d.frames[0]);
 		d.size = .{j.px, j.px};
 		lottie.player_destroy(*p);
+	case .Fetch;
+		if !j.data d.data = array_copy(data);
+	case .Copy_Image;
+		if data platform.clipboard_set_image(data);
+	case .Save_Image;
+		if data save_download(j.url, data);
 	}
-	d.ok = d.frames.count > 0 || d.anim != null;
-	array_free(d.data);
-	d.data = .[];
+	if j.kind != .Fetch {
+		array_free(d.data);
+		d.data = .[];
+	}
+	d.ok = d.frames.count > 0 || d.anim != null || d.data.count > 0;
 	return d;
 }
 
+// Save Image: ~/Downloads/<name from the URL>, " (n)" before the extension when taken (worker thread).
+save_download :: (url: string, data: []u8) {
+	name := url;
+	q := find_index_from_left(name, #char "?");
+	if q >= 0 name.count = q;
+	advance(*name, find_index_from_right(name, #char "/") + 1);
+	if !name name = "image.png";
+	dot := find_index_from_right(name, #char ".");
+	stem, ext := name, "";
+	if dot > 0 stem, ext = slice(name, 0, dot), slice(name, dot, name.count - dot);
+	path := tprint("%/Downloads/%", env_var("HOME"), name);
+	for 1..999 {
+		if !file_exists(path) break;
+		path = tprint("%/Downloads/% (%)%", env_var("HOME"), stem, it, ext);
+	}
+	write_entire_file(path, data.data, data.count);
+}
+
 decode_free :: (d: *Decoded) {
+	array_free(d.data);
 	for d.frames array_free(it);
 	array_free(d.frames);
 	array_free(d.durations);
@@ -355,14 +390,17 @@ decode_upload :: () {
 	i := 0;
 	while i < dec.uploading.count {
 		d := *dec.uploading[i];
-		if budget <= 0 && d.ok && d.kind != .Lottie_Load {
+		if budget <= 0 && d.ok && (d.kind == .Image || d.kind == .Lottie_Still) {
 			app.ui.animating = true; // next frame
 			break;
 		}
 		app.ui.animating = true; // repaint with the new texture
 		im: *Remote_Image;
 		if d.kind == .Image im = table_find_pointer(*images, d.url);
-		if d.kind != .Image {
+		if d.kind == .Fetch {
+			blob_decoded(d.url, d.data);
+			d.data = .[];
+		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still {
 			budget -= d.size.x * d.size.y * 4;
 			lottie_decoded(d);
 		} else if im && !d.ok {

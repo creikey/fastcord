@@ -196,6 +196,19 @@ os_clipboard_set :: (str: string) {
     msg(bool, pb, "setString:forType:", nsstr(str), nsstr("public.utf8-plain-text"));
 }
 
+// NSImage writes TIFF (and keeps the PNG), which every app pastes. Worker thread (its own autorelease pool).
+os_clipboard_set_image :: (data: []u8) {
+    pool := autorelease_pool();
+    defer msg(Void, pool, "drain");
+    nsdata := msg(Id, cls("NSData"), "dataWithBytes:length:", data.data, cast(NSUInteger) data.count);
+    img := msg(Id, msg(Id, cls("NSImage"), "alloc"), "initWithData:", nsdata);
+    if !img return;
+    defer msg(Void, img, "release");
+    pb := msg(Id, cls("NSPasteboard"), "generalPasteboard");
+    msg(NSInteger, pb, "clearContents");
+    msg(bool, pb, "writeObjects:", msg(Id, cls("NSArray"), "arrayWithObject:", img));
+}
+
 os_clipboard_kind :: () -> Clipboard_Kind {
     pool := autorelease_pool();
     defer msg(Void, pool, "drain");

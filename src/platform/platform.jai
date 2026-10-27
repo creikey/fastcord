@@ -214,6 +214,13 @@ clipboard_files :: (allocator := context.allocator) -> []string {
     return out;
 }
 
+// Puts encoded image bytes (PNG, JPEG, GIF, WebP...) on the clipboard as a bitmap. Decodes them: call it from
+// a worker thread.
+clipboard_set_image :: (data: []u8) {
+    if !s.headless { os_clipboard_set_image(data); return; }
+    set_headless_clipboard_image(data);
+}
+
 // Headless (UI scripts): put PNG bytes or file paths on the virtual clipboard.
 set_headless_clipboard_image :: (png: []u8) {
     locks.guard(*s.headless_lock);

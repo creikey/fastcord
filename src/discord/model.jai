@@ -184,7 +184,7 @@ Embed :: struct {
 	thumbnail_w, thumbnail_h: int;
 	image_url: string;
 	image_w, image_h: int;
-	video_url: string;
+	video_url: string; // proxy_url when there is one, like the thumbnail and image
 	provider: string;
 	author_name: string;
 }

@@ -15,7 +15,9 @@ Inline_Player :: struct {
 }
 
 players: Table(dc.Snowflake, Inline_Player); // attachment id -> player
-viewer_url: string; // image viewer overlay
+viewer_url: string; // image viewer overlay (the poster for a GIFV)
+viewer_video: string; // GIFV: the looping video
+viewer_link: string; // the media menu's target
 viewer_size: Int2;
 viewer_t: float32;
 audio_ready: bool;
@@ -25,9 +27,18 @@ blob_get :: (url: string) -> *Blob {
 	if b return b;
 	key := copy_string(url);
 	b = find_or_add(*blobs, key);
-	b.state = ifx app.client then .Loading else .Failed;
+	b.state = .Loading;
+	// offline: a decode worker reads FASTCORD_MEDIA_DIR
 	if app.client dc.fetch_media(app.client, .{url = key, kind = .Fetch, visible = true});
+	else decode_submit(.{kind = .Fetch, url = copy_string(key)});
 	return b;
+}
+
+blob_decoded :: (url: string, data: []u8) {
+	b := table_find_pointer(*blobs, url);
+	if !b { array_free(data); return; }
+	b.data = data;
+	b.state = ifx data then Image_State.Ready else .Failed;
 }
 
 // Takes a finished media download that belongs to a blob. Returns false if it's not a blob.
@@ -44,7 +55,53 @@ blob_receive :: (r: *dc.Media_Result) -> bool {
 	return true;
 }
 
-is_video :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
+// Message attachments: videos, audio, images (GIFs animate), other files as cards; max_w narrows them
+// (search results).
+attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
+	for * a, i: m.attachments {
+		if is_video(a) && a.width > 0 && a.height > 0 {
+			w := cast(float32) a.width;
+			h := cast(float32) a.height;
+			sc := min(1.0, min(max_w / w, 300 / h));
+			video_attachment(a, w * sc, h * sc);
+			spacer(.Y, 4);
+		} else if is_audio(a) {
+			audio_attachment(a);
+			spacer(.Y, 4);
+		} else if a.width > 0 && a.height > 0 {
+			// images scale to fit 400x300 like the client
+			w := cast(float32) a.width;
+			h := cast(float32) a.height;
+			sc := min(1.0, min(max_w / w, 300 / h));
+			img := media_box(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), "", w * sc, h * sc);
+			sig := ui.signal(img);
+			if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url);
+			if sig.right_clicked media_menu_open(a.url, a.url);
+			spacer(.Y, 4);
+		} else {
+			f := row(tprint("file%", i), .Draw_Background | .Draw_Border);
+			f.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.px(72)];
+			f.style.bg = T("--background-surface-high");
+			f.style.border_color = T("--border-subtle");
+			f.style.border = 1;
+			f.style.radius = all4(8);
+			{ ui.parent(f); defer ui.pop_parent();
+				spacer(.X, 16);
+				icon("ficon", "attachment", 30, T("--interactive-icon-default"));
+				spacer(.X, 8);
+				col := ui.box("fcol");
+				col.semantic_size = .[ui.fill(), ui.children()];
+				{ ui.parent(col); defer ui.pop_parent();
+					label(a.filename, .Normal, 16, T("--text-link"), 20);
+					label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
+				}
+			}
+			spacer(.Y, 4);
+		}
+	}
+}
+
+is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "audio/"); }
 
 // Video attachment: poster until clicked, then plays inline with a control bar.
@@ -183,26 +240,26 @@ audio_attachment :: (a: *dc.Attachment) {
 }
 
 // Link embeds: colored left bar, provider/author/title/description, image or thumbnail.
-embeds_view :: (m: *dc.Message) {
+embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 	for * e, i: m.embeds {
 		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
-			// bare media links render as the media itself
+			// bare media links render as the media itself; GIFV (Tenor, Klipy) as its looping video
 			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;
 			w := cast(float32) max(e.thumbnail_w, e.image_w);
 			h := cast(float32) max(e.thumbnail_h, e.image_h);
 			if url == "" || w <= 0 || h <= 0 continue;
-			sc := min(1.0, min(400 / w, 300 / h));
-			img := ui.box(tprint("emedia%", i), .Draw_Background | .Clickable);
-			img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
-			img.style.radius = all4(8);
-			img.style.bg = T("--background-mod-subtle");
-			set_remote_image(img, url);
-			if ui.signal(img).clicked open_viewer(url, .{cast(int) w, cast(int) h});
+			sc := min(1.0, min(max_w / w, 300 / h));
+			video := ifx e.kind == "gifv" then e.video_url else "";
+			img := media_box(tprint("emedia%", i), url, video, w * sc, h * sc);
+			sig := ui.signal(img);
+			if sig.clicked open_viewer(url, .{cast(int) w, cast(int) h}, video, e.url);
+			// the client's image items need an <img>: a GIFV video gets the link items only
+			if sig.right_clicked media_menu_open(e.url, ifx video then "" else url);
 			spacer(.Y, 4);
 			continue;
 		}
 		card := row(tprint("embed%", i), .Draw_Background);
-		card.semantic_size = .[ui.px(432), ui.children()];
+		card.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.children()];
 		card.cross_align = .Start;
 		card.style.bg = T("--embed-background");
 		card.style.radius = all4(4);
@@ -250,12 +307,11 @@ embeds_view :: (m: *dc.Message) {
 					w := cast(float32) e.image_w;
 					h := cast(float32) e.image_h;
 					sc := min(1.0, min(400 / w, 300 / h));
-					img := ui.box("img", .Draw_Background | .Clickable);
-					img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
+					img := media_box("img", e.image_url, "", w * sc, h * sc);
 					img.style.radius = all4(4);
-					img.style.bg = T("--background-mod-subtle");
-					set_remote_image(img, e.image_url);
-					if ui.signal(img).clicked open_viewer(e.image_url, .{e.image_w, e.image_h});
+					sig := ui.signal(img);
+					if sig.clicked open_viewer(e.image_url, .{e.image_w, e.image_h});
+					if sig.right_clicked media_menu_open(e.image_url, e.image_url);
 				}
 				spacer(.Y, 16);
 			}
@@ -272,11 +328,65 @@ embeds_view :: (m: *dc.Message) {
 	}
 }
 
-open_viewer :: (url: string, size: Int2) {
+// An image (animated ones play while drawn) or, with video, a GIFV: a muted looping video that plays only
+// while on screen, its poster image until the first frame is in.
+media_box :: (id: string, url: string, video: string, w: float32, h: float32) -> *ui.Box {
+	b := ui.box(id, .Draw_Background | .Clickable | .Clip);
+	b.semantic_size = .[ui.px(w), ui.px(h)];
+	b.style.radius = all4(8);
+	b.style.bg = T("--background-mod-subtle");
+	if !video {
+		set_remote_image(b, url);
+		return b;
+	}
+	g := table_find_pointer(*gifvs, video);
+	if !g {
+		g = table_set(*gifvs, copy_string(video), .{});
+		blob_get(video);
+	}
+	if ui.offscreen(b) return b;
+	g.seen = app.frame;
+	if !g.player {
+		blob := table_find_pointer(*blobs, video);
+		if blob && blob.state == .Ready {
+			ensure_audio();
+			g.player = media.player_open(media.source_from_memory(blob.data), autoplay = true, looping = true, muted = true);
+		}
+	}
+	if g.player {
+		if !media.player_is_playing(g.player) media.player_play(g.player);
+		img := media.player_update(g.player);
+		if img.y g.img = img;
+		app.ui.animating = true;
+	}
+	if !g.img.y {
+		set_remote_image(b, url);
+	} else {
+		d := New(Gifv_Draw,, temp);
+		d.video = video;
+		b.custom_draw = gifv_draw;
+		b.custom_user = d;
+	}
+	return b;
+}
+
+// Start of a frame: GIFVs not drawn last frame stop, so nothing decodes offscreen and the app can sleep.
+gifv_frame :: () {
+	for * gifvs if it.player && it.seen + 1 < app.frame && media.player_is_playing(it.player) media.player_pause(it.player);
+}
+
+open_viewer :: (url: string, size: Int2, video := "", link := "") {
 	free(viewer_url);
-	viewer_url = copy_string(url);
+	free(viewer_video);
+	free(viewer_link);
+	viewer_url, viewer_video, viewer_link = copy_string(url), copy_string(video), copy_string(ifx link then link else url);
 	viewer_size = size;
 	viewer_t = 0;
+}
+
+media_overlays :: () {
+	if viewer_url != "" image_viewer();
+	if mm.open media_menu();
 }
 
 // Full-window image viewer: dark scrim, image fit to 80% of the window, click outside or Escape closes.
@@ -294,23 +404,177 @@ image_viewer :: () {
 		h := cast(float32) max(viewer_size.y, 1);
 		sc := min(app.ui.window.x * 0.8 / w, app.ui.window.y * 0.8 / h);
 		sc *= 0.95 + 0.05 * viewer_t;
-		img := ui.box("img", .Floating_X | .Floating_Y | .Clickable);
-		img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
+		img := media_box("img", viewer_url, viewer_video, w * sc, h * sc);
+		img.flags |= .Floating_X | .Floating_Y;
+		img.flags &= ~ui.Box_Flags.Draw_Background;
+		img.style.radius = all4(0);
 		img.fixed_pos = .{(app.ui.window.x - w * sc) / 2, (app.ui.window.y - h * sc) / 2};
 		img.opacity = viewer_t;
-		set_remote_image(img, viewer_url);
-		ui.signal(img);
+		if ui.signal(img).right_clicked media_menu_open(viewer_link, ifx viewer_video then "" else viewer_url);
 	}
-	for app.ui.events if it.kind == .Key_Down && it.key == .Escape close_viewer();
+	if !mm.open for app.ui.events if it.kind == .Key_Down && it.key == .Escape close_viewer();
 }
 
-media_action_receive :: (r: *dc.Media_Result) -> bool { return false; }
+// ---- image / media context menu ----
+// The client's native media items (chunks e921316e4ac02b0c "copy-image"/"save-image" and d5621fd9c10fcdb0
+// "copy-native-link"/"open-native-link"): Copy Image for jpg/jpeg/jfif/png/webp/avif, Save Image for those
+// plus gif/tiff/bmp (or no extension), both only for Discord-hosted media; then Copy/Open Link, named
+// "Image Link" for cdn.discordapp.com images and "Media Link" for other image/gif/video URLs.
+
+media_menu_open :: (link: string, image: string) {
+	free(mm.link);
+	free(mm.image);
+	mm.link, mm.image = copy_string(link), copy_string(image);
+	mm.pos = app.ui.mouse;
+	mm.open = true;
+}
+
+// Copy Image / Save Image downloads: the bytes go to a decode worker that does the rest.
+media_action_receive :: (r: *dc.Media_Result) -> bool {
+	if r.tag != MEDIA_TAG_COPY && r.tag != MEDIA_TAG_SAVE return false;
+	if r.status == 200 && r.data {
+		decode_submit(.{kind = ifx r.tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(r.url), data = r.data});
+		r.data = .[];
+	}
+	return true;
+}
+
+media_reset_for_test :: () {
+	close_viewer();
+	mm.open = false;
+}
 
 #scope_file
 
+MEDIA_TAG_COPY :: 0x6d65_6469_6101;
+MEDIA_TAG_SAVE :: 0x6d65_6469_6102;
+
+Gifv :: struct {
+	player: *media.Player;
+	img: media.Video_Image;
+	seen: u64; // app.frame it was last on screen
+}
+
+gifvs: Table(string, Gifv); // video URL ->
+
+Gifv_Draw :: struct {
+	video: string;
+}
+
+gifv_draw :: (b: *ui.Box, user: *void) {
+	g := table_find_pointer(*gifvs, (cast(*Gifv_Draw) user).video);
+	if !g || g.img.y == 0 return;
+	gfx.video(cast,force(gfx.Rect) b.rect, g.img.y, g.img.cbcr, g.img.yuv, b.style.radius[0]);
+}
+
+Media_Menu :: struct {
+	open: bool;
+	pos: ui.Vec2;
+	link: string; // Copy / Open Link
+	image: string; // Copy / Save Image ("" for a video)
+}
+
+mm: Media_Menu;
+
+media_menu :: () {
+	if outside_pressed("mmenu_scrim") || escape_pressed() {
+		mm.open = false;
+		return;
+	}
+	ext := url_ext(mm.image);
+	asset := is_discord_media(mm.image);
+	can_copy := mm.image && asset && array_find(string.["jpg", "jpeg", "jfif", "png", "webp", "avif"], ext);
+	can_save := mm.image && asset && (ext == "" || array_find(string.["jpg", "jpeg", "jfif", "png", "webp", "gif", "tiff", "bmp", "avif"], ext));
+	lext := url_ext(mm.link);
+	image_link := url_host(mm.link) == "cdn.discordapp.com" && array_find(string.["png", "jpg", "jpeg", "webp", "avif", "bmp", "svg"], lext);
+	media_link := !image_link && array_find(string.["png", "jpg", "jpeg", "webp", "avif", "bmp", "svg", "gif", "mp4", "webm", "mov"], lext);
+	what := ifx image_link then "Image Link" else ifx media_link then "Media Link" else "Link";
+	W :: cast(float32) GM_MENU_W;
+	h := 16 + GM_ROW_H * (2 + cast(float32) (cast(int) can_copy + cast(int) can_save)) + ifx can_copy || can_save then 9.0 else 0;
+	pos := mm.pos;
+	if pos.x + W > app.ui.window.x - 8 pos.x = app.ui.window.x - 8 - W;
+	if pos.y + h > app.ui.window.y - 8 pos.y = app.ui.window.y - 8 - h;
+	close := false;
+	menu := menu_panel("mmenu", pos, W);
+	{ ui.parent(menu); defer ui.pop_parent();
+		spacer(.Y, 8);
+		if can_copy && menu_item("copy-image", "Copy Image", lead = "image").clicked {
+			media_action(MEDIA_TAG_COPY);
+			close = true;
+		}
+		if can_save && menu_item("save-image", "Save Image", lead = "image").clicked {
+			media_action(MEDIA_TAG_SAVE);
+			close = true;
+		}
+		if can_copy || can_save menu_sep("s1");
+		if menu_item("copy-native-link", tprint("Copy %", what), lead = "link").clicked {
+			clipboard_set(mm.link);
+			close = true;
+		}
+		if menu_item("open-native-link", tprint("Open %", what), .Icon, "link-external-small", lead = "window-launch").clicked {
+			open_url(mm.link);
+			close = true;
+		}
+		spacer(.Y, 8);
+	}
+	if close mm.open = false;
+}
+
+// The client's saveImage/copyImage URL: media.discordapp.net becomes cdn.discordapp.com, the size and format
+// parameters go, and format=png is asked for when the path has no extension.
+media_action :: (tag: u64) {
+	u := mm.image;
+	q := find_index_from_left(u, #char "?");
+	path, query := u, "";
+	if q >= 0 path, query = slice(u, 0, q), slice(u, q + 1, u.count - q - 1);
+	if url_host(path) == "media.discordapp.net" path = replace(path, "//media.discordapp.net/", "//cdn.discordapp.com/",, temp);
+	sb: String_Builder;
+	sb.allocator = temp;
+	append(*sb, path);
+	sep := "?";
+	for split(query, "&",, temp) {
+		key := it;
+		eq := find_index_from_left(key, #char "=");
+		if eq >= 0 key.count = eq;
+		if !it || array_find(string.["width", "height", "quality", "size", "format"], key) continue;
+		print_to_builder(*sb, "%1%2", sep, it);
+		sep = "&";
+	}
+	if url_ext(path) == "" print_to_builder(*sb, "%format=png", sep);
+	url := builder_to_string(*sb,, temp);
+	if app.client dc.fetch_media(app.client, .{url = url, kind = .Image, visible = true, tag = tag});
+	else decode_submit(.{kind = ifx tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(url)});
+}
+
+url_host :: (u: string) -> string {
+	i := find_index_from_left(u, "://");
+	if i < 0 return "";
+	h := slice(u, i + 3, u.count - i - 3);
+	for h if it == #char "/" || it == #char "?" || it == #char ":" { h.count = it_index; break; }
+	return h;
+}
+
+// Lower-case extension of the URL's last path segment ("" if none).
+url_ext :: (u: string) -> string {
+	p := u;
+	q := find_index_from_left(p, #char "?");
+	if q >= 0 p.count = q;
+	advance(*p, find_index_from_right(p, #char "/") + 1);
+	dot := find_index_from_right(p, #char ".");
+	if dot < 0 return "";
+	return to_lower_copy(slice(p, dot + 1, p.count - dot - 1),, temp);
+}
+
+is_discord_media :: (u: string) -> bool {
+	h := url_host(u);
+	return h == "cdn.discordapp.com" || h == "media.discordapp.net" || (begins_with(h, "images-ext-") && ends_with(h, ".discordapp.net"));
+}
+
 close_viewer :: () {
 	free(viewer_url);
-	viewer_url = "";
+	free(viewer_video);
+	free(viewer_link);
+	viewer_url, viewer_video, viewer_link = "", "", "";
 }
 
 // The player starts once its download is in.

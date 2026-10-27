@@ -165,9 +165,10 @@ ui_scripts :: () -> bool {
     Job :: struct { name: string; args: [..]string; ok: bool; }
     jobs: [..]Job;
     BIN :: "build/fastcord-dev";
-    add :: (jobs: *[..]Job, name: string, fixture: string, script: string) {
+    add :: (jobs: *[..]Job, name: string, fixture: string, script: string, env := "") {
         j := array_add(jobs);
         j.name = name;
+        if env array_add(*j.args, env);
         array_add(*j.args, BIN, tprint("-shot:build/ui-%.png", path_strip_extension(path_filename(script))), "-dpi:1", "-now:1793016000",
             tprint("-fixture:%", fixture), "-channel:1546820603343016006", tprint("-script:%", script));
     }
@@ -175,6 +176,8 @@ ui_scripts :: () -> bool {
         add(*jobs, path_strip_extension(path_filename(it)), "tests/ui/chat.jsonl", it);
     for file_list("tests/ui/rail") if ends_with(it, ".txt")
         add(*jobs, tprint("rail_%", path_strip_extension(path_filename(it))), "tests/ui/rail.jsonl", it);
+    for file_list("tests/ui/media") if ends_with(it, ".txt")  // GIFs, GIFV embeds and their menus, media served offline
+        add(*jobs, tprint("media_%", path_strip_extension(path_filename(it))), "tests/ui/media/media.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/media");
     sweep := array_add(*jobs);
     sweep.name = "sweep";
     array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");
