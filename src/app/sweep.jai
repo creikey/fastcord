@@ -410,6 +410,7 @@ sweep_collect :: () {
 			continue;
 		}
 		if !(b.flags & .Clickable) || (b.flags & .Disabled) continue;
+		if b.is_scrollbar || b.hover_cursor == .Resize_H continue; // dragged, not clicked (scrollbars, column edges)
 		vr := ui.intersect(ui.visible_rect(b), win);
 		if vr.x1 - vr.x0 < 2 || vr.y1 - vr.y0 < 2 || b.opacity <= 0.01 continue;
 		if b.key == 0 {

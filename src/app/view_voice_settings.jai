@@ -173,6 +173,7 @@ voice_settings_page :: () {
 	page := ui.box("voicepage", .Scroll_Y | .Clip);
 	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
+	page.scrollbar = .Auto;
 	ui.signal(page);
 	{ ui.parent(page); defer ui.pop_parent();
 		body := row("vbody");

@@ -179,3 +179,15 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | The socket's upgrade request is the gateway's (Chrome's headers, `permessage-deflate` offered); if the server accepts deflate, fastcord inflates what it receives and sends stored DEFLATE blocks (Chrome compresses) | guess | not captured whether the server negotiates it | `src/http/ws.jai` |
 | "Document not visible" (reconnect deferred while the window is hidden) is not modelled | known gap | `document is not visible` | — |
 
+
+## Layout: scrollbars, column borders, resizable columns
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| Scrollbars are the scroller CSS's webkit ones (Electron has `::-webkit-scrollbar`): `.thin` 8px, thumb inset 2px (border, `background-clip:padding-box`), radius 4px, `--scrollbar-thin-thumb`; `.auto` 16px, track and thumb inset 4px, radius 8px, `--scrollbar-auto-track` / `--scrollbar-auto-thumb`; thumb `min-height:40px`; `.fade` hides thumb and track until the scroller is hovered | code | CSS `.scrollerBase_`, `.thin_`, `.auto_`, `.fade_` | `src/ui/core.jai` `scrollbar` |
+| Thumb length `view * view / content` (min 40); pressing the track pages 87.5% of the view, repeating after 250 ms then every 50 ms until the thumb reaches the pointer | code (Chromium source) | `ScrollableArea::PageStep` `kMinFractionToStepWhenPaging`, `ScrollbarTheme` autoscroll delays | same |
+| Which scrollers are `.auto` (chat, settings content) and which `.thin` + fade (everything else); the guild rail shows none | guess | — | `view_chat.jai`, `view_settings_prefs.jai`, `view_misc.jai`, `view_voice_settings.jai`, `view_rail_folders.jai` |
+| Member list column: 1px `--border-subtle` left border (`border-inline-start`) before the 264px list (`--custom-member-list-width`); search results: 1px `--app-frame-border` left border only | code | CSS `.container_` with `.membersWrap_`; `.searchResultsWrap_` | `view_home.jai` `members_column`, `view_search.jai` |
+| Channel sidebar drag-resize: width is `--custom-guild-sidebar-width` (guild rail included, default 375), clamped 264..432, 4px handle at its right edge (`ew-resize`, `--background-mod-strong` on hover/drag); saved to localStorage `resizable-sidebar-width-2` and `channel_sidebar_resized {width}` tracked when the drag ends | code | `minDimension:264,maxDimension:432`, `CHANNEL_SIDEBAR_RESIZED`, `.sidebarResizeHandle_` | `views.jai` `resize_handle`, `settings_store.jai` `sidebar_width`, `dc.track_channel_sidebar_resized` |
+| Not copied: the handle's 0.1 s delayed colour fade, the overdrag stretch, `e-resize`/`w-resize` cursors at the limits, arrow-key resizing | known gap | same | — |
+| Member list drag-resize (224..400, left edge, saved as `member_list_width`): the official member list is a fixed width; added on request | guess | — | `view_home.jai` `members_column` |

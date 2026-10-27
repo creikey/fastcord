@@ -376,7 +376,7 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 		spacer(.Y, vh / 2 - 30);
 		label(ifx secs.count == 0 then "No stickers yet" else "No stickers found", .Semibold, 16, T("--text-strong"), 20);
 	}
-	pk_scrollbar(*sv.scroll, w - PK_SCROLLBAR_W - 2);
+	pk_scrollbar(*sv.scroll);
 }
 
 sticker_inspector :: (secs: []St_Section) {

@@ -52,6 +52,7 @@ Box_Flag :: enum_flags u32 {
 	Overlay; // drawn after all normal boxes (popups, tooltips)
 	Disabled;
 	Keyboard_Clickable;
+	Pinned; // floating box that stays put while its parent scrolls (scrollbars)
 }
 Box_Flags :: Box_Flag;
 
@@ -128,6 +129,18 @@ Box :: struct {
 	cross_align: Align; // where children sit on the axis perpendicular to layout_axis
 	sel_order: u64; // reading order for Selectable_Text; 0 = declaration order
 	sel_join: string; // copied before this box when the selection continues from an earlier one; "" = newline
+	scrollbar: Scrollbar_Kind; // a Scroll_Y box's scrollbar, declared when it is popped as a parent
+	// on a scrollbar box: where the thumb was grabbed, page direction (0 = dragging), time to the next page
+	is_scrollbar: bool;
+	bar_grab, bar_page, bar_wait: float32;
+}
+
+// The official client's two webkit scrollbars (scroller CSS: .thin, .auto). Thin hides until its
+// scroller is hovered (.fade).
+Scrollbar_Kind :: enum u8 {
+	Thin;
+	Auto;
+	None;
 }
 
 Cursor :: enum u8 {
@@ -305,6 +318,7 @@ State :: struct {
 	scroll_consumed: bool;
 	selection: Selection;
 	selection_color: Color;
+	scrollbar_thin_thumb, scrollbar_auto_thumb, scrollbar_auto_track: Color; // set by the app from its theme
 	selectables: [..]*Box; // Selectable_Text boxes in reading order this frame
 	prev_selectables: [..]Key;
 }
@@ -504,7 +518,14 @@ top_parent :: () -> *Box { return peek(context.ui.parents); }
 top_style :: () -> Style { return peek(context.ui.style_stack); }
 
 push_parent :: (b: *Box) { array_add(*context.ui.parents, b); }
-pop_parent :: () { pop(*context.ui.parents); }
+pop_parent :: () {
+	b := pop(*context.ui.parents);
+	if (b.flags & .Scroll_Y) && b.scrollbar != .None && b.key != 0 {
+		push_parent(b);
+		scrollbar(b, b.scrollbar, *b.view_off.y, *b.view_off_target.y, b.content_size.y);
+		pop(*context.ui.parents);
+	}
+}
 
 parent :: (b: *Box) -> bool {
 	push_parent(b);
@@ -717,6 +738,84 @@ offscreen :: (b: *Box, margin: float32 = 64) -> bool {
 	return false;
 }
 
+// Declares, as the last child of the current parent, the scrollbar of `host`, a vertically scrolling
+// area: off/target are its scroll offset and where it is animating to, from the top (from the bottom
+// with from_end), content the scrolled height. Uses host's last-frame rect. Scroll_Y boxes get theirs
+// from pop_parent; areas that scroll by hand call this inside their host box. Webkit geometry (Chrome
+// on the official client's scroller CSS): thin 8px wide, thumb inset 2px; auto 16px, track and thumb
+// inset 4px; thumb at least 40px. Pressing the track pages by 87.5% of the view (Chrome's
+// kMinFractionToStepWhenPaging), repeating while held until the thumb reaches the mouse.
+scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32, content: float32, from_end := false) {
+	s := context.ui;
+	r := host.rect;
+	view := r.y1 - r.y0;
+	max_off := content - view;
+	if kind == .None || view <= 0 || max_off < 1 return;
+	W: float32 = ifx kind == .Auto then 16.0 else 8.0;
+	inset: float32 = ifx kind == .Auto then 4.0 else 2.0;
+	bar := box_make_key(key_from_int(0x5c5011ba, host.key), .Clickable | .Floating_X | .Floating_Y);
+	if host.flags & SCROLL bar.flags |= .Pinned;
+	bar.is_scrollbar = true;
+	bar.semantic_size = .[px(W), px(view)];
+	bar.fixed_pos = .{r.x1 - r.x0 - W, 0};
+
+	thumb_h := min(view, max(40.0, view * view / content));
+	travel := view - thumb_h;
+	// offsets below are from the top; set() writes them back in the caller's direction
+	to_top :: (v: float32, max_off: float32, from_end: bool) -> float32 { return clamp(ifx from_end then max_off - v else v, 0, max_off); }
+	set :: (v: float32, now: bool, off: *float32, target: *float32, max_off: float32, from_end: bool) {
+		target.* = to_top(clamp(v, 0, max_off), max_off, from_end); // the mapping is its own inverse
+		if now off.* = target.*;
+	}
+	top := to_top(off.*, max_off, from_end);
+	ty := travel * top / max_off;
+	page_step := view * 0.875;
+	for * e: s.events {
+		if e.consumed || e.kind != .Mouse_Down || e.button != .Left || s.hot != bar.key continue;
+		y := e.pos.y - r.y0;
+		s.active = bar.key;
+		e.consumed = true;
+		if y >= ty && y < ty + thumb_h {
+			bar.bar_page = 0;
+			bar.bar_grab = y - ty;
+		} else {
+			bar.bar_page = ifx y < ty then -1.0 else 1.0;
+			bar.bar_wait = 0.25; // Chrome's initial autoscroll delay, then every 50 ms
+			set(to_top(target.*, max_off, from_end) + bar.bar_page * page_step, false, off, target, max_off, from_end);
+		}
+	}
+	held := s.active == bar.key && s.mouse_down[Mouse_Button.Left];
+	if held && bar.bar_page == 0 {
+		if travel > 0 set((s.mouse.y - r.y0 - bar.bar_grab) / travel * max_off, true, off, target, max_off, from_end);
+	} else if held {
+		bar.bar_wait -= s.dt;
+		s.animating = true;
+		y := s.mouse.y - r.y0;
+		reached := ifx bar.bar_page < 0 then y >= ty else y < ty + thumb_h;
+		if bar.bar_wait <= 0 && !reached {
+			set(to_top(target.*, max_off, from_end) + bar.bar_page * page_step, false, off, target, max_off, from_end);
+			bar.bar_wait = 0.05;
+		}
+	}
+
+	if kind == .Thin && !held && !mouse_over(host) return;
+	push_parent(bar);
+	if kind == .Auto && s.scrollbar_auto_track.w > 0 {
+		t := box_make_anon(.Draw_Background | .Floating_X | .Floating_Y);
+		t.semantic_size = .[px(W - 2 * inset), px(view - 2 * inset)];
+		t.fixed_pos = .{inset, inset};
+		t.style.bg = s.scrollbar_auto_track;
+		t.style.radius = .[W / 2 - inset, W / 2 - inset, W / 2 - inset, W / 2 - inset];
+	}
+	th := box_make_anon(.Draw_Background | .Floating_X | .Floating_Y);
+	th.semantic_size = .[px(W - 2 * inset), px(thumb_h - 2 * inset)];
+	th.fixed_pos = .{inset, ty + inset};
+	th.style.bg = ifx kind == .Auto then s.scrollbar_auto_thumb else s.scrollbar_thin_thumb;
+	rad := W / 2 - inset;
+	th.style.radius = .[rad, rad, rad, rad];
+	pop(*s.parents);
+}
+
 // Has any box requested another frame (animation, smooth scroll)?
 needs_frame :: () -> bool { return context.ui.animating; }
 cursor :: () -> Cursor { return context.ui.cursor; }
@@ -806,6 +905,8 @@ box_make_key :: (k: Key, flags: Box_Flags) -> *Box {
 	b.sel_order = 0;
 	b.sel_join = "";
 	b.cross_align = .Start;
+	b.scrollbar = .Thin;
+	b.is_scrollbar = false;
 	link_box(b);
 	return b;
 }
@@ -1045,6 +1146,7 @@ layout_position :: (b: *Box) {
 	origin := Vec2.{b.rect.x0, b.rect.y0} - b.view_off;
 	for c: each_child(b) {
 		p := origin + c.rel_pos;
+		if c.flags & .Pinned p += b.view_off;
 		c.rect = .{p.x, p.y, p.x + c.fixed_size.x, p.y + c.fixed_size.y};
 		update_anims(c);
 		layout_position(c);

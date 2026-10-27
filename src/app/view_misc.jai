@@ -275,9 +275,10 @@ settings_modal :: () {
 		m.style.radius = all4(12);
 		ui.signal(m);
 		{ ui.parent(m); defer ui.pop_parent();
-			nav := ui.box("nav");
+			nav := ui.box("nav", .Scroll_Y | .Clip);
 			nav.semantic_size = .[ui.px(SET_NAV_W), ui.pct(1)];
 			nav.layout_axis = .Y;
+			ui.signal(nav);
 			{ ui.parent(nav); defer ui.pop_parent();
 				spacer(.Y, 24);
 				me := row("me");
@@ -457,6 +458,7 @@ appearance_page :: () {
 	scroll := ui.box("appearance_scroll", .Scroll_Y | .Clip);
 	scroll.semantic_size = .[ui.pct(1), ui.fill()];
 	scroll.layout_axis = .Y;
+	scroll.scrollbar = .Auto;
 	ui.signal(scroll);
 	ui.push_parent(scroll);
 	defer ui.pop_parent();

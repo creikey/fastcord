@@ -48,7 +48,7 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 				else ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
 			{ ui.parent(item); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(ellipsize(th.name, .Medium, 16, SIDEBAR_W - 90), ifx unread || selected then .Semibold else .Medium, 16, color, 20);
+				label(ellipsize(th.name, .Medium, 16, app.view.sidebar_w - 90), ifx unread || selected then .Semibold else .Medium, 16, color, 20);
 				filler(.X);
 			}
 			spacer(.X, 9);

@@ -131,7 +131,7 @@ group_dm_overlay :: () {
 				if y + GDM_ROW_H < 0 || y > list_h continue;
 				{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed(); gdm_friend_row(uid, y, others); }
 			}
-			pk_scrollbar(*gdm.scroll, GDM_W - PK_SCROLLBAR_W - 4);
+			pk_scrollbar(*gdm.scroll);
 		}
 		spacer(.Y, 8);
 		line := ui.box("line", .Draw_Background);
@@ -179,11 +179,7 @@ group_dm_overlay :: () {
 
 group_dm_members :: (ch: *dc.Channel) {
 	s := store();
-	list := ui.box("gdm_members", .Scroll_Y | .Clip | .Draw_Background);
-	list.semantic_size = .[ui.px(MEMBER_LIST_W), ui.pct(1)];
-	list.layout_axis = .Y;
-	list.style.bg = T("--background-base-lower");
-	ui.signal(list);
+	list := members_column("gdm_members");
 	ids: [..]dc.Snowflake;
 	ids.allocator = temp;
 	array_add(*ids, s.me);
