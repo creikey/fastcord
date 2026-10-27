@@ -10,6 +10,7 @@
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
 - [ ] Chat: welcome messages aren't shown properly.
+- [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
 - [ ] Search: clicking the search bar again while results are open crashes.
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
