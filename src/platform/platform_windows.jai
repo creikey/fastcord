@@ -46,9 +46,9 @@ notify_show :: (title: string, body: string, id: string) -> bool { return false;
 
 // Puts a red dot on the tray icon while text isn't "" (unread mentions).
 set_badge :: (text: string) {
-    if s.headless || !w.tray_icon return;
+    if s.headless || !w.small_icon return;
     if w.tray_badge_icon DestroyIcon(w.tray_badge_icon);
-    w.tray_badge_icon = ifx text then badge_icon(w.tray_icon) else null;
+    w.tray_badge_icon = ifx text then badge_icon(w.small_icon) else null;
     if w.tray tray_notify(NIM_MODIFY);
 }
 
@@ -64,6 +64,13 @@ open_url :: (url: string) {
 os_init :: (title: string, width: int, height: int) -> bool {
     SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     w.instance = win.GetModuleHandleW(null);
+    dpi := GetDpiForSystem();
+    // The exe's icon (build.jai embeds it as resource 2) goes on every window this thread creates, as Happenlance does.
+    big := GetSystemMetricsForDpi(SM_CXICON, dpi);
+    w.small_size = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
+    w.big_icon = LoadImageW(w.instance, cast(*u16) 2, IMAGE_ICON, big, big, 0);
+    w.small_icon = LoadImageW(w.instance, cast(*u16) 2, IMAGE_ICON, w.small_size, w.small_size, 0);
+    w.icon_hook = SetWindowsHookExW(WH_CBT, xx icon_hook, null, win.GetCurrentThreadId());
     class_name := wide("fastcord");
     wc := win.WNDCLASSEXW.{
         cbSize = size_of(win.WNDCLASSEXW),
@@ -71,13 +78,11 @@ os_init :: (title: string, width: int, height: int) -> bool {
         lpfnWndProc = xx wndproc,
         hInstance = w.instance,
         hCursor = win.LoadCursorA(null, win.IDC_ARROW),
-        hIcon = win.LoadIconA(w.instance, cast(*u8) 2), // the exe's icon (build.jai embeds it as resource 2)
         lpszClassName = class_name,
     };
     if win.RegisterClassExW(*wc) == 0 return false;
 
     style :: win.WS_OVERLAPPEDWINDOW;
-    dpi := GetDpiForSystem();
     scale := cast(float32) dpi / 96;
     r := win.RECT.{0, 0, xx (width * scale), xx (height * scale)};
     AdjustWindowRectExForDpi(*r, style, 0, 0, dpi);
@@ -91,19 +96,18 @@ os_init :: (title: string, width: int, height: int) -> bool {
     win.ShowWindow(w.hwnd, win.SW_SHOW);
     win.UpdateWindow(w.hwnd);
     w.taskbar_created = RegisterWindowMessageW(wide("TaskbarCreated"));
-    w.tray_size = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
-    w.tray_icon = LoadImageW(w.instance, cast(*u16) 2, IMAGE_ICON, w.tray_size, w.tray_size, 0);
     w.tray = tray_notify(NIM_ADD);
     return true;
 }
 
 os_shutdown :: () {
     if w.tray tray_notify(NIM_DELETE);
-    if w.tray_badge_icon DestroyIcon(w.tray_badge_icon);
-    if w.tray_icon DestroyIcon(w.tray_icon);
-    w.tray, w.tray_icon, w.tray_badge_icon = false, null, null;
+    w.tray = false;
     if w.hwnd && w.drop_registered RevokeDragDrop(w.hwnd);
     if w.hwnd win.DestroyWindow(w.hwnd);
+    if w.icon_hook UnhookWindowsHookEx(w.icon_hook);
+    for win.HICON.[w.big_icon, w.small_icon, w.tray_badge_icon] if it DestroyIcon(it);
+    w.icon_hook, w.big_icon, w.small_icon, w.tray_badge_icon = null, null, null, null;
     w.hwnd = null;
 }
 
@@ -306,6 +310,15 @@ NIF_MESSAGE :: 1;
 NIF_ICON :: 2;
 NIF_TIP :: 4;
 SM_CXSMICON :: 49;
+SM_CXICON :: 11;
+SetWindowsHookExW :: (id: s32, proc: *void, mod: win.HINSTANCE, thread: u32) -> *void #foreign user32;
+UnhookWindowsHookEx :: (hook: *void) -> s32 #foreign user32;
+CallNextHookEx :: (hook: *void, code: s32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #foreign user32;
+SendMessageW :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #foreign user32;
+WH_CBT :: 5;
+HCBT_CREATEWND :: 3;
+ICON_SMALL :: 0;
+ICON_BIG :: 1;
 IMAGE_ICON :: 1;
 MF_SEPARATOR :: 0x800;
 TPM_RIGHTBUTTON :: 0x0002;
@@ -367,9 +380,11 @@ w: struct {
     cf_png: u32;
     tray: bool; // the tray icon is shown, so closing the window hides it
     taskbar_created: u32;
-    tray_size: s32;
-    tray_icon: win.HICON;
-    tray_badge_icon: win.HICON; // tray_icon with the unread dot, while there are mentions
+    small_size: s32;
+    big_icon: win.HICON;
+    icon_hook: *void;
+    small_icon: win.HICON;
+    tray_badge_icon: win.HICON; // small_icon with the unread dot, while there are mentions
 };
 
 // A zero-terminated UTF-16 copy in temp.
@@ -412,6 +427,14 @@ pump :: () {
     }
 }
 
+icon_hook :: (code: s32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #c_call {
+    if code == HCBT_CREATEWND {
+        SendMessageW(cast(win.HWND) wp, win.WM_SETICON, ICON_BIG, cast(win.LPARAM) w.big_icon);
+        SendMessageW(cast(win.HWND) wp, win.WM_SETICON, ICON_SMALL, cast(win.LPARAM) w.small_icon);
+    }
+    return CallNextHookEx(null, code, wp, lp);
+}
+
 // ---- Tray icon: closing the window hides it there; a left click shows it again, the right-click menu quits
 
 TRAY_OPEN :: 1;
@@ -419,7 +442,7 @@ TRAY_QUIT :: 2;
 
 tray_notify :: (op: u32) -> bool {
     nid := NOTIFYICONDATAW.{cbSize = size_of(NOTIFYICONDATAW), hWnd = w.hwnd, uID = 1, uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP, uCallbackMessage = WM_FC_TRAY};
-    nid.hIcon = ifx w.tray_badge_icon then w.tray_badge_icon else w.tray_icon;
+    nid.hIcon = ifx w.tray_badge_icon then w.tray_badge_icon else w.small_icon;
     tip := wide("Fastcord");
     for 0..nid.szTip.count-2 {
         nid.szTip[it] = tip[it];
@@ -458,7 +481,7 @@ badge_icon :: (base: win.HICON) -> win.HICON {
     ii: win.ICONINFO;
     if win.GetIconInfo(base, *ii) == .FALSE return null;
     defer { win.DeleteObject(ii.hbmColor); win.DeleteObject(ii.hbmMask); }
-    n := w.tray_size;
+    n := w.small_size;
     bmi: win.BITMAPINFO;
     bmi.bmiHeader = .{biSize = size_of(win.BITMAPINFOHEADER), biWidth = n, biHeight = -n, biPlanes = 1, biBitCount = 32};
     px := NewArray(n * n, u32,, temp);
