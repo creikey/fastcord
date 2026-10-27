@@ -330,6 +330,7 @@ User_Settings :: struct {
 	custom_status_emoji_id: Snowflake;
 	custom_status_expires_ms: s64;
 	status_created_ms: s64; // StatusSettings.status_created_at_ms
+	status_expires_ms: s64; // StatusSettings.status_expires_at_ms, 0 = forever
 	locale: string;
 	timezone_offset: int; // minutes
 	developer_mode: bool;

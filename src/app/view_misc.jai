@@ -90,6 +90,7 @@ open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Ot
 	app.profile_anchor = anchor;
 	app.profile_above = false;
 	app.profile_open_t = 0;
+	sm = .{};
 	if app.client == null { return; }
 	if source == {
 	case .Message_Author;
@@ -159,9 +160,8 @@ profile_popout :: () {
 			more.style.radius = all4(14);
 			more.style.bg = .{0, 0, 0, 0.5};
 			if ui.signal(more).clicked {
-				// the user menu draws below this popout, so hand over to it
 				open_user_menu(uid, .{more.rect.x0, more.rect.y1 + 4});
-				app.profile_user = 0;
+				sm.open = false;
 			}
 			{ ui.parent(more); defer ui.pop_parent();
 				ic := icon("i", "more-horizontal", 16, .{1, 1, 1, 1});
@@ -219,33 +219,7 @@ profile_popout :: () {
 				if blocks.count > 0 { ui.set_spans(bio, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
 			}
 			spacer(.Y, 16);
-			if uid == s.me {
-				er := row("editrow");
-				er.semantic_size = .[ui.pct(1), ui.px(32)];
-				{ ui.parent(er); defer ui.pop_parent();
-					spacer(.X, 16);
-					eb := row("editprofile", .Clickable | .Draw_Background | .Hot_Animation);
-					eb.semantic_size = .[ui.fill(), ui.px(32)];
-					eb.style.radius = all4(8);
-					eb.style.bg = T("--background-brand");
-					eb.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
-					if ui.signal(eb).clicked {
-						// opens Settings > Profiles, like the client (it used to do nothing)
-						app.profile_user = 0;
-						settings_page = "Profiles";
-						app.settings_open = true;
-					}
-					{ ui.parent(eb); defer ui.pop_parent();
-						filler(.X);
-						icon("i", "pencil", 16, .{1, 1, 1, 1});
-						spacer(.X, 4);
-						label("Edit Profile", .Medium, 14, .{1, 1, 1, 1}, 18);
-						filler(.X);
-					}
-					spacer(.X, 16);
-				}
-				spacer(.Y, 16);
-			}
+			if uid == s.me { account_actions(); }
 			if uid != s.me {
 				mr := row("msgrow");
 				mr.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -273,9 +247,134 @@ profile_popout :: () {
 			}
 		}
 	}
+	if uid == s.me && sm.open { status_menu(p); }
+	if user_menu_open() return; // its own Escape and outside press close only the menu
 	for e: app.ui.events {
 		if e.kind == .Key_Down && e.key == .Escape { app.profile_user = 0; }
 	}
+}
+
+// ---- account popout (own card): Edit Profile and the status menu ----
+
+// Status menu state: open while the status row was hovered last; sub is the
+// status whose duration submenu is open (.Offline = none).
+sm: struct {
+	open: bool;
+	row_y: float32;
+	sub: dc.Status;
+	sub_y: float32;
+};
+
+STATUS_DURATIONS :: struct { text: string; ms: s64; }.[
+	.{"For 15 Minutes", 15 * 60_000},
+	.{"For 1 Hour", 3_600_000},
+	.{"For 8 Hours", 8 * 3_600_000},
+	.{"For 24 Hours", 24 * 3_600_000},
+	.{"For 3 Days", 3 * 24 * 3_600_000},
+	.{"Forever", 0}
+];
+
+// The client's group under the names: Edit Profile, then "Your Status" with
+// its expiry ("Until 3:45 PM") opening the status menu on hover.
+account_actions :: () {
+	s := store();
+	gr := row("acctgrp");
+	gr.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(gr); defer ui.pop_parent();
+		spacer(.X, 12);
+		g := ui.box("grp", .Draw_Background);
+		g.semantic_size = .[ui.fill(), ui.children()];
+		g.layout_axis = .Y;
+		g.style.bg = T("--background-mod-subtle");
+		g.style.radius = all4(8);
+		{ ui.parent(g); defer ui.pop_parent();
+			spacer(.Y, 4);
+			ep := menu_item("editprofile", "Edit Profile", lead = "pencil");
+			if ep.hovering sm.open = false;
+			if ep.clicked {
+				// opens Settings > Profiles, like the client
+				app.profile_user = 0;
+				settings_page = "Profiles";
+				app.settings_open = true;
+			}
+			menu_sep("s1");
+			st := ifx s.settings.status == .Offline then dc.Status.Online else s.settings.status; // before READY
+			ss := menu_item("setstatus", status_text(st), .Chevron, sub = status_until(s.settings.status_expires_ms), open = sm.open, lead_status = st, warn = st == .Invisible);
+			if ss.hovering || ss.clicked {
+				sm.open = true;
+				sm.row_y = ss.box.rect.y0;
+			}
+			spacer(.Y, 4);
+		}
+		spacer(.X, 12);
+	}
+	spacer(.Y, 12);
+}
+
+// status_menu: Online, then Idle / Do Not Disturb / Invisible, each with a
+// duration submenu (bundle: set-status-submenu). Choosing keeps the menus
+// open (dontCloseOnAction), as the client does.
+status_menu :: (card: *ui.Box) {
+	s := store();
+	cur := s.settings.status;
+	W :: cast(float32) 280;
+	x := card.rect.x1 + 8;
+	if x + W > app.ui.window.x - 8 x = card.rect.x0 - 8 - W;
+	menu := menu_panel("statusmenu", .{x, clamp(sm.row_y - 8, 8, max(8.0, app.ui.window.y - (3 * 44 + GM_ROW_H + 25) - 8))}, W);
+	{ ui.parent(menu); defer ui.pop_parent();
+		spacer(.Y, 8);
+		on := menu_item("online", "Online", lead_status = .Online);
+		if on.hovering sm.sub = .Offline;
+		if on.clicked set_my_status(.Online);
+		menu_sep("s1");
+		for st: dc.Status.[.Idle, .Dnd, .Invisible] {
+			desc := "";
+			if st == cur desc = status_until(s.settings.status_expires_ms);
+			if desc == "" && st == .Dnd desc = "You will not receive desktop notifications";
+			if desc == "" && st == .Invisible desc = "You will appear offline";
+			it := menu_item(status_text(st), status_text(st), .Chevron, sub = desc, open = sm.sub == st, lead_status = st);
+			if it.hovering || it.clicked {
+				sm.sub = st;
+				sm.sub_y = it.box.rect.y0;
+			}
+			if it.clicked set_my_status(st);
+		}
+		spacer(.Y, 8);
+	}
+	if sm.sub == .Offline return;
+	sx := menu.rect.x1 + 4;
+	if sx + 188 > app.ui.window.x - 8 sx = menu.rect.x0 - 4 - 188;
+	sub := menu_panel("statusdur", .{sx, clamp(sm.sub_y - 8, 8, max(8.0, app.ui.window.y - (6 * GM_ROW_H + 16) - 8))}, 188);
+	{ ui.parent(sub); defer ui.pop_parent();
+		spacer(.Y, 8);
+		for STATUS_DURATIONS if menu_item(it.text, it.text).clicked set_my_status(sm.sub, it.ms);
+		spacer(.Y, 8);
+	}
+}
+
+// set_my_status: online / idle / dnd / invisible, optionally for duration_ms.
+set_my_status :: (st: dc.Status, duration_ms: s64 = 0) {
+	if net_action() {
+		dc.set_status(app.client, st, duration_ms);
+		return;
+	}
+	s := store(); // offline (fixture) runs
+	s.settings.status = st;
+	s.settings.status_expires_ms = ifx duration_ms > 0 then wall_ms() + duration_ms else 0;
+}
+
+// status_until: "Until 3:45 PM", "Until tomorrow at 3:45 PM", "Until 10/30/26 at 3:45 PM" ("" for none).
+status_until :: (end_ms: s64) -> string {
+	if end_ms == 0 return "";
+	cal :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + milliseconds_to_apollo(ms + local_offset_ms())); }
+	same_day :: (a: Calendar_Time, b: Calendar_Time) -> bool { return a.year == b.year && a.month_starting_at_0 == b.month_starting_at_0 && a.day_of_month_starting_at_0 == b.day_of_month_starting_at_0; }
+	t := cal(end_ms);
+	now := wall_ms();
+	h12 := ifx t.hour % 12 then t.hour % 12 else 12;
+	tm := tprint("%:% %", h12, formatInt(t.minute, minimum_digits = 2), ifx t.hour < 12 then "AM" else "PM");
+	if same_day(t, cal(now)) return tprint("Until %", tm);
+	if same_day(t, cal(now + 86_400_000)) return tprint("Until tomorrow at %", tm);
+	return tprint("Until %/%/% at %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, formatInt(t.year % 100, minimum_digits = 2), tm);
 }
 
 // Settings: a floating modal like the visual-refresh client's (1200x640 at 1280x720):

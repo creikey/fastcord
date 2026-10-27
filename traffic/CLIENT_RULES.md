@@ -50,6 +50,20 @@ not read in code; **guess** = neither, best knowledge.
 | Analytics `streamer_mode_toggle {enabled, automatic}`, `update_streamer_mode_settings` with `old_*` copies, `app_notice_*` with `notice_type` `STREAMER_MODE` | code | search `streamer_mode_toggle` | same |
 | UI strings, and the notice "…Usernames have been truncated." | code | intl strings | same |
 
+## Online status
+
+Captured: open_status_menu, set_idle, set_online (no duration). Durations and expiry come from the bundle.
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Account popout group: Edit Profile, then the status row (status name, sublabel = expiry "Until …"); hovering it opens `set-status-submenu`: Online, separator, Idle, Do Not Disturb ("You will not receive desktop notifications"), Invisible ("You will appear offline"); the current status's description is its expiry when it has one | code | `navId:"set-status-submenu"`, intl `tq/fMK`, `zPc6Mc` | `src/app/view_misc.jai` `account_actions`, `status_menu` |
+| Idle / DND / Invisible submenu: For 15 Minutes, For 1 Hour, For 8 Hours, For 24 Hours, For 3 Days, Forever (no duration); Online has none; every item `dontCloseOnAction` | code | `duration:15*w.A.Millis.MINUTE`, `nz="forever"` | same, `STATUS_DURATIONS` |
+| Expiry text: same day "Until 3:45 PM", next day "Until tomorrow at 3:45 PM", else "Until 10/30/26 at 3:45 PM" | code | intl `ZxxHIO`, `9OFjSe`; `kind:"today"` | `status_until` |
+| setStatus: StatusSettings `status`, `status_expires_at_ms` (field 4, fixed64; `now + duration`, omitted for Forever), `status_created_at_ms` kept when the status is unchanged; INFREQUENT_USER_ACTION | code | `statusExpiresAtMs=f`, `n===t&&null!=e.statusCreatedAtMs` | `src/discord/settings.jai` `set_status` |
+| `user_status_updated` gains `expire_duration_minutes` (duration / 60000) after the approx_* keys; tracked on every setStatus, even an unchanged status | code | `expire_duration_minutes:null!=A?A/6e4` | `analytics_status_updated` |
+| Expiry (CustomStatusManager.manageExpiringStatus, on connect and settings updates, then a timer): a status other than Online whose expiry passed becomes Online with `location: {object: "CUSTOM_STATUS_MANAGER"}` | code | `manageExpiringStatus` | `status_expiry_tick` |
+| op 3 after a timed status: same payload as an untimed one (`since: 0`) | inferred | set_idle | `presence_value` |
+
 ## Settings, theme, sounds, notifications
 
 | Rule | Kind | Anchor | fastcord |

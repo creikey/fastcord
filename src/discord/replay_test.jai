@@ -1126,6 +1126,36 @@ parity_set_idle :: (t: *T) {
 	replay_check(*run, "set_idle");
 }
 
+// Timed statuses ("For 15 Minutes"...) and their expiry are not captured: the
+// bundle's setStatus / CustomStatusManager (traffic/CLIENT_RULES.md "Status").
+// Checked here: the delta's status_expires_at_ms, the telemetry's
+// expire_duration_minutes, and the expiry going back to Online with
+// location CUSTOM_STATUS_MANAGER.
+parity_status_timed :: (t: *T) {
+	e: Settings_Edit;
+	e.has_status, e.status, e.status_ms, e.status_expires_ms = true, Status.Dnd, 1, 2;
+	want :: u8.[0x5a, 0x14, 0x0a, 0x05, 0x0a, 0x03, #char "d", #char "n", #char "d", 0x21, 2, 0, 0, 0, 0, 0, 0, 0, 0x2a, 0x02, 0x08, 0x01];
+	expect(t, cast(string) settings_delta_proto(*e) == cast(string) want, "StatusSettings delta with status_expires_at_ms");
+	run: Replay_Run;
+	if !replay_begin(*run, t, "status_change", 0, 0) { return; }
+	replay_mark(*run);
+	set_status(run.c, .Dnd, 15 * 60_000);
+	expect(t, run.c.store.settings.status_expires_ms > now_ms(), "expiry set");
+	replay_settle(*run, 300);
+	run.c.store.settings.status_expires_ms = now_ms() - 1;
+	replay_settle(*run, 300);
+	expect_value(t, run.c.store.settings.status, Status.Online);
+	expect_value(t, run.c.store.settings.status_expires_ms, 0);
+	got: [..]string;
+	got.allocator = temp;
+	for b: run.r.science for ev: b.events if ev.type == "user_status_updated" {
+		for ev.keys if it == "next_status" array_add(*got, ev.consts[it_index]);
+		for ev.keys if it == "expire_duration_minutes" || it == "location" array_add(*got, it);
+	}
+	expectf(t, join(..got, ",",, temp) == "\"dnd\",expire_duration_minutes,\"online\",location", "telemetry: %", join(..got, ",",, temp));
+	replay_end(*run);
+}
+
 // IdleStore: 10 min without input sends op 3 idle (IDLE, then AFK), input sends online again.
 idle_presence :: (t: *T) {
 	run: Replay_Run;

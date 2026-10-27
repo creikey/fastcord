@@ -843,7 +843,9 @@ user_panel :: () {
 				names.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(names); defer ui.pop_parent();
 					label(dc.display_name(u), .Medium, 14, T("--text-strong"), 18);
-					status := status_text(user_status(s.me));
+					status := ifx s.settings.status == .Invisible then "Invisible" else status_text(user_status(s.me));
+					// a timed status ends in the client's tick: wake for it
+					if s.settings.status_expires_ms request_wake(app.ui.time + cast(float64) max(0, s.settings.status_expires_ms - wall_ms()) / 1000 + 0.05);
 					if s.settings.custom_status_text != "" { status = s.settings.custom_status_text; }
 					label(status, .Normal, 12, T("--text-muted"), 14);
 				}
@@ -993,6 +995,7 @@ overlays :: () {
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
+	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
 	if viewer_url != "" { image_viewer(); }
 	incoming_call_popout(); // view_voice.jai
 	if app.settings_open { settings_modal(); } else { settings_closed(); }
