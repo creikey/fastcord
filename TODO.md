@@ -94,6 +94,38 @@
 - [ ] Voice: channel statuses never show; op 43 asks for them but the `CHANNEL_INFO` reply is ignored (`actions.jai`).
 - [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
 - [ ] HTTP/2: closing a connection gives up after 5 s and leaks it while a reader is still blocked (`http/h2.jai`).
+- [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
+- [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
+- [ ] Servers: Discovery opens the web page (`view_add_server.jai`); Create Server has no templates, purpose step or icon upload.
+- [ ] Channels: check whether channels without VIEW_CHANNEL are listed and openable; the sidebar and `guild_channels_sorted` never check permissions (needs a READY capture to confirm hidden channels are sent).
+- [ ] Channels: rows have no red mention-count badge; only the rail shows mentions.
+- [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
+- [ ] Channels: collapsed categories are local only; the account's `collapsed_channels` is parsed but unused and collapsing sends nothing.
+- [ ] Channels: no drag to reorder channels and categories.
+- [ ] Channels: channel rows have no right-click menu (Mark As Read, Mute, Notification Settings, Edit, Copy Link, Invite, Duplicate, Delete); category rows have none either, so the "Delete Category" code is unreachable.
+- [ ] Voice: occupants in the sidebar show no mute, deafen, LIVE or video icons (`Voice_State` has them), there's no N/limit counter, and stage channels list no one.
+- [ ] Voice: a voice channel's text chat can't be opened; clicking always joins.
+- [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
+- [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
+- [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
+- [ ] Forums: no way to create a post ("Search or create a post..." is a plain label, `view_threads.jai`); no sort or tag filter; archived posts load only the first page.
+- [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
+- [ ] Channel settings: only Overview; no NSFW switch, bitrate, user limit, Permissions, Invites or Webhooks (`Channel_Form` already carries some).
+- [ ] Create Channel: no Announcement, Stage or Media types, no Private Channel option, no Create Category.
+- [ ] Server settings: none at all (overview, roles, emoji, stickers, AutoMod, audit log, bans, integrations, webhooks, invites).
+- [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
+- [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
+- [ ] Member list: rows lack the owner crown, BOT/APP tag, custom status or activity line and role icons.
+- [ ] Profiles: the popout shows no roles, with no add/remove role.
+- [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
+- [ ] Invites: no "Edit invite link" (expiry, max uses, temporary); always 30 days, unlimited. No friend list with Invite buttons.
+- [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
+- [ ] Notifications: "Hide Muted Channels" is local; check whether the official client syncs `hide_muted_channels`.
+- [ ] Notifications: a channel can only be muted from the open channel's header bell.
+- [ ] Events: no Edit Event or End Event; the wizard has no Stage location or cover image.
+- [ ] Keybinds: Escape doesn't mark the channel read; it only sends the analytics event (`views.jai` `overlays`).
+- [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
+- [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
