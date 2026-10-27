@@ -43,7 +43,8 @@ Picker_Tab :: enum u8 {
 	Emoji;
 }
 
-PICKER_TAB_LABELS := string.["GIFs", "Stickers", "Emoji"];
+PICKER_TABS :: #run enum_highest_value(Picker_Tab) + 1;
+PICKER_TAB_LABELS :: string.["GIFs", "Stickers", "Emoji"];
 
 Picker_Mode :: enum u8 {
 	Composer;
@@ -63,18 +64,18 @@ Picker_State :: struct {
 	composer_top: float32;
 	rect: ui.Rect; // last laid-out popout rect (final, unscaled)
 	captured: [..]int; // indices into app.ui.events stolen for the picker this frame
-	search: [#run enum_count(Picker_Tab)]ui.Editor;
+	search: [PICKER_TABS]ui.Editor;
 	search_focus: bool;
 	opened_once: bool;
 	keys: [..]ui.Input_Event; // keyboard events for the active tab this frame
 	hidden_mouse: ui.Vec2;
 	has_hidden_mouse: bool; // real mouse while hidden from the views under the popout
-	buttons: [#run enum_count(Picker_Tab)]ui.Rect; // composer buttons (clicks on them switch tabs, not close)
+	buttons: [PICKER_TABS]ui.Rect; // composer buttons (clicks on them switch tabs, not close)
 }
 
 pk: Picker_State;
 
-picker_is_open :: () -> bool {return pk.open && !pk.closing;}
+picker_is_open :: () -> bool { return pk.open && !pk.closing; }
 
 // Composer hook: one call per composer button ("gif", "sticker", "reaction").
 // Returns whether the button should draw highlighted.
@@ -91,21 +92,22 @@ picker_composer_button :: (name: string, sig: ui.Signal, rect: ui.Rect, channel_
 		return sig.hovering;
 	}
 	// the popout aligns to the composer box (the buttons' parent), like the client's positionTargetRef
-	{ p := sig.box.parent;
+	p := sig.box.parent;
 	if p != null && p.rect.x1 > p.rect.x0 {
 		pk.composer_right = p.rect.x1;
 		pk.composer_top = p.rect.y0;
 	} else {
 		pk.composer_right = rect.x1 + 8;
 		pk.composer_top = rect.y0;
-	} }
+	}
 	pk.buttons[tab] = rect;
 	active := picker_is_open() && pk.mode == .Composer && pk.tab == tab && pk.channel == channel_id;
 	if sig.clicked {
 		if active {
 			picker_close();
 		} else {
-			if !picker_is_open() || pk.mode != .Composer || pk.channel != channel_id { picker_open(.Composer, tab, channel_id, 0, rect); } else { picker_set_tab(tab); }
+			if !picker_is_open() || pk.mode != .Composer || pk.channel != channel_id picker_open(.Composer, tab, channel_id, 0, rect);
+			else picker_set_tab(tab);
 			pk.anchor = rect;
 		}
 	}
@@ -113,7 +115,7 @@ picker_composer_button :: (name: string, sig: ui.Signal, rect: ui.Rect, channel_
 }
 
 picker_open :: (mode: Picker_Mode, tab: Picker_Tab, channel_id: dc.Snowflake, message_id: dc.Snowflake, anchor: ui.Rect) {
-	if !(pk.open && !pk.closing) { pk.t = 0; }
+	if !picker_is_open() pk.t = 0;
 	pk.open = true;
 	pk.closing = false;
 	pk.mode = mode;
@@ -122,50 +124,41 @@ picker_open :: (mode: Picker_Mode, tab: Picker_Tab, channel_id: dc.Snowflake, me
 	pk.anchor = anchor;
 	pk.search_focus = true;
 	picker_set_tab(tab);
-	for * ed: pk.search { ui.editor_set_text(ed, ""); }
+	for * pk.search ui.editor_set_text(it, "");
 	emoji_picker_reset();
 	if !pk.opened_once {
 		pk.opened_once = true;
 		pickers_first_open();
 	}
-	if tab == .Emoji || mode == .Reaction {
-		{ c := dc.channel_get(store(), channel_id);
-		if c != null { pickers_on_open_guild(c.guild_id); } }
-	}
+	c := dc.channel_get(store(), channel_id);
+	gid := ifx c then c.guild_id else 0;
+	if (tab == .Emoji || mode == .Reaction) && c != null pickers_on_open_guild(gid);
 	if app.client != null && tab != .Sticker {
-		gid: dc.Snowflake;
-		{ c := dc.channel_get(store(), channel_id);
-		if c != null { gid = c.guild_id; } }
-		kind: dc.Picker_Kind = ifx mode == .Reaction then .Reaction else (ifx tab == .Gif then .Gif else .Emoji);
+		kind: dc.Picker_Kind = ifx mode == .Reaction then .Reaction else ifx tab == .Gif then .Gif else .Emoji;
 		dc.expression_picker_opened(app.client, kind, gid, channel_id, picker_expression_counts(mode == .Reaction, gid), message_id, PK_W);
 	}
 }
 
 picker_set_tab :: (tab: Picker_Tab) {
 	pk.tab = tab;
-	if tab == {
-	case .Gif;
-		gif_picker_on_show();
-	case .Sticker;
-		sticker_picker_on_show();
-	case .Emoji;
-	}
+	if tab == .Gif gif_picker_on_show();
+	if tab == .Sticker sticker_picker_on_show();
 }
 
 picker_close :: () {
-	if !pk.open || pk.closing { return; }
+	if !picker_is_open() return;
 	pk.closing = true;
-	if app.client != null { dc.picker_closed(app.client); }
-	if pk.mode == .Reaction { app.reaction_target = 0; }
+	if app.client != null dc.picker_closed(app.client);
+	if pk.mode == .Reaction app.reaction_target = 0;
 	// only if the picker still has the keyboard: the press that closed it may have focused a field
-	if app.ui.focus == ui.key_from_string("picker_search###pk_search", 0) { app.ui.focus = 0; }
+	if app.ui.focus == ui.key_from_string("picker_search###pk_search", 0) app.ui.focus = 0;
 }
 
 // Called at the top of chat_view, before anything else reads input: while the
 // picker is open it owns the keyboard, and the wheel when over the popout.
 picker_capture_input :: () {
-	clear(*pk.captured);
-	if !picker_is_open() { return; }
+	pk.captured.count = 0;
+	if !picker_is_open() return;
 	over := pk_contains(pk.rect, app.ui.mouse);
 	if over {
 		// the message list hovers by rect (ui.mouse_over); keep it from reacting under the popout
@@ -173,17 +166,10 @@ picker_capture_input :: () {
 		app.ui.mouse = .{-1000000, -1000000};
 	}
 	for * e, i: app.ui.events {
-		if e.consumed { continue; }
-		take := false;
-		if e.kind == {
-		case .Key_Down; #through; case .Text;
-			take = true;
-		case .Scroll;
-			take = over;
-		}
-		if take {
+		if e.consumed continue;
+		if e.kind == .Key_Down || e.kind == .Text || (e.kind == .Scroll && over) {
 			e.consumed = true;
-			append(*pk.captured, i);
+			array_add(*pk.captured, i);
 		}
 	}
 }
@@ -191,23 +177,15 @@ picker_capture_input :: () {
 pk_contains :: (r: ui.Rect, p: ui.Vec2) -> bool {
 	return p.x >= r.x0 && p.x < r.x1 && p.y >= r.y0 && p.y < r.y1;
 }
-#scope_file
 
-// Hands the captured events back to the picker's widgets.
-release_captured :: () {
-	for i: pk.captured { if i < len(app.ui.events) { app.ui.events[i].consumed = false; } }
-	clear(*pk.captured);
-}
-#scope_export
-
-// Overlay entry (views.odin overlays()): network results every frame, the popout when open.
+// Overlay entry (views.jai overlays()): network results every frame, the popout when open.
 picker_overlay :: () {
 	if pk.has_hidden_mouse {
 		app.ui.mouse = pk.hidden_mouse;
 		pk.has_hidden_mouse = false;
 	}
 	pickers_poll();
-	clear(*pk.keys);
+	pk.keys.count = 0;
 	picker_debug_autopen();
 	// toolbar / context menu "Add Reaction" set app.reaction_target
 	if app.reaction_target != 0 && !(picker_is_open() && pk.mode == .Reaction && pk.message == app.reaction_target) {
@@ -219,11 +197,11 @@ picker_overlay :: () {
 			app.reaction_target = 0;
 		}
 	}
-	if !pk.open { return; }
+	if !pk.open return;
 	if pk.channel != app.view.channel {
 		pk.open = false;
 		pk.closing = false;
-		if pk.mode == .Reaction { app.reaction_target = 0; }
+		if pk.mode == .Reaction app.reaction_target = 0;
 		return;
 	}
 	dt := app.ui.dt;
@@ -240,11 +218,132 @@ picker_overlay :: () {
 		pk.t = min(1.0, pk.t + dt / PK_OPEN_SECONDS);
 		app.ui.animating = true;
 	}
-	release_captured();
-	if !pk.closing { picker_input(); }
-	if !pk.open { return; }
+	// hand the captured events back to the picker's widgets
+	for pk.captured if it < app.ui.events.count app.ui.events[it].consumed = false;
+	pk.captured.count = 0;
+	if !pk.closing picker_input();
+	if !pk.open return;
 	picker_panel();
 }
+
+// Multiplies opacity through a subtree (ui does not inherit opacity).
+pk_fade :: (b: *ui.Box, a: float32) {
+	b.opacity *= a;
+	c := b.first;
+	while c {
+		pk_fade(c, a);
+		c = c.next;
+	}
+}
+
+picker_header_h :: () -> float32 {
+	h: float32 = PK_HEADER_PAD_TOP + PK_SEARCH_H + PK_HEADER_PAD_BOTTOM + 1;
+	if pk.mode == .Composer h += PK_TAB_H + PK_TABS_TO_SEARCH;
+	return h;
+}
+Search_Draw :: struct {
+	ed: *ui.Editor;
+}
+
+// Caret + selection for a single-line field whose text is vertically centered.
+search_caret_draw :: (b: *ui.Box, user: *void) {
+	d := cast(*Search_Draw) user;
+	tl := b.text_layout;
+	if tl == null return;
+	text := ui.editor_text(d.ed);
+	o := tl.origin;
+	if o == .{} o = .{b.rect.x0, b.rect.y0 + (b.rect.y1 - b.rect.y0 - tl.height) / 2};
+	if text != "" && ui.editor_has_sel(d.ed) {
+		a, z := ui.editor_sel(d.ed);
+		x0 := ui.caret_x(tl, a);
+		x1 := ui.caret_x(tl, z);
+		gfx.rect(.{o.x + x0, o.y, o.x + x1, o.y + tl.line_h}, cast(gfx.Color) with_alpha(app.ui.selection_color, b.opacity));
+	}
+	x := ifx text == "" then 0 else ui.caret_x(tl, d.ed.caret);
+	phase := app.ui.time - app.caret_reset_t;
+	request_wake(app.caret_reset_t + (cast(float64) cast(int) (phase * 2) + 1) * 0.5);
+	if app.sweep || phase < 0.5 || cast(int) (phase * 2) % 2 == 0 {
+		gfx.rect(.{o.x + x, o.y + 2, o.x + x + 1.5, o.y + tl.line_h - 2}, cast(gfx.Color) with_alpha(T("--text-default"), b.opacity));
+	}
+	platform.set_ime_rect(o.x + x, o.y, 1, tl.line_h);
+}
+
+// ---- shared scrolling list (virtualized grids position rows themselves) ----
+
+Pk_Scroll :: struct {
+	y, target: float32;
+	content_h: float32;
+	view_h: float32;
+}
+
+// Wheel over rect moves the list; call before laying out rows.
+pk_scroll_update :: (s: *Pk_Scroll, view: ui.Rect, content_h: float32) {
+	s.content_h = content_h;
+	s.view_h = view.y1 - view.y0;
+	if pk_contains(view, app.ui.mouse) {
+		for * e: app.ui.events {
+			if e.kind != .Scroll || e.consumed continue;
+			s.target -= e.delta.y;
+			e.consumed = true;
+		}
+	}
+	max_y := max(0.0, content_h - s.view_h);
+	s.target = clamp(s.target, 0, max_y);
+	ui.animate(*s.y, s.target, 40);
+	s.y = clamp(s.y, 0, max_y);
+}
+
+// Keep [y0, y1) in view.
+pk_scroll_reveal :: (s: *Pk_Scroll, y0: float32, y1: float32, top_inset: float32 = 0) {
+	if y0 - top_inset < s.target s.target = y0 - top_inset;
+	else if y1 > s.target + s.view_h s.target = y1 - s.view_h;
+	s.target = clamp(s.target, 0, max(0.0, s.content_h - s.view_h));
+}
+
+// Thin scrollbar thumb at the right edge of the list (parent-relative x).
+pk_scrollbar :: (s: *Pk_Scroll, x: float32) {
+	if s.content_h <= s.view_h + 1 return;
+	frac := s.view_h / s.content_h;
+	th := max(24.0, s.view_h * frac);
+	ty := (s.view_h - th) * (s.y / (s.content_h - s.view_h));
+	b := ui.box("scrollthumb", .Draw_Background | .Floating_X | .Floating_Y);
+	b.semantic_size = .[ui.px(PK_SCROLLBAR_W), ui.px(th)];
+	b.fixed_pos = .{x, ty};
+	b.style.radius = all4(PK_SCROLLBAR_W / 2);
+	b.style.bg = T("--scrollbar-thin-thumb");
+}
+
+// Lowercased, trimmed query of the active tab.
+pk_query :: (tab: Picker_Tab) -> string {
+	return to_lower_copy(trim(ui.editor_text(*pk.search[tab])),, temp);
+}
+
+// "Add Reaction" button after a message's reactions (shown while the message is hovered).
+reaction_add_button :: (m: *dc.Message) {
+	open := picker_is_open() && pk.mode == .Reaction && pk.message == m.id;
+	if app.chat_hover != m.id && !open return;
+	b := row("addreaction", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
+	b.semantic_size = .[ui.px(34), ui.px(26)];
+	b.style.radius = all4(8);
+	b.style.border = 1;
+	b.style.bg = T("--reaction-background-default");
+	b.style.bg_hot = T("--reaction-background-hover");
+	b.style.border_color = T("--reaction-border-default");
+	sig := ui.signal(b);
+	{ ui.parent(b); defer ui.pop_parent();
+		spacer(.X, 8);
+		icon("i", "reaction-plus", 18, ifx sig.hovering || open then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+	}
+	if sig.clicked {
+		if open {
+			picker_close();
+		} else {
+			app.reaction_target = m.id;
+			picker_open(.Reaction, .Emoji, m.channel_id, m.id, b.rect);
+		}
+	}
+}
+
 #scope_file
 
 // Escape, click-outside, and the keyboard routed to the active tab.
@@ -253,11 +352,11 @@ picker_input :: () {
 		// a press outside closes the picker even when the control under it took the
 		// press (composer, header search, ...), like the client; otherwise the picker
 		// stayed open and kept the keyboard focus that control just asked for
-		if e.consumed && e.kind != .Mouse_Down { continue; }
+		if e.consumed && e.kind != .Mouse_Down continue;
 		if e.kind == {
 		case .Mouse_Down;
 			on_button := false;
-			if pk.mode == .Composer { for r: pk.buttons { if pk_contains(r, e.pos) { on_button = true; } } }
+			if pk.mode == .Composer for pk.buttons if pk_contains(it, e.pos) on_button = true;
 			if !pk_contains(pk.rect, e.pos) && !pk_contains(pk.anchor, e.pos) && !on_button {
 				picker_close();
 				return;
@@ -280,11 +379,11 @@ ease_out :: (t: float32) -> float32 {
 
 // Final (unscaled) popout rect.
 picker_target_rect :: () -> ui.Rect {
-	win := app.ui.window;
+	screen := app.ui.window;
 	w, h: float32 = PK_W, PK_H;
 	r: ui.Rect;
 	if pk.mode == .Composer {
-		w = min(w, win.x - 2 * PK_SCREEN_MARGIN);
+		w = min(w, screen.x - 2 * PK_SCREEN_MARGIN);
 		h = min(h, max(200.0, pk.composer_top - PK_COMPOSER_GAP - TITLE_BAR_H - PK_SCREEN_MARGIN));
 		right := (ifx pk.composer_right != 0 then pk.composer_right else pk.anchor.x1) - PK_RIGHT_INSET;
 		bottom := ifx pk.composer_top != 0 then pk.composer_top - PK_COMPOSER_GAP else pk.anchor.y0 - PK_COMPOSER_GAP;
@@ -299,13 +398,13 @@ picker_target_rect :: () -> ui.Rect {
 		r.x1 += PK_SCREEN_MARGIN - r.x0;
 		r.x0 = PK_SCREEN_MARGIN;
 	}
-	if r.x1 > win.x - PK_SCREEN_MARGIN {
-		d := r.x1 - (win.x - PK_SCREEN_MARGIN);
+	if r.x1 > screen.x - PK_SCREEN_MARGIN {
+		d := r.x1 - (screen.x - PK_SCREEN_MARGIN);
 		r.x0 -= d;
 		r.x1 -= d;
 	}
-	if r.y1 > win.y - PK_SCREEN_MARGIN {
-		d := r.y1 - (win.y - PK_SCREEN_MARGIN);
+	if r.y1 > screen.y - PK_SCREEN_MARGIN {
+		d := r.y1 - (screen.y - PK_SCREEN_MARGIN);
 		r.y0 -= d;
 		r.y1 -= d;
 	}
@@ -365,22 +464,6 @@ picker_panel :: () {
 	}
 	pk_fade(frame, ease_out(pk.t));
 }
-#scope_export
-
-// Multiplies opacity through a subtree (ui does not inherit opacity).
-pk_fade :: (b: *ui.Box, a: float32) {
-	b.opacity *= a;
-	{ c := b.first;
-	while c != null { pk_fade(c, a);  c = c.next; } }
-}
-
-picker_header_h :: () -> float32 {
-	h: float32 = PK_HEADER_PAD_TOP + PK_SEARCH_H + PK_HEADER_PAD_BOTTOM + 1;
-	if pk.mode == .Composer { h += PK_TAB_H + PK_TABS_TO_SEARCH; }
-	return h;
-}
-#scope_file
-
 picker_header :: (r: ui.Rect) {
 	hdr := ui.box("picker_header");
 	hdr.semantic_size = .[ui.pct(1), ui.px(picker_header_h())];
@@ -406,7 +489,7 @@ picker_header :: (r: ui.Rect) {
 					b.style.bg = ifx sel then T("--background-mod-normal") else .{};
 					b.style.bg_hot = ifx sel then T("--background-mod-strong") else T("--control-secondary-background-hover");
 					b.style.text_color = ifx sel then (ifx sig.hovering then T("--interactive-text-active") else T("--text-strong")) else (ifx sig.hovering then T("--interactive-text-hover") else T("--text-default"));
-					if sig.clicked && !sel { picker_set_tab(tab); }
+					if sig.clicked && !sel picker_set_tab(tab);
 					spacer(.X, PK_TAB_GAP);
 				}
 			}
@@ -417,32 +500,18 @@ picker_header :: (r: ui.Rect) {
 		{ ui.parent(srow); defer ui.pop_parent();
 			spacer(.X, PK_HEADER_PAD_X);
 			placeholder := ifx pk.mode == .Reaction then "Find the perfect reaction" else "Find the perfect emoji";
-			if pk.tab == {
-			case .Gif;
-				placeholder = "Search Klipy";
-			case .Sticker;
-				placeholder = "Find the perfect sticker";
-			case .Emoji;
-			}
+			if pk.tab == .Gif placeholder = "Search Klipy";
+			if pk.tab == .Sticker placeholder = "Find the perfect sticker";
 			res := ui.Edit_Result.None;
-			if pk.tab == .Gif { gif_header_back(); }
-			if !(pk.tab == .Gif && gif_header_title()) { res = pk_search_field(*pk.search[pk.tab], placeholder); }
-			if res == .Changed {
-				if pk.tab == {
-				case .Emoji;
-					emoji_picker_query_changed();
-				case .Gif;
-					gif_picker_query_changed();
-				case .Sticker;
-					sticker_picker_query_changed();
-				}
-			}
+			if pk.tab == .Gif gif_header_back();
+			if !(pk.tab == .Gif && gif_header_title()) res = pk_search_field(*pk.search[pk.tab], placeholder);
+			if res == .Changed query_changed(pk.tab);
 			if pk.tab == .Emoji {
 				spacer(.X, PK_HEADER_GAP);
 				skin_tone_button();
 				// "Add Emoji" when you can manage this guild's expressions (official: 102x40)
 				pch := dc.channel_get(store(), pk.channel);
-				{ gid := ifx pch != null then pch.guild_id else 0;
+				gid := ifx pch then pch.guild_id else 0;
 				if can_upload_emoji(gid) {
 					spacer(.X, PK_HEADER_GAP);
 					busy := emoji_upload_busy();
@@ -455,9 +524,9 @@ picker_header :: (r: ui.Rect) {
 					add.style.text_color = T("--text-strong");
 					add.style.bg = T("--background-mod-normal");
 					add.style.bg_hot = T("--background-mod-strong");
-					if busy { add.flags |= .Disabled; }
-					if ui.signal(add).clicked && !busy { emoji_upload_pick(gid); } // file dialog, then upload off the UI thread
-				} }
+					if busy add.flags |= .Disabled;
+					if ui.signal(add).clicked && !busy emoji_upload_pick(gid); // file dialog, then upload off the UI thread
+				}
 			}
 			spacer(.X, PK_HEADER_PAD_X);
 		}
@@ -497,11 +566,11 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 		}
 		sig := ui.signal(f);
 		tl := f.text_layout;
-		if text == "" { tl = null; }
+		if text == "" tl = null;
 		if sig.pressed {
 			for e: app.ui.events {
 				if e.kind == .Mouse_Down && e.button == .Left {
-					ui.editor_mouse_down(ed, tl, e.pos, e.click_count, has(e.mods, .Shift));
+					ui.editor_mouse_down(ed, tl, e.pos, e.click_count, (e.mods & .Shift) != 0);
 					break;
 				}
 			}
@@ -509,31 +578,31 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 			ui.editor_mouse_drag(ed, tl, app.ui.mouse);
 		}
 		for * e: app.ui.events {
-			if e.consumed { continue; }
+			if e.consumed continue;
 			if e.kind == .Key_Down {
 				// the grid owns arrows / enter (the input keeps focus, like the client)
 				if e.key == {
 				case .Up; #through; case .Down; #through; case .Enter; #through; case .Page_Up; #through; case .Page_Down;
-					append(*pk.keys, e);
+					array_add(*pk.keys, e.*);
 					e.consumed = true;
 					continue;
 				case .Left; #through; case .Right;
 					if e.mods == 0 && pk.tab == .Emoji && text == "" {
-						append(*pk.keys, e);
+						array_add(*pk.keys, e.*);
 						e.consumed = true;
 						continue;
 					}
 				}
 			}
-			if e.kind != .Key_Down && e.kind != .Text { continue; }
+			if e.kind != .Key_Down && e.kind != .Text continue;
 			r := ui.editor_event(ed, e, tl, clipboard_get, clipboard_set);
 			if r != .None {
 				e.consumed = true;
-				if r != .Moved || result == .None { result = r; }
+				if r != .Moved || result == .None result = r;
 			}
 		}
 		note_focused_editor(ed, f);
-		d := new(Search_Draw, temp);
+		d := New(Search_Draw,, temp);
 		d.ed = ed;
 		f.custom_draw = search_caret_draw;
 		f.custom_user = d;
@@ -549,148 +618,38 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 		}
 		spacer(.X, PK_SEARCH_PAD_X);
 	}
-	if ui.signal(wrap).pressed { pk.search_focus = true; }
+	if ui.signal(wrap).pressed pk.search_focus = true;
 	return result;
 }
-#scope_export
-
-Search_Draw :: struct {
-	ed: *ui.Editor;
-}
-
-// Caret + selection for a single-line field whose text is vertically centered.
-search_caret_draw :: (b: *ui.Box, user: *void) {
-	d := cast(*Search_Draw)(user);
-	tl := b.text_layout;
-	if tl == null { return; }
-	text := ui.editor_text(d.ed);
-	o := tl.origin;
-	if o == .{} { o = .{b.rect.x0, b.rect.y0 + (b.rect.y1 - b.rect.y0 - tl.height) / 2}; }
-	if text != "" && ui.editor_has_sel(d.ed) {
-		a, z := ui.editor_sel(d.ed);
-		x0 := ui.caret_x(tl, a);
-		x1 := ui.caret_x(tl, z);
-		gfx.rect(.{o.x + x0, o.y, o.x + x1, o.y + tl.line_h}, cast(gfx.Color)(with_alpha(app.ui.selection_color, b.opacity)));
-	}
-	x := ifx text == "" then 0 else ui.caret_x(tl, d.ed.caret);
-	phase := app.ui.time - app.caret_reset_t;
-	request_wake(app.caret_reset_t + (cast(float64)(cast(int)(phase * 2)) + 1) * 0.5);
-	if app.sweep || phase < 0.5 || cast(int)(phase * 2) % 2 == 0 {
-		gfx.rect(.{o.x + x, o.y + 2, o.x + x + 1.5, o.y + tl.line_h - 2}, cast(gfx.Color)(with_alpha(T("--text-default"), b.opacity)));
-	}
-	platform.set_ime_rect(o.x + x, o.y, 1, tl.line_h);
-}
-
-// ---- shared scrolling list (virtualized grids position rows themselves) ----
-
-Pk_Scroll :: struct {
-	y, target: float32;
-	content_h: float32;
-	view_h: float32;
-}
-
-// Wheel over rect moves the list; call before laying out rows.
-pk_scroll_update :: (s: *Pk_Scroll, view: ui.Rect, content_h: float32) {
-	s.content_h = content_h;
-	s.view_h = view.y1 - view.y0;
-	if pk_contains(view, app.ui.mouse) {
-		for * e: app.ui.events {
-			if e.kind != .Scroll || e.consumed { continue; }
-			s.target -= e.delta.y;
-			e.consumed = true;
-		}
-	}
-	max_y := max(0.0, content_h - s.view_h);
-	s.target = clamp(s.target, 0, max_y);
-	ui.animate(*s.y, s.target, 40);
-	s.y = clamp(s.y, 0, max_y);
-}
-
-// Keep [y0, y1) in view.
-pk_scroll_reveal :: (s: *Pk_Scroll, y0: float32, y1: float32, top_inset: float32 = 0) {
-	if y0 - top_inset < s.target { s.target = y0 - top_inset; } else if y1 > s.target + s.view_h { s.target = y1 - s.view_h; }
-	s.target = clamp(s.target, 0, max(0.0, s.content_h - s.view_h));
-}
-
-// Thin scrollbar thumb at the right edge of the list (parent-relative x).
-pk_scrollbar :: (s: *Pk_Scroll, x: float32) {
-	if s.content_h <= s.view_h + 1 { return; }
-	frac := s.view_h / s.content_h;
-	th := max(24.0, s.view_h * frac);
-	ty := (s.view_h - th) * (s.y / (s.content_h - s.view_h));
-	b := ui.box("scrollthumb", .Draw_Background | .Floating_X | .Floating_Y);
-	b.semantic_size = .[ui.px(PK_SCROLLBAR_W), ui.px(th)];
-	b.fixed_pos = .{x, ty};
-	b.style.radius = all4(PK_SCROLLBAR_W / 2);
-	b.style.bg = T("--scrollbar-thin-thumb");
-}
-
-// Lowercased, trimmed query of the active tab.
-pk_query :: (tab: Picker_Tab) -> string {
-	return strings.to_lower(strings.trim_space(ui.editor_text(*pk.search[tab])), temp);
-}
-
-pk_round :: (v: float32) -> float32 {return math.round(v);}
-
-// "Add Reaction" button after a message's reactions (shown while the message is hovered).
-reaction_add_button :: (m: *dc.Message) {
-	open := picker_is_open() && pk.mode == .Reaction && pk.message == m.id;
-	if app.chat_hover != m.id && !open { return; }
-	b := row("addreaction", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
-	b.semantic_size = .[ui.px(34), ui.px(26)];
-	b.style.radius = all4(8);
-	b.style.border = 1;
-	b.style.bg = T("--reaction-background-default");
-	b.style.bg_hot = T("--reaction-background-hover");
-	b.style.border_color = T("--reaction-border-default");
-	sig := ui.signal(b);
-	{ ui.parent(b); defer ui.pop_parent();
-		spacer(.X, 8);
-		icon("i", "reaction-plus", 18, ifx sig.hovering || open then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-	}
-	if sig.clicked {
-		if open {
-			picker_close();
-		} else {
-			app.reaction_target = m.id;
-			picker_open(.Reaction, .Emoji, m.channel_id, m.id, b.rect);
-		}
-	}
-}
-#scope_file
+autopen_done: bool;
 
 // FASTCORD_PICKER=gif|sticker|emoji (+ FASTCORD_PICKER_QUERY=...) opens the picker
 // once a channel is showing — for headless -live checks of the real REST data.
 picker_debug_autopen :: () {
-	if static_done11 || app.view.channel == 0 || pk.composer_top == 0 { return; }
-	which := os.get_env("FASTCORD_PICKER", temp);
-	if which == "" {
-		static_done11 = true;
-		return;
-	}
-	static_done11 = true;
-	tab := Picker_Tab.Emoji;
-	if which == {
-	case "gif";
-		tab = .Gif;
-	case "sticker";
-		tab = .Sticker;
-	}
+	if autopen_done || app.view.channel == 0 || pk.composer_top == 0 return;
+	autopen_done = true;
+	which := env("FASTCORD_PICKER");
+	if which == "" return;
+	tab := ifx which == "gif" then Picker_Tab.Gif else ifx which == "sticker" then Picker_Tab.Sticker else .Emoji;
 	picker_open(.Composer, tab, app.view.channel, 0, .{pk.composer_right - 48, pk.composer_top, pk.composer_right - 8, pk.composer_top + 52});
-	{ q := os.get_env("FASTCORD_PICKER_QUERY", temp);
+	q := env("FASTCORD_PICKER_QUERY");
 	if q != "" {
 		ui.editor_set_text(*pk.search[tab], q);
-		if tab == {
-		case .Emoji;
-			emoji_picker_query_changed();
-		case .Gif;
-			gif_picker_query_changed();
-		case .Sticker;
-			sticker_picker_query_changed();
-		}
-	} }
+		query_changed(tab);
+	}
 }
-#scope_export
 
-#scope_file static_done11: bool; #scope_export
+query_changed :: (tab: Picker_Tab) {
+	if tab == {
+		case .Emoji;   emoji_picker_query_changed();
+		case .Gif;     gif_picker_query_changed();
+		case .Sticker; sticker_picker_query_changed();
+	}
+}
 
+getenv :: (name: *u8) -> *u8 #foreign libc;
+
+env :: (name: *u8) -> string {
+	v := getenv(name);
+	return ifx v then to_string(v) else "";
+}
