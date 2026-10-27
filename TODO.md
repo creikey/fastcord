@@ -135,6 +135,7 @@
 - [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
+- [ ] Read states: regaining window focus reports its ack as "Ack - Channel Scroll" (officially "Ack - Window Focus"), and auto-acks use the last loaded message instead of the read state's `last_message_id` (`view_chat.jai` `chat_view`).
 - [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
 - [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.

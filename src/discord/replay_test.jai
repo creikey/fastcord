@@ -1124,6 +1124,29 @@ mark_unread_and_pins :: (t: *T) {
 	expect(t, !rs.manual, "leaving the channel ends the hold");
 }
 
+// Read-state acks (ReadState.ack, no capture): a channel with mentions is acked at once,
+// otherwise after 3 s; acks before the timer fires join it and keep the first location.
+ack_timing :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	msgs := messages_get(*c.store, R_TEXT);
+	if !expect(t, msgs.count >= 2, "fixture messages") return;
+	replay_mark(*run);
+	find_or_add(*c.store.read_states, R_TEXT).mention_count = 1;
+	ack_message(c, R_TEXT, msgs[msgs.count - 2].id, location = ACK_INCOMING_MESSAGE);
+	replay_pump(*run, 300);
+	expect_value(t, r_count(*run, "POST", "/ack"), 1);
+	ack_message(c, R_TEXT, msgs[msgs.count - 2].id, location = ACK_CHANNEL_SCROLL);
+	ack_message(c, R_TEXT, msgs[msgs.count - 1].id, location = ACK_INCOMING_MESSAGE);
+	expect(t, c.pending_acks.count == 1 && c.pending_acks[0].location.object == ACK_CHANNEL_SCROLL.object && c.pending_acks[0].message_id == msgs[msgs.count - 1].id, "later acks join the pending one");
+	replay_pump(*run, 2000);
+	expect_value(t, r_count(*run, "POST", "/ack"), 1);
+	replay_pump(*run, 1500);
+	expect_value(t, r_count(*run, "POST", "/ack"), 2);
+}
+
 parity_gif_send :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "gif_send", R_GUILD, R_TEXT) { return; }
