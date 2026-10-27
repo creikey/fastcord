@@ -14,3 +14,4 @@ locks :: #import "locks";
     #load "platform_darwin.jai";
 }
 #if OS == .WINDOWS #load "platform_windows.jai";
+#if OS == .LINUX #load "platform_linux.jai";
