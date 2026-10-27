@@ -162,9 +162,10 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 	retry_429_left := retry_429;
 	failed := 0;
 	backoff := backoff_make(500);
+	queued := true; // a retry after a network error or 5xx skips the queue (HTTPUtils calls I, not g)
 	while true {
-		w := rate_wait_ms(*c.limiter, url_key, now_ms());
-		if w > 0 sleep_milliseconds(xx w);
+		if queued rate_acquire(*c.limiter, url_key);
+		queued = false;
 		now := now_ms();
 		ex := extra;
 		if failed > 0 {
@@ -193,7 +194,10 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 		resp, err := transport_round_trip(*c.transport, API_HOST, req);
 		if err != .None || (retries_left > 0 && is_retryable_status(resp.status)) {
 			http.response_destroy(*resp);
-			if retries_left <= 0 return .{status = 0};
+			if retries_left <= 0 {
+				rate_note_response(*c.limiter, url_key, 0, .[], .{}, now_ms());
+				return .{status = 0};
+			}
 			retries_left -= 1;
 			failed += 1;
 			sleep_milliseconds(xx backoff_fail(*backoff));
@@ -211,6 +215,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			fini(pool);
 			free(pool,, context.default_allocator);
 			if wait > 0 sleep_milliseconds(xx wait);
+			queued = true;
 			continue;
 		}
 		hdrs := NewArray(resp.headers.count, http.Header,, alloc);
