@@ -136,6 +136,10 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
         }
     }
     compiler_end_intercept(w);
+    // Every Windows build of the app gets the icon; the window loads it from the exe as resource 2.
+    #if OS == .WINDOWS if ok && !LINUX && begins_with(source, "app :: #import \"app\"") {
+        ok = WR.set_icon_by_filename(tprint("build/%.exe", name), "assets/fastcord.ico");
+    }
     return ok;
 }
 
@@ -171,7 +175,6 @@ release :: (args: []string) -> bool {
     } else #if OS == .WINDOWS {
         // Windows: a GUI-subsystem exe (no console window) with the icon, zipped with the system bsdtar
         if !compile("Fastcord", root, .VERY_OPTIMIZED, gui = true) return false;
-        if !WR.set_icon_by_filename("build/Fastcord.exe", "assets/fastcord.ico") return false;
         file_delete("dist/fastcord-windows.zip");
         if run_command("tar", "-a", "-c", "-f", "dist/fastcord-windows.zip", "-C", "build", "Fastcord.exe").exit_code != 0 return false;
         array_add(*assets, "dist/fastcord-windows.zip");
