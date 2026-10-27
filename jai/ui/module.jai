@@ -10,6 +10,7 @@ prof :: #import "prof";
 runtime :: #import "fc_runtime";
 strings :: #import "fc_strings";
 utf8 :: #import "fc_utf8";
+#load "vec.jai";
 #load "core.jai";
 #load "text.jai";
 #load "textedit.jai";

@@ -10,9 +10,9 @@ read_entire_file :: (path: string) -> []u8, bool {
 encode_png :: (pixels: []u8, w: int, h: int, allocator := context.allocator) -> []u8 {
 	b: bytes.Buffer;
 	bytes.buffer_init_allocator(*b, 0, w * h * 4 + 1024, allocator);
-	bytes.buffer_write(*b, .{0x89, #char "P", #char "N", #char "G", 13, 10, 0x1a, 10});
+	bytes.buffer_write(*b, u8.[0x89, #char "P", #char "N", #char "G", 13, 10, 0x1a, 10]);
 
-	be32 :: (v: u32) -> [4]u8 {return .[cast(u8)(v >> 24), cast(u8)(v >> 16), cast(u8)(v >> 8), cast(u8)(v)];}
+	be32 :: (v: u32) -> [4]u8 {return .[cast,trunc(u8)(v >> 24), cast,trunc(u8)(v >> 16), cast,trunc(u8)(v >> 8), cast,trunc(u8)(v)];}
 	chunk :: (b: *bytes.Buffer, type: string, data: []u8) {
 		l := be32(cast(u32)(len(data)));
 		bytes.buffer_write(b, view(l));
@@ -41,12 +41,12 @@ encode_png :: (pixels: []u8, w: int, h: int, allocator := context.allocator) -> 
 	}
 	z: bytes.Buffer;
 	bytes.buffer_init_allocator(*z, 0, raw_len + raw_len / 65535 * 5 + 16, temp);
-	bytes.buffer_write(*z, .{0x78, 0x01});
+	bytes.buffer_write(*z, u8.[0x78, 0x01]);
 	{ off := 0;
 	while off < raw_len || raw_len == 0 {
 		n := min(65535, raw_len - off);
-		final: u8 = ifx off + n >= raw_len then 1 else 0;
-		hdr := u8.[final, cast(u8)(n), cast(u8)(n >> 8), cast(u8)(~cast(u16)(n)), cast(u8)(~cast(u16)(n) >> 8)];
+		final: u8 = cast(u8) ifx off + n >= raw_len then 1 else 0;
+		hdr := u8.[final, cast,trunc(u8)(n), cast,trunc(u8)(n >> 8), cast,trunc(u8)(~cast(u16)(n)), cast,trunc(u8)(~cast(u16)(n) >> 8)];
 		bytes.buffer_write(*z, view(hdr));
 		bytes.buffer_write(*z, sub(sub_from(raw, off), 0, n));
 		off += n;
@@ -55,7 +55,7 @@ encode_png :: (pixels: []u8, w: int, h: int, allocator := context.allocator) -> 
 	ad := be32(hash.adler32(raw));
 	bytes.buffer_write(*z, view(ad));
 	chunk(*b, "IDAT", bytes.buffer_to_bytes(*z));
-	chunk(*b, "IEND", null);
+	chunk(*b, "IEND", .{});
 	return bytes.buffer_to_bytes(*b);
 }
 

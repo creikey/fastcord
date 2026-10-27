@@ -66,9 +66,9 @@ CGRect :: struct {origin: CGPoint; size: CGSize;}
 	CGContextSetAllowsFontSubpixelQuantization :: (ctx: CFRef, v: bool) #foreign CoreGraphics;
 
 kCTFontColorGlyphsTrait :: 1 << 13;
-kCGImageAlphaPremultipliedLast :: 1;
-kCGImageAlphaNoneSkipLast :: 5;
-kCGBitmapByteOrder32Big :: 4 << 12;
+kCGImageAlphaPremultipliedLast : u32 : 1;
+kCGImageAlphaNoneSkipLast : u32 : 5;
+kCGBitmapByteOrder32Big : u32 : 4 << 12;
 #scope_export
 
 // When true, coverage comes from CoreGraphics' font smoothing (stem darkening),
@@ -300,9 +300,9 @@ _shape :: (inst: u32, text: string, out: *[..]Raw_Glyph) -> float32 {
 	}
 	// cluster_end = next distinct cluster start (covers ligatures and multi-glyph clusters).
 	clear(*ct.starts);
-	for r: out { append(*ct.starts, r.cluster_start); }
+	for r: out.* { append(*ct.starts, r.cluster_start); }
 	slice.sort(view(ct.starts));
-	for * r: out {
+	for * r: out.* {
 		r.cluster_end = len(text);
 		i, _ := slice.binary_search(view(ct.starts), r.cluster_start);
 		for j: i..len(ct.starts)-1 {
@@ -388,7 +388,7 @@ _font_name :: (inst: u32, allocator: Allocator) -> string {
 	if n == null { return ""; }
 	defer CFRelease(n);
 	buf: [256]u8;
-	if !CF.StringGetCString(CF.String(n), *buf[0], len(buf), CF.StringEncoding(0x08000100)) { return ""; }
+	if !CFStringGetCString(n, *buf[0], buf.count, 0x08000100) { return ""; }
 	l := 0;
 	while l < len(buf) && buf[l] != 0 { l += 1; }
 	return clone_str(as_string(sub(buf, 0, l)), allocator);

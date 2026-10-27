@@ -103,10 +103,10 @@ ogg_scan :: (d: *Demuxer) -> Scan_Status {
 	}
 
 	st: *Ogg_Stream;
-	for * x: o.streams { if x.serial == serial { st = *x; } }
+	for * x: o.streams { if x.serial == serial { st = x; } }
 	if st == null {
 		append(*o.streams, Ogg_Stream.{serial = serial, track = -1});
-		st = at(*o.streams, len(o.streams) - 1);
+		st = *o.streams[o.streams.count - 1];
 	}
 	clear(*st.pending);
 

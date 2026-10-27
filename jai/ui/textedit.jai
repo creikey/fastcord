@@ -94,8 +94,11 @@ editor_redo :: (e: *Editor) -> bool {return restore(e, *e.redo, *e.undo);}
 #scope_module
 
 replace_range :: (e: *Editor, a: int, b: int, s: string) {
-	remove_range(*e.buf, a, b);
-	inject_at(*e.buf, a, s);
+	// Odin remove_range + inject_at: splice s over buf[a:b].
+	tail := clone(as_string(sub_from(e.buf, b)), temp);
+	resize(*e.buf, a);
+	append(*e.buf, s);
+	append(*e.buf, tail);
 	e.caret = a + len(s);
 	e.mark = e.caret;
 	e.has_pref_x = false;

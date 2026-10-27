@@ -3,8 +3,6 @@
 #import "Hash_Table";
 #import "Atomics";
 #import "fc";
-#if OS == .MACOS CV :: #import "vendor:darwin/CoreVideo";
-#if OS == .MACOS NS :: #import "core:sys/darwin/Foundation";
 locks :: #import "locks";
 #if OS == .MACOS objc :: #import "platform_objc";
 runtime :: #import "fc_runtime";
@@ -30,5 +28,7 @@ ole32 :: #system_library "ole32";
 #if OS == .MACOS #load "open_url_darwin.jai";
 #if OS == .WINDOWS #load "open_url_windows.jai";
 #load "platform.jai";
+#load "vec.jai";
+#if OS == .MACOS #load "ns_darwin.jai";
 #if OS == .MACOS #load "platform_darwin.jai";
 #if OS == .WINDOWS #load "platform_windows.jai";

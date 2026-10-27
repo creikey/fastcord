@@ -294,7 +294,7 @@ parse_tracks :: (d: *Demuxer, m: *Mkv, b: []u8) {
 			case ID_CODEC_ID; codec_id = as_string(cb);
 			case ID_CODEC_PRIVATE; t.extradata = clone_bytes(cb);
 			case ID_CODEC_DELAY; codec_delay_ns = uint_of(cb);
-			case ID_DEFAULT_DURATION; at(*m.default_dur, t.id).* = uint_of(cb);
+			case ID_DEFAULT_DURATION; map_set(*m.default_dur, t.id, uint_of(cb));
 			case ID_VIDEO;
 				k := 0;
 				while true {
@@ -341,7 +341,7 @@ parse_tracks :: (d: *Demuxer, m: *Mkv, b: []u8) {
 			delete(t.extradata);
 			t.extradata = nb;
 		}
-		at(*m.track_map, t.id).* = len(d.tracks);
+		map_set(*m.track_map, t.id, len(d.tracks));
 		append(*d.tracks, t);
 	}
 }
@@ -388,28 +388,28 @@ index_block :: (d: *Demuxer, m: *Mkv, at: s64, size: s64, simple: bool, block_du
 				v += cast(s64)(c);
 				if c != 255 { break; }
 			}
-			at(*sizes, k).* = v;
+			sizes[k] = v;
 		}
 	case 3; // EBML
 		first, fn, fok := vint(sub_from(lb, p), false);
 		if !fok { return; }
 		p += fn;
-		at(*sizes, 0).* = first;
+		sizes[0] = first;
 		for k: 1..(count - 1)-1 {
 			raw, rn, rok := vint(sub_from(lb, p), false);
 			if !rok { return; }
 			p += rn;
 			bias := (cast(s64)(1) << cast(u64)(7 * rn - 1)) - 1;
-			at(*sizes, k).* = __MAPIDX__(sizes|k - 1) + (raw - bias);
+			sizes[k] = get(sizes, k - 1) + (raw - bias);
 		}
 	case 2; // fixed
 		each_size := (payload_size - 1) / cast(s64)(count);
-		for k: 0..count-1 { at(*sizes, k).* = each_size; }
+		for k: 0..count-1 { sizes[k] = each_size; }
 	}
 	total: s64;
 	for k: 0..(count - 1)-1 { total += get(sizes, k); }
-	if lacing != 2 { at(*sizes, count - 1).* = payload_size - cast(s64)(p) - total; }
-	for k: 0..count-1 { if __MAPIDX__(sizes|k) < 0 || __MAPIDX__(sizes|k) > payload_size { return; } }
+	if lacing != 2 { sizes[count - 1] = payload_size - cast(s64)(p) - total; }
+	for k: 0..count-1 { if get(sizes, k) < 0 || get(sizes, k) > payload_size { return; } }
 	off := payload_at + cast(s64)(p);
 	frame_dur := ifx dur > 0 then dur / cast(s32)(count) else 0;
 	for k: 0..count-1 {

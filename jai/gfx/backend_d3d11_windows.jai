@@ -201,13 +201,13 @@ ensure_target :: (fb: [2]s32) -> bool {
 	if dx.swap != null {
 		dx.ctx->OMSetRenderTargets(0, null, null);
 		if dx.back_size != .{} {
-			if dx.swap->ResizeBuffers(0, cast(u32)(fb.x), cast(u32)(fb.y), .UNKNOWN, dx.swap_flags) < 0 { return false; }
+			if dx.swap->ResizeBuffers(0, cast(u32)(fb[0]), cast(u32)(fb[1]), .UNKNOWN, dx.swap_flags) < 0 { return false; }
 		}
 		dx.swap->GetBuffer(0, D3D11.ITexture2D_UUID, cast(**void)(*tex));
 	} else {
 		if dx.offscreen != null { dx.offscreen->Release(); }
 		td := D3D11.TEXTURE2D_DESC.{
-			Width = cast(u32)(fb.x), Height = cast(u32)(fb.y), MipLevels = 1, ArraySize = 1,
+			Width = cast(u32)(fb[0]), Height = cast(u32)(fb[1]), MipLevels = 1, ArraySize = 1,
 			Format = .B8G8R8A8_UNORM, SampleDesc = .{Count = 1}, Usage = .DEFAULT, BindFlags = .{.RENDER_TARGET}
 		};
 		dx.device->CreateTexture2D(*td, null, *dx.offscreen);
@@ -242,7 +242,7 @@ ensure_instances :: (n: int) {
 #scope_module
 
 _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32) {
-	if fb.x <= 0 || fb.y <= 0 { return; }
+	if fb[0] <= 0 || fb[1] <= 0 { return; }
 	if !ensure_target(fb) { return; }
 	for * t: dx.timers { timer_read(*t); }
 	timer := *dx.timers[g.frame_index % GPU_TIMERS];
@@ -265,7 +265,7 @@ _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s3
 	cc := premul(clear);
 	cc4 := float32.[cc.r, cc.g, cc.b, cc.a];
 	dx.ctx->ClearRenderTargetView(dx.rtv, *cc4);
-	vp := D3D11.VIEWPORT.{Width = cast(float32)(fb.x), Height = cast(float32)(fb.y), MaxDepth = 1};
+	vp := D3D11.VIEWPORT.{Width = cast(float32)(fb[0]), Height = cast(float32)(fb[1]), MaxDepth = 1};
 	dx.ctx->RSSetViewports(1, *vp);
 	dx.ctx->RSSetState(dx.raster);
 	dx.ctx->OMSetRenderTargets(1, *dx.rtv, null);
@@ -277,7 +277,7 @@ _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s3
 	dx.ctx->VSSetConstantBuffers(0, 1, *dx.cbuf);
 	dx.ctx->PSSetSamplers(0, 1, *dx.sampler);
 
-	sr := D3D11.RECT.{0, 0, fb.x, fb.y};
+	sr := D3D11.RECT.{0, 0, fb[0], fb[1]};
 	dx.ctx->RSSetScissorRects(1, *sr);
 
 	Uniforms :: struct {viewport: [2]float32; base: u32; pad: u32;}
@@ -286,7 +286,7 @@ _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s3
 	for b: batches {
 		mapped: D3D11.MAPPED_SUBRESOURCE;
 		if dx.ctx->cast(Map)(dx.cbuf, 0, .WRITE_DISCARD, .{}, *mapped) >= 0 {
-			(cast(*Uniforms)(mapped.pData)).* = .{viewport = .{cast(float32)(fb.x), cast(float32)(fb.y)}, base = b.first};
+			(cast(*Uniforms)(mapped.pData)).* = .{viewport = .{cast(float32)(fb[0]), cast(float32)(fb[1])}, base = b.first};
 			dx.ctx->Unmap(dx.cbuf, 0);
 		}
 		srvs: [TEX_SLOTS]*D3D11.IShaderResourceView;

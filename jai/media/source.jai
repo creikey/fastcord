@@ -73,7 +73,7 @@ source_from_file :: (path: string) -> Byte_Source, bool {
 			if err != null && n == 0 { return 0, .Error; }
 			return n, .Ok;
 		},
-		extent = (user: *void) -> s64, bool {return cast(*File_Src)(user).size, true;},
+		extent = (user: *void) -> s64, bool {return (cast(*File_Src) user).size, true;},
 		destroy = (user: *void) {
 			fs := cast(*File_Src)(user);
 			os.close(fs.f);
@@ -96,11 +96,11 @@ source_from_memory :: (data: []u8) -> Byte_Source {
 	ms.data = data;
 	return Byte_Source.{
 		read_at = (user: *void, offset: s64, buf: []u8) -> int, Read_Status {
-			d := cast(*Mem_Src)(user).data;
+			d := (cast(*Mem_Src) user).data;
 			if offset >= cast(s64)(len(d)) { return 0, .Eof; }
 			return copy(buf, sub_from(d, offset)), .Ok;
 		},
-		extent = (user: *void) -> s64, bool {return cast(s64)(len(cast(*Mem_Src)(user).data)), true;},
+		extent = (user: *void) -> s64, bool {return cast(s64)(len((cast(*Mem_Src) user).data)), true;},
 		destroy = (user: *void) {free(cast(*Mem_Src)(user));},
 		user = ms
 	};

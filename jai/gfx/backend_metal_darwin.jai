@@ -53,7 +53,7 @@ _backend_init :: () -> bool {
 	pool := pool_push();
 	defer pool_pop(pool);
 
-	mt.device = cast(Id)(MTL.CreateSystemDefaultDevice());
+	mt.device = cast(Id)(MTLCreateSystemDefaultDevice());
 	if mt.device == null { return false; }
 	mt.queue = msg(Id, mt.device, "newCommandQueue");
 
@@ -92,7 +92,7 @@ _backend_init :: () -> bool {
 		msg(Void, mt.layer, "setDevice:", mt.device);
 		msg(Void, mt.layer, "setPixelFormat:", cast(u64)(MTL.PixelFormat.BGRA8Unorm));
 	}
-	for * r: mt.ring { ensure_slot(*r, 4096 * size_of(Instance)); }
+	for * r: mt.ring { ensure_slot(r, 4096 * size_of(Instance)); }
 	return true;
 }
 
@@ -110,7 +110,7 @@ _backend_shutdown :: () {
 	for * r: mt.ring {
 		if r.cmdbuf != null { msg(Void, r.cmdbuf, "release"); }
 		if r.buf != null { msg(Void, r.buf, "release"); }
-		r = .{};
+		r.* = .{};
 	}
 	if mt.offscreen != null { msg(Void, mt.offscreen, "release"); }
 	if mt.readback != null { msg(Void, mt.readback, "release"); }
@@ -132,22 +132,22 @@ ensure_slot :: (r: *Ring_Slot, bytes: int) {
 
 tex_desc :: (pf: MTL.PixelFormat, w: s32, h: s32, usage: MTL.TextureUsage, storage: MTL.StorageMode) -> Id {
 	d := msg(Id, objc.cls("MTLTextureDescriptor"), "texture2DDescriptorWithPixelFormat:width:height:mipmapped:", cast(u64)(pf), cast(u64)(w), cast(u64)(h), false);
-	msg(Void, d, "setUsage:", transmute(u64, usage));
+	msg(Void, d, "setUsage:", cast(u64) usage);
 	msg(Void, d, "setStorageMode:", cast(u64)(storage));
 	return d;
 }
 
 ensure_offscreen :: (size: [2]s32) {
-	if mt.offscreen != null && mt.off_size == size { return; }
+	if mt.offscreen != null && mt.off_size[0] == size[0] && mt.off_size[1] == size[1] { return; }
 	if mt.offscreen != null { msg(Void, mt.offscreen, "release"); }
-	d := tex_desc(.BGRA8Unorm, size.x, size.y, .{.RenderTarget, .ShaderRead}, .Private);
+	d := tex_desc(.BGRA8Unorm, size[0], size[1], MTL.TextureUsage.RenderTarget | .ShaderRead, .Private);
 	mt.offscreen = msg(Id, mt.device, "newTextureWithDescriptor:", d);
 	mt.off_size = size;
 }
 #scope_module
 
 _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32) {
-	if fb.x <= 0 || fb.y <= 0 { return; }
+	if fb[0] <= 0 || fb[1] <= 0 { return; }
 	pool := pool_push();
 	defer pool_pop(pool);
 
@@ -186,20 +186,20 @@ _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s3
 	msg(Void, att, "setLoadAction:", cast(u64)(MTL.LoadAction.Clear));
 	msg(Void, att, "setStoreAction:", cast(u64)(MTL.StoreAction.Store));
 	cc := premul(clear);
-	msg(Void, att, "setClearColor:", MTL.ClearColor.{cast(float64)(cc.r), cast(float64)(cc.g), cast(float64)(cc.b), cast(float64)(cc.a)});
+	msg(Void, att, "setClearColor:", MTL.ClearColor.{cc[0], cc[1], cc[2], cc[3]});
 
 	enc := msg(Id, cmd, "renderCommandEncoderWithDescriptor:", rp);
 	msg(Void, enc, "setRenderPipelineState:", mt.pipeline);
-	Uniforms :: struct {viewport: [2]float32; pad: [2]float32;}
+	Uniforms :: struct {viewport: Vector2; pad: Vector2;}
 	u := Uniforms.{viewport = .{cast(float32)(tw), cast(float32)(th)}};
-	msg(Void, enc, "setVertexBytes:length:atIndex:", cast(*void)(*u), cast(u64)(size_of(u)), cast(u64)(1));
+	msg(Void, enc, "setVertexBytes:length:atIndex:", cast(*void)(*u), cast(u64)(size_of(Uniforms)), cast(u64)(1));
 	msg(Void, enc, "setVertexBuffer:offset:atIndex:", slot.buf, cast(u64)(0), cast(u64)(0));
 
 	white := cast(Id)(g.textures[g.white].native);
 	bound: [TEX_SLOTS + 1]Id;
 	for * t, i: bound {
 		msg(Void, enc, "setFragmentTexture:atIndex:", white, cast(u64)(i));
-		t = white;
+		t.* = white;
 	}
 	for b: batches {
 		for i: 0..b.n_slots-1 {
@@ -244,7 +244,7 @@ _backend_texture_create :: (w: s32, h: s32, format: Texture_Format, pixels: []u8
 	pool := pool_push();
 	defer pool_pop(pool);
 	pf: MTL.PixelFormat = ifx format == .R8 then .R8Unorm else (ifx format == .RG8 then .RG8Unorm else .RGBA8Unorm);
-	d := tex_desc(pf, w, h, .{.ShaderRead}, .Managed);
+	d := tex_desc(pf, w, h, .ShaderRead, .Managed);
 	t := msg(Id, mt.device, "newTextureWithDescriptor:", d);
 	if t == null { return null; }
 	if len(pixels) > 0 {
@@ -266,7 +266,7 @@ _backend_read_pixels :: (allocator: Allocator) -> []u8, int, int {
 	if mt.offscreen == null { return .{}, 0, 0; }
 	pool := pool_push();
 	defer pool_pop(pool);
-	w, h := cast(int)(mt.off_size.x), cast(int)(mt.off_size.y);
+	w, h := cast(int)(mt.off_size[0]), cast(int)(mt.off_size[1]);
 	bytes := w * h * 4;
 	if mt.readback == null || cast(int)(msg(u64, mt.readback, "length")) < bytes {
 		if mt.readback != null { msg(Void, mt.readback, "release"); }

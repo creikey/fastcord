@@ -17,7 +17,7 @@ nt: Notify;
 
 ns_string :: (str: string) -> Id {
 	s0 := msg(Id, cls("NSString"), "alloc");
-	s1 := msg(Id, s0, "initWithBytes:length:encoding:", raw_data(str), NS.UInteger(len(str)), NS.UInteger(4));
+	s1 := msg(Id, s0, "initWithBytes:length:encoding:", raw_data(str), cast(NS.UInteger)(len(str)), cast(NS.UInteger)(4));
 	return msg(Id, s1, "autorelease");
 }
 
@@ -42,7 +42,7 @@ notify_show :: (title: string, body: string, id: string) -> bool {
 	if !nt.authorized {
 		nt.authorized = true;
 		// UNAuthorizationOptionBadge | Sound | Alert; completion handler: nil block
-		msg(Void, c, "requestAuthorizationWithOptions:completionHandler:", NS.UInteger(1 | 2 | 4), cast(*void)(null));
+		msg(Void, c, "requestAuthorizationWithOptions:completionHandler:", cast(NS.UInteger)(1 | 2 | 4), cast(*void)(null));
 	}
 	content := objc.new_obj("UNMutableNotificationContent");
 	msg(Void, content, "setTitle:", ns_string(title));

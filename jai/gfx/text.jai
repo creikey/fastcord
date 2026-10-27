@@ -26,15 +26,15 @@ Font_Metrics :: struct {
 }
 
 Shaped_Glyph :: struct {
-	pos: [2]float32; // pen position relative to run origin (baseline-left), points; y down
+	pos: Vector2; // pen position relative to run origin (baseline-left), points; y down
 	advance: float32; // points
 	cluster_start: int; // UTF-8 byte range of the grapheme cluster(s) this glyph belongs to
 	cluster_end: int;
 	atlas_src: Rect; // texels in tex; empty for blank glyphs (space)
 	tex: Texture;
 	is_color: bool;
-	bitmap_offset: [2]float32; // points from pos to the bitmap's top-left
-	bitmap_size: [2]float32; // points
+	bitmap_offset: Vector2; // points from pos to the bitmap's top-left
+	bitmap_size: Vector2; // points
 }
 
 Shaped_Run :: struct {
@@ -68,11 +68,9 @@ Glyph_Bitmap :: struct {
 	pixels: []u8; // R8 or RGBA8 (straight), tightly packed
 }
 
-Glyph_Key :: struct {
-	font: u32;
-	glyph: u32;
-	subpx: u8;
-}
+// Glyph cache key: font instance << 40 | glyph << 8 | subpixel bin (Map keys must be scalars: struct == is not
+// visible to Hash_Table).
+glyph_key :: (font: u32, glyph: u32, subpx: u8) -> u64 { return (cast(u64) font << 40) | (cast(u64) glyph << 8) | subpx; }
 
 Glyph_Info :: struct {
 	tex: Texture;
@@ -106,7 +104,7 @@ Face :: struct {
 
 T :: struct {
 	faces: [..]Face;
-	glyphs: Map(Glyph_Key, Glyph_Info);
+	glyphs: Map(u64, Glyph_Info);
 	pages: [..]Atlas_Page;
 	shape_cache: Map(u64, Shape_Entry);
 	raw: [..]Raw_Glyph;
@@ -197,7 +195,7 @@ font_load_memory :: (data: []u8) -> Font_Face {
 	native := _font_load_memory(data);
 	if native == null { return 0; }
 	append(*tx.faces, Face.{native = native});
-	return Font_Face(len(tx.faces) - 1);
+	return cast(Font_Face)(len(tx.faces) - 1);
 }
 
 font_load_file :: (path: string) -> Font_Face {
@@ -212,7 +210,7 @@ font_system :: (name: string, weight: Font_Weight = .Regular, italic := false) -
 	native := _font_system(name, weight, italic);
 	if native == null { return 0; }
 	append(*tx.faces, Face.{native = native});
-	return Font_Face(len(tx.faces) - 1);
+	return cast(Font_Face)(len(tx.faces) - 1);
 }
 #scope_module
 
@@ -305,11 +303,11 @@ measure :: (face: Font_Face, size_pt: float32, text: string) -> float32 {
 }
 
 // origin = left end of the baseline, points.
-draw_run :: (run: Shaped_Run, origin: [2]float32, color: Color) {
+draw_run :: (run: Shaped_Run, origin: Vector2, color: Color) {
 	sc := g.scale;
 	ox := math.round(origin.x * sc);
 	oy := math.round(origin.y * sc);
-	white := float32.[1, 1, 1, color.a];
+	white := Color.{1, 1, 1, color.w};
 	for gl: run.glyphs {
 		if gl.tex == 0 { continue; }
 		x0 := math.round(ox + (gl.pos.x + gl.bitmap_offset.x) * sc);
@@ -317,12 +315,12 @@ draw_run :: (run: Shaped_Run, origin: [2]float32, color: Color) {
 		w := gl.atlas_src.x1 - gl.atlas_src.x0;
 		h := gl.atlas_src.y1 - gl.atlas_src.y0;
 		c := ifx gl.is_color then white else color;
-		push_rect_px(.{src = gl.atlas_src, tex = gl.tex, colors = .{c, c, c, c}}, .{x0, y0, x0 + w, y0 + h});
+		push_rect_px(.{src = gl.atlas_src, tex = gl.tex, colors = .[c, c, c, c]}, .{x0, y0, x0 + w, y0 + h});
 	}
 }
 
 // Convenience: shape + draw. Returns the advance width (points).
-draw_text :: (face: Font_Face, size_pt: float32, text: string, origin: [2]float32, color: Color) -> float32 {
+draw_text :: (face: Font_Face, size_pt: float32, text: string, origin: Vector2, color: Color) -> float32 {
 	run := shape(face, size_pt, text);
 	draw_run(run, origin, color);
 	return run.width;
@@ -362,8 +360,10 @@ run_hit_test :: (run: Shaped_Run, x: float32) -> int {
 		last_start = gl.cluster_start;
 		// cluster extent
 		x_end := gl.pos.x + gl.advance;
-		for j: i + 1..(len(run.glyphs) && __MAPIDX__(run.glyphs|j).cluster_start == gl.cluster_start)-1 {
+		j := i + 1;
+		while j < run.glyphs.count && run.glyphs[j].cluster_start == gl.cluster_start {
 			x_end = max(x_end, get(run.glyphs, j).pos.x + get(run.glyphs, j).advance);
+			j += 1;
 		}
 		{ d := abs(x - gl.pos.x);
 		if d < best_d {best, best_d = gl.cluster_start, d;} }
@@ -378,7 +378,7 @@ run_hit_test :: (run: Shaped_Run, x: float32) -> int {
 // Glyph cache + atlas
 
 glyph_get :: (font: u32, glyph: u32, bin: u8) -> Glyph_Info {
-	key := Glyph_Key.{font, glyph, bin};
+	key := glyph_key(font, glyph, bin);
 	{ gi, ok := map_find(tx.glyphs, key);
 	if ok { return gi; } }
 	bm := _rasterize(font, glyph, cast(float32)(bin) / SUBPIXEL_BINS, temp);
