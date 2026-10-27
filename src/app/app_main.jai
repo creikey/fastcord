@@ -353,6 +353,7 @@ frame :: () {
 
 	platform.set_cursor(map_cursor(ui.cursor()));
 	if ui.needs_frame() platform.request_frame();
+	if app.ui.wake_at > 0 request_wake(app.ui.wake_at); // a scrollbar about to fade
 	if app.stats {
 		ms :: (a: float64, b: float64) -> string { return tprint("%", formatFloat((b - a) * 1000, trailing_width = 1, zero_removal = .NO)); }
 		if t_end - t_poll > 0.025 {

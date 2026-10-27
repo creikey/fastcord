@@ -143,6 +143,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 	array_reserve(*spans, toks.count);
 	for tk, i: toks {
 		sp := ui.Span.{text = tk.text, font = F(base), size = size, id = cast(u64) i};
+		hidden := false;
 		if tk.styles & .Bold sp.font = F(.Bold);
 		else if (tk.styles & .Italic) && base == .Normal sp.font = F(.Italic);
 		if tk.styles & .Code {
@@ -154,14 +155,22 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 		if tk.styles & .Underline sp.underline = true;
 		if tk.styles & .Strike sp.strike = true;
 		if tk.styles & .Spoiler {
-			sp.bg = T("--spoiler-hidden-background");
-			sp.color = sp.bg;
 			sp.bg_radius = 4;
+			if spoiler_revealed(toks, i) {
+				sp.bg = T("--spoiler-revealed-background");
+			} else {
+				sp.bg = T("--spoiler-hidden-background");
+				sp.color = sp.bg;
+				hidden = true;
+			}
 		}
 		if tk.kind == {
 		case .Text;
 			if !(tk.styles & .Code) {
+				first := spans.count;
 				emoji_text_spans(*spans, sp);
+				// hidden emoji keep their place but draw nothing (only the spoiler's block shows)
+				if hidden for k: first..spans.count - 1 { spans[k].user = null; spans[k].id &= ~EMOJI_SPAN_FLAG; spans[k].bg = sp.bg; spans[k].bg_radius = sp.bg_radius; }
 				continue;
 			}
 		case .Link;
@@ -188,7 +197,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 		case .Custom_Emoji;
 			sp.object = emoji_object(22, size);
 			sp.text = tprint(":%:", tk.name);
-			sp.user = cast(*void) tk.id;
+			if !hidden sp.user = cast(*void) tk.id;
 		case .Timestamp;
 			sp.text = format_unix(cast(s64) tk.id, tk.name);
 			sp.bg = T("--background-mod-subtle");
@@ -210,6 +219,19 @@ format_unix :: (secs: s64, style: string) -> string {
 	return tprint("% %, % %:% %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year, hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
 }
 
+// Spoilers revealed by a click, keyed by where their run of tokens starts in the
+// message text (stable while the message is kept; an edit hides them again).
+revealed_spoilers: Table(u64, bool);
+
+spoiler_key :: (toks: []Token, i: int) -> u64 {
+	while i > 0 && (toks[i - 1].styles & .Spoiler) i -= 1;
+	return cast(u64) toks[i].text.data;
+}
+
+spoiler_revealed :: (toks: []Token, i: int) -> bool {
+	return table_find_pointer(*revealed_spoilers, spoiler_key(toks, i)) != null;
+}
+
 // Clicks on links / mentions in a paragraph, against last frame's layout of the
 // box (spans carry their token index in id).
 handle_span_clicks :: (b: *ui.Box, toks: []Token) {
@@ -222,6 +244,12 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token) {
 		ti := cast(int) tl.spans[si].id;
 		if ti < 0 || ti >= toks.count continue;
 		tk := toks[ti];
+		if (tk.styles & .Spoiler) && !spoiler_revealed(toks, ti) {
+			// the first click only reveals (a link inside isn't followed)
+			table_set(*revealed_spoilers, spoiler_key(toks, ti), true);
+			platform.request_frame();
+			continue;
+		}
 		if tk.kind == {
 		case .Link;
 			open_url(tk.text);

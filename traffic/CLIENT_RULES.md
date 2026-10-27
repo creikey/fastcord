@@ -295,3 +295,10 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | Add Friend page: failure text "Hm, didn’t work. Double check that the username is correct." (generic; the client picks a per-error-code text) under a red field; success "Success! Your friend request to **name** was sent." under a green field | code (strings `paDJBM`, `Rtl1Ep`); per-code texts not ported | `sendRequest`, `RELATIONSHIP_ALREADY_FRIENDS` | `view_home.jai` `add_friend_view` |
 | Other failed requests: a red toast "Something went wrong. Try again." (429: "You're doing that too fast. Try again in a moment.") for 5 s; the client shows a "Friend request failed" alert for relationship errors | guess (toast); code (alert, `6moJ8s`) not ported | `6moJ8s` | `requests.jai` `req_toast` |
 
+
+## Spoilers and scrollbar fade
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| A `||spoiler||` run is one block (`--spoiler-hidden-background`, text and emoji hidden); a click reveals the whole run (`--spoiler-revealed-background`) and is not followed as a link; revealed state lasts while the message is kept | inferred | `spoilerContent_`, `hidden_` | `view_chat.jai` `spoiler_revealed`, `handle_span_clicks` |
+| Scrollbars fade (overlay style): shown while scrolling, held, or with the pointer over the bar's strip (thin ones also while the scroller is hovered), then hidden after 1 s with a 0.25 s fade. The official chat scroller (`.auto`) is always visible; changed on request | guess | — | `src/ui/core.jai` `scrollbar` |

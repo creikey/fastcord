@@ -132,7 +132,8 @@ Box :: struct {
 	scrollbar: Scrollbar_Kind; // a Scroll_Y box's scrollbar, declared when it is popped as a parent
 	// on a scrollbar box: where the thumb was grabbed, page direction (0 = dragging), time to the next page
 	is_scrollbar: bool;
-	bar_grab, bar_page, bar_wait: float32;
+	bar_grab, bar_page, bar_wait, bar_off: float32;
+	bar_seen: float64; // last time the scrollbar was in use (scrolled, hovered, held); it fades after
 }
 
 // The official client's two webkit scrollbars (scroller CSS: .thin, .auto). Thin hides until its
@@ -291,6 +292,7 @@ State :: struct {
 	frame: u64;
 	dt: float32;
 	time: float64;
+	wake_at: float64; // a frame is wanted at this time (0: none); reset by begin
 	arenas: [2]Flat_Pool;
 	frame_alloc: Allocator;
 	table: []*Box;
@@ -364,6 +366,7 @@ shutdown :: (s: *State) {
 begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event) {
 	s := context.ui;
 	s.mouse_prev = s.mouse;
+	s.wake_at = 0;
 	s.events.count = 0;
 	for e: events {
 		array_add(*s.events, e);
@@ -800,19 +803,37 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 		}
 	}
 
-	if kind == .Thin && !held && !mouse_over(host) return;
+	// Shown while in use, then faded out (overlay-scrollbar style): scrolling, holding it,
+	// the pointer over its strip, and for thin scrollers the pointer over the scroller.
+	if bar.bar_seen == 0 { bar.bar_seen = -100; bar.bar_off = off.*; }
+	over_strip := s.mouse.x >= r.x1 - W && s.mouse.x < r.x1 && s.mouse.y >= r.y0 && s.mouse.y < r.y1;
+	if held || over_strip || (kind == .Thin && mouse_over(host)) || abs(off.* - bar.bar_off) > 0.5 || abs(off.* - target.*) > 0.5 bar.bar_seen = s.time;
+	bar.bar_off = off.*;
+	LINGER :: 1.0;
+	FADE :: 0.25;
+	age := s.time - bar.bar_seen;
+	if age >= LINGER + FADE return;
+	alpha: float32 = 1;
+	if age < LINGER {
+		if s.wake_at == 0 || bar.bar_seen + LINGER < s.wake_at s.wake_at = bar.bar_seen + LINGER;
+	} else {
+		alpha = cast(float32) (1 - (age - LINGER) / FADE);
+		s.animating = true;
+	}
 	push_parent(bar);
 	if kind == .Auto && s.scrollbar_auto_track.w > 0 {
 		t := box_make_anon(.Draw_Background | .Floating_X | .Floating_Y);
 		t.semantic_size = .[px(W - 2 * inset), px(view - 2 * inset)];
 		t.fixed_pos = .{inset, inset};
 		t.style.bg = s.scrollbar_auto_track;
+		t.style.bg.w *= alpha;
 		t.style.radius = .[W / 2 - inset, W / 2 - inset, W / 2 - inset, W / 2 - inset];
 	}
 	th := box_make_anon(.Draw_Background | .Floating_X | .Floating_Y);
 	th.semantic_size = .[px(W - 2 * inset), px(thumb_h - 2 * inset)];
 	th.fixed_pos = .{inset, ty + inset};
 	th.style.bg = ifx kind == .Auto then s.scrollbar_auto_thumb else s.scrollbar_thin_thumb;
+	th.style.bg.w *= alpha;
 	rad := W / 2 - inset;
 	th.style.radius = .[rad, rad, rad, rad];
 	pop(*s.parents);
