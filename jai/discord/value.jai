@@ -44,7 +44,7 @@ vstr :: (v: V) -> string {
 }
 
 vis_null :: (v: V) -> bool {
-	return v == null;
+	return is_null(v);
 }
 
 vsnow :: (v: V) -> Snowflake {

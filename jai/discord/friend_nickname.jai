@@ -10,7 +10,7 @@ FRIEND_NICKNAME_MAX :: 32;
 user_name :: (s: *Store, uid: Snowflake, guild_id: Snowflake = 0, unknown := "") -> string {
 	if guild_id != 0 {
 		{ m := member_get(s, guild_id, uid);
-		if m != null && m.nick != "" { return m.nick; } }
+		if !is_null(m) && m.nick != "" { return m.nick; } }
 	} else { r, ok := map_find_ptr(*s.relationships, uid);
 if ok && r.nickname != "" {
 		return r.nickname;
@@ -48,7 +48,7 @@ set_friend_nickname :: (c: *Client, user_id: Snowflake, nickname: string) {
 	json_obj_end(*w);
 	j := job_new(.Api, .Relationship);
 	j.method = "PATCH";
-	j.path = job_str(j, strings.concatenate(.{"/users/@me/relationships/", snowflake_string(user_id)}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/users/@me/relationships/", snowflake_string(user_id)], temp));
 	j.body = transmute([]u8, job_str(j, json_string(*w)));
 	j.content_type = "application/json";
 	j.result.user_id = user_id;
@@ -73,7 +73,7 @@ open_change_nickname :: (c: *Client) {
 // store_set_server_nickname: the optimistic half of set_server_nickname.
 store_set_server_nickname :: (s: *Store, guild_id: Snowflake, user_id: Snowflake, nick: string) {
 	m := member_get(s, guild_id, user_id);
-	if m == null { return; }
+	if is_null(m) { return; }
 	free_str(m.nick, s.allocator);
 	m.nick = clone_str(nick, s.allocator);
 	s.changed += 1;
@@ -93,7 +93,7 @@ set_server_nickname :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, nic
 	j := job_new(.Api, .None);
 	j.method = "PATCH";
 	who := ifx user_id == c.store.me then "@me" else snowflake_string(user_id);
-	j.path = job_str(j, strings.concatenate(.{"/guilds/", snowflake_string(guild_id), "/members/", who}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/members/", who], temp));
 	j.body = transmute([]u8, job_str(j, json_string(*w)));
 	j.content_type = "application/json";
 	if user_id != c.store.me {
@@ -130,20 +130,20 @@ open_user_context_menu :: (c: *Client, user_id: Snowflake, guild_id: Snowflake) 
 	// every open reads the command cache ~40 ms later (flush_user_menu)
 	c.social.cmd_index_at = now_ms() + 40;
 	c.social.cmd_index_guild = guild_id;
-	if c.social.menu_loaded == null { c.social.menu_loaded = Map(Snowflake, bool).{}; }
+	if is_null(c.social.menu_loaded) { c.social.menu_loaded = make_map(Snowflake, bool, c.allocator); }
 	if get(c.social.menu_loaded, user_id) { return; }
 	at(*c.social.menu_loaded, user_id).* = true;
-	api_get_later(c, strings.concatenate(.{"/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"}, temp), 0);
+	api_get_later(c, strings.concatenate(string.["/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"], temp), 0);
 	fetch_note(c, user_id, 40);
-	if guild_id != 0 { subscribe_members(c, guild_id, .{user_id}); }
+	if guild_id != 0 { subscribe_members(c, guild_id, Snowflake.[user_id]); }
 }
 
 // open_dm_row_menu: right-clicking a 1:1 DM row (fixture friend_add_context_menu):
 // the note and the user command index once, and the menu's impression.
 open_dm_row_menu :: (c: *Client, user_id: Snowflake) {
-	if c.social.menu_loaded == null { c.social.menu_loaded = Map(Snowflake, bool).{}; }
+	if is_null(c.social.menu_loaded) { c.social.menu_loaded = make_map(Snowflake, bool, c.allocator); }
 	if !get(c.social.notes_loaded, user_id) {
-		if c.social.notes_loaded == null { c.social.notes_loaded = Map(Snowflake, bool).{}; }
+		if is_null(c.social.notes_loaded) { c.social.notes_loaded = make_map(Snowflake, bool, c.allocator); }
 		at(*c.social.notes_loaded, user_id).* = true;
 		fetch_note(c, user_id);
 	}

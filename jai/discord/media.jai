@@ -137,7 +137,7 @@ cache_key :: (url: string) -> string {
 
 cache_dir :: (c: *Client) -> string {
 	if c.cfg.state_dir == "" { return ""; }
-	return strings.concatenate(.{c.cfg.state_dir, "/cache"}, temp);
+	return strings.concatenate(string.[c.cfg.state_dir, "/cache"], temp);
 }
 
 cache_read :: (c: *Client, url: string) -> Cache_Entry, []u8, bool {
@@ -147,10 +147,10 @@ cache_read :: (c: *Client, url: string) -> Cache_Entry, []u8, bool {
 	dir := cache_dir(c);
 	if dir == "" { return e, body, ok; }
 	k := cache_key(url);
-	meta, merr := os.read_entire_file(strings.concatenate(.{dir, "/", k, ".meta"}, temp), temp);
-	if merr != null { return e, body, ok; }
-	data, derr := os.read_entire_file(strings.concatenate(.{dir, "/", k, ".body"}, temp), temp);
-	if derr != null { return e, body, ok; }
+	meta, merr := os.read_entire_file(strings.concatenate(string.[dir, "/", k, ".meta"], temp), temp);
+	if !is_null(merr) { return e, body, ok; }
+	data, derr := os.read_entire_file(strings.concatenate(string.[dir, "/", k, ".body"], temp), temp);
+	if !is_null(derr) { return e, body, ok; }
 	text := as_string(meta);
 	while true { line, __ok2 := strings.split_lines_iterator(*text); if !__ok2 break;
 		tab := strings.index_byte(line, 9);
@@ -193,8 +193,8 @@ cache_write :: (c: *Client, url: string, e: Cache_Entry, body: []u8, write_body:
 	strings.write_string(*sb, "\nfresh-until\t");
 	strings.write_i64(*sb, e.fresh_until);
 	strings.write_byte(*sb, 10);
-	if write_body { write_file_atomic(strings.concatenate(.{dir, "/", k, ".body"}, temp), body); }
-	write_file_atomic(strings.concatenate(.{dir, "/", k, ".meta"}, temp), transmute([]u8, strings.to_string(sb)));
+	if write_body { write_file_atomic(strings.concatenate(string.[dir, "/", k, ".body"], temp), body); }
+	write_file_atomic(strings.concatenate(string.[dir, "/", k, ".meta"], temp), transmute([]u8, strings.to_string(sb)));
 }
 #scope_export
 
@@ -263,7 +263,7 @@ run_media :: (c: *Client, j: *Job) {
 	url := j.media.url;
 	host, path, ok := split_url(url);
 	if !ok {
-		media_deliver(c, j, 0, false, "", null);
+		media_deliver(c, j, 0, false, "", .[]);
 		return;
 	}
 	now := now_ms();
@@ -274,7 +274,7 @@ run_media :: (c: *Client, j: *Job) {
 	}
 	site := site_for_host(host);
 	referer := j.media.referer;
-	if referer == "" { referer = ifx site == .Same_Origin then client_route_referer(c) else API_ORIGIN + "/"; }
+	if referer == "" { referer = ifx site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/"); }
 	cookie := cookie_header(*c.jar, host, path, true, now);
 	etag, lm := "", "";
 	if have {
@@ -285,7 +285,7 @@ run_media :: (c: *Client, j: *Job) {
 	resp, err := transport_round_trip(*c.transport, host, req);
 	defer http.response_destroy(*resp);
 	if err != .None {
-		if have { media_deliver(c, j, entry.status, true, entry.content_type, cached); } else { media_deliver(c, j, 0, false, "", null); }
+		if have { media_deliver(c, j, entry.status, true, entry.content_type, cached); } else { media_deliver(c, j, 0, false, "", .[]); }
 		return;
 	}
 	now = now_ms();
@@ -294,7 +294,7 @@ run_media :: (c: *Client, j: *Job) {
 		entry.fresh_until = fresh;
 		{ e2, eok := http.header_get(view(resp.headers), "etag");
 		if eok { entry.etag = e2; } }
-		cache_write(c, url, entry, null, false);
+		cache_write(c, url, entry, .[], false);
 		media_deliver(c, j, entry.status, true, entry.content_type, cached);
 		return;
 	}
@@ -331,7 +331,7 @@ size_q :: (size: int) -> string {return itoa(size);}
 avatar_url :: (user_id: Snowflake, avatar_hash: string, size := 80, animate := false, allocator := temp) -> string {
 	if avatar_hash == "" { return default_avatar_url(user_id, "0", allocator); }
 	anim := animate && strings.has_prefix(avatar_hash, "a_");
-	return strings.concatenate(.{CDN, "/avatars/", snowflake_string(user_id), "/", avatar_hash, ".webp?size=", size_q(size), ifx anim then "&animated=true" else ""}, allocator);
+	return strings.concatenate(string.[CDN, "/avatars/", snowflake_string(user_id), "/", avatar_hash, ".webp?size=", size_q(size), ifx anim then "&animated=true" else ""], allocator);
 }
 
 // default_avatar_url: pomelo users (discriminator "0") use (id >> 22) % 6, legacy discriminator % 5.
@@ -343,44 +343,44 @@ default_avatar_url :: (user_id: Snowflake, discriminator: string, allocator := t
 		d, _ := strconv.parse_int(discriminator);
 		idx = d % 5;
 	}
-	return strings.concatenate(.{CDN, "/embed/avatars/", itoa(idx), ".png"}, allocator);
+	return strings.concatenate(string.[CDN, "/embed/avatars/", itoa(idx), ".png"], allocator);
 }
 
 guild_member_avatar_url :: (guild_id: Snowflake, user_id: Snowflake, hash_: string, size := 80, allocator := temp) -> string {
-	return strings.concatenate(.{CDN, "/guilds/", snowflake_string(guild_id), "/users/", snowflake_string(user_id), "/avatars/", hash_, ".webp?size=", size_q(size)}, allocator);
+	return strings.concatenate(string.[CDN, "/guilds/", snowflake_string(guild_id), "/users/", snowflake_string(user_id), "/avatars/", hash_, ".webp?size=", size_q(size)], allocator);
 }
 
 guild_icon_url :: (guild_id: Snowflake, icon_hash: string, size := 96, animate := false, allocator := temp) -> string {
 	if icon_hash == "" { return ""; }
 	anim := animate && strings.has_prefix(icon_hash, "a_");
-	return strings.concatenate(.{CDN, "/icons/", snowflake_string(guild_id), "/", icon_hash, ".webp?size=", size_q(size), ifx anim then "&animated=true" else ""}, allocator);
+	return strings.concatenate(string.[CDN, "/icons/", snowflake_string(guild_id), "/", icon_hash, ".webp?size=", size_q(size), ifx anim then "&animated=true" else ""], allocator);
 }
 
 banner_url :: (id: Snowflake, banner_hash: string, size := 600, allocator := temp) -> string {
 	if banner_hash == "" { return ""; }
-	return strings.concatenate(.{CDN, "/banners/", snowflake_string(id), "/", banner_hash, ".webp?size=", size_q(size)}, allocator);
+	return strings.concatenate(string.[CDN, "/banners/", snowflake_string(id), "/", banner_hash, ".webp?size=", size_q(size)], allocator);
 }
 
 custom_emoji_url :: (emoji_id: Snowflake, animated: bool, size := 48, allocator := temp) -> string {
-	return strings.concatenate(.{CDN, "/emojis/", snowflake_string(emoji_id), ".webp?size=", size_q(size), ifx animated then "&animated=true" else ""}, allocator);
+	return strings.concatenate(string.[CDN, "/emojis/", snowflake_string(emoji_id), ".webp?size=", size_q(size), ifx animated then "&animated=true" else ""], allocator);
 }
 
 // sticker_url: png/apng/gif through the media proxy; lottie (format 3) json from discord.com.
 sticker_url :: (sticker_id: Snowflake, format_type: int, size := 160, allocator := temp) -> string {
 	if format_type == {
 	case 3;
-		return strings.concatenate(.{API_ORIGIN, "/stickers/", snowflake_string(sticker_id), ".json"}, allocator);
+		return strings.concatenate(string.[API_ORIGIN, "/stickers/", snowflake_string(sticker_id), ".json"], allocator);
 	case 4;
-		return strings.concatenate(.{MEDIA_PROXY, "/stickers/", snowflake_string(sticker_id), ".gif?size=", size_q(size)}, allocator);
+		return strings.concatenate(string.[MEDIA_PROXY, "/stickers/", snowflake_string(sticker_id), ".gif?size=", size_q(size)], allocator);
 	}
-	return strings.concatenate(.{MEDIA_PROXY, "/stickers/", snowflake_string(sticker_id), ".webp?size=", size_q(size)}, allocator);
+	return strings.concatenate(string.[MEDIA_PROXY, "/stickers/", snowflake_string(sticker_id), ".webp?size=", size_q(size)], allocator);
 }
 
 // media_proxy_url: resized attachment/embed images: proxy_url + format=webp&width=&height=.
 media_proxy_url :: (proxy_url: string, width: int, height: int, allocator := temp) -> string {
 	sep := ifx strings.contains(proxy_url, "?") then "&" else "?";
 	if strings.has_suffix(proxy_url, "&") { sep = ""; }
-	return strings.concatenate(.{proxy_url, sep, "format=webp&width=", itoa(width), "&height=", itoa(height)}, allocator);
+	return strings.concatenate(string.[proxy_url, sep, "format=webp&width=", itoa(width), "&height=", itoa(height)], allocator);
 }
 
 
@@ -389,6 +389,6 @@ media_proxy_url :: (proxy_url: string, width: int, height: int, allocator := tem
 media_viewer_url :: (proxy_url: string, allocator := temp) -> string {
 	sep := ifx strings.contains(proxy_url, "?") then "&" else "?";
 	if strings.has_suffix(proxy_url, "&") { sep = ""; }
-	return strings.concatenate(.{proxy_url, sep, "=&format=webp&quality=lossless"}, allocator);
+	return strings.concatenate(string.[proxy_url, sep, "=&format=webp&quality=lossless"], allocator);
 }
 

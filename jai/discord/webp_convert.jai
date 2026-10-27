@@ -28,7 +28,7 @@ WEBP_EXPERIMENT_HASH :: 881712821; // murmur3("2025-09-image-attachment-mezzanin
 
 // The ICC profile Skia's SkWriteICCProfile writes for an sRGB canvas (src/encode/SkICC.cpp), which
 // SkWebpEncoder puts in every canvas WebP: copied from Chrome 156's toBlob output.
-SKIA_SRGB_ICC :: #run load_file("skia_srgb.icc", #filepath);
+SKIA_SRGB_ICC :: #run load_file("../../src/discord/skia_srgb.icc", #filepath);
 
 Webp_Conversion :: struct {
 	attempted: bool; // false: the experiment is off or the file too big (no science fields)
@@ -132,7 +132,7 @@ webp_try_convert :: (variation: s32, mime: string, data: []u8) -> Webp_Conversio
 		r.failure = "conversion_failed"; // past WebP's dimension limit: Chrome's toBlob fails too
 		return r;
 	}
-	webp := imagefmt.encode_webp_lossless(px, img.width, img.height, SKIA_SRGB_ICC, temp);
+	webp := imagefmt.encode_webp_lossless(px, img.width, img.height, transmute([]u8, SKIA_SRGB_ICC), temp);
 	// the client's pixel check: decode the WebP again and compare with the source pixels
 	th := time.tick_now();
 	back, berr := imagefmt.decode(webp, temp);
@@ -186,7 +186,7 @@ png_info :: (data: []u8) -> Png_Info, bool {
 			info.has_icc = true;
 			icc: bytes.Buffer;
 			push_allocator(temp);
-			if zlib.inflate(sub_from(body, z + 2), *icc) == null { info.icc = view(icc.buf); }
+			if zlib.inflate(sub_from(body, z + 2), *icc) == .None { info.icc = view(icc.buf); }
 		case "IEND";
 			return info, true;
 		}

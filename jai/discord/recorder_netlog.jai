@@ -51,10 +51,10 @@ nl_file :: (r: *Recorder, acct: string) -> *os.File {
 
 netlog_close :: (r: *Recorder) {
 	for * f: r.nl {
-		if f == null { continue; }
-		os.write_string(f, "{}]}\n");
-		os.close(f);
-		f = null;
+		if f.* == null { continue; }
+		os.write_string(f.*, "{}]}\n");
+		os.close(f.*);
+		f.* = null;
 	}
 	for k: r.sessions { delete(k); }
 	delete(r.sessions);
@@ -64,7 +64,7 @@ netlog_close :: (r: *Recorder) {
 
 // nl_event writes one event; caller holds r.mu. params is a JSON object.
 nl_event :: (f: *os.File, name: string, src: int, phase: int, at_ms: s64, params: string) {
-	if f == null { return; }
+	if is_null(f) { return; }
 	line := fmt.tprintf("{{\"params\":%s,\"phase\":%d,\"source\":{{\"id\":%d,\"type\":0}},\"time\":\"%d\",\"type\":%d}},\n", params, phase, src, at_ms, nl_type(name));
 	os.write_string(f, line);
 }
@@ -90,8 +90,8 @@ rec_conn :: (data: *void, ev: Conn_Event) {
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
 	f := nl_file(r, tap.acct);
-	if f == null { return; }
-	at := now_ms();
+	if is_null(f) { return; }
+	at_ms := now_ms();
 	key := fmt.tprintf("%s %s %s", tap.acct, ev.kind, ev.host);
 	id := nl_source(r);
 	if has(r.sessions, key) {
@@ -105,23 +105,23 @@ rec_conn :: (data: *void, ev: Conn_Event) {
 		strings.write_string(*sb, "{\"host\":");
 		json_write_escaped(*sb, ev.host);
 		strings.write_string(*sb, ",\"port\":443,\"versions\":\"RFCv1\"}");
-		nl_event(f, "QUIC_SESSION", id, 1, at, strings.to_string(sb));
+		nl_event(f, "QUIC_SESSION", id, 1, at_ms, strings.to_string(sb));
 		strings.builder_reset(*sb);
 		strings.write_string(*sb, "{\"quic_transport_parameters\":");
 		json_write_escaped(*sb, quic_params_text(ev.quic_params, "Client"));
 		strings.write_string(*sb, "}");
-		nl_event(f, "QUIC_SESSION_TRANSPORT_PARAMETERS_SENT", id, 0, at, strings.to_string(sb));
-		nl_event(f, "HTTP3_SETTINGS_SENT", id, 0, at, h3_settings_json());
+		nl_event(f, "QUIC_SESSION_TRANSPORT_PARAMETERS_SENT", id, 0, at_ms, strings.to_string(sb));
+		nl_event(f, "HTTP3_SETTINGS_SENT", id, 0, at_ms, h3_settings_json());
 	case "h2";
 		sock := nl_source(r);
 		strings.write_string(*sb, "{\"next_proto\":");
 		json_write_escaped(*sb, ev.alpn);
 		strings.write_string(*sb, ",\"version\":\"TLS 1.3\"}");
-		nl_event(f, "SSL_CONNECT", sock, 2, at, strings.to_string(sb));
+		nl_event(f, "SSL_CONNECT", sock, 2, at_ms, strings.to_string(sb));
 		strings.builder_reset(*sb);
 		fmt.sbprintf(*sb, "{{\"host\":\"%s:443\",\"proxy\":\"DIRECT\"}}", ev.host);
-		nl_event(f, "HTTP2_SESSION", id, 1, at, strings.to_string(sb));
-		nl_event(f, "HTTP2_SESSION_INITIALIZED", id, 0, at, fmt.tprintf("{{\"protocol\":\"%s\",\"source_dependency\":{{\"id\":%d,\"type\":0}}}}", ev.alpn, sock));
+		nl_event(f, "HTTP2_SESSION", id, 1, at_ms, strings.to_string(sb));
+		nl_event(f, "HTTP2_SESSION_INITIALIZED", id, 0, at_ms, fmt.tprintf("{{\"protocol\":\"%s\",\"source_dependency\":{{\"id\":%d,\"type\":0}}}}", ev.alpn, sock));
 		strings.builder_reset(*sb);
 		strings.write_string(*sb, "{\"settings\":[");
 		for s, i: ev.h2_settings {
@@ -129,9 +129,9 @@ rec_conn :: (data: *void, ev: Conn_Event) {
 			fmt.sbprintf(*sb, "\"[id:%d (%s) value:%d]\"", s.id, h2_setting_name(cast(u16)(s.id)), s.value);
 		}
 		strings.write_string(*sb, "]}");
-		nl_event(f, "HTTP2_SESSION_SEND_SETTINGS", id, 0, at, strings.to_string(sb));
+		nl_event(f, "HTTP2_SESSION_SEND_SETTINGS", id, 0, at_ms, strings.to_string(sb));
 		if ev.h2_window_increment > 0 {
-			nl_event(f, "HTTP2_SESSION_SEND_WINDOW_UPDATE", id, 0, at, fmt.tprintf("{{\"delta\":%d,\"stream_id\":0}}", ev.h2_window_increment));
+			nl_event(f, "HTTP2_SESSION_SEND_WINDOW_UPDATE", id, 0, at_ms, fmt.tprintf("{{\"delta\":%d,\"stream_id\":0}}", ev.h2_window_increment));
 		}
 	}
 }
@@ -142,7 +142,7 @@ nl_request_headers :: (r: *Recorder, acct: string, host: string, req: http.Reque
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
 	f := nl_file(r, acct);
-	if f == null { return; }
+	if is_null(f) { return; }
 	fields := make_dynamic(http.Header, 0, len(req.headers) + 5, temp);
 	scheme := ifx req.scheme != "" then req.scheme else "https";
 	authority := ifx req.authority != "" then req.authority else host;
@@ -246,7 +246,7 @@ h3_settings_json :: () -> string {
 		}
 		append(*pairs, string.[nm, fmt.tprintf("%d", s[1])]);
 	}
-	slice.sort_by(view(pairs), (a: [2]string, c: [2]string) -> bool {return a[0] < c[0];});
+	slice.sort_by(view(pairs), (a: [2]string, c: [2]string) -> bool {return compare(a[0], c[0]) < 0;});
 	sb := strings.builder_make(temp);
 	strings.write_byte(*sb, #char "{");
 	for p, i: pairs {
@@ -286,7 +286,7 @@ quic_params_text :: (b: []u8, perspective: string) -> string {
 		.{0x20, "max_datagram_frame_size", #char "i"},
 		.{0x3127, "initial_round_trip_time", #char "i"}
 	];
-	vals := Map(u64, []u8).{};
+	vals := make_map(u64, []u8, temp);
 	pos := 0;
 	while pos < len(b) {
 		id, ok1 := get_varint(b, *pos);

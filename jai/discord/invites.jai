@@ -102,7 +102,7 @@ invite_note_code :: (c: *Client, channel_id: Snowflake, code: string) {
 create_invite :: (c: *Client, channel_id: Snowflake, location := INVITE_LOC_HEADER, allocator := context.allocator) -> Invite_Result {
 	res: Invite_Result;
 	body := transmute([]u8, invite_body(c, channel_id, location));
-	r := api_call(c, "POST", strings.concatenate(.{"/channels/", snowflake_string(channel_id), "/invites"}, temp), body, "application/json", context_location(location), null, 2, 1);
+	r := api_call(c, "POST", strings.concatenate(string.["/channels/", snowflake_string(channel_id), "/invites"], temp), body, "application/json", context_location(location), .[], 2, 1);
 	defer api_free(*r);
 	res.status = r.status;
 	res.ok = r.ok;
@@ -138,7 +138,7 @@ invite_suggestion_users :: (c: *Client, guild_id: Snowflake) -> []Snowflake {
 	s := *c.store;
 	out := make_dynamic(Snowflake, 0, 0, temp);
 	add :: (out: *[..]Snowflake, me: Snowflake, u: Snowflake) {
-		if u != 0 && u != me && !slice.contains(view(out), u) { append(out, u); }
+		if u != 0 && u != me && !slice.contains(view(out.*), u) { append(out, u); }
 	}
 	friends := make_dynamic(Snowflake, 0, 0, temp);
 	for id, r: s.relationships { if r.kind == .Friend { append(*friends, id); } }
@@ -158,7 +158,7 @@ invite_suggestion_users :: (c: *Client, guild_id: Snowflake) -> []Snowflake {
 		if !ok { continue; }
 		js := make_dynamic(Joined, 0, len(gm), temp);
 		for uid, m: gm { append(*js, Joined.{m.joined_at, uid}); }
-		slice.sort_by(view(js), (a: Joined, b: Joined) -> bool {return a.at < b.at || a.at == b.at && a.id < b.id;});
+		slice.sort_by(view(js), (a: Joined, b: Joined) -> bool {return compare(a.at, b.at) < 0 || a.at == b.at && a.id < b.id;});
 		for j: js { add(*out, s.me, j.id); }
 	}
 	return view(out);
@@ -179,8 +179,8 @@ open_invite_modal :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, lo
 			continue;
 		}
 		key := Snowflake.[guild_id, u];
-		if get(c.members_requested, key) { continue; }
-		at(*c.members_requested, key).* = true;
+		if table_contains(*c.members_requested, key) { continue; }
+		table_set(*c.members_requested, key, true);
 		append(*ask, u);
 	}
 	if len(ask) > 0 {
@@ -250,12 +250,12 @@ guild_add_step :: (c: *Client, step: Guild_Add_Step, from_ms: s64) {
 resolve_invite :: (c: *Client, code: string, allocator := context.allocator, input_value := "") -> Invite_Result {
 	res: Invite_Result;
 	q: Query;
-	query_init(*q, strings.concatenate(.{"/invites/", code}, temp));
+	query_init(*q, strings.concatenate(string.["/invites/", code], temp));
 	query_add(*q, "inputValue", ifx input_value != "" then input_value else code);
 	query_add_bool(*q, "with_counts", true);
 	query_add_bool(*q, "with_expiration", true);
 	query_add_bool(*q, "with_permissions", true);
-	r := api_call(c, "GET", query_string(*q), null, "", "", null, 2, 1);
+	r := api_call(c, "GET", query_string(*q), .[], "", "", .[], 2, 1);
 	defer api_free(*r);
 	res.status = r.status;
 	res.ok = r.ok;
@@ -283,7 +283,7 @@ accept_invite :: (c: *Client, invite: Invite_Result, location := "Join Guild", a
 	json_kstr(*w, "session_id", gateway_session_id(c));
 	json_obj_end(*w);
 	body := transmute([]u8, json_string(*w));
-	r := api_call(c, "POST", strings.concatenate(.{"/invites/", invite.code}, temp), body, "application/json", context_b64(json_string(*ctx)), null, 2, 1);
+	r := api_call(c, "POST", strings.concatenate(string.["/invites/", invite.code], temp), body, "application/json", context_b64(json_string(*ctx)), .[], 2, 1);
 	defer api_free(*r);
 	res.status = r.status;
 	res.ok = r.ok;
@@ -311,7 +311,7 @@ join_invite :: (c: *Client, input: string, allocator := context.allocator, membe
 	is_member := "false";
 	for g: member_of { if g == inv.guild_id { is_member = "true"; } }
 	in_ := json_quote(strings.trim_space(input));
-	analytics_track(c, "network_action_invite_resolve", fmt.tprintf("\"status_code\":%d,\"url\":%s,\"request_method\":\"get\",\"resolved\":true,\"guild_id\":\"%d\",\"channel_id\":\"%d\",\"channel_type\":%d,\"inviter_id\":\"%d\",\"code\":%s,\"input_value\":%s,\"authenticated\":true,\"size_total\":%d,\"size_online\":%d,\"invite_type\":\"Server Invite\",\"user_banned\":false,\"user_is_member\":%s,\"location\":\"Join Guild\"", inv.status, json_quote(strings.concatenate(.{"/invites/", code}, temp)), inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));
+	analytics_track(c, "network_action_invite_resolve", fmt.tprintf("\"status_code\":%d,\"url\":%s,\"request_method\":\"get\",\"resolved\":true,\"guild_id\":\"%d\",\"channel_id\":\"%d\",\"channel_type\":%d,\"inviter_id\":\"%d\",\"code\":%s,\"input_value\":%s,\"authenticated\":true,\"size_total\":%d,\"size_online\":%d,\"invite_type\":\"Server Invite\",\"user_banned\":false,\"user_is_member\":%s,\"location\":\"Join Guild\"", inv.status, json_quote(strings.concatenate(string.["/invites/", code], temp)), inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));
 	analytics_track(c, "resolve_invite", fmt.tprintf("\"resolved\":true,\"guild_id\":\"%d\",\"channel_id\":\"%d\",\"channel_type\":%d,\"inviter_id\":\"%d\",\"code\":%s,\"input_value\":%s,\"authenticated\":true,\"size_total\":%d,\"size_online\":%d,\"destination_user_id\":null,\"invite_type\":\"Server Invite\",\"user_is_member\":%s,\"invite_instance_id\":null,\"location\":\"Join Guild\"", inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));
 	locks.lock(*c.invite_mu);
 	c.pending_join_guild, c.pending_join_channel = inv.guild_id, inv.channel_id;

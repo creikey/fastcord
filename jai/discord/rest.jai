@@ -96,8 +96,8 @@ worker_proc :: (c: *Client) {
 			next_due = min(next_due, j.not_before);
 		}
 		if pick < 0 {
-			wait := time.Duration(1000) * time.Millisecond;
-			if next_due != S64_MAX { wait = time.Duration(max(next_due - now, 1)) * time.Millisecond; }
+			wait := cast(time.Duration)(1000) * time.Millisecond;
+			if next_due != S64_MAX { wait = cast(time.Duration)(max(next_due - now, 1)) * time.Millisecond; }
 			locks.cond_wait_with_timeout(*c.job_cond, *c.job_mu, wait);
 			continue;
 		}
@@ -109,7 +109,7 @@ worker_proc :: (c: *Client) {
 		context.tl_dispatch_ms = now_ms_f();
 		locks.unlock(*c.job_mu);
 		run_job(c, j);
-		free_all(temp);
+		reset_temporary_storage();
 		locks.lock(*c.job_mu);
 		c.jobs_running -= 1;
 		if j.requeue && !c.quit {
@@ -159,8 +159,8 @@ Api_Response :: struct {
 // rate-limit semantics. The returned arena (if any) owns body.
 api_call :: (c: *Client, method: string, path: string, body: []u8, content_type: string, context_b64: string, extra: []http.Header, retries: int, retry_429: int, no_auth := false, no_super_props := false, referer := "") -> Api_Response {
 	r: Api_Response;
-	full_path := strings.concatenate(.{API_PREFIX, path}, temp);
-	url_key := strings.concatenate(.{API_ORIGIN, full_path}, temp);
+	full_path := strings.concatenate(string.[API_PREFIX, path], temp);
+	url_key := strings.concatenate(string.[API_ORIGIN, full_path], temp);
 	retries_left := retries;
 	retry_429_left := retry_429;
 	failed := 0;
@@ -168,7 +168,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 	while true {
 		{ w := rate_wait_ms(*c.limiter, method, url_key, now_ms());
 		if w > 0 {
-			time.sleep(time.Duration(w) * time.Millisecond);
+			time.sleep(cast(time.Duration)(w) * time.Millisecond);
 		} }
 		now := now_ms();
 		ex := extra;
@@ -207,7 +207,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			if retries_left > 0 {
 				retries_left -= 1;
 				failed += 1;
-				time.sleep(time.Duration(backoff_fail(*backoff)) * time.Millisecond);
+				time.sleep(cast(time.Duration)(backoff_fail(*backoff)) * time.Millisecond);
 				continue;
 			}
 			return .{status = 0};
@@ -216,7 +216,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			http.response_destroy(*resp);
 			retries_left -= 1;
 			failed += 1;
-			time.sleep(time.Duration(backoff_fail(*backoff)) * time.Millisecond);
+			time.sleep(cast(time.Duration)(backoff_fail(*backoff)) * time.Millisecond);
 			continue;
 		}
 		arena := new(virtual.Arena);
@@ -231,7 +231,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			http.response_destroy(*resp);
 			virtual.arena_destroy(arena);
 			free(arena);
-			time.sleep(time.Duration(max(wait, 0)) * time.Millisecond);
+			time.sleep(cast(time.Duration)(max(wait, 0)) * time.Millisecond);
 			continue;
 		}
 		hdrs := make_slice(http.Header, len(resp.headers), alloc);
@@ -248,13 +248,13 @@ push_result :: (c: *Client, j: *Job, r: Api_Response) {
 	res.ok = r.ok;
 	res.status = r.status;
 	{ m := vmap(r.body);
-	if m != null && res.id == 0 { res.id = fsnow(m, "id"); } }
+	if !is_null(m) && res.id == 0 { res.id = fsnow(m, "id"); } }
 	client_push_event(c, Event.{kind = .Rest, data = r.body, arena = r.arena, result = res});
 }
 
 run_api :: (c: *Client, j: *Job) {
 	extra := j.extra;
-	url := strings.concatenate(.{API_ORIGIN, API_PREFIX, j.path}, temp);
+	url := strings.concatenate(string.[API_ORIGIN, API_PREFIX, j.path], temp);
 	if j.etag {
 		e := make_dynamic(http.Header, 0, 2, temp);
 		append(*e, http.Header.{"cache-control", "max-age=0"});
@@ -270,7 +270,7 @@ run_api :: (c: *Client, j: *Job) {
 if ok { etag_put(c, url, tag); } } }
 	if j.op == .Ack && r.ok {
 		{ m := vmap(r.body);
-		if m != null {
+		if !is_null(m) {
 			tok := fstr(m, "token");
 			locks.lock(*c.ack_mu);
 			delete(c.ack_token, c.allocator);
@@ -280,7 +280,7 @@ if ok { etag_put(c, url, tag); } } }
 	}
 	if j.op == .Experiments && r.ok {
 		{ m := vmap(r.body);
-		if m != null {
+		if !is_null(m) {
 			inst := fstr(m, "installation");
 			if inst != "" {
 				locks.lock(*c.id.mu);
@@ -315,7 +315,7 @@ collect_app_ids :: (v: V, out: *[..]Snowflake) {
 		id := fsnow(fmap(cfg, "application"), "id");
 		if id == 0 { continue; }
 		dup := false;
-		for e: out { if e == id { dup = true; } }
+		for e: out.* { if e == id { dup = true; } }
 		if !dup { append(out, id); }
 	}
 }
@@ -339,7 +339,7 @@ schedule_applications_public :: (c: *Client, ready_ms: s64) {
 	if client_route_kind(c.start_route_guild, c.start_route_channel) != .Home { return; }
 	locks.lock(*c.job_mu);
 	ids := c.quest_app_ids;
-	c.quest_app_ids = null;
+	c.quest_app_ids = zero(type_of(c.quest_app_ids));
 	locks.unlock(*c.job_mu);
 	if len(ids) == 0 { return; }
 	defer delete(ids, c.allocator);
@@ -373,7 +373,7 @@ send_preflight :: (c: *Client, j: *Job) {
 // a separate, earlier job.
 preflight_note :: (c: *Client, host: string, path: string, pending: bool) {
 	if !pending { return; }
-	url := strings.concatenate(.{"https://", host, path}, temp);
+	url := strings.concatenate(string.["https://", host, path], temp);
 	locks.lock(*c.preflight_mu);
 	defer locks.unlock(*c.preflight_mu);
 	if has(c.preflights, url) {
@@ -413,11 +413,11 @@ run_web :: (c: *Client, j: *Job) {
 	now := now_ms();
 	referer := j.referer;
 	if referer == "" {
-		referer = ifx j.site == .Same_Origin then client_route_referer(c) else API_ORIGIN + "/";
+		referer = ifx j.site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/");
 	}
 	// XHR/fetch without credentials: cookies only go to the same origin.
 	cookie := ifx j.no_cookies || j.site != .Same_Origin then "" else cookie_header(*c.jar, j.host, j.path, true, now);
-	url := strings.concatenate(.{"https://", j.host, j.path}, temp);
+	url := strings.concatenate(string.["https://", j.host, j.path], temp);
 	js := j.js_headers;
 	// Chrome's HTTP cache: fresh entries are served without a request; stale
 	// ones are revalidated with the stored validators (appended after the
@@ -469,7 +469,7 @@ run_web :: (c: *Client, j: *Job) {
 			cache_write(c, url, ce, view(resp.body), true);
 		} else if resp.status == 304 && cached {
 			centry.fresh_until = fresh;
-			cache_write(c, url, centry, null, false);
+			cache_write(c, url, centry, .[], false);
 		}
 	}
 	if j.etag && err == .None && resp.status == 200 { { tag, ok := http.header_get(view(resp.headers), "etag");
@@ -520,7 +520,7 @@ run_upload :: (c: *Client, j: *Job) {
 	}
 	json_arr_end(*w);
 	body := j.message_json(j, json_string(*w));
-	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, null, 3, 1);
+	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, .[], 3, 1);
 	j.result.op = .Send_Message;
 	push_result(c, j, r);
 }
@@ -551,7 +551,7 @@ upload_put :: (c: *Client, url: string, data: []u8) -> bool {
 		status := resp.status;
 		http.response_destroy(*resp);
 		if err == .None && status >= 200 && status < 300 { return true; }
-		if attempt < 2 { time.sleep(time.Duration(backoff_fail(*backoff)) * time.Millisecond); }
+		if attempt < 2 { time.sleep(cast(time.Duration)(backoff_fail(*backoff)) * time.Millisecond); }
 	}
 	return false;
 }
@@ -624,7 +624,7 @@ if ok {
 			m := vmap(e.data);
 			uid := parse_user_into(s, fmap(m, "user"));
 			{ prof := fmap(m, "user_profile");
-			if prof != null && uid != 0 {
+			if !is_null(prof) && uid != 0 {
 				u := at(*s.users, uid);
 				if vhas(prof, "bio") {free_str(u.bio, s.allocator); u.bio = clone_str(fstr(prof, "bio"), s.allocator);}
 				if vhas(prof, "pronouns") {free_str(u.pronouns, s.allocator); u.pronouns = clone_str(fstr(prof, "pronouns"), s.allocator);}

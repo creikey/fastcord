@@ -80,7 +80,7 @@ qs_results :: (c: *Client, body: V, shown: int) {
 	for g, i: vlist(body) {
 		if i >= shown { break; }
 		m := vmap(g);
-		if vget(m, "icon") != null { continue; }
+		if !etf.is_nil(vget(m, "icon")) { continue; }
 		id := fsnow(m, "id");
 		if id == 0 || get(c.quick_switcher.fetched, id) { continue; }
 		at(*c.quick_switcher.fetched, id).* = true;

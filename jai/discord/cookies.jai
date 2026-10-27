@@ -105,7 +105,7 @@ cookie_set_from_header :: (j: *Cookie_Jar, host: string, req_path: string, heade
 	if domain == "" {
 		domain = lhost;
 		c.host_only = true;
-	} else if !(lhost == domain || strings.has_suffix(lhost, strings.concatenate(.{".", domain}, temp))) {
+	} else if !(lhost == domain || strings.has_suffix(lhost, strings.concatenate(string.[".", domain], temp))) {
 		return; // domain mismatch: rejected
 	}
 	if path == "" || path[0] != #char "/" { path = default_path(req_path); }
@@ -270,7 +270,7 @@ parse_http_date :: (s: string) -> s64, bool {
 }
 
 write_file_atomic :: (path: string, data: []u8) -> bool {
-	tmp := strings.concatenate(.{path, ".tmp"}, temp);
+	tmp := strings.concatenate(string.[path, ".tmp"], temp);
 	if os.write_entire_file(tmp, data) != null { return false; }
 	return os.rename(tmp, path) == null;
 }

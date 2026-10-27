@@ -55,36 +55,36 @@ Startup_Flag :: enum_flags u8 {
 Startup_Flags :: Startup_Flag;
 
 STARTUP_REQUESTS := Startup_Entry.[
-	.{.Launch, 767, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", .{.Home, .Private}, .{}, ""},
-	.{.Launch, 775, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", ALL_ROUTES, .{.Verified_Only}, ""},
-	.{.Launch, 5500, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", ALL_ROUTES, .{.Unverified_Only}, "unverified accounts load quests late (fixtures: B 4.2-6.4 s)"},
-	.{.Launch, 775, .Api_Put_Json, "", "/guilds/{guild}/members/@me?lurker=true", "{}", .Same_Origin, "{}", .{.Guild}, .{}, "GuildJoinRequest lurker check"},
-	.{.Launch, 776, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, "{\"connection_type\":\"unknown\"}", ALL_ROUTES, .{.Verified_Only}, "ads decision"},
-	.{.Ready, 0, .Web_Get, "status.discord.com", "/api/v2/scheduled-maintenances/upcoming.json", "", .Same_Site, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 2, .Api_Get, "", "/users/%40me/badges", "", .Same_Origin, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", .{.Home}, .{.Unverified_Only}, "B (unverified) only"},
-	.{.Ready, 2062, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", .{.Home}, .{.Unverified_Only}, ""},
-	.{.Ready, 2385, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", .{.Home}, .{.Unverified_Only}, "re-polled ~320 ms after the cluster"},
+	.{.Launch, 767, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", (Route_Kind.Home | Route_Kind.Private), 0, ""},
+	.{.Launch, 775, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", ALL_ROUTES, (Startup_Flag.Verified_Only), ""},
+	.{.Launch, 5500, .Api_Get, "", "/quests/@me", "", .Same_Origin, "", ALL_ROUTES, (Startup_Flag.Unverified_Only), "unverified accounts load quests late (fixtures: B 4.2-6.4 s)"},
+	.{.Launch, 775, .Api_Put_Json, "", "/guilds/{guild}/members/@me?lurker=true", "{}", .Same_Origin, "{}", (Route_Kind.Guild), 0, "GuildJoinRequest lurker check"},
+	.{.Launch, 776, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, "{\"connection_type\":\"unknown\"}", ALL_ROUTES, (Startup_Flag.Verified_Only), "ads decision"},
+	.{.Ready, 0, .Web_Get, "status.discord.com", "/api/v2/scheduled-maintenances/upcoming.json", "", .Same_Site, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 2, .Api_Get, "", "/users/%40me/badges", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Unverified_Only), "B (unverified) only"},
+	.{.Ready, 2062, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Unverified_Only), ""},
+	.{.Ready, 2385, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Unverified_Only), "re-polled ~320 ms after the cluster"},
 	// DevTools shows both preflights first, then the requests in fetch order
-	.{.Ready, 2060, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, .{.Etag, .Preflight_Only}, ""},
-	.{.Ready, 2060, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, .{.Etag, .Preflight_Only}, ""},
-	.{.Ready, 2062, .Api_Get, "", "/users/@me/mfa/webauthn/credentials", "", .Same_Origin, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 2062, .Api_Post_Json, "", "/users/@me/billing/user-offer", "{\"allow_triggers\":true}", .Same_Origin, "", ALL_ROUTES, .{.Verified_Only}, ""},
-	.{.Ready, 2062, .Api_Get, "", "/users/@me/billing/checkout-recovery", "", .Same_Origin, "", ALL_ROUTES, .{.Verified_Only}, ""},
-	.{.Ready, 2062, .Api_Get, "", "/users/@me/collectibles-marketing?platform=0", "", .Same_Origin, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 2063, .Api_Get, "", "/users/@me/library?country_code={country}", "", .Same_Origin, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 2063, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, .{.Etag}, ""},
-	.{.Ready, 2063, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, .{.Etag}, ""},
-	.{.Ready, 2063, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, .{.Etag}, ""},
+	.{.Ready, 2060, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, (Startup_Flag.Etag | Startup_Flag.Preflight_Only), ""},
+	.{.Ready, 2060, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, (Startup_Flag.Etag | Startup_Flag.Preflight_Only), ""},
+	.{.Ready, 2062, .Api_Get, "", "/users/@me/mfa/webauthn/credentials", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 2062, .Api_Post_Json, "", "/users/@me/billing/user-offer", "{\"allow_triggers\":true}", .Same_Origin, "", ALL_ROUTES, (Startup_Flag.Verified_Only), ""},
+	.{.Ready, 2062, .Api_Get, "", "/users/@me/billing/checkout-recovery", "", .Same_Origin, "", ALL_ROUTES, (Startup_Flag.Verified_Only), ""},
+	.{.Ready, 2062, .Api_Get, "", "/users/@me/collectibles-marketing?platform=0", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 2063, .Api_Get, "", "/users/@me/library?country_code={country}", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 2063, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, (Startup_Flag.Etag), ""},
+	.{.Ready, 2063, .Api_Get, "", "/games/detectable/exclusions", "", .Same_Origin, "", ALL_ROUTES, (Startup_Flag.Etag), ""},
+	.{.Ready, 2063, .Detectables, "cdn.discordapp.com", "/detectables/non-games-v1.json", "", .Cross_Site, "", ALL_ROUTES, (Startup_Flag.Etag), ""},
 	// x is the 5-minute bucket within the hour (max-age=300): within one
 	// bucket Chrome serves it from its HTTP cache, so it is often absent.
-	.{.Ready, 2063, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x={x5m}", "", .Cross_Site, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 2063, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", .{.Home, .Private}, .{}, "guild route: part of the guild-open set"},
-	.{.Ready, 2063, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 2063, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, .{}, ""},
-	.{.Ready, 5130, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", .{.Guild}, .{}, "FrecencyUserSettings lazy load (fixtures: mode READY +4.9-5.2 s, later after UI use)"},
-	.{.Launch, 7577, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, "{\"connection_type\":\"unknown\"}", ALL_ROUTES, .{}, "ads decision"},
-	.{.Launch, 16571, .Web_Get, "cdn.discordapp.com", "/bad-domains/current_revision.txt", "", .Cross_Site, "", ALL_ROUTES, .{}, "from coldstart_a/b (outside fixture windows)"}
+	.{.Ready, 2063, .Web_Get, "cdn.discordapp.com", "/changelogs/config_0.json?x={x5m}", "", .Cross_Site, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 2063, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", (Route_Kind.Home | Route_Kind.Private), 0, "guild route: part of the guild-open set"},
+	.{.Ready, 2063, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 2063, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
+	.{.Ready, 5130, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", (Route_Kind.Guild), 0, "FrecencyUserSettings lazy load (fixtures: mode READY +4.9-5.2 s, later after UI use)"},
+	.{.Launch, 7577, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, "{\"connection_type\":\"unknown\"}", ALL_ROUTES, 0, "ads decision"},
+	.{.Launch, 16571, .Web_Get, "cdn.discordapp.com", "/bad-domains/current_revision.txt", "", .Cross_Site, "", ALL_ROUTES, 0, "from coldstart_a/b (outside fixture windows)"}
 ];
 #scope_module
 

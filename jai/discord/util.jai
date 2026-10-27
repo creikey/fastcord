@@ -1,5 +1,3 @@
-Allocator :: Allocator;
-
 // ---- time ----
 
 now_ms :: () -> s64 {
@@ -53,7 +51,7 @@ uuid_parse :: (s: string) -> [16]u8, bool {
 	}
 	for i: 0..len(s)-1 {
 		if s[i] == #char "-" { continue; }
-		if j >= 32 || i + 1 >= len(s) + 1 { return .[], false; }
+		if j >= 32 || i + 1 >= len(s) + 1 { return zero([16]u8), false; }
 		v, __e2 := hv(s[i]); if failed(__e2) return b, __e2;
 		if j % 2 == 0 { b[j / 2] = v << 4; } else { b[j / 2] |= v; }
 		j += 1;
@@ -276,7 +274,7 @@ query_init :: (q: *Query, path: string, allocator := temp) {
 }
 
 query_add :: (q: *Query, k: string, v: string) {
-	strings.write_byte(*q.sb, ifx q.empty then #char "?" else #char "&");
+	strings.write_byte(*q.sb, xx ifx q.empty then #char "?" else #char "&");
 	q.empty = false;
 	strings.write_string(*q.sb, uri_component(k));
 	strings.write_byte(*q.sb, #char "=");

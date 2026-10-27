@@ -21,7 +21,7 @@ account: Account_Info;
 #scope_file
 
 note_account :: (acc: *Account_Info, u: etf.Map) {
-	if u == null { return; }
+	if is_null(u) { return; }
 	a := context.default_allocator; // process-wide, like `account` itself (stores come and go)
 	if vhas(u, "email") {free_str(acc.email, a); acc.email = clone_str(fstr(u, "email"), a);}
 	if vhas(u, "phone") {free_str(acc.phone, a); acc.phone = clone_str(fstr(u, "phone"), a);}
@@ -115,7 +115,7 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 api_error_text :: (body: V) -> string {
 	find :: (v: V) -> string {
 		m := vmap(v);
-		if m == null { return ""; }
+		if is_null(m) { return ""; }
 		for e: flist(m, "_errors") {
 			{ t := fstr(vmap(e), "message");
 			if t != "" { return t; } }

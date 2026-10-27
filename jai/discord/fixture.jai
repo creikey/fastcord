@@ -15,7 +15,7 @@ de_atom :: (v: V) -> V {
 		}
 		for * p: x { p.value = de_atom(p.value); }
 	case .List; x := v.list;
-		for * e: x { e = de_atom(e); }
+		for * e: x { e.* = de_atom(e.*); }
 	}
 	return v;
 }
@@ -23,7 +23,7 @@ de_atom :: (v: V) -> V {
 // store_load_fixture_text applies every received dispatch in text; returns the count.
 store_load_fixture_text :: (s: *Store, text: string) -> int {
 	arena: virtual.Arena;
-	if virtual.arena_init_growing(*arena) != null { return 0; }
+	if virtual.arena_init_growing(*arena) != .None { return 0; }
 	defer virtual.arena_destroy(*arena);
 	alloc := virtual.arena_allocator(*arena);
 	n := 0;
@@ -36,7 +36,7 @@ store_load_fixture_text :: (s: *Store, text: string) -> int {
 		name: string;
 		d: V;
 		{ e := fmap(m, "etf");
-		if e != null {
+		if !is_null(e) {
 			if fstr(m, "dir") == "send" || fint(e, "op") != 0 { continue; }
 			name = vstr(de_atom(vget(e, "t")));
 			d = vget(e, "d");

@@ -39,7 +39,7 @@ open_mentions :: (c: *Client) {
 
 // delete_mention removes a message from the recent mentions list.
 delete_mention :: (c: *Client, message_id: Snowflake) {
-	path := strings.concatenate(.{"/users/@me/mentions/", snowflake_string(message_id)}, temp);
+	path := strings.concatenate(string.["/users/@me/mentions/", snowflake_string(message_id)], temp);
 	f_submit(c, .{op = .Mention_Delete, tag = cast(u64)(message_id), method = "DELETE", path = path});
 }
 
@@ -78,7 +78,7 @@ create_thread :: (c: *Client, parent_id: Snowflake, name: string, location := "T
 // ahead of its THREAD_CREATE, and returns its id.
 apply_created_thread :: (c: *Client, body: V) -> Snowflake {
 	m := vmap(body);
-	if m == null { return 0; }
+	if is_null(m) { return 0; }
 	id := fsnow(m, "id");
 	if id == 0 { return 0; }
 	store_apply_dispatch(*c.store, "THREAD_CREATE", body, now_ms());
@@ -90,7 +90,7 @@ apply_created_thread :: (c: *Client, body: V) -> Snowflake {
 // fetch_role_member_counts: the Delete Thread / Delete Channel confirm loads
 // the guild's role member counts (fixture threads_browser delete_thread).
 fetch_role_member_counts :: (c: *Client, guild_id: Snowflake) {
-	api_get_later(c, strings.concatenate(.{"/guilds/", snowflake_string(guild_id), "/roles/member-counts"}, temp), 0);
+	api_get_later(c, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/roles/member-counts"], temp), 0);
 }
 
 // Every thread (any state we know of) under parent_id, newest activity first.
@@ -106,7 +106,7 @@ channel_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Sno
 	for id, i: out { keyed[i] = .{max(get(extras.threads, id).last_message_id, id), id}; }
 	for i: 1..len(keyed)-1 {
 		{ j := i;
-		while j > 0 && keyed[j].key > keyed[j - 1].key { keyed[j], keyed[j - 1] = keyed[j - 1], keyed[j];  j -= 1; } }
+		while j > 0 && keyed[j].key > keyed[j - 1].key { swap(*keyed[j], *keyed[j - 1]);  j -= 1; } }
 	}
 	for k, i: keyed { at(*out, i).* = k.id; }
 	return view(out);

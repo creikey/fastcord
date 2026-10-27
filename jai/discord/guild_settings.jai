@@ -49,7 +49,7 @@ ms_to_iso :: (ms: s64, allocator := temp) -> string {
 
 // Called by apply_guild_settings (Store, UI thread) with the full settings object.
 apply_guild_settings_extra :: (s: *Store, gs: *Guild_Settings, m: etf.Map) {
-	if gs.overrides.allocator.procedure == null { gs.overrides = make_dynamic(Channel_Override, 0, 0, s.allocator); }
+	if gs.overrides.allocator.proc == null { gs.overrides = make_dynamic(Channel_Override, 0, 0, s.allocator); }
 	clear(*gs.overrides);
 	gs.mute_end_ms = iso_to_ms(fstr(fmap(m, "mute_config"), "end_time"));
 	gs.flags = fint(m, "flags");
@@ -66,7 +66,7 @@ apply_guild_settings_extra :: (s: *Store, gs: *Guild_Settings, m: etf.Map) {
 			message_notifications = NOTIFY_INHERIT
 		};
 		{ v := vget(om, "message_notifications");
-		if v != null && !vis_null(v) { o.message_notifications = cast(int)(vint(v)); } }
+		if !is_null(v) && !vis_null(v) { o.message_notifications = cast(int)(vint(v)); } }
 		append(*gs.overrides, o);
 	}
 }
@@ -84,20 +84,20 @@ guild_settings_get :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
 
 guild_is_muted :: (s: *Store, gid: Snowflake, now_ms: s64) -> bool {
 	gs := guild_settings_get(s, gid);
-	return gs != null && mute_active(gs.muted, gs.mute_end_ms, now_ms);
+	return !is_null(gs) && mute_active(gs.muted, gs.mute_end_ms, now_ms);
 }
 
 channel_override_get :: (s: *Store, gid: Snowflake, cid: Snowflake) -> *Channel_Override {
 	gs := guild_settings_get(s, gid);
-	if gs == null { return null; }
-	for * o: gs.overrides { if o.channel_id == cid { return *o; } }
+	if is_null(gs) { return null; }
+	for * o: gs.overrides { if o.channel_id == cid { return o; } }
 	return null;
 }
 
 // The channel's own mute (not its category's or the server's).
 channel_is_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> bool {
 	o := channel_override_get(s, gid, cid);
-	return o != null && mute_active(o.muted, o.mute_end_ms, now_ms);
+	return !is_null(o) && mute_active(o.muted, o.mute_end_ms, now_ms);
 }
 
 // Muted by its own override or its category's (what the sidebar dims).
@@ -111,7 +111,7 @@ channel_effectively_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms:
 // Server-level level: the user's setting, else the guild's default.
 guild_notify_level :: (s: *Store, gid: Snowflake) -> int {
 	{ gs := guild_settings_get(s, gid);
-	if gs != null { return gs.message_notifications; } }
+	if !is_null(gs) { return gs.message_notifications; } }
 	{ g := guild_get(s, gid);
 	if g != null { return g.default_message_notifications; } }
 	return NOTIFY_ALL;
@@ -120,7 +120,7 @@ guild_notify_level :: (s: *Store, gid: Snowflake) -> int {
 // The channel's own override level (NOTIFY_INHERIT when none).
 channel_notify_level :: (s: *Store, gid: Snowflake, cid: Snowflake) -> int {
 	{ o := channel_override_get(s, gid, cid);
-	if o != null { return o.message_notifications; } }
+	if !is_null(o) { return o.message_notifications; } }
 	return NOTIFY_INHERIT;
 }
 #scope_file
@@ -130,7 +130,7 @@ channel_notify_level :: (s: *Store, gid: Snowflake, cid: Snowflake) -> int {
 ensure_settings :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
 	{ gs, ok := map_find_ptr(*s.guild_settings, gid);
 	if ok {
-		if gs.overrides.allocator.procedure == null { gs.overrides = make_dynamic(Channel_Override, 0, 0, s.allocator); }
+		if gs.overrides.allocator.proc == null { gs.overrides = make_dynamic(Channel_Override, 0, 0, s.allocator); }
 		return gs;
 	} }
 	lvl := NOTIFY_ALL;
@@ -148,7 +148,7 @@ ensure_settings :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
 }
 
 ensure_override :: (gs: *Guild_Settings, cid: Snowflake) -> *Channel_Override {
-	for * o: gs.overrides { if o.channel_id == cid { return *o; } }
+	for * o: gs.overrides { if o.channel_id == cid { return o; } }
 	append(*gs.overrides, Channel_Override.{channel_id = cid, message_notifications = NOTIFY_INHERIT});
 	return *gs.overrides[len(gs.overrides) - 1];
 }
@@ -424,7 +424,7 @@ ack_channels :: (c: *Client, ids: []Snowflake) -> int {
 leave_guild :: (c: *Client, gid: Snowflake) {
 	j := job_new(.Api, .None);
 	j.method = "DELETE";
-	j.path = job_str(j, strings.concatenate(.{"/users/@me/guilds/", snowflake_string(gid)}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/users/@me/guilds/", snowflake_string(gid)], temp));
 	j.referer = job_str(j, client_route_referer(c)); // the app routes home only on GUILD_DELETE
 	j.body = transmute([]u8, job_str(j, "{\"lurking\":false}"));
 	j.content_type = "application/json";

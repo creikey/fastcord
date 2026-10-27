@@ -72,9 +72,9 @@ Rate_Limiter :: struct {
 
 rate_limiter_init :: (r: *Rate_Limiter, allocator := context.allocator) {
 	r.allocator = allocator;
-	r.holds = Map(string, Url_Hold).{};
-	r.buckets = Map(string, Bucket).{};
-	r.route_bucket = Map(string, string).{};
+	r.holds = make_map(string, Url_Hold, allocator);
+	r.buckets = make_map(string, Bucket, allocator);
+	r.route_bucket = make_map(string, string, allocator);
 }
 
 rate_limiter_destroy :: (r: *Rate_Limiter) {
@@ -161,7 +161,7 @@ retry_after_seconds :: (headers: []http.Header, body: V) -> float64, bool {
 		if nok && n > 0 { return n, true; } }
 	} }
 	{ m := vmap(body);
-	if m != null {
+	if !is_null(m) {
 		ra := vget(m, "retry_after");
 		{ f := vf64(ra);
 		if f > 0 { return f, true; } }

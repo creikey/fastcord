@@ -91,9 +91,9 @@ compute_overwrites :: (base: u64, guild_id: Snowflake, user_id: Snowflake, membe
 // Our role ids in a guild: the READY / member-update side table, else the Store's member.
 my_roles :: (s: *Store, guild_id: Snowflake) -> []Snowflake {
 	{ r := my_guild_roles(guild_id);
-	if r != null { return r; } }
+	if !is_null(r) { return r; } }
 	{ m := member_get(s, guild_id, s.me);
-	if m != null { return view(m.roles); } }
+	if !is_null(m) { return view(m.roles); } }
 	return .{};
 }
 
@@ -116,7 +116,7 @@ channel_permissions_of :: (s: *Store, channel_id: Snowflake, user_id: Snowflake,
 	if ch == null || ch.guild_id == 0 { return 0; }
 	if is_thread(ch) && ch.parent_id != 0 {
 		{ p := channel_get(s, ch.parent_id);
-		if p != null { ch = p; } }
+		if !is_null(p) { ch = p; } }
 	}
 	g := guild_get(s, ch.guild_id);
 	if g == null { return 0; }
@@ -142,7 +142,7 @@ can_set_nickname :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> bool
 	}
 	theirs: []Snowflake;
 	{ m := member_get(s, guild_id, user_id);
-	if m != null { theirs = view(m.roles); } }
+	if !is_null(m) { theirs = view(m.roles); } }
 	return highest(g, my_roles(s, guild_id)) > highest(g, theirs);
 }
 

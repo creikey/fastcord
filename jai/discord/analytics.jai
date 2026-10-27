@@ -84,8 +84,8 @@ analytics_init :: (a: *Analytics, allocator := context.allocator) {
 	// The ad session (AdSessionStore) exists from launch: quests/decision uses it before READY.
 	a.ad_session = uuid4(allocator);
 	a.ad_created = now_ms();
-	a.roundtrips = Map(Snowflake, Roundtrip).{};
-	a.throttled = Map(string, s64).{};
+	a.roundtrips = make_map(Snowflake, Roundtrip, allocator);
+	a.throttled = make_map(string, s64, allocator);
 	a.shown = make_dynamic(Shown_Notification, 0, 0, allocator);
 	a.roundtrip_sample = 0.1;
 }
@@ -206,33 +206,33 @@ Sci_Throttle :: struct {
 }
 
 SCI_THROTTLES := Sci_Throttle.[
-	.{"ack_messages", 900_000, .{"guild_id", "channel_id", "location_section"}}, // not for location_object_type "ack_manual"
-	.{"guild_viewed", 900_000, .{"guild_id", "is_pending"}},
-	.{"friends_list_viewed", 900_000, .{"tab_opened"}},
-	.{"now_playing_card_hovered", 900_000, .{"tab_opened"}},
-	.{"start_speaking", 900_000, .{"server"}},
-	.{"start_listening", 900_000, .{"server"}},
-	.{"channel_opened", 900_000, .{"channel_id", "channel_view"}}, // channel_static_route: not used by fastcord
-	.{"text_in_voice_opened", 86_400_000, .{"channel_id"}},
-	.{"member_list_viewed", 900_000, .{"channel_id"}},
-	.{"dm_list_viewed", 900_000, .{"channel_id"}},
-	.{"keyboard_shortcut_used", 120_000, .{"shortcut_name", "location_object", "source_class_list"}},
-	.{"quickswitcher_opened", 10_000, .{}},
-	.{"audio_input_initialized", 300_000, .{}},
-	.{"video_input_initialized", 300_000, .{}},
-	.{"premium_upsell_viewed", 60_000, .{"type"}},
-	.{"search_bar_viewed", 3_600_000, .{"search_type"}}
+	.{"ack_messages", 900_000, string.["guild_id", "channel_id", "location_section"]}, // not for location_object_type "ack_manual"
+	.{"guild_viewed", 900_000, string.["guild_id", "is_pending"]},
+	.{"friends_list_viewed", 900_000, string.["tab_opened"]},
+	.{"now_playing_card_hovered", 900_000, string.["tab_opened"]},
+	.{"start_speaking", 900_000, string.["server"]},
+	.{"start_listening", 900_000, string.["server"]},
+	.{"channel_opened", 900_000, string.["channel_id", "channel_view"]}, // channel_static_route: not used by fastcord
+	.{"text_in_voice_opened", 86_400_000, string.["channel_id"]},
+	.{"member_list_viewed", 900_000, string.["channel_id"]},
+	.{"dm_list_viewed", 900_000, string.["channel_id"]},
+	.{"keyboard_shortcut_used", 120_000, string.["shortcut_name", "location_object", "source_class_list"]},
+	.{"quickswitcher_opened", 10_000, .[]},
+	.{"audio_input_initialized", 300_000, .[]},
+	.{"video_input_initialized", 300_000, .[]},
+	.{"premium_upsell_viewed", 60_000, string.["type"]},
+	.{"search_bar_viewed", 3_600_000, string.["search_type"]}
 ];
 
 // analytics_throttled: the tracker's throttle check (a.mu held). JS joins
 // [type, ...values] with "_": null / undefined print as "", arrays spread.
 analytics_throttled :: (a: *Analytics, event_type: string, props_json: string, now: s64) -> bool {
 	th: *Sci_Throttle;
-	for * x: SCI_THROTTLES { if x.event == event_type {th = *x; break;} }
-	if th == null { return false; }
+	for * x: SCI_THROTTLES { if x.event == event_type {th = x; break;} }
+	if is_null(th) { return false; }
 	props: etf.Map;
 	if len(th.keys) > 0 {
-		v, err := etf.from_json(strings.concatenate(.{"{", props_json, "}"}, temp), temp);
+		v, err := etf.from_json(strings.concatenate(string.["{", props_json, "}"], temp), temp);
 		if err == .None { props = vmap(v); }
 	}
 	if event_type == "ack_messages" && fstr(props, "location_object_type") == "ack_manual" { return false; }
@@ -252,7 +252,7 @@ analytics_throttled :: (a: *Analytics, event_type: string, props_json: string, n
 	}
 	for k: th.keys {
 		v := vget(props, k);
-		if v == null && k == "source_class_list" { continue; } // `...(list ?? [])`
+		if is_null(v) && k == "source_class_list" { continue; } // `...(list ?? [])`
 		{ l, ok := v.list, v.kind == .List;
 		if ok {
 			for e: l {strings.write_byte(*sb, #char "_"); key_part(*sb, e);}
@@ -474,7 +474,7 @@ A11Y_REDUCED_MOTION_FROM_USER_SETTINGS :: 65536;
 // official 128 -> 524416 in every fixture); fastcord sends nothing that early.
 accessibility_flags :: (in_: A11y_Inputs) -> u64 {
 	f: u64;
-	f |= ifx in_.os_dark then A11Y_PREFERS_COLOR_SCHEME_DARK else A11Y_PREFERS_COLOR_SCHEME_LIGHT;
+	f |= cast(u64) (ifx in_.os_dark then A11Y_PREFERS_COLOR_SCHEME_DARK else A11Y_PREFERS_COLOR_SCHEME_LIGHT);
 	if in_.contrast_more { f |= A11Y_HIGH_CONTRAST; }
 	if in_.forced_colors { f |= A11Y_FORCED_COLORS; }
 	if in_.invert_colors { f |= A11Y_INVERT_COLORS; }

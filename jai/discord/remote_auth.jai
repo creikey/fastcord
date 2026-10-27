@@ -58,7 +58,7 @@ ra_session_init :: (s: *Ra_Session, allocator := context.allocator) -> bool {
 	s.allocator = allocator;
 	ctx := tls.EVP_PKEY_CTX_new_id(tls.EVP_PKEY_RSA, null);
 	defer tls.EVP_PKEY_CTX_free(ctx);
-	if ctx == null || tls.EVP_PKEY_keygen_init(ctx) != 1 || tls.EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) != 1 { return false; }
+	if is_null(ctx) || tls.EVP_PKEY_keygen_init(ctx) != 1 || tls.EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) != 1 { return false; }
 	if tls.EVP_PKEY_keygen(ctx, *s.key) != 1 { return false; }
 	return ra_session_derive(s);
 }
@@ -159,14 +159,14 @@ ra_handle :: (s: *Ra_Session, msg: []u8, allocator := temp) -> Ra_Action, string
 
 // ra_decrypt: RSA-OAEP (SHA-256) of a base64 (atob) ciphertext.
 ra_decrypt :: (s: *Ra_Session, b64: string, allocator := temp) -> []u8, bool {
-	ct, err := base64.decode(bool64, allocator = temp);
+	ct, err := base64.decode(b64, allocator = temp);
 	if err != null || len(ct) != 256 { return .{}, false; }
 	ctx := tls.EVP_PKEY_CTX_new(s.key, null);
 	defer tls.EVP_PKEY_CTX_free(ctx);
 	out := make_slice(u8, 256, allocator);
 	n := cast(u64)(len(out));
-	if ctx == null || tls.EVP_PKEY_decrypt_init(ctx) != 1 || tls.EVP_PKEY_CTX_set_rsa_padding(ctx, tls.RSA_PKCS1_OAEP_PADDING) != 1 ||
-	   tls.EVP_PKEY_CTX_set_rsa_oaep_md(ctx, tls.EVP_sha256()) != 1 || tls.EVP_PKEY_decrypt(ctx, raw_data(out), *n, raw_data(ct), len(ct)) != 1 {
+	if is_null(ctx) || tls.EVP_PKEY_decrypt_init(ctx) != 1 || tls.EVP_PKEY_CTX_set_rsa_padding(ctx, tls.RSA_PKCS1_OAEP_PADDING) != 1 ||
+	   tls.EVP_PKEY_CTX_set_rsa_oaep_md(ctx, tls.EVP_sha256()) != 1 || tls.EVP_PKEY_decrypt(ctx, raw_data(out), *n, raw_data(ct), xx len(ct)) != 1 {
 		tls.ERR_clear_error(); // a bad ciphertext must not linger for this thread's next TLS handshake
 		return .{}, false;
 	}
@@ -184,7 +184,7 @@ ra_decrypt_token :: (s: *Ra_Session, encrypted_token: string, allocator := conte
 
 sha256_bytes :: (b: []u8) -> [32]u8 {
 	d: [32]u8;
-	tls.SHA256(raw_data(b), len(b), *d[0]);
+	tls.SHA256(raw_data(b), xx len(b), *d[0]);
 	return d;
 }
 
@@ -222,7 +222,7 @@ ra_parse_user :: (s: string) -> Snowflake, string, string, string, bool {
 }
 
 ra_qr_url :: (fingerprint: string, allocator := temp) -> string {
-	return strings.concatenate(.{REMOTE_AUTH_QR_PREFIX, fingerprint}, allocator);
+	return strings.concatenate(string.[REMOTE_AUTH_QR_PREFIX, fingerprint], allocator);
 }
 
 // btoa(...).replace(/\//g,"_").replace(/\+/g,"-").replace(/={1,2}$/,"")
@@ -232,7 +232,7 @@ base64url_nopad :: (b: []u8, allocator := context.allocator) -> string {
 	n := len(out);
 	while n > 0 && get(out, n - 1) == #char "=" { n -= 1; }
 	for * ch: sub(out, 0, n) {
-		if ch == #char "/" { ch = #char "_"; } else if ch == #char "+" { ch = #char "-"; }
+		if ch.* == #char "/" { ch.* = #char "_"; } else if ch.* == #char "+" { ch.* = #char "-"; }
 	}
 	return as_string(sub(out, 0, n));
 }
@@ -289,7 +289,7 @@ remote_auth_start :: (c: *Client) {
 	ra.stop = false;
 	ra.restart = false;
 	if ra.th == null {
-		ra.th = thread.create_and_start_with_poly_data(c, remote_auth_proc, c.ctx);
+		ra.th = thread.create_and_start_with_poly_data(c, remote_auth_proc, *c.ctx);
 	} else {
 		locks.cond_broadcast(*ra.cond);
 	}
@@ -331,7 +331,7 @@ remote_auth_stop :: (c: *Client) {
 	locks.cond_broadcast(*ra.cond);
 	locks.unlock(*ra.mu);
 	ra_shutdown_socket(ra);
-	if th != null {
+	if !is_null(th) {
 		locks.join(th);
 	}
 }
@@ -364,11 +364,11 @@ ra_publish :: (c: *Client, s: *Ra_Session, step: Ra_Step) {
 		delete(dst.*, a);
 		dst.* = clone(v, a);
 	}
-	set(*ra.fingerprint, ifx s != null && step != .Initializing then s.fingerprint else "", c.allocator);
-	set(*ra.discriminator, ifx s != null then s.discriminator else "", c.allocator);
-	set(*ra.avatar, ifx s != null then s.avatar else "", c.allocator);
-	set(*ra.username, ifx s != null then s.username else "", c.allocator);
-	ra.user_id = ifx s != null then s.user_id else 0;
+	set(*ra.fingerprint, ifx !is_null(s) && step != .Initializing then s.fingerprint else "", c.allocator);
+	set(*ra.discriminator, ifx !is_null(s) then s.discriminator else "", c.allocator);
+	set(*ra.avatar, ifx !is_null(s) then s.avatar else "", c.allocator);
+	set(*ra.username, ifx !is_null(s) then s.username else "", c.allocator);
+	ra.user_id = ifx !is_null(s) then s.user_id else 0;
 	ra.gen += 1;
 	locks.unlock(*ra.mu);
 	if c.cfg.wakeup != null { c.cfg.wakeup(c.cfg.wakeup_data); }
@@ -447,7 +447,7 @@ ra_sessions :: (c: *Client) {
 			locks.lock(*ra.mu);
 			deadline := now_ms() + wait;
 			while !ra.stop && !ra.restart && now_ms() < deadline {
-				locks.cond_wait_with_timeout(*ra.cond, *ra.mu, time.Duration(max(deadline - now_ms(), 1)) * time.Millisecond);
+				locks.cond_wait_with_timeout(*ra.cond, *ra.mu, cast(time.Duration)(max(deadline - now_ms(), 1)) * time.Millisecond);
 			}
 			locks.unlock(*ra.mu);
 		}
@@ -469,7 +469,7 @@ ra_run_socket :: (c: *Client, backoff: *Backoff) -> Ra_End {
 	if again { return .Restart; }
 	host := REMOTE_AUTH_HOST;
 	path := "/?v=2";
-	stream, _, ok := dial_tls_stream(host, .{"http/1.1"});
+	stream, _, ok := dial_tls_stream(host, string.["http/1.1"]);
 	if !ok { return .Fail; }
 	now := now_ms();
 	cookie := cookie_header(*c.jar, host, path, true, now);
@@ -495,7 +495,7 @@ ra_run_socket :: (c: *Client, backoff: *Backoff) -> Ra_End {
 	ra.stream = stream;
 	ra.reader_done = false;
 	locks.unlock(*ra.mu);
-	rd := thread.create_and_start_with_poly_data(Ra_Reader.{c, ws}, ra_reader_proc, c.ctx);
+	rd := thread.create_and_start_with_poly_data(Ra_Reader.{c, ws}, ra_reader_proc, *c.ctx);
 
 	end := ra_session_loop(c, ws, *s, backoff);
 
@@ -526,7 +526,7 @@ ra_session_loop :: (c: *Client, ws: *http.Ws_Conn, s: *Ra_Session, backoff: *Bac
 		while len(ra.inbox) == 0 && !ra.stop && !ra.restart && !ra.reader_done && (next_beat == 0 || now_ms() < next_beat) {
 			wait: s64 = 1000;
 			if next_beat != 0 { wait = max(next_beat - now_ms(), 1); }
-			locks.cond_wait_with_timeout(*ra.cond, *ra.mu, time.Duration(wait) * time.Millisecond);
+			locks.cond_wait_with_timeout(*ra.cond, *ra.mu, cast(time.Duration)(wait) * time.Millisecond);
 		}
 		if ra.stop {
 			locks.unlock(*ra.mu);
@@ -593,7 +593,7 @@ ra_ticket_login :: (c: *Client, s: *Ra_Session) -> bool {
 	json_kstr(*w, "ticket", s.ticket);
 	json_obj_end(*w);
 	body := json_string(*w);
-	r := api_call(c, "POST", "/users/@me/remote-auth/login", transmute([]u8, body), "application/json", "", null, 0, 0, no_auth = true);
+	r := api_call(c, "POST", "/users/@me/remote-auth/login", transmute([]u8, body), "application/json", "", .[], 0, 0, no_auth = true);
 	defer if r.arena != null {
 		virtual.arena_destroy(r.arena);
 		free(r.arena);

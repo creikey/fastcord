@@ -136,7 +136,7 @@ Client :: struct {
 	webp_variation: s32; // atomic: upload WebP conversion experiment (webp_convert.odin)
 	account_popout_opened: bool;
 	quick_switcher: Quick_Switcher;
-	members_requested: Map([2]Snowflake, bool); // (guild, user) asked for with op 8
+	members_requested: Snowflake_Pair_Set; // (guild, user) asked for with op 8
 	rtc_regions: string; // comma list from the latency probe (under id.mu; persisted)
 	quest_app_ids: []Snowflake;
 	start_route_guild: Snowflake; // route the window opened on (startup table selection)
@@ -212,10 +212,10 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.jobs = make_dynamic(*Job, 0, 0);
 	c.results = make_dynamic(Rest_Result, 0, 0);
 	c.pending_acks = make_dynamic(Pending_Ack, 0, 0);
-	c.started_guilds = Map(Snowflake, bool).{};
-	c.left_guilds = Map(Snowflake, bool).{};
-	c.command_index_guilds = Map(Snowflake, bool).{};
-	c.invite_codes = Map(Snowflake, string).{};
+	c.started_guilds = make_map(Snowflake, bool, context.allocator);
+	c.left_guilds = make_map(Snowflake, bool, context.allocator);
+	c.command_index_guilds = make_map(Snowflake, bool, context.allocator);
+	c.invite_codes = make_map(Snowflake, string, context.allocator);
 	subscriptions_init(*c.subs, allocator);
 	analytics_init(*c.analytics, allocator);
 	c.analytics.enabled = !cfg.disable_analytics;
@@ -223,9 +223,9 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.route_channel = cfg.initial_channel_id;
 	c.start_route_guild = cfg.initial_guild_id;
 	c.start_route_channel = cfg.initial_channel_id;
-	c.etags = Map(string, string).{};
-	c.quick_switcher.fetched = Map(Snowflake, bool).{};
-	c.preflights = Map(string, int).{};
+	c.etags = make_map(string, string, context.allocator);
+	c.quick_switcher.fetched = make_map(Snowflake, bool, c.allocator);
+	c.preflights = make_map(string, int, c.allocator);
 	c.account_verified = true;
 	client_load_state(c);
 	auth_init(c);
@@ -235,7 +235,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 // client_start launches workers, the startup request schedule and the gateway.
 client_start :: (c: *Client) {
 	for _: 0..c.cfg.workers-1 {
-		th := thread.create_and_start_with_poly_data(c, worker_proc, c.ctx);
+		th := thread.create_and_start_with_poly_data(c, worker_proc, *c.ctx);
 		append(*c.workers, th);
 	}
 	if c.focused { identity_touch_heartbeat(*c.id, now_ms()); }
@@ -273,13 +273,13 @@ client_destroy :: (c: *Client) {
 	delete(c.jobs);
 	drafts_destroy(c);
 	pomelo_destroy(c);
-	for * e: c.events { event_free(*e); }
+	for * e: c.events { event_free(e); }
 	delete(c.events);
 	transport_destroy(*c.transport);
 	cookie_jar_destroy(*c.jar);
 	rate_limiter_destroy(*c.limiter);
 	delete(c.results);
-	for * m: c.media_results { media_result_free(c, *m); }
+	for * m: c.media_results { media_result_free(c, m); }
 	delete(c.media_results);
 	delete(c.pending_acks);
 	delete(c.started_guilds);
@@ -294,7 +294,7 @@ client_destroy :: (c: *Client) {
 	}
 	delete(c.etags);
 	quick_switcher_destroy(c);
-	delete(c.members_requested);
+	deinit(*c.members_requested);
 	delete(c.rtc_regions, c.allocator);
 	for k: c.preflights { delete(k, c.allocator); }
 	delete(c.preflights);
@@ -370,11 +370,11 @@ client_poll :: (c: *Client) -> bool {
 			c.store.connection = e.state;
 			changed = true;
 		case .Rest;
-			client_apply_rest(c, *e);
+			client_apply_rest(c, e);
 			append(*c.results, e.result);
 			changed = true;
 		}
-		event_free(*e);
+		event_free(e);
 	}
 	if store_expire_typing(*c.store, now) { changed = true; }
 	subscriptions_flush(c);
@@ -426,7 +426,7 @@ client_set_focused :: (c: *Client, focused: bool) {
 // ---- persistence ----
 
 state_path :: (c: *Client, name: string) -> string {
-	return strings.concatenate(.{c.cfg.state_dir, "/", name}, temp);
+	return strings.concatenate(string.[c.cfg.state_dir, "/", name], temp);
 }
 #scope_export
 

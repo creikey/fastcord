@@ -56,7 +56,7 @@ social_destroy :: (c: *Client) {
 	delete(c.social.menu_loaded);
 	delete(c.social.notes_loaded);
 	delete(c.social.nick_mod_props, c.allocator);
-	c.social = .{};
+	c.social = zero(type_of(c.social));
 }
 
 // route_now: the route the UI shows (location properties of UI events).
@@ -111,7 +111,7 @@ settings_pane_shown :: (c: *Client, origin: Settings_Pane, dest: Settings_Pane, 
 			for kind: (string.["premium_client_theme_try_it_out", "app_icon_upsell"]) {
 				w := aw_begin();
 				json_kstr(*w, "type", kind);
-				aw_strs(*w, "location_stack", .{"user settings"});
+				aw_strs(*w, "location_stack", string.["user settings"]);
 				aw_track(c, "premium_upsell_viewed", *w);
 			}
 		}
@@ -145,7 +145,7 @@ analytics_ui_setting :: (c: *Client, key: string) {
 // set_friend_online_notifications: Notifications > "Friends come online"
 // (NotificationSettings field 12, a BoolValue written explicitly both ways).
 set_friend_online_notifications :: (c: *Client, on: bool) {
-	c.settings_edit.friend_online = on;
+	c.settings_edit.friend_online = some(on);
 	c.store.settings.friend_online_off = !on;
 	c.store.changed += 1;
 	analytics_ui_setting(c, "friend_online_notifications");
@@ -180,11 +180,11 @@ theme_analytics_name :: (t: Theme, system: bool) -> string {
 open_profile_editor :: (c: *Client) {
 	me := c.store.me;
 	us := snowflake_string(me);
-	api_get_later(c, strings.concatenate(.{"/content-inventory/users/", us, "/outbox"}, temp), 0);
+	api_get_later(c, strings.concatenate(string.["/content-inventory/users/", us, "/outbox"], temp), 0);
 	sid := uuid4(temp);
 	{
 		q: Query;
-		query_init(*q, strings.concatenate(.{"/users/", us, "/profile"}, temp));
+		query_init(*q, strings.concatenate(string.["/users/", us, "/profile"], temp));
 		query_add(*q, "type", "modal");
 		query_add_bool(*q, "with_mutual_guilds", true);
 		query_add_bool(*q, "with_mutual_friends", false);
@@ -206,7 +206,7 @@ open_profile_editor :: (c: *Client) {
 	api_get_later(c, "/collectibles-categories/v2?include_bundles=true&variants_return_style=2&skip_num_categories=0", 75);
 	api_get_later(c, "/users/@me/collectibles-purchases?variants_return_style=2", 75);
 	fetch_note(c, me, 75);
-	api_get_later(c, strings.concatenate(.{"/users/", us, "/application-identities?with_profiles=true"}, temp), 75);
+	api_get_later(c, strings.concatenate(string.["/users/", us, "/application-identities?with_profiles=true"], temp), 75);
 	api_get_later(c, "/widget-configs/featured", 75);
 	api_get_later(c, "/users/@me/widgets/suggested-games", 75);
 	api_get_later(c, "/users/@me/activities/statistics/applications", 265);
@@ -243,7 +243,7 @@ profile_action :: (c: *Client, sid: string, action: string, mutual_friends: s64,
 	aw_strs(*w, "guild_profile_properties", .{});
 	aw_strs(*w, "profile_activity_types", .{});
 	aw_strs(*w, "profile_badges", .{});
-	json_kstr(*w, "user_status", strings.concatenate(.{status_name(c.store.settings.status), "-desktop"}, temp));
+	json_kstr(*w, "user_status", strings.concatenate(string.[status_name(c.store.settings.status), "-desktop"], temp));
 	json_kbool(*w, "is_guild_profile", false);
 	json_kbool(*w, "is_bot_profile", false);
 	json_kbool(*w, "is_private_to_viewer", false);
@@ -254,7 +254,7 @@ profile_action :: (c: *Client, sid: string, action: string, mutual_friends: s64,
 		json_kint(*w, "num_mutual_guilds", mutual_guilds);
 	}
 	json_knull(*w, "application_linked");
-	aw_strs(*w, "location_stack", .{"user profile modal v2"});
+	aw_strs(*w, "location_stack", string.["user profile modal v2"]);
 	json_kstr(*w, "profile_action", action);
 	aw_track(c, "user_profile_action", *w);
 }

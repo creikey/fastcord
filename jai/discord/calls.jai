@@ -18,7 +18,7 @@ Call :: struct {
 call_apply :: (c: *Client, d: etf.Map) {
 	cid := fsnow(d, "channel_id");
 	if cid == 0 { return; }
-	if c.social.calls == null { c.social.calls = Map(Snowflake, Call).{}; }
+	if is_null(c.social.calls) { c.social.calls = make_map(Snowflake, Call, c.allocator); }
 	call, ok := map_find_ptr(*c.social.calls, cid);
 	if !ok {
 		at(*c.social.calls, cid).* = Call.{channel_id = cid, ringing = make_dynamic(Snowflake, 0, 0, c.allocator)};
@@ -97,7 +97,7 @@ incoming_call :: (c: *Client) -> Snowflake {
 // call_decline: dismiss the ring locally (declining was not captured).
 call_decline :: (c: *Client, channel_id: Snowflake) {
 	{ call := call_get(c, channel_id);
-	if call != null { call.dismissed = true; } }
+	if !is_null(call) { call.dismissed = true; } }
 }
 
 // dm_call_start: the DM header's "Start Voice Call". op 4 into the DM; the ring
@@ -123,7 +123,7 @@ call_accept :: (c: *Client, channel_id: Snowflake, self_mute := false, self_deaf
 	aw_track(c, "call_button_clicked", *b);
 	analytics_join_voice(c, 0, channel_id);
 	{ call := call_get(c, channel_id);
-	if call != null { call.dismissed = true; } }
+	if !is_null(call) { call.dismissed = true; } }
 }
 
 // analytics_call_disconnect: the voice panel's "Disconnect" (call_button_clicked;

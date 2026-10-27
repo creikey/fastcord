@@ -75,14 +75,14 @@ x_allocator: Allocator;
 x_alloc :: () -> Allocator {return x_allocator;}
 
 note_thread :: (t: etf.Map, me: Snowflake) {
-	if t == null { return; }
+	if is_null(t) { return; }
 	id := fsnow(t, "id");
 	if id == 0 { return; }
 	a := x_alloc();
 	tm, had := map_find(extras.threads, id);
 	if !had {
 		tm.id = id;
-		tm.applied_tags = make_dynamic(Snowflake, a, a);
+		tm.applied_tags = make_dynamic(Snowflake, 0, 0, a);
 	}
 	if vhas(t, "parent_id") { tm.parent_id = fsnow(t, "parent_id"); }
 	if vhas(t, "owner_id") { tm.owner_id = fsnow(t, "owner_id"); }
@@ -90,7 +90,7 @@ note_thread :: (t: etf.Map, me: Snowflake) {
 	if vhas(t, "member_count") { tm.member_count = cast(int)(fint(t, "member_count")); }
 	if vhas(t, "last_message_id") { tm.last_message_id = fsnow(t, "last_message_id"); }
 	{ md := fmap(t, "thread_metadata");
-	if md != null {
+	if !is_null(md) {
 		tm.archived = fbool(md, "archived");
 		tm.locked = fbool(md, "locked");
 		if vhas(md, "auto_archive_duration") { tm.auto_archive_minutes = cast(int)(fint(md, "auto_archive_duration")); }
@@ -102,7 +102,7 @@ note_thread :: (t: etf.Map, me: Snowflake) {
 		for tv: flist(t, "applied_tags") { append(*tm.applied_tags, vsnow(tv)); }
 	}
 	{ mm := fmap(t, "member");
-	if mm != null {
+	if !is_null(mm) {
 		uid := fsnow(mm, "user_id");
 		if uid == 0 || uid == me { tm.joined = true; }
 	} }
@@ -110,11 +110,11 @@ note_thread :: (t: etf.Map, me: Snowflake) {
 }
 
 note_tags :: (ch: etf.Map) {
-	if ch == null || !vhas(ch, "available_tags") { return; }
+	if is_null(ch) || !vhas(ch, "available_tags") { return; }
 	id := fsnow(ch, "id");
 	a := x_alloc();
 	list, had := map_find(extras.tags, id);
-	if !had { list = make_dynamic(Forum_Tag, a, a); }
+	if !had { list = make_dynamic(Forum_Tag, 0, 0, a); }
 	for t: list {
 		delete(t.name, a);
 		delete(t.emoji_name, a);
@@ -128,7 +128,7 @@ note_tags :: (ch: etf.Map) {
 }
 
 note_guild :: (g: etf.Map, me: Snowflake) {
-	if g == null { return; }
+	if is_null(g) { return; }
 	for cv: flist(g, "channels") { note_tags(vmap(cv)); }
 	for tv: flist(g, "threads") { note_thread(vmap(tv), me); }
 	gid := fsnow(g, "id");
@@ -136,7 +136,7 @@ note_guild :: (g: etf.Map, me: Snowflake) {
 		mm := vmap(mv);
 		uid := fsnow(mm, "user_id");
 		{ u := fmap(mm, "user");
-		if u != null { uid = fsnow(u, "id"); } }
+		if !is_null(u) { uid = fsnow(u, "id"); } }
 		if uid == me { note_roles(gid, flist(mm, "roles")); }
 	}
 }
@@ -188,13 +188,13 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
 	x_allocator = context.default_allocator;
-	if extras.threads == null {
+	if is_null(extras.threads) {
 		a := x_alloc();
-		extras.threads = Map(Snowflake, Thread_Meta).{};
-		extras.tags = Map(Snowflake, [..]Forum_Tag).{};
-		extras.pins_epoch = Map(Snowflake, int).{};
-		extras.new_msgs = make_dynamic(New_Message, a, a);
-		extras.my_roles = Map(Snowflake, [..]Snowflake).{};
+		extras.threads = make_map(Snowflake, Thread_Meta, a);
+		extras.tags = make_map(Snowflake, [..]Forum_Tag, a);
+		extras.pins_epoch = make_map(Snowflake, int, a);
+		extras.new_msgs = make_dynamic(New_Message, 0, 0, a);
+		extras.my_roles = make_map(Snowflake, [..]Snowflake, a);
 	}
 	account_dispatch(s, allocator, name, data);
 	me := s.me;
@@ -365,7 +365,7 @@ extras_destroy :: () {
 		return;
 	}
 	threads := fpool.threads;
-	fpool.threads = .{};
+	fpool.threads = zero(type_of(fpool.threads));
 	fpool.owner = null;
 	locks.cond_broadcast(*fpool.cond);
 	locks.unlock(*fpool.mu);
@@ -381,15 +381,15 @@ extras_destroy :: () {
 		delete(j.file);
 	}
 	delete(fpool.jobs);
-	for * r: fpool.results { feature_result_free(*r); }
+	for * r: fpool.results { feature_result_free(r); }
 	delete(fpool.results);
 	delete(fpool.inflight);
-	fpool = .{};
+	fpool = zero(type_of(fpool));
 	events_destroy();
 
-	if extras.threads == null { return; }
+	if is_null(extras.threads) { return; }
 	a := x_alloc();
-	for * _, tm: extras.threads { free_thread_meta(*tm); }
+	for * _, tm: extras.threads { free_thread_meta(tm); }
 	delete(extras.threads);
 	for _, list: extras.tags {
 		for t: list {
@@ -407,7 +407,7 @@ extras_destroy :: () {
 	delete(extras.new_msgs);
 	for _, list: extras.my_roles { delete(list); }
 	delete(extras.my_roles);
-	extras = .{};
+	extras = zero(type_of(extras));
 }
 
 // take_new_messages returns MESSAGE_CREATEs (from others) since the last call.
@@ -470,7 +470,7 @@ joined_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snow
 	}
 	for i: 1..len(out)-1 {
 		{ j := i;
-		while j > 0 && get(out, j) < get(out, j - 1) { get(out, j), get(out, j - 1) = map_find((out|j) - 1), get(out, j, );  j -= 1; } }
+		while j > 0 && get(out, j) < get(out, j - 1) { swap(*out[j], *out[j - 1]);  j -= 1; } }
 	}
 	return view(out);
 }
@@ -487,7 +487,7 @@ forum_threads :: (s: *Store, forum_id: Snowflake, allocator := temp) -> []Snowfl
 	}
 	for i: 1..len(out)-1 {
 		{ j := i;
-		while j > 0 && key(get(out, j)) > key(get(out, j - 1)) { get(out, j), get(out, j - 1) = map_find((out|j) - 1), get(out, j, );  j -= 1; } }
+		while j > 0 && key(out[j]) > key(out[j - 1]) { swap(*out[j], *out[j - 1]); j -= 1; } }
 	}
 	return view(out);
 }
@@ -517,19 +517,19 @@ apply_forum_threads :: (c: *Client, body: V) {
 		}
 	}
 	note_first :: (c: *Client, msg: etf.Map) {
-		if msg == null { return; }
+		if is_null(msg) { return; }
 		tid := fsnow(msg, "channel_id");
 		tm, ok := map_find_ptr(*extras.threads, tid);
 		if !ok { return; }
 		{ au := fmap(msg, "author");
-		if au != null { tm.first_author = parse_user_into(*c.store, au); } }
+		if !is_null(au) { tm.first_author = parse_user_into(*c.store, au); } }
 		delete(tm.first_content, c.allocator);
 		tm.first_content = clone(fstr(msg, "content"), c.allocator);
 	}
 	for fv: flist(m, "first_messages") { note_first(c, vmap(fv)); }
 	// post-data: {threads: {"<id>": {first_message: {...}, owner: {...}}}}
 	{ tobj := fmap(m, "threads");
-	if tobj != null {
+	if !is_null(tobj) {
 		for pr: tobj {
 			pm := vmap(pr.value);
 			note_first(c, fmap(pm, "first_message"));
@@ -549,7 +549,7 @@ parse_loose_message :: (s: *Store, m: etf.Map, allocator := temp) -> Message {
 		flags = cast(u64)(fint(m, "flags"))
 	};
 	{ au := fmap(m, "author");
-	if au != null { msg.author_id = parse_user_into(s, au); } }
+	if !is_null(au) { msg.author_id = parse_user_into(s, au); } }
 	msg.attachments = make_dynamic(Attachment, 0, 0, allocator);
 	for av: flist(m, "attachments") {
 		am := vmap(av);
@@ -666,7 +666,7 @@ f_worker :: (_: *void) {
 		delete(j.body);
 		delete(j.context_b64);
 		delete(j.file);
-		free_all(temp);
+		reset_temporary_storage();
 	}
 }
 #scope_module
@@ -677,7 +677,7 @@ f_submit :: (c: *Client, j: F_Job) {
 	defer locks.unlock(*fpool.mu);
 	fpool.owner = c; // the workers serve every client's jobs (j.client); they stop in extras_destroy
 	if len(fpool.threads) == 0 {
-		for _: 0..1 { append(*fpool.threads, thread.create_and_start_with_data(null, f_worker, c.ctx)); }
+		for _: 0..1 { append(*fpool.threads, thread.create_and_start_with_data(null, f_worker, *c.ctx)); }
 	}
 	jj := j;
 	jj.client = c;
@@ -819,7 +819,7 @@ Search_Query :: struct {
 search_messages :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, sq: Search_Query, tag: u64 = 0) {
 	q: Query;
 	if guild_id != 0 {
-		query_init(*q, strings.concatenate(.{"/guilds/", snowflake_string(guild_id), "/messages/search"}, temp));
+		query_init(*q, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/messages/search"], temp));
 	} else {
 		query_init(*q, channel_path(channel_id, "/messages/search"));
 	}

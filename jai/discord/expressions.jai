@@ -91,7 +91,7 @@ expr_worker :: (_: *void) {
 		}
 		expr_run(*j);
 		expr_job_free(*j);
-		free_all(temp);
+		reset_temporary_storage();
 	}
 }
 
@@ -111,7 +111,7 @@ expr_submit :: (c: *Client, j: Expr_Job) {
 	}
 	if len(pool.threads) == 0 {
 		for _: 0..EXPR_THREADS-1 {
-			th := thread.create_and_start_with_data(null, expr_worker, c.ctx);
+			th := thread.create_and_start_with_data(null, expr_worker, *c.ctx);
 			append(*pool.threads, th);
 		}
 	}
@@ -135,7 +135,7 @@ expr_pool_stop :: (c: *Client) {
 		return;
 	}
 	threads := pool.threads;
-	pool.threads = .{};
+	pool.threads = zero(type_of(pool.threads));
 	pool.owner = null;
 	locks.cond_broadcast(*pool.cond);
 	locks.unlock(*pool.mu);
@@ -143,9 +143,9 @@ expr_pool_stop :: (c: *Client) {
 		locks.join(th);
 	}
 	delete(threads);
-	for * j: pool.jobs { expr_job_free(*j); }
+	for * j: pool.jobs { expr_job_free(j); }
 	clear(*pool.jobs);
-	for * r: pool.results { expr_result_free(c, *r); }
+	for * r: pool.results { expr_result_free(c, r); }
 	clear(*pool.results);
 }
 #scope_file
@@ -173,7 +173,7 @@ expr_run :: (j: *Expr_Job) {
 		return;
 	}
 	ctype := ifx j.body != "" then "application/json" else "";
-	r := api_call(c, j.method, j.path, transmute([]u8, j.body), ctype, "", null, 0, 1);
+	r := api_call(c, j.method, j.path, transmute([]u8, j.body), ctype, "", .[], 0, 1);
 	res.ok = r.ok;
 	res.status = r.status;
 	res.body = r.body;
@@ -193,7 +193,7 @@ expr_media_get :: (c: *Client, url: string, kind: Media_Kind) -> []u8, string, i
 	entry, cached, have := cache_read(c, url);
 	if have && entry.fresh_until > now { return cached, entry.content_type, entry.status; }
 	site := site_for_host(host);
-	referer := ifx site == .Same_Origin then client_route_referer(c) else API_ORIGIN + "/";
+	referer := ifx site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/");
 	cookie := cookie_header(*c.jar, host, path, true, now);
 	etag, lm := "", "";
 	if have {
@@ -211,7 +211,7 @@ expr_media_get :: (c: *Client, url: string, kind: Media_Kind) -> []u8, string, i
 	fresh, storable := freshness_ms(view(resp.headers), now);
 	if resp.status == 304 && have {
 		entry.fresh_until = fresh;
-		cache_write(c, url, entry, null, false);
+		cache_write(c, url, entry, .[], false);
 		return cached, entry.content_type, entry.status;
 	}
 	ct, _ := http.header_get(view(resp.headers), "content-type");
@@ -319,7 +319,7 @@ sticker_packs_fetch :: (c: *Client, tag: u64 = 0) {
 }
 
 guild_top_emojis :: (c: *Client, guild_id: Snowflake, tag: u64 = 0) {
-	expr_get(c, .Top_Emojis, strings.concatenate(.{"/guilds/", snowflake_string(guild_id), "/top-emojis"}, temp), "", ifx guild_id == 0 then tag else cast(u64)(guild_id));
+	expr_get(c, .Top_Emojis, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/top-emojis"], temp), "", ifx guild_id == 0 then tag else cast(u64)(guild_id));
 }
 
 frecency_settings_fetch :: (c: *Client, tag: u64 = 0) {
@@ -426,7 +426,7 @@ decode_item_map :: (b: []u8, allocator := context.allocator) -> []Frecency_Item 
 frecency_settings_decode :: (b64: string, allocator := context.allocator) -> Frecency_Settings, bool {
 	fs: Frecency_Settings;
 	ok: bool;
-	raw, err := base64.decode(bool64, allocator = temp);
+	raw, err := base64.decode(b64, allocator = temp);
 	if err != null { return fs, ok; }
 	r := protobuf.Reader.{buf = raw};
 	while true { f, __ok6 := protobuf.next(*r); if !__ok6 break;
@@ -496,17 +496,17 @@ frecency_settings_decode :: (b64: string, allocator := context.allocator) -> Fre
 
 profile_modal_fetch :: (c: *Client, user_id: Snowflake, guild_id: Snowflake = 0, bot := false) {
 	q: Query;
-	query_init(*q, strings.concatenate(.{"/users/", snowflake_string(user_id), "/profile"}, temp));
+	query_init(*q, strings.concatenate(string.["/users/", snowflake_string(user_id), "/profile"], temp));
 	query_add(*q, "type", "modal");
 	query_add_bool(*q, "with_mutual_guilds", true);
 	query_add_bool(*q, "with_mutual_friends", false);
 	query_add_bool(*q, "with_mutual_friends_count", !bot);
 	if guild_id != 0 { query_add_snow(*q, "guild_id", guild_id); }
 	expr_get(c, .Profile_Modal, query_string(*q), "", cast(u64)(user_id));
-	expr_get(c, .App_Identities, strings.concatenate(.{"/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"}, temp), "", cast(u64)(user_id));
+	expr_get(c, .App_Identities, strings.concatenate(string.["/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"], temp), "", cast(u64)(user_id));
 }
 
 mutual_friends_fetch :: (c: *Client, user_id: Snowflake) {
-	expr_get(c, .Mutual_Friends, strings.concatenate(.{"/users/", snowflake_string(user_id), "/relationships"}, temp), "", cast(u64)(user_id));
+	expr_get(c, .Mutual_Friends, strings.concatenate(string.["/users/", snowflake_string(user_id), "/relationships"], temp), "", cast(u64)(user_id));
 }
 
