@@ -70,6 +70,7 @@ voice :: #import "voice";
 #load "view_guild_menu.jai";
 #load "view_home.jai";
 #load "view_inbox.jai";
+#load "view_invites.jai";
 #load "view_login.jai";
 #load "view_media.jai";
 #load "view_message_actions.jai";

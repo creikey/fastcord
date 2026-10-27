@@ -171,6 +171,12 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | External-location event body (`scheduled_end_time`, `entity_metadata.location`), Start Event (`PATCH {"status":2}`) | guess | not captured | `src/discord/guild_admin.jai` |
 | Declining a DM call sends nothing (dismissed locally) | guess | not captured | `src/discord/calls.jai` |
 | Message menu with text selected (desktop): a "Copy" item (copy icon, ⌘C) heads it and the quick-reaction row is hidden (`""===textSelection?quickReactions:null`) | code | `MessageContextMenu`: search `textSelection:` and `id:"copy",label` | `src/app/view_message_actions.jai` `message_menu` |
+| Member join (type 7) text: 13 lines picked by the message's snowflake time (ms) mod 13, in the bundle's order | code | `getSystemMessageUserJoin:function(e)` | `src/app/view_chat.jai` `system_notice` |
+| "Wave to say hi!" under a member join is not implemented | known gap | `getSystemMessageUserJoin` | — |
+| New member sprout after the author's name: member joined ≤ 7 days ago, no DID_REJOIN flag, not a bot, guild ≥ 7 days old; tooltip "I'm new here, say hi!" (fastcord: no popout) | code | `},"new-member")`, module with `maxDaysOld:7` | `view_chat.jai` `new_member_badge` |
+| Invite links in messages get a card (one per distinct code, none with SUPPRESS_EMBEDS): resolve = `invite_opened` then `GET /invites/{code}?with_counts&with_expiration&with_permissions` (no `inputValue`); `network_action_invite_resolve` is not sent | code + known gap | `function h(e,t,n){let{baseCode:c` | `src/discord/invites.jai` `invite_preview`, `src/app/view_invites.jai` |
+| Card: icon, name, "N Online" / "N Members", "Est. <Mon YYYY>" (guild id time), "Join Server" / "Go to Server"; Join = accept with location "Invite Button Embed", then the invite's channel opens | code (strings, location) + guess (layout, plain banner) | `"Invite Button Embed"`, `zb2Q56` | same, `join_invite_preview` |
+| Clicking an invite link in text joins (or opens a guild we're in) instead of opening the browser; the client opens its invite modal first | guess | — | `view_chat.jai` `handle_span_clicks` |
 | Text field right-click menu: Cut and Copy with a selection, Paste always (spellcheck items not implemented) | guess | `textarea-context` (menu chunk not cached) | `src/app/view_misc.jai` `edit_menu` |
 
 ## Message actions: reactions, Mark Unread, pins

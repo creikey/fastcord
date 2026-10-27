@@ -250,14 +250,20 @@ resolve_invite :: (c: *Client, code: string, allocator := context.allocator, inp
 // accept_invite: POST /invites/{code} {"session_id":..} with
 // x-context-properties {"location":..,"location_guild_id":..,"location_channel_id":..,"location_channel_type":..}. BLOCKING.
 accept_invite :: (c: *Client, invite: Invite_Result, location := "Join Guild", allocator := context.allocator) -> Invite_Result {
+	body, ctx := accept_parts(c, invite.guild_id, invite.channel_id, invite.channel_type, location);
+	return invite_call(c, "POST", tprint("/invites/%", invite.code), body, ctx, allocator);
+}
+
+// accept_parts: the accept POST's body and x-context-properties (temp).
+accept_parts :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, channel_type: int, location: string) -> body: string, context_b64: string {
 	ctx: Json;
 	json_init(*ctx);
 	json_obj(*ctx);
 	json_kstr(*ctx, "location", location);
-	if invite.guild_id json_ksnow(*ctx, "location_guild_id", invite.guild_id);
-	if invite.channel_id {
-		json_ksnow(*ctx, "location_channel_id", invite.channel_id);
-		json_kint(*ctx, "location_channel_type", invite.channel_type);
+	if guild_id json_ksnow(*ctx, "location_guild_id", guild_id);
+	if channel_id {
+		json_ksnow(*ctx, "location_channel_id", channel_id);
+		json_kint(*ctx, "location_channel_type", channel_type);
 	}
 	json_obj_end(*ctx);
 	w: Json;
@@ -265,7 +271,107 @@ accept_invite :: (c: *Client, invite: Invite_Result, location := "Join Guild", a
 	json_obj(*w);
 	json_kstr(*w, "session_id", ifx c.gw && c.gw.session_id then c.gw.session_id else c.store.session_id);
 	json_obj_end(*w);
-	return invite_call(c, "POST", tprint("/invites/%", invite.code), json_string(*w), context_b64(json_string(*ctx)), allocator);
+	return json_string(*w), context_b64(json_string(*ctx));
+}
+
+// ---- Invite links in messages (the client's invite embed) ----
+
+INVITE_LOC_EMBED :: "Invite Button Embed";
+
+Invite_Preview :: struct {
+	state: enum u8 { Loading; Ok; Failed; };
+	joining: bool; // accept in flight
+	guild_id: Snowflake;
+	channel_id: Snowflake;
+	channel_type: int;
+	name: string; // client allocator, set once
+	icon: string;
+	online: int;
+	members: int;
+}
+
+// invite_preview: the resolved invite for a code seen in a message, fetched on first
+// use (resolveInvite: invite_opened, then GET /invites/{code} without inputValue).
+// UI thread; the copy's strings live as long as the client.
+invite_preview :: (c: *Client, code: string) -> Invite_Preview {
+	locks.lock(*c.invite_mu);
+	p := table_find_pointer(*c.invite_previews, code);
+	if !p table_add(*c.invite_previews, copy_string(code,, c.allocator), .{});
+	out := ifx p then p.* else .{};
+	locks.unlock(*c.invite_mu);
+	if p return out;
+	analytics_track(c, "invite_opened", tprint("\"invite_code\":%", json_quote(code)));
+	q: Query;
+	query_init(*q, tprint("/invites/%", code));
+	query_add_bool(*q, "with_counts", true);
+	query_add_bool(*q, "with_expiration", true);
+	query_add_bool(*q, "with_permissions", true);
+	j := job_new(.Api, .None);
+	j.method = "GET";
+	j.path = job_str(j, query_string(*q));
+	j.retries = 2;
+	j.on_response = (cl: *Client, j: *Job, status: int, body: V) {
+		m := vmap(body);
+		g := fmap(m, "guild");
+		locks.lock(*cl.invite_mu);
+		defer locks.unlock(*cl.invite_mu);
+		p := table_find_pointer(*cl.invite_previews, invite_path_code(j.path));
+		if !p return;
+		if status != 200 || !g {
+			p.state = .Failed;
+			return;
+		}
+		p.guild_id = fsnow(g, "id");
+		p.name = copy_string(fstr(g, "name"),, cl.allocator);
+		p.icon = copy_string(fstr(g, "icon"),, cl.allocator);
+		ch := fmap(m, "channel");
+		p.channel_id = fsnow(ch, "id");
+		p.channel_type = fint(ch, "type");
+		p.online = fint(m, "approximate_presence_count");
+		p.members = fint(m, "approximate_member_count");
+		p.state = .Ok;
+	};
+	job_submit(c, j);
+	return out;
+}
+
+// join_invite_preview: the embed's Join (acceptInviteAndTransitionToInviteChannel):
+// POST /invites/{code}; the GUILD_CREATE that follows opens the invite's channel.
+join_invite_preview :: (c: *Client, code: string, location := INVITE_LOC_EMBED) {
+	locks.lock(*c.invite_mu);
+	p := table_find_pointer(*c.invite_previews, code);
+	if !p || p.state != .Ok || p.joining {
+		locks.unlock(*c.invite_mu);
+		return;
+	}
+	p.joining = true;
+	inv := p.*;
+	c.pending_join_guild, c.pending_join_channel = inv.guild_id, inv.channel_id;
+	locks.unlock(*c.invite_mu);
+	body, ctx := accept_parts(c, inv.guild_id, inv.channel_id, inv.channel_type, location);
+	j := job_new(.Api, .None);
+	j.method = "POST";
+	j.path = job_str(j, tprint("/invites/%", code));
+	j.body = cast([]u8) job_str(j, body);
+	j.content_type = "application/json";
+	j.context_b64 = job_str(j, ctx);
+	j.retries = 2;
+	j.retry_429 = 1;
+	j.on_response = (cl: *Client, j: *Job, status: int, body: V) {
+		locks.lock(*cl.invite_mu);
+		defer locks.unlock(*cl.invite_mu);
+		p := table_find_pointer(*cl.invite_previews, invite_path_code(j.path));
+		if p p.joining = false;
+		if status / 100 != 2 && p && cl.pending_join_guild == p.guild_id cl.pending_join_guild, cl.pending_join_channel = 0, 0;
+	};
+	job_submit(c, j);
+}
+
+invite_path_code :: (path: string) -> string {
+	t := advance(path, "/invites/".count);
+	i := find_index_from_left(t, #char "?");
+	if i >= 0 t.count = i;
+	return t;
 }
 
 // join_invite: the Join a Server modal's submit: resolve, then accept. The

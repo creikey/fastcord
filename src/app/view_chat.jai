@@ -14,10 +14,11 @@ MSG_RECIPIENT_ADD :: 1; // group DMs: added / removed / left, name and icon chan
 MSG_RECIPIENT_REMOVE :: 2;
 MSG_NAME_CHANGE :: 4;
 MSG_ICON_CHANGE :: 5;
+MSG_MEMBER_JOIN :: 7; // USER_JOIN: "Welcome, Name. We hope you brought pizza."
 
 // Drawn as a one-line notice (system_notice), not a message with an avatar.
 is_notice :: (kind: int) -> bool {
-	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE);
+	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_MEMBER_JOIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE);
 }
 CALL_ROW_H :: 26; // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58; // official form height (1px border included): 22px line + 18px padding
@@ -462,7 +463,7 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token) {
 		}
 		if tk.kind == {
 		case .Link;
-			open_url(tk.text);
+			if is_invite_link(tk.text) invite_follow(invite_link_code(tk.text)); else open_url(tk.text);
 		case .User_Mention;
 			r := ui.Rect.{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10};
 			open_profile(tk.id, r);
@@ -1001,6 +1002,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				if m.attachments attachments_view(m);
 				if m.pending upload_progress_view(m);
 				if m.embeds embeds_view(m);
+				if m.content invite_cards_view(m);
 				if m.reactions reactions_view(m);
 			}
 			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right
@@ -1025,7 +1027,7 @@ system_notice :: (m: *dc.Message) {
 		if m.kind == {
 			case MSG_PIN; ic_name, ic_color = "pin", T("--text-muted");
 			case MSG_FRIEND_ACCEPTED; ic_name = "user-check";
-			case MSG_RECIPIENT_ADD; ic_name = "arrow-large-right";
+			case MSG_RECIPIENT_ADD; #through; case MSG_MEMBER_JOIN; ic_name = "arrow-large-right";
 			case MSG_RECIPIENT_REMOVE; ic_name, ic_color = "arrow-large-left", T("--status-danger");
 			case MSG_NAME_CHANGE; #through; case MSG_ICON_CHANGE; ic_name, ic_color = "pencil", T("--text-muted");
 		}
@@ -1077,6 +1079,17 @@ system_notice :: (m: *dc.Message) {
 				add(*spans, strong, m.content);
 				add(*spans, muted, ".");
 			}
+		} else if m.kind == MSG_MEMBER_JOIN {
+			// getSystemMessageUserJoin: the message's snowflake time picks one of 13 lines
+			JOIN :: string.[
+				"", " joined the party.", "", " is here.", "Welcome, ", ". We hope you brought pizza.", "A wild ", " appeared.",
+				"", " just landed.", "", " just slid into the server.", "", " just showed up!", "Welcome ", ". Say hi!",
+				"", " hopped into the server.", "Everyone welcome ", "!", "Glad you're here, ", ".", "Good to see you, ", ".",
+				"Yay you made it, ", "!"];
+			i := (dc.snowflake_time_ms(m.id) % (JOIN.count / 2)) * 2;
+			add(*spans, muted, JOIN[i]);
+			name(*spans, strong, m.author_id, m.channel_id);
+			add(*spans, muted, JOIN[i + 1]);
 		} else if m.kind == MSG_ICON_CHANGE {
 			name(*spans, strong, m.author_id, m.channel_id);
 			add(*spans, muted, " changed the group icon.");
@@ -1121,6 +1134,7 @@ message_header :: (m: *dc.Message) {
 		nsig := ui.signal(n);
 		if nsig.clicked open_profile(m.author_id, n.rect, .Message_Author, m.id);
 		if nsig.right_clicked open_user_menu(m.author_id, app.ui.mouse);
+		new_member_badge(m);
 		spacer(.X, 8);
 		// copies as "Name — 4:56 AM" like the client's hidden separator
 		ts := label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20);
@@ -1128,6 +1142,23 @@ message_header :: (m: *dc.Message) {
 		ts.sel_order = m.id * 8 + 1;
 		ts.sel_join = " — ";
 	}
+}
+
+// The sprout after a new member's name (official useIsNewMember): joined at most 7 days ago,
+// not a rejoin, not a bot, in a guild at least 7 days old.
+new_member_badge :: (m: *dc.Message) {
+	s := store();
+	ch := dc.channel_get(s, m.channel_id);
+	if !ch || !ch.guild_id return;
+	mem := dc.member_get(s, ch.guild_id, m.author_id);
+	u := dc.user_get(s, m.author_id);
+	if !mem || mem.joined_at == "" || (mem.flags & 1) || (u && u.bot) return;
+	DAY :: 86_400_000;
+	now := dc.now_ms();
+	if now - dc.snowflake_time_ms(ch.guild_id) < 7 * DAY || now - dc.iso_to_ms(mem.joined_at) > 7 * DAY return;
+	spacer(.X, 4);
+	b := icon("newmember", "new-member", 20, T("--text-feedback-positive"), .Clickable);
+	if ui.signal(b).hovering tooltip_below("I'm new here, say hi!", b.rect);
 }
 
 message_body :: (m: *dc.Message) {

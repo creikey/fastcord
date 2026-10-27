@@ -158,6 +158,7 @@ Member :: struct {
 	avatar: string;
 	roles: [..]Snowflake;
 	joined_at: string;
+	flags: u64; // GuildMemberFlags: 1 DID_REJOIN
 }
 
 Attachment :: struct {

@@ -88,6 +88,7 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | more-vertical | dots-three-vertical-bold |
 | music | music-note-fill |
 | nature | leaf-fill |
+| new-member | plant-fill |
 | object | lightbulb-fill |
 | paint-palette | palette-fill |
 | paper | note-fill |
