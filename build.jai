@@ -336,7 +336,7 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     if LINUX array_add(*a, ZIG, "c++", "-target", GLIBC, "-o", exe);
     // zig cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
     else array_add(*a, ZIG, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
-        tprint("--sysroot=%", MAC_SDK), "-F", tprint("%/System/Library/Frameworks", MAC_SDK), "-o", exe);
+        tprint("--sysroot=%", MAC_SDK), "-F", "/System/Library/Frameworks", "-L", "/usr/lib", "-o", exe); // zig prefixes -F and -L with the sysroot
     array_add(*a, ..p.compiler_generated_object_files);
     array_add(*a, ..p.support_object_files);
     for p.user_libraries array_add(*a, it);
