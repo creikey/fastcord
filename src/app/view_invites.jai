@@ -3,10 +3,13 @@
 // link in the text opens the accept modal (or the guild, when we're in it).
 // Errors stay with their widget, as in the client: a failed accept turns the card into its
 // "You received an invite, but..." view, and the modal shows the reason above its button.
+// A link to a scheduled event ("discord.gg/<code>?event=<id>") gets the event's card instead
+// (view_events.jai). Codes below are preview keys (dc.invite_preview_key): the code, plus the
+// event of an event link.
 
 INVITE_HOSTS :: string.["discord.gg/", "discord.com/invite/", "discordapp.com/invite/"];
 
-// invite_codes: the distinct invite codes linked in a message's text (temp).
+// invite_codes: the distinct invite keys linked in a message's text (temp).
 invite_codes :: (content: string) -> []string {
 	out: [..]string;
 	out.allocator = temp;
@@ -22,14 +25,27 @@ invite_codes :: (content: string) -> []string {
 	return out;
 }
 
-// invite_link_code: the code of an invite URL ("" when it isn't one).
+// invite_link_code: the preview key of an invite URL ("" when it isn't one).
 invite_link_code :: (url: string) -> string {
 	for INVITE_HOSTS {
 		i := find_index_from_left(url, it);
-		if i >= 0 return dc.invite_code_from_input(slice(url, i, url.count - i));
+		if i < 0 continue;
+		code := dc.invite_code_from_input(slice(url, i, url.count - i));
+		if code == "" return "";
+		event: dc.Snowflake;
+		q := find_index_from_left(url, #char "?");
+		if q >= 0 for split(advance(url, q + 1), "&",, temp) {
+			if !begins_with(it, "event=") continue;
+			v, ok := string_to_int(advance(it, "event=".count), T = u64);
+			if ok event = v;
+		}
+		return dc.invite_preview_key(code, event);
 	}
 	return "";
 }
+
+// invite_instance: the instance id of a key's invite in a message.
+invite_instance :: (message_id: dc.Snowflake, key: string) -> string { return dc.invite_instance_id(message_id, dc.invite_key_parts(key)); }
 
 invite_preview :: (code: string, message_id: dc.Snowflake) -> dc.Invite_Preview {
 	return dc.invite_preview(app.client, code, message_id, store().guild_order);
@@ -55,13 +71,19 @@ invite_link_clicked :: (code: string, message_id: dc.Snowflake) {
 	free(iam.code);
 	free(iam.instance);
 	iam.code = copy_string(code);
-	iam.instance = copy_string(dc.invite_instance_id(message_id, code));
+	iam.instance = copy_string(invite_instance(message_id, code));
 	iam.joined = false;
 }
 
 invite_cards_view :: (m: *dc.Message) {
 	if app.client == null || (m.flags & 4) return; // SUPPRESS_EMBEDS
-	for code: invite_codes(m.content) invite_card(tprint("invite%", it_index), code, invite_preview(code, m.id), m);
+	for code: invite_codes(m.content) {
+		id := tprint("invite%", it_index);
+		p := invite_preview(code, m.id);
+		// a finished or canceled event shows the plain invite (the client's isGuildEventEnded check)
+		if p.state == .Ok && p.event.id != 0 && p.event.status != .Completed && p.event.status != .Canceled event_invite_card(id, code, p, m);
+		else invite_card(id, code, p, m);
+	}
 }
 
 invite_card :: (id: string, code: string, p: dc.Invite_Preview, m: *dc.Message) {
@@ -134,7 +156,7 @@ invite_card :: (id: string, code: string, p: dc.Invite_Preview, m: *dc.Message) 
 			member := is_member_of(p);
 			if wide_button("join", ifx member then "Go to Server" else ifx p.joining then "Joining…" else "Join Server", T("--status-positive-background")) && !p.joining && net_action() {
 				if member go_to_invite(p);
-				else dc.join_invite_preview(app.client, code, dc.INVITE_LOC_EMBED, dc.invite_instance_id(m.id, code));
+				else dc.join_invite_preview(app.client, code, dc.INVITE_LOC_EMBED, invite_instance(m.id, code));
 			}
 			spacer(.Y, 16);
 		}
@@ -229,7 +251,7 @@ invite_accept_open :: () -> bool { return iam.code != ""; }
 invite_accept_close :: (dismissed: bool, p: dc.Invite_Preview) {
 	// onCloseRequest (Escape, the X, outside) tracks the dismissal; closing after a join doesn't
 	if dismissed && app.client != null {
-		dc.analytics_track(app.client, "invite_accept_dismissed", tprint("\"invite_code\":%,\"guild_id\":%", dc.json_quote(iam.code), ifx p.guild_id then tprint("\"%\"", p.guild_id) else "null"));
+		dc.analytics_track(app.client, "invite_accept_dismissed", tprint("\"invite_code\":%,\"guild_id\":%", dc.json_quote(dc.invite_key_parts(iam.code)), ifx p.guild_id then tprint("\"%\"", p.guild_id) else "null"));
 	}
 	free(iam.code);
 	free(iam.instance);

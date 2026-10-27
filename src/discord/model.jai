@@ -85,6 +85,7 @@ Role :: struct {
 	position: int;
 	permissions: u64;
 	hoist: bool;
+	mentionable: bool;
 	icon: string;
 	unicode_emoji: string;
 }

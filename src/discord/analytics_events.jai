@@ -454,11 +454,34 @@ picker_closed :: (c: *Client) { picker_reset(c); }
 // channel_autocomplete_open / _selected (the autocomplete's analytics module):
 // channel then guild decorations, then the query's counts. Emoji type only.
 
-aw_autocomplete_head :: (w: *Json, c: *Client, channel_id: Snowflake) {
+aw_autocomplete_head :: (w: *Json, c: *Client, channel_id: Snowflake, kind := "EMOJIS_AND_STICKERS") {
 	aw_channel(w, c, channel_id);
 	ch := channel_get(*c.store, channel_id);
 	if ch && guild_get(*c.store, ch.guild_id) aw_guild(w, c, ch.guild_id);
-	json_kstr(w, "autocomplete_type", "EMOJIS_AND_STICKERS");
+	json_kstr(w, "autocomplete_type", kind);
+}
+
+// The "@" popup (fixture inbox): no result counts of its own, the emoji ones are 0.
+autocomplete_mentions_open :: (c: *Client, channel_id: Snowflake) {
+	w := aw_begin();
+	aw_autocomplete_head(*w, c, channel_id, "MENTIONS");
+	json_kint(*w, "num_emoji_results", 0);
+	json_kint(*w, "num_locked_emoji_results", 0);
+	json_kint(*w, "num_sticker_results", 0);
+	json_kbool(*w, "game_mentions_available", true);
+	aw_track(c, "channel_autocomplete_open", *w);
+}
+
+autocomplete_mention_selected :: (c: *Client, channel_id: Snowflake) {
+	w := aw_begin();
+	aw_autocomplete_head(*w, c, channel_id, "MENTIONS");
+	json_kstr(*w, "selection_type", "MENTION");
+	json_kint(*w, "num_emoji_results", 0);
+	json_kint(*w, "num_sticker_results", 0);
+	json_kstr(*w, "emoji_name", "");
+	json_kbool(*w, "is_custom", false);
+	json_kbool(*w, "is_animated", false);
+	aw_track(c, "channel_autocomplete_selected", *w);
 }
 
 autocomplete_emoji_open :: (c: *Client, channel_id: Snowflake, results: int, locked: int) {

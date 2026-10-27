@@ -252,6 +252,7 @@ parse_role :: (s: *Store, m: etf.Map) -> Role {
 		position = fint(m, "position"),
 		permissions = cast(u64) fint(m, "permissions"),
 		hoist = fbool(m, "hoist"),
+		mentionable = fbool(m, "mentionable"),
 		icon = clone_str(fstr(m, "icon"), a),
 		unicode_emoji = clone_str(fstr(m, "unicode_emoji"), a)
 	};

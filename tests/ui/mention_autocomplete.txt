@@ -1,0 +1,25 @@
+# "@" in the composer lists members who can see the channel (the fixture's other authors have
+# no member objects, so only we qualify), @everyone / @here and roles; typing narrows it, Enter
+# inserts "@username ", Escape hides it until the query changes.
+wait 5
+click 600 683
+type @
+wait 1
+type di
+key enter
+type hi
+expect_input "@dingus hi"
+key a cmd
+type @ev
+key down
+key enter
+expect_input "@everyone "
+key a cmd
+type @cham
+key tab
+expect_input "@champion "
+key a cmd
+type @cham
+key escape
+key tab
+expect_input "@cham"

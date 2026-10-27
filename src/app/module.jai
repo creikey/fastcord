@@ -40,6 +40,7 @@ voice :: #import "voice";
 #load "bench.jai";
 #load "emoji.jai";
 #load "emoji_autocomplete.jai";
+#load "mention_autocomplete.jai";
 #load "friend_nickname.jai";
 #load "glue.jai";
 #load "highlight.jai";

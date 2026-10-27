@@ -84,11 +84,10 @@ events_init :: () {
 	evt.acks.allocator = context.default_allocator;
 }
 
-event_free :: (e: *Scheduled_Event) {
-	push_allocator(context.default_allocator);
-	free(e.name);
-	free(e.description);
-	free(e.location);
+event_free :: (e: *Scheduled_Event, a := context.default_allocator) {
+	free_str(e.name, a);
+	free_str(e.description, a);
+	free_str(e.location, a);
 }
 
 event_upsert :: (m: etf.Map) {
@@ -97,7 +96,13 @@ event_upsert :: (m: etf.Map) {
 	e := table_find_pointer(*evt.list, id);
 	if e event_free(e);
 	else e = table_set(*evt.list, id, .{id = id, user_count = -1});
-	a := context.default_allocator;
+	event_fill(e, m, context.default_allocator);
+	evt.epoch += 1;
+}
+
+// event_fill: a guild_scheduled_event object's fields (also an invite's event).
+event_fill :: (e: *Scheduled_Event, m: etf.Map, a: Allocator) {
+	e.id = fsnow(m, "id");
 	e.guild_id = fsnow(m, "guild_id");
 	e.channel_id = fsnow(m, "channel_id");
 	e.creator_id = fsnow(m, "creator_id");
@@ -109,7 +114,6 @@ event_upsert :: (m: etf.Map) {
 	e.status = cast(Event_Status) clamp(fint(m, "status"), 0, 4);
 	e.entity = cast(Event_Entity) clamp(fint(m, "entity_type"), 0, 3);
 	if vhas(m, "user_count") e.user_count = fint(m, "user_count");
-	evt.epoch += 1;
 }
 
 event_remove :: (id: Snowflake) {
@@ -229,6 +233,15 @@ open_guild_events :: (c: *Client, guild_id: Snowflake) {
 // open_create_event: the Create Event wizard opened (science only).
 open_create_event :: (c: *Client, guild_id: Snowflake) {
 	track_modal_impression(c, guild_id, "ScheduleEventModal");
+}
+
+// event_ask_counts: an event's interested count, requested once (the event invite card).
+event_ask_counts :: (c: *Client, event_id: Snowflake) {
+	locks.guard(*evt_mu);
+	e := event_get(event_id);
+	if !e || e.user_count >= 0 || table_contains(*evt.counts_asked, event_id) return;
+	table_set(*evt.counts_asked, event_id, true);
+	fetch_event_counts(c, e.guild_id, event_id);
 }
 
 // GET /guilds/{gid}/scheduled-events/{eid}/users/counts -> {"guild_scheduled_event_count":n,..}
