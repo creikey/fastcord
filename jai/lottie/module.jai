@@ -1,15 +1,20 @@
 #import "Basic";
-#import "Math";
 #import "String";
 #import "Hash_Table";
-#import "Atomics";
-#import "fc";
-json :: #import "fc_json";
-math :: #import "fc_math";
-mem :: #import "fc_mem";
-strconv :: #import "fc_strconv";
+#import "Flat_Pool";
+#import "Math";
+etf :: #import "etf";
 vector :: #import "vector";
-virtual :: #import "fc_virtual";
-#load "local.jai";
 #load "load.jai";
 #load "render.jai";
+
+#scope_module
+
+// Odin's [2]f32 / [4]f32 are Math's Vector2 / Vector4. Math's `v / k` multiplies by 1/k, which changes
+// pixels; this module's own operator divides per component like Odin (module scope wins over Math's).
+operator / :: (a: Vector2, k: float32) -> Vector2 { return .{a.x / k, a.y / k}; }
+operator *[] :: (v: *Vector4, i: int) -> *float32 { return *v.component[i]; }
+
+// Odin's math.mod is C fmod (Math's fmod_cycling rounds differently).
+libc :: #system_library "libc";
+fmod :: (x: float64, y: float64) -> float64 #foreign libc;

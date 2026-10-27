@@ -1,15 +1,5 @@
 #import "Basic";
-#import "Math";
-#import "String";
-#import "Hash_Table";
-#import "Atomics";
-#import "fc";
-mem :: #import "fc_mem";
-slice :: #import "fc_slice";
-webp :: #library,no_dll "../../build/fc_vendor";
-wuffs :: #library,no_dll "../../build/fc_vendor";
+vendor :: #library,no_dll "../../build/fc_vendor";
 #load "imagefmt.jai";
-#load "jpeg.jai";
 #load "webp.jai";
-#load "webp_encode.jai";
 #load "wuffs.jai";

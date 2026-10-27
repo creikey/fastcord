@@ -27,8 +27,6 @@ Layer :: enum_flags u8 {
 	Primary;
 	Secondary; // class="secondary": Discord's secondaryColor shapes
 }
-Layers :: Layer;
-
 Paint_Kind :: enum u8 {
 	Fill;
 	Stroke;
@@ -92,15 +90,15 @@ Icon :: struct {
 }
 
 destroy :: (icon: *Icon) {
-	delete(icon.verbs);
-	delete(icon.points);
-	delete(icon.ops);
-	delete(icon.groups);
-	for g: icon.gradients { delete(g.stops, icon.gradients.allocator); }
-	delete(icon.gradients);
+	array_free(icon.verbs);
+	array_free(icon.points);
+	array_free(icon.ops);
+	array_free(icon.groups);
+	for g: icon.gradients { array_free(g.stops,, icon.gradients.allocator); }
+	array_free(icon.gradients);
 	icon.* = .{};
 }
-#scope_module
+
 
 mat_mul :: (a: Mat, b: Mat) -> Mat {
 	// a ∘ b: apply b first.
@@ -115,7 +113,6 @@ mat_mul :: (a: Mat, b: Mat) -> Mat {
 }
 
 mat_apply :: (m: Mat, p: Vector2) -> Vector2 {
-	return .{get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)};
+	return .{m[0] * p.x + m[2] * p.y + m[4], m[1] * p.x + m[3] * p.y + m[5]};
 }
-#scope_export
 
