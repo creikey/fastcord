@@ -105,7 +105,7 @@ in parallel): they use the heap allocator and are torn down with the last client
 windows). All pass. A test that fails prints what differs from the official client
 (missing / extra request, wire order, body or gateway payload shape).
 
-`jai build.jai - check` runs only these offline tests; nothing in it calls the
+`jai build.jai - check-full` runs only these offline tests; nothing in it calls the
 live session runner.
 
 When a feature changes, update its offline test. A new feature needs a fixture

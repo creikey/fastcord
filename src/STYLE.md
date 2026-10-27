@@ -53,5 +53,5 @@ fastcord is plain, idiomatic Jai: Jai's own modules (`/opt/jai/modules`), Jai se
 
 ## Gates
 
-`jai build.jai - module <name>` compiles a module (every procedure type-checked). `jai build.jai - check` runs
+`jai build.jai - module <name>` compiles a module (every procedure type-checked). `jai build.jai - check-full` runs
 the offline traffic-parity tests, the headless UI scripts and sweep, the bench budget and the secrets scan.

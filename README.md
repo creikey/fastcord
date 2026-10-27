@@ -64,7 +64,7 @@ it gets is saved there. A small "Log in with a token" link takes a token copied 
 ## Testing
 
 ```sh
-jai build.jai - check            # everything before a commit: test + ui + bench budget + secrets scan
+jai build.jai - check-full       # overall check, on request (~3 min): test + ui + bench budget + secrets scan
 jai build.jai - test [names]     # the offline traffic-parity tests (substrings pick tests)
 jai build.jai - ui               # headless UI scripts (tests/ui) and the dead-control sweep
 jai build.jai - module <name>    # type-check one module, every procedure
@@ -130,7 +130,7 @@ python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
 - On a real account, read-only: `./build/fastcord-dev -bench -dpi:1 -live:15 -script:<s> -prof:build/bench/live`.
   Don't type in such a script: typing sends "is typing" from the account.
 - `tests/bench/budget.json` caps the deterministic counters (boxes, text layouts, draw commands, draw
-  calls) per section; `check` fails when one grows. Timings are never checked: they vary by machine.
+  calls) per section; `bench` and `check-full` fail when one grows. Timings are never checked: they vary by machine.
 
 Keep the UI immediate-mode. Make each pass cheaper instead of caching results across frames:
 - Declare only what can be seen. `ui.list_window` turns a uniform list into a spacer plus the visible
