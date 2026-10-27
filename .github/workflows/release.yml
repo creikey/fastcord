@@ -22,14 +22,9 @@ env:
   ODIN_VERSION: dev-2026-10
 
 jobs:
-  # Debug build and unit tests on the tagged commit; packaging only runs if they pass.
-  check:
-    uses: ./.github/workflows/check.yml
-    with:
-      ref: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
-
+  # No CI check gates the release for now (check.yml was removed): run
+  # tests/run_all.sh locally before tagging.
   macos:
-    needs: check
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
