@@ -26,3 +26,20 @@
 - ring_init/ring_destroy take no allocator. f32_bits/bits_f32 private; CoreAudio internals private (media keeps
   AudioStreamBasicDescription, AudioBuffer, AudioBufferList, fourcc, kAudioFormat*).
 - list_devices returns []Device_Info from the given allocator.
+
+## imagefmt
+- Error.Out_Of_Memory removed. decode(data, allocator, max_pixels, first_only := false).
+
+## vector
+- rasterize_layers(icon, w, h, layers, allocator) -> rasterize(icon, w, h, allocator, layers := .Primary).
+- Layers alias removed (use Layer); Vector2/Vector4 aliases removed (Math's types). rasterizer_init returns nothing.
+- Rasterizer flattened {w, h, stride, acc, pts, polys, pool}. path_clear/path_destroy removed. mat_mul/mat_apply exported.
+
+## lottie
+- load(data) -> *Animation (null on bad JSON); Error enum removed. player_init returns nothing.
+- Animation.arena -> Animation.pool: Flat_Pool; Player.frame is a Flat_Pool, Player.falloc removed. eval/eval_shape private.
+- Callers: app/pickers_lottie.jai:44 and :89.
+
+## Gotcha (all modules)
+- After push_allocator(...), a local or parameter named `allocator` in the same procedure means the pushed one
+  (Basic's macro parameter is named allocator): read allocator arguments before pushing.
