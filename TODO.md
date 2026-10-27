@@ -7,6 +7,12 @@
 - [ ] Voice: play the join and leave sounds when other users enter or leave the voice channel.
 - [ ] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
+- [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
+- [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
+- [ ] Messages: "Forward" in the message menu; forwards are only displayed.
+- [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
+- [ ] Polls: render poll messages and let the user vote; today they show nothing.
+- [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
