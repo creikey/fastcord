@@ -91,14 +91,29 @@ from_json :: (text: string) -> Value, Error {
 
 #scope_file
 
+// Shortest digits that read back exactly (libc's correctly rounded conversions), printed like Odin's
+// strconv 'g': exponent form when the exponent is < -4 or >= 6, a ".0" on whole numbers.
 write_json_float :: (sb: *String_Builder, f: float64) {
     if f != f || f > FLOAT64_MAX || f < -FLOAT64_MAX { append(sb, "null"); return; }
-    s := tprint("%", formatFloat(f, trailing_width = -1, zero_removal = .YES));
-    if s.count && s[0] == #char "+" advance(*s);
+    buf: [48]u8;
+    p: s32 = 1;
+    while p < 17 {
+        snprintf(buf.data, buf.count, "%.*e", p - 1, f);
+        if strtod(buf.data, null) == f break;
+        p += 1;
+    }
+    snprintf(buf.data, buf.count, "%.*e", p - 1, f);
+    e := to_string(buf.data);
+    exp := string_to_int(slice(e, find_index_from_left(e, #char "e") + 1, e.count));
+    if exp >= -4 && exp < 6 snprintf(buf.data, buf.count, "%.*f", max(p - 1 - exp, 0), f);
+    s := to_string(buf.data);
     append(sb, s);
-    for cast([]u8) s if it == #char "." || it == #char "e" || it == #char "E" || it == #char "n" return;
+    for cast([]u8) s if it == #char "." || it == #char "e" return;
     append(sb, ".0");
 }
+libc :: #system_library "libc";
+snprintf :: (buf: *u8, n: u64, fmt: *u8, args: ..Any) -> s32 #foreign libc;
+strtod :: (s: *u8, end: **u8) -> float64 #foreign libc;
 
 write_big_decimal :: (sb: *String_Builder, b: Big) {
     tmp := array_copy(b.digits,, temp);

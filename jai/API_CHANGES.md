@@ -140,3 +140,22 @@
 - BROKEN_INITIAL -> BROKEN_INITIAL_MS, BROKEN_MAX -> BROKEN_MAX_MS, DELAY_MAIN_JOB_MAX -> DELAY_MAIN_JOB_MAX_NS.
 - connect's race jobs run on Jai Threads joined by a later connect or by destroy, which now waits for a race still running
   (the Odin code left it running against a freed Cache).
+
+## voice
+- Allocator parameters removed; pass `,, a`: speaking_users(c) (app/view_voice.jai:184: `voice.speaking_users(vc.conn,, temp)`),
+  e2ee_status(c) (app/view_voice.jai:254: `voice.e2ee_status(vc.conn,, temp).active`), privacy_code(c), verification_code(c, user).
+- wait_state(c, s, timeout: Duration) -> wait_state(c, s, timeout_ms: s64).
+- Transport_Crypto is {mode, aead: crypto.Aead, init} (key/gcm/cha removed; the crypto module does both AEADs).
+- get_u16/get_u32/put_u16/put_u32 read/write at b[i] (b, [v,] i := 0) instead of taking a sliced view.
+- Conn: udp is a Socket, server_ep a Udp_Addr, thread handles *Thread (Jai Thread); the allocator field is gone (threads
+  inherit context.allocator from voice_connect). Vad, Jitter_Buffer, User_Settings have default initializers.
+- uuid4() takes no allocator; snowflake(v) returns Str (a JSON-string part for json_msg). jget/jint/jstr/jsnow/jarr take etf.Value.
+- opus_codec.jai merged into codec.jai (same procedures).
+
+## tool_capture_cdp
+- browser_ws_url(port) returns its string in context.allocator (allocator parameter removed); quote(s) / to_json(v) always use temp.
+- call/call_value(c, method, params, session, timeout_ms: s64 = 30_000) and next(c, timeout_ms) take milliseconds (were Durations).
+- Client.s removed; Client.mu/cond/wmu are locks, reader a *Thread.
+
+## tool_scrub / tool_trafficdiff / tool_capture
+- No API used elsewhere. scrub: convert(raw, env, netlogs := string.["", ""]); Ctx's maps are Tables; local.jai removed.

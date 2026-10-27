@@ -55,9 +55,9 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     o.output_executable_name = name;
     o.output_path = "build";
     o.cpu_target = cpu;
+    set_optimization(*o, optimization);   // first: it resets the checks below
     o.dead_code_elimination = .NONE; // type-check every procedure, not only the ones called
     o.cast_bounds_check = .OFF;      // integer casts truncate, as the wire encoders expect
-    set_optimization(*o, optimization);
     set_build_options(o, w);
     compiler_begin_intercept(w);
     if file add_build_file(file, w); else add_build_string(source, w);
