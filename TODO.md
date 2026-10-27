@@ -16,7 +16,8 @@
 - [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
-- [ ] Video: test the camera, screen share and Go Live live on macOS (built offline only; every protocol detail is a guess, see `traffic/CLIENT_RULES.md` "Video and Go Live").
+- [ ] Video: check receiving a camera and a Go Live from the official client (fastcord → official and fastcord → fastcord work live; the test instance has no camera or screen permission). Real cameras and ScreenCaptureKit capture are also untested live.
+- [ ] Video: a dev build started from an app without a camera usage description (e.g. an IDE's terminal) is killed by macOS on the first AVFoundation call; check the authorization status first and say why the camera can't start.
 - [ ] Video: Windows (Media Foundation capture / encoder / decoder, Windows.Graphics.Capture) and Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
 - [ ] Video: VP8 / AV1 calls show no video (only H.264 / H.265 are decoded and sent); no NACK / RTX retransmission or bandwidth estimation (fixed bitrates).

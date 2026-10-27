@@ -114,9 +114,11 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 
 ## Video and Go Live
 
-None of this is captured: the voice gateway and its UDP media are native (not in the DevTools captures),
-and no capture of the main gateway has a camera or a stream. Re-check every row with a live camera call
-and a Go Live on a test account.
+Not captured: the voice gateway and its UDP media are native (not in the DevTools captures). Checked
+live on 2026-10-27 with the test accounts (fastcord A with a synthetic camera and Go Live,
+`FASTCORD_VIDEO_TEST=camera,stream`): the official client (B) showed A's camera and watched A's stream
+(720p 30 fps), and fastcord as B decoded A's camera; the SFU chose H265. Not checked: receiving video
+from the official client (the test instance has no camera or screen permission).
 
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
@@ -125,7 +127,9 @@ and a Go Live on a test account.
 | Server op 12 maps `user_id` to `video_ssrc` / each active `streams[].ssrc`; inactive or 0 = stopped | guess | same | `conn.jai` `on_remote_video` |
 | Voice op 15 MEDIA_SINK_WANTS `{"any":100}` after SESSION_DESCRIPTION (all video at full quality) | guess | `MEDIA_SINK_WANTS` | `conn.jai` `MSG_MEDIA_SINK_WANTS_ANY` |
 | Video codec = SESSION_DESCRIPTION / SESSION_UPDATE `video_codec`; H264 (PT 105) and H265 (PT 103) are sent and decoded; VP8 / AV1 frames are dropped | guess | `CODECS_JSON` | `voice/video.jai`, `video_call.jai` |
-| Video RTP: 90 kHz, marker on the frame's last packet, RFC 6184 mode 1 (single NAL / FU-A) and RFC 7798 FU, 1100-byte payloads, one-byte extension playout-delay (id 5) = 0, no RTX, no NACK handling; keyframes on PLI / FIR; receivers send a PLI (≤ 2/s) until a keyframe | guess | WebRTC defaults | `voice/video.jai`, `conn.jai` |
+| Video RTP: 90 kHz, marker on the frame's last packet, RFC 6184 mode 1 (single NAL / FU-A) and RFC 7798 FU, 1100-byte payloads, no RTX, no NACK handling; keyframes on PLI / FIR; receivers send a PLI (≤ 2/s) until a keyframe | guess, works live | WebRTC defaults | `voice/video.jai`, `conn.jai` |
+| Video RTP extension block: one element, id 5 with L=1 (2 zero bytes) — the SFU drops every video packet carrying the RFC 8285 3-byte playout-delay (L=2) | checked live | — | `conn.jai` `send_video` |
+| The server also sends op 15 `{"any":100}` (and on a stream connection `pixelCounts`) to clients | captured live | — | ignored |
 | DAVE video frames: 4-byte start codes; clear ranges per libdave `codec_utils` (start codes, H.264 slice NAL header + first three slice-header exp-Golomb values, H.265 VCL 2-byte header, other NAL units whole) | code (libdave) | `ProcessFrameH264`, `ProcessFrameH265`, `BytesCoveringH264PPS` | `voice.dave_clear_ranges`, `voice_dave.encrypt_frame` |
 | Go Live: op 18 `{type:"guild"/"call", guild_id, channel_id, preferred_region:null}`; op 20 `{stream_key}` to watch; op 19 `{stream_key}` to end ours or stop watching; keys `guild:<g>:<c>:<u>` / `call:<c>:<u>` | guess | `STREAM_CREATE`, `STREAM_WATCH`, `STREAM_DELETE` | `dc.stream_create`, `dc.stream_watch`, `dc.stream_delete` |
 | A stream's voice connection: STREAM_CREATE `rtc_server_id` as `server_id`, STREAM_SERVER_UPDATE endpoint + token, our voice session id; IDENTIFY with `streams:[{type:"screen",rid:"100",quality:100}]`; the streamer sends no audio (no soundshare yet) | guess | same | `dc.stream_server_info`, `voice.Voice_Server_Info.stream` |

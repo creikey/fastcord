@@ -15,3 +15,4 @@ encoder_supported :: (codec: Video_Codec) -> bool { return false; }
 encoder_create :: (codec: Video_Codec, width: int, height: int, fps: int, bitrate: int, on_output: Encoded_Proc, user: *void) -> *Encoder { return null; }
 encoder_encode :: (e: *Encoder, pixbuf: *void, pts_90k: u32, force_keyframe := false) {}
 encoder_destroy :: (e: *Encoder) {}
+pattern_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30) -> *Capture { return null; }

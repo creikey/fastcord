@@ -333,9 +333,10 @@ call_controls :: (cid: dc.Snowflake) {
 	can_video := voice_conn() != null && voice.state(voice_conn()) == .Connected;
 	if control("mic", ifx app.self_mute then "microphone-slash" else "microphone", app.self_mute, false, true) app.self_mute = !app.self_mute;
 	spacer(.X, 8);
-	if control("camera", "video", false, camera_on(), can_video && video.camera_supported()) camera_toggle();
+	// video.camera_supported asks AVFoundation, which TCC may kill us for: only on click
+	if control("camera", "video", false, camera_on(), can_video && video.SUPPORTED) camera_toggle();
 	spacer(.X, 8);
-	if control("screen", "screen-stream", false, screen_sharing(), can_video && video.screen_supported()) {
+	if control("screen", "screen-stream", false, screen_sharing(), can_video && video.SUPPORTED) {
 		if screen_sharing() go_live_stop();
 		else { video.screen_targets_refresh(); vid.picker_open = true; }
 	}

@@ -188,6 +188,7 @@ Conn :: struct {
     video_users: Table(u64, bool);    // users whose op 12 has an active stream (under mu)
     vmu: locks.Mutex;                 // the send side below (encoder thread vs. RTCP)
     video_on: bool;
+    video_announce: bool;  // op 12 due (timer thread)
     video_w, video_h, video_fps, video_bitrate: int;
     video_seq: u16;
     video_packets, video_octets, video_last_ts: u32;
@@ -913,6 +914,15 @@ timer_thread_proc :: (t: *Thread) -> s64 {
         // HELLO timeout / HEARTBEAT ACK TIMEOUT: close(4000) and resume
         if hello_timeout || timeout close_ws(c, CLOSE_FORCE);
         if beat send_heartbeat(c);
+        msg: string;
+        {
+            locks.guard(*c.vmu);
+            if c.video_announce && c.video_ssrc && c.ws_open {
+                c.video_announce = false;
+                msg = msg_video(c.ssrc, c.video_ssrc, c.rtx_ssrc, c.video_on, c.video_w, c.video_h, c.video_fps, c.video_bitrate);
+            }
+        }
+        if msg send_text(c, msg);
         reset_temporary_storage();
     }
     return 0;
@@ -1319,15 +1329,14 @@ send_rtcp_packet :: (c: *Conn, pkt: []u8) {
 // Video
 
 // set_video starts or stops sending our video stream (camera, or the screen on
-// a Go Live connection): op 12 with the stream's SSRCs and limits. Frames then
-// go through send_video. Bitrate in bits per second.
+// a Go Live connection): op 12 with the stream's SSRCs and limits, sent by the
+// timer thread (callers may be the UI). Frames then go through send_video.
+// Bitrate in bits per second.
 set_video :: (c: *Conn, on: bool, width := 1280, height := 720, fps := 30, bitrate := 2_500_000) {
-    locks.lock(*c.vmu);
+    locks.guard(*c.vmu);
     c.video_on = on;
     c.video_w, c.video_h, c.video_fps, c.video_bitrate = width, height, fps, bitrate;
-    msg := msg_video(c.ssrc, c.video_ssrc, c.rtx_ssrc, on, width, height, fps, bitrate);
-    locks.unlock(*c.vmu);
-    if c.video_ssrc send_text(c, msg);
+    c.video_announce = true;
 }
 
 // video_codec: what SESSION_DESCRIPTION negotiated for this call (.None before it).
@@ -1359,10 +1368,11 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
         put_u16(pkt, c.video_seq, 2);
         put_u32(pkt, ts, 4);
         put_u32(pkt, c.video_ssrc, 8);
-        // one-byte extension block: playout-delay (id 5) = 0, as Discord's own streamers send it
+        // one-byte extension block: id 5 (playout-delay) with 2 zero bytes. Checked live: the SFU
+        // forwards this; with the RFC's 3-byte form (L=2) it dropped every video packet.
         pkt[12], pkt[13] = 0xBE, 0xDE;
         put_u16(pkt, 1, 14);
-        pkt[16], pkt[17], pkt[18], pkt[19] = (EXT_ID_PLAYOUT_DELAY << 4) | 2, 0, 0, 0;
+        pkt[16], pkt[17], pkt[18], pkt[19] = (EXT_ID_PLAYOUT_DELAY << 4) | 1, 0, 0, 0;
         memcpy(pkt.data + 20, payload.data, payload.count);
         n := 20 + payload.count;
         sl: int;
@@ -1392,14 +1402,11 @@ video_user_ids :: (c: *Conn) -> []u64 {
     return out;
 }
 
-// request_keyframe sends a PLI for user's video (e.g. after their decoder failed).
+// request_keyframe asks for a keyframe of user's video (e.g. after their decoder
+// failed): frames wait for one, and the UDP thread sends the PLI.
 request_keyframe :: (c: *Conn, user_id: u64) {
-    ssrc: u32;
-    {
-        locks.guard(*c.mu);
-        for c.video_rx if it.user_id == user_id { it.need_key = true; it.last_pli_ms = 0; ssrc = it.ssrc; }
-    }
-    if ssrc send_pli(c, ssrc);
+    locks.guard(*c.mu);
+    for c.video_rx if it.user_id == user_id { it.need_key = true; it.last_pli_ms = 0; }
 }
 
 #scope_file

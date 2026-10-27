@@ -17,6 +17,10 @@ Capture :: struct {
 	mu: locks.Mutex;
 	cv: locks.Cond;
 	stopped: bool;
+	// test pattern (pattern_darwin.jai)
+	pattern: *Thread;
+	pattern_stop: bool;
+	pattern_w, pattern_h, pattern_fps: int;
 }
 
 camera_supported :: () -> bool {
@@ -148,6 +152,15 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 
 capture_stop :: (c: *Capture) {
 	if !c return;
+	if c.pattern {
+		atomic_store(*c.pattern_stop, true);
+		thread_is_done(c.pattern, -1);
+		thread_deinit(c.pattern);
+		free(c.pattern);
+		free_callback_context(*c.ts);
+		free(c);
+		return;
+	}
 	pool := objc_autoreleasePoolPush();
 	defer objc_autoreleasePoolPop(pool);
 	if c.session {

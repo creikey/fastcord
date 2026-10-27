@@ -12,6 +12,8 @@ Encoded_Proc :: #type (user: *void, annexb: []u8, keyframe: bool, pts_90k: u32);
 
 Video_Codec :: enum u8 { H264; H265; }
 
+SUPPORTED :: OS == .MACOS; // capture and encoding exist on this platform
+
 Screen_Target :: struct {
 	is_window: bool;
 	id: u32; // CGDirectDisplayID or CGWindowID
@@ -22,6 +24,7 @@ Screen_Target :: struct {
 #if OS == .MACOS {
 	#load "capture_darwin.jai";
 	#load "encode_darwin.jai";
+	#load "pattern_darwin.jai";
 } else {
 	#load "none.jai";
 }
@@ -30,6 +33,8 @@ Screen_Target :: struct {
 
 #import "Basic";
 #import "String";
+#import "Thread";
+#import "Atomics";
 locks :: #import "locks";
 
 #if OS == .MACOS {
@@ -70,6 +75,9 @@ locks :: #import "locks";
 		ts.size = SIZE;
 		ctx.* = context;
 		ctx.temporary_storage = ts;
+		// The creator's stack trace lives on its stack: code run under this context would write the
+		// current line into those frames (debug info), corrupting the creating thread's stack.
+		ctx.stack_trace = null;
 	}
 
 	free_callback_context :: (ts: *Temporary_Storage) {

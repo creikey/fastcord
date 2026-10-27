@@ -82,11 +82,12 @@ camera_toggle :: () {
 	if camera_on() {
 		camera_stop();
 	} else {
-		if vc_conn() == null || !video.camera_supported() return;
+		if vc_conn() == null || (!video_test("camera") && !video.camera_supported()) return;
 		dc.analytics_permissions_requested(app.client, "video");
 		s := *vid.camera;
 		sender_init(s, vc_conn(), CAMERA_FPS, CAMERA_BITRATE);
-		s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
+		if video_test("camera") s.capture = video.pattern_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
+		else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
 		if !s.capture return;
 		voice.set_video(s.conn, true, CAMERA_W, CAMERA_H, CAMERA_FPS, CAMERA_BITRATE);
 	}
@@ -106,7 +107,7 @@ go_live_start :: (target: video.Screen_Target) {
 	if !net_action() || app.voice_channel == 0 || screen_sharing() return;
 	ch := dc.channel_get(store(), app.voice_channel);
 	gid := ifx ch then ch.guild_id else 0;
-	vid.own_key = dc.stream_key(gid, app.voice_channel, store().me,, context.allocator);
+	vid.own_key = dc.stream_key(gid, app.voice_channel, store().me, context.allocator);
 	vid.own_target = target;
 	vid.own_target.name = "";
 	dc.stream_create(app.client, gid, app.voice_channel);
@@ -130,7 +131,7 @@ watch_stream :: (uid: dc.Snowflake) {
 	if vid.watch_user == uid return;
 	watch_stop();
 	ch := dc.channel_get(store(), app.voice_channel);
-	vid.watch_key = dc.stream_key(ifx ch then ch.guild_id else 0, app.voice_channel, uid,, context.allocator);
+	vid.watch_key = dc.stream_key(ifx ch then ch.guild_id else 0, app.voice_channel, uid, context.allocator);
 	vid.watch_user = uid;
 	dc.stream_watch(app.client, vid.watch_key);
 }
@@ -179,6 +180,7 @@ stream_image :: (uid: dc.Snowflake) -> media.Video_Image {
 // known, starts screen capture, ends streams that went away, and puts newly
 // decoded or captured frames into textures.
 video_frame :: () {
+	if video_test("") video_test_frame();
 	if app.client != null {
 		if screen_sharing() {
 			info, ver, ok := dc.stream_server_info(app.client, vid.own_key);
@@ -192,7 +194,8 @@ video_frame :: () {
 				if st == .Connected {
 					s := *vid.screen;
 					sender_init(s, vid.own_conn, SCREEN_FPS, SCREEN_BITRATE);
-					s.capture = video.screen_start(vid.own_target, on_capture_frame, s, SCREEN_FPS, SCREEN_MAX_H);
+					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, SCREEN_FPS);
+					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, SCREEN_FPS, SCREEN_MAX_H);
 					w, h := screen_size(vid.own_target);
 					voice.set_video(vid.own_conn, true, w, h, SCREEN_FPS, SCREEN_BITRATE);
 				} else if st == .Disconnected {
@@ -238,7 +241,47 @@ video_shutdown :: () {
 	deinit(*vid.streams);
 }
 
+// FASTCORD_VIDEO_TEST=camera,stream,watch (live tests): a synthetic pattern instead of the
+// camera / screen, turned on as soon as the call connects; "watch" watches the first stream
+// in the channel. Video stats go to stderr every 2 s.
+video_test :: (what: string) -> bool {
+	v := env_var("FASTCORD_VIDEO_TEST");
+	return ifx what then contains(v, what) else v != "";
+}
+
 #scope_file
+
+vt_next_log: s64;
+vt_started_camera, vt_started_stream: bool;
+
+video_test_frame :: () {
+	conn := vc_conn();
+	if !conn || voice.state(conn) != .Connected return;
+	if video_test("camera") && !vt_started_camera { vt_started_camera = true; camera_toggle(); }
+	if video_test("stream") && !vt_started_stream {
+		vt_started_stream = true;
+		go_live_start(.{name = "test pattern", width = 1280, height = 720});
+	}
+	now := wall_ms();
+	if video_test("watch") && vid.watch_key == "" {
+		for vs, uid: store().voice_states if vs.channel_id == app.voice_channel && vs.self_stream && uid != store().me { watch_stream(uid); break; }
+	}
+	if now < vt_next_log return;
+	vt_next_log = now + 2000;
+	report :: (name: string, c: *voice.Conn) {
+		if !c return;
+		st := voice.get_stats(c);
+		state, code := voice.state(c);
+		print("[video-test] % state=% close=% codec=% sent=% recv=% plis=% pkts_out=% pkts_in=% udp_in=% bytes_in=% other_pt=% e2ee=% dave_fail=%\n", name, state, code, voice.video_codec(c),
+			st.video_frames_sent, st.video_frames_received, st.plis_sent, st.packets_sent, st.packets_received, st.udp_datagrams, st.bytes_received, st.other_pt, voice.e2ee_status(c,, temp).active, st.e2ee_failures, to_standard_error = true);
+	}
+	report("voice", conn);
+	report("own-stream", vid.own_conn);
+	report("watch", vid.watch_conn);
+	locks.guard(*vid.mu);
+	for rv, uid: vid.cams if rv.img.y print("[video-test] showing camera of % (%x%)\n", uid, rv.img.size[0], rv.img.size[1], to_standard_error = true);
+	for rv, uid: vid.streams if rv.img.y print("[video-test] showing stream of % (%x%)\n", uid, rv.img.size[0], rv.img.size[1], to_standard_error = true);
+}
 
 vc_conn :: () -> *voice.Conn { return voice_conn(); }
 
@@ -376,7 +419,6 @@ same_params :: (rv: *Remote_Video, params: [][]u8) -> bool {
 }
 
 sender_init :: (s: *Sender, conn: *voice.Conn, fps: int, bitrate: int) {
-	locks.guard(*s.mu);
 	s.conn = conn;
 	s.fps, s.bitrate = fps, bitrate;
 	s.start = current_time_monotonic();
@@ -387,21 +429,24 @@ sender_stop :: (s: *Sender) {
 	video.capture_stop(s.capture);
 	s.capture = null;
 	video.encoder_destroy(s.enc);
-	locks.guard(*s.mu);
 	s.enc = null;
 	s.conn = null;
 	s.codec = .None;
+	locks.guard(*s.mu);
 	media.video_frame_release(*s.pending);
 	image_free(*s.img);
 }
 
-// on_capture_frame: video.Frame_Proc, on the capture's queue.
+// on_capture_frame: video.Frame_Proc, on the capture's queue. Only the preview
+// is shared with the UI (under mu); the encoder fields belong to this queue
+// until sender_stop has stopped the capture.
 on_capture_frame :: (user: *void, pixbuf: *void, width: int, height: int) {
 	s := cast(*Sender) user;
-	locks.guard(*s.mu);
-	if !s.conn return;
-	media.video_frame_release(*s.pending);
-	s.pending = media.video_frame_from_pixbuf(pixbuf);
+	{
+		locks.guard(*s.mu);
+		media.video_frame_release(*s.pending);
+		s.pending = media.video_frame_from_pixbuf(pixbuf);
+	}
 	platform.request_frame();
 	codec := voice.video_codec(s.conn);
 	if codec != .H264 && codec != .H265 return; // not negotiated yet (or VP8 / AV1, which we don't encode)
@@ -409,8 +454,8 @@ on_capture_frame :: (user: *void, pixbuf: *void, width: int, height: int) {
 	if !s.enc {
 		vcodec := ifx codec == .H265 then video.Video_Codec.H265 else .H264;
 		if !video.encoder_supported(vcodec) return;
-		s.enc = video.encoder_create(vcodec, width & ~1, height & ~1, s.fps, s.bitrate, on_encoded, s);
 		s.codec = codec;
+		s.enc = video.encoder_create(vcodec, width & ~1, height & ~1, s.fps, s.bitrate, on_encoded, s);
 		if !s.enc return;
 	}
 	pts := cast,no_check(u32) (to_nanoseconds(current_time_monotonic() - s.start) * 9 / 100_000);
