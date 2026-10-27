@@ -1,3 +1,4 @@
+#module_parameters (TESTS := false); // the offline parity tests (testing.jai, replay_test.jai), run by jai/tests/discord.jai
 #import "Basic";
 #import "Math";
 #import "String";
@@ -86,3 +87,4 @@ zstd :: #import "zstd";
 #load "value.jai";
 #load "webp_convert.jai";
 #load "local.jai";
+#if TESTS { #import "File"; #import "Sort"; #import "System"; #load "testing.jai"; #load "replay_test.jai"; }
