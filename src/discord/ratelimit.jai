@@ -33,23 +33,31 @@ is_retryable_status :: (status: int) -> bool {
 	return false;
 }
 
-// ---- official behaviour: per-URL 429/503 hold ----
+// ---- official behaviour: per-URL 429/503 hold (HTTPUtils, search `retryAfterTimestamp`) ----
 //
 // HTTPUtils keeps a map keyed by the request URL. A 429 or 503 response sets
 // `retryAfterTimestamp = now + max(backoff(1s..60s).fail(), retry_after*1000)`
-// (retry_after from the Retry-After header or the JSON body, default 5 s);
-// requests to that URL issued meanwhile are queued and released one by one
-// when the hold expires. There is no proactive use of X-RateLimit-* headers.
+// (retry_after from the Retry-After header or the JSON body, default 5 s) and
+// arms a timer. A request to a URL with an entry is queued (FIFO). When the
+// timer fires it releases one queued request, or drops the entry if none is
+// queued; every later response for that URL that is not a 429/503, once the
+// hold has expired, releases the next one. So after a 429 the queue drains one
+// request per round trip, never as a burst. There is no proactive use of
+// X-RateLimit-* headers. Tickets model the queue: `issued` were queued,
+// `released` may go; the timer is fired lazily by the first waiter to see it due.
 
 Url_Hold :: struct {
 	until: s64;
 	backoff: Backoff;
 	status: int;
+	issued, released: s64;
+	timer_due: bool; // the hold's timer has not fired yet
 }
 
 // Shared by every worker (under mu); keys live in allocator.
 Rate_Limiter :: struct {
 	mu: locks.Mutex;
+	cond: locks.Cond;
 	holds: Table(string, Url_Hold);
 	allocator: Allocator;
 }
@@ -64,27 +72,58 @@ rate_limiter_destroy :: (r: *Rate_Limiter) {
 	deinit(*r.holds);
 }
 
-// rate_wait_ms returns how long a request to url must wait before being sent (0 = now).
-rate_wait_ms :: (r: *Rate_Limiter, url: string, now: s64) -> s64 {
+// rate_acquire blocks the calling worker while url's queue holds it.
+rate_acquire :: (r: *Rate_Limiter, url: string) {
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
-	h := table_find_pointer(*r.holds, url);
-	return ifx h && h.until > now then h.until - now else 0;
+	ticket := -1;
+	while true {
+		h := table_find_pointer(*r.holds, url);
+		if !h || (ticket >= 0 && ticket < h.released) return;
+		now := now_ms();
+		if h.timer_due && now >= h.until {
+			h.timer_due = false;
+			rate_release_locked(r, url, h); // an empty queue drops the entry: go at once
+			continue;
+		}
+		if ticket < 0 {
+			ticket = h.issued;
+			h.issued += 1;
+		}
+		locks.cond_wait_with_timeout(*r.cond, *r.mu, ifx h.timer_due then max(h.until - now, 1) else 1000);
+	}
 }
 
-// retry_after_seconds reads Retry-After (header, integer seconds) or body.retry_after.
+// T (rateLimitExpirationHandler): release the next queued request, or drop the entry.
+#scope_file
+rate_release_locked :: (r: *Rate_Limiter, url: string, h: *Url_Hold) {
+	if h.released < h.issued {
+		h.released += 1;
+		locks.cond_broadcast(*r.cond);
+		return;
+	}
+	for r.holds if it_index == url {
+		key := it_index;
+		table_remove(*r.holds, url);
+		free(key,, r.allocator);
+		break;
+	}
+}
+#scope_export
+
+// retry_after_seconds: the Retry-After header (parseInt: whole seconds) or body.retry_after.
 retry_after_seconds :: (headers: []http.Header, body: V) -> float64, bool {
 	v, ok := http.header_get(headers, "retry-after");
 	if ok {
-		n, nok, rest := string_to_float64(v);
-		if nok && !rest && n > 0 return n, true;
+		n, nok := string_to_int(v, 10, s64);
+		if nok && n > 0 return cast(float64) n, true;
 	}
 	f := vf64(vget(vmap(body), "retry_after"));
 	if f > 0 return f, true;
 	return 0, false;
 }
 
-// rate_note_response records the outcome of a request (the official hold logic).
+// rate_note_response records a request's outcome (cleanupRequestEntry); status 0 = no response.
 // Returns the hold in ms when the response was 429/503.
 rate_note_response :: (r: *Rate_Limiter, url: string, status: int, headers: []http.Header, body: V, now: s64) -> s64 {
 	locks.lock(*r.mu);
@@ -94,25 +133,15 @@ rate_note_response :: (r: *Rate_Limiter, url: string, status: int, headers: []ht
 		ra, has := retry_after_seconds(headers, body);
 		floor := cast(s64) ((ifx has then ra else 5) * 1000);
 		if !h h = table_add(*r.holds, copy_string(url,, r.allocator), .{backoff = backoff_make(1000, 60000)});
-		saved := h.backoff; // a hold that already lasts longer keeps its backoff
-		delay := backoff_fail(*h.backoff, floor);
+		delay := backoff_fail(*h.backoff, floor); // the backoff fails even when a longer hold is kept
 		until := now + delay;
-		if h.until >= until {
-			h.backoff = saved;
-			return h.until - now;
-		}
+		if h.until >= until return h.until - now;
 		h.until = until;
 		h.status = status;
+		h.timer_due = true;
+		locks.cond_broadcast(*r.cond);
 		return delay;
 	}
-	// Expired holds are dropped on the next response for that URL.
-	if h && h.until < now {
-		for r.holds if it_index == url {
-			key := it_index;
-			table_remove(*r.holds, url);
-			free(key,, r.allocator);
-			break;
-		}
-	}
+	if h && h.until < now rate_release_locked(r, url, h);
 	return 0;
 }

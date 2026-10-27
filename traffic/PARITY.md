@@ -229,7 +229,8 @@ Don't run full sweeps in the normal loop.
 Rate limits: the earlier per-scenario fresh-launch runner made 33 cold logins
 and startup bursts an hour, and the session runner replaces it. The last full
 session (32 scenarios, about 35 minutes) got no 429s. Retries honour
-`Retry-After` and the per-URL hold. A 429 in a session is a bug in our traffic,
+`Retry-After` and the per-URL hold, and requests queued behind a hold go out one per
+response, as HTTPUtils releases them (`rate_limit_queue`). A 429 in a session is a bug in our traffic,
 not something to wait out.
 
 ### Last full session (2026-10-27, Jai build)
@@ -350,6 +351,15 @@ one long session they already happened earlier, as they would for a real user.
 
 - An absent or UNSET theme is the official UI "Dark", which is proto DARKER (3).
   The evidence is the bundle's `{[UNSET]: DARK, [DARK]: ASH, [DARKER]: DARK}`.
+
+### Session behaviour (bundle rules, CLIENT_RULES "HTTP" and "Gateway")
+
+- 429 / 503: the per-URL queue drains one request per response, never as a burst.
+- Idle: 10 min without input sends op 3 `idle` (since = last input, afk), twice as the client
+  does, and the same presence on a reconnect IDENTIFY; no auto-acks while idle (`idle_presence`).
+- Waking from sleep sends an expedited heartbeat (5 s ACK timeout) instead of waiting up to a
+  heartbeat interval on a dead socket.
+- A reconnect IDENTIFY carries the settings status (was always `online`).
 
 ### Transport
 

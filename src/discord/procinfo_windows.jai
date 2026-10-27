@@ -28,12 +28,20 @@ process_exe_paths :: () -> []string {
 	return out;
 }
 
+// system_idle_ms: time since the last user input (GetLastInputInfo, as Chromium's idle time).
+system_idle_ms :: () -> s64, bool {
+	li := Last_Input_Info.{cbSize = size_of(Last_Input_Info)};
+	if !last_input_info(*li) return 0, false;
+	return cast(s64) (tick_count() - li.dwTime), true;
+}
+
 #scope_file
 
 #import "Windows";
 #import "Windows_Utf8";
 
 kernel32 :: #system_library "kernel32";
+user32 :: #system_library "user32";
 
 TH32CS_SNAPPROCESS :: 0x2;
 
@@ -63,6 +71,9 @@ Process_Entry32W :: struct {
 	szExeFile: [260]u16;
 }
 
+Last_Input_Info :: struct { cbSize: u32; dwTime: u32; }
+last_input_info :: (info: *Last_Input_Info) -> BOOL #foreign user32 "GetLastInputInfo";
+tick_count :: () -> u32 #foreign kernel32 "GetTickCount";
 K32GetProcessMemoryInfo :: (process: HANDLE, counters: *Process_Memory_Counters, cb: u32) -> BOOL #foreign kernel32;
 GetProcessTimes :: (process: HANDLE, creation: *FILETIME, exit: *FILETIME, kernel: *FILETIME, user: *FILETIME) -> BOOL #foreign kernel32;
 CreateToolhelp32Snapshot :: (flags: u32, pid: u32) -> HANDLE #foreign kernel32;

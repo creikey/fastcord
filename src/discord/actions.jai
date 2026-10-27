@@ -758,7 +758,7 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		locks.lock(*c.route_mu);
 		viewing := c.route_channel == fsnow(d, "channel_id");
 		locks.unlock(*c.route_mu);
-		if viewing && c.focused {
+		if viewing && c.focused && !c.idle_sent { // shouldAutomaticallyAck: never while idle
 			aid := fsnow(fmap(d, "author"), "id");
 			if aid != c.store.me ack_message(c, fsnow(d, "channel_id"), fsnow(d, "id"));
 		}
@@ -912,7 +912,7 @@ on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
 	}
 	// Viewing a channel with unread messages acks it (ReadState, 3 s timer),
 	// only while the window has focus (fixtures, unfocused: mark_as_read sends no ack).
-	if channel_unread(*c.store, channel_id) && identity_app_state(*c.id) == .Focused {
+	if channel_unread(*c.store, channel_id) && identity_app_state(*c.id) == .Focused && !c.idle_sent {
 		msgs := messages_get(*c.store, channel_id);
 		if msgs ack_message(c, channel_id, msgs[msgs.count - 1].id);
 	}

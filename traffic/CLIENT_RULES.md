@@ -91,6 +91,14 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 | Rule | Kind | Anchor | fastcord |
 |---|---|---|---|
 | Identify payload and reconnect behaviour | code | `GatewaySocket._doIdentify`, `_handleHello` | `src/discord/gateway.jai` |
+| Reconnect: close 4004 stops; otherwise `Backoff(1 s, 60 s)`, after more than 4 failures the session is dropped (IDENTIFY); op 7 reconnects at once; op 9 resumes if `d` else identifies; RESUME only with an ACK in the last 3 min; no ACK by the next interval closes 4000 and backs off | code | `_handleClose`, `_handleHeartbeatTimeout`, `_doResumeOrIdentify` | `gateway.jai` |
+| Waking from sleep (powerMonitor `resume`): `expeditedHeartbeat(5000)`: heartbeat at once, no ACK in 5 s = heartbeat timeout; if not connected, reset the backoff and connect at once. fastcord sees the wake as a gap of over 15 s between its 1 s timer rounds | code + inferred (detection) | `power monitor resumed`, `expeditedHeartbeat(e){` | `gateway.jai` `gateway_expedited_heartbeat_locked` |
+| Not modelled: network online / offline (`networkStateChange(5000 / 15000)`), suspend (IdleStore idles and the client disconnects), lock screen (idle) | known gap | `network detected online.`, `powerMonitor.on("suspend"` | — |
+| Idle: the system idle time (`powerMonitor.getSystemIdleTimeMs`, polled every 10 s) over 10 min (`6e5`) dispatches IDLE with idleSince = the last input; AFK at `min(afkTimeout, 10 min)`, afkTimeout default 600 s, so both at once | code | `getSystemIdleTimeMs`, `type:"IDLE",idle:!0,idleSince` | `client.jai` `idle_poll`, `procinfo_*.jai` `system_idle_ms` |
+| Presence while idle (`getLocalPresence`): an online status becomes `idle`; `since` = idleSince for every status (0 when active); `afk` = isAFK. SelfPresenceStore recomputes after IDLE and again after AFK: two op 3s per change, the first with the old `afk`; IDENTIFY carries the same presence | code | `S===m.clD.ONLINE&&C>0&&(S=m.clD.IDLE)` | `settings.jai` `presence_value`, `client.jai` `flush_presence`, `gateway.jai` `identify_value` |
+| Op 3 is client-limited to 5 per 20 s (later ones wait) | code | `n.length<5?(n.push(l+2e4)` | not needed yet: fastcord sends at most 2 per user action |
+| No automatic ack while idle | code | `"Is idle"` in `shouldAutomaticallyAck` | `actions.jai` |
+| Reconnect IDENTIFY uses the settings status (the gateway keeps a copy) | code | `presence:V.getInitialState()` | `client.jai` `flush_presence` |
 | `installation_id_v3` from READY `apex_experiments.installation` | code | `AuthenticationStore` CONNECTION_OPEN | `gateway.jai` |
 | `client_launch_id`; fast-connect.js has its own launch id | code | super-properties module | `src/discord/identity.jai` |
 | After READY: op 4 (VoiceStateStore reset), op 41 | code | `VoiceStateStore` | `gateway.jai` |
@@ -99,6 +107,24 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 | Typing: `TypingStore TYPING_START_LOCAL` timing | code | `TypingStore` | `actions.jai` |
 | Quests: application ids of every quest loaded after `/quests/@me` | code | `QuestsStore` | `src/discord/rest.jai` |
 | Unverified account loads `affinities/v2/users` instead of premium entitlements on Friends | inferred | fixtures `join_leave_server` vs `open_dm` | `actions.jai` `home_open` |
+
+## HTTP, retries, rate limits
+
+For features that load or send (and their retry / loading states): every REST call goes through
+`api_call` (`src/discord/rest.jai`), which already does what HTTPUtils does. A feature only picks the
+call's `retries` (the bundle's value for that call: search the endpoint) and, for user-retried sends,
+`retry_429`. Never add a retry loop of your own.
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| `retries: N` retries only network errors (not aborts) and statuses 502, 504, 507, 522, 523, 524, 598, 599; each retry waits `Backoff()` (500 ms min, 5 s max, jitter: `current += 2*current*random()`), carries `X-Failed-Requests: <n>` and skips the URL queue (calls `I`, not `g`). Other 4xx / 5xx are never retried by HTTPUtils | code | `E=new Set([502,504,507,598,599,522,523,524])`, `X-Failed-Requests` | `ratelimit.jai`, `rest.jai` `api_call` |
+| Per-call retry counts in the bundle: `retries:3` ×26, `:2` ×13, `:1` ×12, `:0` ×3 (search the endpoint constant to find a call's) | code | `retries:` | per call site |
+| 429 / 503: hold keyed by the request URL, `now + max(Backoff(1 s, 60 s).fail(), retry_after*1000)`, retry_after = `parseInt(Retry-After)` (whole seconds) else body `retry_after` (float s) else 5; a longer existing hold is kept but its backoff still fails | code | `retryAfterTimestamp`, `cleanupRequestEntry` | `ratelimit.jai` `rate_note_response` |
+| Requests to a held URL queue FIFO; the hold's timer releases one (or drops the entry when none waits); each later non-429 response for that URL after expiry releases the next. No burst after a 429 | code | `rateLimitExpirationHandler`, `makeRequest: queueing` | `ratelimit.jai` `rate_acquire` |
+| HTTPUtils does not retry a 429 itself; callers that do (MessageQueue for sends) wait `retry_after` and re-enter the queue. `failImmediatelyWhenRateLimited` calls reject at once with the hold's remaining seconds | code | `failImmediatelyWhenRateLimited` | `rest.jai` `retry_429` |
+| No proactive use of `X-RateLimit-*` headers | code | (absent) | — |
+| Message send failure: 4xx with code SLOWMODE_RATE_LIMITED sets the slowmode cooldown from body `retry_after`; automod / explicit-content codes have their own dispatches; a 429 shows no Clyde error | code | `Failed to send message`, `SLOWMODE_SET_COOLDOWN` | not modelled |
+| Attachment PUT (CloudUpload, desktop): up to 12 attempts, 1 h timeout, `Backoff()` between them, only for retryable errors; from the 2nd attempt a `Content-Range: bytes */*` status check (308 + `Range` gives the resume offset) and a fresh upload URL when stale | code | `uploadFileWithResumption`, `getResumePosition` | known gap: `upload_put` tries 3 times, no resume check |
 
 ## Analytics (`/science`)
 

@@ -128,6 +128,11 @@ Client :: struct {
 	typing_local: Typing_Local;
 	pending_acks: [..]Pending_Ack;
 	focused: bool;
+	// IdleStore: the last input time once the system has been idle 10 min, 0 = active. Written by the
+	// gateway control thread (atomic); idle_sent is the value the last op 3 reported (UI thread).
+	idle_since: s64;
+	idle_sent: s64;
+	presence_mirrored: Status; // the settings status last copied to the gateway (UI thread)
 	settings_edit: Settings_Edit;
 	analytics: Analytics;
 	upload_seq: int;
@@ -375,6 +380,7 @@ client_poll :: (c: *Client) -> bool {
 	flush_quick_switcher(c, now);
 	status_expiry_tick(c, now);
 	flush_settings(c, now);
+	flush_presence(c);
 	flush_soundboard(c, now);
 	guild_admin_tick(c, now);
 	auth_tick(c, now);
@@ -412,6 +418,39 @@ client_set_focused :: (c: *Client, focused: bool) {
 	identity_set_app_state(*c.id, ifx focused then .Focused else .Unfocused);
 	if focused identity_touch_heartbeat(*c.id, now_ms());
 	if c.gw gateway_set_active(c.gw, qos_from_state(focused, false));
+}
+
+// flush_presence: SelfPresenceStore on IDLE / AFK. With the default AFK timeout (600 s) both flip at
+// the same 10 min, and the store recomputes after each dispatch (IDLE first): two op 3s, the first
+// with the old afk. Also keeps the gateway's copy of the status for a reconnect's IDENTIFY.
+flush_presence :: (c: *Client) {
+	if !c.gw return;
+	st := c.store.settings.status;
+	if st != .Offline && st != c.presence_mirrored {
+		c.presence_mirrored = st;
+		locks.lock(*c.gw.mu);
+		c.gw.presence_status = st;
+		locks.unlock(*c.gw.mu);
+	}
+	since := atomic_load(*c.idle_since);
+	if since == c.idle_sent return;
+	c.idle_sent = since;
+	if c.store.connection != .Ready return; // shouldCommit: isSessionEstablished
+	gateway_send(c.gw, .Presence_Update, presence_value(c, old_afk = true,, temp));
+	gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
+}
+
+// idle_poll: IdleStore's powerMonitor poll (every 10 s, gateway control thread). Idle once the
+// last input anywhere is over 10 min old; idleSince is that input's time (not before launch).
+IDLE_AFTER_MS :: 600_000;
+idle_poll :: (c: *Client, now: s64) {
+	ms, ok := system_idle_ms();
+	if !ok return;
+	last_input := max(now - ms, c.launch_ms);
+	idle := now - last_input > IDLE_AFTER_MS;
+	if idle == (atomic_load(*c.idle_since) != 0) return;
+	atomic_store(*c.idle_since, ifx idle then last_input else 0);
+	if c.cfg.wakeup c.cfg.wakeup(c.cfg.wakeup_data);
 }
 
 // ---- persistence ----

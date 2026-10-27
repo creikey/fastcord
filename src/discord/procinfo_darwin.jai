@@ -26,9 +26,17 @@ process_exe_paths :: () -> []string {
 	return out;
 }
 
+// system_idle_ms: time since the last user input anywhere (Electron's powerMonitor.getSystemIdleTime).
+system_idle_ms :: () -> s64, bool {
+	s := CGEventSourceSecondsSinceLastEventType(0, 0xFFFF_FFFF); // combined session state, any input
+	return cast(s64) (s * 1000), s >= 0;
+}
+
 #scope_file
 
 libc :: #system_library "libc";
+core_graphics :: #library,system,link_always "CoreGraphics";
+CGEventSourceSecondsSinceLastEventType :: (state: s32, event_type: u32) -> float64 #foreign core_graphics;
 
 MACH_TASK_BASIC_INFO :: 20;
 PIDPATHINFO_MAXSIZE :: 4096;
