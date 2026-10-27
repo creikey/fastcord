@@ -19,11 +19,11 @@ writer_make :: (allocator := temp) -> Writer {
 }
 
 w_u8 :: (w: *Writer, v: u8) {append(*w.buf, v);}
-w_u16 :: (w: *Writer, v: u16) {append(*w.buf, cast(u8)(v >> 8), cast(u8)(v));}
-w_u32 :: (w: *Writer, v: u32) {append(*w.buf, cast(u8)(v >> 24), cast(u8)(v >> 16), cast(u8)(v >> 8), cast(u8)(v));}
+w_u16 :: (w: *Writer, v: u16) {append(*w.buf, cast,no_check(u8)(v >> 8), cast,no_check(u8)(v));}
+w_u32 :: (w: *Writer, v: u32) {append(*w.buf, cast,no_check(u8)(v >> 24), cast,no_check(u8)(v >> 16), cast,no_check(u8)(v >> 8), cast,no_check(u8)(v));}
 w_u64 :: (w: *Writer, v: u64) {
 	w_u32(w, cast(u32)(v >> 32));
-	w_u32(w, cast(u32)(v));
+	w_u32(w, cast,no_check(u32)(v));
 }
 w_raw :: (w: *Writer, b: []u8) {append(*w.buf, ..b);}
 
@@ -57,14 +57,14 @@ w_end :: (w: *Writer, pos: int) {
 	hdr: [4]u8;
 	hl := 0;
 	if n < 1 << 6 {
-		hdr[0] = cast(u8)(n);
+		hdr[0] = cast,no_check(u8)(n);
 		hl = 1;
 	} else if n < 1 << 14 {
-		hdr[0] = cast(u8)(n >> 8) | 0x40;
-		hdr[1] = cast(u8)(n);
+		hdr[0] = cast,no_check(u8)(n >> 8) | 0x40;
+		hdr[1] = cast,no_check(u8)(n);
 		hl = 2;
 	} else {
-		hdr = .{cast(u8)(n >> 24) | 0x80, cast(u8)(n >> 16), cast(u8)(n >> 8), cast(u8)(n)};
+		hdr = .[cast,no_check(u8)(n >> 24) | 0x80, cast,no_check(u8)(n >> 16), cast,no_check(u8)(n >> 8), cast,no_check(u8)(n)];
 		hl = 4;
 	}
 	if hl < 4 {
@@ -74,7 +74,7 @@ w_end :: (w: *Writer, pos: int) {
 	copy(sub_from(w.buf, pos), sub(hdr, 0, hl));
 }
 
-w_optional :: (w: *Writer, present: bool) {w_u8(w, ifx present then 1 else 0);}
+w_optional :: (w: *Writer, present: bool) {w_u8(w, cast(u8) present);}
 
 // ---------------------------------------------------------------------------
 // Reader. Slices returned point into the input buffer.
@@ -108,15 +108,15 @@ r_raw :: (r: *Reader, n: int) -> []u8 {
 
 r_u8 :: (r: *Reader) -> u8 {
 	b := r_raw(r, 1);
-	return ifx b != null then b[0] else 0;
+	return ifx b.count then b[0] else 0;
 }
 r_u16 :: (r: *Reader) -> u16 {
 	b := r_raw(r, 2);
-	return ifx b != null then cast(u16)(b[0]) << 8 | cast(u16)(b[1]) else 0;
+	return ifx b.count then cast(u16)(b[0]) << 8 | cast(u16)(b[1]) else 0;
 }
 r_u32 :: (r: *Reader) -> u32 {
 	b := r_raw(r, 4);
-	return ifx b != null then cast(u32)(b[0]) << 24 | cast(u32)(b[1]) << 16 | cast(u32)(b[2]) << 8 | cast(u32)(b[3]) else 0;
+	return ifx b.count then cast(u32)(b[0]) << 24 | cast(u32)(b[1]) << 16 | cast(u32)(b[2]) << 8 | cast(u32)(b[3]) else 0;
 }
 r_u64 :: (r: *Reader) -> u64 {
 	hi := r_u32(r);

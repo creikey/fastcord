@@ -128,9 +128,9 @@ destroy :: (v: Value, allocator := context.allocator) {
 
 // big_from_u64 makes the canonical Value for an unsigned 64-bit integer.
 big_from_u64 :: (x: u64, allocator := context.allocator) -> Value {
-	if x <= cast(u64)(S64_MAX) { return vint(x); }
+	if x <= cast(u64)(S64_MAX) { return vint(cast(s64) x); }
 	d := make_slice(u8, 8, allocator);
-	for i: 0..7 { d[i] = cast(u8)(x >> (8 * cast(u64)(i))); }
+	for i: 0..7 { d[i] = cast,no_check(u8)(x >> (8 * cast,no_check(u64)(i))); }
 	return vbig(Big.{digits = d});
 }
 

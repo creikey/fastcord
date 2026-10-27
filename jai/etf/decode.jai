@@ -59,10 +59,10 @@ inflate_term :: (body: []u8, limit: int, allocator: Allocator) -> []u8, Error {
 	if len(body) < 4 { return .{}, .Truncated; }
 	size := cast(int)(cast(u32)(body[0]) << 24 | cast(u32)(body[1]) << 16 | cast(u32)(body[2]) << 8 | cast(u32)(body[3]));
 	if size > limit { return .{}, .Too_Large; }
-	context.allocator = allocator;
+	push_allocator(allocator);
 	buf: bytes.Buffer;
 	zerr := zlib.inflate(sub_from(body, 4), *buf, false, size);
-	if zerr != null {
+	if zerr != .None {
 		bytes.buffer_destroy(*buf);
 		return .{}, .Zlib;
 	}
@@ -103,8 +103,7 @@ take_str :: (d: *Decoder, n: int) -> string, Error {
 	d.pos += n;
 	if n == 0 { return "", .None; }
 	if d.opts.borrow { return as_string(src), .None; }
-	dst, aerr := make_slice(u8, n, d.allocator);
-	if aerr != null { return "", .Out_Of_Memory; }
+	dst := make_slice(u8, n, d.allocator);
 	copy(dst, src);
 	return as_string(dst), .None;
 }
@@ -133,7 +132,7 @@ take_atom :: (d: *Decoder, n: int, utf8: bool) -> Value, Error {
 		return vatom(s), err;
 	}
 	d.pos += n;
-	sb := strings.builder_make(0, n * 2, d.allocator);
+	sb := strings.builder_make(n * 2, d.allocator);
 	for i: 0..n-1 { strings.write_rune(*sb, cast(u32)(raw[i])); }
 	return vatom(strings.to_string(sb)), .None;
 }
@@ -152,12 +151,12 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		return vint(rd_u8(d)), .None;
 	case .Integer;
 		if !need(d, 4) { return .{}, .Truncated; }
-		return vint(cast(s32)(rd_u32(d))), .None;
+		return vint(cast,no_check(s32)(rd_u32(d))), .None;
 	case .New_Float;
 		if !need(d, 8) { return .{}, .Truncated; }
 		hi := cast(u64)(rd_u32(d));
 		lo := cast(u64)(rd_u32(d));
-		return transmute(float64, (hi << 32 | lo)), .None;
+		return vfloat(transmute(float64, hi << 32 | lo)), .None;
 	case .Float;
 		if !need(d, 31) { return .{}, .Truncated; }
 		raw := as_string(sub(sub_from(d.data, d.pos), 0, 31));
@@ -166,7 +165,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		if i >= 0 { raw = sub(raw, 0, i); } }
 		f, ok := strconv.parse_f64(strings.trim_space(raw));
 		if !ok { return .{}, .Bad_Float; }
-		return f, .None;
+		return vfloat(f), .None;
 	case .Atom; #through; case .Atom_Utf8;
 		if !need(d, 2) { return .{}, .Truncated; }
 		n := rd_u16(d);
@@ -176,7 +175,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		n := cast(int)(rd_u8(d));
 		{ __r5, __r6 := take_atom(d, n, cast(Tag)(tag) == .Small_Atom_Utf8); return __r5, __r6; }
 	case .Nil;
-		return vlist(null), .None;
+		return vlist(.{}), .None;
 	case .String;
 		if !need(d, 2) { return .{}, .Truncated; }
 		n := rd_u16(d);
@@ -185,7 +184,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 	case .Binary;
 		if !need(d, 4) { return .{}, .Truncated; }
 		n := cast(int)(rd_u32(d));
-		{ __r7, __r8 := take_str(d, n); return __r7, __r8; }
+		{ s, serr := take_str(d, n); return vstring(s), serr; }
 	case .Small_Big; #through; case .Large_Big;
 		n: int;
 		if cast(Tag)(tag) == .Small_Big {
@@ -204,8 +203,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		if !need(d, 4) { return .{}, .Truncated; }
 		n := cast(int)(rd_u32(d));
 		if !need(d, n + 1) { return .{}, .Truncated; } // each element and the tail take >=1 byte
-		items, aerr := make_slice(Value, n, d.allocator);
-		if aerr != null { return .{}, .Out_Of_Memory; }
+		items := make_slice(Value, n, d.allocator);
 		for i: 0..n-1 {
 			items[i], err = decode_term(d);
 			if err != .None { return vlist(sub(items, 0, i + 1)), err; }
@@ -224,8 +222,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 			n = cast(int)(rd_u32(d));
 		}
 		if !need(d, n) { return .{}, .Truncated; }
-		items, aerr := make_slice(Value, n, d.allocator);
-		if aerr != null { return .{}, .Out_Of_Memory; }
+		items := make_slice(Value, n, d.allocator);
 		for i: 0..n-1 {
 			items[i], err = decode_term(d);
 			if err != .None { return vtuple(sub(items, 0, i + 1)), err; }
@@ -235,8 +232,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		if !need(d, 4) { return .{}, .Truncated; }
 		n := cast(int)(rd_u32(d));
 		if n > (len(d.data) - d.pos) / 2 { return .{}, .Truncated; }
-		pairs, aerr := make_slice(Pair, n, d.allocator);
-		if aerr != null { return .{}, .Out_Of_Memory; }
+		pairs := make_slice(Pair, n, d.allocator);
 		for i: 0..n-1 {
 			pairs[i].key, err = decode_term(d);
 			if err != .None { return vmap(sub(pairs, 0, i + 1)), err; }
@@ -257,11 +253,10 @@ make_big :: (d: *Decoder, neg: bool, digits: []u8) -> Value, Error {
 	if n <= 8 {
 		mag: u64;
 		for < i: n - 1..0 { mag = mag << 8 | cast(u64)(digits[i]); }
-		if !neg && mag <= cast(u64)(S64_MAX) { return vint(mag), .None; }
-		if neg && mag <= cast(u64)(S64_MAX) + 1 { return vint(0 - mag), .None; }
+		if !neg && mag <= cast(u64)(S64_MAX) { return vint(cast(s64) mag), .None; }
+		if neg && mag <= cast(u64)(S64_MAX) + 1 { return vint(cast,no_check(s64) (0 - mag)), .None; }
 	}
-	out, aerr := make_slice(u8, n, d.allocator);
-	if aerr != null { return .{}, .Out_Of_Memory; }
+	out := make_slice(u8, n, d.allocator);
 	copy(out, sub(digits, 0, n));
 	return vbig(Big.{negative = neg, digits = out}), .None;
 }

@@ -19,11 +19,11 @@ encode_into :: (buf: *[..]u8, v: Value) -> Error {
 #scope_module
 
 put_u16 :: (buf: *[..]u8, x: int) {
-	append(buf, cast(u8)(x >> 8), cast(u8)(x));
+	append(buf, cast,no_check(u8)(x >> 8), cast,no_check(u8)(x));
 }
 
 put_u32 :: (buf: *[..]u8, x: u32) {
-	append(buf, cast(u8)(x >> 24), cast(u8)(x >> 16), cast(u8)(x >> 8), cast(u8)(x));
+	append(buf, cast,no_check(u8)(x >> 24), cast,no_check(u8)(x >> 16), cast,no_check(u8)(x >> 8), cast,no_check(u8)(x));
 }
 
 put_atom :: (buf: *[..]u8, name: string) {
@@ -41,15 +41,15 @@ put_int :: (buf: *[..]u8, x: s64) {
 		append(buf, cast(u8)(Tag.Small_Integer), cast(u8)(x));
 	} else if x >= cast(s64)(S32_MIN) && x <= cast(s64)(S32_MAX) {
 		append(buf, cast(u8)(Tag.Integer));
-		put_u32(buf, cast(u32)(cast(s32)(x)));
+		put_u32(buf, cast,no_check(u32)(cast,no_check(s32)(x)));
 	} else {
 		neg := x < 0;
-		mag := ifx !neg then cast(u64)(x) else 0 - cast(u64)x;
+		mag := ifx !neg then cast,no_check(u64)(x) else 0 - cast,no_check(u64)x;
 		n := 0;
 		{ t := mag;
 		while t != 0 { n += 1;  t >>= 8; } }
 		append(buf, cast(u8)(Tag.Small_Big), cast(u8)(n), cast(u8)(ifx neg then 1 else 0));
-		for i: 0..n-1 { append(buf, cast(u8)(mag >> (8 * cast(u64)(i)))); }
+		for i: 0..n-1 { append(buf, cast,no_check(u8)(mag >> (8 * cast,no_check(u64)(i)))); }
 	}
 }
 
@@ -65,8 +65,8 @@ encode_term :: (buf: *[..]u8, v: Value, depth: int) -> Error {
 	case .Float; x := v.f;
 		bits := transmute(u64, x);
 		append(buf, cast(u8)(Tag.New_Float));
-		put_u32(buf, cast(u32)(bits >> 32));
-		put_u32(buf, cast(u32)(bits));
+		put_u32(buf, cast,no_check(u32)(bits >> 32));
+		put_u32(buf, cast,no_check(u32)(bits));
 	case .Big; x := v.big;
 		n := len(x.digits);
 		if n < 256 {
@@ -136,7 +136,7 @@ map_builder :: (cap := 8, allocator := context.allocator) -> Map_Builder {
 }
 
 map_put :: (b: *Map_Builder, key: string, value: Value) {
-	append(*b.pairs, Pair.{key = key, value = value});
+	append(*b.pairs, Pair.{key = vstring(key), value = value});
 }
 
 map_done :: (b: *Map_Builder) -> Map {

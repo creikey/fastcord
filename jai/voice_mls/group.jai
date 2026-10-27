@@ -62,7 +62,7 @@ Group :: struct {
 
 group_alloc :: () -> *Group {
 	g := new(Group);
-	if virtual.arena_init_growing(*g.arena) != null {
+	if virtual.arena_init_growing(*g.arena) != .None {
 		free(g);
 		return null;
 	}
@@ -76,8 +76,8 @@ group_alloc :: () -> *Group {
 
 group_destroy :: (g: *Group) {
 	if g == null { return; }
-	crypto.zero_explicit(*g.ks, size_of(g.ks));
-	crypto.zero_explicit(*g.sig_priv, size_of(g.sig_priv));
+	crypto.zero_explicit(*g.ks, size_of(type_of(g.ks)));
+	crypto.zero_explicit(*g.sig_priv, size_of(type_of(g.sig_priv)));
 	virtual.arena_destroy(*g.arena);
 	free(g);
 }
@@ -139,8 +139,8 @@ key_schedule :: (init_prev: []u8, commit_secret: []u8, psk_secret: []u8, ctx_byt
 welcome_key_nonce :: (welcome_secret: []u8) -> [NK]u8, [NN]u8 {
 	key: [NK]u8;
 	nonce: [NN]u8;
-	expand_with_label(welcome_secret, "key", null, view(key));
-	expand_with_label(welcome_secret, "nonce", null, view(nonce));
+	expand_with_label(welcome_secret, "key", .{}, view(key));
+	expand_with_label(welcome_secret, "nonce", .{}, view(nonce));
 	return key, nonce;
 }
 
@@ -165,8 +165,8 @@ compute_psk_secret :: (g: *Group, psks: []Psk_Id) -> Secret, Error {
 				for * e: g.resumption { if e.epoch == p.epoch { value = view(e.secret); } }
 			}
 		}
-		if value == null { return out, .State; }
-		extracted := kdf_extract(null, value);
+		if value.data == null { return out, .State; }
+		extracted := kdf_extract(.{}, value);
 		w := writer_make();
 		w_psk_id(*w, p);
 		w_u16(*w, cast(u16)(i));
@@ -226,7 +226,7 @@ authenticated_content :: (content_raw: []u8, signature: []u8, confirmation_tag: 
 }
 
 proposal_ref :: (content_raw: []u8, signature: []u8) -> Secret {
-	return ref_hash("MLS 1.0 Proposal Reference", authenticated_content(content_raw, signature, null, false));
+	return ref_hash("MLS 1.0 Proposal Reference", authenticated_content(content_raw, signature, .{}, false));
 }
 
 key_package_ref :: (kp_raw: []u8) -> Secret {
@@ -238,7 +238,7 @@ external_senders :: (g: *Group, a := temp) -> []External_Sender {
 	if !ok { return .{}; }
 	r := reader_make(e.data);
 	sub := r_sub(*r);
-	out := make_dynamic(External_Sender, 0, 1);
+	out := make_dynamic(External_Sender, 0, 1, a);
 	while r_ok(*sub) && r_left(*sub) > 0 { append(*out, r_external_sender(*sub)); }
 	return view(out);
 }
@@ -287,7 +287,7 @@ validate_key_package :: (kp: *Key_Package) -> Error {
 	if kp.leaf.source != .Key_Package { return .Verify; }
 	if bytes_equal(kp.init_key, kp.leaf.encryption_key) { return .Verify; }
 	if !verify_with_label(kp.leaf.signature_key, "KeyPackageTBS", key_package_tbs(kp.*), kp.signature) { return .Verify; }
-	if !verify_leaf_signature(kp.leaf, null, 0) { return .Verify; }
+	if !verify_leaf_signature(kp.leaf, .{}, 0) { return .Verify; }
 	return .None;
 }
 
@@ -304,7 +304,7 @@ group_cache_proposal :: (g: *Group, msg_bytes: []u8) -> Secret, *Cached_Proposal
 	if pm.content.content_type != .Proposal { return ref, null, .State; }
 	__e4 := verify_public_message(g, pm); if failed(__e4) return ref, prop, __e4;
 	ref = proposal_ref(pm.content.raw, pm.signature);
-	for * c: g.proposals { if c.ref == ref { return ref, *c, .None; } }
+	for * c: g.proposals { if bytes_equal(view(c.ref), view(ref)) { return ref, c, .None; } }
 	if pm.content.proposal.type == .Add {
 		__e5 := validate_key_package(*pm.content.proposal.add); if failed(__e5) return ref, prop, __e5;
 	}
@@ -409,7 +409,7 @@ key_package_create :: (id: *Identity, allocator := context.allocator) -> []u8, K
 		not_before = 0,
 		not_after = U64_MAX
 	};
-	sig, ok := sign_with_label(view(id.sig_priv), "LeafNodeTBS", leaf_node_tbs(kp.leaf, null, 0), allocator);
+	sig, ok := sign_with_label(view(id.sig_priv), "LeafNodeTBS", leaf_node_tbs(kp.leaf, .{}, 0), allocator);
 	assert(ok);
 	kp.leaf.signature = sig;
 	sig2, ok2 := sign_with_label(view(id.sig_priv), "KeyPackageTBS", key_package_tbs(kp), allocator);
@@ -431,7 +431,7 @@ group_create :: (gid: []u8, id: *Identity, kp: *Key_Package, secrets: *Key_Packa
 	g = group_alloc();
 	a := g.alloc;
 	g.sig_priv = id.sig_priv;
-	g.tree.nodes = make_dynamic(Node, 0, 1);
+	g.tree.nodes = make_dynamic(Node, 0, 1, a);
 	b := clone_bytes(kp.raw, a);
 	r := reader_make(b);
 	kp2 := r_key_package(*r, a);
@@ -459,8 +459,8 @@ group_create :: (gid: []u8, id: *Identity, kp: *Key_Package, secrets: *Key_Packa
 	}
 	crypto.rand_bytes(view(g.ks.epoch));
 	key_schedule_from_epoch(*g.ks);
-	tag := mac(view(g.ks.confirmation_key), null);
-	g.interim = interim_hash(null, view(tag));
+	tag := mac(view(g.ks.confirmation_key), .{});
+	g.interim = interim_hash(.{}, view(tag));
 	return g, .None;
 }
 #scope_module
@@ -614,7 +614,8 @@ group_process_commit :: (g: *Group, msg_bytes: []u8) -> *Group, Error {
 	__v18, __e17 := copy_context(gc, ng.alloc); if failed(__e17) return res, __e17; ng.ctx = __v18;
 	ctx_bytes := group_context_bytes(ng.ctx);
 	psk_secret, __e19 := compute_psk_secret(g, view(ap.psks)); if failed(__e19) return res, __e19;
-	psk_slice: []u8 = ifx len(ap.psks) > 0 then view(psk_secret) else null;
+	psk_slice: []u8;
+	if len(ap.psks) > 0 { psk_slice = view(psk_secret); }
 	ng.ks = key_schedule(view(g.ks.init), view(commit_secret), psk_slice, ctx_bytes);
 	tag := mac(view(ng.ks.confirmation_key), view(confirmed));
 	if !bytes_equal(view(tag), pm.confirmation_tag) { return null, .Verify; }
@@ -825,7 +826,8 @@ group_commit :: (g: *Group, force_path := false, allocator := context.allocator)
 	__v25, __e24 := copy_context(gc, ng.alloc); if failed(__e24) return res, __e24; ng.ctx = __v25;
 	ctx_bytes := group_context_bytes(ng.ctx);
 	psk_secret, __e26 := compute_psk_secret(g, view(ap.psks)); if failed(__e26) return res, __e26;
-	psk_slice: []u8 = ifx len(ap.psks) > 0 then view(psk_secret) else null;
+	psk_slice: []u8;
+	if len(ap.psks) > 0 { psk_slice = view(psk_secret); }
 	ng.ks = key_schedule(view(g.ks.init), view(commit_secret), psk_slice, ctx_bytes);
 	tag := mac(view(ng.ks.confirmation_key), view(confirmed));
 	ng.interim = interim_hash(view(confirmed), view(tag));
@@ -876,7 +878,7 @@ build_welcome :: (g: *Group, ng: *Group, ap: *Applied, fdp: []u32, path_secrets:
 	w_raw(*giw, group_info_tbs(gi));
 	w_vec(*giw, sig);
 	key, nonce := welcome_key_nonce(view(ng.ks.welcome));
-	egi := aead_seal(view(key), view(nonce), null, view(giw.buf), temp);
+	egi := aead_seal(view(key), view(nonce), .{}, view(giw.buf), temp);
 
 	secrets := make_dynamic(Encrypted_Group_Secrets, 0, len(ap.joiners), temp);
 	for j, ji: ap.joiners {
@@ -934,7 +936,7 @@ group_join :: (welcome_bytes: []u8, p: Join_Params) -> *Group, Error {
 	if wel.cipher_suite != CIPHER_SUITE { return null, .Unsupported; }
 	my_ref := key_package_ref(p.key_package.raw);
 	egs: *Encrypted_Group_Secrets;
-	for * e: wel.secrets { if bytes_equal(e.new_member, view(my_ref)) { egs = *e; } }
+	for * e: wel.secrets { if bytes_equal(e.new_member, view(my_ref)) { egs = e; } }
 	if egs == null { return null, .State; }
 	gs_bytes, ok := decrypt_with_label(view(p.secrets.init_priv), "Welcome", wel.encrypted_group_info, egs.secrets, a);
 	if !ok { return null, .Crypto; }
@@ -951,7 +953,7 @@ group_join :: (welcome_bytes: []u8, p: Join_Params) -> *Group, Error {
 	m := kdf_extract(view(ng.ks.joiner), psk_slice);
 	ng.ks.welcome = derive_secret(view(m), "welcome");
 	key, nonce := welcome_key_nonce(view(ng.ks.welcome));
-	gi_bytes, ok2 := aead_open(view(key), view(nonce), null, wel.encrypted_group_info, a);
+	gi_bytes, ok2 := aead_open(view(key), view(nonce), .{}, wel.encrypted_group_info, a);
 	if !ok2 { return null, .Crypto; }
 	ir := reader_make(gi_bytes);
 	gi := r_group_info(*ir, a);
@@ -961,7 +963,7 @@ group_join :: (welcome_bytes: []u8, p: Join_Params) -> *Group, Error {
 	tree_bytes := p.ratchet_tree;
 	{ e, has := find_extension(gi.extensions, EXT_RATCHET_TREE);
 	if has { tree_bytes = e.data; } }
-	if tree_bytes == null { return null, .State; }
+	if tree_bytes.data == null { return null, .State; }
 	__v33, __e32 := parse_ratchet_tree(clone_bytes(tree_bytes, a), a); if failed(__e32) return res, __e32; ng.tree = __v33;
 	t := *ng.tree;
 
@@ -1027,7 +1029,7 @@ external_proposal :: (group_id: []u8, ep: u64, sender_index: u32, prop: Proposal
 		proposal = prop
 	};
 	raw := framed_content_bytes(fc);
-	sig, ok := sign_with_label(sig_priv, "FramedContentTBS", framed_content_tbs(raw, fc.sender, null), temp);
+	sig, ok := sign_with_label(sig_priv, "FramedContentTBS", framed_content_tbs(raw, fc.sender, .{}), temp);
 	if !ok { return .{}, false; }
 	w := writer_make(allocator);
 	w_u16(*w, PROTOCOL_VERSION);

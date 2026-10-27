@@ -1,7 +1,3 @@
-#if OS == .WINDOWS {
-} else {
-}
-
 Error :: enum u8 {
 	None;
 	Truncated;
@@ -38,10 +34,7 @@ decompress :: (input: []u8, allocator := context.allocator, max_out := 256 << 20
 	while true {
 		start := len(out);
 		room := min(max(4096, cap(out) - start), max_out + 1 - start);
-		if resize(*out, start + room) != null {
-			err = .Out_Of_Memory;
-			break;
-		}
+		resize(*out, start + room);
 		next_out := raw_data(sub_from(out, start));
 		avail_out := cast(u64)(room);
 		r := BrotliDecoderDecompressStream(st, *avail_in, *next_in, *avail_out, *next_out, null);

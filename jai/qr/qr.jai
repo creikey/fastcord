@@ -14,14 +14,8 @@ Level :: enum u8 {
 }
 #scope_module
 
-// qr.js QRErrorCorrectLevel values (the format bits): L 1, M 0, Q 3, H 2.
-// qr.js QRErrorCorrectLevel values (the format bits): L 1, M 0, Q 3, H 2.
-LEVEL_BITS := ([#run enum_count(Level)]u32).{
-	__IDX__.L = 1,
-	__IDX__.M = 0,
-	__IDX__.Q = 3,
-	__IDX__.H = 2
-};
+// qr.js QRErrorCorrectLevel values (the format bits), indexed by Level: L 1, M 0, Q 3, H 2.
+LEVEL_BITS :: u32.[1, 0, 3, 2];
 #scope_export
 
 MAX_MODULES :: 4 * 40 + 17;
@@ -61,7 +55,8 @@ encode :: (text: string, level: Level = .M) -> Code_, bool {
 	c.version = version;
 	c.size = 4 * version + 17;
 	// getBestMaskPattern: the lowest getLostPoint, the first on ties
-	best, best_mask := 0.0, 0;
+	best: float64 = 0;
+	best_mask := 0;
 	for m: 0..7 {
 		make_impl(*c, level, codewords, m, true);
 		p := lost_point(*c);
@@ -216,7 +211,7 @@ poly_mod :: (g: *Gf, a: []int, b: []int) -> [..]int {
 }
 
 error_correct_poly :: (g: *Gf, ec_len: int) -> [..]int {
-	a := poly_new(.{1}, 0);
+	a := poly_new(int.[1], 0);
 	for i: 0..ec_len-1 {
 		b := int.[1, gexp(g, i)];
 		m := poly_multiply(g, view(a), view(b));
@@ -235,7 +230,7 @@ Bits :: struct {
 
 put_bit :: (b: *Bits, on: bool) {
 	if len(b.buf) <= b.n / 8 { append(*b.buf, 0); }
-	if on { b.buf[b.n / 8] |= 0x80 >> cast(u64)(b.n % 8); }
+	if on { b.buf[b.n / 8] |= cast(u8) (0x80 >> cast(u64)(b.n % 8)); }
 	b.n += 1;
 }
 
@@ -252,7 +247,7 @@ create_data :: (version: int, level: Level, data: []u8) -> [..]int, bool {
 	put(*b, len(data), length_bits(version));
 	for x: data { put(*b, cast(int)(x), 8); }
 	total := data_capacity(version, level);
-	if b.n > 8 * total { return .{}, false; }
+	if b.n > 8 * total { return zero([..]int), false; }
 	if b.n + 4 <= 8 * total { put(*b, 0, 4); }
 	while b.n % 8 != 0 { put_bit(*b, false); }
 	while b.n < 8 * total {
@@ -306,9 +301,9 @@ create_bytes :: (b: *Bits, version: int, level: Level) -> [..]int {
 
 // ---- layout ----
 
-G15 :: 0b10100110111;
-G18 :: 0b1111100100101;
-G15_MASK :: 0b101010000010010;
+G15 : u32 : 0b10100110111;
+G18 : u32 : 0b1111100100101;
+G15_MASK : u32 : 0b101010000010010;
 
 bch_digit :: (v_in: u32) -> int {
 	v := v_in;
@@ -361,7 +356,7 @@ make_impl :: (c: *Code_, level: Level, data: [..]int, mask: int, test: bool) {
 	for i: 0..(n * n)-1 { c.modules[i] = false; }
 	place :: (c: *Code_, set: *[MAX_MODULES * MAX_MODULES]bool, r: int, col: int, v: bool) {
 		c.modules[r * c.size + col] = v;
-		set[r * c.size + col] = true;
+		set.*[r * c.size + col] = true;
 	}
 	// position probes
 	probes := [2]int.[.[0, 0], .[n - 7, 0], .[0, n - 7]];
@@ -390,7 +385,7 @@ make_impl :: (c: *Code_, level: Level, data: [..]int, mask: int, test: bool) {
 	for r: 8..(n - 8)-1 { if !set[r * n + 6] { place(c, *set, r, 6, r % 2 == 0); } }
 	for cc: 8..(n - 8)-1 { if !set[6 * n + cc] { place(c, *set, 6, cc, cc % 2 == 0); } }
 	// type info
-	bits := bch_type_info(LEVEL_BITS[level] << 3 | cast(u32)(mask));
+	bits := bch_type_info(LEVEL_BITS[cast(int) level] << 3 | cast(u32)(mask));
 	for i: 0..14 {
 		on := !test && (bits >> cast(u64)(i)) & 1 == 1;
 		if i < 6 { place(c, *set, i, 8, on); } else if i < 8 { place(c, *set, i + 1, 8, on); } else { place(c, *set, n - 15 + i, 8, on); }
@@ -423,7 +418,7 @@ make_impl :: (c: *Code_, level: Level, data: [..]int, mask: int, test: bool) {
 		while true {
 			for k: 0..1 {
 				cc := col - k;
-				if set[row * n + cc] { { col -= 2; continue; } }
+				if set[row * n + cc] continue;
 				on := false;
 				if idx < len(data) { on = (data[idx] >> cast(u64)(bit)) & 1 == 1; }
 				if mask_bit(mask, row, cc) { on = !on; }

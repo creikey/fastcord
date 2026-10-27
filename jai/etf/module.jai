@@ -3,6 +3,7 @@
 #import "Hash_Table";
 #import "Atomics";
 #import "fc";
+#import "Math";
 bytes :: #import "fc_bytes";
 mem :: #import "fc_mem";
 strconv :: #import "fc_strconv";

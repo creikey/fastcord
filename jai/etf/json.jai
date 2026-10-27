@@ -306,7 +306,7 @@ json_value :: (p: *Json_Parser) -> Value, Error {
 			p.pos += 1;
 			v, verr := json_value(p);
 			if verr != .None { return .{}, verr; }
-			append(*pairs, Pair.{key = k, value = v});
+			append(*pairs, Pair.{key = vstring(k), value = v});
 			json_ws(p);
 			if p.pos >= len(p.s) { return .{}, .Bad_Json; }
 			if p.s[p.pos] == #char "," {
@@ -345,7 +345,7 @@ json_value :: (p: *Json_Parser) -> Value, Error {
 		}
 	} else if c == 34 {
 		s, err := json_string(p);
-		return s, err;
+		return vstring(s), err;
 	} else if c == #char "t" {
 		if strings.has_prefix(sub_from(p.s, p.pos), "true") {
 			p.pos += 4;
@@ -398,15 +398,15 @@ json_number :: (p: *Json_Parser) -> Value, Error {
 		}
 		if !overflow {
 			if !neg { return big_from_u64(mag, p.allocator), .None; }
-			if mag <= cast(u64)(S64_MAX) + 1 { return vint(0 - mag), .None; }
+			if mag <= cast(u64)(S64_MAX) + 1 { return vint(cast,no_check(s64) (0 - mag)), .None; }
 			out := make_slice(u8, 8, p.allocator);
-			for i: 0..7 { at(*out, i).* = cast(u8)(mag >> (8 * cast(u64)(i))); }
+			for i: 0..7 { at(*out, i).* = cast,no_check(u8)(mag >> (8 * cast,no_check(u64)(i))); }
 			return vbig(Big.{negative = true, digits = out}), .None;
 		}
 	}
 	f, ok := strconv.parse_f64(lit);
 	if !ok { return .{}, .Bad_Json; }
-	return f, .None;
+	return vfloat(f), .None;
 }
 
 hexval :: (c: u8) -> int {
