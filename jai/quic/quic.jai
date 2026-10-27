@@ -82,7 +82,9 @@ Stream :: struct {
 quic_ctx: *tls.SSL_CTX;
 #scope_export
 
+quic_once: sync.Once;
 init_quic :: () {
+	tls.ensure_init();
 	quic_ctx = tls.new_ctx(true);
 	if quic_ctx != null && ngtcp2_crypto_boringssl_configure_client_context(quic_ctx) != 0 { quic_ctx = null; }
 }
@@ -121,6 +123,7 @@ dial :: (host: string, port := 443, addr: net.Address = .{}) -> *Conn, http.Erro
 		ep.address = ifx ep4.address.kind != .None then ep4.address else ep6.address;
 		if ep.address.kind == .None { return null, .Io; }
 	}
+	sync.once_do(*quic_once, init_quic);
 	ssl := tls.new_ssl(quic_ctx, .{alpn = string.["h3"], server_name = host}, true);
 	if ssl == null { return null, .Io; }
 	family := net.family_from_endpoint(ep);

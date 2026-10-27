@@ -7,6 +7,7 @@
 fmt :: #import "fc_fmt";
 http :: #import "http";
 locks :: #import "locks";
+sync :: #import "fc_sync";
 net :: #import "fc_net";
 runtime :: #import "fc_runtime";
 strconv :: #import "fc_strconv";

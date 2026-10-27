@@ -44,6 +44,9 @@ host_index: s32;
 tcp_ctx: *SSL_CTX;
 #scope_export
 
+// ensure_init: the shared TCP context and the ex_data index, made once on first use.
+ensure_init :: () { sync.once_do(*init_once, init_tls); }
+init_once: sync.Once;
 init_tls :: () {
 	host_index = SSL_get_ex_new_index(0, null, null, null, (parent: *void, ptr: *void, ad: *void, index: s32, argl: s64, argp: *void) #c_call {
 		OPENSSL_free(ptr);
@@ -240,6 +243,7 @@ last_error :: () -> Error {return context._last_error;}
 // connect runs the TLS handshake over under. On success the Session owns under and closes it in
 // close(). On failure under is left open.
 connect :: (under: netio.Stream, cfg: Config, allocator := context.allocator) -> *Session, netio.Error {
+	ensure_init();
 	ssl := new_ssl(tcp_ctx, cfg, false);
 	if ssl == null {
 		context._last_error = .Internal;

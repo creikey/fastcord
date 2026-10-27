@@ -9,6 +9,7 @@ chacha20 :: #import "fc_chacha20";
 hash :: #import "fc_chash";
 intrinsics :: #import "fc_intrinsics";
 locks :: #import "locks";
+sync :: #import "fc_sync";
 netio :: #import "netio";
 runtime :: #import "fc_runtime";
 time :: #import "fc_time";

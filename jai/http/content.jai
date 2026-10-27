@@ -11,18 +11,18 @@ Registered_Decoder :: struct {
 }
 
 registry_mu: locks.Mutex;
-registry: [16]Registered_Decoder;
-registry_len: int;
+// The built-in decoders are in the table from the start (filled at compile time).
+registry := #run -> [16]Registered_Decoder {
+	r: [16]Registered_Decoder;
+	r[0] = .{"gzip", gzip_decode};
+	r[1] = .{"x-gzip", gzip_decode};
+	r[2] = .{"deflate", deflate_decode};
+	r[3] = .{"br", br_decode};
+	r[4] = .{"zstd", zstd_decode};
+	return r;
+};
+registry_len := 5;
 #scope_export
-
-register_builtin_decoders :: () #no_context {
-	registry[0] = .{"gzip", gzip_decode};
-	registry[1] = .{"x-gzip", gzip_decode};
-	registry[2] = .{"deflate", deflate_decode};
-	registry[3] = .{"br", br_decode};
-	registry[4] = .{"zstd", zstd_decode};
-	registry_len = 5;
-}
 
 // register_decoder adds or replaces a decoder for a content-coding name (case-insensitive).
 register_decoder :: (name: string, fn: Decoder_Proc) -> bool {
