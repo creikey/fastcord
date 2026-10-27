@@ -15,3 +15,15 @@ move 475 683
 up 475 683
 key c cmd
 expect_clipboard "Xhe"
+# Up / Down and Cmd+Left move by laid-out lines (they also need the layout)
+key a cmd
+type ab
+key enter shift
+type cd
+key up
+type Z
+expect_input "abZ\ncd"
+key down
+key left cmd
+type W
+expect_input "abZ\nWcd"
