@@ -40,6 +40,7 @@
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
 - [ ] Search: clicking the search bar again while results are open crashes.
+- [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
 - [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
 - [ ] CI: slim the Jai zip on the Fly server (drop `modules/Bindings_Generator`, ~360 MB of libclang) so each run downloads less.
