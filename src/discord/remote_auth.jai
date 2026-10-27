@@ -514,6 +514,7 @@ ra_session_loop :: (c: *Client, ws: *http.Ws_Conn, s: *Ra_Session, backoff: *Bac
 			next_beat = now_ms() + heartbeat_interval(s);
 		}
 	}
+	return .Fail; // not reached: Jai doesn't treat `while true` as never ending
 }
 
 // POST /users/@me/remote-auth/login {"ticket"} -> encrypted_token; the token
