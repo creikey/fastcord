@@ -97,7 +97,7 @@ Ws_Conn :: struct {
 	// permessage-deflate (negotiated with Ws_Options.allow_deflate)
 	deflate: bool;
 	no_takeover: bool; // server_no_context_takeover: no history between messages
-	history: [..]u8; // last 32 KiB of inflated output (the server's window)
+	inflater: zlib.Inflater; // permessage-deflate decoder, kept across messages (context takeover)
 	inflate_bad: bool; // a compressed message failed to inflate (fails ws_recv)
 }
 
@@ -216,7 +216,7 @@ ws_destroy :: (c: *Ws_Conn) {
 	reader_destroy(*c.r);
 	for m: c.inbox { delete(m.data); }
 	delete(c.inbox);
-	delete(c.history);
+	zlib.inflater_destroy(*c.inflater);
 	if len(c.close_reason) > 0 { delete(c.close_reason); }
 	free(c);
 }
@@ -380,28 +380,18 @@ ws_accept_deflate :: (c: *Ws_Conn, ext: string) -> bool {
 
 // ws_inflate replaces msg (one compressed message) with its inflated bytes.
 ws_inflate :: (c: *Ws_Conn, msg: *[..]u8) -> bool {
-	WINDOW :: 32768;
-	// the message + the stripped sync-flush tail, then an empty final block
-	input := make_dynamic(u8, 0, len(msg) + 6, temp);
-	append(*input, ..view(msg));
-	append(*input, 0x00, 0x00, 0xff, 0xff, 0x03, 0x00);
-	out: bytes.Buffer;
-	defer bytes.buffer_destroy(*out);
-	hist := ifx !c.no_takeover then len(c.history) else 0;
-	append(*out.buf, ..sub_from(c.history, len(c.history) - hist));
-	ctx := compress.Context_Memory_Input.{input_data = view(input), output = *out, bytes_written = cast(s64)(hist)};
-	expected := min(hist + max(8 * len(msg), 4096), c.max_message + hist);
-	if zlib.inflate_raw(*ctx, expected_output_size = expected) != null { return false; }
-	data := sub(out.buf, hist, cast(int)(ctx.bytes_written));
-	if len(data) > c.max_message { return false; }
+	// One raw-DEFLATE decoder per connection keeps the server's 32 KiB window across messages;
+	// each message ends with the sync-flush tail RFC 7692 strips.
+	if c.no_takeover || !c.inflater.state.count { zlib.inflater_init(*c.inflater, .Raw); }
+	input := make_dynamic(u8, 0, len(msg) + 4, temp);
+	append(*input, ..view(msg.*));
+	append(*input, 0x00, 0x00, 0xff, 0xff);
+	out: [..]u8;
+	out.allocator = temp;
+	_, ok := zlib.feed(*c.inflater, input, *out, c.max_message);
+	if !ok { return false; }
 	clear(msg);
-	append(msg, ..data);
-	if !c.no_takeover {
-		all := sub(out.buf, 0, cast(int)(ctx.bytes_written));
-		keep := sub_from(all, max(len(all) - WINDOW, 0));
-		clear(*c.history);
-		append(*c.history, ..keep);
-	}
+	append(msg, ..out);
 	return true;
 }
 

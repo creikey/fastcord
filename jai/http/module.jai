@@ -6,7 +6,6 @@
 base64 :: #import "fc_base64";
 brotli :: #import "brotli";
 bytes :: #import "fc_bytes";
-compress :: #import "fc_compress";
 crypto :: #import "fc_crypto";
 gzip :: #import "fc_gzip";
 locks :: #import "locks";
