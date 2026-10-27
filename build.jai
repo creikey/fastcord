@@ -26,11 +26,11 @@ build :: () {
         case "dev";    ok = compile("fastcord-dev", APP, .OPTIMIZED);
         case "debug";  ok = compile("fastcord-debug", APP, .DEBUG);
         case "tool";   ok = compile(args[1], tprint("t :: #import \"tool_%\"; main :: () { t.main(); }", args[1]));  // a tool is a module with a main
-        case "parity"; ok = compile("parity", file = "jai/discord_parity/module.jai");
+        case "parity"; ok = compile("parity", file = "src/discord_parity/module.jai");
         case "run";    ok = compile(path_strip_extension(path_filename(args[1])), file = args[1]);
         case "test";
             // the offline traffic-parity tests; extra arguments pick tests by name
-            ok = compile("test-discord-jai", file = "jai/tests/discord.jai", optimization = .OPTIMIZED);
+            ok = compile("test-discord-jai", file = "src/tests/discord.jai", optimization = .OPTIMIZED);
             if ok {
                 a: [..]string;
                 array_add(*a, "build/test-discord-jai");
@@ -42,7 +42,7 @@ build :: () {
         case "bench";  ok = compile("fastcord-dev", APP, .OPTIMIZED) && bench(args);
         case "check";
             // everything before a commit: the offline parity tests, the UI scripts and sweep, the bench budget, secrets
-            ok = compile("test-discord-jai", file = "jai/tests/discord.jai", optimization = .OPTIMIZED)
+            ok = compile("test-discord-jai", file = "src/tests/discord.jai", optimization = .OPTIMIZED)
                 && run_command("build/test-discord-jai").exit_code == 0
                 && compile("fastcord-dev", APP, .OPTIMIZED) && ui_scripts() && bench(.["bench"])
                 && run_command("python3", "-I", "tools/check_secrets.py").exit_code == 0;
@@ -69,7 +69,7 @@ usage: jai build.jai - <target>
   check                       test + ui + bench budget + secrets scan: run before committing
   module <name>               type-check one module (every procedure)
   parity                      build/parity (live traffic sessions; human-run only)
-  tool <name>                 build/<name> from jai/tool_<name>
+  tool <name>                 build/<name> from src/tool_<name>
   run <file.jai>              build any program file
   release <vX.Y.Z> [publish]  dist/fastcord-macos.zip; publish uploads it to the GitHub release
   og                          site/og.jpg (link preview) from tools/og/card.html
@@ -81,7 +81,7 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     w := compiler_create_workspace(name);
     o := get_build_options(w);
     import_path: [..]string;
-    array_add(*import_path, "jai");
+    array_add(*import_path, "src");
     for o.import_path array_add(*import_path, it);
     o.import_path = import_path;
     o.use_custom_link_command = true;
