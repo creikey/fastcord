@@ -73,7 +73,7 @@ usage: jai build.jai - <target>
   parity                      build/parity (live traffic sessions; human-run only)
   tool <name>                 build/<name> from src/tool_<name>
   run <file.jai>              build any program file
-  release <vX.Y.Z> [publish]  dist/: the Mac app on macOS, Windows + Linux on Windows; publish uploads them
+  release <vX.Y.Z>            dist/: the Mac app on macOS, Windows + Linux on Windows (CI publishes them)
   og                          site/og.jpg (link preview) from tools/og/card.html
   c                           only the vendored C libraries
   <target> linux              any target cross-compiled for x86_64 Linux (from Windows or macOS)
@@ -139,11 +139,9 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     return ok;
 }
 
-// release <vX.Y.Z> [publish]: the release archives this machine can build (CI has no Jai): on macOS
-// dist/fastcord-macos.zip, a universal (arm64 + x86_64) ad-hoc signed Fastcord.app; on Windows
-// dist/fastcord-windows.zip (Fastcord.exe) and dist/fastcord-linux-x86_64.tar.gz (cross-compiled). With
-// "publish", uploads them to the GitHub release for the tag (created at HEAD if missing) with the gh CLI,
-// replacing same-named assets and leaving the other platforms' ones. Run the gates first (README "Releasing").
+// release <vX.Y.Z>: the release archives this machine can build: on macOS dist/fastcord-macos.zip, a
+// universal (arm64 + x86_64) ad-hoc signed Fastcord.app; on Windows dist/fastcord-windows.zip (Fastcord.exe)
+// and dist/fastcord-linux-x86_64.tar.gz (cross-compiled). CI's release workflow uploads them.
 release :: (args: []string) -> bool {
     if args.count < 2 || !begins_with(args[1], "v") { log_error("release needs a version tag like v0.2.0"); return false; }
     version := args[1];
@@ -190,20 +188,7 @@ release :: (args: []string) -> bool {
         return false;
     }
     for assets print("% (%)\n", it, version);
-    if args.count < 3 || args[2] != "publish" return true;
-    if run_command("gh", "release", "view", version).exit_code != 0 {
-        _, head_out := run_command("git", "rev-parse", "HEAD", capture_and_return_output = true);
-        a: [..]string;
-        array_add(*a, "gh", "release", "create", version);
-        array_add(*a, ..assets);
-        array_add(*a, "--target", trim(head_out), "--title", version, "--generate-notes");
-        return run_command(..a).exit_code == 0;
-    }
-    a: [..]string;
-    array_add(*a, "gh", "release", "upload", version);
-    array_add(*a, ..assets);
-    array_add(*a, "--clobber");
-    return run_command(..a).exit_code == 0;
+    return true;
 }
 
 PYTHON :: #run ifx OS == .WINDOWS then "python" else "python3";

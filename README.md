@@ -177,19 +177,18 @@ empty SCID, no token) match exactly.
 
 ## Releasing
 
-Jai can't be installed on CI runners, so releases are built and published from dev machines: the Mac app
-on a Mac, the Windows and Linux builds on a Windows machine.
+CI publishes releases (`.github/workflows/release.yml`). Push a version tag, or run the workflow by hand
+with a version:
 
 ```sh
-jai build.jai - check                    # all gates
-jai build.jai - release v0.2.0           # macOS: dist/fastcord-macos.zip, universal Fastcord.app, ad-hoc signed
-                                         # Windows: dist/fastcord-windows.zip and dist/fastcord-linux-x86_64.tar.gz
-jai build.jai - release v0.2.0 publish   # same, then uploads them to the GitHub release v0.2.0
+git tag v0.5.0 && git push origin v0.5.0
 ```
 
-`publish` needs `gh` logged in and HEAD pushed. It creates the release (tag at HEAD, generated notes) or,
-if it exists, adds its archives to it (replacing same-named ones, keeping the other platforms'). The
-version is the argument; nothing is bumped by hand.
+It drafts the release (generated notes), builds `release <tag>` on a Mac runner (the Mac app) and a
+Windows runner (Windows and Linux), uploads the archives, and publishes the release once all three are in.
+The version is the tag; nothing is bumped by hand. `jai build.jai - release v0.5.0` builds the same
+archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-windows.zip` and
+`fastcord-linux-x86_64.tar.gz`).
 
 - Windows: `Fastcord.exe` (GUI subsystem, icon from `assets/fastcord.ico`), zipped. Not code-signed, so
   SmartScreen warns on first launch.

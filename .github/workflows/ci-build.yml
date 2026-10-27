@@ -1,4 +1,4 @@
-# One CI build on one OS; ci.yml calls it. See ci.yml for the rules around Jai.
+# One CI build on one OS; ci.yml and release.yml call it. See ci.yml for the rules around Jai.
 name: CI build
 
 on:
@@ -6,15 +6,15 @@ on:
     inputs:
       os: { type: string, required: true }
       jai: { type: string, required: true }
-
-permissions:
-  contents: read
+      # A version tag like v0.5.0: build `release <tag>` and upload dist/ to that GitHub release instead of dev + test.
+      release: { type: string, default: "" }
 
 jobs:
   build:
     runs-on: ${{ inputs.os }}
     env:
       JAI_PASSWORD: ${{ secrets.JAI_PASSWORD }}
+      GH_TOKEN: ${{ inputs.release != '' && github.token || '' }}
     defaults:
       run:
         shell: bash
@@ -42,10 +42,21 @@ jobs:
           echo "$dir/jai/bin" >> "$GITHUB_PATH"
 
       - name: Build
-        if: env.JAI_PASSWORD != ''
+        if: env.JAI_PASSWORD != '' && inputs.release == ''
         run: |
           ${{ inputs.jai }} build.jai - dev
           ${{ inputs.jai }} build.jai - test
+
+      # The Mac release builds its x86_64 half with the compiler's x86_64 slice under Rosetta.
+      - name: Rosetta
+        if: env.JAI_PASSWORD != '' && inputs.release != '' && runner.os == 'macOS'
+        run: softwareupdate --install-rosetta --agree-to-license || true
+
+      - name: Release
+        if: env.JAI_PASSWORD != '' && inputs.release != ''
+        run: |
+          ${{ inputs.jai }} build.jai - release ${{ inputs.release }}
+          gh release upload ${{ inputs.release }} dist/fastcord-* --clobber
 
       - name: Delete Jai
         if: always()
