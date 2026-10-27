@@ -91,15 +91,14 @@ parse_fixture :: (text: string) -> []Window {
 }
 
 get :: (v: etf.Value, key: string) -> etf.Value {
-	m, ok := v.map, v.kind == .Map;
-	if !ok { return .{}; }
-	x, _ := etf.map_get(m, key);
+	if v.kind != .Map { return .{}; }
+	x := etf.map_get(v.map, key);
 	return x;
 }
 
 str :: (v: etf.Value, key: string) -> string {
-	s, _ := get(v, key).s, get(v, key).kind == .String;
-	return s;
+	x := get(v, key);
+	return ifx x.kind == .String then x.s else "";
 }
 
 num :: (v: etf.Value, key: string) -> float64 {
@@ -193,11 +192,11 @@ ignored :: (e: Event, opts: Opts) -> bool {
 }
 
 header_pairs :: (v: etf.Value) -> [][2]etf.Value {
-	l, _ := get(v, "headers").list, get(v, "headers").kind == .List;
+	hs := get(v, "headers");
+	l := ifx hs.kind == .List then hs.list else .[];
 	out := make_dynamic([2]etf.Value, 0, 0, temp);
 	for h: l {
-		p, _ := h.list, h.kind == .List;
-		if len(p) == 2 { append(*out, etf.Value.[p[0], p[1]]); }
+		if h.kind == .List && len(h.list) == 2 { append(*out, etf.Value.[h.list[0], h.list[1]]); }
 	}
 	return view(out);
 }
@@ -234,8 +233,7 @@ shape :: (v: etf.Value, sb: *strings.Builder, depth := 0) {
 		strings.write_byte(sb, #char "{");
 		for p, i: x {
 			if i > 0 { strings.write_byte(sb, #char ","); }
-			k, _ := p.key.s, p.key.kind == .String;
-			strings.write_string(sb, k);
+			strings.write_string(sb, ifx p.key.kind == .String then p.key.s else "");
 			strings.write_byte(sb, #char ":");
 			shape(p.value, sb, depth + 1);
 		}
@@ -263,10 +261,10 @@ conn_facts :: (wins: []Window) -> Map(string, string) {
 			sb := strings.builder_make(temp);
 			for f: (string.["send_settings", "send_window_update", "http3_settings_sent", "transport_parameters_sent"]) {
 				{ v := get(e.v, f);
-				if v != null { fmt.sbprintf(*sb, "%s=%s ", f, value_text(v)); } }
+				if !etf.is_nil(v) { fmt.sbprintf(*sb, "%s=%s ", f, value_text(v)); } }
 			}
 			{ t := get(e.v, "tls");
-			if t != null { fmt.sbprintf(*sb, "alpn=%s ", str(t, "next_proto")); } }
+			if !etf.is_nil(t) { fmt.sbprintf(*sb, "alpn=%s ", str(t, "next_proto")); } }
 			txt := strings.to_string(sb);
 			// GREASE settings and the RTT estimate differ on every connection
 			while true {
@@ -274,13 +272,13 @@ conn_facts :: (wins: []Window) -> Map(string, string) {
 				if i < 0 { break; }
 				j := strings.index_byte(sub_from(txt, i), #char ",");
 				if j < 0 { j = strings.index_byte(sub_from(txt, i), #char "}"); }
-				txt = strings.concatenate(.{sub(txt, 0, i), "GREASE", sub_from(txt, i + j)}, temp);
+				txt = strings.concatenate(string.[sub(txt, 0, i), "GREASE", sub_from(txt, i + j)], temp);
 			}
 			{ i := strings.index(txt, "initial_round_trip_time ");
 			if i >= 0 {
 				j := i + len("initial_round_trip_time ");
 				while j < len(txt) && txt[j] >= #char "0" && txt[j] <= #char "9" { j += 1; }
-				txt = strings.concatenate(.{sub(txt, 0, i), "initial_round_trip_time *", sub_from(txt, j)}, temp);
+				txt = strings.concatenate(string.[sub(txt, 0, i), "initial_round_trip_time *", sub_from(txt, j)], temp);
 			} }
 			at(*out, key).* = txt;
 		}
@@ -293,7 +291,7 @@ diff :: (a: []Window, b: []Window, opts: Opts, sb: *strings.Builder) -> int {
 	ca, cb := conn_facts(a), conn_facts(b);
 	if opts.actions { clear(*ca); } // sessions are compared once, in cold_start
 	for k, va: ca {
-		{ vb, ok := cb[k];
+		{ vb, ok := map_find(cb, k);
 		if ok && va != vb {
 			fmt.sbprintfln(sb, "== connection %s\n      official: %s\n      ours:     %s", k, va, vb);
 			n += 1;
@@ -351,9 +349,9 @@ diff_window :: (wa: Window, wb: Window, opts: Opts, sb: *strings.Builder) -> int
 	// Requests after READY are timed from READY (the server's READY latency
 	// varies 0.6-2.3 s), earlier ones from the gateway open.
 	sa, sbs := wa.start, wb.start;
-	ready_a, ready_b := -1.0, -1.0;
+	ready_a, ready_b: float64 = -1, -1;
 	{
-		oa, ob := -1.0, -1.0;
+		oa, ob: float64 = -1, -1;
 		for e: wa.events { if e.k == "ws_open" {oa = e.t; break;} }
 		for e: wb.events { if e.k == "ws_open" {ob = e.t; break;} }
 		if oa >= 0 && ob >= 0 {
@@ -445,16 +443,15 @@ diff_request :: (a: Event, b: Event, sa: float64, sb_start: float64, opts: Opts,
 	// wire headers: from a netlog the order is real and is compared; from
 	// DevTools (sorted) only the set of names is compared
 	{ wa, wb := get(a.v, "wire"), get(b.v, "wire");
-	if wa != null && wb != null {
+	if !etf.is_nil(wa) && !etf.is_nil(wb) {
 		ordered := str(a.v, "wire_src") == "netlog" && str(b.v, "wire_src") == "netlog";
 		names :: (v: etf.Value, sorted: bool) -> string {
-			l, _ := v.list, v.kind == .List;
+			l := ifx v.kind == .List then v.list else .[];
 			out := make_dynamic(string, 0, 0, temp);
 			for h: l {
-				p, _ := h.list, h.kind == .List;
-				if len(p) == 2 { append(*out, strings.to_lower(ifx p[0].kind == .String then p[0].s else "", temp)); }
+				if h.kind == .List && len(h.list) == 2 { append(*out, strings.to_lower(ifx h.list[0].kind == .String then h.list[0].s else "", temp)); }
 			}
-			if sorted { slice.sort(view(out)); }
+			if sorted { slice.sort_by(view(out), (x: string, y: string) -> bool { return compare(x, y) < 0; }); }
 			return strings.join(view(out), ",", temp);
 		}
 		{ x, y := names(wa, !ordered), names(wb, !ordered);
@@ -463,16 +460,16 @@ diff_request :: (a: Event, b: Event, sa: float64, sb_start: float64, opts: Opts,
 			n += 1;
 		} }
 		if ordered {
-			la, _ := wa.list, wa.kind == .List;
-			lb, _ := wb.list, wb.kind == .List;
+			la := ifx wa.kind == .List then wa.list else .[];
+			lb := ifx wb.kind == .List then wb.list else .[];
 			for h, i: la {
 				if i >= len(lb) { break; }
-				pa, _ := h.list, h.kind == .List;
-				pb, _ := lb[i].list, lb[i].kind == .List;
+				pa := ifx h.kind == .List then h.list else .[];
+				pb := ifx lb[i].kind == .List then lb[i].list else .[];
 				if len(pa) != 2 || len(pb) != 2 { continue; }
 				{ va, vb := value_text(pa[1]), value_text(pb[1]);
 				if va != vb && !strings.contains(va, "bytes were stripped") {
-					fmt.sbprintfln(sb, "  ~ %s: wire %v\n      official: %s\n      ours:     %s", key, pa[0], va, vb);
+					fmt.sbprintfln(sb, "  ~ %s: wire %v\n      official: %s\n      ours:     %s", key, ifx pa[0].kind == .String then pa[0].s else "", va, vb);
 					n += 1;
 				} }
 			}
@@ -483,7 +480,7 @@ diff_request :: (a: Event, b: Event, sa: float64, sb_start: float64, opts: Opts,
 		fmt.sbprintfln(sb, "  ~ %s: body shape\n      official: %s\n      ours:     %s", key, ba, bb);
 		n += 1;
 	} }
-	if a.resp != null && b.resp != null {
+	if !etf.is_nil(a.resp) && !etf.is_nil(b.resp) {
 		{ x, y := num(a.resp, "status"), num(b.resp, "status");
 		if x != y {
 			fmt.sbprintfln(sb, "  ~ %s: status %v vs %v", key, x, y);

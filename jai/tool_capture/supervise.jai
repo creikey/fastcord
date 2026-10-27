@@ -23,7 +23,7 @@ DISCORD_BIN :: "/Applications/Discord.app/Contents/MacOS/Discord";
 TREE_LIMIT :: 2560 * 1024 * 1024; // bytes
 SYSTEM_LOW :: 1536 * 1024 * 1024;
 POLL :: 3 * time.Second;
-STOP_FILE :: REPO + "/.secrets/supervise.stop";
+STOP_FILE :: #run join(REPO, "/.secrets/supervise.stop");
 
 Instance :: struct {
 	name: string;
@@ -36,7 +36,7 @@ INSTANCES := Instance.[.{"a", PORT_A}, .{"b", PORT_B}];
 sup_log :: (format: string, args: ..Any) {
 	line := fmt.tprintf("%v %s\n", time.now(), fmt.tprintf(format, ..args));
 	os.write_string(os.stdout, line);
-	{ f, err := os.open(REPO + "/.secrets/supervise.log", .{.Write, .Create, .Append}, .{.Read_User, .Write_User});
+	{ f, err := os.open(#run join(REPO, "/.secrets/supervise.log"), .Write | .Create | .Append, 0x180);
 	if err == null {
 		os.write_string(f, line);
 		os.close(f);
@@ -46,14 +46,14 @@ sup_log :: (format: string, args: ..Any) {
 
 // instance_root returns the pid of the verified test instance listening on port (0 = none).
 instance_root :: (port: int) -> int {
-	_, out, _, err := os.process_exec(.{command = .{"/usr/sbin/lsof", "-nP", fmt.tprintf("-iTCP:%d", port), "-sTCP:LISTEN", "-t"}}, temp);
+	_, out, _, err := os.process_exec(.{command = string.["/usr/sbin/lsof", "-nP", fmt.tprintf("-iTCP:%d", port), "-sTCP:LISTEN", "-t"]}, temp);
 	if err != null { return 0; }
 	s := strings.trim_space(as_string(out));
 	if s == "" { return 0; }
 	{ i := strings.index_byte(s, 10);
 	if i >= 0 { s = sub(s, 0, i); } }
 	pid, _ := strconv.parse_int(s);
-	_, env_out, _, _ := os.process_exec(.{command = .{"/bin/ps", "eww", "-o", "command=", "-p", s}}, temp);
+	_, env_out, _, _ := os.process_exec(.{command = string.["/bin/ps", "eww", "-o", "command=", "-p", s]}, temp);
 	for field: strings.fields(as_string(env_out), temp) {
 		if strings.has_prefix(field, "DISCORD_USER_DATA_DIR=") && strings.contains(field, "/fastcord/.secrets/") { return pid; }
 	}
@@ -66,7 +66,7 @@ Proc_Row :: struct {
 #scope_module
 
 proc_table :: () -> []Proc_Row {
-	_, out, _, _ := os.process_exec(.{command = .{"/bin/ps", "-axo", "pid=,ppid=,rss="}}, temp);
+	_, out, _, _ := os.process_exec(.{command = string.["/bin/ps", "-axo", "pid=,ppid=,rss="]}, temp);
 	rows := make_dynamic(Proc_Row, 0, 0, temp);
 	for line: strings.split_lines(as_string(out), temp) {
 		f := strings.fields(line, temp);
@@ -87,10 +87,12 @@ tree :: (root: int) -> []int, int {
 	rows := proc_table();
 	list := make_dynamic(int, 0, 0, temp);
 	append(*list, root);
-	for i: 0..len(list)-1 {
+	i := 0;
+	while i < len(list) {
 		for r: rows {
-			if r.ppid == get(list, i) { append(*list, r.pid); }
+			if r.ppid == list[i] { append(*list, r.pid); }
 		}
+		i += 1;
 	}
 	for p: list {
 		for r: rows { if r.pid == p { rss += r.rss_kb * 1024; } }
@@ -116,7 +118,7 @@ kill_instance :: (inst: Instance, why: string) {
 	{ latest, lerr := os.read_entire_file(fmt.tprintf("%s/.secrets/raw/netlog_%s.latest", REPO, inst.name), temp);
 	if lerr == null {
 		src := strings.trim_space(as_string(latest));
-		dst := strings.concatenate(.{strings.trim_suffix(src, ".json"), ".events.json"}, temp);
+		dst := strings.concatenate(string.[strings.trim_suffix(src, ".json"), ".events.json"], temp);
 		{ data, rerr := os.read_entire_file(src, context.allocator);
 		if rerr == null {
 			os.write_entire_file(dst, data);
@@ -144,7 +146,7 @@ launch_instance :: (inst: Instance) -> bool {
 	full := make_dynamic(string, 0, 0, temp);
 	for e: env { if !strings.has_prefix(e, "DISCORD_USER_DATA_DIR=") { append(*full, e); } }
 	append(*full, fmt.tprintf("DISCORD_USER_DATA_DIR=%s/.secrets/discord-profile-%s", REPO, inst.name));
-	logf, lerr := os.open(fmt.tprintf("%s/.secrets/discord-%s.log", REPO, inst.name), .{.Write, .Create, .Append}, .{.Read_User, .Write_User});
+	logf, lerr := os.open(fmt.tprintf("%s/.secrets/discord-%s.log", REPO, inst.name), .Write | .Create | .Append, 0x180);
 	if lerr != null { return false; }
 	defer os.close(logf);
 	// Netlog in the default capture mode: request header order and values,
@@ -154,7 +156,7 @@ launch_instance :: (inst: Instance) -> bool {
 	os.write_entire_file(fmt.tprintf("%s/.secrets/raw/netlog_%s.latest", REPO, inst.name), transmute([]u8, netlog));
 	p, err := os.process_start(
 		.{
-			command = .{DISCORD_BIN, "--multi-instance", fmt.tprintf("--remote-debugging-port=%d", inst.port), fmt.tprintf("--log-net-log=%s", netlog)},
+			command = string.[DISCORD_BIN, "--multi-instance", fmt.tprintf("--remote-debugging-port=%d", inst.port), fmt.tprintf("--log-net-log=%s", netlog)],
 			env = view(full),
 			stdout = logf,
 			stderr = logf
@@ -164,7 +166,7 @@ launch_instance :: (inst: Instance) -> bool {
 		sup_log("launch %s failed: %v", inst.name, err);
 		return false;
 	}
-	sup_log("launched %s (pid %d) on port %d", inst.name, p.pid, inst.port);
+	sup_log("launched %s (pid %d) on port %d", inst.name, p.p.pid, inst.port);
 	for _: 0..119 {
 		time.sleep(500 * time.Millisecond);
 		if instance_root(inst.port) != 0 { return true; }
@@ -175,7 +177,7 @@ launch_instance :: (inst: Instance) -> bool {
 
 // system_available returns free+inactive+purgeable memory in bytes (vm_stat).
 system_available :: () -> int {
-	_, out, _, _ := os.process_exec(.{command = .{"/usr/bin/vm_stat"}}, temp);
+	_, out, _, _ := os.process_exec(.{command = string.["/usr/bin/vm_stat"]}, temp);
 	page := 16384;
 	total := 0;
 	for line: strings.split_lines(as_string(out), temp) {
@@ -199,7 +201,7 @@ supervise :: (minutes: int) -> bool {
 	for inst: INSTANCES { if !launch_instance(inst) { return false; } }
 	start := time.tick_now();
 	last_report := time.tick_now();
-	while time.tick_since(start) < time.Duration(minutes) * time.Minute {
+	while time.tick_since(start) < (cast(time.Duration) (minutes)) * time.Minute {
 		if os.exists(STOP_FILE) {
 			sup_log("stop file present");
 			break;
@@ -209,26 +211,26 @@ supervise :: (minutes: int) -> bool {
 		for inst, i: INSTANCES {
 			roots[i] = instance_root(inst.port);
 			if roots[i] == 0 { continue; }
-			_, at(*sizes, i).* = tree(roots[i]);
-			if get(sizes, i) > TREE_LIMIT {
-				kill_instance(inst, fmt.tprintf("tree RSS %.0f MB > limit", cast(float64)(get(sizes, i)) / (1 << 20)));
-				at(*sizes, i).* = 0;
+			_, sizes[i] = tree(roots[i]);
+			if sizes[i] > TREE_LIMIT {
+				kill_instance(inst, fmt.tprintf("tree RSS %.0f MB > limit", cast(float64)(sizes[i]) / (1 << 20)));
+				sizes[i] = 0;
 			}
 		}
 		avail := system_available();
 		if avail < SYSTEM_LOW {
-			big := ifx get(sizes, 0) >= get(sizes, 1) then 0 else 1;
-			if get(sizes, big) > 0 { kill_instance(INSTANCES[big], fmt.tprintf("system memory low (%.0f MB available)", cast(float64)(avail) / (1 << 20))); }
+			big := ifx sizes[0] >= sizes[1] then 0 else 1;
+			if sizes[big] > 0 { kill_instance(INSTANCES[big], fmt.tprintf("system memory low (%.0f MB available)", cast(float64)(avail) / (1 << 20))); }
 		}
 		if time.tick_since(last_report) > 30 * time.Second {
-			sup_log("rss a=%.0f MB b=%.0f MB, system available %.0f MB", cast(float64)(get(sizes, 0)) / (1 << 20), cast(float64)(get(sizes, 1)) / (1 << 20), cast(float64)(avail) / (1 << 20));
+			sup_log("rss a=%.0f MB b=%.0f MB, system available %.0f MB", cast(float64)(sizes[0]) / (1 << 20), cast(float64)(sizes[1]) / (1 << 20), cast(float64)(avail) / (1 << 20));
 			last_report = time.tick_now();
 		}
 		if roots[0] == 0 && roots[1] == 0 {
 			sup_log("both instances gone");
 			break;
 		}
-		free_all(temp);
+		reset_temporary_storage();
 		time.sleep(POLL);
 	}
 	for inst: INSTANCES { kill_instance(inst, "supervision finished"); }

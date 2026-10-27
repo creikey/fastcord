@@ -14,6 +14,8 @@ slice :: #import "fc_slice";
 strconv :: #import "fc_strconv";
 strings :: #import "fc_strings";
 virtual :: #import "fc_virtual";
+utf8 :: #import "fc_utf8";
+#load "local.jai";
 #load "main.jai";
 #load "netlog.jai";
 #load "rules.jai";

@@ -49,7 +49,7 @@ usage :: () {
 // check_test_instance verifies the process listening on port was started with
 // DISCORD_USER_DATA_DIR inside this repo's .secrets/ (never the personal client).
 check_test_instance :: (port: int) -> bool {
-	_, pid_out, _, err := os.process_exec(.{command = .{"/usr/sbin/lsof", "-nP", fmt.tprintf("-iTCP:%d", port), "-sTCP:LISTEN", "-t"}}, temp);
+	_, pid_out, _, err := os.process_exec(.{command = string.["/usr/sbin/lsof", "-nP", fmt.tprintf("-iTCP:%d", port), "-sTCP:LISTEN", "-t"]}, temp);
 	pid := strings.trim_space(as_string(pid_out));
 	if err != null || pid == "" {
 		fmt.eprintfln("nothing listening on %d", port);
@@ -57,7 +57,7 @@ check_test_instance :: (port: int) -> bool {
 	}
 	{ i := strings.index_byte(pid, 10);
 	if i >= 0 { pid = sub(pid, 0, i); } }
-	_, env_out, _, perr := os.process_exec(.{command = .{"/bin/ps", "eww", "-o", "command=", "-p", pid}}, temp);
+	_, env_out, _, perr := os.process_exec(.{command = string.["/bin/ps", "eww", "-o", "command=", "-p", pid]}, temp);
 	// ps is setuid, so Odin can't read its exit state (Permission_Denied); the output is fine.
 	if perr != null && len(env_out) == 0 {
 		fmt.eprintln("ps failed:", perr);

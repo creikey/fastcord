@@ -51,7 +51,7 @@ collect_secrets :: (v: etf.Value, key: string, out: *Map(string, string)) {
 	if v.kind == {
 	case .String; x := v.s;
 		for k: SECRET_KEYS {
-			if lkey == k && len(x) >= 8 { at(*out, clone(x)).* = clone(k); }
+			if lkey == k && len(x) >= 8 { at(out, clone(x)).* = clone(k); }
 		}
 		if lkey == "cookie" || lkey == "set-cookie" {
 			for line: strings.split(x, "\n", temp) {
@@ -61,7 +61,7 @@ collect_secrets :: (v: etf.Value, key: string, out: *Map(string, string)) {
 					eq := strings.index_byte(part, #char "=");
 					if eq > 0 {
 						val := strings.trim_space(sub_from(part, eq + 1));
-						if len(val) >= 8 { at(*out, clone(val)).* = "cookie"; }
+						if len(val) >= 8 { at(out, clone(val)).* = "cookie"; }
 					}
 				}
 			}
@@ -70,7 +70,7 @@ collect_secrets :: (v: etf.Value, key: string, out: *Map(string, string)) {
 			for i: 0..len(x)-1 {
 				if x[i] == #char "@" {
 					{ st, en, ok := email_span(x, i);
-					if ok && en - st >= 6 { at(*out, clone(sub(x, st, en))).* = "email"; } }
+					if ok && en - st >= 6 { at(out, clone(sub(x, st, en))).* = "email"; } }
 				}
 			}
 		}
@@ -78,7 +78,7 @@ collect_secrets :: (v: etf.Value, key: string, out: *Map(string, string)) {
 		for e: x { collect_secrets(e, key, out); }
 	case .Map; x := v.map;
 		for p: x {
-			k, _ := p.key.s, p.key.kind == .String;
+			k := vs(p.key);
 			collect_secrets(p.value, k, out);
 		}
 	}

@@ -5,7 +5,7 @@
 #import "Atomics";
 #import "fc";
 base64 :: #import "fc_base64";
-cdp :: #import "cdp";
+cdp :: #import "tool_capture_cdp";
 etf :: #import "etf";
 filepath :: #import "fc_filepath";
 fmt :: #import "fc_fmt";

@@ -182,7 +182,7 @@ build_audio_rtp :: (out: []u8, seq: u16, ts: u32, ssrc: u32, audio_level: u8, vo
 	at(*out, 13).* = 0xDE;
 	put_u16(sub_from(out, 14), 1);
 	at(*out, 16).* = EXT_ID_AUDIO_LEVEL << 4; // len-1 = 0
-	at(*out, 17).* = (ifx voice then 0x80 else 0) | (audio_level & 0x7f);
+	at(*out, 17).* = (cast(u8) (ifx voice then 0x80 else 0)) | (audio_level & 0x7f);
 	at(*out, 18).* = 0;
 	at(*out, 19).* = 0;
 	copy(sub_from(out, 20), payload);
