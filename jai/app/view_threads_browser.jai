@@ -1,5 +1,3 @@
-#scope_file
-
 // Threads browser (channel header "Threads" icon), like the client's popout
 // (fixture threads_browser): anchored under the icon, tabs Active / Archived
 // and a "Create" button. Active lists joined threads, then other active
@@ -15,35 +13,6 @@
 // (route /channels/{guild}/{parent}/threads/{thread}); fastcord opens it as the
 // main view (route /channels/{guild}/{thread}).
 
-TB_Tab :: enum u8 {
-	Active;
-	Archived;
-}
-
-Threads_Browser :: struct {
-	open: bool;
-	channel: dc.Snowflake;
-	anchor: ui.Rect;
-	requested: bool; // archived threads asked for (this channel)
-	loading: bool;
-	has_more: bool;
-	offset: int;
-	tab: TB_Tab;
-	// Create form
-	creating: bool;
-	name: ui.Editor;
-	first: ui.Editor;
-	focus: int; // 1 name, 2 message: focus that field on the next frame
-	busy: bool;
-	tag: u64;
-	pending: string; // heap: first message of the thread being created
-}
-
-tb: Threads_Browser;
-#scope_export
-
-THREADS_W :: 480;
-
 threads_browser_toggle :: (channel_id: dc.Snowflake, anchor: ui.Rect) {
 	if tb.open && tb.channel == channel_id {
 		tb.open = false;
@@ -57,7 +26,7 @@ threads_browser_toggle :: (channel_id: dc.Snowflake, anchor: ui.Rect) {
 	tb.anchor = anchor;
 	tb.tab = .Active;
 	tb.creating = false;
-	if app.client != null { dc.track_thread_browser_open(app.client, channel_id); }
+	if app.client != null dc.track_thread_browser_open(app.client, channel_id);
 	if !tb.requested {
 		tb.requested = true;
 		if net_action() {
@@ -72,18 +41,18 @@ threads_browser_receive :: (r: *dc.Feature_Result) {
 		thread_created(r);
 		return;
 	}
-	if r.channel_id != tb.channel { return; }
+	if r.channel_id != tb.channel return;
 	tb.loading = false;
-	if !r.ok { return; }
+	if !r.ok return;
 	dc.apply_forum_threads(app.client, r.body);
 	body := dc.vmap(r.body);
-	tb.offset += len(dc.flist(body, "threads"));
+	tb.offset += dc.flist(body, "threads").count;
 	tb.has_more = dc.fbool(body, "has_more");
 	app.ui.animating = true;
 }
 
 threads_browser_popout :: () {
-	if !tb.open { return; }
+	if !tb.open return;
 	if tb.channel != app.view.channel {
 		tb.open = false;
 		return;
@@ -96,26 +65,20 @@ threads_browser_popout :: () {
 	}
 	for * e: app.ui.events {
 		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
-			if tb.creating { tb.creating = false; } else { tb.open = false; }
+			if tb.creating tb.creating = false;
+			else tb.open = false;
 			e.consumed = true;
-			if !tb.open { return; }
+			if !tb.open return;
 		}
 	}
 	s := store();
 	ids := dc.channel_threads(s, tb.channel);
-	joined := make_dynamic(dc.Snowflake, 0, 0, temp);
-	active := make_dynamic(dc.Snowflake, 0, 0, temp);
-	older := make_dynamic(dc.Snowflake, 0, 0, temp);
+	joined, active, older: [..]dc.Snowflake;
+	joined.allocator, active.allocator, older.allocator = temp, temp, temp;
 	for id: ids {
 		tm := dc.thread_meta(id);
-		if tm == null {
-		} else if tm.archived {
-			append(*older, id);
-		} else if tm.joined {
-			append(*joined, id);
-		} else {
-			append(*active, id);
-		}
+		if tm == null continue;
+		array_add(ifx tm.archived then *older else ifx tm.joined then *joined else *active, id);
 	}
 
 	x := clamp(tb.anchor.x1 - THREADS_W, 8, app.ui.window.x - THREADS_W - 8);
@@ -160,7 +123,7 @@ threads_browser_popout :: () {
 				}
 				if tsig.clicked && !sel {
 					tb.tab = t;
-					if app.client != null { dc.track_thread_browser_tab_changed(app.client, tb.channel); }
+					if app.client != null dc.track_thread_browser_tab_changed(app.client, tb.channel);
 				}
 				spacer(.X, 4);
 			}
@@ -178,7 +141,7 @@ threads_browser_popout :: () {
 				label("Create", .Medium, 14, .{1, 1, 1, 1}, 18);
 				spacer(.X, 12);
 			}
-			if csig.clicked { create_form_open(); }
+			if csig.clicked create_form_open();
 		}
 		spacer(.X, 12);
 	}
@@ -195,7 +158,7 @@ threads_browser_popout :: () {
 	sig := ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
-		empty := ifx tb.tab == .Active then len(joined) + len(active) == 0 else len(older) == 0;
+		empty := ifx tb.tab == .Active then joined.count + active.count == 0 else older.count == 0;
 		if empty {
 			r := row("empty");
 			r.semantic_size = .[ui.pct(1), ui.px(80)];
@@ -207,22 +170,58 @@ threads_browser_popout :: () {
 			}
 		}
 		if tb.tab == .Active {
-			thread_section("joined", "Joined Threads", view(joined));
-			thread_section("active", "Other Active Threads", view(active));
+			thread_section("joined", "Joined Threads", joined);
+			thread_section("active", "Other Active Threads", active);
 		} else {
-			thread_section("older", "Archived Threads", view(older));
+			thread_section("older", "Archived Threads", older);
 		}
 		spacer(.Y, 8);
 	}
 	// more archived threads near the end
-	if tb.tab == .Archived && tb.has_more && !tb.loading && app.client != null && sig.hovering {
-		if list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
-			tb.loading = true;
-			dc.fetch_channel_threads(app.client, tb.channel, tb.offset);
-		}
+	if tb.tab == .Archived && tb.has_more && !tb.loading && app.client != null && sig.hovering
+		&& list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
+		tb.loading = true;
+		dc.fetch_channel_threads(app.client, tb.channel, tb.offset);
 	}
 }
+
+threads_browser_reset_for_test :: () {
+	ui.editor_destroy(*tb.name);
+	ui.editor_destroy(*tb.first);
+	free(tb.pending);
+	tb = .{};
+}
+
+
 #scope_file
+
+THREADS_W :: 480;
+
+TB_Tab :: enum u8 {
+	Active;
+	Archived;
+}
+
+Threads_Browser :: struct {
+	open: bool;
+	channel: dc.Snowflake;
+	anchor: ui.Rect;
+	requested: bool; // archived threads asked for (this channel)
+	loading: bool;
+	has_more: bool;
+	offset: int;
+	tab: TB_Tab;
+	// Create form
+	creating: bool;
+	name: ui.Editor;
+	first: ui.Editor;
+	focus: int; // 1 name, 2 message: focus that field on the next frame
+	busy: bool;
+	tag: u64;
+	pending: string; // heap: first message of the thread being created
+}
+
+tb: Threads_Browser;
 
 // Public threads need CREATE_PUBLIC_THREADS and SEND_MESSAGES in the parent.
 can_create_thread :: (channel_id: dc.Snowflake) -> bool {
@@ -236,15 +235,14 @@ create_form_open :: () {
 	ui.editor_set_text(*tb.name, "");
 	ui.editor_set_text(*tb.first, "");
 	tb.focus = 1;
-	if app.client != null { dc.track_thread_creation_started(app.client, tb.channel, "Thread Browser Toolbar"); }
+	if app.client != null dc.track_thread_creation_started(app.client, tb.channel, "Thread Browser Toolbar");
 }
 
 create_form :: () {
-	submit := false;
 	spacer(.Y, 16);
 	field :: (id: string, ed: *ui.Editor, placeholder: string, want_focus: bool) -> ui.Edit_Result {
 		res := ui.Edit_Result.None;
-		r := row(fmt.tprintf("%s_row", id));
+		r := row(tprint("%_row", id));
 		r.semantic_size = .[ui.pct(1), ui.children()];
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 16);
@@ -255,7 +253,7 @@ create_form :: () {
 			box.style.border = 1;
 			box.style.radius = all4(8);
 			box.hover_cursor = .IBeam;
-			if ui.signal(box).pressed || want_focus { app.ui.focus = box.key; }
+			if ui.signal(box).pressed || want_focus app.ui.focus = box.key;
 			{ ui.parent(box); defer ui.pop_parent();
 				spacer(.X, 12);
 				res = text_field("f", ed, placeholder, app.ui.focus == box.key, 16, 20, 9);
@@ -277,8 +275,8 @@ create_form :: () {
 	r2 := field("first", *tb.first, "Enter a message to start the conversation!", tb.focus == 2);
 	tb.focus = 0;
 	// typing in the form is typing in the parent channel
-	if (r1 == .Changed || r2 == .Changed) && app.client != null && net_action() { dc.typing_keystroke(app.client, tb.channel); }
-	if r1 == .Submit || r2 == .Submit { submit = true; }
+	if (r1 == .Changed || r2 == .Changed) && app.client != null && net_action() dc.typing_keystroke(app.client, tb.channel);
+	submit := r1 == .Submit || r2 == .Submit;
 	spacer(.Y, 16);
 	btns := row("btns");
 	btns.semantic_size = .[ui.pct(1), ui.px(36)];
@@ -294,8 +292,8 @@ create_form :: () {
 			label("Cancel", .Medium, 14, T("--text-default"), 18);
 			spacer(.X, 12);
 		}
-		if ui.signal(cancel).clicked { tb.creating = false; }
-		name := strings.trim_space(ui.editor_text(*tb.name));
+		if ui.signal(cancel).clicked tb.creating = false;
+		name := trim(ui.editor_text(*tb.name));
 		ok := name != "" && !tb.busy;
 		go := row("go", ifx ok then .Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
 		go.semantic_size = .[ui.children(), ui.px(32)];
@@ -307,42 +305,42 @@ create_form :: () {
 			label(ifx tb.busy then "Creating..." else "Create Thread", .Medium, 14, .{1, 1, 1, 1}, 18);
 			spacer(.X, 12);
 		}
-		if ok && ui.signal(go).clicked { submit = true; }
+		if ok && ui.signal(go).clicked submit = true;
 		spacer(.X, 16);
 	}
-	if !submit || tb.busy { return; }
-	name := strings.trim_space(ui.editor_text(*tb.name));
+	if !submit || tb.busy return;
+	name := trim(ui.editor_text(*tb.name));
 	if name == "" {
 		tb.focus = 1;
 		return;
 	}
-	if !net_action() { return; }
+	if !net_action() return;
 	tb.busy = true;
 	tb.tag += 1;
-	delete(tb.pending);
-	tb.pending = clone(strings.trim_space(ui.editor_text(*tb.first)));
+	free(tb.pending);
+	tb.pending = copy_string(trim(ui.editor_text(*tb.first)));
 	dc.create_thread(app.client, tb.channel, name, tag = tb.tag);
 }
 
 // The thread exists (201): open it and send the first message.
 thread_created :: (r: *dc.Feature_Result) {
-	if r.tag != tb.tag { return; }
+	if r.tag != tb.tag return;
 	tb.busy = false;
 	app.ui.animating = true;
-	if !r.ok { return; }
+	if !r.ok return;
 	id := dc.apply_created_thread(app.client, r.body);
 	ch := dc.channel_get(store(), id);
-	if ch == null { return; }
+	if ch == null return;
 	tb.creating = false;
 	tb.open = false;
 	select_channel(ch.guild_id, id);
-	if tb.pending != "" { dc.send_message(app.client, id, tb.pending, .{location = "thread_creation"}); }
-	delete(tb.pending);
+	if tb.pending != "" dc.send_message(app.client, id, tb.pending, .{location = "thread_creation"});
+	free(tb.pending);
 	tb.pending = "";
 }
 
 thread_section :: (id: string, title: string, ids: []dc.Snowflake) {
-	if len(ids) == 0 { return; }
+	if !ids.count return;
 	sec := ui.box(id);
 	sec.semantic_size = .[ui.pct(1), ui.children()];
 	sec.layout_axis = .Y;
@@ -352,10 +350,12 @@ thread_section :: (id: string, title: string, ids: []dc.Snowflake) {
 	h.semantic_size = .[ui.pct(1), ui.px(28)];
 	{ ui.parent(h); defer ui.pop_parent();
 		spacer(.X, 16);
-		label(fmt.tprintf("%s — %d", title, len(ids)), .Semibold, 12, T("--text-muted"), 16);
+		label(tprint("% — %", title, ids.count), .Semibold, 12, T("--text-muted"), 16);
 	}
-	for tid: ids {
-		{ ui.id_scope(cast(u64)(tid)); defer ui.pop_seed(); thread_browser_row(tid); }
+	for ids {
+		ui.id_scope(cast(u64) it);
+		thread_browser_row(it);
+		ui.pop_seed();
 	}
 	spacer(.Y, 8);
 }
@@ -364,7 +364,7 @@ thread_browser_row :: (tid: dc.Snowflake) {
 	s := store();
 	th := dc.channel_get(s, tid);
 	tm := dc.thread_meta(tid);
-	if th == null || tm == null { return; }
+	if th == null || tm == null return;
 	outer := row("tr");
 	outer.semantic_size = .[ui.pct(1), ui.px(56)];
 	ui.push_parent(outer);
@@ -398,16 +398,15 @@ thread_browser_row :: (tid: dc.Snowflake) {
 				if tm.owner_id != 0 {
 					avatar_box("av", tm.owner_id, 16);
 					spacer(.X, 6);
-					{ u := dc.user_get(s, tm.owner_id);
-					if u != null {
+					if dc.user_get(s, tm.owner_id) != null {
 						label(ellipsize(name_in(tm.owner_id, tid), .Medium, 13, 160), .Medium, 13, T("--text-muted"), 18);
 						spacer(.X, 6);
-					} }
+					}
 				}
 				n := tm.message_count;
-				label(ifx n == 1 then "1 Message" else fmt.tprintf("%d Messages", n), .Medium, 13, T("--text-link"), 18);
+				label(ifx n == 1 then "1 Message" else tprint("% Messages", n), .Medium, 13, T("--text-link"), 18);
 				spacer(.X, 6);
-				label(fmt.tprintf("· %s", relative_age(max(tm.last_message_id, tid))), .Normal, 13, T("--text-muted"), 18);
+				label(tprint("· %", relative_age(max(tm.last_message_id, tid))), .Normal, 13, T("--text-muted"), 18);
 			}
 		}
 		spacer(.X, 12);
@@ -418,12 +417,3 @@ thread_browser_row :: (tid: dc.Snowflake) {
 		tb.open = false;
 	}
 }
-#scope_export
-
-threads_browser_reset_for_test :: () {
-	ui.editor_destroy(*tb.name);
-	ui.editor_destroy(*tb.first);
-	delete(tb.pending);
-	tb = .{};
-}
-

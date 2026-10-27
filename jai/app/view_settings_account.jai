@@ -1,10 +1,9 @@
-#scope_file
-
 // Settings > My Account (user card, display name / username edits, masked email
 // and phone, Log Out) and Settings > Profiles (display name, pronouns, About Me
 // with a live preview and the client's unsaved-changes bar). Requests go out
 // through dc.update_* and come back in account_receive (features_receive).
 
+#scope_file
 Acct_Edit :: enum u8 {
 	None;
 	Display_Name;
@@ -39,23 +38,11 @@ PROFILE_BIO_MAX :: 190;
 
 account_reset_for_test :: () {
 	for e: (*ui.Editor.[*acct.name_ed, *acct.user_ed, *acct.pass_ed, *acct.pf_name, *acct.pf_pronouns, *acct.pf_bio]) { ui.editor_set_text(e, ""); }
-	delete(acct.error);
-	delete(acct.pf_error);
-	delete(acct.base_name);
-	delete(acct.base_pronouns);
-	delete(acct.base_bio);
+	for (*string).[*acct.error, *acct.pf_error, *acct.base_name, *acct.base_pronouns, *acct.base_bio] { free(it.*); it.* = ""; }
 	acct.editing = .None;
 	acct.reveal_email, acct.reveal_phone, acct.pending, acct.logout_confirm = false, false, false, false;
-	acct.error, acct.pf_error, acct.base_name, acct.base_pronouns, acct.base_bio = "", "", "", "", "";
 	acct.pf_pending = 0;
 }
-#scope_file
-
-set_error :: (dst: *string, s: string) {
-	delete(dst.*);
-	dst.* = clone(s);
-}
-#scope_export
 
 // Results of dc.update_global_name / update_username / update_profile (UI thread).
 account_receive :: (r: *dc.Feature_Result) {
@@ -63,13 +50,12 @@ account_receive :: (r: *dc.Feature_Result) {
 	err := "";
 	if !r.ok {
 		err = dc.api_error_text(r.body);
-		if err == "" { err = ifx r.status == 0 then "Couldn't reach Discord. Try again." else fmt.tprintf("Something went wrong (HTTP %d).", r.status); }
+		if err == "" { err = ifx r.status == 0 then "Couldn't reach Discord. Try again." else tprint("Something went wrong (HTTP %).", r.status); }
 	}
 	tok := dc.apply_account_result(*app.client.store, r);
 	if tok != "" && !platform.is_headless() {
 		// a username change rotates the token: keep the new one for the next start
-		path := strings.concatenate(string.[app_state_dir(), "/token"], temp);
-		dc.write_file_atomic(path, transmute([]u8, tok));
+		dc.write_file_atomic(tprint("%/token", app_state_dir()), cast([]u8) tok);
 	}
 	if r.op == .Profile_Patch || r.tag == cast(u64)(dc.User_Patch_Tag.Profile_Name) {
 		acct.pf_pending = max(acct.pf_pending - 1, 0);
@@ -81,14 +67,6 @@ account_receive :: (r: *dc.Feature_Result) {
 	}
 	app.ui.animating = true;
 }
-#scope_file
-
-acct_edit_close :: () {
-	acct.editing = .None;
-	ui.editor_set_text(*acct.pass_ed, "");
-	set_error(*acct.error, "");
-}
-#scope_export
 
 // ---- Log Out ----
 
@@ -100,8 +78,8 @@ account_logout :: () {
 	acct.logout_confirm = false;
 	voice_leave_channel();
 	if net_action() { dc.client_logout(app.client, "settings"); }
-	if !platform.is_headless() && os.get_env("FASTCORD_TOKEN", temp) == "" {
-		os.remove_(strings.concatenate(string.[app_state_dir(), "/token"], temp));
+	if !platform.is_headless() && !getenv("FASTCORD_TOKEN") {
+		file_delete(tprint("%/token", app_state_dir()));
 	}
 	login_reset();
 	app.settings_open = false;
@@ -136,7 +114,7 @@ account_logout_modal :: () {
 	d.layout_axis = .Y;
 	ui.signal(d);
 	{ ui.parent(d); defer ui.pop_parent();
-		inner := inset_begin(24, 24);
+		inset_begin(24, 24);
 		label("Log Out", .Semibold, 20, T("--text-strong"), 24);
 		spacer(.Y, 8);
 		set_para("q", "Are you sure you want to logout?", .Normal, 16, 20, T("--text-subtle"));
@@ -163,15 +141,17 @@ account_logout_modal :: () {
 
 // "*****@domain" (the client's masked email).
 mask_email :: (email: string) -> string {
-	at := strings.last_index_byte(email, #char "@");
+	at := find_index_from_right(email, #char "@");
 	if at < 0 { return "*****"; }
-	return strings.concatenate(string.["*****", sub_from(email, at)], temp);
+	return tprint("*****%", string.{email.count - at, email.data + at});
 }
 
 // "*******1234": all but the last four digits hidden.
 mask_phone :: (phone: string) -> string {
-	if len(phone) <= 4 { return "****"; }
-	return strings.concatenate(string.[strings.repeat("*", len(phone) - 4, temp), sub_from(phone, len(phone) - 4)], temp);
+	if phone.count <= 4 { return "****"; }
+	s := copy_string(phone,, temp);
+	memset(s.data, #char "*", s.count - 4);
+	return s;
 }
 
 my_account_page :: () {
@@ -261,7 +241,7 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	r.layout_axis = .Y;
 	ui.push_parent(r);
 	defer ui.pop_parent();
-	label(strings.to_upper(title, temp), .Bold, 12, T("--text-muted"), 16);
+	label(to_upper_copy(title,, temp), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 4);
 	if acct.editing != which {
 		vr := row("vrow");
@@ -282,20 +262,20 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 		enabled = true; // empty clears it (the username shows instead)
 	case .Username;
 		res = set_input("in", *acct.user_ed, "Username", max_runes = 32);
-		uname := strings.trim_space(ui.editor_text(*acct.user_ed));
+		uname := trim(ui.editor_text(*acct.user_ed));
 		// availability as you type (debounced in the library: POST pomelo-attempt)
 		if res == .Changed && app.client != null { dc.username_input_changed(app.client, uname); }
-		{ msg, col := username_status(uname);
+		msg, col := username_status(uname);
 		if msg != "" {
 			spacer(.Y, 6);
 			set_para("avail", msg, .Normal, 14, 18, col);
-		} }
+		}
 		spacer(.Y, 12);
 		label("CURRENT PASSWORD", .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
 		pres := set_input("pw", *acct.pass_ed, "Password", password = true);
 		if pres == .Submit { res = .Submit; }
-		enabled = strings.trim_space(ui.editor_text(*acct.user_ed)) != "" && ui.editor_text(*acct.pass_ed) != "";
+		enabled = uname != "" && ui.editor_text(*acct.pass_ed) != "";
 	case .None;
 	}
 	if acct.error != "" {
@@ -313,9 +293,9 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 		if (set_button(ifx acct.pending then "Saving…##save" else "Done##save", .Primary, enabled, 32) || res == .Submit && enabled) && net_action() {
 			acct.pending = true;
 			if which == .Display_Name {
-				dc.update_global_name(app.client, strings.trim_space(ui.editor_text(*acct.name_ed)));
+				dc.update_global_name(app.client, trim(ui.editor_text(*acct.name_ed)));
 			} else {
-				dc.update_username(app.client, strings.trim_space(ui.editor_text(*acct.user_ed)), ui.editor_text(*acct.pass_ed));
+				dc.update_username(app.client, trim(ui.editor_text(*acct.user_ed)), ui.editor_text(*acct.pass_ed));
 			}
 		}
 	}
@@ -364,7 +344,7 @@ account_secret :: (id: string, title: string, shown: string, has: bool, reveal: 
 	r.layout_axis = .Y;
 	ui.push_parent(r);
 	defer ui.pop_parent();
-	label(strings.to_upper(title, temp), .Bold, 12, T("--text-muted"), 16);
+	label(to_upper_copy(title,, temp), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 4);
 	vr := row("vrow");
 	vr.semantic_size = .[ui.pct(1), ui.px(24)];
@@ -389,8 +369,8 @@ account_secret :: (id: string, title: string, shown: string, has: bool, reveal: 
 pf_follow :: (ed: *ui.Editor, base: *string, cur: string) {
 	if base.* == cur { return; }
 	if ui.editor_text(ed) == base.* { ui.editor_set_text(ed, cur); }
-	delete(base.*);
-	base.* = clone(cur);
+	free(base.*);
+	base.* = copy_string(cur);
 }
 
 pf_dirty :: () -> bool {
@@ -439,8 +419,9 @@ profiles_page :: () {
 				cr.semantic_size = .[ui.pct(1), ui.px(16)];
 				{ ui.parent(cr); defer ui.pop_parent();
 					filler(.X);
-					left := PROFILE_BIO_MAX - utf8.rune_count_in_string(ui.editor_text(*acct.pf_bio));
-					label(fmt.tprintf("%d", left), .Normal, 12, T("--text-muted"), 16);
+					left := PROFILE_BIO_MAX;
+					for ui.editor_text(*acct.pf_bio) if (it & 0xC0) != 0x80 left -= 1; // runes
+					label(tprint("%", left), .Normal, 12, T("--text-muted"), 16);
 				}
 				if acct.pf_error != "" {
 					spacer(.Y, 8);
@@ -494,13 +475,13 @@ profile_preview_card :: (u: *dc.User) {
 		}
 	}
 	inset_begin(16, 0);
-	name := strings.trim_space(ui.editor_text(*acct.pf_name));
+	name := trim(ui.editor_text(*acct.pf_name));
 	if name == "" && u != null { name = u.username; }
-	label(fmt.tprintf("%s##pvname", name), .Bold, 20, T("--text-strong"), 24);
+	label(tprint("%##pvname", name), .Bold, 20, T("--text-strong"), 24);
 	sub := ifx u != null then u.username else "";
-	{ p := strings.trim_space(ui.editor_text(*acct.pf_pronouns));
-	if p != "" { sub = fmt.tprintf("%s • %s", sub, p); } }
-	label(fmt.tprintf("%s##pvsub", sub), .Normal, 14, T("--text-default"), 18);
+	p := trim(ui.editor_text(*acct.pf_pronouns));
+	if p != "" { sub = tprint("% • %", sub, p); }
+	label(tprint("%##pvsub", sub), .Normal, 14, T("--text-default"), 18);
 	bio := ui.editor_text(*acct.pf_bio);
 	if bio != "" {
 		spacer(.Y, 12);
@@ -509,7 +490,7 @@ profile_preview_card :: (u: *dc.User) {
 		b.style.line_height = 18;
 		b.style.text_color = T("--text-default");
 		blocks := md_parse(bio);
-		if len(blocks) > 0 { ui.set_spans(b, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
+		if blocks.count > 0 { ui.set_spans(b, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
 	}
 	inset_end(16, 16);
 }
@@ -543,7 +524,7 @@ profile_save_bar :: () {
 	spacer(.X, 8);
 	if set_button(ifx busy then "Saving…##save" else "Save Changes##save", .Positive, !busy, 32) && net_action() {
 		set_error(*acct.pf_error, "");
-		name := strings.trim_space(ui.editor_text(*acct.pf_name));
+		name := trim(ui.editor_text(*acct.pf_name));
 		if name != acct.base_name {
 			dc.update_global_name(app.client, name, .Profile_Name);
 			acct.pf_pending += 1;
@@ -555,5 +536,16 @@ profile_save_bar :: () {
 	}
 	spacer(.X, 12);
 }
-#scope_export
 
+getenv :: (name: *u8) -> *u8 #foreign libc;
+
+set_error :: (dst: *string, s: string) {
+	free(dst.*);
+	dst.* = copy_string(s);
+}
+
+acct_edit_close :: () {
+	acct.editing = .None;
+	ui.editor_set_text(*acct.pass_ed, "");
+	set_error(*acct.error, "");
+}

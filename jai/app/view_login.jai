@@ -51,15 +51,6 @@ Login_State :: struct {
 	qr_code: *qr.Code_;
 	field_keys: [2]ui.Key; // the email and password boxes (focus)
 }
-#scope_file
-
-lg: Login_State;
-
-set_str :: (dst: *string, v: string) {
-	delete(dst.*);
-	dst.* = clone(v);
-}
-#scope_export
 
 // login_reset: back to an empty form (after a logout, or a login).
 login_reset :: () {
@@ -75,15 +66,6 @@ login_reset :: () {
 	lg.notice = .None;
 	app.ui.focus = 0;
 }
-#scope_file
-
-// zero_editor wipes the editor's bytes before clearing it (the password).
-zero_editor :: (ed: *ui.Editor) {
-	t := ui.editor_text(ed);
-	if len(t) > 0 { crypto.zero(cast([]u8) t); }
-	ui.editor_set_text(ed, "");
-}
-#scope_export
 
 // login_events: the library's results (frame(), after client_poll).
 login_events :: () {
@@ -129,15 +111,6 @@ login_events :: () {
 		}
 	}
 }
-#scope_file
-
-login_save_token :: (token: string) {
-	if token == "" || os.get_env("FASTCORD_TOKEN", temp) != "" { return; }
-	dir := app_state_dir();
-	os.make_directory_all(dir);
-	dc.write_file_atomic(strings.concatenate(string.[dir, "/token"], temp), transmute([]u8, token));
-}
-#scope_export
 
 // ---- page ----
 
@@ -193,8 +166,8 @@ centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 	tl := ui.layout_text(F(font), size, text, ww, line_h);
 	{ ui.parent(col); defer ui.pop_parent();
 		for ln, i: tl.lines {
-			b := ui.box(fmt.tprintf("l%d", i), .Draw_Text);
-			b.text = strings.trim_space(sub(text, ln.start, ln.end));
+			b := ui.box(tprint("l%", i), .Draw_Text);
+			b.text = trim(string.{ln.end - ln.start, text.data + ln.start});
 			b.semantic_size = .[ui.pct(1), ui.px(line_h)];
 			b.style.font = F(font);
 			b.style.font_size = size;
@@ -225,7 +198,7 @@ field_label :: (id: string, text: string, err: string, required := true) {
 		label(text, .Bold, 12, c, 16);
 		if err != "" {
 			spacer(.X, 4);
-			label(strings.concatenate(string.["- ", err], temp), .Italic, 12, c, 16);
+			label(tprint("- %", err), .Italic, 12, c, 16);
 		} else if required {
 			label(" *", .Bold, 12, T("--text-feedback-critical"), 16);
 		}
@@ -282,7 +255,7 @@ big_button :: (text: string, enabled := true, busy := false) -> bool {
 	b.style.bg_hot = with_alpha(b.style.bg, 0.85);
 	b.style.text_color = .{1, 1, 1, 1};
 	b.hover_cursor = .Pointer;
-	if busy { b.text = strings.concatenate(string.["•••##", text], temp); }
+	if busy { b.text = tprint("•••##%", text); }
 	if !enabled || busy {
 		b.flags |= .Disabled;
 		b.style.bg = with_alpha(b.style.bg, 0.5);
@@ -297,7 +270,7 @@ big_button :: (text: string, enabled := true, busy := false) -> bool {
 login_form_box :: () {
 	box := auth_box("authbox", 784);
 	{ ui.parent(box); defer ui.pop_parent();
-		inner := inset_begin(32, 32);
+		inset_begin(32, 32);
 		r := row("cols");
 		r.semantic_size = .[ui.pct(1), ui.children()];
 		r.cross_align = .Center;
@@ -328,7 +301,7 @@ login_form :: () {
 	if dc.auth_is_phone(text) {
 		cc := ifx app.client != null then app.client.auth.country_code else "";
 		if cc == "" { cc = "US"; }
-		prefix = fmt.tprintf("%s %s", cc, dc.auth_dialing_code(cc));
+		prefix = tprint("% %", cc, dc.auth_dialing_code(cc));
 	}
 	field_label("login_label", "EMAIL OR PHONE NUMBER", lg.login_error);
 	r1, k1 := login_input("email", *lg.login_ed, false, lg.login_error != "", autofocus = true, prefix = prefix);
@@ -361,13 +334,13 @@ login_form :: () {
 
 login_submit :: () {
 	if lg.busy { return; }
-	login := strings.trim_space(ui.editor_text(*lg.login_ed));
+	login := trim(ui.editor_text(*lg.login_ed));
 	set_str(*lg.message, "");
 	set_str(*lg.login_error, "");
 	set_str(*lg.password_error, "");
 	if !net_action() { return; }
 	pw := ui.editor_text(*lg.password_ed);
-	dc.auth_login(app.client, login, transmute([]u8, pw));
+	dc.auth_login(app.client, login, cast([]u8) pw);
 	zero_editor(*lg.password_ed); // the request body holds the only copy now (zeroed when sent)
 	lg.busy = true;
 }
@@ -378,7 +351,7 @@ login_forgot :: () {
 	set_str(*lg.login_error, "");
 	set_str(*lg.password_error, "");
 	if !net_action() { return; }
-	dc.auth_forgot(app.client, strings.trim_space(ui.editor_text(*lg.login_ed)));
+	dc.auth_forgot(app.client, trim(ui.editor_text(*lg.login_ed)));
 }
 
 // "Instructions Sent" / "Check your email for a login link"
@@ -399,11 +372,11 @@ login_notice_modal :: () {
 	d.layout_axis = .Y;
 	ui.signal(d);
 	{ ui.parent(d); defer ui.pop_parent();
-		inner := inset_begin(24, 24);
+		inset_begin(24, 24);
 		if lg.notice == .Instructions_Sent {
 			centered("t", "Instructions Sent", .Semibold, 24, 30, T("--text-strong"), 392);
 			spacer(.Y, 8);
-			centered("s", fmt.tprintf("We sent instructions to change your password to %s, please check both your inbox and spam folder.", lg.notice_login), .Normal, 16, 20, T("--text-muted"), 392);
+			centered("s", tprint("We sent instructions to change your password to %, please check both your inbox and spam folder.", lg.notice_login), .Normal, 16, 20, T("--text-muted"), 392);
 		} else {
 			centered("t", "Check your email for a login link", .Semibold, 24, 30, T("--text-strong"), 392);
 			spacer(.Y, 8);
@@ -451,8 +424,8 @@ login_qr_panel :: () {
 		centered("qrt", "Check your phone!", .Semibold, 24, 30, T("--text-strong"), 240);
 		spacer(.Y, 8);
 		tag := v.username;
-		if v.discriminator != "" && v.discriminator != "0" { tag = fmt.tprintf("%s#%s", v.username, v.discriminator); }
-		centered("qrs", fmt.tprintf("Logging in as %s", tag), .Normal, 16, 20, T("--text-default"), 240);
+		if v.discriminator != "" && v.discriminator != "0" { tag = tprint("%#%", v.username, v.discriminator); }
+		centered("qrs", tprint("Logging in as %", tag), .Normal, 16, 20, T("--text-default"), 240);
 		spacer(.Y, 16);
 		if link("Not me, start over") {
 			if lg.fake_ra_on { lg.fake_ra.step = .Initializing; } else if net_action() { dc.remote_auth_cancel(app.client); }
@@ -475,14 +448,14 @@ qr_box :: (fingerprint: string) {
 	card.style.bg = .{1, 1, 1, 1};
 	card.style.radius = all4(4);
 	if fingerprint == "" { return; } // still connecting: the blank card
-	if lg.qr_code == null { lg.qr_code = new(qr.Code_); }
+	if lg.qr_code == null { lg.qr_code = New(qr.Code_); }
 	if lg.qr_for != fingerprint {
 		code, ok := qr.encode(dc.ra_qr_url(fingerprint), .M);
 		if !ok { return; }
 		lg.qr_code.* = code;
 		set_str(*lg.qr_for, fingerprint);
 	}
-	d := new(Qr_Draw, temp);
+	d := New(Qr_Draw,, temp);
 	d.code = lg.qr_code;
 	card.custom_draw = qr_draw;
 	card.custom_user = d;
@@ -536,11 +509,11 @@ login_mfa_begin :: (methods: dc.Mfa_Method) {
 	// the client opens on the first method (webauthn, totp, backup, sms); passkeys and
 	// security keys need the browser's WebAuthn, so fastcord starts on the next one
 	usable := methods & ~dc.Mfa_Method.Webauthn;
-	if has(usable, .Totp) {
+	if usable & .Totp {
 		lg.slide = .Totp;
-	} else if has(usable, .Backup) {
+	} else if usable & .Backup {
 		login_mfa_slide(.Backup_Warn);
-	} else if has(usable, .Sms) {
+	} else if usable & .Sms {
 		login_mfa_slide(.Sms);
 	} else {
 		lg.slide = .Unsupported;
@@ -569,7 +542,7 @@ login_mfa_close :: () {
 login_mfa_box :: () {
 	box := auth_box("mfabox", 480);
 	{ ui.parent(box); defer ui.pop_parent();
-		inner := inset_begin(24, 24);
+		inset_begin(24, 24);
 		hdr := row("hdr");
 		hdr.semantic_size = .[ui.pct(1), ui.children()];
 		hdr.cross_align = .Start;
@@ -584,7 +557,7 @@ login_mfa_box :: () {
 				case .Select;
 					sub = "This extra step shows it's really you.";
 				case .Sms;
-					sub = ifx lg.sms_phone == "" then "Sending..." else fmt.tprintf("We've sent a message to %s.  Please enter the code you received.", lg.sms_phone);
+					sub = ifx lg.sms_phone == "" then "Sending..." else tprint("We've sent a message to %.  Please enter the code you received.", lg.sms_phone);
 				case .Backup_Warn;
 					sub = "Slow down! Are you sure?";
 				case .Totp; #through; case .Backup; #through; case .Unsupported;
@@ -628,19 +601,19 @@ mfa_method_name :: (m: dc.Mfa_Method) -> string {
 
 login_mfa_slide_body :: () {
 	submit := false;
-	code := strings.trim_space(ui.editor_text(*lg.code_ed));
+	code := trim(ui.editor_text(*lg.code_ed));
 	need := 0;
 	if lg.slide == {
 	case .Select;
 		for m: (dc.Mfa_Method.[.Webauthn, .Totp, .Backup, .Sms]) {
-			if !has(lg.methods, m) { continue; }
-			it_ := row(mfa_method_name(m), .Clickable | .Draw_Background | .Hot_Animation);
-			it_.semantic_size = .[ui.pct(1), ui.px(48)];
-			it_.style.bg = T("--background-mod-subtle");
-			it_.style.bg_hot = T("--background-mod-normal");
-			it_.style.radius = all4(8);
-			it_.hover_cursor = .Pointer;
-			{ ui.parent(it_); defer ui.pop_parent();
+			if !(lg.methods & m) { continue; }
+			item := row(mfa_method_name(m), .Clickable | .Draw_Background | .Hot_Animation);
+			item.semantic_size = .[ui.pct(1), ui.px(48)];
+			item.style.bg = T("--background-mod-subtle");
+			item.style.bg_hot = T("--background-mod-normal");
+			item.style.radius = all4(8);
+			item.hover_cursor = .Pointer;
+			{ ui.parent(item); defer ui.pop_parent();
 				spacer(.X, 16);
 				label(mfa_method_name(m), .Semibold, 16, T("--text-strong"), 20);
 				filler(.X);
@@ -649,7 +622,7 @@ login_mfa_slide_body :: () {
 				set_icon(ic, "chevron-small-right", T("--interactive-text-default"));
 				spacer(.X, 12);
 			}
-			if ui.signal(it_).clicked {
+			if ui.signal(item).clicked {
 				if m == {
 				case .Webauthn;
 					lg.slide = .Unsupported;
@@ -678,7 +651,7 @@ login_mfa_slide_body :: () {
 		spacer(.Y, 8);
 		left := 10 - cast(int)(app.ui.time - lg.backup_t0);
 		if left > 0 {
-			set_para("w2", fmt.tprintf("If you do not have access to any other methods, the button below will activate in %d seconds.", left), .Normal, 16, 20, T("--text-default"));
+			set_para("w2", tprint("If you do not have access to any other methods, the button below will activate in % seconds.", left), .Normal, 16, 20, T("--text-default"));
 			request_wake(platform.time_now() + 0.25);
 		} else {
 			set_para("w2", "If you do not have access to any other methods, use the other button below to proceed.", .Normal, 16, 20, T("--text-default"));
@@ -714,14 +687,15 @@ login_mfa_slide_body :: () {
 		set_para("err", lg.mfa_error, .Normal, 14, 18, T("--text-feedback-critical"));
 	}
 	spacer(.Y, 20);
-	ok := ifx lg.slide == .Backup then len(code) >= need && len(code) <= 11 else len(code) == need;
+	ok := ifx lg.slide == .Backup then code.count >= need && code.count <= 11 else code.count == need;
 	if mfa_buttons(true, ok) || (submit && ok) { login_mfa_submit(code); }
 }
 
 // "Verify with something else" (more than one method) and Confirm
 mfa_buttons :: (confirm: bool, enabled: bool) -> bool {
 	confirmed: bool;
-	others := card(lg.methods & ~dc.Mfa_Method.Webauthn) > 1 || has(lg.methods, .Webauthn);
+	usable := cast(u8) (lg.methods & ~dc.Mfa_Method.Webauthn);
+	others := (usable & (usable - 1)) != 0 || (lg.methods & .Webauthn); // two or more usable methods, or a passkey
 	if !others && !confirm { return confirmed; }
 	r := row("btns");
 	r.semantic_size = .[ui.pct(1), ui.px(40)];
@@ -753,7 +727,7 @@ login_mfa_submit :: (code: string) {
 login_token_box :: () {
 	box := auth_box("tokenbox", 560);
 	{ ui.parent(box); defer ui.pop_parent();
-		inner := inset_begin(32, 32);
+		inset_begin(32, 32);
 		login_card_body();
 		inset_end(32, 32);
 	}
@@ -769,7 +743,7 @@ step :: (n: string, text: string) {
 	r.layout_axis = .X;
 	r.cross_align = .Start;
 	{ ui.parent(r); defer ui.pop_parent();
-		num := ui.box(strings.concatenate(string.[n, "##num"], temp), .Draw_Background | .Draw_Text);
+		num := ui.box(tprint("%##num", n), .Draw_Background | .Draw_Text);
 		num.semantic_size = .[ui.px(22), ui.px(22)];
 		num.style.radius = all4(11);
 		num.style.bg = T("--background-brand");
@@ -851,34 +825,11 @@ login_card_body :: () {
 
 // People paste the header with its name or quotes; keep only the token itself.
 clean_token :: (s: string) -> string {
-	t := strings.trim(s, "\"' \t\r\n");
-	if strings.has_prefix(strings.to_lower(t, temp), "authorization:") { t = sub_from(t, len("authorization:")); }
-	return strings.trim(t, "\"' \t\r\n");
+	CUT :: "\"' \t\r\n";
+	t := trim(s, CUT);
+	if begins_with_nocase(t, "authorization:") { advance(*t, "authorization:".count); }
+	return trim(t, CUT);
 }
-#scope_file
-
-// A pasted token connects like a launch with a saved token: the logged-out
-// session (its QR socket) ends first.
-login_with_token :: (token: string) {
-	dir := app_state_dir();
-	os.make_directory_all(dir);
-	path := strings.concatenate(string.[dir, "/token"], temp);
-	if !dc.write_file_atomic(path, transmute([]u8, token)) {
-		app.login_error = "Couldn't save the token.";
-		return;
-	}
-	ui.editor_set_text(*app.view.token_input, "");
-	app.login_error = "";
-	app.needs_login = false;
-	app.ui.focus = 0;
-	lg.mode = .Form;
-	if app.client != null {
-		client_release(app.client);
-		app.client = null;
-	}
-	connect();
-}
-#scope_export
 
 // Called each frame while connected: a rejected token (gateway close 4004)
 // drops it and opens the login page on a fresh logged-out session.
@@ -886,7 +837,7 @@ login_check_auth :: () {
 	if app.client == null || app.client.store.connection != .Auth_Failed { return; }
 	client_release(app.client);
 	app.client = null;
-	os.remove_(strings.concatenate(string.[app_state_dir(), "/token"], temp));
+	file_delete(tprint("%/token", app_state_dir()));
 	login_reset();
 	app.needs_login = true;
 	set_str(*lg.message, "Discord didn't accept the saved login. Log in again.");
@@ -947,3 +898,47 @@ login_test_state :: (state: string) -> bool {
 	return true;
 }
 
+#scope_file
+getenv :: (name: *u8) -> *u8 #foreign libc;
+
+lg: Login_State;
+
+set_str :: (dst: *string, v: string) {
+	free(dst.*);
+	dst.* = copy_string(v);
+}
+
+// zero_editor wipes the editor's bytes before clearing it (the password).
+zero_editor :: (ed: *ui.Editor) {
+	t := ui.editor_text(ed);
+	if t.count > 0 { crypto.zero(cast([]u8) t); }
+	ui.editor_set_text(ed, "");
+}
+
+login_save_token :: (token: string) {
+	if token == "" || getenv("FASTCORD_TOKEN") { return; }
+	dir := app_state_dir();
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	dc.write_file_atomic(tprint("%/token", dir), cast([]u8) token);
+}
+
+// A pasted token connects like a launch with a saved token: the logged-out
+// session (its QR socket) ends first.
+login_with_token :: (token: string) {
+	dir := app_state_dir();
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	if !dc.write_file_atomic(tprint("%/token", dir), cast([]u8) token) {
+		app.login_error = "Couldn't save the token.";
+		return;
+	}
+	ui.editor_set_text(*app.view.token_input, "");
+	app.login_error = "";
+	app.needs_login = false;
+	app.ui.focus = 0;
+	lg.mode = .Form;
+	if app.client != null {
+		client_release(app.client);
+		app.client = null;
+	}
+	connect();
+}

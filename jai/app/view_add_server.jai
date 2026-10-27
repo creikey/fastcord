@@ -13,119 +13,38 @@ Add_Server_Step :: enum u8 {
 	Create;
 	Join;
 }
-#scope_file
-
-JOIN_RUNNING :: 0;
-JOIN_DONE :: 1;
-JOIN_RELEASE :: 2;
-#scope_export
-#scope_file // the client was logged out mid-request: the worker releases it
-
-Join_Job :: struct {
-	client: *dc.Client;
-	input: string; // the invite field as typed (inputValue)
-	member_of: []dc.Snowflake; // guilds we're in when the join started (user_is_member)
-	state: int; // atomic: JOIN_*
-	res: dc.Invite_Result;
-}
-#scope_file
-
-asv: struct {
-	step: Add_Server_Step;
-	name_ed: ui.Editor;
-	invite_ed: ui.Editor;
-	error: string; // heap
-	creating: bool; // POST /guilds sent; waiting for its GUILD_CREATE
-	job: *Join_Job; // join in flight
-	open_guild: dc.Snowflake; // joined: select it once it is in the store
-	step_ms: s64; // when the current step was shown (nuo_transition seconds_on_from_step)
-};
-#scope_export
 
 add_server_reset_for_test :: () {
 	ui.editor_set_text(*asv.name_ed, "");
 	ui.editor_set_text(*asv.invite_ed, "");
-	delete(asv.error);
-	asv.error = "";
+	set_err("");
 	asv.step = .Closed;
 	asv.creating = false;
 	asv.open_guild = 0;
 	asv.job = null; // a test job (none offline) would be leaked, not freed under a worker
 }
 
-add_server_is_open :: () -> bool {return asv.step != .Closed;}
+add_server_is_open :: () -> bool { return asv.step != .Closed; }
 
-add_server_open :: () {add_server_step(.Choose);}
-#scope_file
-
-add_server_step :: (st: Add_Server_Step) {
-	if app.client != null {
-		if st == {
-		case .Choose;
-			dc.guild_add_step(app.client, .Templates, ifx asv.step == .Closed then 0 else asv.step_ms);
-		case .Join;
-			dc.guild_add_step(app.client, .Join, asv.step_ms);
-		}
-	}
-	asv.step_ms = dc.now_ms();
-	asv.step = st;
-	asv.step_ms = dc.now_ms();
-	set_err("");
-	app.ui.focus = 0; // the step's field takes focus
-}
-#scope_export
+add_server_open :: () { add_server_step(.Choose); }
 
 // Rail "Discover": server discovery lives on the website (no in-app directory).
-discover_open :: () {open_url("https://discord.com/servers");}
-#scope_file
-
-set_err :: (s: string) {
-	delete(asv.error);
-	asv.error = clone(s);
-}
-#scope_export
+discover_open :: () { open_url("https://discord.com/servers"); }
 
 // Logging out while a join is in flight: the worker still uses the client, so it
 // releases it when done. True when the worker took it over.
 add_server_take_client :: (c: *dc.Client) -> bool {
 	j := asv.job;
-	if j == null || j.client != c { return false; }
+	if j == null || j.client != c return false;
 	asv.job = null;
-	_, ok := sync.atomic_compare_exchange_strong(*j.state, JOIN_RUNNING, JOIN_RELEASE);
-	if !ok { free_job(j); } // already done: the caller releases the client
+	ok := compare_and_swap(*j.state, JOIN_RUNNING, JOIN_RELEASE);
+	if !ok free_job(j); // already done: the caller releases the client
 	return ok;
 }
-#scope_file
-
-free_job :: (j: *Join_Job) {
-	delete(j.input);
-	delete(j.member_of);
-	delete(j.res.code);
-	free(j);
-}
-
-join_start :: (input: string) {
-	j := new(Join_Job);
-	j.client = app.client;
-	j.input = clone(input);
-	j.member_of = clone(view(store().guild_order));
-	asv.job = j;
-	thread.create_and_start_with_poly_data(j, (j: *Join_Job) {
-		j.res = dc.join_invite(j.client, j.input, member_of = j.member_of);
-		{ _, ok := sync.atomic_compare_exchange_strong(*j.state, JOIN_RUNNING, JOIN_DONE);
-		if !ok {
-			client_release(j.client);
-			free_job(j);
-		} }
-		reset_temporary_storage();
-		platform.request_frame();
-	}, self_cleanup = true);
-}
-#scope_export
 
 // Per frame (overlay pass): finished requests, pending navigation, then the modal.
 add_server_overlay :: () {
-	{ j := asv.job;
+	j := asv.job;
 	if j != null && atomic_load(*j.state) == JOIN_DONE {
 		asv.job = null;
 		if j.res.ok && j.res.guild_id != 0 {
@@ -138,18 +57,15 @@ add_server_overlay :: () {
 			set_err("The invite is invalid or has expired.");
 		}
 		free_job(j);
-	} }
+	}
 	if asv.open_guild != 0 && app.client != null && dc.guild_get(store(), asv.open_guild) != null {
 		// the library opened it on GUILD_CREATE (route = the invite's channel); follow
 		// it, or select it here when we were a member already (no GUILD_CREATE)
 		locks.lock(*app.client.route_mu);
 		g, ch := app.client.route_guild, app.client.route_channel;
 		locks.unlock(*app.client.route_mu);
-		if g == asv.open_guild {
-			select_channel(g, ch);
-		} else {
-			select_guild(asv.open_guild);
-		}
+		if g == asv.open_guild select_channel(g, ch);
+		else select_guild(asv.open_guild);
 		asv.open_guild = 0;
 	}
 	if asv.creating && app.client != null && !app.client.pending_guild_create {
@@ -158,13 +74,81 @@ add_server_overlay :: () {
 		g, ch := app.client.route_guild, app.client.route_channel;
 		locks.unlock(*app.client.route_mu);
 		app.view.guild, app.view.channel = g, ch;
-		at(*app.view.last_channel, g).* = ch;
+		table_set(*app.view.last_channel, g, ch);
 		asv.creating = false;
 		asv.step = .Closed;
 	}
-	if asv.step != .Closed { add_server_modal(); }
+	if asv.step != .Closed add_server_modal();
 }
+
 #scope_file
+
+JOIN_RUNNING :: 0;
+JOIN_DONE :: 1;
+JOIN_RELEASE :: 2; // the client was logged out mid-request: the worker releases it
+
+Join_Job :: struct {
+	client: *dc.Client;
+	input: string; // the invite field as typed (inputValue)
+	member_of: []dc.Snowflake; // guilds we're in when the join started (user_is_member)
+	state: int; // atomic: JOIN_*
+	res: dc.Invite_Result;
+}
+
+asv: struct {
+	step: Add_Server_Step;
+	name_ed: ui.Editor;
+	invite_ed: ui.Editor;
+	error: string; // heap
+	creating: bool; // POST /guilds sent; waiting for its GUILD_CREATE
+	job: *Join_Job; // join in flight
+	open_guild: dc.Snowflake; // joined: select it once it is in the store
+	step_ms: s64; // when the current step was shown (nuo_transition seconds_on_from_step)
+};
+
+add_server_step :: (st: Add_Server_Step) {
+	if app.client != null {
+		if st == {
+		case .Choose;
+			dc.guild_add_step(app.client, .Templates, ifx asv.step == .Closed then 0 else asv.step_ms);
+		case .Join;
+			dc.guild_add_step(app.client, .Join, asv.step_ms);
+		}
+	}
+	asv.step = st;
+	asv.step_ms = dc.now_ms();
+	set_err("");
+	app.ui.focus = 0; // the step's field takes focus
+}
+
+set_err :: (s: string) {
+	free(asv.error);
+	asv.error = copy_string(s);
+}
+
+free_job :: (j: *Join_Job) {
+	free(j.input);
+	array_free(j.member_of);
+	free(j.res.code);
+	free(j);
+}
+
+join_start :: (input: string) {
+	j := New(Join_Job);
+	j.client = app.client;
+	j.input = copy_string(input);
+	j.member_of = array_copy(store().guild_order);
+	asv.job = j;
+	dc.spawn(j, (j: *Join_Job) {
+		j.res = dc.join_invite(j.client, j.input, member_of = j.member_of);
+		if !compare_and_swap(*j.state, JOIN_RUNNING, JOIN_DONE) {
+			client_release(j.client);
+			free_job(j);
+		}
+		reset_temporary_storage();
+		platform.request_frame();
+	});
+}
 
 add_server_modal :: () {
 	scrim := ui.box("addsrv_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
@@ -231,10 +215,9 @@ step_choose :: () {
 	if ui.signal(own).clicked {
 		add_server_step(.Create);
 		s := store();
-		name := "My";
-		{ u := dc.user_get(s, s.me);
-		if u != null { name = u.username; } }
-		ui.editor_set_text(*asv.name_ed, fmt.tprintf("%s's server", name));
+		u := dc.user_get(s, s.me);
+		name := ifx u then u.username else "My";
+		ui.editor_set_text(*asv.name_ed, tprint("%'s server", name));
 		set_err("");
 	}
 	{ ui.parent(own); defer ui.pop_parent();
@@ -301,7 +284,7 @@ step_create :: () {
 	}
 	inset_end(16, 0);
 	spacer(.Y, 24);
-	name := strings.trim_space(ui.editor_text(*asv.name_ed));
+	name := trim(ui.editor_text(*asv.name_ed));
 	{ ui.parent(footer_begin()); defer ui.pop_parent();
 		spacer(.X, 16);
 		if set_button("Back##back", .Link) { add_server_step(.Choose); }
@@ -327,7 +310,7 @@ step_join :: () {
 	{ ui.parent(lr); defer ui.pop_parent();
 		label("INVITE LINK", .Bold, 12, ifx asv.error != "" then T("--text-feedback-critical") else T("--text-default"), 16);
 		label(" *##req", .Bold, 12, T("--text-feedback-critical"), 16);
-		if asv.error != "" { label(fmt.tprintf(" - %s##err", asv.error), .Medium, 12, T("--text-feedback-critical"), 16); }
+		if asv.error != "" { label(tprint(" - %##err", asv.error), .Medium, 12, T("--text-feedback-critical"), 16); }
 	}
 	spacer(.Y, 8);
 	res := set_input("invite", *asv.invite_ed, "https://discord.gg/hTKzmak", autofocus = true);
@@ -356,5 +339,3 @@ step_join :: () {
 		spacer(.X, 16);
 	}
 }
-#scope_export
-

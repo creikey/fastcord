@@ -1,5 +1,3 @@
-#scope_file
-
 // Threads and forum channels.
 //   - sidebar: active threads we're a member of, under their parent channel
 //     (indented rows on the channel pitch, like the client's thread list)
@@ -8,65 +6,52 @@
 //     select of the thread (its messages use the chat view)
 // Data: dc.extras (thread metadata, forum tags) and the feature REST calls.
 
-Forum_State :: struct {
-	requested_archived: bool;
-	requested_posts: Table(dc.Snowflake, bool);
-}
-
-forums: Table(dc.Snowflake, Forum_State);
-#scope_export
-
 // ---- sidebar ----
 
 // Rows for the active threads we joined under `ch` (called after channel_row).
 sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 	s := store();
 	ids := dc.joined_threads(s, ch.id);
-	if len(ids) == 0 { return; }
 	for tid, i: ids {
 		th := dc.channel_get(s, tid);
-		if th == null { continue; }
-		{ ui.id_scope(cast(u64)(tid)); defer ui.pop_seed();
-			selected := app.view.channel == tid;
-			unread := dc.channel_unread(s, tid);
-			outer := row("thread");
-			outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
-			{ ui.parent(outer); defer ui.pop_parent();
-				spacer(.X, 8);
-				// the spine: a vertical line from the parent row, curving into this row
-				spine := ui.box("spine");
-				spine.semantic_size = .[ui.px(28), ui.px(CHANNEL_ROW_PITCH)];
-				{ ui.parent(spine); defer ui.pop_parent();
-					v := ui.box("v", .Draw_Background | .Floating_X | .Floating_Y);
-					v.semantic_size = .[ui.px(1.5), ui.px(cast(float32) (ifx i == len(ids) - 1 then CHANNEL_ROW_PITCH / 2 else CHANNEL_ROW_PITCH))];
-					v.fixed_pos = .{16, -2};
-					v.style.bg = T("--border-strong");
-					h := ui.box("h", .Draw_Background | .Floating_X | .Floating_Y);
-					h.semantic_size = .[ui.px(10), ui.px(1.5)];
-					h.fixed_pos = .{16, CHANNEL_ROW_PITCH / 2 - 1};
-					h.style.bg = T("--border-strong");
-				}
-				item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
-				item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
-				item.style.radius = all4(8);
-				item.style.bg = ifx selected then T("--background-mod-normal") else .{};
-				item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
-				sig := ui.signal(item);
-				if sig.clicked { select_channel(gid, tid); }
-				if sig.right_clicked { thread_menu_open(tid, app.ui.mouse); }
-				color := T("--channels-default");
-				if selected || unread {
-					color = T("--interactive-text-active");
-				} else if sig.hovering {
-					color = T("--interactive-text-hover");
-				}
-				{ ui.parent(item); defer ui.pop_parent();
-					spacer(.X, 8);
-					label(ellipsize(th.name, .Medium, 16, SIDEBAR_W - 90), ifx unread || selected then .Semibold else .Medium, 16, color, 20);
-					filler(.X);
-				}
-				spacer(.X, 9);
+		if th == null continue;
+		ui.id_scope(cast(u64) tid);
+		defer ui.pop_seed();
+		selected := app.view.channel == tid;
+		unread := dc.channel_unread(s, tid);
+		outer := row("thread");
+		outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
+		{ ui.parent(outer); defer ui.pop_parent();
+			spacer(.X, 8);
+			// the spine: a vertical line from the parent row, curving into this row
+			spine := ui.box("spine");
+			spine.semantic_size = .[ui.px(28), ui.px(CHANNEL_ROW_PITCH)];
+			{ ui.parent(spine); defer ui.pop_parent();
+				v := ui.box("v", .Draw_Background | .Floating_X | .Floating_Y);
+				v.semantic_size = .[ui.px(1.5), ui.px(cast(float32) (ifx i == ids.count - 1 then CHANNEL_ROW_PITCH / 2 else CHANNEL_ROW_PITCH))];
+				v.fixed_pos = .{16, -2};
+				v.style.bg = T("--border-strong");
+				h := ui.box("h", .Draw_Background | .Floating_X | .Floating_Y);
+				h.semantic_size = .[ui.px(10), ui.px(1.5)];
+				h.fixed_pos = .{16, CHANNEL_ROW_PITCH / 2 - 1};
+				h.style.bg = T("--border-strong");
 			}
+			item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
+			item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
+			item.style.radius = all4(8);
+			item.style.bg = ifx selected then T("--background-mod-normal") else .{};
+			item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
+			sig := ui.signal(item);
+			if sig.clicked select_channel(gid, tid);
+			if sig.right_clicked thread_menu_open(tid, app.ui.mouse);
+			color := ifx selected || unread then T("--interactive-text-active")
+				else ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
+			{ ui.parent(item); defer ui.pop_parent();
+				spacer(.X, 8);
+				label(ellipsize(th.name, .Medium, 16, SIDEBAR_W - 90), ifx unread || selected then .Semibold else .Medium, 16, color, 20);
+				filler(.X);
+			}
+			spacer(.X, 9);
 		}
 	}
 }
@@ -76,7 +61,7 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 thread_summary_pill :: (m: *dc.Message) {
 	s := store();
 	th := dc.channel_get(s, m.id); // a thread started from a message has the message's id
-	if !dc.is_thread(th) || th.parent_id != m.channel_id { return; }
+	if !dc.is_thread(th) || th.parent_id != m.channel_id return;
 	tm := dc.thread_meta(th.id);
 	count := ifx tm != null then tm.message_count else 0;
 	spacer(.Y, 4);
@@ -89,7 +74,7 @@ thread_summary_pill :: (m: *dc.Message) {
 	box.style.border = 1;
 	box.style.radius = all4(8);
 	sig := ui.signal(box);
-	if sig.clicked { select_channel(th.guild_id, th.id); }
+	if sig.clicked select_channel(th.guild_id, th.id);
 	{ ui.parent(box); defer ui.pop_parent();
 		inset_begin(12, 8);
 		defer inset_end(12, 8);
@@ -98,13 +83,13 @@ thread_summary_pill :: (m: *dc.Message) {
 		{ ui.parent(r); defer ui.pop_parent();
 			label(th.name, .Semibold, 14, T("--text-strong"), 18);
 			spacer(.X, 8);
-			label(ifx count == 1 then "1 Message" else fmt.tprintf("%d Messages", count), .Semibold, 14, T("--text-link"), 18);
+			label(ifx count == 1 then "1 Message" else tprint("% Messages", count), .Semibold, 14, T("--text-link"), 18);
 			icon("chev", "chevron-small-right", 16, T("--text-link"));
 		}
 		// the latest message, when it's loaded
 		msgs := dc.messages_get(s, th.id);
-		if len(msgs) > 0 {
-			last := *msgs[len(msgs) - 1];
+		if msgs.count {
+			last := *msgs[msgs.count - 1];
 			spacer(.Y, 4);
 			lr := row("last");
 			lr.semantic_size = .[ui.pct(1), ui.px(18)];
@@ -124,11 +109,7 @@ thread_summary_pill :: (m: *dc.Message) {
 
 forum_view :: (ch: *dc.Channel) {
 	s := store();
-	st, ok := map_find_ptr(*forums, ch.id);
-	if !ok {
-		at(*forums, ch.id).* = .{};
-		st = at(*forums, ch.id);
-	}
+	st := find_or_add(*forums, ch.id);
 	if app.client != null && !st.requested_archived {
 		st.requested_archived = true;
 		dc.fetch_archived_forum_threads(app.client, ch.id, 0);
@@ -136,14 +117,15 @@ forum_view :: (ch: *dc.Channel) {
 	posts := dc.forum_threads(s, ch.id);
 	// first messages for the cards, 10 at a time like the client
 	if app.client != null {
-		need := make_dynamic(dc.Snowflake, 0, 0, temp);
+		need: [..]dc.Snowflake;
+		need.allocator = temp;
 		for id: posts {
 			tm := dc.thread_meta(id);
-			if tm == null || tm.first_content != "" || get(st.requested_posts, id) { continue; }
-			at(*st.requested_posts, id).* = true;
-			append(*need, id);
+			if tm == null || tm.first_content != "" || table_contains(*st.requested_posts, id) continue;
+			table_set(*st.requested_posts, id, true);
+			array_add(*need, id);
 		}
-		if len(need) > 0 { dc.fetch_forum_posts(app.client, ch.id, view(need)); }
+		if need.count dc.fetch_forum_posts(app.client, ch.id, need);
 	}
 
 	list := ui.box("forum", .Scroll_Y | .Clip);
@@ -171,7 +153,7 @@ forum_view :: (ch: *dc.Channel) {
 			spacer(.X, 24);
 		}
 		spacer(.Y, 16);
-		if len(posts) == 0 {
+		if !posts.count {
 			r := row("empty");
 			r.semantic_size = .[ui.pct(1), ui.px(40)];
 			{ ui.parent(r); defer ui.pop_parent();
@@ -183,13 +165,23 @@ forum_view :: (ch: *dc.Channel) {
 		tags := dc.forum_tags(ch.id);
 		for id: posts {
 			th := dc.channel_get(s, id);
-			if th == null { continue; }
-			{ ui.id_scope(cast(u64)(id)); defer ui.pop_seed(); forum_card(ch, th, tags); }
+			if th == null continue;
+			ui.id_scope(cast(u64) id);
+			forum_card(ch, th, tags);
+			ui.pop_seed();
 		}
 		spacer(.Y, 24);
 	}
 }
+
 #scope_file
+
+Forum_State :: struct {
+	requested_archived: bool;
+	requested_posts: Table(dc.Snowflake, bool);
+}
+
+forums: Table(dc.Snowflake, Forum_State);
 
 forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 	tm := dc.thread_meta(th.id);
@@ -205,20 +197,20 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 		card.style.border_color = T("--card-border-default");
 		card.style.border = 1;
 		card.style.radius = all4(8);
-		if ui.signal(card).clicked { select_channel(forum.guild_id, th.id); }
+		if ui.signal(card).clicked select_channel(forum.guild_id, th.id);
 		{ ui.parent(card); defer ui.pop_parent();
 			inset_begin(16, 12);
 			defer inset_end(16, 12);
 			// tags
-			if tm != null && len(tm.applied_tags) > 0 {
+			if tm != null && tm.applied_tags.count {
 				tr := row("tags");
 				tr.semantic_size = .[ui.pct(1), ui.px(22)];
 				tr.style.child_gap = 4;
 				{ ui.parent(tr); defer ui.pop_parent();
 					for tid, i: tm.applied_tags {
 						for t: tags {
-							if t.id != tid { continue; }
-							chip := row(fmt.tprintf("tag%d", i), .Draw_Background);
+							if t.id != tid continue;
+							chip := row(tprint("tag%", i), .Draw_Background);
 							chip.semantic_size = .[ui.children(), ui.px(20)];
 							chip.style.bg = T("--background-mod-normal");
 							chip.style.radius = all4(10);
@@ -244,7 +236,7 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 				{ ui.parent(pr); defer ui.pop_parent();
 					name := name_in(tm.first_author, th.id, "");
 					if name != "" {
-						label(fmt.tprintf("%s:", name), .Medium, 14, T("--text-default"), 18);
+						label(tprint("%:", name), .Medium, 14, T("--text-default"), 18);
 						spacer(.X, 4);
 					}
 					t := label(ellipsize(first_line(tm.first_content), .Normal, 14, 600), .Normal, 14, T("--text-muted"), 18);
@@ -258,10 +250,10 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 				icon("ic", "chat", 16, T("--text-muted"));
 				spacer(.X, 4);
 				n := ifx tm != null then tm.message_count else 0;
-				label(fmt.tprintf("%d", n), .Medium, 14, T("--text-muted"), 18);
+				label(tprint("%", n), .Medium, 14, T("--text-muted"), 18);
 				spacer(.X, 8);
 				last := ifx th.last_message_id != 0 then th.last_message_id else th.id;
-				if tm != null && tm.last_message_id > last { last = tm.last_message_id; }
+				if tm != null && tm.last_message_id > last last = tm.last_message_id;
 				label(relative_age(last), .Normal, 14, T("--text-muted"), 18);
 				if tm != null && tm.archived {
 					spacer(.X, 8);
@@ -273,32 +265,28 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 	}
 	spacer(.Y, 8);
 }
+
 #scope_export
 
 // "5m ago" / "3h ago" / "2d ago" from a snowflake.
 relative_age :: (id: dc.Snowflake) -> string {
 	dt := (wall_ms() - dc.snowflake_time_ms(id)) / 1000;
-	if dt < 60 {
-		return "just now";
-	} else if dt < 3600 {
-		return fmt.tprintf("%dm ago", dt / 60);
-	} else if dt < 86400 {
-		return fmt.tprintf("%dh ago", dt / 3600);
-	} else if dt < 86400 * 30 {
-		return fmt.tprintf("%dd ago", dt / 86400);
-	}
-	return fmt.tprintf("%dmo ago", dt / (86400 * 30));
+	if dt < 60 return "just now";
+	if dt < 3600 return tprint("%m ago", dt / 60);
+	if dt < 86400 return tprint("%h ago", dt / 3600);
+	if dt < 86400 * 30 return tprint("%d ago", dt / 86400);
+	return tprint("%mo ago", dt / (86400 * 30));
 }
 
 // Header prefix for threads: "parent ›" before the thread name.
 thread_header_prefix :: (ch: *dc.Channel) {
-	if !dc.is_thread(ch) { return; }
+	if !dc.is_thread(ch) return;
 	p := dc.channel_get(store(), ch.parent_id);
-	if p == null { return; }
+	if p == null return;
 	b := row("parent", .Clickable);
 	b.semantic_size = .[ui.children(), ui.px(24)];
 	sig := ui.signal(b);
-	if sig.clicked { select_channel(p.guild_id, p.id); }
+	if sig.clicked select_channel(p.guild_id, p.id);
 	{ ui.parent(b); defer ui.pop_parent();
 		icon("pi", channel_icon_name(p), 20, T("--channel-icon"));
 		spacer(.X, 6);
@@ -312,12 +300,12 @@ thread_header_prefix :: (ch: *dc.Channel) {
 // ---- feature results (pins, search, forum, jumps) ----
 
 features_receive :: () {
-	if app.client == null { return; }
+	if app.client == null return;
 	for * r: dc.feature_take(app.client) {
 		defer dc.feature_result_free(r);
 		if r.op == {
 		case .Forum_Posts; #through; case .Thread_Search;
-			if r.ok { dc.apply_forum_threads(app.client, r.body); }
+			if r.ok dc.apply_forum_threads(app.client, r.body);
 			app.ui.animating = true;
 		case .Pins;
 			pins_receive(r);
@@ -332,15 +320,14 @@ features_receive :: () {
 		case .Mentions; #through; case .Mention_Delete;
 			inbox_receive(r);
 		case .User_Patch; #through; case .Profile_Patch;
-			account_receive(r); // view_settings_account.odin
+			account_receive(r); // view_settings_account.jai
 		case .Event_Create; #through; case .Event_Counts; #through; case .Event_Rsvps; #through; case .Event_Interest; #through; case .Event_Invite; #through; case .Event_Delete; #through; case .Event_Start;
-			events_receive(r); // view_events.odin (dc.guild_admin_apply first)
+			events_receive(r); // view_events.jai (dc.guild_admin_apply first)
 		case .Guild_Aux; #through; case .Channel_Create; #through; case .Channel_Edit; #through; case .Channel_Delete; #through; case .Emoji_Upload;
 			guild_admin_receive(r);
 		}
 	}
 }
-
 
 // Container padding (ui's style.padding only pads text): call inside a Y box;
 // returns the inner column. Close with inset_end.
@@ -364,5 +351,5 @@ inset_end :: (px: float32, py: float32) {
 	spacer(.Y, py);
 }
 
-forums_reset_for_test :: () {forums = .{};}
+forums_reset_for_test :: () { forums = .{}; }
 

@@ -19,64 +19,180 @@ SOUND_VOLUME :: 0.4;
 // asset hashes from the web bundle ("./<name>.mp3" -> module -> n.p + "<hash>.mp3")
 sound_asset :: (name: string) -> string, bool {
 	if name == {
-	case "message1";
-		return "3ed22d14f3c30bc4", true;
-	case "deafen";
-		return "529ff198eac567af", true;
-	case "undeafen";
-		return "b150f03c89944403", true;
-	case "mute";
-		return "2d3b4ba32c34c862", true;
-	case "unmute";
-		return "e74c4a06134a20e4", true;
-	case "disconnect";
-		return "dd0911025fe00b2e", true;
-	case "ptt_start";
-		return "f5c8ec31889c5317", true;
-	case "ptt_stop";
-		return "34b5969be3a063ba", true;
-	case "user_join";
-		return "b135ff6c8e091b43", true;
-	case "user_leave";
-		return "7b9a183742515fc2", true;
-	case "user_moved";
-		return "4003230e4086b680", true;
-	case "reconnect";
-		return "7dfc49b36dea3a6c", true;
-	case "halloween_message1";
-		return "c269de500ca3cb7b", true;
-	case "halloween_deafen";
-		return "514663b657bc4c7d", true;
-	case "halloween_undeafen";
-		return "4dfa756a71484219", true;
-	case "halloween_mute";
-		return "d5e69d2c2aac0a27", true;
-	case "halloween_unmute";
-		return "6f0d538ed066a1a6", true;
-	case "halloween_disconnect";
-		return "9b8ef0a59d731dd6", true;
-	case "halloween_user_join";
-		return "00b48ea9fc787786", true;
-	case "halloween_user_leave";
-		return "c9b6b9d1ef992f1b", true;
-	case "bit_message1";
-		return "795109c70fe6ea7b", true;
-	case "bop_message1";
-		return "909464bf55b13935", true;
-	case "ducky_message1";
-		return "7d8709c9f90d5d1e", true;
-	case "lofi_message1";
-		return "5aa5ffdc82cb3c74", true;
-	case "asmr_message1";
-		return "7abbc45d8e7b179a", true;
-	case "discodo";
-		return "cb85be48267eb1b4", true;
+	case "message1"; return "3ed22d14f3c30bc4", true;
+	case "deafen"; return "529ff198eac567af", true;
+	case "undeafen"; return "b150f03c89944403", true;
+	case "mute"; return "2d3b4ba32c34c862", true;
+	case "unmute"; return "e74c4a06134a20e4", true;
+	case "disconnect"; return "dd0911025fe00b2e", true;
+	case "ptt_start"; return "f5c8ec31889c5317", true;
+	case "ptt_stop"; return "34b5969be3a063ba", true;
+	case "user_join"; return "b135ff6c8e091b43", true;
+	case "user_leave"; return "7b9a183742515fc2", true;
+	case "user_moved"; return "4003230e4086b680", true;
+	case "reconnect"; return "7dfc49b36dea3a6c", true;
+	case "halloween_message1"; return "c269de500ca3cb7b", true;
+	case "halloween_deafen"; return "514663b657bc4c7d", true;
+	case "halloween_undeafen"; return "4dfa756a71484219", true;
+	case "halloween_mute"; return "d5e69d2c2aac0a27", true;
+	case "halloween_unmute"; return "6f0d538ed066a1a6", true;
+	case "halloween_disconnect"; return "9b8ef0a59d731dd6", true;
+	case "halloween_user_join"; return "00b48ea9fc787786", true;
+	case "halloween_user_leave"; return "c9b6b9d1ef992f1b", true;
+	case "bit_message1"; return "795109c70fe6ea7b", true;
+	case "bop_message1"; return "909464bf55b13935", true;
+	case "ducky_message1"; return "7d8709c9f90d5d1e", true;
+	case "lofi_message1"; return "5aa5ffdc82cb3c74", true;
+	case "asmr_message1"; return "7abbc45d8e7b179a", true;
+	case "discodo"; return "cb85be48267eb1b4", true;
 	}
 	return "", false;
 }
+
+// ---- persistence ----
+
+sounds_restore :: (p: *Persisted_Sounds) {
+	snd.soundpack = copy_string(p.soundpack);
+	snd.disable_all = p.disable_all;
+	for p.disabled array_add(*snd.disabled, copy_string(it));
+}
+
+sounds_snapshot :: (p: *Persisted_Sounds) {
+	p.soundpack = ifx snd.soundpack != "" then snd.soundpack else "classic";
+	p.disable_all = snd.disable_all;
+	p.disabled = snd.disabled;
+}
+
+// Settings > Notifications > Sounds
+sounds_all_disabled :: () -> bool { return snd.disable_all; }
+sounds_set_all_disabled :: (on: bool) { snd.disable_all = on; }
+sound_set_disabled :: (name: string, off: bool) {
+	for snd.disabled {
+		if it != name continue;
+		if !off {
+			free(it);
+			array_ordered_remove_by_index(*snd.disabled, it_index);
+		}
+		return;
+	}
+	if off array_add(*snd.disabled, copy_string(name));
+}
+// one sound's own switch (ignores Disable All)
+sound_own_disabled :: (name: string) -> bool { return array_find(snd.disabled, name); }
+sounds_reset_prefs_for_test :: () {
+	snd.disable_all = false;
+	for snd.disabled free(it);
+	array_reset_keeping_memory(*snd.disabled);
+}
+
+sound_disabled :: (name: string) -> bool {
+	return snd.disable_all || streamer_disable_sounds() || sound_own_disabled(name);
+}
+
+// sound_play: SoundUtils.playSound(name, 0.4). Loads on first use.
+sound_play :: (name: string) {
+	if platform.is_headless() || app.client == null || sound_disabled(name) return;
+	hash, ok := sound_asset(pack_name(name));
+	if !ok return;
+	url := tprint("https://discord.com/assets/%.mp3", hash);
+	found := table_find_pointer(*snd.sounds, url);
+	if !found {
+		s := New(Sound);
+		s.play_when_ready = true;
+		table_set(*snd.sounds, copy_string(url), s);
+		dc.fetch_media(app.client, dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
+		return;
+	}
+	s := found.*;
+	if s.state == .Loading s.play_when_ready = true;
+	else if s.state == .Ready start(s);
+}
+
+// sounds_receive: media results for sound assets (called from images_receive).
+sounds_receive :: (r: *dc.Media_Result) -> bool {
+	found := table_find_pointer(*snd.sounds, r.url);
+	if !found return false;
+	s := found.*;
+	if (r.status != 200 && r.status != 206) || r.data.count == 0 {
+		s.state = .Failed;
+		return true;
+	}
+	s.pcm = decode_mp3(r.data);
+	s.state = ifx s.pcm.count > 0 then .Ready else .Failed;
+	if s.state == .Ready && s.play_when_ready start(s);
+	s.play_when_ready = false;
+	return true;
+}
+
+// ---- per frame ----
+
+sounds_frame :: () {
+	feed();
+	if app.client == null return;
+	if !snd.init {
+		snd.init = true;
+		snd.prev_mute = app.self_mute;
+		snd.prev_deaf = app.self_deaf;
+	}
+	// deafen / mute (MediaEngine: deafen wins)
+	if app.self_deaf != snd.prev_deaf {
+		sound_play(ifx app.self_deaf then "deafen" else "undeafen");
+	} else if app.self_mute != snd.prev_mute {
+		sound_play(ifx app.self_mute then "mute" else "unmute");
+	}
+	snd.prev_mute = app.self_mute;
+	snd.prev_deaf = app.self_deaf;
+	// own connection start / end
+	if app.voice_channel != snd.prev_channel {
+		sound_play(ifx app.voice_channel != 0 then "user_join" else "disconnect");
+		snd.prev_channel = app.voice_channel;
+	}
+	voice_members();
+	message_sounds();
+}
+
+// app_new_messages: this frame's MESSAGE_CREATEs from others (dc.take_new_messages,
+// fed by the library's dispatch on the UI thread). Drained ONCE per frame and
+// shared by every consumer (sounds, OS notifications): call this instead of
+// dc.take_new_messages. Valid until the next frame.
+app_new_messages :: () -> []dc.New_Message {
+	if app.client == null return .[];
+	if new_msgs_frame != app.frame || new_msgs.data == null {
+		if new_msgs.data {
+			dc.new_messages_free(app.client, new_msgs);
+			array_free(new_msgs);
+		}
+		new_msgs = dc.take_new_messages(app.client, context.allocator);
+		new_msgs_frame = app.frame;
+	}
+	return new_msgs;
+}
+
+// message_notifies: the client's notification rule for one message
+// (message_notifications: 0 all, 1 only mentions, 2 nothing, 3 = guild default).
+message_notifies :: (m: *dc.New_Message) -> bool {
+	s := store();
+	if m.author_id == s.me || m.author_id == 0 return false;
+	if m.guild_id == 0 return true; // DMs / group DMs
+	level := 1;
+	g := dc.guild_get(s, m.guild_id);
+	if g level = g.default_message_notifications;
+	gs := table_find_pointer(*s.guild_settings, m.guild_id);
+	if gs {
+		if gs.muted || array_find(gs.muted_channels, m.channel_id) return false;
+		if gs.message_notifications <= 2 level = gs.message_notifications;
+	}
+	if level == 0 return true;
+	if level == 2 return false;
+	if m.mentions_me || m.mention_everyone return true;
+	mem := dc.member_get(s, m.guild_id, s.me);
+	if mem for r: m.mention_roles if array_find(mem.roles, r) return true;
+	return false;
+}
+
 #scope_file
 
-SOUND_TAG :: cast(u64)(0x5d0d_0000_0000_0000);
+SOUND_TAG :: cast(u64) 0x5d0d_0000_0000_0000;
 
 Sound_State :: enum u8 {
 	Loading;
@@ -110,198 +226,68 @@ snd: struct {
 	members: Table(dc.Snowflake, bool); // others in our voice channel
 	members_ch: dc.Snowflake;
 };
-#scope_export
 
-// ---- persistence ----
-
-sounds_restore :: (p: *Persisted_Sounds) {
-	snd.soundpack = clone(p.soundpack);
-	snd.disable_all = p.disable_all;
-	for d: p.disabled { append(*snd.disabled, clone(d)); }
-}
-
-sounds_snapshot :: (p: *Persisted_Sounds) {
-	p.soundpack = ifx snd.soundpack != "" then snd.soundpack else "classic";
-	p.disable_all = snd.disable_all;
-	p.disabled = view(snd.disabled);
-}
-
-// Settings > Notifications > Sounds
-sounds_all_disabled :: () -> bool {return snd.disable_all;}
-sounds_set_all_disabled :: (on: bool) {snd.disable_all = on;}
-sound_set_disabled :: (name: string, off: bool) {
-	for d, i: snd.disabled {
-		if d != name { continue; }
-		if !off {
-			delete(d);
-			ordered_remove(*snd.disabled, i);
-		}
-		return;
-	}
-	if off { append(*snd.disabled, clone(name)); }
-}
-// one sound's own switch (ignores Disable All)
-sound_own_disabled :: (name: string) -> bool {
-	for d: snd.disabled { if d == name { return true; } }
-	return false;
-}
-sounds_reset_prefs_for_test :: () {
-	snd.disable_all = false;
-	for d: snd.disabled { delete(d); }
-	clear(*snd.disabled);
-}
-
-sound_disabled :: (name: string) -> bool {
-	if snd.disable_all || streamer_disable_sounds() { return true; }
-	for d: snd.disabled { if d == name { return true; } }
-	return false;
-}
-#scope_file
+// app_new_messages' current batch and the frame it was taken in
+new_msgs_frame: u64;
+new_msgs: []dc.New_Message;
 
 pack_name :: (name: string) -> string {
 	// SOUNDPACKS[pack][name] ?? name (halloween covers voice + message sounds,
 	// the novelty packs only message1)
 	if snd.soundpack == {
-	case ""; #through; case "classic";
-		return name;
 	case "halloween";
 		if name == {
-		case "message1"; #through; case "deafen"; #through; case "undeafen"; #through; case "mute"; #through; case "unmute"; #through; case "disconnect"; #through; case "user_join"; #through; case "user_leave";
-			return strings.concatenate(string.["halloween_", name], temp);
+		case "message1"; #through; case "deafen"; #through; case "undeafen"; #through; case "mute"; #through;
+		case "unmute"; #through; case "disconnect"; #through; case "user_join"; #through; case "user_leave";
+			return tprint("halloween_%", name);
 		}
-	case "retro";
-		if name == "message1" { return "bit_message1"; }
-	case "bop";
-		if name == "message1" { return "bop_message1"; }
-	case "ducky";
-		if name == "message1" { return "ducky_message1"; }
-	case "lofi";
-		if name == "message1" { return "lofi_message1"; }
-	case "asmr";
-		if name == "message1" { return "asmr_message1"; }
-	case "discodo";
-		if name == "message1" { return "discodo"; }
+	case "retro";   if name == "message1" return "bit_message1";
+	case "bop";     if name == "message1" return "bop_message1";
+	case "ducky";   if name == "message1" return "ducky_message1";
+	case "lofi";    if name == "message1" return "lofi_message1";
+	case "asmr";    if name == "message1" return "asmr_message1";
+	case "discodo"; if name == "message1" return "discodo";
 	}
 	return name;
 }
-#scope_export
-
-// sound_play: SoundUtils.playSound(name, 0.4). Loads on first use.
-sound_play :: (name: string) {
-	if platform.is_headless() || app.client == null || sound_disabled(name) { return; }
-	hash, ok := sound_asset(pack_name(name));
-	if !ok { return; }
-	url := strings.concatenate(string.["https://discord.com/assets/", hash, ".mp3"], temp);
-	s, have := map_find(snd.sounds, url);
-	if !have {
-		s = new(Sound);
-		at(*snd.sounds, clone(url)).* = s;
-		s.play_when_ready = true;
-		dc.fetch_media(app.client, dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
-		return;
-	}
-	if s.state == {
-	case .Loading;
-		s.play_when_ready = true;
-	case .Ready;
-		start(s);
-	case .Failed;
-	}
-}
-#scope_file
 
 start :: (s: *Sound) {
-	if !audio.init() { return; }
+	if !audio.init() return;
 	src := audio.source_create();
-	if src == 0 { return; }
+	if src == 0 return;
 	audio.source_set_volume(src, SOUND_VOLUME);
-	append(*snd.playing, Playing.{source = src, pcm = s.pcm});
+	array_add(*snd.playing, .{source = src, pcm = s.pcm});
 }
-#scope_export
-
-// sounds_receive: media results for sound assets (called from images_receive).
-sounds_receive :: (r: *dc.Media_Result) -> bool {
-	s, ok := map_find(snd.sounds, r.url);
-	if !ok { return false; }
-	if (r.status != 200 && r.status != 206) || len(r.data) == 0 {
-		s.state = .Failed;
-		return true;
-	}
-	s.pcm = decode_mp3(r.data);
-	s.state = ifx len(s.pcm) > 0 then .Ready else .Failed;
-	if s.state == .Ready && s.play_when_ready { start(s); }
-	s.play_when_ready = false;
-	return true;
-}
-#scope_file
 
 decode_mp3 :: (data: []u8) -> []float32 {
 	src := media.source_from_memory(data);
 	d, st := media.demux_open(*src);
-	if d == null || st == .Error { return .{}; }
+	if d == null || st == .Error return .[];
 	defer media.demux_destroy(d);
 	while media.demux_scan(d) == .Progress {}
 	track := -1;
-	for t, i: d.tracks { if t.kind == .Audio {
-		track = i;
-		break;
-	} }
-	if track < 0 { return .{}; }
+	for d.tracks if it.kind == .Audio { track = it_index; break; }
+	if track < 0 return .[];
 	dec, ok := media.audio_decoder_create(*d.tracks[track]);
-	if !ok { return .{}; }
+	if !ok return .[];
 	defer media.audio_decoder_destroy(dec);
-	out := make_dynamic(float32, 0, 0);
-	pkt := make_dynamic(u8, 0, 0, temp);
-	for p: d.tracks[track].packets {
-		if media.demux_read(d, p, *pkt) != .Ok { break; }
-		media.audio_decode(dec, view(pkt), *out);
+	out: [..]float32;
+	pkt: [..]u8;
+	pkt.allocator = temp;
+	for d.tracks[track].packets {
+		if media.demux_read(d, it, *pkt) != .Ok break;
+		media.audio_decode(dec, pkt, *out);
 	}
-	return view(out);
+	return out;
 }
-#scope_export
-
-// ---- per frame ----
-
-sounds_frame :: () {
-	feed();
-	if app.client == null { return; }
-	if !snd.init {
-		snd.init = true;
-		snd.prev_mute = app.self_mute;
-		snd.prev_deaf = app.self_deaf;
-	}
-	// deafen / mute (MediaEngine: deafen wins)
-	if app.self_deaf != snd.prev_deaf {
-		sound_play(ifx app.self_deaf then "deafen" else "undeafen");
-	} else if app.self_mute != snd.prev_mute {
-		sound_play(ifx app.self_mute then "mute" else "unmute");
-	}
-	snd.prev_mute = app.self_mute;
-	snd.prev_deaf = app.self_deaf;
-	// own connection start / end
-	if app.voice_channel != snd.prev_channel {
-		if app.voice_channel != 0 {
-			sound_play("user_join");
-		} else {
-			sound_play("disconnect");
-		}
-		snd.prev_channel = app.voice_channel;
-	}
-	voice_members();
-	message_sounds();
-}
-#scope_file
 
 feed :: () {
-	for < i: 0..len(snd.playing) - 1 {
+	for < i: 0..snd.playing.count - 1 {
 		p := *snd.playing[i];
-		if p.pos < len(p.pcm) {
-			n := audio.source_write(p.source, sub_from(p.pcm, p.pos));
-			p.pos += n * 2;
-		}
-		if p.pos >= len(p.pcm) && audio.source_queued_frames(p.source) == 0 {
+		if p.pos < p.pcm.count p.pos += audio.source_write(p.source, array_view(p.pcm, p.pos)) * 2;
+		if p.pos >= p.pcm.count && audio.source_queued_frames(p.source) == 0 {
 			audio.source_destroy(p.source);
-			ordered_remove(*snd.playing, i);
+			array_ordered_remove_by_index(*snd.playing, i);
 			continue;
 		}
 		request_wake(platform.time_now() + 0.05);
@@ -312,83 +298,32 @@ voice_members :: () {
 	ch := app.voice_channel;
 	s := store();
 	if ch != snd.members_ch {
-		clear(*snd.members);
+		table_reset_keeping_memory(*snd.members);
 		snd.members_ch = ch;
-		if ch == 0 { return; }
-		for v, uid: s.voice_states { if v.channel_id == ch && uid != s.me { at(*snd.members, uid).* = true; } }
+		if ch == 0 return;
+		for v, uid: s.voice_states if v.channel_id == ch && uid != s.me table_set(*snd.members, uid, true);
 		return;
 	}
-	if ch == 0 { return; }
-	now := Table(dc.Snowflake, bool).{};
-	for v, uid: s.voice_states { if v.channel_id == ch && uid != s.me { at(*now, uid).* = true; } }
+	if ch == 0 return;
+	now: Table(dc.Snowflake, bool);
+	now.allocator = temp;
+	for v, uid: s.voice_states if v.channel_id == ch && uid != s.me table_set(*now, uid, true);
 	joined, left := false, false;
-	for _, uid: now { if !get(snd.members, uid) { joined = true; } }
-	for _, uid: snd.members { if !get(now, uid) { left = true; } }
-	if joined { sound_play("user_join"); } else if left { sound_play("user_leave"); }
-	clear(*snd.members);
-	for _, uid: now { at(*snd.members, uid).* = true; }
+	for _, uid: now if !table_contains(*snd.members, uid) joined = true;
+	for _, uid: snd.members if !table_contains(*now, uid) left = true;
+	if joined sound_play("user_join");
+	else if left sound_play("user_leave");
+	table_reset_keeping_memory(*snd.members);
+	for _, uid: now table_set(*snd.members, uid, true);
 }
-#scope_export
-
-// app_new_messages: this frame's MESSAGE_CREATEs from others (dc.take_new_messages,
-// fed by the library's dispatch on the UI thread). Drained ONCE per frame and
-// shared by every consumer (sounds, OS notifications): call this instead of
-// dc.take_new_messages. Valid until the next frame.
-app_new_messages :: () -> []dc.New_Message {
-	if app.client == null { return .{}; }
-	if static_frame5 != app.frame || is_null(static_cur6) {
-		if !is_null(static_cur6) {
-			dc.new_messages_free(app.client, static_cur6);
-			delete(static_cur6);
-		}
-		static_cur6 = dc.take_new_messages(app.client, context.allocator);
-		static_frame5 = app.frame;
-	}
-	return static_cur6;
-}
-
-// message_notifies: the client's notification rule for one message
-// (message_notifications: 0 all, 1 only mentions, 2 nothing, 3 = guild default).
-message_notifies :: (m: *dc.New_Message) -> bool {
-	s := store();
-	if m.author_id == s.me || m.author_id == 0 { return false; }
-	if m.guild_id == 0 { return true; } // DMs / group DMs
-	level := 1;
-	{ g := dc.guild_get(s, m.guild_id);
-	if g != null { level = g.default_message_notifications; } }
-	{ gs, has := map_find(s.guild_settings, m.guild_id);
-	if has {
-		if gs.muted { return false; }
-		for c: gs.muted_channels { if c == m.channel_id { return false; } }
-		if gs.message_notifications <= 2 { level = gs.message_notifications; }
-	} }
-	if level == {
-	case 0;
-		return true;
-	case 2;
-		return false;
-	}
-	if m.mentions_me || m.mention_everyone { return true; }
-	{ mem := dc.member_get(s, m.guild_id, s.me);
-	if mem != null {
-		for r: m.mention_roles { for mine: mem.roles { if mine == r { return true; } } }
-	} }
-	return false;
-}
-#scope_file
 
 message_sounds :: () {
 	s := store();
 	for * m: app_new_messages() {
-		if app.focused && m.channel_id == app.view.channel { continue; } // notifyMessagesInSelectedChannel: false
-		if s.settings.status == .Dnd { continue; }
-		if !message_notifies(m) { continue; }
+		if app.focused && m.channel_id == app.view.channel continue; // notifyMessagesInSelectedChannel: false
+		if s.settings.status == .Dnd continue;
+		if !message_notifies(m) continue;
 		sound_play("message1");
 		break; // one sound per frame
 	}
 }
-#scope_export
-
-#scope_file static_frame5: u64; #scope_export
-#scope_file static_cur6: []dc.New_Message; #scope_export
-

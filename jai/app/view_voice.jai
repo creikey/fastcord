@@ -7,26 +7,8 @@
 //   voice_panel draws the "Voice Connected" section above the user panel.
 
 VOICE_PANEL_H :: 56;
-#scope_file
 
-Voice_App :: struct {
-	conn: *voice.Conn;
-	guild: dc.Snowflake;
-	channel: dc.Snowflake; // channel the connection belongs to
-	version: u64; // voice_server_info version we connected with
-	sent_mute: bool;
-	sent_deaf: bool;
-	audio_ready: bool;
-	headless: bool; // no audio devices (screenshots / CI never open the mic)
-	auto_join: dc.Snowflake; // FASTCORD_JOIN_VOICE=<channel id>
-	auto_checked: bool;
-	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
-}
-
-vc: Voice_App;
-#scope_export
-
-voice_set_headless :: (h: bool) {vc.headless = h;}
+voice_set_headless :: (h: bool) { vc.headless = h; }
 
 // voice_join_channel: op 4 join (or move) and remember the guild for later op 4s.
 voice_join_channel :: (gid: dc.Snowflake, cid: dc.Snowflake) {
@@ -71,56 +53,20 @@ voice_leave_channel :: () {
 	app.voice_channel = 0;
 	voice_drop();
 }
-#scope_file
-
-voice_drop :: () {
-	if vc.conn != null {
-		voice_release(vc.conn);
-		vc.conn = null;
-	}
-	vc.channel = 0;
-	vc.version = 0;
-	clear(*vc.speaking);
-}
-#scope_export
 
 voice_shutdown :: () {
 	voice_drop();
-	delete(vc.speaking);
+	deinit(*vc.speaking);
 }
-#scope_file
-
-// voice_rtc_state: our voice connection as the official RTCConnectionStore names it.
-voice_rtc_state :: () -> dc.Rtc_State {
-	if vc.conn == null { return .Awaiting_Endpoint; }
-	st, _ := voice.state(vc.conn);
-	if st == {
-	case .Connecting; #through; case .Resuming;
-		return .Connecting;
-	case .Identifying;
-		return .Authenticating;
-	case .Discovering;
-		return .Rtc_Connecting;
-	case .Connected;
-		return .Rtc_Connected;
-	case .Disconnected;
-		return .Disconnected;
-	}
-	return .Disconnected;
-}
-#scope_export
 
 voice_frame :: () {
 	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready);
 	if app.client == null { return; }
 	if !vc.auto_checked && app.client.store.ready {
 		vc.auto_checked = true;
-		{ v := os.get_env("FASTCORD_JOIN_VOICE", temp);
-		if v != "" {
-			id, _ := strconv.parse_u64(v);
-			{ ch := dc.channel_get(store(), cast(dc.Snowflake)(id));
-			if ch != null { voice_join_channel(ch.guild_id, ch.id); } }
-		} }
+		id, _ := dc.parse_u64(env("FASTCORD_JOIN_VOICE"));
+		ch := dc.channel_get(store(), cast(dc.Snowflake) id);
+		if ch voice_join_channel(ch.guild_id, ch.id);
 	}
 	if app.voice_channel == 0 {
 		if vc.conn != null { voice_drop(); }
@@ -179,42 +125,17 @@ voice_frame :: () {
 			}
 		}
 	}
-	clear(*vc.speaking);
+	table_reset_keeping_memory(*vc.speaking);
 	if vc.conn != null {
-		for id: voice.speaking_users(vc.conn,, temp) { at(*vc.speaking, cast(dc.Snowflake)(id)).* = true; }
+		for voice.speaking_users(vc.conn,, temp) table_set(*vc.speaking, cast(dc.Snowflake) it, true);
 		// speaking rings and the ping readout change without input events
 		request_wake(platform.time_now() + 0.1);
 	}
 }
-#scope_file
 
-tone_phase: float64;
+voice_is_speaking :: (uid: dc.Snowflake) -> bool { return table_contains(*vc.speaking, uid); }
 
-// Headless runs never open the mic; FASTCORD_VOICE_TEST_TONE=1 sends a 440 Hz
-// tone instead (to exercise speaking indicators in screenshots).
-voice_options :: () -> voice.Options {
-	o := voice.Options.{no_audio_devices = vc.headless || !vc.audio_ready};
-	if o.no_audio_devices && os.get_env("FASTCORD_VOICE_TEST_TONE", temp) == "1" {
-		o.capture = (_: *void, out: []float32) -> int {
-			for i: 0..len(out)-1 {
-				at(*out, i).* = 0.2 * cast(float32)(math.sin(tone_phase));
-				tone_phase += 2 * math.PI * 440 / 48000;
-			}
-			return len(out);
-		};
-	}
-	return o;
-}
-
-is_stage :: (cid: dc.Snowflake) -> bool {
-	ch := dc.channel_get(store(), cid);
-	return ch != null && ch.kind == .Guild_Stage_Voice;
-}
-#scope_export
-
-voice_is_speaking :: (uid: dc.Snowflake) -> bool {return get(vc.speaking, uid);}
-
-voice_panel_height :: () -> float32 {return ifx app.voice_channel != 0 then cast(float32) VOICE_PANEL_H else 0;}
+voice_panel_height :: () -> float32 { return ifx app.voice_channel != 0 then cast(float32) VOICE_PANEL_H else 0; }
 
 // Avatar with the green "speaking" ring (inset 2 px green + 1 px surface gap).
 voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color) -> *ui.Box {
@@ -286,17 +207,13 @@ voice_panel :: () {
 			{ ui.parent(col); defer ui.pop_parent();
 				label(status, .Semibold, 14, color, 18);
 				where_ := "Voice";
-				{ ch := dc.channel_get(s, app.voice_channel);
-				if ch != null {
-					if ch.guild_id != 0 {
-						gname := "";
-						{ g := dc.guild_get(s, ch.guild_id);
-						if g != null { gname = g.name; } }
-						where_ = strings.concatenate(string.[ch.name, " / ", gname], temp);
-					} else {
-						where_ = dm_name(ch);
-					}
-				} }
+				ch := dc.channel_get(s, app.voice_channel);
+				if ch && ch.guild_id != 0 {
+					g := dc.guild_get(s, ch.guild_id);
+					where_ = tprint("% / %", ch.name, ifx g then g.name else "");
+				} else if ch {
+					where_ = dm_name(ch);
+				}
 				t := label(where_, .Normal, 12, T("--text-muted"), 14);
 				t.flags |= .Clip;
 			}
@@ -312,8 +229,8 @@ voice_panel :: () {
 			tip.style.shadow_offset = .{0, 4};
 			{ ui.parent(tip); defer ui.pop_parent();
 				spacer(.X, 12);
-				text := ifx ping > 0 then fmt.tprintf("Ping: %d ms", ping) else "Ping: measuring…";
-				if e2ee { text = strings.concatenate(string.[text, " · End-to-end encrypted"], temp); }
+				text := ifx ping > 0 then tprint("Ping: % ms", ping) else "Ping: measuring…";
+				if e2ee text = tprint("% · End-to-end encrypted", text);
 				label(text, .Semibold, 14, T("--text-strong"), 18);
 				spacer(.X, 12);
 			}
@@ -340,7 +257,7 @@ voice_panel :: () {
 	div.style.bg = T("--border-subtle");
 }
 
-voice_reset_for_test :: () {vc = .{headless = true};}
+voice_reset_for_test :: () { vc = .{headless = true}; }
 
 // The ring popout of an incoming DM call (fixture dm_call, B's view): avatar,
 // name, "Incoming Call...", Decline (red) and Join Call (green). Join sends op 4
@@ -353,14 +270,13 @@ incoming_call_popout :: () {
 	ch := dc.channel_get(store(), cid);
 	if ch == null { return; }
 	caller: dc.Snowflake;
-	{ call := dc.call_get(app.client, cid);
-	if call != null {
-		for vs, uid: store().voice_states { if vs.channel_id == cid && uid != store().me {caller = uid; break;} }
-	} }
-	if caller == 0 && len(ch.recipient_ids) > 0 { caller = ch.recipient_ids[0]; }
-	W :: cast(float32)(234);
-	H :: cast(float32)(270);
-	area_x := cast(float32)(72 + 240);
+	if dc.call_get(app.client, cid) {
+		for vs, uid: store().voice_states if vs.channel_id == cid && uid != store().me { caller = uid; break; }
+	}
+	if caller == 0 && ch.recipient_ids.count > 0 caller = ch.recipient_ids[0];
+	W :: cast(float32) 234;
+	H :: cast(float32) 270;
+	area_x := cast(float32) (72 + 240);
 	p := ui.box("incoming_call", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	p.semantic_size = .[ui.px(W), ui.px(H)];
 	p.fixed_pos = .{area_x + (app.ui.window.x - area_x - W) / 2, 160};
@@ -408,3 +324,78 @@ incoming_call_popout :: () {
 	}
 }
 
+#scope_file
+
+Voice_App :: struct {
+	conn: *voice.Conn;
+	guild: dc.Snowflake;
+	channel: dc.Snowflake; // channel the connection belongs to
+	version: u64; // voice_server_info version we connected with
+	sent_mute: bool;
+	sent_deaf: bool;
+	audio_ready: bool;
+	headless: bool; // no audio devices (screenshots / CI never open the mic)
+	auto_join: dc.Snowflake; // FASTCORD_JOIN_VOICE=<channel id>
+	auto_checked: bool;
+	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
+}
+
+vc: Voice_App;
+
+voice_drop :: () {
+	if vc.conn != null {
+		voice_release(vc.conn);
+		vc.conn = null;
+	}
+	vc.channel = 0;
+	vc.version = 0;
+	table_reset_keeping_memory(*vc.speaking);
+}
+
+// voice_rtc_state: our voice connection as the official RTCConnectionStore names it.
+voice_rtc_state :: () -> dc.Rtc_State {
+	if vc.conn == null { return .Awaiting_Endpoint; }
+	st, _ := voice.state(vc.conn);
+	if st == {
+	case .Connecting; #through; case .Resuming;
+		return .Connecting;
+	case .Identifying;
+		return .Authenticating;
+	case .Discovering;
+		return .Rtc_Connecting;
+	case .Connected;
+		return .Rtc_Connected;
+	case .Disconnected;
+		return .Disconnected;
+	}
+	return .Disconnected;
+}
+
+tone_phase: float64;
+
+// Headless runs never open the mic; FASTCORD_VOICE_TEST_TONE=1 sends a 440 Hz
+// tone instead (to exercise speaking indicators in screenshots).
+voice_options :: () -> voice.Options {
+	o := voice.Options.{no_audio_devices = vc.headless || !vc.audio_ready};
+	if o.no_audio_devices && env("FASTCORD_VOICE_TEST_TONE") == "1" {
+		o.capture = (_: *void, out: []float32) -> int {
+			for * out {
+				it.* = 0.2 * cast(float32) sin(tone_phase);
+				tone_phase += 2 * PI * 440 / 48000;
+			}
+			return out.count;
+		};
+	}
+	return o;
+}
+
+is_stage :: (cid: dc.Snowflake) -> bool {
+	ch := dc.channel_get(store(), cid);
+	return ch != null && ch.kind == .Guild_Stage_Voice;
+}
+
+env :: (name: string) -> string {
+	getenv :: (name: *u8) -> *u8 #foreign libc;
+	p := getenv(temp_c_string(name));
+	return ifx p then to_string(p) else "";
+}

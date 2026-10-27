@@ -27,16 +27,16 @@ Switch_Item :: struct {
 // Subsequence match with bonuses for prefix and word starts; -1 = no match.
 fuzzy_score :: (query: string, text: string) -> int {
 	if query == "" { return 1; }
-	q := strings.to_lower(query, temp);
-	t := strings.to_lower(text, temp);
-	if strings.has_prefix(t, q) { return 1000 - len(t); }
-	{ i := strings.index(t, q);
-	if i >= 0 { return 500 - i; } }
+	q := to_lower_copy(query,, temp);
+	t := to_lower_copy(text,, temp);
+	if begins_with(t, q) { return 1000 - t.count; }
+	i := find_index_from_left(t, q);
+	if i >= 0 { return 500 - i; }
 	score := 0;
 	ti := 0;
-	for qi: 0..len(q)-1 {
+	for qi: 0..q.count-1 {
 		found := false;
-		while ti < len(t) {
+		while ti < t.count {
 			if t[ti] == q[qi] {
 				score += ifx (ti == 0 || t[ti - 1] == #char " " || t[ti - 1] == #char "-") then 10 else 1;
 				ti += 1;
@@ -57,44 +57,52 @@ switcher_toggle :: () {
 	ui.editor_set_text(*sw.editor, "");
 }
 
+// The 12 best matches, best first; equal scores keep DMs, servers, channels order (a stable sort's top 12).
 switcher_items :: (query: string) -> []Switch_Item {
+	MAX :: 12;
+	top: [..]Switch_Item;
+	top.allocator = temp;
+	array_reserve(*top, MAX + 1);
+	add :: (top: *[..]Switch_Item, item: Switch_Item) {
+		if item.score < 0 { return; }
+		at := top.count;
+		while at > 0 && top.*[at - 1].score < item.score { at -= 1; }
+		if at >= MAX { return; }
+		array_insert_at(top, item, at);
+		if top.count > MAX { top.count = MAX; }
+	}
 	s := store();
-	items := make_dynamic(Switch_Item, 0, 0, temp);
 	for cid: s.private_channels {
 		ch := dc.channel_get(s, cid);
 		if ch == null { continue; }
 		name := dm_name(ch);
-		{ sc := fuzzy_score(query, name);
-		if sc >= 0 { append(*items, Switch_Item.{kind = .DM, id = cid, name = name, score = sc + 5}); } }
+		sc := fuzzy_score(query, name);
+		add(*top, .{kind = .DM, id = cid, name = name, score = ifx sc >= 0 then sc + 5 else -1});
 	}
 	for gid: guild_order() {
 		g := dc.guild_get(s, gid);
 		if g == null { continue; }
-		{ sc := fuzzy_score(query, g.name);
-		if sc >= 0 && query != "" { append(*items, Switch_Item.{kind = .Guild, id = gid, name = g.name, score = sc}); } }
+		if query != "" { add(*top, .{kind = .Guild, id = gid, name = g.name, score = fuzzy_score(query, g.name)}); }
 		for cid: dc.guild_channels_sorted(s, gid) {
 			ch := dc.channel_get(s, cid);
 			if ch == null || ch.kind == .Guild_Category { continue; }
-			{ sc := fuzzy_score(query, ch.name);
-			if sc >= 0 {
-				append(*items, Switch_Item.{kind = .Channel, id = cid, guild = gid, name = ch.name, sub = g.name, score = sc + (ifx dc.channel_unread(s, cid) then 3 else 0)});
-			} }
+			sc := fuzzy_score(query, ch.name);
+			add(*top, .{kind = .Channel, id = cid, guild = gid, name = ch.name, sub = g.name, score = ifx sc >= 0 then sc + (ifx dc.channel_unread(s, cid) then 3 else 0) else -1});
 		}
 	}
-	slice.stable_sort_by(view(items), (a: Switch_Item, b: Switch_Item) -> bool {return a.score > b.score;});
-	if len(items) > 12 { resize(*items, 12); }
-	return view(items);
+	return top;
 }
 
-switcher_activate :: (it_: Switch_Item) {
-	if it_.kind == {
+switcher_activate :: (item: Switch_Item) {
+	if item.kind == {
 	case .DM;
-		select_channel(0, it_.id);
+		select_channel(0, item.id);
 	case .Channel;
-		select_channel(it_.guild, it_.id);
+		select_channel(item.guild, item.id);
 	case .Guild;
-		select_guild(it_.id);
+		select_guild(item.id);
 	}
+
 	sw.open = false;
 }
 
@@ -107,14 +115,14 @@ quick_switcher :: () {
 		sw.open = false;
 		return;
 	}
-	query := strings.trim_space(ui.editor_text(*sw.editor));
+	query := trim(ui.editor_text(*sw.editor));
 	items := switcher_items(query);
-	sw.sel = clamp(sw.sel, 0, max(len(items) - 1, 0));
+	sw.sel = clamp(sw.sel, 0, max(items.count - 1, 0));
 	for * e: app.ui.events {
 		if e.kind != .Key_Down || e.consumed { continue; }
 		if e.key == {
 		case .Down;
-			sw.sel = min(sw.sel + 1, len(items) - 1);
+			sw.sel = min(sw.sel + 1, items.count - 1);
 			e.consumed = true;
 		case .Up;
 			sw.sel = max(sw.sel - 1, 0);
@@ -148,38 +156,38 @@ quick_switcher :: () {
 			{ ui.parent(field); defer ui.pop_parent();
 				spacer(.X, 12);
 				res := text_field("q", *sw.editor, "Where would you like to go?", true, 24, 30);
-				if res == .Submit && len(items) > 0 { switcher_activate(items[sw.sel]); }
+				if res == .Submit && items.count > 0 { switcher_activate(items[sw.sel]); }
 				if res == .Changed { sw.sel = 0; }
 				spacer(.X, 12);
 			}
 			spacer(.X, 20);
 		}
 		spacer(.Y, 12);
-		for it_, i: items {
-			ir := row(fmt.tprintf("it%d", i), .Clickable | .Draw_Background);
+		for item, i: items {
+			ir := row(tprint("it%", i), .Clickable | .Draw_Background);
 			ir.semantic_size = .[ui.pct(1), ui.px(34)];
 			sig := ui.signal(ir);
 			if sig.hovering && app.ui.mouse != app.ui.mouse_prev { sw.sel = i; }
 			sel := i == sw.sel;
 			if sel { ir.style.bg = T("--background-mod-normal"); }
-			if sig.clicked { switcher_activate(it_); }
+			if sig.clicked { switcher_activate(item); }
 			{ ui.parent(ir); defer ui.pop_parent();
 				spacer(.X, 28);
-				if it_.kind == {
+				if item.kind == {
 				case .DM;
-					ch := dc.channel_get(store(), it_.id);
-					if ch != null && ch.kind == .DM && len(ch.recipient_ids) > 0 { avatar_box("av", ch.recipient_ids[0], 20); } else if ch != null { group_dm_icon("ic", ch, 20); }
+					ch := dc.channel_get(store(), item.id);
+					if ch != null && ch.kind == .DM && ch.recipient_ids.count > 0 { avatar_box("av", ch.recipient_ids[0], 20); } else if ch != null { group_dm_icon("ic", ch, 20); }
 				case .Channel;
-					ch := dc.channel_get(store(), it_.id);
+					ch := dc.channel_get(store(), item.id);
 					icon("ic", ifx ch != null then channel_icon_name(ch) else "text", 20, T("--interactive-icon-default"));
 				case .Guild;
 					icon("ic", "server", 20, T("--interactive-icon-default"));
 				}
 				spacer(.X, 8);
-				label(it_.name, .Medium, 16, ifx sel then T("--interactive-text-active") else T("--interactive-text-default"), 20);
-				if it_.sub != "" {
+				label(item.name, .Medium, 16, ifx sel then T("--interactive-text-active") else T("--interactive-text-default"), 20);
+				if item.sub != "" {
 					filler(.X);
-					label(it_.sub, .Semibold, 12, T("--text-muted"), 16);
+					label(item.sub, .Semibold, 12, T("--text-muted"), 16);
 				}
 				spacer(.X, 28);
 			}

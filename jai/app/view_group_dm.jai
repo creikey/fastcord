@@ -11,21 +11,6 @@ GDM_LIST_MAX_H :: 248;
 GDM_CHECK :: 22;
 GDM_MAX_OTHERS :: 9;
 GDM_BUTTON_H :: 38;
-#scope_file
-
-Gdm_State :: struct {
-	open: bool;
-	anchor: ui.Rect;
-	from_dm: dc.Snowflake; // opened from a 1:1 DM: its recipient is preselected and fixed
-	selected: [..]dc.Snowflake;
-	search: ui.Editor;
-	scroll: Pk_Scroll;
-	t: float32;
-	rect: ui.Rect;
-}
-
-gdm: Gdm_State;
-#scope_export
 
 // The "+" next to "Direct Messages" (replaces the plain icon in home_sidebar).
 dm_create_button :: () {
@@ -45,7 +30,7 @@ group_dm_popout_open :: (anchor: ui.Rect, from_dm: dc.Snowflake) {
 	gdm.from_dm = from_dm;
 	gdm.t = 0;
 	gdm.scroll = .{};
-	clear(*gdm.selected);
+	array_reset_keeping_memory(*gdm.selected);
 	ui.editor_set_text(*gdm.search, "");
 }
 
@@ -65,16 +50,6 @@ tooltip_below :: (text: string, r: ui.Rect) {
 		spacer(.X, 12);
 	}
 }
-#scope_file
-
-friends_sorted :: () -> []dc.Snowflake {
-	s := store();
-	out := make_dynamic(dc.Snowflake, 0, 0, temp);
-	for rel, uid: s.relationships { if rel.kind == .Friend { append(*out, uid); } }
-	sort_users_by_name(view(out));
-	return view(out);
-}
-#scope_export
 
 // Overlay entry (views.odin overlays()).
 group_dm_overlay :: () {
@@ -99,20 +74,22 @@ group_dm_overlay :: () {
 	pop.style.shadow_offset = .{0, 8};
 	ui.signal(pop);
 	gdm.rect = pop.rect;
-	fixed := cast(dc.Snowflake)(0);
-	{ c := dc.channel_get(s, gdm.from_dm);
-	if c != null && c.kind == .DM && len(c.recipient_ids) > 0 { fixed = c.recipient_ids[0]; } }
+	fixed: dc.Snowflake;
+	c := dc.channel_get(s, gdm.from_dm);
+	if c && c.kind == .DM && c.recipient_ids.count > 0 fixed = c.recipient_ids[0];
 	friends := friends_sorted();
-	q := strings.to_lower(strings.trim_space(ui.editor_text(*gdm.search)), temp);
-	shown := make_dynamic(dc.Snowflake, 0, 0, temp);
+	q := to_lower_copy(trim(ui.editor_text(*gdm.search)),, temp);
+	has_q :: (text: string, q: string) -> bool { return contains(to_lower_copy(text,, temp), q); }
+	shown: [..]dc.Snowflake;
+	shown.allocator = temp;
 	for uid: friends {
-		if uid == fixed { continue; }
+		if uid == fixed continue;
 		u := dc.user_get(s, uid);
-		if u == null { continue; }
-		if q != "" && !strings.contains(strings.to_lower(dc.user_name(s, uid), temp), q) && !strings.contains(strings.to_lower(dc.display_name(u), temp), q) && !strings.contains(strings.to_lower(u.username, temp), q) { continue; }
-		append(*shown, uid);
+		if u == null continue;
+		if q != "" && !has_q(dc.user_name(s, uid), q) && !has_q(dc.display_name(u), q) && !has_q(u.username, q) continue;
+		array_add(*shown, uid);
 	}
-	others := len(gdm.selected) + (ifx fixed != 0 then 1 else 0);
+	others := gdm.selected.count + (ifx fixed != 0 then 1 else 0);
 	{ ui.parent(pop); defer ui.pop_parent();
 		spacer(.Y, GDM_PAD);
 		h := row("title");
@@ -127,19 +104,19 @@ group_dm_overlay :: () {
 		{ ui.parent(sub); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
 			left := GDM_MAX_OTHERS - others;
-			msg := ifx left == 1 then "You can add 1 more friend." else fmt.tprintf("You can add %d more friends.", left);
+			msg := ifx left == 1 then "You can add 1 more friend." else tprint("You can add % more friends.", left);
 			label(msg, .Normal, 12, ifx left <= 0 then T("--text-feedback-critical") else T("--text-muted"), 16);
 		}
 		spacer(.Y, 16);
 		gdm_search_row();
 		spacer(.Y, 8);
-		list_h := min(cast(float32) GDM_LIST_MAX_H, max(cast(float32)(len(shown)) * (GDM_ROW_H + 2), 56));
+		list_h := min(cast(float32) GDM_LIST_MAX_H, max(cast(float32) shown.count * (GDM_ROW_H + 2), 56));
 		list := ui.box("list", .Clip);
 		list.semantic_size = .[ui.pct(1), ui.px(list_h)];
 		view := list.rect;
-		pk_scroll_update(*gdm.scroll, view, cast(float32)(len(shown)) * (GDM_ROW_H + 2));
+		pk_scroll_update(*gdm.scroll, view, cast(float32) shown.count * (GDM_ROW_H + 2));
 		{ ui.parent(list); defer ui.pop_parent();
-			if len(friends) == 0 {
+			if friends.count == 0 {
 				e := ui.box("empty", .Floating_X | .Floating_Y);
 				e.semantic_size = .[ui.px(GDM_W), ui.px(list_h)];
 				e.layout_axis = .Y;
@@ -150,8 +127,8 @@ group_dm_overlay :: () {
 				}
 			}
 			for uid, i: shown {
-				y := cast(float32)(i) * (GDM_ROW_H + 2) - gdm.scroll.y;
-				if y + GDM_ROW_H < 0 || y > list_h { continue; }
+				y := cast(float32) i * (GDM_ROW_H + 2) - gdm.scroll.y;
+				if y + GDM_ROW_H < 0 || y > list_h continue;
 				{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed(); gdm_friend_row(uid, y, others); }
 			}
 			pk_scrollbar(*gdm.scroll, GDM_W - PK_SCROLLBAR_W - 4);
@@ -166,7 +143,7 @@ group_dm_overlay :: () {
 		{ ui.parent(br); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
 			text := ifx others >= 2 then "Create Group DM" else "Create DM";
-			btn := ui.box(fmt.tprintf("%s##create", text), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			btn := ui.box(tprint("%##create", text), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			btn.semantic_size = .[ui.fill(), ui.px(GDM_BUTTON_H)];
 			btn.style.radius = all4(8);
 			btn.style.bg = T("--background-brand");
@@ -197,7 +174,76 @@ group_dm_overlay :: () {
 	}
 	pk_fade(pop, gdm.t);
 }
+
+// ---- group DM member list ----
+
+group_dm_members :: (ch: *dc.Channel) {
+	s := store();
+	list := ui.box("gdm_members", .Scroll_Y | .Clip | .Draw_Background);
+	list.semantic_size = .[ui.px(MEMBER_LIST_W), ui.pct(1)];
+	list.layout_axis = .Y;
+	list.style.bg = T("--background-base-lower");
+	ui.signal(list);
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	array_add(*ids, s.me);
+	for ch.recipient_ids if it != s.me array_add(*ids, it);
+	{ ui.parent(list); defer ui.pop_parent();
+		spacer(.Y, 8);
+		gr := row("group");
+		gr.semantic_size = .[ui.pct(1), ui.px(40)];
+		gr.cross_align = .End;
+		{ ui.parent(gr); defer ui.pop_parent();
+			spacer(.X, 16);
+			label(tprint("Members — %", ids.count), .Medium, 12, T("--channels-default"), 16);
+		}
+		spacer(.Y, 4);
+		for uid: ids {
+			{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
+				member_row(0, uid);
+				if uid == ch.owner_id {
+					// crown after the name
+					item := ui.top_parent().last;
+					{ ui.parent(item); defer ui.pop_parent();
+						c := ui.box("crown", .Floating_X | .Floating_Y);
+						c.semantic_size = .[ui.px(14), ui.px(14)];
+						name_w := cast(float32) dc.user_name(s, uid).count * 8.2;
+						c.fixed_pos = .{8 + 8 + 32 + 12 + name_w + 4, 15};
+						set_icon(c, "crown", T("--text-feedback-warning"));
+					}
+				}
+			}
+		}
+		spacer(.Y, 16);
+	}
+}
+
+gdm_reset_for_test :: () { gdm = .{}; }
+gdm_state_for_test :: () -> string { return tprint("% %", gdm.open, gdm.selected); }
+
 #scope_file
+
+Gdm_State :: struct {
+	open: bool;
+	anchor: ui.Rect;
+	from_dm: dc.Snowflake; // opened from a 1:1 DM: its recipient is preselected and fixed
+	selected: [..]dc.Snowflake;
+	search: ui.Editor;
+	scroll: Pk_Scroll;
+	t: float32;
+	rect: ui.Rect;
+}
+
+gdm: Gdm_State;
+
+friends_sorted :: () -> []dc.Snowflake {
+	s := store();
+	out: [..]dc.Snowflake;
+	out.allocator = temp;
+	for rel, uid: s.relationships if rel.kind == .Friend array_add(*out, uid);
+	sort_users_by_name(out);
+	return out;
+}
 
 gdm_search_row :: () {
 	r := row("searchrow");
@@ -216,9 +262,9 @@ gdm_search_row :: () {
 			// selected friends as chips, like the client's tag input
 			for uid: gdm.selected {
 				u := dc.user_get(store(), uid);
-				if u == null { continue; }
+				if u == null continue;
 				{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
-					chip := ui.box(fmt.tprintf("%s##chip", dc.user_name(store(), uid)), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+					chip := ui.box(tprint("%##chip", dc.user_name(store(), uid)), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 					chip.semantic_size = .[ui.text_size(6), ui.px(24)];
 					chip.style.radius = all4(4);
 					chip.style.bg = T("--background-mod-normal");
@@ -240,7 +286,7 @@ gdm_search_row :: () {
 			f.text = text;
 			f.style.text_color = T("--text-default");
 			if text == "" {
-				f.text = ifx len(gdm.selected) == 0 then "Type the username of a friend" else "";
+				f.text = ifx gdm.selected.count == 0 then "Type the username of a friend" else "";
 				f.style.text_color = T("--input-placeholder-text-default");
 			}
 			app.ui.focus = f.key;
@@ -249,7 +295,7 @@ gdm_search_row :: () {
 			for * e: app.ui.events {
 				if e.consumed || (e.kind != .Key_Down && e.kind != .Text) { continue; }
 				if e.kind == .Key_Down && e.key == .Escape { continue; }
-				if e.kind == .Key_Down && e.key == .Backspace && text == "" && len(gdm.selected) > 0 {
+				if e.kind == .Key_Down && e.key == .Backspace && text == "" && gdm.selected.count > 0 {
 					pop(*gdm.selected);
 					e.consumed = true;
 					continue;
@@ -257,7 +303,7 @@ gdm_search_row :: () {
 				if ui.editor_event(*gdm.search, e, tl, clipboard_get, clipboard_set) != .None { e.consumed = true; }
 			}
 			note_focused_editor(*gdm.search, f);
-			d := new(Search_Draw, temp);
+			d := New(Search_Draw,, temp);
 			d.ed = *gdm.search;
 			f.custom_draw = search_caret_draw;
 			f.custom_user = d;
@@ -268,17 +314,14 @@ gdm_search_row :: () {
 }
 
 gdm_toggle :: (uid: dc.Snowflake) {
-	{ i, found := slice.linear_search(view(gdm.selected), uid);
-	if found {
-		ordered_remove(*gdm.selected, i);
-	} else if len(gdm.selected) < GDM_MAX_OTHERS {
-		append(*gdm.selected, uid);
-	} }
+	found, i := array_find(gdm.selected, uid);
+	if found array_ordered_remove_by_index(*gdm.selected, i);
+	else if gdm.selected.count < GDM_MAX_OTHERS array_add(*gdm.selected, uid);
 }
 
 gdm_friend_row :: (uid: dc.Snowflake, y: float32, others: int) {
 	u := dc.user_get(store(), uid);
-	checked := slice.contains(view(gdm.selected), uid);
+	checked := array_find(gdm.selected, uid);
 	disabled := !checked && others >= GDM_MAX_OTHERS;
 	r := row("friend", .Clickable | .Draw_Background | .Hot_Animation | .Floating_X | .Floating_Y);
 	r.semantic_size = .[ui.px(GDM_W - 2 * 8), ui.px(GDM_ROW_H)];
@@ -317,68 +360,21 @@ gdm_friend_row :: (uid: dc.Snowflake, y: float32, others: int) {
 // 0 friends: a group DM with just you (as the client does); 1 friend: open
 // (or create) the DM; more: POST /users/@me/channels {recipients}.
 gdm_create :: (fixed: dc.Snowflake) {
-	ids := make_dynamic(dc.Snowflake, 0, 0, temp);
-	if fixed != 0 { append(*ids, fixed); }
-	append(*ids, ..view(gdm.selected));
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	if fixed != 0 array_add(*ids, fixed);
+	array_add(*ids, ..gdm.selected);
 	gdm.open = false;
 	app.ui.focus = 0;
-	if !net_action() { return; }
-	if len(ids) == 1 {
-		{ existing := dc.open_dm(app.client, get(ids, 0), "Create DM");
+	if !net_action() return;
+	if ids.count == 1 {
+		existing := dc.open_dm(app.client, ids[0], "Create DM");
 		if existing != 0 {
 			select_channel(0, existing);
 			return;
-		} }
+		}
 	} else {
-		dc.create_private_channel(app.client, view(ids), "Create DM");
+		dc.create_private_channel(app.client, ids, "Create DM");
 	}
-	app.pending_dm_user = ifx len(ids) > 0 then get(ids, 0) else store().me;
+	app.pending_dm_user = ifx ids.count > 0 then ids[0] else store().me;
 }
-#scope_export
-
-// ---- group DM member list ----
-
-group_dm_members :: (ch: *dc.Channel) {
-	s := store();
-	list := ui.box("gdm_members", .Scroll_Y | .Clip | .Draw_Background);
-	list.semantic_size = .[ui.px(MEMBER_LIST_W), ui.pct(1)];
-	list.layout_axis = .Y;
-	list.style.bg = T("--background-base-lower");
-	ui.signal(list);
-	ids := make_dynamic(dc.Snowflake, 0, 0, temp);
-	append(*ids, s.me);
-	for id: ch.recipient_ids { if id != s.me { append(*ids, id); } }
-	{ ui.parent(list); defer ui.pop_parent();
-		spacer(.Y, 8);
-		gr := row("group");
-		gr.semantic_size = .[ui.pct(1), ui.px(40)];
-		gr.cross_align = .End;
-		{ ui.parent(gr); defer ui.pop_parent();
-			spacer(.X, 16);
-			label(fmt.tprintf("Members — %d", len(ids)), .Medium, 12, T("--channels-default"), 16);
-		}
-		spacer(.Y, 4);
-		for uid: ids {
-			{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
-				member_row(0, uid);
-				if uid == ch.owner_id {
-					// crown after the name
-					item := ui.top_parent().last;
-					{ ui.parent(item); defer ui.pop_parent();
-						c := ui.box("crown", .Floating_X | .Floating_Y);
-						c.semantic_size = .[ui.px(14), ui.px(14)];
-						name_w: float32 = 0;
-						name_w = cast(float32)(len(dc.user_name(s, uid))) * 8.2;
-						c.fixed_pos = .{8 + 8 + 32 + 12 + name_w + 4, 15};
-						set_icon(c, "crown", T("--text-feedback-warning"));
-					}
-				}
-			}
-		}
-		spacer(.Y, 16);
-	}
-}
-
-gdm_reset_for_test :: () {gdm = .{};}
-gdm_state_for_test :: () -> string {return fmt.tprint(gdm.open, view(gdm.selected));}
-

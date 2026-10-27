@@ -30,36 +30,22 @@ STREAMER_DEFAULTS :: Streamer_Settings.{
 
 streamer_settings := STREAMER_DEFAULTS;
 
-streamer_hide_personal :: () -> bool {return streamer_settings.enabled && streamer_settings.hide_personal_information;}
-streamer_hide_invites :: () -> bool {return streamer_settings.enabled && streamer_settings.hide_instant_invites;}
-streamer_disable_sounds :: () -> bool {return streamer_settings.enabled && streamer_settings.disable_sounds;}
-streamer_disable_notifications :: () -> bool {return streamer_settings.enabled && streamer_settings.disable_notifications;}
-#scope_file
-
-sm: struct {
-	detected: bool; // a streaming tool runs (written by the scan thread, atomic)
-	scan: bool; // auto_toggle, for the scan thread (atomic)
-	seen: bool; // last `detected` acted on
-	last: Streamer_Settings; // settings as of the last frame (change tracking)
-	started: bool;
-	capture_hidden: bool;
-	notice_closed: bool;
-	notice_viewed: bool;
-	notice_guild: dc.Snowflake; // the route's guild when app_notice_viewed was sent
-};
-#scope_export
+streamer_hide_personal :: () -> bool { return streamer_settings.enabled && streamer_settings.hide_personal_information; }
+streamer_hide_invites :: () -> bool { return streamer_settings.enabled && streamer_settings.hide_instant_invites; }
+streamer_disable_sounds :: () -> bool { return streamer_settings.enabled && streamer_settings.disable_sounds; }
+streamer_disable_notifications :: () -> bool { return streamer_settings.enabled && streamer_settings.disable_notifications; }
 
 streamer_reset_for_test :: () {
 	streamer_settings = STREAMER_DEFAULTS;
 	sm = .{};
 }
 
-streamer_set_detected_for_test :: (on: bool) {atomic_store(*sm.detected, on);}
+streamer_set_detected_for_test :: (on: bool) { atomic_store(*sm.detected, on); }
 
 // ---- detection ----
 
 Streamer_Tool :: struct {
-	os: string; // "win32" | "darwin"
+	target: string; // "win32" | "darwin"
 	exe: string; // lower case: "/<tail of the path>" (win32) or "/<bundle>.app/" (darwin)
 	name: string;
 }
@@ -85,16 +71,12 @@ STREAMER_OS :: #run ifx OS == .MACOS then "darwin" else "win32";
 
 // streamer_tool_running: the first streaming tool among executable paths (or bare
 // file names), case-insensitive.
-streamer_tool_running :: (paths: []string, os := STREAMER_OS) -> string, bool {
-	name: string;
-	ok: bool;
-	tools := STREAMER_TOOLS;
+streamer_tool_running :: (paths: []string, target := STREAMER_OS) -> string, bool {
 	for p: paths {
-		lp, _ := strings.replace_all(strings.to_lower(p, temp), "\\", "/", temp);
-		lp = strings.concatenate(string.["/", lp], temp);
-		for t: tools {
-			if t.os != os { continue; }
-			if ifx strings.has_suffix(t.exe, "/") then strings.contains(lp, t.exe) else strings.has_suffix(lp, t.exe) { return t.name, true; }
+		lp := tprint("/%", replace(to_lower_copy(p,, temp), "\\", "/",, temp));
+		for t: STREAMER_TOOLS {
+			if t.target != target continue;
+			if ifx ends_with(t.exe, "/") then contains(lp, t.exe) else ends_with(lp, t.exe) return t.name, true;
 		}
 	}
 	return "", false;
@@ -104,7 +86,7 @@ streamer_tool_running :: (paths: []string, os := STREAMER_OS) -> string, bool {
 streamer_start :: () {
 	if platform.is_headless() { return; }
 	atomic_store(*sm.scan, streamer_settings.auto_toggle);
-	thread.create_and_start(() {
+	dc.spawn(0, (_: int) {
 		while true {
 			if atomic_load(*sm.scan) {
 				_, on := streamer_tool_running(dc.process_exe_paths(,, temp));
@@ -114,9 +96,9 @@ streamer_start :: () {
 				}
 				reset_temporary_storage();
 			}
-			time.sleep(5 * time.Second);
+			sleep_milliseconds(5000);
 		}
-	}, *context);
+	});
 }
 
 // streamer_frame: auto toggle, analytics on changes, screen-capture protection.
@@ -127,7 +109,7 @@ streamer_frame :: () {
 		sm.last = s.*;
 	}
 	atomic_store(*sm.scan, s.auto_toggle);
-	{ d := atomic_load(*sm.detected);
+	d := atomic_load(*sm.detected);
 	if d != sm.seen {
 		sm.seen = d;
 		if s.auto_toggle {
@@ -135,8 +117,8 @@ streamer_frame :: () {
 			sm.last.enabled = d;
 			track_toggle(d, true);
 		}
-	} }
-	if !bytes_equal(s.*, sm.last) {
+	}
+	if memcmp(s, *sm.last, size_of(Streamer_Settings)) != 0 { // all bools: no padding
 		if s.enabled != sm.last.enabled {
 			track_toggle(s.enabled, false);
 		} else if app.client != null {
@@ -144,27 +126,13 @@ streamer_frame :: () {
 		}
 		sm.last = s.*;
 	}
-	{ hide := s.enabled && s.content_protection;
+	hide := s.enabled && s.content_protection;
 	if hide != sm.capture_hidden {
 		sm.capture_hidden = hide;
 		platform.set_capture_hidden(hide);
-	} }
-	if !s.enabled { sm.notice_closed, sm.notice_viewed = false, false; }
+	}
+	if !s.enabled sm.notice_closed, sm.notice_viewed = false, false;
 }
-#scope_file
-
-streamer_analytics :: (x: Streamer_Settings) -> dc.Streamer_Mode_Analytics {
-	return .{x.enabled, x.auto_toggle, x.disable_notifications, x.disable_sounds, x.hide_instant_invites, x.hide_personal_information, x.content_protection};
-}
-
-track_toggle :: (on: bool, automatic: bool) {
-	if app.client != null { dc.analytics_streamer_mode_toggle(app.client, on, automatic); }
-}
-
-track_notice :: (event: string) {
-	if app.client != null { dc.analytics_app_notice(app.client, event, "STREAMER_MODE"); }
-}
-#scope_export
 
 // ---- UI ----
 
@@ -264,5 +232,31 @@ streamer_account_page :: () {
 		b.style.text_color = .{1, 1, 1, 1};
 		filler(.Y);
 	}
+}
+
+#scope_file
+
+sm: struct {
+	detected: bool; // a streaming tool runs (written by the scan thread, atomic)
+	scan: bool; // auto_toggle, for the scan thread (atomic)
+	seen: bool; // last `detected` acted on
+	last: Streamer_Settings; // settings as of the last frame (change tracking)
+	started: bool;
+	capture_hidden: bool;
+	notice_closed: bool;
+	notice_viewed: bool;
+	notice_guild: dc.Snowflake; // the route's guild when app_notice_viewed was sent
+};
+
+streamer_analytics :: (x: Streamer_Settings) -> dc.Streamer_Mode_Analytics {
+	return .{x.enabled, x.auto_toggle, x.disable_notifications, x.disable_sounds, x.hide_instant_invites, x.hide_personal_information, x.content_protection};
+}
+
+track_toggle :: (on: bool, automatic: bool) {
+	if app.client != null dc.analytics_streamer_mode_toggle(app.client, on, automatic);
+}
+
+track_notice :: (event: string) {
+	if app.client != null dc.analytics_app_notice(app.client, event, "STREAMER_MODE");
 }
 

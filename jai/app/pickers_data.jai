@@ -1,13 +1,5 @@
-#scope_file
-
 // Discord's unicode emoji database (assets/emoji/emoji.json, extracted from
 // the client bundle) plus local frecency / skin tone persistence.
-
-// Discord's unicode emoji database (assets/emoji/emoji.json, extracted from
-// the client bundle) plus local frecency / skin tone persistence.
-
-EMOJI_JSON := #run load_file("../../assets/emoji/emoji.json", #filepath);
-#scope_export
 
 Uni_Emoji :: struct {
 	names: []string; // names[0] is the canonical shortcode
@@ -38,110 +30,85 @@ Emoji_DB :: struct {
 emoji_db: Emoji_DB;
 
 emoji_db_load :: () {
-	if emoji_db.loaded { return; }
+	if emoji_db.loaded return;
 	emoji_db.loaded = true;
-	v, err := json.parse(EMOJI_JSON, allocator = temp);
-	if err != .None { return; }
-	root := ifx v.kind == .Map then v.map else .{};
-	strs :: (v: json.Value) -> []string {
-		arr := ifx v.kind == .List then v.list else zero(type_of(v.list));
-		out := make_slice(string, len(arr));
-		for x, i: arr { at(*out, i).* = clone(ifx x.kind == .String then x.s else ""); }
+	v, err := etf.from_json(EMOJI_JSON,, temp);
+	if err != .None return;
+	root := dc.vmap(v);
+	strs :: (v: etf.Value) -> []string {
+		arr := dc.vlist(v);
+		out := NewArray(arr.count, string);
+		for arr out[it_index] = copy_string(dc.vstr(it));
 		return out;
 	}
-	num :: (v: json.Value) -> int {
-		if v.kind == {
-		case .Int; x := v.i;
-			return cast(int)(x);
-		case .Float; x := v.f;
-			return cast(int)(x);
-		}
-		return 0;
-	}
-	list := ifx get(root, "emojis").kind == .List then get(root, "emojis").list else zero(type_of(get(root, "emojis").list));
-	emoji_db.emojis = make_slice(Uni_Emoji, len(list));
+	list := dc.flist(root, "emojis");
+	emoji_db.emojis = NewArray(list.count, Uni_Emoji);
 	for ev, i: list {
-		o := ifx ev.kind == .Map then ev.map else .{};
+		o := dc.vmap(ev);
 		e := *emoji_db.emojis[i];
-		e.names = strs(get(o, "n"));
-		e.surr = clone(ifx get(o, "s").kind == .String then get(o, "s").s else "");
-		e.asset = clone(ifx get(o, "u").kind == .String then get(o, "u").s else "");
+		e.names = strs(dc.vget(o, "n"));
+		e.surr = copy_string(dc.fstr(o, "s"));
+		e.asset = copy_string(dc.fstr(o, "u"));
 		e.sprite = -1;
-		{ sp, ok := map_find(o, "sp");
-		if ok { e.sprite = num(sp); } }
-		{ dcv, ok := map_find(o, "dc");
-		if ok {
-			arr := ifx dcv.kind == .List then dcv.list else zero(type_of(dcv.list));
-			e.children = make_slice(s32, len(arr));
-			for x, j: arr { e.children[j] = cast(s32)(num(x)); }
-		} }
-		{ md, ok := map_find(o, "md");
-		if ok { e.multi = num(md) != 0; } }
-		for n: e.names { if !has(emoji_db.by_name, n) { at(*emoji_db.by_name, n).* = i; } }
-		if !has(emoji_db.by_surr, e.surr) { at(*emoji_db.by_surr, e.surr).* = i; }
+		sp, has_sp := etf.map_get(o, "sp");
+		if has_sp e.sprite = dc.vint(sp);
+		children, has_children := etf.map_get(o, "dc");
+		if has_children {
+			arr := dc.vlist(children);
+			e.children = NewArray(arr.count, s32);
+			for arr e.children[it_index] = cast(s32) dc.vint(it);
+		}
+		md, has_md := etf.map_get(o, "md");
+		if has_md e.multi = dc.vint(md) != 0;
+		for e.names if !table_contains(*emoji_db.by_name, it) table_add(*emoji_db.by_name, it, i);
+		if !table_contains(*emoji_db.by_surr, e.surr) table_add(*emoji_db.by_surr, e.surr, i);
 	}
-	cats := ifx get(root, "categories").kind == .List then get(root, "categories").list else zero(type_of(get(root, "categories").list));
-	emoji_db.cats = make_slice(Emoji_Category, len(cats));
-	for cv, i: cats {
-		a := ifx cv.kind == .List then cv.list else zero(type_of(cv.list));
-		if len(a) < 3 { continue; }
-		emoji_db.cats[i] = .{clone(ifx a[0].kind == .String then a[0].s else ""), num(a[1]), num(a[2])};
-		emoji_db.parents = max(emoji_db.parents, num(a[2]));
+	cats := dc.flist(root, "categories");
+	emoji_db.cats = NewArray(cats.count, Emoji_Category);
+	for cats {
+		a := dc.vlist(it);
+		if a.count < 3 continue;
+		emoji_db.cats[it_index] = .{copy_string(dc.vstr(a[0])), dc.vint(a[1]), dc.vint(a[2])};
+		emoji_db.parents = max(emoji_db.parents, dc.vint(a[2]));
 	}
-	emoji_db.default_frecency = strs(get(root, "default_frecency"));
-	emoji_db.default_reaction = strs(get(root, "default_reaction_frecency"));
+	emoji_db.default_frecency = strs(dc.vget(root, "default_frecency"));
+	emoji_db.default_reaction = strs(dc.vget(root, "default_reaction_frecency"));
 }
 
 // Skin-toned variant (tone 1..5) of a parent emoji; multi-person emoji use the same tone twice.
 emoji_toned :: (idx: int, tone: int) -> int {
-	if tone <= 0 || idx < 0 || idx >= len(emoji_db.emojis) { return idx; }
+	if tone <= 0 || idx < 0 || idx >= emoji_db.emojis.count return idx;
 	e := *emoji_db.emojis[idx];
-	if len(e.children) == 0 { return idx; }
+	if e.children.count == 0 return idx;
 	ci := ifx e.multi then (tone - 1) * 6 else tone - 1;
-	if ci >= len(e.children) { return idx; }
-	return cast(int)(e.children[ci]);
+	if ci >= e.children.count return idx;
+	return e.children[ci];
 }
 
 emoji_category_title :: (key: string) -> string {
 	if key == {
-	case "people";
-		return "People";
-	case "nature";
-		return "Nature";
-	case "food";
-		return "Food & Drink";
-	case "activity";
-		return "Activities";
-	case "travel";
-		return "Travel & Places";
-	case "objects";
-		return "Objects";
-	case "symbols";
-		return "Symbols";
-	case "flags";
-		return "Flags";
+		case "people";   return "People";
+		case "nature";   return "Nature";
+		case "food";     return "Food & Drink";
+		case "activity"; return "Activities";
+		case "travel";   return "Travel & Places";
+		case "objects";  return "Objects";
+		case "symbols";  return "Symbols";
+		case "flags";    return "Flags";
 	}
 	return key;
 }
 
 emoji_category_icon :: (key: string) -> string {
 	if key == {
-	case "people";
-		return "emoji-people";
-	case "nature";
-		return "nature";
-	case "food";
-		return "food";
-	case "activity";
-		return "game-controller";
-	case "travel";
-		return "bicycle";
-	case "objects";
-		return "object";
-	case "symbols";
-		return "heart";
-	case "flags";
-		return "flag";
+		case "people";   return "emoji-people";
+		case "nature";   return "nature";
+		case "food";     return "food";
+		case "activity"; return "game-controller";
+		case "travel";   return "bicycle";
+		case "objects";  return "object";
+		case "symbols";  return "heart";
+		case "flags";    return "flag";
 	}
 	return "reaction";
 }
@@ -172,43 +139,20 @@ Frecency :: struct {
 
 frecency: Frecency;
 
-frec_now_ms :: () -> s64 {return time.time_to_unix_nano(time.now()) / 1000000;}
-#scope_file
-
-frec_weight :: (age_ms: s64) -> float64 {
-	days := cast(float64)(age_ms) / 86_400_000;
-	if days <= 3 {
-		return 100;
-	} else if days <= 15 {
-		return 70;
-	} else if days <= 30 {
-		return 50;
-	} else if days <= 45 {
-		return 30;
-	} else if days <= 80 {
-		return 10;
-	}
-	return 0;
-}
-#scope_export
-
 frec_score :: (e: Frec_Entry, now: s64) -> float64 {
-	if len(e.recent) == 0 { return cast(float64)(e.total); }
+	if e.recent.count == 0 return cast(float64) e.total;
 	sum: float64;
-	for t: e.recent { sum += frec_weight(now - t); }
-	return cast(float64)(e.total) * sum / cast(float64)(len(e.recent));
+	for e.recent sum += frec_weight(now - it);
+	return cast(float64) e.total * sum / cast(float64) e.recent.count;
 }
 
 frec_use :: (m: *Table(string, Frec_Entry), key: string) {
-	if key == "" { return; }
-	e, ok := map_find_ptr(m, key);
-	if !ok {
-		at(m, clone(key)).* = .{};
-		e = at(m, key);
-	}
+	if key == "" return;
+	e := table_find_pointer(m, key);
+	if !e e = table_add(m, copy_string(key), .{});
 	e.total += 1;
-	append(*e.recent, frec_now_ms());
-	if len(e.recent) > FRECENCY_MAX_RECENT { ordered_remove(*e.recent, 0); }
+	array_add(*e.recent, dc.now_ms());
+	if e.recent.count > FRECENCY_MAX_RECENT array_ordered_remove_by_index(*e.recent, 0);
 	frecency.dirty = true;
 	frecency_save();
 }
@@ -219,79 +163,77 @@ frec_top :: (m: Table(string, Frec_Entry), n: int) -> []string {
 		key: string;
 		score: float64;
 	}
-	now := frec_now_ms();
-	pairs := make_dynamic(Pair, 0, len(m), temp);
-	for e, k: m { append(*pairs, Pair.{k, frec_score(e, now)}); }
-	slice.sort_by(view(pairs), (a: Pair, b: Pair) -> bool {return a.score > b.score || (a.score == b.score && compare(a.key, b.key) < 0);});
-	out := make_dynamic(string, 0, n, temp);
-	for p: pairs {
-		if len(out) >= n { break; }
-		if p.score <= 0 { continue; }
-		append(*out, p.key);
+	now := dc.now_ms();
+	pairs: [..]Pair;
+	pairs.allocator = temp;
+	array_reserve(*pairs, m.count);
+	for e, k: m array_add(*pairs, .{k, frec_score(e, now)});
+	quick_sort(pairs, (a: Pair, b: Pair) -> int {
+		if a.score != b.score return ifx a.score > b.score then -1 else 1;
+		return compare(a.key, b.key);
+	});
+	out: [..]string;
+	out.allocator = temp;
+	for pairs {
+		if out.count >= n break;
+		if it.score > 0 array_add(*out, it.key);
 	}
-	return view(out);
+	return out;
 }
 
-frec_score_of :: (m: Table(string, Frec_Entry), key: string) -> float64 {
-	{ e, ok := map_find(m, key);
-	if ok { return frec_score(e, frec_now_ms()); } }
-	return 0;
+frec_score_of :: (m: *Table(string, Frec_Entry), key: string) -> float64 {
+	e := table_find_pointer(m, key);
+	return ifx e then frec_score(e.*, dc.now_ms()) else 0;
 }
-#scope_file
-
-frecency_path :: () -> string {
-	return strings.concatenate(string.[app_state_dir(), "/expressions.txt"], temp);
-}
-#scope_export
 
 // Local persistence (offline / fixture runs never touch the file).
 frecency_load_local :: () {
-	if frecency.loaded_local { return; }
+	if frecency.loaded_local return;
 	frecency.loaded_local = true;
-	if app.client == null { return; }
-	data, err := os.read_entire_file(frecency_path(), temp);
-	if err != null { return; }
-	text := as_string(data);
-	while true { line, __ok5 := strings.split_lines_iterator(*text); if !__ok5 break;
-		f := strings.split(line, "\t", temp);
-		if len(f) < 2 { continue; }
+	if app.client == null return;
+	text, ok := read_entire_file(frecency_path(), log_errors = false,, temp);
+	if !ok return;
+	for line: split(text, "\n",, temp) {
+		f := split(trim_right(line, "\r"), "\t",, temp);
+		if f.count < 2 continue;
 		if f[0] == {
 		case "tone";
-			frecency.skin_tone, _ = strconv.parse_int(f[1]);
+			frecency.skin_tone = string_to_int(f[1]);
 		case "fav_emoji";
-			append(*frecency.favorite_emojis, clone(f[1]));
-		case "emoji"; #through; case "reaction"; #through; case "sticker";
-			if len(f) < 3 { continue; }
-			m := *frecency.emoji;
-			if f[0] == "reaction" { m = *frecency.reaction; }
-			if f[0] == "sticker" { m = *frecency.sticker; }
+			array_add(*frecency.favorite_emojis, copy_string(f[1]));
+		case "emoji"; #through;
+		case "reaction"; #through;
+		case "sticker";
+			if f.count < 3 continue;
+			m := ifx f[0] == "reaction" then *frecency.reaction else ifx f[0] == "sticker" then *frecency.sticker else *frecency.emoji;
 			e: Frec_Entry;
-			e.total, _ = strconv.parse_int(f[2]);
-			for ts: sub_from(f, 3) {
-				{ v, ok := strconv.parse_i64(ts);
-				if ok { append(*e.recent, v); } }
+			e.total = string_to_int(f[2]);
+			for array_view(f, 3) {
+				v, ok, rest := string_to_int(it, T = s64);
+				if ok && !rest array_add(*e.recent, v);
 			}
-			if !has(m.*, f[1]) { at(m, clone(f[1])).* = e; }
+			if !table_contains(m, f[1]) table_add(m, copy_string(f[1]), e);
 		}
 	}
 }
 
 frecency_save :: () {
-	if app.client == null { return; }
-	sb := strings.builder_make(temp);
-	fmt.sbprintf(*sb, "tone\t%d\n", frecency.skin_tone);
-	for name: frecency.favorite_emojis { fmt.sbprintf(*sb, "fav_emoji\t%s\n", name); }
-	write_map :: (sb: *strings.Builder, kind: string, m: Table(string, Frec_Entry)) {
+	if app.client == null return;
+	sb: String_Builder;
+	sb.allocator = temp;
+	print_to_builder(*sb, "tone\t%\n", frecency.skin_tone);
+	for frecency.favorite_emojis print_to_builder(*sb, "fav_emoji\t%\n", it);
+	write_map :: (sb: *String_Builder, kind: string, m: Table(string, Frec_Entry)) {
 		for e, k: m {
-			fmt.sbprintf(sb, "%s\t%s\t%d", kind, k, e.total);
-			for t: e.recent { fmt.sbprintf(sb, "\t%d", t); }
-			strings.write_byte(sb, 10);
+			print_to_builder(sb, "%\t%\t%", kind, k, e.total);
+			for e.recent print_to_builder(sb, "\t%", it);
+			append(sb, "\n");
 		}
 	}
 	write_map(*sb, "emoji", frecency.emoji);
 	write_map(*sb, "reaction", frecency.reaction);
 	write_map(*sb, "sticker", frecency.sticker);
-	os.write_entire_file(frecency_path(), transmute([]u8, strings.to_string(sb)));
+	write_entire_file(frecency_path(), *sb);
 	frecency.dirty = false;
 }
 
@@ -299,29 +241,41 @@ frecency_save :: () {
 frecency_merge_server :: (fs: dc.Frecency_Settings) {
 	frecency.loaded_server = true;
 	merge :: (m: *Table(string, Frec_Entry), items: []dc.Frecency_Item) {
-		for it_: items {
-			e, ok := map_find_ptr(m, it_.key);
-			if !ok {
-				at(m, clone(it_.key)).* = .{};
-				e = at(m, it_.key);
-			}
-			e.total = max(e.total, it_.total_uses);
-			for u: it_.recent_uses { if !slice.contains(view(e.recent), u) { append(*e.recent, u); } }
-			slice.sort(view(e.recent));
-			while len(e.recent) > FRECENCY_MAX_RECENT { ordered_remove(*e.recent, 0); }
+		for items {
+			e := table_find_pointer(m, it.key);
+			if !e e = table_add(m, copy_string(it.key), .{});
+			e.total = max(e.total, it.total_uses);
+			for u: it.recent_uses if !array_find(e.recent, u) array_add(*e.recent, u);
+			quick_sort(e.recent, (a: s64, b: s64) -> int { return ifx a < b then -1 else ifx a > b then 1 else 0; });
+			while e.recent.count > FRECENCY_MAX_RECENT array_ordered_remove_by_index(*e.recent, 0);
 		}
 	}
 	merge(*frecency.emoji, fs.emoji);
 	merge(*frecency.reaction, fs.emoji_reaction);
 	merge(*frecency.sticker, fs.sticker);
-	for name: fs.favorite_emojis { if !slice.contains(view(frecency.favorite_emojis), name) { append(*frecency.favorite_emojis, clone(name)); } }
-	for id: fs.favorite_stickers { if !slice.contains(view(frecency.favorite_stickers), id) { append(*frecency.favorite_stickers, id); } }
-	for g: fs.favorite_gifs {
-		gg := g;
-		gg.url = clone(g.url);
-		gg.src = clone(g.src);
-		append(*frecency.favorite_gifs, gg);
+	for fs.favorite_emojis if !array_find(frecency.favorite_emojis, it) array_add(*frecency.favorite_emojis, copy_string(it));
+	for fs.favorite_stickers array_add_if_unique(*frecency.favorite_stickers, it);
+	for fs.favorite_gifs {
+		g := it;
+		g.url = copy_string(it.url);
+		g.src = copy_string(it.src);
+		array_add(*frecency.favorite_gifs, g);
 	}
-	slice.sort_by(view(frecency.favorite_gifs), (a: dc.Favorite_Gif, b: dc.Favorite_Gif) -> bool {return a.order > b.order;});
+	quick_sort(frecency.favorite_gifs, (a: dc.Favorite_Gif, b: dc.Favorite_Gif) -> int { return b.order - a.order; });
 }
 
+#scope_file
+
+EMOJI_JSON :: #run read_entire_file(tprint("%/../../assets/emoji/emoji.json", #filepath));
+
+frec_weight :: (age_ms: s64) -> float64 {
+	days := cast(float64) age_ms / 86_400_000;
+	if days <= 3  return 100;
+	if days <= 15 return 70;
+	if days <= 30 return 50;
+	if days <= 45 return 30;
+	if days <= 80 return 10;
+	return 0;
+}
+
+frecency_path :: () -> string { return tprint("%/expressions.txt", app_state_dir()); }
