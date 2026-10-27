@@ -11,7 +11,7 @@ atan2 :: inline (y: $T, x: T) -> T { return M.atan2(y, x); }
 floor :: inline (x: $T) -> T { return M.floor(x); }
 ceil :: inline (x: $T) -> T { return M.ceil(x); }
 round :: inline (x: $T) -> T { return ifx x < 0 then -M.floor(-x + 0.5) else M.floor(x + 0.5); }
-pow :: inline (x: $T, y: T) -> T { return M.pow(x, y); }
+pow :: inline (x: $T, y: $U) -> T { return cast(T) M.pow(cast(float64) x, cast(float64) y); }
 log10 :: inline (x: $T) -> T { return M.log(x) / M.log(cast(T) 10); }
 // C fmod: the result has the sign of x.
 mod :: inline (x: $T, y: T) -> T { return cast(T) fmod(cast(float64) x, cast(float64) y); }
