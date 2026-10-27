@@ -9,6 +9,8 @@ format :: (b: *strings.Builder, f: string, args: []Any) {
     i := 0;
     while i < f.count {
         c := f[i];
+        // Odin's fmt escapes braces: "{{" and "}}" print one brace.
+        if (c == #char "{" || c == #char "}") && i + 1 < f.count && f[i+1] == c { array_add(*b.buf, c); i += 2; continue; }
         if c != #char "%" { array_add(*b.buf, c); i += 1; continue; }
         i += 1;
         if i >= f.count break;
