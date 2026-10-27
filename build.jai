@@ -165,9 +165,10 @@ ui_scripts :: () -> bool {
     Job :: struct { name: string; args: [..]string; ok: bool; }
     jobs: [..]Job;
     BIN :: "build/fastcord-dev";
-    add :: (jobs: *[..]Job, name: string, fixture: string, script: string) {
+    add :: (jobs: *[..]Job, name: string, fixture: string, script: string, env := "") {
         j := array_add(jobs);
         j.name = name;
+        if env array_add(*j.args, env);
         array_add(*j.args, BIN, tprint("-shot:build/ui-%.png", path_strip_extension(path_filename(script))), "-dpi:1", "-now:1793016000",
             tprint("-fixture:%", fixture), "-channel:1546820603343016006", tprint("-script:%", script));
     }
@@ -178,10 +179,10 @@ ui_scripts :: () -> bool {
     for file_list("tests/ui/dm") if ends_with(it, ".txt")
         add(*jobs, tprint("dm_%", path_strip_extension(path_filename(it))), "tests/ui/dm.jsonl", it);
     // emoji scripts: the emoji fixture, with the Twemoji svgs they show served offline
-    for file_list("tests/ui/emoji") if ends_with(it, ".txt") {
-        add(*jobs, tprint("emoji_%", path_strip_extension(path_filename(it))), "tests/ui/chat_emoji.jsonl", it);
-        array_insert_at(*jobs[jobs.count - 1].args, "FASTCORD_MEDIA_DIR=tests/ui/emoji/media", 0);
-    }
+    for file_list("tests/ui/emoji") if ends_with(it, ".txt")
+        add(*jobs, tprint("emoji_%", path_strip_extension(path_filename(it))), "tests/ui/chat_emoji.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/emoji/media");
+    for file_list("tests/ui/media") if ends_with(it, ".txt")  // GIFs, GIFV embeds and their menus, media served offline
+        add(*jobs, tprint("media_%", path_strip_extension(path_filename(it))), "tests/ui/media/media.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/media");
     sweep := array_add(*jobs);
     sweep.name = "sweep";
     array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");

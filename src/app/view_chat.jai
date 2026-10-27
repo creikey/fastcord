@@ -890,52 +890,6 @@ message_body :: (m: *dc.Message) {
 	if m.edited_timestamp && !edited_inline label("(edited)", .Normal, 10, T("--text-muted"), 22);
 }
 
-attachments_view :: (m: *dc.Message) {
-	for * a, i: m.attachments {
-		if is_video(a) && a.width > 0 && a.height > 0 {
-			w := cast(float32) a.width;
-			h := cast(float32) a.height;
-			sc := min(1.0, min(400 / w, 300 / h));
-			video_attachment(a, w * sc, h * sc);
-			spacer(.Y, 4);
-		} else if is_audio(a) {
-			audio_attachment(a);
-			spacer(.Y, 4);
-		} else if a.width > 0 && a.height > 0 {
-			// images scale to fit 400x300 like the client
-			w := cast(float32) a.width;
-			h := cast(float32) a.height;
-			sc := min(1.0, min(400 / w, 300 / h));
-			img := ui.box(tprint("att%", i), .Draw_Background | .Clickable);
-			img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
-			img.style.radius = all4(8);
-			img.style.bg = T("--background-mod-subtle");
-			set_remote_image(img, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)));
-			if ui.signal(img).clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height});
-			spacer(.Y, 4);
-		} else {
-			f := row(tprint("file%", i), .Draw_Background | .Draw_Border);
-			f.semantic_size = .[ui.px(432), ui.px(72)];
-			f.style.bg = T("--background-surface-high");
-			f.style.border_color = T("--border-subtle");
-			f.style.border = 1;
-			f.style.radius = all4(8);
-			{ ui.parent(f); defer ui.pop_parent();
-				spacer(.X, 16);
-				icon("ficon", "attachment", 30, T("--interactive-icon-default"));
-				spacer(.X, 8);
-				col := ui.box("fcol");
-				col.semantic_size = .[ui.fill(), ui.children()];
-				{ ui.parent(col); defer ui.pop_parent();
-					label(a.filename, .Normal, 16, T("--text-link"), 20);
-					label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
-				}
-			}
-			spacer(.Y, 4);
-		}
-	}
-}
-
 reactions_view :: (m: *dc.Message) {
 	r := row("reactions");
 	r.semantic_size = .[ui.pct(1), ui.px(30)];

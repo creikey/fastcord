@@ -237,9 +237,10 @@ push_rect :: (p: Rect_Params) {
     push_rect_px(p, d);
 }
 
-texture_create :: (w: int, h: int, format: Texture_Format, pixels: []u8 = .[]) -> Texture {
+// RGBA8 pixels are straight alpha unless premultiplied_alpha is set (a worker already converted them).
+texture_create :: (w: int, h: int, format: Texture_Format, pixels: []u8 = .[], premultiplied_alpha := false) -> Texture {
     px := pixels;
-    premul := format == .RGBA8 && pixels.data != null;
+    premul := format == .RGBA8 && pixels.data != null && !premultiplied_alpha;
     if premul px = premultiplied(pixels, w, h, w * 4);
     defer if premul array_free(px);
     native := backend_texture_create(cast(s32) w, cast(s32) h, format, px);
@@ -428,25 +429,28 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
 // Straight-alpha RGBA rows (stride bytes apart) to a tightly packed premultiplied copy. The copy comes
 // from the heap, not temp storage, because images can be tens of megabytes.
 premultiplied :: (pixels: []u8, w: int, h: int, stride: int) -> []u8 {
+    out := NewArray(w * h * 4, u8, initialized = false);
+    for y: 0..h-1 premultiply_row(pixels.data + y * stride, out.data + y * w * 4, w);
+    return out;
+}
+
+// Tightly packed straight-alpha RGBA to premultiplied, in place (decode workers; any thread).
+premultiply_in_place :: (pixels: []u8) { premultiply_row(pixels.data, pixels.data, pixels.count / 4); }
+
+premultiply_row :: (src: *u8, dst: *u8, w: int) {
     // c*a/255 rounded to nearest, without a divide (exact for all 8-bit inputs).
     mul :: inline (c: u8, a: u32) -> u8 {
         t := cast(u32) c * a + 128;
         return cast(u8) ((t + (t >> 8)) >> 8);
     }
-    out := NewArray(w * h * 4, u8, initialized = false);
-    for y: 0..h-1 {
-        src := pixels.data + y * stride;
-        dst := out.data + y * w * 4;
-        for x: 0..w-1 {
-            i := x * 4;
-            a := cast(u32) src[i + 3];
-            dst[i + 0] = mul(src[i + 0], a);
-            dst[i + 1] = mul(src[i + 1], a);
-            dst[i + 2] = mul(src[i + 2], a);
-            dst[i + 3] = cast(u8) a;
-        }
+    for x: 0..w-1 {
+        i := x * 4;
+        a := cast(u32) src[i + 3];
+        dst[i + 0] = mul(src[i + 0], a);
+        dst[i + 1] = mul(src[i + 1], a);
+        dst[i + 2] = mul(src[i + 2], a);
+        dst[i + 3] = cast(u8) a;
     }
-    return out;
 }
 
 format_bpp :: (f: Texture_Format) -> int {

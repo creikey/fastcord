@@ -58,9 +58,10 @@ Gif_View :: struct {
 gv: Gif_View;
 
 gif_picker_on_show :: () {
-	if gv.requested || app.client == null return;
+	if gv.requested return;
 	gv.requested = true;
-	dc.gifs_trending(app.client);
+	if app.client dc.gifs_trending(app.client);
+	else pickers_offline(.Gif_Trending, "trending");
 }
 
 pickers_debug :: () -> bool {
@@ -315,6 +316,7 @@ gif_open_tile :: (t: Tile) {
 	case .Trending;
 		reset_results(.Trending);
 		if app.client != null dc.gifs_trending_gifs(app.client);
+		else pickers_offline(.Gif_Trending_Gifs, "trending-gifs");
 	case .Favorites;
 		reset_results(.Favorites);
 	}

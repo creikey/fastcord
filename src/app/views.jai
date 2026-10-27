@@ -996,7 +996,7 @@ overlays :: () {
 	if fnick.user != 0 { friend_nick_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
 	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
-	if viewer_url != "" { image_viewer(); }
+	media_overlays(); // view_media.jai: image viewer, media context menu
 	incoming_call_popout(); // view_voice.jai
 	if app.settings_open { settings_modal(); } else { settings_closed(); }
 	account_logout_modal(); // view_settings_account.jai

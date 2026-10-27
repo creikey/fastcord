@@ -27,7 +27,6 @@ message_stickers_view :: (m: *dc.Message) {
 		b := ui.box(tprint("sticker%", it_index));
 		b.semantic_size = .[ui.px(STICKER_PX), ui.px(STICKER_PX)];
 		if format == 3 {
-			if app.client == null offline_lottie(id);
 			lottie_sticker_draw(b, id, app.focused);
 		} else {
 			url := message_sticker_url(id, format);
@@ -78,14 +77,4 @@ sticker_image_draw :: (b: *ui.Box, user: *void) {
 	}
 	c := gfx.Color.{1, 1, 1, b.opacity};
 	gfx.push_rect(.{dst = cast,force(gfx.Rect) r, tex = tex, colors = .[c, c, c, c]});
-}
-
-// Offline (fixture) runs: load the Lottie JSON from FASTCORD_MEDIA_DIR into the
-// picker's sticker cache before it tries (and fails) to fetch it.
-offline_lottie :: (id: dc.Snowflake) {
-	if table_contains(*lottie_stickers, id) return;
-	data, ok := offline_media(dc.sticker_url(id, 3));
-	if !ok return;
-	anim := lottie.load(data);
-	if anim table_set(*lottie_stickers, id, .{state = .Ready, anim = anim, frame = -1});
 }

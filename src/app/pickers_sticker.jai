@@ -60,9 +60,10 @@ sv: Sticker_View;
 
 sticker_picker_on_show :: () {
 	sv.inspected = .[-1, 0];
-	if sv.requested || app.client == null return;
+	if sv.requested return;
 	sv.requested = true;
-	dc.sticker_packs_fetch(app.client);
+	if app.client dc.sticker_packs_fetch(app.client);
+	else pickers_offline(.Sticker_Packs, "sticker-packs");
 }
 
 sticker_picker_query_changed :: () {
