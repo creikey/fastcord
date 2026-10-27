@@ -17,6 +17,7 @@
 - [ ] Voice: no video: watching or sharing camera, screen share and Go Live streams are all missing (`src/voice` is audio only).
 - [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
+- [ ] Tray: add a system tray icon (unread badge, menu with Open and Quit); closing the window hides it to the tray instead of quitting, as the official client does.
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
