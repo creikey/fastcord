@@ -126,6 +126,40 @@
 - [ ] Keybinds: Escape doesn't mark the channel read; it only sends the analytics event (`views.jai` `overlays`).
 - [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
 - [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
+- [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
+- [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
+- [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
+- [ ] Friends: rows show only Online/Idle, never the custom status or activity; the "Friends" item in the DM sidebar has no pending-request badge.
+- [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
+- [ ] Profiles: notes can't be seen or edited ("Click to add a note" is a static label; `fetch_note` has no result handler).
+- [ ] Profiles: no badges, connections, activity, rich presence or Spotify; `Presence.activity` is parsed but unused.
+- [ ] Profiles: others' custom statuses never show (popout, member list, DM rows, friends); no mobile-online icon (`Presence.mobile` unused).
+- [ ] Profiles: per-server avatars, bios, banners and pronouns never show (`guild_member_avatar_url` is unused); animated avatars never animate.
+- [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
+- [ ] Status: you can't set or clear a custom status (`dc.set_custom_status` is never called); yours shows without its emoji and ignores its expiry.
+- [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
+- [ ] Group DMs: right-clicking a row does nothing; leaving with the X has no confirmation.
+- [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
+- [ ] Sounds: the message sound plays for blocked users and `@silent` messages, though desktop notifications skip both (`sounds.jai` `message_notifies`).
+- [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
+- [ ] Calls: a DM has no in-call view (participant tiles, Ring for absent members, ongoing-call banner).
+- [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
+- [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
+- [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
+- [ ] Appearance: no compact mode, chat font scaling, zoom (and no Ctrl +/-/0), message spacing, or accessibility options (reduced motion, saturation, role colours).
+- [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
+- [ ] Keybinds: no Ctrl+Shift+M (mute) or Ctrl+Shift+D (deafen).
+- [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
+- [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
+- [ ] Voice: the device dropdown in Voice & Video doesn't close on an outside click, Escape or page switch.
+- [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
+- [ ] Voice: while deafened the mic button shows unmuted, and clicking it only flips `self_mute` instead of undeafening (`views.jai`).
+- [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
+- [ ] Voice: left-clicking a participant does nothing; their menu lacks server mute/deafen, disconnect, move and profile.
+- [ ] Voice: when a moderator moves you, `app.voice_channel` keeps the old channel, so the panel shows the old name and the next mute goes to it (`view_voice.jai`).
+- [ ] Voice: clicking the panel opens nothing, so there's no connection info (packet loss, server, E2EE privacy and verification codes, which `voice/conn.jai` already has); the channel name doesn't go to the channel; no noise-suppression quick toggle.
+- [ ] Voice: no soundboard and no Activities; full channels aren't blocked.
+- [ ] Notifications: the taskbar/dock badge counts only mentions, not friend requests.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
