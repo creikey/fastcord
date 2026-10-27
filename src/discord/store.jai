@@ -427,7 +427,11 @@ parse_embed :: (m: etf.Map, a: Allocator) -> Embed {
 		e.image_h = fint(im, "height");
 	}
 	vd := fmap(m, "video");
-	if vd e.video_url = clone_str(ifx vhas(vd, "proxy_url") then fstr(vd, "proxy_url") else fstr(vd, "url"), a);
+	if vd {
+		e.video_url = clone_str(ifx vhas(vd, "proxy_url") then fstr(vd, "proxy_url") else fstr(vd, "url"), a);
+		e.video_w = fint(vd, "width");
+		e.video_h = fint(vd, "height");
+	}
 	p := fmap(m, "provider");
 	if p e.provider = clone_str(fstr(p, "name"), a);
 	au := fmap(m, "author");

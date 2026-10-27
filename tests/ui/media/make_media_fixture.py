@@ -1,4 +1,4 @@
-# Builds tests/ui/media/media.jsonl (chat.jsonl's READY plus a GIF attachment and a Klipy GIFV embed, shaped
+# Builds tests/ui/media/media.jsonl (chat.jsonl's READY plus an FxTwitter video embed, a GIF attachment and a Klipy GIFV embed, shaped
 # like traffic/gif_send.jsonl) and its media: dance.gif, poster.webp (a PNG; files are sniffed), clip.mp4 is
 # tests/ui/attach/clip.mp4. The UI scripts here run with FASTCORD_MEDIA_DIR=tests/ui/media.
 # Run: python3 -I tests/ui/media/make_media_fixture.py
@@ -23,9 +23,21 @@ EXT = 'https://images-ext-1.discordapp.net/external/x/https/static.klipy.com/ii/
 gifv = {'type': 'gifv', 'url': 'https://klipy.com/gifs/goat-banjo', 'title': 'Goat banjo', 'provider': {'name': 'Klipy', 'url': 'https://klipy.com'},
         'thumbnail': {'url': KLIPY + 'poster.webp', 'proxy_url': EXT + 'poster.webp', 'width': 320, 'height': 180, 'flags': 0},
         'video': {'url': KLIPY + 'clip.mp4', 'proxy_url': EXT + 'clip.mp4', 'width': 320, 'height': 180, 'flags': 0}}
+# an FxTwitter video embed (oldest, above the GIFs): masked links and a quote in the description, the
+# video proxied, so it plays in the card
+FX = 'https://images-ext-1.discordapp.net/external/y/https/video.twimg.com/ext_tw_video/1/'
+TW = 'https://x.com/jaybronious/status/2115114109049967088'
+fx_msg = sf(base_ms - 5000, 4)
+fx = {'type': 'video', 'url': TW, 'color': 6513919, 'author': {'name': 'Jay (@jaybronious)', 'url': TW},
+      'description': 'Holy shit. Watch her face change here [#elizabethholmes](https://x.com/hashtag/elizabethholmes)\n\n'
+                     '> **[Quoting](https://x.com/jaybronious/status/2112312139595538770) Jay ([@jaybronious](https://x.com/jaybronious)\\)**\n> \n'
+                     '> Watch how her stare changes midway during this clip. [#elizabethholmes](https://x.com/hashtag/elizabethholmes)\n\n'
+                     '**[💬](https://x.com/intent/tweet?in_reply_to=2115114109049967088) 169 [🔁](https://x.com/intent/retweet?tweet_id=2115114109049967088) 161**',
+      'thumbnail': {'url': 'https://pbs.twimg.com/poster.webp', 'proxy_url': FX + 'poster.webp', 'width': 640, 'height': 360, 'flags': 0},
+      'video': {'url': 'https://video.twimg.com/clip.mp4', 'proxy_url': FX + 'clip.mp4', 'width': 640, 'height': 360, 'flags': 0}}
 with open(os.path.join(here, 'media.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     f.writelines(head)
-    for o in (msg(gif_msg, '', [att], []), msg(gifv_msg, 'https://klipy.com/gifs/goat-banjo', [], [gifv])):
+    for o in (msg(fx_msg, TW, [], [fx]), msg(gif_msg, '', [att], []), msg(gifv_msg, 'https://klipy.com/gifs/goat-banjo', [], [gifv])):
         f.write(json.dumps(o, ensure_ascii=False) + '\n')
 
 # dance.gif: 80x60, 4 frames of moving stripes (uncompressed LZW: 9-bit literals, clear every 254 codes)

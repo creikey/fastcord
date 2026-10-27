@@ -14,7 +14,7 @@ Inline_Player :: struct {
 	img: media.Video_Image;
 }
 
-players: Table(dc.Snowflake, Inline_Player); // attachment id -> player
+players: Table(dc.Snowflake, Inline_Player); // attachment id or embed_player_key -> player
 viewer_url: string; // image viewer overlay (the poster for a GIFV)
 viewer_video: string; // GIFV: the looping video
 viewer_link: string; // the media menu's target
@@ -63,7 +63,8 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
-			video_attachment(a, w * sc, h * sc);
+			// poster frame from the media proxy (?format=webp of a video returns a still)
+			video_player(a.id, a.url, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc);
 			spacer(.Y, 4);
 		} else if is_audio(a) {
 			audio_attachment(a);
@@ -104,21 +105,21 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "audio/"); }
 
-// Video attachment: poster until clicked, then plays inline with a control bar.
-video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
-	box := ui.box(tprint("vid%", cast(u64) a.id), .Draw_Background | .Clickable | .Clip);
+// Video attachment or embed video: poster until clicked, then plays inline with a control bar. key
+// names its player (an attachment id, or embed_player_key).
+video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32) {
+	box := ui.box(tprint("vid%", cast(u64) key), .Draw_Background | .Clickable | .Clip);
 	box.semantic_size = .[ui.px(w), ui.px(h)];
 	box.style.radius = all4(8);
 	box.style.bg = .{0, 0, 0, 1};
 	sig := ui.signal(box);
-	ip := table_find_pointer(*players, a.id);
+	ip := table_find_pointer(*players, key);
 	playing := ip != null;
 	if !playing {
-		// poster frame from the media proxy (?format=webp of a video returns a still)
-		set_remote_image(box, attachment_image_url(a, cast(int) w, cast(int) h));
+		set_remote_image(box, poster);
 		if sig.clicked {
-			blob_get(a.url);
-			table_set(*players, a.id, .{url = copy_string(a.url)});
+			blob_get(url);
+			table_set(*players, key, .{url = copy_string(url)});
 		}
 	} else {
 		player_open_ready(ip);
@@ -127,7 +128,7 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 			if img.y != 0 ip.img = img;
 			if media.player_is_playing(ip.player) app.ui.animating = true;
 			box.custom_draw = video_draw;
-			box.custom_user = cast(*void) cast(u64) a.id;
+			box.custom_user = cast(*void) cast(u64) key;
 			if sig.clicked media.player_toggle(ip.player);
 		}
 	}
@@ -258,6 +259,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 			spacer(.Y, 4);
 			continue;
 		}
+		video := is_discord_media(e.video_url) && (e.video_w > 0 || e.thumbnail_w > 0);
 		card := row(tprint("embed%", i), .Draw_Background);
 		card.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.children()];
 		card.cross_align = .Start;
@@ -289,20 +291,37 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				}
 				if e.description != "" {
 					spacer(.Y, 8);
-					d := ui.box("desc", .Wrap_Text | .Selectable_Text);
-					d.semantic_size = .[ui.pct(1), ui.text_size()];
-					d.style.line_height = 18;
-					d.style.text_color = T("--text-default");
-					d.sel_order = cast(u64) m.id * 8 + 7;
-					spans: [..]ui.Span;
-					spans.allocator = temp;
-					for md_parse(e.description) {
-						if it_index > 0 array_add(*spans, .{text = "\n", font = F(.Normal), size = 14});
-						array_add(*spans, ..tokens_to_spans(it.tokens, .Normal, 14, m));
+					// a box per block so quotes get their bar and links their clicks (span ids are
+					// token indices within one block)
+					for blk, bi: md_parse(e.description) {
+						if bi > 0 spacer(.Y, 4);
+						wrap := row(tprint("dblk%", bi));
+						wrap.semantic_size = .[ui.pct(1), ui.children()];
+						wrap.cross_align = .Start;
+						{ ui.parent(wrap); defer ui.pop_parent();
+							if blk.kind == .Quote {
+								wrap.custom_draw = quote_bar_draw;
+								spacer(.X, 12);
+							}
+							d := ui.box("d", .Wrap_Text | .Selectable_Text);
+							d.semantic_size = .[ui.fill(), ui.text_size()];
+							d.style.line_height = 18;
+							d.style.text_color = T("--text-default");
+							d.sel_order = cast(u64) m.id * 8 + 7;
+							if blk.kind == .Code_Block ui.set_spans(d, .[.{text = blk.code, font = F(.Mono), size = 12}]);
+							else ui.set_spans(d, tokens_to_spans(blk.tokens, .Normal, 14, m));
+							handle_span_clicks(d, blk.tokens, m.id);
+						}
 					}
-					ui.set_spans(d, spans);
 				}
-				if e.image_url != "" && e.image_w > 0 {
+				if video {
+					// a proxied video (FxTwitter, Reddit…) plays in the card; YouTube's iframe url doesn't
+					spacer(.Y, 16);
+					w := cast(float32) ifx e.video_w > 0 then e.video_w else e.thumbnail_w;
+					h := cast(float32) ifx e.video_h > 0 then e.video_h else e.thumbnail_h;
+					sc := min(1.0, min(400 / w, 300 / h));
+					video_player(embed_player_key(m, i), e.video_url, e.thumbnail_url, w * sc, h * sc);
+				} else if e.image_url != "" && e.image_w > 0 {
 					spacer(.Y, 16);
 					w := cast(float32) e.image_w;
 					h := cast(float32) e.image_h;
@@ -315,7 +334,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				}
 				spacer(.Y, 16);
 			}
-			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 {
+			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 && !video {
 				spacer(.X, 16);
 				th := ui.box("thumb", .Draw_Background);
 				th.semantic_size = .[ui.px(80), ui.px(80)];
@@ -327,6 +346,10 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 		spacer(.Y, 4);
 	}
 }
+
+// An embed's video player: the message id with the embed index, top bit set so it can't be an
+// attachment id.
+embed_player_key :: (m: *dc.Message, i: int) -> dc.Snowflake { return (m.id + cast(u64) i) | (1 << 63); }
 
 // An image (animated ones play while drawn) or, with video, a GIFV: a muted looping video that plays only
 // while on screen, its poster image until the first frame is in.
