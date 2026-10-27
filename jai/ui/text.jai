@@ -44,7 +44,7 @@ is_space_byte :: (c: u8) -> bool {return c == #char " " || c == 9;}
 
 // Shape and wrap text. wrap_width < 0 means no wrapping (only hard newlines).
 layout_text :: (font: Font, size: float32, text: string, wrap_width: float32, line_height: float32 = 0) -> *Text_Layout {
-	s := ui;
+	s := context.ui;
 	tl := new(Text_Layout, s.frame_alloc);
 	tl.text = text;
 	tl.font = font;
@@ -61,7 +61,7 @@ layout_text :: (font: Font, size: float32, text: string, wrap_width: float32, li
 
 // Shape spans into one paragraph. The text of the layout is the spans' texts concatenated.
 layout_rich :: (spans: []Span, wrap_width: float32, line_height: float32 = 0) -> *Text_Layout {
-	s := ui;
+	s := context.ui;
 	tl := new(Text_Layout, s.frame_alloc);
 	tl.spans = spans;
 	tl.span_runs = make_slice(Shaped_Run, len(spans), s.frame_alloc);
@@ -72,7 +72,7 @@ layout_rich :: (spans: []Span, wrap_width: float32, line_height: float32 = 0) ->
 	for sp, si: spans {
 		base := strings.builder_len(sb);
 		strings.write_string(*sb, sp.text);
-		if sp.object != .{} {
+		if !(sp.object == Vec2.{}) {
 			append(*glyphs, Shaped_Glyph.{x = x, advance = sp.object.x, cluster_start = base, cluster_end = base + len(sp.text), handle = 0, span = cast(s32)(si)});
 			x += sp.object.x;
 			continue;
@@ -104,7 +104,7 @@ layout_rich :: (spans: []Span, wrap_width: float32, line_height: float32 = 0) ->
 
 // Index of the span under point p (screen space), or -1.
 span_at :: (tl: *Text_Layout, p: Vec2) -> int {
-	if tl == null || tl.spans == null { return -1; }
+	if tl == null || tl.spans.count == 0 { return -1; }
 	local := p - tl.origin;
 	if local.y < 0 || local.y >= tl.height { return -1; }
 	li := clamp(cast(int)(local.y / tl.line_h), 0, len(tl.lines) - 1);
@@ -119,7 +119,7 @@ span_at :: (tl: *Text_Layout, p: Vec2) -> int {
 #scope_module
 
 wrap_layout :: (tl: *Text_Layout, wrap_width: float32) {
-	s := ui;
+	s := context.ui;
 	text := tl.text;
 	tl.wrap_width = wrap_width;
 	lines := make_dynamic(Text_Line, 0, 4, s.frame_alloc);
@@ -183,7 +183,7 @@ make_line :: (tl: *Text_Layout, g0: int, g1: int, b0: int, b1: int) -> Text_Line
 line_of :: (tl: *Text_Layout, pos: int) -> int {
 	for l, i: tl.lines {
 		if pos < l.end || (pos == l.end && i == len(tl.lines) - 1) { return i; }
-		if i + 1 < len(tl.lines) && pos < __MAPIDX__(tl.lines|i + 1).start { return i; } // inside a break char
+		if i + 1 < len(tl.lines) && pos < tl.lines[i + 1].start { return i; } // inside a break char
 	}
 	return max(0, len(tl.lines) - 1);
 }
@@ -354,7 +354,7 @@ selection_range :: () -> Text_Pos, Text_Pos, bool {
 	lo: Text_Pos;
 	hi: Text_Pos;
 	ok: bool;
-	sel := *ui.selection;
+	sel := *context.ui.selection;
 	if !sel.active { return .{}, .{}, false; }
 	a, b := sel.anchor, sel.focus;
 	if pos_less(b, a) {
@@ -366,12 +366,12 @@ selection_range :: () -> Text_Pos, Text_Pos, bool {
 	} else if sel.gran != .Char {
 		a = ifx pos_less(sel.anchor, a) then sel.anchor else a;
 	}
-	if a == b { return a, b, false; }
+	if a.order == b.order && a.box == b.box && a.byte == b.byte { return a, b, false; }
 	return a, b, true;
 }
 
 selection_clear :: () {
-	ui.selection = .{};
+	context.ui.selection = .{};
 }
 
 has_selection :: () -> bool {
@@ -393,8 +393,8 @@ selection_in_box :: (b: *Box) -> int, int, bool {
 
 collect_selectables :: (b: *Box) {
 	if has(b.flags, .Selectable_Text) && b.key != 0 {
-		if b.sel_order == 0 { b.sel_order = cast(u64)(len(ui.selectables) + 1); }
-		append(*ui.selectables, b);
+		if b.sel_order == 0 { b.sel_order = cast(u64)(len(context.ui.selectables) + 1); }
+		append(*context.ui.selectables, b);
 	}
 	{ c := b.first;
 	while c != null { collect_selectables(c);  c = c.next; } }
@@ -403,7 +403,7 @@ collect_selectables :: (b: *Box) {
 // Text position nearest the mouse among visible selectables. Rows are found
 // by vertical extent first, like a browser.
 selectable_pos_at :: (p: Vec2, clamp_to_nearest: bool) -> Text_Pos, bool {
-	s := ui;
+	s := context.ui;
 	best: *Box;
 	best_d := FLOAT32_MAX;
 	for b: s.selectables {
@@ -425,15 +425,15 @@ selectable_pos_at :: (p: Vec2, clamp_to_nearest: bool) -> Text_Pos, bool {
 	}
 	if best == null { return .{}, false; }
 	tl := text_layout_for(best, best.fixed_size.x - best.style.padding.x * 2);
-	if tl.origin == .{} { tl.origin = .{best.rect.x0 + best.style.padding.x, best.rect.y0 + best.style.padding.y}; }
-	u8 := hit_test(tl, p);
-	if p.y > best.rect.y1 { u8 = len(best.text); }
-	if p.y < best.rect.y0 { u8 = 0; }
-	return Text_Pos.{order = best.sel_order, box = best.key, u8 = u8}, true;
+	if tl.origin == Vec2.{} { tl.origin = .{best.rect.x0 + best.style.padding.x, best.rect.y0 + best.style.padding.y}; }
+	byte_ := hit_test(tl, p);
+	if p.y > best.rect.y1 { byte_ = len(best.text); }
+	if p.y < best.rect.y0 { byte_ = 0; }
+	return Text_Pos.{order = best.sel_order, box = best.key, byte = byte_}, true;
 }
 
 update_selection :: () {
-	s := ui;
+	s := context.ui;
 	collect_selectables(s.root);
 	sel := *s.selection;
 	for * e: s.events {
@@ -504,7 +504,7 @@ draw_selection_highlight :: (b: *Box, tl: *Text_Layout) {
 	s0, s1, ok := selection_in_box(b);
 	if !ok { return; }
 	lo, hi, _ := selection_range();
-	c := ui.selection_color;
+	c := context.ui.selection_color;
 	for l, li: tl.lines {
 		a := max(s0, l.start);
 		z := min(s1, l.end);
@@ -515,7 +515,7 @@ draw_selection_highlight :: (b: *Box, tl: *Text_Layout) {
 		if continues { x1 += tl.size * 0.3; } // show that the newline is selected
 		_ = lo;
 		r := Rect.{tl.origin.x + x0, tl.origin.y + l.y, tl.origin.x + x1, tl.origin.y + l.y + tl.line_h};
-		append(*ui.draw, Draw_Cmd.{kind = .Rect, rect = r, colors = .{c, c, c, c}});
+		append(*context.ui.draw, Draw_Cmd.{kind = .Rect, rect = r, colors = .[c, c, c, c]});
 	}
 }
 #scope_export
@@ -527,7 +527,7 @@ selection_text :: (fetch: (order: u64) -> string = null, allocator := temp) -> s
 	if !ok { return ""; }
 	sb := strings.builder_make(allocator);
 	first := true;
-	for b: ui.selectables {
+	for b: context.ui.selectables {
 		if b.sel_order < lo.order || b.sel_order > hi.order { continue; }
 		s0, s1, in_sel := selection_in_box(b);
 		if !in_sel { continue; }

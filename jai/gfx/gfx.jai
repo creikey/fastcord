@@ -1,4 +1,4 @@
-Color :: [4]float32; // straight-alpha sRGB, 0..1
+Color :: Vector4; // straight-alpha sRGB, 0..1
 
 Rect :: struct {
 	x0, y0, x1, y1: float32;
@@ -35,20 +35,20 @@ Rect_Params :: struct {
 
 // Fill helper for the common case.
 rect :: (dst: Rect, color: Color, radius: float32 = 0) {
-	push_rect(.{dst = dst, colors = .{color, color, color, color}, radii = radius});
+	push_rect(.{dst = dst, colors = .[color, color, color, color], radii = .[radius, radius, radius, radius]});
 }
 
 rect_border :: (dst: Rect, color: Color, thickness: float32, radius: float32 = 0) {
-	push_rect(.{dst = dst, colors = .{color, color, color, color}, radii = radius, border = thickness});
+	push_rect(.{dst = dst, colors = .[color, color, color, color], radii = .[radius, radius, radius, radius], border = thickness});
 }
 
 // Shadow under `dst`: blur radius `blur`, offset applied by caller.
 rect_shadow :: (dst: Rect, color: Color, blur: float32, radius: float32 = 0) {
-	push_rect(.{dst = dst, colors = .{color, color, color, color}, radii = radius, softness = blur});
+	push_rect(.{dst = dst, colors = .[color, color, color, color], radii = .[radius, radius, radius, radius], softness = blur});
 }
 
-image :: (dst: Rect, tex: Texture, tint: Color = .[1, 1, 1, 1], radius: float32 = 0) {
-	push_rect(.{dst = dst, tex = tex, colors = .{tint, tint, tint, tint}, radii = radius});
+image :: (dst: Rect, tex: Texture, tint: Color = .{1, 1, 1, 1}, radius: float32 = 0) {
+	push_rect(.{dst = dst, tex = tex, colors = .[tint, tint, tint, tint], radii = .[radius, radius, radius, radius]});
 }
 
 rect_intersect :: (a: Rect, b: Rect) -> Rect {
@@ -58,11 +58,11 @@ rect_intersect :: (a: Rect, b: Rect) -> Rect {
 rect_empty :: (r: Rect) -> bool {return r.x1 <= r.x0 || r.y1 <= r.y0;}
 
 rgba :: (hex: u32) -> Color {
-	return .[cast(float32)((hex >> 24) & 0xff) / 255, cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255];
+	return .{cast(float32)((hex >> 24) & 0xff) / 255, cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255};
 }
 
 rgb :: (hex: u32) -> Color {
-	return .[cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255, 1];
+	return .{cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255, 1};
 }
 
 // ---------------------------------------------------------------------------
@@ -207,10 +207,10 @@ begin_frame :: (clear: Color) {
 	g.scale = platform.dpi_scale();
 	g.fb_size = platform.framebuffer_size();
 	g.clear = clear;
-	clear_dynamic_array(*g.instances);
-	clear_dynamic_array(*g.batches);
-	clear_dynamic_array(*g.clip_stack);
-	append(*g.clip_stack, s32.[0, 0, g.fb_size.x, g.fb_size.y]);
+	g.instances.count = 0;
+	g.batches.count = 0;
+	g.clip_stack.count = 0;
+	append(*g.clip_stack, s32.[0, 0, g.fb_size[0], g.fb_size[1]]);
 	text_begin_frame();
 }
 
@@ -270,7 +270,7 @@ snap_rect :: (r: Rect) -> Rect {
 }
 
 premul :: inline (c: Color) -> [4]float32 {
-	return .[c.r * c.a, c.g * c.a, c.b * c.a, c.a];
+	return .[c.x * c.w, c.y * c.w, c.z * c.w, c.w];
 };
 #scope_export
 
@@ -307,15 +307,15 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
 	if clip[2] <= clip[0] || clip[3] <= clip[1] { return; }
 
 	inst: Instance;
-	inst.dst = .{d.x0, d.y0, d.x1, d.y1};
+	inst.dst = .[d.x0, d.y0, d.x1, d.y1];
 	tex_kind: float32 = 0;
 	tex2: Texture;
 	if p.tex != 0 && cast(int)(p.tex) < len(g.textures) && g.textures[p.tex].alive {
 		t := g.textures[p.tex];
 		src := p.src;
-		if src == .{} { src = .{0, 0, cast(float32)(t.w), cast(float32)(t.h)}; }
-		inst.src = .{src.x0, src.y0, src.x1, src.y1};
-		tex_kind = ifx t.format == .R8 then 1 else 2;
+		if src.x0 == 0 && src.y0 == 0 && src.x1 == 0 && src.y1 == 0 { src = .{0, 0, cast(float32)(t.w), cast(float32)(t.h)}; }
+		inst.src = .[src.x0, src.y0, src.x1, src.y1];
+		tex_kind = ifx t.format == .R8 then 1.0 else 2.0;
 		if p.yuv != .None && p.tex2 != 0 && cast(int)(p.tex2) < len(g.textures) && g.textures[p.tex2].alive {
 			tex_kind = 3;
 			tex2 = p.tex2;
@@ -328,8 +328,8 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
 	half_min := min(d.x1 - d.x0, d.y1 - d.y0) * 0.5;
 	for r, i: p.radii { inst.radii[i] = min(max(r * sc, 0), half_min); }
 	border: float32 = 0;
-	if p.border > 0 { border = max(1, math.round(p.border * sc)); }
-	inst.clip = .{cast(float32)(clip[0]), cast(float32)(clip[1]), cast(float32)(clip[2]), cast(float32)(clip[3])};
+	if p.border > 0 { border = max(1.0, math.round(p.border * sc)); }
+	inst.clip = .[cast(float32)(clip[0]), cast(float32)(clip[1]), cast(float32)(clip[2]), cast(float32)(clip[3])];
 
 	// Batch: the texture needs a slot in the current draw (untextured rects fit anywhere), and video
 	// needs its second plane bound; otherwise start a new draw.
@@ -364,7 +364,7 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
 		}
 	}
 	if tex2 != 0 { b.tex2 = tex2; }
-	inst.params = .{border, soft, tex_kind + 4 * cast(float32)(slot), cast(float32)(p.yuv)};
+	inst.params = .[border, soft, tex_kind + 4 * cast(float32)(slot), cast(float32)(p.yuv)];
 	append(*g.instances, inst);
 	b.count += 1;
 }
@@ -401,10 +401,10 @@ premultiplied :: (pixels: []u8, w: int, h: int, stride: int) -> []u8 {
 
 texture_create :: (w: int, h: int, format: Texture_Format, pixels: []u8 = .{}) -> Texture {
 	px := pixels;
-	if format == .RGBA8 && pixels != null {
+	if format == .RGBA8 && pixels.data != null {
 		px = premultiplied(pixels, w, h, w * 4);
 	}
-	defer if format == .RGBA8 && pixels != null { delete(px); }
+	defer if format == .RGBA8 && pixels.data != null { delete(px); }
 	native := _backend_texture_create(cast(s32)(w), cast(s32)(h), format, px);
 	if native == null {
 		g.diag.tex_create_fails += 1;
@@ -417,7 +417,7 @@ texture_create :: (w: int, h: int, format: Texture_Format, pixels: []u8 = .{}) -
 		return t;
 	}
 	append(*g.textures, slot);
-	return Texture(len(g.textures) - 1);
+	return cast(Texture)(len(g.textures) - 1);
 }
 
 texture_from_rgba :: (w: int, h: int, pixels: []u8) -> Texture {
@@ -452,15 +452,15 @@ texture_wrap_native :: (native: *void, w: int, h: int, format: Texture_Format, r
 		return t;
 	}
 	append(*g.textures, slot);
-	return Texture(len(g.textures) - 1);
+	return cast(Texture)(len(g.textures) - 1);
 }
 
 // The GPU device (MTLDevice on macOS, ID3D11Device on Windows).
 native_device :: () -> *void {return _backend_native_device();}
 
 // Draw an NV12 frame (Y plane + CbCr plane).
-video :: (dst: Rect, y_plane: Texture, cbcr_plane: Texture, matrix_: Yuv_Matrix, radius: float32 = 0, tint: Color = .[1, 1, 1, 1]) {
-	push_rect(.{dst = dst, tex = y_plane, tex2 = cbcr_plane, yuv = matrix_, colors = .{tint, tint, tint, tint}, radii = radius});
+video :: (dst: Rect, y_plane: Texture, cbcr_plane: Texture, matrix_: Yuv_Matrix, radius: float32 = 0, tint: Color = .{1, 1, 1, 1}) {
+	push_rect(.{dst = dst, tex = y_plane, tex2 = cbcr_plane, yuv = matrix_, colors = .[tint, tint, tint, tint], radii = .[radius, radius, radius, radius]});
 }
 #scope_module
 
@@ -491,7 +491,7 @@ texture_destroy :: (t: Texture) {
 }
 
 texture_size :: (t: Texture) -> [2]int {
-	if t == 0 || cast(int)(t) >= len(g.textures) { return .[]; }
+	if t == 0 || cast(int)(t) >= len(g.textures) { return .[0, 0]; }
 	return .[cast(int)(g.textures[t].w), cast(int)(g.textures[t].h)];
 }
 

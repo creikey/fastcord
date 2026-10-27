@@ -1,5 +1,5 @@
-Vec2 :: [2]float32;
-Color :: [4]float32;
+Vec2 :: Vector2;
+Color :: Vector4; // x, y, z, w = r, g, b, a
 Rect :: struct {
 	x0, y0, x1, y1: float32;
 }
@@ -78,7 +78,7 @@ Style :: struct {
 	font: Font;
 	font_size: float32;
 	line_height: float32; // points; 0 = font default
-	padding: [2]float32; // inner text padding x,y
+	padding: Vec2; // inner text padding x,y
 	text_align: Text_Align;
 	shadow_color: Color;
 	shadow_offset: Vec2;
@@ -325,7 +325,7 @@ init :: (s: *State, backend: Backend) {
 
 shutdown :: (s: *State) {
 	for * slot: s.table {
-		{ b := slot;
+		{ b := slot.*;
 		while b != null {
 			next := b.hash_next;
 			free(b);
@@ -375,7 +375,7 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event) {
 	// The hot box is whatever was topmost under the mouse in last frame's
 	// layout; last frame's boxes (and their arena) are still alive here.
 	{
-		prof.zone("context.ui.hit_test");
+		prof.zone("ui.hit_test");
 		s.hot = hit_test_prev(s.mouse);
 		s.overlay_under_mouse = overlay_at(s.mouse);
 	}
@@ -400,8 +400,8 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event) {
 	s.cursor = .Default;
 
 	append(*s.style_stack, default_style());
-	root := box_make_key(cast(Key)(1), .{});
-	root.semantic_size = .{__IDX__.X = px(window.x), __IDX__.Y = px(window.y)};
+	root := box_make_key(cast(Key)(1), 0);
+	root.semantic_size = .[px(window.x), px(window.y)];
 	root.layout_axis = .Y;
 	root.rect = .{0, 0, window.x, window.y};
 	s.root = root;
@@ -416,31 +416,31 @@ default_style :: () -> Style {
 end :: () -> []Draw_Cmd {
 	s := context.ui;
 	{
-		prof.zone("context.ui.layout");
+		prof.zone("ui.layout");
 		layout(s.root);
 	}
 	{
-		prof.zone("context.ui.selection");
+		prof.zone("ui.selection");
 		update_selection();
 	}
 	{
-		prof.zone("context.ui.emit_draw");
+		prof.zone("ui.emit_draw");
 		emit_draw(s.root, false);
 		emit_overlays(s.root);
 	}
 	{
-		prof.zone("context.ui.prune");
+		prof.zone("ui.prune");
 		prune();
 	}
 	s.stats.boxes = len(s.order);
 	s.stats.draw_cmds = len(s.draw);
 	a := *s.arenas[s.frame % 2];
-	if a.current_block != null { s.stats.arena_bytes = (len(a.used_blocks) + 1) * a.block_size - a.bytes_left; }
+	if a.memory_base != null { s.stats.arena_bytes = a.current_point - a.memory_base; } // fc_mem arenas are Flat_Pools
 	// Unhandled mouse-up clears active.
 	for e: s.events {
 		if e.kind == .Mouse_Up && e.button == .Left { s.active = 0; }
 	}
-	if s.active != 0 && !s.mouse_down[.Left] { s.active = 0; }
+	if s.active != 0 && !s.mouse_down[Mouse_Button.Left] { s.active = 0; }
 	return view(s.draw);
 }
 
@@ -530,10 +530,10 @@ box_make_key :: (k: Key, flags: Box_Flags) -> *Box {
 	b.hover_cursor = .Default;
 	b.opacity = 1;
 	b.style = top_style();
-	b.semantic_size = .{__IDX__.X = .{}, __IDX__.Y = .{}};
+	b.semantic_size = .[.{}, .{}];
 	b.prev_layout = b.text_layout;
 	b.text_layout = null;
-	b.spans = null;
+	b.spans = .{};
 	b.fixed_pos = .{};
 	b.layout_axis = .Y;
 	b.sel_order = 0;
@@ -558,7 +558,7 @@ box_make_key :: (k: Key, flags: Box_Flags) -> *Box {
 #scope_export
 
 // Create (or fetch) a box for this frame.
-box :: (str: string, flags: Box_Flags = .{}) -> *Box {
+box :: (str: string, flags: Box_Flags = 0) -> *Box {
 	k := ifx str == "" then cast(Key)(0) else key_from_string(str, current_seed());
 	b: *Box;
 	if k == 0 {
@@ -570,7 +570,7 @@ box :: (str: string, flags: Box_Flags = .{}) -> *Box {
 	return b;
 }
 
-box_k :: (k: Key, flags: Box_Flags = .{}) -> *Box {
+box_k :: (k: Key, flags: Box_Flags = 0) -> *Box {
 	return box_make_key(k, flags);
 }
 #scope_module
@@ -602,8 +602,8 @@ box_make_anon :: (flags: Box_Flags) -> *Box {
 prune :: () {
 	s := context.ui;
 	for * slot: s.table {
-		prev: **Box = *slot;
-		{ b := slot;
+		prev: **Box = slot;
+		{ b := slot.*;
 		while b != null {
 			next := b.hash_next;
 			if b.last_frame_touched + 1 < s.frame {
@@ -689,7 +689,7 @@ hit_test_prev :: (p: Vec2) -> Key {
 	best_overlay := false;
 	for b: s.order { 	// order still holds last frame's boxes at this point
 		if b.key == 0 { continue; }
-		if b.flags & .{.Clickable, .Scroll_X, .Scroll_Y, .Selectable_Text} == .{} { continue; }
+		if b.flags & (Box_Flags.Clickable | .Scroll_X | .Scroll_Y | .Selectable_Text) == 0 { continue; }
 		if has(b.flags, .Disabled) { continue; }
 		ov := in_overlay(b);
 		if best_overlay && !ov { continue; }
@@ -768,7 +768,7 @@ signal :: (b: *Box) -> Signal {
 	if sig.dragging { sig.drag_delta = s.mouse - s.press_pos; }
 
 	// scrolling: the innermost scrollable under the mouse takes the wheel
-	if b.flags & .{.Scroll_X, .Scroll_Y} != .{} && !s.scroll_consumed && contains(visible_rect(b), s.mouse) {
+	if b.flags & (Box_Flags.Scroll_X | .Scroll_Y) != 0 && !s.scroll_consumed && contains(visible_rect(b), s.mouse) {
 		for * e: s.events {
 			if e.kind != .Scroll || e.consumed { continue; }
 			if has(b.flags, .Scroll_Y) { b.view_off_target.y -= e.delta.y; }
@@ -789,7 +789,7 @@ animate :: (v: *float32, target: float32, rate: float32 = 18, loc := #caller_loc
 		v.* = target;
 		return;
 	}
-	v.* += (target - v.*) * (1 - math.pow(2, -rate * s.dt));
+	v.* += (target - v.*) * (1 - math.pow(cast(float32) 2, -rate * s.dt));
 	if abs(v.* - target) < 0.001 {
 		v.* = target;
 	} else {
@@ -806,8 +806,8 @@ update_anims :: (b: *Box) {
 	if b.key == 0 { return; }
 	is_hot := s.hot == b.key;
 	is_active := s.active == b.key;
-	if has(b.flags, .Hot_Animation) { animate(*b.hot_t, ifx is_hot then 1 else 0, 30); }
-	if has(b.flags, .Active_Animation) { animate(*b.active_t, ifx is_active then 1 else 0, 40); }
+	if has(b.flags, .Hot_Animation) { animate(*b.hot_t, ifx is_hot then 1.0 else 0.0, 30); }
+	if has(b.flags, .Active_Animation) { animate(*b.active_t, ifx is_active then 1.0 else 0.0, 40); }
 	animate(*b.appear_t, 1, 20);
 }
 
@@ -815,7 +815,7 @@ update_anims :: (b: *Box) {
 // layout
 
 layout :: (root: *Box) {
-	for axis: Axis {
+	for axis_i: 0..enum_count(Axis)-1 { axis := cast(Axis) axis_i;
 		layout_standalone(root, axis);
 		layout_upward(root, axis);
 		layout_downward(root, axis);
@@ -829,7 +829,7 @@ text_layout_for :: (b: *Box, wrap_width: float32) -> *Text_Layout {
 		return b.text_layout;
 	}
 	ww := ifx has(b.flags, .Wrap_Text) then wrap_width else -1;
-	if b.spans != null {
+	if b.spans.count != 0 {
 		b.text_layout = layout_rich(b.spans, ww, b.style.line_height);
 		b.text = b.text_layout.text;
 	} else {
@@ -842,11 +842,11 @@ layout_standalone :: (b: *Box, axis: Axis) {
 	sz := b.semantic_size[axis];
 	if sz.kind == {
 	case .Pixels;
-		b.fixed_size[axis] = sz.value;
+		b.fixed_size.component[axis] = sz.value;
 	case .Text_Content;
 		if axis == .X || !has(b.flags, .Wrap_Text) {
 			tl := text_layout_for(b, -1);
-			b.fixed_size[axis] = (ifx axis == .X then tl.width else tl.height) + sz.value * 2 + b.style.padding[cast(int)(axis)] * 2;
+			b.fixed_size.component[axis] = (ifx axis == .X then tl.width else tl.height) + sz.value * 2 + b.style.padding.component[axis] * 2;
 		}
 	}
 	{ c := b.first;
@@ -860,7 +860,7 @@ layout_upward :: (b: *Box, axis: Axis) {
 		while p != null {
 			pk := p.semantic_size[axis].kind;
 			if pk == .Pixels || pk == .Percent_Of_Parent || pk == .Fill || pk == .Text_Content {
-				b.fixed_size[axis] = p.fixed_size[axis] * sz.value;
+				b.fixed_size.component[axis] = p.fixed_size.component[axis] * sz.value;
 				break;
 			}
 			p = p.parent;
@@ -880,15 +880,15 @@ layout_downward :: (b: *Box, axis: Axis) {
 		while c != null {
 			if is_floating(c, axis) { { c = c.next; continue; } }
 			if axis == b.layout_axis {
-				sum += c.fixed_size[axis];
+				sum += c.fixed_size.component[axis];
 				n += 1;
 			} else {
-				sum = max(sum, c.fixed_size[axis]);
+				sum = max(sum, c.fixed_size.component[axis]);
 			}
 			c = c.next;
 } }
 		if axis == b.layout_axis && n > 1 { sum += b.style.child_gap * cast(float32)(n - 1); }
-		b.fixed_size[axis] = sum;
+		b.fixed_size.component[axis] = sum;
 	}
 }
 
@@ -898,7 +898,7 @@ is_floating :: (b: *Box, axis: Axis) -> bool {
 
 // Top-down: distribute Fill space, shrink to fix overflow, then recurse.
 layout_solve :: (b: *Box, axis: Axis) {
-	avail := b.fixed_size[axis];
+	avail := b.fixed_size.component[axis];
 	if axis == b.layout_axis {
 		total: float32;
 		fills := 0;
@@ -910,29 +910,29 @@ layout_solve :: (b: *Box, axis: Axis) {
 			if c.semantic_size[axis].kind == .Fill {
 				fills += 1;
 			} else {
-				total += c.fixed_size[axis];
+				total += c.fixed_size.component[axis];
 			}
 			c = c.next;
 } }
 		if n > 1 { total += b.style.child_gap * cast(float32)(n - 1); }
 		if fills > 0 {
-			each := max(0, (avail - total) / cast(float32)(fills));
+			each := max(0.0, (avail - total) / cast(float32)(fills));
 			{ c := b.first;
 			while c != null {
-				if !is_floating(c, axis) && c.semantic_size[axis].kind == .Fill { c.fixed_size[axis] = each; }
+				if !is_floating(c, axis) && c.semantic_size[axis].kind == .Fill { c.fixed_size.component[axis] = each; }
 				c = c.next;
 } }
 		}
 		// Overflowing (fills got 0): shrink the rest too, or rows with a filler
 		// (headers) pushed their right side out of the window instead.
-		if total > avail && b.flags & .{.Scroll_X, .Scroll_Y} == .{} {
+		if total > avail && b.flags & (Box_Flags.Scroll_X | .Scroll_Y) == 0 {
 			// Shrink children proportionally to their slack (1 - strictness).
 			over := total - avail;
 			slack: float32;
 			{ c := b.first;
 			while c != null {
 				if is_floating(c, axis) { { c = c.next; continue; } }
-				slack += c.fixed_size[axis] * (1 - c.semantic_size[axis].strictness);
+				slack += c.fixed_size.component[axis] * (1 - c.semantic_size[axis].strictness);
 				c = c.next;
 } }
 			if slack > 0 {
@@ -940,7 +940,7 @@ layout_solve :: (b: *Box, axis: Axis) {
 				{ c := b.first;
 				while c != null {
 					if is_floating(c, axis) { { c = c.next; continue; } }
-					c.fixed_size[axis] -= c.fixed_size[axis] * (1 - c.semantic_size[axis].strictness) * k;
+					c.fixed_size.component[axis] -= c.fixed_size.component[axis] * (1 - c.semantic_size[axis].strictness) * k;
 					c = c.next;
 } }
 			}
@@ -950,10 +950,10 @@ layout_solve :: (b: *Box, axis: Axis) {
 		while c != null {
 			if is_floating(c, axis) { { c = c.next; continue; } }
 			if c.semantic_size[axis].kind == .Fill {
-				c.fixed_size[axis] = avail;
-			} else if c.fixed_size[axis] > avail && b.flags & .{.Scroll_X, .Scroll_Y} == .{} {
+				c.fixed_size.component[axis] = avail;
+			} else if c.fixed_size.component[axis] > avail && b.flags & (Box_Flags.Scroll_X | .Scroll_Y) == 0 {
 				s := c.semantic_size[axis].strictness;
-				c.fixed_size[axis] -= (c.fixed_size[axis] - avail) * (1 - s);
+				c.fixed_size.component[axis] -= (c.fixed_size.component[axis] - avail) * (1 - s);
 			}
 			c = c.next;
 } }
@@ -962,16 +962,16 @@ layout_solve :: (b: *Box, axis: Axis) {
 	if axis == .Y {
 		{ c := b.first;
 		while c != null {
-			if has(c.flags, .Wrap_Text) && c.semantic_size[.Y].kind == .Text_Content {
+			if has(c.flags, .Wrap_Text) && c.semantic_size[Axis.Y].kind == .Text_Content {
 				tl := text_layout_for(c, c.fixed_size.x - c.style.padding.x * 2);
-				c.fixed_size.y = tl.height + c.style.padding.y * 2 + c.semantic_size[.Y].value * 2;
+				c.fixed_size.y = tl.height + c.style.padding.y * 2 + c.semantic_size[Axis.Y].value * 2;
 			}
 			c = c.next;
 } }
 	}
 	{ c := b.first;
 	while c != null { layout_solve(c, axis);  c = c.next; } }
-	if axis == .Y && b.semantic_size[.Y].kind == .Children_Sum {
+	if axis == .Y && b.semantic_size[Axis.Y].kind == .Children_Sum {
 		// children sizes may have changed during solve (wrapped text); recompute
 		sum: float32;
 		n := 0;
@@ -996,25 +996,25 @@ layout_position :: (b: *Box) {
 	content: Vec2;
 	{ c := b.first;
 	while c != null {
-		for axis: Axis {
+		for axis_i: 0..enum_count(Axis)-1 { axis := cast(Axis) axis_i;
 			if is_floating(c, axis) {
-				c.rel_pos[axis] = c.fixed_pos[axis];
+				c.rel_pos.component[axis] = c.fixed_pos.component[axis];
 				if axis == .Y && has(c.flags, .Anchor_End_Y) { c.rel_pos.y = b.fixed_size.y - c.fixed_size.y - c.fixed_pos.y; }
 			} else if axis == b.layout_axis {
-				c.rel_pos[axis] = cursor;
+				c.rel_pos.component[axis] = cursor;
 			} else {
 				if b.cross_align == {
 				case .Start;
-					c.rel_pos[axis] = 0;
+					c.rel_pos.component[axis] = 0;
 				case .Center;
-					c.rel_pos[axis] = (b.fixed_size[axis] - c.fixed_size[axis]) / 2;
+					c.rel_pos.component[axis] = (b.fixed_size.component[axis] - c.fixed_size.component[axis]) / 2;
 				case .End;
-					c.rel_pos[axis] = b.fixed_size[axis] - c.fixed_size[axis];
+					c.rel_pos.component[axis] = b.fixed_size.component[axis] - c.fixed_size.component[axis];
 				}
 			}
 		}
 		if !is_floating(c, b.layout_axis) {
-			cursor += c.fixed_size[b.layout_axis] + b.style.child_gap;
+			cursor += c.fixed_size.component[b.layout_axis] + b.style.child_gap;
 		}
 		content.x = max(content.x, c.rel_pos.x + c.fixed_size.x);
 		content.y = max(content.y, c.rel_pos.y + c.fixed_size.y);
@@ -1023,16 +1023,16 @@ layout_position :: (b: *Box) {
 	b.content_size = content;
 
 	// scroll: clamp target, animate offset
-	if b.flags & .{.Scroll_X, .Scroll_Y} != .{} {
-		for axis: Axis {
-			max_off := max(0, content[axis] - b.fixed_size[axis]);
-			b.view_off_target[axis] = clamp(b.view_off_target[axis], 0, max_off);
-			animate(*b.view_off[axis], b.view_off_target[axis], 40);
-			b.view_off[axis] = clamp(b.view_off[axis], 0, max_off);
+	if b.flags & (Box_Flags.Scroll_X | .Scroll_Y) != 0 {
+		for axis_i: 0..enum_count(Axis)-1 { axis := cast(Axis) axis_i;
+			max_off := max(0.0, content.component[axis] - b.fixed_size.component[axis]);
+			b.view_off_target.component[axis] = clamp(b.view_off_target.component[axis], 0, max_off);
+			animate(*b.view_off.component[axis], b.view_off_target.component[axis], 40);
+			b.view_off.component[axis] = clamp(b.view_off.component[axis], 0, max_off);
 		}
 	}
 
-	origin := float32.[b.rect.x0, b.rect.y0] - b.view_off;
+	origin := Vec2.{b.rect.x0, b.rect.y0} - b.view_off;
 	{ c := b.first;
 	while c != null {
 		p := origin + c.rel_pos;
@@ -1055,34 +1055,34 @@ emit_draw :: (b: *Box, in_overlay_pass: bool) {
 	if has(b.flags, .Overlay) && !in_overlay_pass { return; }
 	st := *b.style;
 	alpha := b.opacity;
-	if has(b.flags, .Draw_Shadow) && st.shadow_color.a > 0 {
+	if has(b.flags, .Draw_Shadow) && st.shadow_color.w > 0 {
 		r := b.rect;
 		r.x0 += st.shadow_offset.x;
 		r.x1 += st.shadow_offset.x;
 		r.y0 += st.shadow_offset.y;
 		r.y1 += st.shadow_offset.y;
 		c := st.shadow_color;
-		c.a *= alpha;
-		append(*s.draw, Draw_Cmd.{kind = .Rect, rect = r, colors = .{c, c, c, c}, radii = st.radius, softness = st.shadow_blur});
+		c.w *= alpha;
+		append(*s.draw, Draw_Cmd.{kind = .Rect, rect = r, colors = .[c, c, c, c], radii = st.radius, softness = st.shadow_blur});
 	}
 	if has(b.flags, .Draw_Background) {
 		c := st.bg;
-		if has(b.flags, .Hot_Animation) && st.bg_hot.a > 0 { c = lerp_color(c, st.bg_hot, b.hot_t); }
-		if has(b.flags, .Active_Animation) && st.bg_active.a > 0 { c = lerp_color(c, st.bg_active, b.active_t); }
-		c.a *= alpha;
-		if c.a > 0 { append(*s.draw, Draw_Cmd.{kind = .Rect, rect = b.rect, colors = .{c, c, c, c}, radii = st.radius}); }
+		if has(b.flags, .Hot_Animation) && st.bg_hot.w > 0 { c = lerp_color(c, st.bg_hot, b.hot_t); }
+		if has(b.flags, .Active_Animation) && st.bg_active.w > 0 { c = lerp_color(c, st.bg_active, b.active_t); }
+		c.w *= alpha;
+		if c.w > 0 { append(*s.draw, Draw_Cmd.{kind = .Rect, rect = b.rect, colors = .[c, c, c, c], radii = st.radius}); }
 	}
 	if has(b.flags, .Draw_Border) && st.border > 0 {
 		c := st.border_color;
-		c.a *= alpha;
-		append(*s.draw, Draw_Cmd.{kind = .Rect, rect = b.rect, colors = .{c, c, c, c}, radii = st.radius, border = st.border});
+		c.w *= alpha;
+		append(*s.draw, Draw_Cmd.{kind = .Rect, rect = b.rect, colors = .[c, c, c, c], radii = st.radius, border = st.border});
 	}
 	if b.custom_draw != null {
 		append(*s.draw, Draw_Cmd.{kind = .Custom, rect = b.rect, box = b});
 	}
 	if has(b.flags, .Draw_Text) && b.text != "" {
 		tl := text_layout_for(b, b.fixed_size.x - st.padding.x * 2);
-		o := float32.[b.rect.x0 + st.padding.x, b.rect.y0 + st.padding.y];
+		o := Vec2.{b.rect.x0 + st.padding.x, b.rect.y0 + st.padding.y};
 		inner_w := b.fixed_size.x - st.padding.x * 2;
 		if st.text_align == {
 		case .Left;
@@ -1096,11 +1096,11 @@ emit_draw :: (b: *Box, in_overlay_pass: bool) {
 			o.y = b.rect.y0 + (b.fixed_size.y - tl.height) / 2;
 		}
 		tl.origin = o;
-		if tl.spans != null { draw_span_backgrounds(tl); }
+		if tl.spans.count != 0 { draw_span_backgrounds(tl); }
 		if has(b.flags, .Selectable_Text) { draw_selection_highlight(b, tl); }
 		c := st.text_color;
-		c.a *= alpha;
-		append(*s.draw, Draw_Cmd.{kind = .Text, layout = tl, origin = o, colors = .{c, c, c, c}, box = b});
+		c.w *= alpha;
+		append(*s.draw, Draw_Cmd.{kind = .Text, layout = tl, origin = o, colors = .[c, c, c, c], box = b});
 	}
 	clip := has(b.flags, .Clip);
 	if clip { append(*s.draw, Draw_Cmd.{kind = .Clip_Push, rect = b.rect}); }
@@ -1138,7 +1138,7 @@ List_Window :: struct {
 // so this frame's wheel input is counted, in a parent with no child_gap.
 list_window :: (scroll: *Box, pitch: float32, n: int, margin := 2, id := "list_window") -> List_Window {
 	w := List_Window.{n = n, pitch = pitch};
-	top_box := box_make_key(key_from_string(id, current_seed()), .{});
+	top_box := box_make_key(key_from_string(id, current_seed()), 0);
 	// Where the rows started in the scroll content, from last frame's layout. A new box has no rect
 	// yet: assume the rows start at the top, which can only make the window larger.
 	top: float32;
@@ -1153,13 +1153,13 @@ list_window :: (scroll: *Box, pitch: float32, n: int, margin := 2, id := "list_w
 		w.first = clamp(cast(int)(math.floor(y0 / pitch)) - margin, 0, n);
 		w.last = clamp(cast(int)(math.ceil(y1 / pitch)) + margin, w.first, n);
 	}
-	top_box.semantic_size = .{__IDX__.X = px(0), __IDX__.Y = px(cast(float32)(w.first) * pitch)};
+	top_box.semantic_size = .[px(0), px(cast(float32)(w.first) * pitch)];
 	return w;
 }
 
 list_window_end :: (w: List_Window) {
-	b := box_make_anon(.{});
-	b.semantic_size = .{__IDX__.X = px(0), __IDX__.Y = px(cast(float32)(w.n - w.last) * w.pitch)};
+	b := box_make_anon(0);
+	b.semantic_size = .[px(0), px(cast(float32)(w.n - w.last) * w.pitch)];
 }
 
 // Was b out of view last frame (outside a clipping ancestor by more than margin), with room for the
@@ -1170,11 +1170,11 @@ offscreen :: (b: *Box, margin: float32 = 64) -> bool {
 	if b.first_frame_touched == context.ui.frame { return false; }
 	r := b.rect;
 	if r.x1 <= r.x0 && r.y1 <= r.y0 { return false; }
-	m := float32.[margin, margin];
+	m := Vec2.{margin, margin};
 	{ p := b.parent;
 	while p != null {
 		if p.first_frame_touched == context.ui.frame && has(p.flags, .Clip) { return false; }
-		if p.flags & .{.Scroll_X, .Scroll_Y} != .{} { m += .{abs(p.view_off_target.x - p.view_off.x), abs(p.view_off_target.y - p.view_off.y)}; }
+		if p.flags & (Box_Flags.Scroll_X | .Scroll_Y) != 0 { m += .{abs(p.view_off_target.x - p.view_off.x), abs(p.view_off_target.y - p.view_off.y)}; }
 		p = p.parent;
 } }
 	{ p := b.parent;
@@ -1200,7 +1200,7 @@ set_spans :: (b: *Box, spans: []Span) {
 	sb := strings.builder_make(context.ui.frame_alloc);
 	for sp: spans { strings.write_string(*sb, sp.text); }
 	b.text = strings.to_string(sb);
-	b.flags += .{.Draw_Text};
+	b.flags |= .Draw_Text;
 }
 #scope_module
 
@@ -1210,9 +1210,9 @@ draw_span_backgrounds :: (tl: *Text_Layout) {
 		while gi < l.glyph_end {
 			si := get(tl.run.glyphs, gi).span;
 			start := gi;
-			while gi < l.glyph_end && __MAPIDX__(tl.run.glyphs|gi).span == si { gi += 1; }
+			while gi < l.glyph_end && tl.run.glyphs[gi].span == si { gi += 1; }
 			sp := tl.spans[si];
-			if sp.bg.a <= 0 { continue; }
+			if sp.bg.w <= 0 { continue; }
 			g0 := get(tl.run.glyphs, start);
 			g1 := get(tl.run.glyphs, gi - 1);
 			x0 := tl.origin.x + g0.x - l.x_shift;
@@ -1220,7 +1220,7 @@ draw_span_backgrounds :: (tl: *Text_Layout) {
 			y0 := tl.origin.y + l.y;
 			r := Rect.{x0 - 2, y0 + 1, x1 + 2, y0 + tl.line_h - 1};
 			c := sp.bg;
-			append(*context.ui.draw, Draw_Cmd.{kind = .Rect, rect = r, colors = .{c, c, c, c}, radii = sp.bg_radius});
+			append(*context.ui.draw, Draw_Cmd.{kind = .Rect, rect = r, colors = .[c, c, c, c], radii = .[sp.bg_radius, sp.bg_radius, sp.bg_radius, sp.bg_radius]});
 		}
 	}
 }

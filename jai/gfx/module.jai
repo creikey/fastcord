@@ -4,11 +4,9 @@
 #import "Hash_Table";
 #import "Atomics";
 #import "fc";
-#if OS == .MACOS CF :: #import "core:sys/darwin/CoreFoundation";
 #if OS == .WINDOWS D3D :: #import "fc_d3d_compiler";
 #if OS == .WINDOWS D3D11 :: #import "fc_d3d11";
 #if OS == .WINDOWS DXGI :: #import "fc_dxgi";
-#if OS == .MACOS MTL :: #import "vendor:darwin/Metal";
 bytes :: #import "fc_bytes";
 fmt :: #import "fc_fmt";
 hash :: #import "fc_hash";
@@ -37,3 +35,5 @@ dwrite :: #system_library "dwrite";
 #if OS == .MACOS #load "text_coretext_darwin.jai";
 #if OS == .WINDOWS #load "text_dwrite_windows.jai";
 #load "util.jai";
+#load "vec.jai";
+#if OS == .MACOS #load "mtl_darwin.jai";

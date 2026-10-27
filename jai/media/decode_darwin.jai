@@ -169,13 +169,13 @@ vpcc_from_keyframe :: (frame: []u8) -> []u8 {
 		}
 	}
 	out := make_slice(u8, 12);
-	at(*out, 0).* = 1; // version
-	at(*out, 4).* = cast(u8)(profile);
-	at(*out, 5).* = 10; // level 1.0 (unknown; decoder ignores)
-	at(*out, 6).* = cast(u8)(bit_depth << 4 | chroma << 1 | full);
-	at(*out, 7).* = 1;
-	at(*out, 8).* = 1;
-	at(*out, 9).* = 1;
+	out[0] = 1; // version
+	out[4] = cast(u8)(profile);
+	out[5] = 10; // level 1.0 (unknown; decoder ignores)
+	out[6] = cast(u8)(bit_depth << 4 | chroma << 1 | full);
+	out[7] = 1;
+	out[8] = 1;
+	out[9] = 1;
 	return out;
 }
 
@@ -237,9 +237,9 @@ video_decoder_create :: (t: *Track, first_packet: []u8 = .{}) -> *Video_Decoder,
 	defer CFRelease(data);
 	akey := cfstr(atom);
 	defer CFRelease(akey);
-	atoms := dict(.{akey}, .{data});
+	atoms := dict(CFRef.[akey], CFRef.[data]);
 	defer CFRelease(atoms);
-	ext := dict(.{kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms}, .{atoms});
+	ext := dict(CFRef.[kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms], CFRef.[atoms]);
 	defer CFRelease(ext);
 
 	vd := new(Video_Decoder);
@@ -255,7 +255,7 @@ video_decoder_create :: (t: *Track, first_packet: []u8 = .{}) -> *Video_Decoder,
 	defer CFRelease(pfn);
 	empty := dict(.{}, .{});
 	defer CFRelease(empty);
-	attrs := dict(.{kCVPixelBufferPixelFormatTypeKey, kCVPixelBufferMetalCompatibilityKey, kCVPixelBufferIOSurfacePropertiesKey}, .{pfn, kCFBooleanTrue, empty});
+	attrs := dict(CFRef.[kCVPixelBufferPixelFormatTypeKey, kCVPixelBufferMetalCompatibilityKey, kCVPixelBufferIOSurfacePropertiesKey], CFRef.[pfn, kCFBooleanTrue, empty]);
 	defer CFRelease(attrs);
 	cb := VTDecompressionOutputCallbackRecord.{vt_callback, vd};
 	{ st := VTDecompressionSessionCreate(null, vd.format, null, attrs, *cb, *vd.session);
@@ -350,7 +350,7 @@ video_frame_textures :: (f: *Video_Frame) -> gfx.Texture, gfx.Texture, bool {
 	for p: 0..1 {
 		w := CVPixelBufferGetWidthOfPlane(f.pixbuf, cast(u64)(p));
 		h := CVPixelBufferGetHeightOfPlane(f.pixbuf, cast(u64)(p));
-		pf: u64 = ifx p == 0 then 10 else 30; /*RG8Unorm*/
+		pf: u64 = cast(u64) ifx p == 0 then 10 else 30; /*RG8Unorm*/
 		cv: CFRef;
 		if CVMetalTextureCacheCreateTextureFromImage(null, tex_cache, f.pixbuf, null, pf, w, h, cast(u64)(p), *cv) != 0 || cv == null {
 			if p == 1 { gfx.texture_destroy(planes[0]); }
@@ -358,7 +358,7 @@ video_frame_textures :: (f: *Video_Frame) -> gfx.Texture, gfx.Texture, bool {
 		}
 		hold := new(Tex_Hold);
 		hold.* = .{cv, CFRetain(f.pixbuf)};
-		planes[p] = gfx.texture_wrap_native(CVMetalTextureGetTexture(cv), cast(int)(w), cast(int)(h), ifx p == 0 then .R8 else .RG8, release_hold, hold);
+		planes[p] = gfx.texture_wrap_native(CVMetalTextureGetTexture(cv), cast(int)(w), cast(int)(h), ifx p == 0 then gfx.Texture_Format.R8 else .RG8, release_hold, hold);
 	}
 	return planes[0], planes[1], true;
 }
@@ -400,7 +400,7 @@ esds_from_asc :: (asc: []u8) -> []u8 {
 
 input_proc :: (conv: *void, n_packets: *u32, data: *audio.AudioBufferList, desc: **AudioStreamPacketDescription, user: *void) -> OSStatus #c_call {
 	ad := cast(*Audio_Decoder)(user);
-	if ad.pkt_given || len(ad.pkt) == 0 {
+	if ad.pkt_given || ad.pkt.count == 0 {
 		n_packets.* = 0;
 		data.mBuffers[0].mDataByteSize = 0;
 		data.mBuffers[0].mData = null;
@@ -408,14 +408,14 @@ input_proc :: (conv: *void, n_packets: *u32, data: *audio.AudioBufferList, desc:
 	}
 	ad.pkt_given = true;
 	data.mNumberBuffers = 1;
-	data.mBuffers[0].mData = raw_data(ad.pkt);
-	data.mBuffers[0].mDataByteSize = cast(u32)(len(ad.pkt));
+	data.mBuffers[0].mData = ad.pkt.data;
+	data.mBuffers[0].mDataByteSize = cast(u32) ad.pkt.count;
 	data.mBuffers[0].mNumberChannels = ad.in_fmt.mChannelsPerFrame;
 	if ad.in_fmt.mFormatID == audio.kAudioFormatLinearPCM {
-		n_packets.* = cast(u32)(len(ad.pkt)) / max(ad.in_fmt.mBytesPerPacket, 1);
+		n_packets.* = cast(u32) ad.pkt.count / (ifx ad.in_fmt.mBytesPerPacket > 1 then ad.in_fmt.mBytesPerPacket else 1);
 	} else {
 		n_packets.* = 1;
-		ad.pkt_desc = .{0, 0, cast(u32)(len(ad.pkt))};
+		ad.pkt_desc = .{0, 0, cast(u32) ad.pkt.count};
 		if desc != null { desc.* = *ad.pkt_desc; }
 	}
 	return 0;
@@ -457,7 +457,7 @@ audio_decoder_create :: (t: *Track) -> *Audio_Decoder, bool {
 		}
 	case .MP3;
 		f.mFormatID = fourcc(".mp3");
-		f.mFramesPerPacket = ifx rate < 32000 then 576 else 1152;
+		f.mFramesPerPacket = cast(u32) ifx rate < 32000 then 576 else 1152;
 	case .Opus;
 		f.mFormatID = fourcc("opus");
 		f.mSampleRate = 48000;
@@ -473,7 +473,7 @@ audio_decoder_create :: (t: *Track) -> *Audio_Decoder, bool {
 	case .PCM;
 		bits := max(t.bits, 8);
 		f.mFormatID = audio.kAudioFormatLinearPCM;
-		f.mFormatFlags = audio.kAudioFormatFlagIsPacked | (ifx t.pcm_float then audio.kAudioFormatFlagIsFloat else (ifx bits > 8 then audio.kAudioFormatFlagIsSignedInteger else 0));
+		f.mFormatFlags = cast(u32) audio.kAudioFormatFlagIsPacked | (ifx t.pcm_float then audio.kAudioFormatFlagIsFloat else (ifx bits > 8 then audio.kAudioFormatFlagIsSignedInteger else 0));
 		if t.pcm_big { f.mFormatFlags |= 2; }
 		f.mBitsPerChannel = cast(u32)(bits);
 		f.mBytesPerFrame = cast(u32)(bits / 8 * ch);
@@ -518,7 +518,7 @@ audio_decode :: (ad: *Audio_Decoder, data: []u8, out: *[..]float32) -> bool {
 		if st != 0 && st != NO_DATA { return false; }
 		if frames == 0 || st == NO_DATA { break; }
 	}
-	ad.pkt = null;
+	ad.pkt = .{};
 	return true;
 }
 

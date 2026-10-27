@@ -162,12 +162,12 @@ demux_destroy :: (d: *Demuxer) {
 demux_read :: (d: *Demuxer, p: Packet_Ref, buf: *[..]u8) -> Read_Status {
 	resize(buf, cast(int)(p.size));
 	if p.pieces == 0 {
-		return read_full(d.src, p.offset, view(buf));
+		return read_full(d.src, p.offset, buf.*);
 	}
 	at := 0;
 	for i: 0..cast(int)(p.pieces)-1 {
 		pc := d.pieces[cast(int)(p.piece_at) + i];
-		{ s := read_full(d.src, pc.offset, sub(sub_from(buf, at), 0, pc.size));
+		{ s := read_full(d.src, pc.offset, sub(sub_from(buf.*, at), 0, pc.size));
 		if s != .Ok { return s; } }
 		at += cast(int)(pc.size);
 	}
@@ -197,7 +197,7 @@ demux_duration :: (d: *Demuxer) -> float64 {
 	best: float64;
 	for * t: d.tracks {
 		if t.kind == .Other { continue; }
-		best = max(best, track_seconds(*t, t.duration));
+		best = max(best, track_seconds(t, t.duration));
 	}
 	return best;
 }
@@ -293,13 +293,13 @@ reader_reset :: (r: *Buf_Reader) {r.start = -1; r.len = 0;}
 // ---------------------------------------------------------------------------
 // Byte helpers
 
-be16 :: inline (b: []u8) -> u16 #no_context {return cast(u16)(b[0]) << 8 | cast(u16)(b[1]);};
-be24 :: inline (b: []u8) -> u32 #no_context {return cast(u32)(b[0]) << 16 | cast(u32)(b[1]) << 8 | cast(u32)(b[2]);};
-be32 :: inline (b: []u8) -> u32 #no_context {return cast(u32)(b[0]) << 24 | cast(u32)(b[1]) << 16 | cast(u32)(b[2]) << 8 | cast(u32)(b[3]);};
-be64 :: inline (b: []u8) -> u64 #no_context {return cast(u64)(be32(b)) << 32 | cast(u64)(be32(sub_from(b, 4)));};
-le16 :: inline (b: []u8) -> u16 #no_context {return cast(u16)(b[0]) | cast(u16)(b[1]) << 8;};
-le32 :: inline (b: []u8) -> u32 #no_context {return cast(u32)(b[0]) | cast(u32)(b[1]) << 8 | cast(u32)(b[2]) << 16 | cast(u32)(b[3]) << 24;};
-le64 :: inline (b: []u8) -> u64 #no_context {return cast(u64)(le32(b)) | cast(u64)(le32(sub_from(b, 4))) << 32;};
+be16 :: inline (b: []u8) -> u16 {return ((cast(u16) b[0]) << 8) | (cast(u16) b[1]);};
+be24 :: inline (b: []u8) -> u32 {return ((cast(u32) b[0]) << 16) | ((cast(u32) b[1]) << 8) | (cast(u32) b[2]);};
+be32 :: inline (b: []u8) -> u32 {return ((cast(u32) b[0]) << 24) | ((cast(u32) b[1]) << 16) | ((cast(u32) b[2]) << 8) | (cast(u32) b[3]);};
+be64 :: inline (b: []u8) -> u64 {return ((cast(u64) be32(b)) << 32) | (cast(u64) be32(sub_from(b, 4)));};
+le16 :: inline (b: []u8) -> u16 {return (cast(u16) b[0]) | ((cast(u16) b[1]) << 8);};
+le32 :: inline (b: []u8) -> u32 {return (cast(u32) b[0]) | ((cast(u32) b[1]) << 8) | ((cast(u32) b[2]) << 16) | ((cast(u32) b[3]) << 24);};
+le64 :: inline (b: []u8) -> u64 {return (cast(u64) le32(b)) | ((cast(u64) le32(sub_from(b, 4))) << 32);};
 #scope_module
 
 clone_bytes :: (b: []u8) -> []u8 {

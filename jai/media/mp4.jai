@@ -383,7 +383,7 @@ build_sample_table :: (t: *Track, stbl: []u8, shift: s64) {
 	count := min(cast(int)(be32(sub_from(stsz, 8))), 10_000_000);
 	fixed_size := be32(sub_from(stsz, 4));
 	if fixed_size == 0 { count = min(count, (len(stsz) - 12) / 4); }
-	if reserve(*t.packets, count) != null { return; }
+	reserve(*t.packets, count);
 
 	// sizes + dts
 	stts_n := min(cast(int)(be32(sub_from(stts, 4))), (len(stts) - 8) / 8);
@@ -473,7 +473,7 @@ parse_moof :: (d: *Demuxer, m: *Mp4, moof: []u8, moof_start: s64) {
 		if fl & 0x10 != 0 {def_size = be32(sub_from(tfhd, i)); i += 4;}
 		if fl & 0x20 != 0 {def_flags = be32(sub_from(tfhd, i)); i += 4;}
 		track: *Track;
-		for * t: d.tracks { if cast(u32)(t.id) == tid { track = *t; } }
+		for * t: d.tracks { if cast(u32)(t.id) == tid { track = t; } }
 		if track == null { continue; }
 		shift := get(m.elst_shift, tid);
 		dts, has_dts := map_find(m.frag_dts, tid);
@@ -519,7 +519,7 @@ parse_moof :: (d: *Demuxer, m: *Mp4, moof: []u8, moof_start: s64) {
 			}
 			data_end = ptr;
 		}
-		at(*m.frag_dts, tid).* = dts;
+		map_set(*m.frag_dts, tid, dts);
 	}
 }
 #scope_export

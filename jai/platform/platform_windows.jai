@@ -25,7 +25,7 @@ Win :: struct {
 	tracking_mouse: bool;
 	cursor_hidden: bool;
 	last_click_time: float64;
-	last_click_pos: [2]float32;
+	last_click_pos: Vector2;
 	last_click_btn: Mouse_Button;
 	click_count: int;
 	wake_posted: bool;
@@ -461,10 +461,10 @@ _apply_cursor :: () {
 
 current_mods :: () -> Mods {
 	m: Mods;
-	if win.GetKeyState(win.VK_SHIFT) < 0 { m += .{.Shift}; }
-	if win.GetKeyState(win.VK_CONTROL) < 0 { m += .{.Ctrl}; }
-	if win.GetKeyState(win.VK_MENU) < 0 { m += .{.Alt}; }
-	if win.GetKeyState(win.VK_LWIN) < 0 || win.GetKeyState(win.VK_RWIN) < 0 { m += .{.Cmd}; }
+	if win.GetKeyState(win.VK_SHIFT) < 0 { m |= .Shift; }
+	if win.GetKeyState(win.VK_CONTROL) < 0 { m |= .Ctrl; }
+	if win.GetKeyState(win.VK_MENU) < 0 { m |= .Alt; }
+	if win.GetKeyState(win.VK_LWIN) < 0 || win.GetKeyState(win.VK_RWIN) < 0 { m |= .Cmd; }
 	return m;
 }
 
@@ -506,7 +506,7 @@ map_vk :: (vk: win.WPARAM, lparam: win.LPARAM) -> Key {
 	return .None;
 }
 
-lparam_pos :: (lp: win.LPARAM) -> [2]float32 {
+lparam_pos :: (lp: win.LPARAM) -> Vector2 {
 	x := cast(float32)(win.GET_X_LPARAM(lp));
 	y := cast(float32)(win.GET_Y_LPARAM(lp));
 	return .[x / s.scale, y / s.scale];

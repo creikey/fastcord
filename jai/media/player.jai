@@ -132,7 +132,7 @@ player_destroy :: (p: *Player) {
 	locks.cond_broadcast(*p.cond);
 	thread.join(p.thread);
 	thread.destroy(p.thread);
-	for * f: p.frames { video_frame_release(*f); }
+	for * f: p.frames { video_frame_release(f); }
 	delete(p.frames);
 	delete(p.vframes_tmp);
 	delete(p.pcm);
@@ -183,7 +183,7 @@ player_seek :: (p: *Player, t: float64) {
 	p.seek_req = true;
 	p.seek_to = max(t, 0);
 	// Frames decoded for the old position must never be shown.
-	for * f: p.frames { video_frame_release(*f); }
+	for * f: p.frames { video_frame_release(f); }
 	clear(*p.frames);
 	p.seek_ready = false;
 	p.anchor_media = p.seek_to;
@@ -319,7 +319,7 @@ player_update :: (p: *Player) -> Video_Image, bool {
 		if ok {
 			if p.img.y != 0 { gfx.texture_destroy(p.img.y); }
 			if p.img.cbcr != 0 { gfx.texture_destroy(p.img.cbcr); }
-			p.img = .{y = y, cbcr = uv, size = .{f.width, f.height}, yuv = f.yuv, pts = f.pts};
+			p.img = .{y = y, cbcr = uv, size = .[f.width, f.height], yuv = f.yuv, pts = f.pts};
 			changed = true;
 			p.shown_any = true;
 			p.stats.video_shown += 1;
@@ -476,7 +476,7 @@ add_segment :: (p: *Player, base: float64) {
 worker_seek :: (p: *Player, target: float64) {
 	d := p.demux;
 	locks.lock(*p.mu);
-	for * f: p.frames { video_frame_release(*f); }
+	for * f: p.frames { video_frame_release(f); }
 	clear(*p.frames);
 	p.seek_ready = p.vtrack < 0;
 	p.since_seek = 0;
@@ -493,7 +493,7 @@ worker_seek :: (p: *Player, target: float64) {
 		if p.vdec != null { video_decoder_flush(p.vdec); }
 		tmp := make_dynamic(Video_Frame, 0, 0, temp);
 		if p.vdec != null { video_decoder_take(p.vdec, *tmp); }
-		for * f: tmp { video_frame_release(*f); }
+		for * f: tmp { video_frame_release(f); }
 		p.discard_v = target;
 	}
 	if p.audio_active {
@@ -620,12 +620,12 @@ collect_frames :: (p: *Player) {
 	for * f: p.vframes_tmp {
 		p.stats.video_decoded += 1;
 		if stale {
-			video_frame_release(*f);
+			video_frame_release(f);
 			continue;
 		}
 		end := f.pts + max(f.dur, 0.001);
 		if end <= p.discard_v + 1.0e-6 {
-			video_frame_release(*f);
+			video_frame_release(f);
 			p.stats.video_dropped += 1;
 			continue;
 		}
@@ -633,7 +633,7 @@ collect_frames :: (p: *Player) {
 		// insert sorted by pts
 		i := len(p.frames);
 		while i > 0 && p.frames[i - 1].pts > f.pts { i -= 1; }
-		inject_at(*p.frames, i, f);
+		inject_at(*p.frames, i, f.*);
 		p.since_seek += 1;
 		// Ready once the covering frame is here, or after the reorder window
 		// (target before the first frame: show the first one as a poster).
@@ -673,5 +673,12 @@ audio_step :: (p: *Player) -> bool {
 	}
 	return true;
 }
-#scope_export
+#scope_module
 
+// Odin remove_range (missing from fc): drops a[lo:hi], keeping order.
+remove_range :: (a: *[..]$T, lo: int, hi: int) {
+	n := hi - lo;
+	if n <= 0 { return; }
+	for i: hi..a.count-1 { a.*[i - n] = a.*[i]; }
+	a.count -= n;
+}
