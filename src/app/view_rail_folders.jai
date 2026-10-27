@@ -132,6 +132,7 @@ rail_view :: () {
 	rail := ui.box("rail", .Scroll_Y | .Clip);
 	rail.semantic_size = .[ui.px(RAIL_W), ui.pct(1)];
 	rail.layout_axis = .Y;
+	rail.scrollbar = .None; // the official guild list scrolls without a visible bar
 	ui.signal(rail);
 	entries := rail_entries();
 	{ ui.parent(rail); defer ui.pop_parent();

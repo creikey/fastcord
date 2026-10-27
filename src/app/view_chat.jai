@@ -517,6 +517,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				if row.rect.y1 > row.rect.y0 table_set(*cs.heights, m.id, row.rect.y1 - row.rect.y0);
 			}
 		}
+		ui.scrollbar(list, .Auto, *cs.scroll_from_bottom, *cs.scroll_target, total, from_end = true);
 	}
 }
 

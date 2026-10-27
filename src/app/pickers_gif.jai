@@ -301,7 +301,7 @@ gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			}
 			if sig.clicked gif_open_tile(t);
 		}
-		pk_scrollbar(*gv.scroll, view.x1 - view.x0 - PK_SCROLLBAR_W - 2);
+		pk_scrollbar(*gv.scroll);
 	}
 }
 
@@ -420,7 +420,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 				}
 			}
 		}
-		pk_scrollbar(*gv.scroll, view.x1 - view.x0 - PK_SCROLLBAR_W - 2);
+		pk_scrollbar(*gv.scroll);
 	}
 }
 

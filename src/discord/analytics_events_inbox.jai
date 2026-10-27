@@ -116,3 +116,10 @@ track_back_forward :: (c: *Client, forward: bool, keybind: bool) {
 	aw_track(c, "app_back_forward_navigated", *w);
 }
 
+// Dragging the channel sidebar's edge, on release: the whole sidebar's width (guild rail included).
+track_channel_sidebar_resized :: (c: *Client, width: int) {
+	w := aw_begin();
+	json_kint(*w, "width", width);
+	aw_track(c, "channel_sidebar_resized", *w);
+}
+

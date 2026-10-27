@@ -1,0 +1,31 @@
+# Dragging the chat's scrollbar thumb to the top shows the start of the history; pressing the
+# track below the thumb pages back down. Dragging the channel sidebar's edge widens it (clamped).
+wait 10
+move 700 400
+wait 3
+expect_not_visible "this message should group with the one above"
+down 1007 440
+move 1007 300
+move 1007 40
+up 1007 40
+wait 10
+expect_visible "this message should group with the one above"
+shot build/ui-scrollbar_drag-top.png
+down 1007 600
+up 1007 600
+wait 30
+expect_not_visible "this message should group with the one above"
+shot build/ui-scrollbar_drag-paged.png
+down 373 400
+move 420 400
+move 600 400
+up 600 400
+wait 5
+shot build/ui-scrollbar_drag-sidebar.png
+down 1016 300
+move 990 300
+move 940 300
+up 940 300
+move 1017 300
+wait 10
+shot build/ui-scrollbar_drag-members.png

@@ -648,7 +648,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 		spacer(.Y, 4);
 		label("Try searching for something else", .Normal, 14, T("--text-muted"), 18);
 	}
-	pk_scrollbar(*ev.scroll, w - PK_SCROLLBAR_W - 2);
+	pk_scrollbar(*ev.scroll);
 }
 
 // Arrow keys move the inspected emoji through the grid; Enter selects.

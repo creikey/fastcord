@@ -549,13 +549,29 @@ add_friend_view :: () {
 	}
 }
 
+// Right-hand member column (guild and group DM): the official .container has a 1px --border-subtle
+// left border before the --custom-member-list-width list. Its left edge drags to resize it.
+// Returns the scrolling list (signalled); declare the rows inside it.
+members_column :: (id: string) -> *ui.Box {
+	col := row(id);
+	col.semantic_size = .[ui.px(app.view.member_w + 1), ui.pct(1)];
+	{ ui.parent(col); defer ui.pop_parent();
+		line := ui.box("border", .Draw_Background);
+		line.semantic_size = .[ui.px(1), ui.pct(1)];
+		line.style.bg = T("--border-subtle");
+		list := ui.box("list", .Scroll_Y | .Clip | .Draw_Background);
+		list.semantic_size = .[ui.fill(), ui.pct(1)];
+		list.layout_axis = .Y;
+		list.style.bg = T("--background-base-lower");
+		ui.signal(list);
+		resize_handle("resize", 0, *app.view.member_w, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W, grows_left = true);
+		return list;
+	}
+}
+
 member_list :: (ch: *dc.Channel) {
 	s := store();
-	list := ui.box("members", .Scroll_Y | .Clip | .Draw_Background);
-	list.semantic_size = .[ui.px(MEMBER_LIST_W), ui.pct(1)];
-	list.layout_axis = .Y;
-	list.style.bg = T("--background-base-lower");
-	ui.signal(list);
+	list := members_column("members");
 	ml := table_find_pointer(*s.member_lists, ch.guild_id);
 	if app.client != null && (!ml || ml.items.count == 0) {
 		dc.subscribe_member_list(app.client, ch.guild_id, ch.id, ([2]int).[.[0, 99]]);

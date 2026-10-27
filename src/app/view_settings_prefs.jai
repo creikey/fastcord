@@ -142,6 +142,7 @@ set_page_begin :: (id: string) -> bool {
 	page := ui.box(id, .Scroll_Y | .Clip);
 	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
+	page.scrollbar = .Auto;
 	ui.signal(page);
 	ui.push_parent(page);
 	spacer(.Y, 32);

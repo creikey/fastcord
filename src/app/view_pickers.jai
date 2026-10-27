@@ -300,17 +300,9 @@ pk_scroll_reveal :: (s: *Pk_Scroll, y0: float32, y1: float32, top_inset: float32
 	s.target = clamp(s.target, 0, max(0.0, s.content_h - s.view_h));
 }
 
-// Thin scrollbar thumb at the right edge of the list (parent-relative x).
-pk_scrollbar :: (s: *Pk_Scroll, x: float32) {
-	if s.content_h <= s.view_h + 1 return;
-	frac := s.view_h / s.content_h;
-	th := max(24.0, s.view_h * frac);
-	ty := (s.view_h - th) * (s.y / (s.content_h - s.view_h));
-	b := ui.box("scrollthumb", .Draw_Background | .Floating_X | .Floating_Y);
-	b.semantic_size = .[ui.px(PK_SCROLLBAR_W), ui.px(th)];
-	b.fixed_pos = .{x, ty};
-	b.style.radius = all4(PK_SCROLLBAR_W / 2);
-	b.style.bg = T("--scrollbar-thin-thumb");
+// The list's thin scrollbar; call inside the list box, after its rows.
+pk_scrollbar :: (s: *Pk_Scroll) {
+	ui.scrollbar(ui.top_parent(), .Thin, *s.y, *s.target, s.content_h);
 }
 
 // Lowercased, trimmed query of the active tab.
