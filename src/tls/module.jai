@@ -14,4 +14,4 @@ crypto :: #import "crypto";
 #load "trust_cache.jai";
 #if OS == .MACOS #load "trust_darwin.jai";
 else #if OS == .WINDOWS #load "trust_windows.jai";
-else #load "trust_other.jai";
+else #if OS == .LINUX #load "trust_linux.jai";

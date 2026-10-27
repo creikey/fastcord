@@ -126,7 +126,7 @@ waiting_on :: (tid: int) -> Wait_Info {
 } else #if OS == .WINDOWS {
 	current_thread_id :: () -> int { return cast(int) GetCurrentThreadId(); }
 } else #if OS == .LINUX {
-	current_thread_id :: () -> int { return syscall(SYS_gettid); }
+	current_thread_id :: () -> int { return cast(int) syscall(SYS_gettid); } // glibc 2.17 has no gettid()
 }
 
 #scope_file
@@ -134,7 +134,7 @@ waiting_on :: (tid: int) -> Wait_Info {
 #import "Basic";
 #import "Atomics";
 #import "Thread";
-#if OS == .MACOS || OS == .LINUX #import "POSIX";
+#if OS != .WINDOWS #import "POSIX";
 #if OS == .WINDOWS #import "Windows";
 
 ui_thread: int;
@@ -228,9 +228,9 @@ wait :: (c: *Cond, m: *Mutex, timeout_ms: s64, what: string, loc: Source_Code_Lo
 	FUTEX_WAKE_PRIVATE :: 129;
 
 	futex_wait :: (addr: *u32, expected: u32, timeout_ms: s64) -> bool {
-		ts := timespec.{tv_sec = timeout_ms / 1000, tv_nsec = (timeout_ms % 1000) * 1_000_000}; // relative
+		ts := timespec.{tv_sec = timeout_ms / 1000, tv_nsec = (timeout_ms % 1000) * 1_000_000};
 		r := syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, cast(s64) expected, ifx timeout_ms < 0 then null else *ts);
-		return r == 0 || errno() != 110; // ETIMEDOUT
+		return r == 0 || errno() != ETIMEDOUT; // EAGAIN (value changed) and EINTR count as wakes
 	}
-	futex_wake :: (addr: *u32, all: bool) { syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, cast(s64) ifx all then 0x7fff_ffff else 1); }
+	futex_wake :: (addr: *u32, all: bool) { syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, cast(s64) ifx all then 0x7FFF_FFFF else 1); }
 }

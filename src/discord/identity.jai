@@ -11,9 +11,14 @@ Platform_Info :: struct {
 	system_locale: string;
 	browser_user_agent: string;
 	browser_version: string;
-	os_sdk_version: string;
+	os_sdk_version: string; // "" omits the key (Linux)
+	// Linux only ("" omits them): "$XDG_CURRENT_DESKTOP,$GDMSESSION", os-release PRETTY_NAME, native/flatpak, x11/wayland
+	window_manager: string;
+	distro: string;
+	runtime_environment: string;
+	display_server: string;
 	client_build_number: s64;
-	native_build_number: s64;
+	native_build_number: s64; // 0 = null (Linux has no native build)
 	sec_ch_ua: string;
 	sec_ch_ua_platform: string;
 	accept_language: string;
@@ -51,6 +56,11 @@ DEFAULT_PLATFORM :: Platform_Info.{
 	capabilities = 1767421,
 	api_version = 9
 };
+
+// host_platform: what the official client reports on this OS. macOS and Windows report the captured macOS
+// build; the offline tests always use DEFAULT_PLATFORM.
+#if OS == .LINUX host_platform :: linux_platform; // procinfo_linux.jai
+else host_platform :: () -> Platform_Info { return DEFAULT_PLATFORM; }
 
 // Analytics heartbeat session (SessionHeartbeatScheduler): a uuid persisted
 // as LAST_CLIENT_HEARTBEAT_SESSION, refreshed while the app is active, and
@@ -147,9 +157,16 @@ write_base_properties :: (w: *Json, p: Platform_Info, launch_id: string) {
 	json_kstr(w, "client_launch_id", launch_id);
 	json_kstr(w, "browser_user_agent", p.browser_user_agent);
 	json_kstr(w, "browser_version", p.browser_version);
-	json_kstr(w, "os_sdk_version", p.os_sdk_version);
+	if p.os_sdk_version json_kstr(w, "os_sdk_version", p.os_sdk_version);
+	if p.window_manager {
+		json_kstr(w, "window_manager", p.window_manager);
+		json_kstr(w, "distro", p.distro);
+		json_kstr(w, "runtime_environment", p.runtime_environment);
+		json_kstr(w, "display_server", p.display_server);
+	}
 	json_kint(w, "client_build_number", p.client_build_number);
-	json_kint(w, "native_build_number", p.native_build_number);
+	if p.native_build_number json_kint(w, "native_build_number", p.native_build_number);
+	else json_knull(w, "native_build_number");
 	json_knull(w, "client_event_source");
 }
 

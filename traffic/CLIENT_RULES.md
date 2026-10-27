@@ -49,6 +49,7 @@ not read in code; **guess** = neither, best knowledge.
 | Auto-detect = `RunningGameStore` entries with `streamerTool: true` (OBS, XSplit, Bebo, Streamlabs Desktop, Twitch Studio); a manual toggle sticks until the next start or stop | code | `RunningGameStore`, `streamerTool` | same |
 | Analytics `streamer_mode_toggle {enabled, automatic}`, `update_streamer_mode_settings` with `old_*` copies, `app_notice_*` with `notice_type` `STREAMER_MODE` | code | search `streamer_mode_toggle` | same |
 | UI strings, and the notice "…Usernames have been truncated." | code | intl strings | same |
+| The tool table has only `win32` and `darwin` executables, matched against Node's `process.platform`: on Linux (`linux`) nothing is auto-detected | inferred (from the copied table) | `RunningGameStore`, `streamerTool` | `view_streamer.jai` `STREAMER_OS` |
 
 ## Settings, theme, sounds, notifications
 
@@ -85,6 +86,8 @@ not read in code; **guess** = neither, best knowledge.
 | Typing: `TypingStore TYPING_START_LOCAL` timing | code | `TypingStore` | `actions.jai` |
 | Quests: application ids of every quest loaded after `/quests/@me` | code | `QuestsStore` | `src/discord/rest.jai` |
 | Unverified account loads `affinities/v2/users` instead of premium entitlements on Friends | inferred | fixtures `join_leave_server` vs `open_dm` | `actions.jai` `home_open` |
+| Linux super properties (IDENTIFY and `x-super-properties`): `os` "Linux", `os_version` = kernel release (`uname -r`), `os_arch`/`app_arch` "x64", no `os_sdk_version`, then `window_manager` "`$XDG_CURRENT_DESKTOP`,`$GDMSESSION`" ("unknown" for unset), `distro` = os-release `PRETTY_NAME` unquoted, `runtime_environment` "native", `display_server` = `$XDG_SESSION_TYPE`, after `browser_version`; `native_build_number` null | guess (no Linux capture) | super-properties module (`getSuperProperties`) | `src/discord/procinfo_linux.jai` `linux_platform`, `identity.jai` `write_base_properties`, `gateway.jai` `put_base_properties` |
+| Linux user agent `Mozilla/5.0 (X11; Linux x86_64) … discord/<linux version> Chrome/… Electron/…`, `sec-ch-ua-platform` "Linux"; Linux client version `LINUX_CLIENT_VERSION` (0.0.125: its own version line; the Electron and web build are the macOS baseline's) | guess | `navigator.userAgent` | same |
 
 ## Analytics (`/science`)
 

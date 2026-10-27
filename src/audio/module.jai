@@ -1,5 +1,5 @@
 // Audio output (a mixer of sources) and microphone capture, at 48 kHz f32.
-// CoreAudio on macOS (darwin.jai), WASAPI on Windows (windows.jai).
+// CoreAudio on macOS (darwin.jai), WASAPI on Windows (windows.jai), ALSA on Linux (linux.jai).
 
 SAMPLE_RATE :: 48000;
 CHANNELS :: 2; // output is interleaved stereo f32
@@ -254,6 +254,7 @@ locks :: #import "locks";
 
 #if OS == .MACOS #load "darwin.jai";
 #if OS == .WINDOWS #load "windows.jai";
+#if OS == .LINUX #load "linux.jai";
 
 Slot :: struct {
 	ring: Ring;

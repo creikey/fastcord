@@ -333,9 +333,15 @@ put_base_properties :: (b: *etf.Map_Builder, p: Platform_Info, launch_id: string
 	put("client_launch_id", launch_id);
 	put("browser_user_agent", p.browser_user_agent);
 	put("browser_version", p.browser_version);
-	put("os_sdk_version", p.os_sdk_version);
+	if p.os_sdk_version put("os_sdk_version", p.os_sdk_version);
+	if p.window_manager {
+		put("window_manager", p.window_manager);
+		put("distro", p.distro);
+		put("runtime_environment", p.runtime_environment);
+		put("display_server", p.display_server);
+	}
 	etf.map_put(b, "client_build_number", etf.vint(p.client_build_number));
-	etf.map_put(b, "native_build_number", etf.vint(p.native_build_number));
+	etf.map_put(b, "native_build_number", ifx p.native_build_number then etf.vint(p.native_build_number) else .{});
 	etf.map_put(b, "client_event_source", .{});
 }
 
