@@ -1,4 +1,4 @@
-// jai build.jai - [app|dev|debug|parity|test|run <file.jai>|tool <name>|c]
+// jai build.jai - [app|dev|debug|parity|test [names]|run <file.jai>|tool <name>|release <vX.Y.Z> [publish]|c]
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
 // into build/, then the Jai program, then links everything with the system clang.
 #import "Basic";
@@ -17,34 +17,50 @@ build :: () {
     target := ifx args.count then args[0] else "app";
     make_directory_if_it_does_not_exist("build");
     if !build_c() { log_error("C build failed"); compiler_set_workspace_status(.FAILED); return; }
-    if target == "c" return;
+    APP :: "app :: #import \"app\"; main :: () { app.main(); }";
+    ok := true;
+    if target == {
+        case "c";      return;
+        case "app";    ok = compile("fastcord", APP, .VERY_OPTIMIZED);
+        case "dev";    ok = compile("fastcord-dev", APP, .OPTIMIZED);
+        case "debug";  ok = compile("fastcord-debug", APP, .DEBUG);
+        case "tool";   ok = compile(args[1], tprint("t :: #import \"tool_%\"; main :: () { t.main(); }", args[1]));  // a tool is a module with a main
+        case "parity"; ok = compile("parity", file = "jai/discord_parity/module.jai");
+        case "run";    ok = compile(path_strip_extension(path_filename(args[1])), file = args[1]);
+        case "test";
+            // the offline traffic-parity tests; extra arguments pick tests by name
+            ok = compile("test-discord-jai", file = "jai/tests/discord.jai", optimization = .OPTIMIZED);
+            if ok {
+                a: [..]string;
+                array_add(*a, "build/test-discord-jai");
+                for 1..args.count-1 array_add(*a, args[it]);
+                ok = run_command(..a).exit_code == 0;
+            }
+        case "release"; ok = release(args);
+        case; log_error("usage: jai build.jai - [app|dev|debug|parity|test [names]|run <file.jai>|tool <name>|release <vX.Y.Z> [publish]|c]"); return;
+    }
+    if !ok compiler_set_workspace_status(.FAILED);
+}
 
-    w := compiler_create_workspace(target);
+// compile builds one program into build/<name>: the root is a file or a build string.
+compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG, file := "", cpu := CPU) -> bool {
+    w := compiler_create_workspace(name);
     o := get_build_options(w);
     import_path: [..]string;
     array_add(*import_path, "jai");
-    array_add(*import_path, ..o.import_path);
+    for o.import_path array_add(*import_path, it);
     o.import_path = import_path;
     o.use_custom_link_command = true;
     o.text_output_flags = 0;
-    file := "jai/app/main.jai";
-    if target == {
-        case "app";   o.output_executable_name = "fastcord"; set_optimization(*o, .VERY_OPTIMIZED);
-        case "dev";   o.output_executable_name = "fastcord-dev"; set_optimization(*o, .OPTIMIZED);
-        case "debug"; o.output_executable_name = "fastcord-debug"; set_optimization(*o, .DEBUG);
-        case "tool";  o.output_executable_name = args[1]; file = "";
-        case "parity"; o.output_executable_name = "parity"; file = "jai/discord_parity/module.jai";
-        case "test";   o.output_executable_name = "test-discord-jai"; file = "jai/tests/discord.jai"; set_optimization(*o, .OPTIMIZED);
-        case "run";  file = args[1]; o.output_executable_name = path_strip_extension(path_filename(file));
-        case; log_error("usage: jai build.jai - [app|dev|debug|parity|test|run <file.jai>|tool <name>|c]"); return;
-    }
+    o.output_executable_name = name;
     o.output_path = "build";
+    o.cpu_target = cpu;
     o.dead_code_elimination = .NONE; // type-check every procedure, not only the ones called
-    o.cast_bounds_check = .OFF;      // integer casts truncate, as the code base (written for Odin) expects
+    o.cast_bounds_check = .OFF;      // integer casts truncate, as the wire encoders expect
+    set_optimization(*o, optimization);
     set_build_options(o, w);
     compiler_begin_intercept(w);
-    if file add_build_file(file, w);
-    else add_build_string(tprint("t :: #import \"tool_%\"; main :: () { t.main(); }", args[1]), w);  // a tool is a module with a main
+    if file add_build_file(file, w); else add_build_string(source, w);
     ok := true;
     while true {
         m := compiler_wait_for_message();
@@ -53,29 +69,76 @@ build :: () {
         if m.kind == .PHASE {
             p := cast(*Message_Phase) m;
             if p.phase == .READY_FOR_CUSTOM_LINK_COMMAND {
-                if !link(p, tprint("build/%", o.output_executable_name)) ok = false;
+                if !link(p, tprint("build/%", name), cpu) ok = false;
                 compiler_custom_link_command_is_complete(w);
             }
         }
     }
     compiler_end_intercept(w);
-    if !ok { compiler_set_workspace_status(.FAILED); return; }
-    if target == "test" {
-        // the offline parity tests; extra arguments pick tests by name
-        a: [..]string;
-        array_add(*a, "build/test-discord-jai");
-        array_add(*a, ..array_view(args, 1));
-        r := run_command(..a);
-        if r.exit_code != 0 compiler_set_workspace_status(.FAILED);
-    }
+    return ok;
 }
 
-MAC_FLAGS :: string.["-arch", "arm64", "-mmacosx-version-min=13.0"];
+// release <vX.Y.Z> [publish]: dist/fastcord-macos.zip, a universal (arm64 + x86_64) ad-hoc signed Fastcord.app
+// built on this machine (CI has no Jai). With "publish", uploads it to the GitHub release for the tag
+// (created at HEAD if missing) with the gh CLI. Run the gates first (README "Releasing").
+release :: (args: []string) -> bool {
+    if args.count < 2 || !begins_with(args[1], "v") { log_error("release needs a version tag like v0.2.0"); return false; }
+    version := args[1];
+    root := tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", version);
+    if !compile("fastcord-arm64", root, .VERY_OPTIMIZED, cpu = .ARM64) return false;
+    if !compile("fastcord-x86_64", root, .VERY_OPTIMIZED, cpu = .X64) return false;
+    app := "build/pkg/Fastcord.app";
+    run_command("rm", "-rf", "build/pkg", "dist");
+    make_directory_if_it_does_not_exist(tprint("%/Contents/MacOS", app), recursive = true);
+    make_directory_if_it_does_not_exist(tprint("%/Contents/Resources", app), recursive = true);
+    make_directory_if_it_does_not_exist("dist");
+    plain := slice(version, 1, version.count - 1);
+    plist := tprint(INFO_PLIST, plain, plain);
+    ok := run_command("lipo", "-create", "build/fastcord-arm64", "build/fastcord-x86_64", "-output", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0
+        && run_command("cp", "assets/Fastcord.icns", tprint("%/Contents/Resources/", app)).exit_code == 0
+        && write_entire_file(tprint("%/Contents/Info.plist", app), plist)
+        // ad-hoc signature (required to launch on Apple silicon); not notarized
+        && run_command("codesign", "--force", "--deep", "--sign", "-", app).exit_code == 0
+        && run_command("ditto", "-c", "-k", "--keepParent", app, "dist/fastcord-macos.zip").exit_code == 0;
+    if !ok return false;
+    print("dist/fastcord-macos.zip (%)\n", version);
+    if args.count < 3 || args[2] != "publish" return true;
+    _, head_out := run_command("git", "rev-parse", "HEAD", capture_and_return_output = true);
+    head := trim(head_out);
+    if run_command("gh", "release", "view", version).exit_code != 0 {
+        return run_command("gh", "release", "create", version, "dist/fastcord-macos.zip", "--target", head, "--title", version, "--generate-notes").exit_code == 0;
+    }
+    return run_command("gh", "release", "upload", version, "dist/fastcord-macos.zip", "--clobber").exit_code == 0;
+}
 
-link :: (p: *Message_Phase, exe: string) -> bool {
+INFO_PLIST :: #string XML
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Fastcord</string>
+	<key>CFBundleDisplayName</key><string>Fastcord</string>
+	<key>CFBundleIdentifier</key><string>com.creikey.fastcord</string>
+	<key>CFBundleExecutable</key><string>Fastcord</string>
+	<key>CFBundleIconFile</key><string>Fastcord</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>%1</string>
+	<key>CFBundleVersion</key><string>%2</string>
+	<key>LSMinimumSystemVersion</key><string>13.0</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSMicrophoneUsageDescription</key><string>Fastcord uses the microphone for voice chat.</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.social-networking</string>
+</dict>
+</plist>
+XML
+
+// The C objects are universal (arm64 + x86_64): each Jai program links the slice for its target.
+MAC_C_FLAGS :: string.["-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-min=13.0"];
+
+link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
     array_add(*a, "clang", "-o", exe);
-    #if OS == .MACOS array_add(*a, ..MAC_FLAGS);
+    #if OS == .MACOS array_add(*a, "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0");
     array_add(*a, ..p.compiler_generated_object_files);
     array_add(*a, ..p.support_object_files);
     for p.user_libraries array_add(*a, it);
@@ -151,7 +214,7 @@ build_c :: () -> bool {
         if !stale(obj, path_strip_filename(src)) continue;
         a: [..]string;
         array_add(*a, "clang", "-c", "-O2");
-        #if OS == .MACOS array_add(*a, ..MAC_FLAGS);
+        #if OS == .MACOS array_add(*a, ..MAC_C_FLAGS);
         array_add(*a, ..cflags(path_strip_extension(src)));
         array_add(*a, "-o", obj, src);
         array_add(*jobs, a);
@@ -170,7 +233,7 @@ build_c :: () -> bool {
             if !f continue;
             a: [..]string;
             array_add(*a, "clang", "-c", "-O2");
-            #if OS == .MACOS array_add(*a, ..MAC_FLAGS);
+            #if OS == .MACOS array_add(*a, ..MAC_C_FLAGS);
             if !ends_with(f, ".c") array_add(*a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
             array_add(*a, ..extra);
             array_add(*a, "-o", tprint("%/%.o", dir, path_filename(f)), f);
