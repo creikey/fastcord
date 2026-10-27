@@ -604,6 +604,7 @@ ACK_NEW_MESSAGES_BANNER :: Ack_Location.{"New Messages Banner", "Mark Channel as
 // automatic acks (shouldAutomaticallyAck), tracked like the client's
 ACK_INCOMING_MESSAGE :: Ack_Location.{"Channel", "Ack - Incoming Message", "ack_automatic"};
 ACK_CHANNEL_SCROLL :: Ack_Location.{"Channel", "Ack - Channel Scroll", "ack_automatic"};
+ACK_WINDOW_FOCUS :: Ack_Location.{"Channel", "Ack - Window Focus", "ack_automatic"};
 
 // ack_message moves the read state at once and schedules the POST like ReadState.ack():
 // one timer per channel, due in 3 s, or at once when `immediate` or the channel had
@@ -1073,8 +1074,7 @@ on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
 	// Viewing a channel with unread messages acks it (ReadState, 3 s timer),
 	// only while the window has focus (fixtures, unfocused: mark_as_read sends no ack).
 	if channel_unread(*c.store, channel_id) && identity_app_state(*c.id) == .Focused && !c.idle_sent {
-		msgs := messages_get(*c.store, channel_id);
-		if msgs ack_message(c, channel_id, msgs[msgs.count - 1].id, location = ACK_CHANNEL_SCROLL);
+		if messages_get(*c.store, channel_id) ack_message(c, channel_id, ch.last_message_id, location = ACK_CHANNEL_SCROLL);
 	}
 }
 

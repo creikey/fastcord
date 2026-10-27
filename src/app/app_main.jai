@@ -30,7 +30,8 @@ App :: struct {
 	reaction_target: dc.Snowflake; // message whose reaction picker is open
 	ui_mods: UI_Mods; // modifier keys as of the latest event
 	stats: bool;
-	focused: bool; // window has focus (acks, app state) // FASTCORD_STATS=1: print frame rate periodically
+	focused: bool; // window has focus (acks, app state)
+	focus_gained: bool; // the window gained focus this frame (the "Window Focus" ack) // FASTCORD_STATS=1: print frame rate periodically
 	copy_selection: bool; // the message menu's "Copy": copy the selection after this pass
 	focused_editor: *UI_Editor; // the text field that took keyboard input last frame (tests)
 	expect_drawn: string; // script check: text the next frame must draw (tests)
@@ -290,6 +291,7 @@ frame :: () {
 	attachments_frame();
 	drops: [..]string;
 	drops.allocator = temp;
+	app.focus_gained = false;
 	for e: platform.events() {
 		if e.kind == {
 		case .File_Drop;
@@ -298,6 +300,7 @@ frame :: () {
 			attachments_drag_event(e);
 		case .Focus_Gained; #through; case .Focus_Lost;
 			app.focused = e.kind == .Focus_Gained;
+			app.focus_gained = app.focused;
 			if app.client != null dc.client_set_focused(app.client, app.focused);
 		}
 	}

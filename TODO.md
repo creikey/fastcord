@@ -5,7 +5,7 @@
 - [ ] Accounts: support full account switching; today it assumes a single token.
 - [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
-- [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`).
+- [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
 - [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
 - [ ] GIFs (fastcord-only): search Tenor as well as Klipy and merge the results. Discord's `/gifs/search` now returns Klipy only (`expressions.jai` `gifs_search` sends no provider). Either query Tenor's own API directly (needs an API key; check it's still offered), or add `provider=tenor` to Discord's endpoint if it still honours it. That second route makes fastcord's traffic differ from the official client's, so prefer the direct one. Sent Tenor links already embed fine.
 - [ ] GIFs: test search live against the official client: results and their order for the same queries, typing and debounce feel, suggestions, empty and error states, and scrolling a long result list. Fix whatever falls short.
@@ -61,16 +61,17 @@
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
 - [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
-- [ ] Embeds: YouTube video embeds (an iframe `video.url`, no `proxy_url`) show only a small side thumbnail, not the large poster with a play button that opens the video.
-- [ ] Media: the inline video player has no volume, mute or fullscreen buttons, and its control bar shows only on hover once playing (the client shows `0:00 / 0:15` before the first click) (`view_media.jai` `video_player`).
-- [ ] Embeds: several embeds sharing one `url` (a Twitter/FxTwitter post with up to 4 images) should merge into one card with an image grid; fastcord draws a card per embed (`view_media.jai` `embeds_view`).
 - [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
 - [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
 - [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
 - [ ] Attachments: file cards have no download button, the link-coloured filename does nothing, and text/code files get no inline preview.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
-- [ ] Media: the audio player has no seek bar or volume; the video player lacks volume, fullscreen and download.
+- [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
+- [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
+- [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
+- [ ] Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
+- [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
 - [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
 - [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
 - [ ] Reactions: super (burst) reactions look like normal ones; `burst_count` / `me_burst` are parsed but unused.
@@ -143,7 +144,7 @@
 - [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
-- [ ] Read states: regaining window focus reports its ack as "Ack - Channel Scroll" (officially "Ack - Window Focus"), and auto-acks use the last loaded message instead of the read state's `last_message_id` (`view_chat.jai` `chat_view`).
+- [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
 - [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
@@ -189,5 +190,10 @@
 - [x] Voice: video calls and Go Live on macOS: call view of everyone (tiles, speaking border, focus), camera and screen sharing (H.264/H.265 via VideoToolbox), watching cameras and streams (`src/video`, `src/voice/video.jai`, `view_call.jai`).
 - [x] Markdown: masked links `[text](url)` render as links (messages and embed descriptions), and embed descriptions draw their quotes with a bar.
 - [x] Embeds: proxied video embeds (FxTwitter, Reddit…) play in the card with a large poster instead of a side thumbnail.
+- [x] Media: the video player has volume (slider on hover), mute and fullscreen, and shows its control bar before the first click.
+- [x] Embeds: several embeds sharing one `url` merge into one card with a 2-4 image grid.
+- [x] Embeds: YouTube video embeds show a large poster with a play button that opens the video.
+- [x] Embeds: side thumbnails keep their shape (an IMDb poster was squashed into 80x80).
 - [x] Tray (Windows): a tray icon with a red dot for unread mentions, a click opens the window, the menu has Open and Quit; closing the window hides it to the tray.
+- [x] Read states: regaining focus reports "Ack - Window Focus", and auto-acks use the channel's `last_message_id`.
 - [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
