@@ -1,486 +1,331 @@
-// JSON bridge, for debugging and fixtures.
-//   ETF -> JSON: maps -> objects (non-string keys are stringified), lists and
-//   tuples -> arrays, Charlist -> array of ints, nil -> null, Big -> bare
-//   integer digits, other atoms -> strings.
-//   JSON -> Value: objects keep key order; integer literals -> i64 (or Big),
-//   anything with a fraction/exponent -> f64; strings -> binaries.
+// JSON bridge.
+//   Value -> JSON: maps -> objects (non-string keys are stringified), lists and tuples -> arrays,
+//   Charlist -> array of ints, nil -> null, Big -> bare integer digits, other atoms -> strings.
+//   JSON -> Value: objects keep key order; integer literals -> s64 (or Big), anything with a
+//   fraction/exponent -> float64; strings -> binaries.
 
-// to_json renders an already-decoded Value.
-to_json :: (v: Value, sb: *strings.Builder) {
-	if v.kind == {
-	case .Nil;
-		strings.write_string(sb, "null");
-	case .Bool; x := v.b;
-		strings.write_string(sb, ifx x then "true" else "false");
-	case .Int; x := v.i;
-		strings.write_i64(sb, x);
-	case .Float; x := v.f;
-		write_json_float(sb, x);
-	case .Big; x := v.big;
-		write_big_decimal(sb, x.negative, x.digits);
-	case .String; x := v.s;
-		write_json_string(sb, x);
-	case .Atom; x := v.s;
-		write_json_string(sb, as_string(x));
-	case .Charlist; x := v.s;
-		strings.write_byte(sb, #char "[");
-		for i: 0..len(x)-1 {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			strings.write_int(sb, cast(int)(x[i]));
-		}
-		strings.write_byte(sb, #char "]");
-	case .List; x := v.list;
-		strings.write_byte(sb, #char "[");
-		for e, i: x {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			to_json(e, sb);
-		}
-		strings.write_byte(sb, #char "]");
-	case .Tuple; x := v.list;
-		strings.write_byte(sb, #char "[");
-		for e, i: x {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			to_json(e, sb);
-		}
-		strings.write_byte(sb, #char "]");
-	case .Map; x := v.map;
-		strings.write_byte(sb, #char "{");
-		for p, i: x {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			if p.key.kind == {
-			case .String; k := p.key.s;
-				write_json_string(sb, k);
-			case .Atom; k := p.key.s;
-				write_json_string(sb, as_string(k));
-			case; k := p.key;
-				tmp := strings.builder_make(temp);
-				to_json(p.key, *tmp);
-				write_json_string(sb, strings.to_string(tmp));
-			}
-			strings.write_byte(sb, #char ":");
-			to_json(p.value, sb);
-		}
-		strings.write_byte(sb, #char "}");
-	}
+to_json :: (v: Value, sb: *String_Builder) {
+    if v.kind == {
+      case .Nil;      append(sb, "null");
+      case .Bool;     append(sb, ifx v.b then "true" else "false");
+      case .Int;      print_to_builder(sb, "%", v.i);
+      case .Float;    write_json_float(sb, v.f);
+      case .Big;      write_big_decimal(sb, v.big);
+      case .String; #through;
+      case .Atom;     write_json_string(sb, v.s);
+      case .Charlist;
+        append(sb, #char "[");
+        for cast([]u8) v.s {
+            if it_index append(sb, #char ",");
+            print_to_builder(sb, "%", it);
+        }
+        append(sb, #char "]");
+      case .List; #through;
+      case .Tuple;
+        append(sb, #char "[");
+        for v.list {
+            if it_index append(sb, #char ",");
+            to_json(it, sb);
+        }
+        append(sb, #char "]");
+      case .Map;
+        append(sb, #char "{");
+        for v.map {
+            if it_index append(sb, #char ",");
+            if it.key.kind == .String || it.key.kind == .Atom {
+                write_json_string(sb, it.key.s);
+            } else {
+                tmp: String_Builder;
+                tmp.allocator = temp;
+                to_json(it.key, *tmp);
+                write_json_string(sb, builder_to_string(*tmp,, temp));
+            }
+            append(sb, #char ":");
+            to_json(it.value, sb);
+        }
+        append(sb, #char "}");
+    }
 }
 
-// etf_to_json converts encoded ETF straight to JSON text without building a tree.
-etf_to_json :: (data: []u8, sb: *strings.Builder, opts := Decode_Options.{}) -> Error {
-	d := Decoder.{data = data, opts = opts, allocator = temp};
-	d.opts.borrow = true;
-	if d.opts.max_depth <= 0 { d.opts.max_depth = DEFAULT_MAX_DEPTH; }
-	if d.opts.max_inflated <= 0 { d.opts.max_inflated = DEFAULT_MAX_INFLATED; }
-	if len(data) < 1 { return .Truncated; }
-	if data[0] != VERSION { return .Bad_Version; }
-	d.pos = 1;
-	if len(data) > 1 && data[1] == cast(u8)(Tag.Compressed) {
-		inner, ierr := inflate_term(sub_from(data, 2), d.opts.max_inflated, context.allocator);
-		if ierr != .None { return ierr; }
-		defer delete(inner);
-		sub := Decoder.{data = inner, opts = d.opts, allocator = d.allocator};
-		__e3 := json_term(*sub, sb); if failed(__e3) return __e3;
-		return ifx sub.pos == len(inner) then .None else .Trailing_Data;
-	}
-	__e4 := json_term(*d, sb); if failed(__e4) return __e4;
-	return ifx d.pos == len(data) then .None else .Trailing_Data;
-}
-#scope_module
-
-json_term :: (d: *Decoder, sb: *strings.Builder) -> Error {
-	if !need(d, 1) { return .Truncated; }
-	tag := cast(Tag)(d.data[d.pos]);
-	if tag == {
-	case .List;
-		d.pos += 1;
-		if !need(d, 4) { return .Truncated; }
-		d.depth += 1;
-		defer d.depth -= 1;
-		if d.depth > d.opts.max_depth { return .Too_Deep; }
-		n := cast(int)(rd_u32(d));
-		if !need(d, n + 1) { return .Truncated; }
-		strings.write_byte(sb, #char "[");
-		for i: 0..cast(int)(n)-1 {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			__e6 := json_term(d, sb); if failed(__e6) return __e6;
-		}
-		if !need(d, 1) { return .Truncated; }
-		if d.data[d.pos] != cast(u8)(Tag.Nil) { return .Improper_List; }
-		d.pos += 1;
-		strings.write_byte(sb, #char "]");
-		return .None;
-	case .Small_Tuple; #through; case .Large_Tuple;
-		d.pos += 1;
-		n: int;
-		if tag == .Small_Tuple {
-			if !need(d, 1) { return .Truncated; }
-			n = cast(int)(rd_u8(d));
-		} else {
-			if !need(d, 4) { return .Truncated; }
-			n = cast(int)(rd_u32(d));
-		}
-		if !need(d, n) { return .Truncated; }
-		d.depth += 1;
-		defer d.depth -= 1;
-		if d.depth > d.opts.max_depth { return .Too_Deep; }
-		strings.write_byte(sb, #char "[");
-		for i: 0..cast(int)(n)-1 {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			__e7 := json_term(d, sb); if failed(__e7) return __e7;
-		}
-		strings.write_byte(sb, #char "]");
-		return .None;
-	case .Map;
-		d.pos += 1;
-		if !need(d, 4) { return .Truncated; }
-		n := cast(int)(rd_u32(d));
-		if n > (len(d.data) - d.pos) / 2 { return .Truncated; }
-		d.depth += 1;
-		defer d.depth -= 1;
-		if d.depth > d.opts.max_depth { return .Too_Deep; }
-		strings.write_byte(sb, #char "{");
-		for i: 0..cast(int)(n)-1 {
-			if i > 0 { strings.write_byte(sb, #char ","); }
-			if !need(d, 1) { return .Truncated; }
-			kt := cast(Tag)(d.data[d.pos]);
-			if kt == .Binary || kt == .Atom || kt == .Small_Atom || kt == .Atom_Utf8 || kt == .Small_Atom_Utf8 {
-				k, err := decode_term(d);
-				if err != .None { return err; }
-				if k.kind == {
-				case .String; kk := k.s;
-					write_json_string(sb, kk);
-				case .Atom; kk := k.s;
-					write_json_string(sb, as_string(kk));
-				case; kk := k;
-					tmp := strings.builder_make(temp);
-					to_json(k, *tmp);
-					write_json_string(sb, strings.to_string(tmp));
-				}
-			} else {
-				tmp := strings.builder_make(temp);
-				__e9 := json_term(d, *tmp); if failed(__e9) return __e9;
-				write_json_string(sb, strings.to_string(tmp));
-			}
-			strings.write_byte(sb, #char ":");
-			__e10 := json_term(d, sb); if failed(__e10) return __e10;
-		}
-		strings.write_byte(sb, #char "}");
-		return .None;
-	}
-	// Scalars: decode in borrow mode (no copies except Big digits on temp).
-	v, err := decode_term(d);
-	if err != .None { return err; }
-	to_json(v, sb);
-	return .None;
+// write_json_string writes s quoted and escaped; invalid UTF-8 bytes become U+FFFD.
+write_json_string :: (sb: *String_Builder, s: string) {
+    HEX :: "0123456789abcdef";
+    append(sb, #char "\"");
+    i := 0;
+    while i < s.count {
+        c := s[i];
+        if c == {
+          case #char "\""; append(sb, "\\\"");
+          case #char "\\"; append(sb, "\\\\");
+          case #char "\n"; append(sb, "\\n");
+          case #char "\r"; append(sb, "\\r");
+          case #char "\t"; append(sb, "\\t");
+          case;
+            if c < 0x20 {
+                append(sb, "\\u00");
+                append(sb, HEX[c >> 4]);
+                append(sb, HEX[c & 15]);
+            } else if c < 0x80 {
+                append(sb, c);
+            } else {
+                w := utf8_width(s, i);
+                if w { append(sb, s.data + i, w); i += w; }
+                else { append(sb, "\xEF\xBF\xBD"); i += 1; }
+                continue;
+            }
+        }
+        i += 1;
+    }
+    append(sb, #char "\"");
 }
 
-write_json_float :: (sb: *strings.Builder, f: float64) {
-	if f != f || f > FLOAT64_MAX || f < -FLOAT64_MAX {
-		strings.write_string(sb, "null");
-		return;
-	}
-	buf: [64]u8;
-	s := strconv.write_float(view(buf), f, #char "g", -1, 64);
-	if len(s) > 0 && s[0] == #char "+" { s = sub_from(s, 1); }
-	strings.write_string(sb, s);
-	if strings.index_any(s, ".eEn") < 0 { strings.write_string(sb, ".0"); }
+// from_json parses JSON into a Value with ordered maps, in context.allocator.
+from_json :: (text: string) -> Value, Error {
+    p := Json_Parser.{s = text};
+    v, err := json_value(*p);
+    if err != .None return .{}, err;
+    json_ws(*p);
+    if p.pos != p.s.count return .{}, .Bad_Json;
+    return v, .None;
 }
 
-write_big_decimal :: (sb: *strings.Builder, negative: bool, digits: []u8) {
-	tmp := make_slice(u8, len(digits), temp);
-	copy(tmp, digits);
-	out := make_dynamic(u8, 0, len(digits) * 3 + 1, temp);
-	n := len(tmp);
-	while n > 0 && tmp[n - 1] == 0 { n -= 1; }
-	if n == 0 {
-		strings.write_byte(sb, #char "0");
-		return;
-	}
-	while n > 0 {
-		rem := 0;
-		{ i := n - 1;
-		while i >= 0 {
-			cur := (rem << 8) | (cast(int)(tmp[i]));
-			tmp[i] = cast(u8)(cur / 10);
-			rem = cur % 10;
-			i -= 1;
-} }
-		append(*out, cast(u8)(#char "0" + rem));
-		while n > 0 && tmp[n - 1] == 0 { n -= 1; }
-	}
-	if negative { strings.write_byte(sb, #char "-"); }
-	for < i: 0..len(out) - 1 { strings.write_byte(sb, get(out, i)); }
+#scope_file
+
+write_json_float :: (sb: *String_Builder, f: float64) {
+    if f != f || f > FLOAT64_MAX || f < -FLOAT64_MAX { append(sb, "null"); return; }
+    s := tprint("%", formatFloat(f, trailing_width = -1, zero_removal = .YES));
+    if s.count && s[0] == #char "+" advance(*s);
+    append(sb, s);
+    for cast([]u8) s if it == #char "." || it == #char "e" || it == #char "E" || it == #char "n" return;
+    append(sb, ".0");
 }
 
-HEX := "0123456789abcdef";
-#scope_export
-
-write_json_string :: (sb: *strings.Builder, s: string) {
-	strings.write_byte(sb, 34);
-	i := 0;
-	while i < len(s) {
-		c := s[i];
-		if c == 34 {
-			strings.write_string(sb, "\\\"");
-		} else if c == 92 {
-			strings.write_string(sb, "\\\\");
-		} else if c == 10 {
-			strings.write_string(sb, "\\n");
-		} else if c == 13 {
-			strings.write_string(sb, "\\r");
-		} else if c == 9 {
-			strings.write_string(sb, "\\t");
-		} else {
-			if c < 0x20 {
-				strings.write_string(sb, "\\u00");
-				strings.write_byte(sb, HEX[c >> 4]);
-				strings.write_byte(sb, HEX[c & 15]);
-			} else if c < 0x80 {
-				strings.write_byte(sb, c);
-			} else {
-				r, w := utf8.decode_rune_in_string(sub_from(s, i));
-				if r == utf8.RUNE_ERROR && w <= 1 {
-					strings.write_string(sb, "�"); // invalid UTF-8 byte in a binary
-				} else {
-					strings.write_string(sb, sub(sub_from(s, i), 0, w));
-				}
-				i += w;
-				continue;
-			}
-		}
-		i += 1;
-	}
-	strings.write_byte(sb, 34);
+write_big_decimal :: (sb: *String_Builder, b: Big) {
+    tmp := array_copy(b.digits,, temp);
+    n := tmp.count;
+    while n > 0 && tmp[n - 1] == 0 n -= 1;
+    if !n { append(sb, #char "0"); return; }
+    out: [..]u8;
+    out.allocator = temp;
+    while n > 0 {
+        rem := 0;
+        for < i: 0..n-1 {
+            cur := (rem << 8) | tmp[i];
+            tmp[i] = cast(u8) (cur / 10);
+            rem = cur % 10;
+        }
+        array_add(*out, cast(u8) (#char "0" + rem));
+        while n > 0 && tmp[n - 1] == 0 n -= 1;
+    }
+    if b.negative append(sb, #char "-");
+    for < out append(sb, it);
 }
 
-// from_json parses JSON into a Value with ordered maps. Strings are allocated.
-from_json :: (text: string, allocator := context.allocator) -> Value, Error {
-	p := Json_Parser.{s = text, allocator = allocator};
-	v, err := json_value(*p);
-	if err != .None { return .{}, err; }
-	json_ws(*p);
-	if p.pos != len(p.s) { return .{}, .Bad_Json; }
-	return v, .None;
+// utf8_width is the length of the well-formed UTF-8 sequence at s[i], or 0.
+utf8_width :: (s: string, i: int) -> int {
+    c := s[i];
+    n, lo, hi := 0, 0x80, 0xBF;
+    if c >= 0xC2 && c <= 0xDF n = 2;
+    else if c >= 0xE0 && c <= 0xEF { n = 3; if c == 0xE0 lo = 0xA0; if c == 0xED hi = 0x9F; }
+    else if c >= 0xF0 && c <= 0xF4 { n = 4; if c == 0xF0 lo = 0x90; if c == 0xF4 hi = 0x8F; }
+    else return 0;
+    if i + n > s.count return 0;
+    for k: 1..n-1 {
+        b := s[i + k];
+        if b < lo || b > hi return 0;
+        lo, hi = 0x80, 0xBF;
+    }
+    return n;
 }
-#scope_module
+
+// put_rune appends r as UTF-8; surrogates and values past U+10FFFF become U+FFFD.
+put_rune :: (out: *[..]u8, r: u32) {
+    if r < 0x80 { array_add(out, cast(u8) r); return; }
+    if r < 0x800 { array_add(out, cast(u8) (0xC0 | (r >> 6)), cast(u8) (0x80 | (r & 0x3F))); return; }
+    if (r >= 0xD800 && r <= 0xDFFF) || r > 0x10FFFF r = 0xFFFD;
+    if r < 0x10000 {
+        array_add(out, cast(u8) (0xE0 | (r >> 12)), cast(u8) (0x80 | ((r >> 6) & 0x3F)), cast(u8) (0x80 | (r & 0x3F)));
+        return;
+    }
+    array_add(out, cast(u8) (0xF0 | (r >> 18)), cast(u8) (0x80 | ((r >> 12) & 0x3F)), cast(u8) (0x80 | ((r >> 6) & 0x3F)), cast(u8) (0x80 | (r & 0x3F)));
+}
 
 Json_Parser :: struct {
-	s: string;
-	pos: int;
-	depth: int;
-	allocator: Allocator;
+    s: string;
+    pos: int;
+    depth: int;
 }
 
 json_ws :: (p: *Json_Parser) {
-	while p.pos < len(p.s) {
-		{ __sw13 := p.s[p.pos];
-		if __sw13 == #char " " || __sw13 == 9 || __sw13 == 10 || __sw13 == 13 {
-			p.pos += 1;
-		} else {
-			return;
-		} }
-	}
+    while p.pos < p.s.count {
+        c := p.s[p.pos];
+        if c != #char " " && c != #char "\t" && c != #char "\n" && c != #char "\r" return;
+        p.pos += 1;
+    }
 }
 
+at :: inline (p: *Json_Parser, c: u8) -> bool { return p.pos < p.s.count && p.s[p.pos] == c; }
+
 json_value :: (p: *Json_Parser) -> Value, Error {
-	json_ws(p);
-	if p.pos >= len(p.s) { return .{}, .Bad_Json; }
-	p.depth += 1;
-	defer p.depth -= 1;
-	if p.depth > DEFAULT_MAX_DEPTH { return .{}, .Too_Deep; }
-	c := p.s[p.pos];
-	if c == #char "{" {
-		p.pos += 1;
-		pairs := make_dynamic(Pair, 0, 4, p.allocator);
-		json_ws(p);
-		if p.pos < len(p.s) && p.s[p.pos] == #char "}" {
-			p.pos += 1;
-			return vmap(view(pairs)), .None;
-		}
-		while true {
-			json_ws(p);
-			if p.pos >= len(p.s) || p.s[p.pos] != 34 { return .{}, .Bad_Json; }
-			k, kerr := json_string(p);
-			if kerr != .None { return .{}, kerr; }
-			json_ws(p);
-			if p.pos >= len(p.s) || p.s[p.pos] != #char ":" { return .{}, .Bad_Json; }
-			p.pos += 1;
-			v, verr := json_value(p);
-			if verr != .None { return .{}, verr; }
-			append(*pairs, Pair.{key = vstring(k), value = v});
-			json_ws(p);
-			if p.pos >= len(p.s) { return .{}, .Bad_Json; }
-			if p.s[p.pos] == #char "," {
-				p.pos += 1;
-				continue;
-			}
-			if p.s[p.pos] == #char "}" {
-				p.pos += 1;
-				return vmap(view(pairs)), .None;
-			}
-			return .{}, .Bad_Json;
-		}
-	} else if c == #char "[" {
-		p.pos += 1;
-		items := make_dynamic(Value, 0, 4, p.allocator);
-		json_ws(p);
-		if p.pos < len(p.s) && p.s[p.pos] == #char "]" {
-			p.pos += 1;
-			return vlist(view(items)), .None;
-		}
-		while true {
-			v, verr := json_value(p);
-			if verr != .None { return .{}, verr; }
-			append(*items, v);
-			json_ws(p);
-			if p.pos >= len(p.s) { return .{}, .Bad_Json; }
-			if p.s[p.pos] == #char "," {
-				p.pos += 1;
-				continue;
-			}
-			if p.s[p.pos] == #char "]" {
-				p.pos += 1;
-				return vlist(view(items)), .None;
-			}
-			return .{}, .Bad_Json;
-		}
-	} else if c == 34 {
-		s, err := json_string(p);
-		return vstring(s), err;
-	} else if c == #char "t" {
-		if strings.has_prefix(sub_from(p.s, p.pos), "true") {
-			p.pos += 4;
-			return vbool(true), .None;
-		}
-	} else if c == #char "f" {
-		if strings.has_prefix(sub_from(p.s, p.pos), "false") {
-			p.pos += 5;
-			return vbool(false), .None;
-		}
-	} else if c == #char "n" {
-		if strings.has_prefix(sub_from(p.s, p.pos), "null") {
-			p.pos += 4;
-			return .{}, .None;
-		}
-	} else if c == #char "-" || (c >= #char "0" && c <= #char "9") {
-		{ __r15, __r16 := json_number(p); return __r15, __r16; }
-	}
-	return .{}, .Bad_Json;
+    json_ws(p);
+    if p.pos >= p.s.count return .{}, .Bad_Json;
+    p.depth += 1;
+    defer p.depth -= 1;
+    if p.depth > MAX_DEPTH return .{}, .Too_Deep;
+    rest := slice(p.s, p.pos, p.s.count - p.pos);
+    c := p.s[p.pos];
+    if c == #char "{" {
+        p.pos += 1;
+        pairs: [..]Pair;
+        array_reserve(*pairs, 4);
+        json_ws(p);
+        if at(p, #char "}") { p.pos += 1; return vmap(pairs), .None; }
+        while true {
+            json_ws(p);
+            if !at(p, #char "\"") return .{}, .Bad_Json;
+            k, kerr := json_string(p);
+            if kerr != .None return .{}, kerr;
+            json_ws(p);
+            if !at(p, #char ":") return .{}, .Bad_Json;
+            p.pos += 1;
+            v, verr := json_value(p);
+            if verr != .None return .{}, verr;
+            array_add(*pairs, .{vstring(k), v});
+            json_ws(p);
+            if at(p, #char ",") { p.pos += 1; continue; }
+            if at(p, #char "}") { p.pos += 1; return vmap(pairs), .None; }
+            return .{}, .Bad_Json;
+        }
+    } else if c == #char "[" {
+        p.pos += 1;
+        items: [..]Value;
+        array_reserve(*items, 4);
+        json_ws(p);
+        if at(p, #char "]") { p.pos += 1; return vlist(items), .None; }
+        while true {
+            v, verr := json_value(p);
+            if verr != .None return .{}, verr;
+            array_add(*items, v);
+            json_ws(p);
+            if at(p, #char ",") { p.pos += 1; continue; }
+            if at(p, #char "]") { p.pos += 1; return vlist(items), .None; }
+            return .{}, .Bad_Json;
+        }
+    } else if c == #char "\"" {
+        s, err := json_string(p);
+        return vstring(s), err;
+    } else if begins_with(rest, "true") {
+        p.pos += 4;
+        return vbool(true), .None;
+    } else if begins_with(rest, "false") {
+        p.pos += 5;
+        return vbool(false), .None;
+    } else if begins_with(rest, "null") {
+        p.pos += 4;
+        return .{}, .None;
+    } else if c == #char "-" || (c >= #char "0" && c <= #char "9") {
+        v, err := json_number(p);
+        return v, err;
+    }
+    return .{}, .Bad_Json;
 }
 
 json_number :: (p: *Json_Parser) -> Value, Error {
-	start := p.pos;
-	is_float := false;
-	if p.pos < len(p.s) && p.s[p.pos] == #char "-" { p.pos += 1; }
-	while p.pos < len(p.s) {
-		c := p.s[p.pos];
-		if c >= #char "0" && c <= #char "9" {
-			p.pos += 1;
-		} else if c == #char "." || c == #char "e" || c == #char "E" || c == #char "+" || (c == #char "-" && p.pos > start) {
-			is_float = true;
-			p.pos += 1;
-		} else {
-			break;
-		}
-	}
-	lit := sub(p.s, start, p.pos);
-	if !is_float {
-		neg := lit[0] == #char "-";
-		digits := ifx neg then sub_from(lit, 1) else lit;
-		mag: u64;
-		overflow := len(digits) == 0;
-		for c: transmute([]u8, digits) {
-			d := cast(u64)(c - #char "0");
-			if mag > (U64_MAX - d) / 10 {
-				overflow = true;
-				break;
-			}
-			mag = mag * 10 + d;
-		}
-		if !overflow {
-			if !neg { return big_from_u64(mag, p.allocator), .None; }
-			if mag <= cast(u64)(S64_MAX) + 1 { return vint(cast,no_check(s64) (0 - mag)), .None; }
-			out := make_slice(u8, 8, p.allocator);
-			for i: 0..7 { at(*out, i).* = cast,no_check(u8)(mag >> (8 * cast,no_check(u64)(i))); }
-			return vbig(Big.{negative = true, digits = out}), .None;
-		}
-	}
-	f, ok := strconv.parse_f64(lit);
-	if !ok { return .{}, .Bad_Json; }
-	return vfloat(f), .None;
-}
-
-hexval :: (c: u8) -> int {
-	if (c >= #char "0" && c <= #char "9") {
-		return cast(int)(c - #char "0");
-	} else if (c >= #char "a" && c <= #char "f") {
-		return cast(int)(c - #char "a" + 10);
-	} else if (c >= #char "A" && c <= #char "F") {
-		return cast(int)(c - #char "A" + 10);
-	}
-	return -1;
+    start := p.pos;
+    is_float := false;
+    if at(p, #char "-") p.pos += 1;
+    while p.pos < p.s.count {
+        c := p.s[p.pos];
+        if c >= #char "0" && c <= #char "9" {
+        } else if c == #char "." || c == #char "e" || c == #char "E" || c == #char "+" || (c == #char "-" && p.pos > start) {
+            is_float = true;
+        } else {
+            break;
+        }
+        p.pos += 1;
+    }
+    lit := slice(p.s, start, p.pos - start);
+    if !is_float {
+        neg := lit[0] == #char "-";
+        digits := ifx neg then slice(lit, 1, lit.count - 1) else lit;
+        mag: u64;
+        overflow := !digits.count;
+        for cast([]u8) digits {
+            d := cast(u64) (it - #char "0");
+            if mag > (U64_MAX - d) / 10 { overflow = true; break; }
+            mag = mag * 10 + d;
+        }
+        if !overflow {
+            if !neg return big_from_u64(mag), .None;
+            if mag <= cast(u64) S64_MAX + 1 return vint(cast,no_check(s64) (0 - mag)), .None;
+            return vbig(.{negative = true, digits = le_digits(mag)}), .None;
+        }
+    }
+    f, ok, rest := string_to_float64(lit);
+    if !ok || rest.count return .{}, .Bad_Json;
+    return vfloat(f), .None;
 }
 
 json_hex4 :: (p: *Json_Parser) -> u32, bool {
-	if p.pos + 4 > len(p.s) { return 0, false; }
-	r: u32;
-	for i: 0..3 {
-		h := hexval(p.s[p.pos + i]);
-		if h < 0 { return 0, false; }
-		r = (r << 4) | (cast(u32)(h));
-	}
-	p.pos += 4;
-	return r, true;
+    if p.pos + 4 > p.s.count return 0, false;
+    r: u32;
+    for 0..3 {
+        c := p.s[p.pos + it];
+        h: u32;
+        if c >= #char "0" && c <= #char "9"      h = c - #char "0";
+        else if c >= #char "a" && c <= #char "f" h = c - #char "a" + 10;
+        else if c >= #char "A" && c <= #char "F" h = c - #char "A" + 10;
+        else return 0, false;
+        r = (r << 4) | h;
+    }
+    p.pos += 4;
+    return r, true;
 }
 
 json_string :: (p: *Json_Parser) -> string, Error {
-	p.pos += 1; // opening quote
-	sb := strings.builder_make(p.allocator);
-	while p.pos < len(p.s) {
-		c := p.s[p.pos];
-		if c == 34 {
-			p.pos += 1;
-			return strings.to_string(sb), .None;
-		}
-		if c != 92 {
-			strings.write_byte(*sb, c);
-			p.pos += 1;
-			continue;
-		}
-		p.pos += 1;
-		if p.pos >= len(p.s) { break; }
-		e := p.s[p.pos];
-		p.pos += 1;
-		if e == 34 || e == 92 || e == #char "/" {
-			strings.write_byte(*sb, e);
-		} else if e == #char "b" {
-			strings.write_byte(*sb, 8);
-		} else if e == #char "f" {
-			strings.write_byte(*sb, 12);
-		} else if e == #char "n" {
-			strings.write_byte(*sb, 10);
-		} else if e == #char "r" {
-			strings.write_byte(*sb, 13);
-		} else if e == #char "t" {
-			strings.write_byte(*sb, 9);
-		} else if e == #char "u" {
-			r, ok := json_hex4(p);
-			if !ok { return "", .Bad_Json; }
-			if r >= 0xd800 && r < 0xdc00 && p.pos + 6 <= len(p.s) && p.s[p.pos] == 92 && p.s[p.pos + 1] == #char "u" {
-				save := p.pos;
-				p.pos += 2;
-				lo, ok2 := json_hex4(p);
-				if ok2 && lo >= 0xdc00 && lo < 0xe000 {
-					r = 0x10000 + ((r - 0xd800) << 10) + (lo - 0xdc00);
-				} else {
-					p.pos = save;
-				}
-			}
-			strings.write_rune(*sb, r);
-		} else {
-			return "", .Bad_Json;
-		}
-	}
-	return "", .Bad_Json;
+    p.pos += 1;  // opening quote
+    // Fast path: no escapes, one copy.
+    for i: p.pos..p.s.count-1 {
+        c := p.s[i];
+        if c == #char "\\" break;
+        if c == #char "\"" {
+            s := copy_string(slice(p.s, p.pos, i - p.pos));
+            p.pos = i + 1;
+            return s, .None;
+        }
+    }
+    out: [..]u8;
+    while p.pos < p.s.count {
+        c := p.s[p.pos];
+        p.pos += 1;
+        if c == #char "\"" return cast(string) out, .None;
+        if c != #char "\\" { array_add(*out, c); continue; }
+        if p.pos >= p.s.count break;
+        e := p.s[p.pos];
+        p.pos += 1;
+        if e == {
+          case #char "\""; #through;
+          case #char "\\"; #through;
+          case #char "/"; array_add(*out, e);
+          case #char "b"; array_add(*out, 8);
+          case #char "f"; array_add(*out, 12);
+          case #char "n"; array_add(*out, #char "\n");
+          case #char "r"; array_add(*out, #char "\r");
+          case #char "t"; array_add(*out, #char "\t");
+          case #char "u";
+            r, ok := json_hex4(p);
+            if !ok return "", .Bad_Json;
+            if r >= 0xD800 && r < 0xDC00 && p.pos + 6 <= p.s.count && p.s[p.pos] == #char "\\" && p.s[p.pos + 1] == #char "u" {
+                save := p.pos;
+                p.pos += 2;
+                lo, ok2 := json_hex4(p);
+                if ok2 && lo >= 0xDC00 && lo < 0xE000 r = 0x10000 + ((r - 0xD800) << 10) + (lo - 0xDC00);
+                else p.pos = save;
+            }
+            put_rune(*out, r);
+          case;
+            return "", .Bad_Json;
+        }
+    }
+    return "", .Bad_Json;
 }
-#scope_export
-
