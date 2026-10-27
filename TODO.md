@@ -109,6 +109,7 @@
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Composer: no character counter near the 2000/4000 limit, and over-long sends aren't blocked.
 - [ ] Composer: no formatting toolbar on selection and no Ctrl+B / Ctrl+I / Ctrl+U.
+- [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
 - [ ] Chat: NSFW channels open with no age-gate screen.
