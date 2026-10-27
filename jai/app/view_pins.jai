@@ -1,30 +1,8 @@
-#scope_file
-
 // Pinned messages popout (header pin icon), like the client's: 420px wide,
 // anchored under the icon, newest pin first; loads 25 at a time
 // (GET /channels/{id}/messages/pins?limit=25&before=<pinned_at>) and acks pins
 // when opened (POST /channels/{id}/pins/ack). Re-fetched when a
 // CHANNEL_PINS_UPDATE arrives for the channel.
-
-Pin :: struct {
-	pinned_at: string;
-	msg: dc.Message;
-}
-
-Pins_State :: struct {
-	open: bool;
-	channel: dc.Snowflake;
-	anchor: ui.Rect;
-	loading: bool;
-	has_more: bool;
-	epoch: int;
-	items: [..]Pin;
-	arena: virtual.Arena;
-	scroll: float32;
-}
-
-pins: Pins_State;
-#scope_export
 
 pins_toggle :: (channel_id: dc.Snowflake, anchor: ui.Rect) {
 	if pins.open && pins.channel == channel_id {
@@ -33,48 +11,32 @@ pins_toggle :: (channel_id: dc.Snowflake, anchor: ui.Rect) {
 	}
 	pins.open = true;
 	pins.anchor = anchor;
-	if pins.channel != channel_id || pins.epoch != dc.pins_epoch(channel_id) { pins_reload(channel_id); }
-	if app.client != null { dc.ack_pins(app.client, channel_id); }
+	if pins.channel != channel_id || pins.epoch != dc.pins_epoch(channel_id) pins_reload(channel_id);
+	if app.client dc.ack_pins(app.client, channel_id);
 }
-#scope_file
-
-pins_reload :: (channel_id: dc.Snowflake) {
-	virtual.arena_destroy(*pins.arena);
-	pins.arena = .{};
-	pins.items = zero(type_of(pins.items));
-	pins.channel = channel_id;
-	pins.epoch = dc.pins_epoch(channel_id);
-	pins.has_more = false;
-	pins.loading = app.client != null;
-	if app.client != null { dc.fetch_pins(app.client, channel_id); }
-}
-#scope_export
 
 pins_receive :: (r: *dc.Feature_Result) {
-	if r.channel_id != pins.channel { return; }
+	if r.channel_id != pins.channel return;
 	pins.loading = false;
-	if !r.ok { return; }
-	if is_null(pins.items) {
-		if virtual.arena_init_growing(*pins.arena) != .None { return; }
-		pins.items = make_dynamic(Pin, 0, 0, virtual.arena_allocator(*pins.arena));
-	}
-	alloc := virtual.arena_allocator(*pins.arena);
+	if !r.ok return;
+	alloc := dc.pool_allocator(*pins.pool);
+	pins.items.allocator = alloc;
 	body := dc.vmap(r.body);
-	for iv: dc.flist(body, "items") {
-		im := dc.vmap(iv);
-		append(*pins.items, Pin.{pinned_at = clone(dc.fstr(im, "pinned_at"), alloc), msg = dc.parse_loose_message(store(), dc.fmap(im, "message"), alloc)});
+	for dc.flist(body, "items") {
+		im := dc.vmap(it);
+		array_add(*pins.items, .{pinned_at = copy_string(dc.fstr(im, "pinned_at"),, alloc), msg = dc.parse_loose_message(store(), dc.fmap(im, "message"), alloc)});
 	}
 	pins.has_more = dc.fbool(body, "has_more");
 	app.ui.animating = true;
 }
 
 pins_popout :: () {
-	if !pins.open { return; }
+	if !pins.open return;
 	if pins.channel != app.view.channel {
 		pins.open = false;
 		return;
 	}
-	if pins.epoch != dc.pins_epoch(pins.channel) { pins_reload(pins.channel); }
+	if pins.epoch != dc.pins_epoch(pins.channel) pins_reload(pins.channel);
 	W :: 420;
 	scrim := ui.box("pins_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
@@ -104,47 +66,43 @@ pins_popout :: () {
 	p.style.shadow_blur = 16;
 	p.style.shadow_offset = .{0, 8};
 	ui.signal(p);
-	{ ui.parent(p); defer ui.pop_parent();
-		hdr := row("hdr");
-		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
-		{ ui.parent(hdr); defer ui.pop_parent();
-			spacer(.X, 16);
-			icon("pin", "pin", 20, T("--interactive-icon-default"));
-			spacer(.X, 8);
-			label("Pinned Messages", .Semibold, 16, T("--text-strong"), 20);
+	ui.parent(p); defer ui.pop_parent();
+	hdr := row("hdr");
+	hdr.semantic_size = .[ui.pct(1), ui.px(48)];
+	{ ui.parent(hdr); defer ui.pop_parent();
+		spacer(.X, 16);
+		icon("pin", "pin", 20, T("--interactive-icon-default"));
+		spacer(.X, 8);
+		label("Pinned Messages", .Semibold, 16, T("--text-strong"), 20);
+	}
+	line := ui.box("hl", .Draw_Background);
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
+	line.style.bg = T("--border-subtle");
+	list := ui.box("list", .Scroll_Y | .Clip);
+	list.semantic_size = .[ui.pct(1), ui.fill()];
+	list.layout_axis = .Y;
+	sig := ui.signal(list);
+	{ ui.parent(list); defer ui.pop_parent();
+		spacer(.Y, 8);
+		if !pins.items {
+			r := row("empty");
+			r.semantic_size = .[ui.pct(1), ui.px(80)];
+			ui.parent(r); defer ui.pop_parent();
+			filler(.X);
+			label(ifx pins.loading then "Loading..." else "This channel doesn't have any pinned messages... yet.", .Medium, 14, T("--text-muted"), 18);
+			filler(.X);
 		}
-		line := ui.box("hl", .Draw_Background);
-		line.semantic_size = .[ui.pct(1), ui.px(1)];
-		line.style.bg = T("--border-subtle");
-		list := ui.box("list", .Scroll_Y | .Clip);
-		list.semantic_size = .[ui.pct(1), ui.fill()];
-		list.layout_axis = .Y;
-		sig := ui.signal(list);
-		{ ui.parent(list); defer ui.pop_parent();
-			spacer(.Y, 8);
-			if len(pins.items) == 0 {
-				r := row("empty");
-				r.semantic_size = .[ui.pct(1), ui.px(80)];
-				{ ui.parent(r); defer ui.pop_parent();
-					filler(.X);
-					label(ifx pins.loading then "Loading..." else "This channel doesn't have any pinned messages... yet.", .Medium, 14, T("--text-muted"), 18);
-					filler(.X);
-				}
-			}
-			for * pin, i: pins.items {
-				{ ui.id_scope(cast(u64)(i + 1)); defer ui.pop_seed();
-					if loose_message_card(*pin.msg, .[], true) { jump_to_message(pin.msg.channel_id, pin.msg.id); }
-				}
-			}
-			spacer(.Y, 8);
+		for * pins.items {
+			ui.id_scope(cast(u64) it_index + 1); defer ui.pop_seed();
+			if loose_message_card(*it.msg, .[], true) jump_to_message(it.msg.channel_id, it.msg.id);
 		}
-		// load more near the end
-		if pins.has_more && !pins.loading && app.client != null && len(pins.items) > 0 && sig.hovering {
-			if list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
-				pins.loading = true;
-				dc.fetch_pins(app.client, pins.channel, pins.items[len(pins.items) - 1].pinned_at);
-			}
-		}
+		spacer(.Y, 8);
+	}
+	// load more near the end
+	if pins.has_more && !pins.loading && app.client && pins.items && sig.hovering
+		&& list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
+		pins.loading = true;
+		dc.fetch_pins(app.client, pins.channel, peek(pins.items).pinned_at);
 	}
 }
 
@@ -170,47 +128,43 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 			top := row("top");
 			top.semantic_size = .[ui.pct(1), ui.children()];
 			top.cross_align = .Start;
-			{ ui.parent(top); defer ui.pop_parent();
-				spacer(.X, 12);
-				avatar_box("av", m.author_id, 40);
-				spacer(.X, 12);
-				col := ui.box("col");
-				col.semantic_size = .[ui.fill(), ui.children()];
-				col.layout_axis = .Y;
-				{ ui.parent(col); defer ui.pop_parent();
-					nr := row("name");
-					nr.semantic_size = .[ui.pct(1), ui.px(22)];
-					{ ui.parent(nr); defer ui.pop_parent();
-						label(name_in(m.author_id, m.channel_id, "unknown"), .Medium, 16, author_color(m), 22);
-						spacer(.X, 8);
-						label(format_timestamp(m.id), .Medium, 12, T("--text-muted"), 22);
-						filler(.X);
-						if show_jump && hovered {
-							jb := row("jump", .Clickable | .Draw_Background | .Hot_Animation);
-							jb.semantic_size = .[ui.children(), ui.px(22)];
-							jb.style.bg = T("--background-mod-normal");
-							jb.style.bg_hot = T("--background-mod-strong");
-							jb.style.radius = all4(4);
-							if ui.signal(jb).clicked { jump = true; }
-							{ ui.parent(jb); defer ui.pop_parent();
-								spacer(.X, 8);
-								label("Jump", .Medium, 12, T("--text-default"), 22);
-								spacer(.X, 8);
-							}
-						}
-						spacer(.X, 12);
-					}
-					content_spans(m, terms);
-					for a, ai: m.attachments {
-						lr := row(fmt.tprintf("att%d", ai));
-						lr.semantic_size = .[ui.pct(1), ui.px(20)];
-						{ ui.parent(lr); defer ui.pop_parent();
-							icon("i", "attachment", 16, T("--text-muted"));
-							spacer(.X, 4);
-							label(a.filename, .Normal, 14, T("--text-link"), 18);
-						}
-					}
+			ui.parent(top); defer ui.pop_parent();
+			spacer(.X, 12);
+			avatar_box("av", m.author_id, 40);
+			spacer(.X, 12);
+			col := ui.box("col");
+			col.semantic_size = .[ui.fill(), ui.children()];
+			col.layout_axis = .Y;
+			ui.parent(col); defer ui.pop_parent();
+			nr := row("name");
+			nr.semantic_size = .[ui.pct(1), ui.px(22)];
+			{ ui.parent(nr); defer ui.pop_parent();
+				label(name_in(m.author_id, m.channel_id, "unknown"), .Medium, 16, author_color(m), 22);
+				spacer(.X, 8);
+				label(format_timestamp(m.id), .Medium, 12, T("--text-muted"), 22);
+				filler(.X);
+				if show_jump && hovered {
+					jb := row("jump", .Clickable | .Draw_Background | .Hot_Animation);
+					jb.semantic_size = .[ui.children(), ui.px(22)];
+					jb.style.bg = T("--background-mod-normal");
+					jb.style.bg_hot = T("--background-mod-strong");
+					jb.style.radius = all4(4);
+					if ui.signal(jb).clicked jump = true;
+					ui.parent(jb); defer ui.pop_parent();
+					spacer(.X, 8);
+					label("Jump", .Medium, 12, T("--text-default"), 22);
+					spacer(.X, 8);
 				}
+				spacer(.X, 12);
+			}
+			content_spans(m, terms);
+			for m.attachments {
+				lr := row(tprint("att%", it_index));
+				lr.semantic_size = .[ui.pct(1), ui.px(20)];
+				ui.parent(lr); defer ui.pop_parent();
+				icon("i", "attachment", 16, T("--text-muted"));
+				spacer(.X, 4);
+				label(it.filename, .Normal, 14, T("--text-link"), 18);
 			}
 		}
 		spacer(.X, 8);
@@ -218,77 +172,109 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 	spacer(.Y, 8);
 	return jump;
 }
+
+// Splits text spans so every case-insensitive occurrence of a term gets the
+// keyword highlight background.
+highlight_spans :: (spans: []ui.Span, terms: []string) -> []ui.Span {
+	out: [..]ui.Span;
+	out.allocator = temp;
+	array_reserve(*out, spans.count);
+	for sp: spans {
+		if sp.object != .{} || sp.text == "" {
+			array_add(*out, sp);
+			continue;
+		}
+		low := to_lower_copy(sp.text,, temp);
+		pos := 0;
+		while pos < sp.text.count {
+			best, blen := -1, 0;
+			for t: terms {
+				i := find_index_from_left(low, t, pos); // -1 for ""
+				if i >= 0 && (best < 0 || i < best) best, blen = i, t.count;
+			}
+			if best < 0 break;
+			if best > pos {
+				a := sp;
+				a.text = span(sp.text, pos, best);
+				array_add(*out, a);
+			}
+			h := sp;
+			h.text = span(sp.text, best, best + blen);
+			h.bg = T("--keyword-highlight-background");
+			h.bg_radius = 2;
+			array_add(*out, h);
+			pos = best + blen;
+		}
+		if pos < sp.text.count {
+			a := sp;
+			a.text = span(sp.text, pos, sp.text.count);
+			array_add(*out, a);
+		}
+	}
+	return out;
+}
+
+pins_reset_for_test :: () {
+	fini(*pins.pool);
+	pins = .{};
+}
+
+pins_state_for_test :: () -> string { return tprint("% %", pins.open, pins.channel); }
+
 #scope_file
+
+Pin :: struct {
+	pinned_at: string;
+	msg: dc.Message;
+}
+
+pins: struct {
+	open: bool;
+	channel: dc.Snowflake;
+	anchor: ui.Rect;
+	loading: bool;
+	has_more: bool;
+	epoch: int;
+	items: [..]Pin;
+	pool: Flat_Pool; // items and their messages
+};
+
+pins_reload :: (channel_id: dc.Snowflake) {
+	fini(*pins.pool);
+	none: [..]Pin;
+	pins.items = none;
+	pins.channel = channel_id;
+	pins.epoch = dc.pins_epoch(channel_id);
+	pins.has_more = false;
+	pins.loading = app.client != null;
+	if app.client dc.fetch_pins(app.client, channel_id);
+}
+
+span :: (s: string, lo: int, hi: int) -> string {
+	r := s;
+	r.data += lo;
+	r.count = hi - lo;
+	return r;
+}
 
 // Message content as wrapped rich text with search terms highlighted.
 content_spans :: (m: *dc.Message, terms: []string) {
-	if m.content == "" { return; }
+	if m.content == "" return;
 	blocks := md_parse(m.content);
 	for blk, bi: blocks {
-		b := ui.box(fmt.tprintf("p%d", bi), .Selectable_Text | .Wrap_Text);
+		b := ui.box(tprint("p%", bi), .Selectable_Text | .Wrap_Text);
 		b.semantic_size = .[ui.pct(1), ui.text_size()];
 		b.style.text_color = T("--text-default");
 		b.style.line_height = 20;
 		spans: []ui.Span;
 		if blk.kind == .Code_Block {
-			spans = make_slice(ui.Span, 1, temp);
+			spans = NewArray(1, ui.Span,, temp);
 			spans[0] = .{text = blk.code, font = F(.Mono), size = 13};
 		} else {
 			spans = tokens_to_spans(blk.tokens, .Normal, 15, m);
 		}
-		if len(terms) > 0 { spans = highlight_spans(spans, terms); }
+		if terms spans = highlight_spans(spans, terms);
 		ui.set_spans(b, spans);
-		b.sel_order = cast(u64)(m.id) * 8 + 2 + cast(u64)(bi) % 4;
+		b.sel_order = cast(u64) m.id * 8 + 2 + cast(u64) bi % 4;
 	}
 }
-#scope_export
-
-// Splits text spans so every case-insensitive occurrence of a term gets the
-// keyword highlight background.
-highlight_spans :: (spans: []ui.Span, terms: []string) -> []ui.Span {
-	out := make_dynamic(ui.Span, 0, len(spans), temp);
-	for sp: spans {
-		if sp.object != .{} || sp.text == "" {
-			append(*out, sp);
-			continue;
-		}
-		low := strings.to_lower(sp.text, temp);
-		pos := 0;
-		while pos < len(sp.text) {
-			best, blen := -1, 0;
-			for t: terms {
-				if t == "" { continue; }
-				{ i := strings.index(sub_from(low, pos), t);
-				if i >= 0 && (best < 0 || i < best) {
-					best = i;
-					blen = len(t);
-				} }
-			}
-			if best < 0 { break; }
-			if best > 0 {
-				a := sp;
-				a.text = sub(sp.text, pos, pos + best);
-				append(*out, a);
-			}
-			h := sp;
-			h.text = sub(sp.text, pos + best, pos + best + blen);
-			h.bg = T("--keyword-highlight-background");
-			h.bg_radius = 2;
-			append(*out, h);
-			pos += best + blen;
-		}
-		if pos < len(sp.text) {
-			a := sp;
-			a.text = sub_from(sp.text, pos);
-			append(*out, a);
-		}
-	}
-	return view(out);
-}
-
-pins_reset_for_test :: () {
-	virtual.arena_destroy(*pins.arena);
-	pins = .{};
-}
-pins_state_for_test :: () -> string {return fmt.tprint(pins.open, pins.channel);}
-

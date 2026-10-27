@@ -20,7 +20,6 @@ Inline_Style :: enum_flags u8 {
 	Code;
 	Spoiler;
 }
-Inline_Styles :: Inline_Style;
 
 Token_Kind :: enum u8 {
 	Text;
@@ -36,7 +35,7 @@ Token_Kind :: enum u8 {
 Token :: struct {
 	kind: Token_Kind;
 	text: string; // display text (slice of source or literal)
-	styles: Inline_Styles;
+	styles: Inline_Style;
 	id: u64;
 	name: string;
 	animated: bool;
@@ -50,248 +49,247 @@ Md_Block :: struct {
 	depth: int; // list nesting
 }
 
-md_parse :: (src: string, allocator := temp) -> []Md_Block {
-	push_allocator(allocator);
-	blocks := make_dynamic(Md_Block, 0, 4);
+// Parses into temp.
+md_parse :: (src: string) -> []Md_Block {
+	push_allocator(temp);
+	blocks: [..]Md_Block;
+	array_reserve(*blocks, 4);
 	// Paragraph lines are always consecutive in src (any other line flushes first), so a paragraph
 	// is the slice src[para_lo:para_hi] and needs no copy.
-	Para :: struct {
-		src: string;
-		lo, hi: int;
-	}
-	para := Para.{src = src};
-	flush :: (blocks: *[..]Md_Block, para: *Para, kind: Block_Kind, depth := 0) {
-		if para.hi <= para.lo { return; }
+	para_lo, para_hi := 0, 0;
+	flush :: () #expand {
+		if `para_hi <= `para_lo return;
 		// a trailing newline belongs to the block separator, not the paragraph
-		txt := strings.trim_right(sub(para.src, para.lo, para.hi), "\n");
-		append(blocks, Md_Block.{kind = kind, tokens = md_inline(txt), depth = depth});
-		para.lo, para.hi = 0, 0;
+		array_add(*`blocks, .{kind = .Paragraph, tokens = md_inline(trim_right(span(`src, `para_lo, `para_hi), "\n"))});
+		`para_lo, `para_hi = 0, 0;
+	}
+	add :: (kind: Block_Kind, text: string, depth := 0) #expand {
+		flush();
+		array_add(*`blocks, .{kind = kind, tokens = md_inline(text), depth = depth});
 	}
 	rest := src;
-	while len(rest) > 0 {
+	while rest {
 		// fenced code block
-		if strings.has_prefix(rest, "```") {
-			body := sub_from(rest, 3);
-			{ end := strings.index(body, "```");
+		if begins_with(rest, "```") {
+			body := span(rest, 3, rest.count);
+			end := find_index_from_left(body, "```");
 			if end >= 0 {
-				flush(*blocks, *para, .Paragraph);
-				code := sub(body, 0, end);
+				flush();
+				code := span(body, 0, end);
 				lang := "";
-				{ nl := strings.index_byte(code, 10);
+				nl := find_index_from_left(code, #char "\n");
 				if nl >= 0 {
-					first := sub(code, 0, nl);
-					if len(first) > 0 && !strings.contains_any(first, " \t") {
+					first := span(code, 0, nl);
+					if first && find_index_of_any_from_left(first, " \t") < 0 {
 						lang = first;
-						code = sub_from(code, nl + 1);
+						code = span(code, nl + 1, code.count);
 					}
-				} }
-				code = strings.trim_suffix(code, "\n");
-				append(*blocks, Md_Block.{kind = .Code_Block, code = code, lang = lang});
-				rest = sub_from(body, end + 3);
-				if strings.has_prefix(rest, "\n") { rest = sub_from(rest, 1); }
+				}
+				if ends_with(code, "\n") code.count -= 1;
+				array_add(*blocks, .{kind = .Code_Block, code = code, lang = lang});
+				rest = span(body, end + 3, body.count);
+				if begins_with(rest, "\n") advance(*rest);
 				continue;
-			} }
+			}
 		}
-		nl := strings.index_byte(rest, 10);
-		line := ifx nl < 0 then rest else sub(rest, 0, nl);
-		next := ifx nl < 0 then "" else sub_from(rest, nl + 1);
-		if (strings.has_prefix(line, "> ")) || (line == ">") {
-			flush(*blocks, *para, .Paragraph);
-			append(*blocks, Md_Block.{kind = .Quote, tokens = md_inline(strings.trim_prefix(strings.trim_prefix(line, ">"), " "))});
-		} else if strings.has_prefix(line, "### ") {
-			flush(*blocks, *para, .Paragraph);
-			append(*blocks, Md_Block.{kind = .Heading3, tokens = md_inline(sub_from(line, 4))});
-		} else if strings.has_prefix(line, "## ") {
-			flush(*blocks, *para, .Paragraph);
-			append(*blocks, Md_Block.{kind = .Heading2, tokens = md_inline(sub_from(line, 3))});
-		} else if strings.has_prefix(line, "# ") {
-			flush(*blocks, *para, .Paragraph);
-			append(*blocks, Md_Block.{kind = .Heading1, tokens = md_inline(sub_from(line, 2))});
-		} else if strings.has_prefix(line, "-# ") {
-			flush(*blocks, *para, .Paragraph);
-			append(*blocks, Md_Block.{kind = .Subtext, tokens = md_inline(sub_from(line, 3))});
+		nl := find_index_from_left(rest, #char "\n");
+		line := ifx nl < 0 then rest else span(rest, 0, nl);
+		next := ifx nl < 0 then "" else span(rest, nl + 1, rest.count);
+		if begins_with(line, "> ") || line == ">" {
+			q := span(line, 1, line.count);
+			if begins_with(q, " ") advance(*q);
+			add(.Quote, q);
+		} else if begins_with(line, "### ") {
+			add(.Heading3, span(line, 4, line.count));
+		} else if begins_with(line, "## ") {
+			add(.Heading2, span(line, 3, line.count));
+		} else if begins_with(line, "# ") {
+			add(.Heading1, span(line, 2, line.count));
+		} else if begins_with(line, "-# ") {
+			add(.Subtext, span(line, 3, line.count));
 		} else if is_list_line(line) {
-			flush(*blocks, *para, .Paragraph);
 			indent := 0;
-			while indent < len(line) && line[indent] == #char " " { indent += 1; }
-			append(*blocks, Md_Block.{kind = .List_Item, tokens = md_inline(sub_from(line, indent + 2)), depth = indent / 2});
+			while indent < line.count && line[indent] == #char " " indent += 1;
+			add(.List_Item, span(line, indent + 2, line.count), indent / 2);
 		} else {
-			at := len(src) - len(rest);
-			if para.hi <= para.lo { para.lo = at; }
-			para.hi = at + len(line) + (ifx nl >= 0 then 1 else 0);
+			here := src.count - rest.count;
+			if para_hi <= para_lo para_lo = here;
+			para_hi = here + line.count + (ifx nl >= 0 then 1 else 0);
 		}
 		rest = next;
 	}
-	flush(*blocks, *para, .Paragraph);
-	return view(blocks);
+	flush();
+	return blocks;
 }
+
+md_inline :: (src: string) -> []Token {
+	p: Md_Parser;
+	inline_into(*p, src);
+	// merge adjacent plain text with identical styles
+	merged: [..]Token;
+	array_reserve(*merged, p.out.count);
+	for t: p.out {
+		if merged && t.kind == .Text {
+			prev := *merged[merged.count - 1];
+			if prev.kind == .Text && prev.styles == t.styles {
+				// tokens are slices of contiguous source only when adjacent; join otherwise
+				if prev.text.data + prev.text.count == t.text.data prev.text.count += t.text.count;
+				else prev.text = join(prev.text, t.text);
+				continue;
+			}
+		}
+		array_add(*merged, t);
+	}
+	return merged;
+}
+
 #scope_file
 
+// s[lo:hi] as a view (String's slice() returns a literal "" past the end, which breaks the
+// adjacency test in md_inline).
+span :: (s: string, lo: int, hi: int) -> string {
+	r := s;
+	r.data += lo;
+	r.count = hi - lo;
+	return r;
+}
+
 is_list_line :: (line: string) -> bool {
-	l := strings.trim_left(line, " ");
-	return strings.has_prefix(l, "- ") || strings.has_prefix(l, "* ");
+	l := trim_left(line, " ");
+	return begins_with(l, "- ") || begins_with(l, "* ");
 }
 
 Md_Parser :: struct {
 	out: [..]Token;
-	styles: Inline_Styles;
+	styles: Inline_Style;
 }
-#scope_export
-
-md_inline :: (src: string) -> []Token {
-	p := Md_Parser.{out = make_dynamic(Token, 0, 0)};
-	inline_into(*p, src);
-	// merge adjacent plain text with identical styles
-	merged := make_dynamic(Token, 0, len(p.out));
-	for t: p.out {
-		{ n := len(merged);
-		if n > 0 && t.kind == .Text && merged[n - 1].kind == .Text && merged[n - 1].styles == t.styles {
-			prev := *merged[n - 1];
-			// tokens are slices of contiguous source only when adjacent; join otherwise
-			if prev.text.data + prev.text.count == t.text.data {
-				prev.text = as_string(sub(raw_data(prev.text), 0, len(prev.text) + len(t.text)));
-			} else {
-				prev.text = strings.concatenate(string.[prev.text, t.text]);
-			}
-			continue;
-		} }
-		append(*merged, t);
-	}
-	return view(merged);
-}
-#scope_file
 
 emit :: (p: *Md_Parser, kind: Token_Kind, text: string) {
-	if text == "" && kind == .Text { return; }
-	append(*p.out, Token.{kind = kind, text = text, styles = p.styles});
+	if text == "" && kind == .Text return;
+	array_add(*p.out, .{kind = kind, text = text, styles = p.styles});
 }
 
 // Delimited styles, checked longest-first like Discord's simple-markdown rules.
-// Delimited styles, checked longest-first like Discord's simple-markdown rules.
-DELIMS := struct {
+DELIMS :: struct {
 	open: string;
 	style: Inline_Style;
 }.[.{"***", .Bold}, .{"**", .Bold}, .{"__", .Underline}, .{"~~", .Strike}, .{"||", .Spoiler}, .{"*", .Italic}, .{"_", .Italic}];
 
 // Bytes that can start an inline rule in inline_into; every other byte is plain text.
-// Bytes that can start an inline rule in inline_into; every other byte is plain text.
-MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for c: cast([]u8) "\\`<h@*_~|" t[c] = true; return t; };
+MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for cast([]u8) "\\`<h@*_~|" t[it] = true; return t; };
 
 inline_into :: (p: *Md_Parser, src: string) {
 	i := 0;
 	text_start := 0;
-	while i < len(src) {
+	// pending(): the plain text before src[i]; take(to): continue after a rule ending at `to`
+	take :: (to: int) #expand { `i = to; `text_start = to; }
+	pending :: () -> string #expand { return span(`src, `text_start, `i); }
+	while i < src.count {
 		c := src[i];
 		if !MD_SPECIAL[c] {
 			i += 1;
 			continue;
 		}
-		// escapes
+		here := span(src, i, src.count);
 		// a backslash escapes any ASCII punctuation (simple-markdown's escape rule)
-		if c == 92 && i + 1 < len(src) && is_ascii_punct(src[i + 1]) {
-			emit(p, .Text, sub(src, text_start, i));
-			emit(p, .Text, sub(src, i + 1, i + 2));
-			i += 2;
-			text_start = i;
+		if c == #char "\\" && i + 1 < src.count && is_ascii_punct(src[i + 1]) {
+			emit(p, .Text, pending());
+			emit(p, .Text, span(src, i + 1, i + 2));
+			take(i + 2);
 			continue;
 		}
 		// inline code: `x` or ``x``
 		if c == #char "`" {
-			ticks := 1;
-			if strings.has_prefix(sub_from(src, i), "``") { ticks = 2; }
-			delim := sub(src, i, i + ticks);
-			{ end := strings.index(sub_from(src, i + ticks), delim);
+			ticks := ifx begins_with(here, "``") then 2 else 1;
+			end := find_index_from_left(src, span(src, i, i + ticks), i + ticks) - (i + ticks);
 			if end > 0 {
-				emit(p, .Text, sub(src, text_start, i));
+				emit(p, .Text, pending());
 				saved := p.styles;
 				p.styles |= .Code;
-				body := sub(src, i + ticks, i + ticks + end);
-				if ticks == 2 { body = strings.trim_space(body); }
+				body := span(src, i + ticks, i + ticks + end);
+				if ticks == 2 body = trim(body, SPACES);
 				emit(p, .Text, body);
 				p.styles = saved;
-				i += ticks * 2 + end;
-				text_start = i;
+				take(i + ticks * 2 + end);
 				continue;
-			} }
+			}
 		}
 		// <...> entities
 		if c == #char "<" {
-			{ n, ok := try_entity(p, sub_from(src, i), sub(src, text_start, i));
+			n, ok := try_entity(p, here, pending());
 			if ok {
-				i += n;
-				text_start = i;
+				take(i + n);
 				continue;
-			} }
+			}
 		}
 		// bare links
-		if c == #char "h" && (strings.has_prefix(sub_from(src, i), "https://") || strings.has_prefix(sub_from(src, i), "http://")) && (i == 0 || !is_alnum(src[i - 1])) {
+		if c == #char "h" && (begins_with(here, "https://") || begins_with(here, "http://")) && (i == 0 || !is_alnum(src[i - 1])) {
 			end := i;
-			while end < len(src) && src[end] != #char " " && src[end] != 10 && src[end] != #char "<" { end += 1; }
+			while end < src.count && src[end] != #char " " && src[end] != #char "\n" && src[end] != #char "<" end += 1;
 			// trailing punctuation is not part of the URL
-			while end > i && strings.contains_rune(".,:;!?)'\"", cast(u32)(src[end - 1])) { end -= 1; }
-			emit(p, .Text, sub(src, text_start, i));
-			emit(p, .Link, sub(src, i, end));
-			i = end;
-			text_start = i;
+			while end > i && find_index_from_left(".,:;!?)'\"", src[end - 1]) >= 0 end -= 1;
+			emit(p, .Text, pending());
+			emit(p, .Link, span(src, i, end));
+			take(end);
 			continue;
 		}
 		// @everyone / @here
-		if c == #char "@" && (strings.has_prefix(sub_from(src, i), "@everyone") || strings.has_prefix(sub_from(src, i), "@here")) {
-			n := ifx strings.has_prefix(sub_from(src, i), "@everyone") then 9 else 5;
-			emit(p, .Text, sub(src, text_start, i));
-			emit(p, .Everyone, sub(src, i, i + n));
-			i += n;
-			text_start = i;
+		if c == #char "@" && (begins_with(here, "@everyone") || begins_with(here, "@here")) {
+			n := ifx begins_with(here, "@everyone") then 9 else 5;
+			emit(p, .Text, pending());
+			emit(p, .Everyone, span(src, i, i + n));
+			take(i + n);
 			continue;
 		}
 		// style delimiters
 		matched := false;
 		for d: DELIMS {
-			if !strings.has_prefix(sub_from(src, i), d.open) { continue; }
+			if !begins_with(here, d.open) continue;
 			// underscores only work at word boundaries
-			if d.open == "_" && i > 0 && is_alnum(src[i - 1]) { continue; }
-			body_start := i + len(d.open);
+			if d.open == "_" && i > 0 && is_alnum(src[i - 1]) continue;
+			body_start := i + d.open.count;
 			end := find_close(src, body_start, d.open);
-			if end <= body_start { continue; }
-			emit(p, .Text, sub(src, text_start, i));
+			if end <= body_start continue;
+			emit(p, .Text, pending());
 			saved := p.styles;
 			p.styles |= d.style;
-			if d.open == "***" { p.styles |= .Italic; }
-			inline_into(p, sub(src, body_start, end));
+			if d.open == "***" p.styles |= .Italic;
+			inline_into(p, span(src, body_start, end));
 			p.styles = saved;
-			i = end + len(d.open);
-			text_start = i;
+			take(end + d.open.count);
 			matched = true;
 			break;
 		}
-		if matched { continue; }
-		i += 1;
+		if !matched i += 1;
 	}
-	emit(p, .Text, sub_from(src, text_start));
+	emit(p, .Text, span(src, text_start, src.count));
 }
+
+// Odin's strings.trim_space set.
+SPACES :: " \t\n\r\x0b\x0c";
 
 find_close :: (src: string, from: int, delim: string) -> int {
 	j := from;
-	while j < len(src) {
-		if src[j] == 92 {
+	while j < src.count {
+		if src[j] == #char "\\" {
 			j += 2;
 			continue;
 		}
 		if src[j] == #char "`" {
 			// skip code spans
-			{ end := strings.index_byte(sub_from(src, j + 1), #char "`");
+			end := find_index_from_left(src, #char "`", j + 1);
 			if end >= 0 {
-				j += end + 2;
+				j = end + 1;
 				continue;
-			} }
+			}
 		}
-		if strings.has_prefix(sub_from(src, j), delim) {
+		if begins_with(span(src, j, src.count), delim) {
 			// "**" must not match the first half of "***" closing a bold+italic run
-			if delim == "*" && j + 1 < len(src) && src[j + 1] == #char "*" {
+			if delim == "*" && j + 1 < src.count && src[j + 1] == #char "*" {
 				j += 2;
 				continue;
 			}
-			if delim == "_" && j + 1 < len(src) && is_alnum(src[j + 1]) {
+			if delim == "_" && j + 1 < src.count && is_alnum(src[j + 1]) {
 				j += 1;
 				continue;
 			}
@@ -307,38 +305,43 @@ is_alnum :: (c: u8) -> bool {
 }
 
 try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
-	end := strings.index_byte(s, #char ">");
-	if end < 0 { return 0, false; }
-	inner := sub(s, 1, end);
+	end := find_index_from_left(s, #char ">");
+	if end < 0 return 0, false;
+	inner := span(s, 1, end);
 	n := end + 1;
+	whole := span(s, 0, n);
+	after :: (k: int) -> string #expand { return span(`inner, k, `inner.count); }
 	tok: Token;
-	if strings.has_prefix(inner, "@&") {
-		id, ok := strconv.parse_u64(sub_from(inner, 2));
-		if !ok { return 0, false; }
-		tok = .{kind = .Role_Mention, id = id, text = sub(s, 0, n)};
-	} else if (strings.has_prefix(inner, "@!")) || (strings.has_prefix(inner, "@")) {
-		digits := strings.trim_left(sub_from(inner, 1), "!");
-		id, ok := strconv.parse_u64(digits);
-		if !ok { return 0, false; }
-		tok = .{kind = .User_Mention, id = id, text = sub(s, 0, n)};
-	} else if strings.has_prefix(inner, "#") {
-		id, ok := strconv.parse_u64(sub_from(inner, 1));
-		if !ok { return 0, false; }
-		tok = .{kind = .Channel_Mention, id = id, text = sub(s, 0, n)};
-	} else if (strings.has_prefix(inner, ":")) || (strings.has_prefix(inner, "a:")) {
+	if begins_with(inner, "@&") {
+		id, ok := dc.parse_u64(after(2));
+		if !ok return 0, false;
+		tok = .{kind = .Role_Mention, id = id, text = whole};
+	} else if begins_with(inner, "@") {
+		id, ok := dc.parse_u64(trim_left(after(1), "!"));
+		if !ok return 0, false;
+		tok = .{kind = .User_Mention, id = id, text = whole};
+	} else if begins_with(inner, "#") {
+		id, ok := dc.parse_u64(after(1));
+		if !ok return 0, false;
+		tok = .{kind = .Channel_Mention, id = id, text = whole};
+	} else if begins_with(inner, ":") || begins_with(inner, "a:") {
 		animated := inner[0] == #char "a";
-		body := ifx animated then sub_from(inner, 2) else sub_from(inner, 1);
-		colon := strings.index_byte(body, #char ":");
-		if colon <= 0 { return 0, false; }
-		id, ok := strconv.parse_u64(sub_from(body, colon + 1));
-		if !ok { return 0, false; }
-		tok = .{kind = .Custom_Emoji, id = id, name = sub(body, 0, colon), animated = animated, text = sub(s, 0, n)};
-	} else if strings.has_prefix(inner, "t:") {
-		parts := strings.split(sub_from(inner, 2), ":");
-		v, ok := strconv.parse_u64(parts[0]);
-		if !ok { return 0, false; }
-		tok = .{kind = .Timestamp, id = v, name = ifx len(parts) > 1 then parts[1] else "f", text = sub(s, 0, n)};
-	} else if (strings.has_prefix(inner, "https://")) || (strings.has_prefix(inner, "http://")) {
+		body := after(ifx animated then 2 else 1);
+		colon := find_index_from_left(body, #char ":");
+		if colon <= 0 return 0, false;
+		id, ok := dc.parse_u64(span(body, colon + 1, body.count));
+		if !ok return 0, false;
+		tok = .{kind = .Custom_Emoji, id = id, name = span(body, 0, colon), animated = animated, text = whole};
+	} else if begins_with(inner, "t:") {
+		found, secs, style := split_from_left(after(2), #char ":");
+		if !found secs = after(2);
+		// the style is what sits between the first and a second colon
+		colon2 := find_index_from_left(style, #char ":");
+		if colon2 >= 0 style.count = colon2;
+		v, ok := dc.parse_u64(secs);
+		if !ok return 0, false;
+		tok = .{kind = .Timestamp, id = v, name = ifx found then style else "f", text = whole};
+	} else if begins_with(inner, "https://") || begins_with(inner, "http://") {
 		// <url> suppresses embeds but still links
 		tok = .{kind = .Link, text = inner};
 	} else {
@@ -346,12 +349,10 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 	}
 	emit(p, .Text, pending);
 	tok.styles = p.styles;
-	append(*p.out, tok);
+	array_add(*p.out, tok);
 	return n, true;
 }
 
 is_ascii_punct :: (c: u8) -> bool {
 	return (c >= #char "!" && c <= #char "/") || (c >= #char ":" && c <= #char "@") || (c >= #char "[" && c <= #char "`") || (c >= #char "{" && c <= #char "~");
 }
-#scope_export
-

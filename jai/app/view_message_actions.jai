@@ -12,7 +12,11 @@ Message_Actions :: struct {
 ma: Message_Actions;
 
 mime_for :: (name: string) -> string {
-	if strings.to_lower(filepath.ext(name), temp) == {
+	ext := name;
+	dot := find_index_from_right(name, #char ".");
+	if dot < 0 || find_index_from_left(name, #char "/", dot) >= 0 ext = "";
+	else advance(*ext, dot);
+	if to_lower_copy(ext,, temp) == {
 	case ".png";
 		return "image/png";
 	case ".jpg"; #through; case ".jpeg";
@@ -46,7 +50,7 @@ message_toolbar :: (m: *dc.Message) {
 	quick := quick_reactions();
 	names := ifx own then string.["reaction", "pencil", "more-horizontal"] else string.["reaction", "arrow-angle-left-up", "more-horizontal"];
 	// official: 3px padding, 28px buttons, a 1px divider with 4px gaps after the quick reactions
-	w := 2 * TOOLBAR_PAD + cast(float32)(len(quick) + len(names)) * TOOLBAR_BTN + (ifx len(quick) > 0 then 9 else 0);
+	w := 2 * TOOLBAR_PAD + cast(float32) (quick.count + names.count) * TOOLBAR_BTN + (ifx quick then 9 else 0);
 	bar := row("toolbar", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Clickable);
 	bar.semantic_size = .[ui.px(w), ui.px(TOOLBAR_BTN + 2 * TOOLBAR_PAD)];
 	bar.fixed_pos = .{ui.top_parent().rect.x1 - ui.top_parent().rect.x0 - w - 14, -16};
@@ -60,19 +64,19 @@ message_toolbar :: (m: *dc.Message) {
 	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, TOOLBAR_PAD);
 		for e, i: quick {
-			b := ui.box(fmt.tprintf("q%d", i), .Clickable | .Draw_Background | .Hot_Animation);
+			b := ui.box(tprint("q%", i), .Clickable | .Draw_Background | .Hot_Animation);
 			b.semantic_size = .[ui.px(TOOLBAR_BTN), ui.px(TOOLBAR_BTN)];
 			b.style.radius = all4(6);
 			b.style.bg_hot = T("--background-mod-subtle");
 			b.layout_axis = .X;
 			b.cross_align = .Center;
-			if ui.signal(b).clicked && net_action() { dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id); }
+			if ui.signal(b).clicked && net_action() dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id);
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 4);
 				emoji_box("e", e, 20);
 			}
 		}
-		if len(quick) > 0 {
+		if quick {
 			spacer(.X, 4);
 			d := ui.box("div", .Draw_Background);
 			d.semantic_size = .[ui.px(1), ui.px(24)];
@@ -112,28 +116,29 @@ TOOLBAR_BTN :: 28;
 
 // The three most-used reactions (frecency), topped up with the client's defaults.
 quick_reactions :: () -> []dc.Emoji {
-	out := make_dynamic(dc.Emoji, 0, 3, temp);
+	out: [..]dc.Emoji;
+	out.allocator = temp;
 	add :: (out: *[..]dc.Emoji, key: string) {
-		if len(out) >= 3 { return; }
+		if out.count >= 3 return;
 		e: dc.Emoji;
-		{ id, ok := strconv.parse_u64(key);
+		id, ok := dc.parse_u64(key);
 		if ok {
 			found := false;
 			for * g: store().guilds {
-				for ge: g.emojis { if cast(u64)(ge.id) == id {e, found = ge, true;} }
+				for g.emojis if it.id == id e, found = it, true;
 			}
-			if !found { return; }
+			if !found return;
 		} else {
 			idx := emoji_lookup_name(key);
-			if idx < 0 { return; }
+			if idx < 0 return;
 			e.name = emoji_db.emojis[idx].surr;
-		} }
-		for x: out.* { if x.id == e.id && x.name == e.name { return; } }
-		append(out, e);
+		}
+		for out.* if it.id == e.id && it.name == e.name return;
+		array_add(out, e);
 	}
-	for k: frec_top(frecency.reaction, 3) { add(*out, k); }
-	for k: emoji_db.default_reaction { add(*out, k); }
-	return view(out);
+	for frec_top(frecency.reaction, 3) add(*out, it);
+	for emoji_db.default_reaction add(*out, it);
+	return out;
 }
 
 start_reply :: (m: *dc.Message) {
@@ -153,27 +158,19 @@ open_message_menu :: (m: *dc.Message, at: ui.Vec2, location := "") {
 	ma.menu_msg = m.id;
 	ma.menu_pos = at;
 	ma.menu_t = 0;
-	if app.client != null {
-		gid: dc.Snowflake;
-		{ ch := dc.channel_get(store(), m.channel_id);
-		if ch != null { gid = ch.guild_id; } }
-		if location != "" { dc.message_menu_opened(app.client, gid, m.channel_id, m.id, location); } else { dc.open_message_context_menu(app.client, gid); }
+	if app.client {
+		ch := dc.channel_get(store(), m.channel_id);
+		gid := ifx ch then ch.guild_id else 0;
+		if location dc.message_menu_opened(app.client, gid, m.channel_id, m.id, location);
+		else dc.open_message_context_menu(app.client, gid);
 	}
 }
-#scope_file
-
-// the menu went away this frame (item, scrim, Escape)
-message_menu_gone :: () {
-	if app.client != null { dc.message_menu_closed(app.client); }
-}
-#scope_export
-
 find_message :: (id: dc.Snowflake) -> *dc.Message {
-	if id == 0 { return null; }
+	if id == 0 return null;
 	s := store();
-	l, ok := map_find_ptr(*s.messages, app.view.channel);
-	if !ok { return null; }
-	for * m: l.messages { if m.id == id { return m; } }
+	l := table_find_pointer(*s.messages, app.view.channel);
+	if !l return null;
+	for * l.messages if it.id == id return it;
 	return null;
 }
 
@@ -200,7 +197,7 @@ edit_box :: (m: *dc.Message) {
 		spacer(.X, 10);
 		if res == {
 		case .Submit;
-			text := strings.trim_space(ui.editor_text(*ma.edit_editor));
+			text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
 			if text == "" {
 				ma.deleting = m.id;
 			} else if text != m.content && net_action() {
@@ -220,7 +217,7 @@ edit_box :: (m: *dc.Message) {
 		h.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 		h.style.line_height = 16;
 		h.style.text_color = T("--text-default");
-		spans := make_slice(ui.Span, 4, temp);
+		spans := NewArray(4, ui.Span,, temp);
 		spans[0] = .{text = "escape to ", font = F(.Normal), size = 12};
 		spans[1] = .{text = "cancel", font = F(.Normal), size = 12, color = T("--text-link")};
 		spans[2] = .{text = " • enter to ", font = F(.Normal), size = 12};
@@ -258,15 +255,15 @@ reply_preview :: (m: *dc.Message) {
 		pinged := false;
 		for id: m.mentions { if id == ref.author_id { pinged = true; } }
 		name_color := T("--text-muted");
-		{ ch := dc.channel_get(s, ref.channel_id);
-		if ch != null && ch.guild_id != 0 {
-			{ c, ok := member_color(ch.guild_id, ref.author_id);
-			if ok { name_color = c; } }
-		} }
-		label(ifx pinged then fmt.tprintf("@%s", name) else name, .Medium, 14, name_color, 18);
+		ch := dc.channel_get(s, ref.channel_id);
+		if ch && ch.guild_id {
+			c, ok := member_color(ch.guild_id, ref.author_id);
+			if ok name_color = c;
+		}
+		label(ifx pinged then tprint("@%", name) else name, .Medium, 14, name_color, 18);
 		spacer(.X, 4);
 		content := first_line(ref.content);
-		if content == "" && len(ref.attachments) > 0 { content = "Click to see attachment"; }
+		if content == "" && ref.attachments content = "Click to see attachment";
 		c := label(content, .Normal, 14, T("--text-default"), 18);
 		c.flags |= .Clip;
 		c.semantic_size[ui.Axis.X] = ui.text_size(0, 0);
@@ -298,13 +295,13 @@ reply_bar :: () {
 			at.style.font = F(.Bold);
 			at.style.font_size = 14;
 			at.style.text_color = ifx ma.reply_mention then T("--text-brand") else T("--text-muted");
-			if ui.signal(at).clicked { ma.reply_mention = !ma.reply_mention; }
+			if ui.signal(at).clicked ma.reply_mention = !ma.reply_mention;
 			spacer(.X, 12);
 		}
 		x := ui.box("close", .Clickable);
 		x.semantic_size = .[ui.px(16), ui.px(16)];
 		set_icon(x, "circle-x", ifx ui.signal(x).hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-		if ui.signal(x).clicked { ma.replying = 0; }
+		if ui.signal(x).clicked ma.replying = 0;
 		spacer(.X, 17);
 	}
 	sep := ui.box("replysep", .Draw_Background);
@@ -314,10 +311,10 @@ reply_bar :: () {
 
 // Send what's in the composer: text, reply, staged files.
 composer_send :: (ch: *dc.Channel, text: string) -> bool {
-	if !net_action() { return false; }
+	if !net_action() return false;
 	atts, ready := attachments_for_send(ch.id);
 	if !ready { return false; } // a file is still being read
-	if text == "" && len(atts) == 0 { return false; }
+	if text == "" && !atts return false;
 	opts: dc.Send_Options;
 	if ma.replying != 0 {
 		opts.reply_to = ma.replying;
@@ -327,7 +324,7 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 	opts.attachments = atts;
 	nonce := dc.send_message(app.client, ch.id, text, opts);
 	ma.replying = 0;
-	attachments_sent(ch.id, ifx len(atts) > 0 then nonce else 0);
+	attachments_sent(ch.id, ifx atts then nonce else 0);
 	return true;
 }
 
@@ -361,19 +358,20 @@ message_menu :: () {
 		sub: bool; // has a submenu chevron
 		sep: bool; // divider above
 	}
-	items := make_dynamic(Item, 0, 0, temp);
-	append(*items, Item.{label = "Add Reaction", icon = "reaction", sub = true});
-	if own { append(*items, Item.{label = "Edit Message", icon = "pencil", sep = true}); }
-	append(*items, Item.{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
-	append(*items, Item.{label = "Copy Text", icon = "copy", sep = true}, Item.{label = "Copy Message Link", icon = "link"});
-	if own { append(*items, Item.{label = "Delete Message", icon = "trash", danger = true, sep = true}); }
+	items: [..]Item;
+	items.allocator = temp;
+	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true});
+	if own array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
+	array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
+	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true}, .{label = "Copy Message Link", icon = "link"});
+	if own array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = true});
 	quick := quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
-	h := 2 * MENU_PAD + 2 + cast(float32)(len(items)) * MENU_ROW_H + (ifx len(quick) > 0 then MENU_QUICK + 8 else 0);
-	for it_: items { if it_.sep { h += MENU_SEP_H; } }
+	h := 2 * MENU_PAD + 2 + cast(float32) items.count * MENU_ROW_H + (ifx quick then MENU_QUICK + 8 else 0);
+	for items if it.sep h += MENU_SEP_H;
 	p := ma.menu_pos;
-	if p.y + h > app.ui.window.y - 8 { p.y = app.ui.window.y - 8 - h; }
-	if p.x + MENU_W > app.ui.window.x - 8 { p.x = app.ui.window.x - 8 - MENU_W; }
+	if p.y + h > app.ui.window.y - 8 p.y = app.ui.window.y - 8 - h;
+	if p.x + MENU_W > app.ui.window.x - 8 p.x = app.ui.window.x - 8 - MENU_W;
 	menu := ui.box("menu", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	menu.semantic_size = .[ui.px(MENU_W), ui.px(h)];
 	menu.fixed_pos = p;
@@ -389,13 +387,13 @@ message_menu :: () {
 	ui.signal(menu);
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, MENU_PAD + 1);
-		if len(quick) > 0 {
+		if quick {
 			qr := row("quick");
 			qr.semantic_size = .[ui.pct(1), ui.px(MENU_QUICK)];
 			{ ui.parent(qr); defer ui.pop_parent();
 				spacer(.X, MENU_PAD + 1 + 8);
 				for e, i: quick {
-					b := ui.box(fmt.tprintf("q%d", i), .Clickable | .Draw_Background | .Hot_Animation);
+					b := ui.box(tprint("q%", i), .Clickable | .Draw_Background | .Hot_Animation);
 					b.semantic_size = .[ui.px(MENU_QUICK), ui.px(MENU_QUICK)];
 					b.style.radius = all4(8);
 					b.style.bg = T("--background-mod-subtle");
@@ -403,8 +401,8 @@ message_menu :: () {
 					b.layout_axis = .X;
 					b.cross_align = .Center;
 					if ui.signal(b).clicked {
-						if app.client != null { dc.message_menu_item_clicked(app.client); }
-						if net_action() { dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id); }
+						if app.client dc.message_menu_item_clicked(app.client);
+						if net_action() dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id);
 						ma.menu_msg = 0;
 					}
 					{ ui.parent(b); defer ui.pop_parent();
@@ -418,7 +416,7 @@ message_menu :: () {
 		}
 		for it_: items {
 			if it_.sep {
-				sr := row(fmt.tprintf("sep_%s", it_.label));
+				sr := row(tprint("sep_%", it_.label));
 				sr.semantic_size = .[ui.pct(1), ui.px(MENU_SEP_H)];
 				{ ui.parent(sr); defer ui.pop_parent();
 					spacer(.X, MENU_PAD + 1 + 8);
@@ -428,7 +426,7 @@ message_menu :: () {
 					spacer(.X, MENU_PAD + 1 + 8);
 				}
 			}
-			outer := row(fmt.tprintf("o_%s", it_.label));
+			outer := row(tprint("o_%", it_.label));
 			outer.semantic_size = .[ui.pct(1), ui.px(MENU_ROW_H)];
 			sig: ui.Signal;
 			{ ui.parent(outer); defer ui.pop_parent();
@@ -446,13 +444,13 @@ message_menu :: () {
 					spacer(.X, 8);
 					label(it_.label, .Medium, 14, c, 18);
 					filler(.X);
-					if it_.sub { icon("chev", "chevron-small-right", 16, c); }
+					if it_.sub icon("chev", "chevron-small-right", 16, c);
 					spacer(.X, 8);
 				}
 				spacer(.X, MENU_PAD + 1);
 			}
 			if sig.clicked {
-				if app.client != null { dc.message_menu_item_clicked(app.client); }
+				if app.client != null dc.message_menu_item_clicked(app.client);
 				if it_.label == {
 				case "Add Reaction";
 					app.reaction_target = m.id;
@@ -464,21 +462,21 @@ message_menu :: () {
 					clipboard_set(m.content);
 				case "Copy Message Link";
 					ch := dc.channel_get(s, m.channel_id);
-					g := ifx ch != null && ch.guild_id != 0 then fmt.tprint(cast(u64)(ch.guild_id)) else "@me";
-					clipboard_set(fmt.tprintf("https://discord.com/channels/%s/%d/%d", g, cast(u64)(m.channel_id), cast(u64)(m.id)));
+					g := ifx ch != null && ch.guild_id != 0 then tprint("%", ch.guild_id) else "@me";
+					clipboard_set(tprint("https://discord.com/channels/%/%/%", g, m.channel_id, m.id));
 				case "Delete Message";
-					if has(app.ui_mods, .Shift) { delete_now(m); } else { ma.deleting = m.id; }
+					if app.ui_mods & .Shift delete_now(m); else ma.deleting = m.id;
 				}
 				ma.menu_msg = 0;
 			}
 		}
 	}
 	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { ma.menu_msg = 0; } }
-	if ma.menu_msg == 0 { message_menu_gone(); }
+	if ma.menu_msg == 0 message_menu_gone();
 }
 
 delete_now :: (m: *dc.Message) {
-	if net_action() { dc.delete_message(app.client, m.channel_id, m.id); }
+	if net_action() dc.delete_message(app.client, m.channel_id, m.id);
 }
 
 // "Delete Message — Are you sure?" modal with a preview of the message.
@@ -513,7 +511,7 @@ delete_modal :: () {
 		x.fixed_pos = .{W - 17 - 24, 17};
 		xs := ui.signal(x);
 		set_icon(x, "x-large", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-		if xs.clicked { ma.deleting = 0; }
+		if xs.clicked ma.deleting = 0;
 		spacer(.Y, PAD + 1);
 		t := row("t");
 		t.semantic_size = .[ui.pct(1), ui.px(24)];
@@ -582,7 +580,7 @@ delete_modal :: () {
 				body.semantic_size = .[ui.pct(1), ui.text_size()];
 				body.style.line_height = 16;
 				body.style.text_color = T("--text-default");
-				spans := make_slice(ui.Span, 3, temp);
+				spans := NewArray(3, ui.Span,, temp);
 				spans[0] = .{text = "You can hold down shift when clicking ", font = F(.Normal), size = 14};
 				spans[1] = .{text = "delete message", font = F(.Bold), size = 14};
 				spans[2] = .{text = " to bypass this confirmation entirely.", font = F(.Normal), size = 14};
@@ -605,7 +603,7 @@ delete_modal :: () {
 			cancel.style.text_color = T("--text-strong");
 			cancel.style.bg = T("--background-mod-normal");
 			cancel.style.bg_hot = T("--background-mod-strong");
-			if ui.signal(cancel).clicked { ma.deleting = 0; }
+			if ui.signal(cancel).clicked ma.deleting = 0;
 			del := ui.box("Delete##d", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			del.semantic_size = .[ui.fill(), ui.px(40)];
 			del.style.radius = all4(8);
@@ -624,7 +622,7 @@ delete_modal :: () {
 		spacer(.Y, PAD + 1);
 	}
 	for e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape { ma.deleting = 0; }
+		if e.kind == .Key_Down && e.key == .Escape ma.deleting = 0;
 		if e.kind == .Key_Down && e.key == .Enter {
 			delete_now(m);
 			ma.deleting = 0;
@@ -632,3 +630,9 @@ delete_modal :: () {
 	}
 }
 
+#scope_file
+
+// the menu went away this frame (item, scrim, Escape)
+message_menu_gone :: () {
+	if app.client dc.message_menu_closed(app.client);
+}

@@ -21,23 +21,20 @@ viewer_t: float32;
 audio_ready: bool;
 
 blob_get :: (url: string) -> *Blob {
-	{ b, ok := map_find_ptr(*blobs, url);
-	if ok { return b; } }
-	key := clone(url);
-	at(*blobs, key).* = Blob.{state = .Loading};
-	if app.client != null {
-		dc.fetch_media(app.client, .{url = key, kind = .Fetch, visible = true});
-	} else {
-		at(*blobs, key).* = Blob.{state = .Failed};
-	}
-	return at(*blobs, key);
+	b := table_find_pointer(*blobs, url);
+	if b return b;
+	key := copy_string(url);
+	b = find_or_add(*blobs, key);
+	b.state = ifx app.client then .Loading else .Failed;
+	if app.client dc.fetch_media(app.client, .{url = key, kind = .Fetch, visible = true});
+	return b;
 }
 
 // Takes a finished media download that belongs to a blob. Returns false if it's not a blob.
 blob_receive :: (r: *dc.Media_Result) -> bool {
-	b, ok := map_find_ptr(*blobs, r.url);
-	if !ok { return false; }
-	if r.status == 200 && len(r.data) > 0 {
+	b := table_find_pointer(*blobs, r.url);
+	if !b return false;
+	if r.status == 200 && r.data {
 		b.data = r.data;
 		r.data = .[]; // keep ownership
 		b.state = .Ready;
@@ -47,59 +44,34 @@ blob_receive :: (r: *dc.Media_Result) -> bool {
 	return true;
 }
 
-is_video :: (a: *dc.Attachment) -> bool {return strings.has_prefix(a.content_type, "video/");}
-is_audio :: (a: *dc.Attachment) -> bool {return strings.has_prefix(a.content_type, "audio/");}
-#scope_file
-
-Video_Draw :: struct {
-	id: dc.Snowflake;
-}
-
-video_draw :: (b: *ui.Box, user: *void) {
-	d := cast(*Video_Draw)(user);
-	ip, ok := map_find_ptr(*players, d.id);
-	if !ok || ip.img.y == 0 { return; }
-	gfx.video(cast,force(gfx.Rect)(b.rect), ip.img.y, ip.img.cbcr, ip.img.yuv, b.style.radius[0]);
-}
-#scope_export
-
-fmt_clock :: (t: float64) -> string {
-	s := cast(int)(t);
-	return fmt.tprintf("%d:%02d", s / 60, s % 60);
-}
+is_video :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
+is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "audio/"); }
 
 // Video attachment: poster until clicked, then plays inline with a control bar.
 video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
-	box := ui.box(fmt.tprintf("vid%d", cast(u64)(a.id)), .Draw_Background | .Clickable | .Clip);
+	box := ui.box(tprint("vid%", cast(u64) a.id), .Draw_Background | .Clickable | .Clip);
 	box.semantic_size = .[ui.px(w), ui.px(h)];
 	box.style.radius = all4(8);
 	box.style.bg = .{0, 0, 0, 1};
 	sig := ui.signal(box);
-	ip, playing := map_find_ptr(*players, a.id);
+	ip := table_find_pointer(*players, a.id);
+	playing := ip != null;
 	if !playing {
 		// poster frame from the media proxy (?format=webp of a video returns a still)
-		set_remote_image(box, attachment_image_url(a, cast(int)(w), cast(int)(h)));
+		set_remote_image(box, attachment_image_url(a, cast(int) w, cast(int) h));
 		if sig.clicked {
-			blob := blob_get(a.url);
-			at(*players, a.id).* = Inline_Player.{url = clone(a.url)};
+			blob_get(a.url);
+			table_set(*players, a.id, .{url = copy_string(a.url)});
 		}
 	} else {
-		if ip.player == null {
-			{ blob, ok := map_find_ptr(*blobs, ip.url);
-			if ok && blob.state == .Ready {
-				ensure_audio();
-				ip.player = media.player_open(media.source_from_memory(blob.data), autoplay = true);
-			} }
-		}
-		if ip.player != null {
-			img, changed := media.player_update(ip.player);
-			if img.y != 0 { ip.img = img; }
-			if media.player_is_playing(ip.player) { app.ui.animating = true; }
-			d := new(Video_Draw, temp);
-			d.id = a.id;
+		player_open_ready(ip);
+		if ip.player {
+			img := media.player_update(ip.player);
+			if img.y != 0 ip.img = img;
+			if media.player_is_playing(ip.player) app.ui.animating = true;
 			box.custom_draw = video_draw;
-			box.custom_user = d;
-			if sig.clicked { media.player_toggle(ip.player); }
+			box.custom_user = cast(*void) cast(u64) a.id;
+			if sig.clicked media.player_toggle(ip.player);
 		}
 	}
 	{ ui.parent(box); defer ui.pop_parent();
@@ -124,10 +96,10 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 			bar.style.bg = .{0, 0, 0, 0.6};
 			{ ui.parent(bar); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(fmt.tprintf("%s / %s", fmt_clock(media.player_position(ip.player)), fmt_clock(media.player_duration(ip.player))), .Medium, 12, .{1, 1, 1, 1}, 16);
+				label(tprint("% / %", fmt_clock(media.player_position(ip.player)), fmt_clock(media.player_duration(ip.player))), .Medium, 12, .{1, 1, 1, 1}, 16);
 				spacer(.X, 8);
 				dur := media.player_duration(ip.player);
-				frac := ifx dur > 0 then cast(float32)(media.player_position(ip.player) / dur) else 0;
+				frac := ifx dur > 0 then cast(float32) (media.player_position(ip.player) / dur) else 0;
 				track := ui.box("track", .Draw_Background | .Clickable);
 				track.semantic_size = .[ui.fill(), ui.px(6)];
 				track.style.bg = .{1, 1, 1, 0.3};
@@ -135,7 +107,7 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 				tsig := ui.signal(track);
 				if tsig.pressed || tsig.dragging {
 					tw := track.rect.x1 - track.rect.x0;
-					if tw > 0 { media.player_seek(ip.player, cast(float64)(clamp((app.ui.mouse.x - track.rect.x0) / tw, 0, 1)) * dur); }
+					if tw > 0 media.player_seek(ip.player, cast(float64) clamp((app.ui.mouse.x - track.rect.x0) / tw, 0, 1) * dur);
 				}
 				{ ui.parent(track); defer ui.pop_parent();
 					fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
@@ -150,7 +122,7 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 }
 
 ensure_audio :: () {
-	if audio_ready { return; }
+	if audio_ready return;
 	audio_ready = audio.init();
 	if !audio_ready {
 		audio.init_null();
@@ -160,20 +132,15 @@ ensure_audio :: () {
 
 // Audio attachment (and voice messages): file card with play button and progress.
 audio_attachment :: (a: *dc.Attachment) {
-	card := row(fmt.tprintf("aud%d", cast(u64)(a.id)), .Draw_Background | .Draw_Border);
+	card := row(tprint("aud%", cast(u64) a.id), .Draw_Background | .Draw_Border);
 	card.semantic_size = .[ui.px(400), ui.px(56)];
 	card.style.bg = T("--background-surface-high");
 	card.style.border_color = T("--border-subtle");
 	card.style.border = 1;
 	card.style.radius = all4(8);
-	ip, playing := map_find_ptr(*players, a.id);
-	if playing && ip.player == null {
-		{ blob, ok := map_find_ptr(*blobs, ip.url);
-		if ok && blob.state == .Ready {
-			ensure_audio();
-			ip.player = media.player_open(media.source_from_memory(blob.data), autoplay = true);
-		} }
-	}
+	ip := table_find_pointer(*players, a.id);
+	playing := ip != null;
+	if playing player_open_ready(ip);
 	{ ui.parent(card); defer ui.pop_parent();
 		spacer(.X, 12);
 		pb := ui.box("play", .Clickable | .Draw_Background | .Hot_Animation);
@@ -191,8 +158,8 @@ audio_attachment :: (a: *dc.Attachment) {
 		if ui.signal(pb).clicked {
 			if !playing {
 				blob_get(a.url);
-				at(*players, a.id).* = Inline_Player.{url = clone(a.url)};
-			} else if ip.player != null {
+				table_set(*players, a.id, .{url = copy_string(a.url)});
+			} else if ip.player {
 				media.player_toggle(ip.player);
 			}
 		}
@@ -205,11 +172,11 @@ audio_attachment :: (a: *dc.Attachment) {
 			if playing && ip.player != null {
 				pos = media.player_position(ip.player);
 				dur = media.player_duration(ip.player);
-				if is_playing { app.ui.animating = true; }
+				if is_playing app.ui.animating = true;
 			} else {
-				dur = cast(float64)(a.duration_secs);
+				dur = cast(float64) a.duration_secs;
 			}
-			label(fmt.tprintf("%s / %s", fmt_clock(pos), fmt_clock(dur)), .Normal, 12, T("--text-muted"), 16);
+			label(tprint("% / %", fmt_clock(pos), fmt_clock(dur)), .Normal, 12, T("--text-muted"), 16);
 		}
 		spacer(.X, 12);
 	}
@@ -221,20 +188,20 @@ embeds_view :: (m: *dc.Message) {
 		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
 			// bare media links render as the media itself
 			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;
-			w := cast(float32)(max(e.thumbnail_w, e.image_w));
-			h := cast(float32)(max(e.thumbnail_h, e.image_h));
-			if url == "" || w <= 0 || h <= 0 { continue; }
+			w := cast(float32) max(e.thumbnail_w, e.image_w);
+			h := cast(float32) max(e.thumbnail_h, e.image_h);
+			if url == "" || w <= 0 || h <= 0 continue;
 			sc := min(1.0, min(400 / w, 300 / h));
-			img := ui.box(fmt.tprintf("emedia%d", i), .Draw_Background | .Clickable);
+			img := ui.box(tprint("emedia%", i), .Draw_Background | .Clickable);
 			img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
 			img.style.radius = all4(8);
 			img.style.bg = T("--background-mod-subtle");
 			set_remote_image(img, url);
-			if ui.signal(img).clicked { open_viewer(url, .{cast(int)(w), cast(int)(h)}); }
+			if ui.signal(img).clicked open_viewer(url, .{cast(int) w, cast(int) h});
 			spacer(.Y, 4);
 			continue;
 		}
-		card := row(fmt.tprintf("embed%d", i), .Draw_Background);
+		card := row(tprint("embed%", i), .Draw_Background);
 		card.semantic_size = .[ui.px(432), ui.children()];
 		card.cross_align = .Start;
 		card.style.bg = T("--embed-background");
@@ -250,7 +217,7 @@ embeds_view :: (m: *dc.Message) {
 			col.layout_axis = .Y;
 			{ ui.parent(col); defer ui.pop_parent();
 				spacer(.Y, 8);
-				if e.provider != "" { label(e.provider, .Normal, 12, T("--text-muted"), 16); }
+				if e.provider label(e.provider, .Normal, 12, T("--text-muted"), 16);
 				if e.author_name != "" {
 					spacer(.Y, 4);
 					label(e.author_name, .Semibold, 14, T("--text-strong"), 18);
@@ -260,7 +227,7 @@ embeds_view :: (m: *dc.Message) {
 					t := ui.box("title", .Wrap_Text | .Selectable_Text);
 					t.semantic_size = .[ui.pct(1), ui.text_size()];
 					t.style.line_height = 22;
-					t.sel_order = cast(u64)(m.id) * 8 + 6;
+					t.sel_order = cast(u64) m.id * 8 + 6;
 					ui.set_spans(t, ui.Span.[.{text = e.title, font = F(.Semibold), size = 16, color = ifx e.url != "" then T("--text-link") else T("--text-strong")}]);
 				}
 				if e.description != "" {
@@ -269,26 +236,26 @@ embeds_view :: (m: *dc.Message) {
 					d.semantic_size = .[ui.pct(1), ui.text_size()];
 					d.style.line_height = 18;
 					d.style.text_color = T("--text-default");
-					d.sel_order = cast(u64)(m.id) * 8 + 7;
-					blocks := md_parse(e.description);
-					spans := make_dynamic(ui.Span, 0, 0, temp);
-					for blk, bi: blocks {
-						if bi > 0 { append(*spans, ui.Span.{text = "\n", font = F(.Normal), size = 14}); }
-						append(*spans, ..tokens_to_spans(blk.tokens, .Normal, 14, m));
+					d.sel_order = cast(u64) m.id * 8 + 7;
+					spans: [..]ui.Span;
+					spans.allocator = temp;
+					for md_parse(e.description) {
+						if it_index > 0 array_add(*spans, .{text = "\n", font = F(.Normal), size = 14});
+						array_add(*spans, ..tokens_to_spans(it.tokens, .Normal, 14, m));
 					}
-					ui.set_spans(d, view(spans));
+					ui.set_spans(d, spans);
 				}
 				if e.image_url != "" && e.image_w > 0 {
 					spacer(.Y, 16);
-					w := cast(float32)(e.image_w);
-					h := cast(float32)(e.image_h);
+					w := cast(float32) e.image_w;
+					h := cast(float32) e.image_h;
 					sc := min(1.0, min(400 / w, 300 / h));
 					img := ui.box("img", .Draw_Background | .Clickable);
 					img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
 					img.style.radius = all4(4);
 					img.style.bg = T("--background-mod-subtle");
 					set_remote_image(img, e.image_url);
-					if ui.signal(img).clicked { open_viewer(e.image_url, .{e.image_w, e.image_h}); }
+					if ui.signal(img).clicked open_viewer(e.image_url, .{e.image_w, e.image_h});
 				}
 				spacer(.Y, 16);
 			}
@@ -306,8 +273,8 @@ embeds_view :: (m: *dc.Message) {
 }
 
 open_viewer :: (url: string, size: Int2) {
-	delete(viewer_url);
-	viewer_url = clone(url);
+	free(viewer_url);
+	viewer_url = copy_string(url);
 	viewer_size = size;
 	viewer_t = 0;
 }
@@ -319,13 +286,12 @@ image_viewer :: () {
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.85 * viewer_t};
 	if ui.signal(scrim).clicked {
-		delete(viewer_url);
-		viewer_url = "";
+		close_viewer();
 		return;
 	}
 	{ ui.parent(scrim); defer ui.pop_parent();
-		w := cast(float32)(max(viewer_size.x, 1));
-		h := cast(float32)(max(viewer_size.y, 1));
+		w := cast(float32) max(viewer_size.x, 1);
+		h := cast(float32) max(viewer_size.y, 1);
 		sc := min(app.ui.window.x * 0.8 / w, app.ui.window.y * 0.8 / h);
 		sc *= 0.95 + 0.05 * viewer_t;
 		img := ui.box("img", .Floating_X | .Floating_Y | .Clickable);
@@ -335,11 +301,33 @@ image_viewer :: () {
 		set_remote_image(img, viewer_url);
 		ui.signal(img);
 	}
-	for e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape {
-			delete(viewer_url);
-			viewer_url = "";
-		}
-	}
+	for app.ui.events if it.kind == .Key_Down && it.key == .Escape close_viewer();
+}
+
+#scope_file
+
+close_viewer :: () {
+	free(viewer_url);
+	viewer_url = "";
+}
+
+// The player starts once its download is in.
+player_open_ready :: (ip: *Inline_Player) {
+	if ip.player return;
+	blob := table_find_pointer(*blobs, ip.url);
+	if !blob || blob.state != .Ready return;
+	ensure_audio();
+	ip.player = media.player_open(media.source_from_memory(blob.data), autoplay = true);
+}
+
+video_draw :: (b: *ui.Box, user: *void) {
+	ip := table_find_pointer(*players, cast(dc.Snowflake) cast(u64) user);
+	if !ip || ip.img.y == 0 return;
+	gfx.video(cast,force(gfx.Rect) b.rect, ip.img.y, ip.img.cbcr, ip.img.yuv, b.style.radius[0]);
+}
+
+fmt_clock :: (t: float64) -> string {
+	s := cast(int) t;
+	return tprint("%:%", s / 60, formatInt(s % 60, minimum_digits = 2));
 }
 
