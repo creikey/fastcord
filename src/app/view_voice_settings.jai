@@ -140,7 +140,7 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 	// eased toward each frame (fast rise, slower fall), so the bar moves smoothly
 	target := clamp((vs.meter_db + 100) / 100, 0, 1);
 	tau: float32 = ifx target > vs.meter_shown then 0.03 else 0.15;
-	vs.meter_shown += (target - vs.meter_shown) * (1 - exp(-app.ui.dt / tau));
+	vs.meter_shown += (target - vs.meter_shown) * (1 - exp(-app.dt / tau));
 	platform.request_frame();
 }
 

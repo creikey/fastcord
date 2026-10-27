@@ -174,6 +174,7 @@ Client :: struct {
 	// and the guild a Join a Server accept is waiting for (set on a worker)
 	invite_mu: locks.Mutex;
 	invite_codes: Table(Snowflake, string);
+	invite_previews: Table(string, Invite_Preview); // invite links in messages (code -> resolved guild)
 	pending_join_guild: Snowflake;
 	pending_join_channel: Snowflake;
 	soundboard_loaded: bool;
@@ -225,6 +226,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.left_guilds.allocator = c.allocator;
 	c.command_index_guilds.allocator = c.allocator;
 	c.invite_codes.allocator = c.allocator;
+	c.invite_previews.allocator = c.allocator;
 	c.etags.allocator = c.allocator;
 	c.quick_switcher.fetched.allocator = c.allocator;
 	c.preflights.allocator = c.allocator;
@@ -297,6 +299,8 @@ client_destroy :: (c: *Client) {
 	array_free(c.quest_app_ids);
 	for c.invite_codes free(it);
 	deinit(*c.invite_codes);
+	for v, k: c.invite_previews { free(k,, c.allocator); free(v.name,, c.allocator); free(v.icon,, c.allocator); }
+	deinit(*c.invite_previews);
 	for v, k: c.etags { free(k); free(v); }
 	deinit(*c.etags);
 	quick_switcher_destroy(c);

@@ -6,6 +6,7 @@ App :: struct {
 	theme: Theme;
 	ui: Ui_State;
 	last_time: float64;
+	dt: float32; // this frame's step (app.ui.dt is 0 after the second, drawn UI pass)
 	frame: u64;
 	view: View_State;
 	client: *dc.Client; // nil when offline (fixture / tests)
@@ -260,6 +261,7 @@ frame :: () {
 	dt := cast(float32)(now - app.last_time);
 	if app.last_time == 0 || dt <= 0 || dt > 0.1 dt = 1.0 / 60;
 	app.last_time = now;
+	app.dt = dt;
 	app.frame += 1;
 	app.wake_at = 0;
 	app.focused_editor = null;
