@@ -29,7 +29,9 @@ platform :: #import "platform";
     #load "text_dwrite_windows.jai";
 }
 #if OS == .LINUX {
+    #import "File_Utilities";
     #load "backend_gl_linux.jai";
+    #load "text_freetype_linux.jai";
 }
 #load "gfx.jai";
 #load "shaders.jai";

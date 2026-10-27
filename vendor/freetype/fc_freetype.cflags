@@ -1,0 +1,1 @@
+-DFT2_BUILD_LIBRARY -Ivendor/freetype/fc_config -Ivendor/freetype/include -Ivendor/brotli/include
