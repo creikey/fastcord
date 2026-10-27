@@ -375,9 +375,7 @@ ACTIVE_NOW_W :: 360; // including its 1px left border
 
 // Opens (or creates) the DM with a friend, like clicking their row.
 friend_open_dm :: (uid: dc.Snowflake) {
-	if !net_action() { return; }
-	existing := dc.open_dm(app.client, uid, "Friends");
-	if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
+	open_dm_with(uid, "Friends");
 }
 
 friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {

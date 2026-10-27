@@ -785,12 +785,27 @@ connect :: () {
 	if token == "" app.needs_login = true;
 }
 
+// Opens the DM with uid, creating it first if there is none: the request is tracked under
+// dm_req(uid), so the control shows it pending and a failure shows the toast.
+// True when the channel is open now.
+open_dm_with :: (uid: dc.Snowflake, location: string) -> bool {
+	if !req_begin(dm_req(uid)) return false;
+	existing := dc.open_dm(app.client, uid, location);
+	req_end();
+	if existing != 0 { select_channel(0, existing); return true; }
+	app.pending_dm_user = uid;
+	return false;
+}
+
+dm_req :: (uid: dc.Snowflake) -> string { return tprint("dm:%", uid); }
+
 handle_results :: () {
 	for r: dc.client_take_results(app.client) {
 		if r.op == {
 		case .Open_Dm;
 			if r.ok && r.id != 0 && app.pending_dm_user != 0 {
 				select_channel(0, r.id);
+				profile_full_close_for(app.pending_dm_user); // it waited with its Message button pending
 				app.pending_dm_user = 0;
 			}
 		case .Invite;

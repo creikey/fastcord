@@ -61,6 +61,9 @@ Pf_State :: struct {
 pf: Pf_State;
 #scope_export
 
+// Closes the full profile if it shows uid.
+profile_full_close_for :: (uid: dc.Snowflake) { if pf.user == uid pf.user = 0; }
+
 profile_full_open :: (uid: dc.Snowflake, guild_id: dc.Snowflake = 0) {
 	pf.user = uid;
 	pf.guild = guild_id;
@@ -265,11 +268,7 @@ profile_actions :: (uid: dc.Snowflake) {
 			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false, rel_req("Add Friend", uid));
 			if add && !pending && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "User Profile"); req_end(); }
 		}
-		if action_button("Message", "chat", 110, true) && net_action() {
-			existing := dc.open_dm(app.client, uid, "User Profile");
-			if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
-			pf.user = 0;
-		}
+		if action_button("Message", "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
 		more := ui.box("more", .Clickable | .Draw_Background | .Hot_Animation);
 		more.semantic_size = .[ui.px(32), ui.px(32)];
 		more.style.radius = all4(8);
@@ -600,10 +599,7 @@ user_context_menu :: () {
 				case "Profile";
 					profile_full_open(uid, app.view.guild);
 				case "Message";
-					if net_action() {
-						existing := dc.open_dm(app.client, uid, "Context Menu");
-						if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
-					}
+					open_dm_with(uid, "Context Menu");
 				case "Add Friend Nickname"; #through; case "Edit Friend Nickname";
 					friend_nick_open(uid);
 				case "Add Friend";

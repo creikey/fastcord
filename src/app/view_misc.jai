@@ -236,9 +236,8 @@ profile_popout :: () {
 					mb.style.font_size = 14;
 					mb.style.text_color = T("--text-muted");
 					mb.hover_cursor = .IBeam;
-					if ui.signal(mb).clicked && net_action() {
-						existing := dc.open_dm(app.client, uid, "Profile");
-						if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; }
+					if ui.signal(mb).clicked {
+						open_dm_with(uid, "Profile");
 						app.profile_user = 0;
 					}
 					spacer(.X, 16);
