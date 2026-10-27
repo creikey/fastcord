@@ -10,6 +10,10 @@ spawn :: (data: $D, proc: (D)) -> *Thread {
 	return s;
 }
 
+// pool_allocator: a Flat_Pool owned by one thread at a time (a job's strings, a result's or a gateway
+// payload's tree); fini frees it.
+pool_allocator :: (p: *Flat_Pool) -> Allocator { return .{flat_pool_allocator_proc, p}; }
+
 // ---- time ----
 
 UNIX_EPOCH :: #run calendar_to_apollo(.{year = 1970});

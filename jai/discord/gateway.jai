@@ -656,28 +656,24 @@ gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
 	clear(*g.inflated);
 	if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None { return false; }
 	if len(g.inflated) == 0 { return true; }
-	arena := new(virtual.Arena);
-	if virtual.arena_init_growing(arena) != .None {
-		free(arena);
-		return false;
-	}
-	alloc := virtual.arena_allocator(arena);
+	arena := New(Flat_Pool);
+	alloc := pool_allocator(arena);
 	v, derr := etf.decode(view(g.inflated),, alloc);
 	if derr != .None {
-		virtual.arena_destroy(arena);
+		fini(arena);
 		free(arena);
 		return false;
 	}
 	keep := gateway_handle_payload(g, gen, v, arena, alloc);
 	if !keep {
-		virtual.arena_destroy(arena);
+		fini(arena);
 		free(arena);
 	}
 	return true;
 }
 
 // gateway_handle_payload returns true when ownership of arena moved to the event queue.
-gateway_handle_payload :: (g: *Gateway, gen: int, v: V, arena: *virtual.Arena, alloc: Allocator) -> bool {
+gateway_handle_payload :: (g: *Gateway, gen: int, v: V, arena: *Flat_Pool, alloc: Allocator) -> bool {
 	kept: bool;
 	m := vmap(v);
 	op := cast(Op)(fint(m, "op"));

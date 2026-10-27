@@ -77,7 +77,7 @@ Auth :: struct {
 	login_instance_id: string;
 	mfa_kind: Mfa_Method;
 	events: [..]Auth_Event;
-	arena: virtual.Arena; // event strings until taken
+	arena: Flat_Pool; // event strings until taken
 	ra: Remote_Auth;
 	gw_stoppers: [..]*Thread; // logouts' gateway teardowns (joined by auth_shutdown)
 }
@@ -113,7 +113,6 @@ auth_referer :: (c: *Client, allocator := temp) -> string {
 
 auth_init :: (c: *Client) {
 	a := *c.auth;
-	virtual.arena_init_growing(*a.arena);
 	a.events = make_dynamic(Auth_Event, 0, 0, c.allocator);
 	a.logged_out = c.token == "";
 	if a.logged_out && c.cfg.state_dir != "" {
@@ -141,7 +140,7 @@ auth_destroy :: (c: *Client) {
 	remote_auth_destroy(c);
 	delete(a.gw_stoppers);
 	delete(a.events);
-	virtual.arena_destroy(*a.arena);
+	fini(*a.arena);
 	delete(a.fingerprint, c.allocator);
 	delete(a.referer, c.allocator);
 	delete(a.country_code, c.allocator);
@@ -478,7 +477,7 @@ auth_message :: (status: int, body: etf.Map) -> string {
 
 auth_push :: (c: *Client, ev: Auth_Event) {
 	a := *c.auth;
-	al := virtual.arena_allocator(*a.arena);
+	al := pool_allocator(*a.arena);
 	e := ev;
 	e.login_error = clone(ev.login_error, al);
 	e.password_error = clone(ev.password_error, al);
@@ -507,16 +506,15 @@ auth_take_events :: (c: *Client) -> []Auth_Event {
 		if len(e.token) > 0 { crypto.zero(cast([]u8) e.token); }
 	}
 	clear(*a.events);
-	virtual.arena_free_all(*a.arena);
+	reset(*a.arena);
 	return out;
 }
 #scope_module
 
 // auth_push_token (remote auth thread): the decrypted token, applied on the UI thread.
 auth_push_token :: (c: *Client, token: string, fingerprint: string, action: Auth_Action) {
-	arena := new(virtual.Arena);
-	virtual.arena_init_growing(arena);
-	al := virtual.arena_allocator(arena);
+	arena := New(Flat_Pool);
+	al := pool_allocator(arena);
 	m := etf.map_builder(2,, al);
 	etf.map_put(*m, "token", to_v(clone(token, al)));
 	etf.map_put(*m, "fingerprint", to_v(clone(fingerprint, al)));

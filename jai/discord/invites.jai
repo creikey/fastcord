@@ -38,7 +38,7 @@ Invite_Result :: struct {
 
 api_free :: (r: *Api_Response) {
 	if r.arena != null {
-		virtual.arena_destroy(r.arena);
+		fini(r.arena);
 		free(r.arena);
 		r.arena = null;
 	}

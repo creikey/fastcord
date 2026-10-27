@@ -6,6 +6,7 @@
 #import "Hash";
 #import "Atomics";
 #import "Thread";
+#import "Flat_Pool";
 #import "fc";
 altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";
@@ -35,7 +36,6 @@ strings :: #import "fc_strings";
 sync :: #import "fc_sync";
 time :: #import "fc_time";
 tls :: #import "tls";
-virtual :: #import "fc_virtual";
 #if OS == .WINDOWS win :: #import "fc_windows";
 zlib :: #import "fc_zlib";
 zstd :: #import "zstd";

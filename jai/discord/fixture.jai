@@ -22,10 +22,9 @@ de_atom :: (v: V) -> V {
 
 // store_load_fixture_text applies every received dispatch in text; returns the count.
 store_load_fixture_text :: (s: *Store, text: string) -> int {
-	arena: virtual.Arena;
-	if virtual.arena_init_growing(*arena) != .None { return 0; }
-	defer virtual.arena_destroy(*arena);
-	alloc := virtual.arena_allocator(*arena);
+	arena: Flat_Pool;
+	defer fini(*arena);
+	alloc := pool_allocator(*arena);
 	n := 0;
 	t := text;
 	while true { line, __ok2 := strings.split_lines_iterator(*t); if !__ok2 break;

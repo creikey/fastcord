@@ -15,7 +15,7 @@ Upload_File :: struct {
 }
 
 Job :: struct {
-	arena: virtual.Arena;
+	arena: Flat_Pool;
 	kind: Job_Kind;
 	op: Rest_Op;
 	method: string;
@@ -58,19 +58,18 @@ Job :: struct {
 
 job_new :: (kind: Job_Kind, op: Rest_Op) -> *Job {
 	j := new(Job);
-	virtual.arena_init_growing(*j.arena);
 	j.kind = kind;
 	j.op = op;
 	j.result.op = op;
 	return j;
 }
 
-job_alloc :: (j: *Job) -> Allocator {return virtual.arena_allocator(*j.arena);}
+job_alloc :: (j: *Job) -> Allocator {return pool_allocator(*j.arena);}
 
 job_str :: (j: *Job, s: string) -> string {return clone(s, job_alloc(j));}
 
 job_free :: (j: *Job) {
-	virtual.arena_destroy(*j.arena);
+	fini(*j.arena);
 	free(j);
 }
 
@@ -150,7 +149,7 @@ Api_Response :: struct {
 	status: int;
 	ok: bool;
 	body: V;
-	arena: *virtual.Arena;
+	arena: *Flat_Pool;
 	headers: []http.Header;
 }
 
@@ -218,9 +217,8 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			time.sleep(cast(time.Duration)(backoff_fail(*backoff)) * time.Millisecond);
 			continue;
 		}
-		arena := new(virtual.Arena);
-		virtual.arena_init_growing(arena);
-		alloc := virtual.arena_allocator(arena);
+		arena := New(Flat_Pool);
+		alloc := pool_allocator(arena);
 		bv, _ := parse_json(resp.body,, alloc);
 		hold := rate_note_response(*c.limiter, method, url_key, resp.status, view(resp.headers), bv, now_ms());
 		if resp.status == 429 && retry_429_left > 0 {
@@ -228,7 +226,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			ra, has := retry_after_seconds(view(resp.headers), bv);
 			wait := ifx has then cast(s64)(ra * 1000) else hold;
 			http.response_destroy(*resp);
-			virtual.arena_destroy(arena);
+			fini(arena);
 			free(arena);
 			time.sleep(cast(time.Duration)(max(wait, 0)) * time.Millisecond);
 			continue;

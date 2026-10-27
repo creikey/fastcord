@@ -40,7 +40,7 @@ Expr_Result :: struct {
 	ok: bool;
 	status: int;
 	body: V; // API body (lives in arena)
-	arena: *virtual.Arena;
+	arena: *Flat_Pool;
 	data: []u8; // Media (owned)
 	content_type: string; // Media (owned)
 }
@@ -242,7 +242,7 @@ expr_result_free :: (c: *Client, r: *Expr_Result) {
 	delete(r.data, c.allocator);
 	delete(r.content_type, c.allocator);
 	if r.arena != null {
-		virtual.arena_destroy(r.arena);
+		fini(r.arena);
 		free(r.arena);
 	}
 	r.* = .{};

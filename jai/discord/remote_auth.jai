@@ -103,10 +103,9 @@ RA_HEARTBEAT_MESSAGE :: "{\"op\":\"heartbeat\"}";
 ra_handle :: (s: *Ra_Session, msg: []u8, allocator := temp) -> Ra_Action, string {
 	action: Ra_Action;
 	reply: string;
-	arena: virtual.Arena;
-	virtual.arena_init_growing(*arena);
-	defer virtual.arena_destroy(*arena);
-	v, ok := parse_json(msg,, virtual.arena_allocator(*arena));
+	arena: Flat_Pool;
+	defer fini(*arena);
+	v, ok := parse_json(msg,, pool_allocator(*arena));
 	if !ok { return .None, ""; }
 	m := vmap(v);
 	if fstr(m, "op") == {
@@ -595,7 +594,7 @@ ra_ticket_login :: (c: *Client, s: *Ra_Session) -> bool {
 	body := json_string(*w);
 	r := api_call(c, "POST", "/users/@me/remote-auth/login", transmute([]u8, body), "application/json", "", .[], 0, 0, no_auth = true);
 	defer if r.arena != null {
-		virtual.arena_destroy(r.arena);
+		fini(r.arena);
 		free(r.arena);
 	}
 	if !r.ok { return false; }

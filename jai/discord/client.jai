@@ -81,7 +81,7 @@ Event :: struct {
 	kind: Event_Kind;
 	name: string;
 	data: V;
-	arena: *virtual.Arena;
+	arena: *Flat_Pool;
 	state: Connection_State;
 	result: Rest_Result;
 }
@@ -341,7 +341,7 @@ client_push_state :: (c: *Client, s: Connection_State) {
 
 event_free :: (e: *Event) {
 	if e.arena != null {
-		virtual.arena_destroy(e.arena);
+		fini(e.arena);
 		free(e.arena);
 		e.arena = null;
 	}

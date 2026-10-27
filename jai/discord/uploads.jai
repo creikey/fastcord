@@ -310,7 +310,7 @@ upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File) -> string, boo
 	r := api_call(c, "POST", strings.concatenate(string.["/channels/", snowflake_string(channel_id), "/attachments"], temp), body, "application/json", "", .[], 0, 0);
 	url_ms = now_ms_f() - t0;
 	defer if r.arena != null {
-		virtual.arena_destroy(r.arena);
+		fini(r.arena);
 		free(r.arena);
 	}
 	if !r.ok { return name, ok, url_ms, put_ms; }

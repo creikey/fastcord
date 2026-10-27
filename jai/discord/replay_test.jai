@@ -28,7 +28,7 @@ R_IGNORE := string.["/assets/", "collectibles-shop", "latency.discord.media", "/
 
 Replay :: struct {
 	mu: locks.Mutex;
-	arena: virtual.Arena;
+	arena: Flat_Pool;
 	events: [..]etf.Map; // fixture lines (acct a), placeholders turned into ids
 	used: [..]bool;
 	ours: [..]Replay_Req;
@@ -80,8 +80,7 @@ fnv32a :: (s: string) -> u32 { // Odin's hash.fnv32a
 }
 
 replay_load :: (r: *Replay, scenario: string, acct := "a") -> bool {
-	virtual.arena_init_growing(*r.arena);
-	push_allocator(virtual.arena_allocator(*r.arena));
+	push_allocator(pool_allocator(*r.arena));
 	// appended to from worker threads later: keep them in the replay arena too
 	r.ours = make_dynamic(Replay_Req, 0, 0);
 	r.sends = make_dynamic(Replay_Send, 0, 0);
@@ -268,7 +267,7 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 			{ v, perr := etf.from_json(as_string(req.body),, temp);
 			if perr == .None { shape = shape_text(v); } }
 		}
-		alloc := virtual.arena_allocator(*r.arena);
+		alloc := pool_allocator(*r.arena);
 		if r_is_science(url) {
 			{ v, perr := etf.from_json(as_string(req.body),, temp);
 			if perr == .None {
@@ -281,7 +280,7 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 		}
 	}
 	// Odin frees a nil-allocator response's strings as no-ops; here they live in the replay arena
-	resp.allocator = virtual.arena_allocator(*r.arena);
+	resp.allocator = pool_allocator(*r.arena);
 	push_allocator(resp.allocator);
 	resp.version = ifx proto == "h3" then .Http3 else .Http2;
 	resp.status = 200;
@@ -297,7 +296,7 @@ replay_exchange :: (r: *Replay, host: string, req: http.Request) -> http.Respons
 				if len(l) != 2 { continue; }
 				n := vstr(l[0]);
 				if n == "content-encoding" || n == "content-length" { continue; } // the body below is decoded
-				ha := virtual.arena_allocator(*r.arena); // the response is the transport's; strings live with the replay
+				ha := pool_allocator(*r.arena); // the response is the transport's; strings live with the replay
 				append(*resp.headers, http.Header.{clone(n, ha), clone(vstr(l[1]), ha)});
 			}
 			{ bv, ok := r_body_value(vget(e, "body"));
@@ -347,7 +346,7 @@ replay_sink :: (data: *void, op: Op, d: V) {
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
 	if !r.marked { return; }
-	append(*r.sends, Replay_Send.{cast(s64)(op), clone(shape_text(d), virtual.arena_allocator(*r.arena))});
+	append(*r.sends, Replay_Send.{cast(s64)(op), clone(shape_text(d), pool_allocator(*r.arena))});
 }
 #scope_export
 
@@ -376,7 +375,7 @@ replay_begin :: (run: *Replay_Run, t: *T, scenario: string, guild: Snowflake, ch
 			return false;
 		}
 		// the donor's arena lives as long as the run: its values are injected below
-		ready_events = clone(view(donor.events), virtual.arena_allocator(*donor.arena));
+		ready_events = clone(view(donor.events), pool_allocator(*donor.arena));
 		run.donor = donor;
 	}
 	run.c = client_create(Config.{
@@ -491,8 +490,8 @@ replay_dispatches :: (run: *Replay_Run, window: string, only := "") {
 // replay_end frees a run whose windows were checked with keep = true.
 replay_end :: (run: *Replay_Run) {
 	client_destroy(run.c);
-	virtual.arena_destroy(*run.r.arena);
-	if run.donor.events.count { virtual.arena_destroy(*run.donor.arena); }
+	fini(*run.r.arena);
+	if run.donor.events.count { fini(*run.donor.arena); }
 }
 #scope_export
 

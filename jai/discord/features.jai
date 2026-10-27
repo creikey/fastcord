@@ -595,7 +595,7 @@ Feature_Result :: struct {
 	ok: bool;
 	status: int;
 	body: V;
-	arena: *virtual.Arena;
+	arena: *Flat_Pool;
 	client: *Client; // the client that submitted it
 }
 #scope_module
@@ -736,7 +736,7 @@ feature_take_for :: (c: *Client, allocator := temp) -> []Feature_Result {
 feature_result_free :: (r: *Feature_Result) {
 	push_allocator(context.default_allocator);
 	if r.arena != null {
-		virtual.arena_destroy(r.arena);
+		fini(r.arena);
 		free(r.arena);
 		r.arena = null;
 	}
