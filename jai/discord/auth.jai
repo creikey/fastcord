@@ -495,7 +495,7 @@ auth_take_events :: (c: *Client) -> []Auth_Event {
 	a := *c.auth;
 	if len(a.events) == 0 { return .{}; }
 	t := temp;
-	out := make_slice(Auth_Event, len(a.events));
+	out := make_slice(Auth_Event, len(a.events), t);
 	for e, i: a.events {
 		at(*out, i).* = e;
 		at(*out, i).*.login_error = clone(e.login_error, t);

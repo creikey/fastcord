@@ -808,8 +808,13 @@ def conv_make(g, cx):
     targ = a[0]
     rest = [conv_s(p, cx).strip() for p in a[1:]]
     alloc = None
-    # allocator is the last arg if it looks like one
-    if rest and re.search(r'allocator|temp\b|arena|alloc\b|\balloc', rest[-1]):
+    f0 = targ[0]
+    dyn = isinstance(f0, G) and f0.o == '[' and f0.items and is_t(f0.items[0], 'dynamic')
+    slc = isinstance(f0, G) and f0.o == '[' and not f0.items
+    # make([]T, n, alloc) / make([dynamic]T, len, cap, alloc); a 2-arg dynamic make is ambiguous
+    if (slc and len(rest) >= 2) or (dyn and len(rest) == 3) or (is_t(f0, 'map') and rest):
+        alloc = rest.pop()
+    elif rest and re.search(r'allocator|temp\b|arena|alloc\b|\balloc', rest[-1]):
         alloc = rest.pop()
     al = f', allocator = {alloc}' if alloc else ''
     f = targ[0]
@@ -1050,10 +1055,12 @@ def rewrite_continue(g_text, post):
 
 def conv_for(items, i, cx, label=None):
     cx.brk.append(('loop', None))
+    cx.loop_stack.append('')  # a C-style loop pushes its post statement on top of this
     try:
         return conv_for_(items, i, cx, label)
     finally:
         cx.brk.pop()
+        cx.loop_stack.pop()
 
 def conv_for_(items, i, cx, label=None):
     pre = items[i].pre

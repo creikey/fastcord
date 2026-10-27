@@ -399,7 +399,7 @@ ra_reader_proc :: (rd: Ra_Reader) {
 }
 
 clone_bytes :: (b: []u8, a: Allocator) -> []u8 {
-	out := make_slice(u8, len(b));
+	out := make_slice(u8, len(b), a);
 	copy(out, b);
 	return out;
 }

@@ -334,7 +334,7 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 		a := job_alloc(j);
 		j.path = job_str(j, channel_path(channel_id, "/messages"));
 		j.context_b64 = job_str(j, context_location(location));
-		atts := make_slice(Draft_Attachment, len(opts.attachments));
+		atts := make_slice(Draft_Attachment, len(opts.attachments), a);
 		for d, i: opts.attachments {
 			atts[i] = Draft_Attachment.{d.handle, clone(d.filename, a), clone(d.description, a), d.spoiler};
 		}
@@ -354,7 +354,7 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 		a := job_alloc(j);
 		j.path = job_str(j, channel_path(channel_id, "/messages"));
 		j.context_b64 = job_str(j, context_location(location));
-		files := make_slice(Upload_File, len(opts.files));
+		files := make_slice(Upload_File, len(opts.files), a);
 		for f, i: opts.files {
 			files[i] = Upload_File.{clone(f.filename, a), clone(f.mime, a), clone(f.data, a)};
 		}

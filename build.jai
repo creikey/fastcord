@@ -38,6 +38,7 @@ build :: () {
     }
     o.output_path = "build";
     o.dead_code_elimination = .NONE; // type-check every procedure, not only the ones called
+    o.cast_bounds_check = .OFF;      // integer casts truncate, as the code base (written for Odin) expects
     set_build_options(o, w);
     compiler_begin_intercept(w);
     add_build_file(file, w);

@@ -108,7 +108,7 @@ upload_draft :: (c: *Client, channel_id: Snowflake, filename: string, mime: stri
 
 	j := job_new(.Upload, .Upload);
 	al := job_alloc(j);
-	j.files = make_slice(Upload_File, 1);
+	j.files = make_slice(Upload_File, 1, al);
 	j.files[0] = Upload_File.{clone(filename, al), clone(mime, al), clone(data, al)};
 	j.result = Rest_Result.{op = .Upload, channel_id = channel_id, tag = u.handle};
 	j.draft = u.handle;
