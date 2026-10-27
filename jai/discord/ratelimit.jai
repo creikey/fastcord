@@ -15,7 +15,7 @@ backoff_make :: (min_ms: s64 = 500, max_ms: s64 = 0, jitter := true) -> Backoff 
 backoff_fail :: (b: *Backoff, floor_ms: s64 = 0, r: float64 = -1) -> s64 {
 	b.fails += 1;
 	n := cast(float64)(2 * b.current);
-	if b.jitter { n *= ifx r >= 0 then r else rand.float64(); }
+	if b.jitter { n *= ifx r >= 0 then r else rand.float64_(); }
 	b.current = min(b.current + cast(s64)(n), b.max_ms);
 	return ifx floor_ms > b.current then floor_ms else b.current;
 }

@@ -8,4 +8,4 @@ buffer_write_byte :: (b: *Buffer, c: u8) -> *void { array_add(*b.buf, c); return
 buffer_to_bytes :: (b: *Buffer) -> []u8 { return b.buf; }
 buffer_length :: (b: *Buffer) -> int { return b.buf.count; }
 buffer_reset :: (b: *Buffer) { b.buf.count = 0; }
-buffer_destroy :: (b: *Buffer) { array_free(b.buf); b.buf = .[]; }
+buffer_destroy :: (b: *Buffer) { array_reset(*b.buf); }

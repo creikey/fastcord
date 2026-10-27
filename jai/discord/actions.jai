@@ -200,7 +200,7 @@ schedule_rtc_probe :: (c: *Client, base: s64) {
 	j.host = "latency.discord.media";
 	j.path = "/rtc?v=2";
 	j.site = .Cross_Site;
-	j.not_before = base + 8000 + cast(s64)(rand.uint32() % 17000);
+	j.not_before = base + 8000 + cast(s64)(rand.uint32_() % 17000);
 	j.on_body = (c: *Client, body: V) {
 		sb := strings.builder_make(temp);
 		for r, i: vlist(body) {

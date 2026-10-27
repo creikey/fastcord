@@ -1,6 +1,7 @@
 // JSON values (objects as hash maps), a parser, and reflection-based marshal / unmarshal of structs.
 #import "Basic";
 #import "fc";
+#import "String";
 strings :: #import "fc_strings";
 strconv :: #import "fc_strconv";
 fmt :: #import "fc_fmt";
@@ -218,7 +219,7 @@ write_map :: (b: *strings.Builder, v: Any, si: *Type_Info_Struct, opts: Marshal_
     }
     order: [..]int; order.allocator = temp;
     for keys array_add(*order, it_index);
-    for i: 1..order.count-1 { j := i; while j > 0 && keys[order[j]] < keys[order[j-1]] { order[j], order[j-1] = order[j-1], order[j]; j -= 1; } }
+    for i: 1..order.count-1 { j := i; while j > 0 && compare(keys[order[j]], keys[order[j-1]]) < 0 { order[j], order[j-1] = order[j-1], order[j]; j -= 1; } }
     array_add(*b.buf, #char "{");
     for o, n: order {
         if n array_add(*b.buf, #char ",");

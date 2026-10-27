@@ -552,7 +552,7 @@ ra_session_loop :: (c: *Client, ws: *http.Ws_Conn, s: *Ra_Session, backoff: *Bac
 				if !send(ws, reply) { return .Fail; }
 			case .Hello;
 				iv := ifx s.heartbeat_interval > 0 then s.heartbeat_interval else 41250;
-				next_beat = now_ms() + cast(s64)(cast(float64)(iv) * rand.float64());
+				next_beat = now_ms() + cast(s64)(cast(float64)(iv) * rand.float64_());
 			case .Heartbeat_Ack;
 				acked = true;
 			case .Show_Qr;

@@ -713,7 +713,7 @@ gateway_handle_payload :: (g: *Gateway, gen: int, v: V, arena: *virtual.Arena, a
 			g.failed_attempts = 0;
 		}
 		// _startHeartbeater: first beat after floor(random*interval).
-		g.next_beat = now_ms() + cast(s64)(rand.float64() * cast(float64)(g.interval));
+		g.next_beat = now_ms() + cast(s64)(rand.float64_() * cast(float64)(g.interval));
 		g.initial_beat = true;
 		locks.cond_broadcast(*g.cond);
 	case .Heartbeat_Ack;

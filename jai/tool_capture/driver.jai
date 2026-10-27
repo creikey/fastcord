@@ -142,7 +142,7 @@ run_scenario :: (path: string, out_path: string) -> bool {
 	// The test windows are usually behind other windows; make the page behave as focused
 	// (a real user has the window focused while acting).
 	for r: d.accts { if r != null { cdp.call_value(r.c, "Emulation.setFocusEmulationEnabled", "{\"enabled\":true}", r.page_session); } }
-	for i: 0..1 { d.mouse[i] = .{400 + rand.float64() * 200, 300 + rand.float64() * 100}; }
+	for i: 0..1 { d.mouse[i] = .{400 + rand.float64_() * 200, 300 + rand.float64_() * 100}; }
 	out_line(out, "a", fmt.tprintf("\"note\":%s", cdp.quote(fmt.tprintf("scenario %s", name))));
 	time.sleep(1500 * time.Millisecond); // let attach + Network.enable settle
 
@@ -484,8 +484,8 @@ locate :: (r: *Recorder, finder: string) -> Point, bool {
 			x, y, w, h := f(l[0]), f(l[1]), f(l[2]), f(l[3]);
 			if w > 0 && h > 0 {
 				// a point near the centre, jittered like a person would
-				px := x + w * (0.5 + (rand.float64() - 0.5) * 0.4);
-				py := y + h * (0.5 + (rand.float64() - 0.5) * 0.4);
+				px := x + w * (0.5 + (rand.float64_() - 0.5) * 0.4);
+				py := y + h * (0.5 + (rand.float64_() - 0.5) * 0.4);
 				return .[px, py], true;
 			}
 		} }
@@ -502,8 +502,8 @@ move_mouse :: (d: *Driver, to: Point) {
 	for i: 1..steps {
 		t := cast(float64)(i) / cast(float64)(steps);
 		e := t * t * (3 - 2 * t); // smoothstep
-		x := from.x + (to.x - from.x) * e + (rand.float64() - 0.5) * 2;
-		y := from.y + (to.y - from.y) * e + (rand.float64() - 0.5) * 2;
+		x := from.x + (to.x - from.x) * e + (rand.float64_() - 0.5) * 2;
+		y := from.y + (to.y - from.y) * e + (rand.float64_() - 0.5) * 2;
 		if i == steps { x, y = to.x, to.y; }
 		cdp.call(r.c, "Input.dispatchMouseEvent", fmt.tprintf("{{\"type\":\"mouseMoved\",\"x\":%.1f,\"y\":%.1f}}", x, y), r.page_session);
 		human(8, 22);

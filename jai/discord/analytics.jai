@@ -78,7 +78,7 @@ analytics_init :: (a: *Analytics, allocator := context.allocator) {
 	a.allocator = allocator;
 	a.enabled = true;
 	a.queue = make_dynamic(string, 0, 0, allocator);
-	a.uuid_random = rand.uint32();
+	a.uuid_random = rand.uint32_();
 	a.uuid_created = now_ms();
 	a.timers = make_dynamic(Analytics_Timer, 0, 0, allocator);
 	// The ad session (AdSessionStore) exists from launch: quests/decision uses it before READY.
@@ -403,7 +403,7 @@ analytics_tick :: (c: *Client, now: s64) {
 
 // send_message_roundtrip: MessageRoundtripTrackerStore, sampled at 10%.
 analytics_message_roundtrip :: (c: *Client, channel_id: Snowflake, api_ms: s64, gateway_ms: s64, attachments: int) {
-	if rand.float64() >= c.analytics.roundtrip_sample { return; }
+	if rand.float64_() >= c.analytics.roundtrip_sample { return; }
 	s := *c.store;
 	ch := get(s.channels, channel_id);
 	w: Json;

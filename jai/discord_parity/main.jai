@@ -243,7 +243,7 @@ pump :: (ms: int) {
 	}
 }
 
-human :: (lo: int, hi: int) {pump(lo + cast(int)(rand.uint32() % cast(u32)(hi - lo + 1)));}
+human :: (lo: int, hi: int) {pump(lo + cast(int)(rand.uint32_() % cast(u32)(hi - lo + 1)));}
 
 // click: tools/capture's mouse move (4-25 steps of 8-22 ms, then 80-220 ms),
 // the click, then 500-1100 ms.
@@ -254,7 +254,7 @@ click :: () {
 }
 
 // wait_for: DOM polling every 250 ms (half a period on average).
-wait_for :: () {pump(125 + cast(int)(rand.uint32() % 250));}
+wait_for :: () {pump(125 + cast(int)(rand.uint32_() % 250));}
 pause :: () {human(700, 1600);}
 
 // settle: like tools/capture — wait until no network event for quiet_ms (max max_ms).

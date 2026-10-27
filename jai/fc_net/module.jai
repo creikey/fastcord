@@ -101,6 +101,7 @@ af :: (f: Address_Family) -> s32 { return xx ifx f == .IP6 then S.AF_INET6 else 
 dial_tcp :: (ep: Endpoint) -> TCP_Socket, Error {
     s := S.socket(af(family_from_endpoint(ep)), .STREAM, .TCP);
     if s == S.INVALID_SOCKET return s, .Failed;
+    #if OS == .MACOS { one: s32 = 1; S.setsockopt(s, S.SOL_SOCKET, 0x1022, *one, 4); }  // SO_NOSIGPIPE: a closed peer is an error, not a signal
     sa := to_sockaddr(ep);
     if S.connect(s, cast(*S.sockaddr) *sa, sa.len) != 0 { close(s); return S.INVALID_SOCKET, .Refused; }
     return s, .None;
@@ -159,7 +160,7 @@ set_option :: (s: S.Socket, o: Socket_Option, v: $T) -> Error {
 }
 would_block :: () -> bool { e := S.get_last_socket_error(); return e == 35 || e == 60; } // EAGAIN / ETIMEDOUT (SO_RCVTIMEO)
 send_tcp :: (s: TCP_Socket, b: []u8) -> int, Error {
-    n := S.send(s, b.data, xx b.count, .NOSIGNAL);
+    n := S.send(s, b.data, xx b.count, 0);
     if n < 0 return 0, ifx would_block() then .Timeout else .Closed;
     return n, .None;
 }

@@ -469,7 +469,7 @@ rail_apply_drop :: (entries_in: [..]Rail_Entry, tg: Rail_Target, kind: Drop_Kind
 	te := at(*entries, tg.entry);
 	if kind == .Combine && !moving_folder && tg.inner < 0 && te.id == 0 && __MAPIDX__(te.guilds|0) != gid {
 		// guild onto guild: new folder (random 32-bit id like the client)
-		te.id = cast(s64)(rand.uint32());
+		te.id = cast(s64)(rand.uint32_());
 		append(*te.guilds, gid);
 	} else if kind == .Combine && !moving_folder && tg.inner < 0 && te.id != 0 {
 		append(*te.guilds, gid);

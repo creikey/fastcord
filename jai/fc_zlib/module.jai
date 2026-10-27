@@ -17,7 +17,7 @@ inflater_init :: (f: *Inflater, kind: Kind) {
     if !f.state.count f.state = NewArray(cast(int) fc_inflate_state_size(), u8);
     fc_inflate_init(f.state.data, xx kind);
 }
-inflater_destroy :: (f: *Inflater) { array_free(f.state); f.state = .[]; }
+inflater_destroy :: (f: *Inflater) { array_reset(*f.state); }
 // feed decodes all of src, appending to out; ok is false on corrupt input or past max_out bytes.
 feed :: (f: *Inflater, src: []u8, out: *[..]u8, max_out := -1) -> ended: bool, ok: bool {
     s := src;
