@@ -194,7 +194,7 @@ draw_custom_emoji :: (sp: ui.Span, r: ui.Rect, opacity: float32) {
 	tex := image_texture(im);
 	if tex == 0 return;
 	c := gfx.Color.{1, 1, 1, opacity};
-	gfx.push_rect(.{dst = cast,force(gfx.Rect)(r), tex = tex, colors = .[c, c, c, c]});
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(emoji_square(r)), tex = tex, colors = .[c, c, c, c]});
 }
 
 // The client tints banner-less profiles with the avatar's dominant color: the

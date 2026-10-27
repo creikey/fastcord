@@ -128,6 +128,26 @@ not read in code; **guess** = neither, best knowledge.
 | External-location event body (`scheduled_end_time`, `entity_metadata.location`), Start Event (`PATCH {"status":2}`) | guess | not captured | `src/discord/guild_admin.jai` |
 | Declining a DM call sends nothing (dismissed locally) | guess | not captured | `src/discord/calls.jai` |
 
+## Composer emoji
+
+The autocomplete's type definitions (sentinel, query rules, row layout) live in a
+chunk the test profiles had not cached; only the store search and the analytics
+module were read.
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Emoji autocomplete search = `EmojiStore.searchWithoutFetchingLatest` (same as the picker), `maxCount` 10 unlocked results (`queryEmojiResults`, constant `rs7` = 10); locked results are counted, not listed | code | `queryEmojiResults(e){`, `getSearchResultsOrder` | `src/app/emoji_autocomplete.jai`, `pickers_emoji.jai` `emoji_search` |
+| Usable custom emoji: unavailable → locked; without Nitro only the current guild's non-animated ones (none in DMs). `USE_EXTERNAL_EMOJIS` and role-restricted emoji are not checked | code (picker rule) + known gap | `getEmojiUnavailableReason` | `pickers_emoji.jai` `custom_locked` |
+| `channel_autocomplete_open` when the popup goes from hidden to shown: channel then guild decorations, `autocomplete_type` "EMOJIS_AND_STICKERS", `num_emoji_results`, `num_locked_emoji_results`, `num_sticker_results` (0); no `game_mentions_available` | code (fields) + inferred (order, from the MENTIONS captures in `inbox`) | `CHANNEL_AUTOCOMPLETE_OPEN,{` | `src/discord/analytics_events.jai` `autocomplete_emoji_open` |
+| `channel_autocomplete_selected` on a pick: `selection_type` "EMOJI", `emoji_id` (custom only), counts, `emoji_name` = the emoji's name, `is_custom`, `is_animated` | code (fields) + guess (`emoji_name`, `selection_type` values) | `CHANNEL_AUTOCOMPLETE_SELECTED,{` | same, `autocomplete_emoji_selected` |
+| Trigger: a word starting with ':' plus 2+ non-space, non-':' characters before the caret; Up/Down wrap, Tab/Enter pick, Escape hides until the query changes; the first row starts selected | guess | — | `emoji_autocomplete.jai` |
+| A pick inserts the emoji plus a space; unicode in the user's skin tone, custom as `<:name:id>` / `<a:name:id>` (the composer shows it as the image) | guess | — | same, `pickers_emoji.jai` `emoji_item_text` |
+| Typing the closing ':' of a known `:name:` converts it in place (no space, no skin tone, no analytics); `:name:` left in the text converts on send. Unicode names win over custom ones (the client renames clashing custom emoji `name~1`) | guess | `getDisambiguatedEmojiContext` | `emoji.jai` `emoji_for_name`, `emoji_convert_shortcodes` |
+| Stickers are not offered in the emoji autocomplete (the client's EMOJIS_AND_STICKERS also lists matching stickers) | known gap | — | — |
+| Popup look: above the form with an 8 px gap, header "EMOJI MATCHING :query", 32 px rows with a 20 px emoji, `:name:` and the custom emoji's guild name on the right | guess | — | `emoji_autocomplete.jai` |
+| Unicode emoji in any text (messages, composer, names, statuses) draw as the bundled Twemoji svg (`/assets/<hash>.svg`), 1.375em, margin `0 .05em 0 .1em`; inline code keeps the system font; ™ © ® stay text | code (URLs, no-image set) + guess (sizes) | module 350593 `getURL` | `emoji.jai` `emoji_split_text`, `emoji_text_spans` |
+| Jumbo (emoji-only, ≤ 27): images 48 px (`.emoji.jumboable` 3rem), spaces between keep the text size | guess | — | `src/app/view_chat.jai` |
+
 ## Login and logout
 
 Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`

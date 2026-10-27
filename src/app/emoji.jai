@@ -9,7 +9,8 @@
 //   emoji_next(text, from) -> segment of the next emoji grapheme
 //   twemoji_url(hash) / set_twemoji(box, index) / twemoji_texture(hash, px)
 //   emoji_text_spans(...) -> rich-text spans with emoji as inline objects
-//   emoji_convert_shortcodes(text) -> ":name:" replaced by unicode (on send)
+//   emoji_split_text(...) -> the same for any plain text box (ui.Backend.split)
+//   emoji_convert_shortcodes(text, channel) -> ":name:" replaced by the emoji (on send)
 
 // ---- lookup ----
 
@@ -163,6 +164,19 @@ set_twemoji :: (b: *ui.Box, index: int) {
 // Spans for unicode emoji carry this bit in Span.id and the emoji index in user.
 EMOJI_SPAN_FLAG :: (cast(u64) 1) << 62;
 
+// An inline emoji of px pixels in text of font_size: .emoji's margin
+// 0 .05em 0 .1em is part of the object's width (emoji_square takes it off).
+emoji_object :: (px: float32, font_size: float32) -> ui.Vec2 {
+	return .{px + 0.15 * font_size, px};
+}
+
+// The image square of an emoji object rect (left margin 2/3 of the spare width).
+emoji_square :: (r: ui.Rect) -> ui.Rect {
+	side := r.y1 - r.y0;
+	x0 := r.x0 + (r.x1 - r.x0 - side) * 2 / 3;
+	return .{x0, r.y0, x0 + side, r.y1};
+}
+
 // Splits `sp` (a text span) into text and inline-emoji spans (size px objects).
 // The emoji spans keep the original unicode as their text, so copy/selection
 // round-trips.
@@ -179,7 +193,7 @@ emoji_text_spans :: (out: *[..]ui.Span, sp: ui.Span, size: float32 = 22) {
 		}
 		e := sp;
 		e.text = string.{seg.end - seg.start, text.data + seg.start};
-		e.object = .{size, size};
+		e.object = emoji_object(size, sp.size);
 		e.id = sp.id | EMOJI_SPAN_FLAG;
 		e.user = cast(*void) (seg.index + 1);
 		e.bg = .{};
@@ -199,8 +213,9 @@ emoji_text_spans :: (out: *[..]ui.Span, sp: ui.Span, size: float32 = 22) {
 draw_unicode_emoji_span :: (sp: ui.Span, r: ui.Rect, opacity: float32) -> bool {
 	if (sp.id & EMOJI_SPAN_FLAG) == 0 return false;
 	idx := cast(int) sp.user - 1;
-	if idx < 0 || idx >= emoji_db.emojis.count emoji_text_fallback(sp.text, r, opacity);
-	else twemoji_draw_rect(emoji_db.emojis[idx].asset, r, opacity, sp.text);
+	sq := emoji_square(r);
+	if idx < 0 || idx >= emoji_db.emojis.count emoji_text_fallback(sp.text, sq, opacity);
+	else twemoji_draw_rect(emoji_db.emojis[idx].asset, sq, opacity, sp.text);
 	return true;
 }
 
@@ -232,11 +247,58 @@ emoji_box :: (id: string, e: dc.Emoji, size: float32) -> *ui.Box {
 
 // ---- composer ----
 
-// ":name:" -> unicode before sending, like the client (outside inline/fenced
-// code; unknown names stay as typed).
-emoji_convert_shortcodes :: (text: string) -> string {
+// A shortcode name: letters, digits, _ - + (":+1:", ":e-mail:").
+is_shortcode_name :: (name: string) -> bool {
+	if name == "" return false;
+	for cast([]u8) name if !(it == #char "_" || it == #char "-" || it == #char "+" || is_alnum(it)) return false;
+	return true;
+}
+
+// What ":name:" becomes: the unicode emoji first (the client disambiguates
+// custom emoji sharing a unicode name as name~1), then a custom emoji usable
+// in `channel` (its guild first) as "<:name:id>". "" when none.
+emoji_for_name :: (name: string, channel: dc.Snowflake) -> string {
+	idx := emoji_lookup_name(name);
+	if idx >= 0 return emoji_db.emojis[idx].surr;
+	ch := dc.channel_get(store(), channel);
+	here := ifx ch then ch.guild_id else 0;
+	nitro := premium();
+	for gid: emoji_guilds(here) {
+		g := dc.guild_get(store(), gid);
+		if g for g.emojis if it.name == name && !custom_locked(it, here, nitro) return custom_emoji_markup(it.name, it.id, it.animated);
+	}
+	return "";
+}
+
+custom_emoji_markup :: (name: string, id: dc.Snowflake, animated: bool) -> string {
+	return tprint("<%1:%2:%3>", ifx animated then "a" else "", name, id);
+}
+
+// "<:name:id>" / "<a:name:id>" at byte i: its end (exclusive) and id.
+custom_emoji_at :: (text: string, i: int) -> end: int, id: dc.Snowflake, ok: bool {
+	if i >= text.count || text[i] != #char "<" return 0, 0, false;
+	j := i + 1;
+	if j < text.count && text[j] == #char "a" j += 1;
+	if j >= text.count || text[j] != #char ":" return 0, 0, false;
+	j += 1;
+	n := j;
+	while j < text.count && (text[j] == #char "_" || is_alnum(text[j])) j += 1;
+	if j - n < 2 || j >= text.count || text[j] != #char ":" return 0, 0, false;
+	j += 1;
+	d := j;
+	id: dc.Snowflake;
+	while j < text.count && text[j] >= #char "0" && text[j] <= #char "9" {
+		id = id * 10 + cast(dc.Snowflake) (text[j] - #char "0");
+		j += 1;
+	}
+	if j == d || j - d > 20 || j >= text.count || text[j] != #char ">" return 0, 0, false;
+	return j + 1, id, true;
+}
+
+// ":name:" -> the emoji before sending, like the client (outside inline/fenced
+// code and custom emoji markup; unknown names stay as typed).
+emoji_convert_shortcodes :: (text: string, channel: dc.Snowflake) -> string {
 	if find_index_from_left(text, #char ":") < 0 return text;
-	emoji_db_load();
 	sb: String_Builder;
 	sb.allocator = temp;
 	i := 0;
@@ -244,29 +306,71 @@ emoji_convert_shortcodes :: (text: string) -> string {
 	while i < text.count {
 		c := text[i];
 		if c == #char "`" in_code = !in_code;
+		if c == #char "<" && !in_code {
+			end, _, ok := custom_emoji_at(text, i);
+			if ok {
+				append(*sb, string.{end - i, text.data + i});
+				i = end;
+				continue;
+			}
+		}
 		if c == #char ":" && !in_code {
 			j := find_index_from_left(text, #char ":", i + 1);
-			if j > i + 1 {
-				name := string.{j - i - 1, text.data + i + 1};
-				valid := true;
-				for cast([]u8) name {
-					if !(it == #char "_" || it == #char "-" || it == #char "+" || is_alnum(it)) {
-						valid = false;
-						break;
-					}
-				}
-				found, idx := table_find(*emoji_db.by_name, name);
-				if valid && found {
-					append(*sb, emoji_db.emojis[idx].surr);
-					i = j + 1;
-					continue;
-				}
+			name := ifx j > i + 1 then string.{j - i - 1, text.data + i + 1} else "";
+			e := ifx is_shortcode_name(name) then emoji_for_name(name, channel) else "";
+			if e {
+				append(*sb, e);
+				i = j + 1;
+				continue;
 			}
 		}
 		append(*sb, c);
 		i += 1;
 	}
 	return builder_to_string(*sb,, temp);
+}
+
+// ui.Backend.split: any plain text box (composer, names, statuses, previews)
+// draws unicode emoji as Twemoji and "<:name:id>" as the custom emoji, at
+// 1.375em like the client's inline .emoji. No spans when there are none.
+emoji_split_text :: (font: ui.Font, size: float32, text: string) -> []ui.Span {
+	maybe := false;
+	for i: 0..text.count - 1 {
+		c := text[i];
+		if c >= 0xE2 || (c == #char "<" && i + 1 < text.count && (text[i + 1] == #char ":" || text[i + 1] == #char "a")) {
+			maybe = true;
+			break;
+		}
+	}
+	if !maybe return .[];
+	spans: [..]ui.Span;
+	spans.allocator = temp;
+	base := ui.Span.{text = text, font = font, size = size};
+	px := floor(size * 1.375 + 0.5);
+	rest :: (spans: *[..]ui.Span, base: ui.Span, from: int, to: int, px: float32) {
+		if to <= from return;
+		t := base;
+		t.text = string.{to - from, base.text.data + from};
+		emoji_text_spans(spans, t, px);
+	}
+	pos, done := 0, 0;
+	while pos < text.count {
+		lt := find_index_from_left(text, #char "<", pos);
+		if lt < 0 break;
+		end, id, ok := custom_emoji_at(text, lt);
+		pos = ifx ok then end else lt + 1;
+		if !ok continue;
+		rest(*spans, base, done, lt, px);
+		e := base;
+		e.text = string.{end - lt, text.data + lt};
+		e.object = emoji_object(px, size);
+		e.user = cast(*void) id;
+		array_add(*spans, e);
+		done = end;
+	}
+	rest(*spans, base, done, text.count, px);
+	if spans.count == 1 && spans[0].object == .{} return .[];
+	return spans;
 }
 
 // Offline runs (fixtures / UI tests): FASTCORD_MEDIA_DIR holds media files named
@@ -281,24 +385,6 @@ offline_media :: (url: string) -> []u8, bool {
 	advance(*name, find_index_from_right(u, #char "/") + 1);
 	data, ok := read_entire_file(tprint("%/%", dir, name), log_errors = false,, temp);
 	return cast([]u8) data, ok;
-}
-
-// A one-line label whose unicode emoji draw as Twemoji (custom status, names).
-// Emoji are sized to the line (font size + 4, like the client's 1.375em-ish inline emoji).
-emoji_label :: (text: string, font: Font_Id, size: float32, color: ui.Color, line_h: float32 = 0) -> *ui.Box {
-	_, has_emoji := emoji_next(text, 0);
-	if !has_emoji return label(text, font, size, color, line_h);
-	b := ui.box(text, .Draw_Text);
-	b.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
-	b.style.text_color = color;
-	b.style.line_height = line_h;
-	b.style.font = F(font);
-	b.style.font_size = size;
-	spans: [..]ui.Span;
-	spans.allocator = temp;
-	emoji_text_spans(*spans, .{text = text, font = F(font), size = size}, size + 4);
-	ui.set_spans(b, spans);
-	return b;
 }
 
 #scope_file

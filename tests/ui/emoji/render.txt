@@ -1,0 +1,11 @@
+# Unicode emoji in messages, reactions and jumbo (emoji-only) messages draw as
+# Twemoji, not the system emoji font; selection copies them back as unicode.
+wait 5
+move 700 300
+scroll 0 300
+wait 20
+shot build/ui-emoji-render.png
+dclick 700 683
+key a cmd
+key c cmd
+expect_clipboard ""

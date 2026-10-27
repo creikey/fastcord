@@ -1,0 +1,22 @@
+# Emoji autocomplete: ":dog" lists matches above the composer, arrows move,
+# Enter inserts "<emoji> " (Down: the second match, :guide_dog:); a typed
+# closing colon converts ":fire:"; Tab picks the guild's custom :fastdog:,
+# which the composer shows as its image and keeps as <:name:id> markup.
+wait 5
+click 700 683
+type hi :dog
+wait 5
+shot build/ui-emoji-autocomplete.png
+key down
+key enter
+wait 3
+type :fire:
+burst " :fastd"
+wait 5
+shot build/ui-emoji-autocomplete-custom.png
+key tab
+wait 5
+shot build/ui-emoji-composer.png
+key a cmd
+key c cmd
+expect_clipboard "hi 🦮 🔥 <:fastdog:1546820603343016300> "

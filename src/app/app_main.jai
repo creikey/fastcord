@@ -161,7 +161,7 @@ main :: () {
 	fonts_load();
 	theme_load(*app.theme, opt.theme);
 	if app_theme_pending_set theme_load(*app.theme, app_theme_pending);
-	ui.init(*app.ui, ui.Backend.{shape = ui_shape});
+	ui.init(*app.ui, ui.Backend.{shape = ui_shape, split = emoji_split_text});
 	view_init(*app.view);
 	draw_inline_object = draw_custom_emoji;
 	app.utc_offset_ms = local_offset_ms();

@@ -450,6 +450,39 @@ picker_emoji_selected :: (c: *Client, emoji_name: string, emoji_id: Snowflake = 
 // picker_closed: the picker went away without a pick.
 picker_closed :: (c: *Client) { picker_reset(c); }
 
+// ---- composer autocomplete ----
+// channel_autocomplete_open / _selected (the autocomplete's analytics module):
+// channel then guild decorations, then the query's counts. Emoji type only.
+
+aw_autocomplete_head :: (w: *Json, c: *Client, channel_id: Snowflake) {
+	aw_channel(w, c, channel_id);
+	ch := channel_get(*c.store, channel_id);
+	if ch && guild_get(*c.store, ch.guild_id) aw_guild(w, c, ch.guild_id);
+	json_kstr(w, "autocomplete_type", "EMOJIS_AND_STICKERS");
+}
+
+autocomplete_emoji_open :: (c: *Client, channel_id: Snowflake, results: int, locked: int) {
+	w := aw_begin();
+	aw_autocomplete_head(*w, c, channel_id);
+	json_kint(*w, "num_emoji_results", results);
+	json_kint(*w, "num_locked_emoji_results", locked);
+	json_kint(*w, "num_sticker_results", 0);
+	aw_track(c, "channel_autocomplete_open", *w);
+}
+
+autocomplete_emoji_selected :: (c: *Client, channel_id: Snowflake, name: string, emoji_id: Snowflake, animated: bool, results: int) {
+	w := aw_begin();
+	aw_autocomplete_head(*w, c, channel_id);
+	json_kstr(*w, "selection_type", "EMOJI");
+	if emoji_id != 0 json_ksnow(*w, "emoji_id", emoji_id);
+	json_kint(*w, "num_emoji_results", results);
+	json_kint(*w, "num_sticker_results", 0);
+	json_kstr(*w, "emoji_name", name);
+	json_kbool(*w, "is_custom", emoji_id != 0);
+	json_kbool(*w, "is_animated", animated);
+	aw_track(c, "channel_autocomplete_selected", *w);
+}
+
 // ---- profiles ----
 
 Profile_Layout :: enum u8 {

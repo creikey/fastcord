@@ -184,7 +184,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 			sp.bg_radius = 3;
 			sp.font = F(.Medium);
 		case .Custom_Emoji;
-			sp.object = .{22, 22};
+			sp.object = emoji_object(22, size);
 			sp.text = tprint(":%:", tk.name);
 			sp.user = cast(*void) tk.id;
 		case .Timestamp;
@@ -729,12 +729,10 @@ message_body :: (m: *dc.Message) {
 				b.style.text_color = color;
 				b.style.line_height = line_h;
 				spans := tokens_to_spans(blk.tokens, font, size, m);
-				// jumbo: a message of only emoji (up to 27) renders them at 48px
+				// jumbo: a message of only emoji (up to 27) renders them at 3rem; the
+				// spaces between keep the text size (.emoji.jumboable sizes only the img)
 				if blocks.count == 1 && is_emoji_only(blk.tokens) {
-					for * spans {
-						if it.object != .{} it.object = .{48, 48};
-						else it.size = 44;
-					}
+					for * spans if it.object != .{} it.object = emoji_object(48, size);
 					b.style.line_height = 56;
 				}
 				if bi == blocks.count - 1 && m.edited_timestamp {
@@ -948,10 +946,15 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 					if paste_attachments(ch.id) e.consumed = true;
 				}
 			}
+			// the emoji autocomplete floats over the whole form and takes its keys first
+			ui.push_parent(stack);
+			emoji_autocomplete(ch, *cs.editor, input_focused);
+			ui.pop_parent();
 			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"));
+			if res == .Changed emoji_autocomplete_close_colon(ch, *cs.editor);
 			if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
-				if composer_send(ch, emoji_convert_shortcodes(text)) cs.scroll_target = 0;
+				if composer_send(ch, emoji_convert_shortcodes(text, ch.id)) cs.scroll_target = 0;
 				ui.editor_set_text(*cs.editor, "");
 			} else if res == .Escape {
 				ma.replying = 0;

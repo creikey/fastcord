@@ -175,6 +175,11 @@ ui_scripts :: () -> bool {
         add(*jobs, path_strip_extension(path_filename(it)), "tests/ui/chat.jsonl", it);
     for file_list("tests/ui/rail") if ends_with(it, ".txt")
         add(*jobs, tprint("rail_%", path_strip_extension(path_filename(it))), "tests/ui/rail.jsonl", it);
+    // emoji scripts: the emoji fixture, with the Twemoji svgs they show served offline
+    for file_list("tests/ui/emoji") if ends_with(it, ".txt") {
+        add(*jobs, tprint("emoji_%", path_strip_extension(path_filename(it))), "tests/ui/chat_emoji.jsonl", it);
+        array_insert_at(*jobs[jobs.count - 1].args, "FASTCORD_MEDIA_DIR=tests/ui/emoji/media", 0);
+    }
     sweep := array_add(*jobs);
     sweep.name = "sweep";
     array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");

@@ -217,7 +217,7 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 							{ ui.parent(chip); defer ui.pop_parent();
 								spacer(.X, 8);
 								if t.emoji_name != "" {
-									emoji_label(t.emoji_name, .Medium, 12, T("--text-default"), 16);
+									label(t.emoji_name, .Medium, 12, T("--text-default"), 16);
 									spacer(.X, 4);
 								}
 								label(t.name, .Medium, 12, T("--text-default"), 16);
