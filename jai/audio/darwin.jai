@@ -1,0 +1,352 @@
+// CoreAudio: AUHAL DefaultOutput unit (follows the system default device automatically) for output;
+// VoiceProcessingIO for capture + echo cancellation.
+//
+// Device selection applies to the VoiceProcessingIO unit used while capturing (element 1 = input
+// device, element 0 = output device), the way WebRTC's macOS VPIO path does it. Outside a capture
+// the output follows the system default (DefaultOutput unit); the choice is remembered and
+// re-applied by apply_device_selection() after capture_start.
+
+#scope_export
+
+// Shared with media's AudioConverter decoder.
+AudioStreamBasicDescription :: struct {
+	mSampleRate: float64;
+	mFormatID: u32;
+	mFormatFlags: u32;
+	mBytesPerPacket: u32;
+	mFramesPerPacket: u32;
+	mBytesPerFrame: u32;
+	mChannelsPerFrame: u32;
+	mBitsPerChannel: u32;
+	mReserved: u32;
+}
+
+AudioBuffer :: struct {
+	mNumberChannels: u32;
+	mDataByteSize: u32;
+	mData: *void;
+}
+
+AudioBufferList :: struct {
+	mNumberBuffers: u32;
+	mBuffers: [1]AudioBuffer;
+}
+
+fourcc :: inline (s: string) -> u32 {
+	return ((cast(u32) s[0]) << 24) | ((cast(u32) s[1]) << 16) | ((cast(u32) s[2]) << 8) | (cast(u32) s[3]);
+}
+
+kAudioFormatLinearPCM :: 0x6c70636d; // 'lpcm'
+kAudioFormatFlagIsFloat :: 1;
+kAudioFormatFlagIsSignedInteger :: 4;
+kAudioFormatFlagIsPacked :: 8;
+
+Device_Info :: struct {
+	id: u32;
+	name: string;
+	uid: string;
+	is_default: bool;
+}
+
+Voice_Processing :: struct {
+	echo_cancellation: bool; // VPIO DSP on (off = kAUVoiceIOProperty_BypassVoiceProcessing)
+	noise_suppression: bool; // part of the VPIO DSP on macOS: only honoured together with the DSP
+	auto_gain_control: bool; // kAUVoiceIOProperty_VoiceProcessingEnableAGC
+}
+
+// list_devices: devices with input (or output) streams.
+list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
+	a := AudioObjectPropertyAddress.{fourcc("dev#"), fourcc("glob"), 0};
+	sz: u32;
+	if AudioObjectGetPropertyDataSize(SYSTEM_OBJECT, *a, 0, null, *sz) != 0 || sz == 0 return .[];
+	ids := NewArray(sz / 4, u32,, temp);
+	if AudioObjectGetPropertyData(SYSTEM_OBJECT, *a, 0, null, *sz, ids.data) != 0 return .[];
+	def := default_device(input);
+	out: [..]Device_Info;
+	out.allocator = allocator;
+	for id: ids {
+		sa := AudioObjectPropertyAddress.{fourcc("stm#"), fourcc(ifx input then "inpt" else "outp"), 0};
+		ss: u32;
+		if AudioObjectGetPropertyDataSize(id, *sa, 0, null, *ss) != 0 || ss == 0 continue;
+		array_add(*out, .{id = id, name = cf_string(id, "lnam", allocator), uid = cf_string(id, "uid ", allocator), is_default = id == def});
+	}
+	return out;
+}
+
+selected_device :: (input: bool) -> u32 { return ifx input then sel_input else sel_output; }
+
+// select_device: 0 = follow the system default.
+select_device :: (input: bool, id: u32) {
+	if input sel_input = id;
+	else sel_output = id;
+	apply_device_selection();
+}
+
+set_voice_processing :: (p: Voice_Processing) {
+	processing = p;
+	apply_device_selection();
+}
+
+// apply_device_selection re-applies device choice and DSP switches to the
+// running VPIO unit (no-op when not capturing).
+apply_device_selection :: () {
+	unit := mac.out_unit;
+	if !unit || !mac.vpio return;
+	in_dev := ifx sel_input != 0 then sel_input else default_device(true);
+	out_dev := ifx sel_output != 0 then sel_output else default_device(false);
+	was := st.running;
+	if was AudioOutputUnitStop(unit);
+	AudioUnitUninitialize(unit);
+	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 1, *in_dev, 4);
+	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 0, *out_dev, 4);
+	bypass: u32 = xx ifx processing.echo_cancellation || processing.noise_suppression then 0 else 1;
+	AudioUnitSetProperty(unit, kAUVoiceIOProperty_BypassVoiceProcessing, SCOPE_GLOBAL, 0, *bypass, 4);
+	agc: u32 = xx processing.auto_gain_control;
+	AudioUnitSetProperty(unit, kAUVoiceIOProperty_VoiceProcessingEnableAGC, SCOPE_GLOBAL, 0, *agc, 4);
+	AudioUnitInitialize(unit);
+	if was AudioOutputUnitStart(unit);
+}
+
+#scope_module
+
+device_init :: () -> bool {
+	mac.out_unit = make_unit("def ", false);
+	if !mac.out_unit return false;
+	update_latency();
+	addr := AudioObjectPropertyAddress.{fourcc("dOut"), fourcc("glob"), 0};
+	AudioObjectAddPropertyListener(SYSTEM_OBJECT, *addr, default_device_changed, null);
+	return true;
+}
+
+device_shutdown :: () {
+	if mac.out_unit {
+		AudioOutputUnitStop(mac.out_unit);
+		AudioUnitUninitialize(mac.out_unit);
+		AudioComponentInstanceDispose(mac.out_unit);
+	}
+	array_free(mac.in_buf);
+	mac = .{};
+	st.running = false;
+}
+
+device_start :: () {
+	if !mac.out_unit || st.running return;
+	if AudioOutputUnitStart(mac.out_unit) == 0 st.running = true;
+}
+
+device_stop :: () {
+	if !mac.out_unit || !st.running return;
+	AudioOutputUnitStop(mac.out_unit);
+	st.running = false;
+}
+
+device_capture_start :: (voice_processing: bool) -> bool {
+	if !mac.in_buf.count mac.in_buf = NewArray(8192, float32);
+	was_running := st.running;
+	device_stop();
+	// Always VPIO (one unit for in+out, follows default devices); without voice
+	// processing we just bypass the DSP.
+	unit := make_unit("vpio", true);
+	if !unit {
+		if was_running device_start();
+		return false;
+	}
+	if !voice_processing {
+		bypass: u32 = 1;
+		AudioUnitSetProperty(unit, kAUVoiceIOProperty_BypassVoiceProcessing, SCOPE_GLOBAL, 0, *bypass, 4);
+	}
+	AudioUnitUninitialize(mac.out_unit);
+	AudioComponentInstanceDispose(mac.out_unit);
+	mac.out_unit = unit;
+	mac.vpio = true;
+	update_latency();
+	device_start();
+	return st.running;
+}
+
+device_capture_stop :: () {
+	device_stop();
+	AudioUnitUninitialize(mac.out_unit);
+	AudioComponentInstanceDispose(mac.out_unit);
+	mac.out_unit = make_unit("def ", false);
+	mac.vpio = false;
+	update_latency();
+}
+
+#scope_file
+
+AudioToolbox :: #library,system,link_always "AudioToolbox";
+CoreAudio :: #library,system,link_always "CoreAudio";
+CoreFoundation :: #library,system,link_always "CoreFoundation";
+
+OSStatus :: s32;
+AudioUnit :: *void;
+AudioObjectID :: u32;
+
+AudioComponentDescription :: struct {
+	componentType, componentSubType, componentManufacturer, componentFlags, componentFlagsMask: u32;
+}
+
+AURenderCallbackStruct :: struct {
+	inputProc: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call;
+	inputProcRefCon: *void;
+}
+
+AudioObjectPropertyAddress :: struct {
+	mSelector, mScope, mElement: u32;
+}
+
+AudioComponentFindNext :: (comp: *void, desc: *AudioComponentDescription) -> *void #foreign AudioToolbox;
+AudioComponentInstanceNew :: (comp: *void, out: *AudioUnit) -> OSStatus #foreign AudioToolbox;
+AudioComponentInstanceDispose :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
+AudioUnitInitialize :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
+AudioUnitUninitialize :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
+AudioUnitSetProperty :: (unit: AudioUnit, id: u32, scope: u32, element: u32, data: *void, size: u32) -> OSStatus #foreign AudioToolbox;
+AudioUnitGetProperty :: (unit: AudioUnit, id: u32, scope: u32, element: u32, data: *void, size: *u32) -> OSStatus #foreign AudioToolbox;
+AudioUnitRender :: (unit: AudioUnit, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #foreign AudioToolbox;
+AudioOutputUnitStart :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
+AudioOutputUnitStop :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
+AudioObjectGetPropertyDataSize :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: *u32) -> OSStatus #foreign CoreAudio;
+AudioObjectGetPropertyData :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: *u32, data: *void) -> OSStatus #foreign CoreAudio;
+AudioObjectAddPropertyListener :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, listener: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call, user: *void) -> OSStatus #foreign CoreAudio;
+CFRelease :: (ref: *void) #foreign CoreFoundation;
+CFStringGetCString :: (s: *void, buf: *u8, size: int, encoding: u32) -> bool #foreign CoreFoundation;
+
+SYSTEM_OBJECT :: 1; // kAudioObjectSystemObject
+kAudioUnitProperty_StreamFormat :: 8;
+kAudioUnitProperty_Latency :: 12;
+kAudioUnitProperty_MaximumFramesPerSlice :: 14;
+kAudioUnitProperty_SetRenderCallback :: 23;
+kAudioOutputUnitProperty_CurrentDevice :: 2000;
+kAudioOutputUnitProperty_EnableIO :: 2003;
+kAudioOutputUnitProperty_SetInputCallback :: 2005;
+kAUVoiceIOProperty_BypassVoiceProcessing :: 2100;
+kAUVoiceIOProperty_VoiceProcessingEnableAGC :: 2101;
+SCOPE_GLOBAL :: 0;
+SCOPE_INPUT :: 1;
+SCOPE_OUTPUT :: 2;
+
+mac: struct {
+	out_unit: AudioUnit; // DefaultOutput or VPIO while capturing
+	vpio: bool;
+	in_buf: []float32;
+};
+
+sel_input, sel_output: u32; // 0 = system default
+processing := Voice_Processing.{true, true, true};
+
+stereo_f32 :: (ch: u32) -> AudioStreamBasicDescription {
+	return .{
+		mSampleRate = SAMPLE_RATE,
+		mFormatID = kAudioFormatLinearPCM,
+		mFormatFlags = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked,
+		mBytesPerPacket = 4 * ch,
+		mFramesPerPacket = 1,
+		mBytesPerFrame = 4 * ch,
+		mChannelsPerFrame = ch,
+		mBitsPerChannel = 32
+	};
+}
+
+// The device callbacks run on CoreAudio's threads with the context saved by init. They do not use
+// temp (which belongs to the thread that called init).
+render_cb :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call {
+	push_context st.ctx {
+		buf := data.mBuffers[0];
+		mix(.{min(cast(int) frames * CHANNELS, cast(int) buf.mDataByteSize / 4), buf.mData});
+	}
+	return 0;
+}
+
+input_cb :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call {
+	push_context st.ctx {
+		n := min(cast(int) frames, mac.in_buf.count);
+		abl := AudioBufferList.{mNumberBuffers = 1};
+		abl.mBuffers[0] = .{mNumberChannels = 1, mDataByteSize = cast(u32) (n * 4), mData = mac.in_buf.data};
+		fl: u32;
+		if AudioUnitRender(mac.out_unit, *fl, ts, 1, cast(u32) n, *abl) == 0 ring_write(*st.capture, array_view(mac.in_buf, 0, n));
+	}
+	return 0;
+}
+
+default_device_changed :: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call {
+	// DefaultOutput/VPIO units re-route themselves; only the latency estimate changes.
+	push_context st.ctx { update_latency(); }
+	return 0;
+}
+
+make_unit :: (subtype: string, capture: bool) -> AudioUnit {
+	desc := AudioComponentDescription.{fourcc("auou"), fourcc(subtype), fourcc("appl"), 0, 0};
+	comp := AudioComponentFindNext(null, *desc);
+	if !comp return null;
+	unit: AudioUnit;
+	if AudioComponentInstanceNew(comp, *unit) != 0 return null;
+	if capture {
+		one: u32 = 1;
+		AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, SCOPE_INPUT, 1, *one, 4);
+		mono := stereo_f32(1);
+		AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, SCOPE_OUTPUT, 1, *mono, size_of(type_of(mono)));
+		icb := AURenderCallbackStruct.{input_cb, null};
+		AudioUnitSetProperty(unit, kAudioOutputUnitProperty_SetInputCallback, SCOPE_GLOBAL, 0, *icb, size_of(type_of(icb)));
+	}
+	f := stereo_f32(CHANNELS);
+	if AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, SCOPE_INPUT, 0, *f, size_of(type_of(f))) != 0 {
+		AudioComponentInstanceDispose(unit);
+		return null;
+	}
+	maxf: u32 = 4096;
+	AudioUnitSetProperty(unit, kAudioUnitProperty_MaximumFramesPerSlice, SCOPE_GLOBAL, 0, *maxf, 4);
+	// Small IO buffer for low latency (per-client on macOS; doesn't affect other apps).
+	bs: u32 = 256;
+	AudioUnitSetProperty(unit, fourcc("fsiz"), SCOPE_GLOBAL, 0, *bs, 4);
+	cb := AURenderCallbackStruct.{render_cb, null};
+	AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback, SCOPE_INPUT, 0, *cb, size_of(type_of(cb)));
+	if AudioUnitInitialize(unit) != 0 {
+		AudioComponentInstanceDispose(unit);
+		return null;
+	}
+	return unit;
+}
+
+dev_prop_u32 :: (dev: AudioObjectID, sel: string, scope: string) -> u32 {
+	addr := AudioObjectPropertyAddress.{fourcc(sel), fourcc(scope), 0};
+	v: u32;
+	sz: u32 = 4;
+	if AudioObjectGetPropertyData(dev, *addr, 0, null, *sz, *v) != 0 return 0;
+	return v;
+}
+
+update_latency :: () {
+	if !mac.out_unit return;
+	dev: AudioObjectID;
+	sz: u32 = 4;
+	AudioUnitGetProperty(mac.out_unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 0, *dev, *sz);
+	frames := dev_prop_u32(dev, "ltnc", "outp") + dev_prop_u32(dev, "saft", "outp") + dev_prop_u32(dev, "fsiz", "glob");
+	rate: float64 = SAMPLE_RATE;
+	addr := AudioObjectPropertyAddress.{fourcc("nsrt"), fourcc("glob"), 0};
+	rsz: u32 = 8;
+	AudioObjectGetPropertyData(dev, *addr, 0, null, *rsz, *rate);
+	unit_lat: float64;
+	lsz: u32 = 8;
+	AudioUnitGetProperty(mac.out_unit, kAudioUnitProperty_Latency, SCOPE_GLOBAL, 0, *unit_lat, *lsz);
+	st.latency = frames / max(rate, 1) + unit_lat;
+}
+
+cf_string :: (obj: u32, sel: string, allocator: Allocator) -> string {
+	a := AudioObjectPropertyAddress.{fourcc(sel), fourcc("glob"), 0};
+	ref: *void;
+	sz: u32 = size_of(*void);
+	if AudioObjectGetPropertyData(obj, *a, 0, null, *sz, *ref) != 0 || !ref return "";
+	defer CFRelease(ref);
+	buf: [512]u8;
+	if !CFStringGetCString(ref, buf.data, buf.count, 0x08000100) return ""; // UTF-8
+	return copy_string(to_string(buf.data),, allocator);
+}
+
+default_device :: (input: bool) -> u32 {
+	a := AudioObjectPropertyAddress.{fourcc(ifx input then "dIn " else "dOut"), fourcc("glob"), 0};
+	id: u32;
+	sz: u32 = 4;
+	AudioObjectGetPropertyData(SYSTEM_OBJECT, *a, 0, null, *sz, *id);
+	return id;
+}
