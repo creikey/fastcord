@@ -5,6 +5,7 @@
 - [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
 - [ ] Replies: clicking the quoted original message should jump to it.
+- [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
 - [ ] Search: clicking the search bar again while results are open crashes.
