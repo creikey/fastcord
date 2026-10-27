@@ -9,8 +9,6 @@ Cond :: sync.Cond;
 
 // The lock each thread is blocked on, indexed by a small hash of its id; read by hang reports.
 // Collisions only blur a diagnostic, never correctness.
-// The lock each thread is blocked on, indexed by a small hash of its id; read by hang reports.
-// Collisions only blur a diagnostic, never correctness.
 WAIT_SLOTS :: 64;
 Wait_Slot :: struct {
 	thread: int;
@@ -19,7 +17,7 @@ Wait_Slot :: struct {
 }
 wait_slots: [WAIT_SLOTS]Wait_Slot;
 
-fail :: (what: string, m: *Mutex, loc: Source_Code_Location) #no_context {
+fail :: (what: string, m: *Mutex, loc: Source_Code_Location) {
 	runtime.print_string("locks: ");
 	runtime.print_string(what);
 	if m.owner != 0 {
@@ -32,25 +30,25 @@ fail :: (what: string, m: *Mutex, loc: Source_Code_Location) #no_context {
 	runtime.panic_contextless(what, loc);
 }
 
-slot_of :: inline (tid: int) -> *Wait_Slot #no_context {
+slot_of :: inline (tid: int) -> *Wait_Slot {
 	return *wait_slots[(cast(u64)(tid) * 0x9E3779B97F4A7C15 >> 58) % WAIT_SLOTS];
-};
+}
 
-acquired :: inline (m: *Mutex, me: int, loc: Source_Code_Location) #no_context {
+acquired :: inline (m: *Mutex, me: int, loc: Source_Code_Location) {
 	sync.atomic_store_explicit(*m.owner, me, .Relaxed);
 	m.owner_loc = loc;
-};
+}
 
-check_held :: inline (m: *Mutex, what: string, loc: Source_Code_Location) -> int #no_context {
+check_held :: inline (m: *Mutex, what: string, loc: Source_Code_Location) -> int {
 	me := sync.current_thread_id();
 	if sync.atomic_load_explicit(*m.owner, .Relaxed) != me {
 		fail(what, m, loc);
 	}
 	return me;
-};
+}
 #scope_export
 
-lock :: (m: *Mutex, loc := #caller_location) #no_context {
+lock :: (m: *Mutex, loc := #caller_location) {
 	me := sync.current_thread_id();
 	if sync.atomic_load_explicit(*m.owner, .Relaxed) == me { fail("lock of a mutex this thread already holds", m, loc); }
 	if !sync.mutex_try_lock(*m.impl) {
@@ -73,7 +71,7 @@ lock :: (m: *Mutex, loc := #caller_location) #no_context {
 UI_LOCK_WAIT_REPORT :: 16 * time.Millisecond;
 #scope_module
 
-report_ui_wait :: (waited: time.Duration, loc: Source_Code_Location, holder: Source_Code_Location) #no_context {
+report_ui_wait :: (waited: time.Duration, loc: Source_Code_Location, holder: Source_Code_Location) {
 	runtime.print_string("locks: UI thread waited ");
 	runtime.print_int(cast(int)(waited / time.Millisecond));
 	runtime.print_string(" ms for the lock at ");
@@ -84,7 +82,7 @@ report_ui_wait :: (waited: time.Duration, loc: Source_Code_Location, holder: Sou
 }
 #scope_export
 
-try_lock :: (m: *Mutex, loc := #caller_location) -> bool #no_context {
+try_lock :: (m: *Mutex, loc := #caller_location) -> bool {
 	me := sync.current_thread_id();
 	if sync.atomic_load_explicit(*m.owner, .Relaxed) == me { fail("try_lock of a mutex this thread already holds", m, loc); }
 	if !sync.mutex_try_lock(*m.impl) { return false; }
@@ -92,16 +90,16 @@ try_lock :: (m: *Mutex, loc := #caller_location) -> bool #no_context {
 	return true;
 }
 
-unlock :: (m: *Mutex, loc := #caller_location) #no_context {
+unlock :: (m: *Mutex, loc := #caller_location) {
 	check_held(m, "unlock of a mutex this thread does not hold (was its struct overwritten or copied while locked?)", loc);
 	sync.atomic_store_explicit(*m.owner, 0, .Relaxed);
 	sync.mutex_unlock(*m.impl);
 }
 
-// Scoped lock: `locks.guard(&x.mu)` holds it until the end of the enclosing scope.
-guard :: (m: *Mutex, loc := #caller_location) -> bool #no_context {
+// Scoped lock: `locks.guard(*x.mu);` holds it until the end of the enclosing scope.
+guard :: (m: *Mutex, loc := #caller_location) #expand {
 	lock(m, loc);
-	return true;
+	`defer unlock(m, loc);
 }
 
 cond_wait :: (c: *Cond, m: *Mutex, loc := #caller_location) {
@@ -112,7 +110,7 @@ cond_wait :: (c: *Cond, m: *Mutex, loc := #caller_location) {
 	acquired(m, me, loc);
 }
 
-cond_wait_with_timeout :: (c: *Cond, m: *Mutex, duration: time.Duration, loc := #caller_location) -> bool #no_context {
+cond_wait_with_timeout :: (c: *Cond, m: *Mutex, duration: time.Duration, loc := #caller_location) -> bool {
 	me := check_held(m, "cond_wait_with_timeout on a mutex this thread does not hold", loc);
 	sync.atomic_store_explicit(*m.owner, 0, .Relaxed);
 	ok := sync.cond_wait_with_timeout(c, *m.impl, duration);
@@ -131,15 +129,15 @@ ui_thread: int;
 // that can wait on the network or on a network thread (socket I/O, dialing, untimed condition waits,
 // joining network threads) panics when made on it, so a slow or silent peer can never freeze the
 // window. Such work belongs on a worker, with the UI polling for its result.
-set_ui_thread :: () #no_context {
+set_ui_thread :: () {
 	atomic_store(*ui_thread, sync.current_thread_id());
 }
 
-clear_ui_thread :: () #no_context {
+clear_ui_thread :: () {
 	atomic_store(*ui_thread, 0);
 }
 
-on_ui_thread :: () -> bool #no_context {
+on_ui_thread :: () -> bool {
 	t := sync.atomic_load_explicit(*ui_thread, .Relaxed);
 	return t != 0 && t == sync.current_thread_id();
 }
@@ -173,7 +171,7 @@ Wait_Info :: struct {
 // waiting_on reports the lock thread `tid` is blocked on, if any, and who holds it. Meant for a
 // watchdog looking at a thread that has stopped making progress; the fields are read without
 // synchronization, which is sound only because a stuck holder is not writing them.
-waiting_on :: (tid: int) -> Wait_Info #no_context {
+waiting_on :: (tid: int) -> Wait_Info {
 	w: Wait_Info;
 	s := slot_of(tid);
 	if sync.atomic_load_explicit(*s.thread, .Acquire) != tid { return w; }

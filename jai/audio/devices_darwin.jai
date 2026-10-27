@@ -15,6 +15,8 @@ Addr :: struct {
 }
 	ca_get_size :: (obj: u32, addr: *Addr, qsize: u32, qdata: *void, size: *u32) -> s32 #foreign CA "AudioObjectGetPropertyDataSize";
 	ca_get :: (obj: u32, addr: *Addr, qsize: u32, qdata: *void, size: *u32, data: *void) -> s32 #foreign CA "AudioObjectGetPropertyData";
+	CFRelease :: (ref: *void) #foreign CoreFoundation;
+	CFStringGetCString :: (s: *void, buf: *u8, size: int, encoding: u32) -> bool #foreign CoreFoundation;
 
 fcc :: (s: string) -> u32 {return cast(u32)(s[0]) << 24 | cast(u32)(s[1]) << 16 | cast(u32)(s[2]) << 8 | cast(u32)(s[3]);}
 #scope_export
@@ -33,10 +35,7 @@ Voice_Processing :: struct {
 }
 #scope_file
 
-sel_input, sel_output: u32;
-#scope_export
-#scope_file // 0 = system default
-// 0 = system default
+sel_input, sel_output: u32; // 0 = system default
 processing := Voice_Processing.{true, true, true};
 #scope_file
 
@@ -45,10 +44,10 @@ cf_string :: (obj: u32, sel: string, allocator := context.allocator) -> string {
 	ref: *void;
 	sz := cast(u32)(size_of(*void));
 	if ca_get(obj, *a, 0, null, *sz, *ref) != 0 || ref == null { return ""; }
-	defer CF.CFRelease(CF.TypeRef(ref));
+	defer CFRelease(ref);
 	buf: [512]u8;
-	if !CF.StringGetCString(CF.String(ref), *buf[0], CF.Index(len(buf)), CF.StringEncoding(0x08000100)) { return ""; }
-	return strings.clone_from_cstring(to_cstring(*buf[0]), allocator);
+	if !CFStringGetCString(ref, buf.data, buf.count, 0x08000100) { return ""; } // UTF-8
+	return clone(string.{c_style_strlen(buf.data), buf.data}, allocator);
 }
 
 default_device :: (input: bool) -> u32 {
@@ -117,9 +116,9 @@ apply_device_selection :: () {
 	AudioUnitUninitialize(unit);
 	AudioUnitSetProperty(unit, 2000, 0, 1, *in_dev, 4);
 	AudioUnitSetProperty(unit, 2000, 0, 0, *out_dev, 4);
-	bypass: u32 = ifx (processing.echo_cancellation || processing.noise_suppression) then 0 else 1;
+	bypass: u32 = xx ifx (processing.echo_cancellation || processing.noise_suppression) then 0 else 1;
 	AudioUnitSetProperty(unit, 2100, 0, 0, *bypass, 4);
-	agc: u32 = ifx processing.auto_gain_control then 1 else 0;
+	agc: u32 = xx ifx processing.auto_gain_control then 1 else 0;
 	AudioUnitSetProperty(unit, 2101, 0, 0, *agc, 4);
 	AudioUnitInitialize(unit);
 	if was { AudioOutputUnitStart(unit); }

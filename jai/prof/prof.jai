@@ -29,7 +29,7 @@ Zone_Mark :: struct {
 // is also kept as an event for write_chrome_trace.
 zones_begin :: (z: *Zones, trace := false) {
 	z.trace = trace;
-	if z.origin == .{} { z.origin = time.tick_now(); }
+	if z.origin._nsec == 0 { z.origin = time.tick_now(); }
 	context.zones_on = z;
 }
 
@@ -45,16 +45,16 @@ zones_destroy :: (z: *Zones) {
 }
 
 // Times the rest of the enclosing scope. name must outlive the Zones (use a literal).
-// Times the rest of the enclosing scope. name must outlive the Zones (use a literal).
-zone :: inline (name: string) -> Zone_Mark {
-	return zone_begin(name);
-};
+zone :: (name: string) #expand {
+	m := zone_begin(name);
+	`defer zone_end(m);
+}
 
 // Starts a zone that zone_end closes, for spans that are not a scope.
 zone_begin :: inline (name: string) -> Zone_Mark {
 	if context.zones_on == null { return .{}; }
 	return .{name, time.tick_now()};
-};
+}
 
 zone_end :: (m: Zone_Mark) {
 	z := context.zones_on;

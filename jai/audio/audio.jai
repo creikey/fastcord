@@ -29,16 +29,16 @@ ring_destroy :: (r: *Ring, allocator := context.allocator) {
 	r.* = .{};
 }
 
-ring_readable :: inline (r: *Ring) -> int #no_context {
+ring_readable :: inline (r: *Ring) -> int {
 	return cast(int)(sync.atomic_load_explicit(*r.w, .Acquire) - sync.atomic_load_explicit(*r.r, .Relaxed));
-};
+}
 
-ring_writable :: inline (r: *Ring) -> int #no_context {
+ring_writable :: inline (r: *Ring) -> int {
 	return len(r.buf) - cast(int)(sync.atomic_load_explicit(*r.w, .Relaxed) - sync.atomic_load_explicit(*r.r, .Acquire));
-};
+}
 
 // Producer side.
-ring_write :: (r: *Ring, data: []float32) -> int #no_context {
+ring_write :: (r: *Ring, data: []float32) -> int {
 	n := min(len(data), ring_writable(r));
 	w := sync.atomic_load_explicit(*r.w, .Relaxed);
 	for i: 0..n-1 { r.buf[(w + cast(u64)(i)) & r.mask] = data[i]; }
@@ -47,7 +47,7 @@ ring_write :: (r: *Ring, data: []float32) -> int #no_context {
 }
 
 // Consumer side.
-ring_read :: (r: *Ring, out: []float32) -> int #no_context {
+ring_read :: (r: *Ring, out: []float32) -> int {
 	n := min(len(out), ring_readable(r));
 	rd := sync.atomic_load_explicit(*r.r, .Relaxed);
 	for i: 0..n-1 { at(*out, i).* = r.buf[(rd + cast(u64)(i)) & r.mask]; }
@@ -95,8 +95,8 @@ State :: struct {
 st: State;
 #scope_export
 
-f32_bits :: inline (f: float32) -> u32 #no_context {return transmute(u32, f);};
-bits_f32 :: inline (b: u32) -> float32 #no_context {return transmute(float32, b);};
+f32_bits :: inline (f: float32) -> u32 {return transmute(u32, f);}
+bits_f32 :: inline (b: u32) -> float32 {return transmute(float32, b);}
 
 // Opens the default output device (lazily started on first write).
 // Returns false if no device; sources still work and can be pulled with mix().
@@ -179,7 +179,7 @@ source_create :: () -> Source {
 		// Drop anything left from a previous user.
 		atomic_store(*sl.ring.r, atomic_load(*sl.ring.w));
 		atomic_store(*sl.active, 1);
-		return Source(i + 1);
+		return cast(Source) (i + 1);
 	}
 	return 0;
 }
@@ -255,7 +255,7 @@ source_flush :: (s: Source) {
 }
 #scope_module
 
-apply_flush :: (sl: *Slot) #no_context {
+apply_flush :: (sl: *Slot) {
 	f := atomic_exchange(*sl.flush_req, 0);
 	if f == 0 { return; }
 	if atomic_load(*sl.ring.r) < f { atomic_store(*sl.ring.r, f); }
@@ -298,15 +298,15 @@ update :: () {}
 
 // The mixer. Called on the device thread (or by tests with init_null).
 // out: interleaved stereo f32, len = frames*2.
-mix :: (out: []float32) #no_context {
-	for * o: out { o = 0; }
+mix :: (out: []float32) {
+	for * o: out { o.* = 0; }
 	frames := len(out) / CHANNELS;
 	any_data := false;
 	master := bits_f32(atomic_load(*st.master_bits));
 	if atomic_load(*st.muted) != 0 { master = 0; }
 	for * sl: st.slots {
 		if sync.atomic_load_explicit(*sl.active, .Acquire) == 0 { continue; }
-		if atomic_load(*sl.flush_req) != 0 { apply_flush(*sl); }
+		if atomic_load(*sl.flush_req) != 0 { apply_flush(sl); }
 		if atomic_load(*sl.paused) != 0 { continue; }
 		vol := bits_f32(atomic_load(*sl.volume_bits)) * master;
 		r := *sl.ring;
@@ -323,7 +323,7 @@ mix :: (out: []float32) #no_context {
 	}
 	// Soft clip to avoid harsh wraparound when sources sum > 1.
 	for * o: out {
-		if o > 1 || o < -1 { o = math.clamp(o, -1, 1); }
+		if o.* > 1 || o.* < -1 { o.* = math.clamp(o.*, -1, 1); }
 	}
 	if !any_data { atomic_add(*st.idle_frames, cast(u64)(frames)); } else { atomic_store(*st.idle_frames, 0); }
 	atomic_add(*st.frames_out, cast(u64)(frames));
