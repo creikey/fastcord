@@ -1,21 +1,21 @@
 # Icons
 
-Phosphor Icons, fill weight: https://github.com/phosphor-icons/core
+Phosphor Icons, fill weight for solid objects and bold for line glyphs: https://github.com/phosphor-icons/core
 Version 2.1.1 (npm @phosphor-icons/core), tarball sha256 313332be6190b724da24107addd781799b48bf76b13963f24501112ffe1baadd.
 MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the name fastcord asks for:
 
 | fastcord | phosphor |
 |---|---|
-| a | text-a-underline-fill |
+| a | text-a-underline-bold |
 | activities | rocket-launch-fill |
 | analytics | chart-bar-fill |
-| angle-brackets | code-fill |
+| angle-brackets | code-bold |
 | announcements | megaphone-fill |
-| arrow-angle-left-up | arrow-bend-up-left-fill |
-| arrow-large-left | arrow-left-fill |
-| arrow-large-right | arrow-right-fill |
-| attachment | paperclip-fill |
-| b | text-b-fill |
+| arrow-angle-left-up | arrow-bend-up-left-bold |
+| arrow-large-left | arrow-left-bold |
+| arrow-large-right | arrow-right-bold |
+| attachment | paperclip-bold |
+| b | text-b-bold |
 | backspace | backspace-fill |
 | badge | seal-check-fill |
 | bell | bell-fill |
@@ -26,13 +26,13 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | chat | chat-circle-fill |
 | chat-mark-unread | chat-circle-dots-fill |
 | chat-plus | chat-circle-text-fill |
-| checkmark-large | check-fill |
-| checkmark-small | check-fill |
+| checkmark-large | check-bold |
+| checkmark-small | check-bold |
 | checkmark-small-bold | check-fat-fill |
-| chevron-small-down | caret-down-fill |
-| chevron-small-left | caret-left-fill |
-| chevron-small-right | caret-right-fill |
-| chevron-small-up | caret-up-fill |
+| chevron-small-down | caret-down-bold |
+| chevron-small-left | caret-left-bold |
+| chevron-small-right | caret-right-bold |
+| chevron-small-up | caret-up-bold |
 | circle-plus | plus-circle-fill |
 | circle-question | question-fill |
 | circle-x | x-circle-fill |
@@ -46,9 +46,9 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | crown | crown-fill |
 | deny | prohibit-fill |
 | door-exit | sign-out-fill |
-| double-checkmark | checks-fill |
+| double-checkmark | checks-bold |
 | download | download-simple-fill |
-| embed | code-block-fill |
+| embed | code-block-bold |
 | emoji-people | smiley-fill |
 | eye | eye-fill |
 | eye-slash | eye-slash-fill |
@@ -63,11 +63,11 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | forum | chats-circle-fill |
 | friends | hand-waving-fill |
 | game-controller | game-controller-fill |
-| gif | gif-fill |
+| gif | gif-bold |
 | group | users-three-fill |
 | group-plus | user-circle-plus-fill |
-| hashmark | hash-fill |
-| hd | high-definition-fill |
+| hashmark | hash-bold |
+| hd | high-definition-bold |
 | headphones | headphones-fill |
 | heart | heart-fill |
 | home | house-fill |
@@ -76,15 +76,16 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | image-file | file-image-fill |
 | inbox | tray-fill |
 | key | key-fill |
-| link | link-fill |
-| link-external-small | arrow-square-out-fill |
+| link | link-bold |
+| link-external-small | arrow-square-out-bold |
 | location | map-pin-fill |
 | lock | lock-fill |
 | magnifying-glass | magnifying-glass-fill |
-| menu | list-fill |
+| menu | list-bold |
 | microphone | microphone-fill |
-| more-horizontal | dots-three-fill |
-| more-vertical | dots-three-vertical-fill |
+| microphone-slash | microphone-slash-fill |
+| more-horizontal | dots-three-bold |
+| more-vertical | dots-three-vertical-bold |
 | music | music-note-fill |
 | nature | leaf-fill |
 | object | lightbulb-fill |
@@ -97,13 +98,13 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | phone-hang-up | phone-disconnect-fill |
 | pin | push-pin-fill |
 | play | play-fill |
-| plus-large | plus-fill |
-| plus-small | plus-fill |
+| plus-large | plus-bold |
+| plus-small | plus-bold |
 | quests | sword-fill |
 | reaction | smiley-fill |
 | reaction-plus | smiley-wink-fill |
-| refresh | arrows-clockwise-fill |
-| rotate | arrow-clockwise-fill |
+| refresh | arrows-clockwise-bold |
+| rotate | arrow-clockwise-bold |
 | save | floppy-disk-fill |
 | screen | monitor-fill |
 | screen-stream | screencast-fill |
@@ -116,7 +117,7 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | sticker | sticker-fill |
 | stop | stop-fill |
 | tags | tag-fill |
-| text | text-t-fill |
+| text | hash-bold |
 | thread | chats-fill |
 | thread-lock | lock-simple-fill |
 | ticket | ticket-fill |
@@ -129,9 +130,9 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | video | video-camera-fill |
 | voice-normal | speaker-high-fill |
 | warning | warning-fill |
-| waveform | waveform-fill |
+| waveform | waveform-bold |
 | window-launch | app-window-fill |
-| x-large | x-fill |
-| x-small | x-fill |
+| x-large | x-bold |
+| x-small | x-bold |
 
-Hand-drawn for fastcord: `logo` (the app mark) and `status-*` (plain circles).
+Hand-drawn for fastcord: `logo` (the app mark), `status-*` (plain circles) and `headphones-slash` (Phosphor's headphones with a slash cut through).
