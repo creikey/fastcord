@@ -17,6 +17,7 @@
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
 - [ ] Tray: add a system tray icon (unread badge, menu with Open and Quit); closing the window hides it to the tray instead of quitting, as the official client does.
 - [ ] Lotus Mode (fastcord-only): one setting that silences every notification sound and hides all notification badges and the white unread dots beside channels and servers, so the client never grabs attention.
+- [ ] Free emoji (fastcord-only, like Vencord's FakeNitro): let a non-Nitro user send any emoji, including the picker's locked ones (`pickers_emoji.jai`), from any server. Send it as a masked CDN link (`[name](https://cdn.discordapp.com/emojis/<id>.webp?size=48&name=<name>)`, `.gif`/`animated=true` when animated), so official clients show the image. Copy the exact format from Vencord's `src/plugins/fakeNitro` so Vencord users see real emoji. On receipt, draw those links as inline emoji (the official client shows a link and an image embed), so FakeNitro and fastcord messages look native. Real emoji stay real when the user can use them.
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
