@@ -285,7 +285,7 @@ on_client_disconnect :: (s: *Session, user: u64) {
 user_of :: (cred: mls.Credential) -> u64, bool {
 	if cred.type != mls.CRED_BASIC || len(cred.data) != 8 { return 0, false; }
 	v: u64 = 0;
-	for b: cred.data { v = v << 8 | cast(u64)(b); }
+	for b: cred.data { v = (v << 8) | (cast(u64)(b)); }
 	return v, true;
 }
 #scope_export

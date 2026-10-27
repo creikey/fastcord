@@ -131,5 +131,5 @@ RSA_PKCS1_OAEP_PADDING :: 4;
 
 // ERR_PACK(ERR_LIB_SSL, SSL_R_CERTIFICATE_VERIFY_FAILED): what a rejected certificate leaves first
 // on the thread's error queue.
-ERR_CERTIFICATE_VERIFY_FAILED :: 16 << 24 | 125;
+ERR_CERTIFICATE_VERIFY_FAILED :: (16 << 24) | 125;
 

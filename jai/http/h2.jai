@@ -335,10 +335,10 @@ on_header :: (s: *Ng_Session, f: *Ng_Frame_Hd, name: *u8, namelen: u64, value: *
 on_frame_recv :: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call {
 	conn := cast(*H2_Conn)user;
 	__ctx2: #Context; push_context,defer_pop __ctx2;
-	if f.type == NG_FRAME_SETTINGS && f.flags & NG_FLAG_ACK == 0 {
+	if f.type == NG_FRAME_SETTINGS && (f.flags & NG_FLAG_ACK) == 0 {
 		set := cast(*Ng_Settings)f;
 		for iv: sub(set.iv, 0, set.niv) { if iv.id == 1 { hpack_set_table_size(*conn.enc, cast(int)(iv.value)); } }
-	} else if f.type == NG_FRAME_PING && f.flags & NG_FLAG_ACK != 0 {
+	} else if f.type == NG_FRAME_PING && (f.flags & NG_FLAG_ACK) != 0 {
 		conn.ping_in_flight = false;
 	}
 	if f.type != NG_FRAME_HEADERS && f.type != NG_FRAME_DATA { return 0; }
@@ -357,7 +357,7 @@ on_frame_recv :: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call {
 		}
 		st.got_headers = true;
 	}
-	if f.flags & NG_FLAG_END_STREAM != 0 { finish(conn, st, .None, 0); }
+	if (f.flags & NG_FLAG_END_STREAM) != 0 { finish(conn, st, .None, 0); }
 	return 0;
 }
 
@@ -445,9 +445,9 @@ rewrite_frames :: (c: *H2_Conn) {
 	block := make_dynamic(u8, 0, 0, c.allocator);
 	defer delete(block);
 	while len(b) >= 9 {
-		n := 9 + (cast(int)(b[0]) << 16 | cast(int)(b[1]) << 8 | cast(int)(b[2]));
+		n := 9 + (((cast(int)(b[0])) << 16) | ((cast(int)(b[1])) << 8) | (cast(int)(b[2])));
 		type, flags := b[3], b[4];
-		id := cast(s32)((cast(u32)(b[5]) << 24 | cast(u32)(b[6]) << 16 | cast(u32)(b[7]) << 8 | cast(u32)(b[8])) & 0x7fffffff);
+		id := cast(s32)((((cast(u32)(b[5])) << 24) | ((cast(u32)(b[6])) << 16) | ((cast(u32)(b[7])) << 8) | (cast(u32)(b[8]))) & 0x7fffffff);
 		frame := sub(b, 0, n);
 		b = sub_from(b, n);
 		if type == NG_FRAME_HEADERS || type == NG_FRAME_DATA && n > 9 { preface_ping(c); }
@@ -478,9 +478,9 @@ rewrite_frames :: (c: *H2_Conn) {
 			plen := cast(u32)(k + (ifx first then 5 else 0));
 			append(*c.out, cast(u8)(plen >> 16), cast(u8)(plen >> 8), cast(u8)(plen));
 			if first {
-				append(*c.out, NG_FRAME_HEADERS, flags & NG_FLAG_END_STREAM | NG_FLAG_PRIORITY | end);
+				append(*c.out, NG_FRAME_HEADERS, (flags & NG_FLAG_END_STREAM) | NG_FLAG_PRIORITY | end);
 				put_u32(*c.out, cast(u32)(id));
-				put_u32(*c.out, cast(u32)(parent) | 0x80000000);
+				put_u32(*c.out, (cast(u32)(parent)) | 0x80000000);
 				append(*c.out, CHROME_WEIGHT[p]);
 			} else {
 				append(*c.out, NG_FRAME_CONTINUATION, end);
@@ -498,7 +498,7 @@ rewrite_frames :: (c: *H2_Conn) {
 preface_ping :: (c: *H2_Conn) {
 	if c.ping_in_flight || time.tick_since(c.last_read) <= 10 * time.Second { return; }
 	append(*c.out, 0, 0, 8, NG_FRAME_PING, 0, 0, 0, 0, 0);
-	for i: 0..7 { append(*c.out, cast(u8)(c.next_ping >> cast(u64)(56 - 8 * i))); }
+	for i: 0..7 { append(*c.out, cast(u8)(c.next_ping >> (cast(u64)(56 - 8 * i)))); }
 	c.ping_in_flight = true;
 	c.next_ping += 1;
 }

@@ -8,7 +8,7 @@ displayable_code :: (data: []u8, desired_len: int, group_size: int, allocator :=
 	{ i := 0;
 	while i < desired_len {
 		v: u64 = 0;
-		for j: 0..group_size-1 { v = v << 8 | cast(u64)(data[i + j]); }
+		for j: 0..group_size-1 { v = (v << 8) | (cast(u64)(data[i + j])); }
 		v %= modulus;
 		digits: [8]u8;
 		{ k := group_size - 1;
@@ -131,14 +131,14 @@ scrypt :: (password: []u8, salt: []u8, n: int, r: int, p: int, dst: []u8) {
 	y := make_slice(u32, words, temp);
 	for k: 0..p-1 {
 		blk := sub(b, k * blen, (k + 1) * blen);
-		for i: 0..words-1 { x[i] = cast(u32)(blk[4 * i]) | cast(u32)(blk[4 * i + 1]) << 8 | cast(u32)(blk[4 * i + 2]) << 16 | cast(u32)(blk[4 * i + 3]) << 24; }
+		for i: 0..words-1 { x[i] = (cast(u32)(blk[4 * i])) | ((cast(u32)(blk[4 * i + 1])) << 8) | ((cast(u32)(blk[4 * i + 2])) << 16) | ((cast(u32)(blk[4 * i + 3])) << 24); }
 		for i: 0..n-1 {
 			copy(sub_from(v, i * words), x);
 			block_mix(x, y, r);
 			x, y = y, x;
 		}
 		for _: 0..n-1 {
-			j := cast(int)(x[(2 * r - 1) * 16]) & (n - 1);
+			j := (cast(int)(x[(2 * r - 1) * 16])) & (n - 1);
 			for t: 0..words-1 { x[t] ^= v[j * words + t]; }
 			block_mix(x, y, r);
 			x, y = y, x;

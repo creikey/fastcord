@@ -15,7 +15,7 @@ uleb_put :: (buf: []u8, v: u64) -> int {
 	x := v;
 	n := 0;
 	while x >= 0x80 {
-		buf[n] = 0x80 | cast(u8)(x & 0x7f);
+		buf[n] = 0x80 | (cast(u8)(x & 0x7f));
 		n += 1;
 		x >>= 7;
 	}
@@ -41,8 +41,8 @@ uleb_get :: (b: []u8) -> u64, int, bool {
 	for i: 0..len(b)-1 {
 		if shift >= 64 { return 0, 0, false; }
 		c := b[i];
-		v |= cast(u64)(c & 0x7f) << shift;
-		if c & 0x80 == 0 { return v, i + 1, true; }
+		v |= (cast(u64)(c & 0x7f)) << shift;
+		if (c & 0x80) == 0 { return v, i + 1, true; }
 		shift += 7;
 	}
 	return 0, 0, false;
@@ -161,7 +161,7 @@ parse_protocol_frame :: (frame: []u8) -> Parsed_Frame, bool {
 	ok: bool;
 	n := len(frame);
 	if n < MIN_SUPPLEMENTAL { return p, ok; }
-	if cast(u16)(frame[n - 2]) << 8 | cast(u16)(frame[n - 1]) != MAGIC_MARKER { return p, ok; }
+	if (((cast(u16)(frame[n - 2])) << 8) | (cast(u16)(frame[n - 1]))) != MAGIC_MARKER { return p, ok; }
 	supp := cast(int)(frame[n - 3]);
 	if supp < MIN_SUPPLEMENTAL || supp > n { return p, ok; }
 	body_end := n - supp;
@@ -255,7 +255,7 @@ replay_check :: (w: *Replay_Window, nonce: u32) -> bool {
 	if nonce > w.highest { return true; }
 	d := w.highest - nonce;
 	if d >= 64 { return false; }
-	return w.bits & (cast(u64)(1) << d) == 0;
+	return (w.bits & ((cast(u64)(1)) << d)) == 0;
 }
 
 replay_mark :: (w: *Replay_Window, nonce: u32) {
@@ -271,7 +271,7 @@ replay_mark :: (w: *Replay_Window, nonce: u32) {
 		w.bits |= 1;
 		w.highest = nonce;
 	} else {
-		w.bits |= cast(u64)(1) << (w.highest - nonce);
+		w.bits |= (cast(u64)(1)) << (w.highest - nonce);
 	}
 }
 

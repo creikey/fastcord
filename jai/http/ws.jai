@@ -269,7 +269,7 @@ ws_on_msg_cb :: (ctx: *Wslay_Ctx, arg: *Wslay_Msg_Recv, user: *void) #c_call {
 	case 1; #through; case 2;
 		data := make_slice(u8, cast(int) arg.msg_length);
 		if arg.msg_length > 0 { mem.copy(raw_data(data), arg.msg, cast(int)(arg.msg_length)); }
-		if arg.rsv & WSLAY_RSV1_BIT != 0 {
+		if (arg.rsv & WSLAY_RSV1_BIT) != 0 {
 			// a compressed message (RSV1, only allowed once deflate is negotiated)
 			buf := make_dynamic(u8, 0, len(data), temp);
 			append(*buf, ..data);

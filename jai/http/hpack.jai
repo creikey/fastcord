@@ -117,19 +117,19 @@ field :: (e: *Hpack_Encoder, out: *[..]u8, name: string, value: string) {
 }
 
 put_int :: (out: *[..]u8, first: u8, prefix: u64, v: int) {
-	limit := 1 << prefix - 1;
+	limit := (1 << prefix) - 1;
 	if v < limit {
-		append(out, first | cast(u8)(v));
+		append(out, first | (cast(u8)(v)));
 		return;
 	}
-	append(out, first | cast(u8)(limit));
+	append(out, first | (cast(u8)(limit)));
 	{ r := v - limit;
 	while true {
 		if r < 128 {
 			append(out, cast(u8)(r));
 			return;
 		}
-		append(out, cast(u8)(r & 0x7f) | 0x80);
+		append(out, (cast(u8)(r & 0x7f)) | 0x80);
 		r >>= 7;
 } }
 }
@@ -146,12 +146,12 @@ put_string :: (out: *[..]u8, s: string) {
 	acc: u64;
 	n: u64;
 	for ch: transmute([]u8, s) {
-		acc = acc << HUFFMAN_LENS[ch] | cast(u64)(HUFFMAN_CODES[ch]);
+		acc = (acc << HUFFMAN_LENS[ch]) | (cast(u64)(HUFFMAN_CODES[ch]));
 		n += cast(u64)(HUFFMAN_LENS[ch]);
 		{ 
 		while n >= 8 { append(out, cast(u8)(acc >> (n - 8)));  n -= 8; } }
 	}
-	if n > 0 { append(out, cast(u8)(acc << (8 - n)) | cast(u8)(0xff >> n)); } // Padded with EOS's leading ones.
+	if n > 0 { append(out, (cast(u8)(acc << (8 - n))) | (cast(u8)(0xff >> n))); } // Padded with EOS's leading ones.
 }
 #scope_export
 
