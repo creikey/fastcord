@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Accounts: support full account switching; today it assumes a single token.
 - [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
