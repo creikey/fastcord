@@ -41,7 +41,7 @@ pipe_make :: (read_timeout := 10 * time.Second, max_chunk := 0) -> netio.Stream,
 	eb := new(Pipe_End);
 	eb.* = .{shared = sh, side = 1};
 	a = netio.Stream.{data = ea, read = pipe_read, write = pipe_write, close = pipe_close, shutdown = pipe_shutdown};
-	sh.ends = .{ea, eb};
+	sh.ends = .[ea, eb];
 	b = netio.Stream.{data = eb, read = pipe_read, write = pipe_write, close = pipe_close, shutdown = pipe_shutdown};
 	return a, b;
 }

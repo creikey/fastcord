@@ -68,7 +68,7 @@ ratchet_init :: (r: *Ratchet, base: []u8, allocator := context.allocator) {
 }
 
 ratchet_destroy :: (r: *Ratchet) {
-	crypto.zero_explicit(*r.next_secret, size_of(r.next_secret));
+	crypto.zero_explicit(*r.next_secret, size_of(type_of(r.next_secret)));
 	delete(r.keys);
 }
 
@@ -195,7 +195,7 @@ encrypt_opus_frame :: (key: []u8, nonce: u32, frame: []u8, out: []u8) -> int {
 	n := len(frame);
 	ss := supplemental_size(nonce);
 	assert(len(out) >= n + ss);
-	gcm_seal_truncated(key, nonce, null, frame, sub(out, 0, n), sub(out, n, n + TAG_SIZE));
+	gcm_seal_truncated(key, nonce, .[], frame, sub(out, 0, n), sub(out, n, n + TAG_SIZE));
 	pos := n + TAG_SIZE;
 	pos += uleb_put(sub_from(out, pos), cast(u64)(nonce));
 	at(*out, pos).* = cast(u8)(ss);
@@ -210,7 +210,7 @@ decrypt_frame :: (key: []u8, p: *Parsed_Frame, pt_out: []u8) -> int, bool {
 	ok: bool;
 	body := p.interleaved;
 	if p.n_ranges == 0 {
-		if !gcm_open_truncated(key, p.nonce, null, body, p.tag, sub(pt_out, 0, len(body))) { return n, ok; }
+		if !gcm_open_truncated(key, p.nonce, .[], body, p.tag, sub(pt_out, 0, len(body))) { return n, ok; }
 		return len(body), true;
 	}
 	// split into aad (unencrypted ranges joined) and ciphertext (the rest)

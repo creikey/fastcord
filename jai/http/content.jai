@@ -44,7 +44,7 @@ find_decoder :: (name: string) -> Decoder_Proc, bool {
 	for i: 0..registry_len-1 {
 		if strings.equal_fold(registry[i].name, name) { return registry[i].fn, true; }
 	}
-	return .{}, false;
+	return null, false;
 }
 
 // decode_body undoes Content-Encoding on r.body in place (codings applied in
@@ -58,7 +58,7 @@ decode_body :: (r: *Response, max_out := 256 << 20) -> Error {
 		p := strings.trim_space(part);
 		if len(p) > 0 && !strings.equal_fold(p, "identity") { append(*codings, p); }
 	}
-	for < i: len(codings) - 1..0 {
+	for < i: 0..len(codings) - 1 {
 		fn, found := find_decoder(codings[i]);
 		if !found { return .Unsupported_Encoding; }
 		out := make_dynamic(u8, 0, max(len(r.body) * 4, 256), r.allocator);
@@ -78,7 +78,7 @@ gzip_decode :: (src: []u8, dst: *[..]u8, max_out: int) -> Error {
 	buf: bytes.Buffer;
 	defer bytes.buffer_destroy(*buf);
 	{ err := gzip.load(src, *buf);
-	if err != null { return .Decompress; } }
+	if err != .None { return .Decompress; } }
 	if len(buf.buf) > max_out { return .Too_Large; }
 	append(dst, ..view(buf.buf));
 	return .None;
@@ -89,10 +89,10 @@ deflate_decode :: (src: []u8, dst: *[..]u8, max_out: int) -> Error {
 	buf: bytes.Buffer;
 	defer bytes.buffer_destroy(*buf);
 	{ err := zlib.inflate(src, *buf);
-	if err != null {
+	if err != .None {
 		bytes.buffer_reset(*buf);
 		{ err2 := zlib.inflate(src, *buf, true);
-		if err2 != null { return .Decompress; } }
+		if err2 != .None { return .Decompress; } }
 	} }
 	if len(buf.buf) > max_out { return .Too_Large; }
 	append(dst, ..view(buf.buf));

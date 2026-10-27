@@ -122,7 +122,7 @@ h1_read_head :: (r: *Reader, resp: *Response, limits: H1_Limits, allocator: Allo
 		msg: *u8;
 		msg_len: u64;
 		n := cast(u64)(len(fields));
-		ret := phr_parse_response(raw_data(buf), len(buf), *minor, *status, *msg, *msg_len, raw_data(fields), *n, cast(u64)(last));
+		ret := phr_parse_response(raw_data(buf), xx len(buf), *minor, *status, *msg, *msg_len, raw_data(fields), *n, cast(u64)(last));
 		if ret == -1 { return .Protocol; }
 		if ret > 0 {
 			resp.version = ifx minor == 0 then .Http1_0 else .Http1_1;
@@ -242,9 +242,9 @@ read_body_n :: (r: *Reader, body: *[..]u8, n: int) -> Error {
 	left := n;
 	while left > 0 {
 		step := min(left, 64 << 10);
-		old := len(body);
+		old := body.count;
 		resize(body, old + step);
-		{ e := read_exact(r, sub_from(body, old));
+		{ e := read_exact(r, sub_from(body.*, old));
 		if e != .None { return e; } }
 		left -= step;
 	}

@@ -112,7 +112,7 @@ ws_connect :: (s: netio.Stream, req: Request, opts := Ws_Options.{}, allocator :
 	c: *Ws_Conn;
 	resp: Response;
 	err: Error;
-	context.allocator = allocator;
+	push_allocator(allocator);
 	key_raw: [16]u8;
 	crypto.rand_bytes(view(key_raw));
 	key := base64.encode(view(key_raw), allocator = temp);
@@ -211,7 +211,7 @@ ws_validate_response :: (resp: *Response, key: string, allow_deflate := false, c
 #scope_export
 
 ws_destroy :: (c: *Ws_Conn) {
-	context.allocator = c.allocator;
+	push_allocator(c.allocator);
 	wslay_event_context_free(c.ctx);
 	reader_destroy(*c.r);
 	for m: c.inbox { delete(m.data); }
@@ -233,6 +233,7 @@ ws_close_stream :: (c: *Ws_Conn) {
 
 // ws_recv_cb hands wslay only bytes already buffered, never blocking with mu held.
 ws_recv_cb :: (ctx: *Wslay_Ctx, buf: *u8, n: u64, flags: s32, user: *void) -> int #c_call {
+	__ctx0: #Context; push_context,defer_pop __ctx0;
 	w := cast(*Ws_Conn)user;
 	got := min(cast(int)(n), w.r.end - w.r.start);
 	if got == 0 {
@@ -263,10 +264,10 @@ ws_genmask_cb :: (ctx: *Wslay_Ctx, buf: *u8, n: u64, user: *void) -> s32 #c_call
 ws_on_msg_cb :: (ctx: *Wslay_Ctx, arg: *Wslay_Msg_Recv, user: *void) #c_call {
 	w := cast(*Ws_Conn)user;
 	__ctx3: #Context; push_context,defer_pop __ctx3;
-	context.allocator = w.allocator;
+	push_allocator(w.allocator);
 	if arg.opcode == {
 	case 1; #through; case 2;
-		data := make_slice(u8, arg.msg_length);
+		data := make_slice(u8, cast(int) arg.msg_length);
 		if arg.msg_length > 0 { mem.copy(raw_data(data), arg.msg, cast(int)(arg.msg_length)); }
 		if arg.rsv & WSLAY_RSV1_BIT != 0 {
 			// a compressed message (RSV1, only allowed once deflate is negotiated)
@@ -299,7 +300,7 @@ ws_send :: (c: *Ws_Conn, type: Ws_Message_Type, payload: []u8) -> Error {
 		body = deflate_stored(payload);
 		rsv = WSLAY_RSV1_BIT;
 	}
-	m := Wslay_Msg.{ifx type == .Text then 1 else 2, raw_data(body), len(body)};
+	m := Wslay_Msg.{xx ifx type == .Text then 1 else 2, raw_data(body), xx len(body)};
 	{ rv := wslay_event_queue_msg_ex(c.ctx, *m, rsv);
 	if rv != 0 { return ifx rv == WSLAY_ERR_NO_MORE_MSG then .Closed else .Out_Of_Memory; } }
 	return ifx wslay_event_send(c.ctx) == 0 then .None else .Io;
@@ -311,8 +312,8 @@ ws_close :: (c: *Ws_Conn, code := WS_NORMAL, reason := "") -> Error {
 	locks.lock(*c.mu);
 	defer locks.unlock(*c.mu);
 	r := sub(reason, 0, min(len(reason), 123));
-	code := ifx code != WS_NO_STATUS then code else 0;
-	if wslay_event_queue_close(c.ctx, cast(u16)(code), raw_data(r), len(r)) != 0 { return .None; } // already closing
+	status := ifx code != WS_NO_STATUS then code else 0;
+	if wslay_event_queue_close(c.ctx, cast(u16)(status), raw_data(r), xx len(r)) != 0 { return .None; } // already closing
 	return ifx wslay_event_send(c.ctx) == 0 then .None else .Io;
 }
 

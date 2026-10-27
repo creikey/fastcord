@@ -85,10 +85,10 @@ verification_code :: (fp: []u8, allocator := context.allocator) -> string, bool 
 rotl :: inline (a: u32, k: u32) -> u32 #no_context {return (a << k) | (a >> (32 - k));};
 
 quarter :: inline (x: *[16]u32, a: int, b: int, c: int, d: int) #no_context {
-	x[b] ^= rotl(x[a] + x[d], 7);
-	x[c] ^= rotl(x[b] + x[a], 9);
-	x[d] ^= rotl(x[c] + x[b], 13);
-	x[a] ^= rotl(x[d] + x[c], 18);
+	x.*[b] ^= rotl(x.*[a] + x.*[d], 7);
+	x.*[c] ^= rotl(x.*[b] + x.*[a], 9);
+	x.*[d] ^= rotl(x.*[c] + x.*[b], 13);
+	x.*[a] ^= rotl(x.*[d] + x.*[c], 18);
 };
 
 salsa20_8 :: (b: *[16]u32) {
@@ -103,7 +103,7 @@ salsa20_8 :: (b: *[16]u32) {
 		quarter(*x, 10, 11, 8, 9);
 		quarter(*x, 15, 12, 13, 14);
 	}
-	for i: 0..15 { b[i] += x[i]; }
+	for i: 0..15 { b.*[i] += x[i]; }
 }
 
 block_mix :: (b: []u32, y: []u32, r: int) {

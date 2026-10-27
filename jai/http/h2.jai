@@ -43,15 +43,7 @@ CHROME_CONNECTION_WINDOW_INCREMENT :: CHROME_CONNECTION_WINDOW - 65535;
 #scope_module
 CHROME_DATA_CHUNK :: 2 * 1430 - 9;
 // Spdy3PriorityToHttp2Weight - 1 for each Priority, by its SPDY priority (Highest 0 .. Throttled 5).
-// Spdy3PriorityToHttp2Weight - 1 for each Priority, by its SPDY priority (Highest 0 .. Throttled 5).
-CHROME_SPDY_PRIORITY := ([#run enum_count(Priority)]u8).{
-	__IDX__.Highest = 0,
-	__IDX__.Medium = 1,
-	__IDX__.Low = 2,
-	__IDX__.Lowest = 3,
-	__IDX__.Idle = 4,
-	__IDX__.Throttled = 5
-};
+CHROME_SPDY_PRIORITY := u8.[1, 0, 2, 3, 4, 5]; // indexed by Priority: Medium, Highest, Low, Lowest, Idle, Throttled
 CHROME_WEIGHT := u8.[255, 219, 182, 146, 109, 73];
 
 Ng_Session :: struct {}
@@ -193,7 +185,7 @@ H2_Conn :: struct {
 h2_connect :: (s: netio.Stream, cfg := H2_Config.{}, allocator := context.allocator) -> *H2_Conn, Error {
 	c: *H2_Conn;
 	err: Error;
-	context.allocator = allocator;
+	push_allocator(allocator);
 	c = new(H2_Conn);
 	c.s = s;
 	c.allocator = allocator;
@@ -205,7 +197,7 @@ h2_connect :: (s: netio.Stream, cfg := H2_Config.{}, allocator := context.alloca
 	c.wbuf = make_dynamic(u8, 0, 0);
 	c.out = make_dynamic(u8, 0, 0);
 	hpack_init(*c.enc, allocator);
-	for * l: c.tree { l = make_dynamic(s32, 0, 0); }
+	for * l: c.tree { l.* = make_dynamic(s32, 0, 0); }
 	c.acked_at = time.tick_now();
 	c.last_read = c.acked_at;
 	c.next_ping = 1;
@@ -224,7 +216,7 @@ h2_connect :: (s: netio.Stream, cfg := H2_Config.{}, allocator := context.alloca
 	nghttp2_option_del(opt);
 	nghttp2_session_callbacks_del(cbs);
 	if rv != 0 { panic("nghttp2: out of memory"); }
-	nghttp2_submit_settings(c.session, 0, raw_data(view(CHROME_SETTINGS)), len(CHROME_SETTINGS));
+	nghttp2_submit_settings(c.session, 0, raw_data(view(CHROME_SETTINGS)), xx len(CHROME_SETTINGS));
 	nghttp2_submit_window_update(c.session, 0, 0, CHROME_CONNECTION_WINDOW_INCREMENT);
 	{ err = flush(c);
 	if err != .None {
@@ -266,7 +258,7 @@ h2_close :: (c: *H2_Conn) {
 #scope_module
 
 h2_destroy :: (c: *H2_Conn) {
-	context.allocator = c.allocator;
+	push_allocator(c.allocator);
 	nghttp2_session_del(c.session);
 	for _, st: c.streams {
 		response_destroy(*st.resp);
@@ -295,8 +287,8 @@ finish :: (c: *H2_Conn, st: *H2_Stream, err: Error, code: u32) {
 	st.err = err;
 	st.resp.h2_error = code;
 	if !st.in_tree { return; }
-	l := *c.tree[CHROME_SPDY_PRIORITY[st.req.priority]];
-	for id, i: l { if id == st.id {
+	l := *c.tree[CHROME_SPDY_PRIORITY[cast(int) st.req.priority]];
+	for id, i: l.* { if id == st.id {
 		ordered_remove(l, i);
 		break;
 	} }
@@ -321,11 +313,11 @@ give_back :: (c: *H2_Conn, st: *H2_Stream, id: s32, n: int) {
 }
 
 on_header :: (s: *Ng_Session, f: *Ng_Frame_Hd, name: *u8, namelen: u64, value: *u8, valuelen: u64, flags: u8, user: *void) -> s32 #c_call {
+	__ctx1: #Context; push_context,defer_pop __ctx1;
 	conn := cast(*H2_Conn)user;
 	st := stream_of(s, f.stream_id);
 	if f.type != NG_FRAME_HEADERS || st == null || st.done { return 0; }
-	__ctx1: #Context; push_context,defer_pop __ctx1;
-	context.allocator = conn.allocator;
+	push_allocator(conn.allocator);
 	st.header_bytes += cast(int)(namelen + valuelen) + 32;
 	if st.header_bytes > conn.cfg.max_header_block {
 		finish(conn, st, .Too_Large, NG_CANCEL); // h2_request resets the stream
@@ -404,6 +396,7 @@ on_not_sent :: (s: *Ng_Session, f: *Ng_Frame_Hd, code: s32, user: *void) -> s32 
 }
 
 read_body :: (s: *Ng_Session, id: s32, buf: *u8, n: u64, flags: *u32, source: *void, user: *void) -> int #c_call {
+	__ctx7: #Context; push_context,defer_pop __ctx7;
 	st := stream_of(s, id);
 	if st == null { return NG_ERR_TEMPORAL_CALLBACK_FAILURE; }
 	k := min(cast(int)(n), len(st.body));
@@ -414,6 +407,7 @@ read_body :: (s: *Ng_Session, id: s32, buf: *u8, n: u64, flags: *u32, source: *v
 }
 
 data_chunk_len :: (s: *Ng_Session, type: u8, id: s32, conn_window: s32, stream_window: s32, max_frame: u32, user: *void) -> int #c_call {
+	__ctx8: #Context; push_context,defer_pop __ctx8;
 	return cast(int)(min(cast(s32)(CHROME_DATA_CHUNK), conn_window, stream_window, cast(s32)(max_frame)));
 }
 
@@ -463,9 +457,13 @@ rewrite_frames :: (c: *H2_Conn) {
 			append(*c.out, ..frame);
 			continue;
 		}
-		p := CHROME_SPDY_PRIORITY[st.req.priority];
+		p := CHROME_SPDY_PRIORITY[cast(int) st.req.priority];
 		parent: s32;
-		for < i: cast(int)(p)..0 && parent == 0 { if len(c.tree[i]) > 0 { parent = c.tree[i][len(c.tree[i]) - 1]; } }
+		i := cast(int) p;
+		while i >= 0 && parent == 0 {
+			if c.tree[i].count > 0 { parent = c.tree[i][c.tree[i].count - 1]; }
+			i -= 1;
+		}
 		if !st.done {
 			append(*c.tree[p], id);
 			st.in_tree = true;
@@ -476,7 +474,7 @@ rewrite_frames :: (c: *H2_Conn) {
 		{ first := true;
 		while true {
 			k := min(len(rest), 16383 - 9 - (ifx first then 5 else 0));
-			end: u8 = ifx k == len(rest) then NG_FLAG_END_HEADERS else 0;
+			end: u8 = xx ifx k == len(rest) then NG_FLAG_END_HEADERS else 0;
 			plen := cast(u32)(k + (ifx first then 5 else 0));
 			append(*c.out, cast(u8)(plen >> 16), cast(u8)(plen >> 8), cast(u8)(plen));
 			if first {
@@ -596,7 +594,7 @@ h2_request :: (c: *H2_Conn, req: Request) -> Response, Error {
 	defer leave(c);
 
 	nva := make_dynamic(Ng_Nv, 0, len(req.headers) + 4, temp);
-	nv :: (n: string, v: string) -> Ng_Nv {return .{raw_data(n), raw_data(v), len(n), len(v), 0};}
+	nv :: (n: string, v: string) -> Ng_Nv {return .{raw_data(n), raw_data(v), xx len(n), xx len(v), 0};}
 	append(*nva, nv(":method", req.method), nv(":authority", req.authority), nv(":scheme", req.scheme), nv(":path", req.path));
 	for h: req.headers { append(*nva, nv(h.name, h.value)); }
 
@@ -617,15 +615,15 @@ h2_request :: (c: *H2_Conn, req: Request) -> Response, Error {
 		err = ifx c.dead != .None then c.dead else .Goaway;
 		locks.unlock(*c.mu);
 		response_destroy(*st.resp);
-		free(st, c.allocator);
+		free(st,, c.allocator);
 		return .{}, err;
 	}
 	// nghttp2 copies the header names and values.
-	st.id = nghttp2_submit_request2(c.session, null, raw_data(nva), len(nva), ifx len(req.body) > 0 then *body else null, st);
+	st.id = nghttp2_submit_request2(c.session, null, raw_data(nva), xx len(nva), ifx len(req.body) > 0 then *body else null, st);
 	if st.id < 0 {
 		locks.unlock(*c.mu);
 		response_destroy(*st.resp);
-		free(st, c.allocator);
+		free(st,, c.allocator);
 		return .{}, .Goaway;
 	}
 	at(*c.streams, st.id).* = st;
@@ -648,12 +646,12 @@ h2_request :: (c: *H2_Conn, req: Request) -> Response, Error {
 	// stream yet; set_stream_user_data also clears its queued copy of st.
 	reset := stream_of(c.session, st.id) != null && c.dead == .None;
 	nghttp2_session_set_stream_user_data(c.session, st.id, null);
-	if reset { nghttp2_submit_rst_stream(c.session, 0, st.id, ifx st.err == .None then 0 else NG_CANCEL); }
+	if reset { nghttp2_submit_rst_stream(c.session, 0, st.id, xx ifx st.err == .None then 0 else NG_CANCEL); }
 	locks.cond_broadcast(*c.cond);
 	locks.unlock(*c.mu);
 	if reset { flush(c); }
 	resp, err = st.resp, st.err;
-	free(st, c.allocator);
+	free(st,, c.allocator);
 	if err != .None {
 		code := resp.h2_error;
 		response_destroy(*resp);

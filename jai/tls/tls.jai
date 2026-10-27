@@ -19,10 +19,9 @@ Error :: enum u8 {
 	Internal;
 }
 
-// Odin dev-2026-10 miscompiles the AVX2 ChaCha20 in -debug builds on Windows: its round helper is not
-// inlined, reads its stack arguments from the wrong slots and faults. Every ChaCha20 user in fastcord
-// passes this implementation (tests/run_all.sh checks), so debug builds use the SSE one instead.
-CHACHA20_IMPL :: ifx DEBUG then chacha20.Implementation.Simd128 else chacha20.DEFAULT_IMPLEMENTATION;
+// Every ChaCha20 user in fastcord passes this implementation (Odin used the SSE one in Windows debug
+// builds to dodge a miscompile).
+CHACHA20_IMPL :: chacha20.DEFAULT_IMPLEMENTATION;
 
 // Chrome's TLS 1.2 suites, in its order.
 CHROME_TLS12_CIPHERS :: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA:AES256-SHA";
@@ -45,7 +44,7 @@ host_index: s32;
 tcp_ctx: *SSL_CTX;
 #scope_export
 
-init_tls :: () #no_context {
+init_tls :: () {
 	host_index = SSL_get_ex_new_index(0, null, null, null, (parent: *void, ptr: *void, ad: *void, index: s32, argl: s64, argp: *void) #c_call {
 		OPENSSL_free(ptr);
 	});
@@ -55,23 +54,23 @@ init_tls :: () #no_context {
 // new_ctx makes an SSL_CTX configured like Chrome's, for TLS over TCP or, with quic, for QUIC: TLS 1.3
 // only, GREASE only in ECH, no OCSP or SCT requests. ngtcp2's BoringSSL backend takes a context from
 // here, adds its QUIC method, and makes each connection's SSL with new_ssl. Returns nil on failure.
-new_ctx :: (quic: bool) -> *SSL_CTX #no_context {
+new_ctx :: (quic: bool) -> *SSL_CTX {
 	ctx := SSL_CTX_new(TLS_method());
 	if ctx == null { return null; }
 	nsig := ifx quic then len(SIGALGS) else len(SIGALGS) - 1;
 	ok :=
-		SSL_CTX_set_min_proto_version(ctx, ifx quic then TLS1_3_VERSION else TLS1_2_VERSION) == 1 &&
+		SSL_CTX_set_min_proto_version(ctx, cast(u16) ifx quic then TLS1_3_VERSION else TLS1_2_VERSION) == 1 &&
 		SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1 &&
-		SSL_CTX_set1_tls13_ciphers(ctx, raw_data(view(TLS13_CIPHERS)), null, len(TLS13_CIPHERS)) == 1 &&
+		SSL_CTX_set1_tls13_ciphers(ctx, raw_data(view(TLS13_CIPHERS)), null, xx len(TLS13_CIPHERS)) == 1 &&
 		SSL_CTX_set_strict_cipher_list(ctx, CHROME_TLS12_CIPHERS) == 1 &&
-		SSL_CTX_set1_group_ids(ctx, raw_data(view(GROUPS)), len(GROUPS)) == 1 &&
+		SSL_CTX_set1_group_ids(ctx, raw_data(view(GROUPS)), xx len(GROUPS)) == 1 &&
 		SSL_CTX_set_verify_algorithm_prefs(ctx, raw_data(view(SIGALGS)), cast(u64)(nsig)) == 1 &&
 		SSL_CTX_add_cert_compression_alg(ctx, 2, null, decompress_brotli) == 1;
 	if !ok {
 		SSL_CTX_free(ctx);
 		return null;
 	}
-	SSL_CTX_set_grease_enabled(ctx, ifx quic then 0 else 1);
+	SSL_CTX_set_grease_enabled(ctx, xx ifx quic then 0 else 1);
 	SSL_CTX_set_permute_extensions(ctx, 1);
 	if !quic {
 		SSL_CTX_enable_ocsp_stapling(ctx);
@@ -90,7 +89,7 @@ new_ssl :: (ctx: *SSL_CTX, cfg: Config, quic: bool) -> *SSL {
 	// Unverified test connections get a key no real host can have, so a real connection never resumes
 	// a session whose certificate nobody checked.
 	INSECURE :: "insecure ";
-	host: [len(INSECURE) + 256]u8;
+	host: [INSECURE.count + 256]u8;
 	if ctx == null || cfg.server_name == "" || len(cfg.server_name) >= 256 { return null; }
 	at := ifx cfg.insecure_skip_verify then copy(view(host), INSECURE) else 0;
 	copy(sub_from(host, at), cfg.server_name);
@@ -111,7 +110,7 @@ new_ssl :: (ctx: *SSL_CTX, cfg: Config, quic: bool) -> *SSL {
 		protos[n] = cast(u8)(len(p));
 		copy(sub_from(protos, n + 1), p);
 		n += 1 + len(p);
-		if p == (ifx quic then "h3" else "h2") { ok = ok && SSL_add_application_settings(ssl, raw_data(p), len(p), null, 0) == 1; }
+		if p == (ifx quic then "h3" else "h2") { ok = ok && SSL_add_application_settings(ssl, raw_data(p), xx len(p), null, 0) == 1; }
 	}
 	if n > 0 { ok = ok && SSL_set_alpn_protos(ssl, *protos[0], cast(u64)(n)) == 0; }
 	SSL_set_alps_use_new_codepoint(ssl, 1);
@@ -138,7 +137,7 @@ is_ip_literal :: (host: string) -> bool {
 	return true;
 }
 
-ssl_host :: (ssl: *SSL) -> string #no_context {
+ssl_host :: (ssl: *SSL) -> string {
 	return as_string(to_cstring(SSL_get_ex_data(ssl, host_index)));
 }
 
@@ -159,7 +158,7 @@ verify_peer :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
 	p := raw_data(chain[0]);
 	leaf := d2i_X509(null, *p, cast(s64)(len(chain[0])));
 	if leaf == null { return ssl_verify_invalid; }
-	name_ok := X509_check_host(leaf, raw_data(host), len(host), 0, null) == 1;
+	name_ok := X509_check_host(leaf, raw_data(host), xx len(host), 0, null) == 1;
 	X509_free(leaf);
 	if !name_ok || verify_chain_cached(sub(chain, 0, n), host) != .None { return ssl_verify_invalid; }
 	return ssl_verify_ok;
@@ -170,8 +169,8 @@ decompress_brotli :: (ssl: *SSL, out: **CRYPTO_BUFFER, uncompressed_len: u64, da
 	res, err := brotli.decompress(sub(data, 0, data_len), context.allocator, cast(int)(uncompressed_len));
 	defer delete(res);
 	if err != .None || len(res) != cast(int)(uncompressed_len) { return 0; }
-	out.* = CRYPTO_BUFFER_new(raw_data(res), len(res), null);
-	return ifx out.* != null then 1 else 0;
+	out.* = CRYPTO_BUFFER_new(raw_data(res), xx len(res), null);
+	return xx ifx out.* != null then 1 else 0;
 }
 
 // Session cache. Like Chrome, TLS 1.3 tickets are single-use: a connection takes the newest one for
@@ -189,10 +188,10 @@ new_session :: (ssl: *SSL, session: *SSL_SESSION) -> s32 #c_call {
 	locks.lock(*cache_mu);
 	defer locks.unlock(*cache_mu);
 	m := *cache[SSL_is_quic(ssl)];
-	if !has(m.*, host) { m.*[clone(host)] = .{}; }
-	list := *m.*[host];
-	if len(list) == MAX_SESSIONS_PER_HOST {
-		SSL_SESSION_free(get(list, 0));
+	list, found := map_find_ptr(m, host);
+	if !found { list = at(m, clone(host)); }
+	if list.count == MAX_SESSIONS_PER_HOST {
+		SSL_SESSION_free(list.*[0]);
 		ordered_remove(list, 0);
 	}
 	append(list, session);
@@ -208,9 +207,9 @@ clone :: (s: string) -> string {
 cache_take :: (host: string, quic: bool) -> *SSL_SESSION {
 	locks.lock(*cache_mu);
 	defer locks.unlock(*cache_mu);
-	if !has(cache[cast(int)(quic)], host) { return null; }
-	list := *cache[cast(int)(quic)][host];
-	return ifx len(list) > 0 then pop(list) else null;
+	list, found := map_find_ptr(*cache[cast(int)(quic)], host);
+	if !found { return null; }
+	return ifx list.count > 0 then pop(list) else null;
 }
 #scope_export
 
@@ -458,7 +457,7 @@ destroy :: (s: *Session) {
 	SSL_free(s.ssl);
 	delete(s.out);
 	delete(s.sending);
-	free(s, s.allocator);
+	free(s,, s.allocator);
 }
 
 to_netio :: (s: *Session, e: Error) -> netio.Error {

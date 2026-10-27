@@ -141,7 +141,7 @@ reset_mls :: (s: *Session) {
 	s.current = null;
 	drop_outbound(s);
 	delete(s.kp_msg);
-	s.kp_msg = null;
+	s.kp_msg = .[];
 }
 
 drop_outbound :: (s: *Session) {
@@ -201,14 +201,14 @@ clone :: (b: []u8) -> []u8 {
 }
 
 create_pending :: (s: *Session) {
-	if s.ext_sender == null || s.kp_msg == null || s.protocol_version == 0 { return; }
+	if s.ext_sender.data == null || s.kp_msg.data == null || s.protocol_version == 0 { return; }
 	mls.group_destroy(s.pending);
 	s.pending = null;
 	r := mls.reader_make(s.ext_sender);
 	es := mls.r_external_sender(*r);
 	if !mls.r_done(*r) { return; }
-	ext := mls.external_senders_extension(.{es});
-	g, err := mls.group_create(view(s.group_id), *s.identity, *s.kp, *s.kp_secrets, .{ext});
+	ext := mls.external_senders_extension(mls.External_Sender.[es]);
+	g, err := mls.group_create(view(s.group_id), *s.identity, *s.kp, *s.kp_secrets, mls.Extension.[ext]);
 	if err == .None { s.pending = g; }
 }
 
@@ -306,7 +306,7 @@ on_proposals :: (s: *Session, payload: []u8) {
 		}
 		while mls.r_ok(*sub) && mls.r_left(*sub) > 0 {
 			msg := mls.r_mls_message_raw(*sub);
-			if msg == null { break; }
+			if msg.data == null { break; }
 			m, err := mls.parse_mls_message(msg, temp);
 			if err != .None || m.wire_format != .Public_Message { return; }
 			fc := *m.public.content;
@@ -314,7 +314,7 @@ on_proposals :: (s: *Session, payload: []u8) {
 			if fc.proposal.type == {
 			case .Add;
 				uid, ok := user_of(fc.proposal.add.leaf.credential);
-				if !ok || !__MAPIDX__(s.recognized|uid) { return; }
+				if !ok || !get(s.recognized, uid) { return; }
 			case .Remove;
 			case;
 				return;
@@ -327,7 +327,7 @@ on_proposals :: (s: *Session, payload: []u8) {
 		sub := mls.r_sub(*r);
 		while mls.r_ok(*sub) && mls.r_left(*sub) > 0 {
 			ref := mls.r_vec(*sub);
-			if ref != null { mls.group_revoke_proposal(g, ref); }
+			if ref.data != null { mls.group_revoke_proposal(g, ref); }
 		}
 	case;
 		s.close_request = .Invalid_Message;
@@ -352,7 +352,7 @@ valid_roster :: (g: *mls.Group) -> bool {
 		n := mls.leaf_at(*g.tree, l);
 		if n.kind != .Leaf { continue; }
 		uid, ok := user_of(n.leaf.credential);
-		if !ok || __MAPIDX__(seen|uid) { return false; }
+		if !ok || get(seen, uid) { return false; }
 		at(*seen, uid).* = true;
 	}
 	return true;
@@ -392,9 +392,9 @@ adopt :: (s: *Session, g: *mls.Group, tid: int) {
 		uid, ok := user_of(n.leaf.credential);
 		if !ok || uid == s.self_user { continue; }
 		d := get(s.decryptors, uid);
-		if d.cryptors == null { d.cryptors = make_dynamic(Cryptor, 0, 0); }
+		if d.cryptors.data == null { d.cryptors = make_dynamic(Cryptor, 0, 0); }
 		// drop expired
-		for < i: len(d.cryptors) - 1..0 {
+		for < i: 0..len(d.cryptors) - 1 {
 			if d.cryptors[i].expiry_ms != 0 && d.cryptors[i].expiry_ms < now {
 				ratchet_destroy(*d.cryptors[i].ratchet);
 				ordered_remove(*d.cryptors, i);
@@ -471,7 +471,7 @@ on_announce_commit :: (s: *Session, tid: int, commit: []u8) {
 on_welcome :: (s: *Session, tid: int, welcome: []u8) {
 	locks.lock(*s.mu);
 	defer locks.unlock(*s.mu);
-	if s.current != null || s.kp_msg == null { return; }
+	if s.current != null || s.kp_msg.data == null { return; }
 	jp := mls.Join_Params.{
 		key_package = *s.kp,
 		secrets = *s.kp_secrets,
@@ -604,7 +604,7 @@ session_decrypt :: (s: *Session, user: u64, frame: []u8, out: []u8) -> int, Decr
 	d, has := map_find_ptr(*s.decryptors, user);
 	if has {
 		now := s.now_ms();
-		for < i: len(d.cryptors) - 1..0 {
+		for < i: 0..len(d.cryptors) - 1 {
 			c := *d.cryptors[i];
 			if c.expiry_ms != 0 && c.expiry_ms < now { continue; }
 			if !replay_check(*c.window, p.nonce) { continue; }

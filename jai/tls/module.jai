@@ -20,5 +20,5 @@ crypt32 :: #system_library "crypt32";
 #load "tls.jai";
 #load "trust_cache.jai";
 #if OS == .MACOS #load "trust_darwin.jai";
-#if OS != .WINDOWS #load "trust_other.jai";
+#if OS != .WINDOWS && OS != .MACOS #load "trust_other.jai";
 #if OS == .WINDOWS #load "trust_windows.jai";

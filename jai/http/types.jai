@@ -60,7 +60,7 @@ Response :: struct {
 }
 
 response_destroy :: (r: *Response) {
-	context.allocator = r.allocator;
+	push_allocator(r.allocator);
 	for h: r.headers {
 		delete(h.name);
 		delete(h.value);
@@ -96,3 +96,13 @@ header_has_token :: (headers: []Header, name: string, token: string) -> bool {
 	return false;
 }
 
+
+#scope_module
+// Odin's remove_range: drops a[lo:hi], keeping order.
+remove_range :: (a: *[..]$T, lo: int, hi: int) {
+	n := hi - lo;
+	if n <= 0 { return; }
+	for i: hi..a.count-1 { a.*[i - n] = a.*[i]; }
+	a.count -= n;
+}
+#scope_export

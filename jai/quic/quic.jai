@@ -82,7 +82,7 @@ Stream :: struct {
 quic_ctx: *tls.SSL_CTX;
 #scope_export
 
-init_quic :: () #no_context {
+init_quic :: () {
 	quic_ctx = tls.new_ctx(true);
 	if quic_ctx != null && ngtcp2_crypto_boringssl_configure_client_context(quic_ctx) != 0 { quic_ctx = null; }
 }
@@ -113,28 +113,28 @@ dial :: (host: string, port := 443, addr: net.Address = .{}) -> *Conn, http.Erro
 	c: *Conn;
 	err: http.Error;
 	// The I/O thread shares the connection: it lives on the heap allocator.
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	ep := net.Endpoint.{addr, port};
-	if addr == null {
+	if addr.kind == .None {
 		ep4, ep6, rerr := net.resolve(host);
-		if rerr != null { return null, .Io; }
-		ep.address = ifx ep4.address != null then ep4.address else ep6.address;
-		if ep.address == null { return null, .Io; }
+		if rerr != .None { return null, .Io; }
+		ep.address = ifx ep4.address.kind != .None then ep4.address else ep6.address;
+		if ep.address.kind == .None { return null, .Io; }
 	}
-	ssl := tls.new_ssl(quic_ctx, .{alpn = .{"h3"}, server_name = host}, true);
+	ssl := tls.new_ssl(quic_ctx, .{alpn = string.["h3"], server_name = host}, true);
 	if ssl == null { return null, .Io; }
 	family := net.family_from_endpoint(ep);
 	sock, serr := net.make_unbound_udp_socket(family);
-	if serr != null {
+	if serr != .None {
 		tls.SSL_free(ssl);
 		return null, .Io;
 	}
 	any_addr: net.Address = ifx family == .IP4 then net.IP4_Any else net.IP6_Any;
 	wake_sock, werr := net.make_unbound_udp_socket(family);
-	if werr != null || net.bind(sock, .{any_addr, 0}) != null {
+	if werr != .None || net.bind(sock, .{any_addr, 0}) != .None {
 		tls.SSL_free(ssl);
 		net.close(sock);
-		if werr == null { net.close(wake_sock); }
+		if werr == .None { net.close(wake_sock); }
 		return null, .Io;
 	}
 	local, _ := net.bound_endpoint(sock);
@@ -152,7 +152,7 @@ dial :: (host: string, port := 443, addr: net.Address = .{}) -> *Conn, http.Erro
 		raw = transmute([16]u8, a);
 	}
 	rtt := cached_rtt_us(host) * 1000;
-	c.q = fc_quic_new(ssl, ifx family == .IP4 then 4 else 6, *raw[0], cast(s32)(ep.port), cast(s32)(local.port), now_ns(), rtt, *c.ev);
+	c.q = fc_quic_new(ssl, xx ifx family == .IP4 then 4 else 6, *raw[0], cast(s32)(ep.port), cast(s32)(local.port), now_ns(), rtt, *c.ev);
 	if c.q == null {
 		destroy(c);
 		return null, .Out_Of_Memory;
@@ -197,7 +197,7 @@ request :: (c: *Conn, req: http.Request, allocator := context.allocator) -> http
 	prio := fmt.tprintf("u=%d, i", urgency(req.priority));
 	fields := make_dynamic(Field, 0, len(req.headers) + 5, temp);
 	field :: (f: *[..]Field, name: string, value: string) {
-		append(f, Field.{raw_data(name), len(name), raw_data(value), len(value)});
+		append(f, Field.{raw_data(name), xx len(name), raw_data(value), xx len(value)});
 	}
 	field(*fields, ":method", req.method);
 	field(*fields, ":authority", req.authority);
@@ -222,7 +222,7 @@ request :: (c: *Conn, req: http.Request, allocator := context.allocator) -> http
 	while true {
 		if c.err != .None { return .{}, c.err; }
 		if c.goaway { return .{}, .Goaway; }
-		rv := fc_quic_submit(c.q, raw_data(fields), len(fields), raw_data(req.body), len(req.body), raw_data(prio), len(prio), *id);
+		rv := fc_quic_submit(c.q, raw_data(fields), xx len(fields), raw_data(req.body), xx len(req.body), raw_data(prio), xx len(prio), *id);
 		if rv == 0 { break; }
 		if rv != ERR_STREAM_ID_BLOCKED { return .{}, .Bad_Request; }
 		locks.cond_wait(*c.cond, *c.mu);
@@ -254,7 +254,7 @@ close :: (c: *Conn) {
 #scope_module
 
 destroy :: (c: *Conn) {
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	fc_quic_del(c.q);
 	net.close(c.sock);
 	net.close(c.wake_sock);
@@ -285,14 +285,14 @@ fail_locked :: (c: *Conn, rv: s32) {
 }
 
 io_loop :: (c: *Conn) {
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	buf: [2048]u8;
 	while true {
 		locks.lock(*c.mu);
 		now := now_ns();
 		if c.err == .None && fc_quic_expiry(c.q) <= now { fail_locked(c, fc_quic_handle_expiry(c.q, now)); }
 		while c.err == .None {
-			n := fc_quic_write(c.q, *buf[0], len(buf), now);
+			n := fc_quic_write(c.q, *buf[0], xx len(buf), now);
 			if n <= 0 {
 				fail_locked(c, cast(s32)(n));
 				break;
@@ -300,7 +300,7 @@ io_loop :: (c: *Conn) {
 			net.send_udp(c.sock, sub(buf, 0, n), c.peer);
 		}
 		if c.err != .None || c.stop {
-			{ n := fc_quic_close_packet(c.q, *buf[0], len(buf), now);
+			{ n := fc_quic_close_packet(c.q, *buf[0], xx len(buf), now);
 			if n > 0 { net.send_udp(c.sock, sub(buf, 0, n), c.peer); } }
 			if c.err == .None { c.err = .Closed; }
 			locks.cond_broadcast(*c.cond);
@@ -310,11 +310,11 @@ io_loop :: (c: *Conn) {
 		expiry := fc_quic_expiry(c.q);
 		locks.unlock(*c.mu);
 
-		wait := ifx expiry > now then time.Duration(min(expiry - now, cast(u64)(time.Second))) else 0;
+		wait: time.Duration = ifx expiry > now then cast(time.Duration) min(expiry - now, cast(u64) time.Second) else 0;
 		net.set_option(c.sock, .Receive_Timeout, max(wait, time.Millisecond));
 		n, from, rerr := net.recv_udp(c.sock, view(buf));
 		// Wake-ups come from loopback; anything not from the peer is dropped unread.
-		if rerr != null || n == 0 || from != c.peer { continue; }
+		if rerr != .None || n == 0 || !same_endpoint(from, c.peer) { continue; }
 		locks.lock(*c.mu);
 		if c.err == .None { fail_locked(c, fc_quic_read(c.q, *buf[0], cast(u64)(n), now_ns())); }
 		if !c.ready && c.err == .None && fc_quic_ready(c.q) != 0 { c.ready = true; }
@@ -330,7 +330,7 @@ io_loop :: (c: *Conn) {
 on_header :: (user: *void, id: s64, trailer: s32, name: *u8, nlen: u64, value: *u8, vlen: u64) #c_call {
 	__ctx6: #Context; push_context,defer_pop __ctx6;
 	c := cast(*Conn)(user);
-	st := or_else(get(c.streams, id), null);
+	st := get(c.streams, id);
 	if st == null || st.done { return; }
 	n, v := as_string(sub(name, 0, nlen)), as_string(sub(value, 0, vlen));
 	if n == ":status" {
@@ -356,20 +356,20 @@ on_header :: (user: *void, id: s64, trailer: s32, name: *u8, nlen: u64, value: *
 on_data :: (user: *void, id: s64, p: *u8, n: u64) #c_call {
 	__ctx7: #Context; push_context,defer_pop __ctx7;
 	c := cast(*Conn)(user);
-	st := or_else(get(c.streams, id), null);
+	st := get(c.streams, id);
 	if st == null || st.done { return; }
 	if len(st.resp.body) + cast(int)(n) > MAX_RESPONSE {
 		give_up(c, st, .Too_Large);
 		return;
 	}
-	if st.resp.body == null { st.resp.body = make_dynamic(u8, 0, cast(int)(n), st.resp.allocator); }
+	if st.resp.body.data == null { st.resp.body = make_dynamic(u8, 0, cast(int)(n), st.resp.allocator); }
 	append(*st.resp.body, ..sub(p, 0, n));
 }
 
 on_done :: (user: *void, id: s64, fin: s32, code: u64) #c_call {
 	__ctx8: #Context; push_context,defer_pop __ctx8;
 	c := cast(*Conn)(user);
-	st := or_else(get(c.streams, id), null);
+	st := get(c.streams, id);
 	if st == null || st.done { return; }
 	st.done = true;
 	if fin == 0 {
@@ -388,6 +388,10 @@ on_goaway :: (user: *void) #c_call {
 	locks.cond_broadcast(*c.cond);
 }
 
+same_endpoint :: (a: net.Endpoint, b: net.Endpoint) -> bool {
+	return a.port == b.port && a.address.kind == b.address.kind && memcmp(*a.address.ip6_address[0], *b.address.ip6_address[0], ifx a.address.kind == .IP4_Address then 4 else 16) == 0;
+}
+
 give_up :: (c: *Conn, st: *Stream, err: http.Error) {
 	st.err, st.done, st.cancel = err, true, true;
 	locks.cond_broadcast(*c.cond);
@@ -399,7 +403,7 @@ give_up :: (c: *Conn, st: *Stream, err: http.Error) {
 // are random per call, as in Chrome.
 chrome_transport_params :: (initial_rtt_us: u64, allocator := context.allocator) -> []u8 {
 	buf: [256]u8;
-	n := fc_quic_chrome_tp(*buf[0], initial_rtt_us);
+	n := cast(int) fc_quic_chrome_tp(*buf[0], initial_rtt_us);
 	out := make_slice(u8, n, allocator);
 	copy(out, sub(buf, 0, n));
 	return out;
@@ -426,7 +430,7 @@ rtt_cache: Map(string, u64);
 cached_rtt_us :: (host: string) -> u64 {
 	locks.lock(*rtt_cache_mu);
 	defer locks.unlock(*rtt_cache_mu);
-	return or_else(get(rtt_cache, host), 0);
+	return get(rtt_cache, host);
 }
 
 // set_cached_rtt_us seeds the cache (Chrome's persisted server network stats).
@@ -456,7 +460,7 @@ cached_rtts :: (allocator := context.allocator) -> []Rtt_Entry {
 
 remember_rtt :: (host: string, us: u64) {
 	if us == 0 { return; }
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	locks.lock(*rtt_cache_mu);
 	defer locks.unlock(*rtt_cache_mu);
 	if has(rtt_cache, host) {

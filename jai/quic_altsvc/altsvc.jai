@@ -64,7 +64,7 @@ parse :: (value: string, allocator := temp) -> [..]Alternative, bool {
 
 // record stores the h3 alternative advertised by a response from host.
 record :: (c: *Cache, host: string, header_value: string, now_ := time.Time.{}) {
-	now := ifx now_ != .{} then now_ else time.now();
+	now := ifx now_._nsec != 0 then now_ else time.now();
 	alts, clear := parse(header_value);
 	locks.lock(*c.mu);
 	defer locks.unlock(*c.mu);
@@ -80,9 +80,9 @@ record :: (c: *Cache, host: string, header_value: string, now_ := time.Time.{}) 
 	for a: alts {
 		// Chrome uses only "h3" (RFC 9114) here, for the same host.
 		if a.proto != "h3" || (a.host != "" && a.host != host) { continue; }
-		e := or_else(get(c.entries, host), Entry.{});
+		e := get(c.entries, host);
 		e.port = a.port;
-		e.expires = time.time_add(now, time.Duration(a.ma) * time.Second);
+		e.expires = time.time_add(now, cast(time.Duration) a.ma * time.Second);
 		set_entry_locked(c, host, e);
 		save_locked(c);
 		return;
@@ -109,7 +109,7 @@ set_entry_locked :: (c: *Cache, host: string, e: Entry) {
 usable :: (c: *Cache, host: string, now_ := time.Time.{}) -> int, bool {
 	port: int;
 	ok: bool;
-	now := ifx now_ != .{} then now_ else time.now();
+	now := ifx now_._nsec != 0 then now_ else time.now();
 	locks.lock(*c.mu);
 	defer locks.unlock(*c.mu);
 	e, found := map_find(c.entries, host);
@@ -120,12 +120,12 @@ usable :: (c: *Cache, host: string, now_ := time.Time.{}) -> int, bool {
 
 // mark_broken records a QUIC failure for host (exponential backoff).
 mark_broken :: (c: *Cache, host: string, now_ := time.Time.{}) {
-	now := ifx now_ != .{} then now_ else time.now();
+	now := ifx now_._nsec != 0 then now_ else time.now();
 	locks.lock(*c.mu);
 	defer locks.unlock(*c.mu);
 	e, found := map_find(c.entries, host);
 	if !found { return; }
-	d := BROKEN_INITIAL * time.Duration(1 << cast(u64)(min(e.broken_count, 10)));
+	d := BROKEN_INITIAL * ((cast(time.Duration) 1) << min(e.broken_count, 10));
 	e.broken_until = time.time_add(now, min(d, BROKEN_MAX));
 	e.broken_count += 1;
 	set_entry_locked(c, host, e);
@@ -183,7 +183,7 @@ save_locked :: (c: *Cache) {
 		fmt.sbprintf(*b, "%s %d %d %d %d\n", host, e.port, time.to_unix_seconds(e.expires), time.to_unix_seconds(e.broken_until), e.broken_count);
 	}
 	for r: quic.cached_rtts(temp) { fmt.sbprintf(*b, "rtt %s %d\n", r.host, r.us); }
-	tmp := strings.concatenate(.{c.path, ".tmp"}, temp);
+	tmp := strings.concatenate(string.[c.path, ".tmp"], temp);
 	if os.write_entire_file(tmp, transmute([]u8, strings.to_string(b))) == null {
 		os.rename(tmp, c.path);
 	}
@@ -283,8 +283,8 @@ connect :: (c: *Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user:
 	known := c.quic_works;
 	locks.unlock(*c.mu);
 	if known {
-		rtt := time.Duration(quic.cached_rtt_us(host)) * time.Microsecond;
-		r.delay = min(time.Duration(cast(float64)(rtt) * DELAY_MAIN_JOB_MULTIPLIER), DELAY_MAIN_JOB_MAX);
+		rtt := cast(time.Duration) quic.cached_rtt_us(host) * time.Microsecond;
+		r.delay = min(cast(time.Duration)(cast(float64)(rtt) * DELAY_MAIN_JOB_MULTIPLIER), DELAY_MAIN_JOB_MAX);
 	}
 	thread.run_with_poly_data(r, quic_job);
 	thread.run_with_poly_data(r, tcp_job);
@@ -312,7 +312,7 @@ race_release :: (r: *Race) {
 	locks.unlock(*r.mu);
 	if last {
 		delete(r.host, context.default_allocator);
-		free(r, context.default_allocator);
+		free(r,, context.default_allocator);
 	}
 }
 
