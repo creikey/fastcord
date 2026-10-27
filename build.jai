@@ -183,6 +183,8 @@ ui_scripts :: () -> bool {
         add(*jobs, tprint("emoji_%", path_strip_extension(path_filename(it))), "tests/ui/chat_emoji.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/emoji/media");
     for file_list("tests/ui/media") if ends_with(it, ".txt")  // GIFs, GIFV embeds and their menus, media served offline
         add(*jobs, tprint("media_%", path_strip_extension(path_filename(it))), "tests/ui/media/media.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/media");
+    for file_list("tests/ui/code") if ends_with(it, ".txt")  // ``` blocks in the highlighted languages
+        add(*jobs, tprint("code_%", path_strip_extension(path_filename(it))), "tests/ui/code/code.jsonl", it);
     sweep := array_add(*jobs);
     sweep.name = "sweep";
     array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");
