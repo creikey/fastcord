@@ -445,7 +445,7 @@ spoiler_revealed :: (toks: []Token, i: int) -> bool {
 
 // Clicks on links / mentions in a paragraph, against last frame's layout of the
 // box (spans carry their token index in id).
-handle_span_clicks :: (b: *ui.Box, toks: []Token) {
+handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0) {
 	tl := b.prev_layout;
 	if tl == null || !tl.spans return;
 	for e: app.ui.events {
@@ -463,7 +463,8 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token) {
 		}
 		if tk.kind == {
 		case .Link;
-			if is_invite_link(tk.text) invite_follow(invite_link_code(tk.text)); else open_url(tk.text);
+			code := invite_link_code(tk.text);
+			if code != "" invite_link_clicked(code, message_id); else open_url(tk.text);
 		case .User_Mention;
 			r := ui.Rect.{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10};
 			open_profile(tk.id, r);
@@ -620,7 +621,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 
 // Any overlay that takes keyboard input away from the composer.
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
@@ -1257,7 +1258,7 @@ message_body :: (m: *dc.Message) {
 				ui.set_spans(b, spans);
 				b.sel_order = m.id * 8 + 2 + cast(u64) bi % 4;
 			}
-			handle_span_clicks(b, blk.tokens);
+			handle_span_clicks(b, blk.tokens, m.id);
 		}
 	}
 	if m.edited_timestamp && !edited_inline label("(edited)", .Normal, 10, T("--text-muted"), 22);

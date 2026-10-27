@@ -299,7 +299,7 @@ client_destroy :: (c: *Client) {
 	array_free(c.quest_app_ids);
 	for c.invite_codes free(it);
 	deinit(*c.invite_codes);
-	for v, k: c.invite_previews { free(k,, c.allocator); free(v.name,, c.allocator); free(v.icon,, c.allocator); }
+	for v, k: c.invite_previews { free(k,, c.allocator); free(v.name,, c.allocator); free(v.icon,, c.allocator); free(v.error,, c.allocator); }
 	deinit(*c.invite_previews);
 	for v, k: c.etags { free(k); free(v); }
 	deinit(*c.etags);

@@ -81,6 +81,11 @@ add_server_overlay :: () {
 	if asv.step != .Closed add_server_modal();
 }
 
+centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: float32, color: ui.Color) {
+	b := set_para(id, text, font, size, line_h, color);
+	b.style.text_align = .Center;
+}
+
 #scope_file
 
 JOIN_RUNNING :: 0;
@@ -193,10 +198,6 @@ add_server_modal :: () {
 	}
 }
 
-centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: float32, color: ui.Color) {
-	b := set_para(id, text, font, size, line_h, color);
-	b.style.text_align = .Center;
-}
 
 step_choose :: () {
 	inset_begin(16, 0);
