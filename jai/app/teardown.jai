@@ -11,11 +11,11 @@
 teardowns: int;
 #scope_export
 
-teardown_busy :: () -> bool {return sync.atomic_load(*teardowns) > 0;}
+teardown_busy :: () -> bool {return atomic_load(*teardowns) > 0;}
 
 client_release :: (c: *dc.Client) {
 	if c == null { return; }
-	sync.atomic_add(*teardowns, 1);
+	atomic_add(*teardowns, 1);
 	thread.create_and_start_with_poly_data(c, (c: *dc.Client) {
 		dc.client_destroy(c);
 		sync.atomic_sub(*teardowns, 1);
@@ -25,7 +25,7 @@ client_release :: (c: *dc.Client) {
 
 voice_release :: (c: *voice.Conn) {
 	if c == null { return; }
-	sync.atomic_add(*teardowns, 1);
+	atomic_add(*teardowns, 1);
 	thread.create_and_start_with_poly_data(c, (c: *voice.Conn) {
 		voice.voice_disconnect(c);
 		sync.atomic_sub(*teardowns, 1);

@@ -262,14 +262,14 @@ bench_frame_end :: () {
 
 bench_pass_begin :: () {
 	if !bench.measuring { return; }
-	sync.atomic_store(*bench.gate, 1);
+	atomic_store(*bench.gate, 1);
 	bench.pass_start = time.tick_now();
 }
 
 bench_pass_end :: () {
 	if !bench.measuring { return; }
 	ns := cast(s64)(time.tick_since(bench.pass_start));
-	sync.atomic_store(*bench.gate, 0);
+	atomic_store(*bench.gate, 0);
 	sec := *bench.sections[len(bench.sections) - 1];
 	append(*sec.pass_ns, ns);
 	prof.zone_add(*bench.zones, "ui.pass", ns);
@@ -286,14 +286,14 @@ bench_pass_end :: () {
 
 bench_render_begin :: () {
 	if !bench.measuring { return; }
-	sync.atomic_store(*bench.gate, 1);
+	atomic_store(*bench.gate, 1);
 	bench.render_start = time.tick_now();
 }
 
 bench_render_end :: () {
 	if !bench.measuring { return; }
 	ns := cast(s64)(time.tick_since(bench.render_start));
-	sync.atomic_store(*bench.gate, 0);
+	atomic_store(*bench.gate, 0);
 	sec := *bench.sections[len(bench.sections) - 1];
 	append(*sec.render_ns, ns);
 	prof.zone_add(*bench.zones, "render", ns);

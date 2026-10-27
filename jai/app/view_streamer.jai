@@ -54,7 +54,7 @@ streamer_reset_for_test :: () {
 	sm = .{};
 }
 
-streamer_set_detected_for_test :: (on: bool) {sync.atomic_store(*sm.detected, on);}
+streamer_set_detected_for_test :: (on: bool) {atomic_store(*sm.detected, on);}
 
 // ---- detection ----
 
@@ -103,13 +103,13 @@ streamer_tool_running :: (paths: []string, os := STREAMER_OS) -> string, bool {
 // streamer_start: the process scan thread (never in headless runs).
 streamer_start :: () {
 	if platform.is_headless() { return; }
-	sync.atomic_store(*sm.scan, streamer_settings.auto_toggle);
+	atomic_store(*sm.scan, streamer_settings.auto_toggle);
 	thread.create_and_start(() {
 		while true {
-			if sync.atomic_load(*sm.scan) {
+			if atomic_load(*sm.scan) {
 				_, on := streamer_tool_running(dc.process_exe_paths(temp));
-				if on != sync.atomic_load(*sm.detected) {
-					sync.atomic_store(*sm.detected, on);
+				if on != atomic_load(*sm.detected) {
+					atomic_store(*sm.detected, on);
 					platform.request_frame();
 				}
 				free_all(temp);
@@ -126,8 +126,8 @@ streamer_frame :: () {
 		sm.started = true;
 		sm.last = s.*;
 	}
-	sync.atomic_store(*sm.scan, s.auto_toggle);
-	{ d := sync.atomic_load(*sm.detected);
+	atomic_store(*sm.scan, s.auto_toggle);
+	{ d := atomic_load(*sm.detected);
 	if d != sm.seen {
 		sm.seen = d;
 		if s.auto_toggle {

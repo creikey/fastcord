@@ -22,7 +22,7 @@ account: Account_Info;
 
 note_account :: (acc: *Account_Info, u: etf.Map) {
 	if u == null { return; }
-	a := runtime.heap_allocator(); // process-wide, like `account` itself (stores come and go)
+	a := context.default_allocator; // process-wide, like `account` itself (stores come and go)
 	if vhas(u, "email") {free_str(acc.email, a); acc.email = clone_str(fstr(u, "email"), a);}
 	if vhas(u, "phone") {free_str(acc.phone, a); acc.phone = clone_str(fstr(u, "phone"), a);}
 	if vhas(u, "verified") { acc.verified = fbool(u, "verified"); }

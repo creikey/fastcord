@@ -11,13 +11,13 @@
 // Fixture: traffic/account_edits.jsonl, windows logout and login_submit; the
 // rest is from the bundle (traffic/CLIENT_RULES.md "Login and logout").
 
-Mfa_Method :: enum u8 {
+Mfa_Method :: enum_flags u8 {
 	Webauthn;
 	Totp;
 	Backup;
 	Sms;
 }
-Mfa_Methods :: __BITSET__(Mfa_Method);
+Mfa_Methods :: Mfa_Method;
 
 Auth_Event_Kind :: enum u8 {
 	Logged_In; // token: the client is connecting; the app persists the token
@@ -551,7 +551,7 @@ auth_forget_fingerprint :: (c: *Client) {
 	delete(a.fingerprint, c.allocator);
 	a.fingerprint = "";
 	locks.unlock(*a.mu);
-	if c.cfg.state_dir != "" { os.remove(state_path(c, "fingerprint")); }
+	if c.cfg.state_dir != "" { os.remove_(state_path(c, "fingerprint")); }
 }
 
 // LOGOUT after POST /auth/logout settled (.finally): the network action and

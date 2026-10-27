@@ -113,7 +113,7 @@ dial :: (host: string, port := 443, addr: net.Address = .{}) -> *Conn, http.Erro
 	c: *Conn;
 	err: http.Error;
 	// The I/O thread shares the connection: it lives on the heap allocator.
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	ep := net.Endpoint.{addr, port};
 	if addr == null {
 		ep4, ep6, rerr := net.resolve(host);
@@ -254,7 +254,7 @@ close :: (c: *Conn) {
 #scope_module
 
 destroy :: (c: *Conn) {
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	fc_quic_del(c.q);
 	net.close(c.sock);
 	net.close(c.wake_sock);
@@ -285,7 +285,7 @@ fail_locked :: (c: *Conn, rv: s32) {
 }
 
 io_loop :: (c: *Conn) {
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	buf: [2048]u8;
 	while true {
 		locks.lock(*c.mu);
@@ -456,7 +456,7 @@ cached_rtts :: (allocator := context.allocator) -> []Rtt_Entry {
 
 remember_rtt :: (host: string, us: u64) {
 	if us == 0 { return; }
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	locks.lock(*rtt_cache_mu);
 	defer locks.unlock(*rtt_cache_mu);
 	if has(rtt_cache, host) {

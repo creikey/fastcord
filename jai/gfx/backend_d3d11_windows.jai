@@ -286,7 +286,7 @@ _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s3
 	for b: batches {
 		mapped: D3D11.MAPPED_SUBRESOURCE;
 		if dx.ctx->cast(Map)(dx.cbuf, 0, .WRITE_DISCARD, .{}, *mapped) >= 0 {
-			cast(*Uniforms)(mapped.pData).* = .{viewport = .{cast(float32)(fb.x), cast(float32)(fb.y)}, base = b.first};
+			(cast(*Uniforms)(mapped.pData)).* = .{viewport = .{cast(float32)(fb.x), cast(float32)(fb.y)}, base = b.first};
 			dx.ctx->Unmap(dx.cbuf, 0);
 		}
 		srvs: [TEX_SLOTS]*D3D11.IShaderResourceView;

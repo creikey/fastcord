@@ -195,7 +195,7 @@ if ok { page = n; } } }
 }
 
 supervise :: (minutes: int) -> bool {
-	os.remove(STOP_FILE);
+	os.remove_(STOP_FILE);
 	for inst: INSTANCES { if !launch_instance(inst) { return false; } }
 	start := time.tick_now();
 	last_report := time.tick_now();

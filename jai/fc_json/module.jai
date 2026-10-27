@@ -239,9 +239,9 @@ read :: (v: Value, info: *Type_Info, p: *void) {
         case .FLOAT;
         if v.kind != .Int && v.kind != .Float return;
         f: float64 = ifx v.kind == .Float then v.f else cast(float64) v.i;
-        if info.runtime_size == 4 (cast(*float32) p).* = cast(float32) f; else (cast(*float64) p).* = f;
-        case .BOOL; if v.kind == .Bool (cast(*bool) p).* = v.b;
-        case .STRING; if v.kind == .String (cast(*string) p).* = copy_string(v.s);
+        if info.runtime_size == 4 { (cast(*float32) p).* = cast(float32) f; } else { (cast(*float64) p).* = f; }
+        case .BOOL; if v.kind == .Bool { (cast(*bool) p).* = v.b; }
+        case .STRING; if v.kind == .String { (cast(*string) p).* = copy_string(v.s); }
         case .ENUM;
         if v.kind != .String return;
         e := cast(*Type_Info_Enum) info;

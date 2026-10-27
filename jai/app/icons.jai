@@ -4,7 +4,7 @@
 // embedded so the binary is self-contained.
 // Icons extracted from the official client (tools/probes/discord_icons.py),
 // embedded so the binary is self-contained.
-ICON_FILES := #load_directory("../../assets/icons");
+ICON_FILES := #run load_directory("../../assets/icons", #filepath);
 
 Icon_Key :: struct {
 	name: string;

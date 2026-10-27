@@ -38,7 +38,7 @@ Box :: struct {
 	size: s64; // total, -1 = to end of file
 }
 
-type4 :: (b: []u8) -> [4]u8 {return .{b[0], b[1], b[2], b[3]};}
+type4 :: (b: []u8) -> [4]u8 {return .[b[0], b[1], b[2], b[3]];}
 
 mp4_scan :: (d: *Demuxer) -> Scan_Status {
 	m := cast(*Mp4)(d.state);

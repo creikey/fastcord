@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 fmt :: #import "fc_fmt";
 #if OS == .MACOS intrinsics :: #import "fc_intrinsics";

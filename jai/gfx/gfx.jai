@@ -47,7 +47,7 @@ rect_shadow :: (dst: Rect, color: Color, blur: float32, radius: float32 = 0) {
 	push_rect(.{dst = dst, colors = .{color, color, color, color}, radii = radius, softness = blur});
 }
 
-image :: (dst: Rect, tex: Texture, tint: Color = .{1, 1, 1, 1}, radius: float32 = 0) {
+image :: (dst: Rect, tex: Texture, tint: Color = .[1, 1, 1, 1], radius: float32 = 0) {
 	push_rect(.{dst = dst, tex = tex, colors = .{tint, tint, tint, tint}, radii = radius});
 }
 
@@ -58,11 +58,11 @@ rect_intersect :: (a: Rect, b: Rect) -> Rect {
 rect_empty :: (r: Rect) -> bool {return r.x1 <= r.x0 || r.y1 <= r.y0;}
 
 rgba :: (hex: u32) -> Color {
-	return .{cast(float32)((hex >> 24) & 0xff) / 255, cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255};
+	return .[cast(float32)((hex >> 24) & 0xff) / 255, cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255];
 }
 
 rgb :: (hex: u32) -> Color {
-	return .{cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255, 1};
+	return .[cast(float32)((hex >> 16) & 0xff) / 255, cast(float32)((hex >> 8) & 0xff) / 255, cast(float32)(hex & 0xff) / 255, 1];
 }
 
 // ---------------------------------------------------------------------------
@@ -270,7 +270,7 @@ snap_rect :: (r: Rect) -> Rect {
 }
 
 premul :: inline (c: Color) -> [4]float32 {
-	return .{c.r * c.a, c.g * c.a, c.b * c.a, c.a};
+	return .[c.r * c.a, c.g * c.a, c.b * c.a, c.a];
 };
 #scope_export
 
@@ -459,7 +459,7 @@ texture_wrap_native :: (native: *void, w: int, h: int, format: Texture_Format, r
 native_device :: () -> *void {return _backend_native_device();}
 
 // Draw an NV12 frame (Y plane + CbCr plane).
-video :: (dst: Rect, y_plane: Texture, cbcr_plane: Texture, matrix_: Yuv_Matrix, radius: float32 = 0, tint: Color = .{1, 1, 1, 1}) {
+video :: (dst: Rect, y_plane: Texture, cbcr_plane: Texture, matrix_: Yuv_Matrix, radius: float32 = 0, tint: Color = .[1, 1, 1, 1]) {
 	push_rect(.{dst = dst, tex = y_plane, tex2 = cbcr_plane, yuv = matrix_, colors = .{tint, tint, tint, tint}, radii = radius});
 }
 #scope_module
@@ -491,8 +491,8 @@ texture_destroy :: (t: Texture) {
 }
 
 texture_size :: (t: Texture) -> [2]int {
-	if t == 0 || cast(int)(t) >= len(g.textures) { return .{}; }
-	return .{cast(int)(g.textures[t].w), cast(int)(g.textures[t].h)};
+	if t == 0 || cast(int)(t) >= len(g.textures) { return .[]; }
+	return .[cast(int)(g.textures[t].w), cast(int)(g.textures[t].h)];
 }
 
 // Reads back the last completed frame as tightly packed RGBA8 (straight alpha),

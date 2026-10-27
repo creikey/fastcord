@@ -8,7 +8,7 @@
 
 #scope_file
 
-vt :: inline (obj: *void, idx: int) -> *void #no_context {return cast(***void)(obj).*[idx];};
+vt :: inline (obj: *void, idx: int) -> *void #no_context {return (cast(***void)(obj)).*[idx];};
 
 release :: (obj: *void) #no_context {
 	if obj != null { (cast((*void) -> u32 #c_call)vt(obj, 2))(obj); }
@@ -102,7 +102,7 @@ stream_thread :: (th: *thread.Thread) {
 	win.CoInitializeEx(null, .MULTITHREADED);
 	defer win.CoUninitialize();
 	scratch: [4096]float32;
-	while !sync.atomic_load(*s.quit) {
+	while !atomic_load(*s.quit) {
 		win.WaitForSingleObject(s.event, 200);
 		if s.capture {
 			while true {
@@ -134,7 +134,7 @@ stream_thread :: (th: *thread.Thread) {
 		if avail == 0 { continue; }
 		buf: *float32;
 		if (cast((*void, u32, **float32) -> win.HRESULT #c_call)vt(s.service, 3))(s.service, avail, *buf) < 0 { continue; }
-		sync.atomic_add(*st.callbacks, 1);
+		atomic_add(*st.callbacks, 1);
 		mix(sub(buf, 0, avail * CHANNELS));
 		(cast((*void, u32, u32) -> win.HRESULT #c_call)vt(s.service, 4))(s.service, avail, 0);
 	}
@@ -142,7 +142,7 @@ stream_thread :: (th: *thread.Thread) {
 
 start_stream :: (s: *Stream) {
 	(cast((*void) -> win.HRESULT #c_call)vt(s.client, 10))(s.client);
-	sync.atomic_store(*s.quit, false);
+	atomic_store(*s.quit, false);
 	s.thread = thread.create(stream_thread);
 	s.thread.data = s;
 	thread.start(s.thread);
@@ -150,7 +150,7 @@ start_stream :: (s: *Stream) {
 
 stop_stream :: (s: *Stream) {
 	if s.thread == null { return; }
-	sync.atomic_store(*s.quit, true);
+	atomic_store(*s.quit, true);
 	win.SetEvent(s.event);
 	thread.join(s.thread);
 	thread.destroy(s.thread);

@@ -12,7 +12,7 @@ Block_Kind :: enum u8 {
 	List_Item;
 }
 
-Inline_Style :: enum u8 {
+Inline_Style :: enum_flags u8 {
 	Bold;
 	Italic;
 	Underline;
@@ -20,7 +20,7 @@ Inline_Style :: enum u8 {
 	Code;
 	Spoiler;
 }
-Inline_Styles :: __BITSET__(Inline_Style;u8);
+Inline_Styles :: Inline_Style;
 
 Token_Kind :: enum u8 {
 	Text;

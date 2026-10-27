@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";

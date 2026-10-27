@@ -2,7 +2,7 @@
 // (core:compress), br (fc:brotli), zstd (fc:zstd). Others can be added with
 //   http.register_decoder("name", proc)
 // A Decoder_Proc appends the decoded form of src to dst, never exceeding max_out.
-Decoder_Proc :: (src: []u8, dst: *[..]u8, max_out: int) -> Error;
+Decoder_Proc :: #type (src: []u8, dst: *[..]u8, max_out: int) -> Error;
 #scope_module
 
 Registered_Decoder :: struct {

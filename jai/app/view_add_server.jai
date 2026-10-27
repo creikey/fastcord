@@ -126,7 +126,7 @@ join_start :: (input: string) {
 // Per frame (overlay pass): finished requests, pending navigation, then the modal.
 add_server_overlay :: () {
 	{ j := asv.job;
-	if j != null && sync.atomic_load(*j.state) == JOIN_DONE {
+	if j != null && atomic_load(*j.state) == JOIN_DONE {
 		asv.job = null;
 		if j.res.ok && j.res.guild_id != 0 {
 			asv.open_guild = j.res.guild_id;

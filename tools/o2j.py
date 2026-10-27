@@ -84,6 +84,7 @@ TYPES = {'int': 'int', 'uint': 'u64', 'i8': 's8', 'i16': 's16', 'i32': 's32', 'i
 JAI_RESERVED = {'it', 'it_index', 'then', 'ifx', 'xx', 'inline', 'operator', 'remove', 'null', 'while', 'case', 'enum_flags',
                 'push_context', 'no_inline', 'interface', 'float', 's8', 's16', 's32', 's64', 'float32', 'float64',
                 'Type', 'Code', 'temp', 'print', 'New', 'type_of', 'is_constant', 'initializer_of', 'code_of', 'size_of'}
+HARD_KEYWORDS = {'remove', 'then', 'ifx', 'xx', 'inline', 'operator', 'push_context', 'while', 'no_inline', 'interface', 'null', 'enum_flags', 'it', 'it_index'}
 KEYWORDS = {'if', 'else', 'for', 'switch', 'case', 'when', 'return', 'defer', 'break', 'continue', 'fallthrough', 'proc',
             'struct', 'enum', 'union', 'bit_set', 'bit_field', 'map', 'distinct', 'dynamic', 'in', 'not_in', 'do',
             'using', 'cast', 'transmute', 'auto_cast', 'or_return', 'or_else', 'or_break', 'or_continue', 'foreign',
@@ -310,6 +311,7 @@ def conv_proc_params(g, cx, foreign=False):
         if '#c_vararg' in dirs: typ = typ.replace('..Any', '..Any')
         default = (' =' + conv_s(rest[ei+1:], cx)) if ei >= 0 else ''
         if default.strip() == '= null' and not nullable_type(typ): default = ' = .{}'
+        if fixed_array_type(typ) and default.strip().startswith('= .{'): default = ' = .[' + default.strip()[4:-1] + ']'
         for (pp, nm, us) in pending: out.append(f'{us}{rn(nm)}: {typ}{default}')
         pending = []
         name = name.replace('$', '$')
@@ -621,8 +623,14 @@ def conv_expr(items, cx, ctx='expr'):
                 out.append(tk(tt, t.pre)); i = j; continue
             if s == 'bit_set':
                 g = items[i+1]
-                inner = conv_s(g.items, cx).strip()
-                out.append(tk(f'__BITSET__({inner})', t.pre)); i += 2; continue
+                e = conv_s(g.items, cx).split(';')[0].strip()
+                out.append(tk(e, t.pre)); i += 2; continue
+            if s in GLOBAL['bitset_alias'] and i + 1 < n and isinstance(items[i+1], G) and items[i+1].o == '{' and not items[i+1].nl \
+                    and not (prev is not None and is_t(prev, '.')):
+                e = GLOBAL['bitset_alias'][s]
+                vals = [conv_s(p, cx).strip() for p in split_commas(items[i+1].items) if p]
+                vals = [(e + v if v.startswith('.') else v) for v in vals]
+                out.append(tk('(' + (' | '.join(vals) if vals else f'cast({e}) 0') + ')', t.pre)); i += 2; continue
             if s == 'distinct':
                 i += 1; continue
             if s == 'cast' or s == 'auto_cast':
@@ -701,7 +709,7 @@ def conv_expr(items, cx, ctx='expr'):
                     lim = {'int': 'S64', 's64': 'S64', 's32': 'S32', 's16': 'S16', 's8': 'S8', 'u8': 'U8', 'u16': 'U16', 'u32': 'U32', 'u64': 'U64', 'float32': 'FLOAT32', 'float64': 'FLOAT64'}.get(jt, jt.upper())
                     out.append(tk(f'{lim}_{s.upper()}', t.pre)); i += 2; continue
             if prev is not None and is_t(prev, '.') and len(out) >= 2:
-                out.append(t); i += 1; continue
+                out.append(tk(s + '_', t.pre) if s in HARD_KEYWORDS else t); i += 1; continue
             if s in JAI_RESERVED and not (i + 1 < n and is_t(items[i+1], '.') and s in cx.imports):
                 out.append(tk(s + '_', t.pre)); i += 1; continue
             if s == 'ODIN_OS': out.append(tk('OS', t.pre)); i += 1; continue
@@ -711,6 +719,9 @@ def conv_expr(items, cx, ctx='expr'):
         if t.k == 'op':
             if s == '^':
                 if prev is not None and is_operand_end(prev):
+                    if len(out) >= 2 and isinstance(out[-1], G) and isinstance(out[-2], T) and out[-2].s.strip().startswith('cast('):
+                        g = out.pop(); c = out.pop()
+                        out.append(tk('(' + c.s.strip() + text([g]).strip() + ')', c.pre))
                     out.append(tk('.*', t.pre))
                 else:
                     out.append(tk('*', t.pre))
@@ -764,6 +775,9 @@ def conv_expr(items, cx, ctx='expr'):
                 a = split_commas(g.items)
                 path = text(a[0]).strip()
                 out.append(tk(f'#run load_file({path}, #filepath)', t.pre)); i += 2; continue
+            if s == '#load_directory':
+                g = items[i+1]
+                out.append(tk(f'#run load_directory({text(g.items).strip()}, #filepath)', t.pre)); i += 2; continue
             if s == '#config':
                 g = items[i+1]
                 a = split_commas(g.items)
@@ -850,6 +864,9 @@ def conv_typebody(items, i, cx):
     members = split_commas(body.items)
     if kw == 'enum':
         backing = ' '.join(h for h in head if not h.startswith('#'))
+        if cx.cur_decl in GLOBAL['bitset_enums']:
+            kw = 'enum_flags'
+            backing = GLOBAL['bitset_enums'][cx.cur_decl] or backing
         lines = []
         for m in members:
             if not m: continue
@@ -860,7 +877,7 @@ def conv_typebody(items, i, cx):
             else:
                 lines.append(pre + text(m2).strip() + ';')
         tail = body.close.pre
-        return (f'enum{(" " + backing) if backing else ""} {{' + ''.join(lines) + tail + '}', i)
+        return (f'{kw}{(" " + backing) if backing else ""} {{' + ''.join(lines) + tail + '}', i)
     if kw == 'struct':
         lines = []
         pend = []
@@ -1280,7 +1297,8 @@ UNION_KINDS = {'bool': ('Bool', 'b'), 's64': ('Int', 'i'), 'float64': ('Float', 
     'Atom': ('Atom', 's'), 'Charlist': ('Charlist', 's'), 'List': ('List', 'list'), 'Tuple': ('Tuple', 'list'), 'Map': ('Map', 'map'),
     'null': ('Nil', None), 'Null': ('Nil', None), 'Integer': ('Int', 'i'), 'Float': ('Float', 'f'), 'Boolean': ('Bool', 'b'),
     'String': ('String', 's'), 'Array': ('List', 'list'), 'Object': ('Map', 'map')}
-QUALIFIED = {'c.int': 's32', 'c.uint': 'u32', 'c.long': 's64', 'c.ulong': 'u64', 'c.size_t': 'u64', 'c.ssize_t': 's64', 'c.char': 'u8',
+QUALIFIED = {'sync.atomic_load': 'atomic_load', 'sync.atomic_store': 'atomic_store', 'sync.atomic_add': 'atomic_add', 'sync.atomic_exchange': 'atomic_exchange',
+    'intrinsics.atomic_load': 'atomic_load', 'intrinsics.atomic_store': 'atomic_store', 'os.remove': 'os.remove_','c.int': 's32', 'c.uint': 'u32', 'c.long': 's64', 'c.ulong': 'u64', 'c.size_t': 'u64', 'c.ssize_t': 's64', 'c.char': 'u8',
     'c.schar': 's8', 'c.uchar': 'u8', 'c.short': 's16', 'c.ushort': 'u16', 'c.longlong': 's64', 'c.ulonglong': 'u64', 'c.float': 'float32',
     'c.double': 'float64', 'c.bool': 'bool', 'c.int32_t': 's32', 'c.uint32_t': 'u32', 'c.int64_t': 's64', 'c.uint64_t': 'u64', 'c.uint8_t': 'u8',
     'c.int8_t': 's8', 'c.uint16_t': 'u16', 'c.int16_t': 's16', 'c.intptr_t': 's64', 'c.uintptr_t': 'u64','mem.Allocator': 'Allocator', 'runtime.Allocator': 'Allocator', 'runtime.Source_Code_Location': 'Source_Code_Location',
@@ -1364,6 +1382,11 @@ def wrap_value(t, ty):
     if re.fullmatch(r'"(?:[^"\\]|\\.)*"', t): return f'{pkg}vstring({t})'
     if re.fullmatch(r'-?\d+', t): return f'{pkg}vint({t})'
     return t
+
+def fixed_array_type(t):
+    t = t.strip()
+    if t in GLOBAL['array_alias']: return not GLOBAL['array_alias'][t][1]
+    return bool(re.match(r'\[[^\].]', t)) and not t.startswith('[..]')
 
 def nullable_type(t):
     t = t.strip()
@@ -1449,6 +1472,7 @@ def conv_decl_items(st, cx):
         typ = conv_s(rest[:ei], cx).strip()
         v = conv_s(rest[ei+1:], cx)
         if v.strip() == 'null' and not nullable_type(typ): v = ' .{}'
+        if fixed_array_type(typ) and v.strip().startswith('.{') and v.strip().endswith('}'): v = ' .[' + v.strip()[2:-1] + ']'
         return [tk(pre + nm + ': ' + typ + ' =' + v)]
     typ = conv_s(rest, cx).strip()
     return [tk(pre + nm + ': ' + typ)]
@@ -1530,6 +1554,7 @@ def conv_stmt(st, cx):
             for p, r_ in zip(parts, res):
                 t = conv_s(p, cx)
                 if t.strip() == 'null' and not nullable_type(r_[1]): t = ' .{}'
+                elif fixed_array_type(r_[1]) and t.strip().startswith('.{') and t.strip().endswith('}'): t = ' .[' + t.strip()[2:-1] + ']'
                 elif r_[1].split('.')[-1] in ('Value', 'V') and r_[1] not in ('json.Value',): t = ' ' + wrap_value(t.strip(), r_[1])
                 conv.append(t)
             r = ','.join(conv)
@@ -1561,18 +1586,23 @@ def conv_stmt(st, cx):
     if isinstance(x, G) and x.o == '{':
         return pre + conv_block(x, cx)
     # declaration of proc / struct etc
+    if len(st) >= 4 and is_t(st[1], '::') and isinstance(st[2], T) and st[2].s == '#type':
+        st = st[:2] + st[3:]
     if len(st) >= 3 and is_t(st[1], '::') and isinstance(st[2], T) and st[2].s in ('proc', 'struct', 'enum', 'union', 'bit_field'):
         name = rn(x.s)
         scope = attr_scope(attrs)
+        cx.cur_decl = x.s
         t = conv_s(st[2:], cx)
+        cx.cur_decl = None
         if st[2].s == 'proc' and t.strip().startswith('__OVERLOAD__'):
             cx.overloads[name] = t.strip()[len('__OVERLOAD__('):-1].split(',')
             return ''
         if st[2].s == 'proc' and '#c_call' in t.split('{')[0] and 'push_context' not in t:
             pass
         semi = '' if (t.rstrip().endswith('}') and st[2].s != 'union') else ';'
-        if st[2].s == 'proc' and t.strip().endswith(')') or (st[2].s == 'proc' and '{' not in t):
+        if st[2].s == 'proc' and not t.rstrip().endswith('}'):
             semi = ';'
+            t = '#type ' + t.strip()
         return scope[0] + pre + name + ' :: ' + t.strip() + semi + scope[1]
     if attrs:
         scope = attr_scope(attrs)
@@ -1674,6 +1704,9 @@ def collect_globals(files):
         for m in re.finditer(r'^\s*([A-Za-z_]\w*)\s*::\s*(?:distinct\s+)?\[([^\]]*)\]\s*([\w.]+)\s*$', src, re.M):
             et = TYPES.get(m.group(3), m.group(3))
             GLOBAL['array_alias'][m.group(1)] = (et, m.group(2).strip() in ('dynamic', ''))
+        for m in re.finditer(r'^\s*([A-Za-z_]\w*)\s*::\s*bit_set\[\s*([\w.]+)\s*(?:;\s*(\w+))?\s*\]', src, re.M):
+            GLOBAL['bitset_alias'][m.group(1)] = m.group(2)
+            GLOBAL['bitset_enums'][m.group(2).split('.')[-1]] = TYPES.get(m.group(3), m.group(3)) if m.group(3) else None
         for m in re.finditer(r'^\s*([A-Za-z_]\w*)\s*::\s*struct\s*\(', src, re.M):
             GLOBAL['poly_types'].add(m.group(1))
     for f in files:
@@ -1696,6 +1729,8 @@ def collect_globals(files):
     open('/private/tmp/claude-501/-Users-creikey-Documents-fastcord/631d22d7-f4cc-46a9-909b-9855652e7f92/scratchpad/ambiguous_maps.txt', 'w').write('\n'.join(sorted(amb)))
 GLOBAL['poly_types'] = set()
 GLOBAL['array_alias'] = {}
+GLOBAL['bitset_alias'] = {}
+GLOBAL['bitset_enums'] = {}
 
 def convert_file(path, pkg):
     src = open(path).read()
@@ -1709,6 +1744,7 @@ def convert_file(path, pkg):
     cx.switch_depth = 0
     cx.pending_reverse = False
     cx.brk = []
+    cx.cur_decl = None
     cx.hoisted = []
     cx.thread_locals = []
     stmts = split_statements(items)
@@ -1732,10 +1768,11 @@ def convert_file(path, pkg):
         body = re.sub(r'(?<![\w.])' + re.escape(nm) + r'\b(?!\s*:)', 'context.' + nm, body)
     body = re.sub(r'\bos\.args\b', 'get_command_line_arguments()', body)
     body = fix_assert(body)
+    body = re.sub(r',\s*init_context\s*=\s*context\b', '', body)
     for a, b in (('.Windows', '.WINDOWS'), ('.Darwin', '.MACOS'), ('.Linux', '.LINUX'), ('.amd64', '.X64'), ('.arm64', '.ARM64')):
         body = re.sub(r'((?:OS|CPU) [!=]= )' + re.escape(a) + r'\b', r'\1' + b, body)
     for a, b in QUALIFIED.items():
-        body = re.sub(r'(?<![\w.])' + re.escape(a) + r'\b', b, body)
+        body = re.sub(r'(?<![\w.])' + re.escape(a) + (r'\b' if a[-1].isalnum() or a[-1] == '_' else ''), b, body)
     body = re.sub(r'\n#scope_export\n((?:[ \t]*\n)*)(#scope_(?:file|module)\n)', r'\n\1\2', body)
     lines, cur = [], '#scope_export'
     for line in body.split('\n'):
@@ -1794,7 +1831,7 @@ def run(root, out_root, pkgs):
             overloads.update(cx.overloads)
             libs.update(cx.foreign_libs)
             loads.append((jf, file_os(f, cx)))
-        lines = ['#import "Basic";', '#import "String";', '#import "Hash_Table";', '#import "fc";']
+        lines = ['#import "Basic";', '#import "String";', '#import "Hash_Table";', '#import "Atomics";', '#import "fc";']
         for nm, m in sorted(imports.items()):
             if m == mod or m == 'fc_c': continue
             oses = import_os.get(nm, {None})

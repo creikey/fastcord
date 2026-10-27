@@ -157,7 +157,7 @@ set_option :: (s: S.Socket, o: Socket_Option, v: $T) -> Error {
     }
     return .None;
 }
-would_block :: () -> bool { e := S.get_last_socket_error(); return e == S.EAGAIN || e == S.EWOULDBLOCK; }
+would_block :: () -> bool { e := S.get_last_socket_error(); return e == 35 || e == 60; } // EAGAIN / ETIMEDOUT (SO_RCVTIMEO)
 send_tcp :: (s: TCP_Socket, b: []u8) -> int, Error {
     n := S.send(s, b.data, xx b.count, .NOSIGNAL);
     if n < 0 return 0, ifx would_block() then .Timeout else .Closed;

@@ -244,7 +244,7 @@ att_spawn :: (j: Att_Job) {
 	job.* = j;
 	job.path = clone(j.path);
 	job.mime = clone(j.mime);
-	sync.atomic_add(*att.busy, 1);
+	atomic_add(*att.busy, 1);
 	thread.create_and_start_with_poly_data(job, att_work, self_cleanup = true);
 }
 
@@ -300,7 +300,7 @@ att_work :: (j: *Att_Job) {
 
 // Jobs still running (tests wait for them).
 attachments_busy :: () -> bool {
-	if sync.atomic_load(*att.busy) > 0 { return true; }
+	if atomic_load(*att.busy) > 0 { return true; }
 	locks.lock(*att.mu);
 	defer locks.unlock(*att.mu);
 	return len(att.results) > 0;

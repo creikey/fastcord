@@ -80,7 +80,7 @@ shot: Shot;
 is_return :: (a: u64) -> bool #no_context {
 	#if CPU == .ARM64 {
 		if a & 3 != 0 || a < shot.text_lo + 4 || a > shot.text_hi { return false; }
-		ins := cast(*u32)(cast(u64)(a - 4)).*;
+		ins := (cast(*u32)(cast(u64)(a - 4))).*;
 		return ins & 0xFC00_0000 == 0x9400_0000 || ins & 0xFFFF_FC1F == 0xD63F_0000 || ins & 0xFFFF_F800 == 0xD63F_0800; // BL, BLR, BLRAA/BLRAB
 	} else {
 		if a < shot.text_lo + 6 || a > shot.text_hi { return false; }
@@ -91,30 +91,30 @@ is_return :: (a: u64) -> bool #no_context {
 
 on_sigprof :: (sig: s32, info: *void, uc: *void) #c_call {
 	defer {
-		sync.atomic_store(*shot.done, 1);
+		atomic_store(*shot.done, 1);
 		// The capturer gave up waiting, so it left busy for us to release.
-		if sync.atomic_exchange(*shot.abandoned, 0) == 1 { sync.atomic_store(*shot.busy, 0); }
+		if atomic_exchange(*shot.abandoned, 0) == 1 { atomic_store(*shot.busy, 0); }
 	}
-	if shot.gate != null && sync.atomic_load(shot.gate) == 0 {
+	if shot.gate != null && atomic_load(shot.gate) == 0 {
 		shot.n = -1;
 		return;
 	}
-	mc := cast(u64)(cast(**void)(cast(u64)(uc) + 48).*);
-	shot.frames[0] = cast(u64)(cast(*u64)(mc + PC_OFFSET).*) & ADDR_MASK;
+	mc := cast(u64)((cast(**void)(cast(u64)(uc) + 48)).*);
+	shot.frames[0] = cast(u64)((cast(*u64)(mc + PC_OFFSET)).*) & ADDR_MASK;
 	shot.n = 1;
 	#if CPU == .ARM64 {
 		// A leaf function keeps its return address only in lr.
-		lr := cast(u64)(cast(*u64)(mc + LR_OFFSET).*) & ADDR_MASK;
+		lr := cast(u64)((cast(*u64)(mc + LR_OFFSET)).*) & ADDR_MASK;
 		if is_return(lr) {
 			shot.frames[1] = lr - 1;
 			shot.n = 2;
 		}
 	}
-	sp := cast(*u64)(mc + SP_OFFSET).* & ~ 7;
+	sp := (cast(*u64)(mc + SP_OFFSET)).* & ~ 7;
 	hi := min(shot.stack_hi, sp + MAX_SCAN);
 	{ p := sp;
 	while p + 8 <= hi && shot.n < MAX_FRAMES {
-		a := cast(*u64)(p).* & ADDR_MASK;
+		a := (cast(*u64)(p)).* & ADDR_MASK;
 		if !is_return(a) || a - 1 == shot.frames[shot.n - 1] { { p += 8; continue; } }
 		shot.frames[shot.n] = a - 1;
 		shot.n += 1;
@@ -136,7 +136,7 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 	open: bool;
 	{ _, ok := sync.atomic_compare_exchange_strong(*shot.busy, 0, 1);
 	if !ok { return 0, true; } }
-	if sync.atomic_load(*shot.installed) == 0 {
+	if atomic_load(*shot.installed) == 0 {
 		{ s := getsectbyname("__TEXT", "__text");
 		if s != null {
 			slide := cast(u64)(_dyld_get_image_vmaddr_slide(0));
@@ -144,30 +144,30 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 		} }
 		act := Sigaction.{handler = on_sigprof, flags = SA_SIGINFO | SA_RESTART};
 		if sigaction(SIGPROF, *act, null) != 0 {
-			sync.atomic_store(*shot.busy, 0);
+			atomic_store(*shot.busy, 0);
 			return 0, true;
 		}
-		sync.atomic_store(*shot.installed, 1);
+		atomic_store(*shot.installed, 1);
 	}
 	shot.gate = gate;
 	shot.stack_hi = t.hi;
 	shot.n = 0;
-	sync.atomic_store(*shot.done, 0);
+	atomic_store(*shot.done, 0);
 	if pthread_kill(t.thread, SIGPROF) != 0 {
-		sync.atomic_store(*shot.busy, 0);
+		atomic_store(*shot.busy, 0);
 		return 0, true;
 	}
 	start := time.tick_now();
-	while sync.atomic_load(*shot.done) == 0 {
+	while atomic_load(*shot.done) == 0 {
 		if time.tick_since(start) > time.Second {
 			// The handler may still run later; it releases busy then.
-			sync.atomic_store(*shot.abandoned, 1);
-			if sync.atomic_load(*shot.done) == 1 && sync.atomic_exchange(*shot.abandoned, 0) == 1 { sync.atomic_store(*shot.busy, 0); }
+			atomic_store(*shot.abandoned, 1);
+			if atomic_load(*shot.done) == 1 && atomic_exchange(*shot.abandoned, 0) == 1 { atomic_store(*shot.busy, 0); }
 			return 0, true;
 		}
 		intrinsics.cpu_relax();
 	}
-	defer sync.atomic_store(*shot.busy, 0);
+	defer atomic_store(*shot.busy, 0);
 	if shot.n < 0 { return 0, false; }
 	n = min(shot.n, len(buf));
 	copy(sub(buf, 0, n), sub(shot.frames, 0, n));

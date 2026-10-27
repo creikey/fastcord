@@ -7,7 +7,7 @@ Builder :: struct { buf: [..]u8; }
 builder_make :: (allocator := context.allocator) -> Builder { b: Builder; b.buf.allocator = allocator; return b; }
 builder_make :: (n: int, allocator := context.allocator) -> Builder { b := builder_make(allocator); array_reserve(*b.buf, n); return b; }
 builder_from_bytes :: (backing: []u8) -> Builder { b: Builder; b.buf.data = backing.data; b.buf.allocated = backing.count; return b; }
-builder_destroy :: (b: *Builder) { array_free(b.buf); b.buf = .{}; }
+builder_destroy :: (b: *Builder) { array_free(b.buf); b.buf = .[]; }
 builder_reset :: (b: *Builder) { b.buf.count = 0; }
 builder_len :: (b: Builder) -> int { return b.buf.count; }
 to_string :: (b: Builder) -> string { return as_string(b.buf); }

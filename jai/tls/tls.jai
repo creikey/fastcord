@@ -428,12 +428,12 @@ key_update :: (s: *Session) -> Error {
 // without freeing anything. It forwards to the underlying stream and is safe from any thread. close()
 // is still required afterwards, once the other threads have returned.
 shutdown :: (s: *Session) {
-	intrinsics.atomic_store(*s.shut, true);
+	atomic_store(*s.shut, true);
 	netio.shutdown(s.under);
 }
 #scope_module
 
-is_shut :: (s: *Session) -> bool {return intrinsics.atomic_load(*s.shut);}
+is_shut :: (s: *Session) -> bool {return atomic_load(*s.shut);}
 #scope_export
 
 // close sends close_notify, closes the underlying stream and frees the session.

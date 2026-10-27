@@ -220,7 +220,7 @@ gateway_send :: (g: *Gateway, op: Op, d: V) -> bool {
 	if err != .None { return false; }
 	if locks.on_ui_thread() {
 		// Queued: true means accepted for sending, as a send can still fail on a dying socket.
-		if sync.atomic_load(*g.ws) == null { return false; }
+		if atomic_load(*g.ws) == null { return false; }
 		if g.c.on_gateway_send != null { g.c.on_gateway_send(g.c.observer_data, op, d); }
 		if g.c.on_gateway_frame != null { g.c.on_gateway_frame(g.c.observer_data, true, frame, len(buf)); }
 		locks.lock(*g.out_mu);

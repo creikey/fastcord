@@ -333,7 +333,7 @@ parse_color :: (v: string) -> [4]u8 {
 			for j: 0..(len(h) / 2)-1 { at(*out, j).* = hex(h[2 * j]) << 4 | hex(h[2 * j + 1]); }
 			return out;
 		}
-		return .{0, 0, 0, 255};
+		return .[0, 0, 0, 255];
 	}
 	if strings.has_prefix(s, "rgb") {
 		o := strings.index_byte(s, #char "(");
@@ -356,17 +356,17 @@ parse_color :: (v: string) -> [4]u8 {
 	}
 	if strings.to_lower(s, temp) == {
 	case "white";
-		return .{255, 255, 255, 255};
+		return .[255, 255, 255, 255];
 	case "red";
-		return .{255, 0, 0, 255};
+		return .[255, 0, 0, 255];
 	case "green";
-		return .{0, 128, 0, 255};
+		return .[0, 128, 0, 255];
 	case "blue";
-		return .{0, 0, 255, 255};
+		return .[0, 0, 255, 255];
 	case "gray"; #through; case "grey";
-		return .{128, 128, 128, 255};
+		return .[128, 128, 128, 255];
 	}
-	return .{0, 0, 0, 255};
+	return .[0, 0, 0, 255];
 }
 
 luminance :: (c: [4]u8) -> float32 {
@@ -703,10 +703,10 @@ arc_to :: (b: *Builder, rx_in: float32, ry_in: float32, phi_deg: float32, large:
 	d := dtheta / cast(float64)(n);
 	k := 4.0 / 3.0 * math.tan(d / 4);
 	ept :: (cx: float64, cy: float64, rx: float64, ry: float64, cs: float64, sn: float64, t: float64) -> [2]float64 {
-		return .{cx + rx * math.cos(t) * cs - ry * math.sin(t) * sn, cy + rx * math.cos(t) * sn + ry * math.sin(t) * cs};
+		return .[cx + rx * math.cos(t) * cs - ry * math.sin(t) * sn, cy + rx * math.cos(t) * sn + ry * math.sin(t) * cs];
 	}
 	eder :: (rx: float64, ry: float64, cs: float64, sn: float64, t: float64) -> [2]float64 {
-		return .{-rx * math.sin(t) * cs - ry * math.cos(t) * sn, -rx * math.sin(t) * sn + ry * math.cos(t) * cs};
+		return .[-rx * math.sin(t) * cs - ry * math.cos(t) * sn, -rx * math.sin(t) * sn + ry * math.cos(t) * cs];
 	}
 	for i: 0..n-1 {
 		t1 := theta1 + cast(float64)(i) * d;

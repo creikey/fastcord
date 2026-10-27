@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 aes :: #import "fc_aes";
 crypto :: #import "fc_crypto";

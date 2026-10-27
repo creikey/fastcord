@@ -6,7 +6,7 @@ Void :: struct {}
 #scope_module
 
 // Signatures of symbols also declared by base:runtime must match it exactly.
-_IMP :: (object: *intrinsics.objc_object, sel: *intrinsics.objc_selector, args: ..Any) -> *intrinsics.objc_object #c_call;
+_IMP :: #type (object: *intrinsics.objc_object, sel: *intrinsics.objc_selector, args: ..Any) -> *intrinsics.objc_object #c_call;
 	objc_msgSend :: (self: *intrinsics.objc_object, op: *intrinsics.objc_selector, args: ..Any) #foreign lib;
 	sel_registerName :: (name: *u8) -> *intrinsics.objc_selector #foreign lib;
 	objc_lookUpClass :: (name: *u8) -> *intrinsics.objc_class #foreign lib;

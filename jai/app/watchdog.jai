@@ -28,17 +28,17 @@ watchdog_start :: () {
 }
 
 watchdog_frame_begin :: () {
-	sync.atomic_store(*wd.phase, Frame_Phase.Poll);
-	sync.atomic_store(*wd.frame_start, time.to_unix_nanoseconds(time.now()));
+	atomic_store(*wd.phase, Frame_Phase.Poll);
+	atomic_store(*wd.frame_start, time.to_unix_nanoseconds(time.now()));
 }
 
 watchdog_phase :: (p: Frame_Phase) {
-	sync.atomic_store(*wd.phase, p);
+	atomic_store(*wd.phase, p);
 }
 
 watchdog_frame_end :: () {
-	sync.atomic_store(*wd.frame_start, 0);
-	sync.atomic_store(*wd.phase, Frame_Phase.Idle);
+	atomic_store(*wd.frame_start, 0);
+	atomic_store(*wd.phase, Frame_Phase.Idle);
 }
 #scope_file
 
@@ -98,7 +98,7 @@ watchdog_proc :: () {
 		time.sleep(time.Second);
 		write_gfx_report();
 		free_all(temp);
-		start := sync.atomic_load(*wd.frame_start);
+		start := atomic_load(*wd.frame_start);
 		if start == 0 || start == wd.reported { continue; }
 		stuck := time.Duration(time.to_unix_nanoseconds(time.now()) - start);
 		if stuck < HANG_SECONDS * time.Second { continue; }
@@ -110,7 +110,7 @@ watchdog_proc :: () {
 
 report_hang :: (stuck: time.Duration) {
 	b := strings.builder_make(temp);
-	fmt.sbprintfln(*b, "fastcord hang: frame running for %v, phase %v, main thread %d", stuck, sync.atomic_load(*wd.phase), wd.main_tid);
+	fmt.sbprintfln(*b, "fastcord hang: frame running for %v, phase %v, main thread %d", stuck, atomic_load(*wd.phase), wd.main_tid);
 	{ w := locks.waiting_on(wd.main_tid);
 	if w.waiting {
 		fmt.sbprintfln(*b, "main thread is waiting for the lock taken at %v", w.wait_loc);

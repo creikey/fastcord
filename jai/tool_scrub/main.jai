@@ -48,7 +48,7 @@ main :: () {
 	problems := verify(as_string(raw), out);
 	for p: problems { fmt.eprintln("LEAK:", p); }
 	if len(problems) > 0 {
-		os.remove(args[2]);
+		os.remove_(args[2]);
 		fmt.eprintln("refusing to keep", args[2]);
 		os.exit(1);
 	}

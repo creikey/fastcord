@@ -32,7 +32,7 @@ text_size :: (pad: float32 = 0, strictness: float32 = 1) -> Size {return .{.Text
 children :: (strictness: float32 = 1) -> Size {return .{.Children_Sum, 0, strictness};}
 fill :: () -> Size {return .{.Fill, 1, 0};}
 
-Box_Flag :: enum u32 {
+Box_Flag :: enum_flags u32 {
 	Clickable;
 	Scroll_X;
 	Scroll_Y;
@@ -53,7 +53,7 @@ Box_Flag :: enum u32 {
 	Disabled;
 	Keyboard_Clickable;
 }
-Box_Flags :: __BITSET__(Box_Flag;u32);
+Box_Flags :: Box_Flag;
 
 Align :: enum u8 {
 	Start;
@@ -88,7 +88,7 @@ Style :: struct {
 
 Font :: u32;
 
-Custom_Draw :: (b: *Box, user: *void);
+Custom_Draw :: #type (b: *Box, user: *void);
 
 Box :: struct {
 	// tree links, rebuilt each frame
@@ -144,13 +144,13 @@ Mouse_Button :: enum u8 {
 	Middle;
 }
 
-Mod :: enum u8 {
+Mod :: enum_flags u8 {
 	Shift;
 	Ctrl;
 	Alt;
 	Cmd;
 }
-Mods :: __BITSET__(Mod;u8);
+Mods :: Mod;
 
 Key_Code :: enum u16 {
 	None;

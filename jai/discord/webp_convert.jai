@@ -59,7 +59,7 @@ note_webp_experiment :: (c: *Client, ready: V) {
 		}
 	}
 	walk(vget(vmap(ready), "apex_experiments"), *variation);
-	sync.atomic_store(*c.webp_variation, variation);
+	atomic_store(*c.webp_variation, variation);
 }
 
 webp_max_bytes :: (variation: s32) -> int {

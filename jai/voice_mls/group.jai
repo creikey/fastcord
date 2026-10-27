@@ -511,12 +511,12 @@ apply_proposals :: (g: *Group, ng: *Group, props: []*Proposal, senders: []Sender
 	// 3. Removes
 	for p: props {
 		if p.type != .Remove { continue; }
-		n := leaf_at(t, p.remove);
+		n := leaf_at(t, p.remove_);
 		if n == null || n.kind != .Leaf { return ap, .Verify; }
-		if p.remove == committer { return ap, .Verify; }
-		if p.remove == g.my_leaf { ap.removed_self = true; }
+		if p.remove_ == committer { return ap, .Verify; }
+		if p.remove_ == g.my_leaf { ap.removed_self = true; }
 		n.* = Node.{};
-		tree_blank_path(t, p.remove);
+		tree_blank_path(t, p.remove_);
 		ap.path_required = true;
 	}
 	tree_truncate(t);

@@ -322,7 +322,7 @@ w_proposal :: (w: *Writer, p: Proposal) {
 	case .Update;
 		w_leaf_node(w, p.update);
 	case .Remove;
-		w_u32(w, p.remove);
+		w_u32(w, p.remove_);
 	case .Psk;
 		w_psk_id(w, p.psk);
 	case .Group_Context_Extensions;
@@ -545,7 +545,7 @@ r_proposal :: (r: *Reader, a: Allocator) -> Proposal {
 	case .Update;
 		p.update = r_leaf_node(r, a);
 	case .Remove;
-		p.remove = r_u32(r);
+		p.remove_ = r_u32(r);
 	case .Psk;
 		p.psk = r_psk_id(r);
 	case .Reinit;

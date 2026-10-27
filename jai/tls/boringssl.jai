@@ -25,10 +25,10 @@ SSL_KEY_UPDATE_REQUESTED :: 1;
 ssl_verify_ok :: 0;
 ssl_verify_invalid :: 1;
 
-Verify_Callback :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call;
-Decompress_Callback :: (ssl: *SSL, out: **CRYPTO_BUFFER, uncompressed_len: u64, data: *u8, data_len: u64) -> s32 #c_call;
-New_Session_Callback :: (ssl: *SSL, session: *SSL_SESSION) -> s32 #c_call;
-Ex_Free_Callback :: (parent: *void, ptr: *void, ad: *void, index: s32, argl: s64, argp: *void) #c_call;
+Verify_Callback :: #type (ssl: *SSL, out_alert: *u8) -> s32 #c_call;
+Decompress_Callback :: #type (ssl: *SSL, out: **CRYPTO_BUFFER, uncompressed_len: u64, data: *u8, data_len: u64) -> s32 #c_call;
+New_Session_Callback :: #type (ssl: *SSL, session: *SSL_SESSION) -> s32 #c_call;
+Ex_Free_Callback :: #type (parent: *void, ptr: *void, ad: *void, index: s32, argl: s64, argp: *void) #c_call;
 	TLS_method :: () -> *SSL_METHOD #foreign bssl;
 	SSL_CTX_new :: (method: *SSL_METHOD) -> *SSL_CTX #foreign bssl;
 	SSL_CTX_free :: (ctx: *SSL_CTX) #foreign bssl;

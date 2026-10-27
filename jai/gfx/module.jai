@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 #if OS == .MACOS CF :: #import "core:sys/darwin/CoreFoundation";
 #if OS == .WINDOWS D3D :: #import "fc_d3d_compiler";

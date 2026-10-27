@@ -83,16 +83,16 @@ tcp_set_timeout_raw :: (data: *void, d: time.Duration) {tcp_set_timeout(cast(*Tc
 // tcp_shutdown: shutdown(2) both directions; a blocked recv returns 0 (.Closed).
 tcp_shutdown :: (data: *void) {
 	t := cast(*Tcp)data;
-	if sync.atomic_exchange(*t.shut, true) { return; }
+	if atomic_exchange(*t.shut, true) { return; }
 	net.shutdown(t.sock, .Both);
 }
 
 tcp_read :: (data: *void, dst: []u8) -> int, Error {
 	t := cast(*Tcp)data;
-	if t.closed || sync.atomic_load(*t.shut) { return 0, .Closed; }
+	if t.closed || atomic_load(*t.shut) { return 0, .Closed; }
 	locks.may_block("TCP read");
 	n, err := net.recv_tcp(t.sock, dst);
-	if sync.atomic_load(*t.shut) { return 0, .Closed; }
+	if atomic_load(*t.shut) { return 0, .Closed; }
 	if err != null {
 		if err == net.TCP_Recv_Error.Timeout { return 0, .Timeout; }
 		return 0, .Io;
@@ -103,7 +103,7 @@ tcp_read :: (data: *void, dst: []u8) -> int, Error {
 
 tcp_write :: (data: *void, src: []u8) -> Error {
 	t := cast(*Tcp)data;
-	if t.closed || sync.atomic_load(*t.shut) { return .Closed; }
+	if t.closed || atomic_load(*t.shut) { return .Closed; }
 	locks.may_block("TCP write");
 	off := 0;
 	while off < len(src) {

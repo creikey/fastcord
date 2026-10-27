@@ -69,7 +69,7 @@ AudioStreamPacketDescription :: struct {
 	mDataByteSize: u32;
 }
 
-Input_Proc :: (conv: *void, n_packets: *u32, data: *audio.AudioBufferList, desc: **AudioStreamPacketDescription, user: *void) -> OSStatus #c_call;
+Input_Proc :: #type (conv: *void, n_packets: *u32, data: *audio.AudioBufferList, desc: **AudioStreamPacketDescription, user: *void) -> OSStatus #c_call;
 	AudioConverterNew :: (in_fmt: *audio.AudioStreamBasicDescription, out_fmt: *audio.AudioStreamBasicDescription, out: **void) -> OSStatus #foreign AudioToolbox;
 	AudioConverterDispose :: (c: *void) -> OSStatus #foreign AudioToolbox;
 	AudioConverterReset :: (c: *void) -> OSStatus #foreign AudioToolbox;

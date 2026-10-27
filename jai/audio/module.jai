@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 #if OS == .MACOS CF :: #import "core:sys/darwin/CoreFoundation";
 locks :: #import "locks";

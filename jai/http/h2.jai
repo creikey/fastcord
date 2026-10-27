@@ -84,7 +84,7 @@ Ng_Nv :: struct {
 	flags: u8;
 }
 
-Ng_Read_Proc :: (s: *Ng_Session, id: s32, buf: *u8, n: u64, flags: *u32, source: *void, user: *void) -> int #c_call;
+Ng_Read_Proc :: #type (s: *Ng_Session, id: s32, buf: *u8, n: u64, flags: *u32, source: *void, user: *void) -> int #c_call;
 
 Ng_Data_Provider :: struct {
 	source: *void;

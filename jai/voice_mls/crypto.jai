@@ -72,9 +72,9 @@ aead_open :: (key: []u8, nonce: []u8, aad: []u8, ct: []u8, allocator := context.
 // ---------------------------------------------------------------------------
 // HPKE (RFC 9180) base mode, DHKEM(P-256, HKDF-SHA256), HKDF-SHA256, AES-128-GCM.
 
-kem_suite_id :: () -> [5]u8 {return .{#char "K", #char "E", #char "M", cast(u8)(KEM_ID >> 8), cast(u8)(KEM_ID)};}
+kem_suite_id :: () -> [5]u8 {return .[#char "K", #char "E", #char "M", cast(u8)(KEM_ID >> 8), cast(u8)(KEM_ID)];}
 hpke_suite_id :: () -> [10]u8 {
-	return .{#char "H", #char "P", #char "K", #char "E", cast(u8)(KEM_ID >> 8), cast(u8)(KEM_ID), cast(u8)(KDF_ID >> 8), cast(u8)(KDF_ID), cast(u8)(AEAD_ID >> 8), cast(u8)(AEAD_ID)};
+	return .[#char "H", #char "P", #char "K", #char "E", cast(u8)(KEM_ID >> 8), cast(u8)(KEM_ID), cast(u8)(KDF_ID >> 8), cast(u8)(KDF_ID), cast(u8)(AEAD_ID >> 8), cast(u8)(AEAD_ID)];
 }
 
 labeled_extract :: (suite_id: []u8, salt: []u8, label: string, ikm: []u8) -> Secret {

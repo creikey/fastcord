@@ -16,13 +16,13 @@ Error :: enum u8 {
 
 c_alloc :: (_: *void, size: u64) -> *void #c_call {
 	__ctx1: #Context; push_context,defer_pop __ctx1;
-	p, _ := mem.alloc(cast(int)(size), 16, runtime.heap_allocator());
+	p, _ := mem.alloc(cast(int)(size), 16, context.default_allocator);
 	return p;
 }
 
 c_free :: (_: *void, address: *void) #c_call {
 	__ctx2: #Context; push_context,defer_pop __ctx2;
-	mem.free(address, runtime.heap_allocator());
+	mem.free(address, context.default_allocator);
 }
 #scope_export
 

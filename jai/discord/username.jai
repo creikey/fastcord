@@ -43,7 +43,7 @@ Pomelo_State :: struct {
 
 pomelo_destroy :: (c: *Client) {
 	p := *c.pomelo;
-	a := runtime.heap_allocator();
+	a := context.default_allocator;
 	for k, r: p.results {
 		delete(k, a);
 		delete(r.message, a);
@@ -60,7 +60,7 @@ username_input_changed :: (c: *Client, name: string) {
 	if name == "" { return; } // the effect skips "" (a check already queued still runs)
 	if username_check(c, name).state != .Unknown { return; } // checked (cached) or rate limited
 	p := *c.pomelo;
-	a := runtime.heap_allocator();
+	a := context.default_allocator;
 	delete(p.pending, a);
 	p.pending = clone(name, a);
 	p.due = now_ms() + USERNAME_CHECK_DEBOUNCE_MS;
@@ -95,7 +95,7 @@ username_rule_error :: (name: string) -> string {
 
 pomelo_store :: (c: *Client, name: string, state: Username_Check_State, message: string, ttl_ms: s64) {
 	p := *c.pomelo;
-	a := runtime.heap_allocator();
+	a := context.default_allocator;
 	locks.lock(*p.mu);
 	defer locks.unlock(*p.mu);
 	if p.results == null { p.results = Map(string, Pomelo_Result).{}; }

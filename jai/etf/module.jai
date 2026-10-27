@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 bytes :: #import "fc_bytes";
 mem :: #import "fc_mem";

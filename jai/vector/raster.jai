@@ -26,7 +26,7 @@ view_transform :: (icon: *Icon, w: int, h: int) -> Mat {
 	s := min(cast(float32)(w) / vb[2], cast(float32)(h) / vb[3]);
 	tx := (cast(float32)(w) - vb[2] * s) / 2 - vb[0] * s;
 	ty := (cast(float32)(h) - vb[3] * s) / 2 - vb[1] * s;
-	return .{s, 0, 0, s, tx, ty};
+	return .[s, 0, 0, s, tx, ty];
 }
 
 // rasterize_rgba renders all layers in color: fixed paints and gradients as
@@ -531,7 +531,7 @@ acc_line :: (r: *Raster, p0: [2]float32, p1: [2]float32) {
 	// Clip y to [0, h].
 	clip_y :: (a: [2]float32, b: [2]float32, y: float32) -> [2]float32 {
 		t := (y - a.y) / (b.y - a.y);
-		return .{a.x + (b.x - a.x) * t, y};
+		return .[a.x + (b.x - a.x) * t, y];
 	}
 	if a.y < 0 { a = clip_y(a, b, 0); } else if a.y > h { a = clip_y(a, b, h); }
 	if b.y < 0 { b = clip_y(a, b, 0); } else if b.y > h { b = clip_y(a, b, h); }

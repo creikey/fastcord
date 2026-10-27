@@ -32,7 +32,7 @@ sampler_start :: (s: *Sampler, target: Thread_Ref, hz := 1000, gate: *s32 = null
 
 sampler_stop :: (s: *Sampler) {
 	if s.thr == null { return; }
-	sync.atomic_store(*s.stop, true);
+	atomic_store(*s.stop, true);
 	thread.join(s.thr);
 	thread.destroy(s.thr);
 	s.thr = null;
@@ -50,7 +50,7 @@ sampler_loop :: (s: *Sampler) {
 	timer := timer_make();
 	defer timer_destroy(timer);
 	buf: [MAX_FRAMES]u64;
-	while !sync.atomic_load(*s.stop) {
+	while !atomic_load(*s.stop) {
 		timer_wait(timer, s.interval);
 		n, open := capture_thread_gated(s.target, view(buf), s.gate);
 		if !open {

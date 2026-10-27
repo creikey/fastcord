@@ -8,6 +8,7 @@
 #include <openssl/ec_key.h>
 #include <openssl/ecdh.h>
 #include <openssl/ecdsa.h>
+#include <openssl/evp.h>
 #include <openssl/hkdf.h>
 #include <openssl/hmac.h>
 #include <openssl/md5.h>

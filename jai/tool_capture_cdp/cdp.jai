@@ -58,7 +58,7 @@ connect :: (port: int) -> *Client, bool {
 	c.waiting = Map(int, bool).{};
 	c.results = Map(int, string).{};
 	c.queue = make_dynamic(string, 0, 0);
-	c.reader = thread.create_and_start_with_poly_data(c, reader_loop, init_context = context);
+	c.reader = thread.create_and_start_with_poly_data(c, reader_loop);
 	return c, true;
 }
 

@@ -58,14 +58,14 @@ Drafts :: struct {
 }
 
 drafts_of :: (c: *Client) -> *Drafts {
-	if c.drafts == null { c.drafts = new(Drafts, runtime.heap_allocator()); }
+	if c.drafts == null { c.drafts = new(Drafts, context.default_allocator); }
 	return c.drafts;
 }
 
 drafts_destroy :: (c: *Client) {
 	d := c.drafts;
 	if d == null { return; }
-	a := runtime.heap_allocator();
+	a := context.default_allocator;
 	for u: d.list { draft_free(u); }
 	delete(d.list);
 	free(d, a);
@@ -73,7 +73,7 @@ drafts_destroy :: (c: *Client) {
 }
 
 draft_free :: (u: *Draft_Upload) {
-	a := runtime.heap_allocator();
+	a := context.default_allocator;
 	delete(u.filename, a);
 	delete(u.mime, a);
 	delete(u.origin, a);
@@ -90,7 +90,7 @@ draft_find :: (d: *Drafts, handle: u64) -> *Draft_Upload, int {
 // upload_draft starts uploading a staged file (UI thread). data is copied.
 // Returns a handle for upload_draft_status / upload_draft_remove / Send_Options.attachments.
 upload_draft :: (c: *Client, channel_id: Snowflake, filename: string, mime: string, data: []u8, origin := "file_picker") -> u64 {
-	a := runtime.heap_allocator();
+	a := context.default_allocator;
 	d := drafts_of(c);
 	u := new(Draft_Upload, a);
 	u.channel_id = channel_id;
@@ -213,7 +213,7 @@ run_draft_upload :: (c: *Client, j: *Job) {
 	if u == null { return; }
 	analytics_upload_started(c, u);
 	// the client's WebP "mezzanine" conversion, before asking for the upload URL
-	conv := webp_try_convert(sync.atomic_load(*c.webp_variation), f.mime, f.data);
+	conv := webp_try_convert(atomic_load(*c.webp_variation), f.mime, f.data);
 	if conv.converted { f.data = conv.data; }
 	locks.lock(*d.mu);
 	u.conv = conv;
@@ -221,7 +221,7 @@ run_draft_upload :: (c: *Client, j: *Job) {
 	u.size = cast(s64)(len(f.data));
 	locks.unlock(*d.mu);
 	name, ok, url_ms, put_ms := upload_one(c, u.channel_id, f);
-	a := runtime.heap_allocator();
+	a := context.default_allocator;
 	locks.lock(*d.mu);
 	u.get_url_ms = url_ms;
 	u.upload_ms = put_ms;

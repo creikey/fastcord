@@ -107,7 +107,7 @@ update_refresh :: () {
 #scope_module
 
 _wake :: () {
-	if sync.atomic_exchange(*w.wake_posted, true) { return; }
+	if atomic_exchange(*w.wake_posted, true) { return; }
 	win.PostMessageW(w.hwnd, WM_FC_WAKE, 0, 0);
 }
 
@@ -115,7 +115,7 @@ _wait :: (timeout: float64) {
 	start := time_now();
 	while true {
 		pump();
-		animating := sync.atomic_load(*s.frame_requested);
+		animating := atomic_load(*s.frame_requested);
 		if s.quit { return; }
 		if !animating && pending_count() > 0 { return; }
 		ms: win.DWORD = win.INFINITE;
@@ -255,7 +255,7 @@ IID_IWICImagingFactory := win.GUID.{0xEC5EC8A9, 0xC395, 0x4314, .{0x9C, 0x77, 0x
 GUID_ContainerFormatPng := win.GUID.{0x1B7CFAF4, 0x713F, 0x473C, .{0xBB, 0xCD, 0x61, 0x37, 0x42, 0x5F, 0xAE, 0xAF}};
 GUID_WICPixelFormat32bppBGRA := win.GUID.{0x6FDDC324, 0x4E03, 0x4BFE, .{0xB1, 0x85, 0x3D, 0x77, 0x76, 0x8D, 0xC9, 0x0F}};
 
-vt :: inline (obj: *void, idx: int) -> *void #no_context {return cast(***void)(obj).*[idx];};
+vt :: inline (obj: *void, idx: int) -> *void #no_context {return (cast(***void)(obj)).*[idx];};
 
 release :: (obj: *void) #no_context {
 	if obj != null { (cast((*void) -> u32 #c_call)vt(obj, 2))(obj); }
@@ -509,7 +509,7 @@ map_vk :: (vk: win.WPARAM, lparam: win.LPARAM) -> Key {
 lparam_pos :: (lp: win.LPARAM) -> [2]float32 {
 	x := cast(float32)(win.GET_X_LPARAM(lp));
 	y := cast(float32)(win.GET_Y_LPARAM(lp));
-	return .{x / s.scale, y / s.scale};
+	return .[x / s.scale, y / s.scale];
 }
 
 mouse_button_event :: (kind: Event_Kind, btn: Mouse_Button, lp: win.LPARAM) {
@@ -547,7 +547,7 @@ wndproc :: (hwnd: win.HWND, msg: win.UINT, wp: win.WPARAM, lp: win.LPARAM) -> wi
 	__ctx7 := s.ctx; push_context,defer_pop __ctx7;
 	for __sw8: 0..0 { if msg == {
 	case WM_FC_WAKE;
-		sync.atomic_store(*w.wake_posted, false);
+		atomic_store(*w.wake_posted, false);
 		return 0;
 	case win.WM_CLOSE;
 		s.quit = true;
@@ -581,7 +581,7 @@ wndproc :: (hwnd: win.HWND, msg: win.UINT, wp: win.WPARAM, lp: win.LPARAM) -> wi
 		win.KillTimer(hwnd, TIMER_ANIM);
 		return 0;
 	case win.WM_TIMER;
-		if wp == TIMER_ANIM && w.in_size_move && sync.atomic_load(*s.frame_requested) { run_frame_callback(); }
+		if wp == TIMER_ANIM && w.in_size_move && atomic_load(*s.frame_requested) { run_frame_callback(); }
 		return 0;
 	case win.WM_SETFOCUS;
 		push_event(.{kind = .Focus_Gained, time = time_now()});

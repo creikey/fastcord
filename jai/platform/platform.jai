@@ -11,8 +11,8 @@ Key :: enum u8 {
 	Keypad_Enter;
 }
 
-Mod :: enum u8 {Shift; Ctrl; Alt; Cmd;}
-Mods :: __BITSET__(Mod; u8);
+Mod :: enum_flags u8 {Shift; Ctrl; Alt; Cmd;}
+Mods :: Mod;
 
 // The platform's "primary" shortcut modifier: Cmd on macOS, Ctrl on Windows.
 PRIMARY_MOD :: ifx OS == .MACOS then Mod.Cmd else Mod.Ctrl;
@@ -173,7 +173,7 @@ wait_events :: (timeout_seconds: float64) {
 	if !s.headless {
 		_wait(timeout_seconds);
 	}
-	sync.atomic_store(*s.frame_requested, false);
+	atomic_store(*s.frame_requested, false);
 	_swap_queues();
 }
 #scope_module
@@ -193,11 +193,11 @@ events :: () -> []Event {return view(s.current);}
 
 // Ask for another frame at the next display refresh. Safe from any thread.
 request_frame :: () {
-	sync.atomic_store(*s.frame_requested, true);
+	atomic_store(*s.frame_requested, true);
 	if !s.headless && s.initialized { _wake(); }
 }
 
-frame_requested :: () -> bool {return sync.atomic_load(*s.frame_requested);}
+frame_requested :: () -> bool {return atomic_load(*s.frame_requested);}
 
 should_quit :: () -> bool {return s.quit;}
 request_quit :: () {s.quit = true;}
@@ -205,7 +205,7 @@ request_quit :: () {s.quit = true;}
 window_size :: () -> [2]float32 {return s.size;}
 dpi_scale :: () -> float32 {return s.scale;}
 framebuffer_size :: () -> [2]s32 {
-	return .{cast(s32)(s.size.x * s.scale + 0.5), cast(s32)(s.size.y * s.scale + 0.5)};
+	return .[cast(s32)(s.size.x * s.scale + 0.5), cast(s32)(s.size.y * s.scale + 0.5)];
 }
 display_refresh_hz :: () -> float32 {return s.refresh_hz;}
 
@@ -388,7 +388,7 @@ clone_string :: (str: string, allocator: Allocator) -> string {
 // Runs the frame callback from inside a modal OS loop.
 run_frame_callback :: () {
 	if s.frame_callback == null { return; }
-	sync.atomic_store(*s.frame_requested, false);
+	atomic_store(*s.frame_requested, false);
 	_swap_queues();
 	s.frame_callback();
 }

@@ -17,7 +17,7 @@ fail :: () -> Error { return *GENERAL; }
 File :: struct { f: F.File; dir: string; }
 File_Flag_Set :: enum_flags u8 { Read; Write; Create; Append; Trunc; }
 File_Flags :: File_Flag_Set;
-Permissions_Default_File :: 0o644;
+Permissions_Default_File :: 420;
 File_Info :: struct { fullpath: string; name: string; size: s64; is_dir: bool; }
 
 exit :: (code: int) { Basic.exit(cast(s32) code); }
@@ -47,7 +47,7 @@ open :: (path: string, flags := File_Flag_Set.Read, perm := 0) -> *File, Error {
 create :: (path: string) -> *File, Error { f, e := open(path, .Write | .Create | .Trunc); return f, e; }
 close :: (f: *File) -> Error { if f { if !f.dir F.file_close(*f.f); free(f); } return null; }
 write_string :: (f: *File, s: string) -> int, Error {
-    if f == stdout { Basic.write_string(s); return s.count, null; }
+    if f == stdout { print("%", s); return s.count, null; }
     return ifx F.file_write(*f.f, s) then s.count else 0, null;
 }
 write :: (f: *File, b: []u8) -> int, Error { n, e := write_string(f, as_string(b)); return n, e; }
@@ -68,10 +68,10 @@ stat :: (path: string, allocator := context.allocator) -> File_Info, Error {
     return .{fullpath = path, name = S.path_filename(path), size = size}, null;
 }
 exists :: (path: string) -> bool { return FU.file_exists(path); }
-remove :: (path: string) -> Error { return ifx F.file_delete(path) then null else fail(); }
+remove_ :: (path: string) -> Error { return ifx F.file_delete(path) then null else fail(); }
 rename :: (a: string, b: string) -> Error { return ifx F.file_move(a, b) then null else fail(); }
-make_directory :: (path: string, perm := 0o755) -> Error { return ifx F.make_directory_if_it_does_not_exist(path) then null else fail(); }
-make_directory_all :: (path: string, perm := 0o755) -> Error { return ifx F.make_directory_if_it_does_not_exist(path, recursive = true) then null else fail(); }
+make_directory :: (path: string, perm := 493) -> Error { return ifx F.make_directory_if_it_does_not_exist(path) then null else fail(); }
+make_directory_all :: (path: string, perm := 493) -> Error { return ifx F.make_directory_if_it_does_not_exist(path, recursive = true) then null else fail(); }
 
 // open(dir) + read_dir(fd, -1): list a directory's entries.
 read_dir :: (f: *File, n: int, allocator := context.allocator) -> []File_Info, Error {

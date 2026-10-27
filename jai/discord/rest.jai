@@ -497,7 +497,7 @@ run_upload :: (c: *Client, j: *Job) {
 	uploaded := make_dynamic([3]string, 0, len(j.files), alloc); // filename, upload_filename, mime
 	for f0: j.files {
 		f := f0;
-		{ conv := webp_try_convert(sync.atomic_load(*c.webp_variation), f.mime, f.data);
+		{ conv := webp_try_convert(atomic_load(*c.webp_variation), f.mime, f.data);
 		if conv.converted { f.data = conv.data; } }
 		name, ok, _, _ := upload_one(c, cid, f);
 		if !ok {

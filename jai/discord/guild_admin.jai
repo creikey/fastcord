@@ -75,7 +75,7 @@ evt: Events_Table;
 
 events_init :: () {
 	if evt.list != null { return; }
-	allocator := runtime.heap_allocator(); // shared by every live client (like the feature pool)
+	allocator := context.default_allocator; // shared by every live client (like the feature pool)
 	evt.allocator = allocator;
 	evt.list = Map(Snowflake, Scheduled_Event).{};
 	evt.counts_asked = Map(Snowflake, bool).{};

@@ -187,7 +187,7 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 	// heap, not the client's allocator: the side tables are shared by every live client
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
-	x_allocator = runtime.heap_allocator();
+	x_allocator = context.default_allocator;
 	if extras.threads == null {
 		a := x_alloc();
 		extras.threads = Map(Snowflake, Thread_Meta).{};
@@ -312,7 +312,7 @@ feature_pool_retain :: (c: *Client) {
 }
 
 feature_pool_release :: (c: *Client) {
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	locks.lock(*fpool.mu);
 	fpool.clients -= 1;
 	if fpool.owner == c { fpool.owner = null; }
@@ -355,7 +355,7 @@ feature_pool_release :: (c: *Client) {
 // from store_destroy, after the client has set quit). Nothing while another
 // client is alive (feature_pool_release).
 extras_destroy :: () {
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
 	if extras_clients > 0 { return; } // another client still uses them
@@ -626,7 +626,7 @@ F_Pool :: struct {
 fpool: F_Pool;
 
 f_worker :: (_: *void) {
-	context.allocator = runtime.heap_allocator(); // the pool outlives the client that started it
+	context.allocator = context.default_allocator; // the pool outlives the client that started it
 	while true {
 		locks.lock(*fpool.mu);
 		while len(fpool.jobs) == 0 {
@@ -670,7 +670,7 @@ f_worker :: (_: *void) {
 #scope_module
 
 f_submit :: (c: *Client, j: F_Job) {
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	locks.lock(*fpool.mu);
 	defer locks.unlock(*fpool.mu);
 	fpool.owner = c; // the workers serve every client's jobs (j.client); they stop in extras_destroy
@@ -732,7 +732,7 @@ feature_take_for :: (c: *Client, allocator := temp) -> []Feature_Result {
 }
 
 feature_result_free :: (r: *Feature_Result) {
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	if r.arena != null {
 		virtual.arena_destroy(r.arena);
 		free(r.arena);

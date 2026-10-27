@@ -886,7 +886,7 @@ login_check_auth :: () {
 	if app.client == null || app.client.store.connection != .Auth_Failed { return; }
 	client_release(app.client);
 	app.client = null;
-	os.remove(strings.concatenate(.{app_state_dir(), "/token"}, temp));
+	os.remove_(strings.concatenate(.{app_state_dir(), "/token"}, temp));
 	login_reset();
 	app.needs_login = true;
 	set_str(*lg.message, "Discord didn't accept the saved login. Log in again.");

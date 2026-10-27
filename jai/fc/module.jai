@@ -108,9 +108,6 @@ clone :: (a: []$T, allocator := context.allocator) -> []T {
 copy :: (dst: []$T, src: []T) -> int { n := min(dst.count, src.count); memcpy(dst.data, src.data, n * size_of(T)); return n; }
 copy :: (dst: []u8, src: string) -> int { n := min(dst.count, src.count); memcpy(dst.data, src.data, n); return n; }
 
-min :: inline (a: $T, b: T, c: T) -> T { return min(min(a, b), c); }
-max :: inline (a: $T, b: T, c: T) -> T { return max(max(a, b), c); }
-clamp :: inline (x: $T, lo: T, hi: T) -> T { return ifx x < lo then lo else ifx x > hi then hi else x; }
 abs :: inline (x: $T) -> T { return ifx x < 0 then -x else x; }
 
 panic :: (msg: string, loc := #caller_location) { assert(false, "%", msg, loc = loc); }
@@ -124,3 +121,17 @@ load_file :: (path: string, dir: string) -> string #compile_time {
 }
 
 default_context :: () -> type_of(context) { c: type_of(context); return c; }
+
+// `x in flags` for enum_flags sets.
+has :: inline (f: $E, x: E) -> bool #modify { ti := cast(*Type_Info) E; return ti.type == .ENUM && ((cast(*Type_Info_Enum) ti).enum_type_flags & .FLAGS) != 0; } { return (f & x) != 0; }
+
+Load_Directory_File :: struct { name: string; data: string; }
+load_directory :: (path: string, dir: string) -> []Load_Directory_File #compile_time {
+    FU :: #import "File_Utilities";
+    out: [..]Load_Directory_File;
+    full := tprint("%/%", dir, path);
+    FU.visit_files(full, false, *out, (info: *FU.File_Visit_Info, out: *[..]Load_Directory_File) {
+        array_add(out, .{copy_string(info.short_name), read_entire_file(info.full_name)});
+    });
+    return out;
+}

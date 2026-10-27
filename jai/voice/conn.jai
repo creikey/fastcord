@@ -26,7 +26,7 @@ Conn_State :: enum u8 {
 	Disconnected; // terminal; see close_code
 }
 
-Dial_Proc :: (host: string, port: int) -> netio.Stream, bool;
+Dial_Proc :: #type (host: string, port: int) -> netio.Stream, bool;
 
 Options :: struct {
 	dial: Dial_Proc; // nil = TCP + TLS (ALPN http/1.1, SNI = host)
@@ -172,7 +172,7 @@ dbg :: (c: *Conn, format: string, args: ..Any) {
 now_ms :: () -> s64 {return time.to_unix_nanoseconds(time.now()) / 1000000;}
 #scope_module
 
-stopped :: (c: *Conn) -> bool {return sync.atomic_load(*c.stop);}
+stopped :: (c: *Conn) -> bool {return atomic_load(*c.stop);}
 
 set_state :: (c: *Conn, s: Conn_State) {
 	locks.lock(*c.mu);
@@ -228,7 +228,7 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
 // stops all threads and frees the connection.
 voice_disconnect :: (c: *Conn) {
 	if c == null { return; }
-	sync.atomic_store(*c.stop, true);
+	atomic_store(*c.stop, true);
 	locks.lock(*c.ws_mu);
 	if c.ws != null && c.ws_open {
 		http.ws_close(c.ws, CLOSE_FORCE, "");
@@ -541,7 +541,7 @@ finish :: (c: *Conn, code: int) {
 	c.state = .Disconnected;
 	locks.cond_broadcast(*c.state_cond);
 	locks.unlock(*c.mu);
-	sync.atomic_store(*c.stop, true);
+	atomic_store(*c.stop, true);
 }
 
 // ws_session runs one WebSocket connection; returns the close code (0 = transport error).
@@ -569,7 +569,7 @@ ws_session :: (c: *Conn, resume: bool) -> int {
 	c.ws_stream = stream;
 	c.ws_open = true;
 	// voice_disconnect found no socket to shut down while this one was connecting.
-	if sync.atomic_load(*c.stop) { netio.shutdown(stream); }
+	if atomic_load(*c.stop) { netio.shutdown(stream); }
 	locks.unlock(*c.ws_mu);
 	locks.lock(*c.hb_mu);
 	c.hello_deadline_ms = now_ms() + 20_000;

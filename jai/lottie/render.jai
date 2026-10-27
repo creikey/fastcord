@@ -54,18 +54,18 @@ render :: (p: *Player, frame: float32) -> []u8 {
 // ---------------------------------------------------------------------------
 
 mat_mul :: (a: Mat, b: Mat) -> Mat {
-	return .{
+	return .[
 		a[0] * b[0] + a[2] * b[1],
 		a[1] * b[0] + a[3] * b[1],
 		a[0] * b[2] + a[2] * b[3],
 		a[1] * b[2] + a[3] * b[3],
 		a[0] * b[4] + a[2] * b[5] + a[4],
 		a[1] * b[4] + a[3] * b[5] + a[5]
-	};
+	];
 }
 
 apply :: inline (m: Mat, p: [2]float32) -> [2]float32 {
-	return .{get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)};
+	return .[get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)];
 };
 
 ev1 :: (pr: *Prop, t: float32, def: float32 = 0) -> float32 {
@@ -74,12 +74,12 @@ ev1 :: (pr: *Prop, t: float32, def: float32 = 0) -> float32 {
 	return v[0];
 }
 
-ev2 :: (pr: *Prop, t: float32, def: [2]float32 = .{}) -> [2]float32 {
+ev2 :: (pr: *Prop, t: float32, def: [2]float32 = .[]) -> [2]float32 {
 	v: [4]float32;
 	n := eval(pr, t, view(v));
 	if n < 1 { return def; }
-	if n < 2 { return .{v[0], v[0]}; }
-	return .{v[0], v[1]};
+	if n < 2 { return .[v[0], v[0]]; }
+	return .[v[0], v[1]];
 }
 
 // Transform matrix (lottie-web order: translate(-a), scale, skew, rotate, translate(p)).
@@ -454,7 +454,7 @@ draw_shapes :: (p: *Player, items: []Item, t: float32, m: Mat, buf: []float32) {
 			cov = vector.stroke_coverage(*p.rz, view(merged.verbs), view(merged.points), vector.MAT_IDENTITY, .{width = w * scale, cap = cap, join = join, miter_limit = it_.miter});
 		}
 		if it_.kind == .Fill || it_.kind == .Stroke {
-			c: [4]float32 = .{0, 0, 0, 1};
+			c: [4]float32 = .[0, 0, 0, 1];
 			eval(*it_.color, t, view(c));
 			c[3] = op;
 			vector.solid_fill_premul(c, cov, buf);
@@ -572,10 +572,10 @@ split_cubic :: (s: [4][2]float32, u0: float32, u1: float32) -> [4][2]float32 {
 		d := a + (b - a) * t;
 		e := b + (c - b) * t;
 		f := d + (e - d) * t;
-		return .{s[0], a, d, f}, .{f, e, c, s[3]};
+		return .[s[0], a, d, f], .[f, e, c, s[3]];
 	}
 	_, r := sub(s, u0);
-	if u0 >= 1 { return .{s[3], s[3], s[3], s[3]}; }
+	if u0 >= 1 { return .[s[3], s[3], s[3], s[3]]; }
 	t := (u1 - u0) / (1 - u0);
 	l, _ := sub(r, clamp(t, 0, 1));
 	return l;

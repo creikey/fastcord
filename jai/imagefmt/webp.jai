@@ -192,7 +192,7 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 				for x: 0..f.w-1 {
 					o := off + x * 4;
 					if canvas[o + 3] != 255 {
-						cast(*[4]u8)(*canvas[o]).* = blend_over(cast(*[4]u8)(*canvas[o]).*, cast(*[4]u8)(*prev[o]).*);
+						(cast(*[4]u8)(*canvas[o])).* = blend_over((cast(*[4]u8)(*canvas[o])).*, (cast(*[4]u8)(*prev[o])).*);
 					}
 				}
 			}

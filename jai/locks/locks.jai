@@ -132,11 +132,11 @@ ui_thread: int;
 // joining network threads) panics when made on it, so a slow or silent peer can never freeze the
 // window. Such work belongs on a worker, with the UI polling for its result.
 set_ui_thread :: () #no_context {
-	sync.atomic_store(*ui_thread, sync.current_thread_id());
+	atomic_store(*ui_thread, sync.current_thread_id());
 }
 
 clear_ui_thread :: () #no_context {
-	sync.atomic_store(*ui_thread, 0);
+	atomic_store(*ui_thread, 0);
 }
 
 on_ui_thread :: () -> bool #no_context {

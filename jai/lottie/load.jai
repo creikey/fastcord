@@ -509,11 +509,11 @@ load_layers :: (L: *Loader, arr: json.Array) -> []Layer {
 parse_hex :: (s: string) -> [4]float32 {
 	h := s;
 	if len(h) > 0 && h[0] == #char "#" { h = sub_from(h, 1); }
-	if len(h) < 6 { return .{0, 0, 0, 1}; }
+	if len(h) < 6 { return .[0, 0, 0, 1]; }
 	r, _ := strconv.parse_int(sub(h, 0, 2), 16);
 	g, _ := strconv.parse_int(sub(h, 2, 4), 16);
 	b, _ := strconv.parse_int(sub(h, 4, 6), 16);
-	return .{cast(float32)(r) / 255, cast(float32)(g) / 255, cast(float32)(b) / 255, 1};
+	return .[cast(float32)(r) / 255, cast(float32)(g) / 255, cast(float32)(b) / 255, 1];
 }
 
 // ---------------------------------------------------------------------------

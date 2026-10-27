@@ -20,7 +20,7 @@ IID_IDWritePixelSnapping := win.GUID.{0xeaf3a2da, 0xecf4, 0x4d24, .{0xb6, 0x44, 
 IID_IUnknown := win.GUID.{0x00000000, 0x0000, 0x0000, .{0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46}};
 
 vt :: inline (obj: *void, idx: int) -> *void #no_context {
-	return cast(***void)(obj).*[idx];
+	return (cast(***void)(obj)).*[idx];
 };
 
 release :: (obj: *void) #no_context {

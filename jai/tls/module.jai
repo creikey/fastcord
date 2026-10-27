@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 brotli :: #import "brotli";
 chacha20 :: #import "fc_chacha20";

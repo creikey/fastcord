@@ -12,7 +12,7 @@ encode_png :: (pixels: []u8, w: int, h: int, allocator := context.allocator) -> 
 	bytes.buffer_init_allocator(*b, 0, w * h * 4 + 1024, allocator);
 	bytes.buffer_write(*b, .{0x89, #char "P", #char "N", #char "G", 13, 10, 0x1a, 10});
 
-	be32 :: (v: u32) -> [4]u8 {return .{cast(u8)(v >> 24), cast(u8)(v >> 16), cast(u8)(v >> 8), cast(u8)(v)};}
+	be32 :: (v: u32) -> [4]u8 {return .[cast(u8)(v >> 24), cast(u8)(v >> 16), cast(u8)(v >> 8), cast(u8)(v)];}
 	chunk :: (b: *bytes.Buffer, type: string, data: []u8) {
 		l := be32(cast(u32)(len(data)));
 		bytes.buffer_write(b, view(l));

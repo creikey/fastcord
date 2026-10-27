@@ -101,7 +101,7 @@ account_logout :: () {
 	voice_leave_channel();
 	if net_action() { dc.client_logout(app.client, "settings"); }
 	if !platform.is_headless() && os.get_env("FASTCORD_TOKEN", temp) == "" {
-		os.remove(strings.concatenate(.{app_state_dir(), "/token"}, temp));
+		os.remove_(strings.concatenate(.{app_state_dir(), "/token"}, temp));
 	}
 	login_reset();
 	app.settings_open = false;

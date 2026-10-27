@@ -154,9 +154,9 @@ is_running :: () -> bool {return st.running;}
 // Seconds between a sample being mixed and it reaching the speaker (estimate).
 output_latency :: () -> float64 {return st.latency;}
 
-set_volume :: (v: float32) {sync.atomic_store(*st.master_bits, f32_bits(max(v, 0)));}
-get_volume :: () -> float32 {return bits_f32(sync.atomic_load(*st.master_bits));}
-set_muted :: (m: bool) {sync.atomic_store(*st.muted, cast(u32)(m));}
+set_volume :: (v: float32) {atomic_store(*st.master_bits, f32_bits(max(v, 0)));}
+get_volume :: () -> float32 {return bits_f32(atomic_load(*st.master_bits));}
+set_muted :: (m: bool) {atomic_store(*st.muted, cast(u32)(m));}
 
 Stats :: struct {
 	callbacks: u64;
@@ -165,20 +165,20 @@ Stats :: struct {
 }
 
 stats :: () -> Stats {
-	return .{sync.atomic_load(*st.callbacks), sync.atomic_load(*st.frames_out), st.running};
+	return .{atomic_load(*st.callbacks), atomic_load(*st.frames_out), st.running};
 }
 
 source_create :: () -> Source {
 	for * sl, i: st.slots {
 		if sl.in_use { continue; }
 		sl.in_use = true;
-		sync.atomic_store(*sl.played, 0);
-		sync.atomic_store(*sl.paused, 0);
-		sync.atomic_store(*sl.flush_req, 0);
-		sync.atomic_store(*sl.volume_bits, f32_bits(1));
+		atomic_store(*sl.played, 0);
+		atomic_store(*sl.paused, 0);
+		atomic_store(*sl.flush_req, 0);
+		atomic_store(*sl.volume_bits, f32_bits(1));
 		// Drop anything left from a previous user.
-		sync.atomic_store(*sl.ring.r, sync.atomic_load(*sl.ring.w));
-		sync.atomic_store(*sl.active, 1);
+		atomic_store(*sl.ring.r, atomic_load(*sl.ring.w));
+		atomic_store(*sl.active, 1);
 		return Source(i + 1);
 	}
 	return 0;
@@ -195,7 +195,7 @@ slot :: (s: Source) -> *Slot {
 source_destroy :: (s: Source) {
 	sl := slot(s);
 	if sl == null { return; }
-	sync.atomic_store(*sl.active, 0);
+	atomic_store(*sl.active, 0);
 	sl.in_use = false;
 	// Ring memory is owned by the slot table and reused; the mixer may still be
 	// reading it this callback, which is harmless.
@@ -205,9 +205,9 @@ source_destroy :: (s: Source) {
 source_write :: (s: Source, frames: []float32) -> int {
 	sl := slot(s);
 	if sl == null { return 0; }
-	sync.atomic_store(*st.idle_frames, 0);
+	atomic_store(*st.idle_frames, 0);
 	n := ring_write(*sl.ring, sub(frames, 0, len(frames) / CHANNELS * CHANNELS)) / CHANNELS;
-	if n > 0 && st.device_ok && !sync.atomic_load(*st.running) { start_output(); }
+	if n > 0 && st.device_ok && !atomic_load(*st.running) { start_output(); }
 	return n;
 }
 
@@ -220,7 +220,7 @@ source_free_frames :: (s: Source) -> int {
 source_queued_frames :: (s: Source) -> int {
 	sl := slot(s);
 	if sl == null { return 0; }
-	q := cast(int)(sync.atomic_load(*sl.ring.w)) - cast(int)(max(sync.atomic_load(*sl.ring.r), sync.atomic_load(*sl.flush_req)));
+	q := cast(int)(atomic_load(*sl.ring.w)) - cast(int)(max(atomic_load(*sl.ring.r), atomic_load(*sl.flush_req)));
 	return max(q, 0) / CHANNELS;
 }
 
@@ -228,17 +228,17 @@ source_queued_frames :: (s: Source) -> int {
 source_played_frames :: (s: Source) -> u64 {
 	sl := slot(s);
 	if sl == null { return 0; }
-	return sync.atomic_load(*sl.played);
+	return atomic_load(*sl.played);
 }
 
 source_set_volume :: (s: Source, v: float32) {
 	{ sl := slot(s);
-	if sl != null { sync.atomic_store(*sl.volume_bits, f32_bits(max(v, 0))); } }
+	if sl != null { atomic_store(*sl.volume_bits, f32_bits(max(v, 0))); } }
 }
 
 source_set_paused :: (s: Source, paused: bool) {
 	{ sl := slot(s);
-	if sl != null { sync.atomic_store(*sl.paused, cast(u32)(paused)); } }
+	if sl != null { atomic_store(*sl.paused, cast(u32)(paused)); } }
 }
 
 // Discard everything queued so far (seek). Writes after this call are kept.
@@ -246,8 +246,8 @@ source_set_paused :: (s: Source, paused: bool) {
 source_flush :: (s: Source) {
 	sl := slot(s);
 	if sl == null { return; }
-	w := sync.atomic_load(*sl.ring.w);
-	sync.atomic_store(*sl.flush_req, w);
+	w := atomic_load(*sl.ring.w);
+	atomic_store(*sl.flush_req, w);
 	if !st.running {
 		// No consumer running: apply directly (we're the only thread touching r now).
 		apply_flush(sl);
@@ -256,17 +256,17 @@ source_flush :: (s: Source) {
 #scope_module
 
 apply_flush :: (sl: *Slot) #no_context {
-	f := sync.atomic_exchange(*sl.flush_req, 0);
+	f := atomic_exchange(*sl.flush_req, 0);
 	if f == 0 { return; }
-	if sync.atomic_load(*sl.ring.r) < f { sync.atomic_store(*sl.ring.r, f); }
-	sync.atomic_store(*sl.played, 0);
+	if atomic_load(*sl.ring.r) < f { atomic_store(*sl.ring.r, f); }
+	atomic_store(*sl.played, 0);
 }
 
 start_output :: () {
 	locks.lock(*st.device_mu);
 	defer locks.unlock(*st.device_mu);
 	if st.running { return; }
-	sync.atomic_store(*st.idle_frames, 0);
+	atomic_store(*st.idle_frames, 0);
 	_device_start();
 	if st.running && st.watchdog == null {
 		st.watchdog = thread.create_and_start(watchdog);
@@ -282,7 +282,7 @@ watchdog :: () {
 			locks.unlock(*st.device_mu);
 			return;
 		}
-		if !st.capturing && cast(float64)(sync.atomic_load(*st.idle_frames)) > OUTPUT_IDLE_STOP * SAMPLE_RATE {
+		if !st.capturing && cast(float64)(atomic_load(*st.idle_frames)) > OUTPUT_IDLE_STOP * SAMPLE_RATE {
 			_device_stop();
 			st.watchdog = null;
 			locks.unlock(*st.device_mu);
@@ -302,13 +302,13 @@ mix :: (out: []float32) #no_context {
 	for * o: out { o = 0; }
 	frames := len(out) / CHANNELS;
 	any_data := false;
-	master := bits_f32(sync.atomic_load(*st.master_bits));
-	if sync.atomic_load(*st.muted) != 0 { master = 0; }
+	master := bits_f32(atomic_load(*st.master_bits));
+	if atomic_load(*st.muted) != 0 { master = 0; }
 	for * sl: st.slots {
 		if sync.atomic_load_explicit(*sl.active, .Acquire) == 0 { continue; }
-		if sync.atomic_load(*sl.flush_req) != 0 { apply_flush(*sl); }
-		if sync.atomic_load(*sl.paused) != 0 { continue; }
-		vol := bits_f32(sync.atomic_load(*sl.volume_bits)) * master;
+		if atomic_load(*sl.flush_req) != 0 { apply_flush(*sl); }
+		if atomic_load(*sl.paused) != 0 { continue; }
+		vol := bits_f32(atomic_load(*sl.volume_bits)) * master;
 		r := *sl.ring;
 		avail := ring_readable(r);
 		n := min(avail, frames * CHANNELS);
@@ -319,14 +319,14 @@ mix :: (out: []float32) #no_context {
 			at(*out, i).* += r.buf[(rd + cast(u64)(i)) & r.mask] * vol;
 		}
 		sync.atomic_store_explicit(*r.r, rd + cast(u64)(n), .Release);
-		sync.atomic_add(*sl.played, cast(u64)(n / CHANNELS));
+		atomic_add(*sl.played, cast(u64)(n / CHANNELS));
 	}
 	// Soft clip to avoid harsh wraparound when sources sum > 1.
 	for * o: out {
 		if o > 1 || o < -1 { o = math.clamp(o, -1, 1); }
 	}
-	if !any_data { sync.atomic_add(*st.idle_frames, cast(u64)(frames)); } else { sync.atomic_store(*st.idle_frames, 0); }
-	sync.atomic_add(*st.frames_out, cast(u64)(frames));
+	if !any_data { atomic_add(*st.idle_frames, cast(u64)(frames)); } else { atomic_store(*st.idle_frames, 0); }
+	atomic_add(*st.frames_out, cast(u64)(frames));
 }
 
 // ---------------------------------------------------------------------------
@@ -336,7 +336,7 @@ mix :: (out: []float32) #no_context {
 // suppression); output is routed through the same unit so the canceller hears it.
 capture_start :: (voice_processing := true) -> bool {
 	if !st.device_ok || st.capturing { return st.capturing; }
-	sync.atomic_store(*st.capture.r, sync.atomic_load(*st.capture.w));
+	atomic_store(*st.capture.r, atomic_load(*st.capture.w));
 	locks.lock(*st.device_mu);
 	st.capturing = _capture_start(voice_processing);
 	locks.unlock(*st.device_mu);
@@ -383,12 +383,12 @@ to_stereo :: (out: *[..]float32, src: []float32, ch: int) {
 source_read_pos :: (s: Source) -> u64 {
 	sl := slot(s);
 	if sl == null { return 0; }
-	return sync.atomic_load(*sl.ring.r) / CHANNELS;
+	return atomic_load(*sl.ring.r) / CHANNELS;
 }
 
 source_write_pos :: (s: Source) -> u64 {
 	sl := slot(s);
 	if sl == null { return 0; }
-	return sync.atomic_load(*sl.ring.w) / CHANNELS;
+	return atomic_load(*sl.ring.w) / CHANNELS;
 }
 

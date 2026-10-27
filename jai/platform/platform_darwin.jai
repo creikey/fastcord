@@ -236,7 +236,7 @@ set_link_paused :: (paused: bool) {
 // data1: 0 = wake, 1 = tick (CVDisplayLink thread)
 post_wake :: (data1: int) {
 	if data1 == 0 {
-		if sync.atomic_exchange(*m.wake_posted, true) { return; }
+		if atomic_exchange(*m.wake_posted, true) { return; }
 	}
 	ev := msg(Id, cls("NSEvent"), "otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:",
 		NS.UInteger(15), NSPoint.{}, NS.UInteger(0), NS.TimeInterval(0), NS.Integer(0), cast(Id)(null), cast(s16)(WAKE_SUBTYPE), NS.Integer(data1), NS.Integer(0));
@@ -245,7 +245,7 @@ post_wake :: (data1: int) {
 #scope_module
 
 _wake :: () {
-	if sync.atomic_load(*s.frame_requested) && is_main_thread() {
+	if atomic_load(*s.frame_requested) && is_main_thread() {
 		set_link_paused(false);
 		return;
 	}
@@ -269,14 +269,14 @@ _wait :: (timeout: float64) {
 	}
 	defer m.pool = msg(Id, msg(Id, cls("NSAutoreleasePool"), "alloc"), "init");
 
-	animating := sync.atomic_load(*s.frame_requested);
+	animating := atomic_load(*s.frame_requested);
 	if animating { set_link_paused(false); }
 	start := time_now();
 	m.tick_pending = false;
 
 	while true {
 		pool := msg(Id, msg(Id, cls("NSAutoreleasePool"), "alloc"), "init");
-		animating = sync.atomic_load(*s.frame_requested);
+		animating = atomic_load(*s.frame_requested);
 		if animating { set_link_paused(false); }
 
 		// Decide how long to block.
@@ -314,15 +314,15 @@ _wait :: (timeout: float64) {
 			if msg(NS.Integer, ev, "data1") == 1 {
 				on_tick();
 			} else {
-				sync.atomic_store(*m.wake_posted, false);
-				if sync.atomic_load(*s.frame_requested) { set_link_paused(false); }
+				atomic_store(*m.wake_posted, false);
+				if atomic_load(*s.frame_requested) { set_link_paused(false); }
 			}
 		} else {
 			msg(Void, m.app, "sendEvent:", ev);
 		}
 		msg(Void, pool, "drain");
 	}
-	if !sync.atomic_load(*s.frame_requested) {
+	if !atomic_load(*s.frame_requested) {
 		// Will be re-enabled by request_frame. Pausing here keeps idle at zero wakeups.
 		set_link_paused(true);
 	}
@@ -331,7 +331,7 @@ _wait :: (timeout: float64) {
 
 // Vsync tick (main thread).
 on_tick :: () {
-	if !sync.atomic_load(*s.frame_requested) {
+	if !atomic_load(*s.frame_requested) {
 		set_link_paused(true);
 		return;
 	}
@@ -521,7 +521,7 @@ key_from_event :: (ev: Id) -> Key {
 mouse_pos :: (ev: Id) -> [2]float32 {
 	p := msg(NSPoint, ev, "locationInWindow");
 	v := msg(NSPoint, m.view, "convertPoint:fromView:", p, cast(Id)(null)); // view is flipped: top-left origin
-	return .{cast(float32)(v.x), cast(float32)(v.y)};
+	return .[cast(float32)(v.x), cast(float32)(v.y)];
 }
 
 event_time :: (ev: Id) -> float64 {return time_now();}

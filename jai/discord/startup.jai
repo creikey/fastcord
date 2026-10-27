@@ -9,13 +9,13 @@
 //   Private /channels/@me/<dm>
 //   Guild   /channels/<guild>/<channel> (lurker check, guild-open set, no home widgets)
 
-Route_Kind :: enum u8 {
+Route_Kind :: enum_flags u8 {
 	Home;
 	Private;
 	Guild;
 }
-Routes :: __BITSET__(Route_Kind);
-ALL_ROUTES :: Routes.{.Home, .Private, .Guild};
+Routes :: Route_Kind;
+ALL_ROUTES :: (Route_Kind.Home | Route_Kind.Private | Route_Kind.Guild);
 
 Startup_Anchor :: enum u8 {
 	Launch; // client_start (= the official renderer's reload)
@@ -44,7 +44,7 @@ Startup_Entry :: struct {
 	note: string;
 }
 
-Startup_Flag :: enum u8 {
+Startup_Flag :: enum_flags u8 {
 	Disabled;
 	Etag; // remembers ETag, sends If-None-Match + cache-control: max-age=0 (fetch cache 'no-cache')
 	No_Super_Props; // sent before the super properties are initialised
@@ -52,7 +52,7 @@ Startup_Flag :: enum u8 {
 	Unverified_Only;
 	Preflight_Only; // Detectables: only the CORS preflight; the request is its own entry later
 }
-Startup_Flags :: __BITSET__(Startup_Flag);
+Startup_Flags :: Startup_Flag;
 
 STARTUP_REQUESTS := Startup_Entry.[
 	.{.Launch, 767, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", .{.Home, .Private}, .{}, ""},

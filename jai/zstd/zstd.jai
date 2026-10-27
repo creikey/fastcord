@@ -58,13 +58,13 @@ Stream_Decoder :: struct {
 
 c_alloc :: (opaque: *void, size: u64) -> *void #c_call {
 	__ctx1: #Context; push_context,defer_pop __ctx1;
-	p, _ := mem.alloc(cast(int)(size), 16, cast(*Allocator)(opaque).*);
+	p, _ := mem.alloc(cast(int)(size), 16, (cast(*Allocator)(opaque)).*);
 	return p;
 }
 
 c_free :: (opaque: *void, address: *void) #c_call {
 	__ctx2: #Context; push_context,defer_pop __ctx2;
-	mem.free(address, cast(*Allocator)(opaque).*);
+	mem.free(address, (cast(*Allocator)(opaque)).*);
 }
 
 to_error :: (code: u64) -> Error {
@@ -119,7 +119,7 @@ stream_at_frame_boundary :: (d: *Stream_Decoder) -> bool {
 // Decompress whole frames (any number, skippable frames allowed).
 decompress :: (input: []u8, allocator := context.allocator, max_out := 1 << 30, max_window := DEFAULT_MAX_WINDOW) -> []u8, Error {
 	d: Stream_Decoder;
-	stream_init(*d, runtime.heap_allocator(), max_window);
+	stream_init(*d, context.default_allocator, max_window);
 	defer stream_destroy(*d);
 	if d.err != .None { return .{}, d.err; }
 	out := make_dynamic(u8, 0, 0, allocator);

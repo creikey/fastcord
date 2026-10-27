@@ -41,7 +41,7 @@ verify_chain_cached :: (chain: [][]u8, host: string) -> Error {
 	__e1 := verify_chain_os(chain, host); if failed(__e1) return __e1;
 	locks.lock(*trust_cache_mu);
 	defer locks.unlock(*trust_cache_mu);
-	context.allocator = runtime.heap_allocator();
+	context.allocator = context.default_allocator;
 	if len(trust_cache) >= TRUST_CACHE_MAX {
 		// Drop expired entries; if still full, start over (rare).
 		expired := make_dynamic(Trust_Key, 0, 16, temp);

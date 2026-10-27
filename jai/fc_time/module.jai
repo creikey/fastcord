@@ -20,9 +20,9 @@ tick_now :: () -> Tick { return .{to_nanoseconds(current_time_monotonic())}; }
 tick_since :: (t: Tick) -> Duration { return tick_now()._nsec - t._nsec; }
 tick_diff :: (a: Tick, b: Tick) -> Duration { return b._nsec - a._nsec; }
 tick_add :: (t: Tick, d: Duration) -> Tick { return .{t._nsec + d}; }
-duration_seconds :: (d: Duration) -> float64 { return cast(float64) d / 1e9; }
-duration_milliseconds :: (d: Duration) -> float64 { return cast(float64) d / 1e6; }
-duration_microseconds :: (d: Duration) -> float64 { return cast(float64) d / 1e3; }
+duration_seconds :: (d: Duration) -> float64 { return cast(float64) d / 1.0e9; }
+duration_milliseconds :: (d: Duration) -> float64 { return cast(float64) d / 1.0e6; }
+duration_microseconds :: (d: Duration) -> float64 { return cast(float64) d / 1.0e3; }
 sleep :: (d: Duration) { if d > 0 Basic.sleep_milliseconds(cast(s32) ((d + Millisecond - 1) / Millisecond)); }
 accurate_sleep :: (d: Duration) {
     end := tick_now()._nsec + d;

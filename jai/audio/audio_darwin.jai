@@ -34,7 +34,7 @@ AudioBufferList :: struct {
 	mBuffers: [1]AudioBuffer;
 }
 
-AURenderCallback :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call;
+AURenderCallback :: #type (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call;
 
 AURenderCallbackStruct :: struct {
 	inputProc: AURenderCallback;
@@ -46,7 +46,7 @@ AudioObjectPropertyAddress :: struct {
 }
 #scope_file
 
-AudioObjectPropertyListenerProc :: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call;
+AudioObjectPropertyListenerProc :: #type (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call;
 #scope_export
 	AudioComponentFindNext :: (comp: *void, desc: *AudioComponentDescription) -> *void #foreign AudioToolbox;
 	AudioComponentInstanceNew :: (comp: *void, out: *AudioUnit) -> OSStatus #foreign AudioToolbox;
@@ -107,7 +107,7 @@ stereo_f32 :: (ch: u32) -> AudioStreamBasicDescription {
 }
 
 render_cb :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call {
-	sync.atomic_add(*st.callbacks, 1);
+	atomic_add(*st.callbacks, 1);
 	buf := data.mBuffers[0];
 	out := sub(cast(*float32)(buf.mData), 0, min(cast(int)(frames) * CHANNELS, cast(int)(buf.mDataByteSize) / 4));
 	mix(out);

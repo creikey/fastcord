@@ -98,7 +98,7 @@ recorder_start :: (acct: string, port: int, out: *Out) -> *Recorder, bool {
 	r.sockets = Map(string, *Gw_Socket).{};
 	r.types = Map(string, string).{};
 	r.bodies = Map(int, Body_Req).{};
-	r.th = thread.create_and_start_with_poly_data(r, recorder_loop, init_context = context);
+	r.th = thread.create_and_start_with_poly_data(r, recorder_loop);
 	cdp.send(c, "Target.setAutoAttach", AUTO_ATTACH);
 	// wait for the app page to be attached
 	for _: 0..99 {
@@ -116,7 +116,7 @@ recorder_start :: (acct: string, port: int, out: *Out) -> *Recorder, bool {
 // auto-attach, disables Network/Emulation on every session, detaches them,
 // then closes the DevTools connection.
 recorder_stop :: (r: *Recorder) {
-	sync.atomic_store(*r.stop, true);
+	atomic_store(*r.stop, true);
 	thread.join(r.th);
 	thread.destroy(r.th);
 	cdp.call(r.c, "Target.setAutoAttach", AUTO_ATTACH_OFF, timeout = 5 * time.Second);
@@ -141,7 +141,7 @@ heap_check :: (r: *Recorder) -> bool {
 	used := cdp.num(v, "usedSize");
 	r.heap_peak = max(r.heap_peak, used);
 	if used > HEAP_LIMIT {
-		sync.atomic_store(*r.aborted, true);
+		atomic_store(*r.aborted, true);
 		out_line(r.out, r.acct, fmt.tprintf("\"note\":\"watchdog: JS heap %.0f MB > limit, aborting\"", used / (1 << 20)));
 		fmt.eprintfln("%s: watchdog: JS heap %.0f MB exceeds limit; aborting capture", r.acct, used / (1 << 20));
 		return false;
@@ -151,7 +151,7 @@ heap_check :: (r: *Recorder) -> bool {
 #scope_module
 
 recorder_loop :: (r: *Recorder) {
-	while !sync.atomic_load(*r.stop) {
+	while !atomic_load(*r.stop) {
 		raw, ok := cdp.next(r.c, 200 * time.Millisecond);
 		if !ok {
 			if cdp.is_dead(r.c) { return; }

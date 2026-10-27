@@ -23,11 +23,11 @@ Line_Join :: enum u8 {
 	Bevel;
 }
 
-Layer :: enum u8 {
+Layer :: enum_flags u8 {
 	Primary;
 	Secondary; // class="secondary": Discord's secondaryColor shapes
 }
-Layers :: __BITSET__(Layer);
+Layers :: Layer;
 
 Paint_Kind :: enum u8 {
 	Fill;
@@ -104,18 +104,18 @@ destroy :: (icon: *Icon) {
 
 mat_mul :: (a: Mat, b: Mat) -> Mat {
 	// a ∘ b: apply b first.
-	return .{
+	return .[
 		a[0] * b[0] + a[2] * b[1],
 		a[1] * b[0] + a[3] * b[1],
 		a[0] * b[2] + a[2] * b[3],
 		a[1] * b[2] + a[3] * b[3],
 		a[0] * b[4] + a[2] * b[5] + a[4],
 		a[1] * b[4] + a[3] * b[5] + a[5]
-	};
+	];
 }
 
 mat_apply :: (m: Mat, p: [2]float32) -> [2]float32 {
-	return .{get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)};
+	return .[get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)];
 }
 #scope_export
 

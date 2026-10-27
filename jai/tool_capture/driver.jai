@@ -43,13 +43,13 @@ Driver :: struct {
 
 // watchdog_loop checks every recording page's JS heap while the scenario runs.
 watchdog_loop :: (d: *Driver) {
-	while !sync.atomic_load(*d.done) {
+	while !atomic_load(*d.done) {
 		for _: 0..24 {
-			if sync.atomic_load(*d.done) { return; }
+			if atomic_load(*d.done) { return; }
 			time.sleep(200 * time.Millisecond);
 		}
 		for r: d.accts {
-			if r != null && !heap_check(r) { sync.atomic_store(*d.abort, true); }
+			if r != null && !heap_check(r) { atomic_store(*d.abort, true); }
 		}
 	}
 }
@@ -132,9 +132,9 @@ run_scenario :: (path: string, out_path: string) -> bool {
 		d.accts[1] = rb;
 		if !bok { return false; }
 	}
-	wd := thread.create_and_start_with_poly_data(*d, watchdog_loop, init_context = context);
+	wd := thread.create_and_start_with_poly_data(*d, watchdog_loop);
 	defer {
-		sync.atomic_store(*d.done, true);
+		atomic_store(*d.done, true);
 		thread.join(wd);
 		thread.destroy(wd);
 	}
@@ -147,7 +147,7 @@ run_scenario :: (path: string, out_path: string) -> bool {
 	time.sleep(1500 * time.Millisecond); // let attach + Network.enable settle
 
 	for raw_line, ln: lines {
-		if sync.atomic_load(*d.abort) {
+		if atomic_load(*d.abort) {
 			fmt.eprintln("aborted by watchdog");
 			d.failed = true;
 			break;
@@ -178,7 +178,7 @@ run_scenario :: (path: string, out_path: string) -> bool {
 		}
 		free_all(temp);
 	}
-	if !sync.atomic_load(*d.abort) { settle(*d, 2000, 15000); }
+	if !atomic_load(*d.abort) { settle(*d, 2000, 15000); }
 	for r: d.accts { if r != null { fmt.printfln("%s: peak JS heap %.0f MB", r.acct, r.heap_peak / (1 << 20)); } }
 	fmt.printfln("%s -> %s (%s)", name, op, ifx d.failed then "FAILED" else "ok");
 	return !d.failed;
@@ -251,7 +251,7 @@ exec :: (d: *Driver, line: string) -> bool, string {
 		ms, _ := strconv.parse_int(rest);
 		start := time.tick_now();
 		while time.tick_since(start) < time.Duration(ms) * time.Millisecond {
-			if sync.atomic_load(*d.abort) { return false, "aborted"; }
+			if atomic_load(*d.abort) { return false, "aborted"; }
 			time.sleep(100 * time.Millisecond);
 		}
 		return true, "";
@@ -425,7 +425,7 @@ gw_len :: (r: *Recorder) -> int {
 wait_gw_from :: (r: *Recorder, name: string, from: int, ms: int) -> bool {
 	start := time.tick_now();
 	while time.tick_since(start) < time.Duration(ms) * time.Millisecond {
-		if sync.atomic_load(*r.aborted) { return false; }
+		if atomic_load(*r.aborted) { return false; }
 		sync.mutex_lock(*r.mu);
 		for i: from..len(r.gw_events)-1 {
 			e := r.gw_events[i];
@@ -444,7 +444,7 @@ wait_gw_from :: (r: *Recorder, name: string, from: int, ms: int) -> bool {
 settle :: (d: *Driver, quiet_ms: int, max_ms: int) {
 	start := time.tick_now();
 	while time.tick_since(start) < time.Duration(max_ms) * time.Millisecond {
-		if sync.atomic_load(*d.abort) { return; }
+		if atomic_load(*d.abort) { return; }
 		quiet := true;
 		now := rt_now(d.out);
 		for r: d.accts {
@@ -488,12 +488,12 @@ locate :: (r: *Recorder, finder: string) -> Point, bool {
 				// a point near the centre, jittered like a person would
 				px := x + w * (0.5 + (rand.float64() - 0.5) * 0.4);
 				py := y + h * (0.5 + (rand.float64() - 0.5) * 0.4);
-				return .{px, py}, true;
+				return .[px, py], true;
 			}
 		} }
 		time.sleep(250 * time.Millisecond);
 	}
-	return .{}, false;
+	return .[], false;
 }
 
 move_mouse :: (d: *Driver, to: Point) {

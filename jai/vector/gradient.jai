@@ -25,16 +25,16 @@ Gradient :: struct {
 
 mat_invert :: (m: Mat) -> Mat, bool {
 	det := get(m, 0) * get(m, 3) - get(m, 1) * get(m, 2);
-	if abs(det) < 1.0e-12 { return .{}, false; }
+	if abs(det) < 1.0e-12 { return .[], false; }
 	id := 1 / det;
-	return .{
+	return .[
 		get(m, 3) * id,
 		-get(m, 1) * id,
 		-get(m, 2) * id,
 		get(m, 0) * id,
 		(get(m, 2) * get(m, 5) - get(m, 3) * get(m, 4)) * id,
 		(get(m, 1) * get(m, 4) - get(m, 0) * get(m, 5)) * id
-	}, true;
+	], true;
 }
 
 // gradient_t returns the gradient parameter at point q (gradient space) or
@@ -75,7 +75,7 @@ gradient_t :: (g: *Gradient, q: [2]float32) -> float32, bool {
 // gradient_color evaluates straight RGBA (0..1) at parameter t.
 gradient_color :: (g: *Gradient, t_in: float32) -> [4]float32 {
 	n := len(g.stops);
-	if n == 0 { return .{}; }
+	if n == 0 { return .[]; }
 	t := t_in;
 	if g.spread == {
 	case .Pad;

@@ -211,8 +211,8 @@ Protocol :: enum u8 {
 }
 
 // Tcp_Dialer opens the caller's TCP+TLS(+h2) connection; Tcp_Closer closes one.
-Tcp_Dialer :: (host: string, user: *void) -> *void, bool;
-Tcp_Closer :: (conn: *void, user: *void);
+Tcp_Dialer :: #type (host: string, user: *void) -> *void, bool;
+Tcp_Closer :: #type (conn: *void, user: *void);
 
 Result :: struct {
 	proto: Protocol;
@@ -271,9 +271,9 @@ connect :: (c: *Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user:
 		return .{proto = .H2, tcp = tc}, tok;
 	}
 
-	r := new(Race, runtime.heap_allocator());
+	r := new(Race, context.default_allocator);
 	r.cache = c;
-	r.host = clone(host, runtime.heap_allocator());
+	r.host = clone(host, context.default_allocator);
 	r.port = port;
 	r.dial = dial;
 	r.closer = closer;
@@ -286,8 +286,8 @@ connect :: (c: *Cache, host: string, dial: Tcp_Dialer, closer: Tcp_Closer, user:
 		rtt := time.Duration(quic.cached_rtt_us(host)) * time.Microsecond;
 		r.delay = min(time.Duration(cast(float64)(rtt) * DELAY_MAIN_JOB_MULTIPLIER), DELAY_MAIN_JOB_MAX);
 	}
-	thread.run_with_poly_data(r, quic_job, init_context = context);
-	thread.run_with_poly_data(r, tcp_job, init_context = context);
+	thread.run_with_poly_data(r, quic_job);
+	thread.run_with_poly_data(r, tcp_job);
 
 	locks.lock(*r.mu);
 	while r.winner == 0 && !(r.quic_done && r.tcp_done) { locks.cond_wait(*r.cond, *r.mu); }
@@ -311,8 +311,8 @@ race_release :: (r: *Race) {
 	last := r.refs == 0;
 	locks.unlock(*r.mu);
 	if last {
-		delete(r.host, runtime.heap_allocator());
-		free(r, runtime.heap_allocator());
+		delete(r.host, context.default_allocator);
+		free(r, context.default_allocator);
 	}
 }
 

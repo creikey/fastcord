@@ -16,7 +16,7 @@ build :: () {
     args := get_build_options().compile_time_command_line;
     target := ifx args.count then args[0] else "app";
     make_directory_if_it_does_not_exist("build");
-    if !build_c() { compiler_set_workspace_status(.FAILED); return; }
+    if !build_c() { log_error("C build failed"); compiler_set_workspace_status(.FAILED); return; }
     if target == "c" return;
 
     w := compiler_create_workspace(target);

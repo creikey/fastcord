@@ -53,7 +53,7 @@ uuid_parse :: (s: string) -> [16]u8, bool {
 	}
 	for i: 0..len(s)-1 {
 		if s[i] == #char "-" { continue; }
-		if j >= 32 || i + 1 >= len(s) + 1 { return .{}, false; }
+		if j >= 32 || i + 1 >= len(s) + 1 { return .[], false; }
 		v, __e2 := hv(s[i]); if failed(__e2) return b, __e2;
 		if j % 2 == 0 { b[j / 2] = v << 4; } else { b[j / 2] |= v; }
 		j += 1;

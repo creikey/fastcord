@@ -1,6 +1,7 @@
 #import "Basic";
 #import "String";
 #import "Hash_Table";
+#import "Atomics";
 #import "fc";
 fmt :: #import "fc_fmt";
 runtime :: #import "fc_runtime";

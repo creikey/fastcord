@@ -31,7 +31,7 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 	defer win.CloseHandle(h);
 	if win.SuspendThread(h) == ~win.DWORD(0) { return 0, true; }
 	defer win.ResumeThread(h);
-	if gate != null && sync.atomic_load(gate) == 0 { return 0, false; }
+	if gate != null && atomic_load(gate) == 0 { return 0, false; }
 	ac: Aligned_Context;
 	ac.c.ContextFlags = CONTEXT_FULL_AMD64;
 	// GetThreadContext also waits for the suspension to take effect.
@@ -47,7 +47,7 @@ capture_thread_gated :: (t: Thread_Ref, buf: []u64, gate: *s32) -> int, bool {
 		if fe == null {
 			// A leaf function without unwind data: the return address is on top of the stack.
 			if ac.c.Rsp == 0 { break; }
-			ac.c.Rip = cast(*u64)(cast(u64)(ac.c.Rsp)).*;
+			ac.c.Rip = (cast(*u64)(cast(u64)(ac.c.Rsp))).*;
 			ac.c.Rsp += 8;
 		} else {
 			hd: *void;
