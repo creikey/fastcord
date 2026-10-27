@@ -268,7 +268,7 @@ _shape :: (inst: u32, text: string, out: *[..]Raw_Glyph) -> float32 {
 	width := cast(float32)(CTLineGetTypographicBounds(line, null, null, null));
 	runs := CTLineGetGlyphRuns(line);
 	nruns := CFArrayGetCount(runs);
-	for ri: 0..nruns-1 {
+	for ri: 0..cast(int)(nruns)-1 {
 		run := CFArrayGetValueAtIndex(runs, ri);
 		n := CTRunGetGlyphCount(run);
 		if n <= 0 { continue; }
@@ -284,7 +284,7 @@ _shape :: (inst: u32, text: string, out: *[..]Raw_Glyph) -> float32 {
 		CTRunGetPositions(run, all, raw_data(pos));
 		CTRunGetAdvances(run, all, raw_data(adv));
 		CTRunGetStringIndices(run, all, raw_data(idx));
-		for k: 0..n-1 {
+		for k: 0..cast(int)(n)-1 {
 			// Grapheme-correct cluster start: the composed-character sequence containing this glyph's first code unit.
 			cr := CFStringGetRangeOfComposedCharactersAtIndex(str, idx[k]);
 			start := ct.map16[clamp(cr.location, 0, len(ct.map16) - 1)];
@@ -370,7 +370,7 @@ _rasterize :: (inst: u32, glyph: u32, subpx: float32, allocator: Allocator) -> G
 		bm.pixels = out;
 	} else {
 		out := make_slice(u8, cast(int)(w * h), allocator);
-		for i: 0..(cast(int)(w * h))-1 {
+		for i: 0..cast(int)((cast(int)(w * h)))-1 {
 			// Average RGB (smoothing may produce slight per-channel differences).
 			px := sub_from(buf, i * 4);
 			sum := cast(int)(px[0]) + cast(int)(px[1]) + cast(int)(px[2]);

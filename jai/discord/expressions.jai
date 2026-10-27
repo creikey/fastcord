@@ -110,7 +110,7 @@ expr_submit :: (c: *Client, j: Expr_Job) {
 		clear(*pool.threads);
 	}
 	if len(pool.threads) == 0 {
-		for _: 0..EXPR_THREADS-1 {
+		for _: 0..cast(int)(EXPR_THREADS)-1 {
 			th := thread.create_and_start_with_data(null, expr_worker, *c.ctx);
 			append(*pool.threads, th);
 		}

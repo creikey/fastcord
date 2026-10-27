@@ -380,7 +380,7 @@ index_block :: (d: *Demuxer, m: *Mkv, at: s64, size: s64, simple: bool, block_du
 	p := 1;
 	if lacing == {
 	case 1; // Xiph
-		for k: 0..(count - 1)-1 {
+		for k: 0..cast(int)((count - 1))-1 {
 			v: s64;
 			while p < len(lb) {
 				c := lb[p];
@@ -404,15 +404,15 @@ index_block :: (d: *Demuxer, m: *Mkv, at: s64, size: s64, simple: bool, block_du
 		}
 	case 2; // fixed
 		each_size := (payload_size - 1) / cast(s64)(count);
-		for k: 0..count-1 { sizes[k] = each_size; }
+		for k: 0..cast(int)(count)-1 { sizes[k] = each_size; }
 	}
 	total: s64;
-	for k: 0..(count - 1)-1 { total += get(sizes, k); }
+	for k: 0..cast(int)((count - 1))-1 { total += get(sizes, k); }
 	if lacing != 2 { sizes[count - 1] = payload_size - cast(s64)(p) - total; }
-	for k: 0..count-1 { if get(sizes, k) < 0 || get(sizes, k) > payload_size { return; } }
+	for k: 0..cast(int)(count)-1 { if get(sizes, k) < 0 || get(sizes, k) > payload_size { return; } }
 	off := payload_at + cast(s64)(p);
 	frame_dur := ifx dur > 0 then dur / cast(s32)(count) else 0;
-	for k: 0..count-1 {
+	for k: 0..cast(int)(count)-1 {
 		append(*t.packets, Packet_Ref.{offset = off, size = cast(s32)(get(sizes, k)), pts = pts + cast(s64)(frame_dur) * cast(s64)(k), dts = pts, dur = frame_dur, key = key});
 		off += get(sizes, k);
 	}

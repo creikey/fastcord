@@ -593,7 +593,7 @@ eval :: (p: *Prop, t: float32, out: []float32) -> int {
 		for d: 2..n-1 { at(*out, d).* = s[d] + (e[d] - s[d]) * u; }
 		return n;
 	}
-	for d: 0..n-1 {
+	for d: 0..cast(int)(n)-1 {
 		u := bezier_ease(pick(a.ox, d, 0), pick(a.oy, d, 0), pick(a.ix, d, 1), pick(a.iy, d, 1), x);
 		at(*out, d).* = s[d] + (e[d] - s[d]) * u;
 	}
@@ -663,7 +663,7 @@ eval_shape :: (p: *Shape_Prop, t: float32, alloc: Allocator) -> Shape_Data {
 		o = make_slice(Vector2, n, alloc),
 		closed = s.closed
 	};
-	for j: 0..n-1 {
+	for j: 0..cast(int)(n)-1 {
 		out.v[j] = s.v[j] + (e.v[j] - s.v[j]) * u;
 		out.i[j] = s.i[j] + (e.i[j] - s.i[j]) * u;
 		out.o[j] = s.o[j] + (e.o[j] - s.o[j]) * u;

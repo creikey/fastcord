@@ -815,7 +815,7 @@ update_anims :: (b: *Box) {
 // layout
 
 layout :: (root: *Box) {
-	for axis_i: 0..enum_count(Axis)-1 { axis := cast(Axis) axis_i;
+	for axis_i: 0..cast(int)(enum_count(Axis))-1 { axis := cast(Axis) axis_i;
 		layout_standalone(root, axis);
 		layout_upward(root, axis);
 		layout_downward(root, axis);
@@ -996,7 +996,7 @@ layout_position :: (b: *Box) {
 	content: Vec2;
 	{ c := b.first;
 	while c != null {
-		for axis_i: 0..enum_count(Axis)-1 { axis := cast(Axis) axis_i;
+		for axis_i: 0..cast(int)(enum_count(Axis))-1 { axis := cast(Axis) axis_i;
 			if is_floating(c, axis) {
 				c.rel_pos.component[axis] = c.fixed_pos.component[axis];
 				if axis == .Y && has(c.flags, .Anchor_End_Y) { c.rel_pos.y = b.fixed_size.y - c.fixed_size.y - c.fixed_pos.y; }
@@ -1024,7 +1024,7 @@ layout_position :: (b: *Box) {
 
 	// scroll: clamp target, animate offset
 	if (b.flags & (Box_Flags.Scroll_X | .Scroll_Y)) != 0 {
-		for axis_i: 0..enum_count(Axis)-1 { axis := cast(Axis) axis_i;
+		for axis_i: 0..cast(int)(enum_count(Axis))-1 { axis := cast(Axis) axis_i;
 			max_off := max(0.0, content.component[axis] - b.fixed_size.component[axis]);
 			b.view_off_target.component[axis] = clamp(b.view_off_target.component[axis], 0, max_off);
 			animate(*b.view_off.component[axis], b.view_off_target.component[axis], 40);

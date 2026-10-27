@@ -35,7 +35,7 @@ encode_png :: (pixels: []u8, w: int, h: int, allocator := context.allocator) -> 
 	// zlib stream of stored blocks over filtered scanlines (filter byte 0 per row).
 	raw_len := (w * 4 + 1) * h;
 	raw := make_slice(u8, raw_len, temp);
-	for y: 0..h-1 {
+	for y: 0..cast(int)(h)-1 {
 		raw[y * (w * 4 + 1)] = 0;
 		copy(sub_from(raw, y * (w * 4 + 1) + 1), sub(sub_from(pixels, y * w * 4), 0, w * 4));
 	}

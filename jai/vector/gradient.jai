@@ -106,8 +106,8 @@ gradient_color :: (g: *Gradient, t_in: float32) -> Vector4 {
 gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w: int, h: int) {
 	inv, ok := mat_invert(m);
 	if !ok { return; }
-	for y: 0..h-1 {
-		for x: 0..w-1 {
+	for y: 0..cast(int)(h)-1 {
+		for x: 0..cast(int)(w)-1 {
 			i := y * w + x;
 			c := cov[i];
 			if c <= 0 { continue; }
@@ -142,7 +142,7 @@ solid_fill_premul :: (color: Vector4, cov: []float32, dst: []float32) {
 
 // premul_to_rgba8 converts a premultiplied f32 canvas to straight-alpha RGBA8.
 premul_to_rgba8 :: (src: []float32, out: []u8) {
-	for i: 0..(len(src) / 4)-1 {
+	for i: 0..cast(int)((len(src) / 4))-1 {
 		a := src[i * 4 + 3];
 		if a <= 0 {
 			at(*out, i * 4).*, at(*out, i * 4 + 1).*, at(*out, i * 4 + 2).*, at(*out, i * 4 + 3).* = 0, 0, 0, 0;

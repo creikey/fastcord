@@ -49,7 +49,7 @@ put_int :: (buf: *[..]u8, x: s64) {
 		{ t := mag;
 		while t != 0 { n += 1;  t >>= 8; } }
 		append(buf, cast(u8)(Tag.Small_Big), cast(u8)(n), cast(u8)(ifx neg then 1 else 0));
-		for i: 0..n-1 { append(buf, cast,no_check(u8)(mag >> (8 * cast,no_check(u64)(i)))); }
+		for i: 0..cast(int)(n)-1 { append(buf, cast,no_check(u8)(mag >> (8 * cast,no_check(u64)(i)))); }
 	}
 }
 

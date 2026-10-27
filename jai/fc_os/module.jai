@@ -38,6 +38,7 @@ open :: (path: string, flags := File_Flag_Set.Read, perm := 0) -> *File, Error {
         f.f, ok = F.file_open(path, for_writing = true, keep_existing_content = !(flags & .Trunc) && (flags & .Append) != 0, log_errors = false);
         if ok && (flags & .Append) F.file_set_position(f.f, F.file_length(f.f));
     } else {
+        if FU.is_directory(path) { f.dir = copy_string(path); return f, null; }
         f.f, ok = F.file_open(path, log_errors = false);
         if !ok && FU.file_exists(path) { f.dir = copy_string(path); ok = true; }
     }

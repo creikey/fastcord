@@ -217,7 +217,7 @@ finalize_tracks :: (d: *Demuxer) {
 		ord := make_slice(int, len(t.packets), temp);
 		for i: 0..len(ord)-1 { ord[i] = i; }
 		sort_by_pts(ord, view(t.packets));
-		for k: 0..(len(ord) - 1)-1 {
+		for k: 0..cast(int)((len(ord) - 1))-1 {
 			p := *t.packets[ord[k]];
 			if p.dur <= 0 { p.dur = cast(s32)(t.packets[ord[k + 1]].pts - p.pts); }
 		}

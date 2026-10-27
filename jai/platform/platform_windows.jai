@@ -306,7 +306,7 @@ wic_png :: (px: []u8, w: int, h: int, allocator: Allocator) -> []u8 {
 hdrop_paths :: (hdrop: win.HDROP, allocator: Allocator) -> []string {
 	out := make_dynamic(string, 0, 0, allocator);
 	n := win.DragQueryFileW(hdrop, 0xFFFFFFFF, null, 0);
-	for i: 0..n-1 {
+	for i: 0..cast(int)(n)-1 {
 		l := win.DragQueryFileW(hdrop, i, null, 0);
 		buf := make_slice(u16, l + 1, temp);
 		win.DragQueryFileW(hdrop, i, raw_data(buf), l + 1);

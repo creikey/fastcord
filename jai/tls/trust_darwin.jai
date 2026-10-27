@@ -26,7 +26,7 @@ kCFStringEncodingUTF8 :: 0x08000100;
 verify_chain_os :: (chain: [][]u8, host: string) -> Error {
 	certs: [16]CFTypeRef;
 	n := 0;
-	defer for i: 0..n-1 { CFRelease(certs[i]); }
+	defer for i: 0..cast(int)(n)-1 { CFRelease(certs[i]); }
 	for der: chain {
 		if n == len(certs) { break; }
 		data := CFDataCreate(null, raw_data(der), len(der));

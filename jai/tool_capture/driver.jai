@@ -356,7 +356,7 @@ exec :: (d: *Driver, line: string) -> bool, string {
 		move_mouse(d, pt);
 		delta, _ := strconv.parse_f64(dy);
 		steps := 6;
-		for _: 0..steps-1 {
+		for _: 0..cast(int)(steps)-1 {
 			cdp.call(r.c, "Input.dispatchMouseEvent", fmt.tprintf("{{\"type\":\"mouseWheel\",\"x\":%.1f,\"y\":%.1f,\"deltaX\":0,\"deltaY\":%.1f}}", pt.x, pt.y, delta / cast(float64)(steps)), r.page_session);
 			human(30, 70);
 		}

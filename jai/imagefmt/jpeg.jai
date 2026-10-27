@@ -11,8 +11,8 @@ jpeg_decode :: (c: *Decode_Ctx, data: []u8, img: *Image) -> Error {
 	if orientation >= 5 { ow, oh = H, W; }
 	px := c.frames[0].pixels;
 	rot, __e2 := alloc_pixels(c, ow, oh); if failed(__e2) return __e2;
-	for y: 0..H-1 {
-		for x: 0..W-1 {
+	for y: 0..cast(int)(H)-1 {
+		for x: 0..cast(int)(W)-1 {
 			nx, ny: int;
 			if orientation == {
 			case 2; nx, ny = W - 1 - x, y;
@@ -73,7 +73,7 @@ exif_orientation :: (seg: []u8) -> int {
 	}
 	ifd := r32(t, 4, le);
 	n := r16(t, ifd, le);
-	for i: 0..n-1 {
+	for i: 0..cast(int)(n)-1 {
 		e := ifd + 2 + i * 12;
 		if e + 12 > len(t) { break; }
 		if r16(t, e, le) == 0x0112 {

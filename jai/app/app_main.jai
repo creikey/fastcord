@@ -459,7 +459,7 @@ script_command :: (path: string, f: []string, t: *float64) {
 		// sweep x0 y0 x1 y1 n: the mouse moves from one point to the other, one step per frame
 		p0, p1 := Vector2.{num(f[1]), num(f[2])}, Vector2.{num(f[3]), num(f[4])};
 		n := max(cast(int)(num(f[5])), 1);
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			platform.inject_event(.{kind = .Mouse_Move, pos = p0 + (p1 - p0) * cast(float32)(i + 1) / cast(float32)(n)});
 			script_frame(t);
 		}
@@ -693,7 +693,7 @@ script_command :: (path: string, f: []string, t: *float64) {
 		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = true});
 	case "wait";
 		n := cast(int)(num(f[1]));
-		for _: 0..(max(n, 1))-1 { script_frame(t); }
+		for _: 0..cast(int)((max(n, 1)))-1 { script_frame(t); }
 		return;
 	case "settle";
 		// Real seconds of 60 Hz frames, so network loads and image decodes can finish (live runs).

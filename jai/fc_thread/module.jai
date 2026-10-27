@@ -29,6 +29,7 @@ start :: (t: *Thread) {
     J.thread_init(*t.jt, entry);
     t.jt.data = t;
     t.jt.starting_context = t.ctx;
+    t.jt.starting_context.temporary_storage = *t.jt.starting_temporary_storage;  // each thread its own temp memory
     J.thread_start(*t.jt);
 }
 join :: (t: *Thread) { J.thread_is_done(*t.jt, -1); }

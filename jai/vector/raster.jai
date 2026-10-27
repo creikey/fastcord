@@ -397,7 +397,7 @@ angle_of :: inline (v: Vector2) -> float32 {
 offset_side :: (out: *[..]Vector2, pts: []Vector2, closed: bool, hw: float32, join: Line_Join, miter_limit: float32) {
 	n := len(pts);
 	nseg := ifx closed then n else n - 1;
-	for i: 0..nseg-1 {
+	for i: 0..cast(int)(nseg)-1 {
 		a := pts[i];
 		b := pts[(i + 1) % n];
 		d := seg_dir(a, b);
@@ -552,7 +552,7 @@ acc_line :: (r: *Raster, p0: Vector2, p1: Vector2) {
 	ts[nt] = 1;
 	nt += 1;
 	if nt == 4 && ts[1] > ts[2] { ts[1], ts[2] = ts[2], ts[1]; }
-	for k: 0..(nt - 1)-1 {
+	for k: 0..cast(int)((nt - 1))-1 {
 		q0 := a + (b - a) * ts[k];
 		q1 := a + (b - a) * ts[k + 1];
 		mid := (q0.x + q1.x) / 2;
@@ -621,11 +621,11 @@ acc_line_inside :: (r: *Raster, p0: Vector2, p1: Vector2) {
 
 // integrate turns accumulated cells into coverage and clears the accumulator.
 integrate :: (r: *Raster, cov: []float32, rule: Fill_Rule) {
-	for y: 0..r.h-1 {
+	for y: 0..cast(int)(r.h)-1 {
 		row := sub(r.acc, y * r.stride, (y + 1) * r.stride);
 		out := sub(cov, y * r.w, (y + 1) * r.w);
 		sum: float32 = 0;
-		for x: 0..r.w-1 {
+		for x: 0..cast(int)(r.w)-1 {
 			sum += row[x];
 			v := abs(sum);
 			if rule == .Nonzero {

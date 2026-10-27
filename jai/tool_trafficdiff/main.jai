@@ -503,7 +503,7 @@ diff_gateway :: (wa: Window, wb: Window, opts: Opts, sb: *strings.Builder) -> in
 		return out;
 	}
 	sa, sbb := collect(wa, "ws_send"), collect(wb, "ws_send");
-	for i: 0..(max(len(sa), len(sbb)))-1 {
+	for i: 0..cast(int)((max(len(sa), len(sbb))))-1 {
 		if i >= len(sa) {
 			fmt.sbprintfln(sb, "  + extra    gateway send op %v", num(sbb[i].v, "op"));
 			n += 1;

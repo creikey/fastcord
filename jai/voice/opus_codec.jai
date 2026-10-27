@@ -37,7 +37,7 @@ opus_codec :: () -> Codec {
 				if err == .None { n = nn; }
 			}
 			if n <= 0 {
-				for i: 0..(SAMPLES_PER_FRAME * 2)-1 { at(*out, i).* = 0; }
+				for i: 0..cast(int)((SAMPLES_PER_FRAME * 2))-1 { at(*out, i).* = 0; }
 				return SAMPLES_PER_FRAME;
 			}
 			return n;

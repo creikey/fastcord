@@ -125,7 +125,7 @@ take_atom :: (d: *Decoder, n: int, utf8: bool) -> Value, Error {
 	}
 	high := false;
 	if !utf8 {
-		for i: 0..n-1 { if raw[i] >= 0x80 {high = true; break;} }
+		for i: 0..cast(int)(n)-1 { if raw[i] >= 0x80 {high = true; break;} }
 	}
 	if !high {
 		s, err := take_str(d, n);
@@ -133,7 +133,7 @@ take_atom :: (d: *Decoder, n: int, utf8: bool) -> Value, Error {
 	}
 	d.pos += n;
 	sb := strings.builder_make(0, n * 2, d.allocator);
-	for i: 0..n-1 { strings.write_rune(*sb, cast(u32)(raw[i])); }
+	for i: 0..cast(int)(n)-1 { strings.write_rune(*sb, cast(u32)(raw[i])); }
 	return vatom(strings.to_string(sb)), .None;
 }
 
@@ -204,7 +204,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		n := cast(int)(rd_u32(d));
 		if !need(d, n + 1) { return .{}, .Truncated; } // each element and the tail take >=1 byte
 		items := make_slice(Value, n, d.allocator);
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			items[i], err = decode_term(d);
 			if err != .None { return vlist(sub(items, 0, i + 1)), err; }
 		}
@@ -223,7 +223,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		}
 		if !need(d, n) { return .{}, .Truncated; }
 		items := make_slice(Value, n, d.allocator);
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			items[i], err = decode_term(d);
 			if err != .None { return vtuple(sub(items, 0, i + 1)), err; }
 		}
@@ -233,7 +233,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		n := cast(int)(rd_u32(d));
 		if n > (len(d.data) - d.pos) / 2 { return .{}, .Truncated; }
 		pairs := make_slice(Pair, n, d.allocator);
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			pairs[i].key, err = decode_term(d);
 			if err != .None { return vmap(sub(pairs, 0, i + 1)), err; }
 			pairs[i].value, err = decode_term(d);

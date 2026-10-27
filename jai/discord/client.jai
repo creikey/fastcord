@@ -234,7 +234,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 
 // client_start launches workers, the startup request schedule and the gateway.
 client_start :: (c: *Client) {
-	for _: 0..c.cfg.workers-1 {
+	for _: 0..cast(int)(c.cfg.workers)-1 {
 		th := thread.create_and_start_with_poly_data(c, worker_proc, *c.ctx);
 		append(*c.workers, th);
 	}

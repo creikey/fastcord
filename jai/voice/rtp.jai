@@ -273,7 +273,7 @@ build_report :: (out: []u8, ssrc: u32, sender: bool, ntp: u64, rtp_ts: u32, pack
 		put_u32(sub_from(out, 24), octets);
 		p = 28;
 	}
-	for i: 0..nb-1 {
+	for i: 0..cast(int)(nb)-1 {
 		b := blocks[i];
 		put_u32(sub_from(out, p), b.ssrc);
 		at(*out, p + 4).* = b.fraction_lost;
@@ -317,7 +317,7 @@ parse_report :: (b: []u8) -> Parsed_Report, bool {
 		r.rtp_ts = get_u32(sub_from(b, 16));
 		p = 28;
 	}
-	for i: 0..rc-1 {
+	for i: 0..cast(int)(rc)-1 {
 		if p + 24 > length || r.n_blocks == len(r.blocks) { break; }
 		blk := *r.blocks[r.n_blocks];
 		blk.ssrc = get_u32(sub_from(b, p));
@@ -339,14 +339,14 @@ parse_report :: (b: []u8) -> Parsed_Report, bool {
 DISCOVERY_LEN :: 74;
 
 build_discovery_request :: (out: []u8, ssrc: u32) {
-	for i: 0..DISCOVERY_LEN-1 { at(*out, i).* = 0; }
+	for i: 0..cast(int)(DISCOVERY_LEN)-1 { at(*out, i).* = 0; }
 	put_u16(sub_from(out, 0), 1);
 	put_u16(sub_from(out, 2), 70);
 	put_u32(sub_from(out, 4), ssrc);
 }
 
 build_discovery_response :: (out: []u8, ssrc: u32, address: string, port: u16) {
-	for i: 0..DISCOVERY_LEN-1 { at(*out, i).* = 0; }
+	for i: 0..cast(int)(DISCOVERY_LEN)-1 { at(*out, i).* = 0; }
 	put_u16(sub_from(out, 0), 2);
 	put_u16(sub_from(out, 2), 70);
 	put_u32(sub_from(out, 4), ssrc);

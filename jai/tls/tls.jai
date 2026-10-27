@@ -151,7 +151,7 @@ verify_peer :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
 	n := ifx certs != null then cast(int)(OPENSSL_sk_num(certs)) else 0;
 	chain: [16][]u8;
 	if host == "" || n == 0 || n > len(chain) { return ssl_verify_invalid; }
-	for i: 0..n-1 {
+	for i: 0..cast(int)(n)-1 {
 		b := cast(*CRYPTO_BUFFER)(OPENSSL_sk_value(certs, cast(u64)(i)));
 		chain[i] = sub(CRYPTO_BUFFER_data(b), 0, CRYPTO_BUFFER_len(b));
 	}

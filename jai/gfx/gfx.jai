@@ -341,7 +341,7 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
 		if tex == 0 {
 			slot = 0;
 		} else {
-			for i: 0..b.n_slots-1 {
+			for i: 0..cast(int)(b.n_slots)-1 {
 				if b.slots[i] == tex {
 					slot = cast(int)(i);
 					break;
@@ -377,7 +377,7 @@ push_rect_px :: (p: Rect_Params, d: Rect) {
 // from the heap, not temp storage, because images can be tens of megabytes.
 premultiplied :: (pixels: []u8, w: int, h: int, stride: int) -> []u8 {
 	out := make_slice(u8, w * h * 4);
-	for y: 0..h-1 {
+	for y: 0..cast(int)(h)-1 {
 		src := sub(sub_from(pixels, y * stride), 0, w * 4);
 		dst := sub(sub_from(out, y * w * 4), 0, w * 4);
 		{ x := 0;

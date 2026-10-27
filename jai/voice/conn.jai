@@ -1051,7 +1051,7 @@ on_rtcp :: (c: *Conn, b: []u8, now: s64) {
 		return;
 	}
 	dbg(c, "rtcp %s ssrc=%d blocks=%d", ifx rep.is_sr then "SR" else "RR", rep.ssrc, rep.n_blocks);
-	for i: 0..rep.n_blocks-1 {
+	for i: 0..cast(int)(rep.n_blocks)-1 {
 		bl := rep.blocks[i];
 		dbg(c, "  block ssrc=%d lost=%d frac=%d maxseq=%d jitter=%d", bl.ssrc, bl.cum_lost, bl.fraction_lost, bl.ext_max_seq, bl.jitter);
 	}
@@ -1064,7 +1064,7 @@ on_rtcp :: (c: *Conn, b: []u8, now: s64) {
 			u.rx.lsr_at_ms = now;
 		} }
 	}
-	for i: 0..rep.n_blocks-1 {
+	for i: 0..cast(int)(rep.n_blocks)-1 {
 		blk := rep.blocks[i];
 		if blk.ssrc != c.ssrc || blk.lsr == 0 { continue; }
 		ntp_mid := cast(u32)(ntp_now() >> 16);
@@ -1144,7 +1144,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
 			c.self_speaking = true;
 			locks.unlock(*c.mu);
 			// leading frames (pre-roll), with their original timestamps
-			for i: 0..c.preroll_n-1 {
+			for i: 0..cast(int)(c.preroll_n)-1 {
 				pts := frame_ts - cast(u32)(c.preroll_n - i) * SAMPLES_PER_FRAME;
 				send_audio(c, view(c.preroll[i]), pts, frame_level_db(view(c.preroll[i])), true);
 			}

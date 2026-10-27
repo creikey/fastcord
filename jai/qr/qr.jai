@@ -185,7 +185,7 @@ poly_new :: (num: []int, shift: int) -> [..]int {
 	off := 0;
 	while off < len(num) && num[off] == 0 { off += 1; }
 	p := make_dynamic(int, len(num) - off + shift, len(num) - off + shift);
-	for i: 0..(len(num) - off)-1 { p[i] = num[i + off]; }
+	for i: 0..cast(int)((len(num) - off))-1 { p[i] = num[i + off]; }
 	return p;
 }
 
@@ -212,7 +212,7 @@ poly_mod :: (g: *Gf, a: []int, b: []int) -> [..]int {
 
 error_correct_poly :: (g: *Gf, ec_len: int) -> [..]int {
 	a := poly_new(int.[1], 0);
-	for i: 0..ec_len-1 {
+	for i: 0..cast(int)(ec_len)-1 {
 		b := int.[1, gexp(g, i)];
 		m := poly_multiply(g, view(a), view(b));
 		delete(a);
@@ -235,7 +235,7 @@ put_bit :: (b: *Bits, on: bool) {
 }
 
 put :: (b: *Bits, v: int, n: int) {
-	for i: 0..n-1 { put_bit(b, ((v >> (cast(u64)(n - i - 1))) & 1) == 1); }
+	for i: 0..cast(int)(n)-1 { put_bit(b, ((v >> (cast(u64)(n - i - 1))) & 1) == 1); }
 }
 
 create_data :: (version: int, level: Level, data: []u8) -> [..]int, bool {
@@ -267,7 +267,7 @@ create_bytes :: (b: *Bits, version: int, level: Level) -> [..]int {
 	t := rs_row(version, level);
 	blocks := make_dynamic(Rs_Block, 0, 0, temp);
 	{ i := 0;
-	while i < len(t) { for _: 0..t[i]-1 { append(*blocks, Rs_Block.{t[i + 1], t[i + 2]}); }  i += 3; } }
+	while i < len(t) { for _: 0..cast(int)(t[i])-1 { append(*blocks, Rs_Block.{t[i + 1], t[i + 2]}); }  i += 3; } }
 	dc := make_slice([]int, len(blocks), temp);
 	ec := make_slice([]int, len(blocks), temp);
 	offset, max_dc, max_ec := 0, 0, 0;
@@ -277,7 +277,7 @@ create_bytes :: (b: *Bits, version: int, level: Level) -> [..]int {
 		max_dc = max(max_dc, dcount);
 		max_ec = max(max_ec, eccount);
 		dc[r] = make_slice(int, dcount, temp);
-		for i: 0..dcount-1 { dc[r][i] = 0xff & (cast(int)(b.buf[i + offset])); }
+		for i: 0..cast(int)(dcount)-1 { dc[r][i] = 0xff & (cast(int)(b.buf[i + offset])); }
 		offset += dcount;
 		rs := error_correct_poly(*g, eccount);
 		defer delete(rs);
@@ -292,8 +292,8 @@ create_bytes :: (b: *Bits, version: int, level: Level) -> [..]int {
 		}
 	}
 	out := make_dynamic(int, 0, 0);
-	for i: 0..max_dc-1 { for r: 0..len(blocks)-1 { if i < len(dc[r]) { append(*out, dc[r][i]); } } }
-	for i: 0..max_ec-1 { for r: 0..len(blocks)-1 { if i < len(ec[r]) { append(*out, ec[r][i]); } } }
+	for i: 0..cast(int)(max_dc)-1 { for r: 0..len(blocks)-1 { if i < len(dc[r]) { append(*out, dc[r][i]); } } }
+	for i: 0..cast(int)(max_ec)-1 { for r: 0..len(blocks)-1 { if i < len(ec[r]) { append(*out, ec[r][i]); } } }
 	return out;
 }
 
@@ -353,7 +353,7 @@ mask_bit :: (mask: int, i: int, j: int) -> bool {
 make_impl :: (c: *Code_, level: Level, data: [..]int, mask: int, test: bool) {
 	n := c.size;
 	set: [MAX_MODULES * MAX_MODULES]bool;
-	for i: 0..(n * n)-1 { c.modules[i] = false; }
+	for i: 0..cast(int)((n * n))-1 { c.modules[i] = false; }
 	place :: (c: *Code_, set: *[MAX_MODULES * MAX_MODULES]bool, r: int, col: int, v: bool) {
 		c.modules[r * c.size + col] = v;
 		set.*[r * c.size + col] = true;
@@ -445,8 +445,8 @@ lost_point :: (c: *Code_) -> float64 {
 	n := c.size;
 	d :: (c: *Code_, r: int, col: int) -> bool {return c.modules[r * c.size + col];}
 	lost := 0;
-	for r: 0..n-1 {
-		for col: 0..n-1 {
+	for r: 0..cast(int)(n)-1 {
+		for col: 0..cast(int)(n)-1 {
 			same := 0;
 			v := d(c, r, col);
 			for dr: -1..1 {
@@ -459,8 +459,8 @@ lost_point :: (c: *Code_) -> float64 {
 			if same > 5 { lost += 3 + same - 5; }
 		}
 	}
-	for r: 0..(n - 1)-1 {
-		for col: 0..(n - 1)-1 {
+	for r: 0..cast(int)((n - 1))-1 {
+		for col: 0..cast(int)((n - 1))-1 {
 			k := 0;
 			if d(c, r, col) { k += 1; }
 			if d(c, r + 1, col) { k += 1; }
@@ -469,18 +469,18 @@ lost_point :: (c: *Code_) -> float64 {
 			if k == 0 || k == 4 { lost += 3; }
 		}
 	}
-	for r: 0..n-1 {
-		for col: 0..(n - 6)-1 {
+	for r: 0..cast(int)(n)-1 {
+		for col: 0..cast(int)((n - 6))-1 {
 			if d(c, r, col) && !d(c, r, col + 1) && d(c, r, col + 2) && d(c, r, col + 3) && d(c, r, col + 4) && !d(c, r, col + 5) && d(c, r, col + 6) { lost += 40; }
 		}
 	}
-	for col: 0..n-1 {
-		for r: 0..(n - 6)-1 {
+	for col: 0..cast(int)(n)-1 {
+		for r: 0..cast(int)((n - 6))-1 {
 			if d(c, r, col) && !d(c, r + 1, col) && d(c, r + 2, col) && d(c, r + 3, col) && d(c, r + 4, col) && !d(c, r + 5, col) && d(c, r + 6, col) { lost += 40; }
 		}
 	}
 	dark_count := 0;
-	for i: 0..(n * n)-1 { if c.modules[i] { dark_count += 1; } }
+	for i: 0..cast(int)((n * n))-1 { if c.modules[i] { dark_count += 1; } }
 	ratio := abs(100 * cast(float64)(dark_count) / cast(float64)(n) / cast(float64)(n) - 50) / 5;
 	return cast(float64)(lost) + 10 * ratio;
 }

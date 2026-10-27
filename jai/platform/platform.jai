@@ -421,10 +421,10 @@ dib_to_rgba :: (dib: []u8, allocator := context.allocator) -> []u8, int, int, bo
 	if off + stride * height > len(dib) { return rgba, width, height, ok; }
 	rgba = make_slice(u8, width * height * 4, allocator);
 	any_alpha := false;
-	for y: 0..height-1 {
+	for y: 0..cast(int)(height)-1 {
 		src := sub_from(dib, off + (ifx top_down then y else height - 1 - y) * stride);
 		dst := sub_from(rgba, y * width * 4);
-		for x: 0..width-1 {
+		for x: 0..cast(int)(width)-1 {
 			p := sub_from(src, x * bpp / 8);
 			dst[x * 4 + 0] = p[2];
 			dst[x * 4 + 1] = p[1];

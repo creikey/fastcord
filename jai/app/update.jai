@@ -82,7 +82,7 @@ fetch_latest_tag :: (repo: string) -> string, bool {
 version_newer :: (a: string, b: string) -> bool {
 	pa := strings.split(strings.trim_prefix(a, "v"), ".", temp);
 	pb := strings.split(strings.trim_prefix(b, "v"), ".", temp);
-	for i: 0..(max(len(pa), len(pb)))-1 {
+	for i: 0..cast(int)((max(len(pa), len(pb))))-1 {
 		x, y := 0, 0;
 		if i < len(pa) { x, _ = strconv.parse_int(pa[i]); }
 		if i < len(pb) { y, _ = strconv.parse_int(pb[i]); }

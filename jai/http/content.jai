@@ -27,7 +27,7 @@ register_builtin_decoders :: () #no_context {
 // register_decoder adds or replaces a decoder for a content-coding name (case-insensitive).
 register_decoder :: (name: string, fn: Decoder_Proc) -> bool {
 	locks.guard(*registry_mu);
-	for i: 0..registry_len-1 {
+	for i: 0..cast(int)(registry_len)-1 {
 		if strings.equal_fold(registry[i].name, name) {
 			registry[i].fn = fn;
 			return true;
@@ -41,7 +41,7 @@ register_decoder :: (name: string, fn: Decoder_Proc) -> bool {
 
 find_decoder :: (name: string) -> Decoder_Proc, bool {
 	locks.guard(*registry_mu);
-	for i: 0..registry_len-1 {
+	for i: 0..cast(int)(registry_len)-1 {
 		if strings.equal_fold(registry[i].name, name) { return registry[i].fn, true; }
 	}
 	return null, false;

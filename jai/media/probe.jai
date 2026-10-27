@@ -75,7 +75,7 @@ audio_waveform :: (src: *Byte_Source, buckets := 256, allocator := context.alloc
 	wave = make_slice(u8, buckets, allocator);
 	peaks := make_slice(float32, buckets, temp);
 	maxp: float32 = 0;
-	for b: 0..buckets-1 {
+	for b: 0..cast(int)(buckets)-1 {
 		s0 := b * frames / buckets;
 		s1 := max((b + 1) * frames / buckets, s0 + 1);
 		// RMS per bucket reads closer to perceived loudness than peak
@@ -87,7 +87,7 @@ audio_waveform :: (src: *Byte_Source, buckets := 256, allocator := context.alloc
 		peaks[b] = math.sqrt(acc / cast(float32)(max(s1 - s0, 1)));
 		maxp = max(maxp, peaks[b]);
 	}
-	for b: 0..buckets-1 {
+	for b: 0..cast(int)(buckets)-1 {
 		wave[b] = ifx maxp > 0 then cast(u8)(min(peaks[b] / maxp * 255 + 0.5, 255)) else 0;
 	}
 	return wave, duration, true;

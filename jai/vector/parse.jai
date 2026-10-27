@@ -330,7 +330,7 @@ parse_color :: (v: string) -> [4]u8 {
 			return out;
 		case 6; #through; case 8;
 			out := u8.[0, 0, 0, 255];
-			for j: 0..(len(h) / 2)-1 { at(*out, j).* = (hex(h[2 * j]) << 4) | hex(h[2 * j + 1]); }
+			for j: 0..cast(int)((len(h) / 2))-1 { at(*out, j).* = (hex(h[2 * j]) << 4) | hex(h[2 * j + 1]); }
 			return out;
 		}
 		return .[0, 0, 0, 255];
@@ -708,7 +708,7 @@ arc_to :: (b: *Builder, rx_in: float32, ry_in: float32, phi_deg: float32, large:
 	eder :: (rx: float64, ry: float64, cs: float64, sn: float64, t: float64) -> float64, float64 {
 		return -rx * math.sin(t) * cs - ry * math.cos(t) * sn, -rx * math.sin(t) * sn + ry * math.cos(t) * cs;
 	}
-	for i: 0..n-1 {
+	for i: 0..cast(int)(n)-1 {
 		t1 := theta1 + cast(float64)(i) * d;
 		t2 := t1 + d;
 		ax, ay := ept(cx, cy, rx, ry, cs, sn, t1);

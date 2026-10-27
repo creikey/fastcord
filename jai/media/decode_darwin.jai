@@ -139,7 +139,7 @@ vpcc_from_keyframe :: (frame: []u8) -> []u8 {
 		}
 		bits :: (b: []u8, pos: *int, n: int) -> int {
 			v := 0;
-			for _: 0..n-1 { v = (v << 1) | bit(b, pos); }
+			for _: 0..cast(int)(n)-1 { v = (v << 1) | bit(b, pos); }
 			return v;
 		}
 		bits(frame, *pos, 2); // frame marker

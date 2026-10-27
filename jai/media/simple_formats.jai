@@ -316,7 +316,7 @@ flac_scan :: (d: *Demuxer) -> Scan_Status {
 	}
 	b, s := peek(*d.reader, d.scan_pos, n);
 	if s != .Ok { return .Need_Data; }
-	for i: 0..(n - 16)-1 {
+	for i: 0..cast(int)((n - 16))-1 {
 		if b[i] != 0xFF || (b[i + 1] & 0xFE) != 0xF8 { continue; }
 		bs := flac_frame_header(sub_from(b, i), t.sample_rate);
 		if bs == 0 { continue; }

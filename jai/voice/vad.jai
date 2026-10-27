@@ -66,7 +66,7 @@ vad_process :: (v: *Vad, pcm: []float32) -> bool, float32 {
 			v.hist_i = (v.hist_i + 1) % NOISE_WINDOW;
 			v.hist_n = min(v.hist_n + 1, NOISE_WINDOW);
 			m := v.history[0];
-			for i: 0..v.hist_n-1 { m = min(m, v.history[i]); }
+			for i: 0..cast(int)(v.hist_n)-1 { m = min(m, v.history[i]); }
 			v.noise_db = m;
 			v.primed = true;
 		}

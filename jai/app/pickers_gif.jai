@@ -240,7 +240,7 @@ gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	{ ui.parent(list); defer ui.pop_parent();
 		if len(tiles) == 0 {
 			// loading placeholders (GIFPickerCategories renders 4 gray blocks per column)
-			for i: 0..(cols * 4)-1 {
+			for i: 0..cast(int)((cols * 4))-1 {
 				ph := ui.box(fmt.tprintf("ph%d", i), .Floating_X | .Floating_Y | .Draw_Background);
 				ph.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 				ph.fixed_pos = .{GIF_PAD_X + cast(float32)(i % cols) * (col_w + GIF_GUTTER), GIF_GUTTER + cast(float32)(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top};
@@ -341,7 +341,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	}
 	{ ui.parent(list); defer ui.pop_parent();
 		if gv.loading && len(items) == 0 {
-			for i: 0..(cols * 3)-1 {
+			for i: 0..cast(int)((cols * 3))-1 {
 				ph := ui.box(fmt.tprintf("ph%d", i), .Floating_X | .Floating_Y | .Draw_Background);
 				h := cast(float32)(120 + (i * 37) % 100);
 				ph.semantic_size = .[ui.px(col_w), ui.px(h)];

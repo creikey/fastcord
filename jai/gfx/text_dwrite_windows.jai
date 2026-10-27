@@ -339,13 +339,13 @@ r_draw_glyph_run :: (this: *void, ctx: *void, x: float32, y: float32, mode: u32,
 		if gi < n && glyph_char[gi] < 0 { glyph_char[gi] = ci; }
 	}
 	last := 0;
-	for gi: 0..n-1 {
+	for gi: 0..cast(int)(n)-1 {
 		if glyph_char[gi] < 0 { glyph_char[gi] = last; }
 		last = glyph_char[gi];
 	}
 	pen := x;
 	rtl := (run.bidiLevel & 1) != 0;
-	for gi: 0..n-1 {
+	for gi: 0..cast(int)(n)-1 {
 		adv := ifx run.glyphAdvances != null then run.glyphAdvances[gi] else 0;
 		off := ifx run.glyphOffsets != null then run.glyphOffsets[gi] else DWRITE_GLYPH_OFFSET.{};
 		gx := ifx rtl then pen - adv - off.advanceOffset else pen + off.advanceOffset;

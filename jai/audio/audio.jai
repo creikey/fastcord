@@ -41,7 +41,7 @@ ring_writable :: inline (r: *Ring) -> int {
 ring_write :: (r: *Ring, data: []float32) -> int {
 	n := min(len(data), ring_writable(r));
 	w := sync.atomic_load_explicit(*r.w, .Relaxed);
-	for i: 0..n-1 { r.buf[(w + cast(u64)(i)) & r.mask] = data[i]; }
+	for i: 0..cast(int)(n)-1 { r.buf[(w + cast(u64)(i)) & r.mask] = data[i]; }
 	sync.atomic_store_explicit(*r.w, w + cast(u64)(n), .Release);
 	return n;
 }
@@ -50,7 +50,7 @@ ring_write :: (r: *Ring, data: []float32) -> int {
 ring_read :: (r: *Ring, out: []float32) -> int {
 	n := min(len(out), ring_readable(r));
 	rd := sync.atomic_load_explicit(*r.r, .Relaxed);
-	for i: 0..n-1 { at(*out, i).* = r.buf[(rd + cast(u64)(i)) & r.mask]; }
+	for i: 0..cast(int)(n)-1 { at(*out, i).* = r.buf[(rd + cast(u64)(i)) & r.mask]; }
 	sync.atomic_store_explicit(*r.r, rd + cast(u64)(n), .Release);
 	return n;
 }
@@ -315,7 +315,7 @@ mix :: (out: []float32) {
 		if n == 0 { continue; }
 		any_data = true;
 		rd := sync.atomic_load_explicit(*r.r, .Relaxed);
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			at(*out, i).* += r.buf[(rd + cast(u64)(i)) & r.mask] * vol;
 		}
 		sync.atomic_store_explicit(*r.r, rd + cast(u64)(n), .Release);
@@ -370,7 +370,7 @@ to_stereo :: (out: *[..]float32, src: []float32, ch: int) {
 		append(out, ..src);
 	case;
 		frames := len(src) / max(ch, 1);
-		for f: 0..frames-1 {
+		for f: 0..cast(int)(frames)-1 {
 			append(out, src[f * ch], src[f * ch + 1]);
 		}
 	}

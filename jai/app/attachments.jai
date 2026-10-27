@@ -171,10 +171,10 @@ downscale :: (px: []u8, w: int, h: int, max_side: int, allocator := context.allo
 	ow = max(1, cast(int)(cast(float64)(w) * sc + 0.5));
 	oh = max(1, cast(int)(cast(float64)(h) * sc + 0.5));
 	out = make_slice(u8, ow * oh * 4, allocator);
-	for y: 0..oh-1 {
+	for y: 0..cast(int)(oh)-1 {
 		y0 := y * h / oh;
 		y1 := max(y0 + 1, (y + 1) * h / oh);
-		for x: 0..ow-1 {
+		for x: 0..cast(int)(ow)-1 {
 			x0 := x * w / ow;
 			x1 := max(x0 + 1, (x + 1) * w / ow);
 			// at most 4x4 samples per output pixel

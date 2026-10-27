@@ -290,7 +290,7 @@ _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s3
 			dx.ctx->Unmap(dx.cbuf, 0);
 		}
 		srvs: [TEX_SLOTS]*D3D11.IShaderResourceView;
-		for i: 0..TEX_SLOTS-1 {
+		for i: 0..cast(int)(TEX_SLOTS)-1 {
 			srvs[i] = white;
 			if cast(u32)(i) < b.n_slots { srvs[i] = cast(*D3D_Tex)(g.textures[b.slots[i]].native).srv; }
 		}
@@ -384,9 +384,9 @@ _backend_read_pixels :: (allocator: Allocator) -> []u8, int, int {
 	if dx.ctx->cast(Map)(staging, 0, .READ, .{}, *mapped) < 0 { return .{}, 0, 0; }
 	defer dx.ctx->Unmap(staging, 0);
 	out := make_slice(u8, w * h * 4, allocator);
-	for yy: 0..h-1 {
+	for yy: 0..cast(int)(h)-1 {
 		row := cast(*u8)(cast(u64)(mapped.pData) + cast(u64)(yy * cast(int)(mapped.RowPitch)));
-		for xx_: 0..w-1 {
+		for xx_: 0..cast(int)(w)-1 {
 			i := xx_ * 4;
 			o := (yy * w + xx_) * 4;
 			at(*out, o + 0).* = row[i + 2];

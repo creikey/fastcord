@@ -118,7 +118,7 @@ emoji_next :: (text: string, from: int) -> Emoji_Segment, bool {
 		buf: [96]u8;
 		for < k: 1..n {
 			sb := strings.builder_from_bytes(view(buf));
-			for q: 0..k-1 { strings.write_rune(*sb, runes[q]); }
+			for q: 0..cast(int)(k)-1 { strings.write_rune(*sb, runes[q]); }
 			{ idx, found := map_find(by_norm, strings.to_string(sb));
 			if found {
 				return .{i, ends[k - 1], idx}, true;

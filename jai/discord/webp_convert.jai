@@ -201,7 +201,7 @@ icc_description :: (p: []u8) -> string, bool {
 	be32 :: (b: []u8) -> int {return ((cast(int)(b[0])) << 24) | ((cast(int)(b[1])) << 16) | ((cast(int)(b[2])) << 8) | (cast(int)(b[3]));}
 	if len(p) < 132 { return "", false; }
 	ntags := be32(sub_from(p, 128));
-	for k: 0..ntags-1 {
+	for k: 0..cast(int)(ntags)-1 {
 		t := 132 + k * 12;
 		if t + 12 > len(p) { return "", false; }
 		if as_string(sub(sub_from(p, t), 0, 4)) != "desc" { continue; }

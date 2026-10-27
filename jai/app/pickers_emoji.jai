@@ -297,7 +297,7 @@ emoji_search :: (q: string, by_id: Map(dc.Snowflake, dc.Emoji), here: dc.Snowfla
 			if it_.locked { append(*locked, h); } else { append(*unlocked, h); }
 		}
 	}
-	for i: 0..emoji_db.parents-1 {
+	for i: 0..cast(int)(emoji_db.parents)-1 {
 		hit := false;
 		for n: emoji_db.emojis[i].names { if matches(n, needle) {hit = true; break;} }
 		if !hit { continue; }
@@ -549,7 +549,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 				r0 := max(0, cast(int)((top - body_y) / EM_CELL) - 1);
 				r1 := min(sc.rows, cast(int)((top + vh - body_y) / EM_CELL) + 2);
 				for rr: r0..r1-1 {
-					for cc: 0..cols-1 {
+					for cc: 0..cast(int)(cols)-1 {
 						i := rr * cols + cc;
 						if i >= len(sc.items) { break; }
 						it_ := sc.items[i];
@@ -618,7 +618,7 @@ emoji_keyboard :: (secs: []Em_Section, cols: int) {
 	}
 	rows := make_dynamic(Row, 0, 0, temp);
 	for sc, si: secs {
-		for rr: 0..sc.rows-1 { append(*rows, Row.{si, rr * cols, min(cols, len(sc.items) - rr * cols)}); }
+		for rr: 0..cast(int)(sc.rows)-1 { append(*rows, Row.{si, rr * cols, min(cols, len(sc.items) - rr * cols)}); }
 	}
 	if len(rows) == 0 { return; }
 	cur_row, cur_col := -1, 0;

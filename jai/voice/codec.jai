@@ -57,7 +57,7 @@ stub_codec :: () -> Codec {
 		decoder_create = () -> *void {return null;},
 		decoder_destroy = (dec: *void) {},
 		decode = (dec: *void, packet: []u8, fec: bool, out: []float32) -> int {
-			for i: 0..(min(len(out), SAMPLES_PER_FRAME * 2))-1 { at(*out, i).* = 0; }
+			for i: 0..cast(int)((min(len(out), SAMPLES_PER_FRAME * 2)))-1 { at(*out, i).* = 0; }
 			return SAMPLES_PER_FRAME;
 		}
 	};

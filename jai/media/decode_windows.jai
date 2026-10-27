@@ -55,8 +55,8 @@ audio_decode :: (ad: *Audio_Decoder, data: []u8, out: *[..]float32) -> bool {
 	bps := ad.bits / 8;
 	frames := len(data) / (bps * ad.channels);
 	clear(*ad.tmp);
-	for f: 0..frames-1 {
-		for c: 0..(min(ad.channels, 2))-1 {
+	for f: 0..cast(int)(frames)-1 {
+		for c: 0..cast(int)((min(ad.channels, 2)))-1 {
 			b := sub_from(data, (f * ad.channels + c) * bps);
 			v: float32;
 			if ad.is_float && bps == 4 { v = transmute(float32, le32(b));

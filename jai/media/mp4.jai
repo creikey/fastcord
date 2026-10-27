@@ -176,7 +176,7 @@ parse_trak :: (d: *Demuxer, m: *Mp4, trak: []u8) {
 		n := cast(int)(be32(sub_from(elst, 4)));
 		v1 := elst[0] == 1;
 		es := ifx v1 then 20 else 12;
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			e := sub_from(elst, 8 + i * es);
 			if len(e) < es { break; }
 			mt := ifx v1 then cast(s64)(be64(sub_from(e, 8))) else cast(s64)(cast(s32)(be32(sub_from(e, 4))));
@@ -393,7 +393,7 @@ build_sample_table :: (t: *Track, stbl: []u8, shift: s64) {
 	ce, cleft: int;
 	if stts_n > 0 { left = cast(int)(be32(sub_from(stts, 8))); }
 	if ctts_n > 0 { cleft = cast(int)(be32(sub_from(ctts, 8))); }
-	for i: 0..count-1 {
+	for i: 0..cast(int)(count)-1 {
 		p: Packet_Ref;
 		p.size = cast(s32)(ifx fixed_size != 0 then fixed_size else (ifx 12 + i * 4 + 4 <= len(stsz) then be32(sub_from(stsz, 12 + i * 4)) else 0));
 		while left == 0 && e + 1 < stts_n {
@@ -420,7 +420,7 @@ build_sample_table :: (t: *Track, stbl: []u8, shift: s64) {
 	}
 	if has_stss && len(stss) >= 8 {
 		n := cast(int)(be32(sub_from(stss, 4)));
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			if 8 + i * 4 + 4 > len(stss) { break; }
 			k := cast(int)(be32(sub_from(stss, 8 + i * 4))) - 1;
 			if k >= 0 && k < count { t.packets[k].key = true; }
@@ -434,13 +434,13 @@ build_sample_table :: (t: *Track, stbl: []u8, shift: s64) {
 	}
 	stsc_n := cast(int)(be32(sub_from(stsc, 4)));
 	s := 0;
-	for ent: 0..stsc_n-1 {
+	for ent: 0..cast(int)(stsc_n)-1 {
 		first := cast(int)(be32(sub_from(stsc, 8 + ent * 12))) - 1;
 		per := cast(int)(be32(sub_from(stsc, 12 + ent * 12)));
 		last := ifx ent + 1 < stsc_n then cast(int)(be32(sub_from(stsc, 8 + (ent + 1) * 12))) - 1 else nchunks;
 		for c: first..(min(last, nchunks))-1 {
 			off := chunk_off(stco, co64, has_stco, c);
-			for _: 0..per-1 {
+			for _: 0..cast(int)(per)-1 {
 				if s >= count { return; }
 				t.packets[s].offset = off;
 				off += cast(s64)(t.packets[s].size);
@@ -495,7 +495,7 @@ parse_moof :: (d: *Demuxer, m: *Mp4, moof: []u8, moof_start: s64) {
 			first_flags := def_flags;
 			has_first := (tf & 0x4) != 0;
 			if has_first {first_flags = be32(sub_from(b, j)); j += 4;}
-			for k: 0..n-1 {
+			for k: 0..cast(int)(n)-1 {
 				dur, size, sfl: u32 = def_dur, def_size, ifx (k == 0 && has_first) then first_flags else def_flags;
 				cto: s64 = 0;
 				if (tf & 0x100) != 0 {dur = be32(sub_from(b, j)); j += 4;}

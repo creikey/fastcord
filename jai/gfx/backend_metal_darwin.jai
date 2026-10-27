@@ -202,7 +202,7 @@ _backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s3
 		t.* = white;
 	}
 	for b: batches {
-		for i: 0..b.n_slots-1 {
+		for i: 0..cast(int)(b.n_slots)-1 {
 			tex := cast(Id)(g.textures[b.slots[i]].native);
 			if tex != bound[i] {
 				msg(Void, enc, "setFragmentTexture:atIndex:", tex, cast(u64)(i));

@@ -352,8 +352,8 @@ sweep_collect :: () {
 		found := false;
 		p: ui.Vec2;
 		N :: 9;
-		for iy: 0..N-1 {
-			for ix: 0..N-1 {
+		for iy: 0..cast(int)(N)-1 {
+			for ix: 0..cast(int)(N)-1 {
 				// center first, then a grid
 				fx, fy := cast(float32)(0.5), cast(float32)(0.5);
 				if iy * N + ix > 0 {
@@ -386,12 +386,12 @@ sweep_crop :: (screen: string, r: ui.Rect) -> string {
 	cw, ch := x1 - x0, y1 - y0;
 	if cw <= 0 || ch <= 0 { return ""; }
 	out := make_slice(u8, cw * ch * 4, temp);
-	for y: 0..ch-1 {
+	for y: 0..cast(int)(ch)-1 {
 		copy(sub(out, y * cw * 4, (y + 1) * cw * 4), sub(sub_from(pixels, ((y0 + y) * w + x0) * 4), 0, cw * 4));
 	}
 	// outline the control in red
-	for y: 0..ch-1 {
-		for x: 0..cw-1 {
+	for y: 0..cast(int)(ch)-1 {
+		for x: 0..cast(int)(cw)-1 {
 			px := cast(float32)(x0 + x) / sc;
 			py := cast(float32)(y0 + y) / sc;
 			on_x := (abs(px - r.x0) < 1 || abs(px - r.x1) < 1) && py >= r.y0 - 1 && py <= r.y1 + 1;

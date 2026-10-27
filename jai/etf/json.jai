@@ -99,7 +99,7 @@ json_term :: (d: *Decoder, sb: *strings.Builder) -> Error {
 		n := cast(int)(rd_u32(d));
 		if !need(d, n + 1) { return .Truncated; }
 		strings.write_byte(sb, #char "[");
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			if i > 0 { strings.write_byte(sb, #char ","); }
 			__e6 := json_term(d, sb); if failed(__e6) return __e6;
 		}
@@ -123,7 +123,7 @@ json_term :: (d: *Decoder, sb: *strings.Builder) -> Error {
 		defer d.depth -= 1;
 		if d.depth > d.opts.max_depth { return .Too_Deep; }
 		strings.write_byte(sb, #char "[");
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			if i > 0 { strings.write_byte(sb, #char ","); }
 			__e7 := json_term(d, sb); if failed(__e7) return __e7;
 		}
@@ -138,7 +138,7 @@ json_term :: (d: *Decoder, sb: *strings.Builder) -> Error {
 		defer d.depth -= 1;
 		if d.depth > d.opts.max_depth { return .Too_Deep; }
 		strings.write_byte(sb, #char "{");
-		for i: 0..n-1 {
+		for i: 0..cast(int)(n)-1 {
 			if i > 0 { strings.write_byte(sb, #char ","); }
 			if !need(d, 1) { return .Truncated; }
 			kt := cast(Tag)(d.data[d.pos]);

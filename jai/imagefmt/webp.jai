@@ -187,9 +187,9 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 		origin := sub_from(canvas, f.y * stride + f.x * 4);
 		__e13 := webp_decode_bits(c, f.bits, f.w, f.h, origin, stride); if failed(__e13) return __e13;
 		if !key && f.blend {
-			for y: 0..f.h-1 {
+			for y: 0..cast(int)(f.h)-1 {
 				off := (f.y + y) * stride + f.x * 4;
-				for x: 0..f.w-1 {
+				for x: 0..cast(int)(f.w)-1 {
 					o := off + x * 4;
 					if canvas[o + 3] != 255 {
 						(cast(*[4]u8)(*canvas[o])).* = blend_over((cast(*[4]u8)(*canvas[o])).*, (cast(*[4]u8)(*prev[o])).*);
@@ -200,7 +200,7 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 		__e14 := push_frame(c, canvas, f.duration); if failed(__e14) return __e14;
 		copy(prev, canvas);
 		if f.dispose_bg {
-			for y: 0..f.h-1 { mem.zero_slice(sub(sub_from(prev, (f.y + y) * stride + f.x * 4), 0, f.w * 4)); }
+			for y: 0..cast(int)(f.h)-1 { mem.zero_slice(sub(sub_from(prev, (f.y + y) * stride + f.x * 4), 0, f.w * 4)); }
 		}
 		prev_f = f;
 		prev_key = key;

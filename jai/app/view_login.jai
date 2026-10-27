@@ -510,7 +510,7 @@ qr_draw :: (b: *ui.Box, user: *void) {
 	x0 := b.rect.x0 + (b.rect.x1 - b.rect.x0 - side) / 2;
 	y0 := b.rect.y0 + (b.rect.y1 - b.rect.y0 - side) / 2;
 	black := gfx.Color.{0, 0, 0, 1};
-	for r: 0..c.size-1 {
+	for r: 0..cast(int)(c.size)-1 {
 		col := 0;
 		while col < c.size {
 			if !qr.dark(c, r, col) {

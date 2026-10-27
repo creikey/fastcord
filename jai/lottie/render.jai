@@ -302,7 +302,7 @@ shape_to_path :: (p: *Player, sd: Shape_Data, reversed: bool, m: Mat = vector.MA
 	idx :: inline (j: int, n: int, rev: bool) -> int {return ifx rev then (n - j % n) % n else j % n;};
 	vector.path_move(path, apply(m, sd.v[idx(0, n, reversed)]));
 	segs := ifx sd.closed then n else n - 1;
-	for k: 0..segs-1 {
+	for k: 0..cast(int)(segs)-1 {
 		a := idx(k, n, reversed);
 		b := idx(k + 1, n, reversed);
 		out_t := ifx reversed then sd.i[a] else sd.o[a];
@@ -377,7 +377,7 @@ build_primitive :: (p: *Player, it_: *Item, t: float32, m: Mat) -> *vector.Path 
 		sd.v = make_slice(Vector2, cnt, p.falloc);
 		sd.i = make_slice(Vector2, cnt, p.falloc);
 		sd.o = make_slice(Vector2, cnt, p.falloc);
-		for j: 0..cnt-1 {
+		for j: 0..cast(int)(cnt)-1 {
 			rr := ifx star then (ifx (j & 1) == 0 then or_ else ir) else or_;
 			ang := rot - PI32 / 2 + cast(float32)(j) * 2 * PI32 / cast(float32)(cnt);
 			sd.v[j] = c + rr * Vector2.{math.cos(ang), math.sin(ang)};
@@ -475,14 +475,14 @@ build_gradient :: (p: *Player, it_: *Item, t: float32, opacity: float32) -> vect
 	cnt := clamp(it_.g_count, 0, n / 4);
 	stops := make_slice(vector.Gradient_Stop, cnt, p.falloc);
 	nop := (n - cnt * 4) / 2; // opacity stops follow the colour stops
-	for k: 0..cnt-1 {
+	for k: 0..cast(int)(cnt)-1 {
 		off := get(vals, k * 4);
 		stops[k] = .{off, .{get(vals, k * 4 + 1), get(vals, k * 4 + 2), get(vals, k * 4 + 3), 1}};
 		if nop > 0 {
 			// opacity at this offset (linear between opacity stops)
 			ob := cnt * 4;
 			a := get(vals, ob + 1);
-			for q: 0..nop-1 {
+			for q: 0..cast(int)(nop)-1 {
 				o0, a0 := vals[ob + q * 2], vals[ob + q * 2 + 1];
 				if off <= o0 {
 					if q == 0 {

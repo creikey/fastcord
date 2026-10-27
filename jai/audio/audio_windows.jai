@@ -112,7 +112,7 @@ stream_thread :: (th: *thread.Thread) {
 				hr := (cast((*void, **float32, *u32, *u32, *u64, *u64) -> win.HRESULT #c_call)vt(s.service, 3))(s.service, *data, *n, *flags, null, null);
 				if hr != 0 || n == 0 { break; }
 				if (flags & 2) != 0 { 	// SILENT
-					for i: 0..(min(cast(int)(n), len(scratch)))-1 { scratch[i] = 0; }
+					for i: 0..cast(int)((min(cast(int)(n), len(scratch))))-1 { scratch[i] = 0; }
 					ring_write(*st.capture, sub(scratch, 0, min(cast(int)(n), len(scratch))));
 				} else {
 					ring_write(*st.capture, sub(data, 0, n));

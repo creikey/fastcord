@@ -10,7 +10,7 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
 	urls := msg(Id, panel, "URLs");
 	n := cast(int)(msg(NS.UInteger, urls, "count"));
 	out := make_slice(string, n, allocator);
-	for i: 0..n-1 {
+	for i: 0..cast(int)(n)-1 {
 		url := msg(Id, urls, "objectAtIndex:", cast(NS.UInteger)(i));
 		at(*out, i).* = odin_str(msg(Id, url, "path"), allocator);
 	}

@@ -429,7 +429,7 @@ _clipboard_files :: (allocator: Allocator) -> []string {
 	if urls == null { return .{}; }
 	out := make_dynamic(string, 0, 0, allocator);
 	n := msg(NS.UInteger, urls, "count");
-	for i: 0..n-1 {
+	for i: 0..cast(int)(n)-1 {
 		u := msg(Id, urls, "objectAtIndex:", cast(NS.UInteger)(i));
 		if !msg(NS.BOOL, u, "isFileURL") { continue; }
 		append(*out, odin_str(msg(Id, u, "path"), allocator));
@@ -1033,7 +1033,7 @@ dnd_perform :: (self: Id, cmd: objc.SEL, info: Id) -> NS.BOOL #c_call {
 		return false;
 	}
 	n := msg(NS.UInteger, urls, "count");
-	for i: 0..n-1 {
+	for i: 0..cast(int)(n)-1 {
 		u := msg(Id, urls, "objectAtIndex:", cast(NS.UInteger)(i));
 		if !msg(NS.BOOL, u, "isFileURL") { continue; }
 		path := odin_str(msg(Id, u, "path"), temp);

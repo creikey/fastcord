@@ -243,7 +243,7 @@ qos_value :: (q: Qos) -> V {
 	etf.map_put(*b, "active", to_v(q.active));
 	etf.map_put(*b, "ver", to_v(cast(s64)(31)));
 	reasons := make_slice(V, q.n, temp);
-	for i: 0..q.n-1 { reasons[i] = to_v(q.reasons[i]); }
+	for i: 0..cast(int)(q.n)-1 { reasons[i] = to_v(q.reasons[i]); }
 	etf.map_put(*b, "reasons", etf.vlist(reasons));
 	return etf.vmap(etf.map_done(*b));
 }
@@ -287,9 +287,9 @@ gateway_set_active :: (g: *Gateway, q: Qos) {
 	}
 	if q.active {
 		cur.active = true;
-		for i: 0..q.n-1 {
+		for i: 0..cast(int)(q.n)-1 {
 			dup := false;
-			for j: 0..cur.n-1 { if cur.reasons[j] == q.reasons[i] { dup = true; } }
+			for j: 0..cast(int)(cur.n)-1 { if cur.reasons[j] == q.reasons[i] { dup = true; } }
 			if !dup && cur.n < len(cur.reasons) {
 				cur.reasons[cur.n] = q.reasons[i];
 				cur.n += 1;
