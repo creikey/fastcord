@@ -145,12 +145,14 @@ rgb_u32 :: (c: u32) -> ui.Color {
 	return .{cast(float32) ((c >> 16) & 0xff) / 255, cast(float32) ((c >> 8) & 0xff) / 255, cast(float32) (c & 0xff) / 255, 1};
 }
 
-// Mentions, links, emoji and inline styles become rich-text spans.
-tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message) -> []ui.Span {
+// Mentions, links, emoji and inline styles become rich-text spans. raw (the composer) keeps
+// every token's source text, styles only, and appends to `into`.
+tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message, raw := false, into: *[..]ui.Span = null) -> []ui.Span {
 	s := store();
-	spans: [..]ui.Span;
-	spans.allocator = temp;
-	array_reserve(*spans, toks.count);
+	own: [..]ui.Span;
+	own.allocator = temp;
+	spans := ifx into then into else *own;
+	array_reserve(spans, spans.count + toks.count);
 	for tk, i: toks {
 		sp := ui.Span.{text = tk.text, font = F(base), size = size, id = cast(u64) i};
 		hidden := false;
@@ -166,7 +168,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 		if tk.styles & .Strike sp.strike = true;
 		if tk.styles & .Spoiler {
 			sp.bg_radius = 4;
-			if spoiler_revealed(toks, i) {
+			if raw || spoiler_revealed(toks, i) {
 				sp.bg = T("--spoiler-revealed-background");
 			} else {
 				sp.bg = T("--spoiler-hidden-background");
@@ -174,13 +176,18 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 				hidden = true;
 			}
 		}
+		if raw && tk.kind != .Text {
+			if tk.kind == .Link sp.color = T("--text-link");
+			array_add(spans, sp);
+			continue;
+		}
 		if tk.kind == {
 		case .Text;
 			if !(tk.styles & .Code) {
 				first := spans.count;
-				emoji_text_spans(*spans, sp);
+				emoji_text_spans(spans, sp);
 				// hidden emoji keep their place but draw nothing (only the spoiler's block shows)
-				if hidden for k: first..spans.count - 1 { spans[k].user = null; spans[k].id &= ~EMOJI_SPAN_FLAG; spans[k].bg = sp.bg; spans[k].bg_radius = sp.bg_radius; }
+				if hidden for k: first..spans.count - 1 { e := *(spans.*)[k]; e.user = null; e.id &= ~EMOJI_SPAN_FLAG; e.bg = sp.bg; e.bg_radius = sp.bg_radius; }
 				continue;
 			}
 		case .Link;
@@ -213,9 +220,202 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 			sp.bg = T("--background-mod-subtle");
 			sp.bg_radius = 3;
 		}
-		array_add(*spans, sp);
+		array_add(spans, sp);
+	}
+	return spans.*;
+}
+
+// Span id of a quote line's "> ": drawn as the quote bar (draw_custom_emoji).
+QUOTE_BAR_SPAN_FLAG :: (cast(u64) 1) << 61;
+
+// The composer's text styled the way the official (Slate) composer decorates markdown while
+// typing: markers stay, dimmed; ``` lines dim their ticks and show the language in green;
+// lines inside a block are code (highlighted); "> " lines become quotes. Headings, lists and
+// masked links stay plain there. The span texts concatenate to exactly the editor's text, so
+// the caret, selection and hit tests work on its bytes.
+composer_spans :: (text: string) -> []ui.Span {
+	spans: [..]ui.Span;
+	spans.allocator = temp;
+	base := ui.Span.{font = F(.Normal), size = MSG_FONT};
+	lines := md_code_lines(text);
+	for ln, li: lines {
+		prev_inside := li > 0 && lines[li - 1].inside;
+		if li > 0 && !(ln.inside && prev_inside) {
+			nl := base;
+			nl.text = slice(text, ln.start - 1, 1);
+			array_add(*spans, nl);
+		}
+		line := slice(text, ln.start, ln.end - ln.start);
+		if ln.inside {
+			// a block's lines are highlighted together (comments and strings span lines)
+			if prev_inside continue;
+			last := li;
+			while last + 1 < lines.count && lines[last + 1].inside last += 1;
+			o := Hl_Out.{keep_escapes = true};
+			hl_begin(*o, text, *spans, .{font = F(.Mono), size = MSG_FONT * 0.85});
+			hl_range(*o, hl_lang(ln.lang), ln.start, lines[last].end);
+			continue;
+		}
+		if ln.ticks {
+			// ``` in the syntax colour, the language after the last one in green
+			i, seg := 0, 0;
+			while i < line.count {
+				if line[i] == #char "\\" { i += 2; continue; }
+				if !begins_with(slice(line, i, line.count - i), "```") { i += 1; continue; }
+				composer_inline(*spans, slice(line, seg, i - seg), base);
+				t := base;
+				t.text = slice(line, i, 3);
+				t.color = T("--textbox-markdown-syntax");
+				array_add(*spans, t);
+				i += 3;
+				seg = i;
+			}
+			tail := slice(line, seg, line.count - seg);
+			if is_lang_name(tail) {
+				t := base;
+				t.text = tail;
+				t.color = T("--text-feedback-positive");
+				array_add(*spans, t);
+			} else {
+				composer_inline(*spans, tail, base);
+			}
+			continue;
+		}
+		t := trim_left(line, " \t");
+		if begins_with(t, "> ") {
+			n := line.count - t.count + 2;
+			q := base;
+			q.text = slice(line, 0, n);
+			q.object = .{16, MSG_LINE_H};
+			q.id = QUOTE_BAR_SPAN_FLAG;
+			array_add(*spans, q);
+			line = slice(line, n, line.count - n);
+		}
+		if begins_with(line, "-# ") {
+			// subtext: a bold marker and the line in muted 13px
+			n := 3;
+			while n < line.count && line[n] == #char " " n += 1;
+			mk := base;
+			mk.text = slice(line, 0, n);
+			mk.font = F(.Bold);
+			mk.size = 13;
+			mk.color = T("--text-muted");
+			array_add(*spans, mk);
+			sub := base;
+			sub.size = 13;
+			sub.color = T("--text-muted");
+			composer_inline(*spans, slice(line, n, line.count - n), sub);
+		} else {
+			composer_inline(*spans, line, base);
+		}
 	}
 	return spans;
+}
+
+// Inline markdown of one line: tokens styled as in messages (raw text), and the bytes between
+// them (the markers) in the syntax colour: semibold, except ~~ || __ (normal weight, __
+// underlined) and ` (code font and background).
+composer_inline :: (out: *[..]ui.Span, seg: string, base: ui.Span) {
+	if !seg return;
+	first := out.count;
+	toks := md_inline(seg, merge = false);
+	markers :: (g: string) #expand {
+		i := 0;
+		while i < g.count {
+			j := i + 1;
+			while j < g.count && g[j] == g[i] j += 1;
+			sp := `base;
+			sp.text = slice(g, i, j - i);
+			c := g[i];
+			if c != #char " " && c != #char "\t" {
+				sp.color = T("--textbox-markdown-syntax");
+				sp.font = F(.Semibold);
+				if c == #char "`" {
+					sp.font = F(.Mono);
+					sp.size = `base.size * 0.85;
+					sp.bg = T("--background-code");
+					sp.bg_radius = 4;
+				} else if c == #char "~" || c == #char "|" {
+					sp.font = F(.Normal);
+				} else if c == #char "_" && j - i == 2 {
+					sp.font = F(.Normal);
+					sp.underline = true;
+				}
+			}
+			array_add(`out, sp);
+			i = j;
+		}
+	}
+	pos := 0;
+	for tk, ti: toks {
+		off := tk.text.data - seg.data;
+		if off < pos || off + tk.text.count > seg.count {
+			// not slices in order (never expected): the line as plain text
+			out.count = first;
+			sp := base;
+			sp.text = seg;
+			array_add(out, sp);
+			return;
+		}
+		if off > pos markers(slice(seg, pos, off - pos));
+		tokens_to_spans(array_view(toks, ti, 1), .Normal, base.size, null, raw = true, into = out);
+		pos = off + tk.text.count;
+	}
+	if pos < seg.count markers(slice(seg, pos, seg.count - pos));
+	if base.color.w > 0 for first..out.count - 1 {
+		sp := *(out.*)[it];
+		if sp.color.w == 0 sp.color = base.color;
+	}
+}
+
+// Enter and Tab in a markdown field, as the official composer handles them: Enter adds a
+// newline (instead of sending) inside a ``` block or with Alt; Tab in code lines indents.
+markdown_key :: (ed: *ui.Editor, e: ui.Input_Event) -> bool {
+	if e.key == .Enter {
+		if e.mods & .Shift return false; // the editor's own newline
+		a := ui.editor_sel(ed);
+		if !(e.mods & .Alt) && !md_in_code_block(ui.editor_text(ed), a) return false;
+		ui.editor_insert(ed, "\n");
+		return true;
+	}
+	if e.key != .Tab || (e.mods & ~ui.Mod.Shift) return false;
+	shift := (e.mods & .Shift) != 0;
+	text := ui.editor_text(ed);
+	a, b := ui.editor_sel(ed);
+	lines := md_code_lines(text);
+	first, last := -1, -1;
+	for lines {
+		if first < 0 && a <= it.end first = it_index;
+		if b <= it.end { last = it_index; break; }
+	}
+	if first < 0 || last < 0 return false;
+	for first..last if !lines[it].inside return false;
+	// collapsed: two spaces at the caret; else each line indents (or outdents) by two spaces
+	if !shift && a == b {
+		ui.editor_insert(ed, "  ");
+		return true;
+	}
+	sb: String_Builder;
+	sb.allocator = temp;
+	caret, mark := ed.caret, ed.mark;
+	pos := 0;
+	for k: first..last {
+		ln := lines[k];
+		append(*sb, slice(text, pos, ln.start - pos));
+		pos = ln.start;
+		if !shift {
+			append(*sb, "  ");
+			if ed.caret > ln.start caret += 2;
+			if ed.mark > ln.start mark += 2;
+		} else if begins_with(slice(text, ln.start, ln.end - ln.start), "  ") {
+			pos += 2;
+			caret -= clamp(ed.caret - ln.start, 0, 2);
+			mark -= clamp(ed.mark - ln.start, 0, 2);
+		}
+	}
+	append(*sb, slice(text, pos, text.count - pos));
+	ui.editor_apply(ed, builder_to_string(*sb,, temp), caret, mark);
+	return true;
 }
 
 format_unix :: (secs: s64, style: string) -> string {
@@ -299,7 +499,8 @@ dm_name :: (ch: *dc.Channel) -> string {
 }
 
 // Multi-line text field; grows with content. Returns the editor result of this frame's events.
-text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, font_size: float32 = 16, line_h: float32 = 22, pad_y: float32 = 15, placeholder_color: ui.Color = .{}) -> ui.Edit_Result {
+// markdown: styled as the composer (composer_spans) with its Enter / Tab rules (markdown_key).
+text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, font_size: float32 = 16, line_h: float32 = 22, pad_y: float32 = 15, placeholder_color: ui.Color = .{}, markdown := false) -> ui.Edit_Result {
 	// Not .Focusable: callers decide focus by their container's key (the bordered
 	// input box), so a click on the text itself must focus that container.
 	f := ui.box(id, .Clickable | .Draw_Text | .Wrap_Text);
@@ -337,6 +538,11 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 		note_focused_editor(ed, f);
 		for * e: app.ui.events {
 			if e.consumed || (e.kind != .Key_Down && e.kind != .Text) continue;
+			if markdown && e.kind == .Key_Down && markdown_key(ed, e) {
+				e.consumed = true;
+				result = .Changed;
+				continue;
+			}
 			r := ui.editor_event(ed, e, tl, clipboard_get, clipboard_set);
 			if r != .None {
 				e.consumed = true;
@@ -348,6 +554,11 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 		draw.* = .{ed = ed, blink_t = app.ui.time};
 		f.custom_draw = field_draw;
 		f.custom_user = draw;
+	}
+	// styled from the text as this frame's events left it
+	if markdown && ui.editor_text(ed) != "" {
+		ui.set_spans(f, composer_spans(ui.editor_text(ed)));
+		f.style.text_color = T("--text-default");
 	}
 	return result;
 }
@@ -930,7 +1141,7 @@ message_body :: (m: *dc.Message) {
 		if blk.kind == {
 		case .Code_Block;
 			cb := ui.box(tprint("code%", bi), .Draw_Background | .Draw_Border | .Draw_Text | .Selectable_Text | .Wrap_Text);
-			cb.text = blk.code;
+			ui.set_spans(cb, code_spans(blk.code, blk.lang, F(.Mono), 14));
 			cb.semantic_size = .[ui.pct(1), ui.text_size()];
 			cb.style.bg = T("--background-base-lowest");
 			cb.style.border_color = T("--border-subtle");
@@ -1137,7 +1348,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			ui.push_parent(stack);
 			emoji_autocomplete(ch, *cs.editor, input_focused);
 			ui.pop_parent();
-			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"));
+			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"), markdown = true);
 			if res == .Changed emoji_autocomplete_close_colon(ch, *cs.editor);
 			if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");

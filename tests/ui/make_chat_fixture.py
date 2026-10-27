@@ -100,7 +100,20 @@ def threads_extra(base_msgs):
       'scheduled_start_time': '2026-10-28T18:00:00+00:00', 'scheduled_end_time': '2026-10-28T20:00:00+00:00',
       'privacy_level': 2, 'status': 1, 'entity_type': 3, 'entity_id': None, 'entity_metadata': {'location': 'Wumpus HQ, San Francisco'}, 'user_count': 12}))
   return out
-for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs)):
+# code/code.jsonl: ``` blocks in several of the client's highlighted languages, an alias, an
+# unknown language (plain) and ANSI colours (tests/ui/code scripts).
+code_msgs = [
+    (wumpus, 0, '```js\n// fetch a user\nasync function getUser(id) {\n  const res = await fetch(`/api/users/${id}`);\n  if (!res.ok) throw new Error("bad status: " + res.status);\n  return res.json(); /* parsed */\n}\n```'),
+    (meu, 20, '```py\n@dataclass\nclass Point:\n    x: int = 0\n    def norm(self) -> float:\n        """Length."""\n        return (self.x ** 2) ** 0.5  # sqrt\n```'),
+    (wumpus, 40, '```rust\n#[derive(Debug)]\nstruct Ping<\'a> { name: &\'a str }\nfn main() {\n    let n: u32 = 42;\n    println!("hi {} {}\\n", n, \'c\');\n}\n```'),
+    (meu, 60, '```c\n#include <stdio.h>\nint main(void) {\n    printf("%d\\n", 0x1F); // hex\n    return NULL == 0;\n}\n```'),
+    (wumpus, 80, '```json\n{"name": "fastcord", "stars": 42, "native": true, "deps": null}\n```'),
+    (meu, 100, '```diff\n@@ -1,3 +1,3 @@\n context line\n-removed line\n+added line\n```'),
+    (wumpus, 120, '```sh\n# list files\nls -la ~/src | grep "jai" && echo done\nfor f in *.txt; do cat "$f"; done\n```'),
+    (meu, 140, '```whatever\nunknown language stays plain: if (x) { return 1; }\n```'),
+    (wumpus, 160, '```ansi\n\u001b[1;31mred bold\u001b[0m and \u001b[32mgreen\u001b[0m and \u001b[4;34munderlined blue\u001b[0m\n```'),
+]
+for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs), ('code/code.jsonl', code_msgs)):
   out = build(ms)
   if name == 'chat_threads.jsonl': out += threads_extra(ms)
   # a custom guild emoji for the composer autocomplete (image: tests/ui/emoji/media/<id>.webp, a PNG)

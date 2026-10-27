@@ -1044,6 +1044,32 @@ reaction_prediction :: (t: *T) {
 	r_reaction_echo(*run, msg, F, true);
 	r_reaction_echo(*run, msg, F, false);
 	expect(t, r_reaction(c, msg, F) == 0, "both echoes leave it removed");
+	// on, off, on before any answer, then the three echoes late: it stays on throughout,
+	// and the requests go one at a time in click order (PUT, DELETE, PUT)
+	puts, dels := r_count(*run, "PUT", "/reactions/"), r_count(*run, "DELETE", "/reactions/");
+	add_reaction(c, R_TEXT, msg, F);
+	remove_reaction(c, R_TEXT, msg, F);
+	add_reaction(c, R_TEXT, msg, F);
+	n, me = r_reaction(c, msg, F);
+	expect(t, n == 1 && me, "on, off, on is shown on at once");
+	replay_settle(*run, 400);
+	expect(t, r_count(*run, "PUT", "/reactions/") == puts + 2 && r_count(*run, "DELETE", "/reactions/") == dels + 1, "on, off, on sends PUT, DELETE, PUT");
+	locks.lock(*run.r.mu);
+	order: [..]u8;
+	order.allocator = temp;
+	for run.r.ours if contains(it.key, "/reactions/") array_add(*order, it.key[0]);
+	locks.unlock(*run.r.mu);
+	expect(t, order.count >= 3 && order[order.count - 3] == #char "P" && order[order.count - 2] == #char "D" && order[order.count - 1] == #char "P", "in click order");
+	r_reaction_echo(*run, msg, F, true);
+	r_reaction_echo(*run, msg, F, false);
+	n, me = r_reaction(c, msg, F);
+	expect(t, n == 1 && me, "a late remove echo does not undo the last click");
+	r_reaction_echo(*run, msg, F, true);
+	n, me = r_reaction(c, msg, F);
+	expect(t, n == 1 && me, "on, off, on ends on");
+	// another session of ours removing it still shows (no echo of ours is expected)
+	r_reaction_echo(*run, msg, F, false);
+	expect(t, r_reaction(c, msg, F) == 0, "a remove from another device applies");
 	// a 500 is retried once, then the add is rolled back
 	run.r.fail, run.r.fail_status = "/reactions/", 500;
 	before = r_count(*run, "PUT", "/reactions/");

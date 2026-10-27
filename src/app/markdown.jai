@@ -73,19 +73,19 @@ md_parse :: (src: string) -> []Md_Block {
 		if begins_with(rest, "```") {
 			body := span(rest, 3, rest.count);
 			end := find_index_from_left(body, "```");
-			if end >= 0 {
+			// the client's rule: ```(lang\n)?\n*(body)\n*``` with lang [a-z0-9_+\-.#]+ and a
+			// body holding something besides newlines
+			code := ifx end >= 0 then span(body, 0, end) else "";
+			lang := "";
+			nl := find_index_from_left(code, #char "\n");
+			if nl > 0 && is_lang_name(span(code, 0, nl)) {
+				lang = span(code, 0, nl);
+				code = span(code, nl + 1, code.count);
+			}
+			while code && code[0] == #char "\n" advance(*code);
+			while code && code[code.count - 1] == #char "\n" code.count -= 1;
+			if code {
 				flush();
-				code := span(body, 0, end);
-				lang := "";
-				nl := find_index_from_left(code, #char "\n");
-				if nl >= 0 {
-					first := span(code, 0, nl);
-					if first && find_index_of_any_from_left(first, " \t") < 0 {
-						lang = first;
-						code = span(code, nl + 1, code.count);
-					}
-				}
-				if ends_with(code, "\n") code.count -= 1;
 				array_add(*blocks, .{kind = .Code_Block, code = code, lang = lang});
 				rest = span(body, end + 3, body.count);
 				if begins_with(rest, "\n") advance(*rest);
@@ -122,9 +122,12 @@ md_parse :: (src: string) -> []Md_Block {
 	return blocks;
 }
 
-md_inline :: (src: string) -> []Token {
+// merge = false keeps every token a slice of src, in source order (the composer styles the
+// gaps between them as markdown syntax).
+md_inline :: (src: string, merge := true) -> []Token {
 	p: Md_Parser;
 	inline_into(*p, src);
+	if !merge return p.out;
 	// merge adjacent plain text with identical styles
 	merged: [..]Token;
 	array_reserve(*merged, p.out.count);
@@ -141,6 +144,72 @@ md_inline :: (src: string) -> []Token {
 		array_add(*merged, t);
 	}
 	return merged;
+}
+
+// A line of composer text and its place in ``` blocks, tracked line by line like the official
+// composer (withCodeBlocks): inside = a line in an open block with no ``` of its own (drawn as
+// code); opens = it opens a block (odd ``` count once a closing one is taken off); lang = the
+// block's language, the text after the opening line's last ```.
+Code_Line :: struct {
+	start, end: int; // byte range, without the newline
+	inside: bool;
+	opens: bool;
+	ticks: int; // ``` runs on the line
+	lang: string;
+}
+
+md_code_lines :: (text: string) -> []Code_Line {
+	lines: [..]Code_Line;
+	lines.allocator = temp;
+	prev_in := false;
+	lang := "";
+	start := 0;
+	while true {
+		nl := find_index_from_left(text, #char "\n", start);
+		end := ifx nl < 0 then text.count else nl;
+		l := Code_Line.{start = start, end = end};
+		line := span(text, start, end);
+		// ``` runs (a backslash skips the byte after it) and where the last one ends
+		last := 0;
+		i := 0;
+		while i < line.count {
+			if line[i] == #char "\\" { i += 2; continue; }
+			if begins_with(span(line, i, line.count), "```") { l.ticks += 1; i += 3; last = i; continue; }
+			i += 1;
+		}
+		closes := prev_in && l.ticks > 0;
+		l.inside = prev_in && l.ticks == 0;
+		l.opens = (l.ticks - cast(int) closes) % 2 == 1;
+		if l.opens {
+			tail := span(line, last, line.count);
+			lang = ifx is_lang_name(tail) then tail else "";
+		} else if !l.inside {
+			lang = "";
+		}
+		l.lang = lang;
+		prev_in = l.inside || l.opens;
+		array_add(*lines, l);
+		if nl < 0 break;
+		start = nl + 1;
+	}
+	return lines;
+}
+
+// True when the ``` count before pos is odd: Enter there adds a newline instead of sending.
+md_in_code_block :: (text: string, pos: int) -> bool {
+	n, i := 0, 0;
+	while i + 3 <= pos {
+		if begins_with(span(text, i, pos), "```") { n += 1; i += 3; }
+		else i += 1;
+	}
+	return n % 2 == 1;
+}
+
+// [a-z0-9_+\-.#]+, any case: what the client takes as a code block language.
+is_lang_name :: (s: string) -> bool {
+	if !s return false;
+	for cast([]u8) s if !is_alnum(it) && find_index_from_left("_+-.#", it) < 0 return false;
+	return true;
 }
 
 #scope_file

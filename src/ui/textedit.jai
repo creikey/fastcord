@@ -74,6 +74,17 @@ editor_insert :: (e: *Editor, s: string, kind := Edit_Kind.Typing) {
 	if breaks e.coalesce = .None;
 }
 
+// Replace the whole text as one undoable edit, then place caret and mark (block indent).
+editor_apply :: (e: *Editor, s: string, caret: int, mark: int) {
+	snapshot(e, .Other);
+	e.coalesce = .None;
+	e.buf.count = 0;
+	array_add(*e.buf, ..cast([]u8) s);
+	e.caret = clamp(caret, 0, e.buf.count);
+	e.mark = clamp(mark, 0, e.buf.count);
+	e.has_pref_x = false;
+}
+
 // Handle a key/text event. tl is the field's current layout (may be null).
 // clip_get/clip_set let tests substitute the system clipboard.
 editor_event :: (e: *Editor, ev: Input_Event, tl: *Text_Layout, clip_get: () -> string, clip_set: (s: string), multiline := true) -> Edit_Result {

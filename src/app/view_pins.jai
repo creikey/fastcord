@@ -265,8 +265,7 @@ content_spans :: (m: *dc.Message, terms: []string) {
 		b.style.line_height = 20;
 		spans: []ui.Span;
 		if blk.kind == .Code_Block {
-			spans = NewArray(1, ui.Span,, temp);
-			spans[0] = .{text = blk.code, font = F(.Mono), size = 13};
+			spans = code_spans(blk.code, blk.lang, F(.Mono), 13);
 		} else {
 			spans = tokens_to_spans(blk.tokens, .Normal, 15, m);
 		}

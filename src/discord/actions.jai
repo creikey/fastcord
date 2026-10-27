@@ -413,9 +413,11 @@ emoji_route :: (name: string, id: Snowflake) -> string {
 }
 
 // Reactions are predicted like ReactionActionCreators: the store changes first and the
-// request goes at once (no per-emoji queue); the gateway echo is then a no-op
-// (store_reaction). A failure is retried once (a 429 after Retry-After, in api_call),
-// then rolled back; a 403 is rolled back at once.
+// request is sent. Requests for one message+emoji go one at a time, in click order (on
+// one HTTP/2 connection the server could otherwise apply on, off, on as off), and the
+// gateway echoes of our own requests are skipped (Store.reaction_echoes). A failure is
+// retried once (a 429 after Retry-After, in api_call), then rolled back unless a newer
+// click on the same reaction is queued; a 403 is not retried.
 Reaction_Req :: struct {
 	seq: u64;
 	channel_id: Snowflake;
@@ -425,6 +427,7 @@ Reaction_Req :: struct {
 	add: bool;
 	burst: bool;
 	retried: bool;
+	sent: bool;
 }
 
 // add_reaction: PUT /channels/{c}/messages/{m}/reactions/{emoji}/%40me?location=..&type=0|1.
@@ -443,17 +446,31 @@ remove_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, em
 	reaction_send(c, .{channel_id = channel_id, message_id = message_id, emoji = .{id = emoji_id, name = emoji_name, available = true}, location = location, burst = burst});
 }
 
+// A click: predict it now, send it when the reaction has no request in flight.
 reaction_send :: (c: *Client, req: Reaction_Req) {
 	c.reaction_seq += 1;
 	r := req;
 	r.seq = c.reaction_seq;
-	if !r.retried { // copied first: the caller's name may be the reaction the store is about to drop
-		r.emoji.name = copy_string(req.emoji.name,, c.allocator);
-		r.location = copy_string(req.location,, c.allocator);
-	}
-	array_add(*c.reaction_reqs, r);
+	r.sent = false;
+	// copied first: the caller's name may be the reaction the store is about to drop
+	r.emoji.name = copy_string(req.emoji.name,, c.allocator);
+	r.location = copy_string(req.location,, c.allocator);
 	store_reaction(*c.store, r.channel_id, r.message_id, r.emoji, true, r.add, r.burst);
 	c.store.changed += 1;
+	busy := false;
+	for c.reaction_reqs if same_reaction(it, r) busy = true;
+	array_add(*c.reaction_reqs, r);
+	if !busy reaction_submit(c, *c.reaction_reqs[c.reaction_reqs.count - 1]);
+}
+
+same_reaction :: (a: Reaction_Req, b: Reaction_Req) -> bool {
+	return a.message_id == b.message_id && a.burst == b.burst && emoji_matches(a.emoji, b.emoji.id, b.emoji.name);
+}
+
+reaction_submit :: (c: *Client, r: *Reaction_Req) {
+	r.sent = true;
+	n := find_or_add(*c.store.reaction_echoes, reaction_key(r.message_id, r.emoji, r.burst));
+	n.* += 1;
 	base := channel_path(r.channel_id, "/messages/", snowflake_string(r.message_id), "/reactions/", emoji_route(r.emoji.name, r.emoji.id));
 	q: Query;
 	j := job_new(.Api, ifx r.add then Rest_Op.Add_Reaction else .Remove_Reaction);
@@ -476,16 +493,28 @@ reaction_send :: (c: *Client, req: Reaction_Req) {
 
 // reaction_result: a reaction request finished (UI thread, from client_apply_rest).
 reaction_result :: (c: *Client, res: Rest_Result) {
-	for c.reaction_reqs {
+	for * c.reaction_reqs {
 		if it.seq != res.tag continue;
-		req := it;
-		array_ordered_remove_by_index(*c.reaction_reqs, it_index);
-		if !res.ok && !req.retried && res.status != 403 && res.status != 429 {
-			req.retried = true;
-			reaction_send(c, req);
-			return;
+		if !res.ok {
+			// no echo will come for it
+			n := table_find_pointer(*c.store.reaction_echoes, reaction_key(it.message_id, it.emoji, it.burst));
+			if n && n.* > 0 n.* -= 1;
+			if !it.retried && res.status != 403 && res.status != 429 {
+				it.retried = true;
+				reaction_submit(c, it);
+				return;
+			}
 		}
-		if !res.ok store_reaction(*c.store, req.channel_id, req.message_id, req.emoji, true, !req.add, req.burst);
+		req := it.*;
+		array_ordered_remove_by_index(*c.reaction_reqs, it_index);
+		next: *Reaction_Req;
+		for * c.reaction_reqs if same_reaction(it, req) { next = it; break; }
+		// a failed click is undone unless a newer click on the reaction decides it
+		if !res.ok && !next {
+			store_reaction(*c.store, req.channel_id, req.message_id, req.emoji, true, !req.add, req.burst);
+			c.store.changed += 1;
+		}
+		if next reaction_submit(c, next);
 		free(req.emoji.name,, c.allocator);
 		free(req.location,, c.allocator);
 		return;

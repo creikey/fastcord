@@ -199,7 +199,7 @@ edit_box :: (m: *dc.Message) {
 	box.cross_align = .Start;
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 16);
-		res := text_field("edit", *ma.edit_editor, "", true, pad_y = (COMPOSER_H - MSG_LINE_H) / 2);
+		res := text_field("edit", *ma.edit_editor, "", true, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, markdown = true);
 		emo := ui.box("emoji", .Clickable);
 		emo.semantic_size = .[ui.px(20), ui.px(COMPOSER_H)];
 		emo.layout_axis = .Y;

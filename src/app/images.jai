@@ -189,6 +189,12 @@ emoji_inline :: (id: string, e: dc.Emoji, size: float32) -> *ui.Box {
 
 // Rich-text inline object hook: custom emoji spans carry their id in user.
 draw_custom_emoji :: (sp: ui.Span, r: ui.Rect, opacity: float32) {
+	if sp.id == QUOTE_BAR_SPAN_FLAG {
+		c := T("--border-strong");
+		c.w *= opacity;
+		gfx.rect(.{r.x0, r.y0, r.x0 + 4, r.y1}, cast(gfx.Color) c);
+		return;
+	}
 	if draw_unicode_emoji_span(sp, r, opacity) return;
 	id := cast(dc.Snowflake)(cast(u64)(sp.user));
 	if id == 0 return;
