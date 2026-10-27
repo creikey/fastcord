@@ -1,6 +1,7 @@
 # TODO
 
 - [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
+- [ ] Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
 - [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
 - [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
@@ -102,7 +103,6 @@
 - [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
 - [ ] Replies: the quoted preview only searches loaded history, so a reply to an older message says "Original message was deleted" (`referenced_message` isn't stored). The quote is raw text (`<@id>` and markdown unrendered), and sticker- or embed-only originals get no placeholder.
 - [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
-- [ ] History: jumping to an old message merges the `around=` page into history without filling the gap to newer messages (no `after=` paging), so the messages between vanish (`features.jai` `apply_around`).
 - [ ] Scrolling: Page Up / Page Down don't scroll the message list.
 - [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
