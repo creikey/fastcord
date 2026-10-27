@@ -16,9 +16,9 @@ Quick_Switcher :: struct {
 
 // quick_switcher_type: the query text changed (one call per keystroke).
 quick_switcher_type :: (c: *Client, query: string) {
+	if !query return;
 	qs := *c.quick_switcher;
 	now := now_ms();
-	if query == "" { return; }
 	if now - qs.last_sent_ms >= QS_THROTTLE_MS {
 		qs_send(c, query, now);
 		return;
@@ -37,7 +37,7 @@ quick_switcher_close :: (c: *Client) {
 
 flush_quick_switcher :: (c: *Client, now: s64) {
 	qs := *c.quick_switcher;
-	if qs.pending == "" || now - qs.last_sent_ms < QS_THROTTLE_MS { return; }
+	if !qs.pending || now - qs.last_sent_ms < QS_THROTTLE_MS return;
 	q := qs.pending;
 	qs.pending = "";
 	qs_send(c, q, now);
@@ -64,12 +64,12 @@ qs_send :: (c: *Client, query: string, now: s64) {
 	j := job_new(.Api, .None);
 	j.method = "GET";
 	j.path = job_str(j, query_string(*q));
-	j.on_body = ifx len(query) == 1 then qs_results_4 else qs_results_3;
+	j.on_body = ifx query.count == 1 then qs_results_4 else qs_results_3;
 	job_submit(c, j);
 }
 
-qs_results_3 :: (c: *Client, body: V) {qs_results(c, body, 3);}
-qs_results_4 :: (c: *Client, body: V) {qs_results(c, body, 4);}
+qs_results_3 :: (c: *Client, body: V) { qs_results(c, body, 3); }
+qs_results_4 :: (c: *Client, body: V) { qs_results(c, body, 4); }
 
 // worker thread: look up the shown games without an icon
 qs_results :: (c: *Client, body: V, shown: int) {
@@ -77,18 +77,18 @@ qs_results :: (c: *Client, body: V, shown: int) {
 	query_init(*q, "/games");
 	n := 0;
 	locks.lock(*c.job_mu);
-	for g, i: vlist(body) {
-		if i >= shown { break; }
-		m := vmap(g);
-		if !etf.is_nil(vget(m, "icon")) { continue; }
+	for vlist(body) {
+		if it_index >= shown break;
+		m := vmap(it);
+		if !vis_null(vget(m, "icon")) continue;
 		id := fsnow(m, "id");
-		if id == 0 || table_contains(*c.quick_switcher.fetched, id) { continue; }
+		if id == 0 || table_contains(*c.quick_switcher.fetched, id) continue;
 		table_set(*c.quick_switcher.fetched, id, true);
 		query_add_snow(*q, "game_ids", id);
 		n += 1;
 	}
 	locks.unlock(*c.job_mu);
-	if n == 0 { return; }
+	if n == 0 return;
 	j := job_new(.Api, .None);
 	j.method = "GET";
 	j.path = job_str(j, query_string(*q));

@@ -17,8 +17,8 @@ fetch_mentions :: (c: *Client, before: Snowflake = 0) {
 	query_add_int(*q, "limit", 25);
 	query_add(*q, "roles", "true");
 	query_add(*q, "everyone", "true");
-	if before != 0 { query_add_snow(*q, "before", before); }
-	f_submit(c, .{op = .Mentions, tag = cast(u64)(before), method = "GET", path = query_string(*q), retries = 2});
+	if before query_add_snow(*q, "before", before);
+	f_submit(c, .{op = .Mentions, tag = before, method = "GET", path = query_string(*q), retries = 2});
 }
 
 // MENTIONS_DUP_TAG marks the second, identical first-page request (dropped by the UI).
@@ -39,8 +39,7 @@ open_mentions :: (c: *Client) {
 
 // delete_mention removes a message from the recent mentions list.
 delete_mention :: (c: *Client, message_id: Snowflake) {
-	path := strings.concatenate(string.["/users/@me/mentions/", snowflake_string(message_id)], temp);
-	f_submit(c, .{op = .Mention_Delete, tag = cast(u64)(message_id), method = "DELETE", path = path});
+	f_submit(c, .{op = .Mention_Delete, tag = message_id, method = "DELETE", path = tprint("/users/@me/mentions/%", message_id)});
 }
 
 // fetch_channel_threads: archived threads of a text channel, newest activity first.
@@ -67,7 +66,7 @@ create_thread :: (c: *Client, parent_id: Snowflake, name: string, location := "T
 	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "name", name);
-	json_kint(*w, "type", cast(s64)(Channel_Type.Public_Thread));
+	json_kint(*w, "type", cast(s64) Channel_Type.Public_Thread);
 	json_kint(*w, "auto_archive_duration", THREAD_AUTO_ARCHIVE_MINUTES);
 	json_kstr(*w, "location", location);
 	json_obj_end(*w);
@@ -77,10 +76,8 @@ create_thread :: (c: *Client, parent_id: Snowflake, name: string, location := "T
 // apply_created_thread puts the created thread (POST reply) into the store,
 // ahead of its THREAD_CREATE, and returns its id.
 apply_created_thread :: (c: *Client, body: V) -> Snowflake {
-	m := vmap(body);
-	if is_null(m) { return 0; }
-	id := fsnow(m, "id");
-	if id == 0 { return 0; }
+	id := fsnow(vmap(body), "id");
+	if id == 0 return 0;
 	store_apply_dispatch(*c.store, "THREAD_CREATE", body, now_ms());
 	extras_on_dispatch(c, "THREAD_CREATE", body);
 	c.store.changed += 1;
@@ -90,25 +87,27 @@ apply_created_thread :: (c: *Client, body: V) -> Snowflake {
 // fetch_role_member_counts: the Delete Thread / Delete Channel confirm loads
 // the guild's role member counts (fixture threads_browser delete_thread).
 fetch_role_member_counts :: (c: *Client, guild_id: Snowflake) {
-	api_get_later(c, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/roles/member-counts"], temp), 0);
+	api_get_later(c, tprint("/guilds/%/roles/member-counts", guild_id), 0);
 }
 
 // Every thread (any state we know of) under parent_id, newest activity first.
 channel_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snowflake {
-	out := make_dynamic(Snowflake, 0, 0, allocator);
+	Keyed :: struct { key, id: Snowflake; }
+	keyed: [..]Keyed;
+	keyed.allocator = temp;
 	for tm, id: extras.threads {
-		if tm.parent_id == parent_id && table_contains(*s.channels, id) { append(*out, id); }
+		if tm.parent_id == parent_id && table_contains(*s.channels, id) array_add(*keyed, .{max(tm.last_message_id, id), id});
 	}
-	Keyed :: struct {
-		key, id: Snowflake;
+	// insertion sort, newest first (stable)
+	for i: 1..keyed.count-1 {
+		j := i;
+		while j > 0 && keyed[j].key > keyed[j - 1].key {
+			keyed[j], keyed[j - 1] = keyed[j - 1], keyed[j];
+			j -= 1;
+		}
 	}
-	keyed := make_slice(Keyed, len(out), temp);
-	for id, i: out { _, tm := table_find(*extras.threads, id); keyed[i] = .{max(tm.last_message_id, id), id}; }
-	for i: 1..len(keyed)-1 {
-		{ j := i;
-		while j > 0 && keyed[j].key > keyed[j - 1].key { swap(*keyed[j], *keyed[j - 1]);  j -= 1; } }
-	}
-	for k, i: keyed { at(*out, i).* = k.id; }
-	return view(out);
+	out := NewArray(keyed.count, Snowflake,, allocator);
+	for keyed out[it_index] = it.id;
+	return out;
 }
 

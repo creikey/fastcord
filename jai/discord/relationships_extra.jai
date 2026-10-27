@@ -3,8 +3,8 @@
 block_user :: (c: *Client, user_id: Snowflake, location := "ContextMenu") {
 	j := job_new(.Api, .Relationship);
 	j.method = "PUT";
-	j.path = job_str(j, strings.concatenate(string.["/users/@me/relationships/", snowflake_string(user_id)], temp));
-	j.body = transmute([]u8, job_str(j, "{\"type\":2}"));
+	j.path = job_str(j, tprint("/users/@me/relationships/%", user_id));
+	j.body = cast([]u8) "{\"type\":2}";
 	j.content_type = "application/json";
 	j.context_b64 = job_str(j, context_location(location));
 	j.result.user_id = user_id;
@@ -16,7 +16,7 @@ block_user :: (c: *Client, user_id: Snowflake, location := "ContextMenu") {
 close_private_channel :: (c: *Client, channel_id: Snowflake) {
 	j := job_new(.Api, .None);
 	j.method = "DELETE";
-	j.path = job_str(j, strings.concatenate(string.["/channels/", snowflake_string(channel_id), "?silent=false"], temp));
+	j.path = job_str(j, tprint("/channels/%?silent=false", channel_id));
 	job_submit(c, j);
 }
 
@@ -26,7 +26,7 @@ ring_call :: (c: *Client, channel_id: Snowflake) {
 	j := job_new(.Api, .None);
 	j.method = "POST";
 	j.path = job_str(j, channel_path(channel_id, "/call/ring"));
-	j.body = transmute([]u8, job_str(j, "{\"recipients\":null}"));
+	j.body = cast([]u8) "{\"recipients\":null}";
 	j.content_type = "application/json";
 	job_submit(c, j);
 }

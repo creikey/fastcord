@@ -17,26 +17,21 @@ Call :: struct {
 
 call_apply :: (c: *Client, d: etf.Map) {
 	cid := fsnow(d, "channel_id");
-	if cid == 0 { return; }
-	if is_null(c.social.calls) { c.social.calls.allocator = c.allocator; }
-	call := table_find_pointer(*c.social.calls, cid); ok := call != null;
-	if !ok {
-		find_or_add(*c.social.calls, cid).* = Call.{channel_id = cid, ringing = make_dynamic(Snowflake, 0, 0, c.allocator)};
-		call = find_or_add(*c.social.calls, cid);
+	if cid == 0 return;
+	c.social.calls.allocator = c.allocator; // the client's heap, whichever thread's context first grows it
+	call, added := find_or_add(*c.social.calls, cid);
+	if added {
+		call.channel_id = cid;
+		call.ringing.allocator = c.allocator;
 	}
-	{ mid := fsnow(d, "message_id");
-	if mid != 0 { call.message_id = mid; } }
+	mid := fsnow(d, "message_id");
+	if mid call.message_id = mid;
 	if vhas(d, "ringing") {
-		was := slice_has(view(call.ringing), c.store.me);
-		clear(*call.ringing);
-		for r: flist(d, "ringing") { append(*call.ringing, vsnow(r)); }
-		if !was { call.dismissed = false; } // a new ring
+		was := array_find(call.ringing, c.store.me);
+		call.ringing.count = 0;
+		for flist(d, "ringing") array_add(*call.ringing, vsnow(it));
+		if !was call.dismissed = false; // a new ring
 	}
-}
-
-slice_has :: (s: []Snowflake, v: Snowflake) -> bool {
-	for x: s { if x == v { return true; } }
-	return false;
 }
 #scope_export
 
@@ -55,14 +50,14 @@ calls_dispatch :: (c: *Client, name: string, data: V) {
 		}
 	case "CALL_DELETE";
 		cid := fsnow(vmap(data), "channel_id");
-		{ call := table_find_pointer(*c.social.calls, cid); ok := call != null;
-		if ok {
-			delete(call.ringing);
+		call := table_find_pointer(*c.social.calls, cid);
+		if call {
+			array_free(call.ringing);
 			table_remove(*c.social.calls, cid);
-		} }
-		if c.social.ring_on_create == cid { c.social.ring_on_create = 0; }
+		}
+		if c.social.ring_on_create == cid c.social.ring_on_create = 0;
 	case "READY";
-		for * call: c.social.calls { delete(call.ringing); }
+		for c.social.calls array_free(it.ringing);
 		table_reset(*c.social.calls);
 	}
 }
@@ -81,29 +76,25 @@ call_shelf_later :: (c: *Client, delay_ms: s64, on_done: (c: *Client, j: *Job, s
 
 // call_get: the ongoing call in a DM / group DM (nil when none).
 call_get :: (c: *Client, channel_id: Snowflake) -> *Call {
-	{ call := table_find_pointer(*c.social.calls, channel_id); ok := call != null;
-	if ok { return call; } }
-	return null;
+	return table_find_pointer(*c.social.calls, channel_id);
 }
 
 // incoming_call: a call that rings us right now and that we haven't dismissed (0 if none).
 incoming_call :: (c: *Client) -> Snowflake {
-	for * call, cid: c.social.calls {
-		if !call.dismissed && slice_has(view(call.ringing), c.store.me) { return cid; }
-	}
+	for call, cid: c.social.calls if !call.dismissed && array_find(call.ringing, c.store.me) return cid;
 	return 0;
 }
 
 // call_decline: dismiss the ring locally (declining was not captured).
 call_decline :: (c: *Client, channel_id: Snowflake) {
-	{ call := call_get(c, channel_id);
-	if !is_null(call) { call.dismissed = true; } }
+	call := call_get(c, channel_id);
+	if call call.dismissed = true;
 }
 
 // dm_call_start: the DM header's "Start Voice Call". op 4 into the DM; the ring
 // follows the call's CALL_CREATE. Joining a call that already exists rings nobody.
 dm_call_start :: (c: *Client, channel_id: Snowflake, self_mute := false, self_deaf := false) {
-	if call_get(c, channel_id) == null { c.social.ring_on_create = channel_id; }
+	if !call_get(c, channel_id) c.social.ring_on_create = channel_id;
 	voice_join(c, 0, channel_id, self_mute, self_deaf, track = false);
 	analytics_join_voice(c, 0, channel_id);
 }
@@ -114,7 +105,7 @@ call_accept :: (c: *Client, channel_id: Snowflake, self_mute := false, self_deaf
 	call_shelf_later(c, 320, analytics_shelf_fetched);
 	w := aw_begin();
 	json_knull(*w, "guild_id");
-	if channel_get(*c.store, channel_id) != null { aw_channel(*w, c, channel_id); }
+	if channel_get(*c.store, channel_id) aw_channel(*w, c, channel_id);
 	json_kstr(*w, "location", "incoming call modal");
 	aw_track(c, "ring_call_accepted", *w);
 	b := aw_begin();
@@ -122,20 +113,20 @@ call_accept :: (c: *Client, channel_id: Snowflake, self_mute := false, self_deaf
 	json_kstr(*b, "location", "incoming call modal");
 	aw_track(c, "call_button_clicked", *b);
 	analytics_join_voice(c, 0, channel_id);
-	{ call := call_get(c, channel_id);
-	if !is_null(call) { call.dismissed = true; } }
+	call := call_get(c, channel_id);
+	if call call.dismissed = true;
 }
 
 // analytics_call_disconnect: the voice panel's "Disconnect" (call_button_clicked;
 // leave_voice_channel carries RTC statistics this client does not measure).
 analytics_call_disconnect :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake) {
 	ch := channel_get(*c.store, channel_id);
-	if ch == null { return; }
+	if !ch return;
 	w := aw_begin();
 	json_kstr(*w, "button_name", "Disconnect");
-	if guild_id != 0 { json_ksnow(*w, "guild_id", guild_id); } else { json_knull(*w, "guild_id"); }
+	if guild_id json_ksnow(*w, "guild_id", guild_id); else json_knull(*w, "guild_id");
 	json_ksnow(*w, "channel_id", channel_id);
-	json_kint(*w, "channel_type", cast(s64)(ch.kind));
+	json_kint(*w, "channel_type", cast(s64) ch.kind);
 	json_kstr(*w, "location", "rtc panel");
 	aw_track(c, "call_button_clicked", *w);
 }
