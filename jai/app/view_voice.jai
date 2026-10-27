@@ -1,5 +1,5 @@
 // Voice: owns the fc:voice connection for the channel in app.voice_channel.
-//   join_voice (views.odin) sends op 4 and sets app.voice_channel;
+//   join_voice (views.jai) sends op 4 and sets app.voice_channel;
 //   voice_frame (every frame) connects once VOICE_STATE_UPDATE +
 //   VOICE_SERVER_UPDATE arrived, reconnects when the server moves (new
 //   voice_server_info version), mirrors mute/deafen to the connection and

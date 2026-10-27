@@ -73,7 +73,7 @@ account_receive :: (r: *dc.Feature_Result) {
 account_logout_ask :: () {acct.logout_confirm = true;}
 
 // Log Out (AuthenticationActionCreators.logout("settings")): POST /auth/logout
-// revokes the session; the same client then shows the login page (auth.odin).
+// revokes the session; the same client then shows the login page (auth.jai).
 account_logout :: () {
 	acct.logout_confirm = false;
 	voice_leave_channel();
@@ -156,7 +156,7 @@ mask_phone :: (phone: string) -> string {
 
 my_account_page :: () {
 	if streamer_settings.enabled {
-		streamer_account_page(); // view_streamer.odin
+		streamer_account_page(); // view_streamer.jai
 		return;
 	}
 	s := store();

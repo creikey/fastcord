@@ -50,7 +50,7 @@ home_sidebar :: () {
 			spacer(.X, 17);
 			label("Direct Messages", .Medium, 14, T("--channels-default"), 18);
 			filler(.X);
-			dm_create_button(); // view_group_dm.odin: "Select Friends" popout
+			dm_create_button(); // view_group_dm.jai: "Select Friends" popout
 			spacer(.X, 16);
 		}
 		dms := dc.private_channels_sorted(s);

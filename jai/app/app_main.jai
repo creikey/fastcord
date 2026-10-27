@@ -9,8 +9,8 @@ App :: struct {
 	frame: u64;
 	view: View_State;
 	client: *dc.Client; // nil when offline (fixture / tests)
-	needs_login: bool; // no token, or Discord rejected it: show the intro (view_login.odin)
-	connect_pending: bool; // connect() waits for the previous client's teardown (teardown.odin)
+	needs_login: bool; // no token, or Discord rejected it: show the intro (view_login.jai)
+	connect_pending: bool; // connect() waits for the previous client's teardown (teardown.jai)
 	login_error: string;
 	offline_store: dc.Store;
 	chats: Table(dc.Snowflake, Chat_State);
@@ -445,7 +445,7 @@ script_command :: (path: string, f: []string, t: *float64) {
 		}
 		return;
 	case "bench";
-		// bench <name>: frames from here to the next `bench`, `bench_off` or the end are measured (bench.odin)
+		// bench <name>: frames from here to the next `bench`, `bench_off` or the end are measured (bench.jai)
 		bench_section(f[1]);
 		return;
 	case "bench_off";
@@ -518,7 +518,7 @@ script_command :: (path: string, f: []string, t: *float64) {
 		// the login page (normally shown when there is no token)
 		app.needs_login = true;
 	case "login_state";
-		// the login page in a given state, without a server (view_login.odin login_test_state)
+		// the login page in a given state, without a server (view_login.jai login_test_state)
 		if !login_test_state(f[1]) script_fail(path, "login_state: unknown state \"%\"", f[1]);
 	case "expect_opened_url";
 		want := unquote(join_args(f));

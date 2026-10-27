@@ -2,7 +2,7 @@
 // or phone number + password, "Forgot your password?", Log In, "Need an
 // account? Register") beside the QR code panel, the multi-factor step, and a
 // small fastcord-only "Log in with a token" page. The requests and telemetry
-// are the library's (src/discord/auth.odin, remote_auth.odin); this file only
+// are the library's (src/discord/auth.jai, remote_auth.jai); this file only
 // draws and forwards input. Without a client (fixtures, tests) the buttons
 // count as offline network actions.
 

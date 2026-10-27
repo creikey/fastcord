@@ -51,7 +51,7 @@ tooltip_below :: (text: string, r: ui.Rect) {
 	}
 }
 
-// Overlay entry (views.odin overlays()).
+// Overlay entry (views.jai overlays()).
 group_dm_overlay :: () {
 	if !gdm.open { return; }
 	focus_before := app.ui.focus; // a field pressed this frame (the popout's field takes focus below)

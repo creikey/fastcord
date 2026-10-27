@@ -353,7 +353,7 @@ search_panel :: () {
 	}
 }
 
-// Headless control sweep (sweep.odin): back to program start / what to compare.
+// Headless control sweep (sweep.jai): back to program start / what to compare.
 search_reset_for_test :: () {
 	fini(*search.pool);
 	search, jump, highlight_id, highlight_until, sugg_rect = .{}, .{}, 0, 0, .{};

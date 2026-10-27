@@ -172,7 +172,7 @@ build_ui :: () {
 	{ ui.parent(body); defer ui.pop_parent();
 		{
 			prof.zone("app.rail");
-			rail_view(); // view_rail_folders.odin (folders, badges, DM unreads, drag)
+			rail_view(); // view_rail_folders.jai (folders, badges, DM unreads, drag)
 		}
 		{
 			prof.zone("app.sidebar");
@@ -258,7 +258,7 @@ title_bar :: () {
 		right.semantic_size = .[ui.px(TITLE_SIDE_W), ui.pct(1)];
 		{ ui.parent(right); defer ui.pop_parent();
 			filler(.X);
-			inbox_button(); // view_inbox.odin
+			inbox_button(); // view_inbox.jai
 			spacer(.X, 16);
 			help_button();
 			spacer(.X, 14);
@@ -943,10 +943,10 @@ overlays :: () {
 	if fnick.user != 0 { friend_nick_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
 	if viewer_url != "" { image_viewer(); }
-	incoming_call_popout(); // view_voice.odin
+	incoming_call_popout(); // view_voice.jai
 	if app.settings_open { settings_modal(); } else { settings_closed(); }
-	account_logout_modal(); // view_settings_account.odin
-	add_server_overlay(); // view_add_server.odin
+	account_logout_modal(); // view_settings_account.jai
+	add_server_overlay(); // view_add_server.jai
 	voice_user_menu();
 	pins_popout();
 	threads_browser_popout();
@@ -955,7 +955,7 @@ overlays :: () {
 	search_suggestions();
 	events_modal();
 	guild_admin_overlays();
-	attachments_overlays(); // attachments.odin: Modify modal, drag target, limit notices
+	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
 }
 
 #scope_file

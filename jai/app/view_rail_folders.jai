@@ -155,7 +155,7 @@ rail_view :: () {
 			ui.id_scope(ifx e.id != 0 then cast(u64)(e.id) else cast(u64)(e.guilds[0])); defer ui.pop_seed();
 			if e.id != 0 { rail_folder(e, i); } else { rail_guild(e.guilds[0], i, -1); }
 		}
-		if rail_item("add", add_server_is_open(), "", "circle-plus", 0).clicked { add_server_open(); } // view_add_server.odin
+		if rail_item("add", add_server_is_open(), "", "circle-plus", 0).clicked { add_server_open(); } // view_add_server.jai
 		if rail_item("discover", false, "", "compass", 0).clicked { discover_open(); }
 		spacer(.Y, USER_PANEL_H + 16);
 	}

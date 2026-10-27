@@ -303,7 +303,7 @@ settings_modal :: () {
 					}
 				}
 				spacer(.Y, 16);
-				settings_nav_search(); // view_settings_prefs.odin: filters the items below
+				settings_nav_search(); // view_settings_prefs.jai: filters the items below
 				spacer(.Y, 8);
 				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
 				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}];
@@ -363,11 +363,11 @@ settings_modal :: () {
 				} else if settings_page == "Appearance" {
 					appearance_page();
 				} else if settings_page == "Account" {
-					my_account_page(); // view_settings_account.odin
+					my_account_page(); // view_settings_account.jai
 				} else if settings_page == "Profiles" {
 					profiles_page();
 				} else if settings_page == "Notifications" {
-					notifications_page(); // view_settings_prefs.odin
+					notifications_page(); // view_settings_prefs.jai
 				}
 			}
 		}
@@ -530,7 +530,7 @@ appearance_page :: () {
 			sh := label("Streamer Mode", .Medium, 24, T("--text-strong"), 32);
 			appearance_scroll_target(scroll, sh, "Streamer Mode");
 			spacer(.Y, 24);
-			streamer_settings_section(); // view_streamer.odin
+			streamer_settings_section(); // view_streamer.jai
 			spacer(.Y, 64);
 		}
 		filler(.X);

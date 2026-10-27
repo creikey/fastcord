@@ -129,7 +129,7 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 	}
 }
 
-// Overlay entry (views.odin overlays()).
+// Overlay entry (views.jai overlays()).
 profile_full_overlay :: () {
 	defer user_context_menu();
 	// FASTCORD_PROFILE=<id>|me|friend opens a profile once the first channel shows (screenshots)
