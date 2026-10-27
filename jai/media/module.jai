@@ -2,23 +2,19 @@
 #import "Math";
 #import "String";
 #import "Hash_Table";
-#import "Atomics";
-#import "fc";
+#import "Thread";
+#import "File";
 audio :: #import "audio";
 gfx :: #import "gfx";
 locks :: #import "locks";
-math :: #import "fc_math";
-os :: #import "fc_os";
-#if OS == .MACOS runtime :: #import "fc_runtime";
-thread :: #import "fc_thread";
-Thread :: thread.Thread;
-time :: #import "fc_time";
-CoreFoundation :: #library,system,link_always "CoreFoundation";
-CoreMedia :: #library,system,link_always "CoreMedia";
-CoreVideo :: #library,system,link_always "CoreVideo";
-VideoToolbox :: #library,system,link_always "VideoToolbox";
-AudioToolbox :: #library,system,link_always "AudioToolbox";
-#if OS == .MACOS #load "decode_darwin.jai";
+#if OS == .MACOS {
+	CoreFoundation :: #library,system,link_always "CoreFoundation";
+	CoreMedia :: #library,system,link_always "CoreMedia";
+	CoreVideo :: #library,system,link_always "CoreVideo";
+	VideoToolbox :: #library,system,link_always "VideoToolbox";
+	AudioToolbox :: #library,system,link_always "AudioToolbox";
+	#load "decode_darwin.jai";
+}
 #if OS == .WINDOWS #load "decode_windows.jai";
 #load "demux.jai";
 #load "mkv.jai";

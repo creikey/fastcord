@@ -36,267 +36,158 @@ Edit_Result :: enum u8 {
 	Escape;
 }
 
-editor_text :: (e: *Editor) -> string {return as_string(view(e.buf));}
+editor_text :: (e: *Editor) -> string { return .{e.buf.count, e.buf.data}; }
 
 editor_set_text :: (e: *Editor, s: string) {
-	clear(*e.buf);
-	append(*e.buf, s);
-	e.caret = len(e.buf);
+	e.buf.count = 0;
+	array_add(*e.buf, ..cast([]u8) s);
+	e.caret = e.buf.count;
 	e.mark = e.caret;
 	e.has_pref_x = false;
 }
 
 editor_destroy :: (e: *Editor) {
-	delete(e.buf);
-	for s: e.undo { delete(s.text); }
-	for s: e.redo { delete(s.text); }
-	delete(e.undo);
-	delete(e.redo);
+	array_free(e.buf);
+	for e.undo free(it.text);
+	for e.redo free(it.text);
+	array_free(e.undo);
+	array_free(e.redo);
 }
 
-editor_sel :: (e: *Editor) -> int, int {return min(e.caret, e.mark), max(e.caret, e.mark);}
-editor_has_sel :: (e: *Editor) -> bool {return e.caret != e.mark;}
+editor_sel :: (e: *Editor) -> int, int { return min(e.caret, e.mark), max(e.caret, e.mark); }
+editor_has_sel :: (e: *Editor) -> bool { return e.caret != e.mark; }
 
 editor_selected_text :: (e: *Editor) -> string {
 	a, b := editor_sel(e);
-	return as_string(sub(e.buf, a, b));
-}
-#scope_module
-
-snapshot :: (e: *Editor, kind: Edit_Kind) {
-	if kind != .Other && kind == e.coalesce && len(e.undo) > 0 { return; }
-	e.coalesce = kind;
-	append(*e.undo, Edit_Snapshot.{clone(editor_text(e)), e.caret, e.mark});
-	if len(e.undo) > 200 {
-		delete(e.undo[0].text);
-		ordered_remove(*e.undo, 0);
-	}
-	for s: e.redo { delete(s.text); }
-	clear(*e.redo);
+	return slice(editor_text(e), a, b - a);
 }
 
-restore :: (e: *Editor, from: *[..]Edit_Snapshot, to: *[..]Edit_Snapshot) -> bool {
-	if len(from) == 0 { return false; }
-	append(to, Edit_Snapshot.{clone(editor_text(e)), e.caret, e.mark});
-	s := pop(from);
-	clear(*e.buf);
-	append(*e.buf, s.text);
-	e.caret = s.caret;
-	e.mark = s.mark;
-	delete(s.text);
-	e.coalesce = .None;
-	return true;
-}
-#scope_export
-
-editor_undo :: (e: *Editor) -> bool {return restore(e, *e.undo, *e.redo);}
-editor_redo :: (e: *Editor) -> bool {return restore(e, *e.redo, *e.undo);}
-#scope_module
-
-replace_range :: (e: *Editor, a: int, b: int, s: string) {
-	// Odin remove_range + inject_at: splice s over buf[a:b].
-	tail := clone(as_string(sub_from(e.buf, b)), temp);
-	resize(*e.buf, a);
-	append(*e.buf, s);
-	append(*e.buf, tail);
-	e.caret = a + len(s);
-	e.mark = e.caret;
-	e.has_pref_x = false;
-}
-#scope_export
+editor_undo :: (e: *Editor) -> bool { return restore(e, *e.undo, *e.redo); }
+editor_redo :: (e: *Editor) -> bool { return restore(e, *e.redo, *e.undo); }
 
 // Insert (replacing the selection), as typing.
 editor_insert :: (e: *Editor, s: string, kind := Edit_Kind.Typing) {
-	k := kind;
-	if editor_has_sel(e) || strings.contains_any(s, " \n") { k = .Other; }
-	snapshot(e, k);
+	breaks := contains_any_character(s, " \n");
+	snapshot(e, ifx editor_has_sel(e) || breaks then .Other else kind);
 	a, b := editor_sel(e);
 	replace_range(e, a, b, s);
-	if strings.contains_any(s, " \n") { e.coalesce = .None; }
-}
-#scope_module
-
-delete_to :: (e: *Editor, target: int) {
-	if editor_has_sel(e) {
-		snapshot(e, .Other);
-		a, b := editor_sel(e);
-		replace_range(e, a, b, "");
-		return;
-	}
-	if target == e.caret { return; }
-	snapshot(e, .Deleting);
-	replace_range(e, min(target, e.caret), max(target, e.caret), "");
+	if breaks e.coalesce = .None;
 }
 
-line_start_of :: (tl: *Text_Layout, s: string, pos: int) -> int {
-	if tl != null && len(tl.lines) > 0 { return get(tl.lines, line_of(tl, pos)).start; }
-	return strings.last_index_byte(sub(s, 0, pos), 10) + 1;
-}
-
-line_end_of :: (tl: *Text_Layout, s: string, pos: int) -> int {
-	if tl != null && len(tl.lines) > 0 { return get(tl.lines, line_of(tl, pos)).end; }
-	i := strings.index_byte(sub_from(s, pos), 10);
-	return ifx i < 0 then len(s) else pos + i;
-}
-
-vertical :: (e: *Editor, tl: *Text_Layout, dir: int) -> int {
-	s := editor_text(e);
-	if tl == null || len(tl.lines) == 0 { return ifx dir < 0 then 0 else len(s); }
-	li := line_of(tl, e.caret);
-	if !e.has_pref_x {
-		e.pref_x = caret_x(tl, e.caret);
-		e.has_pref_x = true;
-	}
-	nl := li + dir;
-	if nl < 0 { return 0; }
-	if nl >= len(tl.lines) { return len(s); }
-	return hit_test_line(tl, nl, e.pref_x);
-}
-
-move :: (e: *Editor, target: int, extend: bool, keep_pref_x := false) {
-	e.caret = clamp(target, 0, len(e.buf));
-	if !extend { e.mark = e.caret; }
-	if !keep_pref_x { e.has_pref_x = false; }
-	e.coalesce = .None;
-}
-#scope_export
-
-// Handle a key/text event. tl is the field's current layout (may be nil).
-// clipboard_set/get let tests substitute the system clipboard.
+// Handle a key/text event. tl is the field's current layout (may be null).
+// clip_get/clip_set let tests substitute the system clipboard.
 editor_event :: (e: *Editor, ev: Input_Event, tl: *Text_Layout, clip_get: () -> string, clip_set: (s: string), multiline := true) -> Edit_Result {
 	s := editor_text(e);
 	if ev.kind == .Text {
-		if ev.text == "" { return .None; }
+		if ev.text == "" return .None;
 		editor_insert(e, ev.text);
 		return .Changed;
 	}
-	if ev.kind != .Key_Down { return .None; }
-	shift := has(ev.mods, .Shift);
+	if ev.kind != .Key_Down return .None;
+	shift := (ev.mods & .Shift) != 0;
 	// cmd: line-wise moves; alt: word-wise; ctrl: emacs keys; short: clipboard/undo shortcuts.
 	#if OS == .MACOS {
-		cmd := has(ev.mods, .Cmd);
-		alt := has(ev.mods, .Alt);
-		ctrl := has(ev.mods, .Ctrl);
+		cmd := (ev.mods & .Cmd) != 0;
+		alt := (ev.mods & .Alt) != 0;
+		ctrl := (ev.mods & .Ctrl) != 0;
 		short := cmd;
 	} else {
 		cmd := false;
-		alt := has(ev.mods, .Ctrl);
+		alt := (ev.mods & .Ctrl) != 0;
 		ctrl := false;
-		short := has(ev.mods, .Ctrl);
+		short := alt;
 	}
 	a, b := editor_sel(e);
 
 	if ev.key == {
-	case .Left;
-		if cmd {
-			move(e, line_start_of(tl, s, e.caret), shift);
-		} else if alt {
-			move(e, prev_word(s, e.caret), shift);
-		} else if editor_has_sel(e) && !shift {
-			move(e, a, false);
-		} else {
-			move(e, prev_grapheme(s, e.caret), shift);
-		}
-		return .Moved;
-	case .Right;
-		if cmd {
-			move(e, line_end_of(tl, s, e.caret), shift);
-		} else if alt {
-			move(e, next_word(s, e.caret), shift);
-		} else if editor_has_sel(e) && !shift {
-			move(e, b, false);
-		} else {
-			move(e, next_grapheme(s, e.caret), shift);
-		}
-		return .Moved;
-	case .Up;
-		if cmd { move(e, 0, shift); } else { move(e, vertical(e, tl, -1), shift, true); }
-		return .Moved;
-	case .Down;
-		if cmd { move(e, len(s), shift); } else { move(e, vertical(e, tl, 1), shift, true); }
-		return .Moved;
-	case .Home;
-		move(e, 0, shift);
-		return .Moved;
-	case .End;
-		move(e, len(s), shift);
-		return .Moved;
-	case .Backspace;
-		if editor_has_sel(e) {
-			delete_to(e, e.caret);
-		} else if cmd {
-			delete_to(e, line_start_of(tl, s, e.caret));
-		} else if alt {
-			delete_to(e, prev_word(s, e.caret));
-		} else {
-			// Backspace removes one code point of a cluster on macOS only for
-			// some scripts; deleting the whole grapheme is the safe default.
-			delete_to(e, prev_grapheme(s, e.caret));
-		}
-		return .Changed;
-	case .Delete;
-		if editor_has_sel(e) {
-			delete_to(e, e.caret);
-		} else if cmd {
-			delete_to(e, line_end_of(tl, s, e.caret));
-		} else if alt {
-			delete_to(e, next_word(s, e.caret));
-		} else {
-			delete_to(e, next_grapheme(s, e.caret));
-		}
-		return .Changed;
-	case .Enter;
-		if shift && multiline {
+		case .Left;
+			if cmd                           move(e, line_start_of(tl, s, e.caret), shift);
+			else if alt                      move(e, prev_word(s, e.caret), shift);
+			else if editor_has_sel(e) && !shift move(e, a, false);
+			else                             move(e, prev_grapheme(s, e.caret), shift);
+			return .Moved;
+		case .Right;
+			if cmd                           move(e, line_end_of(tl, s, e.caret), shift);
+			else if alt                      move(e, next_word(s, e.caret), shift);
+			else if editor_has_sel(e) && !shift move(e, b, false);
+			else                             move(e, next_grapheme(s, e.caret), shift);
+			return .Moved;
+		case .Up;
+			if cmd move(e, 0, shift); else move(e, vertical(e, tl, -1), shift, true);
+			return .Moved;
+		case .Down;
+			if cmd move(e, s.count, shift); else move(e, vertical(e, tl, 1), shift, true);
+			return .Moved;
+		case .Home;
+			move(e, 0, shift);
+			return .Moved;
+		case .End;
+			move(e, s.count, shift);
+			return .Moved;
+		case .Backspace;
+			// Deleting the whole grapheme is the safe default (macOS removes one code point
+			// of a cluster only for some scripts).
+			if editor_has_sel(e) delete_to(e, e.caret);
+			else if cmd          delete_to(e, line_start_of(tl, s, e.caret));
+			else if alt          delete_to(e, prev_word(s, e.caret));
+			else                 delete_to(e, prev_grapheme(s, e.caret));
+			return .Changed;
+		case .Delete;
+			if editor_has_sel(e) delete_to(e, e.caret);
+			else if cmd          delete_to(e, line_end_of(tl, s, e.caret));
+			else if alt          delete_to(e, next_word(s, e.caret));
+			else                 delete_to(e, next_grapheme(s, e.caret));
+			return .Changed;
+		case .Enter;
+			if !shift || !multiline return .Submit;
 			editor_insert(e, "\n");
 			return .Changed;
-		}
-		return .Submit;
-	case .Escape;
-		return .Escape;
-	case .A;
-		if short {
-			e.mark = 0;
-			e.caret = len(s);
-			return .Moved;
-		}
-		if ctrl {
-			move(e, line_start_of(tl, s, e.caret), shift);
-			return .Moved;
-		}
-	case .C;
-		if short && editor_has_sel(e) {
-			clip_set(editor_selected_text(e));
-			return .None;
-		}
-	case .X;
-		if short && editor_has_sel(e) {
-			clip_set(editor_selected_text(e));
-			delete_to(e, e.caret);
-			return .Changed;
-		}
-	case .V;
-		if short {
-			t := clip_get();
-			if !multiline { t, _ = strings.replace_all(t, "\n", " ", temp); }
-			if t != "" {
-				snapshot(e, .Other);
-				replace_range(e, a, b, t);
-				e.coalesce = .None;
+		case .Escape;
+			return .Escape;
+		case .A;
+			if short {
+				e.mark = 0;
+				e.caret = s.count;
+				return .Moved;
+			}
+			if ctrl {
+				move(e, line_start_of(tl, s, e.caret), shift);
+				return .Moved;
+			}
+		case .C;
+			if short && editor_has_sel(e) {
+				clip_set(editor_selected_text(e));
+				return .None;
+			}
+		case .X;
+			if short && editor_has_sel(e) {
+				clip_set(editor_selected_text(e));
+				delete_to(e, e.caret);
 				return .Changed;
 			}
-		}
-	case .Z;
-		if short {
-			if shift { return ifx editor_redo(e) then .Changed else .None; }
-			return ifx editor_undo(e) then .Changed else .None;
-		}
-	case .Y;
-		if short && OS != .MACOS { return ifx editor_redo(e) then .Changed else .None; }
-	case .K;
-		if ctrl {
-			delete_to(e, line_end_of(tl, s, e.caret));
-			return .Changed;
-		}
+		case .V;
+			if short {
+				t := clip_get();
+				if !multiline t = replace(t, "\n", " ",, temp);
+				if t != "" {
+					snapshot(e, .Other);
+					replace_range(e, a, b, t);
+					e.coalesce = .None;
+					return .Changed;
+				}
+			}
+		case .Z;
+			if short {
+				done := ifx shift then editor_redo(e) else editor_undo(e);
+				return ifx done then .Changed else .None;
+			}
+		case .Y;
+			if short && OS != .MACOS return ifx editor_redo(e) then .Changed else .None;
+		case .K;
+			if ctrl {
+				delete_to(e, line_end_of(tl, s, e.caret));
+				return .Changed;
+			}
 	}
 	return .None;
 }
@@ -304,7 +195,7 @@ editor_event :: (e: *Editor, ev: Input_Event, tl: *Text_Layout, clip_get: () -> 
 // Mouse down at screen point p with OS click count.
 editor_mouse_down :: (e: *Editor, tl: *Text_Layout, p: Vec2, click_count: int, shift: bool) {
 	s := editor_text(e);
-	pos := ifx tl != null then hit_test(tl, p) else len(s);
+	pos := ifx tl then hit_test(tl, p) else s.count;
 	e.has_pref_x = false;
 	e.coalesce = .None;
 	if shift {
@@ -327,22 +218,104 @@ editor_mouse_down :: (e: *Editor, tl: *Text_Layout, p: Vec2, click_count: int, s
 }
 
 editor_mouse_drag :: (e: *Editor, tl: *Text_Layout, p: Vec2) {
-	if tl == null { return; }
+	if !tl return;
 	s := editor_text(e);
 	pos := hit_test(tl, p);
-	if e.drag_gran == {
-	case .Char;
+	if e.drag_gran == .Char {
 		e.caret = pos;
-	case .Word; #through; case .Paragraph;
-		a, b: int;
-		if e.drag_gran == .Word { a, b = word_range_at(s, pos); } else { a, b = paragraph_range_at(s, pos); }
-		if pos < e.drag_a {
-			e.mark = e.drag_b;
-			e.caret = a;
-		} else {
-			e.mark = e.drag_a;
-			e.caret = max(b, e.drag_b);
-		}
+		return;
+	}
+	a, b: int;
+	if e.drag_gran == .Word a, b = word_range_at(s, pos);
+	else a, b = paragraph_range_at(s, pos);
+	if pos < e.drag_a {
+		e.mark = e.drag_b;
+		e.caret = a;
+	} else {
+		e.mark = e.drag_a;
+		e.caret = max(b, e.drag_b);
 	}
 }
 
+#scope_module
+
+snapshot :: (e: *Editor, kind: Edit_Kind) {
+	if kind != .Other && kind == e.coalesce && e.undo.count return;
+	e.coalesce = kind;
+	array_add(*e.undo, .{copy_string(editor_text(e)), e.caret, e.mark});
+	if e.undo.count > 200 {
+		free(e.undo[0].text);
+		array_ordered_remove_by_index(*e.undo, 0);
+	}
+	for e.redo free(it.text);
+	e.redo.count = 0;
+}
+
+restore :: (e: *Editor, from: *[..]Edit_Snapshot, to: *[..]Edit_Snapshot) -> bool {
+	if !from.count return false;
+	array_add(to, .{copy_string(editor_text(e)), e.caret, e.mark});
+	s := pop(from);
+	e.buf.count = 0;
+	array_add(*e.buf, ..cast([]u8) s.text);
+	e.caret = s.caret;
+	e.mark = s.mark;
+	free(s.text);
+	e.coalesce = .None;
+	return true;
+}
+
+// Splice s over buf[a:b].
+replace_range :: (e: *Editor, a: int, b: int, s: string) {
+	tail := copy_string(slice(editor_text(e), b, e.buf.count - b),, temp);
+	e.buf.count = a;
+	array_add(*e.buf, ..cast([]u8) s);
+	array_add(*e.buf, ..cast([]u8) tail);
+	e.caret = a + s.count;
+	e.mark = e.caret;
+	e.has_pref_x = false;
+}
+
+delete_to :: (e: *Editor, target: int) {
+	if editor_has_sel(e) {
+		snapshot(e, .Other);
+		a, b := editor_sel(e);
+		replace_range(e, a, b, "");
+		return;
+	}
+	if target == e.caret return;
+	snapshot(e, .Deleting);
+	replace_range(e, min(target, e.caret), max(target, e.caret), "");
+}
+
+line_start_of :: (tl: *Text_Layout, s: string, pos: int) -> int {
+	if tl && tl.lines.count return tl.lines[line_of(tl, pos)].start;
+	return find_index_from_right(slice(s, 0, pos), #char "\n") + 1;
+}
+
+line_end_of :: (tl: *Text_Layout, s: string, pos: int) -> int {
+	if tl && tl.lines.count return tl.lines[line_of(tl, pos)].end;
+	i := find_index_from_left(s, #char "\n", pos);
+	return ifx i < 0 then s.count else i;
+}
+
+vertical :: (e: *Editor, tl: *Text_Layout, dir: int) -> int {
+	s := editor_text(e);
+	if !tl || !tl.lines.count return ifx dir < 0 then 0 else s.count;
+	if !e.has_pref_x {
+		e.pref_x = caret_x(tl, e.caret);
+		e.has_pref_x = true;
+	}
+	nl := line_of(tl, e.caret) + dir;
+	if nl < 0 return 0;
+	if nl >= tl.lines.count return s.count;
+	return hit_test_line(tl, nl, e.pref_x);
+}
+
+move :: (e: *Editor, target: int, extend: bool, keep_pref_x := false) {
+	e.caret = clamp(target, 0, e.buf.count);
+	if !extend e.mark = e.caret;
+	if !keep_pref_x e.has_pref_x = false;
+	e.coalesce = .None;
+}
+
+#scope_export

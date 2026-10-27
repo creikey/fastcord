@@ -1,66 +1,79 @@
-#scope_module
-
-read_entire_file :: (path: string) -> []u8, bool {
-	data, err := os.read_entire_file(path, context.allocator);
-	return data, err == null;
-}
-#scope_export
-
 // Minimal PNG encoder (stored/uncompressed deflate), RGBA8, for test screenshots.
 encode_png :: (pixels: []u8, w: int, h: int, allocator := context.allocator) -> []u8 {
-	b: bytes.Buffer;
-	bytes.buffer_init_allocator(*b, 0, w * h * 4 + 1024, allocator);
-	bytes.buffer_write(*b, u8.[0x89, #char "P", #char "N", #char "G", 13, 10, 0x1a, 10]);
+    put :: (b: *[..]u8, data: []u8) {
+        n := b.count;
+        array_resize(b, n + data.count, initialize = false);
+        memcpy(b.data + n, data.data, data.count);
+    }
+    be32 :: (v: u32) -> [4]u8 { return .[cast,trunc(u8) (v >> 24), cast,trunc(u8) (v >> 16), cast,trunc(u8) (v >> 8), cast,trunc(u8) v]; }
+    chunk :: (b: *[..]u8, type: string, data: []u8) {
+        put(b, be32(cast(u32) data.count));
+        start := b.count;
+        put(b, cast([]u8) type);
+        put(b, data);
+        put(b, be32(crc32(array_view(b.*, start))));
+    }
 
-	be32 :: (v: u32) -> [4]u8 {return .[cast,trunc(u8)(v >> 24), cast,trunc(u8)(v >> 16), cast,trunc(u8)(v >> 8), cast,trunc(u8)(v)];}
-	chunk :: (b: *bytes.Buffer, type: string, data: []u8) {
-		l := be32(cast(u32)(len(data)));
-		bytes.buffer_write(b, view(l));
-		start := bytes.buffer_length(b);
-		bytes.buffer_write_string(b, type);
-		bytes.buffer_write(b, data);
-		crc := hash.crc32(sub_from(bytes.buffer_to_bytes(b), start));
-		c := be32(crc);
-		bytes.buffer_write(b, view(c));
-	}
+    b: [..]u8;
+    b.allocator = allocator;
+    array_reserve(*b, w * h * 4 + 1024);
+    put(*b, u8.[0x89, #char "P", #char "N", #char "G", 13, 10, 0x1a, 10]);
 
-	ihdr: [13]u8;
-	wb, hb := be32(cast(u32)(w)), be32(cast(u32)(h));
-	copy(sub_from(ihdr, 0), view(wb));
-	copy(sub_from(ihdr, 4), view(hb));
-	ihdr[8] = 8; // bit depth
-	ihdr[9] = 6; // RGBA
-	chunk(*b, "IHDR", view(ihdr));
+    ihdr: [13]u8;
+    memcpy(ihdr.data, be32(cast(u32) w).data, 4);
+    memcpy(ihdr.data + 4, be32(cast(u32) h).data, 4);
+    ihdr[8] = 8; // bit depth
+    ihdr[9] = 6; // RGBA
+    chunk(*b, "IHDR", ihdr);
 
-	// zlib stream of stored blocks over filtered scanlines (filter byte 0 per row).
-	raw_len := (w * 4 + 1) * h;
-	raw := make_slice(u8, raw_len, temp);
-	for y: 0..cast(int)(h)-1 {
-		raw[y * (w * 4 + 1)] = 0;
-		copy(sub_from(raw, y * (w * 4 + 1) + 1), sub(sub_from(pixels, y * w * 4), 0, w * 4));
-	}
-	z: bytes.Buffer;
-	bytes.buffer_init_allocator(*z, 0, raw_len + raw_len / 65535 * 5 + 16, temp);
-	bytes.buffer_write(*z, u8.[0x78, 0x01]);
-	{ off := 0;
-	while off < raw_len || raw_len == 0 {
-		n := min(65535, raw_len - off);
-		final: u8 = cast(u8) ifx off + n >= raw_len then 1 else 0;
-		hdr := u8.[final, cast,trunc(u8)(n), cast,trunc(u8)(n >> 8), cast,trunc(u8)(~cast(u16)(n)), cast,trunc(u8)((~cast(u16)(n)) >> 8)];
-		bytes.buffer_write(*z, view(hdr));
-		bytes.buffer_write(*z, sub(sub_from(raw, off), 0, n));
-		off += n;
-		if raw_len == 0 { break; }
-	} }
-	ad := be32(hash.adler32(raw));
-	bytes.buffer_write(*z, view(ad));
-	chunk(*b, "IDAT", bytes.buffer_to_bytes(*z));
-	chunk(*b, "IEND", .{});
-	return bytes.buffer_to_bytes(*b);
+    // zlib stream of stored blocks over filtered scanlines (filter byte 0 per row).
+    row := w * 4 + 1;
+    raw_len := row * h;
+    raw := NewArray(raw_len, u8,, temp);
+    for y: 0..h-1 memcpy(raw.data + y * row + 1, pixels.data + y * w * 4, w * 4);
+    z: [..]u8;
+    z.allocator = temp;
+    array_reserve(*z, raw_len + raw_len / 65535 * 5 + 16);
+    put(*z, u8.[0x78, 0x01]);
+    off := 0;
+    while true {
+        n := min(65535, raw_len - off);
+        final: u8 = xx ifx off + n >= raw_len then 1 else 0;
+        nn := ~cast(u16) n;
+        put(*z, u8.[final, cast,trunc(u8) n, cast,trunc(u8) (n >> 8), cast,trunc(u8) nn, cast,trunc(u8) (nn >> 8)]);
+        put(*z, array_view(raw, off, n));
+        off += n;
+        if off >= raw_len break;
+    }
+    put(*z, be32(adler32(raw)));
+    chunk(*b, "IDAT", z);
+    chunk(*b, "IEND", .[]);
+    return b;
 }
 
 write_png :: (path: string, pixels: []u8, w: int, h: int) -> bool {
-	data := encode_png(pixels, w, h, temp);
-	return os.write_entire_file(path, data) == null;
+    return write_entire_file(path, cast(string) encode_png(pixels, w, h, temp));
 }
 
+#scope_file
+
+crc32 :: (data: []u8) -> u32 {
+    TABLE :: #run -> [256]u32 {
+        t: [256]u32;
+        for i: 0..255 {
+            c := cast(u32) i;
+            for 1..8  c = ifx c & 1 then 0xEDB88320 ^ (c >> 1) else c >> 1;
+            t[i] = c;
+        }
+        return t;
+    };
+    c: u32 = 0xFFFF_FFFF;
+    for data  c = TABLE[(c ^ it) & 0xFF] ^ (c >> 8);
+    return ~c;
+}
+
+adler32 :: (data: []u8) -> u32 {
+    a, b: u32 = 1, 0;
+    for data { a = (a + it) % 65521; b = (b + a) % 65521; }
+    return (b << 16) | a;
+}
