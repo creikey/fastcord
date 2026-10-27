@@ -54,22 +54,29 @@ Voice_Processing :: struct {
 	auto_gain_control: bool; // kAUVoiceIOProperty_VoiceProcessingEnableAGC
 }
 
-// list_devices: devices with input (or output) streams.
+// list_devices: devices with input (or output) streams. Enumerating asks
+// coreaudiod about every device (24 devices: ~3 ms for the voice page's four
+// lists per frame, 78 ms cold), so the lists are kept and HAL listeners mark
+// them stale when the devices or the defaults change.
 list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
-	a := AudioObjectPropertyAddress.{fourcc("dev#"), fourcc("glob"), 0};
-	sz: u32;
-	if AudioObjectGetPropertyDataSize(SYSTEM_OBJECT, *a, 0, null, *sz) != 0 || sz == 0 return .[];
-	ids := NewArray(sz / 4, u32,, temp);
-	if AudioObjectGetPropertyData(SYSTEM_OBJECT, *a, 0, null, *sz, ids.data) != 0 return .[];
-	def := default_device(input);
-	out: [..]Device_Info;
-	out.allocator = allocator;
-	for id: ids {
-		sa := AudioObjectPropertyAddress.{fourcc("stm#"), fourcc(ifx input then "inpt" else "outp"), 0};
-		ss: u32;
-		if AudioObjectGetPropertyDataSize(id, *sa, 0, null, *ss) != 0 || ss == 0 continue;
-		array_add(*out, .{id = id, name = cf_string(id, "lnam", allocator), uid = cf_string(id, "uid ", allocator), is_default = id == def});
+	if !dev.listening {
+		dev.listening = true;
+		for sel: string.["dev#", "dIn ", "dOut"] {
+			a := AudioObjectPropertyAddress.{fourcc(sel), fourcc("glob"), 0};
+			AudioObjectAddPropertyListener(SYSTEM_OBJECT, *a, devices_changed, null);
+		}
 	}
+	if dev.stale {
+		dev.stale = false; // a change during the enumeration marks it stale again
+		for * dev.lists {
+			for it.* { free(it.name); free(it.uid); }
+			array_reset(it);
+			enumerate_devices(it_index == 1, it);
+		}
+	}
+	src := dev.lists[cast(int) input];
+	out := NewArray(src.count, Device_Info,, allocator);
+	for src out[it_index] = .{id = it.id, name = copy_string(it.name,, allocator), uid = copy_string(it.uid,, allocator), is_default = it.is_default};
 	return out;
 }
 
@@ -267,6 +274,32 @@ input_cb :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *A
 		if AudioUnitRender(mac.out_unit, *fl, ts, 1, cast(u32) n, *abl) == 0 ring_write(*st.capture, array_view(mac.in_buf, 0, n));
 	}
 	return 0;
+}
+
+dev: struct {
+	lists: [2][..]Device_Info; // [output, input], heap
+	stale := true; // written by devices_changed on a HAL thread
+	listening: bool;
+};
+
+devices_changed :: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call {
+	dev.stale = true;
+	return 0;
+}
+
+enumerate_devices :: (input: bool, out: *[..]Device_Info) {
+	a := AudioObjectPropertyAddress.{fourcc("dev#"), fourcc("glob"), 0};
+	sz: u32;
+	if AudioObjectGetPropertyDataSize(SYSTEM_OBJECT, *a, 0, null, *sz) != 0 || sz == 0 return;
+	ids := NewArray(sz / 4, u32,, temp);
+	if AudioObjectGetPropertyData(SYSTEM_OBJECT, *a, 0, null, *sz, ids.data) != 0 return;
+	def := default_device(input);
+	for id: ids {
+		sa := AudioObjectPropertyAddress.{fourcc("stm#"), fourcc(ifx input then "inpt" else "outp"), 0};
+		ss: u32;
+		if AudioObjectGetPropertyDataSize(id, *sa, 0, null, *ss) != 0 || ss == 0 continue;
+		array_add(out, .{id = id, name = cf_string(id, "lnam", context.allocator), uid = cf_string(id, "uid ", context.allocator), is_default = id == def});
+	}
 }
 
 default_device_changed :: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call {
