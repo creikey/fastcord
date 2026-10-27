@@ -216,7 +216,7 @@ identity_set_logged_out :: (id: *Identity, logged_out: bool, now: s64 = 0) {
 	id.logged_out = logged_out;
 	if logged_out && id.heartbeat.uuid != "" {
 		delete(id.heartbeat.uuid, id.allocator);
-		id.heartbeat = .{};
+		id.heartbeat = zero(type_of(id.heartbeat));
 	}
 	if !logged_out {
 		touch_heartbeat_locked(id, now);

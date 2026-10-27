@@ -154,7 +154,7 @@ preflight_headers :: (p: Platform_Info, method: string, request_headers: string,
 	append(*h, http.Header.{"sec-fetch-mode", "cors"});
 	append(*h, http.Header.{"sec-fetch-site", "cross-site"});
 	append(*h, http.Header.{"sec-fetch-dest", "empty"});
-	append(*h, http.Header.{"referer", API_ORIGIN + "/"});
+	append(*h, http.Header.{"referer", #run join(API_ORIGIN, "/")});
 	append(*h, http.Header.{"accept-encoding", ACCEPT_ENCODING});
 	append(*h, http.Header.{"accept-language", p.accept_language});
 	append(*h, http.Header.{"priority", XHR_PRIORITY});
@@ -175,7 +175,7 @@ upload_put_headers :: (p: Platform_Info, body_len: int, allocator := temp) -> []
 	append(*h, http.Header.{"sec-fetch-site", "cross-site"});
 	append(*h, http.Header.{"sec-fetch-mode", "cors"});
 	append(*h, http.Header.{"sec-fetch-dest", "empty"});
-	append(*h, http.Header.{"referer", API_ORIGIN + "/"});
+	append(*h, http.Header.{"referer", #run join(API_ORIGIN, "/")});
 	append(*h, http.Header.{"accept-encoding", ACCEPT_ENCODING});
 	append(*h, http.Header.{"accept-language", p.accept_language});
 	append(*h, http.Header.{"priority", XHR_PRIORITY});
@@ -204,9 +204,9 @@ gateway_ws_headers :: (p: Platform_Info, host: string, cookie: string, allocator
 
 // referer_for_route: the client's referer is the current window location.
 referer_for_route :: (guild_id: Snowflake, channel_id: Snowflake, allocator := temp) -> string {
-	if channel_id == 0 && guild_id == 0 { return API_ORIGIN + "/channels/@me"; }
+	if channel_id == 0 && guild_id == 0 { return #run join(API_ORIGIN, "/channels/@me"); }
 	g := ifx guild_id == 0 then "@me" else snowflake_string(guild_id);
-	if channel_id == 0 { return strings.concatenate(.{API_ORIGIN, "/channels/", g}, allocator); }
-	return strings.concatenate(.{API_ORIGIN, "/channels/", g, "/", snowflake_string(channel_id)}, allocator);
+	if channel_id == 0 { return strings.concatenate(string.[API_ORIGIN, "/channels/", g], allocator); }
+	return strings.concatenate(string.[API_ORIGIN, "/channels/", g, "/", snowflake_string(channel_id)], allocator);
 }
 

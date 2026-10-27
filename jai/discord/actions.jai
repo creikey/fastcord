@@ -72,14 +72,14 @@ Pending_Sub :: struct {
 }
 
 subscriptions_init :: (s: *Subscriptions, allocator := context.allocator) {
-	s.guilds = Map(Snowflake, bool).{};
-	s.channels = Map(Snowflake, [..]Member_Range).{};
+	s.guilds = make_map(Snowflake, bool, allocator);
+	s.channels = make_map(Snowflake, [..]Member_Range, allocator);
 	s.pending = make_dynamic(Pending_Sub, 0, 0, allocator);
 }
 #scope_module
 
 pending_for :: (c: *Client, guild_id: Snowflake) -> *Pending_Sub {
-	for * p: c.subs.pending { if p.guild_id == guild_id { return *p; } }
+	for * p: c.subs.pending { if p.guild_id == guild_id { return p; } }
 	append(*c.subs.pending, Pending_Sub.{guild_id = guild_id, ranges = make_dynamic([2]int, 0, 0, c.allocator), member_ids = make_dynamic(Snowflake, 0, 0, c.allocator)});
 	return *c.subs.pending[len(c.subs.pending) - 1];
 }
@@ -125,27 +125,27 @@ subscriptions_flush :: (c: *Client) {
 	for p: c.subs.pending {
 		g := etf.map_builder(5);
 		if p.feature {
-			etf.map_put(*g, "typing", true);
-			etf.map_put(*g, "activities", true);
-			etf.map_put(*g, "threads", true);
+			etf.map_put(*g, "typing", to_v(true));
+			etf.map_put(*g, "activities", to_v(true));
+			etf.map_put(*g, "threads", to_v(true));
 		}
 		if len(p.member_ids) > 0 {
 			ids := make_slice(V, len(p.member_ids));
-			for u, i: p.member_ids { at(*ids, i).* = snowflake_string(u); }
-			etf.map_put(*g, "members", cast(etf.List)(ids));
+			for u, i: p.member_ids { at(*ids, i).* = to_v(snowflake_string(u)); }
+			etf.map_put(*g, "members", etf.vlist(ids));
 		}
 		if p.channel_id != 0 {
 			rl := make_slice(V, len(p.ranges));
-			for r, i: p.ranges { rl[i] = etf.List.{cast(s64)(r[0]), cast(s64)(r[1])}; }
+			for r, i: p.ranges { rl[i] = vlist_of(etf.vint(cast(s64)(r[0])), etf.vint(cast(s64)(r[1]))); }
 			ch := etf.map_builder(1);
-			etf.map_put(*ch, snowflake_string(p.channel_id), cast(etf.List)(rl));
-			etf.map_put(*g, "channels", etf.map_done(*ch));
+			etf.map_put(*ch, snowflake_string(p.channel_id), etf.vlist(rl));
+			etf.map_put(*g, "channels", etf.vmap(etf.map_done(*ch)));
 		}
-		etf.map_put(*subs, snowflake_string(p.guild_id), etf.map_done(*g));
+		etf.map_put(*subs, snowflake_string(p.guild_id), etf.vmap(etf.map_done(*g)));
 	}
 	d := etf.map_builder(1);
-	etf.map_put(*d, "subscriptions", etf.map_done(*subs));
-	gateway_send(c.gw, .Guild_Subscriptions_Bulk, etf.map_done(*d));
+	etf.map_put(*d, "subscriptions", etf.vmap(etf.map_done(*subs)));
+	gateway_send(c.gw, .Guild_Subscriptions_Bulk, etf.vmap(etf.map_done(*d)));
 }
 
 // request_guild_members: op 8 for unknown message authors / mentions.
@@ -156,14 +156,14 @@ request_guild_members :: (c: *Client, guild_id: Snowflake, user_ids: []Snowflake
 	while start < len(user_ids) {
 		chunk := sub(user_ids, start, min(start + 100, len(user_ids)));
 		ids := make_slice(V, len(chunk));
-		for u, i: chunk { at(*ids, i).* = snowflake_string(u); }
+		for u, i: chunk { at(*ids, i).* = to_v(snowflake_string(u)); }
 		b := etf.map_builder(5);
-		etf.map_put(*b, "guild_id", etf.List.{snowflake_string(guild_id)});
-		etf.map_put(*b, "query", null);
-		etf.map_put(*b, "limit", null);
-		etf.map_put(*b, "user_ids", cast(etf.List)(ids));
-		etf.map_put(*b, "presences", presences);
-		gateway_send(c.gw, .Request_Guild_Members, etf.map_done(*b));
+		etf.map_put(*b, "guild_id", vlist_of(etf.vstring(snowflake_string(guild_id))));
+		etf.map_put(*b, "query", V.{});
+		etf.map_put(*b, "limit", V.{});
+		etf.map_put(*b, "user_ids", etf.vlist(ids));
+		etf.map_put(*b, "presences", to_v(presences));
+		gateway_send(c.gw, .Request_Guild_Members, etf.vmap(etf.map_done(*b)));
 		start += 100;
 } }
 }
@@ -175,17 +175,17 @@ voice_update :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mu
 	// joining: RTCRegionStore's preferred regions (latency probe order, top 5)
 	if channel_id != 0 {
 		locks.lock(*c.id.mu);
-		regions := ifx c.rtc_regions != "" then strings.split(c.rtc_regions, ",", temp) else null;
+		regions := ifx c.rtc_regions != "" then strings.split(c.rtc_regions, ",", temp) else .[];
 		locks.unlock(*c.id.mu);
 		if len(regions) > 0 {
 			m := vmap(v);
 			list := make_slice(V, min(len(regions), 5), temp);
-			for r, i: sub(regions, 0, len(list)) { at(*list, i).* = cast(V)(r); }
+			for r, i: sub(regions, 0, len(list)) { at(*list, i).* = to_v(r); }
 			ext := make_slice(etf.Pair, len(m) + 2, temp);
 			copy(ext, cast([]etf.Pair)(m));
-			ext[len(m)] = .{key = cast(V)(as_string("preferred_region")), value = cast(V)(regions[0])};
-			ext[len(m) + 1] = .{key = cast(V)(as_string("preferred_regions")), value = cast(etf.List)(list)};
-			v = cast(etf.Map)(ext);
+			ext[len(m)] = .{key = to_v(as_string("preferred_region")), value = to_v(regions[0])};
+			ext[len(m) + 1] = .{key = to_v(as_string("preferred_regions")), value = etf.vlist(list)};
+			v = etf.vmap(ext);
 		}
 	}
 	gateway_send(c.gw, .Voice_State_Update, v);
@@ -340,8 +340,8 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 		}
 		j.drafts = atts;
 		o2 := opts;
-		o2.files = null;
-		o2.attachments = null;
+		o2.files = zero(type_of(o2.files));
+		o2.attachments = zero(type_of(o2.attachments));
 		o2.sticker_ids = clone(opts.sticker_ids, a);
 		j.result = Rest_Result.{op = .Upload, channel_id = channel_id, nonce = nonce, tag = opts.tag};
 		store_upload_ctx(j, channel_id, content, nonce, o2);
@@ -360,7 +360,7 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 		}
 		j.files = files;
 		o2 := opts;
-		o2.files = null;
+		o2.files = zero(type_of(o2.files));
 		o2.sticker_ids = clone(opts.sticker_ids, a);
 		j.body = clone(transmute([]u8, message_send_body(channel_id, content, nonce, o2, "", a)), a);
 		j.result = Rest_Result.{op = .Upload, channel_id = channel_id, nonce = nonce, tag = opts.tag};
@@ -431,7 +431,7 @@ delete_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
 // emoji_route: "name" for unicode, "name:id" for custom, URI-encoded like Rsh's wrapper.
 emoji_route :: (name: string, id: Snowflake) -> string {
 	if id == 0 { return uri_component(name); }
-	return uri_component(strings.concatenate(.{name, ":", snowflake_string(id)}, temp));
+	return uri_component(strings.concatenate(string.[name, ":", snowflake_string(id)], temp));
 }
 
 // add_reaction: PUT /channels/{c}/messages/{m}/reactions/{emoji}/%40me?location=..&type=0|1
@@ -672,7 +672,7 @@ send_friend_request :: (c: *Client, username: string, location := "Add Friend") 
 add_relationship :: (c: *Client, user_id: Snowflake, location := "Friends") {
 	j := job_new(.Api, .Relationship);
 	j.method = "PUT";
-	j.path = job_str(j, strings.concatenate(.{"/users/@me/relationships/", snowflake_string(user_id)}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/users/@me/relationships/", snowflake_string(user_id)], temp));
 	j.body = transmute([]u8, job_str(j, "{}"));
 	j.content_type = "application/json";
 	j.context_b64 = job_str(j, context_location(location));
@@ -686,7 +686,7 @@ add_relationship :: (c: *Client, user_id: Snowflake, location := "Friends") {
 accept_friend_request :: (c: *Client, user_id: Snowflake) {
 	j := job_new(.Api, .Relationship);
 	j.method = "PUT";
-	j.path = job_str(j, strings.concatenate(.{"/users/@me/relationships/", snowflake_string(user_id)}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/users/@me/relationships/", snowflake_string(user_id)], temp));
 	j.body = transmute([]u8, job_str(j, "{\"confirm_stranger_request\":false}"));
 	j.content_type = "application/json";
 	j.context_b64 = job_str(j, context_location("Friends"));
@@ -698,7 +698,7 @@ accept_friend_request :: (c: *Client, user_id: Snowflake) {
 remove_relationship :: (c: *Client, user_id: Snowflake, location := "Friends") {
 	j := job_new(.Api, .Relationship);
 	j.method = "DELETE";
-	j.path = job_str(j, strings.concatenate(.{"/users/@me/relationships/", snowflake_string(user_id)}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/users/@me/relationships/", snowflake_string(user_id)], temp));
 	j.context_b64 = job_str(j, context_location(location));
 	j.result.user_id = user_id;
 	job_submit(c, j);
@@ -711,7 +711,7 @@ ignore_friend_request :: (c: *Client, user_id: Snowflake) {remove_relationship(c
 // fetch_profile: GET /users/{id}/profile?type=popout&with_mutual_guilds=true&with_mutual_friends=true&with_mutual_friends_count=false[&guild_id=]
 fetch_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake = 0, tag: u64 = 0) {
 	q: Query;
-	query_init(*q, strings.concatenate(.{"/users/", snowflake_string(user_id), "/profile"}, temp));
+	query_init(*q, strings.concatenate(string.["/users/", snowflake_string(user_id), "/profile"], temp));
 	query_add(*q, "type", "popout");
 	query_add_bool(*q, "with_mutual_guilds", true);
 	query_add_bool(*q, "with_mutual_friends", true);
@@ -869,7 +869,7 @@ voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute
 	if guild_id != 0 {
 		j := job_new(.Api, .None);
 		j.method = "GET";
-		j.path = job_str(j, strings.concatenate(.{"/activities/shelf?guild_id=", snowflake_string(guild_id)}, temp));
+		j.path = job_str(j, strings.concatenate(string.["/activities/shelf?guild_id=", snowflake_string(guild_id)], temp));
 		j.not_before = now_ms() + 155;
 		j.on_done = analytics_shelf_fetched;
 		job_submit(c, j);
@@ -888,10 +888,10 @@ flush_soundboard :: (c: *Client, now: s64) {
 	c.pending_soundboard_at = 0;
 	if c.gw == null { return; }
 	ids := make_slice(V, len(c.store.guild_order), temp);
-	for g, i: c.store.guild_order { at(*ids, i).* = snowflake_string(g); }
+	for g, i: c.store.guild_order { at(*ids, i).* = to_v(snowflake_string(g)); }
 	b := etf.map_builder(1, temp);
-	etf.map_put(*b, "guild_ids", cast(etf.List)(ids));
-	gateway_send(c.gw, .Request_Soundboard_Sounds, etf.map_done(*b));
+	etf.map_put(*b, "guild_ids", etf.vlist(ids));
+	gateway_send(c.gw, .Request_Soundboard_Sounds, etf.vmap(etf.map_done(*b)));
 }
 #scope_export
 
@@ -903,9 +903,9 @@ voice_leave :: (c: *Client) {
 guild_channel_info :: (c: *Client, guild_id: Snowflake) {
 	if c.gw == null { return; }
 	b := etf.map_builder(2, temp);
-	etf.map_put(*b, "guild_id", snowflake_string(guild_id));
-	etf.map_put(*b, "fields", etf.List.{as_string("status"), as_string("voice_start_time")});
-	gateway_send(c.gw, .Request_Channel_Info, etf.map_done(*b));
+	etf.map_put(*b, "guild_id", to_v(snowflake_string(guild_id)));
+	etf.map_put(*b, "fields", vlist_of(etf.vstring("status"), etf.vstring("voice_start_time")));
+	gateway_send(c.gw, .Request_Channel_Info, etf.vmap(etf.map_done(*b)));
 }
 
 // guild_open_now: op 43 and the guild-open set for the guild entered first in
@@ -933,7 +933,7 @@ guild_channel_notice_check :: (c: *Client, ch: *Channel) {
 	if ch.guild_id == 0 || is_thread(ch) || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement) { return; }
 	g := guild_get(*c.store, ch.guild_id);
 	if g == null || g.system_channel_id != 0 || (guild_permissions(*c.store, g.id) & PERM_MANAGE_GUILD) == 0 { return; }
-	api_get_later(c, strings.concatenate(.{"/guilds/", snowflake_string(g.id), "/integrations?include_applications=true&include_role_connections_metadata=true"}, temp), 0);
+	api_get_later(c, strings.concatenate(string.["/guilds/", snowflake_string(g.id), "/integrations?include_applications=true&include_role_connections_metadata=true"], temp), 0);
 }
 
 // on_channel_page runs when the first page of a selected channel arrives
@@ -957,8 +957,8 @@ on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
 		c.pending_private_open = 0;
 		if c.gw != null {
 			cb := etf.map_builder(1, temp);
-			etf.map_put(*cb, "channel_id", snowflake_string(channel_id));
-			gateway_send(c.gw, .Call_Connect, etf.map_done(*cb));
+			etf.map_put(*cb, "channel_id", to_v(snowflake_string(channel_id)));
+			gateway_send(c.gw, .Call_Connect, etf.vmap(etf.map_done(*cb)));
 		}
 		if ch.kind == .DM && len(ch.recipient_ids) == 1 {
 			u := ch.recipient_ids[0];
@@ -990,7 +990,7 @@ Profile_Options :: struct {
 // fetch_profile_ex: GET /users/{id}/profile?[type=]&with_mutual_guilds=&with_mutual_friends=&with_mutual_friends_count=[&guild_id=]
 fetch_profile_ex :: (c: *Client, user_id: Snowflake, o: Profile_Options, tag: u64 = 0) {
 	q: Query;
-	query_init(*q, strings.concatenate(.{"/users/", snowflake_string(user_id), "/profile"}, temp));
+	query_init(*q, strings.concatenate(string.["/users/", snowflake_string(user_id), "/profile"], temp));
 	if o.kind != "" { query_add(*q, "type", o.kind); }
 	query_add_bool(*q, "with_mutual_guilds", o.mutual_guilds);
 	query_add_bool(*q, "with_mutual_friends", o.mutual_friends);
@@ -1008,7 +1008,7 @@ fetch_profile_ex :: (c: *Client, user_id: Snowflake, o: Profile_Options, tag: u6
 fetch_note :: (c: *Client, user_id: Snowflake, delay_ms: s64 = 0) {
 	j := job_new(.Api, .None);
 	j.method = "GET";
-	j.path = job_str(j, strings.concatenate(.{"/users/@me/notes/", snowflake_string(user_id)}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/users/@me/notes/", snowflake_string(user_id)], temp));
 	j.not_before = now_ms() + delay_ms;
 	job_submit(c, j);
 }
@@ -1020,7 +1020,7 @@ fetch_note :: (c: *Client, user_id: Snowflake, delay_ms: s64 = 0) {
 open_profile_popout :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, channel_id: Snowflake = 0, message_id: Snowflake = 0) {
 	profile_view_begin(c, .Popout, user_id, guild_id, channel_id, message_id);
 	fetch_profile_ex(c, user_id, .{kind = "popout", guild_id = guild_id});
-	api_get_later(c, strings.concatenate(.{"/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"}, temp), 0);
+	api_get_later(c, strings.concatenate(string.["/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"], temp), 0);
 	api_get_later(c, "/widget-configs/featured", 0);
 	api_get_later(c, "/users/@me/referrals/eligibility", 463);
 	fetch_note(c, user_id, 723);
@@ -1059,16 +1059,16 @@ open_full_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, via :
 	us := snowflake_string(user_id);
 	v := *c.analytics.profile;
 	if via != "" && v.layout == .Popout && v.user_id == user_id && v.session != "" && profile_shows_nothing_extra(c, user_id, v.guild_id) {
-		profile_action(c, v, .{"username", "user profile popout", via}, "PRESS_VIEW_PROFILE");
+		profile_action(c, v, string.["username", "user profile popout", via], "PRESS_VIEW_PROFILE");
 	}
 	profile_view_begin(c, .Modal, user_id, guild_id, ifx v.user_id == user_id then v.channel_id else 0, ifx v.user_id == user_id then v.message_id else 0);
-	api_get_later(c, strings.concatenate(.{"/content-inventory/users/", us, "/outbox"}, temp), 0);
+	api_get_later(c, strings.concatenate(string.["/content-inventory/users/", us, "/outbox"], temp), 0);
 	fetch_profile_ex(c, user_id, .{kind = "modal", mutual_guilds = true, mutual_friends_count = true, guild_id = guild_id});
 	api_get_later(c, "/collectibles-categories/v2?include_bundles=true&variants_return_style=2&skip_num_categories=0", 100);
 	api_get_later(c, "/users/@me/collectibles-purchases?variants_return_style=2", 100);
 	api_get_later(c, "/users/@me/activities/statistics/applications", 100);
 	api_get_later(c, "/users/@me/widgets/suggested-games", 100);
-	api_get_later(c, strings.concatenate(.{"/users/", us, "/application-identities?with_profiles=true"}, temp), 100);
+	api_get_later(c, strings.concatenate(string.["/users/", us, "/application-identities?with_profiles=true"], temp), 100);
 }
 
 // open_message_context_menu: right-clicking a message loads the application
@@ -1078,7 +1078,7 @@ open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
 		at(*c.command_index_guilds, guild_id).* = true;
 		j := job_new(.Api, .None);
 		j.method = "GET";
-		j.path = job_str(j, strings.concatenate(.{"/guilds/", snowflake_string(guild_id), "/application-command-index"}, temp));
+		j.path = job_str(j, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/application-command-index"], temp));
 		j.on_done = analytics_command_index_loaded;
 		job_submit(c, j);
 	}
@@ -1099,7 +1099,7 @@ open_emoji_picker :: (c: *Client, guild_id: Snowflake) {
 	if guild_id != 0 {
 		j := job_new(.Api, .None);
 		j.method = "GET";
-		j.path = job_str(j, strings.concatenate(.{"/guilds/", snowflake_string(guild_id), "/top-emojis"}, temp));
+		j.path = job_str(j, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/top-emojis"], temp));
 		job_submit(c, j);
 	}
 	b := job_new(.Api, .None);
@@ -1181,9 +1181,9 @@ guild_created_followups :: (c: *Client, guild_id: Snowflake) {
 	api_get_later(c, "/users/@me/billing/payment-sources", 1);
 	api_get_later(c, "/users/@me/billing/subscriptions?sync_level=2", 1);
 	cc := ifx c.store.country_code != "" then c.store.country_code else "US";
-	api_get_later(c, strings.concatenate(.{"/store/published-listings/skus?country_code=", cc, "&application_id=1340102344645283891&guild_id=", gs}, temp), 313);
-	api_get_later(c, strings.concatenate(.{"/guilds/", gs, "/integrations?include_applications=true&include_role_connections_metadata=true"}, temp), 649);
-	api_get_later(c, strings.concatenate(.{"/guilds/", gs, "/powerups?country_code=", cc, "&include_ends_at=true"}, temp), 650);
+	api_get_later(c, strings.concatenate(string.["/store/published-listings/skus?country_code=", cc, "&application_id=1340102344645283891&guild_id=", gs], temp), 313);
+	api_get_later(c, strings.concatenate(string.["/guilds/", gs, "/integrations?include_applications=true&include_role_connections_metadata=true"], temp), 649);
+	api_get_later(c, strings.concatenate(string.["/guilds/", gs, "/powerups?country_code=", cc, "&include_ends_at=true"], temp), 650);
 }
 
 // ---- group DMs ----
@@ -1226,7 +1226,7 @@ remove_group_recipient :: (c: *Client, channel_id: Snowflake, user_id: Snowflake
 delete_guild :: (c: *Client, guild_id: Snowflake) {
 	j := job_new(.Api, .None);
 	j.method = "POST";
-	j.path = job_str(j, strings.concatenate(.{"/guilds/", snowflake_string(guild_id), "/delete"}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/delete"], temp));
 	j.body = transmute([]u8, job_str(j, "{}"));
 	j.content_type = "application/json";
 	job_submit(c, j);
@@ -1247,7 +1247,7 @@ open_account_popout :: (c: *Client) {
 	}
 	c.account_popout_opened = true;
 	fetch_profile_ex(c, c.store.me, .{kind = "account_popout"});
-	api_get_later(c, strings.concatenate(.{"/users/", snowflake_string(c.store.me), "/application-identities?with_profiles=true"}, temp), 0);
+	api_get_later(c, strings.concatenate(string.["/users/", snowflake_string(c.store.me), "/application-identities?with_profiles=true"], temp), 0);
 	j := job_new(.Api, .None);
 	j.method = "GET";
 	j.path = "/widget-configs/featured";
@@ -1294,13 +1294,13 @@ request_page_members :: (c: *Client, channel_id: Snowflake, items: []V) {
 	want :: (c: *Client, gid: Snowflake, uid: Snowflake, ids: *[..]Snowflake) {
 		if uid == 0 || member_get(*c.store, gid, uid) != null { return; }
 		key := Snowflake.[gid, uid];
-		if get(c.members_requested, key) { return; }
-		at(*c.members_requested, key).* = true;
+		if table_contains(*c.members_requested, key) { return; }
+		table_set(*c.members_requested, key, true);
 		append(ids, uid);
 	}
 	for mv: items {
 		m := vmap(mv);
-		if vget(m, "webhook_id") == null { want(c, gid, fsnow(fmap(m, "author"), "id"), *ids); }
+		if etf.is_nil(vget(m, "webhook_id")) { want(c, gid, fsnow(fmap(m, "author"), "id"), *ids); }
 		for u: flist(m, "mentions") { want(c, gid, fsnow(vmap(u), "id"), *ids); }
 	}
 	if len(ids) > 0 { request_guild_members(c, gid, view(ids)); }

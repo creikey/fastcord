@@ -75,8 +75,8 @@ aw_guild :: (w: *Json, c: *Client, guild_id: Snowflake, with_id := true) {
 	json_kint(w, "guild_num_roles", ifx g != null then cast(s64)(len(g.roles)) else 0);
 	roles := 0;
 	{ r := my_guild_roles(guild_id);
-	if r != null { roles = len(r); } else { m := member_get(s, guild_id, s.me);
-if m != null { roles = len(m.roles); } } }
+	if !is_null(r) { roles = len(r); } else { m := member_get(s, guild_id, s.me);
+if !is_null(m) { roles = len(m.roles); } } }
 	json_kint(w, "guild_member_num_roles", cast(s64)(roles));
 	aw_perms(w, "guild_member_perms", guild_permissions(s, guild_id));
 	vip := false;
@@ -102,7 +102,7 @@ aw_channel :: (w: *Json, c: *Client, channel_id: Snowflake, with_id := true) {
 	if ch != null && !private {
 		src := ch;
 		if is_thread(ch) && ch.parent_id != 0 { { p := channel_get(s, ch.parent_id);
-if p != null { src = p; } } }
+if !is_null(p) { src = p; } } }
 		for o: src.overwrites { if o.kind == 0 && o.id == ch.guild_id && (o.deny & PERM_VIEW_CHANNEL) != 0 { hidden = true; } }
 	}
 	json_kbool(w, "channel_hidden", hidden);
@@ -536,7 +536,7 @@ profile_shows_nothing_extra :: (c: *Client, user_id: Snowflake, guild_id: Snowfl
 	if ok && p.activity != "" { return false; } }
 	if guild_id != 0 {
 		{ m := member_get(s, guild_id, user_id);
-		if m != null && (m.nick != "" || m.avatar != "") { return false; } }
+		if !is_null(m) && (m.nick != "" || m.avatar != "") { return false; } }
 	}
 	return true;
 }
@@ -569,13 +569,13 @@ analytics_on_profile :: (c: *Client, user_id: Snowflake) {
 	stack: []string;
 	if v.layout == {
 	case .Popout;
-		stack = .{"username", "user profile popout"};
+		stack = string.["username", "user profile popout"];
 	case .Modal;
-		stack = ifx v.source_session != "" then .{"username", "user profile popout", "user profile modal v2"} else .{"user profile modal v2"};
+		if v.source_session != "" { stack = string.["username", "user profile popout", "user profile modal v2"]; } else { stack = string.["user profile modal v2"]; }
 	case .Account_Popout;
-		stack = .{"account", "user profile account popout"};
+		stack = string.["account", "user profile account popout"];
 	case .Sidebar;
-		stack = .{"user profile sidebar"};
+		stack = string.["user profile sidebar"];
 	}
 	if v.layout == .Modal {
 		w := aw_begin();
@@ -731,7 +731,7 @@ analytics_custom_status_updated :: (c: *Client, cs: Custom_Status) {
 	json_kstr(*w, "clear_after", clear_after_name(cs.clear_after));
 	// fastcord's modal shows no prompt (placeholder suggestion)
 	json_knull(*w, "prompt_type");
-	aw_strs(*w, "location_stack", .{"account", "user profile account popout", "user profile custom status bubble", "custom status modal"});
+	aw_strs(*w, "location_stack", string.["account", "user profile account popout", "user profile custom status bubble", "custom status modal"]);
 	aw_track(c, "custom_status_updated", *w);
 }
 
@@ -753,7 +753,7 @@ analytics_theme_updated :: (c: *Client, t: Theme, system: bool) {
 	json_kstr(*w, "feature_name", "client_theme");
 	json_kstr(*w, "theme_name", name);
 	json_kbool(*w, "is_persisted", true);
-	aw_strs(*w, "location_stack", .{"client themes theme selector"});
+	aw_strs(*w, "location_stack", string.["client themes theme selector"]);
 	aw_track(c, "client_theme_updated", *w);
 }
 
@@ -807,7 +807,7 @@ analytics_channel_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowfl
 	can_send := has_permission(channel_permissions(s, channel_id), PERM_SEND_MESSAGES);
 	if thread {
 		tm := thread_meta(channel_id);
-		if tm == null { return; } // its counts are not known yet
+		if is_null(tm) { return; } // its counts are not known yet
 		json_kint(*w, "thread_approximate_member_count", cast(s64)(tm.member_count));
 		json_kint(*w, "thread_approximate_message_count", cast(s64)(tm.message_count));
 		json_kbool(*w, "thread_archived", tm.archived);
@@ -817,7 +817,7 @@ analytics_channel_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowfl
 		json_kbool(*w, "can_send_message", can_send);
 		parent_kind := Channel_Type.Guild_Text;
 		{ p := channel_get(s, ch.parent_id);
-		if p != null { parent_kind = p.kind; } }
+		if !is_null(p) { parent_kind = p.kind; } }
 		json_kint(*w, "parent_channel_type", cast(s64)(parent_kind));
 	}
 	json_ksnow(*w, "channel_id", channel_id);
@@ -1095,7 +1095,7 @@ analytics_friends_list :: (c: *Client, event: string, tab: Friends_List_Tab, now
 			outgoing += 1;
 		}
 	}
-	names := ([#run enum_count(Friends_List_Tab)]string).{__IDX__.Online = "ONLINE", __IDX__.All = "ALL", __IDX__.Pending = "PENDING", __IDX__.Add_Friend = "ADD_FRIEND"};
+	names := string.["ONLINE", "ALL", "PENDING", "ADD_FRIEND"];
 	w := aw_begin();
 	json_kstr(*w, "tab_opened", get(names, tab));
 	json_kint(*w, "num_friends", cast(s64)(friends));

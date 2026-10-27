@@ -34,20 +34,20 @@ Store :: struct {
 store_init :: (s: *Store, allocator := context.allocator) {
 	s.allocator = allocator;
 	push_allocator(allocator);
-	s.users = Map(Snowflake, User).{};
-	s.guilds = Map(Snowflake, Guild).{};
+	s.users = make_map(Snowflake, User, context.allocator);
+	s.guilds = make_map(Snowflake, Guild, context.allocator);
 	s.guild_order = make_dynamic(Snowflake, 0, 0);
-	s.channels = Map(Snowflake, Channel).{};
+	s.channels = make_map(Snowflake, Channel, context.allocator);
 	s.private_channels = make_dynamic(Snowflake, 0, 0);
-	s.members = Map(Snowflake, Map(Snowflake, Member)).{};
-	s.messages = Map(Snowflake, Message_List).{};
-	s.presences = Map(Snowflake, Presence).{};
-	s.relationships = Map(Snowflake, Relationship).{};
-	s.read_states = Map(Snowflake, Read_State).{};
-	s.guild_settings = Map(Snowflake, Guild_Settings).{};
-	s.voice_states = Map(Snowflake, Voice_State).{};
-	s.typing = Map(Snowflake, [..]Typing).{};
-	s.member_lists = Map(Snowflake, Member_List).{};
+	s.members = make_map(Snowflake, Map(Snowflake, Member), context.allocator);
+	s.messages = make_map(Snowflake, Message_List, context.allocator);
+	s.presences = make_map(Snowflake, Presence, context.allocator);
+	s.relationships = make_map(Snowflake, Relationship, context.allocator);
+	s.read_states = make_map(Snowflake, Read_State, context.allocator);
+	s.guild_settings = make_map(Snowflake, Guild_Settings, context.allocator);
+	s.voice_states = make_map(Snowflake, Voice_State, context.allocator);
+	s.typing = make_map(Snowflake, [..]Typing, context.allocator);
+	s.member_lists = make_map(Snowflake, Member_List, context.allocator);
 	s.sessions = make_dynamic(Session_Info, 0, 0);
 }
 #scope_module
@@ -87,7 +87,7 @@ free_guild :: (s: *Store, g: *Guild) {
 	free_str(g.banner, a);
 	free_str(g.joined_at, a);
 	delete(g.channels);
-	for * r: g.roles { free_role(s, *r); }
+	for * r: g.roles { free_role(s, r); }
 	delete(g.roles);
 	for e: g.emojis { free_str(e.name, a); }
 	delete(g.emojis);
@@ -136,9 +136,9 @@ free_message :: (s: *Store, m: *Message) {
 	free_str(m.edited_timestamp, a);
 	free_str(m.call_ended, a);
 	free_str(m.nonce, a);
-	for * at: m.attachments { free_attachment(s, *at); }
+	for * at: m.attachments { free_attachment(s, at); }
 	delete(m.attachments);
-	for * e: m.embeds { free_embed(s, *e); }
+	for * e: m.embeds { free_embed(s, e); }
 	delete(m.embeds);
 	for r: m.reactions { free_str(r.emoji.name, a); }
 	delete(m.reactions);
@@ -150,7 +150,7 @@ free_message :: (s: *Store, m: *Message) {
 // ---- parsers (ETF or JSON value -> model, strings cloned into the store) ----
 
 parse_user_into :: (s: *Store, m: etf.Map) -> Snowflake {
-	if m == null { return 0; }
+	if is_null(m) { return 0; }
 	id := fsnow(m, "id");
 	if id == 0 { return 0; }
 	a := s.allocator;
@@ -169,7 +169,7 @@ parse_user_into :: (s: *Store, m: etf.Map) -> Snowflake {
 	if vhas(m, "pronouns") {free_str(u.pronouns, a); u.pronouns = clone_str(fstr(m, "pronouns"), a);}
 	if vhas(m, "accent_color") {
 		ac := vget(m, "accent_color");
-		u.accent_color = ifx ac == null then null else cast(u32)(vint(ac));
+		u.accent_color = ifx etf.is_nil(ac) then Maybe(u32).{} else some(cast(u32)(vint(ac)));
 	}
 	if vhas(m, "bot") { u.bot = fbool(m, "bot"); }
 	if vhas(m, "public_flags") { u.flags = cast(u64)(fint(m, "public_flags")); }
@@ -202,8 +202,8 @@ parse_channel_into :: (s: *Store, m: etf.Map, guild_id: Snowflake = 0) -> Snowfl
 	if !exists {
 		at(*s.channels, id).* = Channel.{id = id};
 		c = at(*s.channels, id);
-		c.recipient_ids = make_dynamic(Snowflake, a, a);
-		c.overwrites = make_dynamic(Overwrite, a, a);
+		c.recipient_ids = make_dynamic(Snowflake, 0, 0, a);
+		c.overwrites = make_dynamic(Overwrite, 0, 0, a);
 	}
 	if vhas(m, "type") { c.kind = cast(Channel_Type)(fint(m, "type")); }
 	gid := fsnow(m, "guild_id");
@@ -248,7 +248,7 @@ parse_role :: (s: *Store, m: etf.Map) -> Role {
 		unicode_emoji = clone_str(fstr(m, "unicode_emoji"), a)
 	};
 	{ colors := fmap(m, "colors");
-	if colors != null && vhas(colors, "primary_color") { r.color = cast(u32)(fint(colors, "primary_color")); } }
+	if !is_null(colors) && vhas(colors, "primary_color") { r.color = cast(u32)(fint(colors, "primary_color")); } }
 	return r;
 }
 
@@ -310,16 +310,16 @@ parse_guild_into :: (s: *Store, m: etf.Map) -> Snowflake {
 	if !exists {
 		at(*s.guilds, id).* = Guild.{id = id};
 		g = at(*s.guilds, id);
-		g.channels = make_dynamic(Snowflake, a, a);
-		g.roles = make_dynamic(Role, a, a);
-		g.emojis = make_dynamic(Emoji, a, a);
-		g.stickers = make_dynamic(Sticker, a, a);
-		g.features = make_dynamic(string, a, a);
+		g.channels = make_dynamic(Snowflake, 0, 0, a);
+		g.roles = make_dynamic(Role, 0, 0, a);
+		g.emojis = make_dynamic(Emoji, 0, 0, a);
+		g.stickers = make_dynamic(Sticker, 0, 0, a);
+		g.features = make_dynamic(string, 0, 0, a);
 		append(*s.guild_order, id);
 	}
 	g.unavailable = fbool(m, "unavailable");
 	{ props := fmap(m, "properties");
-	if props != null {
+	if !is_null(props) {
 		parse_guild_props(s, g, props);
 	} else {
 		parse_guild_props(s, g, m);
@@ -327,11 +327,11 @@ parse_guild_into :: (s: *Store, m: etf.Map) -> Snowflake {
 	if vhas(m, "member_count") { g.member_count = cast(int)(fint(m, "member_count")); }
 	if vhas(m, "premium_tier") { g.premium_tier = cast(int)(fint(m, "premium_tier")); }
 	{ props := fmap(m, "properties");
-	if props != null && vhas(props, "premium_tier") { g.premium_tier = cast(int)(fint(props, "premium_tier")); } }
+	if !is_null(props) && vhas(props, "premium_tier") { g.premium_tier = cast(int)(fint(props, "premium_tier")); } }
 	if vhas(m, "lazy") { g.lazy = fbool(m, "lazy"); }
 	if vhas(m, "joined_at") {free_str(g.joined_at, a); g.joined_at = clone_str(fstr(m, "joined_at"), a);}
 	if vhas(m, "roles") {
-		for * r: g.roles { free_role(s, *r); }
+		for * r: g.roles { free_role(s, r); }
 		clear(*g.roles);
 		for rv: flist(m, "roles") { append(*g.roles, parse_role(s, vmap(rv))); }
 	}
@@ -355,21 +355,21 @@ parse_guild_into :: (s: *Store, m: etf.Map) -> Snowflake {
 }
 
 parse_member_into :: (s: *Store, guild_id: Snowflake, m: etf.Map) -> Snowflake {
-	if m == null { return 0; }
+	if is_null(m) { return 0; }
 	uid := fsnow(m, "user_id");
 	{ um := fmap(m, "user");
-	if um != null { uid = parse_user_into(s, um); } }
+	if !is_null(um) { uid = parse_user_into(s, um); } }
 	if uid == 0 { return 0; }
 	a := s.allocator;
 	gm, gok := map_find_ptr(*s.members, guild_id);
 	if !gok {
-		at(*s.members, guild_id).* = Map(Snowflake, Member).{};
+		at(*s.members, guild_id).* = make_map(Snowflake, Member, a);
 		gm = at(*s.members, guild_id);
 	}
-	mem_, exists := *gm[uid];
+	mem_, exists := map_find_ptr(gm, uid);
 	if !exists {
-		gm[uid] = Member.{user_id = uid, roles = make_dynamic(Snowflake, a, a)};
-		mem_ = *gm[uid];
+		at(gm, uid).* = Member.{user_id = uid, roles = make_dynamic(Snowflake, 0, 0, a)};
+		mem_ = at(gm, uid);
 	}
 	if vhas(m, "nick") {free_str(mem_.nick, a); mem_.nick = clone_str(fstr(m, "nick"), a);}
 	if vhas(m, "avatar") {free_str(mem_.avatar, a); mem_.avatar = clone_str(fstr(m, "avatar"), a);}
@@ -379,7 +379,7 @@ parse_member_into :: (s: *Store, guild_id: Snowflake, m: etf.Map) -> Snowflake {
 		for r: flist(m, "roles") { append(*mem_.roles, vsnow(r)); }
 	}
 	{ pm := fmap(m, "presence");
-	if pm != null { apply_presence(s, pm, uid); } }
+	if !is_null(pm) { apply_presence(s, pm, uid); } }
 	return uid;
 }
 #scope_module
@@ -415,23 +415,23 @@ parse_embed :: (s: *Store, m: etf.Map) -> Embed {
 		color = cast(u32)(fint(m, "color"))
 	};
 	{ t := fmap(m, "thumbnail");
-	if t != null {
+	if !is_null(t) {
 		e.thumbnail_url = clone_str(ifx vhas(t, "proxy_url") then fstr(t, "proxy_url") else fstr(t, "url"), a);
 		e.thumbnail_w = cast(int)(fint(t, "width"));
 		e.thumbnail_h = cast(int)(fint(t, "height"));
 	} }
 	{ im := fmap(m, "image");
-	if im != null {
+	if !is_null(im) {
 		e.image_url = clone_str(ifx vhas(im, "proxy_url") then fstr(im, "proxy_url") else fstr(im, "url"), a);
 		e.image_w = cast(int)(fint(im, "width"));
 		e.image_h = cast(int)(fint(im, "height"));
 	} }
 	{ vd := fmap(m, "video");
-	if vd != null { e.video_url = clone_str(fstr(vd, "url"), a); } }
+	if !is_null(vd) { e.video_url = clone_str(fstr(vd, "url"), a); } }
 	{ p := fmap(m, "provider");
-	if p != null { e.provider = clone_str(fstr(p, "name"), a); } }
+	if !is_null(p) { e.provider = clone_str(fstr(p, "name"), a); } }
 	{ au := fmap(m, "author");
-	if au != null { e.author_name = clone_str(fstr(au, "name"), a); } }
+	if !is_null(au) { e.author_name = clone_str(fstr(au, "name"), a); } }
 	return e;
 }
 
@@ -448,7 +448,7 @@ parse_reactions :: (s: *Store, msg: *Message, l: []V) {
 			me_burst = fbool(rm, "me_burst")
 		};
 		{ cd := fmap(rm, "count_details");
-		if cd != null { r.burst_count = cast(int)(fint(cd, "burst")); } }
+		if !is_null(cd) { r.burst_count = cast(int)(fint(cd, "burst")); } }
 		append(*msg.reactions, r);
 	}
 }
@@ -458,13 +458,13 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	a := s.allocator;
 	if vhas(m, "channel_id") { msg.channel_id = fsnow(m, "channel_id"); }
 	{ au := fmap(m, "author");
-	if au != null { msg.author_id = parse_user_into(s, au); } }
+	if !is_null(au) { msg.author_id = parse_user_into(s, au); } }
 	if vhas(m, "type") { msg.kind = cast(int)(fint(m, "type")); }
 	if vhas(m, "content") {free_str(msg.content, a); msg.content = clone_str(fstr(m, "content"), a);}
 	if vhas(m, "timestamp") {free_str(msg.timestamp, a); msg.timestamp = clone_str(fstr(m, "timestamp"), a);}
 	if vhas(m, "edited_timestamp") {free_str(msg.edited_timestamp, a); msg.edited_timestamp = clone_str(fstr(m, "edited_timestamp"), a);}
 	{ c := fmap(m, "call");
-	if c != null {free_str(msg.call_ended, a); msg.call_ended = clone_str(fstr(c, "ended_timestamp"), a);} }
+	if !is_null(c) {free_str(msg.call_ended, a); msg.call_ended = clone_str(fstr(c, "ended_timestamp"), a);} }
 	if vhas(m, "nonce") {
 		free_str(msg.nonce, a);
 		nv := vget(m, "nonce");
@@ -480,12 +480,12 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	if vhas(m, "flags") { msg.flags = cast(u64)(fint(m, "flags")); }
 	if vhas(m, "mention_everyone") { msg.mention_everyone = fbool(m, "mention_everyone"); }
 	if vhas(m, "attachments") {
-		for * at: msg.attachments { free_attachment(s, *at); }
+		for * at: msg.attachments { free_attachment(s, at); }
 		clear(*msg.attachments);
 		for av: flist(m, "attachments") { append(*msg.attachments, parse_attachment(s, vmap(av))); }
 	}
 	if vhas(m, "embeds") {
-		for * e: msg.embeds { free_embed(s, *e); }
+		for * e: msg.embeds { free_embed(s, e); }
 		clear(*msg.embeds);
 		for ev: flist(m, "embeds") { append(*msg.embeds, parse_embed(s, vmap(ev))); }
 	}
@@ -503,16 +503,16 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 		note_sticker_items(s, flist(m, "sticker_items"));
 	}
 	{ ref := fmap(m, "message_reference");
-	if ref != null { msg.referenced_id = fsnow(ref, "message_id"); } }
+	if !is_null(ref) { msg.referenced_id = fsnow(ref, "message_id"); } }
 	{ rm := fmap(m, "referenced_message");
-	if rm != null {
+	if !is_null(rm) {
 		// Keep the referenced author resolvable for reply previews.
 		{ au := fmap(rm, "author");
-		if au != null { parse_user_into(s, au); } }
+		if !is_null(au) { parse_user_into(s, au); } }
 	} }
 	gid := fsnow(m, "guild_id");
 	{ mm := fmap(m, "member");
-	if mm != null && gid != 0 && msg.author_id != 0 {
+	if !is_null(mm) && gid != 0 && msg.author_id != 0 {
 		// MESSAGE_CREATE members omit `user`; attach to the author.
 		if !vhas(mm, "user") && !vhas(mm, "user_id") {
 			parse_member_with_id(s, gid, msg.author_id, mm);
@@ -526,13 +526,13 @@ parse_member_with_id :: (s: *Store, guild_id: Snowflake, uid: Snowflake, m: etf.
 	a := s.allocator;
 	gm, gok := map_find_ptr(*s.members, guild_id);
 	if !gok {
-		at(*s.members, guild_id).* = Map(Snowflake, Member).{};
+		at(*s.members, guild_id).* = make_map(Snowflake, Member, a);
 		gm = at(*s.members, guild_id);
 	}
-	mem_, exists := *gm[uid];
+	mem_, exists := map_find_ptr(gm, uid);
 	if !exists {
-		gm[uid] = Member.{user_id = uid, roles = make_dynamic(Snowflake, a, a)};
-		mem_ = *gm[uid];
+		at(gm, uid).* = Member.{user_id = uid, roles = make_dynamic(Snowflake, 0, 0, a)};
+		mem_ = at(gm, uid);
 	}
 	if vhas(m, "nick") {free_str(mem_.nick, a); mem_.nick = clone_str(fstr(m, "nick"), a);}
 	if vhas(m, "avatar") {free_str(mem_.avatar, a); mem_.avatar = clone_str(fstr(m, "avatar"), a);}
@@ -547,11 +547,11 @@ parse_member_with_id :: (s: *Store, guild_id: Snowflake, uid: Snowflake, m: etf.
 new_message :: (s: *Store) -> Message {
 	a := s.allocator;
 	return Message.{
-		attachments = make_dynamic(Attachment, a, a),
-		embeds = make_dynamic(Embed, a, a),
-		reactions = make_dynamic(Reaction, a, a),
-		sticker_ids = make_dynamic(Snowflake, a, a),
-		mentions = make_dynamic(Snowflake, a, a)
+		attachments = make_dynamic(Attachment, 0, 0, a),
+		embeds = make_dynamic(Embed, 0, 0, a),
+		reactions = make_dynamic(Reaction, 0, 0, a),
+		sticker_ids = make_dynamic(Snowflake, 0, 0, a),
+		mentions = make_dynamic(Snowflake, 0, 0, a)
 	};
 }
 #scope_module
@@ -613,7 +613,7 @@ upsert_message :: (s: *Store, m: etf.Map) -> Snowflake {
 	if nonce != "" {
 		for * pm, i: l.messages {
 			if pm.pending && pm.nonce == nonce {
-				free_message(s, *pm);
+				free_message(s, pm);
 				ordered_remove(*l.messages, i);
 				break;
 			}
@@ -633,7 +633,7 @@ upsert_message :: (s: *Store, m: etf.Map) -> Snowflake {
 apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 	uid := user_hint;
 	{ um := fmap(m, "user");
-	if um != null {
+	if !is_null(um) {
 		{ u := parse_user_into(s, um);
 		if u != 0 { uid = u; } }
 	} }
@@ -642,7 +642,7 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 	if uid == 0 { return; }
 	p := Presence.{user_id = uid, status = status_from_string(fstr(m, "status"))};
 	{ cs := fmap(m, "client_status");
-	if cs != null {
+	if !is_null(cs) {
 		p.desktop = status_from_string(fstr(cs, "desktop"));
 		p.mobile = status_from_string(fstr(cs, "mobile"));
 		p.web = status_from_string(fstr(cs, "web"));
@@ -664,7 +664,7 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 	uid := fsnow(m, "user_id");
 	{ mm := fmap(m, "member");
-	if mm != null {
+	if !is_null(mm) {
 		gid := fsnow(m, "guild_id");
 		if gid == 0 { gid = guild_hint; }
 		u := parse_member_into(s, gid, mm);
@@ -698,7 +698,7 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 apply_relationship :: (s: *Store, m: etf.Map) {
 	uid := fsnow(m, "user_id");
 	{ um := fmap(m, "user");
-	if um != null { uid = parse_user_into(s, um); } }
+	if !is_null(um) { uid = parse_user_into(s, um); } }
 	if uid == 0 { uid = fsnow(m, "id"); }
 	if uid == 0 { return; }
 	r, ok := map_find_ptr(*s.relationships, uid);
@@ -753,12 +753,12 @@ apply_guild_settings :: (s: *Store, m: etf.Map) {
 // apply_settings_proto decodes the fields the UI uses: status (11), localization
 // (12), appearance/theme (13), guild folders (14).
 apply_settings_proto :: (s: *Store, b64: string) {
-	raw, err := base64.decode(bool64, allocator = temp);
+	raw, err := base64.decode(b64, allocator = temp);
 	if err != null { return; }
 	st := *s.settings;
 	a := s.allocator;
 	{ f, ok := protobuf.find_path(raw, 2, 1);
-	if ok { st.inbox_tab = ifx f.value <= cast(u64)(max(Inbox_Tab)) then cast(Inbox_Tab)(f.value) else .Unspecified; } }
+	if ok { st.inbox_tab = ifx f.value <= cast(u64)(enum_highest_value(Inbox_Tab)) then cast(Inbox_Tab)(f.value) else .Unspecified; } }
 	{ f, ok := protobuf.find_path(raw, 11, 1, 1);
 	if ok { st.status = status_from_string(as_string(f.bytes)); } }
 	{ f, ok := protobuf.find_path(raw, 11, 2, 1);
@@ -800,7 +800,7 @@ apply_settings_proto :: (s: *Store, b64: string) {
 			if !more { break; }
 			if fld.num == {
 			case 1;
-				fo := Guild_Folder.{guild_ids = make_dynamic(Snowflake, a, a)};
+				fo := Guild_Folder.{guild_ids = make_dynamic(Snowflake, 0, 0, a)};
 				{ ids, iok := protobuf.find(fld.bytes, 1);
 				if iok {
 					for id: protobuf.packed_fixed64(ids.bytes, temp) { append(*fo.guild_ids, cast(Snowflake)(id)); }
@@ -853,11 +853,11 @@ apply_ready :: (s: *Store, d: etf.Map) {
 	}
 	for rv: flist(d, "relationships") { apply_relationship(s, vmap(rv)); }
 	{ rs := fmap(d, "read_state");
-	if rs != null {
+	if !is_null(rs) {
 		for e: flist(rs, "entries") { apply_read_state(s, vmap(e)); }
 	} }
 	{ ugs := fmap(d, "user_guild_settings");
-	if ugs != null {
+	if !is_null(ugs) {
 		for e: flist(ugs, "entries") { apply_guild_settings(s, vmap(e)); }
 	} }
 	{ sp := fstr(d, "user_settings_proto");
@@ -880,7 +880,7 @@ apply_ready_supplemental :: (s: *Store, d: etf.Map) {
 		for mv: vlist(ml) { parse_member_into(s, gid, vmap(mv)); }
 	}
 	{ mp := fmap(d, "merged_presences");
-	if mp != null {
+	if !is_null(mp) {
 		for pv: flist(mp, "friends") { apply_presence(s, vmap(pv)); }
 		for gl: flist(mp, "guilds") { for pv: vlist(gl) { apply_presence(s, vmap(pv)); } }
 	} }
@@ -914,12 +914,12 @@ apply_sessions :: (s: *Store, l: []V) {
 
 member_list_item :: (s: *Store, guild_id: Snowflake, iv: etf.Map) -> Member_List_Item {
 	{ g := fmap(iv, "group");
-	if g != null {
+	if !is_null(g) {
 		gid, rid := group_id_of(vget(g, "id"));
 		return Member_List_Item.{is_group = true, group_id = clone_str(gid, s.allocator), role_id = rid, count = cast(int)(fint(g, "count"))};
 	} }
 	{ mm := fmap(iv, "member");
-	if mm != null {
+	if !is_null(mm) {
 		return Member_List_Item.{user_id = parse_member_into(s, guild_id, mm)};
 	} }
 	return .{};
@@ -964,7 +964,7 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 	if vhas(d, "groups") {
 		for g: ml.groups { free_str(g.id, s.allocator); }
 		clear(*ml.groups);
-		if ml.groups == null { ml.groups = make_dynamic(Member_List_Group, 0, 0, s.allocator); }
+		if is_null(ml.groups) { ml.groups = make_dynamic(Member_List_Group, 0, 0, s.allocator); }
 		for gv: flist(d, "groups") {
 			gm := vmap(gv);
 			gid, rid := group_id_of(vget(gm, "id"));
@@ -1012,7 +1012,7 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 				{ k := cast(int)(vint(r[0]));
 				while k <= cast(int)(vint(r[1])) && k < len(ml.items) {
 					free_list_item(s, ml.items[k]);
-					ml.items[k] = .{};
+					ml.items[k] = zero(type_of(ml.items[k]));
 					k += 1;
 } }
 			}
@@ -1028,8 +1028,8 @@ store_expire_typing :: (s: *Store, now: s64) -> bool {
 	changed := false;
 	for * _, l: s.typing {
 		for < i: 0..len(l) - 1 {
-			if l[i].until <= now {
-				ordered_remove(*l, i);
+			if l.*[i].until <= now {
+				ordered_remove(l, i);
 				changed = true;
 			}
 		}
@@ -1042,7 +1042,7 @@ apply_typing :: (s: *Store, d: etf.Map, now: s64) {
 	cid := fsnow(d, "channel_id");
 	uid := fsnow(d, "user_id");
 	{ mm := fmap(d, "member");
-	if mm != null {
+	if !is_null(mm) {
 		{ gid := fsnow(d, "guild_id");
 		if gid != 0 {
 			u := parse_member_into(s, gid, mm);
@@ -1055,7 +1055,7 @@ apply_typing :: (s: *Store, d: etf.Map, now: s64) {
 		at(*s.typing, cid).* = make_dynamic(Typing, 0, 0, s.allocator);
 		l = at(*s.typing, cid);
 	}
-	for * t: l {
+	for * t: l.* {
 		if t.user_id == uid {
 			t.until = now + TYPING_DURATION_MS;
 			return;
@@ -1067,7 +1067,7 @@ apply_typing :: (s: *Store, d: etf.Map, now: s64) {
 remove_typing :: (s: *Store, cid: Snowflake, uid: Snowflake) {
 	{ l, ok := map_find_ptr(*s.typing, cid);
 	if ok {
-		for t, i: l {
+		for t, i: l.* {
 			if t.user_id == uid {
 				ordered_remove(l, i);
 				return;
@@ -1143,7 +1143,7 @@ remove_guild :: (s: *Store, gid: Snowflake) {
 		// a rejoin loads the channels again from scratch
 		{ l, lok := map_find_ptr(*s.messages, cid);
 		if lok {
-			for * m: l.messages { free_message(s, *m); }
+			for * m: l.messages { free_message(s, m); }
 			delete(l.messages);
 			delete_key(*s.messages, cid);
 		} }
@@ -1154,7 +1154,7 @@ remove_guild :: (s: *Store, gid: Snowflake) {
 	if found { ordered_remove(*s.guild_order, i); } }
 	{ gm, mok := map_find_ptr(*s.members, gid);
 	if mok {
-		for * _, m: gm { free_member(s, *m); }
+		for * _, m: gm { free_member(s, m); }
 		delete(gm.*);
 		delete_key(*s.members, gid);
 	} }
@@ -1174,7 +1174,7 @@ remove_channel :: (s: *Store, cid: Snowflake) {
 	delete_key(*s.channels, cid);
 	{ l, lok := map_find_ptr(*s.messages, cid);
 	if lok {
-		for * m: l.messages { free_message(s, *m); }
+		for * m: l.messages { free_message(s, m); }
 		delete(l.messages);
 		delete_key(*s.messages, cid);
 	} }
@@ -1244,7 +1244,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 				msg := at(*l.messages, i);
 				em := fmap(d, "emoji");
 				for < k: 0..len(msg.reactions) - 1 {
-					if em == null || emoji_matches(msg.reactions[k].emoji, fsnow(em, "id"), fstr(em, "name")) {
+					if is_null(em) || emoji_matches(msg.reactions[k].emoji, fsnow(em, "id"), fstr(em, "name")) {
 						free_str(msg.reactions[k].emoji.name, s.allocator);
 						ordered_remove(*msg.reactions, k);
 					}
@@ -1281,7 +1281,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			r := parse_role(s, fmap(d, "role"));
 			for * old, i: g.roles {
 				if old.id == r.id {
-					free_role(s, *old);
+					free_role(s, old);
 					g.roles[i] = r;
 					return true;
 				}
@@ -1295,7 +1295,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		if ok {
 			for * r, i: g.roles {
 				if r.id == rid {
-					free_role(s, *r);
+					free_role(s, r);
 					ordered_remove(*g.roles, i);
 					break;
 				}
@@ -1314,7 +1314,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		uid := fsnow(fmap(d, "user"), "id");
 		{ gm, ok := map_find_ptr(*s.members, gid);
 		if ok {
-			{ m, mok := *gm[uid];
+			{ m, mok := map_find_ptr(gm, uid);
 			if mok {
 				free_member(s, m);
 				delete_key(gm, uid);
@@ -1364,7 +1364,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		parse_user_into(s, d);
 	case "USER_SETTINGS_PROTO_UPDATE";
 		{ sm := fmap(d, "settings");
-		if sm != null && fint(sm, "type") == 1 { apply_settings_proto(s, fstr(sm, "proto")); } }
+		if !is_null(sm) && fint(sm, "type") == 1 { apply_settings_proto(s, fstr(sm, "proto")); } }
 	case "USER_GUILD_SETTINGS_UPDATE";
 		apply_guild_settings(s, d);
 	case "VOICE_STATE_UPDATE";
@@ -1416,13 +1416,13 @@ guild_get :: (s: *Store, id: Snowflake) -> *Guild {
 member_get :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> *Member {
 	gm, ok := map_find_ptr(*s.members, guild_id);
 	if !ok { return null; }
-	m, mok := *gm[user_id];
+	m, mok := map_find_ptr(gm, user_id);
 	return ifx mok then m else null;
 }
 
 messages_get :: (s: *Store, channel_id: Snowflake) -> []Message {
 	l, ok := map_find_ptr(*s.messages, channel_id);
-	return ifx ok then view(l.messages) else null;
+	return ifx ok then view(l.messages) else .[];
 }
 
 channel_unread :: (s: *Store, channel_id: Snowflake) -> bool {
@@ -1497,7 +1497,7 @@ private_channels_sorted :: (s: *Store, allocator := temp) -> []Snowflake {
 
 typing_users :: (s: *Store, channel_id: Snowflake) -> []Typing {
 	l, ok := map_find_ptr(*s.typing, channel_id);
-	return ifx ok then view(l) else null;
+	return ifx ok then view(l.*) else .[];
 }
 
 
@@ -1506,21 +1506,21 @@ store_destroy :: (s: *Store) {
 	push_allocator(s.allocator);
 	extras_destroy();
 	a := s.allocator;
-	for * _, u: s.users { free_user(s, *u); }
+	for * _, u: s.users { free_user(s, u); }
 	delete(s.users);
-	for * _, g: s.guilds { free_guild(s, *g); }
+	for * _, g: s.guilds { free_guild(s, g); }
 	delete(s.guilds);
 	delete(s.guild_order);
-	for * _, c: s.channels { free_channel(s, *c); }
+	for * _, c: s.channels { free_channel(s, c); }
 	delete(s.channels);
 	delete(s.private_channels);
 	for * _, gm: s.members {
-		for * _, m: gm { free_member(s, *m); }
+		for * _, m: gm { free_member(s, m); }
 		delete(gm);
 	}
 	delete(s.members);
 	for * _, l: s.messages {
-		for * m: l.messages { free_message(s, *m); }
+		for * m: l.messages { free_message(s, m); }
 		delete(l.messages);
 	}
 	delete(s.messages);

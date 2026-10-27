@@ -109,7 +109,7 @@ transport_init :: (t: *Transport, jar: *Cookie_Jar, allocator := context.allocat
 	register_content_decoders();
 	t.allocator = allocator;
 	t.jar = jar;
-	t.origins = Map(string, *Origin).{};
+	t.origins = make_map(string, *Origin, allocator);
 	t.use_h3 = true;
 }
 
@@ -117,7 +117,7 @@ transport_destroy :: (t: *Transport) {
 	locks.lock(*t.mu);
 	t.closed = true;
 	origins := t.origins;
-	t.origins = .{};
+	t.origins = zero(type_of(t.origins));
 	locks.unlock(*t.mu);
 	for k, o: origins {
 		if o.h2 != null {
@@ -131,11 +131,11 @@ transport_destroy :: (t: *Transport) {
 		}
 		for c: o.idle_h1 {
 			http.h1_destroy(c);
-			free(c, t.allocator);
+			free(c,, t.allocator);
 		}
 		delete(o.idle_h1);
 		delete(o.host, t.allocator);
-		free(o, t.allocator);
+		free(o,, t.allocator);
 		delete(k, t.allocator);
 	}
 	delete(origins);
@@ -158,9 +158,9 @@ transport_round_trip :: (t: *Transport, host: string, req_in: http.Request) -> h
 	if req.scheme == "" { req.scheme = "https"; }
 	if req.authority == "" { req.authority = host; }
 	start_ms := now_ms_f();
-	if tl_dispatch_ms > 0 {
-		start_ms = tl_dispatch_ms;
-		tl_dispatch_ms = 0;
+	if context.tl_dispatch_ms > 0 {
+		start_ms = context.tl_dispatch_ms;
+		context.tl_dispatch_ms = 0;
 	}
 	defer if t.observer != null { t.observer(t.observer_data, host, req, *resp, err, start_ms); }
 
@@ -200,7 +200,7 @@ network_round_trip :: (t: *Transport, host: string, req: http.Request) -> http.R
 	}
 	for attempt: 0..1 {
 		o, ref := origin_get_h2(t, host);
-		if ref != null {
+		if !is_null(ref) {
 			resp, err = http.h2_request(ref.c, req);
 			// Refused / GOAWAY before processing: safe to retry on a new session (Chrome does).
 			retry := err == .Refused || err == .Goaway || (err == .Closed && attempt == 0);
@@ -209,7 +209,7 @@ network_round_trip :: (t: *Transport, host: string, req: http.Request) -> http.R
 			if retry { continue; }
 			return resp, err;
 		}
-		if o == null { return .{}, .Io; }
+		if is_null(o) { return .{}, .Io; }
 		// HTTP/1.1
 		c := origin_take_h1(t, o);
 		if c == null { return .{}, .Io; }
@@ -218,7 +218,7 @@ network_round_trip :: (t: *Transport, host: string, req: http.Request) -> http.R
 			origin_put_h1(t, o, c);
 		} else {
 			http.h1_destroy(c);
-			free(c, t.allocator);
+			free(c,, t.allocator);
 			if err == .Closed && attempt == 0 { continue; }
 		}
 		return resp, err;
@@ -276,7 +276,7 @@ origin_get_h2 :: (t: *Transport, host: string) -> *Origin, *H2_Ref {
 	o.dialing = true;
 	locks.unlock(*t.mu);
 
-	stream, alpn, dok := dial_tls_stream(host, .{"h2", "http/1.1"});
+	stream, alpn, dok := dial_tls_stream(host, string.["h2", "http/1.1"]);
 	new_h2: *http.H2_Conn;
 	new_h1: *http.H1_Conn;
 	if dok {
@@ -304,18 +304,18 @@ origin_get_h2 :: (t: *Transport, host: string) -> *Origin, *H2_Ref {
 	defer locks.unlock(*t.mu);
 	o.dialing = false;
 	locks.cond_broadcast(*t.cond);
-	if new_h2 != null {
+	if !is_null(new_h2) {
 		r := new(H2_Ref, t.allocator);
 		r.c = new_h2;
 		r.svc = thread.create(h2_service_proc);
 		r.svc.data = new_h2;
-		r.svc.init_context = context;
+		r.svc.ctx = context;
 		thread.start(r.svc);
 		r.refs = 1;
 		o.h2 = r;
 		return o, r;
 	}
-	if new_h1 != null {
+	if !is_null(new_h1) {
 		append(*o.idle_h1, new_h1);
 		return o, null;
 	}
@@ -327,7 +327,7 @@ h2_finalize :: (t: *Transport, r: *H2_Ref) {
 	if r.svc != null {
 		locks.join(r.svc);
 	}
-	free(r, t.allocator);
+	free(r,, t.allocator);
 }
 
 h2_release :: (t: *Transport, r: *H2_Ref) {
@@ -341,7 +341,7 @@ h2_release :: (t: *Transport, r: *H2_Ref) {
 origin_drop_h2 :: (t: *Transport, o: *Origin, r: *H2_Ref) {
 	locks.lock(*t.mu);
 	defer locks.unlock(*t.mu);
-	if o != null && o.h2 == r {
+	if !is_null(o) && o.h2 == r {
 		o.h2 = null;
 		r.retired = true; // finalized by the last h2_release
 	}
@@ -356,7 +356,7 @@ origin_take_h1 :: (t: *Transport, o: *Origin) -> *http.H1_Conn {
 		return c;
 	} }
 	locks.unlock(*t.mu);
-	stream, _, dok := dial_tls_stream(o.host, .{"h2", "http/1.1"});
+	stream, _, dok := dial_tls_stream(o.host, string.["h2", "http/1.1"]);
 	if !dok { return null; }
 	c := new(http.H1_Conn, t.allocator);
 	http.h1_init(c, stream, .{}, t.allocator);
@@ -370,7 +370,7 @@ origin_put_h1 :: (t: *Transport, o: *Origin, c: *http.H1_Conn) {
 		append(*o.idle_h1, c);
 	} else {
 		http.h1_destroy(c);
-		free(c, t.allocator);
+		free(c,, t.allocator);
 	}
 }
 
@@ -387,11 +387,11 @@ tcp_dialer :: (host: string, user: *void) -> *void, bool {
 	ok: bool;
 	t := cast(*Transport)user;
 	_, ref := origin_get_h2(t, host);
-	return ref, ref != null;
+	return ref, !is_null(ref);
 }
 
 tcp_closer :: (conn: *void, user: *void) {
-	if conn != null { h2_release(cast(*Transport)user, cast(*H2_Ref)conn); }
+	if !is_null(conn) { h2_release(cast(*Transport)user, cast(*H2_Ref)conn); }
 }
 
 // h3_round_trip: when the origin has a usable h3 alternative (or a live h3
@@ -439,7 +439,7 @@ h3_round_trip :: (t: *Transport, host: string, req: http.Request) -> H3_Outcome,
 		return .{resp, err}, true;
 	case .H2;
 		ref := cast(*H2_Ref)res.tcp;
-		if ref == null { return .{}, false; }
+		if is_null(ref) { return .{}, false; }
 		resp, err := http.h2_request(ref.c, req);
 		h2_release(t, ref);
 		return .{resp, err}, true;

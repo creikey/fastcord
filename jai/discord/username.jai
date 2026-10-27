@@ -98,7 +98,7 @@ pomelo_store :: (c: *Client, name: string, state: Username_Check_State, message:
 	a := context.default_allocator;
 	locks.lock(*p.mu);
 	defer locks.unlock(*p.mu);
-	if p.results == null { p.results = Map(string, Pomelo_Result).{}; }
+	if is_null(p.results) { p.results = make_map(string, Pomelo_Result, a); }
 	{ old, ok := map_find(p.results, name);
 	if ok {
 		delete(old.message, a);
@@ -168,7 +168,7 @@ pomelo_attempt_done :: (c: *Client, j: *Job, status: int, body: V) {
 		if status == 429 {
 			retry := cast(s64)(7_000);
 			{ v := vget(m, "retry_after");
-			if v != null { retry = cast(s64)(r_f64(v) * 1000); } }
+			if !is_null(v) { retry = cast(s64)(r_f64(v) * 1000); } }
 			locks.lock(*c.pomelo.mu);
 			c.pomelo.limited_til = now_ms() + retry;
 			locks.unlock(*c.pomelo.mu);

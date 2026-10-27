@@ -54,23 +54,23 @@ pb_new :: () -> protobuf.Writer {return protobuf.Writer.{buf = make_dynamic(u8, 
 // settings_delta_proto encodes the pending edit as a PreloadedUserSettings delta.
 settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 	root := pb_new();
-	{ tab, ok := e.inbox_tab.__MAYBE__;
+	{ tab, ok := maybe_get(e.inbox_tab);
 	if ok {
 		ib := pb_new(); // InboxSettings (2)
 		if tab != .Unspecified { protobuf.write_uint(*ib, 1, cast(u64)(tab)); }
 		pb_msg(*root, 2, *ib);
 	} }
-	_, has_status := e.status.__MAYBE__;
-	_, has_custom := e.custom.__MAYBE__;
+	_, has_status := maybe_get(e.status);
+	_, has_custom := maybe_get(e.custom);
 	if has_status || has_custom || e.clear_custom {
 		st := pb_new(); // StatusSettings (11)
-		{ s, ok := e.status.__MAYBE__;
+		{ s, ok := maybe_get(e.status);
 		if ok {
 			sv := pb_new(); // StringValue
 			protobuf.write_string(*sv, 1, status_name(s));
 			pb_msg(*st, 1, *sv);
 		} }
-		{ cs, ok := e.custom.__MAYBE__;
+		{ cs, ok := maybe_get(e.custom);
 		if ok {
 			cm := pb_new(); // CustomStatus (2)
 			if cs.text != "" { protobuf.write_string(*cm, 1, cs.text); }
@@ -88,7 +88,7 @@ settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 		}
 		pb_msg(*root, 11, *st);
 	}
-	{ on, ok := e.friend_online.__MAYBE__;
+	{ on, ok := maybe_get(e.friend_online);
 	if ok {
 		ns := pb_new(); // NotificationSettings (7)
 		bv := pb_new(); // BoolValue: false is the empty message
@@ -96,7 +96,7 @@ settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 		pb_msg(*ns, 12, *bv);
 		pb_msg(*root, 7, *ns);
 	} }
-	{ th, ok := e.theme.__MAYBE__;
+	{ th, ok := maybe_get(e.theme);
 	if ok {
 		ap := pb_new(); // AppearanceSettings (13): theme + client_theme_settings (3, empty)
 		protobuf.write_uint(*ap, 1, cast(u64)(th));
@@ -104,7 +104,7 @@ settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 		pb_msg(*ap, 3, *cts);
 		pb_msg(*root, 13, *ap);
 	} }
-	{ folders, ok := e.folders.__MAYBE__;
+	{ folders, ok := maybe_get(e.folders);
 	if ok {
 		gf := pb_new(); // GuildFolders (14)
 		for f: folders {
@@ -149,7 +149,7 @@ settings_mark :: (c: *Client, delay_ms: s64) {
 set_status :: (c: *Client, s: Status) {
 	if s != c.store.settings.status { analytics_status_updated(c, c.store.settings.status, s); }
 	now := now_ms();
-	c.settings_edit.status = s;
+	c.settings_edit.status = some(s);
 	c.settings_edit.status_ms = now;
 	c.store.settings.status = s;
 	c.store.settings.status_created_ms = now;
@@ -162,22 +162,22 @@ set_custom_status :: (c: *Client, cs: Custom_Status) {
 	if cs.text != "" || cs.emoji_name != "" || cs.emoji_id != 0 { analytics_custom_status_updated(c, cs); }
 	e := *c.settings_edit;
 	if cs.text == "" && cs.emoji_name == "" && cs.emoji_id == 0 {
-		e.custom = null;
+		e.custom = zero(type_of(e.custom));
 		e.clear_custom = true;
 	} else {
-		{ old, ok := e.custom.__MAYBE__;
+		{ old, ok := maybe_get(e.custom);
 		if ok {
 			free_str(old.text, c.allocator);
 			free_str(old.emoji_name, c.allocator);
 		} }
-		e.custom = Custom_Status.{text = clone_str(cs.text, c.allocator), emoji_id = cs.emoji_id, emoji_name = clone_str(cs.emoji_name, c.allocator), expires_at_ms = cs.expires_at_ms};
+		e.custom = some(Custom_Status.{text = clone_str(cs.text, c.allocator), emoji_id = cs.emoji_id, emoji_name = clone_str(cs.emoji_name, c.allocator), expires_at_ms = cs.expires_at_ms});
 		e.custom_ms = now_ms();
 		e.clear_custom = false;
 	}
 	// The whole StatusSettings is written: current status and its created time.
-	{ _, has := e.status.__MAYBE__;
+	{ _, has := maybe_get(e.status);
 	if !has {
-		e.status = c.store.settings.status;
+		e.status = some(c.store.settings.status);
 		e.status_ms = c.store.settings.status_created_ms;
 	} }
 	st := *c.store.settings;
@@ -198,41 +198,41 @@ presence_value :: (c: *Client, allocator := temp) -> V {
 	acts := make_dynamic(V, 0, 1);
 	if st.custom_status_text != "" || st.custom_status_emoji != "" {
 		a := etf.map_builder(8);
-		etf.map_put(*a, "name", as_string("Custom Status"));
-		etf.map_put(*a, "type", cast(s64)(4));
-		if st.custom_status_text != "" { etf.map_put(*a, "state", cast(V)(clone(st.custom_status_text))); }
+		etf.map_put(*a, "name", to_v(as_string("Custom Status")));
+		etf.map_put(*a, "type", to_v(cast(s64)(4)));
+		if st.custom_status_text != "" { etf.map_put(*a, "state", to_v(clone(st.custom_status_text))); }
 		if st.custom_status_expires_ms != 0 {
 			ts := etf.map_builder(1);
-			etf.map_put(*ts, "end", st.custom_status_expires_ms);
-			etf.map_put(*a, "timestamps", etf.map_done(*ts));
+			etf.map_put(*ts, "end", to_v(st.custom_status_expires_ms));
+			etf.map_put(*a, "timestamps", etf.vmap(etf.map_done(*ts)));
 		}
 		if st.custom_status_emoji != "" {
 			em := etf.map_builder(3);
-			etf.map_put(*em, "name", cast(V)(clone(st.custom_status_emoji)));
-			etf.map_put(*em, "id", ifx st.custom_status_emoji_id == 0 then null else cast(V)(snowflake_string(st.custom_status_emoji_id)));
-			etf.map_put(*em, "animated", false);
-			etf.map_put(*a, "emoji", etf.map_done(*em));
+			etf.map_put(*em, "name", to_v(clone(st.custom_status_emoji)));
+			etf.map_put(*em, "id", ifx st.custom_status_emoji_id == 0 then V.{} else to_v(snowflake_string(st.custom_status_emoji_id)));
+			etf.map_put(*em, "animated", to_v(false));
+			etf.map_put(*a, "emoji", etf.vmap(etf.map_done(*em)));
 		} else {
-			etf.map_put(*a, "emoji", null);
+			etf.map_put(*a, "emoji", V.{});
 		}
-		etf.map_put(*a, "details", null);
+		etf.map_put(*a, "details", V.{});
 		md := etf.map_builder(1);
-		etf.map_put(*md, "label", null);
-		etf.map_put(*a, "metadata", etf.map_done(*md));
-		append(*acts, etf.map_done(*a));
+		etf.map_put(*md, "label", V.{});
+		etf.map_put(*a, "metadata", etf.vmap(etf.map_done(*md)));
+		append(*acts, etf.vmap(etf.map_done(*a)));
 	}
 	b := etf.map_builder(4);
-	etf.map_put(*b, "status", cast(V)(status_name(st.status)));
-	etf.map_put(*b, "since", cast(s64)(0));
-	etf.map_put(*b, "activities", cast(etf.List)(view(acts)));
-	etf.map_put(*b, "afk", false);
-	return etf.map_done(*b);
+	etf.map_put(*b, "status", to_v(status_name(st.status)));
+	etf.map_put(*b, "since", to_v(cast(s64)(0)));
+	etf.map_put(*b, "activities", etf.vlist(view(acts)));
+	etf.map_put(*b, "afk", to_v(false));
+	return etf.vmap(etf.map_done(*b));
 }
 
 // set_theme: the user picked a theme (system: "Sync with computer", t resolved from the OS).
 set_theme :: (c: *Client, t: Theme, system := false) {
 	analytics_theme_updated(c, t, system);
-	c.settings_edit.theme = t;
+	c.settings_edit.theme = some(t);
 	c.store.settings.theme = t;
 	c.store.changed += 1;
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
@@ -242,7 +242,7 @@ set_theme :: (c: *Client, t: Theme, system := false) {
 // timer starts at the first switch and saves the tab current then; fixture
 // inbox: Unreads at +0, Mentions at +6 s, one PATCH with MENTIONS at +10 s).
 set_inbox_tab :: (c: *Client, tab: Inbox_Tab) {
-	c.settings_edit.inbox_tab = tab;
+	c.settings_edit.inbox_tab = some(tab);
 	c.store.settings.inbox_tab = tab;
 	c.store.changed += 1;
 	settings_mark(c, SETTINGS_DELAY_FREQUENT_MS);
@@ -258,13 +258,13 @@ set_guild_folders :: (c: *Client, folders: []Guild_Folder) {
 		append(*cp[i].guild_ids, ..view(f.guild_ids));
 	}
 	free_folders(c, *c.settings_edit);
-	c.settings_edit.folders = cp;
+	c.settings_edit.folders = some(cp);
 	settings_mark(c, SETTINGS_DELAY_FREQUENT_MS);
 }
 #scope_module
 
 free_folders :: (c: *Client, e: *Settings_Edit) {
-	{ old, ok := e.folders.__MAYBE__;
+	{ old, ok := maybe_get(e.folders);
 	if ok {
 		for f: old {
 			free_str(f.name, c.allocator);
@@ -272,7 +272,7 @@ free_folders :: (c: *Client, e: *Settings_Edit) {
 		}
 		delete(old, c.allocator);
 	} }
-	e.folders = null;
+	e.folders = zero(type_of(e.folders));
 }
 #scope_export
 
@@ -281,12 +281,12 @@ flush_settings :: (c: *Client, now: s64) {
 	e := *c.settings_edit;
 	if e.due == 0 || now < e.due { return; }
 	delta := settings_delta_proto(e);
-	_, status_part := e.status.__MAYBE__;
-	{ _, cp := e.custom.__MAYBE__;
+	_, status_part := maybe_get(e.status);
+	{ _, cp := maybe_get(e.custom);
 	if cp || e.clear_custom { status_part = true; } }
 	// PresenceStore: the gateway presence goes out with the settings write
 	if status_part && c.gw != null { gateway_send(c.gw, .Presence_Update, presence_value(c)); }
-	{ cus, ok := e.custom.__MAYBE__;
+	{ cus, ok := maybe_get(e.custom);
 	if ok {
 		free_str(cus.text, c.allocator);
 		free_str(cus.emoji_name, c.allocator);

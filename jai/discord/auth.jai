@@ -124,7 +124,7 @@ auth_init :: (c: *Client) {
 	}
 	if a.logged_out {
 		// a cold start without a token: /app redirects to the login page (guess, not captured)
-		a.referer = clone(API_ORIGIN + "/login?redirect_to=%2Fapp", c.allocator);
+		a.referer = clone(#run join(API_ORIGIN, "/login?redirect_to=%2Fapp"), c.allocator);
 		identity_set_logged_out(*c.id, true);
 	}
 }
@@ -155,7 +155,7 @@ auth_destroy :: (c: *Client) {
 // AuthenticationStore fetches /experiments at once (with the persisted
 // fingerprint), and the login page renders.
 auth_cold_start :: (c: *Client) {
-	auth_fetch_experiments(c, "/app", API_ORIGIN + "/app");
+	auth_fetch_experiments(c, "/app", #run join(API_ORIGIN, "/app"));
 	c.auth.screen_at = now_ms();
 	c.auth.screen_cold = true;
 }
@@ -206,7 +206,7 @@ auth_fetch_experiments :: (c: *Client, path: string, referer: string) {
 // code (location-metadata, else the United States).
 auth_login_value :: (c: *Client, login: string, allocator := temp) -> string {
 	if !auth_is_phone(login) { return clone(login, allocator); }
-	return strings.concatenate(.{auth_dialing_code(c.auth.country_code), login}, allocator);
+	return strings.concatenate(string.[auth_dialing_code(c.auth.country_code), login], allocator);
 }
 
 auth_is_phone :: (login: string) -> bool {
@@ -273,7 +273,7 @@ auth_mfa :: (c: *Client, method: Mfa_Method, code: string) {
 	json_obj_end(*w);
 	a.mfa_kind = method;
 	auth_login_dispatched(c);
-	j := auth_job(c, strings.concatenate(.{"/auth/mfa/", kind}, temp), view(w.sb.buf), .Mfa, retries = 2);
+	j := auth_job(c, strings.concatenate(string.["/auth/mfa/", kind], temp), view(w.sb.buf), .Mfa, retries = 2);
 	job_submit(c, j);
 }
 #scope_module
@@ -382,7 +382,7 @@ auth_apply :: (c: *Client, e: *Event) {
 		case .Sms;
 			kind = "sms";
 		}
-		analytics_network_action(c, "network_action_user_login_mfa", r.status, body, strings.concatenate(.{"/auth/mfa/", kind}, temp), "post");
+		analytics_network_action(c, "network_action_user_login_mfa", r.status, body, strings.concatenate(string.["/auth/mfa/", kind], temp), "post");
 		auth_login_result(c, r.status, body, true);
 	case .Sms_Send;
 		ev := Auth_Event.{kind = .Sms_Sent, phone = fstr(body, "phone")};
@@ -425,10 +425,10 @@ auth_login_result :: (c: *Client, status: int, body: etf.Map, mfa_step: bool) {
 			a.mfa_ticket = clone(fstr(body, "ticket"), c.allocator);
 			a.login_instance_id = clone(fstr(body, "login_instance_id"), c.allocator);
 			m: Mfa_Methods;
-			if vget(body, "webauthn") != null && fstr(body, "webauthn") != "" { m += .{.Webauthn}; }
-			if fbool(body, "totp") { m += .{.Totp}; }
-			if fbool(body, "backup") { m += .{.Backup}; }
-			if fbool(body, "sms") { m += .{.Sms}; }
+			if !etf.is_nil(vget(body, "webauthn")) && fstr(body, "webauthn") != "" { m |= .Webauthn; }
+			if fbool(body, "totp") { m |= .Totp; }
+			if fbool(body, "backup") { m |= .Backup; }
+			if fbool(body, "sms") { m |= .Sms; }
 			auth_push(c, .{kind = .Mfa_Required, methods = m});
 			return;
 		}
@@ -455,7 +455,7 @@ auth_form_errors :: (ev: *Auth_Event, status: int, body: etf.Map) {
 	first :: (body: etf.Map, k: string) -> string {
 		// {"errors":{"login":{"_errors":[{"message":..}]}}} or the old {"login":["..."]}
 		{ errs := fmap(body, "errors");
-		if errs != null {
+		if !is_null(errs) {
 			{ l := flist(fmap(errs, k), "_errors");
 			if len(l) > 0 { return fstr(vmap(l[0]), "message"); } }
 		} }
@@ -518,9 +518,9 @@ auth_push_token :: (c: *Client, token: string, fingerprint: string, action: Auth
 	virtual.arena_init_growing(arena);
 	al := virtual.arena_allocator(arena);
 	m := etf.map_builder(2, al);
-	etf.map_put(*m, "token", clone(token, al));
-	etf.map_put(*m, "fingerprint", clone(fingerprint, al));
-	ev := Event.{kind = .Rest, data = etf.map_done(*m), arena = arena};
+	etf.map_put(*m, "token", to_v(clone(token, al)));
+	etf.map_put(*m, "fingerprint", to_v(clone(fingerprint, al)));
+	ev := Event.{kind = .Rest, data = etf.vmap(etf.map_done(*m)), arena = arena};
 	ev.result.op = .Auth;
 	ev.result.ok = true;
 	ev.result.status = 200;
@@ -577,7 +577,7 @@ auth_after_logout :: (c: *Client, status: int, body: etf.Map) {
 	a.logged_out = true;
 	a.login_session = false;
 	delete(a.referer, c.allocator);
-	a.referer = strings.concatenate(.{API_ORIGIN, "/login?redirect_to=", url_component(old_path)}, c.allocator);
+	a.referer = strings.concatenate(string.[API_ORIGIN, "/login?redirect_to=", url_component(old_path)], c.allocator);
 	locks.unlock(*a.mu);
 	identity_set_logged_out(*c.id, true);
 	if c.gw != null {
@@ -664,7 +664,7 @@ client_session_reset :: (c: *Client) {
 	clear(*c.started_guilds);
 	clear(*c.left_guilds);
 	clear(*c.command_index_guilds);
-	clear(*c.members_requested);
+	table_reset(*c.members_requested);
 	c.command_index_user = false;
 	c.emoji_picker_opened = false;
 	c.home_opened = false;
@@ -706,10 +706,10 @@ Login_Burst_Entry :: struct {
 // webauthn credentials), then on /channels/@me (Friends). Detectables, the
 // detectable exclusions and config_0 are not fetched again in the session.
 LOGIN_BURST := Login_Burst_Entry.[
-	.{0, "GET", "/users/@me/survey?disable_auto_seen=true", API_ORIGIN + "/app", "", .Survey},
+	.{0, "GET", "/users/@me/survey?disable_auto_seen=true", #run join(API_ORIGIN, "/app"), "", .Survey},
 	.{0, "WEB", "/api/v2/scheduled-maintenances/upcoming.json", "", "", .None},
-	.{0, "GET", "/users/@me/affinities/guilds", API_ORIGIN + "/app", "", .None},
-	.{0, "GET", "/users/@me/mfa/webauthn/credentials", API_ORIGIN + "/app", "", .None},
+	.{0, "GET", "/users/@me/affinities/guilds", #run join(API_ORIGIN, "/app"), "", .None},
+	.{0, "GET", "/users/@me/mfa/webauthn/credentials", #run join(API_ORIGIN, "/app"), "", .None},
 	.{0, "GET", "/users/@me/referrals/eligibility", "", "", .None},
 	.{0, "GET", "/users/@me/entitlements?with_sku=false&with_application=false&entitlement_type=11&exclude_ended=true", "", "", .None},
 	.{0, "GET", "/users/@me/applications/521842831262875670/entitlements?exclude_consumed=true", "", "", .None},
@@ -773,7 +773,7 @@ auth_on_ready :: (c: *Client, ready: s64) -> bool {
 // sidebar_guild_ids: guilds missing from the folders first (READY order), then the folders' guilds.
 sidebar_guild_ids :: (s: *Store) -> []Snowflake {
 	out := make_dynamic(Snowflake, 0, 0, temp);
-	listed := Map(Snowflake, bool).{};
+	listed := make_map(Snowflake, bool, temp);
 	for f: s.settings.guild_folders { for id: f.guild_ids { at(*listed, id).* = true; } }
 	for gid: s.guild_order { if !get(listed, gid) { append(*out, gid); } }
 	for f: s.settings.guild_folders { for id: f.guild_ids { if has(s.guilds, id) { append(*out, id); } } }

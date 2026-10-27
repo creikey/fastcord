@@ -64,11 +64,11 @@ drafts_of :: (c: *Client) -> *Drafts {
 
 drafts_destroy :: (c: *Client) {
 	d := c.drafts;
-	if d == null { return; }
+	if is_null(d) { return; }
 	a := context.default_allocator;
 	for u: d.list { draft_free(u); }
 	delete(d.list);
-	free(d, a);
+	free(d,, a);
 	c.drafts = null;
 }
 
@@ -78,7 +78,7 @@ draft_free :: (u: *Draft_Upload) {
 	delete(u.mime, a);
 	delete(u.origin, a);
 	delete(u.upload_filename, a);
-	free(u, a);
+	free(u,, a);
 }
 
 draft_find :: (d: *Drafts, handle: u64) -> *Draft_Upload, int {
@@ -175,7 +175,7 @@ draft_delete_remote :: (c: *Client, u: *Draft_Upload) {
 	j := job_new(.Api, .None);
 	j.method = "DELETE";
 	enc, _ := strings.replace_all(u.upload_filename, "/", "%2F", temp);
-	j.path = job_str(j, strings.concatenate(.{"/attachments/", enc}, temp));
+	j.path = job_str(j, strings.concatenate(string.["/attachments/", enc], temp));
 	j.retries = 0; // the client does not retry this cleanup, not even after a 429
 	j.retry_429 = 0;
 	job_submit(c, j);
@@ -217,7 +217,7 @@ run_draft_upload :: (c: *Client, j: *Job) {
 	if conv.converted { f.data = conv.data; }
 	locks.lock(*d.mu);
 	u.conv = conv;
-	u.conv.data = null;
+	u.conv.data = zero(type_of(u.conv.data));
 	u.size = cast(s64)(len(f.data));
 	locks.unlock(*d.mu);
 	name, ok, url_ms, put_ms := upload_one(c, u.channel_id, f);
@@ -275,7 +275,7 @@ run_draft_send :: (c: *Client, j: *Job) -> bool {
 		return false;
 	}
 	body := j.message_json(j, attachments_json(atts, uploaded, mimes));
-	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, null, 3, 1);
+	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, .[], 3, 1);
 	j.result.op = .Send_Message;
 	push_result(c, j, r);
 	return false;
@@ -307,7 +307,7 @@ upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File) -> string, boo
 	json_arr_end(*w);
 	json_obj_end(*w);
 	body := transmute([]u8, json_string(*w));
-	r := api_call(c, "POST", strings.concatenate(.{"/channels/", snowflake_string(channel_id), "/attachments"}, temp), body, "application/json", "", null, 0, 0);
+	r := api_call(c, "POST", strings.concatenate(string.["/channels/", snowflake_string(channel_id), "/attachments"], temp), body, "application/json", "", .[], 0, 0);
 	url_ms = now_ms_f() - t0;
 	defer if r.arena != null {
 		virtual.arena_destroy(r.arena);

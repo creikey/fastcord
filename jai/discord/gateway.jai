@@ -141,8 +141,8 @@ gateway_create :: (c: *Client) -> *Gateway {
 }
 
 gateway_start :: (g: *Gateway) {
-	g.control = thread.create_and_start_with_poly_data(g, gateway_control_proc, g.c.ctx);
-	g.writer = thread.create_and_start_with_poly_data(g, gateway_writer_proc, g.c.ctx);
+	g.control = thread.create_and_start_with_poly_data(g, gateway_control_proc, *g.c.ctx);
+	g.writer = thread.create_and_start_with_poly_data(g, gateway_writer_proc, *g.c.ctx);
 }
 #scope_module
 
@@ -201,7 +201,7 @@ gateway_url :: (g: *Gateway, allocator := temp) -> string {
 	base := ifx g.resume_url != "" then g.resume_url else g.c.cfg.gateway_url;
 	if base == "" { base = GATEWAY_DEFAULT_URL; }
 	base = strings.trim_right(base, "/");
-	return strings.concatenate(.{base, GATEWAY_QUERY}, allocator);
+	return strings.concatenate(string.[base, GATEWAY_QUERY], allocator);
 }
 
 // ---- sending ----
@@ -213,9 +213,9 @@ gateway_send :: (g: *Gateway, op: Op, d: V) -> bool {
 		return true;
 	}
 	b := etf.map_builder(2, temp);
-	etf.map_put(*b, "op", cast(s64)(op));
-	etf.map_put(*b, "d", d);
-	frame := etf.map_done(*b);
+	etf.map_put(*b, "op", to_v(cast(s64)(op)));
+	etf.map_put(*b, "d", to_v(d));
+	frame := etf.vmap(etf.map_done(*b));
 	buf, err := etf.encode(frame, temp);
 	if err != .None { return false; }
 	if locks.on_ui_thread() {
@@ -240,35 +240,35 @@ gateway_send :: (g: *Gateway, op: Op, d: V) -> bool {
 
 qos_value :: (q: Qos) -> V {
 	b := etf.map_builder(3, temp);
-	etf.map_put(*b, "active", q.active);
-	etf.map_put(*b, "ver", cast(s64)(31));
+	etf.map_put(*b, "active", to_v(q.active));
+	etf.map_put(*b, "ver", to_v(cast(s64)(31)));
 	reasons := make_slice(V, q.n, temp);
-	for i: 0..q.n-1 { reasons[i] = q.reasons[i]; }
-	etf.map_put(*b, "reasons", cast(etf.List)(reasons));
-	return etf.map_done(*b);
+	for i: 0..q.n-1 { reasons[i] = to_v(q.reasons[i]); }
+	etf.map_put(*b, "reasons", etf.vlist(reasons));
+	return etf.vmap(etf.map_done(*b));
 }
 
 // consume_qos: returns the payload to send and promotes the upcoming state.
 consume_qos_locked :: (g: *Gateway) -> Maybe(Qos) {
 	cur := g.qos_current;
-	{ up, ok := g.qos_upcoming.__MAYBE__;
-	if ok { g.qos_current = up; } }
-	g.qos_upcoming = null;
+	{ up, ok := maybe_get(g.qos_upcoming);
+	if ok { g.qos_current = some(up); } }
+	g.qos_upcoming = zero(type_of(g.qos_upcoming));
 	return cur;
 }
 
 send_heartbeat_locked :: (g: *Gateway) {
 	q := consume_qos_locked(g);
 	b := etf.map_builder(2, temp);
-	etf.map_put(*b, "seq", g.seq);
-	{ qq, ok := q.__MAYBE__;
+	etf.map_put(*b, "seq", to_v(g.seq));
+	{ qq, ok := maybe_get(q);
 	if ok {
-		etf.map_put(*b, "qos", qos_value(qq));
+		etf.map_put(*b, "qos", to_v(qos_value(qq)));
 	} else {
-		etf.map_put(*b, "qos", null);
+		etf.map_put(*b, "qos", V.{});
 	} }
 	g.last_beat = now_ms();
-	d := etf.map_done(*b);
+	d := etf.vmap(etf.map_done(*b));
 	locks.unlock(*g.mu);
 	gateway_send(g, .Qos_Heartbeat, d);
 	locks.lock(*g.mu);
@@ -279,10 +279,10 @@ send_heartbeat_locked :: (g: *Gateway) {
 gateway_set_active :: (g: *Gateway, q: Qos) {
 	locks.lock(*g.mu);
 	defer locks.unlock(*g.mu);
-	cur, have := g.qos_current.__MAYBE__;
+	cur, have := maybe_get(g.qos_current);
 	was_inactive := !have || !cur.active;
 	if !have {
-		g.qos_current = q;
+		g.qos_current = some(q);
 		cur = q;
 	}
 	if q.active {
@@ -298,17 +298,17 @@ gateway_set_active :: (g: *Gateway, q: Qos) {
 		// sorted, as [...new Set()].sort()
 		for i: 1..cur.n-1 {
 			{ j := i;
-			while j > 0 && cur.reasons[j] < cur.reasons[j - 1] {
-				cur.reasons[j], cur.reasons[j - 1] = cur.reasons[j - 1], cur.reasons[j];
+			while j > 0 && compare(cur.reasons[j], cur.reasons[j - 1]) < 0 {
+				swap(*cur.reasons[j], *cur.reasons[j - 1]);
 				j -= 1;
 } }
 		}
-		g.qos_current = cur;
+		g.qos_current = some(cur);
 		if was_inactive && g.state == .Established { send_heartbeat_locked(g); }
 	} else {
-		g.qos_current = cur;
+		g.qos_current = some(cur);
 	}
-	g.qos_upcoming = q;
+	g.qos_upcoming = some(q);
 }
 
 // ---- payload builders ----
@@ -320,36 +320,36 @@ identify_fast_connect_value :: (id: *Identity, token: string, allocator := temp)
 	p := id.platform;
 	props := etf.map_builder(20);
 	put_base_properties(*props, p, id.fast_connect_launch_id);
-	etf.map_put(*props, "is_fast_connect", true);
-	if id.installation_id != "" { etf.map_put(*props, "installation_id", id.installation_id); }
+	etf.map_put(*props, "is_fast_connect", to_v(true));
+	if id.installation_id != "" { etf.map_put(*props, "installation_id", to_v(id.installation_id)); }
 	cs := etf.map_builder(1);
-	etf.map_put(*cs, "guild_versions", etf.Map.{});
+	etf.map_put(*cs, "guild_versions", etf.vmap(.[]));
 	d := etf.map_builder(4);
-	etf.map_put(*d, "token", token);
-	etf.map_put(*d, "capabilities", p.capabilities);
-	etf.map_put(*d, "properties", etf.map_done(*props));
-	etf.map_put(*d, "client_state", etf.map_done(*cs));
-	return etf.map_done(*d);
+	etf.map_put(*d, "token", to_v(token));
+	etf.map_put(*d, "capabilities", to_v(p.capabilities));
+	etf.map_put(*d, "properties", etf.vmap(etf.map_done(*props)));
+	etf.map_put(*d, "client_state", etf.vmap(etf.map_done(*cs)));
+	return etf.vmap(etf.map_done(*d));
 }
 #scope_module
 
 put_base_properties :: (b: *etf.Map_Builder, p: Platform_Info, launch_id: string) {
-	etf.map_put(b, "os", p.os);
-	etf.map_put(b, "browser", p.browser);
-	etf.map_put(b, "release_channel", p.release_channel);
-	etf.map_put(b, "client_version", p.client_version);
-	etf.map_put(b, "os_version", p.os_version);
-	etf.map_put(b, "os_arch", p.os_arch);
-	etf.map_put(b, "app_arch", p.app_arch);
-	etf.map_put(b, "system_locale", p.system_locale);
-	etf.map_put(b, "has_client_mods", false);
-	etf.map_put(b, "client_launch_id", launch_id);
-	etf.map_put(b, "browser_user_agent", p.browser_user_agent);
-	etf.map_put(b, "browser_version", p.browser_version);
-	etf.map_put(b, "os_sdk_version", p.os_sdk_version);
-	etf.map_put(b, "client_build_number", p.client_build_number);
-	etf.map_put(b, "native_build_number", p.native_build_number);
-	etf.map_put(b, "client_event_source", null);
+	etf.map_put(b, "os", to_v(p.os));
+	etf.map_put(b, "browser", to_v(p.browser));
+	etf.map_put(b, "release_channel", to_v(p.release_channel));
+	etf.map_put(b, "client_version", to_v(p.client_version));
+	etf.map_put(b, "os_version", to_v(p.os_version));
+	etf.map_put(b, "os_arch", to_v(p.os_arch));
+	etf.map_put(b, "app_arch", to_v(p.app_arch));
+	etf.map_put(b, "system_locale", to_v(p.system_locale));
+	etf.map_put(b, "has_client_mods", to_v(false));
+	etf.map_put(b, "client_launch_id", to_v(launch_id));
+	etf.map_put(b, "browser_user_agent", to_v(p.browser_user_agent));
+	etf.map_put(b, "browser_version", to_v(p.browser_version));
+	etf.map_put(b, "os_sdk_version", to_v(p.os_sdk_version));
+	etf.map_put(b, "client_build_number", to_v(p.client_build_number));
+	etf.map_put(b, "native_build_number", to_v(p.native_build_number));
+	etf.map_put(b, "client_event_source", V.{});
 }
 #scope_export
 
@@ -384,55 +384,55 @@ identify_value :: (g: *Gateway, allocator := temp) -> V {
 		for pr: vmap(spv) {
 			k := vstr(pr.key);
 			if k == "client_heartbeat_session_id" && stale {
-				if before { etf.map_put(*props, k, null); }
+				if before { etf.map_put(*props, k, V.{}); }
 				continue;
 			}
-			etf.map_put(*props, k, pr.value);
+			etf.map_put(*props, k, to_v(pr.value));
 		}
 	}
-	etf.map_put(*props, "is_fast_connect", false);
+	etf.map_put(*props, "is_fast_connect", to_v(false));
 	// the launch's first connect comes from the app skeleton (fixtures: typing,
 	// add_reaction, open_image_attachment when native fast connect was not used)
-	etf.map_put(*props, "gateway_connect_reasons", as_string(ifx g.identified then "NO_REASONS" else "AppSkeleton"));
-	if id.installation_id != "" { etf.map_put(*props, "installation_id", id.installation_id); }
+	etf.map_put(*props, "gateway_connect_reasons", to_v(as_string(ifx g.identified then "NO_REASONS" else "AppSkeleton")));
+	if id.installation_id != "" { etf.map_put(*props, "installation_id", to_v(id.installation_id)); }
 
 	pres := etf.map_builder(4);
 	// before the settings proto is loaded the presence store reports "unknown"
 	// (a login from the login page reports the presence store's "online": fixture login_submit)
-	etf.map_put(*pres, "status", ifx g.identified || c.auth.login_session then status_name(g.presence_status) else as_string("unknown"));
-	etf.map_put(*pres, "since", cast(s64)(0));
-	etf.map_put(*pres, "activities", etf.List.{});
-	etf.map_put(*pres, "afk", false);
+	etf.map_put(*pres, "status", to_v(ifx g.identified || c.auth.login_session then status_name(g.presence_status) else as_string("unknown")));
+	etf.map_put(*pres, "since", to_v(cast(s64)(0)));
+	etf.map_put(*pres, "activities", etf.vlist(.[]));
+	etf.map_put(*pres, "afk", to_v(false));
 
 	cs := etf.map_builder(1);
-	etf.map_put(*cs, "guild_versions", etf.Map.{});
+	etf.map_put(*cs, "guild_versions", etf.vmap(.[]));
 
 	active := false;
-	{ q, ok := g.qos_upcoming.__MAYBE__;
-	if ok { active = q.active; } else { q2, ok2 := g.qos_current.__MAYBE__;
+	{ q, ok := maybe_get(g.qos_upcoming);
+	if ok { active = q.active; } else { q2, ok2 := maybe_get(g.qos_current);
 if ok2 { active = q2.active; } } }
 
 	d := etf.map_builder(7);
-	etf.map_put(*d, "token", client_token(c));
-	etf.map_put(*d, "capabilities", id.platform.capabilities);
-	etf.map_put(*d, "properties", etf.map_done(*props));
-	etf.map_put(*d, "presence", etf.map_done(*pres));
-	etf.map_put(*d, "compress", false);
-	etf.map_put(*d, "client_state", etf.map_done(*cs));
-	etf.map_put(*d, "qos_token", qos_token_b64(c.ready_qos_token, active));
-	return etf.map_done(*d);
+	etf.map_put(*d, "token", to_v(client_token(c)));
+	etf.map_put(*d, "capabilities", to_v(id.platform.capabilities));
+	etf.map_put(*d, "properties", etf.vmap(etf.map_done(*props)));
+	etf.map_put(*d, "presence", etf.vmap(etf.map_done(*pres)));
+	etf.map_put(*d, "compress", to_v(false));
+	etf.map_put(*d, "client_state", etf.vmap(etf.map_done(*cs)));
+	etf.map_put(*d, "qos_token", to_v(qos_token_b64(c.ready_qos_token, active)));
+	return etf.vmap(etf.map_done(*d));
 }
 
 voice_state_value :: (guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool, self_video: bool, flags: s64, allocator := temp) -> V {
 	push_allocator(allocator);
 	b := etf.map_builder(6);
-	etf.map_put(*b, "guild_id", ifx guild_id == 0 then null else cast(V)(snowflake_string(guild_id, allocator)));
-	etf.map_put(*b, "channel_id", ifx channel_id == 0 then null else cast(V)(snowflake_string(channel_id, allocator)));
-	etf.map_put(*b, "self_mute", self_mute);
-	etf.map_put(*b, "self_deaf", self_deaf);
-	etf.map_put(*b, "self_video", self_video);
-	etf.map_put(*b, "flags", flags);
-	return etf.map_done(*b);
+	etf.map_put(*b, "guild_id", ifx guild_id == 0 then V.{} else to_v(snowflake_string(guild_id, allocator)));
+	etf.map_put(*b, "channel_id", ifx channel_id == 0 then V.{} else to_v(snowflake_string(channel_id, allocator)));
+	etf.map_put(*b, "self_mute", to_v(self_mute));
+	etf.map_put(*b, "self_deaf", to_v(self_deaf));
+	etf.map_put(*b, "self_video", to_v(self_video));
+	etf.map_put(*b, "flags", to_v(flags));
+	return etf.vmap(etf.map_done(*b));
 }
 #scope_module
 
@@ -452,7 +452,7 @@ gateway_close_socket :: (g: *Gateway, code: int) {
 	rd := g.reader;
 	g.reader = null;
 	locks.unlock(*g.mu);
-	if rd != null {
+	if !is_null(rd) {
 		locks.join(rd);
 	}
 	http.ws_close_stream(ws);
@@ -469,7 +469,7 @@ gateway_connect :: (g: *Gateway) {
 	path := sub_from(url, len("wss://") + len(host));
 	client_push_state(c, .Connecting);
 
-	stream, _, ok := dial_tls_stream(host, .{"http/1.1"});
+	stream, _, ok := dial_tls_stream(host, string.["http/1.1"]);
 	if !ok {
 		gateway_on_closed(g, g.gen, false, 0);
 		return;
@@ -512,7 +512,7 @@ gateway_connect :: (g: *Gateway) {
 	rd := thread.create(gateway_reader_proc);
 	rd.data = g;
 	rd.user_index = gen;
-	rd.init_context = c.ctx;
+	rd.ctx = c.ctx;
 	locks.lock(*g.mu);
 	g.reader = rd;
 	locks.unlock(*g.mu);
@@ -532,7 +532,7 @@ gateway_connect :: (g: *Gateway) {
 		client_push_state(c, .Identifying);
 		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
 		d := ifx c.cfg.fast_identify_delay_ms != 0 then c.cfg.fast_identify_delay_ms else 300;
-		if d > 0 { time.sleep(time.Duration(d) * time.Millisecond); }
+		if d > 0 { time.sleep(cast(time.Duration)(d) * time.Millisecond); }
 		gateway_send(g, .Identify, identify_fast_connect_value(*c.id, client_token(c)));
 	} else {
 		g.fast_connect_done = true;
@@ -547,10 +547,10 @@ resume_or_identify_locked :: (g: *Gateway) {
 	if g.session_id != "" && (g.last_ack == 0 || now - g.last_ack <= 3 * 60_000) {
 		g.state = .Resuming;
 		b := etf.map_builder(3, temp);
-		etf.map_put(*b, "token", client_token(g.c));
-		etf.map_put(*b, "session_id", g.session_id);
-		etf.map_put(*b, "seq", g.seq);
-		d := etf.map_done(*b);
+		etf.map_put(*b, "token", to_v(client_token(g.c)));
+		etf.map_put(*b, "session_id", to_v(g.session_id));
+		etf.map_put(*b, "seq", to_v(g.seq));
+		d := etf.vmap(etf.map_done(*b));
 		locks.unlock(*g.mu);
 		client_push_state(g.c, .Resuming);
 		gateway_send(g, .Resume, d);
@@ -662,7 +662,7 @@ gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
 	if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None { return false; }
 	if len(g.inflated) == 0 { return true; }
 	arena := new(virtual.Arena);
-	if virtual.arena_init_growing(arena) != null {
+	if virtual.arena_init_growing(arena) != .None {
 		free(arena);
 		return false;
 	}
@@ -700,7 +700,7 @@ gateway_handle_payload :: (g: *Gateway, gen: int, v: V, arena: *virtual.Arena, a
 		locks.unlock(*g.mu);
 	}
 	if gen != g.gen { return false; }
-	if sv != null { g.seq = vint(sv); }
+	if !is_null(sv) { g.seq = vint(sv); }
 	if op == {
 	case .Hello;
 		g.hello_deadline = 0;
@@ -785,32 +785,32 @@ gateway_on_ready_locked :: (g: *Gateway) {
 		c.ready_subscribed_guild = rg;
 		locks.unlock(*c.job_mu);
 		gb := etf.map_builder(7, temp);
-		etf.map_put(*gb, "typing", true);
-		etf.map_put(*gb, "threads", true);
-		etf.map_put(*gb, "activities", true);
-		etf.map_put(*gb, "members", etf.List.{});
-		etf.map_put(*gb, "member_updates", false);
-		etf.map_put(*gb, "channels", etf.Map.{});
-		etf.map_put(*gb, "thread_member_lists", etf.List.{});
+		etf.map_put(*gb, "typing", to_v(true));
+		etf.map_put(*gb, "threads", to_v(true));
+		etf.map_put(*gb, "activities", to_v(true));
+		etf.map_put(*gb, "members", etf.vlist(.[]));
+		etf.map_put(*gb, "member_updates", to_v(false));
+		etf.map_put(*gb, "channels", etf.vmap(.[]));
+		etf.map_put(*gb, "thread_member_lists", etf.vlist(.[]));
 		sb := etf.map_builder(1, temp);
-		etf.map_put(*sb, snowflake_string(rg), etf.map_done(*gb));
+		etf.map_put(*sb, snowflake_string(rg), etf.vmap(etf.map_done(*gb)));
 		db := etf.map_builder(1, temp);
-		etf.map_put(*db, "subscriptions", etf.map_done(*sb));
-		gateway_send(g, .Guild_Subscriptions_Bulk, etf.map_done(*db));
+		etf.map_put(*db, "subscriptions", etf.vmap(etf.map_done(*sb)));
+		gateway_send(g, .Guild_Subscriptions_Bulk, etf.vmap(etf.map_done(*db)));
 	} else if rch != 0 {
 		cb := etf.map_builder(1, temp);
-		etf.map_put(*cb, "channel_id", snowflake_string(rch));
-		gateway_send(g, .Call_Connect, etf.map_done(*cb));
+		etf.map_put(*cb, "channel_id", to_v(snowflake_string(rch)));
+		gateway_send(g, .Call_Connect, etf.vmap(etf.map_done(*cb)));
 	}
 	now := now_ms();
 	identity_touch_heartbeat(*c.id, now);
 	hb := identity_heartbeat_snapshot(*c.id);
 	if hb.uuid != "" {
 		b := etf.map_builder(3, temp);
-		etf.map_put(*b, "initialization_timestamp", hb.created_at);
-		etf.map_put(*b, "session_id", hb.uuid);
-		etf.map_put(*b, "client_launch_id", c.id.client_launch_id);
-		gateway_send(g, .Update_Time_Spent_Session_Id, etf.map_done(*b));
+		etf.map_put(*b, "initialization_timestamp", to_v(hb.created_at));
+		etf.map_put(*b, "session_id", to_v(hb.uuid));
+		etf.map_put(*b, "client_launch_id", to_v(c.id.client_launch_id));
+		gateway_send(g, .Update_Time_Spent_Session_Id, etf.vmap(etf.map_done(*b)));
 	}
 	client_on_ready(c);
 	locks.lock(*g.mu);
@@ -888,7 +888,7 @@ gateway_control_proc :: (g: *Gateway) {
 		if g.next_beat != 0 { wake = min(wake, g.next_beat); }
 		if g.hello_deadline != 0 { wake = min(wake, g.hello_deadline); }
 		d := max(wake - now, 1);
-		locks.cond_wait_with_timeout(*g.cond, *g.mu, time.Duration(d) * time.Millisecond);
+		locks.cond_wait_with_timeout(*g.cond, *g.mu, cast(time.Duration)(d) * time.Millisecond);
 	}
 	locks.unlock(*g.mu);
 }

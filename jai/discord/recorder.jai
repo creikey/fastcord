@@ -254,7 +254,7 @@ rec_http :: (data: *void, host: string, req: http.Request, resp: *http.Response,
 	tap := cast(*Recorder_Tap)data;
 	r := tap.r;
 	rid := rec_next_id(r);
-	url := strings.concatenate(.{"https://", host, req.path}, temp);
+	url := strings.concatenate(string.["https://", host, req.path], temp);
 	kind := request_kind(req);
 	// requestWillBeSent
 	sb := strings.builder_make(temp);
@@ -264,7 +264,7 @@ rec_http :: (data: *void, host: string, req: http.Request, resp: *http.Response,
 	json_write_escaped(*sb, req.method);
 	strings.write_string(*sb, ",\"headers\":");
 	rv := renderer_view(req.method, req.headers, kind);
-	if tl_js_lower_auth { for * h: rv { if h.name == "Authorization" { h.name = "authorization"; } } }
+	if context.tl_js_lower_auth { for * h: rv { if h.name == "Authorization" { h.name = "authorization"; } } }
 	headers_object(*sb, rv);
 	if len(req.body) > 0 {
 		strings.write_string(*sb, ",\"hasPostData\":true,\"postData\":");
@@ -276,17 +276,17 @@ rec_http :: (data: *void, host: string, req: http.Request, resp: *http.Response,
 	sb2 := strings.builder_make(temp);
 	fmt.sbprintf(*sb2, "\"m\":{{\"method\":\"Network.requestWillBeSentExtraInfo\",\"params\":{{\"requestId\":\"%s\",\"headers\":", rid);
 	wire := make_dynamic(http.Header, 0, len(req.headers) + 4, temp);
-	if resp != null && resp.version != .Http1_1 {
+	if !is_null(resp) && resp.version != .Http1_1 {
 		append(*wire, http.Header.{":authority", host}, http.Header.{":method", req.method}, http.Header.{":path", req.path}, http.Header.{":scheme", "https"});
 	}
 	for h: req.headers { append(*wire, h); }
 	// DevTools reports ExtraInfo headers sorted by name.
-	slice.sort_by(view(wire), (a: http.Header, b: http.Header) -> bool {return a.name < b.name;});
+	slice.sort_by(view(wire), (a: http.Header, b: http.Header) -> bool {return compare(a.name, b.name) < 0;});
 	headers_object(*sb2, view(wire));
 	strings.write_string(*sb2, "}}");
 	rec_line_at(r, tap.acct, start_ms, strings.to_string(sb2));
-	if resp != null { nl_request_headers(r, tap.acct, host, req, resp.version, cast(s64)(start_ms)); }
-	if err != .None || resp == null {
+	if !is_null(resp) { nl_request_headers(r, tap.acct, host, req, resp.version, cast(s64)(start_ms)); }
+	if err != .None || is_null(resp) {
 		rec_line(r, tap.acct, fmt.tprintf("\"m\":{{\"method\":\"Network.loadingFailed\",\"params\":{{\"requestId\":\"%s\"}}}}", rid));
 		return;
 	}
@@ -320,7 +320,7 @@ rec_ws_open :: (data: *void, url: string, headers: []http.Header) {
 	locks.lock(*r.mu);
 	r.ws_id = clone(rid);
 	locks.unlock(*r.mu);
-	full := strings.concatenate(.{"wss://", sub_from(url, len("wss://"))}, temp);
+	full := strings.concatenate(string.["wss://", sub_from(url, len("wss://"))], temp);
 	sb := strings.builder_make(temp);
 	fmt.sbprintf(*sb, "\"m\":{{\"method\":\"Network.webSocketCreated\",\"params\":{{\"requestId\":\"%s\",\"url\":", rid);
 	json_write_escaped(*sb, full);

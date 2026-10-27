@@ -17,7 +17,7 @@
 process_start_tick: time.Tick;
 #scope_export
 
-record_process_start :: () #no_context {
+record_process_start :: () {
 	process_start_tick = time.tick_now();
 }
 
