@@ -1,0 +1,37 @@
+# Builds fastcord on Windows first, then macOS and Linux once Windows passes.
+# Jai is private: it comes from ci/jai-server (Fly.io) with the JAI_PASSWORD secret, is unpacked outside the
+# checkout, and must never be uploaded, cached or echoed. Fork pull requests get no secrets, so they skip the build.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "site/**"]
+  pull_request:
+    paths-ignore: ["**.md", "site/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  windows:
+    uses: ./.github/workflows/ci-build.yml
+    with: { os: windows-latest, jai: jai.exe }
+    secrets: inherit
+
+  macos:
+    needs: windows
+    uses: ./.github/workflows/ci-build.yml
+    with: { os: macos-latest, jai: jai-macos }
+    secrets: inherit
+
+  linux:
+    needs: windows
+    uses: ./.github/workflows/ci-build.yml
+    with: { os: ubuntu-latest, jai: jai-linux }
+    secrets: inherit
