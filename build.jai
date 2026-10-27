@@ -1,4 +1,4 @@
-// jai build.jai - [app|dev|debug|parity|test [names]|run <file.jai>|tool <name>|release <vX.Y.Z> [publish]|c]
+// jai build.jai - <target>: see USAGE below.
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
 // into build/, then the Jai program, then links everything with the system clang.
 #import "Basic";
@@ -47,6 +47,12 @@ build :: () {
                 && run_command("python3", "-I", "tools/check_secrets.py").exit_code == 0;
             print(ifx ok then "check: all passed\n" else "check: FAILED\n");
         case "release"; ok = release(args);
+        case "og";
+            // site/og.jpg, the 1200x630 link preview, from tools/og/card.html with headless Chrome
+            ok = run_command("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--headless=new", "--disable-gpu",
+                    "--hide-scrollbars", "--force-device-scale-factor=1", "--window-size=1200,630", "--screenshot=build/og.png",
+                    tprint("file://%/tools/og/card.html", get_working_directory())).exit_code == 0
+                && run_command("sips", "-s", "format", "jpeg", "-s", "formatOptions", "88", "build/og.png", "--out", "site/og.jpg").exit_code == 0;
         case; log_error(USAGE); return;
     }
     if !ok compiler_set_workspace_status(.FAILED);
@@ -64,6 +70,7 @@ usage: jai build.jai - <target>
   tool <name>                 build/<name> from jai/tool_<name>
   run <file.jai>              build any program file
   release <vX.Y.Z> [publish]  dist/fastcord-macos.zip; publish uploads it to the GitHub release
+  og                          site/og.jpg (link preview) from tools/og/card.html
   c                           only the vendored C libraries
 END
 
