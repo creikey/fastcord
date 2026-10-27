@@ -11,6 +11,9 @@
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
+- [ ] Links: message links (`discord.com/channels/<g>/<c>/<m>`, also `ptb.` / `canary.` / `discordapp.com`) open in the browser instead of jumping to the message in fastcord (`view_chat.jai`: only invites are handled in-app).
+- [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`).
+- [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
 - [ ] Voice: no video: watching or sharing camera, screen share and Go Live streams are all missing (`src/voice` is audio only).
