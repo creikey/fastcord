@@ -3,7 +3,6 @@
 #import "Hash_Table";
 #import "Atomics";
 #import "fc";
-#if OS == .MACOS CF :: #import "core:sys/darwin/CoreFoundation";
 locks :: #import "locks";
 math :: #import "fc_math";
 runtime :: #import "fc_runtime";
@@ -14,7 +13,8 @@ time :: #import "fc_time";
 #if OS == .WINDOWS win :: #import "fc_windows";
 AudioToolbox :: #library,system,link_always "AudioToolbox";
 CoreAudio :: #library,system,link_always "CoreAudio";
-CA :: #library,system,link_always "CoreAudio";
+CA :: CoreAudio;
+CoreFoundation :: #library,system,link_always "CoreFoundation";
 #load "audio.jai";
 #if OS == .MACOS #load "audio_darwin.jai";
 #if OS == .WINDOWS #load "audio_windows.jai";

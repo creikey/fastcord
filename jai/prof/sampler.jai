@@ -23,10 +23,10 @@ Sampler :: struct {
 sampler_start :: (s: *Sampler, target: Thread_Ref, hz := 1000, gate: *s32 = null) -> bool {
 	assert(s.thr == null, "sampler already running");
 	s.target = target;
-	s.interval = time.Second / time.Duration(max(hz, 1));
+	s.interval = time.Second / cast(time.Duration) max(hz, 1);
 	s.gate = gate;
 	s.stop = false;
-	s.thr = thread.create_and_start_with_poly_data(s, sampler_loop, context);
+	s.thr = thread.create_and_start_with_poly_data(s, sampler_loop, *context);
 	return s.thr != null;
 }
 
@@ -93,7 +93,7 @@ resolve_symbols :: (s: *Sampler, allocator := context.allocator) -> Map(u64, Sym
 		for a: sub(s.data, i + 1, i + 1 + n) {
 			if has(syms, a) { continue; }
 			at(*syms, a).* = .{};
-			append(*addrs, trace.Capture_Entry(cast(u64)(a)));
+			append(*addrs, cast(trace.Capture_Entry) a);
 		}
 		i += 1 + n;
 	} }
@@ -154,9 +154,9 @@ sampler_report :: (s: *Sampler, top := 25, allocator := temp) -> string {
 			r.name = sym.procedure;
 			if k == 0 {
 				r.self += 1;
-				__MAPIDX__(lines|fmt.tprintf("%s:%d (%s)", sym.file, sym.line, sym.procedure)) += 1;
+				at(*lines, fmt.tprintf("%s:%d (%s)", sym.file, sym.line, sym.procedure)).* += 1;
 			}
-			if !__MAPIDX__(seen|sym.procedure) {
+			if !get(seen, sym.procedure) {
 				r.incl += 1;
 				at(*seen, sym.procedure).* = true;
 			}

@@ -63,9 +63,9 @@ AudioObjectPropertyListenerProc :: #type (obj: AudioObjectID, n: u32, addrs: *Au
 	AudioObjectAddPropertyListener :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, listener: AudioObjectPropertyListenerProc, user: *void) -> OSStatus #foreign CoreAudio;
 #scope_export
 
-fourcc :: inline (s: string) -> u32 #no_context {
+fourcc :: inline (s: string) -> u32 {
 	return cast(u32)(s[0]) << 24 | cast(u32)(s[1]) << 16 | cast(u32)(s[2]) << 8 | cast(u32)(s[3]);
-};
+}
 
 kAudioFormatLinearPCM :: 0x6c70636d; // 'lpcm'
 kAudioFormatFlagIsFloat :: 1;
@@ -107,20 +107,24 @@ stereo_f32 :: (ch: u32) -> AudioStreamBasicDescription {
 }
 
 render_cb :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call {
-	atomic_add(*st.callbacks, 1);
-	buf := data.mBuffers[0];
-	out := sub(cast(*float32)(buf.mData), 0, min(cast(int)(frames) * CHANNELS, cast(int)(buf.mDataByteSize) / 4));
-	mix(out);
+	push_context st.ctx {
+		atomic_add(*st.callbacks, 1);
+		buf := data.mBuffers[0];
+		out := sub(cast(*float32)(buf.mData), 0, min(cast(int)(frames) * CHANNELS, cast(int)(buf.mDataByteSize) / 4));
+		mix(out);
+	}
 	return 0;
 }
 
 input_cb :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *AudioBufferList) -> OSStatus #c_call {
-	n := min(cast(int)(frames), len(mac.in_buf));
-	abl := AudioBufferList.{mNumberBuffers = 1};
-	abl.mBuffers[0] = .{mNumberChannels = 1, mDataByteSize = cast(u32)(n * 4), mData = raw_data(mac.in_buf)};
-	fl: u32 = 0;
-	if AudioUnitRender(mac.out_unit, *fl, ts, 1, cast(u32)(n), *abl) == 0 {
-		ring_write(*st.capture, sub(mac.in_buf, 0, n));
+	push_context st.ctx {
+		n := min(cast(int)(frames), len(mac.in_buf));
+		abl := AudioBufferList.{mNumberBuffers = 1};
+		abl.mBuffers[0] = .{mNumberChannels = 1, mDataByteSize = cast(u32)(n * 4), mData = raw_data(mac.in_buf)};
+		fl: u32 = 0;
+		if AudioUnitRender(mac.out_unit, *fl, ts, 1, cast(u32)(n), *abl) == 0 {
+			ring_write(*st.capture, sub(mac.in_buf, 0, n));
+		}
 	}
 	return 0;
 }
@@ -128,21 +132,21 @@ input_cb :: (ref: *void, flags: *u32, ts: *void, bus: u32, frames: u32, data: *A
 make_unit :: (subtype: string, capture: bool) -> AudioUnit {
 	desc := AudioComponentDescription.{fourcc("auou"), fourcc(subtype), fourcc("appl"), 0, 0};
 	comp := AudioComponentFindNext(null, *desc);
-	if comp == null { return .{}; }
+	if comp == null { return null; }
 	unit: AudioUnit;
-	if AudioComponentInstanceNew(comp, *unit) != 0 { return .{}; }
+	if AudioComponentInstanceNew(comp, *unit) != 0 { return null; }
 	if capture {
 		one: u32 = 1;
 		AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, SCOPE_INPUT, 1, *one, 4);
 		mono := stereo_f32(1);
-		AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, SCOPE_OUTPUT, 1, *mono, size_of(mono));
+		AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, SCOPE_OUTPUT, 1, *mono, size_of(type_of(mono)));
 		icb := AURenderCallbackStruct.{input_cb, null};
-		AudioUnitSetProperty(unit, kAudioOutputUnitProperty_SetInputCallback, SCOPE_GLOBAL, 0, *icb, size_of(icb));
+		AudioUnitSetProperty(unit, kAudioOutputUnitProperty_SetInputCallback, SCOPE_GLOBAL, 0, *icb, size_of(type_of(icb)));
 	}
 	f := stereo_f32(CHANNELS);
-	if AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, SCOPE_INPUT, 0, *f, size_of(f)) != 0 {
+	if AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, SCOPE_INPUT, 0, *f, size_of(type_of(f))) != 0 {
 		AudioComponentInstanceDispose(unit);
-		return .{};
+		return null;
 	}
 	maxf: u32 = 4096;
 	AudioUnitSetProperty(unit, kAudioUnitProperty_MaximumFramesPerSlice, SCOPE_GLOBAL, 0, *maxf, 4);
@@ -150,10 +154,10 @@ make_unit :: (subtype: string, capture: bool) -> AudioUnit {
 	bs: u32 = 256;
 	AudioUnitSetProperty(unit, fourcc("fsiz"), SCOPE_GLOBAL, 0, *bs, 4);
 	cb := AURenderCallbackStruct.{render_cb, null};
-	AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback, SCOPE_INPUT, 0, *cb, size_of(cb));
+	AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback, SCOPE_INPUT, 0, *cb, size_of(type_of(cb)));
 	if AudioUnitInitialize(unit) != 0 {
 		AudioComponentInstanceDispose(unit);
-		return .{};
+		return null;
 	}
 	return unit;
 }
@@ -184,8 +188,7 @@ update_latency :: () {
 
 default_device_changed :: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call {
 	// DefaultOutput/VPIO units re-route themselves; only the latency estimate changes.
-	context = st.ctx;
-	update_latency();
+	push_context st.ctx { update_latency(); }
 	return 0;
 }
 #scope_module
@@ -222,7 +225,7 @@ _device_stop :: () {
 }
 
 _capture_start :: (voice_processing: bool) -> bool {
-	if mac.in_buf == null { mac.in_buf = make_slice(float32, 8192); }
+	if mac.in_buf.count == 0 { mac.in_buf = make_slice(float32, 8192); }
 	was_running := st.running;
 	_device_stop();
 	// Always VPIO (one unit for in+out, follows default devices); without voice
@@ -255,8 +258,6 @@ _capture_stop :: () {
 }
 
 // Hook for devices_darwin.odin: the unit currently doing I/O (VPIO while capturing).
-_darwin_unit :: () -> AudioUnit, bool {
-	unit: AudioUnit;
-	vpio: bool;return mac.out_unit, mac.vpio;}
+_darwin_unit :: () -> AudioUnit, bool { return mac.out_unit, mac.vpio; }
 #scope_export
 

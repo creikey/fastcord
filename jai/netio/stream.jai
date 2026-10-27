@@ -60,7 +60,7 @@ dial_tcp :: (host: string, port: int, loc := #caller_location) -> *Tcp, Error {
 	err: Error;
 	locks.may_block("TCP dial", loc);
 	sock, nerr := net.dial_tcp_from_hostname_with_port_override(host, port);
-	if nerr != null { return null, .Dial; }
+	if nerr != .None { return null, .Dial; }
 	net.set_option(sock, .TCP_Nodelay, true);
 	t = new(Tcp);
 	t.sock = sock;
@@ -93,7 +93,7 @@ tcp_read :: (data: *void, dst: []u8) -> int, Error {
 	locks.may_block("TCP read");
 	n, err := net.recv_tcp(t.sock, dst);
 	if atomic_load(*t.shut) { return 0, .Closed; }
-	if err != null {
+	if err != .None {
 		if err == net.TCP_Recv_Error.Timeout { return 0, .Timeout; }
 		return 0, .Io;
 	}
@@ -108,7 +108,7 @@ tcp_write :: (data: *void, src: []u8) -> Error {
 	off := 0;
 	while off < len(src) {
 		n, err := net.send_tcp(t.sock, sub_from(src, off));
-		if err != null { return ifx err == net.TCP_Send_Error.Timeout then .Timeout else .Io; }
+		if err != .None { return ifx err == net.TCP_Send_Error.Timeout then .Timeout else .Io; }
 		off += n;
 	}
 	return .None;

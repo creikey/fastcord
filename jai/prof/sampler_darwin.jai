@@ -1,9 +1,11 @@
-	pthread_self :: () -> *void #foreign system;
-	pthread_kill :: (t: *void, sig: s32) -> s32 #foreign system;
-	pthread_get_stackaddr_np :: (t: *void) -> *void #foreign system;
-	sigaction :: (sig: s32, act: *Sigaction, old: *Sigaction) -> s32 #foreign system;
-	getsectbyname :: (seg: *u8, sect: *u8) -> *Section_64 #foreign system;
-	_dyld_get_image_vmaddr_slide :: (image: u32) -> int #foreign system;
+#scope_file
+pthread_self :: () -> *void #foreign system;
+pthread_kill :: (t: *void, sig: s32) -> s32 #foreign system;
+pthread_get_stackaddr_np :: (t: *void) -> *void #foreign system;
+sigaction :: (sig: s32, act: *Sigaction, old: *Sigaction) -> s32 #foreign system;
+getsectbyname :: (seg: *u8, sect: *u8) -> *Section_64 #foreign system;
+_dyld_get_image_vmaddr_slide :: (image: u32) -> int #foreign system;
+#scope_export
 
 // Odin code on macOS keeps no frame-pointer chain and has no unwind tables, so neither a frame
 // record walk nor libunwind gets past the first Odin frame. Instead the sampler signals the thread and
@@ -18,47 +20,37 @@ Thread_Ref :: struct {
 // Must be called on the thread to be sampled.
 current_thread :: () -> Thread_Ref {
 	t := pthread_self();
-	return .{t, cast(u64)(pthread_get_stackaddr_np(t))};
+	return .{t, cast(u64) pthread_get_stackaddr_np(t)};
 }
-#scope_file
 
+#scope_file
 SIGPROF :: 27;
 SA_RESTART :: 0x2;
 SA_SIGINFO :: 0x40;
-MAX_SCAN :: 64 * 1024;
-#scope_export
-#scope_file // stack bytes scanned per sample
+MAX_SCAN :: 64 * 1024; // stack bytes scanned per sample
 
 Sigaction :: struct {
 	handler: (sig: s32, info: *void, uc: *void) #c_call;
 	mask: u32;
 	flags: s32;
 }
-#scope_file
 
 Section_64 :: struct {
 	sectname, segname: [16]u8;
 	addr, size: u64;
 }
-#scope_export
 
 // Register offsets inside the mcontext that ucontext_t points to at offset 48: a 16-byte exception
 // state, then arm_thread_state64 (x0..x28, fp, lr, sp, pc) or x86_thread_state64 (rsp is 7, rip 16).
 #if CPU == .ARM64 {
-#scope_file
 	PC_OFFSET :: 16 + 32 * 8;
 	SP_OFFSET :: 16 + 31 * 8;
 	LR_OFFSET :: 16 + 30 * 8;
-#scope_export
 } else {
-#scope_file
 	PC_OFFSET :: 16 + 16 * 8;
 	SP_OFFSET :: 16 + 7 * 8;
-#scope_export
 }
-#scope_file
 
-// Pointer-authentication bits that system libraries may set in return addresses.
 // Pointer-authentication bits that system libraries may set in return addresses.
 ADDR_MASK :: 0x0000_7fff_ffff_ffff;
 
@@ -80,11 +72,11 @@ shot: Shot;
 is_return :: (a: u64) -> bool #no_context {
 	#if CPU == .ARM64 {
 		if a & 3 != 0 || a < shot.text_lo + 4 || a > shot.text_hi { return false; }
-		ins := (cast(*u32)(cast(u64)(a - 4))).*;
+		ins := (cast(*u32) (a - 4)).*;
 		return ins & 0xFC00_0000 == 0x9400_0000 || ins & 0xFFFF_FC1F == 0xD63F_0000 || ins & 0xFFFF_F800 == 0xD63F_0800; // BL, BLR, BLRAA/BLRAB
 	} else {
 		if a < shot.text_lo + 6 || a > shot.text_hi { return false; }
-		p := cast(*u8)(cast(u64)(a));
+		p := cast(*u8) a;
 		return (p[-5] == 0xE8) || (p[-2] == 0xFF && (p[-1] >> 3) & 7 == 2) || (p[-3] == 0xFF && (p[-2] >> 3) & 7 == 2) || (p[-6] == 0xFF && (p[-5] >> 3) & 7 == 2); // call rel32, call r/m
 	}
 }
@@ -99,27 +91,27 @@ on_sigprof :: (sig: s32, info: *void, uc: *void) #c_call {
 		shot.n = -1;
 		return;
 	}
-	mc := cast(u64)((cast(**void)(cast(u64)(uc) + 48)).*);
-	shot.frames[0] = cast(u64)((cast(*u64)(mc + PC_OFFSET)).*) & ADDR_MASK;
+	mc := cast(u64) (cast(**void) (cast(u64) uc + 48)).*;
+	shot.frames[0] = (cast(*u64) (mc + PC_OFFSET)).* & ADDR_MASK;
 	shot.n = 1;
 	#if CPU == .ARM64 {
 		// A leaf function keeps its return address only in lr.
-		lr := cast(u64)((cast(*u64)(mc + LR_OFFSET)).*) & ADDR_MASK;
+		lr := (cast(*u64) (mc + LR_OFFSET)).* & ADDR_MASK;
 		if is_return(lr) {
 			shot.frames[1] = lr - 1;
 			shot.n = 2;
 		}
 	}
-	sp := (cast(*u64)(mc + SP_OFFSET)).* & ~ 7;
-	hi := min(shot.stack_hi, sp + MAX_SCAN);
-	{ p := sp;
+	sp := (cast(*u64) (mc + SP_OFFSET)).* & ~cast(u64) 7;
+	hi := ifx shot.stack_hi < sp + MAX_SCAN then shot.stack_hi else sp + MAX_SCAN;
+	p := sp;
 	while p + 8 <= hi && shot.n < MAX_FRAMES {
-		a := (cast(*u64)(p)).* & ADDR_MASK;
-		if !is_return(a) || a - 1 == shot.frames[shot.n - 1] { { p += 8; continue; } }
+		defer p += 8;
+		a := (cast(*u64) p).* & ADDR_MASK;
+		if !is_return(a) || a - 1 == shot.frames[shot.n - 1] continue;
 		shot.frames[shot.n] = a - 1;
 		shot.n += 1;
-		p += 8;
-} }
+	}
 }
 #scope_export
 
