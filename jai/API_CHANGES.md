@@ -159,3 +159,38 @@
 
 ## tool_scrub / tool_trafficdiff / tool_capture
 - No API used elsewhere. scrub: convert(raw, env, netlogs := string.["", ""]); Ctx's maps are Tables; local.jai removed.
+
+## discord
+- Maps are Hash_Table Tables (were fc Map): `get/at/has/map_find/delete_key` -> `table_find/find_or_add/table_contains/
+  table_find_pointer/table_remove`; iteration is value first (`for v, k: c.etags`). Store/Client tables set their allocator.
+- Removed Odin helpers: to_v, vlist_of, Maybe/maybe_get/some, is_null, make_map (local.jai deleted). Use etf.vstring/vint/...,
+  plain fields + has_* bools, `x == null` / `vis_null(v)`.
+- User.accent_color: Maybe(u32) -> accent_color: u32 + has_accent_color: bool (app/view_home.jai:648, view_profile_full.jai:191).
+- Settings_Edit: status/custom/theme/friend_online/folders/inbox_tab Maybe -> plain field + has_<name> bool.
+- Gateway.qos_current/qos_upcoming: Maybe(Qos) -> Qos + have_qos_current/have_qos_upcoming.
+- Job/result/payload arenas: virtual.Arena -> Flat_Pool (Event.arena, Api_Response.arena are *Flat_Pool, freed with fini + free);
+  pool_allocator(p) gives its Allocator. Client.ctx removed. Threads are Jai Threads (spawn(data, proc); locks.join).
+- Json/Query writers hold `buf: [..]u8` (was an fc_strings Builder); json_write_escaped(*[..]u8, s). New util: now_ms_f,
+  mono_ms, parse_u64, parse_s64, append_string, hex_digit, pool_allocator, spawn.
+- parse_json(body, allocator) -> parse_json(body) with `,, a`. uuid4(allocator) -> uuid4() (`,, a`).
+- process_exe_paths(allocator) -> process_exe_paths() (app/view_streamer.jai:110: `dc.process_exe_paths(,, temp)`).
+  launch_signature(allocator) -> launch_signature(). Mfa_Methods alias removed (use Mfa_Method; app/view_login.jai:39, :529).
+- ra_session_init(s, allocator): allocator required; ra_handle(s, msg), ra_decrypt(s, b64) lost the allocator (temp);
+  base64url_nopad(b) uses context.allocator. Removed (no callers): launch_signature_is_clean, ra_decrypt_token, ra_init_message,
+  ra_session_derive, sha256_bytes, url_component (use uri_component), consume_qos_locked.
+- presence_value(c, allocator := temp) -> presence_value(c) (context.allocator).
+- itoa(n, allocator) -> itoa(n) (temp); cookie_header, api_headers, web_headers, preflight_headers, upload_put_headers,
+  gateway_ws_headers: allocator parameter removed (result in temp).
+- backoff_fail(b, floor, r := -1) -> backoff_fail(b, floor). rate_wait_ms(r, method, url, now) -> rate_wait_ms(r, url, now);
+  rate_note_response(r, method, url, status, headers, body, now, jitter_r) -> (r, url, status, headers, body, now). The unused
+  proactive bucket mode is gone (Bucket, route_key, rate_bucket_for...). Removed: Transport_Error, transport_h3_alternative,
+  transport_mark_h3_broken.
+- Recorder.f is a File; Recorder.nl is [2]File + nl_open: [2]bool.
+- write_js_number(*Builder, f) -> js_number(f) -> string (temp). analytics_load_id(allocator) -> analytics_load_id() (`,,`).
+  route_location(c, gid) -> route_location(gid). schedule_experiments_fetch, Routes, Startup_Flags removed.
+- Expression workers: one pool per client; guild_channel_props takes *String_Builder. New: media_get, cache_path, proxy_sep,
+  wall_ms, invite_call. guild_admin's iso_to_ms merged into guild_settings'.
+- Many former #scope_module/#scope_file helpers are now module-visible (free_*, parse_*, apply_*, event_free, state_path...).
+- Kept as is (allocator := temp params; candidates for `,, temp`): context_location, context_b64, super_properties_b64,
+  client_token, auth_fingerprint, auth_referer, client_route_referer, client_take_results, identity_heartbeat_snapshot,
+  voice_state_value, take_new_messages, joined_threads, forum_threads, parse_loose_message, feature_take, feature_take_for.

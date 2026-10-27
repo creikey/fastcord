@@ -28,7 +28,6 @@ Test :: struct { name: string; proc: (t: *T); }
 ALL_TESTS :: #insert #run test_table(tprint("%replay_test.jai", #filepath));
 
 #scope_file
-STRING_TMP :: #import "String"; slice :: STRING_TMP.slice; // TEMP until module.jai drops fc_slice
 
 test_table :: (file: string) -> string {
 	names: [..]string;

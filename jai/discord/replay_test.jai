@@ -11,7 +11,6 @@
 
 #scope_file
 
-STRING_TMP :: #import "String"; slice :: STRING_TMP.slice; // TEMP until module.jai drops fc_slice
 
 R_GUILD :: cast(Snowflake) 1564227669971832975;
 R_TEXT :: cast(Snowflake) 1564227670806364343;
