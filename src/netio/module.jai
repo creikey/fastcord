@@ -51,6 +51,7 @@ Tcp :: struct {
 // dial_tcp resolves host and connects to its first IPv4 address, else its first IPv6 one.
 dial_tcp :: (host: string, port: int, loc := #caller_location) -> *Tcp, Error {
 	locks.may_block("TCP dial", loc);
+	#if OS == .WINDOWS socket_init(); // WSAStartup: reference counted, cheap next to a dial
 	hints: addrinfo;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = .STREAM;

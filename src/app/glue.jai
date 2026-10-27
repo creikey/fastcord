@@ -15,8 +15,9 @@ F :: (f: Font_Id) -> ui.Font { return cast(ui.Font) f; }
 // Per-user app data: ~/Library/Application Support/fastcord on macOS,
 // %LOCALAPPDATA%\fastcord on Windows.
 app_data_dir :: (sub: string, allocator := temp) -> string {
-	#if OS == .WINDOWS return tprint("%\\fastcord\\%", env_var("LOCALAPPDATA"), sub,, allocator);
-	else return tprint("%/Library/Application Support/fastcord/%", env_var("HOME"), sub,, allocator);
+	// sprint, not tprint: tprint always allocates in temp, whatever allocator is pushed
+	#if OS == .WINDOWS return sprint("%\\fastcord\\%", env_var("LOCALAPPDATA"), sub,, allocator);
+	else return sprint("%/Library/Application Support/fastcord/%", env_var("HOME"), sub,, allocator);
 }
 
 // Environment variable, "" when unset (not copied).

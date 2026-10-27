@@ -9,6 +9,7 @@
 #import "String";
 #import "Thread";
 #import "System";
+#if OS == .WINDOWS WR :: #import "Windows_Resources";
 
 #run build();
 
@@ -72,9 +73,10 @@ usage: jai build.jai - <target>
   parity                      build/parity (live traffic sessions; human-run only)
   tool <name>                 build/<name> from src/tool_<name>
   run <file.jai>              build any program file
-  release <vX.Y.Z> [publish]  dist/fastcord-macos.zip; publish uploads it to the GitHub release
+  release <vX.Y.Z> [publish]  dist/: the Mac app on macOS, Windows + Linux on Windows; publish uploads them
   og                          site/og.jpg (link preview) from tools/og/card.html
   c                           only the vendored C libraries
+  <target> linux              any target cross-compiled for x86_64 Linux (from Windows or macOS; needs zig)
 END
 
 // A trailing "linux" argument cross-compiles everything for x86_64 Linux: the C with `zig cc` against
@@ -90,7 +92,7 @@ VENDOR_LIB :: () -> string {
 built :: (name: string) -> string { #if OS == .WINDOWS return join("build\\", name, ".exe",, temp); else return tprint("build/%", name); }
 
 // compile builds one program into build/<name>: the root is a file or a build string.
-compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG, file := "", cpu := CPU) -> bool {
+compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG, file := "", cpu := CPU, gui := false) -> bool {
     w := compiler_create_workspace(name);
     o := get_build_options(w);
     import_path: [..]string;
@@ -109,6 +111,8 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     if optimization != .VERY_OPTIMIZED o.dead_code_elimination = .NONE;
     o.cast_bounds_check = .OFF;      // integer casts truncate, as the wire encoders expect
     set_build_options(o, w);
+    // a release exe opens no console window (Windows only; dev builds keep printing to it)
+    #if OS == .WINDOWS if gui && !LINUX WR.disable_runtime_console(w);
     compiler_begin_intercept(w);
     if file add_build_file(file, w); else add_build_string(source, w);
     ok := true;
@@ -128,40 +132,71 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     return ok;
 }
 
-// release <vX.Y.Z> [publish]: dist/fastcord-macos.zip, a universal (arm64 + x86_64) ad-hoc signed Fastcord.app
-// built on this machine (CI has no Jai). With "publish", uploads it to the GitHub release for the tag
-// (created at HEAD if missing) with the gh CLI. Run the gates first (README "Releasing").
+// release <vX.Y.Z> [publish]: the release archives this machine can build (CI has no Jai): on macOS
+// dist/fastcord-macos.zip, a universal (arm64 + x86_64) ad-hoc signed Fastcord.app; on Windows
+// dist/fastcord-windows.zip (Fastcord.exe) and dist/fastcord-linux-x86_64.tar.gz (cross-compiled). With
+// "publish", uploads them to the GitHub release for the tag (created at HEAD if missing) with the gh CLI,
+// replacing same-named assets and leaving the other platforms' ones. Run the gates first (README "Releasing").
 release :: (args: []string) -> bool {
     if args.count < 2 || !begins_with(args[1], "v") { log_error("release needs a version tag like v0.2.0"); return false; }
     version := args[1];
     root := tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", version);
-    if !compile("fastcord-arm64", root, .VERY_OPTIMIZED, cpu = .ARM64) return false;
-    // The x86_64 half comes from the compiler's own x86_64 slice under Rosetta, not a cross-compile: the
-    // ARM compiler can't run Basic's x86 #asm (print, calendar math) in the x86_64 program's #run code.
-    if run_command("arch", "-x86_64", get_path_of_running_executable(), "build.jai", "-", "release_x64", version).exit_code != 0 return false;
-    app := "build/pkg/Fastcord.app";
-    run_command("rm", "-rf", "build/pkg", "dist");
-    make_directory_if_it_does_not_exist(tprint("%/Contents/MacOS", app), recursive = true);
-    make_directory_if_it_does_not_exist(tprint("%/Contents/Resources", app), recursive = true);
     make_directory_if_it_does_not_exist("dist");
-    plain := slice(version, 1, version.count - 1);
-    plist := tprint(INFO_PLIST, plain, plain);
-    ok := run_command("lipo", "-create", "build/fastcord-arm64", "build/fastcord-x86_64", "-output", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0
-        && run_command("strip", "-x", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0  // local symbols: ~2 MB per arch
-        && run_command("cp", "assets/Fastcord.icns", tprint("%/Contents/Resources/", app)).exit_code == 0
-        && write_entire_file(tprint("%/Contents/Info.plist", app), plist)
-        // ad-hoc signature (required to launch on Apple silicon); not notarized
-        && run_command("codesign", "--force", "--deep", "--sign", "-", app).exit_code == 0
-        && run_command("ditto", "-c", "-k", "--keepParent", app, "dist/fastcord-macos.zip").exit_code == 0;
-    if !ok return false;
-    print("dist/fastcord-macos.zip (%)\n", version);
-    if args.count < 3 || args[2] != "publish" return true;
-    _, head_out := run_command("git", "rev-parse", "HEAD", capture_and_return_output = true);
-    head := trim(head_out);
-    if run_command("gh", "release", "view", version).exit_code != 0 {
-        return run_command("gh", "release", "create", version, "dist/fastcord-macos.zip", "--target", head, "--title", version, "--generate-notes").exit_code == 0;
+    assets: [..]string;
+    #if OS == .MACOS {
+        if !compile("fastcord-arm64", root, .VERY_OPTIMIZED, cpu = .ARM64) return false;
+        // The x86_64 half comes from the compiler's own x86_64 slice under Rosetta, not a cross-compile: the
+        // ARM compiler can't run Basic's x86 #asm (print, calendar math) in the x86_64 program's #run code.
+        if run_command("arch", "-x86_64", get_path_of_running_executable(), "build.jai", "-", "release_x64", version).exit_code != 0 return false;
+        app := "build/pkg/Fastcord.app";
+        run_command("rm", "-rf", "build/pkg", "dist/fastcord-macos.zip");
+        make_directory_if_it_does_not_exist(tprint("%/Contents/MacOS", app), recursive = true);
+        make_directory_if_it_does_not_exist(tprint("%/Contents/Resources", app), recursive = true);
+        plain := slice(version, 1, version.count - 1);
+        plist := tprint(INFO_PLIST, plain, plain);
+        ok := run_command("lipo", "-create", "build/fastcord-arm64", "build/fastcord-x86_64", "-output", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0
+            && run_command("strip", "-x", tprint("%/Contents/MacOS/Fastcord", app)).exit_code == 0  // local symbols: ~2 MB per arch
+            && run_command("cp", "assets/Fastcord.icns", tprint("%/Contents/Resources/", app)).exit_code == 0
+            && write_entire_file(tprint("%/Contents/Info.plist", app), plist)
+            // ad-hoc signature (required to launch on Apple silicon); not notarized
+            && run_command("codesign", "--force", "--deep", "--sign", "-", app).exit_code == 0
+            && run_command("ditto", "-c", "-k", "--keepParent", app, "dist/fastcord-macos.zip").exit_code == 0;
+        if !ok return false;
+        array_add(*assets, "dist/fastcord-macos.zip");
+    } else #if OS == .WINDOWS {
+        // Windows: a GUI-subsystem exe (no console window) with the icon, zipped with the system bsdtar
+        if !compile("Fastcord", root, .VERY_OPTIMIZED, gui = true) return false;
+        if !WR.set_icon_by_filename("build/Fastcord.exe", "assets/fastcord.ico") return false;
+        file_delete("dist/fastcord-windows.zip");
+        if run_command("tar", "-a", "-c", "-f", "dist/fastcord-windows.zip", "-C", "build", "Fastcord.exe").exit_code != 0 return false;
+        array_add(*assets, "dist/fastcord-windows.zip");
+        // Linux x86_64, cross-compiled: one binary for every distro (glibc 2.17+, every system library opened
+        // at run time), packaged with its desktop entry and icon by tools/package_linux.py
+        LINUX = true;
+        defer LINUX = false;
+        if !build_c() || !compile("fastcord-linux", root, .VERY_OPTIMIZED) return false;
+        if run_command("zig", "objcopy", "--strip-debug", "build/fastcord-linux", "build/fastcord-linux.stripped").exit_code != 0 return false;
+        if run_command(PYTHON, "-I", "tools/package_linux.py", "build/fastcord-linux.stripped", "dist/fastcord-linux-x86_64.tar.gz").exit_code != 0 return false;
+        array_add(*assets, "dist/fastcord-linux-x86_64.tar.gz");
+    } else {
+        log_error("release: build on macOS (the Mac app) or Windows (Windows and Linux)");
+        return false;
     }
-    return run_command("gh", "release", "upload", version, "dist/fastcord-macos.zip", "--clobber").exit_code == 0;
+    for assets print("% (%)\n", it, version);
+    if args.count < 3 || args[2] != "publish" return true;
+    if run_command("gh", "release", "view", version).exit_code != 0 {
+        _, head_out := run_command("git", "rev-parse", "HEAD", capture_and_return_output = true);
+        a: [..]string;
+        array_add(*a, "gh", "release", "create", version);
+        array_add(*a, ..assets);
+        array_add(*a, "--target", trim(head_out), "--title", version, "--generate-notes");
+        return run_command(..a).exit_code == 0;
+    }
+    a: [..]string;
+    array_add(*a, "gh", "release", "upload", version);
+    array_add(*a, ..assets);
+    array_add(*a, "--clobber");
+    return run_command(..a).exit_code == 0;
 }
 
 PYTHON :: #run ifx OS == .WINDOWS then "python" else "python3";

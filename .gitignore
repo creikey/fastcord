@@ -13,3 +13,4 @@ build/
 test-results/
 dist/
 .build/
+.claude/worktrees/
