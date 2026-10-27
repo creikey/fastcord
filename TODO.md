@@ -13,6 +13,7 @@
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
+- [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
