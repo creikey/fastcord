@@ -28,6 +28,11 @@ platform :: #import "platform";
     #load "backend_d3d11_windows.jai";
     #load "text_dwrite_windows.jai";
 }
+#if OS == .LINUX {
+    #import "File_Utilities";
+    #load "backend_gl_linux.jai";
+    #load "text_freetype_linux.jai";
+}
 #load "gfx.jai";
 #load "shaders.jai";
 #load "text.jai";

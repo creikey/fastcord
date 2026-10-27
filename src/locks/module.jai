@@ -125,6 +125,8 @@ waiting_on :: (tid: int) -> Wait_Info {
 	current_thread_id :: () -> int { id: u64; pthread_threadid_np(null, *id); return cast(int) id; }
 } else #if OS == .WINDOWS {
 	current_thread_id :: () -> int { return cast(int) GetCurrentThreadId(); }
+} else #if OS == .LINUX {
+	current_thread_id :: () -> int { return cast(int) syscall(SYS_gettid); } // glibc 2.17 has no gettid()
 }
 
 #scope_file
@@ -132,7 +134,7 @@ waiting_on :: (tid: int) -> Wait_Info {
 #import "Basic";
 #import "Atomics";
 #import "Thread";
-#if OS == .MACOS #import "POSIX";
+#if OS != .WINDOWS #import "POSIX";
 #if OS == .WINDOWS #import "Windows";
 
 ui_thread: int;
@@ -210,7 +212,7 @@ wait :: (c: *Cond, m: *Mutex, timeout_ms: s64, what: string, loc: Source_Code_Lo
 		while __ulock_wake(op, addr, 0) == -4 {} // EINTR
 	}
 } else #if OS == .WINDOWS {
-	synch :: #system_library "api-ms-win-core-synch-l1-2-0";
+	synch :: #library,system,no_dll "synchronization"; // WaitOnAddress: kernelbase, import lib synchronization.lib
 	WaitOnAddress :: (addr: *void, compare: *void, size: u64, ms: u32) -> s32 #foreign synch;
 	WakeByAddressSingle :: (addr: *void) #foreign synch;
 	WakeByAddressAll :: (addr: *void) #foreign synch;
@@ -221,4 +223,14 @@ wait :: (c: *Cond, m: *Mutex, timeout_ms: s64, what: string, loc: Source_Code_Lo
 		return WaitOnAddress(addr, *e, 4, ms) != 0;
 	}
 	futex_wake :: (addr: *u32, all: bool) { if all WakeByAddressAll(addr); else WakeByAddressSingle(addr); }
+} else #if OS == .LINUX {
+	FUTEX_WAIT_PRIVATE :: 128;
+	FUTEX_WAKE_PRIVATE :: 129;
+
+	futex_wait :: (addr: *u32, expected: u32, timeout_ms: s64) -> bool {
+		ts := timespec.{tv_sec = timeout_ms / 1000, tv_nsec = (timeout_ms % 1000) * 1_000_000};
+		r := syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, cast(s64) expected, ifx timeout_ms < 0 then null else *ts);
+		return r == 0 || errno() != ETIMEDOUT; // EAGAIN (value changed) and EINTR count as wakes
+	}
+	futex_wake :: (addr: *u32, all: bool) { syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, cast(s64) ifx all then 0x7FFF_FFFF else 1); }
 }

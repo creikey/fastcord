@@ -53,7 +53,7 @@ zstd :: #import "zstd";
 #load "permissions.jai";
 #load "procinfo.jai";
 #if OS == .MACOS #load "procinfo_darwin.jai";
-#if OS != .WINDOWS && OS != .MACOS #load "procinfo_other.jai";
+#if OS == .LINUX #load "procinfo_linux.jai";
 #if OS == .WINDOWS #load "procinfo_windows.jai";
 #load "quickswitch.jai";
 #load "ratelimit.jai";
@@ -73,4 +73,8 @@ zstd :: #import "zstd";
 #load "util.jai";
 #load "value.jai";
 #load "webp_convert.jai";
-#if TESTS { POSIX :: #import "POSIX"; #load "testing.jai"; #load "replay_test.jai"; }
+#if TESTS {
+    #if OS == .WINDOWS { crt :: #system_library "msvcrt"; getenv :: (name: *u8) -> *u8 #foreign crt; }
+    else { POSIX :: #import "POSIX"; getenv :: POSIX.getenv; }
+    #load "testing.jai"; #load "replay_test.jai";
+}

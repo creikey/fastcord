@@ -745,9 +745,13 @@ udp_setup :: (c: *Conn, ip: string, port: int) -> bool {
         c.udp = socket(xx (cast(*sockaddr) c.server_ep.bytes.data).sa_family, .DGRAM, .UDP);
         if c.udp == INVALID_SOCKET return false;
         c.udp_open = true;
-        tv: timeval;
-        tv.tv_usec = 100_000;
-        setsockopt(c.udp, SOL_SOCKET, SO_RCVTIMEO, *tv, xx size_of(timeval));
+        #if OS == .WINDOWS {
+            tv: u32 = 100; // milliseconds
+        } else {
+            tv: timeval;
+            tv.tv_usec = 100_000;
+        }
+        setsockopt(c.udp, SOL_SOCKET, SO_RCVTIMEO, xx *tv, xx size_of(type_of(tv)));
     }
     req: [DISCOVERY_LEN]u8;
     build_discovery_request(req, c.ssrc);
@@ -881,6 +885,7 @@ Udp_Addr :: struct {
 
 // udp_resolve returns host's first IPv4 address, else its first IPv6 one, with port.
 udp_resolve :: (host: string, port: int) -> Udp_Addr, bool {
+    #if OS == .WINDOWS socket_init(); // WSAStartup: reference counted
     hints: addrinfo;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = .DGRAM;
@@ -896,13 +901,13 @@ udp_resolve :: (host: string, port: int) -> Udp_Addr, bool {
         p = p.ai_next;
     }
     if !ai || ai.ai_addrlen > a.bytes.count return a, false;
-    memcpy(a.bytes.data, ai.ai_addr, ai.ai_addrlen);
+    memcpy(a.bytes.data, ai.ai_addr, xx ai.ai_addrlen);
     a.len = xx ai.ai_addrlen;
     return a, true;
 }
 
 udp_send :: (c: *Conn, b: []u8) {
-    sendto(c.udp, b.data, xx b.count, 0, cast(*sockaddr) c.server_ep.bytes.data, c.server_ep.len);
+    sendto(c.udp, b.data, xx b.count, 0, cast(*sockaddr) c.server_ep.bytes.data, xx c.server_ep.len);
 }
 
 udp_thread_proc :: (t: *Thread) -> s64 {
@@ -1032,11 +1037,15 @@ ntp_now :: () -> u64 {
 audio_thread_proc :: (t: *Thread) -> s64 {
     c := cast(*Conn) t.data;
     // high priority, as the Odin client's thread.create(priority = .High)
-    policy: s32;
-    param: sched_param;
-    if pthread_getschedparam(pthread_self(), *policy, *param) == 0 {
-        param.sched_priority = sched_get_priority_max(policy);
-        pthread_setschedparam(pthread_self(), policy, *param);
+    #if OS == .WINDOWS {
+        SetThreadPriority(GetCurrentThread(), 2); // THREAD_PRIORITY_HIGHEST
+    } else {
+        policy: s32;
+        param: sched_param;
+        if pthread_getschedparam(pthread_self(), *policy, *param) == 0 {
+            param.sched_priority = sched_get_priority_max(policy);
+            pthread_setschedparam(pthread_self(), policy, *param);
+        }
     }
     pcm: [SAMPLES_PER_FRAME]float32;
     out: [SAMPLES_PER_FRAME * 2]float32;

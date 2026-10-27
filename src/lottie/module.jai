@@ -16,5 +16,5 @@ operator / :: (a: Vector2, k: float32) -> Vector2 { return .{a.x / k, a.y / k}; 
 operator *[] :: (v: *Vector4, i: int) -> *float32 { return *v.component[i]; }
 
 // Odin's math.mod is C fmod (Math's fmod_cycling rounds differently).
-libc :: #system_library "libc";
+#if OS == .WINDOWS libc :: #system_library "msvcrt"; else libc :: #system_library "libc";
 fmod :: (x: float64, y: float64) -> float64 #foreign libc;

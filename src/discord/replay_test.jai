@@ -707,7 +707,7 @@ r_science_check :: (official: []Sci_Batch, ours: []Sci_Batch, allow: []string, d
 	off := r_sci_flatten(official, allow);
 	our := r_sci_flatten(ours, allow);
 	// FASTCORD_SCI_DEBUG=1: print both event sequences (batch, type, constants)
-	if POSIX.getenv("FASTCORD_SCI_DEBUG") {
+	if getenv("FASTCORD_SCI_DEBUG") {
 		for off print("official  #% % %\n", it.batch, it.type, it.consts, to_standard_error = true);
 		for our print("ours      #% % %\n", it.batch, it.type, it.consts, to_standard_error = true);
 		for ours print("ours wire %\n", it.wire, to_standard_error = true);

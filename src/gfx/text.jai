@@ -1,4 +1,4 @@
-// Text: OS shaping (CoreText / DirectWrite) + dynamic glyph atlas.
+// Text: OS shaping (CoreText / DirectWrite; HarfBuzz + FreeType on Linux) + dynamic glyph atlas.
 //
 //	face := gfx.font_load_memory(woff2_bytes)   // or gfx.font_system("system")
 //	run  := gfx.shape(face, 16, "hello 👋")     // cached by (face, size, scale, text)
@@ -62,7 +62,7 @@ font_load_file :: (path: string) -> Font_Face {
     return font_load_memory(cast([]u8) data);
 }
 
-// "system" (or "") = the OS UI font (SF Pro on macOS, Segoe UI on Windows); otherwise a family/PostScript name.
+// "system" (or "") = the OS UI font (SF Pro on macOS, Segoe UI on Windows, fontconfig's sans-serif on Linux); otherwise a family/PostScript name.
 font_system :: (name: string, weight := Font_Weight.Regular, italic := false) -> Font_Face {
     return add_face(native_font_system(name, weight, italic));
 }

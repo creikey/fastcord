@@ -1,6 +1,7 @@
 // BoringSSL bindings (vendor/boringssl, built by build.jai into build/fc_vendor). Its libssl is C++ built
 // without exceptions or RTTI; MSVC's CRT and macOS's libc++ supply the few runtime symbols it needs.
 bssl :: #library,no_dll "../../build/fc_vendor";
+#if OS == .WINDOWS msvcprt :: #library,system,no_dll,link_always "msvcprt"; // the C++ runtime (std::find etc.)
 
 SSL :: struct {}
 SSL_CTX :: struct {}

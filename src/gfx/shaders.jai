@@ -1,4 +1,4 @@
-// Shared math for both shader languages:
+// Shared math for every shader language (MSL, HLSL, GLSL):
 //  - quad = dst grown by softness (+1px AA margin), 4 verts as a triangle strip
 //  - per-corner rounded-box SDF (pixels), coverage = clamp(0.5 - d) (1px AA)
 //  - softness s > 0: coverage = 1 - smoothstep(-s, s, d)
@@ -257,3 +257,112 @@ float4 ps_main(VOut i) : SV_Target {
 __END
 ;
 
+// GLSL 3.30 (OpenGL on Linux): the HLSL path, with the instance as per-instance vertex attributes
+// (locations 0..8 = Instance's nine float4s; the backend points them at the batch's first instance).
+GLSL_VERTEX_SRC :: #string __END
+#version 330 core
+layout(location = 0) in vec4 dst;
+layout(location = 1) in vec4 src;
+layout(location = 2) in vec4 c0;
+layout(location = 3) in vec4 c1;
+layout(location = 4) in vec4 c2;
+layout(location = 5) in vec4 c3;
+layout(location = 6) in vec4 radii;
+layout(location = 7) in vec4 params;
+layout(location = 8) in vec4 clip;
+uniform vec2 viewport;
+
+out vec2 v_p;
+out vec2 v_uv;
+out vec2 v_local;
+flat out vec4 v_dst, v_radii, v_params, v_c0, v_c1, v_c2, v_c3;
+
+void main() {
+	vec2 corner = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));
+	float grow = params.y + 1.0;
+	if (params.z != 0.0 && params.y == 0.0) grow = 0.0;
+	vec2 p0 = dst.xy - grow;
+	vec2 p1 = dst.zw + grow;
+	vec2 p = min(max(mix(p0, p1, corner), clip.xy), clip.zw); // HLSL clamp
+	vec2 t = (p - dst.xy) / max(dst.zw - dst.xy, vec2(1e-4));
+	gl_Position = vec4(p / viewport * vec2(2.0, -2.0) + vec2(-1.0, 1.0), 0.0, 1.0);
+	v_p = p;
+	v_uv = mix(src.xy, src.zw, t);
+	v_local = t;
+	v_dst = dst; v_radii = radii; v_params = params;
+	v_c0 = c0; v_c1 = c1; v_c2 = c2; v_c3 = c3;
+}
+__END
+;
+
+GLSL_FRAGMENT_SRC :: #string __END
+#version 330 core
+in vec2 v_p;
+in vec2 v_uv;
+in vec2 v_local;
+flat in vec4 v_dst, v_radii, v_params, v_c0, v_c1, v_c2, v_c3;
+uniform sampler2D texs[16];
+uniform sampler2D tex2;
+layout(location = 0) out vec4 frag;
+
+// GLSL 3.30 indexes sampler arrays only with constants, hence the switch (as in HLSL). No mips: textureLod.
+#define SLOT(n) case n: dims = vec2(textureSize(texs[n], 0)); s = textureLod(texs[n], uv / dims, 0.0); break;
+vec4 sample_slot(int slot, vec2 uv, out vec2 dims) {
+	vec4 s;
+	switch (slot) {
+	SLOT(0) SLOT(1) SLOT(2) SLOT(3) SLOT(4) SLOT(5) SLOT(6) SLOT(7)
+	SLOT(8) SLOT(9) SLOT(10) SLOT(11) SLOT(12) SLOT(13) SLOT(14)
+	default: dims = vec2(textureSize(texs[15], 0)); s = textureLod(texs[15], uv / dims, 0.0); break;
+	}
+	return s;
+}
+
+float sd_round_box(vec2 p, vec2 half_size, vec4 r) {
+	float rad = p.y < 0.0 ? (p.x < 0.0 ? r.x : r.y) : (p.x < 0.0 ? r.z : r.w);
+	vec2 q = abs(p) - half_size + rad;
+	return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - rad;
+}
+
+vec3 yuv_to_rgb(float y, vec2 c, float m) {
+	bool full = m >= 3.0;
+	if (!full) { y = (y - 16.0/255.0) * (255.0/219.0); c = (c - 128.0/255.0) * (255.0/224.0); }
+	else { c = c - 128.0/255.0; }
+	bool bt709 = (m == 2.0 || m == 4.0);
+	vec3 rgb = bt709
+		? vec3(y + 1.5748*c.y, y - 0.187324*c.x - 0.468124*c.y, y + 1.8556*c.x)
+		: vec3(y + 1.402*c.y, y - 0.344136*c.x - 0.714136*c.y, y + 1.772*c.x);
+	return clamp(rgb, 0.0, 1.0);
+}
+
+void main() {
+	vec2 center = (v_dst.xy + v_dst.zw) * 0.5;
+	vec2 half_size = (v_dst.zw - v_dst.xy) * 0.5;
+	vec2 p = v_p - center;
+	float border = v_params.x, soft = v_params.y;
+	uint kz = uint(v_params.z);
+	uint kind = kz & 3u;
+	float d = sd_round_box(p, half_size, v_radii);
+	float cov;
+	if (soft > 0.0) cov = 1.0 - smoothstep(-soft, soft, d);
+	else cov = clamp(0.5 - d, 0.0, 1.0);
+	if (border > 0.0) {
+		vec4 ir = max(v_radii - border, vec4(0.0));
+		float di = sd_round_box(p, max(half_size - border, vec2(0.0)), ir);
+		cov *= clamp(0.5 + di, 0.0, 1.0);
+	}
+	vec2 t = clamp(v_local, 0.0, 1.0);
+	vec4 c = mix(mix(v_c0, v_c1, t.x), mix(v_c2, v_c3, t.x), t.y);
+	if (kind != 0u) {
+		vec2 dims;
+		vec4 s = sample_slot(int(kz >> 2u), v_uv, dims);
+		if (kind == 1u) c *= s.r;
+		else if (kind == 3u) {
+			vec2 cc = textureLod(tex2, v_uv / dims, 0.0).rg;
+			c *= vec4(yuv_to_rgb(s.r, cc, v_params.w), 1.0);
+		}
+		else c *= s;
+	}
+	frag = c * cov;
+}
+__END
+;

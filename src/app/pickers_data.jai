@@ -266,7 +266,7 @@ frecency_merge_server :: (fs: dc.Frecency_Settings) {
 
 #scope_file
 
-EMOJI_JSON :: #run read_entire_file(tprint("%/../../assets/emoji/emoji.json", #filepath));
+EMOJI_JSON :: #run,host -> string { #import "Basic"; #import "File"; return read_entire_file(tprint("%/../../assets/emoji/emoji.json", #filepath)); };
 
 frec_weight :: (age_ms: s64) -> float64 {
 	days := cast(float64) age_ms / 86_400_000;

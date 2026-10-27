@@ -262,11 +262,12 @@ sampler_report :: (s: *Sampler, top := 25, allocator := temp) -> string {
 #import "Sort";
 #import "File";
 #import "Thread";
-#if OS == .MACOS #import "POSIX";
+#if OS != .WINDOWS #import "POSIX";
 #if OS == .WINDOWS #import "Windows";
 
 #if OS == .MACOS #load "sampler_darwin.jai";
 #if OS == .WINDOWS #load "sampler_windows.jai";
+#if OS == .LINUX #load "sampler_linux.jai";
 
 Symbol :: struct {
 	procedure: string;

@@ -51,6 +51,7 @@ Tcp :: struct {
 // dial_tcp resolves host and connects to its first IPv4 address, else its first IPv6 one.
 dial_tcp :: (host: string, port: int, loc := #caller_location) -> *Tcp, Error {
 	locks.may_block("TCP dial", loc);
+	#if OS == .WINDOWS socket_init(); // WSAStartup: reference counted, cheap next to a dial
 	hints: addrinfo;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = .STREAM;
@@ -136,12 +137,15 @@ tcp_write :: (data: *void, src: []u8) -> Error {
 	locks.may_block("TCP write");
 	rest := src;
 	while rest.count {
-		n := send(t.sock, rest.data, xx rest.count, 0);
+		n := send(t.sock, rest.data, xx rest.count, SEND_FLAGS);
 		if n < 0 return failure();
 		rest.data += n; rest.count -= n;
 	}
 	return .None;
 }
+
+// a closed peer is an error, not SIGPIPE: macOS sets SO_NOSIGPIPE at dial, Linux asks per send
+#if OS == .LINUX SEND_FLAGS :: MSG.NOSIGNAL; else SEND_FLAGS :: cast(MSG) 0;
 
 tcp_close :: (data: *void) {
 	t := cast(*Tcp) data;

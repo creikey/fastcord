@@ -61,7 +61,6 @@
   }
   .btn.primary { background: var(--brand); border-color: transparent; color: #fff; }
   .btn.primary:hover { background: var(--brand-hi); transform: translateY(-1px); }
-  .btn.soon { opacity: .55; cursor: default; }
   .btn small { font-weight: 500; opacity: .8; }
   .version { color: var(--muted); font-size: 13px; margin-top: 14px; min-height: 20px; }
   .shot { margin: 40px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
@@ -110,16 +109,16 @@
     <h1>Discord, <span>native</span>.</h1>
     <p class="lede">A fast Discord client written from scratch. No browser inside — just a native renderer that starts instantly, scrolls smoothly, and idles at zero CPU.</p>
     <div class="downloads">
-      <a class="btn primary" id="dl-mac" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">Download for macOS <small>Apple silicon &amp; Intel</small></a>
-      <span class="btn soon" aria-disabled="true">Windows <small>coming soon</small></span>
-      <span class="btn soon" aria-disabled="true">Linux <small>coming soon</small></span>
+      <a class="btn primary" id="dl-mac" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">macOS <small>Apple silicon &amp; Intel</small></a>
+      <a class="btn" id="dl-win" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-windows.zip">Windows <small>10 &amp; 11, x64</small></a>
+      <a class="btn" id="dl-linux" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-linux-x86_64.tar.gz">Linux <small>x86_64, any distro</small></a>
     </div>
     <div class="version" id="version"></div>
     <div class="shot"><img src="screenshot.jpg" width="2560" height="1440" alt="Fastcord showing a server channel with messages"></div>
   </section>
 
   <section class="grid">
-    <div class="card"><h3>Instant</h3><p>Native Metal rendering with an immediate-mode UI. Every interaction lands on the next frame.</p></div>
+    <div class="card"><h3>Instant</h3><p>Native GPU rendering (Metal, Direct3D 11, OpenGL) with an immediate-mode UI. Every interaction lands on the next frame.</p></div>
     <div class="card"><h3>Light on battery</h3><p>Nothing renders unless something changes. Idle is zero frames, zero wakeups.</p></div>
     <div class="card"><h3>Small</h3><p>One ~5 MB app. No Chromium, no Node, no bundled browser.</p></div>
     <div class="card"><h3>Familiar</h3><p>Servers, channels, DMs, friends, reactions, emoji, GIFs, stickers and the layout you already know.</p></div>
@@ -139,6 +138,8 @@
     <p class="fine">Each official recording starts right after a fresh launch; Fastcord ran every scenario in one 14-minute session, as a person would, so one-time loads (command lists, emoji data) show up earlier for it. Fastcord leaves out telemetry it can't measure truthfully (quest, upsell and experiment events), shown faint. Every action is also replayed offline against the official recording from the same starting state, request by request and header by header.</p>
   </section>
 
+  <p class="note">Windows: unzip and run <b>Fastcord.exe</b>. It isn't code-signed yet, so SmartScreen may warn the first time: click <b>More info → Run anyway</b>.</p>
+  <p class="note">Linux: extract the archive and run <b>./fastcord</b>, or <b>./install.sh</b> to add it to your app menu. One build for every distribution (glibc 2.17 or newer), on X11 and Wayland desktops.</p>
   <p class="note">First launch on macOS: Fastcord isn't notarized by Apple yet, so macOS blocks it the first time. Click <b>Done</b>, then open <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>. After that it opens normally and shows an Update button when a new release is out.</p>
 
   <footer>
@@ -196,6 +197,14 @@
   }).catch(() => document.getElementById("traffic").remove());
 </script>
 <script>
+  // The visitor's OS gets the primary download button, first in the row.
+  (() => {
+    const ua = navigator.userAgent;
+    const id = /Windows/.test(ua) ? "dl-win" : /Linux|X11/.test(ua) && !/Android/.test(ua) ? "dl-linux" : "dl-mac";
+    const mine = document.getElementById(id);
+    document.querySelectorAll(".downloads .btn").forEach(b => b.classList.toggle("primary", b === mine));
+    mine.parentNode.prepend(mine);
+  })();
   // Show the latest release tag next to the download button (best effort).
   fetch("https://api.github.com/repos/creikey/fastcord/releases/latest")
     .then(r => r.ok ? r.json() : null)

@@ -781,7 +781,7 @@ connect :: () {
 		data, ok := read_entire_file(tprint("%/token", state_dir), log_errors = false,, temp);
 		if ok token = trim(data);
 	}
-	app.client = dc.client_create(.{token = copy_string(token), state_dir = state_dir, wakeup = (_: *void) { platform.request_frame(); }});
+	app.client = dc.client_create(.{token = copy_string(token), state_dir = state_dir, platform = dc.host_platform(), wakeup = (_: *void) { platform.request_frame(); }});
 	analytics_env_sync(force = true); // before the first event (gateway_connected)
 	dc.client_start(app.client);
 	if token == "" app.needs_login = true;
