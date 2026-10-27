@@ -32,6 +32,51 @@
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
+- [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
+- [ ] Markdown: masked links `[text](url)` and numbered lists `1. item` aren't parsed (`markdown.jai`).
+- [ ] Markdown: slash-command mentions `</name:id>` and `<id:customize|browse|guide>` stay raw text (`markdown.jai` `try_entity`).
+- [ ] Markdown: timestamp styles `T`, `D`, `f`, `F` and `R` (relative, "in 3 hours") fall back to one format (`view_chat.jai` `format_unix`).
+- [ ] Markdown: a bare URL loses a balanced closing `)`, e.g. `https://en.wikipedia.org/wiki/Foo_(bar)` (`markdown.jai` trailing-punctuation trim).
+- [ ] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes aren't rendered; the quote body only gets inline parsing.
+- [ ] Chat: messages that mention you (you, @everyone/@here, your role) get no yellow highlight and left bar.
+- [ ] Chat: "(edited)" and the header timestamp have no tooltip with the full date.
+- [ ] Links: right-clicking a link gives no Copy Link / Open Link menu, and outside links open with no "Leaving Discord" warning.
+- [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
+- [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
+- [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
+- [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
+- [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
+- [ ] Embeds: YouTube and other video embeds show only a small side thumbnail, with no large preview or player.
+- [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
+- [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
+- [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
+- [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
+- [ ] Attachments: file cards have no download button, the link-coloured filename does nothing, and text/code files get no inline preview.
+- [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
+- [ ] Media: the audio player has no seek bar or volume; the video player lacks volume, fullscreen and download.
+- [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
+- [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
+- [ ] Reactions: super (burst) reactions look like normal ones; `burst_count` / `me_burst` are parsed but unused.
+- [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
+- [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
+- [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
+- [ ] Moderation: "Delete Message" shows only on your own messages; MANAGE_MESSAGES should allow deleting others'.
+- [ ] Messages: the menu lacks Report, Apps, Speak Message, Publish (announcement channels) and Remove All Reactions.
+- [ ] Messages: a failed send turns red, but there's no error text and no Retry or Delete.
+- [ ] Edit: the edit box's emoji button and the "cancel" / "save" links do nothing (`view_message_actions.jai`).
+- [ ] Edit: saving skips `emoji_convert_shortcodes`, so a typed `:smile:` is sent literally.
+- [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
+- [ ] Replies: the quoted preview only searches loaded history, so a reply to an older message says "Original message was deleted" (`referenced_message` isn't stored). The quote is raw text (`<@id>` and markdown unrendered), and sticker- or embed-only originals get no placeholder.
+- [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
+- [ ] History: jumping to an old message merges the `around=` page into history without filling the gap to newer messages (no `after=` paging), so the messages between vanish (`features.jai` `apply_around`).
+- [ ] Scrolling: Page Up / Page Down don't scroll the message list.
+- [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
+- [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
+- [ ] Composer: no character counter near the 2000/4000 limit, and over-long sends aren't blocked.
+- [ ] Composer: no formatting toolbar on selection and no Ctrl+B / Ctrl+I / Ctrl+U.
+- [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
+- [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
+- [ ] Chat: NSFW channels open with no age-gate screen.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
