@@ -141,47 +141,13 @@ main :: () {
 
 // ---- tokens (never printed) ----
 
-token_a :: () -> string {
-	data, err := os.read_entire_file(".secrets/raw/gw_a.jsonl", context.allocator);
-	if err != null { return ""; }
-	text := as_string(data);
-	while true { line, __ok3 := strings.split_lines_iterator(*text); if !__ok3 break;
-		if !strings.contains(line, "\"op\":2") && !strings.contains(line, "\"op\": 2") { continue; }
-		v, jerr := etf.from_json(line);
-		if jerr != .None { continue; }
-		e := discord.fmap(discord.vmap(v), "etf");
-		if discord.fint(e, "op") == 2 { return discord.fstr(discord.fmap(e, "d"), "token"); }
-	}
-	return "";
+// .secrets/token_<a|b>: the test account's Authorization value (written from the official test client).
+token :: (acct: string) -> string {
+	data, err := os.read_entire_file(tprint(".secrets/token_%", acct));
+	return ifx err == null then strings.trim_space(as_string(data)) else "";
 }
-
-token_b :: () -> string {
-	f, err := os.open(".secrets/raw/coldstart_b.jsonl");
-	if err != null { return ""; }
-	defer os.close(f);
-	buf: [1 << 16]u8;
-	carry := make_dynamic(u8, 0, 0);
-	while true {
-		n, rerr := os.read(f, view(buf));
-		if n <= 0 || rerr != null { break; }
-		append(*carry, ..sub(buf, 0, n));
-		s := as_string(view(carry));
-		{ i := strings.index(s, "\"Authorization\": \"");
-		if i >= 0 {
-			rest := sub_from(s, i + len("\"Authorization\": \""));
-			{ j := strings.index_byte(rest, 34);
-			if j >= 0 { return clone(sub(rest, 0, j)); } }
-		} }
-		{ i := strings.index(s, "\"Authorization\":\"");
-		if i >= 0 {
-			rest := sub_from(s, i + len("\"Authorization\":\""));
-			{ j := strings.index_byte(rest, 34);
-			if j >= 0 { return clone(sub(rest, 0, j)); } }
-		} }
-		if len(carry) > (1 << 20) { remove_range(*carry, 0, len(carry) - 4096); }
-	}
-	return "";
-}
+token_a :: () -> string { return token("a"); }
+token_b :: () -> string { return token("b"); }
 
 // ---- driving ----
 

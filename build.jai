@@ -32,7 +32,7 @@ build :: () {
         case "app";   o.output_executable_name = "fastcord"; set_optimization(*o, .VERY_OPTIMIZED);
         case "dev";   o.output_executable_name = "fastcord-dev"; set_optimization(*o, .OPTIMIZED);
         case "debug"; o.output_executable_name = "fastcord-debug"; set_optimization(*o, .DEBUG);
-        case "tool";  o.output_executable_name = args[1]; file = tprint("jai/tool_%/main.jai", args[1]);
+        case "tool";  o.output_executable_name = args[1]; file = "";
         case "parity"; o.output_executable_name = "parity"; file = "jai/discord_parity/module.jai";
         case "test";   o.output_executable_name = "test-discord-jai"; file = "jai/tests/discord.jai"; set_optimization(*o, .OPTIMIZED);
         case "run";  file = args[1]; o.output_executable_name = path_strip_extension(path_filename(file));
@@ -43,7 +43,8 @@ build :: () {
     o.cast_bounds_check = .OFF;      // integer casts truncate, as the code base (written for Odin) expects
     set_build_options(o, w);
     compiler_begin_intercept(w);
-    add_build_file(file, w);
+    if file add_build_file(file, w);
+    else add_build_string(tprint("t :: #import \"tool_%\"; main :: () { t.main(); }", args[1]), w);  // a tool is a module with a main
     ok := true;
     while true {
         m := compiler_wait_for_message();
