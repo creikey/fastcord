@@ -143,6 +143,7 @@
 - [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
+- [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
 - [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
@@ -190,3 +191,4 @@
 - [x] Embeds: proxied video embeds (FxTwitter, Reddit…) play in the card with a large poster instead of a side thumbnail.
 - [x] Tray (Windows): a tray icon with a red dot for unread mentions, a click opens the window, the menu has Open and Quit; closing the window hides it to the tray.
 - [x] Read states: regaining focus reports "Ack - Window Focus", and auto-acks use the channel's `last_message_id`.
+- [x] Read states: incoming mentions raise the mention count, so opening that channel acks at once (checked live on the test accounts, `build/parity ack_live`).

@@ -866,10 +866,21 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		locks.lock(*c.route_mu);
 		viewing := c.route_channel == fsnow(d, "channel_id");
 		locks.unlock(*c.route_mu);
+		cid, mid := fsnow(d, "channel_id"), fsnow(d, "id");
+		if fsnow(fmap(d, "author"), "id") == c.store.me return;
 		if viewing && c.focused && !c.idle_sent { // shouldAutomaticallyAck: never while idle
-			aid := fsnow(fmap(d, "author"), "id");
-			if aid != c.store.me ack_message(c, fsnow(d, "channel_id"), fsnow(d, "id"), location = ACK_INCOMING_MESSAGE);
+			ack_message(c, cid, mid, location = ACK_INCOMING_MESSAGE);
+			return;
 		}
+		// otherwise a message that would notify us raises the mention count (every message
+		// in a private channel; in a guild @me / @everyone; role mentions not modelled)
+		ch := channel_get(*c.store, cid);
+		mentions_me := fbool(d, "mention_everyone");
+		for flist(d, "mentions") if fsnow(vmap(it), "id") == c.store.me mentions_me = true;
+		if !(ch && ch.guild_id == 0) && !mentions_me return;
+		rs := find_or_add(*c.store.read_states, cid);
+		rs.channel_id = cid;
+		if mid > rs.last_message_id rs.mention_count += 1;
 	}
 }
 
