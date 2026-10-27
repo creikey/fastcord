@@ -204,18 +204,7 @@ main :: () {
 			pixels, w, h := gfx.read_pixels();
 			gfx.write_png(opt.shot, pixels, w, h);
 		}
-		voice_leave_channel();
-		voice_shutdown();
-		if app.client != null {
-			// let op 4 (leave) go out before the gateway closes
-			for _: 0..9 {
-				dc.client_poll(app.client);
-				platform.wait_events(0.05);
-			}
-			client_release(app.client);
-			app.client = null;
-		}
-		teardown_wait();
+		app_exit();
 		return;
 	}
 	if headless {
@@ -246,6 +235,17 @@ main :: () {
 	}
 	if app.stats && app.focused_editor != null print("[input] \"%\"\n", ui.editor_text(app.focused_editor), to_standard_error = true);
 	settings_save();
+	app_exit();
+}
+
+// app_exit leaves voice and closes the gateway (code 1000) before the process ends; a dropped
+// socket leaves the session resumable, so Discord keeps us in the call for minutes.
+app_exit :: () {
+	voice_leave_channel();
+	voice_shutdown();
+	client_release(app.client);
+	app.client = null;
+	teardown_wait();
 }
 
 frame :: () {

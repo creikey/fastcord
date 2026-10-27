@@ -155,7 +155,9 @@ gateway_start :: (g: *Gateway) {
 
 gateway_writer_proc :: (g: *Gateway) {
 	locks.lock(*g.out_mu);
-	while !g.out_stop {
+	// Drains the outbox before it stops: gateway_stop joins it before closing the socket, so a last
+	// op 4 (leaving voice on quit) still goes out.
+	while !g.out_stop || g.outbox {
 		if !g.outbox {
 			locks.cond_wait(*g.out_cond, *g.out_mu);
 			continue;
@@ -181,11 +183,6 @@ gateway_stop :: (g: *Gateway) {
 	g.state = .Stopped;
 	locks.cond_broadcast(*g.cond);
 	locks.unlock(*g.mu);
-	gateway_close_socket(g, 1000);
-	if g.control locks.join(g.control);
-	// The control thread may have finished a connect after the close above, leaving a live socket
-	// and reader thread behind; close and join them before the free.
-	gateway_close_socket(g, 1000);
 	if g.writer {
 		locks.lock(*g.out_mu);
 		g.out_stop = true;
@@ -193,6 +190,11 @@ gateway_stop :: (g: *Gateway) {
 		locks.unlock(*g.out_mu);
 		locks.join(g.writer);
 	}
+	gateway_close_socket(g, 1000);
+	if g.control locks.join(g.control);
+	// The control thread may have finished a connect after the close above, leaving a live socket
+	// and reader thread behind; close and join them before the free.
+	gateway_close_socket(g, 1000);
 	push_allocator(g.c.allocator);
 	for g.outbox array_free(it);
 	array_free(g.outbox);
