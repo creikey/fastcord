@@ -13,3 +13,4 @@ rand :: #import "fc_rand";
 strings :: #import "fc_strings";
 time :: #import "fc_time";
 #load "main.jai";
+#load "local.jai";

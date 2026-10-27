@@ -105,11 +105,11 @@ cur: *Acct;
 main :: () {
 	args := get_command_line_arguments();
 	if len(args) < 2 {
-		fmt.eprintln("usage: parity <scenario> [out.jsonl] | parity session <raw_dir> <scenario>...");
+		fmt.eprintln("usage: parity <scenario> [out.jsonl] | parity session [scenario...]");
 		os.exit(2);
 	}
-	if args[1] == "session" && len(args) > 3 {
-		session(args[2], sub_from(args, 3));
+	if args[1] == "session" {
+		session_report(sub_from(args, 2));
 		return;
 	}
 	name := args[1];
@@ -130,7 +130,7 @@ main :: () {
 	cur = *accts[0];
 	ran := run(name);
 	if ran { settle(2000, 15000); }
-	for * a: accts { if a.c != null { stop(*a); } }
+	for * a: accts { if a.c != null { stop(a); } }
 	discord.recorder_close(rec);
 	if !ran {
 		fmt.eprintln("unknown or failed scenario:", name);
@@ -237,7 +237,7 @@ stop :: (a: *Acct) {
 
 pump :: (ms: int) {
 	deadline := time.tick_now();
-	while time.tick_since(deadline) < time.Duration(ms) * time.Millisecond {
+	while time.tick_since(deadline) < cast(time.Duration)(ms) * time.Millisecond {
 		for * a: accts { if a.c != null { discord.client_poll(a.c); } }
 		time.sleep(16 * time.Millisecond);
 	}
@@ -260,7 +260,7 @@ pause :: () {human(700, 1600);}
 // settle: like tools/capture — wait until no network event for quiet_ms (max max_ms).
 settle :: (quiet_ms: int, max_ms := 20000) {
 	start := time.tick_now();
-	while time.tick_since(start) < time.Duration(max_ms) * time.Millisecond {
+	while time.tick_since(start) < cast(time.Duration)(max_ms) * time.Millisecond {
 		if discord.now_ms() - discord.recorder_last_net(rec) >= cast(s64)(quiet_ms) { return; }
 		pump(200);
 	}
@@ -269,7 +269,7 @@ settle :: (quiet_ms: int, max_ms := 20000) {
 // wait_gw: until a dispatch arrives on the current account since the last action.
 wait_gw :: (ev: string, timeout_ms := 15000) -> bool {
 	deadline := time.tick_now();
-	while time.tick_since(deadline) < time.Duration(timeout_ms) * time.Millisecond {
+	while time.tick_since(deadline) < cast(time.Duration)(timeout_ms) * time.Millisecond {
 		for * a: accts { if a.c != null { discord.client_poll(a.c); } }
 		locks.lock(*names_mu);
 		for i: cur.cursor..len(cur.events)-1 {
@@ -1042,7 +1042,58 @@ session :: (dir: string, names: []string) {
 		fmt.println(name, "->", out);
 		if i + 1 < len(names) { human(3000, 7000); } // reading before the next thing
 	}
-	for * a: accts { if a.c != null { stop(*a); } }
+	for * a: accts { if a.c != null { stop(a); } }
 	discord.recorder_retire(rec);
+}
+
+SESSION_SCENARIOS :: string.["cold_start", "send_message", "typing", "add_reaction", "remove_reaction", "delete_message",
+	"edit_message", "reply", "upload_image", "open_profile_popout", "open_full_profile",
+	"emoji_picker_reaction", "add_custom_reaction", "gif_send", "open_image_attachment",
+	"scroll_history", "quick_switcher_nav", "switch_theme", "join_voice_channel", "status_change",
+	"custom_status", "open_guild_and_channel", "open_dm", "close_dm", "start_group_dm", "create_guild",
+	"_cleanup", "mark_as_read", "voice_with_b", "_reset_friendship", "friend_request_send",
+	"friend_request_accept", "send_dm", "friend_remove"];
+CORE_IGNORES :: string.["-ignore:/science", "-ignore:/assets/", "-ignore:collectibles-shop", "-ignore:latency.discord.media", "-ignore:/cdn-cgi/"];
+
+// session_report (was session.sh): one human-paced session over every scenario,
+// recorded into .secrets/raw, then scrubbed into .secrets/ours and diffed against
+// its fixture's action windows. Run from the repo root after `jai build.jai - parity`.
+session_report :: (args: []string) {
+	names := ifx len(args) then args else SESSION_SCENARIOS;
+	jai := ifx OS == .MACOS then "jai-macos" else ifx OS == .WINDOWS then "jai.exe" else "jai-linux";
+	for t: string.["scrub", "trafficdiff"] { must(run_cmd(string.[jai, "build.jai", "-", "tool", t])); }
+	os.make_directory_all(".secrets/raw");
+	os.make_directory_all(".secrets/ours");
+	for s: names for x: string.["a", "b"] {
+		nl := fmt.tprintf(".secrets/raw/ours_%s.jsonl.netlog-%s", s, x);
+		if os.exists(nl) { os.remove_(nl); }
+	}
+	session(".secrets/raw", names);
+	fmt.printf("%-24s %5s %5s\n", "scenario", "all", "core");
+	for s: names {
+		raw := fmt.tprintf(".secrets/raw/ours_%s.jsonl", s);
+		ours := fmt.tprintf(".secrets/ours/%s.jsonl", s);
+		fix := fmt.tprintf("traffic/%s.jsonl", s);
+		scrub: [..]string;
+		array_add(*scrub, "build/scrub", raw, ours);
+		for x: string.["a", "b"] {
+			nl := fmt.tprintf("%s.netlog-%s", raw, x);
+			if os.exists(nl) { array_add(*scrub, fmt.tprintf("-netlog-%s:%s", x, nl)); }
+		}
+		must(run_cmd(scrub));
+		if !os.exists(fix) { continue; }
+		all: [..]string;
+		array_add(*all, "build/trafficdiff");
+		if s != "cold_start" { array_add(*all, "-actions"); }
+		core: [..]string;
+		array_add(*core, ..all);
+		array_add(*core, ..CORE_IGNORES);
+		array_add(*all, fix, ours);
+		array_add(*core, fix, ours);
+		_, all_out := run_cmd(all);
+		os.write_entire_file(fmt.tprintf(".secrets/ours/%s.diff", s), all_out);
+		_, core_out := run_cmd(core);
+		fmt.printf("%-24s %5s %5s\n", s, diff_count(all_out), diff_count(core_out));
+	}
 }
 

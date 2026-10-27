@@ -1,4 +1,4 @@
-// jai build.jai - [app|dev|debug|run <file.jai>|tool <name>|c]
+// jai build.jai - [app|dev|debug|parity|run <file.jai>|tool <name>|c]
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
 // into build/, then the Jai program, then links everything with the system clang.
 #import "Basic";
@@ -33,8 +33,9 @@ build :: () {
         case "dev";   o.output_executable_name = "fastcord-dev"; set_optimization(*o, .OPTIMIZED);
         case "debug"; o.output_executable_name = "fastcord-debug"; set_optimization(*o, .DEBUG);
         case "tool";  o.output_executable_name = args[1]; file = tprint("jai/tool_%/main.jai", args[1]);
-        case "run";   file = args[1]; o.output_executable_name = path_strip_extension(path_filename(file));
-        case; log_error("usage: jai build.jai - [app|dev|debug|run <file.jai>|tool <name>|c]"); return;
+        case "parity"; o.output_executable_name = "parity"; file = "jai/discord_parity/module.jai";
+        case "run";  file = args[1]; o.output_executable_name = path_strip_extension(path_filename(file));
+        case; log_error("usage: jai build.jai - [app|dev|debug|parity|run <file.jai>|tool <name>|c]"); return;
     }
     o.output_path = "build";
     o.dead_code_elimination = .NONE; // type-check every procedure, not only the ones called
