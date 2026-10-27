@@ -12,3 +12,4 @@ build/
 *.netlog
 test-results/
 dist/
+.build/

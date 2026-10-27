@@ -1,0 +1,14 @@
+#import "Basic";
+#import "String";
+#import "Hash_Table";
+#import "fc";
+hash :: #import "fc_hash";
+math :: #import "fc_math";
+mem :: #import "fc_mem";
+prof :: #import "prof";
+runtime :: #import "fc_runtime";
+strings :: #import "fc_strings";
+utf8 :: #import "fc_utf8";
+#load "core.jai";
+#load "text.jai";
+#load "textedit.jai";

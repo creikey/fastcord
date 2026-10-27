@@ -1,0 +1,14 @@
+#import "Basic";
+#import "String";
+#import "Hash_Table";
+#import "fc";
+fmt :: #import "fc_fmt";
+locks :: #import "locks";
+os :: #import "fc_os";
+quic :: #import "quic";
+runtime :: #import "fc_runtime";
+strconv :: #import "fc_strconv";
+strings :: #import "fc_strings";
+thread :: #import "fc_thread";
+time :: #import "fc_time";
+#load "altsvc.jai";

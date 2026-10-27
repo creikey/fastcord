@@ -1,0 +1,13 @@
+#import "Basic";
+#import "String";
+#import "Hash_Table";
+#import "fc";
+discord :: #import "discord";
+etf :: #import "etf";
+fmt :: #import "fc_fmt";
+locks :: #import "locks";
+os :: #import "fc_os";
+rand :: #import "fc_rand";
+strings :: #import "fc_strings";
+time :: #import "fc_time";
+#load "main.jai";

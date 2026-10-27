@@ -15,6 +15,7 @@
 #define WUFFS_CONFIG__MODULE__CRC32
 #define WUFFS_CONFIG__MODULE__DEFLATE
 #define WUFFS_CONFIG__MODULE__ZLIB
+#define WUFFS_CONFIG__MODULE__GZIP
 #define WUFFS_CONFIG__MODULE__PNG
 #define WUFFS_CONFIG__MODULE__LZW
 #define WUFFS_CONFIG__MODULE__GIF
@@ -165,4 +166,44 @@ int fc_image_decode_frame(void *state, uint8_t *canvas, size_t canvas_len, size_
     int r = fc__status(wuffs_base__image_decoder__decode_frame(im->dec, &pb, &im->io, blend,
                                                               wuffs_base__make_slice_u8(work, work_len), NULL));
     return r == FC_END ? FC_CORRUPT : r;
+}
+
+// ---- Streaming inflate: raw DEFLATE (0), zlib (1) or gzip (2), in the caller's state blob.
+// fc_inflate_step consumes src and writes dst; it returns FC_OK when it needs more input (all of src
+// was consumed), FC_TRUNCATED when dst is full, FC_END at the end of the stream, else FC_CORRUPT.
+// A decoder kept across calls keeps its 32 KiB history (WebSocket permessage-deflate context takeover).
+
+typedef struct {
+    int kind;
+    union { wuffs_deflate__decoder d; wuffs_zlib__decoder z; wuffs_gzip__decoder g; } u;
+    uint8_t work[1];
+} fc__inflate;
+
+size_t fc_inflate_state_size(void) { return sizeof(fc__inflate); }
+
+int fc_inflate_init(void *state, int kind) {
+    fc__inflate *s = (fc__inflate *)state;
+    s->kind = kind;
+    wuffs_base__status st;
+    if (kind == 0) st = wuffs_deflate__decoder__initialize(&s->u.d, sizeof s->u.d, WUFFS_VERSION, 0);
+    else if (kind == 1) st = wuffs_zlib__decoder__initialize(&s->u.z, sizeof s->u.z, WUFFS_VERSION, 0);
+    else st = wuffs_gzip__decoder__initialize(&s->u.g, sizeof s->u.g, WUFFS_VERSION, 0);
+    return st.repr ? FC_BAD_ARGUMENT : FC_OK;
+}
+
+int fc_inflate_step(void *state, const uint8_t *src, size_t src_len, uint8_t *dst, size_t dst_len, size_t *consumed, size_t *produced) {
+    fc__inflate *s = (fc__inflate *)state;
+    wuffs_base__io_buffer in = wuffs_base__ptr_u8__reader((uint8_t *)src, src_len, false);
+    wuffs_base__io_buffer out = wuffs_base__ptr_u8__writer(dst, dst_len);
+    wuffs_base__slice_u8 work = wuffs_base__make_slice_u8(s->work, sizeof s->work);
+    wuffs_base__status st;
+    if (s->kind == 0) st = wuffs_deflate__decoder__transform_io(&s->u.d, &out, &in, work);
+    else if (s->kind == 1) st = wuffs_zlib__decoder__transform_io(&s->u.z, &out, &in, work);
+    else st = wuffs_gzip__decoder__transform_io(&s->u.g, &out, &in, work);
+    *consumed = in.meta.ri;
+    *produced = out.meta.wi;
+    if (!st.repr) return FC_END;
+    if (st.repr == wuffs_base__suspension__short_read) return FC_OK;
+    if (st.repr == wuffs_base__suspension__short_write) return FC_TRUNCATED;
+    return FC_CORRUPT;
 }
