@@ -89,8 +89,9 @@ mutexes go through `locks`, which panics at the faulty call on misuse instead of
 CI (`.github/workflows/ci.yml`) builds and tests on Windows, then macOS and Linux. Jai is private, so CI
 downloads it from `ci/jai-server`, a Fly.io app (`fastcord-jai`) that serves `/data/jai.zip` only to the
 `JAI_PASSWORD` repo secret; never put Jai, or a link to it, anywhere public. To rotate the password, set it
-with `fly secrets set JAI_PASSWORD=...` and `gh secret set JAI_PASSWORD`. To update Jai, upload a new zip
-(top folder `jai/`) with `fly ssh sftp put` to `/data/jai.zip`.
+with `fly secrets set JAI_PASSWORD=...` and `gh secret set JAI_PASSWORD`. To update Jai, zip it (top folder
+`jai/`) and `curl -T jai.zip -H "Authorization: Bearer <UPLOAD_PASSWORD>" https://fastcord-jai.fly.dev/jai.zip`;
+the upload password is a separate Fly secret that CI never holds.
 
 ## Performance
 
