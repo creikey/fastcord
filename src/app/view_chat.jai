@@ -463,7 +463,7 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token) {
 		}
 		if tk.kind == {
 		case .Link;
-			if is_invite_link(tk.text) invite_follow(invite_link_code(tk.text)); else open_url(tk.text);
+			if is_invite_link(tk.text) invite_follow(invite_link_key(tk.text)); else open_url(tk.text);
 		case .User_Mention;
 			r := ui.Rect.{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10};
 			open_profile(tk.id, r);
@@ -1375,15 +1375,16 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 					if paste_attachments(ch.id) e.consumed = true;
 				}
 			}
-			// the emoji autocomplete floats over the whole form and takes its keys first
+			// the emoji and mention autocompletes float over the whole form and take their keys first
 			ui.push_parent(stack);
 			emoji_autocomplete(ch, *cs.editor, input_focused);
+			mention_autocomplete(ch, *cs.editor, input_focused);
 			ui.pop_parent();
 			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"), markdown = true);
 			if res == .Changed emoji_autocomplete_close_colon(ch, *cs.editor);
 			if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
-				if composer_send(ch, emoji_convert_shortcodes(text, ch.id)) cs.scroll_target = 0;
+				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) cs.scroll_target = 0;
 				ui.editor_set_text(*cs.editor, "");
 			} else if res == .Escape {
 				ma.replying = 0;

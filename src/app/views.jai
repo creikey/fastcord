@@ -971,9 +971,16 @@ join_voice :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 
 overlays :: () {
 	// Escape is a global keybind in the official client (MARK_CHANNEL_READ, or
-	// POP_LAYER over settings); it is tracked whatever layer it closes
+	// POP_LAYER over settings); it is tracked whatever layer it closes.
+	// Shift+Escape is MARK_SERVER_READ: the open guild's Mark As Read.
 	if app.client != null { for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape {
-		dc.analytics_keyboard_shortcut(app.client, ifx app.settings_open then "POP_LAYER" else "MARK_CHANNEL_READ", "esc");
+		if e.mods == .Shift && !app.settings_open {
+			dc.analytics_keyboard_shortcut(app.client, "MARK_SERVER_READ", "shift+esc");
+			gid := app.view.guild;
+			if gid != 0 && guild_has_unread(gid) && net_action() dc.ack_guild(app.client, gid, source = "");
+		} else {
+			dc.analytics_keyboard_shortcut(app.client, ifx app.settings_open then "POP_LAYER" else "MARK_CHANNEL_READ", "esc");
+		}
 	} } }
 	picker_overlay();
 	group_dm_overlay();

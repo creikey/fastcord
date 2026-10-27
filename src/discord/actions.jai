@@ -171,6 +171,19 @@ request_guild_members :: (c: *Client, guild_id: Snowflake, user_ids: []Snowflake
 	}
 }
 
+// search_guild_members: op 8 for the "@" autocomplete (GuildMemberRequesterStore.requestMembers):
+// {guild_id: [gid], query, limit: 10, presences: true}; the caller debounces it.
+search_guild_members :: (c: *Client, guild_id: Snowflake, query: string) {
+	if !c.gw return;
+	push_allocator(temp);
+	b := etf.map_builder(4);
+	etf.map_put(*b, "guild_id", etf.vlist(array_copy(V.[etf.vstring(snowflake_string(guild_id))])));
+	etf.map_put(*b, "query", etf.vstring(to_lower_copy(query)));
+	etf.map_put(*b, "limit", etf.vint(10));
+	etf.map_put(*b, "presences", etf.vbool(true));
+	gateway_send(c.gw, .Request_Guild_Members, etf.vmap(etf.map_done(*b)));
+}
+
 // voice_join / voice_leave: op 4 as VoiceStateStore sends it.
 voice_update :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool) {
 	if !c.gw return;

@@ -122,6 +122,85 @@ wide_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> 
 	return ui.signal(b).clicked && enabled;
 }
 
+// An invite link to an event ("discord.gg/<code>?event=<id>"): the event's start, creator,
+// interested count, name and description, then the guild and the place, and the button
+// (GuildScheduledEventInviteEmbed): Join outside the guild; inside it Interested before the
+// start, Join / Go To Channel / View Details while live, "Event is over" after. Clicking the
+// card opens the guild's Events (the client opens the event's details).
+event_invite_card :: (id: string, key: string, p: dc.Invite_Preview) {
+	W :: 432.0;
+	ICON :: 48.0;
+	member := dc.guild_get(store(), p.guild_id) != null;
+	// a guild we're in has the live event (interest, counts) in the events table; the count
+	// comes from its counts request (0 until then, and outside the guild)
+	e := ifx member then dc.event_get(p.event.id);
+	if e && e.user_count < 0 && app.client != null dc.event_ask_counts(app.client, e.id);
+	shown := ifx e then e.* else p.event;
+	shown.user_count = max(shown.user_count, 0);
+	spacer(.Y, 4);
+	card := ui.box(id, .Draw_Background | .Draw_Border | .Clickable);
+	card.semantic_size = .[ui.px(W), ui.children()];
+	card.layout_axis = .Y;
+	card.style.bg = T("--embed-background");
+	card.style.border_color = T("--border-subtle");
+	card.style.border = 1;
+	card.style.radius = all4(8);
+	card.hover_cursor = .Pointer;
+	if ui.signal(card).clicked && member events_open(p.guild_id);
+	ui.parent(card); defer ui.pop_parent();
+	ui.id_scope(cast(u64) p.event.id); defer ui.pop_seed();
+	event_card_head(*shown);
+	spacer(.Y, 16);
+	br := row("bottom");
+	br.semantic_size = .[ui.pct(1), ui.px(ICON)];
+	{ ui.parent(br); defer ui.pop_parent();
+		spacer(.X, 16);
+		gi := ui.box("gicon", .Draw_Background | .Draw_Text);
+		gi.semantic_size = .[ui.px(ICON), ui.px(ICON)];
+		gi.style.radius = all4(16);
+		gi.style.bg = T("--background-mod-subtle");
+		gi.style.text_color = T("--text-default");
+		gi.style.text_align = .Center;
+		gi.style.font = F(.Medium);
+		gi.style.font_size = 16;
+		gi.text = guild_initials(p.name);
+		if p.icon != "" {
+			set_remote_image(gi, dc.guild_icon_url(p.guild_id, p.icon, 128));
+			gi.text = "";
+		}
+		spacer(.X, 12);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			spacer(.Y, 4);
+			label(ellipsize(p.name, .Medium, 16, 200), .Medium, 16, T("--text-strong"), 20);
+			pr := row("place");
+			pr.semantic_size = .[ui.pct(1), ui.px(20)];
+			{ ui.parent(pr); defer ui.pop_parent();
+				place, place_icon := place_of(*shown);
+				icon("pl", place_icon, 16, T("--text-default"));
+				spacer(.X, 4);
+				label(ellipsize(place, .Normal, 14, 180), .Normal, 14, T("--text-default"), 18);
+			}
+		}
+		secondary, fg := T("--background-mod-normal"), T("--text-strong");
+		if !member || (e && e.status == .Active && e.entity != .External && app.voice_channel != e.channel_id) {
+			if pill_button("join", ifx p.joining then "Joining…" else "Join", "", T("--status-positive-background"), T("--status-positive-text"), 40) && !p.joining invite_follow(key);
+		} else if e && e.status == .Scheduled {
+			interested_button(e, 40);
+		} else if e && e.status == .Active && e.entity == .External {
+			if pill_button("details", "View Details", "", secondary, fg, 40) events_open(p.guild_id);
+		} else if e && e.status == .Active {
+			if pill_button("go", "Go To Channel", "", secondary, fg, 40) select_channel(p.guild_id, e.channel_id);
+		} else if e {
+			pill_button("over", "Event is over", "", secondary, T("--text-muted"), 40);
+		}
+		spacer(.X, 16);
+	}
+	spacer(.Y, 16);
+}
+
 #scope_file
 
 Wizard_Step :: enum u8 {
@@ -368,6 +447,44 @@ event_card :: (e: *dc.Scheduled_Event) {
 
 // The card's content (also the Review step's preview, without actions).
 event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
+	event_card_head(e);
+	spacer(.Y, 16);
+	hline("hl");
+	br := row("bottom");
+	br.semantic_size = .[ui.pct(1), ui.px(60)];
+	{ ui.parent(br); defer ui.pop_parent();
+		spacer(.X, 16);
+		place, place_icon := place_of(e);
+		icon("pl", place_icon, 20, T("--text-default"));
+		spacer(.X, 6);
+		label(ellipsize(place, .Medium, 14, 220), .Medium, 14, T("--text-default"), 18);
+		filler(.X);
+		if actions {
+			if pill_button("more", "", "more-horizontal", T("--background-mod-normal"), T("--text-strong")) {
+				menu_open(e.id, app.ui.mouse);
+			}
+			spacer(.X, 8);
+			if pill_button("share", "Share", "share", T("--background-mod-normal"), T("--text-strong")) {
+				share_open(e.id);
+				if net_action() dc.event_share(app.client, e.id);
+			}
+			spacer(.X, 8);
+			interested_button(e);
+		}
+		spacer(.X, 16);
+	}
+}
+
+interested_button :: (e: *dc.Scheduled_Event, h: float32 = 32) {
+	bg := ifx e.interested then T("--status-positive") else T("--background-mod-normal");
+	fg: ui.Color = ifx e.interested then .{1, 1, 1, 1} else T("--text-strong");
+	if pill_button("interested", "Interested", ifx e.interested then "checkmark-small" else "bell", bg, fg, h) && !e.interest_pending && net_action() {
+		dc.set_event_interest(app.client, e.id, !e.interested);
+	}
+}
+
+// Start, creator, interested count, name and description.
+event_card_head :: (e: *dc.Scheduled_Event) {
 	spacer(.Y, 16);
 	wr := row("when");
 	wr.semantic_size = .[ui.pct(1), ui.px(22)];
@@ -379,7 +496,7 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 			dot.style.radius = all4(4);
 			dot.style.bg = T("--status-positive");
 			spacer(.X, 6);
-			label("Happening Now", .Semibold, 14, T("--text-feedback-positive"), 18);
+			label(ifx e.entity == .External then "Happening Now" else "Live Now", .Semibold, 14, T("--text-feedback-positive"), 18);
 		} else {
 			icon("cal", "calendar", 18, T("--text-brand"));
 			spacer(.X, 8);
@@ -434,35 +551,6 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 			b.style.text_color = T("--text-default");
 			spacer(.X, 16);
 		}
-	}
-	spacer(.Y, 16);
-	hline("hl");
-	br := row("bottom");
-	br.semantic_size = .[ui.pct(1), ui.px(60)];
-	{ ui.parent(br); defer ui.pop_parent();
-		spacer(.X, 16);
-		place, place_icon := place_of(e);
-		icon("pl", place_icon, 20, T("--text-default"));
-		spacer(.X, 6);
-		label(ellipsize(place, .Medium, 14, 220), .Medium, 14, T("--text-default"), 18);
-		filler(.X);
-		if actions {
-			if pill_button("more", "", "more-horizontal", T("--background-mod-normal"), T("--text-strong")) {
-				menu_open(e.id, app.ui.mouse);
-			}
-			spacer(.X, 8);
-			if pill_button("share", "Share", "share", T("--background-mod-normal"), T("--text-strong")) {
-				share_open(e.id);
-				if net_action() dc.event_share(app.client, e.id);
-			}
-			spacer(.X, 8);
-			bg := ifx e.interested then T("--status-positive") else T("--background-mod-normal");
-			fg: ui.Color = ifx e.interested then .{1, 1, 1, 1} else T("--text-strong");
-			if pill_button("interested", "Interested", ifx e.interested then "checkmark-small" else "bell", bg, fg) && !e.interest_pending && net_action() {
-				dc.set_event_interest(app.client, e.id, !e.interested);
-			}
-		}
-		spacer(.X, 16);
 	}
 }
 

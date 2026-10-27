@@ -1,51 +1,69 @@
 // Invite links in messages: a card under the message (the client's invite embed) with the
 // guild's icon, name, counts and age, and "Join Server" / "Go to Server". Clicking an invite
-// link in the text does the same as the button instead of opening the browser.
+// link in the text does the same as the button instead of opening the browser. A link to a
+// scheduled event ("discord.gg/<code>?event=<id>") gets the event's card instead.
 
 INVITE_HOSTS :: string.["discord.gg/", "discord.com/invite/", "discordapp.com/invite/"];
 
-// invite_codes: the distinct invite codes linked in a message's text (temp).
-invite_codes :: (content: string) -> []string {
+// invite_keys: the distinct invite links in a message's text, as dc.invite_preview_key (temp).
+invite_keys :: (content: string) -> []string {
 	out: [..]string;
 	out.allocator = temp;
 	for word: split(content, " \n\t<>()",, temp) {
 		for INVITE_HOSTS if contains(word, it) {
-			code := invite_link_code(word);
-			if code != "" array_add_if_unique(*out, code);
+			key := invite_link_key(word);
+			if key != "" array_add_if_unique(*out, key);
 			break;
 		}
 	}
 	return out;
 }
 
-// invite_link_code: the code of an invite URL ("" when it isn't one).
-invite_link_code :: (url: string) -> string {
+// invite_link_key: the preview key of an invite URL ("" when it isn't one): its code, plus
+// the event of an "?event=<id>" link.
+invite_link_key :: (url: string) -> string {
 	for INVITE_HOSTS {
 		i := find_index_from_left(url, it);
-		if i >= 0 return dc.invite_code_from_input(slice(url, i, url.count - i));
+		if i < 0 continue;
+		code := dc.invite_code_from_input(slice(url, i, url.count - i));
+		if code == "" return "";
+		event: dc.Snowflake;
+		q := find_index_from_left(url, #char "?");
+		if q >= 0 for split(advance(url, q + 1), "&",, temp) {
+			if !begins_with(it, "event=") continue;
+			v, ok := string_to_int(advance(it, "event=".count), T = u64);
+			if ok event = v;
+		}
+		return dc.invite_preview_key(code, event);
 	}
 	return "";
 }
 
-is_invite_link :: (url: string) -> bool { return invite_link_code(url) != ""; }
+is_invite_link :: (url: string) -> bool { return invite_link_key(url) != ""; }
 
 // invite_follow: the card's button or a click on the link. A guild we're in opens at the
 // invite's channel; otherwise the invite is accepted and the library opens it on GUILD_CREATE.
-invite_follow :: (code: string) {
+invite_follow :: (key: string) {
 	if app.client == null || !net_action() return;
-	p := dc.invite_preview(app.client, code);
+	p := dc.invite_preview(app.client, key);
 	if p.state != .Ok return;
 	if dc.guild_get(store(), p.guild_id) {
 		ch := dc.channel_get(store(), p.channel_id);
 		if ch && ch.guild_id == p.guild_id select_channel(p.guild_id, p.channel_id); else select_guild(p.guild_id);
 		return;
 	}
-	dc.join_invite_preview(app.client, code);
+	dc.join_invite_preview(app.client, key);
 }
 
 invite_cards_view :: (m: *dc.Message) {
 	if app.client == null || (m.flags & 4) return; // SUPPRESS_EMBEDS
-	for code: invite_codes(m.content) invite_card(tprint("invite%", it_index), code, dc.invite_preview(app.client, code));
+	for key: invite_keys(m.content) {
+		id := tprint("invite%", it_index);
+		p := dc.invite_preview(app.client, key);
+		// a finished or canceled event shows the plain invite (the client's isGuildEventEnded check)
+		if p.state == .Ok && p.event.id != 0 && p.event.status != .Completed && p.event.status != .Canceled event_invite_card(id, key, p);
+		else invite_card(id, key, p);
+	}
 }
 
 invite_card :: (id: string, code: string, p: dc.Invite_Preview) {

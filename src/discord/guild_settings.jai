@@ -390,15 +390,16 @@ track_channel_settings :: (c: *Client, gid: Snowflake, cid: Snowflake, label: st
 }
 
 // Mark As Read: every unread channel of the guild in one ack-bulk; read states
-// move to each channel's last message at once.
-ack_guild :: (c: *Client, gid: Snowflake) -> int {
+// move to each channel's last message at once. source: mark_as_read's ("" for the
+// Shift+Escape keybind, which sends none).
+ack_guild :: (c: *Client, gid: Snowflake, source := "Guild List") -> int {
 	g := guild_get(*c.store, gid);
-	return ifx g then ack_channels(c, g.channels) else 0;
+	return ifx g then ack_channels(c, g.channels, source) else 0;
 }
 
 // ack_channels: one POST /read-states/ack-bulk for the unread channels among
 // ids (guild Mark As Read; the Inbox's Mark All as Read).
-ack_channels :: (c: *Client, ids: []Snowflake) -> int {
+ack_channels :: (c: *Client, ids: []Snowflake, source := "Guild List") -> int {
 	n: int;
 	s := *c.store;
 	w: Json;
@@ -425,7 +426,7 @@ ack_channels :: (c: *Client, ids: []Snowflake) -> int {
 	if n == 0 return 0;
 	s.changed += 1;
 	submit_json_job(c, "POST", "/read-states/ack-bulk", json_string(*w), retries = 2);
-	analytics_track(c, "mark_as_read", "\"type\":\"guild\",\"source\":\"Guild List\"");
+	analytics_track(c, "mark_as_read", ifx source then tprint("\"type\":\"guild\",\"source\":%", json_quote(source)) else "\"type\":\"guild\"");
 	return n;
 }
 

@@ -288,23 +288,32 @@ Invite_Preview :: struct {
 	icon: string;
 	online: int;
 	members: int;
+	event: Scheduled_Event; // a link with ?event=<id>: the invite's guild_scheduled_event (id 0 = none)
 }
 
-// invite_preview: the resolved invite for a code seen in a message, fetched on first
-// use (resolveInvite: invite_opened, then GET /invites/{code} without inputValue).
-// UI thread; the copy's strings live as long as the client.
-invite_preview :: (c: *Client, code: string) -> Invite_Preview {
+// invite_preview_key: the previews table's key, "<code>" or "<code>?event=<id>" (temp).
+invite_preview_key :: (code: string, event_id: Snowflake) -> string {
+	return ifx event_id then tprint("%?event=%", code, event_id) else code;
+}
+
+// invite_preview: the resolved invite for a key (invite_preview_key) seen in a message,
+// fetched on first use (resolveInvite: invite_opened, then GET /invites/{code} without
+// inputValue; an event link adds guild_scheduled_event_id). UI thread; the copy's strings
+// live as long as the client.
+invite_preview :: (c: *Client, key: string) -> Invite_Preview {
 	locks.lock(*c.invite_mu);
-	p := table_find_pointer(*c.invite_previews, code);
-	if !p table_add(*c.invite_previews, copy_string(code,, c.allocator), .{});
+	p := table_find_pointer(*c.invite_previews, key);
+	if !p table_add(*c.invite_previews, copy_string(key,, c.allocator), .{});
 	out := ifx p then p.* else .{};
 	locks.unlock(*c.invite_mu);
 	if p return out;
+	code, event := invite_key_parts(key);
 	analytics_track(c, "invite_opened", tprint("\"invite_code\":%", json_quote(code)));
 	q: Query;
 	query_init(*q, tprint("/invites/%", code));
 	query_add_bool(*q, "with_counts", true);
 	query_add_bool(*q, "with_expiration", true);
+	if event query_add_snow(*q, "guild_scheduled_event_id", event);
 	query_add_bool(*q, "with_permissions", true);
 	j := job_new(.Api, .None);
 	j.method = "GET";
@@ -315,7 +324,7 @@ invite_preview :: (c: *Client, code: string) -> Invite_Preview {
 		g := fmap(m, "guild");
 		locks.lock(*cl.invite_mu);
 		defer locks.unlock(*cl.invite_mu);
-		p := table_find_pointer(*cl.invite_previews, invite_path_code(j.path));
+		p := table_find_pointer(*cl.invite_previews, invite_path_key(j.path));
 		if !p return;
 		if status != 200 || !g {
 			p.state = .Failed;
@@ -329,6 +338,11 @@ invite_preview :: (c: *Client, code: string) -> Invite_Preview {
 		p.channel_type = fint(ch, "type");
 		p.online = fint(m, "approximate_presence_count");
 		p.members = fint(m, "approximate_member_count");
+		ev := fmap(m, "guild_scheduled_event");
+		if ev {
+			event_fill(*p.event, ev, cl.allocator);
+			p.event.user_count = -1; // the card's count comes from the counts request, not the invite
+		}
 		p.state = .Ok;
 	};
 	job_submit(c, j);
@@ -337,9 +351,10 @@ invite_preview :: (c: *Client, code: string) -> Invite_Preview {
 
 // join_invite_preview: the embed's Join (acceptInviteAndTransitionToInviteChannel):
 // POST /invites/{code}; the GUILD_CREATE that follows opens the invite's channel.
-join_invite_preview :: (c: *Client, code: string, location := INVITE_LOC_EMBED) {
+join_invite_preview :: (c: *Client, key: string, location := INVITE_LOC_EMBED) {
+	code := invite_key_parts(key);
 	locks.lock(*c.invite_mu);
-	p := table_find_pointer(*c.invite_previews, code);
+	p := table_find_pointer(*c.invite_previews, key);
 	if !p || p.state != .Ok || p.joining {
 		locks.unlock(*c.invite_mu);
 		return;
@@ -360,9 +375,12 @@ join_invite_preview :: (c: *Client, code: string, location := INVITE_LOC_EMBED) 
 	j.on_response = (cl: *Client, j: *Job, status: int, body: V) {
 		locks.lock(*cl.invite_mu);
 		defer locks.unlock(*cl.invite_mu);
-		p := table_find_pointer(*cl.invite_previews, invite_path_code(j.path));
-		if p p.joining = false;
-		if status / 100 != 2 && p && cl.pending_join_guild == p.guild_id cl.pending_join_guild, cl.pending_join_channel = 0, 0;
+		code := invite_path_code(j.path);
+		for * p, key: cl.invite_previews {
+			if invite_key_parts(key) != code continue;
+			p.joining = false;
+			if status / 100 != 2 && cl.pending_join_guild == p.guild_id cl.pending_join_guild, cl.pending_join_channel = 0, 0;
+		}
 	};
 	job_submit(c, j);
 }
@@ -372,6 +390,24 @@ invite_path_code :: (path: string) -> string {
 	i := find_index_from_left(t, #char "?");
 	if i >= 0 t.count = i;
 	return t;
+}
+
+// invite_path_key: the previews key of a resolve request's path.
+invite_path_key :: (path: string) -> string {
+	PARAM :: "guild_scheduled_event_id=";
+	i := find_index_from_left(path, PARAM);
+	if i < 0 return invite_path_code(path);
+	ev := advance(path, i + PARAM.count);
+	j := find_index_from_left(ev, #char "&");
+	if j >= 0 ev.count = j;
+	return tprint("%?event=%", invite_path_code(path), ev);
+}
+
+invite_key_parts :: (key: string) -> code: string, event: Snowflake {
+	i := find_index_from_left(key, "?event=");
+	if i < 0 return key, 0;
+	ev, ok := string_to_int(advance(key, i + "?event=".count), T = u64);
+	return slice(key, 0, i), ifx ok then ev else 0;
 }
 
 // join_invite: the Join a Server modal's submit: resolve, then accept. The
