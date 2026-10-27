@@ -1,4 +1,4 @@
-// jai build.jai - [app|dev|debug|parity|run <file.jai>|tool <name>|c]
+// jai build.jai - [app|dev|debug|parity|test|run <file.jai>|tool <name>|c]
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
 // into build/, then the Jai program, then links everything with the system clang.
 #import "Basic";
@@ -34,8 +34,9 @@ build :: () {
         case "debug"; o.output_executable_name = "fastcord-debug"; set_optimization(*o, .DEBUG);
         case "tool";  o.output_executable_name = args[1]; file = tprint("jai/tool_%/main.jai", args[1]);
         case "parity"; o.output_executable_name = "parity"; file = "jai/discord_parity/module.jai";
+        case "test";   o.output_executable_name = "test-discord-jai"; file = "jai/tests/discord.jai"; set_optimization(*o, .OPTIMIZED);
         case "run";  file = args[1]; o.output_executable_name = path_strip_extension(path_filename(file));
-        case; log_error("usage: jai build.jai - [app|dev|debug|parity|run <file.jai>|tool <name>|c]"); return;
+        case; log_error("usage: jai build.jai - [app|dev|debug|parity|test|run <file.jai>|tool <name>|c]"); return;
     }
     o.output_path = "build";
     o.dead_code_elimination = .NONE; // type-check every procedure, not only the ones called
@@ -57,7 +58,15 @@ build :: () {
         }
     }
     compiler_end_intercept(w);
-    if !ok compiler_set_workspace_status(.FAILED);
+    if !ok { compiler_set_workspace_status(.FAILED); return; }
+    if target == "test" {
+        // the offline parity tests; extra arguments pick tests by name
+        a: [..]string;
+        array_add(*a, "build/test-discord-jai");
+        array_add(*a, ..array_view(args, 1));
+        r := run_command(..a);
+        if r.exit_code != 0 compiler_set_workspace_status(.FAILED);
+    }
 }
 
 MAC_FLAGS :: string.["-arch", "arm64", "-mmacosx-version-min=13.0"];
