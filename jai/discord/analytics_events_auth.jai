@@ -4,17 +4,20 @@
 // trackNetworkAction: {status_code, error_code?, error_message?, url, request_method, ...properties}.
 analytics_network_action :: (c: *Client, event: string, status: int, body: etf.Map, url: string, method: string, extra_key := "", extra_value := "") {
 	w := aw_begin();
-	json_kint(*w, "status_code", cast(s64)(status));
-	if status < 200 || status >= 300 {
-		{ code, ok := vget(body, "code").i, vget(body, "code").kind == .Int;
-		if ok { json_kint(*w, "error_code", code); } }
-		{ m := fstr(body, "message");
-		if m != "" { json_kstr(*w, "error_message", m); } }
-	}
+	json_kint(*w, "status_code", status);
+	if status < 200 || status >= 300 aw_error(*w, body);
 	json_kstr(*w, "url", url);
 	json_kstr(*w, "request_method", method);
-	if extra_key != "" { json_kstr(*w, extra_key, extra_value); }
+	if extra_key json_kstr(*w, extra_key, extra_value);
 	aw_track(c, event, *w);
+}
+
+// aw_error: a failed response's error_code (when an integer) and error_message.
+aw_error :: (w: *Json, body: etf.Map) {
+	code := vget(body, "code");
+	if code.kind == .Int json_kint(w, "error_code", code.i);
+	m := fstr(body, "message");
+	if m json_kstr(w, "error_message", m);
 }
 
 // login_viewed: the login page (not an invite's) mounted, logged out.
@@ -40,15 +43,12 @@ analytics_hotspot_hidden :: (c: *Client, location: string) {
 	json_kstr(*w, "hotspot_location", location);
 	aw_track(c, "hotspot_hidden", *w);
 }
-#scope_module
 
 // The fingerprint's id part (before the first '.').
 fingerprint_id :: (fp: string) -> string {
-	{ i := strings.index_byte(fp, #char ".");
-	if i >= 0 { return sub(fp, 0, i); } }
-	return fp;
+	_, id := split_from_left(fp, #char "."); // all of fp when there is no '.'
+	return id;
 }
-#scope_export
 
 analytics_fingerprint_changed :: (c: *Client, fp: string) {
 	w := aw_begin();
@@ -72,24 +72,18 @@ analytics_login_successful_qr :: (c: *Client, fingerprint: string) {
 	json_knull(*w, "gift_code_sku_id");
 	json_kbool(*w, "is_new_user", false);
 	json_kstr(*w, "login_method", "remote_auth");
-	if fingerprint != "" { json_kstr(*w, "login_instance_id", fingerprint); } else { json_knull(*w, "login_instance_id"); }
+	if fingerprint json_kstr(*w, "login_instance_id", fingerprint); else json_knull(*w, "login_instance_id");
 	aw_track(c, "login_successful", *w);
 }
 
 // network_action_user_survey_fetch: the Friends page's survey load.
 analytics_survey_fetch :: (c: *Client, status: int, body: etf.Map) {
 	w := aw_begin();
-	json_kint(*w, "status_code", cast(s64)(status));
-	if status < 200 || status >= 300 {
-		{ code, ok := vget(body, "code").i, vget(body, "code").kind == .Int;
-		if ok { json_kint(*w, "error_code", code); } }
-		{ m := fstr(body, "message");
-		if m != "" { json_kstr(*w, "error_message", m); } }
-	}
+	json_kint(*w, "status_code", status);
+	if status < 200 || status >= 300 aw_error(*w, body);
 	json_kstr(*w, "url", "/users/@me/survey");
 	json_kstr(*w, "request_method", "get");
 	json_kstr(*w, "location", "impression_friends");
 	json_kstr(*w, "location_page", "impression_friends");
 	aw_track(c, "network_action_user_survey_fetch", *w);
 }
-
