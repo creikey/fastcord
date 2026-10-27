@@ -1,6 +1,6 @@
 // jai build.jai - <target>: see USAGE below.
 // Compiles the vendored C libraries (each vendor/<lib>/fc_<lib>.c, or the files listed in fc_<lib>.sources)
-// into build/, then the Jai program, then links everything. The C goes through the pinned, cached `zig cc`, except native macOS (clang).
+// into build/, then the Jai program, then links everything. The C, and the macOS and Linux links, go through one pinned Zig that build/zig caches.
 #import "Basic";
 #import "Compiler";
 #import "Process";
@@ -83,9 +83,16 @@ END
 // glibc 2.17 (so one binary runs on every distro since 2014), the Jai with os_target = .LINUX.
 LINUX := false;
 GLIBC :: "x86_64-linux-gnu.2.17";
-OBJ :: () -> string { return ifx LINUX then "build/linux" else "build"; }
+// Native macOS compiles the C once per arch ("aarch64", "x86_64") and joins the two archives with lipo.
+MAC_ARCH := "";
+OBJ :: () -> string {
+    if LINUX return "build/linux";
+    if MAC_ARCH return tprint("build/mac-%", MAC_ARCH);
+    return "build";
+}
 VENDOR_LIB :: () -> string {
     #if OS == .WINDOWS if !LINUX return "build/fc_vendor.lib";
+    if MAC_ARCH return tprint("%/fc_vendor.a", OBJ());
     return "build/fc_vendor.a";
 }
 // A program built into build/, as a path CreateProcess / exec take.
@@ -100,7 +107,7 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     for o.import_path array_add(*import_path, it);
     o.import_path = import_path;
     if LINUX o.os_target = .LINUX;
-    // Windows links with the compiler's own linker step (MSVC libraries); macOS and Linux with clang / zig
+    // Windows links with the compiler's own linker step (MSVC libraries); macOS and Linux with zig
     o.use_custom_link_command = OS != .WINDOWS || LINUX;
     o.text_output_flags = 0;
     o.output_executable_name = name;
@@ -324,14 +331,12 @@ INFO_PLIST :: #string XML
 </plist>
 XML
 
-// The C objects are universal (arm64 + x86_64): each Jai program links the slice for its target.
-MAC_C_FLAGS :: string.["-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-min=13.0"];
-
 link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
     if LINUX array_add(*a, ZIG, "c++", "-target", GLIBC, "-o", exe);
-    else array_add(*a, "clang", "-o", exe);
-    #if OS == .MACOS if !LINUX array_add(*a, "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0");
+    // zig cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
+    else array_add(*a, ZIG, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
+        tprint("--sysroot=%", MAC_SDK), "-F", tprint("%/System/Library/Frameworks", MAC_SDK), "-o", exe);
     array_add(*a, ..p.compiler_generated_object_files);
     array_add(*a, ..p.support_object_files);
     for p.user_libraries array_add(*a, it);
@@ -446,25 +451,45 @@ fetch_zig :: () -> bool {
     return ok;
 }
 
-// The C compiler for the target: zig cc, except native macOS, whose objects are universal (zig takes one -arch).
+// The C++ library headers come from the system the program links against, not zig's libc++ (which would need
+// linking too): the MSVC STL on Windows, the SDK's libc++ on macOS.
+MAC_SDK := "";
+
+// Every C compile goes through zig cc.
 cc :: (a: *[..]string, cpp: bool) {
+    array_add(a, ZIG, ifx cpp then "c++" else "cc", "-c", "-O2");
     // the autoconf names the network libraries test for their byte-order headers
-    if LINUX array_add(a, ZIG, ifx cpp then "c++" else "cc", "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
+    if LINUX array_add(a, "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
     else if OS == .WINDOWS {
-        array_add(a, ZIG, ifx cpp then "c++" else "cc", "-target", "x86_64-windows-msvc");
-        // The MSVC STL, which Jai's link has (zig's libc++ would need linking). Zig takes the newest VS's headers
-        // while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
+        array_add(a, "-target", "x86_64-windows-msvc", "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
+        // Zig takes the newest VS's headers while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
         if cpp array_add(a, "-nostdinc++", "-D_USE_STD_VECTOR_ALGORITHMS=0");
+    } else {
+        array_add(a, "-target", tprint("%-macos.13.0", MAC_ARCH), tprint("--sysroot=%", MAC_SDK));
+        if cpp array_add(a, "-nostdinc++", "-isystem", tprint("%/usr/include/c++/v1", MAC_SDK));
     }
-    else array_add(a, "clang");
-    array_add(a, "-c", "-O2");
-    #if OS == .MACOS if !LINUX array_add(a, ..MAC_C_FLAGS);
-    #if OS == .WINDOWS if !LINUX array_add(a, "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
     if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
 }
 
 build_c :: () -> bool {
-    if (LINUX || OS != .MACOS) && !fetch_zig() return false;
+    if !fetch_zig() return false;
+    #if OS == .MACOS if !LINUX {
+        r, out := run_command("xcrun", "--show-sdk-path", capture_and_return_output = true);
+        if r.exit_code != 0 return false;
+        MAC_SDK = copy_string(trim(out));
+        // Each Jai program links its arch's slice of the universal archive.
+        for string.["aarch64", "x86_64"] { MAC_ARCH = it; if !build_c_target() return false; }
+        MAC_ARCH = "";
+        lib := VENDOR_LIB();
+        arm, x64 := "build/mac-aarch64/fc_vendor.a", "build/mac-x86_64/fc_vendor.a";
+        m, _, ok := file_modtime_and_size(lib);
+        if ok && file_modtime_and_size(arm) <= m && file_modtime_and_size(x64) <= m return true;
+        return run_command("lipo", "-create", arm, x64, "-output", lib).exit_code == 0;
+    }
+    return build_c_target();
+}
+
+build_c_target :: () -> bool {
     jobs: [..][..]string;
     stamps: [..]string;
     for src: c_units() {
@@ -490,8 +515,8 @@ build_c :: () -> bool {
             a: [..]string;
             cc(*a, !ends_with(f, ".c"));
             array_add(*a, ..extra);
-            // per-file SIMD (libwebp picks them at run time); macOS objects are universal, so its x86 half goes without
-            #if OS != .MACOS {
+            // per-file SIMD (libwebp picks them at run time)
+            if MAC_ARCH != "aarch64" {
                 if ends_with(f, "_sse41.c") array_add(*a, "-msse4.1");
                 if ends_with(f, "_avx2.c") array_add(*a, "-mavx2");
             }
@@ -510,12 +535,6 @@ build_c :: () -> bool {
     for objs { t := file_modtime_and_size(it); if t > m need = true; }
     if !need return true;
     file_delete(lib);
-    a: [..]string;
-    #if OS == .MACOS if !LINUX {
-        array_add(*a, "libtool", "-static", "-o", lib);
-        array_add(*a, ..objs);
-        return run_command(..a).exit_code == 0;
-    }
     // the object list goes in a response file: it is longer than a Windows command line
     rsp := tprint("%.rsp", lib);
     write_entire_file(rsp, join(..objs, "\n"));
