@@ -50,7 +50,7 @@ map_set :: inline (m: *Map, k: m.K, v: m.V) { table_set(*m.t, k, v); }
 delete_key :: inline (m: *Map, k: m.K) -> m.K, m.V { ok, v := table_remove(*m.t, k); return k, v; }
 has :: inline (m: Map, k: m.K) -> bool { mm := m; return table_find_pointer(*mm.t, k) != null; }
 reserve :: (m: *Map, n: int) { table_ensure_space(*m.t, n); }
-clear :: (m: *Map) { table_reset(*m.t); }
+clear :: (m: *Map) { table_reset_keeping_memory(*m.t); }
 delete :: (m: Map) { mm := m; deinit(*mm.t); }
 // The same indexing for arrays, where a field name is a map in one struct and an array in another.
 get :: inline (a: []$T, i: $I) -> T { return a[i]; }
