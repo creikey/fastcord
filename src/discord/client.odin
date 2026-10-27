@@ -32,7 +32,7 @@ Config :: struct {
 	// client would send goes here; dispatches are fed with client_inject_dispatch.
 	gateway_sink:          proc(data: rawptr, op: Op, d: V),
 	gateway_sink_data:     rawptr,
-	h3:                    H3_Hook, // optional h3 override (default: fc:quic/h3 via fc:quic/altsvc)
+	h3:                    H3_Hook, // optional h3 override (default: fc:quic via fc:quic/altsvc)
 	disable_h3:            bool,
 	ws_open_delay_ms:      i64, // gateway socket open after client_start (0 = 190, <0 = immediately)
 	fast_identify_delay_ms: i64, // fast-connect IDENTIFY after open (0 = 300, <0 = immediately)

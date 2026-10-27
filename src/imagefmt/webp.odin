@@ -1,7 +1,8 @@
 package imagefmt
 
-// WebP container (RIFF): simple VP8 / VP8L, VP8X extended with ALPH, and
-// ANIM/ANMF animation composited exactly like libwebp's WebPAnimDecoder.
+// WebP: Wuffs decodes every bitstream (VP8, VP8L, ALPH). Wuffs v0.4 can't animate WebP, so this file
+// parses the ANIM/ANMF container itself, hands each frame to Wuffs as a little still WebP of its own,
+// and composites exactly like libwebp's WebPAnimDecoder.
 
 import "core:mem"
 
@@ -23,104 +24,12 @@ next_chunk :: proc(data: []byte, pos: ^int) -> (Webp_Chunk, bool, Error) {
 	return ch, true, .None
 }
 
-// Decoded frame bitstream, RGBA w*h.
+// One frame's bitstream.
 @(private)
 Webp_Bits :: struct {
-	alph:  []byte,
-	kind:  string, // "VP8 " or "VP8L"
-	data:  []byte,
-}
-
-@(private)
-unfilter_alpha :: proc(a: []u8, w, h: int, filter: u8) {
-	if filter == 0 do return
-	for y in 0 ..< h {
-		row := a[y * w:][:w]
-		if y == 0 || filter == 1 {
-			pred: u8 = y == 0 ? 0 : a[(y - 1) * w]
-			for i in 0 ..< w {
-				row[i] = pred + row[i]
-				pred = row[i]
-			}
-			continue
-		}
-		prev := a[(y - 1) * w:][:w]
-		if filter == 2 {
-			for i in 0 ..< w do row[i] = prev[i] + row[i]
-		} else {
-			top := prev[0]
-			tl := top
-			left := top
-			for i in 0 ..< w {
-				top = prev[i]
-				g := i32(left) + i32(top) - i32(tl)
-				pv := u8((g & ~i32(0xFF)) == 0 ? g : g < 0 ? i32(0) : i32(255))
-				left = row[i] + pv
-				tl = top
-				row[i] = left
-			}
-		}
-	}
-}
-
-// Decodes one frame bitstream into dst (RGBA, stride dst_stride) at its origin.
-// Returns its size and whether it carries alpha.
-@(private)
-webp_decode_bits :: proc(c: ^Decode_Ctx, b: Webp_Bits, want_w, want_h: int, dst: []u8, dst_stride: int) -> (w, h: int, err: Error) {
-	switch b.kind {
-	case "VP8L":
-		argb, lw, lh, _ := vp8l_decode(b.data, c.allocator, c.max_pixels) or_return
-		defer delete(argb, c.allocator)
-		if lw != want_w || lh != want_h do return 0, 0, .Corrupt
-		for y in 0 ..< lh {
-			row := dst[y * dst_stride:]
-			for x in 0 ..< lw {
-				p := argb[y * lw + x]
-				o := row[x * 4:]
-				o[0] = u8(p >> 16)
-				o[1] = u8(p >> 8)
-				o[2] = u8(p)
-				o[3] = u8(p >> 24)
-			}
-		}
-		return lw, lh, .None
-	case "VP8 ":
-		d := new(VP8_Dec, c.allocator)
-		defer {
-			delete(d.y, c.allocator);delete(d.u, c.allocator);delete(d.v, c.allocator)
-			delete(d.intra_t, c.allocator);delete(d.nz_t, c.allocator);delete(d.finfo, c.allocator)
-			free(d, c.allocator)
-		}
-		vp8_headers(d, b.data) or_return
-		if d.w != want_w || d.h != want_h do return 0, 0, .Corrupt
-		if d.w * d.h > c.max_pixels do return 0, 0, .Too_Large
-		vp8_decode_frame(d, c.allocator) or_return
-		vp8_to_rgba(d, dst, dst_stride)
-		w, h = d.w, d.h
-		if b.alph == nil {
-			for y in 0 ..< h do for x in 0 ..< w do dst[y * dst_stride + x * 4 + 3] = 255
-			return w, h, .None
-		}
-		if len(b.alph) < 1 do return 0, 0, .Corrupt
-		hdr := b.alph[0]
-		method := hdr & 3
-		filter := (hdr >> 2) & 3
-		if method > 1 || hdr >> 6 != 0 do return 0, 0, .Corrupt
-		a := make([]u8, w * h, c.allocator)
-		defer delete(a, c.allocator)
-		if method == 0 {
-			if len(b.alph) - 1 < w * h do return 0, 0, .Truncated
-			copy(a, b.alph[1:])
-		} else {
-			argb, _, _, _ := vp8l_decode(b.alph[1:], c.allocator, c.max_pixels, false, w, h) or_return
-			for p, i in argb do a[i] = u8(p >> 8)
-			delete(argb, c.allocator)
-		}
-		unfilter_alpha(a, w, h, filter)
-		for y in 0 ..< h do for x in 0 ..< w do dst[y * dst_stride + x * 4 + 3] = a[y * w + x]
-		return w, h, .None
-	}
-	return 0, 0, .Corrupt
+	alph: []byte,
+	kind: string, // "VP8 " or "VP8L"
+	data: []byte,
 }
 
 @(private)
@@ -143,6 +52,31 @@ bits_dims :: proc(b: Webp_Bits) -> (w, h: int, alpha: bool, ok: bool) {
 	return w, h, b.alph != nil, ok
 }
 
+// Decodes one frame's bitstream (w*h) into dst, rows dst_stride bytes apart, by wrapping it in a
+// still WebP file: RIFF, then VP8X + ALPH when there is alpha, then the VP8 / VP8L chunk.
+@(private)
+webp_decode_bits :: proc(c: ^Decode_Ctx, b: Webp_Bits, w, h: int, dst: []u8, dst_stride: int) -> Error {
+	put_chunk :: proc(out: ^[dynamic]byte, fourcc: string, data: []byte) {
+		n := len(data)
+		append(out, fourcc, )
+		append(out, u8(n), u8(n >> 8), u8(n >> 16), u8(n >> 24))
+		append(out, ..data)
+		if n & 1 == 1 do append(out, 0)
+	}
+	file := make([dynamic]byte, 0, len(b.data) + len(b.alph) + 64, c.allocator)
+	defer delete(file)
+	append(&file, "RIFF\x00\x00\x00\x00WEBP")
+	if b.alph != nil {
+		x := [10]u8{0x10, 0, 0, 0, u8(w - 1), u8((w - 1) >> 8), u8((w - 1) >> 16), u8(h - 1), u8((h - 1) >> 8), u8((h - 1) >> 16)}
+		put_chunk(&file, "VP8X", x[:])
+		put_chunk(&file, "ALPH", b.alph)
+	}
+	put_chunk(&file, b.kind, b.data)
+	riff := len(file) - 8
+	file[4], file[5], file[6], file[7] = u8(riff), u8(riff >> 8), u8(riff >> 16), u8(riff >> 24)
+	return wuffs_decode_into(c, file[:], .WebP, w, h, dst, dst_stride)
+}
+
 @(private)
 Anm_Frame :: struct {
 	x, y, w, h: int,
@@ -162,57 +96,16 @@ webp_decode :: proc(c: ^Decode_Ctx, data_in: []byte, img: ^Image) -> Error {
 	pos := 12
 	first, ok := next_chunk(data, &pos) or_return
 	if !ok do return .Truncated
-
-	switch first.fourcc {
-	case "VP8 ", "VP8L":
-		b := Webp_Bits{kind = first.fourcc, data = first.data}
-		w, h, _, dok := bits_dims(b)
-		if !dok do return .Corrupt
-		check_size(c, w, h) or_return
-		px := alloc_pixels(c, w, h) or_return
-		if _, _, e := webp_decode_bits(c, b, w, h, px, w * 4); e != .None {
-			delete(px, c.allocator)
-			return e
-		}
-		img.width, img.height = w, h
-		return push_frame(c, px, 0, true)
-	case "VP8X":
-	case:
-		return .Corrupt
+	if first.fourcc == "VP8X" && len(first.data) >= 1 && first.data[0] & 0x02 == 0 || first.fourcc == "VP8 " || first.fourcc == "VP8L" {
+		return wuffs_decode(c, data, img, .WebP)
 	}
+	if first.fourcc != "VP8X" do return .Corrupt
 	if len(first.data) < 10 do return .Truncated
-	flags := first.data[0]
 	cw := le24i(first.data[4:]) + 1
 	chh := le24i(first.data[7:]) + 1
 	check_size(c, cw, chh) or_return
 	img.width, img.height = cw, chh
 
-	if flags & 0x02 == 0 {
-		// still image: optional ALPH then VP8/VP8L
-		b: Webp_Bits
-		for {
-			ch, more := next_chunk(data, &pos) or_return
-			if !more do return .Truncated
-			if ch.fourcc == "ALPH" do b.alph = ch.data
-			if ch.fourcc == "VP8 " || ch.fourcc == "VP8L" {
-				b.kind = ch.fourcc
-				b.data = ch.data
-				if b.kind == "VP8L" do b.alph = nil
-				break
-			}
-		}
-		w, h, _, dok := bits_dims(b)
-		if !dok do return .Corrupt
-		if w != cw || h != chh do return .Corrupt
-		px := alloc_pixels(c, w, h) or_return
-		if _, _, e := webp_decode_bits(c, b, w, h, px, w * 4); e != .None {
-			delete(px, c.allocator)
-			return e
-		}
-		return push_frame(c, px, 0, true)
-	}
-
-	// animation
 	frames := make([dynamic]Anm_Frame, c.allocator)
 	defer delete(frames)
 	for {

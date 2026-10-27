@@ -419,9 +419,7 @@ gateway_ui_send_goes_through_writer :: proc(t: ^testing.T) {
 	a, b := http.pipe_make()
 	defer netio.close(b)
 	g := gateway_create(c)
-	g.ws = new(http.Ws_Conn)
-	g.ws.s = a
-	g.ws.allocator = context.allocator
+	g.ws = http.ws_attach(a)
 
 	locks.set_ui_thread()
 	ok := gateway_send(g, .Request_Channel_Info, i64(7))
@@ -435,7 +433,6 @@ gateway_ui_send_goes_through_writer :: proc(t: ^testing.T) {
 	testing.expect_value(t, err, netio.Error.None)
 	testing.expect(t, n >= 2 && buf[0] == 0x82, "expected a binary websocket frame") // FIN | binary
 
-	g.ws.sent_close = true // no close frame: nothing reads it
 	gateway_stop(g)
 }
 
@@ -466,14 +463,14 @@ analytics_batch_shape :: proc(t: ^testing.T) {
 	testing.expect_value(t, raw[20], 0)
 }
 
-// Our QUIC transport parameters and h3 SETTINGS as Chrome's netlog prints them
-// (official fixtures, Chrome 148).
+// Our QUIC transport parameters and h3 SETTINGS as Chrome's netlog prints them (official fixtures,
+// Chrome 148). Chrome's SETTINGS also carry a GREASE entry, which nghttp3 does not send.
 @(test)
 netlog_conn_facts :: proc(t: ^testing.T) {
 	tp := quic.chrome_transport_params(39864, context.temp_allocator)
 	testing.expect_value(t, quic_params_text(tp, "Client"), "[Client [chosen_version 00000001 other_versions 00000001] max_idle_timeout 30000 max_udp_payload_size 1472 initial_max_data 15728640 initial_max_stream_data_bidi_local 6291456 initial_max_stream_data_bidi_remote 6291456 initial_max_stream_data_uni 6291456 initial_max_streams_bidi 100 initial_max_streams_uni 103 initial_source_connection_id 0 max_datagram_frame_size 65536 initial_round_trip_time 39864]")
 	s := h3_settings_json()
-	testing.expect(t, strings.has_prefix(s, `{"SETTINGS_H3_DATAGRAM":1,"SETTINGS_MAX_FIELD_SECTION_SIZE":262144,"SETTINGS_QPACK_BLOCKED_STREAMS":100,"SETTINGS_QPACK_MAX_TABLE_CAPACITY":65536,"UNSUPPORTED_SETTINGS_TYPE(`), s)
+	testing.expect_value(t, s, `{"SETTINGS_H3_DATAGRAM":1,"SETTINGS_MAX_FIELD_SECTION_SIZE":262144,"SETTINGS_QPACK_BLOCKED_STREAMS":100,"SETTINGS_QPACK_MAX_TABLE_CAPACITY":65536}`)
 }
 
 // Custom status set / clear exactly as captured (fixture custom_status).

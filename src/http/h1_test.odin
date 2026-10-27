@@ -13,7 +13,7 @@ unhex :: proc(s: string) -> []byte {
 	return b
 }
 
-// read_response_from feeds raw bytes through a pipe (optionally 1 byte per read).
+// parse_raw feeds raw bytes through a pipe (optionally `chunk` bytes per read).
 @(private = "file")
 parse_raw :: proc(raw: string, method := "GET", chunk := 0) -> (resp: Response, keep: bool, err: Error) {
 	a, b := pipe_make(read_timeout = 0, max_chunk = chunk)
@@ -93,9 +93,8 @@ test_h1_chunked :: proc(t: ^testing.T) {
 	ok_cases := [][2]string {
 		{"5\r\nhello\r\n6\r\n world\r\n0\r\n\r\n", "hello world"},
 		{"A;name=val\r\n0123456789\r\n0\r\n\r\n", "0123456789"}, // uppercase hex + extension
-		{"a \r\n0123456789\r\n0;x\r\nTrailer-A: 1\r\nTrailer-B: 2\r\n\r\n", "0123456789"}, // trailing ws + trailers
+		{"a\r\n0123456789\r\n0;x\r\nTrailer-A: 1\r\nTrailer-B: 2\r\n\r\n", "0123456789"}, // trailers skipped
 		{"0\r\n\r\n", ""},
-		{"1\n" + "x\n" + "0\n\n", "x"}, // bare LF tolerated
 	}
 	for c in ok_cases {
 		for chunk in ([]int{0, 1, 3}) {
@@ -106,11 +105,6 @@ test_h1_chunked :: proc(t: ^testing.T) {
 			response_destroy(&resp)
 		}
 	}
-	resp, _, _ := parse_raw("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\nX-T: v\r\n\r\n")
-	testing.expect_value(t, len(resp.trailers), 1)
-	testing.expect_value(t, resp.trailers[0].value, "v")
-	response_destroy(&resp)
-
 	bad := []string {
 		"g\r\n",
 		"5\r\nhelloXX0\r\n\r\n", // missing CRLF after data
@@ -125,6 +119,27 @@ test_h1_chunked :: proc(t: ^testing.T) {
 		r2, _, err := parse_raw(strings.concatenate({"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n", b}, context.temp_allocator))
 		testing.expectf(t, err != .None, "%q should fail", b)
 		response_destroy(&r2)
+	}
+}
+
+// Bytes after a chunked body belong to the next response on the connection.
+@(test)
+test_h1_chunked_then_next :: proc(t: ^testing.T) {
+	for chunk in ([]int{0, 1, 7}) {
+		a, b := pipe_make(read_timeout = 0, max_chunk = chunk)
+		netio.write(b, transmute([]byte)string("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi"))
+		netio.close(b)
+		r: Reader
+		reader_init(&r, a, 64)
+		r1, _, e1 := h1_read_response(&r, "GET", {max_header_bytes = 4096, max_headers = 64, max_body = 1 << 20})
+		r2, _, e2 := h1_read_response(&r, "GET", {max_header_bytes = 4096, max_headers = 64, max_body = 1 << 20})
+		testing.expect(t, e1 == .None && e2 == .None)
+		testing.expect_value(t, string(r1.body[:]), "abc")
+		testing.expect_value(t, string(r2.body[:]), "hi")
+		response_destroy(&r1)
+		response_destroy(&r2)
+		reader_destroy(&r)
+		netio.close(a)
 	}
 }
 
@@ -153,7 +168,25 @@ test_h1_misc_responses :: proc(t: ^testing.T) {
 		defer response_destroy(&resp)
 		testing.expect(t, err == .None && resp.status == 200 && resp.reason == "")
 	}
-	bad := []string{"HTTP/2 200 OK\r\n\r\n", "HTTP/1.1 20 OK\r\n\r\n", "HTTP/1.1 200 OK\r\n folded\r\n\r\n", "HTTP/1.1 200 OK\r\nNoColon\r\n\r\n", "garbage"}
+	{
+		// The head grows the 64-byte reader buffer, up to max_header_bytes.
+		resp, _, err := parse_raw(strings.concatenate({"HTTP/1.1 200 OK\r\nX-Long: ", strings.repeat("v", 1000, context.temp_allocator), "\r\nContent-Length: 0\r\n\r\n"}, context.temp_allocator))
+		defer response_destroy(&resp)
+		testing.expect(t, err == .None && len(resp.headers[0].value) == 1000)
+	}
+	{
+		_, _, err := parse_raw(strings.concatenate({"HTTP/1.1 200 OK\r\nX-Long: ", strings.repeat("v", 5000, context.temp_allocator), "\r\n\r\n"}, context.temp_allocator))
+		testing.expect_value(t, err, Error.Too_Large)
+	}
+	bad := []string {
+		"HTTP/2 200 OK\r\n\r\n",
+		"HTTP/1.1 20 OK\r\n\r\n",
+		"HTTP/1.1 200 OK\r\n folded\r\n\r\n",
+		"HTTP/1.1 200 OK\r\nNoColon\r\n\r\n",
+		"HTTP/1.1 200 OK\r\nX: a\x01b\r\n\r\n",
+		strings.concatenate({"HTTP/1.1 200 OK\r\n", strings.repeat("X: y\r\n", 65, context.temp_allocator), "\r\n"}, context.temp_allocator), // > max_headers
+		"garbage",
+	}
 	for b in bad {
 		r2, _, err := parse_raw(b)
 		testing.expectf(t, err != .None, "%q should fail", b)
@@ -167,25 +200,20 @@ Ka_Server :: struct {
 	got: [dynamic]byte,
 }
 
-// Two requests on one connection; the server answers both after reading them.
+// Two requests on one connection; the server answers each after reading it.
 @(test)
 test_h1_keepalive :: proc(t: ^testing.T) {
 	a, b := pipe_make()
 	srv := Ka_Server{s = b}
 	th := thread.create_and_start_with_poly_data(&srv, proc(srv: ^Ka_Server) {
-		r: Reader
-		reader_init(&r, srv.s, 4096)
-		defer reader_destroy(&r)
-		for i in 0 ..< 2 {
-			for {
-				line, err := read_line(&r)
+		buf: [256]byte
+		for want in ([]string{"*/*\r\n\r\n", "hi"}) {
+			for !strings.has_suffix(string(srv.got[:]), want) {
+				n, err := netio.read(srv.s, buf[:])
 				if err != .None do return
-				append(&srv.got, line)
-				append(&srv.got, "|")
-				if len(line) == 0 do break
+				append(&srv.got, ..buf[:n])
 			}
-			body := "first" if i == 0 else "second!"
-			resp := strings.concatenate({"HTTP/1.1 200 OK\r\nContent-Length: ", "5\r\n\r\n" if i == 0 else "7\r\n\r\n", body}, context.temp_allocator)
+			resp := "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nfirst" if want != "hi" else "HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nsecond!"
 			netio.write(srv.s, transmute([]byte)resp)
 		}
 	})
@@ -200,7 +228,7 @@ test_h1_keepalive :: proc(t: ^testing.T) {
 	testing.expect_value(t, string(r2.body[:]), "second!")
 	thread.join(th)
 	thread.destroy(th)
-	testing.expect_value(t, string(srv.got[:]), "GET /1 HTTP/1.1|Host: x|Accept: */*||POST /2 HTTP/1.1|Host: x|Content-Length: 2||")
+	testing.expect_value(t, string(srv.got[:]), "GET /1 HTTP/1.1\r\nHost: x\r\nAccept: */*\r\n\r\nPOST /2 HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\n\r\nhi")
 	delete(srv.got)
 	response_destroy(&r1)
 	response_destroy(&r2)

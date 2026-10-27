@@ -12,8 +12,8 @@ Read README.md first: build, testing, performance and conventions are there. Thi
   `-prof:` and query the stacks with `tools/folded.py`. If the counters grew on purpose, update
   `tests/bench/budget.json` in the same commit. The UI must stay immediate-mode (README "Performance").
 - Judge speed by the bench's latency column (input to GPU done, from idle), not by throughput. The fixture
-  is shaped like a real account (`tests/bench/shape.json`); `tools/bench.sh --live` checks that it still
-  matches, read-only.
+  is shaped like a made-up heavy account; `tools/bench.sh --live` compares it with the real one, read-only.
+  Never commit a real account's shape.
 - Headless runs (`-shot:`, `-bench`) render offscreen. Check UI changes by looking at the PNG they write,
   not only at test results.
 - Live runs (`-live:N`) use the real account in `<state>/token`. Keep them read-only: don't type, send,
@@ -22,3 +22,9 @@ Read README.md first: build, testing, performance and conventions are there. Thi
   guessed without a capture, goes in `traffic/CLIENT_RULES.md` in the same change: rule, kind, the
   anchor to search for in the bundle, and where fastcord implements it. It is reviewed on every
   Discord update.
+- Prefer the fewest lines where possible: no speculative API surface, delete dead paths.
+- Formats from the network (images, compression, codecs) go through vetted libraries, not hand-written
+  decoders: Wuffs first, else the reference C library or Odin's core library. Vendor upstream files
+  unmodified in `vendor/<lib>/` with a small `fc_<lib>.c` wrapper and a README (URL, version, sha256,
+  licence); `build.sh` / `build.bat` compile it. Hand-written code stays only where the library lacks a
+  feature (animated WebP's container).

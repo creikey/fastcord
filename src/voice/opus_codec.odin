@@ -2,7 +2,7 @@ package voice
 
 import "fc:opus"
 
-// opus_codec adapts fc:opus (from-scratch codec) to the Codec interface:
+// opus_codec adapts fc:opus (libopus) to the Codec interface:
 // mono VOIP encoder at 64 kbit/s (the client's default voice bitrate), stereo
 // decoder (mono packets are upmixed). It is the default codec.
 opus_codec :: proc() -> Codec {

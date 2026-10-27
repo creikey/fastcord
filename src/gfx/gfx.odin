@@ -22,7 +22,7 @@ Rect :: struct {
 Texture :: distinct u32 // 0 = none
 
 Texture_Format :: enum u8 {
-	RGBA8, // straight alpha
+	RGBA8, // callers pass straight alpha; stored premultiplied so filtering never bleeds colour from alpha-0 texels
 	R8, // coverage / alpha mask (tinted by color); also the Y plane of NV12
 	RG8, // two-channel (CbCr plane of NV12)
 }
@@ -384,8 +384,37 @@ push_rect_px :: proc(p: Rect_Params, d: Rect) {
 // ---------------------------------------------------------------------------
 // Textures
 
+// Straight-alpha RGBA rows (stride bytes apart) to a tightly packed premultiplied copy. The copy comes
+// from the heap, not temp storage, because images can be tens of megabytes.
+@(private = "file")
+premultiplied :: proc(pixels: []u8, w, h, stride: int) -> []u8 {
+	out := make([]u8, w * h * 4)
+	for y in 0 ..< h {
+		src := pixels[y * stride:][:w * 4]
+		dst := out[y * w * 4:][:w * 4]
+		for x := 0; x < w * 4; x += 4 {
+			a := u32(src[x + 3])
+			// c*a/255 rounded to nearest, without a divide (exact for all 8-bit inputs).
+			mul :: #force_inline proc "contextless" (c, a: u32) -> u8 {
+				t := c * a + 128
+				return u8((t + (t >> 8)) >> 8)
+			}
+			dst[x + 0] = mul(u32(src[x + 0]), a)
+			dst[x + 1] = mul(u32(src[x + 1]), a)
+			dst[x + 2] = mul(u32(src[x + 2]), a)
+			dst[x + 3] = u8(a)
+		}
+	}
+	return out
+}
+
 texture_create :: proc(w, h: int, format: Texture_Format, pixels: []u8 = nil) -> Texture {
-	native := _backend_texture_create(i32(w), i32(h), format, pixels)
+	px := pixels
+	if format == .RGBA8 && pixels != nil {
+		px = premultiplied(pixels, w, h, w * 4)
+	}
+	defer if format == .RGBA8 && pixels != nil do delete(px)
+	native := _backend_texture_create(i32(w), i32(h), format, px)
 	if native == nil {
 		g.diag.tex_create_fails += 1
 		return 0
@@ -411,6 +440,12 @@ texture_update :: proc(t: Texture, x, y, w, h: int, pixels: []u8, stride: int = 
 	bpp := format_bpp(slot.format)
 	row := stride != 0 ? stride : w * bpp
 	assert(len(pixels) >= row * (h - 1) + w * bpp)
+	if slot.format == .RGBA8 {
+		px := premultiplied(pixels, w, h, row)
+		defer delete(px)
+		_backend_texture_update(slot.native, slot.format, i32(x), i32(y), i32(w), i32(h), px, i32(w * 4))
+		return
+	}
 	_backend_texture_update(slot.native, slot.format, i32(x), i32(y), i32(w), i32(h), pixels, i32(row))
 }
 

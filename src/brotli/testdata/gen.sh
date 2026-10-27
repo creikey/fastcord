@@ -2,7 +2,6 @@
 # Regenerates the brotli test vectors (brotli 1.2.0 CLI from Homebrew).
 # text.txt = brotli's README.md + LICENSE; sample.json = first 24000 bytes of
 # ../../zstd/testdata/sample.json; sample.bin/random.bin copied from there too.
-# dictionary.bin: cc dump_dictionary.c -lbrotlicommon && ./a.out ../dictionary.bin
 set -e
 cd "$(dirname "$0")"
 for q in 0 1 2 3 4 5 6 7 8 9 10 11; do brotli -f -q $q text.txt -o text.txt.q$q.br; done

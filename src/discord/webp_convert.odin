@@ -17,6 +17,8 @@ package discord
 //     hash_time_ms); kept only if not larger than the PNG ("insufficient_savings");
 //   - the converted file keeps its name; original_content_type stays image/png.
 
+import "core:bytes"
+import "core:compress/zlib"
 import "core:strings"
 import "core:sync"
 import "core:time"
@@ -173,7 +175,9 @@ png_info :: proc(data: []byte) -> (info: Png_Info, ok: bool) {
 			z := strings.index_byte(string(body), 0)
 			if z < 0 || z + 2 > n do return
 			info.has_icc = true
-			info.icc = imagefmt.zlib_inflate(body[z + 2:], 16 << 20, context.temp_allocator)
+			icc: bytes.Buffer
+			context.allocator = context.temp_allocator
+			if zlib.inflate(body[z + 2:], &icc) == nil do info.icc = icc.buf[:]
 		case "IEND":
 			return info, true
 		}

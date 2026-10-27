@@ -1,7 +1,9 @@
 #!/bin/sh
 # ./build.sh [app|debug|dev|test <pkg>|tool <name>|c] — all builds use the fc collection.
-# Every target first compiles the vendored C (vendor/wuffs) into build/, which Odin links; `c` does
-# only that step. Needs clang (macOS: Xcode command line tools) or, on Windows, clang or MSVC's cl.
+# Every target first compiles the vendored C libraries: each vendor/<lib>/fc_<lib>.c is one translation
+# unit, built into build/fc_<lib>.obj (.o on macOS) when anything under vendor/<lib> is newer, and
+# linked by the Odin package that foreign-imports it. `c` does only that step. Needs clang (macOS: Xcode
+# command line tools) or, on Windows, clang or MSVC's cl.
 set -e
 cd "$(dirname "$0")"
 mkdir -p build
@@ -9,24 +11,43 @@ FLAGS="-collection:fc=src -vet-shadowing -strict-style"
 EXE=""
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXE=.exe ;; esac
 
-C_SRC="vendor/wuffs/fc_wuffs.c vendor/wuffs/wuffs-v0.4.c"
 build_c() {
-  if [ -n "$EXE" ]; then obj=build/fc_wuffs.obj; else obj=build/fc_wuffs.o; fi
-  stale=0
-  for f in $C_SRC build.sh; do [ "$obj" -nt "$f" ] || stale=1; done
-  [ $stale = 1 ] || return 0
-  if [ -n "$EXE" ]; then
-    # Scalar code on Windows: clang 11's MSVC-mode headers lack the AVX2 types Wuffs' SIMD paths use,
-    # and MSVC needs /arch:AVX2 for them.
-    if command -v clang >/dev/null 2>&1; then
-      clang -c -O2 -std=c99 -DWUFFS_CONFIG__AVOID_CPU_ARCH -o $obj vendor/wuffs/fc_wuffs.c
+  for src in vendor/*/fc_*.c; do
+    name=$(basename "$src" .c)
+    if [ -n "$EXE" ]; then obj=build/$name.obj; else obj=build/$name.o; fi
+    if [ -f "$obj" ] && [ -z "$(find "$(dirname "$src")" build.sh -newer "$obj" | head -1)" ]; then continue; fi
+    echo "cc $src"
+    # Optional fc_<lib>.cflags: one line of extra -I/-D flags (paths from the repo root).
+    extra=""
+    [ -f "${src%.c}.cflags" ] && extra=$(tr -d '\r\n' < "${src%.c}.cflags")
+    if [ -z "$EXE" ]; then
+      # Both architectures in one object, for the universal macOS app.
+      clang -c -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=13.0 $extra -o "$obj" "$src"
+    elif command -v clang >/dev/null 2>&1; then
+      clang -c -O2 -D_CRT_SECURE_NO_WARNINGS $extra -o "$obj" "$src"
     else
-      cl -nologo -c -O2 -DWUFFS_CONFIG__DISABLE_MSVC_CPU_ARCH__X86_64_FAMILY -Fo"$obj" vendor/wuffs/fc_wuffs.c
+      cl -nologo -c -O2 -D_CRT_SECURE_NO_WARNINGS $extra -Fo"$obj" "$src"
     fi
-  else
-    # Both architectures in one object, for the universal macOS app.
-    clang -c -O2 -std=c99 -arch arm64 -arch x86_64 -mmacosx-version-min=13.0 -o $obj vendor/wuffs/fc_wuffs.c
-  fi
+  done
+  # Larger libraries list their files in vendor/<lib>/fc_<lib>.sources (one path per line, from the repo
+  # root): each is compiled in parallel into build/<lib>/, then archived into build/libfc_<lib>.a (fat on
+  # macOS) or, on Windows, build/fc_<lib>.lib by build.bat, since it needs MSVC 2022's cl for C++17.
+  for list in vendor/*/fc_*.sources; do
+    [ -f "$list" ] || continue
+    name=$(basename "$list" .sources)
+    if [ -n "$EXE" ]; then lib=build/$name.lib; else lib=build/lib$name.a; fi
+    if [ -f "$lib" ] && [ -z "$(find "$(dirname "$list")" build.sh build.bat -newer "$lib" | head -1)" ]; then continue; fi
+    if [ -n "$EXE" ]; then cmd //c '.\build.bat' c; return; fi
+    echo "cc $list"
+    out=build/${name#fc_}
+    rm -rf "$out" && mkdir -p "$out"
+    extra=""
+    [ -f "${list%.sources}.cflags" ] && extra=$(tr -d '\r\n' < "${list%.sources}.cflags")
+    tr -d '\r' < "$list" | xargs -P "$(getconf _NPROCESSORS_ONLN)" -I{} sh -c 'case "$1" in *.c) x="";;
+      *) x="-std=c++17 -fno-exceptions -fno-rtti";; esac
+      clang -c -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=13.0 $x $2 -o "$3/$(basename "$1").o" "$1"' _ {} "$extra" "$out"
+    rm -f "$lib" && libtool -static -o "$lib" "$out"/*.o
+  done
 }
 build_c
 

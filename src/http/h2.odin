@@ -1,251 +1,292 @@
 package http
 
-import "fc:locks"
+import "base:runtime"
+import "core:c"
 import "core:mem"
 import "core:strings"
 import "core:time"
+import "fc:locks"
 import "fc:netio"
 
-// HTTP/2 client (RFC 9113) with Chrome 148 connection behaviour.
+// HTTP/2 client: framing, HPACK, flow control, stream states and validation of
+// everything the server sends are nghttp2's (vendor/nghttp2). This file feeds it
+// bytes, sends what it queues, and lets many threads share one connection.
 //
-// Threading model ("leader/follower", no background thread):
-//   - Any number of threads may call h2_request / h2_open / h2_wait on one
-//     H2_Conn concurrently.
-//   - Writes are serialized by `wmu`, which also guards the HPACK encoder and
-//     stream-id assignment, so HEADERS always go out in stream-id order.
-//   - There is no dedicated reader thread. Whichever thread is waiting on
-//     something (its response, flow-control window, a concurrency slot, a PING
-//     ack) and finds nobody reading becomes the reader for ONE frame, then
-//     dispatches it, broadcasts, and re-checks. Other waiters sleep on `cond`.
-//     The HPACK decoder and CONTINUATION state are only touched by the
-//     current reader.
-//   - Consequence: an idle connection (no waiters) reads nothing; PING/SETTINGS
-//     from the server are answered when the next request runs. Call
-//     h2_service() from a thread if you want an always-reading connection.
-//   - Lock order: wmu before mu. The reader never holds mu while writing.
+// Threading model ("leader/follower", no background thread required):
+//   - Any number of threads may call h2_request on one H2_Conn concurrently.
+//   - Every nghttp2 call happens under `mu`. Socket writes happen under `wmu`
+//     (taken before `mu`), so frames go out in the order nghttp2 queued them.
+//   - Whichever thread is waiting (for its response) and finds nobody reading
+//     becomes the reader: it blocks in netio.read without `mu`, hands the
+//     bytes to nghttp2, sends what nghttp2 queued in reply, broadcasts, and
+//     re-checks. Other waiters sleep on `cond`. Call h2_service() from a
+//     thread to keep an idle connection responsive (PING/SETTINGS/GOAWAY).
 //   - Requirement on the Stream: one concurrent reader + one concurrent writer
 //     (full duplex) must be safe. Plain TCP and Pipe are; TLS must be too.
 //
 // Chrome parity (verified against a Chrome 148 netlog of the official client):
 //   - preface + SETTINGS [1:65536, 2:0, 4:6291456, 6:262144] in that order
 //   - WINDOW_UPDATE stream 0 increment 15663105 (window 15728640)
-//   - HEADERS carry PRIORITY: exclusive=1, weight from request priority
-//     (Highest 256, Medium 220, Low 183, Lowest 147, Idle 110, Throttled 74),
-//     parent = newest open stream with priority >= ours (Http2PriorityDependencies)
 //   - pseudo-header order :method :authority :scheme :path
-// From Chromium source (not directly observable in netlog):
-//   - receive windows refreshed when unacked bytes exceed half the window
 //   - request bodies sent in DATA frames of at most 2851 bytes (2*MSS - 9)
-//   - HPACK choices: see hpack.odin
+// Chrome behaviours nghttp2 lacks, done in rewrite_frames and give_back (from Chrome 148's
+// net/spdy and quiche sources, not directly visible in a netlog):
+//   - HEADERS blocks from hpack.odin, with the PRIORITY flag: exclusive, weight from
+//     Request.priority, parent from Http2PriorityDependencies; split at 16383-byte frames
+//   - receive windows acked once more than half is unacked or 5 s after the last update,
+//     counted per 8 KiB read
+//   - a PING before HEADERS or DATA when nothing was read for 10 s
 
-H2_PREFACE :: "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-
-Frame_Type :: enum u8 {
-	Data            = 0,
-	Headers         = 1,
-	Priority        = 2,
-	Rst_Stream      = 3,
-	Settings        = 4,
-	Push_Promise    = 5,
-	Ping            = 6,
-	Goaway          = 7,
-	Window_Update   = 8,
-	Continuation    = 9,
-	Priority_Update = 16,
-}
-
-FLAG_END_STREAM :: 0x1
-FLAG_ACK :: 0x1
-FLAG_END_HEADERS :: 0x4
-FLAG_PADDED :: 0x8
-FLAG_PRIORITY :: 0x20
-
-H2_Code :: enum u32 {
-	No_Error            = 0,
-	Protocol_Error      = 1,
-	Internal_Error      = 2,
-	Flow_Control_Error  = 3,
-	Settings_Timeout    = 4,
-	Stream_Closed       = 5,
-	Frame_Size_Error    = 6,
-	Refused_Stream      = 7,
-	Cancel              = 8,
-	Compression_Error   = 9,
-	Connect_Error       = 10,
-	Enhance_Your_Calm   = 11,
-	Inadequate_Security = 12,
-	Http_1_1_Required   = 13,
+when ODIN_OS == .Windows {
+	foreign import ng {"../../build/fc_nghttp2.obj", "../../build/fc_nghttp2_http.obj"}
+} else {
+	foreign import ng {"../../build/fc_nghttp2.o", "../../build/fc_nghttp2_http.o"}
 }
 
 Setting :: struct {
-	id:    u16,
+	id:    i32,
 	value: u32,
 }
 
-SETTINGS_HEADER_TABLE_SIZE :: 1
-SETTINGS_ENABLE_PUSH :: 2
-SETTINGS_MAX_CONCURRENT_STREAMS :: 3
-SETTINGS_INITIAL_WINDOW_SIZE :: 4
-SETTINGS_MAX_FRAME_SIZE :: 5
-SETTINGS_MAX_HEADER_LIST_SIZE :: 6
-SETTINGS_ENABLE_CONNECT_PROTOCOL :: 8
-SETTINGS_NO_RFC7540_PRIORITIES :: 9
-
 @(rodata)
-CHROME_SETTINGS := [4]Setting {
-	{SETTINGS_HEADER_TABLE_SIZE, 65536},
-	{SETTINGS_ENABLE_PUSH, 0},
-	{SETTINGS_INITIAL_WINDOW_SIZE, 6291456},
-	{SETTINGS_MAX_HEADER_LIST_SIZE, 262144},
-}
-CHROME_CONNECTION_WINDOW_INCREMENT :: 15663105
+CHROME_SETTINGS := [4]Setting{{1, 65536}, {2, 0}, {4, CHROME_STREAM_WINDOW}, {6, 262144}}
+CHROME_STREAM_WINDOW :: 6291456
+CHROME_CONNECTION_WINDOW :: 15728640
+CHROME_CONNECTION_WINDOW_INCREMENT :: CHROME_CONNECTION_WINDOW - 65535
+@(private)
 CHROME_DATA_CHUNK :: 2 * 1430 - 9
-DEFAULT_WINDOW :: 65535
-MAX_WINDOW :: 0x7fffffff
+// Spdy3PriorityToHttp2Weight - 1 for each Priority, by its SPDY priority (Highest 0 .. Throttled 5).
+@(private, rodata)
+CHROME_SPDY_PRIORITY := [Priority]u8 {
+	.Highest   = 0,
+	.Medium    = 1,
+	.Low       = 2,
+	.Lowest    = 3,
+	.Idle      = 4,
+	.Throttled = 5,
+}
+@(private, rodata)
+CHROME_WEIGHT := [6]u8{255, 219, 182, 146, 109, 73}
+
+@(private)
+Ng_Session :: struct {}
+@(private)
+Ng_Callbacks :: struct {}
+@(private)
+Ng_Option :: struct {}
+
+// nghttp2_frame_hd, the first member of every nghttp2_frame.
+@(private)
+Ng_Frame_Hd :: struct {
+	length:    c.size_t,
+	stream_id: i32,
+	type:      u8,
+	flags:     u8,
+	reserved:  u8,
+}
+
+@(private)
+Ng_Data :: struct {
+	hd:     Ng_Frame_Hd,
+	padlen: c.size_t,
+}
+
+@(private)
+Ng_Settings :: struct {
+	hd:  Ng_Frame_Hd,
+	niv: c.size_t,
+	iv:  [^]Setting,
+}
+
+@(private)
+Ng_Nv :: struct {
+	name, value:       [^]byte,
+	namelen, valuelen: c.size_t,
+	flags:             u8,
+}
+
+@(private)
+Ng_Read_Proc :: proc "c" (s: ^Ng_Session, id: i32, buf: [^]byte, n: c.size_t, flags: ^u32, source: rawptr, user: rawptr) -> int
+
+@(private)
+Ng_Data_Provider :: struct {
+	source: rawptr,
+	read:   Ng_Read_Proc,
+}
+
+@(private)
+NG_FRAME_DATA :: 0
+@(private)
+NG_FRAME_HEADERS :: 1
+@(private)
+NG_FRAME_SETTINGS :: 4
+@(private)
+NG_FRAME_PING :: 6
+@(private)
+NG_FRAME_CONTINUATION :: 9
+@(private)
+NG_FLAG_END_STREAM :: 0x1
+@(private)
+NG_FLAG_ACK :: 0x1
+@(private)
+NG_FLAG_END_HEADERS :: 0x4
+@(private)
+NG_FLAG_PRIORITY :: 0x20
+@(private)
+NG_DATA_FLAG_EOF :: 0x1
+@(private)
+NG_ERR_TEMPORAL_CALLBACK_FAILURE :: -521
+@(private)
+NG_ERR_START_STREAM_NOT_ALLOWED :: -516
+@(private)
+NG_REFUSED_STREAM :: 7
+@(private)
+NG_CANCEL :: 8
+
+// nghttp2's standalone HPACK coder: only the tests' fake server uses it.
+@(private)
+Hd :: struct {}
+
+@(private, default_calling_convention = "c")
+foreign ng {
+	nghttp2_hd_deflate_new :: proc(d: ^^Hd, max_table: c.size_t) -> c.int ---
+	nghttp2_hd_deflate_del :: proc(d: ^Hd) ---
+	nghttp2_hd_deflate_bound :: proc(d: ^Hd, nva: [^]Ng_Nv, n: c.size_t) -> c.size_t ---
+	nghttp2_hd_deflate_hd2 :: proc(d: ^Hd, buf: [^]byte, buflen: c.size_t, nva: [^]Ng_Nv, n: c.size_t) -> int ---
+	nghttp2_hd_inflate_new :: proc(i: ^^Hd) -> c.int ---
+	nghttp2_hd_inflate_del :: proc(i: ^Hd) ---
+	nghttp2_hd_inflate_hd3 :: proc(i: ^Hd, nv: ^Ng_Nv, flags: ^c.int, data: [^]byte, n: c.size_t, final: c.int) -> int ---
+	nghttp2_hd_inflate_end_headers :: proc(i: ^Hd) -> c.int ---
+}
+
+@(private, default_calling_convention = "c")
+foreign ng {
+	nghttp2_session_callbacks_new :: proc(cbs: ^^Ng_Callbacks) -> c.int ---
+	nghttp2_session_callbacks_del :: proc(cbs: ^Ng_Callbacks) ---
+	nghttp2_session_callbacks_set_on_frame_recv_callback :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, user: rawptr) -> c.int) ---
+	nghttp2_session_callbacks_set_on_data_chunk_recv_callback :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, flags: u8, id: i32, data: [^]byte, n: c.size_t, user: rawptr) -> c.int) ---
+	nghttp2_session_callbacks_set_on_stream_close_callback :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, id: i32, code: u32, user: rawptr) -> c.int) ---
+	nghttp2_session_callbacks_set_on_header_callback :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, name: [^]byte, namelen: c.size_t, value: [^]byte, valuelen: c.size_t, flags: u8, user: rawptr) -> c.int) ---
+	nghttp2_session_callbacks_set_on_frame_not_send_callback :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, code: c.int, user: rawptr) -> c.int) ---
+	nghttp2_session_callbacks_set_data_source_read_length_callback2 :: proc(cbs: ^Ng_Callbacks, cb: proc "c" (s: ^Ng_Session, type: u8, id: i32, conn_window, stream_window: i32, max_frame: u32, user: rawptr) -> int) ---
+	nghttp2_option_new :: proc(opt: ^^Ng_Option) -> c.int ---
+	nghttp2_option_del :: proc(opt: ^Ng_Option) ---
+	nghttp2_option_set_no_auto_window_update :: proc(opt: ^Ng_Option, val: c.int) ---
+	nghttp2_session_client_new2 :: proc(s: ^^Ng_Session, cbs: ^Ng_Callbacks, user: rawptr, opt: ^Ng_Option) -> c.int ---
+	nghttp2_session_del :: proc(s: ^Ng_Session) ---
+	nghttp2_submit_settings :: proc(s: ^Ng_Session, flags: u8, iv: [^]Setting, niv: c.size_t) -> c.int ---
+	nghttp2_submit_window_update :: proc(s: ^Ng_Session, flags: u8, id: i32, increment: i32) -> c.int ---
+	nghttp2_submit_request2 :: proc(s: ^Ng_Session, pri_spec: rawptr, nva: [^]Ng_Nv, nvlen: c.size_t, data: ^Ng_Data_Provider, stream_user: rawptr) -> i32 ---
+	nghttp2_submit_rst_stream :: proc(s: ^Ng_Session, flags: u8, id: i32, code: u32) -> c.int ---
+	nghttp2_session_terminate_session :: proc(s: ^Ng_Session, code: u32) -> c.int ---
+	nghttp2_session_mem_recv2 :: proc(s: ^Ng_Session, data: [^]byte, n: c.size_t) -> int ---
+	nghttp2_session_mem_send2 :: proc(s: ^Ng_Session, data: ^[^]byte) -> int ---
+	nghttp2_session_get_stream_user_data :: proc(s: ^Ng_Session, id: i32) -> rawptr ---
+	nghttp2_session_set_stream_user_data :: proc(s: ^Ng_Session, id: i32, data: rawptr) -> c.int ---
+	nghttp2_session_check_request_allowed :: proc(s: ^Ng_Session) -> c.int ---
+	nghttp2_session_want_read :: proc(s: ^Ng_Session) -> c.int ---
+	nghttp2_session_want_write :: proc(s: ^Ng_Session) -> c.int ---
+}
 
 H2_Config :: struct {
-	settings:          []Setting, // nil -> CHROME_SETTINGS (sent in this order)
-	window_increment:  u32, // 0 -> Chrome's 15663105
-	no_window_update:  bool, // don't send the connection WINDOW_UPDATE at all
-	data_chunk:        int, // max DATA payload we send; 0 -> 2851
 	max_response_body: int, // 0 -> 256 MiB
-	max_header_block:  int, // accumulated HEADERS+CONTINUATION bytes; 0 -> 1 MiB
-	goaway_on_close:   bool, // send GOAWAY(NO_ERROR) in h2_close
+	max_header_block:  int, // decoded header bytes per response; 0 -> 1 MiB
 }
 
+@(private)
 H2_Stream :: struct {
-	id:           u32,
-	priority:     u8, // spdy priority 0..5
-	send_window:  i64,
-	recv_window:  i64,
-	recv_unacked: i64,
+	id:           i32,
+	req:          Request, // the caller's memory, for its HEADERS (sent before h2_request returns)
+	body:         []byte, // request body still to send; the caller's memory
 	resp:         Response,
-	got_headers:  bool,
+	header_bytes: int,
+	got_headers:  bool, // final (non-1xx) response headers received
 	done:         bool, // response complete or failed (err)
 	err:          Error,
-	sent_end:     bool,
+	in_tree:      bool, // listed in H2_Conn.tree (its HEADERS went out, not yet done)
+	unacked:      int, // received bytes not yet given back in a WINDOW_UPDATE
+	acked_at:     time.Tick,
 }
 
 H2_Conn :: struct {
-	s:                    netio.Stream,
-	r:                    Reader,
-	allocator:            mem.Allocator,
-	cfg:                  H2_Config,
-	mu:                   locks.Mutex,
-	cond:                 locks.Cond,
-	wmu:                  locks.Mutex,
-	enc:                  Hpack_Encoder, // under wmu
-	dec:                  Hpack_Decoder, // reader only
-	reading:              bool,
-	users:                int, // threads inside public h2_* calls (h2_close waits for 0)
-	closing:              bool,
-	streams:              map[u32]^H2_Stream,
-	active:               int, // reserved + open streams
-	next_id:              u32,
-	// peer settings
-	peer_max_concurrent:  int,
-	peer_initial_window:  i64,
-	peer_max_frame:       int,
-	peer_max_header_list: int,
-	peer_no_rfc7540_prio: bool,
-	conn_send_window:     i64,
-	// our receive side
-	our_max_frame:        int,
-	our_stream_window:    i64,
-	conn_recv_max:        i64,
-	conn_recv_window:     i64,
-	conn_recv_unacked:    i64,
-	payload:              []byte,
-	cont_stream:          u32,
-	cont_flags:           u8,
-	cont_buf:             [dynamic]byte,
-	// lifecycle
-	goaway:               bool,
-	goaway_last:          u32,
-	goaway_code:          u32,
-	dead:                 Error,
-	settings_acked:       bool,
-	got_settings:         bool,
-	ping_acks:            int,
-	prio_lists:           [6][dynamic]u32,
+	s:              netio.Stream,
+	allocator:      mem.Allocator,
+	cfg:            H2_Config,
+	mu:             locks.Mutex,
+	cond:           locks.Cond,
+	wmu:            locks.Mutex,
+	session:        ^Ng_Session, // under mu
+	streams:        map[i32]^H2_Stream, // under mu
+	rbuf:           []byte, // reader only
+	wbuf, out:      [dynamic]byte, // under wmu and mu: nghttp2's output, then what goes on the wire
+	sent_preface:   bool, // under wmu and mu
+	enc:            Hpack_Encoder, // under mu
+	tree:           [6][dynamic]i32, // under mu: open streams by SPDY priority, oldest first
+	unacked:        int, // under mu: connection bytes not yet given back
+	acked_at:       time.Tick, // under mu
+	last_read:      time.Tick, // under mu
+	ping_in_flight: bool, // under mu
+	next_ping:      u64, // under mu
+	reading:        bool,
+	users:          int, // threads inside public h2_* calls (h2_close waits for 0)
+	closing:        bool,
+	dead:           Error,
 }
 
-// h2_connect sends the client preface, SETTINGS and WINDOW_UPDATE (one write).
+// h2_connect sends the client preface, Chrome's SETTINGS and WINDOW_UPDATE (one write).
 h2_connect :: proc(s: netio.Stream, cfg := H2_Config{}, allocator := context.allocator) -> (c: ^H2_Conn, err: Error) {
 	context.allocator = allocator
 	c = new(H2_Conn)
 	c.s = s
 	c.allocator = allocator
 	c.cfg = cfg
-	if c.cfg.settings == nil do c.cfg.settings = CHROME_SETTINGS[:]
-	if c.cfg.window_increment == 0 do c.cfg.window_increment = CHROME_CONNECTION_WINDOW_INCREMENT
-	if c.cfg.data_chunk <= 0 do c.cfg.data_chunk = CHROME_DATA_CHUNK
 	if c.cfg.max_response_body <= 0 do c.cfg.max_response_body = 256 << 20
 	if c.cfg.max_header_block <= 0 do c.cfg.max_header_block = 1 << 20
-	reader_init(&c.r, s, READER_SIZE)
-	c.streams = make(map[u32]^H2_Stream)
-	c.next_id = 1
-	c.peer_max_concurrent = max(int)
-	c.peer_initial_window = DEFAULT_WINDOW
-	c.peer_max_frame = 16384
-	c.conn_send_window = DEFAULT_WINDOW
-	c.our_max_frame = 16384
-	c.our_stream_window = DEFAULT_WINDOW
-	table := HPACK_DEFAULT_TABLE_SIZE
-	max_list := 0
-	for st in c.cfg.settings {
-		switch st.id {
-		case SETTINGS_HEADER_TABLE_SIZE:
-			table = int(st.value)
-		case SETTINGS_INITIAL_WINDOW_SIZE:
-			c.our_stream_window = i64(st.value)
-		case SETTINGS_MAX_FRAME_SIZE:
-			c.our_max_frame = int(st.value)
-		case SETTINGS_MAX_HEADER_LIST_SIZE:
-			max_list = int(st.value)
-		}
-	}
-	c.conn_recv_max = DEFAULT_WINDOW
-	if !c.cfg.no_window_update do c.conn_recv_max += i64(c.cfg.window_increment)
-	c.conn_recv_window = c.conn_recv_max
-	c.payload = make([]byte, c.our_max_frame)
-	c.cont_buf = make([dynamic]byte)
-	hpack_encoder_init(&c.enc)
-	hpack_decoder_init(&c.dec, table, max_list)
-	for i in 0 ..< len(c.prio_lists) do c.prio_lists[i] = make([dynamic]u32)
-
-	buf := make([dynamic]byte, 0, 128, context.temp_allocator)
-	append(&buf, H2_PREFACE)
-	put_frame_header(&buf, 6 * len(c.cfg.settings), .Settings, 0, 0)
-	for st in c.cfg.settings {
-		append(&buf, u8(st.id >> 8), u8(st.id))
-		put_u32(&buf, st.value)
-	}
-	if !c.cfg.no_window_update {
-		put_frame_header(&buf, 4, .Window_Update, 0, 0)
-		put_u32(&buf, c.cfg.window_increment)
-	}
-	if werr := netio.write(s, buf[:]); werr != .None {
+	c.streams = make(map[i32]^H2_Stream)
+	c.rbuf = make([]byte, 8 * 1024) // Chrome's kReadBufferSize: window updates follow its reads.
+	c.wbuf = make([dynamic]byte)
+	c.out = make([dynamic]byte)
+	hpack_init(&c.enc, allocator)
+	for &l in c.tree do l = make([dynamic]i32)
+	c.acked_at = time.tick_now()
+	c.last_read = c.acked_at
+	c.next_ping = 1
+	cbs: ^Ng_Callbacks
+	if nghttp2_session_callbacks_new(&cbs) != 0 do panic("nghttp2: out of memory")
+	nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, on_frame_recv)
+	nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, on_data_chunk)
+	nghttp2_session_callbacks_set_on_stream_close_callback(cbs, on_stream_close)
+	nghttp2_session_callbacks_set_on_header_callback(cbs, on_header)
+	nghttp2_session_callbacks_set_on_frame_not_send_callback(cbs, on_not_sent)
+	nghttp2_session_callbacks_set_data_source_read_length_callback2(cbs, data_chunk_len)
+	opt: ^Ng_Option
+	if nghttp2_option_new(&opt) != 0 do panic("nghttp2: out of memory")
+	nghttp2_option_set_no_auto_window_update(opt, 1) // give_back() sends them, as Chrome does.
+	rv := nghttp2_session_client_new2(&c.session, cbs, c, opt)
+	nghttp2_option_del(opt)
+	nghttp2_session_callbacks_del(cbs)
+	if rv != 0 do panic("nghttp2: out of memory")
+	nghttp2_submit_settings(c.session, 0, raw_data(CHROME_SETTINGS[:]), len(CHROME_SETTINGS))
+	nghttp2_submit_window_update(c.session, 0, 0, CHROME_CONNECTION_WINDOW_INCREMENT)
+	if err = flush(c); err != .None {
 		h2_destroy(c)
-		return nil, map_net_error(werr)
+		return nil, err
 	}
 	return c, .None
 }
 
-// h2_close optionally sends GOAWAY, shuts the stream down (waking a thread
-// blocked reading it), waits for every thread inside the connection to leave,
-// then closes the stream and frees the connection. Threads blocked in
-// h2_wait/h2_ping/h2_service get .Closed. No calls may start after h2_close.
-// If the stream has no shutdown hook and a reader stays blocked for 5 s, the
-// connection is leaked rather than freed under that reader.
+// h2_close sends GOAWAY, shuts the stream down (waking a thread blocked reading
+// it), waits for every thread inside the connection to leave, then closes the
+// stream and frees the connection. Threads blocked in h2_request/h2_service get
+// .Closed. No calls may start after h2_close. If the stream has no shutdown
+// hook and a reader stays blocked for 5 s, the connection is leaked rather than
+// freed under that reader.
 h2_close :: proc(c: ^H2_Conn) {
-	if c.cfg.goaway_on_close && c.dead == .None {
-		buf := make([dynamic]byte, 0, 17, context.temp_allocator)
-		put_goaway(&buf, 0, .No_Error)
-		locks.lock(&c.wmu)
-		_ = netio.write(c.s, buf[:])
-		locks.unlock(&c.wmu)
-	}
+	locks.lock(&c.mu)
+	alive := c.dead == .None
+	if alive do nghttp2_session_terminate_session(c.session, 0)
+	locks.unlock(&c.mu)
+	if alive do flush(c)
 	netio.shutdown(c.s)
 	locks.lock(&c.mu)
 	fail_conn_locked(c, .Closed)
@@ -267,81 +308,273 @@ h2_close :: proc(c: ^H2_Conn) {
 @(private)
 h2_destroy :: proc(c: ^H2_Conn) {
 	context.allocator = c.allocator
+	nghttp2_session_del(c.session)
 	for _, st in c.streams {
 		response_destroy(&st.resp)
 		free(st)
 	}
 	delete(c.streams)
-	reader_destroy(&c.r)
-	delete(c.payload)
-	delete(c.cont_buf)
-	hpack_encoder_destroy(&c.enc)
-	hpack_decoder_destroy(&c.dec)
-	for l in c.prio_lists do delete(l)
+	delete(c.rbuf)
+	delete(c.wbuf)
+	delete(c.out)
+	hpack_destroy(&c.enc)
+	for l in c.tree do delete(l)
 	free(c)
 }
 
-// ---- framing ----
+// ---- nghttp2 callbacks: called from nghttp2_session_mem_recv2/mem_send2 with mu held ----
 
+// A stream's user data is its H2_Stream until h2_request clears it, so these
+// never see a freed stream: nil means the caller has gone.
 @(private)
-put_u32 :: proc(buf: ^[dynamic]byte, x: u32) {
-	append(buf, u8(x >> 24), u8(x >> 16), u8(x >> 8), u8(x))
-}
-
-put_frame_header :: proc(buf: ^[dynamic]byte, length: int, type: Frame_Type, flags: u8, stream_id: u32) {
-	append(buf, u8(length >> 16), u8(length >> 8), u8(length), u8(type), flags)
-	put_u32(buf, stream_id & 0x7fffffff)
+stream_of :: proc "contextless" (s: ^Ng_Session, id: i32) -> ^H2_Stream {
+	return cast(^H2_Stream)nghttp2_session_get_stream_user_data(s, id)
 }
 
 @(private)
-put_goaway :: proc(buf: ^[dynamic]byte, last: u32, code: H2_Code) {
-	put_frame_header(buf, 8, .Goaway, 0, 0)
-	put_u32(buf, last)
-	put_u32(buf, u32(code))
-}
-
-@(private)
-put_rst :: proc(buf: ^[dynamic]byte, id: u32, code: H2_Code) {
-	put_frame_header(buf, 4, .Rst_Stream, 0, id)
-	put_u32(buf, u32(code))
-}
-
-@(private)
-put_window_update :: proc(buf: ^[dynamic]byte, id: u32, inc: u32) {
-	put_frame_header(buf, 4, .Window_Update, 0, id)
-	put_u32(buf, inc)
-}
-
-@(private)
-be32 :: #force_inline proc(b: []byte) -> u32 {
-	return u32(b[0]) << 24 | u32(b[1]) << 16 | u32(b[2]) << 8 | u32(b[3])
-}
-
-// chrome_weight is spdy::Spdy3PriorityToHttp2Weight.
-chrome_weight :: proc(spdy_priority: u8) -> int {
-	STEPS :: f32(255.9) / 7
-	return int(STEPS * (7 - f32(spdy_priority))) + 1
-}
-
-spdy_priority :: proc(p: Priority) -> u8 {
-	switch p {
-	case .Highest:
-		return 0
-	case .Medium:
-		return 1
-	case .Low:
-		return 2
-	case .Lowest:
-		return 3
-	case .Idle:
-		return 4
-	case .Throttled:
-		return 5
+finish :: proc(c: ^H2_Conn, st: ^H2_Stream, err: Error, code: u32) {
+	if st.done do return
+	st.done = true
+	st.err = err
+	st.resp.h2_error = code
+	if !st.in_tree do return
+	l := &c.tree[CHROME_SPDY_PRIORITY[st.req.priority]]
+	for id, i in l do if id == st.id {
+		ordered_remove(l, i)
+		break
 	}
-	return 1
 }
 
-// ---- waiting / reading ----
+// give_back returns received bytes to the windows as Chrome's IncreaseRecvWindowSize does: a
+// WINDOW_UPDATE once more than half the window is unacked or 5 s passed since the last one; the
+// connection's first.
+@(private)
+give_back :: proc(c: ^H2_Conn, st: ^H2_Stream, id: i32, n: int) {
+	now := time.tick_now()
+	c.unacked += n
+	if c.unacked > CHROME_CONNECTION_WINDOW / 2 || time.tick_diff(c.acked_at, now) >= 5 * time.Second {
+		nghttp2_submit_window_update(c.session, 0, 0, i32(c.unacked))
+		c.unacked, c.acked_at = 0, now
+	}
+	if st == nil do return
+	st.unacked += n
+	if st.unacked > CHROME_STREAM_WINDOW / 2 || time.tick_diff(st.acked_at, now) >= 5 * time.Second {
+		nghttp2_submit_window_update(c.session, 0, id, i32(st.unacked))
+		st.unacked, st.acked_at = 0, now
+	}
+}
+
+@(private)
+on_header :: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, name: [^]byte, namelen: c.size_t, value: [^]byte, valuelen: c.size_t, flags: u8, user: rawptr) -> c.int {
+	conn := cast(^H2_Conn)user
+	st := stream_of(s, f.stream_id)
+	if f.type != NG_FRAME_HEADERS || st == nil || st.done do return 0
+	context = runtime.default_context()
+	context.allocator = conn.allocator
+	st.header_bytes += int(namelen + valuelen) + 32
+	if st.header_bytes > conn.cfg.max_header_block {
+		finish(conn, st, .Too_Large, NG_CANCEL) // h2_request resets the stream
+		return 0
+	}
+	n, v := string(name[:namelen]), string(value[:valuelen])
+	if n == ":status" {
+		st.resp.status = int(v[0] - '0') * 100 + int(v[1] - '0') * 10 + int(v[2] - '0') // nghttp2 checked: 3 digits
+	} else {
+		append(&st.resp.trailers if st.got_headers else &st.resp.headers, Header{strings.clone(n), strings.clone(v)})
+	}
+	return 0
+}
+
+@(private)
+on_frame_recv :: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, user: rawptr) -> c.int {
+	conn := cast(^H2_Conn)user
+	context = runtime.default_context()
+	switch {
+	case f.type == NG_FRAME_SETTINGS && f.flags & NG_FLAG_ACK == 0:
+		set := cast(^Ng_Settings)f
+		for iv in set.iv[:set.niv] do if iv.id == 1 do hpack_set_table_size(&conn.enc, int(iv.value))
+	case f.type == NG_FRAME_PING && f.flags & NG_FLAG_ACK != 0:
+		conn.ping_in_flight = false
+	}
+	if f.type != NG_FRAME_HEADERS && f.type != NG_FRAME_DATA do return 0
+	st := stream_of(s, f.stream_id)
+	if st != nil && st.done do st = nil
+	// Chrome counts padding as consumed at once.
+	if pad := int((cast(^Ng_Data)f).padlen); f.type == NG_FRAME_DATA && pad > 0 do give_back(conn, st, f.stream_id, pad)
+	if st == nil do return 0
+	if f.type == NG_FRAME_HEADERS && !st.got_headers {
+		if st.resp.status < 200 {
+			// Interim response (100/103): drop it and wait for the final one.
+			clear_headers(&st.resp)
+			st.resp.status = 0
+			return 0
+		}
+		st.got_headers = true
+	}
+	if f.flags & NG_FLAG_END_STREAM != 0 do finish(conn, st, .None, 0)
+	return 0
+}
+
+@(private)
+on_data_chunk :: proc "c" (s: ^Ng_Session, flags: u8, id: i32, data: [^]byte, n: c.size_t, user: rawptr) -> c.int {
+	conn := cast(^H2_Conn)user
+	context = runtime.default_context()
+	st := stream_of(s, id)
+	if st != nil && st.done do st = nil
+	give_back(conn, st, id, int(n))
+	if st == nil do return 0
+	if len(st.resp.body) + int(n) > conn.cfg.max_response_body {
+		finish(conn, st, .Too_Large, NG_CANCEL) // h2_request resets the stream
+		return 0
+	}
+	append(&st.resp.body, ..data[:n])
+	return 0
+}
+
+@(private)
+on_stream_close :: proc "c" (s: ^Ng_Session, id: i32, code: u32, user: rawptr) -> c.int {
+	context = runtime.default_context()
+	if st := stream_of(s, id); st != nil do finish(cast(^H2_Conn)user, st, .Refused if code == NG_REFUSED_STREAM else .Stream_Reset, code)
+	return 0
+}
+
+// A queued request nghttp2 drops unsent (GOAWAY arrived first) never opens a
+// stream, so on_stream_close won't see it.
+@(private)
+on_not_sent :: proc "c" (s: ^Ng_Session, f: ^Ng_Frame_Hd, code: c.int, user: rawptr) -> c.int {
+	conn := cast(^H2_Conn)user
+	context = runtime.default_context()
+	if st := conn.streams[f.stream_id]; f.type == NG_FRAME_HEADERS && st != nil {
+		if code == NG_ERR_START_STREAM_NOT_ALLOWED do finish(conn, st, .Refused, NG_REFUSED_STREAM)
+		else do finish(conn, st, .Io, 0)
+	}
+	return 0
+}
+
+@(private)
+read_body :: proc "c" (s: ^Ng_Session, id: i32, buf: [^]byte, n: c.size_t, flags: ^u32, source: rawptr, user: rawptr) -> int {
+	st := stream_of(s, id)
+	if st == nil do return NG_ERR_TEMPORAL_CALLBACK_FAILURE
+	k := min(int(n), len(st.body))
+	mem.copy(buf, raw_data(st.body), k)
+	st.body = st.body[k:]
+	if len(st.body) == 0 do flags^ |= NG_DATA_FLAG_EOF
+	return k
+}
+
+@(private)
+data_chunk_len :: proc "c" (s: ^Ng_Session, type: u8, id: i32, conn_window, stream_window: i32, max_frame: u32, user: rawptr) -> int {
+	return int(min(i32(CHROME_DATA_CHUNK), conn_window, stream_window, i32(max_frame)))
+}
+
+// ---- I/O ----
+
+// flush writes everything nghttp2 has queued, in one write.
+@(private)
+flush :: proc(c: ^H2_Conn) -> Error {
+	locks.lock(&c.wmu)
+	defer locks.unlock(&c.wmu)
+	clear(&c.wbuf)
+	locks.lock(&c.mu)
+	for c.dead == .None {
+		p: [^]byte
+		n := nghttp2_session_mem_send2(c.session, &p)
+		if n <= 0 do break
+		append(&c.wbuf, ..p[:n])
+	}
+	rewrite_frames(c)
+	locks.unlock(&c.mu)
+	if len(c.out) == 0 do return .None
+	return map_net_error(netio.write(c.s, c.out[:]))
+}
+
+// rewrite_frames copies nghttp2's output (whole frames) to c.out, replacing each HEADERS and its
+// CONTINUATIONs with Chrome's: hpack.odin's block, PRIORITY, 16383-byte frames (kHttp2MaxControlFrameSendSize).
+@(private)
+rewrite_frames :: proc(c: ^H2_Conn) {
+	put_u32 :: proc(out: ^[dynamic]byte, v: u32) {append(out, u8(v >> 24), u8(v >> 16), u8(v >> 8), u8(v))}
+	clear(&c.out)
+	b := c.wbuf[:]
+	if !c.sent_preface && len(b) >= 24 {
+		append(&c.out, ..b[:24])
+		b = b[24:]
+		c.sent_preface = true
+	}
+	block := make([dynamic]byte, c.allocator)
+	defer delete(block)
+	for len(b) >= 9 {
+		n := 9 + (int(b[0]) << 16 | int(b[1]) << 8 | int(b[2]))
+		type, flags := b[3], b[4]
+		id := i32((u32(b[5]) << 24 | u32(b[6]) << 16 | u32(b[7]) << 8 | u32(b[8])) & 0x7fffffff)
+		frame := b[:n]
+		b = b[n:]
+		if type == NG_FRAME_HEADERS || type == NG_FRAME_DATA && n > 9 do preface_ping(c)
+		if type == NG_FRAME_CONTINUATION do continue
+		st := c.streams[id]
+		if type != NG_FRAME_HEADERS || st == nil {
+			append(&c.out, ..frame)
+			continue
+		}
+		p := CHROME_SPDY_PRIORITY[st.req.priority]
+		parent: i32
+		for i := int(p); i >= 0 && parent == 0; i -= 1 do if len(c.tree[i]) > 0 do parent = c.tree[i][len(c.tree[i]) - 1]
+		if !st.done {
+			append(&c.tree[p], id)
+			st.in_tree = true
+		}
+		clear(&block)
+		hpack_encode(&c.enc, &block, st.req)
+		rest := block[:]
+		for first := true; ; first = false {
+			k := min(len(rest), 16383 - 9 - (5 if first else 0))
+			end: u8 = NG_FLAG_END_HEADERS if k == len(rest) else 0
+			plen := u32(k + (5 if first else 0))
+			append(&c.out, u8(plen >> 16), u8(plen >> 8), u8(plen))
+			if first {
+				append(&c.out, NG_FRAME_HEADERS, flags & NG_FLAG_END_STREAM | NG_FLAG_PRIORITY | end)
+				put_u32(&c.out, u32(id))
+				put_u32(&c.out, u32(parent) | 0x80000000)
+				append(&c.out, CHROME_WEIGHT[p])
+			} else {
+				append(&c.out, NG_FRAME_CONTINUATION, end)
+				put_u32(&c.out, u32(id))
+			}
+			append(&c.out, ..rest[:k])
+			rest = rest[k:]
+			if end != 0 do break
+		}
+	}
+}
+
+// preface_ping is Chrome's MaybeSendPrefacePing: a PING ahead of a request when nothing was read for 10 s.
+@(private)
+preface_ping :: proc(c: ^H2_Conn) {
+	if c.ping_in_flight || time.tick_since(c.last_read) <= 10 * time.Second do return
+	append(&c.out, 0, 0, 8, NG_FRAME_PING, 0, 0, 0, 0, 0)
+	for i in 0 ..< 8 do append(&c.out, u8(c.next_ping >> uint(56 - 8 * i)))
+	c.ping_in_flight = true
+	c.next_ping += 1
+}
+
+// read_once reads what the socket has, gives it to nghttp2 and sends its replies.
+// Called by the reading leader without mu.
+@(private)
+read_once :: proc(c: ^H2_Conn) -> Error {
+	n, rerr := netio.read(c.s, c.rbuf)
+	if rerr != .None do return map_net_error(rerr)
+	locks.lock(&c.mu)
+	c.last_read = time.tick_now()
+	rv := nghttp2_session_mem_recv2(c.session, raw_data(c.rbuf), uint(n))
+	locks.unlock(&c.mu)
+	ferr := flush(c) // on a connection error this sends nghttp2's GOAWAY
+	if rv < 0 do return .Protocol
+	if ferr != .None do return ferr
+	// nghttp2 is done once a GOAWAY went either way and no streams remain, or it
+	// sent one for a protocol error.
+	locks.lock(&c.mu)
+	defer locks.unlock(&c.mu)
+	return .Goaway if nghttp2_session_want_read(c.session) == 0 && nghttp2_session_want_write(c.session) == 0 else .None
+}
 
 // enter/leave bracket every public call so h2_close can wait for callers.
 @(private)
@@ -362,17 +595,20 @@ leave :: proc(c: ^H2_Conn) {
 }
 
 @(private)
-Wait_Pred :: #type proc(c: ^H2_Conn, data: rawptr) -> bool
+fail_conn_locked :: proc(c: ^H2_Conn, err: Error) {
+	if c.dead == .None do c.dead = err
+	for _, st in c.streams do finish(c, st, c.dead, 0)
+}
 
-// drive_until: called and returns with c.mu held.
+// drive_until: called and returns with c.mu held; st == nil waits until the connection dies.
 @(private)
-drive_until :: proc(c: ^H2_Conn, pred: Wait_Pred, data: rawptr) {
-	for !pred(c, data) {
+drive_until :: proc(c: ^H2_Conn, st: ^H2_Stream) {
+	for st == nil || !st.done {
 		if c.dead != .None do return
 		if !c.reading {
 			c.reading = true
 			locks.unlock(&c.mu)
-			err := read_one_frame(c)
+			err := read_once(c)
 			locks.lock(&c.mu)
 			c.reading = false
 			if err != .None do fail_conn_locked(c, err)
@@ -381,416 +617,6 @@ drive_until :: proc(c: ^H2_Conn, pred: Wait_Pred, data: rawptr) {
 			locks.cond_wait(&c.cond, &c.mu)
 		}
 	}
-}
-
-@(private)
-fail_stream_locked :: proc(c: ^H2_Conn, st: ^H2_Stream, err: Error, code: u32) {
-	if st.done do return
-	st.done = true
-	st.err = err
-	st.resp.h2_error = code
-	prio_remove(c, st)
-}
-
-@(private)
-fail_conn_locked :: proc(c: ^H2_Conn, err: Error) {
-	if c.dead == .None do c.dead = err
-	for _, st in c.streams do fail_stream_locked(c, st, c.dead, c.goaway_code)
-}
-
-@(private)
-prio_remove :: proc(c: ^H2_Conn, st: ^H2_Stream) {
-	l := &c.prio_lists[st.priority]
-	for id, i in l {
-		if id == st.id {
-			ordered_remove(l, i)
-			return
-		}
-	}
-}
-
-// Writes from the reader / control paths.
-@(private)
-write_locked_w :: proc(c: ^H2_Conn, data: []byte) -> Error {
-	locks.lock(&c.wmu)
-	defer locks.unlock(&c.wmu)
-	return map_net_error(netio.write(c.s, data))
-}
-
-// conn_error sends GOAWAY with code and returns the error to make the connection dead.
-@(private)
-conn_error :: proc(c: ^H2_Conn, code: H2_Code) -> Error {
-	buf := make([dynamic]byte, 0, 17, context.temp_allocator)
-	put_goaway(&buf, 0, code)
-	_ = write_locked_w(c, buf[:])
-	locks.lock(&c.mu)
-	c.goaway_code = u32(code)
-	locks.unlock(&c.mu)
-	return .Protocol if code != .Flow_Control_Error else .Flow_Control
-}
-
-@(private)
-stream_error :: proc(c: ^H2_Conn, id: u32, code: H2_Code) {
-	buf := make([dynamic]byte, 0, 13, context.temp_allocator)
-	put_rst(&buf, id, code)
-	_ = write_locked_w(c, buf[:])
-	locks.lock(&c.mu)
-	if st, ok := c.streams[id]; ok do fail_stream_locked(c, st, .Protocol if code != .Flow_Control_Error else .Flow_Control, u32(code))
-	locks.unlock(&c.mu)
-}
-
-// read_one_frame reads and handles one frame. Called by the reading leader without c.mu.
-@(private)
-read_one_frame :: proc(c: ^H2_Conn) -> Error {
-	hdr, herr := peek_exact(&c.r, 9)
-	if herr != .None do return herr
-	length := int(hdr[0]) << 16 | int(hdr[1]) << 8 | int(hdr[2])
-	type := hdr[3]
-	flags := hdr[4]
-	sid := be32(hdr[5:9]) & 0x7fffffff
-	consume(&c.r, 9)
-	if length > c.our_max_frame {
-		return conn_error(c, .Frame_Size_Error)
-	}
-	p := c.payload[:length]
-	if err := read_exact(&c.r, p); err != .None do return err
-
-	if c.cont_stream != 0 && (Frame_Type(type) != .Continuation || sid != c.cont_stream) {
-		return conn_error(c, .Protocol_Error)
-	}
-
-	#partial switch Frame_Type(type) {
-	case .Data:
-		return on_data(c, sid, flags, p)
-	case .Headers:
-		return on_headers(c, sid, flags, p)
-	case .Continuation:
-		if c.cont_stream == 0 do return conn_error(c, .Protocol_Error)
-		if len(c.cont_buf) + len(p) > c.cfg.max_header_block do return conn_error(c, .Enhance_Your_Calm)
-		append(&c.cont_buf, ..p)
-		if flags & FLAG_END_HEADERS != 0 {
-			id := c.cont_stream
-			c.cont_stream = 0
-			return on_header_block(c, id, c.cont_flags, c.cont_buf[:])
-		}
-		return .None
-	case .Priority:
-		if sid == 0 do return conn_error(c, .Protocol_Error)
-		if length != 5 do stream_error(c, sid, .Frame_Size_Error)
-		return .None
-	case .Rst_Stream:
-		if sid == 0 do return conn_error(c, .Protocol_Error)
-		if length != 4 do return conn_error(c, .Frame_Size_Error)
-		if !opened(c, sid) do return conn_error(c, .Protocol_Error) // idle stream
-		code := be32(p)
-		locks.lock(&c.mu)
-		if st, ok := c.streams[sid]; ok {
-			fail_stream_locked(c, st, .Refused if code == u32(H2_Code.Refused_Stream) else .Stream_Reset, code)
-		}
-		locks.unlock(&c.mu)
-		return .None
-	case .Settings:
-		return on_settings(c, sid, flags, p)
-	case .Push_Promise:
-		return conn_error(c, .Protocol_Error) // we sent ENABLE_PUSH=0
-	case .Ping:
-		if sid != 0 do return conn_error(c, .Protocol_Error)
-		if length != 8 do return conn_error(c, .Frame_Size_Error)
-		if flags & FLAG_ACK != 0 {
-			locks.lock(&c.mu)
-			c.ping_acks += 1
-			locks.unlock(&c.mu)
-			return .None
-		}
-		buf := make([dynamic]byte, 0, 17, context.temp_allocator)
-		put_frame_header(&buf, 8, .Ping, FLAG_ACK, 0)
-		append(&buf, ..p)
-		return write_locked_w(c, buf[:])
-	case .Goaway:
-		if sid != 0 do return conn_error(c, .Protocol_Error)
-		if length < 8 do return conn_error(c, .Frame_Size_Error)
-		last := be32(p) & 0x7fffffff
-		code := be32(p[4:])
-		locks.lock(&c.mu)
-		c.goaway = true
-		c.goaway_last = last
-		c.goaway_code = code
-		for id, st in c.streams {
-			if id > last do fail_stream_locked(c, st, .Refused, code)
-		}
-		locks.unlock(&c.mu)
-		return .None
-	case .Window_Update:
-		if length != 4 do return conn_error(c, .Frame_Size_Error)
-		inc := i64(be32(p) & 0x7fffffff)
-		if sid == 0 {
-			if inc == 0 do return conn_error(c, .Protocol_Error)
-			locks.lock(&c.mu)
-			c.conn_send_window += inc
-			over := c.conn_send_window > MAX_WINDOW
-			locks.unlock(&c.mu)
-			if over do return conn_error(c, .Flow_Control_Error)
-			return .None
-		}
-		if inc == 0 {
-			stream_error(c, sid, .Protocol_Error)
-			return .None
-		}
-		locks.lock(&c.mu)
-		over := false
-		if st, ok := c.streams[sid]; ok {
-			st.send_window += inc
-			over = st.send_window > MAX_WINDOW
-		}
-		locks.unlock(&c.mu)
-		if over do stream_error(c, sid, .Flow_Control_Error)
-		return .None
-	}
-	return .None // unknown / ignored (PRIORITY_UPDATE, ALTSVC, ORIGIN, ...)
-}
-
-// opened: sid was assigned by us (client-initiated, not idle).
-@(private)
-opened :: proc(c: ^H2_Conn, sid: u32) -> bool {
-	locks.lock(&c.mu)
-	defer locks.unlock(&c.mu)
-	return sid % 2 == 1 && sid < c.next_id
-}
-
-@(private)
-strip_padding :: proc(flags: u8, p: []byte) -> ([]byte, bool) {
-	if flags & FLAG_PADDED == 0 do return p, true
-	if len(p) < 1 do return nil, false
-	pad := int(p[0])
-	if pad > len(p) - 1 do return nil, false
-	return p[1:len(p) - pad], true
-}
-
-@(private)
-on_data :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
-	if sid == 0 do return conn_error(c, .Protocol_Error)
-	if !opened(c, sid) do return conn_error(c, .Protocol_Error)
-	n := i64(len(p))
-	out := make([dynamic]byte, 0, 32, context.temp_allocator)
-	locks.lock(&c.mu)
-	if n > c.conn_recv_window {
-		locks.unlock(&c.mu)
-		return conn_error(c, .Flow_Control_Error)
-	}
-	c.conn_recv_window -= n
-	c.conn_recv_unacked += n
-	// Chrome: refresh the session window once more than half is unacked.
-	if c.conn_recv_unacked > c.conn_recv_max / 2 {
-		put_window_update(&out, 0, u32(c.conn_recv_unacked))
-		c.conn_recv_window += c.conn_recv_unacked
-		c.conn_recv_unacked = 0
-	}
-	data, ok := strip_padding(flags, p)
-	st, found := c.streams[sid]
-	rst_code := H2_Code.No_Error
-	if !ok {
-		locks.unlock(&c.mu)
-		return conn_error(c, .Protocol_Error)
-	}
-	if found && !st.done {
-		st.recv_window -= n
-		switch {
-		case st.recv_window < 0:
-			rst_code = .Flow_Control_Error
-		case !st.got_headers:
-			rst_code = .Protocol_Error
-		case len(st.resp.body) + len(data) > c.cfg.max_response_body:
-			rst_code = .Cancel
-			fail_stream_locked(c, st, .Too_Large, u32(H2_Code.Cancel))
-		case:
-			append(&st.resp.body, ..data)
-			if flags & FLAG_END_STREAM != 0 {
-				st.done = true
-				prio_remove(c, st)
-			} else {
-				st.recv_unacked += n
-				if st.recv_unacked > c.our_stream_window / 2 {
-					put_window_update(&out, sid, u32(st.recv_unacked))
-					st.recv_window += st.recv_unacked
-					st.recv_unacked = 0
-				}
-			}
-		}
-	}
-	locks.unlock(&c.mu)
-	if rst_code != .No_Error {
-		if rst_code == .Cancel {
-			put_rst(&out, sid, .Cancel)
-		} else {
-			stream_error(c, sid, rst_code)
-		}
-	}
-	if len(out) > 0 do return write_locked_w(c, out[:])
-	return .None
-}
-
-@(private)
-on_headers :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
-	if sid == 0 || sid % 2 == 0 || !opened(c, sid) do return conn_error(c, .Protocol_Error)
-	frag, ok := strip_padding(flags, p)
-	if !ok do return conn_error(c, .Protocol_Error)
-	if flags & FLAG_PRIORITY != 0 {
-		if len(frag) < 5 do return conn_error(c, .Frame_Size_Error)
-		frag = frag[5:]
-	}
-	if flags & FLAG_END_HEADERS != 0 do return on_header_block(c, sid, flags, frag)
-	if len(frag) > c.cfg.max_header_block do return conn_error(c, .Enhance_Your_Calm)
-	clear(&c.cont_buf)
-	append(&c.cont_buf, ..frag)
-	c.cont_stream = sid
-	c.cont_flags = flags
-	return .None
-}
-
-@(private)
-on_header_block :: proc(c: ^H2_Conn, sid: u32, flags: u8, block: []byte) -> Error {
-	fields := make([dynamic]Header, 0, 16, c.allocator)
-	defer {
-		for h in fields {
-			delete(h.name, c.allocator)
-			delete(h.value, c.allocator)
-		}
-		delete(fields)
-	}
-	derr := hpack_decode(&c.dec, block, &fields, c.allocator)
-	if derr == .Protocol do return conn_error(c, .Compression_Error)
-	end_stream := flags & FLAG_END_STREAM != 0
-
-	locks.lock(&c.mu)
-	st, found := c.streams[sid]
-	if !found || st.done {
-		locks.unlock(&c.mu)
-		return .None
-	}
-	if derr == .Too_Large {
-		fail_stream_locked(c, st, .Too_Large, u32(H2_Code.Protocol_Error))
-		locks.unlock(&c.mu)
-		buf := make([dynamic]byte, 0, 13, context.temp_allocator)
-		put_rst(&buf, sid, .Protocol_Error)
-		return write_locked_w(c, buf[:])
-	}
-	bad := false
-	if !st.got_headers {
-		status := -1
-		pseudo_done := false
-		for h in fields {
-			if len(h.name) > 0 && h.name[0] == ':' {
-				if pseudo_done || h.name != ":status" || status >= 0 {
-					bad = true
-					break
-				}
-				status = parse_status(h.value)
-				if status < 0 do bad = true
-			} else {
-				pseudo_done = true
-			}
-		}
-		if status < 0 do bad = true
-		if !bad && status >= 100 && status < 200 {
-			// interim response (100/103): ignore; END_STREAM here is invalid
-			bad = end_stream
-		} else if !bad {
-			st.resp.status = status
-			st.got_headers = true
-			for h in fields {
-				if h.name[0] == ':' do continue
-				append(&st.resp.headers, Header{strings.clone(h.name, c.allocator), strings.clone(h.value, c.allocator)})
-			}
-		}
-	} else {
-		// trailers: must end the stream and carry no pseudo-headers
-		if !end_stream do bad = true
-		for h in fields {
-			if len(h.name) > 0 && h.name[0] == ':' do bad = true
-		}
-		if !bad {
-			for h in fields {
-				append(&st.resp.trailers, Header{strings.clone(h.name, c.allocator), strings.clone(h.value, c.allocator)})
-			}
-		}
-	}
-	if !bad && end_stream && st.got_headers {
-		st.done = true
-		prio_remove(c, st)
-	}
-	locks.unlock(&c.mu)
-	if bad do stream_error(c, sid, .Protocol_Error)
-	return .None
-}
-
-@(private)
-parse_status :: proc(s: string) -> int {
-	if len(s) != 3 do return -1
-	n := 0
-	for ch in transmute([]byte)s {
-		if ch < '0' || ch > '9' do return -1
-		n = n * 10 + int(ch - '0')
-	}
-	return n
-}
-
-@(private)
-on_settings :: proc(c: ^H2_Conn, sid: u32, flags: u8, p: []byte) -> Error {
-	if sid != 0 do return conn_error(c, .Protocol_Error)
-	if flags & FLAG_ACK != 0 {
-		if len(p) != 0 do return conn_error(c, .Frame_Size_Error)
-		locks.lock(&c.mu)
-		c.settings_acked = true
-		locks.unlock(&c.mu)
-		return .None
-	}
-	if len(p) % 6 != 0 do return conn_error(c, .Frame_Size_Error)
-	new_table := -1
-	// validate first
-	for i := 0; i < len(p); i += 6 {
-		id := u16(p[i]) << 8 | u16(p[i + 1])
-		v := be32(p[i + 2:])
-		switch id {
-		case SETTINGS_ENABLE_PUSH:
-			if v > 1 do return conn_error(c, .Protocol_Error)
-		case SETTINGS_INITIAL_WINDOW_SIZE:
-			if v > MAX_WINDOW do return conn_error(c, .Flow_Control_Error)
-		case SETTINGS_MAX_FRAME_SIZE:
-			if v < 16384 || v > 16777215 do return conn_error(c, .Protocol_Error)
-		}
-	}
-	locks.lock(&c.mu)
-	for i := 0; i < len(p); i += 6 {
-		id := u16(p[i]) << 8 | u16(p[i + 1])
-		v := be32(p[i + 2:])
-		switch id {
-		case SETTINGS_HEADER_TABLE_SIZE:
-			new_table = int(v)
-		case SETTINGS_MAX_CONCURRENT_STREAMS:
-			c.peer_max_concurrent = int(v)
-		case SETTINGS_INITIAL_WINDOW_SIZE:
-			delta := i64(v) - c.peer_initial_window
-			c.peer_initial_window = i64(v)
-			for _, st in c.streams do st.send_window += delta
-		case SETTINGS_MAX_FRAME_SIZE:
-			c.peer_max_frame = int(v)
-		case SETTINGS_MAX_HEADER_LIST_SIZE:
-			c.peer_max_header_list = int(v)
-		case SETTINGS_NO_RFC7540_PRIORITIES:
-			c.peer_no_rfc7540_prio = v == 1
-		}
-	}
-	c.got_settings = true
-	locks.unlock(&c.mu)
-	// Apply the encoder table size and ACK under wmu so every HEADERS block
-	// written after the ACK uses the new size.
-	buf := make([dynamic]byte, 0, 9, context.temp_allocator)
-	put_frame_header(&buf, 0, .Settings, FLAG_ACK, 0)
-	locks.lock(&c.wmu)
-	if new_table >= 0 do hpack_encoder_set_peer_table_size(&c.enc, new_table)
-	werr := netio.write(c.s, buf[:])
-	locks.unlock(&c.wmu)
-	return map_net_error(werr)
 }
 
 // ---- requests ----
@@ -814,67 +640,23 @@ validate_h2_request :: proc(req: Request) -> bool {
 	return true
 }
 
-@(private)
-pred_slot :: proc(c: ^H2_Conn, _: rawptr) -> bool {
-	return c.active < c.peer_max_concurrent || c.goaway
-}
-
-@(private)
-pred_done :: proc(c: ^H2_Conn, data: rawptr) -> bool {
-	return (cast(^H2_Stream)data).done
-}
-
-@(private)
-pred_window :: proc(c: ^H2_Conn, data: rawptr) -> bool {
-	st := cast(^H2_Stream)data
-	return st.done || (c.conn_send_window > 0 && st.send_window > 0)
-}
-
-// h2_open sends HEADERS (and the body, honouring flow control) and returns the
-// stream; collect the response with h2_wait. Blocks while the peer's
+// h2_request sends req and blocks until its response is complete (caller owns
+// it: response_destroy). nghttp2 holds the request back while the server's
 // MAX_CONCURRENT_STREAMS is reached. Thread-safe.
-h2_open :: proc(c: ^H2_Conn, req: Request) -> (st: ^H2_Stream, err: Error) {
-	if !validate_h2_request(req) do return nil, .Bad_Request
-	if !enter(c) do return nil, .Closed
+h2_request :: proc(c: ^H2_Conn, req: Request) -> (resp: Response, err: Error) {
+	if !validate_h2_request(req) do return {}, .Bad_Request
+	if !enter(c) do return {}, .Closed
 	defer leave(c)
 
-	locks.lock(&c.mu)
-	drive_until(c, pred_slot, nil)
-	if c.dead != .None {
-		err = c.dead
-		locks.unlock(&c.mu)
-		return nil, err
-	}
-	if c.goaway {
-		locks.unlock(&c.mu)
-		return nil, .Goaway
-	}
-	c.active += 1
-	locks.unlock(&c.mu)
+	nva := make([dynamic]Ng_Nv, 0, len(req.headers) + 4, context.temp_allocator)
+	nv :: proc(n, v: string) -> Ng_Nv {return {raw_data(n), raw_data(v), len(n), len(v), 0}}
+	append(&nva, nv(":method", req.method), nv(":authority", req.authority), nv(":scheme", req.scheme), nv(":path", req.path))
+	for h in req.headers do append(&nva, nv(h.name, h.value))
 
-	fields := make([dynamic]Header, 0, len(req.headers) + 4, context.temp_allocator)
-	append(&fields, Header{":method", req.method})
-	append(&fields, Header{":authority", req.authority})
-	append(&fields, Header{":scheme", req.scheme})
-	append(&fields, Header{":path", req.path})
-	append(&fields, ..req.headers)
-	has_body := len(req.body) > 0
-
-	locks.lock(&c.wmu)
-	locks.lock(&c.mu)
-	if c.dead != .None || c.goaway || c.next_id > MAX_WINDOW {
-		err = c.dead if c.dead != .None else .Goaway
-		c.active -= 1
-		locks.unlock(&c.mu)
-		locks.unlock(&c.wmu)
-		return nil, err
-	}
-	st = new(H2_Stream, c.allocator)
-	st.id = c.next_id
-	c.next_id += 2
-	st.priority = spdy_priority(req.priority)
-	st.send_window = c.peer_initial_window
-	st.recv_window = c.our_stream_window
+	st := new(H2_Stream, c.allocator)
+	st.req = req
+	st.body = req.body
+	st.acked_at = time.tick_now()
 	st.resp = Response {
 		version   = .Http2,
 		allocator = c.allocator,
@@ -882,107 +664,47 @@ h2_open :: proc(c: ^H2_Conn, req: Request) -> (st: ^H2_Stream, err: Error) {
 		trailers  = make([dynamic]Header, 0, 0, c.allocator),
 		body      = make([dynamic]byte, 0, 0, c.allocator),
 	}
-	// Chrome Http2PriorityDependencies::OnStreamCreation
-	parent: u32 = 0
-	for i := int(st.priority); i >= 0; i -= 1 {
-		if l := c.prio_lists[i]; len(l) > 0 {
-			parent = l[len(l) - 1]
-			break
-		}
+	body := Ng_Data_Provider{read = read_body}
+	locks.lock(&c.mu)
+	if c.dead != .None || nghttp2_session_check_request_allowed(c.session) == 0 {
+		err = c.dead if c.dead != .None else .Goaway
+		locks.unlock(&c.mu)
+		response_destroy(&st.resp)
+		free(st, c.allocator)
+		return {}, err
 	}
-	append(&c.prio_lists[st.priority], st.id)
+	// nghttp2 copies the header names and values.
+	st.id = nghttp2_submit_request2(c.session, nil, raw_data(nva), len(nva), &body if len(req.body) > 0 else nil, st)
+	if st.id < 0 {
+		locks.unlock(&c.mu)
+		response_destroy(&st.resp)
+		free(st, c.allocator)
+		return {}, .Goaway
+	}
 	c.streams[st.id] = st
-	max_frame := c.peer_max_frame
 	locks.unlock(&c.mu)
-
-	block := make([dynamic]byte, 0, 512, context.temp_allocator)
-	hpack_encode(&c.enc, fields[:], &block)
-	out := make([dynamic]byte, 0, len(block) + 32, context.temp_allocator)
-	first_cap := max_frame - 5
-	first := min(len(block), first_cap)
-	hflags: u8 = FLAG_PRIORITY
-	if !has_body do hflags |= FLAG_END_STREAM
-	if first == len(block) do hflags |= FLAG_END_HEADERS
-	put_frame_header(&out, first + 5, .Headers, hflags, st.id)
-	put_u32(&out, parent | 0x80000000) // exclusive
-	append(&out, u8(chrome_weight(st.priority) - 1))
-	append(&out, ..block[:first])
-	rest := block[first:]
-	for len(rest) > 0 {
-		n := min(len(rest), max_frame)
-		put_frame_header(&out, n, .Continuation, FLAG_END_HEADERS if n == len(rest) else 0, st.id)
-		append(&out, ..rest[:n])
-		rest = rest[n:]
-	}
-	werr := map_net_error(netio.write(c.s, out[:]))
-	locks.unlock(&c.wmu)
-	if werr != .None {
+	if werr := flush(c); werr != .None {
 		locks.lock(&c.mu)
 		fail_conn_locked(c, werr)
 		locks.cond_broadcast(&c.cond)
 		locks.unlock(&c.mu)
-		return st, .None // h2_wait reports the error
 	}
-	if !has_body {
-		st.sent_end = true
-		return st, .None
-	}
-	send_body(c, st, req.body)
-	return st, .None
-}
 
-@(private)
-send_body :: proc(c: ^H2_Conn, st: ^H2_Stream, body: []byte) {
-	rest := body
-	for len(rest) > 0 {
-		locks.lock(&c.mu)
-		drive_until(c, pred_window, st)
-		if st.done || c.dead != .None {
-			locks.unlock(&c.mu)
-			return
-		}
-		n := min(len(rest), c.cfg.data_chunk, c.peer_max_frame, int(c.conn_send_window), int(st.send_window))
-		c.conn_send_window -= i64(n)
-		st.send_window -= i64(n)
-		locks.unlock(&c.mu)
-		last := n == len(rest)
-		buf := make([dynamic]byte, 0, n + 9, context.temp_allocator)
-		put_frame_header(&buf, n, .Data, FLAG_END_STREAM if last else 0, st.id)
-		append(&buf, ..rest[:n])
-		werr := write_locked_w(c, buf[:])
-		if werr != .None {
-			locks.lock(&c.mu)
-			fail_conn_locked(c, werr)
-			locks.cond_broadcast(&c.cond)
-			locks.unlock(&c.mu)
-			return
-		}
-		rest = rest[n:]
-		if last do st.sent_end = true
-	}
-}
-
-// h2_wait blocks until the stream's response is complete and returns it
-// (caller owns it: response_destroy). The stream handle is freed.
-h2_wait :: proc(c: ^H2_Conn, st: ^H2_Stream) -> (resp: Response, err: Error) {
-	if !enter(c) do return {}, .Closed // stream is freed by h2_close
-	defer leave(c)
 	locks.lock(&c.mu)
-	drive_until(c, pred_done, st)
-	if !st.done do fail_stream_locked(c, st, c.dead if c.dead != .None else .Io, 0)
+	drive_until(c, st)
+	if !st.done do finish(c, st, c.dead if c.dead != .None else .Io, 0)
 	delete_key(&c.streams, st.id)
-	c.active -= 1
-	resp = st.resp
-	err = st.err
-	sent_end := st.sent_end
+	// The stream may outlive this call (our body still sending, or a reset not yet
+	// sent): detach it so nghttp2 never reads req.body or st again, and end it.
+	// A request nghttp2 still holds queued (the connection died first) has no
+	// stream yet; set_stream_user_data also clears its queued copy of st.
+	reset := stream_of(c.session, st.id) != nil && c.dead == .None
+	nghttp2_session_set_stream_user_data(c.session, st.id, nil)
+	if reset do nghttp2_submit_rst_stream(c.session, 0, st.id, 0 if st.err == .None else NG_CANCEL)
 	locks.cond_broadcast(&c.cond)
 	locks.unlock(&c.mu)
-	// Server finished before our body was fully sent: tell it we're done.
-	if err == .None && !sent_end {
-		buf := make([dynamic]byte, 0, 13, context.temp_allocator)
-		put_rst(&buf, st.id, .No_Error)
-		_ = write_locked_w(c, buf[:])
-	}
+	if reset do flush(c)
+	resp, err = st.resp, st.err
 	free(st, c.allocator)
 	if err != .None {
 		code := resp.h2_error
@@ -992,39 +714,6 @@ h2_wait :: proc(c: ^H2_Conn, st: ^H2_Stream) -> (resp: Response, err: Error) {
 	return
 }
 
-// h2_request = h2_open + h2_wait.
-h2_request :: proc(c: ^H2_Conn, req: Request) -> (Response, Error) {
-	st, err := h2_open(c, req)
-	if err != .None do return {}, err
-	return h2_wait(c, st)
-}
-
-@(private)
-pred_ping :: proc(c: ^H2_Conn, data: rawptr) -> bool {
-	return c.ping_acks >= (cast(^int)data)^
-}
-
-// h2_ping sends a PING and waits for its ACK.
-h2_ping :: proc(c: ^H2_Conn, payload: [8]byte = {}) -> Error {
-	payload := payload
-	if !enter(c) do return .Closed
-	defer leave(c)
-	locks.lock(&c.mu)
-	want := c.ping_acks + 1
-	locks.unlock(&c.mu)
-	buf := make([dynamic]byte, 0, 17, context.temp_allocator)
-	put_frame_header(&buf, 8, .Ping, 0, 0)
-	append(&buf, ..payload[:])
-	write_locked_w(c, buf[:]) or_return
-	locks.lock(&c.mu)
-	defer locks.unlock(&c.mu)
-	drive_until(c, pred_ping, &want)
-	return c.dead
-}
-
-@(private)
-pred_never :: proc(c: ^H2_Conn, _: rawptr) -> bool {return false}
-
 // h2_service reads and handles frames until the connection dies. Run it on a
 // thread to keep an idle connection responsive (PING/SETTINGS/GOAWAY).
 h2_service :: proc(c: ^H2_Conn) -> Error {
@@ -1032,7 +721,7 @@ h2_service :: proc(c: ^H2_Conn) -> Error {
 	defer leave(c)
 	locks.lock(&c.mu)
 	defer locks.unlock(&c.mu)
-	drive_until(c, pred_never, nil)
+	drive_until(c, nil)
 	return c.dead
 }
 
@@ -1040,5 +729,5 @@ h2_service :: proc(c: ^H2_Conn) -> Error {
 h2_can_open :: proc(c: ^H2_Conn) -> bool {
 	locks.lock(&c.mu)
 	defer locks.unlock(&c.mu)
-	return c.dead == .None && !c.goaway && c.next_id <= MAX_WINDOW
+	return c.dead == .None && nghttp2_session_check_request_allowed(c.session) != 0
 }

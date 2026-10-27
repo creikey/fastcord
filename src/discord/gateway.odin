@@ -645,7 +645,7 @@ gateway_reader_proc :: proc(th: ^thread.Thread) {
 		clear(&msg)
 		typ, err := http.ws_recv(ws, &msg)
 		if err != .None {
-			code := ws.close_code if ws.recv_close else 0
+			code := ws.close_code if err == .Closed else 0
 			// Detach and tear down on the control thread.
 			go_closed := false
 			locks.lock(&g.mu)

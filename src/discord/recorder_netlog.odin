@@ -6,16 +6,16 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 import "fc:http"
-import "fc:quic/h3"
+import "fc:quic"
 
 // Netlog side file for the recorder: the same event shapes Chrome's
 // --log-net-log writes, so tools/scrub's netlog reader gives our recordings
 // `wire` (true send order) and `conn` lines like the official fixtures.
 //   - request headers: rebuilt with the same field order fc:http (h2),
-//     fc:quic/h3 and h1_serialize_request put on the wire
+//     fc:quic and h1_serialize_request put on the wire
 //   - h3 transport parameters: decoded from the bytes the session's
 //     ClientHello carried (Conn_Event.quic_params)
-//   - h3 SETTINGS: h3.control_preamble (what connect writes; GREASE differs)
+//   - h3 SETTINGS: quic.H3_SETTINGS (what nghttp3 writes)
 //   - h2 SETTINGS / WINDOW_UPDATE: the values h2_connect sent
 // Cookie and authorization values are stripped like Chrome does.
 
@@ -137,7 +137,7 @@ rec_conn :: proc(data: rawptr, ev: Conn_Event) {
 		strings.write_string(&sb, `{"settings":[`)
 		for s, i in ev.h2_settings {
 			if i > 0 do strings.write_byte(&sb, ',')
-			fmt.sbprintf(&sb, `"[id:%d (%s) value:%d]"`, s.id, h2_setting_name(s.id), s.value)
+			fmt.sbprintf(&sb, `"[id:%d (%s) value:%d]"`, s.id, h2_setting_name(u16(s.id)), s.value)
 		}
 		strings.write_string(&sb, "]}")
 		nl_event(f, "HTTP2_SESSION_SEND_SETTINGS", id, 0, at, strings.to_string(sb))
@@ -160,7 +160,7 @@ nl_request_headers :: proc(r: ^Recorder, acct, host: string, req: http.Request, 
 	src := 0
 	switch version {
 	case .Http3:
-		// fc:quic/h3 open: pseudo-headers, the request's fields, then priority
+		// quic.request: pseudo-headers, the request's fields, then priority
 		// unless the request carries one
 		name = "HTTP3_HEADERS_SENT"
 		src = nl_session(r, fmt.tprintf("%s h3 %s", acct, host))
@@ -170,7 +170,7 @@ nl_request_headers :: proc(r: ^Recorder, acct, host: string, req: http.Request, 
 			if h.name == "priority" do has = true
 			append(&fields, h)
 		}
-		if !has do append(&fields, http.Header{"priority", fmt.tprintf("u=%d, i", h3.urgency(req.priority))})
+		if !has do append(&fields, http.Header{"priority", fmt.tprintf("u=%d, i", quic.urgency(req.priority))})
 	case .Http2:
 		name = "HTTP2_SESSION_SEND_HEADERS"
 		src = nl_session(r, fmt.tprintf("%s h2 %s", acct, host))
@@ -239,21 +239,10 @@ get_varint :: proc(b: []byte, pos: ^int) -> (v: u64, ok: bool) {
 // h3_settings_json: our control stream SETTINGS as Chrome logs them
 // (names sorted, as Chrome's dictionary prints).
 h3_settings_json :: proc() -> string {
-	pre := make([dynamic]byte, 0, 64, context.temp_allocator)
-	h3.control_preamble(&pre)
-	b := pre[:]
-	pos := 0
-	_, _ = get_varint(b, &pos) // stream type
-	_, _ = get_varint(b, &pos) // frame type (SETTINGS)
-	n, _ := get_varint(b, &pos)
-	end := min(pos + int(n), len(b))
 	pairs := make([dynamic][2]string, 0, 8, context.temp_allocator)
-	for pos < end {
-		id, ok1 := get_varint(b[:end], &pos)
-		v, ok2 := get_varint(b[:end], &pos)
-		if !ok1 || !ok2 do break
+	for s in quic.H3_SETTINGS {
 		nm: string
-		switch id {
+		switch s[0] {
 		case 0x01:
 			nm = "SETTINGS_QPACK_MAX_TABLE_CAPACITY"
 		case 0x06:
@@ -262,10 +251,8 @@ h3_settings_json :: proc() -> string {
 			nm = "SETTINGS_QPACK_BLOCKED_STREAMS"
 		case 0x33:
 			nm = "SETTINGS_H3_DATAGRAM"
-		case:
-			nm = fmt.tprintf("UNSUPPORTED_SETTINGS_TYPE(%d)", id)
 		}
-		append(&pairs, [2]string{nm, fmt.tprintf("%d", i64(i32(u32(v))))})
+		append(&pairs, [2]string{nm, fmt.tprintf("%d", s[1])})
 	}
 	slice.sort_by(pairs[:], proc(a, c: [2]string) -> bool {return a[0] < c[0]})
 	sb := strings.builder_make(context.temp_allocator)

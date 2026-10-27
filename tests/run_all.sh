@@ -22,7 +22,7 @@ fi
 # FASTCORD_CI=1 skips what needs a GPU, audio devices or the gg sans font cache (UI scripts).
 # Each package's test binary builds and runs as its own job, all in parallel;
 # results print in a fixed order afterwards.
-PKGS="locks netio tls quic quic/h3 quic/altsvc http etf zstd brotli protobuf imagefmt vector qr ui gfx audio media discord voice voice/mls voice/dave opus lottie app"
+PKGS="locks netio tls quic quic/altsvc http etf zstd brotli protobuf imagefmt vector qr ui gfx audio media discord voice voice/mls voice/dave opus lottie app"
 run_pkg() {
   pkg=$1; out="build/test-$(echo $pkg | tr / _)"; t0=$(date +%s)
   if odin test "src/$pkg" -collection:fc=src -vet-shadowing -strict-style -debug -out:"$out$EXE" > "$out.log" 2>&1; then

@@ -79,7 +79,7 @@ connect :: proc(port: int) -> (c: ^Client, ok: bool) {
 }
 
 close :: proc(c: ^Client) {
-	http.ws_shutdown(c.ws)
+	netio.shutdown(c.ws.s)
 	thread.join(c.reader)
 	thread.destroy(c.reader)
 	http.ws_close_stream(c.ws)

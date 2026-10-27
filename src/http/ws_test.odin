@@ -38,6 +38,12 @@ Ws_Fake :: struct {
 }
 
 @(private = "file")
+Wf_Frame :: struct {
+	fin:    bool,
+	opcode: u8,
+}
+
+@(private = "file")
 wf_check :: proc(f: ^Ws_Fake, cond: bool, msg: string, args: ..any, loc := #caller_location) {
 	if !cond do append(&f.failures, fmt.aprintf("%v: %s", loc.line, fmt.tprintf(msg, ..args), allocator = f.alloc))
 }
@@ -69,12 +75,23 @@ wf_frame :: proc(f: ^Ws_Fake, fin: bool, op: u8, payload: []byte, rsv: u8 = 0, m
 
 // wf_read reads and unmasks one client frame.
 @(private = "file")
-wf_read :: proc(f: ^Ws_Fake) -> (h: Ws_Frame_Header, payload: []byte, err: Error) {
-	h = ws_read_frame_header(&f.r) or_return
-	wf_check(f, h.masked, "client frames must be masked")
-	payload = make([]byte, int(h.length), context.temp_allocator)
+wf_read :: proc(f: ^Ws_Fake) -> (h: Wf_Frame, payload: []byte, err: Error) {
+	b: [8]byte
+	read_exact(&f.r, b[:2]) or_return
+	h = {b[0] & 0x80 != 0, b[0] & 0x0f}
+	wf_check(f, b[1] & 0x80 != 0, "client frames must be masked")
+	n := int(b[1] & 0x7f)
+	if n >= 126 {
+		k := 2 if n == 126 else 8
+		read_exact(&f.r, b[:k]) or_return
+		n = 0
+		for i in 0 ..< k do n = n << 8 | int(b[i])
+	}
+	key: [4]byte
+	read_exact(&f.r, key[:]) or_return
+	payload = make([]byte, n, context.temp_allocator)
 	read_exact(&f.r, payload) or_return
-	for i in 0 ..< len(payload) do payload[i] ~= h.key[i & 3]
+	for i in 0 ..< n do payload[i] ~= key[i & 3]
 	return
 }
 
@@ -82,21 +99,19 @@ wf_read :: proc(f: ^Ws_Fake) -> (h: Ws_Frame_Header, payload: []byte, err: Error
 wf_server :: proc(f: ^Ws_Fake) {
 	reader_init(&f.r, f.s, 1 << 20)
 	defer reader_destroy(&f.r)
-	sb := strings.builder_make(f.alloc)
-	for {
-		line, err := read_line(&f.r)
-		if err != .None do return
-		if strings.has_prefix(line, "Sec-WebSocket-Key: ") do f.key = strings.clone(line[len("Sec-WebSocket-Key: "):], f.alloc)
-		strings.write_string(&sb, line)
-		strings.write_string(&sb, "\r\n")
-		if len(line) == 0 do break
+	head := make([dynamic]byte, f.alloc)
+	for !strings.has_suffix(string(head[:]), "\r\n\r\n") {
+		b: [1]byte
+		if read_exact(&f.r, b[:]) != .None do return
+		append(&head, b[0])
 	}
-	f.request = strings.to_string(sb)
+	f.request = string(head[:])
+	if i := strings.index(f.request, "Sec-WebSocket-Key: "); i >= 0 {
+		k := f.request[i + len("Sec-WebSocket-Key: "):]
+		f.key = strings.clone(k[:strings.index(k, "\r\n")], f.alloc)
+	}
 	accept := ws_accept_for_key(f.key, context.temp_allocator)
-	switch f.mode {
-	case 1:
-		accept = "bogus"
-	}
+	if f.mode == 1 do accept = "bogus"
 	ext := "Sec-WebSocket-Extensions: permessage-deflate\r\n" if f.mode == 2 else ""
 	resp := fmt.tprintf("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n%s\r\n", accept, ext)
 	netio.write(f.s, transmute([]byte)resp)
@@ -136,8 +151,8 @@ ws_teardown :: proc(t: ^testing.T, f: ^Ws_Fake, c: ^Ws_Conn, th: ^thread.Thread,
 		delete(s)
 	}
 	delete(f.failures)
-	delete(f.request)
-	delete(f.key)
+	delete(f.request, f.alloc)
+	delete(f.key, f.alloc)
 }
 
 @(test)
@@ -203,22 +218,16 @@ script_messages :: proc(f: ^Ws_Fake) {
 	wf_frame(f, true, 2, nil) // empty binary
 	// the pong for "pp"
 	h, p, err := wf_read(f)
-	wf_check(f, err == .None && Ws_Opcode(h.opcode) == .Pong && string(p) == "pp", "pong %v %v", h, err)
+	wf_check(f, err == .None && h.opcode == 10 && string(p) == "pp", "pong %v %v", h, err)
 	// client message: single frame
 	h, p, err = wf_read(f)
 	wf_check(f, err == .None && h.fin && h.opcode == 2 && string(p) == "etf-bytes", "single frame %v", h)
-	// client fragmented message
-	parts := [?]string{"abc", "def", "g"}
-	for part, i in parts {
-		h, p, err = wf_read(f)
-		wf_check(f, err == .None && string(p) == part && h.fin == (i == 2) && h.opcode == (1 if i == 0 else 0), "fragment %d %v", i, h)
-	}
 	// 126-length client frame
 	h, p, err = wf_read(f)
-	wf_check(f, err == .None && h.length == 1000 && p[999] == 0xaa, "126-len frame %v", h)
+	wf_check(f, err == .None && len(p) == 1000 && p[999] == 0xaa, "126-len frame %v", h)
 	// close handshake initiated by client
 	h, p, err = wf_read(f)
-	wf_check(f, Ws_Opcode(h.opcode) == .Close && len(p) >= 2 && int(p[0]) << 8 | int(p[1]) == 4000 && string(p[2:]) == "bye", "close %v %x", h, p)
+	wf_check(f, h.opcode == 8 && len(p) >= 2 && int(p[0]) << 8 | int(p[1]) == 4000 && string(p[2:]) == "bye", "close %v %x", h, p)
 	wf_frame(f, true, 8, {0x0f, 0xa0, 'o', 'k'})
 }
 
@@ -238,7 +247,6 @@ test_ws_messages :: proc(t: ^testing.T) {
 	typ, rerr = ws_recv(c, &msg)
 	testing.expect(t, rerr == .None && typ == .Binary && len(msg) == 0, "empty")
 	testing.expect_value(t, ws_send(c, .Binary, transmute([]byte)string("etf-bytes")), Error.None)
-	testing.expect_value(t, ws_send_fragmented(c, .Text, transmute([]byte)string("abcdefg"), 3), Error.None)
 	k := make([]byte, 1000, context.temp_allocator)
 	k[999] = 0xaa
 	testing.expect_value(t, ws_send(c, .Binary, k), Error.None)
@@ -279,12 +287,15 @@ bad_script :: proc(f: ^Ws_Fake) {
 	h, p, err := wf_read(f)
 	want := 1002
 	switch f.mode {
+	case 12, 13:
+		want = 0 // wslay's frame parser rejects these with a close frame carrying no code
 	case 14:
 		want = 1007
 	case 17:
 		want = 1009
 	}
-	wf_check(f, err == .None && Ws_Opcode(h.opcode) == .Close && len(p) >= 2 && int(p[0]) << 8 | int(p[1]) == want, "mode %d: close %x", f.mode, p)
+	code := int(p[0]) << 8 | int(p[1]) if len(p) >= 2 else 0
+	wf_check(f, err == .None && h.opcode == 8 && code == want, "mode %d: close %x", f.mode, p)
 }
 
 @(test)
@@ -305,7 +316,7 @@ test_ws_protocol_errors :: proc(t: ^testing.T) {
 script_server_close :: proc(f: ^Ws_Fake) {
 	wf_frame(f, true, 8, {0x0f, 0xa4, 'r'}) // 4004 "r"
 	h, p, _ := wf_read(f)
-	wf_check(f, Ws_Opcode(h.opcode) == .Close && len(p) == 2 && p[0] == 0x0f && p[1] == 0xa4, "echoed close %x", p)
+	wf_check(f, h.opcode == 8 && len(p) >= 2 && p[0] == 0x0f && p[1] == 0xa4, "echoed close %x", p)
 }
 
 @(test)
@@ -321,20 +332,6 @@ test_ws_server_close :: proc(t: ^testing.T) {
 	ws_teardown(t, &f, c, th, peer)
 }
 
-@(test)
-test_ws_mask_and_header_layout :: proc(t: ^testing.T) {
-	buf := make([dynamic]byte, context.temp_allocator)
-	ws_put_header(&buf, true, .Binary, 125, {1, 2, 3, 4})
-	testing.expect_value(t, len(buf), 6)
-	testing.expect_value(t, buf[1], 0x80 | 125)
-	clear(&buf)
-	ws_put_header(&buf, true, .Binary, 126, {})
-	testing.expect(t, len(buf) == 8 && buf[1] == 0xfe && buf[2] == 0 && buf[3] == 126)
-	clear(&buf)
-	ws_put_header(&buf, false, .Text, 65536, {})
-	testing.expect(t, len(buf) == 14 && buf[0] == 0x01 && buf[1] == 0xff && buf[7] == 1 && buf[8] == 0)
-}
-
 @(private = "file")
 script_idle :: proc(f: ^Ws_Fake) {
 	buf: [64]byte
@@ -343,6 +340,8 @@ script_idle :: proc(f: ^Ws_Fake) {
 	}
 }
 
+// A thread blocked in ws_recv doesn't hold the lock: sends still go out, and
+// shutting the stream down wakes it.
 @(test)
 test_ws_shutdown_wakes_reader :: proc(t: ^testing.T) {
 	f: Ws_Fake
@@ -358,7 +357,8 @@ test_ws_shutdown_wakes_reader :: proc(t: ^testing.T) {
 		delete(msg)
 	})
 	thread.yield()
-	ws_shutdown(c)
+	testing.expect_value(t, ws_send(c, .Text, transmute([]byte)string("while reading")), Error.None)
+	netio.shutdown(c.s)
 	thread.join(rt)
 	thread.destroy(rt)
 	testing.expect_value(t, r.err, Error.Closed)

@@ -1,0 +1,1 @@
+-Ivendor/boringssl/include -DOPENSSL_NO_ASM -DWIN32_LEAN_AND_MEAN -DNOMINMAX

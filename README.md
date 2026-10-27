@@ -18,10 +18,10 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 | Path | What |
 |---|---|
 | `src/netio` | `Stream` interface (read/write/close) + TCP. Every protocol sits on a `Stream`. |
-| `src/tls` | TLS 1.3 client, ClientHello byte-identical in shape to Chrome (the official client is Electron). |
+| `src/tls` | TLS client over vendored BoringSSL, configured like Chrome (the official client is Electron); OS trust store. |
 | `src/zstd`, `src/brotli` | Decoders (gateway uses zstd-stream; HTTP responses may be br/zstd/gzip). |
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`). |
-| `src/http` | HTTP/1.1, HTTP/2 + HPACK, WebSocket client. |
+| `src/http` | HTTP/1.1, HTTP/2, WebSocket client over vendored picohttpparser, nghttp2, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, voice, state store. |
 | `src/platform` | Window, input, display-link, clipboard. `darwin/` and `windows/`. |
 | `src/gfx` | Renderer: rects/rounded rects/borders/shadows/glyphs/images. Metal / D3D11. |
@@ -42,8 +42,9 @@ webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
 ./build/fastcord      # logs in with $FASTCORD_TOKEN or <state>/token
 ```
 
-Needs `odin` and a C compiler: clang (macOS: Xcode command line tools), or on Windows clang or MSVC.
-Every build first compiles the vendored C (`vendor/`) into `build/`; `./build.sh c` does only that step.
+Needs `odin` and a C compiler: clang (macOS: Xcode command line tools), or on Windows clang or MSVC;
+BoringSSL also needs MSVC 2022 on Windows. Every build first compiles the vendored C (`vendor/`) into
+`build/` (BoringSSL takes about a minute the first time); `./build.sh c` does only that step.
 `build.bat` has the same targets for cmd.exe and finds MSVC itself.
 
 `<state>` is `~/Library/Application Support/fastcord/state` on macOS and `%LOCALAPPDATA%\fastcord\state`
@@ -99,11 +100,10 @@ python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
 ```
 
 - `tests/bench/make_bench_fixture.py` writes `build/bench/heavy.jsonl` and generated images in
-  `build/bench/media` from `tests/bench/shape.json`: the counts of a real account (users, avatars,
-  guilds and folders in sidebar order, channels, roles, emoji, unreads, mutes, read states). No names,
-  ids or content. It adds a 400-message guild channel and a 300-message DM for the chat benches.
-  `tools/bench.sh --live` writes the live account's shape to `build/bench/shape.json` and diffs it
-  with the fixture's; copy it over `tests/bench/shape.json` when the account has drifted.
+  `build/bench/media` shaped like a made-up heavy account (users, avatars, guilds and folders,
+  channels, roles, emoji, unreads, mutes, read states). It adds a 400-message guild channel and a
+  300-message DM for the chat benches. `tools/bench.sh --live` writes a real account's shape to
+  `build/bench/shape.json` and diffs it with the fixture's; never commit that file.
 - `FASTCORD_MEDIA_DIR=<dir>` serves CDN images from files named by the URL's last path component, so
   fixture runs load avatars, icons and emoji like a live run, offline.
 - `tests/bench/*.txt` are scripts. `bench <name>` starts a measured section, `bench_off` ends it,
@@ -138,6 +138,35 @@ Keep the UI immediate-mode. Make each pass cheaper instead of caching results ac
 - Allocations: explicit allocators on long-lived things; `context.temp_allocator` per frame.
 - Secrets (tokens, passwords, raw captures) live only in `.secrets/` and
   `discord_credentials.txt`, both gitignored. Never commit them.
+
+## Fingerprint regressions
+
+Where our traffic still differs from the official client (Chrome 148 captures in the repo), and why.
+QUIC transport parameters, ALPN and the Initial datagram envelope (two 1250-byte datagrams, 8-byte DCID,
+empty SCID, no token) match exactly.
+
+- QUIC Initial contents: Chrome fragments its CRYPTO frames and interleaves PING and PADDING frames
+  ("chaos protection"), and numbers its first packets with 1- then 2-byte packet numbers; ngtcp2 builds
+  its own frame layout and packet-number lengths and offers no setting for either. Fix: a patch to
+  ngtcp2's packet builder, or upstream support for Chrome-style CRYPTO scrambling.
+- HTTP/3 SETTINGS: nghttp3 writes 06, 01, 07, 33; Chrome writes 01, 06, 07, 33 plus a GREASE setting,
+  and a GREASE frame on the control stream. nghttp3 fixes the order and has no GREASE option. Fix: an
+  nghttp3 patch or upstream option.
+- QPACK encoder/decoder streams: nghttp3 opens both at setup; Chrome's timing differs. PRIORITY_UPDATE
+  frames follow nghttp3's scheduling, not Chrome's. Fix: an nghttp3 patch.
+- No 0-RTT requests on resumed QUIC sessions (the hello still offers early data, as Chrome's does).
+  Fix: replay-safe GETs through `ngtcp2_conn_open_bidi_stream` before the handshake completes.
+- TLS signature_algorithms carries a GREASE value: BoringSSL ce9c15c (vendored) adds one, the revision
+  Chrome 148 pins (d8be2b4a, 2026-04-06) does not. Fix: re-vendor BoringSSL at d8be2b4a; every API
+  `src/tls` and ngtcp2 use exists there except `SSL_CTX_set1_tls13_ciphers` (see the next entry).
+- ECH GREASE uses ChaCha20-Poly1305 where Chrome uses AES-128-GCM on AES-capable CPUs, and the TLS 1.3
+  cipher order is forced: BoringSSL is built with `OPENSSL_NO_ASM`, so `EVP_has_aes_hardware()` is 0,
+  and `src/tls` overrides the order with `SSL_CTX_set1_tls13_ciphers`. Fix: build BoringSSL's assembly
+  (NASM on Windows, the `.S` files on macOS) and drop the override.
+- HTTP/2 headers, priority and window updates follow Chrome (`h2.odin`, `hpack.odin`), except: DATA
+  for a stream nghttp2 already closed is given back by nghttp2 itself (its own threshold, not Chrome's),
+  and an unanswered PING never closes the connection as Chrome's does. Fix: track those in
+  `h2.odin` if a server is seen to care.
 
 ## Releasing
 

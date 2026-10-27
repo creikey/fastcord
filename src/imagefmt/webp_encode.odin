@@ -651,3 +651,90 @@ write_code :: proc(bw: ^W_Bits, c: ^Prefix_Code) {
 		if e.sym >= 16 do wb_put(bw, e.extra, EXTRA[e.sym - 16])
 	}
 }
+
+// The VP8L distance map (spec 5.2.2): code -> (dy << 4) | (8 - dx).
+@(private = "file")
+VP8L_CODE_TO_PLANE := [120]u8 {
+	24, 7, 23, 25, 40, 6, 39, 41, 22, 26, 38, 42, 56, 5, 55, 57,
+	21, 27, 54, 58, 37, 43, 72, 4, 71, 73, 20, 28, 53, 59, 70, 74,
+	36, 44, 88, 69, 75, 52, 60, 3, 87, 89, 19, 29, 86, 90, 35, 45,
+	68, 76, 85, 91, 51, 61, 104, 2, 103, 105, 18, 30, 102, 106, 34, 46,
+	84, 92, 67, 77, 101, 107, 50, 62, 120, 1, 119, 121, 83, 93, 17, 31,
+	100, 108, 66, 78, 118, 122, 33, 47, 117, 123, 49, 63, 99, 109, 82, 94,
+	0, 116, 124, 65, 79, 16, 32, 98, 110, 48, 115, 125, 81, 95, 64, 114,
+	126, 97, 111, 80, 113, 127, 96, 112,
+}
+
+// ---- the VP8L predictors (spec 4.1), shared shape with the decoder libwebp uses ----
+
+
+@(private = "file")
+add_pixels :: #force_inline proc "contextless" (a, b: u32) -> u32 {
+	ag := (a & 0xFF00FF00) + (b & 0xFF00FF00)
+	rb := (a & 0x00FF00FF) + (b & 0x00FF00FF)
+	return (ag & 0xFF00FF00) | (rb & 0x00FF00FF)
+}
+
+@(private = "file")
+avg2 :: #force_inline proc "contextless" (a, b: u32) -> u32 {
+	return (((a ~ b) & 0xFEFEFEFE) >> 1) + (a & b)
+}
+
+@(private = "file")
+clip255 :: #force_inline proc "contextless" (a: u32) -> u32 {
+	if a < 256 do return a
+	return ~a >> 24
+}
+
+@(private = "file")
+predict :: #force_inline proc "contextless" (mode: u32, left: u32, top: [^]u32) -> u32 {
+	switch mode {
+	case 1:
+		return left
+	case 2:
+		return top[0]
+	case 3:
+		return top[1]
+	case 4:
+		return top[-1]
+	case 5:
+		return avg2(avg2(left, top[1]), top[0])
+	case 6:
+		return avg2(left, top[-1])
+	case 7:
+		return avg2(left, top[0])
+	case 8:
+		return avg2(top[-1], top[0])
+	case 9:
+		return avg2(top[0], top[1])
+	case 10:
+		return avg2(avg2(left, top[-1]), avg2(top[0], top[1]))
+	case 11:
+		t, l, c := top[0], left, top[-1]
+		pa_minus_pb: i32
+		for sh := u32(0); sh < 32; sh += 8 {
+			tv := i32((t >> sh) & 0xFF)
+			lv := i32((l >> sh) & 0xFF)
+			cv := i32((c >> sh) & 0xFF)
+			pa_minus_pb += abs(lv - cv) - abs(tv - cv)
+		}
+		return pa_minus_pb <= 0 ? t : l
+	case 12:
+		r: u32
+		for sh := u32(0); sh < 32; sh += 8 {
+			v := ((left >> sh) & 0xFF) + ((top[0] >> sh) & 0xFF) - ((top[-1] >> sh) & 0xFF)
+			r |= clip255(v) << sh
+		}
+		return r
+	case 13:
+		ave := avg2(left, top[0])
+		r: u32
+		for sh := u32(0); sh < 32; sh += 8 {
+			a := i32((ave >> sh) & 0xFF)
+			b := i32((top[-1] >> sh) & 0xFF)
+			r |= clip255(u32(a + (a - b) / 2)) << sh
+		}
+		return r
+	}
+	return 0xFF000000
+}

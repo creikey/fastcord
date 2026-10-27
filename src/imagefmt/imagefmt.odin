@@ -1,8 +1,8 @@
 // Package imagefmt decodes the image formats Discord serves into RGBA8
 // (straight alpha) canvases: WebP (VP8 lossy, VP8L lossless, alpha,
 // animation), GIF, PNG/APNG and JPEG (baseline + progressive, EXIF
-// orientation). JPEG is Wuffs (vendor/wuffs, linked as C); the others,
-// including PNG's inflate, are written here.
+// orientation). Every pixel decoder is Wuffs (vendor/wuffs, linked as C);
+// only animated WebP's container and compositing are written here.
 //
 // Animated images come back fully composited: every Frame is a whole canvas.
 // Frame durations follow browsers: anything <= 10 ms becomes 100 ms.
@@ -85,10 +85,8 @@ decode_impl :: proc(data: []byte, allocator: mem.Allocator, max_pixels: int, fir
 	}
 	img.format = sniff(data)
 	switch img.format {
-	case .PNG:
-		err = png_decode(&c, data, &img)
-	case .GIF:
-		err = gif_decode(&c, data, &img)
+	case .PNG, .GIF:
+		err = wuffs_decode(&c, data, &img, img.format)
 	case .JPEG:
 		err = jpeg_decode(&c, data, &img)
 	case .WebP:
@@ -144,7 +142,7 @@ alloc_pixels :: proc(c: ^Decode_Ctx, w, h: int) -> ([]byte, Error) {
 }
 
 // Straight-alpha "over": src onto dst (libwebp's BlendPixelNonPremult; used by
-// WebP, APNG). Returns the blended RGBA.
+// WebP). Returns the blended RGBA.
 @(private)
 blend_over :: #force_inline proc "contextless" (src, dst: [4]u8) -> [4]u8 {
 	sa := u32(src[3])

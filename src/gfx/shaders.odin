@@ -6,7 +6,7 @@ package gfx
 //  - softness s > 0: coverage = 1 - smoothstep(-s, s, d)
 //  - border b > 0: multiply by coverage outside the inner box (dst shrunk by b, radii - b)
 //  - colors are premultiplied, bilinear across the dst rect
-//  - tex kind 1: R8 coverage mask multiplies alpha; kind 2: RGBA straight, tinted by color
+//  - tex kind 1: R8 coverage mask multiplies alpha; kind 2: RGBA premultiplied (gfx premultiplies on upload), tinted by color
 //  - tex kind 3: NV12 video: tex = Y (R8), tex2 = CbCr (RG8), params.w = Yuv_Matrix
 //  - params.z = kind + 4 * slot: the texture is the draw's texs[slot]
 //  - the vertex shader clamps the quad to the instance's clip rect (no scissor)
@@ -103,8 +103,7 @@ fragment float4 fs_main(VOut in [[stage_in]], array<texture2d<float>, 16> texs [
 	if (kind == 1.0) {
 		c *= tex.sample(smp, in.uv).r;
 	} else if (kind == 2.0) {
-		float4 s = tex.sample(smp, in.uv);
-		c *= float4(s.rgb * s.a, s.a);
+		c *= tex.sample(smp, in.uv);
 	} else if (kind == 3.0) {
 		float y = tex.sample(smp, in.uv).r;
 		float2 scale2 = float2(tex2.get_width(), tex2.get_height()) / float2(tex.get_width(), tex.get_height());
@@ -250,7 +249,7 @@ float4 ps_main(VOut i) : SV_Target {
 			float2 cc = tex2.SampleLevel(smp, i.uv / dims, 0).rg;
 			c *= float4(yuv_to_rgb(s.r, cc, i.params.w), 1.0);
 		}
-		else c *= float4(s.rgb * s.a, s.a);
+		else c *= s;
 	}
 	return c * cov;
 }

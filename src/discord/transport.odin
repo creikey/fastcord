@@ -7,8 +7,8 @@ import "core:thread"
 import "fc:brotli"
 import "fc:http"
 import "fc:netio"
+import "fc:quic"
 import "fc:quic/altsvc"
-import "fc:quic/h3"
 import "fc:zstd"
 
 // Transport: one connection pool per origin, like Chrome's socket pools.
@@ -79,8 +79,6 @@ Transport :: struct {
 	alt:       altsvc.Cache, // Chrome alternative-service state (fc:quic/altsvc)
 	use_h3:    bool, // race QUIC per Alt-Svc (default on)
 	race_mu:   locks.Mutex,
-	// no 0-RTT on resumed QUIC sessions (off by default: Chrome uses 0-RTT).
-	h3_no_0rtt: bool,
 	h3:        H3_Hook, // optional override of the built-in h3 path
 	override:  Round_Tripper,
 	jar:       ^Cookie_Jar,
@@ -428,7 +426,7 @@ h3_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> (out: H
 	// One job per origin at a time (Chrome joins requests onto the pending
 	// job instead of racing again).
 	if !live do locks.lock(&t.race_mu)
-	res, ok := altsvc.connect(&t.alt, host, tcp_dialer, tcp_closer, t, h3.Config{no_0rtt = t.h3_no_0rtt})
+	res, ok := altsvc.connect(&t.alt, host, tcp_dialer, tcp_closer, t)
 	if !live do locks.unlock(&t.race_mu)
 	if !ok do return {}, false
 	switch res.proto {
@@ -439,9 +437,9 @@ h3_round_trip :: proc(t: ^Transport, host: string, req: http.Request) -> (out: H
 			if !seen do t.h3_seen[res.h3] = true
 			locks.unlock(&t.mu)
 			// the transport parameters bytes this session's ClientHello carried
-			if !seen do t.conn_observer(t.observer_data, {kind = "h3", host = host, alpn = "h3", quic_params = res.h3.q.hs.quic_params})
+			if !seen do t.conn_observer(t.observer_data, {kind = "h3", host = host, alpn = "h3", quic_params = quic.transport_params(res.h3)})
 		}
-		resp, err := h3.request(res.h3, req, t.allocator)
+		resp, err := quic.request(res.h3, req, t.allocator)
 		if err != .None && err != .Stream_Reset {
 			// Session-level failure after it was established: fall back to h2 this time.
 			http.response_destroy(&resp)
