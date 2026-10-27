@@ -1,708 +1,755 @@
-#scope_file
-	MsgWaitForMultipleObjectsEx :: (nCount: win.DWORD, pHandles: *win.HANDLE, dwMilliseconds: win.DWORD, dwWakeMask: win.DWORD, dwFlags: win.DWORD) -> win.DWORD #foreign user32;
-	GetDoubleClickTime :: () -> win.UINT #foreign user32;
-	SetWindowDisplayAffinity :: (hwnd: win.HWND, dwAffinity: win.DWORD) -> win.BOOL #foreign user32;
+native_window :: () -> *void { return w.hwnd; }
+native_metal_layer :: () -> *void { return null; }
 
-COMPOSITIONFORM :: struct {
-	dwStyle: win.DWORD;
-	ptCurrentPos: win.POINT;
-	rcArea: win.RECT;
-}
-	ImmGetContext :: (hwnd: win.HWND) -> *void #foreign imm32;
-	ImmReleaseContext :: (hwnd: win.HWND, himc: *void) -> win.BOOL #foreign imm32;
-	ImmGetCompositionStringW :: (himc: *void, index: win.DWORD, buf: *void, len: win.DWORD) -> win.LONG #foreign imm32;
-	ImmSetCompositionWindow :: (himc: *void, form: *COMPOSITIONFORM) -> win.BOOL #foreign imm32;
-
-WM_FC_WAKE :: win.WM_USER + 1;
-TIMER_ANIM :: 1;
-
-Win :: struct {
-	hwnd: win.HWND;
-	instance: win.HINSTANCE;
-	frame_wait: win.HANDLE; // swap chain frame-latency waitable (set by gfx)
-	high_surrogate: u16;
-	in_size_move: bool;
-	tracking_mouse: bool;
-	cursor_hidden: bool;
-	last_click_time: float64;
-	last_click_pos: Vector2;
-	last_click_btn: Mouse_Button;
-	click_count: int;
-	wake_posted: bool;
-	composing: bool;
-	drop_registered: bool;
-}
-
-w: Win;
-#scope_export
-
-native_window :: () -> *void {return cast(*void)(w.hwnd);}
-native_view :: () -> *void {return cast(*void)(w.hwnd);}
-native_metal_layer :: () -> *void {return null;}
-
-// set_capture_hidden: WDA_EXCLUDEFROMCAPTURE (Electron's setContentProtection) or WDA_NONE.
+// WDA_EXCLUDEFROMCAPTURE (Electron's setContentProtection) or WDA_NONE.
 set_capture_hidden :: (hidden: bool) {
-	if w.hwnd != null { SetWindowDisplayAffinity(w.hwnd, ifx hidden then 0x11 else 0); }
+    if w.hwnd SetWindowDisplayAffinity(w.hwnd, xx ifx hidden then 0x11 else 0);
 }
 
-// gfx registers the swap chain's frame-latency waitable object; wait_events
-// waits on it (vsync pacing) when a frame was requested.
-set_frame_wait_handle :: (h: *void) {w.frame_wait = win.HANDLE(h);}
+// gfx registers the swap chain's frame-latency waitable object; wait_events waits on it (vsync pacing) when
+// a frame was requested.
+set_frame_wait_handle :: (h: *void) { w.frame_wait = h; }
+
+// True when Windows' app mode is dark (HKCU\...\Themes\Personalize AppsUseLightTheme = 0). ok is false
+// headless or when unset.
+system_dark_mode :: () -> dark: bool, ok: bool {
+    if s.headless return false, false;
+    v, n: u32 = 0, size_of(u32);
+    st := reg.RegGetValueA(reg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "AppsUseLightTheme", reg.RRF_RT_REG_DWORD, null, *v, *n);
+    if st != 0 return false, false;
+    return v == 0, true;
+}
+
+// What Chromium's media queries read on Windows: client-area animations off -> prefers-reduced-motion;
+// High Contrast -> forced-colors (and prefers-contrast: more). No inverted-colors.
+system_a11y :: () -> System_A11y {
+    a: System_A11y;
+    if s.headless return a;
+    anim: s32 = 1;
+    if SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, *anim, 0) a.reduce_motion = anim == 0;
+    HIGHCONTRASTW :: struct { cbSize: u32; dwFlags: u32; lpszDefaultScheme: *u16; }
+    hc := HIGHCONTRASTW.{cbSize = size_of(HIGHCONTRASTW)};
+    if SystemParametersInfoW(SPI_GETHIGHCONTRAST, size_of(HIGHCONTRASTW), *hc, 0) && (hc.dwFlags & 1 /*HCF_HIGHCONTRASTON*/) {
+        a.forced_colors = true;
+        a.contrast_more = true;
+    }
+    return a;
+}
+
+// Modal "open file" dialog. Returns absolute paths (empty if cancelled).
+// TODO(windows): IFileOpenDialog.
+open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> []string { return .[]; }
+
+// Toast notifications and the taskbar overlay badge are not implemented yet (they need an AppUserModelID and
+// WinRT's ToastNotificationManager). The app still plays the notification sound.
+notify_show :: (title: string, body: string, id: string) -> bool { return false; }
+set_badge :: (text: string) {}
+
+// Opens a URL in the user's default browser.
+open_url :: (url: string) {
+    // ShellExecute runs whatever it is given (files, UNC paths, protocol handlers).
+    if !begins_with(url, "https://") && !begins_with(url, "http://") return;
+    ShellExecuteW(null, wide("open"), wide(url), null, null, win.SW_SHOWNORMAL);
+}
+
 #scope_module
 
-_init :: (title: string, width: int, height: int) -> bool {
-	win.SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-	w.instance = win.HINSTANCE(win.GetModuleHandleW(null));
-	class_name: cstring16 = "fastcord";
-	wc := win.WNDCLASSEXW.{
-		cbSize = size_of(win.WNDCLASSEXW),
-		style = win.CS_HREDRAW | win.CS_VREDRAW | win.CS_OWNDC,
-		lpfnWndProc = wndproc,
-		hInstance = w.instance,
-		hCursor = win.LoadCursorA(null, win.IDC_ARROW),
-		lpszClassName = class_name
-	};
-	if win.RegisterClassExW(*wc) == 0 { return false; }
+os_init :: (title: string, width: int, height: int) -> bool {
+    SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    w.instance = win.GetModuleHandleW(null);
+    class_name := wide("fastcord");
+    wc := win.WNDCLASSEXW.{
+        cbSize = size_of(win.WNDCLASSEXW),
+        style = win.CS_HREDRAW | win.CS_VREDRAW | win.CS_OWNDC,
+        lpfnWndProc = xx wndproc,
+        hInstance = w.instance,
+        hCursor = win.LoadCursorA(null, win.IDC_ARROW),
+        lpszClassName = class_name,
+    };
+    if win.RegisterClassExW(*wc) == 0 return false;
 
-	style := win.WS_OVERLAPPEDWINDOW;
-	dpi := win.GetDpiForSystem();
-	scale := cast(float32)(dpi) / 96;
-	r := win.RECT.{0, 0, cast(s32)(cast(float32)(width) * scale), cast(s32)(cast(float32)(height) * scale)};
-	win.AdjustWindowRectExForDpi(*r, style, false, 0, dpi);
-	w.hwnd = win.CreateWindowExW(0, class_name, win.utf8_to_wstring(title), style,
-		win.CW_USEDEFAULT, win.CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, null, null, w.instance, null);
-	if w.hwnd == null { return false; }
-	// IDropTarget gives drag enter/leave (the "Upload to #channel" overlay); WM_DROPFILES is the fallback.
-	if !drop_target_register(w.hwnd) { win.DragAcceptFiles(w.hwnd, true); }
-	update_size();
-	update_refresh();
-	win.ShowWindow(w.hwnd, win.SW_SHOW);
-	win.UpdateWindow(w.hwnd);
-	return true;
+    style :: win.WS_OVERLAPPEDWINDOW;
+    dpi := GetDpiForSystem();
+    scale := cast(float32) dpi / 96;
+    r := win.RECT.{0, 0, xx (width * scale), xx (height * scale)};
+    AdjustWindowRectExForDpi(*r, style, 0, 0, dpi);
+    CW_USEDEFAULT :: cast,no_check(s32) 0x8000_0000;
+    w.hwnd = win.CreateWindowExW(0, class_name, wide(title), style, CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, null, null, w.instance, null);
+    if !w.hwnd return false;
+    // IDropTarget gives drag enter/leave (the "Upload to #channel" overlay); WM_DROPFILES is the fallback.
+    if !drop_target_register(w.hwnd) win.DragAcceptFiles(w.hwnd, .TRUE);
+    update_size();
+    update_refresh();
+    win.ShowWindow(w.hwnd, win.SW_SHOW);
+    win.UpdateWindow(w.hwnd);
+    return true;
 }
 
-_shutdown :: () {
-	if w.hwnd != null && w.drop_registered { RevokeDragDrop(w.hwnd); }
-	if w.hwnd != null { win.DestroyWindow(w.hwnd); }
-	w.hwnd = null;
+os_shutdown :: () {
+    if w.hwnd && w.drop_registered RevokeDragDrop(w.hwnd);
+    if w.hwnd win.DestroyWindow(w.hwnd);
+    w.hwnd = null;
 }
+
+os_wake :: () {
+    if atomic_exchange(*w.wake_posted, true) return;
+    PostMessageW(w.hwnd, WM_FC_WAKE, 0, 0);
+}
+
+os_wait :: (timeout: float64) {
+    start := time_now();
+    while true {
+        pump();
+        animating := atomic_load(*s.frame_requested);
+        if s.quit return;
+        if !animating && pending_count() > 0 return;
+        ms := win.INFINITE;
+        if timeout >= 0 {
+            remaining := timeout - (time_now() - start);
+            if remaining <= 0 return;
+            ms = cast(u32) (remaining * 1000);
+        }
+        handle: *void;
+        n: u32;
+        if animating {
+            if w.frame_wait {
+                handle = w.frame_wait;
+                n = 1;
+            } else {
+                ms = min(ms, cast(u32) (1000 / max(s.refresh_hz, 30)));
+            }
+        }
+        r := MsgWaitForMultipleObjectsEx(n, ifx n then *handle else null, ms, QS_ALLINPUT, 0x0004 /*MWMO_INPUTAVAILABLE*/);
+        // vsync (the swap chain is ready for the next frame), the frame timer, or the timeout
+        if (animating && ((n && r == win.WAIT_OBJECT_0) || (!n && r == win.WAIT_TIMEOUT))) ||
+           (r == win.WAIT_TIMEOUT && timeout >= 0 && time_now() - start >= timeout) {
+            pump();
+            return;
+        }
+    }
+}
+
+os_clipboard_get :: (allocator: Allocator) -> string {
+    if win.OpenClipboard(w.hwnd) == .FALSE return "";
+    defer win.CloseClipboard();
+    h := win.GetClipboardData(win.CF_UNICODETEXT);
+    if !h return "";
+    p := cast(*u16) win.GlobalLock(h);
+    if !p return "";
+    defer win.GlobalUnlock(h);
+    return utf16_to_utf8(p, -1, allocator);
+}
+
+os_clipboard_set :: (str: string) {
+    wstr, _, bytes := utf8_to_wide(str,, temp);
+    if win.OpenClipboard(w.hwnd) == .FALSE return;
+    defer win.CloseClipboard();
+    win.EmptyClipboard();
+    h := win.GlobalAlloc(win.GMEM_MOVEABLE, xx (bytes + 2));
+    if !h return;
+    p := cast(*u8) win.GlobalLock(h);
+    memcpy(p, wstr, bytes);
+    p[bytes] = 0;
+    p[bytes + 1] = 0;
+    win.GlobalUnlock(h);
+    win.SetClipboardData(win.CF_UNICODETEXT, h);
+}
+
+os_clipboard_kind :: () -> Clipboard_Kind {
+    if IsClipboardFormatAvailable(win.CF_HDROP) return .Files;
+    if IsClipboardFormatAvailable(cf_png()) || IsClipboardFormatAvailable(win.CF_DIBV5) || IsClipboardFormatAvailable(win.CF_DIB) return .Image;
+    if IsClipboardFormatAvailable(win.CF_UNICODETEXT) return .Text;
+    return .None;
+}
+
+// "PNG" (browsers, Office) as is; else CF_DIBV5 / CF_DIB (screenshots) encoded as PNG by WIC.
+os_clipboard_image :: (allocator: Allocator) -> []u8, bool {
+    if !open_clipboard_any() return .[], false;
+    defer win.CloseClipboard();
+    b := global_bytes(win.GetClipboardData(cf_png()), allocator);
+    if b.count return b, true;
+    dib := global_bytes(win.GetClipboardData(win.CF_DIBV5), temp);
+    if !dib.count dib = global_bytes(win.GetClipboardData(win.CF_DIB), temp);
+    rgba, width, height, ok := dib_to_rgba(dib, temp);
+    if !ok return .[], false;
+    png := wic_png(rgba, width, height, allocator);
+    return png, png.count > 0;
+}
+
+os_clipboard_files :: (allocator: Allocator) -> []string {
+    if !open_clipboard_any() return .[];
+    defer win.CloseClipboard();
+    h := win.GetClipboardData(win.CF_HDROP);
+    if !h return .[];
+    return hdrop_paths(h, allocator);
+}
+
+os_apply_cursor :: () {
+    if s.cursor == .Hidden {
+        win.SetCursor(null);
+        return;
+    }
+    id: int;
+    if s.cursor == {
+        case .Pointer;     id = 32649;
+        case .IBeam;       id = 32513;
+        case .Resize_H;    id = 32644;
+        case .Resize_V;    id = 32645;
+        case .Resize_NWSE; id = 32642;
+        case .Resize_NESW; id = 32643;
+        case .Move;        id = 32646;
+        case .Not_Allowed; id = 32648;
+        case .Crosshair;   id = 32515;
+        case;              id = 32512; // arrow
+    }
+    win.SetCursor(win.LoadCursorA(null, cast(*u8) id));
+}
+
 #scope_file
 
+win :: #import "Windows";
+reg :: #import "Windows_Registry";
+#import "Windows_Utf8";
+
+user32 :: #system_library "user32";
+kernel32 :: #system_library "kernel32";
+imm32 :: #system_library "imm32";
+ole32 :: #system_library "ole32";
+shell32 :: #system_library "shell32";
+
+// Not in Jai's Windows module. BOOL results are s32 here so they test as ints.
+MsgWaitForMultipleObjectsEx :: (nCount: u32, pHandles: **void, dwMilliseconds: u32, dwWakeMask: u32, dwFlags: u32) -> u32 #foreign user32;
+GetDoubleClickTime :: () -> u32 #foreign user32;
+SetWindowDisplayAffinity :: (hwnd: win.HWND, dwAffinity: u32) -> s32 #foreign user32;
+SetProcessDpiAwarenessContext :: (value: win.DPI_AWARENESS_CONTEXT) -> s32 #foreign user32;
+AdjustWindowRectExForDpi :: (rect: *win.RECT, style: u32, menu: s32, ex_style: u32, dpi: u32) -> s32 #foreign user32;
+GetDpiForSystem :: () -> u32 #foreign user32;
+GetDpiForWindow :: (hwnd: win.HWND) -> u32 #foreign user32;
+EnumDisplaySettingsW :: (device: *u16, mode: u32, dm: *DEVMODEW) -> s32 #foreign user32;
+PostMessageW :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> s32 #foreign user32;
+SetTimer :: (hwnd: win.HWND, id: u64, elapse_ms: u32, func: *void) -> u64 #foreign user32;
+KillTimer :: (hwnd: win.HWND, id: u64) -> s32 #foreign user32;
+TrackMouseEvent :: (tme: *TRACKMOUSEEVENT) -> s32 #foreign user32;
+IsClipboardFormatAvailable :: (format: u32) -> s32 #foreign user32;
+RegisterClipboardFormatW :: (name: *u16) -> u32 #foreign user32;
+SystemParametersInfoW :: (action: u32, param: u32, pv: *void, win_ini: u32) -> s32 #foreign user32;
+GlobalSize :: (h: *void) -> u64 #foreign kernel32;
+ShellExecuteW :: (hwnd: win.HWND, op: *u16, file: *u16, params: *u16, dir: *u16, show: s32) -> *void #foreign shell32;
+ImmGetContext :: (hwnd: win.HWND) -> *void #foreign imm32;
+ImmReleaseContext :: (hwnd: win.HWND, himc: *void) -> s32 #foreign imm32;
+ImmGetCompositionStringW :: (himc: *void, index: u32, buf: *void, len: u32) -> s32 #foreign imm32;
+ImmSetCompositionWindow :: (himc: *void, form: *COMPOSITIONFORM) -> s32 #foreign imm32;
+CoInitializeEx :: (reserved: *void, coinit: u32) -> win.HRESULT #foreign ole32;
+CoUninitialize :: () #foreign ole32;
+CoCreateInstance :: (clsid: *win.GUID, outer: *void, ctx: u32, iid: *win.GUID, out: **void) -> win.HRESULT #foreign ole32;
+OleInitialize :: (reserved: *void) -> win.HRESULT #foreign ole32;
+RegisterDragDrop :: (hwnd: win.HWND, target: *void) -> win.HRESULT #foreign ole32;
+RevokeDragDrop :: (hwnd: win.HWND) -> win.HRESULT #foreign ole32;
+ReleaseStgMedium :: (medium: *STGMEDIUM) #foreign ole32;
+CreateStreamOnHGlobal :: (h: *void, delete_on_release: s32, stream: **void) -> win.HRESULT #foreign ole32;
+
+WM_USER :: 0x0400;
+WM_MOUSELEAVE :: 0x02A3;
+QS_ALLINPUT :: 0x04FF;
+HTCLIENT :: 1;
+TME_LEAVE :: 2;
+SPI_GETHIGHCONTRAST :: 0x0042;
+SPI_GETCLIENTAREAANIMATION :: 0x1042;
+WM_FC_WAKE :: WM_USER + 1;
+TIMER_ANIM :: 1;
+
+COMPOSITIONFORM :: struct {
+    dwStyle: u32;
+    ptCurrentPos: win.POINT;
+    rcArea: win.RECT;
+}
+
+MINMAXINFO :: struct { ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize: win.POINT; }
+
+TRACKMOUSEEVENT :: struct {
+    cbSize: u32;
+    dwFlags: u32;
+    hwndTrack: win.HWND;
+    dwHoverTime: u32;
+}
+
+DEVMODEW :: struct {
+    dmDeviceName: [32]u16;
+    dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra: u16;
+    dmFields: u32;
+    position_or_printer: [16]u8;
+    dmColor, dmDuplex, dmYResolution, dmTTOption, dmCollate: s16;
+    dmFormName: [32]u16;
+    dmLogPixels: u16;
+    dmBitsPerPel, dmPelsWidth, dmPelsHeight, dmDisplayFlags, dmDisplayFrequency: u32;
+    icm_media_dither_reserved_panning: [8]u32;
+}
+
+w: struct {
+    hwnd: win.HWND;
+    instance: win.HINSTANCE;
+    frame_wait: *void; // swap chain frame-latency waitable (set by gfx)
+    high_surrogate: u16;
+    in_size_move: bool;
+    tracking_mouse: bool;
+    last_click_time: float64;
+    last_click_pos: Vector2;
+    last_click_btn: Mouse_Button;
+    click_count: int;
+    wake_posted: bool;
+    composing: bool;
+    drop_registered: bool;
+    cf_png: u32;
+};
+
+// A zero-terminated UTF-16 copy in temp.
+wide :: (str: string) -> *u16 {
+    p := utf8_to_wide(str,, temp);
+    return p;
+}
+
+// count -1: zero-terminated.
+utf16_to_utf8 :: (p: *u16, count: int, allocator: Allocator) -> string {
+    if count == 0 return "";
+    out := wide_to_utf8(p, xx count,, allocator);
+    return out;
+}
+
 update_size :: () {
-	r: win.RECT;
-	win.GetClientRect(w.hwnd, *r);
-	dpi := win.GetDpiForWindow(w.hwnd);
-	s.scale = cast(float32)(dpi) / 96;
-	if s.scale <= 0 { s.scale = 1; }
-	s.size = .{cast(float32)(r.right - r.left) / s.scale, cast(float32)(r.bottom - r.top) / s.scale};
+    r: win.RECT;
+    win.GetClientRect(w.hwnd, *r);
+    s.scale = cast(float32) GetDpiForWindow(w.hwnd) / 96;
+    if s.scale <= 0 s.scale = 1;
+    s.size = .{(r.right - r.left) / s.scale, (r.bottom - r.top) / s.scale};
 }
 
 update_refresh :: () {
-	dm: win.DEVMODEW;
-	dm.dmSize = size_of(dm);
-	if win.EnumDisplaySettingsW(null, win.ENUM_CURRENT_SETTINGS, *dm) && dm.dmDisplayFrequency > 1 {
-		s.refresh_hz = cast(float32)(dm.dmDisplayFrequency);
-	}
+    dm: DEVMODEW;
+    dm.dmSize = size_of(DEVMODEW);
+    if EnumDisplaySettingsW(null, win.ENUM_CURRENT_SETTINGS, *dm) && dm.dmDisplayFrequency > 1 s.refresh_hz = xx dm.dmDisplayFrequency;
 }
-#scope_module
-
-_wake :: () {
-	if atomic_exchange(*w.wake_posted, true) { return; }
-	win.PostMessageW(w.hwnd, WM_FC_WAKE, 0, 0);
-}
-
-_wait :: (timeout: float64) {
-	start := time_now();
-	while true {
-		pump();
-		animating := atomic_load(*s.frame_requested);
-		if s.quit { return; }
-		if !animating && pending_count() > 0 { return; }
-		ms: win.DWORD = win.INFINITE;
-		if timeout >= 0 {
-			remaining := timeout - (time_now() - start);
-			if remaining <= 0 { return; }
-			ms = win.DWORD(remaining * 1000);
-		}
-		handles: [1]win.HANDLE;
-		n: win.DWORD = 0;
-		if animating {
-			if w.frame_wait != null {
-				handles[0] = w.frame_wait;
-				n = 1;
-			} else {
-				ms = min(ms, win.DWORD(1000 / max(s.refresh_hz, 30)));
-			}
-		}
-		r := MsgWaitForMultipleObjectsEx(n, ifx n > 0 then *handles[0] else null, ms, win.QS_ALLINPUT, 0x0004 /*MWMO_INPUTAVAILABLE*/);
-		if animating {
-			if n > 0 && r == win.WAIT_OBJECT_0 {
-				pump();
-				return; // vsync: swap chain ready for the next frame
-			}
-			if n == 0 && r == win.WAIT_TIMEOUT {
-				pump();
-				return;
-			}
-		}
-		if r == win.WAIT_TIMEOUT && timeout >= 0 && time_now() - start >= timeout {
-			pump();
-			return;
-		}
-	}
-}
-#scope_file
 
 pump :: () {
-	msg: win.MSG;
-	while win.PeekMessageW(*msg, null, 0, 0, win.PM_REMOVE) {
-		if msg.message == win.WM_QUIT {
-			s.quit = true;
-			push_event(.{kind = .Quit, time = time_now()});
-			continue;
-		}
-		win.TranslateMessage(*msg);
-		win.DispatchMessageW(*msg);
-	}
+    m: win.MSG;
+    while win.PeekMessageW(*m, null, 0, 0, win.PM_REMOVE) {
+        if m.message == win.WM_QUIT {
+            s.quit = true;
+            push_event(.{kind = .Quit, time = time_now()});
+            continue;
+        }
+        win.TranslateMessage(*m);
+        win.DispatchMessageW(*m);
+    }
 }
-#scope_module
-
-_clipboard_get :: (allocator: Allocator) -> string {
-	if !win.OpenClipboard(w.hwnd) { return ""; }
-	defer win.CloseClipboard();
-	h := win.GetClipboardData(win.CF_UNICODETEXT);
-	if h == null { return ""; }
-	p := cast(*u16)(win.GlobalLock(win.HGLOBAL(h)));
-	if p == null { return ""; }
-	defer win.GlobalUnlock(win.HGLOBAL(h));
-	n := 0;
-	while p[n] != 0 { n += 1; }
-	out, _ := win.utf16_to_utf8(sub(p, 0, n), allocator);
-	return out;
-}
-
-_clipboard_set :: (str: string) {
-	wide := win.utf8_to_utf16(str, temp);
-	if !win.OpenClipboard(w.hwnd) { return; }
-	defer win.CloseClipboard();
-	win.EmptyClipboard();
-	bytes := (len(wide) + 1) * 2;
-	h := win.GlobalAlloc(win.GMEM_MOVEABLE, cast(u64)(bytes));
-	if h == null { return; }
-	p := cast(*u16)(win.GlobalLock(win.HGLOBAL(h)));
-	copy(sub(p, 0, len(wide)), wide);
-	p[len(wide)] = 0;
-	win.GlobalUnlock(win.HGLOBAL(h));
-	win.SetClipboardData(win.CF_UNICODETEXT, win.HANDLE(h));
-}
-#scope_file
 
 // ---- Clipboard: images and files
 
-cf_png :: () -> win.UINT {
-	if static_id1 == 0 { id = win.RegisterClipboardFormatW(win.L("PNG")); }
-	return static_id1;
+cf_png :: () -> u32 {
+    if !w.cf_png w.cf_png = RegisterClipboardFormatW(wide("PNG"));
+    return w.cf_png;
 }
-#scope_module
 
-_clipboard_kind :: () -> Clipboard_Kind {
-	if win.IsClipboardFormatAvailable(win.CF_HDROP) { return .Files; }
-	if win.IsClipboardFormatAvailable(cf_png()) || win.IsClipboardFormatAvailable(win.CF_DIBV5) || win.IsClipboardFormatAvailable(win.CF_DIB) { return .Image; }
-	if win.IsClipboardFormatAvailable(win.CF_UNICODETEXT) { return .Text; }
-	return .None;
-}
-#scope_file
-
-// Opens the clipboard from a worker thread (no window): retried briefly, another
-// process may hold it.
+// Opens the clipboard from a worker thread (no window): retried briefly, another process may hold it.
 open_clipboard_any :: () -> bool {
-	for _: 0..9 {
-		if win.OpenClipboard(null) { return true; }
-		win.Sleep(10);
-	}
-	return false;
+    for 1..10 {
+        if win.OpenClipboard(null) != .FALSE return true;
+        win.Sleep(10);
+    }
+    return false;
 }
 
-global_bytes :: (h: win.HANDLE, allocator: Allocator) -> []u8 {
-	if h == null { return .{}; }
-	p := cast(*u8)(win.GlobalLock(win.HGLOBAL(h)));
-	if p == null { return .{}; }
-	defer win.GlobalUnlock(win.HGLOBAL(h));
-	n := cast(int)(win.GlobalSize(cast(*void)(h)));
-	out := make_slice(u8, n, allocator);
-	copy(out, sub(p, 0, n));
-	return out;
+global_bytes :: (h: *void, allocator: Allocator) -> []u8 {
+    if !h return .[];
+    p := cast(*u8) win.GlobalLock(h);
+    if !p return .[];
+    defer win.GlobalUnlock(h);
+    out := NewArray(cast(int) GlobalSize(h), u8, false,, allocator);
+    memcpy(out.data, p, out.count);
+    return out;
 }
-#scope_module
 
-// "PNG" (browsers, Office) as is; else CF_DIBV5 / CF_DIB (screenshots) encoded as PNG by WIC.
-_clipboard_image :: (allocator: Allocator) -> []u8, bool {
-	if !open_clipboard_any() { return .{}, false; }
-	defer win.CloseClipboard();
-	{ b := global_bytes(win.GetClipboardData(cf_png()), allocator);
-	if len(b) > 0 { return b, true; } }
-	dib := global_bytes(win.GetClipboardData(win.CF_DIBV5), temp);
-	if len(dib) == 0 { dib = global_bytes(win.GetClipboardData(win.CF_DIB), temp); }
-	rgba, w, h, ok := dib_to_rgba(dib, temp);
-	if !ok { return .{}, false; }
-	png := wic_png(rgba, w, h, allocator);
-	return png, len(png) > 0;
-}
-#scope_file
+CLSID_WICImagingFactory := win.GUID.{0xCACAF262, 0x9370, 0x4615, .[0xA1, 0x3B, 0x9F, 0x55, 0x39, 0xDA, 0x4C, 0x0A]};
+IID_IWICImagingFactory := win.GUID.{0xEC5EC8A9, 0xC395, 0x4314, .[0x9C, 0x77, 0x54, 0xD7, 0xA9, 0x35, 0xFF, 0x70]};
+GUID_ContainerFormatPng := win.GUID.{0x1B7CFAF4, 0x713F, 0x473C, .[0xBB, 0xCD, 0x61, 0x37, 0x42, 0x5F, 0xAE, 0xAF]};
+GUID_WICPixelFormat32bppBGRA :: win.GUID.{0x6FDDC324, 0x4E03, 0x4BFE, .[0xB1, 0x85, 0x3D, 0x77, 0x76, 0x8D, 0xC9, 0x0F]};
 
-CLSID_WICImagingFactory := win.GUID.{0xCACAF262, 0x9370, 0x4615, .{0xA1, 0x3B, 0x9F, 0x55, 0x39, 0xDA, 0x4C, 0x0A}};
-IID_IWICImagingFactory := win.GUID.{0xEC5EC8A9, 0xC395, 0x4314, .{0x9C, 0x77, 0x54, 0xD7, 0xA9, 0x35, 0xFF, 0x70}};
-GUID_ContainerFormatPng := win.GUID.{0x1B7CFAF4, 0x713F, 0x473C, .{0xBB, 0xCD, 0x61, 0x37, 0x42, 0x5F, 0xAE, 0xAF}};
-GUID_WICPixelFormat32bppBGRA := win.GUID.{0x6FDDC324, 0x4E03, 0x4BFE, .{0xB1, 0x85, 0x3D, 0x77, 0x76, 0x8D, 0xC9, 0x0F}};
-
-vt :: inline (obj: *void, idx: int) -> *void #no_context {return (cast(***void)(obj)).*[idx];};
+// COM method `idx` of obj's vtable, as procedure type T.
+vt :: inline (obj: *void, idx: int, $T: Type) -> T #no_context { return cast(T) (cast(***void) obj).*[idx]; }
 
 release :: (obj: *void) #no_context {
-	if obj != null { (cast((*void) -> u32 #c_call)vt(obj, 2))(obj); }
+    if obj vt(obj, 2, #type (*void) -> u32 #c_call)(obj);
 }
 
-// wic_png: RGBA8 pixels (swapped to BGRA in place) as PNG, by WIC's PNG encoder (the OS's, as
-// NSBitmapImageRep is on macOS). nil on failure. Worker thread.
-wic_png :: (px: []u8, w: int, h: int, allocator: Allocator) -> []u8 {
-	{ i := 0;
-	while i < len(px) { px[i], px[i + 2] = px[i + 2], px[i];  i += 4; } }
-	com := win.CoInitializeEx(null, .MULTITHREADED) >= 0;
-	defer if com { win.CoUninitialize(); }
-	factory, enc, frame: *void;
-	stream: *win.IStream;
-	defer {
-		release(frame);
-		release(enc);
-		release(stream);
-		release(factory);
-	}
-	format := GUID_WICPixelFormat32bppBGRA;
-	// IWICImagingFactory::CreateEncoder; IWICBitmapEncoder::Initialize (WICBitmapEncoderNoCache),
-	// CreateNewFrame, Commit; IWICBitmapFrameEncode::Initialize, SetSize, SetPixelFormat, WritePixels, Commit
-	ok :=
-		win.CoCreateInstance(*CLSID_WICImagingFactory, null, win.CLSCTX_INPROC_SERVER, *IID_IWICImagingFactory, *factory) >= 0 &&
-		(cast((*void, *win.GUID, *win.GUID, **void) -> win.HRESULT #c_call)vt(factory, 8))(factory, *GUID_ContainerFormatPng, null, *enc) >= 0 &&
-		CreateStreamOnHGlobal(null, true, *stream) >= 0 &&
-		(cast((*void, *void, u32) -> win.HRESULT #c_call)vt(enc, 3))(enc, stream, 2) >= 0 &&
-		(cast((*void, **void, *void) -> win.HRESULT #c_call)vt(enc, 10))(enc, *frame, null) >= 0 &&
-		(cast((*void, *void) -> win.HRESULT #c_call)vt(frame, 3))(frame, null) >= 0 &&
-		(cast((*void, u32, u32) -> win.HRESULT #c_call)vt(frame, 4))(frame, cast(u32)(w), cast(u32)(h)) >= 0 &&
-		(cast((*void, *win.GUID) -> win.HRESULT #c_call)vt(frame, 6))(frame, *format) >= 0 &&
-		format == GUID_WICPixelFormat32bppBGRA &&
-		(cast((*void, u32, u32, u32, *u8) -> win.HRESULT #c_call)vt(frame, 10))(frame, cast(u32)(h), cast(u32)(w * 4), cast(u32)(len(px)), raw_data(px)) >= 0 &&
-		(cast((*void) -> win.HRESULT #c_call)vt(frame, 12))(frame) >= 0 &&
-		(cast((*void) -> win.HRESULT #c_call)vt(enc, 11))(enc) >= 0;
-	size: win.ULARGE_INTEGER;
-	if !ok || stream->Seek(0, 2, *size) < 0 || stream->Seek(0, 0, null) < 0 { return .{}; }
-	out := make_slice(u8, cast(int)(size), allocator);
-	got: win.ULONG;
-	if stream->Read(raw_data(out), win.ULONG(size), *got) < 0 || cast(int)(got) != len(out) {
-		delete(out, allocator);
-		return .{};
-	}
-	return out;
+// RGBA8 pixels (swapped to BGRA in place) as PNG, by WIC's PNG encoder (the OS's, as NSBitmapImageRep is on
+// macOS). Empty on failure. Worker thread.
+wic_png :: (px: []u8, width: int, height: int, allocator: Allocator) -> []u8 {
+    for i: 0..px.count/4-1 px[i*4], px[i*4 + 2] = px[i*4 + 2], px[i*4];
+    com := CoInitializeEx(null, 0 /*COINIT_MULTITHREADED*/) >= 0;
+    defer if com CoUninitialize();
+    factory, enc, frame, stream: *void;
+    defer {
+        release(frame);
+        release(enc);
+        release(stream);
+        release(factory);
+    }
+    format := GUID_WICPixelFormat32bppBGRA;
+    // IWICImagingFactory::CreateEncoder; IWICBitmapEncoder::Initialize (WICBitmapEncoderNoCache),
+    // CreateNewFrame, Commit; IWICBitmapFrameEncode::Initialize, SetSize, SetPixelFormat, WritePixels, Commit
+    HR :: win.HRESULT;
+    ok := CoCreateInstance(*CLSID_WICImagingFactory, null, 1 /*CLSCTX_INPROC_SERVER*/, *IID_IWICImagingFactory, *factory) >= 0 &&
+        vt(factory, 8, #type (*void, *win.GUID, *win.GUID, **void) -> HR #c_call)(factory, *GUID_ContainerFormatPng, null, *enc) >= 0 &&
+        CreateStreamOnHGlobal(null, 1, *stream) >= 0 &&
+        vt(enc, 3, #type (*void, *void, u32) -> HR #c_call)(enc, stream, 2) >= 0 &&
+        vt(enc, 10, #type (*void, **void, *void) -> HR #c_call)(enc, *frame, null) >= 0 &&
+        vt(frame, 3, #type (*void, *void) -> HR #c_call)(frame, null) >= 0 &&
+        vt(frame, 4, #type (*void, u32, u32) -> HR #c_call)(frame, xx width, xx height) >= 0 &&
+        vt(frame, 6, #type (*void, *win.GUID) -> HR #c_call)(frame, *format) >= 0 &&
+        format == GUID_WICPixelFormat32bppBGRA &&
+        vt(frame, 10, #type (*void, u32, u32, u32, *u8) -> HR #c_call)(frame, xx height, xx (width * 4), xx px.count, px.data) >= 0 &&
+        vt(frame, 12, #type (*void) -> HR #c_call)(frame) >= 0 &&
+        vt(enc, 11, #type (*void) -> HR #c_call)(enc) >= 0;
+    if !ok return .[];
+    // IStream::Seek (5) to the end for the size and back to the start, IStream::Read (3)
+    seek :: #type (*void, s64, u32, *u64) -> HR #c_call;
+    size: u64;
+    if vt(stream, 5, seek)(stream, 0, 2 /*END*/, *size) < 0 || vt(stream, 5, seek)(stream, 0, 0 /*SET*/, null) < 0 return .[];
+    out := NewArray(cast(int) size, u8, false,, allocator);
+    got: u32;
+    if vt(stream, 3, #type (*void, *void, u32, *u32) -> HR #c_call)(stream, out.data, xx size, *got) < 0 || got != out.count {
+        array_free(out,, allocator);
+        return .[];
+    }
+    return out;
 }
 
-hdrop_paths :: (hdrop: win.HDROP, allocator: Allocator) -> []string {
-	out := make_dynamic(string, 0, 0, allocator);
-	n := win.DragQueryFileW(hdrop, 0xFFFFFFFF, null, 0);
-	for i: 0..cast(int)(n)-1 {
-		l := win.DragQueryFileW(hdrop, i, null, 0);
-		buf := make_slice(u16, l + 1, temp);
-		win.DragQueryFileW(hdrop, i, raw_data(buf), l + 1);
-		path, _ := win.utf16_to_utf8(sub(buf, 0, l), allocator);
-		append(*out, path);
-	}
-	return view(out);
-}
-#scope_module
+operator == :: (a: win.GUID, b: win.GUID) -> bool { return memcmp(*a, *b, size_of(win.GUID)) == 0; }
 
-_clipboard_files :: (allocator: Allocator) -> []string {
-	if !open_clipboard_any() { return .{}; }
-	defer win.CloseClipboard();
-	h := win.GetClipboardData(win.CF_HDROP);
-	if h == null { return .{}; }
-	return hdrop_paths(win.HDROP(h), allocator);
+hdrop_paths :: (hdrop: *void, allocator: Allocator) -> []string {
+    out: [..]string;
+    out.allocator = allocator;
+    for i: 0..cast(s64) win.DragQueryFileW(hdrop, 0xFFFF_FFFF, null, 0) - 1 {
+        l := win.DragQueryFileW(hdrop, xx i, null, 0);
+        buf := NewArray(l + 1, u16,, temp);
+        win.DragQueryFileW(hdrop, xx i, buf.data, l + 1);
+        array_add(*out, utf16_to_utf8(buf.data, l, allocator));
+    }
+    return out;
 }
-#scope_file
-	OleInitialize :: (reserved: *void) -> win.HRESULT #foreign ole32;
-	RegisterDragDrop :: (hwnd: win.HWND, target: *void) -> win.HRESULT #foreign ole32;
-	RevokeDragDrop :: (hwnd: win.HWND) -> win.HRESULT #foreign ole32;
-	ReleaseStgMedium :: (medium: *STGMEDIUM) #foreign ole32;
-	CreateStreamOnHGlobal :: (h: win.HGLOBAL, delete_on_release: win.BOOL, stream: **win.IStream) -> win.HRESULT #foreign ole32;
+
+// ---- Drag and drop: a static IDropTarget
 
 FORMATETC :: struct {
-	cfFormat: u16;
-	ptd: *void;
-	dwAspect: u32;
-	lindex: s32;
-	tymed: u32;
+    cfFormat: u16;
+    ptd: *void;
+    dwAspect: u32;
+    lindex: s32;
+    tymed: u32;
 }
 
 STGMEDIUM :: struct {
-	tymed: u32;
-	handle: *void; // hGlobal for TYMED_HGLOBAL
-	pUnkForRelease: *void;
-}
-
-IDataObject_Vtbl :: struct {
-	QueryInterface: *void;
-	AddRef: *void;
-	Release: *void;
-	GetData: (this: *IDataObject, fmt: *FORMATETC, medium: *STGMEDIUM) -> win.HRESULT #c_call;
-	// the rest is not called
+    tymed: u32;
+    handle: *void; // hGlobal for TYMED_HGLOBAL
+    pUnkForRelease: *void;
 }
 
 IDataObject :: struct {
-	vtbl: *IDataObject_Vtbl;
+    vtbl: *struct {
+        QueryInterface, AddRef, Release: *void;
+        GetData: (this: *IDataObject, fmt: *FORMATETC, medium: *STGMEDIUM) -> win.HRESULT #c_call;
+        // the rest is not called
+    };
 }
 
-POINTL :: struct {
-	x, y: s32;
-}
+POINTL :: struct { x, y: s32; }
 
 IDropTarget_Vtbl :: struct {
-	QueryInterface: (this: *void, riid: *win.GUID, out: **void) -> win.HRESULT #c_call;
-	AddRef: (this: *void) -> u32 #c_call;
-	Release: (this: *void) -> u32 #c_call;
-	DragEnter: (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call;
-	DragOver: (this: *void, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call;
-	DragLeave: (this: *void) -> win.HRESULT #c_call;
-	Drop: (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call;
-}
-
-Drop_Target :: struct {
-	vtbl: *IDropTarget_Vtbl;
+    QueryInterface: (this: *void, riid: *win.GUID, out: **void) -> win.HRESULT #c_call;
+    AddRef: (this: *void) -> u32 #c_call;
+    Release: (this: *void) -> u32 #c_call;
+    DragEnter: (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call;
+    DragOver: (this: *void, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call;
+    DragLeave: (this: *void) -> win.HRESULT #c_call;
+    Drop: (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call;
 }
 
 DROPEFFECT_COPY :: 1;
 
 drop_vtbl := IDropTarget_Vtbl.{
-	QueryInterface = (this: *void, riid: *win.GUID, out: **void) -> win.HRESULT #c_call {
-		// IUnknown {00000000-0000-0000-C000-000000000046} / IDropTarget {00000122-0000-0000-C000-000000000046}
-		if riid != null && (riid.Data1 == 0 || riid.Data1 == 0x122) && riid.Data2 == 0 && riid.Data3 == 0 && riid.Data4[0] == 0xC0 && riid.Data4[7] == 0x46 {
-			out.* = this;
-			return 0;
-		}
-		out.* = null;
-		return transmute(win.HRESULT, cast(u32)(0x80004002)); // E_NOINTERFACE
-	},
-	AddRef = (this: *void) -> u32 #c_call {return 1;}, // static object
-	Release = (this: *void) -> u32 #c_call {return 1;},
-	DragEnter = (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call {
-		__ctx2 := s.ctx; push_context,defer_pop __ctx2;
-		p := win.POINT.{pt.x, pt.y};
-		win.ScreenToClient(w.hwnd, *p);
-		push_event(.{kind = .Drag_Enter, pos = .{cast(float32)(p.x) / s.scale, cast(float32)(p.y) / s.scale}, time = time_now()});
-		if effect != null { effect.* = DROPEFFECT_COPY; }
-		return 0;
-	},
-	DragOver = (this: *void, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call {
-		if effect != null { effect.* = DROPEFFECT_COPY; }
-		return 0;
-	},
-	DragLeave = (this: *void) -> win.HRESULT #c_call {
-		__ctx3 := s.ctx; push_context,defer_pop __ctx3;
-		push_event(.{kind = .Drag_Leave, time = time_now()});
-		return 0;
-	},
-	Drop = (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call {
-		__ctx4 := s.ctx; push_context,defer_pop __ctx4;
-		if data != null {
-			f := FORMATETC.{cfFormat = win.CF_HDROP, dwAspect = 1, lindex = -1, tymed = 1 /*TYMED_HGLOBAL*/};
-			med: STGMEDIUM;
-			if data.vtbl.GetData(data, *f, *med) == 0 {
-				for path: hdrop_paths(win.HDROP(med.handle), temp) {
-					push_event(.{kind = .File_Drop, text = path, time = time_now()});
-				}
-				ReleaseStgMedium(*med);
-			}
-		}
-		push_event(.{kind = .Drag_Leave, time = time_now()});
-		if effect != null { effect.* = DROPEFFECT_COPY; }
-		return 0;
-	}
+    QueryInterface = (this: *void, riid: *win.GUID, out: **void) -> win.HRESULT #c_call {
+        // IUnknown {00000000-0000-0000-C000-000000000046} / IDropTarget {00000122-0000-0000-C000-000000000046}
+        if riid && (riid.Data1 == 0 || riid.Data1 == 0x122) && riid.Data2 == 0 && riid.Data3 == 0 && riid.Data4[0] == 0xC0 && riid.Data4[7] == 0x46 {
+            out.* = this;
+            return 0;
+        }
+        out.* = null;
+        return cast,no_check(win.HRESULT) 0x8000_4002; // E_NOINTERFACE
+    },
+    AddRef = (this: *void) -> u32 #c_call { return 1; }, // static object
+    Release = (this: *void) -> u32 #c_call { return 1; },
+    DragEnter = (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call {
+        c := s.ctx; push_context,defer_pop c;
+        p := win.POINT.{pt.x, pt.y};
+        win.ScreenToClient(w.hwnd, *p);
+        push_event(.{kind = .Drag_Enter, pos = .{p.x / s.scale, p.y / s.scale}, time = time_now()});
+        if effect effect.* = DROPEFFECT_COPY;
+        return 0;
+    },
+    DragOver = (this: *void, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call {
+        if effect effect.* = DROPEFFECT_COPY;
+        return 0;
+    },
+    DragLeave = (this: *void) -> win.HRESULT #c_call {
+        c := s.ctx; push_context,defer_pop c;
+        push_event(.{kind = .Drag_Leave, time = time_now()});
+        return 0;
+    },
+    Drop = (this: *void, data: *IDataObject, keys: u32, pt: POINTL, effect: *u32) -> win.HRESULT #c_call {
+        c := s.ctx; push_context,defer_pop c;
+        if data {
+            f := FORMATETC.{cfFormat = win.CF_HDROP, dwAspect = 1, lindex = -1, tymed = 1 /*TYMED_HGLOBAL*/};
+            med: STGMEDIUM;
+            if data.vtbl.GetData(data, *f, *med) == 0 {
+                for hdrop_paths(med.handle, temp) push_event(.{kind = .File_Drop, text = it, time = time_now()});
+                ReleaseStgMedium(*med);
+            }
+        }
+        push_event(.{kind = .Drag_Leave, time = time_now()});
+        if effect effect.* = DROPEFFECT_COPY;
+        return 0;
+    },
 };
 
-drop_target := Drop_Target.{*drop_vtbl};
+drop_target := *drop_vtbl; // the object: a pointer to its vtable
 
 drop_target_register :: (hwnd: win.HWND) -> bool {
-	hr := OleInitialize(null);
-	if hr < 0 { return false; }
-	if RegisterDragDrop(hwnd, *drop_target) < 0 { return false; }
-	w.drop_registered = true;
-	return true;
+    if OleInitialize(null) < 0 || RegisterDragDrop(hwnd, *drop_target) < 0 return false;
+    w.drop_registered = true;
+    return true;
 }
-#scope_module
-
-_apply_cursor :: () {
-	if s.cursor == .Hidden {
-		win.SetCursor(null);
-		return;
-	}
-	id: u64;
-	if s.cursor == {
-	case .Arrow; #through; case .Hidden; id = 32512;
-	case .Pointer;        id = 32649;
-	case .IBeam;          id = 32513;
-	case .Resize_H;       id = 32644;
-	case .Resize_V;       id = 32645;
-	case .Resize_NWSE;    id = 32642;
-	case .Resize_NESW;    id = 32643;
-	case .Move;           id = 32646;
-	case .Not_Allowed;    id = 32648;
-	case .Crosshair;      id = 32515;
-	}
-	win.SetCursor(win.LoadCursorA(null, to_cstring(cast(*void)(id))));
-}
-#scope_file
 
 // ---------------------------------------------------------------------------
+// Input
 
-current_mods :: () -> Mods {
-	m: Mods;
-	if win.GetKeyState(win.VK_SHIFT) < 0 { m |= .Shift; }
-	if win.GetKeyState(win.VK_CONTROL) < 0 { m |= .Ctrl; }
-	if win.GetKeyState(win.VK_MENU) < 0 { m |= .Alt; }
-	if win.GetKeyState(win.VK_LWIN) < 0 || win.GetKeyState(win.VK_RWIN) < 0 { m |= .Cmd; }
-	return m;
+current_mods :: () -> Mod {
+    m: Mod;
+    if win.GetKeyState(win.VK_SHIFT) < 0 m |= .Shift;
+    if win.GetKeyState(win.VK_CONTROL) < 0 m |= .Ctrl;
+    if win.GetKeyState(win.VK_MENU) < 0 m |= .Alt;
+    if win.GetKeyState(win.VK_LWIN) < 0 || win.GetKeyState(win.VK_RWIN) < 0 m |= .Cmd;
+    return m;
 }
 
-map_vk :: (vk: win.WPARAM, lparam: win.LPARAM) -> Key {
-	if (vk >= #char "A" && vk <= #char "Z") { return cast(Key)(cast(int)(Key.A) + cast(int)(vk - #char "A"));
-	} else if (vk >= #char "0" && vk <= #char "9") { return cast(Key)(cast(int)(Key.N0) + cast(int)(vk - #char "0"));
-	} else if vk == win.VK_SPACE {  return .Space;
-	} else if vk == win.VK_RETURN { return ifx ((lparam >> 24) & 1) != 0 then .Keypad_Enter else .Enter;
-	} else if vk == win.VK_TAB {    return .Tab;
-	} else if vk == win.VK_BACK {   return .Backspace;
-	} else if vk == win.VK_DELETE { return .Delete;
-	} else if vk == win.VK_ESCAPE { return .Escape;
-	} else if vk == win.VK_LEFT {   return .Left;
-	} else if vk == win.VK_RIGHT {  return .Right;
-	} else if vk == win.VK_UP {     return .Up;
-	} else if vk == win.VK_DOWN {   return .Down;
-	} else if vk == win.VK_HOME {   return .Home;
-	} else if vk == win.VK_END {    return .End;
-	} else if vk == win.VK_PRIOR {  return .Page_Up;
-	} else if vk == win.VK_NEXT {   return .Page_Down;
-	} else if vk == win.VK_SHIFT || vk == win.VK_LSHIFT || vk == win.VK_RSHIFT { return .Shift;
-	} else if vk == win.VK_CONTROL || vk == win.VK_LCONTROL || vk == win.VK_RCONTROL { return .Ctrl;
-	} else if vk == win.VK_MENU || vk == win.VK_LMENU || vk == win.VK_RMENU { return .Alt;
-	} else if vk == win.VK_LWIN || vk == win.VK_RWIN { return .Cmd;
-	} else if vk == win.VK_CAPITAL { return .Caps_Lock;
-	} else if (vk >= win.VK_F1 && vk <= win.VK_F12) { return cast(Key)(cast(int)(Key.F1) + cast(int)(vk - win.VK_F1));
-	} else if vk == win.VK_OEM_MINUS {  return .Minus;
-	} else if vk == win.VK_OEM_PLUS {   return .Equals;
-	} else if vk == win.VK_OEM_4 {      return .Left_Bracket;
-	} else if vk == win.VK_OEM_6 {      return .Right_Bracket;
-	} else if vk == win.VK_OEM_5 {      return .Backslash;
-	} else if vk == win.VK_OEM_1 {      return .Semicolon;
-	} else if vk == win.VK_OEM_7 {      return .Apostrophe;
-	} else if vk == win.VK_OEM_COMMA {  return .Comma;
-	} else if vk == win.VK_OEM_PERIOD { return .Period;
-	} else if vk == win.VK_OEM_2 {      return .Slash;
-	} else if vk == win.VK_OEM_3 {      return .Grave;
-	}
-	return .None;
+map_vk :: (vk: win.WPARAM, lp: win.LPARAM) -> Key {
+    if vk >= #char "A" && vk <= #char "Z" return cast(Key) (cast(int) Key.A + cast(int) (vk - #char "A"));
+    if vk >= #char "0" && vk <= #char "9" return cast(Key) (cast(int) Key.N0 + cast(int) (vk - #char "0"));
+    if vk >= win.VK_F1 && vk <= win.VK_F12 return cast(Key) (cast(int) Key.F1 + cast(int) (vk - win.VK_F1));
+    if vk == {
+        case win.VK_SPACE;  return .Space;
+        case win.VK_RETURN; return ifx (lp >> 24) & 1 then .Keypad_Enter else .Enter;
+        case win.VK_TAB;    return .Tab;
+        case win.VK_BACK;   return .Backspace;
+        case win.VK_DELETE; return .Delete;
+        case win.VK_ESCAPE; return .Escape;
+        case win.VK_LEFT;   return .Left;
+        case win.VK_RIGHT;  return .Right;
+        case win.VK_UP;     return .Up;
+        case win.VK_DOWN;   return .Down;
+        case win.VK_HOME;   return .Home;
+        case win.VK_END;    return .End;
+        case win.VK_PRIOR;  return .Page_Up;
+        case win.VK_NEXT;   return .Page_Down;
+        case win.VK_SHIFT;   #through; case win.VK_LSHIFT;   #through; case win.VK_RSHIFT;   return .Shift;
+        case win.VK_CONTROL; #through; case win.VK_LCONTROL; #through; case win.VK_RCONTROL; return .Ctrl;
+        case win.VK_MENU;    #through; case win.VK_LMENU;    #through; case win.VK_RMENU;    return .Alt;
+        case win.VK_LWIN;    #through; case win.VK_RWIN;     return .Cmd;
+        case win.VK_CAPITAL;    return .Caps_Lock;
+        case win.VK_OEM_MINUS;  return .Minus;
+        case win.VK_OEM_PLUS;   return .Equals;
+        case win.VK_OEM_4;      return .Left_Bracket;
+        case win.VK_OEM_6;      return .Right_Bracket;
+        case win.VK_OEM_5;      return .Backslash;
+        case win.VK_OEM_1;      return .Semicolon;
+        case win.VK_OEM_7;      return .Apostrophe;
+        case win.VK_OEM_COMMA;  return .Comma;
+        case win.VK_OEM_PERIOD; return .Period;
+        case win.VK_OEM_2;      return .Slash;
+        case win.VK_OEM_3;      return .Grave;
+    }
+    return .None;
 }
 
-lparam_pos :: (lp: win.LPARAM) -> Vector2 {
-	x := cast(float32)(win.GET_X_LPARAM(lp));
-	y := cast(float32)(win.GET_Y_LPARAM(lp));
-	return .[x / s.scale, y / s.scale];
-}
+// GET_X_LPARAM / GET_Y_LPARAM: signed 16-bit halves.
+lparam_x :: (lp: win.LPARAM) -> s32 { return cast(s16) (lp & 0xffff); }
+lparam_y :: (lp: win.LPARAM) -> s32 { return cast(s16) ((lp >> 16) & 0xffff); }
+
+lparam_pos :: (lp: win.LPARAM) -> Vector2 { return .{lparam_x(lp) / s.scale, lparam_y(lp) / s.scale}; }
 
 mouse_button_event :: (kind: Event_Kind, btn: Mouse_Button, lp: win.LPARAM) {
-	pos := lparam_pos(lp);
-	e := Event.{kind = kind, button = btn, pos = pos, mods = current_mods(), time = time_now()};
-	if kind == .Mouse_Down {
-		now := time_now();
-		dbl := cast(float64)(GetDoubleClickTime()) / 1000;
-		d := pos - w.last_click_pos;
-		if btn == w.last_click_btn && now - w.last_click_time <= dbl && d.x * d.x + d.y * d.y < 16 {
-			w.click_count += 1;
-		} else {
-			w.click_count = 1;
-		}
-		w.last_click_time = now;
-		w.last_click_pos = pos;
-		w.last_click_btn = btn;
-		win.SetCapture(w.hwnd);
-	} else {
-		win.ReleaseCapture();
-	}
-	e.click_count = w.click_count;
-	push_event(e);
+    pos := lparam_pos(lp);
+    now := time_now();
+    if kind == .Mouse_Down {
+        d := pos - w.last_click_pos;
+        dbl := GetDoubleClickTime() / 1000.0;
+        if btn == w.last_click_btn && now - w.last_click_time <= dbl && d.x * d.x + d.y * d.y < 16 w.click_count += 1;
+        else w.click_count = 1;
+        w.last_click_time = now;
+        w.last_click_pos = pos;
+        w.last_click_btn = btn;
+        win.SetCapture(w.hwnd);
+    } else {
+        win.ReleaseCapture();
+    }
+    push_event(.{kind = kind, button = btn, pos = pos, mods = current_mods(), click_count = w.click_count, time = now});
 }
 
 update_ime_window :: () {
-	himc := ImmGetContext(w.hwnd);
-	if himc == null { return; }
-	defer ImmReleaseContext(w.hwnd, himc);
-	cf := COMPOSITIONFORM.{dwStyle = 0x0002, ptCurrentPos = .{cast(s32)(s.ime_rect[0] * s.scale), cast(s32)((s.ime_rect[1] + s.ime_rect[3]) * s.scale)}};
-	ImmSetCompositionWindow(himc, *cf);
+    himc := ImmGetContext(w.hwnd);
+    if !himc return;
+    defer ImmReleaseContext(w.hwnd, himc);
+    cf := COMPOSITIONFORM.{dwStyle = 0x0002 /*CFS_POINT*/, ptCurrentPos = .{xx (s.ime_rect.x * s.scale), xx ((s.ime_rect.y + s.ime_rect.w) * s.scale)}};
+    ImmSetCompositionWindow(himc, *cf);
 }
 
-wndproc :: (hwnd: win.HWND, msg: win.UINT, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #c_call {
-	__ctx7 := s.ctx; push_context,defer_pop __ctx7;
-	for __sw8: 0..0 { if msg == {
-	case WM_FC_WAKE;
-		atomic_store(*w.wake_posted, false);
-		return 0;
-	case win.WM_CLOSE;
-		s.quit = true;
-		push_event(.{kind = .Quit, time = time_now()});
-		return 0;
-	case win.WM_SIZE;
-		update_size();
-		push_event(.{kind = .Resize, pos = s.size, time = time_now()});
-		if w.in_size_move { run_frame_callback(); }
-		return 0;
-	case win.WM_GETMINMAXINFO;
-		mm := cast(*win.MINMAXINFO)(cast(u64)(lp));
-		dpi := win.GetDpiForWindow(hwnd);
-		sc := cast(float32)(dpi) / 96;
-		r := win.RECT.{0, 0, cast(s32)(MIN_WINDOW_W * sc), cast(s32)(MIN_WINDOW_H * sc)};
-		win.AdjustWindowRectExForDpi(*r, win.WS_OVERLAPPEDWINDOW, false, 0, dpi);
-		mm.ptMinTrackSize = .{r.right - r.left, r.bottom - r.top};
-		return 0;
-	case win.WM_DPICHANGED;
-		r := cast(*win.RECT)(cast(u64)(lp));
-		win.SetWindowPos(hwnd, null, r.left, r.top, r.right - r.left, r.bottom - r.top, win.SWP_NOZORDER | win.SWP_NOACTIVATE);
-		update_size();
-		push_event(.{kind = .Resize, pos = s.size, time = time_now()});
-		return 0;
-	case win.WM_ENTERSIZEMOVE;
-		w.in_size_move = true;
-		win.SetTimer(hwnd, TIMER_ANIM, 1, null);
-		return 0;
-	case win.WM_EXITSIZEMOVE;
-		w.in_size_move = false;
-		win.KillTimer(hwnd, TIMER_ANIM);
-		return 0;
-	case win.WM_TIMER;
-		if wp == TIMER_ANIM && w.in_size_move && atomic_load(*s.frame_requested) { run_frame_callback(); }
-		return 0;
-	case win.WM_SETFOCUS;
-		push_event(.{kind = .Focus_Gained, time = time_now()});
-		return 0;
-	case win.WM_KILLFOCUS;
-		push_event(.{kind = .Focus_Lost, time = time_now()});
-		return 0;
-	case win.WM_SETCURSOR;
-		if win.LOWORD(win.DWORD(lp)) == win.HTCLIENT {
-			_apply_cursor();
-			return 1;
-		}
-	case win.WM_KEYDOWN; #through; case win.WM_SYSKEYDOWN;
-		k := map_vk(wp, lp);
-		push_event(.{kind = .Key_Down, key = k, mods = current_mods(), is_repeat = ((lp >> 30) & 1) != 0, time = time_now()});
-		if msg == win.WM_SYSKEYDOWN && wp == win.VK_F4 { break __sw8; } // let Alt+F4 through
-		if msg == win.WM_SYSKEYDOWN { return 0; }
-		return 0;
-	case win.WM_KEYUP; #through; case win.WM_SYSKEYUP;
-		push_event(.{kind = .Key_Up, key = map_vk(wp, lp), mods = current_mods(), time = time_now()});
-		return 0;
-	case win.WM_CHAR;
-		c := cast(u16)(wp);
-		if c >= 0xD800 && c <= 0xDBFF {
-			w.high_surrogate = c;
-			return 0;
-		}
-		buf: [2]u16;
-		n := 0;
-		if c >= 0xDC00 && c <= 0xDFFF && w.high_surrogate != 0 {
-			buf = .{w.high_surrogate, c};
-			n = 2;
-		} else {
-			buf[0] = c;
-			n = 1;
-		}
-		w.high_surrogate = 0;
-		if n == 1 && (c < 0x20 || c == 0x7f) { return 0; }
-		mods := current_mods();
-		if has(mods, .Ctrl) && !has(mods, .Alt) { return 0; } // ctrl shortcuts are Key_Down only (AltGr = ctrl+alt types text)
-		utf8buf: [8]u8;
-		l := utf16.decode_to_utf8(view(utf8buf), sub(buf, 0, n));
-		push_event(.{kind = .Text, text = as_string(sub(utf8buf, 0, l)), time = time_now()});
-		return 0;
-	case win.WM_IME_STARTCOMPOSITION;
-		update_ime_window();
-		w.composing = true;
-	case win.WM_IME_COMPOSITION;
-		update_ime_window();
-		if (lp & 0x0008) /*GCS_COMPSTR*/ != 0 {
-			himc := ImmGetContext(hwnd);
-			if himc != null {
-				bytes := ImmGetCompositionStringW(himc, 0x0008, null, 0);
-				text := "";
-				if bytes > 0 {
-					wbuf := make_slice(u16, bytes / 2, temp);
-					ImmGetCompositionStringW(himc, 0x0008, raw_data(wbuf), win.DWORD(bytes));
-					text, _ = win.utf16_to_utf8(wbuf, temp);
-				}
-				cursor := ImmGetCompositionStringW(himc, 0x0080, null, 0);
-				ImmReleaseContext(hwnd, himc);
-				cb := utf16_offset_to_byte(text, cast(int)(cursor));
-				push_event(.{kind = .Composition, text = text, composition_sel = .{cb, cb}, time = time_now()});
-			}
-		}
-		// GCS_RESULTSTR arrives as WM_CHAR via DefWindowProc
-	case win.WM_IME_ENDCOMPOSITION;
-		if w.composing {
-			w.composing = false;
-			push_event(.{kind = .Composition, time = time_now()});
-		}
-	case win.WM_MOUSEMOVE;
-		if !w.tracking_mouse {
-			tme := win.TRACKMOUSEEVENT.{cbSize = size_of(win.TRACKMOUSEEVENT), dwFlags = win.TME_LEAVE, hwndTrack = hwnd};
-			win.TrackMouseEvent(*tme);
-			w.tracking_mouse = true;
-		}
-		push_event(.{kind = .Mouse_Move, pos = lparam_pos(lp), mods = current_mods(), time = time_now()});
-		return 0;
-	case win.WM_MOUSELEAVE;
-		w.tracking_mouse = false;
-		push_event(.{kind = .Mouse_Leave, time = time_now()});
-		return 0;
-	case win.WM_LBUTTONDOWN; mouse_button_event(.Mouse_Down, .Left, lp); return 0;
-	case win.WM_LBUTTONUP;   mouse_button_event(.Mouse_Up, .Left, lp); return 0;
-	case win.WM_RBUTTONDOWN; mouse_button_event(.Mouse_Down, .Right, lp); return 0;
-	case win.WM_RBUTTONUP;   mouse_button_event(.Mouse_Up, .Right, lp); return 0;
-	case win.WM_MBUTTONDOWN; mouse_button_event(.Mouse_Down, .Middle, lp); return 0;
-	case win.WM_MBUTTONUP;   mouse_button_event(.Mouse_Up, .Middle, lp); return 0;
-	case win.WM_XBUTTONDOWN; mouse_button_event(.Mouse_Down, ifx win.HIWORD(win.DWORD(wp)) == 1 then .X1 else .X2, lp); return 1;
-	case win.WM_XBUTTONUP;   mouse_button_event(.Mouse_Up, ifx win.HIWORD(win.DWORD(wp)) == 1 then .X1 else .X2, lp); return 1;
-	case win.WM_MOUSEWHEEL; #through; case win.WM_MOUSEHWHEEL;
-		delta := cast(float32)(win.GET_WHEEL_DELTA_WPARAM(wp)) / 120 * 40; // Chrome: 40px per notch
-		pt := win.POINT.{win.GET_X_LPARAM(lp), win.GET_Y_LPARAM(lp)};
-		win.ScreenToClient(hwnd, *pt);
-		e := Event.{kind = .Scroll, pos = .{cast(float32)(pt.x) / s.scale, cast(float32)(pt.y) / s.scale}, mods = current_mods(), time = time_now()};
-		if msg == win.WM_MOUSEWHEEL { e.delta.y = delta; } else { e.delta.x = -delta; }
-		push_event(e);
-		return 0;
-	case win.WM_DROPFILES;
-		hdrop := win.HDROP(wp);
-		for path: hdrop_paths(hdrop, temp) {
-			push_event(.{kind = .File_Drop, text = path, time = time_now()});
-		}
-		win.DragFinish(hdrop);
-		return 0;
-	case win.WM_ERASEBKGND;
-		return 1;
-	} }
-	return win.DefWindowProcW(hwnd, msg, wp, lp);
+wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #c_call {
+    c := s.ctx; push_context,defer_pop c;
+    if msg == {
+        case WM_FC_WAKE;
+            atomic_store(*w.wake_posted, false);
+            return 0;
+        case win.WM_CLOSE;
+            s.quit = true;
+            push_event(.{kind = .Quit, time = time_now()});
+            return 0;
+        case win.WM_SIZE;
+            update_size();
+            push_event(.{kind = .Resize, pos = s.size, time = time_now()});
+            if w.in_size_move run_frame_callback();
+            return 0;
+        case win.WM_GETMINMAXINFO;
+            mm := cast(*MINMAXINFO) lp;
+            dpi := GetDpiForWindow(hwnd);
+            sc := cast(float32) dpi / 96;
+            r := win.RECT.{0, 0, xx (MIN_WINDOW_W * sc), xx (MIN_WINDOW_H * sc)};
+            AdjustWindowRectExForDpi(*r, win.WS_OVERLAPPEDWINDOW, 0, 0, dpi);
+            mm.ptMinTrackSize = .{r.right - r.left, r.bottom - r.top};
+            return 0;
+        case win.WM_DPICHANGED;
+            r := cast(*win.RECT) lp;
+            win.SetWindowPos(hwnd, null, r.left, r.top, r.right - r.left, r.bottom - r.top, win.SWP_NOZORDER | win.SWP_NOACTIVATE);
+            update_size();
+            push_event(.{kind = .Resize, pos = s.size, time = time_now()});
+            return 0;
+        case win.WM_ENTERSIZEMOVE;
+            w.in_size_move = true;
+            SetTimer(hwnd, TIMER_ANIM, 1, null);
+            return 0;
+        case win.WM_EXITSIZEMOVE;
+            w.in_size_move = false;
+            KillTimer(hwnd, TIMER_ANIM);
+            return 0;
+        case win.WM_TIMER;
+            if wp == TIMER_ANIM && w.in_size_move && atomic_load(*s.frame_requested) run_frame_callback();
+            return 0;
+        case win.WM_SETFOCUS;
+            push_event(.{kind = .Focus_Gained, time = time_now()});
+            return 0;
+        case win.WM_KILLFOCUS;
+            push_event(.{kind = .Focus_Lost, time = time_now()});
+            return 0;
+        case win.WM_SETCURSOR;
+            if (lp & 0xffff) == HTCLIENT {
+                os_apply_cursor();
+                return 1;
+            }
+        case win.WM_KEYDOWN; #through;
+        case win.WM_SYSKEYDOWN;
+            push_event(.{kind = .Key_Down, key = map_vk(wp, lp), mods = current_mods(), is_repeat = ((lp >> 30) & 1) != 0, time = time_now()});
+            if !(msg == win.WM_SYSKEYDOWN && wp == win.VK_F4) return 0; // let Alt+F4 through
+        case win.WM_KEYUP; #through;
+        case win.WM_SYSKEYUP;
+            push_event(.{kind = .Key_Up, key = map_vk(wp, lp), mods = current_mods(), time = time_now()});
+            return 0;
+        case win.WM_CHAR;
+            u := cast(u16) wp;
+            if u >= 0xD800 && u <= 0xDBFF {
+                w.high_surrogate = u;
+                return 0;
+            }
+            ch: u32 = u;
+            if u >= 0xDC00 && u <= 0xDFFF && w.high_surrogate ch = 0x10000 + ((cast(u32) w.high_surrogate - 0xD800) << 10) + (u - 0xDC00);
+            w.high_surrogate = 0;
+            if ch < 0x20 || ch == 0x7f return 0;
+            mods := current_mods();
+            if (mods & .Ctrl) && !(mods & .Alt) return 0; // ctrl shortcuts are Key_Down only (AltGr = ctrl+alt types text)
+            buf: [4]u8;
+            text := string.{0, buf.data};
+            character_utf32_to_utf8(ch, *text);
+            push_event(.{kind = .Text, text = text, time = time_now()});
+            return 0;
+        case win.WM_IME_STARTCOMPOSITION;
+            update_ime_window();
+            w.composing = true;
+        case win.WM_IME_COMPOSITION;
+            update_ime_window();
+            if lp & 0x0008 /*GCS_COMPSTR*/ {
+                himc := ImmGetContext(hwnd);
+                if himc {
+                    bytes := ImmGetCompositionStringW(himc, 0x0008, null, 0);
+                    text := "";
+                    if bytes > 0 {
+                        wbuf := NewArray(bytes / 2, u16,, temp);
+                        ImmGetCompositionStringW(himc, 0x0008, wbuf.data, xx bytes);
+                        text = utf16_to_utf8(wbuf.data, wbuf.count, temp);
+                    }
+                    cursor := ImmGetCompositionStringW(himc, 0x0080 /*GCS_CURSORPOS*/, null, 0);
+                    ImmReleaseContext(hwnd, himc);
+                    cb := utf16_to_byte(text, cursor);
+                    push_event(.{kind = .Composition, text = text, composition_sel = .[cb, cb], time = time_now()});
+                }
+            }
+            // GCS_RESULTSTR arrives as WM_CHAR via DefWindowProc
+        case win.WM_IME_ENDCOMPOSITION;
+            if w.composing {
+                w.composing = false;
+                push_event(.{kind = .Composition, time = time_now()});
+            }
+        case win.WM_MOUSEMOVE;
+            if !w.tracking_mouse {
+                tme := TRACKMOUSEEVENT.{cbSize = size_of(TRACKMOUSEEVENT), dwFlags = TME_LEAVE, hwndTrack = hwnd};
+                TrackMouseEvent(*tme);
+                w.tracking_mouse = true;
+            }
+            push_event(.{kind = .Mouse_Move, pos = lparam_pos(lp), mods = current_mods(), time = time_now()});
+            return 0;
+        case WM_MOUSELEAVE;
+            w.tracking_mouse = false;
+            push_event(.{kind = .Mouse_Leave, time = time_now()});
+            return 0;
+        case win.WM_LBUTTONDOWN; mouse_button_event(.Mouse_Down, .Left, lp); return 0;
+        case win.WM_LBUTTONUP;   mouse_button_event(.Mouse_Up, .Left, lp); return 0;
+        case win.WM_RBUTTONDOWN; mouse_button_event(.Mouse_Down, .Right, lp); return 0;
+        case win.WM_RBUTTONUP;   mouse_button_event(.Mouse_Up, .Right, lp); return 0;
+        case win.WM_MBUTTONDOWN; mouse_button_event(.Mouse_Down, .Middle, lp); return 0;
+        case win.WM_MBUTTONUP;   mouse_button_event(.Mouse_Up, .Middle, lp); return 0;
+        case win.WM_XBUTTONDOWN; mouse_button_event(.Mouse_Down, ifx ((wp >> 16) & 0xffff) == 1 then .X1 else .X2, lp); return 1;
+        case win.WM_XBUTTONUP;   mouse_button_event(.Mouse_Up, ifx ((wp >> 16) & 0xffff) == 1 then .X1 else .X2, lp); return 1;
+        case win.WM_MOUSEWHEEL; #through;
+        case win.WM_MOUSEHWHEEL;
+            delta := cast(s16) ((wp >> 16) & 0xffff) / 120.0 * 40; // Chrome: 40px per notch
+            pt := win.POINT.{lparam_x(lp), lparam_y(lp)};
+            win.ScreenToClient(hwnd, *pt);
+            e := Event.{kind = .Scroll, pos = .{pt.x / s.scale, pt.y / s.scale}, mods = current_mods(), time = time_now()};
+            if msg == win.WM_MOUSEWHEEL e.delta.y = delta; else e.delta.x = -delta;
+            push_event(e);
+            return 0;
+        case win.WM_DROPFILES;
+            hdrop := cast(*void) wp;
+            for hdrop_paths(hdrop, temp) push_event(.{kind = .File_Drop, text = it, time = time_now()});
+            win.DragFinish(hdrop);
+            return 0;
+        case win.WM_ERASEBKGND;
+            return 1;
+    }
+    return win.DefWindowProcW(hwnd, msg, wp, lp);
 }
-
-utf16_offset_to_byte :: (str: string, idx16: int) -> int {
-	n := 0;
-	for r, i: str {
-		if n >= idx16 { return i; }
-		n += ifx r >= 0x10000 then 2 else 1;
-	}
-	return len(str);
-}
-#scope_export
-
-#scope_file static_id1: win.UINT; #scope_export
-

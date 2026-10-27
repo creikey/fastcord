@@ -40,6 +40,31 @@
 - Animation.arena -> Animation.pool: Flat_Pool; Player.frame is a Flat_Pool, Player.falloc removed. eval/eval_shape private.
 - Callers: app/pickers_lottie.jai:44 and :89.
 
+## platform
+- Mods alias removed: use Mod (Event.mods is Mod; same layout, app/glue.jai's transmute still works).
+- Removed (no callers): get_cursor, display_refresh_hz, frame_requested, request_quit, headless_resize, native_view, notify_supported.
+- macOS internals no longer exported: msg/Void/Id/cls/sel, NS, CV, CVDisplayLink*, NSDefaultRunLoopMode/NSRunLoopCommonModes, nsstr/odin_str.
+- Unchanged for gfx: dpi_scale, framebuffer_size, is_headless, native_metal_layer, native_window, set_frame_wait_handle (Windows).
+- Windows backend now uses Jai's Windows / Windows_Registry / Windows_Utf8 modules (it imported fc_windows/fc_utf16, which do not exist, so it never compiled); type-checks with os_target = .WINDOWS.
+## gfx
+- vec.jai removed: its exported Vector2/Vector4 operators are gone (gfx keeps a module-private per-component `/`).
+- mtl_darwin.jai removed: MTL, MTLCreateSystemDefaultDevice, CFStringGetCString no longer exported.
+- No more re-exported import aliases (gfx.math, gfx.mem, gfx.bytes, gfx.os, gfx.utf8, gfx.objc, gfx.platform...).
+- Private backend procs renamed (_backend_* -> backend_*, _font_*/_shape/_rasterize -> native_*); not exported.
+- Public procs, types and constants otherwise unchanged (Texture, Texture_Format, Yuv_Matrix, Rect, Color,
+  cf_type_dictionary_callbacks, native_device, texture_*, video, shape, draw_run, read_pixels, write_png...).
+## ui
+- selection_text(fetch := null, allocator := temp) -> selection_text(allocator := temp): the unused fetch parameter is gone (no caller passed it).
+- STACK_MAX removed (unused). State.arenas is [2]Flat_Pool (was the fc_mem Dynamic_Arena alias of the same type).
+- vec.jai's exported Vector2/Vector4 operators removed: ui divides no vectors, so Math's operators are used as-is.
+- Callers: none of app's ui calls change (Box_Flags / Mods aliases kept).
+## media
+- Byte_Source.wait: (user, have, timeout: time.Duration) -> (user, have, timeout_ms: s64).
+- be16/be24/be32/be64/le16/le32/le64(b) -> (b: []u8, i := 0): read at b[i] (was a sliced view).
+- fourcc alias removed (use audio.fourcc); CMTime no longer exported.
+- Player.thread is an embedded Thread (was *fc_thread.Thread); Player.pending_seek removed (unused).
+- Rest unchanged (player_*, source_*, growing_*, demux_*, probe, audio_waveform, audio/video decoder procs).
+
 ## Gotcha (all modules)
 - After push_allocator(...), a local or parameter named `allocator` in the same procedure means the pushed one
   (Basic's macro parameter is named allocator): read allocator arguments before pushing.

@@ -1,35 +1,16 @@
 #import "Basic";
 #import "Math";
 #import "String";
-#import "Hash_Table";
 #import "Atomics";
-#import "fc";
+#import "Flat_Pool";
+#import "Unicode";
 locks :: #import "locks";
-#if OS == .MACOS objc :: #import "platform_objc";
-runtime :: #import "fc_runtime";
-strings :: #import "fc_strings";
-sync :: #import "fc_sync";
-time :: #import "fc_time";
-#if OS == .WINDOWS utf16 :: #import "fc_utf16";
-#if OS == .MACOS utf8 :: #import "fc_utf8";
-virtual :: #import "fc_virtual";
-#if OS == .WINDOWS win :: #import "fc_windows";
-__lib__t1 :: #library,system,link_always "Cocoa";
-__lib__t2 :: #library,system,link_always "QuartzCore";
-coregraphics :: #library,system,link_always "CoreGraphics";
-user32 :: #system_library "user32";
-imm32 :: #system_library "imm32";
-ole32 :: #system_library "ole32";
-#if OS == .MACOS #load "appearance_darwin.jai";
-#if OS == .WINDOWS #load "appearance_windows.jai";
-#if OS == .MACOS #load "dialog_darwin.jai";
-#if OS == .WINDOWS #load "dialog_windows.jai";
-#if OS == .MACOS #load "notify_darwin.jai";
-#if OS == .WINDOWS #load "notify_windows.jai";
-#if OS == .MACOS #load "open_url_darwin.jai";
-#if OS == .WINDOWS #load "open_url_windows.jai";
+
 #load "platform.jai";
-#load "vec.jai";
-#if OS == .MACOS #load "ns_darwin.jai";
-#if OS == .MACOS #load "platform_darwin.jai";
+#if OS == .MACOS {
+    objc :: #import "platform_objc";
+    #load "ns_darwin.jai";
+    #load "notify_darwin.jai";
+    #load "platform_darwin.jai";
+}
 #if OS == .WINDOWS #load "platform_windows.jai";
