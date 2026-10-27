@@ -189,7 +189,15 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | Menu: "Mark Unread" for any channel but a locked archived thread (fastcord: always); "Pin Message" / "Unpin Message" for user messages (types 0,19,20,23,26,41,45,47,68) not failed, in a private channel or with PIN_MESSAGES + READ_MESSAGE_HISTORY, not voice / stage / media threads; group order Copy Text, Pin, Apps, Mark Unread, Copy Message Link; shift skips the confirmation | code | `id:"mark-unread"`, `id:"pin",action:function(e){e.shiftKey`, `USER_MESSAGE:new Set` | `src/discord/permissions.jai` `can_pin_message`, `view_message_actions.jai` |
 | Pin: `PUT /channels/{c}/messages/pins/{m}`, unpin `DELETE` same (no body); confirmations "Pin It. Pin It Good." (primary, "Oh yeah. Pin it") and "Unpin Message" (critical, "Remove it please!", shift protip), each with a message preview; failures "Error" / "The Pin Is Stuck!" (fastcord: Okay only, no Try Again, no TOO_MANY_PINS text) | code | `PIN:(e,t)=>`, `confirmPin:function`, `confirmUnpin:function` | `features.jai` `pin_message`, `view_message_actions.jai` `confirm_modal`, `view_threads.jai` |
 | The pinned flag, the type 6 system message and the pins list follow from the gateway (MESSAGE_UPDATE, MESSAGE_CREATE, CHANNEL_PINS_UPDATE); nothing is predicted | inferred | — | `store.jai`, `view_chat.jai` `system_notice`, `view_pins.jai` |
-| "N new messages since <time>" bar with "Mark As Read" while the channel has unread messages and isn't acked (Mark Unread hold, or scrolled up); the time format and "50+" cap are guesses | guess | not captured | `view_chat.jai` `new_messages_bar` |
+| "N new messages since <time>" bar: counts the messages after the read marker the channel was opened with (the "NEW" divider's), shown while that divider is above the view or Mark Unread holds the channel; the channel is still acked underneath. Marker re-read on every visit. The time format and "50+" cap are guesses | guess | not captured | `view_chat.jai` `new_messages_bar`, `views.jai` `go_to` |
+| Bar "Mark As Read": `ack(channel, {section:"New Messages Banner", object:"Mark Channel as Read Button", objectType:"ack_manual"})` (the normal ack request, plus `ack_messages` with that location); the rest of the bar jumps to the first new message (`jumpToMessage` at `ackMessageId`, offset 1). fastcord also drops the divider | code (+ guess for the divider) | `NewMessagesBarJumpToNewMessages_`, `NEW_MESSAGES_BANNER,object:` | `actions.jai` `ACK_NEW_MESSAGES_BANNER`, `view_chat.jai` `new_messages_bar` |
+
+## Message rendering
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Consecutive `> ` lines are one blockquote (one bar down all its lines, wrapped ones included); `>>> ` quotes the rest of the message | guess (matches a screenshot of the client) | — | `markdown.jai` `md_parse`, `view_chat.jai` `quote_bar_draw` |
+| Forward = `message_reference.type` 1 (`MessageReferenceTypes.FORWARD`): no reply preview; content, attachments, embeds, stickers come from `message_snapshots[0].message`, under "Forwarded" behind a quote bar, with "#channel • time" of the original below (jumps there); a forward can't be edited | code (type) + guess (layout) | `messageReference?.type===D.SH7.FORWARD` | `store.jai` `parse_message_fields`, `view_chat.jai` `forward_block` |
 
 ## Composer emoji
 

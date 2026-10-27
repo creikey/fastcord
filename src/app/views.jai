@@ -627,6 +627,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 
 	list := ui.box("channels", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
+	list.bar_inset_bottom = USER_PANEL_H + voice_panel_height() + 16; // the panel floats over the list's end
 	list.layout_axis = .Y;
 	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
@@ -1022,6 +1023,11 @@ history_push :: (h: *[..][2]dc.Snowflake, place: [2]dc.Snowflake) {
 
 go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
 	was_home := app.view.guild == 0 && app.view.channel == 0;
+	if cid != app.view.channel {
+		// the "NEW" divider and new-messages bar start again from the read state on every visit
+		cs := table_find_pointer(*app.chats, cid);
+		if cs cs.opened = false;
+	}
 	app.view.guild = gid;
 	app.view.channel = cid;
 	table_set(*app.view.last_channel, gid, cid);

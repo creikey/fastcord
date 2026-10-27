@@ -24,6 +24,7 @@ home_sidebar :: () {
 
 	list := ui.box("dms", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
+	list.bar_inset_bottom = USER_PANEL_H + voice_panel_height() + 16; // the panel floats over the list's end
 	list.layout_axis = .Y;
 	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
@@ -78,7 +79,7 @@ home_sidebar :: () {
 			{ ui.id_scope(cast(u64)(cid)); defer ui.pop_seed(); dm_row(ch); }
 		}
 		ui.list_window_end(w);
-		spacer(.Y, USER_PANEL_H + 16);
+		spacer(.Y, USER_PANEL_H + voice_panel_height() + 16);
 	}
 }
 

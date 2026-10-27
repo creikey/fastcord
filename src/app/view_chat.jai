@@ -764,6 +764,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		i0 -= 1;
 	}
 	i0 += 1;
+	new_top: float32;
 	{ ui.parent(list); defer ui.pop_parent();
 		col := ui.box("rows", .Floating_Y | .Anchor_End_Y);
 		col.semantic_size = .[ui.pct(1), ui.children()];
@@ -784,6 +785,8 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 					spacer(.Y, TOP_PAD);
 				}
 			}
+			// where the "NEW" divider is: above the declared rows (older ones not drawn), on one, or below
+			new_top = ifx i0 > 0 && msgs[i0].id > cs.unread_after then -FLOAT32_INFINITY else FLOAT32_INFINITY;
 			for i: max(i0, 0)..i1 {
 				m := *msgs[i];
 				prev: *dc.Message = ifx i > 0 then *msgs[i - 1] else null;
@@ -794,6 +797,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				if is_notice(m.kind) grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
 				ui.id_scope(m.id); defer ui.pop_seed();
 				row := message_row(m, grouped, new_day, show_new);
+				if show_new new_top = row.rect.y0;
 				// remember measured height (from last frame's layout); a changed height moves the
 				// rows and the scroll range, so lay out again rather than idle on a stale frame
 				// (a short DM used to stay drawn with its newest message pushed under the list).
@@ -812,34 +816,42 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		}
 		ui.scrollbar(list, .Auto, *cs.scroll_from_bottom, *cs.scroll_target, total, from_end = true);
 		typing_line(channel_id);
-		new_messages_bar(channel_id, msgs, lw);
+		new_messages_bar(channel_id, msgs, lw, cs, new_top < list.rect.y0);
 	}
 }
 
-// "N new messages since 3:04 PM ... Mark As Read" over the list's top while the channel has
-// unread messages and isn't being acked (Mark Unread, or scrolled up).
-new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32) {
+// "N new messages since 3:04 PM ... Mark As Read" over the list's top: the messages after the
+// read marker the channel was opened with, while its "NEW" divider is scrolled above the view
+// (the channel itself is acked meanwhile), or while Mark Unread holds it. Mark As Read acks
+// and drops the divider; the rest of the bar jumps to the first new message.
+new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, cs: *Chat_State, divider_above: bool) {
 	rs := table_find_pointer(*store().read_states, channel_id);
-	if !rs || !msgs || msgs[msgs.count - 1].id <= rs.last_message_id || (!rs.manual && chat_state(channel_id).scroll_from_bottom < 2) return;
+	held := rs != null && rs.manual;
+	if !cs.unread_after || !msgs || !(divider_above || held) return;
 	n, first := 0, cast(dc.Snowflake) 0;
 	for < msgs {
-		if it.id <= rs.last_message_id break;
+		if it.id <= cs.unread_after break;
 		n += 1;
 		first = it.id;
 	}
+	if n == 0 return;
 	bar := row("newbar", .Floating_X | .Floating_Y | .Draw_Background | .Clickable);
 	bar.semantic_size = .[ui.px(max(lw - MSG_SCROLL_GUTTER - 16, 0)), ui.px(24)];
 	bar.fixed_pos = .{16, 0};
 	bar.style.bg = T("--background-brand");
 	bar.style.radius = .[0, 0, 8, 8];
-	ui.signal(bar);
+	jump := ui.signal(bar).clicked;
 	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 12);
 		label(tprint("% new message% since %", ifx n >= 50 then "50+" else tprint("%", n), ifx n == 1 then "" else "s", format_timestamp(first)), .Medium, 14, .{1, 1, 1, 1}, 18);
 		filler(.X);
 		mr := row("read", .Clickable);
 		mr.semantic_size = .[ui.children(), ui.px(24)];
-		if ui.signal(mr).clicked && app.client dc.ack_message(app.client, channel_id, msgs[msgs.count - 1].id, true);
+		if ui.signal(mr).clicked {
+			jump = false;
+			if app.client dc.ack_message(app.client, channel_id, msgs[msgs.count - 1].id, true, dc.ACK_NEW_MESSAGES_BANNER);
+			cs.unread_after = 0;
+		}
 		{ ui.parent(mr); defer ui.pop_parent();
 			label("Mark As Read", .Semibold, 14, .{1, 1, 1, 1}, 18);
 			spacer(.X, 4);
@@ -847,6 +859,7 @@ new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32) 
 		}
 		spacer(.X, 12);
 	}
+	if jump jump_to_message(channel_id, first);
 }
 
 SKEL_MSG_H :: MSG_GROUP_GAP + 4 + 18 + 10 + 18; // a placeholder group with one line
@@ -995,12 +1008,16 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			content.layout_axis = .Y;
 			{ ui.parent(content); defer ui.pop_parent();
 				if !grouped message_header(m);
-				if editing { edit_box(m); } else { message_body(m); }
-				if m.sticker_ids message_stickers_view(m);
+				if m.forwarded {
+					forward_block(m);
+				} else {
+					if editing { edit_box(m); } else { message_body(m); }
+					if m.sticker_ids message_stickers_view(m);
+				}
 				thread_summary_pill(m);
-				if m.attachments attachments_view(m);
+				if m.attachments && !m.forwarded attachments_view(m);
 				if m.pending upload_progress_view(m);
-				if m.embeds embeds_view(m);
+				if m.embeds && !m.forwarded embeds_view(m);
 				if m.reactions reactions_view(m);
 			}
 			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right
@@ -1176,11 +1193,9 @@ message_body :: (m: *dc.Message) {
 			{ ui.parent(wrap); defer ui.pop_parent();
 				if blk.kind == {
 				case .Quote;
-					bar := ui.box("quotebar", .Draw_Background);
-					bar.semantic_size = .[ui.px(4), ui.px(line_h)];
-					bar.style.bg = T("--border-strong");
-					bar.style.radius = all4(4);
-					spacer(.X, 12);
+					// the bar spans the whole (wrapped, multi-line) quote: drawn over the row's rect
+					wrap.custom_draw = quote_bar_draw;
+					spacer(.X, 16);
 				case .List_Item;
 					spacer(.X, 6 + cast(float32) blk.depth * 20);
 					label(ifx blk.depth == 0 then "•" else "◦", .Normal, size, color, line_h);
@@ -1215,6 +1230,52 @@ message_body :: (m: *dc.Message) {
 		}
 	}
 	if m.edited_timestamp && !edited_inline label("(edited)", .Normal, 10, T("--text-muted"), 22);
+}
+
+// A forwarded message: the snapshot's content behind a quote bar, under "Forwarded", and
+// the origin ("#channel • time", jumps there) below it.
+forward_block :: (m: *dc.Message) {
+	s := store();
+	wrap := row("fwd");
+	wrap.semantic_size = .[ui.pct(1), ui.children()];
+	wrap.cross_align = .Start;
+	wrap.custom_draw = quote_bar_draw;
+	ui.parent(wrap); defer ui.pop_parent();
+	spacer(.X, 16);
+	col := ui.box("fwdcol");
+	col.semantic_size = .[ui.fill(), ui.children()];
+	col.layout_axis = .Y;
+	ui.parent(col); defer ui.pop_parent();
+	h := row("fwdhead");
+	h.semantic_size = .[ui.pct(1), ui.px(MSG_LINE_H)];
+	h.cross_align = .Center;
+	{ ui.parent(h); defer ui.pop_parent();
+		icon("ic", "arrow-angle-right-up", 16, T("--text-muted"));
+		spacer(.X, 4);
+		label("Forwarded", .Italic, 14, T("--text-muted"), 18);
+	}
+	message_body(m);
+	if m.sticker_ids message_stickers_view(m);
+	if m.attachments attachments_view(m);
+	if m.embeds embeds_view(m);
+	ch := dc.channel_get(s, m.forward_channel_id);
+	if ch == null || ch.name == "" return;
+	spacer(.Y, 2);
+	f := row("fwdfoot", .Clickable);
+	f.semantic_size = .[ui.children(), ui.px(18)];
+	sig := ui.signal(f);
+	{ ui.parent(f); defer ui.pop_parent();
+		c := ifx sig.hovering then T("--text-default") else T("--text-muted");
+		label(tprint("#% • %", ch.name, format_timestamp(m.forward_message_id)), .Medium, 12, c, 18);
+	}
+	if sig.clicked jump_to_message(m.forward_channel_id, m.forward_message_id);
+}
+
+// A blockquote's 4px rounded bar down the left of its row.
+quote_bar_draw :: (b: *ui.Box, user: *void) {
+	c := T("--border-strong");
+	c.w *= b.opacity;
+	gfx.rect(.{b.rect.x0, b.rect.y0, b.rect.x0 + 4, b.rect.y1}, cast(gfx.Color) c, 2);
 }
 
 reactions_view :: (m: *dc.Message) {
@@ -1328,7 +1389,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				for * e: app.ui.events {
 					if e.consumed || e.kind != .Key_Down || e.key != .Up || e.mods != 0 continue;
 					for < * dc.messages_get(s, ch.id) {
-						if it.author_id == s.me {
+						if it.author_id == s.me && !it.forwarded {
 							start_edit(it);
 							e.consumed = true;
 							break;

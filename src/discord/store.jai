@@ -153,6 +153,7 @@ free_message :: (s: *Store, m: *Message) {
 	free_str(m.timestamp, a);
 	free_str(m.edited_timestamp, a);
 	free_str(m.call_ended, a);
+	free_str(m.forward_timestamp, a);
 	free_str(m.nonce, a);
 	for * m.attachments free_attachment(s, it);
 	array_free(m.attachments);
@@ -375,6 +376,7 @@ parse_member_with_id :: (s: *Store, guild_id: Snowflake, uid: Snowflake, m: etf.
 	if vhas(m, "nick") set_str(s, *member.nick, fstr(m, "nick"));
 	if vhas(m, "avatar") set_str(s, *member.avatar, fstr(m, "avatar"));
 	if vhas(m, "joined_at") set_str(s, *member.joined_at, fstr(m, "joined_at"));
+	if vhas(m, "flags") member.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "roles") {
 		member.roles.count = 0;
 		for flist(m, "roles") array_add(*member.roles, vsnow(it));
@@ -461,7 +463,6 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	au := fmap(m, "author");
 	if au msg.author_id = parse_user_into(s, au);
 	if vhas(m, "type") msg.kind = fint(m, "type");
-	if vhas(m, "content") set_str(s, *msg.content, fstr(m, "content"));
 	if vhas(m, "timestamp") set_str(s, *msg.timestamp, fstr(m, "timestamp"));
 	if vhas(m, "edited_timestamp") set_str(s, *msg.edited_timestamp, fstr(m, "edited_timestamp"));
 	call := fmap(m, "call");
@@ -470,6 +471,37 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	if vhas(m, "flags") msg.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "mention_everyone") msg.mention_everyone = fbool(m, "mention_everyone");
 	if vhas(m, "pinned") msg.pinned = fbool(m, "pinned");
+	parse_message_content(s, msg, m);
+	ref := fmap(m, "message_reference");
+	if ref && fint(ref, "type") == 1 {
+		// a forward: shows the snapshot's content (the forwarding message's own is empty)
+		msg.forwarded = true;
+		msg.forward_channel_id = fsnow(ref, "channel_id");
+		msg.forward_message_id = fsnow(ref, "message_id");
+		snaps := flist(m, "message_snapshots");
+		if snaps {
+			snap := fmap(vmap(snaps[0]), "message");
+			parse_message_content(s, msg, snap);
+			set_str(s, *msg.forward_timestamp, fstr(snap, "timestamp"));
+		}
+	} else if ref {
+		msg.referenced_id = fsnow(ref, "message_id");
+	}
+	// Keep the referenced author resolvable for reply previews.
+	rau := fmap(fmap(m, "referenced_message"), "author");
+	if rau parse_user_into(s, rau);
+	gid := fsnow(m, "guild_id");
+	mm := fmap(m, "member");
+	if mm && gid && msg.author_id {
+		// MESSAGE_CREATE members omit `user`; attach to the author.
+		if !vhas(mm, "user") && !vhas(mm, "user_id") parse_member_with_id(s, gid, msg.author_id, mm);
+		else parse_member_into(s, gid, mm);
+	}
+}
+
+// The fields a forward's snapshot carries too: content, attachments, embeds, mentions, stickers.
+parse_message_content :: (s: *Store, msg: *Message, m: etf.Map) {
+	if vhas(m, "content") set_str(s, *msg.content, fstr(m, "content"));
 	if vhas(m, "attachments") {
 		for * msg.attachments free_attachment(s, it);
 		msg.attachments.count = 0;
@@ -493,18 +525,6 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 		msg.sticker_ids.count = 0;
 		for items array_add(*msg.sticker_ids, fsnow(vmap(it), "id"));
 		note_sticker_items(s, items);
-	}
-	ref := fmap(m, "message_reference");
-	if ref msg.referenced_id = fsnow(ref, "message_id");
-	// Keep the referenced author resolvable for reply previews.
-	rau := fmap(fmap(m, "referenced_message"), "author");
-	if rau parse_user_into(s, rau);
-	gid := fsnow(m, "guild_id");
-	mm := fmap(m, "member");
-	if mm && gid && msg.author_id {
-		// MESSAGE_CREATE members omit `user`; attach to the author.
-		if !vhas(mm, "user") && !vhas(mm, "user_id") parse_member_with_id(s, gid, msg.author_id, mm);
-		else parse_member_into(s, gid, mm);
 	}
 }
 

@@ -113,8 +113,26 @@ code_msgs = [
     (meu, 140, '```whatever\nunknown language stays plain: if (x) { return 1; }\n```'),
     (robin, 160, '```ansi\n\u001b[1;31mred bold\u001b[0m and \u001b[32mgreen\u001b[0m and \u001b[4;34munderlined blue\u001b[0m\n```'),
 ]
-for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs), ('code/code.jsonl', code_msgs)):
-  out = build(ms)
+# chat_forward.jsonl: a multi-line wrapped quote, a forwarded message (message_reference type 1
+# with a snapshot) and enough newer messages, after a read marker, for the new-messages bar.
+forward_msgs = [
+    (robin, 1400, '> Mute/unmute sounds: you can keep them. The app doesn\'t ship Discord\'s sound files: it downloads them when it runs, the same way the official client does and the same way we handle the font and default avatars.\n> Nothing of Discord\'s is in the repo for them to take down.\nand a reply under the quote'),
+    (robin, 1460, ''),
+] + [(robin if k % 2 else meu, 1500 + k * 30, 'filler message %d to push the new line out of view' % k) for k in range(24)]
+FORWARD_INDEX = len(msgs) + 1
+def forward_extra(ms):
+  m = build(ms)
+  for o in m:
+    d = o['etf']['d'] if o['etf'].get('t') == 'MESSAGE_CREATE' else None
+    if d and d['id'] == sf(base_ms + ms[FORWARD_INDEX][1] * 1000, FORWARD_INDEX):
+      d['message_reference'] = {'type': 1, 'channel_id': CH, 'guild_id': GUILD, 'message_id': sf(base_ms, 0)}
+      d['message_snapshots'] = [{'message': {'type': 0, 'content': 'hey! welcome to **fastcord** testing', 'timestamp': '2026-10-25T00:00:00+00:00',
+          'edited_timestamp': None, 'flags': 0, 'mentions': [], 'attachments': [], 'embeds': [], 'components': []}}]
+  # read up to the quote: everything after it is new
+  m.append(ev('MESSAGE_ACK', {'channel_id': CH, 'message_id': sf(base_ms + ms[len(msgs)][1] * 1000, len(msgs)), 'version': 1}))
+  return m
+for name, ms in (('chat.jsonl', msgs), ('chat_emoji.jsonl', msgs + emoji_msgs), ('chat_threads.jsonl', msgs), ('chat_forward.jsonl', msgs + forward_msgs), ('code/code.jsonl', code_msgs)):
+  out = forward_extra(ms) if name == 'chat_forward.jsonl' else build(ms)
   if name == 'chat_threads.jsonl': out += threads_extra(ms)
   # a custom guild emoji for the composer autocomplete (image: tests/ui/emoji/media/<id>.webp, a PNG)
   if name == 'chat_emoji.jsonl': out.append(ev('GUILD_EMOJIS_UPDATE', {'guild_id': GUILD, 'emojis': [

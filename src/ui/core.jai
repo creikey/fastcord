@@ -130,6 +130,7 @@ Box :: struct {
 	sel_order: u64; // reading order for Selectable_Text; 0 = declaration order
 	sel_join: string; // copied before this box when the selection continues from an earlier one; "" = newline
 	scrollbar: Scrollbar_Kind; // a Scroll_Y box's scrollbar, declared when it is popped as a parent
+	bar_inset_bottom: float32; // its track stops this far above the box's bottom (content floating over it)
 	// on a scrollbar box: where the thumb was grabbed, page direction (0 = dragging), time to the next page
 	is_scrollbar: bool;
 	bar_grab, bar_page, bar_wait, bar_off: float32;
@@ -755,9 +756,10 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 	s := context.ui;
 	r := host.rect;
 	view := r.y1 - r.y0;
+	track := view - host.bar_inset_bottom;
 	content := content_now;
 	max_off := content - view;
-	if kind == .None || view <= 0 || max_off < 1 return;
+	if kind == .None || track <= 0 || max_off < 1 return;
 	W: float32 = ifx kind == .Auto then 16.0 else 8.0;
 	inset: float32 = ifx kind == .Auto then 4.0 else 2.0;
 	bar := box_make_key(key_from_int(0x5c5011ba, host.key), .Clickable | .Floating_X | .Floating_Y);
@@ -772,11 +774,11 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 	}
 	if host.flags & SCROLL bar.flags |= .Pinned;
 	bar.is_scrollbar = true;
-	bar.semantic_size = .[px(W), px(view)];
+	bar.semantic_size = .[px(W), px(track)];
 	bar.fixed_pos = .{r.x1 - r.x0 - W, 0};
 
-	thumb_h := min(view, max(40.0, view * view / content));
-	travel := view - thumb_h;
+	thumb_h := min(track, max(40.0, track * view / content));
+	travel := track - thumb_h;
 	// offsets below are from the top; set() writes them back in the caller's direction
 	to_top :: (v: float32, max_off: float32, from_end: bool) -> float32 { return clamp(ifx from_end then max_off - v else v, 0, max_off); }
 	set :: (v: float32, now: bool, off: *float32, target: *float32, max_off: float32, from_end: bool) {
@@ -817,7 +819,7 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 	// Shown while in use, then faded out (overlay-scrollbar style): scrolling, holding it,
 	// the pointer over its strip, and for thin scrollers the pointer over the scroller.
 	if bar.bar_seen == 0 { bar.bar_seen = -100; bar.bar_off = off.*; }
-	over_strip := s.mouse.x >= r.x1 - W && s.mouse.x < r.x1 && s.mouse.y >= r.y0 && s.mouse.y < r.y1;
+	over_strip := s.mouse.x >= r.x1 - W && s.mouse.x < r.x1 && s.mouse.y >= r.y0 && s.mouse.y < r.y0 + track;
 	// hovering shows it only while hovered; scrolling and dragging leave it up a moment
 	hovered := over_strip || (kind == .Thin && mouse_over(host));
 	if held || abs(off.* - bar.bar_off) > 0.5 || abs(off.* - target.*) > 0.5 bar.bar_seen = s.time;
@@ -837,7 +839,7 @@ scrollbar :: (host: *Box, kind: Scrollbar_Kind, off: *float32, target: *float32,
 	push_parent(bar);
 	if kind == .Auto && s.scrollbar_auto_track.w > 0 {
 		t := box_make_anon(.Draw_Background | .Floating_X | .Floating_Y);
-		t.semantic_size = .[px(W - 2 * inset), px(view - 2 * inset)];
+		t.semantic_size = .[px(W - 2 * inset), px(track - 2 * inset)];
 		t.fixed_pos = .{inset, inset};
 		t.style.bg = s.scrollbar_auto_track;
 		t.style.bg.w *= alpha;
@@ -930,6 +932,7 @@ box_make_key :: (k: Key, flags: Box_Flags) -> *Box {
 	b.text = "";
 	b.custom_draw = null;
 	b.custom_user = null;
+	b.bar_inset_bottom = 0;
 	b.hover_cursor = .Default;
 	b.opacity = 1;
 	b.style = top_style();

@@ -12,6 +12,7 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | angle-brackets | code-bold |
 | announcements | megaphone-fill |
 | arrow-angle-left-up | arrow-bend-up-left-bold |
+| arrow-angle-right-up | arrow-bend-up-right-bold |
 | arrow-large-left | arrow-left-bold |
 | arrow-large-right | arrow-right-bold |
 | attachment | paperclip-bold |

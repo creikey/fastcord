@@ -95,10 +95,26 @@ md_parse :: (src: string) -> []Md_Block {
 		nl := find_index_from_left(rest, #char "\n");
 		line := ifx nl < 0 then rest else span(rest, 0, nl);
 		next := ifx nl < 0 then "" else span(rest, nl + 1, rest.count);
-		if begins_with(line, "> ") || line == ">" {
-			q := span(line, 1, line.count);
-			if begins_with(q, " ") advance(*q);
-			add(.Quote, q);
+		if begins_with(line, ">>> ") {
+			// quotes the rest of the message
+			add(.Quote, trim_right(span(rest, 4, rest.count), "\n"));
+			break;
+		} else if is_quote_line(line) {
+			// consecutive "> " lines are one blockquote (one bar), as in the client
+			sb: String_Builder;
+			while true {
+				q := span(line, 1, line.count);
+				if begins_with(q, " ") advance(*q);
+				append(*sb, q);
+				if !next break;
+				nl = find_index_from_left(next, #char "\n");
+				l2 := ifx nl < 0 then next else span(next, 0, nl);
+				if !is_quote_line(l2) break;
+				line = l2;
+				next = ifx nl < 0 then "" else span(next, nl + 1, next.count);
+				append(*sb, "\n");
+			}
+			add(.Quote, builder_to_string(*sb));
 		} else if begins_with(line, "### ") {
 			add(.Heading3, span(line, 4, line.count));
 		} else if begins_with(line, "## ") {
@@ -121,6 +137,8 @@ md_parse :: (src: string) -> []Md_Block {
 	flush();
 	return blocks;
 }
+
+is_quote_line :: (line: string) -> bool { return begins_with(line, "> ") || line == ">"; }
 
 // merge = false keeps every token a slice of src, in source order (the composer styles the
 // gaps between them as markdown syntax).

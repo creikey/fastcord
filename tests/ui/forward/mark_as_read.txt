@@ -1,0 +1,7 @@
+# Opened with 25 messages after the read marker and the "NEW" line above the view: the
+# new-messages bar shows; its Mark As Read drops it (and the line).
+wait 10
+expect_visible "Mark As Read"
+click 924 94
+wait 10
+expect_not_visible "Mark As Read"

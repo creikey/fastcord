@@ -47,7 +47,7 @@ mime_for :: (name: string) -> string {
 // Hover toolbar at the message's top-right: react, reply, (edit), more.
 message_toolbar :: (m: *dc.Message) {
 	s := store();
-	own := m.author_id == s.me;
+	own := m.author_id == s.me && !m.forwarded; // a forward can't be edited
 	quick := quick_reactions();
 	names := ifx own then string.["reaction", "pencil", "more-horizontal"] else string.["reaction", "arrow-angle-left-up", "more-horizontal"];
 	// official: 3px padding, 28px buttons, a 1px divider with 4px gaps after the quick reactions
@@ -377,7 +377,7 @@ message_menu :: () {
 	sel := ui.has_selection();
 	if sel array_add(*items, .{label = "Copy", icon = "copy"});
 	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel});
-	if own array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
+	if own && !m.forwarded array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
 	array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});

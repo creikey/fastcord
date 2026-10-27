@@ -257,6 +257,8 @@ ui_scripts :: () -> bool {
         add(*jobs, tprint("media_%", path_strip_extension(path_filename(it))), "tests/ui/media/media.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/media");
     for file_list("tests/ui/code") if ends_with(it, ".txt")  // ``` blocks in the highlighted languages
         add(*jobs, tprint("code_%", path_strip_extension(path_filename(it))), "tests/ui/code/code.jsonl", it);
+    for file_list("tests/ui/forward") if ends_with(it, ".txt")  // quotes, a forward, unread messages after a read marker
+        add(*jobs, tprint("forward_%", path_strip_extension(path_filename(it))), "tests/ui/chat_forward.jsonl", it);
     sweep := array_add(*jobs);
     sweep.name = "sweep";
     array_add(*sweep.args, BIN, "-shot:build/sweep.png", "-dpi:1", "-now:1793016000", "-sweep:tests/ui/sweep.txt");
