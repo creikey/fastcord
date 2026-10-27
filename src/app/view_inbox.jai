@@ -391,7 +391,7 @@ unread_header :: (gid: dc.Snowflake) {
 			gi.text = "";
 		}
 	} else {
-		icon("gicon", "clyde", 24, T("--text-muted"));
+		icon("gicon", "logo", 24, T("--text-muted"));
 	}
 	spacer(.X, 10);
 	label(ellipsize(name, .Semibold, 16, INBOX_W - 80), .Semibold, 16, T("--text-strong"), 20);

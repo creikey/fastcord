@@ -333,10 +333,10 @@ XML
 
 link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
-    // zig c++ links zig's own libc++, whose headers the C++ compiled against
     if LINUX array_add(*a, ZIG, "c++", "-target", GLIBC, "-o", exe);
-    else array_add(*a, ZIG, "c++", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
-        tprint("--sysroot=%", MAC_SDK), "-F", tprint("%/System/Library/Frameworks", MAC_SDK), "-o", exe);
+    // zig cc, not c++: the C++ links against the SDK's libc++ (-lc++ below), whose headers the C compiled with
+    else array_add(*a, ZIG, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
+        tprint("--sysroot=%", MAC_SDK), "-F", "/System/Library/Frameworks", "-L", "/usr/lib", "-o", exe); // zig prefixes -F and -L with the sysroot
     array_add(*a, ..p.compiler_generated_object_files);
     array_add(*a, ..p.support_object_files);
     for p.user_libraries array_add(*a, it);
@@ -358,6 +358,7 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
         else array_add(*a, arg);
     }
     if LINUX array_add(*a, "-ldl", "-lpthread", "-lm", "-static-libgcc");
+    else array_add(*a, "-lc++");
     r := run_command(..a);
     return r.exit_code == 0;
 }
@@ -450,7 +451,8 @@ fetch_zig :: () -> bool {
     return ok;
 }
 
-// The macOS SDK (xcrun), for the system headers and frameworks.
+// The C++ library headers come from the system the program links against, not zig's libc++ (which would need
+// linking too): the MSVC STL on Windows, the SDK's libc++ on macOS.
 MAC_SDK := "";
 
 // Every C compile goes through zig cc.
@@ -460,11 +462,12 @@ cc :: (a: *[..]string, cpp: bool) {
     if LINUX array_add(a, "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
     else if OS == .WINDOWS {
         array_add(a, "-target", "x86_64-windows-msvc", "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
-        // Jai links with MSVC's linker, so C++ uses the MSVC STL, not zig's libc++. Zig takes the newest VS's
-        // headers while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
+        // Zig takes the newest VS's headers while Jai may link an older VS's msvcprt, which lacks the vectorized algorithm helpers.
         if cpp array_add(a, "-nostdinc++", "-D_USE_STD_VECTOR_ALGORITHMS=0");
     } else {
         array_add(a, "-target", tprint("%-macos.13.0", MAC_ARCH), tprint("--sysroot=%", MAC_SDK));
+        // -I, not -isystem: zig puts a user -isystem after its own C headers, and libc++ must come first.
+        if cpp array_add(a, "-nostdinc++", "-I", tprint("%/usr/include/c++/v1", MAC_SDK));
     }
     if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
 }
@@ -488,6 +491,7 @@ build_c :: () -> bool {
 }
 
 build_c_target :: () -> bool {
+    make_directory_if_it_does_not_exist(OBJ(), recursive = true);
     jobs: [..][..]string;
     stamps: [..]string;
     for src: c_units() {
@@ -504,7 +508,7 @@ build_c_target :: () -> bool {
         stamp := tprint("%.stamp", list_dir(list));
         if !stale(stamp, path_strip_filename(list)) continue;
         dir := list_dir(list);
-        make_directory_if_it_does_not_exist(dir);
+        make_directory_if_it_does_not_exist(dir, recursive = true);
         text := read_entire_file(list);
         extra := cflags(path_strip_extension(list));
         for line: split(text, "\n") {

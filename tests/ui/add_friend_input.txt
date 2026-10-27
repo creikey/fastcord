@@ -6,8 +6,8 @@ click_text "Add Friend"
 wait 5
 click_text "You can add friends with their Discord username."
 wait 2
-type wumpus
+type robin
 wait 2
-expect_input "wumpus"
+expect_input "robin"
 key backspace
-expect_input "wumpu"
+expect_input "robi"

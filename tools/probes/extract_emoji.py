@@ -53,7 +53,7 @@ for e in data["emojis"]:
     emojis.append(o)
 
 out = {
-    "_doc": "Discord unicode emoji DB extracted from the client bundle by tools/probes/extract_emoji.py. "
+    "_doc": "Unicode emoji table (shortcodes, code points, skin tones, picker order) as the Discord client names them; built by tools/probes/extract_emoji.py. Images are Twemoji (CC-BY 4.0), fetched at runtime. "
             "emojis[i]: n=names (n[0] canonical shortcode, rest aliases), s=surrogates, v=unicodeVersion, "
             "u=Twemoji asset hash -> https://discord.com/assets/<u>.svg (empty: no image), sp=spriteIndex, "
             "dc=skin-tone children indices (tone1..5, or 25 for multi-person md=1), d=skin tone code points of a child. "

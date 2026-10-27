@@ -347,7 +347,7 @@ friends_page :: () {
 			}
 		} else if ids.count == 0 {
 			spacer(.Y, 80);
-			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else "No one's around to play with Wumpus.";
+			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else "No one's around right now.";
 			e := row("empty");
 			e.semantic_size = .[ui.pct(1), ui.px(24)];
 			{ ui.parent(e); defer ui.pop_parent();

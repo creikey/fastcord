@@ -209,7 +209,7 @@ streamer_settings_section :: () {
 	spacer(.Y, 24);
 	row_toggle("sm_notifs", "Disable all notifications", "", *s.disable_notifications);
 	spacer(.Y, 24);
-	row_toggle("sm_capture", "Hide Discord window from screen capture", "Hides most Discord windows from most screen capture software.", *s.content_protection);
+	row_toggle("sm_capture", "Hide Fastcord window from screen capture", "Hides Fastcord windows from most screen capture software.", *s.content_protection);
 }
 
 // Settings > Account while Streamer Mode is on: the page is replaced (email,

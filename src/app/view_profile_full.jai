@@ -389,7 +389,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	ms.semantic_size = .[ui.pct(1), ui.px(20)];
 	{ ui.parent(ms); defer ui.pop_parent();
 		spacer(.X, PF_PAD + 8);
-		icon("dlogo", "clyde", 16, T("--interactive-icon-default"));
+		icon("dlogo", "logo", 16, T("--interactive-icon-default"));
 		spacer(.X, 8);
 		label(short_date(dc.snowflake_time_ms(uid)), .Normal, 14, T("--text-default"), 18);
 		if prof.guild_joined != "" && pf.guild != 0 {

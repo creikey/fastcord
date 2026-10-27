@@ -15,7 +15,7 @@ out = list(lines)
 G = [1600000000000000001 + i * 1000 for i in range(4)]
 names = ['Odin Lang', 'Pixel Art Club', 'Rust Gamedev', 'Night Owls']
 users = [{'id': 1000000000000000001 + k, 'username': n.lower(), 'global_name': n, 'avatar': None, 'discriminator': '0'}
-         for k, n in enumerate(['Wumpus', 'Nelly', 'Clyde', 'Phibi'])]
+         for k, n in enumerate(['Robin', 'Nelly', 'Sam', 'Phibi'])]
 for i, gid in enumerate(G):
     ch = gid + 1
     out.append(ev('GUILD_CREATE', {'id': gid, 'name': names[i], 'icon': None, 'owner_id': users[0]['id'], 'joined_at': '2026-01-0%dT00:00:00+00:00' % (i + 1),

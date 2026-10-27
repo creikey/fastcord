@@ -560,7 +560,7 @@ keybind_row :: () {
 				spacer(.X, 12);
 			}
 			spacer(.Y, 6);
-			label("Works while Discord is focused.", .Normal, 12, T("--text-muted"), 16);
+			label("Works while Fastcord is focused.", .Normal, 12, T("--text-muted"), 16);
 		}
 		spacer(.X, 20);
 		d := ui.box("delay");

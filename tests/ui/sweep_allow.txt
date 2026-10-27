@@ -8,7 +8,7 @@
 # A new inert control fails the sweep until it is fixed or listed here.
 
 # already selected / already focused: pressing again changes nothing (same in the client)
-dead * "body/rail/home [clyde]" already on Home
+dead * "body/rail/home [logo]" already on Home
 dead * "channels/chan/item 'dingus-battle'" already the selected channel
 dead * "rail/dmslot/dmicon" already the open DM
 dead * "body/page/header 'Online'" already the selected friends tab

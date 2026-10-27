@@ -469,7 +469,7 @@ qr_box :: (fingerprint: string) {
 			ic := ui.box("ic", .Floating_X | .Floating_Y);
 			ic.semantic_size = .[ui.px(28), ui.px(28)];
 			ic.fixed_pos = .{4, 4};
-			set_icon(ic, "clyde", T("--background-brand"));
+			set_icon(ic, "logo", T("--background-brand"));
 		}
 	}
 }

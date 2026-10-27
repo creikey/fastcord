@@ -1,6 +1,6 @@
 # fastcord
 
-A fast, native Discord client written from scratch in Jai. No browser, no
+A fast, native third-party Discord client written from scratch in Jai. No browser, no
 webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 
 ## Goals
@@ -215,3 +215,14 @@ before zipping.
 `main` that touch `site/`. `python3 -I tools/parity_viz.py` regenerates `site/parity.json` (the wire
 timeline) from `traffic/` and the last live session's scrubbed captures (`.secrets/ours/`); it keeps only
 request shapes and timings.
+
+## Licence, trademarks and credits
+
+fastcord's own code is MIT (`LICENSE`); vendored libraries keep their own licences (`vendor/<lib>/README`).
+
+fastcord is an unofficial client. It is not affiliated with, endorsed by or sponsored by Discord Inc.
+"Discord" is a trademark of Discord Inc., used here only to say which service fastcord talks to.
+
+The repository ships no Discord artwork. Icons are Phosphor (MIT, `assets/icons/`). Emoji images are
+Twemoji (CC-BY 4.0, by Twitter and contributors), and the gg sans font and default avatars are fetched
+from Discord's servers at runtime, as the official client does.
