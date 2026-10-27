@@ -10,7 +10,7 @@
 //   POST   /read-states/ack-bulk {"read_states":[{"channel_id","message_id","read_state_type":0}]}  (Mark As Read,
 //          guild icon context menu; science mark_as_read {"type":"guild","source":"Guild List"})
 //   DELETE /users/@me/guilds/{gid} {"lurking":false}                                          (Leave Server)
-//   POST   /channels/{cid}/invites                                                           (Invite People: invites.odin)
+//   POST   /channels/{cid}/invites                                                           (Invite People: invites.jai)
 //
 // Changes are applied to the Store at once (UI thread) and again when the
 // USER_GUILD_SETTINGS_UPDATE dispatch comes back (apply_guild_settings).
@@ -28,33 +28,74 @@ Channel_Override :: struct {
 	mute_end_ms: s64; // 0 = until turned back on
 	message_notifications: int; // NOTIFY_*
 }
-#scope_module
 
+// iso_to_ms parses an RFC 3339 / ISO 8601 time ("2024-05-01T12:34:56.789+00:00") into unix ms; 0 if it is not one.
 iso_to_ms :: (s: string) -> s64 {
-	if s == "" { return 0; }
-	t, n := time.rfc3339_to_time_utc(s);
-	if n == 0 { return 0; }
-	return time.time_to_unix_nano(t) / 1000000;
+	i := 0;
+	num :: (n: int, sep: string) -> int #expand {
+		v := 0;
+		for 1..n {
+			if `i >= `s.count || !is_digit(`s[`i]) `return 0;
+			v = v * 10 + `s[`i] - #char "0";
+			`i += 1;
+		}
+		if sep {
+			if `i >= `s.count || !contains(sep, `s[`i]) `return 0;
+			`i += 1;
+		}
+		return v;
+	}
+	ct: Calendar_Time;
+	ct.year = xx num(4, "-");
+	month := num(2, "-");
+	day := num(2, "Tt ");
+	hour := num(2, ":");
+	minute := num(2, ":");
+	second := num(2, "");
+	if month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 60 return 0;
+	ct.month_starting_at_0 = xx (month - 1);
+	ct.day_of_month_starting_at_0 = xx (day - 1);
+	ct.hour, ct.minute, ct.second = xx hour, xx minute, xx second;
+	ms := 0;
+	if i < s.count && s[i] == #char "." {
+		i += 1;
+		scale := 100;
+		while i < s.count && is_digit(s[i]) {
+			ms += (s[i] - #char "0") * scale;
+			scale /= 10;
+			i += 1;
+		}
+	}
+	offset_min := 0;
+	if i < s.count && (s[i] == #char "Z" || s[i] == #char "z") {
+	} else if i < s.count && (s[i] == #char "+" || s[i] == #char "-") {
+		sign := ifx s[i] == #char "-" then -1 else 1;
+		i += 1;
+		oh := num(2, "");
+		if i < s.count && s[i] == #char ":" i += 1;
+		offset_min = sign * (oh * 60 + num(2, ""));
+	} else {
+		return 0;
+	}
+	return to_milliseconds(calendar_to_apollo(ct) - UNIX_EPOCH) + ms - offset_min * 60_000;
 }
-#scope_export
 
 // ms_to_iso formats like JS Date.toISOString(): 2026-10-26T13:00:00.000Z.
 ms_to_iso :: (ms: s64, allocator := temp) -> string {
-	t := time.unix(ms / 1000, (ms % 1000) * 1000000);
-	y, mo, d := time.date(t);
-	h, mi, sec := time.clock_from_time(t);
-	return fmt.aprintf("%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", y, cast(int)(mo), d, h, mi, sec, ms % 1000, allocator = allocator);
+	t := to_calendar(UNIX_EPOCH + milliseconds_to_apollo(ms));
+	d2 :: (x: s64) -> FormatInt { return formatInt(x, minimum_digits = 2); }
+	return sprint("%-%-%T%:%:%.%Z", formatInt(t.year, minimum_digits = 4), d2(t.month_starting_at_0 + 1), d2(t.day_of_month_starting_at_0 + 1),
+		d2(t.hour), d2(t.minute), d2(t.second), formatInt(ms % 1000, minimum_digits = 3),, allocator);
 }
-#scope_module
 
 // Called by apply_guild_settings (Store, UI thread) with the full settings object.
 apply_guild_settings_extra :: (s: *Store, gs: *Guild_Settings, m: etf.Map) {
-	if gs.overrides.allocator.proc == null { gs.overrides = make_dynamic(Channel_Override, 0, 0, s.allocator); }
-	clear(*gs.overrides);
+	if !gs.overrides.allocator.proc gs.overrides.allocator = s.allocator;
+	gs.overrides.count = 0;
 	gs.mute_end_ms = iso_to_ms(fstr(fmap(m, "mute_config"), "end_time"));
 	gs.flags = fint(m, "flags");
 	gs.mobile_push = !vhas(m, "mobile_push") || fbool(m, "mobile_push");
-	gs.notify_highlights = cast(int)(fint(m, "notify_highlights"));
+	gs.notify_highlights = fint(m, "notify_highlights");
 	gs.mute_scheduled_events = fbool(m, "mute_scheduled_events");
 	gs.hide_muted_channels = fbool(m, "hide_muted_channels");
 	for ov: flist(m, "channel_overrides") {
@@ -65,123 +106,110 @@ apply_guild_settings_extra :: (s: *Store, gs: *Guild_Settings, m: etf.Map) {
 			mute_end_ms = iso_to_ms(fstr(fmap(om, "mute_config"), "end_time")),
 			message_notifications = NOTIFY_INHERIT
 		};
-		{ v := vget(om, "message_notifications");
-		if !is_null(v) && !vis_null(v) { o.message_notifications = cast(int)(vint(v)); } }
-		append(*gs.overrides, o);
+		v := vget(om, "message_notifications");
+		if !vis_null(v) o.message_notifications = vint(v);
+		array_add(*gs.overrides, o);
 	}
 }
-#scope_export
 
 mute_active :: (muted: bool, end_ms: s64, now_ms: s64) -> bool {
 	return muted && (end_ms == 0 || end_ms > now_ms);
 }
 
-guild_settings_get :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
-	{ gs := table_find_pointer(*s.guild_settings, gid); ok := gs != null;
-	if ok { return gs; } }
-	return null;
-}
+guild_settings_get :: (s: *Store, gid: Snowflake) -> *Guild_Settings { return table_find_pointer(*s.guild_settings, gid); }
 
 guild_is_muted :: (s: *Store, gid: Snowflake, now_ms: s64) -> bool {
 	gs := guild_settings_get(s, gid);
-	return !is_null(gs) && mute_active(gs.muted, gs.mute_end_ms, now_ms);
+	return gs && mute_active(gs.muted, gs.mute_end_ms, now_ms);
 }
 
 channel_override_get :: (s: *Store, gid: Snowflake, cid: Snowflake) -> *Channel_Override {
 	gs := guild_settings_get(s, gid);
-	if is_null(gs) { return null; }
-	for * o: gs.overrides { if o.channel_id == cid { return o; } }
+	if gs for * gs.overrides if it.channel_id == cid return it;
 	return null;
 }
 
 // The channel's own mute (not its category's or the server's).
 channel_is_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> bool {
 	o := channel_override_get(s, gid, cid);
-	return !is_null(o) && mute_active(o.muted, o.mute_end_ms, now_ms);
+	return o && mute_active(o.muted, o.mute_end_ms, now_ms);
 }
 
 // Muted by its own override or its category's (what the sidebar dims).
 channel_effectively_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> bool {
-	if channel_is_muted(s, gid, cid, now_ms) { return true; }
-	{ ch := channel_get(s, cid);
-	if ch != null && ch.parent_id != 0 { return channel_is_muted(s, gid, ch.parent_id, now_ms); } }
-	return false;
+	if channel_is_muted(s, gid, cid, now_ms) return true;
+	ch := channel_get(s, cid);
+	return ch && ch.parent_id && channel_is_muted(s, gid, ch.parent_id, now_ms);
 }
 
 // Server-level level: the user's setting, else the guild's default.
 guild_notify_level :: (s: *Store, gid: Snowflake) -> int {
-	{ gs := guild_settings_get(s, gid);
-	if !is_null(gs) { return gs.message_notifications; } }
-	{ g := guild_get(s, gid);
-	if g != null { return g.default_message_notifications; } }
-	return NOTIFY_ALL;
+	gs := guild_settings_get(s, gid);
+	if gs return gs.message_notifications;
+	g := guild_get(s, gid);
+	return ifx g then g.default_message_notifications else NOTIFY_ALL;
 }
 
 // The channel's own override level (NOTIFY_INHERIT when none).
 channel_notify_level :: (s: *Store, gid: Snowflake, cid: Snowflake) -> int {
-	{ o := channel_override_get(s, gid, cid);
-	if !is_null(o) { return o.message_notifications; } }
-	return NOTIFY_INHERIT;
+	o := channel_override_get(s, gid, cid);
+	return ifx o then o.message_notifications else NOTIFY_INHERIT;
 }
-#scope_file
 
 // ---- local (optimistic) updates ----
 
 ensure_settings :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
-	{ gs := table_find_pointer(*s.guild_settings, gid); ok := gs != null;
-	if ok {
-		if gs.overrides.allocator.proc == null { gs.overrides = make_dynamic(Channel_Override, 0, 0, s.allocator); }
-		return gs;
-	} }
-	lvl := NOTIFY_ALL;
-	{ g := guild_get(s, gid);
-	if g != null { lvl = g.default_message_notifications; } }
-	find_or_add(*s.guild_settings, gid).* = Guild_Settings.{
-		guild_id = gid,
-		message_notifications = lvl,
-		mobile_push = true,
-		muted_channels = make_dynamic(Snowflake, 0, 0, s.allocator),
-		collapsed_channels = make_dynamic(Snowflake, 0, 0, s.allocator),
-		overrides = make_dynamic(Channel_Override, 0, 0, s.allocator)
-	};
-	return find_or_add(*s.guild_settings, gid);
+	gs := table_find_pointer(*s.guild_settings, gid);
+	if !gs {
+		g := guild_get(s, gid);
+		gs = table_set(*s.guild_settings, gid, .{guild_id = gid, message_notifications = ifx g then g.default_message_notifications else NOTIFY_ALL, mobile_push = true});
+		gs.muted_channels.allocator = s.allocator;
+		gs.collapsed_channels.allocator = s.allocator;
+	}
+	if !gs.overrides.allocator.proc gs.overrides.allocator = s.allocator;
+	return gs;
 }
 
 ensure_override :: (gs: *Guild_Settings, cid: Snowflake) -> *Channel_Override {
-	for * o: gs.overrides { if o.channel_id == cid { return o; } }
-	append(*gs.overrides, Channel_Override.{channel_id = cid, message_notifications = NOTIFY_INHERIT});
-	return *gs.overrides[len(gs.overrides) - 1];
+	for * gs.overrides if it.channel_id == cid return it;
+	array_add(*gs.overrides, .{channel_id = cid, message_notifications = NOTIFY_INHERIT});
+	return *gs.overrides[gs.overrides.count - 1];
 }
 
 rebuild_muted :: (gs: *Guild_Settings) {
-	clear(*gs.muted_channels);
-	for o: gs.overrides { if o.muted { append(*gs.muted_channels, o.channel_id); } }
+	gs.muted_channels.count = 0;
+	for gs.overrides if it.muted array_add(*gs.muted_channels, it.channel_id);
 }
 
 // ---- REST ----
 
+// submit_json_job queues an authenticated JSON request (body copied into the job).
+submit_json_job :: (c: *Client, method: string, path: string, body: string, retries := 0, referer := "") {
+	j := job_new(.Api, .None);
+	j.method = method;
+	j.path = job_str(j, path);
+	j.body = cast([]u8) job_str(j, body);
+	j.content_type = "application/json";
+	j.retries = retries;
+	if referer j.referer = job_str(j, referer);
+	job_submit(c, j);
+}
+
 // All writes go to the bulk endpoint, keyed by guild: {"guilds":{"<gid>":<inner>}}.
 patch_guild_settings :: (c: *Client, gid: Snowflake, inner: string) {
-	body := fmt.tprintf("{{\"guilds\":{{\"%d\":%s}}}}", cast(u64)(gid), inner);
-	j := job_new(.Api, .None);
-	j.method = "PATCH";
-	j.path = "/users/@me/guilds/settings";
-	j.body = transmute([]u8, job_str(j, body));
-	j.content_type = "application/json";
-	j.retries = 2;
-	job_submit(c, j);
+	submit_json_job(c, "PATCH", "/users/@me/guilds/settings", tprint("{\"guilds\":{\"%\":%}}", gid, inner), retries = 2);
 }
 
 // mute: {"muted":true,"mute_config":{...}}; unmute: {"muted":false} only.
 write_mute :: (w: *Json, muted: bool, seconds: int, now_ms: s64) -> s64 {
-	end_ms: s64;
 	json_kbool(w, "muted", muted);
-	if !muted { return 0; }
+	if !muted return 0;
+	end_ms: s64;
 	json_key(w, "mute_config");
 	json_obj(w);
-	json_kint(w, "selected_time_window", cast(s64)(seconds));
+	json_kint(w, "selected_time_window", seconds);
 	if seconds > 0 {
-		end_ms = now_ms + cast(s64)(seconds) * 1000;
+		end_ms = now_ms + seconds * 1000;
 		json_kstr(w, "end_time", ms_to_iso(end_ms));
 	} else {
 		json_knull(w, "end_time");
@@ -189,11 +217,12 @@ write_mute :: (w: *Json, muted: bool, seconds: int, now_ms: s64) -> s64 {
 	json_obj_end(w);
 	return end_ms;
 }
-#scope_export
+
+wall_ms :: now_ms; // for procedures whose now_ms parameter (app passes it by name) hides it
 
 // Mute the server for `seconds` (MUTE_FOREVER: until turned back on), or unmute.
 set_guild_muted :: (c: *Client, gid: Snowflake, muted: bool, seconds := MUTE_FOREVER, now_ms: s64 = 0) {
-	now := ifx now_ms != 0 then now_ms else now_ms_real();
+	now := ifx now_ms then now_ms else wall_ms();
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
@@ -204,21 +233,21 @@ set_guild_muted :: (c: *Client, gid: Snowflake, muted: bool, seconds := MUTE_FOR
 	gs.muted = muted;
 	// unmuting keeps the old end time until the server's update clears it (the
 	// official event still reports it as guild_muted_until)
-	if muted { gs.mute_end_ms = end; }
+	if muted gs.mute_end_ms = end;
 	c.store.changed += 1;
 	patch_guild_settings(c, gid, json_string(*w));
-	track_guild_settings(c, gid, ifx muted then "muted" else "unmuted", fmt.tprintf("\"guild_is_muted_old\":%v", old));
+	track_guild_settings(c, gid, ifx muted then "muted" else "unmuted", tprint("\"guild_is_muted_old\":%", old));
 }
 
 // Mute one channel (or category) for `seconds`, or unmute it.
 set_channel_muted :: (c: *Client, gid: Snowflake, cid: Snowflake, muted: bool, seconds := MUTE_FOREVER, now_ms: s64 = 0) {
-	now := ifx now_ms != 0 then now_ms else now_ms_real();
+	now := ifx now_ms then now_ms else wall_ms();
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
 	json_key(*w, "channel_overrides");
 	json_obj(*w);
-	json_key(*w, snowflake_string(cid));
+	json_key(*w, tprint("%", cid));
 	json_obj(*w);
 	end := write_mute(*w, muted, seconds, now);
 	json_obj_end(*w);
@@ -234,42 +263,43 @@ set_channel_muted :: (c: *Client, gid: Snowflake, cid: Snowflake, muted: bool, s
 	rebuild_muted(gs);
 	c.store.changed += 1;
 	patch_guild_settings(c, gid, json_string(*w));
-	old := fmt.tprintf("\"channel_is_muted_old\":%v,\"channel_is_overridden_old\":%v", old_muted, old_over);
-	if muted { old = fmt.tprintf("\"channel_is_muted_old\":%v,\"channel_muted_until_old\":%s,\"channel_is_overridden_old\":%v", old_muted, ms_or_null(old_until), old_over); }
+	old := ifx muted
+		then tprint("\"channel_is_muted_old\":%,\"channel_muted_until_old\":%,\"channel_is_overridden_old\":%", old_muted, ms_or_null(old_until), old_over)
+		else tprint("\"channel_is_muted_old\":%,\"channel_is_overridden_old\":%", old_muted, old_over);
 	track_channel_settings(c, gid, cid, ifx muted then "muted" else "unmuted", old);
 }
 
 // Server notification level: NOTIFY_ALL / NOTIFY_MENTIONS / NOTIFY_NOTHING.
 set_guild_notify_level :: (c: *Client, gid: Snowflake, level: int) {
-	patch_guild_settings(c, gid, fmt.tprintf("{{\"message_notifications\":%d}}", level));
+	patch_guild_settings(c, gid, tprint("{\"message_notifications\":%}", level));
 	gs := ensure_settings(*c.store, gid);
 	old := gs.message_notifications;
 	gs.message_notifications = level;
 	c.store.changed += 1;
-	track_guild_settings(c, gid, notify_label(level), fmt.tprintf("\"guild_message_notification_settings_old\":%s", notify_name_json(old)));
+	track_guild_settings(c, gid, notify_label(level), tprint("\"guild_message_notification_settings_old\":%", notify_name_json(old)));
 }
 
 // Channel notification level (NOTIFY_INHERIT: use the category / server default).
 set_channel_notify_level :: (c: *Client, gid: Snowflake, cid: Snowflake, level: int) {
-	patch_guild_settings(c, gid, fmt.tprintf("{{\"channel_overrides\":{{\"%d\":{{\"message_notifications\":%d}}}}}}", cast(u64)(cid), level));
+	patch_guild_settings(c, gid, tprint("{\"channel_overrides\":{\"%\":{\"message_notifications\":%}}}", cid, level));
 	o := ensure_override(ensure_settings(*c.store, gid), cid);
-	old_over := override_set(o, now_ms_real());
+	old_over := override_set(o, now_ms());
 	old := o.message_notifications;
 	o.message_notifications = level;
 	c.store.changed += 1;
-	track_channel_settings(c, gid, cid, notify_label(level), fmt.tprintf("\"channel_is_overridden_old\":%v,\"channel_message_notification_settings_old\":%s", old_over, notify_name_json(old)));
+	track_channel_settings(c, gid, cid, notify_label(level), tprint("\"channel_is_overridden_old\":%,\"channel_message_notification_settings_old\":%", old_over, notify_name_json(old)));
 }
 
 // No capture covers the suppress switches: the write follows the same endpoint;
 // no science event is sent (its label is unknown, and values are never invented).
 set_guild_suppress_everyone :: (c: *Client, gid: Snowflake, on: bool) {
-	patch_guild_settings(c, gid, ifx on then "{\"suppress_everyone\":true}" else "{\"suppress_everyone\":false}");
+	patch_guild_settings(c, gid, tprint("{\"suppress_everyone\":%}", on));
 	ensure_settings(*c.store, gid).suppress_everyone = on;
 	c.store.changed += 1;
 }
 
 set_guild_suppress_roles :: (c: *Client, gid: Snowflake, on: bool) {
-	patch_guild_settings(c, gid, ifx on then "{\"suppress_roles\":true}" else "{\"suppress_roles\":false}");
+	patch_guild_settings(c, gid, tprint("{\"suppress_roles\":%}", on));
 	ensure_settings(*c.store, gid).suppress_roles = on;
 	c.store.changed += 1;
 }
@@ -282,30 +312,23 @@ track_guild_dropdown_viewed :: (c: *Client, gid: Snowflake) {
 	json_ksnow(*w, "guild_id", gid);
 	aw_track(c, "guild_dropdown_menu_viewed", *w);
 }
-#scope_file
 
-NOTIFY_NAME := string.["All", "Mentions", "Nothing", "Null"];
+NOTIFY_NAME :: string.["All", "Mentions", "Nothing"];
 
 notify_name_json :: (level: int) -> string {
-	if level < 0 || level >= NOTIFY_INHERIT { return "null"; }
-	return fmt.tprintf("\"%s\"", NOTIFY_NAME[level]);
+	return ifx level < 0 || level >= NOTIFY_INHERIT then "null" else tprint("\"%\"", NOTIFY_NAME[level]);
 }
 
 notify_label :: (level: int) -> string {
 	if level == {
-	case NOTIFY_ALL;
-		return "notifications set to all messages";
-	case NOTIFY_MENTIONS;
-		return "notifications set to mentions";
-	case NOTIFY_NOTHING;
-		return "notifications set to nothing";
+		case NOTIFY_ALL;      return "notifications set to all messages";
+		case NOTIFY_MENTIONS; return "notifications set to mentions";
+		case NOTIFY_NOTHING;  return "notifications set to nothing";
 	}
 	return "notifications set to the default";
 }
 
-ms_or_null :: (ms: s64) -> string {
-	return ifx ms == 0 then "null" else fmt.tprint(ms);
-}
+ms_or_null :: (ms: s64) -> string { return ifx ms == 0 then "null" else tprint("%", ms); }
 
 // An override that changes anything (the official channel_is_overridden).
 override_set :: (o: *Channel_Override, now: s64) -> bool {
@@ -316,67 +339,61 @@ NOTIFY_APPROX :: "\"approx_seconds_since_last_notification\":null,\"approx_secon
 
 // The guild / current-channel decorations every notification_settings_updated
 // carries (the route's channel when it is in the guild); appended to a props body.
-guild_channel_props :: (c: *Client, sb: *strings.Builder, gid: Snowflake, with_channel_id: bool) {
+guild_channel_props :: (c: *Client, sb: *String_Builder, gid: Snowflake, with_channel_id: bool) {
 	locks.lock(*c.route_mu);
 	rcid := c.route_channel;
 	locks.unlock(*c.route_mu);
 	w := aw_begin();
-	if guild_get(*c.store, gid) != null {
+	if guild_get(*c.store, gid) {
 		aw_guild(*w, c, gid, false);
-		{ ch := channel_get(*c.store, rcid);
-		if ch != null && ch.guild_id == gid { aw_channel(*w, c, rcid, with_channel_id); } }
+		ch := channel_get(*c.store, rcid);
+		if ch && ch.guild_id == gid aw_channel(*w, c, rcid, with_channel_id);
 	}
 	json_obj_end(*w);
-	{ body := json_body(json_string(*w));
-	if body != "" {
-		strings.write_byte(sb, #char ",");
-		strings.write_string(sb, body);
-	} }
+	body := json_body(json_string(*w));
+	if body print_to_builder(sb, ",%", body);
 }
 
 track_guild_settings :: (c: *Client, gid: Snowflake, label: string, old: string) {
-	s := *c.store;
-	gs := ensure_settings(s, gid);
-	now := now_ms_real();
-	sb := strings.builder_make(temp);
-	fmt.sbprintf(*sb, "\"guild_muted_until\":%s,\"guild_flags\":%d,\"guild_is_muted\":%v,\"guild_message_notification_settings\":%s,\"guild_suppress_roles\":%v,\"guild_receive_mobile_push\":%v,\"guild_notify_highlights\":%d,\"guild_suppress_everyone\":%v,\"guild_scheduled_events_muted\":%v,",
-		ms_or_null(gs.mute_end_ms), gs.flags, mute_active(gs.muted, gs.mute_end_ms, now), notify_name_json(gs.message_notifications), gs.suppress_roles, gs.mobile_push, gs.notify_highlights, gs.suppress_everyone, gs.mute_scheduled_events);
-	strings.write_string(*sb, NOTIFY_APPROX);
-	fmt.sbprintf(*sb, ",\"guild_id\":\"%d\",\"update_type\":\"guild\",\"label\":\"%s\",%s,\"is_opt_in_only_change\":true", cast(u64)(gid), label, old);
+	gs := ensure_settings(*c.store, gid);
+	sb: String_Builder;
+	sb.allocator = temp;
+	print_to_builder(*sb, "\"guild_muted_until\":%,\"guild_flags\":%,\"guild_is_muted\":%,\"guild_message_notification_settings\":%,\"guild_suppress_roles\":%,\"guild_receive_mobile_push\":%,\"guild_notify_highlights\":%,\"guild_suppress_everyone\":%,\"guild_scheduled_events_muted\":%,",
+		ms_or_null(gs.mute_end_ms), gs.flags, mute_active(gs.muted, gs.mute_end_ms, now_ms()), notify_name_json(gs.message_notifications), gs.suppress_roles, gs.mobile_push, gs.notify_highlights, gs.suppress_everyone, gs.mute_scheduled_events);
+	append(*sb, NOTIFY_APPROX);
+	print_to_builder(*sb, ",\"guild_id\":\"%\",\"update_type\":\"guild\",\"label\":\"%\",%,\"is_opt_in_only_change\":true", gid, label, old);
 	guild_channel_props(c, *sb, gid, true);
-	analytics_track(c, "notification_settings_updated", strings.to_string(sb));
+	analytics_track(c, "notification_settings_updated", builder_to_string(*sb,, temp));
 }
 
 track_channel_settings :: (c: *Client, gid: Snowflake, cid: Snowflake, label: string, old: string) {
 	s := *c.store;
 	o := ensure_override(ensure_settings(s, gid), cid);
-	now := now_ms_real();
+	now := now_ms();
 	muted := mute_active(o.muted, o.mute_end_ms, now);
 	ch := channel_get(s, cid);
-	sb := strings.builder_make(temp);
-	fmt.sbprintf(*sb, "\"channel_is_muted\":%v,\"channel_is_overridden\":%v,\"channel_flags\":%d,\"channel_message_notification_settings\":%s,\"channel_muted_until\":%s,",
-		muted, override_set(o, now), ifx ch != null then ch.flags else 0, notify_name_json(o.message_notifications), ms_or_null(ifx muted then o.mute_end_ms else 0));
-	strings.write_string(*sb, NOTIFY_APPROX);
-	fmt.sbprintf(*sb, ",\"guild_id\":\"%d\",\"channel_id\":\"%d\",\"update_type\":\"channel\",\"label\":\"%s\"", cast(u64)(gid), cast(u64)(cid), label);
-	if ch != null && ch.parent_id != 0 { fmt.sbprintf(*sb, ",\"parent_id\":\"%d\"", cast(u64)(ch.parent_id)); }
-	fmt.sbprintf(*sb, ",%s,\"is_opt_in_only_change\":true", old);
+	sb: String_Builder;
+	sb.allocator = temp;
+	print_to_builder(*sb, "\"channel_is_muted\":%,\"channel_is_overridden\":%,\"channel_flags\":%,\"channel_message_notification_settings\":%,\"channel_muted_until\":%,",
+		muted, override_set(o, now), ifx ch then ch.flags else 0, notify_name_json(o.message_notifications), ms_or_null(ifx muted then o.mute_end_ms else 0));
+	append(*sb, NOTIFY_APPROX);
+	print_to_builder(*sb, ",\"guild_id\":\"%\",\"channel_id\":\"%\",\"update_type\":\"channel\",\"label\":\"%\"", gid, cid, label);
+	if ch && ch.parent_id print_to_builder(*sb, ",\"parent_id\":\"%\"", ch.parent_id);
+	print_to_builder(*sb, ",%,\"is_opt_in_only_change\":true", old);
 	// last_message_type: the type of the channel's last loaded message
-	if ch != null {
-		{ msgs := messages_get(s, cid);
-		if len(msgs) > 0 && msgs[len(msgs) - 1].id == ch.last_message_id { fmt.sbprintf(*sb, ",\"last_message_type\":%d", cast(int)(msgs[len(msgs) - 1].kind)); } }
+	if ch {
+		msgs := messages_get(s, cid);
+		if msgs && msgs[msgs.count - 1].id == ch.last_message_id print_to_builder(*sb, ",\"last_message_type\":%", cast(int) msgs[msgs.count - 1].kind);
 	}
 	guild_channel_props(c, *sb, gid, false);
-	analytics_track(c, "notification_settings_updated", strings.to_string(sb));
+	analytics_track(c, "notification_settings_updated", builder_to_string(*sb,, temp));
 }
-#scope_export
 
 // Mark As Read: every unread channel of the guild in one ack-bulk; read states
 // move to each channel's last message at once.
 ack_guild :: (c: *Client, gid: Snowflake) -> int {
-	n: int;
 	g := guild_get(*c.store, gid);
-	if g == null { return 0; }
-	return ack_channels(c, view(g.channels));
+	return ifx g then ack_channels(c, g.channels) else 0;
 }
 
 // ack_channels: one POST /read-states/ack-bulk for the unread channels among
@@ -391,47 +408,30 @@ ack_channels :: (c: *Client, ids: []Snowflake) -> int {
 	json_arr(*w);
 	for cid: ids {
 		ch := channel_get(s, cid);
-		if ch == null || !channel_unread(s, cid) { continue; }
+		if !ch || !channel_unread(s, cid) continue;
 		json_obj(*w);
 		json_ksnow(*w, "channel_id", cid);
 		json_ksnow(*w, "message_id", ch.last_message_id);
 		json_kint(*w, "read_state_type", 0);
 		json_obj_end(*w);
-		_, rs := table_find(*s.read_states, cid);
+		rs := find_or_add(*s.read_states, cid);
 		rs.channel_id = cid;
 		rs.last_message_id = ch.last_message_id;
 		rs.mention_count = 0;
-		table_set(*s.read_states, cid, rs);
 		n += 1;
 	}
 	json_arr_end(*w);
 	json_obj_end(*w);
-	if n == 0 { return n; }
+	if n == 0 return 0;
 	s.changed += 1;
-	defer analytics_track(c, "mark_as_read", "\"type\":\"guild\",\"source\":\"Guild List\"");
-	j := job_new(.Api, .None);
-	j.method = "POST";
-	j.path = "/read-states/ack-bulk";
-	j.body = transmute([]u8, job_str(j, json_string(*w)));
-	j.content_type = "application/json";
-	j.retries = 2;
-	job_submit(c, j);
+	submit_json_job(c, "POST", "/read-states/ack-bulk", json_string(*w), retries = 2);
+	analytics_track(c, "mark_as_read", "\"type\":\"guild\",\"source\":\"Guild List\"");
 	return n;
 }
 
 // Leave Server: DELETE /users/@me/guilds/{id} {"lurking":false}; the guild goes
 // away with the GUILD_DELETE dispatch that follows.
 leave_guild :: (c: *Client, gid: Snowflake) {
-	j := job_new(.Api, .None);
-	j.method = "DELETE";
-	j.path = job_str(j, strings.concatenate(string.["/users/@me/guilds/", snowflake_string(gid)], temp));
-	j.referer = job_str(j, client_route_referer(c)); // the app routes home only on GUILD_DELETE
-	j.body = transmute([]u8, job_str(j, "{\"lurking\":false}"));
-	j.content_type = "application/json";
-	job_submit(c, j);
+	// the app routes home only on GUILD_DELETE
+	submit_json_job(c, "DELETE", tprint("/users/@me/guilds/%", gid), "{\"lurking\":false}", referer = client_route_referer(c));
 }
-#scope_file
-
-now_ms_real :: () -> s64 {return time.time_to_unix_nano(time.now()) / 1000000;}
-#scope_export
-

@@ -34,83 +34,70 @@ Invite_Result :: struct {
 	size_total: int; // approximate_member_count (with_counts)
 	size_online: int; // approximate_presence_count
 }
-#scope_file
 
-api_free :: (r: *Api_Response) {
-	if r.arena != null {
+// invite_call: a blocking api_call whose body becomes an Invite_Result (code in allocator).
+invite_call :: (c: *Client, method: string, path: string, body: string, context_b64: string, allocator: Allocator) -> Invite_Result {
+	r := api_call(c, method, path, cast([]u8) body, ifx body then "application/json" else "", context_b64, .[], 2, 1);
+	defer if r.arena {
 		fini(r.arena);
 		free(r.arena);
-		r.arena = null;
 	}
-}
-
-invite_fields :: (out: *Invite_Result, body: V, allocator := context.allocator) {
-	m := vmap(body);
-	out.code = clone(fstr(m, "code"), allocator);
-	g := fmap(m, "guild");
-	out.guild_id = fsnow(g, "id");
-	if out.guild_id == 0 { out.guild_id = fsnow(m, "guild_id"); }
+	res := Invite_Result.{status = r.status, ok = r.ok};
+	if !r.ok return res;
+	m := vmap(r.body);
+	res.code = copy_string(fstr(m, "code"),, allocator);
+	res.guild_id = fsnow(fmap(m, "guild"), "id");
+	if !res.guild_id res.guild_id = fsnow(m, "guild_id");
 	ch := fmap(m, "channel");
-	out.channel_id = fsnow(ch, "id");
-	out.channel_type = cast(int)(fint(ch, "type"));
-	out.inviter_id = fsnow(fmap(m, "inviter"), "id");
-	out.size_total = cast(int)(fint(m, "approximate_member_count"));
-	out.size_online = cast(int)(fint(m, "approximate_presence_count"));
+	res.channel_id = fsnow(ch, "id");
+	res.channel_type = fint(ch, "type");
+	res.inviter_id = fsnow(fmap(m, "inviter"), "id");
+	res.size_total = fint(m, "approximate_member_count");
+	res.size_online = fint(m, "approximate_presence_count");
+	return res;
 }
-#scope_module
 
 // invite_body: the createInvite body for a modal open (key order as sent).
 invite_body :: (c: *Client, channel_id: Snowflake, location: string, max_age := INVITE_MAX_AGE) -> string {
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
-	{ code := invite_code_for(c, channel_id);
-	if code != "" { json_kstr(*w, "validate", code); } else { json_knull(*w, "validate"); } }
-	json_kint(*w, "max_age", cast(s64)(max_age));
+	code := invite_code_for(c, channel_id);
+	if code json_kstr(*w, "validate", code); else json_knull(*w, "validate");
+	json_kint(*w, "max_age", max_age);
 	json_kint(*w, "max_uses", 0);
-	if location == INVITE_LOC_CHANNELS { json_knull(*w, "target_user_id"); }
+	if location == INVITE_LOC_CHANNELS json_knull(*w, "target_user_id");
 	json_knull(*w, "target_type");
 	json_kbool(*w, "temporary", false);
 	json_kint(*w, "flags", 0);
 	json_obj_end(*w);
 	return json_string(*w);
 }
-#scope_export
 
 // invite_code_for: the code of the session's invite for this channel ("" = none yet).
 invite_code_for :: (c: *Client, channel_id: Snowflake, allocator := temp) -> string {
 	locks.lock(*c.invite_mu);
 	defer locks.unlock(*c.invite_mu);
 	_, code := table_find(*c.invite_codes, channel_id);
-	return clone(code, allocator);
+	return copy_string(code,, allocator);
 }
 
 // invite_note_code: an invite was created for the channel (any thread). The server
 // answers a validate with the same code while it is valid, else with a new one.
 invite_note_code :: (c: *Client, channel_id: Snowflake, code: string) {
-	if code == "" || channel_id == 0 { return; }
+	if !code || !channel_id return;
 	locks.lock(*c.invite_mu);
 	defer locks.unlock(*c.invite_mu);
-	{ ok, old := table_find(*c.invite_codes, channel_id);
-	if ok {
-		if old == code { return; }
-		delete(old, c.allocator);
-	} }
-	table_set(*c.invite_codes, channel_id, clone(code, c.allocator));
+	old := table_find_pointer(*c.invite_codes, channel_id);
+	if old && old.* == code return;
+	if old free(old.*,, c.allocator);
+	table_set(*c.invite_codes, channel_id, copy_string(code,, c.allocator));
 }
 
 // create_invite: POST /channels/{id}/invites as the invite modal sends it. BLOCKING.
 create_invite :: (c: *Client, channel_id: Snowflake, location := INVITE_LOC_HEADER, allocator := context.allocator) -> Invite_Result {
-	res: Invite_Result;
-	body := transmute([]u8, invite_body(c, channel_id, location));
-	r := api_call(c, "POST", strings.concatenate(string.["/channels/", snowflake_string(channel_id), "/invites"], temp), body, "application/json", context_location(location), .[], 2, 1);
-	defer api_free(*r);
-	res.status = r.status;
-	res.ok = r.ok;
-	if r.ok {
-		invite_fields(*res, r.body, allocator);
-		invite_note_code(c, channel_id, res.code);
-	}
+	res := invite_call(c, "POST", tprint("/channels/%/invites", channel_id), invite_body(c, channel_id, location), context_location(location), allocator);
+	if res.ok invite_note_code(c, channel_id, res.code);
 	return res;
 }
 
@@ -120,107 +107,109 @@ create_invite_async :: (c: *Client, channel_id: Snowflake, location := INVITE_LO
 	j := job_new(.Api, .None);
 	j.method = "POST";
 	j.path = job_str(j, channel_path(channel_id, "/invites"));
-	j.body = transmute([]u8, job_str(j, invite_body(c, channel_id, location)));
+	j.body = cast([]u8) job_str(j, invite_body(c, channel_id, location));
 	j.content_type = "application/json";
 	j.context_b64 = job_str(j, context_location(location));
 	j.retries = 2;
-	j.result = Rest_Result.{op = .Invite, channel_id = channel_id, tag = tag};
-	j.on_body = (cl: *Client, body: V) {invite_note_code(cl, invite_channel_of(body), fstr(vmap(body), "code"));};
+	j.result = .{op = .Invite, channel_id = channel_id, tag = tag};
+	j.on_body = (cl: *Client, body: V) {
+		m := vmap(body);
+		invite_note_code(cl, fsnow(fmap(m, "channel"), "id"), fstr(m, "code"));
+	};
 	job_submit(c, j);
 }
-#scope_file
-
-invite_channel_of :: (body: V) -> Snowflake {return fsnow(fmap(vmap(body), "channel"), "id");}
-#scope_module
 
 // invite_suggestion_users: who the invite modal suggests (friends, DM partners,
-// people from the other servers), without us; in that order, deduplicated.
+// people from the other servers), without us; in that order, deduplicated (temp).
 invite_suggestion_users :: (c: *Client, guild_id: Snowflake) -> []Snowflake {
 	s := *c.store;
-	out := make_dynamic(Snowflake, 0, 0, temp);
-	add :: (out: *[..]Snowflake, me: Snowflake, u: Snowflake) {
-		if u != 0 && u != me && !slice.contains(view(out.*), u) { append(out, u); }
+	out: [..]Snowflake;
+	out.allocator = temp;
+	add :: (u: Snowflake) #expand {
+		if u && u != `s.me && !array_find(`out, u) array_add(*`out, u);
 	}
-	friends := make_dynamic(Snowflake, 0, 0, temp);
-	for r, id: s.relationships { if r.kind == .Friend { append(*friends, id); } }
-	slice.sort(view(friends));
-	for u: friends { add(*out, s.me, u); }
+	friends: [..]Snowflake;
+	friends.allocator = temp;
+	for r, id: s.relationships if r.kind == .Friend array_add(*friends, id);
+	quick_sort(friends, (a: Snowflake, b: Snowflake) -> int { return ifx a < b then -1 else xx (a > b); });
+	for friends add(it);
 	for cid: s.private_channels {
-		{ ok, ch := table_find(*s.channels, cid);
-		if ok && ch.kind == .DM && len(ch.recipient_ids) == 1 { add(*out, s.me, ch.recipient_ids[0]); } }
+		ch := table_find_pointer(*s.channels, cid);
+		if ch && ch.kind == .DM && ch.recipient_ids.count == 1 add(ch.recipient_ids[0]);
 	}
-	Joined :: struct {
-		at: string;
-		id: Snowflake;
-	}
+	Joined :: struct { at: string; id: Snowflake; }
 	for gid: s.guild_order {
-		if gid == guild_id { continue; }
-		ok, gm := table_find(*s.members, gid);
-		if !ok { continue; }
-		js := make_dynamic(Joined, 0, gm.count, temp);
-		for m, uid: gm { append(*js, Joined.{m.joined_at, uid}); }
-		slice.sort_by(view(js), (a: Joined, b: Joined) -> bool {return compare(a.at, b.at) < 0 || a.at == b.at && a.id < b.id;});
-		for j: js { add(*out, s.me, j.id); }
+		if gid == guild_id continue;
+		gm := table_find_pointer(*s.members, gid);
+		if !gm continue;
+		js: [..]Joined;
+		js.allocator = temp;
+		array_reserve(*js, gm.count);
+		for m, uid: gm.* array_add(*js, .{m.joined_at, uid});
+		quick_sort(js, (a: Joined, b: Joined) -> int {
+			d := compare(a.at, b.at);
+			return ifx d then d else ifx a.id < b.id then -1 else xx (a.id > b.id);
+		});
+		for js add(it.id);
 	}
-	return view(out);
+	return out;
 }
-#scope_export
 
 // open_invite_modal: what opening the Instant Invite modal sends (fixture
 // invite_people): the invite POST, op 8 for the suggestions' unknown members on
 // the guild's first open, then science. UI thread.
 open_invite_modal :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, location: string, tag: u64 = 0) {
-	if channel_id != 0 { create_invite_async(c, channel_id, location, tag); }
+	if channel_id create_invite_async(c, channel_id, location, tag);
 	users := invite_suggestion_users(c, guild_id);
-	ask := make_dynamic(Snowflake, 0, 0, temp);
+	ask: [..]Snowflake;
+	ask.allocator = temp;
 	members := 0;
 	for u: users {
-		if member_get(*c.store, guild_id, u) != null {
+		if member_get(*c.store, guild_id, u) {
 			members += 1;
 			continue;
 		}
 		key := Snowflake.[guild_id, u];
-		if table_contains(*c.members_requested, key) { continue; }
+		if table_contains(*c.members_requested, key) continue;
 		table_set(*c.members_requested, key, true);
-		append(*ask, u);
+		array_add(*ask, u);
 	}
-	if len(ask) > 0 {
-		request_guild_members(c, guild_id, view(ask));
+	if ask {
+		request_guild_members(c, guild_id, ask);
 	} else {
 		// the suggestion list is ready (memberships known): it is shown at once
 		groups := 0;
 		for cid: c.store.private_channels {
-			{ ok, ch := table_find(*c.store.channels, cid);
-			if ok && ch.kind == .Group_DM { groups += 1; } }
+			ch := table_find_pointer(*c.store.channels, cid);
+			if ch && ch.kind == .Group_DM groups += 1;
 		}
-		friends := len(users) - members;
-		analytics_track(c, "invite_suggestion_opened", fmt.tprintf("\"num_suggestions\":%d,\"num_friends\":%d,\"num_dms\":0,\"num_group_dms\":%d,\"guild_id\":\"%d\",\"location\":%s", friends + groups, friends, groups, guild_id, json_quote(location)));
+		friends := users.count - members;
+		analytics_track(c, "invite_suggestion_opened", tprint("\"num_suggestions\":%,\"num_friends\":%,\"num_dms\":0,\"num_group_dms\":%,\"guild_id\":\"%\",\"location\":%", friends + groups, friends, groups, guild_id, json_quote(location)));
 	}
-	analytics_track(c, "open_modal", fmt.tprintf("\"type\":\"Instant Invite Modal\",\"location\":\"Guild Create Invite Suggestion\",\"source\":%s", json_quote(location)));
+	analytics_track(c, "open_modal", tprint("\"type\":\"Instant Invite Modal\",\"location\":\"Guild Create Invite Suggestion\",\"source\":%", json_quote(location)));
 }
 
 // invite_copied: the modal's Copy button (the link goes to the clipboard).
 invite_copied :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, code: string, location: string) {
-	ct := 0;
-	{ ok, ch := table_find(*c.store.channels, channel_id);
-	if ok { ct = cast(int)(ch.kind); } }
-	analytics_track(c, "copy_instant_invite", fmt.tprintf("\"server\":\"%d\",\"channel\":\"%d\",\"channel_type\":%d,\"code\":%s,\"location\":%s", guild_id, channel_id, ct, json_quote(code), json_quote(location)));
+	ch := table_find_pointer(*c.store.channels, channel_id);
+	ct := ifx ch then cast(int) ch.kind else 0;
+	analytics_track(c, "copy_instant_invite", tprint("\"server\":\"%\",\"channel\":\"%\",\"channel_type\":%,\"code\":%,\"location\":%", guild_id, channel_id, ct, json_quote(code), json_quote(location)));
 }
 
 // escape_shortcut_used: Escape closing a modal is the MARK_CHANNEL_READ keybind to
 // the client (fixtures invite_people, join_leave_server); the tracker throttles it
-// for 2 minutes (analytics.odin SCI_THROTTLES).
+// for 2 minutes (analytics.jai SCI_THROTTLES).
 escape_shortcut_used :: (c: *Client) {
 	analytics_keyboard_shortcut(c, "MARK_CHANNEL_READ", "esc");
 }
-#scope_module
 
+// json_quote: s as a JSON string literal (temp).
 json_quote :: (s: string) -> string {
-	sb := strings.builder_make(temp);
-	json_write_escaped(*sb.buf, s);
-	return strings.to_string(sb);
+	buf: [..]u8;
+	buf.allocator = temp;
+	json_write_escaped(*buf, s);
+	return cast(string) buf;
 }
-#scope_export
 
 // ---- Add a Server (CreateGuildModal) ----
 
@@ -232,88 +221,68 @@ Guild_Add_Step :: enum u8 {
 // guild_add_step: science of the Add a Server modal's steps. `from_ms`: when the
 // previous step was shown (0 = the modal just opened).
 guild_add_step :: (c: *Client, step: Guild_Add_Step, from_ms: s64) {
-	secs := ifx from_ms != 0 then cast(float64)(now_ms() - from_ms) / 1000 else 0; // JS: ms / 1000, shortest form
+	secs: float64 = ifx from_ms then (now_ms() - from_ms) / 1000.0 else 0; // JS: ms / 1000, shortest form
 	if step == {
-	case .Templates;
-		analytics_track(c, "impression_guild_add_landing", "\"impression_type\":\"modal\",\"impression_group\":\"guild_add_flow\",\"location_stack\":[],\"location_section\":\"impression_guild_add_landing\"");
-		analytics_track(c, "impression_modal_root_legacy", "\"impression_type\":\"page\",\"variant\":\"CreateGuildModal\",\"location\":\"impression_modal_root_legacy\",\"location_page\":\"impression_modal_root_legacy\",\"location_section\":\"impression_guild_add_landing\"");
-		analytics_track(c, "nuo_transition", fmt.tprintf("\"flow_type\":\"create_guild\",\"from_step\":\"join_guild\",\"to_step\":\"guild_templates\",\"seconds_on_from_step\":%v", secs));
-		analytics_track(c, "open_modal", "\"type\":\"Create Guild Templates\",\"location\":\"Guild List\"");
-	case .Join;
-		analytics_track(c, "impression_guild_add_join", "\"impression_type\":\"modal\",\"impression_group\":\"guild_add_flow\",\"location_stack\":[],\"location_section\":\"impression_guild_add_join\"");
-		analytics_track(c, "nuo_transition", fmt.tprintf("\"flow_type\":\"create_guild\",\"from_step\":\"guild_templates\",\"to_step\":\"join_guild\",\"seconds_on_from_step\":%v", secs));
-		analytics_track(c, "open_modal", "\"type\":\"Join Guild\",\"location\":\"Guild List\"");
+		case .Templates;
+			analytics_track(c, "impression_guild_add_landing", "\"impression_type\":\"modal\",\"impression_group\":\"guild_add_flow\",\"location_stack\":[],\"location_section\":\"impression_guild_add_landing\"");
+			analytics_track(c, "impression_modal_root_legacy", "\"impression_type\":\"page\",\"variant\":\"CreateGuildModal\",\"location\":\"impression_modal_root_legacy\",\"location_page\":\"impression_modal_root_legacy\",\"location_section\":\"impression_guild_add_landing\"");
+			analytics_track(c, "nuo_transition", tprint("\"flow_type\":\"create_guild\",\"from_step\":\"join_guild\",\"to_step\":\"guild_templates\",\"seconds_on_from_step\":%", formatFloat(secs, trailing_width = -1, zero_removal = .YES)));
+			analytics_track(c, "open_modal", "\"type\":\"Create Guild Templates\",\"location\":\"Guild List\"");
+		case .Join;
+			analytics_track(c, "impression_guild_add_join", "\"impression_type\":\"modal\",\"impression_group\":\"guild_add_flow\",\"location_stack\":[],\"location_section\":\"impression_guild_add_join\"");
+			analytics_track(c, "nuo_transition", tprint("\"flow_type\":\"create_guild\",\"from_step\":\"guild_templates\",\"to_step\":\"join_guild\",\"seconds_on_from_step\":%", formatFloat(secs, trailing_width = -1, zero_removal = .YES)));
+			analytics_track(c, "open_modal", "\"type\":\"Join Guild\",\"location\":\"Guild List\"");
 	}
 }
 
 // resolve_invite: GET /invites/{code}?inputValue=<typed>&with_counts=true&with_expiration=true&with_permissions=true
 // (the Join a Server modal resolves on submit, not while typing). BLOCKING.
 resolve_invite :: (c: *Client, code: string, allocator := context.allocator, input_value := "") -> Invite_Result {
-	res: Invite_Result;
 	q: Query;
-	query_init(*q, strings.concatenate(string.["/invites/", code], temp));
-	query_add(*q, "inputValue", ifx input_value != "" then input_value else code);
+	query_init(*q, tprint("/invites/%", code));
+	query_add(*q, "inputValue", ifx input_value then input_value else code);
 	query_add_bool(*q, "with_counts", true);
 	query_add_bool(*q, "with_expiration", true);
 	query_add_bool(*q, "with_permissions", true);
-	r := api_call(c, "GET", query_string(*q), .[], "", "", .[], 2, 1);
-	defer api_free(*r);
-	res.status = r.status;
-	res.ok = r.ok;
-	if r.ok { invite_fields(*res, r.body, allocator); }
-	return res;
+	return invite_call(c, "GET", query_string(*q), "", "", allocator);
 }
 
 // accept_invite: POST /invites/{code} {"session_id":..} with
 // x-context-properties {"location":..,"location_guild_id":..,"location_channel_id":..,"location_channel_type":..}. BLOCKING.
 accept_invite :: (c: *Client, invite: Invite_Result, location := "Join Guild", allocator := context.allocator) -> Invite_Result {
-	res: Invite_Result;
 	ctx: Json;
 	json_init(*ctx);
 	json_obj(*ctx);
 	json_kstr(*ctx, "location", location);
-	if invite.guild_id != 0 { json_kstr(*ctx, "location_guild_id", snowflake_string(invite.guild_id)); }
-	if invite.channel_id != 0 {
-		json_kstr(*ctx, "location_channel_id", snowflake_string(invite.channel_id));
-		json_kint(*ctx, "location_channel_type", cast(s64)(invite.channel_type));
+	if invite.guild_id json_ksnow(*ctx, "location_guild_id", invite.guild_id);
+	if invite.channel_id {
+		json_ksnow(*ctx, "location_channel_id", invite.channel_id);
+		json_kint(*ctx, "location_channel_type", invite.channel_type);
 	}
 	json_obj_end(*ctx);
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
-	json_kstr(*w, "session_id", gateway_session_id(c));
+	json_kstr(*w, "session_id", ifx c.gw && c.gw.session_id then c.gw.session_id else c.store.session_id);
 	json_obj_end(*w);
-	body := transmute([]u8, json_string(*w));
-	r := api_call(c, "POST", strings.concatenate(string.["/invites/", invite.code], temp), body, "application/json", context_b64(json_string(*ctx)), .[], 2, 1);
-	defer api_free(*r);
-	res.status = r.status;
-	res.ok = r.ok;
-	if r.ok { invite_fields(*res, r.body, allocator); }
-	return res;
+	return invite_call(c, "POST", tprint("/invites/%", invite.code), json_string(*w), context_b64(json_string(*ctx)), allocator);
 }
-#scope_file
-
-gateway_session_id :: (c: *Client) -> string {
-	if c.gw != null && c.gw.session_id != "" { return c.gw.session_id; }
-	return c.store.session_id;
-}
-#scope_export
 
 // join_invite: the Join a Server modal's submit: resolve, then accept. The
 // GUILD_CREATE that follows opens the guild at the invite's channel. BLOCKING:
 // call it from a worker thread. `input`: the text as typed.
 // member_of: the guilds we are in, copied from the store by the caller (this runs on a worker).
-join_invite :: (c: *Client, input: string, allocator := context.allocator, member_of: []Snowflake = .{}) -> Invite_Result {
+join_invite :: (c: *Client, input: string, allocator := context.allocator, member_of: []Snowflake = .[]) -> Invite_Result {
 	code := invite_code_from_input(input);
-	if code == "" { return .{}; }
-	analytics_track(c, "invite_opened", fmt.tprintf("\"invite_code\":%s", json_quote(code)));
-	inv := resolve_invite(c, code, temp, strings.trim_space(input));
-	if !inv.ok { return .{status = inv.status}; }
-	is_member := "false";
-	for g: member_of { if g == inv.guild_id { is_member = "true"; } }
-	in_ := json_quote(strings.trim_space(input));
-	analytics_track(c, "network_action_invite_resolve", fmt.tprintf("\"status_code\":%d,\"url\":%s,\"request_method\":\"get\",\"resolved\":true,\"guild_id\":\"%d\",\"channel_id\":\"%d\",\"channel_type\":%d,\"inviter_id\":\"%d\",\"code\":%s,\"input_value\":%s,\"authenticated\":true,\"size_total\":%d,\"size_online\":%d,\"invite_type\":\"Server Invite\",\"user_banned\":false,\"user_is_member\":%s,\"location\":\"Join Guild\"", inv.status, json_quote(strings.concatenate(string.["/invites/", code], temp)), inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));
-	analytics_track(c, "resolve_invite", fmt.tprintf("\"resolved\":true,\"guild_id\":\"%d\",\"channel_id\":\"%d\",\"channel_type\":%d,\"inviter_id\":\"%d\",\"code\":%s,\"input_value\":%s,\"authenticated\":true,\"size_total\":%d,\"size_online\":%d,\"destination_user_id\":null,\"invite_type\":\"Server Invite\",\"user_is_member\":%s,\"invite_instance_id\":null,\"location\":\"Join Guild\"", inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));
+	if !code return .{};
+	analytics_track(c, "invite_opened", tprint("\"invite_code\":%", json_quote(code)));
+	typed := trim(input);
+	inv := resolve_invite(c, code, temp, typed);
+	if !inv.ok return .{status = inv.status};
+	is_member := array_find(member_of, inv.guild_id);
+	in_ := json_quote(typed);
+	analytics_track(c, "network_action_invite_resolve", tprint("\"status_code\":%,\"url\":%,\"request_method\":\"get\",\"resolved\":true,\"guild_id\":\"%\",\"channel_id\":\"%\",\"channel_type\":%,\"inviter_id\":\"%\",\"code\":%,\"input_value\":%,\"authenticated\":true,\"size_total\":%,\"size_online\":%,\"invite_type\":\"Server Invite\",\"user_banned\":false,\"user_is_member\":%,\"location\":\"Join Guild\"", inv.status, json_quote(tprint("/invites/%", code)), inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));
+	analytics_track(c, "resolve_invite", tprint("\"resolved\":true,\"guild_id\":\"%\",\"channel_id\":\"%\",\"channel_type\":%,\"inviter_id\":\"%\",\"code\":%,\"input_value\":%,\"authenticated\":true,\"size_total\":%,\"size_online\":%,\"destination_user_id\":null,\"invite_type\":\"Server Invite\",\"user_is_member\":%,\"invite_instance_id\":null,\"location\":\"Join Guild\"", inv.guild_id, inv.channel_id, inv.channel_type, inv.inviter_id, json_quote(code), in_, inv.size_total, inv.size_online, is_member));
 	locks.lock(*c.invite_mu);
 	c.pending_join_guild, c.pending_join_channel = inv.guild_id, inv.channel_id;
 	locks.unlock(*c.invite_mu);
@@ -325,7 +294,6 @@ join_invite :: (c: *Client, input: string, allocator := context.allocator, membe
 	}
 	return res;
 }
-#scope_module
 
 // joined_guild_created: GUILD_CREATE of a guild the Join a Server modal accepted
 // (UI thread). The Friends list re-checks referral eligibility (twice, as the
@@ -334,13 +302,12 @@ join_invite :: (c: *Client, input: string, allocator := context.allocator, membe
 joined_guild_created :: (c: *Client, d: etf.Map) -> bool {
 	gid := fsnow(d, "id");
 	locks.lock(*c.invite_mu);
-	pg, pch := c.pending_join_guild, c.pending_join_channel;
-	if pg == gid { c.pending_join_guild, c.pending_join_channel = 0, 0; }
+	pg, ch := c.pending_join_guild, c.pending_join_channel;
+	if pg == gid c.pending_join_guild, c.pending_join_channel = 0, 0;
 	locks.unlock(*c.invite_mu);
-	if pg == 0 || pg != gid { return false; }
-	ch := pch;
-	{ ok, cc := table_find(*c.store.channels, ch);
-	if !ok || cc.guild_id != gid {
+	if !pg || pg != gid return false;
+	cc := table_find_pointer(*c.store.channels, ch);
+	if !cc || cc.guild_id != gid {
 		ch = 0;
 		for cid: guild_channels_sorted(*c.store, gid) {
 			chan := table_find_pointer(*c.store.channels, cid);
@@ -349,54 +316,45 @@ joined_guild_created :: (c: *Client, d: etf.Map) -> bool {
 				break;
 			}
 		}
-	} }
-	for _: 0..1 {
+	}
+	for 1..2 {
 		j := job_new(.Api, .None);
 		j.method = "GET";
 		j.path = "/users/@me/referrals/eligibility";
 		j.referer = job_str(j, client_route_referer(c));
 		job_submit(c, j);
 	}
-	h := ifx c.analytics.viewport_h > 0 then c.analytics.viewport_h else 720;
-	select_channel(c, gid, ch, initial_message_limit(h));
+	select_channel(c, gid, ch, initial_message_limit(ifx c.analytics.viewport_h > 0 then c.analytics.viewport_h else 720));
 	c.subs.not_before = now_ms() + 2; // op 37 follows op 43 and the page fetch
-	if c.pending_guild_open == gid { guild_open_now(c, gid); }
+	if c.pending_guild_open == gid guild_open_now(c, gid);
 	// the guild renders with the "verify your account" notice
-	if !c.account_verified { analytics_app_notice(c, "app_notice_viewed", "UNVERIFIED_ACCOUNT", gid); }
+	if !c.account_verified analytics_app_notice(c, "app_notice_viewed", "UNVERIFIED_ACCOUNT", gid);
 	return true;
 }
-#scope_export
 
 // friends_page_viewed: the Friends surface rendered after navigating to it (the
 // app calls it on its route change to Friends): the DM list, the unverified
 // account notice and the friends list (fixture join_leave_server, after Leave Server).
 friends_page_viewed :: (c: *Client) {
 	s := *c.store;
-	vis := make_dynamic(Snowflake, 0, 0, temp);
+	sb: String_Builder;
+	sb.allocator = temp;
+	append(*sb, "[");
+	visible, mobile := 0, 0;
 	for cid: s.private_channels {
-		{ ok, ch := table_find(*s.channels, cid);
-		if ok && len(ch.recipient_ids) > 0 { append(*vis, ch.recipient_ids[0]); } }
+		ch := table_find_pointer(*s.channels, cid);
+		if !ch || !ch.recipient_ids continue;
+		u := ch.recipient_ids[0];
+		print_to_builder(*sb, ifx visible then ",\"%\"" else "\"%\"", u);
+		visible += 1;
+		p := table_find_pointer(*s.presences, u);
+		if p && p.mobile != .Offline mobile += 1;
 	}
-	sb := strings.builder_make(temp);
-	strings.write_byte(*sb, #char "[");
-	for u, i: vis {
-		if i > 0 { strings.write_byte(*sb, #char ","); }
-		fmt.sbprintf(*sb, "\"%d\"", u);
-	}
-	strings.write_byte(*sb, #char "]");
-	mobile := 0;
-	for u: vis { { ok, p := table_find(*s.presences, u);
-if ok && p.mobile != .Offline { mobile += 1; } } }
-	analytics_track(c, "dm_list_viewed", fmt.tprintf("\"num_users_visible\":%d,\"num_users_visible_with_mobile_indicator\":%d,\"now_playing_visible\":true,\"now_playing_num_cards\":0,\"now_playing_games_detected\":[],\"visible_user_ids\":%s,\"changelog_dm_visible\":false", len(vis), mobile, strings.to_string(sb)));
-	if !c.account_verified { analytics_app_notice(c, "app_notice_viewed", "UNVERIFIED_ACCOUNT"); }
+	append(*sb, "]");
+	analytics_track(c, "dm_list_viewed", tprint("\"num_users_visible\":%,\"num_users_visible_with_mobile_indicator\":%,\"now_playing_visible\":true,\"now_playing_num_cards\":0,\"now_playing_games_detected\":[],\"visible_user_ids\":%,\"changelog_dm_visible\":false", visible, mobile, builder_to_string(*sb,, temp)));
+	if !c.account_verified analytics_app_notice(c, "app_notice_viewed", "UNVERIFIED_ACCOUNT");
 	// the page opens on Online, or on Add Friend while there is nobody to list
 	people := 0;
-	for r: s.relationships {
-		if r.kind == {
-		case .Friend; #through; case .Outgoing_Request; #through; case .Incoming_Request;
-			people += 1;
-		}
-	}
+	for s.relationships if it.kind == .Friend || it.kind == .Outgoing_Request || it.kind == .Incoming_Request people += 1;
 	analytics_friends_list(c, "friends_list_viewed", ifx people > 0 then .Online else .Add_Friend);
 }
-
