@@ -83,7 +83,8 @@
 - [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
 - [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
-- [ ] Attachments: file cards have no download button, the link-coloured filename does nothing, and text/code files get no inline preview.
+- [ ] Attachments: text and code files (`.txt`, `.md`, `.py`, `.c`, `.json`, `.log`, ...) render as a plain file card ("burst.txt, 416 bytes") instead of the official inline preview. That's a code box with syntax highlighting (`highlight.jai`), the first lines with expand/collapse, and the filename, size and download in its header. Never built, not a stale build: no text preview code in `src/app`.
+- [ ] Attachments: file cards have no download button, and the link-coloured filename does nothing.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
 - [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
 - [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
