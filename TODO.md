@@ -1,6 +1,22 @@
 # TODO
 
 - [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
+- [ ] Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
+- [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
+- [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
+- [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
+- [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.
+- [ ] Undo: Mark As Read (server menu, Shift+Escape, Inbox "Mark All as Read", Inbox row check, the new-messages bar, threads) should restore the previous read states on undo, using the Mark Unread ack; Inbox mention "x" should hold its DELETE.
+- [ ] Undo: relationships: Remove Friend, Unblock, Block, Ignore or cancel a friend request, all sent at once today with no confirm except Block.
+- [ ] Undo: closing a DM and leaving a group DM (the row's "x" leaves a group DM with no confirm at all, `view_home.jai`).
+- [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
+- [ ] Undo: the trash on a staged upload deletes the uploaded file at once; keep the card restorable and hold the remote delete.
+- [ ] Undo: dragging the last server out of a rail folder deletes the folder with its name and colour; let undo restore it.
+- [ ] Undo: one-click toggles that lose state: Unmute (drops a timed mute's end), notification-level radios, and event "Interested".
+- [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
+- [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
+- [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
+- [ ] No lost typing: closing a dialog keeps what was typed until it's submitted. Covers Create Event, New Thread, Create Channel, the Group DM picker, Modify Attachment, account edit and friend nickname; restore it on reopen. Profile and Channel Settings "Reset" become undoable.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Accounts: support full account switching; today it assumes a single token.
 - [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
@@ -87,7 +103,6 @@
 - [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
 - [ ] Replies: the quoted preview only searches loaded history, so a reply to an older message says "Original message was deleted" (`referenced_message` isn't stored). The quote is raw text (`<@id>` and markdown unrendered), and sticker- or embed-only originals get no placeholder.
 - [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
-- [ ] History: jumping to an old message merges the `around=` page into history without filling the gap to newer messages (no `after=` paging), so the messages between vanish (`features.jai` `apply_around`).
 - [ ] Scrolling: Page Up / Page Down don't scroll the message list.
 - [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
@@ -145,6 +160,7 @@
 - [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
+- [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
 - [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
@@ -198,3 +214,4 @@
 - [x] Tray (Windows): a tray icon with a red dot for unread mentions, a click opens the window, the menu has Open and Quit; closing the window hides it to the tray.
 - [x] Read states: regaining focus reports "Ack - Window Focus", and auto-acks use the channel's `last_message_id`.
 - [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
+- [x] Read states: incoming mentions raise the mention count, so opening that channel acks at once (checked live on the test accounts, `build/parity ack_live`).

@@ -1133,14 +1133,22 @@ ack_timing :: (t: *T) {
 	c := run.c;
 	msgs := messages_get(*c.store, R_TEXT);
 	if !expect(t, msgs.count >= 2, "fixture messages") return;
+	// a mention while A looks elsewhere raises the count (ReadStateStore MESSAGE_CREATE)
+	client_set_focused(c, false);
+	mid := msgs[msgs.count - 1].id + (1 << 22);
+	d, _ := etf.from_json(tprint("{\"id\":\"%\",\"channel_id\":\"%\",\"guild_id\":\"%\",\"type\":0,\"content\":\"hi\",\"author\":{\"id\":\"1\",\"username\":\"x\"},\"mentions\":[{\"id\":\"%\"}],\"mention_everyone\":false}", mid, R_TEXT, R_GUILD, c.store.me));
+	client_inject_dispatch(c, "MESSAGE_CREATE", d);
+	replay_settle(*run, 100);
+	_, rs := table_find(*c.store.read_states, R_TEXT);
+	expect_value(t, rs.mention_count, 1);
+	client_set_focused(c, true);
 	replay_mark(*run);
-	find_or_add(*c.store.read_states, R_TEXT).mention_count = 1;
 	ack_message(c, R_TEXT, msgs[msgs.count - 2].id, location = ACK_INCOMING_MESSAGE);
 	replay_pump(*run, 300);
 	expect_value(t, r_count(*run, "POST", "/ack"), 1);
 	ack_message(c, R_TEXT, msgs[msgs.count - 2].id, location = ACK_CHANNEL_SCROLL);
-	ack_message(c, R_TEXT, msgs[msgs.count - 1].id, location = ACK_INCOMING_MESSAGE);
-	expect(t, c.pending_acks.count == 1 && c.pending_acks[0].location.object == ACK_CHANNEL_SCROLL.object && c.pending_acks[0].message_id == msgs[msgs.count - 1].id, "later acks join the pending one");
+	ack_message(c, R_TEXT, mid, location = ACK_INCOMING_MESSAGE);
+	expect(t, c.pending_acks.count == 1 && c.pending_acks[0].location.object == ACK_CHANNEL_SCROLL.object && c.pending_acks[0].message_id == mid, "later acks join the pending one");
 	replay_pump(*run, 2000);
 	expect_value(t, r_count(*run, "POST", "/ack"), 1);
 	replay_pump(*run, 1500);
