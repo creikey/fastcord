@@ -1,0 +1,17 @@
+# In the composer a click inside the text places the caret, a drag selects and a double-click
+# selects a word (the field hit-tests last frame's layout; this frame's isn't laid out yet).
+wait 5
+click 600 683
+type hello world foo
+wait 1
+dclick 500 683
+key c cmd
+expect_clipboard "world"
+click 449 683
+type X
+expect_input "Xhello world foo"
+down 449 683
+move 475 683
+up 475 683
+key c cmd
+expect_clipboard "Xhe"

@@ -448,8 +448,11 @@ collect_selectables :: (b: *Box) {
 }
 
 // Text position nearest the mouse among visible selectables. Rows are found
-// by vertical extent first, like a browser.
-selectable_pos_at :: (p: Vec2, clamp_to_nearest: bool) -> Text_Pos, bool {
+// by vertical extent first, like a browser. .Exact: only a box under p; .Region: the nearest box
+// whose clip region (e.g. the message list) holds p, so a press beside or between texts starts a
+// selection there; .Any: the nearest box anywhere (while dragging).
+Pos_Mode :: enum u8 { Exact; Region; Any; }
+selectable_pos_at :: (p: Vec2, mode: Pos_Mode) -> Text_Pos, bool {
 	best: *Box;
 	best_d := FLOAT32_MAX;
 	for b: context.ui.selectables {
@@ -459,7 +462,12 @@ selectable_pos_at :: (p: Vec2, clamp_to_nearest: bool) -> Text_Pos, bool {
 			best = b;
 			break;
 		}
-		if !clamp_to_nearest continue;
+		if mode == .Exact continue;
+		if mode == .Region {
+			c := b.parent;
+			while c && !(c.flags & .Clip) c = c.parent;
+			if !c || !contains(visible_rect(c), p) continue;
+		}
 		// distance, weighting vertical much more than horizontal
 		dy := ifx p.y < b.rect.y0 then b.rect.y0 - p.y else ifx p.y > b.rect.y1 then p.y - b.rect.y1 else 0;
 		dx := ifx p.x < b.rect.x0 then b.rect.x0 - p.x else ifx p.x > b.rect.x1 then p.x - b.rect.x1 else 0;
@@ -486,7 +494,8 @@ update_selection :: () {
 		if e.consumed continue;
 		if e.kind == .Mouse_Up && e.button == .Left sel.dragging = false;
 		if e.kind != .Mouse_Down || e.button != .Left continue;
-		pos, ok := selectable_pos_at(e.pos, false);
+		pos, ok := selectable_pos_at(e.pos, .Exact);
+		if !ok && s.hot == 0 pos, ok = selectable_pos_at(e.pos, .Region);
 		if !ok {
 			if s.hot == 0 selection_clear();
 			continue;
@@ -512,8 +521,9 @@ update_selection :: () {
 		s.focus = 0;
 		e.consumed = true;
 	}
-	if sel.dragging && s.mouse != s.mouse_prev {
-		pos, ok := selectable_pos_at(s.mouse, true);
+	// every frame, not only on mouse moves: autoscroll moves the text under a still mouse
+	if sel.dragging {
+		pos, ok := selectable_pos_at(s.mouse, .Any);
 		if ok {
 			b := box_lookup(pos.box);
 			if b && sel.gran != .Char {

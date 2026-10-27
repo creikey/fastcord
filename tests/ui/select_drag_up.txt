@@ -1,0 +1,12 @@
+# A press with no text under it (below the last message, or in the gap between two messages) and a
+# drag up selects from the nearest text back to the drag point, like a browser.
+wait 5
+down 700 625
+move 600 600
+move 440 593
+up 440 593
+expect_selection "👍"
+down 420 535
+move 600 470
+up 600 470
+expect_selection "ould wrap across multiple lines in the chat view because it keeps going and going with plenty of words so that the wrapping logic is exercised properly at typical window widths 🎉"

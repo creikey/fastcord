@@ -278,7 +278,7 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 	}
 	result := ui.Edit_Result.None;
 	sig := ui.signal(f);
-	tl := f.text_layout;
+	tl := f.prev_layout; // this frame's is laid out after the events are handled
 	if text == "" tl = null;
 	if sig.pressed {
 		if f.parent app.ui.focus = f.parent.key;

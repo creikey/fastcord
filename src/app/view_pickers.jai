@@ -565,7 +565,7 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 			f.style.text_color = T("--input-placeholder-text-default");
 		}
 		sig := ui.signal(f);
-		tl := f.text_layout;
+		tl := f.prev_layout; // this frame's is laid out after the events are handled
 		if text == "" tl = null;
 		if sig.pressed {
 			for e: app.ui.events {

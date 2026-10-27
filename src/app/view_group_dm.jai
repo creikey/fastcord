@@ -290,7 +290,7 @@ gdm_search_row :: () {
 				f.style.text_color = T("--input-placeholder-text-default");
 			}
 			app.ui.focus = f.key;
-			tl := f.text_layout;
+			tl := f.prev_layout; // this frame's is laid out after the events are handled
 			if text == "" { tl = null; }
 			for * e: app.ui.events {
 				if e.consumed || (e.kind != .Key_Down && e.kind != .Text) { continue; }
