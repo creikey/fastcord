@@ -1,19 +1,11 @@
+// HTTP/3 over QUIC: ngtcp2 + nghttp3 through vendor/ngtcp2/fc_ngtcp2.c, TLS from the tls module (Chrome's
+// QUIC ClientHello), one UDP socket and one I/O thread per connection.
 #import "Basic";
-#import "Math";
-#import "String";
 #import "Hash_Table";
-#import "Atomics";
-#import "fc";
-fmt :: #import "fc_fmt";
+#import "Thread";
 http :: #import "http";
 locks :: #import "locks";
-sync :: #import "fc_sync";
-net :: #import "fc_net";
-runtime :: #import "fc_runtime";
-strconv :: #import "fc_strconv";
-strings :: #import "fc_strings";
-thread :: #import "fc_thread";
-time :: #import "fc_time";
 tls :: #import "tls";
 lib :: #library,no_dll "../../build/fc_vendor";
 #load "quic.jai";
+#load "udp.jai";

@@ -1,99 +1,85 @@
 READER_SIZE :: 32 * 1024;
 
-// Reader buffers a netio.Stream for HTTP/1.1 and the WebSocket and HTTP/2 libraries.
-// Bytes read ahead (e.g. after a 101 response) stay in the buffer for the next layer.
+// Reader buffers a netio.Stream for HTTP/1.1 and WebSocket. Bytes read ahead (e.g. after a 101
+// response) stay in the buffer for the next layer.
 Reader :: struct {
 	s: netio.Stream;
 	buf: []u8;
-	start: int;
-	end: int;
+	start, end: int;
 	allocator: Allocator;
 }
 
-reader_init :: (r: *Reader, s: netio.Stream, size := READER_SIZE, allocator := context.allocator) {
-	r.* = .{s = s, buf = make_slice(u8, size, allocator), allocator = allocator};
+#scope_module
+
+reader_init :: (r: *Reader, s: netio.Stream) {
+	r.* = .{s = s, buf = NewArray(READER_SIZE, u8, initialized = false), allocator = context.allocator};
 }
 
 reader_destroy :: (r: *Reader) {
-	delete(r.buf, r.allocator);
+	array_free(r.buf,, r.allocator);
 	r.* = .{};
 }
-#scope_module
 
+// reader_grow makes the buffer size bytes, keeping the unread ones (moved to its start).
 reader_grow :: (r: *Reader, size: int) {
-	if size <= len(r.buf) { return; }
-	b := make_slice(u8, size, r.allocator);
-	copy(b, sub(r.buf, r.start, r.end));
-	delete(r.buf, r.allocator);
+	if size <= r.buf.count return;
+	b := NewArray(size, u8, initialized = false,, r.allocator);
+	memcpy(b.data, r.buf.data + r.start, r.end - r.start);
+	array_free(r.buf,, r.allocator);
 	r.buf, r.end, r.start = b, r.end - r.start, 0;
 }
-#scope_export
 
 map_net_error :: (e: netio.Error) -> Error {
 	if e == {
-	case .None;
-		return .None;
-	case .Closed;
-		return .Closed;
-	case .Timeout;
-		return .Timeout;
-	case .Too_Large;
-		return .Too_Large;
-	case .Protocol; #through; case .Tls;
-		return .Protocol;
-	case .Dial; #through; case .Io;
-		return .Io;
+		case .None;      return .None;
+		case .Closed;    return .Closed;
+		case .Timeout;   return .Timeout;
+		case .Too_Large; return .Too_Large;
+		case .Protocol; #through;
+		case .Tls;       return .Protocol;
 	}
 	return .Io;
 }
-
-buffered :: (r: *Reader) -> int {return r.end - r.start;}
-#scope_module
 
 // fill reads more data from the stream (compacting first). Returns .Closed at EOF.
 fill :: (r: *Reader) -> Error {
 	if r.start > 0 {
 		n := r.end - r.start;
-		copy(r.buf, sub(r.buf, r.start, r.end));
-		r.start = 0;
-		r.end = n;
+		for i: 0..n-1 r.buf[i] = r.buf[r.start + i]; // the ranges may overlap
+		r.start, r.end = 0, n;
 	}
-	if r.end == len(r.buf) { return .Too_Large; }
-	n, err := netio.read(r.s, sub_from(r.buf, r.end));
-	if err != .None { return map_net_error(err); }
+	if r.end == r.buf.count return .Too_Large;
+	n, err := netio.read(r.s, array_view(r.buf, r.end));
+	if err != .None return map_net_error(err);
 	r.end += n;
 	return .None;
 }
-#scope_export
 
-// read_some copies up to len(dst) bytes, reading from the stream only if the buffer is empty.
+// read_some copies up to dst.count bytes, reading from the stream only if the buffer is empty.
 read_some :: (r: *Reader, dst: []u8) -> int, Error {
-	if len(dst) == 0 { return 0, .None; }
+	if !dst.count return 0, .None;
 	if r.start == r.end {
 		// Large reads bypass the buffer.
-		if len(dst) >= len(r.buf) {
+		if dst.count >= r.buf.count {
 			n, err := netio.read(r.s, dst);
 			return n, map_net_error(err);
 		}
-		r.start = 0;
-		r.end = 0;
-		{ err := fill(r);
-		if err != .None { return 0, err; } }
+		r.start, r.end = 0, 0;
+		err := fill(r);
+		if err != .None return 0, err;
 	}
-	n := copy(dst, sub(r.buf, r.start, r.end));
+	n := min(dst.count, r.end - r.start);
+	memcpy(dst.data, r.buf.data + r.start, n);
 	r.start += n;
 	return n, .None;
 }
 
 read_exact :: (r: *Reader, dst: []u8) -> Error {
 	off := 0;
-	while off < len(dst) {
-		n, err := read_some(r, sub_from(dst, off));
-		if err != .None { return err; }
+	while off < dst.count {
+		n, err := read_some(r, array_view(dst, off));
+		if err != .None return err;
 		off += n;
 	}
 	return .None;
 }
-
-consume :: (r: *Reader, n: int) {r.start += n;}
-
