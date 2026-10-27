@@ -12,11 +12,15 @@ fonts: [#run enum_highest_value(Font_Id) + 1]gfx.Font_Face;
 
 F :: (f: Font_Id) -> ui.Font { return cast(ui.Font) f; }
 
-// Per-user app data: ~/Library/Application Support/fastcord on macOS,
-// %LOCALAPPDATA%\fastcord on Windows.
+// Per-user app data: ~/Library/Application Support/fastcord on macOS, %LOCALAPPDATA%\fastcord on Windows,
+// $XDG_DATA_HOME/fastcord (else ~/.local/share/fastcord) on Linux.
 app_data_dir :: (sub: string, allocator := temp) -> string {
 	#if OS == .WINDOWS return tprint("%\\fastcord\\%", env_var("LOCALAPPDATA"), sub,, allocator);
-	else return tprint("%/Library/Application Support/fastcord/%", env_var("HOME"), sub,, allocator);
+	else #if OS == .LINUX {
+		xdg := env_var("XDG_DATA_HOME");
+		if begins_with(xdg, "/") return tprint("%/fastcord/%", xdg, sub,, allocator); // the spec ignores relative values
+		return tprint("%/.local/share/fastcord/%", env_var("HOME"), sub,, allocator);
+	} else return tprint("%/Library/Application Support/fastcord/%", env_var("HOME"), sub,, allocator);
 }
 
 // Environment variable, "" when unset (not copied).
@@ -28,7 +32,7 @@ env_var :: (name: string) -> string {
 fonts_load :: () {
 	weights := gfx.Font_Weight.[.Regular, .Medium, .Semibold, .Bold, .Regular, .Regular];
 	for * fonts it.* = gfx.font_system("system", weights[it_index]);
-	fonts[Font_Id.Mono] = gfx.font_system(ifx OS == .WINDOWS then "Consolas" else "Menlo");
+	fonts[Font_Id.Mono] = gfx.font_system(ifx OS == .WINDOWS then "Consolas" else ifx OS == .LINUX then "monospace" else "Menlo");
 	fonts[Font_Id.Italic] = gfx.font_system("system", .Regular, italic = true);
 	// gg sans is fetched from discord.com/assets at runtime (as the official client does) and cached
 	// here; until then the system font stands in.

@@ -4,8 +4,8 @@ icon_texture :: (name: string, size_pt: float32) -> gfx.Texture {
 	p := table_find_pointer(*icon_cache, .{name, px});
 	if p return p.*;
 	tex: gfx.Texture;
-	for ICON_FILES if it.name == name {
-		ic, ok := vector.parse_svg(it.data, temp);
+	for ICON_NAMES if it == name {
+		ic, ok := vector.parse_svg(ICON_DATA[it_index], temp);
 		if ok tex = gfx.texture_create(px, px, .R8, vector.rasterize(*ic, px, px, temp));
 		break;
 	}
@@ -38,17 +38,23 @@ box_icon_name :: (b: *ui.Box) -> string {
 #scope_file
 
 // Icons extracted from the official client (tools/probes/discord_icons.py), embedded so the binary is
-// self-contained: name without ".svg", file contents.
-Icon_File :: struct { name, data: string; }
-ICON_FILES := #run -> []Icon_File {
-	files: [..]Icon_File;
-	visit_files(tprint("%/../../assets/icons", #filepath), false, *files, (info: *File_Visit_Info, files: *[..]Icon_File) {
+// self-contained: names without ".svg", and the file contents. On the host: a cross-compile can't run the
+// target's File module.
+ICON_NAMES, ICON_DATA := #run,host -> []string, []string {
+	#import "Basic";
+	#import "String";
+	#import "File";
+	#import "File_Utilities";
+	Files :: struct { names, data: [..]string; }
+	files: Files;
+	visit_files(tprint("%/../../assets/icons", #filepath), false, *files, (info: *File_Visit_Info, files: *Files) {
 		if !ends_with(info.short_name, ".svg") return;
 		data, ok := read_entire_file(info.full_name);
 		assert(ok, info.full_name);
-		array_add(files, .{copy_string(to_string(info.short_name.data, info.short_name.count - 4)), data});
+		array_add(*files.names, copy_string(slice(info.short_name, 0, info.short_name.count - 4)));
+		array_add(*files.data, data);
 	});
-	return files;
+	return files.names, files.data;
 };
 
 icon_cache: Name_Px_Map;

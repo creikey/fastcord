@@ -34,19 +34,19 @@ tok :: (t: *Theme, name: string) -> ui.Color {
 
 #scope_file
 
-// Token values resolved from the official client's CSS (tools/probes/theme_tokens.js).
-THEME_JSON := string.[
-	#run embed("../../assets/theme/light.json"),
-	#run embed("../../assets/theme/ash.json"),
-	#run embed("../../assets/theme/dark.json"),
-	#run embed("../../assets/theme/onyx.json"),
-];
-
-embed :: (rel: string) -> string #compile_time {
-	s, ok := read_entire_file(tprint("%/%", #filepath, rel));
-	assert(ok, rel);
-	return s;
-}
+// Token values resolved from the official client's CSS (tools/probes/theme_tokens.js), in Theme_Name order.
+// Read on the host: a cross-compile can't run the target's File module.
+THEME_JSON := #run,host -> []string {
+	#import "Basic";
+	#import "File";
+	out: [..]string;
+	for string.["light", "ash", "dark", "onyx"] {
+		s, ok := read_entire_file(tprint("%/../../assets/theme/%.json", #filepath, it));
+		assert(ok, it);
+		array_add(*out, s);
+	}
+	return out;
+};
 
 number :: (v: etf.Value, default: float64) -> float64 {
 	if v.kind == .Float return v.f;

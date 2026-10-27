@@ -136,12 +136,15 @@ tcp_write :: (data: *void, src: []u8) -> Error {
 	locks.may_block("TCP write");
 	rest := src;
 	while rest.count {
-		n := send(t.sock, rest.data, xx rest.count, 0);
+		n := send(t.sock, rest.data, xx rest.count, SEND_FLAGS);
 		if n < 0 return failure();
 		rest.data += n; rest.count -= n;
 	}
 	return .None;
 }
+
+// a closed peer is an error, not SIGPIPE: macOS sets SO_NOSIGPIPE at dial, Linux asks per send
+#if OS == .LINUX SEND_FLAGS :: MSG.NOSIGNAL; else SEND_FLAGS :: cast(MSG) 0;
 
 tcp_close :: (data: *void) {
 	t := cast(*Tcp) data;

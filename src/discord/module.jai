@@ -53,7 +53,7 @@ zstd :: #import "zstd";
 #load "permissions.jai";
 #load "procinfo.jai";
 #if OS == .MACOS #load "procinfo_darwin.jai";
-#if OS != .WINDOWS && OS != .MACOS #load "procinfo_other.jai";
+#if OS == .LINUX #load "procinfo_linux.jai";
 #if OS == .WINDOWS #load "procinfo_windows.jai";
 #load "quickswitch.jai";
 #load "ratelimit.jai";

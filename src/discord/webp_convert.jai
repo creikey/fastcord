@@ -20,7 +20,9 @@ WEBP_EXPERIMENT_HASH :: 881712821; // murmur3("2025-09-image-attachment-mezzanin
 
 // The ICC profile Skia's SkWriteICCProfile writes for an sRGB canvas (src/encode/SkICC.cpp), which
 // SkWebpEncoder puts in every canvas WebP: copied from Chrome 156's toBlob output.
-SKIA_SRGB_ICC :: #run -> string {
+SKIA_SRGB_ICC :: #run,host -> string { // host: a Linux cross-compile can't run the target's File
+	#import "Basic";
+	#import "File";
 	s, ok := read_entire_file(tprint("%/skia_srgb.icc", #filepath));
 	assert(ok, "skia_srgb.icc");
 	return s;

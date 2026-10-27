@@ -26,7 +26,7 @@ webview. Metal on macOS (later: D3D11 on Windows, iOS/Android).
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`) and JSON. |
 | `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |
-| `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio. |
+| `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio / WASAPI / ALSA. |
 | `src/platform`, `src/gfx` | Window, input, display link, clipboard; the Metal renderer. |
 | `src/ui` | Immediate-mode UI core: keyed boxes, layout, animation, text editing. |
 | `src/app` | The client itself. |

@@ -1,7 +1,7 @@
-// Windows decoders: TODO Media Foundation (H.264/HEVC/VP9/AV1 MFTs -> NV12
-// ID3D11Texture2D, AAC/MP3/Opus/FLAC audio MFTs). Until then this backend
-// reports every codec unsupported, so players on Windows open, probe and
-// demux but render no frames and play no audio. PCM (WAV) is decoded here.
+// Windows and Linux: no video or compressed-audio decoder yet (Windows: TODO Media Foundation MFTs; Linux:
+// VA-API or FFmpeg would be a large new dependency). Every codec but PCM reports unsupported, as an unknown
+// codec does on macOS, so players open, probe and demux but render no frames and play no audio. PCM (WAV)
+// is decoded here.
 
 Video_Frame :: struct {
 	pts: float64;
