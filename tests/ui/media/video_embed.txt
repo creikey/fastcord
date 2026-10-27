@@ -1,0 +1,10 @@
+# An FxTwitter video embed (make_media_fixture.py): masked links in the description show their text, the
+# quote gets its bar, and the proxied video shows its poster in the card, then plays on click.
+wait 20
+move 700 400
+scroll 0 400
+wait 10
+shot build/ui-video_embed-poster.png
+click 663 547
+wait 30
+shot build/ui-video_embed-playing.png

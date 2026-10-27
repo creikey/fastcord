@@ -42,7 +42,7 @@
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
 - [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
-- [ ] Markdown: masked links `[text](url)` and numbered lists `1. item` aren't parsed (`markdown.jai`).
+- [ ] Markdown: numbered lists `1. item` aren't parsed (`markdown.jai`).
 - [ ] Markdown: slash-command mentions `</name:id>` and `<id:customize|browse|guide>` stay raw text (`markdown.jai` `try_entity`).
 - [ ] Markdown: timestamp styles `T`, `D`, `f`, `F` and `R` (relative, "in 3 hours") fall back to one format (`view_chat.jai` `format_unix`).
 - [ ] Markdown: a bare URL loses a balanced closing `)`, e.g. `https://en.wikipedia.org/wiki/Foo_(bar)` (`markdown.jai` trailing-punctuation trim).
@@ -55,7 +55,9 @@
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
 - [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
-- [ ] Embeds: YouTube and other video embeds show only a small side thumbnail, with no large preview or player.
+- [ ] Embeds: YouTube video embeds (an iframe `video.url`, no `proxy_url`) show only a small side thumbnail, not the large poster with a play button that opens the video.
+- [ ] Media: the inline video player has no volume, mute or fullscreen buttons, and its control bar shows only on hover once playing (the client shows `0:00 / 0:15` before the first click) (`view_media.jai` `video_player`).
+- [ ] Embeds: several embeds sharing one `url` (a Twitter/FxTwitter post with up to 4 images) should merge into one card with an image grid; fastcord draws a card per embed (`view_media.jai` `embeds_view`).
 - [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
 - [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
 - [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
@@ -177,3 +179,5 @@
 - [x] Keybinds: Shift+Escape marks the open server read.
 - [x] No ads, ever: never show Nitro upsells, Shop, Boost prompts or any Discord promotion (rule in `AGENTS.md`).
 - [x] Voice: video calls and Go Live on macOS: call view of everyone (tiles, speaking border, focus), camera and screen sharing (H.264/H.265 via VideoToolbox), watching cameras and streams (`src/video`, `src/voice/video.jai`, `view_call.jai`).
+- [x] Markdown: masked links `[text](url)` render as links (messages and embed descriptions), and embed descriptions draw their quotes with a bar.
+- [x] Embeds: proxied video embeds (FxTwitter, Reddit…) play in the card with a large poster instead of a side thumbnail.

@@ -23,7 +23,7 @@ Inline_Style :: enum_flags u8 {
 
 Token_Kind :: enum u8 {
 	Text;
-	Link; // url = text
+	Link; // url, or text when url is ""
 	User_Mention; // id
 	Role_Mention;
 	Channel_Mention;
@@ -39,6 +39,7 @@ Token :: struct {
 	id: u64;
 	name: string;
 	animated: bool;
+	url: string; // masked link target
 }
 
 Md_Block :: struct {
@@ -141,9 +142,9 @@ md_parse :: (src: string) -> []Md_Block {
 is_quote_line :: (line: string) -> bool { return begins_with(line, "> ") || line == ">"; }
 
 // merge = false keeps every token a slice of src, in source order (the composer styles the
-// gaps between them as markdown syntax).
+// gaps between them as markdown syntax), and leaves masked links as text, as the composer does.
 md_inline :: (src: string, merge := true) -> []Token {
-	p: Md_Parser;
+	p := Md_Parser.{masked_links = merge};
 	inline_into(*p, src);
 	if !merge return p.out;
 	// merge adjacent plain text with identical styles
@@ -249,6 +250,7 @@ is_list_line :: (line: string) -> bool {
 Md_Parser :: struct {
 	out: [..]Token;
 	styles: Inline_Style;
+	masked_links: bool;
 }
 
 emit :: (p: *Md_Parser, kind: Token_Kind, text: string) {
@@ -263,7 +265,7 @@ DELIMS :: struct {
 }.[.{"***", .Bold}, .{"**", .Bold}, .{"__", .Underline}, .{"~~", .Strike}, .{"||", .Spoiler}, .{"*", .Italic}, .{"_", .Italic}];
 
 // Bytes that can start an inline rule in inline_into; every other byte is plain text.
-MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for cast([]u8) "\\`<h@*_~|" t[it] = true; return t; };
+MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for cast([]u8) "\\`<h@*_~|[" t[it] = true; return t; };
 
 inline_into :: (p: *Md_Parser, src: string) {
 	i := 0;
@@ -305,6 +307,18 @@ inline_into :: (p: *Md_Parser, src: string) {
 		if c == #char "<" {
 			n, ok := try_entity(p, here, pending());
 			if ok {
+				take(i + n);
+				continue;
+			}
+		}
+		// masked links: [text](url), text styled as usual and every piece of it a link
+		if c == #char "[" && p.masked_links {
+			n, url := masked_link(here);
+			if n > 0 {
+				emit(p, .Text, pending());
+				first := p.out.count;
+				inline_into(p, span(src, i + 1, i + find_close_bracket(here)));
+				for * array_view(p.out, first, p.out.count - first) if it.kind == .Text || it.kind == .Link { it.kind = .Link; it.url = url; }
 				take(i + n);
 				continue;
 			}
@@ -438,6 +452,43 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 	tok.styles = p.styles;
 	array_add(*p.out, tok);
 	return n, true;
+}
+
+// The client's link rule: [text](url) with balanced brackets in text and an http(s) url,
+// optionally in <> or followed by a "title". Returns the bytes taken and the url.
+masked_link :: (s: string) -> int, string {
+	close := find_close_bracket(s);
+	if close <= 1 || close + 1 >= s.count || s[close + 1] != #char "(" return 0, "";
+	depth := 0;
+	j := close + 2;
+	while j < s.count {
+		if s[j] == #char "\\" { j += 2; continue; }
+		if s[j] == #char "\n" return 0, "";
+		if s[j] == #char "(" depth += 1;
+		if s[j] == #char ")" { if depth == 0 break; depth -= 1; }
+		j += 1;
+	}
+	if j >= s.count return 0, "";
+	url := trim(span(s, close + 2, j), SPACES);
+	sp := find_index_from_left(url, #char " ");
+	if sp >= 0 url.count = sp; // a "title" after the url
+	if begins_with(url, "<") && ends_with(url, ">") url = span(url, 1, url.count - 1);
+	if !begins_with(url, "https://") && !begins_with(url, "http://") return 0, "";
+	return j + 1, url;
+}
+
+// Index of the "]" closing s's leading "[", -1 if none on that line.
+find_close_bracket :: (s: string) -> int {
+	depth, i := 0, 0;
+	while i < s.count {
+		c := s[i];
+		if c == #char "\\" { i += 2; continue; }
+		if c == #char "\n" return -1;
+		if c == #char "[" depth += 1;
+		if c == #char "]" { depth -= 1; if depth == 0 return i; }
+		i += 1;
+	}
+	return -1;
 }
 
 is_ascii_punct :: (c: u8) -> bool {
