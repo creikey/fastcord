@@ -71,6 +71,26 @@
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
   .card h3 { margin: 0 0 6px; font-size: 17px; }
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .parity { padding: 40px 0 24px; }
+  .parity h2 { font-size: clamp(26px, 4.4vw, 38px); letter-spacing: -0.02em; margin: 0 0 8px; text-align: center; }
+  .parity .sub { color: var(--muted); text-align: center; max-width: 640px; margin: 0 auto 24px; }
+  .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 20px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; min-width: 150px; text-align: center; }
+  .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 14px; }
+  .chip { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--muted); cursor: pointer; }
+  .chip[aria-pressed="true"] { color: var(--text); border-color: var(--brand); }
+  .chip i { display: inline-block; width: 26px; height: 4px; border-radius: 2px; margin-left: 6px; vertical-align: middle;
+    background: linear-gradient(90deg, var(--ok) var(--m), var(--line) var(--m)); }
+  .lanes { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 12px 4px; }
+  .lanes svg { display: block; width: 100%; height: auto; }
+  .lanes text { fill: var(--muted); font-size: 11px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; color: var(--muted); font-size: 13px; padding: 10px 0 0; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .tip { min-height: 22px; text-align: center; color: var(--muted); font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 6px 0 12px; overflow-wrap: anywhere; }
   .note { color: var(--muted); font-size: 14px; text-align: center; padding: 8px 0 40px; }
   .note code { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
   footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 24px 0 40px; text-align: center; }
@@ -103,7 +123,18 @@
     <div class="card"><h3>Small</h3><p>One ~5 MB app. No Chromium, no Node, no bundled browser.</p></div>
     <div class="card"><h3>Familiar</h3><p>Servers, channels, DMs, friends, reactions, emoji, GIFs, stickers and the layout you already know.</p></div>
     <div class="card"><h3>Voice</h3><p>Voice chat with Discord's end-to-end encryption, written from the ground up.</p></div>
-    <div class="card"><h3>Well-behaved</h3><p>Talks to Discord the same way the official desktop client does, tested request by request.</p></div>
+    <div class="card"><h3>Well-behaved</h3><p>Sends the same requests as the official desktop client, at the same moments. See below.</p></div>
+  </section>
+
+
+  <section class="parity" id="traffic">
+    <h2>Indistinguishable on the wire</h2>
+    <p class="sub">To Discord's servers, Fastcord looks like the official desktop app: the same requests, gateway messages and telemetry, in the same order, at the same moments. Each scenario was recorded from both clients and lined up request by request.</p>
+    <div class="stats" id="pstats"></div>
+    <div class="chips" id="pchips" role="group" aria-label="Scenario"></div>
+    <div class="lanes"><svg id="plane" viewBox="0 0 1000 150" role="img" aria-label="Request timeline of both clients"></svg>
+      <div class="tip" id="ptip">Hover a dot to see the request.</div></div>
+    <div class="legend"><span><i style="background:var(--brand-hi)"></i>REST request</span><span><i style="background:#e8a33d"></i>Gateway message</span><span><i style="background:#3db8a6"></i>Telemetry event</span><span><i style="border:1.5px solid var(--muted)"></i>Only in one client</span></div>
   </section>
 
   <p class="note">First launch on macOS: Fastcord isn't notarized by Apple yet, so macOS blocks it the first time. Click <b>Done</b>, then open <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>. After that it opens normally and shows an Update button when a new release is out.</p>
@@ -113,6 +144,49 @@
     · <a href="https://github.com/creikey/fastcord/releases">Releases</a>
   </footer>
 </div>
+
+<script>
+  // Request timelines of the official client and Fastcord (parity.json, from tools/parity_viz.py).
+  const KIND = ["var(--brand-hi)", "#e8a33d", "#3db8a6"], NS = "http://www.w3.org/2000/svg";
+  const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  fetch("parity.json").then(r => r.json()).then(d => {
+    const sc = d.scenarios, tok = d.tokens;
+    let n = 0, m = 0, dt = [];
+    for (const s of sc) { n += s.o.length; m += s.m.length; for (const [i, j] of s.m) dt.push(Math.abs(s.o[i][0] - s.f[j][0])); }
+    dt.sort((a, b) => a - b);
+    const stat = (v, t) => `<div class="stat"><b>${v}</b><span>${t}</span></div>`;
+    document.getElementById("pstats").innerHTML = stat(sc.length, "scenarios recorded") +
+      stat(Math.round(100 * m / n) + "%", "official requests matched") + stat((dt[dt.length >> 1] || 0) + " ms", "median timing difference");
+    const chips = document.getElementById("pchips"), svg = document.getElementById("plane"), tip = document.getElementById("ptip");
+    const show = s => {
+      for (const c of chips.children) c.setAttribute("aria-pressed", c.dataset.n === s.n);
+      svg.replaceChildren();
+      const end = Math.max(1000, ...s.o.map(e => e[0]), ...s.f.map(e => e[0])) * 1.04;
+      const x = t => 120 + 860 * t / end, Y = [42, 112];
+      const lab = (y, t) => { const e = el("text", {x: 8, y: y + 4}); e.textContent = t; svg.append(e); };
+      lab(Y[0], "Official"); lab(Y[1], "Fastcord");
+      for (const y of Y) svg.append(el("line", {x1: 120, x2: 980, y1: y, y2: y, stroke: "var(--line)"}));
+      const hit = [new Set(s.m.map(p => p[0])), new Set(s.m.map(p => p[1]))];
+      for (const [i, j] of s.m) svg.append(el("line", {x1: x(s.o[i][0]), y1: Y[0] + 6, x2: x(s.f[j][0]), y2: Y[1] - 6, stroke: KIND[s.o[i][1]], "stroke-opacity": .35}));
+      [s.o, s.f].forEach((evs, lane) => evs.forEach((e, k) => {
+        const on = hit[lane].has(k), c = el("circle", {cx: x(e[0]), cy: Y[lane] + (k % 3 - 1) * 5, r: 4.5,
+          fill: on ? KIND[e[1]] : "none", stroke: on ? "none" : "var(--muted)", "stroke-width": 1.5});
+        c.onmouseenter = () => tip.textContent = `${lane ? "Fastcord" : "Official"} +${e[0]} ms  ${tok[e[2]]}`;
+        svg.append(c);
+      }));
+      for (let t = 0; t <= end; t += end > 20000 ? 5000 : 1000) {
+        const e = el("text", {x: x(t), y: 146, "text-anchor": "middle"}); e.textContent = t / 1000 + " s"; svg.append(e);
+      }
+    };
+    for (const s of sc) {
+      const b = document.createElement("button");
+      b.className = "chip"; b.dataset.n = s.n; b.textContent = s.n.replace(/_/g, " ");
+      const i = document.createElement("i"); i.style.setProperty("--m", Math.round(100 * s.m.length / Math.max(s.o.length, 1)) + "%"); b.append(i);
+      b.onclick = () => show(s); chips.append(b);
+    }
+    show(sc.find(s => s.n === "cold_start") || sc[0]);
+  }).catch(() => document.getElementById("traffic").remove());
+</script>
 <script>
   // Show the latest release tag next to the download button (best effort).
   fetch("https://api.github.com/repos/creikey/fastcord/releases/latest")
