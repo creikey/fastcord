@@ -7,7 +7,7 @@
 // properties drop client_heartbeat_session_id), X-Fingerprint on API requests
 // once /experiments returned one, Referer the login page, /science batches
 // with "token": null. The login page loads GET /auth/location-metadata, opens
-// the remote auth gateway (QR code, remote_auth.odin) and tracks login_viewed.
+// the remote auth gateway (QR code, remote_auth.jai) and tracks login_viewed.
 // Fixture: traffic/account_edits.jsonl, windows logout and login_submit; the
 // rest is from the bundle (traffic/CLIENT_RULES.md "Login and logout").
 
@@ -17,7 +17,6 @@ Mfa_Method :: enum_flags u8 {
 	Backup;
 	Sms;
 }
-Mfa_Methods :: Mfa_Method;
 
 Auth_Event_Kind :: enum u8 {
 	Logged_In; // token: the client is connecting; the app persists the token
@@ -37,13 +36,12 @@ Auth_Event :: struct {
 	login_error: string; // under EMAIL OR PHONE NUMBER
 	password_error: string; // under PASSWORD
 	message: string; // anything else
-	methods: Mfa_Methods;
+	methods: Mfa_Method;
 	phone: string;
 	login: string;
 	one_time_login: bool;
 	token: string;
 }
-#scope_module
 
 Auth_Action :: enum u64 {
 	None;
@@ -59,7 +57,6 @@ Auth_Action :: enum u64 {
 	Quests;
 	Promotions;
 }
-#scope_export
 
 Auth :: struct {
 	mu: locks.Mutex; // token (Client.token), logged_out, fingerprint, referer
@@ -76,7 +73,7 @@ Auth :: struct {
 	mfa_ticket: string;
 	login_instance_id: string;
 	mfa_kind: Mfa_Method;
-	events: [..]Auth_Event;
+	events: [..]Auth_Event; // pushed and taken on the UI thread
 	arena: Flat_Pool; // event strings until taken
 	ra: Remote_Auth;
 	gw_stoppers: [..]*Thread; // logouts' gateway teardowns (joined by auth_shutdown)
@@ -93,61 +90,59 @@ client_logged_out :: (c: *Client) -> bool {
 client_token :: (c: *Client, allocator := temp) -> string {
 	locks.lock(*c.auth.mu);
 	defer locks.unlock(*c.auth.mu);
-	return clone(c.token, allocator);
+	return copy_string(c.token,, allocator);
 }
 
 // auth_fingerprint: the X-Fingerprint value ("" when none).
 auth_fingerprint :: (c: *Client, allocator := temp) -> string {
 	locks.lock(*c.auth.mu);
 	defer locks.unlock(*c.auth.mu);
-	return clone(c.auth.fingerprint, allocator);
+	return copy_string(c.auth.fingerprint,, allocator);
 }
 
 // auth_referer: the login page while logged out, else "".
 auth_referer :: (c: *Client, allocator := temp) -> string {
 	locks.lock(*c.auth.mu);
 	defer locks.unlock(*c.auth.mu);
-	return ifx c.auth.logged_out then clone(c.auth.referer, allocator) else "";
+	return ifx c.auth.logged_out then copy_string(c.auth.referer,, allocator) else "";
 }
-#scope_module
 
 auth_init :: (c: *Client) {
 	a := *c.auth;
-	a.events = make_dynamic(Auth_Event, 0, 0, c.allocator);
-	a.logged_out = c.token == "";
-	if a.logged_out && c.cfg.state_dir != "" {
-		{ data, err := os.read_entire_file(state_path(c, "fingerprint"), temp);
-		if err == null {
-			a.fingerprint = clone(strings.trim_space(as_string(data)), c.allocator);
-		} }
+	a.events.allocator = c.allocator;
+	a.gw_stoppers.allocator = c.allocator;
+	a.logged_out = !c.token;
+	if !a.logged_out return;
+	if c.cfg.state_dir {
+		data, ok := read_entire_file(state_path(c, "fingerprint"), log_errors = false,, temp);
+		if ok a.fingerprint = copy_string(trim(data),, c.allocator);
 	}
-	if a.logged_out {
-		// a cold start without a token: /app redirects to the login page (guess, not captured)
-		a.referer = clone(#run join(API_ORIGIN, "/login?redirect_to=%2Fapp"), c.allocator);
-		identity_set_logged_out(*c.id, true);
-	}
+	// a cold start without a token: /app redirects to the login page (guess, not captured)
+	a.referer = copy_string(#run join(API_ORIGIN, "/login?redirect_to=%2Fapp"),, c.allocator);
+	identity_set_logged_out(*c.id, true);
 }
 
 // auth_shutdown (client_destroy, before the workers stop): the QR socket and a logout's gateway teardown.
 auth_shutdown :: (c: *Client) {
 	remote_auth_stop(c);
-	for th: c.auth.gw_stoppers { locks.join(th); }
-	clear(*c.auth.gw_stoppers);
+	for c.auth.gw_stoppers locks.join(it);
+	c.auth.gw_stoppers.count = 0;
 }
 
 auth_destroy :: (c: *Client) {
-	a := *c.auth;
+	using a := *c.auth;
 	remote_auth_destroy(c);
-	delete(a.gw_stoppers);
-	delete(a.events);
-	fini(*a.arena);
-	delete(a.fingerprint, c.allocator);
-	delete(a.referer, c.allocator);
-	delete(a.country_code, c.allocator);
-	delete(a.logout_batch_token, c.allocator);
-	delete(a.logout_source, c.allocator);
-	delete(a.mfa_ticket, c.allocator);
-	delete(a.login_instance_id, c.allocator);
+	array_free(gw_stoppers);
+	array_free(events);
+	fini(*arena);
+	push_allocator(c.allocator);
+	free(fingerprint);
+	free(referer);
+	free(country_code);
+	free(logout_batch_token);
+	free(logout_source);
+	free(mfa_ticket);
+	free(login_instance_id);
 }
 
 // auth_cold_start: client_start of a client without a token. The
@@ -162,10 +157,9 @@ auth_cold_start :: (c: *Client) {
 // auth_tick (client_poll, UI thread): the login page's loads when they are due.
 auth_tick :: (c: *Client, now: s64) {
 	a := *c.auth;
-	if a.screen_at == 0 || now < a.screen_at { return; }
+	if a.screen_at == 0 || now < a.screen_at return;
 	a.screen_at = 0;
-	if !client_logged_out(c) { return; }
-	auth_login_page_loads(c);
+	if client_logged_out(c) auth_login_page_loads(c);
 }
 
 // The login page's mount (LoginPage useEffect): login_viewed (flushed at
@@ -176,7 +170,7 @@ auth_login_page_loads :: (c: *Client) {
 	j.path = "/auth/location-metadata";
 	j.retries = 2;
 	j.no_auth = true;
-	j.result.tag = cast(u64)(Auth_Action.Location_Metadata);
+	j.result.tag = xx Auth_Action.Location_Metadata;
 	job_submit(c, j);
 	remote_auth_start(c);
 	analytics_login_viewed(c);
@@ -193,10 +187,9 @@ auth_fetch_experiments :: (c: *Client, path: string, referer: string) {
 	j.no_auth = true;
 	j.context_b64 = job_str(j, context_location(path));
 	j.referer = job_str(j, referer);
-	j.result.tag = cast(u64)(Auth_Action.Experiments);
+	j.result.tag = xx Auth_Action.Experiments;
 	job_submit(c, j);
 }
-#scope_export
 
 // ---- password login ----
 
@@ -204,27 +197,19 @@ auth_fetch_experiments :: (c: *Client, path: string, referer: string) {
 // parentheses (3+ characters) are a phone number and get the country's dialing
 // code (location-metadata, else the United States).
 auth_login_value :: (c: *Client, login: string, allocator := temp) -> string {
-	if !auth_is_phone(login) { return clone(login, allocator); }
-	return strings.concatenate(string.[auth_dialing_code(c.auth.country_code), login], allocator);
+	if !auth_is_phone(login) return copy_string(login,, allocator);
+	return join(auth_dialing_code(c.auth.country_code), login,, allocator);
 }
 
 auth_is_phone :: (login: string) -> bool {
-	if len(login) < 3 { return false; }
-	for ch: transmute([]u8, login) {
-		if (ch >= #char "0" && ch <= #char "9") || ch == #char "-" || ch == #char "(" || ch == #char ")" || ch == #char " " {
-		} else {
-			return false;
-		}
-	}
+	if login.count < 3 return false;
+	for cast([]u8) login if !is_digit(it) && !contains("-() ", it) return false;
 	return true;
 }
 
 auth_dialing_code :: (country: string) -> string {
-	cc := ifx country != "" then country else "US";
-	rest := DIALING_CODES;
-	while true { item, __ok2 := strings.split_iterator(*rest, ","); if !__ok2 break;
-		if len(item) > 2 && sub(item, 0, 2) == cc { return sub_from(item, 2); }
-	}
+	cc := ifx country then country else "US";
+	for split(DIALING_CODES, ",",, temp) if it.count > 2 && begins_with(it, cc) return advance(it, 2);
 	return "+1";
 }
 
@@ -232,10 +217,10 @@ auth_dialing_code :: (country: string) -> string {
 // body only, and that body is zeroed once the request finished.
 auth_login :: (c: *Client, login: string, password: []u8) {
 	w: Json;
-	json_init(*w, temp);
+	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "login", auth_login_value(c, login));
-	json_kstr(*w, "password", as_string(password));
+	json_kstr(*w, "password", cast(string) password);
 	json_kbool(*w, "undelete", false);
 	json_knull(*w, "login_source");
 	json_knull(*w, "gift_code_sku_id");
@@ -243,39 +228,32 @@ auth_login :: (c: *Client, login: string, password: []u8) {
 	auth_login_dispatched(c);
 	j := auth_job(c, "/auth/login", w.buf, .Login, retries = 2);
 	crypto.zero(w.buf);
-	j.on_done = (c: *Client, j: *Job, status: int) {crypto.zero(cast([]u8) j.body);};
+	j.on_done = (c: *Client, j: *Job, status: int) { crypto.zero(cast([]u8) j.body); };
 	job_submit(c, j);
+}
+
+mfa_kind_name :: (m: Mfa_Method) -> string {
+	if m == .Backup return "backup";
+	if m == .Sms return "sms";
+	return "totp";
 }
 
 // auth_mfa: POST /auth/mfa/{totp|backup|sms} with the ticket of the login.
 auth_mfa :: (c: *Client, method: Mfa_Method, code: string) {
 	a := *c.auth;
-	kind := "totp";
-	if method == {
-	case .Backup;
-		kind = "backup";
-	case .Sms;
-		kind = "sms";
-	}
-	data := code;
-	if method == .Backup {
-		data, _ = strings.remove_all(code, "-", temp);
-	}
 	w: Json;
-	json_init(*w, temp);
+	json_init(*w);
 	json_obj(*w);
-	json_kstr(*w, "code", data);
+	json_kstr(*w, "code", ifx method == .Backup then replace(code, "-", "",, temp) else code);
 	json_kstr(*w, "ticket", a.mfa_ticket);
 	json_knull(*w, "login_source");
 	json_knull(*w, "gift_code_sku_id");
-	if a.login_instance_id != "" { json_kstr(*w, "login_instance_id", a.login_instance_id); }
+	if a.login_instance_id json_kstr(*w, "login_instance_id", a.login_instance_id);
 	json_obj_end(*w);
 	a.mfa_kind = method;
 	auth_login_dispatched(c);
-	j := auth_job(c, strings.concatenate(string.["/auth/mfa/", kind], temp), w.buf, .Mfa, retries = 2);
-	job_submit(c, j);
+	job_submit(c, auth_job(c, tprint("/auth/mfa/%", mfa_kind_name(method)), w.buf, .Mfa, retries = 2));
 }
-#scope_module
 
 // LOGIN: from here until CONNECTION_OPEN events carry no client_uuid (fixture
 // login_submit: network_action_user_login has none, login_viewed before it has one).
@@ -284,12 +262,11 @@ auth_login_dispatched :: (c: *Client) {
 	c.analytics.user_id = 0;
 	locks.unlock(*c.analytics.mu);
 }
-#scope_export
 
 // auth_mfa_sms_send: the SMS slide's POST /auth/mfa/sms/send {"ticket"} (on open and on "Resend SMS?").
 auth_mfa_sms_send :: (c: *Client) {
 	w: Json;
-	json_init(*w, temp);
+	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "ticket", c.auth.mfa_ticket);
 	json_obj_end(*w);
@@ -299,7 +276,7 @@ auth_mfa_sms_send :: (c: *Client) {
 // auth_forgot: "Forgot your password?" POST /auth/forgot {"login"}.
 auth_forgot :: (c: *Client, login: string) {
 	w: Json;
-	json_init(*w, temp);
+	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "login", auth_login_value(c, login));
 	json_obj_end(*w);
@@ -309,27 +286,23 @@ auth_forgot :: (c: *Client, login: string) {
 // auth_login_reset: the MFA step's close / "Go back" (LOGIN_RESET, no request).
 auth_login_reset :: (c: *Client) {
 	a := *c.auth;
-	delete(a.mfa_ticket, c.allocator);
-	delete(a.login_instance_id, c.allocator);
+	free_str(a.mfa_ticket, c.allocator);
+	free_str(a.login_instance_id, c.allocator);
 	a.mfa_ticket = "";
 	a.login_instance_id = "";
 }
-#scope_module
 
 auth_job :: (c: *Client, path: string, body: []u8, action: Auth_Action, retries := 0) -> *Job {
 	j := job_new(.Api, .Auth);
 	j.method = "POST";
 	j.path = job_str(j, path);
-	b := make_slice(u8, len(body), job_alloc(j));
-	copy(b, body);
-	j.body = b;
+	j.body = array_copy(body,, job_alloc(j));
 	j.content_type = "application/json";
 	j.retries = retries;
 	j.no_auth = true;
-	j.result.tag = cast(u64)(action);
+	j.result.tag = xx action;
 	return j;
 }
-#scope_export
 
 // ---- log out ----
 
@@ -339,14 +312,13 @@ auth_job :: (c: *Client, path: string, body: []u8, action: Auth_Action, retries 
 // multi_account_account_remove).
 client_logout :: (c: *Client, source: string) {
 	a := *c.auth;
-	delete(a.logout_source, c.allocator);
-	a.logout_source = clone(source, c.allocator);
-	j := auth_job(c, "/auth/logout", transmute([]u8, as_string("{\"provider\":null,\"voip_provider\":null}")), .Logout);
+	free_str(a.logout_source, c.allocator);
+	a.logout_source = copy_string(source,, c.allocator);
+	j := auth_job(c, "/auth/logout", cast([]u8) "{\"provider\":null,\"voip_provider\":null}", .Logout);
 	j.no_auth = false;
 	job_submit(c, j);
-	if source == "multi_accounts_list" { analytics_multi_account_remove(c); }
+	if source == "multi_accounts_list" analytics_multi_account_remove(c);
 }
-#scope_module
 
 // ---- results (client_poll, UI thread) ----
 
@@ -354,64 +326,56 @@ auth_apply :: (c: *Client, e: *Event) {
 	a := *c.auth;
 	r := *e.result;
 	body := vmap(e.data);
-	if cast(Auth_Action)(r.tag) == {
-	case .None;
-	case .Experiments;
-		{ inst := fstr(body, "installation");
-		if inst != "" {
-			locks.lock(*c.id.mu);
-			if c.id.installation_id == "" { c.id.installation_id = clone(inst, c.allocator); }
-			locks.unlock(*c.id.mu);
-		} }
-		{ fp := fstr(body, "fingerprint");
-		if fp != "" && client_logged_out(c) { auth_set_fingerprint(c, fp); } }
-	case .Location_Metadata;
-		if r.ok {
-			delete(a.country_code, c.allocator);
-			a.country_code = clone(fstr(body, "country_code"), c.allocator);
-		}
-	case .Login;
-		analytics_network_action(c, "network_action_user_login", r.status, body, "/auth/login", "post");
-		auth_login_result(c, r.status, body, false);
-	case .Mfa;
-		kind := "totp";
-		if a.mfa_kind == {
-		case .Backup;
-			kind = "backup";
-		case .Sms;
-			kind = "sms";
-		}
-		analytics_network_action(c, "network_action_user_login_mfa", r.status, body, strings.concatenate(string.["/auth/mfa/", kind], temp), "post");
-		auth_login_result(c, r.status, body, true);
-	case .Sms_Send;
-		ev := Auth_Event.{kind = .Sms_Sent, phone = fstr(body, "phone")};
-		if !r.ok { ev.message = auth_message(r.status, body); }
-		auth_push(c, ev);
-	case .Forgot;
-		analytics_network_action(c, "network_action_forgot_password", r.status, body, "/auth/forgot", "post");
-		if r.ok {
-			auth_push(c, .{kind = .Forgot_Sent, one_time_login = fstr(body, "method") == "one_time_login"});
-		} else {
-			ev := Auth_Event.{kind = .Forgot_Failed};
-			auth_form_errors(*ev, r.status, body);
+	if cast(Auth_Action) r.tag == {
+		case .Experiments;
+			inst := fstr(body, "installation");
+			if inst {
+				locks.lock(*c.id.mu);
+				if !c.id.installation_id c.id.installation_id = copy_string(inst,, c.allocator);
+				locks.unlock(*c.id.mu);
+			}
+			fp := fstr(body, "fingerprint");
+			if fp && client_logged_out(c) auth_set_fingerprint(c, fp);
+		case .Location_Metadata;
+			if r.ok {
+				free_str(a.country_code, c.allocator);
+				a.country_code = copy_string(fstr(body, "country_code"),, c.allocator);
+			}
+		case .Login;
+			analytics_network_action(c, "network_action_user_login", r.status, body, "/auth/login", "post");
+			auth_login_result(c, r.status, body, false);
+		case .Mfa;
+			analytics_network_action(c, "network_action_user_login_mfa", r.status, body, tprint("/auth/mfa/%", mfa_kind_name(a.mfa_kind)), "post");
+			auth_login_result(c, r.status, body, true);
+		case .Sms_Send;
+			ev := Auth_Event.{kind = .Sms_Sent, phone = fstr(body, "phone")};
+			if !r.ok ev.message = auth_message(r.status, body);
 			auth_push(c, ev);
-		}
-	case .Logout;
-		auth_after_logout(c, r.status, body);
-	case .Remote_Token;
-		token := fstr(body, "token");
-		client_login_token(c, token);
-		analytics_login_successful_qr(c, fstr(body, "fingerprint"));
-		auth_push(c, .{kind = .Logged_In, token = token});
-	case .Survey;
-		analytics_survey_fetch(c, r.status, body);
-	case .Quests;
-		locks.lock(*c.job_mu);
-		ready := c.ready_ms;
-		locks.unlock(*c.job_mu);
-		schedule_applications_public(c, ready);
-	case .Promotions;
-		api_get_later(c, "/users/@me/applications/521842831262875670/entitlements?exclude_consumed=false", 0);
+		case .Forgot;
+			analytics_network_action(c, "network_action_forgot_password", r.status, body, "/auth/forgot", "post");
+			if r.ok {
+				auth_push(c, .{kind = .Forgot_Sent, one_time_login = fstr(body, "method") == "one_time_login"});
+			} else {
+				ev := Auth_Event.{kind = .Forgot_Failed};
+				auth_form_errors(*ev, r.status, body);
+				auth_push(c, ev);
+			}
+		case .Logout;
+			auth_after_logout(c, r.status, body);
+		case .Remote_Token;
+			token := fstr(body, "token");
+			client_login_token(c, token);
+			analytics_login_successful_qr(c, fstr(body, "fingerprint"));
+			auth_push(c, .{kind = .Logged_In, token = token});
+		case .Survey;
+			analytics_survey_fetch(c, r.status, body);
+		case .Quests;
+			locks.lock(*c.job_mu);
+			ready := c.ready_ms;
+			locks.unlock(*c.job_mu);
+			schedule_applications_public(c, ready);
+		case .Promotions;
+			api_get_later(c, "/users/@me/applications/521842831262875670/entitlements?exclude_consumed=false", 0);
 	}
 }
 
@@ -419,20 +383,20 @@ auth_login_result :: (c: *Client, status: int, body: etf.Map, mfa_step: bool) {
 	a := *c.auth;
 	if status >= 200 && status < 300 {
 		if !mfa_step && fbool(body, "mfa") {
-			delete(a.mfa_ticket, c.allocator);
-			delete(a.login_instance_id, c.allocator);
-			a.mfa_ticket = clone(fstr(body, "ticket"), c.allocator);
-			a.login_instance_id = clone(fstr(body, "login_instance_id"), c.allocator);
-			m: Mfa_Methods;
-			if !etf.is_nil(vget(body, "webauthn")) && fstr(body, "webauthn") != "" { m |= .Webauthn; }
-			if fbool(body, "totp") { m |= .Totp; }
-			if fbool(body, "backup") { m |= .Backup; }
-			if fbool(body, "sms") { m |= .Sms; }
+			free_str(a.mfa_ticket, c.allocator);
+			free_str(a.login_instance_id, c.allocator);
+			a.mfa_ticket = copy_string(fstr(body, "ticket"),, c.allocator);
+			a.login_instance_id = copy_string(fstr(body, "login_instance_id"),, c.allocator);
+			m: Mfa_Method;
+			if fstr(body, "webauthn") m |= .Webauthn;
+			if fbool(body, "totp") m |= .Totp;
+			if fbool(body, "backup") m |= .Backup;
+			if fbool(body, "sms") m |= .Sms;
 			auth_push(c, .{kind = .Mfa_Required, methods = m});
 			return;
 		}
 		token := fstr(body, "token");
-		if token != "" {
+		if token {
 			auth_login_reset(c);
 			client_login_token(c, token);
 			auth_push(c, .{kind = .Logged_In, token = token});
@@ -453,76 +417,68 @@ auth_form_errors :: (ev: *Auth_Event, status: int, body: etf.Map) {
 	}
 	first :: (body: etf.Map, k: string) -> string {
 		// {"errors":{"login":{"_errors":[{"message":..}]}}} or the old {"login":["..."]}
-		{ errs := fmap(body, "errors");
-		if !is_null(errs) {
-			{ l := flist(fmap(errs, k), "_errors");
-			if len(l) > 0 { return fstr(vmap(l[0]), "message"); } }
-		} }
-		{ l := flist(body, k);
-		if len(l) > 0 { return vstr(l[0]); } }
-		return "";
+		errs := fmap(body, "errors");
+		if errs {
+			l := flist(fmap(errs, k), "_errors");
+			if l return fstr(vmap(l[0]), "message");
+		}
+		l := flist(body, k);
+		return ifx l then vstr(l[0]) else "";
 	}
 	ev.login_error = first(body, "login");
-	if ev.login_error == "" { ev.login_error = first(body, "email"); }
+	if !ev.login_error ev.login_error = first(body, "email");
 	ev.password_error = first(body, "password");
-	if ev.login_error == "" && ev.password_error == "" { ev.message = auth_message(status, body); }
+	if !ev.login_error && !ev.password_error ev.message = auth_message(status, body);
 }
 
 auth_message :: (status: int, body: etf.Map) -> string {
-	if status == 0 { return "Couldn't reach Discord. Check your connection and try again."; }
-	{ m := fstr(body, "message");
-	if m != "" { return m; } }
-	return "Something went wrong. Please try again.";
+	if status == 0 return "Couldn't reach Discord. Check your connection and try again.";
+	m := fstr(body, "message");
+	return ifx m then m else "Something went wrong. Please try again.";
 }
 
 auth_push :: (c: *Client, ev: Auth_Event) {
-	a := *c.auth;
-	al := pool_allocator(*a.arena);
+	push_allocator(pool_allocator(*c.auth.arena));
 	e := ev;
-	e.login_error = clone(ev.login_error, al);
-	e.password_error = clone(ev.password_error, al);
-	e.message = clone(ev.message, al);
-	e.phone = clone(ev.phone, al);
-	e.login = clone(ev.login, al);
-	e.token = clone(ev.token, al);
-	append(*a.events, e);
+	e.login_error = copy_string(ev.login_error);
+	e.password_error = copy_string(ev.password_error);
+	e.message = copy_string(ev.message);
+	e.phone = copy_string(ev.phone);
+	e.login = copy_string(ev.login);
+	e.token = copy_string(ev.token);
+	array_add(*c.auth.events, e);
 }
-#scope_export
 
 // auth_take_events: login-page results since the last call (UI thread; temp allocator).
 auth_take_events :: (c: *Client) -> []Auth_Event {
 	a := *c.auth;
-	if len(a.events) == 0 { return .{}; }
-	t := temp;
-	out := make_slice(Auth_Event, len(a.events), t);
+	if !a.events return .[];
+	out := NewArray(a.events.count, Auth_Event,, temp);
 	for e, i: a.events {
-		at(*out, i).* = e;
-		at(*out, i).*.login_error = clone(e.login_error, t);
-		at(*out, i).*.password_error = clone(e.password_error, t);
-		at(*out, i).*.message = clone(e.message, t);
-		at(*out, i).*.phone = clone(e.phone, t);
-		at(*out, i).*.login = clone(e.login, t);
-		at(*out, i).*.token = clone(e.token, t);
-		if len(e.token) > 0 { crypto.zero(cast([]u8) e.token); }
+		push_allocator(temp);
+		out[i] = e;
+		out[i].login_error = copy_string(e.login_error);
+		out[i].password_error = copy_string(e.password_error);
+		out[i].message = copy_string(e.message);
+		out[i].phone = copy_string(e.phone);
+		out[i].login = copy_string(e.login);
+		out[i].token = copy_string(e.token);
+		crypto.zero(cast([]u8) e.token);
 	}
-	clear(*a.events);
+	a.events.count = 0;
 	reset(*a.arena);
 	return out;
 }
-#scope_module
 
 // auth_push_token (remote auth thread): the decrypted token, applied on the UI thread.
 auth_push_token :: (c: *Client, token: string, fingerprint: string, action: Auth_Action) {
-	arena := New(Flat_Pool);
-	al := pool_allocator(arena);
-	m := etf.map_builder(2,, al);
-	etf.map_put(*m, "token", to_v(clone(token, al)));
-	etf.map_put(*m, "fingerprint", to_v(clone(fingerprint, al)));
-	ev := Event.{kind = .Rest, data = etf.vmap(etf.map_done(*m)), arena = arena};
-	ev.result.op = .Auth;
-	ev.result.ok = true;
-	ev.result.status = 200;
-	ev.result.tag = cast(u64)(action);
+	pool := New(Flat_Pool);
+	push_allocator(pool_allocator(pool));
+	m := etf.map_builder(2);
+	etf.map_put(*m, "token", etf.vstring(copy_string(token)));
+	etf.map_put(*m, "fingerprint", etf.vstring(copy_string(fingerprint)));
+	ev := Event.{kind = .Rest, data = etf.vmap(etf.map_done(*m)), arena = pool};
+	ev.result = .{op = .Auth, ok = true, status = 200, tag = xx action};
 	client_push_event(c, ev);
 }
 
@@ -533,11 +489,11 @@ auth_set_fingerprint :: (c: *Client, fp: string) {
 	a := *c.auth;
 	locks.lock(*a.mu);
 	old := a.fingerprint;
-	if old == "" { a.fingerprint = clone(fp, c.allocator); }
+	if !old a.fingerprint = copy_string(fp,, c.allocator);
 	locks.unlock(*a.mu);
-	if old == "" {
+	if !old {
 		analytics_fingerprint_changed(c, fp);
-		if c.cfg.state_dir != "" { write_file_atomic(state_path(c, "fingerprint"), transmute([]u8, fp)); }
+		if c.cfg.state_dir write_file_atomic(state_path(c, "fingerprint"), cast([]u8) fp);
 	} else if old != fp {
 		analytics_external_fingerprint_dropped(c, old, fp);
 	}
@@ -546,10 +502,10 @@ auth_set_fingerprint :: (c: *Client, fp: string) {
 auth_forget_fingerprint :: (c: *Client) {
 	a := *c.auth;
 	locks.lock(*a.mu);
-	delete(a.fingerprint, c.allocator);
+	free_str(a.fingerprint, c.allocator);
 	a.fingerprint = "";
 	locks.unlock(*a.mu);
-	if c.cfg.state_dir != "" { os.remove_(state_path(c, "fingerprint")); }
+	if c.cfg.state_dir file_delete(state_path(c, "fingerprint"));
 }
 
 // LOGOUT after POST /auth/logout settled (.finally): the network action and
@@ -558,48 +514,43 @@ auth_forget_fingerprint :: (c: *Client) {
 // /experiments is fetched from the old route and the login page renders.
 auth_after_logout :: (c: *Client, status: int, body: etf.Map) {
 	a := *c.auth;
-	src := ifx a.logout_source != "" then a.logout_source else "settings";
+	src := ifx a.logout_source then a.logout_source else "settings";
 	analytics_network_action(c, "network_action_user_logout", status, body, "/auth/logout", "post", "logout_source", src);
 	analytics_hotspot_hidden(c, "VOICE_PANEL_INTRODUCTION");
 	locks.lock(*c.route_mu);
 	g, ch := c.route_guild, c.route_channel;
 	locks.unlock(*c.route_mu);
 	old_referer := referer_for_route(g, ch);
-	old_path := sub_from(old_referer, len(API_ORIGIN));
+	old_path := advance(old_referer, API_ORIGIN.count);
 	// the batch holding the events above goes out with the old analytics token
-	delete(a.logout_batch_token, c.allocator);
-	a.logout_batch_token = clone(c.store.analytics_token, c.allocator);
+	free_str(a.logout_batch_token, c.allocator);
+	a.logout_batch_token = copy_string(c.store.analytics_token,, c.allocator);
 	locks.lock(*a.mu);
-	delete(c.token, c.allocator);
+	free_str(c.token, c.allocator);
 	c.token = "";
 	a.logged_out = true;
 	a.login_session = false;
-	delete(a.referer, c.allocator);
-	a.referer = strings.concatenate(string.[API_ORIGIN, "/login?redirect_to=", url_component(old_path)], c.allocator);
+	free_str(a.referer, c.allocator);
+	a.referer = join(API_ORIGIN, "/login?redirect_to=", uri_component(old_path),, c.allocator);
 	locks.unlock(*a.mu);
 	identity_set_logged_out(*c.id, true);
-	if c.gw != null {
+	if c.gw {
 		gw := c.gw;
 		c.gw = null;
-		if c.cfg.gateway_sink != null {
-			gateway_stop(gw);
-		} else {
-			append(*a.gw_stoppers, spawn(gw, gateway_stop));
-		}
+		if c.cfg.gateway_sink gateway_stop(gw);
+		else array_add(*a.gw_stoppers, spawn(gw, gateway_stop));
 	}
 	auth_fetch_experiments(c, old_path, old_referer);
 	// Components still mounted on the old route refetch without a token (and get
 	// 401): Home's referral eligibility (three times) and, from the login page,
 	// the frecency settings (fixture logout).
-	if g == 0 {
-		for _: 0..2 {
-			j := job_new(.Api, .Auth);
-			j.method = "GET";
-			j.path = "/users/@me/referrals/eligibility";
-			j.no_auth = true;
-			j.referer = job_str(j, old_referer);
-			job_submit(c, j);
-		}
+	if g == 0 for 1..3 {
+		j := job_new(.Api, .Auth);
+		j.method = "GET";
+		j.path = "/users/@me/referrals/eligibility";
+		j.no_auth = true;
+		j.referer = job_str(j, old_referer);
+		job_submit(c, j);
 	}
 	sp := job_new(.Api, .Auth);
 	sp.method = "GET";
@@ -614,7 +565,6 @@ auth_after_logout :: (c: *Client, status: int, body: etf.Map) {
 	a.screen_cold = false;
 	auth_push(c, .{kind = .Logged_Out});
 }
-#scope_export
 
 // client_login_token: LOGIN_SUCCESS. The fingerprint is forgotten, the QR
 // socket closes, and the gateway connects at once (no fast connect) with a
@@ -622,8 +572,8 @@ auth_after_logout :: (c: *Client, status: int, body: etf.Map) {
 client_login_token :: (c: *Client, token: string) {
 	a := *c.auth;
 	locks.lock(*a.mu);
-	delete(c.token, c.allocator);
-	c.token = clone(token, c.allocator);
+	free_str(c.token, c.allocator);
+	c.token = copy_string(token,, c.allocator);
 	a.logged_out = false;
 	a.login_session = true;
 	locks.unlock(*a.mu);
@@ -639,15 +589,14 @@ client_login_token :: (c: *Client, token: string) {
 	c.route_guild, c.route_channel = 0, 0;
 	locks.unlock(*c.route_mu);
 	c.start_route_guild, c.start_route_channel = 0, 0;
-	if c.gw == null && !c.cfg.disable_gateway {
+	if !c.gw && !c.cfg.disable_gateway {
 		c.gw = gateway_create(c);
-		if c.cfg.gateway_sink == null {
+		if !c.cfg.gateway_sink {
 			gateway_set_active(c.gw, qos_from_state(c.focused, false));
 			gateway_start(c.gw);
 		}
 	}
 }
-#scope_module
 
 // client_session_reset: what a new login starts without (the official stores reset on LOGOUT).
 client_session_reset :: (c: *Client) {
@@ -670,12 +619,12 @@ client_session_reset :: (c: *Client) {
 	c.account_popout_opened = false;
 	c.soundboard_loaded = false;
 	table_reset(*c.subs.guilds);
-	for l: c.subs.channels { delete(l); }
+	for c.subs.channels array_free(it);
 	table_reset(*c.subs.channels);
-	clear(*c.subs.pending);
-	clear(*c.pending_acks);
+	c.subs.pending.count = 0;
+	c.pending_acks.count = 0;
 	locks.lock(*c.ack_mu);
-	delete(c.ack_token, c.allocator);
+	free_str(c.ack_token, c.allocator);
 	c.ack_token = "";
 	locks.unlock(*c.ack_mu);
 	locks.lock(*c.analytics.mu);
@@ -700,10 +649,7 @@ Login_Burst_Entry :: struct {
 // The login_submit fixture: the app renders on /app (survey, guild affinities,
 // webauthn credentials), then on /channels/@me (Friends). Detectables, the
 // detectable exclusions and config_0 are not fetched again in the session.
-// The login_submit fixture: the app renders on /app (survey, guild affinities,
-// webauthn credentials), then on /channels/@me (Friends). Detectables, the
-// detectable exclusions and config_0 are not fetched again in the session.
-LOGIN_BURST := Login_Burst_Entry.[
+LOGIN_BURST :: Login_Burst_Entry.[
 	.{0, "GET", "/users/@me/survey?disable_auto_seen=true", #run join(API_ORIGIN, "/app"), "", .Survey},
 	.{0, "WEB", "/api/v2/scheduled-maintenances/upcoming.json", "", "", .None},
 	.{0, "GET", "/users/@me/affinities/guilds", #run join(API_ORIGIN, "/app"), "", .None},
@@ -730,7 +676,7 @@ auth_on_ready :: (c: *Client, ready: s64) -> bool {
 	locks.lock(*c.auth.mu);
 	login := c.auth.login_session;
 	locks.unlock(*c.auth.mu);
-	if !login { return false; }
+	if !login return false;
 	for e: LOGIN_BURST {
 		j: *Job;
 		if e.method == "WEB" {
@@ -742,63 +688,39 @@ auth_on_ready :: (c: *Client, ready: s64) -> bool {
 			j = job_new(.Api, ifx e.action != .None then .Auth else .Startup);
 			j.method = e.method;
 			if e.method == "POST" {
-				j.body = transmute([]u8, job_str(j, "{\"allow_triggers\":true}"));
+				j.body = cast([]u8) job_str(j, "{\"allow_triggers\":true}");
 				j.content_type = "application/json";
 			}
-			if e.ctx != "" { j.context_b64 = job_str(j, context_b64(e.ctx)); }
-			if e.referer != "" { j.referer = job_str(j, e.referer); }
-			j.result.tag = cast(u64)(e.action);
+			if e.ctx j.context_b64 = job_str(j, context_b64(e.ctx));
+			if e.referer j.referer = job_str(j, e.referer);
+			j.result.tag = xx e.action;
 		}
 		path := e.path;
-		if strings.contains(path, "{visible}") {
+		if contains(path, "{visible}") {
 			// the guilds in the sidebar, in its order (folders after the unlisted ones)
-			sb := strings.builder_make(temp);
-			for id: sidebar_guild_ids(*c.store) {
-				strings.write_string(*sb, "&visible_guild_ids=");
-				strings.write_string(*sb, snowflake_string(id));
-			}
-			path, _ = strings.replace_all(path, "{visible}", strings.to_string(sb), temp);
+			sb: String_Builder;
+			sb.allocator = temp;
+			for sidebar_guild_ids(*c.store) print_to_builder(*sb, "&visible_guild_ids=%", it);
+			path = replace(path, "{visible}", builder_to_string(*sb,, temp),, temp);
 		}
 		j.path = job_str(j, startup_expand(c, path));
 		j.not_before = ready + e.at_ms;
-		if strings.has_prefix(e.path, "/users/@me/billing/user-offer") { analytics_schedule(c, j.not_before, "fetch_user_offer_started", "\"call_location\":\"PremiumManager\""); }
+		if begins_with(e.path, "/users/@me/billing/user-offer") analytics_schedule(c, j.not_before, "fetch_user_offer_started", "\"call_location\":\"PremiumManager\"");
 		job_submit(c, j);
 	}
 	return true;
 }
-#scope_export
 
-// sidebar_guild_ids: guilds missing from the folders first (READY order), then the folders' guilds.
+// sidebar_guild_ids: guilds missing from the folders first (READY order), then the folders' guilds (temp).
 sidebar_guild_ids :: (s: *Store) -> []Snowflake {
-	out := make_dynamic(Snowflake, 0, 0, temp);
+	push_allocator(temp);
+	out: [..]Snowflake;
 	listed: Table(Snowflake, bool);
-	listed.allocator = temp;
-	for f: s.settings.guild_folders { for id: f.guild_ids { table_set(*listed, id, true); } }
-	for gid: s.guild_order { if !table_contains(*listed, gid) { append(*out, gid); } }
-	for f: s.settings.guild_folders { for id: f.guild_ids { if table_contains(*s.guilds, id) { append(*out, id); } } }
-	return view(out);
-}
-#scope_module
-
-// encodeURIComponent for a path ("/channels/@me" -> "%2Fchannels%2F%40me").
-url_component :: (s: string, allocator := temp) -> string {
-	sb := strings.builder_make(allocator);
-	HEX := "0123456789ABCDEF";
-	for ch: transmute([]u8, s) {
-		if (ch >= #char "A" && ch <= #char "Z") || (ch >= #char "a" && ch <= #char "z") || (ch >= #char "0" && ch <= #char "9") || ch == #char "-" || ch == #char "_" || ch == #char "." || ch == #char "!" || ch == #char "~" || ch == #char "*" || ch == #char "'" || ch == #char "(" || ch == #char ")" {
-			strings.write_byte(*sb, ch);
-		} else {
-			strings.write_byte(*sb, #char "%");
-			strings.write_byte(*sb, HEX[ch >> 4]);
-			strings.write_byte(*sb, HEX[ch & 15]);
-		}
-	}
-	return strings.to_string(sb);
+	for f: s.settings.guild_folders for f.guild_ids table_set(*listed, it, true);
+	for s.guild_order if !table_contains(*listed, it) array_add(*out, it);
+	for f: s.settings.guild_folders for f.guild_ids if table_contains(*s.guilds, it) array_add(*out, it);
+	return out;
 }
 
-// Dialing codes by country (the client's country list; the first code of each).
 // Dialing codes by country (the client's country list; the first code of each).
 DIALING_CODES :: "AF+93,AX+358,AL+355,DZ+213,AS+1,AD+376,AO+244,AI+1,AQ+672,AG+1,AR+54,AM+374,AW+297,AC+247,AU+61,AT+43,AZ+994,BS+1,BH+973,BD+880,BB+1,BY+375,BE+32,BZ+501,BJ+229,BM+1,BT+975,BO+591,BQ+599,BA+387,BW+267,BV+55,BR+55,IO+246,BN+673,BG+359,BF+226,BI+257,KH+855,CM+237,CA+1,CV+238,KY+1,CF+236,TD+235,CL+56,CN+86,CX+61,CC+61,CO+57,KM+269,CG+242,CD+243,CK+682,CR+506,CI+225,HR+385,CU+53,CW+599,CY+357,CZ+420,DK+45,DG+246,DJ+253,DM+1,DO+1,EC+593,EG+20,SV+503,GQ+240,ER+291,EE+372,ET+251,FK+500,FO+298,FJ+679,FI+358,FR+33,GF+594,PF+689,TF+262,GA+241,GM+220,GE+995,DE+49,GH+233,GI+350,GR+30,GL+299,GD+1,GP+590,GU+1,GT+502,GG+44,GN+224,GW+245,GY+592,HT+509,HM+672,VA+39,HN+504,HK+852,HU+36,IS+354,IN+91,ID+62,IR+98,IQ+964,IE+353,IM+44,IL+972,IT+39,JM+1,JP+81,JE+44,JO+962,KZ+7,KE+254,KI+686,XK+383,KP+850,KR+82,KW+965,KG+996,LA+856,LV+371,LB+961,LS+266,LR+231,LY+218,LI+423,LT+370,LU+352,MO+853,MK+389,MG+261,MW+265,MY+60,MV+960,ML+223,MT+356,MH+692,MQ+596,MR+222,MU+230,YT+262,MX+52,FM+691,MI+1,MD+373,MC+377,MN+976,ME+382,MS+1664,MA+212,MZ+258,MM+95,NA+264,NR+674,NP+977,NL+31,AN+599,NC+687,NZ+64,NI+505,NE+227,NG+234,NU+683,NF+672,MP+1,NO+47,OM+968,PK+92,PW+680,PS+970,PA+507,PG+675,PY+595,PE+51,PH+63,PN+64,PL+48,PT+351,PR+1,QA+974,RE+262,RO+40,RU+7,RW+250,BL+590,SH+290,KN+1,LC+1,MF+590,PM+508,VC+1,WS+685,SM+378,ST+239,SA+966,SN+221,RS+381,SC+248,SL+232,SG+65,SX+1,SK+421,SI+386,SB+677,SO+252,ZA+27,GS+500,SS+211,ES+34,LK+94,SD+249,SR+597,SJ+47,SZ+268,SE+46,CH+41,SY+963,TW+886,TJ+992,TZ+255,TH+66,TL+670,TG+228,TK+690,TO+676,TT+1,TN+216,TR+90,TM+993,TC+1,TV+688,UG+256,UA+380,AE+971,GB+44,US+1,UM+1,UY+598,UZ+998,VU+678,VE+58,VN+84,VG+1,VI+1,WF+681,EH+212,YE+967,ZM+260,ZW+263";
-#scope_export
-
-

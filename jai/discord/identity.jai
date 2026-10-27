@@ -103,41 +103,34 @@ identity_init :: (id: *Identity, platform: Platform_Info, allocator := context.a
 	id.allocator = allocator;
 	id.client_launch_id = uuid4(,, allocator);
 	id.fast_connect_launch_id = uuid4(,, allocator);
-	id.launch_signature = launch_signature(allocator);
+	id.launch_signature = launch_signature(,, allocator);
 	id.app_state = .Focused;
 }
 
 // identity_touch_heartbeat renews / creates the heartbeat session when the app is active.
 identity_touch_heartbeat :: (id: *Identity, now: s64) -> bool {
-	created: bool;
 	locks.lock(*id.mu);
 	defer locks.unlock(*id.mu);
 	return touch_heartbeat_locked(id, now);
 }
-#scope_module
 
 touch_heartbeat_locked :: (id: *Identity, now: s64) -> bool {
-	created: bool;
-	if id.app_state != .Focused || id.logged_out { return false; }
-	if heartbeat_session_expired(id.heartbeat, now) {
-		if id.heartbeat.uuid != "" { delete(id.heartbeat.uuid, id.allocator); }
+	if id.app_state != .Focused || id.logged_out return false;
+	created := heartbeat_session_expired(id.heartbeat, now);
+	if created {
+		free_str(id.heartbeat.uuid, id.allocator);
 		id.heartbeat = .{uuid4(,, id.allocator), now, now};
-		created = true;
 	}
 	id.heartbeat.last_used = now;
 	return created;
 }
 
 current_heartbeat_locked :: (id: *Identity, now: s64) -> string {
-	if id.logged_out || heartbeat_session_expired(id.heartbeat, now) { return ""; }
+	if id.logged_out || heartbeat_session_expired(id.heartbeat, now) return "";
 	return id.heartbeat.uuid;
 }
-#scope_export
 
-app_state_name :: (s: App_State) -> string {
-	return ifx s == .Focused then "focused" else "unfocused";
-}
-#scope_module
+app_state_name :: (s: App_State) -> string { return ifx s == .Focused then "focused" else "unfocused"; }
 
 // write_base_properties writes the device properties shared by IDENTIFY and
 // x-super-properties, in the client's key order.
@@ -159,7 +152,6 @@ write_base_properties :: (w: *Json, p: Platform_Info, launch_id: string) {
 	json_kint(w, "native_build_number", p.native_build_number);
 	json_knull(w, "client_event_source");
 }
-#scope_export
 
 // super_properties_json is the decoded x-super-properties header.
 super_properties_json :: (id: *Identity, now: s64, allocator := temp) -> string {
@@ -177,35 +169,32 @@ super_properties_json :: (id: *Identity, now: s64, allocator := temp) -> string 
 	write_base_properties(*w, id.platform, id.client_launch_id);
 	json_kstr(*w, "launch_signature", id.launch_signature);
 	if id.hb_before_app_state {
-		if hb != "" { json_kstr(*w, "client_heartbeat_session_id", hb); }
+		if hb json_kstr(*w, "client_heartbeat_session_id", hb);
 		json_kstr(*w, "client_app_state", app_state_name(id.app_state));
 	} else {
 		json_kstr(*w, "client_app_state", app_state_name(id.app_state));
-		if hb != "" { json_kstr(*w, "client_heartbeat_session_id", hb); }
+		if hb json_kstr(*w, "client_heartbeat_session_id", hb);
 	}
 	json_obj_end(*w);
 	return json_string(*w);
 }
 
 super_properties_b64 :: (id: *Identity, now: s64, allocator := temp) -> string {
-	js := super_properties_json(id, now, temp);
-	return base64.encode(transmute([]u8, js), allocator = allocator);
+	return context_b64(super_properties_json(id, now), allocator);
 }
 
 // context_properties encodes x-context-properties: base64(JSON.stringify(ctx)).
 context_location :: (location: string, allocator := temp) -> string {
-	if location == "" { return ""; }
+	if !location return "";
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "location", location);
 	json_obj_end(*w);
-	return base64.encode(transmute([]u8, json_string(*w)), allocator = allocator);
+	return context_b64(json_string(*w), allocator);
 }
 
-context_b64 :: (json_text: string, allocator := temp) -> string {
-	return base64.encode(transmute([]u8, json_text), allocator = allocator);
-}
+context_b64 :: (json_text: string, allocator := temp) -> string { return base64_encode(json_text,, allocator); }
 
 // identity_set_logged_out: LOGOUT drops the heartbeat session; LOGIN_SUCCESS
 // starts a new one at once (fixture login_submit: op 41's initialization
@@ -214,9 +203,9 @@ identity_set_logged_out :: (id: *Identity, logged_out: bool, now: s64 = 0) {
 	locks.lock(*id.mu);
 	defer locks.unlock(*id.mu);
 	id.logged_out = logged_out;
-	if logged_out && id.heartbeat.uuid != "" {
-		delete(id.heartbeat.uuid, id.allocator);
-		id.heartbeat = zero(type_of(id.heartbeat));
+	if logged_out && id.heartbeat.uuid {
+		free(id.heartbeat.uuid,, id.allocator);
+		id.heartbeat = .{};
 	}
 	if !logged_out {
 		touch_heartbeat_locked(id, now);
@@ -250,7 +239,7 @@ identity_heartbeat_snapshot :: (id: *Identity, allocator := temp) -> Heartbeat_S
 	locks.lock(*id.mu);
 	defer locks.unlock(*id.mu);
 	h := id.heartbeat;
-	h.uuid = clone(h.uuid, allocator);
+	h.uuid = copy_string(h.uuid,, allocator);
 	return h;
 }
 
@@ -261,21 +250,14 @@ identity_heartbeat_snapshot :: (id: *Identity, allocator := temp) -> Heartbeat_S
 // replugged, legcord, Dorion, GCDP, openasar, shelter, moonlight) that is set
 // when the family's global exists. A clean client has all of them cleared:
 //   sig = random & ~LAUNCH_SIG_ZERO | LAUNCH_SIG_ONE
-LAUNCH_SIG_ZERO := u8.[0x00, 0x80, 0x10, 0x10, 0x08, 0x10, 0xb8, 0x00, 0x60, 0x81, 0x00, 0x40, 0x01, 0x00, 0x08, 0x00];
-LAUNCH_SIG_ONE := u8.[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+LAUNCH_SIG_ZERO :: u8.[0x00, 0x80, 0x10, 0x10, 0x08, 0x10, 0xb8, 0x00, 0x60, 0x81, 0x00, 0x40, 0x01, 0x00, 0x08, 0x00];
+LAUNCH_SIG_ONE :: u8.[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 
-launch_signature :: (allocator := context.allocator) -> string {
+launch_signature :: () -> string {
 	b: [16]u8;
 	crypto.random_bytes(b);
-	for i: 0..15 { b[i] = (b[i] & ~LAUNCH_SIG_ZERO[i]) | LAUNCH_SIG_ONE[i]; }
-	return uuid_format(b,, allocator);
-}
-
-launch_signature_is_clean :: (sig: string) -> bool {
-	b, ok := uuid_parse(sig);
-	if !ok { return false; }
-	for i: 0..15 { if (b[i] & LAUNCH_SIG_ZERO[i]) != 0 || (b[i] & LAUNCH_SIG_ONE[i]) != LAUNCH_SIG_ONE[i] { return false; } }
-	return true;
+	for * b it.* = (it.* & ~LAUNCH_SIG_ZERO[it_index]) | LAUNCH_SIG_ONE[it_index];
+	return uuid_format(b);
 }
 
 identity_app_state :: (id: *Identity) -> App_State {

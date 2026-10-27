@@ -16,6 +16,10 @@
 //   - RESUME only if a session exists and the last ACK is ≤ 3 min old.
 //   - op 7 reconnects immediately; op 9 resumes (d=true) or identifies.
 //   - HELLO must arrive within 30 s.
+//
+// Threads: the control thread (timers, connects, teardown), one reader per socket and a writer for
+// frames sent from the UI thread. Each resets its temporary storage per frame or timer round; what
+// outlives that (session strings, the outbox, the inflate buffer) uses the client's allocator.
 
 GATEWAY_DEFAULT_URL :: "wss://gateway.discord.gg";
 GATEWAY_QUERY :: "/?encoding=etf&v=9&compress=zstd-stream";
@@ -91,7 +95,7 @@ Gateway :: struct {
 	reader: *Thread;
 	control: *Thread;
 	stop: bool;
-	// session
+	// session (client allocator)
 	seq: s64;
 	session_id: string;
 	resume_url: string;
@@ -104,8 +108,10 @@ Gateway :: struct {
 	beat_acked: bool;
 	hello_deadline: s64;
 	received_hello: bool;
-	qos_current: Maybe(Qos);
-	qos_upcoming: Maybe(Qos);
+	qos_current: Qos;
+	qos_upcoming: Qos;
+	have_qos_current: bool;
+	have_qos_upcoming: bool;
 	// reconnect
 	backoff: Backoff;
 	reconnect_at: s64;
@@ -130,13 +136,13 @@ Gateway :: struct {
 }
 
 gateway_create :: (c: *Client) -> *Gateway {
-	g := new(Gateway);
+	g := New(Gateway,, c.allocator);
 	g.c = c;
 	g.backoff = backoff_make(1000, 60000);
 	g.state = .Closed;
 	g.presence_status = .Online;
-	g.inflated = make_dynamic(u8, 0, 0);
-	g.outbox = make_dynamic([]u8, 0, 0, c.allocator);
+	g.inflated.allocator = c.allocator;
+	g.outbox.allocator = c.allocator;
 	return g;
 }
 
@@ -144,30 +150,28 @@ gateway_start :: (g: *Gateway) {
 	g.control = spawn(g, gateway_control_proc);
 	g.writer = spawn(g, gateway_writer_proc);
 }
-#scope_module
 
 gateway_writer_proc :: (g: *Gateway) {
 	locks.lock(*g.out_mu);
 	while !g.out_stop {
-		if len(g.outbox) == 0 {
+		if !g.outbox {
 			locks.cond_wait(*g.out_cond, *g.out_mu);
 			continue;
 		}
-		batch := g.outbox;
-		g.outbox = make_dynamic([]u8, 0, 0, g.c.allocator);
+		batch := array_copy(g.outbox,, temp);
+		g.outbox.count = 0;
 		locks.unlock(*g.out_mu);
-		for b: batch {
+		for batch {
 			locks.lock(*g.send_mu);
-			if g.ws != null { http.ws_send(g.ws, .Binary, b); }
+			if g.ws http.ws_send(g.ws, .Binary, it);
 			locks.unlock(*g.send_mu);
-			delete(b, g.c.allocator);
+			array_free(it,, g.c.allocator);
 		}
-		delete(batch);
+		reset_temporary_storage();
 		locks.lock(*g.out_mu);
 	}
 	locks.unlock(*g.out_mu);
 }
-#scope_export
 
 gateway_stop :: (g: *Gateway) {
 	locks.lock(*g.mu);
@@ -176,139 +180,117 @@ gateway_stop :: (g: *Gateway) {
 	locks.cond_broadcast(*g.cond);
 	locks.unlock(*g.mu);
 	gateway_close_socket(g, 1000);
-	if g.control != null {
-		locks.join(g.control);
-	}
+	if g.control locks.join(g.control);
 	// The control thread may have finished a connect after the close above, leaving a live socket
 	// and reader thread behind; close and join them before the free.
 	gateway_close_socket(g, 1000);
-	if g.writer != null {
+	if g.writer {
 		locks.lock(*g.out_mu);
 		g.out_stop = true;
 		locks.cond_signal(*g.out_cond);
 		locks.unlock(*g.out_mu);
 		locks.join(g.writer);
 	}
-	for b: g.outbox { delete(b, g.c.allocator); }
-	delete(g.outbox);
-	delete(g.session_id);
-	delete(g.resume_url);
-	delete(g.inflated);
+	push_allocator(g.c.allocator);
+	for g.outbox array_free(it);
+	array_free(g.outbox);
+	free(g.session_id);
+	free(g.resume_url);
+	array_free(g.inflated);
 	free(g);
 }
 
 gateway_url :: (g: *Gateway, allocator := temp) -> string {
-	base := ifx g.resume_url != "" then g.resume_url else g.c.cfg.gateway_url;
-	if base == "" { base = GATEWAY_DEFAULT_URL; }
-	base = strings.trim_right(base, "/");
-	return strings.concatenate(string.[base, GATEWAY_QUERY], allocator);
+	base := ifx g.resume_url then g.resume_url else g.c.cfg.gateway_url;
+	if !base base = GATEWAY_DEFAULT_URL;
+	return join(trim_right(base, "/"), GATEWAY_QUERY,, allocator);
 }
 
 // ---- sending ----
 
 // gateway_send packs {op, d} (key order op, d) with the client's ETF layout.
 gateway_send :: (g: *Gateway, op: Op, d: V) -> bool {
-	if g.c.cfg.gateway_sink != null {
-		g.c.cfg.gateway_sink(g.c.cfg.gateway_sink_data, op, d);
+	c := g.c;
+	if c.cfg.gateway_sink {
+		c.cfg.gateway_sink(c.cfg.gateway_sink_data, op, d);
 		return true;
 	}
-	b := etf.map_builder(2,, temp);
-	etf.map_put(*b, "op", to_v(cast(s64)(op)));
-	etf.map_put(*b, "d", to_v(d));
-	frame := etf.vmap(etf.map_done(*b));
+	frame := etf.vmap(.[.{etf.vstring("op"), etf.vint(xx op)}, .{etf.vstring("d"), d}]);
 	buf, err := etf.encode(frame,, temp);
-	if err != .None { return false; }
+	if err != .None return false;
 	if locks.on_ui_thread() {
 		// Queued: true means accepted for sending, as a send can still fail on a dying socket.
-		if atomic_load(*g.ws) == null { return false; }
-		if g.c.on_gateway_send != null { g.c.on_gateway_send(g.c.observer_data, op, d); }
-		if g.c.on_gateway_frame != null { g.c.on_gateway_frame(g.c.observer_data, true, frame, len(buf)); }
+		if atomic_load(*g.ws) == null return false;
+		if c.on_gateway_send c.on_gateway_send(c.observer_data, op, d);
+		if c.on_gateway_frame c.on_gateway_frame(c.observer_data, true, frame, buf.count);
 		locks.lock(*g.out_mu);
-		append(*g.outbox, clone(buf, g.c.allocator));
+		array_add(*g.outbox, array_copy(buf,, c.allocator));
 		locks.cond_signal(*g.out_cond);
 		locks.unlock(*g.out_mu);
 		return true;
 	}
 	locks.lock(*g.send_mu);
 	defer locks.unlock(*g.send_mu);
-	if g.ws == null { return false; }
-	if g.c.on_gateway_send != null { g.c.on_gateway_send(g.c.observer_data, op, d); }
-	if g.c.on_gateway_frame != null { g.c.on_gateway_frame(g.c.observer_data, true, frame, len(buf)); }
+	if !g.ws return false;
+	if c.on_gateway_send c.on_gateway_send(c.observer_data, op, d);
+	if c.on_gateway_frame c.on_gateway_frame(c.observer_data, true, frame, buf.count);
 	return http.ws_send(g.ws, .Binary, buf) == .None;
 }
-#scope_module
 
 qos_value :: (q: Qos) -> V {
-	b := etf.map_builder(3,, temp);
-	etf.map_put(*b, "active", to_v(q.active));
-	etf.map_put(*b, "ver", to_v(cast(s64)(31)));
-	reasons := make_slice(V, q.n, temp);
-	for i: 0..cast(int)(q.n)-1 { reasons[i] = to_v(q.reasons[i]); }
+	push_allocator(temp);
+	reasons := NewArray(q.n, V);
+	for * reasons it.* = etf.vstring(q.reasons[it_index]);
+	b := etf.map_builder(3);
+	etf.map_put(*b, "active", etf.vbool(q.active));
+	etf.map_put(*b, "ver", etf.vint(31));
 	etf.map_put(*b, "reasons", etf.vlist(reasons));
 	return etf.vmap(etf.map_done(*b));
 }
 
-// consume_qos: returns the payload to send and promotes the upcoming state.
-consume_qos_locked :: (g: *Gateway) -> Maybe(Qos) {
-	cur := g.qos_current;
-	{ up, ok := maybe_get(g.qos_upcoming);
-	if ok { g.qos_current = some(up); } }
-	g.qos_upcoming = zero(type_of(g.qos_upcoming));
-	return cur;
-}
-
+// send_heartbeat_locked consumes the QoS payload (and promotes the upcoming state).
 send_heartbeat_locked :: (g: *Gateway) {
-	q := consume_qos_locked(g);
+	q, have := g.qos_current, g.have_qos_current;
+	if g.have_qos_upcoming g.qos_current, g.have_qos_current = g.qos_upcoming, true;
+	g.have_qos_upcoming = false;
 	b := etf.map_builder(2,, temp);
-	etf.map_put(*b, "seq", to_v(g.seq));
-	{ qq, ok := maybe_get(q);
-	if ok {
-		etf.map_put(*b, "qos", to_v(qos_value(qq)));
-	} else {
-		etf.map_put(*b, "qos", V.{});
-	} }
+	etf.map_put(*b, "seq", etf.vint(g.seq));
+	etf.map_put(*b, "qos", ifx have then qos_value(q) else .{});
 	g.last_beat = now_ms();
 	d := etf.vmap(etf.map_done(*b));
 	locks.unlock(*g.mu);
 	gateway_send(g, .Qos_Heartbeat, d);
 	locks.lock(*g.mu);
 }
-#scope_export
 
 // gateway_set_active mirrors handleActiveStateChange(K()).
 gateway_set_active :: (g: *Gateway, q: Qos) {
 	locks.lock(*g.mu);
 	defer locks.unlock(*g.mu);
-	cur, have := maybe_get(g.qos_current);
-	was_inactive := !have || !cur.active;
-	if !have {
-		g.qos_current = some(q);
-		cur = q;
-	}
+	cur := ifx g.have_qos_current then g.qos_current else q;
+	was_inactive := !g.have_qos_current || !g.qos_current.active;
 	if q.active {
 		cur.active = true;
-		for i: 0..cast(int)(q.n)-1 {
+		for r: array_view(q.reasons, 0, q.n) {
 			dup := false;
-			for j: 0..cast(int)(cur.n)-1 { if cur.reasons[j] == q.reasons[i] { dup = true; } }
-			if !dup && cur.n < len(cur.reasons) {
-				cur.reasons[cur.n] = q.reasons[i];
+			for array_view(cur.reasons, 0, cur.n) if it == r dup = true;
+			if !dup && cur.n < cur.reasons.count {
+				cur.reasons[cur.n] = r;
 				cur.n += 1;
 			}
 		}
 		// sorted, as [...new Set()].sort()
 		for i: 1..cur.n-1 {
-			{ j := i;
+			j := i;
 			while j > 0 && compare(cur.reasons[j], cur.reasons[j - 1]) < 0 {
-				swap(*cur.reasons[j], *cur.reasons[j - 1]);
+				cur.reasons[j], cur.reasons[j - 1] = cur.reasons[j - 1], cur.reasons[j];
 				j -= 1;
-} }
+			}
 		}
-		g.qos_current = some(cur);
-		if was_inactive && g.state == .Established { send_heartbeat_locked(g); }
-	} else {
-		g.qos_current = some(cur);
 	}
-	g.qos_upcoming = some(q);
+	g.qos_current, g.have_qos_current = cur, true;
+	if q.active && was_inactive && g.state == .Established send_heartbeat_locked(g);
+	g.qos_upcoming, g.have_qos_upcoming = q, true;
 }
 
 // ---- payload builders ----
@@ -320,49 +302,53 @@ identify_fast_connect_value :: (id: *Identity, token: string, allocator := temp)
 	p := id.platform;
 	props := etf.map_builder(20);
 	put_base_properties(*props, p, id.fast_connect_launch_id);
-	etf.map_put(*props, "is_fast_connect", to_v(true));
-	if id.installation_id != "" { etf.map_put(*props, "installation_id", to_v(id.installation_id)); }
-	cs := etf.map_builder(1);
-	etf.map_put(*cs, "guild_versions", etf.vmap(.[]));
+	etf.map_put(*props, "is_fast_connect", etf.vbool(true));
+	if id.installation_id etf.map_put(*props, "installation_id", etf.vstring(id.installation_id));
 	d := etf.map_builder(4);
-	etf.map_put(*d, "token", to_v(token));
-	etf.map_put(*d, "capabilities", to_v(p.capabilities));
+	etf.map_put(*d, "token", etf.vstring(token));
+	etf.map_put(*d, "capabilities", etf.vint(p.capabilities));
 	etf.map_put(*d, "properties", etf.vmap(etf.map_done(*props)));
-	etf.map_put(*d, "client_state", etf.vmap(etf.map_done(*cs)));
+	etf.map_put(*d, "client_state", client_state_value());
 	return etf.vmap(etf.map_done(*d));
 }
-#scope_module
+
+// {guild_versions: {}}
+client_state_value :: () -> V {
+	cs := etf.map_builder(1);
+	etf.map_put(*cs, "guild_versions", etf.vmap(.[]));
+	return etf.vmap(etf.map_done(*cs));
+}
 
 put_base_properties :: (b: *etf.Map_Builder, p: Platform_Info, launch_id: string) {
-	etf.map_put(b, "os", to_v(p.os));
-	etf.map_put(b, "browser", to_v(p.browser));
-	etf.map_put(b, "release_channel", to_v(p.release_channel));
-	etf.map_put(b, "client_version", to_v(p.client_version));
-	etf.map_put(b, "os_version", to_v(p.os_version));
-	etf.map_put(b, "os_arch", to_v(p.os_arch));
-	etf.map_put(b, "app_arch", to_v(p.app_arch));
-	etf.map_put(b, "system_locale", to_v(p.system_locale));
-	etf.map_put(b, "has_client_mods", to_v(false));
-	etf.map_put(b, "client_launch_id", to_v(launch_id));
-	etf.map_put(b, "browser_user_agent", to_v(p.browser_user_agent));
-	etf.map_put(b, "browser_version", to_v(p.browser_version));
-	etf.map_put(b, "os_sdk_version", to_v(p.os_sdk_version));
-	etf.map_put(b, "client_build_number", to_v(p.client_build_number));
-	etf.map_put(b, "native_build_number", to_v(p.native_build_number));
-	etf.map_put(b, "client_event_source", V.{});
+	put :: (k: string, v: string) #expand { etf.map_put(b, k, etf.vstring(v)); }
+	put("os", p.os);
+	put("browser", p.browser);
+	put("release_channel", p.release_channel);
+	put("client_version", p.client_version);
+	put("os_version", p.os_version);
+	put("os_arch", p.os_arch);
+	put("app_arch", p.app_arch);
+	put("system_locale", p.system_locale);
+	etf.map_put(b, "has_client_mods", etf.vbool(false));
+	put("client_launch_id", launch_id);
+	put("browser_user_agent", p.browser_user_agent);
+	put("browser_version", p.browser_version);
+	put("os_sdk_version", p.os_sdk_version);
+	etf.map_put(b, "client_build_number", etf.vint(p.client_build_number));
+	etf.map_put(b, "native_build_number", etf.vint(p.native_build_number));
+	etf.map_put(b, "client_event_source", .{});
 }
-#scope_export
 
 // qos_token_b64 builds QosToken{client_provided{is_active}, derived} from the
 // READY qos_token (base64 DerivedQosData).
 qos_token_b64 :: (ready_qos_token: string, active: bool, allocator := temp) -> string {
-	derived, err := base64.decode(ready_qos_token, allocator = temp);
-	w := protobuf.Writer.{buf = make_dynamic(u8, 0, 0, temp)};
-	inner := protobuf.Writer.{buf = make_dynamic(u8, 0, 0, temp)};
-	if active { protobuf.write_uint(*inner, 1, 1); }
-	protobuf.write_bytes(*w, 1, view(inner.buf));
-	if err == null && len(ready_qos_token) > 0 { protobuf.write_bytes(*w, 2, derived); }
-	return base64.encode(view(w.buf), allocator = allocator);
+	derived, ok := base64_decode(ready_qos_token,, temp);
+	w, inner: protobuf.Writer;
+	w.buf.allocator, inner.buf.allocator = temp, temp;
+	if active protobuf.write_uint(*inner, 1, 1);
+	protobuf.write_bytes(*w, 1, inner.buf);
+	if ok && ready_qos_token protobuf.write_bytes(*w, 2, cast([]u8) derived);
+	return base64_encode(cast(string) w.buf,, allocator);
 }
 
 // identify_value: the regular GatewaySocket._doIdentify payload (reconnects).
@@ -370,71 +356,63 @@ identify_value :: (g: *Gateway, allocator := temp) -> V {
 	push_allocator(allocator);
 	c := g.c;
 	id := *c.id;
-	now := now_ms();
 	props := etf.map_builder(24);
 	// {...getSuperProperties(), client_app_state, is_fast_connect:false, gateway_connect_reasons, installation_id}
-	sp := super_properties_json(id, now);
-	spv, perr := etf.from_json(sp);
+	spv, perr := etf.from_json(super_properties_json(id, now_ms()));
 	if perr == .None {
 		// After a login from the login page the properties object IDENTIFY copies
 		// still has the logout's undefined heartbeat id (null in ETF) where the key
 		// was, or no key if the launch never had a session (fixture login_submit).
 		stale := identity_take_identify_hb_stale(id);
 		before := identity_hb_key_before_app_state(id);
-		for pr: vmap(spv) {
-			k := vstr(pr.key);
+		for vmap(spv) {
+			k := vstr(it.key);
 			if k == "client_heartbeat_session_id" && stale {
-				if before { etf.map_put(*props, k, V.{}); }
+				if before etf.map_put(*props, k, .{});
 				continue;
 			}
-			etf.map_put(*props, k, to_v(pr.value));
+			etf.map_put(*props, k, it.value);
 		}
 	}
-	etf.map_put(*props, "is_fast_connect", to_v(false));
+	etf.map_put(*props, "is_fast_connect", etf.vbool(false));
 	// the launch's first connect comes from the app skeleton (fixtures: typing,
 	// add_reaction, open_image_attachment when native fast connect was not used)
-	etf.map_put(*props, "gateway_connect_reasons", to_v(as_string(ifx g.identified then "NO_REASONS" else "AppSkeleton")));
-	if id.installation_id != "" { etf.map_put(*props, "installation_id", to_v(id.installation_id)); }
+	etf.map_put(*props, "gateway_connect_reasons", etf.vstring(ifx g.identified then "NO_REASONS" else "AppSkeleton"));
+	if id.installation_id etf.map_put(*props, "installation_id", etf.vstring(id.installation_id));
 
 	pres := etf.map_builder(4);
 	// before the settings proto is loaded the presence store reports "unknown"
 	// (a login from the login page reports the presence store's "online": fixture login_submit)
-	etf.map_put(*pres, "status", to_v(ifx g.identified || c.auth.login_session then status_name(g.presence_status) else as_string("unknown")));
-	etf.map_put(*pres, "since", to_v(cast(s64)(0)));
+	etf.map_put(*pres, "status", etf.vstring(ifx g.identified || c.auth.login_session then status_name(g.presence_status) else "unknown"));
+	etf.map_put(*pres, "since", etf.vint(0));
 	etf.map_put(*pres, "activities", etf.vlist(.[]));
-	etf.map_put(*pres, "afk", to_v(false));
+	etf.map_put(*pres, "afk", etf.vbool(false));
 
-	cs := etf.map_builder(1);
-	etf.map_put(*cs, "guild_versions", etf.vmap(.[]));
-
-	active := false;
-	{ q, ok := maybe_get(g.qos_upcoming);
-	if ok { active = q.active; } else { q2, ok2 := maybe_get(g.qos_current);
-if ok2 { active = q2.active; } } }
+	active := ifx g.have_qos_upcoming then g.qos_upcoming.active else g.have_qos_current && g.qos_current.active;
 
 	d := etf.map_builder(7);
-	etf.map_put(*d, "token", to_v(client_token(c)));
-	etf.map_put(*d, "capabilities", to_v(id.platform.capabilities));
+	etf.map_put(*d, "token", etf.vstring(client_token(c)));
+	etf.map_put(*d, "capabilities", etf.vint(id.platform.capabilities));
 	etf.map_put(*d, "properties", etf.vmap(etf.map_done(*props)));
 	etf.map_put(*d, "presence", etf.vmap(etf.map_done(*pres)));
-	etf.map_put(*d, "compress", to_v(false));
-	etf.map_put(*d, "client_state", etf.vmap(etf.map_done(*cs)));
-	etf.map_put(*d, "qos_token", to_v(qos_token_b64(c.ready_qos_token, active)));
+	etf.map_put(*d, "compress", etf.vbool(false));
+	etf.map_put(*d, "client_state", client_state_value());
+	etf.map_put(*d, "qos_token", etf.vstring(qos_token_b64(c.ready_qos_token, active)));
 	return etf.vmap(etf.map_done(*d));
 }
 
 voice_state_value :: (guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool, self_video: bool, flags: s64, allocator := temp) -> V {
 	push_allocator(allocator);
+	id :: (x: Snowflake) -> V { return ifx x then etf.vstring(sprint("%", x)) else .{}; }
 	b := etf.map_builder(6);
-	etf.map_put(*b, "guild_id", ifx guild_id == 0 then V.{} else to_v(snowflake_string(guild_id, allocator)));
-	etf.map_put(*b, "channel_id", ifx channel_id == 0 then V.{} else to_v(snowflake_string(channel_id, allocator)));
-	etf.map_put(*b, "self_mute", to_v(self_mute));
-	etf.map_put(*b, "self_deaf", to_v(self_deaf));
-	etf.map_put(*b, "self_video", to_v(self_video));
-	etf.map_put(*b, "flags", to_v(flags));
+	etf.map_put(*b, "guild_id", id(guild_id));
+	etf.map_put(*b, "channel_id", id(channel_id));
+	etf.map_put(*b, "self_mute", etf.vbool(self_mute));
+	etf.map_put(*b, "self_deaf", etf.vbool(self_deaf));
+	etf.map_put(*b, "self_video", etf.vbool(self_video));
+	etf.map_put(*b, "flags", etf.vint(flags));
 	return etf.vmap(etf.map_done(*b));
 }
-#scope_module
 
 // ---- connection lifecycle ----
 
@@ -444,17 +422,15 @@ gateway_close_socket :: (g: *Gateway, code: int) {
 	stream := g.stream;
 	g.ws = null;
 	locks.unlock(*g.send_mu);
-	if ws == null { return; }
-	if g.c.on_ws_close != null { g.c.on_ws_close(g.c.observer_data, code); }
+	if !ws return;
+	if g.c.on_ws_close g.c.on_ws_close(g.c.observer_data, code);
 	http.ws_close(ws, code);
 	netio.shutdown(stream);
 	locks.lock(*g.mu);
 	rd := g.reader;
 	g.reader = null;
 	locks.unlock(*g.mu);
-	if !is_null(rd) {
-		locks.join(rd);
-	}
+	if rd locks.join(rd);
 	http.ws_close_stream(ws);
 	zstd.stream_destroy(*g.zs);
 }
@@ -463,25 +439,23 @@ gateway_connect :: (g: *Gateway) {
 	c := g.c;
 	url := gateway_url(g);
 	g.attempt_start = now_ms();
-	if g.first_attempt == 0 { g.first_attempt = g.attempt_start; }
-	host := sub_from(url, len("wss://"));
-	host = sub(host, 0, strings.index_byte(host, #char "/"));
-	path := sub_from(url, len("wss://") + len(host));
+	if g.first_attempt == 0 g.first_attempt = g.attempt_start;
+	_, host := split_from_left(advance(url, "wss://".count), #char "/");
+	path := advance(url, "wss://".count + host.count);
 	client_push_state(c, .Connecting);
 
-	stream, _, ok := dial_tls_stream(host, string.["http/1.1"]);
+	stream, _, ok := dial_tls_stream(host, .["http/1.1"]);
 	if !ok {
 		gateway_on_closed(g, g.gen, false, 0);
 		return;
 	}
 	now := now_ms();
-	cookie := cookie_header(*c.jar, host, path, true, now);
-	hdrs := gateway_ws_headers(c.id.platform, host, cookie);
+	hdrs := gateway_ws_headers(c.id.platform, host, cookie_header(*c.jar, host, path, true, now));
 	key_raw: [16]u8;
 	crypto.random_bytes(key_raw);
-	for * h: hdrs { if h.name == "Sec-WebSocket-Key" { h.value = base64.encode(view(key_raw), allocator = temp); } }
+	for * hdrs if it.name == "Sec-WebSocket-Key" it.value = base64_encode(cast(string) key_raw,, temp);
 	req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, headers = hdrs};
-	if c.on_ws_open != null { c.on_ws_open(c.observer_data, url, req.headers); }
+	if c.on_ws_open c.on_ws_open(c.observer_data, url, req.headers);
 	ws, resp, err := http.ws_connect(stream, req, .{},, c.allocator);
 	if err != .None {
 		http.response_destroy(*resp);
@@ -489,9 +463,7 @@ gateway_connect :: (g: *Gateway) {
 		gateway_on_closed(g, g.gen, false, 0);
 		return;
 	}
-	for h: resp.headers {
-		if strings.equal_fold(h.name, "set-cookie") { cookie_set_from_header(*c.jar, host, path, h.value, now); }
-	}
+	for resp.headers if equal_nocase(it.name, "set-cookie") cookie_set_from_header(*c.jar, host, path, it.value, now);
 	http.response_destroy(*resp);
 	netio.set_timeout(stream, 0);
 
@@ -511,15 +483,11 @@ gateway_connect :: (g: *Gateway) {
 
 	locks.lock(*g.mu);
 	g.reader = spawn(Gw_Reader.{g, gen}, gateway_reader_proc);
-	locks.unlock(*g.mu);
-
 	// onOpen
-	locks.lock(*g.mu);
 	if !g.fast_connect_done && c.cfg.fast_connect {
 		g.fast_connect_done = true;
 		g.seq = 0;
-		delete(g.session_id);
-		g.session_id = "";
+		forget_session_locked(g);
 		g.state = .Identifying;
 		g.last_ack = now_ms();
 		g.identified = true;
@@ -527,7 +495,7 @@ gateway_connect :: (g: *Gateway) {
 		client_push_state(c, .Identifying);
 		// fast-connect.js runs once the deferred scripts have loaded: ~300 ms after open.
 		d := ifx c.cfg.fast_identify_delay_ms != 0 then c.cfg.fast_identify_delay_ms else 300;
-		if d > 0 { time.sleep(d); }
+		if d > 0 sleep_milliseconds(xx d);
 		gateway_send(g, .Identify, identify_fast_connect_value(*c.id, client_token(c)));
 	} else {
 		g.fast_connect_done = true;
@@ -536,15 +504,20 @@ gateway_connect :: (g: *Gateway) {
 	}
 }
 
+forget_session_locked :: (g: *Gateway) {
+	free_str(g.session_id, g.c.allocator);
+	g.session_id = "";
+}
+
 // resume_or_identify_locked: _doResumeOrIdentify.
 resume_or_identify_locked :: (g: *Gateway) {
 	now := now_ms();
-	if g.session_id != "" && (g.last_ack == 0 || now - g.last_ack <= 3 * 60_000) {
+	if g.session_id && (g.last_ack == 0 || now - g.last_ack <= 3 * 60_000) {
 		g.state = .Resuming;
 		b := etf.map_builder(3,, temp);
-		etf.map_put(*b, "token", to_v(client_token(g.c)));
-		etf.map_put(*b, "session_id", to_v(g.session_id));
-		etf.map_put(*b, "seq", to_v(g.seq));
+		etf.map_put(*b, "token", etf.vstring(client_token(g.c)));
+		etf.map_put(*b, "session_id", etf.vstring(copy_string(g.session_id,, temp)));
+		etf.map_put(*b, "seq", etf.vint(g.seq));
 		d := etf.vmap(etf.map_done(*b));
 		locks.unlock(*g.mu);
 		client_push_state(g.c, .Resuming);
@@ -558,8 +531,7 @@ resume_or_identify_locked :: (g: *Gateway) {
 
 identify_locked :: (g: *Gateway) {
 	g.seq = 0;
-	delete(g.session_id);
-	g.session_id = "";
+	forget_session_locked(g);
 	g.state = .Identifying;
 	d := identify_value(g);
 	g.identified = true;
@@ -573,32 +545,29 @@ identify_locked :: (g: *Gateway) {
 gateway_on_closed :: (g: *Gateway, gen: int, clean: bool, code: int) {
 	locks.lock(*g.mu);
 	defer locks.unlock(*g.mu);
-	if gen != g.gen || g.stop { return; }
+	if gen != g.gen || g.stop return;
 	g.next_beat = 0;
 	g.hello_deadline = 0;
 	g.close_code = code;
 	if code == 4004 {
 		g.state = .Stopped;
-		delete(g.session_id);
-		g.session_id = "";
+		forget_session_locked(g);
 		g.seq = 0;
 		locks.unlock(*g.mu);
 		client_push_state(g.c, .Auth_Failed);
 		locks.lock(*g.mu);
 		return;
 	}
-	if !g.received_hello { g.failed_attempts += 1; }
+	if !g.received_hello g.failed_attempts += 1;
 	g.state = .Closed;
 	if g.immediate {
 		g.immediate = false;
 		g.reconnect_at = now_ms();
 	} else {
-		delay := backoff_fail(*g.backoff);
-		g.reconnect_at = now_ms() + delay;
+		g.reconnect_at = now_ms() + backoff_fail(*g.backoff);
 		if g.backoff.fails > 4 {
 			// _reset: drop the session so the next connect identifies.
-			delete(g.session_id);
-			g.session_id = "";
+			forget_session_locked(g);
 			g.seq = 0;
 		}
 	}
@@ -612,27 +581,27 @@ gateway_on_closed :: (g: *Gateway, gen: int, clean: bool, code: int) {
 Gw_Reader :: struct { g: *Gateway; gen: int; }
 
 gateway_reader_proc :: (using r: Gw_Reader) {
-	msg := make_dynamic(u8, 0, 0);
-	defer delete(msg);
+	msg: [..]u8;
+	defer array_free(msg);
 	locks.lock(*g.send_mu);
 	ws := g.ws;
 	locks.unlock(*g.send_mu);
-	if ws == null { return; }
+	if !ws return;
 	while true {
-		clear(*msg);
+		msg.count = 0;
 		typ, err := http.ws_recv(ws, *msg);
 		if err != .None {
-			code := ifx err == .Closed then ws.close_code else 0;
 			// Detach and tear down on the control thread.
-			go_closed := false;
 			locks.lock(*g.mu);
-			go_closed = gen == g.gen && !g.stop;
+			go_closed := gen == g.gen && !g.stop;
 			locks.unlock(*g.mu);
-			if go_closed { gateway_schedule_teardown(g, gen, code); }
+			if go_closed gateway_schedule_teardown(g, gen, ifx err == .Closed then ws.close_code else 0);
 			return;
 		}
-		if typ != .Binary { continue; }
-		if !gateway_handle_frame(g, gen, view(msg)) {
+		if typ != .Binary continue;
+		ok := gateway_handle_frame(g, gen, msg);
+		reset_temporary_storage(); // a frame's payload lives in its own pool
+		if !ok {
 			gateway_schedule_teardown(g, gen, 0);
 			return;
 		}
@@ -653,109 +622,101 @@ gateway_schedule_teardown :: (g: *Gateway, gen: int, code: int) {
 
 // gateway_handle_frame: inflate (zstd-stream), unpack, act. Returns false on a decode error.
 gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
-	clear(*g.inflated);
-	if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None { return false; }
-	if len(g.inflated) == 0 { return true; }
-	arena := New(Flat_Pool);
-	alloc := pool_allocator(arena);
-	v, derr := etf.decode(view(g.inflated),, alloc);
-	if derr != .None {
-		fini(arena);
-		free(arena);
-		return false;
-	}
-	keep := gateway_handle_payload(g, gen, v, arena, alloc);
+	g.inflated.count = 0;
+	if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None return false;
+	if !g.inflated return true;
+	pool := New(Flat_Pool);
+	v, derr := etf.decode(g.inflated,, pool_allocator(pool));
+	keep := derr == .None && gateway_handle_payload(g, gen, v, pool);
 	if !keep {
-		fini(arena);
-		free(arena);
+		fini(pool);
+		free(pool);
 	}
-	return true;
+	return derr == .None;
 }
 
-// gateway_handle_payload returns true when ownership of arena moved to the event queue.
-gateway_handle_payload :: (g: *Gateway, gen: int, v: V, arena: *Flat_Pool, alloc: Allocator) -> bool {
-	kept: bool;
+// gateway_handle_payload returns true when ownership of pool moved to the event queue.
+gateway_handle_payload :: (g: *Gateway, gen: int, v: V, pool: *Flat_Pool) -> bool {
 	m := vmap(v);
-	op := cast(Op)(fint(m, "op"));
+	op := cast(Op) fint(m, "op");
 	d := vget(m, "d");
 	t := fstr(m, "t");
 	sv := vget(m, "s");
 	c := g.c;
-	if c.on_gateway_recv != null { c.on_gateway_recv(c.observer_data, op, t, d); }
-	if c.on_gateway_frame != null { c.on_gateway_frame(c.observer_data, false, v, 0); }
-	if c.on_dispatch != null && op == .Dispatch { c.on_dispatch(c.user_data, t); }
+	if c.on_gateway_recv c.on_gateway_recv(c.observer_data, op, t, d);
+	if c.on_gateway_frame c.on_gateway_frame(c.observer_data, false, v, 0);
+	if c.on_dispatch && op == .Dispatch c.on_dispatch(c.user_data, t);
 
 	locks.lock(*g.mu);
 	defer {
 		send_heartbeat_if_due_locked(g);
 		locks.unlock(*g.mu);
 	}
-	if gen != g.gen { return false; }
-	if !is_null(sv) { g.seq = vint(sv); }
+	if gen != g.gen return false;
+	if !vis_null(sv) g.seq = vint(sv);
 	if op == {
-	case .Hello;
-		g.hello_deadline = 0;
-		g.received_hello = true;
-		g.interval = fint(vmap(d), "heartbeat_interval");
-		{
+		case .Hello;
+			g.hello_deadline = 0;
+			g.received_hello = true;
+			g.interval = fint(vmap(d), "heartbeat_interval");
 			now := now_ms();
-			url := ifx g.resume_url != "" then g.resume_url else (ifx c.cfg.gateway_url != "" then c.cfg.gateway_url else GATEWAY_DEFAULT_URL);
+			url := ifx g.resume_url then g.resume_url else ifx c.cfg.gateway_url then c.cfg.gateway_url else GATEWAY_DEFAULT_URL;
 			analytics_gateway_connected(c, g.failed_attempts, url, g.connected_once, !g.connected_once && c.cfg.fast_connect, now - g.first_attempt, now - g.attempt_start);
 			g.connected_once = true;
 			g.first_attempt = 0;
 			g.failed_attempts = 0;
-		}
-		// _startHeartbeater: first beat after floor(random*interval).
-		g.next_beat = now_ms() + cast(s64)(rand.float64_() * cast(float64)(g.interval));
-		g.initial_beat = true;
-		locks.cond_broadcast(*g.cond);
-	case .Heartbeat_Ack;
-		g.last_ack = now_ms();
-		g.beat_acked = true;
-	case .Heartbeat;
-		send_heartbeat_locked(g);
-		if g.next_beat != 0 { g.next_beat = now_ms() + g.interval; }
-	case .Reconnect;
-		g.immediate = true;
-		g.pending_teardown = true;
-		g.pending_code = 4000;
-		g.pending_gen = gen;
-		g.pending_send_close = true;
-		locks.cond_broadcast(*g.cond);
-	case .Invalid_Session;
-		if vbool(d) { resume_or_identify_locked(g); } else { identify_locked(g); }
-	case .Dispatch;
-		if t == {
-		case "READY";
-			dm := vmap(d);
-			delete(g.session_id);
-			g.session_id = clone(fstr(dm, "session_id"));
-			delete(g.resume_url);
-			g.resume_url = clone(strings.trim_right(fstr(dm, "resume_gateway_url"), "/"));
-			g.state = .Established;
-			backoff_succeed(*g.backoff);
-			// AuthenticationStore CONNECTION_OPEN: apex_experiments.installation -> installation_id_v3.
-			{ inst := fstr(fmap(dm, "apex_experiments"), "installation");
-			if inst != "" {
-				locks.lock(*c.id.mu);
-				if c.id.installation_id == "" { c.id.installation_id = clone(inst, c.allocator); }
-				locks.unlock(*c.id.mu);
-			} }
-			locks.lock(*c.qos_mu);
-			delete(c.ready_qos_token, c.allocator);
-			c.ready_qos_token = clone(fstr(dm, "qos_token"), c.allocator);
-			locks.unlock(*c.qos_mu);
-			gateway_on_ready_locked(g);
-		case "READY_SUPPLEMENTAL"; #through; case "RESUMED";
-			g.state = .Established;
-			backoff_succeed(*g.backoff);
-		}
-		ev := Event.{kind = .Dispatch, data = d, arena = arena};
-		ev.name = clone(t, alloc);
-		locks.unlock(*g.mu);
-		client_push_event(c, ev);
-		locks.lock(*g.mu);
-		return true;
+			// _startHeartbeater: first beat after floor(random*interval).
+			g.next_beat = now_ms() + cast(s64) (cast(float64) random_get_zero_to_one_open() * cast(float64) g.interval);
+			g.initial_beat = true;
+			locks.cond_broadcast(*g.cond);
+		case .Heartbeat_Ack;
+			g.last_ack = now_ms();
+			g.beat_acked = true;
+		case .Heartbeat;
+			send_heartbeat_locked(g);
+			if g.next_beat != 0 g.next_beat = now_ms() + g.interval;
+		case .Reconnect;
+			g.immediate = true;
+			g.pending_teardown = true;
+			g.pending_code = 4000;
+			g.pending_gen = gen;
+			g.pending_send_close = true;
+			locks.cond_broadcast(*g.cond);
+		case .Invalid_Session;
+			if vbool(d) resume_or_identify_locked(g); else identify_locked(g);
+		case .Dispatch;
+			if t == {
+				case "READY";
+					dm := vmap(d);
+					push_allocator(c.allocator);
+					forget_session_locked(g);
+					g.session_id = copy_string(fstr(dm, "session_id"));
+					free(g.resume_url);
+					g.resume_url = copy_string(trim_right(fstr(dm, "resume_gateway_url"), "/"));
+					g.state = .Established;
+					backoff_succeed(*g.backoff);
+					// AuthenticationStore CONNECTION_OPEN: apex_experiments.installation -> installation_id_v3.
+					inst := fstr(fmap(dm, "apex_experiments"), "installation");
+					if inst {
+						locks.lock(*c.id.mu);
+						if !c.id.installation_id c.id.installation_id = copy_string(inst);
+						locks.unlock(*c.id.mu);
+					}
+					locks.lock(*c.qos_mu);
+					free(c.ready_qos_token);
+					c.ready_qos_token = copy_string(fstr(dm, "qos_token"));
+					locks.unlock(*c.qos_mu);
+					gateway_on_ready_locked(g);
+				case "READY_SUPPLEMENTAL"; #through;
+				case "RESUMED";
+					g.state = .Established;
+					backoff_succeed(*g.backoff);
+			}
+			ev := Event.{kind = .Dispatch, name = copy_string(t,, pool_allocator(pool)), data = d, arena = pool};
+			locks.unlock(*g.mu);
+			client_push_event(c, ev);
+			locks.lock(*g.mu);
+			return true;
 	}
 	return false;
 }
@@ -771,36 +732,35 @@ gateway_on_ready_locked :: (g: *Gateway) {
 	locks.lock(*c.route_mu);
 	rg, rch := c.route_guild, c.route_channel;
 	locks.unlock(*c.route_mu);
-	if rg != 0 {
+	if rg {
 		locks.lock(*c.job_mu);
 		c.ready_subscribed_guild = rg;
 		locks.unlock(*c.job_mu);
 		gb := etf.map_builder(7,, temp);
-		etf.map_put(*gb, "typing", to_v(true));
-		etf.map_put(*gb, "threads", to_v(true));
-		etf.map_put(*gb, "activities", to_v(true));
+		etf.map_put(*gb, "typing", etf.vbool(true));
+		etf.map_put(*gb, "threads", etf.vbool(true));
+		etf.map_put(*gb, "activities", etf.vbool(true));
 		etf.map_put(*gb, "members", etf.vlist(.[]));
-		etf.map_put(*gb, "member_updates", to_v(false));
+		etf.map_put(*gb, "member_updates", etf.vbool(false));
 		etf.map_put(*gb, "channels", etf.vmap(.[]));
 		etf.map_put(*gb, "thread_member_lists", etf.vlist(.[]));
 		sb := etf.map_builder(1,, temp);
-		etf.map_put(*sb, snowflake_string(rg), etf.vmap(etf.map_done(*gb)));
+		etf.map_put(*sb, tprint("%", rg), etf.vmap(etf.map_done(*gb)));
 		db := etf.map_builder(1,, temp);
 		etf.map_put(*db, "subscriptions", etf.vmap(etf.map_done(*sb)));
 		gateway_send(g, .Guild_Subscriptions_Bulk, etf.vmap(etf.map_done(*db)));
-	} else if rch != 0 {
+	} else if rch {
 		cb := etf.map_builder(1,, temp);
-		etf.map_put(*cb, "channel_id", to_v(snowflake_string(rch)));
+		etf.map_put(*cb, "channel_id", etf.vstring(tprint("%", rch)));
 		gateway_send(g, .Call_Connect, etf.vmap(etf.map_done(*cb)));
 	}
-	now := now_ms();
-	identity_touch_heartbeat(*c.id, now);
+	identity_touch_heartbeat(*c.id, now_ms());
 	hb := identity_heartbeat_snapshot(*c.id);
-	if hb.uuid != "" {
+	if hb.uuid {
 		b := etf.map_builder(3,, temp);
-		etf.map_put(*b, "initialization_timestamp", to_v(hb.created_at));
-		etf.map_put(*b, "session_id", to_v(hb.uuid));
-		etf.map_put(*b, "client_launch_id", to_v(c.id.client_launch_id));
+		etf.map_put(*b, "initialization_timestamp", etf.vint(hb.created_at));
+		etf.map_put(*b, "session_id", etf.vstring(hb.uuid));
+		etf.map_put(*b, "client_launch_id", etf.vstring(c.id.client_launch_id));
 		gateway_send(g, .Update_Time_Spent_Session_Id, etf.vmap(etf.map_done(*b)));
 	}
 	client_on_ready(c);
@@ -809,8 +769,8 @@ gateway_on_ready_locked :: (g: *Gateway) {
 }
 
 send_heartbeat_if_due_locked :: (g: *Gateway) {
-	if g.interval == 0 || g.next_beat == 0 || g.last_beat == 0 { return; }
-	if now_ms() - g.last_beat > g.interval + 5000 { send_heartbeat_locked(g); }
+	if g.interval == 0 || g.next_beat == 0 || g.last_beat == 0 return;
+	if now_ms() - g.last_beat > g.interval + 5000 send_heartbeat_locked(g);
 }
 
 // ---- control thread: timers, reconnects, teardown ----
@@ -818,8 +778,9 @@ send_heartbeat_if_due_locked :: (g: *Gateway) {
 gateway_control_proc :: (g: *Gateway) {
 	locks.lock(*g.mu);
 	// The HTML bootstrap opens the socket ~190 ms after navigation (fixtures median).
-	g.reconnect_at = g.c.launch_ms + (ifx g.c.cfg.ws_open_delay_ms != 0 then g.c.cfg.ws_open_delay_ms else 190);
+	g.reconnect_at = g.c.launch_ms + ifx g.c.cfg.ws_open_delay_ms != 0 then g.c.cfg.ws_open_delay_ms else 190;
 	while !g.stop {
+		reset_temporary_storage(); // nothing in temp outlives a round
 		now := now_ms();
 		if g.pending_teardown {
 			code := g.pending_code;
@@ -834,58 +795,58 @@ gateway_control_proc :: (g: *Gateway) {
 			continue;
 		}
 		if g.state == {
-		case .Closed;
-			if now >= g.reconnect_at {
-				g.state = .Connecting;
-				locks.unlock(*g.mu);
-				gateway_connect(g);
-				locks.lock(*g.mu);
-				continue;
-			}
-		case .Connecting; #through; case .Identifying; #through; case .Resuming; #through; case .Established;
-			if g.hello_deadline != 0 && now >= g.hello_deadline {
-				// "did not receive OP_HELLO in time": also forget the resume url.
-				g.hello_deadline = 0;
-				delete(g.resume_url);
-				g.resume_url = "";
-				g.pending_teardown = true;
-				g.pending_code = 0;
-				g.pending_gen = g.gen;
-				continue;
-			}
-			if g.next_beat != 0 && now >= g.next_beat {
-				// _doHeartbeatInterval
-				if g.initial_beat {
-					g.initial_beat = false;
-					g.beat_acked = true;
+			case .Closed;
+				if now >= g.reconnect_at {
+					g.state = .Connecting;
+					locks.unlock(*g.mu);
+					gateway_connect(g);
+					locks.lock(*g.mu);
+					continue;
 				}
-				g.next_beat = now + g.interval;
-				if g.beat_acked {
-					g.beat_acked = false;
-					send_heartbeat_locked(g);
-				} else {
-					// ACK timeout: close 4000 and reconnect through the backoff.
+			case .Connecting; #through;
+			case .Identifying; #through;
+			case .Resuming; #through;
+			case .Established;
+				if g.hello_deadline != 0 && now >= g.hello_deadline {
+					// "did not receive OP_HELLO in time": also forget the resume url.
+					g.hello_deadline = 0;
+					free_str(g.resume_url, g.c.allocator);
+					g.resume_url = "";
 					g.pending_teardown = true;
 					g.pending_code = 0;
 					g.pending_gen = g.gen;
-					g.pending_send_close = true;
+					continue;
 				}
-				continue;
-			}
-		case .Stopped;
+				if g.next_beat != 0 && now >= g.next_beat {
+					// _doHeartbeatInterval
+					if g.initial_beat {
+						g.initial_beat = false;
+						g.beat_acked = true;
+					}
+					g.next_beat = now + g.interval;
+					if g.beat_acked {
+						g.beat_acked = false;
+						send_heartbeat_locked(g);
+					} else {
+						// ACK timeout: close 4000 and reconnect through the backoff.
+						g.pending_teardown = true;
+						g.pending_code = 0;
+						g.pending_gen = g.gen;
+						g.pending_send_close = true;
+					}
+					continue;
+				}
 		}
-		wake: s64 = now + 1000;
-		if g.state == .Closed { wake = min(wake, g.reconnect_at); }
-		if g.next_beat != 0 { wake = min(wake, g.next_beat); }
-		if g.hello_deadline != 0 { wake = min(wake, g.hello_deadline); }
-		d := max(wake - now, 1);
-		locks.cond_wait_with_timeout(*g.cond, *g.mu, cast(time.Duration)(d) * time.Millisecond);
+		wake := now + 1000;
+		if g.state == .Closed wake = min(wake, g.reconnect_at);
+		if g.next_beat != 0 wake = min(wake, g.next_beat);
+		if g.hello_deadline != 0 wake = min(wake, g.hello_deadline);
+		locks.cond_wait_with_timeout(*g.cond, *g.mu, max(wake - now, 1));
 	}
 	locks.unlock(*g.mu);
 }
-#scope_export
 
-// gateway_expedite: resetBackoff (app became active / network online).
+// gateway_reset_backoff: resetBackoff (app became active / network online).
 gateway_reset_backoff :: (g: *Gateway) {
 	locks.lock(*g.mu);
 	defer locks.unlock(*g.mu);
@@ -901,4 +862,3 @@ gateway_state :: (g: *Gateway) -> Gw_State {
 	defer locks.unlock(*g.mu);
 	return g.state;
 }
-
