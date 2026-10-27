@@ -27,7 +27,7 @@ analytics_env_sync :: (force := false) {
 }
 
 // analytics_env_report: the same with the window size given (points).
-analytics_env_report :: (sz: [2]float32, force := false) {
+analytics_env_report :: (sz: Vector2, force_in := false) {
 	c := app.client;
 	if c == null { return; }
 	force := force_in;

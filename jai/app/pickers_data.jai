@@ -41,10 +41,10 @@ emoji_db_load :: () {
 	if emoji_db.loaded { return; }
 	emoji_db.loaded = true;
 	v, err := json.parse(EMOJI_JSON, allocator = temp);
-	if err != null { return; }
+	if err != .None { return; }
 	root := ifx v.kind == .Map then v.map else .{};
 	strs :: (v: json.Value) -> []string {
-		arr := ifx v.kind == .List then v.list else .{};
+		arr := ifx v.kind == .List then v.list else zero(type_of(v.list));
 		out := make_slice(string, len(arr));
 		for x, i: arr { at(*out, i).* = clone(ifx x.kind == .String then x.s else ""); }
 		return out;
@@ -58,38 +58,38 @@ emoji_db_load :: () {
 		}
 		return 0;
 	}
-	list := ifx root["emojis"].kind == .List then root["emojis"].list else .{};
+	list := ifx get(root, "emojis").kind == .List then get(root, "emojis").list else zero(type_of(get(root, "emojis").list));
 	emoji_db.emojis = make_slice(Uni_Emoji, len(list));
 	for ev, i: list {
 		o := ifx ev.kind == .Map then ev.map else .{};
 		e := *emoji_db.emojis[i];
-		e.names = strs(o["n"]);
-		e.surr = clone(ifx o["s"].kind == .String then o["s"].s else "");
-		e.asset = clone(ifx o["u"].kind == .String then o["u"].s else "");
+		e.names = strs(get(o, "n"));
+		e.surr = clone(ifx get(o, "s").kind == .String then get(o, "s").s else "");
+		e.asset = clone(ifx get(o, "u").kind == .String then get(o, "u").s else "");
 		e.sprite = -1;
-		{ sp, ok := o["sp"];
+		{ sp, ok := map_find(o, "sp");
 		if ok { e.sprite = num(sp); } }
-		{ dcv, ok := o["dc"];
+		{ dcv, ok := map_find(o, "dc");
 		if ok {
-			arr := ifx dcv.kind == .List then dcv.list else .{};
+			arr := ifx dcv.kind == .List then dcv.list else zero(type_of(dcv.list));
 			e.children = make_slice(s32, len(arr));
 			for x, j: arr { e.children[j] = cast(s32)(num(x)); }
 		} }
-		{ md, ok := o["md"];
+		{ md, ok := map_find(o, "md");
 		if ok { e.multi = num(md) != 0; } }
 		for n: e.names { if !has(emoji_db.by_name, n) { at(*emoji_db.by_name, n).* = i; } }
 		if !has(emoji_db.by_surr, e.surr) { at(*emoji_db.by_surr, e.surr).* = i; }
 	}
-	cats := ifx root["categories"].kind == .List then root["categories"].list else .{};
+	cats := ifx get(root, "categories").kind == .List then get(root, "categories").list else zero(type_of(get(root, "categories").list));
 	emoji_db.cats = make_slice(Emoji_Category, len(cats));
 	for cv, i: cats {
-		a := ifx cv.kind == .List then cv.list else .{};
+		a := ifx cv.kind == .List then cv.list else zero(type_of(cv.list));
 		if len(a) < 3 { continue; }
 		emoji_db.cats[i] = .{clone(ifx a[0].kind == .String then a[0].s else ""), num(a[1]), num(a[2])};
 		emoji_db.parents = max(emoji_db.parents, num(a[2]));
 	}
-	emoji_db.default_frecency = strs(root["default_frecency"]);
-	emoji_db.default_reaction = strs(root["default_reaction_frecency"]);
+	emoji_db.default_frecency = strs(get(root, "default_frecency"));
+	emoji_db.default_reaction = strs(get(root, "default_reaction_frecency"));
 }
 
 // Skin-toned variant (tone 1..5) of a parent emoji; multi-person emoji use the same tone twice.
@@ -201,10 +201,10 @@ frec_score :: (e: Frec_Entry, now: s64) -> float64 {
 
 frec_use :: (m: *Map(string, Frec_Entry), key: string) {
 	if key == "" { return; }
-	e, ok := map_find_ptr(*m, key);
+	e, ok := map_find_ptr(m, key);
 	if !ok {
-		at(*m, clone(key)).* = .{};
-		e = at(*m, key);
+		at(m, clone(key)).* = .{};
+		e = at(m, key);
 	}
 	e.total += 1;
 	append(*e.recent, frec_now_ms());
@@ -222,7 +222,7 @@ frec_top :: (m: Map(string, Frec_Entry), n: int) -> []string {
 	now := frec_now_ms();
 	pairs := make_dynamic(Pair, 0, len(m), temp);
 	for k, e: m { append(*pairs, Pair.{k, frec_score(e, now)}); }
-	slice.sort_by(view(pairs), (a: Pair, b: Pair) -> bool {return a.score > b.score || (a.score == b.score && a.key < b.key);});
+	slice.sort_by(view(pairs), (a: Pair, b: Pair) -> bool {return a.score > b.score || (a.score == b.score && compare(a.key, b.key) < 0);});
 	out := make_dynamic(string, 0, n, temp);
 	for p: pairs {
 		if len(out) >= n { break; }
@@ -240,7 +240,7 @@ frec_score_of :: (m: Map(string, Frec_Entry), key: string) -> float64 {
 #scope_file
 
 frecency_path :: () -> string {
-	return strings.concatenate(.{app_state_dir(), "/expressions.txt"}, temp);
+	return strings.concatenate(string.[app_state_dir(), "/expressions.txt"], temp);
 }
 #scope_export
 
@@ -271,7 +271,7 @@ frecency_load_local :: () {
 				{ v, ok := strconv.parse_i64(ts);
 				if ok { append(*e.recent, v); } }
 			}
-			if !has(m.*, f[1]) { at(*m, clone(f[1])).* = e; }
+			if !has(m.*, f[1]) { at(m, clone(f[1])).* = e; }
 		}
 	}
 }
@@ -300,10 +300,10 @@ frecency_merge_server :: (fs: dc.Frecency_Settings) {
 	frecency.loaded_server = true;
 	merge :: (m: *Map(string, Frec_Entry), items: []dc.Frecency_Item) {
 		for it_: items {
-			e, ok := map_find_ptr(*m, it_.key);
+			e, ok := map_find_ptr(m, it_.key);
 			if !ok {
-				at(*m, clone(it_.key)).* = .{};
-				e = at(*m, it_.key);
+				at(m, clone(it_.key)).* = .{};
+				e = at(m, it_.key);
 			}
 			e.total = max(e.total, it_.total_uses);
 			for u: it_.recent_uses { if !slice.contains(view(e.recent), u) { append(*e.recent, u); } }

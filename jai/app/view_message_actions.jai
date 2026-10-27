@@ -47,49 +47,49 @@ message_toolbar :: (m: *dc.Message) {
 	names := ifx own then string.["reaction", "pencil", "more-horizontal"] else string.["reaction", "arrow-angle-left-up", "more-horizontal"];
 	// official: 3px padding, 28px buttons, a 1px divider with 4px gaps after the quick reactions
 	w := 2 * TOOLBAR_PAD + cast(float32)(len(quick) + len(names)) * TOOLBAR_BTN + (ifx len(quick) > 0 then 9 else 0);
-	bar := row("toolbar", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Clickable});
+	bar := row("toolbar", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Clickable);
 	bar.semantic_size = .[ui.px(w), ui.px(TOOLBAR_BTN + 2 * TOOLBAR_PAD)];
 	bar.fixed_pos = .{ui.top_parent().rect.x1 - ui.top_parent().rect.x0 - w - 14, -16};
-	bar.style.bg = cast(T)("--background-surface-higher");
-	bar.style.border_color = cast(T)("--border-subtle");
+	bar.style.bg = T("--background-surface-higher");
+	bar.style.border_color = T("--border-subtle");
 	bar.style.border = 1;
-	bar.style.radius = 8;
+	bar.style.radius = all4(8);
 	bar.style.shadow_color = .{0, 0, 0, 0.16};
 	bar.style.shadow_blur = 4;
 	ui.signal(bar);
-	if ui.parent(bar) {
+	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, TOOLBAR_PAD);
 		for e, i: quick {
-			b := ui.box(fmt.tprintf("q%d", i), .{.Clickable, .Draw_Background, .Hot_Animation});
+			b := ui.box(fmt.tprintf("q%d", i), .Clickable | .Draw_Background | .Hot_Animation);
 			b.semantic_size = .[ui.px(TOOLBAR_BTN), ui.px(TOOLBAR_BTN)];
-			b.style.radius = 6;
-			b.style.bg_hot = cast(T)("--background-mod-subtle");
+			b.style.radius = all4(6);
+			b.style.bg_hot = T("--background-mod-subtle");
 			b.layout_axis = .X;
 			b.cross_align = .Center;
 			if ui.signal(b).clicked && net_action() { dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id); }
-			if ui.parent(b) {
+			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 4);
 				emoji_box("e", e, 20);
 			}
 		}
 		if len(quick) > 0 {
 			spacer(.X, 4);
-			d := ui.box("div", .{.Draw_Background});
+			d := ui.box("div", .Draw_Background);
 			d.semantic_size = .[ui.px(1), ui.px(24)];
-			d.style.bg = cast(T)("--border-subtle");
+			d.style.bg = T("--border-subtle");
 			spacer(.X, 4);
 		}
 		for name: names {
-			b := ui.box(name, .{.Clickable, .Draw_Background, .Hot_Animation});
+			b := ui.box(name, .Clickable | .Draw_Background | .Hot_Animation);
 			b.semantic_size = .[ui.px(TOOLBAR_BTN), ui.px(TOOLBAR_BTN)];
-			b.style.radius = 6;
-			b.style.bg_hot = cast(T)("--background-mod-subtle");
+			b.style.radius = all4(6);
+			b.style.bg_hot = T("--background-mod-subtle");
 			b.layout_axis = .X;
 			b.cross_align = .Center;
 			sig := ui.signal(b);
-			if ui.parent(b) {
+			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 4);
-				icon("i", name, 20, ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+				icon("i", name, 20, ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			}
 			if sig.clicked {
 				if name == {
@@ -128,7 +128,7 @@ quick_reactions :: () -> []dc.Emoji {
 			if idx < 0 { return; }
 			e.name = emoji_db.emojis[idx].surr;
 		} }
-		for x: out { if x.id == e.id && x.name == e.name { return; } }
+		for x: out.* { if x.id == e.id && x.name == e.name { return; } }
 		append(out, e);
 	}
 	for k: frec_top(frecency.reaction, 3) { add(*out, k); }
@@ -173,29 +173,29 @@ find_message :: (id: dc.Snowflake) -> *dc.Message {
 	s := store();
 	l, ok := map_find_ptr(*s.messages, app.view.channel);
 	if !ok { return null; }
-	for * m: l.messages { if m.id == id { return *m; } }
+	for * m: l.messages { if m.id == id { return m; } }
 	return null;
 }
 
 // Inline editor replacing the message body. Enter saves, Escape cancels.
 edit_box :: (m: *dc.Message) {
 	// official: same form as the composer (58px, 1px border), emoji button on the right
-	box := row("editbox", .{.Draw_Background, .Draw_Border, .Clickable});
+	box := row("editbox", .Draw_Background | .Draw_Border | .Clickable);
 	box.semantic_size = .[ui.pct(1), ui.children()];
-	box.style.bg = cast(T)("--chat-background-default");
-	box.style.border_color = cast(T)("--border-subtle");
+	box.style.bg = T("--chat-background-default");
+	box.style.border_color = T("--border-subtle");
 	box.style.border = 1;
-	box.style.radius = 8;
+	box.style.radius = all4(8);
 	box.cross_align = .Start;
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 16);
 		res := text_field("edit", *ma.edit_editor, "", true, pad_y = (COMPOSER_H - MSG_LINE_H) / 2);
-		emo := ui.box("emoji", .{.Clickable});
+		emo := ui.box("emoji", .Clickable);
 		emo.semantic_size = .[ui.px(20), ui.px(COMPOSER_H)];
 		emo.layout_axis = .Y;
-		if ui.parent(emo) {
+		{ ui.parent(emo); defer ui.pop_parent();
 			spacer(.Y, (COMPOSER_H - 20) / 2);
-			icon("i", "reaction", 20, cast(T)("--interactive-icon-default"));
+			icon("i", "reaction", 20, T("--interactive-icon-default"));
 		}
 		spacer(.X, 10);
 		if res == {
@@ -214,17 +214,17 @@ edit_box :: (m: *dc.Message) {
 	}
 	hint := row("edithint");
 	hint.semantic_size = .[ui.pct(1), ui.px(22)];
-	if ui.parent(hint) {
+	{ ui.parent(hint); defer ui.pop_parent();
 		// one rich-text run so the spaces between the parts survive
 		h := ui.box("hint");
 		h.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 		h.style.line_height = 16;
-		h.style.text_color = cast(T)("--text-default");
+		h.style.text_color = T("--text-default");
 		spans := make_slice(ui.Span, 4, temp);
 		spans[0] = .{text = "escape to ", font = F(.Normal), size = 12};
-		spans[1] = .{text = "cancel", font = F(.Normal), size = 12, color = cast(T)("--text-link")};
+		spans[1] = .{text = "cancel", font = F(.Normal), size = 12, color = T("--text-link")};
 		spans[2] = .{text = " • enter to ", font = F(.Normal), size = 12};
-		spans[3] = .{text = "save", font = F(.Normal), size = 12, color = cast(T)("--text-link")};
+		spans[3] = .{text = "save", font = F(.Normal), size = 12, color = T("--text-link")};
 		ui.set_spans(h, spans);
 	}
 }
@@ -235,20 +235,20 @@ reply_preview :: (m: *dc.Message) {
 	ref := find_message(m.referenced_id);
 	r := row("replyref");
 	r.semantic_size = .[ui.pct(1), ui.px(22)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		// the spine: only the top and left edges of a rounded box (clipped)
-		clip := ui.box("spineclip", .{.Clip, .Floating_X, .Floating_Y});
+		clip := ui.box("spineclip", .Clip | .Floating_X | .Floating_Y);
 		clip.semantic_size = .[ui.px(33), ui.px(12)];
 		clip.fixed_pos = .{-MSG_GUTTER + 36, 8};
-		if ui.parent(clip) {
-			spine := ui.box("spine", .{.Draw_Border, .Floating_X, .Floating_Y});
+		{ ui.parent(clip); defer ui.pop_parent();
+			spine := ui.box("spine", .Draw_Border | .Floating_X | .Floating_Y);
 			spine.semantic_size = .[ui.px(33 + 8), ui.px(12 + 8)];
 			spine.style.border = 2;
-			spine.style.border_color = cast(T)("--border-strong");
-			spine.style.radius = .{6, 0, 0, 0};
+			spine.style.border_color = T("--border-strong");
+			spine.style.radius = .[6, 0, 0, 0];
 		}
 		if ref == null {
-			label("Original message was deleted", .Normal, 14, cast(T)("--text-muted"), 18);
+			label("Original message was deleted", .Normal, 14, T("--text-muted"), 18);
 			return;
 		}
 		avatar_box("av", ref.author_id, 16);
@@ -257,7 +257,7 @@ reply_preview :: (m: *dc.Message) {
 		// "@" only when the reply pinged the author; role color, else muted
 		pinged := false;
 		for id: m.mentions { if id == ref.author_id { pinged = true; } }
-		name_color := cast(T)("--text-muted");
+		name_color := T("--text-muted");
 		{ ch := dc.channel_get(s, ref.channel_id);
 		if ch != null && ch.guild_id != 0 {
 			{ c, ok := member_color(ch.guild_id, ref.author_id);
@@ -267,9 +267,9 @@ reply_preview :: (m: *dc.Message) {
 		spacer(.X, 4);
 		content := first_line(ref.content);
 		if content == "" && len(ref.attachments) > 0 { content = "Click to see attachment"; }
-		c := label(content, .Normal, 14, cast(T)("--text-default"), 18);
-		c.flags += .{.Clip};
-		c.semantic_size[.X] = ui.text_size(0, 0);
+		c := label(content, .Normal, 14, T("--text-default"), 18);
+		c.flags |= .Clip;
+		c.semantic_size[ui.Axis.X] = ui.text_size(0, 0);
 	}
 }
 
@@ -285,31 +285,31 @@ reply_bar :: () {
 	spacer(.Y, 3);
 	bar := row("replybar");
 	bar.semantic_size = .[ui.pct(1), ui.px(32)];
-	if ui.parent(bar) {
+	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 16);
 		name := name_in(m.author_id, m.channel_id);
-		label("Replying to", .Normal, 14, cast(T)("--text-default"), 18);
+		label("Replying to", .Normal, 14, T("--text-default"), 18);
 		spacer(.X, 4);
-		label(name, .Semibold, 14, cast(T)("--text-default"), 18);
+		label(name, .Semibold, 14, T("--text-default"), 18);
 		filler(.X);
 		if m.author_id != s.me {
-			at := ui.box(ifx ma.reply_mention then "@ ON##at" else "@ OFF##at", .{.Clickable, .Draw_Text});
+			at := ui.box(ifx ma.reply_mention then "@ ON##at" else "@ OFF##at", .Clickable | .Draw_Text);
 			at.semantic_size = .[ui.text_size(), ui.px(18)];
 			at.style.font = F(.Bold);
 			at.style.font_size = 14;
-			at.style.text_color = ifx ma.reply_mention then cast(T)("--text-brand") else cast(T)("--text-muted");
+			at.style.text_color = ifx ma.reply_mention then T("--text-brand") else T("--text-muted");
 			if ui.signal(at).clicked { ma.reply_mention = !ma.reply_mention; }
 			spacer(.X, 12);
 		}
-		x := ui.box("close", .{.Clickable});
+		x := ui.box("close", .Clickable);
 		x.semantic_size = .[ui.px(16), ui.px(16)];
-		set_icon(x, "circle-x", ifx ui.signal(x).hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+		set_icon(x, "circle-x", ifx ui.signal(x).hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		if ui.signal(x).clicked { ma.replying = 0; }
 		spacer(.X, 17);
 	}
-	sep := ui.box("replysep", .{.Draw_Background});
+	sep := ui.box("replysep", .Draw_Background);
 	sep.semantic_size = .[ui.pct(1), ui.px(1)];
-	sep.style.bg = cast(T)("--border-subtle");
+	sep.style.bg = T("--border-subtle");
 }
 
 // Send what's in the composer: text, reply, staged files.
@@ -346,7 +346,7 @@ message_menu :: () {
 	}
 	s := store();
 	own := m.author_id == s.me;
-	scrim := ui.box("menu_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("menu_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).pressed {
 		ma.menu_msg = 0;
@@ -374,32 +374,32 @@ message_menu :: () {
 	p := ma.menu_pos;
 	if p.y + h > app.ui.window.y - 8 { p.y = app.ui.window.y - 8 - h; }
 	if p.x + MENU_W > app.ui.window.x - 8 { p.x = app.ui.window.x - 8 - MENU_W; }
-	menu := ui.box("menu", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	menu := ui.box("menu", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	menu.semantic_size = .[ui.px(MENU_W), ui.px(h)];
 	menu.fixed_pos = p;
 	menu.opacity = ma.menu_t;
 	menu.layout_axis = .Y;
-	menu.style.bg = cast(T)("--background-surface-higher");
-	menu.style.border_color = cast(T)("--border-subtle");
+	menu.style.bg = T("--background-surface-higher");
+	menu.style.border_color = T("--border-subtle");
 	menu.style.border = 1;
-	menu.style.radius = 8;
+	menu.style.radius = all4(8);
 	menu.style.shadow_color = .{0, 0, 0, 0.24};
 	menu.style.shadow_blur = 16;
 	menu.style.shadow_offset = .{0, 8};
 	ui.signal(menu);
-	if ui.parent(menu) {
+	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, MENU_PAD + 1);
 		if len(quick) > 0 {
 			qr := row("quick");
 			qr.semantic_size = .[ui.pct(1), ui.px(MENU_QUICK)];
-			if ui.parent(qr) {
+			{ ui.parent(qr); defer ui.pop_parent();
 				spacer(.X, MENU_PAD + 1 + 8);
 				for e, i: quick {
-					b := ui.box(fmt.tprintf("q%d", i), .{.Clickable, .Draw_Background, .Hot_Animation});
+					b := ui.box(fmt.tprintf("q%d", i), .Clickable | .Draw_Background | .Hot_Animation);
 					b.semantic_size = .[ui.px(MENU_QUICK), ui.px(MENU_QUICK)];
-					b.style.radius = 8;
-					b.style.bg = cast(T)("--background-mod-subtle");
-					b.style.bg_hot = cast(T)("--background-mod-normal");
+					b.style.radius = all4(8);
+					b.style.bg = T("--background-mod-subtle");
+					b.style.bg_hot = T("--background-mod-normal");
 					b.layout_axis = .X;
 					b.cross_align = .Center;
 					if ui.signal(b).clicked {
@@ -407,7 +407,7 @@ message_menu :: () {
 						if net_action() { dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id); }
 						ma.menu_msg = 0;
 					}
-					if ui.parent(b) {
+					{ ui.parent(b); defer ui.pop_parent();
 						spacer(.X, (MENU_QUICK - 20) / 2);
 						emoji_box("e", e, 20);
 					}
@@ -420,28 +420,28 @@ message_menu :: () {
 			if it_.sep {
 				sr := row(fmt.tprintf("sep_%s", it_.label));
 				sr.semantic_size = .[ui.pct(1), ui.px(MENU_SEP_H)];
-				if ui.parent(sr) {
+				{ ui.parent(sr); defer ui.pop_parent();
 					spacer(.X, MENU_PAD + 1 + 8);
-					l := ui.box("l", .{.Draw_Background});
+					l := ui.box("l", .Draw_Background);
 					l.semantic_size = .[ui.fill(), ui.px(1)];
-					l.style.bg = cast(T)("--border-subtle");
+					l.style.bg = T("--border-subtle");
 					spacer(.X, MENU_PAD + 1 + 8);
 				}
 			}
 			outer := row(fmt.tprintf("o_%s", it_.label));
 			outer.semantic_size = .[ui.pct(1), ui.px(MENU_ROW_H)];
 			sig: ui.Signal;
-			if ui.parent(outer) {
+			{ ui.parent(outer); defer ui.pop_parent();
 				spacer(.X, MENU_PAD + 1);
-				r := row(it_.label, .{.Clickable, .Draw_Background, .Hot_Animation});
+				r := row(it_.label, .Clickable | .Draw_Background | .Hot_Animation);
 				r.semantic_size = .[ui.fill(), ui.px(MENU_ROW_H)];
-				r.style.radius = 4;
-				r.style.bg_hot = ifx it_.danger then cast(T)("--status-danger") else cast(T)("--background-mod-normal");
+				r.style.radius = all4(4);
+				r.style.bg_hot = ifx it_.danger then T("--status-danger") else T("--background-mod-normal");
 				sig = ui.signal(r);
-				if ui.parent(r) {
+				{ ui.parent(r); defer ui.pop_parent();
 					spacer(.X, 8);
-					c := ifx it_.danger then cast(T)("--text-feedback-critical") else cast(T)("--interactive-text-default");
-					if sig.hovering { c = ifx it_.danger then ui.Color.{1, 1, 1, 1} else cast(T)("--interactive-text-active"); }
+					c := ifx it_.danger then T("--text-feedback-critical") else T("--interactive-text-default");
+					if sig.hovering { c = ifx it_.danger then ui.Color.{1, 1, 1, 1} else T("--interactive-text-active"); }
 					icon("ic", it_.icon, 20, c);
 					spacer(.X, 8);
 					label(it_.label, .Medium, 14, c, 18);
@@ -488,7 +488,7 @@ delete_modal :: () {
 		ma.deleting = 0;
 		return;
 	}
-	scrim := ui.box("del_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("del_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
@@ -498,51 +498,51 @@ delete_modal :: () {
 	// official: 480 wide, 24px padding, close X, a preview card, protip, two equal buttons
 	W :: 480;
 	PAD :: 24;
-	d := ui.box("del", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	d := ui.box("del", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
-	d.style.bg = cast(T)("--modal-background");
-	d.style.border_color = cast(T)("--border-subtle");
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
 	d.style.border = 1;
-	d.style.radius = 12;
+	d.style.radius = all4(12);
 	d.layout_axis = .Y;
 	ui.signal(d);
-	if ui.parent(d) {
-		x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
+	{ ui.parent(d); defer ui.pop_parent();
+		x := ui.box("close", .Clickable | .Floating_X | .Floating_Y);
 		x.semantic_size = .[ui.px(24), ui.px(24)];
 		x.fixed_pos = .{W - 17 - 24, 17};
 		xs := ui.signal(x);
-		set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+		set_icon(x, "x-large", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		if xs.clicked { ma.deleting = 0; }
 		spacer(.Y, PAD + 1);
 		t := row("t");
 		t.semantic_size = .[ui.pct(1), ui.px(24)];
-		if ui.parent(t) {
+		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
-			label("Delete Message", .Semibold, 20, cast(T)("--text-strong"), 24);
+			label("Delete Message", .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 8);
 		q := row("q");
 		q.semantic_size = .[ui.pct(1), ui.px(20)];
-		if ui.parent(q) {
+		{ ui.parent(q); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
-			label("Are you sure you want to delete this message?", .Normal, 16, cast(T)("--text-subtle"), 20);
+			label("Are you sure you want to delete this message?", .Normal, 16, T("--text-subtle"), 20);
 		}
 		spacer(.Y, 24);
 		pr := row("prow");
 		pr.semantic_size = .[ui.pct(1), ui.children()];
-		if ui.parent(pr) {
+		{ ui.parent(pr); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
-			pv := row("preview", .{.Draw_Background});
+			pv := row("preview", .Draw_Background);
 			pv.semantic_size = .[ui.fill(), ui.children()];
-			pv.style.bg = cast(T)("--background-base-low");
-			pv.style.radius = 8;
+			pv.style.bg = T("--background-base-low");
+			pv.style.radius = all4(8);
 			pv.cross_align = .Start;
-			if ui.parent(pv) {
+			{ ui.parent(pv); defer ui.pop_parent();
 				spacer(.X, 16);
 				col0 := ui.box("avcol");
 				col0.semantic_size = .[ui.px(40), ui.children()];
-				if ui.parent(col0) {
+				{ ui.parent(col0); defer ui.pop_parent();
 					spacer(.Y, 12);
 					avatar_box("av", m.author_id, 40);
 					spacer(.Y, 12);
@@ -550,18 +550,18 @@ delete_modal :: () {
 				spacer(.X, 16);
 				col := ui.box("col");
 				col.semantic_size = .[ui.fill(), ui.children()];
-				if ui.parent(col) {
+				{ ui.parent(col); defer ui.pop_parent();
 					spacer(.Y, 10);
 					hr := row("hdr");
 					hr.semantic_size = .[ui.pct(1), ui.px(22)];
 					hr.cross_align = .End;
-					if ui.parent(hr) {
+					{ ui.parent(hr); defer ui.pop_parent();
 						label(name_in(m.author_id, m.channel_id), .Medium, 16, author_color(m), 22);
 						spacer(.X, 8);
-						label(header_timestamp(m.id), .Medium, 12, cast(T)("--chat-text-muted"), 20);
+						label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20);
 					}
-					c := label(first_line(m.content), .Normal, 16, cast(T)("--text-default"), 22);
-					c.flags += .{.Clip};
+					c := label(first_line(m.content), .Normal, 16, T("--text-default"), 22);
+					c.flags |= .Clip;
 					spacer(.Y, 10);
 				}
 				spacer(.X, 16);
@@ -572,16 +572,16 @@ delete_modal :: () {
 		tip := row("tip");
 		tip.semantic_size = .[ui.pct(1), ui.children()];
 		tip.cross_align = .Start;
-		if ui.parent(tip) {
+		{ ui.parent(tip); defer ui.pop_parent();
 			spacer(.X, PAD + 1);
 			tc := ui.box("tc");
 			tc.semantic_size = .[ui.fill(), ui.children()];
-			if ui.parent(tc) {
-				label("Protip:", .Semibold, 14, cast(T)("--text-feedback-positive"), 18);
-				body := ui.box("tipbody", .{.Wrap_Text});
+			{ ui.parent(tc); defer ui.pop_parent();
+				label("Protip:", .Semibold, 14, T("--text-feedback-positive"), 18);
+				body := ui.box("tipbody", .Wrap_Text);
 				body.semantic_size = .[ui.pct(1), ui.text_size()];
 				body.style.line_height = 16;
-				body.style.text_color = cast(T)("--text-default");
+				body.style.text_color = T("--text-default");
 				spans := make_slice(ui.Span, 3, temp);
 				spans[0] = .{text = "You can hold down shift when clicking ", font = F(.Normal), size = 14};
 				spans[1] = .{text = "delete message", font = F(.Bold), size = 14};
@@ -594,27 +594,27 @@ delete_modal :: () {
 		btns := row("btns");
 		btns.semantic_size = .[ui.pct(1), ui.px(40)];
 		btns.style.child_gap = 8;
-		if ui.parent(btns) {
+		{ ui.parent(btns); defer ui.pop_parent();
 			spacer(.X, PAD + 1 - 8);
-			cancel := ui.box("Cancel##c", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+			cancel := ui.box("Cancel##c", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			cancel.semantic_size = .[ui.fill(), ui.px(40)];
-			cancel.style.radius = 8;
+			cancel.style.radius = all4(8);
 			cancel.style.font = F(.Medium);
 			cancel.style.font_size = 16;
 			cancel.style.text_align = .Center;
-			cancel.style.text_color = cast(T)("--text-strong");
-			cancel.style.bg = cast(T)("--background-mod-normal");
-			cancel.style.bg_hot = cast(T)("--background-mod-strong");
+			cancel.style.text_color = T("--text-strong");
+			cancel.style.bg = T("--background-mod-normal");
+			cancel.style.bg_hot = T("--background-mod-strong");
 			if ui.signal(cancel).clicked { ma.deleting = 0; }
-			del := ui.box("Delete##d", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+			del := ui.box("Delete##d", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			del.semantic_size = .[ui.fill(), ui.px(40)];
-			del.style.radius = 8;
+			del.style.radius = all4(8);
 			del.style.font = F(.Medium);
 			del.style.font_size = 16;
 			del.style.text_align = .Center;
 			del.style.text_color = .{1, 1, 1, 1};
-			del.style.bg = cast(T)("--status-danger");
-			del.style.bg_hot = cast(T)("--control-critical-primary-background-hover");
+			del.style.bg = T("--status-danger");
+			del.style.bg_hot = T("--control-critical-primary-background-hover");
 			if ui.signal(del).clicked {
 				delete_now(m);
 				ma.deleting = 0;

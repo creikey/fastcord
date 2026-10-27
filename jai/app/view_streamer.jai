@@ -81,7 +81,7 @@ STREAMER_TOOLS :: Streamer_Tool.[
 	.{"darwin", "/twitch studio.app/", "Twitch Studio"}
 ];
 
-STREAMER_OS :: ifx OS == .MACOS then "darwin" else "win32";
+STREAMER_OS :: #run ifx OS == .MACOS then "darwin" else "win32";
 
 // streamer_tool_running: the first streaming tool among executable paths (or bare
 // file names), case-insensitive.
@@ -91,7 +91,7 @@ streamer_tool_running :: (paths: []string, os := STREAMER_OS) -> string, bool {
 	tools := STREAMER_TOOLS;
 	for p: paths {
 		lp, _ := strings.replace_all(strings.to_lower(p, temp), "\\", "/", temp);
-		lp = strings.concatenate(.{"/", lp}, temp);
+		lp = strings.concatenate(string.["/", lp], temp);
 		for t: tools {
 			if t.os != os { continue; }
 			if ifx strings.has_suffix(t.exe, "/") then strings.contains(lp, t.exe) else strings.has_suffix(lp, t.exe) { return t.name, true; }
@@ -112,11 +112,11 @@ streamer_start :: () {
 					atomic_store(*sm.detected, on);
 					platform.request_frame();
 				}
-				free_all(temp);
+				reset_temporary_storage();
 			}
 			time.sleep(5 * time.Second);
 		}
-	}, context);
+	}, *context);
 }
 
 // streamer_frame: auto toggle, analytics on changes, screen-capture protection.
@@ -136,7 +136,7 @@ streamer_frame :: () {
 			track_toggle(d, true);
 		}
 	} }
-	if s.* != sm.last {
+	if !bytes_equal(s.*, sm.last) {
 		if s.enabled != sm.last.enabled {
 			track_toggle(s.enabled, false);
 		} else if app.client != null {
@@ -178,21 +178,21 @@ streamer_notice :: () {
 		if app.client != null { dc.analytics_app_notice(app.client, "app_notice_viewed", "STREAMER_MODE", app.view.guild); }
 	}
 	WHITE :: ui.Color.{1, 1, 1, 1};
-	bar := row("streamer_notice", .{.Draw_Background});
+	bar := row("streamer_notice", .Draw_Background);
 	bar.semantic_size = .[ui.pct(1), ui.px(36)];
 	bar.style.bg = .{0x59 / 255.0, 0x36 / 255.0, 0x95 / 255.0, 1}; // notice color STREAMER_MODE
-	if ui.parent(bar) {
+	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 36);
 		filler(.X);
 		label("Streamer Mode is enabled. Usernames have been truncated.", .Medium, 14, WHITE, 18);
 		spacer(.X, 10);
-		b := row("disable", .{.Clickable, .Draw_Border, .Draw_Background, .Hot_Animation});
+		b := row("disable", .Clickable | .Draw_Border | .Draw_Background | .Hot_Animation);
 		b.semantic_size = .[ui.children(), ui.px(24)];
 		b.style.border = 1;
 		b.style.border_color = WHITE;
-		b.style.radius = 4;
+		b.style.radius = all4(4);
 		b.style.bg_hot = with_alpha(WHITE, 0.1);
-		if ui.parent(b) {
+		{ ui.parent(b); defer ui.pop_parent();
 			spacer(.X, 10);
 			label("Disable", .Medium, 14, WHITE, 18);
 			spacer(.X, 10);
@@ -202,10 +202,10 @@ streamer_notice :: () {
 			streamer_settings.enabled = false;
 		}
 		filler(.X);
-		x := ui.box("close", .{.Clickable});
+		x := ui.box("close", .Clickable);
 		x.semantic_size = .[ui.px(16), ui.px(16)];
 		xs := ui.signal(x);
-		set_icon(x, "x-large", with_alpha(WHITE, ifx xs.hovering then 1 else 0.8));
+		set_icon(x, "x-large", with_alpha(WHITE, ifx xs.hovering then 1.0 else 0.8));
 		if xs.clicked {
 			sm.notice_closed = true;
 			track_notice("app_notice_closed");
@@ -230,7 +230,7 @@ streamer_settings_section :: () {
 	spacer(.Y, 24);
 	row_toggle("sm_auto", "Automatically enable Streamer Mode if OBS or XSplit are running", "", *s.auto_toggle);
 	spacer(.Y, 32);
-	label("If Streamer Mode is enabled...", .Semibold, 16, cast(T)("--text-strong"), 20);
+	label("If Streamer Mode is enabled...", .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 24);
 	row_toggle("sm_personal", "Hide my personal information, such as email, connected accounts, and notes", "", *s.hide_personal_information);
 	spacer(.Y, 24);
@@ -250,14 +250,14 @@ streamer_account_page :: () {
 	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
 	page.cross_align = .Center;
-	if ui.parent(page) {
+	{ ui.parent(page); defer ui.pop_parent();
 		filler(.Y);
-		icon("art", "screen-stream", 160, cast(T)("--background-brand"));
+		icon("art", "screen-stream", 160, T("--background-brand"));
 		spacer(.Y, 24);
-		b := row("Streamer Mode Enabled##smbadge", .{.Draw_Background, .Draw_Text});
+		b := row("Streamer Mode Enabled##smbadge", .Draw_Background | .Draw_Text);
 		b.semantic_size = .[ui.px(244), ui.px(48)];
-		b.style.radius = 8;
-		b.style.bg = cast(T)("--background-brand");
+		b.style.radius = all4(8);
+		b.style.bg = T("--background-brand");
 		b.style.font = F(.Medium);
 		b.style.font_size = 18;
 		b.style.text_align = .Center;

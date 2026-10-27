@@ -117,7 +117,7 @@ join_start :: (input: string) {
 			client_release(j.client);
 			free_job(j);
 		} }
-		free_all(temp);
+		reset_temporary_storage();
 		platform.request_frame();
 	}, self_cleanup = true);
 }
@@ -167,7 +167,7 @@ add_server_overlay :: () {
 #scope_file
 
 add_server_modal :: () {
-	scrim := ui.box("addsrv_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("addsrv_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
@@ -175,21 +175,21 @@ add_server_modal :: () {
 		return;
 	}
 	W :: 440;
-	d := ui.box("addsrv", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	d := ui.box("addsrv", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, max((app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2, 16)};
-	d.style.bg = cast(T)("--modal-background");
-	d.style.border_color = cast(T)("--border-subtle");
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
 	d.style.border = 1;
-	d.style.radius = 12;
+	d.style.radius = all4(12);
 	d.layout_axis = .Y;
 	ui.signal(d);
-	if ui.parent(d) {
-		x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
+	{ ui.parent(d); defer ui.pop_parent();
+		x := ui.box("close", .Clickable | .Floating_X | .Floating_Y);
 		x.semantic_size = .[ui.px(24), ui.px(24)];
 		x.fixed_pos = .{W - 16 - 24, 16};
 		xs := ui.signal(x);
-		set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+		set_icon(x, "x-large", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		if xs.clicked { asv.step = .Closed; }
 		if asv.step == {
 		case .Choose;
@@ -217,17 +217,17 @@ centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 step_choose :: () {
 	inset_begin(16, 0);
 	spacer(.Y, 24);
-	centered("title", "Create Your Server", .Bold, 24, 30, cast(T)("--text-strong"));
+	centered("title", "Create Your Server", .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	centered("sub", "Your server is where you and your friends hang out. Make yours and start talking.", .Normal, 16, 20, cast(T)("--text-subtle"));
+	centered("sub", "Your server is where you and your friends hang out. Make yours and start talking.", .Normal, 16, 20, T("--text-subtle"));
 	spacer(.Y, 24);
-	own := row("own", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
+	own := row("own", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 	own.semantic_size = .[ui.pct(1), ui.px(64)];
-	own.style.radius = 8;
+	own.style.radius = all4(8);
 	own.style.border = 1;
-	own.style.border_color = cast(T)("--border-subtle");
-	own.style.bg = cast(T)("--background-base-low");
-	own.style.bg_hot = cast(T)("--background-mod-normal");
+	own.style.border_color = T("--border-subtle");
+	own.style.bg = T("--background-base-low");
+	own.style.bg_hot = T("--background-mod-normal");
 	if ui.signal(own).clicked {
 		add_server_step(.Create);
 		s := store();
@@ -237,38 +237,38 @@ step_choose :: () {
 		ui.editor_set_text(*asv.name_ed, fmt.tprintf("%s's server", name));
 		set_err("");
 	}
-	if ui.parent(own) {
+	{ ui.parent(own); defer ui.pop_parent();
 		spacer(.X, 16);
-		icon("i", "circle-plus", 32, cast(T)("--text-brand"));
+		icon("i", "circle-plus", 32, T("--text-brand"));
 		spacer(.X, 12);
-		label("Create My Own", .Semibold, 16, cast(T)("--text-strong"), 20);
+		label("Create My Own", .Semibold, 16, T("--text-strong"), 20);
 		filler(.X);
-		icon("chev", "chevron-small-right", 20, cast(T)("--interactive-icon-default"));
+		icon("chev", "chevron-small-right", 20, T("--interactive-icon-default"));
 		spacer(.X, 12);
 	}
 	inset_end(16, 0);
 	spacer(.Y, 24);
-	foot := ui.box("foot", .{.Draw_Background});
+	foot := ui.box("foot", .Draw_Background);
 	foot.semantic_size = .[ui.pct(1), ui.children()];
 	foot.layout_axis = .Y;
-	foot.style.bg = cast(T)("--modal-footer-background");
-	foot.style.radius = .{0, 0, 12, 12};
-	if ui.parent(foot) {
+	foot.style.bg = T("--modal-footer-background");
+	foot.style.radius = .[0, 0, 12, 12];
+	{ ui.parent(foot); defer ui.pop_parent();
 		inset_begin(16, 16);
-		centered("have", "Have an invite already?", .Semibold, 20, 24, cast(T)("--text-strong"));
+		centered("have", "Have an invite already?", .Semibold, 20, 24, T("--text-strong"));
 		spacer(.Y, 8);
 		jr := row("jr");
 		jr.semantic_size = .[ui.pct(1), ui.px(38)];
-		if ui.parent(jr) {
-			b := ui.box("Join a Server##join", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+		{ ui.parent(jr); defer ui.pop_parent();
+			b := ui.box("Join a Server##join", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			b.semantic_size = .[ui.pct(1), ui.px(38)];
-			b.style.radius = 8;
+			b.style.radius = all4(8);
 			b.style.font = F(.Medium);
 			b.style.font_size = 14;
 			b.style.text_align = .Center;
-			b.style.bg = cast(T)("--background-mod-strong");
+			b.style.bg = T("--background-mod-strong");
 			b.style.bg_hot = with_alpha(b.style.bg, 0.85);
-			b.style.text_color = cast(T)("--text-strong");
+			b.style.text_color = T("--text-strong");
 			if ui.signal(b).clicked { add_server_step(.Join); }
 		}
 		inset_end(16, 16);
@@ -276,33 +276,33 @@ step_choose :: () {
 }
 
 footer_begin :: () -> *ui.Box {
-	foot := row("foot", .{.Draw_Background});
+	foot := row("foot", .Draw_Background);
 	foot.semantic_size = .[ui.pct(1), ui.px(70)];
-	foot.style.bg = cast(T)("--modal-footer-background");
-	foot.style.radius = .{0, 0, 12, 12};
+	foot.style.bg = T("--modal-footer-background");
+	foot.style.radius = .[0, 0, 12, 12];
 	return foot;
 }
 
 step_create :: () {
 	inset_begin(16, 0);
 	spacer(.Y, 24);
-	centered("title", "Customize Your Server", .Bold, 24, 30, cast(T)("--text-strong"));
+	centered("title", "Customize Your Server", .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	centered("sub", "Give your new server a personality with a name. You can always change it later.", .Normal, 16, 20, cast(T)("--text-subtle"));
+	centered("sub", "Give your new server a personality with a name. You can always change it later.", .Normal, 16, 20, T("--text-subtle"));
 	spacer(.Y, 24);
-	label("SERVER NAME", .Bold, 12, cast(T)("--text-default"), 16);
+	label("SERVER NAME", .Bold, 12, T("--text-default"), 16);
 	spacer(.Y, 8);
 	res := set_input("name", *asv.name_ed, "", max_runes = 100, autofocus = true);
 	spacer(.Y, 8);
-	set_para("terms", "By creating a server, you agree to Discord's Community Guidelines.", .Normal, 12, 16, cast(T)("--text-muted"));
+	set_para("terms", "By creating a server, you agree to Discord's Community Guidelines.", .Normal, 12, 16, T("--text-muted"));
 	if asv.error != "" {
 		spacer(.Y, 8);
-		set_para("err", asv.error, .Normal, 14, 18, cast(T)("--text-feedback-critical"));
+		set_para("err", asv.error, .Normal, 14, 18, T("--text-feedback-critical"));
 	}
 	inset_end(16, 0);
 	spacer(.Y, 24);
 	name := strings.trim_space(ui.editor_text(*asv.name_ed));
-	if ui.parent(footer_begin()) {
+	{ ui.parent(footer_begin()); defer ui.pop_parent();
 		spacer(.X, 16);
 		if set_button("Back##back", .Link) { add_server_step(.Choose); }
 		filler(.X);
@@ -318,29 +318,29 @@ step_create :: () {
 step_join :: () {
 	inset_begin(16, 0);
 	spacer(.Y, 24);
-	centered("title", "Join a Server", .Bold, 24, 30, cast(T)("--text-strong"));
+	centered("title", "Join a Server", .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	centered("sub", "Enter an invite below to join an existing server", .Normal, 16, 20, cast(T)("--text-subtle"));
+	centered("sub", "Enter an invite below to join an existing server", .Normal, 16, 20, T("--text-subtle"));
 	spacer(.Y, 24);
 	lr := row("lr");
 	lr.semantic_size = .[ui.pct(1), ui.px(16)];
-	if ui.parent(lr) {
-		label("INVITE LINK", .Bold, 12, ifx asv.error != "" then cast(T)("--text-feedback-critical") else cast(T)("--text-default"), 16);
-		label(" *##req", .Bold, 12, cast(T)("--text-feedback-critical"), 16);
-		if asv.error != "" { label(fmt.tprintf(" - %s##err", asv.error), .Medium, 12, cast(T)("--text-feedback-critical"), 16); }
+	{ ui.parent(lr); defer ui.pop_parent();
+		label("INVITE LINK", .Bold, 12, ifx asv.error != "" then T("--text-feedback-critical") else T("--text-default"), 16);
+		label(" *##req", .Bold, 12, T("--text-feedback-critical"), 16);
+		if asv.error != "" { label(fmt.tprintf(" - %s##err", asv.error), .Medium, 12, T("--text-feedback-critical"), 16); }
 	}
 	spacer(.Y, 8);
 	res := set_input("invite", *asv.invite_ed, "https://discord.gg/hTKzmak", autofocus = true);
 	spacer(.Y, 16);
-	label("INVITES SHOULD LOOK LIKE", .Bold, 12, cast(T)("--text-default"), 16);
+	label("INVITES SHOULD LOOK LIKE", .Bold, 12, T("--text-default"), 16);
 	spacer(.Y, 8);
 	for ex: (string.["hTKzmak", "https://discord.gg/hTKzmak", "https://discord.gg/cool-people"]) {
-		label(ex, .Normal, 14, cast(T)("--text-default"), 20);
+		label(ex, .Normal, 14, T("--text-default"), 20);
 	}
 	inset_end(16, 0);
 	spacer(.Y, 24);
 	busy := asv.job != null;
-	if ui.parent(footer_begin()) {
+	{ ui.parent(footer_begin()); defer ui.pop_parent();
 		spacer(.X, 16);
 		if set_button("Back##back", .Link) { add_server_step(.Choose); }
 		filler(.X);

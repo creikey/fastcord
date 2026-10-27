@@ -25,7 +25,7 @@ Sweep_Screen :: struct {
 	setup: [..]string;
 	hold_mouse: bool; // the screen needs the mouse where setup left it (hover toolbars)
 	login: bool; // show the intro / token screen
-	size: [2]int;
+	size: Int2;
 }
 
 Sweep_Box :: struct {
@@ -89,7 +89,7 @@ app_reset_state :: () {
 	app.pending_dm_user = 0;
 	app.caret_reset_t = 0;
 	app.reaction_target = 0;
-	app.ui_mods = .{};
+	app.ui_mods = 0;
 	app.focused_editor = null;
 	app.wake_at = 0;
 	app.last_time = 0;
@@ -220,7 +220,7 @@ sweep_measure :: () -> u64 {
 sweep_clean :: (s: string, max_runes := 40) -> string {
 	sb := strings.builder_make(context.allocator);
 	n := 0;
-	for r: s {
+	for r: utf8.runes(s) {
 		if n >= max_runes {
 			strings.write_string(*sb, "…");
 			break;
@@ -285,10 +285,10 @@ sweep_desc :: (b: *ui.Box) -> string {
 // (outside a scroll view) can't be pressed where it is drawn as being, and a
 // control drawing outside its own rect looks clickable where presses miss it.
 sweep_geometry :: (b: *ui.Box, vr: ui.Rect) {
-	area :: (r: ui.Rect) -> float32 {return max(0, r.x1 - r.x0) * max(0, r.y1 - r.y0);}
+	area :: (r: ui.Rect) -> float32 {return max(0.0, r.x1 - r.x0) * max(0.0, r.y1 - r.y0);}
 	scrolled := false;
 	{ p := b.parent;
-	while p != null { if p.flags & .{.Scroll_X, .Scroll_Y} != .{} { scrolled = true; }  p = p.parent; } }
+	while p != null { if (p.flags & (.Scroll_X | .Scroll_Y)) != 0 { scrolled = true; }  p = p.parent; } }
 	// vertical cuts are list viewports (some scroll by hand, without Scroll_Y)
 	win := ui.Rect.{0, 0, app.ui.window.x, app.ui.window.y};
 	cut_x := (vr.x1 - vr.x0) < 0.9 * (b.rect.x1 - b.rect.x0);
@@ -301,8 +301,8 @@ sweep_geometry :: (b: *ui.Box, vr: ui.Rect) {
 		{ x := c.first;
 		while x != null {
 			if has(x.flags, .Clickable) { { x = x.next; continue; } } // its own control
-			drawn := x.flags & .{.Draw_Text, .Draw_Background, .Draw_Border} != .{} || x.custom_draw != null;
-			if drawn && x.flags & .{.Floating_X, .Floating_Y} == .{} && (x.rect.x0 < r.x0 - 2 || x.rect.y0 < r.y0 - 2 || x.rect.x1 > r.x1 + 2 || x.rect.y1 > r.y1 + 2) { return x; }
+			drawn := (x.flags & (.Draw_Text | .Draw_Background | .Draw_Border)) != 0 || x.custom_draw != null;
+			if drawn && (x.flags & (.Floating_X | .Floating_Y)) == 0 && (x.rect.x0 < r.x0 - 2 || x.rect.y0 < r.y0 - 2 || x.rect.x1 > r.x1 + 2 || x.rect.y1 > r.y1 + 2) { return x; }
 			{ o := outside(x, r);
 			if o != null { return o; } }
 			x = x.next;
@@ -321,7 +321,7 @@ sweep_signature :: (desc: string) -> string {
 	q0 := strings.index_byte(desc, #char "'");
 	q1 := strings.last_index_byte(desc, #char "'");
 	if q0 < 0 || q1 <= q0 { return desc; }
-	return strings.concatenate(.{sub(desc, 0, q0), sub_from(desc, q1 + 1)}, temp);
+	return strings.concatenate(string.[sub(desc, 0, q0), sub_from(desc, q1 + 1)], temp);
 }
 
 sweep_collect :: () {
@@ -347,7 +347,7 @@ sweep_collect :: () {
 		}
 		sweep_geometry(b, vr);
 		// popout / modal panels absorb clicks on their empty parts on purpose
-		if has(b.flags, .Overlay) && b.flags & .{.Draw_Border, .Draw_Shadow} != .{} { continue; }
+		if has(b.flags, .Overlay) && (b.flags & (.Draw_Border | .Draw_Shadow)) != 0 { continue; }
 		in_ov := ui.in_overlay(b);
 		found := false;
 		p: ui.Vec2;
@@ -551,7 +551,7 @@ sweep_parse :: (path: string) -> [..]Sweep_Screen {
 			}
 			append(*out, sc);
 		} else if len(out) > 0 {
-			append(at(*out, len(out) - 1).setup, strings.trim_space(line));
+			append(*at(*out, len(out) - 1).setup, strings.trim_space(line));
 		}
 	}
 	return out;
@@ -596,7 +596,7 @@ sweep_run :: (opt: Options) -> int {
 	platform.set_time_override(0);
 	for * sc: screens {
 		if opt.sweep_only != "" && sc.name != opt.sweep_only { continue; }
-		sweep_screen(*sc);
+		sweep_screen(sc);
 	}
 
 	sb := strings.builder_make();

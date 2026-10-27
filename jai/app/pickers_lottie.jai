@@ -63,9 +63,9 @@ lottie_sticker_draw :: (b: *ui.Box, id: dc.Snowflake, animate: bool) {
 	ls := lottie_get(id);
 	if ls.state != .Ready {
 		// placeholder while loading / if it can't render
-		b.flags += .{.Draw_Background};
-		b.style.bg = cast(T)("--background-mod-subtle");
-		b.style.radius = 8;
+		b.flags |= .Draw_Background;
+		b.style.bg = T("--background-mod-subtle");
+		b.style.radius = all4(8);
 		return;
 	}
 	d := new(Lottie_Draw, temp);
@@ -101,7 +101,7 @@ lottie_draw :: (b: *ui.Box, user: *void) {
 	}
 	if d.animate { app.ui.animating = true; }
 	c := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = cast(gfx.Rect)(b.rect), tex = ls.tex, colors = .{c, c, c, c}});
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), tex = ls.tex, colors = .[c, c, c, c]});
 }
 #scope_export
 

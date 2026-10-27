@@ -148,10 +148,10 @@ md_inline :: (src: string) -> []Token {
 		if n > 0 && t.kind == .Text && merged[n - 1].kind == .Text && merged[n - 1].styles == t.styles {
 			prev := *merged[n - 1];
 			// tokens are slices of contiguous source only when adjacent; join otherwise
-			if sub_from(raw_data(prev.text), len(prev.text)) == raw_data(t.text) {
+			if prev.text.data + prev.text.count == t.text.data {
 				prev.text = as_string(sub(raw_data(prev.text), 0, len(prev.text) + len(t.text)));
 			} else {
-				prev.text = strings.concatenate(.{prev.text, t.text});
+				prev.text = strings.concatenate(string.[prev.text, t.text]);
 			}
 			continue;
 		} }
@@ -175,17 +175,7 @@ DELIMS := struct {
 
 // Bytes that can start an inline rule in inline_into; every other byte is plain text.
 // Bytes that can start an inline rule in inline_into; every other byte is plain text.
-MD_SPECIAL := bool.[
-	__IDX__92 = true,
-	__IDX__#char "`" = true,
-	__IDX__#char "<" = true,
-	__IDX__#char "h" = true,
-	__IDX__#char "@" = true,
-	__IDX__#char "*" = true,
-	__IDX__#char "_" = true,
-	__IDX__#char "~" = true,
-	__IDX__#char "|" = true
-];
+MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for c: cast([]u8) "\\`<h@*_~|" t[c] = true; return t; };
 
 inline_into :: (p: *Md_Parser, src: string) {
 	i := 0;
@@ -214,7 +204,7 @@ inline_into :: (p: *Md_Parser, src: string) {
 			if end > 0 {
 				emit(p, .Text, sub(src, text_start, i));
 				saved := p.styles;
-				p.styles += .{.Code_};
+				p.styles |= .Code;
 				body := sub(src, i + ticks, i + ticks + end);
 				if ticks == 2 { body = strings.trim_space(body); }
 				emit(p, .Text, body);
@@ -265,8 +255,8 @@ inline_into :: (p: *Md_Parser, src: string) {
 			if end <= body_start { continue; }
 			emit(p, .Text, sub(src, text_start, i));
 			saved := p.styles;
-			p.styles += .{d.style};
-			if d.open == "***" { p.styles += .{.Italic}; }
+			p.styles |= d.style;
+			if d.open == "***" { p.styles |= .Italic; }
 			inline_into(p, sub(src, body_start, end));
 			p.styles = saved;
 			i = end + len(d.open);

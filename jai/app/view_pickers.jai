@@ -43,11 +43,7 @@ Picker_Tab :: enum u8 {
 	Emoji;
 }
 
-PICKER_TAB_LABELS := ([#run enum_count(Picker_Tab)]string).{
-	__IDX__.Gif = "GIFs",
-	__IDX__.Sticker = "Stickers",
-	__IDX__.Emoji = "Emoji"
-};
+PICKER_TAB_LABELS := string.["GIFs", "Stickers", "Emoji"];
 
 Picker_Mode :: enum u8 {
 	Composer;
@@ -125,7 +121,7 @@ picker_open :: (mode: Picker_Mode, tab: Picker_Tab, channel_id: dc.Snowflake, me
 	pk.anchor = anchor;
 	pk.search_focus = true;
 	picker_set_tab(tab);
-	for * ed: pk.search { ui.editor_set_text(*ed, ""); }
+	for * ed: pk.search { ui.editor_set_text(ed, ""); }
 	emoji_picker_reset();
 	if !pk.opened_once {
 		pk.opened_once = true;
@@ -172,7 +168,7 @@ picker_capture_input :: () {
 	over := pk_contains(pk.rect, app.ui.mouse);
 	if over {
 		// the message list hovers by rect (ui.mouse_over); keep it from reacting under the popout
-		pk.hidden_mouse = app.ui.mouse;
+		pk.hidden_mouse = some(app.ui.mouse);
 		app.ui.mouse = .{-1000000, -1000000};
 	}
 	for * e, i: app.ui.events {
@@ -205,10 +201,10 @@ release_captured :: () {
 
 // Overlay entry (views.odin overlays()): network results every frame, the popout when open.
 picker_overlay :: () {
-	{ m, ok := pk.hidden_mouse.__MAYBE__;
+	{ m, ok := maybe_get(pk.hidden_mouse);
 	if ok {
 		app.ui.mouse = m;
-		pk.hidden_mouse = null;
+		pk.hidden_mouse = .{};
 	} }
 	pickers_poll();
 	clear(*pk.keys);
@@ -241,7 +237,7 @@ picker_overlay :: () {
 		}
 		app.ui.animating = true;
 	} else if pk.t < 1 {
-		pk.t = min(1, pk.t + dt / PK_OPEN_SECONDS);
+		pk.t = min(1.0, pk.t + dt / PK_OPEN_SECONDS);
 		app.ui.animating = true;
 	}
 	release_captured();
@@ -289,7 +285,7 @@ picker_target_rect :: () -> ui.Rect {
 	r: ui.Rect;
 	if pk.mode == .Composer {
 		w = min(w, win.x - 2 * PK_SCREEN_MARGIN);
-		h = min(h, max(200, pk.composer_top - PK_COMPOSER_GAP - TITLE_BAR_H - PK_SCREEN_MARGIN));
+		h = min(h, max(200.0, pk.composer_top - PK_COMPOSER_GAP - TITLE_BAR_H - PK_SCREEN_MARGIN));
 		right := (ifx pk.composer_right != 0 then pk.composer_right else pk.anchor.x1) - PK_RIGHT_INSET;
 		bottom := ifx pk.composer_top != 0 then pk.composer_top - PK_COMPOSER_GAP else pk.anchor.y0 - PK_COMPOSER_GAP;
 		r = .{right - w, bottom - h, right, bottom};
@@ -333,28 +329,28 @@ picker_panel :: () {
 		ox = r.x0 + (r.x1 - r.x0 - w) / 2;
 		oy = r.y0;
 	}
-	frame := ui.box("picker_frame###pk_frame", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
+	frame := ui.box("picker_frame###pk_frame", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Clip);
 	frame.semantic_size = .[ui.px(w), ui.px(h)];
 	frame.fixed_pos = .{ox, oy};
-	frame.style.bg = cast(T)("--background-surface-high");
-	frame.style.border_color = cast(T)("--border-subtle");
+	frame.style.bg = T("--background-surface-high");
+	frame.style.border_color = T("--border-subtle");
 	frame.style.border = 1;
-	frame.style.radius = PK_RADIUS;
+	frame.style.radius = all4(PK_RADIUS);
 	frame.style.shadow_color = .{0, 0, 0, 0.32};
 	frame.style.shadow_blur = 16;
 	frame.style.shadow_offset = .{0, 8};
 	ui.signal(frame); // swallow clicks inside
-	if ui.parent(frame) {
-		content := ui.box("picker_content", .{.Floating_X, .Floating_Y});
+	{ ui.parent(frame); defer ui.pop_parent();
+		content := ui.box("picker_content", .Floating_X | .Floating_Y);
 		content.semantic_size = .[ui.px(r.x1 - r.x0), ui.px(r.y1 - r.y0)];
 		content.fixed_pos = .{r.x0 - ox, r.y0 - oy};
 		content.layout_axis = .Y;
-		if ui.parent(content) {
+		{ ui.parent(content); defer ui.pop_parent();
 			picker_header(r);
 			body := ui.box("picker_body");
 			body.semantic_size = .[ui.pct(1), ui.fill()];
 			body.layout_axis = .Y;
-			if ui.parent(body) {
+			{ ui.parent(body); defer ui.pop_parent();
 				body_rect := ui.Rect.{r.x0, r.y0 + picker_header_h(), r.x1, r.y1};
 				if pk.tab == {
 				case .Emoji;
@@ -389,27 +385,27 @@ picker_header :: (r: ui.Rect) {
 	hdr := ui.box("picker_header");
 	hdr.semantic_size = .[ui.pct(1), ui.px(picker_header_h())];
 	hdr.layout_axis = .Y;
-	if ui.parent(hdr) {
+	{ ui.parent(hdr); defer ui.pop_parent();
 		spacer(.Y, PK_HEADER_PAD_TOP);
 		if pk.mode == .Composer {
 			tabs := row("tabs");
 			tabs.semantic_size = .[ui.pct(1), ui.px(PK_TAB_H)];
-			if ui.parent(tabs) {
+			{ ui.parent(tabs); defer ui.pop_parent();
 				spacer(.X, PK_HEADER_PAD_X);
-				for tab: Picker_Tab {
+				for tab: enum_values_as_enum(Picker_Tab) {
 					sel := pk.tab == tab;
-					b := ui.box(PICKER_TAB_LABELS[tab], .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+					b := ui.box(PICKER_TAB_LABELS[tab], .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 					b.semantic_size = .[ui.text_size(PK_TAB_PAD_X), ui.px(PK_TAB_H)];
 					b.style.font = F(.Semibold);
 					b.style.font_size = PK_TAB_FONT;
 					b.style.line_height = 14;
-					b.style.radius = PK_RADIUS;
+					b.style.radius = all4(PK_RADIUS);
 					b.style.text_align = .Center;
 					sig := ui.signal(b);
 					// .navButton / .navButtonActive
-					b.style.bg = ifx sel then cast(T)("--background-mod-normal") else .{};
-					b.style.bg_hot = ifx sel then cast(T)("--background-mod-strong") else cast(T)("--control-secondary-background-hover");
-					b.style.text_color = ifx sel then (ifx sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--text-strong")) else (ifx sig.hovering then cast(T)("--interactive-text-hover") else cast(T)("--text-default"));
+					b.style.bg = ifx sel then T("--background-mod-normal") else .{};
+					b.style.bg_hot = ifx sel then T("--background-mod-strong") else T("--control-secondary-background-hover");
+					b.style.text_color = ifx sel then (ifx sig.hovering then T("--interactive-text-active") else T("--text-strong")) else (ifx sig.hovering then T("--interactive-text-hover") else T("--text-default"));
 					if sig.clicked && !sel { picker_set_tab(tab); }
 					spacer(.X, PK_TAB_GAP);
 				}
@@ -418,7 +414,7 @@ picker_header :: (r: ui.Rect) {
 		}
 		srow := row("searchrow");
 		srow.semantic_size = .[ui.pct(1), ui.px(PK_SEARCH_H)];
-		if ui.parent(srow) {
+		{ ui.parent(srow); defer ui.pop_parent();
 			spacer(.X, PK_HEADER_PAD_X);
 			placeholder := ifx pk.mode == .Reaction then "Find the perfect reaction" else "Find the perfect emoji";
 			if pk.tab == {
@@ -450,43 +446,43 @@ picker_header :: (r: ui.Rect) {
 				if can_upload_emoji(gid) {
 					spacer(.X, PK_HEADER_GAP);
 					busy := emoji_upload_busy();
-					add := ui.box(ifx busy then "Uploading...##addemoji" else "Add Emoji##addemoji", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+					add := ui.box(ifx busy then "Uploading...##addemoji" else "Add Emoji##addemoji", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 					add.semantic_size = .[ui.text_size(PK_ADD_EMOJI_PAD_X), ui.px(PK_SEARCH_H)];
-					add.style.radius = PK_SEARCH_RADIUS;
+					add.style.radius = all4(PK_SEARCH_RADIUS);
 					add.style.font = F(.Medium);
 					add.style.font_size = 16;
 					add.style.text_align = .Center;
-					add.style.text_color = cast(T)("--text-strong");
-					add.style.bg = cast(T)("--background-mod-normal");
-					add.style.bg_hot = cast(T)("--background-mod-strong");
-					if busy { add.flags += .{.Disabled}; }
+					add.style.text_color = T("--text-strong");
+					add.style.bg = T("--background-mod-normal");
+					add.style.bg_hot = T("--background-mod-strong");
+					if busy { add.flags |= .Disabled; }
 					if ui.signal(add).clicked && !busy { emoji_upload_pick(gid); } // file dialog, then upload off the UI thread
 				} }
 			}
 			spacer(.X, PK_HEADER_PAD_X);
 		}
 		spacer(.Y, PK_HEADER_PAD_BOTTOM);
-		line := ui.box("hdrline", .{.Draw_Background});
+		line := ui.box("hdrline", .Draw_Background);
 		line.semantic_size = .[ui.pct(1), ui.px(1)];
-		line.style.bg = cast(T)("--border-subtle");
+		line.style.bg = T("--border-subtle");
 	}
 }
 
 // Single-line search input with a magnifier (or clear button once there is text).
 pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
-	wrap := row("search", .{.Draw_Background, .Draw_Border, .Clickable});
+	wrap := row("search", .Draw_Background | .Draw_Border | .Clickable);
 	wrap.semantic_size = .[ui.fill(), ui.px(PK_SEARCH_H)];
-	wrap.style.bg = cast(T)("--input-background-default");
-	wrap.style.border_color = cast(T)("--input-border-active"); // focused while open: 2px brand border
+	wrap.style.bg = T("--input-background-default");
+	wrap.style.border_color = T("--input-border-active"); // focused while open: 2px brand border
 	wrap.style.border = 2;
-	wrap.style.radius = PK_SEARCH_RADIUS;
+	wrap.style.radius = all4(PK_SEARCH_RADIUS);
 	wrap.hover_cursor = .IBeam;
 	result := ui.Edit_Result.None;
-	if ui.parent(wrap) {
+	{ ui.parent(wrap); defer ui.pop_parent();
 		spacer(.X, PK_SEARCH_PAD_X);
-		icon("mag", "magnifying-glass", 20, cast(T)("--icon-default"));
+		icon("mag", "magnifying-glass", 20, T("--icon-default"));
 		spacer(.X, 8);
-		f := ui.box("picker_search###pk_search", .{.Clickable, .Draw_Text, .Focusable, .Clip});
+		f := ui.box("picker_search###pk_search", .Clickable | .Draw_Text | .Focusable | .Clip);
 		f.semantic_size = .[ui.fill(), ui.px(PK_SEARCH_H - 2)];
 		f.style.font = F(.Normal);
 		f.style.font_size = PK_SEARCH_FONT;
@@ -494,10 +490,10 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 		f.hover_cursor = .IBeam;
 		text := ui.editor_text(ed);
 		f.text = text;
-		f.style.text_color = cast(T)("--text-default");
+		f.style.text_color = T("--text-default");
 		if text == "" {
 			f.text = placeholder;
-			f.style.text_color = cast(T)("--input-placeholder-text-default");
+			f.style.text_color = T("--input-placeholder-text-default");
 		}
 		sig := ui.signal(f);
 		tl := f.text_layout;
@@ -522,7 +518,7 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 					e.consumed = true;
 					continue;
 				case .Left; #through; case .Right;
-					if e.mods == .{} && pk.tab == .Emoji && text == "" {
+					if e.mods == 0 && pk.tab == .Emoji && text == "" {
 						append(*pk.keys, e);
 						e.consumed = true;
 						continue;
@@ -542,10 +538,10 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 		f.custom_draw = search_caret_draw;
 		f.custom_user = d;
 		if text != "" {
-			x := ui.box("clear", .{.Clickable});
+			x := ui.box("clear", .Clickable);
 			x.semantic_size = .[ui.px(24), ui.px(24)];
 			xs := ui.signal(x);
-			set_icon(x, "x-small", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+			set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			if xs.clicked {
 				ui.editor_set_text(ed, "");
 				result = .Changed;
@@ -580,7 +576,7 @@ search_caret_draw :: (b: *ui.Box, user: *void) {
 	phase := app.ui.time - app.caret_reset_t;
 	request_wake(app.caret_reset_t + (cast(float64)(cast(int)(phase * 2)) + 1) * 0.5);
 	if app.sweep || phase < 0.5 || cast(int)(phase * 2) % 2 == 0 {
-		gfx.rect(.{o.x + x, o.y + 2, o.x + x + 1.5, o.y + tl.line_h - 2}, cast(gfx.Color)(with_alpha(cast(T)("--text-default"), b.opacity)));
+		gfx.rect(.{o.x + x, o.y + 2, o.x + x + 1.5, o.y + tl.line_h - 2}, cast(gfx.Color)(with_alpha(T("--text-default"), b.opacity)));
 	}
 	platform.set_ime_rect(o.x + x, o.y, 1, tl.line_h);
 }
@@ -604,7 +600,7 @@ pk_scroll_update :: (s: *Pk_Scroll, view: ui.Rect, content_h: float32) {
 			e.consumed = true;
 		}
 	}
-	max_y := max(0, content_h - s.view_h);
+	max_y := max(0.0, content_h - s.view_h);
 	s.target = clamp(s.target, 0, max_y);
 	ui.animate(*s.y, s.target, 40);
 	s.y = clamp(s.y, 0, max_y);
@@ -613,20 +609,20 @@ pk_scroll_update :: (s: *Pk_Scroll, view: ui.Rect, content_h: float32) {
 // Keep [y0, y1) in view.
 pk_scroll_reveal :: (s: *Pk_Scroll, y0: float32, y1: float32, top_inset: float32 = 0) {
 	if y0 - top_inset < s.target { s.target = y0 - top_inset; } else if y1 > s.target + s.view_h { s.target = y1 - s.view_h; }
-	s.target = clamp(s.target, 0, max(0, s.content_h - s.view_h));
+	s.target = clamp(s.target, 0, max(0.0, s.content_h - s.view_h));
 }
 
 // Thin scrollbar thumb at the right edge of the list (parent-relative x).
 pk_scrollbar :: (s: *Pk_Scroll, x: float32) {
 	if s.content_h <= s.view_h + 1 { return; }
 	frac := s.view_h / s.content_h;
-	th := max(24, s.view_h * frac);
+	th := max(24.0, s.view_h * frac);
 	ty := (s.view_h - th) * (s.y / (s.content_h - s.view_h));
-	b := ui.box("scrollthumb", .{.Draw_Background, .Floating_X, .Floating_Y});
+	b := ui.box("scrollthumb", .Draw_Background | .Floating_X | .Floating_Y);
 	b.semantic_size = .[ui.px(PK_SCROLLBAR_W), ui.px(th)];
 	b.fixed_pos = .{x, ty};
-	b.style.radius = PK_SCROLLBAR_W / 2;
-	b.style.bg = cast(T)("--scrollbar-thin-thumb");
+	b.style.radius = all4(PK_SCROLLBAR_W / 2);
+	b.style.bg = T("--scrollbar-thin-thumb");
 }
 
 // Lowercased, trimmed query of the active tab.
@@ -640,17 +636,17 @@ pk_round :: (v: float32) -> float32 {return math.round(v);}
 reaction_add_button :: (m: *dc.Message) {
 	open := picker_is_open() && pk.mode == .Reaction && pk.message == m.id;
 	if app.chat_hover != m.id && !open { return; }
-	b := row("addreaction", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
+	b := row("addreaction", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 	b.semantic_size = .[ui.px(34), ui.px(26)];
-	b.style.radius = 8;
+	b.style.radius = all4(8);
 	b.style.border = 1;
-	b.style.bg = cast(T)("--reaction-background-default");
-	b.style.bg_hot = cast(T)("--reaction-background-hover");
-	b.style.border_color = cast(T)("--reaction-border-default");
+	b.style.bg = T("--reaction-background-default");
+	b.style.bg_hot = T("--reaction-background-hover");
+	b.style.border_color = T("--reaction-border-default");
 	sig := ui.signal(b);
-	if ui.parent(b) {
+	{ ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 8);
-		icon("i", "reaction-plus", 18, ifx sig.hovering || open then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+		icon("i", "reaction-plus", 18, ifx sig.hovering || open then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 	}
 	if sig.clicked {
 		if open {
@@ -669,7 +665,7 @@ picker_debug_autopen :: () {
 	if static_done11 || app.view.channel == 0 || pk.composer_top == 0 { return; }
 	which := os.get_env("FASTCORD_PICKER", temp);
 	if which == "" {
-		done = true;
+		static_done11 = true;
 		return;
 	}
 	static_done11 = true;

@@ -45,13 +45,13 @@ strip_fe0f :: (s: string, allocator := temp) -> string {
 
 ensure_index :: () {
 	emoji_db_load();
-	if by_norm != null { return; }
+	if !is_null(by_norm) { return; }
 	by_norm = Map(string, int).{};
 	for e, i: emoji_db.emojis {
 		if e.asset == "" { continue; } // ™ © ®: text, like the client
 		k := strip_fe0f(e.surr, context.allocator);
 		if !has(by_norm, k) { at(*by_norm, k).* = i; }
-		max_runes = max(max_runes, utf8.rune_count(k));
+		max_runes = max(max_runes, utf8.rune_count_in_string(k));
 	}
 }
 #scope_export
@@ -132,7 +132,7 @@ emoji_next :: (text: string, from: int) -> Emoji_Segment, bool {
 // ---- twemoji images ----
 
 twemoji_url :: (hash: string) -> string {
-	return strings.concatenate(.{"https://discord.com/assets/", hash, ".svg"}, temp);
+	return strings.concatenate(string.["https://discord.com/assets/", hash, ".svg"], temp);
 }
 #scope_file
 
@@ -141,13 +141,9 @@ Twemoji :: struct {
 	icon: vector.Icon;
 }
 
-Tw_Key :: struct {
-	hash: string;
-	px: int;
-}
 
 twemojis: Map(string, Twemoji);
-tw_tex: Map(Tw_Key, gfx.Texture);
+tw_tex: Name_Px_Map;
 
 twemoji_get :: (hash: string, visible := true) -> *Twemoji {
 	{ t, ok := map_find_ptr(*twemojis, hash);
@@ -194,13 +190,13 @@ twemoji_texture :: (hash: string, px: int) -> gfx.Texture {
 	if hash == "" || px <= 0 { return 0; }
 	t := twemoji_get(hash);
 	if t.state != .Ready { return 0; }
-	k := Tw_Key.{hash, px};
-	{ tex, ok := map_find(tw_tex, k);
-	if ok { return tex; } }
+	k := Name_Px.{hash, px};
+	{ p := table_find_pointer(*tw_tex, k);
+	if p { return p.*; } }
 	pixels := vector.rasterize_rgba(*t.icon, px, px, allocator = temp);
 	tex := gfx.texture_from_rgba(px, px, pixels);
-	k.hash = clone(hash);
-	at(*tw_tex, k).* = tex;
+	k.name = clone(hash);
+	table_set(*tw_tex, k, tex);
 	return tex;
 }
 
@@ -215,7 +211,7 @@ twemoji_draw_rect :: (hash: string, r: ui.Rect, opacity: float32, fallback := ""
 		return;
 	}
 	c := gfx.Color.{1, 1, 1, opacity};
-	gfx.push_rect(.{dst = cast(gfx.Rect)(r), tex = tex, colors = .{c, c, c, c}});
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(r), tex = tex, colors = .[c, c, c, c]});
 }
 
 // The unicode text centered in r (system font; CoreText / DirectWrite fall back to the color emoji font).
@@ -223,7 +219,7 @@ emoji_text_fallback :: (text: string, r: ui.Rect, opacity: float32) {
 	if text == "" || opacity <= 0 { return; }
 	h := r.y1 - r.y0;
 	size := h * 0.8;
-	face := fonts[.Normal];
+	face := fonts[Font_Id.Normal];
 	run := gfx.shape(face, size, text);
 	m := gfx.font_metrics(face, size);
 	x := r.x0 + ((r.x1 - r.x0) - run.width) / 2;
@@ -313,7 +309,7 @@ emoji_count :: (s: string) -> int, bool {
 	only = true;
 	while true {
 		seg, ok := emoji_next(s, pos);
-		gap := s[ifx pos:ok then seg.start else len(s)];
+		gap := sub(s, pos, ifx ok then seg.start else len(s));
 		if strings.trim_space(gap) != "" { only = false; }
 		if !ok { break; }
 		n += 1;
@@ -387,7 +383,7 @@ offline_media :: (url: string) -> []u8, bool {
 	{ q := strings.index_byte(u, #char "?");
 	if q >= 0 { u = sub(u, 0, q); } }
 	name := sub_from(u, strings.last_index_byte(u, #char "/") + 1);
-	data, err := os.read_entire_file(strings.concatenate(.{dir, "/", name}, temp), temp);
+	data, err := os.read_entire_file(strings.concatenate(string.[dir, "/", name], temp), temp);
 	return data, err == null;
 }
 
@@ -396,7 +392,7 @@ offline_media :: (url: string) -> []u8, bool {
 emoji_label :: (text: string, font: Font_Id, size: float32, color: ui.Color, line_h: float32 = 0) -> *ui.Box {
 	{ _, ok := emoji_next(text, 0);
 	if !ok { return label(text, font, size, color, line_h); } }
-	b := ui.box(text, .{.Draw_Text});
+	b := ui.box(text, .Draw_Text);
 	b.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 	b.style.text_color = color;
 	b.style.line_height = line_h;

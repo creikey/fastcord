@@ -86,7 +86,7 @@ settings_load_from :: (dir: string) -> int, int {
 	window_h: int;
 	delete(st.dir);
 	st.dir = clone(dir);
-	data, err := os.read_entire_file(strings.concatenate(.{st.dir, "/", SETTINGS_FILE}, temp), temp);
+	data, err := os.read_entire_file(strings.concatenate(string.[st.dir, "/", SETTINGS_FILE], temp), temp);
 	if err != null { return window_w, window_h; }
 	p := Persisted.{streamer = STREAMER_DEFAULTS}; // fields missing from older files keep their defaults
 	if json.unmarshal(data, *p, allocator = temp) != null { return window_w, window_h; }
@@ -103,7 +103,7 @@ theme_by_name :: (s: string) -> Theme_Name, bool {
 
 apply_persisted :: (p: *Persisted) {
 	{ t, ok := theme_by_name(p.theme);
-	if ok { app_theme_pending = t; } }
+	if ok { app_theme_pending = some(t); } }
 	theme_follow_os = p.theme_follow_os;
 	notify_prefs = p.notify;
 	v := *p.voice;
@@ -168,7 +168,7 @@ snapshot :: () -> string {
 	p.sidebar_width = SIDEBAR_W;
 	p.streamer = streamer_settings;
 	b, err := json.marshal(p, .{pretty = true, sort_maps_by_key = true}, temp);
-	if err != null { return ""; }
+	if err != .None { return ""; }
 	return as_string(b);
 }
 
@@ -194,8 +194,8 @@ settings_save :: () {
 	js := snapshot();
 	if js == "" || js == st.last_json { return; }
 	os.make_directory(st.dir);
-	path := strings.concatenate(.{st.dir, "/", SETTINGS_FILE}, temp);
-	tmp := strings.concatenate(.{path, ".tmp"}, temp);
+	path := strings.concatenate(string.[st.dir, "/", SETTINGS_FILE], temp);
+	tmp := strings.concatenate(string.[path, ".tmp"], temp);
 	if os.write_entire_file(tmp, transmute([]u8, js)) != null { return; }
 	if os.rename(tmp, path) != null { return; }
 	delete(st.last_json);

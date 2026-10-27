@@ -76,11 +76,11 @@ profile_full_open :: (uid: dc.Snowflake, guild_id: dc.Snowflake = 0) {
 
 // Popout hook: the avatar opens the full profile (with a hint on hover).
 profile_full_avatar_hook :: (av: *ui.Box, uid: dc.Snowflake) {
-	av.flags += .{.Clickable};
+	av.flags |= .Clickable;
 	sig := ui.signal(av);
 	if sig.hovering {
-		if ui.parent(av) {
-			shade := ui.box("pfshade", .{.Draw_Background, .Floating_X, .Floating_Y, .Draw_Text});
+		{ ui.parent(av); defer ui.pop_parent();
+			shade := ui.box("pfshade", .Draw_Background | .Floating_X | .Floating_Y | .Draw_Text);
 			shade.semantic_size = av.semantic_size;
 			shade.style.radius = av.style.radius;
 			shade.style.bg = .{0, 0, 0, 0.5};
@@ -115,7 +115,7 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 		p.banner = clone(dc.fstr(u, "banner"));
 		p.bio = clone(dc.fstr(prof, "bio"));
 		p.pronouns = clone(dc.fstr(prof, "pronouns"));
-		if dc.vhas(u, "accent_color") && !dc.vis_null(dc.vget(u, "accent_color")) { p.accent = cast(u32)(dc.fint(u, "accent_color")); }
+		if dc.vhas(u, "accent_color") && !dc.vis_null(dc.vget(u, "accent_color")) { p.accent = some(cast(u32)(dc.fint(u, "accent_color"))); }
 		p.guild_joined = clone(dc.fstr(dc.fmap(m, "guild_member"), "joined_at"));
 		clear(*p.mutual_guilds);
 		for gv: dc.flist(m, "mutual_guilds") {
@@ -138,7 +138,7 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 profile_full_overlay :: () {
 	defer user_context_menu();
 	if !static_debug_done3 && app.view.channel != 0 {
-		debug_done = true;
+		static_debug_done3 = true;
 		{ v := os.get_env("FASTCORD_PROFILE", temp);
 		if v != "" {
 			id, _ := strconv.parse_u64(v);
@@ -158,9 +158,9 @@ profile_full_overlay :: () {
 	prof := get(pf.profiles, uid);
 	ui.animate(*pf.t, 1, 25);
 	win := app.ui.window;
-	scrim := ui.box("pf_scrim###pf_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("pf_scrim###pf_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(win.x), ui.px(win.y)];
-	scrim.style.bg = with_alpha(cast(T)("--background-scrim"), pf.t);
+	scrim.style.bg = with_alpha(T("--background-scrim"), pf.t);
 	if ui.signal(scrim).clicked {
 		pf.user = 0;
 		return;
@@ -168,73 +168,73 @@ profile_full_overlay :: () {
 	banner_url := "";
 	banner_hash := ifx prof.banner != "" then prof.banner else u.banner;
 	if banner_hash != "" { banner_url = dc.banner_url(uid, banner_hash, 600); }
-	banner_h: float32 = ifx banner_url != "" then PF_BANNER_H else PF_BANNER_H_PLAIN;
+	banner_h: float32 = ifx banner_url != "" then cast(float32) PF_BANNER_H else cast(float32) PF_BANNER_H_PLAIN;
 	body_h := min(win.y - 80 - banner_h - 140 - PF_TAB_H, PF_BODY_MIN_H);
 	total_h := banner_h + 140 + PF_TAB_H + body_h;
 	x := (win.x - PF_W) / 2;
 	y := (win.y - total_h) / 2;
-	m := ui.box("pf###pf_modal", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Clickable, .Clip, .Overlay});
+	m := ui.box("pf###pf_modal", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Clickable | .Clip | .Overlay);
 	m.semantic_size = .[ui.px(PF_W), ui.px(total_h)];
 	m.fixed_pos = .{x, y + (1 - pf.t) * 16};
 	m.layout_axis = .Y;
-	m.style.bg = cast(T)("--background-surface-high");
-	m.style.radius = 8;
+	m.style.bg = T("--background-surface-high");
+	m.style.radius = all4(8);
 	m.style.shadow_color = .{0, 0, 0, 0.4};
 	m.style.shadow_blur = 24;
 	m.style.shadow_offset = .{0, 8};
 	ui.signal(m);
-	if ui.parent(m) {
-		banner := ui.box("banner", .{.Draw_Background});
+	{ ui.parent(m); defer ui.pop_parent();
+		banner := ui.box("banner", .Draw_Background);
 		banner.semantic_size = .[ui.pct(1), ui.px(banner_h)];
-		banner.style.radius = .{8, 8, 0, 0};
+		banner.style.radius = .[8, 8, 0, 0];
 		accent := prof.accent;
-		if accent == null { accent = u.accent_color; }
-		{ ac, ok := accent.__MAYBE__;
-		if ok { banner.style.bg = rgb_u32(ac); } else { banner.style.bg = cast(T)("--background-brand"); } }
+		if !accent.ok { accent = u.accent_color; }
+		{ ac, ok := maybe_get(accent);
+		if ok { banner.style.bg = rgb_u32(ac); } else { banner.style.bg = T("--background-brand"); } }
 		if banner_url != "" { set_remote_image(banner, banner_url); }
 		head := ui.box("head");
 		head.semantic_size = .[ui.pct(1), ui.px(140)];
-		if ui.parent(head) {
-			ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
+		{ ui.parent(head); defer ui.pop_parent();
+			ring := ui.box("ring", .Draw_Background | .Floating_X | .Floating_Y);
 			rs_: float32 = PF_AVATAR + 2 * PF_AVATAR_RING;
 			ring.semantic_size = .[ui.px(rs_), ui.px(rs_)];
 			ring.fixed_pos = .{PF_PAD + 8 - PF_AVATAR_RING, -PF_AVATAR / 2 - PF_AVATAR_RING};
-			ring.style.radius = rs_ / 2;
+			ring.style.radius = all4(rs_ / 2);
 			ring.style.bg = m.style.bg;
-			if ui.parent(ring) {
+			{ ui.parent(ring); defer ui.pop_parent();
 				av := avatar_with_status("av", uid, PF_AVATAR, m.style.bg);
-				av.flags += .{.Floating_X, .Floating_Y};
+				av.flags |= .Floating_X | .Floating_Y;
 				av.fixed_pos = .{PF_AVATAR_RING, PF_AVATAR_RING};
 			}
 			profile_actions(uid);
-			names := ui.box("names", .{.Floating_X, .Floating_Y});
+			names := ui.box("names", .Floating_X | .Floating_Y);
 			names.semantic_size = .[ui.px(PF_W - 2 * PF_PAD), ui.children()];
 			names.fixed_pos = .{PF_PAD + 8, PF_AVATAR / 2 + 16};
 			names.layout_axis = .Y;
-			if ui.parent(names) {
-				n := label(dc.user_name(s, uid, pf.guild), .Bold, 24, cast(T)("--text-strong"), 30);
-				n.flags += .{.Selectable_Text};
+			{ ui.parent(names); defer ui.pop_parent();
+				n := label(dc.user_name(s, uid, pf.guild), .Bold, 24, T("--text-strong"), 30);
+				n.flags |= .Selectable_Text;
 				n.sel_order = 1;
 				un := row("un");
 				un.semantic_size = .[ui.pct(1), ui.px(20)];
-				if ui.parent(un) {
-					l := label(u.username, .Normal, 16, cast(T)("--text-default"), 20);
-					l.flags += .{.Selectable_Text};
+				{ ui.parent(un); defer ui.pop_parent();
+					l := label(u.username, .Normal, 16, T("--text-default"), 20);
+					l.flags |= .Selectable_Text;
 					l.sel_order = 2;
 					pron := ifx prof.pronouns != "" then prof.pronouns else u.pronouns;
-					if pron != "" { label(fmt.tprintf(" • %s", pron), .Normal, 16, cast(T)("--text-default"), 20); }
+					if pron != "" { label(fmt.tprintf(" • %s", pron), .Normal, 16, T("--text-default"), 20); }
 				}
 			}
 		}
 		profile_tabs(uid, prof);
-		line := ui.box("tabline", .{.Draw_Background});
+		line := ui.box("tabline", .Draw_Background);
 		line.semantic_size = .[ui.pct(1), ui.px(1)];
-		line.style.bg = cast(T)("--border-subtle");
-		body := ui.box("body", .{.Clip, .Scroll_Y});
+		line.style.bg = T("--border-subtle");
+		body := ui.box("body", .Clip | .Scroll_Y);
 		body.semantic_size = .[ui.pct(1), ui.fill()];
 		body.layout_axis = .Y;
 		ui.signal(body);
-		if ui.parent(body) {
+		{ ui.parent(body); defer ui.pop_parent();
 			if pf.tab == {
 			case .About;
 				profile_about(uid, u, prof);
@@ -262,12 +262,12 @@ profile_actions :: (uid: dc.Snowflake) {
 	if uid == s.me { return; }
 	rel, has_rel := map_find(s.relationships, uid);
 	friend := has_rel && rel.kind == .Friend;
-	bar := row("actions", .{.Floating_X, .Floating_Y});
+	bar := row("actions", .Floating_X | .Floating_Y);
 	bar.semantic_size = .[ui.children(), ui.px(32)];
-	w: float32 = ifx friend then 110 + 8 + 32 else 110 + 8 + 120 + 8 + 32;
+	w: float32 = cast(float32) (ifx friend then 110 + 8 + 32 else 110 + 8 + 120 + 8 + 32);
 	bar.fixed_pos = .{PF_W - PF_PAD - w, PF_PAD};
 	bar.style.child_gap = 8;
-	if ui.parent(bar) {
+	{ ui.parent(bar); defer ui.pop_parent();
 		if !friend {
 			pending := has_rel && rel.kind == .Outgoing_Request;
 			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false);
@@ -278,33 +278,33 @@ profile_actions :: (uid: dc.Snowflake) {
 			if existing != 0 { select_channel(0, existing); } else { app.pending_dm_user = uid; } }
 			pf.user = 0;
 		}
-		more := ui.box("more", .{.Clickable, .Draw_Background, .Hot_Animation});
+		more := ui.box("more", .Clickable | .Draw_Background | .Hot_Animation);
 		more.semantic_size = .[ui.px(32), ui.px(32)];
-		more.style.radius = 8;
-		more.style.bg = cast(T)("--control-secondary-background-default");
-		more.style.bg_hot = cast(T)("--control-secondary-background-hover");
+		more.style.radius = all4(8);
+		more.style.bg = T("--control-secondary-background-default");
+		more.style.bg_hot = T("--control-secondary-background-hover");
 		more.layout_axis = .X;
 		more.cross_align = .Center;
 		if ui.signal(more).clicked { open_user_menu(uid, .{more.rect.x0, more.rect.y1 + 4}); }
-		if ui.parent(more) {
+		{ ui.parent(more); defer ui.pop_parent();
 			spacer(.X, 6);
-			icon("i", "more-horizontal", 20, cast(T)("--interactive-icon-active"));
+			icon("i", "more-horizontal", 20, T("--interactive-icon-active"));
 		}
 	}
 }
 
 action_button :: (text: string, icon_name: string, w: float32, primary: bool) -> bool {
-	b := row(text, .{.Clickable, .Draw_Background, .Hot_Animation});
+	b := row(text, .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.px(w), ui.px(32)];
-	b.style.radius = 8;
-	b.style.bg = ifx primary then cast(T)("--background-brand") else cast(T)("--control-secondary-background-default");
-	b.style.bg_hot = ifx primary then with_alpha(cast(T)("--background-brand"), 0.85) else cast(T)("--control-secondary-background-hover");
+	b.style.radius = all4(8);
+	b.style.bg = ifx primary then T("--background-brand") else T("--control-secondary-background-default");
+	b.style.bg_hot = ifx primary then with_alpha(T("--background-brand"), 0.85) else T("--control-secondary-background-hover");
 	sig := ui.signal(b);
-	if ui.parent(b) {
+	{ ui.parent(b); defer ui.pop_parent();
 		filler(.X);
-		icon("i", icon_name, 16, ifx primary then ui.Color.{1, 1, 1, 1} else cast(T)("--interactive-text-active"));
+		icon("i", icon_name, 16, ifx primary then ui.Color.{1, 1, 1, 1} else T("--interactive-text-active"));
 		spacer(.X, 6);
-		label(text, .Medium, 14, ifx primary then ui.Color.{1, 1, 1, 1} else cast(T)("--interactive-text-active"), 18);
+		label(text, .Medium, 14, ifx primary then ui.Color.{1, 1, 1, 1} else T("--interactive-text-active"), 18);
 		filler(.X);
 	}
 	return sig.clicked;
@@ -314,9 +314,9 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 	tabs := row("tabs");
 	tabs.semantic_size = .[ui.pct(1), ui.px(PF_TAB_H)];
 	tabs.cross_align = .End;
-	if ui.parent(tabs) {
+	{ ui.parent(tabs); defer ui.pop_parent();
 		spacer(.X, PF_PAD + 8);
-		for t: Pf_Tab {
+		for t: enum_values_as_enum(Pf_Tab) {
 			if uid == store().me && t != .About { continue; }
 			text := "About Me";
 			if t == {
@@ -329,18 +329,18 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 				text = ifx n == 1 then "1 Mutual Friend" else (ifx n > 0 then fmt.tprintf("%d Mutual Friends", n) else "Mutual Friends");
 			}
 			sel := pf.tab == t;
-			b := ui.box(fmt.tprintf("%s##tab%d", text, cast(int)(t)), .{.Clickable});
+			b := ui.box(fmt.tprintf("%s##tab%d", text, cast(int)(t)), .Clickable);
 			b.semantic_size = .[ui.children(), ui.px(PF_TAB_H)];
 			b.layout_axis = .Y;
 			sig := ui.signal(b);
-			if ui.parent(b) {
+			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.Y, 10);
-				lab := label(text, .Medium, 16, ifx sel || sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--interactive-text-default"), 20);
+				lab := label(text, .Medium, 16, ifx sel || sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 20);
 				filler(.Y);
-				ul := ui.box("ul", .{.Draw_Background});
-				ul.semantic_size = .[ui.px(max(0, lab.rect.x1 - lab.rect.x0)), ui.px(2)];
-				ul.style.bg = ifx sel then cast(T)("--text-strong") else .{};
-				ul.style.radius = 1;
+				ul := ui.box("ul", .Draw_Background);
+				ul.semantic_size = .[ui.px(max(0.0, lab.rect.x1 - lab.rect.x0)), ui.px(2)];
+				ul.style.bg = ifx sel then T("--text-strong") else .{};
+				ul.style.radius = all4(1);
 			}
 			if sig.clicked {
 				pf.tab = t;
@@ -358,9 +358,9 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 section_title :: (text: string) {
 	r := row(text);
 	r.semantic_size = .[ui.pct(1), ui.px(20)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, PF_PAD + 8);
-		label(text, .Semibold, 12, cast(T)("--text-strong"), 16);
+		label(text, .Semibold, 12, T("--text-strong"), 16);
 	}
 	spacer(.Y, 6);
 }
@@ -387,12 +387,12 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 		for blk, bi: md_parse(bio) {
 			w := row(fmt.tprintf("bio%d", bi));
 			w.semantic_size = .[ui.pct(1), ui.children()];
-			if ui.parent(w) {
+			{ ui.parent(w); defer ui.pop_parent();
 				spacer(.X, PF_PAD + 8);
-				b := ui.box("p", .{.Selectable_Text, .Wrap_Text});
+				b := ui.box("p", .Selectable_Text | .Wrap_Text);
 				b.semantic_size = .[ui.fill(), ui.text_size()];
 				b.style.line_height = 18;
-				b.style.text_color = cast(T)("--text-default");
+				b.style.text_color = T("--text-default");
 				b.sel_order = 10 + cast(u64)(bi);
 				ui.set_spans(b, tokens_to_spans(blk.tokens, .Normal, 14, null));
 				spacer(.X, PF_PAD + 8);
@@ -403,32 +403,32 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	section_title("Member Since");
 	ms := row("since");
 	ms.semantic_size = .[ui.pct(1), ui.px(20)];
-	if ui.parent(ms) {
+	{ ui.parent(ms); defer ui.pop_parent();
 		spacer(.X, PF_PAD + 8);
-		icon("dlogo", "clyde", 16, cast(T)("--interactive-icon-default"));
+		icon("dlogo", "clyde", 16, T("--interactive-icon-default"));
 		spacer(.X, 8);
-		label(short_date(dc.snowflake_time_ms(uid)), .Normal, 14, cast(T)("--text-default"), 18);
+		label(short_date(dc.snowflake_time_ms(uid)), .Normal, 14, T("--text-default"), 18);
 		if prof.guild_joined != "" && pf.guild != 0 {
 			spacer(.X, 12);
-			dot := ui.box("dot", .{.Draw_Background});
+			dot := ui.box("dot", .Draw_Background);
 			dot.semantic_size = .[ui.px(4), ui.px(4)];
-			dot.style.radius = 2;
-			dot.style.bg = cast(T)("--text-muted");
+			dot.style.radius = all4(2);
+			dot.style.bg = T("--text-muted");
 			spacer(.X, 12);
-			gi := ui.box("##gi", .{.Draw_Background, .Draw_Text});
+			gi := ui.box("##gi", .Draw_Background | .Draw_Text);
 			gi.semantic_size = .[ui.px(16), ui.px(16)];
-			gi.style.radius = 5;
-			gi.style.bg = cast(T)("--background-mod-subtle");
+			gi.style.radius = all4(5);
+			gi.style.bg = T("--background-mod-subtle");
 			gi.style.font = F(.Medium);
 			gi.style.font_size = 7;
 			gi.style.text_align = .Center;
-			gi.style.text_color = cast(T)("--text-default");
+			gi.style.text_color = T("--text-default");
 			{ g := dc.guild_get(store(), pf.guild);
 			if g != null {
 				if g.icon != "" { set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 32)); } else { gi.text = guild_initials(g.name); }
 			} }
 			spacer(.X, 8);
-			label(short_date(iso_ms(prof.guild_joined)), .Normal, 14, cast(T)("--text-default"), 18);
+			label(short_date(iso_ms(prof.guild_joined)), .Normal, 14, T("--text-default"), 18);
 		}
 	}
 	spacer(.Y, 16);
@@ -436,9 +436,9 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 		section_title("Note");
 		nr := row("note");
 		nr.semantic_size = .[ui.pct(1), ui.px(18)];
-		if ui.parent(nr) {
+		{ ui.parent(nr); defer ui.pop_parent();
 			spacer(.X, PF_PAD + 8);
-			label("Click to add a note", .Normal, 12, cast(T)("--text-muted"), 16);
+			label("Click to add a note", .Normal, 12, T("--text-muted"), 16);
 		}
 	}
 }
@@ -448,12 +448,12 @@ list_row :: (id: string) -> *ui.Box, ui.Signal {
 	outer.semantic_size = .[ui.pct(1), ui.px(PF_ROW_H)];
 	r: *ui.Box;
 	sig: ui.Signal;
-	if ui.parent(outer) {
+	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 8);
-		r = row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
+		r = row("item", .Clickable | .Draw_Background | .Hot_Animation);
 		r.semantic_size = .[ui.fill(), ui.px(PF_ROW_H)];
-		r.style.radius = 8;
-		r.style.bg_hot = cast(T)("--background-mod-subtle");
+		r.style.radius = all4(8);
+		r.style.bg_hot = T("--background-mod-subtle");
 		sig = ui.signal(r);
 		spacer(.X, 8);
 	}
@@ -466,9 +466,9 @@ empty_state :: (text: string) {
 	r.semantic_size = .[ui.pct(1), ui.px(20)];
 	r.layout_axis = .X;
 	r.cross_align = .Center;
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		filler(.X);
-		label(text, .Medium, 16, cast(T)("--text-muted"), 20);
+		label(text, .Medium, 16, T("--text-muted"), 20);
 		filler(.X);
 	}
 }
@@ -482,26 +482,26 @@ profile_mutual_servers :: (prof: Pf_Profile) {
 	for mg: prof.mutual_guilds {
 		g := dc.guild_get(store(), mg.id);
 		if g == null { continue; }
-		if ui.id_scope(cast(u64)(mg.id)) {
+		{ ui.id_scope(cast(u64)(mg.id)); defer ui.pop_seed();
 			r, sig := list_row("mg");
-			if ui.parent(r) {
+			{ ui.parent(r); defer ui.pop_parent();
 				spacer(.X, 8);
-				gi := ui.box("##gi", .{.Draw_Background, .Draw_Text});
+				gi := ui.box("##gi", .Draw_Background | .Draw_Text);
 				gi.semantic_size = .[ui.px(40), ui.px(40)];
-				gi.style.radius = 12;
-				gi.style.bg = cast(T)("--background-mod-normal");
+				gi.style.radius = all4(12);
+				gi.style.bg = T("--background-mod-normal");
 				gi.style.font = F(.Medium);
 				gi.style.font_size = 14;
 				gi.style.text_align = .Center;
-				gi.style.text_color = cast(T)("--text-default");
+				gi.style.text_color = T("--text-default");
 				if g.icon != "" { set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 80)); } else { gi.text = guild_initials(g.name); }
 				spacer(.X, 12);
 				col := ui.box("col");
 				col.semantic_size = .[ui.fill(), ui.children()];
 				col.layout_axis = .Y;
-				if ui.parent(col) {
-					label(g.name, .Medium, 16, cast(T)("--interactive-text-active"), 20);
-					if mg.nick != "" { label(mg.nick, .Normal, 14, cast(T)("--text-muted"), 18); }
+				{ ui.parent(col); defer ui.pop_parent();
+					label(g.name, .Medium, 16, T("--interactive-text-active"), 20);
+					if mg.nick != "" { label(mg.nick, .Normal, 14, T("--text-muted"), 18); }
 				}
 			}
 			if sig.clicked {
@@ -519,22 +519,22 @@ profile_mutual_friends :: (uid: dc.Snowflake, prof: Pf_Profile) {
 		return;
 	}
 	for f: prof.friends {
-		if ui.id_scope(cast(u64)(f.id)) {
+		{ ui.id_scope(cast(u64)(f.id)); defer ui.pop_seed();
 			r, sig := list_row("mf");
-			if ui.parent(r) {
+			{ ui.parent(r); defer ui.pop_parent();
 				spacer(.X, 8);
-				av := ui.box("av", .{.Draw_Background});
+				av := ui.box("av", .Draw_Background);
 				av.semantic_size = .[ui.px(40), ui.px(40)];
-				av.style.radius = 20;
-				av.style.bg = cast(T)("--background-mod-normal");
+				av.style.radius = all4(20);
+				av.style.bg = T("--background-mod-normal");
 				set_remote_image(av, ifx f.avatar != "" then dc.avatar_url(f.id, f.avatar, 80) else dc.default_avatar_url(f.id, "0"));
 				spacer(.X, 12);
 				col := ui.box("col");
 				col.semantic_size = .[ui.fill(), ui.children()];
 				col.layout_axis = .Y;
-				if ui.parent(col) {
-					label(dc.user_name(store(), f.id, 0, ifx f.global_name != "" then f.global_name else f.username), .Medium, 16, cast(T)("--interactive-text-active"), 20);
-					label(f.username, .Normal, 14, cast(T)("--text-muted"), 18);
+				{ ui.parent(col); defer ui.pop_parent();
+					label(dc.user_name(store(), f.id, 0, ifx f.global_name != "" then f.global_name else f.username), .Medium, 16, T("--interactive-text-active"), 20);
+					label(f.username, .Normal, 14, T("--text-muted"), 18);
 				}
 			}
 			if sig.clicked { profile_full_open(f.id); }
@@ -577,34 +577,34 @@ user_context_menu :: () {
 	p := pf.menu_pos;
 	p.x = min(p.x, app.ui.window.x - W - 8);
 	p.y = min(p.y, app.ui.window.y - H - 8);
-	scrim := ui.box("umenu_scrim###umenu_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("umenu_scrim###umenu_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).pressed {
 		pf.menu_user = 0;
 		return;
 	}
-	menu := ui.box("umenu###umenu", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	menu := ui.box("umenu###umenu", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	menu.semantic_size = .[ui.px(W), ui.px(H)];
 	menu.fixed_pos = p;
 	menu.layout_axis = .Y;
-	menu.style.bg = cast(T)("--background-surface-higher");
-	menu.style.border_color = cast(T)("--border-subtle");
+	menu.style.bg = T("--background-surface-higher");
+	menu.style.border_color = T("--border-subtle");
 	menu.style.border = 1;
-	menu.style.radius = 8;
+	menu.style.radius = all4(8);
 	menu.style.shadow_color = .{0, 0, 0, 0.24};
 	menu.style.shadow_blur = 16;
 	ui.signal(menu);
-	if ui.parent(menu) {
+	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
 		for it_: items {
-			r := row(it_, .{.Clickable, .Draw_Background, .Hot_Animation});
+			r := row(it_, .Clickable | .Draw_Background | .Hot_Animation);
 			r.semantic_size = .[ui.pct(1), ui.px(32)];
-			r.style.radius = 4;
-			r.style.bg_hot = cast(T)("--background-mod-normal");
+			r.style.radius = all4(4);
+			r.style.bg_hot = T("--background-mod-normal");
 			sig := ui.signal(r);
-			if ui.parent(r) {
+			{ ui.parent(r); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(it_, .Medium, 14, ifx sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--interactive-text-default"), 18);
+				label(it_, .Medium, 14, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
 			}
 			if sig.clicked {
 				if it_ == {

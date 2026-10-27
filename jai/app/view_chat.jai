@@ -123,7 +123,7 @@ chat_view :: (channel_id: dc.Snowflake) {
 	col := ui.box("chatcol");
 	col.semantic_size = .[ui.fill(), ui.pct(1)];
 	col.layout_axis = .Y;
-	if ui.parent(col) {
+	{ ui.parent(col); defer ui.pop_parent();
 		message_list(channel_id, cs);
 		typing_line(channel_id);
 		composer(ch, cs);
@@ -133,10 +133,10 @@ chat_view :: (channel_id: dc.Snowflake) {
 
 message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	s := store();
-	list := ui.box("messages", .{.Clip, .Scroll_Y});
+	list := ui.box("messages", .Clip | .Scroll_Y);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	// Scrolling is managed here (anchored to the bottom), not by ui's scroll offset.
-	list.flags -= .{.Scroll_Y};
+	list.flags &= ~ui.Box_Flag.Scroll_Y;
 	msgs := dc.messages_get(s, channel_id);
 	view_h := list.rect.y1 - list.rect.y0;
 	if view_h <= 0 { view_h = app.ui.window.y; }
@@ -188,7 +188,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		h, ok := map_find(cs.heights, m.id);
 		total += ifx ok then h else MSG_LINE_H + 4;
 	}
-	max_scroll := max(0, total - view_h);
+	max_scroll := max(0.0, total - view_h);
 	jump_apply(channel_id, cs, msgs, view_h, BOTTOM_PAD);
 	cs.scroll_target = clamp(cs.scroll_target, 0, max_scroll);
 	ui.animate(*cs.scroll_from_bottom, cs.scroll_target, 40);
@@ -224,15 +224,15 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		i0 -= 1;
 	}
 	i0 += 1;
-	if ui.parent(list) {
-		col := ui.box("rows", .{.Floating_Y, .Anchor_End_Y});
+	{ ui.parent(list); defer ui.pop_parent();
+		col := ui.box("rows", .Floating_Y | .Anchor_End_Y);
 		col.semantic_size = .[ui.pct(1), ui.children()];
 		// items stop short of the scrollbar gutter (official: 375..1264 in a 905px list)
 		{ lw := list.rect.x1 - list.rect.x0;
-		if lw > MSG_SCROLL_GUTTER { col.semantic_size[.X] = ui.px(lw - MSG_SCROLL_GUTTER); } }
+		if lw > MSG_SCROLL_GUTTER { col.semantic_size[ui.Axis.X] = ui.px(lw - MSG_SCROLL_GUTTER); } }
 		col.layout_axis = .Y;
 		col.fixed_pos = .{0, BOTTOM_PAD + below - cs.scroll_from_bottom};
-		if ui.parent(col) {
+		{ ui.parent(col); defer ui.pop_parent();
 			if i0 == 0 {
 				if welcome_ch != null {
 					if welcome_ch.kind == .DM { dm_welcome(welcome_ch); } else { channel_welcome(welcome_ch); }
@@ -250,7 +250,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				grouped := continues_group(prev, m) && !show_new;
 				// consecutive call notices stack with no group gap
 				if m.kind == MSG_CALL { grouped = prev != null && prev.kind == MSG_CALL && !new_day && !show_new; }
-				if ui.id_scope(cast(u64)(m.id)) {
+				{ ui.id_scope(cast(u64)(m.id)); defer ui.pop_seed();
 					row := message_row(m, grouped, i, new_day, show_new);
 					// remember measured height (from last frame's layout)
 					if row.rect.y1 > row.rect.y0 { at(*cs.heights, m.id).* = row.rect.y1 - row.rect.y0; }
@@ -267,28 +267,28 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 	r0.semantic_size = .[ui.pct(1), ui.children()];
 	r0.layout_axis = .Y;
 	editing := ma.editing == m.id;
-	if ui.parent(r0) {
+	{ ui.parent(r0); defer ui.pop_parent();
 		if new_day || show_new {
 			divider_row(m.id, new_day, show_new);
 		} else if !grouped {
 			spacer(.Y, MSG_GROUP_GAP - 2);
 		}
 		// the list item proper: hover/highlight cover it, not the group gap above (a margin in the client)
-		li := ui.box("li", .{.Draw_Background});
+		li := ui.box("li", .Draw_Background);
 		li.semantic_size = .[ui.pct(1), ui.children()];
 		li.layout_axis = .Y;
 		ui.push_parent(li);
 		defer ui.pop_parent();
 		hovered := ui.mouse_over(li) && !app.ui.selection.dragging;
 		if hovered { app.chat_hover = m.id; }
-		if (hovered || ma.menu_msg == m.id) && !editing { li.style.bg = cast(T)("--message-background-hover"); }
+		if (hovered || ma.menu_msg == m.id) && !editing { li.style.bg = T("--message-background-hover"); }
 		highlighted := ma.replying == m.id || jump_highlighted(m.id);
 		if highlighted {
-			li.style.bg = cast(T)("--message-highlight-background-default");
-			li.style.radius = .{0, 4, 4, 0};
-			bar := ui.box("hlbar", .{.Draw_Background, .Floating_X, .Floating_Y});
+			li.style.bg = T("--message-highlight-background-default");
+			li.style.radius = .[0, 4, 4, 0];
+			bar := ui.box("hlbar", .Draw_Background | .Floating_X | .Floating_Y);
 			bar.semantic_size = .[ui.px(2), ui.px(li.rect.y1 - li.rect.y0)];
-			bar.style.bg = cast(T)("--background-brand");
+			bar.style.bg = T("--background-brand");
 		}
 		for e: app.ui.events {
 			// a control under the press (author name → user menu, avatar, …) takes its
@@ -299,13 +299,13 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)
 			anchor := ui.box("tbanchor");
 			anchor.semantic_size = .[ui.pct(1), ui.px(0)];
-			if ui.parent(anchor) { message_toolbar(m); }
+			{ ui.parent(anchor); defer ui.pop_parent(); message_toolbar(m); }
 		}
 		spacer(.Y, 2);
 		if m.referenced_id != 0 {
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];
-			if ui.parent(rr) {
+			{ ui.parent(rr); defer ui.pop_parent();
 				spacer(.X, MSG_GUTTER);
 				reply_preview(m);
 			}
@@ -318,28 +318,28 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 		body := row("body");
 		body.semantic_size = .[ui.pct(1), ui.children()];
 		body.cross_align = .Start;
-		if ui.parent(body) {
+		{ ui.parent(body); defer ui.pop_parent();
 			gutter := ui.box("gutter");
 			gutter.semantic_size = .[ui.px(MSG_GUTTER), ui.px(MSG_LINE_H)];
 			if !grouped {
-				if ui.parent(gutter) {
+				{ ui.parent(gutter); defer ui.pop_parent();
 					av := avatar_box("avatar", m.author_id, MSG_AVATAR);
-					av.flags += .{.Floating_X, .Floating_Y};
+					av.flags |= .Floating_X | .Floating_Y;
 					av.fixed_pos = .{16, 2};
 				}
 			} else if hovered {
 				gutter.layout_axis = .X;
 				gutter.cross_align = .Center;
-				if ui.parent(gutter) {
+				{ ui.parent(gutter); defer ui.pop_parent();
 					filler(.X);
-					label(format_timestamp(m.id, true), .Medium, 11, cast(T)("--text-muted"), MSG_LINE_H);
+					label(format_timestamp(m.id, true), .Medium, 11, T("--text-muted"), MSG_LINE_H);
 					spacer(.X, 8);
 				}
 			}
 			content := ui.box("content");
 			content.semantic_size = .[ui.fill(), ui.children()];
 			content.layout_axis = .Y;
-			if ui.parent(content) {
+			{ ui.parent(content); defer ui.pop_parent();
 				if !grouped { message_header(m); }
 				if editing { edit_box(m); } else { message_body(m); }
 				if len(m.sticker_ids) > 0 { message_stickers_view(m); }
@@ -349,7 +349,7 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 				if len(m.embeds) > 0 { embeds_view(m); }
 				if len(m.reactions) > 0 { reactions_view(m); }
 			}
-			spacer(.X, ifx editing then MSG_EDIT_PAD_R else MSG_PAD_R); // the edit form reaches further right
+			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right
 
 		}
 		spacer(.Y, 2);
@@ -362,12 +362,12 @@ call_notice :: (m: *dc.Message) {
 	r := row("call");
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.cross_align = .Start;
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		g := ui.box("gutter");
 		g.semantic_size = .[ui.px(MSG_GUTTER), ui.px(CALL_ROW_H)];
-		if ui.parent(g) {
-			ic := icon("phone", "phone", 16, cast(T)("--icon-feedback-positive"));
-			ic.flags += .{.Floating_X, .Floating_Y};
+		{ ui.parent(g); defer ui.pop_parent();
+			ic := icon("phone", "phone", 16, T("--icon-feedback-positive"));
+			ic.flags |= .Floating_X | .Floating_Y;
 			ic.fixed_pos = .{28, (CALL_ROW_H - 16) / 2};
 		}
 		name := name_in(m.author_id, m.channel_id);
@@ -378,10 +378,10 @@ call_notice :: (m: *dc.Message) {
 			what = fmt.tprintf(" started a call that lasted %s.", humanize_duration(time.diff(start, end)));
 		}
 		spans := make_slice(ui.Span, 3, temp);
-		spans[0] = .{text = name, font = F(.Medium), size = MSG_FONT, color = cast(T)("--text-strong")};
-		spans[1] = .{text = what, font = F(.Normal), size = MSG_FONT, color = cast(T)("--text-muted")};
-		spans[2] = .{text = fmt.tprintf(" %s", header_timestamp(m.id)), font = F(.Medium), size = 12, color = cast(T)("--chat-text-muted")};
-		b := ui.box("text", .{.Selectable_Text, .Wrap_Text});
+		spans[0] = .{text = name, font = F(.Medium), size = MSG_FONT, color = T("--text-strong")};
+		spans[1] = .{text = what, font = F(.Normal), size = MSG_FONT, color = T("--text-muted")};
+		spans[2] = .{text = fmt.tprintf(" %s", header_timestamp(m.id)), font = F(.Medium), size = 12, color = T("--chat-text-muted")};
+		b := ui.box("text", .Selectable_Text | .Wrap_Text);
 		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.style.line_height = MSG_LINE_H;
 		b.style.padding = .{0, (CALL_ROW_H - MSG_LINE_H) / 2};
@@ -419,17 +419,17 @@ message_header :: (m: *dc.Message) {
 	h := row("header");
 	h.semantic_size = .[ui.pct(1), ui.px(MSG_LINE_H)];
 	h.cross_align = .End;
-	if ui.parent(h) {
+	{ ui.parent(h); defer ui.pop_parent();
 		n := label(name, .Medium, 16, author_color(m), MSG_LINE_H);
-		n.flags += .{.Clickable, .Selectable_Text};
+		n.flags |= .Clickable | .Selectable_Text;
 		n.sel_order = cast(u64)(m.id) * 8;
 		nsig := ui.signal(n);
 		if nsig.clicked { open_profile(m.author_id, n.rect, .Message_Author, m.id); }
 		if nsig.right_clicked { open_user_menu(m.author_id, app.ui.mouse); }
 		spacer(.X, 8);
 		// copies as "Name — 4:56 AM" like the client's hidden separator
-		ts := label(header_timestamp(m.id), .Medium, 12, cast(T)("--chat-text-muted"), 20);
-		ts.flags += .{.Selectable_Text};
+		ts := label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20);
+		ts.flags |= .Selectable_Text;
 		ts.sel_order = cast(u64)(m.id) * 8 + 1;
 		ts.sel_join = " — ";
 	}
@@ -443,7 +443,7 @@ author_color :: (m: *dc.Message) -> ui.Color {
 		{ c, ok := member_color(ch.guild_id, m.author_id);
 		if ok { return c; } }
 	}
-	return cast(T)("--text-strong");
+	return T("--text-strong");
 }
 
 // Highest-position colored role.
@@ -476,23 +476,23 @@ message_body :: (m: *dc.Message) {
 	blocks := md_parse(m.content);
 	edited_inline := false;
 	for blk, bi: blocks {
-		color := cast(T)("--text-default");
-		if m.pending { color = cast(T)("--text-muted"); }
-		if m.failed { color = cast(T)("--text-feedback-critical"); }
+		color := T("--text-default");
+		if m.pending { color = T("--text-muted"); }
+		if m.failed { color = T("--text-feedback-critical"); }
 		if blk.kind == {
 		case .Code_Block;
-			cb := ui.box(fmt.tprintf("code%d", bi), .{.Draw_Background, .Draw_Border, .Draw_Text, .Selectable_Text, .Wrap_Text});
+			cb := ui.box(fmt.tprintf("code%d", bi), .Draw_Background | .Draw_Border | .Draw_Text | .Selectable_Text | .Wrap_Text);
 			cb.text = blk.code;
 			cb.semantic_size = .[ui.pct(1), ui.text_size()];
-			cb.style.bg = cast(T)("--background-base-lowest");
-			cb.style.border_color = cast(T)("--border-subtle");
+			cb.style.bg = T("--background-base-lowest");
+			cb.style.border_color = T("--border-subtle");
 			cb.style.border = 1;
-			cb.style.radius = 4;
+			cb.style.radius = all4(4);
 			cb.style.font = F(.Mono);
 			cb.style.font_size = 14;
 			cb.style.line_height = 18;
 			cb.style.padding = .{8, 8};
-			cb.style.text_color = cast(T)("--text-code");
+			cb.style.text_color = T("--text-code");
 			cb.sel_order = cast(u64)(m.id) * 8 + 2 + cast(u64)(bi) % 4;
 		case .Paragraph; #through; case .Quote; #through; case .Heading1; #through; case .Heading2; #through; case .Heading3; #through; case .Subtext; #through; case .List_Item;
 			size: float32 = MSG_FONT;
@@ -500,27 +500,27 @@ message_body :: (m: *dc.Message) {
 			line_h: float32 = MSG_LINE_H;
 			if blk.kind == {
 			case .Heading1;
-				size, font, line_h = 24, .Bold, 33;
+				size, font, line_h = 24, Font_Id.Bold, 33;
 			case .Heading2;
-				size, font, line_h = 20, .Bold, 27.5;
+				size, font, line_h = 20, Font_Id.Bold, 27.5;
 			case .Heading3;
-				size, font, line_h = 16, .Bold, 22;
+				size, font, line_h = 16, Font_Id.Bold, 22;
 			case .Subtext;
 				size, line_h = 13, 18;
-				color = cast(T)("--text-muted");
+				color = T("--text-muted");
 			}
 			// quotes get a 4px bar, list items a bullet; both indent the text
 			wrap := row(fmt.tprintf("blk%d", bi));
 			wrap.semantic_size = .[ui.pct(1), ui.children()];
 			wrap.cross_align = .Start;
 			b: *ui.Box;
-			if ui.parent(wrap) {
+			{ ui.parent(wrap); defer ui.pop_parent();
 				if blk.kind == {
 				case .Quote;
-					bar := ui.box("quotebar", .{.Draw_Background});
+					bar := ui.box("quotebar", .Draw_Background);
 					bar.semantic_size = .[ui.px(4), ui.px(line_h)];
-					bar.style.bg = cast(T)("--border-strong");
-					bar.style.radius = 4;
+					bar.style.bg = T("--border-strong");
+					bar.style.radius = all4(4);
 					spacer(.X, 12);
 				case .List_Item;
 					spacer(.X, 6 + cast(float32)(blk.depth) * 20);
@@ -530,7 +530,7 @@ message_body :: (m: *dc.Message) {
 				// keyed per block: ids resolve against the message's id_scope, not the
 				// row, so a plain "p" collided from the second block on and became an
 				// anonymous box (no selection anchor, no link/mention clicks)
-				b = ui.box(fmt.tprintf("p%d", bi), .{.Selectable_Text, .Wrap_Text});
+				b = ui.box(fmt.tprintf("p%d", bi), .Selectable_Text | .Wrap_Text);
 				b.semantic_size = .[ui.fill(), ui.text_size()];
 				b.style.text_color = color;
 				b.style.line_height = line_h;
@@ -546,7 +546,7 @@ message_body :: (m: *dc.Message) {
 					// "(edited)" rides at the end of the last paragraph, like the client
 					edited := make_slice(ui.Span, len(spans) + 1, temp);
 					copy(edited, spans);
-					edited[len(spans)] = .{text = " (edited)", font = F(.Normal), size = 10, color = cast(T)("--text-muted")};
+					edited[len(spans)] = .{text = " (edited)", font = F(.Normal), size = 10, color = T("--text-muted")};
 					spans = edited;
 					edited_inline = true;
 				}
@@ -557,7 +557,7 @@ message_body :: (m: *dc.Message) {
 		}
 	}
 	if m.edited_timestamp != "" && !edited_inline {
-		label("(edited)", .Normal, 10, cast(T)("--text-muted"), 22);
+		label("(edited)", .Normal, 10, T("--text-muted"), 22);
 	}
 }
 #scope_export
@@ -569,36 +569,36 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 	for tk, i: toks {
 		sp := ui.Span.{text = tk.text, font = F(base), size = size, id = cast(u64)(i)};
 		if has(tk.styles, .Bold) { sp.font = F(.Bold); } else if has(tk.styles, .Italic) && base == .Normal { sp.font = F(.Italic); }
-		if has(tk.styles, .Code_) {
+		if has(tk.styles, .Code) {
 			sp.font = F(.Mono);
 			sp.size = size * 0.85;
-			sp.bg = cast(T)("--background-code");
+			sp.bg = T("--background-code");
 			sp.bg_radius = 4;
 		}
 		if has(tk.styles, .Underline) { sp.underline = true; }
 		if has(tk.styles, .Strike) { sp.strike = true; }
 		if has(tk.styles, .Spoiler) {
-			sp.bg = cast(T)("--spoiler-hidden-background");
+			sp.bg = T("--spoiler-hidden-background");
 			sp.color = sp.bg;
 			sp.bg_radius = 4;
 		}
 		if tk.kind == {
 		case .Text;
-			if !has(tk.styles, .Code_) {
+			if !has(tk.styles, .Code) {
 				emoji_text_spans(*spans, sp);
 				continue;
 			}
 		case .Link;
-			sp.color = cast(T)("--text-link");
+			sp.color = T("--text-link");
 		case .User_Mention;
 			sp.text = fmt.tprintf("@%s", name_in(cast(dc.Snowflake)(tk.id), ifx m != null then m.channel_id else 0, "unknown-user"));
-			sp.bg = cast(T)("--mention-background");
-			sp.color = cast(T)("--mention-foreground");
+			sp.bg = T("--mention-background");
+			sp.color = T("--mention-foreground");
 			sp.bg_radius = 3;
 			sp.font = F(.Medium);
 		case .Role_Mention; #through; case .Everyone;
-			sp.bg = cast(T)("--mention-background");
-			sp.color = cast(T)("--mention-foreground");
+			sp.bg = T("--mention-background");
+			sp.color = T("--mention-foreground");
 			sp.bg_radius = 3;
 			sp.font = F(.Medium);
 			if tk.kind == .Role_Mention { sp.text = "@role"; }
@@ -607,8 +607,8 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 			{ c := dc.channel_get(s, cast(dc.Snowflake)(tk.id));
 			if c != null { name = c.name; } }
 			sp.text = fmt.tprintf("#%s", name);
-			sp.bg = cast(T)("--mention-background");
-			sp.color = cast(T)("--mention-foreground");
+			sp.bg = T("--mention-background");
+			sp.color = T("--mention-foreground");
 			sp.bg_radius = 3;
 			sp.font = F(.Medium);
 		case .Custom_Emoji;
@@ -617,7 +617,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message)
 			sp.user = cast(*void)(cast(u64)(tk.id));
 		case .Timestamp;
 			sp.text = format_unix(cast(s64)(tk.id), tk.name);
-			sp.bg = cast(T)("--background-mod-subtle");
+			sp.bg = T("--background-mod-subtle");
 			sp.bg_radius = 3;
 		}
 		append(*spans, sp);
@@ -646,7 +646,7 @@ format_unix :: (secs: s64, style: string) -> string {
 // box (spans carry their token index in id).
 handle_span_clicks :: (b: *ui.Box, toks: []Token) {
 	tl := b.prev_layout;
-	if tl == null || tl.spans == null { return; }
+	if tl == null || is_null(tl.spans) { return; }
 	for e: app.ui.events {
 		if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() { continue; }
 		if ui.overlay_at(e.pos) { continue; }
@@ -671,43 +671,43 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token) {
 
 attachments_view :: (m: *dc.Message) {
 	for * a, i: m.attachments {
-		if is_video(*a) && a.width > 0 && a.height > 0 {
+		if is_video(a) && a.width > 0 && a.height > 0 {
 			w := cast(float32)(a.width);
 			h := cast(float32)(a.height);
-			sc := min(1, min(400 / w, 300 / h));
-			video_attachment(*a, w * sc, h * sc);
+			sc := min(1.0, min(400 / w, 300 / h));
+			video_attachment(a, w * sc, h * sc);
 			spacer(.Y, 4);
-		} else if is_audio(*a) {
-			audio_attachment(*a);
+		} else if is_audio(a) {
+			audio_attachment(a);
 			spacer(.Y, 4);
 		} else if a.width > 0 && a.height > 0 {
 			// images scale to fit 400x300 like the client
 			w := cast(float32)(a.width);
 			h := cast(float32)(a.height);
-			sc := min(1, min(400 / w, 300 / h));
-			img := ui.box(fmt.tprintf("att%d", i), .{.Draw_Background, .Clickable});
+			sc := min(1.0, min(400 / w, 300 / h));
+			img := ui.box(fmt.tprintf("att%d", i), .Draw_Background | .Clickable);
 			img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
-			img.style.radius = 8;
-			img.style.bg = cast(T)("--background-mod-subtle");
-			set_remote_image(img, attachment_image_url(*a, cast(int)(w * sc), cast(int)(h * sc)));
+			img.style.radius = all4(8);
+			img.style.bg = T("--background-mod-subtle");
+			set_remote_image(img, attachment_image_url(a, cast(int)(w * sc), cast(int)(h * sc)));
 			if ui.signal(img).clicked { open_viewer(ifx a.proxy_url != "" then a.proxy_url else a.url, .{a.width, a.height}); }
 			spacer(.Y, 4);
 		} else {
-			f := row(fmt.tprintf("file%d", i), .{.Draw_Background, .Draw_Border});
+			f := row(fmt.tprintf("file%d", i), .Draw_Background | .Draw_Border);
 			f.semantic_size = .[ui.px(432), ui.px(72)];
-			f.style.bg = cast(T)("--background-surface-high");
-			f.style.border_color = cast(T)("--border-subtle");
+			f.style.bg = T("--background-surface-high");
+			f.style.border_color = T("--border-subtle");
 			f.style.border = 1;
-			f.style.radius = 8;
-			if ui.parent(f) {
+			f.style.radius = all4(8);
+			{ ui.parent(f); defer ui.pop_parent();
 				spacer(.X, 16);
-				icon("ficon", "attachment", 30, cast(T)("--interactive-icon-default"));
+				icon("ficon", "attachment", 30, T("--interactive-icon-default"));
 				spacer(.X, 8);
 				col := ui.box("fcol");
 				col.semantic_size = .[ui.fill(), ui.children()];
-				if ui.parent(col) {
-					label(a.filename, .Normal, 16, cast(T)("--text-link"), 20);
-					label(human_size(a.size), .Normal, 12, cast(T)("--text-muted"), 16);
+				{ ui.parent(col); defer ui.pop_parent();
+					label(a.filename, .Normal, 16, T("--text-link"), 20);
+					label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
 				}
 			}
 			spacer(.Y, 4);
@@ -730,26 +730,26 @@ reactions_view :: (m: *dc.Message) {
 	r := row("reactions");
 	r.semantic_size = .[ui.pct(1), ui.px(30)];
 	r.style.child_gap = 4;
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		for * re, i: m.reactions {
-			pill := row(fmt.tprintf("re%d", i), .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
+			pill := row(fmt.tprintf("re%d", i), .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 			pill.semantic_size = .[ui.children(), ui.px(26)];
-			pill.style.radius = 8;
+			pill.style.radius = all4(8);
 			pill.style.border = 1;
 			if re.me {
-				pill.style.bg = cast(T)("--reaction-background-reacted-default");
-				pill.style.border_color = cast(T)("--reaction-border-reacted-default");
+				pill.style.bg = T("--reaction-background-reacted-default");
+				pill.style.border_color = T("--reaction-border-reacted-default");
 			} else {
-				pill.style.bg = cast(T)("--reaction-background-default");
-				pill.style.bg_hot = cast(T)("--reaction-background-hover");
-				pill.style.border_color = cast(T)("--reaction-border-default");
+				pill.style.bg = T("--reaction-background-default");
+				pill.style.bg_hot = T("--reaction-background-hover");
+				pill.style.border_color = T("--reaction-border-default");
 			}
 			sig := ui.signal(pill);
-			if ui.parent(pill) {
+			{ ui.parent(pill); defer ui.pop_parent();
 				spacer(.X, 6);
 				emoji_box("e", re.emoji, 16);
 				spacer(.X, 6);
-				label(fmt.tprintf("%d", re.count), .Semibold, 14, ifx re.me then cast(T)("--reaction-text-reacted-default") else cast(T)("--reaction-text-default"), 16);
+				label(fmt.tprintf("%d", re.count), .Semibold, 14, ifx re.me then T("--reaction-text-reacted-default") else T("--reaction-text-default"), 16);
 				spacer(.X, 6);
 			}
 			if sig.clicked && net_action() {
@@ -771,7 +771,7 @@ typing_line :: (channel_id: dc.Snowflake) {
 	t.semantic_size = .[ui.pct(1), ui.px(24)];
 	typers := dc.typing_users(s, channel_id);
 	if len(typers) == 0 { return; }
-	if ui.parent(t) {
+	{ ui.parent(t); defer ui.pop_parent();
 		spacer(.X, 16);
 		names := make_dynamic(string, 0, 0, temp);
 		for ty: typers {
@@ -793,7 +793,7 @@ typing_line :: (channel_id: dc.Snowflake) {
 		}
 		typing_dots();
 		spacer(.X, 4);
-		label(msg, .Medium, 14, cast(T)("--text-default"), 24);
+		label(msg, .Medium, 14, T("--text-default"), 24);
 	}
 }
 
@@ -801,14 +801,14 @@ typing_line :: (channel_id: dc.Snowflake) {
 typing_dots :: () {
 	r := row("dots");
 	r.semantic_size = .[ui.px(24), ui.px(8)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		for i: 0..2 {
 			phase := cast(float32)(app.ui.time * 1.4) - cast(float32)(i) * 0.15;
 			k := 0.5 + 0.5 * cast(float32)(abs(fract(phase) * 2 - 1));
-			d := ui.box(fmt.tprintf("d%d", i), .{.Draw_Background});
+			d := ui.box(fmt.tprintf("d%d", i), .Draw_Background);
 			d.semantic_size = .[ui.px(6), ui.px(6)];
-			d.style.radius = 3;
-			d.style.bg = with_alpha(cast(T)("--text-default"), 0.3 + 0.7 * k);
+			d.style.radius = all4(3);
+			d.style.bg = with_alpha(T("--text-default"), 0.3 + 0.7 * k);
 			spacer(.X, 2);
 		}
 	}
@@ -824,27 +824,27 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 	outer := row("composer_outer");
 	outer.semantic_size = .[ui.pct(1), ui.children()];
 	outer.cross_align = .Start;
-	if ui.parent(outer) {
+	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 8);
 		// one bordered form holds the reply bar, staged uploads and the text area
-		stack := ui.box("composer_stack", .{.Draw_Background, .Draw_Border});
+		stack := ui.box("composer_stack", .Draw_Background | .Draw_Border);
 		stack.semantic_size = .[ui.fill(), ui.children()];
 		stack.layout_axis = .Y;
-		stack.style.bg = cast(T)("--chat-background-default");
-		stack.style.border_color = cast(T)("--border-subtle");
+		stack.style.bg = T("--chat-background-default");
+		stack.style.border_color = T("--border-subtle");
 		stack.style.border = 1;
-		stack.style.radius = 8;
+		stack.style.radius = all4(8);
 		ui.push_parent(stack);
 		if ma.replying != 0 { reply_bar(); }
 		uploads_bar(ch.id);
-		box := row("composer", .{.Clickable});
+		box := row("composer", .Clickable);
 		box.semantic_size = .[ui.fill(), ui.children()];
 		box.cross_align = .Start;
 		box.hover_cursor = .IBeam;
 		if ui.signal(box).pressed { app.ui.focus = box.key; }
-		if ui.parent(box) {
+		{ ui.parent(box); defer ui.pop_parent();
 			spacer(.X, 16);
-			plus := ui.box("plus", .{.Clickable});
+			plus := ui.box("plus", .Clickable);
 			if ui.signal(plus).clicked {
 				stage_paths(ch.id, pick_files(), "file_picker");
 			}
@@ -852,9 +852,9 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			plus.layout_axis = .Y;
 			plus.cross_align = .Center;
 			plus_hov := ui.signal(plus).hovering;
-			if ui.parent(plus) {
+			{ ui.parent(plus); defer ui.pop_parent();
 				spacer(.Y, (COMPOSER_H - 24) / 2);
-				icon("i", "plus-large", 24, ifx plus_hov then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+				icon("i", "plus-large", 24, ifx plus_hov then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			}
 			spacer(.X, 24);
 			placeholder := ifx ch.kind == .DM then fmt.tprintf("Message @%s", dm_name(ch)) else fmt.tprintf("Message #%s", ch.name);
@@ -862,11 +862,11 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			// Up in an empty composer edits your last message, like the client
 			if ui.editor_text(*cs.editor) == "" && ma.editing == 0 {
 				for * e: app.ui.events {
-					if e.consumed || e.kind != .Key_Down || e.key != .Up || e.mods != .{} { continue; }
+					if e.consumed || e.kind != .Key_Down || e.key != .Up || e.mods != 0 { continue; }
 					msgs := dc.messages_get(s, ch.id);
 					for < * m: msgs {
 						if m.author_id == s.me {
-							start_edit(*m);
+							start_edit(m);
 							e.consumed = true;
 							break;
 						}
@@ -877,11 +877,11 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			// Cmd/Ctrl+V with files or a bitmap on the clipboard stages them instead of pasting text
 			if input_focused {
 				for * e: app.ui.events {
-					if e.consumed || e.kind != .Key_Down || e.key != .V || e.mods & .{.Shift, .Alt} != .{} || !has(e.mods, PRIMARY_MOD) { continue; }
+					if e.consumed || e.kind != .Key_Down || e.key != .V || (e.mods & (.Shift | .Alt)) != 0 || !has(e.mods, PRIMARY_MOD) { continue; }
 					if paste_attachments(ch.id) { e.consumed = true; }
 				}
 			}
-			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = cast(T)("--channel-text-area-placeholder"));
+			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"));
 			if res == .Submit {
 				text := strings.trim_space(ui.editor_text(*cs.editor));
 				if composer_send(ch, emoji_convert_shortcodes(text)) { cs.scroll_target = 0; }
@@ -892,14 +892,14 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				dc.typing_keystroke(app.client, ch.id);
 			}
 			for name: (string.["gif", "sticker", "reaction"]) {
-				b := ui.box(name, .{.Clickable});
+				b := ui.box(name, .Clickable);
 				b.semantic_size = .[ui.px(40), ui.px(COMPOSER_H)];
 				b.layout_axis = .Y;
 				b.cross_align = .Center;
 				hov := picker_composer_button(name, ui.signal(b), b.rect, ch.id);
-				if ui.parent(b) {
+				{ ui.parent(b); defer ui.pop_parent();
 					spacer(.Y, (COMPOSER_H - 24) / 2);
-					icon("i", name, 24, ifx hov then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+					icon("i", name, 24, ifx hov then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 				}
 			}
 			spacer(.X, 8);
@@ -932,7 +932,7 @@ dm_name :: (ch: *dc.Channel) -> string {
 text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, font_size: float32 = 16, line_h: float32 = 22, pad_y: float32 = 15, placeholder_color: ui.Color = .{}) -> ui.Edit_Result {
 	// Not .Focusable: callers decide focus by their container's key (the bordered
 	// input box), so a click on the text itself must focus that container.
-	f := ui.box(id, .{.Clickable, .Draw_Text, .Wrap_Text});
+	f := ui.box(id, .Clickable | .Draw_Text | .Wrap_Text);
 	f.semantic_size = .[ui.fill(), ui.text_size()];
 	f.style.font = F(.Normal);
 	f.style.font_size = font_size;
@@ -941,10 +941,10 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 	f.hover_cursor = .IBeam;
 	text := ui.editor_text(ed);
 	f.text = text;
-	f.style.text_color = cast(T)("--text-default");
+	f.style.text_color = T("--text-default");
 	if text == "" {
 		f.text = placeholder;
-		f.style.text_color = ifx placeholder_color.a > 0 then placeholder_color else cast(T)("--text-muted");
+		f.style.text_color = ifx placeholder_color.w > 0 then placeholder_color else T("--text-muted");
 	}
 	result := ui.Edit_Result.None;
 	sig := ui.signal(f);
@@ -1004,10 +1004,10 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 	spacer(.Y, 8);
 	d := row("divider");
 	d.semantic_size = .[ui.pct(1), ui.px(16)];
-	line_color := ifx show_new then cast(T)("--status-danger") else cast(T)("--border-subtle");
-	if ui.parent(d) {
+	line_color := ifx show_new then T("--status-danger") else T("--border-subtle");
+	{ ui.parent(d); defer ui.pop_parent();
 		spacer(.X, 16);
-		l1 := ui.box("l1", .{.Draw_Background});
+		l1 := ui.box("l1", .Draw_Background);
 		l1.semantic_size = .[ui.fill(), ui.px(1)];
 		l1.style.bg = line_color;
 		if new_day {
@@ -1015,18 +1015,18 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 			ms := dc.snowflake_time_ms(id) + local_utc_offset_ms();
 			t := time.unix(ms / 1000, 0);
 			y, mo, dd := time.date(t);
-			label(fmt.tprintf("%v %d, %d", mo, dd, y), .Semibold, 12, ifx show_new then cast(T)("--status-danger") else cast(T)("--text-muted"), 13);
+			label(fmt.tprintf("%v %d, %d", mo, dd, y), .Semibold, 12, ifx show_new then T("--status-danger") else T("--text-muted"), 13);
 			spacer(.X, 8);
-			l2 := ui.box("l2", .{.Draw_Background});
+			l2 := ui.box("l2", .Draw_Background);
 			l2.semantic_size = .[ui.fill(), ui.px(1)];
 			l2.style.bg = line_color;
 		}
 		if show_new {
-			pill := row("new", .{.Draw_Background});
+			pill := row("new", .Draw_Background);
 			pill.semantic_size = .[ui.children(), ui.px(14)];
-			pill.style.bg = cast(T)("--status-danger");
-			pill.style.radius = .{0, 4, 0, 4};
-			if ui.parent(pill) {
+			pill.style.bg = T("--status-danger");
+			pill.style.radius = .[0, 4, 0, 4];
+			{ ui.parent(pill); defer ui.pop_parent();
 				spacer(.X, 4);
 				label("NEW", .Bold, 10, .{1, 1, 1, 1}, 13);
 				spacer(.X, 4);
