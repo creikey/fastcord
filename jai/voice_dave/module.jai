@@ -1,17 +1,10 @@
+// DAVE (Discord Audio/Video E2EE) over voice_mls: session state machine, frame encryption, codes.
 #import "Basic";
-#import "Math";
 #import "String";
 #import "Hash_Table";
-#import "Atomics";
-#import "fc";
-aes :: #import "fc_aes";
-crypto :: #import "fc_crypto";
+crypto :: #import "crypto";
 locks :: #import "locks";
-mem :: #import "fc_mem";
 mls :: #import "voice_mls";
-pbkdf2 :: #import "fc_pbkdf2";
-strings :: #import "fc_strings";
-time :: #import "fc_time";
 #load "codes.jai";
 #load "frame.jai";
 #load "session.jai";

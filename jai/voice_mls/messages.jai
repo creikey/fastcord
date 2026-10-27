@@ -1,13 +1,13 @@
 // Wire structures (RFC 9420). Byte fields of parsed values alias the input
 // buffer; arrays of structs are allocated from the given allocator.
 
-CRED_BASIC :: cast(u16)(1);
+CRED_BASIC :: cast(u16) 1;
 
-EXT_APPLICATION_ID :: cast(u16)(1);
-EXT_RATCHET_TREE :: cast(u16)(2);
-EXT_REQUIRED_CAPABILITIES :: cast(u16)(3);
-EXT_EXTERNAL_PUB :: cast(u16)(4);
-EXT_EXTERNAL_SENDERS :: cast(u16)(5);
+EXT_APPLICATION_ID :: cast(u16) 1;
+EXT_RATCHET_TREE :: cast(u16) 2;
+EXT_REQUIRED_CAPABILITIES :: cast(u16) 3;
+EXT_EXTERNAL_PUB :: cast(u16) 4;
+EXT_EXTERNAL_SENDERS :: cast(u16) 5;
 
 Credential :: struct {
 	type: u16;
@@ -254,7 +254,7 @@ w_leaf_node_content :: (w: *Writer, ln: Leaf_Node) {
 	w_vec(w, ln.signature_key);
 	w_credential(w, ln.credential);
 	w_capabilities(w, ln.capabilities);
-	w_u8(w, cast(u8)(ln.source));
+	w_u8(w, cast(u8) ln.source);
 	if ln.source == {
 	case .Key_Package;
 		w_u64(w, ln.not_before);
@@ -277,7 +277,7 @@ leaf_node_tbs :: (ln: Leaf_Node, group_id: []u8, leaf_index: u32) -> []u8 {
 		w_vec(*w, group_id);
 		w_u32(*w, leaf_index);
 	}
-	return view(w.buf);
+	return w.buf;
 }
 
 w_parent_node :: (w: *Writer, p: Parent_Node) {
@@ -293,7 +293,7 @@ key_package_tbs :: (kp: Key_Package) -> []u8 {
 	w_vec(*w, kp.init_key);
 	w_leaf_node(*w, kp.leaf);
 	w_extensions(*w, kp.extensions);
-	return view(w.buf);
+	return w.buf;
 }
 
 w_key_package :: (w: *Writer, kp: Key_Package) {
@@ -315,7 +315,7 @@ w_psk_id :: (w: *Writer, p: Psk_Id) {
 }
 
 w_proposal :: (w: *Writer, p: Proposal) {
-	w_u16(w, cast(u16)(p.type));
+	w_u16(w, cast(u16) p.type);
 	if p.type == {
 	case .Add;
 		w_key_package(w, p.add);
@@ -364,7 +364,7 @@ w_commit :: (w: *Writer, c: Commit) {
 }
 
 w_sender :: (w: *Writer, s: Sender) {
-	w_u8(w, cast(u8)(s.type));
+	w_u8(w, cast(u8) s.type);
 	if s.type == .Member || s.type == .External { w_u32(w, s.index); }
 }
 
@@ -374,7 +374,7 @@ framed_content_bytes :: (fc: Framed_Content) -> []u8 {
 	w_u64(*w, fc.epoch);
 	w_sender(*w, fc.sender);
 	w_vec(*w, fc.authenticated_data);
-	w_u8(*w, cast(u8)(fc.content_type));
+	w_u8(*w, cast(u8) fc.content_type);
 	if fc.content_type == {
 	case .Application;
 		w_vec(*w, fc.application_data);
@@ -383,7 +383,7 @@ framed_content_bytes :: (fc: Framed_Content) -> []u8 {
 	case .Commit;
 		w_commit(*w, fc.commit);
 	}
-	return view(w.buf);
+	return w.buf;
 }
 
 w_group_context :: (w: *Writer, gc: Group_Context) {
@@ -399,7 +399,7 @@ w_group_context :: (w: *Writer, gc: Group_Context) {
 group_context_bytes :: (gc: Group_Context) -> []u8 {
 	w := writer_make();
 	w_group_context(*w, gc);
-	return view(w.buf);
+	return w.buf;
 }
 
 group_info_tbs :: (gi: Group_Info) -> []u8 {
@@ -408,7 +408,7 @@ group_info_tbs :: (gi: Group_Info) -> []u8 {
 	w_extensions(*w, gi.extensions);
 	w_vec(*w, gi.confirmation_tag);
 	w_u32(*w, gi.signer);
-	return view(w.buf);
+	return w.buf;
 }
 
 w_external_sender :: (w: *Writer, e: External_Sender) {
@@ -417,27 +417,27 @@ w_external_sender :: (w: *Writer, e: External_Sender) {
 }
 
 // ---------------------------------------------------------------------------
-// Decoding
+// Decoding. Arrays go to context.allocator.
 
-r_u16_list :: (r: *Reader, a: Allocator) -> []u16 {
+r_u16_list :: (r: *Reader) -> []u16 {
 	sub := r_sub(r);
-	if len(sub.data) % 2 != 0 {
+	if sub.data.count % 2 != 0 {
 		r_fail(r);
-		return .{};
+		return .[];
 	}
-	out := make_slice(u16, len(sub.data) / 2, a);
-	for i: 0..len(out)-1 { at(*out, i).* = r_u16(*sub); }
+	out := NewArray(sub.data.count / 2, u16, false);
+	for * out it.* = r_u16(*sub);
 	return out;
 }
 
-r_u32_list :: (r: *Reader, a: Allocator) -> []u32 {
+r_u32_list :: (r: *Reader) -> []u32 {
 	sub := r_sub(r);
-	if len(sub.data) % 4 != 0 {
+	if sub.data.count % 4 != 0 {
 		r_fail(r);
-		return .{};
+		return .[];
 	}
-	out := make_slice(u32, len(sub.data) / 4, a);
-	for i: 0..len(out)-1 { at(*out, i).* = r_u32(*sub); }
+	out := NewArray(sub.data.count / 4, u32, false);
+	for * out it.* = r_u32(*sub);
 	return out;
 }
 
@@ -448,38 +448,37 @@ r_credential :: (r: *Reader) -> Credential {
 	return c;
 }
 
-r_capabilities :: (r: *Reader, a: Allocator) -> Capabilities {
+r_capabilities :: (r: *Reader) -> Capabilities {
 	c: Capabilities;
-	c.versions = r_u16_list(r, a);
-	c.cipher_suites = r_u16_list(r, a);
-	c.extensions = r_u16_list(r, a);
-	c.proposals = r_u16_list(r, a);
-	c.credentials = r_u16_list(r, a);
+	c.versions = r_u16_list(r);
+	c.cipher_suites = r_u16_list(r);
+	c.extensions = r_u16_list(r);
+	c.proposals = r_u16_list(r);
+	c.credentials = r_u16_list(r);
 	return c;
 }
 
-r_extensions :: (r: *Reader, a: Allocator) -> []Extension {
+r_extensions :: (r: *Reader) -> []Extension {
 	sub := r_sub(r);
-	out := make_dynamic(Extension, 0, 4, a);
+	out: [..]Extension;
 	while r_ok(*sub) && r_left(*sub) > 0 {
-		e: Extension;
+		e := array_add(*out);
 		e.type = r_u16(*sub);
 		e.data = r_vec(*sub);
-		append(*out, e);
 	}
-	if !r_ok(*sub) { r_fail(r); }
+	if !r_ok(*sub) r_fail(r);
 	// duplicates are invalid
-	for i: 0..len(out)-1 { for j: i + 1..len(out)-1 { if out[i].type == out[j].type { r_fail(r); } } }
-	return view(out);
+	for i: 0..out.count-1 for j: i+1..out.count-1 if out[i].type == out[j].type r_fail(r);
+	return out;
 }
 
-r_leaf_node :: (r: *Reader, a: Allocator) -> Leaf_Node {
+r_leaf_node :: (r: *Reader) -> Leaf_Node {
 	ln: Leaf_Node;
 	ln.encryption_key = r_vec(r);
 	ln.signature_key = r_vec(r);
 	ln.credential = r_credential(r);
-	ln.capabilities = r_capabilities(r, a);
-	ln.source = cast(Leaf_Node_Source)(r_u8(r));
+	ln.capabilities = r_capabilities(r);
+	ln.source = cast(Leaf_Node_Source) r_u8(r);
 	if ln.source == {
 	case .Key_Package;
 		ln.not_before = r_u64(r);
@@ -487,34 +486,32 @@ r_leaf_node :: (r: *Reader, a: Allocator) -> Leaf_Node {
 	case .Commit;
 		ln.parent_hash = r_vec(r);
 	case .Update;
-	case .Reserved;
-		r_fail(r);
 	case;
 		r_fail(r);
 	}
-	ln.extensions = r_extensions(r, a);
+	ln.extensions = r_extensions(r);
 	ln.signature = r_vec(r);
 	return ln;
 }
 
-r_parent_node :: (r: *Reader, a: Allocator) -> Parent_Node {
+r_parent_node :: (r: *Reader) -> Parent_Node {
 	p: Parent_Node;
 	p.encryption_key = r_vec(r);
 	p.parent_hash = r_vec(r);
-	p.unmerged_leaves = r_u32_list(r, a);
+	p.unmerged_leaves = r_u32_list(r);
 	return p;
 }
 
-r_key_package :: (r: *Reader, a: Allocator) -> Key_Package {
+r_key_package :: (r: *Reader) -> Key_Package {
 	kp: Key_Package;
 	start := r.pos;
 	kp.version = r_u16(r);
 	kp.cipher_suite = r_u16(r);
 	kp.init_key = r_vec(r);
-	kp.leaf = r_leaf_node(r, a);
-	kp.extensions = r_extensions(r, a);
+	kp.leaf = r_leaf_node(r);
+	kp.extensions = r_extensions(r);
 	kp.signature = r_vec(r);
-	if r_ok(r) { kp.raw = sub(r.data, start, r.pos); }
+	if r_ok(r) kp.raw = r_since(r, start);
 	return kp;
 }
 
@@ -535,15 +532,15 @@ r_psk_id :: (r: *Reader) -> Psk_Id {
 	return p;
 }
 
-r_proposal :: (r: *Reader, a: Allocator) -> Proposal {
+r_proposal :: (r: *Reader) -> Proposal {
 	p: Proposal;
 	start := r.pos;
-	p.type = cast(Proposal_Type)(r_u16(r));
+	p.type = cast(Proposal_Type) r_u16(r);
 	if p.type == {
 	case .Add;
-		p.add = r_key_package(r, a);
+		p.add = r_key_package(r);
 	case .Update;
-		p.update = r_leaf_node(r, a);
+		p.update = r_leaf_node(r);
 	case .Remove;
 		p.remove_ = r_u32(r);
 	case .Psk;
@@ -552,15 +549,15 @@ r_proposal :: (r: *Reader, a: Allocator) -> Proposal {
 		r_vec(r);
 		r_u16(r);
 		r_u16(r);
-		r_extensions(r, a);
+		r_extensions(r);
 	case .External_Init;
 		r_vec(r);
 	case .Group_Context_Extensions;
-		p.extensions = r_extensions(r, a);
+		p.extensions = r_extensions(r);
 	case;
 		r_fail(r); // unknown proposal types cannot be skipped (no length prefix)
 	}
-	if r_ok(r) { p.raw = sub(r.data, start, r.pos); }
+	if r_ok(r) p.raw = r_since(r, start);
 	return p;
 }
 
@@ -571,95 +568,91 @@ r_hpke_ciphertext :: (r: *Reader) -> Hpke_Ciphertext {
 	return c;
 }
 
-r_commit :: (r: *Reader, a: Allocator) -> Commit {
+r_commit :: (r: *Reader) -> Commit {
 	c: Commit;
 	sub := r_sub(r);
-	props := make_dynamic(Proposal_Or_Ref, 0, 4, a);
+	props: [..]Proposal_Or_Ref;
 	while r_ok(*sub) && r_left(*sub) > 0 {
-		por: Proposal_Or_Ref;
+		por := array_add(*props);
 		if r_u8(*sub) == {
 		case 1;
-			por.proposal = r_proposal(*sub, a);
+			por.proposal = r_proposal(*sub);
 		case 2;
 			por.is_ref = true;
 			por.ref = r_vec(*sub);
 		case;
 			r_fail(*sub);
 		}
-		append(*props, por);
 	}
-	if !r_ok(*sub) { r_fail(r); }
-	c.proposals = view(props);
+	if !r_ok(*sub) r_fail(r);
+	c.proposals = props;
 	c.has_path = r_optional(r);
 	if c.has_path {
-		c.path.leaf = r_leaf_node(r, a);
+		c.path.leaf = r_leaf_node(r);
 		ns := r_sub(r);
-		nodes := make_dynamic(Update_Path_Node, 0, 4, a);
+		nodes: [..]Update_Path_Node;
 		while r_ok(*ns) && r_left(*ns) > 0 {
-			n: Update_Path_Node;
+			n := array_add(*nodes);
 			n.encryption_key = r_vec(*ns);
 			ss := r_sub(*ns);
-			cts := make_dynamic(Hpke_Ciphertext, 0, 2, a);
-			while r_ok(*ss) && r_left(*ss) > 0 { append(*cts, r_hpke_ciphertext(*ss)); }
-			if !r_ok(*ss) { r_fail(*ns); }
-			n.secrets = view(cts);
-			append(*nodes, n);
+			cts: [..]Hpke_Ciphertext;
+			while r_ok(*ss) && r_left(*ss) > 0 array_add(*cts, r_hpke_ciphertext(*ss));
+			if !r_ok(*ss) r_fail(*ns);
+			n.secrets = cts;
 		}
-		if !r_ok(*ns) { r_fail(r); }
-		c.path.nodes = view(nodes);
+		if !r_ok(*ns) r_fail(r);
+		c.path.nodes = nodes;
 	}
 	return c;
 }
 
 r_sender :: (r: *Reader) -> Sender {
 	s: Sender;
-	s.type = cast(Sender_Type)(r_u8(r));
+	s.type = cast(Sender_Type) r_u8(r);
 	if s.type == {
-	case .Member; #through; case .External;
+	case .Member; #through;
+	case .External;
 		s.index = r_u32(r);
-	case .New_Member_Commit; #through; case .New_Member_Proposal;
-	case .Reserved;
-		r_fail(r);
+	case .New_Member_Commit; #through;
+	case .New_Member_Proposal;
 	case;
 		r_fail(r);
 	}
 	return s;
 }
 
-r_framed_content :: (r: *Reader, a: Allocator) -> Framed_Content {
+r_framed_content :: (r: *Reader) -> Framed_Content {
 	fc: Framed_Content;
 	start := r.pos;
 	fc.group_id = r_vec(r);
 	fc.epoch = r_u64(r);
 	fc.sender = r_sender(r);
 	fc.authenticated_data = r_vec(r);
-	fc.content_type = cast(Content_Type)(r_u8(r));
+	fc.content_type = cast(Content_Type) r_u8(r);
 	if fc.content_type == {
 	case .Application;
 		fc.application_data = r_vec(r);
 	case .Proposal;
-		fc.proposal = r_proposal(r, a);
+		fc.proposal = r_proposal(r);
 	case .Commit;
-		fc.commit = r_commit(r, a);
-	case .Reserved;
-		r_fail(r);
+		fc.commit = r_commit(r);
 	case;
 		r_fail(r);
 	}
-	if r_ok(r) { fc.raw = sub(r.data, start, r.pos); }
+	if r_ok(r) fc.raw = r_since(r, start);
 	return fc;
 }
 
-r_public_message :: (r: *Reader, a: Allocator) -> Public_Message {
+r_public_message :: (r: *Reader) -> Public_Message {
 	pm: Public_Message;
-	pm.content = r_framed_content(r, a);
+	pm.content = r_framed_content(r);
 	pm.signature = r_vec(r);
-	if pm.content.content_type == .Commit { pm.confirmation_tag = r_vec(r); }
-	if pm.content.sender.type == .Member { pm.membership_tag = r_vec(r); }
+	if pm.content.content_type == .Commit pm.confirmation_tag = r_vec(r);
+	if pm.content.sender.type == .Member pm.membership_tag = r_vec(r);
 	return pm;
 }
 
-r_group_context :: (r: *Reader, a: Allocator) -> Group_Context {
+r_group_context :: (r: *Reader) -> Group_Context {
 	gc: Group_Context;
 	gc.version = r_u16(r);
 	gc.cipher_suite = r_u16(r);
@@ -667,46 +660,45 @@ r_group_context :: (r: *Reader, a: Allocator) -> Group_Context {
 	gc.epoch = r_u64(r);
 	gc.tree_hash = r_vec(r);
 	gc.confirmed_transcript_hash = r_vec(r);
-	gc.extensions = r_extensions(r, a);
+	gc.extensions = r_extensions(r);
 	return gc;
 }
 
-r_group_info :: (r: *Reader, a: Allocator) -> Group_Info {
+r_group_info :: (r: *Reader) -> Group_Info {
 	gi: Group_Info;
-	gi.ctx = r_group_context(r, a);
-	gi.extensions = r_extensions(r, a);
+	gi.ctx = r_group_context(r);
+	gi.extensions = r_extensions(r);
 	gi.confirmation_tag = r_vec(r);
 	gi.signer = r_u32(r);
 	gi.signature = r_vec(r);
 	return gi;
 }
 
-r_group_secrets :: (r: *Reader, a: Allocator) -> Group_Secrets {
+r_group_secrets :: (r: *Reader) -> Group_Secrets {
 	gs: Group_Secrets;
 	gs.joiner_secret = r_vec(r);
 	gs.has_path_secret = r_optional(r);
-	if gs.has_path_secret { gs.path_secret = r_vec(r); }
+	if gs.has_path_secret gs.path_secret = r_vec(r);
 	sub := r_sub(r);
-	psks := make_dynamic(Psk_Id, 0, 1, a);
-	while r_ok(*sub) && r_left(*sub) > 0 { append(*psks, r_psk_id(*sub)); }
-	if !r_ok(*sub) { r_fail(r); }
-	gs.psks = view(psks);
+	psks: [..]Psk_Id;
+	while r_ok(*sub) && r_left(*sub) > 0 array_add(*psks, r_psk_id(*sub));
+	if !r_ok(*sub) r_fail(r);
+	gs.psks = psks;
 	return gs;
 }
 
-r_welcome :: (r: *Reader, a: Allocator) -> Welcome {
+r_welcome :: (r: *Reader) -> Welcome {
 	w: Welcome;
 	w.cipher_suite = r_u16(r);
 	sub := r_sub(r);
-	list := make_dynamic(Encrypted_Group_Secrets, 0, 2, a);
+	list: [..]Encrypted_Group_Secrets;
 	while r_ok(*sub) && r_left(*sub) > 0 {
-		e: Encrypted_Group_Secrets;
+		e := array_add(*list);
 		e.new_member = r_vec(*sub);
 		e.secrets = r_hpke_ciphertext(*sub);
-		append(*list, e);
 	}
-	if !r_ok(*sub) { r_fail(r); }
-	w.secrets = view(list);
+	if !r_ok(*sub) r_fail(r);
+	w.secrets = list;
 	w.encrypted_group_info = r_vec(r);
 	return w;
 }
@@ -714,9 +706,9 @@ r_welcome :: (r: *Reader, a: Allocator) -> Welcome {
 w_welcome :: (w: *Writer, wel: Welcome) {
 	w_u16(w, wel.cipher_suite);
 	p := w_begin(w);
-	for e: wel.secrets {
-		w_vec(w, e.new_member);
-		w_hpke_ciphertext(w, e.secrets);
+	for wel.secrets {
+		w_vec(w, it.new_member);
+		w_hpke_ciphertext(w, it.secrets);
 	}
 	w_end(w, p);
 	w_vec(w, wel.encrypted_group_info);
@@ -730,34 +722,27 @@ r_external_sender :: (r: *Reader) -> External_Sender {
 }
 
 // parse_mls_message decodes a complete MLSMessage (must consume all bytes).
-parse_mls_message :: (b: []u8, a: Allocator) -> MLS_Message, Error {
+parse_mls_message :: (b: []u8) -> MLS_Message, Error {
 	m: MLS_Message;
-	err: Error;
 	r := reader_make(b);
 	m.version = r_u16(*r);
-	m.wire_format = cast(Wire_Format)(r_u16(*r));
-	if !r_ok(*r) { return m, .Decode; }
-	if m.version != PROTOCOL_VERSION { return m, .Unsupported; }
+	m.wire_format = cast(Wire_Format) r_u16(*r);
+	if !r_ok(*r) return m, .Decode;
+	if m.version != PROTOCOL_VERSION return m, .Unsupported;
 	if m.wire_format == {
-	case .Public_Message;
-		m.public = r_public_message(*r, a);
-	case .Welcome;
-		m.welcome = r_welcome(*r, a);
-	case .Group_Info;
-		m.group_info = r_group_info(*r, a);
-	case .Key_Package;
-		m.key_package = r_key_package(*r, a);
-	case .Private_Message;
-		return m, .Unsupported;
-	case;
-		return m, .Decode;
+	case .Public_Message;  m.public = r_public_message(*r);
+	case .Welcome;         m.welcome = r_welcome(*r);
+	case .Group_Info;      m.group_info = r_group_info(*r);
+	case .Key_Package;     m.key_package = r_key_package(*r);
+	case .Private_Message; return m, .Unsupported;
+	case;                  return m, .Decode;
 	}
-	if !r_done(*r) { return m, .Decode; }
+	if !r_done(*r) return m, .Decode;
 	return m, .None;
 }
 
 find_extension :: (exts: []Extension, type: u16) -> Extension, bool {
-	for e: exts { if e.type == type { return e, true; } }
+	for exts if it.type == type return it, true;
 	return .{}, false;
 }
 
@@ -766,25 +751,19 @@ find_extension :: (exts: []Extension, type: u16) -> Extension, bool {
 r_mls_message_raw :: (r: *Reader) -> []u8 {
 	start := r.pos;
 	version := r_u16(r);
-	wf := cast(Wire_Format)(r_u16(r));
+	wf := cast(Wire_Format) r_u16(r);
 	if !r_ok(r) || version != PROTOCOL_VERSION {
 		r_fail(r);
-		return .{};
+		return .[];
 	}
-	a := temp;
+	push_allocator(temp);
 	if wf == {
-	case .Public_Message;
-		r_public_message(r, a);
-	case .Welcome;
-		r_welcome(r, a);
-	case .Group_Info;
-		r_group_info(r, a);
-	case .Key_Package;
-		r_key_package(r, a);
-	case;
-		r_fail(r);
+	case .Public_Message; r_public_message(r);
+	case .Welcome;        r_welcome(r);
+	case .Group_Info;     r_group_info(r);
+	case .Key_Package;    r_key_package(r);
+	case;                 r_fail(r);
 	}
-	if !r_ok(r) { return .{}; }
-	return sub(r.data, start, r.pos);
+	if !r_ok(r) return .[];
+	return r_since(r, start);
 }
-

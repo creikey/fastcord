@@ -1,12 +1,9 @@
-MAGIC_MARKER :: cast(u16)(0xFAFA);
+MAGIC_MARKER :: cast(u16) 0xFAFA;
 TAG_SIZE :: 8;
 MIN_SUPPLEMENTAL :: TAG_SIZE + 1 + 1 + 2; // tag, 1-byte nonce, size, marker
 KEY_SIZE :: 16;
 RATCHET_RETENTION_MS :: 10_000; // previous keys kept for in-flight media
 EXPORT_LABEL :: "Discord Secure Frames v0";
-
-// Opus silence frame the SFU may synthesize; always allowed through.
-OPUS_SILENCE :: u8.[0xF8, 0xFF, 0xFE];
 
 // ---------------------------------------------------------------------------
 // ULEB128
@@ -15,11 +12,11 @@ uleb_put :: (buf: []u8, v: u64) -> int {
 	x := v;
 	n := 0;
 	while x >= 0x80 {
-		buf[n] = 0x80 | (cast(u8)(x & 0x7f));
+		buf[n] = 0x80 | (cast(u8) (x & 0x7f));
 		n += 1;
 		x >>= 7;
 	}
-	buf[n] = cast(u8)(x);
+	buf[n] = cast(u8) x;
 	return n + 1;
 }
 
@@ -33,16 +30,13 @@ uleb_size :: (v: u64) -> int {
 	return n;
 }
 
-uleb_get :: (b: []u8) -> u64, int, bool {
+uleb_get :: (b: []u8) -> value: u64, used: int, ok: bool {
 	v: u64;
-	n: int;
-	ok: bool;
 	shift: u64 = 0;
-	for i: 0..len(b)-1 {
-		if shift >= 64 { return 0, 0, false; }
-		c := b[i];
-		v |= (cast(u64)(c & 0x7f)) << shift;
-		if (c & 0x80) == 0 { return v, i + 1, true; }
+	for c: b {
+		if shift >= 64 return 0, 0, false;
+		v |= (cast(u64) (c & 0x7f)) << shift;
+		if (c & 0x80) == 0 return v, it_index + 1, true;
 		shift += 7;
 	}
 	return 0, 0, false;
@@ -56,41 +50,39 @@ Ratchet :: struct {
 	next_gen: u32;
 	next_secret: mls.Secret;
 	base_len: int;
-	keys: [..][KEY_SIZE]u8; // keys[g - first_gen]
+	keys: [..][KEY_SIZE]u8; // keys[g - first_gen], in the allocator current at ratchet_init
 	first_gen: u32;
 }
 
-ratchet_init :: (r: *Ratchet, base: []u8, allocator := context.allocator) {
+ratchet_init :: (r: *Ratchet, base: []u8) {
 	r.* = .{};
-	copy(view(r.next_secret), base);
-	r.base_len = len(base);
-	r.keys = make_dynamic([KEY_SIZE]u8, 0, 2, allocator);
+	memcpy(r.next_secret.data, base.data, base.count);
+	r.base_len = base.count;
+	r.keys.allocator = context.allocator;
 }
 
 ratchet_destroy :: (r: *Ratchet) {
-	crypto.zero_explicit(*r.next_secret, size_of(type_of(r.next_secret)));
-	delete(r.keys);
+	crypto.zero(*r.next_secret);
+	array_free(r.keys);
 }
 
 ratchet_get :: (r: *Ratchet, gen: u32) -> [KEY_SIZE]u8, bool {
 	key: [KEY_SIZE]u8;
-	ok: bool;
-	if gen < r.first_gen { return key, ok; }
-	if gen - r.first_gen > 255 && gen >= r.next_gen { return key, ok; } // refuse absurd jumps
+	if gen < r.first_gen return key, false;
+	if gen - r.first_gen > 255 && gen >= r.next_gen return key, false; // refuse absurd jumps
 	while r.next_gen <= gen {
-		s := sub(r.next_secret, 0, r.base_len);
+		s := array_view(r.next_secret, 0, r.base_len);
 		k: [KEY_SIZE]u8;
-		mls.derive_tree_secret(s, "key", r.next_gen, view(k));
+		mls.derive_tree_secret(s, "key", r.next_gen, k);
 		ns: mls.Secret;
-		mls.derive_tree_secret(s, "secret", r.next_gen, view(ns));
+		mls.derive_tree_secret(s, "secret", r.next_gen, ns);
 		r.next_secret = ns;
 		r.base_len = mls.NH;
-		append(*r.keys, k);
+		array_add(*r.keys, k);
 		r.next_gen += 1;
 	}
 	return r.keys[gen - r.first_gen], true;
 }
-#scope_module
 
 // ---------------------------------------------------------------------------
 // AES-128-GCM with 64-bit truncated tags and the 32-bit truncated nonce
@@ -98,43 +90,40 @@ ratchet_get :: (r: *Ratchet, gen: u32) -> [KEY_SIZE]u8, bool {
 
 full_nonce :: (truncated: u32) -> [12]u8 {
 	n: [12]u8;
-	n[8] = cast(u8)(truncated);
-	n[9] = cast(u8)(truncated >> 8);
-	n[10] = cast(u8)(truncated >> 16);
-	n[11] = cast(u8)(truncated >> 24);
+	n[8] = cast(u8) truncated;
+	n[9] = cast(u8) (truncated >> 8);
+	n[10] = cast(u8) (truncated >> 16);
+	n[11] = cast(u8) (truncated >> 24);
 	return n;
 }
-#scope_export
 
 gcm_seal_truncated :: (key: []u8, nonce: u32, aad: []u8, pt: []u8, ct_out: []u8, tag_out: []u8) {
-	ctx: aes.Context_GCM;
-	aes.init_gcm(*ctx, key);
-	defer aes.reset_gcm(*ctx);
+	a: crypto.Aead;
+	crypto.aead_init(*a, .AES_GCM, key);
+	defer crypto.aead_destroy(*a);
 	iv := full_nonce(nonce);
 	tag: [16]u8;
-	aes.seal_gcm(*ctx, ct_out, view(tag), view(iv), aad, pt);
-	copy(tag_out, sub(tag, 0, TAG_SIZE));
+	crypto.seal(*a, ct_out, tag, iv, aad, pt);
+	memcpy(tag_out.data, tag.data, TAG_SIZE);
 }
 
+// gcm_open_truncated: BoringSSL won't check an 8-byte GCM tag, so decrypt with
+// AES-CTR and recompute the tag by sealing the plaintext again.
 gcm_open_truncated :: (key: []u8, nonce: u32, aad: []u8, ct: []u8, tag: []u8, pt_out: []u8) -> bool {
 	iv := full_nonce(nonce);
 	// CTR starts at J0 + 1 = iv || 00000002
 	ctr_iv: [16]u8;
-	copy(view(ctr_iv), view(iv));
+	memcpy(ctr_iv.data, iv.data, 12);
 	ctr_iv[15] = 2;
-	cctx: aes.Context_CTR;
-	aes.init_ctr(*cctx, key, view(ctr_iv));
-	aes.xor_bytes_ctr(*cctx, pt_out, ct);
-	aes.reset_ctr(*cctx);
-	// recompute the tag over the ciphertext by re-sealing the plaintext
-	ctx: aes.Context_GCM;
-	aes.init_gcm(*ctx, key);
-	defer aes.reset_gcm(*ctx);
-	scratch := make_slice(u8, len(pt_out), temp);
+	crypto.aes_ctr(key, ctr_iv, ct, pt_out);
+	a: crypto.Aead;
+	crypto.aead_init(*a, .AES_GCM, key);
+	defer crypto.aead_destroy(*a);
+	scratch := NewArray(pt_out.count, u8, false,, temp);
 	full: [16]u8;
-	aes.seal_gcm(*ctx, scratch, view(full), view(iv), aad, pt_out);
-	if crypto.compare_constant_time(sub(full, 0, TAG_SIZE), tag) != 1 {
-		crypto.zero_explicit(raw_data(pt_out), len(pt_out));
+	crypto.seal(*a, scratch, full, iv, aad, pt_out);
+	if !crypto.constant_time_equal(array_view(full, 0, TAG_SIZE), tag) {
+		crypto.zero(pt_out);
 		return false;
 	}
 	return true;
@@ -158,87 +147,87 @@ Parsed_Frame :: struct {
 // parse_protocol_frame performs the protocol frame check.
 parse_protocol_frame :: (frame: []u8) -> Parsed_Frame, bool {
 	p: Parsed_Frame;
-	ok: bool;
-	n := len(frame);
-	if n < MIN_SUPPLEMENTAL { return p, ok; }
-	if (((cast(u16)(frame[n - 2])) << 8) | (cast(u16)(frame[n - 1]))) != MAGIC_MARKER { return p, ok; }
-	supp := cast(int)(frame[n - 3]);
-	if supp < MIN_SUPPLEMENTAL || supp > n { return p, ok; }
+	n := frame.count;
+	if n < MIN_SUPPLEMENTAL return p, false;
+	if (((cast(u16) frame[n - 2]) << 8) | frame[n - 1]) != MAGIC_MARKER return p, false;
+	supp := cast(int) frame[n - 3];
+	if supp < MIN_SUPPLEMENTAL || supp > n return p, false;
 	body_end := n - supp;
-	p.interleaved = sub(frame, 0, body_end);
-	p.tag = sub(frame, body_end, body_end + TAG_SIZE);
-	meta := sub(frame, body_end + TAG_SIZE, n - 3);
-	nonce, used, __e1 := uleb_get(meta); if failed(__e1) return p, __e1;
-	if nonce > cast(u64)(U32_MAX) { return p, ok; }
-	p.nonce = cast(u32)(nonce);
-	meta = sub_from(meta, used);
+	p.interleaved = array_view(frame, 0, body_end);
+	p.tag = array_view(frame, body_end, TAG_SIZE);
+	meta := array_view(frame, body_end + TAG_SIZE, supp - TAG_SIZE - 3);
+	nonce, used, ok := uleb_get(meta);
+	if !ok || nonce > 0xFFFF_FFFF return p, false;
+	p.nonce = cast(u32) nonce;
+	meta = array_view(meta, used);
 	last_end := 0;
-	while len(meta) > 0 {
-		off, a, __e2 := uleb_get(meta); if failed(__e2) return p, __e2;
-		meta = sub_from(meta, a);
-		sz, b, __e3 := uleb_get(meta); if failed(__e3) return p, __e3;
-		meta = sub_from(meta, b);
-		if p.n_ranges == len(p.ranges) { return p, ok; }
-		if cast(int)(off) < last_end || off + sz > cast(u64)(len(p.interleaved)) { return p, ok; }
-		p.ranges[p.n_ranges] = Range.{cast(int)(off), cast(int)(sz)};
+	while meta.count > 0 {
+		off, a, ok1 := uleb_get(meta);
+		if !ok1 return p, false;
+		meta = array_view(meta, a);
+		sz, b, ok2 := uleb_get(meta);
+		if !ok2 return p, false;
+		meta = array_view(meta, b);
+		if p.n_ranges == p.ranges.count return p, false;
+		if cast(int) off < last_end || off + sz > cast(u64) p.interleaved.count return p, false;
+		p.ranges[p.n_ranges] = .{cast(int) off, cast(int) sz};
 		p.n_ranges += 1;
-		last_end = cast(int)(off + sz);
+		last_end = cast(int) (off + sz);
 	}
 	return p, true;
 }
 
-// encrypt_opus_frame: whole Opus frame encrypted (no unencrypted ranges).
-// out must hold len(frame) + supplemental_size(nonce).
-supplemental_size :: (nonce: u32) -> int {return TAG_SIZE + uleb_size(cast(u64)(nonce)) + 1 + 2;}
+// supplemental_size: what encrypt_opus_frame appends to a frame.
+supplemental_size :: (nonce: u32) -> int { return TAG_SIZE + uleb_size(nonce) + 1 + 2; }
 
+// encrypt_opus_frame: whole Opus frame encrypted (no unencrypted ranges).
+// out must hold frame.count + supplemental_size(nonce).
 encrypt_opus_frame :: (key: []u8, nonce: u32, frame: []u8, out: []u8) -> int {
-	n := len(frame);
+	n := frame.count;
 	ss := supplemental_size(nonce);
-	assert(len(out) >= n + ss);
-	gcm_seal_truncated(key, nonce, .[], frame, sub(out, 0, n), sub(out, n, n + TAG_SIZE));
+	assert(out.count >= n + ss);
+	gcm_seal_truncated(key, nonce, .[], frame, array_view(out, 0, n), array_view(out, n, TAG_SIZE));
 	pos := n + TAG_SIZE;
-	pos += uleb_put(sub_from(out, pos), cast(u64)(nonce));
-	at(*out, pos).* = cast(u8)(ss);
-	at(*out, pos + 1).* = 0xFA;
-	at(*out, pos + 2).* = 0xFA;
+	pos += uleb_put(array_view(out, pos), nonce);
+	out[pos] = cast(u8) ss;
+	out[pos + 1] = 0xFA;
+	out[pos + 2] = 0xFA;
 	return pos + 3;
 }
 
-// decrypt_frame: codec-agnostic receive path. pt_out must be >= len(p.interleaved).
+// decrypt_frame: codec-agnostic receive path. pt_out must hold p.interleaved.count.
 decrypt_frame :: (key: []u8, p: *Parsed_Frame, pt_out: []u8) -> int, bool {
-	n: int;
-	ok: bool;
 	body := p.interleaved;
 	if p.n_ranges == 0 {
-		if !gcm_open_truncated(key, p.nonce, .[], body, p.tag, sub(pt_out, 0, len(body))) { return n, ok; }
-		return len(body), true;
+		if !gcm_open_truncated(key, p.nonce, .[], body, p.tag, array_view(pt_out, 0, body.count)) return 0, false;
+		return body.count, true;
 	}
 	// split into aad (unencrypted ranges joined) and ciphertext (the rest)
-	aad := make_dynamic(u8, 0, len(body), temp);
-	ct := make_dynamic(u8, 0, len(body), temp);
+	aad, ct: [..]u8;
+	aad.allocator, ct.allocator = temp, temp;
+	array_reserve(*aad, body.count);
+	array_reserve(*ct, body.count);
 	pos := 0;
-	for i: 0..p.n_ranges-1 {
-		r := p.ranges[i];
-		append(*ct, ..sub(body, pos, r.offset));
-		append(*aad, ..sub(body, r.offset, r.offset + r.size));
+	for r: array_view(p.ranges, 0, p.n_ranges) {
+		array_add(*ct, ..array_view(body, pos, r.offset - pos));
+		array_add(*aad, ..array_view(body, r.offset, r.size));
 		pos = r.offset + r.size;
 	}
-	append(*ct, ..sub_from(body, pos));
-	pt := make_slice(u8, len(ct), temp);
-	if !gcm_open_truncated(key, p.nonce, view(aad), view(ct), p.tag, pt) { return n, ok; }
+	array_add(*ct, ..array_view(body, pos));
+	pt := NewArray(ct.count, u8, false,, temp);
+	if !gcm_open_truncated(key, p.nonce, aad, ct, p.tag, pt) return 0, false;
 	// re-interleave
 	pos = 0;
 	cpos := 0;
-	for i: 0..p.n_ranges-1 {
-		r := p.ranges[i];
+	for r: array_view(p.ranges, 0, p.n_ranges) {
 		k := r.offset - pos;
-		copy(sub_from(pt_out, pos), sub(pt, cpos, cpos + k));
+		memcpy(pt_out.data + pos, pt.data + cpos, k);
 		cpos += k;
-		copy(sub_from(pt_out, r.offset), sub(body, r.offset, r.offset + r.size));
+		memcpy(pt_out.data + r.offset, body.data + r.offset, r.size);
 		pos = r.offset + r.size;
 	}
-	copy(sub_from(pt_out, pos), sub_from(pt, cpos));
-	return len(body), true;
+	memcpy(pt_out.data + pos, pt.data + cpos, pt.count - cpos);
+	return body.count, true;
 }
 
 // ---------------------------------------------------------------------------
@@ -251,11 +240,10 @@ Replay_Window :: struct {
 }
 
 replay_check :: (w: *Replay_Window, nonce: u32) -> bool {
-	if !w.any { return true; }
-	if nonce > w.highest { return true; }
+	if !w.any || nonce > w.highest return true;
 	d := w.highest - nonce;
-	if d >= 64 { return false; }
-	return (w.bits & ((cast(u64)(1)) << d)) == 0;
+	if d >= 64 return false;
+	return (w.bits & ((cast(u64) 1) << d)) == 0;
 }
 
 replay_mark :: (w: *Replay_Window, nonce: u32) {
@@ -263,15 +251,12 @@ replay_mark :: (w: *Replay_Window, nonce: u32) {
 		w.any = true;
 		w.highest = nonce;
 		w.bits = 1;
-		return;
-	}
-	if nonce > w.highest {
+	} else if nonce > w.highest {
 		shift := nonce - w.highest;
 		w.bits = ifx shift < 64 then (w.bits << shift) else 0;
 		w.bits |= 1;
 		w.highest = nonce;
 	} else {
-		w.bits |= (cast(u64)(1)) << (w.highest - nonce);
+		w.bits |= (cast(u64) 1) << (w.highest - nonce);
 	}
 }
-
