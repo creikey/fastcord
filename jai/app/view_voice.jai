@@ -214,22 +214,22 @@ is_stage :: (cid: dc.Snowflake) -> bool {
 
 voice_is_speaking :: (uid: dc.Snowflake) -> bool {return get(vc.speaking, uid);}
 
-voice_panel_height :: () -> float32 {return ifx app.voice_channel != 0 then VOICE_PANEL_H else 0;}
+voice_panel_height :: () -> float32 {return ifx app.voice_channel != 0 then cast(float32) VOICE_PANEL_H else 0;}
 
 // Avatar with the green "speaking" ring (inset 2 px green + 1 px surface gap).
 voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color) -> *ui.Box {
 	b := avatar_box(id, uid, size);
 	if !voice_is_speaking(uid) { return b; }
-	if ui.parent(b) {
-		r := ui.box("ring", .{.Draw_Border, .Floating_X, .Floating_Y});
+	{ ui.parent(b); defer ui.pop_parent();
+		r := ui.box("ring", .Draw_Border | .Floating_X | .Floating_Y);
 		r.semantic_size = .[ui.px(size), ui.px(size)];
-		r.style.radius = size / 2;
+		r.style.radius = all4(size / 2);
 		r.style.border = 2;
-		r.style.border_color = cast(T)("--status-positive");
-		g := ui.box("gap", .{.Draw_Border, .Floating_X, .Floating_Y});
+		r.style.border_color = T("--status-positive");
+		g := ui.box("gap", .Draw_Border | .Floating_X | .Floating_Y);
 		g.semantic_size = .[ui.px(size - 4), ui.px(size - 4)];
 		g.fixed_pos = .{2, 2};
-		g.style.radius = (size - 4) / 2;
+		g.style.radius = all4((size - 4) / 2);
 		g.style.border = 1;
 		g.style.border_color = surface;
 	}
@@ -242,7 +242,7 @@ voice_panel :: () {
 	p := row("voicepanel");
 	p.semantic_size = .[ui.pct(1), ui.px(VOICE_PANEL_H)];
 	status := "RTC Connecting";
-	color := cast(T)("--text-feedback-warning");
+	color := T("--text-feedback-warning");
 	sig_icon := "connection-unknown";
 	ping := -1;
 	e2ee := false;
@@ -255,35 +255,35 @@ voice_panel :: () {
 		if st == {
 		case .Connected;
 			status = "Voice Connected";
-			color = cast(T)("--text-feedback-positive");
+			color = T("--text-feedback-positive");
 			sig_icon = "connection-fine";
 			if ping > 250 {
 				sig_icon = "connection-bad";
-				color = cast(T)("--text-feedback-critical");
+				color = T("--text-feedback-critical");
 			} else if ping > 150 {
 				sig_icon = "connection-average";
-				color = cast(T)("--text-feedback-warning");
+				color = T("--text-feedback-warning");
 			}
 		case .Disconnected;
 			status = "Voice Disconnected";
-			color = cast(T)("--text-feedback-critical");
+			color = T("--text-feedback-critical");
 			sig_icon = "connection-bad";
 		}
 	}
-	if ui.parent(p) {
+	{ ui.parent(p); defer ui.pop_parent();
 		spacer(.X, 8);
-		info := row("info", .{.Clickable, .Draw_Background, .Hot_Animation});
+		info := row("info", .Clickable | .Draw_Background | .Hot_Animation);
 		info.semantic_size = .[ui.fill(), ui.px(42)];
-		info.style.radius = 8;
-		info.style.bg_hot = cast(T)("--background-mod-subtle");
+		info.style.radius = all4(8);
+		info.style.bg_hot = T("--background-mod-subtle");
 		isig := ui.signal(info);
-		if ui.parent(info) {
+		{ ui.parent(info); defer ui.pop_parent();
 			spacer(.X, 6);
 			icon("sig", sig_icon, 20, color);
 			spacer(.X, 8);
 			col := ui.box("text");
 			col.semantic_size = .[ui.fill(), ui.children()];
-			if ui.parent(col) {
+			{ ui.parent(col); defer ui.pop_parent();
 				label(status, .Semibold, 14, color, 18);
 				where_ := "Voice";
 				{ ch := dc.channel_get(s, app.voice_channel);
@@ -292,42 +292,42 @@ voice_panel :: () {
 						gname := "";
 						{ g := dc.guild_get(s, ch.guild_id);
 						if g != null { gname = g.name; } }
-						where_ = strings.concatenate(.{ch.name, " / ", gname}, temp);
+						where_ = strings.concatenate(string.[ch.name, " / ", gname], temp);
 					} else {
 						where_ = dm_name(ch);
 					}
 				} }
-				t := label(where_, .Normal, 12, cast(T)("--text-muted"), 14);
-				t.flags += .{.Clip};
+				t := label(where_, .Normal, 12, T("--text-muted"), 14);
+				t.flags |= .Clip;
 			}
 		}
 		if isig.hovering {
-			tip := row("pingtip", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay});
+			tip := row("pingtip", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
 			tip.semantic_size = .[ui.children(), ui.px(32)];
 			tip.fixed_pos = .{8, -40};
-			tip.style.bg = cast(T)("--background-surface-highest");
-			tip.style.radius = 8;
+			tip.style.bg = T("--background-surface-highest");
+			tip.style.radius = all4(8);
 			tip.style.shadow_color = .{0, 0, 0, 0.3};
 			tip.style.shadow_blur = 8;
 			tip.style.shadow_offset = .{0, 4};
-			if ui.parent(tip) {
+			{ ui.parent(tip); defer ui.pop_parent();
 				spacer(.X, 12);
 				text := ifx ping > 0 then fmt.tprintf("Ping: %d ms", ping) else "Ping: measuring…";
-				if e2ee { text = strings.concatenate(.{text, " · End-to-end encrypted"}, temp); }
-				label(text, .Semibold, 14, cast(T)("--text-strong"), 18);
+				if e2ee { text = strings.concatenate(string.[text, " · End-to-end encrypted"], temp); }
+				label(text, .Semibold, 14, T("--text-strong"), 18);
 				spacer(.X, 12);
 			}
 		}
-		b := ui.box("disconnect", .{.Clickable, .Draw_Background, .Hot_Animation});
+		b := ui.box("disconnect", .Clickable | .Draw_Background | .Hot_Animation);
 		b.semantic_size = .[ui.px(32), ui.px(32)];
-		b.style.radius = 8;
-		b.style.bg_hot = cast(T)("--background-mod-subtle");
+		b.style.radius = all4(8);
+		b.style.bg_hot = T("--background-mod-subtle");
 		b.layout_axis = .X;
 		b.cross_align = .Center;
 		dsig := ui.signal(b);
-		if ui.parent(b) {
+		{ ui.parent(b); defer ui.pop_parent();
 			spacer(.X, 6);
-			icon("i", "phone-hang-up", 20, ifx dsig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+			icon("i", "phone-hang-up", 20, ifx dsig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		}
 		if dsig.clicked {
 			if app.client != null { dc.analytics_call_disconnect(app.client, vc.guild, app.voice_channel); }
@@ -335,9 +335,9 @@ voice_panel :: () {
 		}
 		spacer(.X, 8);
 	}
-	div := ui.box("div", .{.Draw_Background});
+	div := ui.box("div", .Draw_Background);
 	div.semantic_size = .[ui.pct(1), ui.px(1)];
-	div.style.bg = cast(T)("--border-subtle");
+	div.style.bg = T("--border-subtle");
 }
 
 voice_reset_for_test :: () {vc = .{headless = true};}
@@ -361,49 +361,49 @@ incoming_call_popout :: () {
 	W :: cast(float32)(234);
 	H :: cast(float32)(270);
 	area_x := cast(float32)(72 + 240);
-	p := ui.box("incoming_call", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	p := ui.box("incoming_call", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	p.semantic_size = .[ui.px(W), ui.px(H)];
 	p.fixed_pos = .{area_x + (app.ui.window.x - area_x - W) / 2, 160};
 	p.layout_axis = .Y;
 	p.cross_align = .Center;
-	p.style.bg = cast(T)("--background-surface-high");
+	p.style.bg = T("--background-surface-high");
 	p.style.border = 1;
-	p.style.border_color = cast(T)("--border-subtle");
-	p.style.radius = 8;
+	p.style.border_color = T("--border-subtle");
+	p.style.radius = all4(8);
 	p.style.shadow_color = .{0, 0, 0, 0.3};
 	p.style.shadow_blur = 16;
 	ui.signal(p);
-	if ui.parent(p) {
+	{ ui.parent(p); defer ui.pop_parent();
 		spacer(.Y, 32);
 		avatar_box("av", caller, 80);
 		spacer(.Y, 16);
 		name := ifx ch.kind == .DM then dc.user_name(store(), caller, 0, "Unknown") else dm_name(ch);
-		label(ellipsize(name, .Semibold, 20, W - 32), .Semibold, 20, cast(T)("--text-strong"), 24);
+		label(ellipsize(name, .Semibold, 20, W - 32), .Semibold, 20, T("--text-strong"), 24);
 		spacer(.Y, 2);
-		label("Incoming Call...", .Normal, 16, cast(T)("--text-default"), 20);
+		label("Incoming Call...", .Normal, 16, T("--text-default"), 20);
 		spacer(.Y, 24);
 		btns := row("btns");
 		btns.semantic_size = .[ui.children(), ui.px(50)];
 		btns.style.child_gap = 8;
-		if ui.parent(btns) {
+		{ ui.parent(btns); defer ui.pop_parent();
 			btn :: (id: string, ic: string, bg: ui.Color) -> bool {
-				b := ui.box(id, .{.Clickable, .Draw_Background, .Hot_Animation});
+				b := ui.box(id, .Clickable | .Draw_Background | .Hot_Animation);
 				b.semantic_size = .[ui.px(66), ui.px(50)];
-				b.style.radius = 8;
+				b.style.radius = all4(8);
 				b.style.bg = bg;
 				b.style.bg_hot = with_alpha(bg, 0.85);
 				b.layout_axis = .X;
 				b.cross_align = .Center;
 				clicked := ui.signal(b).clicked;
-				if ui.parent(b) {
+				{ ui.parent(b); defer ui.pop_parent();
 					filler(.X);
 					icon("i", ic, 20, .{1, 1, 1, 1});
 					filler(.X);
 				}
 				return clicked;
 			}
-			if btn("Decline##decline", "x-large", cast(T)("--status-danger")) { dc.call_decline(app.client, cid); }
-			if btn("Join Call##join", "phone-call", cast(T)("--status-positive")) { call_join_incoming(cid); }
+			if btn("Decline##decline", "x-large", T("--status-danger")) { dc.call_decline(app.client, cid); }
+			if btn("Join Call##join", "phone-call", T("--status-positive")) { call_join_incoming(cid); }
 		}
 	}
 }

@@ -59,7 +59,7 @@ Sticker_View :: struct {
 sv: Sticker_View;
 
 sticker_picker_on_show :: () {
-	sv.inspected = .{-1, 0};
+	sv.inspected = .[-1, 0];
 	if sv.requested || app.client == null { return; }
 	sv.requested = true;
 	dc.sticker_packs_fetch(app.client);
@@ -67,7 +67,7 @@ sticker_picker_on_show :: () {
 
 sticker_picker_query_changed :: () {
 	sv.scroll = .{};
-	sv.inspected = .{-1, 0};
+	sv.inspected = .[-1, 0];
 }
 
 sticker_packs_receive :: (r: *dc.Expr_Result) {
@@ -173,12 +173,12 @@ sticker_picker_body :: (r: ui.Rect) {
 	body := row("st_body");
 	body.semantic_size = .[ui.pct(1), ui.fill()];
 	body.cross_align = .Start;
-	if ui.parent(body) {
+	{ ui.parent(body); defer ui.pop_parent();
 		sticker_nav(nav_secs, r.y1 - r.y0, searching);
 		col := ui.box("st_main");
 		col.semantic_size = .[ui.fill(), ui.pct(1)];
 		col.layout_axis = .Y;
-		if ui.parent(col) {
+		{ ui.parent(col); defer ui.pop_parent();
 			sticker_grid(secs, cols, cell, grid);
 			sticker_inspector(secs);
 		}
@@ -206,51 +206,51 @@ cur_section :: (secs: []St_Section) -> int {
 }
 
 sticker_nav :: (secs: []St_Section, h: float32, searching: bool) {
-	nav := ui.box("st_nav", .{.Clip, .Scroll_Y});
+	nav := ui.box("st_nav", .Clip | .Scroll_Y);
 	nav.semantic_size = .[ui.px(ST_NAV_W), ui.px(h)];
 	nav.layout_axis = .Y;
 	nav.cross_align = .Center;
 	ui.signal(nav);
-	if ui.parent(nav) {
+	{ ui.parent(nav); defer ui.pop_parent();
 		spacer(.Y, ST_NAV_PAD);
 		cur := ifx searching then -1 else cur_section(secs);
 		for * sc, i: secs {
 			if sc.flat { continue; }
 			active := cur == i;
-			if ui.id_scope(sc.key) {
-				slot := ui.box("slot", .{.Clickable, .Draw_Background, .Hot_Animation});
+			{ ui.id_scope(sc.key); defer ui.pop_seed();
+				slot := ui.box("slot", .Clickable | .Draw_Background | .Hot_Animation);
 				slot.semantic_size = .[ui.px(ST_NAV_ICON), ui.px(ST_NAV_ICON)];
 				slot.layout_axis = .X;
 				slot.cross_align = .Center;
-				slot.style.radius = 4;
+				slot.style.radius = all4(4);
 				sig := ui.signal(slot);
-				if ui.parent(slot) {
+				{ ui.parent(slot); defer ui.pop_parent();
 					if sc.guild != 0 {
-						gi := ui.box("##gicon", .{.Draw_Background, .Draw_Text});
+						gi := ui.box("##gicon", .Draw_Background | .Draw_Text);
 						gi.semantic_size = .[ui.px(ST_NAV_ICON), ui.px(ST_NAV_ICON)];
-						gi.style.radius = ifx active || sig.hovering then 10 else ST_NAV_ICON / 2;
-						gi.style.bg = cast(T)("--background-mod-subtle");
+						gi.style.radius = all4(cast(float32) (ifx active || sig.hovering then 10 else ST_NAV_ICON / 2));
+						gi.style.bg = T("--background-mod-subtle");
 						gi.style.text_align = .Center;
 						gi.style.font = F(.Medium);
 						gi.style.font_size = 11;
-						gi.style.text_color = cast(T)("--text-default");
+						gi.style.text_color = T("--text-default");
 						{ g := dc.guild_get(store(), sc.guild);
 						if g != null {
 							if g.icon != "" { set_remote_image(gi, dc.guild_icon_url(sc.guild, g.icon, 64)); } else { gi.text = guild_initials(g.name); }
 						} }
 					} else if sc.cover.id != 0 {
-						slot.style.bg = ifx active then cast(T)("--background-base-low") else .{};
-						slot.style.bg_hot = ifx active then slot.style.bg else cast(T)("--interactive-background-hover");
+						slot.style.bg = ifx active then T("--background-base-low") else .{};
+						slot.style.bg_hot = ifx active then slot.style.bg else T("--interactive-background-hover");
 						sticker_box("cover", sc.cover, ST_NAV_ICON, false);
 					} else {
-						slot.style.bg = ifx active then cast(T)("--background-base-low") else .{};
-						slot.style.bg_hot = ifx active then slot.style.bg else cast(T)("--interactive-background-hover");
+						slot.style.bg = ifx active then T("--background-base-low") else .{};
+						slot.style.bg_hot = ifx active then slot.style.bg else T("--interactive-background-hover");
 						spacer(.X, (ST_NAV_ICON - ST_NAV_UNICODE_ICON) / 2);
-						icon("ic", sc.icon, ST_NAV_UNICODE_ICON, ifx active then cast(T)("--interactive-text-active") else (ifx sig.hovering then cast(T)("--interactive-text-hover") else cast(T)("--interactive-text-default")));
+						icon("ic", sc.icon, ST_NAV_UNICODE_ICON, ifx active then T("--interactive-text-active") else (ifx sig.hovering then T("--interactive-text-hover") else T("--interactive-text-default")));
 					}
 				}
 				if sig.clicked {
-					if searching { ui.editor_set_text(*pk.search[.Sticker], ""); }
+					if searching { ui.editor_set_text(*pk.search[Picker_Tab.Sticker], ""); }
 					at(*sv.collapsed, sc.key).* = false;
 					sv.scroll.target = sc.y;
 				}
@@ -261,21 +261,21 @@ sticker_nav :: (secs: []St_Section, h: float32, searching: bool) {
 }
 
 st_header :: (sc: *St_Section, id: string, y: float32, w: float32) {
-	h := row(id, .{.Floating_X, .Floating_Y, .Clickable, .Draw_Background});
+	h := row(id, .Floating_X | .Floating_Y | .Clickable | .Draw_Background);
 	h.semantic_size = .[ui.px(w), ui.px(ST_HEADER_H)];
 	h.fixed_pos = .{0, y};
-	h.style.bg = cast(T)("--background-surface-high");
+	h.style.bg = T("--background-surface-high");
 	sig := ui.signal(h);
 	collapsed := get(sv.collapsed, sc.key);
-	c := ifx sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--text-default");
-	if ui.parent(h) {
+	c := ifx sig.hovering then T("--interactive-text-active") else T("--text-default");
+	{ ui.parent(h); defer ui.pop_parent();
 		spacer(.X, 8);
 		if sc.icon != "" {
 			icon("hi", sc.icon, EM_HEADER_ICON, c);
 			spacer(.X, 4);
 		}
 		t := label(sc.title, .Semibold, EM_HEADER_FONT, c, 18);
-		t.flags += .{.Clip};
+		t.flags |= .Clip;
 		spacer(.X, 4);
 		icon("chev", ifx collapsed then "chevron-small-right" else "chevron-small-down", 16, c);
 		filler(.X);
@@ -286,31 +286,31 @@ st_header :: (sc: *St_Section, id: string, y: float32, w: float32) {
 sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 	w := view.x1 - view.x0;
 	vh := view.y1 - view.y0;
-	list := ui.box("st_grid", .{.Clip});
+	list := ui.box("st_grid", .Clip);
 	list.semantic_size = .[ui.pct(1), ui.px(vh)];
 	top := sv.scroll.y;
-	if ui.parent(list) {
+	{ ui.parent(list); defer ui.pop_parent();
 		for * sc, si: secs {
 			body_y := sc.y + (ifx sc.flat then 0 else ST_HEADER_H);
 			if body_y + cast(float32)(sc.rows) * cell < top - cell || sc.y > top + vh { continue; }
-			if ui.id_scope(sc.key) {
-				if !sc.flat { st_header(*sc, "hdr", sc.y - top, w); }
+			{ ui.id_scope(sc.key); defer ui.pop_seed();
+				if !sc.flat { st_header(sc, "hdr", sc.y - top, w); }
 				for it_, i: sc.items {
 					rr, cc := i / cols, i % cols;
 					if rr >= sc.rows { break; }
 					y := body_y + cast(float32)(rr) * cell - top;
 					if y + cell < 0 || y > vh { continue; }
-					if ui.id_scope(cast(u64)(i)) {
-						b := ui.box("cell", .{.Clickable, .Floating_X, .Floating_Y, .Draw_Background});
+					{ ui.id_scope(cast(u64)(i)); defer ui.pop_seed();
+						b := ui.box("cell", .Clickable | .Floating_X | .Floating_Y | .Draw_Background);
 						b.semantic_size = .[ui.px(ST_PREVIEW), ui.px(ST_PREVIEW)];
 						b.fixed_pos = .{ST_GRID_PAD_L + cast(float32)(cc) * cell, y};
-						b.style.radius = ST_PREVIEW_RADIUS;
+						b.style.radius = all4(ST_PREVIEW_RADIUS);
 						sig := ui.signal(b);
-						if sig.hovering { sv.inspected = .{si, i}; }
-						if sig.hovering { b.style.bg = cast(T)("--interactive-background-selected"); }
-						if ui.parent(b) {
+						if sig.hovering { sv.inspected = .[si, i]; }
+						if sig.hovering { b.style.bg = T("--interactive-background-selected"); }
+						{ ui.parent(b); defer ui.pop_parent();
 							sb := sticker_box("st", it_, ST_PREVIEW - 8, sig.hovering);
-							sb.flags += .{.Floating_X, .Floating_Y};
+							sb.flags |= .Floating_X | .Floating_Y;
 							sb.fixed_pos = .{4, 4};
 							if it_.locked { sb.opacity = 0.3; }
 						}
@@ -326,16 +326,16 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 				nxt := secs[cur + 1].y - top;
 				if nxt < ST_HEADER_H { y = nxt - ST_HEADER_H; }
 			}
-			if ui.id_scope(0xffff) { st_header(*secs[cur], "sticky", y, w); }
+			{ ui.id_scope(0xffff); defer ui.pop_seed(); st_header(*secs[cur], "sticky", y, w); }
 		}
 		if len(secs) == 0 || (secs[0].flat && len(secs[0].items) == 0) {
-			msg := ui.box("empty", .{.Floating_X, .Floating_Y});
+			msg := ui.box("empty", .Floating_X | .Floating_Y);
 			msg.semantic_size = .[ui.px(w), ui.px(vh)];
 			msg.layout_axis = .Y;
 			msg.cross_align = .Center;
-			if ui.parent(msg) {
+			{ ui.parent(msg); defer ui.pop_parent();
 				spacer(.Y, vh / 2 - 30);
-				label(ifx len(secs) == 0 then "No stickers yet" else "No stickers found", .Semibold, 16, cast(T)("--text-strong"), 20);
+				label(ifx len(secs) == 0 then "No stickers yet" else "No stickers found", .Semibold, 16, T("--text-strong"), 20);
 			}
 		}
 		pk_scrollbar(*sv.scroll, w - PK_SCROLLBAR_W - 2);
@@ -343,29 +343,29 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 }
 
 sticker_inspector :: (secs: []St_Section) {
-	line := ui.box("insline", .{.Draw_Background});
+	line := ui.box("insline", .Draw_Background);
 	line.semantic_size = .[ui.pct(1), ui.px(1)];
-	line.style.bg = cast(T)("--border-normal");
-	bar := row("inspector", .{.Draw_Background});
+	line.style.bg = T("--border-normal");
+	bar := row("inspector", .Draw_Background);
 	bar.semantic_size = .[ui.pct(1), ui.px(ST_INSPECTOR_H - 1)];
-	bar.style.bg = cast(T)("--background-base-lower");
+	bar.style.bg = T("--background-base-lower");
 	si, ii := sv.inspected[0], sv.inspected[1];
 	if si < 0 || si >= len(secs) || ii >= len(secs[si].items) { return; }
 	it_ := secs[si].items[ii];
-	if ui.parent(bar) {
+	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 16);
 		sticker_box("is", it_, 28, false);
 		spacer(.X, 8);
 		col := ui.box("names");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
-		if ui.parent(col) {
-			label(it_.name, .Semibold, 16, cast(T)("--text-strong"), 20);
+		{ ui.parent(col); defer ui.pop_parent();
+			label(it_.name, .Semibold, 16, T("--text-strong"), 20);
 			from := "";
 			{ g := dc.guild_get(store(), it_.guild);
 			if g != null { from = g.name; } }
 			for p: sv.packs { if p.id == it_.pack { from = p.name; } }
-			if from != "" { label(fmt.tprintf("from %s", from), .Normal, 12, cast(T)("--interactive-text-default"), 16); }
+			if from != "" { label(fmt.tprintf("from %s", from), .Normal, 12, T("--interactive-text-default"), 16); }
 		}
 	}
 }
@@ -427,6 +427,6 @@ draw_fit :: (b: *ui.Box, tex: gfx.Texture, iw: float32, ih: float32) {
 	x0 := b.rect.x0 + (bw - w) / 2;
 	y0 := b.rect.y0 + (bh - h) / 2;
 	c := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = .{x0, y0, x0 + w, y0 + h}, tex = tex, colors = .{c, c, c, c}});
+	gfx.push_rect(.{dst = .{x0, y0, x0 + w, y0 + h}, tex = tex, colors = .[c, c, c, c]});
 }
 

@@ -68,7 +68,7 @@ account_receive :: (r: *dc.Feature_Result) {
 	tok := dc.apply_account_result(*app.client.store, r);
 	if tok != "" && !platform.is_headless() {
 		// a username change rotates the token: keep the new one for the next start
-		path := strings.concatenate(.{app_state_dir(), "/token"}, temp);
+		path := strings.concatenate(string.[app_state_dir(), "/token"], temp);
 		dc.write_file_atomic(path, transmute([]u8, tok));
 	}
 	if r.op == .Profile_Patch || r.tag == cast(u64)(dc.User_Patch_Tag.Profile_Name) {
@@ -101,7 +101,7 @@ account_logout :: () {
 	voice_leave_channel();
 	if net_action() { dc.client_logout(app.client, "settings"); }
 	if !platform.is_headless() && os.get_env("FASTCORD_TOKEN", temp) == "" {
-		os.remove_(strings.concatenate(.{app_state_dir(), "/token"}, temp));
+		os.remove_(strings.concatenate(string.[app_state_dir(), "/token"], temp));
 	}
 	login_reset();
 	app.settings_open = false;
@@ -118,7 +118,7 @@ account_logout_modal :: () {
 		acct.logout_confirm = false;
 		return;
 	}
-	scrim := ui.box("logout_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("logout_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.5};
 	if ui.signal(scrim).clicked {
@@ -126,24 +126,24 @@ account_logout_modal :: () {
 		return;
 	}
 	W :: 440;
-	d := ui.box("logout", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	d := ui.box("logout", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
-	d.style.bg = cast(T)("--modal-background");
-	d.style.border_color = cast(T)("--border-subtle");
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
 	d.style.border = 1;
-	d.style.radius = 12;
+	d.style.radius = all4(12);
 	d.layout_axis = .Y;
 	ui.signal(d);
-	if ui.parent(d) {
+	{ ui.parent(d); defer ui.pop_parent();
 		inner := inset_begin(24, 24);
-		label("Log Out", .Semibold, 20, cast(T)("--text-strong"), 24);
+		label("Log Out", .Semibold, 20, T("--text-strong"), 24);
 		spacer(.Y, 8);
-		set_para("q", "Are you sure you want to logout?", .Normal, 16, 20, cast(T)("--text-subtle"));
+		set_para("q", "Are you sure you want to logout?", .Normal, 16, 20, T("--text-subtle"));
 		spacer(.Y, 24);
 		btns := row("btns");
 		btns.semantic_size = .[ui.pct(1), ui.px(38)];
-		if ui.parent(btns) {
+		{ ui.parent(btns); defer ui.pop_parent();
 			filler(.X);
 			if set_button("Cancel##cancel", .Secondary) { acct.logout_confirm = false; }
 			spacer(.X, 8);
@@ -165,13 +165,13 @@ account_logout_modal :: () {
 mask_email :: (email: string) -> string {
 	at := strings.last_index_byte(email, #char "@");
 	if at < 0 { return "*****"; }
-	return strings.concatenate(.{"*****", sub_from(email, at)}, temp);
+	return strings.concatenate(string.["*****", sub_from(email, at)], temp);
 }
 
 // "*******1234": all but the last four digits hidden.
 mask_phone :: (phone: string) -> string {
 	if len(phone) <= 4 { return "****"; }
-	return strings.concatenate(.{strings.repeat("*", len(phone) - 4, temp), sub_from(phone, len(phone) - 4)}, temp);
+	return strings.concatenate(string.[strings.repeat("*", len(phone) - 4, temp), sub_from(phone, len(phone) - 4)], temp);
 }
 
 my_account_page :: () {
@@ -184,46 +184,46 @@ my_account_page :: () {
 	if !set_page_begin("accountpage") { return; }
 	defer set_page_end();
 	set_heading("My Account");
-	card := ui.box("card", .{.Draw_Background, .Clip});
+	card := ui.box("card", .Draw_Background | .Clip);
 	card.semantic_size = .[ui.pct(1), ui.children()];
 	card.layout_axis = .Y;
-	card.style.bg = cast(T)("--background-base-lowest");
-	card.style.radius = 8;
-	if ui.parent(card) {
-		banner := ui.box("banner", .{.Draw_Background});
+	card.style.bg = T("--background-base-lowest");
+	card.style.radius = all4(8);
+	{ ui.parent(card); defer ui.pop_parent();
+		banner := ui.box("banner", .Draw_Background);
 		banner.semantic_size = .[ui.pct(1), ui.px(100)];
 		banner.style.bg = profile_banner_color(s.me);
 		if u != null && u.banner != "" { set_remote_image(banner, dc.banner_url(s.me, u.banner, 600)); }
 		head := row("head");
 		head.semantic_size = .[ui.pct(1), ui.px(72)];
-		if ui.parent(head) {
-			ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
+		{ ui.parent(head); defer ui.pop_parent();
+			ring := ui.box("ring", .Draw_Background | .Floating_X | .Floating_Y);
 			ring.semantic_size = .[ui.px(94), ui.px(94)];
 			ring.fixed_pos = .{16, -46};
-			ring.style.radius = 47;
+			ring.style.radius = all4(47);
 			ring.style.bg = card.style.bg;
-			if ui.parent(ring) {
+			{ ui.parent(ring); defer ui.pop_parent();
 				av := avatar_with_status("av", s.me, 80, card.style.bg);
-				av.flags += .{.Floating_X, .Floating_Y};
+				av.flags |= .Floating_X | .Floating_Y;
 				av.fixed_pos = .{7, 7};
 			}
 			spacer(.X, 126);
 			name := ifx u != null then dc.display_name(u) else "…";
-			label(name, .Semibold, 20, cast(T)("--text-strong"), 24);
+			label(name, .Semibold, 20, T("--text-strong"), 24);
 			filler(.X);
 			if set_button("Edit User Profile##editprofile", .Primary, true, 32) { settings_page = "Profiles"; }
 			spacer(.X, 16);
 		}
 		panel_row := row("panelrow");
 		panel_row.semantic_size = .[ui.pct(1), ui.children()];
-		if ui.parent(panel_row) {
+		{ ui.parent(panel_row); defer ui.pop_parent();
 			spacer(.X, 16);
-			panel := ui.box("panel", .{.Draw_Background});
+			panel := ui.box("panel", .Draw_Background);
 			panel.semantic_size = .[ui.fill(), ui.children()];
 			panel.layout_axis = .Y;
-			panel.style.bg = cast(T)("--background-base-low");
-			panel.style.radius = 8;
-			if ui.parent(panel) {
+			panel.style.bg = T("--background-base-low");
+			panel.style.radius = all4(8);
+			{ ui.parent(panel); defer ui.pop_parent();
 				inset_begin(16, 16);
 				display := ifx u != null && u.global_name != "" then u.global_name else "You haven't added a display name yet.";
 				account_field("dname", "Display Name", display, .Display_Name);
@@ -248,9 +248,9 @@ my_account_page :: () {
 	spacer(.Y, 40);
 	set_heading("Password and Authentication");
 	mfa := ifx dc.account.mfa_enabled then "Two-factor authentication is enabled on this account." else "Two-factor authentication is not enabled on this account.";
-	set_para("mfa", mfa, .Normal, 14, 18, cast(T)("--text-muted"));
+	set_para("mfa", mfa, .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 8);
-	set_para("pwnote", "Change your password, email and two-factor settings in the official client or at discord.com.", .Normal, 14, 18, cast(T)("--text-muted"));
+	set_para("pwnote", "Change your password, email and two-factor settings in the official client or at discord.com.", .Normal, 14, 18, T("--text-muted"));
 }
 #scope_file
 
@@ -261,13 +261,13 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	r.layout_axis = .Y;
 	ui.push_parent(r);
 	defer ui.pop_parent();
-	label(strings.to_upper(title, temp), .Bold, 12, cast(T)("--text-muted"), 16);
+	label(strings.to_upper(title, temp), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 4);
 	if acct.editing != which {
 		vr := row("vrow");
 		vr.semantic_size = .[ui.pct(1), ui.px(32)];
-		if ui.parent(vr) {
-			label(value, .Normal, 16, cast(T)("--text-default"), 20);
+		{ ui.parent(vr); defer ui.pop_parent();
+			label(value, .Normal, 16, T("--text-default"), 20);
 			filler(.X);
 			if set_button("Edit##edit", .Secondary, true, 32) { acct_edit_open(which); }
 		}
@@ -291,7 +291,7 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 			set_para("avail", msg, .Normal, 14, 18, col);
 		} }
 		spacer(.Y, 12);
-		label("CURRENT PASSWORD", .Bold, 12, cast(T)("--text-muted"), 16);
+		label("CURRENT PASSWORD", .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
 		pres := set_input("pw", *acct.pass_ed, "Password", password = true);
 		if pres == .Submit { res = .Submit; }
@@ -300,12 +300,12 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	}
 	if acct.error != "" {
 		spacer(.Y, 8);
-		set_para("err", acct.error, .Normal, 14, 18, cast(T)("--text-feedback-critical"));
+		set_para("err", acct.error, .Normal, 14, 18, T("--text-feedback-critical"));
 	}
 	spacer(.Y, 12);
 	br := row("btns");
 	br.semantic_size = .[ui.pct(1), ui.px(32)];
-	if ui.parent(br) {
+	{ ui.parent(br); defer ui.pop_parent();
 		filler(.X);
 		if set_button("Cancel##cancel", .Link, true, 32) || res == .Escape { acct_edit_close(); }
 		spacer(.X, 8);
@@ -345,13 +345,13 @@ username_status :: (name: string) -> string, ui.Color {
 	chk := dc.username_check(app.client, name);
 	if chk.state == {
 	case .Available;
-		return "Username is available. Nice!", cast(T)("--text-feedback-positive");
+		return "Username is available. Nice!", T("--text-feedback-positive");
 	case .Taken;
-		return "Username is unavailable. Try adding numbers, letters, underscores _ , or periods.", cast(T)("--text-feedback-critical");
+		return "Username is unavailable. Try adding numbers, letters, underscores _ , or periods.", T("--text-feedback-critical");
 	case .Error;
-		return chk.message, cast(T)("--text-feedback-critical");
+		return chk.message, T("--text-feedback-critical");
 	case .Rate_Limited;
-		return "Too fast! Wait a bit and try again.", cast(T)("--text-feedback-critical");
+		return "Too fast! Wait a bit and try again.", T("--text-feedback-critical");
 	case .Unknown;
 	}
 	return "", .{};
@@ -364,19 +364,19 @@ account_secret :: (id: string, title: string, shown: string, has: bool, reveal: 
 	r.layout_axis = .Y;
 	ui.push_parent(r);
 	defer ui.pop_parent();
-	label(strings.to_upper(title, temp), .Bold, 12, cast(T)("--text-muted"), 16);
+	label(strings.to_upper(title, temp), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 4);
 	vr := row("vrow");
 	vr.semantic_size = .[ui.pct(1), ui.px(24)];
-	if ui.parent(vr) {
-		label(shown, .Normal, 16, cast(T)("--text-default"), 20);
+	{ ui.parent(vr); defer ui.pop_parent();
+		label(shown, .Normal, 16, T("--text-default"), 20);
 		if has {
 			spacer(.X, 4);
-			l := ui.box(ifx reveal.* then "Hide##reveal" else "Reveal##reveal", .{.Clickable, .Draw_Text});
+			l := ui.box(ifx reveal.* then "Hide##reveal" else "Reveal##reveal", .Clickable | .Draw_Text);
 			l.semantic_size = .[ui.text_size(0), ui.px(20)];
 			l.style.font = F(.Normal);
 			l.style.font_size = 14;
-			l.style.text_color = cast(T)("--text-link");
+			l.style.text_color = T("--text-link");
 			l.hover_cursor = .Pointer;
 			if ui.signal(l).clicked { reveal.* = !reveal.*; }
 		}
@@ -416,43 +416,43 @@ profiles_page :: () {
 		cols := row("cols");
 		cols.semantic_size = .[ui.pct(1), ui.children()];
 		cols.cross_align = .Start;
-		if ui.parent(cols) {
+		{ ui.parent(cols); defer ui.pop_parent();
 			form := ui.box("form");
 			form.semantic_size = .[ui.fill(), ui.children()];
 			form.layout_axis = .Y;
-			if ui.parent(form) {
-				label("Display Name", .Semibold, 16, cast(T)("--text-strong"), 20);
+			{ ui.parent(form); defer ui.pop_parent();
+				label("Display Name", .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 8);
 				set_input("name", *acct.pf_name, ifx u != null then u.username else "", max_runes = PROFILE_NAME_MAX);
 				set_divider();
-				label("Pronouns", .Semibold, 16, cast(T)("--text-strong"), 20);
+				label("Pronouns", .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 8);
 				set_input("pronouns", *acct.pf_pronouns, "Add your pronouns", max_runes = PROFILE_PRONOUNS_MAX);
 				set_divider();
-				label("About Me", .Semibold, 16, cast(T)("--text-strong"), 20);
+				label("About Me", .Semibold, 16, T("--text-strong"), 20);
 				spacer(.Y, 4);
-				set_para("biohelp", "You can use markdown and links if you'd like.", .Normal, 14, 18, cast(T)("--text-muted"));
+				set_para("biohelp", "You can use markdown and links if you'd like.", .Normal, 14, 18, T("--text-muted"));
 				spacer(.Y, 8);
 				set_input("bio", *acct.pf_bio, "", multiline = true, max_runes = PROFILE_BIO_MAX, min_h = 100);
 				spacer(.Y, 4);
 				cr := row("count");
 				cr.semantic_size = .[ui.pct(1), ui.px(16)];
-				if ui.parent(cr) {
+				{ ui.parent(cr); defer ui.pop_parent();
 					filler(.X);
 					left := PROFILE_BIO_MAX - utf8.rune_count_in_string(ui.editor_text(*acct.pf_bio));
-					label(fmt.tprintf("%d", left), .Normal, 12, cast(T)("--text-muted"), 16);
+					label(fmt.tprintf("%d", left), .Normal, 12, T("--text-muted"), 16);
 				}
 				if acct.pf_error != "" {
 					spacer(.Y, 8);
-					set_para("err", acct.pf_error, .Normal, 14, 18, cast(T)("--text-feedback-critical"));
+					set_para("err", acct.pf_error, .Normal, 14, 18, T("--text-feedback-critical"));
 				}
 			}
 			spacer(.X, 24);
 			pv := ui.box("previewcol");
 			pv.semantic_size = .[ui.px(260), ui.children()];
 			pv.layout_axis = .Y;
-			if ui.parent(pv) {
-				label("PREVIEW", .Bold, 12, cast(T)("--text-muted"), 16);
+			{ ui.parent(pv); defer ui.pop_parent();
+				label("PREVIEW", .Bold, 12, T("--text-muted"), 16);
 				spacer(.Y, 8);
 				profile_preview_card(u);
 			}
@@ -466,48 +466,48 @@ profiles_page :: () {
 profile_preview_card :: (u: *dc.User) {
 	s := store();
 	W :: 260;
-	card := ui.box("preview", .{.Draw_Background, .Draw_Border, .Clip});
+	card := ui.box("preview", .Draw_Background | .Draw_Border | .Clip);
 	card.semantic_size = .[ui.px(W), ui.children()];
 	card.layout_axis = .Y;
-	card.style.bg = cast(T)("--background-surface-high");
-	card.style.border_color = cast(T)("--border-subtle");
+	card.style.bg = T("--background-surface-high");
+	card.style.border_color = T("--border-subtle");
 	card.style.border = 1;
-	card.style.radius = 8;
+	card.style.radius = all4(8);
 	ui.push_parent(card);
 	defer ui.pop_parent();
-	banner := ui.box("banner", .{.Draw_Background});
+	banner := ui.box("banner", .Draw_Background);
 	banner.semantic_size = .[ui.pct(1), ui.px(90)];
 	banner.style.bg = profile_banner_color(s.me);
 	if u != null && u.banner != "" { set_remote_image(banner, dc.banner_url(s.me, u.banner, 600)); }
 	avr := ui.box("avrow");
 	avr.semantic_size = .[ui.pct(1), ui.px(40)];
-	if ui.parent(avr) {
-		ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
+	{ ui.parent(avr); defer ui.pop_parent();
+		ring := ui.box("ring", .Draw_Background | .Floating_X | .Floating_Y);
 		ring.semantic_size = .[ui.px(80), ui.px(80)];
 		ring.fixed_pos = .{10, -40};
-		ring.style.radius = 40;
+		ring.style.radius = all4(40);
 		ring.style.bg = card.style.bg;
-		if ui.parent(ring) {
+		{ ui.parent(ring); defer ui.pop_parent();
 			av := avatar_with_status("av", s.me, 68, card.style.bg);
-			av.flags += .{.Floating_X, .Floating_Y};
+			av.flags |= .Floating_X | .Floating_Y;
 			av.fixed_pos = .{6, 6};
 		}
 	}
 	inset_begin(16, 0);
 	name := strings.trim_space(ui.editor_text(*acct.pf_name));
 	if name == "" && u != null { name = u.username; }
-	label(fmt.tprintf("%s##pvname", name), .Bold, 20, cast(T)("--text-strong"), 24);
+	label(fmt.tprintf("%s##pvname", name), .Bold, 20, T("--text-strong"), 24);
 	sub := ifx u != null then u.username else "";
 	{ p := strings.trim_space(ui.editor_text(*acct.pf_pronouns));
 	if p != "" { sub = fmt.tprintf("%s • %s", sub, p); } }
-	label(fmt.tprintf("%s##pvsub", sub), .Normal, 14, cast(T)("--text-default"), 18);
+	label(fmt.tprintf("%s##pvsub", sub), .Normal, 14, T("--text-default"), 18);
 	bio := ui.editor_text(*acct.pf_bio);
 	if bio != "" {
 		spacer(.Y, 12);
-		b := ui.box("pvbio", .{.Wrap_Text});
+		b := ui.box("pvbio", .Wrap_Text);
 		b.semantic_size = .[ui.pct(1), ui.text_size()];
 		b.style.line_height = 18;
-		b.style.text_color = cast(T)("--text-default");
+		b.style.text_color = T("--text-default");
 		blocks := md_parse(bio);
 		if len(blocks) > 0 { ui.set_spans(b, tokens_to_spans(blocks[0].tokens, .Normal, 14, null)); }
 	}
@@ -520,18 +520,18 @@ profile_save_bar :: () {
 	cw := app.ui.window.x - 2 * SET_INSET - SET_NAV_W - 1;
 	ch := app.ui.window.y - 2 * SET_INSET - SET_TITLE_H - 1;
 	w := min(cast(float32)(W), cw - 32);
-	bar := row("savebar", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y});
+	bar := row("savebar", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y);
 	bar.semantic_size = .[ui.px(w), ui.px(52)];
 	bar.fixed_pos = .{(cw - w) / 2, ch - 52 - 20};
-	bar.style.bg = cast(T)("--background-surface-highest");
-	bar.style.radius = 8;
+	bar.style.bg = T("--background-surface-highest");
+	bar.style.radius = all4(8);
 	bar.style.shadow_color = .{0, 0, 0, 0.3};
 	bar.style.shadow_blur = 12;
 	bar.style.shadow_offset = .{0, 4};
 	ui.push_parent(bar);
 	defer ui.pop_parent();
 	spacer(.X, 16);
-	label("Careful — you have unsaved changes!", .Medium, 15, cast(T)("--text-strong"), 20);
+	label("Careful — you have unsaved changes!", .Medium, 15, T("--text-strong"), 20);
 	filler(.X);
 	busy := acct.pf_pending > 0;
 	if set_button("Reset##reset", .Link, !busy, 32) {

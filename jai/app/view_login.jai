@@ -48,7 +48,7 @@ Login_State :: struct {
 	fake_ra: dc.Remote_Auth_View; // tests: login_state qr / ticket (no client)
 	fake_ra_on: bool;
 	qr_for: string;
-	qr_code: *qr.Code;
+	qr_code: *qr.Code_;
 	field_keys: [2]ui.Key; // the email and password boxes (focus)
 }
 #scope_file
@@ -135,25 +135,25 @@ login_save_token :: (token: string) {
 	if token == "" || os.get_env("FASTCORD_TOKEN", temp) != "" { return; }
 	dir := app_state_dir();
 	os.make_directory_all(dir);
-	dc.write_file_atomic(strings.concatenate(.{dir, "/token"}, temp), transmute([]u8, token));
+	dc.write_file_atomic(strings.concatenate(string.[dir, "/token"], temp), transmute([]u8, token));
 }
 #scope_export
 
 // ---- page ----
 
 login_view :: () {
-	bg := ui.box("login", .{.Draw_Background, .Scroll_Y, .Clip});
+	bg := ui.box("login", .Draw_Background | .Scroll_Y | .Clip);
 	bg.semantic_size = .[ui.pct(1), ui.fill()];
 	bg.layout_axis = .X;
 	bg.cross_align = .Center;
-	bg.style.bg = cast(T)("--background-base-lower");
+	bg.style.bg = T("--background-base-lower");
 	ui.signal(bg);
-	if ui.parent(bg) {
+	{ ui.parent(bg); defer ui.pop_parent();
 		filler(.X);
 		col := ui.box("col");
 		col.layout_axis = .Y;
 		col.semantic_size = .[ui.children(), ui.children()];
-		if ui.parent(col) {
+		{ ui.parent(col); defer ui.pop_parent();
 			// equal margins; the row (cross_align .Center) centers the column vertically
 			spacer(.Y, 32);
 			if lg.mode == {
@@ -173,13 +173,13 @@ login_view :: () {
 #scope_file
 
 auth_box :: (id: string, w: float32) -> *ui.Box {
-	b := ui.box(id, .{.Draw_Background, .Draw_Border});
+	b := ui.box(id, .Draw_Background | .Draw_Border);
 	b.semantic_size = .[ui.px(w), ui.children()];
 	b.layout_axis = .Y;
-	b.style.bg = cast(T)("--modal-background");
-	b.style.border_color = cast(T)("--border-subtle");
+	b.style.bg = T("--modal-background");
+	b.style.border_color = T("--border-subtle");
 	b.style.border = 1;
-	b.style.radius = 8;
+	b.style.radius = all4(8);
 	return b;
 }
 
@@ -191,9 +191,9 @@ centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 	col.layout_axis = .Y;
 	ww := ifx w > 0 then w else (ifx col.parent != null && col.parent.fixed_size.x > 0 then col.parent.fixed_size.x else 400);
 	tl := ui.layout_text(F(font), size, text, ww, line_h);
-	if ui.parent(col) {
+	{ ui.parent(col); defer ui.pop_parent();
 		for ln, i: tl.lines {
-			b := ui.box(fmt.tprintf("l%d", i), .{.Draw_Text});
+			b := ui.box(fmt.tprintf("l%d", i), .Draw_Text);
 			b.text = strings.trim_space(sub(text, ln.start, ln.end));
 			b.semantic_size = .[ui.pct(1), ui.px(line_h)];
 			b.style.font = F(font);
@@ -207,11 +207,11 @@ centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 
 // text button drawn as a link
 link :: (text: string, size: float32 = 14, color: ui.Color = .{}) -> bool {
-	b := ui.box(text, .{.Clickable, .Draw_Text, .Hot_Animation});
+	b := ui.box(text, .Clickable | .Draw_Text | .Hot_Animation);
 	b.semantic_size = .[ui.text_size(0), ui.px(size + 6)];
 	b.style.font = F(.Medium);
 	b.style.font_size = size;
-	b.style.text_color = ifx color.a > 0 then color else cast(T)("--text-link");
+	b.style.text_color = ifx color.w > 0 then color else T("--text-link");
 	b.hover_cursor = .Pointer;
 	return ui.signal(b).clicked;
 }
@@ -220,14 +220,14 @@ link :: (text: string, size: float32 = 14, color: ui.Color = .{}) -> bool {
 field_label :: (id: string, text: string, err: string, required := true) {
 	r := row(id);
 	r.semantic_size = .[ui.pct(1), ui.px(16)];
-	if ui.parent(r) {
-		c := ifx err != "" then cast(T)("--text-feedback-critical") else cast(T)("--text-muted");
+	{ ui.parent(r); defer ui.pop_parent();
+		c := ifx err != "" then T("--text-feedback-critical") else T("--text-muted");
 		label(text, .Bold, 12, c, 16);
 		if err != "" {
 			spacer(.X, 4);
-			label(strings.concatenate(.{"- ", err}, temp), .Italic, 12, c, 16);
+			label(strings.concatenate(string.["- ", err], temp), .Italic, 12, c, 16);
 		} else if required {
-			label(" *", .Bold, 12, cast(T)("--text-feedback-critical"), 16);
+			label(" *", .Bold, 12, T("--text-feedback-critical"), 16);
 		}
 	}
 	spacer(.Y, 8);
@@ -235,36 +235,36 @@ field_label :: (id: string, text: string, err: string, required := true) {
 
 // bordered input; returns the editor result. prefix: the phone number's country pill.
 login_input :: (id: string, ed: *ui.Editor, password: bool, has_error: bool, autofocus := false, prefix := "", placeholder := "") -> ui.Edit_Result, ui.Key {
-	box := row(id, .{.Draw_Background, .Draw_Border, .Clickable});
+	box := row(id, .Draw_Background | .Draw_Border | .Clickable);
 	box.semantic_size = .[ui.pct(1), ui.px(40)];
-	box.style.bg = cast(T)("--input-background-default");
+	box.style.bg = T("--input-background-default");
 	focused := app.ui.focus == box.key || autofocus && app.ui.focus == 0;
-	box.style.border_color = ifx has_error then cast(T)("--text-feedback-critical") else (ifx focused then cast(T)("--input-border-active") else cast(T)("--input-border-default"));
+	box.style.border_color = ifx has_error then T("--text-feedback-critical") else (ifx focused then T("--input-border-active") else T("--input-border-default"));
 	box.style.border = 1;
-	box.style.radius = 8;
+	box.style.radius = all4(8);
 	box.hover_cursor = .IBeam;
 	if autofocus && app.ui.focus == 0 { app.ui.focus = box.key; }
 	focused = app.ui.focus == box.key;
 	if ui.signal(box).pressed { app.ui.focus = box.key; }
 	res: ui.Edit_Result;
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 10);
 		if prefix != "" {
-			pill := ui.box("cc", .{.Draw_Background, .Draw_Text});
+			pill := ui.box("cc", .Draw_Background | .Draw_Text);
 			pill.text = prefix;
 			pill.semantic_size = .[ui.text_size(12), ui.px(24)];
-			pill.style.bg = cast(T)("--background-mod-strong");
-			pill.style.radius = 4;
+			pill.style.bg = T("--background-mod-strong");
+			pill.style.radius = all4(4);
 			pill.style.font = F(.Medium);
 			pill.style.font_size = 13;
 			pill.style.text_align = .Center;
-			pill.style.text_color = cast(T)("--text-default");
+			pill.style.text_color = T("--text-default");
 			spacer(.X, 8);
 		}
 		if password {
 			res = password_field("field", ed, placeholder, focused);
 		} else {
-			res = text_field("field", ed, placeholder, focused, 16, 20, 10, cast(T)("--input-placeholder-text-default"));
+			res = text_field("field", ed, placeholder, focused, 16, 20, 10, T("--input-placeholder-text-default"));
 		}
 		spacer(.X, 10);
 	}
@@ -272,19 +272,19 @@ login_input :: (id: string, ed: *ui.Editor, password: bool, has_error: bool, aut
 }
 
 big_button :: (text: string, enabled := true, busy := false) -> bool {
-	b := ui.box(text, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+	b := ui.box(text, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 	b.semantic_size = .[ui.pct(1), ui.px(44)];
-	b.style.radius = 8;
+	b.style.radius = all4(8);
 	b.style.font = F(.Medium);
 	b.style.font_size = 16;
 	b.style.text_align = .Center;
-	b.style.bg = cast(T)("--background-brand");
+	b.style.bg = T("--background-brand");
 	b.style.bg_hot = with_alpha(b.style.bg, 0.85);
 	b.style.text_color = .{1, 1, 1, 1};
 	b.hover_cursor = .Pointer;
-	if busy { b.text = strings.concatenate(.{"•••##", text}, temp); }
+	if busy { b.text = strings.concatenate(string.["•••##", text], temp); }
 	if !enabled || busy {
-		b.flags += .{.Disabled};
+		b.flags |= .Disabled;
 		b.style.bg = with_alpha(b.style.bg, 0.5);
 		b.style.bg_hot = b.style.bg;
 		b.hover_cursor = .Default;
@@ -296,31 +296,31 @@ big_button :: (text: string, enabled := true, busy := false) -> bool {
 
 login_form_box :: () {
 	box := auth_box("authbox", 784);
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		inner := inset_begin(32, 32);
 		r := row("cols");
 		r.semantic_size = .[ui.pct(1), ui.children()];
 		r.cross_align = .Center;
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			form := ui.box("form");
 			form.semantic_size = .[ui.fill(), ui.children()];
 			form.layout_axis = .Y;
-			if ui.parent(form) { login_form(); }
+			{ ui.parent(form); defer ui.pop_parent(); login_form(); }
 			spacer(.X, 64);
 			qcol := ui.box("qrcol");
 			qcol.semantic_size = .[ui.px(240), ui.children()];
 			qcol.layout_axis = .Y;
 			qcol.cross_align = .Center;
-			if ui.parent(qcol) { login_qr_panel(); }
+			{ ui.parent(qcol); defer ui.pop_parent(); login_qr_panel(); }
 		}
 		inset_end(32, 32);
 	}
 }
 
 login_form :: () {
-	centered("title", "Welcome back!", .Semibold, 24, 30, cast(T)("--text-strong"), 416);
+	centered("title", "Welcome back!", .Semibold, 24, 30, T("--text-strong"), 416);
 	spacer(.Y, 8);
-	centered("sub", "We're so excited to see you again!", .Normal, 16, 20, cast(T)("--text-muted"), 416);
+	centered("sub", "We're so excited to see you again!", .Normal, 16, 20, T("--text-muted"), 416);
 	spacer(.Y, 20);
 
 	text := ui.editor_text(*lg.login_ed);
@@ -335,25 +335,25 @@ login_form :: () {
 	spacer(.Y, 20);
 	field_label("password_label", "PASSWORD", lg.password_error);
 	r2, k2 := login_input("password", *lg.password_ed, true, lg.password_error != "");
-	lg.field_keys = .{k1, k2};
+	lg.field_keys = .[k1, k2];
 	spacer(.Y, 4);
 	if link("Forgot your password?") { login_forgot(); }
 	spacer(.Y, 20);
 	if lg.message != "" {
-		set_para("msg", lg.message, .Normal, 14, 18, cast(T)("--text-feedback-critical"));
+		set_para("msg", lg.message, .Normal, 14, 18, T("--text-feedback-critical"));
 		spacer(.Y, 8);
 	}
 	if big_button("Log In##login", busy = lg.busy) || r1 == .Submit || r2 == .Submit { login_submit(); }
 	spacer(.Y, 8);
 	need := row("need");
 	need.semantic_size = .[ui.pct(1), ui.px(20)];
-	if ui.parent(need) {
-		label("Need an account?", .Normal, 14, cast(T)("--text-muted"), 18);
+	{ ui.parent(need); defer ui.pop_parent();
+		label("Need an account?", .Normal, 14, T("--text-muted"), 18);
 		spacer(.X, 4);
 		if link("Register") { open_url("https://discord.com/register"); }
 	}
 	spacer(.Y, 12);
-	if link("Log in with a token", 12, cast(T)("--text-muted")) {
+	if link("Log in with a token", 12, T("--text-muted")) {
 		lg.mode = .Token;
 		app.ui.focus = 0;
 	}
@@ -384,30 +384,30 @@ login_forgot :: () {
 // "Instructions Sent" / "Check your email for a login link"
 login_notice_modal :: () {
 	if lg.notice == .None { return; }
-	scrim := ui.box("notice_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("notice_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked { lg.notice = .None; }
 	W :: 440;
-	d := ui.box("notice", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	d := ui.box("notice", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
-	d.style.bg = cast(T)("--modal-background");
-	d.style.border_color = cast(T)("--border-subtle");
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
 	d.style.border = 1;
-	d.style.radius = 12;
+	d.style.radius = all4(12);
 	d.layout_axis = .Y;
 	ui.signal(d);
-	if ui.parent(d) {
+	{ ui.parent(d); defer ui.pop_parent();
 		inner := inset_begin(24, 24);
 		if lg.notice == .Instructions_Sent {
-			centered("t", "Instructions Sent", .Semibold, 24, 30, cast(T)("--text-strong"), 392);
+			centered("t", "Instructions Sent", .Semibold, 24, 30, T("--text-strong"), 392);
 			spacer(.Y, 8);
-			centered("s", fmt.tprintf("We sent instructions to change your password to %s, please check both your inbox and spam folder.", lg.notice_login), .Normal, 16, 20, cast(T)("--text-muted"), 392);
+			centered("s", fmt.tprintf("We sent instructions to change your password to %s, please check both your inbox and spam folder.", lg.notice_login), .Normal, 16, 20, T("--text-muted"), 392);
 		} else {
-			centered("t", "Check your email for a login link", .Semibold, 24, 30, cast(T)("--text-strong"), 392);
+			centered("t", "Check your email for a login link", .Semibold, 24, 30, T("--text-strong"), 392);
 			spacer(.Y, 8);
-			centered("s", "Tap the link in your email to sign in instantly — no password needed.", .Normal, 16, 20, cast(T)("--text-muted"), 392);
+			centered("s", "Tap the link in your email to sign in instantly — no password needed.", .Normal, 16, 20, T("--text-muted"), 392);
 		}
 		spacer(.Y, 20);
 		if big_button("Okay##ok") { lg.notice = .None; }
@@ -435,47 +435,47 @@ login_qr_panel :: () {
 	case .Initializing; #through; case .Pending_Remote_Init;
 		qr_box(ifx v.step == .Pending_Remote_Init then v.fingerprint else "");
 		spacer(.Y, 32);
-		centered("qrt", "Log in with QR Code", .Semibold, 24, 30, cast(T)("--text-strong"), 240);
+		centered("qrt", "Log in with QR Code", .Semibold, 24, 30, T("--text-strong"), 240);
 		spacer(.Y, 8);
-		centered("qrs", "Scan this with the Discord mobile app to log in instantly.", .Normal, 16, 20, cast(T)("--text-muted"), 240);
+		centered("qrs", "Scan this with the Discord mobile app to log in instantly.", .Normal, 16, 20, T("--text-muted"), 240);
 	case .Pending_Ticket;
-		av := ui.box("av", .{.Draw_Background});
+		av := ui.box("av", .Draw_Background);
 		av.semantic_size = .[ui.px(120), ui.px(120)];
-		av.style.radius = 60;
-		av.style.bg = cast(T)("--background-mod-strong");
+		av.style.radius = all4(60);
+		av.style.bg = T("--background-mod-strong");
 		if v.user_id != 0 {
 			url := ifx v.avatar != "" then dc.avatar_url(v.user_id, v.avatar, 128) else dc.default_avatar_url(v.user_id, v.discriminator);
 			if !app.sweep { set_remote_image(av, url); }
 		}
 		spacer(.Y, 16);
-		centered("qrt", "Check your phone!", .Semibold, 24, 30, cast(T)("--text-strong"), 240);
+		centered("qrt", "Check your phone!", .Semibold, 24, 30, T("--text-strong"), 240);
 		spacer(.Y, 8);
 		tag := v.username;
 		if v.discriminator != "" && v.discriminator != "0" { tag = fmt.tprintf("%s#%s", v.username, v.discriminator); }
-		centered("qrs", fmt.tprintf("Logging in as %s", tag), .Normal, 16, 20, cast(T)("--text-default"), 240);
+		centered("qrs", fmt.tprintf("Logging in as %s", tag), .Normal, 16, 20, T("--text-default"), 240);
 		spacer(.Y, 16);
 		if link("Not me, start over") {
 			if lg.fake_ra_on { lg.fake_ra.step = .Initializing; } else if net_action() { dc.remote_auth_cancel(app.client); }
 		}
 	case .Pending_Login; #through; case .Finish;
 		spacer(.Y, 60);
-		centered("qrs", "Logging in…", .Medium, 16, 20, cast(T)("--text-muted"), 240);
+		centered("qrs", "Logging in…", .Medium, 16, 20, T("--text-muted"), 240);
 		spacer(.Y, 60);
 	}
 }
 
 Qr_Draw :: struct {
-	code: *qr.Code;
+	code: *qr.Code_;
 }
 
 // the white 176 px card; the code fills 160 px (whole-pixel modules, centered) with the logo on top
 qr_box :: (fingerprint: string) {
-	card := ui.box("qr", .{.Draw_Background});
+	card := ui.box("qr", .Draw_Background);
 	card.semantic_size = .[ui.px(176), ui.px(176)];
 	card.style.bg = .{1, 1, 1, 1};
-	card.style.radius = 4;
+	card.style.radius = all4(4);
 	if fingerprint == "" { return; } // still connecting: the blank card
-	if lg.qr_code == null { lg.qr_code = new(qr.Code); }
+	if lg.qr_code == null { lg.qr_code = new(qr.Code_); }
 	if lg.qr_for != fingerprint {
 		code, ok := qr.encode(dc.ra_qr_url(fingerprint), .M);
 		if !ok { return; }
@@ -486,17 +486,17 @@ qr_box :: (fingerprint: string) {
 	d.code = lg.qr_code;
 	card.custom_draw = qr_draw;
 	card.custom_user = d;
-	if ui.parent(card) {
-		logo := ui.box("logo", .{.Draw_Background, .Floating_X, .Floating_Y});
+	{ ui.parent(card); defer ui.pop_parent();
+		logo := ui.box("logo", .Draw_Background | .Floating_X | .Floating_Y);
 		logo.semantic_size = .[ui.px(36), ui.px(36)];
 		logo.fixed_pos = .{70, 70};
 		logo.style.bg = .{1, 1, 1, 1};
-		logo.style.radius = 8;
-		if ui.parent(logo) {
-			ic := ui.box("ic", .{.Floating_X, .Floating_Y});
+		logo.style.radius = all4(8);
+		{ ui.parent(logo); defer ui.pop_parent();
+			ic := ui.box("ic", .Floating_X | .Floating_Y);
 			ic.semantic_size = .[ui.px(28), ui.px(28)];
 			ic.fixed_pos = .{4, 4};
-			set_icon(ic, "clyde", cast(T)("--background-brand"));
+			set_icon(ic, "clyde", T("--background-brand"));
 		}
 	}
 }
@@ -535,7 +535,7 @@ login_mfa_begin :: (methods: dc.Mfa_Methods) {
 	app.ui.focus = 0;
 	// the client opens on the first method (webauthn, totp, backup, sms); passkeys and
 	// security keys need the browser's WebAuthn, so fastcord starts on the next one
-	usable := methods - .{.Webauthn};
+	usable := methods & ~dc.Mfa_Method.Webauthn;
 	if has(usable, .Totp) {
 		lg.slide = .Totp;
 	} else if has(usable, .Backup) {
@@ -568,17 +568,17 @@ login_mfa_close :: () {
 
 login_mfa_box :: () {
 	box := auth_box("mfabox", 480);
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		inner := inset_begin(24, 24);
 		hdr := row("hdr");
 		hdr.semantic_size = .[ui.pct(1), ui.children()];
 		hdr.cross_align = .Start;
-		if ui.parent(hdr) {
+		{ ui.parent(hdr); defer ui.pop_parent();
 			hc := ui.box("hc");
 			hc.semantic_size = .[ui.fill(), ui.children()];
 			hc.layout_axis = .Y;
-			if ui.parent(hc) {
-				set_para("t", "Multi-Factor Authentication", .Semibold, 24, 30, cast(T)("--text-strong"));
+			{ ui.parent(hc); defer ui.pop_parent();
+				set_para("t", "Multi-Factor Authentication", .Semibold, 24, 30, T("--text-strong"));
 				sub := "";
 				if lg.slide == {
 				case .Select;
@@ -591,13 +591,13 @@ login_mfa_box :: () {
 				}
 				if sub != "" {
 					spacer(.Y, 8);
-					set_para("s", sub, .Semibold, 18, 24, cast(T)("--text-default"));
+					set_para("s", sub, .Semibold, 18, 24, T("--text-default"));
 				}
 			}
-			x := ui.box("close", .{.Clickable, .Hot_Animation});
+			x := ui.box("close", .Clickable | .Hot_Animation);
 			x.semantic_size = .[ui.px(24), ui.px(24)];
 			x.hover_cursor = .Pointer;
-			set_icon(x, "x-large", cast(T)("--interactive-text-default"));
+			set_icon(x, "x-large", T("--interactive-text-default"));
 			if ui.signal(x).clicked { login_mfa_close(); }
 		}
 		spacer(.Y, 16);
@@ -634,19 +634,19 @@ login_mfa_slide_body :: () {
 	case .Select;
 		for m: (dc.Mfa_Method.[.Webauthn, .Totp, .Backup, .Sms]) {
 			if !has(lg.methods, m) { continue; }
-			it_ := row(mfa_method_name(m), .{.Clickable, .Draw_Background, .Hot_Animation});
+			it_ := row(mfa_method_name(m), .Clickable | .Draw_Background | .Hot_Animation);
 			it_.semantic_size = .[ui.pct(1), ui.px(48)];
-			it_.style.bg = cast(T)("--background-mod-subtle");
-			it_.style.bg_hot = cast(T)("--background-mod-normal");
-			it_.style.radius = 8;
+			it_.style.bg = T("--background-mod-subtle");
+			it_.style.bg_hot = T("--background-mod-normal");
+			it_.style.radius = all4(8);
 			it_.hover_cursor = .Pointer;
-			if ui.parent(it_) {
+			{ ui.parent(it_); defer ui.pop_parent();
 				spacer(.X, 16);
-				label(mfa_method_name(m), .Semibold, 16, cast(T)("--text-strong"), 20);
+				label(mfa_method_name(m), .Semibold, 16, T("--text-strong"), 20);
 				filler(.X);
 				ic := ui.box("chev");
 				ic.semantic_size = .[ui.px(20), ui.px(20)];
-				set_icon(ic, "chevron-small-right", cast(T)("--interactive-text-default"));
+				set_icon(ic, "chevron-small-right", T("--interactive-text-default"));
 				spacer(.X, 12);
 			}
 			if ui.signal(it_).clicked {
@@ -665,23 +665,23 @@ login_mfa_slide_body :: () {
 		}
 		return;
 	case .Unsupported;
-		set_para("u", "This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.", .Normal, 16, 20, cast(T)("--text-default"));
+		set_para("u", "This account needs a passkey or security key, which fastcord can't use. Log in with the QR code instead.", .Normal, 16, 20, T("--text-default"));
 		spacer(.Y, 20);
-		if lg.methods - .{.Webauthn} != .{} {
+		if (lg.methods & ~dc.Mfa_Method.Webauthn) != 0 {
 			if set_button("Verify with something else##else", .Secondary) { login_mfa_slide(.Select); }
 			spacer(.Y, 8);
 		}
 		if big_button("Go back##back") { login_mfa_close(); }
 		return;
 	case .Backup_Warn;
-		set_para("w1", "Backup codes can only be used one time each and are for emergency access to your account!", .Normal, 16, 20, cast(T)("--text-default"));
+		set_para("w1", "Backup codes can only be used one time each and are for emergency access to your account!", .Normal, 16, 20, T("--text-default"));
 		spacer(.Y, 8);
 		left := 10 - cast(int)(app.ui.time - lg.backup_t0);
 		if left > 0 {
-			set_para("w2", fmt.tprintf("If you do not have access to any other methods, the button below will activate in %d seconds.", left), .Normal, 16, 20, cast(T)("--text-default"));
+			set_para("w2", fmt.tprintf("If you do not have access to any other methods, the button below will activate in %d seconds.", left), .Normal, 16, 20, T("--text-default"));
 			request_wake(platform.time_now() + 0.25);
 		} else {
-			set_para("w2", "If you do not have access to any other methods, use the other button below to proceed.", .Normal, 16, 20, cast(T)("--text-default"));
+			set_para("w2", "If you do not have access to any other methods, use the other button below to proceed.", .Normal, 16, 20, T("--text-default"));
 		}
 		spacer(.Y, 20);
 		mfa_buttons(false, false);
@@ -692,7 +692,7 @@ login_mfa_slide_body :: () {
 		field_label("cl", "Enter Discord Auth Code", lg.mfa_error, false);
 		r := row("coderow");
 		r.semantic_size = .[ui.pct(1), ui.px(40)];
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			res, _ := login_input("code", *lg.code_ed, false, lg.mfa_error != "", autofocus = true, placeholder = "6-digit authentication code");
 			submit = res == .Submit;
 			if lg.slide == .Sms {
@@ -711,7 +711,7 @@ login_mfa_slide_body :: () {
 	}
 	if lg.mfa_error != "" {
 		spacer(.Y, 8);
-		set_para("err", lg.mfa_error, .Normal, 14, 18, cast(T)("--text-feedback-critical"));
+		set_para("err", lg.mfa_error, .Normal, 14, 18, T("--text-feedback-critical"));
 	}
 	spacer(.Y, 20);
 	ok := ifx lg.slide == .Backup then len(code) >= need && len(code) <= 11 else len(code) == need;
@@ -721,11 +721,11 @@ login_mfa_slide_body :: () {
 // "Verify with something else" (more than one method) and Confirm
 mfa_buttons :: (confirm: bool, enabled: bool) -> bool {
 	confirmed: bool;
-	others := card(lg.methods - .{.Webauthn}) > 1 || has(lg.methods, .Webauthn);
+	others := card(lg.methods & ~dc.Mfa_Method.Webauthn) > 1 || has(lg.methods, .Webauthn);
 	if !others && !confirm { return confirmed; }
 	r := row("btns");
 	r.semantic_size = .[ui.pct(1), ui.px(40)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		if others && set_button("Verify with something else##else", .Secondary, true, 40) { login_mfa_slide(.Select); }
 		filler(.X);
 		if confirm { confirmed = set_button("Confirm##confirm", .Primary, enabled && !lg.mfa_busy, 40); }
@@ -752,7 +752,7 @@ login_mfa_submit :: (code: string) {
 
 login_token_box :: () {
 	box := auth_box("tokenbox", 560);
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		inner := inset_begin(32, 32);
 		login_card_body();
 		inset_end(32, 32);
@@ -768,17 +768,17 @@ step :: (n: string, text: string) {
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.layout_axis = .X;
 	r.cross_align = .Start;
-	if ui.parent(r) {
-		num := ui.box(strings.concatenate(.{n, "##num"}, temp), .{.Draw_Background, .Draw_Text});
+	{ ui.parent(r); defer ui.pop_parent();
+		num := ui.box(strings.concatenate(string.[n, "##num"], temp), .Draw_Background | .Draw_Text);
 		num.semantic_size = .[ui.px(22), ui.px(22)];
-		num.style.radius = 11;
-		num.style.bg = cast(T)("--background-brand");
+		num.style.radius = all4(11);
+		num.style.bg = T("--background-brand");
 		num.style.text_color = .{1, 1, 1, 1};
 		num.style.text_align = .Center;
 		num.style.font = F(.Semibold);
 		num.style.font_size = 12;
 		spacer(.X, 12);
-		para("text", text, .Normal, 15, 22, cast(T)("--text-default"));
+		para("text", text, .Normal, 15, 22, T("--text-default"));
 	}
 	spacer(.Y, 10);
 }
@@ -789,9 +789,9 @@ login_card_body :: () {
 		app.ui.focus = 0;
 	}
 	spacer(.Y, 12);
-	para("title", "Log in with a token", .Bold, 24, 30, cast(T)("--text-strong"));
+	para("title", "Log in with a token", .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	para("sub", "Copy your account's token once from Discord in a web browser.", .Normal, 16, 22, cast(T)("--text-muted"));
+	para("sub", "Copy your account's token once from Discord in a web browser.", .Normal, 16, 22, T("--text-muted"));
 	spacer(.Y, 20);
 
 	#if OS == .MACOS {
@@ -804,26 +804,26 @@ login_card_body :: () {
 	step("3", "Click any channel, then pick a request whose name starts with \"messages\" or \"science\".");
 	step("4", "Under Request Headers, copy the value of \"authorization\" and paste it below.");
 
-	open := ui.box("Open discord.com##open", .{.Clickable, .Draw_Text, .Hot_Animation});
+	open := ui.box("Open discord.com##open", .Clickable | .Draw_Text | .Hot_Animation);
 	open.semantic_size = .[ui.text_size(0), ui.px(24)];
 	open.style.font = F(.Medium);
 	open.style.font_size = 14;
-	open.style.text_color = cast(T)("--text-link");
+	open.style.text_color = T("--text-link");
 	open.hover_cursor = .Pointer;
 	if ui.signal(open).clicked { open_url("https://discord.com/app"); }
 	spacer(.Y, 16);
 
 	submitted := false;
-	box := row("input", .{.Draw_Background, .Draw_Border, .Clickable});
+	box := row("input", .Draw_Background | .Draw_Border | .Clickable);
 	box.semantic_size = .[ui.pct(1), ui.px(48)];
-	box.style.bg = cast(T)("--input-background-default");
-	box.style.border_color = ifx app.ui.focus == box.key then cast(T)("--input-border-active") else cast(T)("--input-border-default");
+	box.style.bg = T("--input-background-default");
+	box.style.border_color = ifx app.ui.focus == box.key then T("--input-border-active") else T("--input-border-default");
 	box.style.border = 1;
-	box.style.radius = 8;
+	box.style.radius = all4(8);
 	box.hover_cursor = .IBeam;
 	if app.ui.focus == 0 { app.ui.focus = box.key; }
 	if ui.signal(box).pressed { app.ui.focus = box.key; }
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 14);
 		res := text_field("field", *app.view.token_input, "Paste your token", app.ui.focus == box.key, 15, 20, 14);
 		submitted = res == .Submit;
@@ -834,18 +834,18 @@ login_card_body :: () {
 	token := clean_token(ui.editor_text(*app.view.token_input));
 	r := row("actions");
 	r.semantic_size = .[ui.pct(1), ui.px(40)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		if app.login_error != "" {
-			label(app.login_error, .Medium, 14, cast(T)("--text-feedback-critical"), 18);
+			label(app.login_error, .Medium, 14, T("--text-feedback-critical"), 18);
 		}
 		filler(.X);
 		if (set_button("Log in##login", .Primary, token != "", 40) || submitted) && token != "" { login_with_token(token); }
 	}
 	spacer(.Y, 20);
 
-	para("warn1", "Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.", .Normal, 13, 18, cast(T)("--text-muted"));
+	para("warn1", "Treat the token like a password: anyone who has it controls your account. fastcord keeps it only on this computer.", .Normal, 13, 18, T("--text-muted"));
 	spacer(.Y, 6);
-	para("warn2", "Discord's terms don't allow third-party clients, so using one can get an account flagged.", .Normal, 13, 18, cast(T)("--text-muted"));
+	para("warn2", "Discord's terms don't allow third-party clients, so using one can get an account flagged.", .Normal, 13, 18, T("--text-muted"));
 }
 #scope_export
 
@@ -862,7 +862,7 @@ clean_token :: (s: string) -> string {
 login_with_token :: (token: string) {
 	dir := app_state_dir();
 	os.make_directory_all(dir);
-	path := strings.concatenate(.{dir, "/token"}, temp);
+	path := strings.concatenate(string.[dir, "/token"], temp);
 	if !dc.write_file_atomic(path, transmute([]u8, token)) {
 		app.login_error = "Couldn't save the token.";
 		return;
@@ -886,7 +886,7 @@ login_check_auth :: () {
 	if app.client == null || app.client.store.connection != .Auth_Failed { return; }
 	client_release(app.client);
 	app.client = null;
-	os.remove_(strings.concatenate(.{app_state_dir(), "/token"}, temp));
+	os.remove_(strings.concatenate(string.[app_state_dir(), "/token"], temp));
 	login_reset();
 	app.needs_login = true;
 	set_str(*lg.message, "Discord didn't accept the saved login. Log in again.");
@@ -920,14 +920,14 @@ login_test_state :: (state: string) -> bool {
 		lg.mode = .Form;
 		set_str(*lg.message, "Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.");
 	case "mfa";
-		login_mfa_begin(.{.Totp, .Backup});
+		login_mfa_begin(.Totp | .Backup);
 	case "mfa_backup";
-		login_mfa_begin(.{.Backup});
+		login_mfa_begin(.Backup);
 	case "mfa_select";
-		login_mfa_begin(.{.Webauthn, .Totp, .Sms, .Backup});
+		login_mfa_begin(.Webauthn | .Totp | .Sms | .Backup);
 		lg.slide = .Select;
 	case "webauthn_only";
-		login_mfa_begin(.{.Webauthn});
+		login_mfa_begin(.Webauthn);
 	case "qr"; #through; case "ticket";
 		lg.mode = .Form;
 		lg.fake_ra_on = true;

@@ -10,7 +10,7 @@ Update_State :: struct {
 	available: bool;
 	dismissed: bool;
 	t: float32;
-	thread: *thread.Thread;
+	thread: *Thread;
 }
 
 upd: Update_State;
@@ -25,7 +25,7 @@ update_start :: () {
 		return;
 	} }
 	if FASTCORD_VERSION == "dev" || platform.is_headless() { return; }
-	upd.thread = thread.create_and_start(update_loop, context);
+	upd.thread = thread.create_and_start(update_loop, *context);
 }
 #scope_file
 
@@ -52,7 +52,7 @@ fetch_latest_tag :: (repo: string) -> string, bool {
 	host :: "api.github.com";
 	tcp, derr := netio.dial_tcp(host, 443);
 	if derr != .None { return "", false; }
-	sess, terr := tls.connect(netio.tcp_stream(tcp), tls.Config.{alpn = .{"http/1.1"}, server_name = host});
+	sess, terr := tls.connect(netio.tcp_stream(tcp), tls.Config.{alpn = string.["http/1.1"], server_name = host});
 	if terr != .None {
 		netio.close(netio.tcp_stream(tcp));
 		return "", false;
@@ -64,17 +64,17 @@ fetch_latest_tag :: (repo: string) -> string, bool {
 		method = "GET",
 		scheme = "https",
 		authority = host,
-		path = strings.concatenate(.{"/repos/", repo, "/releases/latest"}, temp),
-		headers = .{.{"User-Agent", "fastcord/" + FASTCORD_VERSION}, .{"Accept", "application/vnd.github+json"}, .{"Connection", "close"}}
+		path = strings.concatenate(string.["/repos/", repo, "/releases/latest"], temp),
+		headers = http.Header.[.{"User-Agent", #run join("fastcord/", FASTCORD_VERSION)}, .{"Accept", "application/vnd.github+json"}, .{"Connection", "close"}]
 	};
 	resp, herr := http.h1_round_trip(*conn, req);
 	defer http.response_destroy(*resp);
 	if herr != .None || resp.status != 200 { return "", false; }
 	http.decode_body(*resp);
 	v, jerr := json.parse(view(resp.body), allocator = temp);
-	if jerr != null { return "", false; }
+	if jerr != .None { return "", false; }
 	if v.kind != .Map return tag, ok; obj := v.map;
-	if obj["tag_name"].kind != .String return tag, ok; t := obj["tag_name"].s;
+	if get(obj, "tag_name").kind != .String return tag, ok; t := get(obj, "tag_name").s;
 	return clone(t), true;
 }
 
@@ -99,18 +99,18 @@ update_button :: () {
 	locks.unlock(*upd.mu);
 	if !show { return; }
 	ui.animate(*upd.t, 1, 20);
-	b := row("update", .{.Clickable, .Draw_Background, .Hot_Animation});
+	b := row("update", .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.children(), ui.px(24)];
-	b.style.radius = 12;
-	b.style.bg = cast(T)("--status-positive");
-	b.style.bg_hot = with_alpha(cast(T)("--status-positive"), 0.85);
+	b.style.radius = all4(12);
+	b.style.bg = T("--status-positive");
+	b.style.bg_hot = with_alpha(T("--status-positive"), 0.85);
 	b.opacity = upd.t;
 	sig := ui.signal(b);
-	if ui.parent(b) {
+	{ ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 8);
 		icon("dl", "download", 16, .{1, 1, 1, 1});
 		spacer(.X, 4);
-		label(strings.concatenate(.{"Update ", latest}, temp), .Semibold, 12, .{1, 1, 1, 1}, 16);
+		label(strings.concatenate(string.["Update ", latest], temp), .Semibold, 12, .{1, 1, 1, 1}, 16);
 		spacer(.X, 10);
 	}
 	if sig.clicked { open_url(UPDATE_PAGE); }

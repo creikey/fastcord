@@ -175,17 +175,17 @@ event_start_text :: (ms: s64) -> string {
 
 // Scrim + centered dialog (no title row), pushed as parent; false when the scrim was clicked.
 ev_dialog_begin :: (id: string, w: float32, fixed_h: float32 = 0) -> bool {
-	scrim := ui.box(fmt.tprintf("%s_scrim", id), .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box(fmt.tprintf("%s_scrim", id), .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked { return false; }
-	d := ui.box(id, .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
+	d := ui.box(id, .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Clip);
 	d.semantic_size = .[ui.px(w), ifx fixed_h > 0 then ui.px(fixed_h) else ui.children()];
-	d.fixed_pos = .{(app.ui.window.x - w) / 2, max(16, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2)};
-	d.style.bg = cast(T)("--modal-background");
-	d.style.border_color = cast(T)("--border-subtle");
+	d.fixed_pos = .{(app.ui.window.x - w) / 2, max(16.0, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2)};
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
 	d.style.border = 1;
-	d.style.radius = 12;
+	d.style.radius = all4(12);
 	d.layout_axis = .Y;
 	ui.signal(d);
 	ui.push_parent(d);
@@ -193,31 +193,31 @@ ev_dialog_begin :: (id: string, w: float32, fixed_h: float32 = 0) -> bool {
 }
 
 close_x :: (id: string, x: float32, y: float32) -> bool {
-	b := ui.box(id, .{.Clickable, .Floating_X, .Floating_Y});
+	b := ui.box(id, .Clickable | .Floating_X | .Floating_Y);
 	b.semantic_size = .[ui.px(24), ui.px(24)];
 	b.fixed_pos = .{x, y};
 	sig := ui.signal(b);
-	set_icon(b, "x-large", ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+	set_icon(b, "x-large", ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 	return sig.clicked;
 }
 
 // Small button with an optional icon (card actions, header Create Event).
 pill_button :: (id: string, text: string, icon_name: string, bg: ui.Color, fg: ui.Color, h: float32 = 32) -> bool {
-	b := row(id, .{.Clickable, .Draw_Background, .Hot_Animation});
+	b := row(id, .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.children(), ui.px(h)];
-	b.style.radius = 8;
+	b.style.radius = all4(8);
 	b.style.bg = bg;
-	b.style.bg_hot = with_alpha(bg, bg.a * 0.8);
+	b.style.bg_hot = with_alpha(bg, bg.w * 0.8);
 	b.hover_cursor = .Pointer;
 	sig := ui.signal(b);
-	if ui.parent(b) {
-		spacer(.X, ifx text == "" then 8 else 12);
+	{ ui.parent(b); defer ui.pop_parent();
+		spacer(.X, ifx text == "" then 8.0 else 12.0);
 		if icon_name != "" {
 			icon("i", icon_name, 16, fg);
 			if text != "" { spacer(.X, 6); }
 		}
 		if text != "" { label(text, .Medium, 14, fg, 18); }
-		spacer(.X, ifx text == "" then 8 else 12);
+		spacer(.X, ifx text == "" then 8.0 else 12.0);
 	}
 	return sig.clicked;
 }
@@ -225,11 +225,11 @@ pill_button :: (id: string, text: string, icon_name: string, bg: ui.Color, fg: u
 hline :: (id: string, pad: float32 = 0) {
 	r := row(id);
 	r.semantic_size = .[ui.pct(1), ui.px(1)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, pad);
-		l := ui.box("l", .{.Draw_Background});
+		l := ui.box("l", .Draw_Background);
 		l.semantic_size = .[ui.fill(), ui.px(1)];
-		l.style.bg = cast(T)("--border-subtle");
+		l.style.bg = T("--border-subtle");
 		spacer(.X, pad);
 	}
 }
@@ -276,18 +276,18 @@ events_list_modal :: () {
 	spacer(.Y, 20);
 	hdr := row("hdr");
 	hdr.semantic_size = .[ui.pct(1), ui.px(32)];
-	if ui.parent(hdr) {
+	{ ui.parent(hdr); defer ui.pop_parent();
 		spacer(.X, 24);
-		icon("cal", "calendar", 24, cast(T)("--interactive-icon-hover"));
+		icon("cal", "calendar", 24, T("--interactive-icon-hover"));
 		spacer(.X, 8);
-		label(events_row_label(evu.guild), .Semibold, 16, cast(T)("--text-strong"), 20);
+		label(events_row_label(evu.guild), .Semibold, 16, T("--text-strong"), 20);
 		if dc.can_create_events(store(), evu.guild) {
 			spacer(.X, 16);
-			d := ui.box("div", .{.Draw_Background});
+			d := ui.box("div", .Draw_Background);
 			d.semantic_size = .[ui.px(1), ui.px(24)];
-			d.style.bg = cast(T)("--border-subtle");
+			d.style.bg = T("--border-subtle");
 			spacer(.X, 16);
-			if pill_button("create", "Create Event", "", cast(T)("--background-brand"), .{1, 1, 1, 1}) { wizard_open(); }
+			if pill_button("create", "Create Event", "", T("--background-brand"), .{1, 1, 1, 1}) { wizard_open(); }
 		}
 	}
 	if close_x("close", W - 24 - 20, 20) && top { evu.open = false; }
@@ -295,13 +295,13 @@ events_list_modal :: () {
 	if len(evs) == 0 {
 		events_empty();
 	} else {
-		list := ui.box("list", .{.Scroll_Y, .Clip});
+		list := ui.box("list", .Scroll_Y | .Clip);
 		list.semantic_size = .[ui.pct(1), ui.fill()];
 		list.layout_axis = .Y;
 		ui.signal(list);
-		if ui.parent(list) {
+		{ ui.parent(list); defer ui.pop_parent();
 			for e: evs {
-				if ui.id_scope(cast(u64)(e.id)) { event_card(e); }
+				{ ui.id_scope(cast(u64)(e.id)); defer ui.pop_seed(); event_card(e); }
 			}
 			spacer(.Y, 8);
 		}
@@ -312,7 +312,7 @@ events_list_modal :: () {
 center_line :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 	r := row(id);
 	r.semantic_size = .[ui.pct(1), ui.px(lh)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		filler(.X);
 		label(text, font, size, color, lh);
 		filler(.X);
@@ -321,9 +321,9 @@ center_line :: (id: string, text: string, font: Font_Id, size: float32, lh: floa
 
 events_empty :: () {
 	filler(.Y);
-	center_line("t", "There are no upcoming events.", .Bold, 24, 30, cast(T)("--text-strong"));
+	center_line("t", "There are no upcoming events.", .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	center_line("s", "Schedule an event for any planned activity in your server.", .Normal, 14, 20, cast(T)("--text-default"));
+	center_line("s", "Schedule an event for any planned activity in your server.", .Normal, 14, 20, T("--text-default"));
 	filler(.Y);
 	spacer(.Y, 60);
 }
@@ -331,18 +331,18 @@ events_empty :: () {
 event_card :: (e: *dc.Scheduled_Event) {
 	outer := row("card");
 	outer.semantic_size = .[ui.pct(1), ui.children()];
-	if ui.parent(outer) {
+	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 24);
-		card := ui.box("c", .{.Draw_Background, .Draw_Border, .Clickable});
+		card := ui.box("c", .Draw_Background | .Draw_Border | .Clickable);
 		card.semantic_size = .[ui.fill(), ui.children()];
 		card.layout_axis = .Y;
-		card.style.bg = cast(T)("--background-base-lower");
-		card.style.border_color = cast(T)("--border-subtle");
+		card.style.bg = T("--background-base-lower");
+		card.style.border_color = T("--border-subtle");
 		card.style.border = 1;
-		card.style.radius = 8;
+		card.style.radius = all4(8);
 		csig := ui.signal(card);
 		if csig.right_clicked { menu_open(e.id, app.ui.mouse); }
-		if ui.parent(card) { event_card_body(e, true); }
+		{ ui.parent(card); defer ui.pop_parent(); event_card_body(e, true); }
 		spacer(.X, 24);
 	}
 	spacer(.Y, 12);
@@ -353,19 +353,19 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 	spacer(.Y, 16);
 	wr := row("when");
 	wr.semantic_size = .[ui.pct(1), ui.px(22)];
-	if ui.parent(wr) {
+	{ ui.parent(wr); defer ui.pop_parent();
 		spacer(.X, 16);
 		if e.status == .Active {
-			dot := ui.box("live", .{.Draw_Background});
+			dot := ui.box("live", .Draw_Background);
 			dot.semantic_size = .[ui.px(8), ui.px(8)];
-			dot.style.radius = 4;
-			dot.style.bg = cast(T)("--status-positive");
+			dot.style.radius = all4(4);
+			dot.style.bg = T("--status-positive");
 			spacer(.X, 6);
-			label("Happening Now", .Semibold, 14, cast(T)("--text-feedback-positive"), 18);
+			label("Happening Now", .Semibold, 14, T("--text-feedback-positive"), 18);
 		} else {
-			icon("cal", "calendar", 18, cast(T)("--text-brand"));
+			icon("cal", "calendar", 18, T("--text-brand"));
 			spacer(.X, 8);
-			label(event_start_text(e.start_ms), .Semibold, 14, cast(T)("--text-brand"), 18);
+			label(event_start_text(e.start_ms), .Semibold, 14, T("--text-brand"), 18);
 		}
 		filler(.X);
 		if e.creator_id != 0 {
@@ -373,15 +373,15 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 			spacer(.X, 8);
 		}
 		if e.user_count >= 0 {
-			pill := row("count", .{.Draw_Background});
+			pill := row("count", .Draw_Background);
 			pill.semantic_size = .[ui.children(), ui.px(22)];
-			pill.style.radius = 11;
-			pill.style.bg = cast(T)("--background-base-lowest");
-			if ui.parent(pill) {
+			pill.style.radius = all4(11);
+			pill.style.bg = T("--background-base-lowest");
+			{ ui.parent(pill); defer ui.pop_parent();
 				spacer(.X, 8);
-				icon("grp", "group", 14, cast(T)("--text-strong"));
+				icon("grp", "group", 14, T("--text-strong"));
 				spacer(.X, 4);
-				label(fmt.tprint(e.user_count), .Semibold, 14, cast(T)("--text-strong"), 18);
+				label(fmt.tprint(e.user_count), .Semibold, 14, T("--text-strong"), 18);
 				spacer(.X, 8);
 			}
 		}
@@ -390,30 +390,30 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 	spacer(.Y, 8);
 	nr := row("name");
 	nr.semantic_size = .[ui.pct(1), ui.children()];
-	if ui.parent(nr) {
+	{ ui.parent(nr); defer ui.pop_parent();
 		spacer(.X, 16);
-		b := ui.box("n", .{.Draw_Text, .Wrap_Text});
+		b := ui.box("n", .Draw_Text | .Wrap_Text);
 		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.text = e.name;
 		b.style.font = F(.Semibold);
 		b.style.font_size = 20;
 		b.style.line_height = 24;
-		b.style.text_color = cast(T)("--text-strong");
+		b.style.text_color = T("--text-strong");
 		spacer(.X, 16);
 	}
 	if e.description != "" {
 		spacer(.Y, 4);
 		dr := row("desc");
 		dr.semantic_size = .[ui.pct(1), ui.children()];
-		if ui.parent(dr) {
+		{ ui.parent(dr); defer ui.pop_parent();
 			spacer(.X, 16);
-			b := ui.box("d", .{.Draw_Text, .Wrap_Text});
+			b := ui.box("d", .Draw_Text | .Wrap_Text);
 			b.semantic_size = .[ui.fill(), ui.text_size()];
 			b.text = e.description;
 			b.style.font = F(.Normal);
 			b.style.font_size = 14;
 			b.style.line_height = 18;
-			b.style.text_color = cast(T)("--text-default");
+			b.style.text_color = T("--text-default");
 			spacer(.X, 16);
 		}
 	}
@@ -421,25 +421,25 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 	hline("hl");
 	br := row("bottom");
 	br.semantic_size = .[ui.pct(1), ui.px(60)];
-	if ui.parent(br) {
+	{ ui.parent(br); defer ui.pop_parent();
 		spacer(.X, 16);
 		place, place_icon := place_of(e);
-		icon("pl", place_icon, 20, cast(T)("--text-default"));
+		icon("pl", place_icon, 20, T("--text-default"));
 		spacer(.X, 6);
-		label(ellipsize(place, .Medium, 14, 220), .Medium, 14, cast(T)("--text-default"), 18);
+		label(ellipsize(place, .Medium, 14, 220), .Medium, 14, T("--text-default"), 18);
 		filler(.X);
 		if actions {
-			if pill_button("more", "", "more-horizontal", cast(T)("--background-mod-normal"), cast(T)("--text-strong")) {
+			if pill_button("more", "", "more-horizontal", T("--background-mod-normal"), T("--text-strong")) {
 				menu_open(e.id, app.ui.mouse);
 			}
 			spacer(.X, 8);
-			if pill_button("share", "Share", "share", cast(T)("--background-mod-normal"), cast(T)("--text-strong")) {
+			if pill_button("share", "Share", "share", T("--background-mod-normal"), T("--text-strong")) {
 				share_open(e.id);
 				if net_action() { dc.event_share(app.client, e.id); }
 			}
 			spacer(.X, 8);
-			bg := ifx e.interested then cast(T)("--status-positive") else cast(T)("--background-mod-normal");
-			fg: ui.Color = ifx e.interested then .{1, 1, 1, 1} else cast(T)("--text-strong");
+			bg := ifx e.interested then T("--status-positive") else T("--background-mod-normal");
+			fg: ui.Color = ifx e.interested then .{1, 1, 1, 1} else T("--text-strong");
 			if pill_button("interested", "Interested", ifx e.interested then "checkmark-small" else "bell", bg, fg) && !e.interest_pending && net_action() {
 				dc.set_event_interest(app.client, e.id, !e.interested);
 			}
@@ -470,7 +470,7 @@ event_menu :: () {
 	pos.x = min(pos.x, app.ui.window.x - W - 8);
 	pos.y = min(pos.y, app.ui.window.y - h - 8);
 	p := menu_panel("evmenu", pos, W);
-	if ui.parent(p) {
+	{ ui.parent(p); defer ui.pop_parent();
 		spacer(.Y, 8);
 		if can_start {
 			if menu_item("start", "Start Event").clicked {
@@ -511,22 +511,22 @@ cancel_confirm :: () {
 		spacer(.Y, 24);
 		t := row("t");
 		t.semantic_size = .[ui.pct(1), ui.px(26)];
-		if ui.parent(t) {
+		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, 24);
-			label("Cancel Event?", .Bold, 20, cast(T)("--text-strong"), 26);
+			label("Cancel Event?", .Bold, 20, T("--text-strong"), 26);
 		}
 		spacer(.Y, 8);
 		b := row("b");
 		b.semantic_size = .[ui.pct(1), ui.px(20)];
-		if ui.parent(b) {
+		{ ui.parent(b); defer ui.pop_parent();
 			spacer(.X, 24);
-			label("Are you sure you want to cancel this event?", .Normal, 16, cast(T)("--text-default"), 20);
+			label("Are you sure you want to cancel this event?", .Normal, 16, T("--text-default"), 20);
 		}
 		spacer(.Y, 24);
 		btns := row("btns");
 		btns.semantic_size = .[ui.pct(1), ui.px(40)];
 		btns.style.child_gap = 8;
-		if ui.parent(btns) {
+		{ ui.parent(btns); defer ui.pop_parent();
 			spacer(.X, 24 - 8);
 			if wide_button("never", "Never Mind", .Secondary) { evu.confirm_event = 0; }
 			if wide_button("confirm", ifx evu.confirm_busy then "Cancelling..." else "Cancel Event", .Danger, !evu.confirm_busy) { confirm = true; }
@@ -544,27 +544,27 @@ cancel_confirm :: () {
 
 // Equal-width button filling its share of the row.
 wide_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> bool {
-	b := ui.box(fmt.tprintf("%s##%s", text, id), .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+	b := ui.box(fmt.tprintf("%s##%s", text, id), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 	b.semantic_size = .[ui.fill(), ui.px(40)];
-	b.style.radius = 8;
+	b.style.radius = all4(8);
 	b.style.font = F(.Medium);
 	b.style.font_size = 16;
 	b.style.text_align = .Center;
 	b.hover_cursor = .Pointer;
 	if kind == {
 	case .Primary;
-		b.style.bg = cast(T)("--background-brand");
+		b.style.bg = T("--background-brand");
 		b.style.text_color = .{1, 1, 1, 1};
 	case .Danger;
-		b.style.bg = cast(T)("--status-danger");
+		b.style.bg = T("--status-danger");
 		b.style.text_color = .{1, 1, 1, 1};
 	case;
-		b.style.bg = cast(T)("--background-mod-strong");
-		b.style.text_color = cast(T)("--text-strong");
+		b.style.bg = T("--background-mod-strong");
+		b.style.text_color = T("--text-strong");
 	}
 	b.style.bg_hot = with_alpha(b.style.bg, 0.85);
 	if !enabled {
-		b.flags += .{.Disabled};
+		b.flags |= .Disabled;
 		b.style.bg = with_alpha(b.style.bg, 0.5);
 		b.style.bg_hot = b.style.bg;
 		b.style.text_color = with_alpha(b.style.text_color, 0.5);
@@ -597,57 +597,57 @@ share_modal :: () {
 		spacer(.Y, 24);
 		ic := row("ic");
 		ic.semantic_size = .[ui.pct(1), ui.px(64)];
-		if ui.parent(ic) {
+		{ ui.parent(ic); defer ui.pop_parent();
 			filler(.X);
-			c := ui.box("circle", .{.Draw_Background});
+			c := ui.box("circle", .Draw_Background);
 			c.semantic_size = .[ui.px(64), ui.px(64)];
-			c.style.radius = 32;
-			c.style.bg = cast(T)("--background-base-lowest");
-			if ui.parent(c) {
-				i := icon("i", "calendar", 28, cast(T)("--text-strong"));
-				i.flags += .{.Floating_X, .Floating_Y};
+			c.style.radius = all4(32);
+			c.style.bg = T("--background-base-lowest");
+			{ ui.parent(c); defer ui.pop_parent();
+				i := icon("i", "calendar", 28, T("--text-strong"));
+				i.flags |= .Floating_X | .Floating_Y;
 				i.fixed_pos = .{18, 18};
 			}
 			filler(.X);
 		}
 		spacer(.Y, 24);
-		center_line("t", ifx evu.share_created then "All set. Now share your event!" else "Share Event", .Bold, 24, 30, cast(T)("--text-strong"));
+		center_line("t", ifx evu.share_created then "All set. Now share your event!" else "Share Event", .Bold, 24, 30, T("--text-strong"));
 		spacer(.Y, 8);
 		pr := row("p");
 		pr.semantic_size = .[ui.pct(1), ui.children()];
-		if ui.parent(pr) {
+		{ ui.parent(pr); defer ui.pop_parent();
 			spacer(.X, 24);
-			b := ui.box("text", .{.Draw_Text, .Wrap_Text});
+			b := ui.box("text", .Draw_Text | .Wrap_Text);
 			b.semantic_size = .[ui.fill(), ui.text_size()];
 			b.text = "Copy the event link below to invite people to your event. This also acts as a server invite link.";
 			b.style.font = F(.Normal);
 			b.style.font_size = 16;
 			b.style.line_height = 20;
 			b.style.text_align = .Center;
-			b.style.text_color = cast(T)("--text-default");
+			b.style.text_color = T("--text-default");
 			spacer(.X, 24);
 		}
 		spacer(.Y, 24);
 		lr := row("linkrow");
 		lr.semantic_size = .[ui.pct(1), ui.px(40)];
-		if ui.parent(lr) {
+		{ ui.parent(lr); defer ui.pop_parent();
 			spacer(.X, 24);
-			box := row("link", .{.Draw_Background, .Draw_Border});
+			box := row("link", .Draw_Background | .Draw_Border);
 			box.semantic_size = .[ui.fill(), ui.px(40)];
-			box.style.bg = cast(T)("--input-background-default");
+			box.style.bg = T("--input-background-default");
 			box.style.border = 1;
-			box.style.border_color = cast(T)("--input-border-default");
-			box.style.radius = 8;
-			if ui.parent(box) {
+			box.style.border_color = T("--input-border-default");
+			box.style.radius = all4(8);
+			{ ui.parent(box); defer ui.pop_parent();
 				spacer(.X, 12);
 				url := "";
 				if evu.share_len > 0 { url = dc.event_invite_link(as_string(sub(evu.share_code, 0, evu.share_len)), evu.share_event); }
 				shown := url;
-				color := cast(T)("--text-strong");
+				color := T("--text-strong");
 				if evu.share_loading {
-					shown, color = "Creating an invite...", cast(T)("--text-muted");
+					shown, color = "Creating an invite...", T("--text-muted");
 				} else if evu.share_failed {
-					shown, color = "Couldn't create an invite.", cast(T)("--text-feedback-critical");
+					shown, color = "Couldn't create an invite.", T("--text-feedback-critical");
 				}
 				label(ellipsize(shown, .Normal, 16, W - 48 - 110), .Normal, 16, color, 20);
 				filler(.X);
@@ -663,9 +663,9 @@ share_modal :: () {
 		spacer(.Y, 8);
 		er := row("exp");
 		er.semantic_size = .[ui.pct(1), ui.px(16)];
-		if ui.parent(er) {
+		{ ui.parent(er); defer ui.pop_parent();
 			spacer(.X, 24);
-			label("Your invite link expires in 7 days.", .Normal, 12, cast(T)("--text-default"), 16);
+			label("Your invite link expires in 7 days.", .Normal, 12, T("--text-default"), 16);
 		}
 		spacer(.Y, 24);
 	} }
@@ -728,7 +728,7 @@ wizard_modal :: () {
 		pr := row("progress");
 		pr.semantic_size = .[ui.pct(1), ui.px(28)];
 		pr.style.child_gap = 8;
-		if ui.parent(pr) {
+		{ ui.parent(pr); defer ui.pop_parent();
 			spacer(.X, 16 - 8);
 			NAMES := string.["Location", "Event Info", "Review"];
 			for name, i: NAMES {
@@ -736,25 +736,25 @@ wizard_modal :: () {
 				col := ui.box(name);
 				col.semantic_size = .[ui.fill(), ui.px(28)];
 				col.layout_axis = .Y;
-				if ui.parent(col) {
-					bar := ui.box("bar", .{.Draw_Background});
+				{ ui.parent(col); defer ui.pop_parent();
+					bar := ui.box("bar", .Draw_Background);
 					bar.semantic_size = .[ui.pct(1), ui.px(4)];
-					bar.style.radius = 2;
-					bar.style.bg = ifx cur then cast(T)("--background-brand") else cast(T)("--interactive-text-default");
+					bar.style.radius = all4(2);
+					bar.style.bg = ifx cur then T("--background-brand") else T("--interactive-text-default");
 					if !cur { bar.style.bg = with_alpha(bar.style.bg, 0.6); }
 					spacer(.Y, 8);
-					label(name, .Medium, 12, ifx cur then cast(T)("--text-brand") else cast(T)("--text-default"), 16);
+					label(name, .Medium, 12, ifx cur then T("--text-brand") else T("--text-default"), 16);
 				}
 			}
 			spacer(.X, 16 - 8);
 		}
 		spacer(.Y, 16);
-		body := ui.box("body", .{.Scroll_Y, .Clip});
-		max_h := max(200, app.ui.window.y - 220);
+		body := ui.box("body", .Scroll_Y | .Clip);
+		max_h := max(200.0, app.ui.window.y - 220);
 		body.semantic_size = .[ui.pct(1), ui.px(ifx body.content_size.y > 0 then min(body.content_size.y, max_h) else 240)];
 		body.layout_axis = .Y;
 		ui.signal(body);
-		if ui.parent(body) {
+		{ ui.parent(body); defer ui.pop_parent();
 			if evu.step == {
 			case .Location;
 				step_location();
@@ -767,15 +767,15 @@ wizard_modal :: () {
 				spacer(.Y, 8);
 				er := row("err");
 				er.semantic_size = .[ui.pct(1), ui.children()];
-				if ui.parent(er) {
+				{ ui.parent(er); defer ui.pop_parent();
 					spacer(.X, 16);
-					b := ui.box("t", .{.Draw_Text, .Wrap_Text});
+					b := ui.box("t", .Draw_Text | .Wrap_Text);
 					b.semantic_size = .[ui.fill(), ui.text_size()];
 					b.text = evu.error;
 					b.style.font = F(.Normal);
 					b.style.font_size = 14;
 					b.style.line_height = 18;
-					b.style.text_color = cast(T)("--text-feedback-critical");
+					b.style.text_color = T("--text-feedback-critical");
 					spacer(.X, 16);
 				}
 			}
@@ -784,7 +784,7 @@ wizard_modal :: () {
 		btns := row("btns");
 		btns.semantic_size = .[ui.pct(1), ui.px(40)];
 		btns.style.child_gap = 8;
-		if ui.parent(btns) {
+		{ ui.parent(btns); defer ui.pop_parent();
 			spacer(.X, 16 - 8);
 			if evu.step != .Location && set_button("Back##back", .Link, !evu.busy, 40) { back = true; }
 			filler(.X);
@@ -843,55 +843,55 @@ draft :: () -> dc.Event_Draft {
 step_heading :: (title: string, sub: string) {
 	t := row("h");
 	t.semantic_size = .[ui.pct(1), ui.px(30)];
-	if ui.parent(t) {
+	{ ui.parent(t); defer ui.pop_parent();
 		spacer(.X, 16);
-		label(title, .Bold, 24, cast(T)("--text-strong"), 30);
+		label(title, .Bold, 24, T("--text-strong"), 30);
 	}
 	spacer(.Y, 4);
 	s := row("sub");
 	s.semantic_size = .[ui.pct(1), ui.px(18)];
-	if ui.parent(s) {
+	{ ui.parent(s); defer ui.pop_parent();
 		spacer(.X, 16);
-		label(sub, .Normal, 14, cast(T)("--text-default"), 18);
+		label(sub, .Normal, 14, T("--text-default"), 18);
 	}
 	spacer(.Y, 20);
 }
 
 // Radio row: circle, icon + title, description below.
 radio_row :: (id: string, icon_name: string, title: string, desc: string, on: bool) -> bool {
-	r := row(id, .{.Clickable});
+	r := row(id, .Clickable);
 	r.semantic_size = .[ui.pct(1), ui.px(58)];
 	r.cross_align = .Start;
 	r.hover_cursor = .Pointer;
 	sig := ui.signal(r);
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 16);
-		rb := ui.box("radio", .{.Draw_Border});
+		rb := ui.box("radio", .Draw_Border);
 		rb.semantic_size = .[ui.px(20), ui.px(20)];
-		rb.style.radius = 10;
+		rb.style.radius = all4(10);
 		rb.style.border = 2;
-		rb.style.border_color = ifx on then cast(T)("--background-brand") else cast(T)("--interactive-icon-default");
-		if on { if ui.parent(rb) {
-			dot := ui.box("dot", .{.Draw_Background, .Floating_X, .Floating_Y});
+		rb.style.border_color = ifx on then T("--background-brand") else T("--interactive-icon-default");
+		if on { { ui.parent(rb); defer ui.pop_parent();
+			dot := ui.box("dot", .Draw_Background | .Floating_X | .Floating_Y);
 			dot.semantic_size = .[ui.px(10), ui.px(10)];
 			dot.fixed_pos = .{5, 5};
-			dot.style.radius = 5;
-			dot.style.bg = cast(T)("--background-brand");
+			dot.style.radius = all4(5);
+			dot.style.bg = T("--background-brand");
 		} }
 		spacer(.X, 12);
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
-		if ui.parent(col) {
+		{ ui.parent(col); defer ui.pop_parent();
 			tr := row("t");
 			tr.semantic_size = .[ui.pct(1), ui.px(20)];
-			if ui.parent(tr) {
-				icon("i", icon_name, 20, cast(T)("--text-strong"));
+			{ ui.parent(tr); defer ui.pop_parent();
+				icon("i", icon_name, 20, T("--text-strong"));
 				spacer(.X, 6);
-				label(title, .Medium, 16, cast(T)("--text-strong"), 20);
+				label(title, .Medium, 16, T("--text-strong"), 20);
 			}
 			spacer(.Y, 4);
-			label(desc, .Normal, 14, cast(T)("--text-default"), 18);
+			label(desc, .Normal, 14, T("--text-default"), 18);
 		}
 	}
 	return sig.clicked;
@@ -900,11 +900,11 @@ radio_row :: (id: string, icon_name: string, title: string, desc: string, on: bo
 field_label :: (text: string, required: bool) {
 	r := row(fmt.tprintf("lbl_%s", text));
 	r.semantic_size = .[ui.pct(1), ui.px(20)];
-	if ui.parent(r) {
-		label(text, .Semibold, 16, cast(T)("--text-strong"), 20);
+	{ ui.parent(r); defer ui.pop_parent();
+		label(text, .Semibold, 16, T("--text-strong"), 20);
 		if required {
 			spacer(.X, 4);
-			label("*", .Semibold, 16, cast(T)("--text-feedback-critical"), 20);
+			label("*", .Semibold, 16, T("--text-feedback-critical"), 20);
 		}
 	}
 	spacer(.Y, 8);
@@ -946,24 +946,24 @@ step_location :: () {
 		pad_begin("chans");
 		field_label("Select a channel", true);
 		vcs := voice_channels(evu.guild);
-		if len(vcs) == 0 { label("This server has no voice channels.", .Normal, 14, cast(T)("--text-muted"), 18); }
+		if len(vcs) == 0 { label("This server has no voice channels.", .Normal, 14, T("--text-muted"), 18); }
 		for id: vcs {
 			ch := dc.channel_get(store(), id);
-			if ui.id_scope(cast(u64)(id)) {
+			{ ui.id_scope(cast(u64)(id)); defer ui.pop_seed();
 				sel := evu.channel == id;
-				it_ := row("ch", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
+				it_ := row("ch", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 				it_.semantic_size = .[ui.pct(1), ui.px(40)];
-				it_.style.radius = 8;
-				it_.style.bg = ifx sel then cast(T)("--background-mod-strong") else cast(T)("--input-background-default");
-				it_.style.bg_hot = ifx sel then it_.style.bg else cast(T)("--background-mod-normal");
+				it_.style.radius = all4(8);
+				it_.style.bg = ifx sel then T("--background-mod-strong") else T("--input-background-default");
+				it_.style.bg_hot = ifx sel then it_.style.bg else T("--background-mod-normal");
 				it_.style.border = 1;
-				it_.style.border_color = ifx sel then cast(T)("--input-border-active") else cast(T)("--input-border-default");
+				it_.style.border_color = ifx sel then T("--input-border-active") else T("--input-border-default");
 				if ui.signal(it_).clicked { evu.channel = id; }
-				if ui.parent(it_) {
+				{ ui.parent(it_); defer ui.pop_parent();
 					spacer(.X, 12);
-					icon("i", "voice-normal", 18, cast(T)("--text-strong"));
+					icon("i", "voice-normal", 18, T("--text-strong"));
 					spacer(.X, 8);
-					label(ch.name, .Medium, 16, cast(T)("--text-strong"), 20);
+					label(ch.name, .Medium, 16, T("--text-strong"), 20);
 				}
 				spacer(.Y, 6);
 			}
@@ -981,27 +981,27 @@ step_location :: () {
 
 // A date or time value with earlier / later steps.
 stepper :: (id: string, text: string, icon_name: string, step_ms: s64, value: *s64) {
-	box := row(id, .{.Draw_Background, .Draw_Border});
+	box := row(id, .Draw_Background | .Draw_Border);
 	box.semantic_size = .[ui.fill(), ui.px(40)];
-	box.style.bg = cast(T)("--input-background-default");
+	box.style.bg = T("--input-background-default");
 	box.style.border = 1;
-	box.style.border_color = cast(T)("--input-border-default");
-	box.style.radius = 8;
-	if ui.parent(box) {
+	box.style.border_color = T("--input-border-default");
+	box.style.radius = all4(8);
+	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 12);
-		label(text, .Normal, 16, cast(T)("--text-strong"), 20);
+		label(text, .Normal, 16, T("--text-strong"), 20);
 		filler(.X);
 		if icon_name != "" {
-			icon("ic", icon_name, 18, cast(T)("--interactive-icon-default"));
+			icon("ic", icon_name, 18, T("--interactive-icon-default"));
 			spacer(.X, 8);
 		}
 		step :: (id: string, icon_name: string) -> bool {
-			b := ui.box(id, .{.Clickable, .Draw_Background, .Hot_Animation});
+			b := ui.box(id, .Clickable | .Draw_Background | .Hot_Animation);
 			b.semantic_size = .[ui.px(24), ui.px(24)];
-			b.style.radius = 4;
-			b.style.bg_hot = cast(T)("--background-mod-normal");
+			b.style.radius = all4(4);
+			b.style.bg_hot = T("--background-mod-normal");
 			sig := ui.signal(b);
-			set_icon(b, icon_name, ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+			set_icon(b, icon_name, ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			return sig.clicked;
 		}
 		if step("earlier", "chevron-small-left") { value.* -= step_ms; }
@@ -1014,18 +1014,18 @@ date_time_row :: (id: string, date_label: string, time_label: string, value: *s6
 	r := row(id);
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.style.child_gap = 16;
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		dc_ := ui.box("date");
 		dc_.semantic_size = .[ui.fill(), ui.children()];
 		dc_.layout_axis = .Y;
-		if ui.parent(dc_) {
+		{ ui.parent(dc_); defer ui.pop_parent();
 			field_label(date_label, true);
 			stepper("d", date_text(value.*), "calendar", 86_400_000, value);
 		}
 		tc := ui.box("time");
 		tc.semantic_size = .[ui.fill(), ui.children()];
 		tc.layout_axis = .Y;
-		if ui.parent(tc) {
+		{ ui.parent(tc); defer ui.pop_parent();
 			field_label(time_label, true);
 			stepper("t", clock_text(value.* + local_utc_offset_ms()), "", 30 * 60_000, value);
 		}
@@ -1046,7 +1046,7 @@ step_info :: () {
 		date_time_row("end", "End Date", "End Time", *evu.end_ms);
 	}
 	if evu.start_ms <= wall_ms() {
-		label("The start time must be in the future.", .Normal, 14, cast(T)("--text-feedback-critical"), 18);
+		label("The start time must be in the future.", .Normal, 14, T("--text-feedback-critical"), 18);
 		spacer(.Y, 12);
 	}
 	field_label("Description", false);
@@ -1070,22 +1070,22 @@ step_review :: () {
 	};
 	cr := row("preview");
 	cr.semantic_size = .[ui.pct(1), ui.children()];
-	if ui.parent(cr) {
+	{ ui.parent(cr); defer ui.pop_parent();
 		spacer(.X, 16);
-		card := ui.box("c", .{.Draw_Background, .Draw_Border});
+		card := ui.box("c", .Draw_Background | .Draw_Border);
 		card.semantic_size = .[ui.fill(), ui.children()];
 		card.layout_axis = .Y;
-		card.style.bg = cast(T)("--background-base-lower");
-		card.style.border_color = cast(T)("--border-subtle");
+		card.style.bg = T("--background-base-lower");
+		card.style.border_color = T("--border-subtle");
 		card.style.border = 1;
-		card.style.radius = 8;
-		if ui.parent(card) { event_card_body(*preview, false); }
+		card.style.radius = all4(8);
+		{ ui.parent(card); defer ui.pop_parent(); event_card_body(*preview, false); }
 		spacer(.X, 16);
 	}
 	spacer(.Y, 32);
-	center_line("t", "Here's a preview of your event.", .Bold, 24, 30, cast(T)("--text-strong"));
+	center_line("t", "Here's a preview of your event.", .Bold, 24, 30, T("--text-strong"));
 	spacer(.Y, 8);
-	center_line("s", "This event will auto start when it's time.", .Normal, 16, 20, cast(T)("--text-default"));
+	center_line("s", "This event will auto start when it's time.", .Normal, 16, 20, T("--text-default"));
 	spacer(.Y, 16);
 }
 #scope_export

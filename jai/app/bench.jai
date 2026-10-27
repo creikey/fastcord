@@ -214,7 +214,7 @@ bench_write_shape :: () {
 	bench.shape_written = true;
 	sh := bench_shape();
 	data, err := json.marshal(sh, .{pretty = true}, temp);
-	if err != null || os.write_entire_file(bench.shape_path, data) != null {
+	if err != .None || os.write_entire_file(bench.shape_path, data) != null {
 		fmt.eprintln("cannot write", bench.shape_path);
 		return;
 	}
@@ -354,7 +354,7 @@ bench_finish :: () {
 	}
 	if len(bench.zones.stats) > 0 { fmt.print(prof.zones_report(*bench.zones)); }
 	if bench.out_path != "" {
-		f, err := os.open(bench.out_path, .{.Write, .Create, .Append}, os.Permissions_Default_File);
+		f, err := os.open(bench.out_path, .Write | .Create | .Append, os.Permissions_Default_File);
 		if err == null {
 			os.write_string(f, strings.to_string(out));
 			os.close(f);
@@ -365,8 +365,8 @@ bench_finish :: () {
 	if bench.trace_path != "" && prof.write_chrome_trace(*bench.zones, bench.trace_path) { fmt.println("trace written to", bench.trace_path); }
 	if bench.prof_prefix != "" {
 		report := prof.sampler_report(*bench.sampler, 30);
-		folded := strings.concatenate(.{bench.prof_prefix, ".folded"}, temp);
-		txt := strings.concatenate(.{bench.prof_prefix, ".txt"}, temp);
+		folded := strings.concatenate(string.[bench.prof_prefix, ".folded"], temp);
+		txt := strings.concatenate(string.[bench.prof_prefix, ".txt"], temp);
 		ok := prof.write_folded(*bench.sampler, folded) && os.write_entire_file(txt, transmute([]u8, report)) == null;
 		if !ok { fmt.eprintln("cannot write", txt, "or", folded); }
 		fmt.print(report);

@@ -50,10 +50,10 @@ UNREAD_PITCH :: 48;
 #scope_export
 
 inbox_button :: () {
-	b := ui.box("inbox", .{.Clickable});
+	b := ui.box("inbox", .Clickable);
 	b.semantic_size = .[ui.px(20), ui.px(20)];
 	sig := ui.signal(b);
-	set_icon(b, "inbox", ifx sig.hovering || inbox.open then cast(T)("--interactive-icon-hover") else cast(T)("--icon-muted"));
+	set_icon(b, "inbox", ifx sig.hovering || inbox.open then T("--interactive-icon-hover") else T("--icon-muted"));
 	if sig.hovering && !inbox.open { tooltip_below("Inbox", b.rect); }
 	if sig.clicked {
 		if inbox.open { inbox.open = false; } else { inbox_open(b.rect); }
@@ -66,17 +66,17 @@ inbox_button :: () {
 		if ch.last_message_id == 0 { continue; }
 		rs, _ := map_find_ptr(*s.read_states, id);
 		if rs != null && rs.last_message_id >= ch.last_message_id { continue; }
-		total += channel_mentions_of(s, *ch, rs);
+		total += channel_mentions_of(s, ch, rs);
 	}
 	if total <= 0 { return; }
-	if ui.parent(b) {
+	{ ui.parent(b); defer ui.pop_parent();
 		text := ifx total > 99 then "99+" else fmt.tprint(total);
 		w := max(cast(float32)(14), cast(float32)(len(text)) * 6 + 6);
-		badge := ui.box(fmt.tprintf("%s##inboxbadge", text), .{.Draw_Background, .Draw_Text, .Floating_X, .Floating_Y});
+		badge := ui.box(fmt.tprintf("%s##inboxbadge", text), .Draw_Background | .Draw_Text | .Floating_X | .Floating_Y);
 		badge.semantic_size = .[ui.px(w), ui.px(14)];
 		badge.fixed_pos = .{20 - w + 6, 10};
-		badge.style.bg = cast(T)("--status-danger");
-		badge.style.radius = 7;
+		badge.style.bg = T("--status-danger");
+		badge.style.radius = all4(7);
 		badge.style.font = F(.Bold);
 		badge.style.font_size = 10;
 		badge.style.text_color = .{1, 1, 1, 1};
@@ -85,10 +85,10 @@ inbox_button :: () {
 }
 
 help_button :: () {
-	b := ui.box("help", .{.Clickable});
+	b := ui.box("help", .Clickable);
 	b.semantic_size = .[ui.px(20), ui.px(20)];
 	sig := ui.signal(b);
-	set_icon(b, "circle-question", ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--icon-muted"));
+	set_icon(b, "circle-question", ifx sig.hovering then T("--interactive-icon-hover") else T("--icon-muted"));
 	if sig.hovering { tooltip_below("Help", b.rect); }
 	if sig.clicked { open_url("https://support.discord.com"); }
 }
@@ -121,7 +121,7 @@ mentions_first_page :: () {
 // the tab and its controls work without the REST call.
 local_mentions :: () {
 	s := store();
-	if virtual.arena_init_growing(*inbox.arena) != null { return; }
+	if virtual.arena_init_growing(*inbox.arena) != .None { return; }
 	alloc := virtual.arena_allocator(*inbox.arena);
 	inbox.items = make_dynamic(Mention, 0, 0, alloc);
 	for * cid, l: s.messages {
@@ -150,8 +150,8 @@ inbox_receive :: (r: *dc.Feature_Result) {
 		if !r.ok { return; }
 		// a reply to an older page after a reset (first page = tag 0) is dropped
 		if r.tag != 0 && (len(inbox.items) == 0 || cast(u64)(inbox.items[len(inbox.items) - 1].msg.id) != r.tag) { return; }
-		if inbox.items == null {
-			if virtual.arena_init_growing(*inbox.arena) != null { return; }
+		if is_null(inbox.items) {
+			if virtual.arena_init_growing(*inbox.arena) != .None { return; }
 			inbox.items = make_dynamic(Mention, 0, 0, virtual.arena_allocator(*inbox.arena));
 		}
 		alloc := virtual.arena_allocator(*inbox.arena);
@@ -168,7 +168,7 @@ inbox_receive :: (r: *dc.Feature_Result) {
 
 inbox_popout :: () {
 	if !inbox.open { return; }
-	scrim := ui.box("inbox_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("inbox_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).clicked {
 		inbox.open = false;
@@ -184,38 +184,38 @@ inbox_popout :: () {
 	x := clamp(inbox.anchor.x1 - INBOX_W, 8, app.ui.window.x - INBOX_W - 8);
 	y := inbox.anchor.y1 + 8;
 	h := min(app.ui.window.y * 0.8, app.ui.window.y - y - 16);
-	p := ui.box("inboxpop", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
+	p := ui.box("inboxpop", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Clip);
 	p.semantic_size = .[ui.px(INBOX_W), ui.px(h)];
 	p.fixed_pos = .{x, y};
 	p.layout_axis = .Y;
-	p.style.bg = cast(T)("--background-surface-high");
-	p.style.border_color = cast(T)("--border-subtle");
+	p.style.bg = T("--background-surface-high");
+	p.style.border_color = T("--border-subtle");
 	p.style.border = 1;
-	p.style.radius = 8;
+	p.style.radius = all4(8);
 	p.style.shadow_color = .{0, 0, 0, 0.35};
 	p.style.shadow_blur = 16;
 	p.style.shadow_offset = .{0, 8};
 	ui.signal(p);
-	if ui.parent(p) {
+	{ ui.parent(p); defer ui.pop_parent();
 		hdr := row("hdr");
 		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
-		if ui.parent(hdr) {
+		{ ui.parent(hdr); defer ui.pop_parent();
 			spacer(.X, 16);
-			icon("i", "inbox", 20, cast(T)("--interactive-icon-default"));
+			icon("i", "inbox", 20, T("--interactive-icon-default"));
 			spacer(.X, 8);
-			label("Inbox", .Semibold, 16, cast(T)("--text-strong"), 20);
+			label("Inbox", .Semibold, 16, T("--text-strong"), 20);
 			filler(.X);
 			if inbox.tab == .Unreads {
 				rows := unread_rows();
 				if len(rows) > 0 {
-					mb := row("markall", .{.Clickable, .Draw_Background, .Hot_Animation});
+					mb := row("markall", .Clickable | .Draw_Background | .Hot_Animation);
 					mb.semantic_size = .[ui.px(32), ui.px(32)];
-					mb.style.radius = 8;
-					mb.style.bg_hot = cast(T)("--background-mod-subtle");
+					mb.style.radius = all4(8);
+					mb.style.bg_hot = T("--background-mod-subtle");
 					msig := ui.signal(mb);
-					if ui.parent(mb) {
+					{ ui.parent(mb); defer ui.pop_parent();
 						spacer(.X, 6);
-						icon("i", "double-checkmark", 20, ifx msig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+						icon("i", "double-checkmark", 20, ifx msig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 					}
 					if msig.hovering { tooltip_below("Mark All as Read", mb.rect); }
 					if msig.clicked && net_action() {
@@ -229,20 +229,20 @@ inbox_popout :: () {
 		}
 		tabs := row("tabs");
 		tabs.semantic_size = .[ui.pct(1), ui.px(32)];
-		if ui.parent(tabs) {
+		{ ui.parent(tabs); defer ui.pop_parent();
 			spacer(.X, 12);
-			for t: Inbox_Tab {
+			for t: enum_values_as_enum(Inbox_Tab) {
 				name := ifx t == .Unreads then "Unreads" else "Mentions";
 				sel := inbox.tab == t;
-				tb := row(name, .{.Clickable, .Draw_Background, .Hot_Animation});
+				tb := row(name, .Clickable | .Draw_Background | .Hot_Animation);
 				tb.semantic_size = .[ui.children(), ui.px(28)];
-				tb.style.radius = 4;
-				tb.style.bg = ifx sel then cast(T)("--background-mod-normal") else .{};
-				tb.style.bg_hot = ifx sel then tb.style.bg else cast(T)("--background-mod-subtle");
+				tb.style.radius = all4(4);
+				tb.style.bg = ifx sel then T("--background-mod-normal") else .{};
+				tb.style.bg_hot = ifx sel then tb.style.bg else T("--background-mod-subtle");
 				sig := ui.signal(tb);
-				if ui.parent(tb) {
+				{ ui.parent(tb); defer ui.pop_parent();
 					spacer(.X, 8);
-					label(name, .Medium, 14, ifx sel || sig.hovering then cast(T)("--text-strong") else cast(T)("--text-muted"), 18);
+					label(name, .Medium, 14, ifx sel || sig.hovering then T("--text-strong") else T("--text-muted"), 18);
 					spacer(.X, 8);
 				}
 				if sig.clicked && !sel {
@@ -257,9 +257,9 @@ inbox_popout :: () {
 			}
 		}
 		spacer(.Y, 8);
-		line := ui.box("hl", .{.Draw_Background});
+		line := ui.box("hl", .Draw_Background);
 		line.semantic_size = .[ui.pct(1), ui.px(1)];
-		line.style.bg = cast(T)("--border-subtle");
+		line.style.bg = T("--border-subtle");
 		if inbox.tab == {
 		case .Unreads;
 			unreads_list();
@@ -273,9 +273,9 @@ inbox_popout :: () {
 empty_note :: (text: string) {
 	r := row("empty");
 	r.semantic_size = .[ui.pct(1), ui.px(80)];
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		filler(.X);
-		label(text, .Medium, 14, cast(T)("--text-muted"), 18);
+		label(text, .Medium, 14, T("--text-muted"), 18);
 		filler(.X);
 	}
 }
@@ -297,7 +297,7 @@ unread_rows :: () -> []Unread_Row {
 		if ch.last_message_id == 0 || ch.kind == .Guild_Category { continue; }
 		{ rs, ok := map_find_ptr(*s.read_states, id);
 		if ok && rs.last_message_id >= ch.last_message_id { continue; } }
-		if dc.is_thread(*ch) {
+		if dc.is_thread(ch) {
 			tm := dc.thread_meta(id);
 			if tm == null || !tm.joined || tm.archived { continue; }
 		}
@@ -314,7 +314,7 @@ unread_rows :: () -> []Unread_Row {
 	}
 	for i: 1..len(list)-1 {
 		{ j := i;
-		while j > 0 && get(list, j).key > get(list, j - 1).key { get(list, j), get(list, j - 1) = map_find((list|j) - 1), get(list, j, );  j -= 1; } }
+		while j > 0 && get(list, j).key > get(list, j - 1).key { swap(*list[j], *list[j - 1]); j -= 1; } }
 	}
 	// guilds in order of their newest unread channel
 	guilds := make_dynamic(dc.Snowflake, 0, 0, temp);
@@ -334,7 +334,7 @@ unread_rows :: () -> []Unread_Row {
 unreads_list :: () {
 	s := store();
 	rows := unread_rows();
-	list := ui.box("unreads", .{.Scroll_Y, .Clip});
+	list := ui.box("unreads", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	ui.signal(list);
@@ -348,7 +348,7 @@ unreads_list :: () {
 	w := ui.list_window(list, UNREAD_PITCH, len(rows));
 	for i: w.first..w.last-1 {
 		r := get(rows, i);
-		if ui.id_scope(cast(u64)(ifx r.channel != 0 then r.channel else r.guild) * 2 + (ifx r.channel != 0 then 1 else 0)) {
+		{ ui.id_scope(cast(u64)(ifx r.channel != 0 then r.channel else r.guild) * 2 + cast(u64) (ifx r.channel != 0 then 1 else 0)); defer ui.pop_seed();
 			if r.channel == 0 {
 				unread_header(r.guild);
 				continue;
@@ -374,11 +374,11 @@ unread_header :: (gid: dc.Snowflake) {
 	{ g := dc.guild_get(store(), gid);
 	if g != null {
 		name = g.name;
-		gi := ui.box("gicon", .{.Draw_Background, .Draw_Text});
+		gi := ui.box("gicon", .Draw_Background | .Draw_Text);
 		gi.semantic_size = .[ui.px(24), ui.px(24)];
-		gi.style.radius = 8;
-		gi.style.bg = cast(T)("--background-mod-subtle");
-		gi.style.text_color = cast(T)("--text-default");
+		gi.style.radius = all4(8);
+		gi.style.bg = T("--background-mod-subtle");
+		gi.style.text_color = T("--text-default");
 		gi.style.text_align = .Center;
 		gi.style.font = F(.Medium);
 		gi.style.font_size = 9;
@@ -388,10 +388,10 @@ unread_header :: (gid: dc.Snowflake) {
 			gi.text = "";
 		}
 	} else {
-		icon("gicon", "clyde", 24, cast(T)("--text-muted"));
+		icon("gicon", "clyde", 24, T("--text-muted"));
 	} }
 	spacer(.X, 10);
-	label(ellipsize(name, .Semibold, 16, INBOX_W - 80), .Semibold, 16, cast(T)("--text-strong"), 20);
+	label(ellipsize(name, .Semibold, 16, INBOX_W - 80), .Semibold, 16, T("--text-strong"), 20);
 }
 
 unread_row :: (ch: *dc.Channel) {
@@ -401,12 +401,12 @@ unread_row :: (ch: *dc.Channel) {
 	ui.push_parent(outer);
 	defer ui.pop_parent();
 	spacer(.X, 8);
-	item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
+	item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
 	item.semantic_size = .[ui.fill(), ui.px(UNREAD_PITCH - 4)];
-	item.style.radius = 8;
-	item.style.bg_hot = cast(T)("--background-mod-subtle");
+	item.style.radius = all4(8);
+	item.style.bg_hot = T("--background-mod-subtle");
 	sig := ui.signal(item);
-	if ui.parent(item) {
+	{ ui.parent(item); defer ui.pop_parent();
 		spacer(.X, 12);
 		name: string;
 		if ch.kind == .DM && len(ch.recipient_ids) > 0 {
@@ -416,7 +416,7 @@ unread_row :: (ch: *dc.Channel) {
 			group_dm_icon("av", ch, 24);
 			name = dm_name(ch);
 		} else {
-			icon("ci", channel_icon_name(ch), 20, cast(T)("--channel-icon"));
+			icon("ci", channel_icon_name(ch), 20, T("--channel-icon"));
 			spacer(.X, 4);
 			name = ch.name;
 		}
@@ -424,16 +424,16 @@ unread_row :: (ch: *dc.Channel) {
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
-		if ui.parent(col) {
-			label(ellipsize(name, .Semibold, 15, INBOX_W - 180), .Semibold, 15, cast(T)("--text-strong"), 19);
+		{ ui.parent(col); defer ui.pop_parent();
+			label(ellipsize(name, .Semibold, 15, INBOX_W - 180), .Semibold, 15, T("--text-strong"), 19);
 			// the newest loaded message, when there is one
 			{ msgs := dc.messages_get(s, ch.id);
 			if len(msgs) > 0 {
 				m := *msgs[len(msgs) - 1];
 				author := name_in(m.author_id, ch.id, "unknown");
 				snippet := fmt.tprintf("%s: %s", author, snippet_text(s, first_line(m.content)));
-				t := label(ellipsize(snippet, .Normal, 13, INBOX_W - 180), .Normal, 13, cast(T)("--text-muted"), 17);
-				t.flags += .{.Clip};
+				t := label(ellipsize(snippet, .Normal, 13, INBOX_W - 180), .Normal, 13, T("--text-muted"), 17);
+				t.flags |= .Clip;
 			} }
 		}
 		rs, _ := map_find_ptr(*s.read_states, ch.id);
@@ -441,27 +441,27 @@ unread_row :: (ch: *dc.Channel) {
 		if n > 0 {
 			bt := ifx n > 99 then "99+" else fmt.tprint(n);
 			bw := max(cast(float32)(16), cast(float32)(len(bt)) * 7 + 8);
-			b := ui.box(fmt.tprintf("%s##mb", bt), .{.Draw_Background, .Draw_Text});
+			b := ui.box(fmt.tprintf("%s##mb", bt), .Draw_Background | .Draw_Text);
 			b.semantic_size = .[ui.px(bw), ui.px(16)];
-			b.style.bg = cast(T)("--status-danger");
-			b.style.radius = 8;
+			b.style.bg = T("--status-danger");
+			b.style.radius = all4(8);
 			b.style.font = F(.Bold);
 			b.style.font_size = 12;
 			b.style.text_color = .{1, 1, 1, 1};
 			b.style.text_align = .Center;
 			spacer(.X, 8);
 		} }
-		ack := ui.box("ack", .{.Clickable, .Draw_Background, .Hot_Animation});
+		ack := ui.box("ack", .Clickable | .Draw_Background | .Hot_Animation);
 		ack.semantic_size = .[ui.px(28), ui.px(28)];
-		ack.style.radius = 14;
-		ack.style.bg = cast(T)("--background-mod-subtle");
-		ack.style.bg_hot = cast(T)("--background-mod-strong");
+		ack.style.radius = all4(14);
+		ack.style.bg = T("--background-mod-subtle");
+		ack.style.bg_hot = T("--background-mod-strong");
 		ack.layout_axis = .X;
 		ack.cross_align = .Center;
 		asig := ui.signal(ack);
-		if ui.parent(ack) {
+		{ ui.parent(ack); defer ui.pop_parent();
 			spacer(.X, 4);
-			icon("i", "checkmark-small", 20, ifx asig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+			icon("i", "checkmark-small", 20, ifx asig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 		}
 		if asig.hovering { tooltip_below("Mark As Read", ack.rect); }
 		if asig.clicked && net_action() {
@@ -507,20 +507,20 @@ snippet_text :: (s: *dc.Store, line: string) -> string {
 
 mentions_list :: () {
 	s := store();
-	list := ui.box("mentions", .{.Scroll_Y, .Clip});
+	list := ui.box("mentions", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	sig := ui.signal(list);
-	if ui.parent(list) {
+	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
 		if len(inbox.items) == 0 { empty_note(ifx inbox.loading then "Loading..." else "Nobody has mentioned you recently."); }
 		remove_ := -1;
 		for * it_, i: inbox.items {
-			if ui.id_scope(cast(u64)(it_.msg.id)) {
+			{ ui.id_scope(cast(u64)(it_.msg.id)); defer ui.pop_seed();
 				ch := dc.channel_get(s, it_.msg.channel_id);
 				hr := row("mhdr");
 				hr.semantic_size = .[ui.pct(1), ui.px(32)];
-				if ui.parent(hr) {
+				{ ui.parent(hr); defer ui.pop_parent();
 					spacer(.X, 16);
 					cname := "unknown channel";
 					gname := "";
@@ -531,22 +531,22 @@ mentions_list :: () {
 					if gid == 0 && ch != null { gid = ch.guild_id; }
 					{ g := dc.guild_get(s, gid);
 					if g != null { gname = g.name; } }
-					label(ellipsize(cname, .Semibold, 14, 220), .Semibold, 14, cast(T)("--text-strong"), 18);
+					label(ellipsize(cname, .Semibold, 14, 220), .Semibold, 14, T("--text-strong"), 18);
 					if gname != "" {
 						spacer(.X, 6);
-						label(ellipsize(gname, .Medium, 12, 160), .Medium, 12, cast(T)("--text-muted"), 16);
+						label(ellipsize(gname, .Medium, 12, 160), .Medium, 12, T("--text-muted"), 16);
 					}
 					filler(.X);
-					x := ui.box("x", .{.Clickable, .Draw_Background, .Hot_Animation});
+					x := ui.box("x", .Clickable | .Draw_Background | .Hot_Animation);
 					x.semantic_size = .[ui.px(24), ui.px(24)];
-					x.style.radius = 12;
-					x.style.bg_hot = cast(T)("--background-mod-strong");
+					x.style.radius = all4(12);
+					x.style.bg_hot = T("--background-mod-strong");
 					x.layout_axis = .X;
 					x.cross_align = .Center;
 					xs := ui.signal(x);
-					if ui.parent(x) {
+					{ ui.parent(x); defer ui.pop_parent();
 						spacer(.X, 2);
-						icon("i", "x-small", 20, ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+						icon("i", "x-small", 20, ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 					}
 					if xs.hovering { tooltip_below("Mark As Read", x.rect); }
 					if xs.clicked && net_action() {
@@ -555,7 +555,7 @@ mentions_list :: () {
 					}
 					spacer(.X, 12);
 				}
-				if loose_message_card(*it_.msg, null, true) {
+				if loose_message_card(*it_.msg, .[], true) {
 					jump_to_message(it_.msg.channel_id, it_.msg.id);
 					if app.client != null { dc.track_jump(app.client, "Recent Mentions", it_.msg.channel_id, it_.msg.id); }
 					inbox.open = false;

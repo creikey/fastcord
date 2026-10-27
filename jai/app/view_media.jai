@@ -16,7 +16,7 @@ Inline_Player :: struct {
 
 players: Map(dc.Snowflake, Inline_Player); // attachment id -> player
 viewer_url: string; // image viewer overlay
-viewer_size: [2]int;
+viewer_size: Int2;
 viewer_t: float32;
 audio_ready: bool;
 
@@ -39,7 +39,7 @@ blob_receive :: (r: *dc.Media_Result) -> bool {
 	if !ok { return false; }
 	if r.status == 200 && len(r.data) > 0 {
 		b.data = r.data;
-		r.data = null; // keep ownership
+		r.data = .[]; // keep ownership
 		b.state = .Ready;
 	} else {
 		b.state = .Failed;
@@ -59,7 +59,7 @@ video_draw :: (b: *ui.Box, user: *void) {
 	d := cast(*Video_Draw)(user);
 	ip, ok := map_find_ptr(*players, d.id);
 	if !ok || ip.img.y == 0 { return; }
-	gfx.video(cast(gfx.Rect)(b.rect), ip.img.y, ip.img.cbcr, ip.img.yuv, b.style.radius[0]);
+	gfx.video(cast,force(gfx.Rect)(b.rect), ip.img.y, ip.img.cbcr, ip.img.yuv, b.style.radius[0]);
 }
 #scope_export
 
@@ -70,9 +70,9 @@ fmt_clock :: (t: float64) -> string {
 
 // Video attachment: poster until clicked, then plays inline with a control bar.
 video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
-	box := ui.box(fmt.tprintf("vid%d", cast(u64)(a.id)), .{.Draw_Background, .Clickable, .Clip});
+	box := ui.box(fmt.tprintf("vid%d", cast(u64)(a.id)), .Draw_Background | .Clickable | .Clip);
 	box.semantic_size = .[ui.px(w), ui.px(h)];
-	box.style.radius = 8;
+	box.style.radius = all4(8);
 	box.style.bg = .{0, 0, 0, 1};
 	sig := ui.signal(box);
 	ip, playing := map_find_ptr(*players, a.id);
@@ -102,46 +102,46 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 			if sig.clicked { media.player_toggle(ip.player); }
 		}
 	}
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		hovered := sig.hovering;
 		if !playing || (ip.player != null && !media.player_is_playing(ip.player)) {
-			pb := ui.box("play", .{.Draw_Background, .Floating_X, .Floating_Y});
+			pb := ui.box("play", .Draw_Background | .Floating_X | .Floating_Y);
 			pb.semantic_size = .[ui.px(48), ui.px(48)];
 			pb.fixed_pos = .{(w - 48) / 2, (h - 48) / 2};
-			pb.style.radius = 24;
+			pb.style.radius = all4(24);
 			pb.style.bg = .{0, 0, 0, 0.6};
-			if ui.parent(pb) {
-				pi := ui.box("i", .{.Floating_X, .Floating_Y});
+			{ ui.parent(pb); defer ui.pop_parent();
+				pi := ui.box("i", .Floating_X | .Floating_Y);
 				pi.semantic_size = .[ui.px(24), ui.px(24)];
 				pi.fixed_pos = .{13, 12};
 				set_icon(pi, "play", .{1, 1, 1, 1});
 			}
 		}
 		if playing && ip.player != null && hovered {
-			bar := row("controls", .{.Draw_Background, .Floating_X, .Floating_Y});
+			bar := row("controls", .Draw_Background | .Floating_X | .Floating_Y);
 			bar.semantic_size = .[ui.px(w), ui.px(32)];
 			bar.fixed_pos = .{0, h - 32};
 			bar.style.bg = .{0, 0, 0, 0.6};
-			if ui.parent(bar) {
+			{ ui.parent(bar); defer ui.pop_parent();
 				spacer(.X, 8);
 				label(fmt.tprintf("%s / %s", fmt_clock(media.player_position(ip.player)), fmt_clock(media.player_duration(ip.player))), .Medium, 12, .{1, 1, 1, 1}, 16);
 				spacer(.X, 8);
 				dur := media.player_duration(ip.player);
 				frac := ifx dur > 0 then cast(float32)(media.player_position(ip.player) / dur) else 0;
-				track := ui.box("track", .{.Draw_Background, .Clickable});
+				track := ui.box("track", .Draw_Background | .Clickable);
 				track.semantic_size = .[ui.fill(), ui.px(6)];
 				track.style.bg = .{1, 1, 1, 0.3};
-				track.style.radius = 3;
+				track.style.radius = all4(3);
 				tsig := ui.signal(track);
 				if tsig.pressed || tsig.dragging {
 					tw := track.rect.x1 - track.rect.x0;
 					if tw > 0 { media.player_seek(ip.player, cast(float64)(clamp((app.ui.mouse.x - track.rect.x0) / tw, 0, 1)) * dur); }
 				}
-				if ui.parent(track) {
-					fill := ui.box("fill", .{.Draw_Background, .Floating_X, .Floating_Y});
+				{ ui.parent(track); defer ui.pop_parent();
+					fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
 					fill.semantic_size = .[ui.px((track.rect.x1 - track.rect.x0) * frac), ui.px(6)];
-					fill.style.bg = cast(T)("--background-brand");
-					fill.style.radius = 3;
+					fill.style.bg = T("--background-brand");
+					fill.style.radius = all4(3);
 				}
 				spacer(.X, 12);
 			}
@@ -160,12 +160,12 @@ ensure_audio :: () {
 
 // Audio attachment (and voice messages): file card with play button and progress.
 audio_attachment :: (a: *dc.Attachment) {
-	card := row(fmt.tprintf("aud%d", cast(u64)(a.id)), .{.Draw_Background, .Draw_Border});
+	card := row(fmt.tprintf("aud%d", cast(u64)(a.id)), .Draw_Background | .Draw_Border);
 	card.semantic_size = .[ui.px(400), ui.px(56)];
-	card.style.bg = cast(T)("--background-surface-high");
-	card.style.border_color = cast(T)("--border-subtle");
+	card.style.bg = T("--background-surface-high");
+	card.style.border_color = T("--border-subtle");
 	card.style.border = 1;
-	card.style.radius = 8;
+	card.style.radius = all4(8);
 	ip, playing := map_find_ptr(*players, a.id);
 	if playing && ip.player == null {
 		{ blob, ok := map_find_ptr(*blobs, ip.url);
@@ -174,16 +174,16 @@ audio_attachment :: (a: *dc.Attachment) {
 			ip.player = media.player_open(media.source_from_memory(blob.data), autoplay = true);
 		} }
 	}
-	if ui.parent(card) {
+	{ ui.parent(card); defer ui.pop_parent();
 		spacer(.X, 12);
-		pb := ui.box("play", .{.Clickable, .Draw_Background, .Hot_Animation});
+		pb := ui.box("play", .Clickable | .Draw_Background | .Hot_Animation);
 		pb.semantic_size = .[ui.px(32), ui.px(32)];
-		pb.style.radius = 16;
-		pb.style.bg = cast(T)("--background-brand");
-		pb.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
+		pb.style.radius = all4(16);
+		pb.style.bg = T("--background-brand");
+		pb.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
 		is_playing := playing && ip.player != null && media.player_is_playing(ip.player);
-		if ui.parent(pb) {
-			pi := ui.box("i", .{.Floating_X, .Floating_Y});
+		{ ui.parent(pb); defer ui.pop_parent();
+			pi := ui.box("i", .Floating_X | .Floating_Y);
 			pi.semantic_size = .[ui.px(18), ui.px(18)];
 			pi.fixed_pos = .{7, 7};
 			set_icon(pi, ifx is_playing then "pause" else "play", .{1, 1, 1, 1});
@@ -199,8 +199,8 @@ audio_attachment :: (a: *dc.Attachment) {
 		spacer(.X, 12);
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
-		if ui.parent(col) {
-			label(a.filename, .Medium, 14, cast(T)("--text-link"), 18);
+		{ ui.parent(col); defer ui.pop_parent();
+			label(a.filename, .Medium, 14, T("--text-link"), 18);
 			pos, dur: float64;
 			if playing && ip.player != null {
 				pos = media.player_position(ip.player);
@@ -209,7 +209,7 @@ audio_attachment :: (a: *dc.Attachment) {
 			} else {
 				dur = cast(float64)(a.duration_secs);
 			}
-			label(fmt.tprintf("%s / %s", fmt_clock(pos), fmt_clock(dur)), .Normal, 12, cast(T)("--text-muted"), 16);
+			label(fmt.tprintf("%s / %s", fmt_clock(pos), fmt_clock(dur)), .Normal, 12, T("--text-muted"), 16);
 		}
 		spacer(.X, 12);
 	}
@@ -224,51 +224,51 @@ embeds_view :: (m: *dc.Message) {
 			w := cast(float32)(max(e.thumbnail_w, e.image_w));
 			h := cast(float32)(max(e.thumbnail_h, e.image_h));
 			if url == "" || w <= 0 || h <= 0 { continue; }
-			sc := min(1, min(400 / w, 300 / h));
-			img := ui.box(fmt.tprintf("emedia%d", i), .{.Draw_Background, .Clickable});
+			sc := min(1.0, min(400 / w, 300 / h));
+			img := ui.box(fmt.tprintf("emedia%d", i), .Draw_Background | .Clickable);
 			img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
-			img.style.radius = 8;
-			img.style.bg = cast(T)("--background-mod-subtle");
+			img.style.radius = all4(8);
+			img.style.bg = T("--background-mod-subtle");
 			set_remote_image(img, url);
 			if ui.signal(img).clicked { open_viewer(url, .{cast(int)(w), cast(int)(h)}); }
 			spacer(.Y, 4);
 			continue;
 		}
-		card := row(fmt.tprintf("embed%d", i), .{.Draw_Background});
+		card := row(fmt.tprintf("embed%d", i), .Draw_Background);
 		card.semantic_size = .[ui.px(432), ui.children()];
 		card.cross_align = .Start;
-		card.style.bg = cast(T)("--embed-background");
-		card.style.radius = 4;
-		if ui.parent(card) {
-			bar := ui.box("bar", .{.Draw_Background, .Floating_X, .Floating_Y});
+		card.style.bg = T("--embed-background");
+		card.style.radius = all4(4);
+		{ ui.parent(card); defer ui.pop_parent();
+			bar := ui.box("bar", .Draw_Background | .Floating_X | .Floating_Y);
 			bar.semantic_size = .[ui.px(4), ui.px(card.rect.y1 - card.rect.y0)];
-			bar.style.radius = .{4, 0, 4, 0};
-			bar.style.bg = ifx e.color != 0 then rgb_u32(e.color) else cast(T)("--border-strong");
+			bar.style.radius = .[4, 0, 4, 0];
+			bar.style.bg = ifx e.color != 0 then rgb_u32(e.color) else T("--border-strong");
 			spacer(.X, 16);
 			col := ui.box("col");
 			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
-			if ui.parent(col) {
+			{ ui.parent(col); defer ui.pop_parent();
 				spacer(.Y, 8);
-				if e.provider != "" { label(e.provider, .Normal, 12, cast(T)("--text-muted"), 16); }
+				if e.provider != "" { label(e.provider, .Normal, 12, T("--text-muted"), 16); }
 				if e.author_name != "" {
 					spacer(.Y, 4);
-					label(e.author_name, .Semibold, 14, cast(T)("--text-strong"), 18);
+					label(e.author_name, .Semibold, 14, T("--text-strong"), 18);
 				}
 				if e.title != "" {
 					spacer(.Y, 4);
-					t := ui.box("title", .{.Wrap_Text, .Selectable_Text});
+					t := ui.box("title", .Wrap_Text | .Selectable_Text);
 					t.semantic_size = .[ui.pct(1), ui.text_size()];
 					t.style.line_height = 22;
 					t.sel_order = cast(u64)(m.id) * 8 + 6;
-					ui.set_spans(t, ui.Span.[.{text = e.title, font = F(.Semibold), size = 16, color = ifx e.url != "" then cast(T)("--text-link") else cast(T)("--text-strong")}]);
+					ui.set_spans(t, ui.Span.[.{text = e.title, font = F(.Semibold), size = 16, color = ifx e.url != "" then T("--text-link") else T("--text-strong")}]);
 				}
 				if e.description != "" {
 					spacer(.Y, 8);
-					d := ui.box("desc", .{.Wrap_Text, .Selectable_Text});
+					d := ui.box("desc", .Wrap_Text | .Selectable_Text);
 					d.semantic_size = .[ui.pct(1), ui.text_size()];
 					d.style.line_height = 18;
-					d.style.text_color = cast(T)("--text-default");
+					d.style.text_color = T("--text-default");
 					d.sel_order = cast(u64)(m.id) * 8 + 7;
 					blocks := md_parse(e.description);
 					spans := make_dynamic(ui.Span, 0, 0, temp);
@@ -282,11 +282,11 @@ embeds_view :: (m: *dc.Message) {
 					spacer(.Y, 16);
 					w := cast(float32)(e.image_w);
 					h := cast(float32)(e.image_h);
-					sc := min(1, min(400 / w, 300 / h));
-					img := ui.box("img", .{.Draw_Background, .Clickable});
+					sc := min(1.0, min(400 / w, 300 / h));
+					img := ui.box("img", .Draw_Background | .Clickable);
 					img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
-					img.style.radius = 4;
-					img.style.bg = cast(T)("--background-mod-subtle");
+					img.style.radius = all4(4);
+					img.style.bg = T("--background-mod-subtle");
 					set_remote_image(img, e.image_url);
 					if ui.signal(img).clicked { open_viewer(e.image_url, .{e.image_w, e.image_h}); }
 				}
@@ -294,9 +294,9 @@ embeds_view :: (m: *dc.Message) {
 			}
 			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 {
 				spacer(.X, 16);
-				th := ui.box("thumb", .{.Draw_Background});
+				th := ui.box("thumb", .Draw_Background);
 				th.semantic_size = .[ui.px(80), ui.px(80)];
-				th.style.radius = 4;
+				th.style.radius = all4(4);
 				set_remote_image(th, e.thumbnail_url);
 			}
 			spacer(.X, 16);
@@ -305,7 +305,7 @@ embeds_view :: (m: *dc.Message) {
 	}
 }
 
-open_viewer :: (url: string, size: [2]int) {
+open_viewer :: (url: string, size: Int2) {
 	delete(viewer_url);
 	viewer_url = clone(url);
 	viewer_size = size;
@@ -315,7 +315,7 @@ open_viewer :: (url: string, size: [2]int) {
 // Full-window image viewer: dark scrim, image fit to 80% of the window, click outside or Escape closes.
 image_viewer :: () {
 	ui.animate(*viewer_t, 1, 25);
-	scrim := ui.box("viewer_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("viewer_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.85 * viewer_t};
 	if ui.signal(scrim).clicked {
@@ -323,12 +323,12 @@ image_viewer :: () {
 		viewer_url = "";
 		return;
 	}
-	if ui.parent(scrim) {
+	{ ui.parent(scrim); defer ui.pop_parent();
 		w := cast(float32)(max(viewer_size.x, 1));
 		h := cast(float32)(max(viewer_size.y, 1));
 		sc := min(app.ui.window.x * 0.8 / w, app.ui.window.y * 0.8 / h);
 		sc *= 0.95 + 0.05 * viewer_t;
-		img := ui.box("img", .{.Floating_X, .Floating_Y, .Clickable});
+		img := ui.box("img", .Floating_X | .Floating_Y | .Clickable);
 		img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
 		img.fixed_pos = .{(app.ui.window.x - w * sc) / 2, (app.ui.window.y - h * sc) / 2};
 		img.opacity = viewer_t;

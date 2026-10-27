@@ -70,8 +70,8 @@ pickers_debug :: () -> bool {return os.get_env("FASTCORD_PICKER_DEBUG", temp) !=
 reset_results :: (kind: Gif_Result_Kind) {
 	virtual.arena_destroy(*gv.results_arena);
 	gv.results_arena = .{};
-	gv.results = .{};
-	gv.suggestions = .{};
+	gv.results = zero(type_of(gv.results));
+	gv.suggestions = zero(type_of(gv.suggestions));
 	gv.suggested_for = "";
 	gv.result_query = "";
 	gv.kind = kind;
@@ -81,7 +81,7 @@ reset_results :: (kind: Gif_Result_Kind) {
 #scope_export
 
 gif_picker_query_changed :: () {
-	q := strings.trim_space(ui.editor_text(*pk.search[.Gif]));
+	q := strings.trim_space(ui.editor_text(*pk.search[Picker_Tab.Gif]));
 	if q == "" {
 		if gv.kind == .Search || gv.kind == .Category { reset_results(.None); }
 		gv.debounce_at = 0;
@@ -96,7 +96,7 @@ gif_picker_query_changed :: () {
 #scope_file
 
 fire_search :: () {
-	q := strings.trim_space(ui.editor_text(*pk.search[.Gif]));
+	q := strings.trim_space(ui.editor_text(*pk.search[Picker_Tab.Gif]));
 	gv.debounce_at = 0;
 	if q == "" || app.client == null { return; }
 	dc.gifs_search(app.client, q);
@@ -140,7 +140,7 @@ gif_receive :: (r: *dc.Expr_Result) {
 			};
 		}
 	case .Gif_Search; #through; case .Gif_Trending_Gifs;
-		want := strings.trim_space(ui.editor_text(*pk.search[.Gif]));
+		want := strings.trim_space(ui.editor_text(*pk.search[Picker_Tab.Gif]));
 		if r.op == .Gif_Search && gv.kind == .Search && r.query != want { return; } // stale
 		if r.op == .Gif_Search && gv.kind != .Search && gv.kind != .Category { return; }
 		if r.op == .Gif_Trending_Gifs && gv.kind != .Trending { return; }
@@ -160,20 +160,20 @@ gif_receive :: (r: *dc.Expr_Result) {
 // Back arrow in the header while showing results (clears the query, like handleClearQuery).
 gif_header_back :: () {
 	if gv.kind == .None { return; }
-	b := ui.box("gifback", .{.Clickable, .Draw_Background, .Hot_Animation});
+	b := ui.box("gifback", .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.px(32), ui.px(32)];
-	b.style.radius = 8;
-	b.style.bg_hot = cast(T)("--background-mod-subtle");
+	b.style.radius = all4(8);
+	b.style.bg_hot = T("--background-mod-subtle");
 	b.layout_axis = .X;
 	b.cross_align = .Center;
 	sig := ui.signal(b);
-	if ui.parent(b) {
+	{ ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 6);
-		icon("i", "arrow-large-left", 20, ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+		icon("i", "arrow-large-left", 20, ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 	}
 	spacer(.X, 8);
 	if sig.clicked {
-		ui.editor_set_text(*pk.search[.Gif], "");
+		ui.editor_set_text(*pk.search[Picker_Tab.Gif], "");
 		reset_results(.None);
 	}
 }
@@ -182,11 +182,11 @@ gif_header_back :: () {
 gif_header_title :: () -> bool {
 	if gv.kind == {
 	case .Trending;
-		label("Trending GIFs", .Semibold, 16, cast(T)("--text-strong"), 20);
+		label("Trending GIFs", .Semibold, 16, T("--text-strong"), 20);
 		filler(.X);
 		return true;
 	case .Favorites;
-		label("Favorites", .Semibold, 16, cast(T)("--text-strong"), 20);
+		label("Favorites", .Semibold, 16, T("--text-strong"), 20);
 		filler(.X);
 		return true;
 	}
@@ -207,9 +207,9 @@ gif_picker_body :: (r: ui.Rect) {
 	inner_w := (r.x1 - r.x0) - 2 * GIF_PAD_X;
 	cols := ifx gv.kind == .None then columns_for(inner_w) else clamp(cast(int)(inner_w / GIF_RESULTS_DESIRED_W), 1, GIF_MAX_COLS);
 	col_w := (inner_w - cast(float32)(cols - 1) * GIF_GUTTER) / cast(float32)(cols);
-	list := ui.box("gif_list", .{.Clip, .Draw_Background});
+	list := ui.box("gif_list", .Clip | .Draw_Background);
 	list.semantic_size = .[ui.pct(1), ui.pct(1)];
-	list.style.bg = cast(T)("--background-base-lower"); // the GIF grid sits on a darker well
+	list.style.bg = T("--background-base-lower"); // the GIF grid sits on a darker well
 	if gv.kind == .None {
 		gif_front_page(list, view, cols, col_w);
 	} else {
@@ -237,43 +237,43 @@ gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	pk_scroll_update(*gv.scroll, view, content_h);
 	top := gv.scroll.y;
 	vh := view.y1 - view.y0;
-	if ui.parent(list) {
+	{ ui.parent(list); defer ui.pop_parent();
 		if len(tiles) == 0 {
 			// loading placeholders (GIFPickerCategories renders 4 gray blocks per column)
 			for i: 0..(cols * 4)-1 {
-				ph := ui.box(fmt.tprintf("ph%d", i), .{.Floating_X, .Floating_Y, .Draw_Background});
+				ph := ui.box(fmt.tprintf("ph%d", i), .Floating_X | .Floating_Y | .Draw_Background);
 				ph.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 				ph.fixed_pos = .{GIF_PAD_X + cast(float32)(i % cols) * (col_w + GIF_GUTTER), GIF_GUTTER + cast(float32)(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top};
-				ph.style.radius = GIF_TILE_RADIUS;
-				ph.style.bg = cast(T)("--background-mod-subtle");
+				ph.style.radius = all4(GIF_TILE_RADIUS);
+				ph.style.bg = T("--background-mod-subtle");
 			}
 		}
 		for t, i: tiles {
 			y := GIF_GUTTER + cast(float32)(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top;
 			if y + GIF_TILE_H < 0 || y > vh { continue; }
-			if ui.id_scope(cast(u64)(i)) {
-				tile := ui.box("tile", .{.Clickable, .Floating_X, .Floating_Y, .Draw_Background, .Clip});
+			{ ui.id_scope(cast(u64)(i)); defer ui.pop_seed();
+				tile := ui.box("tile", .Clickable | .Floating_X | .Floating_Y | .Draw_Background | .Clip);
 				tile.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 				tile.fixed_pos = .{GIF_PAD_X + cast(float32)(i % cols) * (col_w + GIF_GUTTER), y};
-				tile.style.radius = GIF_TILE_RADIUS;
-				tile.style.bg = cast(T)("--background-mod-normal");
+				tile.style.radius = all4(GIF_TILE_RADIUS);
+				tile.style.bg = T("--background-mod-normal");
 				sig := ui.signal(tile);
-				if ui.parent(tile) {
-					img := ui.box("img", .{.Floating_X, .Floating_Y});
+				{ ui.parent(tile); defer ui.pop_parent();
+					img := ui.box("img", .Floating_X | .Floating_Y);
 					img.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
-					img.style.radius = GIF_TILE_RADIUS;
+					img.style.radius = all4(GIF_TILE_RADIUS);
 					set_cover_image(img, t.src);
 					// .categoryFade (favorites: .categoryFadeBlurple); hover darkens + 1px --border-strong
-					shade := ui.box("shade", .{.Floating_X, .Floating_Y, .Draw_Background, .Draw_Border});
+					shade := ui.box("shade", .Floating_X | .Floating_Y | .Draw_Background | .Draw_Border);
 					shade.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
-					shade.style.radius = GIF_TILE_RADIUS;
-					shade.style.bg = ifx t.kind == .Favorites then with_alpha(cast(T)("--background-brand"), 0.8) else .{0, 0, 0, ifx sig.hovering then 0.6 else 0.45};
-					shade.style.border = ifx sig.hovering then 1 else 0;
-					shade.style.border_color = cast(T)("--border-strong");
-					lab := row("lab", .{.Floating_X, .Floating_Y});
+					shade.style.radius = all4(GIF_TILE_RADIUS);
+					shade.style.bg = ifx t.kind == .Favorites then with_alpha(T("--background-brand"), 0.8) else .{0, 0, 0, ifx sig.hovering then 0.6 else 0.45};
+					shade.style.border = ifx sig.hovering then 1.0 else 0.0;
+					shade.style.border_color = T("--border-strong");
+					lab := row("lab", .Floating_X | .Floating_Y);
 					lab.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 					lab.cross_align = .Center;
-					if ui.parent(lab) {
+					{ ui.parent(lab); defer ui.pop_parent();
 						filler(.X);
 						if t.icon != "" {
 							icon("i", t.icon, 20, .{1, 1, 1, 1});
@@ -294,7 +294,7 @@ gif_open_tile :: (t: Tile) {
 	if t.kind == {
 	case .Category;
 		// handleSelectItem: search the category name immediately, query shown in the bar
-		ui.editor_set_text(*pk.search[.Gif], t.name);
+		ui.editor_set_text(*pk.search[Picker_Tab.Gif], t.name);
 		reset_results(.Category);
 		if app.client != null { dc.gifs_search(app.client, t.name); }
 	case .Trending;
@@ -306,7 +306,7 @@ gif_open_tile :: (t: Tile) {
 }
 
 gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
-	items := view(gv.results);
+	items: []Gif_Item = gv.results;
 	if gv.kind == .Favorites {
 		fav := make_slice(Gif_Item, len(frecency.favorite_gifs), temp);
 		for g, i: frecency.favorite_gifs { fav[i] = Gif_Item.{url = g.url, src = g.src, width = g.width, height = g.height}; }
@@ -318,7 +318,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	}
 	placed := make_slice(Placed, len(items), temp);
 	heights := make_slice(float32, cols, temp);
-	for * h: heights { h = 0; }
+	for * h: heights { h.* = 0; }
 	for it_, i: items {
 		c := 0;
 		for j: 1..cols-1 { if get(heights, j) < get(heights, c) { c = j; } }
@@ -339,70 +339,70 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 		gv.suggested_for = gv.result_query;
 		dc.gifs_suggest(app.client, gv.result_query);
 	}
-	if ui.parent(list) {
+	{ ui.parent(list); defer ui.pop_parent();
 		if gv.loading && len(items) == 0 {
 			for i: 0..(cols * 3)-1 {
-				ph := ui.box(fmt.tprintf("ph%d", i), .{.Floating_X, .Floating_Y, .Draw_Background});
+				ph := ui.box(fmt.tprintf("ph%d", i), .Floating_X | .Floating_Y | .Draw_Background);
 				h := cast(float32)(120 + (i * 37) % 100);
 				ph.semantic_size = .[ui.px(col_w), ui.px(h)];
 				ph.fixed_pos = .{GIF_PAD_X + cast(float32)(i % cols) * (col_w + GIF_GUTTER), cast(float32)(i / cols) * 232};
-				ph.style.radius = GIF_TILE_RADIUS;
-				ph.style.bg = cast(T)("--background-mod-subtle");
+				ph.style.radius = all4(GIF_TILE_RADIUS);
+				ph.style.bg = T("--background-mod-subtle");
 			}
 		} else if len(items) == 0 {
-			msg := ui.box("empty", .{.Floating_X, .Floating_Y});
+			msg := ui.box("empty", .Floating_X | .Floating_Y);
 			msg.semantic_size = .[ui.px(view.x1 - view.x0), ui.px(vh)];
 			msg.layout_axis = .Y;
 			msg.cross_align = .Center;
-			if ui.parent(msg) {
+			{ ui.parent(msg); defer ui.pop_parent();
 				spacer(.Y, vh / 2 - 30);
-				label(ifx gv.kind == .Favorites then "No favorites yet" else "No GIFs found", .Semibold, 16, cast(T)("--text-strong"), 20);
+				label(ifx gv.kind == .Favorites then "No favorites yet" else "No GIFs found", .Semibold, 16, T("--text-strong"), 20);
 			}
 		}
 		for it_, i: items {
 			p := placed[i];
 			y := p.y - top;
 			if y + p.h < -200 || y > vh + 200 { continue; }
-			if ui.id_scope(cast(u64)(i)) {
-				cell := ui.box("gif", .{.Clickable, .Floating_X, .Floating_Y, .Draw_Background, .Draw_Border});
+			{ ui.id_scope(cast(u64)(i)); defer ui.pop_seed();
+				cell := ui.box("gif", .Clickable | .Floating_X | .Floating_Y | .Draw_Background | .Draw_Border);
 				cell.semantic_size = .[ui.px(col_w), ui.px(p.h)];
 				cell.fixed_pos = .{p.x, y};
-				cell.style.radius = GIF_TILE_RADIUS;
-				cell.style.bg = cast(T)("--background-mod-muted");
+				cell.style.radius = all4(GIF_TILE_RADIUS);
+				cell.style.bg = T("--background-mod-muted");
 				sig := ui.signal(cell);
-				cell.style.border = ifx sig.hovering then 1 else 0;
-				cell.style.border_color = cast(T)("--border-strong");
+				cell.style.border = ifx sig.hovering then 1.0 else 0.0;
+				cell.style.border_color = T("--border-strong");
 				set_cover_image(cell, gif_render_url(it_.src, it_.gif_src));
 				if sig.clicked { gif_select(it_, has(app.ui_mods, .Shift)); }
 			}
 		}
 		if footer && len(items) > 0 {
 			fy := content_h - GIF_FOOTER_H - top;
-			f := ui.box("footer", .{.Floating_X, .Floating_Y});
+			f := ui.box("footer", .Floating_X | .Floating_Y);
 			f.semantic_size = .[ui.px(view.x1 - view.x0), ui.px(GIF_FOOTER_H)];
 			f.fixed_pos = .{0, fy};
 			f.layout_axis = .Y;
 			f.cross_align = .Center;
-			if ui.parent(f) {
+			{ ui.parent(f); defer ui.pop_parent();
 				spacer(.Y, 16);
 				if len(gv.suggestions) > 0 {
-					label("Try searching for...", .Semibold, 14, cast(T)("--text-muted"), 18);
+					label("Try searching for...", .Semibold, 14, T("--text-muted"), 18);
 					spacer(.Y, 8);
 					chips := row("chips");
 					chips.semantic_size = .[ui.children(), ui.px(28)];
 					chips.style.child_gap = 8;
-					if ui.parent(chips) {
+					{ ui.parent(chips); defer ui.pop_parent();
 						for s: gv.suggestions {
-							chip := ui.box(s, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+							chip := ui.box(s, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 							chip.semantic_size = .[ui.text_size(10), ui.px(28)];
-							chip.style.radius = 14;
-							chip.style.bg = cast(T)("--background-mod-subtle");
-							chip.style.bg_hot = cast(T)("--background-mod-strong");
+							chip.style.radius = all4(14);
+							chip.style.bg = T("--background-mod-subtle");
+							chip.style.bg_hot = T("--background-mod-strong");
 							chip.style.font = F(.Medium);
 							chip.style.font_size = 14;
-							chip.style.text_color = cast(T)("--interactive-text-default");
+							chip.style.text_color = T("--interactive-text-default");
 							if ui.signal(chip).clicked {
-								ui.editor_set_text(*pk.search[.Gif], s);
+								ui.editor_set_text(*pk.search[Picker_Tab.Gif], s);
 								reset_results(.Search);
 								if app.client != null { dc.gifs_search(app.client, s); }
 							}
@@ -434,7 +434,7 @@ gif_select :: (it_: Gif_Item, insert: bool) {
 // gif_src / an image src renders through the image pipeline.
 gif_render_url :: (src: string, gif_src: string) -> string {
 	u := src;
-	if strings.has_prefix(u, "//") { u = strings.concatenate(.{"https:", u}, temp); }
+	if strings.has_prefix(u, "//") { u = strings.concatenate(string.["https:", u], temp); }
 	path := u;
 	{ q := strings.index_byte(path, #char "?");
 	if q >= 0 { path = sub(path, 0, q); } }
@@ -457,7 +457,7 @@ tenor_image_variant :: (u: string) -> string {
 	name := sub_from(rest, slash + 1);
 	{ dot := strings.last_index_byte(name, #char ".");
 	if dot >= 0 { name = sub(name, 0, dot); } }
-	return strings.concatenate(.{sub(u, 0, i), sub(id, 0, len(id) - 2), "AM/", name, ".gif"}, temp);
+	return strings.concatenate(string.[sub(u, 0, i), sub(id, 0, len(id) - 2), "AM/", name, ".gif"], temp);
 }
 
 // Image scaled to cover the box (center crop), animated images advance.
@@ -496,7 +496,7 @@ cover_draw :: (b: *ui.Box, user: *void) {
 		}
 	}
 	c := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = cast(gfx.Rect)(b.rect), tex = tex, src = src, colors = .{c, c, c, c}, radii = b.style.radius});
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), tex = tex, src = src, colors = .[c, c, c, c], radii = b.style.radius});
 }
 #scope_export
 

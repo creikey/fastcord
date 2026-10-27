@@ -29,8 +29,8 @@ notify_tick :: () {
 		if s.settings.status == .Dnd || streamer_disable_notifications() { continue; }
 		{ r, ok := map_find(s.relationships, m.author_id);
 		if ok && r.kind == .Blocked { continue; } }
-		if !message_notifies(*m) || notify_prefs.desktop_off { continue; }
-		notify_message(s, *m);
+		if !message_notifies(m) || notify_prefs.desktop_off { continue; }
+		notify_message(s, m);
 	}
 	// dock badge: unread mentions
 	total := 0;

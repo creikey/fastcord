@@ -46,7 +46,7 @@ Staged :: struct {
 	draft: u64; // dc.upload_draft handle (0 offline)
 	thumb: gfx.Texture;
 	blur: gfx.Texture; // a tiny copy, drawn stretched: the spoiler blur
-	thumb_size: [2]int;
+	thumb_size: Int2;
 	data: []u8; // videos keep their bytes for the poster player
 	player: *media.Player;
 	poster: media.Video_Image;
@@ -167,7 +167,7 @@ downscale :: (px: []u8, w: int, h: int, max_side: int, allocator := context.allo
 	out: []u8;
 	ow: int;
 	oh: int;
-	sc := min(1, cast(float64)(max_side) / cast(float64)(max(w, h)));
+	sc := min(cast(float64) 1, cast(float64)(max_side) / cast(float64)(max(w, h)));
 	ow = max(1, cast(int)(cast(float64)(w) * sc + 0.5));
 	oh = max(1, cast(int)(cast(float64)(h) * sc + 0.5));
 	out = make_slice(u8, ow * oh * 4, allocator);
@@ -187,7 +187,7 @@ downscale :: (px: []u8, w: int, h: int, max_side: int, allocator := context.allo
 				{ xx_ := x0;
 				while xx_ < x1 {
 					p := sub_from(px, (yy * w + xx_) * 4);
-					acc += .{cast(int)(p[0]), cast(int)(p[1]), cast(int)(p[2]), cast(int)(p[3])};
+					for c: 0..3 { acc[c] += cast(int) p[c]; }
 					n += 1;
 					xx_ += sx;
 } }
@@ -275,12 +275,12 @@ att_work :: (j: *Att_Job) {
 		if res.size > j.limit {
 			res.err = .Too_Large;
 			delete(res.data);
-			res.data = null;
+			res.data = .[];
 		} else if strings.has_prefix(j.mime, "image/") || j.kind == .Paste_Image {
 			// thumbnail off the UI thread: 400 px (the 184x156 card area at 2x), plus a
 			// 12 px copy drawn stretched as the spoiler blur
 			{ img, err := imagefmt.decode_first_frame(res.data, temp, 64 << 20);
-			if err == null && len(img.frames) > 0 {
+			if err == .None && len(img.frames) > 0 {
 				res.thumb, res.tw, res.th = downscale(img.frames[0].pixels, img.width, img.height, 400);
 				res.blur, res.bw, res.bh = downscale(res.thumb, res.tw, res.th, 12);
 			} }
@@ -293,7 +293,7 @@ att_work :: (j: *Att_Job) {
 	delete(j.path);
 	delete(j.mime);
 	free(j);
-	free_all(temp);
+	reset_temporary_storage();
 	platform.request_frame();
 }
 #scope_export
@@ -374,10 +374,10 @@ staged_free :: (u: *Staged) {
 // Remove (trash): the uploaded file is deleted from the bucket too.
 staged_remove :: (channel_id: dc.Snowflake, key: u64) {
 	l := staged_list(channel_id);
-	for * u, i: l {
+	for * u, i: l.* {
 		if u.key != key { continue; }
 		if u.draft != 0 && app.client != null { dc.upload_draft_remove(app.client, u.draft); }
-		staged_free(*u);
+		staged_free(u);
 		ordered_remove(l, i);
 		return;
 	}
@@ -386,7 +386,7 @@ staged_remove :: (channel_id: dc.Snowflake, key: u64) {
 staged_find :: (channel_id: dc.Snowflake, key: u64) -> *Staged {
 	l, ok := map_find_ptr(*att.by_channel, channel_id);
 	if !ok { return null; }
-	for * u: l { if u.key == key { return *u; } }
+	for * u: l.* { if u.key == key { return u; } }
 	return null;
 }
 
@@ -455,7 +455,7 @@ attachments_frame :: () {
 	}
 	// video posters: the player decodes its first frame on its own thread
 	for * _, l: att.by_channel {
-		for * u: l {
+		for * u: l.* {
 			if u.player == null || u.poster.y != 0 { continue; }
 			img, _ := media.player_update(u.player);
 			if img.y != 0 { u.poster = img; } else if media.player_state(u.player) != .Error { request_wake(app.ui.time + 0.05); }
@@ -485,7 +485,7 @@ attachments_for_send :: (channel_id: dc.Snowflake, allocator := temp) -> []dc.Dr
 	l, ok := map_find_ptr(*att.by_channel, channel_id);
 	if !ok || len(l) == 0 { return .{}, true; }
 	out = make_slice(dc.Draft_Attachment, len(l), allocator);
-	for u, i: l {
+	for u, i: l.* {
 		if u.loading { return .{}, false; }
 		at(*out, i).* = .{handle = u.draft, filename = u.filename, description = u.description, spoiler = u.spoiler};
 	}
@@ -499,14 +499,14 @@ attachments_sent :: (channel_id: dc.Snowflake, nonce: dc.Snowflake) {
 	if !ok { return; }
 	if nonce != 0 && len(l) > 0 {
 		sn := Att_Sending.{channel = channel_id, drafts = make_slice(u64, len(l)), names = make_slice(string, len(l))};
-		for u, i: l {
+		for u, i: l.* {
 			sn.drafts[i] = u.draft;
 			at(*sn.names, i).* = clone(u.filename);
 			sn.total += u.size;
 		}
 		at(*att.sending, nonce).* = sn;
 	}
-	for * u: l { staged_free(*u); }
+	for * u: l.* { staged_free(u); }
 	clear(l);
 }
 
@@ -522,7 +522,7 @@ BAR_BTN :: 32;
 
 Thumb_Draw :: struct {
 	tex: gfx.Texture;
-	size: [2]int;
+	size: Int2;
 	video: media.Video_Image;
 	blurred: bool;
 }
@@ -530,15 +530,15 @@ Thumb_Draw :: struct {
 // Draws the thumbnail "contain"-fitted (images, video posters); the spoiler draws the tiny copy stretched.
 thumb_draw :: (b: *ui.Box, user: *void) {
 	d := cast(*Thumb_Draw)(user);
-	r := cast(gfx.Rect)(b.rect);
+	r := cast,force(gfx.Rect)(b.rect);
 	bw, bh := r.x1 - r.x0, r.y1 - r.y0;
 	size := d.size;
-	if d.video.y != 0 { size = d.video.size; }
+	if d.video.y != 0 { size = .{d.video.size[0], d.video.size[1]}; }
 	if size.x <= 0 || size.y <= 0 { return; }
 	if d.blurred {
 		// cover the whole area, blurry
 		white := gfx.Color.{1, 1, 1, b.opacity};
-		gfx.push_rect(.{dst = r, tex = d.tex, colors = .{white, white, white, white}, radii = b.style.radius});
+		gfx.push_rect(.{dst = r, tex = d.tex, colors = .[white, white, white, white], radii = b.style.radius});
 		return;
 	}
 	sc := min(bw / cast(float32)(size.x), bh / cast(float32)(size.y));
@@ -550,7 +550,7 @@ thumb_draw :: (b: *ui.Box, user: *void) {
 		return;
 	}
 	white := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = dst, tex = d.tex, colors = .{white, white, white, white}, radii = .{3, 3, 3, 3}});
+	gfx.push_rect(.{dst = dst, tex = d.tex, colors = .[white, white, white, white], radii = .[3, 3, 3, 3]});
 }
 #scope_export
 
@@ -558,7 +558,7 @@ thumb_draw :: (b: *ui.Box, user: *void) {
 uploads_bar :: (channel_id: dc.Snowflake) {
 	l, ok := map_find_ptr(*att.by_channel, channel_id);
 	if !ok || len(l) == 0 { return; }
-	bar := row("uploads", .{.Scroll_X, .Clip});
+	bar := row("uploads", .Scroll_X | .Clip);
 	bar.semantic_size = .[ui.pct(1), ui.px(20 + CARD + 10)];
 	bar.cross_align = .Start;
 	// a vertical wheel scrolls the row sideways, like the client's overflow-x area
@@ -570,18 +570,18 @@ uploads_bar :: (channel_id: dc.Snowflake) {
 	}
 	ui.signal(bar);
 	remove_: u64;
-	if ui.parent(bar) {
+	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 10);
-		for * u, i: l {
+		for * u, i: l.* {
 			if i > 0 { spacer(.X, 24); }
-			if staged_card(channel_id, *u) { remove_ = u.key; }
+			if staged_card(channel_id, u) { remove_ = u.key; }
 		}
 		spacer(.X, 10);
 	}
 	if remove_ != 0 { staged_remove(channel_id, remove_); }
-	sep := ui.box("upsep", .{.Draw_Background});
+	sep := ui.box("upsep", .Draw_Background);
 	sep.semantic_size = .[ui.pct(1), ui.px(1)];
-	sep.style.bg = cast(T)("--border-subtle");
+	sep.style.bg = T("--border-subtle");
 }
 #scope_file
 
@@ -594,20 +594,20 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 	ui.push_parent(col);
 	defer ui.pop_parent();
 	spacer(.Y, 20); // room for the action bar riding over the corner
-	card := ui.box("card", .{.Draw_Background});
+	card := ui.box("card", .Draw_Background);
 	card.semantic_size = .[ui.px(CARD), ui.px(CARD)];
-	card.style.bg = cast(T)("--background-base-low");
-	card.style.radius = 4;
+	card.style.bg = T("--background-base-low");
+	card.style.radius = all4(4);
 	card.layout_axis = .Y;
-	if ui.parent(card) {
+	{ ui.parent(card); defer ui.pop_parent();
 		spacer(.Y, CARD_PAD);
 		r := row("imgrow");
 		r.semantic_size = .[ui.pct(1), ui.px(CARD_IMG_H)];
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, CARD_PAD);
-			area := ui.box("img", .{.Clip});
+			area := ui.box("img", .Clip);
 			area.semantic_size = .[ui.px(CARD - 2 * CARD_PAD), ui.px(CARD_IMG_H)];
-			area.style.radius = 3;
+			area.style.radius = all4(3);
 			area.layout_axis = .Y;
 			area.cross_align = .Center;
 			has_thumb := u.thumb != 0 || u.poster.y != 0;
@@ -622,10 +622,10 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 				area.custom_draw = thumb_draw;
 				area.custom_user = d;
 			}
-			if ui.parent(area) {
+			{ ui.parent(area); defer ui.pop_parent();
 				if !has_thumb || (u.spoiler && u.blur == 0) {
 					spacer(.Y, (CARD_IMG_H - 64) / 2);
-					icon("ficon", file_icon_for(u.filename), 64, cast(T)("--interactive-icon-default"));
+					icon("ficon", file_icon_for(u.filename), 64, T("--interactive-icon-default"));
 				}
 				if u.spoiler { spoiler_pill(); }
 				if u.draft != 0 { upload_progress_line(u); }
@@ -634,25 +634,25 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 		spacer(.Y, CARD_PAD);
 		nr := row("name");
 		nr.semantic_size = .[ui.pct(1), ui.px(20)];
-		if ui.parent(nr) {
+		{ ui.parent(nr); defer ui.pop_parent();
 			spacer(.X, CARD_PAD);
-			label(fmt.tprintf("%s##fname", ellipsize(u.filename, .Normal, 14, CARD - 2 * CARD_PAD)), .Normal, 14, cast(T)("--text-default"), 20);
+			label(fmt.tprintf("%s##fname", ellipsize(u.filename, .Normal, 14, CARD - 2 * CARD_PAD)), .Normal, 14, T("--text-default"), 20);
 		}
 	}
 	// action bar over the top-right corner (translate(25%, -25%) in the client's CSS)
 	W :: 3 * BAR_BTN + 2 * 4;
 	H :: BAR_BTN + 2 * 4;
-	ab := row("actions", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y});
+	ab := row("actions", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y);
 	ab.semantic_size = .[ui.px(W), ui.px(H)];
 	ab.fixed_pos = .{CARD - W * 0.75, 20 - H * 0.25 - 4};
-	ab.style.bg = cast(T)("--background-surface-higher");
-	ab.style.border_color = cast(T)("--border-subtle");
+	ab.style.bg = T("--background-surface-higher");
+	ab.style.border_color = T("--border-subtle");
 	ab.style.border = 1;
-	ab.style.radius = 8;
+	ab.style.radius = all4(8);
 	ab.style.shadow_color = .{0, 0, 0, 0.16};
 	ab.style.shadow_blur = 4;
 	ui.signal(ab);
-	if ui.parent(ab) {
+	{ ui.parent(ab); defer ui.pop_parent();
 		spacer(.X, 4);
 		Btn :: struct {
 			id, icon, tip: string;
@@ -664,17 +664,17 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 			.{"remove", "trash", "Remove Attachment", true}
 		];
 		for bt: btns {
-			b := ui.box(bt.id, .{.Clickable, .Draw_Background, .Hot_Animation});
+			b := ui.box(bt.id, .Clickable | .Draw_Background | .Hot_Animation);
 			b.semantic_size = .[ui.px(BAR_BTN), ui.px(BAR_BTN)];
-			b.style.radius = 6;
-			b.style.bg_hot = cast(T)("--background-mod-subtle");
+			b.style.radius = all4(6);
+			b.style.bg_hot = T("--background-mod-subtle");
 			b.layout_axis = .X;
 			b.cross_align = .Center;
 			sig := ui.signal(b);
-			if ui.parent(b) {
+			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 6);
-				c := ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default");
-				if bt.danger { c = cast(T)("--status-danger"); }
+				c := ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default");
+				if bt.danger { c = T("--status-danger"); }
 				icon("i", bt.icon, 20, c);
 			}
 			if sig.hovering { tooltip_below(bt.tip, b.rect); }
@@ -696,12 +696,12 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 
 spoiler_pill :: () {
 	W :: 74;
-	p := row("spoiler", .{.Draw_Background, .Floating_X, .Floating_Y});
+	p := row("spoiler", .Draw_Background | .Floating_X | .Floating_Y);
 	p.semantic_size = .[ui.px(W), ui.px(24)];
 	p.fixed_pos = .{(CARD - 2 * CARD_PAD - W) / 2, (CARD_IMG_H - 24) / 2};
 	p.style.bg = .{0, 0, 0, 0.6};
-	p.style.radius = 12;
-	if ui.parent(p) {
+	p.style.radius = all4(12);
+	{ ui.parent(p); defer ui.pop_parent();
 		spacer(.X, 12);
 		label("SPOILER", .Bold, 12, .{1, 1, 1, 1}, 16);
 	}
@@ -712,14 +712,14 @@ upload_progress_line :: (u: *Staged) {
 	st, sent, total, ok := dc.upload_draft_status(app.client, u.draft);
 	if !ok || st != .Uploading { return; }
 	frac := ifx total > 0 then cast(float32)(sent) / cast(float32)(total) else 0;
-	track := ui.box("prog", .{.Draw_Background, .Floating_X, .Floating_Y});
+	track := ui.box("prog", .Draw_Background | .Floating_X | .Floating_Y);
 	track.semantic_size = .[ui.px(CARD - 2 * CARD_PAD), ui.px(4)];
 	track.fixed_pos = .{0, CARD_IMG_H - 4};
-	track.style.bg = with_alpha(cast(T)("--background-mod-strong"), 0.8);
-	if ui.parent(track) {
-		fill := ui.box("fill", .{.Draw_Background});
+	track.style.bg = with_alpha(T("--background-mod-strong"), 0.8);
+	{ ui.parent(track); defer ui.pop_parent();
+		fill := ui.box("fill", .Draw_Background);
 		fill.semantic_size = .[ui.px(max(0.08, frac) * (CARD - 2 * CARD_PAD)), ui.px(4)];
-		fill.style.bg = cast(T)("--background-brand");
+		fill.style.bg = T("--background-brand");
 	}
 	request_wake(app.ui.time + 0.1); // the upload's progress arrives without an event
 }
@@ -734,33 +734,33 @@ upload_progress_view :: (m: *dc.Message) {
 		{ _, s, _, ok2 := dc.upload_draft_status(app.client, d);
 		if ok2 { sent += s; } }
 	}
-	f := row("uploading", .{.Draw_Background, .Draw_Border});
+	f := row("uploading", .Draw_Background | .Draw_Border);
 	f.semantic_size = .[ui.px(432), ui.px(72)];
-	f.style.bg = cast(T)("--background-surface-high");
-	f.style.border_color = cast(T)("--border-subtle");
+	f.style.bg = T("--background-surface-high");
+	f.style.border_color = T("--border-subtle");
 	f.style.border = 1;
-	f.style.radius = 8;
-	if ui.parent(f) {
+	f.style.radius = all4(8);
+	{ ui.parent(f); defer ui.pop_parent();
 		spacer(.X, 16);
-		icon("ficon", file_icon_for(get(sn.names, 0)), 30, cast(T)("--interactive-icon-default"));
+		icon("ficon", file_icon_for(get(sn.names, 0)), 30, T("--interactive-icon-default"));
 		spacer(.X, 8);
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
-		if ui.parent(col) {
+		{ ui.parent(col); defer ui.pop_parent();
 			name := ifx len(sn.names) == 1 then get(sn.names, 0) else fmt.tprintf("%d files", len(sn.names));
-			label(fmt.tprintf("%s##upname", name), .Normal, 16, cast(T)("--text-default"), 20);
+			label(fmt.tprintf("%s##upname", name), .Normal, 16, T("--text-default"), 20);
 			spacer(.Y, 6);
-			track := ui.box("track", .{.Draw_Background});
+			track := ui.box("track", .Draw_Background);
 			track.semantic_size = .[ui.pct(1), ui.px(6)];
-			track.style.bg = cast(T)("--background-mod-strong");
-			track.style.radius = 3;
-			if ui.parent(track) {
+			track.style.bg = T("--background-mod-strong");
+			track.style.radius = all4(3);
+			{ ui.parent(track); defer ui.pop_parent();
 				frac := ifx sn.total > 0 then cast(float32)(sent) / cast(float32)(sn.total) else 0;
-				fill := ui.box("fill", .{.Draw_Background});
+				fill := ui.box("fill", .Draw_Background);
 				fill.semantic_size = .[ui.pct(max(0.05, frac)), ui.px(6)];
-				fill.style.bg = cast(T)("--background-brand");
-				fill.style.radius = 3;
+				fill.style.bg = T("--background-brand");
+				fill.style.radius = all4(3);
 			}
 		}
 		spacer(.X, 16);
@@ -805,7 +805,7 @@ modify_modal :: () {
 		att.mod_key = 0;
 		return;
 	}
-	scrim := ui.box("mod_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("mod_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
@@ -814,13 +814,13 @@ modify_modal :: () {
 	}
 	W :: 440;
 	PAD :: 24;
-	d := ui.box("modmodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	d := ui.box("modmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
-	d.style.bg = cast(T)("--modal-background");
-	d.style.border_color = cast(T)("--border-subtle");
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
 	d.style.border = 1;
-	d.style.radius = 12;
+	d.style.radius = all4(12);
 	d.layout_axis = .Y;
 	ui.signal(d);
 	ui.push_parent(d);
@@ -828,7 +828,7 @@ modify_modal :: () {
 	text_row :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 		r := row(id);
 		r.semantic_size = .[ui.pct(1), ui.px(lh)];
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, PAD);
 			label(text, font, size, color, lh);
 		}
@@ -838,20 +838,20 @@ modify_modal :: () {
 		res := ui.Edit_Result.None;
 		ir := row(id);
 		ir.semantic_size = .[ui.pct(1), ui.px(40)];
-		if ui.parent(ir) {
+		{ ui.parent(ir); defer ui.pop_parent();
 			spacer(.X, PAD);
-			box := row("input", .{.Draw_Background, .Draw_Border, .Clickable});
+			box := row("input", .Draw_Background | .Draw_Border | .Clickable);
 			box.semantic_size = .[ui.fill(), ui.px(40)];
-			box.style.bg = cast(T)("--input-background-default");
-			box.style.border_color = ifx att.mod_focus == idx then cast(T)("--input-border-active") else cast(T)("--input-border-default");
+			box.style.bg = T("--input-background-default");
+			box.style.border_color = ifx att.mod_focus == idx then T("--input-border-active") else T("--input-border-default");
 			box.style.border = 1;
-			box.style.radius = 8;
+			box.style.radius = all4(8);
 			box.hover_cursor = .IBeam;
 			if ui.signal(box).pressed { att.mod_focus = idx; }
-			if ui.parent(box) {
+			{ ui.parent(box); defer ui.pop_parent();
 				spacer(.X, 12);
 				before := app.ui.focus;
-				res = text_field("field", ed, placeholder, att.mod_focus == idx, 16, 20, 10, cast(T)("--input-placeholder-text-default"));
+				res = text_field("field", ed, placeholder, att.mod_focus == idx, 16, 20, 10, T("--input-placeholder-text-default"));
 				// a press on the text itself focuses the container (text_field)
 				if app.ui.focus != before && app.ui.focus == box.key { att.mod_focus = idx; }
 				spacer(.X, 12);
@@ -861,13 +861,13 @@ modify_modal :: () {
 		return res;
 	}
 	spacer(.Y, PAD);
-	text_row("t", fmt.tprintf("%s##modtitle", ellipsize(u.filename, .Semibold, 20, W - 2 * PAD)), .Semibold, 20, 24, cast(T)("--text-strong"));
+	text_row("t", fmt.tprintf("%s##modtitle", ellipsize(u.filename, .Semibold, 20, W - 2 * PAD)), .Semibold, 20, 24, T("--text-strong"));
 	spacer(.Y, 20);
-	text_row("lname", "Filename", .Medium, 14, 18, cast(T)("--text-strong"));
+	text_row("lname", "Filename", .Medium, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
 	r1 := field("namerow", *att.mod_name, "", 0);
 	spacer(.Y, 16);
-	text_row("ldesc", "Description (alt text)", .Medium, 14, 18, cast(T)("--text-strong"));
+	text_row("ldesc", "Description (alt text)", .Medium, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
 	r2 := field("descrow", *att.mod_desc, "Add a description", 1);
 	for r: (ui.Edit_Result.[r1, r2]) {
@@ -875,38 +875,38 @@ modify_modal :: () {
 		if r == .Escape { cancel = true; }
 	}
 	spacer(.Y, 16);
-	cr := row("spoilerrow", .{.Clickable});
+	cr := row("spoilerrow", .Clickable);
 	cr.semantic_size = .[ui.pct(1), ui.px(24)];
 	if ui.signal(cr).clicked { att.mod_spoiler = !att.mod_spoiler; }
-	if ui.parent(cr) {
+	{ ui.parent(cr); defer ui.pop_parent();
 		spacer(.X, PAD);
-		cb := ui.box("check", .{.Draw_Background, .Draw_Border});
+		cb := ui.box("check", .Draw_Background | .Draw_Border);
 		cb.semantic_size = .[ui.px(20), ui.px(20)];
-		cb.style.radius = 6;
-		cb.style.border = ifx att.mod_spoiler then 0 else 1;
-		cb.style.border_color = cast(T)("--checkbox-border-default");
-		cb.style.bg = ifx att.mod_spoiler then cast(T)("--background-brand") else .{};
+		cb.style.radius = all4(6);
+		cb.style.border = ifx att.mod_spoiler then 0.0 else 1.0;
+		cb.style.border_color = T("--checkbox-border-default");
+		cb.style.bg = ifx att.mod_spoiler then T("--background-brand") else .{};
 		if att.mod_spoiler {
-			if ui.parent(cb) {
-				i := ui.box("i", .{.Floating_X, .Floating_Y});
+			{ ui.parent(cb); defer ui.pop_parent();
+				i := ui.box("i", .Floating_X | .Floating_Y);
 				i.semantic_size = .[ui.px(18), ui.px(18)];
 				i.fixed_pos = .{1, 1};
 				set_icon(i, "checkmark-small", .{1, 1, 1, 1});
 			}
 		}
 		spacer(.X, 8);
-		label("Mark as spoiler", .Normal, 16, cast(T)("--text-default"), 20);
+		label("Mark as spoiler", .Normal, 16, T("--text-default"), 20);
 	}
 	spacer(.Y, PAD);
-	btns := row("btns", .{.Draw_Background});
+	btns := row("btns", .Draw_Background);
 	btns.semantic_size = .[ui.pct(1), ui.px(70)];
-	btns.style.bg = cast(T)("--background-base-lower");
-	btns.style.radius = .{0, 0, 12, 12};
+	btns.style.bg = T("--background-base-lower");
+	btns.style.radius = .[0, 0, 12, 12];
 	btns.style.child_gap = 8;
 	button :: (id: string, w: float32, bg: ui.Color, bg_hot: ui.Color, fg: ui.Color) -> bool {
-		b := ui.box(id, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+		b := ui.box(id, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 		b.semantic_size = .[ui.px(w), ui.px(38)];
-		b.style.radius = 8;
+		b.style.radius = all4(8);
 		b.style.font = F(.Medium);
 		b.style.font_size = 14;
 		b.style.text_align = .Center;
@@ -915,10 +915,10 @@ modify_modal :: () {
 		b.style.bg_hot = bg_hot;
 		return ui.signal(b).clicked;
 	}
-	if ui.parent(btns) {
+	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		if button("Cancel##modcancel", 96, cast(T)("--background-mod-normal"), cast(T)("--background-mod-strong"), cast(T)("--text-strong")) { cancel = true; }
-		if button("Save##modsave", 96, cast(T)("--background-brand"), with_alpha(cast(T)("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
+		if button("Cancel##modcancel", 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) { cancel = true; }
+		if button("Save##modsave", 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
 		spacer(.X, PAD - 8);
 	}
 	for * e: app.ui.events {
@@ -951,7 +951,7 @@ attachments_overlays :: () {
 			sub = fmt.tprintf("You can only upload %d files at a time!", MAX_ATTACHMENTS);
 		case .None;
 		}
-		if upload_card_overlay("att_notice", title, sub, cast(T)("--status-danger"), "file-warning", true) { att.notice = .None; }
+		if upload_card_overlay("att_notice", title, sub, T("--status-danger"), "file-warning", true) { att.notice = .None; }
 		for * e: app.ui.events {
 			if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
 				e.consumed = true;
@@ -960,7 +960,7 @@ attachments_overlays :: () {
 		}
 	} else if att.drag && ch != null {
 		where_ := ifx ch.kind == .DM then fmt.tprintf("@%s", dm_name(ch)) else (ifx ch.kind == .Group_DM then dm_name(ch) else fmt.tprintf("#%s", ch.name));
-		upload_card_overlay("att_drag", fmt.tprintf("Upload to %s", where_), "You can add comments before uploading.\nHold shift to upload directly.", cast(T)("--background-brand"), "file-up", false);
+		upload_card_overlay("att_drag", fmt.tprintf("Upload to %s", where_), "You can add comments before uploading.\nHold shift to upload directly.", T("--background-brand"), "file-up", false);
 	}
 }
 #scope_file
@@ -968,30 +968,30 @@ attachments_overlays :: () {
 // The client's upload modal look: dimmed window, a colored rounded card with a dashed-looking
 // inner border, a file icon over its top edge, a title and a line. Returns true when clicked.
 upload_card_overlay :: (id: string, title: string, sub: string, color: ui.Color, icon_name: string, clickable: bool) -> bool {
-	flags: ui.Box_Flags = .{.Draw_Background, .Floating_X, .Floating_Y, .Overlay};
-	if clickable { flags += .{.Clickable}; }
+	flags: ui.Box_Flags = .Draw_Background | .Floating_X | .Floating_Y | .Overlay;
+	if clickable { flags |= .Clickable; }
 	scrim := ui.box(id, flags);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.85};
 	clicked := clickable && ui.signal(scrim).clicked;
 	W :: 310;
 	H :: 170;
-	if ui.parent(scrim) {
-		c := ui.box("card", .{.Draw_Background, .Floating_X, .Floating_Y});
+	{ ui.parent(scrim); defer ui.pop_parent();
+		c := ui.box("card", .Draw_Background | .Floating_X | .Floating_Y);
 		c.semantic_size = .[ui.px(W), ui.px(H)];
 		c.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - H) / 2};
 		c.style.bg = color;
-		c.style.radius = 10;
-		if ui.parent(c) {
-			inner := ui.box("inner", .{.Draw_Border, .Floating_X, .Floating_Y});
+		c.style.radius = all4(10);
+		{ ui.parent(c); defer ui.pop_parent();
+			inner := ui.box("inner", .Draw_Border | .Floating_X | .Floating_Y);
 			inner.semantic_size = .[ui.px(W - 16), ui.px(H - 16)];
 			inner.fixed_pos = .{8, 8};
 			inner.style.border = 2;
 			inner.style.border_color = .{1, 1, 1, 0.45};
-			inner.style.radius = 6;
+			inner.style.radius = all4(6);
 			inner.layout_axis = .Y;
 			inner.cross_align = .Center;
-			if ui.parent(inner) {
+			{ ui.parent(inner); defer ui.pop_parent();
 				spacer(.Y, 56);
 				label(title, .Bold, 20, .{1, 1, 1, 1}, 24);
 				spacer(.Y, 8);
@@ -1001,14 +1001,14 @@ upload_card_overlay :: (id: string, title: string, sub: string, color: ui.Color,
 			}
 			// three tilted-looking file icons over the top edge
 			for k: 0..2 {
-				sz: float32 = ifx k == 1 then 72 else 56;
-				ic := ui.box(fmt.tprintf("ic%d", k), .{.Draw_Background, .Floating_X, .Floating_Y});
+				sz: float32 = ifx k == 1 then 72.0 else 56.0;
+				ic := ui.box(fmt.tprintf("ic%d", k), .Draw_Background | .Floating_X | .Floating_Y);
 				ic.semantic_size = .[ui.px(sz), ui.px(sz)];
-				ic.fixed_pos = .{W / 2 - sz / 2 + cast(float32)(k - 1) * 56, ifx k == 1 then -36 else -22};
+				ic.fixed_pos = .{W / 2 - sz / 2 + cast(float32)(k - 1) * 56, ifx k == 1 then -36.0 else -22.0};
 				ic.style.bg = .{1, 1, 1, 1};
-				ic.style.radius = 10;
-				if ui.parent(ic) {
-					i := ui.box("i", .{.Floating_X, .Floating_Y});
+				ic.style.radius = all4(10);
+				{ ui.parent(ic); defer ui.pop_parent();
+					i := ui.box("i", .Floating_X | .Floating_Y);
 					i.semantic_size = .[ui.px(sz * 0.6), ui.px(sz * 0.6)];
 					i.fixed_pos = .{sz * 0.2, sz * 0.2};
 					set_icon(i, ifx k == 1 then icon_name else (ifx k == 0 then "image-file" else "paper"), color);
@@ -1041,8 +1041,8 @@ attachments_reset_for_test :: () {
 		thread.yield();
 	}
 	for * _, l: att.by_channel {
-		for * u: l { staged_free(*u); }
-		delete(l);
+		for * u: l.* { staged_free(u); }
+		delete(l.*);
 	}
 	delete(att.by_channel);
 	for _, sn: att.sending {

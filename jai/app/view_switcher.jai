@@ -100,7 +100,7 @@ switcher_activate :: (it_: Switch_Item) {
 
 quick_switcher :: () {
 	ui.animate(*sw.t, 1, 30);
-	scrim := ui.box("sw_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("sw_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7 * sw.t};
 	if ui.signal(scrim).clicked {
@@ -125,27 +125,27 @@ quick_switcher :: () {
 		}
 	}
 	W :: 570;
-	box := ui.box("switcher", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	box := ui.box("switcher", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	box.semantic_size = .[ui.px(W), ui.children()];
 	box.fixed_pos = .{(app.ui.window.x - W) / 2, app.ui.window.y * 0.2 - (1 - sw.t) * 8};
 	box.opacity = sw.t;
 	box.layout_axis = .Y;
-	box.style.bg = cast(T)("--modal-background");
-	box.style.radius = 8;
+	box.style.bg = T("--modal-background");
+	box.style.radius = all4(8);
 	box.style.shadow_color = .{0, 0, 0, 0.3};
 	box.style.shadow_blur = 24;
 	ui.signal(box);
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.Y, 20);
 		r := row("inrow");
 		r.semantic_size = .[ui.pct(1), ui.px(70)];
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 20);
-			field := row("field", .{.Draw_Background});
+			field := row("field", .Draw_Background);
 			field.semantic_size = .[ui.fill(), ui.px(70)];
-			field.style.bg = cast(T)("--input-background-default");
-			field.style.radius = 4;
-			if ui.parent(field) {
+			field.style.bg = T("--input-background-default");
+			field.style.radius = all4(4);
+			{ ui.parent(field); defer ui.pop_parent();
 				spacer(.X, 12);
 				res := text_field("q", *sw.editor, "Where would you like to go?", true, 24, 30);
 				if res == .Submit && len(items) > 0 { switcher_activate(items[sw.sel]); }
@@ -156,14 +156,14 @@ quick_switcher :: () {
 		}
 		spacer(.Y, 12);
 		for it_, i: items {
-			ir := row(fmt.tprintf("it%d", i), .{.Clickable, .Draw_Background});
+			ir := row(fmt.tprintf("it%d", i), .Clickable | .Draw_Background);
 			ir.semantic_size = .[ui.pct(1), ui.px(34)];
 			sig := ui.signal(ir);
 			if sig.hovering && app.ui.mouse != app.ui.mouse_prev { sw.sel = i; }
 			sel := i == sw.sel;
-			if sel { ir.style.bg = cast(T)("--background-mod-normal"); }
+			if sel { ir.style.bg = T("--background-mod-normal"); }
 			if sig.clicked { switcher_activate(it_); }
-			if ui.parent(ir) {
+			{ ui.parent(ir); defer ui.pop_parent();
 				spacer(.X, 28);
 				if it_.kind == {
 				case .DM;
@@ -171,15 +171,15 @@ quick_switcher :: () {
 					if ch != null && ch.kind == .DM && len(ch.recipient_ids) > 0 { avatar_box("av", ch.recipient_ids[0], 20); } else if ch != null { group_dm_icon("ic", ch, 20); }
 				case .Channel;
 					ch := dc.channel_get(store(), it_.id);
-					icon("ic", ifx ch != null then channel_icon_name(ch) else "text", 20, cast(T)("--interactive-icon-default"));
+					icon("ic", ifx ch != null then channel_icon_name(ch) else "text", 20, T("--interactive-icon-default"));
 				case .Guild;
-					icon("ic", "server", 20, cast(T)("--interactive-icon-default"));
+					icon("ic", "server", 20, T("--interactive-icon-default"));
 				}
 				spacer(.X, 8);
-				label(it_.name, .Medium, 16, ifx sel then cast(T)("--interactive-text-active") else cast(T)("--interactive-text-default"), 20);
+				label(it_.name, .Medium, 16, ifx sel then T("--interactive-text-active") else T("--interactive-text-default"), 20);
 				if it_.sub != "" {
 					filler(.X);
-					label(it_.sub, .Semibold, 12, cast(T)("--text-muted"), 16);
+					label(it_.sub, .Semibold, 12, T("--text-muted"), 16);
 				}
 				spacer(.X, 28);
 			}

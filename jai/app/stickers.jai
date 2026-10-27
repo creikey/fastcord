@@ -20,7 +20,7 @@ best_media_size :: (px: int) -> int {
 
 message_sticker_url :: (id: dc.Snowflake, format_type: int, css_size := STICKER_PX) -> string {
 	if format_type == 3 { return dc.sticker_url(id, 3); }
-	dpr := min(2, max(gfx.scale(), 1));
+	dpr := min(2.0, max(gfx.scale(), 1));
 	size := best_media_size(cast(int)(cast(float32)(css_size) * dpr));
 	ext := "webp";
 	extra := "&quality=lossless";
@@ -84,7 +84,7 @@ sticker_image_draw :: (b: *ui.Box, user: *void) {
 		r = .{r.x0 + dx, r.y0 + dy, r.x0 + dx + w * sc, r.y0 + dy + h * sc};
 	}
 	c := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = cast(gfx.Rect)(r), tex = tex, colors = .{c, c, c, c}});
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(r), tex = tex, colors = .[c, c, c, c]});
 }
 
 // Offline (fixture) runs: load the Lottie JSON from FASTCORD_MEDIA_DIR into the

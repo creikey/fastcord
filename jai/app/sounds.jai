@@ -167,7 +167,7 @@ pack_name :: (name: string) -> string {
 	case "halloween";
 		if name == {
 		case "message1"; #through; case "deafen"; #through; case "undeafen"; #through; case "mute"; #through; case "unmute"; #through; case "disconnect"; #through; case "user_join"; #through; case "user_leave";
-			return strings.concatenate(.{"halloween_", name}, temp);
+			return strings.concatenate(string.["halloween_", name], temp);
 		}
 	case "retro";
 		if name == "message1" { return "bit_message1"; }
@@ -191,7 +191,7 @@ sound_play :: (name: string) {
 	if platform.is_headless() || app.client == null || sound_disabled(name) { return; }
 	hash, ok := sound_asset(pack_name(name));
 	if !ok { return; }
-	url := strings.concatenate(.{"https://discord.com/assets/", hash, ".mp3"}, temp);
+	url := strings.concatenate(string.["https://discord.com/assets/", hash, ".mp3"], temp);
 	s, have := map_find(snd.sounds, url);
 	if !have {
 		s = new(Sound);
@@ -336,8 +336,8 @@ voice_members :: () {
 // dc.take_new_messages. Valid until the next frame.
 app_new_messages :: () -> []dc.New_Message {
 	if app.client == null { return .{}; }
-	if static_frame5 != app.frame || static_cur6 == null {
-		if static_cur6 != null {
+	if static_frame5 != app.frame || is_null(static_cur6) {
+		if !is_null(static_cur6) {
 			dc.new_messages_free(app.client, static_cur6);
 			delete(static_cur6);
 		}
@@ -382,7 +382,7 @@ message_sounds :: () {
 	for * m: app_new_messages() {
 		if app.focused && m.channel_id == app.view.channel { continue; } // notifyMessagesInSelectedChannel: false
 		if s.settings.status == .Dnd { continue; }
-		if !message_notifies(*m) { continue; }
+		if !message_notifies(m) { continue; }
 		sound_play("message1");
 		break; // one sound per frame
 	}

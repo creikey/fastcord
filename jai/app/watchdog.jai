@@ -87,7 +87,7 @@ write_gfx_report :: () {
 	);
 	dir := app_data_dir("logs");
 	os.make_directory_all(dir);
-	f, err := os.open(fmt.tprintf("%s/gfx.txt", dir), .{.Write, .Create, .Append});
+	f, err := os.open(fmt.tprintf("%s/gfx.txt", dir), .Write | .Create | .Append);
 	if err != null { return; }
 	os.write_string(f, line);
 	os.close(f);
@@ -97,14 +97,14 @@ watchdog_proc :: () {
 	while true {
 		time.sleep(time.Second);
 		write_gfx_report();
-		free_all(temp);
+		reset_temporary_storage();
 		start := atomic_load(*wd.frame_start);
 		if start == 0 || start == wd.reported { continue; }
-		stuck := time.Duration(time.to_unix_nanoseconds(time.now()) - start);
+		stuck := cast(time.Duration) (time.to_unix_nanoseconds(time.now()) - start);
 		if stuck < HANG_SECONDS * time.Second { continue; }
 		wd.reported = start;
 		report_hang(stuck);
-		free_all(temp);
+		reset_temporary_storage();
 	}
 }
 

@@ -7,7 +7,7 @@ Image_State :: enum u8 {
 Remote_Image :: struct {
 	state: Image_State;
 	tex: gfx.Texture;
-	size: [2]int;
+	size: Int2;
 	frames: []gfx.Texture; // animated images: one texture per frame
 	durations: []int;
 	total_ms: int;
@@ -43,12 +43,12 @@ if ok {
 images_receive :: () {
 	if app.client == null { return; }
 	for * r: dc.client_take_media(app.client) {
-		defer dc.media_result_free(app.client, *r);
-		if blob_receive(*r) {
+		defer dc.media_result_free(app.client, r);
+		if blob_receive(r) {
 			app.ui.animating = true;
 			continue;
 		}
-		if sounds_receive(*r) { continue; }
+		if sounds_receive(r) { continue; }
 		if twemoji_receive(r.url, r.status, r.data) { continue; }
 		im, ok := map_find_ptr(*images, r.url);
 		if !ok { continue; }
@@ -90,7 +90,7 @@ image_draw :: (b: *ui.Box, user: *void) {
 	if tex == 0 { return; }
 	if len(im.frames) > 1 { app.ui.animating = true; }
 	white := gfx.Color.{1, 1, 1, b.opacity};
-	gfx.push_rect(.{dst = cast(gfx.Rect)(b.rect), tex = tex, colors = .{white, white, white, white}, radii = b.style.radius});
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), tex = tex, colors = .[white, white, white, white], radii = b.style.radius});
 }
 #scope_export
 
@@ -152,14 +152,14 @@ avatar_draw :: (b: *ui.Box, user: *void) {
 	if tex != 0 {
 		if len(im.frames) > 1 { app.ui.animating = true; }
 		white := gfx.Color.{1, 1, 1, b.opacity};
-		gfx.push_rect(.{dst = cast(gfx.Rect)(b.rect), tex = tex, colors = .{white, white, white, white}, radii = b.style.radius});
+		gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), tex = tex, colors = .[white, white, white, white], radii = b.style.radius});
 		return;
 	}
 	if d.default < 0 { return; }
 	// Local rendering of the default avatar: identical to the CDN image, shown instantly and offline.
 	c := cast(gfx.Color)(rgb_u32(DEFAULT_AVATAR_COLORS[d.default]));
-	c.a = b.opacity;
-	gfx.push_rect(.{dst = cast(gfx.Rect)(b.rect), colors = .{c, c, c, c}, radii = b.style.radius});
+	c.w = b.opacity;
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(b.rect), colors = .[c, c, c, c], radii = b.style.radius});
 	w := b.rect.x1 - b.rect.x0;
 	h := b.rect.y1 - b.rect.y0;
 	gw := w * DEFAULT_AVATAR_GLYPH; // official glyph spans 154/256 of the avatar width
@@ -168,16 +168,16 @@ avatar_draw :: (b: *ui.Box, user: *void) {
 	{ ic := icon_texture("clyde", gw);
 	if ic != 0 {
 		wc := gfx.Color.{1, 1, 1, b.opacity};
-		gfx.push_rect(.{dst = .{gx, gy, gx + gw, gy + gw}, tex = ic, colors = .{wc, wc, wc, wc}});
+		gfx.push_rect(.{dst = .{gx, gy, gx + gw, gy + gw}, tex = ic, colors = .[wc, wc, wc, wc]});
 	} }
 }
 #scope_export
 
 avatar_box :: (id: string, uid: dc.Snowflake, size: float32) -> *ui.Box {
-	b := ui.box(id, .{.Draw_Background});
+	b := ui.box(id, .Draw_Background);
 	b.semantic_size = .[ui.px(size), ui.px(size)];
-	b.style.radius = size / 2;
-	b.style.bg = cast(T)("--background-mod-normal");
+	b.style.radius = all4(size / 2);
+	b.style.bg = T("--background-mod-normal");
 	u := dc.user_get(store(), uid);
 	d := new(Avatar_Draw, temp);
 	d.url = avatar_url_for(uid, size);
@@ -197,14 +197,14 @@ avatar_with_status :: (id: string, uid: dc.Snowflake, size: float32, surface: ui
 	b := avatar_box(id, uid, size);
 	dot := ifx size >= 80 then cast(float32)(16) else (ifx size >= 40 then cast(float32)(12) else cast(float32)(10)); // 80px profile avatars: 16px dot
 	ring := ifx size >= 40 then cast(float32)(4) else cast(float32)(3);
-	if ui.parent(b) {
-		r := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
+	{ ui.parent(b); defer ui.pop_parent();
+		r := ui.box("ring", .Draw_Background | .Floating_X | .Floating_Y);
 		r.semantic_size = .[ui.px(dot + ring * 2), ui.px(dot + ring * 2)];
 		r.fixed_pos = .{size - dot - ring, size - dot - ring};
 		r.style.bg = surface;
-		r.style.radius = (dot + ring * 2) / 2;
-		if ui.parent(r) {
-			d := ui.box("dot", .{.Floating_X, .Floating_Y});
+		r.style.radius = all4((dot + ring * 2) / 2);
+		{ ui.parent(r); defer ui.pop_parent();
+			d := ui.box("dot", .Floating_X | .Floating_Y);
 			d.semantic_size = .[ui.px(dot), ui.px(dot)];
 			d.fixed_pos = .{ring, ring};
 			st := user_status(uid);
@@ -248,7 +248,7 @@ draw_custom_emoji :: (sp: ui.Span, r: ui.Rect, opacity: float32) {
 	tex := image_texture(im);
 	if tex == 0 { return; }
 	c := gfx.Color.{1, 1, 1, opacity};
-	gfx.push_rect(.{dst = cast(gfx.Rect)(r), tex = tex, colors = .{c, c, c, c}});
+	gfx.push_rect(.{dst = cast,force(gfx.Rect)(r), tex = tex, colors = .[c, c, c, c]});
 }
 
 // The client tints banner-less profiles with the avatar's dominant color: the
@@ -263,7 +263,7 @@ dominant_color :: (rgba: []u8) -> ui.Color {
 		r, g, b := rgba[i], rgba[i + 1], rgba[i + 2];
 		k := (((cast(int)(r)) >> 4) << 8) | (((cast(int)(g)) >> 4) << 4) | ((cast(int)(b)) >> 4);
 		at(*counts, k).* += 1;
-		sums[k] += .{cast(u32)(r), cast(u32)(g), cast(u32)(b)};
+		sums[k][0] += r; sums[k][1] += g; sums[k][2] += b;
 		i += 4 * step;
 } }
 	best := -1;
@@ -277,7 +277,7 @@ dominant_color :: (rgba: []u8) -> ui.Color {
 image_decode :: (data: []u8) -> Remote_Image {
 	im := Remote_Image.{state = .Failed, last_use = app.frame};
 	img, err := imagefmt.decode(data, temp, 16 << 20);
-	if err != null || len(img.frames) == 0 { return im; }
+	if err != .None || len(img.frames) == 0 { return im; }
 	im.size = .{img.width, img.height};
 	im.dominant = dominant_color(img.frames[0].pixels);
 	if len(img.frames) == 1 {

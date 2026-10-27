@@ -79,7 +79,7 @@ jump_apply :: (channel_id: dc.Snowflake, cs: *Chat_State, msgs: []dc.Message, vi
 	}
 	h, ok := map_find(cs.heights, msgs[idx].id);
 	if !ok { h = MSG_LINE_H + 4; }
-	cs.scroll_target = max(0, below + h / 2 - view_h / 2);
+	cs.scroll_target = max(0.0, below + h / 2 - view_h / 2);
 	app.ui.animating = true;
 	// keep steering until the rows around it have been measured
 	jump.frames += 1;
@@ -105,12 +105,12 @@ search_box_w :: (b: *ui.Box) -> float32 {
 }
 
 search_box :: (ch: *dc.Channel, hint: string) {
-	b := row("search", .{.Draw_Background, .Draw_Border, .Clickable});
+	b := row("search", .Draw_Background | .Draw_Border | .Clickable);
 	b.semantic_size = .[ui.px(SEARCH_W, 0.4), ui.px(32)]; // narrow windows: gives up to 40% before the header overflows
-	b.style.bg = cast(T)("--input-background-default");
-	b.style.border_color = ifx search.focused then cast(T)("--input-border-active") else cast(T)("--input-border-default");
+	b.style.bg = T("--input-background-default");
+	b.style.border_color = ifx search.focused then T("--input-border-active") else T("--input-border-default");
 	b.style.border = 1;
-	b.style.radius = 8;
+	b.style.radius = all4(8);
 	b.hover_cursor = .IBeam;
 	search.box_rect = b.rect;
 	// Cmd/Ctrl+F focuses search, like the client
@@ -135,9 +135,9 @@ search_box :: (ch: *dc.Channel, hint: string) {
 			if e.kind == .Mouse_Down && !rect_has(search.box_rect, e.pos) && !in_suggestions(e.pos) { search.focused = false; }
 		}
 	}
-	if ui.parent(b) {
+	{ ui.parent(b); defer ui.pop_parent();
 		spacer(.X, 9);
-		res := text_field("q", *search.editor, ellipsize(hint, .Medium, 14, search_box_w(b) - 46), search.focused, 14, 18, 6, cast(T)("--input-placeholder-text-default"));
+		res := text_field("q", *search.editor, ellipsize(hint, .Medium, 14, search_box_w(b) - 46), search.focused, 14, 18, 6, T("--input-placeholder-text-default"));
 		if search.key == 0 || app.ui.focus == 0 {
 			// remember the field's key so app.ui.focus keeps the composer quiet
 			search.key = b.key;
@@ -152,15 +152,15 @@ search_box :: (ch: *dc.Channel, hint: string) {
 		}
 		text := ui.editor_text(*search.editor);
 		if text != "" {
-			x := ui.box("clear", .{.Clickable});
+			x := ui.box("clear", .Clickable);
 			x.semantic_size = .[ui.px(16), ui.px(16)];
 			if ui.signal(x).clicked {
 				ui.editor_set_text(*search.editor, "");
 				search.active = false;
 			}
-			set_icon(x, "x-small", cast(T)("--interactive-icon-default"));
+			set_icon(x, "x-small", T("--interactive-icon-default"));
 		} else {
-			icon("mag", "magnifying-glass", 16, cast(T)("--icon-muted"));
+			icon("mag", "magnifying-glass", 16, T("--icon-muted"));
 		}
 		spacer(.X, 8);
 	}
@@ -240,38 +240,38 @@ search_suggestions :: () {
 	if len(items) == 0 { return; }
 	r := search.box_rect;
 	W :: 320;
-	p := ui.box("search_sugg", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	p := ui.box("search_sugg", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	p.semantic_size = .[ui.px(W), ui.children()];
-	p.fixed_pos = .{max(8, r.x1 - W), r.y1 + 8};
+	p.fixed_pos = .{max(8.0, r.x1 - W), r.y1 + 8};
 	p.layout_axis = .Y;
-	p.style.bg = cast(T)("--background-surface-high");
-	p.style.border_color = cast(T)("--border-subtle");
+	p.style.bg = T("--background-surface-high");
+	p.style.border_color = T("--border-subtle");
 	p.style.border = 1;
-	p.style.radius = 8;
+	p.style.radius = all4(8);
 	p.style.shadow_color = .{0, 0, 0, 0.3};
 	p.style.shadow_blur = 12;
 	p.style.shadow_offset = .{0, 6};
 	ui.signal(p);
 	sugg_rect = p.rect;
-	if ui.parent(p) {
+	{ ui.parent(p); defer ui.pop_parent();
 		inset_begin(8, 8);
 		defer inset_end(8, 8);
-		label(title, .Semibold, 12, cast(T)("--text-muted"), 24);
+		label(title, .Semibold, 12, T("--text-muted"), 24);
 		for it_, i: items {
-			ir := row(fmt.tprintf("s%d", i), .{.Clickable, .Draw_Background, .Hot_Animation});
+			ir := row(fmt.tprintf("s%d", i), .Clickable | .Draw_Background | .Hot_Animation);
 			ir.semantic_size = .[ui.pct(1), ui.px(32)];
-			ir.style.radius = 4;
-			ir.style.bg_hot = cast(T)("--background-mod-subtle");
+			ir.style.radius = all4(4);
+			ir.style.bg_hot = T("--background-mod-subtle");
 			if ui.signal(ir).clicked {
 				base := sub(text, 0, len(text) - len(last));
-				ui.editor_set_text(*search.editor, strings.concatenate(.{base, it_.insert}, temp));
+				ui.editor_set_text(*search.editor, strings.concatenate(string.[base, it_.insert], temp));
 			}
-			if ui.parent(ir) {
+			{ ui.parent(ir); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(it_.label, .Medium, 14, cast(T)("--text-strong"), 18);
+				label(it_.label, .Medium, 14, T("--text-strong"), 18);
 				if it_.detail != "" {
 					spacer(.X, 6);
-					label(it_.detail, .Normal, 14, cast(T)("--text-muted"), 18);
+					label(it_.detail, .Normal, 14, T("--text-muted"), 18);
 				}
 			}
 		}
@@ -286,21 +286,21 @@ search_run :: (ch: *dc.Channel, text: string) {
 	s := store();
 	virtual.arena_destroy(*search.arena);
 	search.arena = .{};
-	if virtual.arena_init_growing(*search.arena) != null { return; }
+	if virtual.arena_init_growing(*search.arena) != .None { return; }
 	a := virtual.arena_allocator(*search.arena);
-	search.results = make_dynamic(Result, a, a);
-	search.terms = make_dynamic(string, a, a);
+	search.results = make_dynamic(Result, 0, 0, a);
+	search.terms = make_dynamic(string, 0, 0, a);
 	search.query = clone(text, a);
 	search.active = true;
 	search.focused = false;
 	search.total = 0;
 	search.offset = 0;
 	search.scope = ifx ch.guild_id != 0 then ch.guild_id else ch.id;
-	authors := make_dynamic(dc.Snowflake, a, a);
-	mentions := make_dynamic(dc.Snowflake, a, a);
-	has := make_dynamic(string, a, a);
-	chans := make_dynamic(dc.Snowflake, a, a);
-	content := make_dynamic(string, a, a);
+	authors := make_dynamic(dc.Snowflake, 0, 0, a);
+	mentions := make_dynamic(dc.Snowflake, 0, 0, a);
+	has := make_dynamic(string, 0, 0, a);
+	chans := make_dynamic(dc.Snowflake, 0, 0, a);
+	content := make_dynamic(string, 0, 0, a);
 	pinned := false;
 	find_user :: (s: *dc.Store, name: string) -> dc.Snowflake {
 		ln := strings.to_lower(name, temp);
@@ -308,7 +308,7 @@ search_run :: (ch: *dc.Channel, text: string) {
 			if strings.to_lower(u.username, temp) == ln { return uid; }
 		}
 		for * uid, u: s.users {
-			if strings.to_lower(dc.user_name(s, uid), temp) == ln || strings.to_lower(dc.display_name(*u), temp) == ln { return uid; }
+			if strings.to_lower(dc.user_name(s, uid), temp) == ln || strings.to_lower(dc.display_name(u), temp) == ln { return uid; }
 		}
 		return 0;
 	}
@@ -373,54 +373,54 @@ search_panel_open :: () -> bool {return search.active;}
 // Results panel (replaces the member list while a search is active).
 search_panel :: () {
 	s := store();
-	p := ui.box("searchpanel", .{.Draw_Background, .Draw_Border});
+	p := ui.box("searchpanel", .Draw_Background | .Draw_Border);
 	p.semantic_size = .[ui.px(SEARCH_PANEL_W), ui.pct(1)];
 	p.layout_axis = .Y;
-	p.style.bg = cast(T)("--background-base-low");
-	p.style.border_color = cast(T)("--border-subtle");
+	p.style.bg = T("--background-base-low");
+	p.style.border_color = T("--border-subtle");
 	p.style.border = 1;
-	if ui.parent(p) {
+	{ ui.parent(p); defer ui.pop_parent();
 		hdr := row("hdr");
 		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
-		if ui.parent(hdr) {
+		{ ui.parent(hdr); defer ui.pop_parent();
 			spacer(.X, 16);
 			txt := ifx search.loading then "Searching..." else ifx search.total == 1 then "1 Result" else fmt.tprintf("%d Results", search.total);
-			label(txt, .Semibold, 16, cast(T)("--text-strong"), 20);
+			label(txt, .Semibold, 16, T("--text-strong"), 20);
 			filler(.X);
-			x := ui.box("close", .{.Clickable});
+			x := ui.box("close", .Clickable);
 			x.semantic_size = .[ui.px(24), ui.px(24)];
 			if ui.signal(x).clicked { search.active = false; }
-			set_icon(x, "x", cast(T)("--interactive-icon-default"));
+			set_icon(x, "x", T("--interactive-icon-default"));
 			spacer(.X, 12);
 		}
-		list := ui.box("list", .{.Scroll_Y, .Clip});
+		list := ui.box("list", .Scroll_Y | .Clip);
 		list.semantic_size = .[ui.pct(1), ui.fill()];
 		list.layout_axis = .Y;
 		ui.signal(list);
-		if ui.parent(list) {
+		{ ui.parent(list); defer ui.pop_parent();
 			if !search.loading && len(search.results) == 0 {
 				r := row("none");
 				r.semantic_size = .[ui.pct(1), ui.px(80)];
-				if ui.parent(r) {
+				{ ui.parent(r); defer ui.pop_parent();
 					filler(.X);
-					label("No results found", .Medium, 14, cast(T)("--text-muted"), 18);
+					label("No results found", .Medium, 14, T("--text-muted"), 18);
 					filler(.X);
 				}
 			}
 			last_ch: dc.Snowflake;
 			for * res, i: search.results {
-				if ui.id_scope(cast(u64)(i + 1)) {
+				{ ui.id_scope(cast(u64)(i + 1)); defer ui.pop_seed();
 					if res.msg.channel_id != last_ch {
 						last_ch = res.msg.channel_id;
 						cr := row("chan");
 						cr.semantic_size = .[ui.pct(1), ui.px(32)];
-						if ui.parent(cr) {
+						{ ui.parent(cr); defer ui.pop_parent();
 							spacer(.X, 16);
 							c := dc.channel_get(s, res.msg.channel_id);
 							if c != null {
-								icon("ci", channel_icon_name(c), 16, cast(T)("--channel-icon"));
+								icon("ci", channel_icon_name(c), 16, T("--channel-icon"));
 								spacer(.X, 4);
-								label(ifx c.kind == .DM || c.kind == .Group_DM then dm_name(c) else c.name, .Semibold, 14, cast(T)("--text-default"), 18);
+								label(ifx c.kind == .DM || c.kind == .Group_DM then dm_name(c) else c.name, .Semibold, 14, T("--text-default"), 18);
 							}
 						}
 					}

@@ -78,7 +78,7 @@ friend_nick_modal :: () {
 		fnick.user = 0;
 		return;
 	}
-	scrim := ui.box("fnick_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("fnick_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
@@ -89,13 +89,13 @@ friend_nick_modal :: () {
 	PAD :: 24;
 	server := fnick.guild != 0;
 	had := !server && dc.friend_nickname(s, uid) != "";
-	d := ui.box("fnickmodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	d := ui.box("fnickmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
-	d.style.bg = cast(T)("--modal-background");
-	d.style.border_color = cast(T)("--border-subtle");
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
 	d.style.border = 1;
-	d.style.radius = 12;
+	d.style.radius = all4(12);
 	d.layout_axis = .Y;
 	ui.signal(d);
 	ui.push_parent(d);
@@ -103,15 +103,15 @@ friend_nick_modal :: () {
 	text_row :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 		r := row(id);
 		r.semantic_size = .[ui.pct(1), ui.px(lh)];
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, PAD);
 			label(text, font, size, color, lh);
 		}
 	}
 	button :: (id: string, w: float32, bg: ui.Color, bg_hot: ui.Color, fg: ui.Color) -> bool {
-		b := ui.box(id, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
+		b := ui.box(id, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 		b.semantic_size = .[ui.px(w), ui.px(38)];
-		b.style.radius = 8;
+		b.style.radius = all4(8);
 		b.style.font = F(.Medium);
 		b.style.font_size = 14;
 		b.style.text_align = .Center;
@@ -122,30 +122,30 @@ friend_nick_modal :: () {
 	}
 	spacer(.Y, PAD);
 	if server {
-		text_row("t", "Change Nickname", .Semibold, 20, 24, cast(T)("--text-strong"));
+		text_row("t", "Change Nickname", .Semibold, 20, 24, T("--text-strong"));
 		if uid != s.me {
 			spacer(.Y, 16);
 			wr := row("warnrow");
 			wr.semantic_size = .[ui.pct(1), ui.children()];
-			if ui.parent(wr) {
+			{ ui.parent(wr); defer ui.pop_parent();
 				spacer(.X, PAD);
-				warn := ui.box("warn", .{.Draw_Background});
+				warn := ui.box("warn", .Draw_Background);
 				warn.semantic_size = .[ui.fill(), ui.children()];
 				warn.layout_axis = .Y;
-				warn.style.bg = cast(T)("--background-feedback-warning");
-				warn.style.radius = 8;
-				if ui.parent(warn) {
+				warn.style.bg = T("--background-feedback-warning");
+				warn.style.radius = all4(8);
+				{ ui.parent(warn); defer ui.pop_parent();
 					spacer(.Y, 10);
 					pr := row("p");
 					pr.semantic_size = .[ui.pct(1), ui.children()];
-					if ui.parent(pr) {
+					{ ui.parent(pr); defer ui.pop_parent();
 						spacer(.X, 12);
-						p := ui.box("Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.##warntext", .{.Draw_Text, .Wrap_Text});
+						p := ui.box("Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.##warntext", .Draw_Text | .Wrap_Text);
 						p.semantic_size = .[ui.fill(), ui.text_size()];
 						p.style.font = F(.Normal);
 						p.style.font_size = 14;
 						p.style.line_height = 18;
-						p.style.text_color = cast(T)("--text-default");
+						p.style.text_color = T("--text-default");
 						spacer(.X, 12);
 					}
 					spacer(.Y, 10);
@@ -154,32 +154,32 @@ friend_nick_modal :: () {
 			}
 		}
 		spacer(.Y, 16);
-		text_row("lbl", "Nickname", .Semibold, 14, 18, cast(T)("--text-strong"));
+		text_row("lbl", "Nickname", .Semibold, 14, 18, T("--text-strong"));
 	} else {
-		text_row("t", ifx had then "Edit Friend Nickname" else "Add Friend Nickname", .Semibold, 20, 24, cast(T)("--text-strong"));
+		text_row("t", ifx had then "Edit Friend Nickname" else "Add Friend Nickname", .Semibold, 20, 24, T("--text-strong"));
 		spacer(.Y, 8);
-		text_row("sub", fmt.tprintf("Only you can see the nickname you give %s.", dc.display_name(u)), .Normal, 14, 18, cast(T)("--text-default"));
+		text_row("sub", fmt.tprintf("Only you can see the nickname you give %s.", dc.display_name(u)), .Normal, 14, 18, T("--text-default"));
 		spacer(.Y, 16);
-		text_row("lbl", "Friend Nickname", .Semibold, 14, 18, cast(T)("--text-strong"));
+		text_row("lbl", "Friend Nickname", .Semibold, 14, 18, T("--text-strong"));
 	}
 	spacer(.Y, 8);
 	save := false;
 	ir := row("inrow");
 	ir.semantic_size = .[ui.pct(1), ui.px(40)];
-	if ui.parent(ir) {
+	{ ui.parent(ir); defer ui.pop_parent();
 		spacer(.X, PAD);
-		field := row("input", .{.Draw_Background, .Draw_Border, .Clickable});
+		field := row("input", .Draw_Background | .Draw_Border | .Clickable);
 		field.semantic_size = .[ui.fill(), ui.px(40)];
-		field.style.bg = cast(T)("--input-background-default");
-		field.style.border_color = cast(T)("--input-border-active");
+		field.style.bg = T("--input-background-default");
+		field.style.border_color = T("--input-border-active");
 		field.style.border = 1;
-		field.style.radius = 8;
+		field.style.radius = all4(8);
 		field.hover_cursor = .IBeam;
-		if ui.parent(field) {
+		{ ui.parent(field); defer ui.pop_parent();
 			spacer(.X, 12);
-			res := text_field("field", *fnick.ed, dc.display_name(u), true, 16, 20, 10, cast(T)("--input-placeholder-text-default"));
+			res := text_field("field", *fnick.ed, dc.display_name(u), true, 16, 20, 10, T("--input-placeholder-text-default"));
 			{ t := ui.editor_text(*fnick.ed);
-			if utf8.rune_count(t) > dc.FRIEND_NICKNAME_MAX {
+			if utf8.rune_count_in_string(t) > dc.FRIEND_NICKNAME_MAX {
 				n, cut := 0, 0;
 				for _, i: t {
 					if n == dc.FRIEND_NICKNAME_MAX {cut = i; break;}
@@ -194,18 +194,18 @@ friend_nick_modal :: () {
 		spacer(.X, PAD);
 	}
 	spacer(.Y, PAD);
-	btns := row("btns", .{.Draw_Background});
+	btns := row("btns", .Draw_Background);
 	btns.semantic_size = .[ui.pct(1), ui.px(70)];
-	btns.style.bg = cast(T)("--background-base-lower");
-	btns.style.radius = .{0, 0, 12, 12};
+	btns.style.bg = T("--background-base-lower");
+	btns.style.radius = .[0, 0, 12, 12];
 	btns.style.child_gap = 8;
-	if ui.parent(btns) {
+	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, PAD - 8);
 		// like the client: Reset only clears the field; Save sends {"nickname":null}
-		if had && button("Reset Friend Nickname##reset", 170, .{}, cast(T)("--background-mod-normal"), cast(T)("--text-link")) { ui.editor_set_text(*fnick.ed, ""); }
+		if had && button("Reset Friend Nickname##reset", 170, .{}, T("--background-mod-normal"), T("--text-link")) { ui.editor_set_text(*fnick.ed, ""); }
 		filler(.X);
-		if button("Cancel##cancel", 96, cast(T)("--background-mod-normal"), cast(T)("--background-mod-strong"), cast(T)("--text-strong")) { fnick.user = 0; }
-		if button("Save##save", 96, cast(T)("--background-brand"), with_alpha(cast(T)("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
+		if button("Cancel##cancel", 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) { fnick.user = 0; }
+		if button("Save##save", 96, T("--background-brand"), with_alpha(T("--background-brand"), 0.85), .{1, 1, 1, 1}) { save = true; }
 		spacer(.X, PAD - 8);
 	}
 	if save && fnick.user != 0 { friend_nick_save(ui.editor_text(*fnick.ed)); }

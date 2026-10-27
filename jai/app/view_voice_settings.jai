@@ -167,7 +167,7 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 			while audio.capture_available() >= 960 {
 				audio.capture_read(view(buf));
 				g := vs.input_volume / 100;
-				for * x: buf { x *= g; }
+				for * x: buf { x.* *= g; }
 				vs.meter_vad.auto_threshold = vs.auto_sens;
 				vs.meter_vad.threshold_db = vs.threshold_db;
 				vs.meter_open, vs.meter_db = voice.vad_process(*vs.meter_vad, view(buf));
@@ -182,13 +182,13 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 // Widgets
 
 section_title :: (text: string) {
-	label(text, .Bold, 12, cast(T)("--text-muted"), 16);
+	label(text, .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 8);
 }
 
 // slider: horizontal track, returns true while the value changes.
 slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fmt_value: string = "") -> bool {
-	track := ui.box(id, .{.Clickable});
+	track := ui.box(id, .Clickable);
 	track.semantic_size = .[ui.px(w), ui.px(24)];
 	sig := ui.signal(track);
 	changed := false;
@@ -204,33 +204,33 @@ slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fm
 		}
 	}
 	t := (value.* - lo) / (hi - lo);
-	if ui.parent(track) {
-		bar := ui.box("bar", .{.Draw_Background, .Floating_X, .Floating_Y});
+	{ ui.parent(track); defer ui.pop_parent();
+		bar := ui.box("bar", .Draw_Background | .Floating_X | .Floating_Y);
 		bar.semantic_size = .[ui.px(w), ui.px(8)];
 		bar.fixed_pos = .{0, 8};
-		bar.style.bg = cast(T)("--background-mod-strong");
-		bar.style.radius = 4;
-		fill := ui.box("fill", .{.Draw_Background, .Floating_X, .Floating_Y});
+		bar.style.bg = T("--background-mod-strong");
+		bar.style.radius = all4(4);
+		fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
 		fill.semantic_size = .[ui.px(max(w * t, 1)), ui.px(8)];
 		fill.fixed_pos = .{0, 8};
-		fill.style.bg = cast(T)("--background-brand");
-		fill.style.radius = 4;
-		knob := ui.box("knob", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y});
+		fill.style.bg = T("--background-brand");
+		fill.style.radius = all4(4);
+		knob := ui.box("knob", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y);
 		knob.semantic_size = .[ui.px(10), ui.px(24)];
 		knob.fixed_pos = .{w * t - 5, 0};
 		knob.style.bg = .{1, 1, 1, 1};
-		knob.style.radius = 3;
+		knob.style.radius = all4(3);
 		knob.style.shadow_color = .{0, 0, 0, 0.3};
 		knob.style.shadow_blur = 4;
 		if (sig.hovering || sig.dragging) && fmt_value != "" {
-			tip := row("tip", .{.Draw_Background, .Floating_X, .Floating_Y, .Overlay});
+			tip := row("tip", .Draw_Background | .Floating_X | .Floating_Y | .Overlay);
 			tip.semantic_size = .[ui.children(), ui.px(26)];
 			tip.fixed_pos = .{w * t - 24, -32};
-			tip.style.bg = cast(T)("--background-surface-highest");
-			tip.style.radius = 6;
-			if ui.parent(tip) {
+			tip.style.bg = T("--background-surface-highest");
+			tip.style.radius = all4(6);
+			{ ui.parent(tip); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(fmt_value, .Semibold, 13, cast(T)("--text-strong"), 16);
+				label(fmt_value, .Semibold, 13, T("--text-strong"), 16);
 				spacer(.X, 8);
 			}
 		}
@@ -240,25 +240,25 @@ slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fm
 #scope_export
 
 toggle_row :: (id: string, text: string, help: string, value: *bool) -> bool {
-	r := row(id, .{.Clickable});
-	r.semantic_size = .[ui.px(660), ui.px(ifx help != "" then 52 else 32)];
+	r := row(id, .Clickable);
+	r.semantic_size = .[ui.px(660), ui.px(ifx help != "" then 52.0 else 32.0)];
 	sig := ui.signal(r);
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
-		if ui.parent(col) {
-			label(text, .Medium, 16, cast(T)("--text-strong"), 20);
-			if help != "" { label(help, .Normal, 14, cast(T)("--text-muted"), 18); }
+		{ ui.parent(col); defer ui.pop_parent();
+			label(text, .Medium, 16, T("--text-strong"), 20);
+			if help != "" { label(help, .Normal, 14, T("--text-muted"), 18); }
 		}
-		sw := ui.box("switch", .{.Draw_Background});
+		sw := ui.box("switch", .Draw_Background);
 		sw.semantic_size = .[ui.px(40), ui.px(24)];
-		sw.style.radius = 12;
-		sw.style.bg = ifx value.* then cast(T)("--status-positive") else cast(T)("--background-mod-strong");
-		if ui.parent(sw) {
-			k := ui.box("k", .{.Draw_Background, .Floating_X, .Floating_Y});
+		sw.style.radius = all4(12);
+		sw.style.bg = ifx value.* then T("--status-positive") else T("--background-mod-strong");
+		{ ui.parent(sw); defer ui.pop_parent();
+			k := ui.box("k", .Draw_Background | .Floating_X | .Floating_Y);
 			k.semantic_size = .[ui.px(18), ui.px(18)];
-			k.fixed_pos = .{ifx value.* then 19 else 3, 3};
-			k.style.radius = 9;
+			k.fixed_pos = .{ifx value.* then 19.0 else 3.0, 3};
+			k.style.radius = all4(9);
 			k.style.bg = .{1, 1, 1, 1};
 		}
 	}
@@ -272,21 +272,21 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 	sel := audio.selected_device(input);
 	current := "Default";
 	for d: devs { if sel != 0 && d.id == sel { current = d.name; } }
-	box := row(ifx input then "indev" else "outdev", .{.Clickable, .Draw_Background, .Draw_Border});
+	box := row(ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
 	box.semantic_size = .[ui.px(w), ui.px(40)];
-	box.style.bg = cast(T)("--background-base-lowest");
-	if tok_has("--input-background") { box.style.bg = cast(T)("--input-background"); }
+	box.style.bg = T("--background-base-lowest");
+	if tok_has("--input-background") { box.style.bg = T("--input-background"); }
 	box.style.border = 1;
-	box.style.border_color = cast(T)("--border-subtle");
-	box.style.radius = 8;
+	box.style.border_color = T("--border-subtle");
+	box.style.radius = all4(8);
 	sig := ui.signal(box);
 	if sig.clicked { vs.open_dropdown = ifx vs.open_dropdown == which then 0 else which; }
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 12);
-		t := label(current, .Medium, 16, cast(T)("--text-default"), 20);
-		t.flags += .{.Clip};
+		t := label(current, .Medium, 16, T("--text-default"), 20);
+		t.flags |= .Clip;
 		filler(.X);
-		icon("chev", ifx vs.open_dropdown == which then "chevron-small-up" else "chevron-small-down", 20, cast(T)("--interactive-icon-default"));
+		icon("chev", ifx vs.open_dropdown == which then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 		spacer(.X, 8);
 	}
 	if vs.open_dropdown == which { vs.dd_anchor = box.rect; }
@@ -294,26 +294,26 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 
 // popup list under the dropdown (overlay, like the client's select menu)
 device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at: ui.Vec2) {
-	list := ui.box(ifx input then "inlist" else "outlist", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	list := ui.box(ifx input then "inlist" else "outlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	list.semantic_size = .[ui.px(w), ui.children()];
 	list.fixed_pos = at;
 	list.layout_axis = .Y;
-	list.style.bg = cast(T)("--background-surface-higher");
+	list.style.bg = T("--background-surface-higher");
 	list.style.border = 1;
-	list.style.border_color = cast(T)("--border-subtle");
-	list.style.radius = 8;
+	list.style.border_color = T("--border-subtle");
+	list.style.radius = all4(8);
 	list.style.shadow_color = .{0, 0, 0, 0.24};
 	list.style.shadow_blur = 16;
 	list.style.shadow_offset = .{0, 8};
 	ui.signal(list);
-	if ui.parent(list) {
+	{ ui.parent(list); defer ui.pop_parent();
 		opt :: (name: string, id: u32, input: bool, selected: bool) {
-			it_ := row(name, .{.Clickable, .Draw_Background, .Hot_Animation});
+			it_ := row(name, .Clickable | .Draw_Background | .Hot_Animation);
 			it_.semantic_size = .[ui.pct(1), ui.px(36)];
-			it_.style.bg_hot = cast(T)("--background-mod-normal");
-			if ui.parent(it_) {
+			it_.style.bg_hot = T("--background-mod-normal");
+			{ ui.parent(it_); defer ui.pop_parent();
 				spacer(.X, 12);
-				label(name, ifx selected then .Semibold else .Medium, 15, ifx selected then cast(T)("--text-strong") else cast(T)("--text-default"), 20);
+				label(name, ifx selected then .Semibold else .Medium, 15, ifx selected then T("--text-strong") else T("--text-default"), 20);
 			}
 			if ui.signal(it_).clicked {
 				audio.select_device(input, id);
@@ -321,7 +321,7 @@ device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at
 			}
 		}
 		opt("Default", 0, input, sel == 0);
-		for d: devs { if ui.id_scope(cast(u64)(d.id) + 1) { opt(d.name, d.id, input, d.id == sel); } }
+		for d: devs { { ui.id_scope(cast(u64)(d.id) + 1); defer ui.pop_seed(); opt(d.name, d.id, input, d.id == sel); } }
 	}
 }
 
@@ -336,29 +336,29 @@ tok_has :: (name: string) -> bool {
 
 voice_settings_page :: () {
 	vs_init();
-	page := ui.box("voicepage", .{.Scroll_Y, .Clip});
+	page := ui.box("voicepage", .Scroll_Y | .Clip);
 	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
 	ui.signal(page);
-	if ui.parent(page) {
+	{ ui.parent(page); defer ui.pop_parent();
 		body := row("vbody");
 		body.semantic_size = .[ui.pct(1), ui.children()];
 		body.cross_align = .Start;
-		if ui.parent(body) {
+		{ ui.parent(body); defer ui.pop_parent();
 			spacer(.X, 40);
 			col := ui.box("vcol");
 			col.semantic_size = .[ui.px(660), ui.children()];
 			col.layout_axis = .Y;
-			if ui.parent(col) {
+			{ ui.parent(col); defer ui.pop_parent();
 				devices := row("devices");
 				devices.semantic_size = .[ui.pct(1), ui.children()];
 				devices.cross_align = .Start;
-				if ui.parent(devices) {
+				{ ui.parent(devices); defer ui.pop_parent();
 					for input: (bool.[true, false]) {
 						c := ui.box(ifx input then "inputcol" else "outputcol");
 						c.semantic_size = .[ui.px(320), ui.children()];
 						c.layout_axis = .Y;
-						if ui.parent(c) {
+						{ ui.parent(c); defer ui.pop_parent();
 							section_title(ifx input then "INPUT DEVICE" else "OUTPUT DEVICE");
 							device_dropdown(ifx input then 1 else 2, input, 320);
 							spacer(.Y, 20);
@@ -409,30 +409,30 @@ voice_settings_page :: () {
 
 mode_radio :: () {
 	for ptt: (bool.[false, true]) {
-		r := row(ifx ptt then "mode_ptt" else "mode_va", .{.Clickable, .Draw_Background, .Hot_Animation});
+		r := row(ifx ptt then "mode_ptt" else "mode_va", .Clickable | .Draw_Background | .Hot_Animation);
 		r.semantic_size = .[ui.px(660), ui.px(44)];
-		r.style.radius = 4;
-		r.style.bg = ifx vs.ptt_mode == ptt then cast(T)("--background-mod-normal") else .{};
-		r.style.bg_hot = cast(T)("--background-mod-subtle");
+		r.style.radius = all4(4);
+		r.style.bg = ifx vs.ptt_mode == ptt then T("--background-mod-normal") else .{};
+		r.style.bg_hot = T("--background-mod-subtle");
 		if ui.signal(r).clicked { vs.ptt_mode = ptt; }
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 12);
-			dot := ui.box("dot", .{.Draw_Border});
+			dot := ui.box("dot", .Draw_Border);
 			dot.semantic_size = .[ui.px(20), ui.px(20)];
-			dot.style.radius = 10;
+			dot.style.radius = all4(10);
 			dot.style.border = 2;
-			dot.style.border_color = ifx vs.ptt_mode == ptt then cast(T)("--background-brand") else cast(T)("--interactive-icon-default");
+			dot.style.border_color = ifx vs.ptt_mode == ptt then T("--background-brand") else T("--interactive-icon-default");
 			if vs.ptt_mode == ptt {
-				if ui.parent(dot) {
-					in_ := ui.box("in", .{.Draw_Background, .Floating_X, .Floating_Y});
+				{ ui.parent(dot); defer ui.pop_parent();
+					in_ := ui.box("in", .Draw_Background | .Floating_X | .Floating_Y);
 					in_.semantic_size = .[ui.px(10), ui.px(10)];
 					in_.fixed_pos = .{5, 5};
-					in_.style.radius = 5;
-					in_.style.bg = cast(T)("--background-brand");
+					in_.style.radius = all4(5);
+					in_.style.bg = T("--background-brand");
 				}
 			}
 			spacer(.X, 12);
-			label(ifx ptt then "Push to Talk" else "Voice Activity", .Medium, 16, cast(T)("--text-strong"), 20);
+			label(ifx ptt then "Push to Talk" else "Voice Activity", .Medium, 16, T("--text-strong"), 20);
 		}
 		spacer(.Y, 8);
 	}
@@ -442,37 +442,37 @@ keybind_row :: () {
 	r := row("ptt");
 	r.semantic_size = .[ui.px(660), ui.children()];
 	r.cross_align = .Start;
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		c := ui.box("kb");
 		c.semantic_size = .[ui.px(320), ui.children()];
 		c.layout_axis = .Y;
-		if ui.parent(c) {
+		{ ui.parent(c); defer ui.pop_parent();
 			section_title("SHORTCUT");
-			b := row("rec", .{.Clickable, .Draw_Background, .Draw_Border});
+			b := row("rec", .Clickable | .Draw_Background | .Draw_Border);
 			b.semantic_size = .[ui.px(320), ui.px(40)];
-			b.style.radius = 8;
+			b.style.radius = all4(8);
 			b.style.border = 1;
-			b.style.border_color = ifx vs.recording_key then cast(T)("--status-danger") else cast(T)("--border-subtle");
-			b.style.bg = cast(T)("--background-base-lowest");
+			b.style.border_color = ifx vs.recording_key then T("--status-danger") else T("--border-subtle");
+			b.style.bg = T("--background-base-lowest");
 			if ui.signal(b).clicked { vs.recording_key = !vs.recording_key; }
-			if ui.parent(b) {
+			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 12);
 				name := "No Keybind Set";
 				if vs.ptt_key != .None { name, _ = reflect.enum_name_from_value(vs.ptt_key); }
 				if vs.recording_key { name = "Press a key…"; }
-				label(name, .Medium, 16, cast(T)("--text-default"), 20);
+				label(name, .Medium, 16, T("--text-default"), 20);
 				filler(.X);
-				label(ifx vs.recording_key then "Stop Recording" else "Record Keybind", .Semibold, 14, cast(T)("--text-strong"), 18);
+				label(ifx vs.recording_key then "Stop Recording" else "Record Keybind", .Semibold, 14, T("--text-strong"), 18);
 				spacer(.X, 12);
 			}
 			spacer(.Y, 6);
-			label("Works while Discord is focused.", .Normal, 12, cast(T)("--text-muted"), 16);
+			label("Works while Discord is focused.", .Normal, 12, T("--text-muted"), 16);
 		}
 		spacer(.X, 20);
 		d := ui.box("delay");
 		d.semantic_size = .[ui.px(320), ui.children()];
 		d.layout_axis = .Y;
-		if ui.parent(d) {
+		{ ui.parent(d); defer ui.pop_parent();
 			section_title("PUSH TO TALK RELEASE DELAY");
 			spacer(.Y, 8);
 			slider("pttdelay", *vs.ptt_delay_ms, 0, 2000, 320, fmt.tprintf("%.0fms", vs.ptt_delay_ms));
@@ -484,24 +484,24 @@ keybind_row :: () {
 // gate is open, like the client's input sensitivity meter).
 meter_bar :: () {
 	W :: cast(float32)(660);
-	bar := ui.box("meter", .{.Draw_Background});
+	bar := ui.box("meter", .Draw_Background);
 	bar.semantic_size = .[ui.px(W), ui.px(8)];
-	bar.style.bg = cast(T)("--background-mod-strong");
-	bar.style.radius = 4;
+	bar.style.bg = T("--background-mod-strong");
+	bar.style.radius = all4(4);
 	level := clamp((vs.meter_db + 100) / 100, 0, 1);
 	if !app.settings_open { level = 0; }
-	if ui.parent(bar) {
-		f := ui.box("lvl", .{.Draw_Background, .Floating_X, .Floating_Y});
+	{ ui.parent(bar); defer ui.pop_parent();
+		f := ui.box("lvl", .Draw_Background | .Floating_X | .Floating_Y);
 		f.semantic_size = .[ui.px(max(W * level, 0.5)), ui.px(8)];
-		f.style.radius = 4;
-		f.style.bg = cast(T)("--text-feedback-warning");
-		if vs.meter_open { f.style.bg = cast(T)("--status-positive"); }
+		f.style.radius = all4(4);
+		f.style.bg = T("--text-feedback-warning");
+		if vs.meter_open { f.style.bg = T("--status-positive"); }
 		if !vs.auto_sens {
 			th := clamp((vs.threshold_db + 100) / 100, 0, 1);
-			m := ui.box("th", .{.Draw_Background, .Floating_X, .Floating_Y});
+			m := ui.box("th", .Draw_Background | .Floating_X | .Floating_Y);
 			m.semantic_size = .[ui.px(2), ui.px(14)];
 			m.fixed_pos = .{W * th - 1, -3};
-			m.style.bg = cast(T)("--text-strong");
+			m.style.bg = T("--text-strong");
 		}
 	}
 }
@@ -526,7 +526,7 @@ voice_user_menu :: () {
 	}
 	if vs.menu_user == 0 { return; }
 	uid := vs.menu_user;
-	scrim := ui.box("vmenu_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("vmenu_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).pressed {
 		vs.menu_user = 0;
@@ -537,56 +537,56 @@ voice_user_menu :: () {
 	p := vs.menu_pos;
 	if p.y + H > app.ui.window.y - 8 { p.y = app.ui.window.y - 8 - H; }
 	if p.x + W > app.ui.window.x - 8 { p.x = app.ui.window.x - 8 - W; }
-	menu := ui.box("vmenu", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
+	menu := ui.box("vmenu", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	menu.semantic_size = .[ui.px(W), ui.px(H)];
 	menu.fixed_pos = p;
 	menu.layout_axis = .Y;
-	menu.style.bg = cast(T)("--background-surface-higher");
-	menu.style.border_color = cast(T)("--border-subtle");
+	menu.style.bg = T("--background-surface-higher");
+	menu.style.border_color = T("--border-subtle");
 	menu.style.border = 1;
-	menu.style.radius = 8;
+	menu.style.radius = all4(8);
 	menu.style.shadow_color = .{0, 0, 0, 0.24};
 	menu.style.shadow_blur = 16;
 	menu.style.shadow_offset = .{0, 8};
 	ui.signal(menu);
-	if ui.parent(menu) {
+	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
 		hdr := row("hdr");
 		hdr.semantic_size = .[ui.pct(1), ui.px(24)];
-		if ui.parent(hdr) {
+		{ ui.parent(hdr); defer ui.pop_parent();
 			spacer(.X, 12);
-			label("User Volume", .Medium, 14, cast(T)("--interactive-text-default"), 18);
+			label("User Volume", .Medium, 14, T("--interactive-text-default"), 18);
 		}
 		sr := row("sl");
 		sr.semantic_size = .[ui.pct(1), ui.px(32)];
-		if ui.parent(sr) {
+		{ ui.parent(sr); defer ui.pop_parent();
 			spacer(.X, 12);
-			v := or_else(get(vs.user_volume, uid), 100);
+			v := or_else(map_find(vs.user_volume, uid), 100.0);
 			if slider("uvol", *v, 0, 200, W - 24, fmt.tprintf("%.0f%%", v)) { at(*vs.user_volume, uid).* = v; }
 		}
 		spacer(.Y, 4);
-		sep := ui.box("sep", .{.Draw_Background});
+		sep := ui.box("sep", .Draw_Background);
 		sep.semantic_size = .[ui.pct(1), ui.px(1)];
-		sep.style.bg = cast(T)("--border-subtle");
+		sep.style.bg = T("--border-subtle");
 		spacer(.Y, 4);
 		m := get(vs.user_muted, uid);
-		mr := row("mute", .{.Clickable, .Draw_Background, .Hot_Animation});
+		mr := row("mute", .Clickable | .Draw_Background | .Hot_Animation);
 		mr.semantic_size = .[ui.pct(1), ui.px(32)];
-		mr.style.radius = 4;
-		mr.style.bg_hot = cast(T)("--background-mod-normal");
+		mr.style.radius = all4(4);
+		mr.style.bg_hot = T("--background-mod-normal");
 		sig := ui.signal(mr);
-		if ui.parent(mr) {
+		{ ui.parent(mr); defer ui.pop_parent();
 			spacer(.X, 12);
-			label("Mute", .Medium, 14, ifx sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--interactive-text-default"), 18);
+			label("Mute", .Medium, 14, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
 			filler(.X);
-			cb := ui.box("cb", .{.Draw_Background, .Draw_Border});
+			cb := ui.box("cb", .Draw_Background | .Draw_Border);
 			cb.semantic_size = .[ui.px(18), ui.px(18)];
-			cb.style.radius = 4;
-			cb.style.border = ifx m then 0 else 1.5;
-			cb.style.border_color = cast(T)("--interactive-icon-default");
-			cb.style.bg = ifx m then cast(T)("--background-brand") else .{};
+			cb.style.radius = all4(4);
+			cb.style.border = ifx m then 0.0 else 1.5;
+			cb.style.border_color = T("--interactive-icon-default");
+			cb.style.bg = ifx m then T("--background-brand") else .{};
 			if m {
-				if ui.parent(cb) { icon("ck", "checkmark-large", 18, .{1, 1, 1, 1}); }
+				{ ui.parent(cb); defer ui.pop_parent(); icon("ck", "checkmark-large", 18, .{1, 1, 1, 1}); }
 			}
 			spacer(.X, 12);
 		}

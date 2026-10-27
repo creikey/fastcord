@@ -23,28 +23,28 @@ settings_nav_reset_for_test :: () {
 settings_nav_search :: () {
 	sr := row("searchrow");
 	sr.semantic_size = .[ui.pct(1), ui.px(40)];
-	if ui.parent(sr) {
+	{ ui.parent(sr); defer ui.pop_parent();
 		spacer(.X, 16);
-		sb := row("search", .{.Draw_Background, .Draw_Border, .Clickable});
+		sb := row("search", .Draw_Background | .Draw_Border | .Clickable);
 		sb.semantic_size = .[ui.fill(), ui.px(40)];
-		sb.style.bg = cast(T)("--input-background-default");
+		sb.style.bg = T("--input-background-default");
 		focused := app.ui.focus == sb.key;
-		sb.style.border_color = ifx focused then cast(T)("--input-border-active") else cast(T)("--input-border-default");
+		sb.style.border_color = ifx focused then T("--input-border-active") else T("--input-border-default");
 		sb.style.border = 1;
-		sb.style.radius = 8;
+		sb.style.radius = all4(8);
 		sb.hover_cursor = .IBeam;
 		if ui.signal(sb).pressed { app.ui.focus = sb.key; }
-		if ui.parent(sb) {
+		{ ui.parent(sb); defer ui.pop_parent();
 			spacer(.X, 12);
-			icon("mag", "magnifying-glass", 16, cast(T)("--icon-default"));
+			icon("mag", "magnifying-glass", 16, T("--icon-default"));
 			spacer(.X, 8);
-			res := text_field("field", *nav.search, "Search", focused, 16, 20, 10, cast(T)("--input-placeholder-text-default"));
+			res := text_field("field", *nav.search, "Search", focused, 16, 20, 10, T("--input-placeholder-text-default"));
 			if res == .Escape && ui.editor_text(*nav.search) != "" { ui.editor_set_text(*nav.search, ""); }
 			if ui.editor_text(*nav.search) != "" {
-				x := ui.box("clear", .{.Clickable});
+				x := ui.box("clear", .Clickable);
 				x.semantic_size = .[ui.px(16), ui.px(16)];
 				xs := ui.signal(x);
-				set_icon(x, "x-small", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
+				set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 				if xs.clicked { ui.editor_set_text(*nav.search, ""); }
 			}
 			spacer(.X, 12);
@@ -66,25 +66,25 @@ settings_nav_logout :: () {
 	spacer(.Y, 8);
 	d := row("logoutsep");
 	d.semantic_size = .[ui.pct(1), ui.px(1)];
-	if ui.parent(d) {
+	{ ui.parent(d); defer ui.pop_parent();
 		spacer(.X, 24);
-		l := ui.box("l", .{.Draw_Background});
+		l := ui.box("l", .Draw_Background);
 		l.semantic_size = .[ui.fill(), ui.px(1)];
-		l.style.bg = cast(T)("--border-muted");
+		l.style.bg = T("--border-muted");
 		spacer(.X, 24);
 	}
 	spacer(.Y, 8);
 	outer := row("Log Out");
 	outer.semantic_size = .[ui.pct(1), ui.px(37)];
-	if ui.parent(outer) {
+	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 16);
-		r := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
+		r := row("item", .Clickable | .Draw_Background | .Hot_Animation);
 		r.semantic_size = .[ui.fill(), ui.px(33)];
-		r.style.radius = 8;
-		r.style.bg_hot = cast(T)("--background-mod-subtle");
+		r.style.radius = all4(8);
+		r.style.bg_hot = T("--background-mod-subtle");
 		if ui.signal(r).clicked { account_logout_ask(); }
-		c := cast(T)("--text-feedback-critical");
-		if ui.parent(r) {
+		c := T("--text-feedback-critical");
+		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 8);
 			icon("i", "door-exit", 20, c);
 			spacer(.X, 8);
@@ -121,7 +121,7 @@ notifications_page :: () {
 			notify_prefs.desktop_off = !notify_prefs.desktop_off;
 		}
 		spacer(.Y, 24);
-		label("Notify me when...", .Semibold, 16, cast(T)("--text-strong"), 20);
+		label("Notify me when...", .Semibold, 16, T("--text-strong"), 20);
 		spacer(.Y, 16);
 		// synced (NotificationSettings.notify_friends_on_launch), unlike the local rows here
 		friends_on := !store().settings.friend_online_off;
@@ -151,7 +151,7 @@ notifications_page :: () {
 // A settings page: scrolls, content centered at SET_CONTENT_MAX_W (narrower in small windows).
 // Close with set_page_end when it returns true.
 set_page_begin :: (id: string) -> bool {
-	page := ui.box(id, .{.Scroll_Y, .Clip});
+	page := ui.box(id, .Scroll_Y | .Clip);
 	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
 	ui.signal(page);
@@ -184,21 +184,21 @@ set_content_w :: () -> float32 {
 }
 
 set_heading :: (text: string) {
-	label(text, .Semibold, 20, cast(T)("--text-strong"), 24);
+	label(text, .Semibold, 20, T("--text-strong"), 24);
 	spacer(.Y, 20);
 }
 
 set_divider :: () {
 	spacer(.Y, 16);
-	d := ui.box("div", .{.Draw_Background});
+	d := ui.box("div", .Draw_Background);
 	d.semantic_size = .[ui.pct(1), ui.px(1)];
-	d.style.bg = cast(T)("--border-subtle");
+	d.style.bg = T("--border-subtle");
 	spacer(.Y, 16);
 }
 
 // Wrapped paragraph.
 set_para :: (id: string, text: string, font: Font_Id, size: float32, line_h: float32, color: ui.Color) -> *ui.Box {
-	b := ui.box(id, .{.Draw_Text, .Wrap_Text});
+	b := ui.box(id, .Draw_Text | .Wrap_Text);
 	b.text = text;
 	b.semantic_size = .[ui.pct(1), ui.text_size()];
 	b.style.font = F(font);
@@ -210,35 +210,35 @@ set_para :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 
 // 40x24 switch (the client's toggle).
 set_switch :: (on: bool, dim := false) {
-	sw := ui.box("switch", .{.Draw_Background});
+	sw := ui.box("switch", .Draw_Background);
 	sw.semantic_size = .[ui.px(40), ui.px(24)];
-	sw.style.radius = 12;
-	sw.style.bg = ifx on then cast(T)("--status-positive") else cast(T)("--background-mod-strong");
+	sw.style.radius = all4(12);
+	sw.style.bg = ifx on then T("--status-positive") else T("--background-mod-strong");
 	if dim { sw.style.bg = with_alpha(sw.style.bg, 0.5); }
-	if ui.parent(sw) {
-		k := ui.box("k", .{.Draw_Background, .Floating_X, .Floating_Y});
+	{ ui.parent(sw); defer ui.pop_parent();
+		k := ui.box("k", .Draw_Background | .Floating_X | .Floating_Y);
 		k.semantic_size = .[ui.px(18), ui.px(18)];
-		k.fixed_pos = .{ifx on then 19 else 3, 3};
-		k.style.radius = 9;
+		k.fixed_pos = .{ifx on then 19.0 else 3.0, 3};
+		k.style.radius = all4(9);
 		k.style.bg = .{1, 1, 1, 1};
 	}
 }
 
 // Title (+ help) with a switch on the right; the whole row toggles. Returns true when clicked.
 set_toggle_row :: (id: string, text: string, help: string, on: bool, disabled := false) -> bool {
-	r := row(id, .{.Clickable});
+	r := row(id, .Clickable);
 	r.semantic_size = .[ui.pct(1), ui.children()];
-	if disabled { r.flags += .{.Disabled}; }
+	if disabled { r.flags |= .Disabled; }
 	sig := ui.signal(r);
-	if ui.parent(r) {
+	{ ui.parent(r); defer ui.pop_parent();
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
-		if ui.parent(col) {
-			label(text, .Medium, 16, ifx disabled then cast(T)("--text-muted") else cast(T)("--text-strong"), 20);
+		{ ui.parent(col); defer ui.pop_parent();
+			label(text, .Medium, 16, ifx disabled then T("--text-muted") else T("--text-strong"), 20);
 			if help != "" {
 				spacer(.Y, 4);
-				set_para("help", help, .Normal, 14, 18, cast(T)("--text-muted"));
+				set_para("help", help, .Normal, 14, 18, T("--text-muted"));
 			}
 		}
 		spacer(.X, 16);
@@ -257,33 +257,33 @@ Button_Kind :: enum u8 {
 
 // "Label##id" button. Disabled buttons draw faded and return false.
 set_button :: (text: string, kind: Button_Kind, enabled := true, h: float32 = 38) -> bool {
-	b := ui.box(text, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-	b.semantic_size = .[ui.text_size(ifx kind == .Link then 8 else 32), ui.px(h)];
-	b.style.radius = 8;
+	b := ui.box(text, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+	b.semantic_size = .[ui.text_size(ifx kind == .Link then 8.0 else 32.0), ui.px(h)];
+	b.style.radius = all4(8);
 	b.style.font = F(.Medium);
 	b.style.font_size = 14;
 	b.style.text_align = .Center;
 	b.hover_cursor = .Pointer;
 	if kind == {
 	case .Primary;
-		b.style.bg = cast(T)("--background-brand");
+		b.style.bg = T("--background-brand");
 		b.style.text_color = .{1, 1, 1, 1};
 	case .Positive;
-		b.style.bg = cast(T)("--status-positive");
+		b.style.bg = T("--status-positive");
 		b.style.text_color = .{1, 1, 1, 1};
 	case .Danger;
-		b.style.bg = cast(T)("--status-danger");
+		b.style.bg = T("--status-danger");
 		b.style.text_color = .{1, 1, 1, 1};
 	case .Secondary;
-		b.style.bg = cast(T)("--background-mod-strong");
-		b.style.text_color = cast(T)("--text-strong");
+		b.style.bg = T("--background-mod-strong");
+		b.style.text_color = T("--text-strong");
 	case .Link;
 		b.style.bg = .{};
-		b.style.text_color = cast(T)("--text-default");
+		b.style.text_color = T("--text-default");
 	}
 	b.style.bg_hot = ifx kind == .Link then ui.Color.{} else with_alpha(b.style.bg, 0.85);
 	if !enabled {
-		b.flags += .{.Disabled};
+		b.flags |= .Disabled;
 		b.style.bg = with_alpha(b.style.bg, 0.5);
 		b.style.bg_hot = b.style.bg;
 		b.style.text_color = with_alpha(b.style.text_color, 0.5);
@@ -295,24 +295,24 @@ set_button :: (text: string, kind: Button_Kind, enabled := true, h: float32 = 38
 // Bordered text input filling the width. multiline: wraps, Enter adds a line (min_h tall).
 // password: shows bullets. max_runes > 0 caps the length.
 set_input :: (id: string, ed: *ui.Editor, placeholder: string, multiline := false, password := false, max_runes := 0, min_h: float32 = 40, autofocus := false) -> ui.Edit_Result {
-	box := row(id, .{.Draw_Background, .Draw_Border, .Clickable});
+	box := row(id, .Draw_Background | .Draw_Border | .Clickable);
 	box.semantic_size = .[ui.pct(1), ifx multiline then ui.children() else ui.px(min_h)];
 	if multiline { box.cross_align = .Start; }
-	box.style.bg = cast(T)("--input-background-default");
-	box.style.border_color = ifx app.ui.focus == box.key || autofocus && app.ui.focus == 0 then cast(T)("--input-border-active") else cast(T)("--input-border-default");
+	box.style.bg = T("--input-background-default");
+	box.style.border_color = ifx app.ui.focus == box.key || autofocus && app.ui.focus == 0 then T("--input-border-active") else T("--input-border-default");
 	box.style.border = 1;
-	box.style.radius = 8;
+	box.style.radius = all4(8);
 	box.hover_cursor = .IBeam;
 	if autofocus && app.ui.focus == 0 { app.ui.focus = box.key; }
 	focused := app.ui.focus == box.key;
 	if ui.signal(box).pressed { app.ui.focus = box.key; }
 	res: ui.Edit_Result;
-	if ui.parent(box) {
+	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 12);
 		if password {
 			res = password_field("field", ed, placeholder, focused);
 		} else {
-			res = text_field("field", ed, placeholder, focused, 16, 20, 10, cast(T)("--input-placeholder-text-default"));
+			res = text_field("field", ed, placeholder, focused, 16, 20, 10, T("--input-placeholder-text-default"));
 		}
 		if multiline {
 			spacer(.Y, min_h); // minimum height
@@ -341,7 +341,7 @@ set_input :: (id: string, ed: *ui.Editor, placeholder: string, multiline := fals
 password_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool) -> ui.Edit_Result {
 	text := ui.editor_text(ed);
 	n := utf8.rune_count_in_string(text);
-	f := ui.box(id, .{.Clickable, .Draw_Text});
+	f := ui.box(id, .Clickable | .Draw_Text);
 	f.semantic_size = .[ui.fill(), ui.text_size()];
 	f.style.font = F(.Normal);
 	f.style.font_size = 16;
@@ -349,7 +349,7 @@ password_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: boo
 	f.style.padding = .{0, 10};
 	f.hover_cursor = .IBeam;
 	f.text = ifx n > 0 then strings.repeat("•", n, temp) else placeholder;
-	f.style.text_color = ifx n > 0 then cast(T)("--text-default") else cast(T)("--input-placeholder-text-default");
+	f.style.text_color = ifx n > 0 then T("--text-default") else T("--input-placeholder-text-default");
 	if ui.signal(f).pressed && f.parent != null { app.ui.focus = f.parent.key; }
 	result := ui.Edit_Result.None;
 	if focused {
@@ -374,7 +374,7 @@ password_caret :: (b: *ui.Box, user: *void) {
 	x := b.rect.x0 + b.style.padding.x;
 	if n > 0 && b.text_layout != null { x += b.text_layout.width; }
 	y := b.rect.y0 + b.style.padding.y;
-	gfx.rect(.{x, y + 2, x + 1.5, y + 18}, cast(gfx.Color)(cast(T)("--text-default")));
+	gfx.rect(.{x, y + 2, x + 1.5, y + 18}, cast(gfx.Color)(T("--text-default")));
 }
 #scope_export
 

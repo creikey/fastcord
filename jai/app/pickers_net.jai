@@ -22,7 +22,7 @@ pickers_on_open_guild :: (gid: dc.Snowflake) {
 pickers_poll :: () {
 	if app.client == null { return; }
 	for * r: dc.expr_take(app.client) {
-		defer dc.expr_result_free(app.client, *r);
+		defer dc.expr_result_free(app.client, r);
 		if r.op == {
 		case .Frecency;
 			if r.ok {
@@ -37,13 +37,13 @@ pickers_poll :: () {
 			}
 			frecency.loaded_server = true;
 		case .Gif_Trending; #through; case .Gif_Trending_Gifs; #through; case .Gif_Search; #through; case .Gif_Suggest;
-			gif_receive(*r);
+			gif_receive(r);
 		case .Sticker_Packs;
-			sticker_packs_receive(*r);
+			sticker_packs_receive(r);
 		case .Media;
-			lottie_receive(*r);
+			lottie_receive(r);
 		case .Profile_Modal; #through; case .Mutual_Friends; #through; case .App_Identities;
-			profile_full_receive(*r);
+			profile_full_receive(r);
 		case .Gif_Select; #through; case .Top_Emojis;
 			if pickers_debug() { fmt.eprintfln("[pickers] %v status=%d body=%v", r.op, r.status, r.body); }
 		}

@@ -88,7 +88,7 @@ threads_browser_popout :: () {
 		tb.open = false;
 		return;
 	}
-	scrim := ui.box("threads_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
+	scrim := ui.box("threads_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).clicked {
 		tb.open = false;
@@ -121,14 +121,14 @@ threads_browser_popout :: () {
 	x := clamp(tb.anchor.x1 - THREADS_W, 8, app.ui.window.x - THREADS_W - 8);
 	y := tb.anchor.y1 + 8;
 	max_h := min(app.ui.window.y * 0.7, app.ui.window.y - y - 16);
-	p := ui.box("threadspop", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
+	p := ui.box("threadspop", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Clip);
 	p.semantic_size = .[ui.px(THREADS_W), ui.px(max_h)];
 	p.fixed_pos = .{x, y};
 	p.layout_axis = .Y;
-	p.style.bg = cast(T)("--background-surface-high");
-	p.style.border_color = cast(T)("--border-subtle");
+	p.style.bg = T("--background-surface-high");
+	p.style.border_color = T("--border-subtle");
 	p.style.border = 1;
-	p.style.radius = 8;
+	p.style.radius = all4(8);
 	p.style.shadow_color = .{0, 0, 0, 0.35};
 	p.style.shadow_blur = 16;
 	p.style.shadow_offset = .{0, 8};
@@ -137,25 +137,25 @@ threads_browser_popout :: () {
 	defer ui.pop_parent();
 	hdr := row("hdr");
 	hdr.semantic_size = .[ui.pct(1), ui.px(48)];
-	if ui.parent(hdr) {
+	{ ui.parent(hdr); defer ui.pop_parent();
 		spacer(.X, 16);
-		icon("i", "thread", 20, cast(T)("--interactive-icon-default"));
+		icon("i", "thread", 20, T("--interactive-icon-default"));
 		spacer(.X, 8);
-		label("Threads", .Semibold, 16, cast(T)("--text-strong"), 20);
+		label("Threads", .Semibold, 16, T("--text-strong"), 20);
 		if !tb.creating {
 			spacer(.X, 12);
-			for t: TB_Tab {
+			for t: enum_values_as_enum(TB_Tab) {
 				name := ifx t == .Active then "Active" else "Archived";
 				sel := tb.tab == t;
-				tab := row(name, .{.Clickable, .Draw_Background, .Hot_Animation});
+				tab := row(name, .Clickable | .Draw_Background | .Hot_Animation);
 				tab.semantic_size = .[ui.children(), ui.px(28)];
-				tab.style.radius = 4;
-				tab.style.bg = ifx sel then cast(T)("--background-mod-normal") else .{};
-				tab.style.bg_hot = ifx sel then tab.style.bg else cast(T)("--background-mod-subtle");
+				tab.style.radius = all4(4);
+				tab.style.bg = ifx sel then T("--background-mod-normal") else .{};
+				tab.style.bg_hot = ifx sel then tab.style.bg else T("--background-mod-subtle");
 				tsig := ui.signal(tab);
-				if ui.parent(tab) {
+				{ ui.parent(tab); defer ui.pop_parent();
 					spacer(.X, 8);
-					label(name, .Medium, 14, ifx sel || tsig.hovering then cast(T)("--text-strong") else cast(T)("--text-muted"), 18);
+					label(name, .Medium, 14, ifx sel || tsig.hovering then T("--text-strong") else T("--text-muted"), 18);
 					spacer(.X, 8);
 				}
 				if tsig.clicked && !sel {
@@ -167,13 +167,13 @@ threads_browser_popout :: () {
 		}
 		filler(.X);
 		if !tb.creating && can_create_thread(tb.channel) {
-			cb := row("create", .{.Clickable, .Draw_Background, .Hot_Animation});
+			cb := row("create", .Clickable | .Draw_Background | .Hot_Animation);
 			cb.semantic_size = .[ui.children(), ui.px(32)];
-			cb.style.radius = 8;
-			cb.style.bg = cast(T)("--background-brand");
-			cb.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
+			cb.style.radius = all4(8);
+			cb.style.bg = T("--background-brand");
+			cb.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
 			csig := ui.signal(cb);
-			if ui.parent(cb) {
+			{ ui.parent(cb); defer ui.pop_parent();
 				spacer(.X, 12);
 				label("Create", .Medium, 14, .{1, 1, 1, 1}, 18);
 				spacer(.X, 12);
@@ -182,27 +182,27 @@ threads_browser_popout :: () {
 		}
 		spacer(.X, 12);
 	}
-	line := ui.box("hl", .{.Draw_Background});
+	line := ui.box("hl", .Draw_Background);
 	line.semantic_size = .[ui.pct(1), ui.px(1)];
-	line.style.bg = cast(T)("--border-subtle");
+	line.style.bg = T("--border-subtle");
 	if tb.creating {
 		create_form();
 		return;
 	}
-	list := ui.box("list", .{.Scroll_Y, .Clip});
+	list := ui.box("list", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	sig := ui.signal(list);
-	if ui.parent(list) {
+	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
 		empty := ifx tb.tab == .Active then len(joined) + len(active) == 0 else len(older) == 0;
 		if empty {
 			r := row("empty");
 			r.semantic_size = .[ui.pct(1), ui.px(80)];
-			if ui.parent(r) {
+			{ ui.parent(r); defer ui.pop_parent();
 				filler(.X);
 				msg := ifx tb.tab == .Active then "There are no active threads." else "There are no archived threads.";
-				label(ifx tb.loading && tb.tab == .Archived then "Loading..." else msg, .Medium, 14, cast(T)("--text-muted"), 18);
+				label(ifx tb.loading && tb.tab == .Archived then "Loading..." else msg, .Medium, 14, T("--text-muted"), 18);
 				filler(.X);
 			}
 		}
@@ -246,17 +246,17 @@ create_form :: () {
 		res := ui.Edit_Result.None;
 		r := row(fmt.tprintf("%s_row", id));
 		r.semantic_size = .[ui.pct(1), ui.children()];
-		if ui.parent(r) {
+		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 16);
-			box := row(id, .{.Draw_Background, .Draw_Border, .Clickable});
+			box := row(id, .Draw_Background | .Draw_Border | .Clickable);
 			box.semantic_size = .[ui.fill(), ui.children()];
-			box.style.bg = cast(T)("--input-background-default");
-			box.style.border_color = ifx app.ui.focus == box.key then cast(T)("--input-border-active") else cast(T)("--input-border-default");
+			box.style.bg = T("--input-background-default");
+			box.style.border_color = ifx app.ui.focus == box.key then T("--input-border-active") else T("--input-border-default");
 			box.style.border = 1;
-			box.style.radius = 8;
+			box.style.radius = all4(8);
 			box.hover_cursor = .IBeam;
 			if ui.signal(box).pressed || want_focus { app.ui.focus = box.key; }
-			if ui.parent(box) {
+			{ ui.parent(box); defer ui.pop_parent();
 				spacer(.X, 12);
 				res = text_field("f", ed, placeholder, app.ui.focus == box.key, 16, 20, 9);
 				spacer(.X, 12);
@@ -267,9 +267,9 @@ create_form :: () {
 	}
 	sub := row("namelbl");
 	sub.semantic_size = .[ui.pct(1), ui.px(20)];
-	if ui.parent(sub) {
+	{ ui.parent(sub); defer ui.pop_parent();
 		spacer(.X, 16);
-		label("THREAD NAME", .Bold, 12, cast(T)("--text-muted"), 16);
+		label("THREAD NAME", .Bold, 12, T("--text-muted"), 16);
 	}
 	spacer(.Y, 6);
 	r1 := field("name", *tb.name, "New Thread", tb.focus == 1);
@@ -283,26 +283,26 @@ create_form :: () {
 	btns := row("btns");
 	btns.semantic_size = .[ui.pct(1), ui.px(36)];
 	btns.style.child_gap = 8;
-	if ui.parent(btns) {
+	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
-		cancel := row("cancel", .{.Clickable, .Draw_Background, .Hot_Animation});
+		cancel := row("cancel", .Clickable | .Draw_Background | .Hot_Animation);
 		cancel.semantic_size = .[ui.children(), ui.px(32)];
-		cancel.style.radius = 8;
-		cancel.style.bg_hot = cast(T)("--background-mod-subtle");
-		if ui.parent(cancel) {
+		cancel.style.radius = all4(8);
+		cancel.style.bg_hot = T("--background-mod-subtle");
+		{ ui.parent(cancel); defer ui.pop_parent();
 			spacer(.X, 12);
-			label("Cancel", .Medium, 14, cast(T)("--text-default"), 18);
+			label("Cancel", .Medium, 14, T("--text-default"), 18);
 			spacer(.X, 12);
 		}
 		if ui.signal(cancel).clicked { tb.creating = false; }
 		name := strings.trim_space(ui.editor_text(*tb.name));
 		ok := name != "" && !tb.busy;
-		go := row("go", ifx ok then .{.Clickable, .Draw_Background, .Hot_Animation} else .{.Draw_Background});
+		go := row("go", ifx ok then .Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
 		go.semantic_size = .[ui.children(), ui.px(32)];
-		go.style.radius = 8;
-		go.style.bg = ifx ok then cast(T)("--background-brand") else with_alpha(cast(T)("--background-brand"), 0.5);
-		go.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
-		if ui.parent(go) {
+		go.style.radius = all4(8);
+		go.style.bg = ifx ok then T("--background-brand") else with_alpha(T("--background-brand"), 0.5);
+		go.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
+		{ ui.parent(go); defer ui.pop_parent();
 			spacer(.X, 12);
 			label(ifx tb.busy then "Creating..." else "Create Thread", .Medium, 14, .{1, 1, 1, 1}, 18);
 			spacer(.X, 12);
@@ -350,12 +350,12 @@ thread_section :: (id: string, title: string, ids: []dc.Snowflake) {
 	defer ui.pop_parent();
 	h := row("title");
 	h.semantic_size = .[ui.pct(1), ui.px(28)];
-	if ui.parent(h) {
+	{ ui.parent(h); defer ui.pop_parent();
 		spacer(.X, 16);
-		label(fmt.tprintf("%s — %d", title, len(ids)), .Semibold, 12, cast(T)("--text-muted"), 16);
+		label(fmt.tprintf("%s — %d", title, len(ids)), .Semibold, 12, T("--text-muted"), 16);
 	}
 	for tid: ids {
-		if ui.id_scope(cast(u64)(tid)) { thread_browser_row(tid); }
+		{ ui.id_scope(cast(u64)(tid)); defer ui.pop_seed(); thread_browser_row(tid); }
 	}
 	spacer(.Y, 8);
 }
@@ -370,44 +370,44 @@ thread_browser_row :: (tid: dc.Snowflake) {
 	ui.push_parent(outer);
 	defer ui.pop_parent();
 	spacer(.X, 8);
-	item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
+	item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
 	item.semantic_size = .[ui.fill(), ui.px(52)];
-	item.style.radius = 8;
-	item.style.bg = cast(T)("--background-base-lower");
-	item.style.bg_hot = cast(T)("--background-mod-subtle");
+	item.style.radius = all4(8);
+	item.style.bg = T("--background-base-lower");
+	item.style.bg_hot = T("--background-mod-subtle");
 	sig := ui.signal(item);
-	if ui.parent(item) {
+	{ ui.parent(item); defer ui.pop_parent();
 		spacer(.X, 12);
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
-		if ui.parent(col) {
+		{ ui.parent(col); defer ui.pop_parent();
 			nr := row("name");
 			nr.semantic_size = .[ui.pct(1), ui.px(20)];
-			if ui.parent(nr) {
+			{ ui.parent(nr); defer ui.pop_parent();
 				if tm.locked || th.kind == .Private_Thread {
-					icon("lock", "thread-lock", 16, cast(T)("--text-muted"));
+					icon("lock", "thread-lock", 16, T("--text-muted"));
 					spacer(.X, 4);
 				}
 				unread := dc.channel_unread(s, tid);
-				label(ellipsize(th.name, .Semibold, 15, THREADS_W - 60), .Semibold, 15, ifx unread then cast(T)("--text-strong") else cast(T)("--text-default"), 20);
+				label(ellipsize(th.name, .Semibold, 15, THREADS_W - 60), .Semibold, 15, ifx unread then T("--text-strong") else T("--text-default"), 20);
 			}
 			mr := row("meta");
 			mr.semantic_size = .[ui.pct(1), ui.px(18)];
-			if ui.parent(mr) {
+			{ ui.parent(mr); defer ui.pop_parent();
 				if tm.owner_id != 0 {
 					avatar_box("av", tm.owner_id, 16);
 					spacer(.X, 6);
 					{ u := dc.user_get(s, tm.owner_id);
 					if u != null {
-						label(ellipsize(name_in(tm.owner_id, tid), .Medium, 13, 160), .Medium, 13, cast(T)("--text-muted"), 18);
+						label(ellipsize(name_in(tm.owner_id, tid), .Medium, 13, 160), .Medium, 13, T("--text-muted"), 18);
 						spacer(.X, 6);
 					} }
 				}
 				n := tm.message_count;
-				label(ifx n == 1 then "1 Message" else fmt.tprintf("%d Messages", n), .Medium, 13, cast(T)("--text-link"), 18);
+				label(ifx n == 1 then "1 Message" else fmt.tprintf("%d Messages", n), .Medium, 13, T("--text-link"), 18);
 				spacer(.X, 6);
-				label(fmt.tprintf("· %s", relative_age(max(tm.last_message_id, tid))), .Normal, 13, cast(T)("--text-muted"), 18);
+				label(fmt.tprintf("· %s", relative_age(max(tm.last_message_id, tid))), .Normal, 13, T("--text-muted"), 18);
 			}
 		}
 		spacer(.X, 12);
