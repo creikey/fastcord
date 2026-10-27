@@ -1,0 +1,11 @@
+# Clicking a tile focuses it (only that tile, larger); clicking again goes back to the grid.
+wait 5
+click_text "General"
+wait 10
+click 980 180
+wait 10
+expect_not_visible "Watch Stream"
+shot build/ui-call_focus.png
+click 820 300
+wait 10
+expect_visible "Watch Stream"

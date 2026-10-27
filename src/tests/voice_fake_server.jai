@@ -24,6 +24,8 @@ FAKE_CHANNEL :: cast(u64) 1564227670806364345;
 FAKE_GUILD :: cast(u64) 1564227669971832975;
 FAKE_SSRC_A :: cast(u32) 8597;
 FAKE_SSRC_B :: cast(u32) 9001;
+FAKE_VIDEO_A :: cast(u32) 8598;  // READY streams[0].ssrc
+FAKE_VIDEO_B :: cast(u32) 9002;
 
 // ---------------------------------------------------------------------------
 // Sockets and WebSocket frames, server side
@@ -163,6 +165,9 @@ Fake :: struct {
     last_seq_ack: s64;
     speaking_on: bool;
     rtp_e2ee_ok, rtp_bad, rtcp: int;
+    video_ok, video_bad: int;  // A's camera frames that decrypted to the frame sent
+    got_op12, got_op15: bool;
+    a_video: voice.Video_Rx;
     close_code: int;
     discovery: bool;
     failure: string;
@@ -173,7 +178,7 @@ fail :: (f: *Fake, msg: string) {
     if !f.failure f.failure = copy_string(msg);
 }
 
-// next_message returns the next message that is not a heartbeat or a speaking update (both handled here).
+// next_message returns the next message that is not a heartbeat, a speaking update or media sink wants (handled here).
 next_message :: (f: *Fake, s: *Srv) -> text: string, bin: []u8, is_bin: bool, ok: bool {
     while true {
         op, p, ok := read_frame(s);
@@ -202,6 +207,8 @@ next_message :: (f: *Fake, s: *Srv) -> text: string, bin: []u8, is_bin: bool, ok
             if voice.jint(voice.jget(d, "speaking")) == 1 f.speaking_on = true;
             continue;
         }
+        if o == 12 { locks.guard(*f.mu); f.got_op12 = contains(cast(string) p, "\"video_ssrc\":8598"); continue; }
+        if o == 15 { locks.guard(*f.mu); f.got_op15 = true; continue; }
         return cast(string) p, .[], false, true;
     }
     return "", .[], false, false;
@@ -238,6 +245,7 @@ gw_thread :: (t: *Thread) -> s64 {
     for f.key print_to_builder(*kb, ifx it_index then ",%" else "%", it);
     send_text(*s, tprint("{\"op\":4,\"d\":{\"video_codec\":\"H265\",\"secure_frames_version\":1,\"secret_key\":[%],\"mode\":\"aead_aes256_gcm_rtpsize\",\"media_session_id\":\"m\",\"dave_protocol_version\":1,\"audio_codec\":\"opus\"}}", builder_to_string(*kb,, temp)));
     send_text(*s, tprint("{\"seq\":1,\"op\":11,\"d\":{\"user_ids\":[\"%\"]}}", FAKE_USER_B));
+    send_text(*s, tprint("{\"op\":12,\"d\":{\"user_id\":\"%\",\"audio_ssrc\":%,\"video_ssrc\":%,\"streams\":[{\"type\":\"video\",\"ssrc\":%,\"rtx_ssrc\":%,\"active\":true}]}}", FAKE_USER_B, FAKE_SSRC_B, FAKE_VIDEO_B, FAKE_VIDEO_B, FAKE_VIDEO_B + 1));
     send_binary(*s, 2, 25, f.ext_raw);
 
     // key package (op 26), bare KeyPackage
@@ -302,8 +310,8 @@ udp_thread :: (t: *Thread) -> s64 {
     voice.transport_init(*tc, .Aes256_Gcm_Rtpsize, f.key);
     voice.transport_init(*tx, .Aes256_Gcm_Rtpsize, f.key);
     defer { voice.transport_reset(*tc); voice.transport_reset(*tx); }
-    seq: u16 = 1;
-    ts, nonce, dnonce: u32;
+    seq, vseq: u16 = 1, 500;
+    ts, vts, nonce, dnonce: u32;
     next_send := current_time_monotonic();
     while !atomic_load(*f.stop) {
         from: sockaddr_in;
@@ -326,6 +334,23 @@ udp_thread :: (t: *Thread) -> s64 {
                 if ok && rok {
                     locks.guard(*f.mu);
                     f.rtcp += 1;
+                }
+            } else if hok && h.ssrc == FAKE_VIDEO_A {
+                m, ok := voice.transport_open(*tc, pkt, h.aad_len, plain);
+                if ok && h.pt == 103 {
+                    au, done := voice.rx_video_packet(*f.a_video, .H265, h.seq, h.ts, h.marker, array_view(plain, h.payload_off, m - h.payload_off));
+                    if done {
+                        p, pok := dave.parse_protocol_frame(au);
+                        k, kok := dave.ratchet_get(*f.a_ratchet, p.nonce >> 24);
+                        out := NewArray(au.count, u8,, temp);
+                        fl: int;
+                        dok: bool;
+                        if pok && kok fl, dok = dave.decrypt_frame(k, *p, out);
+                        want, _ := voice.with_long_start_codes(fake_video_au());
+                        locks.guard(*f.mu);
+                        if dok && fl == want.count && memcmp(out.data, want.data, fl) == 0 f.video_ok += 1;
+                        else f.video_bad += 1;
+                    }
                 }
             } else if hok {
                 m, ok := voice.transport_open(*tc, pkt, h.aad_len, plain);
@@ -366,6 +391,32 @@ udp_thread :: (t: *Thread) -> s64 {
             seq += 1;
             ts += 960;
             sendto(f.udp, sealed.data, xx sl, 0, cast(*sockaddr) *ep, size_of(sockaddr_in));
+            // and every 5th tick a camera frame (H.265, as SESSION_DESCRIPTION chose), in RTP
+            if seq % 5 == 0 {
+                frame, nals := voice.with_long_start_codes(fake_video_au());
+                enc := NewArray(frame.count + 256, u8,, temp);
+                vk := dave.ratchet_get(*f.b_ratchet, dnonce >> 24);
+                el := dave.encrypt_frame(vk, dnonce, frame, voice.dave_clear_ranges(.H265, frame, nals), enc);
+                dnonce += 1;
+                V :: struct { f: *Fake; tx: *voice.Transport_Crypto; nonce: *u32; seq: *u16; ts: u32; ep: sockaddr_in; }
+                v := V.{f, *tx, *nonce, *vseq, vts, ep};
+                voice.packetize(.H265, array_view(enc, 0, el), nals, (payload: []u8, last: bool, data: *void) {
+                    v := cast(*V) data;
+                    rp: [1300]u8;
+                    rp[0] = 0x80;
+                    rp[1] = 103 | (ifx last then cast(u8) 0x80 else 0);
+                    voice.put_u16(rp, v.seq.*, 2);
+                    voice.put_u32(rp, v.ts, 4);
+                    voice.put_u32(rp, FAKE_VIDEO_B, 8);
+                    memcpy(rp.data + 12, payload.data, payload.count);
+                    sealed: [1400]u8;
+                    sl := voice.transport_seal(v.tx, array_view(rp, 0, 12 + payload.count), 12, v.nonce.*, sealed);
+                    v.nonce.* += 1;
+                    v.seq.* += 1;
+                    sendto(v.f.udp, sealed.data, xx sl, 0, cast(*sockaddr) *v.ep, size_of(sockaddr_in));
+                }, *v);
+                vts += 9000;
+            }
         }
         reset_temporary_storage();
     }
@@ -374,6 +425,19 @@ udp_thread :: (t: *Thread) -> s64 {
 
 g_capture_phase: float64;
 g_playback_b: int;
+g_video_b: int;
+
+// An H.265 keyframe: VPS, SPS, PPS and a 3000-byte IDR slice (fragmented in RTP).
+fake_video_au :: () -> []u8 {
+    b: [..]u8;
+    b.allocator = temp;
+    for hdr: ([2]u8).[.[0x40, 0x01], .[0x42, 0x01], .[0x44, 0x01], .[0x26, 0x01]] {
+        array_add(*b, 0, 0, 0, 1);
+        array_add(*b, ..hdr);
+        for 0..ifx hdr[0] == 0x26 then 2999 else 9 array_add(*b, cast(u8) (it * 13 + 5));
+    }
+    return b;
+}
 
 plain_dial :: (host: string, port: int) -> netio.Stream, bool {
     tcp, err := netio.dial_tcp(host, port);
@@ -429,6 +493,10 @@ test_fake_voice_server :: () {
             return out.count;
         },
         playback = (data: *void, user_id: u64, pcm: []float32) { if user_id == FAKE_USER_B atomic_add(*g_playback_b, 1); },
+        video = (data: *void, user_id: u64, codec: voice.Video_Codec, au: []u8, keyframe: bool) {
+            want, _ := voice.with_long_start_codes(fake_video_au());
+            if user_id == FAKE_USER_B && codec == .H265 && keyframe && au.count == want.count && memcmp(au.data, want.data, au.count) == 0 atomic_add(*g_video_b, 1);
+        },
     };
     c := voice.voice_connect(.{endpoint = tprint("127.0.0.1:%", f.tcp_port), token = "TOKEN", guild_or_channel_id = FAKE_GUILD,
         user_id = FAKE_USER_A, session_id = "SESSION", channel_id = FAKE_CHANNEL}, opts);
@@ -448,6 +516,15 @@ test_fake_voice_server :: () {
     expect(stats.ws_ping_ms >= 0 && stats.packets_sent > 20 && stats.packets_received > 20, "media stats %", stats);
     vc, vok := voice.verification_code(c, FAKE_USER_B,, temp);
     expect(vok && vc.count == 45, "verification code");
+    // our camera: op 12, then frames
+    voice.set_video(c, true, 640, 360, 30, 1_000_000);
+    for 1..10 {
+        voice.send_video(c, voice.video_codec(c), fake_video_au(), cast(u32) (it * 3000));
+        reset_temporary_storage();
+        sleep_milliseconds(30);
+    }
+    sleep_milliseconds(200);
+    expect(atomic_load(*g_video_b) >= 3, "B's camera frames decoded: %", g_video_b);
 
     voice.voice_disconnect(c);
     sleep_milliseconds(100);
@@ -468,6 +545,8 @@ test_fake_voice_server :: () {
     expect(f.speaking_on, "op 5 speaking");
     expect(f.rtp_e2ee_ok > 20, "E2EE rtp from client: ok=% bad=%", f.rtp_e2ee_ok, f.rtp_bad);
     expect(f.rtcp >= 1, "rtcp report");
+    expect(f.got_op15 && f.got_op12, "op 15 media sink wants, op 12 video");
+    expect(f.video_ok >= 9 && f.video_bad == 0, "E2EE video from client: ok=% bad=%", f.video_ok, f.video_bad);
     expect(f.close_code == voice.CLOSE_FORCE, "close code %", f.close_code);
     expect(atomic_load(*g_playback_b) > 20, "played B's audio: %", g_playback_b);
 }

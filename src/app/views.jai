@@ -490,6 +490,11 @@ page :: () {
 			return;
 		}
 		chat_header(ch);
+		if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
+			call_view(ch.id);
+			return;
+		}
+		if ch.guild_id == 0 && app.voice_channel == ch.id { dm_call_panel(ch.id); }
 		body := row("chatbody");
 		body.semantic_size = .[ui.pct(1), ui.fill()];
 		body.cross_align = .Start;
@@ -791,6 +796,20 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					voice_avatar("av", uid, 24, T("--background-base-lower"));
 					spacer(.X, 8);
 					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, T("--channels-default"), 18);
+					filler(.X);
+					if vs.self_video { icon("cam", "video", 16, T("--channels-default")); spacer(.X, 4); }
+					if vs.self_stream {
+						live := row("live", .Draw_Background);
+						live.semantic_size = .[ui.children(), ui.px(16)];
+						live.style.bg = T("--status-danger");
+						live.style.radius = all4(8);
+						{ ui.parent(live); defer ui.pop_parent();
+							spacer(.X, 6);
+							label("LIVE", .Bold, 11, .{1, 1, 1, 1}, 14);
+							spacer(.X, 6);
+						}
+					}
+					spacer(.X, 16);
 				}
 			}
 		}
@@ -966,8 +985,12 @@ tooltip_right :: (text: string) {
 	}
 }
 
+// A voice channel's row joins it and opens its call view (the join already loads
+// the channel's text page, so no channel select goes out).
 join_voice :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 	voice_join_channel(gid, cid);
+	app.view.guild = gid;
+	app.view.channel = cid;
 }
 
 overlays :: () {
@@ -1004,6 +1027,7 @@ overlays :: () {
 	add_server_overlay(); // view_add_server.jai
 	invite_accept_overlay(); // view_invites.jai
 	voice_user_menu();
+	screen_picker(); // view_call.jai
 	pins_popout();
 	threads_browser_popout();
 	inbox_popout();

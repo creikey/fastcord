@@ -242,6 +242,8 @@ ui_scripts :: () -> bool {
         add(*jobs, tprint("media_%", path_strip_extension(path_filename(it))), "tests/ui/media/media.jsonl", it, "FASTCORD_MEDIA_DIR=tests/ui/media");
     for file_list("tests/ui/code") if ends_with(it, ".txt")  // ``` blocks in the highlighted languages
         add(*jobs, tprint("code_%", path_strip_extension(path_filename(it))), "tests/ui/code/code.jsonl", it);
+    for file_list("tests/ui/call") if ends_with(it, ".txt")  // the call view (voice states in the General voice channel)
+        add(*jobs, tprint("call_%", path_strip_extension(path_filename(it))), "tests/ui/call/call.jsonl", it);
     for file_list("tests/ui/forward") if ends_with(it, ".txt")  // quotes, a forward, unread messages after a read marker
         add(*jobs, tprint("forward_%", path_strip_extension(path_filename(it))), "tests/ui/chat_forward.jsonl", it);
     sweep := array_add(*jobs);
@@ -313,6 +315,7 @@ INFO_PLIST :: #string XML
 	<key>LSMinimumSystemVersion</key><string>13.0</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSMicrophoneUsageDescription</key><string>Fastcord uses the microphone for voice chat.</string>
+	<key>NSCameraUsageDescription</key><string>Fastcord uses the camera for video calls.</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.social-networking</string>
 </dict>
 </plist>

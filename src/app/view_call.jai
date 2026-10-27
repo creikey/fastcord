@@ -1,0 +1,371 @@
+// The call view: everyone in a voice channel (or a DM call) as 16:9 tiles on
+// black, laid out in the grid that makes them largest; a camera or stream
+// shows its video, otherwise the avatar on the user's banner color, with a green
+// border while speaking. Go Live streams get their own tile ("Watch Stream"
+// until watched). Clicking a tile focuses it; the bar below holds the mic,
+// camera, screen share and disconnect buttons.
+
+CALL_GAP :: 8;
+CALL_PAD :: 16;
+CALL_BAR_H :: 80;
+
+Call_Tile :: struct {
+	user: dc.Snowflake;
+	stream: bool;
+}
+
+// call_view fills the parent: the grid for channel cid and its control bar.
+call_view :: (cid: dc.Snowflake) {
+	s := store();
+	tiles: [..]Call_Tile;
+	tiles.allocator = temp;
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	for vs, uid: s.voice_states if vs.channel_id == cid array_add(*ids, uid);
+	quick_sort(ids, (a: dc.Snowflake, b: dc.Snowflake) -> s64 { return ifx a < b then -1 else ifx a > b then 1 else 0; });
+	// streams first, then cameras / avatars (ours leads each group)
+	for pass: 0..1 for ids {
+		vs := table_find_pointer(*s.voice_states, it);
+		if pass == 0 && (vs.self_stream || (it == s.me && screen_sharing())) array_add(*tiles, .{it, true});
+		if pass == 1 array_add(*tiles, .{it, false});
+	}
+	if cv.focus_user {
+		found := false;
+		for tiles if it.user == cv.focus_user && it.stream == cv.focus_stream found = true;
+		if !found cv.focus_user = 0;
+	}
+	if cv.focus_user { tiles.count = 0; array_add(*tiles, .{cv.focus_user, cv.focus_stream}); }
+
+	root := ui.box("call", .Draw_Background | .Clip);
+	root.semantic_size = .[ui.fill(), ui.fill()];
+	root.layout_axis = .Y;
+	root.style.bg = .{0, 0, 0, 1};
+	{ ui.parent(root); defer ui.pop_parent();
+		area := ui.box("grid");
+		area.semantic_size = .[ui.pct(1), ui.fill()];
+		// the area's size from the last pass (the window's, before the first layout)
+		aw := area.rect.x1 - area.rect.x0;
+		ah := area.rect.y1 - area.rect.y0;
+		if aw <= 0 || ah <= 0 {
+			aw = app.ui.window.x - RAIL_W - app.view.sidebar_w;
+			ah = app.ui.window.y - HEADER_H - CALL_BAR_H;
+		}
+		{ ui.parent(area); defer ui.pop_parent();
+			if !tiles.count {
+				spacer(.Y, ah / 2 - 10);
+				r := row("empty");
+				r.semantic_size = .[ui.pct(1), ui.px(20)];
+				ui.parent(r); defer ui.pop_parent();
+				filler(.X);
+				label("No one's here yet", .Medium, 16, T("--text-muted"), 20);
+				filler(.X);
+			} else {
+				place_tiles(tiles, aw, ah);
+			}
+		}
+		call_controls(cid);
+	}
+}
+
+// DM / group DM: the call above the chat while we are in it.
+dm_call_panel :: (cid: dc.Snowflake) {
+	p := ui.box("dmcall", .Clip);
+	p.semantic_size = .[ui.pct(1), ui.px(max(240.0, app.ui.window.y * 0.45))];
+	p.layout_axis = .Y;
+	ui.parent(p); defer ui.pop_parent();
+	call_view(cid);
+}
+
+// The screen share picker: screens and windows (names; ScreenCaptureKit lists them asynchronously).
+screen_picker :: () {
+	if !vid.picker_open return;
+	targets, ready := video.screen_targets();
+	scrim := ui.box("screen_scrim", .Draw_Background | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	scrim.style.bg = .{0, 0, 0, 0.7};
+	if ui.signal(scrim).clicked vid.picker_open = false;
+	W :: cast(float32) 440;
+	H := min(cast(float32) 520, app.ui.window.y - 80);
+	m := ui.box("screen_picker", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Clip);
+	m.semantic_size = .[ui.px(W), ui.px(H)];
+	m.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - H) / 2};
+	m.layout_axis = .Y;
+	m.style.bg = T("--background-surface-high");
+	m.style.border = 1;
+	m.style.border_color = T("--border-subtle");
+	m.style.radius = all4(12);
+	ui.signal(m);
+	ui.parent(m); defer ui.pop_parent();
+	spacer(.Y, 20);
+	hdr := row("hdr");
+	hdr.semantic_size = .[ui.pct(1), ui.px(24)];
+	{ ui.parent(hdr); defer ui.pop_parent();
+		spacer(.X, 20);
+		label("Share Your Screen", .Semibold, 20, T("--text-strong"), 24);
+		filler(.X);
+		x := icon("close", "x-large", 20, T("--interactive-icon-default"), .Clickable);
+		if ui.signal(x).clicked vid.picker_open = false;
+		spacer(.X, 16);
+	}
+	spacer(.Y, 12);
+	list := ui.box("targets", .Scroll_Y | .Clip);
+	list.semantic_size = .[ui.pct(1), ui.fill()];
+	list.layout_axis = .Y;
+	ui.signal(list);
+	ui.parent(list); defer ui.pop_parent();
+	if !ready {
+		r := row("loading");
+		r.semantic_size = .[ui.pct(1), ui.px(40)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 20);
+		label(ifx video.screen_supported() then "Looking for screens…" else "Screen sharing isn't supported on this platform yet.", .Normal, 14, T("--text-muted"), 18);
+		return;
+	}
+	for section: 0..1 {
+		label_row := row(tprint("sec%", section));
+		label_row.semantic_size = .[ui.pct(1), ui.px(32)];
+		{ ui.parent(label_row); defer ui.pop_parent();
+			spacer(.X, 20);
+			label(ifx section == 0 then "SCREENS" else "APPLICATIONS", .Semibold, 12, T("--text-muted"), 16);
+		}
+		for t: targets {
+			if t.is_window != (section == 1) continue;
+			ui.id_scope(cast(u64) t.id * 2 + cast(u64) section); defer ui.pop_seed();
+			outer := row("t");
+			outer.semantic_size = .[ui.pct(1), ui.px(44)];
+			ui.parent(outer); defer ui.pop_parent();
+			spacer(.X, 12);
+			b := row("item", .Clickable | .Draw_Background | .Hot_Animation);
+			b.semantic_size = .[ui.fill(), ui.px(40)];
+			b.style.radius = all4(8);
+			b.style.bg_hot = T("--background-mod-subtle");
+			sig := ui.signal(b);
+			{ ui.parent(b); defer ui.pop_parent();
+				spacer(.X, 10);
+				icon("i", ifx t.is_window then "window-launch" else "screen", 20, T("--interactive-icon-default"));
+				spacer(.X, 10);
+				label(ellipsize(t.name, .Medium, 15, W - 140), .Medium, 15, T("--text-default"), 20);
+				filler(.X);
+				label(tprint("%×%", t.width, t.height), .Normal, 12, T("--text-muted"), 16);
+				spacer(.X, 12);
+			}
+			spacer(.X, 12);
+			if sig.clicked {
+				vid.picker_open = false;
+				go_live_start(t);
+			}
+		}
+	}
+}
+
+#scope_file
+
+cv: struct {
+	focus_user: dc.Snowflake;
+	focus_stream: bool;
+};
+
+Tile_Draw :: struct {
+	img: media.Video_Image;
+	cover: bool;
+}
+
+// The grid shape that makes 16:9 tiles largest; the last row is centered.
+place_tiles :: (tiles: []Call_Tile, aw: float32, ah: float32) {
+	n := tiles.count;
+	W := aw - 2 * CALL_PAD;
+	H := ah - 2 * CALL_PAD;
+	best_w: float32;
+	cols := 1;
+	for c: 1..n {
+		rows := (n + c - 1) / c;
+		w := min((W - CALL_GAP * (c - 1)) / c, (H - CALL_GAP * (rows - 1)) / rows * 16 / 9);
+		if w > best_w { best_w = w; cols = c; }
+	}
+	if best_w <= 0 return;
+	th := best_w * 9 / 16;
+	rows := (n + cols - 1) / cols;
+	y0 := CALL_PAD + (H - (rows * th + (rows - 1) * CALL_GAP)) / 2;
+	for tiles {
+		r := it_index / cols;
+		in_row := min(cols, n - r * cols);
+		row_w := in_row * best_w + (in_row - 1) * CALL_GAP;
+		x := CALL_PAD + (W - row_w) / 2 + (it_index % cols) * (best_w + CALL_GAP);
+		y := y0 + r * (th + CALL_GAP);
+		call_tile(it, x, y, best_w, th);
+	}
+}
+
+call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
+	s := store();
+	ui.id_scope(cast(u64) t.user * 2 + cast(u64) t.stream); defer ui.pop_seed();
+	img := ifx t.stream then stream_image(t.user) else camera_image(t.user);
+	watching := t.stream && (t.user == s.me || vid.watch_user == t.user);
+	b := ui.box("tile", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Clip);
+	b.semantic_size = .[ui.px(w), ui.px(h)];
+	b.fixed_pos = .{x, y};
+	b.style.radius = all4(8);
+	b.style.bg = ifx t.stream || img.y then T("--background-base-lowest") else profile_banner_color(t.user);
+	b.layout_axis = .Y;
+	b.cross_align = .Center;
+	if img.y {
+		d := New(Tile_Draw,, temp);
+		d.* = .{img, !t.stream};
+		b.custom_draw = tile_video_draw;
+		b.custom_user = d;
+	}
+	sig := ui.signal(b);
+	if sig.clicked && (!t.stream || watching) {
+		if cv.focus_user { cv.focus_user = 0; } else { cv.focus_user, cv.focus_stream = t.user, t.stream; }
+	}
+	vs := table_find_pointer(*s.voice_states, t.user);
+	gid := ifx vs then vs.guild_id else 0;
+	{ ui.parent(b); defer ui.pop_parent();
+		if !img.y {
+			av := min(80.0, h * 0.35);
+			spacer(.Y, (h - av) / 2 - (ifx t.stream && !watching then 24.0 else 0));
+			avatar_box("av", t.user, av);
+			if t.stream && !watching {
+				spacer(.Y, 16);
+				wb := row("watch", .Clickable | .Draw_Background | .Hot_Animation);
+				wb.semantic_size = .[ui.children(), ui.px(32)];
+				wb.style.radius = all4(8);
+				wb.style.bg = T("--background-surface-highest");
+				wb.style.bg_hot = T("--background-mod-normal");
+				if ui.signal(wb).clicked watch_stream(t.user);
+				ui.parent(wb); defer ui.pop_parent();
+				spacer(.X, 14);
+				label("Watch Stream", .Semibold, 14, T("--text-strong"), 18);
+				spacer(.X, 14);
+			}
+		}
+		if t.stream {
+			live := row("live", .Draw_Background | .Floating_X | .Floating_Y);
+			live.semantic_size = .[ui.children(), ui.px(18)];
+			live.fixed_pos = .{8, 8};
+			live.style.bg = T("--status-danger");
+			live.style.radius = all4(4);
+			ui.parent(live); defer ui.pop_parent();
+			spacer(.X, 5);
+			label("LIVE", .Bold, 11, .{1, 1, 1, 1}, 14);
+			spacer(.X, 5);
+		}
+		if sig.hovering || t.stream || img.y {
+			// name pill, bottom left
+			name := dc.user_name(s, t.user, gid, "unknown");
+			pill := row("name", .Draw_Background | .Floating_X | .Floating_Y);
+			pill.semantic_size = .[ui.children(), ui.px(24)];
+			pill.fixed_pos = .{8, h - 32};
+			pill.style.bg = .{0, 0, 0, 0.6};
+			pill.style.radius = all4(6);
+			ui.parent(pill); defer ui.pop_parent();
+			spacer(.X, 8);
+			label(ellipsize(name, .Medium, 14, w - 60), .Medium, 14, .{1, 1, 1, 1}, 18);
+			spacer(.X, 8);
+		}
+		if vs && !t.stream && (vs.self_mute || vs.mute || vs.self_deaf || vs.deaf) {
+			deaf := vs.self_deaf || vs.deaf;
+			m := row("muted", .Draw_Background | .Floating_X | .Floating_Y);
+			m.semantic_size = .[ui.px(28), ui.px(28)];
+			m.fixed_pos = .{w - 36, h - 36};
+			m.style.bg = .{0, 0, 0, 0.6};
+			m.style.radius = all4(14);
+			ui.parent(m); defer ui.pop_parent();
+			spacer(.X, 6);
+			icon("i", ifx deaf then "headphones-slash" else "microphone-slash", 16, .{1, 1, 1, 1});
+		}
+	}
+	if !t.stream && voice_is_speaking(t.user) {
+		ring := ui.box("speaking", .Draw_Border | .Floating_X | .Floating_Y);
+		ring.semantic_size = .[ui.px(w), ui.px(h)];
+		ring.fixed_pos = .{x, y};
+		ring.style.radius = all4(8);
+		ring.style.border = 2;
+		ring.style.border_color = T("--status-positive");
+	}
+}
+
+// Video "cover"-fitted for cameras (cropped to fill), "contain"-fitted for streams.
+tile_video_draw :: (b: *ui.Box, user: *void) {
+	d := cast(*Tile_Draw) user;
+	r := cast,force(gfx.Rect) b.rect;
+	bw, bh := r.x1 - r.x0, r.y1 - r.y0;
+	iw, ih := cast(float32) d.img.size[0], cast(float32) d.img.size[1];
+	if iw <= 0 || ih <= 0 || bw <= 0 || bh <= 0 return;
+	white := gfx.Color.{1, 1, 1, b.opacity};
+	if d.cover {
+		src := gfx.Rect.{0, 0, iw, ih};
+		if iw / ih > bw / bh { cw := ih * bw / bh; src.x0 = (iw - cw) / 2; src.x1 = src.x0 + cw; }
+		else { ch := iw * bh / bw; src.y0 = (ih - ch) / 2; src.y1 = src.y0 + ch; }
+		gfx.push_rect(.{dst = r, src = src, tex = d.img.y, tex2 = d.img.cbcr, yuv = d.img.yuv, colors = .[white, white, white, white], radii = b.style.radius});
+		return;
+	}
+	sc := min(bw / iw, bh / ih);
+	w, h := iw * sc, ih * sc;
+	x0, y0 := r.x0 + (bw - w) / 2, r.y0 + (bh - h) / 2;
+	gfx.video(.{x0, y0, x0 + w, y0 + h}, d.img.y, d.img.cbcr, d.img.yuv, 0, white);
+}
+
+call_controls :: (cid: dc.Snowflake) {
+	bar := row("controls");
+	bar.semantic_size = .[ui.pct(1), ui.px(CALL_BAR_H)];
+	ui.parent(bar); defer ui.pop_parent();
+	filler(.X);
+	if app.voice_channel != cid {
+		jb := row("join", .Clickable | .Draw_Background | .Hot_Animation);
+		jb.semantic_size = .[ui.children(), ui.px(48)];
+		jb.style.radius = all4(12);
+		jb.style.bg = T("--status-positive");
+		jb.style.bg_hot = with_alpha(T("--status-positive"), 0.85);
+		if ui.signal(jb).clicked {
+			ch := dc.channel_get(store(), cid);
+			if ch && ch.guild_id voice_join_channel(ch.guild_id, cid);
+			else if ch dm_call_toggle(ch);
+		}
+		{ ui.parent(jb); defer ui.pop_parent();
+			spacer(.X, 20);
+			label("Join Voice", .Semibold, 16, .{1, 1, 1, 1}, 20);
+			spacer(.X, 20);
+		}
+		filler(.X);
+		return;
+	}
+	can_video := voice_conn() != null && voice.state(voice_conn()) == .Connected;
+	if control("mic", ifx app.self_mute then "microphone-slash" else "microphone", app.self_mute, false, true) app.self_mute = !app.self_mute;
+	spacer(.X, 8);
+	if control("camera", "video", false, camera_on(), can_video && video.camera_supported()) camera_toggle();
+	spacer(.X, 8);
+	if control("screen", "screen-stream", false, screen_sharing(), can_video && video.screen_supported()) {
+		if screen_sharing() go_live_stop();
+		else { video.screen_targets_refresh(); vid.picker_open = true; }
+	}
+	spacer(.X, 8);
+	if control("leave", "phone-hang-up", true, false, true) {
+		if app.client != null dc.analytics_call_disconnect(app.client, ifx dc.channel_get(store(), cid) then dc.channel_get(store(), cid).guild_id else 0, cid);
+		voice_leave_channel();
+	}
+	filler(.X);
+}
+
+// A 56x48 control: red when danger (muted / disconnect), white when on.
+control :: (id: string, ic: string, danger: bool, on: bool, enabled: bool) -> bool {
+	b := ui.box(id, .Clickable | .Draw_Background | .Hot_Animation);
+	b.semantic_size = .[ui.px(56), ui.px(48)];
+	b.style.radius = all4(12);
+	bg := T("--background-surface-highest");
+	fg := T("--interactive-icon-hover");
+	if danger { bg = T("--status-danger"); fg = .{1, 1, 1, 1}; }
+	if on { bg = .{1, 1, 1, 1}; fg = .{0, 0, 0, 1}; }
+	if !enabled { b.flags &= ~.Clickable; fg = with_alpha(fg, 0.4); }
+	b.style.bg = bg;
+	b.style.bg_hot = with_alpha(bg, 0.85);
+	b.layout_axis = .X;
+	b.cross_align = .Center;
+	sig := ui.signal(b);
+	{ ui.parent(b); defer ui.pop_parent();
+		filler(.X);
+		icon("i", ic, 22, fg);
+		filler(.X);
+	}
+	return enabled && sig.clicked;
+}

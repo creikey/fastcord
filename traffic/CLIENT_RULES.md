@@ -111,6 +111,27 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 | Linux super properties (IDENTIFY and `x-super-properties`): `os` "Linux", `os_version` = kernel release (`uname -r`), `os_arch`/`app_arch` "x64", no `os_sdk_version`, then `window_manager` "`$XDG_CURRENT_DESKTOP`,`$GDMSESSION`" ("unknown" for unset), `distro` = os-release `PRETTY_NAME` unquoted, `runtime_environment` "native", `display_server` = `$XDG_SESSION_TYPE`, after `browser_version`; `native_build_number` null | guess (no Linux capture) | super-properties module (`getSuperProperties`) | `src/discord/procinfo_linux.jai` `linux_platform`, `identity.jai` `write_base_properties`, `gateway.jai` `put_base_properties` |
 | Linux user agent `Mozilla/5.0 (X11; Linux x86_64) … discord/<linux version> Chrome/… Electron/…`, `sec-ch-ua-platform` "Linux"; Linux client version `LINUX_CLIENT_VERSION` (0.0.125: its own version line; the Electron and web build are the macOS baseline's) | guess | `navigator.userAgent` | same |
 
+## Video and Go Live
+
+None of this is captured: the voice gateway and its UDP media are native (not in the DevTools captures),
+and no capture of the main gateway has a camera or a stream. Re-check every row with a live camera call
+and a Go Live on a test account.
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| Camera on/off: op 4 with `self_video` set, otherwise unchanged (mute / deafen toggles keep it) | guess | `VoiceStateStore`, `selfVideo` | `dc.voice_set_state`, `video_call.jai` `send_voice_state` |
+| Voice op 12 VIDEO when our video starts / stops: `audio_ssrc`, `video_ssrc`, `rtx_ssrc` (0 when off), one `streams` entry `{type:"video", rid:"100", ssrc, active, quality:100, rtx_ssrc, max_bitrate, max_framerate, max_resolution:{type:"fixed",width,height}}`; SSRCs from READY `streams[0]` | guess (open-source Go Live streamers) | `VIDEO` opcode in the RTC connection | `voice.msg_video`, `voice.set_video` |
+| Server op 12 maps `user_id` to `video_ssrc` / each active `streams[].ssrc`; inactive or 0 = stopped | guess | same | `conn.jai` `on_remote_video` |
+| Voice op 15 MEDIA_SINK_WANTS `{"any":100}` after SESSION_DESCRIPTION (all video at full quality) | guess | `MEDIA_SINK_WANTS` | `conn.jai` `MSG_MEDIA_SINK_WANTS_ANY` |
+| Video codec = SESSION_DESCRIPTION / SESSION_UPDATE `video_codec`; H264 (PT 105) and H265 (PT 103) are sent and decoded; VP8 / AV1 frames are dropped | guess | `CODECS_JSON` | `voice/video.jai`, `video_call.jai` |
+| Video RTP: 90 kHz, marker on the frame's last packet, RFC 6184 mode 1 (single NAL / FU-A) and RFC 7798 FU, 1100-byte payloads, one-byte extension playout-delay (id 5) = 0, no RTX, no NACK handling; keyframes on PLI / FIR; receivers send a PLI (≤ 2/s) until a keyframe | guess | WebRTC defaults | `voice/video.jai`, `conn.jai` |
+| DAVE video frames: 4-byte start codes; clear ranges per libdave `codec_utils` (start codes, H.264 slice NAL header + first three slice-header exp-Golomb values, H.265 VCL 2-byte header, other NAL units whole) | code (libdave) | `ProcessFrameH264`, `ProcessFrameH265`, `BytesCoveringH264PPS` | `voice.dave_clear_ranges`, `voice_dave.encrypt_frame` |
+| Go Live: op 18 `{type:"guild"/"call", guild_id, channel_id, preferred_region:null}`; op 20 `{stream_key}` to watch; op 19 `{stream_key}` to end ours or stop watching; keys `guild:<g>:<c>:<u>` / `call:<c>:<u>` | guess | `STREAM_CREATE`, `STREAM_WATCH`, `STREAM_DELETE` | `dc.stream_create`, `dc.stream_watch`, `dc.stream_delete` |
+| A stream's voice connection: STREAM_CREATE `rtc_server_id` as `server_id`, STREAM_SERVER_UPDATE endpoint + token, our voice session id; IDENTIFY with `streams:[{type:"screen",rid:"100",quality:100}]`; the streamer sends no audio (no soundshare yet) | guess | same | `dc.stream_server_info`, `voice.Voice_Server_Info.stream` |
+| Camera 1280x720 30 fps 2.5 Mbps; screen ≤ 720p 30 fps 4 Mbps (the non-Nitro limit) | guess | — | `video_call.jai` |
+| Clicking a voice channel joins it and opens its call view (no separate channel select) | inferred | — | `views.jai` `join_voice` |
+| Call view: black, 16:9 tiles with 8 px gaps in the grid that makes them largest, last row centered; avatar on the banner / accent / dominant color, green 2 px border while speaking; streams first with a LIVE badge and "Watch Stream"; click focuses a tile | inferred (screenshot) | — | `view_call.jai` |
+
 ## HTTP, retries, rate limits
 
 For features that load or send (and their retry / loading states): every REST call goes through

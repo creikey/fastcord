@@ -39,6 +39,10 @@ Op :: enum s64 {
 	Heartbeat_Ack :: 11;
 	Call_Connect :: 13;
 	Guild_Subscriptions :: 14;
+	Stream_Create :: 18;
+	Stream_Delete :: 19;
+	Stream_Watch :: 20;
+	Stream_Set_Paused :: 22;
 	Request_Soundboard_Sounds :: 31;
 	Request_Last_Messages :: 34;
 	Search_Recent_Members :: 35;

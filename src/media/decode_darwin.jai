@@ -79,6 +79,15 @@ video_decoder_create :: (t: *Track, first_packet: []u8 = .[]) -> *Video_Decoder,
 		free(vd);
 		return null, false;
 	}
+	if !video_session_create(vd) {
+		CFRelease(vd.format);
+		free(vd);
+		return null, false;
+	}
+	return vd, true;
+}
+
+video_session_create :: (vd: *Video_Decoder) -> bool {
 	pf := cast(s32) audio.fourcc("420v");
 	pfn := CFNumberCreate(null, 3, *pf);
 	defer CFRelease(pfn);
@@ -87,14 +96,28 @@ video_decoder_create :: (t: *Track, first_packet: []u8 = .[]) -> *Video_Decoder,
 	attrs := dict(.[kCVPixelBufferPixelFormatTypeKey, kCVPixelBufferMetalCompatibilityKey, kCVPixelBufferIOSurfacePropertiesKey], .[pfn, kCFBooleanTrue, empty]);
 	defer CFRelease(attrs);
 	cb := VTDecompressionOutputCallbackRecord.{vt_callback, vd};
-	st = VTDecompressionSessionCreate(null, vd.format, null, attrs, *cb, *vd.session);
-	if st != 0 {
-		last_video_error = st;
-		CFRelease(vd.format);
-		free(vd);
-		return null, false;
-	}
-	return vd, true;
+	st := VTDecompressionSessionCreate(null, vd.format, null, attrs, *cb, *vd.session);
+	if st != 0 last_video_error = st;
+	return st == 0;
+}
+
+// A decoder for a live stream (H.264 or HEVC) from its parameter sets (SPS, PPS;
+// HEVC: VPS, SPS, PPS), as they arrive in-band; samples are then AVCC with 4-byte lengths.
+video_decoder_create_from_params :: (codec: Codec, params: [][]u8) -> *Video_Decoder, bool {
+	if (codec != .H264 && codec != .HEVC) || !params.count return null, false;
+	ptrs := NewArray(params.count, *u8,, temp);
+	sizes := NewArray(params.count, u64,, temp);
+	for params { ptrs[it_index] = it.data; sizes[it_index] = xx it.count; }
+	vd := New(Video_Decoder);
+	vd.ctx = context;
+	st: OSStatus;
+	if codec == .H264 st = CMVideoFormatDescriptionCreateFromH264ParameterSets(null, xx params.count, ptrs.data, sizes.data, 4, *vd.format);
+	else st = CMVideoFormatDescriptionCreateFromHEVCParameterSets(null, xx params.count, ptrs.data, sizes.data, 4, null, *vd.format);
+	if st == 0 && video_session_create(vd) return vd, true;
+	last_video_error = st;
+	if vd.format CFRelease(vd.format);
+	free(vd);
+	return null, false;
 }
 
 // Decode one access unit (synchronously). Output frames land in vd.out.
@@ -137,6 +160,14 @@ video_decoder_destroy :: (vd: *Video_Decoder) {
 	for vd.out CFRelease(it.pixbuf);
 	array_free(vd.out);
 	free(vd);
+}
+
+// video_frame_from_pixbuf wraps (and retains) an NV12 CVPixelBuffer from elsewhere, e.g. a camera.
+video_frame_from_pixbuf :: (pixbuf: *void) -> Video_Frame {
+	f := Video_Frame.{pixbuf = CFRetain(pixbuf), width = xx CVPixelBufferGetWidth(pixbuf), height = xx CVPixelBufferGetHeight(pixbuf)};
+	full := CVPixelBufferGetPixelFormatType(pixbuf) == audio.fourcc("420f");
+	f.yuv = ifx f.height >= 720 then (ifx full then .BT709_Full else .BT709) else (ifx full then .BT601_Full else .BT601);
+	return f;
 }
 
 video_frame_release :: (f: *Video_Frame) {
@@ -461,6 +492,8 @@ CMVideoFormatDescriptionCreate :: (alloc: CFRef, codec: u32, w: s32, h: s32, ext
 CMBlockBufferCreateWithMemoryBlock :: (alloc: CFRef, mem: *void, len: u64, block_alloc: CFRef, custom: *void, offset: u64, data_len: u64, flags: u32, out: *CFRef) -> OSStatus #foreign CoreMedia;
 CMSampleBufferCreateReady :: (alloc: CFRef, data: CFRef, fmt: CFRef, nsamples: int, ntiming: int, timing: *CMSampleTimingInfo, nsizes: int, sizes: *u64, out: *CFRef) -> OSStatus #foreign CoreMedia;
 kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms: CFRef #elsewhere CoreMedia;
+CMVideoFormatDescriptionCreateFromH264ParameterSets :: (alloc: CFRef, n: u64, ptrs: **u8, sizes: *u64, nal_len: s32, out: *CFRef) -> OSStatus #foreign CoreMedia;
+CMVideoFormatDescriptionCreateFromHEVCParameterSets :: (alloc: CFRef, n: u64, ptrs: **u8, sizes: *u64, nal_len: s32, ext: CFRef, out: *CFRef) -> OSStatus #foreign CoreMedia;
 CVPixelBufferGetWidth :: (pb: CFRef) -> u64 #foreign CoreVideo;
 CVPixelBufferGetHeight :: (pb: CFRef) -> u64 #foreign CoreVideo;
 CVPixelBufferGetWidthOfPlane :: (pb: CFRef, plane: u64) -> u64 #foreign CoreVideo;

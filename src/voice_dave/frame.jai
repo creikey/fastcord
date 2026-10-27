@@ -140,7 +140,7 @@ Parsed_Frame :: struct {
 	interleaved: []u8; // frame bytes before the supplemental data
 	tag: []u8;
 	nonce: u32;
-	ranges: [8]Range;
+	ranges: [64]Range; // one or two per NAL unit in a video frame
 	n_ranges: int;
 }
 
@@ -177,22 +177,57 @@ parse_protocol_frame :: (frame: []u8) -> Parsed_Frame, bool {
 	return p, true;
 }
 
-// supplemental_size: what encrypt_opus_frame appends to a frame.
-supplemental_size :: (nonce: u32) -> int { return TAG_SIZE + uleb_size(nonce) + 1 + 2; }
+// supplemental_size: what encrypt_frame appends to a frame.
+supplemental_size :: (nonce: u32, ranges: []Range = .[]) -> int {
+	n := TAG_SIZE + uleb_size(nonce) + 1 + 2;
+	for ranges n += uleb_size(xx it.offset) + uleb_size(xx it.size);
+	return n;
+}
 
 // encrypt_opus_frame: whole Opus frame encrypted (no unencrypted ranges).
-// out must hold frame.count + supplemental_size(nonce).
-encrypt_opus_frame :: (key: []u8, nonce: u32, frame: []u8, out: []u8) -> int {
+encrypt_opus_frame :: (key: []u8, nonce: u32, frame: []u8, out: []u8) -> int { return encrypt_frame(key, nonce, frame, .[], out); }
+
+// encrypt_frame: the bytes in ranges (sorted, disjoint: video codec headers the
+// SFU and depacketizers read) stay clear and are authenticated; the rest is
+// encrypted in place. out must hold frame.count + supplemental_size(nonce, ranges),
+// which must fit the 1-byte size field (0 = too many ranges).
+encrypt_frame :: (key: []u8, nonce: u32, frame: []u8, ranges: []Range, out: []u8) -> int {
 	n := frame.count;
-	ss := supplemental_size(nonce);
+	ss := supplemental_size(nonce, ranges);
+	if ss > 255 return 0;
 	assert(out.count >= n + ss);
-	gcm_seal_truncated(key, nonce, .[], frame, array_view(out, 0, n), array_view(out, n, TAG_SIZE));
-	pos := n + TAG_SIZE;
-	pos += uleb_put(array_view(out, pos), nonce);
-	out[pos] = cast(u8) ss;
-	out[pos + 1] = 0xFA;
-	out[pos + 2] = 0xFA;
-	return pos + 3;
+	aad, pt: [..]u8;
+	aad.allocator, pt.allocator = temp, temp;
+	pos := 0;
+	for ranges {
+		array_add(*pt, ..array_view(frame, pos, it.offset - pos));
+		array_add(*aad, ..array_view(frame, it.offset, it.size));
+		pos = it.offset + it.size;
+	}
+	array_add(*pt, ..array_view(frame, pos));
+	ct := NewArray(pt.count, u8, false,, temp);
+	gcm_seal_truncated(key, nonce, aad, pt, ct, array_view(out, n, TAG_SIZE));
+	// interleave: clear ranges in place, ciphertext between them
+	pos = 0;
+	cpos := 0;
+	for ranges {
+		k := it.offset - pos;
+		memcpy(out.data + pos, ct.data + cpos, k);
+		cpos += k;
+		memcpy(out.data + it.offset, frame.data + it.offset, it.size);
+		pos = it.offset + it.size;
+	}
+	memcpy(out.data + pos, ct.data + cpos, ct.count - cpos);
+	p := n + TAG_SIZE;
+	p += uleb_put(array_view(out, p), nonce);
+	for ranges {
+		p += uleb_put(array_view(out, p), xx it.offset);
+		p += uleb_put(array_view(out, p), xx it.size);
+	}
+	out[p] = cast(u8) ss;
+	out[p + 1] = 0xFA;
+	out[p + 2] = 0xFA;
+	return p + 3;
 }
 
 // decrypt_frame: codec-agnostic receive path. pt_out must hold p.interleaved.count.

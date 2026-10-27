@@ -85,11 +85,18 @@ json_msg :: (parts: ..Any) -> string {
 
 snowflake :: (v: u64) -> Str { return .{tprint("%", v)}; }
 
-msg_identify :: (server_id: u64, channel_id: u64, user_id: u64, session_id: string, token: string, video: bool) -> string {
+// stream: a Go Live connection announces a "screen" stream instead of the camera's "video".
+msg_identify :: (server_id: u64, channel_id: u64, user_id: u64, session_id: string, token: string, video: bool, stream := false) -> string {
     return json_msg("{\"op\":0,\"d\":{\"server_id\":", snowflake(server_id), ",\"channel_id\":", snowflake(channel_id),
         ",\"user_id\":", snowflake(user_id), ",\"session_id\":", Str.{session_id}, ",\"token\":", Str.{token},
         ",\"max_dave_protocol_version\":1,\"video\":", ifx video then "true" else "false",
-        ",\"streams\":[{\"type\":\"video\",\"rid\":\"100\",\"quality\":100}]}}");
+        ",\"streams\":[{\"type\":", ifx stream then "\"screen\"" else "\"video\"", ",\"rid\":\"100\",\"quality\":100}]}}");
+}
+
+// msg_video: op 12, our video stream on or off (off keeps the SSRCs in the stream entry, inactive).
+msg_video :: (audio_ssrc: u32, video_ssrc: u32, rtx_ssrc: u32, on: bool, width: int, height: int, fps: int, bitrate: int) -> string {
+    return tprint("{\"op\":12,\"d\":{\"audio_ssrc\":%,\"video_ssrc\":%,\"rtx_ssrc\":%,\"streams\":[{\"type\":\"video\",\"rid\":\"100\",\"ssrc\":%,\"active\":%,\"quality\":100,\"rtx_ssrc\":%,\"max_bitrate\":%,\"max_framerate\":%,\"max_resolution\":{\"type\":\"fixed\",\"width\":%,\"height\":%}}]}}",
+        audio_ssrc, ifx on then video_ssrc else 0, ifx on then rtx_ssrc else 0, video_ssrc, ifx on then "true" else "false", rtx_ssrc, bitrate, fps, width, height);
 }
 
 msg_resume :: (token: string, session_id: string, server_id: u64, channel_id: u64, seq_ack: s64) -> string {

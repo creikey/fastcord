@@ -14,7 +14,12 @@
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
-- [ ] Voice: no video: watching or sharing camera, screen share and Go Live streams are all missing (`src/voice` is audio only).
+- [ ] Video: test the camera, screen share and Go Live live on macOS (built offline only; every protocol detail is a guess, see `traffic/CLIENT_RULES.md` "Video and Go Live").
+- [ ] Video: Windows (Media Foundation capture / encoder / decoder, Windows.Graphics.Capture) and Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
+- [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
+- [ ] Video: VP8 / AV1 calls show no video (only H.264 / H.265 are decoded and sent); no NACK / RTX retransmission or bandwidth estimation (fixed bitrates).
+- [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
+- [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
 - [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
 - [ ] Tray: add a system tray icon (unread badge, menu with Open and Quit); closing the window hides it to the tray instead of quitting, as the official client does.
@@ -31,3 +36,4 @@
 - [ ] CI: slim the Jai zip on the Fly server (drop `modules/Bindings_Generator`, ~360 MB of libclang) so each run downloads less.
 - [ ] Crash reporter: add one, modelled on Happenlance's subprocess crash reporter (`C:\Work\Happenlance\Happenlance\src\crash_handler.cpp`, Phillip's machine only).
 - [x] No ads, ever: never show Nitro upsells, Shop, Boost prompts or any Discord promotion (rule in `AGENTS.md`).
+- [x] Voice: video calls and Go Live on macOS: call view of everyone (tiles, speaking border, focus), camera and screen sharing (H.264/H.265 via VideoToolbox), watching cameras and streams (`src/video`, `src/voice/video.jai`, `view_call.jai`).

@@ -56,11 +56,17 @@ voice_leave_channel :: () {
 
 voice_shutdown :: () {
 	voice_drop();
+	video_shutdown();
 	deinit(*vc.speaking);
 }
 
+voice_conn :: () -> *voice.Conn { return vc.conn; }
+voice_headless :: () -> bool { return vc.headless; }
+voice_audio_ready :: () -> bool { return vc.audio_ready; }
+
 voice_frame :: () {
 	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready);
+	defer video_frame();
 	if app.client == null { return; }
 	if !vc.auto_checked && app.client.store.ready {
 		vc.auto_checked = true;
@@ -77,7 +83,7 @@ voice_frame :: () {
 	if app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
 		vc.sent_mute = app.self_mute;
 		vc.sent_deaf = app.self_deaf;
-		dc.voice_join(app.client, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf);
+		dc.voice_set_state(app.client, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
 	}
 	if vc.conn != null {
 		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf);
@@ -343,6 +349,7 @@ Voice_App :: struct {
 vc: Voice_App;
 
 voice_drop :: () {
+	video_stop_all();
 	if vc.conn != null {
 		voice_release(vc.conn);
 		vc.conn = null;
@@ -377,6 +384,7 @@ tone_phase: float64;
 // tone instead (to exercise speaking indicators in screenshots).
 voice_options :: () -> voice.Options {
 	o := voice.Options.{no_audio_devices = vc.headless || !vc.audio_ready};
+	add_video_options(*o, false);
 	if o.no_audio_devices && env_var("FASTCORD_VOICE_TEST_TONE") == "1" {
 		o.capture = (_: *void, out: []float32) -> int {
 			for * out {

@@ -27,6 +27,7 @@ Store :: struct {
 	sessions: [..]Session_Info;
 	settings: User_Settings;
 	voice_server: Voice_Server;
+	streams: [..]Go_Live_Stream;
 	resume_gateway_url: string;
 	analytics_token: string;
 	qos_token: string; // READY qos_token (base64 DerivedQosData) for reconnect IDENTIFY
@@ -57,6 +58,7 @@ store_init :: (s: *Store, allocator := context.allocator) {
 	s.read_states.allocator = allocator;
 	s.guild_settings.allocator = allocator;
 	s.voice_states.allocator = allocator;
+	s.streams.allocator = allocator;
 	s.typing.allocator = allocator;
 	s.member_lists.allocator = allocator;
 	s.sessions.allocator = allocator;
@@ -1294,6 +1296,23 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			set_str(s, *vs.token, fstr(d, "token"));
 			set_str(s, *vs.endpoint, fstr(d, "endpoint"));
 			vs.version += 1;
+		case "STREAM_CREATE"; #through;
+		case "STREAM_UPDATE";
+			st := stream_find_or_add(s, fstr(d, "stream_key"));
+			if vhas(d, "rtc_server_id") st.rtc_server_id = fsnow(d, "rtc_server_id");
+			st.paused = fbool(d, "paused");
+		case "STREAM_SERVER_UPDATE";
+			st := stream_find_or_add(s, fstr(d, "stream_key"));
+			set_str(s, *st.token, fstr(d, "token"));
+			set_str(s, *st.endpoint, fstr(d, "endpoint"));
+			st.version += 1;
+		case "STREAM_DELETE";
+			key := fstr(d, "stream_key");
+			for * s.streams if it.key == key {
+				stream_free(s, it);
+				array_unordered_remove_by_index(*s.streams, it_index);
+				break;
+			}
 		case;
 			return false;
 	}
@@ -1465,10 +1484,25 @@ store_destroy :: (s: *Store) {
 	array_free(st.guild_positions);
 	free_str(s.voice_server.token, a);
 	free_str(s.voice_server.endpoint, a);
+	for * s.streams stream_free(s, it);
+	array_free(s.streams);
 	free_str(s.session_id, a);
 	free_str(s.resume_gateway_url, a);
 	free_str(s.analytics_token, a);
 	free_str(s.qos_token, a);
 	free_str(s.country_code, a);
 	s.* = .{};
+}
+
+stream_find_or_add :: (s: *Store, key: string) -> *Go_Live_Stream {
+	for * s.streams if it.key == key return it;
+	st := array_add(*s.streams);
+	st.key = clone_str(key, s.allocator);
+	return st;
+}
+
+stream_free :: (s: *Store, st: *Go_Live_Stream) {
+	free_str(st.key, s.allocator);
+	free_str(st.endpoint, s.allocator);
+	free_str(st.token, s.allocator);
 }

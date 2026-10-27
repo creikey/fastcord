@@ -172,9 +172,9 @@ request_guild_members :: (c: *Client, guild_id: Snowflake, user_ids: []Snowflake
 }
 
 // voice_join / voice_leave: op 4 as VoiceStateStore sends it.
-voice_update :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool) {
+voice_update :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool, self_video := false) {
 	if !c.gw return;
-	v := voice_state_value(guild_id, channel_id, self_mute, self_deaf, false, 2);
+	v := voice_state_value(guild_id, channel_id, self_mute, self_deaf, self_video, 2);
 	// joining: RTCRegionStore's preferred regions (latency probe order, top 5)
 	if channel_id {
 		// copied under the lock: the probe's worker replaces rtc_regions
@@ -928,6 +928,59 @@ flush_soundboard :: (c: *Client, now: s64) {
 }
 
 voice_leave :: (c: *Client) { voice_update(c, 0, 0, c.cfg.voice_self_mute, false); }
+
+// voice_set_state: op 4 in the current channel without the join side effects
+// (mute / deafen / camera toggles).
+voice_set_state :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool, self_video: bool) {
+	voice_update(c, guild_id, channel_id, self_mute, self_deaf, self_video);
+}
+
+// ---- Go Live (op 18-22). Guessed from the gateway's documented opcodes and
+// what Discord's own streamers send; see traffic/CLIENT_RULES.md. ----
+
+stream_key :: (guild_id: Snowflake, channel_id: Snowflake, user_id: Snowflake, allocator := temp) -> string {
+	if guild_id return sprint("guild:%:%:%", guild_id, channel_id, user_id,, allocator);
+	return sprint("call:%:%", channel_id, user_id,, allocator);
+}
+
+// stream_create: start our own stream in the voice channel we are in.
+stream_create :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake) {
+	if !c.gw return;
+	b := etf.map_builder(4,, temp);
+	etf.map_put(*b, "type", etf.vstring(ifx guild_id then "guild" else "call"));
+	etf.map_put(*b, "guild_id", ifx guild_id then etf.vstring(snowflake_string(guild_id)) else V.{});
+	etf.map_put(*b, "channel_id", etf.vstring(snowflake_string(channel_id)));
+	etf.map_put(*b, "preferred_region", V.{});
+	gateway_send(c.gw, .Stream_Create, etf.vmap(etf.map_done(*b)));
+}
+
+stream_key_op :: (c: *Client, op: Op, key: string, paused := -1) {
+	if !c.gw return;
+	b := etf.map_builder(2,, temp);
+	etf.map_put(*b, "stream_key", etf.vstring(key));
+	if paused >= 0 etf.map_put(*b, "paused", etf.vbool(paused == 1));
+	gateway_send(c.gw, op, etf.vmap(etf.map_done(*b)));
+}
+
+stream_watch :: (c: *Client, key: string) { stream_key_op(c, .Stream_Watch, key); }
+// stream_delete ends our stream, or stops watching someone else's.
+stream_delete :: (c: *Client, key: string) { stream_key_op(c, .Stream_Delete, key); }
+stream_set_paused :: (c: *Client, key: string, paused: bool) { stream_key_op(c, .Stream_Set_Paused, key, xx paused); }
+
+// stream_server_info: the voice connection for a stream once STREAM_CREATE and
+// STREAM_SERVER_UPDATE arrived; version changes per STREAM_SERVER_UPDATE.
+stream_server_info :: (c: *Client, key: string) -> Voice_Server_Info, u64, bool {
+	s := *c.store;
+	vs := table_find_pointer(*s.voice_states, s.me);
+	if !vs return .{}, 0, false;
+	for s.streams {
+		if it.key != key || !it.token || !it.endpoint || !it.rtc_server_id continue;
+		return .{endpoint = it.endpoint, token = it.token, guild_or_channel_id = it.rtc_server_id, user_id = s.me,
+			session_id = vs.session_id, channel_id = vs.channel_id}, it.version, true;
+	}
+	return .{}, 0, false;
+}
+
 
 // guild_channel_info: op 43 sent when a guild's channel is shown.
 guild_channel_info :: (c: *Client, guild_id: Snowflake) {

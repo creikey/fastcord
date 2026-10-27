@@ -4,6 +4,7 @@
 #import "Hash_Table";
 #import "Thread";
 #import "Socket";
+#import "Atomics";
 #if OS == .WINDOWS {
     kernel32 :: #system_library "kernel32";
     GetCurrentThread :: () -> *void #foreign kernel32;
@@ -26,3 +27,4 @@ tls :: #import "tls";
 #load "jitter.jai";
 #load "rtp.jai";
 #load "vad.jai";
+#load "video.jai";

@@ -352,6 +352,17 @@ Session_Info :: struct {
 	os: string;
 }
 
+// A Go Live stream we watch or broadcast: STREAM_CREATE / STREAM_SERVER_UPDATE,
+// keyed "guild:<guild>:<channel>:<user>" or "call:<channel>:<user>".
+Go_Live_Stream :: struct {
+	key: string;
+	rtc_server_id: Snowflake; // the stream's own voice server_id
+	endpoint: string;
+	token: string;
+	paused: bool;
+	version: u64; // bumped per STREAM_SERVER_UPDATE
+}
+
 Voice_Server :: struct {
 	guild_id: Snowflake;
 	channel_id: Snowflake;

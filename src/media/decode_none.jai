@@ -18,11 +18,13 @@ Video_Decoder :: struct {
 
 video_codec_supported :: (c: Codec) -> bool { return false; }
 video_decoder_create :: (t: *Track, first_packet: []u8 = .[]) -> *Video_Decoder, bool { return null, false; }
+video_decoder_create_from_params :: (codec: Codec, params: [][]u8) -> *Video_Decoder, bool { return null, false; }
 video_decode :: (vd: *Video_Decoder, data: []u8, pts: float64, dts: float64, dur: float64) -> bool { return false; }
 video_decoder_flush :: (vd: *Video_Decoder) {}
 video_decoder_take :: (vd: *Video_Decoder, out: *[..]Video_Frame) {}
 video_decoder_destroy :: (vd: *Video_Decoder) {}
 video_frame_release :: (f: *Video_Frame) { f.pixbuf = null; }
+video_frame_from_pixbuf :: (pixbuf: *void) -> Video_Frame { return .{}; }
 video_frame_textures :: (f: *Video_Frame) -> gfx.Texture, gfx.Texture, bool { return 0, 0, false; }
 
 Audio_Decoder :: struct {

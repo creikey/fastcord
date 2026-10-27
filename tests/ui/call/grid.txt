@@ -1,0 +1,10 @@
+# Clicking the General voice channel opens its call view: four tiles (a Go Live stream first with
+# "Watch Stream" and its LIVE badge, then everyone's avatar tile), the muted icon, and the controls
+# (offline the join can't go out, so the bar offers "Join Voice").
+wait 5
+click_text "General"
+wait 10
+expect_visible "Watch Stream"
+expect_visible "LIVE"
+expect_visible "Join Voice"
+shot build/ui-call_grid.png

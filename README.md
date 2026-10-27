@@ -27,6 +27,7 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 | `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |
 | `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio / WASAPI / ALSA. |
+| `src/video` | Camera and screen capture and the H.264/H.265 encoder for calls and Go Live (macOS: AVFoundation, ScreenCaptureKit, VideoToolbox; stubs elsewhere). |
 | `src/platform`, `src/gfx` | Window, input, display link, clipboard; the renderers (Metal, D3D11, OpenGL) and text (CoreText, DirectWrite, FreeType + HarfBuzz). |
 | `src/ui` | Immediate-mode UI core: keyed boxes, layout, animation, text editing. |
 | `src/app` | The client itself. |

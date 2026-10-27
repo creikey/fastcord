@@ -19,6 +19,8 @@
 //   user_id:             our user id
 //   session_id:          our VOICE_STATE_UPDATE.session_id (= main gateway session id)
 //   channel_id:          the voice channel / DM channel id
+//   stream:              a Go Live connection (STREAM_SERVER_UPDATE; server_id = rtc_server_id):
+//                        identifies with a "screen" stream and never sends the microphone
 Voice_Server_Info :: struct {
     endpoint: string;
     token: string;
@@ -27,6 +29,7 @@ Voice_Server_Info :: struct {
     session_id: string;
     channel_id: u64;
     stage: bool;              // stage channel (allows DAVE version 0)
+    stream: bool;
     user_agent: string;       // "" = official desktop UA
     accept_language: string;  // "" = "en-US"
 }
@@ -47,6 +50,8 @@ Options :: struct {
     no_audio_devices: bool;   // don't touch the audio module (tests / headless)
     capture: (data: *void, out: []float32) -> int;          // mono 48 kHz pull, used when no_audio_devices
     playback: (data: *void, user_id: u64, pcm: []float32);  // stereo interleaved, 960 frames
+    // a received video frame (Annex B, decrypted), on the UDP thread; the data is valid during the call
+    video: (data: *void, user_id: u64, codec: Video_Codec, au: []u8, keyframe: bool);
     callback_data: *void;
     vad_manual: bool;         // manual threshold instead of auto
     vad_threshold_db: float32; // manual threshold (0 = -60 dB default)
@@ -62,7 +67,10 @@ Stats :: struct {
     transport_failures: u64;
     udp_datagrams: u64;  // everything that arrived on the socket
     rtcp_received: u64;
-    other_pt: u64;       // RTP with a payload type other than opus
+    other_pt: u64;       // RTP with a payload type other than opus or video
+    video_frames_received: u64;
+    video_frames_sent: u64;
+    plis_sent: u64;
     unknown_ssrc: u64;   // audio from an SSRC no op 5 mapped yet
     remote_users: int;
     e2ee_failures: u64;
@@ -172,6 +180,18 @@ Conn :: struct {
     ptt_pressed: bool;
     ptt_until_ms: s64;  // release delay end
     debug: bool;        // FASTCORD_VOICE_DEBUG=1: protocol trace on stderr (no secrets)
+
+    // video: our stream's SSRCs from READY, the codec SESSION_DESCRIPTION chose
+    video_ssrc, rtx_ssrc: u32;
+    video_codec: Video_Codec;
+    video_rx: Table(u32, *Video_Rx);  // remote video SSRC -> reassembly (under mu)
+    video_users: Table(u64, bool);    // users whose op 12 has an active stream (under mu)
+    vmu: locks.Mutex;                 // the send side below (encoder thread vs. RTCP)
+    video_on: bool;
+    video_w, video_h, video_fps, video_bitrate: int;
+    video_seq: u16;
+    video_packets, video_octets, video_last_ts: u32;
+    keyframe_wanted: bool;            // atomic: a PLI/FIR for our stream arrived
 }
 
 dbg :: (c: *Conn, format: string, args: ..Any) {
@@ -245,6 +265,9 @@ voice_disconnect :: (c: *Conn) {
     transport_reset(*c.rx_crypto);
     for c.users destroy_user(c, it);
     deinit(*c.users);
+    for c.video_rx { array_free(it.au); free(it); }
+    deinit(*c.video_rx);
+    deinit(*c.video_users);
     deinit(*c.user_ssrc);
     deinit(*c.settings);
     for c.experiments free(it);
@@ -551,7 +574,7 @@ ws_session :: (c: *Conn, resume: bool) -> int {
         send_text(c, msg_resume(c.info.token, c.info.session_id, c.info.guild_or_channel_id, c.info.channel_id, c.last_seq));
     } else {
         set_state(c, .Identifying);
-        send_text(c, msg_identify(c.info.guild_or_channel_id, c.info.channel_id, c.info.user_id, c.info.session_id, c.info.token, true));
+        send_text(c, msg_identify(c.info.guild_or_channel_id, c.info.channel_id, c.info.user_id, c.info.session_id, c.info.token, true, c.info.stream));
     }
     msg: [..]u8;
     defer array_free(msg);
@@ -650,6 +673,7 @@ handle_json :: (c: *Conn, text: string) {
         uid := jsnow(jget(d, "user_id"));
         ssrc := cast,no_check(u32) jint(jget(d, "audio_ssrc"), 0);
         if uid && ssrc map_user(c, uid, ssrc);
+        if uid on_remote_video(c, uid, d);
       case OP_CLIENTS_CONNECT;
         ids: [..]u64;
         ids.allocator = temp;
@@ -659,6 +683,8 @@ handle_json :: (c: *Conn, text: string) {
         uid := jsnow(jget(d, "user_id"));
         DAVE.on_client_disconnect(*c.dave, uid);
         locks.guard(*c.mu);
+        drop_video_rx(c, uid);
+        table_remove(*c.video_users, uid);
         found, ssrc := table_remove(*c.user_ssrc, uid);
         if found {
             had, u := table_remove(*c.users, ssrc);
@@ -676,8 +702,10 @@ handle_json :: (c: *Conn, text: string) {
         ep, pv := jint(jget(d, "epoch")), jint(jget(d, "protocol_version"));
         if ep < 0 || !in_u16(pv) { dave_invalid(c); return; }
         DAVE.on_prepare_epoch(*c.dave, cast(u64) ep, pv);
-      // OP_SESSION_UPDATE, OP_MEDIA_SINK_WANTS, OP_VOICE_BACKEND_VERSION, OP_FLAGS, OP_PLATFORM,
-      // OP_SFU_UPDATE: informational for an audio-only client
+      case OP_SESSION_UPDATE;
+        vcn := jstr(jget(d, "video_codec"));
+        if vcn c.video_codec = video_codec_from_name(vcn);
+      // OP_MEDIA_SINK_WANTS, OP_VOICE_BACKEND_VERSION, OP_FLAGS, OP_PLATFORM, OP_SFU_UPDATE: informational
     }
 }
 
@@ -720,6 +748,12 @@ send_heartbeat :: (c: *Conn) {
 
 on_ready :: (c: *Conn, d: etf.Value) {
     c.ssrc = cast,no_check(u32) jint(jget(d, "ssrc"), 0);
+    for jarr(jget(d, "streams")) {
+        locks.guard(*c.vmu);
+        c.video_ssrc = cast,no_check(u32) jint(jget(it, "ssrc"), 0);
+        c.rtx_ssrc = cast,no_check(u32) jint(jget(it, "rtx_ssrc"), 0);
+        break;
+    }
     ip := jstr(jget(d, "ip"));
     port := jint(jget(d, "port"), 0);
     modes: [..]string;
@@ -796,11 +830,20 @@ on_session_description :: (c: *Conn, d: etf.Value) {
         return;
     }
     DAVE.on_select_protocol_ack(*c.dave, dv);
+    c.video_codec = video_codec_from_name(jstr(jget(d, "video_codec")));
     c.resumable = true;
     set_state(c, .Connected);
+    send_text(c, MSG_MEDIA_SINK_WANTS_ANY);
+    {
+        locks.guard(*c.vmu);
+        if c.video_on {  // resumed / reconnected while sending
+            send_text(c, msg_video(c.ssrc, c.video_ssrc, c.rtx_ssrc, true, c.video_w, c.video_h, c.video_fps, c.video_bitrate));
+            atomic_store(*c.keyframe_wanted, true);
+        }
+    }
     if !c.audio_started {
         c.audio_started = true;
-        if !c.opts.no_audio_devices {
+        if !c.opts.no_audio_devices && !c.info.stream {
             c.capture_on = audio.capture_start(true);
             if c.capture_on audio.apply_device_selection();  // chosen devices + DSP switches
         }
@@ -939,18 +982,24 @@ udp_thread_proc :: (t: *Thread) -> s64 {
         if !hok continue;
         m, ok := transport_open(*c.rx_crypto, pkt, h.aad_len, plain);
         if !ok { count_failure(c); continue; }
-        if h.pt != OPUS_PT || h.payload_off > m {
-            locks.guard(*c.mu);
-            c.stats.other_pt += 1;
-            continue;
-        }
         end := m;
-        if plain[0] & 0x20 {  // padding
+        if plain[0] & 0x20 && h.payload_off < m {  // padding
             pad := cast(int) plain[m - 1];
             if pad == 0 || pad > m - h.payload_off continue;
             end -= pad;
         }
+        if h.payload_off > end continue;
         payload := array_view(plain, h.payload_off, end - h.payload_off);
+        vcodec := video_codec_from_pt(h.pt);
+        if vcodec != .None {
+            on_video_packet(c, h, vcodec, payload, n, now);
+            continue;
+        }
+        if h.pt != OPUS_PT {
+            locks.guard(*c.mu);
+            c.stats.other_pt += 1;
+            continue;
+        }
         uid: u64;
         {
             locks.guard(*c.mu);
@@ -1000,6 +1049,10 @@ rx_update :: (r: *Rx_Stats, seq: u16, ts: u32, now: s64) {
 }
 
 on_rtcp :: (c: *Conn, b: []u8, now: s64) {
+    {
+        locks.guard(*c.vmu);
+        if c.video_on && keyframe_requested(b, c.video_ssrc) atomic_store(*c.keyframe_wanted, true);
+    }
     rep, ok := parse_report(b);
     if !ok {
         dbg(c, "rtcp pt=% len=% (unparsed)", b[1], b.count);
@@ -1096,6 +1149,7 @@ read_mic :: (c: *Conn, pcm: []float32) {
 }
 
 tx_tick :: (c: *Conn, pcm: []float32) {
+    if c.info.stream return;  // Go Live: video only (no soundshare yet)
     read_mic(c, pcm);
     locks.lock(*c.mu);
     muted := c.self_mute || c.self_deaf;
@@ -1241,13 +1295,191 @@ send_rtcp :: (c: *Conn) {
     }
     if !have return;
     pkt: [512]u8;
-    sealed: [600]u8;
     n := build_report(pkt, c.ssrc, c.packets_sent > 0, ntp_now(), c.last_sent_ts, c.packets_sent, c.octets_sent, blocks);
+    send_rtcp_packet(c, array_view(pkt, 0, n));
+    locks.lock(*c.vmu);
+    vssrc, sending, vts, vp, vo := c.video_ssrc, c.video_on && c.video_packets > 0, c.video_last_ts, c.video_packets, c.video_octets;
+    locks.unlock(*c.vmu);
+    if sending send_rtcp_packet(c, array_view(pkt, 0, build_report(pkt, vssrc, true, ntp_now(), vts, vp, vo, .[])));
+}
+
+send_rtcp_packet :: (c: *Conn, pkt: []u8) {
+    sealed: [600]u8;
     sl: int;
     {
         locks.guard(*c.mu);
-        sl = transport_seal(*c.tx_crypto, array_view(pkt, 0, n), 8, c.tx_nonce, sealed);
+        if !c.have_key return;
+        sl = transport_seal(*c.tx_crypto, pkt, 8, c.tx_nonce, sealed);
         c.tx_nonce += 1;
     }
     udp_send(c, array_view(sealed, 0, sl));
+}
+
+// ---------------------------------------------------------------------------
+// Video
+
+// set_video starts or stops sending our video stream (camera, or the screen on
+// a Go Live connection): op 12 with the stream's SSRCs and limits. Frames then
+// go through send_video. Bitrate in bits per second.
+set_video :: (c: *Conn, on: bool, width := 1280, height := 720, fps := 30, bitrate := 2_500_000) {
+    locks.lock(*c.vmu);
+    c.video_on = on;
+    c.video_w, c.video_h, c.video_fps, c.video_bitrate = width, height, fps, bitrate;
+    msg := msg_video(c.ssrc, c.video_ssrc, c.rtx_ssrc, on, width, height, fps, bitrate);
+    locks.unlock(*c.vmu);
+    if c.video_ssrc send_text(c, msg);
+}
+
+// video_codec: what SESSION_DESCRIPTION negotiated for this call (.None before it).
+video_codec :: (c: *Conn) -> Video_Codec { return c.video_codec; }
+
+// take_keyframe_request: true once after the SFU asked for a keyframe (PLI / FIR), or after a reconnect.
+take_keyframe_request :: (c: *Conn) -> bool { return atomic_swap(*c.keyframe_wanted, false); }
+
+// send_video sends one encoded frame (Annex B, as the encoder wrote it) in
+// the negotiated codec: DAVE with libdave's clear ranges, then RTP at 90 kHz.
+// Safe from any one thread at a time (the encoder's).
+send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
+    if codec != .H264 && codec != .H265 return;
+    locks.guard(*c.vmu);
+    if !c.video_on || !c.video_ssrc || !c.udp_open return;
+    frame, nals := with_long_start_codes(au);
+    if !nals.count return;
+    enc := NewArray(frame.count + 256, u8, false,, temp);
+    fl := DAVE.session_encrypt(*c.dave, frame, enc, dave_clear_ranges(codec, frame, nals));
+    if fl <= 0 return;
+    Pk :: struct { c: *Conn; codec: Video_Codec; ts: u32; }
+    pk := Pk.{c, codec, ts_90k};
+    packetize(codec, array_view(enc, 0, fl), nals, (payload: []u8, last: bool, data: *void) {
+        using pk := cast(*Pk) data;
+        pkt: [MAX_VIDEO_PAYLOAD + 64]u8;
+        sealed: [MAX_VIDEO_PAYLOAD + 96]u8;
+        pkt[0] = 0x90;  // V=2, X=1
+        pkt[1] = VIDEO_PT[codec] | (ifx last then cast(u8) 0x80 else 0);
+        put_u16(pkt, c.video_seq, 2);
+        put_u32(pkt, ts, 4);
+        put_u32(pkt, c.video_ssrc, 8);
+        // one-byte extension block: playout-delay (id 5) = 0, as Discord's own streamers send it
+        pkt[12], pkt[13] = 0xBE, 0xDE;
+        put_u16(pkt, 1, 14);
+        pkt[16], pkt[17], pkt[18], pkt[19] = (EXT_ID_PLAYOUT_DELAY << 4) | 2, 0, 0, 0;
+        memcpy(pkt.data + 20, payload.data, payload.count);
+        n := 20 + payload.count;
+        sl: int;
+        {
+            locks.guard(*c.mu);
+            if !c.have_key return;
+            sl = transport_seal(*c.tx_crypto, array_view(pkt, 0, n), 16, c.tx_nonce, sealed);
+            c.tx_nonce += 1;
+            c.stats.packets_sent += 1;
+            c.stats.bytes_sent += xx sl;
+        }
+        c.video_seq += 1;
+        c.video_packets += 1;
+        c.video_octets += xx payload.count;
+        udp_send(c, array_view(sealed, 0, sl));
+    }, *pk);
+    c.video_last_ts = ts_90k;
+    locks.guard(*c.mu);
+    c.stats.video_frames_sent += 1;
+}
+
+// video_user_ids: users whose op 12 announced an active video stream, in context.allocator.
+video_user_ids :: (c: *Conn) -> []u64 {
+    locks.guard(*c.mu);
+    out: [..]u64;
+    for v, uid: c.video_users if v array_add(*out, uid);
+    return out;
+}
+
+// request_keyframe sends a PLI for user's video (e.g. after their decoder failed).
+request_keyframe :: (c: *Conn, user_id: u64) {
+    ssrc: u32;
+    {
+        locks.guard(*c.mu);
+        for c.video_rx if it.user_id == user_id { it.need_key = true; it.last_pli_ms = 0; ssrc = it.ssrc; }
+    }
+    if ssrc send_pli(c, ssrc);
+}
+
+#scope_file
+
+EXT_ID_PLAYOUT_DELAY :: 5;
+PLI_INTERVAL_MS :: 500;
+
+MSG_MEDIA_SINK_WANTS_ANY :: "{\"op\":15,\"d\":{\"any\":100}}";
+
+// on_remote_video: op 12 from the server maps a user's video SSRCs (0 / inactive = stopped).
+on_remote_video :: (c: *Conn, uid: u64, d: etf.Value) {
+    locks.guard(*c.mu);
+    drop_video_rx(c, uid);
+    active := false;
+    add :: (ssrc: s64) #expand {
+        if ssrc <= 0 return;
+        rx := New(Video_Rx);
+        rx.ssrc = cast,no_check(u32) ssrc;
+        rx.user_id = uid;
+        table_set(*c.video_rx, rx.ssrc, rx);
+        active = true;
+    }
+    streams := jarr(jget(d, "streams"));
+    for streams if jint(jget(it, "active"), 1) != 0 add(jint(jget(it, "ssrc"), 0));
+    if !streams.count add(jint(jget(d, "video_ssrc"), 0));
+    table_set(*c.video_users, uid, active);
+}
+
+drop_video_rx :: (c: *Conn, uid: u64) {
+    gone: [..]u32;
+    gone.allocator = temp;
+    for c.video_rx if it.user_id == uid { array_add(*gone, it.ssrc); array_free(it.au); free(it); }
+    for gone table_remove(*c.video_rx, it);
+}
+
+on_video_packet :: (c: *Conn, h: Rtp_Header, codec: Video_Codec, payload: []u8, n: s64, now: s64) {
+    au: []u8;
+    done, pli: bool;
+    uid: u64;
+    {
+        locks.guard(*c.mu);
+        c.stats.bytes_received += xx n;
+        rx := table_find_pointer(*c.video_rx, h.ssrc);
+        if !rx return;  // RTX, or a stream op 12 hasn't announced
+        r := rx.*;
+        uid = r.user_id;
+        frame, ok := rx_video_packet(r, codec, h.seq, h.ts, h.marker, payload);
+        if r.need_key && now - r.last_pli_ms >= PLI_INTERVAL_MS {
+            r.last_pli_ms = now;
+            pli = true;
+        }
+        if ok {
+            // copied out: decryption and the callback run unlocked
+            au = array_copy(frame,, temp);
+            done = true;
+        }
+    }
+    if pli send_pli(c, h.ssrc);
+    if !done return;
+    plain := NewArray(au.count, u8, false,, temp);
+    fl, res := DAVE.session_decrypt(*c.dave, uid, au, plain);
+    if res == .Failed return;
+    frame := array_view(plain, 0, fl);
+    key := is_keyframe(codec, frame);
+    {
+        locks.guard(*c.mu);
+        rx := table_find_pointer(*c.video_rx, h.ssrc);
+        if !rx return;
+        if rx.*.need_key && !key return;
+        rx.*.need_key = false;
+        rx.*.frames += 1;
+        c.stats.video_frames_received += 1;
+    }
+    if c.opts.video c.opts.video(c.opts.callback_data, uid, codec, frame, key);
+    reset_temporary_storage();
+}
+
+send_pli :: (c: *Conn, media_ssrc: u32) {
+    pkt: [12]u8;
+    send_rtcp_packet(c, array_view(pkt, 0, build_pli(pkt, c.ssrc, media_ssrc)));
+    locks.guard(*c.mu);
+    c.stats.plis_sent += 1;
 }

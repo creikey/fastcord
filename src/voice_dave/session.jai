@@ -528,9 +528,10 @@ execute_locked :: (s: *Session, tid: int, version: int) {
 
 MAX_SUPPLEMENTAL :: TAG_SIZE + 5 + 1 + 2;
 
-// session_encrypt: out must hold frame.count + MAX_SUPPLEMENTAL. Returns the
-// frame to send (encrypted, or passthrough when DAVE is not active).
-session_encrypt :: (s: *Session, frame: []u8, out: []u8) -> int {
+// session_encrypt: out must hold frame.count + 255 with ranges (video), else
+// frame.count + MAX_SUPPLEMENTAL. ranges stay clear (see encrypt_frame). Returns
+// the frame to send (encrypted, or passthrough when DAVE is not active).
+session_encrypt :: (s: *Session, frame: []u8, out: []u8, ranges: []Range = .[]) -> int {
 	locks.lock(*s.mu);
 	defer locks.unlock(*s.mu);
 	if !s.send_active {
@@ -546,7 +547,7 @@ session_encrypt :: (s: *Session, frame: []u8, out: []u8) -> int {
 	key, ok := ratchet_get(*s.send_ratchet, nonce >> 24);
 	if !ok return 0;
 	s.stats.encrypted += 1;
-	return encrypt_opus_frame(key, nonce, frame, out);
+	return encrypt_frame(key, nonce, frame, ranges, out);
 }
 
 // session_decrypt: out must hold frame.count.
