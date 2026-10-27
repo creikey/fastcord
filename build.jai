@@ -325,7 +325,12 @@ link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     else array_add(*a, ZIG, "cc", "-target", ifx cpu == .X64 then "x86_64-macos.13.0" else "aarch64-macos.13.0",
         tprint("--sysroot=%", MAC_SDK), "-F", "/System/Library/Frameworks", "-L", "/usr/lib", "-o", exe); // zig prefixes -F and -L with the sysroot
     array_add(*a, ..p.compiler_generated_object_files);
-    array_add(*a, ..p.support_object_files);
+    for p.support_object_files {
+        // A native Linux build lists the system's C startup objects; zig links its own glibc 2.17 ones.
+        name := path_filename(it);
+        if LINUX && (begins_with(name, "crt") || name == "Scrt1.o") continue;
+        array_add(*a, it);
+    }
     for p.user_libraries array_add(*a, it);
     // Jai lists "-lX" and "-framework", "X" pairs (a cross-compile names them "X.dll"); drop duplicates.
     seen: [..]string;
