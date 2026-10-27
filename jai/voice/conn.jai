@@ -213,7 +213,7 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
 	// WebRTC randomizes the initial sequence number and timestamp
 	rb: [6]u8;
 	crypto.rand_bytes(view(rb));
-	c.seq = cast(u16)(rb[0]) << 8 | cast(u16)(rb[1]);
+	c.seq = ((cast(u16)(rb[0])) << 8) | (cast(u16)(rb[1]));
 	c.ts = get_u32(sub_from(rb, 2));
 	dave.session_init(*c.dave, info.user_id, info.channel_id, info.stage);
 	c.state = .Connecting;
@@ -503,7 +503,7 @@ terminal_close :: (code: int) -> bool {
 
 ws_thread_proc :: (data: *void) {
 	c := cast(*Conn)data;
-	context.allocator = c.allocator;
+	push_allocator(c.allocator);
 	fails := 0;
 	resuming := false;
 	while !stopped(c) {
@@ -524,14 +524,15 @@ ws_thread_proc :: (data: *void) {
 			finish(c, ifx code == 0 || !c.resumable then CLOSE_UNRESUMABLE else code);
 			return;
 		}
-		delay := min(1000 << cast(u64)(fails), 5000);
+		delay := min(1000 << (cast(u64)(fails)), 5000);
 		fails += 1;
 		resuming = true;
 		set_state(c, .Resuming);
 		locks.lock(*c.mu);
 		c.stats.reconnects += 1;
 		locks.unlock(*c.mu);
-		for i: 0..(delay / 50 && !stopped(c))-1 { time.sleep(50 * time.Millisecond); }
+		{ i := 0;
+		while i < delay / 50 && !stopped(c) { time.sleep(50 * time.Millisecond);  i += 1; } }
 	}
 }
 
@@ -812,12 +813,13 @@ udp_setup :: (c: *Conn, ip: string, port: int) -> bool {
 	req: [DISCOVERY_LEN]u8;
 	build_discovery_request(view(req), c.ssrc);
 	buf: [1500]u8;
-	for attempt: 0..(20 && !stopped(c))-1 {
+	{ attempt := 0;
+	while attempt < 20 && !stopped(c) {
 		if attempt % 5 == 0 { net.send_udp(c.udp, view(req), c.server_ep); }
 		n, _, rerr := net.recv_udp(c.udp, view(buf));
-		if rerr != null || n < DISCOVERY_LEN { continue; }
+		if rerr != null || n < DISCOVERY_LEN { { attempt += 1; continue; } }
 		_, address, p, ok := parse_discovery(sub(buf, 0, n), 2);
-		if !ok { continue; }
+		if !ok { { attempt += 1; continue; } }
 		delete(c.external_ip);
 		c.external_ip = clone(address);
 		c.external_port = cast(int)(p);
@@ -826,7 +828,8 @@ udp_setup :: (c: *Conn, ip: string, port: int) -> bool {
 			c.udp_th = thread.create_and_start_with_data(c, udp_thread_proc);
 		}
 		return true;
-	}
+		attempt += 1;
+} }
 	return false;
 }
 
@@ -904,7 +907,7 @@ destroy_user :: (c: *Conn, u: *Remote_User) {
 
 timer_thread_proc :: (data: *void) {
 	c := cast(*Conn)data;
-	context.allocator = c.allocator;
+	push_allocator(c.allocator);
 	while !stopped(c) {
 		time.sleep(25 * time.Millisecond);
 		now := now_ms();
@@ -937,7 +940,7 @@ timer_thread_proc :: (data: *void) {
 
 udp_thread_proc :: (data: *void) {
 	c := cast(*Conn)data;
-	context.allocator = c.allocator;
+	push_allocator(c.allocator);
 	buf: [2048]u8;
 	plain: [2048]u8;
 	frame: [2048]u8;
@@ -977,7 +980,7 @@ udp_thread_proc :: (data: *void) {
 			continue;
 		}
 		end := m;
-		if plain[0] & 0x20 != 0 { 	// padding
+		if (plain[0] & 0x20) != 0 { 	// padding
 			pad := cast(int)(plain[m - 1]);
 			if pad == 0 || pad > m - h.payload_off { continue; }
 			end -= pad;
@@ -1074,7 +1077,7 @@ ntp_now :: () -> u64 {
 	ns := time.to_unix_nanoseconds(time.now());
 	secs := cast(u64)(ns / 1000000000) + 2_208_988_800;
 	frac := cast(u64)(ns % 1000000000) * (1 << 32) / 1000000000;
-	return secs << 32 | frac;
+	return (secs << 32) | frac;
 }
 
 // ---------------------------------------------------------------------------
@@ -1083,7 +1086,7 @@ ntp_now :: () -> u64 {
 
 audio_thread_proc :: (data: *void) {
 	c := cast(*Conn)data;
-	context.allocator = c.allocator;
+	push_allocator(c.allocator);
 	pcm: [SAMPLES_PER_FRAME]float32;
 	out: [SAMPLES_PER_FRAME * 2]float32;
 	next := time.tick_now();
@@ -1263,7 +1266,7 @@ send_rtcp :: (c: *Conn) {
 		r.received_prior = r.received;
 		lost_int := cast(s32)(exp_int) - cast(s32)(rec_int);
 		frac: u8 = 0;
-		if exp_int != 0 && lost_int > 0 { frac = cast(u8)((cast(u32)(lost_int) << 8) / exp_int); }
+		if exp_int != 0 && lost_int > 0 { frac = cast(u8)(((cast(u32)(lost_int)) << 8) / exp_int); }
 		dlsr: u32 = 0;
 		if r.lsr != 0 { dlsr = cast(u32)((now - r.lsr_at_ms) * 65536 / 1000); }
 		append(*blocks, Report_Block.{u.ssrc, frac, lost, ext_max, cast(u32)(r.jitter), r.lsr, dlsr});

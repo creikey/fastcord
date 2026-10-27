@@ -55,7 +55,7 @@ atomic_compare_exchange_strong :: inline (p: *$T, old: T, new: T) -> T, bool { o
     }
     futex_wake :: (addr: *u32, all: bool) {
         while true {
-            r := __ulock_wake(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO | cast(u32) (ifx all then ULF_WAKE_ALL else 0), addr, 0);
+            r := __ulock_wake(UL_COMPARE_AND_WAIT | ULF_NO_ERRNO | (cast(u32) (ifx all then ULF_WAKE_ALL else 0)), addr, 0);
             if r != -4 break;  // EINTR
         }
     }

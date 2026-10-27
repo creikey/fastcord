@@ -562,7 +562,7 @@ upload_put :: (c: *Client, url: string, data: []u8) -> bool {
 client_apply_rest :: (c: *Client, e: *Event) {
 	s := *c.store;
 	r := *e.result;
-	context.allocator = s.allocator;
+	push_allocator(s.allocator);
 	if r.op == {
 	case .Auth;
 		auth_apply(c, e);

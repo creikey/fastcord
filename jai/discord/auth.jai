@@ -775,7 +775,7 @@ sidebar_guild_ids :: (s: *Store) -> []Snowflake {
 	out := make_dynamic(Snowflake, 0, 0, temp);
 	listed := Map(Snowflake, bool).{};
 	for f: s.settings.guild_folders { for id: f.guild_ids { at(*listed, id).* = true; } }
-	for gid: s.guild_order { if !__MAPIDX__(listed|gid) { append(*out, gid); } }
+	for gid: s.guild_order { if !get(listed, gid) { append(*out, gid); } }
 	for f: s.settings.guild_folders { for id: f.guild_ids { if has(s.guilds, id) { append(*out, id); } } }
 	return view(out);
 }

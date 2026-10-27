@@ -101,7 +101,7 @@ switcher_activate :: (it_: Switch_Item) {
 quick_switcher :: () {
 	ui.animate(*sw.t, 1, 30);
 	scrim := ui.box("sw_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7 * sw.t};
 	if ui.signal(scrim).clicked {
 		sw.open = false;
@@ -126,7 +126,7 @@ quick_switcher :: () {
 	}
 	W :: 570;
 	box := ui.box("switcher", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	box.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	box.semantic_size = .[ui.px(W), ui.children()];
 	box.fixed_pos = .{(app.ui.window.x - W) / 2, app.ui.window.y * 0.2 - (1 - sw.t) * 8};
 	box.opacity = sw.t;
 	box.layout_axis = .Y;
@@ -138,11 +138,11 @@ quick_switcher :: () {
 	if ui.parent(box) {
 		spacer(.Y, 20);
 		r := row("inrow");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(70)};
+		r.semantic_size = .[ui.pct(1), ui.px(70)];
 		if ui.parent(r) {
 			spacer(.X, 20);
 			field := row("field", .{.Draw_Background});
-			field.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(70)};
+			field.semantic_size = .[ui.fill(), ui.px(70)];
 			field.style.bg = cast(T)("--input-background-default");
 			field.style.radius = 4;
 			if ui.parent(field) {
@@ -157,7 +157,7 @@ quick_switcher :: () {
 		spacer(.Y, 12);
 		for it_, i: items {
 			ir := row(fmt.tprintf("it%d", i), .{.Clickable, .Draw_Background});
-			ir.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(34)};
+			ir.semantic_size = .[ui.pct(1), ui.px(34)];
 			sig := ui.signal(ir);
 			if sig.hovering && app.ui.mouse != app.ui.mouse_prev { sw.sel = i; }
 			sel := i == sw.sel;

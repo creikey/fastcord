@@ -14,7 +14,7 @@ top_emojis_fetched: Map(dc.Snowflake, bool);
 
 // Per open: the guild's top emojis once per session, like the client's picker.
 pickers_on_open_guild :: (gid: dc.Snowflake) {
-	if app.client == null || gid == 0 || __MAPIDX__(top_emojis_fetched|gid) { return; }
+	if app.client == null || gid == 0 || get(top_emojis_fetched, gid) { return; }
 	at(*top_emojis_fetched, gid).* = true;
 	dc.guild_top_emojis(app.client, gid);
 }

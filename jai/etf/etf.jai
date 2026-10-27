@@ -91,9 +91,9 @@ as_u64 :: (v: Value) -> u64, bool {
 	case .Big; x := v.big;
 		if x.negative { return 0, false; }
 		r: u64;
-		for < i: len(x.digits) - 1..0 {
-			if r >> 56 != 0 { return 0, false; }
-			r = r << 8 | cast(u64)(x.digits[i]);
+		for < i: 0..len(x.digits) - 1 {
+			if (r >> 56) != 0 { return 0, false; }
+			r = (r << 8) | (cast(u64)(x.digits[i]));
 		}
 		return r, true;
 	}

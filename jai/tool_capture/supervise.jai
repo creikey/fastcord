@@ -89,7 +89,7 @@ tree :: (root: int) -> []int, int {
 	append(*list, root);
 	for i: 0..len(list)-1 {
 		for r: rows {
-			if r.ppid == __MAPIDX__(list|i) { append(*list, r.pid); }
+			if r.ppid == get(list, i) { append(*list, r.pid); }
 		}
 	}
 	for p: list {
@@ -210,7 +210,7 @@ supervise :: (minutes: int) -> bool {
 			roots[i] = instance_root(inst.port);
 			if roots[i] == 0 { continue; }
 			_, at(*sizes, i).* = tree(roots[i]);
-			if __MAPIDX__(sizes|i) > TREE_LIMIT {
+			if get(sizes, i) > TREE_LIMIT {
 				kill_instance(inst, fmt.tprintf("tree RSS %.0f MB > limit", cast(float64)(get(sizes, i)) / (1 << 20)));
 				at(*sizes, i).* = 0;
 			}
@@ -218,7 +218,7 @@ supervise :: (minutes: int) -> bool {
 		avail := system_available();
 		if avail < SYSTEM_LOW {
 			big := ifx get(sizes, 0) >= get(sizes, 1) then 0 else 1;
-			if __MAPIDX__(sizes|big) > 0 { kill_instance(INSTANCES[big], fmt.tprintf("system memory low (%.0f MB available)", cast(float64)(avail) / (1 << 20))); }
+			if get(sizes, big) > 0 { kill_instance(INSTANCES[big], fmt.tprintf("system memory low (%.0f MB available)", cast(float64)(avail) / (1 << 20))); }
 		}
 		if time.tick_since(last_report) > 30 * time.Second {
 			sup_log("rss a=%.0f MB b=%.0f MB, system available %.0f MB", cast(float64)(get(sizes, 0)) / (1 << 20), cast(float64)(get(sizes, 1)) / (1 << 20), cast(float64)(avail) / (1 << 20));

@@ -30,24 +30,24 @@ sidebar_thread_rows :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			selected := app.view.channel == tid;
 			unread := dc.channel_unread(s, tid);
 			outer := row("thread");
-			outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(CHANNEL_ROW_PITCH)};
+			outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
 			if ui.parent(outer) {
 				spacer(.X, 8);
 				// the spine: a vertical line from the parent row, curving into this row
 				spine := ui.box("spine");
-				spine.semantic_size = .{__IDX__.X = ui.px(28), __IDX__.Y = ui.px(CHANNEL_ROW_PITCH)};
+				spine.semantic_size = .[ui.px(28), ui.px(CHANNEL_ROW_PITCH)];
 				if ui.parent(spine) {
 					v := ui.box("v", .{.Draw_Background, .Floating_X, .Floating_Y});
-					v.semantic_size = .{__IDX__.X = ui.px(1.5), __IDX__.Y = ui.px(ifx i == len(ids) - 1 then CHANNEL_ROW_PITCH / 2 else CHANNEL_ROW_PITCH)};
+					v.semantic_size = .[ui.px(1.5), ui.px(ifx i == len(ids) - 1 then CHANNEL_ROW_PITCH / 2 else CHANNEL_ROW_PITCH)];
 					v.fixed_pos = .{16, -2};
 					v.style.bg = cast(T)("--border-strong");
 					h := ui.box("h", .{.Draw_Background, .Floating_X, .Floating_Y});
-					h.semantic_size = .{__IDX__.X = ui.px(10), __IDX__.Y = ui.px(1.5)};
+					h.semantic_size = .[ui.px(10), ui.px(1.5)];
 					h.fixed_pos = .{16, CHANNEL_ROW_PITCH / 2 - 1};
 					h.style.bg = cast(T)("--border-strong");
 				}
 				item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-				item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(CHANNEL_ROW_H)};
+				item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
 				item.style.radius = 8;
 				item.style.bg = ifx selected then cast(T)("--background-mod-normal") else .{};
 				item.style.bg_hot = ifx selected then item.style.bg else cast(T)("--background-mod-subtle");
@@ -81,7 +81,7 @@ thread_summary_pill :: (m: *dc.Message) {
 	count := ifx tm != null then tm.message_count else 0;
 	spacer(.Y, 4);
 	box := ui.box("threadpill", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
-	box.semantic_size = .{__IDX__.X = ui.px(480), __IDX__.Y = ui.children()};
+	box.semantic_size = .[ui.px(480), ui.children()];
 	box.layout_axis = .Y;
 	box.style.bg = cast(T)("--background-base-low");
 	box.style.bg_hot = cast(T)("--background-mod-subtle");
@@ -94,7 +94,7 @@ thread_summary_pill :: (m: *dc.Message) {
 		inset_begin(12, 8);
 		defer inset_end(12, 8);
 		r := row("top");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+		r.semantic_size = .[ui.pct(1), ui.px(20)];
 		if ui.parent(r) {
 			label(th.name, .Semibold, 14, cast(T)("--text-strong"), 18);
 			spacer(.X, 8);
@@ -107,7 +107,7 @@ thread_summary_pill :: (m: *dc.Message) {
 			last := *msgs[len(msgs) - 1];
 			spacer(.Y, 4);
 			lr := row("last");
-			lr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+			lr.semantic_size = .[ui.pct(1), ui.px(18)];
 			if ui.parent(lr) {
 				avatar_box("av", last.author_id, 16);
 				spacer(.X, 6);
@@ -139,7 +139,7 @@ forum_view :: (ch: *dc.Channel) {
 		need := make_dynamic(dc.Snowflake, 0, 0, temp);
 		for id: posts {
 			tm := dc.thread_meta(id);
-			if tm == null || tm.first_content != "" || __MAPIDX__(st.requested_posts|id) { continue; }
+			if tm == null || tm.first_content != "" || get(st.requested_posts, id) { continue; }
 			at(*st.requested_posts, id).* = true;
 			append(*need, id);
 		}
@@ -147,17 +147,17 @@ forum_view :: (ch: *dc.Channel) {
 	}
 
 	list := ui.box("forum", .{.Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+	list.semantic_size = .[ui.fill(), ui.pct(1)];
 	list.layout_axis = .Y;
 	ui.signal(list);
 	if ui.parent(list) {
 		spacer(.Y, 16);
 		hdr := row("forumhdr");
-		hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		hdr.semantic_size = .[ui.pct(1), ui.px(40)];
 		if ui.parent(hdr) {
 			spacer(.X, 24);
 			sb := row("newpost", .{.Draw_Background, .Draw_Border});
-			sb.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			sb.semantic_size = .[ui.fill(), ui.px(40)];
 			sb.style.bg = cast(T)("--background-base-lowest");
 			sb.style.border_color = cast(T)("--border-subtle");
 			sb.style.border = 1;
@@ -173,7 +173,7 @@ forum_view :: (ch: *dc.Channel) {
 		spacer(.Y, 16);
 		if len(posts) == 0 {
 			r := row("empty");
-			r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+			r.semantic_size = .[ui.pct(1), ui.px(40)];
 			if ui.parent(r) {
 				filler(.X);
 				label("No posts yet", .Medium, 14, cast(T)("--text-muted"), 18);
@@ -194,11 +194,11 @@ forum_view :: (ch: *dc.Channel) {
 forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 	tm := dc.thread_meta(th.id);
 	outer := row("cardrow");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	outer.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(outer) {
 		spacer(.X, 24);
 		card := ui.box("card", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
-		card.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		card.semantic_size = .[ui.fill(), ui.children()];
 		card.layout_axis = .Y;
 		card.style.bg = cast(T)("--card-background-default");
 		card.style.bg_hot = cast(T)("--background-mod-subtle");
@@ -212,14 +212,14 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 			// tags
 			if tm != null && len(tm.applied_tags) > 0 {
 				tr := row("tags");
-				tr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(22)};
+				tr.semantic_size = .[ui.pct(1), ui.px(22)];
 				tr.style.child_gap = 4;
 				if ui.parent(tr) {
 					for tid, i: tm.applied_tags {
 						for t: tags {
 							if t.id != tid { continue; }
 							chip := row(fmt.tprintf("tag%d", i), .{.Draw_Background});
-							chip.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(20)};
+							chip.semantic_size = .[ui.children(), ui.px(20)];
 							chip.style.bg = cast(T)("--background-mod-normal");
 							chip.style.radius = 10;
 							if ui.parent(chip) {
@@ -240,7 +240,7 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 			spacer(.Y, 4);
 			if tm != null && tm.first_content != "" {
 				pr := row("preview");
-				pr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+				pr.semantic_size = .[ui.pct(1), ui.px(18)];
 				if ui.parent(pr) {
 					name := name_in(tm.first_author, th.id, "");
 					if name != "" {
@@ -253,7 +253,7 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 				spacer(.Y, 6);
 			}
 			mr := row("meta");
-			mr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+			mr.semantic_size = .[ui.pct(1), ui.px(18)];
 			if ui.parent(mr) {
 				icon("ic", "chat", 16, cast(T)("--text-muted"));
 				spacer(.X, 4);
@@ -296,7 +296,7 @@ thread_header_prefix :: (ch: *dc.Channel) {
 	p := dc.channel_get(store(), ch.parent_id);
 	if p == null { return; }
 	b := row("parent", .{.Clickable});
-	b.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(24)};
+	b.semantic_size = .[ui.children(), ui.px(24)];
 	sig := ui.signal(b);
 	if sig.clicked { select_channel(p.guild_id, p.id); }
 	if ui.parent(b) {
@@ -347,11 +347,11 @@ features_receive :: () {
 inset_begin :: (px: float32, py: float32) -> *ui.Box {
 	spacer(.Y, py);
 	r := row("inset");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	ui.push_parent(r);
 	spacer(.X, px);
 	inner := ui.box("inner");
-	inner.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+	inner.semantic_size = .[ui.fill(), ui.children()];
 	inner.layout_axis = .Y;
 	ui.push_parent(inner);
 	return inner;

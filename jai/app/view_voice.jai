@@ -222,12 +222,12 @@ voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color
 	if !voice_is_speaking(uid) { return b; }
 	if ui.parent(b) {
 		r := ui.box("ring", .{.Draw_Border, .Floating_X, .Floating_Y});
-		r.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+		r.semantic_size = .[ui.px(size), ui.px(size)];
 		r.style.radius = size / 2;
 		r.style.border = 2;
 		r.style.border_color = cast(T)("--status-positive");
 		g := ui.box("gap", .{.Draw_Border, .Floating_X, .Floating_Y});
-		g.semantic_size = .{__IDX__.X = ui.px(size - 4), __IDX__.Y = ui.px(size - 4)};
+		g.semantic_size = .[ui.px(size - 4), ui.px(size - 4)];
 		g.fixed_pos = .{2, 2};
 		g.style.radius = (size - 4) / 2;
 		g.style.border = 1;
@@ -240,7 +240,7 @@ voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color
 voice_panel :: () {
 	s := store();
 	p := row("voicepanel");
-	p.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(VOICE_PANEL_H)};
+	p.semantic_size = .[ui.pct(1), ui.px(VOICE_PANEL_H)];
 	status := "RTC Connecting";
 	color := cast(T)("--text-feedback-warning");
 	sig_icon := "connection-unknown";
@@ -273,7 +273,7 @@ voice_panel :: () {
 	if ui.parent(p) {
 		spacer(.X, 8);
 		info := row("info", .{.Clickable, .Draw_Background, .Hot_Animation});
-		info.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(42)};
+		info.semantic_size = .[ui.fill(), ui.px(42)];
 		info.style.radius = 8;
 		info.style.bg_hot = cast(T)("--background-mod-subtle");
 		isig := ui.signal(info);
@@ -282,7 +282,7 @@ voice_panel :: () {
 			icon("sig", sig_icon, 20, color);
 			spacer(.X, 8);
 			col := ui.box("text");
-			col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.fill(), ui.children()];
 			if ui.parent(col) {
 				label(status, .Semibold, 14, color, 18);
 				where_ := "Voice";
@@ -303,7 +303,7 @@ voice_panel :: () {
 		}
 		if isig.hovering {
 			tip := row("pingtip", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay});
-			tip.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(32)};
+			tip.semantic_size = .[ui.children(), ui.px(32)];
 			tip.fixed_pos = .{8, -40};
 			tip.style.bg = cast(T)("--background-surface-highest");
 			tip.style.radius = 8;
@@ -319,7 +319,7 @@ voice_panel :: () {
 			}
 		}
 		b := ui.box("disconnect", .{.Clickable, .Draw_Background, .Hot_Animation});
-		b.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(32)};
+		b.semantic_size = .[ui.px(32), ui.px(32)];
 		b.style.radius = 8;
 		b.style.bg_hot = cast(T)("--background-mod-subtle");
 		b.layout_axis = .X;
@@ -336,7 +336,7 @@ voice_panel :: () {
 		spacer(.X, 8);
 	}
 	div := ui.box("div", .{.Draw_Background});
-	div.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	div.semantic_size = .[ui.pct(1), ui.px(1)];
 	div.style.bg = cast(T)("--border-subtle");
 }
 
@@ -362,7 +362,7 @@ incoming_call_popout :: () {
 	H :: cast(float32)(270);
 	area_x := cast(float32)(72 + 240);
 	p := ui.box("incoming_call", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	p.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(H)};
+	p.semantic_size = .[ui.px(W), ui.px(H)];
 	p.fixed_pos = .{area_x + (app.ui.window.x - area_x - W) / 2, 160};
 	p.layout_axis = .Y;
 	p.cross_align = .Center;
@@ -383,12 +383,12 @@ incoming_call_popout :: () {
 		label("Incoming Call...", .Normal, 16, cast(T)("--text-default"), 20);
 		spacer(.Y, 24);
 		btns := row("btns");
-		btns.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(50)};
+		btns.semantic_size = .[ui.children(), ui.px(50)];
 		btns.style.child_gap = 8;
 		if ui.parent(btns) {
 			btn :: (id: string, ic: string, bg: ui.Color) -> bool {
 				b := ui.box(id, .{.Clickable, .Draw_Background, .Hot_Animation});
-				b.semantic_size = .{__IDX__.X = ui.px(66), __IDX__.Y = ui.px(50)};
+				b.semantic_size = .[ui.px(66), ui.px(50)];
 				b.style.radius = 8;
 				b.style.bg = bg;
 				b.style.bg_hot = with_alpha(bg, 0.85);

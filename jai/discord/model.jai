@@ -3,7 +3,7 @@ Snowflake :: u64;
 DISCORD_EPOCH_MS :: 1420070400000;
 
 snowflake_time_ms :: (id: Snowflake) -> s64 {
-	return cast(s64)(cast(u64)(id) >> 22) + DISCORD_EPOCH_MS;
+	return cast(s64)((cast(u64)(id)) >> 22) + DISCORD_EPOCH_MS;
 }
 
 Channel_Type :: enum u8 {

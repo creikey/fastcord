@@ -62,7 +62,7 @@ rail_entries :: () -> [..]Rail_Entry {
 	listed := Map(dc.Snowflake, bool).{};
 	for f: s.settings.guild_folders { for id: f.guild_ids { at(*listed, id).* = true; } }
 	for gid: guild_order() {
-		if __MAPIDX__(listed|gid) { break; }
+		if get(listed, gid) { break; }
 		e := Rail_Entry.{guilds = make_dynamic(dc.Snowflake, 0, 0, temp)};
 		append(*e.guilds, gid);
 		append(*out, e);
@@ -135,13 +135,13 @@ mention_badge :: (n: int, icon_y: float32) {
 	text := ifx n > 99 then "99+" else fmt.tprint(n);
 	w := max(cast(float32)(BADGE_H), cast(float32)(len(text)) * 7 + 8);
 	ring := ui.box("badgering", .{.Draw_Background, .Floating_X, .Floating_Y});
-	ring.semantic_size = .{__IDX__.X = ui.px(w + 2 * BADGE_RING), __IDX__.Y = ui.px(BADGE_H + 2 * BADGE_RING)};
+	ring.semantic_size = .[ui.px(w + 2 * BADGE_RING), ui.px(BADGE_H + 2 * BADGE_RING)];
 	ring.fixed_pos = .{RAIL_ICON_X + GUILD_ICON + 4 - w - BADGE_RING, icon_y + GUILD_ICON + 4 - BADGE_H - BADGE_RING};
 	ring.style.bg = cast(T)("--background-base-lowest");
 	ring.style.radius = (BADGE_H + 2 * BADGE_RING) / 2;
 	if ui.parent(ring) {
 		b := ui.box(fmt.tprintf("%s##badge", text), .{.Draw_Background, .Draw_Text, .Floating_X, .Floating_Y});
-		b.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(BADGE_H)};
+		b.semantic_size = .[ui.px(w), ui.px(BADGE_H)];
 		b.fixed_pos = .{BADGE_RING, BADGE_RING};
 		b.style.bg = cast(T)("--status-danger");
 		b.style.radius = BADGE_H / 2;
@@ -160,7 +160,7 @@ rail_view :: () {
 	append(*rs.prev, ..view(rs.targets));
 	clear(*rs.targets);
 	rail := ui.box("rail", .{.Scroll_Y, .Clip});
-	rail.semantic_size = .{__IDX__.X = ui.px(RAIL_W), __IDX__.Y = ui.pct(1)};
+	rail.semantic_size = .[ui.px(RAIL_W), ui.pct(1)];
 	rail.layout_axis = .Y;
 	ui.signal(rail);
 	entries := rail_entries();
@@ -172,16 +172,16 @@ rail_view :: () {
 			if ui.id_scope(cast(u64)(cid)) { rail_dm(cid); }
 		}
 		sep := ui.box("sep");
-		sep.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(9)};
+		sep.semantic_size = .[ui.pct(1), ui.px(9)];
 		if ui.parent(sep) {
 			line := ui.box("line", .{.Draw_Background, .Floating_X, .Floating_Y});
-			line.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(1)};
+			line.semantic_size = .[ui.px(32), ui.px(1)];
 			line.fixed_pos = .{20, 0};
 			line.style.bg = cast(T)("--background-mod-subtle");
 			line.style.radius = 1;
 		}
 		for * e, i: entries {
-			if ui.id_scope(ifx e.id != 0 then cast(u64)(e.id) else cast(u64)(__MAPIDX__(e.guilds|0))) {
+			if ui.id_scope(ifx e.id != 0 then cast(u64)(e.id) else cast(u64)(get(e.guilds, 0))) {
 				if e.id != 0 { rail_folder(*e, i); } else { rail_guild(get(e.guilds, 0), i, -1); }
 			}
 		}
@@ -198,11 +198,11 @@ rail_dm :: (cid: dc.Snowflake) {
 	ch := dc.channel_get(s, cid);
 	if ch == null { return; }
 	slot := ui.box("dmslot");
-	slot.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(RAIL_SLOT)};
+	slot.semantic_size = .[ui.pct(1), ui.px(RAIL_SLOT)];
 	if ui.offscreen(slot) { return; }
 	if ui.parent(slot) {
 		ic := ui.box("dmicon", .{.Clickable, .Draw_Background, .Floating_X, .Floating_Y});
-		ic.semantic_size = .{__IDX__.X = ui.px(GUILD_ICON), __IDX__.Y = ui.px(GUILD_ICON)};
+		ic.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
 		ic.fixed_pos = .{RAIL_ICON_X, 0};
 		sig := ui.signal(ic);
 		ui.animate(*ic.user_t, ifx sig.hovering then 1 else 0, 25);
@@ -212,13 +212,13 @@ rail_dm :: (cid: dc.Snowflake) {
 			set_remote_image(ic, avatar_url_for(ch.recipient_ids[0], GUILD_ICON));
 		} else if ui.parent(ic) {
 			g := ui.box("g", .{.Floating_X, .Floating_Y});
-			g.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+			g.semantic_size = .[ui.px(24), ui.px(24)];
 			g.fixed_pos = .{8, 8};
 			set_icon(g, "group", .{1, 1, 1, 1});
 		}
 		pill := ui.box("pill", .{.Draw_Background, .Floating_X, .Floating_Y});
 		ui.animate(*pill.user_t, ifx sig.hovering then 20 else 8, 25);
-		pill.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(pill.user_t)};
+		pill.semantic_size = .[ui.px(4), ui.px(pill.user_t)];
 		pill.fixed_pos = .{0, (GUILD_ICON - pill.user_t) / 2};
 		pill.style.bg = cast(T)("--text-strong");
 		pill.style.radius = .{0, 4, 0, 4};
@@ -255,7 +255,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 	ui.animate(*t, ifx open then 1 else 0, FOLDER_EXPAND_RATE);
 	at(*rs.open_t, e.id).* = t;
 	group := ui.box("folder");
-	group.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	group.semantic_size = .[ui.pct(1), ui.children()];
 	group.layout_axis = .Y;
 	if ui.offscreen(group) {
 		group.semantic_size[.Y] = ui.px(group.rect.y1 - group.rect.y0);
@@ -274,18 +274,18 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 		// expanded background behind header + guilds
 		if t > 0.01 {
 			bg := ui.box("folderbg", .{.Draw_Background, .Floating_X, .Floating_Y});
-			bg.semantic_size = .{__IDX__.X = ui.px(FOLDER_BG_W), __IDX__.Y = ui.px(RAIL_SLOT - 8 + cast(float32)(len(e.guilds)) * RAIL_SLOT * t)};
+			bg.semantic_size = .[ui.px(FOLDER_BG_W), ui.px(RAIL_SLOT - 8 + cast(float32)(len(e.guilds)) * RAIL_SLOT * t)];
 			bg.fixed_pos = .{(RAIL_W - FOLDER_BG_W) / 2, -4};
 			bg.style.radius = FOLDER_BG_RADIUS;
 			bg.style.bg = with_alpha(cast(T)("--background-mod-subtle"), t);
 		}
 		slot := ui.box("fslot");
-		slot.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(RAIL_SLOT)};
+		slot.semantic_size = .[ui.pct(1), ui.px(RAIL_SLOT)];
 		sig: ui.Signal;
 		if ui.parent(slot) {
 			pill := ui.box("pill", .{.Draw_Background, .Floating_X, .Floating_Y});
 			ic := ui.box("ficon", .{.Clickable, .Draw_Background, .Floating_X, .Floating_Y, .Hot_Animation});
-			ic.semantic_size = .{__IDX__.X = ui.px(GUILD_ICON), __IDX__.Y = ui.px(GUILD_ICON)};
+			ic.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
 			ic.fixed_pos = .{RAIL_ICON_X, 0};
 			ic.style.radius = FOLDER_RADIUS;
 			sig = ui.signal(ic);
@@ -299,7 +299,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 						g := dc.guild_get(store(), gid);
 						if g == null { continue; }
 						m := ui.box(fmt.tprintf("##mini%d", i), .{.Draw_Background, .Draw_Text, .Floating_X, .Floating_Y});
-						m.semantic_size = .{__IDX__.X = ui.px(FOLDER_MINI), __IDX__.Y = ui.px(FOLDER_MINI)};
+						m.semantic_size = .[ui.px(FOLDER_MINI), ui.px(FOLDER_MINI)];
 						m.fixed_pos = .{FOLDER_MINI_PAD + cast(float32)(i % 2) * (FOLDER_MINI + FOLDER_MINI_GAP), FOLDER_MINI_PAD + cast(float32)(i / 2) * (FOLDER_MINI + FOLDER_MINI_GAP)};
 						m.style.radius = 5;
 						m.style.bg = cast(T)("--background-base-lower");
@@ -313,7 +313,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 				}
 				if t > 0.01 {
 					f := ui.box("glyph", .{.Floating_X, .Floating_Y});
-					f.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+					f.semantic_size = .[ui.px(24), ui.px(24)];
 					f.fixed_pos = .{8, 8};
 					set_icon(f, "folder", with_alpha(color, t));
 				}
@@ -322,7 +322,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 			target: float32 = ifx (!open && selected_inside) then 40 else (ifx sig.hovering then 20 else (ifx unread_closed then 8 else 0));
 			ui.animate(*pill.user_t, target, 25);
 			h := pill.user_t;
-			pill.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(h)};
+			pill.semantic_size = .[ui.px(4), ui.px(h)];
 			pill.fixed_pos = .{0, (GUILD_ICON - h) / 2};
 			pill.style.bg = cast(T)("--text-strong");
 			pill.style.radius = .{0, 4, 0, 4};
@@ -345,7 +345,7 @@ if g != null { append(*names, g.name); } } }
 		append(*rs.targets, Rail_Target.{slot.rect, entry, -1});
 		if t > 0.01 {
 			list := ui.box("fguilds", .{.Clip});
-			list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(cast(float32)(len(e.guilds)) * RAIL_SLOT * t)};
+			list.semantic_size = .[ui.pct(1), ui.px(cast(float32)(len(e.guilds)) * RAIL_SLOT * t)];
 			list.layout_axis = .Y;
 			if ui.parent(list) {
 				for gid, i: e.guilds { rail_guild(gid, entry, i); }
@@ -393,7 +393,7 @@ rail_drag :: (entries: [..]Rail_Entry) {
 		tg, kind := drop_at(app.ui.mouse);
 		// dragged icon follows the mouse
 		ghost := ui.box("rail_ghost###rail_ghost", .{.Draw_Background, .Draw_Text, .Floating_X, .Floating_Y, .Overlay});
-		ghost.semantic_size = .{__IDX__.X = ui.px(GUILD_ICON), __IDX__.Y = ui.px(GUILD_ICON)};
+		ghost.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
 		ghost.fixed_pos = .{RAIL_ICON_X, app.ui.mouse.y - GUILD_ICON / 2};
 		ghost.style.radius = FOLDER_RADIUS;
 		ghost.style.bg = cast(T)("--background-mod-normal");
@@ -419,12 +419,12 @@ rail_drag :: (entries: [..]Rail_Entry) {
 			if kind == {
 			case .Before; #through; case .After;
 				y := ifx kind == .Before then r.y0 - 4 else r.y1 - 4;
-				ind.semantic_size = .{__IDX__.X = ui.px(GUILD_ICON), __IDX__.Y = ui.px(4)};
+				ind.semantic_size = .[ui.px(GUILD_ICON), ui.px(4)];
 				ind.fixed_pos = .{RAIL_ICON_X, y - 2};
 				ind.style.bg = cast(T)("--status-positive");
 				ind.style.radius = 2;
 			case .Combine;
-				ind.semantic_size = .{__IDX__.X = ui.px(GUILD_ICON + 4), __IDX__.Y = ui.px(GUILD_ICON + 4)};
+				ind.semantic_size = .[ui.px(GUILD_ICON + 4), ui.px(GUILD_ICON + 4)];
 				ind.fixed_pos = .{RAIL_ICON_X - 2, r.y0 - 2};
 				ind.style.border = 2;
 				ind.style.border_color = cast(T)("--status-positive");
@@ -467,7 +467,7 @@ rail_apply_drop :: (entries_in: [..]Rail_Entry, tg: Rail_Target, kind: Drop_Kind
 	// mark removal without shifting indices yet
 	removed_entry := moving_folder || (len(src.guilds) == 0);
 	te := at(*entries, tg.entry);
-	if kind == .Combine && !moving_folder && tg.inner < 0 && te.id == 0 && __MAPIDX__(te.guilds|0) != gid {
+	if kind == .Combine && !moving_folder && tg.inner < 0 && te.id == 0 && get(te.guilds, 0) != gid {
 		// guild onto guild: new folder (random 32-bit id like the client)
 		te.id = cast(s64)(rand.uint32_());
 		append(*te.guilds, gid);

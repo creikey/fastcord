@@ -103,7 +103,7 @@ aw_channel :: (w: *Json, c: *Client, channel_id: Snowflake, with_id := true) {
 		src := ch;
 		if is_thread(ch) && ch.parent_id != 0 { { p := channel_get(s, ch.parent_id);
 if p != null { src = p; } } }
-		for o: src.overwrites { if o.kind == 0 && o.id == ch.guild_id && o.deny & PERM_VIEW_CHANNEL != 0 { hidden = true; } }
+		for o: src.overwrites { if o.kind == 0 && o.id == ch.guild_id && (o.deny & PERM_VIEW_CHANNEL) != 0 { hidden = true; } }
 	}
 	json_kbool(w, "channel_hidden", hidden);
 }

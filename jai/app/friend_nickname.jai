@@ -79,7 +79,7 @@ friend_nick_modal :: () {
 		return;
 	}
 	scrim := ui.box("fnick_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
 		fnick.user = 0;
@@ -90,7 +90,7 @@ friend_nick_modal :: () {
 	server := fnick.guild != 0;
 	had := !server && dc.friend_nickname(s, uid) != "";
 	d := ui.box("fnickmodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -102,7 +102,7 @@ friend_nick_modal :: () {
 	defer ui.pop_parent();
 	text_row :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 		r := row(id);
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(lh)};
+		r.semantic_size = .[ui.pct(1), ui.px(lh)];
 		if ui.parent(r) {
 			spacer(.X, PAD);
 			label(text, font, size, color, lh);
@@ -110,7 +110,7 @@ friend_nick_modal :: () {
 	}
 	button :: (id: string, w: float32, bg: ui.Color, bg_hot: ui.Color, fg: ui.Color) -> bool {
 		b := ui.box(id, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-		b.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(38)};
+		b.semantic_size = .[ui.px(w), ui.px(38)];
 		b.style.radius = 8;
 		b.style.font = F(.Medium);
 		b.style.font_size = 14;
@@ -126,22 +126,22 @@ friend_nick_modal :: () {
 		if uid != s.me {
 			spacer(.Y, 16);
 			wr := row("warnrow");
-			wr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+			wr.semantic_size = .[ui.pct(1), ui.children()];
 			if ui.parent(wr) {
 				spacer(.X, PAD);
 				warn := ui.box("warn", .{.Draw_Background});
-				warn.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+				warn.semantic_size = .[ui.fill(), ui.children()];
 				warn.layout_axis = .Y;
 				warn.style.bg = cast(T)("--background-feedback-warning");
 				warn.style.radius = 8;
 				if ui.parent(warn) {
 					spacer(.Y, 10);
 					pr := row("p");
-					pr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+					pr.semantic_size = .[ui.pct(1), ui.children()];
 					if ui.parent(pr) {
 						spacer(.X, 12);
 						p := ui.box("Nicknames are visible to everyone on this server. Do not change them unless you are enforcing a naming system or clearing a bad nickname.##warntext", .{.Draw_Text, .Wrap_Text});
-						p.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+						p.semantic_size = .[ui.fill(), ui.text_size()];
 						p.style.font = F(.Normal);
 						p.style.font_size = 14;
 						p.style.line_height = 18;
@@ -165,11 +165,11 @@ friend_nick_modal :: () {
 	spacer(.Y, 8);
 	save := false;
 	ir := row("inrow");
-	ir.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+	ir.semantic_size = .[ui.pct(1), ui.px(40)];
 	if ui.parent(ir) {
 		spacer(.X, PAD);
 		field := row("input", .{.Draw_Background, .Draw_Border, .Clickable});
-		field.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+		field.semantic_size = .[ui.fill(), ui.px(40)];
 		field.style.bg = cast(T)("--input-background-default");
 		field.style.border_color = cast(T)("--input-border-active");
 		field.style.border = 1;
@@ -195,7 +195,7 @@ friend_nick_modal :: () {
 	}
 	spacer(.Y, PAD);
 	btns := row("btns", .{.Draw_Background});
-	btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(70)};
+	btns.semantic_size = .[ui.pct(1), ui.px(70)];
 	btns.style.bg = cast(T)("--background-base-lower");
 	btns.style.radius = .{0, 0, 12, 12};
 	btns.style.child_gap = 8;

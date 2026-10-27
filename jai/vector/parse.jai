@@ -330,7 +330,7 @@ parse_color :: (v: string) -> [4]u8 {
 			return out;
 		case 6; #through; case 8;
 			out := u8.[0, 0, 0, 255];
-			for j: 0..(len(h) / 2)-1 { at(*out, j).* = hex(h[2 * j]) << 4 | hex(h[2 * j + 1]); }
+			for j: 0..(len(h) / 2)-1 { at(*out, j).* = (hex(h[2 * j]) << 4) | hex(h[2 * j + 1]); }
 			return out;
 		}
 		return .[0, 0, 0, 255];

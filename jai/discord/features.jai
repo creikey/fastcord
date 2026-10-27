@@ -251,7 +251,7 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 		} }
 	case "CHANNEL_PINS_UPDATE";
 		cid := fsnow(d, "channel_id");
-		at(*extras.pins_epoch, cid).* = __MAPIDX__(extras.pins_epoch|cid) + 1;
+		at(*extras.pins_epoch, cid).* = get(extras.pins_epoch, cid) + 1;
 	case "GUILD_MEMBER_UPDATE";
 		if fsnow(fmap(d, "user"), "id") == me { note_roles(fsnow(d, "guild_id"), flist(d, "roles")); }
 	case "MESSAGE_CREATE";
@@ -312,7 +312,7 @@ feature_pool_retain :: (c: *Client) {
 }
 
 feature_pool_release :: (c: *Client) {
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	locks.lock(*fpool.mu);
 	fpool.clients -= 1;
 	if fpool.owner == c { fpool.owner = null; }
@@ -332,7 +332,7 @@ feature_pool_release :: (c: *Client) {
 	} }
 	{ i := 0;
 	while i < len(fpool.results) {
-		if __MAPIDX__(fpool.results|i).client != c {
+		if get(fpool.results, i).client != c {
 			i += 1;
 			continue;
 		}
@@ -355,7 +355,7 @@ feature_pool_release :: (c: *Client) {
 // from store_destroy, after the client has set quit). Nothing while another
 // client is alive (feature_pool_release).
 extras_destroy :: () {
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
 	if extras_clients > 0 { return; } // another client still uses them
@@ -469,7 +469,8 @@ joined_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snow
 		append(*out, id);
 	}
 	for i: 1..len(out)-1 {
-		for < j: i..(0 && __MAPIDX__(out|j) < __MAPIDX__(out|j - 1))+1 { __MAPIDX__(out|j), __MAPIDX__(out|j - 1) = map_find(out|j - 1), __MAPIDX__(out, j); }
+		{ j := i;
+		while j > 0 && get(out, j) < get(out, j - 1) { get(out, j), get(out, j - 1) = map_find((out|j) - 1), get(out, j, );  j -= 1; } }
 	}
 	return view(out);
 }
@@ -485,7 +486,8 @@ forum_threads :: (s: *Store, forum_id: Snowflake, allocator := temp) -> []Snowfl
 		return max(tm.last_message_id, id);
 	}
 	for i: 1..len(out)-1 {
-		for < j: i..(0 && key(__MAPIDX__(out|j)) > key(__MAPIDX__(out|j - 1)))+1 { __MAPIDX__(out|j), __MAPIDX__(out|j - 1) = map_find(out|j - 1), __MAPIDX__(out, j); }
+		{ j := i;
+		while j > 0 && key(get(out, j)) > key(get(out, j - 1)) { get(out, j), get(out, j - 1) = map_find((out|j) - 1), get(out, j, );  j -= 1; } }
 	}
 	return view(out);
 }
@@ -670,7 +672,7 @@ f_worker :: (_: *void) {
 #scope_module
 
 f_submit :: (c: *Client, j: F_Job) {
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	locks.lock(*fpool.mu);
 	defer locks.unlock(*fpool.mu);
 	fpool.owner = c; // the workers serve every client's jobs (j.client); they stop in extras_destroy
@@ -721,7 +723,7 @@ feature_take_for :: (c: *Client, allocator := temp) -> []Feature_Result {
 	out := make_dynamic(Feature_Result, 0, 0, allocator);
 	{ i := 0;
 	while i < len(fpool.results) {
-		if __MAPIDX__(fpool.results|i).client == c {
+		if get(fpool.results, i).client == c {
 			append(*out, get(fpool.results, i));
 			ordered_remove(*fpool.results, i);
 		} else {
@@ -732,7 +734,7 @@ feature_take_for :: (c: *Client, allocator := temp) -> []Feature_Result {
 }
 
 feature_result_free :: (r: *Feature_Result) {
-	context.allocator = context.default_allocator;
+	push_allocator(context.default_allocator);
 	if r.arena != null {
 		virtual.arena_destroy(r.arena);
 		free(r.arena);
@@ -766,7 +768,7 @@ fetch_messages_around :: (c: *Client, channel_id: Snowflake, message_id: Snowfla
 
 apply_around :: (c: *Client, r: *Feature_Result) {
 	if !r.ok { return; }
-	context.allocator = c.store.allocator;
+	push_allocator(c.store.allocator);
 	for mv: vlist(r.body) { upsert_message(*c.store, vmap(mv)); }
 	c.store.changed += 1;
 }

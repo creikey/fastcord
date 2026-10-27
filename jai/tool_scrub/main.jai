@@ -1,7 +1,7 @@
 main :: () {
 	arena: virtual.Arena;
 	virtual.arena_init_growing(*arena);
-	context.allocator = virtual.arena_allocator(*arena);
+	push_allocator(virtual.arena_allocator(*arena));
 	args := get_command_line_arguments();
 	if len(args) >= 4 && args[1] == "verify" {
 		raw, e1 := os.read_entire_file(args[2], context.allocator);
@@ -258,7 +258,7 @@ convert :: (raw: string, env: string, netlogs := zero([2]string)) -> string {
 		} }
 		collect_foreign(*c, get(v, "etf"));
 		{ b := gs(v, "m", "result", "body");
-		if len(b) > 0 && len(b) < 8 << 20 {
+		if len(b) > 0 && len(b) < (8 << 20) {
 			{ bv, berr := etf.from_json(b, temp);
 			if berr == .None { collect_foreign(*c, bv); } }
 		} }

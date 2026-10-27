@@ -6,29 +6,29 @@
 // Threads use their parent channel's overwrites. Without VIEW_CHANNEL a member
 // implicitly has no permissions in the channel.
 
-PERM_CREATE_INSTANT_INVITE :: cast(u64)(1) << 0;
-PERM_KICK_MEMBERS :: cast(u64)(1) << 1;
-PERM_BAN_MEMBERS :: cast(u64)(1) << 2;
-PERM_ADMINISTRATOR :: cast(u64)(1) << 3;
-PERM_MANAGE_CHANNELS :: cast(u64)(1) << 4;
-PERM_MANAGE_GUILD :: cast(u64)(1) << 5;
-PERM_ADD_REACTIONS :: cast(u64)(1) << 6;
-PERM_VIEW_CHANNEL :: cast(u64)(1) << 10;
-PERM_SEND_MESSAGES :: cast(u64)(1) << 11;
-PERM_MANAGE_MESSAGES :: cast(u64)(1) << 13;
-PERM_ATTACH_FILES :: cast(u64)(1) << 15;
-PERM_MENTION_EVERYONE :: cast(u64)(1) << 17;
-PERM_CONNECT :: cast(u64)(1) << 20;
-PERM_CHANGE_NICKNAME :: cast(u64)(1) << 26;
-PERM_MANAGE_NICKNAMES :: cast(u64)(1) << 27;
-PERM_SPEAK :: cast(u64)(1) << 21;
-PERM_MANAGE_ROLES :: cast(u64)(1) << 28;
-PERM_MANAGE_GUILD_EXPRESSIONS :: cast(u64)(1) << 30;
-PERM_MANAGE_EVENTS :: cast(u64)(1) << 33;
-PERM_MANAGE_THREADS :: cast(u64)(1) << 34;
-PERM_CREATE_PUBLIC_THREADS :: cast(u64)(1) << 35;
-PERM_CREATE_GUILD_EXPRESSIONS :: cast(u64)(1) << 43;
-PERM_CREATE_EVENTS :: cast(u64)(1) << 44;
+PERM_CREATE_INSTANT_INVITE :: (cast(u64)(1)) << 0;
+PERM_KICK_MEMBERS :: (cast(u64)(1)) << 1;
+PERM_BAN_MEMBERS :: (cast(u64)(1)) << 2;
+PERM_ADMINISTRATOR :: (cast(u64)(1)) << 3;
+PERM_MANAGE_CHANNELS :: (cast(u64)(1)) << 4;
+PERM_MANAGE_GUILD :: (cast(u64)(1)) << 5;
+PERM_ADD_REACTIONS :: (cast(u64)(1)) << 6;
+PERM_VIEW_CHANNEL :: (cast(u64)(1)) << 10;
+PERM_SEND_MESSAGES :: (cast(u64)(1)) << 11;
+PERM_MANAGE_MESSAGES :: (cast(u64)(1)) << 13;
+PERM_ATTACH_FILES :: (cast(u64)(1)) << 15;
+PERM_MENTION_EVERYONE :: (cast(u64)(1)) << 17;
+PERM_CONNECT :: (cast(u64)(1)) << 20;
+PERM_CHANGE_NICKNAME :: (cast(u64)(1)) << 26;
+PERM_MANAGE_NICKNAMES :: (cast(u64)(1)) << 27;
+PERM_SPEAK :: (cast(u64)(1)) << 21;
+PERM_MANAGE_ROLES :: (cast(u64)(1)) << 28;
+PERM_MANAGE_GUILD_EXPRESSIONS :: (cast(u64)(1)) << 30;
+PERM_MANAGE_EVENTS :: (cast(u64)(1)) << 33;
+PERM_MANAGE_THREADS :: (cast(u64)(1)) << 34;
+PERM_CREATE_PUBLIC_THREADS :: (cast(u64)(1)) << 35;
+PERM_CREATE_GUILD_EXPRESSIONS :: (cast(u64)(1)) << 43;
+PERM_CREATE_EVENTS :: (cast(u64)(1)) << 44;
 
 PERM_ALL :: U64_MAX;
 
@@ -49,13 +49,13 @@ compute_base_permissions :: (g: *Guild, user_id: Snowflake, member_roles: []Snow
 			}
 		}
 	}
-	if perms & PERM_ADMINISTRATOR != 0 { return PERM_ALL; }
+	if (perms & PERM_ADMINISTRATOR) != 0 { return PERM_ALL; }
 	return perms;
 }
 
 // compute_overwrites applies a channel's overwrites to base permissions.
 compute_overwrites :: (base: u64, guild_id: Snowflake, user_id: Snowflake, member_roles: []Snowflake, overwrites: []Overwrite) -> u64 {
-	if base & PERM_ADMINISTRATOR != 0 { return PERM_ALL; }
+	if (base & PERM_ADMINISTRATOR) != 0 { return PERM_ALL; }
 	perms := base;
 	for o: overwrites {
 		if o.kind == 0 && o.id == guild_id {
@@ -84,7 +84,7 @@ compute_overwrites :: (base: u64, guild_id: Snowflake, user_id: Snowflake, membe
 			break;
 		}
 	}
-	if perms & PERM_VIEW_CHANNEL == 0 { return 0; }
+	if (perms & PERM_VIEW_CHANNEL) == 0 { return 0; }
 	return perms;
 }
 
@@ -147,5 +147,5 @@ can_set_nickname :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> bool
 }
 
 // has_permission: every bit of `want` is set.
-has_permission :: (perms: u64, want: u64) -> bool {return perms & want == want;}
+has_permission :: (perms: u64, want: u64) -> bool {return (perms & want) == want;}
 

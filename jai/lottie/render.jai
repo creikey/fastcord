@@ -378,7 +378,7 @@ build_primitive :: (p: *Player, it_: *Item, t: float32, m: Mat) -> *vector.Path 
 		sd.i = make_slice(Vector2, cnt, p.falloc);
 		sd.o = make_slice(Vector2, cnt, p.falloc);
 		for j: 0..cnt-1 {
-			rr := ifx star then (ifx j & 1 == 0 then or_ else ir) else or_;
+			rr := ifx star then (ifx (j & 1) == 0 then or_ else ir) else or_;
 			ang := rot - PI32 / 2 + cast(float32)(j) * 2 * PI32 / cast(float32)(cnt);
 			sd.v[j] = c + rr * Vector2.{math.cos(ang), math.sin(ang)};
 		}

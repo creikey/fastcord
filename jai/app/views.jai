@@ -57,7 +57,7 @@ with_alpha :: (c: ui.Color, a: float32) -> ui.Color {return .{c.r, c.g, c.b, c.a
 
 sized :: (id: string, w: float32, h: float32, flags: ui.Box_Flags = .{}) -> *ui.Box {
 	b := ui.box(id, flags);
-	b.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(h)};
+	b.semantic_size = .[ui.px(w), ui.px(h)];
 	return b;
 }
 
@@ -101,7 +101,7 @@ label :: (text: string, font: Font_Id, size: float32, color: ui.Color, line_h: f
 	st.text_color = color;
 	st.line_height = line_h;
 	b := ui.box(text, .{.Draw_Text});
-	b.semantic_size = .{__IDX__.X = ui.text_size(0, 0), __IDX__.Y = ui.text_size()};
+	b.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 	st.* = saved;
 	return b;
 }
@@ -185,7 +185,7 @@ build_ui :: () {
 	title_bar();
 	streamer_notice();
 	body := row("body");
-	body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	body.semantic_size = .[ui.pct(1), ui.fill()];
 	body.cross_align = .Start;
 	if ui.parent(body) {
 		{
@@ -210,17 +210,17 @@ build_ui :: () {
 
 title_bar :: () {
 	b := row("titlebar");
-	b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(TITLE_BAR_H)};
+	b.semantic_size = .[ui.pct(1), ui.px(TITLE_BAR_H)];
 	if ui.parent(b) {
 		// equal-width sides keep the title centered on the window
 		left := row("left");
-		left.semantic_size = .{__IDX__.X = ui.px(TITLE_SIDE_W), __IDX__.Y = ui.pct(1)};
+		left.semantic_size = .[ui.px(TITLE_SIDE_W), ui.pct(1)];
 		if ui.parent(left) {
 			spacer(.X, 85);
 			for fwd: (bool.[false, true]) {
 				n := ifx fwd then len(app.view.fwd) else len(app.view.back);
 				nb := ui.box(ifx fwd then "fwd" else "back", ifx n > 0 then .{.Clickable} else .{});
-				nb.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+				nb.semantic_size = .[ui.px(24), ui.px(24)];
 				nb.layout_axis = .X;
 				nb.cross_align = .Center;
 				sig := ui.signal(nb);
@@ -253,7 +253,7 @@ title_bar :: () {
 		}
 		if g != null {
 			gi := ui.box("gicon", .{.Draw_Background, .Draw_Text});
-			gi.semantic_size = .{__IDX__.X = ui.px(16), __IDX__.Y = ui.px(16)};
+			gi.semantic_size = .[ui.px(16), ui.px(16)];
 			gi.style.radius = 4;
 			gi.style.bg = cast(T)("--background-mod-subtle");
 			gi.style.text_color = cast(T)("--text-default");
@@ -273,7 +273,7 @@ title_bar :: () {
 		filler(.X);
 		update_button();
 		right := row("right");
-		right.semantic_size = .{__IDX__.X = ui.px(TITLE_SIDE_W), __IDX__.Y = ui.pct(1)};
+		right.semantic_size = .[ui.px(TITLE_SIDE_W), ui.pct(1)];
 		if ui.parent(right) {
 			filler(.X);
 			inbox_button(); // view_inbox.odin
@@ -287,16 +287,16 @@ title_bar :: () {
 guild_rail :: () {
 	s := store();
 	rail := ui.box("rail", .{.Scroll_Y, .Clip});
-	rail.semantic_size = .{__IDX__.X = ui.px(RAIL_W), __IDX__.Y = ui.pct(1)};
+	rail.semantic_size = .[ui.px(RAIL_W), ui.pct(1)];
 	rail.layout_axis = .Y;
 	ui.signal(rail);
 	if ui.parent(rail) {
 		if rail_item("home", app.view.guild == 0, "", "clyde", 0).clicked { go_home(); }
 		sep := ui.box("sep");
-		sep.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(9)};
+		sep.semantic_size = .[ui.pct(1), ui.px(9)];
 		if ui.parent(sep) {
 			line := ui.box("line", .{.Draw_Background, .Floating_X, .Floating_Y});
-			line.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(1)};
+			line.semantic_size = .[ui.px(32), ui.px(1)];
 			line.fixed_pos = .{20, 0};
 			line.style.bg = cast(T)("--background-mod-subtle");
 			line.style.radius = 1;
@@ -329,7 +329,7 @@ guild_order :: () -> []dc.Snowflake {
 	loose := make_dynamic(Joined, 0, len(s.guild_order), temp);
 	for id: s.guild_order {
 		{ g, ok := map_find_ptr(*s.guilds, id);
-		if ok && !__MAPIDX__(seen|id) { append(*loose, Joined.{g.joined_at, id}); } }
+		if ok && !get(seen, id) { append(*loose, Joined.{g.joined_at, id}); } }
 	}
 	slice.sort_by(view(loose), (a: Joined, b: Joined) -> bool {
 		if a.at != b.at { return a.at > b.at; }
@@ -340,7 +340,7 @@ guild_order :: () -> []dc.Snowflake {
 	for id: out { at(*seen, id).* = true; }
 	for f: s.settings.guild_folders {
 		for id: f.guild_ids {
-			if has(s.guilds, id) && !__MAPIDX__(seen|id) {
+			if has(s.guilds, id) && !get(seen, id) {
 				append(*out, id);
 				at(*seen, id).* = true;
 			}
@@ -361,13 +361,13 @@ guild_initials :: (name: string) -> string {
 // One 72x48 rail slot: unread/selection pill on the left edge and a 40x40 squircle.
 rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild_id: dc.Snowflake) -> ui.Signal {
 	slot := ui.box(id);
-	slot.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(GUILD_ICON + 8)};
+	slot.semantic_size = .[ui.pct(1), ui.px(GUILD_ICON + 8)];
 	sig: ui.Signal;
 	if ui.offscreen(slot) { return sig; } // box nil: the caller skips its own additions too
 	if ui.parent(slot) {
 		pill := ui.box("pill", .{.Draw_Background, .Floating_X, .Floating_Y});
 		ic := ui.box("icon", .{.Clickable, .Draw_Background, .Floating_X, .Floating_Y, .Draw_Text, .Hot_Animation});
-		ic.semantic_size = .{__IDX__.X = ui.px(GUILD_ICON), __IDX__.Y = ui.px(GUILD_ICON)};
+		ic.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
 		ic.fixed_pos = .{16, 0};
 		ic.style.radius = 12;
 		ic.style.text_align = .Center;
@@ -379,7 +379,7 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 		target: float32 = ifx selected then 40 else (ifx sig.hovering then 20 else (ifx unread then 8 else 0));
 		ui.animate(*pill.user_t, target, 25);
 		h := pill.user_t;
-		pill.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(h)};
+		pill.semantic_size = .[ui.px(4), ui.px(h)];
 		pill.fixed_pos = .{0, (GUILD_ICON - h) / 2};
 		pill.style.bg = cast(T)("--text-strong");
 		pill.style.radius = .{0, 4, 0, 4};
@@ -463,7 +463,7 @@ guild_has_unread :: (gid: dc.Snowflake) -> bool {
 
 sidebar :: () {
 	b := ui.box("sidebar", .{.Draw_Background, .Draw_Border, .Clip});
-	b.semantic_size = .{__IDX__.X = ui.px(SIDEBAR_W), __IDX__.Y = ui.pct(1)};
+	b.semantic_size = .[ui.px(SIDEBAR_W), ui.pct(1)];
 	b.style.bg = cast(T)("--background-base-lowest"); // same as the rail in the visual refresh
 	b.style.border_color = cast(T)("--border-subtle");
 	b.style.border = 1;
@@ -481,7 +481,7 @@ sidebar :: () {
 
 page :: () {
 	p := ui.box("page", .{.Draw_Background, .Clip});
-	p.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+	p.semantic_size = .[ui.fill(), ui.pct(1)];
 	p.style.bg = cast(T)("--background-base-lower");
 	p.layout_axis = .Y;
 	if ui.parent(p) {
@@ -492,7 +492,7 @@ page :: () {
 		}
 		chat_header(ch);
 		body := row("chatbody");
-		body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+		body.semantic_size = .[ui.pct(1), ui.fill()];
 		body.cross_align = .Start;
 		if ui.parent(body) {
 			if ch.kind == .Guild_Forum || ch.kind == .Guild_Media { forum_view(ch); } else { chat_view(ch.id); }
@@ -506,7 +506,7 @@ page :: () {
 
 chat_header :: (ch: *dc.Channel) {
 	h := row("header", .{.Draw_Background});
-	h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(HEADER_H - 1)};
+	h.semantic_size = .[ui.pct(1), ui.px(HEADER_H - 1)];
 	h.style.bg = cast(T)("--background-base-lower");
 	if ui.parent(h) {
 		spacer(.X, 16);
@@ -524,14 +524,14 @@ chat_header :: (ch: *dc.Channel) {
 			if ch.topic != "" {
 				spacer(.X, 12);
 				d := ui.box("div", .{.Draw_Background});
-				d.semantic_size = .{__IDX__.X = ui.px(1), __IDX__.Y = ui.px(24)};
+				d.semantic_size = .[ui.px(1), ui.px(24)];
 				d.style.bg = cast(T)("--border-subtle");
 				spacer(.X, 12);
 				// the topic gives way first on narrow windows (clipped by its wrapper;
 				// a label can't clip its own text)
 				topic := first_line(ch.topic);
 				tw := ui.box("topic", .{.Clip});
-				tw.semantic_size = .{__IDX__.X = ui.px(ui.layout_text(F(.Medium), 14, topic, -1).width, 0), __IDX__.Y = ui.px(18)};
+				tw.semantic_size = .[ui.px(ui.layout_text(F(.Medium), 14, topic, -1).width, 0), ui.px(18)];
 				if ui.parent(tw) {
 					t := label(topic, .Medium, 14, cast(T)("--text-muted"), 18);
 					t.semantic_size[.X].strictness = 1;
@@ -544,7 +544,7 @@ chat_header :: (ch: *dc.Channel) {
 		if ch.kind == .Group_DM { tools = .{"phone-call", "pin", "group-plus", "group"}; } // member list toggle
 		for name: tools {
 			b := ui.box(name, .{.Clickable});
-			b.semantic_size = .{__IDX__.X = ui.px(HEADER_TOOL_W), __IDX__.Y = ui.px(24)};
+			b.semantic_size = .[ui.px(HEADER_TOOL_W), ui.px(24)];
 			b.layout_axis = .X;
 			b.cross_align = .Center;
 			sig := ui.signal(b);
@@ -577,7 +577,7 @@ chat_header :: (ch: *dc.Channel) {
 		spacer(.X, 8);
 	}
 	line := ui.box("hline", .{.Draw_Background});
-	line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
 	line.style.bg = cast(T)("--border-subtle");
 }
 
@@ -608,7 +608,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 	g := dc.guild_get(s, gid);
 	if g == null { return; }
 	hdr := row("guildheader", .{.Clickable, .Draw_Background, .Hot_Animation});
-	hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(HEADER_H - 1)};
+	hdr.semantic_size = .[ui.pct(1), ui.px(HEADER_H - 1)];
 	hdr.style.bg_hot = cast(T)("--background-mod-subtle");
 	if ui.signal(hdr).clicked { guild_menu_toggle(gid, hdr.rect); }
 	if ui.mouse_over(hdr) { hdr.style.bg = hdr.style.bg_hot; } // also while over the invite button
@@ -622,11 +622,11 @@ channel_sidebar :: (gid: dc.Snowflake) {
 		spacer(.X, 14);
 	}
 	line := ui.box("hline", .{.Draw_Background});
-	line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
 	line.style.bg = cast(T)("--border-subtle");
 
 	list := ui.box("channels", .{.Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	ui.signal(list);
 	if ui.parent(list) {
@@ -634,11 +634,11 @@ channel_sidebar :: (gid: dc.Snowflake) {
 		if guild_action_row("events", "calendar", events_row_label(gid)).clicked { events_open(gid); }
 		spacer(.Y, 11);
 		sep := row("sep");
-		sep.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		sep.semantic_size = .[ui.pct(1), ui.px(1)];
 		if ui.parent(sep) {
 			spacer(.X, 16);
 			l := ui.box("l", .{.Draw_Background});
-			l.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+			l.semantic_size = .[ui.fill(), ui.px(1)];
 			l.style.bg = cast(T)("--border-subtle");
 			spacer(.X, 16);
 		}
@@ -654,7 +654,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 					category_row(ch);
 					continue;
 				}
-				if ch.parent_id != 0 && __MAPIDX__(app.view.collapsed|ch.parent_id) && cid != app.view.channel { continue; }
+				if ch.parent_id != 0 && get(app.view.collapsed, ch.parent_id) && cid != app.view.channel { continue; }
 				if dc.is_thread(ch) { continue; } // drawn under their parent
 				channel_row(ch, gid);
 				sidebar_thread_rows(ch, gid);
@@ -668,11 +668,11 @@ channel_sidebar :: (gid: dc.Snowflake) {
 guild_action_row :: (id: string, icon_name: string, text: string) -> ui.Signal {
 	sig: ui.Signal;
 	outer := row(id);
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(CHANNEL_ROW_PITCH)};
+	outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
 	if ui.parent(outer) {
 		spacer(.X, 8);
 		item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-		item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(CHANNEL_ROW_H)};
+		item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
 		item.style.radius = 8;
 		item.style.bg_hot = cast(T)("--background-mod-subtle");
 		sig = ui.signal(item);
@@ -692,7 +692,7 @@ guild_action_row :: (id: string, icon_name: string, text: string) -> ui.Signal {
 category_row :: (ch: *dc.Channel) {
 	spacer(.Y, CATEGORY_GAP);
 	r := row("cat", .{.Clickable});
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(CATEGORY_ROW_H)};
+	r.semantic_size = .[ui.pct(1), ui.px(CATEGORY_ROW_H)];
 	sig := ui.signal(r);
 	collapsed := get(app.view.collapsed, ch.id);
 	if sig.clicked { at(*app.view.collapsed, ch.id).* = !collapsed; }
@@ -706,7 +706,7 @@ category_row :: (ch: *dc.Channel) {
 		if can_manage_channels(ch.guild_id) {
 			// "Create Channel" in this category (not a collapse toggle)
 			plus := ui.box("createchan", .{.Clickable});
-			plus.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+			plus.semantic_size = .[ui.px(18), ui.px(18)];
 			ps := ui.signal(plus);
 			set_icon(plus, "plus-small", ifx ps.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 			if ps.clicked { create_channel_open(ch.guild_id, ch.id); }
@@ -721,11 +721,11 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 	muted := dc.channel_effectively_muted(store(), gid, ch.id, wall_ms());
 	unread := dc.channel_unread(store(), ch.id) && !muted;
 	outer := row("chan");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(CHANNEL_ROW_PITCH)};
+	outer.semantic_size = .[ui.pct(1), ui.px(CHANNEL_ROW_PITCH)];
 	if ui.parent(outer) {
 		spacer(.X, 8);
 		item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-		item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(CHANNEL_ROW_H)};
+		item.semantic_size = .[ui.fill(), ui.px(CHANNEL_ROW_H)];
 		item.style.radius = 8;
 		item.style.bg = ifx selected then cast(T)("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else cast(T)("--background-mod-subtle");
@@ -759,7 +759,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 				if can_manage_channel(ch) {
 					spacer(.X, 4);
 					cog := ui.box("chansettings", .{.Clickable});
-					cog.semantic_size = .{__IDX__.X = ui.px(16), __IDX__.Y = ui.px(16)};
+					cog.semantic_size = .[ui.px(16), ui.px(16)];
 					cs := ui.signal(cog); // its own click: the row doesn't select the channel
 					set_icon(cog, "settings", ifx cs.hovering then cast(T)("--interactive-icon-active") else cast(T)("--interactive-icon-hover"));
 					if cs.clicked { channel_settings_open(ch); }
@@ -769,7 +769,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		}
 		if unread && !selected {
 			dot := ui.box("unread", .{.Draw_Background, .Floating_X, .Floating_Y});
-			dot.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(8)};
+			dot.semantic_size = .[ui.px(4), ui.px(8)];
 			dot.fixed_pos = .{0, 13};
 			dot.style.bg = cast(T)("--text-strong");
 			dot.style.radius = .{0, 4, 0, 4};
@@ -782,7 +782,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			if vs.channel_id != ch.id { continue; }
 			if ui.id_scope(cast(u64)(uid)) {
 				vr := row("voiceuser", .{.Clickable});
-				vr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+				vr.semantic_size = .[ui.pct(1), ui.px(32)];
 				if ui.signal(vr).right_clicked { open_voice_user_menu(uid, app.ui.mouse); }
 				if ui.parent(vr) {
 					spacer(.X, 44);
@@ -800,7 +800,7 @@ user_panel :: () {
 	vh := voice_panel_height();
 	panel := ui.box("userpanel", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y});
 	panel.layout_axis = .Y;
-	panel.semantic_size = .{__IDX__.X = ui.px(359), __IDX__.Y = ui.px(USER_PANEL_H + vh)};
+	panel.semantic_size = .[ui.px(359), ui.px(USER_PANEL_H + vh)];
 	panel.fixed_pos = .{8, app.ui.window.y - USER_PANEL_H - vh - 8};
 	panel.style.bg = cast(T)("--background-base-low");
 	panel.style.border_color = cast(T)("--border-muted");
@@ -809,11 +809,11 @@ user_panel :: () {
 	if ui.parent(panel) {
 		if vh > 0 { voice_panel(); }
 		p := row("userrow");
-		p.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(USER_PANEL_H)};
+		p.semantic_size = .[ui.pct(1), ui.px(USER_PANEL_H)];
 		if ui.parent(p) {
 			spacer(.X, 8);
 			who := row("who", .{.Clickable, .Draw_Background, .Hot_Animation});
-			who.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(42)};
+			who.semantic_size = .[ui.fill(), ui.px(42)];
 			who.style.radius = 8;
 			who.style.bg_hot = cast(T)("--background-mod-subtle");
 			// your own profile card (the client also lists status options there)
@@ -826,7 +826,7 @@ user_panel :: () {
 				avatar_with_status("av", s.me, 32, cast(T)("--background-base-low"));
 				spacer(.X, 8);
 				names := ui.box("names");
-				names.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+				names.semantic_size = .[ui.fill(), ui.children()];
 				if ui.parent(names) {
 					name := "…";
 					{ u := dc.user_get(s, s.me);
@@ -841,7 +841,7 @@ user_panel :: () {
 				// mic / headphones carry a device-menu chevron (official: 54px wide, 3px apart)
 				has_chev := name != "settings";
 				b := ui.box(name, .{.Clickable, .Draw_Background, .Hot_Animation});
-				b.semantic_size = .{__IDX__.X = ui.px(ifx has_chev then 54 else 32), __IDX__.Y = ui.px(32)};
+				b.semantic_size = .[ui.px(ifx has_chev then 54 else 32), ui.px(32)];
 				b.style.radius = 8;
 				b.style.bg_hot = cast(T)("--background-mod-subtle");
 				b.layout_axis = .X;
@@ -858,7 +858,7 @@ user_panel :: () {
 						// the chevron is its own button: input / output device settings
 						spacer(.X, 3);
 						cb := ui.box("chev", .{.Clickable});
-						cb.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(32)};
+						cb.semantic_size = .[ui.px(24), ui.px(32)];
 						cb.layout_axis = .X;
 						cb.cross_align = .Center;
 						csig := ui.signal(cb);
@@ -939,7 +939,7 @@ user_status :: (uid: dc.Snowflake) -> dc.Status {
 // Tooltip to the right of the current parent (guild names on the rail).
 tooltip_right :: (text: string) {
 	tip := row("tooltip", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay});
-	tip.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(36)};
+	tip.semantic_size = .[ui.children(), ui.px(36)];
 	tip.fixed_pos = .{16 + GUILD_ICON + 12, (GUILD_ICON - 36) / 2};
 	tip.style.bg = cast(T)("--background-surface-highest");
 	tip.style.radius = 8;

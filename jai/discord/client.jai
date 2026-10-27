@@ -186,7 +186,7 @@ Client :: struct {
 }
 
 client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
-	context.allocator = allocator;
+	push_allocator(allocator);
 	c := new(Client);
 	c.cfg = cfg;
 	c.cfg.fast_connect = !cfg.disable_fast_connect;
@@ -359,7 +359,7 @@ client_poll :: (c: *Client) -> bool {
 	defer delete(evs);
 	changed := false;
 	now := now_ms();
-	context.allocator = c.allocator;
+	push_allocator(c.allocator);
 	for * e: evs {
 		if e.kind == {
 		case .Dispatch;

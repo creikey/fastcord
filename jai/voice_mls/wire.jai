@@ -28,13 +28,13 @@ w_u64 :: (w: *Writer, v: u64) {
 w_raw :: (w: *Writer, b: []u8) {append(*w.buf, ..b);}
 
 w_varint :: (w: *Writer, n: int) {
-	if n < 1 << 6 {
+	if n < (1 << 6) {
 		w_u8(w, cast(u8)(n));
-	} else if n < 1 << 14 {
-		w_u16(w, cast(u16)(n) | 0x4000);
+	} else if n < (1 << 14) {
+		w_u16(w, (cast(u16)(n)) | 0x4000);
 	} else {
-		assert(n < 1 << 30);
-		w_u32(w, cast(u32)(n) | 0x8000_0000);
+		assert(n < (1 << 30));
+		w_u32(w, (cast(u32)(n)) | 0x8000_0000);
 	}
 }
 
@@ -56,10 +56,10 @@ w_end :: (w: *Writer, pos: int) {
 	n := len(w.buf) - pos - 4;
 	hdr: [4]u8;
 	hl := 0;
-	if n < 1 << 6 {
+	if n < (1 << 6) {
 		hdr[0] = cast,no_check(u8)(n);
 		hl = 1;
-	} else if n < 1 << 14 {
+	} else if n < (1 << 14) {
 		hdr[0] = cast,no_check(u8)(n >> 8) | 0x40;
 		hdr[1] = cast,no_check(u8)(n);
 		hl = 2;
@@ -112,16 +112,16 @@ r_u8 :: (r: *Reader) -> u8 {
 }
 r_u16 :: (r: *Reader) -> u16 {
 	b := r_raw(r, 2);
-	return ifx b.count then cast(u16)(b[0]) << 8 | cast(u16)(b[1]) else 0;
+	return ifx b.count then ((cast(u16)(b[0])) << 8) | (cast(u16)(b[1])) else 0;
 }
 r_u32 :: (r: *Reader) -> u32 {
 	b := r_raw(r, 4);
-	return ifx b.count then cast(u32)(b[0]) << 24 | cast(u32)(b[1]) << 16 | cast(u32)(b[2]) << 8 | cast(u32)(b[3]) else 0;
+	return ifx b.count then ((cast(u32)(b[0])) << 24) | ((cast(u32)(b[1])) << 16) | ((cast(u32)(b[2])) << 8) | (cast(u32)(b[3])) else 0;
 }
 r_u64 :: (r: *Reader) -> u64 {
 	hi := r_u32(r);
 	lo := r_u32(r);
-	return cast(u64)(hi) << 32 | cast(u64)(lo);
+	return ((cast(u64)(hi)) << 32) | (cast(u64)(lo));
 }
 
 r_varint :: (r: *Reader) -> int {
@@ -136,11 +136,11 @@ r_varint :: (r: *Reader) -> int {
 		return cast(int)(first);
 	case 1;
 		v := cast(int)(r_u16(r) & 0x3fff);
-		if v < 1 << 6 { r_fail(r); } // must be minimal
+		if v < (1 << 6) { r_fail(r); } // must be minimal
 		return v;
 	case 2;
 		v := cast(int)(r_u32(r) & 0x3fff_ffff);
-		if v < 1 << 14 { r_fail(r); }
+		if v < (1 << 14) { r_fail(r); }
 		return v;
 	}
 	r_fail(r);

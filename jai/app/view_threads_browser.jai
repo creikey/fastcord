@@ -89,7 +89,7 @@ threads_browser_popout :: () {
 		return;
 	}
 	scrim := ui.box("threads_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).clicked {
 		tb.open = false;
 		return;
@@ -122,7 +122,7 @@ threads_browser_popout :: () {
 	y := tb.anchor.y1 + 8;
 	max_h := min(app.ui.window.y * 0.7, app.ui.window.y - y - 16);
 	p := ui.box("threadspop", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
-	p.semantic_size = .{__IDX__.X = ui.px(THREADS_W), __IDX__.Y = ui.px(max_h)};
+	p.semantic_size = .[ui.px(THREADS_W), ui.px(max_h)];
 	p.fixed_pos = .{x, y};
 	p.layout_axis = .Y;
 	p.style.bg = cast(T)("--background-surface-high");
@@ -136,7 +136,7 @@ threads_browser_popout :: () {
 	ui.push_parent(p);
 	defer ui.pop_parent();
 	hdr := row("hdr");
-	hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+	hdr.semantic_size = .[ui.pct(1), ui.px(48)];
 	if ui.parent(hdr) {
 		spacer(.X, 16);
 		icon("i", "thread", 20, cast(T)("--interactive-icon-default"));
@@ -148,7 +148,7 @@ threads_browser_popout :: () {
 				name := ifx t == .Active then "Active" else "Archived";
 				sel := tb.tab == t;
 				tab := row(name, .{.Clickable, .Draw_Background, .Hot_Animation});
-				tab.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(28)};
+				tab.semantic_size = .[ui.children(), ui.px(28)];
 				tab.style.radius = 4;
 				tab.style.bg = ifx sel then cast(T)("--background-mod-normal") else .{};
 				tab.style.bg_hot = ifx sel then tab.style.bg else cast(T)("--background-mod-subtle");
@@ -168,7 +168,7 @@ threads_browser_popout :: () {
 		filler(.X);
 		if !tb.creating && can_create_thread(tb.channel) {
 			cb := row("create", .{.Clickable, .Draw_Background, .Hot_Animation});
-			cb.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(32)};
+			cb.semantic_size = .[ui.children(), ui.px(32)];
 			cb.style.radius = 8;
 			cb.style.bg = cast(T)("--background-brand");
 			cb.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
@@ -183,14 +183,14 @@ threads_browser_popout :: () {
 		spacer(.X, 12);
 	}
 	line := ui.box("hl", .{.Draw_Background});
-	line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
 	line.style.bg = cast(T)("--border-subtle");
 	if tb.creating {
 		create_form();
 		return;
 	}
 	list := ui.box("list", .{.Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	sig := ui.signal(list);
 	if ui.parent(list) {
@@ -198,7 +198,7 @@ threads_browser_popout :: () {
 		empty := ifx tb.tab == .Active then len(joined) + len(active) == 0 else len(older) == 0;
 		if empty {
 			r := row("empty");
-			r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(80)};
+			r.semantic_size = .[ui.pct(1), ui.px(80)];
 			if ui.parent(r) {
 				filler(.X);
 				msg := ifx tb.tab == .Active then "There are no active threads." else "There are no archived threads.";
@@ -227,7 +227,7 @@ threads_browser_popout :: () {
 // Public threads need CREATE_PUBLIC_THREADS and SEND_MESSAGES in the parent.
 can_create_thread :: (channel_id: dc.Snowflake) -> bool {
 	perms := dc.channel_permissions(store(), channel_id);
-	return perms & dc.PERM_CREATE_PUBLIC_THREADS != 0 && perms & dc.PERM_SEND_MESSAGES != 0;
+	return (perms & dc.PERM_CREATE_PUBLIC_THREADS) != 0 && (perms & dc.PERM_SEND_MESSAGES) != 0;
 }
 
 create_form_open :: () {
@@ -245,11 +245,11 @@ create_form :: () {
 	field :: (id: string, ed: *ui.Editor, placeholder: string, want_focus: bool) -> ui.Edit_Result {
 		res := ui.Edit_Result.None;
 		r := row(fmt.tprintf("%s_row", id));
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		r.semantic_size = .[ui.pct(1), ui.children()];
 		if ui.parent(r) {
 			spacer(.X, 16);
 			box := row(id, .{.Draw_Background, .Draw_Border, .Clickable});
-			box.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			box.semantic_size = .[ui.fill(), ui.children()];
 			box.style.bg = cast(T)("--input-background-default");
 			box.style.border_color = ifx app.ui.focus == box.key then cast(T)("--input-border-active") else cast(T)("--input-border-default");
 			box.style.border = 1;
@@ -266,7 +266,7 @@ create_form :: () {
 		return res;
 	}
 	sub := row("namelbl");
-	sub.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	sub.semantic_size = .[ui.pct(1), ui.px(20)];
 	if ui.parent(sub) {
 		spacer(.X, 16);
 		label("THREAD NAME", .Bold, 12, cast(T)("--text-muted"), 16);
@@ -281,12 +281,12 @@ create_form :: () {
 	if r1 == .Submit || r2 == .Submit { submit = true; }
 	spacer(.Y, 16);
 	btns := row("btns");
-	btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(36)};
+	btns.semantic_size = .[ui.pct(1), ui.px(36)];
 	btns.style.child_gap = 8;
 	if ui.parent(btns) {
 		filler(.X);
 		cancel := row("cancel", .{.Clickable, .Draw_Background, .Hot_Animation});
-		cancel.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(32)};
+		cancel.semantic_size = .[ui.children(), ui.px(32)];
 		cancel.style.radius = 8;
 		cancel.style.bg_hot = cast(T)("--background-mod-subtle");
 		if ui.parent(cancel) {
@@ -298,7 +298,7 @@ create_form :: () {
 		name := strings.trim_space(ui.editor_text(*tb.name));
 		ok := name != "" && !tb.busy;
 		go := row("go", ifx ok then .{.Clickable, .Draw_Background, .Hot_Animation} else .{.Draw_Background});
-		go.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(32)};
+		go.semantic_size = .[ui.children(), ui.px(32)];
 		go.style.radius = 8;
 		go.style.bg = ifx ok then cast(T)("--background-brand") else with_alpha(cast(T)("--background-brand"), 0.5);
 		go.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
@@ -344,12 +344,12 @@ thread_created :: (r: *dc.Feature_Result) {
 thread_section :: (id: string, title: string, ids: []dc.Snowflake) {
 	if len(ids) == 0 { return; }
 	sec := ui.box(id);
-	sec.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	sec.semantic_size = .[ui.pct(1), ui.children()];
 	sec.layout_axis = .Y;
 	ui.push_parent(sec);
 	defer ui.pop_parent();
 	h := row("title");
-	h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(28)};
+	h.semantic_size = .[ui.pct(1), ui.px(28)];
 	if ui.parent(h) {
 		spacer(.X, 16);
 		label(fmt.tprintf("%s — %d", title, len(ids)), .Semibold, 12, cast(T)("--text-muted"), 16);
@@ -366,12 +366,12 @@ thread_browser_row :: (tid: dc.Snowflake) {
 	tm := dc.thread_meta(tid);
 	if th == null || tm == null { return; }
 	outer := row("tr");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(56)};
+	outer.semantic_size = .[ui.pct(1), ui.px(56)];
 	ui.push_parent(outer);
 	defer ui.pop_parent();
 	spacer(.X, 8);
 	item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-	item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(52)};
+	item.semantic_size = .[ui.fill(), ui.px(52)];
 	item.style.radius = 8;
 	item.style.bg = cast(T)("--background-base-lower");
 	item.style.bg_hot = cast(T)("--background-mod-subtle");
@@ -379,11 +379,11 @@ thread_browser_row :: (tid: dc.Snowflake) {
 	if ui.parent(item) {
 		spacer(.X, 12);
 		col := ui.box("col");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			nr := row("name");
-			nr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+			nr.semantic_size = .[ui.pct(1), ui.px(20)];
 			if ui.parent(nr) {
 				if tm.locked || th.kind == .Private_Thread {
 					icon("lock", "thread-lock", 16, cast(T)("--text-muted"));
@@ -393,7 +393,7 @@ thread_browser_row :: (tid: dc.Snowflake) {
 				label(ellipsize(th.name, .Semibold, 15, THREADS_W - 60), .Semibold, 15, ifx unread then cast(T)("--text-strong") else cast(T)("--text-default"), 20);
 			}
 			mr := row("meta");
-			mr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+			mr.semantic_size = .[ui.pct(1), ui.px(18)];
 			if ui.parent(mr) {
 				if tm.owner_id != 0 {
 					avatar_box("av", tm.owner_id, 16);

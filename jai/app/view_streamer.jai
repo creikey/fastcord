@@ -179,7 +179,7 @@ streamer_notice :: () {
 	}
 	WHITE :: ui.Color.{1, 1, 1, 1};
 	bar := row("streamer_notice", .{.Draw_Background});
-	bar.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(36)};
+	bar.semantic_size = .[ui.pct(1), ui.px(36)];
 	bar.style.bg = .{0x59 / 255.0, 0x36 / 255.0, 0x95 / 255.0, 1}; // notice color STREAMER_MODE
 	if ui.parent(bar) {
 		spacer(.X, 36);
@@ -187,7 +187,7 @@ streamer_notice :: () {
 		label("Streamer Mode is enabled. Usernames have been truncated.", .Medium, 14, WHITE, 18);
 		spacer(.X, 10);
 		b := row("disable", .{.Clickable, .Draw_Border, .Draw_Background, .Hot_Animation});
-		b.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(24)};
+		b.semantic_size = .[ui.children(), ui.px(24)];
 		b.style.border = 1;
 		b.style.border_color = WHITE;
 		b.style.radius = 4;
@@ -203,7 +203,7 @@ streamer_notice :: () {
 		}
 		filler(.X);
 		x := ui.box("close", .{.Clickable});
-		x.semantic_size = .{__IDX__.X = ui.px(16), __IDX__.Y = ui.px(16)};
+		x.semantic_size = .[ui.px(16), ui.px(16)];
 		xs := ui.signal(x);
 		set_icon(x, "x-large", with_alpha(WHITE, ifx xs.hovering then 1 else 0.8));
 		if xs.clicked {
@@ -247,7 +247,7 @@ streamer_settings_section :: () {
 // phone and the rest are not shown at all) and nothing is fetched.
 streamer_account_page :: () {
 	page := ui.box("streameraccount");
-	page.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
 	page.cross_align = .Center;
 	if ui.parent(page) {
@@ -255,7 +255,7 @@ streamer_account_page :: () {
 		icon("art", "screen-stream", 160, cast(T)("--background-brand"));
 		spacer(.Y, 24);
 		b := row("Streamer Mode Enabled##smbadge", .{.Draw_Background, .Draw_Text});
-		b.semantic_size = .{__IDX__.X = ui.px(244), __IDX__.Y = ui.px(48)};
+		b.semantic_size = .[ui.px(244), ui.px(48)];
 		b.style.radius = 8;
 		b.style.bg = cast(T)("--background-brand");
 		b.style.font = F(.Medium);

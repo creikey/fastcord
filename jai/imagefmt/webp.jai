@@ -35,7 +35,7 @@ vp8l_dims :: (data: []u8) -> int, int, bool, bool {
 	ok: bool;
 	if len(data) < 5 || data[0] != 0x2F { return w, h, alpha, ok; }
 	v := cast(u32)(le32i(sub_from(data, 1)));
-	return cast(int)(v & 0x3FFF) + 1, cast(int)((v >> 14) & 0x3FFF) + 1, (v >> 28) & 1 == 1, true;
+	return cast(int)(v & 0x3FFF) + 1, cast(int)((v >> 14) & 0x3FFF) + 1, ((v >> 28) & 1) == 1, true;
 }
 
 vp8_dims :: (data: []u8) -> int, int, bool {
@@ -64,7 +64,7 @@ webp_decode_bits :: (c: *Decode_Ctx, b: Webp_Bits, w: int, h: int, dst: []u8, ds
 		append(out, fourcc, );
 		append(out, cast,trunc(u8)(n), cast,trunc(u8)(n >> 8), cast,trunc(u8)(n >> 16), cast,trunc(u8)(n >> 24));
 		append(out, ..data);
-		if n & 1 == 1 { append(out, 0); }
+		if (n & 1) == 1 { append(out, 0); }
 	}
 	file := make_dynamic(u8, 0, len(b.data) + len(b.alph) + 64, c.allocator);
 	defer delete(file);
@@ -97,7 +97,7 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 	pos := 12;
 	first, ok, __e5 := next_chunk(data, *pos); if failed(__e5) return __e5;
 	if !ok { return .Truncated; }
-	if first.fourcc == "VP8X" && len(first.data) >= 1 && first.data[0] & 0x02 == 0 {
+	if first.fourcc == "VP8X" && len(first.data) >= 1 && (first.data[0] & 0x02) == 0 {
 		// Wuffs v0.4 doesn't skip the 5-byte header of a VP8L chunk inside VP8X ("bad Huffman code"),
 		// which is how Chrome's canvas writes lossless WebP (VP8X + ICCP + VP8L): give it RIFF + VP8L.
 		p := pos;
@@ -115,7 +115,7 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 			return wuffs_decode(c, plain, img, .WebP);
 		}
 	}
-	if first.fourcc == "VP8X" && len(first.data) >= 1 && first.data[0] & 0x02 == 0 || first.fourcc == "VP8 " || first.fourcc == "VP8L" {
+	if first.fourcc == "VP8X" && len(first.data) >= 1 && (first.data[0] & 0x02) == 0 || first.fourcc == "VP8 " || first.fourcc == "VP8L" {
 		return wuffs_decode(c, data, img, .WebP);
 	}
 	if first.fourcc != "VP8X" { return .Corrupt; }
@@ -142,8 +142,8 @@ webp_decode :: (c: *Decode_Ctx, data_in: []u8, img: *Image) -> Error {
 				w = le24i(sub_from(ch.data, 6)) + 1,
 				h = le24i(sub_from(ch.data, 9)) + 1,
 				duration = le24i(sub_from(ch.data, 12)),
-				dispose_bg = ch.data[15] & 1 == 1,
-				blend = ch.data[15] & 2 == 0
+				dispose_bg = (ch.data[15] & 1) == 1,
+				blend = (ch.data[15] & 2) == 0
 			};
 			sub := sub_from(ch.data, 16);
 			sp := 0;

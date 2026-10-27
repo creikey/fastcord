@@ -77,7 +77,7 @@ pins_popout :: () {
 	if pins.epoch != dc.pins_epoch(pins.channel) { pins_reload(pins.channel); }
 	W :: 420;
 	scrim := ui.box("pins_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).clicked {
 		pins.open = false;
 		return;
@@ -93,7 +93,7 @@ pins_popout :: () {
 	y := pins.anchor.y1 + 8;
 	max_h := min(app.ui.window.y * 0.7, app.ui.window.y - y - 16);
 	p := ui.box("pins", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
-	p.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(max_h)};
+	p.semantic_size = .[ui.px(W), ui.px(max_h)];
 	p.fixed_pos = .{x, y};
 	p.layout_axis = .Y;
 	p.style.bg = cast(T)("--background-surface-high");
@@ -106,7 +106,7 @@ pins_popout :: () {
 	ui.signal(p);
 	if ui.parent(p) {
 		hdr := row("hdr");
-		hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
 		if ui.parent(hdr) {
 			spacer(.X, 16);
 			icon("pin", "pin", 20, cast(T)("--interactive-icon-default"));
@@ -114,17 +114,17 @@ pins_popout :: () {
 			label("Pinned Messages", .Semibold, 16, cast(T)("--text-strong"), 20);
 		}
 		line := ui.box("hl", .{.Draw_Background});
-		line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		line.semantic_size = .[ui.pct(1), ui.px(1)];
 		line.style.bg = cast(T)("--border-subtle");
 		list := ui.box("list", .{.Scroll_Y, .Clip});
-		list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+		list.semantic_size = .[ui.pct(1), ui.fill()];
 		list.layout_axis = .Y;
 		sig := ui.signal(list);
 		if ui.parent(list) {
 			spacer(.Y, 8);
 			if len(pins.items) == 0 {
 				r := row("empty");
-				r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(80)};
+				r.semantic_size = .[ui.pct(1), ui.px(80)];
 				if ui.parent(r) {
 					filler(.X);
 					label(ifx pins.loading then "Loading..." else "This channel doesn't have any pinned messages... yet.", .Medium, 14, cast(T)("--text-muted"), 18);
@@ -153,11 +153,11 @@ pins_popout :: () {
 loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool {
 	jump: bool;
 	outer := row("card");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	outer.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(outer) {
 		spacer(.X, 8);
 		card := ui.box("c", .{.Draw_Background, .Draw_Border, .Hot_Animation});
-		card.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		card.semantic_size = .[ui.fill(), ui.children()];
 		card.layout_axis = .Y;
 		card.style.bg = cast(T)("--background-base-lower");
 		card.style.border_color = cast(T)("--border-subtle");
@@ -168,18 +168,18 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 			spacer(.Y, 8);
 			defer spacer(.Y, 8);
 			top := row("top");
-			top.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+			top.semantic_size = .[ui.pct(1), ui.children()];
 			top.cross_align = .Start;
 			if ui.parent(top) {
 				spacer(.X, 12);
 				avatar_box("av", m.author_id, 40);
 				spacer(.X, 12);
 				col := ui.box("col");
-				col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+				col.semantic_size = .[ui.fill(), ui.children()];
 				col.layout_axis = .Y;
 				if ui.parent(col) {
 					nr := row("name");
-					nr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(22)};
+					nr.semantic_size = .[ui.pct(1), ui.px(22)];
 					if ui.parent(nr) {
 						label(name_in(m.author_id, m.channel_id, "unknown"), .Medium, 16, author_color(m), 22);
 						spacer(.X, 8);
@@ -187,7 +187,7 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 						filler(.X);
 						if show_jump && hovered {
 							jb := row("jump", .{.Clickable, .Draw_Background, .Hot_Animation});
-							jb.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(22)};
+							jb.semantic_size = .[ui.children(), ui.px(22)];
 							jb.style.bg = cast(T)("--background-mod-normal");
 							jb.style.bg_hot = cast(T)("--background-mod-strong");
 							jb.style.radius = 4;
@@ -203,7 +203,7 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 					content_spans(m, terms);
 					for a, ai: m.attachments {
 						lr := row(fmt.tprintf("att%d", ai));
-						lr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+						lr.semantic_size = .[ui.pct(1), ui.px(20)];
 						if ui.parent(lr) {
 							icon("i", "attachment", 16, cast(T)("--text-muted"));
 							spacer(.X, 4);
@@ -226,7 +226,7 @@ content_spans :: (m: *dc.Message, terms: []string) {
 	blocks := md_parse(m.content);
 	for blk, bi: blocks {
 		b := ui.box(fmt.tprintf("p%d", bi), .{.Selectable_Text, .Wrap_Text});
-		b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+		b.semantic_size = .[ui.pct(1), ui.text_size()];
 		b.style.text_color = cast(T)("--text-default");
 		b.style.line_height = 20;
 		spans: []ui.Span;

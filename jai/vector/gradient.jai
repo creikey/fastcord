@@ -86,7 +86,7 @@ gradient_color :: (g: *Gradient, t_in: float32) -> Vector4 {
 		t = abs(t);
 		k := math.floor(t);
 		t = t - k;
-		if (cast(int)(k)) & 1 == 1 { t = 1 - t; }
+		if ((cast(int)(k)) & 1) == 1 { t = 1 - t; }
 	}
 	if t <= g.stops[0].offset { return g.stops[0].color; }
 	for i: 1..n-1 {

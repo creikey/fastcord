@@ -119,7 +119,7 @@ account_logout_modal :: () {
 		return;
 	}
 	scrim := ui.box("logout_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.5};
 	if ui.signal(scrim).clicked {
 		acct.logout_confirm = false;
@@ -127,7 +127,7 @@ account_logout_modal :: () {
 	}
 	W :: 440;
 	d := ui.box("logout", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -142,7 +142,7 @@ account_logout_modal :: () {
 		set_para("q", "Are you sure you want to logout?", .Normal, 16, 20, cast(T)("--text-subtle"));
 		spacer(.Y, 24);
 		btns := row("btns");
-		btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(38)};
+		btns.semantic_size = .[ui.pct(1), ui.px(38)];
 		if ui.parent(btns) {
 			filler(.X);
 			if set_button("Cancel##cancel", .Secondary) { acct.logout_confirm = false; }
@@ -185,20 +185,20 @@ my_account_page :: () {
 	defer set_page_end();
 	set_heading("My Account");
 	card := ui.box("card", .{.Draw_Background, .Clip});
-	card.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	card.semantic_size = .[ui.pct(1), ui.children()];
 	card.layout_axis = .Y;
 	card.style.bg = cast(T)("--background-base-lowest");
 	card.style.radius = 8;
 	if ui.parent(card) {
 		banner := ui.box("banner", .{.Draw_Background});
-		banner.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(100)};
+		banner.semantic_size = .[ui.pct(1), ui.px(100)];
 		banner.style.bg = profile_banner_color(s.me);
 		if u != null && u.banner != "" { set_remote_image(banner, dc.banner_url(s.me, u.banner, 600)); }
 		head := row("head");
-		head.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(72)};
+		head.semantic_size = .[ui.pct(1), ui.px(72)];
 		if ui.parent(head) {
 			ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
-			ring.semantic_size = .{__IDX__.X = ui.px(94), __IDX__.Y = ui.px(94)};
+			ring.semantic_size = .[ui.px(94), ui.px(94)];
 			ring.fixed_pos = .{16, -46};
 			ring.style.radius = 47;
 			ring.style.bg = card.style.bg;
@@ -215,11 +215,11 @@ my_account_page :: () {
 			spacer(.X, 16);
 		}
 		panel_row := row("panelrow");
-		panel_row.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		panel_row.semantic_size = .[ui.pct(1), ui.children()];
 		if ui.parent(panel_row) {
 			spacer(.X, 16);
 			panel := ui.box("panel", .{.Draw_Background});
-			panel.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			panel.semantic_size = .[ui.fill(), ui.children()];
 			panel.layout_axis = .Y;
 			panel.style.bg = cast(T)("--background-base-low");
 			panel.style.radius = 8;
@@ -257,7 +257,7 @@ my_account_page :: () {
 // LABEL / value with an Edit button, or the inline editor while editing.
 account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	r := ui.box(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.layout_axis = .Y;
 	ui.push_parent(r);
 	defer ui.pop_parent();
@@ -265,7 +265,7 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	spacer(.Y, 4);
 	if acct.editing != which {
 		vr := row("vrow");
-		vr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+		vr.semantic_size = .[ui.pct(1), ui.px(32)];
 		if ui.parent(vr) {
 			label(value, .Normal, 16, cast(T)("--text-default"), 20);
 			filler(.X);
@@ -304,7 +304,7 @@ account_field :: (id: string, title: string, value: string, which: Acct_Edit) {
 	}
 	spacer(.Y, 12);
 	br := row("btns");
-	br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+	br.semantic_size = .[ui.pct(1), ui.px(32)];
 	if ui.parent(br) {
 		filler(.X);
 		if set_button("Cancel##cancel", .Link, true, 32) || res == .Escape { acct_edit_close(); }
@@ -360,20 +360,20 @@ username_status :: (name: string) -> string, ui.Color {
 // LABEL / masked value with Reveal / Hide.
 account_secret :: (id: string, title: string, shown: string, has: bool, reveal: *bool) {
 	r := ui.box(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.layout_axis = .Y;
 	ui.push_parent(r);
 	defer ui.pop_parent();
 	label(strings.to_upper(title, temp), .Bold, 12, cast(T)("--text-muted"), 16);
 	spacer(.Y, 4);
 	vr := row("vrow");
-	vr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+	vr.semantic_size = .[ui.pct(1), ui.px(24)];
 	if ui.parent(vr) {
 		label(shown, .Normal, 16, cast(T)("--text-default"), 20);
 		if has {
 			spacer(.X, 4);
 			l := ui.box(ifx reveal.* then "Hide##reveal" else "Reveal##reveal", .{.Clickable, .Draw_Text});
-			l.semantic_size = .{__IDX__.X = ui.text_size(0), __IDX__.Y = ui.px(20)};
+			l.semantic_size = .[ui.text_size(0), ui.px(20)];
 			l.style.font = F(.Normal);
 			l.style.font_size = 14;
 			l.style.text_color = cast(T)("--text-link");
@@ -407,18 +407,18 @@ profiles_page :: () {
 		pf_follow(*acct.pf_bio, *acct.base_bio, u.bio);
 	}
 	wrap := ui.box("profileswrap");
-	wrap.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	wrap.semantic_size = .[ui.pct(1), ui.fill()];
 	wrap.layout_axis = .Y;
 	ui.push_parent(wrap);
 	defer ui.pop_parent();
 	if set_page_begin("profilespage") {
 		set_heading("Profiles");
 		cols := row("cols");
-		cols.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		cols.semantic_size = .[ui.pct(1), ui.children()];
 		cols.cross_align = .Start;
 		if ui.parent(cols) {
 			form := ui.box("form");
-			form.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			form.semantic_size = .[ui.fill(), ui.children()];
 			form.layout_axis = .Y;
 			if ui.parent(form) {
 				label("Display Name", .Semibold, 16, cast(T)("--text-strong"), 20);
@@ -436,7 +436,7 @@ profiles_page :: () {
 				set_input("bio", *acct.pf_bio, "", multiline = true, max_runes = PROFILE_BIO_MAX, min_h = 100);
 				spacer(.Y, 4);
 				cr := row("count");
-				cr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+				cr.semantic_size = .[ui.pct(1), ui.px(16)];
 				if ui.parent(cr) {
 					filler(.X);
 					left := PROFILE_BIO_MAX - utf8.rune_count_in_string(ui.editor_text(*acct.pf_bio));
@@ -449,7 +449,7 @@ profiles_page :: () {
 			}
 			spacer(.X, 24);
 			pv := ui.box("previewcol");
-			pv.semantic_size = .{__IDX__.X = ui.px(260), __IDX__.Y = ui.children()};
+			pv.semantic_size = .[ui.px(260), ui.children()];
 			pv.layout_axis = .Y;
 			if ui.parent(pv) {
 				label("PREVIEW", .Bold, 12, cast(T)("--text-muted"), 16);
@@ -467,7 +467,7 @@ profile_preview_card :: (u: *dc.User) {
 	s := store();
 	W :: 260;
 	card := ui.box("preview", .{.Draw_Background, .Draw_Border, .Clip});
-	card.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	card.semantic_size = .[ui.px(W), ui.children()];
 	card.layout_axis = .Y;
 	card.style.bg = cast(T)("--background-surface-high");
 	card.style.border_color = cast(T)("--border-subtle");
@@ -476,14 +476,14 @@ profile_preview_card :: (u: *dc.User) {
 	ui.push_parent(card);
 	defer ui.pop_parent();
 	banner := ui.box("banner", .{.Draw_Background});
-	banner.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(90)};
+	banner.semantic_size = .[ui.pct(1), ui.px(90)];
 	banner.style.bg = profile_banner_color(s.me);
 	if u != null && u.banner != "" { set_remote_image(banner, dc.banner_url(s.me, u.banner, 600)); }
 	avr := ui.box("avrow");
-	avr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+	avr.semantic_size = .[ui.pct(1), ui.px(40)];
 	if ui.parent(avr) {
 		ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
-		ring.semantic_size = .{__IDX__.X = ui.px(80), __IDX__.Y = ui.px(80)};
+		ring.semantic_size = .[ui.px(80), ui.px(80)];
 		ring.fixed_pos = .{10, -40};
 		ring.style.radius = 40;
 		ring.style.bg = card.style.bg;
@@ -505,7 +505,7 @@ profile_preview_card :: (u: *dc.User) {
 	if bio != "" {
 		spacer(.Y, 12);
 		b := ui.box("pvbio", .{.Wrap_Text});
-		b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+		b.semantic_size = .[ui.pct(1), ui.text_size()];
 		b.style.line_height = 18;
 		b.style.text_color = cast(T)("--text-default");
 		blocks := md_parse(bio);
@@ -521,7 +521,7 @@ profile_save_bar :: () {
 	ch := app.ui.window.y - 2 * SET_INSET - SET_TITLE_H - 1;
 	w := min(cast(float32)(W), cw - 32);
 	bar := row("savebar", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y});
-	bar.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(52)};
+	bar.semantic_size = .[ui.px(w), ui.px(52)];
 	bar.fixed_pos = .{(cw - w) / 2, ch - 52 - 20};
 	bar.style.bg = cast(T)("--background-surface-highest");
 	bar.style.radius = 8;

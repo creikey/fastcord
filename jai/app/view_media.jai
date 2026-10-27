@@ -71,7 +71,7 @@ fmt_clock :: (t: float64) -> string {
 // Video attachment: poster until clicked, then plays inline with a control bar.
 video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 	box := ui.box(fmt.tprintf("vid%d", cast(u64)(a.id)), .{.Draw_Background, .Clickable, .Clip});
-	box.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(h)};
+	box.semantic_size = .[ui.px(w), ui.px(h)];
 	box.style.radius = 8;
 	box.style.bg = .{0, 0, 0, 1};
 	sig := ui.signal(box);
@@ -106,20 +106,20 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 		hovered := sig.hovering;
 		if !playing || (ip.player != null && !media.player_is_playing(ip.player)) {
 			pb := ui.box("play", .{.Draw_Background, .Floating_X, .Floating_Y});
-			pb.semantic_size = .{__IDX__.X = ui.px(48), __IDX__.Y = ui.px(48)};
+			pb.semantic_size = .[ui.px(48), ui.px(48)];
 			pb.fixed_pos = .{(w - 48) / 2, (h - 48) / 2};
 			pb.style.radius = 24;
 			pb.style.bg = .{0, 0, 0, 0.6};
 			if ui.parent(pb) {
 				pi := ui.box("i", .{.Floating_X, .Floating_Y});
-				pi.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+				pi.semantic_size = .[ui.px(24), ui.px(24)];
 				pi.fixed_pos = .{13, 12};
 				set_icon(pi, "play", .{1, 1, 1, 1});
 			}
 		}
 		if playing && ip.player != null && hovered {
 			bar := row("controls", .{.Draw_Background, .Floating_X, .Floating_Y});
-			bar.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(32)};
+			bar.semantic_size = .[ui.px(w), ui.px(32)];
 			bar.fixed_pos = .{0, h - 32};
 			bar.style.bg = .{0, 0, 0, 0.6};
 			if ui.parent(bar) {
@@ -129,7 +129,7 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 				dur := media.player_duration(ip.player);
 				frac := ifx dur > 0 then cast(float32)(media.player_position(ip.player) / dur) else 0;
 				track := ui.box("track", .{.Draw_Background, .Clickable});
-				track.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(6)};
+				track.semantic_size = .[ui.fill(), ui.px(6)];
 				track.style.bg = .{1, 1, 1, 0.3};
 				track.style.radius = 3;
 				tsig := ui.signal(track);
@@ -139,7 +139,7 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 				}
 				if ui.parent(track) {
 					fill := ui.box("fill", .{.Draw_Background, .Floating_X, .Floating_Y});
-					fill.semantic_size = .{__IDX__.X = ui.px((track.rect.x1 - track.rect.x0) * frac), __IDX__.Y = ui.px(6)};
+					fill.semantic_size = .[ui.px((track.rect.x1 - track.rect.x0) * frac), ui.px(6)];
 					fill.style.bg = cast(T)("--background-brand");
 					fill.style.radius = 3;
 				}
@@ -161,7 +161,7 @@ ensure_audio :: () {
 // Audio attachment (and voice messages): file card with play button and progress.
 audio_attachment :: (a: *dc.Attachment) {
 	card := row(fmt.tprintf("aud%d", cast(u64)(a.id)), .{.Draw_Background, .Draw_Border});
-	card.semantic_size = .{__IDX__.X = ui.px(400), __IDX__.Y = ui.px(56)};
+	card.semantic_size = .[ui.px(400), ui.px(56)];
 	card.style.bg = cast(T)("--background-surface-high");
 	card.style.border_color = cast(T)("--border-subtle");
 	card.style.border = 1;
@@ -177,14 +177,14 @@ audio_attachment :: (a: *dc.Attachment) {
 	if ui.parent(card) {
 		spacer(.X, 12);
 		pb := ui.box("play", .{.Clickable, .Draw_Background, .Hot_Animation});
-		pb.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(32)};
+		pb.semantic_size = .[ui.px(32), ui.px(32)];
 		pb.style.radius = 16;
 		pb.style.bg = cast(T)("--background-brand");
 		pb.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
 		is_playing := playing && ip.player != null && media.player_is_playing(ip.player);
 		if ui.parent(pb) {
 			pi := ui.box("i", .{.Floating_X, .Floating_Y});
-			pi.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+			pi.semantic_size = .[ui.px(18), ui.px(18)];
 			pi.fixed_pos = .{7, 7};
 			set_icon(pi, ifx is_playing then "pause" else "play", .{1, 1, 1, 1});
 		}
@@ -198,7 +198,7 @@ audio_attachment :: (a: *dc.Attachment) {
 		}
 		spacer(.X, 12);
 		col := ui.box("col");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.fill(), ui.children()];
 		if ui.parent(col) {
 			label(a.filename, .Medium, 14, cast(T)("--text-link"), 18);
 			pos, dur: float64;
@@ -226,7 +226,7 @@ embeds_view :: (m: *dc.Message) {
 			if url == "" || w <= 0 || h <= 0 { continue; }
 			sc := min(1, min(400 / w, 300 / h));
 			img := ui.box(fmt.tprintf("emedia%d", i), .{.Draw_Background, .Clickable});
-			img.semantic_size = .{__IDX__.X = ui.px(w * sc), __IDX__.Y = ui.px(h * sc)};
+			img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
 			img.style.radius = 8;
 			img.style.bg = cast(T)("--background-mod-subtle");
 			set_remote_image(img, url);
@@ -235,18 +235,18 @@ embeds_view :: (m: *dc.Message) {
 			continue;
 		}
 		card := row(fmt.tprintf("embed%d", i), .{.Draw_Background});
-		card.semantic_size = .{__IDX__.X = ui.px(432), __IDX__.Y = ui.children()};
+		card.semantic_size = .[ui.px(432), ui.children()];
 		card.cross_align = .Start;
 		card.style.bg = cast(T)("--embed-background");
 		card.style.radius = 4;
 		if ui.parent(card) {
 			bar := ui.box("bar", .{.Draw_Background, .Floating_X, .Floating_Y});
-			bar.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(card.rect.y1 - card.rect.y0)};
+			bar.semantic_size = .[ui.px(4), ui.px(card.rect.y1 - card.rect.y0)];
 			bar.style.radius = .{4, 0, 4, 0};
 			bar.style.bg = ifx e.color != 0 then rgb_u32(e.color) else cast(T)("--border-strong");
 			spacer(.X, 16);
 			col := ui.box("col");
-			col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			if ui.parent(col) {
 				spacer(.Y, 8);
@@ -258,7 +258,7 @@ embeds_view :: (m: *dc.Message) {
 				if e.title != "" {
 					spacer(.Y, 4);
 					t := ui.box("title", .{.Wrap_Text, .Selectable_Text});
-					t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+					t.semantic_size = .[ui.pct(1), ui.text_size()];
 					t.style.line_height = 22;
 					t.sel_order = cast(u64)(m.id) * 8 + 6;
 					ui.set_spans(t, ui.Span.[.{text = e.title, font = F(.Semibold), size = 16, color = ifx e.url != "" then cast(T)("--text-link") else cast(T)("--text-strong")}]);
@@ -266,7 +266,7 @@ embeds_view :: (m: *dc.Message) {
 				if e.description != "" {
 					spacer(.Y, 8);
 					d := ui.box("desc", .{.Wrap_Text, .Selectable_Text});
-					d.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+					d.semantic_size = .[ui.pct(1), ui.text_size()];
 					d.style.line_height = 18;
 					d.style.text_color = cast(T)("--text-default");
 					d.sel_order = cast(u64)(m.id) * 8 + 7;
@@ -284,7 +284,7 @@ embeds_view :: (m: *dc.Message) {
 					h := cast(float32)(e.image_h);
 					sc := min(1, min(400 / w, 300 / h));
 					img := ui.box("img", .{.Draw_Background, .Clickable});
-					img.semantic_size = .{__IDX__.X = ui.px(w * sc), __IDX__.Y = ui.px(h * sc)};
+					img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
 					img.style.radius = 4;
 					img.style.bg = cast(T)("--background-mod-subtle");
 					set_remote_image(img, e.image_url);
@@ -295,7 +295,7 @@ embeds_view :: (m: *dc.Message) {
 			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 {
 				spacer(.X, 16);
 				th := ui.box("thumb", .{.Draw_Background});
-				th.semantic_size = .{__IDX__.X = ui.px(80), __IDX__.Y = ui.px(80)};
+				th.semantic_size = .[ui.px(80), ui.px(80)];
 				th.style.radius = 4;
 				set_remote_image(th, e.thumbnail_url);
 			}
@@ -316,7 +316,7 @@ open_viewer :: (url: string, size: [2]int) {
 image_viewer :: () {
 	ui.animate(*viewer_t, 1, 25);
 	scrim := ui.box("viewer_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.85 * viewer_t};
 	if ui.signal(scrim).clicked {
 		delete(viewer_url);
@@ -329,7 +329,7 @@ image_viewer :: () {
 		sc := min(app.ui.window.x * 0.8 / w, app.ui.window.y * 0.8 / h);
 		sc *= 0.95 + 0.05 * viewer_t;
 		img := ui.box("img", .{.Floating_X, .Floating_Y, .Clickable});
-		img.semantic_size = .{__IDX__.X = ui.px(w * sc), __IDX__.Y = ui.px(h * sc)};
+		img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
 		img.fixed_pos = .{(app.ui.window.x - w * sc) / 2, (app.ui.window.y - h * sc) / 2};
 		img.opacity = viewer_t;
 		set_remote_image(img, viewer_url);

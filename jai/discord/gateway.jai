@@ -297,9 +297,11 @@ gateway_set_active :: (g: *Gateway, q: Qos) {
 		}
 		// sorted, as [...new Set()].sort()
 		for i: 1..cur.n-1 {
-			for < j: i..(0 && cur.reasons[j] < cur.reasons[j - 1])+1 {
+			{ j := i;
+			while j > 0 && cur.reasons[j] < cur.reasons[j - 1] {
 				cur.reasons[j], cur.reasons[j - 1] = cur.reasons[j - 1], cur.reasons[j];
-			}
+				j -= 1;
+} }
 		}
 		g.qos_current = cur;
 		if was_inactive && g.state == .Established { send_heartbeat_locked(g); }
@@ -314,7 +316,7 @@ gateway_set_active :: (g: *Gateway, q: Qos) {
 // identify_fast_connect_value: the IDENTIFY fast-connect.js sends from the
 // HTML bootstrap (no presence/compress/qos_token; its own client_launch_id).
 identify_fast_connect_value :: (id: *Identity, token: string, allocator := temp) -> V {
-	context.allocator = allocator;
+	push_allocator(allocator);
 	p := id.platform;
 	props := etf.map_builder(20);
 	put_base_properties(*props, p, id.fast_connect_launch_id);
@@ -365,7 +367,7 @@ qos_token_b64 :: (ready_qos_token: string, active: bool, allocator := temp) -> s
 
 // identify_value: the regular GatewaySocket._doIdentify payload (reconnects).
 identify_value :: (g: *Gateway, allocator := temp) -> V {
-	context.allocator = allocator;
+	push_allocator(allocator);
 	c := g.c;
 	id := *c.id;
 	now := now_ms();
@@ -422,7 +424,7 @@ if ok2 { active = q2.active; } } }
 }
 
 voice_state_value :: (guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool, self_video: bool, flags: s64, allocator := temp) -> V {
-	context.allocator = allocator;
+	push_allocator(allocator);
 	b := etf.map_builder(6);
 	etf.map_put(*b, "guild_id", ifx guild_id == 0 then null else cast(V)(snowflake_string(guild_id, allocator)));
 	etf.map_put(*b, "channel_id", ifx channel_id == 0 then null else cast(V)(snowflake_string(channel_id, allocator)));

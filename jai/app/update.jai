@@ -100,7 +100,7 @@ update_button :: () {
 	if !show { return; }
 	ui.animate(*upd.t, 1, 20);
 	b := row("update", .{.Clickable, .Draw_Background, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(24)};
+	b.semantic_size = .[ui.children(), ui.px(24)];
 	b.style.radius = 12;
 	b.style.bg = cast(T)("--status-positive");
 	b.style.bg_hot = with_alpha(cast(T)("--status-positive"), 0.85);

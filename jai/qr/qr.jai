@@ -167,7 +167,7 @@ Gf :: struct {
 
 gf_tables :: () -> Gf {
 	g: Gf;
-	for i: 0..7 { g.exp[i] = 1 << cast(u64)(i); }
+	for i: 0..7 { g.exp[i] = 1 << (cast(u64)(i)); }
 	for i: 8..255 { g.exp[i] = g.exp[i - 4] ^ g.exp[i - 5] ^ g.exp[i - 6] ^ g.exp[i - 8]; }
 	for i: 0..254 { g.log[g.exp[i]] = i; }
 	return g;
@@ -230,12 +230,12 @@ Bits :: struct {
 
 put_bit :: (b: *Bits, on: bool) {
 	if len(b.buf) <= b.n / 8 { append(*b.buf, 0); }
-	if on { b.buf[b.n / 8] |= cast(u8) (0x80 >> cast(u64)(b.n % 8)); }
+	if on { b.buf[b.n / 8] |= cast(u8) (0x80 >> (cast(u64)(b.n % 8))); }
 	b.n += 1;
 }
 
 put :: (b: *Bits, v: int, n: int) {
-	for i: 0..n-1 { put_bit(b, (v >> cast(u64)(n - i - 1)) & 1 == 1); }
+	for i: 0..n-1 { put_bit(b, ((v >> (cast(u64)(n - i - 1))) & 1) == 1); }
 }
 
 create_data :: (version: int, level: Level, data: []u8) -> [..]int, bool {
@@ -277,7 +277,7 @@ create_bytes :: (b: *Bits, version: int, level: Level) -> [..]int {
 		max_dc = max(max_dc, dcount);
 		max_ec = max(max_ec, eccount);
 		dc[r] = make_slice(int, dcount, temp);
-		for i: 0..dcount-1 { dc[r][i] = 0xff & cast(int)(b.buf[i + offset]); }
+		for i: 0..dcount-1 { dc[r][i] = 0xff & (cast(int)(b.buf[i + offset])); }
 		offset += dcount;
 		rs := error_correct_poly(*g, eccount);
 		defer delete(rs);
@@ -317,13 +317,13 @@ bch_digit :: (v_in: u32) -> int {
 
 bch_type_info :: (data: u32) -> u32 {
 	d := data << 10;
-	while bch_digit(d) - bch_digit(G15) >= 0 { d ^= G15 << cast(u64)(bch_digit(d) - bch_digit(G15)); }
+	while bch_digit(d) - bch_digit(G15) >= 0 { d ^= G15 << (cast(u64)(bch_digit(d) - bch_digit(G15))); }
 	return ((data << 10) | d) ^ G15_MASK;
 }
 
 bch_type_number :: (data: u32) -> u32 {
 	d := data << 12;
-	while bch_digit(d) - bch_digit(G18) >= 0 { d ^= G18 << cast(u64)(bch_digit(d) - bch_digit(G18)); }
+	while bch_digit(d) - bch_digit(G18) >= 0 { d ^= G18 << (cast(u64)(bch_digit(d) - bch_digit(G18))); }
 	return (data << 12) | d;
 }
 
@@ -385,13 +385,13 @@ make_impl :: (c: *Code_, level: Level, data: [..]int, mask: int, test: bool) {
 	for r: 8..(n - 8)-1 { if !set[r * n + 6] { place(c, *set, r, 6, r % 2 == 0); } }
 	for cc: 8..(n - 8)-1 { if !set[6 * n + cc] { place(c, *set, 6, cc, cc % 2 == 0); } }
 	// type info
-	bits := bch_type_info(LEVEL_BITS[cast(int) level] << 3 | cast(u32)(mask));
+	bits := bch_type_info((LEVEL_BITS[cast(int) level] << 3) | (cast(u32)(mask)));
 	for i: 0..14 {
-		on := !test && (bits >> cast(u64)(i)) & 1 == 1;
+		on := !test && ((bits >> (cast(u64)(i))) & 1) == 1;
 		if i < 6 { place(c, *set, i, 8, on); } else if i < 8 { place(c, *set, i + 1, 8, on); } else { place(c, *set, n - 15 + i, 8, on); }
 	}
 	for i: 0..14 {
-		on := !test && (bits >> cast(u64)(i)) & 1 == 1;
+		on := !test && ((bits >> (cast(u64)(i))) & 1) == 1;
 		if i < 8 { place(c, *set, 8, n - i - 1, on); } else if i < 9 { place(c, *set, 8, 15 - i - 1 + 1, on); } else { place(c, *set, 8, 15 - i - 1, on); }
 	}
 	place(c, *set, n - 8, 8, !test);
@@ -399,11 +399,11 @@ make_impl :: (c: *Code_, level: Level, data: [..]int, mask: int, test: bool) {
 	if c.version >= 7 {
 		vb := bch_type_number(cast(u32)(c.version));
 		for i: 0..17 {
-			on := !test && (vb >> cast(u64)(i)) & 1 == 1;
+			on := !test && ((vb >> (cast(u64)(i))) & 1) == 1;
 			place(c, *set, i / 3, i % 3 + n - 8 - 3, on);
 		}
 		for i: 0..17 {
-			on := !test && (vb >> cast(u64)(i)) & 1 == 1;
+			on := !test && ((vb >> (cast(u64)(i))) & 1) == 1;
 			place(c, *set, i % 3 + n - 8 - 3, i / 3, on);
 		}
 	}
@@ -420,7 +420,7 @@ make_impl :: (c: *Code_, level: Level, data: [..]int, mask: int, test: bool) {
 				cc := col - k;
 				if set[row * n + cc] continue;
 				on := false;
-				if idx < len(data) { on = (data[idx] >> cast(u64)(bit)) & 1 == 1; }
+				if idx < len(data) { on = ((data[idx] >> (cast(u64)(bit))) & 1) == 1; }
 				if mask_bit(mask, row, cc) { on = !on; }
 				place(c, *set, row, cc, on);
 				bit -= 1;

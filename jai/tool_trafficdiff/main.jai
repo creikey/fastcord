@@ -21,7 +21,7 @@ Opts :: struct {
 main :: () {
 	arena: virtual.Arena;
 	virtual.arena_init_growing(*arena);
-	context.allocator = virtual.arena_allocator(*arena);
+	push_allocator(virtual.arena_allocator(*arena));
 	opts := Opts.{tol = 1500};
 	files := make_dynamic(string, 0, 0);
 	for a: sub_from(get_command_line_arguments(), 1) {

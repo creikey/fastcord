@@ -651,7 +651,7 @@ apply_update_path :: (g: *Group, ng: *Group, path: *Update_Path, committer: u32,
 	// parent hashes, top-down
 	ph: []u8 = .{};
 	cx := committer * 2;
-	for < i: len(fdp) - 1..0 {
+	for < i: 0..len(fdp) - 1 {
 		p := fdp[i];
 		t.nodes[p].parent.parent_hash = ph;
 		sib := sibling_of(child_toward(p, cx)); // copath child
@@ -771,7 +771,7 @@ group_commit :: (g: *Group, force_path := false, allocator := context.allocator)
 		commit_secret = cur;
 		ph: []u8 = .{};
 		mx := g.my_leaf * 2;
-		for < i: len(fdp) - 1..0 {
+		for < i: 0..len(fdp) - 1 {
 			p := fdp[i];
 			t.nodes[p].parent.parent_hash = ph;
 			sib := sibling_of(child_toward(p, mx));

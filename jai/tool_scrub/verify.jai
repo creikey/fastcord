@@ -10,7 +10,7 @@ verify :: (raw: string, fixture: string) -> []string {
 		if err != .None { continue; }
 		collect_secrets(v, "", *secrets);
 		{ b := gs(v, "m", "result", "body");
-		if len(b) > 0 && len(b) < 8 << 20 {
+		if len(b) > 0 && len(b) < (8 << 20) {
 			{ bv, berr := etf.from_json(b, temp);
 			if berr == .None { collect_secrets(bv, "", *secrets); } }
 		} }

@@ -176,11 +176,11 @@ event_start_text :: (ms: s64) -> string {
 // Scrim + centered dialog (no title row), pushed as parent; false when the scrim was clicked.
 ev_dialog_begin :: (id: string, w: float32, fixed_h: float32 = 0) -> bool {
 	scrim := ui.box(fmt.tprintf("%s_scrim", id), .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked { return false; }
 	d := ui.box(id, .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
-	d.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ifx fixed_h > 0 then ui.px(fixed_h) else ui.children()};
+	d.semantic_size = .[ui.px(w), ifx fixed_h > 0 then ui.px(fixed_h) else ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - w) / 2, max(16, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2)};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -194,7 +194,7 @@ ev_dialog_begin :: (id: string, w: float32, fixed_h: float32 = 0) -> bool {
 
 close_x :: (id: string, x: float32, y: float32) -> bool {
 	b := ui.box(id, .{.Clickable, .Floating_X, .Floating_Y});
-	b.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+	b.semantic_size = .[ui.px(24), ui.px(24)];
 	b.fixed_pos = .{x, y};
 	sig := ui.signal(b);
 	set_icon(b, "x-large", ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
@@ -204,7 +204,7 @@ close_x :: (id: string, x: float32, y: float32) -> bool {
 // Small button with an optional icon (card actions, header Create Event).
 pill_button :: (id: string, text: string, icon_name: string, bg: ui.Color, fg: ui.Color, h: float32 = 32) -> bool {
 	b := row(id, .{.Clickable, .Draw_Background, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(h)};
+	b.semantic_size = .[ui.children(), ui.px(h)];
 	b.style.radius = 8;
 	b.style.bg = bg;
 	b.style.bg_hot = with_alpha(bg, bg.a * 0.8);
@@ -224,11 +224,11 @@ pill_button :: (id: string, text: string, icon_name: string, bg: ui.Color, fg: u
 
 hline :: (id: string, pad: float32 = 0) {
 	r := row(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	r.semantic_size = .[ui.pct(1), ui.px(1)];
 	if ui.parent(r) {
 		spacer(.X, pad);
 		l := ui.box("l", .{.Draw_Background});
-		l.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+		l.semantic_size = .[ui.fill(), ui.px(1)];
 		l.style.bg = cast(T)("--border-subtle");
 		spacer(.X, pad);
 	}
@@ -275,7 +275,7 @@ events_list_modal :: () {
 	defer ui.pop_parent();
 	spacer(.Y, 20);
 	hdr := row("hdr");
-	hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+	hdr.semantic_size = .[ui.pct(1), ui.px(32)];
 	if ui.parent(hdr) {
 		spacer(.X, 24);
 		icon("cal", "calendar", 24, cast(T)("--interactive-icon-hover"));
@@ -284,7 +284,7 @@ events_list_modal :: () {
 		if dc.can_create_events(store(), evu.guild) {
 			spacer(.X, 16);
 			d := ui.box("div", .{.Draw_Background});
-			d.semantic_size = .{__IDX__.X = ui.px(1), __IDX__.Y = ui.px(24)};
+			d.semantic_size = .[ui.px(1), ui.px(24)];
 			d.style.bg = cast(T)("--border-subtle");
 			spacer(.X, 16);
 			if pill_button("create", "Create Event", "", cast(T)("--background-brand"), .{1, 1, 1, 1}) { wizard_open(); }
@@ -296,7 +296,7 @@ events_list_modal :: () {
 		events_empty();
 	} else {
 		list := ui.box("list", .{.Scroll_Y, .Clip});
-		list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+		list.semantic_size = .[ui.pct(1), ui.fill()];
 		list.layout_axis = .Y;
 		ui.signal(list);
 		if ui.parent(list) {
@@ -311,7 +311,7 @@ events_list_modal :: () {
 
 center_line :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 	r := row(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(lh)};
+	r.semantic_size = .[ui.pct(1), ui.px(lh)];
 	if ui.parent(r) {
 		filler(.X);
 		label(text, font, size, color, lh);
@@ -330,11 +330,11 @@ events_empty :: () {
 
 event_card :: (e: *dc.Scheduled_Event) {
 	outer := row("card");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	outer.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(outer) {
 		spacer(.X, 24);
 		card := ui.box("c", .{.Draw_Background, .Draw_Border, .Clickable});
-		card.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		card.semantic_size = .[ui.fill(), ui.children()];
 		card.layout_axis = .Y;
 		card.style.bg = cast(T)("--background-base-lower");
 		card.style.border_color = cast(T)("--border-subtle");
@@ -352,12 +352,12 @@ event_card :: (e: *dc.Scheduled_Event) {
 event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 	spacer(.Y, 16);
 	wr := row("when");
-	wr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(22)};
+	wr.semantic_size = .[ui.pct(1), ui.px(22)];
 	if ui.parent(wr) {
 		spacer(.X, 16);
 		if e.status == .Active {
 			dot := ui.box("live", .{.Draw_Background});
-			dot.semantic_size = .{__IDX__.X = ui.px(8), __IDX__.Y = ui.px(8)};
+			dot.semantic_size = .[ui.px(8), ui.px(8)];
 			dot.style.radius = 4;
 			dot.style.bg = cast(T)("--status-positive");
 			spacer(.X, 6);
@@ -374,7 +374,7 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 		}
 		if e.user_count >= 0 {
 			pill := row("count", .{.Draw_Background});
-			pill.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(22)};
+			pill.semantic_size = .[ui.children(), ui.px(22)];
 			pill.style.radius = 11;
 			pill.style.bg = cast(T)("--background-base-lowest");
 			if ui.parent(pill) {
@@ -389,11 +389,11 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 	}
 	spacer(.Y, 8);
 	nr := row("name");
-	nr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	nr.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(nr) {
 		spacer(.X, 16);
 		b := ui.box("n", .{.Draw_Text, .Wrap_Text});
-		b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.text = e.name;
 		b.style.font = F(.Semibold);
 		b.style.font_size = 20;
@@ -404,11 +404,11 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 	if e.description != "" {
 		spacer(.Y, 4);
 		dr := row("desc");
-		dr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		dr.semantic_size = .[ui.pct(1), ui.children()];
 		if ui.parent(dr) {
 			spacer(.X, 16);
 			b := ui.box("d", .{.Draw_Text, .Wrap_Text});
-			b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+			b.semantic_size = .[ui.fill(), ui.text_size()];
 			b.text = e.description;
 			b.style.font = F(.Normal);
 			b.style.font_size = 14;
@@ -420,7 +420,7 @@ event_card_body :: (e: *dc.Scheduled_Event, actions: bool) {
 	spacer(.Y, 16);
 	hline("hl");
 	br := row("bottom");
-	br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(60)};
+	br.semantic_size = .[ui.pct(1), ui.px(60)];
 	if ui.parent(br) {
 		spacer(.X, 16);
 		place, place_icon := place_of(e);
@@ -510,21 +510,21 @@ cancel_confirm :: () {
 		if close_x("close", W - 24 - 16, 20) { evu.confirm_event = 0; }
 		spacer(.Y, 24);
 		t := row("t");
-		t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(26)};
+		t.semantic_size = .[ui.pct(1), ui.px(26)];
 		if ui.parent(t) {
 			spacer(.X, 24);
 			label("Cancel Event?", .Bold, 20, cast(T)("--text-strong"), 26);
 		}
 		spacer(.Y, 8);
 		b := row("b");
-		b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+		b.semantic_size = .[ui.pct(1), ui.px(20)];
 		if ui.parent(b) {
 			spacer(.X, 24);
 			label("Are you sure you want to cancel this event?", .Normal, 16, cast(T)("--text-default"), 20);
 		}
 		spacer(.Y, 24);
 		btns := row("btns");
-		btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		btns.semantic_size = .[ui.pct(1), ui.px(40)];
 		btns.style.child_gap = 8;
 		if ui.parent(btns) {
 			spacer(.X, 24 - 8);
@@ -545,7 +545,7 @@ cancel_confirm :: () {
 // Equal-width button filling its share of the row.
 wide_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> bool {
 	b := ui.box(fmt.tprintf("%s##%s", text, id), .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+	b.semantic_size = .[ui.fill(), ui.px(40)];
 	b.style.radius = 8;
 	b.style.font = F(.Medium);
 	b.style.font_size = 16;
@@ -596,11 +596,11 @@ share_modal :: () {
 		if close_x("close", W - 24 - 16, 16) { evu.share_event = 0; }
 		spacer(.Y, 24);
 		ic := row("ic");
-		ic.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(64)};
+		ic.semantic_size = .[ui.pct(1), ui.px(64)];
 		if ui.parent(ic) {
 			filler(.X);
 			c := ui.box("circle", .{.Draw_Background});
-			c.semantic_size = .{__IDX__.X = ui.px(64), __IDX__.Y = ui.px(64)};
+			c.semantic_size = .[ui.px(64), ui.px(64)];
 			c.style.radius = 32;
 			c.style.bg = cast(T)("--background-base-lowest");
 			if ui.parent(c) {
@@ -614,11 +614,11 @@ share_modal :: () {
 		center_line("t", ifx evu.share_created then "All set. Now share your event!" else "Share Event", .Bold, 24, 30, cast(T)("--text-strong"));
 		spacer(.Y, 8);
 		pr := row("p");
-		pr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		pr.semantic_size = .[ui.pct(1), ui.children()];
 		if ui.parent(pr) {
 			spacer(.X, 24);
 			b := ui.box("text", .{.Draw_Text, .Wrap_Text});
-			b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+			b.semantic_size = .[ui.fill(), ui.text_size()];
 			b.text = "Copy the event link below to invite people to your event. This also acts as a server invite link.";
 			b.style.font = F(.Normal);
 			b.style.font_size = 16;
@@ -629,11 +629,11 @@ share_modal :: () {
 		}
 		spacer(.Y, 24);
 		lr := row("linkrow");
-		lr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		lr.semantic_size = .[ui.pct(1), ui.px(40)];
 		if ui.parent(lr) {
 			spacer(.X, 24);
 			box := row("link", .{.Draw_Background, .Draw_Border});
-			box.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			box.semantic_size = .[ui.fill(), ui.px(40)];
 			box.style.bg = cast(T)("--input-background-default");
 			box.style.border = 1;
 			box.style.border_color = cast(T)("--input-border-default");
@@ -662,7 +662,7 @@ share_modal :: () {
 		}
 		spacer(.Y, 8);
 		er := row("exp");
-		er.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+		er.semantic_size = .[ui.pct(1), ui.px(16)];
 		if ui.parent(er) {
 			spacer(.X, 24);
 			label("Your invite link expires in 7 days.", .Normal, 12, cast(T)("--text-default"), 16);
@@ -726,7 +726,7 @@ wizard_modal :: () {
 		spacer(.Y, 16);
 		// progress: Location / Event Info / Review
 		pr := row("progress");
-		pr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(28)};
+		pr.semantic_size = .[ui.pct(1), ui.px(28)];
 		pr.style.child_gap = 8;
 		if ui.parent(pr) {
 			spacer(.X, 16 - 8);
@@ -734,11 +734,11 @@ wizard_modal :: () {
 			for name, i: NAMES {
 				cur := cast(int)(evu.step) == i;
 				col := ui.box(name);
-				col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(28)};
+				col.semantic_size = .[ui.fill(), ui.px(28)];
 				col.layout_axis = .Y;
 				if ui.parent(col) {
 					bar := ui.box("bar", .{.Draw_Background});
-					bar.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(4)};
+					bar.semantic_size = .[ui.pct(1), ui.px(4)];
 					bar.style.radius = 2;
 					bar.style.bg = ifx cur then cast(T)("--background-brand") else cast(T)("--interactive-text-default");
 					if !cur { bar.style.bg = with_alpha(bar.style.bg, 0.6); }
@@ -751,7 +751,7 @@ wizard_modal :: () {
 		spacer(.Y, 16);
 		body := ui.box("body", .{.Scroll_Y, .Clip});
 		max_h := max(200, app.ui.window.y - 220);
-		body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(ifx body.content_size.y > 0 then min(body.content_size.y, max_h) else 240)};
+		body.semantic_size = .[ui.pct(1), ui.px(ifx body.content_size.y > 0 then min(body.content_size.y, max_h) else 240)];
 		body.layout_axis = .Y;
 		ui.signal(body);
 		if ui.parent(body) {
@@ -766,11 +766,11 @@ wizard_modal :: () {
 			if evu.error != "" {
 				spacer(.Y, 8);
 				er := row("err");
-				er.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+				er.semantic_size = .[ui.pct(1), ui.children()];
 				if ui.parent(er) {
 					spacer(.X, 16);
 					b := ui.box("t", .{.Draw_Text, .Wrap_Text});
-					b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+					b.semantic_size = .[ui.fill(), ui.text_size()];
 					b.text = evu.error;
 					b.style.font = F(.Normal);
 					b.style.font_size = 14;
@@ -782,7 +782,7 @@ wizard_modal :: () {
 		}
 		spacer(.Y, 16);
 		btns := row("btns");
-		btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		btns.semantic_size = .[ui.pct(1), ui.px(40)];
 		btns.style.child_gap = 8;
 		if ui.parent(btns) {
 			spacer(.X, 16 - 8);
@@ -842,14 +842,14 @@ draft :: () -> dc.Event_Draft {
 
 step_heading :: (title: string, sub: string) {
 	t := row("h");
-	t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(30)};
+	t.semantic_size = .[ui.pct(1), ui.px(30)];
 	if ui.parent(t) {
 		spacer(.X, 16);
 		label(title, .Bold, 24, cast(T)("--text-strong"), 30);
 	}
 	spacer(.Y, 4);
 	s := row("sub");
-	s.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+	s.semantic_size = .[ui.pct(1), ui.px(18)];
 	if ui.parent(s) {
 		spacer(.X, 16);
 		label(sub, .Normal, 14, cast(T)("--text-default"), 18);
@@ -860,31 +860,31 @@ step_heading :: (title: string, sub: string) {
 // Radio row: circle, icon + title, description below.
 radio_row :: (id: string, icon_name: string, title: string, desc: string, on: bool) -> bool {
 	r := row(id, .{.Clickable});
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(58)};
+	r.semantic_size = .[ui.pct(1), ui.px(58)];
 	r.cross_align = .Start;
 	r.hover_cursor = .Pointer;
 	sig := ui.signal(r);
 	if ui.parent(r) {
 		spacer(.X, 16);
 		rb := ui.box("radio", .{.Draw_Border});
-		rb.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+		rb.semantic_size = .[ui.px(20), ui.px(20)];
 		rb.style.radius = 10;
 		rb.style.border = 2;
 		rb.style.border_color = ifx on then cast(T)("--background-brand") else cast(T)("--interactive-icon-default");
 		if on { if ui.parent(rb) {
 			dot := ui.box("dot", .{.Draw_Background, .Floating_X, .Floating_Y});
-			dot.semantic_size = .{__IDX__.X = ui.px(10), __IDX__.Y = ui.px(10)};
+			dot.semantic_size = .[ui.px(10), ui.px(10)];
 			dot.fixed_pos = .{5, 5};
 			dot.style.radius = 5;
 			dot.style.bg = cast(T)("--background-brand");
 		} }
 		spacer(.X, 12);
 		col := ui.box("col");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			tr := row("t");
-			tr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+			tr.semantic_size = .[ui.pct(1), ui.px(20)];
 			if ui.parent(tr) {
 				icon("i", icon_name, 20, cast(T)("--text-strong"));
 				spacer(.X, 6);
@@ -899,7 +899,7 @@ radio_row :: (id: string, icon_name: string, title: string, desc: string, on: bo
 
 field_label :: (text: string, required: bool) {
 	r := row(fmt.tprintf("lbl_%s", text));
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	r.semantic_size = .[ui.pct(1), ui.px(20)];
 	if ui.parent(r) {
 		label(text, .Semibold, 16, cast(T)("--text-strong"), 20);
 		if required {
@@ -913,11 +913,11 @@ field_label :: (text: string, required: bool) {
 // Column with 16px side padding (wizard fields).
 pad_begin :: (id: string) -> *ui.Box {
 	r := row(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	ui.push_parent(r);
 	spacer(.X, 16);
 	c := ui.box("c");
-	c.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+	c.semantic_size = .[ui.fill(), ui.children()];
 	c.layout_axis = .Y;
 	ui.push_parent(c);
 	return c;
@@ -952,7 +952,7 @@ step_location :: () {
 			if ui.id_scope(cast(u64)(id)) {
 				sel := evu.channel == id;
 				it_ := row("ch", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
-				it_.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+				it_.semantic_size = .[ui.pct(1), ui.px(40)];
 				it_.style.radius = 8;
 				it_.style.bg = ifx sel then cast(T)("--background-mod-strong") else cast(T)("--input-background-default");
 				it_.style.bg_hot = ifx sel then it_.style.bg else cast(T)("--background-mod-normal");
@@ -982,7 +982,7 @@ step_location :: () {
 // A date or time value with earlier / later steps.
 stepper :: (id: string, text: string, icon_name: string, step_ms: s64, value: *s64) {
 	box := row(id, .{.Draw_Background, .Draw_Border});
-	box.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+	box.semantic_size = .[ui.fill(), ui.px(40)];
 	box.style.bg = cast(T)("--input-background-default");
 	box.style.border = 1;
 	box.style.border_color = cast(T)("--input-border-default");
@@ -997,7 +997,7 @@ stepper :: (id: string, text: string, icon_name: string, step_ms: s64, value: *s
 		}
 		step :: (id: string, icon_name: string) -> bool {
 			b := ui.box(id, .{.Clickable, .Draw_Background, .Hot_Animation});
-			b.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+			b.semantic_size = .[ui.px(24), ui.px(24)];
 			b.style.radius = 4;
 			b.style.bg_hot = cast(T)("--background-mod-normal");
 			sig := ui.signal(b);
@@ -1012,18 +1012,18 @@ stepper :: (id: string, text: string, icon_name: string, step_ms: s64, value: *s
 
 date_time_row :: (id: string, date_label: string, time_label: string, value: *s64) {
 	r := row(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.style.child_gap = 16;
 	if ui.parent(r) {
 		dc_ := ui.box("date");
-		dc_.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		dc_.semantic_size = .[ui.fill(), ui.children()];
 		dc_.layout_axis = .Y;
 		if ui.parent(dc_) {
 			field_label(date_label, true);
 			stepper("d", date_text(value.*), "calendar", 86_400_000, value);
 		}
 		tc := ui.box("time");
-		tc.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		tc.semantic_size = .[ui.fill(), ui.children()];
 		tc.layout_axis = .Y;
 		if ui.parent(tc) {
 			field_label(time_label, true);
@@ -1069,11 +1069,11 @@ step_review :: () {
 		user_count = 0
 	};
 	cr := row("preview");
-	cr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	cr.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(cr) {
 		spacer(.X, 16);
 		card := ui.box("c", .{.Draw_Background, .Draw_Border});
-		card.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		card.semantic_size = .[ui.fill(), ui.children()];
 		card.layout_axis = .Y;
 		card.style.bg = cast(T)("--background-base-lower");
 		card.style.border_color = cast(T)("--border-subtle");

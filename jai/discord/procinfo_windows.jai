@@ -10,7 +10,7 @@ _process_resident_bytes :: () -> s64, bool {
 _process_cpu_time :: () -> time.Duration, bool {
 	c, e, k, u: win.FILETIME;
 	if !win.GetProcessTimes(win.GetCurrentProcess(), *c, *e, *k, *u) { return 0, false; }
-	to100ns :: (f: win.FILETIME) -> s64 {return cast(s64)(f.dwHighDateTime) << 32 | cast(s64)(f.dwLowDateTime);}
+	to100ns :: (f: win.FILETIME) -> s64 {return ((cast(s64)(f.dwHighDateTime)) << 32) | (cast(s64)(f.dwLowDateTime));}
 	return time.Duration((to100ns(k) + to100ns(u)) * 100), true;
 }
 #scope_export

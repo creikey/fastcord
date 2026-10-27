@@ -18,7 +18,7 @@ Addr :: struct {
 	CFRelease :: (ref: *void) #foreign CoreFoundation;
 	CFStringGetCString :: (s: *void, buf: *u8, size: int, encoding: u32) -> bool #foreign CoreFoundation;
 
-fcc :: (s: string) -> u32 {return cast(u32)(s[0]) << 24 | cast(u32)(s[1]) << 16 | cast(u32)(s[2]) << 8 | cast(u32)(s[3]);}
+fcc :: (s: string) -> u32 {return ((cast(u32)(s[0])) << 24) | ((cast(u32)(s[1])) << 16) | ((cast(u32)(s[2])) << 8) | (cast(u32)(s[3]));}
 #scope_export
 
 Device_Info :: struct {

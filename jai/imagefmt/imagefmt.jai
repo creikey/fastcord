@@ -96,7 +96,7 @@ decode_impl :: (data: []u8, allocator: Allocator, max_pixels: int, first_only: b
 
 check_size :: (c: *Decode_Ctx, w: int, h: int) -> Error {
 	if w <= 0 || h <= 0 { return .Corrupt; }
-	if w > 1 << 16 || h > 1 << 16 || w * h > c.max_pixels { return .Too_Large; }
+	if w > (1 << 16) || h > (1 << 16) || w * h > c.max_pixels { return .Too_Large; }
 	return .None;
 }
 
@@ -145,8 +145,8 @@ blend_over :: inline (src: [4]u8, dst: [4]u8) -> [4]u8 #no_context {
 	return r;
 };
 
-be16 :: inline (p: []u8) -> int #no_context {return ((cast(int)(p[0])) << 8) | cast(int)(p[1]);};
-be32 :: inline (p: []u8) -> int #no_context {return ((cast(int)(p[0])) << 24) | ((cast(int)(p[1])) << 16) | ((cast(int)(p[2])) << 8) | cast(int)(p[3]);};
+be16 :: inline (p: []u8) -> int #no_context {return ((cast(int)(p[0])) << 8) | (cast(int)(p[1]));};
+be32 :: inline (p: []u8) -> int #no_context {return ((cast(int)(p[0])) << 24) | ((cast(int)(p[1])) << 16) | ((cast(int)(p[2])) << 8) | (cast(int)(p[3]));};
 le16i :: inline (p: []u8) -> int #no_context {return (cast(int)(p[0])) | ((cast(int)(p[1])) << 8);};
 le24i :: inline (p: []u8) -> int #no_context {return (cast(int)(p[0])) | ((cast(int)(p[1])) << 8) | ((cast(int)(p[2])) << 16);};
 le32i :: inline (p: []u8) -> int #no_context {return (cast(int)(p[0])) | ((cast(int)(p[1])) << 8) | ((cast(int)(p[2])) << 16) | ((cast(int)(p[3])) << 24);};

@@ -274,7 +274,7 @@ launch_signature :: (allocator := context.allocator) -> string {
 launch_signature_is_clean :: (sig: string) -> bool {
 	b, ok := uuid_parse(sig);
 	if !ok { return false; }
-	for i: 0..15 { if b[i] & LAUNCH_SIG_ZERO[i] != 0 || b[i] & LAUNCH_SIG_ONE[i] != LAUNCH_SIG_ONE[i] { return false; } }
+	for i: 0..15 { if (b[i] & LAUNCH_SIG_ZERO[i]) != 0 || (b[i] & LAUNCH_SIG_ONE[i]) != LAUNCH_SIG_ONE[i] { return false; } }
 	return true;
 }
 

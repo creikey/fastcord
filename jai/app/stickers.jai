@@ -41,7 +41,7 @@ message_stickers_view :: (m: *dc.Message) {
 		it_, ok := dc.sticker_item(s, id);
 		format := ifx ok then it_.format_type else 1;
 		b := ui.box(fmt.tprintf("sticker%d", i));
-		b.semantic_size = .{__IDX__.X = ui.px(STICKER_PX), __IDX__.Y = ui.px(STICKER_PX)};
+		b.semantic_size = .[ui.px(STICKER_PX), ui.px(STICKER_PX)];
 		if format == 3 {
 			if app.client == null { offline_lottie(id); }
 			lottie_sticker_draw(b, id, app.focused);

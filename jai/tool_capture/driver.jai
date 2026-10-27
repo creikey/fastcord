@@ -564,7 +564,7 @@ key :: (d: *Driver, rest: string) -> bool, string {
 			mods |= 8;
 		}
 	}
-	text := ifx mods & 6 == 0 then def.text else "";
+	text := ifx (mods & 6) == 0 then def.text else "";
 	// macOS: editing shortcuts only work when the editor command is passed explicitly.
 	commands := "";
 	if mods == 4 {

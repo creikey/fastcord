@@ -214,7 +214,7 @@ if ok { append(*items, it_); } } }
 		seen := Map(string, bool).{};
 		for k: frec_top(ifx reaction then frecency.reaction else frecency.emoji, EM_FREQUENT_MAX) {
 			{ it_, ok := key_item(k, by_id, here, nitro);
-			if ok && !__MAPIDX__(seen|k) {
+			if ok && !get(seen, k) {
 				append(*items, it_);
 				at(*seen, k).* = true;
 			} }
@@ -223,7 +223,7 @@ if ok { append(*items, it_); } } }
 		for k: (ifx reaction then emoji_db.default_reaction else emoji_db.default_frecency) {
 			if len(items) >= EM_FREQUENT_MAX || frec_had(reaction) { break; }
 			{ it_, ok := key_item(k, by_id, here, nitro);
-			if ok && !__MAPIDX__(seen|k) {
+			if ok && !get(seen, k) {
 				append(*items, it_);
 				at(*seen, k).* = true;
 			} }
@@ -359,7 +359,7 @@ picker_expression_counts :: (reaction: bool, here: dc.Snowflake) -> dc.Expressio
 		{ id, ok := strconv.parse_u64(key);
 		if ok && len(key) > 6 {
 			custom.* += 1;
-			if __MAPIDX__(animated|cast(dc.Snowflake)(id)) { anim.* += 1; }
+			if get(animated, cast(dc.Snowflake)(id)) { anim.* += 1; }
 		} else {
 			standard.* += 1;
 		} }
@@ -372,7 +372,7 @@ picker_expression_counts :: (reaction: bool, here: dc.Snowflake) -> dc.Expressio
 emoji_picker_body :: (r: ui.Rect) {
 	emoji_db_load();
 	body := row("emoji_body");
-	body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	body.semantic_size = .[ui.pct(1), ui.fill()];
 	body.cross_align = .Start;
 	secs := build_sections();
 	inspector_h: float32 = EM_INSPECTOR_H;
@@ -400,7 +400,7 @@ emoji_picker_body :: (r: ui.Rect) {
 	if ui.parent(body) {
 		category_nav(nav_secs, r.y1 - r.y0, searching);
 		col := ui.box("emoji_main");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+		col.semantic_size = .[ui.fill(), ui.pct(1)];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			emoji_grid(secs, cols, grid_rect);
@@ -413,7 +413,7 @@ emoji_picker_body :: (r: ui.Rect) {
 
 category_nav :: (secs: []Em_Section, h: float32, searching: bool) {
 	nav := ui.box("emoji_nav", .{.Clip, .Scroll_Y});
-	nav.semantic_size = .{__IDX__.X = ui.px(EM_NAV_W), __IDX__.Y = ui.px(h)};
+	nav.semantic_size = .[ui.px(EM_NAV_W), ui.px(h)];
 	nav.layout_axis = .Y;
 	nav.cross_align = .Center;
 	ui.signal(nav);
@@ -429,7 +429,7 @@ category_nav :: (secs: []Em_Section, h: float32, searching: bool) {
 				if had_custom {
 					// .guildCategorySeparator: 1px --border-subtle, 12px margins
 					sep := ui.box(fmt.tprintf("sep%d", i), .{.Draw_Background});
-					sep.semantic_size = .{__IDX__.X = ui.px(EM_NAV_ITEM), __IDX__.Y = ui.px(1)};
+					sep.semantic_size = .[ui.px(EM_NAV_ITEM), ui.px(1)];
 					sep.style.bg = cast(T)("--border-subtle");
 					spacer(.Y, EM_NAV_SEP_MARGIN);
 					// (the margin above comes from the previous item's 8 + 4)
@@ -439,14 +439,14 @@ category_nav :: (secs: []Em_Section, h: float32, searching: bool) {
 			active := cur == i;
 			if ui.id_scope(sc.key) {
 				slot := ui.box("slot", .{.Clickable, .Draw_Background, .Hot_Animation});
-				slot.semantic_size = .{__IDX__.X = ui.px(EM_NAV_ITEM), __IDX__.Y = ui.px(EM_NAV_ITEM)};
+				slot.semantic_size = .[ui.px(EM_NAV_ITEM), ui.px(EM_NAV_ITEM)];
 				slot.layout_axis = .X;
 				slot.cross_align = .Center;
 				sig := ui.signal(slot);
 				if ui.parent(slot) {
 					if sc.kind == .Guild {
 						gi := ui.box("##gicon", .{.Draw_Background, .Draw_Text});
-						gi.semantic_size = .{__IDX__.X = ui.px(EM_NAV_ITEM), __IDX__.Y = ui.px(EM_NAV_ITEM)};
+						gi.semantic_size = .[ui.px(EM_NAV_ITEM), ui.px(EM_NAV_ITEM)];
 						gi.style.radius = ifx active || sig.hovering then 10 else EM_NAV_ITEM / 2;
 						gi.style.bg = cast(T)("--background-mod-subtle");
 						gi.style.text_align = .Center;
@@ -464,7 +464,7 @@ category_nav :: (secs: []Em_Section, h: float32, searching: bool) {
 						if active {
 							// .categoryPill on the nav's left edge
 							pill := ui.box("pill", .{.Draw_Background, .Floating_X, .Floating_Y});
-							pill.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(20)};
+							pill.semantic_size = .[ui.px(4), ui.px(20)];
 							pill.fixed_pos = .{-8, 6};
 							pill.style.bg = cast(T)("--text-strong");
 							pill.style.radius = .{0, 4, 0, 4};
@@ -502,7 +502,7 @@ current_section :: (secs: []Em_Section) -> int {
 // label, collapse chevron; --text-default, --interactive-text-active on hover.
 section_header :: (sc: *Em_Section, id: string, y: float32, w: float32) {
 	h := row(id, .{.Floating_X, .Floating_Y, .Clickable, .Draw_Background});
-	h.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(EM_HEADER_H)};
+	h.semantic_size = .[ui.px(w), ui.px(EM_HEADER_H)];
 	h.fixed_pos = .{0, y};
 	h.style.bg = cast(T)("--background-surface-high");
 	sig := ui.signal(h);
@@ -512,7 +512,7 @@ section_header :: (sc: *Em_Section, id: string, y: float32, w: float32) {
 		spacer(.X, 8);
 		if sc.kind == .Guild {
 			gi := ui.box("gi", .{.Draw_Background});
-			gi.semantic_size = .{__IDX__.X = ui.px(EM_HEADER_ICON), __IDX__.Y = ui.px(EM_HEADER_ICON)};
+			gi.semantic_size = .[ui.px(EM_HEADER_ICON), ui.px(EM_HEADER_ICON)];
 			gi.style.radius = 4;
 			gi.style.bg = cast(T)("--background-mod-subtle");
 			{ g := dc.guild_get(store(), sc.guild);
@@ -534,7 +534,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 	w := view.x1 - view.x0;
 	vh := view.y1 - view.y0;
 	list := ui.box("emoji_grid", .{.Clip});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(vh)};
+	list.semantic_size = .[ui.pct(1), ui.px(vh)];
 	top := ev.scroll.y;
 	moved := app.ui.mouse != ev.last_mouse;
 	ev.last_mouse = app.ui.mouse;
@@ -555,7 +555,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 						it_ := sc.items[i];
 						if ui.id_scope(cast(u64)(i)) {
 							cell := ui.box("cell", .{.Clickable, .Floating_X, .Floating_Y, .Draw_Background});
-							cell.semantic_size = .{__IDX__.X = ui.px(EM_CELL), __IDX__.Y = ui.px(EM_CELL)};
+							cell.semantic_size = .[ui.px(EM_CELL), ui.px(EM_CELL)];
 							cell.fixed_pos = .{EM_GRID_PAD_L + cast(float32)(cc) * EM_CELL, body_y + cast(float32)(rr) * EM_CELL - top};
 							cell.style.radius = EM_CELL_RADIUS;
 							sig := ui.signal(cell);
@@ -569,7 +569,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 								if it_.locked {
 									e.opacity = 0.3;
 									lk := ui.box("lock", .{.Floating_X, .Floating_Y});
-									lk.semantic_size = .{__IDX__.X = ui.px(14), __IDX__.Y = ui.px(14)};
+									lk.semantic_size = .[ui.px(14), ui.px(14)];
 									lk.fixed_pos = .{EM_CELL - 18, EM_CELL - 18};
 									set_icon(lk, "lock", cast(T)("--text-default"));
 								}
@@ -595,7 +595,7 @@ emoji_grid :: (secs: []Em_Section, cols: int, view: ui.Rect) {
 		}
 		if len(secs) == 1 && secs[0].kind == .Search && len(secs[0].items) == 0 {
 			msg := ui.box("empty", .{.Floating_X, .Floating_Y});
-			msg.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(vh)};
+			msg.semantic_size = .[ui.px(w), ui.px(vh)];
 			msg.layout_axis = .Y;
 			msg.cross_align = .Center;
 			if ui.parent(msg) {
@@ -643,7 +643,7 @@ emoji_keyboard :: (secs: []Em_Section, cols: int) {
 		case .Left;
 			if cur_row < 0 {cur_row = 0; cur_col = 0;} else if cur_col > 0 {cur_col -= 1;} else if cur_row > 0 {cur_row -= 1; cur_col = get(rows, cur_row).count - 1;}
 		case .Right;
-			if cur_row < 0 {cur_row = 0; cur_col = 0;} else if cur_col + 1 < __MAPIDX__(rows|cur_row).count {cur_col += 1;} else if cur_row + 1 < len(rows) {cur_row += 1; cur_col = 0;}
+			if cur_row < 0 {cur_row = 0; cur_col = 0;} else if cur_col + 1 < get(rows, cur_row).count {cur_col += 1;} else if cur_row + 1 < len(rows) {cur_row += 1; cur_col = 0;}
 		case .Up;
 			if cur_row < 0 {cur_row = 0;} else if cur_row > 0 { cur_row -= 1; }
 		case .Down;
@@ -669,10 +669,10 @@ emoji_keyboard :: (secs: []Em_Section, cols: int) {
 // graphic 28, text 8 after; secondary title --interactive-text-default.
 emoji_inspector :: (secs: []Em_Section) {
 	line := ui.box("insline", .{.Draw_Background});
-	line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
 	line.style.bg = cast(T)("--border-normal");
 	bar := row("inspector", .{.Draw_Background});
-	bar.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(EM_INSPECTOR_H - 1)};
+	bar.semantic_size = .[ui.pct(1), ui.px(EM_INSPECTOR_H - 1)];
 	bar.style.bg = cast(T)("--background-base-lower");
 	it_: Pk_Emoji;
 	has := false;
@@ -689,7 +689,7 @@ emoji_inspector :: (secs: []Em_Section) {
 			pk_emoji_box("ie", it_, EM_INSPECTOR_EMOJI, true);
 			spacer(.X, 8);
 			col := ui.box("names");
-			col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			if ui.parent(col) {
 				n := label(fmt.tprintf(":%s:", emoji_display_name(it_)), .Semibold, 16, cast(T)("--text-strong"), 20);
@@ -705,7 +705,7 @@ emoji_inspector :: (secs: []Em_Section) {
 				{ g := dc.guild_get(store(), it_.guild);
 				if g != null {
 					gi := ui.box("gs", .{.Draw_Background});
-					gi.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(32)};
+					gi.semantic_size = .[ui.px(32), ui.px(32)];
 					gi.style.radius = 10;
 					gi.style.bg = cast(T)("--background-mod-subtle");
 					if g.icon != "" { set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 64)); }
@@ -735,7 +735,7 @@ emoji_display_name :: (it_: Pk_Emoji) -> string {
 pk_emoji_box :: (id: string, it_: Pk_Emoji, size: float32, hovered: bool) -> *ui.Box {
 	if it_.uni < 0 {
 		b := ui.box(id);
-		b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+		b.semantic_size = .[ui.px(size), ui.px(size)];
 		set_remote_image(b, dc.custom_emoji_url(it_.id, it_.animated && hovered, 48));
 		return b;
 	}
@@ -747,7 +747,7 @@ pk_emoji_box :: (id: string, it_: Pk_Emoji, size: float32, hovered: bool) -> *ui
 		im := image_get(url);
 		if im != null && im.state == .Ready {
 			b := ui.box(id);
-			b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+			b.semantic_size = .[ui.px(size), ui.px(size)];
 			d := new(Sprite_Draw, temp);
 			d.* = .{url = url, index = e.sprite, per_row = ifx len(e.children) > 0 then SPRITE_DIVERSITY_PER_ROW else SPRITE_PER_ROW};
 			b.custom_draw = sprite_draw;
@@ -757,7 +757,7 @@ pk_emoji_box :: (id: string, it_: Pk_Emoji, size: float32, hovered: bool) -> *ui
 	}
 	t := emoji_toned(idx, tone);
 	b := label(emoji_db.emojis[t].surr, .Normal, size * 0.8, .{1, 1, 1, 1}, size);
-	b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+	b.semantic_size = .[ui.px(size), ui.px(size)];
 	b.style.text_align = .Center;
 	return b;
 }
@@ -818,7 +818,7 @@ emoji_select :: (it_: Pk_Emoji, keep_open: bool) {
 
 skin_tone_button :: () {
 	b := ui.box("tone", .{.Clickable, .Draw_Background, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.px(EM_TONE_BUTTON), __IDX__.Y = ui.px(EM_TONE_BUTTON)};
+	b.semantic_size = .[ui.px(EM_TONE_BUTTON), ui.px(EM_TONE_BUTTON)];
 	b.style.radius = 4;
 	b.style.bg_hot = cast(T)("--interactive-background-hover");
 	b.layout_axis = .X;
@@ -839,7 +839,7 @@ tone_glyph :: (id: string, tone: int, size: float32) {
 		return;
 	}
 	l := label(TONE_SURROGATES[clamp(tone, 0, 5)], .Normal, size * 0.8, .{1, 1, 1, 1}, size);
-	l.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+	l.semantic_size = .[ui.px(size), ui.px(size)];
 }
 
 // Vertical list of the six tones, dropping down over the search row's right edge.
@@ -849,7 +849,7 @@ skin_tone_menu :: () {
 	x := r.x1 - PK_HEADER_PAD_X - EM_TONE_BUTTON - 1;
 	y := r.y0 + picker_header_h() - 1 - PK_HEADER_PAD_BOTTOM - PK_SEARCH_H + (PK_SEARCH_H - EM_TONE_BUTTON) / 2 - 1;
 	m := ui.box("tonemenu", .{.Floating_X, .Floating_Y, .Draw_Background, .Draw_Border, .Draw_Shadow, .Clickable});
-	m.semantic_size = .{__IDX__.X = ui.px(EM_TONE_BUTTON + 2), __IDX__.Y = ui.px(EM_TONE_ITEM * 6 + 2)};
+	m.semantic_size = .[ui.px(EM_TONE_BUTTON + 2), ui.px(EM_TONE_ITEM * 6 + 2)];
 	m.fixed_pos = .{x - r.x0, y - r.y0 - picker_header_h()};
 	m.style.bg = cast(T)("--background-surface-higher");
 	m.style.border_color = cast(T)("--border-subtle");
@@ -871,7 +871,7 @@ skin_tone_menu :: () {
 		spacer(.Y, 1);
 		for t: order {
 			it_ := ui.box(fmt.tprintf("t%d", t), .{.Clickable, .Draw_Background, .Hot_Animation});
-			it_.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(EM_TONE_ITEM)};
+			it_.semantic_size = .[ui.pct(1), ui.px(EM_TONE_ITEM)];
 			it_.style.bg_hot = cast(T)("--interactive-background-hover");
 			it_.layout_axis = .X;
 			it_.cross_align = .Center;

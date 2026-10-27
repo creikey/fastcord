@@ -559,7 +559,7 @@ uploads_bar :: (channel_id: dc.Snowflake) {
 	l, ok := map_find_ptr(*att.by_channel, channel_id);
 	if !ok || len(l) == 0 { return; }
 	bar := row("uploads", .{.Scroll_X, .Clip});
-	bar.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20 + CARD + 10)};
+	bar.semantic_size = .[ui.pct(1), ui.px(20 + CARD + 10)];
 	bar.cross_align = .Start;
 	// a vertical wheel scrolls the row sideways, like the client's overflow-x area
 	for * e: app.ui.events {
@@ -580,7 +580,7 @@ uploads_bar :: (channel_id: dc.Snowflake) {
 	}
 	if remove_ != 0 { staged_remove(channel_id, remove_); }
 	sep := ui.box("upsep", .{.Draw_Background});
-	sep.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	sep.semantic_size = .[ui.pct(1), ui.px(1)];
 	sep.style.bg = cast(T)("--border-subtle");
 }
 #scope_file
@@ -589,24 +589,24 @@ uploads_bar :: (channel_id: dc.Snowflake) {
 staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 	removed: bool;
 	col := ui.box(fmt.tprintf("upc%d", u.key));
-	col.semantic_size = .{__IDX__.X = ui.px(CARD), __IDX__.Y = ui.px(20 + CARD)};
+	col.semantic_size = .[ui.px(CARD), ui.px(20 + CARD)];
 	col.layout_axis = .Y;
 	ui.push_parent(col);
 	defer ui.pop_parent();
 	spacer(.Y, 20); // room for the action bar riding over the corner
 	card := ui.box("card", .{.Draw_Background});
-	card.semantic_size = .{__IDX__.X = ui.px(CARD), __IDX__.Y = ui.px(CARD)};
+	card.semantic_size = .[ui.px(CARD), ui.px(CARD)];
 	card.style.bg = cast(T)("--background-base-low");
 	card.style.radius = 4;
 	card.layout_axis = .Y;
 	if ui.parent(card) {
 		spacer(.Y, CARD_PAD);
 		r := row("imgrow");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(CARD_IMG_H)};
+		r.semantic_size = .[ui.pct(1), ui.px(CARD_IMG_H)];
 		if ui.parent(r) {
 			spacer(.X, CARD_PAD);
 			area := ui.box("img", .{.Clip});
-			area.semantic_size = .{__IDX__.X = ui.px(CARD - 2 * CARD_PAD), __IDX__.Y = ui.px(CARD_IMG_H)};
+			area.semantic_size = .[ui.px(CARD - 2 * CARD_PAD), ui.px(CARD_IMG_H)];
 			area.style.radius = 3;
 			area.layout_axis = .Y;
 			area.cross_align = .Center;
@@ -633,7 +633,7 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 		}
 		spacer(.Y, CARD_PAD);
 		nr := row("name");
-		nr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+		nr.semantic_size = .[ui.pct(1), ui.px(20)];
 		if ui.parent(nr) {
 			spacer(.X, CARD_PAD);
 			label(fmt.tprintf("%s##fname", ellipsize(u.filename, .Normal, 14, CARD - 2 * CARD_PAD)), .Normal, 14, cast(T)("--text-default"), 20);
@@ -643,7 +643,7 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 	W :: 3 * BAR_BTN + 2 * 4;
 	H :: BAR_BTN + 2 * 4;
 	ab := row("actions", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y});
-	ab.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(H)};
+	ab.semantic_size = .[ui.px(W), ui.px(H)];
 	ab.fixed_pos = .{CARD - W * 0.75, 20 - H * 0.25 - 4};
 	ab.style.bg = cast(T)("--background-surface-higher");
 	ab.style.border_color = cast(T)("--border-subtle");
@@ -665,7 +665,7 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 		];
 		for bt: btns {
 			b := ui.box(bt.id, .{.Clickable, .Draw_Background, .Hot_Animation});
-			b.semantic_size = .{__IDX__.X = ui.px(BAR_BTN), __IDX__.Y = ui.px(BAR_BTN)};
+			b.semantic_size = .[ui.px(BAR_BTN), ui.px(BAR_BTN)];
 			b.style.radius = 6;
 			b.style.bg_hot = cast(T)("--background-mod-subtle");
 			b.layout_axis = .X;
@@ -697,7 +697,7 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 spoiler_pill :: () {
 	W :: 74;
 	p := row("spoiler", .{.Draw_Background, .Floating_X, .Floating_Y});
-	p.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(24)};
+	p.semantic_size = .[ui.px(W), ui.px(24)];
 	p.fixed_pos = .{(CARD - 2 * CARD_PAD - W) / 2, (CARD_IMG_H - 24) / 2};
 	p.style.bg = .{0, 0, 0, 0.6};
 	p.style.radius = 12;
@@ -713,12 +713,12 @@ upload_progress_line :: (u: *Staged) {
 	if !ok || st != .Uploading { return; }
 	frac := ifx total > 0 then cast(float32)(sent) / cast(float32)(total) else 0;
 	track := ui.box("prog", .{.Draw_Background, .Floating_X, .Floating_Y});
-	track.semantic_size = .{__IDX__.X = ui.px(CARD - 2 * CARD_PAD), __IDX__.Y = ui.px(4)};
+	track.semantic_size = .[ui.px(CARD - 2 * CARD_PAD), ui.px(4)];
 	track.fixed_pos = .{0, CARD_IMG_H - 4};
 	track.style.bg = with_alpha(cast(T)("--background-mod-strong"), 0.8);
 	if ui.parent(track) {
 		fill := ui.box("fill", .{.Draw_Background});
-		fill.semantic_size = .{__IDX__.X = ui.px(max(0.08, frac) * (CARD - 2 * CARD_PAD)), __IDX__.Y = ui.px(4)};
+		fill.semantic_size = .[ui.px(max(0.08, frac) * (CARD - 2 * CARD_PAD)), ui.px(4)];
 		fill.style.bg = cast(T)("--background-brand");
 	}
 	request_wake(app.ui.time + 0.1); // the upload's progress arrives without an event
@@ -735,7 +735,7 @@ upload_progress_view :: (m: *dc.Message) {
 		if ok2 { sent += s; } }
 	}
 	f := row("uploading", .{.Draw_Background, .Draw_Border});
-	f.semantic_size = .{__IDX__.X = ui.px(432), __IDX__.Y = ui.px(72)};
+	f.semantic_size = .[ui.px(432), ui.px(72)];
 	f.style.bg = cast(T)("--background-surface-high");
 	f.style.border_color = cast(T)("--border-subtle");
 	f.style.border = 1;
@@ -745,20 +745,20 @@ upload_progress_view :: (m: *dc.Message) {
 		icon("ficon", file_icon_for(get(sn.names, 0)), 30, cast(T)("--interactive-icon-default"));
 		spacer(.X, 8);
 		col := ui.box("col");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			name := ifx len(sn.names) == 1 then get(sn.names, 0) else fmt.tprintf("%d files", len(sn.names));
 			label(fmt.tprintf("%s##upname", name), .Normal, 16, cast(T)("--text-default"), 20);
 			spacer(.Y, 6);
 			track := ui.box("track", .{.Draw_Background});
-			track.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(6)};
+			track.semantic_size = .[ui.pct(1), ui.px(6)];
 			track.style.bg = cast(T)("--background-mod-strong");
 			track.style.radius = 3;
 			if ui.parent(track) {
 				frac := ifx sn.total > 0 then cast(float32)(sent) / cast(float32)(sn.total) else 0;
 				fill := ui.box("fill", .{.Draw_Background});
-				fill.semantic_size = .{__IDX__.X = ui.pct(max(0.05, frac)), __IDX__.Y = ui.px(6)};
+				fill.semantic_size = .[ui.pct(max(0.05, frac)), ui.px(6)];
 				fill.style.bg = cast(T)("--background-brand");
 				fill.style.radius = 3;
 			}
@@ -806,7 +806,7 @@ modify_modal :: () {
 		return;
 	}
 	scrim := ui.box("mod_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
 		att.mod_key = 0;
@@ -815,7 +815,7 @@ modify_modal :: () {
 	W :: 440;
 	PAD :: 24;
 	d := ui.box("modmodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -827,7 +827,7 @@ modify_modal :: () {
 	defer ui.pop_parent();
 	text_row :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 		r := row(id);
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(lh)};
+		r.semantic_size = .[ui.pct(1), ui.px(lh)];
 		if ui.parent(r) {
 			spacer(.X, PAD);
 			label(text, font, size, color, lh);
@@ -837,11 +837,11 @@ modify_modal :: () {
 	field :: (id: string, ed: *ui.Editor, placeholder: string, idx: int) -> ui.Edit_Result {
 		res := ui.Edit_Result.None;
 		ir := row(id);
-		ir.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		ir.semantic_size = .[ui.pct(1), ui.px(40)];
 		if ui.parent(ir) {
 			spacer(.X, PAD);
 			box := row("input", .{.Draw_Background, .Draw_Border, .Clickable});
-			box.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			box.semantic_size = .[ui.fill(), ui.px(40)];
 			box.style.bg = cast(T)("--input-background-default");
 			box.style.border_color = ifx att.mod_focus == idx then cast(T)("--input-border-active") else cast(T)("--input-border-default");
 			box.style.border = 1;
@@ -876,12 +876,12 @@ modify_modal :: () {
 	}
 	spacer(.Y, 16);
 	cr := row("spoilerrow", .{.Clickable});
-	cr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+	cr.semantic_size = .[ui.pct(1), ui.px(24)];
 	if ui.signal(cr).clicked { att.mod_spoiler = !att.mod_spoiler; }
 	if ui.parent(cr) {
 		spacer(.X, PAD);
 		cb := ui.box("check", .{.Draw_Background, .Draw_Border});
-		cb.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+		cb.semantic_size = .[ui.px(20), ui.px(20)];
 		cb.style.radius = 6;
 		cb.style.border = ifx att.mod_spoiler then 0 else 1;
 		cb.style.border_color = cast(T)("--checkbox-border-default");
@@ -889,7 +889,7 @@ modify_modal :: () {
 		if att.mod_spoiler {
 			if ui.parent(cb) {
 				i := ui.box("i", .{.Floating_X, .Floating_Y});
-				i.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+				i.semantic_size = .[ui.px(18), ui.px(18)];
 				i.fixed_pos = .{1, 1};
 				set_icon(i, "checkmark-small", .{1, 1, 1, 1});
 			}
@@ -899,13 +899,13 @@ modify_modal :: () {
 	}
 	spacer(.Y, PAD);
 	btns := row("btns", .{.Draw_Background});
-	btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(70)};
+	btns.semantic_size = .[ui.pct(1), ui.px(70)];
 	btns.style.bg = cast(T)("--background-base-lower");
 	btns.style.radius = .{0, 0, 12, 12};
 	btns.style.child_gap = 8;
 	button :: (id: string, w: float32, bg: ui.Color, bg_hot: ui.Color, fg: ui.Color) -> bool {
 		b := ui.box(id, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-		b.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(38)};
+		b.semantic_size = .[ui.px(w), ui.px(38)];
 		b.style.radius = 8;
 		b.style.font = F(.Medium);
 		b.style.font_size = 14;
@@ -971,20 +971,20 @@ upload_card_overlay :: (id: string, title: string, sub: string, color: ui.Color,
 	flags: ui.Box_Flags = .{.Draw_Background, .Floating_X, .Floating_Y, .Overlay};
 	if clickable { flags += .{.Clickable}; }
 	scrim := ui.box(id, flags);
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.85};
 	clicked := clickable && ui.signal(scrim).clicked;
 	W :: 310;
 	H :: 170;
 	if ui.parent(scrim) {
 		c := ui.box("card", .{.Draw_Background, .Floating_X, .Floating_Y});
-		c.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(H)};
+		c.semantic_size = .[ui.px(W), ui.px(H)];
 		c.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - H) / 2};
 		c.style.bg = color;
 		c.style.radius = 10;
 		if ui.parent(c) {
 			inner := ui.box("inner", .{.Draw_Border, .Floating_X, .Floating_Y});
-			inner.semantic_size = .{__IDX__.X = ui.px(W - 16), __IDX__.Y = ui.px(H - 16)};
+			inner.semantic_size = .[ui.px(W - 16), ui.px(H - 16)];
 			inner.fixed_pos = .{8, 8};
 			inner.style.border = 2;
 			inner.style.border_color = .{1, 1, 1, 0.45};
@@ -1003,13 +1003,13 @@ upload_card_overlay :: (id: string, title: string, sub: string, color: ui.Color,
 			for k: 0..2 {
 				sz: float32 = ifx k == 1 then 72 else 56;
 				ic := ui.box(fmt.tprintf("ic%d", k), .{.Draw_Background, .Floating_X, .Floating_Y});
-				ic.semantic_size = .{__IDX__.X = ui.px(sz), __IDX__.Y = ui.px(sz)};
+				ic.semantic_size = .[ui.px(sz), ui.px(sz)];
 				ic.fixed_pos = .{W / 2 - sz / 2 + cast(float32)(k - 1) * 56, ifx k == 1 then -36 else -22};
 				ic.style.bg = .{1, 1, 1, 1};
 				ic.style.radius = 10;
 				if ui.parent(ic) {
 					i := ui.box("i", .{.Floating_X, .Floating_Y});
-					i.semantic_size = .{__IDX__.X = ui.px(sz * 0.6), __IDX__.Y = ui.px(sz * 0.6)};
+					i.semantic_size = .[ui.px(sz * 0.6), ui.px(sz * 0.6)];
 					i.fixed_pos = .{sz * 0.2, sz * 0.2};
 					set_icon(i, ifx k == 1 then icon_name else (ifx k == 0 then "image-file" else "paper"), color);
 				}

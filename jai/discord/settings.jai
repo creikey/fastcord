@@ -111,7 +111,7 @@ settings_delta_proto :: (e: *Settings_Edit) -> []u8 {
 			fm := pb_new();
 			if len(f.guild_ids) > 0 {
 				ids := pb_new();
-				for g: f.guild_ids { for i: 0..7 { append(*ids.buf, cast(u8)(cast(u64)(g) >> (8 * cast(u64)(i)))); } }
+				for g: f.guild_ids { for i: 0..7 { append(*ids.buf, cast(u8)((cast(u64)(g)) >> (8 * cast(u64)(i)))); } }
 				pb_msg(*fm, 1, *ids);
 			}
 			if f.id != 0 {
@@ -193,7 +193,7 @@ set_custom_status :: (c: *Client, cs: Custom_Status) {
 
 // presence_value: op 3 as the client sends it after a status change.
 presence_value :: (c: *Client, allocator := temp) -> V {
-	context.allocator = allocator;
+	push_allocator(allocator);
 	st := *c.store.settings;
 	acts := make_dynamic(V, 0, 1);
 	if st.custom_status_text != "" || st.custom_status_emoji != "" {

@@ -249,7 +249,7 @@ sweep_desc :: (b: *ui.Box) -> string {
 		x = x.parent;
 } }
 	sb := strings.builder_make(temp);
-	for < i: n - 1..0 {
+	for < i: 0..n - 1 {
 		strings.write_string(*sb, get(names, i));
 		if i > 0 { strings.write_byte(*sb, #char "/"); }
 	}
@@ -474,7 +474,7 @@ sweep_screen :: (sc: *Sweep_Screen) {
 		if has(swp.tested, k) { continue; }
 		at(*swp.tested, k).* = true;
 		sig := sweep_signature(b.desc);
-		if __MAPIDX__(same|sig) >= SAME_MAX { continue; }
+		if get(same, sig) >= SAME_MAX { continue; }
 		at(*same, sig).* += 1;
 		append(*targets, b);
 	}

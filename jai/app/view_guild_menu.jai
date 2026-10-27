@@ -90,7 +90,7 @@ guild_notify_modal_open :: (gid: dc.Snowflake) {gm.nm_guild = gid;}
 
 // "Hide Muted Channels" (device-local, per guild)
 hide_muted_toggle :: (gid: dc.Snowflake) {
-	at(*app.view.hide_muted, gid).* = !__MAPIDX__(app.view.hide_muted|gid); // saved by settings_frame
+	at(*app.view.hide_muted, gid).* = !get(app.view.hide_muted, gid); // saved by settings_frame
 }
 
 bell_popout_toggle :: (cid: dc.Snowflake, anchor: ui.Rect) {
@@ -183,7 +183,7 @@ guild_menu_overlays :: () {
 
 menu_panel :: (id: string, pos: ui.Vec2, w: float32) -> *ui.Box {
 	p := ui.box(id, .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	p.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.children()};
+	p.semantic_size = .[ui.px(w), ui.children()];
 	p.fixed_pos = pos;
 	p.layout_axis = .Y;
 	p.style.bg = cast(T)("--background-surface-higher");
@@ -211,14 +211,14 @@ Item_Right :: enum u8 {
 // and an icon / chevron / radio / checkbox on the right.
 menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := "", sub := "", danger := false, brand := false, open := false, disabled := false, lead := "", h: float32 = GM_ROW_H) -> ui.Signal {
 	outer := row(id);
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	outer.semantic_size = .[ui.pct(1), ui.children()];
 	sig: ui.Signal;
 	if ui.parent(outer) {
 		spacer(.X, 8);
 		flags := ui.Box_Flags.{.Clickable, .Draw_Background, .Hot_Animation};
 		if disabled { flags += .{.Disabled}; }
 		r := row("it", flags);
-		r.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(ifx sub != "" then 44 else h)};
+		r.semantic_size = .[ui.fill(), ui.px(ifx sub != "" then 44 else h)];
 		r.style.radius = 4;
 		r.style.bg_hot = ifx danger then cast(T)("--status-danger") else cast(T)("--background-mod-normal");
 		if open { r.style.bg = cast(T)("--background-mod-normal"); }
@@ -236,7 +236,7 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 				spacer(.X, 8);
 			}
 			col := ui.box("col");
-			col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			if ui.parent(col) {
 				label(text, .Medium, 14, color, 18);
@@ -252,13 +252,13 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 			case .Radio_Off; #through; case .Radio_On;
 				on := right == .Radio_On;
 				rb := ui.box("radio", .{.Draw_Border});
-				rb.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+				rb.semantic_size = .[ui.px(18), ui.px(18)];
 				rb.style.radius = 9;
 				rb.style.border = 2;
 				rb.style.border_color = ifx on then brand_c else cast(T)("--interactive-icon-default");
 				if on { if ui.parent(rb) {
 					dot := ui.box("dot", .{.Draw_Background, .Floating_X, .Floating_Y});
-					dot.semantic_size = .{__IDX__.X = ui.px(8), __IDX__.Y = ui.px(8)};
+					dot.semantic_size = .[ui.px(8), ui.px(8)];
 					dot.fixed_pos = .{5, 5};
 					dot.style.radius = 4;
 					dot.style.bg = brand_c;
@@ -266,7 +266,7 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 			case .Check_Off; #through; case .Check_On;
 				on := right == .Check_On;
 				cb := ui.box("cb", .{.Draw_Background, .Draw_Border});
-				cb.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+				cb.semantic_size = .[ui.px(18), ui.px(18)];
 				cb.style.radius = 4;
 				cb.style.border = ifx on then 0 else 1.5;
 				cb.style.border_color = cast(T)("--interactive-icon-default");
@@ -283,11 +283,11 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 menu_sep :: (id: string) {
 	spacer(.Y, 4);
 	r := row(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	r.semantic_size = .[ui.pct(1), ui.px(1)];
 	if ui.parent(r) {
 		spacer(.X, 12);
 		l := ui.box("l", .{.Draw_Background});
-		l.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+		l.semantic_size = .[ui.fill(), ui.px(1)];
 		l.style.bg = cast(T)("--border-subtle");
 		spacer(.X, 12);
 	}
@@ -297,7 +297,7 @@ menu_sep :: (id: string) {
 // Transparent full-window box under a popout: a press outside closes it.
 outside_pressed :: (id: string) -> bool {
 	scrim := ui.box(id, .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	return ui.signal(scrim).pressed;
 }
 
@@ -566,7 +566,7 @@ notify_modal :: () {
 		return;
 	}
 	scrim := ui.box("nm_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked || escape_pressed() {
 		gm.nm_guild = 0;
@@ -579,7 +579,7 @@ notify_modal :: () {
 	W :: 480;
 	PAD :: 24;
 	d := ui.box("nmodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, max(8, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2)};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -589,23 +589,23 @@ notify_modal :: () {
 	ui.signal(d);
 	padded :: (id: string) -> *ui.Box {
 		r := row(id);
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		r.semantic_size = .[ui.pct(1), ui.children()];
 		return r;
 	}
 	hline :: (id: string) {
 		r := row(id);
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		r.semantic_size = .[ui.pct(1), ui.px(1)];
 		if ui.parent(r) {
 			spacer(.X, PAD);
 			l := ui.box("l", .{.Draw_Background});
-			l.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+			l.semantic_size = .[ui.fill(), ui.px(1)];
 			l.style.bg = cast(T)("--border-subtle");
 			spacer(.X, PAD);
 		}
 	}
 	if ui.parent(d) {
 		x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
-		x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+		x.semantic_size = .[ui.px(24), ui.px(24)];
 		x.fixed_pos = .{W - 16 - 24, 20};
 		xs := ui.signal(x);
 		set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
@@ -623,7 +623,7 @@ notify_modal :: () {
 		if ui.parent(m) {
 			spacer(.X, PAD);
 			c := ui.box("c");
-			c.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			c.semantic_size = .[ui.fill(), ui.children()];
 			if ui.parent(c) {
 				if set_toggle_row("mutetoggle", ellipsize(fmt.tprintf("Mute %s", g.name), .Medium, 16, W - 2 * PAD - 60), "Muting a server prevents unread indicators and notifications from appearing unless you are mentioned.", muted) {
 					if net_action() { dc.set_guild_muted(app.client, gid, !muted, now_ms = now); }
@@ -643,19 +643,19 @@ notify_modal :: () {
 		for name, i: NOTIFY_NAMES {
 			if ui.id_scope(cast(u64)(i + 1)) {
 				r := row("radio", .{.Clickable});
-				r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(36)};
+				r.semantic_size = .[ui.pct(1), ui.px(36)];
 				sig := ui.signal(r);
 				if ui.parent(r) {
 					spacer(.X, PAD);
 					on := level == i;
 					rb := ui.box("rb", .{.Draw_Border});
-					rb.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+					rb.semantic_size = .[ui.px(20), ui.px(20)];
 					rb.style.radius = 10;
 					rb.style.border = 2;
 					rb.style.border_color = ifx on then cast(T)("--background-brand") else (ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 					if on { if ui.parent(rb) {
 						dot := ui.box("dot", .{.Draw_Background, .Floating_X, .Floating_Y});
-						dot.semantic_size = .{__IDX__.X = ui.px(10), __IDX__.Y = ui.px(10)};
+						dot.semantic_size = .[ui.px(10), ui.px(10)];
 						dot.fixed_pos = .{5, 5};
 						dot.style.radius = 5;
 						dot.style.bg = cast(T)("--background-brand");
@@ -675,7 +675,7 @@ notify_modal :: () {
 		if ui.parent(r) {
 			spacer(.X, PAD);
 			c := ui.box("c");
-			c.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			c.semantic_size = .[ui.fill(), ui.children()];
 			c.layout_axis = .Y;
 			if ui.parent(c) {
 				if set_toggle_row("supall", "Suppress @everyone and @here", "", sup) && net_action() { dc.set_guild_suppress_everyone(app.client, gid, !sup); }
@@ -689,7 +689,7 @@ notify_modal :: () {
 		if ui.parent(br) {
 			spacer(.X, PAD);
 			done := ui.box("Done##done", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			done.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			done.semantic_size = .[ui.fill(), ui.px(40)];
 			done.style.radius = 8;
 			done.style.font = F(.Medium);
 			done.style.font_size = 16;
@@ -714,7 +714,7 @@ leave_modal :: () {
 		return;
 	}
 	scrim := ui.box("leave_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked || escape_pressed() {
 		gm.leave_guild = 0;
@@ -724,7 +724,7 @@ leave_modal :: () {
 	PAD :: 24;
 	confirm := false;
 	d := ui.box("leavemodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -734,25 +734,25 @@ leave_modal :: () {
 	ui.signal(d);
 	if ui.parent(d) {
 		x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
-		x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+		x.semantic_size = .[ui.px(24), ui.px(24)];
 		x.fixed_pos = .{W - 17 - 24, 17};
 		xs := ui.signal(x);
 		set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 		if xs.clicked { gm.leave_guild = 0; }
 		spacer(.Y, PAD + 1);
 		t := row("t");
-		t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+		t.semantic_size = .[ui.pct(1), ui.px(24)];
 		if ui.parent(t) {
 			spacer(.X, PAD + 1);
 			label(ellipsize(fmt.tprintf("Leave '%s'", g.name), .Semibold, 20, W - 2 * PAD - 40), .Semibold, 20, cast(T)("--text-strong"), 24);
 		}
 		spacer(.Y, 8);
 		br := row("body");
-		br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		br.semantic_size = .[ui.pct(1), ui.children()];
 		if ui.parent(br) {
 			spacer(.X, PAD + 1);
 			b := ui.box("text", .{.Wrap_Text});
-			b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+			b.semantic_size = .[ui.fill(), ui.text_size()];
 			b.style.line_height = 20;
 			b.style.text_color = cast(T)("--text-subtle");
 			spans := make_slice(ui.Span, 3, temp);
@@ -764,12 +764,12 @@ leave_modal :: () {
 		}
 		spacer(.Y, 24);
 		btns := row("btns");
-		btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		btns.semantic_size = .[ui.pct(1), ui.px(40)];
 		btns.style.child_gap = 8;
 		if ui.parent(btns) {
 			spacer(.X, PAD + 1 - 8);
 			cancel := ui.box("Cancel##c", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			cancel.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			cancel.semantic_size = .[ui.fill(), ui.px(40)];
 			cancel.style.radius = 8;
 			cancel.style.font = F(.Medium);
 			cancel.style.font_size = 16;
@@ -779,7 +779,7 @@ leave_modal :: () {
 			cancel.style.bg_hot = cast(T)("--background-mod-strong");
 			if ui.signal(cancel).clicked { gm.leave_guild = 0; }
 			ok := ui.box("Leave Server##l", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			ok.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			ok.semantic_size = .[ui.fill(), ui.px(40)];
 			ok.style.radius = 8;
 			ok.style.font = F(.Medium);
 			ok.style.font_size = 16;
@@ -811,7 +811,7 @@ invite_modal :: () {
 		return;
 	}
 	scrim := ui.box("inv_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	esc := escape_pressed();
 	if ui.signal(scrim).clicked || esc {
@@ -822,7 +822,7 @@ invite_modal :: () {
 	W :: 440;
 	PAD :: 16;
 	d := ui.box("invmodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -832,14 +832,14 @@ invite_modal :: () {
 	ui.signal(d);
 	if ui.parent(d) {
 		x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
-		x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+		x.semantic_size = .[ui.px(24), ui.px(24)];
 		x.fixed_pos = .{W - 12 - 24, 12};
 		xs := ui.signal(x);
 		set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 		if xs.clicked { gm.inv_guild = 0; }
 		spacer(.Y, 16);
 		t := row("t");
-		t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+		t.semantic_size = .[ui.pct(1), ui.px(24)];
 		if ui.parent(t) {
 			spacer(.X, PAD);
 			label(ellipsize(fmt.tprintf("Invite friends to %s", g.name), .Semibold, 20, W - 2 * PAD - 32), .Semibold, 20, cast(T)("--text-strong"), 24);
@@ -848,7 +848,7 @@ invite_modal :: () {
 		if ch != null {
 			spacer(.Y, 4);
 			cr := row("chan");
-			cr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+			cr.semantic_size = .[ui.pct(1), ui.px(20)];
 			if ui.parent(cr) {
 				spacer(.X, PAD);
 				icon("ic", channel_icon_name(ch), 16, cast(T)("--text-muted"));
@@ -858,18 +858,18 @@ invite_modal :: () {
 		} }
 		spacer(.Y, 20);
 		lr := row("lbl");
-		lr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+		lr.semantic_size = .[ui.pct(1), ui.px(18)];
 		if ui.parent(lr) {
 			spacer(.X, PAD);
 			label("Send a server invite link to a friend", .Semibold, 14, cast(T)("--text-default"), 18);
 		}
 		spacer(.Y, 8);
 		fr := row("fieldrow");
-		fr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(44)};
+		fr.semantic_size = .[ui.pct(1), ui.px(44)];
 		if ui.parent(fr) {
 			spacer(.X, PAD);
 			field := row("field", .{.Draw_Background, .Draw_Border});
-			field.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(44)};
+			field.semantic_size = .[ui.fill(), ui.px(44)];
 			field.style.bg = cast(T)("--input-background-default");
 			field.style.border_color = cast(T)("--input-border-default");
 			field.style.border = 1;
@@ -886,12 +886,12 @@ invite_modal :: () {
 					if gm.inv_failed { text = "Couldn't create an invite link."; } else if !gm.inv_loading { text = "You're offline: no invite link."; }
 				}
 				tw := ui.box("tw", .{.Clip});
-				tw.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(20)};
+				tw.semantic_size = .[ui.fill(), ui.px(20)];
 				if ui.parent(tw) { label(text, .Normal, 16, color, 20); }
 				flags := ui.Box_Flags.{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation};
 				if url == "" { flags += .{.Disabled}; }
 				cb := ui.box(ifx gm.inv_copied then "Copied##copy" else "Copy##copy", flags);
-				cb.semantic_size = .{__IDX__.X = ui.px(75), __IDX__.Y = ui.px(32)};
+				cb.semantic_size = .[ui.px(75), ui.px(32)];
 				cb.style.radius = 8;
 				cb.style.font = F(.Medium);
 				cb.style.font_size = 14;
@@ -911,7 +911,7 @@ invite_modal :: () {
 		}
 		spacer(.Y, 8);
 		ft := row("foot");
-		ft.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+		ft.semantic_size = .[ui.pct(1), ui.px(16)];
 		if ui.parent(ft) {
 			spacer(.X, PAD);
 			label("Your invite link expires in 30 days.", .Normal, 12, cast(T)("--text-muted"), 16);
@@ -1013,7 +1013,7 @@ guild_menu_state_for_test :: () -> string {
 can_delete_thread :: (th: *dc.Channel) -> bool {
 	if th == null || !dc.is_thread(th) { return false; }
 	if th.owner_id == store().me { return true; }
-	return dc.channel_permissions(store(), th.id) & dc.PERM_MANAGE_THREADS != 0;
+	return (dc.channel_permissions(store(), th.id) & dc.PERM_MANAGE_THREADS) != 0;
 }
 #scope_file
 

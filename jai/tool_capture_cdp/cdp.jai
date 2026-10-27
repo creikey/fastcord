@@ -98,7 +98,7 @@ reader_loop :: (c: *Client) {
 			id, _ = strconv.parse_int(sub(rest, 0, end));
 		}
 		sync.mutex_lock(*c.mu);
-		if id >= 0 && __MAPIDX__(c.waiting|id) {
+		if id >= 0 && get(c.waiting, id) {
 			at(*c.results, id).* = raw;
 		} else {
 			append(*c.queue, raw);

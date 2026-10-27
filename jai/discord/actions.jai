@@ -88,7 +88,7 @@ pending_for :: (c: *Client, guild_id: Snowflake) -> *Pending_Sub {
 // subscribe_guild: subscribeToGuild — typing, activities, threads (merged and
 // flushed on the next poll like the client's 0 ms flush timer).
 subscribe_guild :: (c: *Client, guild_id: Snowflake) {
-	if __MAPIDX__(c.subs.guilds|guild_id) { return; }
+	if get(c.subs.guilds, guild_id) { return; }
 	at(*c.subs.guilds, guild_id).* = true;
 	pending_for(c, guild_id).feature = true;
 }
@@ -120,7 +120,7 @@ subscriptions_flush :: (c: *Client) {
 		clear(*c.subs.pending);
 	}
 	if c.gw == null { return; }
-	context.allocator = temp;
+	push_allocator(temp);
 	subs := etf.map_builder(len(c.subs.pending));
 	for p: c.subs.pending {
 		g := etf.map_builder(5);
@@ -151,7 +151,7 @@ subscriptions_flush :: (c: *Client) {
 // request_guild_members: op 8 for unknown message authors / mentions.
 request_guild_members :: (c: *Client, guild_id: Snowflake, user_ids: []Snowflake, presences := false) {
 	if c.gw == null { return; }
-	context.allocator = temp;
+	push_allocator(temp);
 	{ start := 0;
 	while start < len(user_ids) {
 		chunk := sub(user_ids, start, min(start + 100, len(user_ids)));
@@ -552,7 +552,7 @@ ack_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, immedi
 #scope_module
 
 flush_due_acks :: (c: *Client, now: s64) {
-	for < i: len(c.pending_acks) - 1..0 {
+	for < i: 0..len(c.pending_acks) - 1 {
 		p := c.pending_acks[i];
 		if p.due > now { continue; }
 		ordered_remove(*c.pending_acks, i);
@@ -781,7 +781,7 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 				ch = g.system_channel_id;
 				if ch == 0 {
 					for cid: guild_channels_sorted(*c.store, gid) {
-						if __MAPIDX__(c.store.channels|cid).kind == .Guild_Text {
+						if get(c.store.channels, cid).kind == .Guild_Text {
 							ch = cid;
 							break;
 						}
@@ -913,11 +913,11 @@ guild_channel_info :: (c: *Client, guild_id: Snowflake) {
 // -> back to the guild; discover: discovery -> the guild).
 guild_open_now :: (c: *Client, g: Snowflake) {
 	c.pending_guild_open = 0;
-	if !__MAPIDX__(c.started_guilds|g) {
+	if !get(c.started_guilds, g) {
 		at(*c.started_guilds, g).* = true;
 		guild_channel_info(c, g);
 		schedule_guild_open(c, g, c.guild_open_promotions);
-	} else if __MAPIDX__(c.left_guilds|g) {
+	} else if get(c.left_guilds, g) {
 		// rejoined after leaving (fixture join_leave_server): op 43 only
 		delete_key(*c.left_guilds, g);
 		guild_channel_info(c, g);
@@ -932,7 +932,7 @@ guild_open_now :: (c: *Client, g: Snowflake) {
 guild_channel_notice_check :: (c: *Client, ch: *Channel) {
 	if ch.guild_id == 0 || is_thread(ch) || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement) { return; }
 	g := guild_get(*c.store, ch.guild_id);
-	if g == null || g.system_channel_id != 0 || guild_permissions(*c.store, g.id) & PERM_MANAGE_GUILD == 0 { return; }
+	if g == null || g.system_channel_id != 0 || (guild_permissions(*c.store, g.id) & PERM_MANAGE_GUILD) == 0 { return; }
 	api_get_later(c, strings.concatenate(.{"/guilds/", snowflake_string(g.id), "/integrations?include_applications=true&include_role_connections_metadata=true"}, temp), 0);
 }
 
@@ -1074,7 +1074,7 @@ open_full_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, via :
 // open_message_context_menu: right-clicking a message loads the application
 // command indexes (guild once per guild, user once per session).
 open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
-	if guild_id != 0 && !__MAPIDX__(c.command_index_guilds|guild_id) {
+	if guild_id != 0 && !get(c.command_index_guilds, guild_id) {
 		at(*c.command_index_guilds, guild_id).* = true;
 		j := job_new(.Api, .None);
 		j.method = "GET";
@@ -1294,7 +1294,7 @@ request_page_members :: (c: *Client, channel_id: Snowflake, items: []V) {
 	want :: (c: *Client, gid: Snowflake, uid: Snowflake, ids: *[..]Snowflake) {
 		if uid == 0 || member_get(*c.store, gid, uid) != null { return; }
 		key := Snowflake.[gid, uid];
-		if __MAPIDX__(c.members_requested|key) { return; }
+		if get(c.members_requested, key) { return; }
 		at(*c.members_requested, key).* = true;
 		append(ids, uid);
 	}

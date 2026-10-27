@@ -51,7 +51,7 @@ Md_Block :: struct {
 }
 
 md_parse :: (src: string, allocator := temp) -> []Md_Block {
-	context.allocator = allocator;
+	push_allocator(allocator);
 	blocks := make_dynamic(Md_Block, 0, 4);
 	// Paragraph lines are always consecutive in src (any other line flushes first), so a paragraph
 	// is the slice src[para_lo:para_hi] and needs no copy.

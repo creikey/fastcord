@@ -3,9 +3,9 @@
 // trees are always full (leaf count a power of two).
 
 level :: (x: u32) -> u32 {
-	if x & 1 == 0 { return 0; }
+	if (x & 1) == 0 { return 0; }
 	k: u32 = 0;
-	while (x >> k) & 1 == 1 { k += 1; }
+	while ((x >> k) & 1) == 1 { k += 1; }
 	return k;
 }
 
@@ -20,25 +20,25 @@ log2_floor :: (x: u32) -> u32 {
 
 root :: (n_leaves: u32) -> u32 {
 	w := node_width(n_leaves);
-	return (cast(u32)(1) << log2_floor(w)) - 1;
+	return ((cast(u32)(1)) << log2_floor(w)) - 1;
 }
 
 left :: (x: u32) -> u32 {
 	k := level(x);
 	assert(k > 0);
-	return x ^ (cast(u32)(1) << (k - 1));
+	return x ^ ((cast(u32)(1)) << (k - 1));
 }
 
 right :: (x: u32) -> u32 {
 	k := level(x);
 	assert(k > 0);
-	return x ^ (cast(u32)(3) << (k - 1));
+	return x ^ ((cast(u32)(3)) << (k - 1));
 }
 
 parent_of :: (x: u32) -> u32 {
 	k := level(x);
 	b := (x >> (k + 1)) & 1;
-	return (x | (cast(u32)(1) << k)) ^ (b << (k + 1));
+	return (x | ((cast(u32)(1)) << k)) ^ (b << (k + 1));
 }
 
 sibling_of :: (x: u32) -> u32 {
@@ -70,8 +70,8 @@ copath :: (x: u32, n_leaves: u32, a := temp) -> []u32 {
 is_ancestor :: (a: u32, x: u32) -> bool {
 	// a is an ancestor of x (or equal) iff x lies in a's span
 	k := level(a);
-	lo := a - ((cast(u32)(1) << k) - 1);
-	hi := a + ((cast(u32)(1) << k) - 1);
+	lo := a - (((cast(u32)(1)) << k) - 1);
+	hi := a + (((cast(u32)(1)) << k) - 1);
 	return x >= lo && x <= hi;
 }
 
@@ -87,7 +87,7 @@ common_ancestor :: (x: u32, y: u32) -> u32 {
 		yn >>= 1;
 		k += 1;
 	}
-	return ifx k > 0 then (xn << k) + ((cast(u32)(1) << (k - 1)) - 1) else xn;
+	return ifx k > 0 then (xn << k) + (((cast(u32)(1)) << (k - 1)) - 1) else xn;
 }
 
 // ---------------------------------------------------------------------------

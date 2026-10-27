@@ -116,12 +116,12 @@ chat_view :: (channel_id: dc.Snowflake) {
 	msgs := dc.messages_get(s, channel_id);
 	if app.client != null && app.focused && len(msgs) > 0 && cs.scroll_from_bottom < 2 {
 		last := msgs[len(msgs) - 1].id;
-		if last > __MAPIDX__(s.read_states|channel_id).last_message_id && !msgs[len(msgs) - 1].pending { dc.ack_message(app.client, channel_id, last); }
+		if last > get(s.read_states, channel_id).last_message_id && !msgs[len(msgs) - 1].pending { dc.ack_message(app.client, channel_id, last); }
 	}
 
 	picker_capture_input(); // expression picker owns keys/wheel while open
 	col := ui.box("chatcol");
-	col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+	col.semantic_size = .[ui.fill(), ui.pct(1)];
 	col.layout_axis = .Y;
 	if ui.parent(col) {
 		message_list(channel_id, cs);
@@ -134,7 +134,7 @@ chat_view :: (channel_id: dc.Snowflake) {
 message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	s := store();
 	list := ui.box("messages", .{.Clip, .Scroll_Y});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	list.semantic_size = .[ui.pct(1), ui.fill()];
 	// Scrolling is managed here (anchored to the bottom), not by ui's scroll offset.
 	list.flags -= .{.Scroll_Y};
 	msgs := dc.messages_get(s, channel_id);
@@ -226,7 +226,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	i0 += 1;
 	if ui.parent(list) {
 		col := ui.box("rows", .{.Floating_Y, .Anchor_End_Y});
-		col.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.pct(1), ui.children()];
 		// items stop short of the scrollbar gutter (official: 375..1264 in a 905px list)
 		{ lw := list.rect.x1 - list.rect.x0;
 		if lw > MSG_SCROLL_GUTTER { col.semantic_size[.X] = ui.px(lw - MSG_SCROLL_GUTTER); } }
@@ -264,7 +264,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_new: bool) -> *ui.Box {
 	s := store();
 	r0 := ui.box("msg");
-	r0.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r0.semantic_size = .[ui.pct(1), ui.children()];
 	r0.layout_axis = .Y;
 	editing := ma.editing == m.id;
 	if ui.parent(r0) {
@@ -275,7 +275,7 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 		}
 		// the list item proper: hover/highlight cover it, not the group gap above (a margin in the client)
 		li := ui.box("li", .{.Draw_Background});
-		li.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		li.semantic_size = .[ui.pct(1), ui.children()];
 		li.layout_axis = .Y;
 		ui.push_parent(li);
 		defer ui.pop_parent();
@@ -287,7 +287,7 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 			li.style.bg = cast(T)("--message-highlight-background-default");
 			li.style.radius = .{0, 4, 4, 0};
 			bar := ui.box("hlbar", .{.Draw_Background, .Floating_X, .Floating_Y});
-			bar.semantic_size = .{__IDX__.X = ui.px(2), __IDX__.Y = ui.px(li.rect.y1 - li.rect.y0)};
+			bar.semantic_size = .[ui.px(2), ui.px(li.rect.y1 - li.rect.y0)];
 			bar.style.bg = cast(T)("--background-brand");
 		}
 		for e: app.ui.events {
@@ -298,13 +298,13 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 		if (hovered || ma.menu_msg == m.id) && !editing && m.kind != MSG_CALL {
 			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)
 			anchor := ui.box("tbanchor");
-			anchor.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(0)};
+			anchor.semantic_size = .[ui.pct(1), ui.px(0)];
 			if ui.parent(anchor) { message_toolbar(m); }
 		}
 		spacer(.Y, 2);
 		if m.referenced_id != 0 {
 			rr := row("replyrow");
-			rr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(22)};
+			rr.semantic_size = .[ui.pct(1), ui.px(22)];
 			if ui.parent(rr) {
 				spacer(.X, MSG_GUTTER);
 				reply_preview(m);
@@ -316,11 +316,11 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 			return r0;
 		}
 		body := row("body");
-		body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		body.semantic_size = .[ui.pct(1), ui.children()];
 		body.cross_align = .Start;
 		if ui.parent(body) {
 			gutter := ui.box("gutter");
-			gutter.semantic_size = .{__IDX__.X = ui.px(MSG_GUTTER), __IDX__.Y = ui.px(MSG_LINE_H)};
+			gutter.semantic_size = .[ui.px(MSG_GUTTER), ui.px(MSG_LINE_H)];
 			if !grouped {
 				if ui.parent(gutter) {
 					av := avatar_box("avatar", m.author_id, MSG_AVATAR);
@@ -337,7 +337,7 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 				}
 			}
 			content := ui.box("content");
-			content.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			content.semantic_size = .[ui.fill(), ui.children()];
 			content.layout_axis = .Y;
 			if ui.parent(content) {
 				if !grouped { message_header(m); }
@@ -360,11 +360,11 @@ message_row :: (m: *dc.Message, grouped: bool, index: int, new_day: bool, show_n
 // "Name started a call that lasted a few seconds. 4:43 AM" with a phone icon in the gutter.
 call_notice :: (m: *dc.Message) {
 	r := row("call");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.cross_align = .Start;
 	if ui.parent(r) {
 		g := ui.box("gutter");
-		g.semantic_size = .{__IDX__.X = ui.px(MSG_GUTTER), __IDX__.Y = ui.px(CALL_ROW_H)};
+		g.semantic_size = .[ui.px(MSG_GUTTER), ui.px(CALL_ROW_H)];
 		if ui.parent(g) {
 			ic := icon("phone", "phone", 16, cast(T)("--icon-feedback-positive"));
 			ic.flags += .{.Floating_X, .Floating_Y};
@@ -382,7 +382,7 @@ call_notice :: (m: *dc.Message) {
 		spans[1] = .{text = what, font = F(.Normal), size = MSG_FONT, color = cast(T)("--text-muted")};
 		spans[2] = .{text = fmt.tprintf(" %s", header_timestamp(m.id)), font = F(.Medium), size = 12, color = cast(T)("--chat-text-muted")};
 		b := ui.box("text", .{.Selectable_Text, .Wrap_Text});
-		b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.style.line_height = MSG_LINE_H;
 		b.style.padding = .{0, (CALL_ROW_H - MSG_LINE_H) / 2};
 		ui.set_spans(b, spans);
@@ -417,7 +417,7 @@ humanize_duration :: (d: time.Duration) -> string {
 message_header :: (m: *dc.Message) {
 	name := name_in(m.author_id, m.channel_id);
 	h := row("header");
-	h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(MSG_LINE_H)};
+	h.semantic_size = .[ui.pct(1), ui.px(MSG_LINE_H)];
 	h.cross_align = .End;
 	if ui.parent(h) {
 		n := label(name, .Medium, 16, author_color(m), MSG_LINE_H);
@@ -483,7 +483,7 @@ message_body :: (m: *dc.Message) {
 		case .Code_Block;
 			cb := ui.box(fmt.tprintf("code%d", bi), .{.Draw_Background, .Draw_Border, .Draw_Text, .Selectable_Text, .Wrap_Text});
 			cb.text = blk.code;
-			cb.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+			cb.semantic_size = .[ui.pct(1), ui.text_size()];
 			cb.style.bg = cast(T)("--background-base-lowest");
 			cb.style.border_color = cast(T)("--border-subtle");
 			cb.style.border = 1;
@@ -511,14 +511,14 @@ message_body :: (m: *dc.Message) {
 			}
 			// quotes get a 4px bar, list items a bullet; both indent the text
 			wrap := row(fmt.tprintf("blk%d", bi));
-			wrap.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+			wrap.semantic_size = .[ui.pct(1), ui.children()];
 			wrap.cross_align = .Start;
 			b: *ui.Box;
 			if ui.parent(wrap) {
 				if blk.kind == {
 				case .Quote;
 					bar := ui.box("quotebar", .{.Draw_Background});
-					bar.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(line_h)};
+					bar.semantic_size = .[ui.px(4), ui.px(line_h)];
 					bar.style.bg = cast(T)("--border-strong");
 					bar.style.radius = 4;
 					spacer(.X, 12);
@@ -531,7 +531,7 @@ message_body :: (m: *dc.Message) {
 				// row, so a plain "p" collided from the second block on and became an
 				// anonymous box (no selection anchor, no link/mention clicks)
 				b = ui.box(fmt.tprintf("p%d", bi), .{.Selectable_Text, .Wrap_Text});
-				b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+				b.semantic_size = .[ui.fill(), ui.text_size()];
 				b.style.text_color = color;
 				b.style.line_height = line_h;
 				spans := tokens_to_spans(blk.tokens, font, size, m);
@@ -686,7 +686,7 @@ attachments_view :: (m: *dc.Message) {
 			h := cast(float32)(a.height);
 			sc := min(1, min(400 / w, 300 / h));
 			img := ui.box(fmt.tprintf("att%d", i), .{.Draw_Background, .Clickable});
-			img.semantic_size = .{__IDX__.X = ui.px(w * sc), __IDX__.Y = ui.px(h * sc)};
+			img.semantic_size = .[ui.px(w * sc), ui.px(h * sc)];
 			img.style.radius = 8;
 			img.style.bg = cast(T)("--background-mod-subtle");
 			set_remote_image(img, attachment_image_url(*a, cast(int)(w * sc), cast(int)(h * sc)));
@@ -694,7 +694,7 @@ attachments_view :: (m: *dc.Message) {
 			spacer(.Y, 4);
 		} else {
 			f := row(fmt.tprintf("file%d", i), .{.Draw_Background, .Draw_Border});
-			f.semantic_size = .{__IDX__.X = ui.px(432), __IDX__.Y = ui.px(72)};
+			f.semantic_size = .[ui.px(432), ui.px(72)];
 			f.style.bg = cast(T)("--background-surface-high");
 			f.style.border_color = cast(T)("--border-subtle");
 			f.style.border = 1;
@@ -704,7 +704,7 @@ attachments_view :: (m: *dc.Message) {
 				icon("ficon", "attachment", 30, cast(T)("--interactive-icon-default"));
 				spacer(.X, 8);
 				col := ui.box("fcol");
-				col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+				col.semantic_size = .[ui.fill(), ui.children()];
 				if ui.parent(col) {
 					label(a.filename, .Normal, 16, cast(T)("--text-link"), 20);
 					label(human_size(a.size), .Normal, 12, cast(T)("--text-muted"), 16);
@@ -717,9 +717,9 @@ attachments_view :: (m: *dc.Message) {
 #scope_export
 
 human_size :: (n: int) -> string {
-	if n >= 1 << 20 {
+	if n >= (1 << 20) {
 		return fmt.tprintf("%.2f MB", cast(float64)(n) / cast(float64)(1 << 20));
-	} else if n >= 1 << 10 {
+	} else if n >= (1 << 10) {
 		return fmt.tprintf("%.2f KB", cast(float64)(n) / cast(float64)(1 << 10));
 	}
 	return fmt.tprintf("%d bytes", n);
@@ -728,12 +728,12 @@ human_size :: (n: int) -> string {
 
 reactions_view :: (m: *dc.Message) {
 	r := row("reactions");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(30)};
+	r.semantic_size = .[ui.pct(1), ui.px(30)];
 	r.style.child_gap = 4;
 	if ui.parent(r) {
 		for * re, i: m.reactions {
 			pill := row(fmt.tprintf("re%d", i), .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
-			pill.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(26)};
+			pill.semantic_size = .[ui.children(), ui.px(26)];
 			pill.style.radius = 8;
 			pill.style.border = 1;
 			if re.me {
@@ -768,7 +768,7 @@ reactions_view :: (m: *dc.Message) {
 typing_line :: (channel_id: dc.Snowflake) {
 	s := store();
 	t := row("typing");
-	t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+	t.semantic_size = .[ui.pct(1), ui.px(24)];
 	typers := dc.typing_users(s, channel_id);
 	if len(typers) == 0 { return; }
 	if ui.parent(t) {
@@ -800,13 +800,13 @@ typing_line :: (channel_id: dc.Snowflake) {
 // Three dots pulsing in sequence (the client's typing animation).
 typing_dots :: () {
 	r := row("dots");
-	r.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(8)};
+	r.semantic_size = .[ui.px(24), ui.px(8)];
 	if ui.parent(r) {
 		for i: 0..2 {
 			phase := cast(float32)(app.ui.time * 1.4) - cast(float32)(i) * 0.15;
 			k := 0.5 + 0.5 * cast(float32)(abs(fract(phase) * 2 - 1));
 			d := ui.box(fmt.tprintf("d%d", i), .{.Draw_Background});
-			d.semantic_size = .{__IDX__.X = ui.px(6), __IDX__.Y = ui.px(6)};
+			d.semantic_size = .[ui.px(6), ui.px(6)];
 			d.style.radius = 3;
 			d.style.bg = with_alpha(cast(T)("--text-default"), 0.3 + 0.7 * k);
 			spacer(.X, 2);
@@ -822,13 +822,13 @@ fract :: (x: float32) -> float32 {return x - cast(float32)(cast(int)(x));}
 composer :: (ch: *dc.Channel, cs: *Chat_State) {
 	s := store();
 	outer := row("composer_outer");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	outer.semantic_size = .[ui.pct(1), ui.children()];
 	outer.cross_align = .Start;
 	if ui.parent(outer) {
 		spacer(.X, 8);
 		// one bordered form holds the reply bar, staged uploads and the text area
 		stack := ui.box("composer_stack", .{.Draw_Background, .Draw_Border});
-		stack.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		stack.semantic_size = .[ui.fill(), ui.children()];
 		stack.layout_axis = .Y;
 		stack.style.bg = cast(T)("--chat-background-default");
 		stack.style.border_color = cast(T)("--border-subtle");
@@ -838,7 +838,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 		if ma.replying != 0 { reply_bar(); }
 		uploads_bar(ch.id);
 		box := row("composer", .{.Clickable});
-		box.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		box.semantic_size = .[ui.fill(), ui.children()];
 		box.cross_align = .Start;
 		box.hover_cursor = .IBeam;
 		if ui.signal(box).pressed { app.ui.focus = box.key; }
@@ -848,7 +848,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			if ui.signal(plus).clicked {
 				stage_paths(ch.id, pick_files(), "file_picker");
 			}
-			plus.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(COMPOSER_H)};
+			plus.semantic_size = .[ui.px(24), ui.px(COMPOSER_H)];
 			plus.layout_axis = .Y;
 			plus.cross_align = .Center;
 			plus_hov := ui.signal(plus).hovering;
@@ -893,7 +893,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			}
 			for name: (string.["gif", "sticker", "reaction"]) {
 				b := ui.box(name, .{.Clickable});
-				b.semantic_size = .{__IDX__.X = ui.px(40), __IDX__.Y = ui.px(COMPOSER_H)};
+				b.semantic_size = .[ui.px(40), ui.px(COMPOSER_H)];
 				b.layout_axis = .Y;
 				b.cross_align = .Center;
 				hov := picker_composer_button(name, ui.signal(b), b.rect, ch.id);
@@ -933,7 +933,7 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 	// Not .Focusable: callers decide focus by their container's key (the bordered
 	// input box), so a click on the text itself must focus that container.
 	f := ui.box(id, .{.Clickable, .Draw_Text, .Wrap_Text});
-	f.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+	f.semantic_size = .[ui.fill(), ui.text_size()];
 	f.style.font = F(.Normal);
 	f.style.font_size = font_size;
 	f.style.line_height = line_h;
@@ -1003,12 +1003,12 @@ is_emoji_only :: (toks: []Token) -> bool {
 divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 	spacer(.Y, 8);
 	d := row("divider");
-	d.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+	d.semantic_size = .[ui.pct(1), ui.px(16)];
 	line_color := ifx show_new then cast(T)("--status-danger") else cast(T)("--border-subtle");
 	if ui.parent(d) {
 		spacer(.X, 16);
 		l1 := ui.box("l1", .{.Draw_Background});
-		l1.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+		l1.semantic_size = .[ui.fill(), ui.px(1)];
 		l1.style.bg = line_color;
 		if new_day {
 			spacer(.X, 8);
@@ -1018,12 +1018,12 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 			label(fmt.tprintf("%v %d, %d", mo, dd, y), .Semibold, 12, ifx show_new then cast(T)("--status-danger") else cast(T)("--text-muted"), 13);
 			spacer(.X, 8);
 			l2 := ui.box("l2", .{.Draw_Background});
-			l2.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+			l2.semantic_size = .[ui.fill(), ui.px(1)];
 			l2.style.bg = line_color;
 		}
 		if show_new {
 			pill := row("new", .{.Draw_Background});
-			pill.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(14)};
+			pill.semantic_size = .[ui.children(), ui.px(14)];
 			pill.style.bg = cast(T)("--status-danger");
 			pill.style.radius = .{0, 4, 0, 4};
 			if ui.parent(pill) {

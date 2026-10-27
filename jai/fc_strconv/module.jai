@@ -1,4 +1,5 @@
 #import "Basic";
+#import "Math";
 #import "fc";
 parse_int :: (s: string, base := 0) -> int, bool { a, b := parse_i64(s, base); return a, b; }
 parse_i64 :: (s: string, base := 0) -> s64, bool {
