@@ -1,4 +1,3 @@
-// fastcord's translation unit for picohttpparser. Bound in src/http/h1.odin. Built by build.sh /
-// build.bat into build/fc_picohttpparser.obj (.o elsewhere).
+// fastcord's translation unit for picohttpparser. Bound in src/http/h1.jai. Built by build.jai into build/fc_vendor.a.
 
 #include "picohttpparser.c"

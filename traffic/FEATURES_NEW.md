@@ -463,8 +463,8 @@ is now `dingusbattle2` (the change back failed: the old name was taken).
 | logout | `POST /api/v9/auth/logout` body `{"provider":null,"voip_provider":null}`; science `multi_account_account_remove`, `network_action_user_logout, hotspot_hidden`, `user_fingerprint_changed`; in-flight requests get 401; `GET /auth/location-metadata`; `wss://remote-auth-gateway.discord.gg/?v=2` opens (QR login); science `login_viewed` |
 | login_submit | `POST /api/v9/auth/login` body `{"login":str,"password":str,"undelete":false,"login_source":null,"gift_code_sku_id":null}`; then a new gateway connection and the logged-in startup burst (webauthn credentials, survey, affinities, entitlements, quests, badges, promotions, library, billing...) with science `network_action_user_login, client_heartbeat, session_start_client, gateway_connected, experiment_*_evaluation_exposed..., ready_payload_received` |
 
-Implemented: `logout` and `login_submit` (`src/discord/auth.odin`, QR login in
-`remote_auth.odin`, the page in `src/app/view_login.odin`; tests
+Implemented: `logout` and `login_submit` (`src/discord/auth.jai`, QR login in
+`remote_auth.jai`, the page in `src/app/view_login.jai`; tests
 `parity_logout`, `parity_login_submit`; rules in `traffic/CLIENT_RULES.md`
 "Login and logout").
 
@@ -472,7 +472,7 @@ The checks come from `UniqueUsernamesStore` / `attemptUsername` (bundle; rows in
 `traffic/CLIENT_RULES.md`): an 800 ms trailing debounce on the field's text, a
 60 s cache of checked names, local rules before any request.
 
-fastcord (`src/discord/username.odin`, Settings > My Account > Username): the
+fastcord (`src/discord/username.jai`, Settings > My Account > Username): the
 same checks (`username_input_changed` on open and every edit,
 `username_check` for the status line), then `update_username` (the PATCH).
 Tested offline: `parity_open_account_settings`, `parity_username_typing`,

@@ -1,86 +1,85 @@
 # fastcord
 
-A fast, native Discord client written from scratch in Odin. No browser, no
-webview. Metal on macOS, D3D11 on Windows (later: iOS/Android).
+A fast, native Discord client written from scratch in Jai. No browser, no
+webview. Metal on macOS (later: D3D11 on Windows, iOS/Android).
 
 ## Goals
 
 - Instant, smooth, low battery: render only when something changes or animates.
 - Immediate-mode UI library written here (after Ryan Fleury's UI series).
 - Pixel-faithful to the official client's layout, colors and interactions.
-- **Well-behaved on the network**: the `discord` library is tested end to end
-  to produce the same traffic (requests, headers, header order, TLS
-  ClientHello, HTTP/2 settings, gateway payloads, timing) as the official
-  desktop client doing the same actions.
+- **Indistinguishable on the network**: the `discord` module produces the same traffic as the official
+  desktop client doing the same actions: requests, headers and their wire order, TLS ClientHello,
+  HTTP/2 and HTTP/3 settings, gateway payloads, telemetry and timing. Install-specific values (ids,
+  tokens) differ; what Discord's servers see of the client's health and behaviour does not. Proof:
+  `traffic/` (official captures) and `traffic/PARITY.md` (tests and the last live session).
 
 ## Layout
 
 | Path | What |
 |---|---|
+| `build.jai` | The whole build: C libraries, the app, tools, tests, benches, releases. |
 | `src/netio` | `Stream` interface (read/write/close) + TCP. Every protocol sits on a `Stream`. |
-| `src/tls` | TLS client over vendored BoringSSL, configured like Chrome (the official client is Electron); OS trust store. |
-| `src/zstd`, `src/brotli` | Decoders (gateway uses zstd-stream; HTTP responses may be br/zstd/gzip). |
-| `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`). |
-| `src/http` | HTTP/1.1, HTTP/2, WebSocket client over vendored picohttpparser, nghttp2, wslay. |
-| `src/discord` | Unofficial Discord library: REST, gateway, voice, state store. |
-| `src/platform` | Window, input, display-link, clipboard. `darwin/` and `windows/`. |
-| `src/gfx` | Renderer: rects/rounded rects/borders/shadows/glyphs/images. Metal / D3D11. |
+| `src/tls`, `src/quic` | TLS and QUIC over vendored BoringSSL and ngtcp2, configured like Chrome (the official client is Electron); OS trust store. |
+| `src/inflate`, `src/zstd`, `src/brotli` | Decoders (Wuffs, zstd, brotli): the gateway uses zstd-stream; HTTP responses may be gzip/br/zstd. |
+| `src/crypto` | Hashes, HMAC/HKDF, AEADs, P-256 over BoringSSL. |
+| `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`) and JSON. |
+| `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
+| `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |
+| `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio. |
+| `src/platform`, `src/gfx` | Window, input, display link, clipboard; the Metal renderer. |
 | `src/ui` | Immediate-mode UI core: keyed boxes, layout, animation, text editing. |
 | `src/app` | The client itself. |
-| `tools/capture` | Records the official client's traffic via the DevTools protocol. |
-| `tools/scrub` | Turns raw captures into committable, secret-free fixtures. |
-| `traffic/` | Committed scrubbed captures, one per e2e scenario. |
-| `tests/` | End-to-end scenarios driving both the official client and ours. |
+| `src/tool_capture*`, `src/tool_scrub`, `src/tool_trafficdiff`, `src/discord_parity` | Recording the official client (DevTools protocol), scrubbing captures, diffing traffic, the live session runner. |
+| `traffic/` | Committed scrubbed captures of the official client, one per scenario. |
+| `tests/` | Scenarios (`scenarios/*.scn`), UI scripts (`ui/`), benches (`bench/`). |
 
 ## Build and run
 
+Needs Jai (beta 0.2.030 or later, `jai` on `PATH`) and the Xcode command line tools (clang links; the
+Jai bundled linker can't read recent macOS SDKs).
+
 ```sh
-./build.sh            # build/fastcord (-o:speed)
-./build.sh debug      # build/fastcord-debug (unoptimised: frames take ~5x longer)
-./build.sh dev        # build/fastcord-dev (debug checks and symbols, optimised; for daily use)
-./build.sh check      # build/fastcord-check: dev in ~3 s (per-package LLVM modules, UI pass ~10% slower); tests/run_all.sh uses it
-./build/fastcord      # logs in with $FASTCORD_TOKEN or <state>/token
+jai build.jai - dev       # build/fastcord-dev: optimised with symbols, for daily use
+jai build.jai             # build/fastcord: very optimised
+jai build.jai - debug     # build/fastcord-debug: unoptimised, frames take ~5x longer
+jai build.jai - help      # every target
+./build/fastcord-dev      # logs in with $FASTCORD_TOKEN or <state>/token
 ```
 
-Needs `odin` and a C compiler: clang (macOS: Xcode command line tools), or on Windows clang or MSVC;
-BoringSSL also needs MSVC 2022 on Windows. Every build first compiles the vendored C (`vendor/`) into
-`build/` (BoringSSL takes about a minute the first time); `./build.sh c` does only that step.
-`build.bat` has the same targets for cmd.exe and finds MSVC itself.
+Every build first compiles the vendored C (`vendor/`) into `build/fc_vendor.a` (BoringSSL takes
+about a minute the first time); `jai build.jai - c` does only that.
 
-`<state>` is `~/Library/Application Support/fastcord/state` on macOS and `%LOCALAPPDATA%\fastcord\state`
-on Windows. With no token (or a rejected one) the app opens the login page: email or phone number and
-password (with the multi-factor step), or the QR code for the mobile app, as the official client does
-(`src/discord/auth.odin`, `remote_auth.odin`). The token it gets is saved there. A small "Log in with a
-token" link takes a token copied from a browser instead.
+`<state>` is `~/Library/Application Support/fastcord/state`. With no token (or a rejected one) the app
+opens the login page: email or phone number and password (with the multi-factor step), or the QR code
+for the mobile app, as the official client does (`src/discord/auth.jai`, `remote_auth.jai`). The token
+it gets is saved there. A small "Log in with a token" link takes a token copied from a browser instead.
 
 ## Testing
 
 ```sh
-tests/run_all.sh                 # every package's unit tests + headless UI scripts
-FASTCORD_LIVE=1 ./build.sh test discord   # live tests against Discord as the test accounts
-tests/ui/run.sh                  # just the UI scripts (tests/ui/*.txt) against tests/ui/chat.jsonl
+jai build.jai - check            # everything before a commit: test + ui + bench budget + secrets scan
+jai build.jai - test [names]     # the offline traffic-parity tests (substrings pick tests)
+jai build.jai - ui               # headless UI scripts (tests/ui) and the dead-control sweep
+jai build.jai - module <name>    # type-check one module, every procedure
 ```
 
-Headless app runs render offscreen and write a PNG, driven by a script of
-input events with assertions (`click`, `dclick`, `down`/`move`/`up`, `rclick`,
-`type`, `key enter cmd`, `scroll`, `wait`, `shot`, `expect_selection`,
-`expect_clipboard`; attachments: `stage <path>...`, `drop <path>...`, `paste_image <png>`,
-`paste_files <path>...`, `drag_enter`/`drag_leave`, `wait_attachments`, `expect_attachments`,
-`upload_limit <bytes>`, `expect_notice`):
+Headless app runs render offscreen and write a PNG, driven by a script of input events with assertions
+(`click`, `dclick`, `down`/`move`/`up`, `rclick`, `type`, `key enter cmd`, `scroll`, `wait`, `shot`,
+`expect_selection`, `expect_clipboard`; attachments: `stage <path>...`, `drop <path>...`,
+`paste_image <png>`, `paste_files <path>...`, `drag_enter`/`drag_leave`, `wait_attachments`,
+`expect_attachments`, `upload_limit <bytes>`, `expect_notice`):
 
 ```sh
-./build/fastcord-debug -shot:out.png -dpi:1 -fixture:tests/ui/chat.jsonl \
+./build/fastcord-dev -shot:out.png -dpi:1 -fixture:tests/ui/chat.jsonl \
     -channel:1546820603343016006 -script:tests/ui/select_across_messages.txt
-./build/fastcord-debug -shot:out.png -dpi:1 -live:12 -channel:<id>   # real network
+./build/fastcord-dev -shot:out.png -dpi:1 -live:12 -channel:<id>   # real network, read-only
 ```
 
-`FASTCORD_STATS=1` prints the frame rate and what is animating (idle should be ~0 fps), plus
-per-phase timings for frames over 25 ms, and on exit the focused field's text. A frame stuck for 5 s writes a hang report (the lock the UI
-thread waits on, its holder, and on Windows every thread's stack) to stderr and to `logs/` beside `<state>`.
-All mutexes go through `fc:locks`, which panics at the faulty call on misuse instead of deadlocking.
-Run `python3 -I tools/check_secrets.py` before committing.
-
-All code imports siblings through the `fc` collection: `import "fc:netio"`.
+`FASTCORD_STATS=1` prints the frame rate and what is animating (idle should be ~0 fps), plus per-phase
+timings for frames over 25 ms, and on exit the focused field's text. A frame stuck for 5 s writes a hang
+report (the lock the UI thread waits on and its holder) to stderr and to `logs/` beside `<state>`. All
+mutexes go through `locks`, which panics at the faulty call on misuse instead of deadlocking.
 
 ## Performance
 
@@ -90,10 +89,9 @@ from idle clocks. That is the headline number, not throughput. Measure before an
 rendering change:
 
 ```sh
-tools/bench.sh           # build dev, run tests/bench/*.txt on the fixture, compare, check budget
-tools/bench.sh --save    # same, then keep this run as build/bench/baseline.jsonl
-tools/bench.sh chat      # one script
-tools/bench.sh --live    # tests/bench/account.txt on the real account and on the fixture, side by side
+jai build.jai - bench save       # build dev, run tests/bench/*.txt, keep it as build/bench/baseline.jsonl
+jai build.jai - bench            # same, compared with the baseline, budget checked
+jai build.jai - bench chat       # one script
 python3 -I tools/folded.py build/bench/chat.folded top 30              # hottest procedures
 python3 -I tools/folded.py build/bench/chat.folded callees 'message_row' 3
 python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
@@ -101,9 +99,9 @@ python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
 
 - `tests/bench/make_bench_fixture.py` writes `build/bench/heavy.jsonl` and generated images in
   `build/bench/media` shaped like a made-up heavy account (users, avatars, guilds and folders,
-  channels, roles, emoji, unreads, mutes, read states). It adds a 400-message guild channel and a
-  300-message DM for the chat benches. `tools/bench.sh --live` writes a real account's shape to
-  `build/bench/shape.json` and diffs it with the fixture's; never commit that file.
+  channels, roles, emoji, unreads, mutes, read states), plus a 400-message guild channel and a
+  300-message DM for the chat benches. `-shape:<file>` writes a real account's shape for comparison;
+  never commit it.
 - `FASTCORD_MEDIA_DIR=<dir>` serves CDN images from files named by the URL's last path component, so
   fixture runs load avatars, icons and emoji like a live run, offline.
 - `tests/bench/*.txt` are scripts. `bench <name>` starts a measured section, `bench_off` ends it,
@@ -111,33 +109,30 @@ python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
   or `open unread_dm` opens a channel, and `settle <seconds>` runs real-time frames so loads finish.
   `account.txt` runs unchanged on the fixture and live.
 - Measured frames run at a real 60 Hz cadence and each waits for the GPU, so CPU and GPU start every
-  frame from idle, as in use. Per section the report gives latency, UI pass and render CPU time, GPU
-  time (D3D11 timestamp queries; Metal reports none yet), `ui.Stats` counters, and quads and draw calls.
-- Any app run takes `-bench[:<file.jsonl>]` (the report, plus one JSON line per section),
-  `-prof:<prefix>` (samples the UI thread at ~1 kHz during UI passes and rendering; writes
-  `<prefix>.txt` and `<prefix>.folded` for speedscope.app; on macOS self time is exact but callers are
-  approximate), `-trace:<file>` (a Chrome trace of `prof.zone` scopes) and `-shape:<file>`.
+  frame from idle, as in use. Per section the report gives latency, UI pass and render CPU time,
+  `ui.Stats` counters, and quads and draw calls.
+- Any app run takes `-bench[:<file.jsonl>]`, `-prof:<prefix>` (samples the UI thread at ~1 kHz; writes
+  `<prefix>.txt` and `<prefix>.folded` for speedscope.app; self time is exact, callers approximate),
+  `-trace:<file>` (a Chrome trace of `prof.zone` scopes) and `-shape:<file>`.
 - On a real account, read-only: `./build/fastcord-dev -bench -dpi:1 -live:15 -script:<s> -prof:build/bench/live`.
   Don't type in such a script: typing sends "is typing" from the account.
 - `tests/bench/budget.json` caps the deterministic counters (boxes, text layouts, draw commands, draw
-  calls) per section; `tests/run_all.sh` fails when one grows. Timings are never checked: they vary by machine.
-- `prof.zone("name")` times a scope (one thread-local check when no section is measuring). Zones show in
-  the bench report and the trace. The sampler (`fc:prof`) also backs the hang watchdog's stacks.
+  calls) per section; `check` fails when one grows. Timings are never checked: they vary by machine.
 
 Keep the UI immediate-mode. Make each pass cheaper instead of caching results across frames:
 - Declare only what can be seen. `ui.list_window` turns a uniform list into a spacer plus the visible
   rows. `ui.offscreen(box)` tells you a box was outside its clip last frame, so you can skip its children.
-- Sort with decorated keys computed once per element, never map lookups inside a comparator.
-- Look up a map entry once, by pointer (`&m[k]`): `m[k]` copies the whole struct.
-- Per-pass memory comes from the UI arena or `context.temp_allocator`; nothing is freed one by one.
+- Sort with decorated keys computed once per element, never table lookups inside a comparator.
+- Look up a table entry once, by pointer (`table_find_pointer`).
+- Per-pass memory comes from the UI arena or `temp` (reset every frame); nothing is freed one by one.
 
 ## Conventions
 
-- `-vet-shadowing -strict-style` must pass.
-- Errors are small enums, not strings. No exceptions-style control flow.
-- Allocations: explicit allocators on long-lived things; `context.temp_allocator` per frame.
-- Secrets (tokens, passwords, raw captures) live only in `.secrets/` and
-  `discord_credentials.txt`, both gitignored. Never commit them.
+- Idiomatic Jai: Jai's own modules, `temp` only for data that dies before its thread's reset; see
+  `src/STYLE.md`.
+- Errors are small enums or bools, not strings.
+- Secrets (tokens, passwords, raw captures) live only in `.secrets/` and `discord_credentials.txt`,
+  both gitignored. Never commit them.
 
 ## Fingerprint regressions
 
@@ -162,48 +157,39 @@ empty SCID, no token) match exactly.
 - ECH GREASE uses ChaCha20-Poly1305 where Chrome uses AES-128-GCM on AES-capable CPUs, and the TLS 1.3
   cipher order is forced: BoringSSL is built with `OPENSSL_NO_ASM`, so `EVP_has_aes_hardware()` is 0,
   and `src/tls` overrides the order with `SSL_CTX_set1_tls13_ciphers`. Fix: build BoringSSL's assembly
-  (NASM on Windows, the `.S` files on macOS) and drop the override.
-- HTTP/2 headers, priority and window updates follow Chrome (`h2.odin`, `hpack.odin`), except: DATA
+  and drop the override.
+- HTTP/2 headers, priority and window updates follow Chrome (`h2.jai`, `hpack.jai`), except: DATA
   for a stream nghttp2 already closed is given back by nghttp2 itself (its own threshold, not Chrome's),
   and an unanswered PING never closes the connection as Chrome's does. Fix: track those in
-  `h2.odin` if a server is seen to care.
+  `h2.jai` if a server is seen to care.
 
 ## Releasing
 
-1. Bump nothing by hand: the version comes from the tag. There is no CI check for now: run
-   `tests/run_all.sh` locally first.
-2. `git tag v0.1.0 && git push origin v0.1.0` (or publish a release with that tag in the GitHub UI).
-3. `.github/workflows/release.yml` creates the GitHub release for the tag and builds
-   `fastcord-macos.zip` (universal `Fastcord.app`,
-   ad-hoc signed, not notarized) and attaches it to the release. Windows and Linux are
-   not built yet; the site shows them as coming soon.
-4. The site and the in-app updater both use the latest release:
-   - download link: `https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip`
-   - the app checks `api.github.com/repos/creikey/fastcord/releases/latest` at launch and every
-     6 hours; when the tag is newer than its own `FASTCORD_VERSION`, an **Update** pill appears
-     in the title bar and opens creikey.com/fastcord (right-click it to dismiss). Dev builds never check.
+Jai can't be installed on CI runners, so releases are built and published from a dev machine:
 
-### macOS signing
+```sh
+jai build.jai - check                    # all gates
+jai build.jai - release v0.2.0           # dist/fastcord-macos.zip: universal Fastcord.app, ad-hoc signed
+jai build.jai - release v0.2.0 publish   # same, then creates the GitHub release v0.2.0 at HEAD and uploads it
+```
 
-Without Apple credentials releases are ad-hoc signed and macOS blocks the first
-launch (users click **Open Anyway** in System Settings → Privacy & Security).
-To ship notarized builds, join the Apple Developer Program and add these repo
-secrets (Settings → Secrets and variables → Actions); the release workflow then
-signs, notarizes and staples automatically (`scripts/notarize_macos.sh`):
+`publish` needs `gh` logged in and HEAD pushed. It creates the release (tag at HEAD, generated notes) or,
+if it exists, replaces the zip. The version is the argument; nothing is bumped by hand.
 
-| Secret | Value |
-|---|---|
-| `MACOS_CERT_P12_BASE64` | your "Developer ID Application" certificate + key exported as .p12, base64 |
-| `MACOS_CERT_PASSWORD` | the .p12 export password |
-| `MACOS_SIGN_IDENTITY` | e.g. `Developer ID Application: Cameron Reikes (TEAMID)` |
-| `ASC_KEY_ID`, `ASC_ISSUER_ID` | App Store Connect API key id and issuer id |
-| `ASC_KEY_P8_BASE64` | the downloaded AuthKey_XXXX.p8, base64 |
+The site and the in-app updater both use the latest release:
+- download link: `https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip`
+- the app checks `api.github.com/repos/creikey/fastcord/releases/latest` at launch and every 6 hours;
+  when the tag is newer than its own version, an **Update** pill appears in the title bar and opens
+  creikey.com/fastcord (right-click it to dismiss). Dev builds never check.
 
-Local package: `scripts/package_macos.sh v0.1.0` → `dist/fastcord-macos.zip`.
+Releases are ad-hoc signed and not notarized, so macOS blocks the first launch (users click **Open
+Anyway** in System Settings → Privacy & Security). Notarizing needs an Apple Developer ID; sign with
+`codesign --sign "Developer ID Application: …" --options runtime` and submit with `xcrun notarytool`
+before zipping.
 
 ## Website
 
-`site/` is the page served at creikey.com/fastcord. `.github/workflows/pages.yml` deploys it on
-pushes to `main` that touch `site/`. One-time setup: repo Settings → Pages → Source: **GitHub Actions**.
-Because creikey.com is the custom domain of the creikey.github.io user site, this project's
-Pages site is served at creikey.com/fastcord automatically.
+`site/` is the page served at creikey.com/fastcord. `.github/workflows/pages.yml` deploys it on pushes to
+`main` that touch `site/`. `python3 -I tools/parity_viz.py` regenerates `site/parity.json` (the wire
+timeline) from `traffic/` and the last live session's scrubbed captures (`.secrets/ours/`); it keeps only
+request shapes and timings.

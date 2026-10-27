@@ -1,4 +1,4 @@
-# Builds the benchmark account (default build/bench/heavy.jsonl plus build/bench/media/; tools/bench.sh runs
+# Builds the benchmark account (default build/bench/heavy.jsonl plus build/bench/media/; jai build.jai - bench runs
 # this). Its shape is a made-up heavy account: round totals, and a sidebar of 30 guilds whose sizes are
 # heavy-tailed like a real one. Pass a shape.json captured with `-shape:` to copy a real account instead
 # (counts only; keep it out of the repo). On top of that shape it adds two long channels for the chat

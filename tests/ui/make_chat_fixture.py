@@ -1,9 +1,9 @@
-# Builds tests/ui/chat.jsonl: the scrubbed READY from src/discord/testdata plus
+# Builds tests/ui/chat.jsonl: the scrubbed READY in tests/data plus
 # synthetic messages covering grouping, markdown, mentions, code and reactions.
 # Run: python3 -I tests/ui/make_chat_fixture.py
 import json, os
 here = os.path.dirname(os.path.abspath(__file__))
-src = os.path.join(here, '..', '..', 'src', 'discord', 'testdata', 'gw_a.jsonl')
+src = os.path.join(here, '..', 'data', 'gw_a.jsonl')
 out = []
 me = None
 for l in open(src):
@@ -35,7 +35,7 @@ msgs = [
 ]
 # chat_emoji.jsonl adds Twemoji / sticker messages (kept out of chat.jsonl so the
 # coordinate-based UI scripts keep their layout). Offline media for it:
-# FASTCORD_MEDIA_DIR with the twemoji svgs / sticker files (see src/app/emoji.odin).
+# FASTCORD_MEDIA_DIR with the twemoji svgs / sticker files (see src/app/emoji.jai).
 emoji_msgs = [
     (wumpus, 1320, 'emoji inline: hi 😀 there 👍🏽 family 👨\u200d👩\u200d👧\u200d👦 flag 🇯🇵 keycap 1\ufe0f\u20e3 heart ❤️ and ™ stays text'),
     (wumpus, 1330, '**bold 🔥** and `code 😀 stays text`'),

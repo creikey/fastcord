@@ -9,7 +9,7 @@ recorded responses.
 ## Pipeline
 
 ```sh
-./build.sh tool capture && ./build.sh tool scrub && ./build.sh tool trafficdiff
+for t in capture scrub trafficdiff; do jai build.jai - tool $t; done
 build/capture supervise 60 &                      # launches + memory-polices the test instances
 build/capture run tests/scenarios/send_message.scn   # -> .secrets/raw/send_message.jsonl (secret!)
 build/scrub .secrets/raw/send_message.jsonl traffic/send_message.jsonl \

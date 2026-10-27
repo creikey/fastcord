@@ -12,12 +12,12 @@ overflow check), never allocate, and cover progressive JPEG and APNG. stb_image 
 of memory-safety CVEs in its decoders (e.g. CVE-2022-28041, CVE-2023-45661..45667).
 
 v0.4 decodes still WebP but not animated WebP, which Discord serves for stickers and animated avatars,
-so `src/imagefmt/webp.odin` parses the animation container and gives Wuffs each frame as a still file.
+so `src/imagefmt/webp.jai` parses the animation container and gives Wuffs each frame as a still file.
 Drop that when a Wuffs release animates WebP.
 
 `fc_wuffs.c` is ours: it compiles only the modules we use and exposes a few plain C calls where the caller
-owns all memory. `build.sh` / `build.bat` compile it into `build/fc_wuffs.obj` (`.o` on macOS), which
-`src/imagefmt/wuffs.odin` links.
+owns all memory. `build.jai` compiles it into `build/fc_vendor.a`, which
+`src/imagefmt/wuffs.jai` links.
 
 To update: replace `wuffs-v0.4.c` with a newer release, record the commit and sha256 here, then run
-`./build.sh test imagefmt` (its vectors are compared against libjpeg, ImageMagick and ffmpeg output).
+`jai build.jai - test` (its vectors are compared against libjpeg, ImageMagick and ffmpeg output).

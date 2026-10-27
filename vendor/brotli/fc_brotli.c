@@ -1,6 +1,6 @@
 // fastcord's one translation unit for brotli: upstream's decoder (c/common + c/dec, laid out here as
-// common/, dec/ and include/). Bound in src/brotli. Built by build.sh / build.bat into
-// build/fc_brotli.obj (.o elsewhere), with fc_brotli.cflags putting include/ on the path.
+// common/, dec/ and include/). Bound in src/brotli. Built by build.jai into
+// build/fc_vendor.a, with fc_brotli.cflags putting include/ on the path.
 
 #include "common/constants.c"
 #include "common/context.c"

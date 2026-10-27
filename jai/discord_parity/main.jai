@@ -1008,7 +1008,7 @@ SESSION_SCENARIOS :: string.["cold_start", "send_message", "typing", "add_reacti
 	"friend_request_accept", "send_dm", "friend_remove"];
 CORE_IGNORES :: string.["-ignore:/science", "-ignore:/assets/", "-ignore:collectibles-shop", "-ignore:latency.discord.media", "-ignore:/cdn-cgi/"];
 
-// session_report (was session.sh): one human-paced session over every scenario,
+// session_report : one human-paced session over every scenario,
 // recorded into .secrets/raw, then scrubbed into .secrets/ours and diffed against
 // its fixture's action windows. Run from the repo root after `jai build.jai - parity`.
 session_report :: (args: []string) {

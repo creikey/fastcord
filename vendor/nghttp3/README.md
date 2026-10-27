@@ -12,11 +12,9 @@ generated `version.h`), `lib/sfparse/` (its structured-field parser, with its ow
 Why: ngtcp2's companion HTTP/3 library (same author), used by curl, fuzzed by OSS-Fuzz. It replaced a
 hand-written HTTP/3 client and QPACK decoder.
 
-`fc_nghttp3.sources` lists the 32 C files `build.sh` / `build.bat` compile into `build/fc_nghttp3.lib`
-(Windows) or `build/libfc_nghttp3.a` (macOS); `fc_nghttp3.cflags` holds the include paths and
-`NGHTTP3_STATICLIB`. On Windows it needs clang-cl: MSVC up to 2022 rejects its `_Generic` min/max
-macros (C7700).
+`fc_nghttp3.sources` lists the 32 C files `build.jai` compiles into `build/fc_vendor.a`;
+`fc_nghttp3.cflags` holds the include paths and `NGHTTP3_STATICLIB`.
 
 To update: download the new release tarball, copy the same files, regenerate `fc_nghttp3.sources`
 (`lib/*.c` plus `lib/sfparse/sfparse.c`, sorted), record the version and sha256 here, then run
-`./build.sh test quic`.
+`jai build.jai - test`.

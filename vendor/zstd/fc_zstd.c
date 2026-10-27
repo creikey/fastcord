@@ -1,6 +1,6 @@
 // fastcord's one translation unit for zstd: the decompression half of upstream's lib/, built the way
 // upstream's own single-file decoder (build/single_file_libs/zstddeclib-in.c) builds it. Bound in
-// src/zstd. Built by build.sh / build.bat into build/fc_zstd.obj (.o elsewhere).
+// src/zstd. Built by build.jai into build/fc_vendor.a.
 
 #define DEBUGLEVEL 0
 #define XXH_NAMESPACE ZSTD_

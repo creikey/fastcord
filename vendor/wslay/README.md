@@ -1,7 +1,7 @@
 # wslay
 
 WebSocket framing (RFC 6455): masking, fragmentation, control frames, the close handshake, UTF-8
-and close-code validation (`src/http/ws.odin` binds it; the HTTP upgrade is ours). Upstream's `lib/`
+and close-code validation (`src/http/ws.jai` binds it; the HTTP upgrade is ours). Upstream's `lib/`
 sources and headers, unmodified (build files dropped), plus `COPYING`.
 
 - Source: https://github.com/tatsuhiro-t/wslay at commit 0e7d106ff89ad6638090fd811a9b2e4c5dda8d40

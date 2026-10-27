@@ -1,6 +1,6 @@
 // fastcord's one translation unit for libopus (float build, plain C: no SIMD, no DNN), plus a
-// non-variadic setter so Odin never calls a C varargs function. Built by build.sh / build.bat into
-// build/fc_opus.obj (.o elsewhere) with the flags in fc_opus.cflags; bound in src/opus.
+// non-variadic setter so Jai never calls a C varargs function. Built by build.jai into
+// build/fc_vendor.a with the flags in fc_opus.cflags; bound in src/opus.
 
 // Each of these files defines its own macro before including the headers, to opt into sections of
 // them (celt_fatal, the opus_custom_* prototypes). In one translation unit the headers are only read

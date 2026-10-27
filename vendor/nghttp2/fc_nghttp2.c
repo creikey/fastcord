@@ -1,8 +1,8 @@
 // fastcord's translation units for nghttp2: upstream's lib/, configured the way its CMake build
 // configures a static library. nghttp2_http.c and nghttp2_helper.c both define a static
 // VALID_AUTHORITY_CHARS, so nghttp2_http.c is its own unit (fc_nghttp2_http.c includes this file with
-// FC_NGHTTP2_HTTP set). Bound in src/http/h2.odin. Built by build.sh / build.bat into
-// build/fc_nghttp2.obj and build/fc_nghttp2_http.obj (.o elsewhere).
+// FC_NGHTTP2_HTTP set). Bound in src/http/h2.jai. Built by build.jai into
+// build/fc_vendor.a.
 
 #define NGHTTP2_STATICLIB
 #define BUILDING_NGHTTP2

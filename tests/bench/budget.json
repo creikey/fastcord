@@ -1,5 +1,5 @@
 {
-  "_note": "Per-pass caps on deterministic UI counters for tools/bench.sh (peak over the section; batches are gfx draw calls per frame), about 10% above the counts when set. Raise a cap only when the growth is intended; lower it after an optimisation.",
+  "_note": "Per-pass caps on deterministic UI counters for jai build.jai - bench (peak over the section; batches are gfx draw calls per frame), about 10% above the counts when set. Raise a cap only when the growth is intended; lower it after an optimisation.",
   "acct_home_idle": {"boxes": 730, "text_layouts": 80, "draw_cmds": 370, "batches": 10},
   "acct_home_hover": {"boxes": 740, "text_layouts": 80, "draw_cmds": 380, "batches": 10},
   "acct_dm_idle": {"boxes": 680, "text_layouts": 80, "draw_cmds": 360, "batches": 10},
