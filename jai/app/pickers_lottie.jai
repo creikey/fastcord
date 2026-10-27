@@ -41,9 +41,9 @@ lottie_receive :: (r: *dc.Expr_Result) {
 		ls.state = .Failed;
 		return;
 	}
-	anim, err := lottie.load(r.data);
-	if pickers_debug() { fmt.eprintfln("[pickers] lottie %d: %d bytes, err=%v", cast(u64)(id), len(r.data), err); }
-	if err != .None || anim == null {
+	anim := lottie.load(r.data);
+	if pickers_debug() { fmt.eprintfln("[pickers] lottie %d: %d bytes, ok=%v", cast(u64)(id), len(r.data), anim != null); }
+	if anim == null {
 		ls.state = .Failed;
 		return;
 	}
@@ -86,10 +86,7 @@ lottie_draw :: (b: *ui.Box, user: *void) {
 		if ls.tex != 0 { gfx.texture_destroy(ls.tex); }
 		ls.tex = 0;
 		ls.px = 0;
-		if !lottie.player_init(*ls.player, ls.anim, px, px) {
-			ls.state = .Failed;
-			return;
-		}
+		lottie.player_init(*ls.player, ls.anim, px, px);
 		ls.px = px;
 		ls.frame = -1;
 	}

@@ -778,7 +778,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 	}
 	if ch.kind == .Guild_Voice {
 		s := store();
-		for uid, vs: s.voice_states {
+		for vs, uid: s.voice_states {
 			if vs.channel_id != ch.id { continue; }
 			{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
 				vr := row("voiceuser", .Clickable);

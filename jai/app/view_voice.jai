@@ -181,7 +181,7 @@ voice_frame :: () {
 	}
 	clear(*vc.speaking);
 	if vc.conn != null {
-		for id: voice.speaking_users(vc.conn, temp) { at(*vc.speaking, cast(dc.Snowflake)(id)).* = true; }
+		for id: voice.speaking_users(vc.conn,, temp) { at(*vc.speaking, cast(dc.Snowflake)(id)).* = true; }
 		// speaking rings and the ping readout change without input events
 		request_wake(platform.time_now() + 0.1);
 	}
@@ -251,7 +251,7 @@ voice_panel :: () {
 		stats := voice.get_stats(vc.conn);
 		ping = ifx stats.rtt_ms > 0 then stats.rtt_ms else stats.ws_ping_ms;
 		if ping <= 0 { ping = -1; } // no heartbeat ack / RTCP round trip yet
-		e2ee = voice.e2ee_status(vc.conn, temp).active;
+		e2ee = voice.e2ee_status(vc.conn,, temp).active;
 		if st == {
 		case .Connected;
 			status = "Voice Connected";
@@ -355,7 +355,7 @@ incoming_call_popout :: () {
 	caller: dc.Snowflake;
 	{ call := dc.call_get(app.client, cid);
 	if call != null {
-		for uid, vs: store().voice_states { if vs.channel_id == cid && uid != store().me {caller = uid; break;} }
+		for vs, uid: store().voice_states { if vs.channel_id == cid && uid != store().me {caller = uid; break;} }
 	} }
 	if caller == 0 && len(ch.recipient_ids) > 0 { caller = ch.recipient_ids[0]; }
 	W :: cast(float32)(234);

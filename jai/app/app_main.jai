@@ -163,8 +163,7 @@ main :: () {
 	app.stats = os.get_env("FASTCORD_STATS", temp) != "";
 	fonts_load();
 	theme_load(*app.theme, opt.theme);
-	{ t, has := maybe_get(app_theme_pending);
-	if has { theme_load(*app.theme, t); } }
+	if app_theme_pending_set { theme_load(*app.theme, app_theme_pending); }
 	ui.init(*app.ui, ui.Backend.{shape = ui_shape});
 	view_init(*app.view);
 	draw_inline_object = draw_custom_emoji;

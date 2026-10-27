@@ -36,7 +36,7 @@ Login_State :: struct {
 	password_error: string;
 	message: string; // red line above Log In (captcha, network, rejected token...)
 	busy: bool;
-	methods: dc.Mfa_Methods;
+	methods: dc.Mfa_Method;
 	slide: Mfa_Slide;
 	mfa_error: string;
 	sms_phone: string;
@@ -80,7 +80,7 @@ login_reset :: () {
 // zero_editor wipes the editor's bytes before clearing it (the password).
 zero_editor :: (ed: *ui.Editor) {
 	t := ui.editor_text(ed);
-	if len(t) > 0 { crypto.zero_explicit(raw_data(t), len(t)); }
+	if len(t) > 0 { crypto.zero(cast([]u8) t); }
 	ui.editor_set_text(ed, "");
 }
 #scope_export
@@ -526,7 +526,7 @@ qr_draw :: (b: *ui.Box, user: *void) {
 
 // ---- multi-factor step ----
 
-login_mfa_begin :: (methods: dc.Mfa_Methods) {
+login_mfa_begin :: (methods: dc.Mfa_Method) {
 	lg.mode = .Mfa;
 	lg.methods = methods;
 	set_str(*lg.mfa_error, "");

@@ -37,7 +37,8 @@ Pf_Profile :: struct {
 	friends_req: bool;
 	friends_done: bool;
 	banner: string;
-	accent: Maybe(u32);
+	accent: u32;
+	has_accent: bool;
 	bio: string;
 	pronouns: string;
 	guild_joined: string; // guild_member.joined_at in the modal's guild context
@@ -115,7 +116,7 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 		p.banner = clone(dc.fstr(u, "banner"));
 		p.bio = clone(dc.fstr(prof, "bio"));
 		p.pronouns = clone(dc.fstr(prof, "pronouns"));
-		if dc.vhas(u, "accent_color") && !dc.vis_null(dc.vget(u, "accent_color")) { p.accent = some(cast(u32)(dc.fint(u, "accent_color"))); }
+		if dc.vhas(u, "accent_color") && !dc.vis_null(dc.vget(u, "accent_color")) { p.accent, p.has_accent = cast(u32) dc.fint(u, "accent_color"), true; }
 		p.guild_joined = clone(dc.fstr(dc.fmap(m, "guild_member"), "joined_at"));
 		clear(*p.mutual_guilds);
 		for gv: dc.flist(m, "mutual_guilds") {
@@ -143,7 +144,7 @@ profile_full_overlay :: () {
 		if v != "" {
 			id, _ := strconv.parse_u64(v);
 			if v == "me" { id = cast(u64)(store().me); }
-			if v == "friend" { for uid, rel: store().relationships { if rel.kind == .Friend { id = cast(u64)(uid); } } }
+			if v == "friend" { for rel, uid: store().relationships { if rel.kind == .Friend { id = cast(u64)(uid); } } }
 			profile_full_open(cast(dc.Snowflake)(id), app.view.guild);
 		} }
 	}
@@ -187,10 +188,7 @@ profile_full_overlay :: () {
 		banner := ui.box("banner", .Draw_Background);
 		banner.semantic_size = .[ui.pct(1), ui.px(banner_h)];
 		banner.style.radius = .[8, 8, 0, 0];
-		accent := prof.accent;
-		if !accent.ok { accent = u.accent_color; }
-		{ ac, ok := maybe_get(accent);
-		if ok { banner.style.bg = rgb_u32(ac); } else { banner.style.bg = T("--background-brand"); } }
+		banner.style.bg = ifx prof.has_accent then rgb_u32(prof.accent) else ifx u.has_accent_color then rgb_u32(u.accent_color) else T("--background-brand");
 		if banner_url != "" { set_remote_image(banner, banner_url); }
 		head := ui.box("head");
 		head.semantic_size = .[ui.pct(1), ui.px(140)];

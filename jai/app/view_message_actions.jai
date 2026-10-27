@@ -119,7 +119,7 @@ quick_reactions :: () -> []dc.Emoji {
 		{ id, ok := strconv.parse_u64(key);
 		if ok {
 			found := false;
-			for * _, g: store().guilds {
+			for * g: store().guilds {
 				for ge: g.emojis { if cast(u64)(ge.id) == id {e, found = ge, true;} }
 			}
 			if !found { return; }

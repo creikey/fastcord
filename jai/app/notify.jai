@@ -34,7 +34,7 @@ notify_tick :: () {
 	}
 	// dock badge: unread mentions
 	total := 0;
-	for _, rs: s.read_states { total += max(rs.mention_count, 0); }
+	for rs: s.read_states { total += max(rs.mention_count, 0); }
 	if notify_prefs.badge_off { total = 0; } // Settings > Notifications > Unread Message Badge
 	if !ns.badge_set || total != ns.badge {
 		ns.badge = total;

@@ -67,7 +67,8 @@ Picker_State :: struct {
 	search_focus: bool;
 	opened_once: bool;
 	keys: [..]ui.Input_Event; // keyboard events for the active tab this frame
-	hidden_mouse: Maybe(ui.Vec2); // real mouse while hidden from the views under the popout
+	hidden_mouse: ui.Vec2;
+	has_hidden_mouse: bool; // real mouse while hidden from the views under the popout
 	buttons: [#run enum_count(Picker_Tab)]ui.Rect; // composer buttons (clicks on them switch tabs, not close)
 }
 
@@ -168,7 +169,7 @@ picker_capture_input :: () {
 	over := pk_contains(pk.rect, app.ui.mouse);
 	if over {
 		// the message list hovers by rect (ui.mouse_over); keep it from reacting under the popout
-		pk.hidden_mouse = some(app.ui.mouse);
+		pk.hidden_mouse, pk.has_hidden_mouse = app.ui.mouse, true;
 		app.ui.mouse = .{-1000000, -1000000};
 	}
 	for * e, i: app.ui.events {
@@ -201,11 +202,10 @@ release_captured :: () {
 
 // Overlay entry (views.odin overlays()): network results every frame, the popout when open.
 picker_overlay :: () {
-	{ m, ok := maybe_get(pk.hidden_mouse);
-	if ok {
-		app.ui.mouse = m;
-		pk.hidden_mouse = .{};
-	} }
+	if pk.has_hidden_mouse {
+		app.ui.mouse = pk.hidden_mouse;
+		pk.has_hidden_mouse = false;
+	}
 	pickers_poll();
 	clear(*pk.keys);
 	picker_debug_autopen();

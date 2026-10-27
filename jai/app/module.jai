@@ -6,7 +6,7 @@
 #import "Atomics";
 #import "fc";
 audio :: #import "audio";
-crypto :: #import "fc_crypto";
+crypto :: #import "crypto";
 dc :: #import "discord";
 filepath :: #import "fc_filepath";
 fmt :: #import "fc_fmt";

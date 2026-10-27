@@ -103,7 +103,7 @@ theme_by_name :: (s: string) -> Theme_Name, bool {
 
 apply_persisted :: (p: *Persisted) {
 	{ t, ok := theme_by_name(p.theme);
-	if ok { app_theme_pending = some(t); } }
+	if ok { app_theme_pending, app_theme_pending_set = t, true; } }
 	theme_follow_os = p.theme_follow_os;
 	notify_prefs = p.notify;
 	v := *p.voice;
@@ -127,7 +127,8 @@ apply_persisted :: (p: *Persisted) {
 #scope_export
 
 // theme to apply after theme_load at startup (main applies opt.theme first)
-app_theme_pending: Maybe(Theme_Name);
+app_theme_pending: Theme_Name;
+app_theme_pending_set: bool;
 
 notify_prefs: Persisted_Notify;
 theme_follow_os: bool;

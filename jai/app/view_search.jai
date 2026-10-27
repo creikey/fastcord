@@ -199,7 +199,7 @@ search_suggestions :: () {
 		q := strings.to_lower(sub_from(last, len(prefix)), temp);
 		title = ifx prefix == "from:" then "From User" else "Mentions User";
 		n := 0;
-		for * uid, u: s.users {
+		for * u, uid: s.users {
 			if n >= 8 { break; }
 			if ch.guild_id != 0 {
 				{ gm, ok := map_find(s.members, ch.guild_id);
@@ -304,10 +304,10 @@ search_run :: (ch: *dc.Channel, text: string) {
 	pinned := false;
 	find_user :: (s: *dc.Store, name: string) -> dc.Snowflake {
 		ln := strings.to_lower(name, temp);
-		for * uid, u: s.users {
+		for * u, uid: s.users {
 			if strings.to_lower(u.username, temp) == ln { return uid; }
 		}
-		for * uid, u: s.users {
+		for * u, uid: s.users {
 			if strings.to_lower(dc.user_name(s, uid), temp) == ln || strings.to_lower(dc.display_name(u), temp) == ln { return uid; }
 		}
 		return 0;

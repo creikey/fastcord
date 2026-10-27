@@ -1,10 +1,17 @@
 // Local compat helpers for the Odin port (candidates for fc).
-Maybe :: dc.Maybe;
-maybe_get :: dc.maybe_get;
-some :: dc.some;
-to_v :: dc.to_v;
-is_null :: dc.is_null;
-make_map :: dc.make_map;
+is_null :: inline (x: $T) -> bool {
+	#if type_info(T).type == .ARRAY || type_info(T).type == .STRING return x.data == null;
+	else #if type_info(T).type == .STRUCT return x.allocator.proc == null;
+	else return x == null;
+}
+
+// PHASE-1 TEMP: fc Map verbs on discord's Hash_Table Tables (removed with fc).
+map_find_ptr :: inline (m: *Table, k: m.Key_Type) -> *m.Value_Type, bool { p := table_find_pointer(m, k); return p, p != null; }
+map_find :: inline (m: Table, k: m.Key_Type) -> m.Value_Type, bool { mm := m; p := table_find_pointer(*mm, k); if p return p.*, true; z: m.Value_Type; return z, false; }
+get :: inline (m: Table, k: m.Key_Type) -> m.Value_Type { mm := m; p := table_find_pointer(*mm, k); if p return p.*; z: m.Value_Type; return z; }
+has :: inline (m: Table, k: m.Key_Type) -> bool { mm := m; return table_find_pointer(*mm, k) != null; }
+at :: inline (m: *Table, k: m.Key_Type) -> *m.Value_Type { return find_or_add(m, k); }
+len :: inline (m: Table) -> int { return m.count; }
 
 // Int2: Odin [2]int, used with .x / .y swizzles.
 Int2 :: struct { x, y: int; }

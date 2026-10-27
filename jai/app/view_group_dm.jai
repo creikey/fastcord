@@ -70,7 +70,7 @@ tooltip_below :: (text: string, r: ui.Rect) {
 friends_sorted :: () -> []dc.Snowflake {
 	s := store();
 	out := make_dynamic(dc.Snowflake, 0, 0, temp);
-	for uid, rel: s.relationships { if rel.kind == .Friend { append(*out, uid); } }
+	for rel, uid: s.relationships { if rel.kind == .Friend { append(*out, uid); } }
 	sort_users_by_name(view(out));
 	return view(out);
 }

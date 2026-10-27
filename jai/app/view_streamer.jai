@@ -107,7 +107,7 @@ streamer_start :: () {
 	thread.create_and_start(() {
 		while true {
 			if atomic_load(*sm.scan) {
-				_, on := streamer_tool_running(dc.process_exe_paths(temp));
+				_, on := streamer_tool_running(dc.process_exe_paths(,, temp));
 				if on != atomic_load(*sm.detected) {
 					atomic_store(*sm.detected, on);
 					platform.request_frame();

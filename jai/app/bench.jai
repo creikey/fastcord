@@ -121,9 +121,9 @@ bench_shape :: () -> Bench_Shape {
 		rail = make_dynamic(Bench_Rail_Entry, 0, 0, temp)
 	};
 	sh.users = len(s.users);
-	for * _, u: s.users { if u.avatar != "" { sh.users_with_avatar += 1; } }
+	for * u: s.users { if u.avatar != "" { sh.users_with_avatar += 1; } }
 	sh.guilds = len(s.guilds);
-	for * _, g: s.guilds {
+	for * g: s.guilds {
 		sh.roles += len(g.roles);
 		sh.emojis += len(g.emojis);
 		for e: g.emojis { if e.animated { sh.animated_emojis += 1; } }
@@ -138,7 +138,7 @@ bench_shape :: () -> Bench_Shape {
 		}
 		append(*sh.rail, re);
 	}
-	for * _, c: s.channels {
+	for * c: s.channels {
 		if c.kind == {
 		case .DM;
 			sh.dms += 1;
@@ -164,14 +164,14 @@ bench_shape :: () -> Bench_Shape {
 			if dm { sh.mention_dms += 1; }
 		}
 	}
-	for _, m: s.members { sh.members += len(m); }
+	for m: s.members { sh.members += len(m); }
 	sh.presences = len(s.presences);
-	for _, r: s.relationships {
+	for r: s.relationships {
 		if r.kind == .Friend { sh.friends += 1; } else { sh.other_relationships += 1; }
 	}
 	sh.read_states = len(s.read_states);
 	sh.guild_settings = len(s.guild_settings);
-	for _, gs: s.guild_settings {
+	for gs: s.guild_settings {
 		if gs.muted { sh.muted_guilds += 1; }
 		sh.muted_channels += len(gs.muted_channels);
 		sh.collapsed_categories += len(gs.collapsed_channels);
@@ -187,7 +187,7 @@ bench_shape :: () -> Bench_Shape {
 		}
 	}
 	sh.textures = gfx.texture_count();
-	for * _, l: s.messages {
+	for * l: s.messages {
 		if len(l.messages) == 0 { continue; }
 		sh.channels_with_messages += 1;
 		sh.messages += len(l.messages);

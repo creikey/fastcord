@@ -93,8 +93,8 @@ offline_lottie :: (id: dc.Snowflake) {
 	if has(lottie_stickers, id) { return; }
 	data, ok := offline_media(dc.sticker_url(id, 3));
 	if !ok { return; }
-	anim, err := lottie.load(data);
-	if err != .None { return; }
+	anim := lottie.load(data);
+	if anim == null { return; }
 	at(*lottie_stickers, id).* = Lottie_Sticker.{state = .Ready, anim = anim, frame = -1};
 }
 #scope_export

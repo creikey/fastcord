@@ -23,7 +23,7 @@ wd: Watchdog;
 #scope_export
 
 watchdog_start :: () {
-	wd.main_tid = sync.current_thread_id();
+	wd.main_tid = locks.current_thread_id();
 	thread.create_and_start(watchdog_proc, self_cleanup = true);
 }
 

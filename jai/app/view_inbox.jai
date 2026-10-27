@@ -62,7 +62,7 @@ inbox_button :: () {
 	// (counted like the rail's badges: read-state counts or loaded unread mentions)
 	s := store();
 	total := 0;
-	for * id, ch: s.channels {
+	for * ch, id: s.channels {
 		if ch.last_message_id == 0 { continue; }
 		rs, _ := map_find_ptr(*s.read_states, id);
 		if rs != null && rs.last_message_id >= ch.last_message_id { continue; }
@@ -124,7 +124,7 @@ local_mentions :: () {
 	if virtual.arena_init_growing(*inbox.arena) != .None { return; }
 	alloc := virtual.arena_allocator(*inbox.arena);
 	inbox.items = make_dynamic(Mention, 0, 0, alloc);
-	for * cid, l: s.messages {
+	for * l, cid: s.messages {
 		ch := dc.channel_get(s, cid);
 		for * m: l.messages {
 			if m.author_id == s.me || !(m.mention_everyone || slice.contains(view(m.mentions), s.me)) { continue; }
@@ -293,7 +293,7 @@ unread_rows :: () -> []Unread_Row {
 		key, guild, id: dc.Snowflake;
 	}
 	list := make_dynamic(Keyed, 0, 0, temp);
-	for * id, ch: s.channels {
+	for * ch, id: s.channels {
 		if ch.last_message_id == 0 || ch.kind == .Guild_Category { continue; }
 		{ rs, ok := map_find_ptr(*s.read_states, id);
 		if ok && rs.last_message_id >= ch.last_message_id { continue; } }

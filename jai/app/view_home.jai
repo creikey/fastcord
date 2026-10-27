@@ -266,7 +266,7 @@ friends_page :: () {
 	list.layout_axis = .Y;
 	ui.signal(list);
 	ids := make_dynamic(dc.Snowflake, 0, 0, temp);
-	for uid, rel: s.relationships {
+	for rel, uid: s.relationships {
 		if app.view.friends_tab == {
 		case .Online;
 			if rel.kind == .Friend && user_status(uid) != .Offline { append(*ids, uid); }
@@ -354,7 +354,7 @@ friends_page :: () {
 
 pending_count :: () -> int {
 	n := 0;
-	for _, rel: store().relationships {
+	for rel: store().relationships {
 		if rel.kind == .Incoming_Request { n += 1; }
 	}
 	return n;
@@ -645,8 +645,7 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
 profile_banner_color :: (uid: dc.Snowflake) -> ui.Color {
 	{ u := dc.user_get(store(), uid);
 	if u != null {
-		{ ac, ok := maybe_get(u.accent_color);
-		if ok { return rgb_u32(ac); } }
+		if u.has_accent_color { return rgb_u32(u.accent_color); }
 	} }
 	{ im := image_get(avatar_url_for(uid, 80));
 	if im != null && im.state == .Ready && im.dominant.w > 0 { return im.dominant; } }

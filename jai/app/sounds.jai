@@ -315,12 +315,12 @@ voice_members :: () {
 		clear(*snd.members);
 		snd.members_ch = ch;
 		if ch == 0 { return; }
-		for uid, v: s.voice_states { if v.channel_id == ch && uid != s.me { at(*snd.members, uid).* = true; } }
+		for v, uid: s.voice_states { if v.channel_id == ch && uid != s.me { at(*snd.members, uid).* = true; } }
 		return;
 	}
 	if ch == 0 { return; }
 	now := Map(dc.Snowflake, bool).{};
-	for uid, v: s.voice_states { if v.channel_id == ch && uid != s.me { at(*now, uid).* = true; } }
+	for v, uid: s.voice_states { if v.channel_id == ch && uid != s.me { at(*now, uid).* = true; } }
 	joined, left := false, false;
 	for uid: now { if !get(snd.members, uid) { joined = true; } }
 	for uid: snd.members { if !get(now, uid) { left = true; } }
