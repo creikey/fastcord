@@ -3,6 +3,7 @@
 #import "Hash_Table";
 #import "Atomics";
 #import "fc";
+#import "Math";
 aes :: #import "fc_aes";
 crypto :: #import "fc_crypto";
 ecdh :: #import "fc_ecdh";

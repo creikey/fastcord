@@ -48,7 +48,7 @@ sibling_of :: (x: u32) -> u32 {
 
 direct_path :: (x: u32, n_leaves: u32, a := temp) -> []u32 {
 	r := root(n_leaves);
-	out := make_dynamic(u32, 0, 8);
+	out := make_dynamic(u32, 0, 8, a);
 	if x == r { return view(out); }
 	y := x;
 	while y != r {
@@ -60,7 +60,7 @@ direct_path :: (x: u32, n_leaves: u32, a := temp) -> []u32 {
 
 copath :: (x: u32, n_leaves: u32, a := temp) -> []u32 {
 	dp := direct_path(x, n_leaves);
-	out := make_dynamic(u32, 0, 8);
+	out := make_dynamic(u32, 0, 8, a);
 	if len(dp) == 0 { return view(out); }
 	append(*out, sibling_of(x));
 	for i: 0..(len(dp) - 1)-1 { append(*out, sibling_of(dp[i])); }
@@ -140,7 +140,7 @@ leaf_at :: (t: *Tree, leaf: u32) -> *Node {
 }
 
 resolution :: (t: *Tree, x: u32, a := temp) -> []u32 {
-	out := make_dynamic(u32, 0, 8);
+	out := make_dynamic(u32, 0, 8, a);
 	resolve_into(t, x, *out);
 	return view(out);
 }
@@ -168,7 +168,7 @@ filtered_direct_path :: (t: *Tree, leaf: u32, a := temp) -> []u32 {
 	nl := n_leaves(t);
 	dp := direct_path(x, nl);
 	cp := copath(x, nl);
-	out := make_dynamic(u32, 0, len(dp));
+	out := make_dynamic(u32, 0, len(dp), a);
 	for i: 0..len(dp)-1 {
 		if len(resolution(t, cp[i])) > 0 { append(*out, dp[i]); }
 	}
@@ -288,7 +288,7 @@ parse_ratchet_tree :: (b: []u8, a: Allocator) -> Tree, Error {
 	r := reader_make(b);
 	sub := r_sub(*r);
 	if !r_done(*r) { return t, .Decode; }
-	t.nodes = make_dynamic(Node, 0, 16);
+	t.nodes = make_dynamic(Node, 0, 16, a);
 	while r_ok(*sub) && r_left(*sub) > 0 {
 		n: Node;
 		if r_optional(*sub) {
@@ -358,7 +358,7 @@ tree_add_leaf :: (t: *Tree, ln: Leaf_Node, a: Allocator) -> u32 {
 	for p: direct_path(idx * 2, n_leaves(t)) {
 		n := *t.nodes[p];
 		if n.kind == .Parent {
-			ul := make_slice(u32, len(n.parent.unmerged_leaves) + 1);
+			ul := make_slice(u32, len(n.parent.unmerged_leaves) + 1, a);
 			copy(ul, n.parent.unmerged_leaves);
 			ul[len(ul) - 1] = idx;
 			n.parent.unmerged_leaves = ul;

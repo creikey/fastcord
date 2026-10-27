@@ -425,7 +425,7 @@ r_u16_list :: (r: *Reader, a: Allocator) -> []u16 {
 		r_fail(r);
 		return .{};
 	}
-	out := make_slice(u16, len(sub.data) / 2);
+	out := make_slice(u16, len(sub.data) / 2, a);
 	for i: 0..len(out)-1 { at(*out, i).* = r_u16(*sub); }
 	return out;
 }
@@ -436,7 +436,7 @@ r_u32_list :: (r: *Reader, a: Allocator) -> []u32 {
 		r_fail(r);
 		return .{};
 	}
-	out := make_slice(u32, len(sub.data) / 4);
+	out := make_slice(u32, len(sub.data) / 4, a);
 	for i: 0..len(out)-1 { at(*out, i).* = r_u32(*sub); }
 	return out;
 }
@@ -460,7 +460,7 @@ r_capabilities :: (r: *Reader, a: Allocator) -> Capabilities {
 
 r_extensions :: (r: *Reader, a: Allocator) -> []Extension {
 	sub := r_sub(r);
-	out := make_dynamic(Extension, 0, 4);
+	out := make_dynamic(Extension, 0, 4, a);
 	while r_ok(*sub) && r_left(*sub) > 0 {
 		e: Extension;
 		e.type = r_u16(*sub);
@@ -469,7 +469,7 @@ r_extensions :: (r: *Reader, a: Allocator) -> []Extension {
 	}
 	if !r_ok(*sub) { r_fail(r); }
 	// duplicates are invalid
-	for i: 0..len(out)-1 { for j: i + 1..len(out)-1 { if __MAPIDX__(out|i).type == __MAPIDX__(out|j).type { r_fail(r); } } }
+	for i: 0..len(out)-1 { for j: i + 1..len(out)-1 { if out[i].type == out[j].type { r_fail(r); } } }
 	return view(out);
 }
 
@@ -574,7 +574,7 @@ r_hpke_ciphertext :: (r: *Reader) -> Hpke_Ciphertext {
 r_commit :: (r: *Reader, a: Allocator) -> Commit {
 	c: Commit;
 	sub := r_sub(r);
-	props := make_dynamic(Proposal_Or_Ref, 0, 4);
+	props := make_dynamic(Proposal_Or_Ref, 0, 4, a);
 	while r_ok(*sub) && r_left(*sub) > 0 {
 		por: Proposal_Or_Ref;
 		if r_u8(*sub) == {
@@ -594,12 +594,12 @@ r_commit :: (r: *Reader, a: Allocator) -> Commit {
 	if c.has_path {
 		c.path.leaf = r_leaf_node(r, a);
 		ns := r_sub(r);
-		nodes := make_dynamic(Update_Path_Node, 0, 4);
+		nodes := make_dynamic(Update_Path_Node, 0, 4, a);
 		while r_ok(*ns) && r_left(*ns) > 0 {
 			n: Update_Path_Node;
 			n.encryption_key = r_vec(*ns);
 			ss := r_sub(*ns);
-			cts := make_dynamic(Hpke_Ciphertext, 0, 2);
+			cts := make_dynamic(Hpke_Ciphertext, 0, 2, a);
 			while r_ok(*ss) && r_left(*ss) > 0 { append(*cts, r_hpke_ciphertext(*ss)); }
 			if !r_ok(*ss) { r_fail(*ns); }
 			n.secrets = view(cts);
@@ -687,7 +687,7 @@ r_group_secrets :: (r: *Reader, a: Allocator) -> Group_Secrets {
 	gs.has_path_secret = r_optional(r);
 	if gs.has_path_secret { gs.path_secret = r_vec(r); }
 	sub := r_sub(r);
-	psks := make_dynamic(Psk_Id, 0, 1);
+	psks := make_dynamic(Psk_Id, 0, 1, a);
 	while r_ok(*sub) && r_left(*sub) > 0 { append(*psks, r_psk_id(*sub)); }
 	if !r_ok(*sub) { r_fail(r); }
 	gs.psks = view(psks);
@@ -698,7 +698,7 @@ r_welcome :: (r: *Reader, a: Allocator) -> Welcome {
 	w: Welcome;
 	w.cipher_suite = r_u16(r);
 	sub := r_sub(r);
-	list := make_dynamic(Encrypted_Group_Secrets, 0, 2);
+	list := make_dynamic(Encrypted_Group_Secrets, 0, 2, a);
 	while r_ok(*sub) && r_left(*sub) > 0 {
 		e: Encrypted_Group_Secrets;
 		e.new_member = r_vec(*sub);

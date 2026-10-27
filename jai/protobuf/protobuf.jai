@@ -37,7 +37,7 @@ next :: (r: *Reader) -> Field, bool {
 	ok: bool;
 	if r.pos >= len(r.buf) { return .{}, false; }
 	tag, __e1 := read_varint(r); if failed(__e1) return f, __e1;
-	f.num = cast(u32)(tag >> 3);
+	f.num = cast,no_check(u32)(tag >> 3);
 	f.wire = cast(Wire_Type)(tag & 7);
 	if f.wire == {
 	case .Varint;
@@ -104,7 +104,7 @@ Writer :: struct {
 write_varint :: (w: *Writer, v: u64) {
 	x := v;
 	while x >= 0x80 {
-		append(*w.buf, cast(u8)(x) | 0x80);
+		append(*w.buf, cast,no_check(u8)(x) | 0x80);
 		x >>= 7;
 	}
 	append(*w.buf, cast(u8)(x));

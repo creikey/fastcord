@@ -1,7 +1,3 @@
-#if OS == .WINDOWS {
-} else {
-}
-
 Error :: enum u8 {
 	None;
 	Truncated; // decompress: input ended inside a frame
@@ -99,7 +95,7 @@ stream_init :: (d: *Stream_Decoder, allocator := context.allocator, max_window :
 
 stream_destroy :: (d: *Stream_Decoder) {
 	if d.dctx != null { ZSTD_freeDCtx(d.dctx); }
-	if d.mem != null { free(d.mem, d.mem.*); }
+	if d.mem != null { mem.free(d.mem, d.mem.*); }
 	d.* = .{};
 }
 
@@ -107,7 +103,7 @@ stream_destroy :: (d: *Stream_Decoder) {
 // Errors are sticky: after one, the decoder must be destroyed and re-initialised.
 stream_decode :: (d: *Stream_Decoder, input: []u8, out: *[..]u8) -> Error {
 	if d.err != .None { return d.err; }
-	d.err = run(d.dctx, input, out, S64_MAX);
+	d.err = run(d.dctx, input, out, 0x7fff_ffff_ffff_ffff);
 	return d.err;
 }
 
@@ -140,7 +136,7 @@ run :: (dctx: *void, input: []u8, out: *[..]u8, max_out: int, boundary: *bool = 
 	ret: u64 = 1;
 	while true {
 		start := len(out);
-		room := max(4096, cap(out) - start);
+		room := max(4096, cap(out.*) - start);
 		if start + room > max_out {
 			room = max_out - start;
 			if room <= 0 {
@@ -149,8 +145,8 @@ run :: (dctx: *void, input: []u8, out: *[..]u8, max_out: int, boundary: *bool = 
 				room = 1;
 			}
 		}
-		if resize(out, start + room) != null { return .Out_Of_Memory; }
-		out_buf := Out_Buffer.{raw_data(sub_from(out, start)), cast(u64)(room), 0};
+		resize(out, start + room);
+		out_buf := Out_Buffer.{raw_data(sub_from(out.*, start)), cast(u64)(room), 0};
 		ret = ZSTD_decompressStream(dctx, *out_buf, *in_buf);
 		resize(out, start + cast(int)(out_buf.pos));
 		if ZSTD_isError(ret) != 0 { return to_error(ret); }
