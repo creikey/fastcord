@@ -611,7 +611,7 @@ clear_after_name :: (k: Clear_After) -> string {
 	return NAMES[cast(int) k];
 }
 
-analytics_status_updated :: (c: *Client, prev: Status, next: Status) {
+analytics_status_updated :: (c: *Client, prev: Status, next: Status, duration_ms: s64 = 0, expired := false) {
 	a := *c.analytics;
 	now := now_ms();
 	w := aw_begin();
@@ -620,6 +620,13 @@ analytics_status_updated :: (c: *Client, prev: Status, next: Status) {
 	KEYS :: string.["approx_seconds_since_last_notification", "approx_seconds_since_last_mention", "approx_seconds_since_last_role_mention", "approx_seconds_since_last_everyone_mention"];
 	for t: s64.[a.last_notification_ms, a.last_mention_ms, a.last_role_mention_ms, a.last_everyone_mention_ms] {
 		if t == 0 json_knull(*w, KEYS[it_index]); else json_kint(*w, KEYS[it_index], (now - t) / 1000);
+	}
+	if duration_ms > 0 json_kint(*w, "expire_duration_minutes", duration_ms / 60_000);
+	if expired {
+		json_key(*w, "location");
+		json_obj(*w);
+		json_kstr(*w, "object", "CUSTOM_STATUS_MANAGER");
+		json_obj_end(*w);
 	}
 	aw_track(c, "user_status_updated", *w);
 }

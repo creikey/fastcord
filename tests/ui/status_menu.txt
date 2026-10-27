@@ -1,0 +1,29 @@
+# Own profile card from the user panel. "..." opens the user menu on top of the
+# card, which stays open; a press inside the card closes only the menu.
+# The status row opens the status menu (hover), a status's chevron its
+# durations; choosing keeps both open, as the client does.
+wait 5
+click 112 683
+wait 20
+click 282 368
+wait 10
+expect_profile_open
+expect_visible "Copy User ID"
+click 150 520
+wait 10
+expect_profile_open
+expect_not_visible "Copy User ID"
+move_text "Online"
+wait 10
+expect_visible "You will not receive desktop notifications"
+move_text "Do Not Disturb"
+wait 10
+click_text "For 1 Hour"
+wait 10
+expect_profile_open
+expect_visible "For 3 Days"
+expect_not_visible "You will not receive desktop notifications"
+shot build/ui-status_menu_dnd.png
+click_text "Online"
+wait 10
+expect_visible "You will not receive desktop notifications"

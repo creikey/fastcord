@@ -373,6 +373,7 @@ client_poll :: (c: *Client) -> bool {
 	flush_due_acks(c, now);
 	flush_typing_local(c, now);
 	flush_quick_switcher(c, now);
+	status_expiry_tick(c, now);
 	flush_settings(c, now);
 	flush_soundboard(c, now);
 	guild_admin_tick(c, now);

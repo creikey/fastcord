@@ -131,7 +131,6 @@ profile_full_receive :: (r: *dc.Expr_Result) {
 
 // Overlay entry (views.jai overlays()).
 profile_full_overlay :: () {
-	defer user_context_menu();
 	// FASTCORD_PROFILE=<id>|me|friend opens a profile once the first channel shows (screenshots)
 	if !env_profile_done && app.view.channel != 0 {
 		env_profile_done = true;
@@ -539,8 +538,11 @@ open_user_menu :: (uid: dc.Snowflake, at: ui.Vec2, dm_row := false) {
 	if app.client == null || uid == 0 { return; }
 	if dm_row { dc.open_dm_row_menu(app.client, uid); } else if app.view.guild != 0 { dc.open_user_context_menu(app.client, uid, app.view.guild); }
 }
-#scope_file
 
+user_menu_open :: () -> bool { return pf.menu_user != 0; }
+
+// Drawn after the profile popout (overlays()): a menu opened from a profile's
+// "..." sits on top of it, and pressing outside the menu closes only the menu.
 user_context_menu :: () {
 	if pf.menu_user == 0 { return; }
 	uid := pf.menu_user;
@@ -619,7 +621,6 @@ user_context_menu :: () {
 	}
 	for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { pf.menu_user = 0; } }
 }
-#scope_export
 
 pf_reset_for_test :: () {pf = .{};}
 pf_state_for_test :: () -> string {return tprint("% % %", pf.user, pf.tab, pf.menu_user);}

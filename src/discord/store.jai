@@ -709,6 +709,8 @@ apply_settings_proto :: (s: *Store, b64: string) {
 	if found st.custom_status_emoji_id = f.value;
 	f, found = protobuf.find_path(raw, 11, 2, 4);
 	if found st.custom_status_expires_ms = cast(s64) f.value;
+	f, found = protobuf.find_path(raw, 11, 4);
+	st.status_expires_ms = ifx found then cast(s64) f.value else 0;
 	f, found = protobuf.find_path(raw, 11, 5, 1);
 	if found st.status_created_ms = cast(s64) f.value;
 	f, found = protobuf.find_path(raw, 12, 1, 1);
