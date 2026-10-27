@@ -43,7 +43,14 @@ open_file_dialog :: (allow_multiple := true, allocator := context.allocator) -> 
 // Toast notifications and the taskbar overlay badge are not implemented yet (they need an AppUserModelID and
 // WinRT's ToastNotificationManager). The app still plays the notification sound.
 notify_show :: (title: string, body: string, id: string) -> bool { return false; }
-set_badge :: (text: string) {}
+
+// Puts a red dot on the tray icon while text isn't "" (unread mentions).
+set_badge :: (text: string) {
+    if s.headless || !w.tray_icon return;
+    if w.tray_badge_icon DestroyIcon(w.tray_badge_icon);
+    w.tray_badge_icon = ifx text then badge_icon(w.tray_icon) else null;
+    if w.tray tray_notify(NIM_MODIFY);
+}
 
 // Opens a URL in the user's default browser.
 open_url :: (url: string) {
@@ -83,10 +90,18 @@ os_init :: (title: string, width: int, height: int) -> bool {
     update_refresh();
     win.ShowWindow(w.hwnd, win.SW_SHOW);
     win.UpdateWindow(w.hwnd);
+    w.taskbar_created = RegisterWindowMessageW(wide("TaskbarCreated"));
+    w.tray_size = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
+    w.tray_icon = LoadImageW(w.instance, cast(*u16) 2, IMAGE_ICON, w.tray_size, w.tray_size, 0);
+    w.tray = tray_notify(NIM_ADD);
     return true;
 }
 
 os_shutdown :: () {
+    if w.tray tray_notify(NIM_DELETE);
+    if w.tray_badge_icon DestroyIcon(w.tray_badge_icon);
+    if w.tray_icon DestroyIcon(w.tray_icon);
+    w.tray, w.tray_icon, w.tray_badge_icon = false, null, null;
     if w.hwnd && w.drop_registered RevokeDragDrop(w.hwnd);
     if w.hwnd win.DestroyWindow(w.hwnd);
     w.hwnd = null;
@@ -219,6 +234,7 @@ kernel32 :: #system_library "kernel32";
 imm32 :: #system_library "imm32";
 ole32 :: #system_library "ole32";
 shell32 :: #system_library "shell32";
+gdi32 :: #system_library "gdi32";
 
 // Not in Jai's Windows module. BOOL results are s32 here so they test as ints.
 MsgWaitForMultipleObjectsEx :: (nCount: u32, pHandles: **void, dwMilliseconds: u32, dwWakeMask: u32, dwFlags: u32) -> u32 #foreign user32;
@@ -251,6 +267,51 @@ RevokeDragDrop :: (hwnd: win.HWND) -> win.HRESULT #foreign ole32;
 ReleaseStgMedium :: (medium: *STGMEDIUM) #foreign ole32;
 CreateStreamOnHGlobal :: (h: *void, delete_on_release: s32, stream: **void) -> win.HRESULT #foreign ole32;
 
+Shell_NotifyIconW :: (msg: u32, data: *NOTIFYICONDATAW) -> s32 #foreign shell32;
+RegisterWindowMessageW :: (name: *u16) -> u32 #foreign user32;
+GetSystemMetricsForDpi :: (index: s32, dpi: u32) -> s32 #foreign user32;
+LoadImageW :: (inst: win.HINSTANCE, name: *u16, type: u32, cx: s32, cy: s32, flags: u32) -> win.HICON #foreign user32;
+DestroyIcon :: (icon: win.HICON) -> s32 #foreign user32;
+CreateIconIndirect :: (info: *win.ICONINFO) -> win.HICON #foreign user32;
+CreateBitmap :: (w: s32, h: s32, planes: u32, bpp: u32, bits: *void) -> win.HBITMAP #foreign gdi32;
+CreatePopupMenu :: () -> win.HMENU #foreign user32;
+AppendMenuW :: (menu: win.HMENU, flags: u32, id: u64, text: *u16) -> s32 #foreign user32;
+TrackPopupMenu :: (menu: win.HMENU, flags: u32, x: s32, y: s32, reserved: s32, hwnd: win.HWND, rect: *win.RECT) -> s32 #foreign user32;
+DestroyMenu :: (menu: win.HMENU) -> s32 #foreign user32;
+SetForegroundWindow :: (hwnd: win.HWND) -> s32 #foreign user32;
+IsIconic :: (hwnd: win.HWND) -> s32 #foreign user32;
+
+NOTIFYICONDATAW :: struct {
+    cbSize: u32;
+    hWnd: win.HWND;
+    uID: u32;
+    uFlags: u32;
+    uCallbackMessage: u32;
+    hIcon: win.HICON;
+    szTip: [128]u16;
+    dwState: u32;
+    dwStateMask: u32;
+    szInfo: [256]u16;
+    uVersion: u32;
+    szInfoTitle: [64]u16;
+    dwInfoFlags: u32;
+    guidItem: win.GUID;
+    hBalloonIcon: win.HICON;
+}
+#assert size_of(NOTIFYICONDATAW) == 976;
+NIM_ADD :: 0;
+NIM_MODIFY :: 1;
+NIM_DELETE :: 2;
+NIF_MESSAGE :: 1;
+NIF_ICON :: 2;
+NIF_TIP :: 4;
+SM_CXSMICON :: 49;
+IMAGE_ICON :: 1;
+MF_SEPARATOR :: 0x800;
+TPM_RIGHTBUTTON :: 0x0002;
+TPM_NONOTIFY :: 0x0080;
+TPM_RETURNCMD :: 0x0100;
+
 WM_USER :: 0x0400;
 WM_MOUSELEAVE :: 0x02A3;
 QS_ALLINPUT :: 0x04FF;
@@ -259,6 +320,7 @@ TME_LEAVE :: 2;
 SPI_GETHIGHCONTRAST :: 0x0042;
 SPI_GETCLIENTAREAANIMATION :: 0x1042;
 WM_FC_WAKE :: WM_USER + 1;
+WM_FC_TRAY :: WM_USER + 2;
 TIMER_ANIM :: 1;
 
 COMPOSITIONFORM :: struct {
@@ -303,6 +365,11 @@ w: struct {
     composing: bool;
     drop_registered: bool;
     cf_png: u32;
+    tray: bool; // the tray icon is shown, so closing the window hides it
+    taskbar_created: u32;
+    tray_size: s32;
+    tray_icon: win.HICON;
+    tray_badge_icon: win.HICON; // tray_icon with the unread dot, while there are mentions
 };
 
 // A zero-terminated UTF-16 copy in temp.
@@ -343,6 +410,81 @@ pump :: () {
         win.TranslateMessage(*m);
         win.DispatchMessageW(*m);
     }
+}
+
+// ---- Tray icon: closing the window hides it there; a left click shows it again, the right-click menu quits
+
+TRAY_OPEN :: 1;
+TRAY_QUIT :: 2;
+
+tray_notify :: (op: u32) -> bool {
+    nid := NOTIFYICONDATAW.{cbSize = size_of(NOTIFYICONDATAW), hWnd = w.hwnd, uID = 1, uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP, uCallbackMessage = WM_FC_TRAY};
+    nid.hIcon = ifx w.tray_badge_icon then w.tray_badge_icon else w.tray_icon;
+    tip := wide("Fastcord");
+    for 0..nid.szTip.count-2 {
+        nid.szTip[it] = tip[it];
+        if !tip[it] break;
+    }
+    return Shell_NotifyIconW(op, *nid) != 0;
+}
+
+window_show :: () {
+    win.ShowWindow(w.hwnd, xx ifx IsIconic(w.hwnd) then win.SW_RESTORE else win.SW_SHOW);
+    SetForegroundWindow(w.hwnd);
+}
+
+tray_menu :: () {
+    m := CreatePopupMenu();
+    AppendMenuW(m, 0, TRAY_OPEN, wide("Open Fastcord"));
+    AppendMenuW(m, MF_SEPARATOR, 0, null);
+    AppendMenuW(m, 0, TRAY_QUIT, wide("Quit Fastcord"));
+    p: win.POINT;
+    win.GetCursorPos(*p);
+    // Without the foreground window and the WM_NULL after, the menu stays open when clicking elsewhere
+    // (Microsoft KB135788).
+    SetForegroundWindow(w.hwnd);
+    cmd := TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, p.x, p.y, 0, w.hwnd, null);
+    PostMessageW(w.hwnd, win.WM_NULL, 0, 0);
+    DestroyMenu(m);
+    if cmd == TRAY_OPEN window_show();
+    if cmd == TRAY_QUIT {
+        s.quit = true;
+        push_event(.{kind = .Quit, time = time_now()});
+    }
+}
+
+// base with a red dot in its bottom-right corner, as the official tray icon shows unread mentions.
+badge_icon :: (base: win.HICON) -> win.HICON {
+    ii: win.ICONINFO;
+    if win.GetIconInfo(base, *ii) == .FALSE return null;
+    defer { win.DeleteObject(ii.hbmColor); win.DeleteObject(ii.hbmMask); }
+    n := w.tray_size;
+    bmi: win.BITMAPINFO;
+    bmi.bmiHeader = .{biSize = size_of(win.BITMAPINFOHEADER), biWidth = n, biHeight = -n, biPlanes = 1, biBitCount = 32};
+    px := NewArray(n * n, u32,, temp);
+    dc := win.GetDC(null);
+    got := win.GetDIBits(dc, ii.hbmColor, 0, xx n, px.data, *bmi, win.DIB_RGB_COLORS);
+    win.ReleaseDC(null, dc);
+    if got != n return null;
+    // Straight (not premultiplied) BGRA, so blend the dot over each pixel with its alpha.
+    ch :: (v: u32, shift: u32, dot: float, a: float, cov: float, oa: float) -> u32 {
+        return (cast(u32) ((dot * cov + cast(float) ((v >> shift) & 0xff) * a * (1 - cov)) / oa + 0.5)) << shift;
+    }
+    r := cast(float) n * 0.24;
+    c := cast(float) n - r;
+    for y: 0..n-1 for x: 0..n-1 {
+        dx, dy := cast(float) x + 0.5 - c, cast(float) y + 0.5 - c;
+        cov := clamp(r - sqrt(dx * dx + dy * dy) + 0.5, 0, 1);
+        if cov <= 0 continue;
+        p := *px[y * n + x];
+        a := cast(float) (<<p >> 24) / 255;
+        oa := cov + a * (1 - cov);
+        <<p = ((cast(u32) (oa * 255 + 0.5)) << 24) | ch(<<p, 16, 0xf2, a, cov, oa) | ch(<<p, 8, 0x3f, a, cov, oa) | ch(<<p, 0, 0x43, a, cov, oa);
+    }
+    mask := NewArray((n + 15) / 16 * 2 * n, u8,, temp);
+    out := win.ICONINFO.{fIcon = .TRUE, hbmColor = CreateBitmap(n, n, 1, 32, px.data), hbmMask = CreateBitmap(n, n, 1, 1, mask.data)};
+    defer { win.DeleteObject(out.hbmColor); win.DeleteObject(out.hbmMask); }
+    return CreateIconIndirect(*out);
 }
 
 // ---- Clipboard: images and files
@@ -616,11 +758,24 @@ update_ime_window :: () {
 
 wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #c_call {
     c := s.ctx; push_context,defer_pop c;
+    if w.taskbar_created && msg == w.taskbar_created {
+        w.tray = tray_notify(NIM_ADD); // Explorer restarted and lost every tray icon.
+        return 0;
+    }
     if msg == {
         case WM_FC_WAKE;
             atomic_store(*w.wake_posted, false);
             return 0;
+        case WM_FC_TRAY;
+            ev := lp & 0xffff;
+            if ev == win.WM_LBUTTONUP window_show();
+            else if ev == win.WM_RBUTTONUP tray_menu();
+            return 0;
         case win.WM_CLOSE;
+            if w.tray {
+                win.ShowWindow(hwnd, win.SW_HIDE);
+                return 0;
+            }
             s.quit = true;
             push_event(.{kind = .Quit, time = time_now()});
             return 0;

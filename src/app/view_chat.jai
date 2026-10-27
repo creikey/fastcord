@@ -82,11 +82,13 @@ chat_view :: (channel_id: dc.Snowflake) {
 		cs.opened = true;
 		cs.unread_after = last_read;
 	}
-	// Ack what's on screen while focused and scrolled to the bottom, like the client.
+	// Ack what's on screen while focused, not idle and scrolled to the bottom, like the client.
 	msgs := dc.messages_get(s, channel_id);
-	if app.client && app.focused && msgs && cs.scroll_from_bottom < 2 && !held {
-		last := *msgs[msgs.count - 1];
-		if last.id > last_read && !last.pending dc.ack_message(app.client, channel_id, last.id);
+	if app.client && app.focused && !app.client.idle_sent && msgs && cs.scroll_from_bottom < 2 && !held {
+		// ack({messageId: undefined}) acks the read state's lastMessageId: the channel's newest
+		newest := ch.last_message_id;
+		for < msgs if !it.pending { newest = max(newest, it.id); break; }
+		if newest > last_read dc.ack_message(app.client, channel_id, newest, location = ifx app.focus_gained then dc.ACK_WINDOW_FOCUS else dc.ACK_CHANNEL_SCROLL);
 	}
 
 	picker_capture_input(); // expression picker owns keys/wheel while open

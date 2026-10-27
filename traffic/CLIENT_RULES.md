@@ -99,7 +99,7 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 | Idle: the system idle time (`powerMonitor.getSystemIdleTimeMs`, polled every 10 s) over 10 min (`6e5`) dispatches IDLE with idleSince = the last input; AFK at `min(afkTimeout, 10 min)`, afkTimeout default 600 s, so both at once | code | `getSystemIdleTimeMs`, `type:"IDLE",idle:!0,idleSince` | `client.jai` `idle_poll`, `procinfo_*.jai` `system_idle_ms` |
 | Presence while idle (`getLocalPresence`): an online status becomes `idle`; `since` = idleSince for every status (0 when active); `afk` = isAFK. SelfPresenceStore recomputes after IDLE and again after AFK: two op 3s per change, the first with the old `afk`; IDENTIFY carries the same presence | code | `S===m.clD.ONLINE&&C>0&&(S=m.clD.IDLE)` | `settings.jai` `presence_value`, `client.jai` `flush_presence`, `gateway.jai` `identify_value` |
 | Op 3 is client-limited to 5 per 20 s (later ones wait) | code | `n.length<5?(n.push(l+2e4)` | not needed yet: fastcord sends at most 2 per user action |
-| No automatic ack while idle | code | `"Is idle"` in `shouldAutomaticallyAck` | `actions.jai` |
+| No automatic ack while idle (incoming message, scroll to bottom, channel open); explicit acks (Inbox, banner) still go | code | `"Is idle"` in `shouldAutomaticallyAck` | `actions.jai` MESSAGE_CREATE, `select_channel`; `view_chat.jai` `chat_view` |
 | Reconnect IDENTIFY uses the settings status (the gateway keeps a copy) | code | `presence:V.getInitialState()` | `client.jai` `flush_presence` |
 | `installation_id_v3` from READY `apex_experiments.installation` | code | `AuthenticationStore` CONNECTION_OPEN | `gateway.jai` |
 | `client_launch_id`; fast-connect.js has its own launch id | code | super-properties module | `src/discord/identity.jai` |
@@ -170,6 +170,8 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | Thread `channel_opened`: the thread properties first (counts, archived, locked, auto-archive minutes, creation date, can_send_message, parent_channel_type), then the channel properties; split view adds `channel_view` and no `selected_guild_id`; a route source ("Thread Browser") goes last as `location` (the bundle puts it first) | code + inferred | `ThreadAnalytics` (`thread_approximate_member_count`), fixture `threads_browser` | `analytics_events.jai` `analytics_channel_opened` |
 | fastcord opens a new thread as the main view: its `channel_opened` has `selected_guild_id`, not `channel_view: "Split View"` | known gap | fixture `threads_browser` | same |
 | Our own message is read at once (local ack, nothing sent), except type 46 | code | `ReadStateStore` MESSAGE_CREATE, `SELF_MENTIONABLE_SYSTEM` | `src/discord/store.jai` |
+| Ack timing (`ReadState.ack`): the read state moves at once; one POST timer per channel, 3 s, or 0 when the channel had mentions or the ack is `immediate`; later acks before it fires only change the message id (no restart, no shortening, the first ack's location kept); leaving the channel neither cancels nor flushes it | code | `o\|\|a?0:3e3`, `outgoingAckTimer=setTimeout` | `actions.jai` `ack_message`, `flush_due_acks` |
+| Automatic acks track `ack_messages` (15 min throttle): incoming message `{Channel, "Ack - Incoming Message", ack_automatic}`; scrolled to the bottom / opened `{Channel, "Ack - Channel Scroll", ack_automatic}`; on the frame the window regains focus `{Channel, "Ack - Window Focus", ack_automatic}`. Scroll and focus acks carry no message id, so they ack the read state's `lastMessageId` (the channel's newest) | code | `ACK_INCOMING_MESSAGE="Ack - Incoming Message"`, `ACK_WINDOW_FOCUS=`, `ACK_CHANNEL_SCROLL=` | `actions.jai` `ACK_*`, `on_channel_page`; `view_chat.jai` `chat_view` |
 | `ack_messages` (Inbox "Mark As Read"): location `{section:"Inbox", object:"Ack - Inbox Newest Unread Message", object_type:"ack_automatic"}`, `guild_unread_statuses` = `"id,hasUnread,mentions,muted,unreadSetting"` per guild in READY order; tracked when the ack's POST completes | code (format) + inferred (timing, order) | `guild_unread_statuses` chunk | `actions.jai` `ACK_INBOX`, `analytics_events.jai` `analytics_ack_props` |
 | Unread setting reported as 1 (all messages) for every guild / channel | guess | `resolveGuildUnreadSetting` | same, `analytics_channel_opened` |
 | `notification_action {action:"ACK"}` for each desktop notification still shown when its channel's `MESSAGE_ACK` arrives | inferred | fixture `inbox` (inbox_unreads_mark_read) | `analytics_events.jai` `analytics_notifications_acked` |
@@ -283,6 +285,12 @@ module were read.
 | Media context menu: Copy Image if the URL's extension is jpg/jpeg/jfif/png/webp/avif, Save Image for those + gif/tiff/bmp (or none), both only for Discord-hosted media; then Copy/Open Link, "Image Link" for cdn.discordapp.com png/jpg/webp/avif/bmp/svg, "Media Link" for other image/gif/mp4/webm/mov URLs | code | `"copy-image"`, `"save-image"`, `"copy-native-link"`, `canCopyImage`, `canSaveImage` | `view_media.jai` `media_menu` |
 | Copy/Save Image fetch the `XW` URL: media.discordapp.net → cdn.discordapp.com, drop width/height/quality/size/format, add `format=png` without an extension | code | module 803316 (`XW`) | `view_media.jai` `media_action` |
 | Save Image writes to ~/Downloads without a dialog; a GIFV video offers only the link items; the items stand in their own menu (the client appends them to the message menu) | guess | `NativeUtils.saveImage` | `view_media.jai` |
+
+## Tray (Windows)
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open and Quit (the client's also has Mute, Deafen, voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
 
 ## Login and logout
 
