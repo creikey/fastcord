@@ -11,13 +11,13 @@ Error :: enum u8 {
 	BrotliDecoderDecompressStream :: (state: *void, avail_in: *u64, next_in: **u8, avail_out: *u64, next_out: **u8, total_out: *u64) -> s32 #foreign lib;
 
 c_alloc :: (_: *void, size: u64) -> *void #c_call {
-	__ctx1: #Context; push_context,defer_pop __ctx1;
+	push_context,defer_pop thread_context().*;
 	p, _ := mem.alloc(cast(int)(size), 16, context.default_allocator);
 	return p;
 }
 
 c_free :: (_: *void, address: *void) #c_call {
-	__ctx2: #Context; push_context,defer_pop __ctx2;
+	push_context,defer_pop thread_context().*;
 	mem.free(address, context.default_allocator);
 }
 #scope_export

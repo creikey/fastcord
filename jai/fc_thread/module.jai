@@ -13,6 +13,7 @@ Thread :: struct {
 }
 
 entry :: (jt: *J.Thread) -> s64 {
+    register_thread_context();
     t := cast(*Thread) jt.data;
     if t.run t.run(t);
     else if t.procedure t.procedure(t);

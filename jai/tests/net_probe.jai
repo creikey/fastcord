@@ -1,9 +1,11 @@
 // net_probe: one HTTPS GET over the real stack (netio -> tls -> h2) to a neutral host.
 #import "Basic";
+#import "fc";
 netio :: #import "netio";
 tls :: #import "tls";
 http :: #import "http";
 main :: () {
+	register_thread_context();
     if get_command_line_arguments().count > 1 { h3(); return; }
     host := "example.com";
     s, err := netio.dial_tcp(host, 443);

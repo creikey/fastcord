@@ -25,7 +25,8 @@ append :: (a: *[..]u8, s: string) -> int, *void {
 inject_at :: (a: *[..]$T, i: int, x: T) { array_insert_at(a, x, i); }
 ordered_remove :: (a: *[..]$T, i: int) { array_ordered_remove_by_index(a, i); }
 unordered_remove :: (a: *[..]$T, i: int) { array_unordered_remove_by_index(a, i); }
-resize :: (a: *[..]$T, n: int) { array_resize(a, n); }
+// Grows geometrically, like Odin's dynamic arrays: callers that grow a buffer step by step stay linear.
+resize :: (a: *[..]$T, n: int) { if n > a.allocated array_reserve(a, max(n, a.allocated * 2)); array_resize(a, n); }
 reserve :: (a: *[..]$T, n: int) { array_reserve(a, n); }
 pop_front :: (a: *[..]$T) -> T { x := a.*[0]; array_ordered_remove_by_index(a, 0); return x; }
 
@@ -161,3 +162,40 @@ for_expansion :: (a: *Assoc, body: Code, flags: For_Flags) #expand {
         #insert body;
     }
 }
+
+// C callbacks run on some thread with no Jai context. thread_context() is that thread's context, like Odin's
+// runtime.default_context(): the default allocator and the thread's own temporary storage. In a #c_call:
+//     push_context,defer_pop thread_context().*;
+// fc_thread registers each thread it starts; register_thread_context() registers the calling thread (main
+// calls it). A thread nobody registered (CoreAudio's, for one) gets a context of its own on first use.
+register_thread_context :: () { thread_context_key_init(); pthread_setspecific(thread_context_key, *context); }
+thread_context :: () -> *#Context #c_call {
+    thread_context_key_init();
+    p := cast(*#Context) pthread_getspecific(thread_context_key);
+    if p return p;
+    STORAGE :: 1 << 16;
+    mem := cast(*u8) c_malloc(size_of(#Context) + size_of(Temporary_Storage) + STORAGE);
+    p = cast(*#Context) mem;
+    initializer_of(#Context)(p);
+    ts := cast(*Temporary_Storage) (mem + size_of(#Context));
+    memset(ts, 0, size_of(Temporary_Storage));
+    ts.data = mem + size_of(#Context) + size_of(Temporary_Storage);
+    ts.size = STORAGE;
+    p.temporary_storage = ts;
+    pthread_setspecific(thread_context_key, p);
+    return p;
+}
+#scope_file
+thread_context_key: u64;
+thread_context_key_state: s32;  // 0 none, 1 creating, 2 ready
+thread_context_key_init :: () #c_call {
+    if atomic_load(*thread_context_key_state) == 2 return;
+    if compare_and_swap(*thread_context_key_state, 0, 1) { pthread_key_create(*thread_context_key, null); atomic_store(*thread_context_key_state, 2); }
+    while atomic_load(*thread_context_key_state) != 2 {}
+}
+libpthread :: #system_library "libc";
+pthread_key_create :: (key: *u64, destructor: *void) -> s32 #foreign libpthread;
+pthread_getspecific :: (key: u64) -> *void #foreign libpthread;
+pthread_setspecific :: (key: u64, value: *void) -> s32 #foreign libpthread;
+c_malloc :: (size: u64) -> *void #foreign libpthread "malloc";
+#scope_export

@@ -19,6 +19,7 @@ Opts :: struct {
 }
 
 main :: () {
+	register_thread_context();
 	arena: virtual.Arena;
 	virtual.arena_init_growing(*arena);
 	push_allocator(virtual.arena_allocator(*arena));

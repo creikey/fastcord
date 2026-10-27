@@ -103,6 +103,7 @@ accts: [2]Acct;
 cur: *Acct;
 
 main :: () {
+	register_thread_context();
 	args := get_command_line_arguments();
 	if len(args) < 2 {
 		fmt.eprintln("usage: parity <scenario> [out.jsonl] | parity session [scenario...]");

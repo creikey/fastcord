@@ -313,7 +313,7 @@ give_back :: (c: *H2_Conn, st: *H2_Stream, id: s32, n: int) {
 }
 
 on_header :: (s: *Ng_Session, f: *Ng_Frame_Hd, name: *u8, namelen: u64, value: *u8, valuelen: u64, flags: u8, user: *void) -> s32 #c_call {
-	__ctx1: #Context; push_context,defer_pop __ctx1;
+	push_context,defer_pop thread_context().*;
 	conn := cast(*H2_Conn)user;
 	st := stream_of(s, f.stream_id);
 	if f.type != NG_FRAME_HEADERS || st == null || st.done { return 0; }
@@ -334,7 +334,7 @@ on_header :: (s: *Ng_Session, f: *Ng_Frame_Hd, name: *u8, namelen: u64, value: *
 
 on_frame_recv :: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call {
 	conn := cast(*H2_Conn)user;
-	__ctx2: #Context; push_context,defer_pop __ctx2;
+	push_context,defer_pop thread_context().*;
 	if f.type == NG_FRAME_SETTINGS && (f.flags & NG_FLAG_ACK) == 0 {
 		set := cast(*Ng_Settings)f;
 		for iv: sub(set.iv, 0, set.niv) { if iv.id == 1 { hpack_set_table_size(*conn.enc, cast(int)(iv.value)); } }
@@ -363,7 +363,7 @@ on_frame_recv :: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call {
 
 on_data_chunk :: (s: *Ng_Session, flags: u8, id: s32, data: *u8, n: u64, user: *void) -> s32 #c_call {
 	conn := cast(*H2_Conn)user;
-	__ctx4: #Context; push_context,defer_pop __ctx4;
+	push_context,defer_pop thread_context().*;
 	st := stream_of(s, id);
 	if st != null && st.done { st = null; }
 	give_back(conn, st, id, cast(int)(n));
@@ -377,7 +377,7 @@ on_data_chunk :: (s: *Ng_Session, flags: u8, id: s32, data: *u8, n: u64, user: *
 }
 
 on_stream_close :: (s: *Ng_Session, id: s32, code: u32, user: *void) -> s32 #c_call {
-	__ctx5: #Context; push_context,defer_pop __ctx5;
+	push_context,defer_pop thread_context().*;
 	{ st := stream_of(s, id);
 	if st != null { finish(cast(*H2_Conn)user, st, ifx code == NG_REFUSED_STREAM then .Refused else .Stream_Reset, code); } }
 	return 0;
@@ -387,7 +387,7 @@ on_stream_close :: (s: *Ng_Session, id: s32, code: u32, user: *void) -> s32 #c_c
 // stream, so on_stream_close won't see it.
 on_not_sent :: (s: *Ng_Session, f: *Ng_Frame_Hd, code: s32, user: *void) -> s32 #c_call {
 	conn := cast(*H2_Conn)user;
-	__ctx6: #Context; push_context,defer_pop __ctx6;
+	push_context,defer_pop thread_context().*;
 	{ st := get(conn.streams, f.stream_id);
 	if f.type == NG_FRAME_HEADERS && st != null {
 		if code == NG_ERR_START_STREAM_NOT_ALLOWED { finish(conn, st, .Refused, NG_REFUSED_STREAM); } else { finish(conn, st, .Io, 0); }
@@ -396,7 +396,7 @@ on_not_sent :: (s: *Ng_Session, f: *Ng_Frame_Hd, code: s32, user: *void) -> s32 
 }
 
 read_body :: (s: *Ng_Session, id: s32, buf: *u8, n: u64, flags: *u32, source: *void, user: *void) -> int #c_call {
-	__ctx7: #Context; push_context,defer_pop __ctx7;
+	push_context,defer_pop thread_context().*;
 	st := stream_of(s, id);
 	if st == null { return NG_ERR_TEMPORAL_CALLBACK_FAILURE; }
 	k := min(cast(int)(n), len(st.body));
@@ -407,7 +407,7 @@ read_body :: (s: *Ng_Session, id: s32, buf: *u8, n: u64, flags: *u32, source: *v
 }
 
 data_chunk_len :: (s: *Ng_Session, type: u8, id: s32, conn_window: s32, stream_window: s32, max_frame: u32, user: *void) -> int #c_call {
-	__ctx8: #Context; push_context,defer_pop __ctx8;
+	push_context,defer_pop thread_context().*;
 	return cast(int)(min(cast(s32)(CHROME_DATA_CHUNK), conn_window, stream_window, cast(s32)(max_frame)));
 }
 

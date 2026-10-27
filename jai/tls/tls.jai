@@ -147,7 +147,7 @@ ssl_host :: (ssl: *SSL) -> string {
 // verify_peer accepts the peer only if the OS trusts its chain for the server name (trust_*.odin) and
 // BoringSSL's X509_check_host also matches the leaf to that name. Every other path rejects.
 verify_peer :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
-	__ctx1: #Context; push_context,defer_pop __ctx1;
+	push_context,defer_pop thread_context().*;
 	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD();
 	host := ssl_host(ssl);
 	certs := SSL_get0_peer_certificates(ssl);
@@ -168,7 +168,7 @@ verify_peer :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
 }
 
 decompress_brotli :: (ssl: *SSL, out: **CRYPTO_BUFFER, uncompressed_len: u64, data: *u8, data_len: u64) -> s32 #c_call {
-	__ctx2: #Context; push_context,defer_pop __ctx2;
+	push_context,defer_pop thread_context().*;
 	res, err := brotli.decompress(sub(data, 0, data_len), context.allocator, cast(int)(uncompressed_len));
 	defer delete(res);
 	if err != .None || len(res) != cast(int)(uncompressed_len) { return 0; }
@@ -185,7 +185,7 @@ cache_mu: locks.Mutex;
 cache: [2]Map(string, [..]*SSL_SESSION);
 
 new_session :: (ssl: *SSL, session: *SSL_SESSION) -> s32 #c_call {
-	__ctx3: #Context; push_context,defer_pop __ctx3;
+	push_context,defer_pop thread_context().*;
 	host := ssl_host(ssl);
 	if host == "" { return 0; }
 	locks.lock(*cache_mu);

@@ -53,13 +53,13 @@ Stream_Decoder :: struct {
 #scope_module
 
 c_alloc :: (opaque: *void, size: u64) -> *void #c_call {
-	__ctx1: #Context; push_context,defer_pop __ctx1;
+	push_context,defer_pop thread_context().*;
 	p, _ := mem.alloc(cast(int)(size), 16, (cast(*Allocator)(opaque)).*);
 	return p;
 }
 
 c_free :: (opaque: *void, address: *void) #c_call {
-	__ctx2: #Context; push_context,defer_pop __ctx2;
+	push_context,defer_pop thread_context().*;
 	mem.free(address, (cast(*Allocator)(opaque)).*);
 }
 

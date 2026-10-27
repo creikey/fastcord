@@ -331,7 +331,7 @@ io_loop :: (c: *Conn) {
 // during the call.
 
 on_header :: (user: *void, id: s64, trailer: s32, name: *u8, nlen: u64, value: *u8, vlen: u64) #c_call {
-	__ctx6: #Context; push_context,defer_pop __ctx6;
+	push_context,defer_pop thread_context().*;
 	c := cast(*Conn)(user);
 	st := get(c.streams, id);
 	if st == null || st.done { return; }
@@ -357,7 +357,7 @@ on_header :: (user: *void, id: s64, trailer: s32, name: *u8, nlen: u64, value: *
 }
 
 on_data :: (user: *void, id: s64, p: *u8, n: u64) #c_call {
-	__ctx7: #Context; push_context,defer_pop __ctx7;
+	push_context,defer_pop thread_context().*;
 	c := cast(*Conn)(user);
 	st := get(c.streams, id);
 	if st == null || st.done { return; }
@@ -370,7 +370,7 @@ on_data :: (user: *void, id: s64, p: *u8, n: u64) #c_call {
 }
 
 on_done :: (user: *void, id: s64, fin: s32, code: u64) #c_call {
-	__ctx8: #Context; push_context,defer_pop __ctx8;
+	push_context,defer_pop thread_context().*;
 	c := cast(*Conn)(user);
 	st := get(c.streams, id);
 	if st == null || st.done { return; }
@@ -385,7 +385,7 @@ on_done :: (user: *void, id: s64, fin: s32, code: u64) #c_call {
 }
 
 on_goaway :: (user: *void) #c_call {
-	__ctx9: #Context; push_context,defer_pop __ctx9;
+	push_context,defer_pop thread_context().*;
 	c := cast(*Conn)(user);
 	c.goaway = true;
 	locks.cond_broadcast(*c.cond);

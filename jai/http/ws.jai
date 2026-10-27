@@ -233,7 +233,7 @@ ws_close_stream :: (c: *Ws_Conn) {
 
 // ws_recv_cb hands wslay only bytes already buffered, never blocking with mu held.
 ws_recv_cb :: (ctx: *Wslay_Ctx, buf: *u8, n: u64, flags: s32, user: *void) -> int #c_call {
-	__ctx0: #Context; push_context,defer_pop __ctx0;
+	push_context,defer_pop thread_context().*;
 	w := cast(*Ws_Conn)user;
 	got := min(cast(int)(n), w.r.end - w.r.start);
 	if got == 0 {
@@ -246,7 +246,7 @@ ws_recv_cb :: (ctx: *Wslay_Ctx, buf: *u8, n: u64, flags: s32, user: *void) -> in
 }
 
 ws_send_cb :: (ctx: *Wslay_Ctx, data: *u8, n: u64, flags: s32, user: *void) -> int #c_call {
-	__ctx1: #Context; push_context,defer_pop __ctx1;
+	push_context,defer_pop thread_context().*;
 	w := cast(*Ws_Conn)user;
 	if netio.write(w.s, sub(data, 0, n)) != .None {
 		wslay_event_set_error(ctx, WSLAY_ERR_CALLBACK_FAILURE);
@@ -256,14 +256,14 @@ ws_send_cb :: (ctx: *Wslay_Ctx, data: *u8, n: u64, flags: s32, user: *void) -> i
 }
 
 ws_genmask_cb :: (ctx: *Wslay_Ctx, buf: *u8, n: u64, user: *void) -> s32 #c_call {
-	__ctx2: #Context; push_context,defer_pop __ctx2;
+	push_context,defer_pop thread_context().*;
 	crypto.rand_bytes(sub(buf, 0, n));
 	return 0;
 }
 
 ws_on_msg_cb :: (ctx: *Wslay_Ctx, arg: *Wslay_Msg_Recv, user: *void) #c_call {
 	w := cast(*Ws_Conn)user;
-	__ctx3: #Context; push_context,defer_pop __ctx3;
+	push_context,defer_pop thread_context().*;
 	push_allocator(w.allocator);
 	if arg.opcode == {
 	case 1; #through; case 2;

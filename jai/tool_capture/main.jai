@@ -1,4 +1,5 @@
 main :: () {
+	register_thread_context();
 	args := get_command_line_arguments();
 	if len(args) < 2 { usage(); }
 	if args[1] == {
