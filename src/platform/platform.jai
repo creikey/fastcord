@@ -239,7 +239,12 @@ set_cursor :: (c: Cursor) {
 set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = .{x, y, w, h}; }
 
 // Called from inside OS modal loops (live resize) with events swapped in; run one frame.
-set_frame_callback :: (cb: ()) { s.frame_callback = cb; }
+// Also re-captures the caller's context: frames run from OS callbacks (live resize) push it,
+// so they see what the app added (context.ui) after init.
+set_frame_callback :: (cb: ()) {
+    s.frame_callback = cb;
+    s.ctx = context;
+}
 
 // Queue a synthetic event; it is returned by events() after the next wait_events. Copies e.text. Safe from
 // any thread.
