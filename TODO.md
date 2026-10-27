@@ -10,6 +10,7 @@
 - [ ] Messages: "Forward" in the message menu; forwards are only displayed.
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
+- [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
 - [ ] Voice: no video: watching or sharing camera, screen share and Go Live streams are all missing (`src/voice` is audio only).
