@@ -598,6 +598,8 @@ Ack_Location :: struct {
 
 // the Inbox's per-channel "Mark As Read" (fixture inbox, inbox_unreads_mark_read)
 ACK_INBOX :: Ack_Location.{"Inbox", "Ack - Inbox Newest Unread Message", "ack_automatic"};
+// the chat's new-messages bar "Mark As Read"
+ACK_NEW_MESSAGES_BANNER :: Ack_Location.{"New Messages Banner", "Mark Channel as Read Button", "ack_manual"};
 
 // ack_message schedules the read-state ack like ReadState.ack(): sent after 3 s
 // (immediately when `immediate`), body {token, last_viewed[, flags]}.

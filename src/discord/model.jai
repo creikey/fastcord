@@ -216,6 +216,11 @@ Message :: struct {
 	mention_everyone: bool;
 	pinned: bool;
 	referenced_id: Snowflake; // reply target
+	// forwarded (message_reference type 1): the origin, and content etc. above come from the snapshot
+	forwarded: bool;
+	forward_channel_id: Snowflake;
+	forward_message_id: Snowflake;
+	forward_timestamp: string; // the original's timestamp
 	flags: u64;
 	nonce: string;
 	pending: bool; // sent by us, not yet acknowledged by the gateway

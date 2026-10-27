@@ -4,10 +4,24 @@
 - [ ] Accounts: support full account switching; today it assumes a single token.
 - [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
+- [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
+- [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
+- [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
+- [ ] Messages: "Forward" in the message menu; forwards are only displayed.
+- [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
+- [ ] Polls: render poll messages and let the user vote; today they show nothing.
+- [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
+- [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
+- [ ] Voice: no video: watching or sharing camera, screen share and Go Live streams are all missing (`src/voice` is audio only).
+- [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
+- [ ] Composer: no spellcheck (red underline and suggestions on right-click).
+- [ ] Tray: add a system tray icon (unread badge, menu with Open and Quit); closing the window hides it to the tray instead of quitting, as the official client does.
+- [ ] Lotus Mode (fastcord-only): one setting that silences every notification sound and hides all notification badges and the white unread dots beside channels and servers, so the client never grabs attention.
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
 - [ ] Chat: welcome messages aren't shown properly.
+- [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
 - [ ] Search: clicking the search bar again while results are open crashes.
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
@@ -17,3 +31,8 @@
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
+- [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
+- [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
+- [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
+- [x] Keybinds: Shift+Escape marks the open server read.
+- [x] No ads, ever: never show Nitro upsells, Shop, Boost prompts or any Discord promotion (rule in `AGENTS.md`).
