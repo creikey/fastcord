@@ -14,6 +14,9 @@
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
+- [ ] Voice: no video: watching or sharing camera, screen share and Go Live streams are all missing (`src/voice` is audio only).
+- [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
+- [ ] Composer: no spellcheck (red underline and suggestions on right-click).
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
