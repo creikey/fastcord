@@ -168,7 +168,7 @@ add_server_overlay :: () {
 
 add_server_modal :: () {
 	scrim := ui.box("addsrv_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
 		asv.step = .Closed;
@@ -176,7 +176,7 @@ add_server_modal :: () {
 	}
 	W :: 440;
 	d := ui.box("addsrv", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, max((app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2, 16)};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -186,7 +186,7 @@ add_server_modal :: () {
 	ui.signal(d);
 	if ui.parent(d) {
 		x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
-		x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+		x.semantic_size = .[ui.px(24), ui.px(24)];
 		x.fixed_pos = .{W - 16 - 24, 16};
 		xs := ui.signal(x);
 		set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
@@ -222,7 +222,7 @@ step_choose :: () {
 	centered("sub", "Your server is where you and your friends hang out. Make yours and start talking.", .Normal, 16, 20, cast(T)("--text-subtle"));
 	spacer(.Y, 24);
 	own := row("own", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
-	own.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(64)};
+	own.semantic_size = .[ui.pct(1), ui.px(64)];
 	own.style.radius = 8;
 	own.style.border = 1;
 	own.style.border_color = cast(T)("--border-subtle");
@@ -249,7 +249,7 @@ step_choose :: () {
 	inset_end(16, 0);
 	spacer(.Y, 24);
 	foot := ui.box("foot", .{.Draw_Background});
-	foot.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	foot.semantic_size = .[ui.pct(1), ui.children()];
 	foot.layout_axis = .Y;
 	foot.style.bg = cast(T)("--modal-footer-background");
 	foot.style.radius = .{0, 0, 12, 12};
@@ -258,10 +258,10 @@ step_choose :: () {
 		centered("have", "Have an invite already?", .Semibold, 20, 24, cast(T)("--text-strong"));
 		spacer(.Y, 8);
 		jr := row("jr");
-		jr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(38)};
+		jr.semantic_size = .[ui.pct(1), ui.px(38)];
 		if ui.parent(jr) {
 			b := ui.box("Join a Server##join", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(38)};
+			b.semantic_size = .[ui.pct(1), ui.px(38)];
 			b.style.radius = 8;
 			b.style.font = F(.Medium);
 			b.style.font_size = 14;
@@ -277,7 +277,7 @@ step_choose :: () {
 
 footer_begin :: () -> *ui.Box {
 	foot := row("foot", .{.Draw_Background});
-	foot.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(70)};
+	foot.semantic_size = .[ui.pct(1), ui.px(70)];
 	foot.style.bg = cast(T)("--modal-footer-background");
 	foot.style.radius = .{0, 0, 12, 12};
 	return foot;
@@ -323,7 +323,7 @@ step_join :: () {
 	centered("sub", "Enter an invite below to join an existing server", .Normal, 16, 20, cast(T)("--text-subtle"));
 	spacer(.Y, 24);
 	lr := row("lr");
-	lr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+	lr.semantic_size = .[ui.pct(1), ui.px(16)];
 	if ui.parent(lr) {
 		label("INVITE LINK", .Bold, 12, ifx asv.error != "" then cast(T)("--text-feedback-critical") else cast(T)("--text-default"), 16);
 		label(" *##req", .Bold, 12, cast(T)("--text-feedback-critical"), 16);

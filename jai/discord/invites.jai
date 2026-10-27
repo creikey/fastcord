@@ -179,7 +179,7 @@ open_invite_modal :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, lo
 			continue;
 		}
 		key := Snowflake.[guild_id, u];
-		if __MAPIDX__(c.members_requested|key) { continue; }
+		if get(c.members_requested, key) { continue; }
 		at(*c.members_requested, key).* = true;
 		append(*ask, u);
 	}
@@ -342,7 +342,7 @@ joined_guild_created :: (c: *Client, d: etf.Map) -> bool {
 	if !ok || cc.guild_id != gid {
 		ch = 0;
 		for cid: guild_channels_sorted(*c.store, gid) {
-			if __MAPIDX__(c.store.channels|cid).kind == .Guild_Text {
+			if get(c.store.channels, cid).kind == .Guild_Text {
 				ch = cid;
 				break;
 			}

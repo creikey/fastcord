@@ -189,7 +189,7 @@ section_title :: (text: string) {
 // slider: horizontal track, returns true while the value changes.
 slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fmt_value: string = "") -> bool {
 	track := ui.box(id, .{.Clickable});
-	track.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(24)};
+	track.semantic_size = .[ui.px(w), ui.px(24)];
 	sig := ui.signal(track);
 	changed := false;
 	if sig.pressed || sig.dragging {
@@ -206,17 +206,17 @@ slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fm
 	t := (value.* - lo) / (hi - lo);
 	if ui.parent(track) {
 		bar := ui.box("bar", .{.Draw_Background, .Floating_X, .Floating_Y});
-		bar.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(8)};
+		bar.semantic_size = .[ui.px(w), ui.px(8)];
 		bar.fixed_pos = .{0, 8};
 		bar.style.bg = cast(T)("--background-mod-strong");
 		bar.style.radius = 4;
 		fill := ui.box("fill", .{.Draw_Background, .Floating_X, .Floating_Y});
-		fill.semantic_size = .{__IDX__.X = ui.px(max(w * t, 1)), __IDX__.Y = ui.px(8)};
+		fill.semantic_size = .[ui.px(max(w * t, 1)), ui.px(8)];
 		fill.fixed_pos = .{0, 8};
 		fill.style.bg = cast(T)("--background-brand");
 		fill.style.radius = 4;
 		knob := ui.box("knob", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y});
-		knob.semantic_size = .{__IDX__.X = ui.px(10), __IDX__.Y = ui.px(24)};
+		knob.semantic_size = .[ui.px(10), ui.px(24)];
 		knob.fixed_pos = .{w * t - 5, 0};
 		knob.style.bg = .{1, 1, 1, 1};
 		knob.style.radius = 3;
@@ -224,7 +224,7 @@ slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fm
 		knob.style.shadow_blur = 4;
 		if (sig.hovering || sig.dragging) && fmt_value != "" {
 			tip := row("tip", .{.Draw_Background, .Floating_X, .Floating_Y, .Overlay});
-			tip.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(26)};
+			tip.semantic_size = .[ui.children(), ui.px(26)];
 			tip.fixed_pos = .{w * t - 24, -32};
 			tip.style.bg = cast(T)("--background-surface-highest");
 			tip.style.radius = 6;
@@ -241,22 +241,22 @@ slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fm
 
 toggle_row :: (id: string, text: string, help: string, value: *bool) -> bool {
 	r := row(id, .{.Clickable});
-	r.semantic_size = .{__IDX__.X = ui.px(660), __IDX__.Y = ui.px(ifx help != "" then 52 else 32)};
+	r.semantic_size = .[ui.px(660), ui.px(ifx help != "" then 52 else 32)];
 	sig := ui.signal(r);
 	if ui.parent(r) {
 		col := ui.box("col");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.fill(), ui.children()];
 		if ui.parent(col) {
 			label(text, .Medium, 16, cast(T)("--text-strong"), 20);
 			if help != "" { label(help, .Normal, 14, cast(T)("--text-muted"), 18); }
 		}
 		sw := ui.box("switch", .{.Draw_Background});
-		sw.semantic_size = .{__IDX__.X = ui.px(40), __IDX__.Y = ui.px(24)};
+		sw.semantic_size = .[ui.px(40), ui.px(24)];
 		sw.style.radius = 12;
 		sw.style.bg = ifx value.* then cast(T)("--status-positive") else cast(T)("--background-mod-strong");
 		if ui.parent(sw) {
 			k := ui.box("k", .{.Draw_Background, .Floating_X, .Floating_Y});
-			k.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+			k.semantic_size = .[ui.px(18), ui.px(18)];
 			k.fixed_pos = .{ifx value.* then 19 else 3, 3};
 			k.style.radius = 9;
 			k.style.bg = .{1, 1, 1, 1};
@@ -273,7 +273,7 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 	current := "Default";
 	for d: devs { if sel != 0 && d.id == sel { current = d.name; } }
 	box := row(ifx input then "indev" else "outdev", .{.Clickable, .Draw_Background, .Draw_Border});
-	box.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(40)};
+	box.semantic_size = .[ui.px(w), ui.px(40)];
 	box.style.bg = cast(T)("--background-base-lowest");
 	if tok_has("--input-background") { box.style.bg = cast(T)("--input-background"); }
 	box.style.border = 1;
@@ -295,7 +295,7 @@ device_dropdown :: (which: int, input: bool, w: float32) {
 // popup list under the dropdown (overlay, like the client's select menu)
 device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at: ui.Vec2) {
 	list := ui.box(ifx input then "inlist" else "outlist", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	list.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.children()};
+	list.semantic_size = .[ui.px(w), ui.children()];
 	list.fixed_pos = at;
 	list.layout_axis = .Y;
 	list.style.bg = cast(T)("--background-surface-higher");
@@ -309,7 +309,7 @@ device_list :: (devs: []audio.Device_Info, sel: u32, input: bool, w: float32, at
 	if ui.parent(list) {
 		opt :: (name: string, id: u32, input: bool, selected: bool) {
 			it_ := row(name, .{.Clickable, .Draw_Background, .Hot_Animation});
-			it_.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(36)};
+			it_.semantic_size = .[ui.pct(1), ui.px(36)];
 			it_.style.bg_hot = cast(T)("--background-mod-normal");
 			if ui.parent(it_) {
 				spacer(.X, 12);
@@ -337,26 +337,26 @@ tok_has :: (name: string) -> bool {
 voice_settings_page :: () {
 	vs_init();
 	page := ui.box("voicepage", .{.Scroll_Y, .Clip});
-	page.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	page.semantic_size = .[ui.pct(1), ui.fill()];
 	page.layout_axis = .Y;
 	ui.signal(page);
 	if ui.parent(page) {
 		body := row("vbody");
-		body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		body.semantic_size = .[ui.pct(1), ui.children()];
 		body.cross_align = .Start;
 		if ui.parent(body) {
 			spacer(.X, 40);
 			col := ui.box("vcol");
-			col.semantic_size = .{__IDX__.X = ui.px(660), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.px(660), ui.children()];
 			col.layout_axis = .Y;
 			if ui.parent(col) {
 				devices := row("devices");
-				devices.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+				devices.semantic_size = .[ui.pct(1), ui.children()];
 				devices.cross_align = .Start;
 				if ui.parent(devices) {
 					for input: (bool.[true, false]) {
 						c := ui.box(ifx input then "inputcol" else "outputcol");
-						c.semantic_size = .{__IDX__.X = ui.px(320), __IDX__.Y = ui.children()};
+						c.semantic_size = .[ui.px(320), ui.children()];
 						c.layout_axis = .Y;
 						if ui.parent(c) {
 							section_title(ifx input then "INPUT DEVICE" else "OUTPUT DEVICE");
@@ -410,7 +410,7 @@ voice_settings_page :: () {
 mode_radio :: () {
 	for ptt: (bool.[false, true]) {
 		r := row(ifx ptt then "mode_ptt" else "mode_va", .{.Clickable, .Draw_Background, .Hot_Animation});
-		r.semantic_size = .{__IDX__.X = ui.px(660), __IDX__.Y = ui.px(44)};
+		r.semantic_size = .[ui.px(660), ui.px(44)];
 		r.style.radius = 4;
 		r.style.bg = ifx vs.ptt_mode == ptt then cast(T)("--background-mod-normal") else .{};
 		r.style.bg_hot = cast(T)("--background-mod-subtle");
@@ -418,14 +418,14 @@ mode_radio :: () {
 		if ui.parent(r) {
 			spacer(.X, 12);
 			dot := ui.box("dot", .{.Draw_Border});
-			dot.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+			dot.semantic_size = .[ui.px(20), ui.px(20)];
 			dot.style.radius = 10;
 			dot.style.border = 2;
 			dot.style.border_color = ifx vs.ptt_mode == ptt then cast(T)("--background-brand") else cast(T)("--interactive-icon-default");
 			if vs.ptt_mode == ptt {
 				if ui.parent(dot) {
 					in_ := ui.box("in", .{.Draw_Background, .Floating_X, .Floating_Y});
-					in_.semantic_size = .{__IDX__.X = ui.px(10), __IDX__.Y = ui.px(10)};
+					in_.semantic_size = .[ui.px(10), ui.px(10)];
 					in_.fixed_pos = .{5, 5};
 					in_.style.radius = 5;
 					in_.style.bg = cast(T)("--background-brand");
@@ -440,16 +440,16 @@ mode_radio :: () {
 
 keybind_row :: () {
 	r := row("ptt");
-	r.semantic_size = .{__IDX__.X = ui.px(660), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.px(660), ui.children()];
 	r.cross_align = .Start;
 	if ui.parent(r) {
 		c := ui.box("kb");
-		c.semantic_size = .{__IDX__.X = ui.px(320), __IDX__.Y = ui.children()};
+		c.semantic_size = .[ui.px(320), ui.children()];
 		c.layout_axis = .Y;
 		if ui.parent(c) {
 			section_title("SHORTCUT");
 			b := row("rec", .{.Clickable, .Draw_Background, .Draw_Border});
-			b.semantic_size = .{__IDX__.X = ui.px(320), __IDX__.Y = ui.px(40)};
+			b.semantic_size = .[ui.px(320), ui.px(40)];
 			b.style.radius = 8;
 			b.style.border = 1;
 			b.style.border_color = ifx vs.recording_key then cast(T)("--status-danger") else cast(T)("--border-subtle");
@@ -470,7 +470,7 @@ keybind_row :: () {
 		}
 		spacer(.X, 20);
 		d := ui.box("delay");
-		d.semantic_size = .{__IDX__.X = ui.px(320), __IDX__.Y = ui.children()};
+		d.semantic_size = .[ui.px(320), ui.children()];
 		d.layout_axis = .Y;
 		if ui.parent(d) {
 			section_title("PUSH TO TALK RELEASE DELAY");
@@ -485,21 +485,21 @@ keybind_row :: () {
 meter_bar :: () {
 	W :: cast(float32)(660);
 	bar := ui.box("meter", .{.Draw_Background});
-	bar.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(8)};
+	bar.semantic_size = .[ui.px(W), ui.px(8)];
 	bar.style.bg = cast(T)("--background-mod-strong");
 	bar.style.radius = 4;
 	level := clamp((vs.meter_db + 100) / 100, 0, 1);
 	if !app.settings_open { level = 0; }
 	if ui.parent(bar) {
 		f := ui.box("lvl", .{.Draw_Background, .Floating_X, .Floating_Y});
-		f.semantic_size = .{__IDX__.X = ui.px(max(W * level, 0.5)), __IDX__.Y = ui.px(8)};
+		f.semantic_size = .[ui.px(max(W * level, 0.5)), ui.px(8)];
 		f.style.radius = 4;
 		f.style.bg = cast(T)("--text-feedback-warning");
 		if vs.meter_open { f.style.bg = cast(T)("--status-positive"); }
 		if !vs.auto_sens {
 			th := clamp((vs.threshold_db + 100) / 100, 0, 1);
 			m := ui.box("th", .{.Draw_Background, .Floating_X, .Floating_Y});
-			m.semantic_size = .{__IDX__.X = ui.px(2), __IDX__.Y = ui.px(14)};
+			m.semantic_size = .[ui.px(2), ui.px(14)];
 			m.fixed_pos = .{W * th - 1, -3};
 			m.style.bg = cast(T)("--text-strong");
 		}
@@ -527,7 +527,7 @@ voice_user_menu :: () {
 	if vs.menu_user == 0 { return; }
 	uid := vs.menu_user;
 	scrim := ui.box("vmenu_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).pressed {
 		vs.menu_user = 0;
 		return;
@@ -538,7 +538,7 @@ voice_user_menu :: () {
 	if p.y + H > app.ui.window.y - 8 { p.y = app.ui.window.y - 8 - H; }
 	if p.x + W > app.ui.window.x - 8 { p.x = app.ui.window.x - 8 - W; }
 	menu := ui.box("vmenu", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	menu.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(H)};
+	menu.semantic_size = .[ui.px(W), ui.px(H)];
 	menu.fixed_pos = p;
 	menu.layout_axis = .Y;
 	menu.style.bg = cast(T)("--background-surface-higher");
@@ -552,13 +552,13 @@ voice_user_menu :: () {
 	if ui.parent(menu) {
 		spacer(.Y, 8);
 		hdr := row("hdr");
-		hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+		hdr.semantic_size = .[ui.pct(1), ui.px(24)];
 		if ui.parent(hdr) {
 			spacer(.X, 12);
 			label("User Volume", .Medium, 14, cast(T)("--interactive-text-default"), 18);
 		}
 		sr := row("sl");
-		sr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+		sr.semantic_size = .[ui.pct(1), ui.px(32)];
 		if ui.parent(sr) {
 			spacer(.X, 12);
 			v := or_else(get(vs.user_volume, uid), 100);
@@ -566,12 +566,12 @@ voice_user_menu :: () {
 		}
 		spacer(.Y, 4);
 		sep := ui.box("sep", .{.Draw_Background});
-		sep.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		sep.semantic_size = .[ui.pct(1), ui.px(1)];
 		sep.style.bg = cast(T)("--border-subtle");
 		spacer(.Y, 4);
 		m := get(vs.user_muted, uid);
 		mr := row("mute", .{.Clickable, .Draw_Background, .Hot_Animation});
-		mr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+		mr.semantic_size = .[ui.pct(1), ui.px(32)];
 		mr.style.radius = 4;
 		mr.style.bg_hot = cast(T)("--background-mod-normal");
 		sig := ui.signal(mr);
@@ -580,7 +580,7 @@ voice_user_menu :: () {
 			label("Mute", .Medium, 14, ifx sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--interactive-text-default"), 18);
 			filler(.X);
 			cb := ui.box("cb", .{.Draw_Background, .Draw_Border});
-			cb.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+			cb.semantic_size = .[ui.px(18), ui.px(18)];
 			cb.style.radius = 4;
 			cb.style.border = ifx m then 0 else 1.5;
 			cb.style.border_color = cast(T)("--interactive-icon-default");

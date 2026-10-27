@@ -165,7 +165,7 @@ png_info :: (data: []u8) -> Png_Info, bool {
 	info: Png_Info;
 	ok: bool;
 	if len(data) < 33 || as_string(sub(data, 0, 8)) != "\x89PNG\r\n\x1a\n" { return info, ok; }
-	be32 :: (b: []u8) -> int {return cast(int)(b[0]) << 24 | cast(int)(b[1]) << 16 | cast(int)(b[2]) << 8 | cast(int)(b[3]);}
+	be32 :: (b: []u8) -> int {return ((cast(int)(b[0])) << 24) | ((cast(int)(b[1])) << 16) | ((cast(int)(b[2])) << 8) | (cast(int)(b[3]));}
 	i := 8;
 	while i + 8 <= len(data) {
 		n := be32(sub_from(data, i));
@@ -185,7 +185,7 @@ png_info :: (data: []u8) -> Png_Info, bool {
 			if z < 0 || z + 2 > n { return info, ok; }
 			info.has_icc = true;
 			icc: bytes.Buffer;
-			context.allocator = temp;
+			push_allocator(temp);
 			if zlib.inflate(sub_from(body, z + 2), *icc) == null { info.icc = view(icc.buf); }
 		case "IEND";
 			return info, true;
@@ -198,7 +198,7 @@ png_info :: (data: []u8) -> Png_Info, bool {
 // The ICC 'desc' tag's text (v2 textDescriptionType or v4 multiLocalizedUnicodeType),
 // what ExifReader reports as "ICC Description".
 icc_description :: (p: []u8) -> string, bool {
-	be32 :: (b: []u8) -> int {return cast(int)(b[0]) << 24 | cast(int)(b[1]) << 16 | cast(int)(b[2]) << 8 | cast(int)(b[3]);}
+	be32 :: (b: []u8) -> int {return ((cast(int)(b[0])) << 24) | ((cast(int)(b[1])) << 16) | ((cast(int)(b[2])) << 8) | (cast(int)(b[3]));}
 	if len(p) < 132 { return "", false; }
 	ntags := be32(sub_from(p, 128));
 	for k: 0..ntags-1 {
@@ -220,7 +220,7 @@ icc_description :: (p: []u8) -> string, bool {
 			sb := strings.builder_make(temp);
 			{ j := 0;
 			while j + 1 < l {
-				ch := cast(u32)(cast(u16)(tag[o + j]) << 8 | cast(u16)(tag[o + j + 1]));
+				ch := cast(u32)(((cast(u16)(tag[o + j])) << 8) | (cast(u16)(tag[o + j + 1])));
 				if ch != 0 { strings.write_rune(*sb, ch); }
 				j += 2;
 } }

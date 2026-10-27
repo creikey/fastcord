@@ -159,7 +159,7 @@ profile_full_overlay :: () {
 	ui.animate(*pf.t, 1, 25);
 	win := app.ui.window;
 	scrim := ui.box("pf_scrim###pf_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(win.x), __IDX__.Y = ui.px(win.y)};
+	scrim.semantic_size = .[ui.px(win.x), ui.px(win.y)];
 	scrim.style.bg = with_alpha(cast(T)("--background-scrim"), pf.t);
 	if ui.signal(scrim).clicked {
 		pf.user = 0;
@@ -174,7 +174,7 @@ profile_full_overlay :: () {
 	x := (win.x - PF_W) / 2;
 	y := (win.y - total_h) / 2;
 	m := ui.box("pf###pf_modal", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Clickable, .Clip, .Overlay});
-	m.semantic_size = .{__IDX__.X = ui.px(PF_W), __IDX__.Y = ui.px(total_h)};
+	m.semantic_size = .[ui.px(PF_W), ui.px(total_h)];
 	m.fixed_pos = .{x, y + (1 - pf.t) * 16};
 	m.layout_axis = .Y;
 	m.style.bg = cast(T)("--background-surface-high");
@@ -185,7 +185,7 @@ profile_full_overlay :: () {
 	ui.signal(m);
 	if ui.parent(m) {
 		banner := ui.box("banner", .{.Draw_Background});
-		banner.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(banner_h)};
+		banner.semantic_size = .[ui.pct(1), ui.px(banner_h)];
 		banner.style.radius = .{8, 8, 0, 0};
 		accent := prof.accent;
 		if accent == null { accent = u.accent_color; }
@@ -193,11 +193,11 @@ profile_full_overlay :: () {
 		if ok { banner.style.bg = rgb_u32(ac); } else { banner.style.bg = cast(T)("--background-brand"); } }
 		if banner_url != "" { set_remote_image(banner, banner_url); }
 		head := ui.box("head");
-		head.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(140)};
+		head.semantic_size = .[ui.pct(1), ui.px(140)];
 		if ui.parent(head) {
 			ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
 			rs_: float32 = PF_AVATAR + 2 * PF_AVATAR_RING;
-			ring.semantic_size = .{__IDX__.X = ui.px(rs_), __IDX__.Y = ui.px(rs_)};
+			ring.semantic_size = .[ui.px(rs_), ui.px(rs_)];
 			ring.fixed_pos = .{PF_PAD + 8 - PF_AVATAR_RING, -PF_AVATAR / 2 - PF_AVATAR_RING};
 			ring.style.radius = rs_ / 2;
 			ring.style.bg = m.style.bg;
@@ -208,7 +208,7 @@ profile_full_overlay :: () {
 			}
 			profile_actions(uid);
 			names := ui.box("names", .{.Floating_X, .Floating_Y});
-			names.semantic_size = .{__IDX__.X = ui.px(PF_W - 2 * PF_PAD), __IDX__.Y = ui.children()};
+			names.semantic_size = .[ui.px(PF_W - 2 * PF_PAD), ui.children()];
 			names.fixed_pos = .{PF_PAD + 8, PF_AVATAR / 2 + 16};
 			names.layout_axis = .Y;
 			if ui.parent(names) {
@@ -216,7 +216,7 @@ profile_full_overlay :: () {
 				n.flags += .{.Selectable_Text};
 				n.sel_order = 1;
 				un := row("un");
-				un.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+				un.semantic_size = .[ui.pct(1), ui.px(20)];
 				if ui.parent(un) {
 					l := label(u.username, .Normal, 16, cast(T)("--text-default"), 20);
 					l.flags += .{.Selectable_Text};
@@ -228,10 +228,10 @@ profile_full_overlay :: () {
 		}
 		profile_tabs(uid, prof);
 		line := ui.box("tabline", .{.Draw_Background});
-		line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		line.semantic_size = .[ui.pct(1), ui.px(1)];
 		line.style.bg = cast(T)("--border-subtle");
 		body := ui.box("body", .{.Clip, .Scroll_Y});
-		body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+		body.semantic_size = .[ui.pct(1), ui.fill()];
 		body.layout_axis = .Y;
 		ui.signal(body);
 		if ui.parent(body) {
@@ -263,7 +263,7 @@ profile_actions :: (uid: dc.Snowflake) {
 	rel, has_rel := map_find(s.relationships, uid);
 	friend := has_rel && rel.kind == .Friend;
 	bar := row("actions", .{.Floating_X, .Floating_Y});
-	bar.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(32)};
+	bar.semantic_size = .[ui.children(), ui.px(32)];
 	w: float32 = ifx friend then 110 + 8 + 32 else 110 + 8 + 120 + 8 + 32;
 	bar.fixed_pos = .{PF_W - PF_PAD - w, PF_PAD};
 	bar.style.child_gap = 8;
@@ -279,7 +279,7 @@ profile_actions :: (uid: dc.Snowflake) {
 			pf.user = 0;
 		}
 		more := ui.box("more", .{.Clickable, .Draw_Background, .Hot_Animation});
-		more.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(32)};
+		more.semantic_size = .[ui.px(32), ui.px(32)];
 		more.style.radius = 8;
 		more.style.bg = cast(T)("--control-secondary-background-default");
 		more.style.bg_hot = cast(T)("--control-secondary-background-hover");
@@ -295,7 +295,7 @@ profile_actions :: (uid: dc.Snowflake) {
 
 action_button :: (text: string, icon_name: string, w: float32, primary: bool) -> bool {
 	b := row(text, .{.Clickable, .Draw_Background, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(32)};
+	b.semantic_size = .[ui.px(w), ui.px(32)];
 	b.style.radius = 8;
 	b.style.bg = ifx primary then cast(T)("--background-brand") else cast(T)("--control-secondary-background-default");
 	b.style.bg_hot = ifx primary then with_alpha(cast(T)("--background-brand"), 0.85) else cast(T)("--control-secondary-background-hover");
@@ -312,7 +312,7 @@ action_button :: (text: string, icon_name: string, w: float32, primary: bool) ->
 
 profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 	tabs := row("tabs");
-	tabs.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(PF_TAB_H)};
+	tabs.semantic_size = .[ui.pct(1), ui.px(PF_TAB_H)];
 	tabs.cross_align = .End;
 	if ui.parent(tabs) {
 		spacer(.X, PF_PAD + 8);
@@ -330,7 +330,7 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 			}
 			sel := pf.tab == t;
 			b := ui.box(fmt.tprintf("%s##tab%d", text, cast(int)(t)), .{.Clickable});
-			b.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(PF_TAB_H)};
+			b.semantic_size = .[ui.children(), ui.px(PF_TAB_H)];
 			b.layout_axis = .Y;
 			sig := ui.signal(b);
 			if ui.parent(b) {
@@ -338,13 +338,13 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 				lab := label(text, .Medium, 16, ifx sel || sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--interactive-text-default"), 20);
 				filler(.Y);
 				ul := ui.box("ul", .{.Draw_Background});
-				ul.semantic_size = .{__IDX__.X = ui.px(max(0, lab.rect.x1 - lab.rect.x0)), __IDX__.Y = ui.px(2)};
+				ul.semantic_size = .[ui.px(max(0, lab.rect.x1 - lab.rect.x0)), ui.px(2)];
 				ul.style.bg = ifx sel then cast(T)("--text-strong") else .{};
 				ul.style.radius = 1;
 			}
 			if sig.clicked {
 				pf.tab = t;
-				if t == .Mutual_Friends && app.client != null && !__MAPIDX__(pf.profiles|uid).friends_req {
+				if t == .Mutual_Friends && app.client != null && !get(pf.profiles, uid).friends_req {
 					p := at(*pf.profiles, uid);
 					p.friends_req = true;
 					dc.mutual_friends_fetch(app.client, uid);
@@ -357,7 +357,7 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 
 section_title :: (text: string) {
 	r := row(text);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	r.semantic_size = .[ui.pct(1), ui.px(20)];
 	if ui.parent(r) {
 		spacer(.X, PF_PAD + 8);
 		label(text, .Semibold, 12, cast(T)("--text-strong"), 16);
@@ -386,11 +386,11 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 		section_title("About Me");
 		for blk, bi: md_parse(bio) {
 			w := row(fmt.tprintf("bio%d", bi));
-			w.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+			w.semantic_size = .[ui.pct(1), ui.children()];
 			if ui.parent(w) {
 				spacer(.X, PF_PAD + 8);
 				b := ui.box("p", .{.Selectable_Text, .Wrap_Text});
-				b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+				b.semantic_size = .[ui.fill(), ui.text_size()];
 				b.style.line_height = 18;
 				b.style.text_color = cast(T)("--text-default");
 				b.sel_order = 10 + cast(u64)(bi);
@@ -402,7 +402,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	}
 	section_title("Member Since");
 	ms := row("since");
-	ms.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	ms.semantic_size = .[ui.pct(1), ui.px(20)];
 	if ui.parent(ms) {
 		spacer(.X, PF_PAD + 8);
 		icon("dlogo", "clyde", 16, cast(T)("--interactive-icon-default"));
@@ -411,12 +411,12 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 		if prof.guild_joined != "" && pf.guild != 0 {
 			spacer(.X, 12);
 			dot := ui.box("dot", .{.Draw_Background});
-			dot.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(4)};
+			dot.semantic_size = .[ui.px(4), ui.px(4)];
 			dot.style.radius = 2;
 			dot.style.bg = cast(T)("--text-muted");
 			spacer(.X, 12);
 			gi := ui.box("##gi", .{.Draw_Background, .Draw_Text});
-			gi.semantic_size = .{__IDX__.X = ui.px(16), __IDX__.Y = ui.px(16)};
+			gi.semantic_size = .[ui.px(16), ui.px(16)];
 			gi.style.radius = 5;
 			gi.style.bg = cast(T)("--background-mod-subtle");
 			gi.style.font = F(.Medium);
@@ -435,7 +435,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 	if uid != store().me && !streamer_hide_personal() {
 		section_title("Note");
 		nr := row("note");
-		nr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+		nr.semantic_size = .[ui.pct(1), ui.px(18)];
 		if ui.parent(nr) {
 			spacer(.X, PF_PAD + 8);
 			label("Click to add a note", .Normal, 12, cast(T)("--text-muted"), 16);
@@ -445,13 +445,13 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 
 list_row :: (id: string) -> *ui.Box, ui.Signal {
 	outer := row(id);
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(PF_ROW_H)};
+	outer.semantic_size = .[ui.pct(1), ui.px(PF_ROW_H)];
 	r: *ui.Box;
 	sig: ui.Signal;
 	if ui.parent(outer) {
 		spacer(.X, 8);
 		r = row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-		r.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(PF_ROW_H)};
+		r.semantic_size = .[ui.fill(), ui.px(PF_ROW_H)];
 		r.style.radius = 8;
 		r.style.bg_hot = cast(T)("--background-mod-subtle");
 		sig = ui.signal(r);
@@ -463,7 +463,7 @@ list_row :: (id: string) -> *ui.Box, ui.Signal {
 empty_state :: (text: string) {
 	spacer(.Y, 48);
 	r := ui.box(text);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	r.semantic_size = .[ui.pct(1), ui.px(20)];
 	r.layout_axis = .X;
 	r.cross_align = .Center;
 	if ui.parent(r) {
@@ -487,7 +487,7 @@ profile_mutual_servers :: (prof: Pf_Profile) {
 			if ui.parent(r) {
 				spacer(.X, 8);
 				gi := ui.box("##gi", .{.Draw_Background, .Draw_Text});
-				gi.semantic_size = .{__IDX__.X = ui.px(40), __IDX__.Y = ui.px(40)};
+				gi.semantic_size = .[ui.px(40), ui.px(40)];
 				gi.style.radius = 12;
 				gi.style.bg = cast(T)("--background-mod-normal");
 				gi.style.font = F(.Medium);
@@ -497,7 +497,7 @@ profile_mutual_servers :: (prof: Pf_Profile) {
 				if g.icon != "" { set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 80)); } else { gi.text = guild_initials(g.name); }
 				spacer(.X, 12);
 				col := ui.box("col");
-				col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+				col.semantic_size = .[ui.fill(), ui.children()];
 				col.layout_axis = .Y;
 				if ui.parent(col) {
 					label(g.name, .Medium, 16, cast(T)("--interactive-text-active"), 20);
@@ -524,13 +524,13 @@ profile_mutual_friends :: (uid: dc.Snowflake, prof: Pf_Profile) {
 			if ui.parent(r) {
 				spacer(.X, 8);
 				av := ui.box("av", .{.Draw_Background});
-				av.semantic_size = .{__IDX__.X = ui.px(40), __IDX__.Y = ui.px(40)};
+				av.semantic_size = .[ui.px(40), ui.px(40)];
 				av.style.radius = 20;
 				av.style.bg = cast(T)("--background-mod-normal");
 				set_remote_image(av, ifx f.avatar != "" then dc.avatar_url(f.id, f.avatar, 80) else dc.default_avatar_url(f.id, "0"));
 				spacer(.X, 12);
 				col := ui.box("col");
-				col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+				col.semantic_size = .[ui.fill(), ui.children()];
 				col.layout_axis = .Y;
 				if ui.parent(col) {
 					label(dc.user_name(store(), f.id, 0, ifx f.global_name != "" then f.global_name else f.username), .Medium, 16, cast(T)("--interactive-text-active"), 20);
@@ -567,7 +567,7 @@ user_context_menu :: () {
 	if fn != "" { append(*items, fn); } }
 	if uid != s.me {
 		_, has_rel := map_find(s.relationships, uid);
-		if !has_rel || __MAPIDX__(s.relationships|uid).kind == .None || __MAPIDX__(s.relationships|uid).kind == .Implicit { append(*items, "Add Friend"); }
+		if !has_rel || get(s.relationships, uid).kind == .None || get(s.relationships, uid).kind == .Implicit { append(*items, "Add Friend"); }
 	}
 	{ sn := server_nick_menu_item(uid);
 	if sn != "" { append(*items, sn); } }
@@ -578,13 +578,13 @@ user_context_menu :: () {
 	p.x = min(p.x, app.ui.window.x - W - 8);
 	p.y = min(p.y, app.ui.window.y - H - 8);
 	scrim := ui.box("umenu_scrim###umenu_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).pressed {
 		pf.menu_user = 0;
 		return;
 	}
 	menu := ui.box("umenu###umenu", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	menu.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.px(H)};
+	menu.semantic_size = .[ui.px(W), ui.px(H)];
 	menu.fixed_pos = p;
 	menu.layout_axis = .Y;
 	menu.style.bg = cast(T)("--background-surface-higher");
@@ -598,7 +598,7 @@ user_context_menu :: () {
 		spacer(.Y, 8);
 		for it_: items {
 			r := row(it_, .{.Clickable, .Draw_Background, .Hot_Animation});
-			r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+			r.semantic_size = .[ui.pct(1), ui.px(32)];
 			r.style.radius = 4;
 			r.style.bg_hot = cast(T)("--background-mod-normal");
 			sig := ui.signal(r);

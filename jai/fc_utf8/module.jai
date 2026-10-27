@@ -10,8 +10,8 @@ decode_rune_in_string :: (s: string) -> u32, int {
     if n == 0 || n > s.count return RUNE_ERROR, 1;
     r: u32 = cast(u32) (c & (0x7F >> n));
     for i: 1..n-1 {
-        if s[i] & 0xC0 != 0x80 return RUNE_ERROR, 1;
-        r = (r << 6) | cast(u32) (s[i] & 0x3F);
+        if (s[i] & 0xC0) != 0x80 return RUNE_ERROR, 1;
+        r = (r << 6) | (cast(u32) (s[i] & 0x3F));
     }
     return r, n;
 }

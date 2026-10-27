@@ -143,7 +143,7 @@ login_save_token :: (token: string) {
 
 login_view :: () {
 	bg := ui.box("login", .{.Draw_Background, .Scroll_Y, .Clip});
-	bg.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	bg.semantic_size = .[ui.pct(1), ui.fill()];
 	bg.layout_axis = .X;
 	bg.cross_align = .Center;
 	bg.style.bg = cast(T)("--background-base-lower");
@@ -152,7 +152,7 @@ login_view :: () {
 		filler(.X);
 		col := ui.box("col");
 		col.layout_axis = .Y;
-		col.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.children(), ui.children()];
 		if ui.parent(col) {
 			// equal margins; the row (cross_align .Center) centers the column vertically
 			spacer(.Y, 32);
@@ -174,7 +174,7 @@ login_view :: () {
 
 auth_box :: (id: string, w: float32) -> *ui.Box {
 	b := ui.box(id, .{.Draw_Background, .Draw_Border});
-	b.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.children()};
+	b.semantic_size = .[ui.px(w), ui.children()];
 	b.layout_axis = .Y;
 	b.style.bg = cast(T)("--modal-background");
 	b.style.border_color = cast(T)("--border-subtle");
@@ -187,7 +187,7 @@ auth_box :: (id: string, w: float32) -> *ui.Box {
 // a layout as a whole). w: the width it wraps at.
 centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: float32, color: ui.Color, w: float32 = 0) {
 	col := ui.box(id);
-	col.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	col.semantic_size = .[ui.pct(1), ui.children()];
 	col.layout_axis = .Y;
 	ww := ifx w > 0 then w else (ifx col.parent != null && col.parent.fixed_size.x > 0 then col.parent.fixed_size.x else 400);
 	tl := ui.layout_text(F(font), size, text, ww, line_h);
@@ -195,7 +195,7 @@ centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 		for ln, i: tl.lines {
 			b := ui.box(fmt.tprintf("l%d", i), .{.Draw_Text});
 			b.text = strings.trim_space(sub(text, ln.start, ln.end));
-			b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(line_h)};
+			b.semantic_size = .[ui.pct(1), ui.px(line_h)];
 			b.style.font = F(font);
 			b.style.font_size = size;
 			b.style.line_height = line_h;
@@ -208,7 +208,7 @@ centered :: (id: string, text: string, font: Font_Id, size: float32, line_h: flo
 // text button drawn as a link
 link :: (text: string, size: float32 = 14, color: ui.Color = .{}) -> bool {
 	b := ui.box(text, .{.Clickable, .Draw_Text, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.text_size(0), __IDX__.Y = ui.px(size + 6)};
+	b.semantic_size = .[ui.text_size(0), ui.px(size + 6)];
 	b.style.font = F(.Medium);
 	b.style.font_size = size;
 	b.style.text_color = ifx color.a > 0 then color else cast(T)("--text-link");
@@ -219,7 +219,7 @@ link :: (text: string, size: float32 = 14, color: ui.Color = .{}) -> bool {
 // label: "EMAIL OR PHONE NUMBER *", red with " - error" when the field has one.
 field_label :: (id: string, text: string, err: string, required := true) {
 	r := row(id);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+	r.semantic_size = .[ui.pct(1), ui.px(16)];
 	if ui.parent(r) {
 		c := ifx err != "" then cast(T)("--text-feedback-critical") else cast(T)("--text-muted");
 		label(text, .Bold, 12, c, 16);
@@ -236,7 +236,7 @@ field_label :: (id: string, text: string, err: string, required := true) {
 // bordered input; returns the editor result. prefix: the phone number's country pill.
 login_input :: (id: string, ed: *ui.Editor, password: bool, has_error: bool, autofocus := false, prefix := "", placeholder := "") -> ui.Edit_Result, ui.Key {
 	box := row(id, .{.Draw_Background, .Draw_Border, .Clickable});
-	box.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+	box.semantic_size = .[ui.pct(1), ui.px(40)];
 	box.style.bg = cast(T)("--input-background-default");
 	focused := app.ui.focus == box.key || autofocus && app.ui.focus == 0;
 	box.style.border_color = ifx has_error then cast(T)("--text-feedback-critical") else (ifx focused then cast(T)("--input-border-active") else cast(T)("--input-border-default"));
@@ -252,7 +252,7 @@ login_input :: (id: string, ed: *ui.Editor, password: bool, has_error: bool, aut
 		if prefix != "" {
 			pill := ui.box("cc", .{.Draw_Background, .Draw_Text});
 			pill.text = prefix;
-			pill.semantic_size = .{__IDX__.X = ui.text_size(12), __IDX__.Y = ui.px(24)};
+			pill.semantic_size = .[ui.text_size(12), ui.px(24)];
 			pill.style.bg = cast(T)("--background-mod-strong");
 			pill.style.radius = 4;
 			pill.style.font = F(.Medium);
@@ -273,7 +273,7 @@ login_input :: (id: string, ed: *ui.Editor, password: bool, has_error: bool, aut
 
 big_button :: (text: string, enabled := true, busy := false) -> bool {
 	b := ui.box(text, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(44)};
+	b.semantic_size = .[ui.pct(1), ui.px(44)];
 	b.style.radius = 8;
 	b.style.font = F(.Medium);
 	b.style.font_size = 16;
@@ -299,16 +299,16 @@ login_form_box :: () {
 	if ui.parent(box) {
 		inner := inset_begin(32, 32);
 		r := row("cols");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		r.semantic_size = .[ui.pct(1), ui.children()];
 		r.cross_align = .Center;
 		if ui.parent(r) {
 			form := ui.box("form");
-			form.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			form.semantic_size = .[ui.fill(), ui.children()];
 			form.layout_axis = .Y;
 			if ui.parent(form) { login_form(); }
 			spacer(.X, 64);
 			qcol := ui.box("qrcol");
-			qcol.semantic_size = .{__IDX__.X = ui.px(240), __IDX__.Y = ui.children()};
+			qcol.semantic_size = .[ui.px(240), ui.children()];
 			qcol.layout_axis = .Y;
 			qcol.cross_align = .Center;
 			if ui.parent(qcol) { login_qr_panel(); }
@@ -346,7 +346,7 @@ login_form :: () {
 	if big_button("Log In##login", busy = lg.busy) || r1 == .Submit || r2 == .Submit { login_submit(); }
 	spacer(.Y, 8);
 	need := row("need");
-	need.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	need.semantic_size = .[ui.pct(1), ui.px(20)];
 	if ui.parent(need) {
 		label("Need an account?", .Normal, 14, cast(T)("--text-muted"), 18);
 		spacer(.X, 4);
@@ -385,12 +385,12 @@ login_forgot :: () {
 login_notice_modal :: () {
 	if lg.notice == .None { return; }
 	scrim := ui.box("notice_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked { lg.notice = .None; }
 	W :: 440;
 	d := ui.box("notice", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -440,7 +440,7 @@ login_qr_panel :: () {
 		centered("qrs", "Scan this with the Discord mobile app to log in instantly.", .Normal, 16, 20, cast(T)("--text-muted"), 240);
 	case .Pending_Ticket;
 		av := ui.box("av", .{.Draw_Background});
-		av.semantic_size = .{__IDX__.X = ui.px(120), __IDX__.Y = ui.px(120)};
+		av.semantic_size = .[ui.px(120), ui.px(120)];
 		av.style.radius = 60;
 		av.style.bg = cast(T)("--background-mod-strong");
 		if v.user_id != 0 {
@@ -471,7 +471,7 @@ Qr_Draw :: struct {
 // the white 176 px card; the code fills 160 px (whole-pixel modules, centered) with the logo on top
 qr_box :: (fingerprint: string) {
 	card := ui.box("qr", .{.Draw_Background});
-	card.semantic_size = .{__IDX__.X = ui.px(176), __IDX__.Y = ui.px(176)};
+	card.semantic_size = .[ui.px(176), ui.px(176)];
 	card.style.bg = .{1, 1, 1, 1};
 	card.style.radius = 4;
 	if fingerprint == "" { return; } // still connecting: the blank card
@@ -488,13 +488,13 @@ qr_box :: (fingerprint: string) {
 	card.custom_user = d;
 	if ui.parent(card) {
 		logo := ui.box("logo", .{.Draw_Background, .Floating_X, .Floating_Y});
-		logo.semantic_size = .{__IDX__.X = ui.px(36), __IDX__.Y = ui.px(36)};
+		logo.semantic_size = .[ui.px(36), ui.px(36)];
 		logo.fixed_pos = .{70, 70};
 		logo.style.bg = .{1, 1, 1, 1};
 		logo.style.radius = 8;
 		if ui.parent(logo) {
 			ic := ui.box("ic", .{.Floating_X, .Floating_Y});
-			ic.semantic_size = .{__IDX__.X = ui.px(28), __IDX__.Y = ui.px(28)};
+			ic.semantic_size = .[ui.px(28), ui.px(28)];
 			ic.fixed_pos = .{4, 4};
 			set_icon(ic, "clyde", cast(T)("--background-brand"));
 		}
@@ -571,11 +571,11 @@ login_mfa_box :: () {
 	if ui.parent(box) {
 		inner := inset_begin(24, 24);
 		hdr := row("hdr");
-		hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		hdr.semantic_size = .[ui.pct(1), ui.children()];
 		hdr.cross_align = .Start;
 		if ui.parent(hdr) {
 			hc := ui.box("hc");
-			hc.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			hc.semantic_size = .[ui.fill(), ui.children()];
 			hc.layout_axis = .Y;
 			if ui.parent(hc) {
 				set_para("t", "Multi-Factor Authentication", .Semibold, 24, 30, cast(T)("--text-strong"));
@@ -595,7 +595,7 @@ login_mfa_box :: () {
 				}
 			}
 			x := ui.box("close", .{.Clickable, .Hot_Animation});
-			x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+			x.semantic_size = .[ui.px(24), ui.px(24)];
 			x.hover_cursor = .Pointer;
 			set_icon(x, "x-large", cast(T)("--interactive-text-default"));
 			if ui.signal(x).clicked { login_mfa_close(); }
@@ -635,7 +635,7 @@ login_mfa_slide_body :: () {
 		for m: (dc.Mfa_Method.[.Webauthn, .Totp, .Backup, .Sms]) {
 			if !has(lg.methods, m) { continue; }
 			it_ := row(mfa_method_name(m), .{.Clickable, .Draw_Background, .Hot_Animation});
-			it_.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+			it_.semantic_size = .[ui.pct(1), ui.px(48)];
 			it_.style.bg = cast(T)("--background-mod-subtle");
 			it_.style.bg_hot = cast(T)("--background-mod-normal");
 			it_.style.radius = 8;
@@ -645,7 +645,7 @@ login_mfa_slide_body :: () {
 				label(mfa_method_name(m), .Semibold, 16, cast(T)("--text-strong"), 20);
 				filler(.X);
 				ic := ui.box("chev");
-				ic.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+				ic.semantic_size = .[ui.px(20), ui.px(20)];
 				set_icon(ic, "chevron-small-right", cast(T)("--interactive-text-default"));
 				spacer(.X, 12);
 			}
@@ -691,7 +691,7 @@ login_mfa_slide_body :: () {
 		need = 6;
 		field_label("cl", "Enter Discord Auth Code", lg.mfa_error, false);
 		r := row("coderow");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		r.semantic_size = .[ui.pct(1), ui.px(40)];
 		if ui.parent(r) {
 			res, _ := login_input("code", *lg.code_ed, false, lg.mfa_error != "", autofocus = true, placeholder = "6-digit authentication code");
 			submit = res == .Submit;
@@ -724,7 +724,7 @@ mfa_buttons :: (confirm: bool, enabled: bool) -> bool {
 	others := card(lg.methods - .{.Webauthn}) > 1 || has(lg.methods, .Webauthn);
 	if !others && !confirm { return confirmed; }
 	r := row("btns");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+	r.semantic_size = .[ui.pct(1), ui.px(40)];
 	if ui.parent(r) {
 		if others && set_button("Verify with something else##else", .Secondary, true, 40) { login_mfa_slide(.Select); }
 		filler(.X);
@@ -765,12 +765,12 @@ para :: (id: string, text: string, font: Font_Id, size: float32, line_h: float32
 
 step :: (n: string, text: string) {
 	r := ui.box(n);
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.layout_axis = .X;
 	r.cross_align = .Start;
 	if ui.parent(r) {
 		num := ui.box(strings.concatenate(.{n, "##num"}, temp), .{.Draw_Background, .Draw_Text});
-		num.semantic_size = .{__IDX__.X = ui.px(22), __IDX__.Y = ui.px(22)};
+		num.semantic_size = .[ui.px(22), ui.px(22)];
 		num.style.radius = 11;
 		num.style.bg = cast(T)("--background-brand");
 		num.style.text_color = .{1, 1, 1, 1};
@@ -805,7 +805,7 @@ login_card_body :: () {
 	step("4", "Under Request Headers, copy the value of \"authorization\" and paste it below.");
 
 	open := ui.box("Open discord.com##open", .{.Clickable, .Draw_Text, .Hot_Animation});
-	open.semantic_size = .{__IDX__.X = ui.text_size(0), __IDX__.Y = ui.px(24)};
+	open.semantic_size = .[ui.text_size(0), ui.px(24)];
 	open.style.font = F(.Medium);
 	open.style.font_size = 14;
 	open.style.text_color = cast(T)("--text-link");
@@ -815,7 +815,7 @@ login_card_body :: () {
 
 	submitted := false;
 	box := row("input", .{.Draw_Background, .Draw_Border, .Clickable});
-	box.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+	box.semantic_size = .[ui.pct(1), ui.px(48)];
 	box.style.bg = cast(T)("--input-background-default");
 	box.style.border_color = ifx app.ui.focus == box.key then cast(T)("--input-border-active") else cast(T)("--input-border-default");
 	box.style.border = 1;
@@ -833,7 +833,7 @@ login_card_body :: () {
 
 	token := clean_token(ui.editor_text(*app.view.token_input));
 	r := row("actions");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+	r.semantic_size = .[ui.pct(1), ui.px(40)];
 	if ui.parent(r) {
 		if app.login_error != "" {
 			label(app.login_error, .Medium, 14, cast(T)("--text-feedback-critical"), 18);

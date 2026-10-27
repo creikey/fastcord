@@ -115,7 +115,7 @@ client_uuid_next :: (a: *Analytics) -> string {
 	put32(sub_from(b, 4), cast(u32)(uid >> 32));
 	put32(sub_from(b, 8), a.uuid_random);
 	put32(sub_from(b, 12), cast(u32)(cast(u64)(a.uuid_created)));
-	put32(sub_from(b, 16), cast(u32)(cast(u64)(a.uuid_created) >> 32));
+	put32(sub_from(b, 16), cast(u32)((cast(u64)(a.uuid_created)) >> 32));
 	put32(sub_from(b, 20), a.uuid_seq);
 	a.uuid_seq += 1;
 	return base64.encode(view(b), allocator = temp);

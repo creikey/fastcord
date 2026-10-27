@@ -77,15 +77,15 @@ text_named :: (kind: dc.Channel_Type) -> bool {
 #scope_export
 
 can_manage_channels :: (gid: dc.Snowflake) -> bool {
-	return gid != 0 && dc.guild_permissions(store(), gid) & dc.PERM_MANAGE_CHANNELS != 0;
+	return gid != 0 && (dc.guild_permissions(store(), gid) & dc.PERM_MANAGE_CHANNELS) != 0;
 }
 
 can_manage_channel :: (ch: *dc.Channel) -> bool {
-	return ch != null && ch.guild_id != 0 && dc.channel_permissions(store(), ch.id) & dc.PERM_MANAGE_CHANNELS != 0;
+	return ch != null && ch.guild_id != 0 && (dc.channel_permissions(store(), ch.id) & dc.PERM_MANAGE_CHANNELS) != 0;
 }
 
 can_upload_emoji :: (gid: dc.Snowflake) -> bool {
-	return gid != 0 && dc.guild_permissions(store(), gid) & (dc.PERM_CREATE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_GUILD_EXPRESSIONS) != 0;
+	return gid != 0 && (dc.guild_permissions(store(), gid) & (dc.PERM_CREATE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_GUILD_EXPRESSIONS)) != 0;
 }
 
 // ---- entry points ----
@@ -241,11 +241,11 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 // (scrim click, close X). Close with adm_modal_end.
 adm_modal_begin :: (id: string, w: float32, title: string, subtitle := "", fixed_h: float32 = 0) -> bool {
 	scrim := ui.box(fmt.tprintf("%s_scrim", id), .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked { return false; }
 	d := ui.box(id, .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
-	d.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ifx fixed_h > 0 then ui.px(fixed_h) else ui.children()};
+	d.semantic_size = .[ui.px(w), ifx fixed_h > 0 then ui.px(fixed_h) else ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - w) / 2, max(16, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2)};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -255,7 +255,7 @@ adm_modal_begin :: (id: string, w: float32, title: string, subtitle := "", fixed
 	ui.signal(d);
 	ui.push_parent(d);
 	x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
-	x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+	x.semantic_size = .[ui.px(24), ui.px(24)];
 	x.fixed_pos = .{w - 17 - 24, 17};
 	xs := ui.signal(x);
 	set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
@@ -265,7 +265,7 @@ adm_modal_begin :: (id: string, w: float32, title: string, subtitle := "", fixed
 	}
 	spacer(.Y, 25);
 	t := row("title");
-	t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+	t.semantic_size = .[ui.pct(1), ui.px(24)];
 	if ui.parent(t) {
 		spacer(.X, 25);
 		label(title, .Semibold, 20, cast(T)("--text-strong"), 24);
@@ -273,7 +273,7 @@ adm_modal_begin :: (id: string, w: float32, title: string, subtitle := "", fixed
 	if subtitle != "" {
 		spacer(.Y, 4);
 		st := row("subtitle");
-		st.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+		st.semantic_size = .[ui.pct(1), ui.px(18)];
 		if ui.parent(st) {
 			spacer(.X, 25);
 			label(subtitle, .Normal, 14, cast(T)("--text-muted"), 18);
@@ -304,7 +304,7 @@ Adm_Button :: enum u8 {
 
 adm_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> bool {
 	b := ui.box(fmt.tprintf("%s##%s", text, id), .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.text_size(16), __IDX__.Y = ui.px(38)};
+	b.semantic_size = .[ui.text_size(16), ui.px(38)];
 	b.style.radius = 8;
 	b.style.font = F(.Medium);
 	b.style.font_size = 14;
@@ -338,7 +338,7 @@ adm_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> b
 // Small caps section label ("CHANNEL NAME").
 adm_section :: (text: string) {
 	r := row(fmt.tprintf("sec_%s", text));
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+	r.semantic_size = .[ui.pct(1), ui.px(16)];
 	if ui.parent(r) {
 		spacer(.X, 25);
 		label(text, .Semibold, 12, cast(T)("--text-muted"), 16);
@@ -351,11 +351,11 @@ adm_section :: (text: string) {
 modal_field :: (id: string, ed: *ui.Editor, placeholder: string, icon_name := "") -> ui.Edit_Result {
 	res := ui.Edit_Result.None;
 	r := row(fmt.tprintf("%s_row", id));
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(r) {
 		spacer(.X, 25);
 		box := row(id, .{.Draw_Background, .Draw_Border, .Clickable});
-		box.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		box.semantic_size = .[ui.fill(), ui.children()];
 		box.style.bg = cast(T)("--input-background-default");
 		box.style.border_color = ifx app.ui.focus == box.key then cast(T)("--input-border-active") else cast(T)("--input-border-default");
 		box.style.border = 1;
@@ -392,11 +392,11 @@ error_line :: () {
 	if adm.error == "" { return; }
 	spacer(.Y, 8);
 	r := row("err");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	r.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(r) {
 		spacer(.X, 25);
 		b := ui.box("errtext", .{.Draw_Text, .Wrap_Text});
-		b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.text = adm.error;
 		b.style.font = F(.Normal);
 		b.style.font_size = 14;
@@ -435,13 +435,13 @@ guild_admin_overlays :: () {
 // Radio dot (20px), selected = brand ring + dot.
 radio_dot :: (on: bool) {
 	rad := ui.box("radio", .{.Draw_Border});
-	rad.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+	rad.semantic_size = .[ui.px(20), ui.px(20)];
 	rad.style.radius = 10;
 	rad.style.border = 2;
 	rad.style.border_color = ifx on then cast(T)("--background-brand") else cast(T)("--interactive-icon-default");
 	if on { if ui.parent(rad) {
 		dot := ui.box("dot", .{.Draw_Background, .Floating_X, .Floating_Y});
-		dot.semantic_size = .{__IDX__.X = ui.px(10), __IDX__.Y = ui.px(10)};
+		dot.semantic_size = .[ui.px(10), ui.px(10)];
 		dot.fixed_pos = .{5, 5};
 		dot.style.radius = 5;
 		dot.style.bg = cast(T)("--background-brand");
@@ -460,7 +460,7 @@ create_channel_modal :: () {
 	submit := false;
 	spacer(.Y, 24);
 	lr := row("typelbl");
-	lr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	lr.semantic_size = .[ui.pct(1), ui.px(20)];
 	if ui.parent(lr) {
 		spacer(.X, 25);
 		label("Channel Type", .Semibold, 16, cast(T)("--text-strong"), 20);
@@ -479,7 +479,7 @@ create_channel_modal :: () {
 	for o: opts {
 		selected := adm.kind == o.kind;
 		r := row(fmt.tprintf("type_%s", o.title), .{.Clickable});
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(58)};
+		r.semantic_size = .[ui.pct(1), ui.px(58)];
 		r.cross_align = .Start;
 		r.hover_cursor = .Pointer;
 		if ui.signal(r).clicked && !selected {
@@ -491,11 +491,11 @@ create_channel_modal :: () {
 			radio_dot(selected);
 			spacer(.X, 12);
 			col := ui.box("col");
-			col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			if ui.parent(col) {
 				tr := row("t");
-				tr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+				tr.semantic_size = .[ui.pct(1), ui.px(20)];
 				if ui.parent(tr) {
 					icon("ic", o.icon, 20, cast(T)("--text-strong"));
 					spacer(.X, 6);
@@ -509,7 +509,7 @@ create_channel_modal :: () {
 	}
 	spacer(.Y, 8);
 	nl := row("namelbl");
-	nl.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+	nl.semantic_size = .[ui.pct(1), ui.px(20)];
 	if ui.parent(nl) {
 		spacer(.X, 25);
 		label("Channel Name", .Semibold, 16, cast(T)("--text-strong"), 20);
@@ -524,7 +524,7 @@ create_channel_modal :: () {
 	spacer(.Y, 24);
 	name := strings.trim(ui.editor_text(*adm.name), "- ");
 	btns := row("btns");
-	btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
 	btns.style.child_gap = 8;
 	if ui.parent(btns) {
 		spacer(.X, 25 - 8);
@@ -590,25 +590,25 @@ channel_settings_page :: () {
 	close, save, del, esc := false, false, false, false;
 	dirty := settings_dirty(ch);
 	page := row("chansettings", .{.Draw_Background, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
-	page.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	page.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	page.cross_align = .Start;
 	page.style.bg = cast(T)("--background-base-low");
 	ui.signal(page);
 	side_w := max(240, app.ui.window.x * 0.29);
 	if ui.parent(page) {
 		nav := row("nav", .{.Draw_Background});
-		nav.semantic_size = .{__IDX__.X = ui.px(side_w), __IDX__.Y = ui.pct(1)};
+		nav.semantic_size = .[ui.px(side_w), ui.pct(1)];
 		nav.cross_align = .Start;
 		nav.style.bg = cast(T)("--background-base-lowest");
 		if ui.parent(nav) {
 			filler(.X);
 			col := ui.box("col");
-			col.semantic_size = .{__IDX__.X = ui.px(238), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.px(238), ui.children()];
 			col.layout_axis = .Y;
 			if ui.parent(col) {
 				spacer(.Y, 60);
 				hr := row("hdr");
-				hr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+				hr.semantic_size = .[ui.pct(1), ui.px(18)];
 				if ui.parent(hr) {
 					spacer(.X, 10);
 					label(ellipsize(ifx text_named(ch.kind) then fmt.tprintf("# %s", ch.name) else ch.name, .Normal, 14, 140), .Normal, 14, cast(T)("--text-muted"), 18);
@@ -620,7 +620,7 @@ channel_settings_page :: () {
 				}
 				spacer(.Y, 6);
 				ov := row("overview", .{.Draw_Background});
-				ov.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+				ov.semantic_size = .[ui.pct(1), ui.px(32)];
 				ov.style.radius = 6;
 				ov.style.bg = cast(T)("--background-mod-normal");
 				if ui.parent(ov) {
@@ -629,11 +629,11 @@ channel_settings_page :: () {
 				}
 				spacer(.Y, 12);
 				hl := ui.box("div", .{.Draw_Background});
-				hl.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+				hl.semantic_size = .[ui.pct(1), ui.px(1)];
 				hl.style.bg = cast(T)("--border-subtle");
 				spacer(.Y, 12);
 				dr := row("delete", .{.Clickable, .Draw_Background, .Hot_Animation});
-				dr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+				dr.semantic_size = .[ui.pct(1), ui.px(32)];
 				dr.style.radius = 6;
 				dr.style.bg_hot = cast(T)("--background-mod-subtle");
 				dr.hover_cursor = .Pointer;
@@ -649,19 +649,19 @@ channel_settings_page :: () {
 			spacer(.X, 14);
 		}
 		content := ui.box("content", .{.Scroll_Y, .Clip});
-		content.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+		content.semantic_size = .[ui.fill(), ui.pct(1)];
 		content.layout_axis = .Y;
 		ui.signal(content);
 		form_w := clamp(app.ui.window.x - side_w - 40 - 140, 300, 660);
 		if ui.parent(content) {
 			spacer(.Y, 60);
 			body := row("body");
-			body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+			body.semantic_size = .[ui.pct(1), ui.children()];
 			body.cross_align = .Start;
 			if ui.parent(body) {
 				spacer(.X, 40);
 				col := ui.box("form");
-				col.semantic_size = .{__IDX__.X = ui.px(form_w), __IDX__.Y = ui.children()};
+				col.semantic_size = .[ui.px(form_w), ui.children()];
 				col.layout_axis = .Y;
 				if ui.parent(col) {
 					label("Overview", .Semibold, 20, cast(T)("--text-strong"), 24);
@@ -677,7 +677,7 @@ channel_settings_page :: () {
 						label("Channel Topic", .Semibold, 16, cast(T)("--text-strong"), 20);
 						spacer(.Y, 8);
 						tw := ui.box("topicwrap");
-						tw.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+						tw.semantic_size = .[ui.pct(1), ui.children()];
 						tw.layout_axis = .Y;
 						if ui.parent(tw) {
 							if set_input("topic", *adm.topic, "Let everyone know how to use this channel!", multiline = true, max_runes = TOPIC_MAX, min_h = 170) == .Escape { esc = true; }
@@ -692,7 +692,7 @@ channel_settings_page :: () {
 						label("Slowmode", .Semibold, 16, cast(T)("--text-strong"), 20);
 						spacer(.Y, 8);
 						dd := row("slowmode", .{.Clickable, .Draw_Background, .Draw_Border});
-						dd.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+						dd.semantic_size = .[ui.pct(1), ui.px(40)];
 						dd.style.bg = cast(T)("--input-background-default");
 						dd.style.border = 1;
 						dd.style.border_color = ifx adm.slow_open then cast(T)("--input-border-active") else cast(T)("--input-border-default");
@@ -719,11 +719,11 @@ channel_settings_page :: () {
 				spacer(.X, 24);
 				// close: the circled X with "ESC" under it
 				cc := ui.box("closecol");
-				cc.semantic_size = .{__IDX__.X = ui.px(36), __IDX__.Y = ui.children()};
+				cc.semantic_size = .[ui.px(36), ui.children()];
 				cc.layout_axis = .Y;
 				if ui.parent(cc) {
 					xb := ui.box("close", .{.Clickable, .Draw_Border});
-					xb.semantic_size = .{__IDX__.X = ui.px(36), __IDX__.Y = ui.px(36)};
+					xb.semantic_size = .[ui.px(36), ui.px(36)];
 					xb.style.radius = 18;
 					xb.style.border = 2;
 					xb.style.border_color = cast(T)("--interactive-icon-default");
@@ -737,7 +737,7 @@ channel_settings_page :: () {
 					if xs.clicked && interactive { close = true; }
 					spacer(.Y, 8);
 					er := row("esc");
-					er.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+					er.semantic_size = .[ui.pct(1), ui.px(16)];
 					if ui.parent(er) {
 						filler(.X);
 						label("ESC", .Semibold, 13, cast(T)("--text-muted"), 16);
@@ -750,7 +750,7 @@ channel_settings_page :: () {
 			// "Careful — you have unsaved changes!" bar at the bottom of the content
 			bw := min(cast(float32)(700), app.ui.window.x - side_w - 40);
 			bar := row("savebar", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Clickable});
-			bar.semantic_size = .{__IDX__.X = ui.px(bw), __IDX__.Y = ui.px(52)};
+			bar.semantic_size = .[ui.px(bw), ui.px(52)];
 			bar.fixed_pos = .{side_w + 20, app.ui.window.y - 52 - 20};
 			bar.style.bg = cast(T)("--background-surface-highest");
 			bar.style.radius = 8;
@@ -812,7 +812,7 @@ slowmode_list :: () {
 	up := h < 180;
 	if up { h = min(cast(float32)(len(SLOWMODE_SECS) * 36 + 8), r.y0 - 16); }
 	list := ui.box("slowlist", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.px(r.x1 - r.x0), __IDX__.Y = ui.px(h)};
+	list.semantic_size = .[ui.px(r.x1 - r.x0), ui.px(h)];
 	list.fixed_pos = .{r.x0, ifx up then r.y0 - 4 - h else r.y1 + 4};
 	list.layout_axis = .Y;
 	list.style.bg = cast(T)("--background-surface-higher");
@@ -829,7 +829,7 @@ slowmode_list :: () {
 			if ui.id_scope(cast(u64)(i) + 1) {
 				sel := i == adm.slowmode;
 				it_ := row("opt", .{.Clickable, .Draw_Background, .Hot_Animation});
-				it_.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(36)};
+				it_.semantic_size = .[ui.pct(1), ui.px(36)];
 				it_.style.bg = ifx sel then cast(T)("--background-mod-normal") else .{};
 				it_.style.bg_hot = cast(T)("--background-mod-normal");
 				if ui.signal(it_).clicked {
@@ -865,11 +865,11 @@ delete_channel_modal :: () {
 	confirm := false;
 	spacer(.Y, 8);
 	br := row("body");
-	br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	br.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(br) {
 		spacer(.X, 25);
 		b := ui.box("text", .{.Wrap_Text});
-		b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.style.line_height = 20;
 		b.style.text_color = cast(T)("--text-default");
 		spans := make_slice(ui.Span, 3, temp);
@@ -882,7 +882,7 @@ delete_channel_modal :: () {
 	error_line();
 	spacer(.Y, 24);
 	btns := row("btns");
-	btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
 	btns.style.child_gap = 8;
 	if ui.parent(btns) {
 		spacer(.X, 25 - 8);
@@ -917,11 +917,11 @@ notice_modal :: () {
 	ok := false;
 	spacer(.Y, 12);
 	br := row("body");
-	br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	br.semantic_size = .[ui.pct(1), ui.children()];
 	if ui.parent(br) {
 		spacer(.X, 25);
 		b := ui.box("text", .{.Draw_Text, .Wrap_Text});
-		b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.text = adm.notice;
 		b.style.font = F(.Normal);
 		b.style.font_size = 16;
@@ -931,7 +931,7 @@ notice_modal :: () {
 	}
 	spacer(.Y, 24);
 	btns := row("btns", .{.Draw_Background});
-	btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(70)};
+	btns.semantic_size = .[ui.pct(1), ui.px(70)];
 	btns.style.bg = cast(T)("--background-base-lower");
 	btns.style.radius = .{0, 0, 11, 11};
 	if ui.parent(btns) {

@@ -33,7 +33,7 @@ Store :: struct {
 
 store_init :: (s: *Store, allocator := context.allocator) {
 	s.allocator = allocator;
-	context.allocator = allocator;
+	push_allocator(allocator);
 	s.users = Map(Snowflake, User).{};
 	s.guilds = Map(Snowflake, Guild).{};
 	s.guild_order = make_dynamic(Snowflake, 0, 0);
@@ -1027,7 +1027,7 @@ TYPING_DURATION_MS :: 10_000;
 store_expire_typing :: (s: *Store, now: s64) -> bool {
 	changed := false;
 	for * _, l: s.typing {
-		for < i: len(l) - 1..0 {
+		for < i: 0..len(l) - 1 {
 			if l[i].until <= now {
 				ordered_remove(*l, i);
 				changed = true;
@@ -1243,7 +1243,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			if i >= 0 {
 				msg := at(*l.messages, i);
 				em := fmap(d, "emoji");
-				for < k: len(msg.reactions) - 1..0 {
+				for < k: 0..len(msg.reactions) - 1 {
 					if em == null || emoji_matches(msg.reactions[k].emoji, fsnow(em, "id"), fstr(em, "name")) {
 						free_str(msg.reactions[k].emoji.name, s.allocator);
 						ordered_remove(*msg.reactions, k);
@@ -1503,7 +1503,7 @@ typing_users :: (s: *Store, channel_id: Snowflake) -> []Typing {
 
 // store_destroy frees everything the store owns.
 store_destroy :: (s: *Store) {
-	context.allocator = s.allocator;
+	push_allocator(s.allocator);
 	extras_destroy();
 	a := s.allocator;
 	for * _, u: s.users { free_user(s, *u); }

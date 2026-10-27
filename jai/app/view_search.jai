@@ -106,7 +106,7 @@ search_box_w :: (b: *ui.Box) -> float32 {
 
 search_box :: (ch: *dc.Channel, hint: string) {
 	b := row("search", .{.Draw_Background, .Draw_Border, .Clickable});
-	b.semantic_size = .{__IDX__.X = ui.px(SEARCH_W, 0.4), __IDX__.Y = ui.px(32)}; // narrow windows: gives up to 40% before the header overflows
+	b.semantic_size = .[ui.px(SEARCH_W, 0.4), ui.px(32)]; // narrow windows: gives up to 40% before the header overflows
 	b.style.bg = cast(T)("--input-background-default");
 	b.style.border_color = ifx search.focused then cast(T)("--input-border-active") else cast(T)("--input-border-default");
 	b.style.border = 1;
@@ -153,7 +153,7 @@ search_box :: (ch: *dc.Channel, hint: string) {
 		text := ui.editor_text(*search.editor);
 		if text != "" {
 			x := ui.box("clear", .{.Clickable});
-			x.semantic_size = .{__IDX__.X = ui.px(16), __IDX__.Y = ui.px(16)};
+			x.semantic_size = .[ui.px(16), ui.px(16)];
 			if ui.signal(x).clicked {
 				ui.editor_set_text(*search.editor, "");
 				search.active = false;
@@ -241,7 +241,7 @@ search_suggestions :: () {
 	r := search.box_rect;
 	W :: 320;
 	p := ui.box("search_sugg", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	p.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	p.semantic_size = .[ui.px(W), ui.children()];
 	p.fixed_pos = .{max(8, r.x1 - W), r.y1 + 8};
 	p.layout_axis = .Y;
 	p.style.bg = cast(T)("--background-surface-high");
@@ -259,7 +259,7 @@ search_suggestions :: () {
 		label(title, .Semibold, 12, cast(T)("--text-muted"), 24);
 		for it_, i: items {
 			ir := row(fmt.tprintf("s%d", i), .{.Clickable, .Draw_Background, .Hot_Animation});
-			ir.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+			ir.semantic_size = .[ui.pct(1), ui.px(32)];
 			ir.style.radius = 4;
 			ir.style.bg_hot = cast(T)("--background-mod-subtle");
 			if ui.signal(ir).clicked {
@@ -374,33 +374,33 @@ search_panel_open :: () -> bool {return search.active;}
 search_panel :: () {
 	s := store();
 	p := ui.box("searchpanel", .{.Draw_Background, .Draw_Border});
-	p.semantic_size = .{__IDX__.X = ui.px(SEARCH_PANEL_W), __IDX__.Y = ui.pct(1)};
+	p.semantic_size = .[ui.px(SEARCH_PANEL_W), ui.pct(1)];
 	p.layout_axis = .Y;
 	p.style.bg = cast(T)("--background-base-low");
 	p.style.border_color = cast(T)("--border-subtle");
 	p.style.border = 1;
 	if ui.parent(p) {
 		hdr := row("hdr");
-		hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
 		if ui.parent(hdr) {
 			spacer(.X, 16);
 			txt := ifx search.loading then "Searching..." else ifx search.total == 1 then "1 Result" else fmt.tprintf("%d Results", search.total);
 			label(txt, .Semibold, 16, cast(T)("--text-strong"), 20);
 			filler(.X);
 			x := ui.box("close", .{.Clickable});
-			x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+			x.semantic_size = .[ui.px(24), ui.px(24)];
 			if ui.signal(x).clicked { search.active = false; }
 			set_icon(x, "x", cast(T)("--interactive-icon-default"));
 			spacer(.X, 12);
 		}
 		list := ui.box("list", .{.Scroll_Y, .Clip});
-		list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+		list.semantic_size = .[ui.pct(1), ui.fill()];
 		list.layout_axis = .Y;
 		ui.signal(list);
 		if ui.parent(list) {
 			if !search.loading && len(search.results) == 0 {
 				r := row("none");
-				r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(80)};
+				r.semantic_size = .[ui.pct(1), ui.px(80)];
 				if ui.parent(r) {
 					filler(.X);
 					label("No results found", .Medium, 14, cast(T)("--text-muted"), 18);
@@ -413,7 +413,7 @@ search_panel :: () {
 					if res.msg.channel_id != last_ch {
 						last_ch = res.msg.channel_id;
 						cr := row("chan");
-						cr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+						cr.semantic_size = .[ui.pct(1), ui.px(32)];
 						if ui.parent(cr) {
 							spacer(.X, 16);
 							c := dc.channel_get(s, res.msg.channel_id);

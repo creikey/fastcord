@@ -1,8 +1,10 @@
 #import "Basic";
+#import "Math";
 #import "String";
 #import "Hash_Table";
 #import "Atomics";
 #import "fc";
+#load "local.jai";
 math :: #import "fc_math";
 mem :: #import "fc_mem";
 strconv :: #import "fc_strconv";

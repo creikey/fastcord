@@ -171,12 +171,12 @@ sticker_picker_body :: (r: ui.Rect) {
 	}
 	pk_scroll_update(*sv.scroll, grid, content_h);
 	body := row("st_body");
-	body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	body.semantic_size = .[ui.pct(1), ui.fill()];
 	body.cross_align = .Start;
 	if ui.parent(body) {
 		sticker_nav(nav_secs, r.y1 - r.y0, searching);
 		col := ui.box("st_main");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+		col.semantic_size = .[ui.fill(), ui.pct(1)];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			sticker_grid(secs, cols, cell, grid);
@@ -193,7 +193,7 @@ st_layout :: (secs: []St_Section, cols: int, cell: float32) -> float32 {
 		sc.y = y;
 		if !sc.flat { y += ST_HEADER_H; }
 		sc.rows = (len(sc.items) + cols - 1) / cols;
-		if __MAPIDX__(sv.collapsed|sc.key) && !sc.flat { sc.rows = 0; }
+		if get(sv.collapsed, sc.key) && !sc.flat { sc.rows = 0; }
 		y += cast(float32)(sc.rows) * cell;
 	}
 	return y;
@@ -207,7 +207,7 @@ cur_section :: (secs: []St_Section) -> int {
 
 sticker_nav :: (secs: []St_Section, h: float32, searching: bool) {
 	nav := ui.box("st_nav", .{.Clip, .Scroll_Y});
-	nav.semantic_size = .{__IDX__.X = ui.px(ST_NAV_W), __IDX__.Y = ui.px(h)};
+	nav.semantic_size = .[ui.px(ST_NAV_W), ui.px(h)];
 	nav.layout_axis = .Y;
 	nav.cross_align = .Center;
 	ui.signal(nav);
@@ -219,7 +219,7 @@ sticker_nav :: (secs: []St_Section, h: float32, searching: bool) {
 			active := cur == i;
 			if ui.id_scope(sc.key) {
 				slot := ui.box("slot", .{.Clickable, .Draw_Background, .Hot_Animation});
-				slot.semantic_size = .{__IDX__.X = ui.px(ST_NAV_ICON), __IDX__.Y = ui.px(ST_NAV_ICON)};
+				slot.semantic_size = .[ui.px(ST_NAV_ICON), ui.px(ST_NAV_ICON)];
 				slot.layout_axis = .X;
 				slot.cross_align = .Center;
 				slot.style.radius = 4;
@@ -227,7 +227,7 @@ sticker_nav :: (secs: []St_Section, h: float32, searching: bool) {
 				if ui.parent(slot) {
 					if sc.guild != 0 {
 						gi := ui.box("##gicon", .{.Draw_Background, .Draw_Text});
-						gi.semantic_size = .{__IDX__.X = ui.px(ST_NAV_ICON), __IDX__.Y = ui.px(ST_NAV_ICON)};
+						gi.semantic_size = .[ui.px(ST_NAV_ICON), ui.px(ST_NAV_ICON)];
 						gi.style.radius = ifx active || sig.hovering then 10 else ST_NAV_ICON / 2;
 						gi.style.bg = cast(T)("--background-mod-subtle");
 						gi.style.text_align = .Center;
@@ -262,7 +262,7 @@ sticker_nav :: (secs: []St_Section, h: float32, searching: bool) {
 
 st_header :: (sc: *St_Section, id: string, y: float32, w: float32) {
 	h := row(id, .{.Floating_X, .Floating_Y, .Clickable, .Draw_Background});
-	h.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(ST_HEADER_H)};
+	h.semantic_size = .[ui.px(w), ui.px(ST_HEADER_H)];
 	h.fixed_pos = .{0, y};
 	h.style.bg = cast(T)("--background-surface-high");
 	sig := ui.signal(h);
@@ -287,7 +287,7 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 	w := view.x1 - view.x0;
 	vh := view.y1 - view.y0;
 	list := ui.box("st_grid", .{.Clip});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(vh)};
+	list.semantic_size = .[ui.pct(1), ui.px(vh)];
 	top := sv.scroll.y;
 	if ui.parent(list) {
 		for * sc, si: secs {
@@ -302,7 +302,7 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 					if y + cell < 0 || y > vh { continue; }
 					if ui.id_scope(cast(u64)(i)) {
 						b := ui.box("cell", .{.Clickable, .Floating_X, .Floating_Y, .Draw_Background});
-						b.semantic_size = .{__IDX__.X = ui.px(ST_PREVIEW), __IDX__.Y = ui.px(ST_PREVIEW)};
+						b.semantic_size = .[ui.px(ST_PREVIEW), ui.px(ST_PREVIEW)];
 						b.fixed_pos = .{ST_GRID_PAD_L + cast(float32)(cc) * cell, y};
 						b.style.radius = ST_PREVIEW_RADIUS;
 						sig := ui.signal(b);
@@ -330,7 +330,7 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 		}
 		if len(secs) == 0 || (secs[0].flat && len(secs[0].items) == 0) {
 			msg := ui.box("empty", .{.Floating_X, .Floating_Y});
-			msg.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(vh)};
+			msg.semantic_size = .[ui.px(w), ui.px(vh)];
 			msg.layout_axis = .Y;
 			msg.cross_align = .Center;
 			if ui.parent(msg) {
@@ -344,10 +344,10 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 
 sticker_inspector :: (secs: []St_Section) {
 	line := ui.box("insline", .{.Draw_Background});
-	line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
 	line.style.bg = cast(T)("--border-normal");
 	bar := row("inspector", .{.Draw_Background});
-	bar.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(ST_INSPECTOR_H - 1)};
+	bar.semantic_size = .[ui.pct(1), ui.px(ST_INSPECTOR_H - 1)];
 	bar.style.bg = cast(T)("--background-base-lower");
 	si, ii := sv.inspected[0], sv.inspected[1];
 	if si < 0 || si >= len(secs) || ii >= len(secs[si].items) { return; }
@@ -357,7 +357,7 @@ sticker_inspector :: (secs: []St_Section) {
 		sticker_box("is", it_, 28, false);
 		spacer(.X, 8);
 		col := ui.box("names");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			label(it_.name, .Semibold, 16, cast(T)("--text-strong"), 20);
@@ -388,7 +388,7 @@ sticker_select :: (it_: Pk_Sticker, keep_open: bool) {
 // A sticker drawn aspect-fit in a size x size box; animates only when `animate`.
 sticker_box :: (id: string, it_: Pk_Sticker, size: float32, animate: bool) -> *ui.Box {
 	b := ui.box(id);
-	b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+	b.semantic_size = .[ui.px(size), ui.px(size)];
 	if it_.format_type == 3 {
 		lottie_sticker_draw(b, it_.id, animate);
 		return b;

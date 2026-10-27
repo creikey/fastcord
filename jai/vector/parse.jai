@@ -32,7 +32,7 @@ Style :: struct {
 }
 
 DEFAULT_STYLE :: Style.{
-	fill = .{type = .Color, color = .{0, 0, 0, 255}},
+	fill = .{type = .Color, color = .[0, 0, 0, 255]},
 	fill_opacity = 1,
 	stroke_opacity = 1,
 	opacity = 1,
@@ -60,7 +60,7 @@ parse_svg :: (src: string, allocator := context.allocator) -> Icon, bool {
 	icon: Icon;
 	ok: bool;
 	arena: virtual.Arena;
-	if virtual.arena_init_growing(*arena) != null { return .{}, false; }
+	if virtual.arena_init_growing(*arena) != .None { return .{}, false; }
 	defer virtual.arena_destroy(*arena);
 	scratch := virtual.arena_allocator(*arena);
 
@@ -69,7 +69,7 @@ parse_svg :: (src: string, allocator := context.allocator) -> Icon, bool {
 	p.groups = Map(s32, s32).{};
 	p.grads = Map(s32, s32).{};
 	icon.verbs = make_dynamic(Verb, 0, 0, allocator);
-	icon.points = make_dynamic([2]float32, 0, 0, allocator);
+	icon.points = make_dynamic(Vector2, 0, 0, allocator);
 	icon.ops = make_dynamic(Op, 0, 0, allocator);
 	icon.groups = make_dynamic(Group, 0, 0, allocator);
 	icon.gradients = make_dynamic(Gradient, 0, 0, allocator);
@@ -80,10 +80,10 @@ parse_svg :: (src: string, allocator := context.allocator) -> Icon, bool {
 		destroy(*icon);
 		return .{}, false;
 	}
-	context.allocator = scratch;
+	push_allocator(scratch);
 	{ vb, has := attr(*p.doc, root, "viewBox");
 	if has {
-		nums: [4]float32;
+		nums: Vector4;
 		sc := Scanner.{s = vb};
 		got := 0;
 		while got < 4 {
@@ -137,10 +137,10 @@ walk :: (p: *Parser, ni: s32, parent_ctm: Mat, parent_st: Style, group: s32) {
 			// Nested viewport: translate(x, y) then map its viewBox onto width x height.
 			x := attr_length(p, ni, "x", 0);
 			y := attr_length(p, ni, "y", 0);
-			ctm = mat_mul(ctm, .{1, 0, 0, 1, x, y});
+			ctm = mat_mul(ctm, .[1, 0, 0, 1, x, y]);
 			{ vb, has := attr(*p.doc, ni, "viewBox");
 			if has {
-				nums: [4]float32;
+				nums: Vector4;
 				sc := Scanner.{s = vb};
 				got := 0;
 				while got < 4 {
@@ -163,7 +163,7 @@ walk :: (p: *Parser, ni: s32, parent_ctm: Mat, parent_st: Style, group: s32) {
 						sx = s;
 						sy = s;
 					} }
-					ctm = mat_mul(ctm, .{sx, 0, 0, sy, tx - nums[0] * sx, ty - nums[1] * sy});
+					ctm = mat_mul(ctm, .[sx, 0, 0, sy, tx - nums[0] * sx, ty - nums[1] * sy]);
 				}
 			} }
 		}
@@ -183,7 +183,7 @@ walk :: (p: *Parser, ni: s32, parent_ctm: Mat, parent_st: Style, group: s32) {
 		if !found { return; }
 		x := attr_length(p, ni, "x", 0);
 		y := attr_length(p, ni, "y", 0);
-		walk(p, ref, mat_mul(ctm, .{1, 0, 0, 1, x, y}), st, group);
+		walk(p, ref, mat_mul(ctm, .[1, 0, 0, 1, x, y]), st, group);
 	case "path"; #through; case "rect"; #through; case "circle"; #through; case "ellipse"; #through; case "line"; #through; case "polyline"; #through; case "polygon";
 		emit_shape(p, ni, name, ctm, st, group);
 	}
@@ -299,7 +299,7 @@ parse_paint :: (p: *Parser, v: string, inherited: Paint) -> Paint {
 		if gi < 0 { return .{type = .None}; }
 		g := *p.icon.gradients[gi];
 		if len(g.stops) == 0 { return .{type = .None}; }
-		sum: [4]float32;
+		sum: Vector4;
 		for st: g.stops { sum += st.color; }
 		avg := sum / cast(float32)(len(g.stops));
 		out := Paint.{type = .Color, gradient = true, grad = gi};
@@ -330,7 +330,7 @@ parse_color :: (v: string) -> [4]u8 {
 			return out;
 		case 6; #through; case 8;
 			out := u8.[0, 0, 0, 255];
-			for j: 0..(len(h) / 2)-1 { at(*out, j).* = hex(h[2 * j]) << 4 | hex(h[2 * j + 1]); }
+			for j: 0..(len(h) / 2)-1 { at(*out, j).* = (hex(h[2 * j]) << 4) | hex(h[2 * j + 1]); }
 			return out;
 		}
 		return .[0, 0, 0, 255];
@@ -496,10 +496,10 @@ emit_shape :: (p: *Parser, ni: s32, name: string, ctm: Mat, st: Style, group: s3
 	}
 	vc := cast(s32)(len(icon.verbs)) - fv;
 	if vc == 0 { return; }
-	bbox := float32.[FLOAT32_MAX, FLOAT32_MAX, -FLOAT32_MAX, -FLOAT32_MAX];
+	bbox := Vector4.{FLOAT32_MAX, FLOAT32_MAX, -FLOAT32_MAX, -FLOAT32_MAX};
 	for * pt: sub_from(icon.points, fp) {
 		bbox = .{min(bbox[0], pt.x), min(bbox[1], pt.y), max(bbox[2], pt.x), max(bbox[3], pt.y)};
-		pt = mat_apply(ctm, pt);
+		pt.* = mat_apply(ctm, pt.*);
 	}
 	if bbox[0] > bbox[2] { bbox = .{}; }
 	mask := ifx st.mask >= 0 then st.mask else -1;
@@ -566,15 +566,15 @@ emit_shape :: (p: *Parser, ni: s32, name: string, ctm: Mat, st: Style, group: s3
 
 Builder :: struct {
 	icon: *Icon;
-	start: [2]float32;
-	cur: [2]float32;
-	ctrl: [2]float32; // last control point (for S / T reflection)
+	start: Vector2;
+	cur: Vector2;
+	ctrl: Vector2; // last control point (for S / T reflection)
 	last: u8; // last command, upper-cased
 	open: bool; // a subpath has been started
 	need_move: bool; // after Z: implicit moveto to start
 }
 
-move_to :: (b: *Builder, p: [2]float32) {
+move_to :: (b: *Builder, p: Vector2) {
 	append(*b.icon.verbs, Verb.Move);
 	append(*b.icon.points, p);
 	b.start = p;
@@ -587,21 +587,21 @@ ensure_move :: (b: *Builder) {
 	if !b.open || b.need_move { move_to(b, b.cur); }
 }
 
-line_to :: (b: *Builder, p: [2]float32) {
+line_to :: (b: *Builder, p: Vector2) {
 	ensure_move(b);
 	append(*b.icon.verbs, Verb.Line);
 	append(*b.icon.points, p);
 	b.cur = p;
 }
 
-quad_to :: (b: *Builder, c: [2]float32, p: [2]float32) {
+quad_to :: (b: *Builder, c: Vector2, p: Vector2) {
 	ensure_move(b);
 	append(*b.icon.verbs, Verb.Quad);
 	append(*b.icon.points, c, p);
 	b.cur = p;
 }
 
-cubic_to :: (b: *Builder, c1: [2]float32, c2: [2]float32, p: [2]float32) {
+cubic_to :: (b: *Builder, c1: Vector2, c2: Vector2, p: Vector2) {
 	ensure_move(b);
 	append(*b.icon.verbs, Verb.Cubic);
 	append(*b.icon.points, c1, c2, p);
@@ -618,8 +618,8 @@ close_path :: (b: *Builder) {
 KAPPA :: 0.5522847498;
 
 add_ellipse :: (b: *Builder, cx: float32, cy: float32, rx: float32, ry: float32) {
-	kx := rx * KAPPA;
-	ky := ry * KAPPA;
+	kx := rx * cast(float32) KAPPA;
+	ky := ry * cast(float32) KAPPA;
 	move_to(b, .{cx + rx, cy});
 	cubic_to(b, .{cx + rx, cy + ky}, .{cx + kx, cy + ry}, .{cx, cy + ry});
 	cubic_to(b, .{cx - kx, cy + ry}, .{cx - rx, cy + ky}, .{cx - rx, cy});
@@ -637,8 +637,8 @@ add_round_rect :: (b: *Builder, x: float32, y: float32, w: float32, h: float32, 
 		close_path(b);
 		return;
 	}
-	kx := rx * (1 - KAPPA);
-	ky := ry * (1 - KAPPA);
+	kx := rx * cast(float32) (1 - KAPPA);
+	ky := ry * cast(float32) (1 - KAPPA);
 	r := x + w;
 	btm := y + h;
 	move_to(b, .{x + rx, y});
@@ -654,7 +654,7 @@ add_round_rect :: (b: *Builder, x: float32, y: float32, w: float32, h: float32, 
 }
 
 // arc_to appends an SVG elliptical arc (endpoint parameterization) as cubics.
-arc_to :: (b: *Builder, rx_in: float32, ry_in: float32, phi_deg: float32, large: bool, sweep: bool, p: [2]float32) {
+arc_to :: (b: *Builder, rx_in: float32, ry_in: float32, phi_deg: float32, large: bool, sweep: bool, p: Vector2) {
 	p0 := b.cur;
 	if p0 == p { return; }
 	rx := abs(cast(float64)(rx_in));
@@ -682,7 +682,7 @@ arc_to :: (b: *Builder, rx_in: float32, ry_in: float32, phi_deg: float32, large:
 	}
 	num := rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
 	den := rx * rx * y1p * y1p + ry * ry * x1p * x1p;
-	coef := ifx den > 0 then math.sqrt(max(0, num / den)) else 0;
+	coef := ifx den > 0 then math.sqrt(max(num / den, 0)) else 0;
 	if large == sweep { coef = -coef; }
 	cxp := coef * rx * y1p / ry;
 	cyp := -coef * ry * x1p / rx;
@@ -702,23 +702,21 @@ arc_to :: (b: *Builder, rx_in: float32, ry_in: float32, phi_deg: float32, large:
 	n := max(1, cast(int)(math.ceil(abs(dtheta) / (math.PI / 2) - 1.0e-9)));
 	d := dtheta / cast(float64)(n);
 	k := 4.0 / 3.0 * math.tan(d / 4);
-	ept :: (cx: float64, cy: float64, rx: float64, ry: float64, cs: float64, sn: float64, t: float64) -> [2]float64 {
-		return .[cx + rx * math.cos(t) * cs - ry * math.sin(t) * sn, cy + rx * math.cos(t) * sn + ry * math.sin(t) * cs];
+	ept :: (cx: float64, cy: float64, rx: float64, ry: float64, cs: float64, sn: float64, t: float64) -> float64, float64 {
+		return cx + rx * math.cos(t) * cs - ry * math.sin(t) * sn, cy + rx * math.cos(t) * sn + ry * math.sin(t) * cs;
 	}
-	eder :: (rx: float64, ry: float64, cs: float64, sn: float64, t: float64) -> [2]float64 {
-		return .[-rx * math.sin(t) * cs - ry * math.cos(t) * sn, -rx * math.sin(t) * sn + ry * math.cos(t) * cs];
+	eder :: (rx: float64, ry: float64, cs: float64, sn: float64, t: float64) -> float64, float64 {
+		return -rx * math.sin(t) * cs - ry * math.cos(t) * sn, -rx * math.sin(t) * sn + ry * math.cos(t) * cs;
 	}
 	for i: 0..n-1 {
 		t1 := theta1 + cast(float64)(i) * d;
 		t2 := t1 + d;
-		a := ept(cx, cy, rx, ry, cs, sn, t1);
-		e := ept(cx, cy, rx, ry, cs, sn, t2);
-		da := eder(rx, ry, cs, sn, t1);
-		de := eder(rx, ry, cs, sn, t2);
-		c1 := a + k * da;
-		c2 := e - k * de;
-		end := ifx i == n - 1 then p else float32.[cast(float32)(e.x), cast(float32)(e.y)];
-		cubic_to(b, .{cast(float32)(c1.x), cast(float32)(c1.y)}, .{cast(float32)(c2.x), cast(float32)(c2.y)}, end);
+		ax, ay := ept(cx, cy, rx, ry, cs, sn, t1);
+		ex, ey := ept(cx, cy, rx, ry, cs, sn, t2);
+		dax, day := eder(rx, ry, cs, sn, t1);
+		dex, dey := eder(rx, ry, cs, sn, t2);
+		end := ifx i == n - 1 then p else Vector2.{cast(float32)(ex), cast(float32)(ey)};
+		cubic_to(b, .{cast(float32)(ax + k * dax), cast(float32)(ay + k * day)}, .{cast(float32)(ex - k * dex), cast(float32)(ey - k * dey)}, end);
 	}
 }
 
@@ -796,7 +794,7 @@ parse_path :: (b: *Builder, d: string) {
 		}
 		rel := cmd >= #char "a";
 		up := ifx rel then cmd - 32 else cmd;
-		o := ifx rel then b.cur else float32.[0, 0];
+		o := ifx rel then b.cur else Vector2.{0, 0};
 		num :: (sc: *Scanner, ok: *bool) -> float32 {
 			v, k := scan_number(sc);
 			if !k { ok.* = false; }
@@ -809,7 +807,7 @@ parse_path :: (b: *Builder, d: string) {
 			y := num(*sc, *ok);
 			if !ok { return; }
 			move_to(b, o + .{x, y});
-			cmd = ifx rel then #char "l" else #char "L";
+			cmd = cast(u8) ifx rel then #char "l" else #char "L";
 		case #char "L";
 			x := num(*sc, *ok);
 			y := num(*sc, *ok);
@@ -907,19 +905,19 @@ parse_transform :: (s: string) -> Mat {
 		case "matrix";
 			if n == 6 { t = a; }
 		case "translate";
-			t = .{1, 0, 0, 1, a[0], ifx n > 1 then a[1] else 0};
+			t = .[1, 0, 0, 1, a[0], ifx n > 1 then a[1] else 0];
 		case "scale";
-			t = .{a[0], 0, 0, ifx n > 1 then a[1] else a[0], 0, 0};
+			t = .[a[0], 0, 0, ifx n > 1 then a[1] else a[0], 0, 0];
 		case "rotate";
-			r := a[0] * math.PI / 180;
+			r := a[0] * PI32 / 180;
 			c := math.cos(r);
 			sn := math.sin(r);
-			t = .{c, sn, -sn, c, 0, 0};
-			if n == 3 { t = mat_mul(mat_mul(.{1, 0, 0, 1, a[1], a[2]}, t), .{1, 0, 0, 1, -a[1], -a[2]}); }
+			t = .[c, sn, -sn, c, 0, 0];
+			if n == 3 { t = mat_mul(mat_mul(.[1, 0, 0, 1, a[1], a[2]], t), .[1, 0, 0, 1, -a[1], -a[2]]); }
 		case "skewX";
-			t = .{1, 0, math.tan(a[0] * math.PI / 180), 1, 0, 0};
+			t = .[1, 0, math.tan(a[0] * PI32 / 180), 1, 0, 0];
 		case "skewY";
-			t = .{1, math.tan(a[0] * math.PI / 180), 0, 1, 0, 0};
+			t = .[1, math.tan(a[0] * PI32 / 180), 0, 1, 0, 0];
 		case;
 			return m;
 		}
@@ -1037,7 +1035,6 @@ build_gradient :: (p: *Parser, ni: s32) -> s32 {
 		if !found { break; }
 		n = next;
 	}
-	shrink(*stops);
 	g.stops = view(stops);
 	gi := cast(s32)(len(p.icon.gradients));
 	append(*p.icon.gradients, g);

@@ -71,13 +71,13 @@ shot: Shot;
 // Whether a is a return address: inside the executable's code, right after a call.
 is_return :: (a: u64) -> bool #no_context {
 	#if CPU == .ARM64 {
-		if a & 3 != 0 || a < shot.text_lo + 4 || a > shot.text_hi { return false; }
+		if (a & 3) != 0 || a < shot.text_lo + 4 || a > shot.text_hi { return false; }
 		ins := (cast(*u32) (a - 4)).*;
-		return ins & 0xFC00_0000 == 0x9400_0000 || ins & 0xFFFF_FC1F == 0xD63F_0000 || ins & 0xFFFF_F800 == 0xD63F_0800; // BL, BLR, BLRAA/BLRAB
+		return (ins & 0xFC00_0000) == 0x9400_0000 || (ins & 0xFFFF_FC1F) == 0xD63F_0000 || (ins & 0xFFFF_F800) == 0xD63F_0800; // BL, BLR, BLRAA/BLRAB
 	} else {
 		if a < shot.text_lo + 6 || a > shot.text_hi { return false; }
 		p := cast(*u8) a;
-		return (p[-5] == 0xE8) || (p[-2] == 0xFF && (p[-1] >> 3) & 7 == 2) || (p[-3] == 0xFF && (p[-2] >> 3) & 7 == 2) || (p[-6] == 0xFF && (p[-5] >> 3) & 7 == 2); // call rel32, call r/m
+		return (p[-5] == 0xE8) || (p[-2] == 0xFF && ((p[-1] >> 3) & 7) == 2) || (p[-3] == 0xFF && ((p[-2] >> 3) & 7) == 2) || (p[-6] == 0xFF && ((p[-5] >> 3) & 7) == 2); // call rel32, call r/m
 	}
 }
 
@@ -102,7 +102,7 @@ on_sigprof :: (sig: s32, info: *void, uc: *void) #c_call {
 			shot.n = 2;
 		}
 	}
-	sp := (cast(*u64) (mc + SP_OFFSET)).* & ~cast(u64) 7;
+	sp := (cast(*u64) (mc + SP_OFFSET)).* & (~cast(u64) 7);
 	hi := ifx shot.stack_hi < sp + MAX_SCAN then shot.stack_hi else sp + MAX_SCAN;
 	p := sp;
 	while p + 8 <= hi && shot.n < MAX_FRAMES {

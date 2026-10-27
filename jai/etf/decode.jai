@@ -57,7 +57,7 @@ decode :: (data: []u8, opts := Decode_Options.{}, allocator := context.allocator
 // inflate_term decodes the body of a tag-80 term: u32 size, zlib data.
 inflate_term :: (body: []u8, limit: int, allocator: Allocator) -> []u8, Error {
 	if len(body) < 4 { return .{}, .Truncated; }
-	size := cast(int)(cast(u32)(body[0]) << 24 | cast(u32)(body[1]) << 16 | cast(u32)(body[2]) << 8 | cast(u32)(body[3]));
+	size := cast(int)(((cast(u32)(body[0])) << 24) | ((cast(u32)(body[1])) << 16) | ((cast(u32)(body[2])) << 8) | (cast(u32)(body[3])));
 	if size > limit { return .{}, .Too_Large; }
 	push_allocator(allocator);
 	buf: bytes.Buffer;
@@ -85,14 +85,14 @@ rd_u8 :: inline (d: *Decoder) -> u8 {
 };
 
 rd_u16 :: inline (d: *Decoder) -> int {
-	x := cast(int)(d.data[d.pos]) << 8 | cast(int)(d.data[d.pos + 1]);
+	x := ((cast(int)(d.data[d.pos])) << 8) | (cast(int)(d.data[d.pos + 1]));
 	d.pos += 2;
 	return x;
 };
 
 rd_u32 :: inline (d: *Decoder) -> u32 {
 	p := sub_from(d.data, d.pos);
-	x := cast(u32)(p[0]) << 24 | cast(u32)(p[1]) << 16 | cast(u32)(p[2]) << 8 | cast(u32)(p[3]);
+	x := ((cast(u32)(p[0])) << 24) | ((cast(u32)(p[1])) << 16) | ((cast(u32)(p[2])) << 8) | (cast(u32)(p[3]));
 	d.pos += 4;
 	return x;
 };
@@ -132,7 +132,7 @@ take_atom :: (d: *Decoder, n: int, utf8: bool) -> Value, Error {
 		return vatom(s), err;
 	}
 	d.pos += n;
-	sb := strings.builder_make(n * 2, d.allocator);
+	sb := strings.builder_make(0, n * 2, d.allocator);
 	for i: 0..n-1 { strings.write_rune(*sb, cast(u32)(raw[i])); }
 	return vatom(strings.to_string(sb)), .None;
 }
@@ -156,7 +156,7 @@ decode_term :: (d: *Decoder) -> Value, Error {
 		if !need(d, 8) { return .{}, .Truncated; }
 		hi := cast(u64)(rd_u32(d));
 		lo := cast(u64)(rd_u32(d));
-		return vfloat(transmute(float64, hi << 32 | lo)), .None;
+		return vfloat(transmute(float64, (hi << 32) | lo)), .None;
 	case .Float;
 		if !need(d, 31) { return .{}, .Truncated; }
 		raw := as_string(sub(sub_from(d.data, d.pos), 0, 31));
@@ -252,7 +252,7 @@ make_big :: (d: *Decoder, neg: bool, digits: []u8) -> Value, Error {
 	while n > 0 && digits[n - 1] == 0 { n -= 1; }
 	if n <= 8 {
 		mag: u64;
-		for < i: n - 1..0 { mag = mag << 8 | cast(u64)(digits[i]); }
+		for < i: 0..n - 1 { mag = (mag << 8) | (cast(u64)(digits[i])); }
 		if !neg && mag <= cast(u64)(S64_MAX) { return vint(cast(s64) mag), .None; }
 		if neg && mag <= cast(u64)(S64_MAX) + 1 { return vint(cast,no_check(s64) (0 - mag)), .None; }
 	}

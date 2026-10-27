@@ -5,9 +5,6 @@
 
 
 
-#if OS == .WINDOWS {
-} else {
-}
 #scope_file
 
 FC_OK :: 0;
@@ -52,7 +49,7 @@ wuffs_open :: (c: *Decode_Ctx, data: []u8, format: Format) -> Wuffs_Image, Error
 	if state_len == 0 { return .{}, .Unknown_Format; }
 	serr: mem.Allocator_Error;
 	im.state, serr = mem.alloc_bytes(cast(int)(state_len), 16, c.allocator);
-	if serr != null { return .{}, .Out_Of_Memory; }
+	if serr != .None { return .{}, .Out_Of_Memory; }
 	info: Fc_Image_Info;
 	err = fc_error(fc_image_open(raw_data(im.state), state_len, cast(s32)(format), raw_data(data), cast(u64)(len(data)), *info));
 	im.w, im.h = cast(int)(info.width), cast(int)(info.height);
@@ -60,8 +57,8 @@ wuffs_open :: (c: *Decode_Ctx, data: []u8, format: Format) -> Wuffs_Image, Error
 	// Progressive JPEG keeps every coefficient (2 bytes each, up to 4 components) until the last scan.
 	if err == .None && info.work_len > cast(u64)(8 * c.max_pixels) { err = .Too_Large; }
 	if err == .None {
-		im.work, serr = make_slice(u8, cast(int)(info.work_len), c.allocator);
-		if serr != null { err = .Out_Of_Memory; }
+		im.work = make_slice(u8, cast(int)(info.work_len), c.allocator);
+		if !im.work.data && info.work_len > 0 { err = .Out_Of_Memory; }
 	}
 	if err != .None { wuffs_close(c, *im); }
 	return im, err;
@@ -103,7 +100,7 @@ wuffs_decode :: (c: *Decode_Ctx, data: []u8, img: *Image, format: Format) -> Err
 	__e6 := fc_error(fc_image_next_frame(st, *f)); if failed(__e6) return __e6;
 	while true {
 		if f.disposal == 2 {
-			if saved == null { __v8, __e7 := alloc_pixels(c, W, H); if failed(__e7) return __e7; saved = __v8; }
+			if !saved.data { __v8, __e7 := alloc_pixels(c, W, H); if failed(__e7) return __e7; saved = __v8; }
 			copy(saved, canvas);
 		}
 		r := fc_image_decode_frame(st, raw_data(canvas), cast(u64)(len(canvas)), cast(u64)(stride), raw_data(work), cast(u64)(len(work)), 0);
@@ -115,7 +112,7 @@ wuffs_decode :: (c: *Decode_Ctx, data: []u8, img: *Image, format: Format) -> Err
 		if c.first_only || fc_image_next_frame(st, *next) != FC_OK {
 			// The last frame: hand the canvas over instead of copying it.
 			px := canvas;
-			canvas = null;
+			canvas = .{};
 			__e9 := push_frame(c, px, cast(int)(f.duration_ms), true); if failed(__e9) return __e9;
 			break;
 		}

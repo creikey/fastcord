@@ -1,4 +1,5 @@
 #import "Basic";
+#import "Math";
 #import "String";
 #import "Hash_Table";
 #import "Atomics";
@@ -9,5 +10,6 @@ mem :: #import "fc_mem";
 strconv :: #import "fc_strconv";
 vector :: #import "vector";
 virtual :: #import "fc_virtual";
+#load "local.jai";
 #load "load.jai";
 #load "render.jai";

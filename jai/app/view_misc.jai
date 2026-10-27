@@ -77,7 +77,7 @@ profile_popout :: () {
 	}
 	W :: 300;
 	scrim := ui.box("profile_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).clicked {
 		app.profile_user = 0;
 		return;
@@ -98,7 +98,7 @@ profile_popout :: () {
 	}
 	x = clamp(x, 8, app.ui.window.x - W - 8);
 	y = clamp(y, 8, max(8, app.ui.window.y - h - 8));
-	p.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	p.semantic_size = .[ui.px(W), ui.children()];
 	p.fixed_pos = .{x, y + (1 - app.profile_open_t) * 8};
 	p.opacity = app.profile_open_t;
 	p.layout_axis = .Y;
@@ -112,14 +112,14 @@ profile_popout :: () {
 	ui.signal(p); // swallow clicks inside
 	if ui.parent(p) {
 		banner := ui.box("banner", .{.Draw_Background});
-		banner.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(105)};
+		banner.semantic_size = .[ui.pct(1), ui.px(105)];
 		banner.style.radius = .{8, 8, 0, 0};
 		banner.style.bg = profile_banner_color(uid);
 		if u.banner != "" { set_remote_image(banner, dc.banner_url(uid, u.banner, 600)); }
 		if ui.parent(banner) {
 			// "..." on the banner's top-right (official: 28px dark circle, 12px in)
 			more := ui.box("more", .{.Clickable, .Draw_Background, .Floating_X, .Floating_Y});
-			more.semantic_size = .{__IDX__.X = ui.px(28), __IDX__.Y = ui.px(28)};
+			more.semantic_size = .[ui.px(28), ui.px(28)];
 			more.fixed_pos = .{W - 12 - 28, 12};
 			more.style.radius = 14;
 			more.style.bg = .{0, 0, 0, 0.5};
@@ -135,10 +135,10 @@ profile_popout :: () {
 			}
 		}
 		av_row := ui.box("avrow");
-		av_row.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(44)};
+		av_row.semantic_size = .[ui.pct(1), ui.px(44)];
 		if ui.parent(av_row) {
 			ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
-			ring.semantic_size = .{__IDX__.X = ui.px(92), __IDX__.Y = ui.px(92)};
+			ring.semantic_size = .[ui.px(92), ui.px(92)];
 			ring.fixed_pos = .{10, -50};
 			ring.style.radius = 46;
 			ring.style.bg = p.style.bg;
@@ -150,11 +150,11 @@ profile_popout :: () {
 			}
 		}
 		info := ui.box("info");
-		info.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		info.semantic_size = .[ui.pct(1), ui.children()];
 		info.layout_axis = .Y;
 		if ui.parent(info) {
 			pad := row("namepad");
-			pad.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(26)};
+			pad.semantic_size = .[ui.pct(1), ui.px(26)];
 			if ui.parent(pad) {
 				spacer(.X, 16);
 				n := label(dc.user_name(s, uid, app.view.guild), .Bold, 20, cast(T)("--text-strong"), 24);
@@ -162,7 +162,7 @@ profile_popout :: () {
 				n.sel_order = 1;
 			}
 			pad2 := row("userpad");
-			pad2.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+			pad2.semantic_size = .[ui.pct(1), ui.px(20)];
 			if ui.parent(pad2) {
 				spacer(.X, 16);
 				un := label(u.username, .Normal, 14, cast(T)("--text-default"), 18);
@@ -175,7 +175,7 @@ profile_popout :: () {
 			if u.bio != "" {
 				spacer(.Y, 12);
 				bio := ui.box("bio", .{.Selectable_Text, .Wrap_Text});
-				bio.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+				bio.semantic_size = .[ui.pct(1), ui.text_size()];
 				bio.style.padding = .{16, 0};
 				bio.style.line_height = 18;
 				bio.style.text_color = cast(T)("--text-default");
@@ -186,11 +186,11 @@ profile_popout :: () {
 			spacer(.Y, 16);
 			if uid == s.me {
 				er := row("editrow");
-				er.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+				er.semantic_size = .[ui.pct(1), ui.px(32)];
 				if ui.parent(er) {
 					spacer(.X, 16);
 					eb := row("editprofile", .{.Clickable, .Draw_Background, .Hot_Animation});
-					eb.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(32)};
+					eb.semantic_size = .[ui.fill(), ui.px(32)];
 					eb.style.radius = 8;
 					eb.style.bg = cast(T)("--background-brand");
 					eb.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
@@ -213,11 +213,11 @@ profile_popout :: () {
 			}
 			if uid != s.me {
 				mr := row("msgrow");
-				mr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+				mr.semantic_size = .[ui.pct(1), ui.px(40)];
 				if ui.parent(mr) {
 					spacer(.X, 16);
 					mb := row(fmt.tprintf("Message @%s##msgbtn", dc.user_name(s, uid)), .{.Clickable, .Draw_Background, .Draw_Border, .Draw_Text});
-					mb.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+					mb.semantic_size = .[ui.fill(), ui.px(40)];
 					mb.style.bg = cast(T)("--input-background-default");
 					mb.style.border_color = cast(T)("--border-subtle");
 					mb.style.border = 1;
@@ -261,12 +261,12 @@ settings_modal :: () {
 	s := store();
 	settings_track();
 	scrim := ui.box("settings_scrim", .{.Draw_Background, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked { app.settings_open = false; }
 	if ui.parent(scrim) {
 		m := row("settings", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Clickable, .Clip});
-		m.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x - 2 * SET_INSET), __IDX__.Y = ui.px(app.ui.window.y - 2 * SET_INSET)};
+		m.semantic_size = .[ui.px(app.ui.window.x - 2 * SET_INSET), ui.px(app.ui.window.y - 2 * SET_INSET)];
 		m.fixed_pos = .{SET_INSET, SET_INSET};
 		m.cross_align = .Start;
 		m.style.bg = cast(T)("--background-base-lower");
@@ -276,25 +276,25 @@ settings_modal :: () {
 		ui.signal(m);
 		if ui.parent(m) {
 			nav := ui.box("nav");
-			nav.semantic_size = .{__IDX__.X = ui.px(SET_NAV_W), __IDX__.Y = ui.pct(1)};
+			nav.semantic_size = .[ui.px(SET_NAV_W), ui.pct(1)];
 			nav.layout_axis = .Y;
 			if ui.parent(nav) {
 				spacer(.Y, 24);
 				me := row("me");
-				me.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+				me.semantic_size = .[ui.pct(1), ui.px(48)];
 				if ui.parent(me) {
 					spacer(.X, 24);
 					avatar_box("av", s.me, 48);
 					spacer(.X, 10);
 					col := ui.box("names");
-					col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+					col.semantic_size = .[ui.fill(), ui.children()];
 					if ui.parent(col) {
 						name := "…";
 						{ u := dc.user_get(s, s.me);
 						if u != null { name = dc.display_name(u); } }
 						label(name, .Semibold, 16, cast(T)("--text-strong"), 20);
 						er := row("edit", .{.Clickable});
-						er.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(18)};
+						er.semantic_size = .[ui.children(), ui.px(18)];
 						er.hover_cursor = .Pointer;
 						if ui.signal(er).clicked { settings_page = "Profiles"; }
 						if ui.parent(er) {
@@ -313,11 +313,11 @@ settings_modal :: () {
 					if !settings_nav_match(it_.name) && !(it_.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
 					sel := it_.name == settings_page;
 					outer := row(it_.name);
-					outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(37)};
+					outer.semantic_size = .[ui.pct(1), ui.px(37)];
 					if ui.parent(outer) {
 						spacer(.X, 16);
 						r := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-						r.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(33)};
+						r.semantic_size = .[ui.fill(), ui.px(33)];
 						r.style.radius = 8;
 						r.style.bg = ifx sel then cast(T)("--background-mod-normal") else .{};
 						r.style.bg_hot = ifx sel then r.style.bg else cast(T)("--background-mod-subtle");
@@ -337,28 +337,28 @@ settings_modal :: () {
 				settings_nav_logout();
 			}
 			edge := ui.box("navedge", .{.Draw_Background});
-			edge.semantic_size = .{__IDX__.X = ui.px(1), __IDX__.Y = ui.pct(1)};
+			edge.semantic_size = .[ui.px(1), ui.pct(1)];
 			edge.style.bg = cast(T)("--border-muted");
 			content := ui.box("content", .{.Draw_Background});
-			content.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+			content.semantic_size = .[ui.fill(), ui.pct(1)];
 			content.layout_axis = .Y;
 			content.style.bg = cast(T)("--background-base-low");
 			if ui.parent(content) {
 				t := row("t");
-				t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(SET_TITLE_H)};
+				t.semantic_size = .[ui.pct(1), ui.px(SET_TITLE_H)];
 				if ui.parent(t) {
 					spacer(.X, 20);
 					label(settings_page, .Semibold, 16, cast(T)("--text-strong"), 20);
 					filler(.X);
 					close := ui.box("close", .{.Clickable});
-					close.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+					close.semantic_size = .[ui.px(20), ui.px(20)];
 					cs := ui.signal(close);
 					set_icon(close, "x-large", ifx cs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 					if cs.clicked { app.settings_open = false; }
 					spacer(.X, 16);
 				}
 				tl := ui.box("tline", .{.Draw_Background});
-				tl.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+				tl.semantic_size = .[ui.pct(1), ui.px(1)];
 				tl.style.bg = cast(T)("--border-muted");
 				if settings_page == "Voice & Video" {
 					voice_settings_page();
@@ -432,12 +432,12 @@ settings_reset_for_test :: () {set_tr = .{};}
 appearance_subnav :: () {
 	for sub: (string.["Theme", "Streamer Mode"]) {
 		r := row(fmt.tprintf("sub_%s", sub), .{.Clickable, .Hot_Animation});
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(33)};
+		r.semantic_size = .[ui.pct(1), ui.px(33)];
 		sig := ui.signal(r);
 		if ui.parent(r) {
 			spacer(.X, 28);
 			bar := ui.box("bar", .{.Draw_Background});
-			bar.semantic_size = .{__IDX__.X = ui.px(2), __IDX__.Y = ui.pct(1)};
+			bar.semantic_size = .[ui.px(2), ui.pct(1)];
 			bar.style.bg = cast(T)("--border-subtle");
 			spacer(.X, 14);
 			label(sub, .Medium, 16, ifx sig.hovering then cast(T)("--interactive-text-active") else cast(T)("--interactive-text-default"), 20);
@@ -459,18 +459,18 @@ appearance_scroll_target :: (scroll: *ui.Box, heading: *ui.Box, name: string) {
 // Appearance > Theme: heading, "Same as Device Theme" row, the default theme swatches.
 appearance_page :: () {
 	scroll := ui.box("appearance_scroll", .{.Scroll_Y, .Clip});
-	scroll.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	scroll.semantic_size = .[ui.pct(1), ui.fill()];
 	scroll.layout_axis = .Y;
 	ui.signal(scroll);
 	ui.push_parent(scroll);
 	defer ui.pop_parent();
 	page := row("appearance");
-	page.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+	page.semantic_size = .[ui.pct(1), ui.children()];
 	page.cross_align = .Start;
 	if ui.parent(page) {
 		filler(.X);
 		col := ui.box("col");
-		col.semantic_size = .{__IDX__.X = ui.px(SET_CONTENT_MAX_W), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.px(SET_CONTENT_MAX_W), ui.children()];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			spacer(.Y, 64);
@@ -478,11 +478,11 @@ appearance_page :: () {
 			appearance_scroll_target(scroll, th, "Theme");
 			spacer(.Y, 30);
 			dr := row("device", .{.Clickable});
-			dr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+			dr.semantic_size = .[ui.pct(1), ui.px(40)];
 			if ui.signal(dr).clicked { theme_follow_os_set(!theme_follow_os); }
 			if ui.parent(dr) {
 				c := ui.box("c");
-				c.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+				c.semantic_size = .[ui.fill(), ui.children()];
 				if ui.parent(c) {
 					label("Same as Device Theme", .Medium, 16, cast(T)("--text-strong"), 20);
 					spacer(.Y, 2);
@@ -494,7 +494,7 @@ appearance_page :: () {
 			label("Default Themes", .Semibold, 16, cast(T)("--text-default"), 20);
 			spacer(.Y, 24);
 			sw := row("swatches");
-			sw.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(SET_SWATCH)};
+			sw.semantic_size = .[ui.pct(1), ui.px(SET_SWATCH)];
 			if ui.parent(sw) {
 				for name: Theme_Name {
 					tokens: Theme;
@@ -502,7 +502,7 @@ appearance_page :: () {
 					theme_load(*tokens, name);
 					sel := app.theme.name == name && !theme_follow_os;
 					b := ui.box(fmt.tprint(name), .{.Clickable, .Draw_Background, .Draw_Border});
-					b.semantic_size = .{__IDX__.X = ui.px(SET_SWATCH), __IDX__.Y = ui.px(SET_SWATCH)};
+					b.semantic_size = .[ui.px(SET_SWATCH), ui.px(SET_SWATCH)];
 					b.style.radius = 8;
 					b.style.bg = ifx name == .Light then ui.Color.{1, 1, 1, 1} else tok(*tokens, "--background-base-lower");
 					b.style.border = ifx sel then 2 else 1;
@@ -512,7 +512,7 @@ appearance_page :: () {
 						if ui.parent(b) {
 							// check badge on the selected swatch's top-right corner
 							badge := ui.box("check", .{.Draw_Background, .Floating_X, .Floating_Y});
-							badge.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+							badge.semantic_size = .[ui.px(20), ui.px(20)];
 							badge.fixed_pos = .{SET_SWATCH - 14, -6};
 							badge.style.radius = 10;
 							badge.style.bg = cast(T)("--background-brand");
@@ -528,7 +528,7 @@ appearance_page :: () {
 			}
 			spacer(.Y, 48);
 			div := ui.box("smdiv", .{.Draw_Background});
-			div.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+			div.semantic_size = .[ui.pct(1), ui.px(1)];
 			div.style.bg = cast(T)("--border-subtle");
 			spacer(.Y, 48);
 			sh := label("Streamer Mode", .Medium, 24, cast(T)("--text-strong"), 32);

@@ -31,7 +31,7 @@ fail :: (what: string, m: *Mutex, loc: Source_Code_Location) {
 }
 
 slot_of :: inline (tid: int) -> *Wait_Slot {
-	return *wait_slots[(cast(u64)(tid) * 0x9E3779B97F4A7C15 >> 58) % WAIT_SLOTS];
+	return *wait_slots[((cast(u64)(tid) * 0x9E3779B97F4A7C15) >> 58) % WAIT_SLOTS];
 }
 
 acquired :: inline (m: *Mutex, me: int, loc: Source_Code_Location) {

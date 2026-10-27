@@ -125,7 +125,7 @@ recorder_stop :: (r: *Recorder) {
 		if s == r.page_session { cdp.call(r.c, "Emulation.setFocusEmulationEnabled", "{\"enabled\":false}", s, 5 * time.Second); }
 		cdp.call(r.c, "Target.setAutoAttach", AUTO_ATTACH_OFF, s, 5 * time.Second);
 	}
-	for < i: len(r.sessions) - 1..0 {
+	for < i: 0..len(r.sessions) - 1 {
 		cdp.call(r.c, "Target.detachFromTarget", fmt.tprintf("{{\"sessionId\":%s}}", cdp.quote(get(r.sessions, i))), timeout = 5 * time.Second);
 	}
 	cdp.close(r.c);

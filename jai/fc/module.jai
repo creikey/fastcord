@@ -135,12 +135,3 @@ load_directory :: (path: string, dir: string) -> []Load_Directory_File #compile_
     });
     return out;
 }
-
-// Integer and float limits (Odin's min(T) / max(T)).
-Math :: #import "Math";
-S8_MIN :: Math.S8_MIN; S8_MAX :: Math.S8_MAX; U8_MAX :: Math.U8_MAX;
-S16_MIN :: Math.S16_MIN; S16_MAX :: Math.S16_MAX; U16_MAX :: Math.U16_MAX;
-S32_MIN :: Math.S32_MIN; S32_MAX :: Math.S32_MAX; U32_MAX :: Math.U32_MAX;
-S64_MIN :: Math.S64_MIN; S64_MAX :: Math.S64_MAX; U64_MAX :: Math.U64_MAX;
-FLOAT32_MAX :: Math.FLOAT32_MAX; FLOAT64_MAX :: Math.FLOAT64_MAX; FLOAT32_MIN :: -Math.FLOAT32_MAX; FLOAT64_MIN :: -Math.FLOAT64_MAX;
-U8_MIN :: 0; U16_MIN :: 0; U32_MIN :: 0; U64_MIN :: 0;

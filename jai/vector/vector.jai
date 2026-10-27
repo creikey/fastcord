@@ -59,7 +59,7 @@ Op :: struct {
 	mask: s32; // group index or -1
 	clip: s32; // group index or -1
 	ctm: Mat; // element transform (for the mask/clip of this op)
-	bbox: [4]float32; // local (pre-ctm) bounds: min x, min y, max x, max y
+	bbox: Vector4; // local (pre-ctm) bounds: min x, min y, max x, max y
 	anc_mask: s32; // ancestor <g> mask / clip-path (group index or -1), in anc_ctm space
 	anc_clip: s32;
 	anc_ctm: Mat;
@@ -76,14 +76,14 @@ Group :: struct {
 	kind: Group_Kind;
 	content_bbox_units: bool; // maskContentUnits / clipPathUnits = objectBoundingBox
 	region_bbox_units: bool; // maskUnits = objectBoundingBox
-	region: [4]float32; // mask region x, y, w, h
+	region: Vector4; // mask region x, y, w, h
 }
 
 // Icon is a parsed, resolution-independent SVG.
 Icon :: struct {
-	view_box: [4]float32; // x, y, w, h
+	view_box: Vector4; // x, y, w, h
 	verbs: [..]Verb;
-	points: [..][2]float32;
+	points: [..]Vector2;
 	ops: [..]Op;
 	groups: [..]Group;
 	gradients: [..]Gradient; // stops owned by the icon's allocator
@@ -114,8 +114,8 @@ mat_mul :: (a: Mat, b: Mat) -> Mat {
 	];
 }
 
-mat_apply :: (m: Mat, p: [2]float32) -> [2]float32 {
-	return .[get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)];
+mat_apply :: (m: Mat, p: Vector2) -> Vector2 {
+	return .{get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)};
 }
 #scope_export
 

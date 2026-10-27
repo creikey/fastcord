@@ -230,7 +230,7 @@ base64url_nopad :: (b: []u8, allocator := context.allocator) -> string {
 	s := base64.encode(b, allocator = allocator);
 	out := transmute([]u8, s);
 	n := len(out);
-	while n > 0 && __MAPIDX__(out|n - 1) == #char "=" { n -= 1; }
+	while n > 0 && get(out, n - 1) == #char "=" { n -= 1; }
 	for * ch: sub(out, 0, n) {
 		if ch == #char "/" { ch = #char "_"; } else if ch == #char "+" { ch = #char "-"; }
 	}

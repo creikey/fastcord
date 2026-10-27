@@ -1,11 +1,11 @@
 home_sidebar :: () {
 	s := store();
 	search := row("search");
-	search.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(HEADER_H - 1)};
+	search.semantic_size = .[ui.pct(1), ui.px(HEADER_H - 1)];
 	if ui.parent(search) {
 		spacer(.X, 8);
 		btn := ui.box("Find or start a conversation##btn", .{.Clickable, .Draw_Background, .Draw_Border, .Draw_Text});
-		btn.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(32)};
+		btn.semantic_size = .[ui.fill(), ui.px(32)];
 		btn.style.bg = cast(T)("--background-mod-subtle");
 		btn.style.border_color = cast(T)("--border-muted");
 		btn.style.border = 1;
@@ -19,11 +19,11 @@ home_sidebar :: () {
 		spacer(.X, 8);
 	}
 	line := ui.box("hline", .{.Draw_Background});
-	line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
 	line.style.bg = cast(T)("--border-subtle");
 
 	list := ui.box("dms", .{.Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	ui.signal(list);
 	if ui.parent(list) {
@@ -34,17 +34,17 @@ home_sidebar :: () {
 		}
 		spacer(.Y, DM_SEP_GAP);
 		sep := row("sep");
-		sep.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		sep.semantic_size = .[ui.pct(1), ui.px(1)];
 		if ui.parent(sep) {
 			spacer(.X, 17);
 			l := ui.box("l", .{.Draw_Background});
-			l.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+			l.semantic_size = .[ui.fill(), ui.px(1)];
 			l.style.bg = cast(T)("--border-subtle");
 			spacer(.X, 16);
 		}
 		spacer(.Y, DM_SEP_GAP - 1);
 		header := row("dmheader");
-		header.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(DM_HEADER_H)};
+		header.semantic_size = .[ui.pct(1), ui.px(DM_HEADER_H)];
 		header.cross_align = .Start;
 		if ui.parent(header) {
 			spacer(.X, 17);
@@ -80,12 +80,12 @@ DM_ROW_PITCH :: 44;
 
 dm_nav_item :: (name: string, selected: bool) -> ui.Signal {
 	outer := row(name);
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(DM_NAV_PITCH)};
+	outer.semantic_size = .[ui.pct(1), ui.px(DM_NAV_PITCH)];
 	sig: ui.Signal;
 	if ui.parent(outer) {
 		spacer(.X, 9);
 		item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-		item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(DM_NAV_H)};
+		item.semantic_size = .[ui.fill(), ui.px(DM_NAV_H)];
 		item.style.radius = 8;
 		item.style.bg = ifx selected then cast(T)("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else cast(T)("--background-mod-subtle");
@@ -106,11 +106,11 @@ dm_nav_item :: (name: string, selected: bool) -> ui.Signal {
 dm_row :: (ch: *dc.Channel) {
 	selected := app.view.channel == ch.id;
 	outer := row("dm");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(DM_ROW_PITCH)};
+	outer.semantic_size = .[ui.pct(1), ui.px(DM_ROW_PITCH)];
 	if ui.parent(outer) {
 		spacer(.X, 9);
 		item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-		item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(DM_ROW_H)};
+		item.semantic_size = .[ui.fill(), ui.px(DM_ROW_H)];
 		item.style.radius = 8;
 		item.style.bg = ifx selected then cast(T)("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else cast(T)("--background-mod-subtle");
@@ -129,7 +129,7 @@ dm_row :: (ch: *dc.Channel) {
 			}
 			spacer(.X, 12);
 			col := ui.box("col");
-			col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.fill(), ui.children()];
 			if ui.parent(col) {
 				label(dm_name(ch), ifx unread then .Semibold else .Medium, 16, color, 20);
 				if ch.kind == .Group_DM {
@@ -140,7 +140,7 @@ dm_row :: (ch: *dc.Channel) {
 			if selected || sig.hovering {
 				// close DM / leave group: DELETE /channels/{id}
 				x := ui.box("close", .{.Clickable});
-				x.semantic_size = .{__IDX__.X = ui.px(16), __IDX__.Y = ui.px(16)};
+				x.semantic_size = .[ui.px(16), ui.px(16)];
 				xs := ui.signal(x);
 				set_icon(x, "x-small", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 				if xs.clicked && net_action() {
@@ -178,7 +178,7 @@ sort_users_by_name :: (ids: []dc.Snowflake) {
 			name = strings.to_lower(name, temp);
 		}
 		named[i].name = name;
-		for j: 0..7 { named[i].prefix = named[i].prefix << 8 | cast(u64)(ifx j < len(name) then name[j] else 0); }
+		for j: 0..7 { named[i].prefix = (named[i].prefix << 8) | (cast(u64)(ifx j < len(name) then name[j] else 0)); }
 	}
 	slice.sort_by(named, (a: Named, b: Named) -> bool {
 		if a.ok != b.ok { return a.ok; }
@@ -200,7 +200,7 @@ friends_tab_telemetry :: (event: string) {
 friends_page :: () {
 	s := store();
 	h := row("header", .{.Draw_Background});
-	h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(HEADER_H - 1)};
+	h.semantic_size = .[ui.pct(1), ui.px(HEADER_H - 1)];
 	h.style.bg = cast(T)("--background-base-lower");
 	if ui.parent(h) {
 		spacer(.X, 22);
@@ -209,7 +209,7 @@ friends_page :: () {
 		label("Friends", .Semibold, 16, cast(T)("--text-strong"), 20);
 		spacer(.X, 12);
 		dot := ui.box("dot", .{.Draw_Background});
-		dot.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(4)};
+		dot.semantic_size = .[ui.px(4), ui.px(4)];
 		dot.style.radius = 2;
 		dot.style.bg = cast(T)("--interactive-muted");
 		spacer(.X, 12);
@@ -221,7 +221,7 @@ friends_page :: () {
 			if t.tab == .Pending && pending_count() == 0 { continue; }
 			sel := app.view.friends_tab == t.tab;
 			tb := ui.box(t.name, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			tb.semantic_size = .{__IDX__.X = ui.text_size(12), __IDX__.Y = ui.px(32)};
+			tb.semantic_size = .[ui.text_size(12), ui.px(32)];
 			tb.style.radius = 8;
 			tb.style.font = F(.Medium);
 			tb.style.font_size = 16;
@@ -248,11 +248,11 @@ friends_page :: () {
 		spacer(.X, 22);
 	}
 	line := ui.box("hline", .{.Draw_Background});
-	line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
 	line.style.bg = cast(T)("--border-subtle");
 
 	body := row("fbody");
-	body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	body.semantic_size = .[ui.pct(1), ui.fill()];
 	body.cross_align = .Start;
 	ui.push_parent(body);
 	defer ui.pop_parent();
@@ -262,7 +262,7 @@ friends_page :: () {
 		return;
 	}
 	list := ui.box("friends", .{.Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+	list.semantic_size = .[ui.fill(), ui.pct(1)];
 	list.layout_axis = .Y;
 	ui.signal(list);
 	ids := make_dynamic(dc.Snowflake, 0, 0, temp);
@@ -295,12 +295,12 @@ friends_page :: () {
 	if ui.parent(list) {
 		spacer(.Y, 12);
 		sr := row("searchrow");
-		sr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		sr.semantic_size = .[ui.pct(1), ui.px(40)];
 		if ui.parent(sr) {
 			spacer(.X, FRIENDS_PAD_L);
 			// was drawn as an input but took no clicks or typing
 			search := row("search", .{.Draw_Background, .Draw_Border, .Clickable});
-			search.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			search.semantic_size = .[ui.fill(), ui.px(40)];
 			search.style.bg = cast(T)("--input-background-default");
 			search.style.border_color = ifx app.ui.focus == search.key then cast(T)("--input-border-active") else cast(T)("--input-border-default");
 			search.style.border = 1;
@@ -319,7 +319,7 @@ friends_page :: () {
 		}
 		spacer(.Y, 24);
 		hdr := row("count");
-		hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(18)};
+		hdr.semantic_size = .[ui.pct(1), ui.px(18)];
 		if ui.parent(hdr) {
 			spacer(.X, FRIENDS_PAD_L);
 			title := "Online";
@@ -342,7 +342,7 @@ friends_page :: () {
 			spacer(.Y, 80);
 			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else "No one's around to play with Wumpus.";
 			e := row("empty");
-			e.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+			e.semantic_size = .[ui.pct(1), ui.px(24)];
 			if ui.parent(e) {
 				filler(.X);
 				label(msg, .Normal, 16, cast(T)("--text-muted"), 20);
@@ -376,20 +376,20 @@ friend_open_dm :: (uid: dc.Snowflake) {
 friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 	s := store();
 	div := row("div");
-	div.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+	div.semantic_size = .[ui.pct(1), ui.px(1)];
 	if ui.parent(div) {
 		spacer(.X, 30);
 		l := ui.box("l", .{.Draw_Background});
-		l.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(1)};
+		l.semantic_size = .[ui.fill(), ui.px(1)];
 		l.style.bg = cast(T)("--border-subtle");
 		spacer(.X, 36);
 	}
 	outer := row("f");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(FRIEND_ROW_H)};
+	outer.semantic_size = .[ui.pct(1), ui.px(FRIEND_ROW_H)];
 	if ui.parent(outer) {
 		spacer(.X, 14);
 		item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-		item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(FRIEND_ROW_H)};
+		item.semantic_size = .[ui.fill(), ui.px(FRIEND_ROW_H)];
 		item.style.radius = 8;
 		item.style.bg_hot = cast(T)("--background-mod-subtle");
 		sig := ui.signal(item);
@@ -401,10 +401,10 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 			avatar_with_status("av", uid, 32, ifx sig.hovering then cast(T)("--background-base-low") else cast(T)("--background-base-lower"));
 			spacer(.X, 12);
 			col := ui.box("col");
-			col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			col.semantic_size = .[ui.fill(), ui.children()];
 			if ui.parent(col) {
 				nr := row("nr");
-				nr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+				nr.semantic_size = .[ui.pct(1), ui.px(20)];
 				if ui.parent(nr) {
 					label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, cast(T)("--text-strong"), 20);
 					if sig.hovering && u != null {
@@ -443,34 +443,34 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 // Right column on the friends page: "Active Now" with the empty-state card.
 active_now_column :: () {
 	edge := ui.box("activenow_edge", .{.Draw_Background});
-	edge.semantic_size = .{__IDX__.X = ui.px(1), __IDX__.Y = ui.pct(1)};
+	edge.semantic_size = .[ui.px(1), ui.pct(1)];
 	edge.style.bg = cast(T)("--border-subtle");
 	col := ui.box("activenow");
-	col.semantic_size = .{__IDX__.X = ui.px(ACTIVE_NOW_W - 1), __IDX__.Y = ui.pct(1)};
+	col.semantic_size = .[ui.px(ACTIVE_NOW_W - 1), ui.pct(1)];
 	col.layout_axis = .Y;
 	if ui.parent(col) {
 		spacer(.Y, 14);
 		h := row("h");
-		h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+		h.semantic_size = .[ui.pct(1), ui.px(24)];
 		if ui.parent(h) {
 			spacer(.X, 16);
 			label("Active Now", .Semibold, 20, cast(T)("--text-strong"), 24);
 		}
 		spacer(.Y, 9);
 		cr := row("cardrow");
-		cr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		cr.semantic_size = .[ui.pct(1), ui.children()];
 		cr.cross_align = .Start;
 		if ui.parent(cr) {
 			spacer(.X, 16);
 			card := ui.box("card", .{.Draw_Background});
-			card.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+			card.semantic_size = .[ui.fill(), ui.children()];
 			card.layout_axis = .Y;
 			card.style.bg = cast(T)("--background-base-low");
 			card.style.radius = 8;
 			if ui.parent(card) {
 				spacer(.Y, 16);
 				t := ui.box("It's quiet for now...##t", .{.Draw_Text});
-				t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+				t.semantic_size = .[ui.pct(1), ui.text_size()];
 				t.style.font = F(.Semibold);
 				t.style.font_size = 16;
 				t.style.line_height = 20;
@@ -478,7 +478,7 @@ active_now_column :: () {
 				t.style.text_align = .Center;
 				spacer(.Y, 2);
 				b := ui.box("When a friend starts an activity—like playing a game or hanging out on voice—we'll show it here!##b", .{.Draw_Text, .Wrap_Text});
-				b.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.text_size()};
+				b.semantic_size = .[ui.pct(1), ui.text_size()];
 				b.style.font = F(.Normal);
 				b.style.font_size = 14;
 				b.style.line_height = 18;
@@ -494,7 +494,7 @@ active_now_column :: () {
 
 round_icon_button :: (id: string, icon_name: string, hover_color: ui.Color) -> ui.Signal {
 	b := ui.box(id, .{.Clickable, .Draw_Background, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.px(36), __IDX__.Y = ui.px(36)};
+	b.semantic_size = .[ui.px(36), ui.px(36)];
 	b.style.radius = 18;
 	b.style.bg_hot = cast(T)("--background-mod-subtle");
 	b.layout_axis = .X;
@@ -509,30 +509,30 @@ round_icon_button :: (id: string, icon_name: string, hover_color: ui.Color) -> u
 
 add_friend_view :: () {
 	col := ui.box("addfriend");
-	col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+	col.semantic_size = .[ui.fill(), ui.pct(1)];
 	col.layout_axis = .Y;
 	if ui.parent(col) {
 		spacer(.Y, 20);
 		r := row("title");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+		r.semantic_size = .[ui.pct(1), ui.px(24)];
 		if ui.parent(r) {
 			spacer(.X, 30);
 			label("Add Friend", .Semibold, 20, cast(T)("--text-strong"), 24);
 		}
 		spacer(.Y, 8);
 		r2 := row("sub");
-		r2.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+		r2.semantic_size = .[ui.pct(1), ui.px(20)];
 		if ui.parent(r2) {
 			spacer(.X, 30);
 			label("You can add friends with their Discord username.", .Normal, 16, cast(T)("--text-default"), 20);
 		}
 		spacer(.Y, 16);
 		r3 := row("inputrow");
-		r3.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(52)};
+		r3.semantic_size = .[ui.pct(1), ui.px(52)];
 		if ui.parent(r3) {
 			spacer(.X, 30);
 			box := row("input", .{.Draw_Background, .Draw_Border, .Clickable});
-			box.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(52)};
+			box.semantic_size = .[ui.fill(), ui.px(52)];
 			box.style.bg = cast(T)("--input-background-default");
 			box.style.border_color = ifx app.ui.focus == box.key then cast(T)("--input-border-active") else cast(T)("--input-border-default");
 			box.style.border = 1;
@@ -545,7 +545,7 @@ add_friend_view :: () {
 				name := strings.trim_space(ui.editor_text(*app.view.add_friend));
 				spacer(.X, 12);
 				btn := ui.box("Send Friend Request##send", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-				btn.semantic_size = .{__IDX__.X = ui.text_size(16), __IDX__.Y = ui.px(32)};
+				btn.semantic_size = .[ui.text_size(16), ui.px(32)];
 				btn.style.radius = 8;
 				btn.style.font = F(.Medium);
 				btn.style.font_size = 14;
@@ -569,7 +569,7 @@ add_friend_view :: () {
 member_list :: (ch: *dc.Channel) {
 	s := store();
 	list := ui.box("members", .{.Scroll_Y, .Clip, .Draw_Background});
-	list.semantic_size = .{__IDX__.X = ui.px(MEMBER_LIST_W), __IDX__.Y = ui.pct(1)};
+	list.semantic_size = .[ui.px(MEMBER_LIST_W), ui.pct(1)];
 	list.layout_axis = .Y;
 	list.style.bg = cast(T)("--background-base-lower");
 	ui.signal(list);
@@ -583,7 +583,7 @@ member_list :: (ch: *dc.Channel) {
 			if ui.id_scope(cast(u64)(i)) {
 				if it_.is_group {
 					gr := row("group");
-					gr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+					gr.semantic_size = .[ui.pct(1), ui.px(40)];
 					gr.cross_align = .End;
 					if ui.parent(gr) {
 						spacer(.X, 16);
@@ -614,11 +614,11 @@ member_list :: (ch: *dc.Channel) {
 member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
 	s := store();
 	outer := row("m");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(44)};
+	outer.semantic_size = .[ui.pct(1), ui.px(44)];
 	if ui.parent(outer) {
 		spacer(.X, 8);
 		item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-		item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(42)};
+		item.semantic_size = .[ui.fill(), ui.px(42)];
 		item.style.radius = 8;
 		item.style.bg_hot = cast(T)("--background-mod-subtle");
 		sig := ui.signal(item);
@@ -667,17 +667,17 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 	u := dc.user_get(s, uid);
 	if u == null { return; }
 	col := ui.box("dmprofile");
-	col.semantic_size = .{__IDX__.X = ui.px(DMP_COL_W), __IDX__.Y = ui.pct(1)};
+	col.semantic_size = .[ui.px(DMP_COL_W), ui.pct(1)];
 	col.layout_axis = .Y;
 	if ui.parent(col) {
 		spacer(.Y, DMP_INSET);
 		r := row("r");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+		r.semantic_size = .[ui.pct(1), ui.fill()];
 		r.cross_align = .Start;
 		if ui.parent(r) {
 			spacer(.X, DMP_INSET);
 			card := ui.box("card", .{.Draw_Background, .Draw_Border, .Clip});
-			card.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.pct(1)};
+			card.semantic_size = .[ui.fill(), ui.pct(1)];
 			card.layout_axis = .Y;
 			card.style.bg = cast(T)("--chat-background-default");
 			card.style.border_color = cast(T)("--border-subtle");
@@ -686,25 +686,25 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 			surface := card.style.bg;
 			if ui.parent(card) {
 				bw := row("bannerrow");
-				bw.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(DMP_BANNER_H + 3)};
+				bw.semantic_size = .[ui.pct(1), ui.px(DMP_BANNER_H + 3)];
 				bw.cross_align = .End;
 				if ui.parent(bw) {
 					spacer(.X, 2);
 					banner := ui.box("banner", .{.Draw_Background});
-					banner.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(DMP_BANNER_H)};
+					banner.semantic_size = .[ui.fill(), ui.px(DMP_BANNER_H)];
 					banner.style.radius = .{6, 6, 0, 0};
 					banner.style.bg = profile_banner_color(uid);
 					if u.banner != "" { set_remote_image(banner, dc.banner_url(uid, u.banner, 600)); }
 					if ui.parent(banner) {
 						btns := row("btns", .{.Floating_X, .Floating_Y});
-						btns.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(DMP_BTN)};
+						btns.semantic_size = .[ui.children(), ui.px(DMP_BTN)];
 						btns.fixed_pos = .{DMP_COL_W - 2 * DMP_INSET - 4 - 9 - 2 * DMP_BTN - 8, 8};
 						if ui.parent(btns) {
 							rel := get(s.relationships, uid).kind;
 							names := string.[ifx rel == .Friend then "user-check" else "user-plus", "more-horizontal"];
 							for name, i: names {
 								b := ui.box(name, .{.Clickable, .Draw_Background, .Hot_Animation});
-								b.semantic_size = .{__IDX__.X = ui.px(DMP_BTN), __IDX__.Y = ui.px(DMP_BTN)};
+								b.semantic_size = .[ui.px(DMP_BTN), ui.px(DMP_BTN)];
 								b.style.radius = DMP_BTN / 2;
 								b.style.bg = .{0, 0, 0, 0.36};
 								b.style.bg_hot = .{0, 0, 0, 0.5};
@@ -724,10 +724,10 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 					spacer(.X, 2);
 				}
 				av := ui.box("avrow");
-				av.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+				av.semantic_size = .[ui.pct(1), ui.px(48)];
 				if ui.parent(av) {
 					ring := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
-					ring.semantic_size = .{__IDX__.X = ui.px(92), __IDX__.Y = ui.px(92)};
+					ring.semantic_size = .[ui.px(92), ui.px(92)];
 					ring.fixed_pos = .{13, -52};
 					ring.style.radius = 46;
 					ring.style.bg = surface;
@@ -739,7 +739,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				}
 				line :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
 					r := row(id);
-					r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(lh)};
+					r.semantic_size = .[ui.pct(1), ui.px(lh)];
 					if ui.parent(r) {
 						spacer(.X, DMP_PAD);
 						l := label(text, font, size, color, lh);
@@ -758,11 +758,11 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 				line("since", fmt.tprintf("%s %d, %d", MONTH_SHORT[cast(int)(mo) - 1], d, y), .Normal, 14, 18, cast(T)("--text-default"));
 				filler(.Y);
 				br := row("viewfull");
-				br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+				br.semantic_size = .[ui.pct(1), ui.px(40)];
 				if ui.parent(br) {
 					spacer(.X, DMP_PAD);
 					b := ui.box("View Full Profile##vfp", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-					b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+					b.semantic_size = .[ui.fill(), ui.px(40)];
 					b.style.radius = 8;
 					b.style.bg = cast(T)("--background-mod-subtle");
 					b.style.bg_hot = cast(T)("--background-mod-normal");
@@ -792,13 +792,13 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 	uid := ch.recipient_ids[0];
 	u := dc.user_get(s, uid);
 	w := ui.box("dmwelcome");
-	w.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(DMW_H)};
+	w.semantic_size = .[ui.pct(1), ui.px(DMW_H)];
 	w.layout_axis = .Y;
 	if u == null { return w; }
 	if ui.parent(w) {
 		pad :: (id: string, h: float32) -> *ui.Box {
 			r := row(id);
-			r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(h)};
+			r.semantic_size = .[ui.pct(1), ui.px(h)];
 			return r;
 		}
 		spacer(.Y, 16);
@@ -824,7 +824,7 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 		if ui.parent(r) {
 			spacer(.X, 16);
 			t := ui.box("t");
-			t.semantic_size = .{__IDX__.X = ui.text_size(0, 0), __IDX__.Y = ui.px(20)};
+			t.semantic_size = .[ui.text_size(0, 0), ui.px(20)];
 			t.style.line_height = 20;
 			t.style.text_color = cast(T)("--text-default");
 			spans := make_slice(ui.Span, 3, temp);
@@ -842,14 +842,14 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 			label(mutual, .Normal, 14, cast(T)("--text-default"), 18);
 			spacer(.X, 12);
 			dot := ui.box("dot", .{.Draw_Background});
-			dot.semantic_size = .{__IDX__.X = ui.px(4), __IDX__.Y = ui.px(4)};
+			dot.semantic_size = .[ui.px(4), ui.px(4)];
 			dot.style.radius = 2;
 			dot.style.bg = cast(T)("--interactive-muted");
 			spacer(.X, 12);
 			rel := get(s.relationships, uid).kind;
 			btn :: (text: string, primary: bool) -> bool {
 				b := ui.box(text, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-				b.semantic_size = .{__IDX__.X = ui.text_size(12), __IDX__.Y = ui.px(32)};
+				b.semantic_size = .[ui.text_size(12), ui.px(32)];
 				b.style.radius = 8;
 				b.style.font = F(.Medium);
 				b.style.font_size = 14;
@@ -886,7 +886,7 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 // Icon-less group DMs get one of 8 default icons by snowflake timestamp
 // ((id >> 22) % 8). Colors measured from the client; unmeasured slots fall back to brand.
 group_icon_color :: (cid: dc.Snowflake) -> ui.Color {
-	if (cast(u64)(cid) >> 22) % 8 == {
+	if ((cast(u64)(cid)) >> 22) % 8 == {
 	case 0;
 		return .{0xd3 / 255.0, 0x78 / 255.0, 0x37 / 255.0, 1};
 	case 5;
@@ -900,14 +900,14 @@ group_icon_color :: (cid: dc.Snowflake) -> ui.Color {
 // A group DM's round icon: its custom icon, else the default colored one.
 group_dm_icon :: (id: string, ch: *dc.Channel, size: float32) -> *ui.Box {
 	g := ui.box(id, .{.Draw_Background});
-	g.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+	g.semantic_size = .[ui.px(size), ui.px(size)];
 	g.style.radius = size / 2;
 	g.style.bg = group_icon_color(ch.id);
 	if ch.icon != "" {
 		set_remote_image(g, fmt.tprintf("https://cdn.discordapp.com/channel-icons/%d/%s.webp?size=%d", cast(u64)(ch.id), ch.icon, cast(int)(size * 2)));
 	} else if ui.parent(g) {
 		inner := ui.box("i", .{.Floating_X, .Floating_Y});
-		inner.semantic_size = .{__IDX__.X = ui.px(size * 0.625), __IDX__.Y = ui.px(size * 0.625)};
+		inner.semantic_size = .[ui.px(size * 0.625), ui.px(size * 0.625)];
 		inner.fixed_pos = .{size * 0.1875, size * 0.1875};
 		set_icon(inner, "group", .{1, 1, 1, 1});
 	}
@@ -930,7 +930,7 @@ block_confirm_modal :: () {
 	}
 	name := dc.user_name(store(), uid);
 	scrim := ui.box("block_scrim", .{.Draw_Background, .Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7};
 	if ui.signal(scrim).clicked {
 		block_confirm = .{};
@@ -940,7 +940,7 @@ block_confirm_modal :: () {
 	PAD :: 24;
 	confirm := false;
 	d := ui.box("blockmodal", .{.Draw_Background, .Draw_Border, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	d.semantic_size = .{__IDX__.X = ui.px(W), __IDX__.Y = ui.children()};
+	d.semantic_size = .[ui.px(W), ui.children()];
 	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
 	d.style.bg = cast(T)("--modal-background");
 	d.style.border_color = cast(T)("--border-subtle");
@@ -950,25 +950,25 @@ block_confirm_modal :: () {
 	ui.signal(d);
 	if ui.parent(d) {
 		x := ui.box("close", .{.Clickable, .Floating_X, .Floating_Y});
-		x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+		x.semantic_size = .[ui.px(24), ui.px(24)];
 		x.fixed_pos = .{W - 17 - 24, 17};
 		xs := ui.signal(x);
 		set_icon(x, "x-large", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 		if xs.clicked { block_confirm = .{}; }
 		spacer(.Y, PAD + 1);
 		t := row("t");
-		t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+		t.semantic_size = .[ui.pct(1), ui.px(24)];
 		if ui.parent(t) {
 			spacer(.X, PAD + 1);
 			label(fmt.tprintf("Block %s?", name), .Semibold, 20, cast(T)("--text-strong"), 24);
 		}
 		spacer(.Y, 8);
 		br := row("body");
-		br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.children()};
+		br.semantic_size = .[ui.pct(1), ui.children()];
 		if ui.parent(br) {
 			spacer(.X, PAD + 1);
 			b := ui.box("text", .{.Wrap_Text});
-			b.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.text_size()};
+			b.semantic_size = .[ui.fill(), ui.text_size()];
 			b.style.line_height = 20;
 			b.style.text_color = cast(T)("--text-subtle");
 			spans := make_slice(ui.Span, 3, temp);
@@ -980,12 +980,12 @@ block_confirm_modal :: () {
 		}
 		spacer(.Y, 24);
 		btns := row("btns");
-		btns.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		btns.semantic_size = .[ui.pct(1), ui.px(40)];
 		btns.style.child_gap = 8;
 		if ui.parent(btns) {
 			spacer(.X, PAD + 1 - 8);
 			cancel := ui.box("Cancel##c", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			cancel.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			cancel.semantic_size = .[ui.fill(), ui.px(40)];
 			cancel.style.radius = 8;
 			cancel.style.font = F(.Medium);
 			cancel.style.font_size = 16;
@@ -995,7 +995,7 @@ block_confirm_modal :: () {
 			cancel.style.bg_hot = cast(T)("--background-mod-strong");
 			if ui.signal(cancel).clicked { block_confirm = .{}; }
 			ok := ui.box("Block##b", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			ok.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(40)};
+			ok.semantic_size = .[ui.fill(), ui.px(40)];
 			ok.style.radius = 8;
 			ok.style.font = F(.Medium);
 			ok.style.font_size = 16;
@@ -1022,26 +1022,26 @@ block_confirm_modal :: () {
 // "Welcome to #name!" and "This is the start of the #name channel." (+ the
 // topic), and "Edit Channel" for members who can manage channels.
 CHW_ICON :: 68;
-PERM_MANAGE_CHANNELS :: cast(u64)(1) << 4;
+PERM_MANAGE_CHANNELS :: (cast(u64)(1)) << 4;
 
 channel_welcome_height :: (ch: *dc.Channel) -> float32 {
 	h: float32 = 16 + CHW_ICON + 8 + 40 + 8 + 20;
-	if my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS != 0 { h += 8 + 20; }
+	if (my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS) != 0 { h += 8 + 20; }
 	return h;
 }
 
 channel_welcome :: (ch: *dc.Channel) {
 	w := ui.box("chwelcome");
-	w.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(channel_welcome_height(ch))};
+	w.semantic_size = .[ui.pct(1), ui.px(channel_welcome_height(ch))];
 	w.layout_axis = .Y;
 	if ui.parent(w) {
 		spacer(.Y, 16);
 		r := row("icon");
-		r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(CHW_ICON)};
+		r.semantic_size = .[ui.pct(1), ui.px(CHW_ICON)];
 		if ui.parent(r) {
 			spacer(.X, 16);
 			c := ui.box("circle", .{.Draw_Background});
-			c.semantic_size = .{__IDX__.X = ui.px(CHW_ICON), __IDX__.Y = ui.px(CHW_ICON)};
+			c.semantic_size = .[ui.px(CHW_ICON), ui.px(CHW_ICON)];
 			c.style.radius = CHW_ICON / 2;
 			c.style.bg = cast(T)("--background-mod-normal");
 			if ui.parent(c) {
@@ -1052,26 +1052,26 @@ channel_welcome :: (ch: *dc.Channel) {
 		}
 		spacer(.Y, 8);
 		h := row("h");
-		h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		h.semantic_size = .[ui.pct(1), ui.px(40)];
 		if ui.parent(h) {
 			spacer(.X, 16);
 			label(fmt.tprintf("Welcome to #%s!", ch.name), .Bold, 32, cast(T)("--text-strong"), 40);
 		}
 		spacer(.Y, 8);
 		t := row("t");
-		t.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+		t.semantic_size = .[ui.pct(1), ui.px(20)];
 		if ui.parent(t) {
 			spacer(.X, 16);
 			label(fmt.tprintf("This is the start of the #%s channel.", ch.name), .Normal, 16, cast(T)("--text-muted"), 20);
 		}
-		if my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS != 0 {
+		if (my_guild_permissions(ch.guild_id) & PERM_MANAGE_CHANNELS) != 0 {
 			spacer(.Y, 8);
 			e := row("edit");
-			e.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(20)};
+			e.semantic_size = .[ui.pct(1), ui.px(20)];
 			if ui.parent(e) {
 				spacer(.X, 16);
 				b := row("editbtn", .{.Clickable});
-				b.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(20)};
+				b.semantic_size = .[ui.children(), ui.px(20)];
 				if ui.signal(b).clicked { channel_settings_open(ch); }
 				if ui.parent(b) {
 					icon("i", "pencil", 16, cast(T)("--text-link"));

@@ -105,7 +105,8 @@ channel_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Sno
 	keyed := make_slice(Keyed, len(out), temp);
 	for id, i: out { keyed[i] = .{max(get(extras.threads, id).last_message_id, id), id}; }
 	for i: 1..len(keyed)-1 {
-		for < j: i..(0 && keyed[j].key > keyed[j - 1].key)+1 { keyed[j], keyed[j - 1] = keyed[j - 1], keyed[j]; }
+		{ j := i;
+		while j > 0 && keyed[j].key > keyed[j - 1].key { keyed[j], keyed[j - 1] = keyed[j - 1], keyed[j];  j -= 1; } }
 	}
 	for k, i: keyed { at(*out, i).* = k.id; }
 	return view(out);

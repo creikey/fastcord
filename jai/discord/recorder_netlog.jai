@@ -222,7 +222,7 @@ get_varint :: (b: []u8, pos: *int) -> u64, bool {
 	n := 1 << (b[pos.*] >> 6);
 	if pos.* + n > len(b) { return 0, false; }
 	v = cast(u64)(b[pos.*] & 0x3f);
-	for i: 1..n-1 { v = v << 8 | cast(u64)(b[pos.* + i]); }
+	for i: 1..n-1 { v = (v << 8) | (cast(u64)(b[pos.* + i])); }
 	pos.* += n;
 	return v, true;
 }
@@ -299,12 +299,12 @@ quic_params_text :: (b: []u8, perspective: string) -> string {
 	fmt.sbprintf(*sb, "[%s", perspective);
 	{ vi, ok := map_find(vals, 0x11);
 	if ok && len(vi) >= 4 {
-		be :: (x: []u8) -> u32 {return cast(u32)(x[0]) << 24 | cast(u32)(x[1]) << 16 | cast(u32)(x[2]) << 8 | cast(u32)(x[3]);}
+		be :: (x: []u8) -> u32 {return ((cast(u32)(x[0])) << 24) | ((cast(u32)(x[1])) << 16) | ((cast(u32)(x[2])) << 8) | (cast(u32)(x[3]));}
 		fmt.sbprintf(*sb, " [chosen_version %08x other_versions", be(sub(vi, 0, 4)));
 		{ i := 4;
 		while i + 4 <= len(vi) {
 			v := be(sub(vi, i, i + 4));
-			if v & 0x0f0f0f0f == 0x0a0a0a0a { { i += 4; continue; } } // GREASE
+			if (v & 0x0f0f0f0f) == 0x0a0a0a0a { { i += 4; continue; } } // GREASE
 			fmt.sbprintf(*sb, " %08x", v);
 			i += 4;
 } }

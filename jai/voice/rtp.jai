@@ -165,8 +165,8 @@ put_u32 :: (b: []u8, v: u32) {
 	b[2] = cast(u8)(v >> 8);
 	b[3] = cast(u8)(v);
 }
-get_u16 :: (b: []u8) -> u16 {return cast(u16)(b[0]) << 8 | cast(u16)(b[1]);}
-get_u32 :: (b: []u8) -> u32 {return cast(u32)(b[0]) << 24 | cast(u32)(b[1]) << 16 | cast(u32)(b[2]) << 8 | cast(u32)(b[3]);}
+get_u16 :: (b: []u8) -> u16 {return ((cast(u16)(b[0])) << 8) | (cast(u16)(b[1]));}
+get_u32 :: (b: []u8) -> u32 {return ((cast(u32)(b[0])) << 24) | ((cast(u32)(b[1])) << 16) | ((cast(u32)(b[2])) << 8) | (cast(u32)(b[3]));}
 
 // build_audio_rtp writes the RTP header + one-byte extension block + payload.
 // Returns (length, aad_len). Verified live against Discord's SFU: the
@@ -197,10 +197,10 @@ is_rtcp :: (b: []u8) -> bool {
 parse_rtp_header :: (b: []u8) -> Rtp_Header, bool {
 	h: Rtp_Header;
 	ok: bool;
-	if len(b) < RTP_HEADER || b[0] >> 6 != 2 { return h, ok; }
+	if len(b) < RTP_HEADER || (b[0] >> 6) != 2 { return h, ok; }
 	h.csrc_count = cast(int)(b[0] & 0x0f);
-	h.has_ext = b[0] & 0x10 != 0;
-	h.marker = b[1] & 0x80 != 0;
+	h.has_ext = (b[0] & 0x10) != 0;
+	h.marker = (b[1] & 0x80) != 0;
 	h.pt = b[1] & 0x7f;
 	h.seq = get_u16(sub_from(b, 2));
 	h.ts = get_u32(sub_from(b, 4));
@@ -233,7 +233,7 @@ ext_audio_level :: (pkt: []u8, h: Rtp_Header) -> u8, bool, bool {
 		id := b >> 4;
 		l := cast(int)(b & 0x0f) + 1;
 		if id == 15 || i + 1 + l > len(body) { break; }
-		if id == EXT_ID_AUDIO_LEVEL { return body[i + 1] & 0x7f, body[i + 1] & 0x80 != 0, true; }
+		if id == EXT_ID_AUDIO_LEVEL { return body[i + 1] & 0x7f, (body[i + 1] & 0x80) != 0, true; }
 		i += 1 + l;
 	}
 	return level, voice, ok;
@@ -260,7 +260,7 @@ Report_Block :: struct {
 build_report :: (out: []u8, ssrc: u32, sender: bool, ntp: u64, rtp_ts: u32, packets: u32, octets: u32, blocks: []Report_Block) -> int {
 	nb := min(len(blocks), 31);
 	length := 8 + (ifx sender then 20 else 0) + 24 * nb;
-	at(*out, 0).* = 0x80 | cast(u8)(nb);
+	at(*out, 0).* = 0x80 | (cast(u8)(nb));
 	at(*out, 1).* = ifx sender then RTCP_SR else RTCP_RR;
 	put_u16(sub_from(out, 2), cast(u16)(length / 4 - 1));
 	put_u32(sub_from(out, 4), ssrc);
@@ -277,7 +277,7 @@ build_report :: (out: []u8, ssrc: u32, sender: bool, ntp: u64, rtp_ts: u32, pack
 		b := blocks[i];
 		put_u32(sub_from(out, p), b.ssrc);
 		at(*out, p + 4).* = b.fraction_lost;
-		cl := cast(u32)(clamp(b.cum_lost, -0x800000, 0x7fffff)) & 0xffffff;
+		cl := (cast(u32)(clamp(b.cum_lost, -0x800000, 0x7fffff))) & 0xffffff;
 		at(*out, p + 5).* = cast(u8)(cl >> 16);
 		at(*out, p + 6).* = cast(u8)(cl >> 8);
 		at(*out, p + 7).* = cast(u8)(cl);
@@ -302,7 +302,7 @@ Parsed_Report :: struct {
 parse_report :: (b: []u8) -> Parsed_Report, bool {
 	r: Parsed_Report;
 	ok: bool;
-	if len(b) < 8 || b[0] >> 6 != 2 { return r, ok; }
+	if len(b) < 8 || (b[0] >> 6) != 2 { return r, ok; }
 	pt := b[1];
 	if pt != RTCP_SR && pt != RTCP_RR { return r, ok; }
 	length := (cast(int)(get_u16(sub_from(b, 2))) + 1) * 4;
@@ -313,7 +313,7 @@ parse_report :: (b: []u8) -> Parsed_Report, bool {
 	if pt == RTCP_SR {
 		if length < 28 { return r, ok; }
 		r.is_sr = true;
-		r.ntp = cast(u64)(get_u32(sub_from(b, 8))) << 32 | cast(u64)(get_u32(sub_from(b, 12)));
+		r.ntp = ((cast(u64)(get_u32(sub_from(b, 8)))) << 32) | (cast(u64)(get_u32(sub_from(b, 12))));
 		r.rtp_ts = get_u32(sub_from(b, 16));
 		p = 28;
 	}

@@ -1,5 +1,6 @@
 #module_parameters (DEBUG := true); // Odin ODIN_DEBUG: true for dev/debug builds, false for app.
 #import "Basic";
+#import "Math";
 #import "String";
 #import "Hash_Table";
 #import "Atomics";

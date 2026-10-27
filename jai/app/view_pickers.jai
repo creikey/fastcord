@@ -334,7 +334,7 @@ picker_panel :: () {
 		oy = r.y0;
 	}
 	frame := ui.box("picker_frame###pk_frame", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
-	frame.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(h)};
+	frame.semantic_size = .[ui.px(w), ui.px(h)];
 	frame.fixed_pos = .{ox, oy};
 	frame.style.bg = cast(T)("--background-surface-high");
 	frame.style.border_color = cast(T)("--border-subtle");
@@ -346,13 +346,13 @@ picker_panel :: () {
 	ui.signal(frame); // swallow clicks inside
 	if ui.parent(frame) {
 		content := ui.box("picker_content", .{.Floating_X, .Floating_Y});
-		content.semantic_size = .{__IDX__.X = ui.px(r.x1 - r.x0), __IDX__.Y = ui.px(r.y1 - r.y0)};
+		content.semantic_size = .[ui.px(r.x1 - r.x0), ui.px(r.y1 - r.y0)];
 		content.fixed_pos = .{r.x0 - ox, r.y0 - oy};
 		content.layout_axis = .Y;
 		if ui.parent(content) {
 			picker_header(r);
 			body := ui.box("picker_body");
-			body.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+			body.semantic_size = .[ui.pct(1), ui.fill()];
 			body.layout_axis = .Y;
 			if ui.parent(body) {
 				body_rect := ui.Rect.{r.x0, r.y0 + picker_header_h(), r.x1, r.y1};
@@ -387,19 +387,19 @@ picker_header_h :: () -> float32 {
 
 picker_header :: (r: ui.Rect) {
 	hdr := ui.box("picker_header");
-	hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(picker_header_h())};
+	hdr.semantic_size = .[ui.pct(1), ui.px(picker_header_h())];
 	hdr.layout_axis = .Y;
 	if ui.parent(hdr) {
 		spacer(.Y, PK_HEADER_PAD_TOP);
 		if pk.mode == .Composer {
 			tabs := row("tabs");
-			tabs.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(PK_TAB_H)};
+			tabs.semantic_size = .[ui.pct(1), ui.px(PK_TAB_H)];
 			if ui.parent(tabs) {
 				spacer(.X, PK_HEADER_PAD_X);
 				for tab: Picker_Tab {
 					sel := pk.tab == tab;
 					b := ui.box(PICKER_TAB_LABELS[tab], .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-					b.semantic_size = .{__IDX__.X = ui.text_size(PK_TAB_PAD_X), __IDX__.Y = ui.px(PK_TAB_H)};
+					b.semantic_size = .[ui.text_size(PK_TAB_PAD_X), ui.px(PK_TAB_H)];
 					b.style.font = F(.Semibold);
 					b.style.font_size = PK_TAB_FONT;
 					b.style.line_height = 14;
@@ -417,7 +417,7 @@ picker_header :: (r: ui.Rect) {
 			spacer(.Y, PK_TABS_TO_SEARCH);
 		}
 		srow := row("searchrow");
-		srow.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(PK_SEARCH_H)};
+		srow.semantic_size = .[ui.pct(1), ui.px(PK_SEARCH_H)];
 		if ui.parent(srow) {
 			spacer(.X, PK_HEADER_PAD_X);
 			placeholder := ifx pk.mode == .Reaction then "Find the perfect reaction" else "Find the perfect emoji";
@@ -451,7 +451,7 @@ picker_header :: (r: ui.Rect) {
 					spacer(.X, PK_HEADER_GAP);
 					busy := emoji_upload_busy();
 					add := ui.box(ifx busy then "Uploading...##addemoji" else "Add Emoji##addemoji", .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-					add.semantic_size = .{__IDX__.X = ui.text_size(PK_ADD_EMOJI_PAD_X), __IDX__.Y = ui.px(PK_SEARCH_H)};
+					add.semantic_size = .[ui.text_size(PK_ADD_EMOJI_PAD_X), ui.px(PK_SEARCH_H)];
 					add.style.radius = PK_SEARCH_RADIUS;
 					add.style.font = F(.Medium);
 					add.style.font_size = 16;
@@ -467,7 +467,7 @@ picker_header :: (r: ui.Rect) {
 		}
 		spacer(.Y, PK_HEADER_PAD_BOTTOM);
 		line := ui.box("hdrline", .{.Draw_Background});
-		line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		line.semantic_size = .[ui.pct(1), ui.px(1)];
 		line.style.bg = cast(T)("--border-subtle");
 	}
 }
@@ -475,7 +475,7 @@ picker_header :: (r: ui.Rect) {
 // Single-line search input with a magnifier (or clear button once there is text).
 pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 	wrap := row("search", .{.Draw_Background, .Draw_Border, .Clickable});
-	wrap.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(PK_SEARCH_H)};
+	wrap.semantic_size = .[ui.fill(), ui.px(PK_SEARCH_H)];
 	wrap.style.bg = cast(T)("--input-background-default");
 	wrap.style.border_color = cast(T)("--input-border-active"); // focused while open: 2px brand border
 	wrap.style.border = 2;
@@ -487,7 +487,7 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 		icon("mag", "magnifying-glass", 20, cast(T)("--icon-default"));
 		spacer(.X, 8);
 		f := ui.box("picker_search###pk_search", .{.Clickable, .Draw_Text, .Focusable, .Clip});
-		f.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(PK_SEARCH_H - 2)};
+		f.semantic_size = .[ui.fill(), ui.px(PK_SEARCH_H - 2)];
 		f.style.font = F(.Normal);
 		f.style.font_size = PK_SEARCH_FONT;
 		f.style.line_height = 20;
@@ -543,7 +543,7 @@ pk_search_field :: (ed: *ui.Editor, placeholder: string) -> ui.Edit_Result {
 		f.custom_user = d;
 		if text != "" {
 			x := ui.box("clear", .{.Clickable});
-			x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+			x.semantic_size = .[ui.px(24), ui.px(24)];
 			xs := ui.signal(x);
 			set_icon(x, "x-small", ifx xs.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 			if xs.clicked {
@@ -623,7 +623,7 @@ pk_scrollbar :: (s: *Pk_Scroll, x: float32) {
 	th := max(24, s.view_h * frac);
 	ty := (s.view_h - th) * (s.y / (s.content_h - s.view_h));
 	b := ui.box("scrollthumb", .{.Draw_Background, .Floating_X, .Floating_Y});
-	b.semantic_size = .{__IDX__.X = ui.px(PK_SCROLLBAR_W), __IDX__.Y = ui.px(th)};
+	b.semantic_size = .[ui.px(PK_SCROLLBAR_W), ui.px(th)];
 	b.fixed_pos = .{x, ty};
 	b.style.radius = PK_SCROLLBAR_W / 2;
 	b.style.bg = cast(T)("--scrollbar-thin-thumb");
@@ -641,7 +641,7 @@ reaction_add_button :: (m: *dc.Message) {
 	open := picker_is_open() && pk.mode == .Reaction && pk.message == m.id;
 	if app.chat_hover != m.id && !open { return; }
 	b := row("addreaction", .{.Clickable, .Draw_Background, .Draw_Border, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.px(34), __IDX__.Y = ui.px(26)};
+	b.semantic_size = .[ui.px(34), ui.px(26)];
 	b.style.radius = 8;
 	b.style.border = 1;
 	b.style.bg = cast(T)("--reaction-background-default");

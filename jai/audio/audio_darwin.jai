@@ -64,7 +64,7 @@ AudioObjectPropertyListenerProc :: #type (obj: AudioObjectID, n: u32, addrs: *Au
 #scope_export
 
 fourcc :: inline (s: string) -> u32 {
-	return cast(u32)(s[0]) << 24 | cast(u32)(s[1]) << 16 | cast(u32)(s[2]) << 8 | cast(u32)(s[3]);
+	return ((cast(u32)(s[0])) << 24) | ((cast(u32)(s[1])) << 16) | ((cast(u32)(s[2])) << 8) | (cast(u32)(s[3]));
 }
 
 kAudioFormatLinearPCM :: 0x6c70636d; // 'lpcm'

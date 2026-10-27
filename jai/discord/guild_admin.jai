@@ -191,9 +191,11 @@ guild_events :: (guild_id: Snowflake, allocator := temp) -> []*Scheduled_Event {
 	}
 	key :: (e: *Scheduled_Event) -> s64 {return (ifx e.status == .Active then 0 else 1 << 62) + e.start_ms;}
 	for i: 1..len(out)-1 {
-		for < j: i..(0 && (key(__MAPIDX__(out|j)) < key(__MAPIDX__(out|j - 1)) || (key(__MAPIDX__(out|j)) == key(__MAPIDX__(out|j - 1)) && __MAPIDX__(out|j).id < __MAPIDX__(out|j - 1).id)))+1 {
-			__MAPIDX__(out|j), __MAPIDX__(out|j - 1) = map_find(out|j - 1), __MAPIDX__(out, j);
-		}
+		{ j := i;
+		while j > 0 && (key(get(out, j)) < key(get(out, j - 1)) || (key(get(out, j)) == key(get(out, j - 1)) && get(out, j).id < get(out, j - 1).id)) {
+			get(out, j), get(out, j - 1) = map_find((out|j) - 1), get(out, j, );
+			j -= 1;
+} }
 	}
 	return view(out);
 }
@@ -238,7 +240,7 @@ open_guild_events :: (c: *Client, guild_id: Snowflake) {
 	track_modal_impression(c, guild_id, "GuildEventsModal");
 	analytics_track(c, "open_modal", fmt.tprintf("\"type\":\"Guild Events Modal\",\"guild_id\":\"%d\",\"guild_events_count\":%d", cast(u64)(guild_id), len(evs)));
 	for e: evs {
-		if e.user_count >= 0 || __MAPIDX__(evt.counts_asked|e.id) { continue; }
+		if e.user_count >= 0 || get(evt.counts_asked, e.id) { continue; }
 		at(*evt.counts_asked, e.id).* = true;
 		fetch_event_counts(c, e.guild_id, e.id);
 	}
@@ -380,13 +382,13 @@ start_scheduled_event :: (c: *Client, event_id: Snowflake) {
 // can_create_events / can_manage_event: the client's gates for Create Event and
 // for Start / Cancel on a card (MANAGE_EVENTS, or CREATE_EVENTS for your own).
 can_create_events :: (s: *Store, guild_id: Snowflake) -> bool {
-	return guild_permissions(s, guild_id) & (PERM_MANAGE_EVENTS | PERM_CREATE_EVENTS) != 0;
+	return (guild_permissions(s, guild_id) & (PERM_MANAGE_EVENTS | PERM_CREATE_EVENTS)) != 0;
 }
 
 can_manage_event :: (s: *Store, e: *Scheduled_Event) -> bool {
 	p := guild_permissions(s, e.guild_id);
-	if p & PERM_MANAGE_EVENTS != 0 { return true; }
-	return p & PERM_CREATE_EVENTS != 0 && e.creator_id == s.me;
+	if (p & PERM_MANAGE_EVENTS) != 0 { return true; }
+	return (p & PERM_CREATE_EVENTS) != 0 && e.creator_id == s.me;
 }
 
 // ack delay after an event is created: the client acks the new event (guild
@@ -545,7 +547,7 @@ delete_channel :: (c: *Client, channel_id: Snowflake) {
 // After a channel is created, saved or deleted the client refreshes the guild's
 // templates (their "unsynced" state): GET /guilds/{id}/templates (MANAGE_GUILD only).
 refresh_templates :: (c: *Client, guild_id: Snowflake) {
-	if guild_id == 0 || guild_permissions(*c.store, guild_id) & PERM_MANAGE_GUILD == 0 { return; }
+	if guild_id == 0 || (guild_permissions(*c.store, guild_id) & PERM_MANAGE_GUILD) == 0 { return; }
 	feature_submit(c, .Guild_Aux, "GET", fmt.tprintf("/guilds/%d/templates", cast(u64)(guild_id)), channel_id = guild_id);
 }
 #scope_export

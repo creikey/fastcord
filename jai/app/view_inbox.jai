@@ -51,7 +51,7 @@ UNREAD_PITCH :: 48;
 
 inbox_button :: () {
 	b := ui.box("inbox", .{.Clickable});
-	b.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+	b.semantic_size = .[ui.px(20), ui.px(20)];
 	sig := ui.signal(b);
 	set_icon(b, "inbox", ifx sig.hovering || inbox.open then cast(T)("--interactive-icon-hover") else cast(T)("--icon-muted"));
 	if sig.hovering && !inbox.open { tooltip_below("Inbox", b.rect); }
@@ -73,7 +73,7 @@ inbox_button :: () {
 		text := ifx total > 99 then "99+" else fmt.tprint(total);
 		w := max(cast(float32)(14), cast(float32)(len(text)) * 6 + 6);
 		badge := ui.box(fmt.tprintf("%s##inboxbadge", text), .{.Draw_Background, .Draw_Text, .Floating_X, .Floating_Y});
-		badge.semantic_size = .{__IDX__.X = ui.px(w), __IDX__.Y = ui.px(14)};
+		badge.semantic_size = .[ui.px(w), ui.px(14)];
 		badge.fixed_pos = .{20 - w + 6, 10};
 		badge.style.bg = cast(T)("--status-danger");
 		badge.style.radius = 7;
@@ -86,7 +86,7 @@ inbox_button :: () {
 
 help_button :: () {
 	b := ui.box("help", .{.Clickable});
-	b.semantic_size = .{__IDX__.X = ui.px(20), __IDX__.Y = ui.px(20)};
+	b.semantic_size = .[ui.px(20), ui.px(20)];
 	sig := ui.signal(b);
 	set_icon(b, "circle-question", ifx sig.hovering then cast(T)("--interactive-icon-hover") else cast(T)("--icon-muted"));
 	if sig.hovering { tooltip_below("Help", b.rect); }
@@ -135,7 +135,8 @@ local_mentions :: () {
 	}
 	items := view(inbox.items);
 	for i: 1..len(items)-1 {
-		for < j: i..(0 && items[j].msg.id > items[j - 1].msg.id)+1 { items[j], items[j - 1] = items[j - 1], items[j]; }
+		{ j := i;
+		while j > 0 && items[j].msg.id > items[j - 1].msg.id { items[j], items[j - 1] = items[j - 1], items[j];  j -= 1; } }
 	}
 	if len(inbox.items) > 25 { resize(*inbox.items, 25); }
 }
@@ -168,7 +169,7 @@ inbox_receive :: (r: *dc.Feature_Result) {
 inbox_popout :: () {
 	if !inbox.open { return; }
 	scrim := ui.box("inbox_scrim", .{.Clickable, .Floating_X, .Floating_Y, .Overlay});
-	scrim.semantic_size = .{__IDX__.X = ui.px(app.ui.window.x), __IDX__.Y = ui.px(app.ui.window.y)};
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	if ui.signal(scrim).clicked {
 		inbox.open = false;
 		return;
@@ -184,7 +185,7 @@ inbox_popout :: () {
 	y := inbox.anchor.y1 + 8;
 	h := min(app.ui.window.y * 0.8, app.ui.window.y - y - 16);
 	p := ui.box("inboxpop", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable, .Clip});
-	p.semantic_size = .{__IDX__.X = ui.px(INBOX_W), __IDX__.Y = ui.px(h)};
+	p.semantic_size = .[ui.px(INBOX_W), ui.px(h)];
 	p.fixed_pos = .{x, y};
 	p.layout_axis = .Y;
 	p.style.bg = cast(T)("--background-surface-high");
@@ -197,7 +198,7 @@ inbox_popout :: () {
 	ui.signal(p);
 	if ui.parent(p) {
 		hdr := row("hdr");
-		hdr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(48)};
+		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
 		if ui.parent(hdr) {
 			spacer(.X, 16);
 			icon("i", "inbox", 20, cast(T)("--interactive-icon-default"));
@@ -208,7 +209,7 @@ inbox_popout :: () {
 				rows := unread_rows();
 				if len(rows) > 0 {
 					mb := row("markall", .{.Clickable, .Draw_Background, .Hot_Animation});
-					mb.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(32)};
+					mb.semantic_size = .[ui.px(32), ui.px(32)];
 					mb.style.radius = 8;
 					mb.style.bg_hot = cast(T)("--background-mod-subtle");
 					msig := ui.signal(mb);
@@ -227,14 +228,14 @@ inbox_popout :: () {
 			}
 		}
 		tabs := row("tabs");
-		tabs.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+		tabs.semantic_size = .[ui.pct(1), ui.px(32)];
 		if ui.parent(tabs) {
 			spacer(.X, 12);
 			for t: Inbox_Tab {
 				name := ifx t == .Unreads then "Unreads" else "Mentions";
 				sel := inbox.tab == t;
 				tb := row(name, .{.Clickable, .Draw_Background, .Hot_Animation});
-				tb.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(28)};
+				tb.semantic_size = .[ui.children(), ui.px(28)];
 				tb.style.radius = 4;
 				tb.style.bg = ifx sel then cast(T)("--background-mod-normal") else .{};
 				tb.style.bg_hot = ifx sel then tb.style.bg else cast(T)("--background-mod-subtle");
@@ -257,7 +258,7 @@ inbox_popout :: () {
 		}
 		spacer(.Y, 8);
 		line := ui.box("hl", .{.Draw_Background});
-		line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		line.semantic_size = .[ui.pct(1), ui.px(1)];
 		line.style.bg = cast(T)("--border-subtle");
 		if inbox.tab == {
 		case .Unreads;
@@ -271,7 +272,7 @@ inbox_popout :: () {
 
 empty_note :: (text: string) {
 	r := row("empty");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(80)};
+	r.semantic_size = .[ui.pct(1), ui.px(80)];
 	if ui.parent(r) {
 		filler(.X);
 		label(text, .Medium, 14, cast(T)("--text-muted"), 18);
@@ -312,7 +313,8 @@ unread_rows :: () -> []Unread_Row {
 		append(*list, Keyed.{ch.last_message_id, ch.guild_id, id});
 	}
 	for i: 1..len(list)-1 {
-		for < j: i..(0 && __MAPIDX__(list|j).key > __MAPIDX__(list|j - 1).key)+1 { __MAPIDX__(list|j), __MAPIDX__(list|j - 1) = map_find(list|j - 1), __MAPIDX__(list, j); }
+		{ j := i;
+		while j > 0 && get(list, j).key > get(list, j - 1).key { get(list, j), get(list, j - 1) = map_find((list|j) - 1), get(list, j, );  j -= 1; } }
 	}
 	// guilds in order of their newest unread channel
 	guilds := make_dynamic(dc.Snowflake, 0, 0, temp);
@@ -333,7 +335,7 @@ unreads_list :: () {
 	s := store();
 	rows := unread_rows();
 	list := ui.box("unreads", .{.Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	ui.signal(list);
 	ui.push_parent(list);
@@ -364,7 +366,7 @@ unreads_list :: () {
 
 unread_header :: (gid: dc.Snowflake) {
 	h := row("ghdr");
-	h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(UNREAD_PITCH)};
+	h.semantic_size = .[ui.pct(1), ui.px(UNREAD_PITCH)];
 	ui.push_parent(h);
 	defer ui.pop_parent();
 	spacer(.X, 16);
@@ -373,7 +375,7 @@ unread_header :: (gid: dc.Snowflake) {
 	if g != null {
 		name = g.name;
 		gi := ui.box("gicon", .{.Draw_Background, .Draw_Text});
-		gi.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+		gi.semantic_size = .[ui.px(24), ui.px(24)];
 		gi.style.radius = 8;
 		gi.style.bg = cast(T)("--background-mod-subtle");
 		gi.style.text_color = cast(T)("--text-default");
@@ -395,12 +397,12 @@ unread_header :: (gid: dc.Snowflake) {
 unread_row :: (ch: *dc.Channel) {
 	s := store();
 	outer := row("ur");
-	outer.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(UNREAD_PITCH)};
+	outer.semantic_size = .[ui.pct(1), ui.px(UNREAD_PITCH)];
 	ui.push_parent(outer);
 	defer ui.pop_parent();
 	spacer(.X, 8);
 	item := row("item", .{.Clickable, .Draw_Background, .Hot_Animation});
-	item.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(UNREAD_PITCH - 4)};
+	item.semantic_size = .[ui.fill(), ui.px(UNREAD_PITCH - 4)];
 	item.style.radius = 8;
 	item.style.bg_hot = cast(T)("--background-mod-subtle");
 	sig := ui.signal(item);
@@ -420,7 +422,7 @@ unread_row :: (ch: *dc.Channel) {
 		}
 		spacer(.X, 8);
 		col := ui.box("col");
-		col.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.children()};
+		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		if ui.parent(col) {
 			label(ellipsize(name, .Semibold, 15, INBOX_W - 180), .Semibold, 15, cast(T)("--text-strong"), 19);
@@ -440,7 +442,7 @@ unread_row :: (ch: *dc.Channel) {
 			bt := ifx n > 99 then "99+" else fmt.tprint(n);
 			bw := max(cast(float32)(16), cast(float32)(len(bt)) * 7 + 8);
 			b := ui.box(fmt.tprintf("%s##mb", bt), .{.Draw_Background, .Draw_Text});
-			b.semantic_size = .{__IDX__.X = ui.px(bw), __IDX__.Y = ui.px(16)};
+			b.semantic_size = .[ui.px(bw), ui.px(16)];
 			b.style.bg = cast(T)("--status-danger");
 			b.style.radius = 8;
 			b.style.font = F(.Bold);
@@ -450,7 +452,7 @@ unread_row :: (ch: *dc.Channel) {
 			spacer(.X, 8);
 		} }
 		ack := ui.box("ack", .{.Clickable, .Draw_Background, .Hot_Animation});
-		ack.semantic_size = .{__IDX__.X = ui.px(28), __IDX__.Y = ui.px(28)};
+		ack.semantic_size = .[ui.px(28), ui.px(28)];
 		ack.style.radius = 14;
 		ack.style.bg = cast(T)("--background-mod-subtle");
 		ack.style.bg_hot = cast(T)("--background-mod-strong");
@@ -506,7 +508,7 @@ snippet_text :: (s: *dc.Store, line: string) -> string {
 mentions_list :: () {
 	s := store();
 	list := ui.box("mentions", .{.Scroll_Y, .Clip});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.fill()};
+	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	sig := ui.signal(list);
 	if ui.parent(list) {
@@ -517,7 +519,7 @@ mentions_list :: () {
 			if ui.id_scope(cast(u64)(it_.msg.id)) {
 				ch := dc.channel_get(s, it_.msg.channel_id);
 				hr := row("mhdr");
-				hr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(32)};
+				hr.semantic_size = .[ui.pct(1), ui.px(32)];
 				if ui.parent(hr) {
 					spacer(.X, 16);
 					cname := "unknown channel";
@@ -536,7 +538,7 @@ mentions_list :: () {
 					}
 					filler(.X);
 					x := ui.box("x", .{.Clickable, .Draw_Background, .Hot_Animation});
-					x.semantic_size = .{__IDX__.X = ui.px(24), __IDX__.Y = ui.px(24)};
+					x.semantic_size = .[ui.px(24), ui.px(24)];
 					x.style.radius = 12;
 					x.style.bg_hot = cast(T)("--background-mod-strong");
 					x.layout_axis = .X;

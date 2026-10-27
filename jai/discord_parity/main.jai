@@ -178,7 +178,7 @@ token_b :: () -> string {
 			{ j := strings.index_byte(rest, 34);
 			if j >= 0 { return clone(sub(rest, 0, j)); } }
 		} }
-		if len(carry) > 1 << 20 { remove_range(*carry, 0, len(carry) - 4096); }
+		if len(carry) > (1 << 20) { remove_range(*carry, 0, len(carry) - 4096); }
 	}
 	return "";
 }
@@ -318,7 +318,7 @@ picker_typed :: (query: string) {
 
 last_message :: (channel: discord.Snowflake) -> discord.Snowflake {
 	msgs := discord.messages_get(*cur.c.store, channel);
-	for < i: len(msgs) - 1..0 { if msgs[i].author_id == cur.c.store.me && !msgs[i].pending { return msgs[i].id; } }
+	for < i: 0..len(msgs) - 1 { if msgs[i].author_id == cur.c.store.me && !msgs[i].pending { return msgs[i].id; } }
 	return 0;
 }
 
@@ -347,7 +347,7 @@ quick_type :: (text: string) {
 
 last_image :: (channel: discord.Snowflake) -> string {
 	msgs := discord.messages_get(*cur.c.store, channel);
-	for < i: len(msgs) - 1..0 {
+	for < i: 0..len(msgs) - 1 {
 		for a: msgs[i].attachments { if strings.has_prefix(a.content_type, "image/") { return a.proxy_url; } }
 	}
 	return "";

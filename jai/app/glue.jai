@@ -225,7 +225,7 @@ render_rich :: (tl: *ui.Text_Layout, origin: ui.Vec2, box_color: ui.Color) {
 		while gi < l.glyph_end {
 			si := get(tl.run.glyphs, gi).span;
 			start := gi;
-			while gi < l.glyph_end && __MAPIDX__(tl.run.glyphs|gi).span == si { gi += 1; }
+			while gi < l.glyph_end && get(tl.run.glyphs, gi).span == si { gi += 1; }
 			sp := tl.spans[si];
 			g0 := get(tl.run.glyphs, start);
 			g1 := get(tl.run.glyphs, gi - 1);

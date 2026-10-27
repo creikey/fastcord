@@ -131,7 +131,7 @@ open_user_context_menu :: (c: *Client, user_id: Snowflake, guild_id: Snowflake) 
 	c.social.cmd_index_at = now_ms() + 40;
 	c.social.cmd_index_guild = guild_id;
 	if c.social.menu_loaded == null { c.social.menu_loaded = Map(Snowflake, bool).{}; }
-	if __MAPIDX__(c.social.menu_loaded|user_id) { return; }
+	if get(c.social.menu_loaded, user_id) { return; }
 	at(*c.social.menu_loaded, user_id).* = true;
 	api_get_later(c, strings.concatenate(.{"/users/", snowflake_string(user_id), "/application-identities?with_profiles=true"}, temp), 0);
 	fetch_note(c, user_id, 40);
@@ -142,7 +142,7 @@ open_user_context_menu :: (c: *Client, user_id: Snowflake, guild_id: Snowflake) 
 // the note and the user command index once, and the menu's impression.
 open_dm_row_menu :: (c: *Client, user_id: Snowflake) {
 	if c.social.menu_loaded == null { c.social.menu_loaded = Map(Snowflake, bool).{}; }
-	if !__MAPIDX__(c.social.notes_loaded|user_id) {
+	if !get(c.social.notes_loaded, user_id) {
 		if c.social.notes_loaded == null { c.social.notes_loaded = Map(Snowflake, bool).{}; }
 		at(*c.social.notes_loaded, user_id).* = true;
 		fetch_note(c, user_id);

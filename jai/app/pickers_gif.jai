@@ -161,7 +161,7 @@ gif_receive :: (r: *dc.Expr_Result) {
 gif_header_back :: () {
 	if gv.kind == .None { return; }
 	b := ui.box("gifback", .{.Clickable, .Draw_Background, .Hot_Animation});
-	b.semantic_size = .{__IDX__.X = ui.px(32), __IDX__.Y = ui.px(32)};
+	b.semantic_size = .[ui.px(32), ui.px(32)];
 	b.style.radius = 8;
 	b.style.bg_hot = cast(T)("--background-mod-subtle");
 	b.layout_axis = .X;
@@ -208,7 +208,7 @@ gif_picker_body :: (r: ui.Rect) {
 	cols := ifx gv.kind == .None then columns_for(inner_w) else clamp(cast(int)(inner_w / GIF_RESULTS_DESIRED_W), 1, GIF_MAX_COLS);
 	col_w := (inner_w - cast(float32)(cols - 1) * GIF_GUTTER) / cast(float32)(cols);
 	list := ui.box("gif_list", .{.Clip, .Draw_Background});
-	list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.pct(1)};
+	list.semantic_size = .[ui.pct(1), ui.pct(1)];
 	list.style.bg = cast(T)("--background-base-lower"); // the GIF grid sits on a darker well
 	if gv.kind == .None {
 		gif_front_page(list, view, cols, col_w);
@@ -242,7 +242,7 @@ gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			// loading placeholders (GIFPickerCategories renders 4 gray blocks per column)
 			for i: 0..(cols * 4)-1 {
 				ph := ui.box(fmt.tprintf("ph%d", i), .{.Floating_X, .Floating_Y, .Draw_Background});
-				ph.semantic_size = .{__IDX__.X = ui.px(col_w), __IDX__.Y = ui.px(GIF_TILE_H)};
+				ph.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 				ph.fixed_pos = .{GIF_PAD_X + cast(float32)(i % cols) * (col_w + GIF_GUTTER), GIF_GUTTER + cast(float32)(i / cols) * (GIF_TILE_H + GIF_GUTTER) - top};
 				ph.style.radius = GIF_TILE_RADIUS;
 				ph.style.bg = cast(T)("--background-mod-subtle");
@@ -253,25 +253,25 @@ gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			if y + GIF_TILE_H < 0 || y > vh { continue; }
 			if ui.id_scope(cast(u64)(i)) {
 				tile := ui.box("tile", .{.Clickable, .Floating_X, .Floating_Y, .Draw_Background, .Clip});
-				tile.semantic_size = .{__IDX__.X = ui.px(col_w), __IDX__.Y = ui.px(GIF_TILE_H)};
+				tile.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 				tile.fixed_pos = .{GIF_PAD_X + cast(float32)(i % cols) * (col_w + GIF_GUTTER), y};
 				tile.style.radius = GIF_TILE_RADIUS;
 				tile.style.bg = cast(T)("--background-mod-normal");
 				sig := ui.signal(tile);
 				if ui.parent(tile) {
 					img := ui.box("img", .{.Floating_X, .Floating_Y});
-					img.semantic_size = .{__IDX__.X = ui.px(col_w), __IDX__.Y = ui.px(GIF_TILE_H)};
+					img.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 					img.style.radius = GIF_TILE_RADIUS;
 					set_cover_image(img, t.src);
 					// .categoryFade (favorites: .categoryFadeBlurple); hover darkens + 1px --border-strong
 					shade := ui.box("shade", .{.Floating_X, .Floating_Y, .Draw_Background, .Draw_Border});
-					shade.semantic_size = .{__IDX__.X = ui.px(col_w), __IDX__.Y = ui.px(GIF_TILE_H)};
+					shade.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 					shade.style.radius = GIF_TILE_RADIUS;
 					shade.style.bg = ifx t.kind == .Favorites then with_alpha(cast(T)("--background-brand"), 0.8) else .{0, 0, 0, ifx sig.hovering then 0.6 else 0.45};
 					shade.style.border = ifx sig.hovering then 1 else 0;
 					shade.style.border_color = cast(T)("--border-strong");
 					lab := row("lab", .{.Floating_X, .Floating_Y});
-					lab.semantic_size = .{__IDX__.X = ui.px(col_w), __IDX__.Y = ui.px(GIF_TILE_H)};
+					lab.semantic_size = .[ui.px(col_w), ui.px(GIF_TILE_H)];
 					lab.cross_align = .Center;
 					if ui.parent(lab) {
 						filler(.X);
@@ -321,7 +321,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	for * h: heights { h = 0; }
 	for it_, i: items {
 		c := 0;
-		for j: 1..cols-1 { if __MAPIDX__(heights|j) < __MAPIDX__(heights|c) { c = j; } }
+		for j: 1..cols-1 { if get(heights, j) < get(heights, c) { c = j; } }
 		h := col_w;
 		if it_.width > 0 && it_.height > 0 { h = col_w * cast(float32)(it_.height) / cast(float32)(it_.width); }
 		placed[i] = .{GIF_PAD_X + cast(float32)(c) * (col_w + GIF_GUTTER), get(heights, c), h};
@@ -344,14 +344,14 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			for i: 0..(cols * 3)-1 {
 				ph := ui.box(fmt.tprintf("ph%d", i), .{.Floating_X, .Floating_Y, .Draw_Background});
 				h := cast(float32)(120 + (i * 37) % 100);
-				ph.semantic_size = .{__IDX__.X = ui.px(col_w), __IDX__.Y = ui.px(h)};
+				ph.semantic_size = .[ui.px(col_w), ui.px(h)];
 				ph.fixed_pos = .{GIF_PAD_X + cast(float32)(i % cols) * (col_w + GIF_GUTTER), cast(float32)(i / cols) * 232};
 				ph.style.radius = GIF_TILE_RADIUS;
 				ph.style.bg = cast(T)("--background-mod-subtle");
 			}
 		} else if len(items) == 0 {
 			msg := ui.box("empty", .{.Floating_X, .Floating_Y});
-			msg.semantic_size = .{__IDX__.X = ui.px(view.x1 - view.x0), __IDX__.Y = ui.px(vh)};
+			msg.semantic_size = .[ui.px(view.x1 - view.x0), ui.px(vh)];
 			msg.layout_axis = .Y;
 			msg.cross_align = .Center;
 			if ui.parent(msg) {
@@ -365,7 +365,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 			if y + p.h < -200 || y > vh + 200 { continue; }
 			if ui.id_scope(cast(u64)(i)) {
 				cell := ui.box("gif", .{.Clickable, .Floating_X, .Floating_Y, .Draw_Background, .Draw_Border});
-				cell.semantic_size = .{__IDX__.X = ui.px(col_w), __IDX__.Y = ui.px(p.h)};
+				cell.semantic_size = .[ui.px(col_w), ui.px(p.h)];
 				cell.fixed_pos = .{p.x, y};
 				cell.style.radius = GIF_TILE_RADIUS;
 				cell.style.bg = cast(T)("--background-mod-muted");
@@ -379,7 +379,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 		if footer && len(items) > 0 {
 			fy := content_h - GIF_FOOTER_H - top;
 			f := ui.box("footer", .{.Floating_X, .Floating_Y});
-			f.semantic_size = .{__IDX__.X = ui.px(view.x1 - view.x0), __IDX__.Y = ui.px(GIF_FOOTER_H)};
+			f.semantic_size = .[ui.px(view.x1 - view.x0), ui.px(GIF_FOOTER_H)];
 			f.fixed_pos = .{0, fy};
 			f.layout_axis = .Y;
 			f.cross_align = .Center;
@@ -389,12 +389,12 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 					label("Try searching for...", .Semibold, 14, cast(T)("--text-muted"), 18);
 					spacer(.Y, 8);
 					chips := row("chips");
-					chips.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(28)};
+					chips.semantic_size = .[ui.children(), ui.px(28)];
 					chips.style.child_gap = 8;
 					if ui.parent(chips) {
 						for s: gv.suggestions {
 							chip := ui.box(s, .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-							chip.semantic_size = .{__IDX__.X = ui.text_size(10), __IDX__.Y = ui.px(28)};
+							chip.semantic_size = .[ui.text_size(10), ui.px(28)];
 							chip.style.radius = 14;
 							chip.style.bg = cast(T)("--background-mod-subtle");
 							chip.style.bg_hot = cast(T)("--background-mod-strong");

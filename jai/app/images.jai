@@ -136,7 +136,7 @@ default_avatar_index :: (uid: dc.Snowflake) -> int {
 		for c: u.discriminator { if c >= #char "0" && c <= #char "9" { d = d * 10 + cast(int)(c - #char "0"); } }
 		return d % 5;
 	}
-	return cast(int)((cast(u64)(uid) >> 22) % 6);
+	return cast(int)(((cast(u64)(uid)) >> 22) % 6);
 }
 #scope_file
 
@@ -175,7 +175,7 @@ avatar_draw :: (b: *ui.Box, user: *void) {
 
 avatar_box :: (id: string, uid: dc.Snowflake, size: float32) -> *ui.Box {
 	b := ui.box(id, .{.Draw_Background});
-	b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+	b.semantic_size = .[ui.px(size), ui.px(size)];
 	b.style.radius = size / 2;
 	b.style.bg = cast(T)("--background-mod-normal");
 	u := dc.user_get(store(), uid);
@@ -199,13 +199,13 @@ avatar_with_status :: (id: string, uid: dc.Snowflake, size: float32, surface: ui
 	ring := ifx size >= 40 then cast(float32)(4) else cast(float32)(3);
 	if ui.parent(b) {
 		r := ui.box("ring", .{.Draw_Background, .Floating_X, .Floating_Y});
-		r.semantic_size = .{__IDX__.X = ui.px(dot + ring * 2), __IDX__.Y = ui.px(dot + ring * 2)};
+		r.semantic_size = .[ui.px(dot + ring * 2), ui.px(dot + ring * 2)];
 		r.fixed_pos = .{size - dot - ring, size - dot - ring};
 		r.style.bg = surface;
 		r.style.radius = (dot + ring * 2) / 2;
 		if ui.parent(r) {
 			d := ui.box("dot", .{.Floating_X, .Floating_Y});
-			d.semantic_size = .{__IDX__.X = ui.px(dot), __IDX__.Y = ui.px(dot)};
+			d.semantic_size = .[ui.px(dot), ui.px(dot)];
 			d.fixed_pos = .{ring, ring};
 			st := user_status(uid);
 			set_icon(d, status_icon(st), status_color(st));
@@ -232,7 +232,7 @@ status_icon :: (st: dc.Status) -> string {
 emoji_inline :: (id: string, e: dc.Emoji, size: float32) -> *ui.Box {
 	if e.id != 0 {
 		b := ui.box(id);
-		b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+		b.semantic_size = .[ui.px(size), ui.px(size)];
 		set_remote_image(b, dc.custom_emoji_url(e.id, e.animated, 48));
 		return b;
 	}
@@ -261,13 +261,13 @@ dominant_color :: (rgba: []u8) -> ui.Color {
 	while i + 3 < len(rgba) {
 		if rgba[i + 3] < 128 { { i += 4 * step; continue; } }
 		r, g, b := rgba[i], rgba[i + 1], rgba[i + 2];
-		k := (cast(int)(r) >> 4) << 8 | (cast(int)(g) >> 4) << 4 | cast(int)(b) >> 4;
+		k := (((cast(int)(r)) >> 4) << 8) | (((cast(int)(g)) >> 4) << 4) | ((cast(int)(b)) >> 4);
 		at(*counts, k).* += 1;
 		sums[k] += .{cast(u32)(r), cast(u32)(g), cast(u32)(b)};
 		i += 4 * step;
 } }
 	best := -1;
-	for c, k: counts { if c > 0 && (best < 0 || c > __MAPIDX__(counts|best)) { best = k; } }
+	for c, k: counts { if c > 0 && (best < 0 || c > get(counts, best)) { best = k; } }
 	if best < 0 { return .{}; }
 	n := cast(float32)(get(counts, best));
 	return .{cast(float32)(sums[best][0]) / n / 255, cast(float32)(sums[best][1]) / n / 255, cast(float32)(sums[best][2]) / n / 255, 1};

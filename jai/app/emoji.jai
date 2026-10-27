@@ -116,7 +116,7 @@ emoji_next :: (text: string, from: int) -> Emoji_Segment, bool {
 			n += 1;
 		}
 		buf: [96]u8;
-		for < k: n..1 {
+		for < k: 1..n {
 			sb := strings.builder_from_bytes(view(buf));
 			for q: 0..k-1 { strings.write_rune(*sb, runes[q]); }
 			{ idx, found := map_find(by_norm, strings.to_string(sb));
@@ -259,7 +259,7 @@ set_twemoji :: (b: *ui.Box, index: int) {
 // ---- rich text ----
 
 // Spans for unicode emoji carry this bit in Span.id and the emoji index in user.
-EMOJI_SPAN_FLAG :: cast(u64)(1) << 62;
+EMOJI_SPAN_FLAG :: (cast(u64)(1)) << 62;
 
 // Splits `sp` (a text span) into text and inline-emoji spans (size px objects).
 // The emoji spans keep the original unicode as their text, so copy/selection
@@ -295,7 +295,7 @@ emoji_text_spans :: (out: *[..]ui.Span, sp: ui.Span, size: float32 = 22) {
 
 // Inline-object hook for unicode emoji spans; false if the span is something else.
 draw_unicode_emoji_span :: (sp: ui.Span, r: ui.Rect, opacity: float32) -> bool {
-	if sp.id & EMOJI_SPAN_FLAG == 0 { return false; }
+	if (sp.id & EMOJI_SPAN_FLAG) == 0 { return false; }
 	idx := cast(int)(cast(u64)(sp.user)) - 1;
 	if idx < 0 || idx >= len(emoji_db.emojis) {
 		emoji_text_fallback(sp.text, r, opacity);
@@ -328,7 +328,7 @@ emoji_box :: (id: string, e: dc.Emoji, size: float32) -> *ui.Box {
 	idx := emoji_lookup_surrogates(e.name);
 	if idx < 0 { return emoji_inline(id, e, size); }
 	b := ui.box(id);
-	b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+	b.semantic_size = .[ui.px(size), ui.px(size)];
 	set_twemoji(b, idx);
 	return b;
 }
@@ -397,7 +397,7 @@ emoji_label :: (text: string, font: Font_Id, size: float32, color: ui.Color, lin
 	{ _, ok := emoji_next(text, 0);
 	if !ok { return label(text, font, size, color, line_h); } }
 	b := ui.box(text, .{.Draw_Text});
-	b.semantic_size = .{__IDX__.X = ui.text_size(0, 0), __IDX__.Y = ui.text_size()};
+	b.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 	b.style.text_color = color;
 	b.style.line_height = line_h;
 	b.style.font = F(font);

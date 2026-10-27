@@ -22,7 +22,7 @@ Prop :: struct {
 }
 
 Shape_Data :: struct {
-	v, i, o: [][2]float32;
+	v, i, o: []Vector2;
 	closed: bool;
 }
 
@@ -106,7 +106,7 @@ Layer :: struct {
 	shapes: []Item;
 	ref: int; // precomp asset index or -1
 	w, h: float32; // precomp / solid size
-	solid_color: [4]float32;
+	solid_color: Vector4;
 	td: bool; // this layer is a track matte for the next layer
 	tt: int; // track matte type for this layer: 1 alpha 2 alpha-inv 3 luma 4 luma-inv
 	hidden: bool;
@@ -142,7 +142,7 @@ load :: (data: []u8) -> *Animation, Error {
 	anim: *Animation;
 	err: Error;
 	anim = new(Animation);
-	if virtual.arena_init_growing(*anim.arena) != null {
+	if virtual.arena_init_growing(*anim.arena) != .None {
 		free(anim);
 		return null, .Out_Of_Memory;
 	}
@@ -166,7 +166,7 @@ load :: (data: []u8) -> *Animation, Error {
 	anim.op = num(obj, "op", 60);
 	if anim.fr <= 0 { anim.fr = 60; }
 	// assets: precomps (index them first so layers can refer by id)
-	{ arr, aok := obj["assets"].list, obj["assets"].kind == .List;
+	{ arr, aok := get(obj, "assets").list, get(obj, "assets").kind == .List;
 	if aok {
 		anim.assets = make_slice(Comp, len(arr), alloc);
 		for a, i: arr {
@@ -179,12 +179,12 @@ load :: (data: []u8) -> *Animation, Error {
 			ao, _ := a.map, a.kind == .Map;
 			at(*anim.assets, i).*.w = num(ao, "w", anim.w);
 			at(*anim.assets, i).*.h = num(ao, "h", anim.h);
-			{ la, lok := ao["layers"].list, ao["layers"].kind == .List;
+			{ la, lok := get(ao, "layers").list, get(ao, "layers").kind == .List;
 			if lok { at(*anim.assets, i).*.layers = load_layers(*L, la); } }
 		}
 	} }
 	anim.root.w, anim.root.h = anim.w, anim.h;
-	{ la, lok := obj["layers"].list, obj["layers"].kind == .List;
+	{ la, lok := get(obj, "layers").list, get(obj, "layers").kind == .List;
 	if lok { anim.root.layers = load_layers(*L, la); } }
 	return anim, .None;
 }
@@ -197,7 +197,7 @@ destroy :: (anim: *Animation) {
 #scope_module
 
 num :: (o: json.Object, key: string, def: float32) -> float32 {
-	v, ok := o[key];
+	v, ok := map_find(o, key);
 	if !ok { return def; }
 	return value_f32(v, def);
 }
@@ -209,7 +209,7 @@ value_f32 :: (v: json.Value, def: float32) -> float32 {
 	case .Int; x := v.i;
 		return cast(float32)(x);
 	case .Bool; x := v.b;
-		return ifx x then 1 else 0;
+		return cast(float32) ifx x then 1 else 0;
 	case .List; x := v.list;
 		if len(x) > 0 { return value_f32(x[0], def); }
 	}
@@ -217,7 +217,7 @@ value_f32 :: (v: json.Value, def: float32) -> float32 {
 }
 
 str :: (o: json.Object, key: string) -> string {
-	{ s, ok := o[key].s, o[key].kind == .String;
+	{ s, ok := get(o, key).s, get(o, key).kind == .String;
 	if ok { return as_string(s); } }
 	return "";
 }
@@ -239,7 +239,7 @@ floats :: (L: *Loader, v: json.Value) -> []float32 {
 load_prop :: (L: *Loader, v: json.Value, def: []float32 = .{}) -> Prop {
 	o, ok := v.map, v.kind == .Map;
 	if !ok { return .{value = def}; }
-	k := o["k"];
+	k := get(o, "k");
 	animated := num(o, "a", 0) == 1;
 	{ arr, aok := k.list, k.kind == .List;
 	if aok && len(arr) > 0 {
@@ -253,23 +253,23 @@ load_prop :: (L: *Loader, v: json.Value, def: []float32 = .{}) -> Prop {
 		ko, _ := e.map, e.kind == .Map;
 		kf := *kfs[i];
 		kf.t = num(ko, "t", 0);
-		kf.s = floats(L, ko["s"]);
-		{ ev, has := ko["e"];
+		kf.s = floats(L, get(ko, "s"));
+		{ ev, has := map_find(ko, "e");
 		if has { kf.e = floats(L, ev); } }
 		kf.hold = num(ko, "h", 0) == 1;
-		{ oo, has := ko["o"].map, ko["o"].kind == .Map;
+		{ oo, has := get(ko, "o").map, get(ko, "o").kind == .Map;
 		if has {
-			kf.ox = floats(L, oo["x"]);
-			kf.oy = floats(L, oo["y"]);
+			kf.ox = floats(L, get(oo, "x"));
+			kf.oy = floats(L, get(oo, "y"));
 		} }
-		{ io, has := ko["i"].map, ko["i"].kind == .Map;
+		{ io, has := get(ko, "i").map, get(ko, "i").kind == .Map;
 		if has {
-			kf.ix = floats(L, io["x"]);
-			kf.iy = floats(L, io["y"]);
+			kf.ix = floats(L, get(io, "x"));
+			kf.iy = floats(L, get(io, "y"));
 		} }
-		{ tv, has := ko["to"];
+		{ tv, has := map_find(ko, "to");
 		if has { kf.to = floats(L, tv); } }
-		{ tv, has := ko["ti"];
+		{ tv, has := map_find(ko, "ti");
 		if has { kf.ti = floats(L, tv); } }
 	}
 	return .{kfs = kfs};
@@ -282,9 +282,9 @@ load_shape_data :: (L: *Loader, v: json.Value) -> Shape_Data {
 		if aok && len(arr) > 0 { return load_shape_data(L, arr[0]); } }
 		return .{};
 	}
-	pts :: (L: *Loader, v: json.Value) -> [][2]float32 {
+	pts :: (L: *Loader, v: json.Value) -> []Vector2 {
 		arr, _ := v.list, v.kind == .List;
-		out := make_slice([2]float32, len(arr), L.alloc);
+		out := make_slice(Vector2, len(arr), L.alloc);
 		for e, i: arr {
 			p, _ := e.list, e.kind == .List;
 			if len(p) >= 2 { at(*out, i).* = .{value_f32(p[0], 0), value_f32(p[1], 0)}; }
@@ -292,15 +292,15 @@ load_shape_data :: (L: *Loader, v: json.Value) -> Shape_Data {
 		return out;
 	}
 	sd := Shape_Data.{
-		v = pts(L, o["v"]),
-		i = pts(L, o["i"]),
-		o = pts(L, o["o"]),
+		v = pts(L, get(o, "v")),
+		i = pts(L, get(o, "i")),
+		o = pts(L, get(o, "o")),
 		closed = num(o, "c", 0) == 1
 	};
 	n := len(sd.v);
 	if len(sd.i) < n || len(sd.o) < n {
-		sd.i = make_slice([2]float32, n, L.alloc);
-		sd.o = make_slice([2]float32, n, L.alloc);
+		sd.i = make_slice(Vector2, n, L.alloc);
+		sd.o = make_slice(Vector2, n, L.alloc);
 	}
 	return sd;
 }
@@ -308,34 +308,34 @@ load_shape_data :: (L: *Loader, v: json.Value) -> Shape_Data {
 load_shape_prop :: (L: *Loader, v: json.Value) -> Shape_Prop {
 	o, ok := v.map, v.kind == .Map;
 	if !ok { return .{}; }
-	k := o["k"];
+	k := get(o, "k");
 	arr, isarr := k.list, k.kind == .List;
 	if !isarr || len(arr) == 0 { return .{value = load_shape_data(L, k)}; }
 	first, _ := arr[0].map, arr[0].kind == .Map;
-	{ _, has := first["t"];
+	{ _, has := map_find(first, "t");
 	if !has { return .{value = load_shape_data(L, k)}; } }
 	kfs := make_slice(Shape_Keyframe, len(arr), L.alloc);
 	for e, i: arr {
 		ko, _ := e.map, e.kind == .Map;
 		kf := *kfs[i];
 		kf.t = num(ko, "t", 0);
-		kf.s = load_shape_data(L, ko["s"]);
-		{ ev, has := ko["e"];
+		kf.s = load_shape_data(L, get(ko, "s"));
+		{ ev, has := map_find(ko, "e");
 		if has {
 			kf.e = load_shape_data(L, ev);
 			kf.has_e = true;
 		} }
 		kf.hold = num(ko, "h", 0) == 1;
 		kf.ox, kf.oy, kf.ix, kf.iy = 0, 0, 1, 1;
-		{ oo, has := ko["o"].map, ko["o"].kind == .Map;
+		{ oo, has := get(ko, "o").map, get(ko, "o").kind == .Map;
 		if has {
-			kf.ox = value_f32(oo["x"], 0);
-			kf.oy = value_f32(oo["y"], 0);
+			kf.ox = value_f32(get(oo, "x"), 0);
+			kf.oy = value_f32(get(oo, "y"), 0);
 		} }
-		{ io, has := ko["i"].map, ko["i"].kind == .Map;
+		{ io, has := get(ko, "i").map, get(ko, "i").kind == .Map;
 		if has {
-			kf.ix = value_f32(io["x"], 1);
-			kf.iy = value_f32(io["y"], 1);
+			kf.ix = value_f32(get(io, "x"), 1);
+			kf.iy = value_f32(get(io, "y"), 1);
 		} }
 	}
 	return .{kfs = kfs};
@@ -348,25 +348,25 @@ DEF_ZERO := float32.[0, 0, 0];
 load_transform :: (L: *Loader, v: json.Value) -> Transform {
 	o, _ := v.map, v.kind == .Map;
 	t := Transform.{
-		a = load_prop(L, o["a"], view(DEF_ZERO)),
-		s = load_prop(L, o["s"], view(DEF_ONE)),
-		o = load_prop(L, o["o"], view(DEF_OPACITY)),
-		sk = load_prop(L, o["sk"], sub(DEF_ZERO, 0, 1)),
-		sa = load_prop(L, o["sa"], sub(DEF_ZERO, 0, 1))
+		a = load_prop(L, get(o, "a"), view(DEF_ZERO)),
+		s = load_prop(L, get(o, "s"), view(DEF_ONE)),
+		o = load_prop(L, get(o, "o"), view(DEF_OPACITY)),
+		sk = load_prop(L, get(o, "sk"), sub(DEF_ZERO, 0, 1)),
+		sa = load_prop(L, get(o, "sa"), sub(DEF_ZERO, 0, 1))
 	};
-	{ rv, has := o["r"];
+	{ rv, has := map_find(o, "r");
 	if has {
 		t.r = load_prop(L, rv, sub(DEF_ZERO, 0, 1));
 	} else {
-		t.r = load_prop(L, o["rz"], sub(DEF_ZERO, 0, 1));
+		t.r = load_prop(L, get(o, "rz"), sub(DEF_ZERO, 0, 1));
 	} }
-	pv, _ := o["p"].map, o["p"].kind == .Map;
+	pv, _ := get(o, "p").map, get(o, "p").kind == .Map;
 	if num(pv, "s", 0) == 1 {
 		t.split = true;
-		t.px = load_prop(L, pv["x"], sub(DEF_ZERO, 0, 1));
-		t.py = load_prop(L, pv["y"], sub(DEF_ZERO, 0, 1));
+		t.px = load_prop(L, get(pv, "x"), sub(DEF_ZERO, 0, 1));
+		t.py = load_prop(L, get(pv, "y"), sub(DEF_ZERO, 0, 1));
 	} else {
-		t.p = load_prop(L, o["p"], view(DEF_ZERO));
+		t.p = load_prop(L, get(o, "p"), view(DEF_ZERO));
 	}
 	return t;
 }
@@ -382,7 +382,7 @@ load_items :: (L: *Loader, arr: json.Array) -> []Item {
 		if str(o, "ty") == {
 		case "gr";
 			it_.kind = .Group;
-			sub, _ := o["it"].list, o["it"].kind == .List;
+			sub, _ := get(o, "it").list, get(o, "it").kind == .List;
 			// the group transform is the 'tr' item
 			for s: sub {
 				so, _ := s.map, s.kind == .Map;
@@ -394,57 +394,57 @@ load_items :: (L: *Loader, arr: json.Array) -> []Item {
 			it_.items = load_items(L, sub);
 		case "sh";
 			it_.kind = .Path;
-			it_.shape = load_shape_prop(L, o["ks"]);
+			it_.shape = load_shape_prop(L, get(o, "ks"));
 			it_.reversed = num(o, "d", 1) == 3;
 		case "rc";
 			it_.kind = .Rect;
-			it_.p = load_prop(L, o["p"], sub(DEF_ZERO, 0, 2));
-			it_.size = load_prop(L, o["s"], sub(DEF_ZERO, 0, 2));
-			it_.r = load_prop(L, o["r"], sub(DEF_ZERO, 0, 1));
+			it_.p = load_prop(L, get(o, "p"), sub(DEF_ZERO, 0, 2));
+			it_.size = load_prop(L, get(o, "s"), sub(DEF_ZERO, 0, 2));
+			it_.r = load_prop(L, get(o, "r"), sub(DEF_ZERO, 0, 1));
 			it_.reversed = num(o, "d", 1) == 3;
 		case "el";
 			it_.kind = .Ellipse;
-			it_.p = load_prop(L, o["p"], sub(DEF_ZERO, 0, 2));
-			it_.size = load_prop(L, o["s"], sub(DEF_ZERO, 0, 2));
+			it_.p = load_prop(L, get(o, "p"), sub(DEF_ZERO, 0, 2));
+			it_.size = load_prop(L, get(o, "s"), sub(DEF_ZERO, 0, 2));
 			it_.reversed = num(o, "d", 1) == 3;
 		case "sr";
 			it_.kind = .Star;
 			it_.star_type = cast(int)(num(o, "sy", 1));
-			it_.p = load_prop(L, o["p"], sub(DEF_ZERO, 0, 2));
-			it_.pt = load_prop(L, o["pt"], sub(DEF_ZERO, 0, 1));
-			it_.r = load_prop(L, o["r"], sub(DEF_ZERO, 0, 1));
-			it_.or_ = load_prop(L, o["or"], sub(DEF_ZERO, 0, 1));
-			it_.os = load_prop(L, o["os"], sub(DEF_ZERO, 0, 1));
-			it_.ir = load_prop(L, o["ir"], sub(DEF_ZERO, 0, 1));
-			it_.is = load_prop(L, o["is"], sub(DEF_ZERO, 0, 1));
+			it_.p = load_prop(L, get(o, "p"), sub(DEF_ZERO, 0, 2));
+			it_.pt = load_prop(L, get(o, "pt"), sub(DEF_ZERO, 0, 1));
+			it_.r = load_prop(L, get(o, "r"), sub(DEF_ZERO, 0, 1));
+			it_.or_ = load_prop(L, get(o, "or"), sub(DEF_ZERO, 0, 1));
+			it_.os = load_prop(L, get(o, "os"), sub(DEF_ZERO, 0, 1));
+			it_.ir = load_prop(L, get(o, "ir"), sub(DEF_ZERO, 0, 1));
+			it_.is = load_prop(L, get(o, "is"), sub(DEF_ZERO, 0, 1));
 			it_.reversed = num(o, "d", 1) == 3;
 		case "fl"; #through; case "st"; #through; case "gf"; #through; case "gs";
 			ty := str(o, "ty");
 			it_.kind = ifx ty == "fl" then .Fill else ifx ty == "st" then .Stroke else ifx ty == "gf" then .Gradient_Fill else .Gradient_Stroke;
-			it_.color = load_prop(L, o["c"], view(DEF_ZERO));
-			it_.opacity = load_prop(L, o["o"], view(DEF_OPACITY));
-			it_.width = load_prop(L, o["w"], sub(DEF_ZERO, 0, 1));
+			it_.color = load_prop(L, get(o, "c"), view(DEF_ZERO));
+			it_.opacity = load_prop(L, get(o, "o"), view(DEF_OPACITY));
+			it_.width = load_prop(L, get(o, "w"), sub(DEF_ZERO, 0, 1));
 			it_.evenodd = num(o, "r", 1) == 2;
 			it_.cap = cast(int)(num(o, "lc", 2));
 			it_.join = cast(int)(num(o, "lj", 2));
 			it_.miter = num(o, "ml", 4);
 			if ty == "gf" || ty == "gs" {
 				it_.grad_type = cast(int)(num(o, "t", 1));
-				it_.g_start = load_prop(L, o["s"], sub(DEF_ZERO, 0, 2));
-				it_.g_end = load_prop(L, o["e"], sub(DEF_ZERO, 0, 2));
-				it_.g_hl = load_prop(L, o["h"], sub(DEF_ZERO, 0, 1));
-				it_.g_ha = load_prop(L, o["a"], sub(DEF_ZERO, 0, 1));
-				{ go, has := o["g"].map, o["g"].kind == .Map;
+				it_.g_start = load_prop(L, get(o, "s"), sub(DEF_ZERO, 0, 2));
+				it_.g_end = load_prop(L, get(o, "e"), sub(DEF_ZERO, 0, 2));
+				it_.g_hl = load_prop(L, get(o, "h"), sub(DEF_ZERO, 0, 1));
+				it_.g_ha = load_prop(L, get(o, "a"), sub(DEF_ZERO, 0, 1));
+				{ go, has := get(o, "g").map, get(o, "g").kind == .Map;
 				if has {
 					it_.g_count = cast(int)(num(go, "p", 0));
-					it_.g_colors = load_prop(L, go["k"]);
+					it_.g_colors = load_prop(L, get(go, "k"));
 				} }
 			}
 		case "tm";
 			it_.kind = .Trim;
-			it_.t_start = load_prop(L, o["s"], sub(DEF_ZERO, 0, 1));
-			it_.t_end = load_prop(L, o["e"], view(DEF_OPACITY));
-			it_.t_off = load_prop(L, o["o"], sub(DEF_ZERO, 0, 1));
+			it_.t_start = load_prop(L, get(o, "s"), sub(DEF_ZERO, 0, 1));
+			it_.t_end = load_prop(L, get(o, "e"), view(DEF_OPACITY));
+			it_.t_off = load_prop(L, get(o, "o"), sub(DEF_ZERO, 0, 1));
 			it_.t_mode = cast(int)(num(o, "m", 1));
 		case;
 			continue; // tr (handled by the group), mm, rp, ...
@@ -462,14 +462,14 @@ load_layers :: (L: *Loader, arr: json.Array) -> []Layer {
 		l.ty = cast(int)(num(o, "ty", 3));
 		l.ind = cast(int)(num(o, "ind", cast(float32)(i + 1)));
 		l.parent = -1;
-		{ pv, has := o["parent"];
+		{ pv, has := map_find(o, "parent");
 		if has { l.parent = cast(int)(value_f32(pv, -1)); } }
 		l.ip = num(o, "ip", 0);
 		l.op = num(o, "op", 1000000000);
 		l.st = num(o, "st", 0);
 		l.sr = num(o, "sr", 1);
 		if l.sr == 0 { l.sr = 1; }
-		l.ks = load_transform(L, o["ks"]);
+		l.ks = load_transform(L, get(o, "ks"));
 		l.hidden = num(o, "hd", 0) == 1;
 		l.td = num(o, "td", 0) != 0;
 		l.tt = cast(int)(num(o, "tt", 0));
@@ -486,9 +486,9 @@ load_layers :: (L: *Loader, arr: json.Array) -> []Layer {
 			l.h = num(o, "sh", 0);
 			l.solid_color = parse_hex(str(o, "sc"));
 		}
-		{ sh, ok := o["shapes"].list, o["shapes"].kind == .List;
+		{ sh, ok := get(o, "shapes").list, get(o, "shapes").kind == .List;
 		if ok { l.shapes = load_items(L, sh); } }
-		{ ma, ok := o["masksProperties"].list, o["masksProperties"].kind == .List;
+		{ ma, ok := get(o, "masksProperties").list, get(o, "masksProperties").kind == .List;
 		if ok {
 			l.masks = make_slice(Mask, len(ma), L.alloc);
 			for m, j: ma {
@@ -497,8 +497,8 @@ load_layers :: (L: *Loader, arr: json.Array) -> []Layer {
 				l.masks[j] = Mask.{
 					mode = ifx len(mode) > 0 then mode[0] else #char "a",
 					inverted = num(mo, "inv", 0) == 1,
-					path = load_shape_prop(L, mo["pt"]),
-					opacity = load_prop(L, mo["o"], view(DEF_OPACITY))
+					path = load_shape_prop(L, get(mo, "pt")),
+					opacity = load_prop(L, get(mo, "o"), view(DEF_OPACITY))
 				};
 			}
 		} }
@@ -506,14 +506,14 @@ load_layers :: (L: *Loader, arr: json.Array) -> []Layer {
 	return out;
 }
 
-parse_hex :: (s: string) -> [4]float32 {
+parse_hex :: (s: string) -> Vector4 {
 	h := s;
 	if len(h) > 0 && h[0] == #char "#" { h = sub_from(h, 1); }
-	if len(h) < 6 { return .[0, 0, 0, 1]; }
+	if len(h) < 6 { return .{0, 0, 0, 1}; }
 	r, _ := strconv.parse_int(sub(h, 0, 2), 16);
 	g, _ := strconv.parse_int(sub(h, 2, 4), 16);
 	b, _ := strconv.parse_int(sub(h, 4, 6), 16);
-	return .[cast(float32)(r) / 255, cast(float32)(g) / 255, cast(float32)(b) / 255, 1];
+	return .{cast(float32)(r) / 255, cast(float32)(g) / 255, cast(float32)(b) / 255, 1};
 }
 
 // ---------------------------------------------------------------------------
@@ -602,12 +602,12 @@ eval :: (p: *Prop, t: float32, out: []float32) -> int {
 #scope_module
 
 // Point at fraction u of the arc length of the bezier s -> e (lottie-web: 150-sample LUT).
-spatial_point :: (s: []float32, e: []float32, to: []float32, ti: []float32, u: float32) -> [2]float32 {
-	p0 := float32.[s[0], s[1]];
-	p3 := float32.[e[0], e[1]];
+spatial_point :: (s: []float32, e: []float32, to: []float32, ti: []float32, u: float32) -> Vector2 {
+	p0 := Vector2.{s[0], s[1]};
+	p3 := Vector2.{e[0], e[1]};
 	p1 := p0 + .{to[0], to[1]};
 	p2 := p3 + .{ti[0], ti[1]};
-	bez :: (p0: [2]float32, p1: [2]float32, p2: [2]float32, p3: [2]float32, t: float32) -> [2]float32 {
+	bez :: (p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float32) -> Vector2 {
 		m := 1 - t;
 		return m * m * m * p0 + 3 * m * m * t * p1 + 3 * m * t * t * p2 + t * t * t * p3;
 	}
@@ -658,9 +658,9 @@ eval_shape :: (p: *Shape_Prop, t: float32, alloc: Allocator) -> Shape_Data {
 	u := bezier_ease(a.ox, a.oy, a.ix, a.iy, x);
 	n := len(s.v);
 	out := Shape_Data.{
-		v = make_slice([2]float32, n, alloc),
-		i = make_slice([2]float32, n, alloc),
-		o = make_slice([2]float32, n, alloc),
+		v = make_slice(Vector2, n, alloc),
+		i = make_slice(Vector2, n, alloc),
+		o = make_slice(Vector2, n, alloc),
 		closed = s.closed
 	};
 	for j: 0..n-1 {

@@ -30,7 +30,7 @@ gdm: Gdm_State;
 // The "+" next to "Direct Messages" (replaces the plain icon in home_sidebar).
 dm_create_button :: () {
 	b := ui.box("dmplus", .{.Clickable});
-	b.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+	b.semantic_size = .[ui.px(18), ui.px(18)];
 	sig := ui.signal(b);
 	set_icon(b, "plus-small", ifx sig.hovering || gdm.open then cast(T)("--interactive-icon-hover") else cast(T)("--interactive-icon-default"));
 	if sig.hovering && !gdm.open { tooltip_below("Create DM", b.rect); }
@@ -52,7 +52,7 @@ group_dm_popout_open :: (anchor: ui.Rect, from_dm: dc.Snowflake) {
 // Small tooltip under a rect (overlay, window coordinates).
 tooltip_below :: (text: string, r: ui.Rect) {
 	tip := row("tipb###tooltip_below", .{.Draw_Background, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay});
-	tip.semantic_size = .{__IDX__.X = ui.children(), __IDX__.Y = ui.px(32)};
+	tip.semantic_size = .[ui.children(), ui.px(32)];
 	p := ui.top_parent();
 	tip.fixed_pos = .{r.x0 - 40 - p.rect.x0, r.y1 + 8 - p.rect.y0};
 	tip.style.bg = cast(T)("--background-surface-highest");
@@ -87,7 +87,7 @@ group_dm_overlay :: () {
 	r.x0 = clamp(r.x0, 8, app.ui.window.x - GDM_W - 8);
 	r.x1 = r.x0 + GDM_W;
 	pop := ui.box("gdm###gdm_popout", .{.Draw_Background, .Draw_Border, .Draw_Shadow, .Floating_X, .Floating_Y, .Overlay, .Clickable});
-	pop.semantic_size = .{__IDX__.X = ui.px(GDM_W), __IDX__.Y = ui.children()};
+	pop.semantic_size = .[ui.px(GDM_W), ui.children()];
 	pop.fixed_pos = .{r.x0, r.y0 + (1 - gdm.t) * 8};
 	pop.layout_axis = .Y;
 	pop.style.bg = cast(T)("--background-surface-high");
@@ -116,14 +116,14 @@ group_dm_overlay :: () {
 	if ui.parent(pop) {
 		spacer(.Y, GDM_PAD);
 		h := row("title");
-		h.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(24)};
+		h.semantic_size = .[ui.pct(1), ui.px(24)];
 		if ui.parent(h) {
 			spacer(.X, GDM_PAD);
 			label("Select Friends", .Semibold, 20, cast(T)("--text-strong"), 24);
 		}
 		spacer(.Y, 4);
 		sub := row("sub");
-		sub.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(16)};
+		sub.semantic_size = .[ui.pct(1), ui.px(16)];
 		if ui.parent(sub) {
 			spacer(.X, GDM_PAD);
 			left := GDM_MAX_OTHERS - others;
@@ -135,13 +135,13 @@ group_dm_overlay :: () {
 		spacer(.Y, 8);
 		list_h := min(GDM_LIST_MAX_H, max(cast(float32)(len(shown)) * (GDM_ROW_H + 2), 56));
 		list := ui.box("list", .{.Clip});
-		list.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(list_h)};
+		list.semantic_size = .[ui.pct(1), ui.px(list_h)];
 		view := list.rect;
 		pk_scroll_update(*gdm.scroll, view, cast(float32)(len(shown)) * (GDM_ROW_H + 2));
 		if ui.parent(list) {
 			if len(friends) == 0 {
 				e := ui.box("empty", .{.Floating_X, .Floating_Y});
-				e.semantic_size = .{__IDX__.X = ui.px(GDM_W), __IDX__.Y = ui.px(list_h)};
+				e.semantic_size = .[ui.px(GDM_W), ui.px(list_h)];
 				e.layout_axis = .Y;
 				e.cross_align = .Center;
 				if ui.parent(e) {
@@ -158,16 +158,16 @@ group_dm_overlay :: () {
 		}
 		spacer(.Y, 8);
 		line := ui.box("line", .{.Draw_Background});
-		line.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(1)};
+		line.semantic_size = .[ui.pct(1), ui.px(1)];
 		line.style.bg = cast(T)("--border-subtle");
 		spacer(.Y, 16);
 		br := row("btnrow");
-		br.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(GDM_BUTTON_H)};
+		br.semantic_size = .[ui.pct(1), ui.px(GDM_BUTTON_H)];
 		if ui.parent(br) {
 			spacer(.X, GDM_PAD);
 			text := ifx others >= 2 then "Create Group DM" else "Create DM";
 			btn := ui.box(fmt.tprintf("%s##create", text), .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-			btn.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(GDM_BUTTON_H)};
+			btn.semantic_size = .[ui.fill(), ui.px(GDM_BUTTON_H)];
 			btn.style.radius = 8;
 			btn.style.bg = cast(T)("--background-brand");
 			btn.style.bg_hot = with_alpha(cast(T)("--background-brand"), 0.85);
@@ -201,11 +201,11 @@ group_dm_overlay :: () {
 
 gdm_search_row :: () {
 	r := row("searchrow");
-	r.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(36)};
+	r.semantic_size = .[ui.pct(1), ui.px(36)];
 	if ui.parent(r) {
 		spacer(.X, GDM_PAD);
 		w := row("search", .{.Draw_Background, .Draw_Border, .Clickable});
-		w.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(36)};
+		w.semantic_size = .[ui.fill(), ui.px(36)];
 		w.style.bg = cast(T)("--input-background-default");
 		w.style.border_color = cast(T)("--border-focus");
 		w.style.border = 1;
@@ -219,7 +219,7 @@ gdm_search_row :: () {
 				if u == null { continue; }
 				if ui.id_scope(cast(u64)(uid)) {
 					chip := ui.box(fmt.tprintf("%s##chip", dc.user_name(store(), uid)), .{.Clickable, .Draw_Background, .Draw_Text, .Hot_Animation});
-					chip.semantic_size = .{__IDX__.X = ui.text_size(6), __IDX__.Y = ui.px(24)};
+					chip.semantic_size = .[ui.text_size(6), ui.px(24)];
 					chip.style.radius = 4;
 					chip.style.bg = cast(T)("--background-mod-normal");
 					chip.style.bg_hot = cast(T)("--background-mod-strong");
@@ -231,7 +231,7 @@ gdm_search_row :: () {
 				}
 			}
 			f := ui.box("gdmq###gdm_search", .{.Clickable, .Draw_Text, .Focusable, .Clip});
-			f.semantic_size = .{__IDX__.X = ui.fill(), __IDX__.Y = ui.px(34)};
+			f.semantic_size = .[ui.fill(), ui.px(34)];
 			f.style.font = F(.Normal);
 			f.style.font_size = 16;
 			f.style.line_height = 20;
@@ -281,7 +281,7 @@ gdm_friend_row :: (uid: dc.Snowflake, y: float32, others: int) {
 	checked := slice.contains(view(gdm.selected), uid);
 	disabled := !checked && others >= GDM_MAX_OTHERS;
 	r := row("friend", .{.Clickable, .Draw_Background, .Hot_Animation, .Floating_X, .Floating_Y});
-	r.semantic_size = .{__IDX__.X = ui.px(GDM_W - 2 * 8), __IDX__.Y = ui.px(GDM_ROW_H)};
+	r.semantic_size = .[ui.px(GDM_W - 2 * 8), ui.px(GDM_ROW_H)];
 	r.fixed_pos = .{8, y};
 	r.style.radius = 4;
 	r.style.bg_hot = cast(T)("--background-mod-subtle");
@@ -296,7 +296,7 @@ gdm_friend_row :: (uid: dc.Snowflake, y: float32, others: int) {
 		label(ifx u != null then u.username else "", .Normal, 14, cast(T)("--text-muted"), 18);
 		filler(.X);
 		cb := ui.box("check", .{.Draw_Background, .Draw_Border});
-		cb.semantic_size = .{__IDX__.X = ui.px(GDM_CHECK), __IDX__.Y = ui.px(GDM_CHECK)};
+		cb.semantic_size = .[ui.px(GDM_CHECK), ui.px(GDM_CHECK)];
 		cb.style.radius = 6;
 		cb.style.border = ifx checked then 0 else 1;
 		cb.style.border_color = cast(T)("--checkbox-border-default");
@@ -304,7 +304,7 @@ gdm_friend_row :: (uid: dc.Snowflake, y: float32, others: int) {
 		if checked {
 			if ui.parent(cb) {
 				i := ui.box("i", .{.Floating_X, .Floating_Y});
-				i.semantic_size = .{__IDX__.X = ui.px(18), __IDX__.Y = ui.px(18)};
+				i.semantic_size = .[ui.px(18), ui.px(18)];
 				i.fixed_pos = .{2, 2};
 				set_icon(i, "checkmark-small", .{1, 1, 1, 1});
 			}
@@ -341,7 +341,7 @@ gdm_create :: (fixed: dc.Snowflake) {
 group_dm_members :: (ch: *dc.Channel) {
 	s := store();
 	list := ui.box("gdm_members", .{.Scroll_Y, .Clip, .Draw_Background});
-	list.semantic_size = .{__IDX__.X = ui.px(MEMBER_LIST_W), __IDX__.Y = ui.pct(1)};
+	list.semantic_size = .[ui.px(MEMBER_LIST_W), ui.pct(1)];
 	list.layout_axis = .Y;
 	list.style.bg = cast(T)("--background-base-lower");
 	ui.signal(list);
@@ -351,7 +351,7 @@ group_dm_members :: (ch: *dc.Channel) {
 	if ui.parent(list) {
 		spacer(.Y, 8);
 		gr := row("group");
-		gr.semantic_size = .{__IDX__.X = ui.pct(1), __IDX__.Y = ui.px(40)};
+		gr.semantic_size = .[ui.pct(1), ui.px(40)];
 		gr.cross_align = .End;
 		if ui.parent(gr) {
 			spacer(.X, 16);
@@ -366,7 +366,7 @@ group_dm_members :: (ch: *dc.Channel) {
 					item := ui.top_parent().last;
 					if ui.parent(item) {
 						c := ui.box("crown", .{.Floating_X, .Floating_Y});
-						c.semantic_size = .{__IDX__.X = ui.px(14), __IDX__.Y = ui.px(14)};
+						c.semantic_size = .[ui.px(14), ui.px(14)];
 						name_w: float32 = 0;
 						name_w = cast(float32)(len(dc.user_name(s, uid))) * 8.2;
 						c.fixed_pos = .{8 + 8 + 32 + 12 + name_w + 4, 15};

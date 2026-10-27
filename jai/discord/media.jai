@@ -338,7 +338,7 @@ avatar_url :: (user_id: Snowflake, avatar_hash: string, size := 80, animate := f
 default_avatar_url :: (user_id: Snowflake, discriminator: string, allocator := temp) -> string {
 	idx := 0;
 	if discriminator == "0" || discriminator == "" {
-		idx = cast(int)((cast(u64)(user_id) >> 22) % 6);
+		idx = cast(int)(((cast(u64)(user_id)) >> 22) % 6);
 	} else {
 		d, _ := strconv.parse_int(discriminator);
 		idx = d % 5;

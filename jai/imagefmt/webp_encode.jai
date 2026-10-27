@@ -1,7 +1,4 @@
 // vendor/libwebp: the library (fc_libwebp.sources) and its wrapper (fc_libwebp.c).
-#if OS == .WINDOWS {
-} else {
-}
 	fc_webp_lossless :: (rgba: *u8, w: s32, h: s32, icc: *u8, icc_len: u64, out: **u8) -> u64 #foreign webp;
 	fc_webp_free :: (p: *void) #foreign webp;
 
@@ -13,9 +10,9 @@
 encode_webp_lossless :: (rgba: []u8, w: int, h: int, icc: []u8 = .{}, allocator := context.allocator) -> []u8 {
 	assert(len(rgba) >= w * h * 4);
 	p: *u8;
-	n := fc_webp_lossless(raw_data(rgba), cast(s32)(w), cast(s32)(h), raw_data(icc), len(icc), *p);
+	n := fc_webp_lossless(raw_data(rgba), cast(s32)(w), cast(s32)(h), raw_data(icc), cast(u64) len(icc), *p);
 	if n == 0 { return .{}; }
 	defer fc_webp_free(p);
-	return clone(sub(p, 0, n), allocator);
+	return clone(sub(p, 0, cast(int) n), allocator);
 }
 

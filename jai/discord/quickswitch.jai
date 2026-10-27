@@ -82,7 +82,7 @@ qs_results :: (c: *Client, body: V, shown: int) {
 		m := vmap(g);
 		if vget(m, "icon") != null { continue; }
 		id := fsnow(m, "id");
-		if id == 0 || __MAPIDX__(c.quick_switcher.fetched|id) { continue; }
+		if id == 0 || get(c.quick_switcher.fetched, id) { continue; }
 		at(*c.quick_switcher.fetched, id).* = true;
 		query_add_snow(*q, "game_ids", id);
 		n += 1;

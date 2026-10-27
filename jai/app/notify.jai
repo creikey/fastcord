@@ -8,7 +8,7 @@
 // "Author (#channel, Parent)" / "Author (Group)" / "Author". The dock badge
 // shows the total unread mention count.
 
-SUPPRESS_NOTIFICATIONS :: cast(u64)(1) << 12;
+SUPPRESS_NOTIFICATIONS :: (cast(u64)(1)) << 12;
 #scope_file
 
 Notify_State :: struct {
@@ -24,7 +24,7 @@ notify_tick :: () {
 	if app.client == null { return; }
 	s := store();
 	for * m: app_new_messages() {
-		if m.flags & SUPPRESS_NOTIFICATIONS != 0 { continue; }
+		if (m.flags & SUPPRESS_NOTIFICATIONS) != 0 { continue; }
 		if app.focused && m.channel_id == app.view.channel { continue; }
 		if s.settings.status == .Dnd || streamer_disable_notifications() { continue; }
 		{ r, ok := map_find(s.relationships, m.author_id);

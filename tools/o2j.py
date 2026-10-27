@@ -1133,7 +1133,7 @@ def conv_for_(items, i, cx, label=None):
             m3 = re.fullmatch(re.escape(v) + r' \+= 1', pt)
             m4 = re.fullmatch(re.escape(v) + r' (>=|>) (.+)', ct)
             m5 = re.fullmatch(re.escape(v) + r' -= 1', pt)
-            assigns = assigns_var(items[j], v)
+            assigns = assigns_var(items[j], v) or '&&' in ct or '||' in ct
             if m2 and m3 and not assigns:
                 a = conv_s(init[2:], cx).strip()
                 b = conv_s(cond[2:], cx).strip()
@@ -1145,7 +1145,7 @@ def conv_for_(items, i, cx, label=None):
                 b = conv_s(cond[2:], cx).strip()
                 if m4.group(1) == '>': b = b + '+1' if re.fullmatch(r'[\w.()\[\]]+', b) else '(' + b + ')+1'
                 body, k = body_or_do(items, j, cx)
-                return pre + f'for < {rn(v)}: {a}..{b}' + body, k
+                return pre + f'for < {rn(v)}: {b}..{a}' + body, k
         # general: { init; while cond { body; post } } with continue -> { post; continue; }
         posttxt = conv_stmt(post, cx).strip() if post else ''
         cx.loop_stack.append(posttxt)

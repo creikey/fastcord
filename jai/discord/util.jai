@@ -80,7 +80,7 @@ nonce_at :: (g: *Nonce_Gen, ms: s64) -> Snowflake {
 	}
 	d := ms - DISCORD_EPOCH_MS;
 	if d < 0 { d = 0; }
-	s := cast(Snowflake)(cast(u64)(d) << 22 + g.seq);
+	s := cast(Snowflake)(((cast(u64)(d)) << 22) + g.seq);
 	g.seq += 1;
 	return s;
 }
@@ -92,7 +92,7 @@ nonce_next :: (g: *Nonce_Gen) -> Snowflake {
 snowflake_from_ms :: (ms: s64) -> Snowflake {
 	d := ms - DISCORD_EPOCH_MS;
 	if d <= 0 { return 0; }
-	return cast(Snowflake)(cast(u64)(d) << 22);
+	return cast(Snowflake)((cast(u64)(d)) << 22);
 }
 
 snowflake_string :: (id: Snowflake, allocator := temp) -> string {

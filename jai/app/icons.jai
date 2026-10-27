@@ -61,7 +61,7 @@ icon_draw :: (b: *ui.Box, user: *void) {
 // A size x size box drawing the named icon tinted with color.
 icon :: (id: string, name: string, size: float32, color: ui.Color, flags: ui.Box_Flags = .{}) -> *ui.Box {
 	b := ui.box(id, flags);
-	b.semantic_size = .{__IDX__.X = ui.px(size), __IDX__.Y = ui.px(size)};
+	b.semantic_size = .[ui.px(size), ui.px(size)];
 	set_icon(b, name, color);
 	return b;
 }

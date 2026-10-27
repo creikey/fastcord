@@ -199,7 +199,7 @@ write_big_decimal :: (sb: *strings.Builder, negative: bool, digits: []u8) {
 		rem := 0;
 		{ i := n - 1;
 		while i >= 0 {
-			cur := rem << 8 | cast(int)(tmp[i]);
+			cur := (rem << 8) | (cast(int)(tmp[i]));
 			tmp[i] = cast(u8)(cur / 10);
 			rem = cur % 10;
 			i -= 1;
@@ -208,7 +208,7 @@ write_big_decimal :: (sb: *strings.Builder, negative: bool, digits: []u8) {
 		while n > 0 && tmp[n - 1] == 0 { n -= 1; }
 	}
 	if negative { strings.write_byte(sb, #char "-"); }
-	for < i: len(out) - 1..0 { strings.write_byte(sb, get(out, i)); }
+	for < i: 0..len(out) - 1 { strings.write_byte(sb, get(out, i)); }
 }
 
 HEX := "0123456789abcdef";
@@ -426,7 +426,7 @@ json_hex4 :: (p: *Json_Parser) -> u32, bool {
 	for i: 0..3 {
 		h := hexval(p.s[p.pos + i]);
 		if h < 0 { return 0, false; }
-		r = r << 4 | cast(u32)(h);
+		r = (r << 4) | (cast(u32)(h));
 	}
 	p.pos += 4;
 	return r, true;

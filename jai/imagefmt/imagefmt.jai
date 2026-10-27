@@ -89,7 +89,6 @@ decode_impl :: (data: []u8, allocator: Allocator, max_pixels: int, first_only: b
 		delete(c.frames);
 		return .{}, err;
 	}
-	shrink(*c.frames);
 	img.frames = view(c.frames);
 	if len(img.frames) == 1 { img.loop_count = 1; }
 	return img, .None;
@@ -97,7 +96,7 @@ decode_impl :: (data: []u8, allocator: Allocator, max_pixels: int, first_only: b
 
 check_size :: (c: *Decode_Ctx, w: int, h: int) -> Error {
 	if w <= 0 || h <= 0 { return .Corrupt; }
-	if w > 1 << 16 || h > 1 << 16 || w * h > c.max_pixels { return .Too_Large; }
+	if w > (1 << 16) || h > (1 << 16) || w * h > c.max_pixels { return .Too_Large; }
 	return .None;
 }
 
@@ -110,8 +109,8 @@ push_frame :: (c: *Decode_Ctx, pixels: []u8, duration_ms: int, take := false) ->
 	}
 	p := pixels;
 	if !take {
-		q, aerr := make_slice(u8, len(pixels), c.allocator);
-		if aerr != null { return .Out_Of_Memory; }
+		q := make_slice(u8, len(pixels), c.allocator);
+		if !q.data { return .Out_Of_Memory; }
 		copy(q, pixels);
 		p = q;
 	}
@@ -122,8 +121,8 @@ push_frame :: (c: *Decode_Ctx, pixels: []u8, duration_ms: int, take := false) ->
 }
 
 alloc_pixels :: (c: *Decode_Ctx, w: int, h: int) -> []u8, Error {
-	p, aerr := make_slice(u8, w * h * 4, c.allocator);
-	if aerr != null { return .{}, .Out_Of_Memory; }
+	p := make_slice(u8, w * h * 4, c.allocator);
+	if !p.data { return .{}, .Out_Of_Memory; }
 	return p, .None;
 }
 
@@ -137,7 +136,7 @@ blend_over :: inline (src: [4]u8, dst: [4]u8) -> [4]u8 #no_context {
 	da := cast(u32)(dst[3]);
 	dfa := (da * (256 - sa)) >> 8;
 	ba := sa + dfa;
-	scale := (cast(u32)(1) << 24) / ba;
+	scale := ((cast(u32)(1)) << 24) / ba;
 	r: [4]u8;
 	for i: 0..2 {
 		r[i] = cast(u8)(((cast(u32)(src[i]) * sa + cast(u32)(dst[i]) * dfa) * scale) >> 24);
@@ -146,10 +145,10 @@ blend_over :: inline (src: [4]u8, dst: [4]u8) -> [4]u8 #no_context {
 	return r;
 };
 
-be16 :: inline (p: []u8) -> int #no_context {return cast(int)(p[0]) << 8 | cast(int)(p[1]);};
-be32 :: inline (p: []u8) -> int #no_context {return cast(int)(p[0]) << 24 | cast(int)(p[1]) << 16 | cast(int)(p[2]) << 8 | cast(int)(p[3]);};
-le16i :: inline (p: []u8) -> int #no_context {return cast(int)(p[0]) | cast(int)(p[1]) << 8;};
-le24i :: inline (p: []u8) -> int #no_context {return cast(int)(p[0]) | cast(int)(p[1]) << 8 | cast(int)(p[2]) << 16;};
-le32i :: inline (p: []u8) -> int #no_context {return cast(int)(p[0]) | cast(int)(p[1]) << 8 | cast(int)(p[2]) << 16 | cast(int)(p[3]) << 24;};
+be16 :: inline (p: []u8) -> int #no_context {return ((cast(int)(p[0])) << 8) | (cast(int)(p[1]));};
+be32 :: inline (p: []u8) -> int #no_context {return ((cast(int)(p[0])) << 24) | ((cast(int)(p[1])) << 16) | ((cast(int)(p[2])) << 8) | (cast(int)(p[3]));};
+le16i :: inline (p: []u8) -> int #no_context {return (cast(int)(p[0])) | ((cast(int)(p[1])) << 8);};
+le24i :: inline (p: []u8) -> int #no_context {return (cast(int)(p[0])) | ((cast(int)(p[1])) << 8) | ((cast(int)(p[2])) << 16);};
+le32i :: inline (p: []u8) -> int #no_context {return (cast(int)(p[0])) | ((cast(int)(p[1])) << 8) | ((cast(int)(p[2])) << 16) | ((cast(int)(p[3])) << 24);};
 #scope_export
 

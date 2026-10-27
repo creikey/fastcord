@@ -101,8 +101,8 @@ snowflake_ms :: (s: string) -> s64 {
 
 // classify_snowflake returns the replacement for a snowflake string ("" = keep).
 classify_snowflake :: (c: *Ctx, s: string) -> string {
-	if __MAPIDX__(c.allow|s) { return ""; }
-	if __MAPIDX__(c.others|s) { return placeholder(c, "user", s); }
+	if get(c.allow, s) { return ""; }
+	if get(c.others, s) { return placeholder(c, "user", s); }
 	ms := snowflake_ms(s);
 	if ms == 0 { return ""; }
 	if c.run_start_ms > 0 && ms >= c.run_start_ms - 120_000 { return placeholder(c, "new", s); }
@@ -294,7 +294,7 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
 		{ _, has := etf.map_get(x, "username");
 		if has {
 			{ id := map_str(x, "id");
-			if id != "" && __MAPIDX__(c.others|id) { foreign_user = true; } }
+			if id != "" && get(c.others, id) { foreign_user = true; } }
 		} }
 		foreign_author := false;
 		{ a, has := etf.map_get(x, "author");
@@ -302,7 +302,7 @@ scrub_value :: (c: *Ctx, v: etf.Value, key: string) -> etf.Value {
 			{ am, is_map := a.map, a.kind == .Map;
 			if is_map {
 				{ id := map_str(am, "id");
-				if id != "" && __MAPIDX__(c.others|id) { foreign_author = true; } }
+				if id != "" && get(c.others, id) { foreign_author = true; } }
 			} }
 		} }
 		out := make_slice(etf.Pair, len(x));
@@ -331,7 +331,7 @@ collect_foreign :: (c: *Ctx, v: etf.Value) {
 		{ _, has := etf.map_get(x, "username");
 		if has {
 			{ id := map_str(x, "id");
-			if is_snowflake_digits(id) && !__MAPIDX__(c.allow|id) { at(*c.others, clone(id)).* = true; } }
+			if is_snowflake_digits(id) && !get(c.allow, id) { at(*c.others, clone(id)).* = true; } }
 		} }
 		for p: x { collect_foreign(c, p.value); }
 	}

@@ -24,8 +24,8 @@ read_varint :: (r: *Reader) -> u64, bool {
 	while r.pos < len(r.buf) && shift < 64 {
 		b := r.buf[r.pos];
 		r.pos += 1;
-		v |= cast(u64)(b & 0x7f) << shift;
-		if b & 0x80 == 0 { return v, true; }
+		v |= (cast(u64)(b & 0x7f)) << shift;
+		if (b & 0x80) == 0 { return v, true; }
 		shift += 7;
 	}
 	return 0, false;
@@ -44,11 +44,11 @@ next :: (r: *Reader) -> Field, bool {
 		__v4, __e3 := read_varint(r); if failed(__e3) return f, __e3; f.value = __v4;
 	case .I64;
 		if r.pos + 8 > len(r.buf) { return .{}, false; }
-		for i: 0..7 { f.value |= cast(u64)(r.buf[r.pos + i]) << (8 * cast(u64)(i)); }
+		for i: 0..7 { f.value |= (cast(u64)(r.buf[r.pos + i])) << (8 * cast(u64)(i)); }
 		r.pos += 8;
 	case .I32;
 		if r.pos + 4 > len(r.buf) { return .{}, false; }
-		for i: 0..3 { f.value |= cast(u64)(r.buf[r.pos + i]) << (8 * cast(u64)(i)); }
+		for i: 0..3 { f.value |= (cast(u64)(r.buf[r.pos + i])) << (8 * cast(u64)(i)); }
 		r.pos += 4;
 	case .Len;
 		n, __e5 := read_varint(r); if failed(__e5) return f, __e5;
@@ -91,7 +91,7 @@ packed_fixed64 :: (b: []u8, allocator := context.allocator) -> []u64 {
 	out := make_slice(u64, len(b) / 8, allocator);
 	for i: 0..len(out)-1 {
 		v: u64;
-		for j: 0..7 { v |= cast(u64)(b[i * 8 + j]) << (8 * cast(u64)(j)); }
+		for j: 0..7 { v |= (cast(u64)(b[i * 8 + j])) << (8 * cast(u64)(j)); }
 		at(*out, i).* = v;
 	}
 	return out;
@@ -110,7 +110,7 @@ write_varint :: (w: *Writer, v: u64) {
 	append(*w.buf, cast(u8)(x));
 }
 
-write_tag :: (w: *Writer, num: u32, wire: Wire_Type) {write_varint(w, cast(u64)(num) << 3 | cast(u64)(wire));}
+write_tag :: (w: *Writer, num: u32, wire: Wire_Type) {write_varint(w, ((cast(u64)(num)) << 3) | (cast(u64)(wire)));}
 
 write_uint :: (w: *Writer, num: u32, v: u64) {
 	write_tag(w, num, .Varint);

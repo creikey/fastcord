@@ -293,7 +293,7 @@ sounds_frame :: () {
 #scope_file
 
 feed :: () {
-	for < i: len(snd.playing) - 1..0 {
+	for < i: 0..len(snd.playing) - 1 {
 		p := *snd.playing[i];
 		if p.pos < len(p.pcm) {
 			n := audio.source_write(p.source, sub_from(p.pcm, p.pos));
@@ -322,8 +322,8 @@ voice_members :: () {
 	now := Map(dc.Snowflake, bool).{};
 	for uid, v: s.voice_states { if v.channel_id == ch && uid != s.me { at(*now, uid).* = true; } }
 	joined, left := false, false;
-	for uid: now { if !__MAPIDX__(snd.members|uid) { joined = true; } }
-	for uid: snd.members { if !__MAPIDX__(now|uid) { left = true; } }
+	for uid: now { if !get(snd.members, uid) { joined = true; } }
+	for uid: snd.members { if !get(now, uid) { left = true; } }
 	if joined { sound_play("user_join"); } else if left { sound_play("user_leave"); }
 	clear(*snd.members);
 	for uid: now { at(*snd.members, uid).* = true; }

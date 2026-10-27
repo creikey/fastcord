@@ -89,7 +89,7 @@ stream_init :: (d: *Stream_Decoder, allocator := context.allocator, max_window :
 		return;
 	}
 	log: s32 = 10;
-	while (1 << cast(u64)(log)) < max_window { log += 1; }
+	while (1 << (cast(u64)(log))) < max_window { log += 1; }
 	ZSTD_DCtx_setParameter(d.dctx, D_WINDOW_LOG_MAX, log);
 }
 
