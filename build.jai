@@ -17,7 +17,7 @@ build :: () {
     args := get_build_options().compile_time_command_line;
     if args.count && args[args.count-1] == "linux" { LINUX = true; args.count -= 1; }
     target := ifx args.count then args[0] else "app";
-    make_directory_if_it_does_not_exist(OBJ());
+    make_directory_if_it_does_not_exist(OBJ(), recursive = true);
     if !build_c() { log_error("C build failed"); compiler_set_workspace_status(.FAILED); return; }
     APP :: "app :: #import \"app\"; main :: () { app.main(); }";
     ok := true;
@@ -341,9 +341,12 @@ source_lists :: () -> [..]string {
     }
     return out;
 }
+// A vendor/<lib>/.linux file marks a library only the Linux build uses (FreeType, HarfBuzz).
 vendor_dirs :: () -> [..]string {
     out: [..]string;
-    visit_files("vendor", false, *out, (info: *File_Visit_Info, out: *[..]string) { array_add(out, copy_string(info.full_name)); }, visit_files = false, visit_directories = true);
+    visit_files("vendor", false, *out, (info: *File_Visit_Info, out: *[..]string) {
+        if LINUX || !file_exists(tprint("%/.linux", info.full_name)) array_add(out, copy_string(info.full_name));
+    }, visit_files = false, visit_directories = true);
     return out;
 }
 obj_of :: (src: string) -> string { return tprint("%/%.o", OBJ(), path_strip_extension(path_filename(src))); }

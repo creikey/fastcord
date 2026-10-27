@@ -1,0 +1,1 @@
+Linux only: build.jai builds this library for the Linux target and skips it elsewhere.

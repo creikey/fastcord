@@ -28,7 +28,7 @@ env_var :: (name: string) -> string {
 fonts_load :: () {
 	weights := gfx.Font_Weight.[.Regular, .Medium, .Semibold, .Bold, .Regular, .Regular];
 	for * fonts it.* = gfx.font_system("system", weights[it_index]);
-	fonts[Font_Id.Mono] = gfx.font_system(ifx OS == .WINDOWS then "Consolas" else "Menlo");
+	fonts[Font_Id.Mono] = gfx.font_system(ifx OS == .WINDOWS then "Consolas" else ifx OS == .LINUX then "monospace" else "Menlo");
 	fonts[Font_Id.Italic] = gfx.font_system("system", .Regular, italic = true);
 	// gg sans is fetched from discord.com/assets at runtime (as the official client does) and cached
 	// here; until then the system font stands in.
