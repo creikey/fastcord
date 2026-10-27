@@ -10,9 +10,15 @@ MSG_EDIT_PAD_R :: 23; // the inline edit form ends 23px from the item edge
 MSG_CALL :: 3; // message type CALL
 MSG_PIN :: 6; // CHANNEL_PINNED_MESSAGE
 MSG_FRIEND_ACCEPTED :: 67; // FRIEND_REQUEST_ACCEPTED (DMs)
+MSG_RECIPIENT_ADD :: 1; // group DMs: added / removed / left, name and icon changes
+MSG_RECIPIENT_REMOVE :: 2;
+MSG_NAME_CHANGE :: 4;
+MSG_ICON_CHANGE :: 5;
 
 // Drawn as a one-line notice (system_notice), not a message with an avatar.
-is_notice :: (kind: int) -> bool { return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_FRIEND_ACCEPTED; }
+is_notice :: (kind: int) -> bool {
+	return kind == MSG_CALL || kind == MSG_PIN || kind == MSG_FRIEND_ACCEPTED || (kind >= MSG_RECIPIENT_ADD && kind <= MSG_ICON_CHANGE);
+}
 CALL_ROW_H :: 26; // call notice content row (official item: 2 + 26 + 2)
 COMPOSER_H :: 58; // official form height (1px border included): 22px line + 18px padding
 GROUP_WINDOW_MS :: 7 * 60 * 1000; // messages from the same author within 7 minutes group
@@ -792,8 +798,16 @@ system_notice :: (m: *dc.Message) {
 		g.semantic_size = .[ui.px(MSG_GUTTER), ui.px(CALL_ROW_H)];
 		pin := m.kind == MSG_PIN;
 		friend := m.kind == MSG_FRIEND_ACCEPTED;
+		ic_name, ic_color := "phone", T("--icon-feedback-positive");
+		if m.kind == {
+			case MSG_PIN; ic_name, ic_color = "pin", T("--text-muted");
+			case MSG_FRIEND_ACCEPTED; ic_name = "user-check";
+			case MSG_RECIPIENT_ADD; ic_name = "arrow-large-right";
+			case MSG_RECIPIENT_REMOVE; ic_name, ic_color = "arrow-large-left", T("--status-danger");
+			case MSG_NAME_CHANGE; #through; case MSG_ICON_CHANGE; ic_name, ic_color = "pencil", T("--text-muted");
+		}
 		{ ui.parent(g); defer ui.pop_parent();
-			ic := icon("ic", ifx pin then "pin" else ifx friend then "user-check" else "phone", 16, ifx pin then T("--text-muted") else T("--icon-feedback-positive"));
+			ic := icon("ic", ic_name, 16, ic_color);
 			ic.flags |= .Floating_X | .Floating_Y;
 			ic.fixed_pos = .{28, (CALL_ROW_H - 16) / 2};
 		}
@@ -813,6 +827,29 @@ system_notice :: (m: *dc.Message) {
 				add(*spans, muted, ifx mine then " They said: " else " You said: ");
 				add(*spans, strong, m.content);
 			}
+		} else if m.kind == MSG_RECIPIENT_ADD || m.kind == MSG_RECIPIENT_REMOVE {
+			// the other user is the first mention; removing yourself is leaving
+			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			other := ifx m.mentions.count then m.mentions[0] else 0;
+			if m.kind == MSG_RECIPIENT_REMOVE && (other == 0 || other == m.author_id) {
+				add(*spans, muted, " left the group.");
+			} else {
+				add(*spans, muted, ifx m.kind == MSG_RECIPIENT_ADD then " added " else " removed ");
+				add(*spans, strong, name_in(other, m.channel_id));
+				add(*spans, muted, ifx m.kind == MSG_RECIPIENT_ADD then " to the group." else " from the group.");
+			}
+		} else if m.kind == MSG_NAME_CHANGE {
+			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			if m.content == "" { add(*spans, muted, " removed the custom group name."); }
+			else {
+				ch := dc.channel_get(store(), m.channel_id);
+				add(*spans, muted, ifx ch && ch.kind == .Group_DM then " changed the group name: " else " changed the channel name: ");
+				add(*spans, strong, m.content);
+				add(*spans, muted, ".");
+			}
+		} else if m.kind == MSG_ICON_CHANGE {
+			add(*spans, strong, name_in(m.author_id, m.channel_id));
+			add(*spans, muted, " changed the group icon.");
 		} else if pin {
 			add(*spans, strong, name_in(m.author_id, m.channel_id));
 			add(*spans, muted, " pinned ");
