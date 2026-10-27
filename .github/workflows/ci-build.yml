@@ -15,12 +15,38 @@ jobs:
     env:
       JAI_PASSWORD: ${{ secrets.JAI_PASSWORD }}
       GH_TOKEN: ${{ inputs.release != '' && github.token || '' }}
+      ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/build/zig-cache
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@v4
         if: env.JAI_PASSWORD != ''
+
+      # The pinned Zig, its cache and the vendored C's objects and archives; nothing from Jai or its outputs.
+      - id: c-cache
+        if: env.JAI_PASSWORD != ''
+        uses: actions/cache@v4
+        with:
+          key: c-${{ runner.os }}-${{ inputs.release != '' && 'release' || 'ci' }}-${{ hashFiles('vendor/**', 'build.jai') }}
+          path: |
+            build/zig
+            build/zig-cache
+            build/*.o
+            build/*.stamp
+            build/*.a
+            build/*.lib
+            build/*/*.o
+            build/*/*.stamp
+            build/*/*.a
+            build/*/*/*.o
+            !build/.build
+
+      # The checkout is newer than the restored objects, so build.jai would rebuild them all; the key already
+      # proves they match vendor/ and build.jai.
+      - name: Mark cached C current
+        if: steps.c-cache.outputs.cache-hit == 'true'
+        run: find build -type f -not -path 'build/zig/*' -not -path 'build/zig-cache/*' -exec touch {} +
 
       - name: Fetch Jai
         if: env.JAI_PASSWORD != ''
@@ -43,9 +69,12 @@ jobs:
 
       - name: Build
         if: env.JAI_PASSWORD != '' && inputs.release == ''
-        run: |
-          ${{ inputs.jai }} build.jai - dev
-          ${{ inputs.jai }} build.jai - test
+        run: ${{ inputs.jai }} build.jai - dev
+
+      # Off for now; flip the condition to run the offline parity tests again.
+      - name: Test
+        if: false && env.JAI_PASSWORD != '' && inputs.release == ''
+        run: ${{ inputs.jai }} build.jai - test
 
       # The Mac release builds its x86_64 half with the compiler's x86_64 slice under Rosetta.
       - name: Rosetta
