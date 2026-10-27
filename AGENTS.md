@@ -5,8 +5,10 @@ the Jai is written. This file lists what is easy to miss.
 
 - `TODO.md` tracks all work. Read it before starting; add new tasks in the same change. When you finish
   one, don't delete it: mark it `[x]` and move it to the bottom, so the file also records what's done.
-  For every item you check off, find and add one new item in the same commit: a real gap from the
-  official client or a bug, confirmed in the code and not already listed.
+  For every item you check off, look for one new item to add in the same commit: a bug, or a gap from
+  the official client that a daily user would notice. Confirm it in the code and check it isn't already
+  listed. If a short search finds nothing that clears that bar, add nothing and say so: fastcord is
+  near complete there, and filler (rare settings, cosmetic nits, telemetry) only bloats the list.
 - No ads, ever: never show Nitro upsells, the Shop, Boost prompts or any other Discord promotion, even
   when copying official UI.
 - When you notice a missing feature or a gap from the official client, add it to `TODO.md` without

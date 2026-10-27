@@ -1,9 +1,30 @@
 # TODO
 
+- [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
+- [ ] Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
+- [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
+- [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
+- [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
+- [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.
+- [ ] Undo: Mark As Read (server menu, Shift+Escape, Inbox "Mark All as Read", Inbox row check, the new-messages bar, threads) should restore the previous read states on undo, using the Mark Unread ack; Inbox mention "x" should hold its DELETE.
+- [ ] Undo: relationships: Remove Friend, Unblock, Block, Ignore or cancel a friend request, all sent at once today with no confirm except Block.
+- [ ] Undo: closing a DM and leaving a group DM (the row's "x" leaves a group DM with no confirm at all, `view_home.jai`).
+- [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
+- [ ] Undo: the trash on a staged upload deletes the uploaded file at once; keep the card restorable and hold the remote delete.
+- [ ] Undo: dragging the last server out of a rail folder deletes the folder with its name and colour; let undo restore it.
+- [ ] Undo: one-click toggles that lose state: Unmute (drops a timed mute's end), notification-level radios, and event "Interested".
+- [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
+- [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
+- [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
+- [ ] No lost typing: closing a dialog keeps what was typed until it's submitted. Covers Create Event, New Thread, Create Channel, the Group DM picker, Modify Attachment, account edit and friend nickname; restore it on reopen. Profile and Channel Settings "Reset" become undoable.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Accounts: support full account switching; today it assumes a single token.
 - [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
+- [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
+- [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
+- [ ] GIFs (fastcord-only): search Tenor as well as Klipy and merge the results. Discord's `/gifs/search` now returns Klipy only (`expressions.jai` `gifs_search` sends no provider). Either query Tenor's own API directly (needs an API key; check it's still offered), or add `provider=tenor` to Discord's endpoint if it still honours it. That second route makes fastcord's traffic differ from the official client's, so prefer the direct one. Sent Tenor links already embed fine.
+- [ ] GIFs: test search live against the official client: results and their order for the same queries, typing and debounce feel, suggestions, empty and error states, and scrolling a long result list. Fix whatever falls short.
 - [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
 - [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
@@ -12,7 +33,7 @@
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
 - [ ] Links: message links (`discord.com/channels/<g>/<c>/<m>`, also `ptb.` / `canary.` / `discordapp.com`) open in the browser instead of jumping to the message in fastcord (`view_chat.jai`: only invites are handled in-app).
-- [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`).
+- [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
@@ -25,8 +46,9 @@
 - [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
 - [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
-- [ ] Tray: add a system tray icon (unread badge, menu with Open and Quit); closing the window hides it to the tray instead of quitting, as the official client does.
+- [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Lotus Mode (fastcord-only): one setting that silences every notification sound and hides all notification badges and the white unread dots beside channels and servers, so the client never grabs attention.
+- [ ] Connection: when the gateway drops, nothing shows it; the app silently goes stale while `gateway.jai` reconnects (no UI reads `Gw_State`). Show the official client's "Connecting..." / offline state.
 - [ ] Free emoji (fastcord-only, like Vencord's FakeNitro): let a non-Nitro user send any emoji, including the picker's locked ones (`pickers_emoji.jai`), from any server. Send it as a masked CDN link (`[name](https://cdn.discordapp.com/emojis/<id>.webp?size=48&name=<name>)`, `.gif`/`animated=true` when animated), so official clients show the image. Copy the exact format from Vencord's `src/plugins/fakeNitro` so Vencord users see real emoji. On receipt, draw those links as inline emoji (the official client shows a link and an image embed), so FakeNitro and fastcord messages look native. Real emoji stay real when the user can use them.
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
@@ -35,6 +57,7 @@
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
 - [ ] Search: clicking the search bar again while results are open crashes.
+- [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
 - [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
 - [ ] CI: slim the Jai zip on the Fly server (drop `modules/Bindings_Generator`, ~360 MB of libclang) so each run downloads less.
@@ -43,7 +66,7 @@
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
 - [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
-- [ ] Markdown: masked links `[text](url)` and numbered lists `1. item` aren't parsed (`markdown.jai`).
+- [ ] Markdown: numbered lists `1. item` aren't parsed (`markdown.jai`).
 - [ ] Markdown: slash-command mentions `</name:id>` and `<id:customize|browse|guide>` stay raw text (`markdown.jai` `try_entity`).
 - [ ] Markdown: timestamp styles `T`, `D`, `f`, `F` and `R` (relative, "in 3 hours") fall back to one format (`view_chat.jai` `format_unix`).
 - [ ] Markdown: a bare URL loses a balanced closing `)`, e.g. `https://en.wikipedia.org/wiki/Foo_(bar)` (`markdown.jai` trailing-punctuation trim).
@@ -56,14 +79,17 @@
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
 - [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
-- [ ] Embeds: YouTube and other video embeds show only a small side thumbnail, with no large preview or player.
 - [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
 - [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
 - [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
 - [ ] Attachments: file cards have no download button, the link-coloured filename does nothing, and text/code files get no inline preview.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
-- [ ] Media: the audio player has no seek bar or volume; the video player lacks volume, fullscreen and download.
+- [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
+- [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
+- [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
+- [ ] Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
+- [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
 - [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
 - [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
 - [ ] Reactions: super (burst) reactions look like normal ones; `burst_count` / `me_burst` are parsed but unused.
@@ -78,7 +104,6 @@
 - [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
 - [ ] Replies: the quoted preview only searches loaded history, so a reply to an older message says "Original message was deleted" (`referenced_message` isn't stored). The quote is raw text (`<@id>` and markdown unrendered), and sticker- or embed-only originals get no placeholder.
 - [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
-- [ ] History: jumping to an old message merges the `around=` page into history without filling the gap to newer messages (no `after=` paging), so the messages between vanish (`features.jai` `apply_around`).
 - [ ] Scrolling: Page Up / Page Down don't scroll the message list.
 - [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
@@ -136,6 +161,8 @@
 - [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
+- [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
+- [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
 - [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
@@ -157,12 +184,14 @@
 - [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
 - [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
 - [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
-- [ ] Appearance: no compact mode, chat font scaling, zoom (and no Ctrl +/-/0), message spacing, or accessibility options (reduced motion, saturation, role colours).
+- [ ] Zoom: Ctrl+= / Ctrl+- / Ctrl+0 zoom the whole UI in, out and back to 100%, and a "Zoom Level" slider sits in the settings page where the official client has it (check whether that's Appearance or Accessibility before building). Match the official steps and range, the browser zoom levels from 50% to 200%, by checking the bundle. Scale on top of the DPI scale and persist it. Today none of it exists (no `.Equals` / `.Minus` handling in `src/app` or `src/ui`).
+- [ ] Appearance: no compact mode, chat font scaling, message spacing, or accessibility options (reduced motion, saturation, role colours).
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Keybinds: no Ctrl+Shift+M (mute) or Ctrl+Shift+D (deafen).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
 - [ ] Voice: the device dropdown in Voice & Video doesn't close on an outside click, Escape or page switch.
+- [ ] Voice: a chosen audio device that is unplugged stays selected by its dead id (`sel_input`/`sel_output` in `audio/darwin.jai`), so the page shows "Default" while capture keeps the old device instead of falling back.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Voice: while deafened the mic button shows unmuted, and clicking it only flips `self_mute` instead of undeafening (`views.jai`).
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
@@ -178,3 +207,13 @@
 - [x] Keybinds: Shift+Escape marks the open server read.
 - [x] No ads, ever: never show Nitro upsells, Shop, Boost prompts or any Discord promotion (rule in `AGENTS.md`).
 - [x] Voice: video calls and Go Live on macOS: call view of everyone (tiles, speaking border, focus), camera and screen sharing (H.264/H.265 via VideoToolbox), watching cameras and streams (`src/video`, `src/voice/video.jai`, `view_call.jai`).
+- [x] Markdown: masked links `[text](url)` render as links (messages and embed descriptions), and embed descriptions draw their quotes with a bar.
+- [x] Embeds: proxied video embeds (FxTwitter, Reddit…) play in the card with a large poster instead of a side thumbnail.
+- [x] Media: the video player has volume (slider on hover), mute and fullscreen, and shows its control bar before the first click.
+- [x] Embeds: several embeds sharing one `url` merge into one card with a 2-4 image grid.
+- [x] Embeds: YouTube video embeds show a large poster with a play button that opens the video.
+- [x] Embeds: side thumbnails keep their shape (an IMDb poster was squashed into 80x80).
+- [x] Tray (Windows): a tray icon with a red dot for unread mentions, a click opens the window, the menu has Open and Quit; closing the window hides it to the tray.
+- [x] Read states: regaining focus reports "Ack - Window Focus", and auto-acks use the channel's `last_message_id`.
+- [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
+- [x] Read states: incoming mentions raise the mention count, so opening that channel acks at once (checked live on the test accounts, `build/parity ack_live`).

@@ -601,25 +601,31 @@ ACK_INBOX :: Ack_Location.{"Inbox", "Ack - Inbox Newest Unread Message", "ack_au
 // the chat's new-messages bar "Mark As Read"
 ACK_NEW_MESSAGES_BANNER :: Ack_Location.{"New Messages Banner", "Mark Channel as Read Button", "ack_manual"};
 
-// ack_message schedules the read-state ack like ReadState.ack(): sent after 3 s
-// (immediately when `immediate`), body {token, last_viewed[, flags]}.
+// automatic acks (shouldAutomaticallyAck), tracked like the client's
+ACK_INCOMING_MESSAGE :: Ack_Location.{"Channel", "Ack - Incoming Message", "ack_automatic"};
+ACK_CHANNEL_SCROLL :: Ack_Location.{"Channel", "Ack - Channel Scroll", "ack_automatic"};
+ACK_WINDOW_FOCUS :: Ack_Location.{"Channel", "Ack - Window Focus", "ack_automatic"};
+
+// ack_message moves the read state at once and schedules the POST like ReadState.ack():
+// one timer per channel, due in 3 s, or at once when `immediate` or the channel had
+// mentions. Later acks before it fires only move the message id (the timer and the
+// first ack's location stay). Body {token, last_viewed[, flags]}.
 // location: reported in ack_messages when the ack completes ({}: none).
 ack_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, immediate := false, location := Ack_Location.{}) {
-	due := now_ms() + (ifx immediate then 0 else ACK_DELAY_MS);
-	for * c.pending_acks {
-		if it.channel_id == channel_id {
-			it.message_id = max(it.message_id, message_id);
-			if immediate it.due = due;
-			if location.section it.location = location;
-			return;
-		}
-	}
-	array_add(*c.pending_acks, .{channel_id, message_id, due, location});
 	rs := find_or_add(*c.store.read_states, channel_id);
+	had_mentions := rs.mention_count > 0;
 	rs.channel_id = channel_id;
 	rs.last_message_id = max(rs.last_message_id, message_id);
 	rs.mention_count = 0;
 	rs.manual = false;
+	for * c.pending_acks {
+		if it.channel_id == channel_id {
+			it.message_id = max(it.message_id, message_id);
+			return;
+		}
+	}
+	due := now_ms() + (ifx immediate || had_mentions then 0 else ACK_DELAY_MS);
+	array_add(*c.pending_acks, .{channel_id, message_id, due, location});
 }
 
 flush_due_acks :: (c: *Client, now: s64) {
@@ -860,10 +866,21 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		locks.lock(*c.route_mu);
 		viewing := c.route_channel == fsnow(d, "channel_id");
 		locks.unlock(*c.route_mu);
+		cid, mid := fsnow(d, "channel_id"), fsnow(d, "id");
+		if fsnow(fmap(d, "author"), "id") == c.store.me return;
 		if viewing && c.focused && !c.idle_sent { // shouldAutomaticallyAck: never while idle
-			aid := fsnow(fmap(d, "author"), "id");
-			if aid != c.store.me ack_message(c, fsnow(d, "channel_id"), fsnow(d, "id"));
+			ack_message(c, cid, mid, location = ACK_INCOMING_MESSAGE);
+			return;
 		}
+		// otherwise a message that would notify us raises the mention count (every message
+		// in a private channel; in a guild @me / @everyone; role mentions not modelled)
+		ch := channel_get(*c.store, cid);
+		mentions_me := fbool(d, "mention_everyone");
+		for flist(d, "mentions") if fsnow(vmap(it), "id") == c.store.me mentions_me = true;
+		if !(ch && ch.guild_id == 0) && !mentions_me return;
+		rs := find_or_add(*c.store.read_states, cid);
+		rs.channel_id = cid;
+		if mid > rs.last_message_id rs.mention_count += 1;
 	}
 }
 
@@ -1068,8 +1085,7 @@ on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
 	// Viewing a channel with unread messages acks it (ReadState, 3 s timer),
 	// only while the window has focus (fixtures, unfocused: mark_as_read sends no ack).
 	if channel_unread(*c.store, channel_id) && identity_app_state(*c.id) == .Focused && !c.idle_sent {
-		msgs := messages_get(*c.store, channel_id);
-		if msgs ack_message(c, channel_id, msgs[msgs.count - 1].id);
+		if messages_get(*c.store, channel_id) ack_message(c, channel_id, ch.last_message_id, location = ACK_CHANNEL_SCROLL);
 	}
 }
 

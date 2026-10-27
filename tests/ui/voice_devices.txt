@@ -1,0 +1,11 @@
+# Settings > Voice & Video: "Default" shows the device it resolves to, and the list has one
+# "Default" (the device list doesn't repeat it).
+wait 5
+click 338 683
+wait 20
+click_text "Voice & Video"
+wait 20
+expect_visible "Test Microphone"
+click_text "Test Speakers"
+wait 10
+shot

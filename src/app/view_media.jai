@@ -11,16 +11,21 @@ blobs: Table(string, Blob);
 Inline_Player :: struct {
 	player: *media.Player;
 	url: string;
+	poster: string;
+	size: Vector2; // inline size: the fullscreen view's aspect
 	img: media.Video_Image;
 }
 
-players: Table(dc.Snowflake, Inline_Player); // attachment id -> player
+players: Table(dc.Snowflake, Inline_Player); // attachment id or embed_player_key -> player
 viewer_url: string; // image viewer overlay (the poster for a GIFV)
 viewer_video: string; // GIFV: the looping video
 viewer_link: string; // the media menu's target
 viewer_size: Int2;
 viewer_t: float32;
 audio_ready: bool;
+video_volume: float32 = 1;
+video_muted: bool;
+fullscreen_video: dc.Snowflake; // the player shown fullscreen, 0 if none
 
 blob_get :: (url: string) -> *Blob {
 	b := table_find_pointer(*blobs, url);
@@ -63,7 +68,8 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
-			video_attachment(a, w * sc, h * sc);
+			// poster frame from the media proxy (?format=webp of a video returns a still)
+			video_player(a.id, a.url, attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc, cast(float64) a.duration_secs);
 			spacer(.Y, 4);
 		} else if is_audio(a) {
 			audio_attachment(a);
@@ -104,36 +110,42 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "audio/"); }
 
-// Video attachment: poster until clicked, then plays inline with a control bar.
-video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
-	box := ui.box(tprint("vid%", cast(u64) a.id), .Draw_Background | .Clickable | .Clip);
+// Video attachment or embed video: poster with a play button and the control bar (play, time, seek,
+// volume, fullscreen) until clicked, then plays inline; the bar hides while it plays unhovered. key names
+// its player (an attachment id, or embed_player_key); full draws it in the fullscreen overlay.
+video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: float32, duration: float64 = 0, full := false) -> *ui.Box {
+	box := ui.box(tprint("vid%", cast(u64) key), .Draw_Background | .Clickable | .Clip);
 	box.semantic_size = .[ui.px(w), ui.px(h)];
-	box.style.radius = all4(8);
+	box.style.radius = all4(ifx full then 0.0 else 8.0);
 	box.style.bg = .{0, 0, 0, 1};
 	sig := ui.signal(box);
-	ip := table_find_pointer(*players, a.id);
-	playing := ip != null;
-	if !playing {
-		// poster frame from the media proxy (?format=webp of a video returns a still)
-		set_remote_image(box, attachment_image_url(a, cast(int) w, cast(int) h));
-		if sig.clicked {
-			blob_get(a.url);
-			table_set(*players, a.id, .{url = copy_string(a.url)});
-		}
-	} else {
-		player_open_ready(ip);
-		if ip.player {
-			img := media.player_update(ip.player);
-			if img.y != 0 ip.img = img;
-			if media.player_is_playing(ip.player) app.ui.animating = true;
-			box.custom_draw = video_draw;
-			box.custom_user = cast(*void) cast(u64) a.id;
-			if sig.clicked media.player_toggle(ip.player);
-		}
+	ip := table_find_pointer(*players, key);
+	start :: () #expand {
+		if `ip return;
+		blob_get(url);
+		`ip = table_set(*players, key, .{url = copy_string(url), poster = copy_string(poster), size = .{w, h}});
 	}
+	p := ifx ip then ip.player else null;
+	if p && (full || fullscreen_video != key) {
+		player_open_ready(ip);
+		img := media.player_update(p);
+		if img.y != 0 ip.img = img;
+		if media.player_is_playing(p) app.ui.animating = true;
+		box.custom_draw = video_draw;
+		box.custom_user = cast(*void) cast(u64) key;
+		if sig.clicked media.player_toggle(p);
+	} else {
+		if ip player_open_ready(ip);
+		set_remote_image(box, poster);
+		if sig.clicked start();
+	}
+	if sig.double_clicked {
+		start();
+		fullscreen_video = ifx full then 0 else key;
+	}
+	playing := p != null && media.player_is_playing(p);
 	{ ui.parent(box); defer ui.pop_parent();
-		hovered := sig.hovering;
-		if !playing || (ip.player != null && !media.player_is_playing(ip.player)) {
+		if !playing {
 			pb := ui.box("play", .Draw_Background | .Floating_X | .Floating_Y);
 			pb.semantic_size = .[ui.px(48), ui.px(48)];
 			pb.fixed_pos = .{(w - 48) / 2, (h - 48) / 2};
@@ -146,36 +158,108 @@ video_attachment :: (a: *dc.Attachment, w: float32, h: float32) {
 				set_icon(pi, "play", .{1, 1, 1, 1});
 			}
 		}
-		if playing && ip.player != null && hovered {
-			bar := row("controls", .Draw_Background | .Floating_X | .Floating_Y);
-			bar.semantic_size = .[ui.px(w), ui.px(32)];
-			bar.fixed_pos = .{0, h - 32};
-			bar.style.bg = .{0, 0, 0, 0.6};
-			{ ui.parent(bar); defer ui.pop_parent();
-				spacer(.X, 8);
-				label(tprint("% / %", fmt_clock(media.player_position(ip.player)), fmt_clock(media.player_duration(ip.player))), .Medium, 12, .{1, 1, 1, 1}, 16);
-				spacer(.X, 8);
-				dur := media.player_duration(ip.player);
-				frac := ifx dur > 0 then cast(float32) (media.player_position(ip.player) / dur) else 0;
-				track := ui.box("track", .Draw_Background | .Clickable);
-				track.semantic_size = .[ui.fill(), ui.px(6)];
-				track.style.bg = .{1, 1, 1, 0.3};
-				track.style.radius = all4(3);
-				tsig := ui.signal(track);
-				if tsig.pressed || tsig.dragging {
-					tw := track.rect.x1 - track.rect.x0;
-					if tw > 0 media.player_seek(ip.player, cast(float64) clamp((app.ui.mouse.x - track.rect.x0) / tw, 0, 1) * dur);
-				}
-				{ ui.parent(track); defer ui.pop_parent();
-					fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
-					fill.semantic_size = .[ui.px((track.rect.x1 - track.rect.x0) * frac), ui.px(6)];
-					fill.style.bg = T("--background-brand");
-					fill.style.radius = all4(3);
-				}
-				spacer(.X, 12);
-			}
+		// children take the hover, so test the box's rect
+		if playing && !ui.contains(box.rect, app.ui.mouse) return box;
+		white := ui.Color.{1, 1, 1, 1};
+		bar := row("controls", .Draw_Background | .Floating_X | .Floating_Y);
+		bar.semantic_size = .[ui.px(w), ui.px(40)];
+		bar.fixed_pos = .{0, h - 40};
+		bar.style.bg = .{0, 0, 0, 0.6};
+		ui.parent(bar); defer ui.pop_parent();
+		spacer(.X, 6);
+		if video_button("pp", ifx playing then "pause" else "play") {
+			if p media.player_toggle(p);
+			else start();
 		}
+		pos := ifx p then media.player_position(p) else 0;
+		dur := ifx p then media.player_duration(p) else duration;
+		spacer(.X, 4);
+		label(tprint("% / %", fmt_clock(pos), ifx dur > 0 then fmt_clock(dur) else "-:--"), .Mono, 13, white, 16);
+		spacer(.X, 12);
+		seek := slider("seek", ifx dur > 0 then cast(float32) (pos / dur) else 0, ui.fill());
+		if p && seek >= 0 media.player_seek(p, cast(float64) seek * dur);
+		spacer(.X, 8);
+		// volume: the icon mutes; hovering the group shows its slider
+		vg := row("vol");
+		vg.semantic_size = .[ui.children(), ui.px(32)];
+		hover_vol := ui.contains(vg.rect, app.ui.mouse);
+		{ ui.parent(vg); defer ui.pop_parent();
+			if hover_vol {
+				v := slider("vs", ifx video_muted then 0 else video_volume, ui.px(64));
+				if v >= 0 video_volume_set(v, v == 0);
+				spacer(.X, 4);
+			}
+			if video_button("mute", ifx video_muted || video_volume == 0 then "speaker-slash" else "voice-normal") video_volume_set(ifx video_volume == 0 then 1 else video_volume, !video_muted);
+		}
+		if video_button("full", "fullscreen") {
+			start();
+			fullscreen_video = ifx full then 0 else key;
+		}
+		spacer(.X, 6);
 	}
+	return box;
+}
+
+video_button :: (id: string, name: string) -> bool {
+	b := ui.box(id, .Clickable);
+	b.semantic_size = .[ui.px(32), ui.px(32)];
+	sig := ui.signal(b);
+	ui.parent(b); defer ui.pop_parent();
+	ic := icon("i", name, 20, .{1, 1, 1, ifx sig.hovering then 1.0 else 0.8}, .Floating_X | .Floating_Y);
+	ic.fixed_pos = .{6, 6};
+	return sig.clicked;
+}
+
+// A thin white track filled with the brand colour to frac; returns the new fraction while pressed or
+// dragged, else -1.
+slider :: (id: string, frac: float32, size: ui.Size) -> float32 {
+	track := ui.box(id, .Clickable);
+	track.semantic_size = .[size, ui.px(16)];
+	sig := ui.signal(track);
+	tw := track.rect.x1 - track.rect.x0;
+	ui.parent(track); defer ui.pop_parent();
+	bg := ui.box("bg", .Draw_Background | .Floating_X | .Floating_Y);
+	bg.semantic_size = .[ui.px(tw), ui.px(6)];
+	bg.fixed_pos = .{0, 5};
+	bg.style.bg = .{1, 1, 1, 0.3};
+	bg.style.radius = all4(3);
+	fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
+	fill.semantic_size = .[ui.px(tw * clamp(frac, 0, 1)), ui.px(6)];
+	fill.fixed_pos = .{0, 5};
+	fill.style.bg = T("--background-brand");
+	fill.style.radius = all4(3);
+	if !(sig.pressed || sig.dragging) || tw <= 0 return -1;
+	return clamp((app.ui.mouse.x - track.rect.x0) / tw, 0, 1);
+}
+
+// One volume for every video, like the client's single media volume.
+video_volume_set :: (v: float32, muted: bool) {
+	video_volume, video_muted = v, muted;
+	for * players if it.player {
+		media.player_set_volume(it.player, v);
+		media.player_set_muted(it.player, muted);
+	}
+}
+
+// The fullscreen player: the window black, the video fit to it; Escape or its button leaves.
+video_fullscreen :: () {
+	ip := table_find_pointer(*players, fullscreen_video);
+	if !ip {
+		fullscreen_video = 0;
+		return;
+	}
+	scrim := ui.box("video_full", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	scrim.style.bg = .{0, 0, 0, 1};
+	ui.signal(scrim);
+	{ ui.parent(scrim); defer ui.pop_parent();
+		sc := min(app.ui.window.x / max(ip.size.x, 1), app.ui.window.y / max(ip.size.y, 1));
+		w, h := ip.size.x * sc, ip.size.y * sc;
+		v := video_player(fullscreen_video, ip.url, ip.poster, w, h, full = true);
+		v.flags |= .Floating_X | .Floating_Y;
+		v.fixed_pos = .{(app.ui.window.x - w) / 2, (app.ui.window.y - h) / 2};
+	}
+	for app.ui.events if it.kind == .Key_Down && it.key == .Escape fullscreen_video = 0;
 }
 
 ensure_audio :: () {
@@ -258,6 +342,21 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 			spacer(.Y, 4);
 			continue;
 		}
+		// images of later embeds with this url join this one's grid (a post with several images)
+		if e.url != "" && e.image_url != "" && i > 0 {
+			merged := false;
+			for j: 0..i - 1 if m.embeds[j].url == e.url && m.embeds[j].image_url != "" { merged = true; break; }
+			if merged continue;
+		}
+		images: [..]*dc.Embed;
+		images.allocator = temp;
+		if e.image_url != "" && e.image_w > 0 for * o, j: m.embeds if j >= i && o.url == e.url && o.image_url != "" && o.image_w > 0 && images.count < 4 {
+			array_add(*images, o);
+			if e.url == "" break;
+		}
+		video := is_discord_media(e.video_url) && (e.video_w > 0 || e.thumbnail_w > 0);
+		// any other video embed (YouTube's iframe url): its thumbnail large, opening the link
+		poster := !video && e.kind == "video" && e.thumbnail_url != "" && e.thumbnail_w > 0;
 		card := row(tprint("embed%", i), .Draw_Background);
 		card.semantic_size = .[ui.px(min(432.0, max_w + 32)), ui.children()];
 		card.cross_align = .Start;
@@ -289,36 +388,93 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				}
 				if e.description != "" {
 					spacer(.Y, 8);
-					d := ui.box("desc", .Wrap_Text | .Selectable_Text);
-					d.semantic_size = .[ui.pct(1), ui.text_size()];
-					d.style.line_height = 18;
-					d.style.text_color = T("--text-default");
-					d.sel_order = cast(u64) m.id * 8 + 7;
-					spans: [..]ui.Span;
-					spans.allocator = temp;
-					for md_parse(e.description) {
-						if it_index > 0 array_add(*spans, .{text = "\n", font = F(.Normal), size = 14});
-						array_add(*spans, ..tokens_to_spans(it.tokens, .Normal, 14, m));
+					// a box per block so quotes get their bar and links their clicks (span ids are
+					// token indices within one block)
+					for blk, bi: md_parse(e.description) {
+						if bi > 0 spacer(.Y, 4);
+						wrap := row(tprint("dblk%", bi));
+						wrap.semantic_size = .[ui.pct(1), ui.children()];
+						wrap.cross_align = .Start;
+						{ ui.parent(wrap); defer ui.pop_parent();
+							if blk.kind == .Quote {
+								wrap.custom_draw = quote_bar_draw;
+								spacer(.X, 12);
+							}
+							d := ui.box("d", .Wrap_Text | .Selectable_Text);
+							d.semantic_size = .[ui.fill(), ui.text_size()];
+							d.style.line_height = 18;
+							d.style.text_color = T("--text-default");
+							d.sel_order = cast(u64) m.id * 8 + 7;
+							if blk.kind == .Code_Block ui.set_spans(d, .[.{text = blk.code, font = F(.Mono), size = 12}]);
+							else ui.set_spans(d, tokens_to_spans(blk.tokens, .Normal, 14, m));
+							handle_span_clicks(d, blk.tokens, m.id);
+						}
 					}
-					ui.set_spans(d, spans);
 				}
-				if e.image_url != "" && e.image_w > 0 {
+				if video {
+					// a proxied video (FxTwitter, Reddit…) plays in the card; YouTube's iframe url doesn't
+					spacer(.Y, 16);
+					w := cast(float32) ifx e.video_w > 0 then e.video_w else e.thumbnail_w;
+					h := cast(float32) ifx e.video_h > 0 then e.video_h else e.thumbnail_h;
+					sc := min(1.0, min(400 / w, 300 / h));
+					video_player(embed_player_key(m, i), e.video_url, e.thumbnail_url, w * sc, h * sc);
+				} else if poster {
+					spacer(.Y, 16);
+					w := cast(float32) e.thumbnail_w;
+					h := cast(float32) e.thumbnail_h;
+					sc := min(400 / w, 300 / h);
+					th := media_box("poster", e.thumbnail_url, "", w * sc, h * sc);
+					th.style.radius = all4(4);
+					{ ui.parent(th); defer ui.pop_parent();
+						pb := ui.box("play", .Draw_Background | .Floating_X | .Floating_Y);
+						pb.semantic_size = .[ui.px(48), ui.px(48)];
+						pb.fixed_pos = .{(w * sc - 48) / 2, (h * sc - 48) / 2};
+						pb.style.radius = all4(24);
+						pb.style.bg = .{0, 0, 0, 0.6};
+						ic := icon("i", "play", 24, .{1, 1, 1, 1}, .Floating_X | .Floating_Y);
+						ic.fixed_pos = .{(w * sc - 24) / 2 + 1, (h * sc - 24) / 2};
+					}
+					sig := ui.signal(th);
+					if sig.clicked open_url(e.url);
+					if sig.right_clicked media_menu_open(e.url, "");
+				} else if images.count == 1 {
 					spacer(.Y, 16);
 					w := cast(float32) e.image_w;
 					h := cast(float32) e.image_h;
 					sc := min(1.0, min(400 / w, 300 / h));
-					img := media_box("img", e.image_url, "", w * sc, h * sc);
-					img.style.radius = all4(4);
-					sig := ui.signal(img);
-					if sig.clicked open_viewer(e.image_url, .{e.image_w, e.image_h});
-					if sig.right_clicked media_menu_open(e.image_url, e.image_url);
+					embed_image("img", e, w * sc, h * sc);
+				} else if images {
+					// the client's mosaic: 2 side by side, 3 as one tall left and two right, 4 in a 2x2
+					spacer(.Y, 16);
+					grid := row("grid");
+					grid.semantic_size = .[ui.px(400), ui.px(300)];
+					ui.parent(grid); defer ui.pop_parent();
+					cw := 198.0;
+					for col: 0..1 {
+						if col spacer(.X, 4);
+						c := ui.box(tprint("c%", col));
+						c.semantic_size = .[ui.px(cw), ui.px(300)];
+						c.layout_axis = .Y;
+						ui.parent(c); defer ui.pop_parent();
+						// column 0: image 0 (and 2 of 4); column 1: image 1 (and 2 of 3, 3 of 4)
+						second := ifx images.count == 4 then col + 2 else ifx images.count == 3 && col == 1 then 2 else -1;
+						ch := ifx second >= 0 then 148.0 else 300.0;
+						embed_image(tprint("g%", col), images[col], cw, ch, cover = true);
+						if second >= 0 {
+							spacer(.Y, 4);
+							embed_image(tprint("g%", second), images[second], cw, ch, cover = true);
+						}
+					}
 				}
 				spacer(.Y, 16);
 			}
-			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 {
+			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 && !video && !poster {
+				// fit in 80x80, keeping its shape (a film poster stays tall)
 				spacer(.X, 16);
+				tw, tht := cast(float32) e.thumbnail_w, cast(float32) max(e.thumbnail_h, 1);
+				tsc := min(80 / tw, 80 / tht);
 				th := ui.box("thumb", .Draw_Background);
-				th.semantic_size = .[ui.px(80), ui.px(80)];
+				th.semantic_size = .[ui.px(tw * tsc), ui.px(tht * tsc)];
 				th.style.radius = all4(4);
 				set_remote_image(th, e.thumbnail_url);
 			}
@@ -327,6 +483,20 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 		spacer(.Y, 4);
 	}
 }
+
+// An embed's image: opens the viewer, right-click for the media menu; cover crops it to fill w x h.
+embed_image :: (id: string, e: *dc.Embed, w: float32, h: float32, cover := false) {
+	img := media_box(id, e.image_url, "", w, h);
+	img.style.radius = all4(4);
+	if cover set_remote_image(img, e.image_url, cover = true);
+	sig := ui.signal(img);
+	if sig.clicked open_viewer(e.image_url, .{e.image_w, e.image_h});
+	if sig.right_clicked media_menu_open(e.image_url, e.image_url);
+}
+
+// An embed's video player: the message id with the embed index, top bit set so it can't be an
+// attachment id.
+embed_player_key :: (m: *dc.Message, i: int) -> dc.Snowflake { return (m.id + cast(u64) i) | (1 << 63); }
 
 // An image (animated ones play while drawn) or, with video, a GIFV: a muted looping video that plays only
 // while on screen, its poster image until the first frame is in.
@@ -385,6 +555,7 @@ open_viewer :: (url: string, size: Int2, video := "", link := "") {
 }
 
 media_overlays :: () {
+	if fullscreen_video video_fullscreen();
 	if viewer_url != "" image_viewer();
 	if mm.open media_menu();
 }
@@ -441,6 +612,7 @@ media_action_receive :: (r: *dc.Media_Result) -> bool {
 
 media_reset_for_test :: () {
 	close_viewer();
+	fullscreen_video = 0;
 	mm.open = false;
 }
 
@@ -583,7 +755,8 @@ player_open_ready :: (ip: *Inline_Player) {
 	blob := table_find_pointer(*blobs, ip.url);
 	if !blob || blob.state != .Ready return;
 	ensure_audio();
-	ip.player = media.player_open(media.source_from_memory(blob.data), autoplay = true);
+	ip.player = media.player_open(media.source_from_memory(blob.data), autoplay = true, muted = video_muted);
+	media.player_set_volume(ip.player, video_volume);
 }
 
 video_draw :: (b: *ui.Box, user: *void) {

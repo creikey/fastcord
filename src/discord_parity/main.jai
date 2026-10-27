@@ -911,6 +911,57 @@ run :: (name: string) -> bool {
 		click();
 		wait_for();
 		settle(4000);
+	case "ack_live";
+		// not a fixture: the read-state acks (ReadState.ack) on a focused A. The chat
+		// view's scroll / focus acks are called here as the app's chat_view makes them.
+		use("b");
+		reload();
+		click();
+		discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H), prefetch = true);
+		wait_for();
+		use("a");
+		reload();
+		discord.client_set_focused(cur.c, false);
+		discord.client_set_focused(cur.c, true);
+		friends_home();
+		b_says :: (text: string) {
+			use("b");
+			click();
+			typed(TTEXT, text);
+			human(80, 200);
+			action();
+			discord.send_message(cur.c, TTEXT, text);
+			wait_gw("MESSAGE_CREATE");
+			use("a");
+			wait_gw("MESSAGE_CREATE", 20000);
+			settle(1500);
+		}
+		a_opens :: () {
+			click();
+			discord.select_channel(cur.c, TGUILD, TTEXT, discord.initial_message_limit(VIEW_H), prefetch = true);
+			wait_for();
+			settle(4500);
+		}
+		b_says("ack test: unread");
+		mark("open_unread"); // expect the ack 3 s after the page, Channel Scroll
+		a_opens();
+		mark("incoming"); // B writes while A reads: the ack 3 s later, Incoming Message
+		b_says("ack test: incoming");
+		settle(4500);
+		friends_home();
+		b_says(tprint("<@%> ack test: mention", A_ID));
+		mark("open_mention"); // a channel with mentions: the ack at once
+		a_opens();
+		mark("unfocused"); // A in another window: nothing acked
+		discord.client_set_focused(cur.c, false);
+		b_says("ack test: unfocused");
+		settle(4500);
+		mark("window_focus"); // back to the window: chat_view's Window Focus ack, 3 s later
+		discord.client_set_focused(cur.c, true);
+		ch := discord.channel_get(*cur.c.store, TTEXT);
+		discord.ack_message(cur.c, TTEXT, ch.last_message_id, location = discord.ACK_WINDOW_FOCUS);
+		pump(3500); // settle could return before the 3 s timer: the network is quiet until it fires
+		settle(1500);
 	case "voice_with_b";
 		use("b");
 		mark("setup_b");

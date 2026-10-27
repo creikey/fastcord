@@ -82,11 +82,13 @@ chat_view :: (channel_id: dc.Snowflake) {
 		cs.opened = true;
 		cs.unread_after = last_read;
 	}
-	// Ack what's on screen while focused and scrolled to the bottom, like the client.
+	// Ack what's on screen while focused, not idle and scrolled to the bottom, like the client.
 	msgs := dc.messages_get(s, channel_id);
-	if app.client && app.focused && msgs && cs.scroll_from_bottom < 2 && !held {
-		last := *msgs[msgs.count - 1];
-		if last.id > last_read && !last.pending dc.ack_message(app.client, channel_id, last.id);
+	if app.client && app.focused && !app.client.idle_sent && msgs && cs.scroll_from_bottom < 2 && !held {
+		// ack({messageId: undefined}) acks the read state's lastMessageId: the channel's newest
+		newest := ch.last_message_id;
+		for < msgs if !it.pending { newest = max(newest, it.id); break; }
+		if newest > last_read dc.ack_message(app.client, channel_id, newest, location = ifx app.focus_gained then dc.ACK_WINDOW_FOCUS else dc.ACK_CHANNEL_SCROLL);
 	}
 
 	picker_capture_input(); // expression picker owns keys/wheel while open
@@ -463,8 +465,9 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0) 
 		}
 		if tk.kind == {
 		case .Link;
-			code := invite_link_code(tk.text);
-			if code != "" invite_link_clicked(code, message_id); else open_url(tk.text);
+			url := ifx tk.url then tk.url else tk.text;
+			code := invite_link_code(url);
+			if code != "" invite_link_clicked(code, message_id); else open_url(url);
 		case .User_Mention;
 			r := ui.Rect.{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10};
 			open_profile(tk.id, r);
@@ -628,6 +631,13 @@ modal_open :: () -> bool {
 // mouse against it: it floats above its own row).
 Chat_Toolbar :: struct { msg: dc.Snowflake; rect: ui.Rect; }
 chat_toolbar, chat_toolbar_prev: Chat_Toolbar;
+
+// A blockquote's 4px rounded bar down the left of its row.
+quote_bar_draw :: (b: *ui.Box, user: *void) {
+	c := T("--border-strong");
+	c.w *= b.opacity;
+	gfx.rect(.{b.rect.x0, b.rect.y0, b.rect.x0 + 4, b.rect.y1}, cast(gfx.Color) c, 2);
+}
 
 #scope_file
 
@@ -1301,13 +1311,6 @@ forward_block :: (m: *dc.Message) {
 		label(tprint("#% • %", ch.name, format_timestamp(m.forward_message_id)), .Medium, 12, c, 18);
 	}
 	if sig.clicked jump_to_message(m.forward_channel_id, m.forward_message_id);
-}
-
-// A blockquote's 4px rounded bar down the left of its row.
-quote_bar_draw :: (b: *ui.Box, user: *void) {
-	c := T("--border-strong");
-	c.w *= b.opacity;
-	gfx.rect(.{b.rect.x0, b.rect.y0, b.rect.x0 + 4, b.rect.y1}, cast(gfx.Color) c, 2);
 }
 
 reactions_view :: (m: *dc.Message) {
