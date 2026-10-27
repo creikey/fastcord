@@ -63,6 +63,7 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | food | hamburger-fill |
 | forum | chats-circle-fill |
 | friends | hand-waving-fill |
+| fullscreen | corners-out-bold |
 | game-controller | game-controller-fill |
 | gif | gif-bold |
 | group | users-three-fill |
@@ -113,6 +114,7 @@ MIT licence (LICENSE-phosphor). Files are copied unmodified and renamed to the n
 | server | hard-drives-fill |
 | settings | gear-six-fill |
 | share | share-fat-fill |
+| speaker-slash | speaker-x-fill |
 | spoiler | eye-closed-fill |
 | stage | broadcast-fill |
 | star | star-fill |

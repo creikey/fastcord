@@ -55,16 +55,17 @@
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
 - [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
-- [ ] Embeds: YouTube video embeds (an iframe `video.url`, no `proxy_url`) show only a small side thumbnail, not the large poster with a play button that opens the video.
-- [ ] Media: the inline video player has no volume, mute or fullscreen buttons, and its control bar shows only on hover once playing (the client shows `0:00 / 0:15` before the first click) (`view_media.jai` `video_player`).
-- [ ] Embeds: several embeds sharing one `url` (a Twitter/FxTwitter post with up to 4 images) should merge into one card with an image grid; fastcord draws a card per embed (`view_media.jai` `embeds_view`).
 - [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
 - [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
 - [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
 - [ ] Attachments: file cards have no download button, the link-coloured filename does nothing, and text/code files get no inline preview.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
-- [ ] Media: the audio player has no seek bar or volume; the video player lacks volume, fullscreen and download.
+- [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
+- [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
+- [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
+- [ ] Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
+- [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
 - [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
 - [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
 - [ ] Reactions: super (burst) reactions look like normal ones; `burst_count` / `me_burst` are parsed but unused.
@@ -181,3 +182,7 @@
 - [x] Voice: video calls and Go Live on macOS: call view of everyone (tiles, speaking border, focus), camera and screen sharing (H.264/H.265 via VideoToolbox), watching cameras and streams (`src/video`, `src/voice/video.jai`, `view_call.jai`).
 - [x] Markdown: masked links `[text](url)` render as links (messages and embed descriptions), and embed descriptions draw their quotes with a bar.
 - [x] Embeds: proxied video embeds (FxTwitter, Reddit…) play in the card with a large poster instead of a side thumbnail.
+- [x] Media: the video player has volume (slider on hover), mute and fullscreen, and shows its control bar before the first click.
+- [x] Embeds: several embeds sharing one `url` merge into one card with a 2-4 image grid.
+- [x] Embeds: YouTube video embeds show a large poster with a play button that opens the video.
+- [x] Embeds: side thumbnails keep their shape (an IMDb poster was squashed into 80x80).
