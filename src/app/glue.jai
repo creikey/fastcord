@@ -249,9 +249,4 @@ render_rich :: (tl: *ui.Text_Layout, origin: ui.Vec2, box_color: ui.Color) {
 // Odin's math.round: halves away from zero.
 round :: (x: float32) -> float32 { return ifx x < 0 then -floor(-x + 0.5) else floor(x + 0.5); }
 
-#if OS == .WINDOWS {
-	crt :: #system_library "msvcrt";
-	getenv :: (name: *u8) -> *u8 #foreign crt;
-} else {
-	getenv :: (name: *u8) -> *u8 #foreign libc;
-}
+getenv :: (name: *u8) -> *u8 #foreign libc;

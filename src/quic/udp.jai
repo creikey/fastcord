@@ -9,8 +9,9 @@ INVALID_UDP_SOCKET :: INVALID_SOCKET;
 // Udp_Addr is a sockaddr_in or sockaddr_in6.
 Udp_Addr :: struct {
 	bytes: [128]u8 #align 8;
-	len: u32;
+	len: Socklen;
 }
+#if OS == .WINDOWS Socklen :: s32; else Socklen :: u32; // Winsock's int, POSIX's socklen_t
 
 // udp_resolve returns host's first IPv4 address, else its first IPv6 one, with port.
 udp_resolve :: (host: string, port: int) -> Udp_Addr, bool {
@@ -85,7 +86,7 @@ udp_send :: (s: Udp_Socket, b: []u8, to: Udp_Addr) {
 // udp_recv waits up to timeout_us for one datagram; n < 0 on timeout or error.
 udp_recv :: (s: Udp_Socket, b: []u8, timeout_us: s64) -> n: int, from: Udp_Addr {
 	#if OS == .WINDOWS {
-		v: u32 = xx (timeout_us / 1000);
+		v: u32 = xx max(timeout_us / 1000, 1); // 0 would mean no timeout
 	} else {
 		v: timeval;
 		v.tv_sec = xx (timeout_us / 1_000_000);

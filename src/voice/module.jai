@@ -4,7 +4,13 @@
 #import "Hash_Table";
 #import "Thread";
 #import "Socket";
-#import "POSIX";
+#if OS == .WINDOWS {
+    kernel32 :: #system_library "kernel32";
+    GetCurrentThread :: () -> *void #foreign kernel32;
+    SetThreadPriority :: (thread: *void, priority: s32) -> s32 #foreign kernel32;
+    getenv :: (name: *u8) -> *u8 #foreign msvcrt;
+    msvcrt :: #system_library "msvcrt";
+} else #import "POSIX";
 audio :: #import "audio";
 crypto :: #import "crypto";
 DAVE :: #import "voice_dave";

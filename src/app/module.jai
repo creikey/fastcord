@@ -32,7 +32,7 @@ ui :: #import "ui";
 vector :: #import "vector";
 voice :: #import "voice";
 #if OS == .WINDOWS Windows :: #import "Windows";
-libc :: #system_library "libc";
+#if OS == .WINDOWS libc :: #system_library "msvcrt"; else libc :: #system_library "libc";
 kernel32 :: #system_library "kernel32";
 #load "app_main.jai";
 #load "analytics_env.jai";

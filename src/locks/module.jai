@@ -210,7 +210,7 @@ wait :: (c: *Cond, m: *Mutex, timeout_ms: s64, what: string, loc: Source_Code_Lo
 		while __ulock_wake(op, addr, 0) == -4 {} // EINTR
 	}
 } else #if OS == .WINDOWS {
-	synch :: #system_library "api-ms-win-core-synch-l1-2-0";
+	synch :: #library,system,no_dll "synchronization"; // WaitOnAddress: kernelbase, import lib synchronization.lib
 	WaitOnAddress :: (addr: *void, compare: *void, size: u64, ms: u32) -> s32 #foreign synch;
 	WakeByAddressSingle :: (addr: *void) #foreign synch;
 	WakeByAddressAll :: (addr: *void) #foreign synch;

@@ -111,8 +111,14 @@ write_json_float :: (sb: *String_Builder, f: float64) {
     for cast([]u8) s if it == #char "." || it == #char "e" return;
     append(sb, ".0");
 }
-libc :: #system_library "libc";
-snprintf :: (buf: *u8, n: u64, fmt: *u8, args: ..Any) -> s32 #foreign libc;
+#if OS == .WINDOWS libc :: #system_library "msvcrt"; else libc :: #system_library "libc";
+#if OS == .WINDOWS {
+    legacy_stdio :: #library,system,no_dll,link_always "legacy_stdio_definitions"; // _snprintf on the UCRT
+    legacy_wide :: #library,system,no_dll,link_always "legacy_stdio_wide_specifiers";
+    snprintf :: (buf: *u8, n: u64, fmt: *u8, args: ..Any) -> s32 #foreign legacy_stdio "_snprintf";
+} else {
+    snprintf :: (buf: *u8, n: u64, fmt: *u8, args: ..Any) -> s32 #foreign libc;
+}
 strtod :: (s: *u8, end: **u8) -> float64 #foreign libc;
 
 write_big_decimal :: (sb: *String_Builder, b: Big) {

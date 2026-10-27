@@ -411,4 +411,10 @@ read_table :: (v: etf.Value, t: *Table(string, $V)) {
 	}
 }
 
-snprintf :: (buf: *u8, n: u64, format: *u8, args: ..Any) -> s32 #foreign libc;
+#if OS == .WINDOWS {
+    legacy_stdio :: #library,system,no_dll,link_always "legacy_stdio_definitions"; // _snprintf on the UCRT
+    legacy_wide :: #library,system,no_dll,link_always "legacy_stdio_wide_specifiers";
+    snprintf :: (buf: *u8, n: u64, format: *u8, args: ..Any) -> s32 #foreign legacy_stdio "_snprintf";
+} else {
+    snprintf :: (buf: *u8, n: u64, format: *u8, args: ..Any) -> s32 #foreign libc;
+}

@@ -15,8 +15,9 @@
 build :: () {
     set_build_options_dc(.{do_output = false});
     args := get_build_options().compile_time_command_line;
+    if args.count && args[args.count-1] == "linux" { LINUX = true; args.count -= 1; }
     target := ifx args.count then args[0] else "app";
-    make_directory_if_it_does_not_exist("build");
+    make_directory_if_it_does_not_exist(OBJ());
     if !build_c() { log_error("C build failed"); compiler_set_workspace_status(.FAILED); return; }
     APP :: "app :: #import \"app\"; main :: () { app.main(); }";
     ok := true;
@@ -33,7 +34,7 @@ build :: () {
             ok = compile("test-discord-jai", file = "src/tests/discord.jai", optimization = .OPTIMIZED);
             if ok {
                 a: [..]string;
-                array_add(*a, "build/test-discord-jai");
+                array_add(*a, built("test-discord-jai"));
                 for 1..args.count-1 array_add(*a, args[it]);
                 ok = run_command(..a).exit_code == 0;
             }
@@ -43,9 +44,9 @@ build :: () {
         case "check";
             // everything before a commit: the offline parity tests, the UI scripts and sweep, the bench budget, secrets
             ok = compile("test-discord-jai", file = "src/tests/discord.jai", optimization = .OPTIMIZED)
-                && run_command("build/test-discord-jai").exit_code == 0
+                && run_command(built("test-discord-jai")).exit_code == 0
                 && compile("fastcord-dev", APP, .OPTIMIZED) && ui_scripts() && bench(.["bench"])
-                && run_command("python3", "-I", "tools/check_secrets.py").exit_code == 0;
+                && run_command(PYTHON, "-I", "tools/check_secrets.py").exit_code == 0;
             print(ifx ok then "check: all passed\n" else "check: FAILED\n");
         case "release"; ok = release(args);
         case "release_x64"; ok = compile("fastcord-x86_64", tprint("app :: #import \"app\"(VERSION = \"%\"); main :: () { app.main(); }", args[1]), .VERY_OPTIMIZED);
@@ -76,6 +77,18 @@ usage: jai build.jai - <target>
   c                           only the vendored C libraries
 END
 
+// A trailing "linux" argument cross-compiles everything for x86_64 Linux: the C with `zig cc` against
+// glibc 2.17 (so one binary runs on every distro since 2014), the Jai with os_target = .LINUX.
+LINUX := false;
+GLIBC :: "x86_64-linux-gnu.2.17";
+OBJ :: () -> string { return ifx LINUX then "build/linux" else "build"; }
+VENDOR_LIB :: () -> string {
+    #if OS == .WINDOWS if !LINUX return "build/fc_vendor.lib";
+    return "build/fc_vendor.a";
+}
+// A program built into build/, as a path CreateProcess / exec take.
+built :: (name: string) -> string { #if OS == .WINDOWS return join("build\\", name, ".exe",, temp); else return tprint("build/%", name); }
+
 // compile builds one program into build/<name>: the root is a file or a build string.
 compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG, file := "", cpu := CPU) -> bool {
     w := compiler_create_workspace(name);
@@ -84,7 +97,9 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     array_add(*import_path, "src");
     for o.import_path array_add(*import_path, it);
     o.import_path = import_path;
-    o.use_custom_link_command = true;
+    if LINUX o.os_target = .LINUX;
+    // Windows links with the compiler's own linker step (MSVC libraries); macOS and Linux with clang / zig
+    o.use_custom_link_command = OS != .WINDOWS || LINUX;
     o.text_output_flags = 0;
     o.output_executable_name = name;
     o.output_path = "build";
@@ -149,11 +164,26 @@ release :: (args: []string) -> bool {
     return run_command("gh", "release", "upload", version, "dist/fastcord-macos.zip", "--clobber").exit_code == 0;
 }
 
-// Runs a program with TZ=UTC (fixed clocks in fixtures), saving its output to log; true on exit 0.
+PYTHON :: #run ifx OS == .WINDOWS then "python" else "python3";
+
+// Runs a program with TZ=UTC (fixed clocks in fixtures), saving its output to log; true on exit 0. Leading
+// NAME=value arguments are more environment variables.
 run_logged :: (log: string, args: ..string) -> bool {
     a: [..]string;
-    array_add(*a, "/usr/bin/env", "TZ=UTC");
-    for args array_add(*a, it);
+    #if OS == .WINDOWS {
+        // no env(1): set them here, children inherit them (every run sets the same values)
+        kernel32 :: #system_library "kernel32";
+        SetEnvironmentVariableA :: (name: *u8, value: *u8) -> s32 #foreign kernel32;
+        SetEnvironmentVariableA("TZ", "UTC");
+        for args {
+            eq := find_index_from_left(it, #char "=");
+            if a.count || eq <= 0 || it[0] == #char "-" { array_add(*a, it); continue; }
+            SetEnvironmentVariableA(temp_c_string(slice(it, 0, eq)), temp_c_string(slice(it, eq + 1, it.count - eq - 1)));
+        }
+    } else {
+        array_add(*a, "/usr/bin/env", "TZ=UTC");
+        for args array_add(*a, it);
+    }
     r, out, err := run_command(..a, capture_and_return_output = true);
     write_entire_file(log, join(out, err));
     return r.exit_code == 0;
@@ -164,7 +194,7 @@ run_logged :: (log: string, args: ..string) -> bool {
 ui_scripts :: () -> bool {
     Job :: struct { name: string; args: [..]string; ok: bool; }
     jobs: [..]Job;
-    BIN :: "build/fastcord-dev";
+    BIN :: #run built("fastcord-dev");
     add :: (jobs: *[..]Job, name: string, fixture: string, script: string) {
         j := array_add(jobs);
         j.name = name;
@@ -209,7 +239,7 @@ bench :: (args: []string) -> bool {
     for 1..args.count-1 { if args[it] == "save" save = true; else only = args[it]; }
     make_directory_if_it_does_not_exist("build/bench");
     if file_modtime_and_size("tests/bench/make_bench_fixture.py") > file_modtime_and_size("build/bench/heavy.jsonl")
-        if run_command("python3", "-I", "tests/bench/make_bench_fixture.py", "build/bench/heavy.jsonl").exit_code != 0 return false;
+        if run_command(PYTHON, "-I", "tests/bench/make_bench_fixture.py", "build/bench/heavy.jsonl").exit_code != 0 return false;
     file_delete("build/bench/latest.jsonl");
     for file_list("tests/bench") {
         if !ends_with(it, ".txt") continue;
@@ -217,12 +247,12 @@ bench :: (args: []string) -> bool {
         if only && only != name continue;
         // account.txt starts at home like a fresh launch; the others open the bench channel
         a: [..]string;
-        array_add(*a, "FASTCORD_MEDIA_DIR=build/bench/media", "build/fastcord-dev", "-dpi:1", "-now:1793016000",
+        array_add(*a, "FASTCORD_MEDIA_DIR=build/bench/media", built("fastcord-dev"), "-dpi:1", "-now:1793016000",
             "-fixture:build/bench/heavy.jsonl", "-bench:build/bench/latest.jsonl", tprint("-prof:build/bench/%", name), tprint("-script:%", it));
         if name != "account" array_add(*a, "-channel:1600000000000100003");
         if !run_logged(tprint("build/bench/%.log", name), ..a) { print("FAIL % (see build/bench/%.log)\n", it, name); return false; }
     }
-    ok := run_command("python3", "-I", "tools/bench_compare.py", "build/bench/latest.jsonl", "--baseline", "build/bench/baseline.jsonl",
+    ok := run_command(PYTHON, "-I", "tools/bench_compare.py", "build/bench/latest.jsonl", "--baseline", "build/bench/baseline.jsonl",
         "--budget", "tests/bench/budget.json").exit_code == 0;
     if save { write_entire_file("build/bench/baseline.jsonl", read_entire_file("build/bench/latest.jsonl")); print("saved build/bench/baseline.jsonl\n"); }
     return ok;
@@ -254,32 +284,45 @@ MAC_C_FLAGS :: string.["-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-mi
 
 link :: (p: *Message_Phase, exe: string, cpu: CPU_Tag) -> bool {
     a: [..]string;
-    array_add(*a, "clang", "-o", exe);
-    #if OS == .MACOS array_add(*a, "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0");
+    if LINUX array_add(*a, "zig", "c++", "-target", GLIBC, "-o", exe);
+    else array_add(*a, "clang", "-o", exe);
+    #if OS == .MACOS if !LINUX array_add(*a, "-arch", ifx cpu == .X64 then "x86_64" else "arm64", "-mmacosx-version-min=13.0");
     array_add(*a, ..p.compiler_generated_object_files);
     array_add(*a, ..p.support_object_files);
     for p.user_libraries array_add(*a, it);
-    // Jai lists "-lX" and "-framework", "X" pairs; drop duplicates.
+    // Jai lists "-lX" and "-framework", "X" pairs (a cross-compile names them "X.dll"); drop duplicates.
     seen: [..]string;
     libs := p.system_libraries;
     for i: 0..libs.count-1 {
         if i > 0 && libs[i-1] == "-framework" continue;
         arg := ifx libs[i] == "-framework" then tprint("-framework %", libs[i+1]) else libs[i];
+        if LINUX && !begins_with(arg, "-") {
+            name := path_strip_extension(path_filename(arg));
+            if begins_with(name, "lib") name = slice(name, 3, name.count - 3);
+            if ends_with(name, ".so") name = slice(name, 0, name.count - 3);
+            arg = tprint("-l%", name);
+        }
         if array_find(seen, arg) continue;
         array_add(*seen, arg);
         if libs[i] == "-framework" array_add(*a, "-framework", libs[i+1]);
-        else array_add(*a, libs[i]);
+        else array_add(*a, arg);
     }
-    array_add(*a, "-lc++");
+    if LINUX array_add(*a, "-ldl", "-lpthread", "-lm", "-static-libgcc");
+    else array_add(*a, "-lc++");
     r := run_command(..a);
     return r.exit_code == 0;
 }
 
+// Every object that goes into the vendor archive.
 vendor_outputs :: () -> [..]string {
     out: [..]string;
     for src: c_units() array_add(*out, obj_of(src));
-    for list: source_lists() array_add(*out, tprint("build/lib%.a", path_strip_extension(path_filename(list))));
+    for list: source_lists() for file_list(list_dir(list)) if ends_with(it, ".o") array_add(*out, it);
     return out;
+}
+list_dir :: (list: string) -> string {
+    name := path_strip_extension(path_filename(list));
+    return tprint("%/%", OBJ(), slice(name, 3, name.count - 3));
 }
 
 c_units :: () -> [..]string {
@@ -303,7 +346,7 @@ vendor_dirs :: () -> [..]string {
     visit_files("vendor", false, *out, (info: *File_Visit_Info, out: *[..]string) { array_add(out, copy_string(info.full_name)); }, visit_files = false, visit_directories = true);
     return out;
 }
-obj_of :: (src: string) -> string { return tprint("build/%.o", path_strip_extension(path_filename(src))); }
+obj_of :: (src: string) -> string { return tprint("%/%.o", OBJ(), path_strip_extension(path_filename(src))); }
 
 // Newest modification time under a directory (and this file), to decide what to rebuild.
 newest :: (dir: string) -> Apollo_Time {
@@ -324,24 +367,34 @@ cflags :: (base: string) -> []string {
     return break_command_into_strings(trim(s));
 }
 
+// The C compiler for the target: clang (universal on macOS), or zig cc for the Linux cross-compile.
+cc :: (a: *[..]string, cpp: bool) {
+    // the autoconf names the network libraries test for their byte-order headers
+    if LINUX array_add(a, "zig", ifx cpp then "c++" else "cc", "-target", GLIBC, "-fPIC", "-DHAVE_ARPA_INET_H", "-DHAVE_NETINET_IN_H");
+    else array_add(a, "clang");
+    array_add(a, "-c", "-O2");
+    #if OS == .MACOS if !LINUX array_add(a, ..MAC_C_FLAGS);
+    #if OS == .WINDOWS if !LINUX array_add(a, "-D_CRT_SECURE_NO_WARNINGS", "-fms-runtime-lib=dll"); // the DLL CRT, as Jai links
+    if cpp array_add(a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
+}
+
 build_c :: () -> bool {
     jobs: [..][..]string;
+    stamps: [..]string;
     for src: c_units() {
         obj := obj_of(src);
         if !stale(obj, path_strip_filename(src)) continue;
         a: [..]string;
-        array_add(*a, "clang", "-c", "-O2");
-        #if OS == .MACOS array_add(*a, ..MAC_C_FLAGS);
+        cc(*a, false);
         array_add(*a, ..cflags(path_strip_extension(src)));
         array_add(*a, "-o", obj, src);
         array_add(*jobs, a);
     }
-    archives: [..]string;
     for list: source_lists() {
-        name := path_strip_extension(path_filename(list));
-        lib := tprint("build/lib%.a", name);
-        if !stale(lib, path_strip_filename(list)) continue;
-        dir := tprint("build/%", slice(name, 3, name.count - 3));
+        // a stamp marks the list's objects as current
+        stamp := tprint("%.stamp", list_dir(list));
+        if !stale(stamp, path_strip_filename(list)) continue;
+        dir := list_dir(list);
         make_directory_if_it_does_not_exist(dir);
         text := read_entire_file(list);
         extra := cflags(path_strip_extension(list));
@@ -349,35 +402,38 @@ build_c :: () -> bool {
             f := trim(line);
             if !f continue;
             a: [..]string;
-            array_add(*a, "clang", "-c", "-O2");
-            #if OS == .MACOS array_add(*a, ..MAC_C_FLAGS);
-            if !ends_with(f, ".c") array_add(*a, "-std=c++17", "-fno-exceptions", "-fno-rtti");
+            cc(*a, !ends_with(f, ".c"));
             array_add(*a, ..extra);
+            // per-file SIMD (libwebp picks them at run time); macOS objects are universal, so its x86 half goes without
+            #if OS != .MACOS {
+                if ends_with(f, "_sse41.c") array_add(*a, "-msse4.1");
+                if ends_with(f, "_avx2.c") array_add(*a, "-mavx2");
+            }
             array_add(*a, "-o", tprint("%/%.o", dir, path_filename(f)), f);
             array_add(*jobs, a);
         }
-        array_add(*archives, lib, dir);
+        array_add(*stamps, stamp);
     }
     if !run_parallel(jobs) return false;
-    defer {
-        // One archive for the Jai side: every module's `#library,no_dll "../../build/fc_vendor"`.
-        a: [..]string;
-        array_add(*a, "libtool", "-static", "-o", "build/fc_vendor.a");
-        for vendor_outputs() array_add(*a, it);
-        m, _, ok := file_modtime_and_size("build/fc_vendor.a");
-        need := !ok;
-        for vendor_outputs() { t := file_modtime_and_size(it); if t > m need = true; }
-        if need run_command(..a);
+    for stamps write_entire_file(it, "");
+    // One archive for the Jai side: every module's `#library,no_dll "../../build/fc_vendor"`.
+    lib := VENDOR_LIB();
+    m, _, ok := file_modtime_and_size(lib);
+    need := !ok;
+    objs := vendor_outputs();
+    for objs { t := file_modtime_and_size(it); if t > m need = true; }
+    if !need return true;
+    file_delete(lib);
+    a: [..]string;
+    #if OS == .MACOS if !LINUX {
+        array_add(*a, "libtool", "-static", "-o", lib);
+        array_add(*a, ..objs);
+        return run_command(..a).exit_code == 0;
     }
-    for i: 0..archives.count/2-1 {
-        lib, dir := archives[i*2], archives[i*2+1];
-        file_delete(lib);
-        objs: [..]string;
-        array_add(*objs, "libtool", "-static", "-o", lib);
-        for file_list(dir) if ends_with(it, ".o") array_add(*objs, it);
-        if run_command(..objs).exit_code != 0 return false;
-    }
-    return true;
+    // the object list goes in a response file: it is longer than a Windows command line
+    rsp := tprint("%.rsp", lib);
+    write_entire_file(rsp, join(..objs, "\n"));
+    return run_command("zig", "ar", "rcs", lib, tprint("@%", rsp)).exit_code == 0;
 }
 
 run_parallel :: (jobs: [][..]string) -> bool {
