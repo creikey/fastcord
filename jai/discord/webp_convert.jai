@@ -16,19 +16,15 @@
 //     hash_time_ms); kept only if not larger than the PNG ("insufficient_savings");
 //   - the converted file keeps its name; original_content_type stays image/png.
 
-
-
-
-
-
-
-
-
 WEBP_EXPERIMENT_HASH :: 881712821; // murmur3("2025-09-image-attachment-mezzanine-v2")
 
 // The ICC profile Skia's SkWriteICCProfile writes for an sRGB canvas (src/encode/SkICC.cpp), which
 // SkWebpEncoder puts in every canvas WebP: copied from Chrome 156's toBlob output.
-SKIA_SRGB_ICC :: #run load_file("../../src/discord/skia_srgb.icc", #filepath);
+SKIA_SRGB_ICC :: #run -> string {
+	s, ok := read_entire_file(tprint("%/../../src/discord/skia_srgb.icc", #filepath));
+	assert(ok, "skia_srgb.icc");
+	return s;
+};
 
 Webp_Conversion :: struct {
 	attempted: bool; // false: the experiment is off or the file too big (no science fields)
@@ -41,33 +37,28 @@ Webp_Conversion :: struct {
 
 // READY: the user's variation of the conversion experiment (apex assignments [hash, variation, ...]).
 note_webp_experiment :: (c: *Client, ready: V) {
-	variation: s32;
 	walk :: (v: V, out: *s32) {
 		if v.kind == {
-		case .List; x := v.list;
-			if len(x) >= 2 {
-				{ h, ok := x[0].i, x[0].kind == .Int;
-				if ok && h == WEBP_EXPERIMENT_HASH {
-					{ var, ok2 := x[1].i, x[1].kind == .Int;
-					if ok2 { out.* = cast(s32)(var); } }
+			case .List;
+				x := v.list;
+				if x.count >= 2 && x[0].kind == .Int && x[0].i == WEBP_EXPERIMENT_HASH {
+					if x[1].kind == .Int out.* = cast(s32) x[1].i;
 					return;
-				} }
-			}
-			for e: x { walk(e, out); }
-		case .Map; x := v.map;
-			for p: x { walk(p.value, out); }
+				}
+				for x walk(it, out);
+			case .Map;
+				for v.map walk(it.value, out);
 		}
 	}
+	variation: s32;
 	walk(vget(vmap(ready), "apex_experiments"), *variation);
 	atomic_store(*c.webp_variation, variation);
 }
 
 webp_max_bytes :: (variation: s32) -> int {
 	if variation == {
-	case 1;
-		return 524288;
-	case 2;
-		return 262144;
+		case 1; return 524288;
+		case 2; return 262144;
 	}
 	return 0;
 }
@@ -76,10 +67,10 @@ webp_max_bytes :: (variation: s32) -> int {
 webp_try_convert :: (variation: s32, mime: string, data: []u8) -> Webp_Conversion {
 	r: Webp_Conversion;
 	max_bytes := webp_max_bytes(variation);
-	if max_bytes == 0 || len(data) > max_bytes { return r; }
+	if max_bytes == 0 || data.count > max_bytes return r;
 	r.attempted = true;
-	t0 := time.tick_now();
-	defer r.compress_ms = cast(s64)(time.duration_milliseconds(time.tick_since(t0)) + 0.5);
+	t0 := current_time_monotonic();
+	defer r.compress_ms = cast(s64) (to_float64_seconds(current_time_monotonic() - t0) * 1000 + 0.5);
 	if mime == "image/webp" {
 		r.failure = "already_webp";
 		return r;
@@ -94,20 +85,18 @@ webp_try_convert :: (variation: s32, mime: string, data: []u8) -> Webp_Conversio
 		return r;
 	}
 	img, err := imagefmt.decode_first_frame(data, temp);
-	if err != .None || len(img.frames) == 0 {
+	if err != .None || !img.frames {
 		r.failure = "corrupted_file";
 		return r;
 	}
 	px := img.frames[0].pixels;
 	if info.color_type == 4 || info.color_type == 6 {
-		{ i := 3;
-		while i < len(px) {
-			if px[i] < 255 {
+		for i: 0..px.count / 4 - 1 {
+			if px[i * 4 + 3] < 255 {
 				r.failure = "has_transparency";
 				return r;
 			}
-			i += 4;
-} }
+		}
 	}
 	if info.animated {
 		r.failure = "animated_image";
@@ -123,7 +112,7 @@ webp_try_convert :: (variation: s32, mime: string, data: []u8) -> Webp_Conversio
 			r.failure = "icc_detection_failed";
 			return r;
 		}
-		if desc == "" || !strings.contains(strings.to_lower(desc, temp), "srgb") {
+		if !contains(to_lower_copy(desc,, temp), "srgb") {
 			r.failure = "icc_non_srgb_profile";
 			return r;
 		}
@@ -132,17 +121,17 @@ webp_try_convert :: (variation: s32, mime: string, data: []u8) -> Webp_Conversio
 		r.failure = "conversion_failed"; // past WebP's dimension limit: Chrome's toBlob fails too
 		return r;
 	}
-	webp := imagefmt.encode_webp_lossless(px, img.width, img.height, transmute([]u8, SKIA_SRGB_ICC), temp);
+	webp := imagefmt.encode_webp_lossless(px, img.width, img.height, cast([]u8) SKIA_SRGB_ICC, temp);
 	// the client's pixel check: decode the WebP again and compare with the source pixels
-	th := time.tick_now();
+	th := current_time_monotonic();
 	back, berr := imagefmt.decode(webp, temp);
-	same := berr == .None && len(back.frames) == 1 && as_string(back.frames[0].pixels) == as_string(px);
-	hash_ms := time.duration_milliseconds(time.tick_since(th));
+	same := berr == .None && back.frames.count == 1 && cast(string) back.frames[0].pixels == cast(string) px;
+	hash_ms := to_float64_seconds(current_time_monotonic() - th) * 1000;
 	if !same {
 		r.failure = "pixel_hash_mismatch";
 		return r;
 	}
-	if len(webp) > len(data) {
+	if webp.count > data.count {
 		r.failure = "insufficient_savings";
 		return r;
 	}
@@ -151,7 +140,6 @@ webp_try_convert :: (variation: s32, mime: string, data: []u8) -> Webp_Conversio
 	r.hash_ms = hash_ms;
 	return r;
 }
-#scope_module
 
 Png_Info :: struct {
 	color_type: u8;
@@ -161,34 +149,34 @@ Png_Info :: struct {
 	icc: []u8; // inflated profile (temp allocator); empty when unreadable
 }
 
+be32 :: (b: []u8, i: int) -> int {
+	return ((cast(int) b[i]) << 24) | ((cast(int) b[i + 1]) << 16) | ((cast(int) b[i + 2]) << 8) | (cast(int) b[i + 3]);
+}
+
 png_info :: (data: []u8) -> Png_Info, bool {
 	info: Png_Info;
-	ok: bool;
-	if len(data) < 33 || as_string(sub(data, 0, 8)) != "\x89PNG\r\n\x1a\n" { return info, ok; }
-	be32 :: (b: []u8) -> int {return ((cast(int)(b[0])) << 24) | ((cast(int)(b[1])) << 16) | ((cast(int)(b[2])) << 8) | (cast(int)(b[3]));}
+	if data.count < 33 || cast(string) array_view(data, 0, 8) != "\x89PNG\r\n\x1a\n" return info, false;
 	i := 8;
-	while i + 8 <= len(data) {
-		n := be32(sub_from(data, i));
-		typ := as_string(sub(sub_from(data, i + 4), 0, 4));
-		if n < 0 || i + 12 + n > len(data) { return info, ok; }
-		body := sub(sub_from(data, i + 8), 0, n);
-		if typ == {
-		case "IHDR";
-			if n < 13 { return info, ok; }
-			info.depth = body[8];
-			info.color_type = body[9];
-		case "acTL";
-			info.animated = true;
-		case "iCCP";
-			// name, NUL, compression method, zlib data
-			z := strings.index_byte(as_string(body), 0);
-			if z < 0 || z + 2 > n { return info, ok; }
-			info.has_icc = true;
-			icc: bytes.Buffer;
-			push_allocator(temp);
-			if zlib.inflate(sub_from(body, z + 2), *icc) == .None { info.icc = view(icc.buf); }
-		case "IEND";
-			return info, true;
+	while i + 8 <= data.count {
+		n := be32(data, i);
+		if n < 0 || i + 12 + n > data.count return info, false;
+		body := array_view(data, i + 8, n);
+		if cast(string) array_view(data, i + 4, 4) == {
+			case "IHDR";
+				if n < 13 return info, false;
+				info.depth = body[8];
+				info.color_type = body[9];
+			case "acTL";
+				info.animated = true;
+			case "iCCP";
+				// name, NUL, compression method, zlib data
+				z := find_index_from_left(cast(string) body, 0);
+				if z < 0 || z + 2 > n return info, false;
+				info.has_icc = true;
+				icc, iok := inflate.inflate(array_view(body, z + 2), .ZLIB,, temp);
+				if iok info.icc = icc;
+			case "IEND";
+				return info, true;
 		}
 		i += 12 + n;
 	}
@@ -198,37 +186,36 @@ png_info :: (data: []u8) -> Png_Info, bool {
 // The ICC 'desc' tag's text (v2 textDescriptionType or v4 multiLocalizedUnicodeType),
 // what ExifReader reports as "ICC Description".
 icc_description :: (p: []u8) -> string, bool {
-	be32 :: (b: []u8) -> int {return ((cast(int)(b[0])) << 24) | ((cast(int)(b[1])) << 16) | ((cast(int)(b[2])) << 8) | (cast(int)(b[3]));}
-	if len(p) < 132 { return "", false; }
-	ntags := be32(sub_from(p, 128));
-	for k: 0..cast(int)(ntags)-1 {
+	if p.count < 132 return "", false;
+	for k: 0..be32(p, 128) - 1 {
 		t := 132 + k * 12;
-		if t + 12 > len(p) { return "", false; }
-		if as_string(sub(sub_from(p, t), 0, 4)) != "desc" { continue; }
-		off, size := be32(sub_from(p, t + 4)), be32(sub_from(p, t + 8));
-		if off < 0 || size < 12 || off + size > len(p) { return "", false; }
-		tag := sub(sub_from(p, off), 0, size);
-		if as_string(sub(tag, 0, 4)) == {
-		case "desc";
-			n := be32(sub_from(tag, 8));
-			if n <= 0 || 12 + n > len(tag) { return "", true; }
-			return strings.trim_right(as_string(sub(sub_from(tag, 12), 0, n)), "\x00"), true;
-		case "mluc";
-			if len(tag) < 28 || be32(sub_from(tag, 8)) < 1 { return "", true; }
-			l, o := be32(sub_from(tag, 20)), be32(sub_from(tag, 24));
-			if o < 0 || l < 0 || o + l > len(tag) { return "", false; }
-			sb := strings.builder_make(temp);
-			{ j := 0;
-			while j + 1 < l {
-				ch := cast(u32)(((cast(u16)(tag[o + j])) << 8) | (cast(u16)(tag[o + j + 1])));
-				if ch != 0 { strings.write_rune(*sb, ch); }
-				j += 2;
-} }
-			return strings.to_string(sb), true;
+		if t + 12 > p.count return "", false;
+		if cast(string) array_view(p, t, 4) != "desc" continue;
+		off, size := be32(p, t + 4), be32(p, t + 8);
+		if off < 0 || size < 12 || off + size > p.count return "", false;
+		tag := array_view(p, off, size);
+		if cast(string) array_view(tag, 0, 4) == {
+			case "desc";
+				n := be32(tag, 8);
+				if n <= 0 || 12 + n > tag.count return "", true;
+				return trim_right(cast(string) array_view(tag, 12, n), "\0"), true;
+			case "mluc";
+				if tag.count < 28 || be32(tag, 8) < 1 return "", true;
+				l, o := be32(tag, 20), be32(tag, 24);
+				if o < 0 || l < 0 || o + l > tag.count return "", false;
+				// UTF-16BE code units as UTF-8 (no surrogate pairing)
+				out: [..]u8;
+				out.allocator = temp;
+				for j: 0..l / 2 - 1 {
+					ch := ((cast(u32) tag[o + j * 2]) << 8) | tag[o + j * 2 + 1];
+					if ch == 0 continue;
+					if ch < 0x80 array_add(*out, cast(u8) ch);
+					else if ch < 0x800 array_add(*out, cast(u8) (0xC0 | (ch >> 6)), cast(u8) (0x80 | (ch & 0x3F)));
+					else array_add(*out, cast(u8) (0xE0 | (ch >> 12)), cast(u8) (0x80 | ((ch >> 6) & 0x3F)), cast(u8) (0x80 | (ch & 0x3F)));
+				}
+				return cast(string) out, true;
 		}
 		return "", true;
 	}
 	return "", true; // no description: not known to be sRGB
 }
-#scope_export
-

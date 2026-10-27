@@ -7,6 +7,11 @@
 #import "Atomics";
 #import "Thread";
 #import "Flat_Pool";
+#import "File";
+#import "Base64";
+#import "Random";
+#import "Sort";
+inflate :: #import "inflate";
 #import "fc";
 altsvc :: #import "quic_altsvc";
 base64 :: #import "fc_base64";

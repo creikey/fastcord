@@ -10,14 +10,6 @@
 //   - Send posts the message with attachments [{id:"<index>",description?,filename,
 //     uploaded_filename,is_spoiler?,original_content_type}], after the uploads finish.
 
-
-
-
-
-
-
-
-
 Draft_State :: enum u8 {
 	Uploading;
 	Done;
@@ -49,8 +41,8 @@ Draft_Attachment :: struct {
 	description: string; // alt text ("" = none)
 	spoiler: bool;
 }
-#scope_module
 
+// The drafts are shared by the UI thread and the upload workers (under mu): everything is on the heap.
 Drafts :: struct {
 	mu: locks.Mutex;
 	list: [..]*Draft_Upload;
@@ -58,58 +50,63 @@ Drafts :: struct {
 }
 
 drafts_of :: (c: *Client) -> *Drafts {
-	if c.drafts == null { c.drafts = new(Drafts, context.default_allocator); }
+	if !c.drafts {
+		c.drafts = New(Drafts,, context.default_allocator);
+		c.drafts.list.allocator = context.default_allocator;
+	}
 	return c.drafts;
 }
 
 drafts_destroy :: (c: *Client) {
 	d := c.drafts;
-	if is_null(d) { return; }
-	a := context.default_allocator;
-	for u: d.list { draft_free(u); }
-	delete(d.list);
-	free(d,, a);
+	if !d return;
+	for d.list draft_free(it);
+	array_free(d.list);
+	free(d,, context.default_allocator);
 	c.drafts = null;
 }
 
 draft_free :: (u: *Draft_Upload) {
-	a := context.default_allocator;
-	delete(u.filename, a);
-	delete(u.mime, a);
-	delete(u.origin, a);
-	delete(u.upload_filename, a);
-	free(u,, a);
+	push_allocator(context.default_allocator);
+	free(u.filename);
+	free(u.mime);
+	free(u.origin);
+	free(u.upload_filename);
+	free(u);
 }
 
 draft_find :: (d: *Drafts, handle: u64) -> *Draft_Upload, int {
-	for u, i: d.list { if u.handle == handle { return u, i; } }
+	for d.list if it.handle == handle return it, it_index;
 	return null, -1;
 }
-#scope_export
 
 // upload_draft starts uploading a staged file (UI thread). data is copied.
 // Returns a handle for upload_draft_status / upload_draft_remove / Send_Options.attachments.
 upload_draft :: (c: *Client, channel_id: Snowflake, filename: string, mime: string, data: []u8, origin := "file_picker") -> u64 {
-	a := context.default_allocator;
 	d := drafts_of(c);
-	u := new(Draft_Upload, a);
+	u := New(Draft_Upload,, context.default_allocator);
+	{
+		push_allocator(context.default_allocator);
+		u.filename = copy_string(filename);
+		u.mime = copy_string(mime);
+		u.origin = copy_string(origin);
+	}
 	u.channel_id = channel_id;
-	u.filename = clone(filename, a);
-	u.mime = clone(mime, a);
-	u.origin = clone(origin, a);
-	u.size = cast(s64)(len(data));
+	u.size = data.count;
 	u.pre_size = u.size;
 	u.start_ms = now_ms_f();
 	locks.lock(*d.mu);
 	d.seq += 1;
 	u.handle = d.seq;
-	append(*d.list, u);
+	array_add(*d.list, u);
 	locks.unlock(*d.mu);
 
 	j := job_new(.Upload, .Upload);
-	al := job_alloc(j);
-	j.files = make_slice(Upload_File, 1, al);
-	j.files[0] = Upload_File.{clone(filename, al), clone(mime, al), clone(data, al)};
+	{
+		push_allocator(job_alloc(j));
+		j.files = NewArray(1, Upload_File);
+		j.files[0] = .{copy_string(filename), copy_string(mime), array_copy(data)};
+	}
 	j.result = Rest_Result.{op = .Upload, channel_id = channel_id, tag = u.handle};
 	j.draft = u.handle;
 	job_submit(c, j);
@@ -118,16 +115,12 @@ upload_draft :: (c: *Client, channel_id: Snowflake, filename: string, mime: stri
 
 // upload_draft_status: where a draft's upload is (any thread).
 upload_draft_status :: (c: *Client, handle: u64) -> Draft_State, s64, s64, bool {
-	state: Draft_State;
-	sent: s64;
-	total: s64;
-	ok: bool;
-	if c == null || c.drafts == null { return state, sent, total, ok; }
+	if !c || !c.drafts return .Uploading, 0, 0, false;
 	d := c.drafts;
 	locks.lock(*d.mu);
 	defer locks.unlock(*d.mu);
-	u, _ := draft_find(d, handle);
-	if u == null { return state, sent, total, ok; }
+	u := draft_find(d, handle);
+	if !u return .Uploading, 0, 0, false;
 	return u.state, u.sent, u.size, true;
 }
 
@@ -137,51 +130,45 @@ upload_draft_remove :: (c: *Client, handle: u64) {
 	d := drafts_of(c);
 	locks.lock(*d.mu);
 	u, i := draft_find(d, handle);
-	if u == null {
+	if !u {
 		locks.unlock(*d.mu);
 		return;
 	}
-	if u.state == {
-	case .Uploading;
+	if u.state == .Uploading {
 		u.removed = true;
 		locks.unlock(*d.mu);
 		return;
-	case .Failed;
-		ordered_remove(*d.list, i);
-		locks.unlock(*d.mu);
+	}
+	array_ordered_remove_by_index(*d.list, i);
+	locks.unlock(*d.mu);
+	if u.state == .Failed {
 		draft_free(u);
 		return;
-	case .Done;
-		ordered_remove(*d.list, i);
 	}
-	locks.unlock(*d.mu);
 	draft_delete_remote(c, u);
 	draft_free(u);
 }
-#scope_module
 
 // upload_draft_release forgets a draft that was sent with a message (its file now belongs to the message).
 upload_draft_release :: (c: *Client, handle: u64) {
 	d := drafts_of(c);
 	locks.lock(*d.mu);
 	u, i := draft_find(d, handle);
-	if u != null { ordered_remove(*d.list, i); }
+	if u array_ordered_remove_by_index(*d.list, i);
 	locks.unlock(*d.mu);
-	if u != null { draft_free(u); }
+	if u draft_free(u);
 }
 
 draft_delete_remote :: (c: *Client, u: *Draft_Upload) {
-	if u.upload_filename == "" { return; }
+	if !u.upload_filename return;
 	j := job_new(.Api, .None);
 	j.method = "DELETE";
-	enc, _ := strings.replace_all(u.upload_filename, "/", "%2F", temp);
-	j.path = job_str(j, strings.concatenate(string.["/attachments/", enc], temp));
+	j.path = job_str(j, tprint("/attachments/%", replace(u.upload_filename, "/", "%2F",, temp)));
 	j.retries = 0; // the client does not retry this cleanup, not even after a 429
 	j.retry_429 = 0;
 	job_submit(c, j);
 	analytics_upload_finished(c, u, "REMOVED_FROM_MSG_DRAFT", now_ms_f() - u.start_ms);
 }
-#scope_export
 
 // attachments array for the message POST (key order of the capture).
 attachments_json :: (atts: []Draft_Attachment, uploaded: []string, mimes: []string, allocator := temp) -> string {
@@ -191,56 +178,56 @@ attachments_json :: (atts: []Draft_Attachment, uploaded: []string, mimes: []stri
 	for a, i: atts {
 		json_obj(*w);
 		json_kstr(*w, "id", itoa(i));
-		if a.description != "" { json_kstr(*w, "description", a.description); }
+		if a.description json_kstr(*w, "description", a.description);
 		json_kstr(*w, "filename", a.filename);
 		json_kstr(*w, "uploaded_filename", uploaded[i]);
-		if a.spoiler { json_kbool(*w, "is_spoiler", true); }
-		if mimes[i] != "" { json_kstr(*w, "original_content_type", mimes[i]); }
+		if a.spoiler json_kbool(*w, "is_spoiler", true);
+		if mimes[i] json_kstr(*w, "original_content_type", mimes[i]);
 		json_obj_end(*w);
 	}
 	json_arr_end(*w);
 	return json_string(*w);
 }
-#scope_module
 
 // Worker: the upload of one draft (job.draft != 0).
 run_draft_upload :: (c: *Client, j: *Job) {
 	d := drafts_of(c);
 	f := j.files[0];
+	// While it is Uploading only this worker writes u, and the UI thread only flags it removed.
 	locks.lock(*d.mu);
-	u, _ := draft_find(d, j.draft);
+	u := draft_find(d, j.draft);
+	if u analytics_upload_started(c, u);
 	locks.unlock(*d.mu);
-	if u == null { return; }
-	analytics_upload_started(c, u);
+	if !u return;
 	// the client's WebP "mezzanine" conversion, before asking for the upload URL
 	conv := webp_try_convert(atomic_load(*c.webp_variation), f.mime, f.data);
-	if conv.converted { f.data = conv.data; }
+	if conv.converted f.data = conv.data;
 	locks.lock(*d.mu);
 	u.conv = conv;
-	u.conv.data = zero(type_of(u.conv.data));
-	u.size = cast(s64)(len(f.data));
+	u.conv.data = .[]; // temp: gone after this job
+	u.size = f.data.count;
 	locks.unlock(*d.mu);
 	name, ok, url_ms, put_ms := upload_one(c, u.channel_id, f);
-	a := context.default_allocator;
 	locks.lock(*d.mu);
 	u.get_url_ms = url_ms;
 	u.upload_ms = put_ms;
 	if ok {
-		u.upload_filename = clone(name, a);
+		u.upload_filename = copy_string(name,, context.default_allocator);
 		u.state = .Done;
 		u.sent = u.size;
 	} else {
 		u.state = .Failed;
 	}
+	// once Done the UI thread may free u: report it under the lock
+	if ok analytics_upload_finished(c, u, "COMPLETED", now_ms_f() - u.start_ms);
 	removed := u.removed;
 	if removed {
 		_, i := draft_find(d, u.handle);
-		if i >= 0 { ordered_remove(*d.list, i); }
+		if i >= 0 array_ordered_remove_by_index(*d.list, i);
 	}
 	locks.unlock(*d.mu);
-	if ok { analytics_upload_finished(c, u, "COMPLETED", now_ms_f() - u.start_ms); }
 	if removed {
-		if ok { draft_delete_remote(c, u); }
+		if ok draft_delete_remote(c, u);
 		draft_free(u);
 	}
 	client_push_event(c, Event.{kind = .Rest, result = Rest_Result.{op = .None, tag = j.draft, ok = ok}});
@@ -248,16 +235,15 @@ run_draft_upload :: (c: *Client, j: *Job) {
 
 // Worker: the message POST of a send with drafts; waits (requeues) while any is uploading.
 run_draft_send :: (c: *Client, j: *Job) -> bool {
-	requeue: bool;
 	d := drafts_of(c);
 	atts := j.drafts;
-	uploaded := make_slice(string, len(atts), temp);
-	mimes := make_slice(string, len(atts), temp);
+	uploaded := NewArray(atts.count, string,, temp);
+	mimes := NewArray(atts.count, string,, temp);
 	failed := false;
 	locks.lock(*d.mu);
-	for a, i: atts {
-		u, _ := draft_find(d, a.handle);
-		if u == null || u.state == .Failed {
+	for a: atts {
+		u := draft_find(d, a.handle);
+		if !u || u.state == .Failed {
 			failed = true;
 			continue;
 		}
@@ -265,11 +251,11 @@ run_draft_send :: (c: *Client, j: *Job) -> bool {
 			locks.unlock(*d.mu);
 			return true;
 		}
-		uploaded[i] = clone(u.upload_filename, temp);
-		mimes[i] = clone(u.mime, temp);
+		uploaded[it_index] = copy_string(u.upload_filename,, temp);
+		mimes[it_index] = copy_string(u.mime,, temp);
 	}
 	locks.unlock(*d.mu);
-	for a: atts { upload_draft_release(c, a.handle); }
+	for atts upload_draft_release(c, it.handle);
 	if failed {
 		client_push_event(c, Event.{kind = .Rest, result = Rest_Result.{op = .Send_Message, channel_id = j.result.channel_id, nonce = j.result.nonce, ok = false}});
 		return false;
@@ -283,10 +269,6 @@ run_draft_send :: (c: *Client, j: *Job) -> bool {
 
 // One file: POST /attachments for an upload URL, then preflight + PUT. Returns upload_filename.
 upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File) -> string, bool, float64, float64 {
-	name: string;
-	ok: bool;
-	url_ms: float64;
-	put_ms: float64;
 	t0 := now_ms_f();
 	w: Json;
 	json_init(*w);
@@ -295,33 +277,30 @@ upload_one :: (c: *Client, channel_id: Snowflake, f: Upload_File) -> string, boo
 	json_arr(*w);
 	json_obj(*w);
 	json_kstr(*w, "filename", f.filename);
-	json_kint(*w, "file_size", cast(s64)(len(f.data)));
+	json_kint(*w, "file_size", f.data.count);
 	locks.lock(*c.job_mu);
 	c.upload_seq += 1;
 	uid := c.upload_seq;
 	locks.unlock(*c.job_mu);
 	json_kstr(*w, "id", itoa(uid));
 	json_kbool(*w, "is_clip", false);
-	if f.mime != "" { json_kstr(*w, "original_content_type", f.mime); }
+	if f.mime json_kstr(*w, "original_content_type", f.mime);
 	json_obj_end(*w);
 	json_arr_end(*w);
 	json_obj_end(*w);
-	body := transmute([]u8, json_string(*w));
-	r := api_call(c, "POST", strings.concatenate(string.["/channels/", snowflake_string(channel_id), "/attachments"], temp), body, "application/json", "", .[], 0, 0);
-	url_ms = now_ms_f() - t0;
-	defer if r.arena != null {
+	r := api_call(c, "POST", tprint("/channels/%/attachments", channel_id), w.buf, "application/json", "", .[], 0, 0);
+	url_ms := now_ms_f() - t0;
+	defer if r.arena {
 		fini(r.arena);
 		free(r.arena);
 	}
-	if !r.ok { return name, ok, url_ms, put_ms; }
 	att := flist(vmap(r.body), "attachments");
-	if len(att) == 0 { return name, ok, url_ms, put_ms; }
-	up_url := clone(fstr(vmap(att[0]), "upload_url"), temp);
-	name = clone(fstr(vmap(att[0]), "upload_filename"), temp);
+	if !r.ok || !att return "", false, url_ms, 0;
+	up_url := copy_string(fstr(vmap(att[0]), "upload_url"),, temp);
+	name := copy_string(fstr(vmap(att[0]), "upload_filename"),, temp);
 	t1 := now_ms_f();
-	ok = upload_put(c, up_url, f.data);
-	put_ms = now_ms_f() - t1;
-	return name, ok, url_ms, put_ms;
+	ok := upload_put(c, up_url, f.data);
+	return name, ok, url_ms, now_ms_f() - t1;
 }
 
 // ---- science (shapes from traffic/upload_options.jsonl) ----
@@ -378,28 +357,24 @@ analytics_upload_finished :: (c: *Client, u: *Draft_Upload, final_state: string,
 	json_kstr(*w, "origin", u.origin);
 	json_kint(*w, "upload_resumption_count", 0);
 	json_kint(*w, "upload_resumption_position", 0);
-	if u.conv.failure != "" { json_kstr(*w, "conversion_failure_reason", u.conv.failure); }
+	if u.conv.failure json_kstr(*w, "conversion_failure_reason", u.conv.failure);
 	json_kstr(*w, "upload_http_client", "httputils");
 	json_kstr(*w, "connection_type", "unknown");
 	json_kstr(*w, "effective_connection_speed", "4g");
 	json_obj_end(*w);
 	analytics_track(c, "attachment_upload_finished", json_body(json_string(*w)));
 }
-#scope_export
 
 // media_draft_edited: the spoiler toggle sends {"spoilered":bool}; Modify > Save sends {"has_alt_text":bool}.
 analytics_media_draft_edited :: (c: *Client, key: string, value: bool) {
-	if c == null { return; }
-	analytics_track(c, "media_draft_edited", fmt.tprintf("\"%s\":%v", key, value));
+	if c analytics_track(c, "media_draft_edited", tprint("\"%\":%", key, value));
 }
-#scope_module
 
 // A performance.now() difference as JSON.stringify prints it: 0.1 ms resolution
 // (Chromium's coarsened clock), no ".0" on whole numbers.
 js_ms :: (ms: float64) -> string {
-	tenths := cast(s64)(max(ms, 0) * 10 + 0.5);
-	if tenths % 10 == 0 { return fmt.tprintf("%d", tenths / 10); }
-	return fmt.tprintf("%d.%d", tenths / 10, tenths % 10);
+	tenths := cast(s64) (max(ms, 0) * 10 + 0.5);
+	if tenths % 10 == 0 return tprint("%", tenths / 10);
+	return tprint("%.%", tenths / 10, tenths % 10);
 }
-#scope_export
 
