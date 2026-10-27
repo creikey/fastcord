@@ -1,0 +1,54 @@
+# Publishes a release: push a tag (git tag v0.5.0 && git push origin v0.5.0) or run it by hand with a version.
+# The release stays a draft until the Mac, Windows and Linux archives are all uploaded, so the site's
+# releases/latest links and the app's Update pill never see a release with missing downloads.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version: { description: "Version tag, e.g. v0.5.0 (created at the chosen commit)", required: true }
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ inputs.version || github.ref_name }}
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ env.VERSION }}
+    steps:
+      - name: Draft release
+        run: |
+          case "$VERSION" in v*) ;; *) echo "version must look like v0.5.0"; exit 1;; esac
+          gh release view "$VERSION" >/dev/null 2>&1 \
+            || gh release create "$VERSION" --draft --target "$GITHUB_SHA" --title "$VERSION" --generate-notes
+
+  windows-linux:
+    needs: draft
+    uses: ./.github/workflows/ci-build.yml
+    with: { os: windows-latest, jai: jai.exe, release: "${{ needs.draft.outputs.version }}" }
+    secrets: inherit
+
+  macos:
+    needs: draft
+    uses: ./.github/workflows/ci-build.yml
+    with: { os: macos-latest, jai: jai-macos, release: "${{ needs.draft.outputs.version }}" }
+    secrets: inherit
+
+  publish:
+    needs: [draft, windows-linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        run: gh release edit "$VERSION" --draft=false --latest

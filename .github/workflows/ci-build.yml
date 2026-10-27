@@ -1,0 +1,92 @@
+# One CI build on one OS; ci.yml and release.yml call it. See ci.yml for the rules around Jai.
+name: CI build
+
+on:
+  workflow_call:
+    inputs:
+      os: { type: string, required: true }
+      jai: { type: string, required: true }
+      # A version tag like v0.5.0: build `release <tag>` and upload dist/ to that GitHub release instead of dev + test.
+      release: { type: string, default: "" }
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    env:
+      JAI_PASSWORD: ${{ secrets.JAI_PASSWORD }}
+      GH_TOKEN: ${{ inputs.release != '' && github.token || '' }}
+      ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/build/zig-cache
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        if: env.JAI_PASSWORD != ''
+
+      # The pinned Zig, its cache and the vendored C's objects and archives; nothing from Jai or its outputs.
+      - id: c-cache
+        if: env.JAI_PASSWORD != ''
+        uses: actions/cache@v4
+        with:
+          key: c-${{ runner.os }}-${{ inputs.release != '' && 'release' || 'ci' }}-${{ hashFiles('vendor/**', 'build.jai') }}
+          path: |
+            build/zig
+            build/zig-cache
+            build/*.o
+            build/*.stamp
+            build/*.a
+            build/*.lib
+            build/*/*.o
+            build/*/*.stamp
+            build/*/*.a
+            build/*/*/*.o
+            !build/.build
+
+      # The checkout is newer than the restored objects, so build.jai would rebuild them all; the key already
+      # proves they match vendor/ and build.jai.
+      - name: Mark cached C current
+        if: steps.c-cache.outputs.cache-hit == 'true'
+        run: find build -type f -not -path 'build/zig/*' -not -path 'build/zig-cache/*' -exec touch {} +
+
+      - name: Fetch Jai
+        if: env.JAI_PASSWORD != ''
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/jai-dl"
+          mkdir -p "$dir"
+          # The machine stops when idle; the first request wakes it.
+          curl -fsS --retry 5 --retry-all-errors --retry-delay 5 \
+            -H "Authorization: Bearer $JAI_PASSWORD" -o "$dir/jai.zip" https://fastcord-jai.fly.dev/jai.zip
+          # Git Bash's tar is GNU tar, which can't read zips; Windows' own tar is bsdtar, as on macOS.
+          if [ "$RUNNER_OS" = Windows ]; then
+            /c/Windows/System32/tar.exe -xf "$(cygpath -w "$dir/jai.zip")" -C "$(cygpath -w "$dir")"
+          else
+            unzip -q "$dir/jai.zip" -d "$dir"
+          fi
+          rm "$dir/jai.zip"
+          chmod +x "$dir"/jai/bin/* || true
+          echo "$dir/jai/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        if: env.JAI_PASSWORD != '' && inputs.release == ''
+        run: ${{ inputs.jai }} build.jai - dev
+
+      # Off for now; flip the condition to run the offline parity tests again.
+      - name: Test
+        if: false && env.JAI_PASSWORD != '' && inputs.release == ''
+        run: ${{ inputs.jai }} build.jai - test
+
+      # The Mac release builds its x86_64 half with the compiler's x86_64 slice under Rosetta.
+      - name: Rosetta
+        if: env.JAI_PASSWORD != '' && inputs.release != '' && runner.os == 'macOS'
+        run: softwareupdate --install-rosetta --agree-to-license || true
+
+      - name: Release
+        if: env.JAI_PASSWORD != '' && inputs.release != ''
+        run: |
+          ${{ inputs.jai }} build.jai - release ${{ inputs.release }}
+          gh release upload ${{ inputs.release }} dist/fastcord-* --clobber
+
+      - name: Delete Jai
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/jai-dl"
