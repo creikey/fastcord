@@ -282,6 +282,12 @@ module were read.
 | Copy/Save Image fetch the `XW` URL: media.discordapp.net → cdn.discordapp.com, drop width/height/quality/size/format, add `format=png` without an extension | code | module 803316 (`XW`) | `view_media.jai` `media_action` |
 | Save Image writes to ~/Downloads without a dialog; a GIFV video offers only the link items; the items stand in their own menu (the client appends them to the message menu) | guess | `NativeUtils.saveImage` | `view_media.jai` |
 
+## Tray (Windows)
+
+| Rule | Kind | Anchor in the client | fastcord |
+|---|---|---|---|
+| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open and Quit (the client's also has Mute, Deafen, voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
+
 ## Login and logout
 
 Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`

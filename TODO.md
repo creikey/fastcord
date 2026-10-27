@@ -16,7 +16,7 @@
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
 - [ ] Links: message links (`discord.com/channels/<g>/<c>/<m>`, also `ptb.` / `canary.` / `discordapp.com`) open in the browser instead of jumping to the message in fastcord (`view_chat.jai`: only invites are handled in-app).
-- [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`).
+- [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
@@ -28,7 +28,7 @@
 - [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
 - [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
-- [ ] Tray: add a system tray icon (unread badge, menu with Open and Quit); closing the window hides it to the tray instead of quitting, as the official client does.
+- [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Lotus Mode (fastcord-only): one setting that silences every notification sound and hides all notification badges and the white unread dots beside channels and servers, so the client never grabs attention.
 - [ ] Connection: when the gateway drops, nothing shows it; the app silently goes stale while `gateway.jai` reconnects (no UI reads `Gw_State`). Show the official client's "Connecting..." / offline state.
 - [ ] Free emoji (fastcord-only, like Vencord's FakeNitro): let a non-Nitro user send any emoji, including the picker's locked ones (`pickers_emoji.jai`), from any server. Send it as a masked CDN link (`[name](https://cdn.discordapp.com/emojis/<id>.webp?size=48&name=<name>)`, `.gif`/`animated=true` when animated), so official clients show the image. Copy the exact format from Vencord's `src/plugins/fakeNitro` so Vencord users see real emoji. On receipt, draw those links as inline emoji (the official client shows a link and an image embed), so FakeNitro and fastcord messages look native. Real emoji stay real when the user can use them.
@@ -187,3 +187,4 @@
 - [x] Voice: video calls and Go Live on macOS: call view of everyone (tiles, speaking border, focus), camera and screen sharing (H.264/H.265 via VideoToolbox), watching cameras and streams (`src/video`, `src/voice/video.jai`, `view_call.jai`).
 - [x] Markdown: masked links `[text](url)` render as links (messages and embed descriptions), and embed descriptions draw their quotes with a bar.
 - [x] Embeds: proxied video embeds (FxTwitter, Reddit…) play in the card with a large poster instead of a side thumbnail.
+- [x] Tray (Windows): a tray icon with a red dot for unread mentions, a click opens the window, the menu has Open and Quit; closing the window hides it to the tray.
