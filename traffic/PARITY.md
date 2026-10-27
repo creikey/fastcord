@@ -232,7 +232,9 @@ session (32 scenarios, about 35 minutes) got no 429s. Retries honour
 `Retry-After` and the per-URL hold. A 429 in a session is a bug in our traffic,
 not something to wait out.
 
-### Last full session (2026-10-26)
+### Last full session (2026-10-27, Jai build)
+
+32 scenarios in 14 minutes, no 429s. Totals: 438 all / 189 core (the last Odin session: 404 / 196).
 
 - `all` counts every trafficdiff difference in the action windows (cold_start
   whole).
@@ -241,37 +243,37 @@ not something to wait out.
 
 | scenario | all | core | remaining core differences |
 |---|---:|---:|---|
-| cold_start | 34 | 9 | detectables ETag values (server), status page 200 vs 304, config_0 cache bucket, op 41 init timestamp, ads-decision timing, first-connection `initial_round_trip_time` |
-| send_message | 1 | 1 | settings-proto/2 frecency PATCH |
+| cold_start | 18 | 8 | detectables ETag values (server), status page 200 vs 304, config_0 cache bucket, op 41 init timestamp, ads-decision timing, first-connection `initial_round_trip_time` |
+| send_message | 2 | 1 | settings-proto/2 frecency PATCH |
 | typing | 1 | 1 | first-heartbeat op 40 timing |
-| add_reaction | 13 | 1 | session state: command index / emoji picker already loaded earlier in the session |
+| add_reaction | 19 | 0 | session state: command index / emoji picker already loaded earlier in the session |
 | remove_reaction | 2 | 1 | heartbeat timing |
-| delete_message | 6 | 2 | session state (command index loaded) |
-| edit_message | 7 | 3 | session state, settings-proto/2 |
-| reply | 7 | 3 | session state, settings-proto/2 |
-| upload_image | 13 | 9 | GCS `upload_id` (fixture predates the scrub fix), DevTools `$omitted` PUT body, upload timing |
-| open_profile_popout | 4 | 1 | session state |
-| open_full_profile | 17 | 11 | profile-widget follow-ups (applications/public, games, oauth2/tokens) not modelled |
+| delete_message | 8 | 2 | session state (command index loaded) |
+| edit_message | 8 | 2 | session state, settings-proto/2 |
+| reply | 8 | 2 | session state, settings-proto/2 |
+| upload_image | 10 | 6 | GCS `upload_id` (fixture predates the scrub fix), DevTools `$omitted` PUT body, upload timing |
+| open_profile_popout | 5 | 0 | session state |
+| open_full_profile | 17 | 8 | profile-widget follow-ups (applications/public, games, oauth2/tokens) not modelled |
 | emoji_picker_reaction | 15 | 3 | picker data already loaded in the session |
-| add_custom_reaction | 20 | 6 | picker data already loaded |
-| gif_send | 5 | 0 | |
-| open_image_attachment | 5 | 3 | media viewer image timing |
-| scroll_history | 0 | 0 | |
-| quick_switcher_nav | 46 | 39 | autocomplete throttling, Chrome HTTP-cache revalidation (`if-modified-since`) of autocomplete GETs, `/games?game_ids` lookups |
-| switch_theme | 11 | 0 | |
-| join_voice_channel | 13 | 2 | `preferred_regions`, voice RTC not connected |
-| status_change | 6 | 0 | |
-| custom_status | 19 | 8 | popout already loaded in the session, expiry timestamp value, heartbeat |
-| open_guild_and_channel | 10 | 9 | session state: guild-open set already sent (a launch-time effect in the fixture) |
-| open_dm | 8 | 3 | DM header profile variants |
-| close_dm | 31 | 23 | quick-switcher autocomplete (as above), DM profile variants |
-| start_group_dm | 11 | 4 | the official run sent no recipient PUT; session state |
-| create_guild | 29 | 20 | Referer (route), op 37/43 order (fixed since, offline test passes) |
-| mark_as_read | 15 | 10 | session state, heartbeats |
-| voice_with_b | 32 | 8 | RTC not connected (`rtc_connected` QoS), op 31 order |
-| friend_request_send | 4 | 2 | |
-| friend_request_accept | 8 | 7 | B's account-state startup items |
-| send_dm | 3 | 2 | |
+| add_custom_reaction | 25 | 5 | picker data already loaded |
+| gif_send | 6 | 1 | |
+| open_image_attachment | 4 | 2 | media viewer image timing |
+| scroll_history | 1 | 1 | |
+| quick_switcher_nav | 57 | 41 | autocomplete throttling, Chrome HTTP-cache revalidation (`if-modified-since`) of autocomplete GETs, `/games?game_ids` lookups |
+| switch_theme | 12 | 1 | |
+| join_voice_channel | 15 | 2 | `preferred_regions`, voice RTC not connected |
+| status_change | 10 | 0 | |
+| custom_status | 23 | 9 | popout already loaded in the session, expiry timestamp value, heartbeat |
+| open_guild_and_channel | 11 | 10 | session state: guild-open set already sent (a launch-time effect in the fixture) |
+| open_dm | 9 | 4 | DM header profile variants |
+| close_dm | 32 | 23 | quick-switcher autocomplete (as above), DM profile variants |
+| start_group_dm | 16 | 4 | the official run sent no recipient PUT; session state |
+| create_guild | 31 | 21 | Referer (route), op 37/43 order (fixed since, offline test passes) |
+| mark_as_read | 16 | 11 | session state, heartbeats |
+| voice_with_b | 36 | 6 | RTC not connected (`rtc_connected` QoS), op 31 order |
+| friend_request_send | 3 | 1 | |
+| friend_request_accept | 5 | 4 | B's account-state startup items |
+| send_dm | 5 | 4 | |
 | friend_remove | 8 | 5 | |
 
 "Session state" differences are expected. Each official fixture was recorded
