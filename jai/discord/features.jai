@@ -56,11 +56,11 @@ New_Message :: struct {
 }
 
 Extras :: struct {
-	threads: Map(Snowflake, Thread_Meta);
-	tags: Map(Snowflake, [..]Forum_Tag); // forum channel -> available_tags
-	pins_epoch: Map(Snowflake, int); // bumped on CHANNEL_PINS_UPDATE
+	threads: Table(Snowflake, Thread_Meta);
+	tags: Table(Snowflake, [..]Forum_Tag); // forum channel -> available_tags
+	pins_epoch: Table(Snowflake, int); // bumped on CHANNEL_PINS_UPDATE
 	new_msgs: [..]New_Message;
-	my_roles: Map(Snowflake, [..]Snowflake); // guild -> our role ids
+	my_roles: Table(Snowflake, [..]Snowflake); // guild -> our role ids
 }
 
 extras: Extras;
@@ -79,7 +79,7 @@ note_thread :: (t: etf.Map, me: Snowflake) {
 	id := fsnow(t, "id");
 	if id == 0 { return; }
 	a := x_alloc();
-	tm, had := map_find(extras.threads, id);
+	had, tm := table_find(*extras.threads, id);
 	if !had {
 		tm.id = id;
 		tm.applied_tags = make_dynamic(Snowflake, 0, 0, a);
@@ -106,14 +106,14 @@ note_thread :: (t: etf.Map, me: Snowflake) {
 		uid := fsnow(mm, "user_id");
 		if uid == 0 || uid == me { tm.joined = true; }
 	} }
-	at(*extras.threads, id).* = tm;
+	table_set(*extras.threads, id, tm);
 }
 
 note_tags :: (ch: etf.Map) {
 	if is_null(ch) || !vhas(ch, "available_tags") { return; }
 	id := fsnow(ch, "id");
 	a := x_alloc();
-	list, had := map_find(extras.tags, id);
+	had, list := table_find(*extras.tags, id);
 	if !had { list = make_dynamic(Forum_Tag, 0, 0, a); }
 	for t: list {
 		delete(t.name, a);
@@ -124,7 +124,7 @@ note_tags :: (ch: etf.Map) {
 		tm := vmap(tv);
 		append(*list, Forum_Tag.{id = fsnow(tm, "id"), name = clone(fstr(tm, "name"), a), emoji_name = clone(fstr(tm, "emoji_name"), a), emoji_id = fsnow(tm, "emoji_id")});
 	}
-	at(*extras.tags, id).* = list;
+	table_set(*extras.tags, id, list);
 }
 
 note_guild :: (g: etf.Map, me: Snowflake) {
@@ -142,11 +142,11 @@ note_guild :: (g: etf.Map, me: Snowflake) {
 }
 
 note_roles :: (gid: Snowflake, roles: []V) {
-	list, had := map_find(extras.my_roles, gid);
+	had, list := table_find(*extras.my_roles, gid);
 	if !had { list = make_dynamic(Snowflake, 0, 0, x_alloc()); }
 	clear(*list);
 	for r: roles { append(*list, vsnow(r)); }
-	at(*extras.my_roles, gid).* = list;
+	table_set(*extras.my_roles, gid, list);
 }
 #scope_export
 
@@ -190,11 +190,11 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 	x_allocator = context.default_allocator;
 	if is_null(extras.threads) {
 		a := x_alloc();
-		extras.threads = make_map(Snowflake, Thread_Meta, a);
-		extras.tags = make_map(Snowflake, [..]Forum_Tag, a);
-		extras.pins_epoch = make_map(Snowflake, int, a);
+		extras.threads.allocator = a;
+		extras.tags.allocator = a;
+		extras.pins_epoch.allocator = a;
 		extras.new_msgs = make_dynamic(New_Message, 0, 0, a);
-		extras.my_roles = make_map(Snowflake, [..]Snowflake, a);
+		extras.my_roles.allocator = a;
 	}
 	account_dispatch(s, allocator, name, data);
 	me := s.me;
@@ -220,7 +220,7 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 		note_thread(d, me);
 		// creating a thread (or being added on create) makes us a member
 		if name == "THREAD_CREATE" && fsnow(d, "owner_id") == me {
-			{ tm, ok := map_find_ptr(*extras.threads, fsnow(d, "id"));
+			{ tm := table_find_pointer(*extras.threads, fsnow(d, "id")); ok := tm != null;
 			if ok { tm.joined = true; } }
 		}
 	case "THREAD_LIST_SYNC";
@@ -228,16 +228,16 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 		for mv: flist(d, "members") {
 			mm := vmap(mv);
 			if fsnow(mm, "user_id") == me {
-				{ tm, ok := map_find_ptr(*extras.threads, fsnow(mm, "id"));
+				{ tm := table_find_pointer(*extras.threads, fsnow(mm, "id")); ok := tm != null;
 				if ok { tm.joined = true; } }
 			}
 		}
 	case "THREAD_MEMBER_UPDATE";
-		{ tm, ok := map_find_ptr(*extras.threads, fsnow(d, "id"));
+		{ tm := table_find_pointer(*extras.threads, fsnow(d, "id")); ok := tm != null;
 		if ok { tm.joined = true; } }
 	case "THREAD_MEMBERS_UPDATE";
 		tid := fsnow(d, "id");
-		{ tm, ok := map_find_ptr(*extras.threads, tid);
+		{ tm := table_find_pointer(*extras.threads, tid); ok := tm != null;
 		if ok {
 			if vhas(d, "member_count") { tm.member_count = cast(int)(fint(d, "member_count")); }
 			for mv: flist(d, "added_members") { if fsnow(vmap(mv), "user_id") == me { tm.joined = true; } }
@@ -245,18 +245,18 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 		} }
 	case "THREAD_DELETE";
 		{ tid := fsnow(d, "id");
-		if has(extras.threads, tid) {
-			_, tm := delete_key(*extras.threads, tid);
+		if table_contains(*extras.threads, tid) {
+			_, tm := table_remove(*extras.threads, tid);
 			free_thread_meta(*tm);
 		} }
 	case "CHANNEL_PINS_UPDATE";
 		cid := fsnow(d, "channel_id");
-		at(*extras.pins_epoch, cid).* = get(extras.pins_epoch, cid) + 1;
+		find_or_add(*extras.pins_epoch, cid).* += 1;
 	case "GUILD_MEMBER_UPDATE";
 		if fsnow(fmap(d, "user"), "id") == me { note_roles(fsnow(d, "guild_id"), flist(d, "roles")); }
 	case "MESSAGE_CREATE";
 		cid := fsnow(d, "channel_id");
-		{ tm, ok := map_find_ptr(*extras.threads, cid);
+		{ tm := table_find_pointer(*extras.threads, cid); ok := tm != null;
 		if ok {
 			mid := fsnow(d, "id");
 			// a forum post's starter message shares the thread's id and isn't a reply
@@ -389,24 +389,24 @@ extras_destroy :: () {
 
 	if is_null(extras.threads) { return; }
 	a := x_alloc();
-	for * _, tm: extras.threads { free_thread_meta(tm); }
-	delete(extras.threads);
-	for _, list: extras.tags {
+	for * tm: extras.threads { free_thread_meta(tm); }
+	deinit(*extras.threads);
+	for list: extras.tags {
 		for t: list {
 			delete(t.name, a);
 			delete(t.emoji_name, a);
 		}
 		delete(list);
 	}
-	delete(extras.tags);
-	delete(extras.pins_epoch);
+	deinit(*extras.tags);
+	deinit(*extras.pins_epoch);
 	for * m: extras.new_msgs {
 		delete(m.content, a);
 		delete(m.mention_roles);
 	}
 	delete(extras.new_msgs);
-	for _, list: extras.my_roles { delete(list); }
-	delete(extras.my_roles);
+	for list: extras.my_roles { delete(list); }
+	deinit(*extras.my_roles);
 	extras = zero(type_of(extras));
 }
 
@@ -427,23 +427,23 @@ new_messages_free :: (c: *Client, msgs: []New_Message) {
 }
 
 thread_meta :: (id: Snowflake) -> *Thread_Meta {
-	{ tm, ok := map_find_ptr(*extras.threads, id);
+	{ tm := table_find_pointer(*extras.threads, id); ok := tm != null;
 	if ok { return tm; } }
 	return null;
 }
 
 forum_tags :: (forum_id: Snowflake) -> []Forum_Tag {
-	{ l, ok := map_find(extras.tags, forum_id);
+	{ ok, l := table_find(*extras.tags, forum_id);
 	if ok { return view(l); } }
 	return .{};
 }
 
-pins_epoch :: (channel_id: Snowflake) -> int {return get(extras.pins_epoch, channel_id);}
+pins_epoch :: (channel_id: Snowflake) -> int { _, n := table_find(*extras.pins_epoch, channel_id); return n; }
 
 my_guild_roles :: (guild_id: Snowflake) -> []Snowflake {
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
-	{ l, ok := map_find(extras.my_roles, guild_id);
+	{ ok, l := table_find(*extras.my_roles, guild_id);
 	if ok { return slice_clone_temp(view(l)); } }
 	return .{};
 }
@@ -463,9 +463,9 @@ is_thread :: (ch: *Channel) -> bool {
 // Active threads under parent_id we're a member of, oldest first (the sidebar's order).
 joined_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snowflake {
 	out := make_dynamic(Snowflake, 0, 0, allocator);
-	for id, tm: extras.threads {
+	for tm, id: extras.threads {
 		if tm.parent_id != parent_id || !tm.joined || tm.archived { continue; }
-		if !has(s.channels, id) { continue; }
+		if !table_contains(*s.channels, id) { continue; }
 		append(*out, id);
 	}
 	for i: 1..len(out)-1 {
@@ -478,11 +478,11 @@ joined_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snow
 // Threads (any state we know of) whose parent is the forum, newest activity first.
 forum_threads :: (s: *Store, forum_id: Snowflake, allocator := temp) -> []Snowflake {
 	out := make_dynamic(Snowflake, 0, 0, allocator);
-	for id, tm: extras.threads {
+	for tm, id: extras.threads {
 		if tm.parent_id == forum_id { append(*out, id); }
 	}
 	key :: (id: Snowflake) -> Snowflake {
-		tm := get(extras.threads, id);
+		_, tm := table_find(*extras.threads, id);
 		return max(tm.last_message_id, id);
 	}
 	for i: 1..len(out)-1 {
@@ -501,7 +501,7 @@ apply_forum_threads :: (c: *Client, body: V) {
 	for tv: flist(m, "threads") {
 		tmap := vmap(tv);
 		cid := parse_channel_into(s, tmap, fsnow(tmap, "guild_id"));
-		{ g, ok := map_find_ptr(*s.guilds, fsnow(tmap, "guild_id"));
+		{ g := table_find_pointer(*s.guilds, fsnow(tmap, "guild_id")); ok := g != null;
 		if ok && cid != 0 {
 			found := false;
 			for x: g.channels { if x == cid { found = true; } }
@@ -512,14 +512,14 @@ apply_forum_threads :: (c: *Client, body: V) {
 	for mv: flist(m, "members") {
 		mm := vmap(mv);
 		if fsnow(mm, "user_id") == me {
-			{ tm, ok := map_find_ptr(*extras.threads, fsnow(mm, "id"));
+			{ tm := table_find_pointer(*extras.threads, fsnow(mm, "id")); ok := tm != null;
 			if ok { tm.joined = true; } }
 		}
 	}
 	note_first :: (c: *Client, msg: etf.Map) {
 		if is_null(msg) { return; }
 		tid := fsnow(msg, "channel_id");
-		tm, ok := map_find_ptr(*extras.threads, tid);
+		tm := table_find_pointer(*extras.threads, tid); ok := tm != null;
 		if !ok { return; }
 		{ au := fmap(msg, "author");
 		if !is_null(au) { tm.first_author = parse_user_into(*c.store, au); } }

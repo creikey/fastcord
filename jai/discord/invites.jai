@@ -81,7 +81,8 @@ invite_body :: (c: *Client, channel_id: Snowflake, location: string, max_age := 
 invite_code_for :: (c: *Client, channel_id: Snowflake, allocator := temp) -> string {
 	locks.lock(*c.invite_mu);
 	defer locks.unlock(*c.invite_mu);
-	return clone(get(c.invite_codes, channel_id), allocator);
+	_, code := table_find(*c.invite_codes, channel_id);
+	return clone(code, allocator);
 }
 
 // invite_note_code: an invite was created for the channel (any thread). The server
@@ -90,12 +91,12 @@ invite_note_code :: (c: *Client, channel_id: Snowflake, code: string) {
 	if code == "" || channel_id == 0 { return; }
 	locks.lock(*c.invite_mu);
 	defer locks.unlock(*c.invite_mu);
-	{ old, ok := map_find(c.invite_codes, channel_id);
+	{ ok, old := table_find(*c.invite_codes, channel_id);
 	if ok {
 		if old == code { return; }
 		delete(old, c.allocator);
 	} }
-	at(*c.invite_codes, channel_id).* = clone(code, c.allocator);
+	table_set(*c.invite_codes, channel_id, clone(code, c.allocator));
 }
 
 // create_invite: POST /channels/{id}/invites as the invite modal sends it. BLOCKING.
@@ -141,11 +142,11 @@ invite_suggestion_users :: (c: *Client, guild_id: Snowflake) -> []Snowflake {
 		if u != 0 && u != me && !slice.contains(view(out.*), u) { append(out, u); }
 	}
 	friends := make_dynamic(Snowflake, 0, 0, temp);
-	for id, r: s.relationships { if r.kind == .Friend { append(*friends, id); } }
+	for r, id: s.relationships { if r.kind == .Friend { append(*friends, id); } }
 	slice.sort(view(friends));
 	for u: friends { add(*out, s.me, u); }
 	for cid: s.private_channels {
-		{ ch, ok := map_find(s.channels, cid);
+		{ ok, ch := table_find(*s.channels, cid);
 		if ok && ch.kind == .DM && len(ch.recipient_ids) == 1 { add(*out, s.me, ch.recipient_ids[0]); } }
 	}
 	Joined :: struct {
@@ -154,10 +155,10 @@ invite_suggestion_users :: (c: *Client, guild_id: Snowflake) -> []Snowflake {
 	}
 	for gid: s.guild_order {
 		if gid == guild_id { continue; }
-		gm, ok := map_find(s.members, gid);
+		ok, gm := table_find(*s.members, gid);
 		if !ok { continue; }
-		js := make_dynamic(Joined, 0, len(gm), temp);
-		for uid, m: gm { append(*js, Joined.{m.joined_at, uid}); }
+		js := make_dynamic(Joined, 0, gm.count, temp);
+		for m, uid: gm { append(*js, Joined.{m.joined_at, uid}); }
 		slice.sort_by(view(js), (a: Joined, b: Joined) -> bool {return compare(a.at, b.at) < 0 || a.at == b.at && a.id < b.id;});
 		for j: js { add(*out, s.me, j.id); }
 	}
@@ -189,7 +190,7 @@ open_invite_modal :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, lo
 		// the suggestion list is ready (memberships known): it is shown at once
 		groups := 0;
 		for cid: c.store.private_channels {
-			{ ch, ok := map_find(c.store.channels, cid);
+			{ ok, ch := table_find(*c.store.channels, cid);
 			if ok && ch.kind == .Group_DM { groups += 1; } }
 		}
 		friends := len(users) - members;
@@ -201,7 +202,7 @@ open_invite_modal :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, lo
 // invite_copied: the modal's Copy button (the link goes to the clipboard).
 invite_copied :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, code: string, location: string) {
 	ct := 0;
-	{ ch, ok := map_find(c.store.channels, channel_id);
+	{ ok, ch := table_find(*c.store.channels, channel_id);
 	if ok { ct = cast(int)(ch.kind); } }
 	analytics_track(c, "copy_instant_invite", fmt.tprintf("\"server\":\"%d\",\"channel\":\"%d\",\"channel_type\":%d,\"code\":%s,\"location\":%s", guild_id, channel_id, ct, json_quote(code), json_quote(location)));
 }
@@ -338,11 +339,12 @@ joined_guild_created :: (c: *Client, d: etf.Map) -> bool {
 	locks.unlock(*c.invite_mu);
 	if pg == 0 || pg != gid { return false; }
 	ch := pch;
-	{ cc, ok := map_find(c.store.channels, ch);
+	{ ok, cc := table_find(*c.store.channels, ch);
 	if !ok || cc.guild_id != gid {
 		ch = 0;
 		for cid: guild_channels_sorted(*c.store, gid) {
-			if get(c.store.channels, cid).kind == .Guild_Text {
+			chan := table_find_pointer(*c.store.channels, cid);
+			if chan && chan.kind == .Guild_Text {
 				ch = cid;
 				break;
 			}
@@ -372,7 +374,7 @@ friends_page_viewed :: (c: *Client) {
 	s := *c.store;
 	vis := make_dynamic(Snowflake, 0, 0, temp);
 	for cid: s.private_channels {
-		{ ch, ok := map_find(s.channels, cid);
+		{ ok, ch := table_find(*s.channels, cid);
 		if ok && len(ch.recipient_ids) > 0 { append(*vis, ch.recipient_ids[0]); } }
 	}
 	sb := strings.builder_make(temp);
@@ -383,13 +385,13 @@ friends_page_viewed :: (c: *Client) {
 	}
 	strings.write_byte(*sb, #char "]");
 	mobile := 0;
-	for u: vis { { p, ok := map_find(s.presences, u);
+	for u: vis { { ok, p := table_find(*s.presences, u);
 if ok && p.mobile != .Offline { mobile += 1; } } }
 	analytics_track(c, "dm_list_viewed", fmt.tprintf("\"num_users_visible\":%d,\"num_users_visible_with_mobile_indicator\":%d,\"now_playing_visible\":true,\"now_playing_num_cards\":0,\"now_playing_games_detected\":[],\"visible_user_ids\":%s,\"changelog_dm_visible\":false", len(vis), mobile, strings.to_string(sb)));
 	if !c.account_verified { analytics_app_notice(c, "app_notice_viewed", "UNVERIFIED_ACCOUNT"); }
 	// the page opens on Online, or on Add Friend while there is nobody to list
 	people := 0;
-	for _, r: s.relationships {
+	for r: s.relationships {
 		if r.kind == {
 		case .Friend; #through; case .Outgoing_Request; #through; case .Incoming_Request;
 			people += 1;

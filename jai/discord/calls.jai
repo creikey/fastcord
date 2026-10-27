@@ -18,11 +18,11 @@ Call :: struct {
 call_apply :: (c: *Client, d: etf.Map) {
 	cid := fsnow(d, "channel_id");
 	if cid == 0 { return; }
-	if is_null(c.social.calls) { c.social.calls = make_map(Snowflake, Call, c.allocator); }
-	call, ok := map_find_ptr(*c.social.calls, cid);
+	if is_null(c.social.calls) { c.social.calls.allocator = c.allocator; }
+	call := table_find_pointer(*c.social.calls, cid); ok := call != null;
 	if !ok {
-		at(*c.social.calls, cid).* = Call.{channel_id = cid, ringing = make_dynamic(Snowflake, 0, 0, c.allocator)};
-		call = at(*c.social.calls, cid);
+		find_or_add(*c.social.calls, cid).* = Call.{channel_id = cid, ringing = make_dynamic(Snowflake, 0, 0, c.allocator)};
+		call = find_or_add(*c.social.calls, cid);
 	}
 	{ mid := fsnow(d, "message_id");
 	if mid != 0 { call.message_id = mid; } }
@@ -55,15 +55,15 @@ calls_dispatch :: (c: *Client, name: string, data: V) {
 		}
 	case "CALL_DELETE";
 		cid := fsnow(vmap(data), "channel_id");
-		{ call, ok := map_find_ptr(*c.social.calls, cid);
+		{ call := table_find_pointer(*c.social.calls, cid); ok := call != null;
 		if ok {
 			delete(call.ringing);
-			delete_key(*c.social.calls, cid);
+			table_remove(*c.social.calls, cid);
 		} }
 		if c.social.ring_on_create == cid { c.social.ring_on_create = 0; }
 	case "READY";
-		for * _, call: c.social.calls { delete(call.ringing); }
-		clear(*c.social.calls);
+		for * call: c.social.calls { delete(call.ringing); }
+		table_reset(*c.social.calls);
 	}
 }
 #scope_file
@@ -81,14 +81,14 @@ call_shelf_later :: (c: *Client, delay_ms: s64, on_done: (c: *Client, j: *Job, s
 
 // call_get: the ongoing call in a DM / group DM (nil when none).
 call_get :: (c: *Client, channel_id: Snowflake) -> *Call {
-	{ call, ok := map_find_ptr(*c.social.calls, channel_id);
+	{ call := table_find_pointer(*c.social.calls, channel_id); ok := call != null;
 	if ok { return call; } }
 	return null;
 }
 
 // incoming_call: a call that rings us right now and that we haven't dismissed (0 if none).
 incoming_call :: (c: *Client) -> Snowflake {
-	for * cid, call: c.social.calls {
+	for * call, cid: c.social.calls {
 		if !call.dismissed && slice_has(view(call.ringing), c.store.me) { return cid; }
 	}
 	return 0;

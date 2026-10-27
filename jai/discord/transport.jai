@@ -62,7 +62,7 @@ Conn_Event :: struct {
 Transport :: struct {
 	mu: locks.Mutex;
 	cond: locks.Cond;
-	origins: Map(string, *Origin);
+	origins: Table(string, *Origin);
 	alt: altsvc.Cache; // Chrome alternative-service state (fc:quic/altsvc)
 	use_h3: bool; // race QUIC per Alt-Svc (default on)
 	race_mu: locks.Mutex;
@@ -77,7 +77,7 @@ Transport :: struct {
 	// conn_observer sees each new h2/h3 session and what we sent to set it up
 	// (same observer_data): traffic tooling writes it as a Chrome netlog.
 	conn_observer: (data: *void, ev: Conn_Event);
-	h3_seen: Map(*void, bool);
+	h3_seen: Table(*void, bool);
 }
 #scope_module
 
@@ -105,7 +105,7 @@ transport_init :: (t: *Transport, jar: *Cookie_Jar, allocator := context.allocat
 	register_content_decoders();
 	t.allocator = allocator;
 	t.jar = jar;
-	t.origins = make_map(string, *Origin, allocator);
+	t.origins.allocator = allocator;
 	t.use_h3 = true;
 }
 
@@ -115,7 +115,7 @@ transport_destroy :: (t: *Transport) {
 	origins := t.origins;
 	t.origins = zero(type_of(t.origins));
 	locks.unlock(*t.mu);
-	for k, o: origins {
+	for o, k: origins {
 		if o.h2 != null {
 			locks.lock(*t.mu);
 			r := o.h2;
@@ -134,8 +134,8 @@ transport_destroy :: (t: *Transport) {
 		free(o,, t.allocator);
 		delete(k, t.allocator);
 	}
-	delete(origins);
-	delete(t.h3_seen);
+	deinit(*origins);
+	deinit(*t.h3_seen);
 	altsvc.destroy(*t.alt);
 }
 #scope_module
@@ -219,12 +219,12 @@ network_round_trip :: (t: *Transport, host: string, req: http.Request) -> http.R
 }
 
 origin_lookup :: (t: *Transport, host: string) -> *Origin {
-	o, ok := map_find(t.origins, host);
+	ok, o := table_find(*t.origins, host);
 	if !ok {
 		o = new(Origin, t.allocator);
 		o.host = clone(host, t.allocator);
 		o.idle_h1 = make_dynamic(*http.H1_Conn, 0, 0, t.allocator);
-		at(*t.origins, clone(host, t.allocator)).* = o;
+		table_set(*t.origins, clone(host, t.allocator), o);
 	}
 	return o;
 }
@@ -398,7 +398,7 @@ h3_round_trip :: (t: *Transport, host: string, req: http.Request) -> H3_Outcome,
 		// An established h2 session is preferred over starting a QUIC job
 		// (Chrome reuses the SPDY session the main job finds).
 		locks.lock(*t.mu);
-		o, has := map_find(t.origins, host);
+		has, o := table_find(*t.origins, host);
 		h2_live := has && o.h2 != null && http.h2_can_open(o.h2.c);
 		locks.unlock(*t.mu);
 		if h2_live { return .{}, false; }
@@ -413,8 +413,8 @@ h3_round_trip :: (t: *Transport, host: string, req: http.Request) -> H3_Outcome,
 	case .H3;
 		if t.conn_observer != null {
 			locks.lock(*t.mu);
-			seen := has(t.h3_seen, res.h3);
-			if !seen { at(*t.h3_seen, res.h3).* = true; }
+			seen := table_contains(*t.h3_seen, res.h3);
+			if !seen { table_set(*t.h3_seen, res.h3, true); }
 			locks.unlock(*t.mu);
 			// the transport parameters bytes this session's ClientHello carried
 			if !seen { t.conn_observer(t.observer_data, .{kind = "h3", host = host, alpn = "h3", quic_params = quic.transport_params(res.h3)}); }

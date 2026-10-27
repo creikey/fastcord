@@ -37,7 +37,7 @@ fixture_fast_connect :: (acct: string, n: int) -> bool {
 	seen := 0;
 	while true { line, __ok1 := strings.split_lines_iterator(*text); if !__ok1 break;
 		if !strings.contains(line, "\"op\":2,") || !strings.contains(line, "\"ws_send\"") { continue; }
-		v, jerr := etf.from_json(line, temp);
+		v, jerr := etf.from_json(line,, temp);
 		if jerr != .None { continue; }
 		m := discord.vmap(v);
 		a := discord.fstr(m, "acct");
@@ -64,7 +64,7 @@ start_route :: (acct: string, n: int) -> discord.Snowflake, discord.Snowflake {
 	while true { line, __ok2 := strings.split_lines_iterator(*text); if !__ok2 break;
 		// the start route's page is requested right at READY; later pages are clicks
 		if ready_seen && channel == 0 { route_done = true; }
-		v, jerr := etf.from_json(line, temp);
+		v, jerr := etf.from_json(line,, temp);
 		if jerr != .None { continue; }
 		m := discord.vmap(v);
 		a := discord.fstr(m, "acct");

@@ -40,10 +40,10 @@ Social_State :: struct {
 	upsells_shown: bool; // Appearance's premium upsells (once per session)
 	theme_badge_count: int; // CUSTOM_THEME_ENTRYPOINT_NEW_BADGE content_count
 	ring_on_create: Snowflake; // DM call we started: ring when its CALL_CREATE arrives
-	calls: Map(Snowflake, Call);
+	calls: Table(Snowflake, Call);
 	nick_mod_props: string; // moderation_action of the server nickname PATCH in flight (social_mu)
-	menu_loaded: Map(Snowflake, bool); // user menus whose once-per-user data was loaded
-	notes_loaded: Map(Snowflake, bool);
+	menu_loaded: Table(Snowflake, bool); // user menus whose once-per-user data was loaded
+	notes_loaded: Table(Snowflake, bool);
 	cmd_index_at: s64;
 	cmd_index_guild: Snowflake;
 	profile_sid: [64]u8; // the editor's profile_session_id (read by the profile fetch's worker)
@@ -51,10 +51,10 @@ Social_State :: struct {
 }
 
 social_destroy :: (c: *Client) {
-	for * _, call: c.social.calls { delete(call.ringing); }
-	delete(c.social.calls);
-	delete(c.social.menu_loaded);
-	delete(c.social.notes_loaded);
+	for * call: c.social.calls { delete(call.ringing); }
+	deinit(*c.social.calls);
+	deinit(*c.social.menu_loaded);
+	deinit(*c.social.notes_loaded);
 	delete(c.social.nick_mod_props, c.allocator);
 	c.social = zero(type_of(c.social));
 }

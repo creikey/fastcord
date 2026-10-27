@@ -99,7 +99,7 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 		}
 		new_token = fstr(m, "token");
 	case .Profile_Patch;
-		{ u, ok := map_find_ptr(*s.users, s.me);
+		{ u := table_find_pointer(*s.users, s.me); ok := u != null;
 		if ok {
 			a := s.allocator;
 			if vhas(m, "bio") {free_str(u.bio, a); u.bio = clone_str(fstr(m, "bio"), a);}

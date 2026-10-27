@@ -58,8 +58,8 @@ Scheduled_Event :: struct {
 
 Events_Table :: struct {
 	allocator: Allocator;
-	list: Map(Snowflake, Scheduled_Event);
-	counts_asked: Map(Snowflake, bool); // event -> its interested count was requested
+	list: Table(Snowflake, Scheduled_Event);
+	counts_asked: Table(Snowflake, bool); // event -> its interested count was requested
 	acks: [..]Event_Ack; // new events to ack (guild_admin_tick)
 	epoch: int; // bumped on every change (the UI redraws on it)
 }
@@ -77,8 +77,8 @@ events_init :: () {
 	if !is_null(evt.list) { return; }
 	allocator := context.default_allocator; // shared by every live client (like the feature pool)
 	evt.allocator = allocator;
-	evt.list = make_map(Snowflake, Scheduled_Event, allocator);
-	evt.counts_asked = make_map(Snowflake, bool, allocator);
+	evt.list.allocator = allocator;
+	evt.counts_asked.allocator = allocator;
 	evt.acks = make_dynamic(Event_Ack, 0, 0, allocator);
 }
 
@@ -100,10 +100,10 @@ event_upsert :: (m: etf.Map) {
 	id := fsnow(m, "id");
 	if id == 0 { return; }
 	a := evt.allocator;
-	e, had := map_find_ptr(*evt.list, id);
+	e := table_find_pointer(*evt.list, id); had := e != null;
 	if !had {
-		at(*evt.list, id).* = Scheduled_Event.{id = id, user_count = -1};
-		e = at(*evt.list, id);
+		find_or_add(*evt.list, id).* = Scheduled_Event.{id = id, user_count = -1};
+		e = find_or_add(*evt.list, id);
 	} else {
 		event_free(e);
 	}
@@ -122,10 +122,10 @@ event_upsert :: (m: etf.Map) {
 }
 
 event_remove :: (id: Snowflake) {
-	{ e, ok := map_find_ptr(*evt.list, id);
+	{ e := table_find_pointer(*evt.list, id); ok := e != null;
 	if ok {
 		event_free(e);
-		delete_key(*evt.list, id);
+		table_remove(*evt.list, id);
 		evt.epoch += 1;
 	} }
 }
@@ -147,7 +147,7 @@ events_dispatch :: (allocator: Allocator, me: Snowflake, name: string, d: etf.Ma
 		if !is_null(evt.list) { event_remove(fsnow(d, "id")); }
 	case "GUILD_SCHEDULED_EVENT_USER_ADD"; #through; case "GUILD_SCHEDULED_EVENT_USER_REMOVE";
 		if is_null(evt.list) { return; }
-		e, ok := map_find_ptr(*evt.list, fsnow(d, "guild_scheduled_event_id"));
+		e := table_find_pointer(*evt.list, fsnow(d, "guild_scheduled_event_id")); ok := e != null;
 		if !ok { return; }
 		add := name == "GUILD_SCHEDULED_EVENT_USER_ADD";
 		if fsnow(d, "user_id") == me {
@@ -160,16 +160,16 @@ events_dispatch :: (allocator: Allocator, me: Snowflake, name: string, d: etf.Ma
 		if is_null(evt.list) { return; }
 		gid := fsnow(d, "id");
 		ids := make_dynamic(Snowflake, 0, 0, temp);
-		for id, e: evt.list { if e.guild_id == gid { append(*ids, id); } }
+		for e, id: evt.list { if e.guild_id == gid { append(*ids, id); } }
 		for id: ids { event_remove(id); }
 	}
 }
 
 events_destroy :: () {
 	if is_null(evt.list) { return; }
-	for * _, e: evt.list { event_free(e); }
-	delete(evt.list);
-	delete(evt.counts_asked);
+	for * e: evt.list { event_free(e); }
+	deinit(*evt.list);
+	deinit(*evt.counts_asked);
 	delete(evt.acks);
 	evt = zero(type_of(evt));
 }
@@ -177,7 +177,7 @@ events_destroy :: () {
 events_epoch :: () -> int {return evt.epoch;}
 
 event_get :: (id: Snowflake) -> *Scheduled_Event {
-	{ e, ok := map_find_ptr(*evt.list, id);
+	{ e := table_find_pointer(*evt.list, id); ok := e != null;
 	if ok { return e; } }
 	return null;
 }
@@ -185,7 +185,7 @@ event_get :: (id: Snowflake) -> *Scheduled_Event {
 // guild_events: the guild's scheduled and live events, live first, then by start time.
 guild_events :: (guild_id: Snowflake, allocator := temp) -> []*Scheduled_Event {
 	out := make_dynamic(*Scheduled_Event, 0, 0, allocator);
-	for * _, e: evt.list {
+	for * e: evt.list {
 		if e.guild_id != guild_id || (e.status != .Scheduled && e.status != .Active) { continue; }
 		append(*out, e);
 	}
@@ -240,8 +240,8 @@ open_guild_events :: (c: *Client, guild_id: Snowflake) {
 	track_modal_impression(c, guild_id, "GuildEventsModal");
 	analytics_track(c, "open_modal", fmt.tprintf("\"type\":\"Guild Events Modal\",\"guild_id\":\"%d\",\"guild_events_count\":%d", cast(u64)(guild_id), len(evs)));
 	for e: evs {
-		if e.user_count >= 0 || get(evt.counts_asked, e.id) { continue; }
-		at(*evt.counts_asked, e.id).* = true;
+		if e.user_count >= 0 || table_contains(*evt.counts_asked, e.id) { continue; }
+		table_set(*evt.counts_asked, e.id, true);
 		fetch_event_counts(c, e.guild_id, e.id);
 	}
 }
@@ -406,7 +406,7 @@ event_created :: (c: *Client, r: *Feature_Result) {
 	gid := e.guild_id;
 	// the creator is marked interested by Discord (GUILD_SCHEDULED_EVENT_USER_ADD follows)
 	e.interested = true;
-	at(*evt.counts_asked, id).* = true;
+	table_set(*evt.counts_asked, id, true);
 	feature_submit(c, .Event_Rsvps, "GET", fmt.tprintf("/users/@me/scheduled-events?guild_ids=%d", cast(u64)(gid)), channel_id = gid);
 	fetch_event_counts(c, gid, id);
 	event_share(c, id);
@@ -570,11 +570,12 @@ guild_admin_apply :: (c: *Client, r: *Feature_Result) {
 	case .Event_Rsvps;
 		// [{"guild_scheduled_event_id","user_id","response"}] for the guild
 		if !r.ok || is_null(evt.list) { return; }
-		mine := make_map(Snowflake, bool, temp);
-		for v: vlist(r.body) { at(*mine, fsnow(vmap(v), "guild_scheduled_event_id")).* = true; }
-		for * id, e: evt.list {
+		mine: Table(Snowflake, bool);
+		mine.allocator = temp;
+		for v: vlist(r.body) { table_set(*mine, fsnow(vmap(v), "guild_scheduled_event_id"), true); }
+		for * e, id: evt.list {
 			if e.guild_id != r.channel_id || e.interest_pending { continue; }
-			e.interested = get(mine, id);
+			e.interested = table_contains(*mine, id);
 		}
 		evt.epoch += 1;
 	case .Event_Interest;

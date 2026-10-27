@@ -11,7 +11,7 @@ Quick_Switcher :: struct {
 	last_sent_ms: s64;
 	pending: string; // query waiting for the trailing edge ("" = none)
 	sent: string; // last query sent
-	fetched: Map(Snowflake, bool); // games already looked up
+	fetched: Table(Snowflake, bool); // games already looked up
 }
 
 // quick_switcher_type: the query text changed (one call per keystroke).
@@ -48,7 +48,7 @@ quick_switcher_destroy :: (c: *Client) {
 	qs := *c.quick_switcher;
 	free_str(qs.pending, c.allocator);
 	free_str(qs.sent, c.allocator);
-	delete(qs.fetched);
+	deinit(*qs.fetched);
 }
 #scope_file
 
@@ -82,8 +82,8 @@ qs_results :: (c: *Client, body: V, shown: int) {
 		m := vmap(g);
 		if !etf.is_nil(vget(m, "icon")) { continue; }
 		id := fsnow(m, "id");
-		if id == 0 || get(c.quick_switcher.fetched, id) { continue; }
-		at(*c.quick_switcher.fetched, id).* = true;
+		if id == 0 || table_contains(*c.quick_switcher.fetched, id) { continue; }
+		table_set(*c.quick_switcher.fetched, id, true);
 		query_add_snow(*q, "game_ids", id);
 		n += 1;
 	}

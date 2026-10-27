@@ -66,7 +66,7 @@ aw_guild :: (w: *Json, c: *Client, guild_id: Snowflake, with_id := true) {
 				voice += 1;
 			}
 		}
-		for _, vs: s.voice_states { if vs.guild_id == guild_id && vs.channel_id != 0 { in_voice += 1; } }
+		for vs: s.voice_states { if vs.guild_id == guild_id && vs.channel_id != 0 { in_voice += 1; } }
 	}
 	json_kint(w, "guild_size_total", ifx g != null then cast(s64)(g.member_count) else 0);
 	json_kint(w, "guild_num_channels", cast(s64)(text + voice));
@@ -190,10 +190,10 @@ message_menu_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, 
 	json_kstr(*w, "location", location);
 	aw_track(c, "message_popout_menu_opened_desktop", *w);
 	if guild_id != 0 {
-		miss := !get(c.command_index_guilds, guild_id);
-		analytics_command_cache_fetch(c, miss, len(c.command_index_guilds));
+		miss := !table_contains(*c.command_index_guilds, guild_id);
+		analytics_command_cache_fetch(c, miss, c.command_index_guilds.count);
 		open_message_context_menu(c, guild_id);
-		analytics_command_cache_fetch(c, miss, len(c.command_index_guilds));
+		analytics_command_cache_fetch(c, miss, c.command_index_guilds.count);
 	} else {
 		open_message_context_menu(c, 0);
 	}
@@ -532,7 +532,7 @@ profile_shows_nothing_extra :: (c: *Client, user_id: Snowflake, guild_id: Snowfl
 	u := user_get(s, user_id);
 	if u == null { return false; }
 	if u.bio != "" || u.pronouns != "" || u.flags != 0 || u.premium_type != 0 { return false; }
-	{ p, ok := map_find(s.presences, user_id);
+	{ ok, p := table_find(*s.presences, user_id);
 	if ok && p.activity != "" { return false; } }
 	if guild_id != 0 {
 		{ m := member_get(s, guild_id, user_id);
@@ -548,7 +548,7 @@ user_status_string :: (c: *Client, user_id: Snowflake) -> string {
 	if user_id == s.me {
 		st, plat = s.settings.status, "desktop";
 		if st == .Offline || st == .Invisible { st = .Invisible; }
-	} else { p, ok := map_find(s.presences, user_id);
+	} else { ok, p := table_find(*s.presences, user_id);
 if ok {
 		st = p.status;
 		if p.desktop != .Offline { plat = "desktop"; } else if p.mobile != .Offline { plat = "mobile"; } else if p.web != .Offline { plat = "web"; }
@@ -607,7 +607,7 @@ profile_action :: (c: *Client, v: *Profile_View, stack: []string, action: string
 	json_kbool(*w, "is_bot_profile", u != null && u.bot);
 	json_kbool(*w, "is_private_to_viewer", false);
 	json_ksnow(*w, "related_user_id", v.user_id);
-	rel, has_rel := map_find(s.relationships, v.user_id);
+	has_rel, rel := table_find(*s.relationships, v.user_id);
 	json_kint(*w, "relationship_type", ifx has_rel then cast(s64)(rel.kind) else 0);
 	if has_rel && rel.since != "" { json_kstr(*w, "related_since", rel.since); }
 	if v.layout == .Sidebar && v.mutuals_known && u != null {
@@ -783,7 +783,7 @@ guild_unread_mentions :: (c: *Client, guild_id: Snowflake) -> bool, int {
 	if g == null { return unread, mentions; }
 	for cid: g.channels {
 		if channel_unread(s, cid) { unread = true; }
-		{ rs, ok := map_find(s.read_states, cid);
+		{ ok, rs := table_find(*s.read_states, cid);
 		if ok { mentions += rs.mention_count; } }
 	}
 	return unread, mentions;
@@ -824,7 +824,7 @@ analytics_channel_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowfl
 	if ch.guild_id == 0 {
 		json_kbool(*w, "is_app_dm", false);
 		friends := 0;
-		for r: ch.recipient_ids { { rel, ok := map_find(s.relationships, r);
+		for r: ch.recipient_ids { { ok, rel := table_find(*s.relationships, r);
 if ok && rel.kind == .Friend { friends += 1; } } }
 		json_kint(*w, "friend_recipient_count", cast(s64)(friends));
 		json_kint(*w, "non_friend_recipient_count", cast(s64)(len(ch.recipient_ids) - friends));
@@ -835,7 +835,7 @@ if ok && rel.kind == .Friend { friends += 1; } } }
 		return;
 	}
 	gid := ch.guild_id;
-	rs := get(s.read_states, channel_id);
+	_, rs := table_find(*s.read_states, channel_id);
 	json_kbool(*w, "channel_was_unread", channel_unread(s, channel_id));
 	json_kint(*w, "channel_mention_count", cast(s64)(rs.mention_count));
 	json_kbool(*w, "channel_is_muted", channel_is_muted(s, gid, channel_id, now));
@@ -901,10 +901,10 @@ analytics_join_voice :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake)
 	s := *c.store;
 	ch := channel_get(s, channel_id);
 	in_channel, custom := 0, 0;
-	for uid, vs: s.voice_states {
+	for vs, uid: s.voice_states {
 		if vs.channel_id != channel_id || uid == s.me { continue; }
 		in_channel += 1;
-		{ p, ok := map_find(s.presences, uid);
+		{ ok, p := table_find(*s.presences, uid);
 		if ok && p.activity != "" { custom += 1; } }
 	}
 	w := aw_begin();
@@ -1021,7 +1021,7 @@ analytics_create_dm_clicked :: (c: *Client, user_ids: []Snowflake) {
 	a := *c.analytics;
 	s := *c.store;
 	friends := 0;
-	for u: user_ids { { rel, ok := map_find(s.relationships, u);
+	for u: user_ids { { ok, rel := table_find(*s.relationships, u);
 if ok && rel.kind == .Friend { friends += 1; } } }
 	w := aw_begin();
 	json_kbool(*w, "is_new_dm", true);
@@ -1074,11 +1074,11 @@ Friends_List_Tab :: enum u8 {
 analytics_friends_list :: (c: *Client, event: string, tab: Friends_List_Tab, now_playing_cards := 0) {
 	s := *c.store;
 	friends, online, idle, dnd, outgoing, incoming := 0, 0, 0, 0, 0, 0;
-	for uid, rel: s.relationships {
+	for rel, uid: s.relationships {
 		if rel.kind == {
 		case .Friend;
 			friends += 1;
-			{ p, ok := map_find(s.presences, uid);
+			{ ok, p := table_find(*s.presences, uid);
 			if ok {
 				if p.status == {
 				case .Online;

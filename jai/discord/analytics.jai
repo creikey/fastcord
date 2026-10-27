@@ -38,8 +38,8 @@ Analytics :: struct {
 	ad_session: string;
 	ad_created: s64;
 	timers: [..]Analytics_Timer;
-	roundtrips: Map(Snowflake, Roundtrip);
-	throttled: Map(string, s64); // throttle key -> until (ms), analytics_throttled
+	roundtrips: Table(Snowflake, Roundtrip);
+	throttled: Table(string, s64); // throttle key -> until (ms), analytics_throttled
 	allocator: Allocator;
 	// UI-owned event state (analytics_events.odin; UI thread)
 	menu: Message_Menu;
@@ -84,8 +84,8 @@ analytics_init :: (a: *Analytics, allocator := context.allocator) {
 	// The ad session (AdSessionStore) exists from launch: quests/decision uses it before READY.
 	a.ad_session = uuid4(allocator);
 	a.ad_created = now_ms();
-	a.roundtrips = make_map(Snowflake, Roundtrip, allocator);
-	a.throttled = make_map(string, s64, allocator);
+	a.roundtrips.allocator = allocator;
+	a.throttled.allocator = allocator;
 	a.shown = make_dynamic(Shown_Notification, 0, 0, allocator);
 	a.roundtrip_sample = 0.1;
 }
@@ -95,9 +95,9 @@ analytics_destroy :: (a: *Analytics) {
 	delete(a.queue);
 	delete(a.ad_session, a.allocator);
 	delete(a.timers);
-	delete(a.roundtrips);
-	for k: a.throttled { delete(k, a.allocator); }
-	delete(a.throttled);
+	deinit(*a.roundtrips);
+	for v_, k: a.throttled { delete(k, a.allocator); }
+	deinit(*a.throttled);
 	delete(a.shown);
 	delete(a.picker.load_id, a.allocator);
 	delete(a.picker.query, a.allocator);
@@ -262,13 +262,13 @@ analytics_throttled :: (a: *Analytics, event_type: string, props_json: string, n
 		key_part(*sb, v);
 	}
 	key := strings.to_string(sb);
-	{ until, ok := map_find(a.throttled, key);
+	{ ok, until := table_find(*a.throttled, key);
 	if ok {
 		if until > now { return true; }
-		at(*a.throttled, key).* = now + th.period_ms;
+		table_set(*a.throttled, key, now + th.period_ms);
 		return false;
 	} }
-	at(*a.throttled, clone(key, a.allocator)).* = now + th.period_ms;
+	table_set(*a.throttled, clone(key, a.allocator), now + th.period_ms);
 	return false;
 }
 #scope_export
@@ -374,11 +374,11 @@ analytics_tick :: (c: *Client, now: s64) {
 		ordered_remove(*a.timers, i);
 		analytics_track(c, tm.event_type, tm.props);
 	} }
-	for nonce, rt: a.roundtrips {
+	for rt, nonce: a.roundtrips {
 		done := rt.api != 0 && rt.gateway != 0;
 		if done || now - rt.start > 30_000 {
 			analytics_message_roundtrip(c, rt.channel_id, ifx rt.api != 0 then rt.api - rt.start else -1, ifx rt.gateway != 0 then rt.gateway - rt.start else -1, rt.attachments);
-			delete_key(*a.roundtrips, nonce);
+			table_remove(*a.roundtrips, nonce);
 			break; // map changed
 		}
 	}
@@ -405,7 +405,7 @@ analytics_tick :: (c: *Client, now: s64) {
 analytics_message_roundtrip :: (c: *Client, channel_id: Snowflake, api_ms: s64, gateway_ms: s64, attachments: int) {
 	if rand.float64_() >= c.analytics.roundtrip_sample { return; }
 	s := *c.store;
-	ch := get(s.channels, channel_id);
+	_, ch := table_find(*s.channels, channel_id);
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
@@ -415,7 +415,7 @@ analytics_message_roundtrip :: (c: *Client, channel_id: Snowflake, api_ms: s64, 
 	json_kint(*w, "channel_type", cast(s64)(ch.kind));
 	if ch.guild_id != 0 {
 		json_ksnow(*w, "guild_id", ch.guild_id);
-		g := get(s.guilds, ch.guild_id);
+		_, g := table_find(*s.guilds, ch.guild_id);
 		json_kint(*w, "guild_size", cast(s64)(g.member_count));
 	}
 	json_kstr(*w, "mobile_network_type", "unknown");

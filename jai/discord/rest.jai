@@ -375,17 +375,17 @@ preflight_note :: (c: *Client, host: string, path: string, pending: bool) {
 	url := strings.concatenate(string.["https://", host, path], temp);
 	locks.lock(*c.preflight_mu);
 	defer locks.unlock(*c.preflight_mu);
-	if has(c.preflights, url) {
-		at(*c.preflights, url).* = 1;
+	if table_contains(*c.preflights, url) {
+		table_set(*c.preflights, url, 1);
 	} else {
-		at(*c.preflights, clone(url, c.allocator)).* = 1;
+		table_set(*c.preflights, clone(url, c.allocator), 1);
 	}
 }
 #scope_module
 
 preflight_finish :: (c: *Client, url: string) {
 	locks.lock(*c.preflight_mu);
-	if has(c.preflights, url) { at(*c.preflights, url).* = 2; }
+	if table_contains(*c.preflights, url) { table_set(*c.preflights, url, 2); }
 	locks.cond_broadcast(*c.preflight_cond);
 	locks.unlock(*c.preflight_mu);
 }
@@ -395,15 +395,15 @@ preflight_finish :: (c: *Client, url: string) {
 preflight_wait :: (c: *Client, url: string) -> bool {
 	locks.lock(*c.preflight_mu);
 	defer locks.unlock(*c.preflight_mu);
-	st, ok := map_find(c.preflights, url);
+	ok, st := table_find(*c.preflights, url);
 	if !ok { return false; }
 	deadline := time.tick_now();
 	while st == 1 && time.tick_since(deadline) < 10 * time.Second {
 		locks.cond_wait_with_timeout(*c.preflight_cond, *c.preflight_mu, 250);
-		st = get(c.preflights, url);
+		_, st = table_find(*c.preflights, url);
 	}
-	key, _ := delete_key(*c.preflights, url);
-	delete(key, c.allocator);
+	// free the key the table owns (not url, the caller's)
+	for v, k: c.preflights if k == url { table_remove(*c.preflights, url); free(k,, c.allocator); break; }
 	return true;
 }
 
@@ -579,11 +579,11 @@ client_apply_rest :: (c: *Client, e: *Event) {
 			request_page_members(c, r.channel_id, items);
 		}
 	case .Send_Message; #through; case .Upload;
-		{ rt, ok := map_find_ptr(*c.analytics.roundtrips, r.nonce);
+		{ rt := table_find_pointer(*c.analytics.roundtrips, r.nonce); ok := rt != null;
 		if ok && rt.api == 0 { rt.api = now_ms(); } }
 		if r.ok {
 			upsert_message(s, vmap(e.data));
-		} else { l, ok := map_find_ptr(*s.messages, r.channel_id);
+		} else { l := table_find_pointer(*s.messages, r.channel_id); ok := l != null;
 if ok {
 			nonce := snowflake_string(r.nonce);
 			for * m: l.messages {
@@ -597,7 +597,7 @@ if ok {
 		if r.ok { upsert_message(s, vmap(e.data)); }
 	case .Delete_Message;
 		if r.ok {
-			{ l, ok := map_find_ptr(*s.messages, r.channel_id);
+			{ l := table_find_pointer(*s.messages, r.channel_id); ok := l != null;
 			if ok {
 				{ i := message_index(l, r.message_id);
 				if i >= 0 {
@@ -624,7 +624,7 @@ if ok {
 			uid := parse_user_into(s, fmap(m, "user"));
 			{ prof := fmap(m, "user_profile");
 			if !is_null(prof) && uid != 0 {
-				u := at(*s.users, uid);
+				u := find_or_add(*s.users, uid);
 				if vhas(prof, "bio") {free_str(u.bio, s.allocator); u.bio = clone_str(fstr(prof, "bio"), s.allocator);}
 				if vhas(prof, "pronouns") {free_str(u.pronouns, s.allocator); u.pronouns = clone_str(fstr(prof, "pronouns"), s.allocator);}
 				if vhas(m, "mutual_guilds") { u.mutual_guilds = len(flist(m, "mutual_guilds")); }

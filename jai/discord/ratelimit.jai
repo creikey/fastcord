@@ -62,9 +62,9 @@ Bucket :: struct {
 
 Rate_Limiter :: struct {
 	mu: locks.Mutex;
-	holds: Map(string, Url_Hold);
-	buckets: Map(string, Bucket); // bucket hash -> state
-	route_bucket: Map(string, string); // "METHOD route-key" -> bucket hash
+	holds: Table(string, Url_Hold);
+	buckets: Table(string, Bucket); // bucket hash -> state
+	route_bucket: Table(string, string); // "METHOD route-key" -> bucket hash
 	global_until: s64;
 	proactive: bool;
 	allocator: Allocator;
@@ -72,24 +72,24 @@ Rate_Limiter :: struct {
 
 rate_limiter_init :: (r: *Rate_Limiter, allocator := context.allocator) {
 	r.allocator = allocator;
-	r.holds = make_map(string, Url_Hold, allocator);
-	r.buckets = make_map(string, Bucket, allocator);
-	r.route_bucket = make_map(string, string, allocator);
+	r.holds.allocator = allocator;
+	r.buckets.allocator = allocator;
+	r.route_bucket.allocator = allocator;
 }
 
 rate_limiter_destroy :: (r: *Rate_Limiter) {
-	for k: r.holds { delete(k, r.allocator); }
-	delete(r.holds);
-	for k, b: r.buckets {
+	for v_, k: r.holds { delete(k, r.allocator); }
+	deinit(*r.holds);
+	for b, k: r.buckets {
 		delete(k, r.allocator);
 		delete(b.scope, r.allocator);
 	}
-	delete(r.buckets);
-	for k, v: r.route_bucket {
+	deinit(*r.buckets);
+	for v, k: r.route_bucket {
 		delete(k, r.allocator);
 		delete(v, r.allocator);
 	}
-	delete(r.route_bucket);
+	deinit(*r.route_bucket);
 }
 
 // route_key collapses ids like Discord's bucketing: major params (channel,
@@ -139,14 +139,14 @@ rate_wait_ms :: (r: *Rate_Limiter, method: string, url: string, now: s64) -> s64
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
 	wait: s64 = 0;
-	{ h, ok := map_find(r.holds, url);
+	{ ok, h := table_find(*r.holds, url);
 	if ok && h.until > now { wait = h.until - now; } }
 	if r.proactive {
 		if r.global_until > now { wait = max(wait, r.global_until - now); }
 		rk := route_key(method, url);
-		{ bh, ok := map_find(r.route_bucket, rk);
+		{ ok, bh := table_find(*r.route_bucket, rk);
 		if ok {
-			{ b, bok := map_find(r.buckets, bh);
+			{ bok, b := table_find(*r.buckets, bh);
 			if bok && b.remaining <= 0 && b.reset_at > now { wait = max(wait, b.reset_at - now); } }
 		} }
 	}
@@ -178,7 +178,7 @@ rate_note_response :: (r: *Rate_Limiter, method: string, url: string, status: in
 	if status == 429 || status == 503 {
 		ra, has := retry_after_seconds(headers, body);
 		floor := cast(s64)((ifx has then ra else 5) * 1000);
-		h, existing := map_find(r.holds, url);
+		existing, h := table_find(*r.holds, url);
 		if !existing { h.backoff = backoff_make(1000, 60000); }
 		delay := backoff_fail(*h.backoff, floor, jitter_r);
 		until := now + delay;
@@ -186,9 +186,9 @@ rate_note_response :: (r: *Rate_Limiter, method: string, url: string, status: in
 		h.until = until;
 		h.status = status;
 		if existing {
-			at(*r.holds, url).* = h;
+			table_set(*r.holds, url, h);
 		} else {
-			at(*r.holds, clone(url, r.allocator)).* = h;
+			table_set(*r.holds, clone(url, r.allocator), h);
 		}
 		{ global, _ := http.header_get(headers, "x-ratelimit-global");
 		if global == "true" {
@@ -197,11 +197,11 @@ rate_note_response :: (r: *Rate_Limiter, method: string, url: string, status: in
 		return delay;
 	}
 	// Expired holds are dropped on the next response for that URL.
-	{ h, ok := map_find(r.holds, url);
+	{ ok, h := table_find(*r.holds, url);
 	if ok && h.until < now {
-		for k: r.holds {
+		for v_, k: r.holds {
 			if k == url {
-				delete_key(*r.holds, k);
+				table_remove(*r.holds, k);
 				delete(k, r.allocator);
 				break;
 			}
@@ -226,22 +226,22 @@ note_bucket_locked :: (r: *Rate_Limiter, method: string, url: string, headers: [
 	} }
 	scope, _ := http.header_get(headers, "x-ratelimit-scope");
 	b.scope = clone(scope, r.allocator);
-	{ old, had := map_find(r.buckets, bh);
+	{ had, old := table_find(*r.buckets, bh);
 	if had {
 		delete(old.scope, r.allocator);
-		at(*r.buckets, bh).* = b;
+		table_set(*r.buckets, bh, b);
 	} else {
-		at(*r.buckets, clone(bh, r.allocator)).* = b;
+		table_set(*r.buckets, clone(bh, r.allocator), b);
 	} }
 	rk := route_key(method, url);
-	{ old, had := map_find(r.route_bucket, rk);
+	{ had, old := table_find(*r.route_bucket, rk);
 	if had {
 		if old != bh {
 			delete(old, r.allocator);
-			at(*r.route_bucket, rk).* = clone(bh, r.allocator);
+			table_set(*r.route_bucket, rk, clone(bh, r.allocator));
 		}
 	} else {
-		at(*r.route_bucket, clone(rk, r.allocator)).* = clone(bh, r.allocator);
+		table_set(*r.route_bucket, clone(rk, r.allocator), clone(bh, r.allocator));
 	} }
 }
 #scope_export
@@ -249,9 +249,9 @@ note_bucket_locked :: (r: *Rate_Limiter, method: string, url: string, headers: [
 rate_bucket_for :: (r: *Rate_Limiter, method: string, url: string) -> Bucket, bool {
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
-	bh, ok := map_find(r.route_bucket, route_key(method, url));
+	ok, bh := table_find(*r.route_bucket, route_key(method, url));
 	if !ok { return .{}, false; }
-	b, bok := map_find(r.buckets, bh);
+	bok, b := table_find(*r.buckets, bh);
 	return b, bok;
 }
 

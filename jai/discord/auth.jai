@@ -661,9 +661,9 @@ client_session_reset :: (c: *Client) {
 	c.guild_open_promotions = false;
 	c.pending_private_open = 0;
 	c.route_page_pending = false;
-	clear(*c.started_guilds);
-	clear(*c.left_guilds);
-	clear(*c.command_index_guilds);
+	table_reset(*c.started_guilds);
+	table_reset(*c.left_guilds);
+	table_reset(*c.command_index_guilds);
 	table_reset(*c.members_requested);
 	c.command_index_user = false;
 	c.emoji_picker_opened = false;
@@ -671,9 +671,9 @@ client_session_reset :: (c: *Client) {
 	c.session_guild_set_done = false;
 	c.account_popout_opened = false;
 	c.soundboard_loaded = false;
-	clear(*c.subs.guilds);
-	for _, l: c.subs.channels { delete(l); }
-	clear(*c.subs.channels);
+	table_reset(*c.subs.guilds);
+	for l: c.subs.channels { delete(l); }
+	table_reset(*c.subs.channels);
 	clear(*c.subs.pending);
 	clear(*c.pending_acks);
 	locks.lock(*c.ack_mu);
@@ -773,10 +773,11 @@ auth_on_ready :: (c: *Client, ready: s64) -> bool {
 // sidebar_guild_ids: guilds missing from the folders first (READY order), then the folders' guilds.
 sidebar_guild_ids :: (s: *Store) -> []Snowflake {
 	out := make_dynamic(Snowflake, 0, 0, temp);
-	listed := make_map(Snowflake, bool, temp);
-	for f: s.settings.guild_folders { for id: f.guild_ids { at(*listed, id).* = true; } }
-	for gid: s.guild_order { if !get(listed, gid) { append(*out, gid); } }
-	for f: s.settings.guild_folders { for id: f.guild_ids { if has(s.guilds, id) { append(*out, id); } } }
+	listed: Table(Snowflake, bool);
+	listed.allocator = temp;
+	for f: s.settings.guild_folders { for id: f.guild_ids { table_set(*listed, id, true); } }
+	for gid: s.guild_order { if !table_contains(*listed, gid) { append(*out, gid); } }
+	for f: s.settings.guild_folders { for id: f.guild_ids { if table_contains(*s.guilds, id) { append(*out, id); } } }
 	return view(out);
 }
 #scope_module

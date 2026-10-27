@@ -56,8 +56,8 @@ netlog_close :: (r: *Recorder) {
 		os.close(f.*);
 		f.* = null;
 	}
-	for k: r.sessions { delete(k); }
-	delete(r.sessions);
+	for v_, k: r.sessions { delete(k); }
+	deinit(*r.sessions);
 	delete(r.nl_path);
 }
 #scope_file
@@ -76,10 +76,10 @@ nl_source :: (r: *Recorder) -> int {
 
 // nl_session returns the source id of the latest session for key (caller holds r.mu).
 nl_session :: (r: *Recorder, key: string) -> int {
-	{ id, ok := map_find(r.sessions, key);
+	{ ok, id := table_find(*r.sessions, key);
 	if ok { return id; } }
 	id := nl_source(r);
-	at(*r.sessions, clone(key)).* = id;
+	table_set(*r.sessions, clone(key), id);
 	return id;
 }
 #scope_module
@@ -94,10 +94,10 @@ rec_conn :: (data: *void, ev: Conn_Event) {
 	at_ms := now_ms();
 	key := fmt.tprintf("%s %s %s", tap.acct, ev.kind, ev.host);
 	id := nl_source(r);
-	if has(r.sessions, key) {
-		at(*r.sessions, key).* = id;
+	if table_contains(*r.sessions, key) {
+		table_set(*r.sessions, key, id);
 	} else {
-		at(*r.sessions, clone(key)).* = id;
+		table_set(*r.sessions, clone(key), id);
 	}
 	sb := strings.builder_make(temp);
 	if ev.kind == {
@@ -286,18 +286,19 @@ quic_params_text :: (b: []u8, perspective: string) -> string {
 		.{0x20, "max_datagram_frame_size", #char "i"},
 		.{0x3127, "initial_round_trip_time", #char "i"}
 	];
-	vals := make_map(u64, []u8, temp);
+	vals: Table(u64, []u8);
+	vals.allocator = temp;
 	pos := 0;
 	while pos < len(b) {
 		id, ok1 := get_varint(b, *pos);
 		l, ok2 := get_varint(b, *pos);
 		if !ok1 || !ok2 || pos + cast(int)(l) > len(b) { break; }
-		at(*vals, id).* = sub(b, pos, pos + cast(int)(l));
+		table_set(*vals, id, sub(b, pos, pos + cast(int)(l)));
 		pos += cast(int)(l);
 	}
 	sb := strings.builder_make(temp);
 	fmt.sbprintf(*sb, "[%s", perspective);
-	{ vi, ok := map_find(vals, 0x11);
+	{ ok, vi := table_find(*vals, 0x11);
 	if ok && len(vi) >= 4 {
 		be :: (x: []u8) -> u32 {return ((cast(u32)(x[0])) << 24) | ((cast(u32)(x[1])) << 16) | ((cast(u32)(x[2])) << 8) | (cast(u32)(x[3]));}
 		fmt.sbprintf(*sb, " [chosen_version %08x other_versions", be(sub(vi, 0, 4)));
@@ -311,7 +312,7 @@ quic_params_text :: (b: []u8, perspective: string) -> string {
 		strings.write_byte(*sb, #char "]");
 	} }
 	for k: ORDER {
-		v, ok := map_find(vals, k.id);
+		ok, v := table_find(*vals, k.id);
 		if !ok { continue; }
 		fmt.sbprintf(*sb, " %s", k.name);
 		if k.kind == #char "i" {

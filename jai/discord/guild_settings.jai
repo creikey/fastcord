@@ -77,7 +77,7 @@ mute_active :: (muted: bool, end_ms: s64, now_ms: s64) -> bool {
 }
 
 guild_settings_get :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
-	{ gs, ok := map_find_ptr(*s.guild_settings, gid);
+	{ gs := table_find_pointer(*s.guild_settings, gid); ok := gs != null;
 	if ok { return gs; } }
 	return null;
 }
@@ -128,7 +128,7 @@ channel_notify_level :: (s: *Store, gid: Snowflake, cid: Snowflake) -> int {
 // ---- local (optimistic) updates ----
 
 ensure_settings :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
-	{ gs, ok := map_find_ptr(*s.guild_settings, gid);
+	{ gs := table_find_pointer(*s.guild_settings, gid); ok := gs != null;
 	if ok {
 		if gs.overrides.allocator.proc == null { gs.overrides = make_dynamic(Channel_Override, 0, 0, s.allocator); }
 		return gs;
@@ -136,7 +136,7 @@ ensure_settings :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
 	lvl := NOTIFY_ALL;
 	{ g := guild_get(s, gid);
 	if g != null { lvl = g.default_message_notifications; } }
-	at(*s.guild_settings, gid).* = Guild_Settings.{
+	find_or_add(*s.guild_settings, gid).* = Guild_Settings.{
 		guild_id = gid,
 		message_notifications = lvl,
 		mobile_push = true,
@@ -144,7 +144,7 @@ ensure_settings :: (s: *Store, gid: Snowflake) -> *Guild_Settings {
 		collapsed_channels = make_dynamic(Snowflake, 0, 0, s.allocator),
 		overrides = make_dynamic(Channel_Override, 0, 0, s.allocator)
 	};
-	return at(*s.guild_settings, gid);
+	return find_or_add(*s.guild_settings, gid);
 }
 
 ensure_override :: (gs: *Guild_Settings, cid: Snowflake) -> *Channel_Override {
@@ -397,11 +397,11 @@ ack_channels :: (c: *Client, ids: []Snowflake) -> int {
 		json_ksnow(*w, "message_id", ch.last_message_id);
 		json_kint(*w, "read_state_type", 0);
 		json_obj_end(*w);
-		rs := get(s.read_states, cid);
+		_, rs := table_find(*s.read_states, cid);
 		rs.channel_id = cid;
 		rs.last_message_id = ch.last_message_id;
 		rs.mention_count = 0;
-		at(*s.read_states, cid).* = rs;
+		table_set(*s.read_states, cid, rs);
 		n += 1;
 	}
 	json_arr_end(*w);

@@ -142,19 +142,19 @@ Client :: struct {
 	start_route_guild: Snowflake; // route the window opened on (startup table selection)
 	start_route_channel: Snowflake;
 	etag_mu: locks.Mutex;
-	etags: Map(string, string); // persisted If-None-Match memory
+	etags: Table(string, string); // persisted If-None-Match memory
 	// CORS preflights sent ahead of their request (url -> 1 pending, 2 done)
 	preflight_mu: locks.Mutex;
 	preflight_cond: locks.Cond;
-	preflights: Map(string, int);
+	preflights: Table(string, int);
 	ready_subscribed_guild: Snowflake; // op 37 already sent by the gateway on READY
 	pending_guild_open: Snowflake;
 	guild_open_promotions: bool; // op 43 + guild-open set wait for the first message page
 	pending_private_open: Snowflake; // op 13 + recipient profile wait for the first page
 	route_page_pending: bool; // first page of the start route channel not yet loaded (op 43 / guild open follow it) // from /quests/@me, for applications/public
-	started_guilds: Map(Snowflake, bool);
-	left_guilds: Map(Snowflake, bool); // left this session: the next entry re-sends op 43
-	command_index_guilds: Map(Snowflake, bool);
+	started_guilds: Table(Snowflake, bool);
+	left_guilds: Table(Snowflake, bool); // left this session: the next entry re-sends op 43
+	command_index_guilds: Table(Snowflake, bool);
 	command_index_user: bool;
 	emoji_picker_opened: bool;
 	social_mu: locks.Mutex; // social.nick_mod_props (worker reads)
@@ -167,7 +167,7 @@ Client :: struct {
 	// invites (invites.odin): first code per channel (validate on later modal opens),
 	// and the guild a Join a Server accept is waiting for (set on a worker)
 	invite_mu: locks.Mutex;
-	invite_codes: Map(Snowflake, string);
+	invite_codes: Table(Snowflake, string);
 	pending_join_guild: Snowflake;
 	pending_join_channel: Snowflake;
 	soundboard_loaded: bool;
@@ -212,10 +212,10 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.jobs = make_dynamic(*Job, 0, 0);
 	c.results = make_dynamic(Rest_Result, 0, 0);
 	c.pending_acks = make_dynamic(Pending_Ack, 0, 0);
-	c.started_guilds = make_map(Snowflake, bool, context.allocator);
-	c.left_guilds = make_map(Snowflake, bool, context.allocator);
-	c.command_index_guilds = make_map(Snowflake, bool, context.allocator);
-	c.invite_codes = make_map(Snowflake, string, context.allocator);
+	c.started_guilds.allocator = context.allocator;
+	c.left_guilds.allocator = context.allocator;
+	c.command_index_guilds.allocator = context.allocator;
+	c.invite_codes.allocator = context.allocator;
 	subscriptions_init(*c.subs, allocator);
 	analytics_init(*c.analytics, allocator);
 	c.analytics.enabled = !cfg.disable_analytics;
@@ -223,9 +223,9 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.route_channel = cfg.initial_channel_id;
 	c.start_route_guild = cfg.initial_guild_id;
 	c.start_route_channel = cfg.initial_channel_id;
-	c.etags = make_map(string, string, context.allocator);
-	c.quick_switcher.fetched = make_map(Snowflake, bool, c.allocator);
-	c.preflights = make_map(string, int, c.allocator);
+	c.etags.allocator = context.allocator;
+	c.quick_switcher.fetched.allocator = c.allocator;
+	c.preflights.allocator = c.allocator;
 	c.account_verified = true;
 	client_load_state(c);
 	auth_init(c);
@@ -282,30 +282,30 @@ client_destroy :: (c: *Client) {
 	for * m: c.media_results { media_result_free(c, m); }
 	delete(c.media_results);
 	delete(c.pending_acks);
-	delete(c.started_guilds);
-	delete(c.left_guilds);
-	delete(c.command_index_guilds);
+	deinit(*c.started_guilds);
+	deinit(*c.left_guilds);
+	deinit(*c.command_index_guilds);
 	delete(c.quest_app_ids);
-	for _, v: c.invite_codes { delete(v); }
-	delete(c.invite_codes);
-	for k, v: c.etags {
+	for v: c.invite_codes { delete(v); }
+	deinit(*c.invite_codes);
+	for v, k: c.etags {
 		delete(k);
 		delete(v);
 	}
-	delete(c.etags);
+	deinit(*c.etags);
 	quick_switcher_destroy(c);
 	deinit(*c.members_requested);
 	delete(c.rtc_regions, c.allocator);
-	for k: c.preflights { delete(k, c.allocator); }
-	delete(c.preflights);
+	for v_, k: c.preflights { delete(k, c.allocator); }
+	deinit(*c.preflights);
 	extras_release(c);
 	store_destroy(*c.store);
 	auth_destroy(c);
 	analytics_destroy(*c.analytics);
 	social_destroy(c);
-	delete(c.subs.guilds);
-	for _, l: c.subs.channels { delete(l); }
-	delete(c.subs.channels);
+	deinit(*c.subs.guilds);
+	for l: c.subs.channels { delete(l); }
+	deinit(*c.subs.channels);
 	delete(c.subs.pending);
 	delete(c.ack_token);
 	delete(c.ready_qos_token);
@@ -441,7 +441,7 @@ client_load_state :: (c: *Client) {
 		text := as_string(data);
 		while true { line, __ok2 := strings.split_lines_iterator(*text); if !__ok2 break;
 			tab := strings.index_byte(line, 9);
-			if tab > 0 { at(*c.etags, clone(sub(line, 0, tab), c.allocator)).* = clone(sub_from(line, tab + 1), c.allocator); }
+			if tab > 0 { table_set(*c.etags, clone(sub(line, 0, tab), c.allocator), clone(sub_from(line, tab + 1), c.allocator)); }
 		}
 	} }
 	{ data, err := os.read_entire_file(state_path(c, "identity.tsv"), temp);
@@ -483,7 +483,7 @@ client_save_state :: (c: *Client) {
 	{
 		eb := strings.builder_make(temp);
 		locks.lock(*c.etag_mu);
-		for k, v: c.etags {
+		for v, k: c.etags {
 			strings.write_string(*eb, k);
 			strings.write_byte(*eb, 9);
 			strings.write_string(*eb, v);

@@ -1284,7 +1284,7 @@ parity_guild_mark_read :: (t: *T) {
 	replay_dispatches(*run, "b_sends", "MESSAGE_CREATE");
 	// B's message id is scrubbed ("<new:2>") and unscrubs below the real ids: put the
 	// read state behind it so the channel is unread, as it was officially
-	{ rs, ok := map_find_ptr(*run.c.store.read_states, R_TEXT);
+	{ rs := table_find_pointer(*run.c.store.read_states, R_TEXT); ok := rs != null;
 	if ok { rs.last_message_id = 1; } }
 	replay_settle(*run, 300);
 	replay_mark(*run);
@@ -1662,7 +1662,7 @@ parity_inbox_mark_read :: (t: *T) {
 		analytics_notification_shown(run.c, fsnow(d, "id"), fsnow(d, "channel_id"), fsnow(fmap(d, "author"), "id"), cast(int)(fint(d, "type")), true);
 	}
 	replay_mark(*run);
-	last := get(run.c.store.channels, R_TEXT).last_message_id;
+	last := table_find_pointer(*run.c.store.channels, R_TEXT).last_message_id;
 	ack_message(run.c, R_TEXT, last, true, ACK_INBOX);
 	track_inbox_channel_acked(run.c, R_TEXT);
 	replay_settle(*run, 300);
@@ -1680,7 +1680,7 @@ parity_inbox_remove_mention :: (t: *T) {
 	set_inbox_tab(run.c, .Mentions);
 	run.c.settings_edit.due = now_ms() + 1500;
 	replay_mark(*run);
-	delete_mention(run.c, get(run.c.store.channels, R_TEXT).last_message_id);
+	delete_mention(run.c, table_find_pointer(*run.c.store.channels, R_TEXT).last_message_id);
 	replay_dispatches(*run, "inbox_remove_mention", "RECENT_MENTION_DELETE");
 	replay_pump(*run, 1600);
 	replay_settle(*run, 400);

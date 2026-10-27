@@ -35,7 +35,7 @@ Pomelo_Result :: struct {
 
 Pomelo_State :: struct {
 	mu: locks.Mutex; // results (written from response workers)
-	results: Map(string, Pomelo_Result); // heap keys
+	results: Table(string, Pomelo_Result); // heap keys
 	limited_til: s64;
 	pending: string; // heap: the debounced value
 	due: s64;
@@ -44,11 +44,11 @@ Pomelo_State :: struct {
 pomelo_destroy :: (c: *Client) {
 	p := *c.pomelo;
 	a := context.default_allocator;
-	for k, r: p.results {
+	for r, k: p.results {
 		delete(k, a);
 		delete(r.message, a);
 	}
-	delete(p.results);
+	deinit(*p.results);
 	delete(p.pending, a);
 	p.* = .{};
 }
@@ -72,7 +72,7 @@ username_check :: (c: *Client, name: string) -> Username_Check {
 	now := now_ms();
 	locks.lock(*p.mu);
 	defer locks.unlock(*p.mu);
-	r, ok := map_find(p.results, name);
+	ok, r := table_find(*p.results, name);
 	limited := p.limited_til > now;
 	if ok && r.until <= now { ok = false; }
 	if limited && (!ok || r.state == .Rate_Limited) { return .{state = .Rate_Limited}; }
@@ -98,14 +98,14 @@ pomelo_store :: (c: *Client, name: string, state: Username_Check_State, message:
 	a := context.default_allocator;
 	locks.lock(*p.mu);
 	defer locks.unlock(*p.mu);
-	if is_null(p.results) { p.results = make_map(string, Pomelo_Result, a); }
-	{ old, ok := map_find(p.results, name);
+	if is_null(p.results) { p.results.allocator = a; }
+	{ ok, old := table_find(*p.results, name);
 	if ok {
 		delete(old.message, a);
-		at(*p.results, name).* = .{state, clone(message, a), now_ms() + ttl_ms};
+		find_or_add(*p.results, name).* = .{state, clone(message, a), now_ms() + ttl_ms};
 		return;
 	} }
-	at(*p.results, clone(name, a)).* = .{state, clone(message, a), now_ms() + ttl_ms};
+	find_or_add(*p.results, clone(name, a)).* = .{state, clone(message, a), now_ms() + ttl_ms};
 }
 
 analytics_pomelo_error :: (c: *Client, reason: string) {

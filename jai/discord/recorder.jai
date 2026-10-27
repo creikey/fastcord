@@ -24,7 +24,7 @@ Recorder :: struct {
 	nl_path: string;
 	nl: [2]*os.File;
 	nl_next: int;
-	sessions: Map(string, int); // "h2 host" / "h3 host" -> netlog source id
+	sessions: Table(string, int); // "h2 host" / "h3 host" -> netlog source id
 }
 
 Recorder_Tap :: struct {

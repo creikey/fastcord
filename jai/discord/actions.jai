@@ -52,8 +52,8 @@ initial_message_limit :: (window_height: int, compact := false, font_px := 16) -
 // ---- guild subscriptions (op 37) ----
 
 Subscriptions :: struct {
-	guilds: Map(Snowflake, bool); // typing/activities/threads sent
-	channels: Map(Snowflake, [..]Member_Range); // guild -> channel list ranges (one channel at a time)
+	guilds: Table(Snowflake, bool); // typing/activities/threads sent
+	channels: Table(Snowflake, [..]Member_Range); // guild -> channel list ranges (one channel at a time)
 	pending: [..]Pending_Sub;
 	not_before: s64; // prefetching select: op 37 follows the route change (after the fetch)
 }
@@ -72,8 +72,8 @@ Pending_Sub :: struct {
 }
 
 subscriptions_init :: (s: *Subscriptions, allocator := context.allocator) {
-	s.guilds = make_map(Snowflake, bool, allocator);
-	s.channels = make_map(Snowflake, [..]Member_Range, allocator);
+	s.guilds.allocator = allocator;
+	s.channels.allocator = allocator;
 	s.pending = make_dynamic(Pending_Sub, 0, 0, allocator);
 }
 #scope_module
@@ -88,8 +88,8 @@ pending_for :: (c: *Client, guild_id: Snowflake) -> *Pending_Sub {
 // subscribe_guild: subscribeToGuild — typing, activities, threads (merged and
 // flushed on the next poll like the client's 0 ms flush timer).
 subscribe_guild :: (c: *Client, guild_id: Snowflake) {
-	if get(c.subs.guilds, guild_id) { return; }
-	at(*c.subs.guilds, guild_id).* = true;
+	if table_contains(*c.subs.guilds, guild_id) { return; }
+	table_set(*c.subs.guilds, guild_id, true);
 	pending_for(c, guild_id).feature = true;
 }
 
@@ -346,7 +346,7 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 		j.result = Rest_Result.{op = .Upload, channel_id = channel_id, nonce = nonce, tag = opts.tag};
 		store_upload_ctx(j, channel_id, content, nonce, o2);
 		job_submit(c, j);
-		at(*c.analytics.roundtrips, nonce).* = Roundtrip.{channel_id = channel_id, start = now_ms(), attachments = len(atts)};
+		find_or_add(*c.analytics.roundtrips, nonce).* = Roundtrip.{channel_id = channel_id, start = now_ms(), attachments = len(atts)};
 		return nonce;
 	}
 	if len(opts.files) > 0 {
@@ -378,7 +378,7 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 	j.retry_429 = 3; // MessageQueue re-sends after Retry-After
 	j.result = Rest_Result.{op = .Send_Message, channel_id = channel_id, nonce = nonce, tag = opts.tag};
 	job_submit(c, j);
-	at(*c.analytics.roundtrips, nonce).* = Roundtrip.{channel_id = channel_id, start = now_ms()};
+	find_or_add(*c.analytics.roundtrips, nonce).* = Roundtrip.{channel_id = channel_id, start = now_ms()};
 	return nonce;
 }
 #scope_module
@@ -543,11 +543,11 @@ ack_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, immedi
 		}
 	}
 	append(*c.pending_acks, Pending_Ack.{channel_id, message_id, due, location});
-	rs := get(c.store.read_states, channel_id);
+	_, rs := table_find(*c.store.read_states, channel_id);
 	rs.channel_id = channel_id;
 	rs.last_message_id = max(rs.last_message_id, message_id);
 	rs.mention_count = 0;
-	at(*c.store.read_states, channel_id).* = rs;
+	table_set(*c.store.read_states, channel_id, rs);
 }
 #scope_module
 
@@ -561,8 +561,8 @@ flush_due_acks :: (c: *Client, now: s64) {
 }
 
 send_ack :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, now: s64, location := Ack_Location.{}) {
-	ch := get(c.store.channels, channel_id);
-	rs := get(c.store.read_states, channel_id);
+	_, ch := table_find(*c.store.channels, channel_id);
+	_, rs := table_find(*c.store.read_states, channel_id);
 	// recalculateFlags: 2 thread, 1 guild channel, 0 private; sent only when it changed.
 	flags: u64 = 0;
 	if ch.kind == .Public_Thread || ch.kind == .Private_Thread || ch.kind == .Announcement_Thread {
@@ -581,7 +581,7 @@ send_ack :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, now: s64,
 	if flags != rs.flags {
 		json_kint(*w, "flags", cast(s64)(flags));
 		rs.flags = flags;
-		at(*c.store.read_states, channel_id).* = rs;
+		table_set(*c.store.read_states, channel_id, rs);
 	}
 	json_obj_end(*w);
 	j := job_new(.Api, .Ack);
@@ -606,7 +606,7 @@ send_ack :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, now: s64,
 open_dm :: (c: *Client, user_id: Snowflake, location := "Profile", tag: u64 = 0) -> Snowflake {
 	existing: Snowflake;
 	for cid: c.store.private_channels {
-		ch := get(c.store.channels, cid);
+		_, ch := table_find(*c.store.channels, cid);
 		if ch.kind == .DM && len(ch.recipient_ids) == 1 && ch.recipient_ids[0] == user_id { return cid; }
 	}
 	ids := Snowflake.[user_id];
@@ -754,7 +754,7 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 			locks.lock(*c.job_mu);
 			already := c.ready_subscribed_guild == g;
 			locks.unlock(*c.job_mu);
-			if already { at(*c.subs.guilds, g).* = true; } else { subscribe_guild(c, g); }
+			if already { find_or_add(*c.subs.guilds, g).* = true; } else { subscribe_guild(c, g); }
 			c.pending_guild_open = g;
 			c.guild_open_promotions = true;
 		}
@@ -763,8 +763,8 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		d := vmap(data);
 		if !fbool(d, "unavailable") {
 			gid := fsnow(d, "id");
-			delete_key(*c.subs.guilds, gid);
-			at(*c.left_guilds, gid).* = true; // a rejoin sends op 43 again, but not the guild-open set
+			table_remove(*c.subs.guilds, gid);
+			table_set(*c.left_guilds, gid, true); // a rejoin sends op 43 again, but not the guild-open set
 			locks.lock(*c.job_mu);
 			if c.ready_subscribed_guild == gid { c.ready_subscribed_guild = 0; }
 			locks.unlock(*c.job_mu);
@@ -781,7 +781,8 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 				ch = g.system_channel_id;
 				if ch == 0 {
 					for cid: guild_channels_sorted(*c.store, gid) {
-						if get(c.store.channels, cid).kind == .Guild_Text {
+						chan := table_find_pointer(*c.store.channels, cid);
+						if chan && chan.kind == .Guild_Text {
 							ch = cid;
 							break;
 						}
@@ -803,7 +804,7 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		d := vmap(data);
 		{ nv := fstr(d, "nonce");
 		if nv != "" {
-			{ rt, ok := map_find_ptr(*c.analytics.roundtrips, parse_snowflake(nv));
+			{ rt := table_find_pointer(*c.analytics.roundtrips, parse_snowflake(nv)); ok := rt != null;
 			if ok && rt.gateway == 0 { rt.gateway = now_ms(); } }
 		} }
 		gid := fsnow(d, "guild_id");
@@ -840,7 +841,7 @@ voice_server_info :: (c: *Client) -> Voice_Server_Info, u64, bool {
 	version: u64;
 	ok: bool;
 	s := *c.store;
-	vs, have := map_find(s.voice_states, s.me);
+	have, vs := table_find(*s.voice_states, s.me);
 	if !have || s.voice_server.token == "" || s.voice_server.endpoint == "" { return .{}, 0, false; }
 	server := ifx s.voice_server.guild_id != 0 then s.voice_server.guild_id else s.voice_server.channel_id;
 	if server != (ifx vs.guild_id != 0 then vs.guild_id else vs.channel_id) { return .{}, 0, false; }
@@ -913,13 +914,13 @@ guild_channel_info :: (c: *Client, guild_id: Snowflake) {
 // -> back to the guild; discover: discovery -> the guild).
 guild_open_now :: (c: *Client, g: Snowflake) {
 	c.pending_guild_open = 0;
-	if !get(c.started_guilds, g) {
-		at(*c.started_guilds, g).* = true;
+	if !table_contains(*c.started_guilds, g) {
+		table_set(*c.started_guilds, g, true);
 		guild_channel_info(c, g);
 		schedule_guild_open(c, g, c.guild_open_promotions);
-	} else if get(c.left_guilds, g) {
+	} else if table_contains(*c.left_guilds, g) {
 		// rejoined after leaving (fixture join_leave_server): op 43 only
-		delete_key(*c.left_guilds, g);
+		table_remove(*c.left_guilds, g);
 		guild_channel_info(c, g);
 	}
 	c.guild_open_promotions = false;
@@ -940,7 +941,7 @@ guild_channel_notice_check :: (c: *Client, ch: *Channel) {
 // (or immediately when cached): the follow-ups the official client issues
 // once the channel renders.
 on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
-	ch := get(c.store.channels, channel_id);
+	_, ch := table_find(*c.store.channels, channel_id);
 	{ g := c.pending_guild_open;
 	if g != 0 && (ch.guild_id == g || ch.guild_id == 0) { guild_open_now(c, g); } }
 	locks.lock(*c.route_mu);
@@ -1074,8 +1075,8 @@ open_full_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, via :
 // open_message_context_menu: right-clicking a message loads the application
 // command indexes (guild once per guild, user once per session).
 open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
-	if guild_id != 0 && !get(c.command_index_guilds, guild_id) {
-		at(*c.command_index_guilds, guild_id).* = true;
+	if guild_id != 0 && !table_contains(*c.command_index_guilds, guild_id) {
+		table_set(*c.command_index_guilds, guild_id, true);
 		j := job_new(.Api, .None);
 		j.method = "GET";
 		j.path = job_str(j, strings.concatenate(string.["/guilds/", snowflake_string(guild_id), "/application-command-index"], temp));

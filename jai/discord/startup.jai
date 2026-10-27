@@ -225,7 +225,7 @@ schedule_experiments_fetch :: (c: *Client) {
 etag_get :: (c: *Client, url: string) -> string {
 	locks.lock(*c.etag_mu);
 	defer locks.unlock(*c.etag_mu);
-	v, ok := map_find(c.etags, url);
+	ok, v := table_find(*c.etags, url);
 	return ifx ok then clone(v, temp) else "";
 }
 
@@ -233,13 +233,13 @@ etag_put :: (c: *Client, url: string, etag: string) {
 	if etag == "" { return; }
 	locks.lock(*c.etag_mu);
 	defer locks.unlock(*c.etag_mu);
-	{ old, ok := map_find(c.etags, url);
+	{ ok, old := table_find(*c.etags, url);
 	if ok {
 		if old == etag { return; }
 		delete(old, c.allocator);
-		at(*c.etags, url).* = clone(etag, c.allocator);
+		table_set(*c.etags, url, clone(etag, c.allocator));
 	} else {
-		at(*c.etags, clone(url, c.allocator)).* = clone(etag, c.allocator);
+		table_set(*c.etags, clone(url, c.allocator), clone(etag, c.allocator));
 	} }
 }
 

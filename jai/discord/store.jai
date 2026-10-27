@@ -8,20 +8,20 @@ Store :: struct {
 	ready: bool;
 	session_id: string;
 	me: Snowflake;
-	users: Map(Snowflake, User);
-	guilds: Map(Snowflake, Guild);
+	users: Table(Snowflake, User);
+	guilds: Table(Snowflake, Guild);
 	guild_order: [..]Snowflake; // READY order (see settings.guild_folders for the sidebar)
-	channels: Map(Snowflake, Channel);
+	channels: Table(Snowflake, Channel);
 	private_channels: [..]Snowflake;
-	members: Map(Snowflake, Map(Snowflake, Member)); // guild -> user -> member
-	messages: Map(Snowflake, Message_List); // channel -> messages
-	presences: Map(Snowflake, Presence);
-	relationships: Map(Snowflake, Relationship);
-	read_states: Map(Snowflake, Read_State);
-	guild_settings: Map(Snowflake, Guild_Settings);
-	voice_states: Map(Snowflake, Voice_State); // user -> state (one voice connection per user)
-	typing: Map(Snowflake, [..]Typing); // channel -> typers
-	member_lists: Map(Snowflake, Member_List); // guild -> member sidebar
+	members: Table(Snowflake, Table(Snowflake, Member)); // guild -> user -> member
+	messages: Table(Snowflake, Message_List); // channel -> messages
+	presences: Table(Snowflake, Presence);
+	relationships: Table(Snowflake, Relationship);
+	read_states: Table(Snowflake, Read_State);
+	guild_settings: Table(Snowflake, Guild_Settings);
+	voice_states: Table(Snowflake, Voice_State); // user -> state (one voice connection per user)
+	typing: Table(Snowflake, [..]Typing); // channel -> typers
+	member_lists: Table(Snowflake, Member_List); // guild -> member sidebar
 	sessions: [..]Session_Info;
 	settings: User_Settings;
 	voice_server: Voice_Server;
@@ -34,20 +34,20 @@ Store :: struct {
 store_init :: (s: *Store, allocator := context.allocator) {
 	s.allocator = allocator;
 	push_allocator(allocator);
-	s.users = make_map(Snowflake, User, context.allocator);
-	s.guilds = make_map(Snowflake, Guild, context.allocator);
+	s.users.allocator = context.allocator;
+	s.guilds.allocator = context.allocator;
 	s.guild_order = make_dynamic(Snowflake, 0, 0);
-	s.channels = make_map(Snowflake, Channel, context.allocator);
+	s.channels.allocator = context.allocator;
 	s.private_channels = make_dynamic(Snowflake, 0, 0);
-	s.members = make_map(Snowflake, Map(Snowflake, Member), context.allocator);
-	s.messages = make_map(Snowflake, Message_List, context.allocator);
-	s.presences = make_map(Snowflake, Presence, context.allocator);
-	s.relationships = make_map(Snowflake, Relationship, context.allocator);
-	s.read_states = make_map(Snowflake, Read_State, context.allocator);
-	s.guild_settings = make_map(Snowflake, Guild_Settings, context.allocator);
-	s.voice_states = make_map(Snowflake, Voice_State, context.allocator);
-	s.typing = make_map(Snowflake, [..]Typing, context.allocator);
-	s.member_lists = make_map(Snowflake, Member_List, context.allocator);
+	s.members.allocator = context.allocator;
+	s.messages.allocator = context.allocator;
+	s.presences.allocator = context.allocator;
+	s.relationships.allocator = context.allocator;
+	s.read_states.allocator = context.allocator;
+	s.guild_settings.allocator = context.allocator;
+	s.voice_states.allocator = context.allocator;
+	s.typing.allocator = context.allocator;
+	s.member_lists.allocator = context.allocator;
 	s.sessions = make_dynamic(Session_Info, 0, 0);
 }
 #scope_module
@@ -154,10 +154,10 @@ parse_user_into :: (s: *Store, m: etf.Map) -> Snowflake {
 	id := fsnow(m, "id");
 	if id == 0 { return 0; }
 	a := s.allocator;
-	u, exists := map_find_ptr(*s.users, id);
+	u := table_find_pointer(*s.users, id); exists := u != null;
 	if !exists {
-		at(*s.users, id).* = User.{id = id, mutual_guilds = -1, mutual_friends = -1};
-		u = at(*s.users, id);
+		find_or_add(*s.users, id).* = User.{id = id, mutual_guilds = -1, mutual_friends = -1};
+		u = find_or_add(*s.users, id);
 	}
 	// Partial user objects (presence updates) only carry what changed.
 	if vhas(m, "username") {free_str(u.username, a); u.username = clone_str(fstr(m, "username"), a);}
@@ -198,10 +198,10 @@ parse_channel_into :: (s: *Store, m: etf.Map, guild_id: Snowflake = 0) -> Snowfl
 	id := fsnow(m, "id");
 	if id == 0 { return 0; }
 	a := s.allocator;
-	c, exists := map_find_ptr(*s.channels, id);
+	c := table_find_pointer(*s.channels, id); exists := c != null;
 	if !exists {
-		at(*s.channels, id).* = Channel.{id = id};
-		c = at(*s.channels, id);
+		find_or_add(*s.channels, id).* = Channel.{id = id};
+		c = find_or_add(*s.channels, id);
 		c.recipient_ids = make_dynamic(Snowflake, 0, 0, a);
 		c.overwrites = make_dynamic(Overwrite, 0, 0, a);
 	}
@@ -306,10 +306,10 @@ parse_guild_into :: (s: *Store, m: etf.Map) -> Snowflake {
 	id := fsnow(m, "id");
 	if id == 0 { return 0; }
 	a := s.allocator;
-	g, exists := map_find_ptr(*s.guilds, id);
+	g := table_find_pointer(*s.guilds, id); exists := g != null;
 	if !exists {
-		at(*s.guilds, id).* = Guild.{id = id};
-		g = at(*s.guilds, id);
+		find_or_add(*s.guilds, id).* = Guild.{id = id};
+		g = find_or_add(*s.guilds, id);
 		g.channels = make_dynamic(Snowflake, 0, 0, a);
 		g.roles = make_dynamic(Role, 0, 0, a);
 		g.emojis = make_dynamic(Emoji, 0, 0, a);
@@ -361,15 +361,15 @@ parse_member_into :: (s: *Store, guild_id: Snowflake, m: etf.Map) -> Snowflake {
 	if !is_null(um) { uid = parse_user_into(s, um); } }
 	if uid == 0 { return 0; }
 	a := s.allocator;
-	gm, gok := map_find_ptr(*s.members, guild_id);
+	gm := table_find_pointer(*s.members, guild_id); gok := gm != null;
 	if !gok {
-		at(*s.members, guild_id).* = make_map(Snowflake, Member, a);
-		gm = at(*s.members, guild_id);
+		table_set(*s.members, guild_id, .{allocator = a});
+		gm = find_or_add(*s.members, guild_id);
 	}
-	mem_, exists := map_find_ptr(gm, uid);
+	mem_ := table_find_pointer(gm, uid); exists := mem_ != null;
 	if !exists {
-		at(gm, uid).* = Member.{user_id = uid, roles = make_dynamic(Snowflake, 0, 0, a)};
-		mem_ = at(gm, uid);
+		find_or_add(gm, uid).* = Member.{user_id = uid, roles = make_dynamic(Snowflake, 0, 0, a)};
+		mem_ = find_or_add(gm, uid);
 	}
 	if vhas(m, "nick") {free_str(mem_.nick, a); mem_.nick = clone_str(fstr(m, "nick"), a);}
 	if vhas(m, "avatar") {free_str(mem_.avatar, a); mem_.avatar = clone_str(fstr(m, "avatar"), a);}
@@ -524,15 +524,15 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 
 parse_member_with_id :: (s: *Store, guild_id: Snowflake, uid: Snowflake, m: etf.Map) {
 	a := s.allocator;
-	gm, gok := map_find_ptr(*s.members, guild_id);
+	gm := table_find_pointer(*s.members, guild_id); gok := gm != null;
 	if !gok {
-		at(*s.members, guild_id).* = make_map(Snowflake, Member, a);
-		gm = at(*s.members, guild_id);
+		table_set(*s.members, guild_id, .{allocator = a});
+		gm = find_or_add(*s.members, guild_id);
 	}
-	mem_, exists := map_find_ptr(gm, uid);
+	mem_ := table_find_pointer(gm, uid); exists := mem_ != null;
 	if !exists {
-		at(gm, uid).* = Member.{user_id = uid, roles = make_dynamic(Snowflake, 0, 0, a)};
-		mem_ = at(gm, uid);
+		find_or_add(gm, uid).* = Member.{user_id = uid, roles = make_dynamic(Snowflake, 0, 0, a)};
+		mem_ = find_or_add(gm, uid);
 	}
 	if vhas(m, "nick") {free_str(mem_.nick, a); mem_.nick = clone_str(fstr(m, "nick"), a);}
 	if vhas(m, "avatar") {free_str(mem_.avatar, a); mem_.avatar = clone_str(fstr(m, "avatar"), a);}
@@ -557,10 +557,10 @@ new_message :: (s: *Store) -> Message {
 #scope_module
 
 message_list :: (s: *Store, channel_id: Snowflake) -> *Message_List {
-	l, ok := map_find_ptr(*s.messages, channel_id);
+	l := table_find_pointer(*s.messages, channel_id); ok := l != null;
 	if !ok {
-		at(*s.messages, channel_id).* = Message_List.{messages = make_dynamic(Message, 0, 0, s.allocator), has_more_before = true};
-		l = at(*s.messages, channel_id);
+		find_or_add(*s.messages, channel_id).* = Message_List.{messages = make_dynamic(Message, 0, 0, s.allocator), has_more_before = true};
+		l = find_or_add(*s.messages, channel_id);
 	}
 	return l;
 }
@@ -623,7 +623,7 @@ upsert_message :: (s: *Store, m: etf.Map) -> Snowflake {
 	msg.id = id;
 	parse_message_fields(s, *msg, m);
 	insert_message(l, msg);
-	{ c, ok := map_find_ptr(*s.channels, cid);
+	{ c := table_find_pointer(*s.channels, cid); ok := c != null;
 	if ok && id > c.last_message_id { c.last_message_id = id; } }
 	return id;
 }
@@ -647,7 +647,7 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 		p.mobile = status_from_string(fstr(cs, "mobile"));
 		p.web = status_from_string(fstr(cs, "web"));
 	} }
-	old, had := map_find(s.presences, uid);
+	had, old := table_find(*s.presences, uid);
 	if had { free_str(old.activity, s.allocator); }
 	for av: flist(m, "activities") {
 		am := vmap(av);
@@ -658,7 +658,7 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 			break;
 		}
 	}
-	at(*s.presences, uid).* = p;
+	table_set(*s.presences, uid, p);
 }
 
 apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
@@ -671,16 +671,16 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 		if uid == 0 { uid = u; }
 	} }
 	if uid == 0 { return; }
-	{ old, ok := map_find(s.voice_states, uid);
+	{ ok, old := table_find(*s.voice_states, uid);
 	if ok { free_str(old.session_id, s.allocator); } }
 	cid := fsnow(m, "channel_id");
 	if cid == 0 {
-		delete_key(*s.voice_states, uid);
+		table_remove(*s.voice_states, uid);
 		return;
 	}
 	gid := fsnow(m, "guild_id");
 	if gid == 0 { gid = guild_hint; }
-	at(*s.voice_states, uid).* = Voice_State.{
+	find_or_add(*s.voice_states, uid).* = Voice_State.{
 		user_id = uid,
 		channel_id = cid,
 		guild_id = gid,
@@ -701,10 +701,10 @@ apply_relationship :: (s: *Store, m: etf.Map) {
 	if !is_null(um) { uid = parse_user_into(s, um); } }
 	if uid == 0 { uid = fsnow(m, "id"); }
 	if uid == 0 { return; }
-	r, ok := map_find_ptr(*s.relationships, uid);
+	r := table_find_pointer(*s.relationships, uid); ok := r != null;
 	if !ok {
-		at(*s.relationships, uid).* = Relationship.{user_id = uid};
-		r = at(*s.relationships, uid);
+		find_or_add(*s.relationships, uid).* = Relationship.{user_id = uid};
+		r = find_or_add(*s.relationships, uid);
 	}
 	if vhas(m, "type") { r.kind = cast(Relationship_Type)(fint(m, "type")); }
 	if vhas(m, "nickname") {free_str(r.nickname, s.allocator); r.nickname = clone_str(fstr(m, "nickname"), s.allocator);}
@@ -716,22 +716,22 @@ apply_read_state :: (s: *Store, m: etf.Map) {
 	cid := fsnow(m, "id");
 	if cid == 0 { cid = fsnow(m, "channel_id"); }
 	if cid == 0 { return; }
-	rs := get(s.read_states, cid);
+	_, rs := table_find(*s.read_states, cid);
 	rs.channel_id = cid;
 	if vhas(m, "last_message_id") { rs.last_message_id = fsnow(m, "last_message_id"); }
 	if vhas(m, "message_id") { rs.last_message_id = fsnow(m, "message_id"); }
 	if vhas(m, "mention_count") { rs.mention_count = cast(int)(fint(m, "mention_count")); }
 	if vhas(m, "last_viewed") { rs.last_viewed = cast(int)(fint(m, "last_viewed")); }
 	if vhas(m, "flags") { rs.flags = cast(u64)(fint(m, "flags")); }
-	at(*s.read_states, cid).* = rs;
+	table_set(*s.read_states, cid, rs);
 }
 
 apply_guild_settings :: (s: *Store, m: etf.Map) {
 	gid := fsnow(m, "guild_id");
-	gs, ok := map_find_ptr(*s.guild_settings, gid);
+	gs := table_find_pointer(*s.guild_settings, gid); ok := gs != null;
 	if !ok {
-		at(*s.guild_settings, gid).* = Guild_Settings.{guild_id = gid, muted_channels = make_dynamic(Snowflake, 0, 0, s.allocator), collapsed_channels = make_dynamic(Snowflake, 0, 0, s.allocator)};
-		gs = at(*s.guild_settings, gid);
+		find_or_add(*s.guild_settings, gid).* = Guild_Settings.{guild_id = gid, muted_channels = make_dynamic(Snowflake, 0, 0, s.allocator), collapsed_channels = make_dynamic(Snowflake, 0, 0, s.allocator)};
+		gs = find_or_add(*s.guild_settings, gid);
 	}
 	gs.muted = fbool(m, "muted");
 	gs.message_notifications = cast(int)(fint(m, "message_notifications"));
@@ -949,10 +949,10 @@ free_list_item :: (s: *Store, it_: Member_List_Item) {
 
 apply_member_list_update :: (s: *Store, d: etf.Map) {
 	gid := fsnow(d, "guild_id");
-	ml, ok := map_find_ptr(*s.member_lists, gid);
+	ml := table_find_pointer(*s.member_lists, gid); ok := ml != null;
 	if !ok {
-		at(*s.member_lists, gid).* = Member_List.{items = make_dynamic(Member_List_Item, 0, 0, s.allocator)};
-		ml = at(*s.member_lists, gid);
+		find_or_add(*s.member_lists, gid).* = Member_List.{items = make_dynamic(Member_List_Item, 0, 0, s.allocator)};
+		ml = find_or_add(*s.member_lists, gid);
 	}
 	id := fstr(d, "id");
 	if ml.id != id {
@@ -1026,7 +1026,7 @@ TYPING_DURATION_MS :: 10_000;
 
 store_expire_typing :: (s: *Store, now: s64) -> bool {
 	changed := false;
-	for * _, l: s.typing {
+	for * l: s.typing {
 		for < i: 0..len(l) - 1 {
 			if l.*[i].until <= now {
 				ordered_remove(l, i);
@@ -1050,10 +1050,10 @@ apply_typing :: (s: *Store, d: etf.Map, now: s64) {
 		} }
 	} }
 	if cid == 0 || uid == 0 { return; }
-	l, ok := map_find_ptr(*s.typing, cid);
+	l := table_find_pointer(*s.typing, cid); ok := l != null;
 	if !ok {
-		at(*s.typing, cid).* = make_dynamic(Typing, 0, 0, s.allocator);
-		l = at(*s.typing, cid);
+		table_set(*s.typing, cid, make_dynamic(Typing, 0, 0, s.allocator));
+		l = find_or_add(*s.typing, cid);
 	}
 	for * t: l.* {
 		if t.user_id == uid {
@@ -1065,7 +1065,7 @@ apply_typing :: (s: *Store, d: etf.Map, now: s64) {
 }
 
 remove_typing :: (s: *Store, cid: Snowflake, uid: Snowflake) {
-	{ l, ok := map_find_ptr(*s.typing, cid);
+	{ l := table_find_pointer(*s.typing, cid); ok := l != null;
 	if ok {
 		for t, i: l.* {
 			if t.user_id == uid {
@@ -1091,7 +1091,7 @@ apply_reaction :: (s: *Store, d: etf.Map, add: bool) {
 	eid := fsnow(em, "id");
 	ename := fstr(em, "name");
 	burst := fbool(d, "burst");
-	l, ok := map_find_ptr(*s.messages, cid);
+	l := table_find_pointer(*s.messages, cid); ok := l != null;
 	if !ok { return; }
 	i := message_index(l, mid);
 	if i < 0 { return; }
@@ -1132,38 +1132,38 @@ apply_reaction :: (s: *Store, d: etf.Map, add: bool) {
 // ---- dispatch application ----
 
 remove_guild :: (s: *Store, gid: Snowflake) {
-	g, ok := map_find_ptr(*s.guilds, gid);
+	g := table_find_pointer(*s.guilds, gid); ok := g != null;
 	if !ok { return; }
 	for cid: g.channels {
-		{ c, cok := map_find_ptr(*s.channels, cid);
+		{ c := table_find_pointer(*s.channels, cid); cok := c != null;
 		if cok {
 			free_channel(s, c);
-			delete_key(*s.channels, cid);
+			table_remove(*s.channels, cid);
 		} }
 		// a rejoin loads the channels again from scratch
-		{ l, lok := map_find_ptr(*s.messages, cid);
+		{ l := table_find_pointer(*s.messages, cid); lok := l != null;
 		if lok {
 			for * m: l.messages { free_message(s, m); }
 			delete(l.messages);
-			delete_key(*s.messages, cid);
+			table_remove(*s.messages, cid);
 		} }
 	}
 	free_guild(s, g);
-	delete_key(*s.guilds, gid);
+	table_remove(*s.guilds, gid);
 	{ i, found := slice.linear_search(view(s.guild_order), gid);
 	if found { ordered_remove(*s.guild_order, i); } }
-	{ gm, mok := map_find_ptr(*s.members, gid);
+	{ gm := table_find_pointer(*s.members, gid); mok := gm != null;
 	if mok {
-		for * _, m: gm { free_member(s, m); }
-		delete(gm.*);
-		delete_key(*s.members, gid);
+		for * m: gm { free_member(s, m); }
+		deinit(*gm.*);
+		table_remove(*s.members, gid);
 	} }
 }
 
 remove_channel :: (s: *Store, cid: Snowflake) {
-	c, ok := map_find_ptr(*s.channels, cid);
+	c := table_find_pointer(*s.channels, cid); ok := c != null;
 	if !ok { return; }
-	{ g, gok := map_find_ptr(*s.guilds, c.guild_id);
+	{ g := table_find_pointer(*s.guilds, c.guild_id); gok := g != null;
 	if gok {
 		{ i, found := slice.linear_search(view(g.channels), cid);
 		if found { ordered_remove(*g.channels, i); } }
@@ -1171,12 +1171,12 @@ remove_channel :: (s: *Store, cid: Snowflake) {
 	{ i, found := slice.linear_search(view(s.private_channels), cid);
 	if found { ordered_remove(*s.private_channels, i); } }
 	free_channel(s, c);
-	delete_key(*s.channels, cid);
-	{ l, lok := map_find_ptr(*s.messages, cid);
+	table_remove(*s.channels, cid);
+	{ l := table_find_pointer(*s.messages, cid); lok := l != null;
 	if lok {
 		for * m: l.messages { free_message(s, m); }
 		delete(l.messages);
-		delete_key(*s.messages, cid);
+		table_remove(*s.messages, cid);
 	} }
 }
 
@@ -1197,21 +1197,21 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		// our own message is read at once (ReadStateStore MESSAGE_CREATE: a local
 		// ack, nothing sent; not type 46, SELF_MENTIONABLE_SYSTEM)
 		if author != 0 && author == s.me && fint(d, "type") != 46 {
-			rs := get(s.read_states, cid);
+			_, rs := table_find(*s.read_states, cid);
 			rs.channel_id = cid;
 			rs.last_message_id = max(rs.last_message_id, fsnow(d, "id"));
-			at(*s.read_states, cid).* = rs;
+			table_set(*s.read_states, cid, rs);
 		}
 	case "MESSAGE_UPDATE";
 		cid := fsnow(d, "channel_id");
-		{ l, ok := map_find_ptr(*s.messages, cid);
+		{ l := table_find_pointer(*s.messages, cid); ok := l != null;
 		if ok {
 			{ i := message_index(l, fsnow(d, "id"));
 			if i >= 0 { parse_message_fields(s, at(*l.messages, i), d); } }
 		} }
 	case "MESSAGE_DELETE";
 		cid := fsnow(d, "channel_id");
-		{ l, ok := map_find_ptr(*s.messages, cid);
+		{ l := table_find_pointer(*s.messages, cid); ok := l != null;
 		if ok {
 			{ i := message_index(l, fsnow(d, "id"));
 			if i >= 0 {
@@ -1221,7 +1221,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		} }
 	case "MESSAGE_DELETE_BULK";
 		cid := fsnow(d, "channel_id");
-		{ l, ok := map_find_ptr(*s.messages, cid);
+		{ l := table_find_pointer(*s.messages, cid); ok := l != null;
 		if ok {
 			for idv: flist(d, "ids") {
 				{ i := message_index(l, vsnow(idv));
@@ -1237,7 +1237,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		apply_reaction(s, d, false);
 	case "MESSAGE_REACTION_REMOVE_ALL"; #through; case "MESSAGE_REACTION_REMOVE_EMOJI";
 		cid := fsnow(d, "channel_id");
-		{ l, ok := map_find_ptr(*s.messages, cid);
+		{ l := table_find_pointer(*s.messages, cid); ok := l != null;
 		if ok {
 			{ i := message_index(l, fsnow(d, "message_id"));
 			if i >= 0 {
@@ -1253,11 +1253,11 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		} }
 	case "MESSAGE_ACK";
 		cid := fsnow(d, "channel_id");
-		rs := get(s.read_states, cid);
+		_, rs := table_find(*s.read_states, cid);
 		rs.channel_id = cid;
 		rs.last_message_id = fsnow(d, "message_id");
 		rs.mention_count = cast(int)(fint(d, "mention_count"));
-		at(*s.read_states, cid).* = rs;
+		table_set(*s.read_states, cid, rs);
 	case "TYPING_START";
 		apply_typing(s, d, now);
 	case "PRESENCE_UPDATE";
@@ -1269,14 +1269,14 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 	case "GUILD_DELETE";
 		gid := fsnow(d, "id");
 		if fbool(d, "unavailable") {
-			{ g, ok := map_find_ptr(*s.guilds, gid);
+			{ g := table_find_pointer(*s.guilds, gid); ok := g != null;
 			if ok { g.unavailable = true; } }
 		} else {
 			remove_guild(s, gid);
 		}
 	case "GUILD_ROLE_CREATE"; #through; case "GUILD_ROLE_UPDATE";
 		gid := fsnow(d, "guild_id");
-		{ g, ok := map_find_ptr(*s.guilds, gid);
+		{ g := table_find_pointer(*s.guilds, gid); ok := g != null;
 		if ok {
 			r := parse_role(s, fmap(d, "role"));
 			for * old, i: g.roles {
@@ -1291,7 +1291,7 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 	case "GUILD_ROLE_DELETE";
 		gid := fsnow(d, "guild_id");
 		rid := fsnow(d, "role_id");
-		{ g, ok := map_find_ptr(*s.guilds, gid);
+		{ g := table_find_pointer(*s.guilds, gid); ok := g != null;
 		if ok {
 			for * r, i: g.roles {
 				if r.id == rid {
@@ -1302,22 +1302,22 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 			}
 		} }
 	case "GUILD_EMOJIS_UPDATE";
-		{ g, ok := map_find_ptr(*s.guilds, fsnow(d, "guild_id"));
+		{ g := table_find_pointer(*s.guilds, fsnow(d, "guild_id")); ok := g != null;
 		if ok { parse_emojis(s, g, flist(d, "emojis")); } }
 	case "GUILD_STICKERS_UPDATE";
-		{ g, ok := map_find_ptr(*s.guilds, fsnow(d, "guild_id"));
+		{ g := table_find_pointer(*s.guilds, fsnow(d, "guild_id")); ok := g != null;
 		if ok { parse_stickers(s, g, flist(d, "stickers")); } }
 	case "GUILD_MEMBER_ADD"; #through; case "GUILD_MEMBER_UPDATE";
 		parse_member_into(s, fsnow(d, "guild_id"), d);
 	case "GUILD_MEMBER_REMOVE";
 		gid := fsnow(d, "guild_id");
 		uid := fsnow(fmap(d, "user"), "id");
-		{ gm, ok := map_find_ptr(*s.members, gid);
+		{ gm := table_find_pointer(*s.members, gid); ok := gm != null;
 		if ok {
-			{ m, mok := map_find_ptr(gm, uid);
+			{ m := table_find_pointer(gm, uid); mok := m != null;
 			if mok {
 				free_member(s, m);
-				delete_key(gm, uid);
+				table_remove(gm, uid);
 			} }
 		} }
 	case "GUILD_MEMBERS_CHUNK";
@@ -1328,9 +1328,9 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		apply_member_list_update(s, d);
 	case "CHANNEL_CREATE"; #through; case "CHANNEL_UPDATE"; #through; case "THREAD_CREATE"; #through; case "THREAD_UPDATE";
 		cid := parse_channel_into(s, d);
-		c := get(s.channels, cid);
+		_, c := table_find(*s.channels, cid);
 		if c.guild_id != 0 {
-			{ g, ok := map_find_ptr(*s.guilds, c.guild_id);
+			{ g := table_find_pointer(*s.guilds, c.guild_id); ok := g != null;
 			if ok && !slice.contains(view(g.channels), cid) { append(*g.channels, cid); } }
 		} else if !slice.contains(view(s.private_channels), cid) {
 			append(*s.private_channels, cid);
@@ -1338,13 +1338,13 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 	case "CHANNEL_DELETE"; #through; case "THREAD_DELETE";
 		remove_channel(s, fsnow(d, "id"));
 	case "CHANNEL_RECIPIENT_ADD";
-		{ c, ok := map_find_ptr(*s.channels, fsnow(d, "channel_id"));
+		{ c := table_find_pointer(*s.channels, fsnow(d, "channel_id")); ok := c != null;
 		if ok {
 			uid := parse_user_into(s, fmap(d, "user"));
 			if uid != 0 && !slice.contains(view(c.recipient_ids), uid) { append(*c.recipient_ids, uid); }
 		} }
 	case "CHANNEL_RECIPIENT_REMOVE";
-		{ c, ok := map_find_ptr(*s.channels, fsnow(d, "channel_id"));
+		{ c := table_find_pointer(*s.channels, fsnow(d, "channel_id")); ok := c != null;
 		if ok {
 			uid := fsnow(fmap(d, "user"), "id");
 			{ i, found := slice.linear_search(view(c.recipient_ids), uid);
@@ -1354,11 +1354,11 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 		apply_relationship(s, d);
 	case "RELATIONSHIP_REMOVE";
 		uid := fsnow(d, "id");
-		{ r, ok := map_find(s.relationships, uid);
+		{ ok, r := table_find(*s.relationships, uid);
 		if ok {
 			free_str(r.nickname, s.allocator);
 			free_str(r.since, s.allocator);
-			delete_key(*s.relationships, uid);
+			table_remove(*s.relationships, uid);
 		} }
 	case "USER_UPDATE";
 		parse_user_into(s, d);
@@ -1399,43 +1399,43 @@ store_apply_messages :: (s: *Store, channel_id: Snowflake, data: V, limit: int, 
 // ---- read helpers for the UI ----
 
 user_get :: (s: *Store, id: Snowflake) -> *User {
-	u, ok := map_find_ptr(*s.users, id);
+	u := table_find_pointer(*s.users, id); ok := u != null;
 	return ifx ok then u else null;
 }
 
 channel_get :: (s: *Store, id: Snowflake) -> *Channel {
-	c, ok := map_find_ptr(*s.channels, id);
+	c := table_find_pointer(*s.channels, id); ok := c != null;
 	return ifx ok then c else null;
 }
 
 guild_get :: (s: *Store, id: Snowflake) -> *Guild {
-	g, ok := map_find_ptr(*s.guilds, id);
+	g := table_find_pointer(*s.guilds, id); ok := g != null;
 	return ifx ok then g else null;
 }
 
 member_get :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> *Member {
-	gm, ok := map_find_ptr(*s.members, guild_id);
+	gm := table_find_pointer(*s.members, guild_id); ok := gm != null;
 	if !ok { return null; }
-	m, mok := map_find_ptr(gm, user_id);
+	m := table_find_pointer(gm, user_id); mok := m != null;
 	return ifx mok then m else null;
 }
 
 messages_get :: (s: *Store, channel_id: Snowflake) -> []Message {
-	l, ok := map_find_ptr(*s.messages, channel_id);
+	l := table_find_pointer(*s.messages, channel_id); ok := l != null;
 	return ifx ok then view(l.messages) else .[];
 }
 
 channel_unread :: (s: *Store, channel_id: Snowflake) -> bool {
-	c, ok := map_find_ptr(*s.channels, channel_id);
+	c := table_find_pointer(*s.channels, channel_id); ok := c != null;
 	if !ok { return false; }
-	rs, has_rs := map_find_ptr(*s.read_states, channel_id);
+	rs := table_find_pointer(*s.read_states, channel_id); has_rs := rs != null;
 	return c.last_message_id > (ifx has_rs then rs.last_message_id else 0);
 }
 
 // guild_channels_sorted returns channel ids in sidebar order: uncategorized
 // first, then each category followed by its children, by (position, id).
 guild_channels_sorted :: (s: *Store, guild_id: Snowflake, allocator := temp) -> []Snowflake {
-	g, ok := map_find_ptr(*s.guilds, guild_id);
+	g := table_find_pointer(*s.guilds, guild_id); ok := g != null;
 	if !ok { return .{}; }
 	// Keys are computed once per channel, not per comparison: map lookups dominate otherwise.
 	Keyed :: struct {
@@ -1449,7 +1449,7 @@ guild_channels_sorted :: (s: *Store, guild_id: Snowflake, allocator := temp) -> 
 	keyed := make_slice(Keyed, len(g.channels), temp);
 	for id, i: g.channels {
 		k := Keyed.{id = id};
-		{ c, has := map_find_ptr(*s.channels, id);
+		{ c := table_find_pointer(*s.channels, id); has := c != null;
 		if has {
 			k.voiceish = c.kind == .Guild_Voice || c.kind == .Guild_Stage_Voice;
 			if c.kind == .Guild_Category {
@@ -1457,7 +1457,7 @@ guild_channels_sorted :: (s: *Store, guild_id: Snowflake, allocator := temp) -> 
 			} else if c.parent_id == 0 {
 				k.parent_pos, k.pos = -1, c.position;
 			} else {
-				{ p, has_p := map_find_ptr(*s.channels, c.parent_id);
+				{ p := table_find_pointer(*s.channels, c.parent_id); has_p := p != null;
 				if has_p { k.parent_pos, k.parent_id = p.position, p.id; } }
 				k.pos = c.position;
 			}
@@ -1485,7 +1485,7 @@ private_channels_sorted :: (s: *Store, allocator := temp) -> []Snowflake {
 	keyed := make_slice(Keyed, len(s.private_channels), temp);
 	for id, i: s.private_channels {
 		last := id;
-		{ c, ok := map_find_ptr(*s.channels, id);
+		{ c := table_find_pointer(*s.channels, id); ok := c != null;
 		if ok { last = max(c.last_message_id, id); } }
 		keyed[i] = .{last, id};
 	}
@@ -1496,7 +1496,7 @@ private_channels_sorted :: (s: *Store, allocator := temp) -> []Snowflake {
 }
 
 typing_users :: (s: *Store, channel_id: Snowflake) -> []Typing {
-	l, ok := map_find_ptr(*s.typing, channel_id);
+	l := table_find_pointer(*s.typing, channel_id); ok := l != null;
 	return ifx ok then view(l.*) else .[];
 }
 
@@ -1506,50 +1506,50 @@ store_destroy :: (s: *Store) {
 	push_allocator(s.allocator);
 	extras_destroy();
 	a := s.allocator;
-	for * _, u: s.users { free_user(s, u); }
-	delete(s.users);
-	for * _, g: s.guilds { free_guild(s, g); }
-	delete(s.guilds);
+	for * u: s.users { free_user(s, u); }
+	deinit(*s.users);
+	for * g: s.guilds { free_guild(s, g); }
+	deinit(*s.guilds);
 	delete(s.guild_order);
-	for * _, c: s.channels { free_channel(s, c); }
-	delete(s.channels);
+	for * c: s.channels { free_channel(s, c); }
+	deinit(*s.channels);
 	delete(s.private_channels);
-	for * _, gm: s.members {
-		for * _, m: gm { free_member(s, m); }
-		delete(gm);
+	for * gm: s.members {
+		for * m: gm { free_member(s, m); }
+		deinit(gm);
 	}
-	delete(s.members);
-	for * _, l: s.messages {
+	deinit(*s.members);
+	for * l: s.messages {
 		for * m: l.messages { free_message(s, m); }
 		delete(l.messages);
 	}
-	delete(s.messages);
-	for _, p: s.presences { free_str(p.activity, a); }
-	delete(s.presences);
-	for _, r: s.relationships {
+	deinit(*s.messages);
+	for p: s.presences { free_str(p.activity, a); }
+	deinit(*s.presences);
+	for r: s.relationships {
 		free_str(r.nickname, a);
 		free_str(r.since, a);
 	}
-	delete(s.relationships);
-	delete(s.read_states);
-	for _, gs: s.guild_settings {
+	deinit(*s.relationships);
+	deinit(*s.read_states);
+	for gs: s.guild_settings {
 		delete(gs.muted_channels);
 		delete(gs.collapsed_channels);
 		delete(gs.overrides);
 	}
-	delete(s.guild_settings);
-	for _, v: s.voice_states { free_str(v.session_id, a); }
-	delete(s.voice_states);
-	for _, l: s.typing { delete(l); }
-	delete(s.typing);
-	for _, ml: s.member_lists {
+	deinit(*s.guild_settings);
+	for v: s.voice_states { free_str(v.session_id, a); }
+	deinit(*s.voice_states);
+	for l: s.typing { delete(l); }
+	deinit(*s.typing);
+	for ml: s.member_lists {
 		for it_: ml.items { free_list_item(s, it_); }
 		delete(ml.items);
 		for g: ml.groups { free_str(g.id, a); }
 		delete(ml.groups);
 		free_str(ml.id, a);
 	}
-	delete(s.member_lists);
+	deinit(*s.member_lists);
 	for ss: s.sessions {
 		free_str(ss.session_id, a);
 		free_str(ss.client, a);

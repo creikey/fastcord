@@ -96,14 +96,14 @@ fetch_role_member_counts :: (c: *Client, guild_id: Snowflake) {
 // Every thread (any state we know of) under parent_id, newest activity first.
 channel_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snowflake {
 	out := make_dynamic(Snowflake, 0, 0, allocator);
-	for id, tm: extras.threads {
-		if tm.parent_id == parent_id && has(s.channels, id) { append(*out, id); }
+	for tm, id: extras.threads {
+		if tm.parent_id == parent_id && table_contains(*s.channels, id) { append(*out, id); }
 	}
 	Keyed :: struct {
 		key, id: Snowflake;
 	}
 	keyed := make_slice(Keyed, len(out), temp);
-	for id, i: out { keyed[i] = .{max(get(extras.threads, id).last_message_id, id), id}; }
+	for id, i: out { _, tm := table_find(*extras.threads, id); keyed[i] = .{max(tm.last_message_id, id), id}; }
 	for i: 1..len(keyed)-1 {
 		{ j := i;
 		while j > 0 && keyed[j].key > keyed[j - 1].key { swap(*keyed[j], *keyed[j - 1]);  j -= 1; } }
