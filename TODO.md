@@ -1,6 +1,7 @@
 # TODO
 
 - [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
+- [ ] When soundboard support is added, add a toggle that makes soundboards play through your call's mic instead of through discord's separate soundboard channel
 - [ ] Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
 - [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
@@ -84,7 +85,8 @@
 - [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
 - [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
-- [ ] Attachments: file cards have no download button, the link-coloured filename does nothing, and text/code files get no inline preview.
+- [ ] Attachments: text and code files (`.txt`, `.md`, `.py`, `.c`, `.json`, `.log`, ...) render as a plain file card ("burst.txt, 416 bytes") instead of the official inline preview. That's a code box with syntax highlighting (`highlight.jai`), the first lines with expand/collapse, and the filename, size and download in its header. Never built, not a stale build: no text preview code in `src/app`.
+- [ ] Attachments: file cards have no download button, and the link-coloured filename does nothing.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
 - [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
 - [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
@@ -110,6 +112,7 @@
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Composer: no character counter near the 2000/4000 limit, and over-long sends aren't blocked.
 - [ ] Composer: no formatting toolbar on selection and no Ctrl+B / Ctrl+I / Ctrl+U.
+- [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
 - [ ] Chat: NSFW channels open with no age-gate screen.
