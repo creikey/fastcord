@@ -24,24 +24,22 @@ Gradient :: struct {
 }
 
 mat_invert :: (m: Mat) -> Mat, bool {
-	det := get(m, 0) * get(m, 3) - get(m, 1) * get(m, 2);
-	if abs(det) < 1.0e-12 { return zero(Mat), false; }
+	det := m[0] * m[3] - m[1] * m[2];
+	if abs(det) < 1.0e-12 { z: Mat; return z, false; }
 	id := 1 / det;
 	return .[
-		get(m, 3) * id,
-		-get(m, 1) * id,
-		-get(m, 2) * id,
-		get(m, 0) * id,
-		(get(m, 2) * get(m, 5) - get(m, 3) * get(m, 4)) * id,
-		(get(m, 1) * get(m, 4) - get(m, 0) * get(m, 5)) * id
+		m[3] * id,
+		-m[1] * id,
+		-m[2] * id,
+		m[0] * id,
+		(m[2] * m[5] - m[3] * m[4]) * id,
+		(m[1] * m[4] - m[0] * m[5]) * id
 	], true;
 }
 
 // gradient_t returns the gradient parameter at point q (gradient space) or
 // ok=false where a conical gradient is undefined (drawn transparent).
 gradient_t :: (g: *Gradient, q: Vector2) -> float32, bool {
-	t: float32;
-	ok: bool;
 	if !g.radial {
 		d := g.p1 - g.p0;
 		l2 := d.x * d.x + d.y * d.y;
@@ -58,12 +56,12 @@ gradient_t :: (g: *Gradient, q: Vector2) -> float32, bool {
 	c := qf.x * qf.x + qf.y * qf.y - g.fr * g.fr;
 	if abs(a) < 1.0e-9 {
 		if abs(b) < 1.0e-12 { return 0, false; }
-		t = c / (2 * b);
+		t := c / (2 * b);
 		return t, g.fr + t * dr >= 0;
 	}
 	disc := b * b - a * c;
 	if disc < 0 { return 0, false; }
-	s := math.sqrt(disc);
+	s := sqrt(disc);
 	t1 := (b + s) / a;
 	t2 := (b - s) / a;
 	hi, lo := max(t1, t2), min(t1, t2);
@@ -74,19 +72,19 @@ gradient_t :: (g: *Gradient, q: Vector2) -> float32, bool {
 
 // gradient_color evaluates straight RGBA (0..1) at parameter t.
 gradient_color :: (g: *Gradient, t_in: float32) -> Vector4 {
-	n := len(g.stops);
+	n := g.stops.count;
 	if n == 0 { return .{}; }
 	t := t_in;
 	if g.spread == {
 	case .Pad;
 		t = clamp(t, 0, 1);
 	case .Repeat;
-		t = t - math.floor(t);
+		t = t - floor(t);
 	case .Reflect;
 		t = abs(t);
-		k := math.floor(t);
+		k := floor(t);
 		t = t - k;
-		if ((cast(int)(k)) & 1) == 1 { t = 1 - t; }
+		if ((cast(int) k) & 1) == 1 { t = 1 - t; }
 	}
 	if t <= g.stops[0].offset { return g.stops[0].color; }
 	for i: 1..n-1 {
@@ -106,8 +104,8 @@ gradient_color :: (g: *Gradient, t_in: float32) -> Vector4 {
 gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w: int, h: int) {
 	inv, ok := mat_invert(m);
 	if !ok { return; }
-	for y: 0..cast(int)(h)-1 {
-		for x: 0..cast(int)(w)-1 {
+	for y: 0..h-1 {
+		for x: 0..w-1 {
 			i := y * w + x;
 			c := cov[i];
 			if c <= 0 { continue; }
@@ -116,12 +114,7 @@ gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w
 			if !tok { continue; }
 			col := gradient_color(g, t);
 			a := col[3] * c;
-			d := sub_from(dst, i * 4);
-			k := 1 - a;
-			d[0] = col[0] * a + d[0] * k;
-			d[1] = col[1] * a + d[1] * k;
-			d[2] = col[2] * a + d[2] * k;
-			d[3] = a + d[3] * k;
+			blend_premul(dst, i * 4, col, a);
 		}
 	}
 }
@@ -130,26 +123,29 @@ gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w
 solid_fill_premul :: (color: Vector4, cov: []float32, dst: []float32) {
 	for c, i: cov {
 		if c <= 0 { continue; }
-		a := color[3] * c;
-		k := 1 - a;
-		d := sub_from(dst, i * 4);
-		d[0] = color[0] * a + d[0] * k;
-		d[1] = color[1] * a + d[1] * k;
-		d[2] = color[2] * a + d[2] * k;
-		d[3] = a + d[3] * k;
+		blend_premul(dst, i * 4, color, color[3] * c);
 	}
 }
 
 // premul_to_rgba8 converts a premultiplied f32 canvas to straight-alpha RGBA8.
 premul_to_rgba8 :: (src: []float32, out: []u8) {
-	for i: 0..cast(int)((len(src) / 4))-1 {
+	for i: 0..(src.count / 4)-1 {
 		a := src[i * 4 + 3];
 		if a <= 0 {
-			at(*out, i * 4).*, at(*out, i * 4 + 1).*, at(*out, i * 4 + 2).*, at(*out, i * 4 + 3).* = 0, 0, 0, 0;
+			out[i * 4], out[i * 4 + 1], out[i * 4 + 2], out[i * 4 + 3] = 0, 0, 0, 0;
 			continue;
 		}
-		for j: 0..2 { at(*out, i * 4 + j).* = cast(u8)(clamp(src[i * 4 + j] / a, 0, 1) * 255 + 0.5); }
-		at(*out, i * 4 + 3).* = cast(u8)(clamp(a, 0, 1) * 255 + 0.5);
+		for j: 0..2 { out[i * 4 + j] = cast(u8)(clamp(src[i * 4 + j] / a, 0, 1) * 255 + 0.5); }
+		out[i * 4 + 3] = cast(u8)(clamp(a, 0, 1) * 255 + 0.5);
 	}
 }
 
+#scope_module
+
+blend_premul :: inline (dst: []float32, o: int, col: Vector4, a: float32) {
+	k := 1 - a;
+	dst[o] = col[0] * a + dst[o] * k;
+	dst[o + 1] = col[1] * a + dst[o + 1] * k;
+	dst[o + 2] = col[2] * a + dst[o + 2] * k;
+	dst[o + 3] = a + dst[o + 3] * k;
+}

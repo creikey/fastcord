@@ -1,84 +1,68 @@
 Mat :: vector.Mat;
 
-// Player renders frames of one animation at a fixed pixel size.
+// Player renders frames of one animation at a fixed pixel size. It must not move after player_init.
 Player :: struct {
 	anim: *Animation;
 	w, h: int;
 	view: Mat; // animation space -> pixels (xMidYMid meet)
 	rz: vector.Rasterizer;
-	frame: virtual.Arena; // per-frame geometry
-	falloc: Allocator;
+	frame: Flat_Pool; // per-frame geometry
 	out: []u8; // last rendered frame, straight RGBA8
 	depth: int; // precomp nesting guard
 }
 
-player_init :: (p: *Player, anim: *Animation, w: int, h: int, allocator := context.allocator) -> bool {
+player_init :: (p: *Player, anim: *Animation, w: int, h: int, allocator := context.allocator) {
 	p.* = .{anim = anim, w = w, h = h};
-	if !vector.rasterizer_init(*p.rz, w, h) { return false; }
-	if virtual.arena_init_growing(*p.frame) != .None { return false; }
-	p.falloc = virtual.arena_allocator(*p.frame);
-	s := min(cast(float32)(w) / anim.w, cast(float32)(h) / anim.h);
-	p.view = .[s, 0, 0, s, (cast(float32)(w) - anim.w * s) / 2, (cast(float32)(h) - anim.h * s) / 2];
-	p.out = make_slice(u8, w * h * 4, allocator);
-	return true;
+	vector.rasterizer_init(*p.rz, w, h);
+	s := min(cast(float32) w / anim.w, cast(float32) h / anim.h);
+	p.view = .[s, 0, 0, s, (cast(float32) w - anim.w * s) / 2, (cast(float32) h - anim.h * s) / 2];
+	p.out = NewArray(w * h * 4, u8,, allocator);
 }
 
 player_destroy :: (p: *Player, allocator := context.allocator) {
 	vector.rasterizer_destroy(*p.rz);
-	virtual.arena_destroy(*p.frame);
-	delete(p.out, allocator);
+	fini(*p.frame);
+	array_free(p.out,, allocator);
 	p.* = .{};
 }
 
 // frame_at maps seconds to a (looping, fractional) frame number.
 frame_at :: (anim: *Animation, seconds: float64) -> float32 {
-	dur := cast(float64)(anim.op - anim.ip);
-	if dur <= 0 { return anim.ip; }
-	f := fmod(seconds * cast(float64)(anim.fr), dur);
-	if f < 0 { f += dur; }
-	return anim.ip + cast(float32)(f);
+	dur := cast(float64) (anim.op - anim.ip);
+	if dur <= 0 return anim.ip;
+	f := fmod(seconds * cast(float64) anim.fr, dur);
+	if f < 0  f += dur;
+	return anim.ip + cast(float32) f;
 }
 
 // render renders frame number `frame` (fractional allowed) and returns the
 // player's straight-alpha RGBA8 buffer (w*h*4, valid until the next call).
 render :: (p: *Player, frame: float32) -> []u8 {
 	vector.rasterizer_reset(*p.rz);
-	virtual.arena_free_all(*p.frame);
+	reset(*p.frame);
+	push_allocator(.{flat_pool_allocator_proc, *p.frame}); // all geometry below lives until the next frame
 	canvas := vector.rasterizer_buffer(*p.rz, 4);
 	render_comp(p, *p.anim.root, frame, p.view, canvas);
 	vector.premul_to_rgba8(canvas, p.out);
 	return p.out;
 }
+
 #scope_module
 
-// ---------------------------------------------------------------------------
-
-mat_mul :: (a: Mat, b: Mat) -> Mat {
-	return .[
-		a[0] * b[0] + a[2] * b[1],
-		a[1] * b[0] + a[3] * b[1],
-		a[0] * b[2] + a[2] * b[3],
-		a[1] * b[2] + a[3] * b[3],
-		a[0] * b[4] + a[2] * b[5] + a[4],
-		a[1] * b[4] + a[3] * b[5] + a[5]
-	];
-}
-
-apply :: inline (m: Mat, p: Vector2) -> Vector2 {
-	return .{get(m, 0) * p.x + get(m, 2) * p.y + get(m, 4), get(m, 1) * p.x + get(m, 3) * p.y + get(m, 5)};
-};
+mat_mul :: vector.mat_mul;
+apply :: vector.mat_apply;
 
 ev1 :: (pr: *Prop, t: float32, def: float32 = 0) -> float32 {
 	v: [4]float32;
-	if eval(pr, t, v) < 1 { return def; }
+	if eval(pr, t, v) < 1 return def;
 	return v[0];
 }
 
 ev2 :: (pr: *Prop, t: float32, def := Vector2.{}) -> Vector2 {
 	v: [4]float32;
 	n := eval(pr, t, v);
-	if n < 1 { return def; }
-	if n < 2 { return .{v[0], v[0]}; }
+	if n < 1 return def;
+	if n < 2 return .{v[0], v[0]};
 	return .{v[0], v[1]};
 }
 
@@ -86,26 +70,18 @@ ev2 :: (pr: *Prop, t: float32, def := Vector2.{}) -> Vector2 {
 transform_matrix :: (tr: *Transform, t: float32) -> Mat, float32 {
 	a := ev2(*tr.a, t);
 	s := ev2(*tr.s, t, .{100, 100}) / 100;
-	r := ev1(*tr.r, t) * PI32 / 180;
-	pos: Vector2;
-	if tr.split {
-		pos = .{ev1(*tr.px, t), ev1(*tr.py, t)};
-	} else {
-		pos = ev2(*tr.p, t);
-	}
-	m := float32.[s.x, 0, 0, s.y, -a.x * s.x, -a.y * s.y];
+	r := ev1(*tr.r, t) * PI / 180;
+	pos := ifx tr.split then Vector2.{ev1(*tr.px, t), ev1(*tr.py, t)} else ev2(*tr.p, t);
+	m: Mat = .[s.x, 0, 0, s.y, -a.x * s.x, -a.y * s.y];
 	sk := ev1(*tr.sk, t);
 	if sk != 0 {
-		sa := ev1(*tr.sa, t) * PI32 / 180;
-		k := math.tan(-sk * PI32 / 180);
-		c, sn := math.cos(sa), math.sin(sa);
-		rot := float32.[c, sn, -sn, c, 0, 0];
-		rinv := float32.[c, -sn, sn, c, 0, 0];
-		shear := float32.[1, 0, k, 1, 0, 0];
-		m = mat_mul(rot, mat_mul(shear, mat_mul(rinv, m)));
+		sa := ev1(*tr.sa, t) * PI / 180;
+		c, sn := cos(sa), sin(sa);
+		shear: Mat = .[1, 0, tan(-sk * PI / 180), 1, 0, 0];
+		m = mat_mul(.[c, sn, -sn, c, 0, 0], mat_mul(shear, mat_mul(.[c, -sn, sn, c, 0, 0], m)));
 	}
-	c, sn := math.cos(r), math.sin(r);
-	m = mat_mul(float32.[c, sn, -sn, c, pos.x, pos.y], m);
+	c, sn := cos(r), sin(r);
+	m = mat_mul(.[c, sn, -sn, c, pos.x, pos.y], m);
 	return m, ev1(*tr.o, t, 100) / 100;
 }
 
@@ -118,156 +94,129 @@ precomp_time :: (l: *Layer, frame: float32) -> float32 {
 
 // World matrix of a layer within its comp (own transform composed with parents').
 layer_world :: (c: *Comp, l: *Layer, frame: float32, depth := 0) -> Mat {
-	m, _ := transform_matrix(*l.ks, frame);
+	m := transform_matrix(*l.ks, frame);
 	if l.parent >= 0 && depth < 32 {
-		for * pl: c.layers {
-			if pl.ind == l.parent {
-				return mat_mul(layer_world(c, pl, frame, depth + 1), m);
-			}
-		}
+		for * pl: c.layers  if pl.ind == l.parent  return mat_mul(layer_world(c, pl, frame, depth + 1), m);
 	}
 	return m;
 }
 
 composite :: (dst: []float32, src: []float32, alpha: float32) {
-	{ i := 0;
-	while i < len(dst) {
-		a := src[i + 3] * alpha;
-		if a <= 0 { { i += 4; continue; } }
+	for i: 0..dst.count/4-1 {
+		o := i * 4;
+		a := src[o + 3] * alpha;
+		if a <= 0 continue;
 		k := 1 - a;
-		dst[i] = src[i] * alpha + dst[i] * k;
-		dst[i + 1] = src[i + 1] * alpha + dst[i + 1] * k;
-		dst[i + 2] = src[i + 2] * alpha + dst[i + 2] * k;
-		dst[i + 3] = a + dst[i + 3] * k;
-		i += 4;
-} }
+		dst[o] = src[o] * alpha + dst[o] * k;
+		dst[o + 1] = src[o + 1] * alpha + dst[o + 1] * k;
+		dst[o + 2] = src[o + 2] * alpha + dst[o + 2] * k;
+		dst[o + 3] = a + dst[o + 3] * k;
+	}
 }
 
 render_comp :: (p: *Player, c: *Comp, frame: float32, m: Mat, dst: []float32) {
-	for < i: 0..len(c.layers) - 1 {
+	for < i: 0..c.layers.count-1 {
 		l := *c.layers[i];
-		if l.td || l.hidden || l.ty == 3 { continue; }
-		if !(frame >= l.ip && frame < l.op) { continue; }
+		if l.td || l.hidden || l.ty == 3 continue;
+		if !(frame >= l.ip && frame < l.op) continue;
 		buf, op := render_layer(p, c, l, frame, m);
-		if buf.count == 0 { continue; }
+		if buf.count == 0 continue;
 		if l.tt > 0 && i > 0 && c.layers[i - 1].td {
 			ml := *c.layers[i - 1];
 			mask_buf: []float32;
 			mop: float32 = 1;
-			if frame >= ml.ip && frame < ml.op { mask_buf, mop = render_layer(p, c, ml, frame, m); }
+			if frame >= ml.ip && frame < ml.op  mask_buf, mop = render_layer(p, c, ml, frame, m);
 			luma := l.tt == 3 || l.tt == 4;
 			inv := l.tt == 2 || l.tt == 4;
-			{ j := 0;
-			while j < len(buf) {
+			for j: 0..buf.count/4-1 {
+				o := j * 4;
 				f: float32 = 0;
-				if mask_buf.count != 0 {
-					if luma {
-						f = (0.2125 * mask_buf[j] + 0.7154 * mask_buf[j + 1] + 0.0721 * mask_buf[j + 2]) * mop;
-					} else {
-						f = mask_buf[j + 3] * mop;
-					}
+				if mask_buf.count {
+					if luma  f = (0.2125 * mask_buf[o] + 0.7154 * mask_buf[o + 1] + 0.0721 * mask_buf[o + 2]) * mop;
+					else     f = mask_buf[o + 3] * mop;
 				}
-				if inv { f = 1 - f; }
-				buf[j] *= f;
-				buf[j + 1] *= f;
-				buf[j + 2] *= f;
-				buf[j + 3] *= f;
-				j += 4;
-} }
+				if inv  f = 1 - f;
+				for k: 0..3  buf[o + k] *= f;
+			}
 		}
 		composite(dst, buf, op);
 	}
 }
 
+// Coverage of the rectangle (0, 0)-(w, h) under m.
+rect_coverage :: (p: *Player, w: float32, h: float32, m: Mat) -> []float32 {
+	path: vector.Path;
+	vector.path_move(*path, .{0, 0});
+	vector.path_line(*path, .{w, 0});
+	vector.path_line(*path, .{w, h});
+	vector.path_line(*path, .{0, h});
+	vector.path_close(*path);
+	return vector.fill_coverage(*p.rz, path.verbs, path.points, m, .Nonzero);
+}
+
+// Multiplies the premultiplied RGBA buf by per-pixel coverage.
+multiply :: (buf: []float32, cov: []float32) {
+	for cov  for k: 0..3  buf[it_index * 4 + k] *= it;
+}
+
 // Renders one layer (content + masks) into a new premultiplied buffer; returns
 // it with the layer opacity to composite with.
 render_layer :: (p: *Player, c: *Comp, l: *Layer, frame: float32, m: Mat) -> []float32, float32 {
-	lt := frame;
-	_, opacity := transform_matrix(*l.ks, lt);
-	if opacity <= 0 { return .{}, 0; }
+	_, opacity := transform_matrix(*l.ks, frame);
+	if opacity <= 0 return .[], 0;
 	lm := mat_mul(m, layer_world(c, l, frame));
 	buf := vector.rasterizer_buffer(*p.rz, 4);
 	if l.ty == {
 	case 0;
-		if l.ref < 0 { return .{}, 0; }
-		pc := at(*p.anim.assets, l.ref);
-		if p.depth > 16 { return .{}, 0; } // self-referencing precomps
+		if l.ref < 0 return .[], 0;
+		pc := *p.anim.assets[l.ref];
+		if p.depth > 16 return .[], 0; // self-referencing precomps
 		p.depth += 1;
 		render_comp(p, pc, precomp_time(l, frame), lm, buf);
 		p.depth -= 1;
 		// precomps are clipped to their bounds
-		w := ifx l.w > 0 then l.w else pc.w;
-		h := ifx l.h > 0 then l.h else pc.h;
-		path: vector.Path;
-		path.verbs = make_dynamic(vector.Verb, 0, 0, p.falloc);
-		path.points = make_dynamic(Vector2, 0, 0, p.falloc);
-		vector.path_move(*path, .{0, 0});
-		vector.path_line(*path, .{w, 0});
-		vector.path_line(*path, .{w, h});
-		vector.path_line(*path, .{0, h});
-		vector.path_close(*path);
-		cov := vector.fill_coverage(*p.rz, view(path.verbs), view(path.points), lm, .Nonzero);
-		for v, j: cov { for k: 0..3 { buf[j * 4 + k] *= v; } }
+		multiply(buf, rect_coverage(p, ifx l.w > 0 then l.w else pc.w, ifx l.h > 0 then l.h else pc.h, lm));
 	case 1;
-		path: vector.Path;
-		path.verbs = make_dynamic(vector.Verb, 0, 0, p.falloc);
-		path.points = make_dynamic(Vector2, 0, 0, p.falloc);
-		vector.path_move(*path, .{0, 0});
-		vector.path_line(*path, .{l.w, 0});
-		vector.path_line(*path, .{l.w, l.h});
-		vector.path_line(*path, .{0, l.h});
-		vector.path_close(*path);
-		cov := vector.fill_coverage(*p.rz, view(path.verbs), view(path.points), lm, .Nonzero);
-		vector.solid_fill_premul(l.solid_color, cov, buf);
+		vector.solid_fill_premul(l.solid_color, rect_coverage(p, l.w, l.h, lm), buf);
 	case 4;
-		draw_shapes(p, l.shapes, lt, lm, buf);
+		draw_shapes(p, l.shapes, frame, lm, buf);
 	case;
-		return .{}, 0;
+		return .[], 0;
 	}
-	if len(l.masks) > 0 { apply_masks(p, l, lt, lm, buf); }
+	if l.masks.count  apply_masks(p, l, frame, lm, buf);
 	return buf, opacity;
 }
 
 apply_masks :: (p: *Player, l: *Layer, t: float32, lm: Mat, buf: []float32) {
 	acc: []float32;
 	for * mk: l.masks {
-		if mk.mode == #char "n" { continue; }
-		sd := eval_shape(*mk.path, t, p.falloc);
-		path := shape_to_path(p, sd, false);
-		cov := vector.fill_coverage(*p.rz, view(path.verbs), view(path.points), lm, .Nonzero);
+		if mk.mode == #char "n" continue;
+		path := shape_to_path(eval_shape(*mk.path, t), false);
+		cov := vector.fill_coverage(*p.rz, path.verbs, path.points, lm, .Nonzero);
 		o := ev1(*mk.opacity, t, 100) / 100;
-		for * v: cov {
-			v.* *= o;
-			if mk.inverted { v.* = 1 - v.*; }
+		for * cov {
+			it.* *= o;
+			if mk.inverted  it.* = 1 - it.*;
 		}
 		if acc.count == 0 {
 			acc = vector.rasterizer_buffer(*p.rz, 1);
-			if mk.mode == #char "s" {
-				for * v, j: acc { v.* = 1 - cov[j]; }
-			} else {
-				copy(acc, cov);
-			}
+			if mk.mode == #char "s"  for * acc  it.* = 1 - cov[it_index];
+			else                     memcpy(acc.data, cov.data, acc.count * size_of(float32));
 			continue;
 		}
-		for * v, j: acc {
-			c := cov[j];
-			if mk.mode == #char "a" {
-				v.* = v.* + c - v.* * c;
-			} else if mk.mode == #char "s" {
-				v.* *= 1 - c;
-			} else if mk.mode == #char "i" {
-				v.* *= c;
-			} else if mk.mode == #char "l" {
-				v.* = max(v.*, c);
-			} else if mk.mode == #char "d" {
-				v.* = min(v.*, c);
-			} else if mk.mode == #char "f" {
-				v.* = abs(v.* - c);
+		for * v: acc {
+			c := cov[it_index];
+			if mk.mode == {
+				case #char "a"; v.* = v.* + c - v.* * c;
+				case #char "s"; v.* *= 1 - c;
+				case #char "i"; v.* *= c;
+				case #char "l"; v.* = max(v.*, c);
+				case #char "d"; v.* = min(v.*, c);
+				case #char "f"; v.* = abs(v.* - c);
 			}
 		}
 	}
-	if acc.count == 0 { return; }
-	for v, j: acc { for k: 0..3 { buf[j * 4 + k] *= v; } }
+	if acc.count  multiply(buf, acc);
 }
 
 // ---------------------------------------------------------------------------
@@ -287,64 +236,55 @@ Draw :: struct {
 	opacity: float32;
 }
 
-new_path :: (p: *Player) -> *vector.Path {
-	path := new(vector.Path, p.falloc);
-	path.verbs = make_dynamic(vector.Verb, 0, 0, p.falloc);
-	path.points = make_dynamic(Vector2, 0, 0, p.falloc);
-	return path;
-}
-
 // Lottie bezier vertices -> path in local space (reversed if requested).
-shape_to_path :: (p: *Player, sd: Shape_Data, reversed: bool, m: Mat = vector.MAT_IDENTITY) -> *vector.Path {
-	path := new_path(p);
-	n := len(sd.v);
-	if n == 0 { return path; }
-	idx :: inline (j: int, n: int, rev: bool) -> int {return ifx rev then (n - j % n) % n else j % n;};
+shape_to_path :: (sd: Shape_Data, reversed: bool, m := vector.MAT_IDENTITY) -> *vector.Path {
+	path := New(vector.Path);
+	n := sd.v.count;
+	if n == 0 return path;
+	idx :: (j: int, n: int, rev: bool) -> int { return ifx rev then (n - j % n) % n else j % n; }
 	vector.path_move(path, apply(m, sd.v[idx(0, n, reversed)]));
 	segs := ifx sd.closed then n else n - 1;
-	for k: 0..cast(int)(segs)-1 {
+	for k: 0..segs-1 {
 		a := idx(k, n, reversed);
 		b := idx(k + 1, n, reversed);
 		out_t := ifx reversed then sd.i[a] else sd.o[a];
 		in_t := ifx reversed then sd.o[b] else sd.i[b];
 		p0 := sd.v[a];
 		p3 := sd.v[b];
-		if out_t == .{} && in_t == .{} {
-			vector.path_line(path, apply(m, p3));
-		} else {
-			vector.path_cubic(path, apply(m, p0 + out_t), apply(m, p3 + in_t), apply(m, p3));
-		}
+		if out_t == .{} && in_t == .{}  vector.path_line(path, apply(m, p3));
+		else vector.path_cubic(path, apply(m, p0 + out_t), apply(m, p3 + in_t), apply(m, p3));
 	}
-	if sd.closed { vector.path_close(path); }
+	if sd.closed  vector.path_close(path);
 	return path;
 }
 
 KAPPA :: 0.5519150244935105707435627;
 
-build_primitive :: (p: *Player, it_: *Item, t: float32, m: Mat) -> *vector.Path {
+build_primitive :: (item: *Item, t: float32, m: Mat) -> *vector.Path {
 	sd: Shape_Data;
 	sd.closed = true;
-	if it_.kind == {
+	alloc_vertices :: (sd: *Shape_Data, n: int) {
+		sd.v = NewArray(n, Vector2);
+		sd.i = NewArray(n, Vector2);
+		sd.o = NewArray(n, Vector2);
+	}
+	if item.kind == {
 	case .Ellipse;
-		c := ev2(*it_.p, t);
-		s := ev2(*it_.size, t) / 2;
+		c := ev2(*item.p, t);
+		s := ev2(*item.size, t) / 2;
 		k := s * cast(float32) KAPPA;
-		sd.v = make_slice(Vector2, 4, p.falloc);
-		sd.i = make_slice(Vector2, 4, p.falloc);
-		sd.o = make_slice(Vector2, 4, p.falloc);
+		alloc_vertices(*sd, 4);
 		// lottie-web: top, right, bottom, left (clockwise)
 		sd.v[0], sd.i[0], sd.o[0] = .{c.x, c.y - s.y}, .{-k.x, 0}, .{k.x, 0};
 		sd.v[1], sd.i[1], sd.o[1] = .{c.x + s.x, c.y}, .{0, -k.y}, .{0, k.y};
 		sd.v[2], sd.i[2], sd.o[2] = .{c.x, c.y + s.y}, .{k.x, 0}, .{-k.x, 0};
 		sd.v[3], sd.i[3], sd.o[3] = .{c.x - s.x, c.y}, .{0, k.y}, .{0, -k.y};
 	case .Rect;
-		c := ev2(*it_.p, t);
-		hs := ev2(*it_.size, t) / 2;
-		r := min(ev1(*it_.r, t), hs.x, hs.y);
+		c := ev2(*item.p, t);
+		hs := ev2(*item.size, t) / 2;
+		r := min(ev1(*item.r, t), hs.x, hs.y);
 		if r <= 0 {
-			sd.v = make_slice(Vector2, 4, p.falloc);
-			sd.i = make_slice(Vector2, 4, p.falloc);
-			sd.o = make_slice(Vector2, 4, p.falloc);
+			alloc_vertices(*sd, 4);
 			// lottie-web starts at the top-right corner
 			sd.v[0] = .{c.x + hs.x, c.y - hs.y};
 			sd.v[1] = .{c.x + hs.x, c.y + hs.y};
@@ -353,136 +293,124 @@ build_primitive :: (p: *Player, it_: *Item, t: float32, m: Mat) -> *vector.Path 
 		} else {
 			k := r * cast(float32) (1 - KAPPA);
 			x0, x1, y0, y1 := c.x - hs.x, c.x + hs.x, c.y - hs.y, c.y + hs.y;
-			sd.v = make_slice(Vector2, 8, p.falloc);
-			sd.i = make_slice(Vector2, 8, p.falloc);
-			sd.o = make_slice(Vector2, 8, p.falloc);
+			alloc_vertices(*sd, 8);
 			pts := Vector2.[.{x1, y0 + r}, .{x1, y1 - r}, .{x1 - r, y1}, .{x0 + r, y1}, .{x0, y1 - r}, .{x0, y0 + r}, .{x0 + r, y0}, .{x1 - r, y0}];
-			for q, j: pts { sd.v[j] = q; }
+			for pts  sd.v[it_index] = it;
 			cr := r - k;
-			sd.o[1] = .{0, cr};sd.i[2] = .{cr, 0};
-			sd.o[3] = .{-cr, 0};sd.i[4] = .{0, cr};
-			sd.o[5] = .{0, -cr};sd.i[6] = .{-cr, 0};
-			sd.o[7] = .{cr, 0};sd.i[0] = .{0, -cr};
+			sd.o[1] = .{0, cr};  sd.i[2] = .{cr, 0};
+			sd.o[3] = .{-cr, 0}; sd.i[4] = .{0, cr};
+			sd.o[5] = .{0, -cr}; sd.i[6] = .{-cr, 0};
+			sd.o[7] = .{cr, 0};  sd.i[0] = .{0, -cr};
 		}
 	case .Star;
-		c := ev2(*it_.p, t);
-		pts := ev1(*it_.pt, t);
-		if !(pts >= 2) { return new_path(p); } // also rejects NaN
-		n := cast(int)(min(pts, 1000));
-		rot := ev1(*it_.r, t) * PI32 / 180;
-		or_ := ev1(*it_.or_, t);
-		ir := ev1(*it_.ir, t);
-		star := it_.star_type == 1;
+		c := ev2(*item.p, t);
+		pts := ev1(*item.pt, t);
+		if !(pts >= 2) return New(vector.Path); // also rejects NaN
+		n := cast(int) min(pts, 1000);
+		rot := ev1(*item.r, t) * PI / 180;
+		or_ := ev1(*item.or_, t);
+		ir := ev1(*item.ir, t);
+		star := item.star_type == 1;
 		cnt := ifx star then 2 * n else n;
-		sd.v = make_slice(Vector2, cnt, p.falloc);
-		sd.i = make_slice(Vector2, cnt, p.falloc);
-		sd.o = make_slice(Vector2, cnt, p.falloc);
-		for j: 0..cast(int)(cnt)-1 {
-			rr := ifx star then (ifx (j & 1) == 0 then or_ else ir) else or_;
-			ang := rot - PI32 / 2 + cast(float32)(j) * 2 * PI32 / cast(float32)(cnt);
-			sd.v[j] = c + rr * Vector2.{math.cos(ang), math.sin(ang)};
+		alloc_vertices(*sd, cnt);
+		for j: 0..cnt-1 {
+			rr := ifx star && (j & 1) == 1 then ir else or_;
+			ang := rot - PI / 2 + cast(float32) j * 2 * PI / cast(float32) cnt;
+			sd.v[j] = c + rr * Vector2.{cos(ang), sin(ang)};
 		}
 	}
-	return shape_to_path(p, sd, it_.reversed, m);
+	return shape_to_path(sd, item.reversed, m);
 }
 
 // Walks a group's items top to bottom: paths accumulate in `geo`, groups add
 // their (transformed) geometry, trims rewrite geo, styles snapshot geo.
-walk_items :: (p: *Player, items: []Item, t: float32, m: Mat, opacity: float32, geo: *[..]*Slot, draws: *[..]Draw) {
-	for * it_: items {
-		if it_.hidden { continue; }
-		if it_.kind == {
+walk_items :: (items: []Item, t: float32, m: Mat, opacity: float32, geo: *[..]*Slot, draws: *[..]Draw) {
+	new_slot :: (path: *vector.Path) -> *Slot {
+		sl := New(Slot);
+		sl.path = path;
+		return sl;
+	}
+	for * item: items {
+		if item.hidden continue;
+		if item.kind == {
 		case .Ignore;
 		case .Group;
 			gm := m;
 			go := opacity;
-			if it_.has_tr {
-				tm, o := transform_matrix(*it_.tr, t);
+			if item.has_tr {
+				tm, o := transform_matrix(*item.tr, t);
 				gm = mat_mul(m, tm);
 				go *= o;
 			}
-			sub := make_dynamic(*Slot, 0, 0, p.falloc);
-			walk_items(p, it_.items, t, gm, go, *sub, draws);
-			append(geo, ..view(sub));
+			sub: [..]*Slot;
+			walk_items(item.items, t, gm, go, *sub, draws);
+			array_add(geo, ..sub);
 		case .Path;
-			sd := eval_shape(*it_.shape, t, p.falloc);
-			append(geo, new_slot(p, shape_to_path(p, sd, it_.reversed, m)));
+			array_add(geo, new_slot(shape_to_path(eval_shape(*item.shape, t), item.reversed, m)));
 		case .Rect; #through; case .Ellipse; #through; case .Star;
-			append(geo, new_slot(p, build_primitive(p, it_, t, m)));
+			array_add(geo, new_slot(build_primitive(item, t, m)));
 		case .Fill; #through; case .Stroke; #through; case .Gradient_Fill; #through; case .Gradient_Stroke;
-			snap := make_slice(*Slot, len(geo), p.falloc);
-			copy(snap, geo.*);
-			append(draws, Draw.{item = it_, paths = snap, m = m, opacity = opacity});
+			array_add(draws, Draw.{item = item, paths = array_copy(geo.*), m = m, opacity = opacity});
 		case .Trim;
-			apply_trim(p, it_, t, geo);
+			apply_trim(item, t, geo);
 		}
 	}
 }
 
-new_slot :: (p: *Player, path: *vector.Path) -> *Slot {
-	sl := new(Slot, p.falloc);
-	sl.path = path;
-	return sl;
-}
-
 draw_shapes :: (p: *Player, items: []Item, t: float32, m: Mat, buf: []float32) {
-	geo := make_dynamic(*Slot, 0, 0, p.falloc);
-	draws := make_dynamic(Draw, 0, 0, p.falloc);
-	walk_items(p, items, t, m, 1, *geo, *draws);
+	geo: [..]*Slot;
+	draws: [..]Draw;
+	walk_items(items, t, m, 1, *geo, *draws);
 	// the first style in document order is on top
-	for < k: 0..len(draws) - 1 {
-		d := *draws[k];
-		it_ := d.item;
-		op := ev1(*it_.opacity, t, 100) / 100 * d.opacity;
-		if op <= 0 || len(d.paths) == 0 { continue; }
+	for < * d: draws {
+		item := d.item;
+		op := ev1(*item.opacity, t, 100) / 100 * d.opacity;
+		if op <= 0 || d.paths.count == 0 continue;
 		// merge the snapshot into one path so overlapping sub-paths fill once
-		merged := new_path(p);
-		for sl: d.paths {
-			append(*merged.verbs, ..view(sl.path.verbs));
-			append(*merged.points, ..view(sl.path.points));
+		merged: vector.Path;
+		for d.paths {
+			array_add(*merged.verbs, ..it.path.verbs);
+			array_add(*merged.points, ..it.path.points);
 		}
-		if len(merged.verbs) == 0 { continue; }
+		if merged.verbs.count == 0 continue;
 		cov: []float32;
-		if it_.kind == .Fill || it_.kind == .Gradient_Fill {
-			cov = vector.fill_coverage(*p.rz, view(merged.verbs), view(merged.points), vector.MAT_IDENTITY, ifx it_.evenodd then .Evenodd else .Nonzero);
+		if item.kind == .Fill || item.kind == .Gradient_Fill {
+			cov = vector.fill_coverage(*p.rz, merged.verbs, merged.points, vector.MAT_IDENTITY, ifx item.evenodd then .Evenodd else .Nonzero);
 		} else {
-			w := ev1(*it_.width, t);
-			if w <= 0 { continue; }
-			scale := math.sqrt(abs(get(d.m, 0) * get(d.m, 3) - get(d.m, 1) * get(d.m, 2)));
-			cap := ifx it_.cap == 1 then vector.Line_Cap.Butt else ifx it_.cap == 3 then vector.Line_Cap.Square else vector.Line_Cap.Round;
-			join := ifx it_.join == 1 then vector.Line_Join.Miter else ifx it_.join == 3 then vector.Line_Join.Bevel else vector.Line_Join.Round;
-			cov = vector.stroke_coverage(*p.rz, view(merged.verbs), view(merged.points), vector.MAT_IDENTITY, .{width = w * scale, cap = cap, join = join, miter_limit = it_.miter});
+			w := ev1(*item.width, t);
+			if w <= 0 continue;
+			scale := sqrt(abs(d.m[0] * d.m[3] - d.m[1] * d.m[2]));
+			cap := ifx item.cap == 1 then vector.Line_Cap.Butt else ifx item.cap == 3 then vector.Line_Cap.Square else .Round;
+			join := ifx item.join == 1 then vector.Line_Join.Miter else ifx item.join == 3 then vector.Line_Join.Bevel else .Round;
+			cov = vector.stroke_coverage(*p.rz, merged.verbs, merged.points, vector.MAT_IDENTITY, .{width = w * scale, cap = cap, join = join, miter_limit = item.miter});
 		}
-		if it_.kind == .Fill || it_.kind == .Stroke {
+		if item.kind == .Fill || item.kind == .Stroke {
 			c := Vector4.{0, 0, 0, 1};
-			eval(*it_.color, t, c.component);
+			eval(*item.color, t, c.component);
 			c[3] = op;
 			vector.solid_fill_premul(c, cov, buf);
 		} else {
-			g := build_gradient(p, it_, t, op);
+			g := build_gradient(item, t, op);
 			vector.gradient_fill_premul(*g, d.m, cov, buf, p.w, p.h);
 		}
 	}
 }
 
-build_gradient :: (p: *Player, it_: *Item, t: float32, opacity: float32) -> vector.Gradient {
-	g := vector.Gradient.{
-		radial = it_.grad_type == 2,
-		transform = vector.MAT_IDENTITY
-	};
+build_gradient :: (it: *Item, t: float32, opacity: float32) -> vector.Gradient {
+	g := vector.Gradient.{radial = it.grad_type == 2, transform = vector.MAT_IDENTITY};
 	vals: [256]float32;
-	n := eval(*it_.g_colors, t, vals);
-	cnt := clamp(it_.g_count, 0, n / 4);
-	stops := make_slice(vector.Gradient_Stop, cnt, p.falloc);
+	n := eval(*it.g_colors, t, vals);
+	cnt := clamp(it.g_count, 0, n / 4);
+	g.stops = NewArray(cnt, vector.Gradient_Stop);
 	nop := (n - cnt * 4) / 2; // opacity stops follow the colour stops
-	for k: 0..cast(int)(cnt)-1 {
-		off := get(vals, k * 4);
-		stops[k] = .{off, .{get(vals, k * 4 + 1), get(vals, k * 4 + 2), get(vals, k * 4 + 3), 1}};
+	ob := cnt * 4;
+	for * stop, k: g.stops {
+		off := vals[k * 4];
+		stop.* = .{off, .{vals[k * 4 + 1], vals[k * 4 + 2], vals[k * 4 + 3], 1}};
 		if nop > 0 {
 			// opacity at this offset (linear between opacity stops)
-			ob := cnt * 4;
-			a := get(vals, ob + 1);
-			for q: 0..cast(int)(nop)-1 {
+			a := vals[ob + 1];
+			for q: 0..nop-1 {
 				o0, a0 := vals[ob + q * 2], vals[ob + q * 2 + 1];
 				if off <= o0 {
 					if q == 0 {
@@ -496,23 +424,22 @@ build_gradient :: (p: *Player, it_: *Item, t: float32, opacity: float32) -> vect
 				}
 				a = a0;
 			}
-			stops[k].color[3] = a;
+			stop.color[3] = a;
 		}
-		stops[k].color[3] *= opacity;
+		stop.color[3] *= opacity;
 	}
-	g.stops = stops;
-	s := ev2(*it_.g_start, t);
-	e := ev2(*it_.g_end, t);
+	s := ev2(*it.g_start, t);
+	e := ev2(*it.g_end, t);
 	if !g.radial {
 		g.p0, g.p1 = s, e;
 	} else {
-		r := math.sqrt((e.x - s.x) * (e.x - s.x) + (e.y - s.y) * (e.y - s.y));
-		hl := clamp(ev1(*it_.g_hl, t) / 100, -0.99, 0.99);
-		ha := ev1(*it_.g_ha, t) * PI32 / 180;
-		base := math.atan2(e.y - s.y, e.x - s.x);
+		r := sqrt((e.x - s.x) * (e.x - s.x) + (e.y - s.y) * (e.y - s.y));
+		hl := clamp(ev1(*it.g_hl, t) / 100, -0.99, 0.99);
+		ha := ev1(*it.g_ha, t) * PI / 180;
+		base := atan2(e.y - s.y, e.x - s.x);
 		g.p0 = s;
 		g.r = r;
-		g.p1 = s + r * hl * Vector2.{math.cos(base + ha), math.sin(base + ha)};
+		g.p1 = s + r * hl * Vector2.{cos(base + ha), sin(base + ha)};
 	}
 	return g;
 }
@@ -525,16 +452,19 @@ Seg :: struct {
 	l: float32;
 }
 
+cubic_at :: (s: [4]Vector2, t: float32) -> Vector2 {
+	m := 1 - t;
+	return m * m * m * s[0] + 3 * m * m * t * s[1] + 3 * m * t * t * s[2] + t * t * t * s[3];
+}
+
 cubic_len :: (s: [4]Vector2) -> float32 {
 	N :: 24;
 	l: float32;
 	prev := s[0];
 	for i: 1..N {
-		t := cast(float32)(i) / N;
-		m := 1 - t;
-		q := m * m * m * s[0] + 3 * m * m * t * s[1] + 3 * m * t * t * s[2] + t * t * t * s[3];
+		q := cubic_at(s, cast(float32) i / N);
 		d := q - prev;
-		l += math.sqrt(d.x * d.x + d.y * d.y);
+		l += sqrt(d.x * d.x + d.y * d.y);
 		prev = q;
 	}
 	return l;
@@ -546,14 +476,12 @@ cubic_param :: (s: [4]Vector2, target: float32) -> float32 {
 	l: float32;
 	prev := s[0];
 	for i: 1..N {
-		t := cast(float32)(i) / N;
-		m := 1 - t;
-		q := m * m * m * s[0] + 3 * m * m * t * s[1] + 3 * m * t * t * s[2] + t * t * t * s[3];
+		q := cubic_at(s, cast(float32) i / N);
 		d := q - prev;
-		dl := math.sqrt(d.x * d.x + d.y * d.y);
+		dl := sqrt(d.x * d.x + d.y * d.y);
 		if l + dl >= target {
 			f := ifx dl > 0 then (target - l) / dl else 0;
-			return (cast(float32)(i - 1) + f) / N;
+			return (cast(float32) (i - 1) + f) / N;
 		}
 		l += dl;
 		prev = q;
@@ -561,11 +489,9 @@ cubic_param :: (s: [4]Vector2, target: float32) -> float32 {
 	return 1;
 }
 
+// de Casteljau: the part [u0, u1] of s.
 split_cubic :: (s: [4]Vector2, u0: float32, u1: float32) -> [4]Vector2 {
-	// de Casteljau: keep [u0, u1]
-	sub :: (s: [4]Vector2, t: float32) -> [4]Vector2, [4]Vector2 {
-		left: [4]Vector2;
-		right: [4]Vector2;
+	halves :: (s: [4]Vector2, t: float32) -> [4]Vector2, [4]Vector2 {
 		a := s[0] + (s[1] - s[0]) * t;
 		b := s[1] + (s[2] - s[1]) * t;
 		c := s[2] + (s[3] - s[2]) * t;
@@ -574,47 +500,53 @@ split_cubic :: (s: [4]Vector2, u0: float32, u1: float32) -> [4]Vector2 {
 		f := d + (e - d) * t;
 		return .[s[0], a, d, f], .[f, e, c, s[3]];
 	}
-	_, r := sub(s, u0);
-	if u0 >= 1 { return .[s[3], s[3], s[3], s[3]]; }
-	t := (u1 - u0) / (1 - u0);
-	l, _ := sub(r, clamp(t, 0, 1));
+	_, r := halves(s, u0);
+	if u0 >= 1 return .[s[3], s[3], s[3], s[3]];
+	l := halves(r, clamp((u1 - u0) / (1 - u0), 0, 1));
 	return l;
 }
 
-path_segments :: (p: *Player, path: *vector.Path) -> [..][..]Seg {
-	out := make_dynamic([..]Seg, 0, 0, p.falloc);
+// The path's contours as cubic segments with their lengths.
+path_segments :: (path: *vector.Path) -> [..][..]Seg {
+	out: [..][..]Seg;
 	pi := 0;
 	cur, start: Vector2;
 	segs: *[..]Seg;
+	line :: (a: Vector2, b: Vector2) -> Seg { return .{p = .[a, a + (b - a) / 3, a + (b - a) * 2 / 3, b]}; }
 	for v: path.verbs {
 		if v == {
 		case .Move;
 			cur = path.points[pi];
 			start = cur;
 			pi += 1;
-			append(*out, make_dynamic(Seg, 0, 0, p.falloc));
-			segs = at(*out, len(out) - 1);
+			segs = array_add(*out);
 		case .Line;
 			q := path.points[pi];
 			pi += 1;
-			if segs != null { append(segs, Seg.{p = .[cur, cur + (q - cur) / 3, cur + (q - cur) * 2 / 3, q]}); }
+			if segs  array_add(segs, line(cur, q));
 			cur = q;
 		case .Quad;
 			c, q := path.points[pi], path.points[pi + 1];
 			pi += 2;
-			if segs != null { append(segs, Seg.{p = .[cur, cur + (c - cur) * 2 / 3, q + (c - q) * 2 / 3, q]}); }
+			if segs  array_add(segs, .{p = .[cur, cur + (c - cur) * 2 / 3, q + (c - q) * 2 / 3, q]});
 			cur = q;
 		case .Cubic;
-			if segs != null { append(segs, Seg.{p = .[cur, path.points[pi], path.points[pi + 1], path.points[pi + 2]]}); }
+			if segs  array_add(segs, .{p = .[cur, path.points[pi], path.points[pi + 1], path.points[pi + 2]]});
 			cur = path.points[pi + 2];
 			pi += 3;
 		case .Close;
-			if segs != null && cur != start { append(segs, Seg.{p = .[cur, cur + (start - cur) / 3, cur + (start - cur) * 2 / 3, start]}); }
+			if segs && cur != start  array_add(segs, line(cur, start));
 			cur = start;
 		}
 	}
-	for * sl: out { for * s: sl.* { s.l = cubic_len(s.p); } }
+	for * sl: out  for * sl.*  it.l = cubic_len(it.p);
 	return out;
+}
+
+contours_length :: (cs: [][..]Seg) -> float32 {
+	total: float32;
+	for c: cs  for c  total += it.l;
+	return total;
 }
 
 // Emits the arc-length range [a, b] of the contour list (as one continuous run).
@@ -627,10 +559,8 @@ emit_range :: (dst: *vector.Path, contours: [][..]Seg, a: float32, b: float32) {
 			pos = s1;
 			lo := max(a, s0);
 			hi := min(b, s1);
-			if hi < lo || s.l <= 0 { continue; }
-			u0 := cubic_param(s.p, lo - s0);
-			u1 := cubic_param(s.p, hi - s0);
-			piece := split_cubic(s.p, u0, u1);
+			if hi < lo || s.l <= 0 continue;
+			piece := split_cubic(s.p, cubic_param(s.p, lo - s0), cubic_param(s.p, hi - s0));
 			if !started {
 				vector.path_move(dst, piece[0]);
 				started = true;
@@ -640,56 +570,54 @@ emit_range :: (dst: *vector.Path, contours: [][..]Seg, a: float32, b: float32) {
 	}
 }
 
-apply_trim :: (p: *Player, it_: *Item, t: float32, geo: *[..]*Slot) {
-	s := ev1(*it_.t_start, t) / 100;
-	e := ev1(*it_.t_end, t, 100) / 100;
-	o := ev1(*it_.t_off, t) / 360;
-	if s > e { s, e = e, s; }
+apply_trim :: (item: *Item, t: float32, geo: *[..]*Slot) {
+	s := ev1(*item.t_start, t) / 100;
+	e := ev1(*item.t_end, t, 100) / 100;
+	o := ev1(*item.t_off, t) / 360;
+	if s > e  s, e = e, s;
 	s += o;
 	e += o;
-	if e - s >= 1 { return; } // full
+	if e - s >= 1 return; // full
 	if e - s <= 0 {
-		for sl: geo.* { sl.path = new_path(p); }
+		for geo.*  it.path = New(vector.Path);
 		return;
 	}
-	k := math.floor(s);
+	k := floor(s);
 	s -= k;
 	e -= k;
-	// keep [lo, hi] (absolute lengths) of a contour list whose run is [base, base+len] of total
-	keep :: (p: *Player, cs: [][..]Seg, base: float32, length: float32, a: float32, b: float32, dst: *vector.Path) {
+	// keep [a, b] (absolute lengths) of a contour list whose run is [base, base + length] of the total
+	keep :: (cs: [][..]Seg, base: float32, length: float32, a: float32, b: float32, dst: *vector.Path) {
 		lo := max(a, base);
 		hi := min(b, base + length);
-		if hi > lo { emit_range(dst, cs, lo - base, hi - base); }
+		if hi > lo  emit_range(dst, cs, lo - base, hi - base);
 	}
-	if it_.t_mode == 2 {
+	// keeps [s, e] of total, wrapping past 1 to the start
+	trim :: (cs: [][..]Seg, base: float32, length: float32, total: float32, s: float32, e: float32) -> *vector.Path {
+		dst := New(vector.Path);
+		keep(cs, base, length, s * total, min(e, 1) * total, dst);
+		if e > 1  keep(cs, base, length, 0, (e - 1) * total, dst);
+		return dst;
+	}
+	if item.t_mode == 2 {
 		// individually: the paths form one sequence
-		segs := make_slice([..][..]Seg, len(geo), p.falloc);
-		lens := make_slice(float32, len(geo), p.falloc);
+		segs := NewArray(geo.count, [..][..]Seg);
+		lens := NewArray(geo.count, float32);
 		total: float32;
-		for sl, i: geo.* {
-			segs[i] = path_segments(p, sl.path);
-			for c: segs[i] { for sg: c { lens[i] += sg.l; } }
-			total += lens[i];
+		for geo.* {
+			segs[it_index] = path_segments(it.path);
+			lens[it_index] = contours_length(segs[it_index]);
+			total += lens[it_index];
 		}
 		base: float32;
-		for sl, i: geo.* {
-			dst := new_path(p);
-			keep(p, view(segs[i]), base, lens[i], s * total, min(e, 1) * total, dst);
-			if e > 1 { keep(p, view(segs[i]), base, lens[i], 0, (e - 1) * total, dst); }
-			sl.path = dst;
-			base += lens[i];
+		for geo.* {
+			it.path = trim(segs[it_index], base, lens[it_index], total, s, e);
+			base += lens[it_index];
 		}
 		return;
 	}
-	for sl: geo.* {
-		cs := path_segments(p, sl.path);
-		total: float32;
-		for c: cs { for sg: c { total += sg.l; } }
-		dst := new_path(p);
-		keep(p, view(cs), 0, total, s * total, min(e, 1) * total, dst);
-		if e > 1 { keep(p, view(cs), 0, total, 0, (e - 1) * total, dst); }
-		sl.path = dst;
+	for geo.* {
+		cs := path_segments(it.path);
+		total := contours_length(cs);
+		it.path = trim(cs, 0, total, total, s, e);
 	}
 }
-#scope_export
-
