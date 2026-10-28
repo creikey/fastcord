@@ -132,6 +132,25 @@ web_headers :: (p: Platform_Info, in_: Web_Headers_Input) -> []http.Header {
 	return h;
 }
 
+// document_headers: the window's top-level navigation (loadURL of /app at launch; netlog): no client hints.
+document_headers :: (p: Platform_Info, cookie: string) -> []http.Header {
+	h: [..]http.Header;
+	h.allocator = temp;
+	array_reserve(*h, 11);
+	array_add(*h, .{"upgrade-insecure-requests", "1"});
+	array_add(*h, .{"user-agent", p.browser_user_agent});
+	array_add(*h, .{"accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"});
+	array_add(*h, .{"sec-fetch-site", "none"});
+	array_add(*h, .{"sec-fetch-mode", "navigate"});
+	array_add(*h, .{"sec-fetch-user", "?1"});
+	array_add(*h, .{"sec-fetch-dest", "document"});
+	array_add(*h, .{"accept-encoding", ACCEPT_ENCODING});
+	array_add(*h, .{"accept-language", p.accept_language});
+	if cookie array_add(*h, .{"cookie", cookie});
+	array_add(*h, .{"priority", "u=0, i"});
+	return h;
+}
+
 // preflight_headers: CORS preflight Chrome sends before a cross-origin PUT
 // (attachment upload to storage.googleapis.com).
 // no_cache: the actual request is fetch(cache:'no-cache'), so Chrome sends

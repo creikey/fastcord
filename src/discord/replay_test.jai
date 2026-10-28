@@ -2714,3 +2714,83 @@ rate_limit_queue :: (t: *T) {
 	expect_value(t, ra, 2.0);
 }
 
+// Platform identity: Chromium's locale resolution, then the bundle's Discord locale matcher.
+platform_locales :: (t: *T) {
+	cases :: string.[
+		"en-US", "en-US", "en-US",   "en-AU", "en-GB", "en-GB",   "de_DE.UTF-8", "de", "de",
+		"es-MX", "es-419", "es-419", "es-ES", "es", "es-ES",      "pt-PT", "pt-PT", "pt-BR",
+		"zh-Hant-TW", "zh-TW", "zh-TW", "zh-Hans-CN", "zh-CN", "zh-CN", "nb-NO", "nb", "no",
+		"sv-SE", "sv", "sv-SE",      "ar-EG", "ar", "en-US",      "xx", "en-US", "en-US"
+	];
+	for i: 0..cases.count / 3 - 1 {
+		c := chromium_locale(cases[3 * i]);
+		expectf(t, c == cases[3 * i + 1], "chromium_locale(%) = %", cases[3 * i], c);
+		d := discord_locale(c);
+		expectf(t, d == cases[3 * i + 2], "discord_locale(%) = %", c, d);
+	}
+	p := host_platform();
+	expect(t, p.os_version != "" && p.timezone != "" && p.locale != "", "host platform has OS version, timezone and locale");
+	#if OS == .MACOS {
+		expect(t, p.browser_user_agent == DEFAULT_USER_AGENT && p.sec_ch_ua_platform == "\"macOS\"", "the macOS user agent is Chrome's frozen one");
+		expect(t, begins_with(p.os_version, p.os_sdk_version) && (p.os_arch == "arm64" || p.os_arch == "x64"), "os_sdk_version is the Darwin major");
+	}
+	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", "1.0.9272") == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9272 Chrome/148.0.7778.280 Electron/42.11.15 Safari/537.36");
+}
+
+// The /app document at launch: Chrome's navigation headers, GLOBAL_ENV.BUILD_NUMBER adopted before the
+// gateway opens (never after the super properties went out) and persisted; the version check follows.
+app_document_build :: (t: *T) {
+	Rec :: struct { mu: locks.Mutex; paths: [..]string; wire: [..]string; }
+	rec: Rec;
+	rt :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
+		r := cast(*Rec) data;
+		names: [..]string;
+		names.allocator = temp;
+		for req.headers array_add(*names, it.name);
+		locks.lock(*r.mu);
+		array_add(*r.paths, copy_string(req.path,, context.default_allocator));
+		array_add(*r.wire, join(..names, separator = ",",, context.default_allocator));
+		locks.unlock(*r.mu);
+		resp := http.make_response(.Http3,, context.default_allocator);
+		resp.status = 200;
+		append_string(*resp.body, ifx begins_with(req.path, "/app?_=") then "<script>window.GLOBAL_ENV = {\"NODE_ENV\":\"production\",\"BUILD_NUMBER\":\"650001\",\"RELEASE_CHANNEL\":\"stable\"}</script>" else "{}");
+		return resp, .None;
+	}
+	expect_value(t, html_build_number("{\"BUILD_NUMBER\":\"649389\",\"X\":1}"), 649389);
+	expect_value(t, html_build_number("{\"BUILD_NUMBER\":\"\"}"), 0);
+	expect_value(t, html_build_number("<html></html>"), 0);
+	dir := "build/test_app_document_state";
+	file_delete(tprint("%/identity.tsv", dir));
+	c := client_create(.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true, ws_open_delay_ms = 10_000, round_tripper = .{*rec, rt}});
+	client_start(c);
+	schedule_app_load(c);
+	start := mono_ms();
+	while c.id.web_build == 0 && mono_ms() - start < 3000 sleep_milliseconds(5);
+	expect_value(t, c.id.web_build, 650001);
+	expect_value(t, c.id.platform.client_build_number, 650001);
+	locks.lock(*rec.mu);
+	expect(t, rec.paths.count == 1 && rec.paths[0] == tprint("/app?_=%", c.launch_ms), "the launch's first request is /app?_=<Date.now()>");
+	expect(t, rec.wire.count == 1 && rec.wire[0] == "upgrade-insecure-requests,user-agent,accept,sec-fetch-site,sec-fetch-mode,sec-fetch-user,sec-fetch-dest,accept-encoding,accept-language,priority", "navigation header order (netlog)");
+	locks.unlock(*rec.mu);
+	locks.lock(*c.job_mu);
+	version_ok := false;
+	for c.jobs if begins_with(it.path, "/assets/version.stable.json?_=") version_ok = it.not_before == c.launch_ms + APP_VERSION_CHECK_MS && it.path == tprint("/assets/version.stable.json?_=%", it.not_before / 300_000);
+	locks.unlock(*c.job_mu);
+	expect(t, version_ok, "version.stable.json queued 3.4 s after the document, with its 5-minute bucket");
+	expect(t, contains(super_properties_json(*c.id, now_ms()), "\"client_build_number\":650001"), "super properties carry the page's build");
+	identity_learn_build(*c.id, 650002, adopt = true);
+	expect_value(t, c.id.platform.client_build_number, 650001); // sealed for the launch
+	c.store.settings.locale = copy_string("fr",, c.allocator);
+	client_poll(c);
+	expect(t, c.id.platform.locale == "fr", "the language setting becomes x-discord-locale");
+	client_destroy(c);
+	c = client_create(.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true});
+	expect_value(t, c.id.platform.client_build_number, 650002);
+	expect(t, c.id.platform.locale == "fr", "the cached language is the boot locale");
+	client_destroy(c);
+	for rec.paths free(it);
+	for rec.wire free(it);
+	array_free(rec.paths);
+	array_free(rec.wire);
+}
+

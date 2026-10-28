@@ -807,8 +807,7 @@ send_heartbeat_if_due_locked :: (g: *Gateway) {
 
 gateway_control_proc :: (g: *Gateway) {
 	locks.lock(*g.mu);
-	// The HTML bootstrap opens the socket ~190 ms after navigation (fixtures median).
-	g.reconnect_at = g.c.launch_ms + ifx g.c.cfg.ws_open_delay_ms != 0 then g.c.cfg.ws_open_delay_ms else 190;
+	g.reconnect_at = gateway_open_at(g.c);
 	last_round := now_ms();
 	next_idle_poll: s64;
 	while !g.stop {

@@ -49,6 +49,7 @@ Job :: struct {
 	preflight_if_etag: bool;
 	no_cookies: bool; // cross-origin: If-None-Match makes it a preflighted request
 	preflight_only: bool; // send only the CORS preflight (the request is a later job)
+	document: bool; // the window's navigation to /app (startup.jai schedule_app_load)
 	on_body: (c: *Client, body: V); // worker-side follow-up on a 2xx JSON body (body in temp)
 	on_done: (c: *Client, j: *Job, status: int); // worker-side, after any response (status 0: network failure)
 	track_props: string; // on_done's event properties, built on the UI thread (job pool)
@@ -194,7 +195,7 @@ api_call :: (c: *Client, method: string, path: string, body: []u8, content_type:
 			cookie = cookie_header(*c.jar, API_HOST, full_path, true, now),
 			extra = ex
 		};
-		req := http.Request.{method = method, scheme = "https", authority = API_HOST, path = full_path, headers = api_headers(c.id.platform, hin), body = body};
+		req := http.Request.{method = method, scheme = "https", authority = API_HOST, path = full_path, headers = api_headers(identity_platform(*c.id), hin), body = body};
 		resp, err := transport_round_trip(*c.transport, API_HOST, req);
 		if err != .None || (retries_left > 0 && is_retryable_status(resp.status)) {
 			http.response_destroy(*resp);
@@ -397,6 +398,13 @@ preflight_wait :: (c: *Client, url: string) -> bool {
 // run_web: unauthenticated XHR (startup table entries for status/cdn/latency).
 run_web :: (c: *Client, j: *Job) {
 	now := now_ms();
+	if j.document {
+		req := http.Request.{method = "GET", scheme = "https", authority = j.host, path = j.path, headers = document_headers(c.id.platform, cookie_header(*c.jar, j.host, j.path, true, now))};
+		resp, err := transport_round_trip(*c.transport, j.host, req);
+		if err == .None && resp.status == 200 app_document_loaded(c, cast(string) resp.body);
+		http.response_destroy(*resp);
+		return;
+	}
 	referer := j.referer;
 	if !referer referer = ifx j.site == .Same_Origin then client_route_referer(c) else #run join(API_ORIGIN, "/");
 	// XHR/fetch without credentials: cookies only go to the same origin.

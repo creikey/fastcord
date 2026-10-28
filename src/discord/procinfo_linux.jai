@@ -37,19 +37,25 @@ process_exe_paths :: () -> []string {
 // linux_platform: the official Linux desktop client's super properties (no capture yet: see
 // traffic/CLIENT_RULES.md). Electron and the web build are the captured macOS ones; the Linux app has its
 // own version line. The strings live for the process.
-LINUX_CLIENT_VERSION :: "0.0.125";
 linux_platform :: () -> Platform_Info {
 	p := DEFAULT_PLATFORM;
 	p.os = "Linux";
-	p.client_version = LINUX_CLIENT_VERSION;
+	p.client_version = LINUX_HOST_VERSION;
 	u: utsname;
 	if uname(*u) == 0 p.os_version = copy_string(to_string(u.release.data));
 	p.os_arch, p.app_arch = "x64", "x64";
-	p.browser_user_agent = sprint("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) discord/%1 Chrome/148.0.7778.280 Electron/%2 Safari/537.36", LINUX_CLIENT_VERSION, p.browser_version);
+	p.browser_user_agent = electron_user_agent("X11; Linux x86_64", LINUX_HOST_VERSION);
 	p.os_sdk_version = "";
 	p.native_build_number = 0;
 	p.sec_ch_ua_platform = "\"Linux\"";
 	env :: (name: *u8, default: string) -> string { v := to_string(c_getenv(name)); return ifx v then copy_string(v) else default; }
+	// Chromium's locale on Linux: the first of $LANGUAGE, else $LC_ALL / $LC_MESSAGES / $LANG ("C" = en-US)
+	lang := env("LANGUAGE", "");
+	colon := find_index_from_left(lang, #char ":");
+	if colon >= 0 lang = slice(lang, 0, colon);
+	for string.["LC_ALL", "LC_MESSAGES", "LANG"] if !lang lang = env(temp_c_string(it), "");
+	if lang == "C" || lang == "POSIX" || begins_with(lang, "C.") lang = "en-US";
+	with_system(*p, ifx lang then lang else "en-US", posix_timezone());
 	p.window_manager = sprint("%,%", env("XDG_CURRENT_DESKTOP", "unknown"), env("GDMSESSION", "unknown"));
 	p.distro = os_release_name();
 	p.runtime_environment = "native";

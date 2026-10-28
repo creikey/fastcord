@@ -89,7 +89,7 @@ startup_expand :: (c: *Client, path: string) -> string {
 	push_allocator(temp);
 	out := path;
 	if contains(out, "{country}") out = replace(out, "{country}", ifx c.store.country_code then c.store.country_code else "US");
-	if contains(out, "{locale}") out = replace(out, "{locale}", c.id.platform.locale);
+	if contains(out, "{locale}") out = replace(out, "{locale}", identity_platform(*c.id).locale);
 	if contains(out, "{x5m}") out = replace(out, "{x5m}", tprint("%", now_ms() / 300_000 % 12));
 	if contains(out, "{hb}") out = replace(out, "{hb}", identity_heartbeat_snapshot(*c.id).uuid);
 	if contains(out, "{ad}") out = replace(out, "{ad}", c.analytics.ad_session);
@@ -103,8 +103,62 @@ client_route_kind :: (guild: Snowflake, channel: Snowflake) -> Route_Kind {
 	return .Home;
 }
 
+// ---- the web app ----
+// The desktop core opens the window on WEBAPP_ENDPOINT + "/app?_=" + Date.now(). On a warm cache only two
+// of the page's loads reach the network (netlogs, raw cold_start): that document, and ~3.4 s later the
+// updater's version check (`_` = the 5-minute bucket); scripts, styles and wasm come from the disk cache.
+// The document's GLOBAL_ENV.BUILD_NUMBER is the web build the official client then runs.
+APP_VERSION_CHECK_MS :: 3400;
+
+schedule_app_load :: (c: *Client) {
+	j := job_new(.Web, .Startup);
+	j.document = true;
+	j.method = "GET";
+	j.host = API_HOST;
+	j.path = job_str(j, tprint("/app?_=%", c.launch_ms));
+	j.not_before = c.launch_ms;
+	job_submit(c, j);
+	at := c.launch_ms + APP_VERSION_CHECK_MS;
+	v := job_new(.Web, .Startup);
+	v.method = "GET";
+	v.host = API_HOST;
+	v.path = job_str(v, tprint("/assets/version.stable.json?_=%", at / 300_000));
+	v.site = .Same_Origin;
+	v.not_before = at;
+	job_submit(c, v);
+}
+
+// app_document_loaded (worker): remember the page's build for the next launch, and run it now if it came
+// before the gateway opened. The official client's gateway is opened by that page, so its IDENTIFY always
+// carries the page's build; it never changes within a launch.
+app_document_loaded :: (c: *Client, html: string) {
+	build := html_build_number(html);
+	if build > 0 identity_learn_build(*c.id, build, adopt = now_ms() < gateway_open_at(c));
+}
+
+// html_build_number: window.GLOBAL_ENV = {..."BUILD_NUMBER":"649389"...}; 0 when absent.
+html_build_number :: (html: string) -> s64 {
+	KEY :: "\"BUILD_NUMBER\":\"";
+	i := find_index_from_left(html, KEY);
+	if i < 0 return 0;
+	s := advance(html, i + KEY.count);
+	n: s64;
+	for 0..s.count - 1 {
+		ch := s[it];
+		if ch == #char "\"" return ifx it > 0 then n else 0;
+		if ch < #char "0" || ch > #char "9" || it > 15 return 0;
+		n = n * 10 + ch - #char "0";
+	}
+	return 0;
+}
+
+// gateway_open_at: when the gateway socket opens (the HTML bootstrap opens it ~190 ms after navigation:
+// fixtures median).
+gateway_open_at :: (c: *Client) -> s64 { return c.launch_ms + ifx c.cfg.ws_open_delay_ms != 0 then c.cfg.ws_open_delay_ms else 190; }
+
 // schedule_startup queues every enabled entry for an anchor and the start route.
 schedule_startup :: (c: *Client, anchor: Startup_Anchor) {
+	if anchor == .Launch schedule_app_load(c);
 	base := ifx anchor == .Launch then c.launch_ms else now_ms();
 	route := client_route_kind(c.start_route_guild, c.start_route_channel);
 	// The post-READY burst (detectables, billing, library...) comes READY +

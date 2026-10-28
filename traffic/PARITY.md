@@ -447,6 +447,8 @@ settings tabs other than Overview.
 | Voice | `rtc_connected` QoS, voice UDP | RTC/voice connection is `src/voice`'s job. |
 | GCS upload | `upload_id` in the fixture | tools/scrub now scrubs it. The committed fixture predates that and needs a re-scrub. |
 | conn ids | `0` / `false` | Chrome-internal. |
+| Launch | `/app?_=<ms>` document and `version.stable.json`: not in the fixtures | The captures drop Document and `/assets/` loads, and the official cold start is a reload of `/channels/@me`; the launch order comes from the official netlogs (CLIENT_RULES "Gateway, startup, identity"). tools/scrub drops our `/app?_=` too. Checked offline by `app_document_build`. |
+| New web build | The official client downloads the new build's scripts, styles and wasm; fastcord only reads the document's build number | Fetching the whole bundle has no use without a web engine. Warm-cache launches (every launch but the first after a deploy) send the same two requests. |
 | Inbox | No Bookmarks / Reminders tabs | No saved-message flows yet. Mark All as Read uses `/read-states/ack-bulk`, which is not captured for the Inbox. |
 | Inbox science | `ack_messages.guild_unread_statuses` reports every guild's unread setting as 1 (all messages) | The unread-setting resolution is not modelled (CLIENT_RULES guess). |
 | Threads | New thread opens as the main view, not a side view | The Referer is `/channels/{g}/{thread}` instead of `.../{parent}/threads/{thread}`. Returning to the parent re-renders it, which adds integrations to close_thread_view (allow-listed). |

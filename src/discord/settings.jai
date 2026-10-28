@@ -304,6 +304,11 @@ set_guild_folders :: (c: *Client, folders: []Guild_Folder) {
 
 // flush_settings: persistChanges when the save timer fires.
 flush_settings :: (c: *Client, now: s64) {
+	// LocaleStore: the language setting (localization.locale) is x-discord-locale once known
+	if c.store.settings.locale {
+		l := discord_locale(c.store.settings.locale);
+		if l != c.id.platform.locale identity_set_locale(*c.id, l);
+	}
 	e := *c.settings_edit;
 	if e.due == 0 || now < e.due return;
 	delta := settings_delta_proto(e);
