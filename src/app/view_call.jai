@@ -331,7 +331,8 @@ call_controls :: (cid: dc.Snowflake) {
 		return;
 	}
 	can_video := voice_conn() != null && voice.state(voice_conn()) == .Connected;
-	if control("mic", ifx app.self_mute then "microphone-slash" else "microphone", app.self_mute, false, true) app.self_mute = !app.self_mute;
+	mic_off := app.self_mute || app.self_deaf;
+	if control("mic", ifx mic_off then "microphone-slash" else "microphone", mic_off, false, true) toggle_self_mute();
 	spacer(.X, 8);
 	// video.camera_supported asks AVFoundation, which TCC may kill us for: only on click
 	if control("camera", "video", false, camera_on(), can_video && video.SUPPORTED) camera_toggle();

@@ -963,7 +963,7 @@ user_panel :: () {
 				b.cross_align = .Center;
 				sig := ui.signal(b);
 				ic := name;
-				muted := (name == "microphone" && app.self_mute) || (name == "headphones" && app.self_deaf);
+				muted := (name == "microphone" && (app.self_mute || app.self_deaf)) || (name == "headphones" && app.self_deaf);
 				if muted { ic = tprint("%-slash", name); }
 				{ ui.parent(b); defer ui.pop_parent();
 					spacer(.X, 6);
@@ -991,7 +991,7 @@ user_panel :: () {
 				if sig.clicked {
 					if name == {
 					case "microphone";
-						app.self_mute = !app.self_mute;
+						toggle_self_mute();
 					case "headphones";
 						app.self_deaf = !app.self_deaf;
 					case "settings";
@@ -1002,6 +1002,16 @@ user_panel :: () {
 			}
 			spacer(.X, 13);
 		}
+	}
+}
+
+// Deafened implies muted: the mic shows muted, and clicking it undeafens and unmutes, as in the client.
+toggle_self_mute :: () {
+	if app.self_deaf {
+		app.self_deaf = false;
+		app.self_mute = false;
+	} else {
+		app.self_mute = !app.self_mute;
 	}
 }
 
