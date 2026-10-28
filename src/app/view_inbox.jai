@@ -492,7 +492,7 @@ unread_row :: (ch: *dc.Channel) -> clicked: bool {
 			msgs := dc.messages_get(s, ch.id);
 			if msgs.count > 0 {
 				m := *msgs[msgs.count - 1];
-				author := name_in(m.author_id, ch.id, "unknown");
+				author := author_name(m, "unknown");
 				snippet := tprint("%: %", author, snippet_text(s, first_line(shown_text(m.id, m.channel_id, m.content))));
 				t := label(ellipsize(snippet, .Normal, 13, INBOX_W - 180), .Normal, 13, T("--text-muted"), 17);
 				t.flags |= .Clip;

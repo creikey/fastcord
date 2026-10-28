@@ -156,7 +156,7 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	muted :: (text: string) { label(text, .Normal, MSG_FONT, T("--text-muted"), MSG_LINE_H); }
 	if !sh || sh.pending { muted("Encrypted message"); return true, ""; }
 	mine := m.author_id == store().me;
-	name := ifx mine then "You" else name_in(m.author_id, m.channel_id);
+	name := ifx mine then "You" else author_name(m);
 	if sh.result == .Ok && sh.content == .Text return true, sh.text;
 	if sh.result == .Ok { muted(tprint("% accepted encryption.", name)); return true, ""; }
 	if sh.result == .Repeated { muted("Repeated encrypted message"); return true, ""; }

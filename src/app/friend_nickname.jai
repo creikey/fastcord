@@ -8,6 +8,14 @@ name_in :: (uid: dc.Snowflake, channel_id: dc.Snowflake, unknown := "Unknown") -
 	return dc.user_name(s, uid, ifx ch then ch.guild_id else 0, unknown);
 }
 
+// author_name: a message's author as shown; a webhook post goes by the name it was posted under.
+author_name :: (m: *dc.Message, unknown := "Unknown") -> string {
+	return ifx m.webhook_name then m.webhook_name else name_in(m.author_id, m.channel_id, unknown);
+}
+author_name :: (m: *dc.New_Message, unknown := "Unknown") -> string {
+	return ifx m.webhook_name then m.webhook_name else name_in(m.author_id, m.channel_id, unknown);
+}
+
 // The user menu's item for this user ("" when they aren't a friend).
 friend_nick_menu_item :: (uid: dc.Snowflake) -> string {
 	r := table_find_pointer(*store().relationships, uid);

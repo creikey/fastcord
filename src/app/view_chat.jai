@@ -1397,7 +1397,7 @@ system_notice :: (m: *dc.Message) {
 }
 
 message_header :: (m: *dc.Message) {
-	name := ifx m.webhook_name then m.webhook_name else name_in(m.author_id, m.channel_id);
+	name := author_name(m);
 	h := row("header");
 	h.semantic_size = .[ui.pct(1), ui.px(MSG_LINE_H)];
 	h.cross_align = .End;

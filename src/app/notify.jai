@@ -49,7 +49,7 @@ ns: struct {
 
 notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 	ch := dc.channel_get(s, m.channel_id);
-	author := name_in(m.author_id, m.channel_id);
+	author := author_name(m);
 	title := author;
 	if ch.kind == {
 	case .DM;

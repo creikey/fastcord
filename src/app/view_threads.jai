@@ -96,7 +96,7 @@ thread_summary_pill :: (m: *dc.Message) {
 			{ ui.parent(lr); defer ui.pop_parent();
 				avatar_box("av", last.author_id, 16);
 				spacer(.X, 6);
-				label(name_in(last.author_id, last.channel_id, "unknown"), .Medium, 14, author_color(last), 18);
+				label(author_name(last, "unknown"), .Medium, 14, author_color(last), 18);
 				spacer(.X, 6);
 				t := label(ellipsize(first_line(last.content), .Normal, 14, 300), .Normal, 14, T("--text-muted"), 18);
 				t.flags |= .Clip;

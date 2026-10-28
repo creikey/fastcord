@@ -147,7 +147,7 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 			nr := row("name");
 			nr.semantic_size = .[ui.pct(1), ui.px(22)];
 			{ ui.parent(nr); defer ui.pop_parent();
-				label(name_in(m.author_id, m.channel_id, "unknown"), .Medium, 16, author_color(m), 22);
+				label(author_name(m, "unknown"), .Medium, 16, author_color(m), 22);
 				spacer(.X, 8);
 				label(format_timestamp(m.id), .Medium, 12, T("--text-muted"), 22);
 				filler(.X);

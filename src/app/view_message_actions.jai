@@ -344,7 +344,7 @@ reply_preview :: (m: *dc.Message) {
 		}
 		avatar_box("av", ref.author_id, 16);
 		spacer(.X, 4);
-		name := name_in(ref.author_id, ref.channel_id);
+		name := author_name(ref);
 		// "@" only when the reply pinged the author; role color, else muted
 		pinged := false;
 		for id: m.mentions { if id == ref.author_id { pinged = true; } }
@@ -383,7 +383,7 @@ reply_bar :: () {
 	bar.semantic_size = .[ui.pct(1), ui.px(32)];
 	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 16);
-		name := name_in(m.author_id, m.channel_id);
+		name := author_name(m);
 		label("Replying to", .Normal, 14, T("--text-default"), 18);
 		spacer(.X, 4);
 		label(name, .Semibold, 14, T("--text-default"), 18);
@@ -729,7 +729,7 @@ confirm_modal :: () {
 					hr.semantic_size = .[ui.pct(1), ui.px(22)];
 					hr.cross_align = .End;
 					{ ui.parent(hr); defer ui.pop_parent();
-						label(name_in(m.author_id, m.channel_id), .Medium, 16, author_color(m), 22);
+						label(author_name(m), .Medium, 16, author_color(m), 22);
 						spacer(.X, 8);
 						label(header_timestamp(m.id), .Medium, 12, T("--chat-text-muted"), 20);
 					}

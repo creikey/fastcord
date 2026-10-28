@@ -49,6 +49,7 @@ New_Message :: struct {
 	kind: int;
 	flags: u64;
 	content: string;
+	webhook_name: string; // The name a webhook post went out under.
 	mentions_me: bool;
 	mention_everyone: bool;
 	mention_roles: [..]Snowflake;
@@ -178,6 +179,10 @@ note_message :: (s: *Store, d: etf.Map, me: Snowflake) {
 	};
 	for flist(d, "mentions") if fsnow(vmap(it), "id") == me nm.mentions_me = true;
 	for flist(d, "mention_roles") array_add(*nm.mention_roles, vsnow(it));
+	if vhas(d, "webhook_id") {
+		au := fmap(d, "author");
+		nm.webhook_name = copy_string(ifx fstr(au, "global_name") then fstr(au, "global_name") else fstr(au, "username"));
+	}
 }
 
 free_thread_meta :: (tm: *Thread_Meta) {
@@ -203,6 +208,7 @@ extras_release :: (c: *Client) {
 	push_allocator(context.default_allocator);
 	for extras.new_msgs if it.store == *c.store {
 		free(it.content);
+		free(it.webhook_name);
 		array_free(it.mention_roles);
 		remove it;
 	}
@@ -348,6 +354,7 @@ extras_destroy :: () {
 	deinit(*extras.pins_epoch);
 	for extras.new_msgs {
 		free(it.content);
+		free(it.webhook_name);
 		array_free(it.mention_roles);
 	}
 	array_free(extras.new_msgs);
@@ -380,6 +387,7 @@ new_messages_free :: (c: *Client, msgs: []New_Message) {
 	push_allocator(context.default_allocator); // they were the side table's
 	for msgs {
 		free(it.content);
+		free(it.webhook_name);
 		array_free(it.mention_roles);
 	}
 }
