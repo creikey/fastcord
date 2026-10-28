@@ -401,6 +401,22 @@ composer_inline :: (out: *[..]ui.Span, seg: string, base: ui.Span) {
 // Enter and Tab in a markdown field, as the official composer handles them: Enter adds a
 // newline (instead of sending) inside a ``` block or with Alt; Tab in code lines indents.
 markdown_key :: (ed: *ui.Editor, e: ui.Input_Event) -> bool {
+	// Ctrl+B / I / U on a selection wraps it in **, * or __, or unwraps it when it already is.
+	if (e.key == .B || e.key == .I || e.key == .U) && e.mods == PRIMARY_MOD && ui.editor_has_sel(ed) {
+		m := ifx e.key == .B then "**" else ifx e.key == .I then "*" else "__";
+		text := ui.editor_text(ed);
+		a, b := ui.editor_sel(ed);
+		k := m.count;
+		at :: (text: string, i: int, s: string) -> bool { return i >= 0 && i + s.count <= text.count && slice(text, i, s.count) == s; }
+		// A lone * must not eat half of a bold's **.
+		wrapped := at(text, a - k, m) && at(text, b, m) && !(k == 1 && (at(text, a - 2, "**") || at(text, b, "**")));
+		if wrapped {
+			ui.editor_apply(ed, join(slice(text, 0, a - k), slice(text, a, b - a), slice(text, b + k, text.count - b - k),, temp), b - k, a - k);
+		} else {
+			ui.editor_apply(ed, join(slice(text, 0, a), m, slice(text, a, b - a), m, slice(text, b, text.count - b),, temp), b + k, a + k);
+		}
+		return true;
+	}
 	if e.key == .Enter {
 		if e.mods & .Shift return false; // the editor's own newline
 		a := ui.editor_sel(ed);

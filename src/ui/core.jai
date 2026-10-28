@@ -198,6 +198,8 @@ Key_Code :: enum u16 {
 	G;
 	S;
 	U;
+	B;
+	I;
 	Left_Bracket;
 	Right_Bracket;
 	Other;

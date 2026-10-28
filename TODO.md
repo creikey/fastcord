@@ -153,7 +153,7 @@
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
 - [ ] Replies: clicking the quoted original message should jump to it.
 - [ ] Edit: saving skips `emoji_convert_shortcodes`, so a typed `:smile:` is sent literally.
-- [ ] Composer: no formatting toolbar on selection and no Ctrl+B / Ctrl+I / Ctrl+U.
+- [ ] Composer: no formatting toolbar over a selection (bold, italic, strikethrough, code, spoiler, quote).
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Forums: no way to create a post ("Search or create a post..." is a plain label, `view_threads.jai`); no sort or tag filter; archived posts load only the first page.
 - [ ] Profiles: per-server avatars, bios, banners and pronouns never show (`guild_member_avatar_url` is unused); animated avatars never animate.
@@ -341,3 +341,4 @@
 - [x] Channels: a channel with unread mentions shows the red mention count at the right of its row (`views.jai` `channel_row`, `tests/ui/rail/channel_mentions.txt`).
 - [x] Composer: the length limit (2000, 4000 with Nitro, in UTF-16 units) counts down in the last 200 characters, red when over, and an over-long Enter keeps the draft with a toast (`view_chat.jai` `composer`, `tests/ui/message_length.txt`).
 - [x] Composer: a long draft stops growing at half the window and scrolls inside the form, keeping the caret in view (`view_chat.jai` `composer`, `tests/ui/message_length.txt`).
+- [x] Composer: Ctrl+B / Ctrl+I / Ctrl+U wrap the selection in `**`, `*`, `__` or unwrap it (`view_chat.jai` `markdown_key`, `tests/ui/composer_format_keys.txt`).
