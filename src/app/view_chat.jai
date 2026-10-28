@@ -1406,8 +1406,8 @@ message_header :: (m: *dc.Message) {
 		n.flags |= .Clickable | .Selectable_Text;
 		n.sel_order = m.id * 8;
 		nsig := ui.signal(n);
-		if nsig.clicked open_profile(m.author_id, n.rect, .Message_Author, m.id);
-		if nsig.right_clicked open_user_menu(m.author_id, app.ui.mouse);
+		if nsig.clicked open_profile(m.author_id, n.rect, .Message_Author, m.id, m.webhook_name);
+		if nsig.right_clicked && !m.webhook_name open_user_menu(m.author_id, app.ui.mouse);
 		u := dc.user_get(store(), m.author_id);
 		if u && u.bot app_tag();
 		new_member_badge(m);
@@ -1419,19 +1419,6 @@ message_header :: (m: *dc.Message) {
 		ts.sel_join = " — ";
 		if ui.mouse_over(ts) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), ts.rect);
 	}
-}
-
-// The tag after a bot's or webhook's name (official BotTag): "APP" since bots became apps.
-app_tag :: () {
-	spacer(.X, 4);
-	pill := row("apptag", .Draw_Background);
-	pill.semantic_size = .[ui.children(), ui.px(15)];
-	pill.style.bg = T("--background-brand");
-	pill.style.radius = all4(3);
-	ui.parent(pill); defer ui.pop_parent();
-	spacer(.X, 4);
-	label("APP", .Semibold, 10, .{1, 1, 1, 1}, 15);
-	spacer(.X, 4);
 }
 
 // The sprout after a new member's name (official useIsNewMember): joined at most 7 days ago,

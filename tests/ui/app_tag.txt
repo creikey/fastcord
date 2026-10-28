@@ -5,3 +5,7 @@ settle 1
 expect_visible "APP"
 expect_visible "CI"
 expect_visible "Release Bot"
+# Its name opens a popout with just the name and tag: no user to fetch, message or befriend.
+click_text "Release Bot"
+wait 10
+expect_not_visible "Message @Release Bot"

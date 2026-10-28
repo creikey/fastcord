@@ -28,6 +28,7 @@ App :: struct {
 	voice_channel: dc.Snowflake;
 	settings_open: bool;
 	profile_user: dc.Snowflake;
+	profile_webhook: string; // heap; set while the popout shows a webhook post's author, which is no user to fetch
 	profile_above: bool; // popout opens above the anchor, left-aligned (own card from the user panel)
 	profile_anchor: UI_Rect;
 	profile_open_t: float32;

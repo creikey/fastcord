@@ -85,13 +85,15 @@ Profile_Source :: enum u8 {
 	Account_Panel; // our own panel at the bottom left (ACCOUNT_POPOUT)
 }
 
-open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Other, message_id: dc.Snowflake = 0) {
+open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Other, message_id: dc.Snowflake = 0, webhook_name := "") {
 	app.profile_user = uid;
 	app.profile_anchor = anchor;
 	app.profile_above = false;
 	app.profile_open_t = 0;
 	sm = .{};
-	if app.client == null { return; }
+	free(app.profile_webhook);
+	app.profile_webhook = copy_string(webhook_name);
+	if app.client == null || webhook_name { return; }
 	if source == {
 	case .Message_Author;
 		dc.profile_view_begin(app.client, .Popout, uid, app.view.guild, app.view.channel, message_id);
@@ -112,6 +114,7 @@ profile_popout :: () {
 		app.profile_user = 0;
 		return;
 	}
+	hook := app.profile_webhook != "";
 	W :: 300;
 	scrim := ui.box("profile_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
@@ -153,7 +156,7 @@ profile_popout :: () {
 		banner.style.radius = .[8, 8, 0, 0];
 		banner.style.bg = profile_banner_color(uid);
 		if u.banner != "" { set_remote_image(banner, dc.banner_url(uid, u.banner, 600)); }
-		{ ui.parent(banner); defer ui.pop_parent();
+		if !hook { ui.parent(banner); defer ui.pop_parent();
 			// "..." on the banner's top-right (official: 28px dark circle, 12px in)
 			more := ui.box("more", .Clickable | .Draw_Background | .Floating_X | .Floating_Y);
 			more.semantic_size = .[ui.px(28), ui.px(28)];
@@ -179,10 +182,10 @@ profile_popout :: () {
 			ring.style.radius = all4(46);
 			ring.style.bg = p.style.bg;
 			{ ui.parent(ring); defer ui.pop_parent();
-				av := avatar_with_status("av", uid, 80, p.style.bg);
+				av := ifx hook then avatar_box("av", uid, 80) else avatar_with_status("av", uid, 80, p.style.bg);
 				av.flags |= .Floating_X | .Floating_Y;
 				av.fixed_pos = .{6, 6};
-				profile_full_avatar_hook(av, uid); // click: full profile modal
+				if !hook profile_full_avatar_hook(av, uid); // click: full profile modal
 			}
 		}
 		info := ui.box("info");
@@ -193,13 +196,15 @@ profile_popout :: () {
 			pad.semantic_size = .[ui.pct(1), ui.px(26)];
 			{ ui.parent(pad); defer ui.pop_parent();
 				spacer(.X, 16);
-				n := label(dc.user_name(s, uid, app.view.guild), .Bold, 20, T("--text-strong"), 24);
+				n := label(ifx hook then app.profile_webhook else dc.user_name(s, uid, app.view.guild), .Bold, 20, T("--text-strong"), 24);
 				n.flags |= .Selectable_Text;
 				n.sel_order = 1;
+				if hook app_tag();
 			}
-			pad2 := row("userpad");
-			pad2.semantic_size = .[ui.pct(1), ui.px(20)];
-			{ ui.parent(pad2); defer ui.pop_parent();
+			if !hook {
+				pad2 := row("userpad");
+				pad2.semantic_size = .[ui.pct(1), ui.px(20)];
+				ui.parent(pad2); defer ui.pop_parent();
 				spacer(.X, 16);
 				un := label(u.username, .Normal, 14, T("--text-default"), 18);
 				un.flags |= .Selectable_Text;
@@ -208,7 +213,7 @@ profile_popout :: () {
 					label(tprint(" • %", u.pronouns), .Normal, 14, T("--text-default"), 18);
 				}
 			}
-			if u.bio != "" {
+			if u.bio != "" && !hook {
 				spacer(.Y, 12);
 				bio := ui.box("bio", .Selectable_Text | .Wrap_Text);
 				bio.semantic_size = .[ui.pct(1), ui.text_size()];
@@ -221,7 +226,7 @@ profile_popout :: () {
 			}
 			spacer(.Y, 16);
 			if uid == s.me { account_actions(); }
-			if uid != s.me && !on_hosted() {
+			if uid != s.me && !on_hosted() && !hook {
 				mr := row("msgrow");
 				mr.semantic_size = .[ui.pct(1), ui.px(40)];
 				{ ui.parent(mr); defer ui.pop_parent();

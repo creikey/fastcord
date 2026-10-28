@@ -86,6 +86,19 @@ T :: (name: string) -> ui.Color {return tok(*app.theme, name);}
 
 with_alpha :: (c: ui.Color, a: float32) -> ui.Color {return .{c.x, c.y, c.z, c.w * a};}
 
+// The tag after a bot's or webhook's name (official BotTag): "APP" since bots became apps.
+app_tag :: () {
+	spacer(.X, 4);
+	pill := row("apptag", .Draw_Background);
+	pill.semantic_size = .[ui.children(), ui.px(15)];
+	pill.style.bg = T("--background-brand");
+	pill.style.radius = all4(3);
+	ui.parent(pill); defer ui.pop_parent();
+	spacer(.X, 4);
+	label("APP", .Semibold, 10, .{1, 1, 1, 1}, 15);
+	spacer(.X, 4);
+}
+
 sized :: (id: string, w: float32, h: float32, flags: ui.Box_Flags = 0) -> *ui.Box {
 	b := ui.box(id, flags);
 	b.semantic_size = .[ui.px(w), ui.px(h)];
