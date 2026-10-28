@@ -49,6 +49,7 @@ main :: () {
 }
 
 vendor :: #library,no_dll "../../build/fc_vendor";
+#if OS == .WINDOWS msvcprt :: #library,system,no_dll,link_always "msvcprt"; // WebRTC's C++ runtime; the app gets it via tls
 fc_aec_create :: () -> *void #foreign vendor;
 fc_aec_destroy :: (a: *void) #foreign vendor;
 fc_aec_render :: (a: *void, pcm: *float32) #foreign vendor;

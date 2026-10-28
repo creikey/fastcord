@@ -90,7 +90,6 @@
 - [ ] Notifications: sounds and desktop notifications check mutes raw (`sounds.jai` `message_notifies`). An expired timed mute stays silent until restart, and channels in a muted category or threads in a muted channel still ping. A direct @mention in a muted channel or server doesn't notify, though fastcord's own settings text promises it does. Use `mute_active` / `channel_effectively_muted`. The same raw check drops expired-mute servers from Inbox Unreads (`view_inbox.jai`); sidebar thread rows ignore mutes (`view_threads.jai`).
 - [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
 - [ ] Voice: a voice channel's text chat can't be opened; clicking always joins.
-- [ ] Voice: `src/tests/voice_aec.jai` doesn't link on Windows (`jai build.jai - run src/tests/voice_aec.jai`): `fc_vendor.lib`'s WebRTC and Abseil objects need the C++ runtime that the app's link gets and the test's doesn't (29 unresolved `std::` symbols).
 - [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
 - [ ] Voice: no soundboard and no Activities; full channels aren't blocked.
 - [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the Voice Processing switches can't be heard or seen there (`view_voice_settings.jai` meter path).
@@ -389,3 +388,4 @@
 - [x] Selection: dragging across a message with more than 4 blocks (list items, paragraphs) selects one contiguous range; block order no longer wraps at 4 (`Box.sel_sub`, `tests/ui/code/select_list.txt`).
 - [x] Window: remember the window's size, position and maximised state across launches (Windows).
 - [x] GIFs (fastcord-only): search Tenor as well as Klipy. Dropped: Google shut the Tenor API down on 2026-06-30 (no new keys since January), which is why Discord's `/gifs/search` went Klipy-only. Sent Tenor links still embed.
+- [x] Voice: `src/tests/voice_aec.jai` links on Windows (it now names msvcprt, which the app gets via tls).
