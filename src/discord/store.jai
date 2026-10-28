@@ -134,6 +134,7 @@ free_attachment :: (s: *Store, at: *Attachment) {
 	free_str(at.url, a);
 	free_str(at.proxy_url, a);
 	free_str(at.waveform, a);
+	free_str(at.description, a);
 }
 
 free_embed :: (s: *Store, e: *Embed) {
@@ -402,6 +403,7 @@ parse_attachment :: (m: etf.Map, a: Allocator) -> Attachment {
 		height = fint(m, "height"),
 		duration_secs = cast(float32) vf64(vget(m, "duration_secs")),
 		waveform = clone_str(fstr(m, "waveform"), a),
+		description = clone_str(fstr(m, "description"), a),
 		flags = cast(u64) fint(m, "flags")
 	};
 }

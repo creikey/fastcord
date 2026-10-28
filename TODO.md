@@ -63,7 +63,6 @@
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
 - [ ] Bug (Windows): files that already exist are never rewritten, so the rotated token, cookies, etags, identity, media cache and alt-svc data go stale. After a username change in fastcord, the next launch can land on the login screen. `write_file_atomic` (`cookies.jai`) moves a `.tmp` over the file with Jai's `file_move` (`MoveFileW`), which fails if the destination exists, and leaves the `.tmp` behind. Use `MoveFileExW(..., MOVEFILE_REPLACE_EXISTING)`; `settings_store.jai` already works around it.
 - [ ] Scrolling: one wheel notch scrolls too little on Windows: 40px, Chrome's macOS value (`platform_windows.jai` WM_MOUSEWHEEL, "Chrome: 40px per notch"). Chromium on Windows scrolls `SPI_GETWHEELSCROLLLINES` (default 3) x 100/3 px, i.e. 100px per notch. Read that system setting, including "one screen at a time" (`WHEEL_PAGESCROLL`). Check Linux's 40px against Chrome there too.
-- [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
 - [ ] Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
 - [ ] Bug: after sleep or a Wi-Fi change, REST can hang for tens of seconds to minutes, and quitting can hang the same way. HTTP/2 streams have no timeout (`transport.jai` `set_timeout(stream, 0)`), the preface PING is never checked and there's no keepalive. All 16 workers can block on the dead connection, `.Io` errors aren't retried, and `client_destroy` joins workers before closing the transport with no timeout. An uncapped 429 `Retry-After` also sleeps the worker and blocks quit (`rest.jai`).
 - [ ] Notifications: "Hide Muted Channels" is local; check whether the official client syncs `hide_muted_channels`.
@@ -324,3 +323,4 @@
 - [x] Replies: clicking a reply's quoted line jumps to the original message and highlights it (`tests/ui/forward/reply_jump.txt`).
 - [x] Edit: the inline edit box has the composer's `:emoji:` and `@mention` autocompletes, and saving converts `:name:` and `@name` like a send (`tests/ui/edit_autocomplete.txt`).
 - [x] Edit: editing a message shows `@name`, `@role` and `:name:` instead of their raw `<@id>`, `<@&id>` and `<:name:id>`, and saving converts them back (`tests/ui/forward/edit_readable.txt`).
+- [x] Attachments: images with alt text (`description`) show an ALT badge in the corner; hovering it shows the text (`tests/ui/media/alt_text.txt`).

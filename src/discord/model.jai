@@ -173,6 +173,7 @@ Attachment :: struct {
 	height: int;
 	duration_secs: float32; // voice messages
 	waveform: string;
+	description: string; // alt text
 	flags: u64;
 }
 

@@ -83,6 +83,21 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			sig := ui.signal(img);
 			if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url);
 			if sig.right_clicked media_menu_open(a.url, a.url);
+			if a.description {
+				ui.parent(img);
+				alt := row("alt", .Draw_Background | .Floating_X | .Floating_Y);
+				alt.semantic_size = .[ui.children(), ui.px(20)];
+				alt.fixed_pos = .{6, h * sc - 26};
+				alt.style.bg = .{0, 0, 0, 0.6};
+				alt.style.radius = all4(4);
+				{ ui.parent(alt); defer ui.pop_parent();
+					spacer(.X, 6);
+					label("ALT", .Bold, 11, .{1, 1, 1, 1}, 20);
+					spacer(.X, 6);
+				}
+				ui.pop_parent();
+				if ui.mouse_over(alt) tooltip_below(a.description, alt.rect);
+			}
 			spacer(.Y, 4);
 		} else {
 			f := row(tprint("file%", i), .Draw_Background | .Draw_Border);

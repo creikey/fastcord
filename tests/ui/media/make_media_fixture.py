@@ -15,7 +15,7 @@ def msg(mid, content, attachments, embeds):
     return {'rt': 0, 'dir': 'recv', 'etf': {'op': 0, 't': 'MESSAGE_CREATE', 's': 100, 'd': {
         'id': mid, 'channel_id': CH, 'guild_id': GUILD, 'author': me, 'content': content, 'timestamp': '', 'edited_timestamp': None,
         'type': 0, 'attachments': attachments, 'embeds': embeds, 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}}}
-att = {'id': gif_id, 'filename': 'dance.gif', 'size': 4000, 'content_type': 'image/gif', 'width': 160, 'height': 120,
+att = {'id': gif_id, 'filename': 'dance.gif', 'size': 4000, 'content_type': 'image/gif', 'width': 160, 'height': 120, 'description': 'a dancing cat',
        'url': 'https://cdn.discordapp.com/attachments/%d/%d/dance.gif%s' % (CH, gif_id, Q),
        'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/dance.gif%s' % (CH, gif_id, Q)}
 KLIPY = 'https://static.klipy.com/ii/f87f46a2c5aeaeed4c68910815f73eaf/84/09/'
