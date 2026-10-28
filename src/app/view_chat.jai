@@ -975,10 +975,14 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			bar.semantic_size = .[ui.px(2), ui.px(li.rect.y1 - li.rect.y0)];
 			bar.style.bg = T("--background-brand");
 		}
-		for e: app.ui.events {
+		for * e: app.ui.events {
 			// a control under the press (author name → user menu, avatar, …) takes its
 			// own right-click; both menus used to open, the message menu on top
 			if e.kind == .Mouse_Down && e.button == .Right && hovered && app.ui.hot == 0 open_message_menu(m, e.pos, "right_click");
+			if !e.consumed && e.kind == .Mouse_Down && e.button == .Left && e.mods == .Alt && hovered && app.ui.hot == 0 && !m.pending {
+				if net_action() dc.mark_unread(app.client, m.channel_id, m.id);
+				e.consumed = true;
+			}
 		}
 		if (hovered || ma.menu_msg == m.id) && !editing && !is_notice(m.kind) {
 			// the toolbar hangs 16px above the item's top edge (official: top -16, right 14)

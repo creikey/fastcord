@@ -1,0 +1,5 @@
+# Alt+click on a message marks it unread (dc.mark_unread) and starts no text selection.
+wait 5
+click 600 491 alt
+wait 5
+expect_selection ""

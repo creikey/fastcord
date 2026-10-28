@@ -59,7 +59,7 @@
 - [ ] Channels: check whether channels without VIEW_CHANNEL are listed and openable; the sidebar and `guild_channels_sorted` never check permissions (needs a READY capture to confirm hidden channels are sent).
 - [ ] Channels: channel rows have no right-click menu (Mark As Read, Mute, Notification Settings, Edit, Copy Link, Invite, Duplicate, Delete); category rows have none either, so the "Delete Category" code is unreachable.
 - [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
-- [ ] Messages: Alt+click on a message doesn't mark it unread, as it does in the official client; only the menu's Mark Unread does (`view_chat.jai`).
+- [ ] Keybinds: no Ctrl+E (emoji picker), Ctrl+G (GIF picker) or Ctrl+S (sticker picker) in the composer; the pickers open only from their buttons (`view_pickers.jai` `picker_open`).
 - [ ] Keybinds: no user-defined global keybinds (official Keybinds page: Toggle Mute, Toggle Deafen, Push to Talk, Push to Mute, Toggle Streamer Mode, ...) that work while fastcord is unfocused. Needs a system-wide hook (Windows `RegisterHotKey` / low-level keyboard hook).
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
 - [ ] Bug (Windows): files that already exist are never rewritten, so the rotated token, cookies, etags, identity, media cache and alt-svc data go stale. After a username change in fastcord, the next launch can land on the login screen. `write_file_atomic` (`cookies.jai`) moves a `.tmp` over the file with Jai's `file_move` (`MoveFileW`), which fails if the destination exists, and leaves the `.tmp` behind. Use `MoveFileExW(..., MOVEFILE_REPLACE_EXISTING)`; `settings_store.jai` already works around it.
@@ -315,3 +315,4 @@
 - [x] Edit: Up in an empty composer, the hover pencil and Edit Message skip system notices and pending messages (`can_edit`).
 - [x] Edit: the edit box's emoji button opens an emoji-only picker that inserts into the edit, and the "cancel" / "save" links work (`tests/ui/edit_box_controls.txt`).
 - [x] Keybinds: Ctrl+Shift+M mutes and Ctrl+Shift+D deafens from anywhere, the composer included (`tests/ui/mute_deafen_keys.txt`).
+- [x] Messages: Alt+click on a message marks it unread, like the menu's Mark Unread (`tests/ui/alt_click_unread.txt`).
