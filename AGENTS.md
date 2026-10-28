@@ -66,6 +66,12 @@ the Jai is written. This file lists what is easy to miss.
   purpose in the library's README, and re-make the patches on every update.
 - Every server is untrusted, Discord included: check what Discord sends (sizes, counts, IDs, URLs)
   as strictly as what a self-hosted server sends, with no path that trusts Discord's shapes.
+- E2E never depends on Discord: self-hosted servers must carry encrypted DMs with no Discord at all.
+  `src/e2e` takes binary packets and opaque conversation and party IDs from a carrier, and never names
+  Discord (no snowflakes, `fc-` text, message IDs or Discord's size limits). Discord and self-hosted
+  servers are thin carrier adapters. Every E2E test runs over the in-memory mock carrier (lossy,
+  reordering, duplicating, replaying, forging, packet size set per test); only an adapter's own
+  encoding gets carrier-shaped tests.
 - Parsers fastcord writes for untrusted input (anything from the network, a file or another user)
   never use regular expressions. Parse with recursive descent over a lexer, preferably a table-driven
   DFA or straight-line scanning code. Each must run in time linear in its input: no backtracking and
