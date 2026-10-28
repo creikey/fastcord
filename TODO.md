@@ -116,7 +116,7 @@
 - [ ] Voice: left-clicking a participant does nothing; their menu lacks server mute/deafen, disconnect, move and profile.
 - [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
 - [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
-- [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
+- [ ] Messages: a message that fails to send just turns red (`rest.jai` sets `failed`); there's no "failed to send" note and no Retry or Delete for it, as the client offers, so the text can only be copied out by hand.
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
 - [ ] Voice: the sidebar has no N/limit counter on voice channels, and stage channels list no one.
 - [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
@@ -310,3 +310,4 @@
 - [x] Markdown: a bare URL keeps a closing `)` that balances a `(` inside it (`wiki/Foo_(bar)`); an unbalanced one, as in `(https://x.com/a)`, is still dropped.
 - [x] Markdown: numbered lists (`1. item`) render with their numbers, counting up from the first item's, nested ones included.
 - [x] Windows: the window's resize edges grab 8pt deep instead of 2pt; nothing is drawn for them.
+- [x] Edit: Up in an empty composer, the hover pencil and Edit Message skip system notices and pending messages (`can_edit`).

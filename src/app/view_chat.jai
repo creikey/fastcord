@@ -1434,7 +1434,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				for * e: app.ui.events {
 					if e.consumed || e.kind != .Key_Down || e.key != .Up || e.mods != 0 continue;
 					for < * dc.messages_get(s, ch.id) {
-						if it.author_id == s.me && !it.forwarded {
+						if can_edit(it) {
 							start_edit(it);
 							e.consumed = true;
 							break;
