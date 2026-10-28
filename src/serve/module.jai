@@ -57,6 +57,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
@@ -314,7 +315,7 @@ CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
@@ -559,17 +560,18 @@ iso :: (id: s64) -> string {
 // edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
-		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false) -> etf.Value {
+		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
+		kind := DEFAULT) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
-	etf.map_put(*m, "type", etf.vint(ifx reply then 19 else 0));
+	etf.map_put(*m, "type", etf.vint(ifx kind != DEFAULT then kind else ifx reply then 19 else 0));
 	if reply {
 		ref := etf.map_builder(3,, temp);
 		etf.map_put(*ref, "message_id", snow(reply));
 		etf.map_put(*ref, "channel_id", snow(channel));
 		etf.map_put(*ref, "guild_id", snow(s.guild));
 		etf.map_put(*m, "message_reference", etf.vmap(etf.map_done(*ref)));
-		etf.map_put(*m, "referenced_message", referenced);
+		if kind == DEFAULT etf.map_put(*m, "referenced_message", referenced);
 	}
 	etf.map_put(*m, "channel_id", snow(channel));
 	etf.map_put(*m, "guild_id", snow(s.guild));
@@ -588,7 +590,11 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type FROM messages m JOIN users u ON u.id = m.author";
+
+// Message types: a "pinned a message" notice is a system message whose reply column holds the pinned one.
+DEFAULT :: 0;
+PINNED :: 6;
 
 // row_message reads a MESSAGE_SELECT row; the caller holds db_mu. A reply's target is looked up one level
 // deep, as Discord sends it.
@@ -597,8 +603,9 @@ MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce
 row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, nonce := "") -> etf.Value {
 	id := sqlite.col_int(st, 0);
 	reply := sqlite.col_int(st, 6);
+	kind := sqlite.col_int(st, 9);
 	referenced, reactions: etf.Value;
-	if reply && !nested referenced = message_locked(s, reply);
+	if reply && !nested && kind == DEFAULT referenced = message_locked(s, reply);
 	mentioned: [..]etf.Value;
 	mentioned.allocator = temp;
 	q := sqlite.prepare(s.db, "SELECT u.id, u.name FROM mentions x JOIN users u ON u.id = x.user WHERE x.message = ?;");
@@ -631,7 +638,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8));
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind);
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -1001,16 +1008,17 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 // edit a message, and only the author or the owner delete it.
 one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64, message: s64) -> bool {
 	s := c.server;
-	author, owner := 0, 0;
+	author, owner, kind := 0, 0, DEFAULT;
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, "SELECT author FROM messages WHERE id = ? AND channel = ?;");
+		st := sqlite.prepare(s.db, "SELECT author, type FROM messages WHERE id = ? AND channel = ?;");
 		sqlite.bind_all(st, message, channel);
-		if sqlite.step(st) == .Row author = sqlite.col_int(st, 0);
+		if sqlite.step(st) == .Row author, kind = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
 		sqlite.finalize(st);
 		owner = owner_id(s);
 	}
 	if !author return json_error(c, 404, 10008, "Unknown Message");
+	if req.method == "PATCH" && kind != DEFAULT return json_error(c, 400, 50021, "Cannot execute action on a system message");
 	if author != user {
 		if req.method == "PATCH" return json_error(c, 403, 50005, "Cannot edit a message authored by another user");
 		if user != owner return json_error(c, 403, 50013, "Missing Permissions");
@@ -1531,7 +1539,7 @@ MAX_PINS :: 50; // Per channel, as Discord had it; so the pins list never needs 
 // The message (now pinned or not) follows as MESSAGE_UPDATE, then CHANNEL_PINS_UPDATE.
 pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 	s := c.server;
-	m: etf.Value;
+	m, notice: etf.Value;
 	last := "";
 	{
 		locks.guard(*s.db_mu);
@@ -1548,12 +1556,19 @@ pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
 		if !sqlite.changes(s.db) return http.h1_write_response(c.s, 204, .[], .[]) == .None;
 		m = message_locked(s, message, nested = false);
+		if on {
+			notice_id := snowflake(s);
+			if sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, type) VALUES(?, ?, ?, '', ?, ?);", notice_id, channel, user, message, PINNED) {
+				notice = message_locked(s, notice_id, nested = false);
+			}
+		}
 		st = sqlite.prepare(s.db, "SELECT max(pinned_at) FROM messages WHERE channel = ?;");
 		sqlite.bind(st, 1, channel);
 		if sqlite.step(st) == .Row && !sqlite.col_is_null(st, 0) last = iso(sqlite.col_int(st, 0));
 		sqlite.finalize(st);
 	}
 	broadcast(s, "MESSAGE_UPDATE", m);
+	if notice.kind == .Map broadcast(s, "MESSAGE_CREATE", notice);
 	d := etf.map_builder(3,, temp);
 	etf.map_put(*d, "channel_id", snow(channel));
 	etf.map_put(*d, "guild_id", snow(s.guild));

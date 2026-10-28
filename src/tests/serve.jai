@@ -265,6 +265,17 @@ main :: () {
 		items := field(pinned, "items");
 		check(status == 200 && items.kind == .List && items.list.count == 1 && field(items.list[0], "message", "content").s == "hello"
 			&& field(items.list[0], "pinned_at").kind == .String, tprint("pins list: % %", status, body));
+		// The "pinned a message" notice: a type 6 message pointing at the pin, which can't be edited.
+		for 1..300 { if stored().count == 3 break; pump(); }
+		notice := ifx stored().count == 3 then *stored()[2] else null;
+		check(notice && notice.kind == 6 && notice.referenced_id == hello && notice.author_id == cl.store.me, "the pinned-a-message notice");
+		if notice {
+			status, body = rest("PATCH", tprint("%/%", messages, notice.id), "{\"content\": \"x\"}", token);
+			check(status == 400, tprint("a system message can't be edited: % %", status, body));
+			status, body = rest("DELETE", tprint("%/%", messages, notice.id), "", token);
+			for 1..300 { if stored().count == 2 break; pump(); }
+			check(status == 204 && stored().count == 2, tprint("delete the notice: %", status));
+		}
 		discord.pin_message(cl, cid, hello, false);
 		for 1..300 { if !stored()[0].pinned break; pump(); }
 		check(!stored()[0].pinned, "unpin");
