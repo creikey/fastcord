@@ -13,6 +13,8 @@
   - Keys must survive fastcord bugs and settings resets. They live in `keys` beside `<state>`, never inside it, so deleting settings or `<state>` never touches them.
     - At rest, keys are wrapped with the OS keystore: DPAPI on Windows is done; Keychain (macOS) and libsecret (Linux) are not (`src/keys` `wrap`).
   - A failed key save at startup is only logged (`identity.jai`), so the next start makes a different identity. Show it, with the reason, in Settings > Keys.
+  - Bug: keys that exist but can't be opened are silently replaced. `keys.load` skips every file it can't read or unwrap, and `identity_start` then makes a new "Default" identity whenever the list is empty. Causes: DPAPI's master key is gone after a Windows reinstall, a restore onto a new PC, or an admin password reset; or antivirus or a backup locked the file at startup. The user loses every self-hosted account without a word. Make a new identity only when the folder holds no `.key` files at all. Otherwise say "Your keys can't be opened", give the reason, and retry, never auto-create.
+  - DPAPI ties both copies to this Windows user's master key, so the second copy doesn't help against that loss. Only a portable backup does: the recovery-key export below, or a passphrase-encrypted export. Offer it before the first server join.
   - The recovery key starts beside the signing key, where a thief would take both. Settings offers to export it, as a file or a printout, and then remove it from disk.
   - Later:
     - Easy device sync, by QR code or an encrypted export.
