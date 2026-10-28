@@ -93,6 +93,55 @@
   .fine { color: var(--muted); font-size: 13px; max-width: 720px; margin: 14px auto 0; text-align: center; }
   .note { color: var(--muted); font-size: 14px; text-align: center; padding: 8px 0 40px; }
   .note code { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  .duel { padding: 56px 0 8px; }
+  .duel h2 { font-size: clamp(26px, 4.4vw, 38px); letter-spacing: -0.02em; margin: 0 0 8px; text-align: center; }
+  .duel .sub { color: var(--muted); text-align: center; max-width: 680px; margin: 0 auto 20px; }
+  .stage { display: grid; grid-template-columns: 1fr minmax(300px, 1.05fr) 1fr; gap: 14px; align-items: start;
+    width: min(1360px, calc(100vw - 32px)); position: relative; left: 50%; transform: translateX(-50%); }
+  .vid { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .vid h3 { margin: 0; padding: 10px 14px; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+  .vid h3 i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .vid.fc h3 i { background: var(--brand-hi); }
+  .vid video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .vbar { position: relative; height: 26px; border-top: 1px solid var(--line); }
+  .vbar b { position: absolute; top: 7px; width: 3px; height: 12px; border-radius: 2px; transform: translateX(-1px); }
+  .vbar u { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); opacity: .7; text-decoration: none; }
+  .wire { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-direction: column;
+    height: var(--wire-h, 420px); min-height: 300px; }
+  .whead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .whead .srv { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .whead .srv::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(61,158,96,.25); }
+  .clock { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .wbtn { font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+  .wbtn:hover { color: var(--text); }
+  .rows { flex: 1; overflow-y: auto; padding: 6px 8px 10px; scroll-behavior: smooth; }
+  .row { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 6px; align-items: center; margin: 5px 0; cursor: pointer; }
+  .pkt { font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 5px 7px; border-radius: 7px; border: 1px solid var(--line);
+    background: var(--bg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 26px; }
+  .pkt.k0 { border-left: 3px solid var(--brand-hi); } .pkt.k1 { border-left: 3px solid #e8a33d; } .pkt.k2 { border-left: 3px solid #3db8a6; }
+  .pkt.none { border-style: dashed; background: transparent; color: var(--muted); text-align: center; }
+  .pkt small { color: var(--muted); }
+  .row .eq { text-align: center; font-size: 13px; color: var(--ok); font-weight: 700; }
+  .row .eq.ne { color: var(--muted); font-weight: 400; }
+  .row .l { animation: inl .5s ease-out both; } .row .r { animation: inr .5s ease-out both; } .row .eq { animation: pop .4s .35s ease-out both; }
+  @keyframes inl { from { transform: translateX(-60%); opacity: 0; } }
+  @keyframes inr { from { transform: translateX(60%); opacity: 0; } }
+  @keyframes pop { from { transform: scale(.2); opacity: 0; } }
+  .row.sel .pkt { border-color: var(--brand); }
+  .detail { border-top: 1px solid var(--line); padding: 10px 12px; font-size: 12px; max-height: 45%; overflow-y: auto; }
+  .detail h4 { margin: 0 0 6px; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .cmp div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp .h { color: var(--muted); font-family: inherit; }
+  .cmp .x { color: #e06c6c; }
+  .verdict { margin: 0 0 8px; color: var(--ok); }
+  .verdict.ne { color: var(--muted); }
+  .vid video { cursor: zoom-in; }
+  .stage.big .vid video { cursor: zoom-out; }
+  @media (max-width: 1100px) { .stage { grid-template-columns: 1fr 1fr; } .wire { grid-column: 1 / -1; order: 3; } }
+  @media (min-width: 1101px) { .stage.big { grid-template-columns: 1fr 1fr; } .stage.big .wire { grid-column: 1 / -1; order: 3; } }
+  @media (max-width: 640px) { .stage { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .row .l, .row .r, .row .eq { animation: none; } }
   footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 24px 0 40px; text-align: center; }
   footer a { color: var(--muted); }
 </style>
@@ -127,6 +176,23 @@
   </section>
 
 
+  <section class="duel" id="side-by-side">
+    <h2>Same clicks, same packets</h2>
+    <p class="sub">Both clients, recorded doing the same thing with the same test account. The videos play in real time (click one to enlarge); in the middle, every request, gateway message and telemetry event each one sent to Discord, replayed at 1/10 speed and lined up. Tap a row to compare headers and payload fields.</p>
+    <div class="chips" id="dchips" role="group" aria-label="Interaction"></div>
+    <div class="stage">
+      <div class="vid"><h3><i></i>Official Discord app</h3><video id="vo" muted playsinline loop preload="metadata"></video><div class="vbar" id="bo"></div></div>
+      <div class="wire" id="wire">
+        <div class="whead"><span class="clock">Official</span><span class="srv">discord.com</span><span class="clock">Fastcord</span></div>
+        <div class="whead"><span class="clock" id="wclock">+0.000 s</span><span class="clock">1/10 speed</span><button class="wbtn" id="wreplay">Replay</button></div>
+        <div class="rows" id="wrows"></div>
+        <div class="detail" id="wdetail" hidden></div>
+      </div>
+      <div class="vid fc"><h3><i></i>Fastcord</h3><video id="vf" muted playsinline loop preload="metadata"></video><div class="vbar" id="bf"></div></div>
+    </div>
+    <p class="fine" id="dfine">Only shapes are shown, never values: method and path with ids folded, header names in the order they left the machine (from Chrome's and Fastcord's network logs), JSON field names, gateway opcodes, telemetry event names and property names. Heartbeats are left out because both clients send them on their own schedule.</p>
+  </section>
+
   <section class="parity" id="traffic">
     <h2>Indistinguishable on the wire</h2>
     <p class="sub">To Discord's servers, Fastcord behaves like the official desktop app: the same requests with Chrome's headers in Chrome's wire order, the same TLS and HTTP/2 handshakes, the same gateway messages and telemetry batches, sent at the same moments. We recorded both clients doing the same things and lined their traffic up event by event.</p>
@@ -148,6 +214,91 @@
   </footer>
 </div>
 
+<script>
+  // Side by side (parity_video.json and site/video/, from tools/site_video.py).
+  fetch("parity_video.json").then(r => r.json()).then(d => {
+    const KC = ["var(--brand-hi)", "#e8a33d", "#3db8a6"], SLOW = 10;
+    const $ = id => document.getElementById(id);
+    const vo = $("vo"), vf = $("vf"), rows = $("wrows"), det = $("wdetail"), clock = $("wclock");
+    const esc = t => t.replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"})[c]);
+    const label = e => e.k === 2 ? "science · " + e.l : e.k === 1 ? "gateway · " + e.l : e.l;
+    const same = (a, b) => a && b && JSON.stringify(a) === JSON.stringify(b);
+    let cur, raf, t0;
+    // pairs in time order: matched [i, j], or only-official [i, -1] / only-fastcord [-1, j]
+    const pairs = s => {
+      const out = s.m.map(([i, j]) => [i, j]), mi = new Set(s.m.map(p => p[0])), mj = new Set(s.m.map(p => p[1]));
+      s.o.forEach((e, i) => mi.has(i) || out.push([i, -1]));
+      s.f.forEach((e, j) => mj.has(j) || out.push([-1, j]));
+      const t = ([i, j]) => Math.min(i < 0 ? 1e9 : s.o[i].t, j < 0 ? 1e9 : s.f[j].t);
+      return out.sort((a, b) => t(a) - t(b)).map(p => ({p, t: t(p)}));
+    };
+    const verdict = (a, b) => {
+      if (!a || !b) return {ok: false, txt: a ? "Only the official client sent this" : "Only Fastcord sent this"};
+      const bits = [];
+      if (a.k === 0) bits.push(a.p === b.p ? a.p.toUpperCase() : `${a.p} vs ${b.p}`, same(a.h, b.h) ? `${a.h.length} headers, same order` : "header order differs");
+      if (a.d.length || b.d.length) bits.push(same(a.d, b.d) ? `${a.d.length} fields, same order` : "fields differ");
+      return {ok: (a.k !== 0 || (a.p === b.p && same(a.h, b.h))) && same(a.d, b.d), txt: bits.join(" · ") || "same message"};
+    };
+    const detail = (s, [i, j], row) => {
+      for (const r of rows.children) r.classList.toggle("sel", r === row);
+      const a = s.o[i], b = s.f[j], v = verdict(a, b), e = a || b;
+      const list = (x, y) => {
+        const n = Math.max(x.length, y.length); let h = "";
+        for (let k = 0; k < n; k++) h += `<div class="${x[k] !== y[k] ? "x" : ""}">${esc(x[k] || "")}</div><div class="${x[k] !== y[k] ? "x" : ""}">${esc(y[k] || "")}</div>`;
+        return h;
+      };
+      let h = `<h4>${esc(label(e))}</h4><p class="verdict ${v.ok ? "" : "ne"}">${v.ok ? "✓ " : ""}${esc(v.txt)} · official +${a ? a.t : "–"} ms, Fastcord +${b ? b.t : "–"} ms</p>`;
+      if (e.k === 0 && (a || b)) h += `<div class="cmp"><div class="h">Official header order</div><div class="h">Fastcord header order</div>${list(a ? a.h : [], b ? b.h : [])}</div>`;
+      if ((a && a.d.length) || (b && b.d.length)) h += `<div class="cmp" style="margin-top:8px"><div class="h">${e.k === 2 ? "Properties" : "Fields"} (official)</div><div class="h">(Fastcord)</div>${list(a ? a.d : [], b ? b.d : [])}</div>`;
+      det.innerHTML = h; det.hidden = false;
+    };
+    const bar = (el, evs, s) => {
+      el.innerHTML = evs.map(e => `<b style="left:${100 * (s.lead + e.t) / s.dur}%;background:${KC[e.k]}"></b>`).join("") + "<u></u>";
+      return el.lastChild;
+    };
+    const play = s => {
+      cancelAnimationFrame(raf); rows.replaceChildren(); det.hidden = true;
+      const ps = pairs(s); let next = 0; t0 = performance.now();
+      const end = Math.max(0, ...ps.map(x => x.t)) + 1500;
+      const tick = now => {
+        const t = (now - t0) / SLOW - 300;  // a short beat before the action starts
+        clock.textContent = (t < 0 ? "−" : "+") + (Math.abs(t) / 1000).toFixed(3) + " s";
+        while (next < ps.length && ps[next].t <= t) {
+          const {p: [i, j]} = ps[next++], a = s.o[i], b = s.f[j], v = verdict(a, b), row = document.createElement("div");
+          row.className = "row";
+          const pk = (e, side) => e ? `<div class="pkt k${e.k} ${side}" title="${esc(label(e))}">${esc(label(e))}<br><small>+${e.t} ms${e.k === 0 ? " · " + e.p : ""}</small></div>` : `<div class="pkt none ${side}">—</div>`;
+          row.innerHTML = pk(a, "l") + `<div class="eq ${v.ok ? "" : "ne"}" title="${esc(v.txt)}">${v.ok ? "=" : a && b ? "≈" : "·"}</div>` + pk(b, "r");
+          row.onclick = () => detail(s, [i, j], row);
+          rows.append(row); rows.scrollTop = rows.scrollHeight;
+        }
+        if (t < end) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+    const show = s => {
+      cur = s;
+      for (const c of $("dchips").children) c.setAttribute("aria-pressed", c.dataset.n === s.n);
+      vo.src = `video/${s.n}-official.mp4`; vf.src = `video/${s.n}-fastcord.mp4`;
+      const uo = bar($("bo"), s.o, s), uf = bar($("bf"), s.f, s);
+      for (const [v, u] of [[vo, uo], [vf, uf]]) v.ontimeupdate = () => u.style.left = 100 * v.currentTime * 1000 / s.dur + "%";
+      Promise.all([vo.play(), vf.play()]).catch(() => {});
+      play(s);
+    };
+    $("wreplay").onclick = () => { vo.currentTime = vf.currentTime = 0; play(cur); };
+    // keep both videos started together on each loop
+    vo.addEventListener("seeked", () => { if (vo.currentTime < .1 && Math.abs(vf.currentTime - vo.currentTime) > .15) vf.currentTime = 0; });
+    const fit = () => { const st = document.querySelector(".stage"), wide = getComputedStyle(st).gridTemplateColumns.split(" ").length > 2;
+      st.style.setProperty("--wire-h", (wide ? Math.max(300, vo.getBoundingClientRect().height + 80) : 440) + "px"); };
+    addEventListener("resize", fit); vo.addEventListener("loadedmetadata", fit);
+    for (const v of [vo, vf]) v.onclick = () => { document.querySelector(".stage").classList.toggle("big"); fit(); };
+    for (const s of d.scenarios) {
+      const b = document.createElement("button");
+      b.className = "chip"; b.dataset.n = s.n; b.textContent = s.title;
+      b.onclick = () => show(s); $("dchips").append(b);
+    }
+    show(d.scenarios[0]);
+  }).catch(() => document.getElementById("side-by-side").remove());
+</script>
 <script>
   // Request timelines of the official client and Fastcord (parity.json, from tools/parity_viz.py).
   const KIND = ["var(--brand-hi)", "#e8a33d", "#3db8a6"], NS = "http://www.w3.org/2000/svg";
