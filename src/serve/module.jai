@@ -1015,6 +1015,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		content, _ := etf.map_get(v.map, "content");
 		nonce, _ := etf.map_get(v.map, "nonce");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		if nonce.kind == .String && nonce.s.count > 25 return json_error(c, 400, 50035, "Invalid Form Body");
 		ref, _ := etf.map_get(v.map, "message_reference");
 		reply: s64;
 		if ref.kind == .Map {

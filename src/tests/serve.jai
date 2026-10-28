@@ -200,6 +200,8 @@ main :: () {
 	if welcome.list.count rest("DELETE", tprint("%/%", messages, field(welcome.list[0], "id").s), "", token);
 	status, body = rest("GET", messages, "", "bad");
 	check(status == 401, tprint("REST needs a token: %", status));
+	status, body = rest("POST", messages, "{\"content\": \"long\", \"nonce\": \"12345678901234567890123456\"}", token);
+	check(status == 400, tprint("a nonce over 25 bytes is refused: %", status));
 	status, body = rest("POST", messages,"{\"content\": \"hello\", \"nonce\": \"123\"}", token);
 	check(status == 200 && contains(body, "\"nonce\":\"123\""),tprint("send: % %", status, body));
 	if ws {
