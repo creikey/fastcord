@@ -203,6 +203,8 @@
 - [ ] Voice: when a moderator moves you, `app.voice_channel` keeps the old channel, so the panel shows the old name and the next mute goes to it (`view_voice.jai`).
 - [ ] Voice: clicking the panel opens nothing, so there's no connection info (packet loss, server, E2EE privacy and verification codes, which `voice/conn.jai` already has); the channel name doesn't go to the channel; no noise-suppression quick toggle.
 - [ ] Voice: no soundboard and no Activities; full channels aren't blocked.
+- [ ] Voice (macOS): with every voice-processing switch off the call captures through plain AUHAL with DefaultOutput, so a chosen output device is ignored then; and an input device not at 48 kHz still falls back to VPIO bypass, about 27 dB quieter (needs an AudioConverter resample in `input_cb`).
+- [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
 - [ ] Notifications: the taskbar/dock badge counts only mentions, not friend requests.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
@@ -222,3 +224,4 @@
 - [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
 - [x] Read states: incoming mentions raise the mention count, so opening that channel acks at once (checked live on the test accounts, `build/parity ack_live`).
 - [x] Video: checked live with the test accounts both ways: the official client shows fastcord's camera and Go Live, and fastcord decodes the official client's camera (1280x720) and Go Live (H265, DAVE).
+- [x] Voice (macOS): the mic no longer cuts out or goes quiet: VPIO's devices are pinned to 10 ms buffers (it ran them at 4096 frames, 85 ms bursts, which the send loop zero-padded and dropped), the audio thread sends only whole mic frames, and a call with every DSP switch off captures through AUHAL instead of VPIO bypass (27 dB quieter).

@@ -119,10 +119,7 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		vs.meter_db, vs.meter_open = voice.input_level(conn);
 	} else {
 		if !vs.meter_owner {
-			if audio.init() && audio.capture_start(false) {
-				audio.apply_device_selection();
-				vs.meter_owner = true;
-			}
+			if audio.init() && audio.capture_start(false) vs.meter_owner = true;
 		}
 		if vs.meter_owner {
 			buf: [960]float32;

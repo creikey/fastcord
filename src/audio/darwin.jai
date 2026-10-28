@@ -4,8 +4,11 @@
 // Device selection applies to the VoiceProcessingIO unit used while capturing (element 1 = input
 // device, element 0 = output device), the way WebRTC's macOS VPIO path does it. Outside a capture
 // the output follows the system default (DefaultOutput unit); the choice is remembered and
-// re-applied by apply_device_selection() after capture_start. A capture without voice processing
-// (the settings mic meter) is a separate input-only AUHAL unit and leaves output alone.
+// re-applied by apply_device_selection(). A capture without voice processing (the settings mic
+// meter, or a call with every DSP switch off) is a separate input-only AUHAL unit and leaves
+// output alone: VPIO with kAUVoiceIOProperty_BypassVoiceProcessing delivers the MacBook mic about
+// 27 dB quieter than AUHAL does (measured), so bypass is only the fallback for input devices not
+// at 48 kHz, which AUHAL would not resample.
 
 #scope_export
 
@@ -98,30 +101,8 @@ set_voice_processing :: (p: Voice_Processing) {
 // apply_device_selection re-applies device choice and DSP switches to the
 // running capture (no-op when not capturing).
 apply_device_selection :: () {
-	if mac.in_unit {
-		close_input_unit();
-		mac.in_unit = open_input_unit();
-		return;
-	}
-	unit := mac.out_unit;
-	if !unit || !mac.vpio return;
-	in_dev := ifx sel_input != 0 then sel_input else default_device(true);
-	out_dev := ifx sel_output != 0 then sel_output else default_device(false);
-	was := st.running;
-	if was AudioOutputUnitStop(unit);
-	AudioUnitUninitialize(unit);
-	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 1, *in_dev, 4);
-	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 0, *out_dev, 4);
-	bypass: u32 = xx ifx processing.echo_cancellation || processing.noise_suppression then 0 else 1;
-	AudioUnitSetProperty(unit, kAUVoiceIOProperty_BypassVoiceProcessing, SCOPE_GLOBAL, 0, *bypass, 4);
-	agc: u32 = xx processing.auto_gain_control;
-	AudioUnitSetProperty(unit, kAUVoiceIOProperty_VoiceProcessingEnableAGC, SCOPE_GLOBAL, 0, *agc, 4);
-	// VPIO ducks every other app's audio while it runs; keep that to the minimum, as WebRTC does
-	// (macOS 14+; ignored before)
-	duck := Ducking_Config.{advanced = false, level = 10}; // kAUVoiceIOOtherAudioDuckingLevelMin
-	AudioUnitSetProperty(unit, kAUVoiceIOProperty_OtherAudioDuckingConfiguration, SCOPE_GLOBAL, 0, *duck, size_of(Ducking_Config));
-	AudioUnitInitialize(unit);
-	if was AudioOutputUnitStart(unit);
+	locks.guard(*st.device_mu);
+	apply_selection();
 }
 
 #scope_module
@@ -157,41 +138,19 @@ device_stop :: () {
 	st.running = false;
 }
 
+// device_capture_start: voice_processing marks a call's capture, which follows the DSP switches.
 device_capture_start :: (voice_processing: bool) -> bool {
 	if !mac.in_buf.count mac.in_buf = NewArray(8192, float32);
-	if !voice_processing {
-		mac.in_unit = open_input_unit();
-		return mac.in_unit != null;
-	}
-	was_running := st.running;
-	device_stop();
-	// VPIO: one unit for in+out, so the canceller hears the output
-	unit := make_unit("vpio", true);
-	if !unit {
-		if was_running device_start();
-		return false;
-	}
-	AudioUnitUninitialize(mac.out_unit);
-	AudioComponentInstanceDispose(mac.out_unit);
-	mac.out_unit = unit;
-	mac.vpio = true;
-	apply_device_selection(); // before starting, so it never opens the wrong device
-	update_latency();
-	device_start();
-	return st.running;
+	mac.call = voice_processing;
+	if !voice_processing mac.in_unit = open_input_unit();
+	else apply_selection();
+	return mac.in_unit != null || (mac.vpio && st.running);
 }
 
 device_capture_stop :: () {
-	if mac.in_unit {
-		close_input_unit();
-		return;
-	}
-	device_stop();
-	AudioUnitUninitialize(mac.out_unit);
-	AudioComponentInstanceDispose(mac.out_unit);
-	mac.out_unit = make_unit("def ", false);
-	mac.vpio = false;
-	update_latency();
+	if mac.in_unit close_input_unit();
+	if mac.vpio use_vpio(false);
+	mac.call = false;
 }
 
 #scope_file
@@ -228,6 +187,7 @@ AudioUnitRender :: (unit: AudioUnit, flags: *u32, ts: *void, bus: u32, frames: u
 AudioOutputUnitStart :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
 AudioOutputUnitStop :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
 AudioObjectGetPropertyDataSize :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: *u32) -> OSStatus #foreign CoreAudio;
+AudioObjectSetPropertyData :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: u32, data: *void) -> OSStatus #foreign CoreAudio;
 AudioObjectGetPropertyData :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: *u32, data: *void) -> OSStatus #foreign CoreAudio;
 AudioObjectAddPropertyListener :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, listener: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call, user: *void) -> OSStatus #foreign CoreAudio;
 CFRelease :: (ref: *void) #foreign CoreFoundation;
@@ -253,6 +213,7 @@ mac: struct {
 	out_unit: AudioUnit; // DefaultOutput or VPIO while capturing
 	in_unit: AudioUnit; // input-only AUHAL while capturing without voice processing
 	vpio: bool;
+	call: bool; // a call's capture: VPIO or AUHAL by the DSP switches
 	in_buf: []float32;
 };
 
@@ -340,9 +301,7 @@ open_input_unit :: () -> AudioUnit {
 	on, off: u32 = 1, 0;
 	dev := ifx sel_input != 0 then sel_input else default_device(true);
 	f := stereo_f32(1);
-	addr := AudioObjectPropertyAddress.{fourcc("nsrt"), fourcc("glob"), 0};
-	sz: u32 = 8;
-	AudioObjectGetPropertyData(dev, *addr, 0, null, *sz, *f.mSampleRate);
+	f.mSampleRate = device_rate(dev);
 	icb := AURenderCallbackStruct.{input_cb, null};
 	ok := AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, SCOPE_INPUT, 1, *on, 4) == 0
 		&& AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, SCOPE_OUTPUT, 0, *off, 4) == 0
@@ -356,6 +315,72 @@ open_input_unit :: () -> AudioUnit {
 		return null;
 	}
 	return unit;
+}
+
+apply_selection :: () {
+	if !mac.call {
+		if mac.in_unit {
+			close_input_unit();
+			mac.in_unit = open_input_unit();
+		}
+		return;
+	}
+	in_dev := ifx sel_input != 0 then sel_input else default_device(true);
+	out_dev := ifx sel_output != 0 then sel_output else default_device(false);
+	dsp := processing.echo_cancellation || processing.noise_suppression || processing.auto_gain_control;
+	if mac.in_unit close_input_unit();
+	if !dsp && device_rate(in_dev) == SAMPLE_RATE {
+		if mac.vpio use_vpio(false);
+		mac.in_unit = open_input_unit();
+		return;
+	}
+	// VPIO: one unit for in+out, so the canceller hears the output
+	if !mac.vpio && !use_vpio(true) return;
+	unit := mac.out_unit;
+	device_stop();
+	AudioUnitUninitialize(unit);
+	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 1, *in_dev, 4);
+	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 0, *out_dev, 4);
+	// echo cancellation and noise suppression can't be switched apart, and AGC needs the DSP running
+	bypass: u32 = xx !dsp;
+	AudioUnitSetProperty(unit, kAUVoiceIOProperty_BypassVoiceProcessing, SCOPE_GLOBAL, 0, *bypass, 4);
+	agc: u32 = xx processing.auto_gain_control;
+	AudioUnitSetProperty(unit, kAUVoiceIOProperty_VoiceProcessingEnableAGC, SCOPE_GLOBAL, 0, *agc, 4);
+	// VPIO ducks every other app's audio while it runs; keep that to the minimum, as WebRTC does
+	// (macOS 14+; ignored before)
+	duck := Ducking_Config.{advanced = false, level = 10}; // kAUVoiceIOOtherAudioDuckingLevelMin
+	AudioUnitSetProperty(unit, kAUVoiceIOProperty_OtherAudioDuckingConfiguration, SCOPE_GLOBAL, 0, *duck, size_of(Ducking_Config));
+	// Left alone, VPIO runs the devices at 4096-frame buffers: the mic arrives in 85 ms bursts
+	// (measured on a MacBook Pro). 10 ms, as WebRTC asks for; per process, other apps keep theirs.
+	for dev: u32.[in_dev, out_dev] {
+		a := AudioObjectPropertyAddress.{fourcc("fsiz"), fourcc("glob"), 0};
+		frames: u32 = SAMPLE_RATE / 100;
+		AudioObjectSetPropertyData(dev, *a, 0, null, 4, *frames);
+	}
+	AudioUnitInitialize(unit);
+	update_latency();
+	device_start();
+}
+
+// use_vpio swaps the output unit between VPIO (started) and DefaultOutput (started on demand).
+use_vpio :: (on: bool) -> bool {
+	unit := make_unit(ifx on then "vpio" else "def ", on);
+	if !unit return false;
+	device_stop();
+	AudioUnitUninitialize(mac.out_unit);
+	AudioComponentInstanceDispose(mac.out_unit);
+	mac.out_unit = unit;
+	mac.vpio = on;
+	update_latency();
+	return true;
+}
+
+device_rate :: (dev: AudioObjectID) -> float64 {
+	addr := AudioObjectPropertyAddress.{fourcc("nsrt"), fourcc("glob"), 0};
+	rate: float64;
+	sz: u32 = 8;
+	AudioObjectGetPropertyData(dev, *addr, 0, null, *sz, *rate);
+	return rate;
 }
 
 close_input_unit :: () {

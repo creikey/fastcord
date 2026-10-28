@@ -173,6 +173,7 @@ Conn :: struct {
     udp_started: bool;
     audio_started: bool;
     capture_on: bool;
+    mic_waits: int;             // ticks in a row without a whole mic frame (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
     input_db: float32 = -127;   // level of the last mic frame (after gain)
     vad_open: bool;
@@ -845,8 +846,7 @@ on_session_description :: (c: *Conn, d: etf.Value) {
     if !c.audio_started {
         c.audio_started = true;
         if !c.opts.no_audio_devices && !c.info.stream {
-            c.capture_on = audio.capture_start(true);
-            if c.capture_on audio.apply_device_selection();  // chosen devices + DSP switches
+            c.capture_on = audio.capture_start(true);  // with the chosen devices and DSP switches
         }
         c.next_rtcp_ms = now_ms() + 1000;
         c.audio_th = start_thread(c, audio_thread_proc);
@@ -1115,7 +1115,7 @@ audio_thread_proc :: (t: *Thread) -> s64 {
     next := current_time_monotonic();
     while !stopped(c) {
         next += milliseconds_to_apollo(20);
-        tx_tick(c, pcm);
+        for 1..mic_frames_due(c) tx_tick(c, pcm);
         rx_tick(c, out);
         if now_ms() >= c.next_rtcp_ms send_rtcp(c);
         reset_temporary_storage();
@@ -1146,13 +1146,28 @@ accurate_sleep_until :: (deadline: Apollo_Time) {
     while to_nanoseconds(deadline - current_time_monotonic()) > 0 {}
 }
 
+// mic_frames_due: frames to send this 20 ms tick. The mic runs on the device's clock, so only
+// whole frames go out (a short read padded with zeros cuts out mid-word); a tick without one
+// waits, which leaves a frame of cushion, and a backlog drains at two frames a tick.
+mic_frames_due :: (c: *Conn) -> int {
+    if c.opts.no_audio_devices || !c.capture_on return 1;
+    a := audio.capture_available();
+    if a < SAMPLES_PER_FRAME {
+        c.mic_waits += 1;
+        return xx (c.mic_waits > 5);  // device stopped: send padded frames, so speaking still ends
+    }
+    c.mic_waits = 0;
+    return ifx a >= 3 * SAMPLES_PER_FRAME then 2 else 1;
+}
+
 read_mic :: (c: *Conn, pcm: []float32) {
     n := 0;
     if c.opts.no_audio_devices {
         if c.opts.capture n = c.opts.capture(c.opts.callback_data, pcm);
     } else if c.capture_on {
-        // keep latency bounded: drop backlog beyond 3 frames
-        while audio.capture_available() > 4 * SAMPLES_PER_FRAME audio.capture_read(pcm);
+        // after a stall, drop the backlog beyond 3 frames to keep latency bounded
+        if audio.capture_available() > 10 * SAMPLES_PER_FRAME
+            while audio.capture_available() > 3 * SAMPLES_PER_FRAME audio.capture_read(pcm);
         n = audio.capture_read(pcm);
     }
     for n..pcm.count-1 pcm[it] = 0;
