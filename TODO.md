@@ -213,6 +213,7 @@
 - [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.
 - [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
+- [ ] Login: an account whose only second factor is a passkey or security key can log in only by QR code. `view_login.jai` drops WebAuthn as needing the browser, so it ends on "Unsupported". It doesn't need a webview: on Windows, `webauthn.dll`, which Chromium itself calls, takes the RP ID and `clientDataJSON` from the caller, and on Linux, libfido2 reaches USB keys. macOS reserves other sites' passkeys for apps with a browser entitlement, so there it stays QR.
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
 - [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
 - [ ] Server settings: none at all (overview, roles, emoji, stickers, AutoMod, audit log, bans, integrations, webhooks, invites).
