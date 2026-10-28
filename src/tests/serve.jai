@@ -25,6 +25,21 @@ main :: () {
 		if !ok { print("FAIL: %\n", what); `failed += 1; }
 	}
 
+	{
+		bomb := NewArray(1 << 20, u8,, temp);
+		for * bomb it.* = 106;
+		bomb[0] = 131;
+		p := 1;
+		for 1..128 {
+			n := bomb.count - p - 6;
+			bomb[p] = 108;
+			for i: 0..3 bomb[p + 1 + i] = cast(u8) (n >> (24 - 8 * i));
+			p += 5;
+		}
+		_, err := etf.decode(bomb,, temp);
+		check(err == .Too_Large, tprint("nested list headers claiming huge counts are refused before allocating: %", err));
+	}
+
 	delete_directory(DIR);
 	make_directory_if_it_does_not_exist(DIR, recursive = true);
 	path := tprint("%/server.db", DIR);

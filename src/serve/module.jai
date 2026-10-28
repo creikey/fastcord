@@ -1895,6 +1895,8 @@ gateway :: (c: *Conn, req: http.Request) {
 		msg.count = 0;
 		type, err := http.ws_recv(ws, *msg);
 		if err != .None || type != .Binary return;
+		// A compressed term would inflate up to 64 MiB from one small frame, and clients never send one.
+		if msg.count > 1 && msg[1] == xx etf.Tag.Compressed { http.ws_close(ws, 4002, "Error while decoding payload."); return; }
 		v, derr := etf.decode(msg,, temp);
 		if derr != .None || v.kind != .Map { http.ws_close(ws, 4002, "Error while decoding payload."); return; }
 		op, _ := etf.map_get(v.map, "op");

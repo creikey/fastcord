@@ -653,8 +653,11 @@ gateway_schedule_teardown :: (g: *Gateway, gen: int, code: int) {
 // gateway_handle_frame: inflate (zstd-stream), unpack, act. Returns false on a decode error.
 gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
 	g.inflated.count = 0;
-	if g.c.cfg.hosted.host array_add(*g.inflated, ..frame);
-	else if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None return false;
+	if g.c.cfg.hosted.host {
+		// A compressed term inflates up to 64 MiB from one small frame, and serve never sends one.
+		if frame.count > 1 && frame[1] == xx etf.Tag.Compressed return false;
+		array_add(*g.inflated, ..frame);
+	} else if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None return false;
 	if !g.inflated return true;
 	pool := New(Flat_Pool);
 	t0 := current_time_monotonic();
