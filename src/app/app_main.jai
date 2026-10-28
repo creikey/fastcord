@@ -207,7 +207,7 @@ main :: () {
 		if opt.live > 0 && opt.channel != "" app.start_guild, app.start_channel = dc.parse_snowflake(opt.guild), dc.parse_snowflake(opt.channel);
 		connect();
 	}
-	if !headless identity_start();
+	identity_start(keep = !headless);
 	if (app.client == null || dc.client_logged_out(app.client)) && opt.fixture == "" app.needs_login = true;
 
 	if headless && opt.sweep != "" exit(cast(s32) sweep_run(opt));

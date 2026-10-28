@@ -332,7 +332,12 @@ step_join :: () {
 			input := ui.editor_text(*asv.invite_ed);
 			if begins_with(trim(input), "fc://") {
 				ok, why := hosted_join(trim(input));
-				if ok add_server_step(.Closed); else set_err(why);
+				if ok {
+					add_server_step(.Closed);
+					ui.editor_set_text(*asv.invite_ed, "");
+				} else {
+					set_err(why);
+				}
 			} else if dc.invite_code_from_input(input) == "" {
 				set_err("Please enter a valid invite link or invite code.");
 			} else if net_action() {

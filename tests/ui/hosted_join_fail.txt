@@ -1,0 +1,20 @@
+# A self-hosted server that can't be joined is dropped, so the same invite can be tried again.
+wait 5
+click 36 157
+wait 20
+click_text "Join a Server"
+wait 20
+type fc://0000000000000000000000000000000000000000000000000000000000000000@127.0.0.1:1/00000000000000000000000000000000/code
+key enter
+settle 3
+expect_not_visible "Join a Server"
+click 36 157
+wait 20
+click_text "Join a Server"
+wait 20
+type fc://0000000000000000000000000000000000000000000000000000000000000000@127.0.0.1:1/00000000000000000000000000000000/code
+key enter
+wait 10
+expect_not_visible "You're already in that server."
+settle 2
+expect_visible "Couldn't join 127.0.0.1: Couldn't reach the server."

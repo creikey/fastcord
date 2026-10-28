@@ -6,11 +6,14 @@ Hosted_Server :: struct {
 	invite: string;    // The fc:// URL; inv points into it.
 	inv: serve.Invite;
 	name: string;      // The member name sent on the first join.
-	thread: *Thread;   // The login, running until done.
-	done: s32;         // atomic
-	token: string;     // Set by the login thread before done.
+	thread: *Thread;   // The login, running until it finishes.
+	token: string;     // Set by the login thread before it finishes, with status and error.
+	status: int;       // The server's HTTP answer; 0 if it couldn't be reached.
 	error: string;
 	client: *dc.Client;
+	joined: bool;      // A member already: restored from settings, or logged in once.
+	retry_at: float64; // When a failed login of a joined server is tried again; 0 when none is due.
+	backoff: float64;
 }
 
 hosted: [..]*Hosted_Server;
@@ -28,23 +31,44 @@ hosted_join :: (url: string) -> bool, string {
 	if app.discord && app.discord.store.ready me = dc.user_name(*app.discord.store, app.discord.store.me);
 	h.name = copy_string(ifx me then me else "fastcord user");
 	array_add(*hosted, h);
-	h.thread = dc.spawn(h, hosted_login);
+	hosted_start(h);
 	return true, "";
 }
 
 // hosted_frame finishes logins and keeps every connection that isn't app.client polled.
 hosted_frame :: () {
 	for h: hosted {
-		if h.thread && atomic_load(*h.done) {
-			locks.join(h.thread);
+		if h.thread && thread_is_done(h.thread) {
+			// Reaped without locks.join, which flags any join on the UI thread; this one can't wait.
+			thread_deinit(h.thread);
+			free(h.thread);
 			h.thread = null;
 			if h.token {
+				h.joined, h.backoff, h.retry_at = true, 0, 0;
 				cfg := dc.Config.{token = h.token, wakeup = (_: *void) { platform.request_frame(); }};
 				cfg.hosted = .{host = h.inv.host, port = h.inv.port, pin = h.inv.pin, server_id = h.inv.id_hex};
 				h.client = dc.client_create(cfg);
 				dc.client_start(h.client);
-			} else {
+			} else if !h.joined || h.status == 404 {
+				// A first join that fails, or a server that no longer knows us and whose invite is dead, is
+				// dropped, so settings.json doesn't keep it and a corrected invite can be pasted.
 				toast_show(tprint("Couldn't join %: %", h.inv.host, h.error), false);
+				hosted_free(h);
+				remove h;
+				continue;
+			} else {
+				// A server we're in that is down or refusing for now: try again later, saying so once.
+				if !h.backoff toast_show(tprint("Couldn't reach %: %. Retrying.", h.inv.host, h.error), false);
+				h.backoff = clamp(h.backoff * 2, 5, 300);
+				h.retry_at = platform.time_now() + h.backoff;
+			}
+		}
+		if h.retry_at && !h.thread {
+			if platform.time_now() >= h.retry_at {
+				h.retry_at = 0;
+				hosted_start(h);
+			} else {
+				request_wake(h.retry_at);
 			}
 		}
 		if h.client && h.client != app.client dc.client_poll(h.client);
@@ -56,9 +80,7 @@ hosted_frame :: () {
 				go_home();
 			}
 			client_release(h.client);
-			free(h.invite);
-			free(h.name);
-			free(h);
+			hosted_free(h);
 			remove h;
 		}
 	}
@@ -72,7 +94,7 @@ hosted_invites :: () -> []string {
 }
 
 hosted_restore :: (invites: []string) {
-	for invites hosted_join(it);
+	for invites if hosted_join(it) hosted[hosted.count - 1].joined = true;
 }
 
 // The client that owns guild gid, if a hosted one does.
@@ -83,14 +105,26 @@ hosted_client_of :: (gid: dc.Snowflake) -> *dc.Client {
 
 #scope_file
 
+hosted_free :: (h: *Hosted_Server) {
+	free(h.invite);
+	free(h.name);
+	free(h.error);
+	free(h);
+}
+
+hosted_start :: (h: *Hosted_Server) {
+	free(h.error);
+	h.error, h.status = "", 0;
+	h.thread = dc.spawn(h, hosted_login);
+}
+
 hosted_login :: (h: *Hosted_Server) {
 	while !atomic_load(*idk.done) sleep_milliseconds(50);
 	if idk.list.count {
-		token, _, message := serve.member_login(h.inv, idk.list[0], h.name);
-		h.token, h.error = token, copy_string(message);
+		token, status, message := serve.member_login(h.inv, idk.list[0], h.name);
+		h.token, h.status, h.error = token, status, copy_string(message);
 	} else {
-		h.error = "There is no identity key.";
+		h.error = copy_string("There is no identity key.");
 	}
-	atomic_swap(*h.done, 1);
 	platform.request_frame();
 }

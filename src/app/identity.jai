@@ -7,7 +7,17 @@ Identity_State :: struct {
 }
 idk: Identity_State;
 
-identity_start :: () {
+// Headless runs (keep false) never touch the keys on disk: they get a throwaway keypair, so hosted logins
+// in tests still work.
+identity_start :: (keep := true) {
+	if !keep {
+		dc.spawn(*idk, (s: *Identity_State) {
+			array_add(*s.list, keys.generate("Test"));
+			atomic_swap(*s.done, 1);
+			platform.request_frame();
+		});
+		return;
+	}
 	dc.spawn(*idk, (s: *Identity_State) {
 		dir := app_data_dir("keys");
 		s.list = keys.load(dir);
