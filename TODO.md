@@ -77,7 +77,6 @@
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
-- [ ] Links: a bare link to a channel or message shows the raw URL; the official client draws it as a mention-style chip ("#channel > message icon") naming the channel.
 - [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
 - [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
@@ -335,3 +334,4 @@
 - [x] Relationships: a relationship's `user_ignored` flag (Ignore, set from the official client) is parsed, and ignored users no longer ring or notify (`message_notifies`).
 - [x] Chat: a run of messages from a blocked or ignored user collapses into one "3 blocked messages — Show messages" row; Show reveals them for the session (`hidden_row` in `view_chat.jai`, `tests/ui/dm/blocked_messages.txt`).
 - [x] Replies: a reply to a hidden blocked or ignored user's message quotes "Blocked message" / "Ignored message" instead of its author and text (`reply_preview`, `tests/ui/dm/blocked_messages.txt`).
+- [x] Links: a bare link to a server channel fastcord has draws as a mention chip, "#channel" or "#channel › 💬" for a message, and clicking it jumps there (`tests/ui/forward/message_link.txt`).

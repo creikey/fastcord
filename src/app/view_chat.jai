@@ -204,6 +204,18 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message,
 			}
 		case .Link;
 			sp.color = T("--text-link");
+			ch, mid := message_link(tk.text);
+			if tk.url == "" && ch && ch.guild_id {
+				sp.text = ifx mid then tprint("#% › 💬", ch.name) else tprint("#%", ch.name);
+				sp.bg = T("--mention-background");
+				sp.color = T("--mention-foreground");
+				sp.bg_radius = 3;
+				sp.font = F(.Medium);
+				first := spans.count;
+				emoji_text_spans(spans, sp);
+				for k: first..spans.count - 1 { e := *(spans.*)[k]; e.bg = sp.bg; e.bg_radius = sp.bg_radius; }
+				continue;
+			}
 		case .User_Mention;
 			sp.text = tprint("@%", name_in(tk.id, ifx m then m.channel_id else 0, "unknown-user"));
 			sp.bg = T("--mention-background");
