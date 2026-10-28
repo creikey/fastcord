@@ -146,14 +146,13 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 is_spoiler :: (a: *dc.Attachment) -> bool { return begins_with(a.filename, "SPOILER_") || (a.flags & 8) != 0; }
 
-// A spoilered image or video: its dominant colour (the image still loads, as in the client) under a
-// "SPOILER" pill until clicked. True when clicked.
+// A spoilered image or video: the image blurred under a "SPOILER" pill until clicked. True when clicked.
 spoiler_cover :: (id: string, url: string, w: float32, h: float32) -> bool {
-	im := image_get(url);
 	b := ui.box(id, .Draw_Background | .Clickable);
 	b.semantic_size = .[ui.px(w), ui.px(h)];
 	b.style.radius = all4(8);
-	b.style.bg = ifx im && im.state == .Ready && im.dominant.w > 0 then im.dominant else T("--background-mod-strong");
+	b.style.bg = T("--background-mod-strong");
+	set_remote_image(b, url, blur = true);
 	b.hover_cursor = .Pointer;
 	sig := ui.signal(b);
 	ui.parent(b); defer ui.pop_parent();

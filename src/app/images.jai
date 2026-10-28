@@ -13,6 +13,9 @@ Remote_Image :: struct {
 	total_ms: int;
 	last_use: u64;
 	dominant: ui.Color; // most common opaque color of the first frame (profile banner fallback)
+	blur: []u8; // the first frame shrunk to 12px, premultiplied: drawn stretched it is a blur (spoilers)
+	blur_size: Int2;
+	blur_tex: gfx.Texture; // made from blur on first use
 }
 
 // url -> image. Requests go through the discord library so they look like the
@@ -74,12 +77,14 @@ image_texture :: (im: *Remote_Image) -> gfx.Texture {
 
 // Draw a remote image filling the box (rounded like the box). Background shows while loading.
 // cover crops the image to the box's shape instead of stretching it.
-set_remote_image :: (b: *ui.Box, url: string, cover := false) {
+// blur draws a 12px copy stretched (spoilers).
+set_remote_image :: (b: *ui.Box, url: string, cover := false, blur := false) {
 	if url == "" return;
 	image_get(url);
 	d := New(Image_Draw,, temp);
 	d.url = url;
 	d.cover = cover;
+	d.blur = blur;
 	b.custom_draw = image_draw;
 	b.custom_user = d;
 }
@@ -261,6 +266,8 @@ Decoded :: struct {
 	frames: [][]u8; // premultiplied RGBA, heap
 	durations: []int;
 	dominant: ui.Color;
+	blur: []u8;
+	blur_size: Int2;
 	tex: []gfx.Texture; // uploaded so far (UI thread)
 	next: int;
 }
@@ -334,6 +341,7 @@ decode_run :: (j: Decode_Job) -> Decoded {
 				d.durations[it_index] = it.duration_ms;
 			}
 			array_free(img.frames);
+			d.blur, d.blur_size.x, d.blur_size.y = downscale(d.frames[0], d.size.x, d.size.y, 12);
 		}
 	case .Lottie_Load;
 		d.anim = lottie.load(data);
@@ -387,6 +395,7 @@ decode_free :: (d: *Decoded) {
 	array_free(d.frames);
 	array_free(d.durations);
 	array_free(d.tex);
+	array_free(d.blur);
 	free(d.url);
 }
 
@@ -426,6 +435,10 @@ decode_upload :: () {
 			}
 			// the first frame shows as soon as it is in; the animation starts once every frame is
 			im.state, im.tex, im.size, im.dominant = Image_State.Ready, d.tex[0], d.size, d.dominant;
+			if d.blur {
+				im.blur, im.blur_size = d.blur, d.blur_size;
+				d.blur = .[];
+			}
 			if d.next < d.frames.count break;
 			if d.tex.count > 1 {
 				im.frames, im.durations = d.tex, d.durations;
@@ -441,12 +454,17 @@ decode_upload :: () {
 Image_Draw :: struct {
 	url: string;
 	cover: bool;
+	blur: bool;
 }
 
 image_draw :: (b: *ui.Box, user: *void) {
 	d := cast(*Image_Draw)(user);
 	im := image_get(d.url);
 	tex := image_texture(im);
+	if d.blur && tex {
+		if !im.blur_tex && im.blur im.blur_tex = gfx.texture_create(im.blur_size.x, im.blur_size.y, .RGBA8, im.blur, premultiplied_alpha = true);
+		tex = im.blur_tex;
+	}
 	if tex == 0 return;
 	if im.frames.count > 1 app.ui.animating = true;
 	white := gfx.Color.{1, 1, 1, b.opacity};
