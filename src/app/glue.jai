@@ -59,11 +59,13 @@ fonts_load :: () {
 
 ui_shape :: (font: ui.Font, size: float32, text: string) -> ui.Shaped_Run {
 	face := fonts[cast(Font_Id)(font)];
-	run := gfx.shape(face, size, text);
+	// The frame arena, not temp: last frame's layouts are hit-tested while the next frame is declared.
+	alloc := app.ui.frame_alloc;
+	run := gfx.shape(face, size, text, alloc);
 	m := gfx.font_metrics(face, size);
-	glyphs := NewArray(run.glyphs.count, ui.Shaped_Glyph,, temp);
+	glyphs := NewArray(run.glyphs.count, ui.Shaped_Glyph,, alloc);
 	for run.glyphs glyphs[it_index] = .{x = it.pos.x, advance = it.advance, cluster_start = it.cluster_start, cluster_end = it.cluster_end, handle = cast(u64) it_index};
-	rp := New(gfx.Shaped_Run,, temp);
+	rp := New(gfx.Shaped_Run,, alloc);
 	rp.* = run;
 	return ui.Shaped_Run.{glyphs = glyphs, width = run.width, ascent = m.ascent, descent = m.descent, line_h = m.line_height, handle = rp};
 }

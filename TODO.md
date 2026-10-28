@@ -1,6 +1,5 @@
 # TODO
 
-- [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
 - [ ] Windows: with an auto-hiding taskbar, a maximized fastcord may keep it from sliding up, since the frameless window covers the whole monitor (`WM_NCCALCSIZE` in `platform_windows.jai`). Leave a pixel free on the taskbar's edge while maximized (`SHAppBarMessage` `ABM_GETSTATE` / `ABM_GETAUTOHIDEBAREX`), as Windows Terminal does.
 - [ ] E2E 1 (first goal: an encrypted DM between two fastcord users): vendor the SQLite amalgamation (`vendor/sqlite`, FTS5 on, WAL, `synchronous=FULL`) and BLAKE3's C code (`vendor/blake3`) with `fc_<lib>.c` wrappers. Add the client database `<state>/fastcord.db` on its own thread; the UI never waits on it. On first run, generate the identity: an X25519 identity key, an SLH-DSA-SHA2-128s key and an offline SLH-DSA recovery key. The identity is the BLAKE3 Merkle root over those three plus a zero leaf. Freeze this format now, so later steps never change anyone's identity. Use none of Discord's encryption (DAVE, `src/voice_mls`) anywhere in E2E.
 - [ ] E2E 2: `fc-` packets in DMs. A packet is `fc-` plus unpadded base64url, at most 1497 bytes (1996 characters), so it fits one 2000-character message. Byte 0 is a version, byte 1 a type (Hello, Init, Msg). Treat Discord like UDP with an attacker on the path: packets can be lost, reordered, duplicated, replayed or forged, so every packet is authenticated and safe to receive twice. The message list shows `fc-` messages instead of their raw text: Hello as "X wants to encrypt this DM" with an Accept button, and anything it can't decrypt as "Encrypted message". A lock toggle in the DM header turns encryption on. Never send Hello unless the user asks.
@@ -34,7 +33,6 @@
 - [ ] Security: array bounds and null checks are off in the shipped `app` and `dev` builds. Jai's `set_optimization` turns them off for anything but debug (`build.jai`), so every out-of-bounds bug below is silent memory corruption, not a crash. The style guide says never drop checks globally: turn them on for `app` and `dev`, and add `#no_abc` only on loops the bench shows are hot.
 - [ ] Check: voice may reconnect without limit after close codes like 4006, 4011 or 4015 (`view_voice.jai` retries with nothing bounding it).
 - [ ] Scrolling (fastcord-only): a "Smooth scrolling" checkbox in Appearance. When off, wheel and keyboard scrolling jump straight to the target instead of easing (`ui.animate(*cs.scroll_from_bottom, ...)` in `view_chat.jai`, `view_off_target` in `ui/core.jai`). Reduced motion should imply it.
-- [ ] Voice: while deafened the mic button shows unmuted, and clicking it only flips `self_mute` instead of undeafening (`views.jai`).
 - [ ] Bug: an image, emoji, video, audio clip or sound that fails to load once (offline, sleep, 429, 5xx) stays broken until restart. `.Failed` is permanent in `images.jai`, `view_media.jai`, `emoji.jai` and `sounds.jai`, with no retry in `discord/media.jai`.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
 - [ ] Accounts: support full account switching; today it assumes a single token.
@@ -51,10 +49,9 @@
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Reuse that menu so Shift-clicking Delete Message skips the confirm prompt there too, as it already does in chat. Pins likely have the same gap.
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
-- [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
-- [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
+- [ ] Search: results are always newest first, with no Newest / Oldest / Most Relevant switch, and the `before:`, `after:` and `during:` date filters are missing (`search_messages` in `discord/features.jai` hardcodes `sort_by=timestamp`, `sort_order=desc`).
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
 - [ ] DMs: rows in the Home DM list show only bold for unread, not the red count the official client shows (`view_home.jai`).
@@ -81,9 +78,8 @@
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
 - [ ] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes aren't rendered; the quote body only gets inline parsing.
-- [ ] Scrolling: Page Up / Page Down don't scroll the message list.
 - [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
-- [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
+- [ ] Media: Save Image gives no feedback: the file lands in Downloads silently, and a failed fetch or write says nothing (`images.jai` `save_download`). The desktop client asks where to save with the system Save dialog.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
@@ -193,7 +189,7 @@
 - [ ] macOS, Linux: the profiler's sampling timer is a stub, and the hang watchdog writes only a hint, not the other threads' stacks.
 - [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
 - [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
-- [ ] Search: clicking the search bar again while results are open crashes.
+- [ ] Search: the suggestions popout has no search history; the client lists your recent searches under "History" with a clear button (`view_search.jai` keeps none).
 - [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
 - [ ] Links: right-clicking a link gives no Copy Link / Open Link menu, and outside links open with no "Leaving Discord" warning.
 - [ ] Channels: no drag to reorder channels and categories.
@@ -244,7 +240,8 @@
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
 - [ ] Composer: no character counter near the 2000/4000 limit, and over-long sends aren't blocked.
-- [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
+- [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), and watching more than one stream.
+- [ ] Go Live: no stream settings. Resolution and frame rate are fixed (`SCREEN_FPS` 30, `SCREEN_MAX_H` 1080 in `src/app/video_call.jai`). Add the official picker's resolution (720p, 1080p, source) and frame rate (15, 30, 60). Also add a stream-audio mute toggle, once soundshare exists, and let the streamer change these settings mid-stream.
 - [ ] Notifications: a channel's own notification level (All / Only @mentions / Nothing) is ignored for sounds and notifications; only the server level is read (`sounds.jai`). The channel, category, server chain already exists in `analytics_events.jai`.
 - [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
 - [ ] GIFs (fastcord-only): search Tenor as well as Klipy and merge the results. Discord's `/gifs/search` now returns Klipy only (`expressions.jai` `gifs_search` sends no provider). Either query Tenor's own API directly (needs an API key; check it's still offered), or add `provider=tenor` to Discord's endpoint if it still honours it. That second route makes fastcord's traffic differ from the official client's, so prefer the direct one. Sent Tenor links already embed fine.
@@ -300,4 +297,15 @@
 - [x] Windows: fastcord draws its own window frame. No system title bar or border: fastcord's title bar is the real one (drag, double-click to maximize, right-click system menu, snap layouts on the maximize button), with minimize, maximize and close buttons, and resize edges 2px wide (a little thicker than Windows 11's 1px), scaled with DPI.
 - [x] Voice: a speaking user's name turns white in the sidebar; occupants show mute and deafen icons (red when server-imposed).
 - [x] Voice: optional RNNoise noise suppression on the mic (Voice & Video toggle, saved), on every platform and independent of the OS DSP (`vendor/rnnoise`, `tx_tick`).
+- [x] Act on press: buttons, rows, tabs and menu items fire on mouse-down, and that press's release goes nowhere else. `.Click_On_Release` keeps release for resize handles, folder icons (drag reorder) and destructive menu items and confirm buttons.
+- [x] Voice: while deafened the mic button (sidebar panel and call view) shows muted, and clicking it undeafens and unmutes.
+- [x] Replies: the quoted preview keeps the author name at full width and cuts the original's text with an ellipsis after it, instead of drawing a long URL over the name.
+- [x] Tray (Windows): the tray menu has Mute and Deafen, checked while on, so you can mute while the window is hidden.
+- [x] Voice: long names of sidebar voice occupants are cut with "…" so their mute, deafen, video and LIVE icons stay visible.
+- [x] Search: result highlights skip hidden `||spoilers||` (search and pins), so a match no longer reveals one.
+- [x] Search: the results panel's close button shows (it asked for a nonexistent "x" icon).
+- [x] Search: clicking the search bar again while results are open no longer crashes. Shaped glyphs now live in the UI frame arena, not temp, since last frame's layouts are hit-tested on a press (`tests/ui/search_reclick.txt`).
+- [x] Build: `- dev` builds in about 19 s, not 87 s. LLVM splits the program into modules and compiles them in parallel, and unused procedures are dropped; bench latency is unchanged (`build.jai` `compile`).
+- [x] Scrolling: Page Up / Page Down scroll the message list by 87.5% of the view, even from the composer (`tests/ui/page_scroll.txt`).
+- [x] Media: Save Image on Windows saves to the Downloads known folder (`SHGetKnownFolderPath`), not `$HOME/Downloads`, since HOME is normally unset there.
 - [x] Voice (macOS): AGC alone no longer starts VPIO, whose echo canceller zeroed the mic for ~10 s while others talked (seen live: the send rate fell to 0); plain capture gets a software AGC, reopens when another app changes the mic's sample rate, and `FASTCORD_VOICE_DEBUG=1` traces the send side every 2 s.

@@ -53,6 +53,7 @@ Box_Flag :: enum_flags u32 {
 	Disabled;
 	Keyboard_Clickable;
 	Pinned; // floating box that stays put while its parent scrolls (scrollbars)
+	Click_On_Release; // clicked on mouse-up over it, not on press: drag sources, resize handles, destructive actions
 }
 Box_Flags :: Box_Flag;
 
@@ -221,8 +222,8 @@ Signal :: struct {
 	box: *Box;
 	hovering: bool; // mouse is over this box and nothing above it
 	pressed: bool; // mouse went down on it this frame
-	released: bool;
-	clicked: bool; // down and up on it
+	released: bool; // only with .Click_On_Release
+	clicked: bool; // pressed, or with .Click_On_Release down and up on it
 	double_clicked: bool;
 	right_clicked: bool;
 	dragging: bool; // is the active box
@@ -312,6 +313,7 @@ State :: struct {
 	mouse_prev: Vec2;
 	mouse_down: [3]bool; // per Mouse_Button
 	press_pos: Vec2;
+	swallow_up: bool; // a press already clicked; its release goes to nothing else
 	events: [..]Input_Event;
 	hot: Key; // the topmost hovered clickable box, decided at end of previous frame
 	active: Key; // box that received mouse down
@@ -379,9 +381,16 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event) {
 				s.mouse = e.pos;
 				s.mouse_down[e.button] = true;
 				s.press_pos = e.pos;
+				if e.button == .Left s.swallow_up = false;
 			case .Mouse_Up;
 				s.mouse = e.pos;
 				s.mouse_down[e.button] = false;
+				// The pressed box may be gone (a menu item closed its menu), so its release
+				// would otherwise land on whatever is now under the mouse.
+				if e.button == .Left && s.swallow_up {
+					s.events[s.events.count - 1].consumed = true;
+					s.swallow_up = false;
+				}
 		}
 	}
 	// The hot box is whatever was topmost under the mouse in last frame's
@@ -619,6 +628,10 @@ signal :: (b: *Box) -> Signal {
 						if e.button == .Left {
 							s.active = b.key;
 							sig.pressed = true;
+							if (b.flags & .Click_On_Release) == 0 {
+								sig.clicked = true;
+								s.swallow_up = true;
+							}
 							if e.click_count == 2 sig.double_clicked = true;
 							if b.flags & .Focusable s.focus = b.key;
 						} else if e.button == .Right {
@@ -629,7 +642,8 @@ signal :: (b: *Box) -> Signal {
 				case .Mouse_Up;
 					if e.button == .Left && s.active == b.key {
 						sig.released = true;
-						if contains(visible_rect(b), e.pos) sig.clicked = true;
+						if (b.flags & .Click_On_Release) && contains(visible_rect(b), e.pos) sig.clicked = true;
+						s.swallow_up = false;
 						s.active = 0;
 						e.consumed = true;
 					}
@@ -927,6 +941,8 @@ box_make_key :: (k: Key, flags: Box_Flags) -> *Box {
 	s.stats.keyed_boxes += 1;
 	b.first, b.last, b.next, b.prev, b.parent = null, null, null, null, null;
 	b.child_count = 0;
+	// A box skipped for a frame or more holds a layout from a frame arena that has since been reset.
+	if b.last_frame_touched + 1 != s.frame b.text_layout = null;
 	b.last_frame_touched = s.frame;
 	b.flags = flags;
 	b.text = "";

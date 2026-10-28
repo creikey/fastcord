@@ -1,0 +1,8 @@
+# Page Up scrolls the message list up by most of a screen, Page Down back to the newest message.
+wait 5
+key pageup
+wait 30
+expect_visible "Welcome to #dingus-battle!"
+key pagedown
+wait 30
+expect_visible "👍"

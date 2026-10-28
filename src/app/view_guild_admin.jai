@@ -226,9 +226,11 @@ adm_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> b
 		b.style.bg = T("--status-danger");
 		b.style.bg_hot = T("--control-critical-primary-background-hover");
 		b.style.text_color = .{1, 1, 1, 1};
+		b.flags |= .Click_On_Release;
 	case .Link_Danger;
 		b.style.bg_hot = T("--background-mod-subtle");
 		b.style.text_color = T("--text-feedback-critical");
+		b.flags |= .Click_On_Release;
 	}
 	if !enabled {
 		b.flags |= .Disabled;

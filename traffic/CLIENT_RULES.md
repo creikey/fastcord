@@ -124,6 +124,7 @@ DAVE active.
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
 | Camera on/off: op 4 with `self_video` set, otherwise unchanged (mute / deafen toggles keep it) | guess | `VoiceStateStore`, `selfVideo` | `dc.voice_set_state`, `video_call.jai` `send_voice_state` |
+| While deafened the mic button shows muted; clicking it undeafens and unmutes (undeafening alone restores the mute from before) | guess | `toggleSelfMute` | `views.jai` `toggle_self_mute` |
 | Voice op 12 VIDEO when our video starts / stops: `audio_ssrc`, `video_ssrc`, `rtx_ssrc` (0 when off), one `streams` entry `{type:"video", rid:"100", ssrc, active, quality:100, rtx_ssrc, max_bitrate, max_framerate, max_resolution:{type:"fixed",width,height}}`; SSRCs from READY `streams[0]` | guess (open-source Go Live streamers) | `VIDEO` opcode in the RTC connection | `voice.msg_video`, `voice.set_video` |
 | Server op 12 maps `user_id` to `video_ssrc` / each active `streams[].ssrc`; inactive or 0 = stopped | guess | same | `conn.jai` `on_remote_video` |
 | Voice op 15 MEDIA_SINK_WANTS `{"any":100}` after SESSION_DESCRIPTION (all video at full quality) | guess | `MEDIA_SINK_WANTS` | `conn.jai` `MSG_MEDIA_SINK_WANTS_ANY` |
@@ -138,7 +139,7 @@ DAVE active.
 | Windows advertises H265 (PT 103) with `encode:false` (it only encodes H.264), so the SFU picks H264 when fastcord on Windows sends; decoding H265 stays on when an HEVC decoder MFT exists | guess | `CODECS_JSON` | `voice/gateway.jai` `CODECS_JSON` |
 | Windows H.264: Constrained Baseline (else Baseline), CBR, GOP 2 s, no B-frames, low latency; screen colour BT.709 limited range from 720 p up, BT.601 below (as on macOS) | guess | — | `video/encode_windows.jai`, `video/capture_windows.jai` `screen_session` |
 | Clicking a voice channel joins it and opens its call view (no separate channel select) | inferred | — | `views.jai` `join_voice` |
-| Sidebar voice occupant: name `--interactive-text-active` while speaking, else `--channels-default`; mic-slash when muted, headphones-slash when deafened (both when deafened, as deafen implies mute), red when server-imposed | guess | `voiceUser` | `views.jai` `channel_row` |
+| Sidebar voice occupant: name `--interactive-text-active` while speaking, else `--channels-default`; mic-slash when muted, headphones-slash when deafened (both when deafened, as deafen implies mute), red when server-imposed; the name is cut with "…" so the icons always fit | guess | `voiceUser` | `views.jai` `channel_row` |
 | Call view: black, 16:9 tiles with 8 px gaps in the grid that makes them largest, last row centered; avatar on the banner / accent / dominant color, green 2 px border while speaking; streams first with a LIVE badge and "Watch Stream"; click focuses a tile | inferred (screenshot) | — | `view_call.jai` |
 
 ## HTTP, retries, rate limits
@@ -299,7 +300,7 @@ module were read.
 
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
-| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open and Quit (the client's also has Mute, Deafen, voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
+| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open, Mute and Deafen (checked while on; Mute shows checked while deafened) and Quit (the client's also has voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
 
 ## Login and logout
 
@@ -359,6 +360,7 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 |---|---|---|---|
 | Scrollbars are the scroller CSS's webkit ones (Electron has `::-webkit-scrollbar`): `.thin` 8px, thumb inset 2px (border, `background-clip:padding-box`), radius 4px, `--scrollbar-thin-thumb`; `.auto` 16px, track and thumb inset 4px, radius 8px, `--scrollbar-auto-track` / `--scrollbar-auto-thumb`; thumb `min-height:40px`; `.fade` hides thumb and track until the scroller is hovered | code | CSS `.scrollerBase_`, `.thin_`, `.auto_`, `.fade_` | `src/ui/core.jai` `scrollbar` |
 | Thumb length `view * view / content` (min 40); pressing the track pages 87.5% of the view, repeating after 250 ms then every 50 ms until the thumb reaches the pointer | code (Chromium source) | `ScrollableArea::PageStep` `kMinFractionToStepWhenPaging`, `ScrollbarTheme` autoscroll delays | same |
+| Page Up / Page Down scroll the message list by the same 87.5% page from anywhere in the channel, the composer included (not while a modal or the picker is open) | guess | `ScrollableArea::PageStep` | `view_chat.jai` `message_list` |
 | Which scrollers are `.auto` (chat, settings content) and which `.thin` + fade (everything else); the guild rail shows none | guess | — | `view_chat.jai`, `view_settings_prefs.jai`, `view_misc.jai`, `view_voice_settings.jai`, `view_rail_folders.jai` |
 | Member list column: 1px `--border-subtle` left border (`border-inline-start`) before the 264px list (`--custom-member-list-width`); search results: 1px `--app-frame-border` left border only | code | CSS `.container_` with `.membersWrap_`; `.searchResultsWrap_` | `view_home.jai` `members_column`, `view_search.jai` |
 | Channel sidebar drag-resize: width is `--custom-guild-sidebar-width` (guild rail included, default 375), clamped 264..432, 4px handle at its right edge (`ew-resize`, `--background-mod-strong` on hover/drag); saved to localStorage `resizable-sidebar-width-2` and `channel_sidebar_resized {width}` tracked when the drag ends | code | `minDimension:264,maxDimension:432`, `CHANNEL_SIDEBAR_RESIZED`, `.sidebarResizeHandle_` | `views.jai` `resize_handle`, `settings_store.jai` `sidebar_width`, `dc.track_channel_sidebar_resized` |

@@ -685,6 +685,15 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 			e.consumed = true;
 		}
 	}
+	// Page Up / Page Down scroll the list from anywhere in the channel, the composer included
+	if !modal_open() && !picker_is_open() {
+		for * e: app.ui.events {
+			if e.kind != .Key_Down || e.consumed || e.mods != 0 || (e.key != .Page_Up && e.key != .Page_Down) continue;
+			page := view_h * 0.875; // Chromium's page step
+			cs.scroll_target += ifx e.key == .Page_Up then page else -page;
+			e.consumed = true;
+		}
+	}
 
 	// dragging a text selection past the list edges scrolls, faster the further out
 	if app.ui.selection.dragging && list.rect.y1 > list.rect.y0 {

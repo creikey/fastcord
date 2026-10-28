@@ -56,7 +56,7 @@ view_init :: (v: *View_State) {
 // .sidebarResizeHandle: 4px wide, ew-resize, --background-mod-strong while hovered or dragged).
 // Dragging sets width (clamped, whole points); returns true when the drag ends.
 resize_handle :: (id: string, x: float32, width: *float32, lo: float32, hi: float32, grows_left := false) -> bool {
-	b := ui.box(id, .Clickable | .Floating_X | .Floating_Y | .Draw_Background | .Hot_Animation | .Active_Animation);
+	b := ui.box(id, .Clickable | .Click_On_Release | .Floating_X | .Floating_Y | .Draw_Background | .Hot_Animation | .Active_Animation);
 	b.semantic_size = .[ui.px(4), ui.pct(1)];
 	b.fixed_pos = .{x, 0};
 	b.hover_cursor = .Resize_H;
@@ -874,7 +874,14 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					voice_avatar("av", uid, 24, T("--background-base-lower"));
 					spacer(.X, 8);
 					name_color := ifx voice_is_speaking(uid) then T("--interactive-text-active") else T("--channels-default");
-					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, name_color, 18);
+					// Room for the icons after the name; the name is cut with "…" to fit, like the official client.
+					icons_w: float32 = 16;
+					if vs.self_video icons_w += 20;
+					if vs.mute || vs.self_mute icons_w += 20;
+					if vs.deaf || vs.self_deaf icons_w += 20;
+					if vs.self_stream icons_w += 12 + ui.layout_text(F(.Bold), 11, "LIVE", -1).width;
+					name := ellipsize(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, app.view.sidebar_w - 76 - 8 - icons_w);
+					label(tprint("%##name", name), .Medium, 14, name_color, 18);
 					filler(.X);
 					if vs.self_video { icon("cam", "video", 16, T("--channels-default")); spacer(.X, 4); }
 					// Server mute and deafen are drawn red, like the official client.
@@ -963,7 +970,7 @@ user_panel :: () {
 				b.cross_align = .Center;
 				sig := ui.signal(b);
 				ic := name;
-				muted := (name == "microphone" && app.self_mute) || (name == "headphones" && app.self_deaf);
+				muted := (name == "microphone" && (app.self_mute || app.self_deaf)) || (name == "headphones" && app.self_deaf);
 				if muted { ic = tprint("%-slash", name); }
 				{ ui.parent(b); defer ui.pop_parent();
 					spacer(.X, 6);
@@ -991,7 +998,7 @@ user_panel :: () {
 				if sig.clicked {
 					if name == {
 					case "microphone";
-						app.self_mute = !app.self_mute;
+						toggle_self_mute();
 					case "headphones";
 						app.self_deaf = !app.self_deaf;
 					case "settings";
@@ -1002,6 +1009,16 @@ user_panel :: () {
 			}
 			spacer(.X, 13);
 		}
+	}
+}
+
+// Deafened implies muted: the mic shows muted, and clicking it undeafens and unmutes, as in the client.
+toggle_self_mute :: () {
+	if app.self_deaf {
+		app.self_deaf = false;
+		app.self_mute = false;
+	} else {
+		app.self_mute = !app.self_mute;
 	}
 }
 

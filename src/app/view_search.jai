@@ -310,7 +310,7 @@ search_panel :: () {
 			x := ui.box("close", .Clickable);
 			x.semantic_size = .[ui.px(24), ui.px(24)];
 			if ui.signal(x).clicked { search.active = false; }
-			set_icon(x, "x", T("--interactive-icon-default"));
+			set_icon(x, "x-large", T("--interactive-icon-default"));
 			spacer(.X, 12);
 		}
 		list := ui.box("list", .Scroll_Y | .Clip);

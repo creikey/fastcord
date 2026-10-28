@@ -148,6 +148,7 @@ menu_item :: (id: string, text: string, right: Item_Right = .None, icon_name := 
 		spacer(.X, 8);
 		flags := ui.Box_Flags.Clickable | .Draw_Background | .Hot_Animation;
 		if disabled flags |= .Disabled;
+		if danger flags |= .Click_On_Release;
 		r := row("it", flags);
 		r.semantic_size = .[ui.fill(), ui.px(ifx sub != "" then 44 else h)];
 		r.style.radius = all4(4);
@@ -793,7 +794,7 @@ leave_modal :: () {
 			cancel.style.bg = T("--background-mod-normal");
 			cancel.style.bg_hot = T("--background-mod-strong");
 			if ui.signal(cancel).clicked gm.leave_guild = 0;
-			ok := ui.box("Leave Server##l", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			ok := ui.box("Leave Server##l", .Clickable | .Click_On_Release | .Draw_Background | .Draw_Text | .Hot_Animation);
 			ok.semantic_size = .[ui.fill(), ui.px(40)];
 			ok.style.radius = all4(8);
 			ok.style.font = F(.Medium);

@@ -58,6 +58,15 @@ open_url :: (url: string) {
     ShellExecuteW(null, wide("open"), wide(url), null, null, win.SW_SHOWNORMAL);
 }
 
+// The user's Downloads folder (wherever they moved it), "" if Windows has none.
+downloads_dir :: (allocator := temp) -> string {
+    FOLDERID_Downloads := win.GUID.{0x374DE290, 0x123F, 0x4565, .[0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B]};
+    p: *u16;
+    if SHGetKnownFolderPath(*FOLDERID_Downloads, 0, null, *p) < 0 return "";
+    defer CoTaskMemFree(p);
+    return utf16_to_utf8(p, -1, allocator);
+}
+
 // The window has no system title bar or border (WM_NCCALCSIZE gives it all to the content). The app draws
 // its own title bar and says what Windows should do at a point (content coordinates): Caption drags the
 // window, double-click maximizes and right-click opens the system menu; Maximize shows the snap layouts.
@@ -290,6 +299,8 @@ ImmGetCompositionStringW :: (himc: *void, index: u32, buf: *void, len: u32) -> s
 ImmSetCompositionWindow :: (himc: *void, form: *COMPOSITIONFORM) -> s32 #foreign imm32;
 CoInitializeEx :: (reserved: *void, coinit: u32) -> win.HRESULT #foreign ole32;
 CoUninitialize :: () #foreign ole32;
+CoTaskMemFree :: (p: *void) #foreign ole32;
+SHGetKnownFolderPath :: (id: *win.GUID, flags: u32, token: *void, path: **u16) -> win.HRESULT #foreign shell32;
 CoCreateInstance :: (clsid: *win.GUID, outer: *void, ctx: u32, iid: *win.GUID, out: **void) -> win.HRESULT #foreign ole32;
 OleInitialize :: (reserved: *void) -> win.HRESULT #foreign ole32;
 RegisterDragDrop :: (hwnd: win.HWND, target: *void) -> win.HRESULT #foreign ole32;
@@ -351,6 +362,7 @@ ICON_SMALL :: 0;
 ICON_BIG :: 1;
 IMAGE_ICON :: 1;
 MF_SEPARATOR :: 0x800;
+MF_CHECKED :: 0x8;
 TPM_RIGHTBUTTON :: 0x0002;
 TPM_NONOTIFY :: 0x0080;
 TPM_RETURNCMD :: 0x0100;
@@ -485,6 +497,8 @@ icon_hook :: (code: s32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRESULT #c_call 
 
 TRAY_OPEN :: 1;
 TRAY_QUIT :: 2;
+TRAY_MUTE :: 3;
+TRAY_DEAF :: 4;
 
 tray_notify :: (op: u32) -> bool {
     nid := NOTIFYICONDATAW.{cbSize = size_of(NOTIFYICONDATAW), hWnd = w.hwnd, uID = 1, uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP, uCallbackMessage = WM_FC_TRAY};
@@ -506,6 +520,9 @@ tray_menu :: () {
     m := CreatePopupMenu();
     AppendMenuW(m, 0, TRAY_OPEN, wide("Open Fastcord"));
     AppendMenuW(m, MF_SEPARATOR, 0, null);
+    AppendMenuW(m, xx ifx s.tray_mute then MF_CHECKED else 0, TRAY_MUTE, wide("Mute"));
+    AppendMenuW(m, xx ifx s.tray_deaf then MF_CHECKED else 0, TRAY_DEAF, wide("Deafen"));
+    AppendMenuW(m, MF_SEPARATOR, 0, null);
     AppendMenuW(m, 0, TRAY_QUIT, wide("Quit Fastcord"));
     p: win.POINT;
     win.GetCursorPos(*p);
@@ -516,6 +533,8 @@ tray_menu :: () {
     PostMessageW(w.hwnd, win.WM_NULL, 0, 0);
     DestroyMenu(m);
     if cmd == TRAY_OPEN window_show();
+    if cmd == TRAY_MUTE push_event(.{kind = .Tray_Mute, time = time_now()});
+    if cmd == TRAY_DEAF push_event(.{kind = .Tray_Deafen, time = time_now()});
     if cmd == TRAY_QUIT {
         s.quit = true;
         push_event(.{kind = .Quit, time = time_now()});

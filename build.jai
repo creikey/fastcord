@@ -114,8 +114,11 @@ compile :: (name: string, source := "", optimization := Optimization_Type.DEBUG,
     o.output_path = "build";
     o.cpu_target = cpu;
     set_optimization(*o, optimization);   // first: it resets the checks below
-    // type-check every procedure, not only the ones called; shipping builds drop the dead ones
-    if optimization != .VERY_OPTIMIZED o.dead_code_elimination = .NONE;
+    // set_optimization turns split modules off for inlining, leaving LLVM one thread: dev builds 87 s -> 19 s,
+    // bench latency unchanged, UI pass ~25% slower than unsplit
+    if optimization == .OPTIMIZED o.llvm_options.enable_split_modules = true;
+    // `- module` and debug type-check every procedure, not only the ones called; dev and shipping drop the dead ones
+    if optimization == .DEBUG o.dead_code_elimination = .NONE;
     o.cast_bounds_check = .OFF;      // integer casts truncate, as the wire encoders expect
     set_build_options(o, w);
     // a release exe opens no console window (Windows only; dev builds keep printing to it)

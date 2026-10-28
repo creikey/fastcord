@@ -1,0 +1,13 @@
+# Regression: clicking the search box again while results were open crashed. The field hit-tested
+# last frame's text layout, whose shaped glyphs lived in temp and were already freed.
+wait 5
+click 1150 57
+wait 3
+type spoiler
+key enter
+wait 20
+click 1100 57
+wait 5
+click 1100 57
+wait 5
+expect_input "spoiler"

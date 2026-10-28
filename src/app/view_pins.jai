@@ -171,13 +171,14 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 }
 
 // Splits text spans so every case-insensitive occurrence of a term gets the
-// keyword highlight background.
+// keyword highlight background. Hidden spoilers (`tokens_to_spans` draws their
+// text in the block's colour) are left alone, so a match can't reveal them.
 highlight_spans :: (spans: []ui.Span, terms: []string) -> []ui.Span {
 	out: [..]ui.Span;
 	out.allocator = temp;
 	array_reserve(*out, spans.count);
 	for sp: spans {
-		if sp.object != .{} || sp.text == "" {
+		if sp.object != .{} || sp.text == "" || (sp.bg.w > 0 && sp.color == sp.bg) {
 			array_add(*out, sp);
 			continue;
 		}
