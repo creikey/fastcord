@@ -73,6 +73,22 @@ encrypted_frame :: () {
 	}
 }
 
+// encrypted_packet: an `fc-` message in a Discord 1:1 DM, whose raw text must never be shown, copied
+// or edited.
+encrypted_packet :: (channel_id: dc.Snowflake, content: string) -> bool {
+	if !begins_with(content, e2e.PREFIX) || !app.discord return false;
+	ch := dc.channel_get(*app.discord.store, channel_id);
+	return ch && ch.kind == .DM && ch.recipient_ids.count == 1;
+}
+
+// shown_text is a message's content as drawn outside the message list (previews, notifications, copies).
+shown_text :: (id: dc.Snowflake, channel_id: dc.Snowflake, content: string) -> string {
+	if !encrypted_packet(channel_id, content) return content;
+	sh := table_find_pointer(*ee.shown, id);
+	if sh && !sh.pending && sh.result == .Ok && sh.content == .Text return sh.text;
+	return "Encrypted message";
+}
+
 encrypted_dm :: (ch: *dc.Channel) -> bool { return ch && ch.kind == .DM && ch.recipient_ids.count == 1 && app.client == app.discord; }
 
 // encrypted_channel loads the DM's encryption state once; until then it reports encryption off.
@@ -148,7 +164,7 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	if adm_button("accept", "Accept", .Primary) && identity_ready() && net_action() {
 		sh.accepted = true;
 		q := e2e.request(.Accept, m.channel_id, m.content);
-		q.me, q.peer = my_identity(), m.author_id;
+		q.me, q.me_user, q.peer = my_identity(), store().me, m.author_id;
 		e2e_submit(q);
 	}
 	return true, "";

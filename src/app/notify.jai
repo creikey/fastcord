@@ -74,6 +74,7 @@ notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 
 // Content as plain text with <@id>/<#id> resolved, or a stand-in for media-only messages.
 notification_body :: (s: *dc.Store, m: *dc.New_Message) -> string {
+	if encrypted_packet(m.channel_id, m.content) return "Encrypted message"; // Not opened yet when it arrives.
 	if m.content == "" {
 		if m.sticker return "Sent a sticker";
 		if m.attachments > 0 return "Uploaded a file";

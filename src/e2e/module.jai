@@ -79,7 +79,7 @@ Op :: enum u8 {
 	Load;          // channel -> encrypted, has_session
 	Set_Encrypted; // channel, encrypted
 	Hello;         // channel, me -> packet
-	Accept;        // channel, peer, me, text = the Hello packet -> packet
+	Accept;        // channel, peer, me, me_user, text = the Hello packet -> packet
 	Send;          // channel, me, text = plaintext -> packet, or result No_Session / Too_Long
 	Sent;          // text = a packet handed to Discord: drop it from the outbox
 	Receive;       // channel, author, message, me, text = the message content -> result, content, out_text
@@ -151,10 +151,21 @@ CREATE TABLE skipped(session BLOB NOT NULL, dh BLOB NOT NULL, n INTEGER NOT NULL
 CREATE TABLE plaintexts(hash BLOB PRIMARY KEY, message INTEGER NOT NULL, content INTEGER NOT NULL, text TEXT NOT NULL) WITHOUT ROWID;
 CREATE TABLE outbox(hash BLOB PRIMARY KEY, channel INTEGER NOT NULL, packet TEXT NOT NULL) WITHOUT ROWID;
 SQL,
+	"ALTER TABLE prekeys ADD COLUMN answered INTEGER NOT NULL DEFAULT 0;",
 ];
 
 // A session keeps at most this many skipped message keys; the oldest go first.
 MAX_SKIPPED_STORED :: 2000;
+
+// A Hello's prekeys are deleted a day after its first Init (leaving time for an Accept from another of
+// the peer's devices), or a week after it was sent if no one answered.
+PREKEY_ANSWERED_MS :: 24 * 3600 * 1000;
+PREKEY_UNANSWERED_MS :: 7 * 24 * 3600 * 1000;
+
+prune_prekeys :: (db: *sqlite.DB) {
+	now := now_ms();
+	sqlite.run(db, "DELETE FROM prekeys WHERE created < ? OR (answered != 0 AND answered < ?);", now - PREKEY_UNANSWERED_MS, now - PREKEY_ANSWERED_MS);
+}
 
 run_request :: (db: *sqlite.DB, r: *Request) {
 	if r.op == {
@@ -164,6 +175,7 @@ run_request :: (db: *sqlite.DB, r: *Request) {
 		case .Set_Encrypted;
 			if !set_encrypted(db, r.channel, r.encrypted) r.result = .Failed;
 		case .Hello;
+			prune_prekeys(db);
 			p: Packet;
 			pre := make_hello(r.me, *p);
 			defer crypto.zero(*pre);
@@ -179,10 +191,10 @@ run_request :: (db: *sqlite.DB, r: *Request) {
 			hp: Packet;
 			if !decode_text(r.text, *hp) { r.result = .Failed; return; }
 			hello, ok := parse_hello(bytes(*hp));
-			if !ok || r.peer == 0 { r.result = .Failed; return; }
+			if !ok || r.peer == 0 || r.me_user == 0 { r.result = .Failed; return; }
 			p: Packet;
 			s: Session;
-			s, ok = accept(r.me, hello, .[xx Content.Accept], *p);
+			s, ok = accept(r.me, hello, .{r.channel, r.me_user, r.peer}, .[xx Content.Accept], *p);
 			defer crypto.zero(*s);
 			if !ok { r.result = .Failed; return; }
 			r.packet = encode_text(bytes(*p),, context.default_allocator);
@@ -279,7 +291,7 @@ receive :: (db: *sqlite.DB, r: *Request) {
 			defer crypto.zero(*pre);
 			if !found { r.result = .Undecryptable; return; }
 			s: Session;
-			s, ok = receive_init(r.me, pre, i);
+			s, ok = receive_init(r.me, pre, i, .{r.channel, r.author, r.me_user});
 			defer crypto.zero(*s);
 			if !ok { r.result = .Undecryptable; return; }
 			skipped: [..]Skipped;
@@ -292,9 +304,11 @@ receive :: (db: *sqlite.DB, r: *Request) {
 				&& store_skipped(db, s.id, skipped)
 				&& store_plaintext(db, hash, r)
 				&& set_encrypted(db, r.channel, true)
+				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)
 				&& sqlite.exec(db, "COMMIT;");
 			crypto.zero(cast([]u8) pt);
 			if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; }
+			prune_prekeys(db);
 		case .Msg;
 			if p.count < MSG_PREFIX_BYTES + HEADER_BYTES + TAG_BYTES + 1 { r.result = .Undecryptable; return; }
 			id: [16]u8;
@@ -415,11 +429,14 @@ loop :: (d: *Db) {
 	db, ok := sqlite.open(d.path, exclusive = true);
 	if !ok {
 		d.error = sprint("cannot open % (damaged, or in use by another fastcord)", d.path);
-	} else if !migrate(db) {
+	} else if !sqlite.exec(db, "PRAGMA secure_delete=ON;") || !migrate(db) {
+		// secure_delete overwrites what's deleted or replaced: forward secrecy needs used message keys,
+		// old ratchet states and expired prekeys gone from the file, not left in free pages.
 		d.error = sprint("cannot migrate %: %", d.path, sqlite.errmsg(db));
 		sqlite.close(db);
 		db, ok = null, false;
 	}
+	if ok prune_prekeys(db);
 	if !ok log_error("e2e: %", d.error);
 	while true {
 		reset_temporary_storage();
@@ -429,8 +446,14 @@ loop :: (d: *Db) {
 		job := d.queue[0];
 		array_ordered_remove_by_index(*d.queue, 0);
 		locks.unlock(*d.mu);
-		if ok job.run(db, job);
-		else job.failed = true;
+		if ok {
+			job.run(db, job);
+			// The WAL keeps the old copy of every page a job rewrote, spent keys included, until a
+			// checkpoint; TRUNCATE also empties the file. DMs are slow enough to afford it per job.
+			sqlite.exec(db, "PRAGMA wal_checkpoint(TRUNCATE);");
+		} else {
+			job.failed = true;
+		}
 		atomic_store(*job.done, 1);
 		if d.wake d.wake();
 	}

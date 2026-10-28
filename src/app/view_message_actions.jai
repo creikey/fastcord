@@ -191,7 +191,7 @@ start_reply :: (m: *dc.Message) {
 
 // Yours, sent, not a forward, and a plain message or reply (type 0 or 19), not a system notice.
 can_edit :: (m: *dc.Message) -> bool {
-	return m.author_id == store().me && !m.forwarded && !m.pending && (m.kind == 0 || m.kind == 19);
+	return m.author_id == store().me && !m.forwarded && !m.pending && (m.kind == 0 || m.kind == 19) && !encrypted_packet(m.channel_id, m.content);
 }
 
 start_edit :: (m: *dc.Message) {
@@ -358,7 +358,7 @@ reply_preview :: (m: *dc.Message) {
 		nb := label(shown, .Medium, 14, name_color, 18);
 		nb.semantic_size[ui.Axis.X] = ui.text_size();
 		spacer(.X, 4);
-		content := first_line(ref.content);
+		content := first_line(shown_text(ref.id, ref.channel_id, ref.content));
 		if content == "" && ref.attachments content = "Click to see attachment";
 		// Last frame's row width; the avatar, name and spacers are fixed, so the rest is the content's.
 		avail := r.rect.x1 - r.rect.x0 - 16 - 4 - ui.layout_text(F(.Medium), 14, shown, -1).width - 4;
@@ -580,7 +580,7 @@ message_menu :: () {
 				case "Reply";
 					start_reply(m);
 				case "Copy Text";
-					clipboard_set(m.content);
+					clipboard_set(shown_text(m.id, m.channel_id, m.content));
 				case "Pin Message"; #through;
 				case "Unpin Message";
 					// shift skips the confirmation, as for Delete
@@ -736,7 +736,7 @@ confirm_modal :: () {
 					}
 					c := ui.box("content", .Draw_Text | .Wrap_Text);
 					c.semantic_size = .[ui.pct(1), ui.text_size()];
-					c.text = m.content;
+					c.text = shown_text(m.id, m.channel_id, m.content);
 					c.style.font = F(.Normal);
 					c.style.font_size = 16;
 					c.style.line_height = 22;

@@ -121,8 +121,8 @@ Client :: struct {
 CHANNEL :: 100;
 next_message: u64 = 1000;
 
-ask :: (c: *Client, op: e2e.Op, text := "", author: u64 = 0, message: u64 = 0, peer: u64 = 0) -> *e2e.Request {
-	r := e2e.request(op, CHANNEL, text);
+ask :: (c: *Client, op: e2e.Op, text := "", author: u64 = 0, message: u64 = 0, peer: u64 = 0, channel: u64 = CHANNEL) -> *e2e.Request {
+	r := e2e.request(op, channel, text);
 	r.me, r.me_user, r.author, r.message, r.peer = c.me, c.user, author, message, peer;
 	e2e.submit(c.d, r);
 	wait(r);
@@ -250,6 +250,29 @@ conversation :: (dir: string) {
 	for o.outbox if it.packet == s.packet found = true;
 	check(!found, "sent packet leaves the outbox");
 
+	// Unknown key-share: Discord copies B's Hello into A's DM with M (channel 101), shown as M's. A accepts,
+	// and Discord moves A's Init into A and B's DM. B must not open it as A's.
+	MALLORY :: 3;
+	moved_hello := ask(*b, .Hello);
+	r = ask(*a, .Receive, moved_hello.packet, MALLORY, next_message, channel = 101);
+	check(r.result == .Hello, "copied hello looks like M's");
+	next_message += 1;
+	moved_init := ask(*a, .Accept, moved_hello.packet, peer = MALLORY, channel = 101);
+	check(moved_init.result == .Ok, "A accepts the copied hello");
+	r = ask(*b, .Receive, moved_init.packet, a.user, next_message);
+	check(r.result == .Undecryptable, "an init made for another DM doesn't open");
+	next_message += 1;
+
+	// Prekeys: an unanswered Hello's go after a week.
+	stale := ask(*b, .Hello);
+	sql(b.d, "UPDATE prekeys SET created = created - 8 * 86400000;");
+	check(count(b.d, "SELECT count(*) FROM prekeys;") > 0, "prekeys stored");
+	fresh := ask(*b, .Hello);
+	check(count(b.d, "SELECT count(*) FROM prekeys;") == 1, "a week-old unanswered hello's prekeys are deleted");
+	sql(b.d, "UPDATE prekeys SET answered = 1;");
+	ask(*b, .Hello);
+	check(count(b.d, "SELECT count(*) FROM prekeys;") == 1, "an answered hello's prekeys go after a day");
+
 	// Sessions survive a restart.
 	stop(a.d);
 	a.d = e2e.start(tprint("%/a.db", dir));
@@ -259,6 +282,24 @@ conversation :: (dir: string) {
 	stop(a.d);
 	stop(b.d);
 }
+
+Sql :: struct { #as using job: e2e.Job; text: string; value: s64; }
+
+sql :: (d: *e2e.Db, text: string) -> s64 {
+	j: Sql;
+	j.text = text;
+	j.run = (db: *sqlite.DB, j: *e2e.Job) {
+		q := cast(*Sql) j;
+		st := sqlite.prepare(db, q.text);
+		if sqlite.step(st) == .Row q.value = sqlite.col_int(st, 0);
+		sqlite.finalize(st);
+	};
+	e2e.submit(d, *j);
+	wait(*j);
+	return j.value;
+}
+
+count :: (d: *e2e.Db, text: string) -> s64 { return sql(d, text); }
 
 repeat :: (s: string, n: int) -> string {
 	b: String_Builder;

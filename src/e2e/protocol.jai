@@ -13,7 +13,7 @@
 // hello_id is BLAKE3 of the whole Hello packet; a session's ID is BLAKE3 of the Init up to its header.
 // Prekeys are unsigned until E2E 5: this stops Discord reading DMs, not swapping keys in the first one.
 
-VERSION :: 1;
+VERSION :: 2;
 MAX_PACKET :: 1497; // 1996 base64url characters, so "fc-" + packet fits one 2000-character message.
 PREFIX :: "fc-";
 
@@ -42,6 +42,12 @@ Identity :: struct {
 identity_of :: (k: keys.Keypair) -> Identity {
 	return .{root = k.root, ik_priv = k.exchange, ik_pub = k.exchange_pub, proof = keys.proof(k, .Exchange)};
 }
+
+// Dm binds a session to the DM it was made in: the channel ID and both Discord user IDs, Alice being
+// the one who accepted and Bob the one who sent the Hello. Without it Discord could move a Hello from
+// one DM into another, shown as from someone else, and then move the answer back (an unknown key-share).
+Dm :: struct { channel, alice, bob: u64; }
+AD_BYTES :: 128 + 24;
 
 Prekeys :: struct {
 	spk_priv: [32]u8;
@@ -87,7 +93,7 @@ Ratchet :: struct {
 // A Session is plain bytes: module.jai stores it as a blob and rejects one of another size.
 Session :: struct {
 	id: [16]u8;
-	ad: [128]u8; // root_a ik_a root_b ik_b, Alice being the one who accepted (PQXDH section 3.3's AD, plus roots).
+	ad: [AD_BYTES]u8; // root_a ik_a root_b ik_b, then the Dm's bytes (PQXDH section 3.3's AD, plus roots and the DM).
 	ratchet: Ratchet;
 }
 
@@ -182,7 +188,7 @@ parse_hello :: (p: []u8) -> Hello, bool {
 
 // accept runs PQXDH as Alice (section 3.3) against a peer's Hello and writes the Init packet carrying
 // the first ratchet message.
-accept :: (me: Identity, hello: Hello, first: []u8, out: *Packet) -> Session, bool {
+accept :: (me: Identity, hello: Hello, dm: Dm, first: []u8, out: *Packet) -> Session, bool {
 	s: Session;
 	if same(hello.root, me.root) return s, false; // Our own Hello reflected back.
 	ek_priv, ek_pub := crypto.x25519_generate();
@@ -192,7 +198,7 @@ accept :: (me: Identity, hello: Hello, first: []u8, out: *Packet) -> Session, bo
 	dh3, ok3 := crypto.x25519(ek_priv, hello.spk);
 	ct, ss, ok4 := crypto.mlkem768_encap(hello.pqpk);
 	if !(ok1 && ok2 && ok3 && ok4) return s, false;
-	sk := pqxdh_kdf(dh1, dh2, dh3, ss);
+	sk := pqxdh_kdf(dh1, dh2, dh3, ss, dm);
 	defer crypto.zero(*sk);
 
 	out.count = 0;
@@ -201,7 +207,7 @@ accept :: (me: Identity, hello: Hello, first: []u8, out: *Packet) -> Session, bo
 	put(out, ek_pub); put(out, ct);
 	assert(out.count == INIT_PREFIX_BYTES);
 	s.id = session_id(bytes(out));
-	set_ad(*s, me.root, me.ik_pub, hello.root, hello.ik);
+	set_ad(*s, me.root, me.ik_pub, hello.root, hello.ik, dm);
 
 	// Double Ratchet section 3.3, RatchetInitAlice: Bob's first ratchet key is his signed prekey.
 	r := *s.ratchet;
@@ -229,7 +235,7 @@ parse_init :: (p: []u8) -> Init, bool {
 
 // receive_init runs PQXDH as Bob (section 3.4) with the prekeys of the Hello the Init answers. The
 // caller then decrypts i.message with the returned session.
-receive_init :: (me: Identity, pre: Prekeys, i: Init) -> Session, bool {
+receive_init :: (me: Identity, pre: Prekeys, i: Init, dm: Dm) -> Session, bool {
 	s: Session;
 	if same(i.root, me.root) return s, false;
 	dh1, ok1 := crypto.x25519(pre.spk_priv, i.ik);
@@ -237,10 +243,10 @@ receive_init :: (me: Identity, pre: Prekeys, i: Init) -> Session, bool {
 	dh3, ok3 := crypto.x25519(pre.spk_priv, i.ek);
 	ss, ok4 := crypto.mlkem768_decap(pre.pq_seed, i.pqct);
 	if !(ok1 && ok2 && ok3 && ok4) return s, false;
-	sk := pqxdh_kdf(dh1, dh2, dh3, ss);
+	sk := pqxdh_kdf(dh1, dh2, dh3, ss, dm);
 	defer crypto.zero(*sk);
 	s.id = i.session;
-	set_ad(*s, i.root, i.ik, me.root, me.ik_pub);
+	set_ad(*s, i.root, i.ik, me.root, me.ik_pub, dm);
 	// RatchetInitBob.
 	r := *s.ratchet;
 	r.dhs_priv = pre.spk_priv;
@@ -359,15 +365,24 @@ session_id :: (init_prefix: []u8) -> [16]u8 {
 	return id;
 }
 
-set_ad :: (s: *Session, root_a: [32]u8, ik_a: [32]u8, root_b: [32]u8, ik_b: [32]u8) {
+dm_bytes :: (dm: Dm) -> [24]u8 {
+	b: [24]u8;
+	for v, k: u64.[dm.channel, dm.alice, dm.bob] for 0..7 b[k * 8 + it] = xx ((v >> (it * 8)) & 0xFF);
+	return b;
+}
+
+set_ad :: (s: *Session, root_a: [32]u8, ik_a: [32]u8, root_b: [32]u8, ik_b: [32]u8, dm: Dm) {
 	memcpy(s.ad.data, root_a.data, 32);
 	memcpy(s.ad.data + 32, ik_a.data, 32);
 	memcpy(s.ad.data + 64, root_b.data, 32);
 	memcpy(s.ad.data + 96, ik_b.data, 32);
+	d := dm_bytes(dm);
+	memcpy(s.ad.data + 128, d.data, 24);
 }
 
-// PQXDH section 2.2: HKDF over F || KM with F = 32 0xFF bytes for X25519 and a zero salt.
-pqxdh_kdf :: (dh1: [32]u8, dh2: [32]u8, dh3: [32]u8, ss: [32]u8) -> [32]u8 {
+// PQXDH section 2.2: HKDF over F || KM with F = 32 0xFF bytes for X25519 and a zero salt. The info
+// names the DM too, so the shared secret itself differs for any other DM.
+pqxdh_kdf :: (dh1: [32]u8, dh2: [32]u8, dh3: [32]u8, ss: [32]u8, dm: Dm) -> [32]u8 {
 	km: [32 * 5]u8;
 	memset(km.data, 0xFF, 32);
 	memcpy(km.data + 32, dh1.data, 32);
@@ -376,8 +391,12 @@ pqxdh_kdf :: (dh1: [32]u8, dh2: [32]u8, dh3: [32]u8, ss: [32]u8) -> [32]u8 {
 	memcpy(km.data + 128, ss.data, 32);
 	zero_salt: [32]u8;
 	prk := crypto.hkdf_extract(zero_salt, km);
+	info: [PQXDH_INFO.count + 24]u8;
+	memcpy(info.data, PQXDH_INFO.data, PQXDH_INFO.count);
+	d := dm_bytes(dm);
+	memcpy(info.data + PQXDH_INFO.count, d.data, 24);
 	sk: [32]u8;
-	crypto.hkdf_expand(prk, xx PQXDH_INFO, sk);
+	crypto.hkdf_expand(prk, info, sk);
 	crypto.zero(*km);
 	crypto.zero(*prk);
 	return sk;
@@ -404,15 +423,15 @@ kdf_ck :: (ck: [32]u8) -> ck: [32]u8, mk: [32]u8 {
 // ENCRYPT and DECRYPT with ChaCha20-Poly1305 instead of section 5.2's AES-CBC and HMAC: the key and
 // nonce come from HKDF over the message key, which is used once, and the AD is the session's AD
 // followed by the header.
-aead :: (seal: bool, mk: [32]u8, ad: [128]u8, header: []u8, src: []u8, dst: []u8, tag: []u8) -> bool {
+aead :: (seal: bool, mk: [32]u8, ad: [AD_BYTES]u8, header: []u8, src: []u8, dst: []u8, tag: []u8) -> bool {
 	zero_salt: [32]u8;
 	prk := crypto.hkdf_extract(zero_salt, mk);
 	kn: [44]u8;
 	crypto.hkdf_expand(prk, xx MK_INFO, kn);
 	defer { crypto.zero(*kn); crypto.zero(*prk); }
-	full_ad: [128 + HEADER_BYTES]u8;
-	memcpy(full_ad.data, ad.data, 128);
-	memcpy(full_ad.data + 128, header.data, HEADER_BYTES);
+	full_ad: [AD_BYTES + HEADER_BYTES]u8;
+	memcpy(full_ad.data, ad.data, AD_BYTES);
+	memcpy(full_ad.data + AD_BYTES, header.data, HEADER_BYTES);
 	a: crypto.Aead;
 	if !crypto.aead_init(*a, .CHACHA20_POLY1305, array_view(kn, 0, 32)) return false;
 	defer crypto.aead_destroy(*a);
