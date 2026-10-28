@@ -97,6 +97,7 @@
 - [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
 - [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
+- [ ] Voice: every volume slider goes from 0 to 400% (the official max is 200%). That covers output volume, per-user volume, stream volume, the video player and input volume (now 0-100). Clamps are in `src/app/view_voice_settings.jai`. Add a limiter so the boost doesn't clip harshly. Keep values above 200% local if synced settings would reject them.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Chat: messages that mention you (you, @everyone/@here, your role) get no yellow highlight and left bar.
