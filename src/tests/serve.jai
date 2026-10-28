@@ -254,6 +254,16 @@ main :: () {
 		for 1..100 pump();
 		status, body = rest("GET", messages, "", token);
 		check(!contains(body, "reactions"), tprint("reaction removed: %", body));
+
+		// A read mark survives a new session: the next READY carries it.
+		discord.ack_message(cl, cid, hello, immediate = true);
+		for 1..100 pump();
+		cl2 := discord.client_create(.{token = token, hosted = cl.cfg.hosted});
+		discord.client_start(cl2);
+		for 1..1000 { if cl2.store.ready break; discord.client_poll(cl2); sleep_milliseconds(10); }
+		has_rs, rs := table_find(*cl2.store.read_states, cid);
+		check(cl2.store.ready && has_rs && rs.last_message_id == hello, tprint("read state in READY: % %", has_rs, rs.last_message_id));
+		discord.client_destroy(cl2);
 	}
 	discord.send_typing(cl, cid);
 	typing_ok := false;

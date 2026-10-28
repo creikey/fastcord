@@ -303,6 +303,7 @@ CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NU
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER);
+CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
 CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER,
 	max_age INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL DEFAULT 0);
@@ -637,7 +638,25 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	guilds := NewArray(1, etf.Value,, temp);
 	guilds[0] = etf.vmap(etf.map_done(*g));
 
-	d := etf.map_builder(4,, temp);
+	entries: [..]etf.Value;
+	entries.allocator = temp;
+	st = sqlite.prepare(s.db, "SELECT channel, last, mentions FROM read_states WHERE user = ?;");
+	sqlite.bind(st, 1, user);
+	while sqlite.step(st) == .Row {
+		e := etf.map_builder(3,, temp);
+		etf.map_put(*e, "id", snow(sqlite.col_int(st, 0)));
+		etf.map_put(*e, "last_message_id", snow(sqlite.col_int(st, 1)));
+		etf.map_put(*e, "mention_count", etf.vint(sqlite.col_int(st, 2)));
+		array_add(*entries, etf.vmap(etf.map_done(*e)));
+	}
+	sqlite.finalize(st);
+	read_state := etf.map_builder(3,, temp);
+	etf.map_put(*read_state, "entries", etf.vlist(entries));
+	etf.map_put(*read_state, "partial", etf.vbool(false));
+	etf.map_put(*read_state, "version", etf.vint(0));
+
+	d := etf.map_builder(5,, temp);
+	etf.map_put(*d, "read_state", etf.vmap(etf.map_done(*read_state)));
 	etf.map_put(*d, "v", etf.vint(9));
 	etf.map_put(*d, "user", user_value(user, name));
 	etf.map_put(*d, "guilds", etf.vlist(guilds));
@@ -748,6 +767,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		if !mok return json_error(c, 404, 0, "404: Not Found");
 		if parts.count == 3 return one_message(c, req, user, name, channel, message);
 		if parts[3] == "reactions" return reaction(c, req, user, channel, message, array_view(parts, 4));
+		if parts[3] == "ack" && parts.count == 4 && req.method == "POST" return ack(c, req, user, channel, message);
 		return json_error(c, 404, 0, "404: Not Found");
 	}
 	{
@@ -943,6 +963,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		ok := sqlite.exec(s.db, "BEGIN;")
 			&& sqlite.run(s.db, "DELETE FROM reactions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
 			&& sqlite.run(s.db, "DELETE FROM messages WHERE channel = ?;", channel)
+			&& sqlite.run(s.db, "DELETE FROM read_states WHERE channel = ?;", channel)
 			&& sqlite.run(s.db, "DELETE FROM channels WHERE id = ?;", channel)
 			&& sqlite.exec(s.db, "COMMIT;");
 		if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
@@ -1009,6 +1030,39 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	etf.map_put(*m, "max_uses", etf.vint(max_uses));
 	etf.map_put(*m, "temporary", etf.vbool(false));
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
+}
+
+// POST .../messages/{id}/ack {manual?, mention_count?}: the member has read up to message, or with manual,
+// marked it unread from there. Their other sessions follow through MESSAGE_ACK.
+ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	manual, mentions: etf.Value;
+	if err == .None && v.kind == .Map {
+		manual, _ = etf.map_get(v.map, "manual");
+		mentions, _ = etf.map_get(v.map, "mention_count");
+	}
+	is_manual := manual.kind == .Bool && manual.b;
+	count := ifx is_manual && mentions.kind == .Int then clamp(mentions.i, 0, 1000) else 0;
+	{
+		locks.guard(*s.db_mu);
+		if channel_locked(s, channel).kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
+		if !sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, ?);", user, channel, message, count) {
+			return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+	}
+	d := etf.map_builder(5,, temp);
+	etf.map_put(*d, "channel_id", snow(channel));
+	etf.map_put(*d, "message_id", snow(message));
+	etf.map_put(*d, "mention_count", etf.vint(count));
+	etf.map_put(*d, "manual", etf.vbool(is_manual));
+	etf.map_put(*d, "version", etf.vint(0));
+	ev := etf.vmap(etf.map_done(*d));
+	{
+		locks.guard(*s.mu);
+		for s.conns if it.ws && it.user == user dispatch(it, "MESSAGE_ACK", ev);
+	}
+	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) "{\"token\": null}") == .None;
 }
 
 json_reply :: (c: *Conn, status: int, v: etf.Value) -> bool {
