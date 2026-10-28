@@ -32,11 +32,51 @@ system_idle_ms :: () -> s64, bool {
 	return cast(s64) (s * 1000), s >= 0;
 }
 
+// darwin_platform: os_version is os.release() (the Darwin kernel release), os_sdk_version its major.
+// The official app is universal, so os.arch() is the machine's: arm64 on Apple silicon even when fastcord
+// itself runs under Rosetta. The user agent stays Chrome's frozen "Intel Mac OS X 10_15_7".
+darwin_platform :: () -> Platform_Info {
+	p := DEFAULT_PLATFORM;
+	u: Utsname;
+	if uname(*u) == 0 {
+		p.os_version = copy_string(to_string(u.release.data));
+		dot := find_index_from_left(p.os_version, #char ".");
+		p.os_sdk_version = ifx dot > 0 then slice(p.os_version, 0, dot) else p.os_version;
+	}
+	arm: s32;
+	size: u64 = size_of(s32);
+	arm64 := sysctlbyname("hw.optional.arm64", *arm, *size, null, 0) == 0 && arm == 1;
+	p.os_arch = ifx arm64 then "arm64" else "x64";
+	p.app_arch = p.os_arch;
+	with_system(*p, preferred_language(), posix_timezone());
+	return p;
+}
+
 #scope_file
+
+// preferred_language: the first of the user's preferred languages ("en-US", "zh-Hans-CN").
+preferred_language :: () -> string {
+	langs := CFLocaleCopyPreferredLanguages();
+	if !langs return "en-US";
+	defer CFRelease(langs);
+	buf: [64]u8;
+	if CFArrayGetCount(langs) < 1 || !CFStringGetCString(CFArrayGetValueAtIndex(langs, 0), buf.data, buf.count, 0x0800_0100) return "en-US"; // UTF-8
+	return copy_string(to_string(buf.data),, temp);
+}
 
 libc :: #system_library "libc";
 core_graphics :: #library,system,link_always "CoreGraphics";
+core_foundation :: #library,system,link_always "CoreFoundation";
 CGEventSourceSecondsSinceLastEventType :: (state: s32, event_type: u32) -> float64 #foreign core_graphics;
+CFLocaleCopyPreferredLanguages :: () -> *void #foreign core_foundation;
+CFArrayGetCount :: (array: *void) -> s64 #foreign core_foundation;
+CFArrayGetValueAtIndex :: (array: *void, index: s64) -> *void #foreign core_foundation;
+CFStringGetCString :: (s: *void, buf: *u8, size: s64, encoding: u32) -> bool #foreign core_foundation;
+CFRelease :: (object: *void) #foreign core_foundation;
+
+Utsname :: struct { sysname, nodename, release, version, machine: [256]u8; }
+uname :: (u: *Utsname) -> s32 #foreign libc;
+sysctlbyname :: (name: *u8, old: *void, old_size: *u64, new: *void, new_size: u64) -> s32 #foreign libc;
 
 MACH_TASK_BASIC_INFO :: 20;
 PIDPATHINFO_MAXSIZE :: 4096;

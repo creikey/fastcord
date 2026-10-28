@@ -142,7 +142,8 @@ keep_request :: (r: *Req) -> bool {
     if !begins_with(r.url, "https://") && !begins_with(r.url, "http://") return false;
     if array_find(string.["Script", "Stylesheet", "Font", "Manifest", "TextTrack", "Document", "Media", "SignedExchange", "CSPViolationReport"], r.type) return false;
     if r.type == "Image" return contains(r.url, "cdn.discordapp.com/") || contains(r.url, "media.discordapp.net/");
-    return !contains(r.url, "discord.com/assets/");
+    // fastcord's launch navigation (/app?_=) is a Document officially, and the official cold start is a reload
+    return !contains(r.url, "discord.com/assets/") && !contains(r.url, "discord.com/app?_=");
 }
 
 header_pair :: (c: *Ctx, name: string, value: string) -> etf.Value {

@@ -34,7 +34,36 @@ process_cpu_percent :: () -> float64, bool {
 	return cast(float64) used_ns / cast(float64) wall_ns * 100, true;
 }
 
+#if OS != .WINDOWS {
+// posix_timezone: ICU's host zone, which Chromium's Intl reports: $TZ, else the zone the /etc/localtime
+// link names (its path after "zoneinfo/"), else /etc/timezone; "" when none (the header is then omitted).
+posix_timezone :: () -> string {
+	tz := to_string(tz_getenv("TZ"));
+	if tz && tz[0] == #char ":" advance(*tz, 1);
+	if tz && tz[0] != #char "/" return copy_string(tz);
+	buf: [1024]u8;
+	if !tz {
+		n := tz_readlink("/etc/localtime", buf.data, buf.count);
+		if n > 0 tz = to_string(buf.data, n);
+	}
+	i := find_index_from_right(tz, "zoneinfo/");
+	if i >= 0 {
+		name := advance(tz, i + 9);
+		if begins_with(name, "posix/") || begins_with(name, "right/") advance(*name, 6);
+		return copy_string(name);
+	}
+	s, ok := read_entire_file("/etc/timezone", log_errors = false,, temp);
+	return ifx ok then copy_string(trim(s)) else "";
+}
+}
+
 #scope_file
+
+#if OS != .WINDOWS {
+	tz_libc :: #system_library "libc";
+	tz_getenv :: (name: *u8) -> *u8 #foreign tz_libc "getenv";
+	tz_readlink :: (path: *u8, buf: *u8, size: u64) -> s64 #foreign tz_libc "readlink";
+}
 
 process_start: Apollo_Time;
 

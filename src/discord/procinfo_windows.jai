@@ -35,7 +35,93 @@ system_idle_ms :: () -> s64, bool {
 	return cast(s64) (tick_count() - li.dwTime), true;
 }
 
+// windows_platform: the official Windows client (no capture: traffic/CLIENT_RULES.md). os_version is
+// os.release() ("10.0.26100", RtlGetVersion: Windows 11 is 10.0 too), os_sdk_version its build. The app is
+// x64; os_arch is arm64 when the bundle's PROCESSOR_* check says so. The strings live for the process.
+windows_platform :: () -> Platform_Info {
+	p := DEFAULT_PLATFORM;
+	p.os = "Windows";
+	p.client_version = WINDOWS_HOST_VERSION;
+	p.native_build_number = WINDOWS_NATIVE_BUILD;
+	v := Os_Version_Info.{size = size_of(Os_Version_Info)};
+	if RtlGetVersion(*v) == 0 {
+		p.os_version = sprint("%.%.%", v.major, v.minor, v.build);
+		p.os_sdk_version = sprint("%", v.build);
+	}
+	env :: (name: *u8) -> string {
+		buf: [256]u8;
+		n := GetEnvironmentVariableA(name, buf.data, buf.count);
+		return ifx n > 0 && n < buf.count then to_lower_copy(to_string(buf.data, n),, temp) else "";
+	}
+	arm := env("PROCESSOR_ARCHITECTURE") == "arm64" || env("PROCESSOR_ARCHITEW6432") == "arm64" || contains(env("PROCESSOR_IDENTIFIER"), "arm");
+	p.os_arch = ifx arm then "arm64" else "x64";
+	p.app_arch = "x64";
+	p.browser_user_agent = electron_user_agent("Windows NT 10.0; Win64; x64", WINDOWS_HOST_VERSION);
+	p.sec_ch_ua_platform = "\"Windows\"";
+	with_system(*p, ui_language(), windows_timezone());
+	return p;
+}
+
 #scope_file
+
+// ui_language: the first preferred UI language ("en-US"), as Chromium's locale on Windows.
+ui_language :: () -> string {
+	n, size: u32;
+	buf: [256]u16;
+	size = buf.count;
+	if !GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, *n, buf.data, *size) || n == 0 return "en-US";
+	s, ok := wide_to_utf8(buf.data,, temp);
+	return ifx ok && s then s else "en-US";
+}
+
+// windows_timezone: ICU's detection (wintz.cpp), which Chromium's Intl reports: the zone's key name mapped
+// to an IANA id for the user's region by the system ICU (Windows 10 1903+). "" when unavailable.
+windows_timezone :: () -> string {
+	tzi: Dynamic_Time_Zone_Information;
+	if GetDynamicTimeZoneInformation(*tzi) == 0xFFFF_FFFF return "";
+	icu := LoadLibraryA("icu.dll");
+	if !icu return "";
+	map := cast(Ucal_Windows_Id) GetProcAddress(icu, "ucal_getTimeZoneIDForWindowsID");
+	if !map return "";
+	geo: [8]u16;
+	region_c: [3]u8;
+	if GetGeoInfoW(GetUserGeoID(GEOCLASS_NATION), GEO_ISO2, geo.data, geo.count, 0) == 3 {
+		region_c[0], region_c[1] = cast(u8) geo[0], cast(u8) geo[1];
+	}
+	id: [128]u16;
+	status: s32;
+	n := map(tzi.key_name.data, -1, ifx region_c[0] then region_c.data else null, id.data, id.count - 1, *status);
+	if status > 0 || n <= 0 return "";
+	s, ok := wide_to_utf8(id.data, n);
+	return ifx ok then s else "";
+}
+
+Ucal_Windows_Id :: #type (winid: *u16, len: s32, region: *u8, id: *u16, capacity: s32, status: *s32) -> s32 #c_call;
+
+Os_Version_Info :: struct { size, major, minor, build, platform: u32; csd: [128]u16; }
+
+Dynamic_Time_Zone_Information :: struct {
+	bias: s32;
+	standard_name: [32]u16;
+	standard_date: [8]u16;
+	standard_bias: s32;
+	daylight_name: [32]u16;
+	daylight_date: [8]u16;
+	daylight_bias: s32;
+	key_name: [128]u16;
+	dynamic_daylight_time_disabled: u8;
+}
+
+MUI_LANGUAGE_NAME :: 0x8;
+GEOCLASS_NATION :: 16;
+GEO_ISO2 :: 4;
+ntdll :: #system_library "ntdll";
+GetEnvironmentVariableA :: (name: *u8, buf: *u8, size: u32) -> u32 #foreign kernel32;
+RtlGetVersion :: (info: *Os_Version_Info) -> s32 #foreign ntdll;
+GetUserPreferredUILanguages :: (flags: u32, count: *u32, buffer: *u16, size: *u32) -> BOOL #foreign kernel32;
+GetDynamicTimeZoneInformation :: (info: *Dynamic_Time_Zone_Information) -> u32 #foreign kernel32;
+GetUserGeoID :: (geo_class: u32) -> s32 #foreign kernel32;
+GetGeoInfoW :: (location: s32, geo_type: u32, data: *u16, count: s32, lang: u16) -> s32 #foreign kernel32;
 
 #import "Windows";
 #import "Windows_Utf8";

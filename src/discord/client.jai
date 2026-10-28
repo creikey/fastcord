@@ -507,6 +507,8 @@ client_load_state :: (c: *Client) {
 			case "installation_id"; c.id.installation_id = copy_string(v,, c.allocator);
 			case "verified";        c.account_verified = v == "1";
 			case "rtc_regions";     c.rtc_regions = copy_string(v,, c.allocator);
+			case "web_build";       identity_load_build(*c.id, parse_s64(v));
+			case "locale";          c.id.platform.locale = discord_locale(v);
 			case "heartbeat_session";
 				f := split(v, "\t",, temp);
 				if f.count == 3 {
@@ -534,6 +536,8 @@ client_save_state :: (c: *Client) {
 	print_to_builder(*sb, "verified\t%\n", ifx c.account_verified then "1" else "0");
 	if c.rtc_regions print_to_builder(*sb, "rtc_regions\t%\n", c.rtc_regions);
 	if c.id.installation_id print_to_builder(*sb, "installation_id\t%\n", c.id.installation_id);
+	if c.id.web_build print_to_builder(*sb, "web_build\t%\n", c.id.web_build);
+	if c.store.settings.locale print_to_builder(*sb, "locale\t%\n", c.store.settings.locale); // the cached settings' (CACHE_LOADED)
 	using c.id.heartbeat;
 	if uuid print_to_builder(*sb, "heartbeat_session\t%\t%\t%\n", uuid, created_at, last_used);
 	locks.unlock(*c.id.mu);

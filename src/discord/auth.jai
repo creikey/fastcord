@@ -149,6 +149,7 @@ auth_destroy :: (c: *Client) {
 // AuthenticationStore fetches /experiments at once (with the persisted
 // fingerprint), and the login page renders.
 auth_cold_start :: (c: *Client) {
+	schedule_app_load(c);
 	auth_fetch_experiments(c, "/app", #run join(API_ORIGIN, "/app"));
 	c.auth.screen_at = now_ms();
 	c.auth.screen_cold = true;

@@ -29,23 +29,43 @@ Platform_Info :: struct {
 	api_version: int;
 }
 
-DEFAULT_USER_AGENT :: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.419 Chrome/148.0.7778.280 Electron/42.11.15 Safari/537.36";
+// The host app updates through Discord's updater (not captured), so its versions are pinned: bump them
+// together from a new capture's super properties. The web build is only the fallback: each launch learns
+// the current one from the /app document (startup.jai `app_document_loaded`).
+HOST_VERSION :: "0.0.419"; // macOS client_version
+NATIVE_BUILD :: 96312; // macOS native_build_number (the updater's metadata_version)
+WEB_BUILD :: 649389; // client_build_number
+CHROME_VERSION :: "148.0.7778.280";
+CHROME_MAJOR :: "148";
+ELECTRON_VERSION :: "42.11.15";
+// Guessed, no capture (traffic/CLIENT_RULES.md "Gateway, startup, identity").
+WINDOWS_HOST_VERSION :: "1.0.9272";
+WINDOWS_NATIVE_BUILD :: 96312;
+LINUX_HOST_VERSION :: "0.0.125";
+
+// electron_user_agent: Chrome's reduced user agent, whose OS token is frozen (every Mac is "Intel Mac OS X
+// 10_15_7", every Windows "Windows NT 10.0; Win64; x64"), with Electron's insertions.
+electron_user_agent :: (os_token: string, host_version: string) -> string {
+	return join("Mozilla/5.0 (", os_token, ") AppleWebKit/537.36 (KHTML, like Gecko) discord/", host_version, " Chrome/", CHROME_VERSION, " Electron/", ELECTRON_VERSION, " Safari/537.36");
+}
+
+DEFAULT_USER_AGENT :: #run electron_user_agent("Macintosh; Intel Mac OS X 10_15_7", HOST_VERSION);
 
 DEFAULT_PLATFORM :: Platform_Info.{
 	os = "Mac OS X",
 	browser = "Discord Client",
 	release_channel = "stable",
-	client_version = "0.0.419",
+	client_version = HOST_VERSION,
 	os_version = "27.0.0",
 	os_arch = "arm64",
 	app_arch = "arm64",
 	system_locale = "en-US",
 	browser_user_agent = DEFAULT_USER_AGENT,
-	browser_version = "42.11.15",
+	browser_version = ELECTRON_VERSION,
 	os_sdk_version = "27",
-	client_build_number = 649389,
-	native_build_number = 96312,
-	sec_ch_ua = "\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"148\"",
+	client_build_number = WEB_BUILD,
+	native_build_number = NATIVE_BUILD,
+	sec_ch_ua = #run join("\"Not/A)Brand\";v=\"99\", \"Chromium\";v=\"", CHROME_MAJOR, "\""),
 	sec_ch_ua_platform = "\"macOS\"",
 	accept_language = "en-US",
 	locale = "en-US",
@@ -57,10 +77,66 @@ DEFAULT_PLATFORM :: Platform_Info.{
 	api_version = 9
 };
 
-// host_platform: what the official client reports on this OS. macOS and Windows report the captured macOS
-// build; the offline tests always use DEFAULT_PLATFORM.
-#if OS == .LINUX host_platform :: linux_platform; // procinfo_linux.jai
-else host_platform :: () -> Platform_Info { return DEFAULT_PLATFORM; }
+// host_platform: what the official client reports on this machine (procinfo_<os>.jai): the OS version and
+// architecture, the system locale and timezone. The offline tests always use DEFAULT_PLATFORM.
+#if OS == .LINUX host_platform :: linux_platform;
+else #if OS == .WINDOWS host_platform :: windows_platform;
+else host_platform :: darwin_platform;
+
+// with_system: Electron's app locale (the OS's first preferred language resolved to a Chromium UI locale)
+// is navigator.languages[0] and Accept-Language; the intl locale (x-discord-locale) starts as its Discord
+// match until the user's language setting is known. timezone = Intl's resolved IANA zone ("" omits it).
+with_system :: (p: *Platform_Info, os_language: string, timezone: string) {
+	p.system_locale = chromium_locale(os_language);
+	p.accept_language = p.system_locale;
+	p.locale = discord_locale(p.system_locale);
+	p.timezone = timezone;
+}
+
+// chromium_locale: l10n_util::CheckAndResolveLocale as Electron's app.getLocale() returns it ("de_DE.UTF-8"
+// and "de-DE" -> "de", "en-AU" -> "en-GB", "es-MX" -> "es-419", "zh-Hant-TW" -> "zh-TW").
+chromium_locale :: (tag: string) -> string {
+	t := replace(tag, "_", "-",, temp);
+	for u8.[#char ".", #char "@"] { i := find_index_from_left(t, it); if i >= 0 t = slice(t, 0, i); }
+	parts := split(t, "-",, temp);
+	lang := to_lower_copy(parts[0],, temp);
+	region := ifx parts.count > 1 then to_upper_copy(parts[parts.count - 1],, temp) else "";
+	script := ifx parts.count > 2 then parts[1] else "";
+	if lang == {
+		case "en"; return ifx array_find(string.["AU", "CA", "GB", "IE", "IN", "NZ", "ZA"], region) then "en-GB" else "en-US";
+		case "es"; return ifx region == "" || region == "ES" then "es" else "es-419";
+		case "pt"; return ifx region == "PT" then "pt-PT" else "pt-BR";
+		case "fr"; return ifx region == "CA" then "fr-CA" else "fr";
+		case "zh";
+			if region == "HK" || region == "MO" return "zh-HK";
+			return ifx region == "TW" || script == "Hant" then "zh-TW" else "zh-CN";
+		case "sr"; if script == "Latn" return "sr-Latn";
+		case "no"; lang = "nb";
+		case "nn"; lang = "nb";
+		case "iw"; lang = "he";
+		case "tl"; lang = "fil";
+	}
+	for CHROMIUM_LOCALES if it == lang return it;
+	return "en-US";
+}
+
+// discord_locale: the bundle's intl matcher (`getAvailableLocales` module) over the enabled UI locales in
+// its order: exact, the language alone, es / nb / nn aliases, zh-Hant, then the first of the same language.
+discord_locale :: (tag: string) -> string {
+	for DISCORD_LOCALES if it == tag return it;
+	parts := split(tag, "-",, temp);
+	lang := parts[0];
+	for DISCORD_LOCALES if it == lang return it;
+	if parts.count == 1 && lang == "es" return "es-ES";
+	if parts.count == 1 && (lang == "nb" || lang == "nn") return "no";
+	if lang == "zh" && parts.count > 1 && parts[1] == "Hant" return "zh-TW";
+	for DISCORD_LOCALES if begins_with(it, lang) && it.count > lang.count && it[lang.count] == #char "-" return it;
+	return "en-US";
+}
+
+DISCORD_LOCALES :: string.["en-US", "en-GB", "zh-CN", "zh-TW", "cs", "da", "nl", "fr", "de", "el", "hu", "it", "ja", "ko", "pl", "pt-BR", "ru", "es-419", "es-ES", "sv-SE", "tr", "bg", "uk", "fi", "no", "hr", "ro", "lt", "th", "vi", "hi"];
+
+CHROMIUM_LOCALES :: string.["af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "et", "eu", "fa", "fi", "fil", "fr", "gl", "gu", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "ka", "kk", "km", "kn", "ko", "ky", "lo", "lt", "lv", "mk", "ml", "mn", "mr", "ms", "my", "nb", "ne", "nl", "or", "pa", "pl", "ro", "ru", "si", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tr", "uk", "ur", "uz", "vi", "zu"];
 
 // Analytics heartbeat session (SessionHeartbeatScheduler): a uuid persisted
 // as LAST_CLIENT_HEARTBEAT_SESSION, refreshed while the app is active, and
@@ -104,6 +180,9 @@ Identity :: struct {
 	// refreshed with the new session id yet (the HTTP util refreshes it per request)
 	logged_out: bool;
 	identify_hb_stale: bool;
+	// The super properties went out: client_build_number stays as it is for the launch.
+	build_sealed: bool;
+	web_build: s64; // the last /app document's build (identity.tsv), 0 = none yet
 	nonces: Nonce_Gen;
 	allocator: Allocator;
 }
@@ -176,6 +255,7 @@ super_properties_json :: (id: *Identity, now: s64, allocator := temp) -> string 
 	defer locks.unlock(*id.mu);
 	touch_heartbeat_locked(id, now);
 	hb := current_heartbeat_locked(id, now);
+	id.build_sealed = true;
 	if !id.hb_key_order_fixed {
 		id.hb_key_order_fixed = true;
 		id.hb_before_app_state = hb != "";
@@ -244,6 +324,37 @@ identity_hb_key_before_app_state :: (id: *Identity) -> bool {
 	locks.lock(*id.mu);
 	defer locks.unlock(*id.mu);
 	return id.hb_key_order_fixed && id.hb_before_app_state;
+}
+
+// identity_learn_build: the web build the /app document names, persisted for the next launch (web_build)
+// and, with adopt, used at once while no super properties went out (the official client keeps a launch's
+// build until it reloads).
+identity_learn_build :: (id: *Identity, build: s64, adopt: bool) {
+	locks.lock(*id.mu);
+	id.web_build = build;
+	if adopt && !id.build_sealed id.platform.client_build_number = build;
+	locks.unlock(*id.mu);
+}
+
+// identity_load_build: the persisted web build, unless this fastcord pins a newer one.
+identity_load_build :: (id: *Identity, build: s64) {
+	id.web_build = build;
+	id.platform.client_build_number = max(id.platform.client_build_number, build);
+}
+
+// identity_set_locale: x-discord-locale (LocaleStore). locale must be static (a DISCORD_LOCALES entry):
+// workers copy the platform while the UI thread changes it.
+identity_set_locale :: (id: *Identity, locale: string) {
+	locks.lock(*id.mu);
+	id.platform.locale = locale;
+	locks.unlock(*id.mu);
+}
+
+// identity_platform: a consistent copy for another thread (the locale changes at run time).
+identity_platform :: (id: *Identity) -> Platform_Info {
+	locks.lock(*id.mu);
+	defer locks.unlock(*id.mu);
+	return id.platform;
 }
 
 identity_set_app_state :: (id: *Identity, s: App_State) {
