@@ -60,6 +60,7 @@ images_receive :: () {
 		r.data = .[];
 	}
 	decode_upload();
+	lottie_sweep();
 	gifv_frame();
 }
 
@@ -256,6 +257,7 @@ Decode_Kind :: enum u8 {
 	Lottie_Load;
 	Lottie_Still; // first frame of a loaded animation at px x px
 	Lottie_Frame; // one frame of an animating sticker, into its player
+	Lottie_Scene; // one frame of an animating sticker recorded for the GPU, into scene
 	Fetch; // offline: a blob's bytes from FASTCORD_MEDIA_DIR
 	Copy_Image; // the media menu's actions, with the downloaded bytes
 	Save_Image;
@@ -269,6 +271,7 @@ Decode_Job :: struct {
 	px: int;
 	anim: *lottie.Animation; // Lottie_Still, Lottie_Frame; read-only while shared
 	player: *lottie.Player; // Lottie_Frame; the worker's until the result is uploaded
+	scene: *vector.Scene; // Lottie_Scene; likewise
 	frame: float32;
 }
 
@@ -320,13 +323,18 @@ Decoder :: struct {
 dec: Decoder;
 
 decode_worker :: (_: int) {
+	players: [..]*lottie.Player; // Lottie_Scene's, by size: recording uses no pixels, only the size
 	while true {
 		locks.lock(*dec.mu);
 		while !dec.jobs locks.cond_wait_with_timeout(*dec.cv, *dec.mu, 1000);
-		j := pop(*dec.jobs);
+		// newest first, but animation frames (redone every frame anyway) only when nothing else waits
+		k := dec.jobs.count - 1;
+		for < dec.jobs  if it.kind != .Lottie_Frame && it.kind != .Lottie_Scene { k = it_index; break; }
+		j := dec.jobs[k];
+		array_ordered_remove_by_index(*dec.jobs, k);
 		dec.busy += 1;
 		locks.unlock(*dec.mu);
-		d := decode_run(j);
+		d := decode_run(j, *players);
 		locks.lock(*dec.mu);
 		array_add(*dec.done, d);
 		dec.busy -= 1;
@@ -336,7 +344,7 @@ decode_worker :: (_: int) {
 	}
 }
 
-decode_run :: (j: Decode_Job) -> Decoded {
+decode_run :: (j: Decode_Job, players: *[..]*lottie.Player) -> Decoded {
 	d := Decoded.{job = j};
 	data := j.data;
 	if !data data = offline_media(j.url);
@@ -371,6 +379,20 @@ decode_run :: (j: Decode_Job) -> Decoded {
 		d.frames = NewArray(1, []u8);
 		d.frames[0] = array_copy(lottie.render(j.player, j.anim, j.frame));
 		d.size = .{j.px, j.px};
+	case .Lottie_Scene;
+		p: *lottie.Player;
+		for players.*  if it.w == j.px { p = it; break; }
+		if !p {
+			if players.count >= 4 {
+				lottie.player_destroy(players.*[0]);
+				free(players.*[0]);
+				array_ordered_remove_by_index(players, 0);
+			}
+			p = New(lottie.Player);
+			lottie.player_init(p, j.px, j.px);
+			array_add(players, p);
+		}
+		lottie.record(p, j.anim, j.frame, j.scene);
 	case .Fetch;
 		if !j.data d.data = array_copy(data);
 	case .Copy_Image;
@@ -383,7 +405,7 @@ decode_run :: (j: Decode_Job) -> Decoded {
 		array_free(d.data);
 		d.data = .[];
 	}
-	d.ok = d.frames.count > 0 || d.anim != null || d.data.count > 0;
+	d.ok = d.frames.count > 0 || d.anim != null || d.data.count > 0 || j.kind == .Lottie_Scene;
 	return d;
 }
 
@@ -440,7 +462,7 @@ decode_upload :: () {
 			d.data = .[];
 		} else if d.kind == .Save_Image {
 			toast_show(ifx d.saved then "Image saved to Downloads." else "Couldn't save the image.", d.saved);
-		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still || d.kind == .Lottie_Frame {
+		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still || d.kind == .Lottie_Frame || d.kind == .Lottie_Scene {
 			budget -= d.size.x * d.size.y * 4;
 			lottie_decoded(d);
 		} else if im && !d.ok {

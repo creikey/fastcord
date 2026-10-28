@@ -110,6 +110,9 @@ Rasterizer :: struct {
 	dirty: Box; // cells of acc written since the last integrate
 	cov: []float32; // fill_coverage / stroke_coverage's result, zero outside cov_box
 	cov_box: Box;
+	tolerance: float32 = TOLERANCE; // curve flattening, pixels
+	edges: *[..]Edge; // set: acc_line records edges here (fill_edges, stroke_edges) instead of accumulating
+	edge_min, edge_max: Vector2; // bounds of the recorded edges
 	pts: [..]Vector2;
 	polys: [..]Poly;
 	pool: Flat_Pool; // holds pts, polys and every buffer handed out
@@ -155,13 +158,47 @@ fill_coverage :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, rul
 
 // stroke_coverage is fill_coverage for the path stroked under transform m.
 stroke_coverage :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, s: Stroke) -> []float32 {
-	flatten_path(rz, verbs, points, m);
-	hw := s.width * sqrt(abs(m[0] * m[3] - m[1] * m[2])) / 2;
-	for rz.polys  stroke_poly(rz, poly_points(rz, it), it.closed, hw, s.cap, s.join, max(s.miter_limit, 1));
+	stroke_outline(rz, verbs, points, m, s);
 	return scratch_coverage(rz, .Nonzero);
 }
 
+// Edge is a line of a flattened outline in pixels (x0, y0, x1, y1), for the GPU to accumulate.
+Edge :: [4]float32;
+
+// fill_edges appends the outline that fill_coverage would accumulate to out (horizontal and
+// off-canvas edges dropped) and returns the bounds of what it appended, or ok = false for none.
+fill_edges :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, out: *[..]Edge) -> lo: Vector2, hi: Vector2, ok: bool {
+	begin_edges(rz, out);
+	flatten_path(rz, verbs, points, m);
+	for rz.polys  emit_loop(rz, poly_points(rz, it));
+	lo, hi, ok := end_edges(rz);
+	return lo, hi, ok;
+}
+
+stroke_edges :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, s: Stroke, out: *[..]Edge) -> lo: Vector2, hi: Vector2, ok: bool {
+	begin_edges(rz, out);
+	stroke_outline(rz, verbs, points, m, s);
+	lo, hi, ok := end_edges(rz);
+	return lo, hi, ok;
+}
+
 #scope_module
+
+stroke_outline :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, s: Stroke) {
+	flatten_path(rz, verbs, points, m);
+	hw := s.width * sqrt(abs(m[0] * m[3] - m[1] * m[2])) / 2;
+	for rz.polys  stroke_poly(rz, poly_points(rz, it), it.closed, hw, s.cap, s.join, max(s.miter_limit, 1));
+}
+
+begin_edges :: (rz: *Rasterizer, out: *[..]Edge) {
+	rz.edges = out;
+	rz.edge_min, rz.edge_max = .{FLOAT32_MAX, FLOAT32_MAX}, .{-FLOAT32_MAX, -FLOAT32_MAX};
+}
+
+end_edges :: (rz: *Rasterizer) -> Vector2, Vector2, bool {
+	rz.edges = null;
+	return rz.edge_min, rz.edge_max, rz.edge_min.x <= rz.edge_max.x;
+}
 
 // Math's floor and ceil are software (cephes) and, in split-module dev builds, calls. These are exact
 // for finite values in int range, which every coordinate here is once clipped to the canvas.
@@ -283,7 +320,7 @@ flatten_path :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, g: Mat) {
 			p := mat_apply(g, points[pi + 1]);
 			pi += 2;
 			dd := cur - 2 * c + p;
-			n := clamp(cast(int) ceil(sqrt(sqrt(dd.x * dd.x + dd.y * dd.y) / (4 * TOLERANCE))), 1, 256);
+			n := clamp(cast(int) ceil(sqrt(sqrt(dd.x * dd.x + dd.y * dd.y) / (4 * rz.tolerance))), 1, 256);
 			for i: 1..n {
 				t := cast(float32) i / cast(float32) n;
 				u := 1 - t;
@@ -299,7 +336,7 @@ flatten_path :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, g: Mat) {
 			d1 := cur - 2 * c1 + c2;
 			d2 := c1 - 2 * c2 + p;
 			dd := sqrt(max(d1.x * d1.x + d1.y * d1.y, d2.x * d2.x + d2.y * d2.y));
-			n := clamp(cast(int) ceil(sqrt(0.75 * dd / TOLERANCE)), 1, 256);
+			n := clamp(cast(int) ceil(sqrt(0.75 * dd / rz.tolerance)), 1, 256);
 			for i: 1..n {
 				t := cast(float32) i / cast(float32) n;
 				u := 1 - t;
@@ -320,8 +357,8 @@ flatten_path :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, g: Mat) {
 emit_circle :: (r: *Rasterizer, c: Vector2, radius: float32) {
 	if radius <= 0 { return; }
 	n := 8;
-	if radius > TOLERANCE {
-		n = max(8, cast(int)(ceil(PI / acos(1 - TOLERANCE / radius))));
+	if radius > r.tolerance {
+		n = max(8, cast(int)(ceil(PI / acos(1 - r.tolerance / radius))));
 	}
 	n = min(n, 512);
 	// Polygon with vertices slightly outside so its area matches the circle's.
@@ -341,10 +378,10 @@ emit_loop :: (r: *Rasterizer, pts: []Vector2) {
 }
 
 // arc_points appends points on a circle from angle a0 sweeping `sweep`, endpoints excluded.
-arc_points :: (out: *[..]Vector2, c: Vector2, radius: float32, a0: float32, sweep: float32) {
+arc_points :: (out: *[..]Vector2, c: Vector2, radius: float32, a0: float32, sweep: float32, tol: float32) {
 	n := 1;
-	if radius > TOLERANCE {
-		step := 2 * acos(1 - TOLERANCE / radius);
+	if radius > tol {
+		step := 2 * acos(1 - tol / radius);
 		n = max(1, cast(int)(ceil(abs(sweep) / step)));
 	}
 	n = min(n, 256);
@@ -361,7 +398,7 @@ angle_of :: inline (v: Vector2) -> float32 {
 // offset_side appends the left offset (normal (-dy, dx)) of a polyline walked
 // forward, with joins. Outer joins get join geometry; inner joins pivot through
 // the vertex (the overlap stays inside the stroke, so nonzero fill is exact).
-offset_side :: (out: *[..]Vector2, pts: []Vector2, closed: bool, hw: float32, join: Line_Join, miter_limit: float32) {
+offset_side :: (out: *[..]Vector2, pts: []Vector2, closed: bool, hw: float32, join: Line_Join, miter_limit: float32, tol: float32) {
 	n := pts.count;
 	nseg := ifx closed then n else n - 1;
 	for i: 0..nseg-1 {
@@ -397,7 +434,7 @@ offset_side :: (out: *[..]Vector2, pts: []Vector2, closed: bool, hw: float32, jo
 				array_add(out, a + np);
 				if join == {
 				case .Round;
-					arc_points(out, a, hw, angle_of(np), atan2(np.x * nc.y - np.y * nc.x, np.x * nc.x + np.y * nc.y));
+					arc_points(out, a, hw, angle_of(np), atan2(np.x * nc.y - np.y * nc.x, np.x * nc.x + np.y * nc.y), tol);
 				case .Miter;
 					un := np / hw;
 					uc := nc / hw;
@@ -458,10 +495,10 @@ stroke_poly :: (r: *Rasterizer, src: []Vector2, closed_in: bool, hw: float32, ca
 	out: [..]Vector2;
 	out.allocator = rasterizer_allocator(r);
 	if closed {
-		offset_side(*out, pts, true, hw, join, miter_limit);
+		offset_side(*out, pts, true, hw, join, miter_limit, r.tolerance);
 		emit_loop(r, out);
 		array_reset_keeping_memory(*out);
-		offset_side(*out, rev, true, hw, join, miter_limit);
+		offset_side(*out, rev, true, hw, join, miter_limit, r.tolerance);
 		emit_loop(r, out);
 		return;
 	}
@@ -473,15 +510,15 @@ stroke_poly :: (r: *Rasterizer, src: []Vector2, closed_in: bool, hw: float32, ca
 		rev[n - 1] = pts[0];
 		rev[0] = pts[n - 1];
 	}
-	offset_side(*out, pts, false, hw, join, miter_limit);
+	offset_side(*out, pts, false, hw, join, miter_limit, r.tolerance);
 	if cap == .Round {
 		de := seg_dir(pts[n - 2], pts[n - 1]);
-		arc_points(*out, pts[n - 1], hw, angle_of(.{-de.y, de.x}), -PI);
+		arc_points(*out, pts[n - 1], hw, angle_of(.{-de.y, de.x}), -PI, r.tolerance);
 	}
-	offset_side(*out, rev, false, hw, join, miter_limit);
+	offset_side(*out, rev, false, hw, join, miter_limit, r.tolerance);
 	if cap == .Round {
 		ds := seg_dir(pts[0], pts[1]);
-		arc_points(*out, pts[0], hw, angle_of(.{ds.y, -ds.x}), -PI);
+		arc_points(*out, pts[0], hw, angle_of(.{ds.y, -ds.x}), -PI, r.tolerance);
 	}
 	emit_loop(r, out);
 }
@@ -497,6 +534,13 @@ acc_line :: (r: *Rasterizer, p0: Vector2, p1: Vector2) {
 	h := cast(float32)(r.h);
 	w := cast(float32)(r.w);
 	if (a.y <= 0 && b.y <= 0) || (a.y >= h && b.y >= h) { return; }
+	if r.edges {
+		// right of the canvas the edge adds nothing, but the rows left of it stay covered up to the edge
+		if a.x < w || b.x < w  array_add(r.edges, .[a.x, a.y, b.x, b.y]);
+		r.edge_min = .{min(r.edge_min.x, a.x, b.x), min(r.edge_min.y, a.y, b.y)};
+		r.edge_max = .{max(r.edge_max.x, a.x, b.x), max(r.edge_max.y, a.y, b.y)};
+		return;
+	}
 	if a.x >= w && b.x >= w { return; }
 	// Clip y to [0, h].
 	clip_y :: (a: Vector2, b: Vector2, y: float32) -> Vector2 {

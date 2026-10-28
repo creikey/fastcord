@@ -110,6 +110,7 @@ Frame_Stats :: struct {
     frames: u64;    // total frames submitted
     gpu_ns: s64;    // GPU time of the latest frame whose timer finished (a few frames back); 0 if unknown
     gpu_frame: u64; // which frame (frame_index) gpu_ns belongs to
+    scenes: int;    // draw_scene calls this frame
 }
 
 init :: () -> bool {
@@ -168,6 +169,8 @@ begin_frame :: (clear: Color) {
     g.clear = clear;
     g.instances.count = 0;
     g.batches.count = 0;
+    g.scenes.count = 0;
+    g.stats.scenes = 0;
     g.clip_stack.count = 0;
     array_add(*g.clip_stack, .[0, 0, g.fb_size[0], g.fb_size[1]]);
     text_begin_frame();
@@ -178,7 +181,7 @@ end_frame :: () {
     g.in_frame = false;
     g.stats.instances = g.instances.count;
     g.stats.draw_calls = g.batches.count;
-    backend_submit(g.instances, g.batches, g.clear, g.fb_size);
+    backend_submit(g.instances, g.batches, g.clear, g.fb_size, g.scenes);
     g.frame_index += 1;
     g.stats.frames += 1;
     // Release textures that no in-flight frame can reference anymore.
@@ -251,6 +254,26 @@ texture_create :: (w: int, h: int, format: Texture_Format, pixels: []u8 = .[], p
     return add_texture(.{native = native, w = cast(s32) w, h = cast(s32) h, format = format, alive = true});
 }
 
+// A texture the GPU draws into (draw_scene) and push_rect draws like any image: premultiplied RGBA8,
+// transparent until drawn. 0 where the backend can't draw scenes (scenes_supported).
+target_create :: (w: int, h: int) -> Texture {
+    native := backend_target_create(cast(s32) w, cast(s32) h);
+    if native == null return 0;
+    return add_texture(.{native = native, w = cast(s32) w, h = cast(s32) h, format = .RGBA8, alive = true});
+}
+
+// Whether this backend draws vector scenes on the GPU; when not, callers rasterize on the CPU.
+scenes_supported :: () -> bool { return backend_scenes_supported(); }
+
+// Draws scene s into target (from target_create, the scene's size) before the frame's own drawing, so
+// this frame shows it. s must stay unchanged until end_frame returns.
+draw_scene :: (target: Texture, s: *vector.Scene) {
+    assert(g.in_frame, "draw_scene outside begin_frame/end_frame");
+    if !texture_alive(target) return;
+    array_add(*g.scenes, .{target, s});
+    g.stats.scenes += 1;
+}
+
 texture_from_rgba :: (w: int, h: int, pixels: []u8) -> Texture {
     return texture_create(w, h, .RGBA8, pixels);
 }
@@ -304,6 +327,11 @@ read_pixels :: (allocator := context.allocator) -> []u8, int, int {
 
 #scope_module
 
+Scene_Draw :: struct {
+    target: Texture;
+    scene: *vector.Scene;
+}
+
 Tex_Slot :: struct {
     native: *void;
     w, h: s32;
@@ -329,6 +357,7 @@ g: struct {
     clear: Color;
     instances: [..]Instance;
     batches: [..]Batch;
+    scenes: [..]Scene_Draw;
     clip_stack: [..][4]s32;
     textures: [..]Tex_Slot; // index = Texture handle; [0] is the 1x1 white texture
     free_textures: [..]Texture;

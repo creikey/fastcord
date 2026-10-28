@@ -44,7 +44,19 @@ backend_init :: () -> bool {
         msg(Void, mt.layer, "setPixelFormat:", MTLPixelFormat.BGRA8Unorm);
     }
     for * mt.ring ensure_slot(it, 4096 * size_of(Instance));
+    scene_init();
     return true;
+}
+
+// Scenes read their own pixels in the fragment shader (framebuffer fetch, raster order groups) and keep
+// coverage in tile memory: Apple GPUs. Intel and AMD Macs rasterize on the CPU instead.
+backend_scenes_supported :: () -> bool { return mt.scene_pipeline != null; }
+
+backend_target_create :: (w: s32, h: s32) -> *void {
+    if !mt.scene_pipeline return null;
+    pool := objc.new_obj("NSAutoreleasePool");
+    defer msg(Void, pool, "drain");
+    return msg(Id, mt.device, "newTextureWithDescriptor:", tex_desc(.RGBA8Unorm, w, h, MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead, MTLStorageModePrivate));
 }
 
 backend_native_device :: () -> *void { return mt.device; }
@@ -64,13 +76,17 @@ backend_shutdown :: () {
     }
     if mt.offscreen  msg(Void, mt.offscreen, "release");
     if mt.readback   msg(Void, mt.readback, "release");
+    for mt.scene_ring  if it.buf  msg(Void, it.buf, "release");
+    for mt.tiles  for t: it.tex  msg(Void, t, "release");
+    array_free(mt.tiles);
+    if mt.scene_pipeline  msg(Void, mt.scene_pipeline, "release");
     msg(Void, mt.pipeline, "release");
     msg(Void, mt.queue, "release");
     msg(Void, mt.device, "release");
     mt = .{};
 }
 
-backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32) {
+backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32, scenes: []Scene_Draw) {
     if fb[0] <= 0 || fb[1] <= 0 return;
     pool := objc.new_obj("NSAutoreleasePool");
     defer msg(Void, pool, "drain");
@@ -87,6 +103,7 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     if bytes > 0  memcpy(msg(*void, slot.buf, "contents"), insts.data, bytes);
 
     cmd := msg(Id, mt.queue, "commandBuffer");
+    if scenes.count  encode_scenes(cmd, *mt.scene_ring[(mt.ring_idx + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT], scenes);
     target, drawable: Id;
     if mt.layer {
         // Acquire as late as possible (after CPU work) for lowest latency.
@@ -221,6 +238,10 @@ MTLStoreActionStore :u64: 1;
 MTLPrimitiveTypeTriangleStrip :u64: 4;
 MTLStorageModeManaged :u64: 1;
 MTLStorageModePrivate :u64: 2;
+MTLStorageModeMemoryless :u64: 3;
+MTLLoadActionDontCare :u64: 0;
+MTLStoreActionDontCare :u64: 0;
+MTLGPUFamilyApple4 :s64: 1004;
 MTLTextureUsageShaderRead :u64: 1;
 MTLTextureUsageRenderTarget :u64: 4;
 MTLClearColor :: struct { r, g, b, a: float64; }
@@ -244,7 +265,100 @@ mt: struct {
     off_size: [2]s32;
     readback: Id;
     last_cmd: Id;
+
+    scene_pipeline: Id; // null: scenes unsupported
+    scene_ring: [FRAMES_IN_FLIGHT]Ring_Slot; // instances, gradients and ramps of the frame's scenes
+    tiles: [..]Tile_Set; // per scene size
 };
+
+// A scene's nested layers (vector.SCENE_SLOTS, RGBA8), in tile memory only (memoryless).
+Tile_Set :: struct {
+    w, h: s32;
+    tex: [vector.SCENE_SLOTS]Id;
+}
+
+scene_init :: () {
+    if !msg(bool, mt.device, "supportsFamily:", MTLGPUFamilyApple4) return;
+    err: Id;
+    lib := msg(Id, mt.device, "newLibraryWithSource:options:error:", nsstr(METAL_SCENE_SRC), cast(Id) null, *err);
+    if lib == null {
+        log_error("gfx: metal scene shader: %", err_str(err));
+        return;
+    }
+    defer msg(Void, lib, "release");
+    vs := msg(Id, lib, "newFunctionWithName:", nsstr("vs_scene"));
+    fs := msg(Id, lib, "newFunctionWithName:", nsstr("fs_scene"));
+    defer msg(Void, vs, "release");
+    defer msg(Void, fs, "release");
+    desc := objc.new_obj("MTLRenderPipelineDescriptor");
+    defer msg(Void, desc, "release");
+    msg(Void, desc, "setVertexFunction:", vs);
+    msg(Void, desc, "setFragmentFunction:", fs);
+    atts := msg(Id, desc, "colorAttachments");
+    for 0..vector.SCENE_SLOTS  msg(Void, msg(Id, atts, "objectAtIndexedSubscript:", cast(u64) it), "setPixelFormat:", MTLPixelFormat.RGBA8Unorm);
+    mt.scene_pipeline = msg(Id, mt.device, "newRenderPipelineStateWithDescriptor:error:", desc, *err);
+    if mt.scene_pipeline == null  log_error("gfx: metal scene pipeline: %", err_str(err));
+}
+
+tile_set :: (w: s32, h: s32) -> *Tile_Set {
+    for * mt.tiles  if it.w == w && it.h == h return it;
+    t := array_add(*mt.tiles);
+    t.w, t.h = w, h;
+    for * t.tex  it.* = msg(Id, mt.device, "newTextureWithDescriptor:", tex_desc(.RGBA8Unorm, w, h, MTLTextureUsageRenderTarget, MTLStorageModeMemoryless));
+    return t;
+}
+
+// Encodes each scene as one render pass into cmd, ahead of the frame's main pass. The ring slot is the
+// one this frame's main pass uses, so waiting for that slot's command buffer also frees this one.
+encode_scenes :: (cmd: Id, slot: *Ring_Slot, scenes: []Scene_Draw) {
+    align :: (n: int) -> int { return (n + 255) & ~255; }
+    bytes := 0;
+    for scenes {
+        s := it.scene;
+        bytes += align(s.insts.count * size_of(vector.Scene_Inst)) + align(max(s.segs.count, 1) * size_of(vector.Edge)) + align(s.grads.count * size_of(vector.Scene_Grad)) + align(max(s.ramps.count, 4));
+    }
+    ensure_slot(slot, bytes);
+    base := cast(*u8) msg(*void, slot.buf, "contents");
+    off := 0;
+    for sd: scenes {
+        s := sd.scene;
+        w, h := cast(s32) s.w, cast(s32) s.h;
+        if g.textures[sd.target].w != w || g.textures[sd.target].h != h continue;
+        insts_off := off;
+        memcpy(base + off, s.insts.data, s.insts.count * size_of(vector.Scene_Inst));
+        off += align(s.insts.count * size_of(vector.Scene_Inst));
+        segs_off := off;
+        memcpy(base + off, s.segs.data, s.segs.count * size_of(vector.Edge));
+        off += align(max(s.segs.count, 1) * size_of(vector.Edge));
+        grads_off := off;
+        memcpy(base + off, s.grads.data, s.grads.count * size_of(vector.Scene_Grad));
+        off += align(s.grads.count * size_of(vector.Scene_Grad));
+        ramps_off := off;
+        memcpy(base + off, s.ramps.data, s.ramps.count);
+        off += align(max(s.ramps.count, 4));
+
+        tiles := tile_set(w, h);
+        rp := msg(Id, objc.cls("MTLRenderPassDescriptor"), "renderPassDescriptor");
+        atts := msg(Id, rp, "colorAttachments");
+        for 0..vector.SCENE_SLOTS {
+            a := msg(Id, atts, "objectAtIndexedSubscript:", cast(u64) it);
+            msg(Void, a, "setTexture:", ifx it == 0 then cast(Id) g.textures[sd.target].native else tiles.tex[it - 1]);
+            msg(Void, a, "setLoadAction:", MTLLoadActionClear);
+            msg(Void, a, "setStoreAction:", ifx it == 0 then MTLStoreActionStore else MTLStoreActionDontCare);
+            msg(Void, a, "setClearColor:", MTLClearColor.{0, 0, 0, 0});
+        }
+        enc := msg(Id, cmd, "renderCommandEncoderWithDescriptor:", rp);
+        msg(Void, enc, "setRenderPipelineState:", mt.scene_pipeline);
+        vp := float32.[xx w, xx h];
+        msg(Void, enc, "setVertexBuffer:offset:atIndex:", slot.buf, cast(u64) insts_off, cast(u64) 0);
+        msg(Void, enc, "setVertexBytes:length:atIndex:", cast(*void) *vp, cast(u64) size_of(type_of(vp)), cast(u64) 1);
+        msg(Void, enc, "setFragmentBuffer:offset:atIndex:", slot.buf, cast(u64) grads_off, cast(u64) 0);
+        msg(Void, enc, "setFragmentBuffer:offset:atIndex:", slot.buf, cast(u64) ramps_off, cast(u64) 1);
+        msg(Void, enc, "setFragmentBuffer:offset:atIndex:", slot.buf, cast(u64) segs_off, cast(u64) 2);
+        if s.insts.count  msg(Void, enc, "drawPrimitives:vertexStart:vertexCount:instanceCount:", MTLPrimitiveTypeTriangleStrip, cast(u64) 0, cast(u64) 4, cast(u64) s.insts.count);
+        msg(Void, enc, "endEncoding");
+    }
+}
 
 nsstr :: (s: string) -> Id {
     o := msg(Id, objc.cls("NSString"), "alloc");

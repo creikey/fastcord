@@ -113,7 +113,12 @@ backend_shutdown :: () {
     dx = .{};
 }
 
-backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32) {
+// Scenes need render targets and the scene shaders, which this backend doesn't have yet: the app
+// rasterizes vector art on the CPU here (scenes_supported is false), so `scenes` is always empty.
+backend_scenes_supported :: () -> bool { return false; }
+backend_target_create :: (w: s32, h: s32) -> *void { return null; }
+
+backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32, scenes: []Scene_Draw) {
     if fb[0] <= 0 || fb[1] <= 0 return;
     if !ensure_target(fb) return;
     for * dx.timers timer_read(it);

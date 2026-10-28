@@ -11,6 +11,7 @@ Player :: struct {
 	depth: int; // precomp nesting guard
 	free: [..]Canvas; // layer buffers, all zero
 	mask: []float32; // apply_masks' scratch
+	scene: *vector.Scene; // set while record runs: draws go to the scene's layers instead of buffers
 }
 
 player_init :: (p: *Player, w: int, h: int) {
@@ -54,6 +55,24 @@ render :: (p: *Player, anim: *Animation, frame: float32) -> []u8 {
 	vector.premul_to_rgba8(canvas.px, p.out);
 	give(p, canvas);
 	return p.out;
+}
+
+// record is render for the GPU: it records frame `frame` into s (vector.Scene) instead of rasterizing.
+// No pixel buffers are used; s gets the player's size. False when the layers nest deeper than a
+// scene allows (vector.SCENE_SLOTS): render it instead.
+record :: (p: *Player, anim: *Animation, frame: float32, s: *vector.Scene) -> bool {
+	p.anim = anim;
+	sc := min(cast(float32) p.w / anim.w, cast(float32) p.h / anim.h);
+	p.view = .[sc, 0, 0, sc, (cast(float32) p.w - anim.w * sc) / 2, (cast(float32) p.h - anim.h * sc) / 2];
+	vector.rasterizer_reset(*p.rz);
+	reset(*p.frame);
+	vector.scene_begin(s, p.w, p.h); // first: the scene keeps the caller's allocator
+	push_allocator(.{flat_pool_allocator_proc, *p.frame});
+	p.scene = s;
+	defer p.scene = null;
+	root := Canvas.{layer = 0};
+	render_comp(p, *anim.root, frame, p.view, *root);
+	return !s.overflow;
 }
 
 #scope_module
@@ -110,21 +129,51 @@ layer_world :: (c: *Comp, l: *Layer, frame: float32, depth := 0) -> Mat {
 	return m;
 }
 
-// A premultiplied RGBA f32 layer buffer, zero outside box.
+// A premultiplied RGBA f32 layer buffer, zero outside box; or, recording, a scene layer.
 Canvas :: struct {
 	px: []float32;
 	box: vector.Box;
+	layer: s32 = -1;
 }
 
+exists :: (c: Canvas) -> bool { return c.px.count > 0 || c.layer >= 0; }
+
 take :: (p: *Player) -> Canvas {
+	if p.scene {
+		vector.scene_layer_begin(p.scene);
+		return .{layer = p.scene.depth};
+	}
 	if p.free return pop(*p.free);
 	return .{px = NewArray(p.w * p.h * 4, float32,, p.free.allocator)};
 }
 
 give :: (p: *Player, c: Canvas) {
+	if p.scene return; // its layer ended when it was finished
 	b := c.box;
 	for y: b.y0..b.y1-1  memset(c.px.data + (y * p.w + b.x0) * 4, 0, (b.x1 - b.x0) * 4 * size_of(float32));
 	array_add(*p.free, .{px = c.px});
+}
+
+// Fills or strokes (stroke != null) path into buf with color (straight RGBA), or gradient g mapped by gm.
+paint :: (p: *Player, buf: *Canvas, path: *vector.Path, rule: vector.Fill_Rule, stroke: *vector.Stroke, color: Vector4, g: *vector.Gradient = null, gm := vector.MAT_IDENTITY) {
+	if p.scene {
+		grad: s32 = -1;
+		if g {
+			grad = vector.scene_gradient(p.scene, g, gm);
+			if grad < 0 return;
+		}
+		vector.scene_path(p.scene, *p.rz, path.verbs, path.points, vector.MAT_IDENTITY, rule, stroke, .Over, color.component, grad);
+		return;
+	}
+	cov: []float32;
+	if stroke  cov = vector.stroke_coverage(*p.rz, path.verbs, path.points, vector.MAT_IDENTITY, stroke.*);
+	else       cov = vector.fill_coverage(*p.rz, path.verbs, path.points, vector.MAT_IDENTITY, rule);
+	if g {
+		vector.gradient_fill_premul(g, gm, cov, buf.px, p.w, p.rz.cov_box);
+		buf.box = vector.box_union(buf.box, p.rz.cov_box);
+	} else {
+		fill(p, buf, color, cov);
+	}
 }
 
 // Composites cov * color (straight) into buf.
@@ -154,15 +203,22 @@ render_comp :: (p: *Player, c: *Comp, frame: float32, m: Mat, dst: *Canvas) {
 		l := *c.layers[i];
 		if l.td || l.hidden || l.ty == 3 continue;
 		if !(frame >= l.ip && frame < l.op) continue;
-		buf, op := render_layer(p, c, l, frame, m);
-		if buf.px.count == 0 continue;
-		if l.tt > 0 && i > 0 && c.layers[i - 1].td {
+		matted := l.tt > 0 && i > 0 && c.layers[i - 1].td;
+		buf, op := render_layer(p, c, l, frame, m, ifx matted then null else dst);
+		if !exists(buf) continue;
+		if matted {
 			ml := *c.layers[i - 1];
 			mask_buf: Canvas;
 			mop: float32 = 1;
 			if frame >= ml.ip && frame < ml.op  mask_buf, mop = render_layer(p, c, ml, frame, m);
 			luma := l.tt == 3 || l.tt == 4;
 			inv := l.tt == 2 || l.tt == 4;
+			if p.scene {
+				// no matte layer: matted by nothing (inverted: by everything)
+				if exists(mask_buf)  vector.scene_composite(p.scene, op, xx l.tt, mop);
+				else                 vector.scene_composite(p.scene, ifx inv then op else 0);
+				continue;
+			}
 			mb := mask_buf.px;
 			b := buf.box;
 			for y: b.y0..b.y1-1  for x: b.x0..b.x1-1 {
@@ -177,19 +233,25 @@ render_comp :: (p: *Player, c: *Comp, frame: float32, m: Mat, dst: *Canvas) {
 			}
 			if mb.count  give(p, mask_buf);
 		}
-		composite(p, dst, *buf, op);
+		if p.scene  vector.scene_composite(p.scene, op);
+		else        composite(p, dst, *buf, op);
 		give(p, buf);
 	}
 }
 
-// Coverage of the rectangle (0, 0)-(w, h) under m.
+// The rectangle (0, 0)-(w, h) under m.
+rect_path :: (w: float32, h: float32, m: Mat) -> *vector.Path {
+	path := New(vector.Path);
+	vector.path_move(path, apply(m, .{0, 0}));
+	vector.path_line(path, apply(m, .{w, 0}));
+	vector.path_line(path, apply(m, .{w, h}));
+	vector.path_line(path, apply(m, .{0, h}));
+	vector.path_close(path);
+	return path;
+}
+
 rect_coverage :: (p: *Player, w: float32, h: float32, m: Mat) -> []float32 {
-	path: vector.Path;
-	vector.path_move(*path, .{0, 0});
-	vector.path_line(*path, .{w, 0});
-	vector.path_line(*path, .{w, h});
-	vector.path_line(*path, .{0, h});
-	vector.path_close(*path);
+	path := rect_path(w, h, vector.MAT_IDENTITY);
 	return vector.fill_coverage(*p.rz, path.verbs, path.points, m, .Nonzero);
 }
 
@@ -203,33 +265,88 @@ multiply :: (p: *Player, buf: *Canvas, cov: []float32) {
 }
 
 // Renders one layer (content + masks) into a taken buffer (give it back); returns
-// it with the layer opacity to composite with.
-render_layer :: (p: *Player, c: *Comp, l: *Layer, frame: float32, m: Mat) -> Canvas, float32 {
+// it with the layer opacity to composite with. Recording, a plain layer (opaque, no masks) is drawn
+// straight into dst when given, since src-over composites associatively, and nothing is returned.
+render_layer :: (p: *Player, c: *Comp, l: *Layer, frame: float32, m: Mat, dst: *Canvas = null) -> Canvas, float32 {
 	_, opacity := transform_matrix(*l.ks, frame);
 	if opacity <= 0 return .{}, 0;
 	if l.ty != 0 && l.ty != 1 && l.ty != 4 return .{}, 0;
 	if l.ty == 0 && (l.ref < 0 || p.depth > 16) return .{}, 0; // depth: self-referencing precomps
 	lm := mat_mul(m, layer_world(c, l, frame));
-	buf := take(p);
+	pc: *Comp;
+	pw, ph: float32;
+	if l.ty == 0 {
+		pc = *p.anim.assets[l.ref];
+		pw, ph = ifx l.w > 0 then l.w else pc.w, ifx l.h > 0 then l.h else pc.h;
+	}
+	// a precomp's clip to its bounds is a no-op when they hold the whole canvas
+	direct := p.scene && dst && opacity >= 1 && !l.masks.count && (l.ty != 0 || covers_canvas(p, pw, ph, lm));
+	buf: Canvas;
+	if !direct  buf = take(p);
+	into := ifx direct then dst else *buf;
 	if l.ty == {
 	case 0;
-		pc := *p.anim.assets[l.ref];
 		p.depth += 1;
-		render_comp(p, pc, precomp_time(l, frame), lm, *buf);
+		render_comp(p, pc, precomp_time(l, frame), lm, into);
 		p.depth -= 1;
 		// precomps are clipped to their bounds
-		multiply(p, *buf, rect_coverage(p, ifx l.w > 0 then l.w else pc.w, ifx l.h > 0 then l.h else pc.h, lm));
+		w, h := pw, ph;
+		if p.scene {
+			if !direct && !covers_canvas(p, w, h, lm) {
+				r := rect_path(w, h, lm);
+				vector.scene_path(p.scene, *p.rz, r.verbs, r.points, vector.MAT_IDENTITY, .Nonzero, null, .Multiply, .[1, 1, 1, 1], quad_all = true);
+			}
+		} else {
+			multiply(p, *buf, rect_coverage(p, w, h, lm));
+		}
 	case 1;
-		fill(p, *buf, l.solid_color, rect_coverage(p, l.w, l.h, lm));
+		paint(p, into, rect_path(l.w, l.h, lm), .Nonzero, null, l.solid_color);
 	case 4;
-		draw_shapes(p, l.shapes, frame, lm, *buf);
+		draw_shapes(p, l.shapes, frame, lm, into);
 	}
 	if l.masks.count  apply_masks(p, l, frame, lm, *buf);
+	if direct return .{}, 0;
 	return buf, opacity;
+}
+
+// Whether the rectangle (0, 0)-(w, h) under m contains the whole canvas (so clipping to it is a no-op).
+covers_canvas :: (p: *Player, w: float32, h: float32, m: Mat) -> bool {
+	if m[1] != 0 || m[2] != 0 return false;
+	a, b := apply(m, .{0, 0}), apply(m, .{w, h});
+	return min(a.x, b.x) <= 0 && min(a.y, b.y) <= 0 && max(a.x, b.x) >= xx p.w && max(a.y, b.y) >= xx p.h;
+}
+
+mask_mode :: (m: u8, first: bool) -> vector.Scene_Mode {
+	if first  return ifx m == #char "s" then .Mask_Set_Sub else .Mask_Set;
+	if m == {
+		case #char "s"; return .Mask_Sub;
+		case #char "i"; return .Mask_Intersect;
+		case #char "l"; return .Mask_Lighten;
+		case #char "d"; return .Mask_Darken;
+		case #char "f"; return .Mask_Difference;
+	}
+	return .Mask_Add;
 }
 
 // Only buf's box matters: it is zero elsewhere.
 apply_masks :: (p: *Player, l: *Layer, t: float32, lm: Mat, buf: *Canvas) {
+	if p.scene {
+		any := false;
+		for l.masks  if it.mode != #char "n"  any = true;
+		if !any return;
+		vector.scene_layer_begin(p.scene);
+		first := true;
+		for * mk: l.masks {
+			if mk.mode == #char "n" continue;
+			path := shape_to_path(eval_shape(*mk.path, t), false);
+			mode := mask_mode(mk.mode, first);
+			o := ev1(*mk.opacity, t, 100) / 100;
+			vector.scene_path(p.scene, *p.rz, path.verbs, path.points, lm, .Nonzero, null, mode, .[o, xx mk.inverted, 0, 0], quad_all = true);
+			first = false;
+		}
+		vector.scene_mask_apply(p.scene);
+		return;
+	}
 	acc := p.mask;
 	b := buf.box;
 	first := true;
@@ -415,26 +532,26 @@ draw_shapes :: (p: *Player, items: []Item, t: float32, m: Mat, buf: *Canvas) {
 			array_add(*merged.points, ..it.path.points);
 		}
 		if merged.verbs.count == 0 continue;
-		cov: []float32;
-		if item.kind == .Fill || item.kind == .Gradient_Fill {
-			cov = vector.fill_coverage(*p.rz, merged.verbs, merged.points, vector.MAT_IDENTITY, ifx item.evenodd then .Evenodd else .Nonzero);
-		} else {
+		stroke: vector.Stroke;
+		st: *vector.Stroke;
+		if item.kind == .Stroke || item.kind == .Gradient_Stroke {
 			w := ev1(*item.width, t);
 			if w <= 0 continue;
 			scale := sqrt(abs(d.m[0] * d.m[3] - d.m[1] * d.m[2]));
 			cap := ifx item.cap == 1 then vector.Line_Cap.Butt else ifx item.cap == 3 then vector.Line_Cap.Square else .Round;
 			join := ifx item.join == 1 then vector.Line_Join.Miter else ifx item.join == 3 then vector.Line_Join.Bevel else .Round;
-			cov = vector.stroke_coverage(*p.rz, merged.verbs, merged.points, vector.MAT_IDENTITY, .{width = w * scale, cap = cap, join = join, miter_limit = item.miter});
+			stroke = .{width = w * scale, cap = cap, join = join, miter_limit = item.miter};
+			st = *stroke;
 		}
+		rule := ifx item.evenodd && !st then vector.Fill_Rule.Evenodd else .Nonzero;
 		if item.kind == .Fill || item.kind == .Stroke {
 			c := Vector4.{0, 0, 0, 1};
 			eval(*item.color, t, c.component);
 			c[3] = op;
-			fill(p, buf, c, cov);
+			paint(p, buf, *merged, rule, st, c);
 		} else {
 			g := build_gradient(item, t, op);
-			vector.gradient_fill_premul(*g, d.m, cov, buf.px, p.w, p.rz.cov_box);
-			buf.box = vector.box_union(buf.box, p.rz.cov_box);
+			paint(p, buf, *merged, rule, st, .{1, 1, 1, 1}, *g, d.m);
 		}
 	}
 }

@@ -368,3 +368,197 @@ void main() {
 }
 __END
 ;
+
+// Vector scenes (vector/scene.jai has the model). A scene is one pass and one draw: every instance is a
+// quad whose fragments read and write the pixel's whole layer stack in order (programmable blending,
+// one raster order group). Attachment 0 is the output (slot 0, premultiplied RGBA8), attachments 1..6
+// the nested layers (slots 1..6, tile memory only). Coverage is exact area, as on the CPU:
+//  - Fill (kind 0): coverage = sum over segs d.x .. d.x + d.y of dir * the area of the pixel right of the
+//    line within its rows, by rule (c.z & 1); blends into slot c.y by mode (c.z / 2)
+//  - Composite (kind 1): slot c.y over the one below with opacity a.x and pops it; with a matte (a.y),
+//    slot c.y is the matte (opacity a.z) for the source below it, and both pop
+//  - Mask_Apply (kind 2): the slot below c.y *= slot c.y's alpha, and c.y pops
+
+METAL_SCENE_SRC :: #string __END
+
+#include <metal_stdlib>
+using namespace metal;
+
+struct SInst { float4 a; float4 b; float4 c; float4 d; };
+struct SGrad { float4 m0; float4 m1; float4 p; float4 pad; }; // inv[0..3]; inv[4..5], radial, spread; p0, p1; r, fr
+
+struct SVOut {
+	float4 pos [[position]];
+	float4 a [[flat]];
+	float4 c [[flat]];
+	float4 d [[flat]];
+};
+
+vertex SVOut vs_scene(uint vid [[vertex_id]], uint iid [[instance_id]],
+                      const device SInst* insts [[buffer(0)]],
+                      constant float2& vp [[buffer(1)]]) {
+	SInst i = insts[iid];
+	float2 corner = float2(float(vid & 1u), float(vid >> 1u));
+	float2 p = mix(i.b.xy, i.b.zw, corner);
+	SVOut o;
+	o.pos = float4(p / vp * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
+	o.a = i.a;
+	o.c = i.c;
+	o.d = i.d;
+	return o;
+}
+
+struct SOut {
+	float4 l0 [[color(0), raster_order_group(0)]];
+	float4 l1 [[color(1), raster_order_group(0)]];
+	float4 l2 [[color(2), raster_order_group(0)]];
+	float4 l3 [[color(3), raster_order_group(0)]];
+	float4 l4 [[color(4), raster_order_group(0)]];
+	float4 l5 [[color(5), raster_order_group(0)]];
+	float4 l6 [[color(6), raster_order_group(0)]];
+};
+
+// Mean over u in [u0, u1] of clamp(1 - u, 0, 1): the part of a pixel row right of the line, with u the
+// line's x relative to the pixel's left side.
+static float right_of(float u0, float u1) {
+	if (max(u0, u1) <= 0.0) return 1.0;
+	if (min(u0, u1) >= 1.0) return 0.0;
+	if (abs(u1 - u0) < 1e-3) return clamp(1.0 - 0.5 * (u0 + u1), 0.0, 1.0);
+	// antiderivative of clamp(1 - u, 0, 1)
+	auto G = [](float u) { return u <= 0.0 ? u : (u >= 1.0 ? 0.5 : u - 0.5 * u * u); };
+	return (G(u1) - G(u0)) / (u1 - u0);
+}
+
+static float edge_area(float4 e, float2 px) {
+	float2 a = e.xy, b = e.zw;
+	float dir = 1.0;
+	if (a.y > b.y) { float2 t = a; a = b; b = t; dir = -1.0; }
+	float y0 = max(a.y, px.y), y1 = min(b.y, px.y + 1.0);
+	if (y1 <= y0) return 0.0;
+	float dxdy = (b.x - a.x) / (b.y - a.y);
+	float x0 = a.x + (y0 - a.y) * dxdy, x1 = a.x + (y1 - a.y) * dxdy;
+	return dir * (y1 - y0) * right_of(x0 - px.x, x1 - px.x);
+}
+
+static float4 ramp_at(const device uchar4* ramps, int g, float t) {
+	float x = clamp(t * 256.0 - 0.5, 0.0, 255.0);
+	int i0 = int(floor(x));
+	int i1 = min(i0 + 1, 255);
+	float4 c0 = float4(ramps[g * 256 + i0]) / 255.0, c1 = float4(ramps[g * 256 + i1]) / 255.0;
+	return mix(c0, c1, x - float(i0));
+}
+
+// Straight RGBA of gradient g at pixel center p; alpha 0 where a conical gradient is undefined.
+static float4 gradient(const device SGrad* grads, const device uchar4* ramps, int g, float2 p) {
+	SGrad gr = grads[g];
+	float2 q = float2(gr.m0.x * p.x + gr.m0.z * p.y + gr.m1.x, gr.m0.y * p.x + gr.m0.w * p.y + gr.m1.y);
+	float2 p0 = gr.p.xy, p1 = gr.p.zw;
+	float r = gr.pad.x, fr = gr.pad.y;
+	float t;
+	if (gr.m1.z < 0.5) {
+		float2 d = p1 - p0;
+		float l2 = dot(d, d);
+		t = l2 <= 0.0 ? 0.0 : dot(q - p0, d) / l2;
+	} else {
+		// circles C(t) = f + t * (c - f), radius fr + t * (r - fr); the largest t with radius >= 0
+		float2 f = p1, cd = p0 - p1, qf = q - f;
+		float dr = r - fr;
+		float A = dot(cd, cd) - dr * dr;
+		float B = dot(qf, cd) + fr * dr;
+		float C = dot(qf, qf) - fr * fr;
+		if (abs(A) < 1e-9) {
+			if (abs(B) < 1e-12) return float4(0.0);
+			t = C / (2.0 * B);
+			if (fr + t * dr < 0.0) return float4(0.0);
+		} else {
+			float disc = B * B - A * C;
+			if (disc < 0.0) return float4(0.0);
+			float s = sqrt(disc);
+			float hi = max((B + s) / A, (B - s) / A), lo = min((B + s) / A, (B - s) / A);
+			if (fr + hi * dr >= 0.0) t = hi;
+			else if (fr + lo * dr >= 0.0) t = lo;
+			else return float4(0.0);
+		}
+	}
+	float spread = gr.m1.w;
+	if (spread < 0.5) t = clamp(t, 0.0, 1.0);
+	else if (spread < 1.5) { t = abs(t); float k = floor(t); t -= k; if (fmod(k, 2.0) == 1.0) t = 1.0 - t; } // reflect
+	else t = t - floor(t); // repeat
+	return ramp_at(ramps, g, t);
+}
+
+fragment SOut fs_scene(SVOut in [[stage_in]],
+                       float4 l0 [[color(0), raster_order_group(0)]],
+                       float4 l1 [[color(1), raster_order_group(0)]],
+                       float4 l2 [[color(2), raster_order_group(0)]],
+                       float4 l3 [[color(3), raster_order_group(0)]],
+                       float4 l4 [[color(4), raster_order_group(0)]],
+                       float4 l5 [[color(5), raster_order_group(0)]],
+                       float4 l6 [[color(6), raster_order_group(0)]],
+                       const device SGrad* grads [[buffer(0)]],
+                       const device uchar4* ramps [[buffer(1)]],
+                       const device float4* segs [[buffer(2)]]) {
+	float4 L[7] = { l0, l1, l2, l3, l4, l5, l6 };
+	int kind = int(in.c.x);
+	int top = int(in.c.y);
+	if (kind == 0) {
+		float2 px = floor(in.pos.xy);
+		int first = int(in.d.x), n = int(in.d.y);
+		float acc = 0.0;
+		for (int i = 0; i < n; i++) acc += edge_area(segs[first + i], px);
+		float v = abs(acc);
+		float cov;
+		int rm = int(in.c.z);
+		if ((rm & 1) == 0) cov = min(v, 1.0);
+		else { v = v - 2.0 * floor(v / 2.0); cov = v > 1.0 ? 2.0 - v : v; }
+		int mode = rm >> 1;
+		float4 d = L[top];
+		if (mode == 0) {
+			float4 col = in.a;
+			int g = int(in.c.w);
+			if (g >= 0) col = gradient(grads, ramps, g, in.pos.xy);
+			float al = col.a * cov;
+			d = float4(col.rgb * al, al) + d * (1.0 - al);
+		} else if (mode == 1) {
+			d *= cov;
+		} else {
+			float c = cov * in.a.x;
+			if (in.a.y > 0.5) c = 1.0 - c;
+			float m = d.a;
+			switch (mode) {
+			case 2: m = c; break;
+			case 3: m = 1.0 - c; break;
+			case 4: m = m + c - m * c; break;
+			case 5: m = m * (1.0 - c); break;
+			case 6: m = m * c; break;
+			case 7: m = max(m, c); break;
+			case 8: m = min(m, c); break;
+			case 9: m = abs(m - c); break;
+			}
+			d = float4(m);
+		}
+		L[top] = d;
+	} else if (kind == 1) {
+		int mk = int(in.a.y);
+		int src = mk != 0 ? top - 1 : top;
+		float4 s = L[src];
+		if (mk != 0) {
+			float4 mt = L[top];
+			float f = (mk >= 3 ? dot(mt.rgb, float3(0.2125, 0.7154, 0.0721)) : mt.a) * in.a.z;
+			if (mk == 2 || mk == 4) f = 1.0 - f;
+			s *= f;
+			L[top] = float4(0.0);
+		}
+		L[src] = float4(0.0);
+		float al = s.a * in.a.x;
+		L[src - 1] = s * in.a.x + L[src - 1] * (1.0 - al);
+	} else {
+		L[top - 1] *= L[top].a;
+		L[top] = float4(0.0);
+	}
+	SOut o;
+	o.l0 = L[0]; o.l1 = L[1]; o.l2 = L[2]; o.l3 = L[3]; o.l4 = L[4]; o.l5 = L[5]; o.l6 = L[6];
+	return o;
+}
+__END
+;

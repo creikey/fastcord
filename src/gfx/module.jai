@@ -7,6 +7,7 @@
 #import "File";
 #import "Unicode";
 platform :: #import "platform";
+vector :: #import "vector";
 
 #if OS == .MACOS {
     objc :: #import "platform_objc";

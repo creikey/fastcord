@@ -349,7 +349,7 @@ sticker_grid :: (secs: []St_Section, cols: int, cell: float32, view: ui.Rect) {
 				b.style.bg = T("--interactive-background-selected");
 			}
 			{ ui.parent(b); defer ui.pop_parent();
-				sb := sticker_box("st", item, ST_PREVIEW - 8, sig.hovering);
+				sb := sticker_box("st", item, ST_PREVIEW - 8, app.focused);
 				sb.flags |= .Floating_X | .Floating_Y;
 				sb.fixed_pos = .{4, 4};
 				if item.locked sb.opacity = 0.3;

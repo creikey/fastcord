@@ -7,6 +7,7 @@
 #load "gradient.jai";
 #load "parse.jai";
 #load "raster.jai";
+#load "scene.jai";
 #load "xml.jai";
 
 #scope_module
