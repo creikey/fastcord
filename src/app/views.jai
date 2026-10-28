@@ -179,10 +179,17 @@ history_step :: (forward: bool, keybind := false) {
 	if forward { from, to = to, from; }
 	while from.count > 0 {
 		place := pop(from);
-		if place[0] != 0 && dc.guild_get(store(), place[0]) == null { continue; }
-		if place[1] != 0 && dc.channel_get(store(), place[1]) == null { continue; }
+		// A place may be on another connection: home and DMs are Discord's, a hosted guild its server's.
+		keep := app.client;
+		c := hosted_client_of(place[0]);
+		if !c && app.discord c = app.discord;
+		if c app.client = c;
+		if (place[0] != 0 && dc.guild_get(store(), place[0]) == null) || (place[1] != 0 && dc.channel_get(store(), place[1]) == null) {
+			app.client = keep;
+			continue;
+		}
 		history_push(to, .[app.view.guild, app.view.channel]);
-		if app.client != null { dc.track_back_forward(app.client, forward, keybind); }
+		if keep != null { dc.track_back_forward(keep, forward, keybind); }
 		go_to(place[0], place[1]);
 		return;
 	}
