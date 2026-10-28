@@ -51,7 +51,7 @@ backend_init :: () -> bool {
             SampleDesc = .{Count = 1},
             BufferUsage = .RENDER_TARGET_OUTPUT,
             BufferCount = 2,
-            Scaling = .NONE,
+            Scaling = .STRETCH,
             SwapEffect = .FLIP_DISCARD,
             AlphaMode = .IGNORE,
             Flags = xx dx.swap_flags,

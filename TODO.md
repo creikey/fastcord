@@ -39,9 +39,13 @@
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
 - [ ] Video: fastcord's own real camera (AVFoundation) and screen capture (ScreenCaptureKit) are untested live; the live tests used the synthetic pattern.
+- [ ] Go Live viewer (fastcord-only): zoom and pan into a stream, with the zoomed view filling the viewer's own shape, not the stream's. Zoomed into a 21:9 ultrawide stream in a 16:9 viewer, you see a 16:9 slice of it with no bars, not a 21:9 crop. Scroll to zoom at the cursor, drag to pan, double-click or Escape to reset. Clamp panning to the frame; letterbox only when zoomed out to fit. Today streams are only "contain"-fitted (`view_call.jai`).
 - [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
 - [ ] Video: a dev build started from an app without a camera usage description (e.g. an IDE's terminal) is killed by macOS on the first AVFoundation call; check the authorization status first and say why the camera can't start.
-- [ ] Video: Windows (Media Foundation capture / encoder / decoder, Windows.Graphics.Capture) and Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
+- [ ] Video: Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
+- [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
+- [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
+- [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
 - [ ] Video: VP8 / AV1 calls show no video (only H.264 / H.265 are decoded and sent); no NACK / RTX retransmission or bandwidth estimation (fixed bitrates).
 - [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
@@ -116,11 +120,12 @@
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
 - [ ] Chat: NSFW channels open with no age-gate screen.
+- [ ] Window: size, position and maximised state aren't remembered; every launch opens at the default size where the OS puts it (the official client restores them).
 - [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
 - [ ] Windows: no toast notifications or taskbar unread badge (`notify_show` / `set_badge` are stubs). Linux has no badge either.
 - [ ] Windows, Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty).
 - [ ] Windows: gg sans never loads, so text falls back to Segoe UI (`text_dwrite_windows.jai` `native_font_load_memory` needs IDWriteFactory5's in-memory loader).
-- [ ] Windows, Linux: no video or compressed-audio decoding (`media/decode_none.jai`), so video attachments, MP4 GIFs and Ogg Opus voice messages show no frames and play no sound. Windows: Media Foundation. Possibly the cause of the Klipy GIF item.
+- [ ] Windows, Linux: no compressed-audio decoding (`media/decode_none.jai`), so Ogg Opus voice messages and AAC video soundtracks play no sound; Linux also decodes no video frames. Windows: Media Foundation.
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Windows, Linux: no echo cancellation, noise suppression or AGC in voice (`set_voice_processing` stubs).
 - [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
@@ -224,4 +229,8 @@
 - [x] Voice (macOS): opening Voice & Video no longer ducks other apps or flips AirPods to the headset profile (the mic meter uses an input-only AUHAL unit; calls duck at the minimum level); the device lists drop VPIO's aggregate, hidden and repeated devices; "Default" names the device it resolves to.
 - [x] Read states: incoming mentions raise the mention count, so opening that channel acks at once (checked live on the test accounts, `build/parity ack_live`).
 - [x] Video: checked live with the test accounts both ways: the official client shows fastcord's camera and Go Live, and fastcord decodes the official client's camera (1280x720) and Go Live (H265, DAVE).
+- [x] Video: calls and Go Live on Windows: camera (Media Foundation source reader), screen sharing (DXGI desktop duplication, D3D11 video processor to NV12), H.264 encoding and H.264 / HEVC decoding through Media Foundation MFTs (`src/mf`, `video/*_windows.jai`, `media/decode_windows.jai`); video attachments and embeds now play on Windows too.
+- [x] Bug (Windows): turning the camera off in a call hung the program; `capture_stop` no longer waits on the UI thread for the capture thread to exit (fix untested with a real camera).
+- [x] Windows Resize: every rendered frame waits once on the swap chain's frame-latency waitable (`os_frame_wait`), including frames for input and inside the modal resize loop, so signals no longer pile up.
+- [x] Windows Resize: the swap chain uses `DXGI_SCALING_STRETCH`, so DWM stretches the last frame while resizing instead of leaving gaps.
 - [x] Voice (macOS): the mic no longer cuts out or goes quiet: VPIO's devices are pinned to 10 ms buffers (it ran them at 4096 frames, 85 ms bursts, which the send loop zero-padded and dropped), the audio thread sends only whole mic frames, and a call with every DSP switch off captures through AUHAL instead of VPIO bypass (27 dB quieter).

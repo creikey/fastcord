@@ -1,22 +1,23 @@
-// Video for calls and Go Live: camera and screen capture (NV12 CVPixelBuffers) and a realtime H.264/H.265
-// encoder that emits Annex B. macOS only for now; elsewhere every entry point reports unsupported.
+// Video for calls and Go Live: camera and screen capture (NV12) and a realtime H.264/H.265 encoder that
+// emits Annex B. macOS (AVFoundation, ScreenCaptureKit, VideoToolbox) and Windows (Media Foundation, DXGI
+// desktop duplication; H.264 only); on Linux every entry point reports unsupported.
 
-// A captured frame: a CVPixelBuffer (NV12, '420v' or '420f'), valid only during the call. Called on a
-// capture queue with a context whose temp is the capture's own (reset after each call).
+// A captured frame, valid only during the call: macOS a CVPixelBuffer ('420v' or '420f'), Windows an
+// mf.Nv12. Called on the capture's queue or thread with a temp that is reset after each call.
 Frame_Proc :: #type (user: *void, pixbuf: *void, width: int, height: int);
 
 // Annex B with a 4-byte start code before every NAL; keyframes lead with the parameter sets (H.264: SPS,
-// PPS; H.265: VPS, SPS, PPS). Valid only during the call; called on the encoder's thread with the
-// encoder's own temp.
+// PPS; H.265: VPS, SPS, PPS). Valid only during the call; called on the encoder's thread (Windows: inside
+// encoder_encode, on its caller's) with a temp that thread resets.
 Encoded_Proc :: #type (user: *void, annexb: []u8, keyframe: bool, pts_90k: u32);
 
 Video_Codec :: enum u8 { H264; H265; }
 
-SUPPORTED :: OS == .MACOS; // capture and encoding exist on this platform
+SUPPORTED :: OS == .MACOS || OS == .WINDOWS; // capture and encoding exist on this platform
 
 Screen_Target :: struct {
 	is_window: bool;
-	id: u32; // CGDirectDisplayID or CGWindowID
+	id: u32; // CGDirectDisplayID or CGWindowID; Windows: DXGI adapter << 8 | output
 	name: string;
 	width, height: int; // points
 }
@@ -25,6 +26,9 @@ Screen_Target :: struct {
 	#load "capture_darwin.jai";
 	#load "encode_darwin.jai";
 	#load "pattern_darwin.jai";
+} else #if OS == .WINDOWS {
+	#load "capture_windows.jai";
+	#load "encode_windows.jai";
 } else {
 	#load "none.jai";
 }
@@ -36,6 +40,13 @@ Screen_Target :: struct {
 #import "Thread";
 #import "Atomics";
 locks :: #import "locks";
+
+#if OS == .WINDOWS {
+	#import "Windows";
+	#import "d3d11";
+	#import "dxgi";
+	mf :: #import "mf";
+}
 
 #if OS == .MACOS {
 	objc :: #import "platform_objc";

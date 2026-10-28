@@ -15,6 +15,7 @@ locks :: #import "locks";
 	AudioToolbox :: #library,system,link_always "AudioToolbox";
 	#load "decode_darwin.jai";
 }
+#if OS == .WINDOWS #load "decode_windows.jai";
 #if OS != .MACOS #load "decode_none.jai";
 #load "demux.jai";
 #load "mkv.jai";
