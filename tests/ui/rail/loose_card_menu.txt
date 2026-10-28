@@ -1,0 +1,12 @@
+# Right-clicking a message card outside the chat (here the inbox's Mentions; search and pins share
+# the card) opens the message menu, without Edit or Reply.
+wait 5
+click 1219 16
+wait 20
+click_text "Mentions"
+wait 20
+rclick 1050 195
+wait 10
+expect_visible "Copy Message Link"
+expect_visible "Mark Unread"
+expect_not_visible "Reply"

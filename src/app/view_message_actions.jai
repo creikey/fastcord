@@ -6,6 +6,10 @@ Message_Actions :: struct {
 	confirming: dc.Snowflake; // message of the confirmation modal (delete / pin / unpin)
 	confirm: Confirm;
 	menu_msg: dc.Snowflake; // context menu target
+	// A search, pins or inbox card's message, for find_message (not in the chat's list). Only read when
+	// loose_id matches: the card's list may since have been freed.
+	loose: *dc.Message;
+	loose_id: dc.Snowflake;
 	menu_pos: ui.Vec2;
 	menu_t: float32;
 }
@@ -188,8 +192,8 @@ find_message :: (id: dc.Snowflake) -> *dc.Message {
 	if id == 0 return null;
 	s := store();
 	l := table_find_pointer(*s.messages, app.view.channel);
-	if !l return null;
-	for * l.messages if it.id == id return it;
+	if l for * l.messages if it.id == id return it;
+	if ma.loose_id == id return ma.loose;
 	return null;
 }
 
@@ -418,8 +422,10 @@ message_menu :: () {
 	sel := ui.has_selection();
 	if sel array_add(*items, .{label = "Copy", icon = "copy"});
 	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel});
-	if can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
-	array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
+	// a card outside the chat (search, pins) has no inline editor or composer to reply from
+	in_chat := m != ma.loose;
+	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
+	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});

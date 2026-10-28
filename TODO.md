@@ -47,7 +47,7 @@
 - [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
 - [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
-- [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Reuse that menu so Shift-clicking Delete Message skips the confirm prompt there too, as it already does in chat. Pins likely have the same gap.
+- [ ] Inbox / pins: "Add Reaction" from a card's message menu opens the emoji picker under the popout, since `picker_overlay` is drawn before `pins_popout` and `inbox_popout` (`views.jai` overlays). Draw it above them, or close the popout first.
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
@@ -325,3 +325,4 @@
 - [x] Attachments: file cards have a download button, and clicking the filename downloads too; both save to Downloads like Save Image (`tests/ui/media/file_card.txt`).
 - [x] DMs: unread rows in the Home DM list show a red unread count at the right, hidden while hovered or selected (the close button sits there) and in Lotus Mode (`tests/ui/rail/dm_unread_count.txt`).
 - [x] Scrolling: a wheel notch on Windows follows the system setting like Chromium (lines per notch x 100/3 px, 100px by default; "one screen at a time" steps 87.5% of the window), and Linux uses Chromium's 53px instead of 40px.
+- [x] Search, pins and inbox: right-clicking a message card opens the chat's message menu (without Edit and Reply), drawn above the popouts; Shift-clicking Delete skips the prompt there too (`tests/ui/rail/loose_card_menu.txt`).

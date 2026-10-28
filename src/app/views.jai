@@ -1124,9 +1124,7 @@ overlays :: () {
 		}
 	}
 	if sw.open { quick_switcher(); }
-	if ma.menu_msg != 0 { message_menu(); }
 	if edit_menu_state.open { edit_menu(); }
-	if ma.confirming != 0 { confirm_modal(); }
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
 	if tsg.channel != 0 { timestamp_gen_modal(); }
@@ -1145,6 +1143,9 @@ overlays :: () {
 	inbox_popout();
 	guild_menu_overlays();
 	search_suggestions();
+	// above the pins and inbox popouts, whose cards open them too
+	if ma.menu_msg != 0 { message_menu(); }
+	if ma.confirming != 0 { confirm_modal(); }
 	events_modal();
 	guild_admin_overlays();
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices

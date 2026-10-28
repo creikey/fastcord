@@ -122,6 +122,14 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 		card.style.border = 1;
 		card.style.radius = all4(8);
 		hovered := ui.mouse_over(card);
+		// The popup or panel around the card is clickable too, so only a hot box inside the card (a link,
+		// an image) keeps its own right-click.
+		hot := ui.box_lookup(app.ui.hot);
+		inner := hot && hot.rect.x0 >= card.rect.x0 && hot.rect.y0 >= card.rect.y0 && hot.rect.x1 <= card.rect.x1 && hot.rect.y1 <= card.rect.y1;
+		for e: app.ui.events if e.kind == .Mouse_Down && e.button == .Right && hovered && !inner {
+			ma.loose, ma.loose_id = m, m.id;
+			open_message_menu(m, e.pos, "right_click");
+		}
 		{ ui.parent(card); defer ui.pop_parent();
 			spacer(.Y, 8);
 			defer spacer(.Y, 8);
