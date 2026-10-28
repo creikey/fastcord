@@ -186,6 +186,14 @@ set_status :: (c: *Client, s: Status, duration_ms: s64 = 0, expired := false) {
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
 }
 
+// mirror_status: a self-hosted server's client takes the status picked on Discord's, which owns the
+// setting, and tells its server at once; later Identifies carry it (flush_presence).
+mirror_status :: (c: *Client, s: Status) {
+	c.store.settings.status = s;
+	c.store.changed += 1;
+	if c.gw gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
+}
+
 // status_expiry_tick: CustomStatusManager.manageExpiringStatus, a timed status
 // that has passed goes back to Online.
 status_expiry_tick :: (c: *Client, now: s64) {

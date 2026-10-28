@@ -192,6 +192,25 @@ main :: () {
 		}
 		members_ev := recv_event(ws);
 		check(field(members_ev, "t").s == "GUILD_MEMBER_LIST_UPDATE" && field(members_ev, "d", "online_count").i == 1, "member list after READY");
+		presence :: (ws: *http.Ws_Conn, status: string) {
+			p := etf.map_builder();
+			etf.map_put(*p, "status", etf.vstring(status));
+			m := etf.map_builder();
+			etf.map_put(*m, "op", etf.vint(3));
+			etf.map_put(*m, "d", etf.vmap(etf.map_done(*p)));
+			http.ws_send(ws, .Binary, etf.encode(etf.vmap(etf.map_done(*m))));
+		}
+		presence(ws, "dnd");
+		ev := recv_event(ws);
+		items := field(ev, "d", "ops");
+		if items.kind == .List && items.list.count items = field(items.list[0], "items");
+		check(items.kind == .List && items.list.count == 2 && field(items.list[1], "member", "presence", "status").s == "dnd", "Do Not Disturb shows in the member list");
+		presence(ws, "invisible");
+		ev = recv_event(ws);
+		check(field(ev, "d", "online_count").i == 0, "Invisible lists the member offline");
+		presence(ws, "online");
+		ev = recv_event(ws);
+		check(field(ev, "d", "online_count").i == 1, "back online");
 	}
 
 	rest :: (method: string, path: string, body: string, token: string) -> int, string #expand {

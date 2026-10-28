@@ -14,6 +14,8 @@ Hosted_Server :: struct {
 	joined: bool;      // A member already: restored from settings, or logged in once.
 	retry_at: float64; // When a failed login of a joined server is tried again; 0 when none is due.
 	backoff: float64;
+	status_sent: dc.Status;     // What mirror_status last told status_client, which a re-login replaces.
+	status_client: *dc.Client;
 }
 
 hosted: [..]*Hosted_Server;
@@ -86,6 +88,13 @@ hosted_frame :: () {
 				hosted_start(h);
 			} else {
 				request_wake(h.retry_at);
+			}
+		}
+		if h.client && h.client.store.connection == .Ready && app.discord && app.discord.store.settings.status != .Offline {
+			want := app.discord.store.settings.status;
+			if want != h.status_sent || h.client != h.status_client {
+				dc.mirror_status(h.client, want);
+				h.status_sent, h.status_client = want, h.client;
 			}
 		}
 		if h.client && h.client != app.client dc.client_poll(h.client);

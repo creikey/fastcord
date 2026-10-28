@@ -45,6 +45,7 @@ Conn :: struct {
 	done: bool; // atomic; the thread has finished with s.
 	ws: *http.Ws_Conn; // Under server.mu: set once Identify succeeds, so broadcasts reach it.
 	user: s64;         // Under server.mu, with ws.
+	status: int;       // Under server.mu: an index into STATUSES, the same on all of a member's gateways.
 	mu: locks.Mutex;   // Orders this gateway's dispatches: seq and their queueing.
 	seq: int;
 	// Under mu: encoded dispatches the writer thread hasn't sent yet, so one member who stops reading
@@ -890,14 +891,42 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	return etf.vmap(etf.map_done(*d));
 }
 
+STATUSES :: string.["online", "idle", "dnd", "invisible"];
+INVISIBLE :: 3;
+
+// set_status gives a member's gateways the status a presence names, since on Discord the status is the
+// account's, not a session's; c is the gateway it came from. A presence without a known status gives c
+// the one the member already has. True if the member list changed. The caller holds server.mu.
+set_status_locked :: (s: *Server, c: *Conn, presence: etf.Value) -> bool {
+	v: etf.Value;
+	if presence.kind == .Map v, _ = etf.map_get(presence.map, "status");
+	found, status := false, 0;
+	if v.kind == .String found, status = array_find(STATUSES, v.s);
+	if !found {
+		for s.conns if it != c && it.ws && it.user == c.user { c.status = it.status; return false; }
+		c.status = 0;
+		return false;
+	}
+	changed := false;
+	for s.conns if it.ws && it.user == c.user && it.status != status {
+		it.status = status;
+		changed = true;
+	}
+	return changed;
+}
+
 // member_list_value is the whole member list as one GUILD_MEMBER_LIST_UPDATE SYNC: Online, then Offline,
 // each by name. Online means an identified gateway is open. Takes server.mu, then db_mu.
 // @Speed: Past a few hundred members, sync only the ranges a client subscribed to and send INSERT/DELETE.
 member_list_value :: (s: *Server) -> etf.Value {
 	online: [..]s64;
-	online.allocator = temp;
+	statuses: [..]int;
+	online.allocator, statuses.allocator = temp, temp;
 	locks.lock(*s.mu);
-	for s.conns if it.ws && it.user array_add_if_unique(*online, it.user);
+	for s.conns if it.ws && it.user && it.status != INVISIBLE && !array_find(online, it.user) {
+		array_add(*online, it.user);
+		array_add(*statuses, it.status);
+	}
 	locks.unlock(*s.mu);
 
 	Row :: struct { id: s64; name: string; }
@@ -927,7 +956,8 @@ member_list_value :: (s: *Server) -> etf.Value {
 		array_add(*`items, etf.vmap(etf.map_done(*item)));
 		for rows {
 			p := etf.map_builder(1,, temp);
-			etf.map_put(*p, "status", etf.vstring(id));
+			found, at := array_find(`online, it.id);
+			etf.map_put(*p, "status", etf.vstring(ifx found then STATUSES[`statuses[at]] else "offline"));
 			m := etf.map_builder(2,, temp);
 			etf.map_put(*m, "user", user_value(it.id, it.name));
 			etf.map_put(*m, "presence", etf.vmap(etf.map_done(*p)));
@@ -2227,9 +2257,12 @@ gateway :: (c: *Conn, req: http.Request) {
 				if !user { http.ws_close(ws, 4004, "Authentication failed."); return; }
 				// Registered before READY is built and sent under c.mu, so a message posted meanwhile
 				// arrives after READY instead of being lost. Lock order: server.mu, then c.mu.
+				presence: etf.Value;
+				if d.kind == .Map presence, _ = etf.map_get(d.map, "presence");
 				locks.lock(*c.server.mu);
 				c.ws = ws;
 				c.user = user;
+				set_status_locked(c.server, c, presence);
 				locks.lock(*c.mu);
 				locks.unlock(*c.server.mu);
 				c.seq += 1;
@@ -2239,6 +2272,12 @@ gateway :: (c: *Conn, req: http.Request) {
 				broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
 			case 37; // Guild subscriptions: there is one guild and one list, so any subscription gets all of it.
 				if c.ws && !dispatch(c, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server)) return;
+			case 3;
+				if !c.ws continue;
+				locks.lock(*c.server.mu);
+				changed := set_status_locked(c.server, c, d);
+				locks.unlock(*c.server.mu);
+				if changed broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
 			case 6; // No resume: an invalid session makes the client identify again.
 				if !send(ws, 9, etf.vbool(false)) return;
 			case; // Voice states and the rest are Discord-only; ignore them.
