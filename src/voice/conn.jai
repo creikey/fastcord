@@ -200,6 +200,8 @@ Conn :: struct {
     vmu: locks.Mutex;                 // the send side below (encoder thread vs. RTCP)
     video_on: bool;
     video_announce: bool;  // op 12 due (timer thread)
+    cant_encode: u8;       // a bit per Video_Codec the server picked but we can't encode
+    codecs_due: bool;      // op 14 due (timer thread)
     video_w, video_h, video_fps, video_bitrate: int;
     video_seq: u16;
     video_packets, video_octets, video_last_ts: u32;
@@ -931,15 +933,20 @@ timer_thread_proc :: (t: *Thread) -> s64 {
         // HELLO timeout / HEARTBEAT ACK TIMEOUT: close(4000) and resume
         if hello_timeout || timeout close_ws(c, CLOSE_FORCE);
         if beat send_heartbeat(c);
-        msg: string;
+        msg, codecs: string;
         {
             locks.guard(*c.vmu);
             if c.video_announce && c.video_ssrc && c.ws_open {
                 c.video_announce = false;
                 msg = msg_video(c.ssrc, c.video_ssrc, c.rtx_ssrc, c.video_on, c.video_w, c.video_h, c.video_fps, c.video_bitrate);
             }
+            if c.codecs_due && c.ws_open {
+                c.codecs_due = false;
+                codecs = msg_codecs(c.cant_encode);
+            }
         }
         if msg send_text(c, msg);
+        if codecs send_text(c, codecs);
         reset_temporary_storage();
     }
     return 0;
@@ -1403,6 +1410,16 @@ set_video :: (c: *Conn, on: bool, width := 1280, height := 720, fps := 30, bitra
     c.video_on = on;
     c.video_w, c.video_h, c.video_fps, c.video_bitrate = width, height, fps, bitrate;
     c.video_announce = true;
+}
+
+// cannot_encode: the call's video codec has no encoder here. Once per codec, op 14 asks the server for another
+// (timer thread), as the official client does after its encoder fails; the answer changes video_codec.
+cannot_encode :: (c: *Conn, codec: Video_Codec) {
+    locks.guard(*c.vmu);
+    bit := cast(u8) (1 << cast(int) codec);
+    if c.cant_encode & bit return;
+    c.cant_encode |= bit;
+    c.codecs_due = true;
 }
 
 // video_codec: what SESSION_DESCRIPTION negotiated for this call (.None before it).

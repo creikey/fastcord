@@ -104,6 +104,17 @@ msg_video :: (audio_ssrc: u32, video_ssrc: u32, rtx_ssrc: u32, on: bool, width: 
         audio_ssrc, ifx on then video_ssrc else 0, ifx on then rtx_ssrc else 0, video_ssrc, ifx on then "true" else "false", rtx_ssrc, bitrate, fps, width, height);
 }
 
+// msg_codecs: op 14 from the client, the codec list again with the codecs our encoder can't do (a bit per
+// Video_Codec) marked encode:false. The official client sends it when its encoder fails; the server answers
+// with op 14 and a new video_codec.
+msg_codecs :: (cant_encode: u8) -> string {
+    codecs := CODECS_JSON;
+    for VIDEO_PT if it && cant_encode & (1 << it_index) {
+        codecs = replace(codecs, tprint("\"rtx_payload_type\":%,\"encode\":true", it + 1), tprint("\"rtx_payload_type\":%,\"encode\":false", it + 1),, temp);
+    }
+    return tprint("{\"op\":14,\"d\":{\"codecs\":%}}", codecs);
+}
+
 msg_resume :: (token: string, session_id: string, server_id: u64, channel_id: u64, seq_ack: s64) -> string {
     return json_msg("{\"op\":7,\"d\":{\"token\":", Str.{token}, ",\"session_id\":", Str.{session_id},
         ",\"server_id\":", snowflake(server_id), ",\"channel_id\":", snowflake(channel_id), ",\"seq_ack\":", seq_ack, "}}");
