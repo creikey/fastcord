@@ -4,7 +4,9 @@
 #import "File";
 #import "File_Utilities";
 #import "String";
+#import "Base64";
 crypto :: #import "crypto";
+keys :: #import "keys";
 etf :: #import "etf";
 http :: #import "http";
 netio :: #import "netio";
@@ -78,6 +80,46 @@ main :: () {
 			http.ws_close_stream(ws);
 		}
 	}
+
+	// Logs in as k on a new connection, signing over the exporter of `over` (the same one, unless testing
+	// a relayed signature). Returns the HTTP status and body.
+	login :: (k: keys.Keypair, code: string, name: string, relay := false) -> int, string #expand {
+		session := dial(`pin, serve.ALPN);
+		if !session return -1, "";
+		defer tls.close(session);
+		signed := session;
+		other: *tls.Session;
+		if relay { other = dial(`pin, serve.ALPN); signed = other; }
+		defer if other tls.close(other);
+		msg, _ := serve.login_message(signed, `s.id);
+		sig := crypto.slhdsa_sign(k.signing, serve.LOGIN_CONTEXT, msg);
+		p := keys.proof(k, .Signing);
+		body := tprint("{\"root\": \"%\", \"signing_pub\": \"%\", \"proof\": [\"%\", \"%\"], \"sig\": \"%\", \"code\": \"%\", \"name\": \"%\"}",
+			keys.root_hex(k.root), keys.root_hex(k.signing_pub), keys.root_hex(p[0]), keys.root_hex(p[1]), base64_encode(cast(string) sig), code, name);
+		h: http.H1_Conn;
+		http.h1_init(*h, tls.stream(session));
+		defer http.h1_destroy(*h, false);
+		req := http.Request.{method = "POST", path = "/api/v9/fc/login", authority = `id, body = cast([]u8) body,
+			headers = .[.{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}]};
+		resp, err := http.h1_round_trip(*h, req);
+		if err != .None return -2, "";
+		return resp.status, copy_string(cast(string) resp.body,, temp);
+	}
+
+	k := keys.generate("Tester");
+	other := keys.generate("Other");
+	code := serve.first_invite(s);
+	status, body := login(k, "wrong", "Tester");
+	check(status == 404, tprint("a wrong code is refused: % %", status, body));
+	status, body = login(k, code, "Tester", relay = true);
+	check(status == 401, tprint("a signature from another connection is refused: % %", status, body));
+	status, body = login(k, code, "Tester");
+	check(status == 200 && begins_with(body, "{\"token\": \""), tprint("join: % %", status, body));
+	status, body = login(k, "", "");
+	check(status == 200, tprint("a member logs in without a code: % %", status, body));
+	status, body = login(other, "", "Other");
+	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
+
 	serve.stop(s);
 	print("% failed\n", failed);
 	exit(xx ifx failed then 1 else 0);

@@ -156,7 +156,7 @@ main :: () {
 		s, ok := serve.open(opt.serve);
 		if !ok fail("could not open the server file %", opt.serve);
 		if !serve.listen(s, opt.port) fail("could not listen on port %", opt.port);
-		print("Serving % on port %, server ID %, certificate pin %\n", opt.serve, s.listener.port, serve.id_hex(s), serve.pin_hex(s));
+		print("Serving % on port %. Invite (put your address in place of localhost):\n%\n", opt.serve, s.listener.port, serve.invite_url(s, "localhost", s.listener.port, serve.first_invite(s)));
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
 	headless := opt.shot != "" || bench.on;

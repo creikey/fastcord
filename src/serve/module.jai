@@ -3,9 +3,11 @@
 #import "Atomics";
 #import "Thread";
 #import "String";
+#import "Base64";
 crypto :: #import "crypto";
 etf :: #import "etf";
 http :: #import "http";
+keys :: #import "keys";
 locks :: #import "locks";
 netio :: #import "netio";
 sqlite :: #import "sqlite";
@@ -16,13 +18,15 @@ HEARTBEAT_INTERVAL_MS :: 41_250;
 
 Server :: struct {
 	db: *sqlite.DB;
-	id: [16]u8;      // Sent as SNI and part of every invite, so one host can serve several servers.
+	db_mu: locks.Mutex; // A connection's statements run on one thread at a time.
+	id: [16]u8;     // Sent as SNI and part of every invite, so one host can serve several servers.
 	pin: [32]u8;     // BLAKE3 of the certificate: what invites carry and clients check.
 	ctx: *tls.SSL_CTX;
 	listener: *netio.Listener;
 	accept_thread: *Thread;
 	mu: locks.Mutex; // Guards conns.
 	conns: [..]*Conn;
+	seq: u32; // atomic; the low bits of snowflakes
 }
 
 Conn :: struct {
@@ -34,13 +38,14 @@ Conn :: struct {
 }
 
 // open makes the server file if needed: its ID, TLS key and certificate live in it, so the invite stays
-// valid for as long as the file does.
+// valid for as long as the file does. A new server is named after the file and gets #general and an
+// unlimited invite.
 open :: (path: string) -> *Server, bool {
 	db, ok := sqlite.open(path);
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);") { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) { close(s); return null, false; }
 
 	id := meta_get(s, "id");
 	key := meta_get(s, "tls_key");
@@ -51,10 +56,16 @@ open :: (path: string) -> *Server, bool {
 		if !made { close(s); return null, false; }
 		cert = tls.selfsigned_cert(priv,, temp);
 		key = array_copy(cast([]u8) priv,, temp);
+		code: [6]u8;
+		crypto.random_bytes(code);
 		ok = sqlite.exec(db, "BEGIN;")
 			&& meta_put(s, "id", s.id)
 			&& meta_put(s, "tls_key", key)
 			&& meta_put(s, "tls_cert", cert)
+			&& meta_put(s, "name", path_strip_extension(path_filename(path)))
+			&& meta_put(s, "guild_id", tprint("%", snowflake(s)))
+			&& sqlite.run(db, "INSERT INTO channels(id, name, position) VALUES(?, 'general', 0);", snowflake(s))
+			&& sqlite.run(db, "INSERT INTO invites(code, uses_left) VALUES(?, -1);", hex(code,, temp))
 			&& sqlite.exec(db, "COMMIT;");
 		if !ok { close(s); return null, false; }
 	} else {
@@ -71,7 +82,33 @@ open :: (path: string) -> *Server, bool {
 
 // invite_url is what a member pastes into fastcord to join: the pin, where to connect and which server.
 invite_url :: (s: *Server, host: string, port: int, code: string, allocator := temp) -> string {
-	return sprint("fc://%@%:%/%/%", hex(s.pin,, temp), host, port, hex(s.id,, temp), code,, allocator);
+	h := ifx contains(host, ":") then tprint("[%]", host) else host;
+	return sprint("fc://%@%:%/%/%", hex(s.pin,, temp), h, port, hex(s.id,, temp), code,, allocator);
+}
+
+// first_invite is the oldest invite's code, the one the console prints.
+first_invite :: (s: *Server, allocator := temp) -> string {
+	locks.guard(*s.db_mu);
+	st := sqlite.prepare(s.db, "SELECT code FROM invites ORDER BY rowid LIMIT 1;");
+	defer sqlite.finalize(st);
+	if sqlite.step(st) != .Row return "";
+	return copy_string(sqlite.col_text(st, 0),, allocator);
+}
+
+// A member logs in by signing login_message with their identity's signing key, under LOGIN_CONTEXT. The
+// exporter ties the signature to this TLS connection, so it can't be relayed to another server or
+// replayed later; ALPN and server ID are bound as well, in case a key is ever reused elsewhere.
+LOGIN_CONTEXT :: "fastcord 2026-10-28 login v1";
+LOGIN_EXPORTER :: "EXPORTER-fastcord-login";
+
+login_message :: (session: *tls.Session, server_id: [16]u8) -> []u8, bool {
+	ex: [32]u8;
+	if !tls.exporter(session, LOGIN_EXPORTER, server_id, ex) return .[], false;
+	m := NewArray(32 + ALPN.count + 16, u8,, temp);
+	memcpy(m.data, ex.data, 32);
+	memcpy(m.data + 32, ALPN.data, ALPN.count);
+	memcpy(m.data + 32 + ALPN.count, server_id.data, 16);
+	return m, true;
 }
 
 id_hex :: (s: *Server, allocator := temp) -> string { return hex(s.id,, allocator); }
@@ -130,6 +167,100 @@ meta_get :: (s: *Server, k: string) -> []u8 {
 meta_put :: (s: *Server, k: string, v: []u8) -> bool {
 	return sqlite.run(s.db, "INSERT OR REPLACE INTO meta(k, v) VALUES(?, ?);", k, v);
 }
+meta_put :: (s: *Server, k: string, v: string) -> bool { return meta_put(s, k, cast([]u8) v); }
+
+// Users, channels and messages have Discord-shaped snowflake IDs, since the client reads times from them.
+SCHEMA :: #string SQL
+CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
+CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER);
+CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL);
+SQL
+
+DISCORD_EPOCH_MS :: 1420070400000;
+
+snowflake :: (s: *Server) -> s64 {
+	ms := to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) - DISCORD_EPOCH_MS;
+	return (ms << 22) | (atomic_add(*s.seq, 1) & 0xfff);
+}
+
+unhex :: (s: string, out: []u8) -> bool {
+	if s.count != out.count * 2 return false;
+	nib :: (c: u8) -> int {
+		if c >= #char "0" && c <= #char "9" return c - #char "0";
+		if c >= #char "a" && c <= #char "f" return c - #char "a" + 10;
+		return -1;
+	}
+	for * out {
+		hi, lo := nib(s[2 * it_index]), nib(s[2 * it_index + 1]);
+		if hi < 0 || lo < 0 return false;
+		it.* = cast(u8) (hi << 4 | lo);
+	}
+	return true;
+}
+
+json_error :: (c: *Conn, status: int, code: int, message: string) -> bool {
+	body := tprint("{\"message\": \"%\", \"code\": %}", message, code);
+	return http.h1_write_response(c.s, status, JSON_HEADERS, cast([]u8) body) == .None;
+}
+
+JSON_HEADERS :: http.Header.[.{"Content-Type", "application/json"}];
+
+// POST /api/v9/fc/login {root, signing_pub, proof: [2 hex], sig (base64), code?, name?}. A known root
+// logs in; a new one needs an invite code with uses left, which makes it a member named name.
+login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	field :: (name: string) -> string #expand {
+		f, _ := etf.map_get(`v.map, name);
+		return ifx f.kind == .String then f.s else "";
+	}
+	root, pub: [32]u8;
+	proof: [2][32]u8;
+	p, _ := etf.map_get(v.map, "proof");
+	ok := unhex(field("root"), root) && unhex(field("signing_pub"), pub) && p.kind == .List && p.list.count == 2
+		&& p.list[0].kind == .String && unhex(p.list[0].s, proof[0]) && p.list[1].kind == .String && unhex(p.list[1].s, proof[1]);
+	sig, sig_ok := base64_decode(field("sig"),, temp);
+	if !ok || !sig_ok return json_error(c, 400, 50035, "Invalid Form Body");
+	msg, has_msg := login_message(session, s.id);
+	if !has_msg || !keys.verify_proof(root, .Signing, pub, proof) || !crypto.slhdsa_verify(pub, LOGIN_CONTEXT, msg, cast([]u8) sig) {
+		return json_error(c, 401, 0, "401: Unauthorized");
+	}
+
+	token: [32]u8;
+	crypto.random_bytes(token);
+	{
+		locks.guard(*s.db_mu);
+		if !sqlite.exec(s.db, "BEGIN IMMEDIATE;") return json_error(c, 500, 0, "500: Internal Server Error");
+		user: s64;
+		st := sqlite.prepare(s.db, "SELECT id FROM users WHERE root = ?;");
+		sqlite.bind(st, 1, cast([]u8) root);
+		if sqlite.step(st) == .Row user = sqlite.col_int(st, 0);
+		sqlite.finalize(st);
+		status, code, message := 0, 0, "";
+		if !user {
+			name := trim(field("name"));
+			if !sqlite.run(s.db, "UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND uses_left != 0;", field("code")) || sqlite.changes(s.db) != 1 {
+				status, code, message = 404, 10006, "Unknown Invite";
+			} else if !name || name.count > 32 {
+				status, code, message = 400, 50035, "Invalid Form Body";
+			} else {
+				user = snowflake(s);
+				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name) VALUES(?, ?, ?, ?);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
+			}
+		}
+		token_hash := crypto.blake3(token);
+		if user && !sqlite.run(s.db, "INSERT INTO sessions(token_hash, user) VALUES(?, ?);", cast([]u8) token_hash, user) user = 0;
+		if !user && !status status, code, message = 500, 0, "500: Internal Server Error";
+		sqlite.exec(s.db, ifx status then "ROLLBACK;" else "COMMIT;");
+		if status return json_error(c, status, code, message);
+	}
+	body := tprint("{\"token\": \"%\"}", hex(token,, temp));
+	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) body) == .None;
+}
 
 spawn :: (data: $D, proc: (D)) -> *Thread {
 	Spawned :: struct { #as thread: Thread; arg: D; run: (D); }
@@ -187,7 +318,11 @@ serve_conn :: (c: *Conn) {
 			gateway(c, req);
 			return;
 		}
-		if http.h1_write_response(c.s, 404, .[], .[]) != .None return;
+		if req.method == "POST" && req.path == "/api/v9/fc/login" {
+			if !login(c, session, req) return;
+			continue;
+		}
+		if !json_error(c, 404, 0, "404: Not Found") return;
 	}
 }
 
