@@ -83,8 +83,66 @@ p256_verify :: (pub: []u8, msg: []u8, sig: []u8) -> bool {
     return fc_p256_verify(pub.data, xx pub.count, msg.data, xx msg.count, sig.data, xx sig.count) == 1;
 }
 
+blake3 :: (data: []u8) -> [32]u8 { out: [32]u8; fc_blake3(data.data, xx data.count, out.data); return out; }
+// blake3_derive is BLAKE3's derive_key mode. ctx must be a hardcoded, globally unique string, so that
+// hashes made for one purpose never collide with another's.
+blake3_derive :: (ctx: string, data: []u8) -> [32]u8 {
+    out: [32]u8;
+    fc_blake3_derive(temp_c_string(ctx), data.data, xx data.count, out.data);
+    return out;
+}
+
+// SLH-DSA-SHA2-128s (FIPS 205). Signing takes a long time (hundreds of milliseconds): never call it
+// on the UI thread. ctx is FIPS 205's context string, at most 255 bytes.
+SLHDSA_PUBLIC_BYTES :: 32;
+SLHDSA_PRIVATE_BYTES :: 64;
+SLHDSA_SIGNATURE_BYTES :: 7856;
+slhdsa_generate :: () -> priv: [SLHDSA_PRIVATE_BYTES]u8, pub: [SLHDSA_PUBLIC_BYTES]u8 {
+    priv: [SLHDSA_PRIVATE_BYTES]u8;
+    pub: [SLHDSA_PUBLIC_BYTES]u8;
+    SLHDSA_SHA2_128S_generate_key(pub.data, priv.data);
+    return priv, pub;
+}
+slhdsa_public :: (priv: [SLHDSA_PRIVATE_BYTES]u8) -> [SLHDSA_PUBLIC_BYTES]u8 {
+    pub: [SLHDSA_PUBLIC_BYTES]u8;
+    SLHDSA_SHA2_128S_public_from_private(pub.data, priv.data);
+    return pub;
+}
+// slhdsa_sign makes a signature in context.allocator; empty when ctx is too long.
+slhdsa_sign :: (priv: [SLHDSA_PRIVATE_BYTES]u8, ctx: string, msg: []u8) -> []u8 {
+    sig := NewArray(SLHDSA_SIGNATURE_BYTES, u8, false);
+    if SLHDSA_SHA2_128S_sign(sig.data, priv.data, msg.data, xx msg.count, ctx.data, xx ctx.count) != 1 {
+        array_free(sig);
+        return .[];
+    }
+    return sig;
+}
+slhdsa_verify :: (pub: []u8, ctx: string, msg: []u8, sig: []u8) -> bool {
+    if pub.count != SLHDSA_PUBLIC_BYTES return false;
+    return SLHDSA_SHA2_128S_verify(sig.data, xx sig.count, pub.data, msg.data, xx msg.count, ctx.data, xx ctx.count) == 1;
+}
+
+x25519_generate :: () -> priv: [32]u8, pub: [32]u8 {
+    priv, pub: [32]u8;
+    X25519_keypair(pub.data, priv.data);
+    return priv, pub;
+}
+x25519_public :: (priv: [32]u8) -> [32]u8 {
+    pub: [32]u8;
+    X25519_public_from_private(pub.data, priv.data);
+    return pub;
+}
+
 #scope_file
 bssl :: #library,no_dll "../../build/fc_vendor";
+fc_blake3 :: (p: *void, n: u64, out: *u8) #foreign bssl;
+fc_blake3_derive :: (ctx: *u8, p: *void, n: u64, out: *u8) #foreign bssl;
+SLHDSA_SHA2_128S_generate_key :: (pub: *u8, priv: *u8) #foreign bssl;
+SLHDSA_SHA2_128S_public_from_private :: (pub: *u8, priv: *u8) #foreign bssl;
+SLHDSA_SHA2_128S_sign :: (sig: *u8, priv: *u8, msg: *u8, mlen: u64, ctx: *u8, clen: u64) -> s32 #foreign bssl;
+SLHDSA_SHA2_128S_verify :: (sig: *u8, slen: u64, pub: *u8, msg: *u8, mlen: u64, ctx: *u8, clen: u64) -> s32 #foreign bssl;
+X25519_keypair :: (pub: *u8, priv: *u8) #foreign bssl;
+X25519_public_from_private :: (pub: *u8, priv: *u8) #foreign bssl;
 fc_rand_bytes :: (p: *u8, n: u64) #foreign bssl;
 fc_zero :: (p: *void, n: u64) #foreign bssl;
 fc_compare_constant_time :: (a: *u8, b: *u8, n: u64) -> s32 #foreign bssl;

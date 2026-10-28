@@ -182,6 +182,7 @@ main :: () {
 	} else if !headless || opt.live > 0 {
 		connect();
 	}
+	if !headless identity_start();
 	if (app.client == null || dc.client_logged_out(app.client)) && opt.fixture == "" app.needs_login = true;
 
 	if headless && opt.sweep != "" exit(cast(s32) sweep_run(opt));
@@ -667,6 +668,7 @@ script_command :: (path: string, f: []string, t: *float64) {
 		}
 		platform.inject_event(ev);
 	case "shot";
+		if f.count < 2 return; // A bare shot: the run's -shot capture at the end covers it.
 		pixels, w, h := gfx.read_pixels(temp);
 		gfx.write_png(f[1], pixels, w, h);
 		return;

@@ -22,7 +22,8 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 | `src/netio` | `Stream` interface (read/write/close) + TCP. Every protocol sits on a `Stream`. |
 | `src/tls`, `src/quic` | TLS and QUIC over vendored BoringSSL and ngtcp2, configured like Chrome (the official client is Electron); OS trust store. |
 | `src/inflate`, `src/zstd`, `src/brotli` | Decoders (Wuffs, zstd, brotli): the gateway uses zstd-stream; HTTP responses may be gzip/br/zstd. |
-| `src/crypto` | Hashes, HMAC/HKDF, AEADs, P-256 over BoringSSL. |
+| `src/crypto` | Hashes, HMAC/HKDF, AEADs, P-256, SLH-DSA, X25519 over BoringSSL; BLAKE3. |
+| `src/keys` | Identity keypairs for self-hosted servers: the BLAKE3 Merkle root, durable key files beside `<state>`. |
 | `src/etf` | Erlang External Term Format codec (gateway uses `encoding=etf`) and JSON. |
 | `src/http` | HTTP/1.1, HTTP/2, HTTP/3, WebSocket over vendored picohttpparser, nghttp2, nghttp3, wslay. |
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |

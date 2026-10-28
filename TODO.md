@@ -2,17 +2,14 @@
 
 - [ ] Windows: with an auto-hiding taskbar, a maximized fastcord may keep it from sliding up, since the frameless window covers the whole monitor (`WM_NCCALCSIZE` in `platform_windows.jai`). Leave a pixel free on the taskbar's edge while maximized (`SHAppBarMessage` `ABM_GETSTATE` / `ABM_GETAUTOHIDEBAREX`), as Windows Terminal does.
 - [ ] Hosting 1: several connections at once (Discord, plus self-hosted servers), each with its own store. `store()` in `views.jai` picks the store from the selected guild; the roughly 90 hardcoded Discord URLs come from the connection instead. Never send a Discord token to another host. This also delivers multiple Discord accounts (see Accounts below). Test against Spacebar, an open-source Discord-compatible server.
-- [ ] Keys (needed by Hosting 2; `FEDERATED.md` §26):
-  - Vendor BLAKE3's C code (`vendor/blake3`) with an `fc_blake3.c` wrapper.
-  - At startup, if there's no keypair, generate one: an SLH-DSA-SHA2-128s signing key, an X25519 key, an SLH-DSA recovery key, and a policy leaf. The identity is the BLAKE3 Merkle root over those four. The root is a genesis commitment (`FEDERATED.md` §2): fixed for life.
+- [ ] Keys, the rest (needed by Hosting 2; `FEDERATED.md` §26):
   - Key changes are rotate records in the identity's log (Federation 1), never a new root. Only the recovery key signs rotate records, for any key. An everyday key can't rotate itself or any other key, so a thief who steals it can't rotate your keys on every server. There are no revoke records, only rotations.
   - Device certificates are signed by the signing key. They add a device; they don't rotate anything.
   - A zero policy leaf means this v1 policy. The recovery key can sign a move to a stricter policy, such as 2-of-3 recovery keys. Nothing can loosen a policy. Freeze this format now, so later steps never change anyone's identity.
   - Joining a server reuses the default keypair. Settings > Keys, also reachable from the user menu, lists keypairs and lets you create, rename, export and import them, and choose which one each server uses.
   - Keys must survive fastcord bugs and settings resets. They live in `keys` beside `<state>`, never inside it, so deleting settings or `<state>` never touches them.
-    - Each write goes to a new file, is fsynced, and is read back and checked against a BLAKE3 hash before the old file goes.
-    - Two copies are kept, and fastcord never deletes a key file. Removing a key in Settings moves it to a trash folder.
-    - At rest, keys are wrapped with the OS keystore (DPAPI, Keychain, libsecret).
+    - At rest, keys are wrapped with the OS keystore: DPAPI on Windows is done; Keychain (macOS) and libsecret (Linux) are not (`src/keys` `wrap`).
+  - A failed key save at startup is only logged (`identity.jai`), so the next start makes a different identity. Show it, with the reason, in Settings > Keys.
   - The recovery key starts beside the signing key, where a thief would take both. Settings offers to export it, as a file or a printout, and then remove it from disk.
   - Later:
     - Easy device sync, by QR code or an encrypted export.
@@ -404,3 +401,4 @@
 - [x] CI: no build on push or pull request; CI and releases run only on request (`gh workflow run release.yml -f version=vX.Y.Z`, README "Releasing").
 - [x] Channels: the channel and category row menus have Notification Settings (default / All / @mentions / Nothing), and categories Create Channel (`tests/ui/channel_menu.txt`).
 - [x] Rail: the server header menu has Create Category (the create modal without the type list) and Create Event (the event wizard) (`tests/ui/guild_menu_create.txt`).
+- [x] Keys: BLAKE3 is vendored (`vendor/blake3`). At startup fastcord loads its keypairs from `keys` beside `<state>`, or makes one: SLH-DSA-SHA2-128s signing and recovery keys, an X25519 key and a zero policy leaf, whose BLAKE3 Merkle root is the identity (`src/keys`, format frozen). Writes go to a new file, are synced and read back before replacing; two copies, repaired from each other; nothing is deleted, only moved to `trash`; DPAPI-wrapped on Windows (`src/tests/keys.jai`).

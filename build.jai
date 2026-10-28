@@ -527,6 +527,7 @@ build_c_target :: () -> bool {
             if MAC_ARCH != "aarch64" {
                 if ends_with(f, "_sse41.c") array_add(*a, "-msse4.1");
                 if ends_with(f, "_avx2.c") array_add(*a, "-mavx2");
+                if ends_with(f, "_avx512.c") array_add(*a, "-mavx512f", "-mavx512vl");
                 if ends_with(f, "_avx2.cc") array_add(*a, "-mavx2", "-mfma"); // as WebRTC's own build
                 if ends_with(f, "_neon.cc") continue;
             } else if ends_with(f, "_avx2.cc") || ends_with(f, "_sse.cc") || ends_with(f, "_sse2.cc") continue;

@@ -1,0 +1,8 @@
+vendor/blake3/c/blake3.c
+vendor/blake3/c/blake3_dispatch.c
+vendor/blake3/c/blake3_portable.c
+vendor/blake3/simd/blake3_sse2.c
+vendor/blake3/simd/blake3_sse41.c
+vendor/blake3/simd/blake3_avx2.c
+vendor/blake3/simd/blake3_avx512.c
+vendor/blake3/simd/blake3_neon.c
