@@ -140,7 +140,7 @@
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
 - [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
-- [ ] Markdown: slash-command mentions `</name:id>` and `<id:customize|browse|guide>` stay raw text (`markdown.jai` `try_entity`).
+- [ ] Markdown: clicking a slash-command or server page chip (`/name`, Channels & Roles, Browse Channels, Server Guide) does nothing; it should fill the composer or open that page.
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
 - [ ] Messages: "Forward" in the message menu; forwards are only displayed.
 - [ ] Chat: NSFW channels open with no age-gate screen.
@@ -338,3 +338,4 @@
 - [x] Moderation: with MANAGE_MESSAGES in a server channel the message menu offers "Delete Message" on other people's messages (`can_manage_message`, `tests/ui/forward/delete_others.txt`).
 - [x] Messages: holding Shift over a message you may delete adds a red trash can to the hover toolbar that deletes it without confirmation (`tests/ui/forward/shift_delete.txt`; scripts gained `move <x> <y> shift`).
 - [x] Chat: messages that mention you (by name, @everyone / @here, or one of your roles) get the mentioned background and a gold left bar (`mentions_me` in `view_chat.jai`, `tests/ui/forward/mention_highlight.txt`).
+- [x] Markdown: slash-command mentions `</name sub:id>` and server page links `<id:customize|browse|guide|linked-roles>` draw as mention chips (`markdown.jai` `try_entity`, `tests/ui/forward/command_mentions.txt`).

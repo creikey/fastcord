@@ -1,0 +1,4 @@
+# Slash-command mentions (</dingus roll:id>) and server page links (<id:customize>) in filler 20 draw as
+# mention chips "/dingus roll" and "Channels & Roles", not raw text.
+wait 10
+shot build/ui-command_mentions.png

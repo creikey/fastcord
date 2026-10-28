@@ -228,6 +228,12 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message,
 			sp.bg_radius = 3;
 			sp.font = F(.Medium);
 			if tk.kind == .Role_Mention sp.text = "@role";
+		case .Command;
+			sp.text = tk.name;
+			sp.bg = T("--mention-background");
+			sp.color = T("--mention-foreground");
+			sp.bg_radius = 3;
+			sp.font = F(.Medium);
 		case .Channel_Mention;
 			c := dc.channel_get(s, tk.id);
 			sp.text = tprint("#%", ifx c then c.name else "unknown");
@@ -647,7 +653,7 @@ is_emoji_only :: (toks: []Token) -> bool {
 			k, only := emoji_count(tk.text);
 			if !only return false;
 			n += k;
-		case .Link; #through; case .User_Mention; #through; case .Role_Mention; #through; case .Channel_Mention; #through; case .Everyone; #through; case .Timestamp;
+		case .Link; #through; case .User_Mention; #through; case .Role_Mention; #through; case .Channel_Mention; #through; case .Everyone; #through; case .Timestamp; #through; case .Command;
 			return false;
 		}
 	}

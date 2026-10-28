@@ -30,6 +30,7 @@ Token_Kind :: enum u8 {
 	Everyone; // @everyone / @here
 	Custom_Emoji; // name, id, animated
 	Timestamp; // id = unix seconds, name = format letter
+	Command; // name = "/name sub" for </name sub:id>, or a server page's label for <id:customize> etc.
 }
 
 Token :: struct {
@@ -488,11 +489,28 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 		v, ok := dc.parse_u64(secs);
 		if !ok return 0, false;
 		tok = .{kind = .Timestamp, id = v, name = ifx found then style else "f", text = whole};
+	} else if begins_with(inner, "/") {
+		colon := find_index_from_right(inner, #char ":");
+		if colon <= 1 return 0, false;
+		id, ok := dc.parse_u64(span(inner, colon + 1, inner.count));
+		if !ok return 0, false;
+		tok = .{kind = .Command, id = id, name = span(inner, 0, colon), text = whole};
 	} else if begins_with(inner, "https://") || begins_with(inner, "http://") {
 		// <url> suppresses embeds but still links
 		tok = .{kind = .Link, text = inner};
 	} else {
-		return 0, false;
+		// <id:customize> and friends: the server's own pages
+		found, gid, page := split_from_left(inner, #char ":");
+		_, ok := dc.parse_u64(gid);
+		label: string;
+		if page == {
+		case "customize"; label = "Channels & Roles";
+		case "browse"; label = "Browse Channels";
+		case "guide"; #through; case "home"; label = "Server Guide";
+		case "linked-roles"; label = "Linked Roles";
+		}
+		if !found || !ok || label == "" return 0, false;
+		tok = .{kind = .Command, name = label, text = whole};
 	}
 	emit(p, .Text, pending);
 	tok.styles = p.styles;
