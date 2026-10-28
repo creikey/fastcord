@@ -338,6 +338,16 @@ A child cannot grant itself a trusted parent.
 
 An outsider can claim to be somebody's parent, but this has no effect on that parent's namespace without the parent's authorized signature.
 
+### Capability rules
+
+Every grant of authority in the system, whether a delegation, device certificate, invite, session, file link or storage ticket, follows the same rules:
+
+- **Attenuation only.** A grant passed on never carries more scope or a later expiry than the grant it came from. Verifiers check the whole chain, not just the last link.
+- **Bound to a key.** Where the holder has a key, the grant names it and each use proves possession, so a copied grant alone opens nothing. Bare bearer secrets are the exception, used only where no key exists yet.
+- **Expiry instead of revocation.** There are no revoke records (section 26.4), so anything that must be killable is short-lived and renewed by its issuer. A lost device or a leaked link dies at expiry.
+- **Least authority.** Hold a grant only while something needs it. For example, a client drops an invite code once it has joined.
+- **Domain separation.** Each grant type has its own domain tag, so a naming delegation can never be read as an application permission, a device certificate or a storage ticket (Invariant 14).
+
 ### Directly pinned identities
 
 A locally pinned identity is authoritative for its own identity.
@@ -755,6 +765,8 @@ Per-public-key quotas alone are ineffective because attackers can create new key
 Parent-based quotas alone are also insufficient if attackers can generate new parents.
 
 The protocol needs a resource-allocation policy that accounts for the fundamental absence of scarce identities.
+
+One proposal is **storage tickets**. A node grants signed quota tickets ("may store N bytes until T") to identities with a delegation chain from an anchor the node trusts. Holders can split a ticket among their children, attenuating it under the capability rules in section 5. Publishers without a ticket pay proof of work. This prices anonymous publication instead of forbidding it.
 
 It may be impossible to simultaneously guarantee unrestricted anonymous publication, free unlimited storage, and robust protection against resource exhaustion.
 
