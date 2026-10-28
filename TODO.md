@@ -72,7 +72,6 @@
 - [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the RNNoise toggle can't be heard or seen there (`view_voice_settings.jai` meter path).
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
-- [ ] Search, pins and inbox: message cards draw every block as plain 15px text (`content_spans` in `view_pins.jai`): no quote bar, heading size, list bullet, subtext style or code block box. Share the chat's block rendering (`message_body`).
 - [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
 - [ ] Media: Save Image gives no feedback: the file lands in Downloads silently, and a failed fetch or write says nothing (`images.jai` `save_download`). The desktop client asks where to save with the system Save dialog.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
@@ -327,3 +326,4 @@
 - [x] Search, pins and inbox: right-clicking a message card opens the chat's message menu (without Edit and Reply), drawn above the popouts; Shift-clicking Delete skips the prompt there too (`tests/ui/rail/loose_card_menu.txt`).
 - [x] Inbox / pins / search: "Add Reaction" from a card's message menu opens the emoji picker above the popout, also for a message in another channel (`tests/ui/rail/loose_card_menu.txt`).
 - [x] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes render as such behind the quote bar, in messages and embed descriptions (`tests/ui/forward/quote_blocks.txt`).
+- [x] Search, pins and inbox: message cards render the chat's blocks (quote bar, headings, lists, subtext, code boxes, clickable links and "(edited)"), with search terms still highlighted.

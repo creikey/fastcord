@@ -696,6 +696,9 @@ utc_calendar :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + 
 hour12 :: (t: Calendar_Time) -> int { h := t.hour % 12; return ifx h then h else 12; }
 am_pm :: (t: Calendar_Time) -> string { return ifx t.hour >= 12 then "PM" else "AM"; }
 
+// A search, pins or inbox card's text: the chat's blocks, with the search terms highlighted.
+card_body :: (m: *dc.Message, terms: []string) { message_body(m, terms); }
+
 #scope_file
 
 stamps: struct {
@@ -1256,7 +1259,8 @@ new_member_badge :: (m: *dc.Message) {
 	if ui.signal(b).hovering tooltip_below("I'm new here, say hi!", b.rect);
 }
 
-message_body :: (m: *dc.Message) {
+// terms: search words to highlight (search result cards).
+message_body :: (m: *dc.Message, terms: []string = .[]) {
 	if m.content == "" return;
 	blocks := md_parse(m.content);
 	edited_inline := false;
@@ -1274,7 +1278,8 @@ message_body :: (m: *dc.Message) {
 				spacer(.X, 16);
 			}
 			cb :=ui.box(tprint("code%", bi), .Draw_Background | .Draw_Border | .Draw_Text | .Selectable_Text | .Wrap_Text);
-			ui.set_spans(cb, code_spans(blk.code, blk.lang, F(.Mono), 14));
+			code := code_spans(blk.code, blk.lang, F(.Mono), 14);
+			ui.set_spans(cb, ifx terms then highlight_spans(code, terms) else code);
 			cb.semantic_size = .[ifx blk.quoted then ui.fill() else ui.pct(1), ui.text_size()];
 			cb.style.bg = T("--background-base-lowest");
 			cb.style.border_color = T("--border-subtle");
@@ -1341,6 +1346,7 @@ message_body :: (m: *dc.Message) {
 					spans = edited;
 					edited_inline = true;
 				}
+				if terms spans = highlight_spans(spans, terms);
 				ui.set_spans(b, spans);
 				b.sel_order = m.id * 8 + 2 + cast(u64) bi % 4;
 			}

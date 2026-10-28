@@ -165,7 +165,7 @@ loose_message_card :: (m: *dc.Message, terms: []string, show_jump: bool) -> bool
 				}
 				spacer(.X, 12);
 			}
-			content_spans(m, terms);
+			card_body(m, terms);
 			// media as in the chat, narrowed to the card (its width from the last layout)
 			mw := ifx col.rect.x1 > col.rect.x0 then min(400.0, col.rect.x1 - col.rect.x0 - 12) else 300.0;
 			if m.sticker_ids message_stickers_view(m);
@@ -263,23 +263,3 @@ span :: (s: string, lo: int, hi: int) -> string {
 	return r;
 }
 
-// Message content as wrapped rich text with search terms highlighted.
-content_spans :: (m: *dc.Message, terms: []string) {
-	if m.content == "" return;
-	blocks := md_parse(m.content);
-	for blk, bi: blocks {
-		b := ui.box(tprint("p%", bi), .Selectable_Text | .Wrap_Text);
-		b.semantic_size = .[ui.pct(1), ui.text_size()];
-		b.style.text_color = T("--text-default");
-		b.style.line_height = 20;
-		spans: []ui.Span;
-		if blk.kind == .Code_Block {
-			spans = code_spans(blk.code, blk.lang, F(.Mono), 13);
-		} else {
-			spans = tokens_to_spans(blk.tokens, .Normal, 15, m);
-		}
-		if terms spans = highlight_spans(spans, terms);
-		ui.set_spans(b, spans);
-		b.sel_order = cast(u64) m.id * 8 + 2 + cast(u64) bi % 4;
-	}
-}
