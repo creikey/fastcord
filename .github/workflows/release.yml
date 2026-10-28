@@ -1,11 +1,9 @@
-# Publishes a release: push a tag (git tag v0.5.0 && git push origin v0.5.0) or run it by hand with a version.
+# Publishes a release when a human asks: gh workflow run release.yml -f version=v0.5.0 (tags the chosen commit).
 # The release stays a draft until the Mac, Windows and Linux archives are all uploaded, so the site's
 # releases/latest links and the app's Update pill never see a release with missing downloads.
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       version: { description: "Version tag, e.g. v0.5.0 (created at the chosen commit)", required: true }
@@ -18,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  VERSION: ${{ inputs.version || github.ref_name }}
+  VERSION: ${{ inputs.version }}
   GH_TOKEN: ${{ github.token }}
   GH_REPO: ${{ github.repository }}
 

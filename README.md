@@ -87,7 +87,8 @@ timings for frames over 25 ms, and on exit the focused field's text. A frame stu
 report (the lock the UI thread waits on and its holder) to stderr and to `logs/` beside `<state>`. All
 mutexes go through `locks`, which panics at the faulty call on misuse instead of deadlocking.
 
-CI (`.github/workflows/ci.yml`) builds and tests on Windows, then macOS and Linux. Jai is private, so CI
+CI (`.github/workflows/ci.yml`) builds on Windows, then macOS and Linux. Pushes don't trigger it; run it
+by hand with `gh workflow run ci.yml`. Jai is private, so CI
 downloads it from `ci/jai-server`, a Fly.io app (`fastcord-jai`) that serves `/data/jai.zip` only to the
 `JAI_PASSWORD` repo secret; never put Jai, or a link to it, anywhere public. To rotate the password, set it
 with `fly secrets set JAI_PASSWORD=...` and `gh secret set JAI_PASSWORD`. To update Jai, zip it (top folder
@@ -178,11 +179,12 @@ empty SCID, no token) match exactly.
 
 ## Releasing
 
-CI publishes releases (`.github/workflows/release.yml`). Push a version tag, or run the workflow by hand
-with a version:
+Releases ship only when a human asks for one, usually by asking Claude. Push `main`, pick the version
+after `gh release list -L 1`, and run `.github/workflows/release.yml`:
 
 ```sh
-git tag v0.5.0 && git push origin v0.5.0
+gh workflow run release.yml -f version=v0.5.0
+gh run watch "$(gh run list -w release.yml -L 1 --json databaseId -q '.[0].databaseId')"
 ```
 
 It drafts the release (generated notes), builds `release <tag>` on a Mac runner (the Mac app) and a

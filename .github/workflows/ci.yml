@@ -1,14 +1,10 @@
-# Builds fastcord on Windows first, then macOS and Linux once Windows passes.
+# Builds fastcord on Windows first, then macOS and Linux once Windows passes. Runs only by hand
+# (gh workflow run ci.yml); releases go through release.yml.
 # Jai is private: it comes from ci/jai-server (Fly.io) with the JAI_PASSWORD secret, is unpacked outside the
 # checkout, and must never be uploaded, cached or echoed. Fork pull requests get no secrets, so they skip the build.
 name: CI
 
 on:
-  push:
-    branches: [main]
-    paths-ignore: ["**.md", "site/**"]
-  pull_request:
-    paths-ignore: ["**.md", "site/**"]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +12,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   windows:

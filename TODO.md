@@ -390,3 +390,4 @@
 - [x] Channels: collapsing a category is account state: the sidebar reads `channel_overrides[].collapsed` and a click PATCHes it (`set_category_collapsed`; `tests/ui/category_collapse.txt`). The local `settings.json` `collapsed` list is gone.
 - [x] Developer Mode: Copy Message ID, Copy Server ID (server icon menu), Copy Channel ID (thread menu) and Copy User ID show when it is on (`tests/ui/developer_mode_ids.txt`). Channel rows get theirs with their context menu (Channels item above).
 - [x] Channels: channel and category rows have a right-click menu: Mark As Read, Invite People, Copy Link, Collapse Category, Collapse All Categories, Mute, Edit, Delete (now reachable for categories) and Copy ID (`tests/ui/channel_menu.txt`).
+- [x] CI: no build on push or pull request; CI and releases run only on request (`gh workflow run release.yml -f version=vX.Y.Z`, README "Releasing").
