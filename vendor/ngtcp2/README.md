@@ -21,6 +21,24 @@ its BoringSSL backend lets the handshake use the same TLS library and Chrome-sha
 `client_initial` uses `ngtcp2_crypto_derive_and_install_initial_key`, which is exported but declared only
 in `crypto/shared.h`, so that we can set Chrome's exact transport parameter bytes; recheck it on update.
 
+Its `fc_quic_new` takes the server's 0-RTT transport parameters from the last connection
+(`fc_quic_0rtt_tp`): with them a resumed session starts HTTP/3 in 0-RTT, and if the server refuses early data
+the requests go again on 1-RTT. `fc_h3_preview` is for `quic_h3_control_stream` only.
+
+## Patches
+
+`patches/` holds our changes to the upstream files; `build.jai` applies them to a copy in `build/patched/ngtcp2`
+(AGENTS.md). They make ngtcp2 send what Chrome 148 (QUICHE) sends; `quic_chrome_initials` checks them.
+
+- `0001-chrome-initial-packets.patch`:
+  - `conn_crumble_initial_crypto` replaced by QUICHE's layout of Initial CRYPTO data
+    (`QuicPacketCreator::MultiPacketChaosProtect`, `QuicChaosProtector`): a ClientHello that needs several
+    packets puts its first 55-86 bytes and its tail in packet 1 and its middle in the next; in each packet the
+    CRYPTO frames are split 2-10 more times, 2-10 PINGs added, the padding spread between the frames, and all
+    of them shuffled.
+  - `pktns_select_pkt_numlen`: packet numbers take at least 2 bytes, except the Initial packet numbered 1.
+  - `NGTCP2_PKT_LENGTHLEN` 2: the long header's Length field is a 2-byte varint, not 4.
+
 To update: download the new release tarball, copy the same files, regenerate `fc_ngtcp2.sources`
-(`lib/*.c` plus the two crypto files, sorted), record the version and sha256 here, then run
-`jai build.jai - test`.
+(`lib/*.c` plus the two crypto files, sorted), record the version and sha256 here, re-make each patch against the
+new files (`diff -ru ngtcp2.orig ngtcp2`), then run `jai build.jai - test quic_`.

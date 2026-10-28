@@ -59,4 +59,8 @@ the Jai is written. This file lists what is easy to miss.
   decoders: Wuffs first, else the reference C library. Vendor upstream files unmodified in
   `vendor/<lib>/` with a small `fc_<lib>.c` wrapper and a README (URL, version, sha256, licence);
   `build.jai` compiles it. Hand-written code stays only where the library lacks a feature (animated
-  WebP's container).
+  WebP's container). When a library must change (e.g. to match Chrome's wire behaviour), keep the
+  upstream files pristine and add a small documented patch, `vendor/<lib>/patches/NNNN-name.patch`
+  (unified diff, paths under `<lib>/`): `build.jai` copies the library to `build/patched/<lib>`,
+  applies the patches in name order with `git apply` and compiles that copy. List each patch and its
+  purpose in the library's README, and re-make the patches on every update.

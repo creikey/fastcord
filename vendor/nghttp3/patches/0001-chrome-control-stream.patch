@@ -1,0 +1,237 @@
+diff -ru nghttp3.orig/lib/nghttp3_conn.c nghttp3/lib/nghttp3_conn.c
+--- nghttp3.orig/lib/nghttp3_conn.c	2026-10-28 02:37:18
++++ nghttp3/lib/nghttp3_conn.c	2026-10-28 02:42:02
+@@ -2195,6 +2195,12 @@
+     .local_settings = &conn->local.settings,
+   };
+ 
++  /* fastcord: a client greases SETTINGS as Chrome does. */
++  if (!conn->server && conn->callbacks.rand) {
++    conn->callbacks.rand((uint8_t *)fr->settings.grease,
++                         sizeof(fr->settings.grease));
++  }
++
+   if (conn->local.settings.origin_list) {
+     assert(conn->server);
+ 
+@@ -2239,11 +2245,6 @@
+ 
+   conn->tx.qenc = stream;
+ 
+-  rv = nghttp3_stream_write_stream_type(stream);
+-  if (rv != 0) {
+-    return rv;
+-  }
+-
+   rv = nghttp3_conn_create_stream(conn, &stream, qdec_stream_id);
+   if (rv != 0) {
+     return rv;
+@@ -2253,7 +2254,9 @@
+ 
+   conn->tx.qdec = stream;
+ 
+-  return nghttp3_stream_write_stream_type(stream);
++  /* fastcord: as QUICHE's QpackSendStream, each QPACK stream sends its
++     type with its first instruction, so an unused one stays silent. */
++  return 0;
+ }
+ 
+ static nghttp3_ssize conn_writev_stream(nghttp3_conn *conn, int64_t *pstream_id,
+@@ -2273,6 +2276,18 @@
+     }
+   }
+ 
++  /* fastcord: a request's PRIORITY_UPDATE, queued on the control
++     stream by nghttp3_stream_fill_outq, leaves just before its
++     HEADERS, as QUICHE writes it. */
++  if (!nghttp3_stream_uni(stream->node.id) && conn->tx.ctrl &&
++      !nghttp3_stream_is_blocked(conn->tx.ctrl)) {
++    n = nghttp3_stream_writev(conn->tx.ctrl, pfin, vec, veccnt);
++    if (n) {
++      *pstream_id = conn->tx.ctrl->node.id;
++      return (nghttp3_ssize)n;
++    }
++  }
++
+   if (!nghttp3_stream_uni(stream->node.id) && conn->tx.qenc &&
+       !nghttp3_stream_is_blocked(conn->tx.qenc)) {
+     n = nghttp3_stream_writev(conn->tx.qenc, pfin, vec, veccnt);
+@@ -2957,7 +2972,18 @@
+     memcpy(buf, data, datalen);
+   }
+ 
+-  rv = nghttp3_stream_frq_emplace(conn->tx.ctrl, &fr);
++  /* fastcord: before a request has written anything, its
++     PRIORITY_UPDATE waits at the front of the request's own queue and
++     goes to the control stream with its HEADERS. */
++  if (stream->tx.offset == 0 && nghttp3_ringbuf_len(&stream->frq)) {
++    rv = nghttp3_ringbuf_full(&stream->frq)
++           ? nghttp3_ringbuf_reserve(&stream->frq,
++                                     nghttp3_ringbuf_len(&stream->frq) * 2)
++           : 0;
++    fr = rv ? NULL : nghttp3_ringbuf_push_front(&stream->frq);
++  } else {
++    rv = nghttp3_stream_frq_emplace(conn->tx.ctrl, &fr);
++  }
+   if (rv != 0) {
+     nghttp3_mem_free(conn->mem, buf);
+     return rv;
+diff -ru nghttp3.orig/lib/nghttp3_frame.h nghttp3/lib/nghttp3_frame.h
+--- nghttp3.orig/lib/nghttp3_frame.h	2026-10-28 02:37:18
++++ nghttp3/lib/nghttp3_frame.h	2026-10-28 02:41:36
+@@ -94,6 +94,9 @@
+   /* local_settings is set when sending SETTINGS frame.  It is not
+      used on reception. */
+   const nghttp3_settings *local_settings;
++  /* fastcord: grease, when nonzero, is the randomness for Chrome's
++     GREASE setting and the GREASE frame that follows SETTINGS. */
++  uint32_t grease[4];
+ } nghttp3_frame_settings;
+ 
+ typedef struct nghttp3_frame_goaway {
+diff -ru nghttp3.orig/lib/nghttp3_stream.c nghttp3/lib/nghttp3_stream.c
+--- nghttp3.orig/lib/nghttp3_stream.c	2026-10-28 02:37:18
++++ nghttp3/lib/nghttp3_stream.c	2026-10-28 02:42:02
+@@ -282,7 +282,11 @@
+       }
+       break;
+     case NGHTTP3_FRAME_PRIORITY_UPDATE:
+-      rv = nghttp3_stream_write_priority_update(stream, &fr->priority_update);
++      /* fastcord: a request's own PRIORITY_UPDATE goes on the control
++         stream. */
++      rv = nghttp3_stream_write_priority_update(
++        nghttp3_stream_uni(stream->node.id) ? stream : stream->conn->tx.ctrl,
++        &fr->priority_update);
+       if (rv != 0) {
+         return rv;
+       }
+@@ -326,6 +330,12 @@
+   return nghttp3_stream_outq_add(stream, &tbuf);
+ }
+ 
++/* fastcord: stream_maybe_write_qpack_type writes a QPACK stream's
++   type before its first instruction. */
++static int stream_maybe_write_qpack_type(nghttp3_stream *stream) {
++  return stream->tx.offset ? 0 : nghttp3_stream_write_stream_type(stream);
++}
++
+ int nghttp3_stream_write_settings(nghttp3_stream *stream,
+                                   const nghttp3_frame_settings *infr) {
+   size_t len;
+@@ -340,20 +350,35 @@
+   };
+   const nghttp3_settings *local_settings = infr->local_settings;
+   uint64_t payloadlen;
++  /* fastcord: Chrome's (QUICHE's) GREASE frame: a reserved type
++     0x1f * N + 0x21 and N % 4 random payload bytes. */
++  const uint32_t *grease = infr->grease;
++  uint64_t grease_type = 0x1fULL * grease[2] + 0x21;
++  size_t grease_len = grease[2] % 4;
+ 
++  /* fastcord: QUICHE writes its settings sorted by identifier. */
+   ents[0] = (nghttp3_settings_entry){
+-    .id = NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE,
+-    .value = local_settings->max_field_section_size,
+-  };
+-  ents[1] = (nghttp3_settings_entry){
+     .id = NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY,
+     .value = local_settings->qpack_max_dtable_capacity,
+   };
++  ents[1] = (nghttp3_settings_entry){
++    .id = NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE,
++    .value = local_settings->max_field_section_size,
++  };
+   ents[2] = (nghttp3_settings_entry){
+     .id = NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS,
+     .value = local_settings->qpack_blocked_streams,
+   };
+ 
++  if (local_settings->enable_connect_protocol) {
++    ents[fr.niv] = (nghttp3_settings_entry){
++      .id = NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL,
++      .value = 1,
++    };
++
++    ++fr.niv;
++  }
++
+   if (local_settings->h3_datagram) {
+     ents[fr.niv] = (nghttp3_settings_entry){
+       .id = NGHTTP3_SETTINGS_ID_H3_DATAGRAM,
+@@ -363,16 +388,24 @@
+     ++fr.niv;
+   }
+ 
+-  if (local_settings->enable_connect_protocol) {
++  if (grease[0] || grease[1] || grease[2] || grease[3]) {
++    /* fastcord: Chrome's GREASE setting, 0x1f * N + 0x21 = random
++       32-bit value. */
+     ents[fr.niv] = (nghttp3_settings_entry){
+-      .id = NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL,
+-      .value = 1,
++      .id = 0x1fULL * grease[0] + 0x21,
++      .value = grease[1],
+     };
+ 
+     ++fr.niv;
++  } else {
++    grease_len = 0;
++    grease_type = 0;
+   }
+ 
+   len = nghttp3_frame_write_settings_len(&payloadlen, &fr);
++  if (grease_type) {
++    len += nghttp3_frame_write_hd_len(grease_type, grease_len) + grease_len;
++  }
+ 
+   rv = nghttp3_stream_ensure_chunk(stream, len);
+   if (rv != 0) {
+@@ -384,6 +417,12 @@
+ 
+   chunk->last = nghttp3_frame_write_settings(chunk->last, &fr, payloadlen);
+ 
++  if (grease_type) {
++    chunk->last = nghttp3_frame_write_hd(chunk->last, grease_type, grease_len);
++    chunk->last = nghttp3_cpymem(chunk->last, (const uint8_t *)&grease[3],
++                                 grease_len);
++  }
++
+   tbuf.buf.last = chunk->last;
+ 
+   return nghttp3_stream_outq_add(stream, &tbuf);
+@@ -565,6 +604,11 @@
+   if (ebuflen > NGHTTP3_STREAM_MAX_COPY_THRES) {
+     assert(qenc_stream);
+ 
++    rv = stream_maybe_write_qpack_type(qenc_stream);
++    if (rv != 0) {
++      return rv;
++    }
++
+     nghttp3_typed_buf_init(&tbuf, ebuf, NGHTTP3_BUF_TYPE_PRIVATE);
+     rv = nghttp3_stream_outq_add(qenc_stream, &tbuf);
+     if (rv != 0) {
+@@ -574,6 +618,11 @@
+   } else if (ebuflen) {
+     assert(qenc_stream);
+ 
++    rv = stream_maybe_write_qpack_type(qenc_stream);
++    if (rv != 0) {
++      return rv;
++    }
++
+     rv = nghttp3_stream_ensure_chunk(qenc_stream, ebuflen);
+     if (rv != 0) {
+       return rv;
+@@ -719,6 +768,11 @@
+   len = nghttp3_qpack_decoder_get_decoder_streamlen2(qdec);
+   if (len == 0) {
+     return 0;
++  }
++
++  rv = stream_maybe_write_qpack_type(stream);
++  if (rv != 0) {
++    return rv;
+   }
+ 
+   rv = nghttp3_stream_ensure_chunk(stream, len);

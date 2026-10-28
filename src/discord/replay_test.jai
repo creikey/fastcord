@@ -2714,3 +2714,132 @@ rate_limit_queue :: (t: *T) {
 	expect_value(t, ra, 2.0);
 }
 
+// quic_chrome_initials: our first flight has the layout of Chrome 148's (QUICHE's multi-packet chaos protection,
+// seen in the official client's Initials to discord.com): two 1250-byte datagrams, packets 1 and 2 with 1- then
+// 2-byte packet numbers, the ClientHello's head (55-86 bytes) and tail in packet 1 and its middle in packet 2,
+// each packet's CRYPTO split further among 2-10 PINGs and PADDING.
+quic_chrome_initials :: (t: *T) {
+	for 1..10 {
+		dg := quic.first_flight("discord.com",, temp);
+		if !expect_value(t, dg.count, 2) return;
+		have: [2][..][2]u64;
+		for d, di: dg {
+			expect_value(t, d.count, 1250);
+			dcid := array_view(d, 6, d[5]);
+			pos := 6 + dcid.count + 1 + d[6 + dcid.count];
+			token, _ := get_varint(d, *pos);
+			pos += xx token;
+			length, _ := get_varint(d, *pos);
+			if !expect_value(t, pos + cast(int) length, d.count) return;
+			secret := crypto.hkdf_extract(u8.[0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8, 0x0c, 0xad, 0xcc, 0xbb, 0x7f, 0x0a], dcid);
+			label :: (secret: []u8, name: string, out: []u8) {
+				info: [..]u8;
+				info.allocator = temp;
+				array_add(*info, 0, cast(u8) out.count, cast(u8) (6 + name.count));
+				array_add(*info, ..cast([]u8) "tls13 ");
+				array_add(*info, ..cast([]u8) name);
+				array_add(*info, 0);
+				crypto.hkdf_expand(secret, info, out);
+			}
+			client, key, iv, hp: [32]u8;
+			label(secret, "client in", client);
+			label(client, "quic key", array_view(key, 0, 16));
+			label(client, "quic iv", array_view(iv, 0, 12));
+			label(client, "quic hp", array_view(hp, 0, 16));
+			pkt := array_copy(d,, temp);
+			mask, zero: [16]u8;
+			crypto.aes_ctr(array_view(hp, 0, 16), array_view(pkt, pos + 4, 16), zero, mask);
+			pkt[0] ^= mask[0] & 0x0f;
+			pnlen := (pkt[0] & 3) + 1;
+			pn: u64;
+			for i: 0..pnlen - 1 { pkt[pos + i] ^= mask[1 + i]; pn = pn << 8 | pkt[pos + i]; }
+			expect_value(t, pn, di + 1);
+			expect_value(t, pnlen, di + 1);
+			for i: 0..7 iv[11 - i] ^= cast,trunc(u8) (pn >> (8 * i));
+			a: crypto.Aead;
+			crypto.aead_init(*a, .AES_GCM, array_view(key, 0, 16));
+			hdr := pos + pnlen;
+			ct := array_view(pkt, hdr, pkt.count - hdr - 16);
+			pt := NewArray(ct.count, u8,, temp);
+			ok := crypto.open(*a, pt, array_view(iv, 0, 12), array_view(pkt, 0, hdr), ct, array_view(pkt, pkt.count - 16, 16));
+			crypto.aead_destroy(*a);
+			if !expect(t, ok, "Initial decrypts") return;
+			// Chrome's header: 8-byte DCID, empty SCID and token, 2-byte Length; 1215 then 1214 bytes of frames.
+			expect(t, dcid.count == 8 && pos == 18 && pt.count == 1215 - di, "Chrome's Initial header");
+			pings, frames := 0, 0;
+			i := 0;
+			while i < pt.count {
+				if pt[i] == 0 { i += 1; continue; }
+				if pt[i] == 1 { pings += 1; i += 1; continue; }
+				if !expect_value(t, pt[i], 6) return;
+				i += 1;
+				off, _ := get_varint(pt, *i);
+				n, _ := get_varint(pt, *i);
+				array_add(*have[di], .[off, off + n],, temp);
+				frames += 1;
+				i += xx n;
+			}
+			expectf(t, pings >= 2 && pings <= 10, "packet % has % PINGs", pn, pings);
+			expectf(t, frames >= 4 - di && frames <= 12 - di, "packet % has % CRYPTO frames", pn, frames);
+		}
+		// Packet 1 holds [0, head) and [tail, total), packet 2 exactly [head, tail).
+		merge :: (r: [..][2]u64) -> [..][2]u64 {
+			quick_sort(r, (a: [2]u64, b: [2]u64) -> s64 { return cast(s64) a[0] - cast(s64) b[0]; });
+			out: [..][2]u64;
+			out.allocator = temp;
+			for r {
+				if out && out[out.count - 1][1] == it[0] out[out.count - 1][1] = it[1];
+				else array_add(*out, it);
+			}
+			return out;
+		}
+		p1, p2 := merge(have[0]), merge(have[1]);
+		if !expect_value(t, p1.count, 2) || !expect_value(t, p2.count, 1) return;
+		head, tail, total := p1[0][1], p1[1][0], p1[1][1];
+		expect(t, p1[0][0] == 0 && head >= 55 && head < 87 && p2[0][0] == head && p2[0][1] == tail, "head and tail in packet 1, middle in packet 2");
+		// QUICHE's split: packet 1 carries ceil((total + m) / packets) - m bytes, m being one CRYPTO frame's
+		// header for the whole hello; 1215 bytes of frames fit in the first packet.
+		vl :: (v: u64) -> u64 { return cast(u64) ifx v < 64 then 1 else ifx v < 16384 then 2 else 4; }
+		m := 1 + vl(total - 1) + vl(total);
+		npkts := (total + m + 1215 - m - 1) / (1215 - m);
+		expect_value(t, head + total - tail, (total + m + npkts - 1) / npkts - m);
+	}
+}
+
+// quic_h3_control_stream: our HTTP/3 start matches Chrome 148's (QUICHE's): the control stream sends Chrome's
+// captured SETTINGS (sorted ids, then a GREASE setting) and a GREASE frame, the QPACK streams stay silent, and
+// each request's PRIORITY_UPDATE leaves just before its HEADERS.
+quic_h3_control_stream :: (t: *T) {
+	b := quic.h3_preview("u=1, i", 2,, temp);
+	Rec :: struct { id: u8; data: []u8; }
+	recs: [..]Rec;
+	recs.allocator = temp;
+	i := 0;
+	while i + 3 <= b.count {
+		n := (cast(int) b[i + 1] << 8) | b[i + 2];
+		array_add(*recs, .{b[i], array_view(b, i + 3, n)});
+		i += 3 + n;
+	}
+	if !expect_value(t, recs.count, 5) return;
+	// Chrome's control stream (official capture) up to its GREASE setting: type 0, SETTINGS, then 01, 06, 07, 33.
+	CHROME :: "\x01\x80\x01\x00\x00\x06\x80\x04\x00\x00\x07\x40\x64\x33\x01";
+	c := recs[0].data;
+	expect(t, recs[0].id == 2 && c.count > 18 && c[0] == 0 && c[1] == 4 && cast(string) array_view(c, 3, CHROME.count) == CHROME, "control stream starts like Chrome's");
+	pos := 3 + CHROME.count;
+	gid, _ := get_varint(c, *pos);
+	get_varint(c, *pos);
+	expectf(t, gid > 0x21 && (gid - 0x21) % 0x1f == 0 && pos == 3 + cast(int) c[2], "GREASE setting %", gid);
+	gtype, _ := get_varint(c, *pos);
+	glen, _ := get_varint(c, *pos);
+	expectf(t, (gtype - 0x21) % 0x1f == 0 && glen == ((gtype - 0x21) / 0x1f) % 4 && pos + cast(int) glen == c.count, "GREASE frame type % length %", gtype, glen);
+	for 1..2 {
+		pu := recs[2 * it - 1];
+		pos = 0;
+		typ, _ := get_varint(pu.data, *pos);
+		get_varint(pu.data, *pos);
+		elem, _ := get_varint(pu.data, *pos);
+		expect(t, pu.id == 2 && typ == 0xf0700 && elem == xx (4 * (it - 1)) && cast(string) array_view(pu.data, pos, pu.data.count - pos) == "u=1, i", "PRIORITY_UPDATE before its request");
+		expect(t, recs[2 * it].id == 4 * (it - 1) && recs[2 * it].data[0] == 1, "then the request's HEADERS");
+	}
+}
+

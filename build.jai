@@ -9,6 +9,7 @@
 #import "String";
 #import "Thread";
 #import "System";
+#import "Sort";
 #if OS == .WINDOWS WR :: #import "Windows_Resources";
 
 #run build();
@@ -423,7 +424,9 @@ stale :: (out: string, dir: string) -> bool {
 cflags :: (base: string) -> []string {
     s, ok := read_entire_file(tprint("%.cflags", base), log_errors = false);
     if !ok return .[];
-    return break_command_into_strings(trim(s));
+    flags := break_command_into_strings(trim(s));
+    for * flags it.* = patched(it.*);
+    return flags;
 }
 
 // The pinned Zig, downloaded once into build/zig and checked against ziglang.org's sha256.
@@ -496,8 +499,40 @@ build_c :: () -> bool {
     return build_c_target();
 }
 
+// A library with vendor/<lib>/patches/*.patch builds from build/patched/<lib>: a copy of vendor/<lib> with
+// the patches applied in name order by `git apply`, redone when anything under vendor/<lib> changes. Its
+// sources list and .cflags keep naming vendor/<lib>; `patched` points them at the copy.
+PATCHED: [..]string;
+apply_patches :: () -> bool {
+    array_reset(*PATCHED);
+    for dir: vendor_dirs() {
+        if !file_exists(tprint("%/patches", dir)) continue;
+        patches := file_list(tprint("%/patches", dir));
+        array_add(*PATCHED, dir);
+        dst := tprint("build/patched/%", path_filename(dir));
+        stamp := tprint("%.stamp", dst);
+        if !stale(stamp, dir) continue;
+        if file_exists(dst) && !delete_directory(dst) return false;
+        for file_list(dir, recursive = true) {
+            to := tprint("%/%", dst, slice(it, dir.count + 1, it.count - dir.count - 1));
+            make_directory_if_it_does_not_exist(path_strip_filename(to), recursive = true);
+            if !copy_file(it, to) return false;
+        }
+        quick_sort(patches, compare);
+        for patches if run_command("git", "apply", tprint("--directory=%", dst), it).exit_code != 0 return false;
+        write_entire_file(stamp, "");
+    }
+    return true;
+}
+patched :: (path: string) -> string {
+    if begins_with(path, "-I") return tprint("-I%", patched(slice(path, 2, path.count - 2)));
+    for PATCHED if begins_with(path, tprint("%/", it)) return tprint("build/patched/%", slice(path, it.count - path_filename(it).count, path.count));
+    return path;
+}
+
 build_c_target :: () -> bool {
     make_directory_if_it_does_not_exist(OBJ(), recursive = true);
+    if !apply_patches() return false;
     jobs: [..][..]string;
     stamps: [..]string;
     for src: c_units() {
@@ -518,7 +553,7 @@ build_c_target :: () -> bool {
         text := read_entire_file(list);
         extra := cflags(path_strip_extension(list));
         for line: split(text, "\n") {
-            f := trim(line);
+            f := patched(trim(line));
             if !f continue;
             a: [..]string;
             cc(*a, !ends_with(f, ".c"));

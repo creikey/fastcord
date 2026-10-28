@@ -5,7 +5,7 @@
 //     quic and h1_serialize_request put on the wire
 //   - h3 transport parameters: decoded from the bytes the session's
 //     ClientHello carried (Conn_Event.quic_params)
-//   - h3 SETTINGS: quic.H3_SETTINGS (what nghttp3 writes)
+//   - h3 SETTINGS: quic.H3_SETTINGS plus a GREASE setting (what the patched nghttp3 writes)
 //   - h2 SETTINGS / WINDOW_UPDATE: the values h2_connect sent
 // Cookie and authorization values are stripped like Chrome does.
 
@@ -226,6 +226,8 @@ h3_settings_json :: () -> string {
 		}
 		array_add(*pairs, .{nm, xx s[1]});
 	}
+	// The patched nghttp3's GREASE setting: its id and value are random (tools/trafficdiff folds them).
+	array_add(*pairs, .{"UNSUPPORTED_SETTINGS_TYPE(33)", 0});
 	quick_sort(pairs, (a: Pair, b: Pair) -> int { return compare(a.name, b.name); });
 	b := temp_buffer();
 	array_add(*b, #char "{");

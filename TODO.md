@@ -118,7 +118,7 @@
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
-- [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
+- [ ] Traffic: close the fingerprint gaps against Chrome listed in README.md (QUIC packet-number counter, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [ ] Traffic (account risk): every Windows and macOS install identifies as one captured Mac. `host_platform` returns `DEFAULT_PLATFORM` (`discord/identity.jai`): Mac OS X 27.0.0 on arm64, the macOS user agent and `sec-ch-ua-platform`, timezone America/Los_Angeles and locale en-US, whatever the real machine.
   - A Windows user shows up in Settings > Devices and in new-login emails as a Mac. Their TCP/IP stack, with TTL 128 and Windows TCP options, contradicts a macOS user agent to any passive OS fingerprint.
   - Everyone outside Los Angeles sends a timezone that contradicts their IP. Discord's server-side strings ignore the user's language.
@@ -492,3 +492,4 @@
 - [x] Channels: the channel and category row menus have Notification Settings (default / All / @mentions / Nothing), and categories Create Channel (`tests/ui/channel_menu.txt`).
 - [x] Rail: the server header menu has Create Category (the create modal without the type list) and Create Event (the event wizard) (`tests/ui/guild_menu_create.txt`).
 - [x] Keys: BLAKE3 is vendored (`vendor/blake3`). At startup fastcord loads its keypairs from `keys` beside `<state>`, or makes one: SLH-DSA-SHA2-128s signing and recovery keys, an X25519 key and a zero policy leaf, whose BLAKE3 Merkle root is the identity (`src/keys`, format frozen). Writes go to a new file, are synced and read back before replacing; two copies, repaired from each other; nothing is deleted, only moved to `trash`; DPAPI-wrapped on Windows (`src/tests/keys.jai`).
+- [x] Traffic: QUIC Initials (QUICHE's chaos protection, 1- then 2-byte packet numbers, 2-byte Length), HTTP/3 SETTINGS order with GREASE setting and frame, silent QPACK streams, PRIORITY_UPDATE before each request's HEADERS, and 0-RTT GETs on resumed sessions now follow Chrome 148, through patches in `vendor/ngtcp2/patches` and `vendor/nghttp3/patches` (`quic_chrome_initials`, `quic_h3_control_stream`).
