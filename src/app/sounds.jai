@@ -155,6 +155,7 @@ sounds_frame :: () {
 // fed by the library's dispatch on the UI thread). Drained ONCE per frame and
 // shared by every consumer (sounds, OS notifications): call this instead of
 // dc.take_new_messages. Valid until the next frame.
+// Every connection's messages are gathered; judge each with message_client(m), not app.client.
 app_new_messages :: () -> []dc.New_Message {
 	if app.client == null return .[];
 	if new_msgs_frame != app.frame || new_msgs.data == null {
@@ -162,17 +163,44 @@ app_new_messages :: () -> []dc.New_Message {
 			dc.new_messages_free(app.client, new_msgs);
 			array_free(new_msgs);
 		}
-		new_msgs = dc.take_new_messages(app.client, context.allocator);
+		new_msgs = .[];
+		for connections() {
+			got := dc.take_new_messages(it, context.allocator);
+			if !got.count continue;
+			if !new_msgs.count { new_msgs = got; continue; }
+			joined := NewArray(new_msgs.count + got.count, dc.New_Message);
+			memcpy(joined.data, new_msgs.data, new_msgs.count * size_of(dc.New_Message));
+			memcpy(joined.data + new_msgs.count, got.data, got.count * size_of(dc.New_Message));
+			array_free(new_msgs);
+			array_free(got);
+			new_msgs = joined;
+		}
 		new_msgs_frame = app.frame;
 	}
 	return new_msgs;
+}
+
+// Discord's client (or the fixture's), then each logged-in self-hosted server's.
+connections :: () -> []*dc.Client {
+	out: [..]*dc.Client;
+	out.allocator = temp;
+	main := ifx app.discord then app.discord else app.client;
+	if main array_add(*out, main);
+	for hosted if it.client && it.client != main array_add(*out, it.client);
+	return out;
+}
+
+// The connection a message came on.
+message_client :: (m: *dc.New_Message) -> *dc.Client {
+	for connections() if *it.store == m.store return it;
+	return app.client;
 }
 
 // message_notifies: the client's notification rule for one message
 // (message_notifications: 0 all, 1 only mentions, 2 nothing, 3 = guild default), shared by the
 // message sound and desktop notifications: never for @silent messages or blocked or ignored authors.
 message_notifies :: (m: *dc.New_Message) -> bool {
-	s := store();
+	s := *message_client(m).store;
 	if m.author_id == s.me || m.author_id == 0 return false;
 	if m.flags & SUPPRESS_NOTIFICATIONS return false;
 	r := table_find_pointer(*s.relationships, m.author_id);
@@ -322,9 +350,9 @@ voice_members :: () {
 }
 
 message_sounds :: () {
-	s := store();
+	s := *connections()[0].store; // Discord's: its status is the one you set.
 	for * m: app_new_messages() {
-		if app.focused && m.channel_id == app.view.channel continue; // notifyMessagesInSelectedChannel: false
+		if app.focused && m.channel_id == app.view.channel && message_client(m) == app.client continue; // notifyMessagesInSelectedChannel: false
 		if s.settings.status == .Dnd continue;
 		if !message_notifies(m) continue;
 		sound_play("message1");

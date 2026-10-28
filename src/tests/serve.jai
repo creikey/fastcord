@@ -491,6 +491,32 @@ main :: () {
 		tprint("notification settings are kept: %", ifx kept then kept.* else .{}));
 	discord.client_destroy(cl5);
 
+	// Two connections at once: each takes only the new messages that came on it, so the app checks a
+	// message against the store it belongs to.
+	{
+		ca := discord.client_create(.{token = token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+		cb := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+		discord.client_start(ca);
+		discord.client_start(cb);
+		for 1..1000 { if ca.store.ready && cb.store.ready break; discord.client_poll(ca); discord.client_poll(cb); sleep_milliseconds(10); }
+		discord.take_new_messages(ca);
+		discord.take_new_messages(cb);
+		rest("POST", messages, "{\"content\": \"for b\"}", token);
+		got_b: []discord.New_Message;
+		for 1..300 {
+			discord.client_poll(ca);
+			discord.client_poll(cb);
+			got_a := discord.take_new_messages(ca);
+			check(got_a.count == 0, "a connection takes no other connection's messages");
+			got_b = discord.take_new_messages(cb);
+			if got_b.count break;
+			sleep_milliseconds(10);
+		}
+		check(got_b.count == 1 && got_b[0].store == *cb.store && got_b[0].content == "for b", tprint("the message reaches its own connection: %", got_b.count));
+		discord.client_destroy(ca);
+		discord.client_destroy(cb);
+	}
+
 	// The owner deletes anyone's message; a member deletes only their own.
 	status, body = rest("POST", messages, "{\"content\": \"spam\"}", other_token);
 	spam, _ := etf.from_json(body);
