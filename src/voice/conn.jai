@@ -978,7 +978,7 @@ udp_resolve :: (host: string, port: int) -> Udp_Addr, bool {
 
 udp_send :: (c: *Conn, b: []u8) {
     if sendto(c.udp, b.data, xx b.count, 0, cast(*sockaddr) c.server_ep.bytes.data, xx c.server_ep.len) < 0 {
-        c.udp_errno = xx errno();
+        c.udp_errno = xx get_last_socket_error();
         atomic_add(*c.udp_errors, 1);
     }
 }
