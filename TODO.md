@@ -88,7 +88,9 @@
   - Done: a connection that hasn't logged in (or shown a member's token) within 10 s is cut off when the next connection arrives (`accept_loop` `reap`).
   - Done: at most 16 connections per address (an IPv6 /64 counts as one) and 1024 in total; past that the server hangs up at once (`accept_loop`, `netio.Tcp.peer`).
   - Done: when accept fails (the fd limit), `accept_loop` reaps finished connections and backs off (10 ms doubling to 1 s) instead of spinning.
-  - Sessions never expire and every login adds one. Add expiry, logout, and an owner's Kick that revokes sessions.
+  - Done: a member keeps at most 16 sessions (`MAX_SESSIONS`); each login drops their oldest past that, so sessions no longer pile up one per client start.
+  - A closed client's session stays valid until 16 newer logins replace it. Add logout on quit and an owner's Kick that revokes a member's sessions.
+  - Bug: a hosted client whose session is gone (dropped past the cap, or its member left) is stuck. Its gateway gets 4004 and stops for good (`login_check_auth` handles only `app.discord`), and it never logs in again by key. On 4004 from a hosted server, log in again with the saved invite's key and reconnect, as a fresh start does.
   - Every Identify, disconnect and op 37 resends the full member list to every connection (already in Hosting 2's Next).
   - Low priority: names aren't unique, so a member can take the owner's name. An edit racing the author's own delete broadcasts a null `MESSAGE_UPDATE`.
   - Done: search takes each filter once (one `content`, `pinned`, `has` link or not) and at most 25 ids per kind, and SQLite's expression depth limit is back to its default of 1000 (`fc_sqlite.c`). Searches still aren't rate-limited (see the rate limits above). The original report:

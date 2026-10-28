@@ -334,6 +334,7 @@ SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user);
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
@@ -467,6 +468,9 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 		}
 		token_hash := crypto.blake3(token);
 		if user && !sqlite.run(s.db, "INSERT INTO sessions(token_hash, user) VALUES(?, ?);", cast([]u8) token_hash, user) user = 0;
+		// Every start of a client logs in afresh and never reuses its token, so only a member's newest
+		// sessions stay.
+		if user && !sqlite.run(s.db, tprint("DELETE FROM sessions WHERE user = ?1 AND rowid NOT IN (SELECT rowid FROM sessions WHERE user = ?1 ORDER BY rowid DESC LIMIT %);", MAX_SESSIONS), user) user = 0;
 		if !user && !status status, code, message = 500, 0, "500: Internal Server Error";
 		sqlite.exec(s.db, ifx status then "ROLLBACK;" else "COMMIT;");
 		if status return json_error(c, status, code, message);
@@ -1678,6 +1682,7 @@ search :: (c: *Conn, req: http.Request) -> bool {
 
 MAX_PINS :: 50; // Per channel, as Discord had it; so the pins list never needs paging.
 MAX_REACTIONS :: 20; // Distinct emoji per message, as on Discord.
+MAX_SESSIONS :: 16; // Per member: one per running client, so this many devices at once.
 
 // PUT/DELETE /api/v9/channels/{id}/messages/pins/{id}: until roles land (Hosting 4) only the owner pins.
 // The message (now pinned or not) follows as MESSAGE_UPDATE, then CHANNEL_PINS_UPDATE.

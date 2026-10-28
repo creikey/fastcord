@@ -606,6 +606,15 @@ main :: () {
 	status, body = rest("DELETE", tprint("%/%", messages, field(spam, "id").s), "", other_token);
 	check(status == 204, tprint("a member deletes their own message: % %", status, body));
 
+	// A member keeps only their newest sessions: logging in that many times more ends the first one.
+	{
+		status, body = rest("GET", tprint("%?limit=1", messages), "", token);
+		check(status == 200, tprint("the first session works: % %", status, body));
+		for 1..16 serve.member_login(inv, k, ""); // MAX_SESSIONS
+		status, body = rest("GET", tprint("%?limit=1", messages), "", token);
+		check(status == 401, tprint("the oldest session ends past the cap: % %", status, body));
+	}
+
 	// A hosted client sends its server only its own token and the body's type, whatever URL it fetches:
 	// every request reaches the pinned server, and no cookie goes out, even one its jar holds for discord.com.
 	{
