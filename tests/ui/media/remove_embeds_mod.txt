@@ -1,0 +1,11 @@
+# With MANAGE_MESSAGES (you own the server) the "Remove all embeds" X shows on Robin's post too.
+wait 20
+key pageup
+key pageup
+wait 20
+move 560 500
+wait 5
+move 887 403
+wait 5
+expect_visible "Remove all embeds"
+shot build/ui-remove_embeds_mod.png

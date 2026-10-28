@@ -1198,7 +1198,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 					ec.semantic_size = .[ui.children(), ui.children()];
 					ec.layout_axis = .Y;
 					{ ui.parent(ec); defer ui.pop_parent(); embeds_view(m); }
-					if m.author_id == s.me && app.chat_hover == m.id && !m.pending {
+					if app.chat_hover == m.id && !m.pending && can_manage_message(m) {
 						spacer(.X, 4);
 						x := ui.box("rmembeds", .Clickable);
 						x.semantic_size = .[ui.px(16), ui.px(16)];

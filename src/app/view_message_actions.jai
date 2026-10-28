@@ -560,6 +560,14 @@ delete_now :: (m: *dc.Message) {
 
 Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; }
 
+// Yours, or in a server channel where you have MANAGE_MESSAGES.
+can_manage_message :: (m: *dc.Message) -> bool {
+	s := store();
+	if m.author_id == s.me return true;
+	ch := dc.channel_get(s, m.channel_id);
+	return ch && ch.guild_id && (dc.channel_permissions(s, ch.id) & dc.PERM_MANAGE_MESSAGES);
+}
+
 // The hover X's "Remove all embeds": hidden at once, for everyone once the PATCH lands.
 remove_embeds_now :: (m: *dc.Message) {
 	if net_action() dc.suppress_embeds(app.client, m.channel_id, m.id, m.flags);

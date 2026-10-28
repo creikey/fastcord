@@ -71,6 +71,8 @@ old_msgs = [voice_msg,
             msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [note], [imdb]),
             msg(sf(base_ms - 15000, 6), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', [spoiler, spoiler_file], [yt]),
             msg(sf(base_ms - 10000, 7), POST, [], grid)]
+# the grid post is Robin's: as the server's owner (MANAGE_MESSAGES) you may still remove its embeds
+old_msgs[-1]['etf']['d']['author'] = {'id': 1000000000020971521, 'username': 'robin', 'global_name': 'Robin', 'avatar': None, 'discriminator': '0'}
 with open(os.path.join(here, 'media.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     f.writelines(head)
     for o in (*old_msgs, msg(fx_msg, TW, [], [fx]), msg(gif_msg, '', [att], []), msg(gifv_msg, 'https://klipy.com/gifs/goat-banjo', [], [gifv])):

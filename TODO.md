@@ -79,7 +79,6 @@
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
 - [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
-- [ ] Embeds: moderators (MANAGE_MESSAGES) get no "Remove all embeds" X on other people's messages; fastcord shows it only on your own.
 - [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
 - [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
 - [ ] No lost typing: closing a dialog keeps what was typed until it's submitted. Covers Create Event, New Thread, Create Channel, the Group DM picker, Modify Attachment, account edit and friend nickname; restore it on reopen. Profile and Channel Settings "Reset" become undoable.
@@ -338,3 +337,4 @@
 - [x] Video (Linux): camera calls. V4L2 capture (NV12, YUYV or MJPEG through Wuffs, with the default Huffman tables UVC cameras leave out), H.264 encoding and decoding through openh264 (`vendor/openh264`, `capture_linux.jai`, `encode_linux.jai`, `media/decode_linux.jai`); H.264 video attachments play too. The voice gateway offers no H.265 on Linux, so calls with Linux users stay on H.264. Checked with a real camera (c922 over usbip in WSL) and `src/tests/video_call.jai`, `video_roundtrip.jai`.
 - [x] Embeds: images, videos, posters and the image mosaic shrink to `max_w`, so search, pins and inbox cards no longer overflow (`tests/ui/rail/embed_narrow.txt`).
 - [x] Embeds: your own messages get the hover X beside their embeds; it confirms (Shift skips), hides them at once and PATCHes `flags` with SUPPRESS_EMBEDS (`dc.suppress_embeds`, `tests/ui/media/remove_embeds.txt`).
+- [x] Embeds: with MANAGE_MESSAGES in a server channel the "Remove all embeds" X shows on other people's messages too (`can_manage_message`, `tests/ui/media/remove_embeds_mod.txt`).
