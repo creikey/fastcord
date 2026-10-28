@@ -51,7 +51,7 @@
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
-- [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
+- [ ] Search: the results panel's close button is invisible: it asks for icon "x", which doesn't exist (`assets/icons` has `x-small` / `x-large`), so only Escape or clearing the box closes it (`view_search.jai`).
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
 - [ ] DMs: rows in the Home DM list show only bold for unread, not the red count the official client shows (`view_home.jai`).
@@ -303,3 +303,4 @@
 - [x] Replies: the quoted preview keeps the author name at full width and cuts the original's text with an ellipsis after it, instead of drawing a long URL over the name.
 - [x] Tray (Windows): the tray menu has Mute and Deafen, checked while on, so you can mute while the window is hidden.
 - [x] Voice: long names of sidebar voice occupants are cut with "…" so their mute, deafen, video and LIVE icons stay visible.
+- [x] Search: result highlights skip hidden `||spoilers||` (search and pins), so a match no longer reveals one.
