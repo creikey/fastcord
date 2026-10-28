@@ -121,6 +121,7 @@
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
 - [ ] Voice: the sidebar has no N/limit counter on voice channels, and stage channels list no one.
 - [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
+- [ ] Tray: the icon doesn't show call state. Like the official client, in a voice call it should be a gray circle that turns green while you talk. Check the bundle for whether muted and deafened show red. The icon is set in `src/platform/platform_windows.jai`. Update it only when the state changes.
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
