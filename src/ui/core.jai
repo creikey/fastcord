@@ -129,6 +129,7 @@ Box :: struct {
 	user_t: float32; // free animation slot for app code (animate it yourself)
 	cross_align: Align; // where children sit on the axis perpendicular to layout_axis
 	sel_order: u64; // reading order for Selectable_Text; 0 = declaration order
+	sel_sub: u32; // tiebreak within sel_order (block index in a message)
 	sel_join: string; // copied before this box when the selection continues from an earlier one; "" = newline
 	scrollbar: Scrollbar_Kind; // a Scroll_Y box's scrollbar, declared when it is popped as a parent
 	bar_inset_bottom: float32; // its track stops this far above the box's bottom (content floating over it)
@@ -970,6 +971,7 @@ box_make_key :: (k: Key, flags: Box_Flags) -> *Box {
 	b.fixed_pos = .{};
 	b.layout_axis = .Y;
 	b.sel_order = 0;
+	b.sel_sub = 0;
 	b.sel_join = "";
 	b.cross_align = .Start;
 	b.scrollbar = .Thin;

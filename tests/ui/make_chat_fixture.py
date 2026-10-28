@@ -101,7 +101,7 @@ def threads_extra(base_msgs):
       'privacy_level': 2, 'status': 1, 'entity_type': 3, 'entity_id': None, 'entity_metadata': {'location': 'Robin HQ, San Francisco'}, 'user_count': 12}))
   return out
 # code/code.jsonl: ``` blocks in several of the client's highlighted languages, an alias, an
-# unknown language (plain) and ANSI colours (tests/ui/code scripts).
+# unknown language (plain), ANSI colours and a long numbered list (tests/ui/code scripts).
 code_msgs = [
     (robin, 0, '```js\n// fetch a user\nasync function getUser(id) {\n  const res = await fetch(`/api/users/${id}`);\n  if (!res.ok) throw new Error("bad status: " + res.status);\n  return res.json(); /* parsed */\n}\n```'),
     (meu, 20, '```py\n@dataclass\nclass Point:\n    x: int = 0\n    def norm(self) -> float:\n        """Length."""\n        return (self.x ** 2) ** 0.5  # sqrt\n```'),
@@ -112,6 +112,8 @@ code_msgs = [
     (robin, 120, '```sh\n# list files\nls -la ~/src | grep "jai" && echo done\nfor f in *.txt; do cat "$f"; done\n```'),
     (meu, 140, '```whatever\nunknown language stays plain: if (x) { return 1; }\n```'),
     (robin, 160, '```ansi\n\u001b[1;31mred bold\u001b[0m and \u001b[32mgreen\u001b[0m and \u001b[4;34munderlined blue\u001b[0m\n```'),
+    # more than 4 blocks: selection order must not wrap between them (tests/ui/code/select_list.txt)
+    (meu, 180, '1. **one** first\n2. **two** second\n3. **three** third\n4. **four** fourth\n5. **five** fifth\n6. **six** sixth'),
 ]
 # chat_forward.jsonl: a multi-line wrapped quote, a forwarded message (message_reference type 1
 # with a snapshot) and enough newer messages, after a read marker, for the new-messages bar.

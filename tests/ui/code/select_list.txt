@@ -1,0 +1,9 @@
+# Drag across a 6-item numbered list: each item is its own block, and blocks past the 4th used to
+# share a selection slot with earlier ones (selected in pieces, copied out of order).
+wait 30
+down 504 521
+move 530 560
+move 560 609
+up 560 609
+shot build/ui-code-select-list.png
+expect_selection "second\nthree third\nfour fourth\nfive fifth\nsix sixth"

@@ -1480,7 +1480,8 @@ message_body :: (m: *dc.Message, terms: []string = .[]) {
 			cb.style.line_height = 18;
 			cb.style.padding = .{8, 8};
 			cb.style.text_color = T("--text-code");
-			cb.sel_order = m.id * 8 + 2 + cast(u64) bi % 4;
+			cb.sel_order = m.id * 8 + 2;
+			cb.sel_sub = cast(u32) bi;
 			if blk.quoted ui.pop_parent();
 		case .Paragraph; #through; case .Quote; #through; case .Heading1; #through; case .Heading2; #through; case .Heading3; #through; case .Subtext; #through; case .List_Item;
 			size: float32 = MSG_FONT;
@@ -1538,7 +1539,8 @@ message_body :: (m: *dc.Message, terms: []string = .[]) {
 				}
 				if terms spans = highlight_spans(spans, terms);
 				ui.set_spans(b, spans);
-				b.sel_order = m.id * 8 + 2 + cast(u64) bi % 4;
+				b.sel_order = m.id * 8 + 2;
+				b.sel_sub = cast(u32) bi;
 			}
 			handle_span_clicks(b, blk.tokens, m.id, ifx edited_inline then dc.iso_to_ms(m.edited_timestamp) else 0);
 		}

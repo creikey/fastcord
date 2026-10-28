@@ -508,6 +508,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 							d.style.line_height = 18;
 							d.style.text_color = T("--text-default");
 							d.sel_order = cast(u64) m.id * 8 + 7;
+							d.sel_sub = cast(u32) bi;
 							if blk.kind == .Code_Block ui.set_spans(d, .[.{text = blk.code, font = F(.Mono), size = 12}]);
 							else ui.set_spans(d, tokens_to_spans(blk.tokens, .Normal, 14, m));
 							handle_span_clicks(d, blk.tokens, m.id);

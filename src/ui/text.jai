@@ -238,12 +238,13 @@ paragraph_range_at :: (s: string, pos: int) -> int, int {
 
 //////////////////////////////////////////////////////////////////////////////
 // Global selection across Selectable_Text boxes (e.g. dragging across many
-// chat messages). Boxes are ordered by box.sel_order, which the app sets to
-// something stable (message id * N + field); endpoints survive the box
-// scrolling out of view.
+// chat messages). Boxes are ordered by (box.sel_order, box.sel_sub), which the
+// app sets to something stable (message id * N + field, then block index);
+// endpoints survive the box scrolling out of view.
 
 Text_Pos :: struct {
 	order: u64;
+	sub: u32;
 	box: Key;
 	byte: int;
 }
@@ -264,7 +265,15 @@ Selection :: struct {
 
 pos_less :: (a: Text_Pos, b: Text_Pos) -> bool {
 	if a.order != b.order return a.order < b.order;
+	if a.sub != b.sub return a.sub < b.sub;
 	return a.byte < b.byte;
+}
+
+// Where box b sits relative to p's box in reading order: -1 before, 0 same slot, 1 after.
+slot_cmp :: (b: *Box, p: Text_Pos) -> int {
+	if b.sel_order != p.order return ifx b.sel_order < p.order then -1 else 1;
+	if b.sel_sub != p.sub return ifx b.sel_sub < p.sub then -1 else 1;
+	return 0;
 }
 
 selection_range :: () -> lo: Text_Pos, hi: Text_Pos, ok: bool {
@@ -291,10 +300,12 @@ has_selection :: () -> bool {
 // Byte range of the selection inside box b, if any.
 selection_in_box :: (b: *Box) -> int, int, bool {
 	lo, hi, ok := selection_range();
-	if !ok || b.sel_order < lo.order || b.sel_order > hi.order return 0, 0, false;
-	s0 := ifx b.sel_order == lo.order then lo.byte else 0;
-	s1 := ifx b.sel_order == hi.order then hi.byte else b.text.count;
-	if s0 >= s1 && b.sel_order == hi.order return 0, 0, false;
+	if !ok return 0, 0, false;
+	cl, ch := slot_cmp(b, lo), slot_cmp(b, hi);
+	if cl < 0 || ch > 0 return 0, 0, false;
+	s0 := ifx cl == 0 then lo.byte else 0;
+	s1 := ifx ch == 0 then hi.byte else b.text.count;
+	if s0 >= s1 && ch == 0 return 0, 0, false;
 	return s0, s1, true;
 }
 
@@ -306,7 +317,6 @@ selection_text :: (allocator := temp) -> string {
 	sb.allocator = temp;
 	first := true;
 	for b: context.ui.selectables {
-		if b.sel_order < lo.order || b.sel_order > hi.order continue;
 		s0, s1, in_sel := selection_in_box(b);
 		if !in_sel continue;
 		if !first append(*sb, ifx b.sel_join != "" then b.sel_join else "\n");
@@ -483,7 +493,7 @@ selectable_pos_at :: (p: Vec2, mode: Pos_Mode) -> Text_Pos, bool {
 	byte := hit_test(tl, p);
 	if p.y > best.rect.y1 byte = best.text.count;
 	if p.y < best.rect.y0 byte = 0;
-	return .{order = best.sel_order, box = best.key, byte = byte}, true;
+	return .{order = best.sel_order, sub = best.sel_sub, box = best.key, byte = byte}, true;
 }
 
 update_selection :: () {
@@ -550,7 +560,7 @@ draw_selection_highlight :: (b: *Box, tl: *Text_Layout) {
 		a := max(s0, l.start);
 		z := min(s1, l.end);
 		last := li + 1 == tl.lines.count;
-		continues := (s1 > l.end && !last) || (last && b.sel_order < hi.order);
+		continues := (s1 > l.end && !last) || (last && slot_cmp(b, hi) < 0);
 		if a > z || (a == z && !continues) continue;
 		x0 := caret_x_in_line(tl, li, a);
 		x1 := ifx a == z then x0 else caret_x_in_line(tl, li, z);
