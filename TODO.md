@@ -164,7 +164,6 @@
 - [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
-- [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
 - [ ] Messages: a failed send turns red, but there's no error text and no Retry or Delete.
 - [ ] Check (account risk): a member list that stays empty may send op 37 every frame (`view_home.jai` resubscribes while `items.count == 0`), which could exceed the gateway's 120 events per minute and get the connection closed. Count op 37 frames on a channel whose list comes back empty.
@@ -339,4 +338,5 @@
 - [x] Chat: messages that mention you (by name, @everyone / @here, or one of your roles) get the mentioned background and a gold left bar (`mentions_me` in `view_chat.jai`, `tests/ui/forward/mention_highlight.txt`).
 - [x] Markdown: slash-command mentions `</name sub:id>` and server page links `<id:customize|browse|guide|linked-roles>` draw as mention chips (`markdown.jai` `try_entity`, `tests/ui/forward/command_mentions.txt`).
 - [x] Reactions: super (burst) reactions get their own pill before the normal ones, tinted by `burst_colors[0]`; clicking your own takes it back (`view_chat.jai` `reactions_view`, `tests/ui/super_reactions.txt`).
+- [x] Reactions: pills wrap onto more lines when they would run off the right, sized from last frame's width (`view_chat.jai` `reactions_view`, `tests/ui/dm/reactions_wrap.txt`).
 - [x] Bug: re-identifying dropped you from voice (op 4 with a null channel after every READY): you vanished from the channel's member list while "Voice Connected" stayed. A fresh READY now rejoins the call.

@@ -1537,16 +1537,34 @@ forward_block :: (m: *dc.Message) {
 }
 
 reactions_view :: (m: *dc.Message) {
-	r := row("reactions");
-	r.semantic_size = .[ui.pct(1), ui.px(30)];
-	r.style.child_gap = 4;
-	{ ui.parent(r); defer ui.pop_parent();
+	col := ui.box("reactions");
+	col.semantic_size = .[ui.pct(1), ui.children()];
+	col.layout_axis = .Y;
+	ui.parent(col); defer ui.pop_parent();
+	// Pills wrap onto new lines; the width comes from last frame's layout, so the first frame is one line.
+	avail := col.rect.x1 - col.rect.x0;
+	x: float32;
+	lines: int;
+	place :: (w: float32) #expand {
+		if !`lines || (`x > 0 && `avail > 0 && `x + w > `avail) {
+			if `lines ui.pop_parent();
+			line := row(tprint("rl%", `lines), 0);
+			line.semantic_size = .[ui.pct(1), ui.px(30)];
+			line.style.child_gap = 4;
+			ui.parent(line);
+			`lines += 1;
+			`x = 0;
+		}
+		`x += w + 4;
+	}
+	{
 		// Super reactions get their own pill, tinted by the emoji's burst colour, ahead of the normal ones.
 		// Clicking one only takes back your own: adding one is a Nitro feature, and we show no upsell.
 		for burst: bool.[true, false] for * re, i: m.reactions {
 			count := ifx burst then re.burst_count else re.count;
 			if count <= 0 continue;
 			me := ifx burst then re.me_burst else re.me;
+			place(34 + ui.layout_text(F(.Semibold), 14, tprint("%", count), -1).width);
 			pill := row(tprint("re%_%", i, burst), .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 			pill.semantic_size = .[ui.children(), ui.px(26)];
 			pill.style.radius = all4(8);
@@ -1577,7 +1595,9 @@ reactions_view :: (m: *dc.Message) {
 				else if me && net_action() dc.remove_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id, burst = true, location = "Message Inline Button");
 			}
 		}
+		if app.chat_hover == m.id || (picker_is_open() && pk.mode == .Reaction && pk.message == m.id) place(34);
 		reaction_add_button(m);
+		if lines ui.pop_parent();
 	}
 	spacer(.Y, 2);
 }

@@ -1,0 +1,9 @@
+# The "nice." message carries 16 reactions; in the narrowest window they wrap onto a second line instead of
+# running off the right.
+resize 940 500
+wait 10
+key pageup
+wait 30
+key pageup
+wait 30
+shot build/ui-dm_reactions_wrap.png
