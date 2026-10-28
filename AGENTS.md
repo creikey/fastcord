@@ -70,5 +70,9 @@ the Jai is written. This file lists what is easy to miss.
   never use regular expressions. Parse with recursive descent over a lexer, preferably a table-driven
   DFA or straight-line scanning code. Each must run in time linear in its input: no backtracking and
   no scan ahead for a closer from every opener (markdown's `find_close` is the quadratic example).
-  Cap recursion depth (like `etf`'s `MAX_DEPTH`) and every count and size before allocating. Dev tools
-  reading the repo's own files may use regex.
+  Cap every count and size before allocating. Dev tools reading the repo's own files may use regex.
+- Every recursive procedure, mutual recursion included, carries a depth and stops at an explicit cap
+  (like `etf`'s `MAX_DEPTH`): on outside data it returns an error or truncates, and on fastcord's own
+  structures it asserts. Check it even when a parser already bounded the input, since values are also
+  built by code. Size caps to the smallest thread stack the code runs on; where real data runs deeper,
+  loop over an explicit stack instead.
