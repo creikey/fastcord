@@ -139,7 +139,6 @@
 - [ ] Group DMs: right-clicking a row does nothing; leaving with the X has no confirmation.
 - [ ] GIFs: test search live against the official client: results and their order for the same queries, typing and debounce feel, suggestions, empty and error states, and scrolling a long result list. Fix whatever falls short.
 - [ ] Voice: when a moderator moves you, `app.voice_channel` keeps the old channel, so the panel shows the old name and the next mute goes to it (`view_voice.jai`).
-- [ ] Voice: the voice panel (bottom left, while connected) has no Video and Screen buttons; the camera and Go Live are only reachable from the call view (`view_voice.jai`).
 - [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
@@ -366,3 +365,4 @@
 - [x] Video: when camera capture ends on its own (no camera, device busy or taken by another app, unsupported format), the camera turns off and a toast says why (`video.capture_error`, `video_frame`). Reasons are specific on Windows, generic on Linux; macOS doesn't report yet.
 - [x] Video: a camera that opens but sends no frame within 8 s (an idle NDI virtual camera blocks in `ReadSample` forever) is turned off with "The camera isn't sending any video." (`capture_error`, `capture_nv12.jai`). Its stuck thread is left behind, never freed.
 - [x] Settings: Voice & Video has a Camera section: Test Video previews the camera (the call's own camera while it's on), and stops when the page closes (`view_voice_settings.jai` `camera_test_section`, `video_call.jai` `camera_test_toggle`, `tests/ui/camera_test.txt`). `video_frame` now runs without a client too.
+- [x] Voice: the voice panel has Video and Screen buttons under the connection status, as the call view's camera and Go Live controls (`view_voice.jai` `voice_panel_button`, `tests/ui/voice_panel_buttons.txt`; script command `in_voice`).

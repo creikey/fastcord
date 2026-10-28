@@ -7,6 +7,7 @@
 //   voice_panel draws the "Voice Connected" section above the user panel.
 
 VOICE_PANEL_H :: 56;
+VOICE_BUTTONS_H :: 40; // the Video / Screen row under it
 
 voice_set_headless :: (h: bool) { vc.headless = h; }
 
@@ -159,7 +160,10 @@ voice_frame :: () {
 
 voice_is_speaking :: (uid: dc.Snowflake) -> bool { return table_contains(*vc.speaking, uid); }
 
-voice_panel_height :: () -> float32 { return ifx app.voice_channel != 0 then cast(float32) VOICE_PANEL_H else 0; }
+voice_panel_height :: () -> float32 {
+	if app.voice_channel == 0 return 0;
+	return cast(float32) VOICE_PANEL_H + (ifx video.SUPPORTED then cast(float32) VOICE_BUTTONS_H else 0);
+}
 
 // Avatar with the green "speaking" ring (inset 2 px green + 1 px surface gap).
 voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color) -> *ui.Box {
@@ -277,12 +281,46 @@ voice_panel :: () {
 		}
 		spacer(.X, 8);
 	}
+	if video.SUPPORTED {
+		can_video := vc.conn != null && voice.state(vc.conn) == .Connected;
+		br := row("vbuttons");
+		br.semantic_size = .[ui.pct(1), ui.px(VOICE_BUTTONS_H)];
+		{ ui.parent(br); defer ui.pop_parent();
+			spacer(.X, 8);
+			if voice_panel_button("video", "video", "Video", camera_on(), can_video) camera_toggle();
+			spacer(.X, 8);
+			if voice_panel_button("screen", "screen-stream", "Screen", screen_sharing(), can_video) {
+				if screen_sharing() go_live_stop();
+				else { video.screen_targets_refresh(); vid.picker_open = true; }
+			}
+			spacer(.X, 8);
+		}
+	}
 	div := ui.box("div", .Draw_Background);
 	div.semantic_size = .[ui.pct(1), ui.px(1)];
 	div.style.bg = T("--border-subtle");
 }
 
 voice_reset_for_test :: () { vc = .{headless = true}; }
+
+voice_panel_button :: (id: string, icon_name: string, text: string, on: bool, enabled: bool) -> bool {
+	b := row(id, ifx enabled then ui.Box_Flags.Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
+	b.semantic_size = .[ui.fill(), ui.px(32)];
+	b.style.radius = all4(8);
+	b.style.bg = ifx on then T("--status-positive") else T("--background-mod-subtle");
+	b.style.bg_hot = ifx on then with_alpha(T("--status-positive"), 0.85) else T("--background-mod-normal");
+	b.cross_align = .Center;
+	sig := ui.signal(b);
+	col := ifx on then ui.Color.{1, 1, 1, 1} else ifx enabled then T("--interactive-text-default") else T("--text-muted");
+	{ ui.parent(b); defer ui.pop_parent();
+		filler(.X);
+		icon("i", icon_name, 18, col);
+		spacer(.X, 6);
+		label(text, .Semibold, 14, col, 18);
+		filler(.X);
+	}
+	return enabled && sig.clicked;
+}
 
 // The ring popout of an incoming DM call (fixture dm_call, B's view): avatar,
 // name, "Incoming Call...", Decline (red) and Join Call (green). Join sends op 4
