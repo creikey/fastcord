@@ -1,0 +1,7 @@
+# Runs on app_tag.jsonl. A webhook's posts carry the APP tag, and each shows the name it was posted under,
+# not the last one the webhook used.
+wait 5
+settle 1
+expect_visible "APP"
+expect_visible "CI"
+expect_visible "Release Bot"

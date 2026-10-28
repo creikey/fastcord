@@ -793,7 +793,8 @@ MONTHS :: string.["January", "February", "March", "April", "May", "June", "July"
 
 // Groups with the previous message: same author, within 7 minutes, plain message type, not a reply.
 continues_group :: (prev: *dc.Message, m: *dc.Message) -> bool {
-	if prev == null || prev.author_id != m.author_id || is_notice(prev.kind) return false;
+	// A webhook posting under another name starts a new group, as the official client's isGrouped does.
+	if prev == null || prev.author_id != m.author_id || prev.webhook_name != m.webhook_name || is_notice(prev.kind) return false;
 	if m.referenced_id != 0 || (m.kind != 0 && m.kind != 19) return false;
 	if dc.snowflake_time_ms(m.id) - dc.snowflake_time_ms(prev.id) > GROUP_WINDOW_MS return false;
 	return day_of(prev.id) == day_of(m.id);
@@ -1396,7 +1397,7 @@ system_notice :: (m: *dc.Message) {
 }
 
 message_header :: (m: *dc.Message) {
-	name := name_in(m.author_id, m.channel_id);
+	name := ifx m.webhook_name then m.webhook_name else name_in(m.author_id, m.channel_id);
 	h := row("header");
 	h.semantic_size = .[ui.pct(1), ui.px(MSG_LINE_H)];
 	h.cross_align = .End;
@@ -1407,6 +1408,8 @@ message_header :: (m: *dc.Message) {
 		nsig := ui.signal(n);
 		if nsig.clicked open_profile(m.author_id, n.rect, .Message_Author, m.id);
 		if nsig.right_clicked open_user_menu(m.author_id, app.ui.mouse);
+		u := dc.user_get(store(), m.author_id);
+		if u && u.bot app_tag();
 		new_member_badge(m);
 		spacer(.X, 8);
 		// copies as "Name — 4:56 AM" like the client's hidden separator
@@ -1416,6 +1419,19 @@ message_header :: (m: *dc.Message) {
 		ts.sel_join = " — ";
 		if ui.mouse_over(ts) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), ts.rect);
 	}
+}
+
+// The tag after a bot's or webhook's name (official BotTag): "APP" since bots became apps.
+app_tag :: () {
+	spacer(.X, 4);
+	pill := row("apptag", .Draw_Background);
+	pill.semantic_size = .[ui.children(), ui.px(15)];
+	pill.style.bg = T("--background-brand");
+	pill.style.radius = all4(3);
+	ui.parent(pill); defer ui.pop_parent();
+	spacer(.X, 4);
+	label("APP", .Semibold, 10, .{1, 1, 1, 1}, 15);
+	spacer(.X, 4);
 }
 
 // The sprout after a new member's name (official useIsNewMember): joined at most 7 days ago,

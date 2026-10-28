@@ -162,6 +162,7 @@ free_message :: (s: *Store, m: *Message) {
 	free_str(m.call_ended, a);
 	free_str(m.forward_timestamp, a);
 	free_str(m.nonce, a);
+	free_str(m.webhook_name, a);
 	for * m.attachments free_attachment(s, it);
 	array_free(m.attachments);
 	for * m.embeds free_embed(s, it);
@@ -482,6 +483,7 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	if vhas(m, "channel_id") msg.channel_id = fsnow(m, "channel_id");
 	au := fmap(m, "author");
 	if au msg.author_id = parse_user_into(s, au);
+	if au && vhas(m, "webhook_id") set_str(s, *msg.webhook_name, ifx fstr(au, "global_name") then fstr(au, "global_name") else fstr(au, "username"));
 	if vhas(m, "type") msg.kind = fint(m, "type");
 	if vhas(m, "timestamp") set_str(s, *msg.timestamp, fstr(m, "timestamp"));
 	if vhas(m, "edited_timestamp") set_str(s, *msg.edited_timestamp, fstr(m, "edited_timestamp"));
