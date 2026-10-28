@@ -100,7 +100,8 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN max_age INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN expires INTEGER NOT NULL DEFAULT 0;");
-	st := sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
+	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
+	st :=sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
 	indexed := sqlite.step(st) == .Row;
 	sqlite.finalize(st);
 	if !sqlite.exec(db, SEARCH_SCHEMA) || (!indexed && !sqlite.exec(db, "INSERT INTO message_text(message_text) VALUES('rebuild');")) {
@@ -369,6 +370,11 @@ CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT 
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
+CREATE INDEX IF NOT EXISTS mentions_user ON mentions(user, message);
+CREATE TABLE IF NOT EXISTS mention_dismissals(user INTEGER NOT NULL, message INTEGER NOT NULL, PRIMARY KEY(user, message));
+CREATE TRIGGER IF NOT EXISTS mention_dismissals_delete AFTER DELETE ON messages BEGIN
+	DELETE FROM mention_dismissals WHERE message = old.id;
+END;
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
 CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER,
 	max_age INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL DEFAULT 0);
@@ -636,6 +642,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%/members/@me", c.server.guild) {
 			if !rename(c, req) return;
+			continue;
+		}
+		if begins_with(req.path, "/api/v9/users/@me/mentions") || begins_with(req.path, "/api/v9/users/%40me/mentions") {
+			if !recent_mentions(c, req) return;
 			continue;
 		}
 		if req.method == "DELETE" && req.path == tprint("/api/v9/users/@me/guilds/%", c.server.guild) {
@@ -2198,6 +2208,52 @@ list_pins :: (c: *Conn, channel: s64) -> bool {
 	etf.map_put(*d, "items", etf.vlist(items));
 	etf.map_put(*d, "has_more", etf.vbool(false));
 	return json_reply(c, 200, etf.vmap(etf.map_done(*d)));
+}
+
+MAX_MENTIONS_PAGE :: 100;
+
+// GET /users/@me/mentions?limit=&everyone=&before= lists the messages that ping the member, newest first,
+// skipping their own and those they dismissed; DELETE /users/@me/mentions/{id} dismisses one.
+recent_mentions :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	viewer := session_user(c, token);
+	if !viewer return json_error(c, 401, 0, "401: Unauthorized");
+	path, query := req.path, "";
+	q := find_index_from_left(path, #char "?");
+	if q >= 0 { query = slice(path, q + 1, path.count - q - 1); path = slice(path, 0, q); }
+	parts := split(path, "/",, temp); // "", api, v9, users, @me, mentions[, id]
+	if req.method == "DELETE" && parts.count == 7 {
+		message, ok := string_to_int(parts[6], T = s64);
+		if !ok return json_error(c, 404, 10008, "Unknown Message");
+		locks.guard(*s.db_mu);
+		sqlite.run(s.db, "INSERT OR IGNORE INTO mention_dismissals(user, message) SELECT ?, id FROM messages WHERE id = ?;", viewer, message);
+		return respond(c, 204, json = false);
+	}
+	if req.method != "GET" || parts.count != 6 return json_error(c, 404, 0, "404: Not Found");
+
+	limit, before, everyone := 25, cast(s64) 0x7fff_ffff_ffff_ffff, true;
+	for split(query, "&",, temp) {
+		kv := split(it, "=",, temp);
+		if kv.count != 2 continue;
+		n, n_ok := string_to_int(kv[1], T = s64);
+		if kv[0] == {
+			case "limit";    if n_ok limit = clamp(n, 1, MAX_MENTIONS_PAGE);
+			case "before";   if n_ok before = n;
+			case "everyone"; everyone = kv[1] != "false";
+		}
+	}
+	found: [..]etf.Value;
+	found.allocator = temp;
+	{
+		locks.guard(*s.db_mu);
+		pinged := ifx everyone then "(m.id IN (SELECT message FROM mentions WHERE user = ?1) OR m.everyone = 1)" else "m.id IN (SELECT message FROM mentions WHERE user = ?1)";
+		st := sqlite.prepare(s.db, tprint("% WHERE % AND m.author != ?1 AND m.id < ?2 AND m.id NOT IN (SELECT message FROM mention_dismissals WHERE user = ?1) ORDER BY m.id DESC LIMIT %;", MESSAGE_SELECT, pinged, limit));
+		sqlite.bind_all(st, viewer, before);
+		while sqlite.step(st) == .Row array_add(*found, row_message(s, st, viewer = viewer));
+		sqlite.finalize(st);
+	}
+	return json_reply(c, 200, etf.vlist(found));
 }
 
 json_reply :: (c: *Conn, status: int, v: etf.Value) -> bool {

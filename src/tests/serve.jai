@@ -588,6 +588,20 @@ main :: () {
 	edited, _ = etf.from_json(body);
 	check(status == 200 && field(edited, "mentions").list.count == 0 && !field(edited, "mention_everyone").b, tprint("an edit drops mentions: % %", status, body));
 	rest("DELETE", later_url, "", token);
+	pinged_id := field(pinged, "id").s;
+	newest_mention :: (who: string) -> string, s64 #expand {
+		status, body := rest("GET", "/api/v9/users/@me/mentions?limit=25&roles=true&everyone=true", "", who);
+		v, _ := etf.from_json(body);
+		if status != 200 || v.kind != .List { print("mentions: % %\n", status, body); return "", -1; }
+		return ifx v.list.count then field(v.list[0], "id").s else "", v.list.count;
+	}
+	newest := newest_mention(other_token);
+	check(newest == pinged_id, tprint("Recent Mentions lists the ping: % %", newest, pinged_id));
+	newest = newest_mention(token);
+	check(newest != pinged_id, "Recent Mentions skips your own messages");
+	status, body = rest("DELETE", tprint("/api/v9/users/@me/mentions/%", pinged_id), "", other_token);
+	newest = newest_mention(other_token);
+	check(status == 204 && newest != pinged_id, tprint("a dismissed mention leaves Recent Mentions: % %", status, newest));
 
 	// Search: the channel now holds "hello", the reply edited to "hi", Other's "hi all" and the ping.
 	found :: (query: string) -> s64 #expand {
