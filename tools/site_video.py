@@ -10,6 +10,8 @@
 #
 #   python3 -I tools/site_video.py fastcord <s>...   (live run, needs build/fastcord-dev)
 #   python3 -I tools/site_video.py build <s>...      (scrub, encode the videos, write parity_video.json)
+#   python3 -I tools/site_video.py hero              (site/screenshot.jpg from the threads fixture, offline;
+#                                                     then `jai build.jai - og` for the link preview)
 import json, os, re, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -169,7 +171,15 @@ def build(names):
     print(f'-> {dst} ({os.path.getsize(dst)} bytes)')
 
 
+def hero():
+    png = os.path.join(SEC, 'video', 'hero.png')
+    run(os.path.join(ROOT, 'build', 'fastcord-dev'), f'-shot:{png}', '-dpi:2', f'-fixture:{ROOT}/tests/ui/chat_threads.jsonl',
+        '-channel:1546820603343016006', f'-script:{ROOT}/tests/video/hero.txt', cwd=ROOT)
+    run('sips', '-s', 'format', 'jpeg', '-s', 'formatOptions', '85', png, '--out', os.path.join(ROOT, 'site', 'screenshot.jpg'), stdout=subprocess.DEVNULL)
+
+
 if __name__ == '__main__':
+    if len(sys.argv) == 2 and sys.argv[1] == 'hero': hero(); raise SystemExit
     if len(sys.argv) < 3 or sys.argv[1] not in ('fastcord', 'build'): raise SystemExit(__doc__ if __doc__ else 'usage: site_video.py fastcord|build <scenario>...')
     if sys.argv[1] == 'fastcord':
         for s in sys.argv[2:]: fastcord(s)

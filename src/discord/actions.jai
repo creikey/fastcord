@@ -1381,11 +1381,14 @@ open_emoji_picker :: (c: *Client, guild_id: Snowflake) {
 	if c.emoji_picker_opened return;
 	c.emoji_picker_opened = true;
 	if guild_id guild_top_emojis(c, guild_id); // through the picker pool: the UI gets the result
+	// then, in the same step, the subscriptions and our profile: 1 ms later, so the picker pool's
+	// top-emojis leaves first, as officially (fixture add_reaction, live session 2026-10-28)
 	b := job_new(.Api, .None);
 	b.method = "GET";
 	b.path = "/users/@me/billing/subscriptions?sync_level=2";
+	b.not_before = now_ms() + 1;
 	job_submit(c, b);
-	fetch_profile_ex(c, c.store.me, .{});
+	fetch_profile_ex(c, c.store.me, .{delay_ms = 1});
 }
 
 // ---- UserAffinitiesV2Store (bundle module 427358) ----

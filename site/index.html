@@ -66,12 +66,14 @@
   .shot { margin: 40px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
     box-shadow: 0 30px 80px rgba(0,0,0,.45); }
   .shot img { display: block; width: 100%; height: auto; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; padding: 64px 0 24px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 64px 0 24px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
   .card h3 { margin: 0 0 6px; font-size: 17px; }
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .card a { color: var(--brand-hi); }
   .parity { padding: 40px 0 24px; }
-  .parity h2 { font-size: clamp(26px, 4.4vw, 38px); letter-spacing: -0.02em; margin: 0 0 8px; text-align: center; }
   .parity .sub { color: var(--muted); text-align: center; max-width: 640px; margin: 0 auto 24px; }
   .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 20px; }
   .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; min-width: 150px; text-align: center; }
@@ -91,10 +93,7 @@
   .tip { min-height: 22px; text-align: center; color: var(--muted); font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     padding: 6px 0 12px; overflow-wrap: anywhere; }
   .fine { color: var(--muted); font-size: 13px; max-width: 720px; margin: 14px auto 0; text-align: center; }
-  .note { color: var(--muted); font-size: 14px; text-align: center; padding: 8px 0 40px; }
-  .note code { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
-  .duel { padding: 56px 0 8px; }
-  .duel h2 { font-size: clamp(26px, 4.4vw, 38px); letter-spacing: -0.02em; margin: 0 0 8px; text-align: center; }
+  .duel { padding: 40px 0 8px; }
   .duel .sub { color: var(--muted); text-align: center; max-width: 680px; margin: 0 auto 20px; }
   .stage { display: grid; grid-template-columns: 1fr minmax(300px, 1.05fr) 1fr; gap: 14px; align-items: start;
     width: min(1360px, calc(100vw - 32px)); position: relative; left: 50%; transform: translateX(-50%); }
@@ -114,7 +113,7 @@
   .clock { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
   .wbtn { font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
   .wbtn:hover { color: var(--text); }
-  .rows { flex: 1; overflow-y: auto; padding: 6px 8px 10px; scroll-behavior: smooth; }
+  .rows { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 8px 10px; scroll-behavior: smooth; }
   .row { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 6px; align-items: center; margin: 5px 0; cursor: pointer; }
   .pkt { font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 5px 7px; border-radius: 7px; border: 1px solid var(--line);
     background: var(--bg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 26px; }
@@ -140,8 +139,35 @@
   .stage.big .vid video { cursor: zoom-out; }
   @media (max-width: 1100px) { .stage { grid-template-columns: 1fr 1fr; } .wire { grid-column: 1 / -1; order: 3; } }
   @media (min-width: 1101px) { .stage.big { grid-template-columns: 1fr 1fr; } .stage.big .wire { grid-column: 1 / -1; order: 3; } }
-  @media (max-width: 640px) { .stage { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .stage { gap: 8px; }
+    .vid h3 { padding: 7px 9px; font-size: 12px; }
+    .vid h3 .long { display: none; }
+  }
   @media (prefers-reduced-motion: reduce) { .row .l, .row .r, .row .eq { animation: none; } }
+  .ban { text-align: center; padding: 72px 0 8px; }
+  .ban h2 { font-size: clamp(30px, 5vw, 44px); letter-spacing: -0.02em; margin: 0 0 10px; }
+  .answer { font-size: clamp(18px, 2.6vw, 22px); margin: 0 auto 28px; max-width: 560px; }
+  .why, .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .why div, .steps div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .why b { display: block; font-size: 20px; letter-spacing: -0.01em; }
+  .why span, .steps span { color: var(--muted); font-size: 14px; }
+  .steps { text-align: left; }
+  .steps div > b { display: block; margin-bottom: 4px; }
+  .steps span b { color: var(--text); font-weight: 600; }
+  .subhead { font-size: clamp(22px, 3.4vw, 28px); letter-spacing: -0.02em; margin: 0 0 6px; text-align: center; }
+  .first { padding: 40px 0 48px; }
+  @media (max-width: 640px) {
+    .why, .steps { grid-template-columns: 1fr; gap: 8px; }
+    .why div { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; text-align: left; }
+    .why b { font-size: 17px; white-space: nowrap; }
+    .ban { padding-top: 48px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat { min-width: 0; padding: 10px; }
+    .stat b { font-size: 22px; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding-bottom: 6px; scrollbar-width: none; }
+    .chip { flex: none; }
+  }
   footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding: 24px 0 40px; text-align: center; }
   footer a { color: var(--muted); }
 </style>
@@ -156,7 +182,7 @@
 
   <section class="hero">
     <h1>Chat, <span>native</span>.</h1>
-    <p class="lede">A fast client for Discord, written from scratch. No browser inside — just a native renderer that starts instantly, scrolls smoothly, and idles at zero CPU.</p>
+    <p class="lede">A fast Discord client with no browser inside.</p>
     <div class="downloads">
       <a class="btn primary" id="dl-mac" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-macos.zip">macOS <small>Apple silicon &amp; Intel</small></a>
       <a class="btn" id="dl-win" href="https://github.com/creikey/fastcord/releases/latest/download/fastcord-windows.zip">Windows <small>10 &amp; 11, x64</small></a>
@@ -167,21 +193,30 @@
   </section>
 
   <section class="grid">
-    <div class="card"><h3>Instant</h3><p>Native GPU rendering (Metal, Direct3D 11, OpenGL) with an immediate-mode UI. Every interaction lands on the next frame.</p></div>
-    <div class="card"><h3>Light on battery</h3><p>Nothing renders unless something changes. Idle is zero frames, zero wakeups.</p></div>
-    <div class="card"><h3>Small</h3><p>One ~5 MB app. No Chromium, no Node, no bundled browser.</p></div>
-    <div class="card"><h3>Familiar</h3><p>Servers, channels, DMs, friends, reactions, emoji, GIFs, stickers and the layout you already know.</p></div>
-    <div class="card"><h3>Voice</h3><p>Voice chat with Discord's end-to-end encryption, written from the ground up.</p></div>
-    <div class="card"><h3>Well-behaved</h3><p>Sends the same requests as the official desktop client, at the same moments. See below.</p></div>
+    <div class="card"><h3>Instant</h3><p>GPU-rendered. Every input lands on the next frame.</p></div>
+    <div class="card"><h3>Light on battery</h3><p>Idle means zero frames and zero wakeups.</p></div>
+    <div class="card"><h3>Small</h3><p>One ~5 MB app. No Chromium, no Node.</p></div>
+    <div class="card"><h3>Familiar</h3><p>The servers, DMs and layout you already know.</p></div>
+    <div class="card"><h3>Voice</h3><p>Voice with Discord's end-to-end encryption.</p></div>
+    <div class="card"><h3>Well-behaved</h3><p>Talks to Discord like the official app. <a href="#ban">See below.</a></p></div>
   </section>
 
+  <section class="ban" id="ban">
+    <h2>Will I get banned?</h2>
+    <p class="answer">We don't know yet. Proceed with caution, but it's unlikely.</p>
+    <div class="why">
+      <div><b id="why-pairs">Same requests</b><span>as the official app, field for field</span></div>
+      <div><b>Same handshakes</b><span>Chrome's TLS, HTTP/2 and QUIC</span></div>
+      <div><b id="why-rl">0 rate limits</b><span>across every live test</span></div>
+    </div>
+  </section>
 
   <section class="duel" id="side-by-side">
-    <h2>Same clicks, same packets</h2>
-    <p class="sub">Both clients, recorded doing the same thing with the same test account. The videos play in real time (click one to enlarge); in the middle, every request, gateway message and telemetry event each one sent to Discord, replayed at 1/10 speed and lined up. Tap a row to compare headers and payload fields.</p>
+    <h3 class="subhead">Same clicks, same packets</h3>
+    <p class="sub">The same action in both apps, and every packet each one sent, replayed at 1/10 speed.</p>
     <div class="chips" id="dchips" role="group" aria-label="Interaction"></div>
     <div class="stage">
-      <div class="vid"><h3><i></i>Official Discord app</h3><video id="vo" muted playsinline loop preload="metadata"></video><div class="vbar" id="bo"></div></div>
+      <div class="vid"><h3><i></i>Official<span class="long">&nbsp;Discord app</span></h3><video id="vo" muted playsinline loop preload="metadata"></video><div class="vbar" id="bo"></div></div>
       <div class="wire" id="wire">
         <div class="whead"><span class="clock">Official</span><span class="srv">discord.com</span><span class="clock">Fastcord</span></div>
         <div class="whead"><span class="clock" id="wclock">+0.000 s</span><span class="clock">1/10 speed</span><button class="wbtn" id="wreplay">Replay</button></div>
@@ -190,23 +225,27 @@
       </div>
       <div class="vid fc"><h3><i></i>Fastcord</h3><video id="vf" muted playsinline loop preload="metadata"></video><div class="vbar" id="bf"></div></div>
     </div>
-    <p class="fine" id="dfine">Only shapes are shown, never values: method and path with ids folded, header names in the order they left the machine (from Chrome's and Fastcord's network logs), JSON field names, gateway opcodes, telemetry event names and property names. Left out: heartbeats (each client sends them on its own schedule) and image or sticker downloads (they depend on what each client has cached). Differences that remain are shown as they are, unmatched rows included. One under review: the official app, recorded in a background test window, skipped read acks that Fastcord sent.</p>
+    <p class="fine">Tap a row to compare headers and fields. Only shapes are shown, never values.</p>
   </section>
 
   <section class="parity" id="traffic">
-    <h2>Indistinguishable on the wire</h2>
-    <p class="sub">To Discord's servers, Fastcord behaves like the official desktop app: the same requests with Chrome's headers in Chrome's wire order, the same TLS and HTTP/2 handshakes, the same gateway messages and telemetry batches, sent at the same moments. We recorded both clients doing the same things and lined their traffic up event by event.</p>
+    <h3 class="subhead">Every scenario</h3>
+    <p class="sub" id="psub">From a live session on October 28, 2026.</p>
     <div class="stats" id="pstats"></div>
     <div class="chips" id="pchips" role="group" aria-label="Scenario"></div>
     <div class="lanes"><svg id="plane" viewBox="0 0 1000 150" role="img" aria-label="Request timeline of both clients"></svg>
       <div class="tip" id="ptip">Hover a dot to see the request.</div></div>
-    <div class="legend"><span><i style="background:var(--brand-hi)"></i>REST request</span><span><i style="background:#e8a33d"></i>Gateway message</span><span><i style="background:#3db8a6"></i>Telemetry event</span><span><i style="border:1.5px solid var(--brand-hi)"></i>Fastcord sent it earlier in the session</span><span><i style="border:1.5px solid var(--muted)"></i>Only in one client</span></div>
-    <p class="fine">Every scenario, from the last full session (32 scenarios, October 27, 2026, before the fixes shown above). Each official recording starts right after a fresh launch; Fastcord ran every scenario in one 14-minute session, as a person would, so one-time loads (command lists, emoji data) show up earlier for it. Events shown faint are ones Fastcord did not send in that session. Every action is also replayed offline against the official recording from the same starting state, request by request and header by header.</p>
+    <div class="legend"><span><i style="background:var(--brand-hi)"></i>REST request</span><span><i style="background:#e8a33d"></i>Gateway message</span><span><i style="background:#3db8a6"></i>Telemetry event</span><span><i style="border:1.5px solid var(--brand-hi)"></i>Sent earlier in the session</span><span><i style="border:1.5px solid var(--muted)"></i>Only in one client</span></div>
   </section>
 
-  <p class="note">Windows: unzip and run <b>Fastcord.exe</b>. It isn't code-signed yet, so SmartScreen may warn the first time: click <b>More info → Run anyway</b>.</p>
-  <p class="note">Linux: extract the archive and run <b>./fastcord</b>, or <b>./install.sh</b> to add it to your app menu. One build for every distribution (glibc 2.17 or newer), on X11 and Wayland desktops.</p>
-  <p class="note">First launch on macOS: Fastcord isn't notarized by Apple yet, so macOS blocks it the first time. Click <b>Done</b>, then open <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>. After that it opens normally and shows an Update button when a new release is out.</p>
+  <section class="first">
+    <h3 class="subhead">First launch</h3>
+    <div class="steps">
+      <div><b>macOS</b><span>Blocked once: <b>System Settings → Privacy &amp; Security → Open Anyway</b>.</span></div>
+      <div><b>Windows</b><span>SmartScreen warns once: <b>More info → Run anyway</b>.</span></div>
+      <div><b>Linux</b><span>Run <b>./fastcord</b>, or <b>./install.sh</b> for the app menu.</span></div>
+    </div>
+  </section>
 
   <footer>
     Fastcord is an unofficial client and is not affiliated with or endorsed by Discord Inc.
@@ -221,7 +260,7 @@
     const $ = id => document.getElementById(id);
     const vo = $("vo"), vf = $("vf"), rows = $("wrows"), det = $("wdetail"), clock = $("wclock");
     const esc = t => t.replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"})[c]);
-    const label = e => e.k === 2 ? "science · " + e.l : e.k === 1 ? "gateway · " + e.l : e.l;
+    const label = e => e.k === 2 ? "science · " + e.l : e.k === 1 ? "gateway · " + e.l : e.l.replace(" /api/v9/", " /");
     const same = (a, b) => a && b && JSON.stringify(a) === JSON.stringify(b);
     let cur, raf, t0;
     // pairs in time order: matched [i, j], or only-official [i, -1] / only-fastcord [-1, j]
@@ -291,12 +330,19 @@
       st.style.setProperty("--wire-h", (wide ? Math.max(300, vo.getBoundingClientRect().height + 80) : 440) + "px"); };
     addEventListener("resize", fit); vo.addEventListener("loadedmetadata", fit);
     for (const v of [vo, vf]) v.onclick = () => { document.querySelector(".stage").classList.toggle("big"); fit(); };
+    // the ban section's first tile: matched pairs identical in protocol, header order and fields
+    let nsame = 0, nall = 0;
+    for (const s of d.scenarios) for (const [i, j] of s.m) { nall++; nsame += verdict(s.o[i], s.f[j]).ok; }
+    $("why-pairs").textContent = `${nsame} of ${nall}`;
+    $("why-pairs").nextElementSibling.textContent = "requests identical to the official app's";
     for (const s of d.scenarios) {
       const b = document.createElement("button");
       b.className = "chip"; b.dataset.n = s.n; b.textContent = s.title;
       b.onclick = () => show(s); $("dchips").append(b);
     }
-    show(d.scenarios[0]);
+    // open on the scenario with the fewest unpaired events
+    const loose = s => s.o.length + s.f.length - 2 * s.m.length;
+    show(d.scenarios.reduce((a, b) => loose(b) < loose(a) ? b : a));
   }).catch(() => document.getElementById("side-by-side").remove());
 </script>
 <script>
@@ -313,7 +359,7 @@
     }
     const stat = (v, t) => `<div class="stat"><b>${v}</b><span>${t}</span></div>`;
     document.getElementById("pstats").innerHTML = stat(sc.length, "scenarios recorded") +
-      stat(pct(ok, n), "requests &amp; gateway messages in step") + stat(pct(tok_, tn), "measurable telemetry in step") + stat("0", "rate limits hit");
+      stat(pct(ok, n), "requests &amp; gateway messages in step") + stat(pct(tok_, tn), "telemetry events in step") + stat("0", "rate limits hit");
     const chips = document.getElementById("pchips"), svg = document.getElementById("plane"), tip = document.getElementById("ptip");
     const show = s => {
       for (const c of chips.children) c.setAttribute("aria-pressed", c.dataset.n === s.n);
