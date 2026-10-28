@@ -556,6 +556,7 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 			code := invite_link_code(url);
 			ch, msg := message_link(url);
 			if code != "" invite_link_clicked(code, message_id);
+			else if begins_with(url, "fc://") add_server_join_with(url);
 			else if ch && msg jump_to_message(ch.id, msg);
 			else if ch select_channel(ch.guild_id, ch.id);
 			else open_url(url);
@@ -1266,6 +1267,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 					}
 				}
 				if m.content && !m.forwarded invite_cards_view(m);
+				if m.content && !m.forwarded fc_invite_cards_view(m);
 				if m.reactions reactions_view(m);
 			}
 			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right

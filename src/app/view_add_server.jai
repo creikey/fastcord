@@ -28,6 +28,12 @@ add_server_is_open :: () -> bool { return asv.step != .Closed; }
 
 add_server_open :: () { add_server_step(.Choose); }
 
+// add_server_join_with opens Join a Server filled in with an invite, for the user to confirm.
+add_server_join_with :: (invite: string) {
+	add_server_step(.Join);
+	ui.editor_set_text(*asv.invite_ed, invite);
+}
+
 // Rail "Discover": server discovery lives on the website (no in-app directory).
 discover_open :: () { open_url("https://discord.com/servers"); }
 
