@@ -816,6 +816,18 @@ main :: () {
 	check(status == 400, tprint("a webhook's bad embed is refused: % %", status, body));
 	status, body = rest("POST", hook_url, "{\"embeds\": [{\"image\": {\"url\": \"https://x.test/a.png\"}}]}", "");
 	check(status == 400, tprint("a webhook's empty embed is refused: % %", status, body));
+	status, body = rest("POST", tprint("%?wait=true", hook_url), "{\"content\": \"deploying\"}", "");
+	progress, _ := etf.from_json(body);
+	own_url := tprint("%/messages/%", hook_url, field(progress, "id").s);
+	status, body = rest("PATCH", own_url, "{\"embeds\": [{\"title\": \"Deployed\"}]}", "");
+	check(status == 200 && contains(body, "\"content\":\"deploying\"") && contains(body, "\"title\":\"Deployed\"") && contains(body, "\"edited_timestamp\":\"2"),
+		tprint("a webhook edits its message: % %", status, body));
+	status, body = rest("PATCH", tprint("%/messages/%", hook_url, field(react_v, "id").s), "{\"content\": \"x\"}", "");
+	check(status == 404, tprint("a webhook can't edit a member's message: % %", status, body));
+	status, body = rest("DELETE", own_url, "", "");
+	check(status == 204, tprint("a webhook deletes its message: % %", status, body));
+	status, body = rest("GET", own_url, "", "");
+	check(status == 404, tprint("a deleted webhook message is gone: % %", status, body));
 	status, body = rest("GET", tprint("/api/v9/guilds/%/webhooks", gid), "", token);
 	listed, _ := etf.from_json(body);
 	check(status == 200 && listed.kind == .List && listed.list.count == 1, tprint("the owner lists webhooks: % %", status, body));

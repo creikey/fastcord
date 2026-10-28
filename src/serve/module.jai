@@ -1934,7 +1934,8 @@ channel_webhooks :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bo
 // /api/webhooks/{id}/{token} (also under v9 and v10): POST {content, username?}[?wait=true] posts as the
 // webhook, GET describes it and DELETE removes it, for anyone holding the token, as on Discord, so tools
 // outside the app (CI, feeds, alerts) can post. /api/v9/webhooks/{id} does GET and DELETE for the owner.
-// A deleted webhook's messages stay, under its name.
+// A deleted webhook's messages stay, under its name. /api/webhooks/{id}/{token}/messages/{message} reads,
+// edits (PATCH {content?, embeds?}) or deletes one of the webhook's own messages.
 webhook :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	path, query := req.path, "";
@@ -1942,20 +1943,38 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 	if q >= 0 { query = slice(path, q + 1, path.count - q - 1); path = slice(path, 0, q); }
 	parts := split(advance(path, find_index_from_left(path, "webhooks/") + "webhooks/".count), "/",, temp);
 	id, ok := string_to_int(parts[0], T = s64);
-	if !ok || parts.count > 2 || (parts.count == 2 && !parts[1]) return json_error(c, 404, 0, "404: Not Found");
-	by_token := parts.count == 2;
+	own: s64;
+	if ok && parts.count == 4 && parts[1] && parts[2] == "messages" {
+		own, ok = string_to_int(parts[3], T = s64);
+		if !ok || own <= 0 return json_error(c, 404, 10008, "Unknown Message");
+	} else if !ok || parts.count > 2 || (parts.count == 2 && !parts[1]) return json_error(c, 404, 0, "404: Not Found");
+	by_token := parts.count >= 2;
 	user: s64;
 	if !by_token {
 		token, _ := http.header_get(req.headers, "authorization");
 		user = session_user(c, token);
 		if !user return json_error(c, 401, 0, "401: Unauthorized");
 	}
-	if req.method != "GET" && req.method != "DELETE" && !(req.method == "POST" && by_token) return json_error(c, 405, 0, "405: Method Not Allowed");
+	if req.method != "GET" && req.method != "DELETE" && !(req.method == "POST" && by_token && !own) && !(req.method == "PATCH" && own) return json_error(c, 405, 0, "405: Method Not Allowed");
 
 	content, username: string;
 	embeds: []string;
 	everyone := false;
-	if req.method == "POST" {
+	has_content, has_embeds: bool;
+	if req.method == "PATCH" {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		content_v, _ := etf.map_get(v.map, "content");
+		embeds_v: etf.Value;
+		embeds_v, has_embeds = etf.map_get(v.map, "embeds");
+		embeds_ok: bool;
+		embeds, embeds_ok = webhook_embeds(embeds_v);
+		if !embeds_ok || (content_v.kind != .String && content_v.kind != .Nil) return json_error(c, 400, 50035, "Invalid Form Body");
+		has_content = content_v.kind == .String;
+		if has_content content = content_v.s;
+		if !text_ok(content, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
+		if utf16_units(content) > MAX_CONTENT return content_too_long(c);
+	} else if req.method == "POST" {
 		v, err := etf.from_json(cast(string) req.body,, temp);
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		content_v, _ := etf.map_get(v.map, "content");
@@ -1989,7 +2008,44 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10015, "Unknown Webhook");
 		if !by_token && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		if req.method == "DELETE" {
+		if own {
+			st =sqlite.prepare(s.db, "SELECT content, (SELECT count(*) FROM embeds e WHERE e.message = m.id AND e.rich IS NOT NULL), channel FROM messages m WHERE id = ? AND author = ? AND webhook = 1;");
+			sqlite.bind_all(st, own, id);
+			found = sqlite.step(st) == .Row;
+			old_content: string;
+			old_embeds: int;
+			if found {
+				old_content = copy_string(sqlite.col_text(st, 0),, temp);
+				old_embeds = sqlite.col_int(st, 1);
+				channel = sqlite.col_int(st, 2);
+			}
+			sqlite.finalize(st);
+			if !found return json_error(c, 404, 10008, "Unknown Message");
+			message = own;
+			if req.method == "PATCH" {
+				if !has_content content = old_content;
+				if !trim(content) && !(ifx has_embeds then embeds.count else old_embeds) return json_error(c, 400, 50006, "Cannot send an empty message");
+				// As a member's edit: mentions follow the new text, but nobody is pinged again.
+				everyone = contains(content, "@everyone") || contains(content, "@here");
+				ok := sqlite.exec(s.db, "BEGIN;")
+					&& sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ?, everyone = ? WHERE id = ?;", content, snowflake(s), cast(int) everyone, message)
+					&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", message);
+				for mention_ids(content) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+				if has_embeds && ok ok = sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND rich IS NOT NULL;", message);
+				if has_embeds for embeds if ok ok = sqlite.run(s.db, "INSERT INTO embeds(message, position, url, title, description, provider, color, rich) VALUES(?, ?, '', '', '', '', 0, ?);", message, it_index, it);
+				links: [MAX_LINKS]string;
+				for link_urls(content) links[it_index] = it;
+				ok = ok && sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND rich IS NULL AND url NOT IN (coalesce(?, ''), coalesce(?, ''), coalesce(?, ''));", message, links[0], links[1], links[2]);
+				if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			} else if req.method == "DELETE" {
+				if !sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", message) return json_error(c, 500, 0, "500: Internal Server Error");
+				sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", message);
+				sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", message);
+				sqlite.run(s.db, "DELETE FROM attachments WHERE message = ?;", message);
+				sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", message);
+			}
+			if req.method != "DELETE" m = message_locked(s, message, nested = false);
+		} else if req.method == "DELETE" {
 			if !sqlite.run(s.db, "DELETE FROM webhooks WHERE id = ?;", id) return json_error(c, 500, 0, "500: Internal Server Error");
 		} else if req.method == "POST" {
 			message = snowflake(s);
@@ -2001,6 +2057,20 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 			m = message_locked(s, message, nested = false);
 		}
+	}
+	if own {
+		if req.method == "GET" return json_reply(c, 200, m);
+		if req.method == "PATCH" {
+			broadcast(s, "MESSAGE_UPDATE", m);
+			queue_unfurl(s, message, content);
+			return json_reply(c, 200, m);
+		}
+		d := etf.map_builder(3,, temp);
+		etf.map_put(*d, "id", snow(message));
+		etf.map_put(*d, "channel_id", snow(channel));
+		etf.map_put(*d, "guild_id", snow(s.guild));
+		broadcast(s, "MESSAGE_DELETE", etf.vmap(etf.map_done(*d)));
+		return respond(c, 204, json = false);
 	}
 	if req.method == "DELETE" return respond(c, 204, json = false);
 	if req.method == "GET" return json_reply(c, 200, result);
