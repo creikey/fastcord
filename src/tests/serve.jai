@@ -827,6 +827,14 @@ main :: () {
 	check(status == 400, tprint("a webhook's bad embed is refused: % %", status, body));
 	status, body = rest("POST", hook_url, "{\"embeds\": [{\"image\": {\"url\": \"https://x.test/a.png\"}}]}", "");
 	check(status == 400, tprint("a webhook's empty embed is refused: % %", status, body));
+	status, body = rest("POST", tprint("%?wait=true", hook_url), tprint("{\"content\": \"<@%> @everyone\", \"allowed_mentions\": {\"parse\": []}}", other_id), "");
+	check(status == 200 && contains(body, "\"mentions\":[]") && contains(body, "\"mention_everyone\":false"), tprint("allowed_mentions stops a webhook's pings: % %", status, body));
+	rest("DELETE", tprint("%/messages/%", hook_url, field(etf.from_json(body), "id").s), "", "");
+	status, body = rest("POST", tprint("%?wait=true", hook_url), tprint("{\"content\": \"<@%> @everyone\", \"allowed_mentions\": {\"users\": [\"%\"]}}", other_id, other_id), "");
+	check(status == 200 && contains(body, other_id) && contains(body, "\"mention_everyone\":false"), tprint("allowed_mentions pings only the users it names: % %", status, body));
+	rest("DELETE", tprint("%/messages/%", hook_url, field(etf.from_json(body), "id").s), "", "");
+	status, body = rest("POST", hook_url, "{\"content\": \"x\", \"allowed_mentions\": {\"parse\": [\"users\"], \"users\": [\"1\"]}}", "");
+	check(status == 400, tprint("allowed_mentions can't name users both ways: % %", status, body));
 	// curl and CI tools speak plain HTTP/1.1: they reach webhooks and nothing else.
 	plain_rest :: (method: string, path: string, body: string) -> int #expand {
 		session := dial(`pin, "http/1.1");

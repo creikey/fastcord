@@ -1990,9 +1990,38 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 	embeds: []string;
 	everyone := false;
 	has_content, has_embeds: bool;
-	if req.method == "PATCH" {
-		v, err := etf.from_json(cast(string) req.body,, temp);
+	// allowed_mentions, as on Discord: absent pings everyone named; present pings only what it lists.
+	may_everyone, all_users := true, true;
+	users: [..]s64;
+	users.allocator = temp;
+	v: etf.Value;
+	if req.method == "PATCH" || req.method == "POST" {
+		err: etf.Error;
+		v, err = etf.from_json(cast(string) req.body,, temp);
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		am, has_am := etf.map_get(v.map, "allowed_mentions");
+		if has_am && am.kind != .Nil {
+			if am.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+			parse, _ := etf.map_get(am.map, "parse");
+			listed, _ := etf.map_get(am.map, "users");
+			if (parse.kind != .Nil && parse.kind != .List) || (listed.kind != .Nil && listed.kind != .List) || listed.list.count > 100 return json_error(c, 400, 50035, "Invalid Form Body");
+			may_everyone, all_users = false, false;
+			for parse.list {
+				if it.kind != .String return json_error(c, 400, 50035, "Invalid Form Body");
+				if it.s == "everyone" may_everyone = true;
+				else if it.s == "users" all_users = true;
+				else if it.s != "roles" return json_error(c, 400, 50035, "Invalid Form Body");
+			}
+			for listed.list {
+				n, ok := string_to_int(ifx it.kind == .String then it.s else "", T = s64);
+				if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+				array_add(*users, n);
+			}
+			// Discord refuses naming users both ways.
+			if all_users && users.count return json_error(c, 400, 50035, "Invalid Form Body");
+		}
+	}
+	if req.method == "PATCH" {
 		content_v, _ := etf.map_get(v.map, "content");
 		embeds_v: etf.Value;
 		embeds_v, has_embeds = etf.map_get(v.map, "embeds");
@@ -2004,8 +2033,6 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 		if !text_ok(content, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
 		if utf16_units(content) > MAX_CONTENT return content_too_long(c);
 	} else if req.method == "POST" {
-		v, err := etf.from_json(cast(string) req.body,, temp);
-		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		content_v, _ := etf.map_get(v.map, "content");
 		name_v, has_name := etf.map_get(v.map, "username");
 		embeds_v, _ := etf.map_get(v.map, "embeds");
@@ -2020,7 +2047,7 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 			username = ifx name_v.kind == .String then trim(name_v.s) else "";
 			if !username || username.count > 80 || !text_ok(username) return json_error(c, 400, 50035, "Invalid Form Body");
 		}
-		everyone = contains(content, "@everyone") || contains(content, "@here");
+		everyone = may_everyone && (contains(content, "@everyone") || contains(content, "@here"));
 	}
 	result, m: etf.Value;
 	channel, message: s64;
@@ -2055,11 +2082,11 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 				if !has_content content = old_content;
 				if !trim(content) && !(ifx has_embeds then embeds.count else old_embeds) return json_error(c, 400, 50006, "Cannot send an empty message");
 				// As a member's edit: mentions follow the new text, but nobody is pinged again.
-				everyone = contains(content, "@everyone") || contains(content, "@here");
+				everyone = may_everyone && (contains(content, "@everyone") || contains(content, "@here"));
 				ok := sqlite.exec(s.db, "BEGIN;")
 					&& sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ?, everyone = ? WHERE id = ?;", content, snowflake(s), cast(int) everyone, message)
 					&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", message);
-				for mention_ids(content) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+				for mention_ids(content) if ok && (all_users || array_find(users, it)) ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
 				if has_embeds && ok ok = sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND rich IS NOT NULL;", message);
 				if has_embeds for embeds if ok ok = sqlite.run(s.db, "INSERT INTO embeds(message, position, url, title, description, provider, color, rich) VALUES(?, ?, '', '', '', '', 0, ?);", message, it_index, it);
 				links: [MAX_LINKS]string;
@@ -2080,7 +2107,7 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 			message = snowflake(s);
 			ok := sqlite.exec(s.db, "BEGIN;")
 				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone, webhook, username) VALUES(?, ?, ?, ?, ?, 1, nullif(?, ''));", message, channel, id, content, cast(int) everyone, username);
-			for mention_ids(content) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+			for mention_ids(content) if ok && (all_users || array_find(users, it)) ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
 			for embeds if ok ok = sqlite.run(s.db, "INSERT INTO embeds(message, position, url, title, description, provider, color, rich) VALUES(?, ?, '', '', '', '', 0, ?);", message, it_index, it);
 			ok = ok && sqlite.run(s.db, COUNT_MENTIONS, channel, id, cast(int) everyone, message) && sqlite.exec(s.db, "COMMIT;");
 			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
