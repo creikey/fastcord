@@ -323,6 +323,28 @@ main :: () {
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", cid), "", token);
 	check(status == 400, tprint("the last channel stays: %", status));
 
+	// Categories: a channel made inside one carries parent_id, a category takes no messages, and deleting
+	// it leaves its channels uncategorized.
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"Big Stuff\", \"type\": 4}", token);
+	cat, _ := etf.from_json(body);
+	cat_id := field(cat, "id").s;
+	check(status == 201 && field(cat, "name").s == "Big Stuff" && field(cat, "type").i == 4, tprint("create a category: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), tprint("{\"name\": \"inside\", \"type\": 0, \"parent_id\": \"%\"}", cat_id), token);
+	inside, _ := etf.from_json(body);
+	inside_id := field(inside, "id").s;
+	check(status == 201 && field(inside, "parent_id").s == cat_id, tprint("create a channel in a category: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), tprint("{\"name\": \"x\", \"type\": 2}"), token);
+	check(status == 400, tprint("no voice channels yet: %", status));
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages", cat_id), "{\"content\": \"x\"}", token);
+	check(status == 404, tprint("a category takes no messages: %", status));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", cat_id), "", token);
+	check(status == 200, tprint("delete a category: % %", status, body));
+	in_id := string_to_int(inside_id, T = discord.Snowflake);
+	for 1..300 { ic := discord.channel_get(*cl.store, in_id); if ic && !ic.parent_id break; pump(); }
+	ic := discord.channel_get(*cl.store, in_id);
+	check(ic && !ic.parent_id, "a deleted category's channels stay, uncategorized");
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", inside_id), "", token);
+
 	// A member's invite, as the Invite modal makes it; opening the modal again gets the same one.
 	made := discord.create_invite(cl, cid,, context.default_allocator);
 	again := discord.create_invite(cl, cid,, context.default_allocator);

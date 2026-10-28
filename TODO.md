@@ -39,7 +39,8 @@
   - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
   - Done: Change Nickname (`PATCH /guilds/{id}/members/@me`) renames the member, since a hosted member has one name; GUILD_MEMBER_UPDATE and the member list follow, and old messages show the new name.
   - Done: the owner deletes any member's message (Discord's Manage Messages); members still delete only their own.
-  - On a hosted server, Create Channel still offers Voice (and the header menu Create Category), which `-serve` refuses with 400 (`create_channel` takes type 0 only). Serve categories, and hide Voice there until Hosting 4.
+  - Done: categories (type 4). The owner creates them and channels inside them (`parent_id`); deleting one leaves its channels uncategorized, and categories take no messages. Create Channel offers only Text on a hosted server.
+  - Mark As Read on a hosted server (the server icon menu, Shift+Esc) sends `POST /read-states/ack-bulk`, which `-serve` answers with 404, so the channels stay unread on the server and come back after a restart. Serve it like `ack`.
   - Add a test that runs the hosted client's views against a `-serve` instance and fails on every 404. Each request a hosted guild makes should be served or skipped like `aux_get`. Pins, search and profiles all 404 today.
 - [ ] Hosting 3: one instance hosts many server files on one port, choosing the server by its ID through TLS SNI. The owner runs Server Settings, plus a host tab, from their own client anywhere. It can't be bricked:
   - A second file with an already-loaded ID is refused, with Fork (new ID, same content) offered instead.

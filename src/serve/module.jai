@@ -58,6 +58,8 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
@@ -311,7 +313,7 @@ SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
-CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
@@ -655,17 +657,22 @@ mention_ids :: (content: string) -> [..]s64 {
 // Until roles land (Hosting 4) everyone may read, write, react, embed, attach and make invites.
 EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 26);
 
-CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id) FROM channels c";
+// Channel types, as Discord numbers them.
+TEXT :: 0;
+CATEGORY :: 4;
+
+CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent FROM channels c";
 
 row_channel :: (s: *Server, st: *sqlite.Stmt) -> etf.Value {
-	m := etf.map_builder(7,, temp);
+	m := etf.map_builder(8,, temp);
 	etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
-	etf.map_put(*m, "type", etf.vint(0));
+	etf.map_put(*m, "type", etf.vint(sqlite.col_int(st, 5)));
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 1),, temp)));
 	etf.map_put(*m, "position", etf.vint(sqlite.col_int(st, 2)));
-	etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
+	if sqlite.col_int(st, 5) == TEXT etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
 	if !sqlite.col_is_null(st, 4) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 4)));
+	etf.map_put(*m, "parent_id", ifx sqlite.col_is_null(st, 6) then etf.Value.{} else snow(sqlite.col_int(st, 6)));
 	return etf.vmap(etf.map_done(*m));
 }
 
@@ -676,6 +683,15 @@ channel_locked :: (s: *Server, id: s64) -> etf.Value {
 	sqlite.bind(st, 1, id);
 	if sqlite.step(st) != .Row return .{};
 	return row_channel(s, st);
+}
+
+// A channel's type, or -1 if there is no such channel. The caller holds db_mu.
+channel_type_locked :: (s: *Server, id: s64) -> int {
+	st := sqlite.prepare(s.db, "SELECT type FROM channels WHERE id = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, id);
+	if sqlite.step(st) != .Row return -1;
+	return sqlite.col_int(st, 0);
 }
 
 ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
@@ -853,7 +869,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	}
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, "SELECT 1 FROM channels WHERE id = ?;");
+		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type = %;", TEXT));
 		sqlite.bind(st, 1, channel);
 		ok = sqlite.step(st) == .Row;
 		sqlite.finalize(st);
@@ -1032,17 +1048,31 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 	raw, _ := etf.map_get(v.map, "name");
-	kind, _ := etf.map_get(v.map, "type");
-	name := ifx raw.kind == .String then channel_name(raw.s) else "";
-	if !name || (kind.kind == .Int && kind.i != 0) return json_error(c, 400, 50035, "Invalid Form Body");
+	kind_v, _ := etf.map_get(v.map, "type");
+	parent_v, _ := etf.map_get(v.map, "parent_id");
+	kind := ifx kind_v.kind == .Int then kind_v.i else TEXT;
+	parent: s64;
+	has_parent := false;
+	if parent_v.kind == .String parent, has_parent = string_to_int(parent_v.s, T = s64);
+	// Categories keep the name as typed; text channels get Discord's lowercase-dashed form.
+	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
+	if !name || name.count > 100 || (kind != TEXT && kind != CATEGORY) || (has_parent && kind != TEXT) return json_error(c, 400, 50035, "Invalid Form Body");
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		id := snowflake(s);
-		if !sqlite.run(s.db, "INSERT INTO channels(id, name, position) VALUES(?, ?, (SELECT coalesce(max(position), -1) + 1 FROM channels));", id, name) {
-			return json_error(c, 500, 0, "500: Internal Server Error");
+		if has_parent {
+			st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type = %;", CATEGORY));
+			sqlite.bind(st, 1, parent);
+			found := sqlite.step(st) == .Row;
+			sqlite.finalize(st);
+			if !found return json_error(c, 400, 50035, "Invalid Form Body");
 		}
+		id := snowflake(s);
+		ok := ifx has_parent
+			then sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent) VALUES(?, ?, (SELECT coalesce(max(position), -1) + 1 FROM channels), ?, ?);", id, name, kind, parent)
+			else sqlite.run(s.db, "INSERT INTO channels(id, name, position, type) VALUES(?, ?, (SELECT coalesce(max(position), -1) + 1 FROM channels), ?);", id, name, kind);
+		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
 		ch = channel_locked(s, id);
 	}
 	broadcast(s, "CHANNEL_CREATE", ch);
@@ -1117,16 +1147,19 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	s := c.server;
 	ch: etf.Value;
+	orphans: [..]etf.Value;
+	orphans.allocator = temp;
 	if req.method == "PATCH" {
 		v, err := etf.from_json(cast(string) req.body,, temp);
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		raw, has_name := etf.map_get(v.map, "name");
 		topic, has_topic := etf.map_get(v.map, "topic");
-		name := ifx raw.kind == .String then channel_name(raw.s) else "";
-		if (has_name && !name) || (has_topic && topic.kind == .String && topic.s.count > 1024) return json_error(c, 400, 50035, "Invalid Form Body");
 		locks.guard(*s.db_mu);
 		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		if channel_locked(s, channel).kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
+		kind := channel_type_locked(s, channel);
+		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
+		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
+		if (has_name && (!name || name.count > 100)) || (has_topic && topic.kind == .String && topic.s.count > 1024) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
 			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel));
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1136,11 +1169,20 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
 		ch = channel_locked(s, channel);
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
-		st := sqlite.prepare(s.db, "SELECT count(*) FROM channels;");
-		last := sqlite.step(st) == .Row && sqlite.col_int(st, 0) <= 1;
+		kind := channel_type_locked(s, channel);
+		st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM channels WHERE type = %;", TEXT));
+		last := kind == TEXT && sqlite.step(st) == .Row && sqlite.col_int(st, 0) <= 1;
 		sqlite.finalize(st);
 		if last return json_error(c, 400, 50035, "Cannot delete the last channel");
+		// A deleted category's channels stay, uncategorized, as on Discord.
+		st = sqlite.prepare(s.db, "SELECT id FROM channels WHERE parent = ?;");
+		sqlite.bind(st, 1, channel);
+		ids: [..]s64;
+		ids.allocator = temp;
+		while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
+		sqlite.finalize(st);
 		ok := sqlite.exec(s.db, "BEGIN;")
+			&& sqlite.run(s.db, "UPDATE channels SET parent = NULL WHERE parent = ?;", channel)
 			&& sqlite.run(s.db, "DELETE FROM reactions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
 			&& sqlite.run(s.db, "DELETE FROM mentions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
 			&& sqlite.run(s.db, "DELETE FROM messages WHERE channel = ?;", channel)
@@ -1148,10 +1190,12 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& sqlite.run(s.db, "DELETE FROM channels WHERE id = ?;", channel)
 			&& sqlite.exec(s.db, "COMMIT;");
 		if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+		for ids array_add(*orphans, channel_locked(s, it));
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
 	broadcast(s, ifx req.method == "PATCH" then "CHANNEL_UPDATE" else "CHANNEL_DELETE", ch);
+	for orphans broadcast(s, "CHANNEL_UPDATE", it);
 	return json_reply(c, 200, ch);
 }
 
