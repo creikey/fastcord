@@ -289,7 +289,8 @@ set_button :: (text: string, kind: Button_Kind, enabled := true, h: float32 = 38
 // password: shows bullets. max_runes > 0 caps the length.
 set_input :: (id: string, ed: *ui.Editor, placeholder: string, multiline := false, password := false, max_runes := 0, min_h: float32 = 40, autofocus := false) -> ui.Edit_Result {
 	box := row(id, .Draw_Background | .Draw_Border | .Clickable);
-	box.semantic_size = .[ui.pct(1), ifx multiline then ui.children() else ui.px(min_h)];
+	// Even a single-line field wraps, so it grows with its text instead of drawing over what's below.
+	box.semantic_size = .[ui.pct(1), ui.children()];
 	if multiline { box.cross_align = .Start; }
 	box.style.bg = T("--input-background-default");
 	box.style.border_color = ifx app.ui.focus == box.key || autofocus && app.ui.focus == 0 then T("--input-border-active") else T("--input-border-default");
@@ -307,8 +308,8 @@ set_input :: (id: string, ed: *ui.Editor, placeholder: string, multiline := fals
 		} else {
 			res = text_field("field", ed, placeholder, focused, 16, 20, 10, T("--input-placeholder-text-default"));
 		}
+		spacer(.Y, min_h); // minimum height
 		if multiline {
-			spacer(.Y, min_h); // minimum height
 			if res == .Submit {
 				ui.editor_insert(ed, "\n");
 				res = .Changed;
