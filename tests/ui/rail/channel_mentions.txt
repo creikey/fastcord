@@ -1,0 +1,5 @@
+# A channel with unread mentions shows a red count at the right of its row, like the rail's badge.
+wait 5
+click 36 255
+wait 20
+shot build/ui-rail_channel_mentions.png

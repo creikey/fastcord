@@ -850,6 +850,19 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					if cs.clicked { channel_settings_open(ch); }
 				}
 			}
+			mentions := ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
+			if mentions > 0 {
+				spacer(.X, 4);
+				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
+				b := ui.box(tprint("%##chanbadge", text), .Draw_Background | .Draw_Text);
+				b.semantic_size = .[ui.px(max(16.0, cast(float32)(text.count) * 7 + 8)), ui.px(16)];
+				b.style.bg = T("--status-danger");
+				b.style.radius = all4(8);
+				b.style.font = F(.Bold);
+				b.style.font_size = 12;
+				b.style.text_color = .{1, 1, 1, 1};
+				b.style.text_align = .Center;
+			}
 			spacer(.X, 8);
 		}
 		if unread && !selected && !notify_prefs.lotus {

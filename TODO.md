@@ -164,7 +164,6 @@
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
-- [ ] Messages: a failed send turns red, but there's no error text and no Retry or Delete.
 - [ ] Check (account risk): a member list that stays empty may send op 37 every frame (`view_home.jai` resubscribes while `items.count == 0`), which could exceed the gateway's 120 events per minute and get the connection closed. Count op 37 frames on a channel whose list comes back empty.
 - [ ] Bug: a message whose send failed gets a duplicate when the server's echo arrives late; the failure clears `pending` and `upsert_message` matches the nonce only on pending messages (`store.jai`).
 - [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
@@ -183,7 +182,6 @@
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
 - [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
 - [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
-- [ ] Channels: a channel with unread mentions shows no red mention count at the right of its row in the channel list (`channel_row` in `views.jai`).
 - [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Crash reporter: add one, modelled on Happenlance's subprocess crash reporter (`C:\Work\Happenlance\Happenlance\src\crash_handler.cpp`, Phillip's machine only).
@@ -235,7 +233,6 @@
 - [ ] Voice: channel statuses never show; op 43 asks for them but the `CHANNEL_INFO` reply is ignored (`actions.jai`).
 - [ ] Windows: TLS chain validation through CryptoAPI is untested on a real machine (`tls/trust_windows.jai`).
 - [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
-- [ ] Channels: rows have no red mention-count badge; only the rail shows mentions.
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
 - [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
 - [ ] Bug: the composer stops taking typing in every channel after you start an edit (pencil or Up), then switch channel or the message is deleted. `ma.editing` gates `input_focused` (`view_chat.jai`) and is only cleared inside `edit_box`, which draws only while that row is on screen; `go_to` and MESSAGE_DELETE never clear it.
@@ -342,3 +339,4 @@
 - [x] Rail: right-clicking a folder opens Mark Folder As Read and Folder Settings, a modal that renames and recolours it through `guild_folders` (`view_rail_folders.jai`, `tests/ui/rail/folder_settings.txt`).
 - [x] Messages: a failed send shows "Message failed to send." with Retry (same text and reply) and Delete (local) under the red message (`view_chat.jai` `failed_send_note`, `tests/ui/failed_send.txt`).
 - [x] Media: Save Image shows a toast: green "Image saved to Downloads." or red "Couldn't save the image." when the fetch or write fails (`images.jai` `decode_upload`, `requests.jai` `toast_show`, `tests/ui/media/save_image.txt`).
+- [x] Channels: a channel with unread mentions shows the red mention count at the right of its row (`views.jai` `channel_row`, `tests/ui/rail/channel_mentions.txt`).
