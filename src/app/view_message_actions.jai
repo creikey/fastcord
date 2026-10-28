@@ -156,7 +156,8 @@ can_edit :: (m: *dc.Message) -> bool {
 
 start_edit :: (m: *dc.Message) {
 	ma.editing = m.id;
-	ui.editor_set_text(*ma.edit_editor, m.content);
+	ch := dc.channel_get(store(), m.channel_id);
+	ui.editor_set_text(*ma.edit_editor, ifx ch then mentions_readable(m.content, ch) else m.content);
 }
 
 // location: how it was opened, as message_popout_menu_opened_desktop names it

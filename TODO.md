@@ -124,7 +124,7 @@
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
-- [ ] Edit: editing a message shows its raw markup: `<@1546819257420087346>`, `<#id>`, `<@&id>` and `<:name:id>` instead of `@name`, `#channel`, `@role` and `:name:` (`start_edit` in `view_message_actions.jai` loads `m.content` as is). Show them readable and convert back on save, as the composer does.
+- [ ] Composer: `#channel-name` is sent as plain text; convert it to `<#id>` on send and edit, with a `#` autocomplete like `@`, and show `<#id>` as `#name` when editing (`mentions_readable` in `mention_autocomplete.jai` leaves it raw).
 - [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
 - [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
 - [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
@@ -323,3 +323,4 @@
 - [x] Chat: an idle window redraws every 30 s while a relative `<t:…:R>` time is shown, and at local midnight, so "in 4 hours" and "Yesterday at" don't go stale.
 - [x] Replies: clicking a reply's quoted line jumps to the original message and highlights it (`tests/ui/forward/reply_jump.txt`).
 - [x] Edit: the inline edit box has the composer's `:emoji:` and `@mention` autocompletes, and saving converts `:name:` and `@name` like a send (`tests/ui/edit_autocomplete.txt`).
+- [x] Edit: editing a message shows `@name`, `@role` and `:name:` instead of their raw `<@id>`, `<@&id>` and `<:name:id>`, and saving converts them back (`tests/ui/forward/edit_readable.txt`).
