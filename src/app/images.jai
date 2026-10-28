@@ -139,6 +139,16 @@ avatar_box :: (id: string, uid: dc.Snowflake, size: float32) -> *ui.Box {
 	if u == null || u.avatar == "" {
 		d.default = default_avatar_index(uid);
 		b.style.bg = .{};
+		// A hosted client sends every URL to its own server, which has no copy of Discord's default
+		// avatars: draw the color with fastcord's logo instead of asking for them.
+		if app.client && app.client.cfg.hosted.host {
+			d.url = "";
+			ui.parent(b); defer ui.pop_parent();
+			ic := ui.box("default", .Floating_X | .Floating_Y);
+			ic.semantic_size = .[ui.px(size * 0.6), ui.px(size * 0.6)];
+			ic.fixed_pos = .{size * 0.2, size * 0.2};
+			set_icon(ic, "logo", .{1, 1, 1, 1});
+		}
 	}
 	image_get(d.url);
 	b.custom_draw = avatar_draw;
