@@ -455,6 +455,13 @@ parse_reactions :: (s: *Store, msg: *Message, l: []V) {
 		};
 		cd := fmap(rm, "count_details");
 		if cd r.burst_count = fint(cd, "burst");
+		bc := flist(rm, "burst_colors");
+		if bc {
+			h := vstr(bc[0]);
+			if begins_with(h, "#") h = advance(h, 1);
+			v, ok := string_to_int(h, 16);
+			if ok r.burst_color = cast(u32) v;
+		}
 		array_add(*msg.reactions, r);
 	}
 }

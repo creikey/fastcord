@@ -199,6 +199,7 @@ Reaction :: struct {
 	burst_count: int;
 	me: bool;
 	me_burst: bool;
+	burst_color: u32; // 0xRRGGBB from burst_colors[0], 0 if none
 }
 
 Message :: struct {

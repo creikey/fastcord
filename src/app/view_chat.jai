@@ -1541,12 +1541,22 @@ reactions_view :: (m: *dc.Message) {
 	r.semantic_size = .[ui.pct(1), ui.px(30)];
 	r.style.child_gap = 4;
 	{ ui.parent(r); defer ui.pop_parent();
-		for * re, i: m.reactions {
-			pill := row(tprint("re%", i), .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
+		// Super reactions get their own pill, tinted by the emoji's burst colour, ahead of the normal ones.
+		// Clicking one only takes back your own: adding one is a Nitro feature, and we show no upsell.
+		for burst: bool.[true, false] for * re, i: m.reactions {
+			count := ifx burst then re.burst_count else re.count;
+			if count <= 0 continue;
+			me := ifx burst then re.me_burst else re.me;
+			pill := row(tprint("re%_%", i, burst), .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
 			pill.semantic_size = .[ui.children(), ui.px(26)];
 			pill.style.radius = all4(8);
 			pill.style.border = 1;
-			if re.me {
+			if burst {
+				c := ifx re.burst_color then rgb_u32(re.burst_color) else T("--reaction-border-reacted-default");
+				pill.style.bg = with_alpha(c, ifx me then 0.3 else 0.15);
+				pill.style.bg_hot = with_alpha(c, 0.3);
+				pill.style.border_color = c;
+			} else if me {
 				pill.style.bg = T("--reaction-background-reacted-default");
 				pill.style.border_color = T("--reaction-border-reacted-default");
 			} else {
@@ -1559,10 +1569,13 @@ reactions_view :: (m: *dc.Message) {
 				spacer(.X, 6);
 				emoji_box("e", re.emoji, 16);
 				spacer(.X, 6);
-				label(tprint("%", re.count), .Semibold, 14, ifx re.me then T("--reaction-text-reacted-default") else T("--reaction-text-default"), 16);
+				label(tprint("%", count), .Semibold, 14, ifx me then T("--reaction-text-reacted-default") else T("--reaction-text-default"), 16);
 				spacer(.X, 6);
 			}
-			if sig.clicked react(m, re.emoji, "Message Inline Button", toggle = true);
+			if sig.clicked {
+				if !burst react(m, re.emoji, "Message Inline Button", toggle = true);
+				else if me && net_action() dc.remove_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id, burst = true, location = "Message Inline Button");
+			}
 		}
 		reaction_add_button(m);
 	}

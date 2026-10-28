@@ -101,7 +101,6 @@
 - [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
 - [ ] Undo: the trash on a staged upload deletes the uploaded file at once; keep the card restorable and hold the remote delete.
 - [ ] Voice: a chosen audio device that is unplugged stays selected by its dead id (`sel_input`/`sel_output` in `audio/darwin.jai`), so the page shows "Default" while capture keeps the old device instead of falling back.
-- [ ] Reactions: super (burst) reactions look like normal ones; `burst_count` / `me_burst` are parsed but unused.
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
 - [ ] Voice: left-clicking a participant does nothing; their menu lacks server mute/deafen, disconnect, move and profile.
 - [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
@@ -339,3 +338,4 @@
 - [x] Messages: holding Shift over a message you may delete adds a red trash can to the hover toolbar that deletes it without confirmation (`tests/ui/forward/shift_delete.txt`; scripts gained `move <x> <y> shift`).
 - [x] Chat: messages that mention you (by name, @everyone / @here, or one of your roles) get the mentioned background and a gold left bar (`mentions_me` in `view_chat.jai`, `tests/ui/forward/mention_highlight.txt`).
 - [x] Markdown: slash-command mentions `</name sub:id>` and server page links `<id:customize|browse|guide|linked-roles>` draw as mention chips (`markdown.jai` `try_entity`, `tests/ui/forward/command_mentions.txt`).
+- [x] Reactions: super (burst) reactions get their own pill before the normal ones, tinted by `burst_colors[0]`; clicking your own takes it back (`view_chat.jai` `reactions_view`, `tests/ui/super_reactions.txt`).
