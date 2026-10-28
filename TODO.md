@@ -271,6 +271,7 @@
 - [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [-] Cancelled (AGENTS.md: nothing that needs a webview): Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
+- [-] Cancelled (Google shut the Tenor API down on 2026-06-30, with no new keys since January, which is why Discord's `/gifs/search` went Klipy-only; sent Tenor links still embed): GIFs (fastcord-only): search Tenor as well as Klipy.
 - [-] Cancelled (AGENTS.md: no Activities): Voice and Call view: no Activities (in-call apps and games) and no Activities button.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
@@ -396,7 +397,6 @@
 - [x] Layout: the member list and DM profile panel toggles survive a restart (`settings.json` `members_hidden`, `dm_profile_hidden`; `app.view.hide_members` replaces `show_members` so zero means shown).
 - [x] Selection: dragging across a message with more than 4 blocks (list items, paragraphs) selects one contiguous range; block order no longer wraps at 4 (`Box.sel_sub`, `tests/ui/code/select_list.txt`).
 - [x] Window: remember the window's size, position and maximised state across launches (Windows).
-- [x] GIFs (fastcord-only): search Tenor as well as Klipy. Dropped: Google shut the Tenor API down on 2026-06-30 (no new keys since January), which is why Discord's `/gifs/search` went Klipy-only. Sent Tenor links still embed.
 - [x] Voice: `src/tests/voice_aec.jai` links on Windows (it now names msvcprt, which the app gets via tls).
 - [x] Channels: collapsing a category is account state: the sidebar reads `channel_overrides[].collapsed` and a click PATCHes it (`set_category_collapsed`; `tests/ui/category_collapse.txt`). The local `settings.json` `collapsed` list is gone.
 - [x] Developer Mode: Copy Message ID, Copy Server ID (server icon menu), Copy Channel ID (thread menu) and Copy User ID show when it is on (`tests/ui/developer_mode_ids.txt`). Channel rows get theirs with their context menu (Channels item above).
