@@ -41,7 +41,8 @@
   - Done: search (`GET /guilds/{id}/messages/search`): whole-word content from an FTS5 index kept by triggers, `author_id`, `mentions`, `channel_id`, `pinned` and `has:link`, 25 a page.
   - Done: Leave Server (`DELETE /users/@me/guilds/{id}`). The member stays as their messages' author but loses their sessions and gateways (GUILD_DELETE), and needs an invite to return; the owner can't leave. The app then drops the connection and its saved invite (`hosted_frame`).
   - Done: a join (new, or back after leaving) posts the "joined the server" message (type 7) in the first text channel, sent to every gateway; search skips system messages.
-  - Attaching a file in a hosted channel (the "+" button, drag and drop, paste) asks the server for an upload slot it doesn't serve, so the file never sends. Until Hosting 4 serves uploads, refuse it up front with a toast saying uploads aren't available on this server yet (`discord/uploads.jai`).
+  - Done: attaching a file in a hosted channel (picker, drop, paste) is refused with a toast until Hosting 4 serves uploads (`attachments.jai` `uploads_unserved`).
+  - Sending a sticker in a hosted channel fails: the client posts `sticker_ids` with empty content, which the server refuses as an empty message (`serve` messages POST), and the Discord stickers it offers can't be served there anyway. Hide the sticker picker and its keybind on hosted servers until Hosting 4.
   - Next: the member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead. A slow gateway reader stalls everyone's events (`serve` `broadcast`).
   - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
   - Done: Change Nickname (`PATCH /guilds/{id}/members/@me`) renames the member, since a hosted member has one name; GUILD_MEMBER_UPDATE and the member list follow, and old messages show the new name.
