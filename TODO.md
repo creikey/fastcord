@@ -226,6 +226,8 @@
 - [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
 - [ ] Zoom: Ctrl+= / Ctrl+- / Ctrl+0 zoom the whole UI in, out and back to 100%, and a "Zoom Level" slider sits in the settings page where the official client has it (check whether that's Appearance or Accessibility before building). Match the official steps and range, the browser zoom levels from 50% to 200%, by checking the bundle. Scale on top of the DPI scale and persist it. Today none of it exists (no `.Equals` / `.Minus` handling in `src/app` or `src/ui`).
 - [ ] Appearance: no compact mode, chat font scaling, message spacing, or accessibility options (reduced motion, saturation, role colours).
+- [ ] Scrolling: one wheel notch scrolls too little on Windows: 40px, Chrome's macOS value (`platform_windows.jai` WM_MOUSEWHEEL, "Chrome: 40px per notch"). Chromium on Windows scrolls `SPI_GETWHEELSCROLLLINES` (default 3) x 100/3 px, i.e. 100px per notch. Read that system setting, including "one screen at a time" (`WHEEL_PAGESCROLL`). Check Linux's 40px against Chrome there too.
+- [ ] Scrolling (fastcord-only): a "Smooth scrolling" checkbox in Appearance. When off, wheel and keyboard scrolling jump straight to the target instead of easing (`ui.animate(*cs.scroll_from_bottom, ...)` in `view_chat.jai`, `view_off_target` in `ui/core.jai`). Reduced motion should imply it.
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Keybinds: no Ctrl+Shift+M (mute) or Ctrl+Shift+D (deafen).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
