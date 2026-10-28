@@ -33,7 +33,6 @@ SSL_CTX_new :: (method: *SSL_METHOD) -> *SSL_CTX #foreign bssl;
 SSL_CTX_free :: (ctx: *SSL_CTX) #foreign bssl;
 SSL_CTX_set_min_proto_version :: (ctx: *SSL_CTX, version: u16) -> s32 #foreign bssl;
 SSL_CTX_set_max_proto_version :: (ctx: *SSL_CTX, version: u16) -> s32 #foreign bssl;
-SSL_CTX_set1_tls13_ciphers :: (ctx: *SSL_CTX, ids: *u16, flags: *u32, n: u64) -> s32 #foreign bssl;
 SSL_CTX_set_strict_cipher_list :: (ctx: *SSL_CTX, str: *u8) -> s32 #foreign bssl;
 SSL_CTX_set1_group_ids :: (ctx: *SSL_CTX, ids: *u16, n: u64) -> s32 #foreign bssl;
 SSL_CTX_set_verify_algorithm_prefs :: (ctx: *SSL_CTX, prefs: *u16, n: u64) -> s32 #foreign bssl;

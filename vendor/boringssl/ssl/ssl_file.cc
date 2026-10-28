@@ -27,24 +27,22 @@
 #include "internal.h"
 
 
-using namespace bssl;
-
 static int xname_cmp(const X509_NAME *const *a, const X509_NAME *const *b) {
   return X509_NAME_cmp(*a, *b);
 }
 
 static int add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out, BIO *bio,
                                           bool allow_empty) {
-  // This function historically sorted `out` after every addition and skipped
+  // This function historically sorted |out| after every addition and skipped
   // duplicates. This implementation preserves that behavior, but only sorts at
-  // the end, to avoid a quadratic running time. Existing duplicates in `out`
+  // the end, to avoid a quadratic running time. Existing duplicates in |out|
   // are preserved, but do not introduce new duplicates.
-  UniquePtr<STACK_OF(X509_NAME)> to_append(sk_X509_NAME_new(xname_cmp));
+  bssl::UniquePtr<STACK_OF(X509_NAME)> to_append(sk_X509_NAME_new(xname_cmp));
   if (to_append == nullptr) {
     return 0;
   }
 
-  // Temporarily switch the comparison function for `out`.
+  // Temporarily switch the comparison function for |out|.
   struct RestoreCmpFunc {
     ~RestoreCmpFunc() { sk_X509_NAME_set_cmp_func(stack, old_cmp); }
     STACK_OF(X509_NAME) *stack;
@@ -55,48 +53,50 @@ static int add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out, BIO *bio,
   sk_X509_NAME_sort(out);
   bool first = true;
   for (;;) {
-    UniquePtr<X509> x509(PEM_read_bio_X509(bio, nullptr, nullptr, nullptr));
+    bssl::UniquePtr<X509> x509(
+        PEM_read_bio_X509(bio, nullptr, nullptr, nullptr));
     if (x509 == nullptr) {
       if (first && !allow_empty) {
         return 0;
       }
       // TODO(davidben): This ignores PEM syntax errors. It should only succeed
-      // on `PEM_R_NO_START_LINE`.
+      // on |PEM_R_NO_START_LINE|.
       ERR_clear_error();
       break;
     }
     first = false;
 
     X509_NAME *subject = X509_get_subject_name(x509.get());
-    // Skip if already present in `out`. Duplicates in `to_append` will be
+    // Skip if already present in |out|. Duplicates in |to_append| will be
     // handled separately.
     if (sk_X509_NAME_find(out, /*out_index=*/nullptr, subject)) {
       continue;
     }
 
-    UniquePtr<X509_NAME> copy(X509_NAME_dup(subject));
-    if (copy == nullptr || !PushToStack(to_append.get(), std::move(copy))) {
+    bssl::UniquePtr<X509_NAME> copy(X509_NAME_dup(subject));
+    if (copy == nullptr ||
+        !bssl::PushToStack(to_append.get(), std::move(copy))) {
       return 0;
     }
   }
 
-  // Append `to_append` to `stack`, skipping any duplicates.
+  // Append |to_append| to |stack|, skipping any duplicates.
   sk_X509_NAME_sort(to_append.get());
   size_t num = sk_X509_NAME_num(to_append.get());
   for (size_t i = 0; i < num; i++) {
-    UniquePtr<X509_NAME> name(sk_X509_NAME_value(to_append.get(), i));
+    bssl::UniquePtr<X509_NAME> name(sk_X509_NAME_value(to_append.get(), i));
     sk_X509_NAME_set(to_append.get(), i, nullptr);
     if (i + 1 < num &&
         X509_NAME_cmp(name.get(), sk_X509_NAME_value(to_append.get(), i + 1)) ==
             0) {
       continue;
     }
-    if (!PushToStack(out, std::move(name))) {
+    if (!bssl::PushToStack(out, std::move(name))) {
       return 0;
     }
   }
 
-  // Sort `out` one last time, to preserve the historical behavior of
+  // Sort |out| one last time, to preserve the historical behavior of
   // maintaining the sorted list.
   sk_X509_NAME_sort(out);
   return 1;
@@ -107,11 +107,11 @@ int SSL_add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out, BIO *bio) {
 }
 
 STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file) {
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     return nullptr;
   }
-  UniquePtr<STACK_OF(X509_NAME)> ret(sk_X509_NAME_new_null());
+  bssl::UniquePtr<STACK_OF(X509_NAME)> ret(sk_X509_NAME_new_null());
   if (ret == nullptr ||  //
       !add_bio_cert_subjects_to_stack(ret.get(), in.get(),
                                       /*allow_empty=*/false)) {
@@ -122,7 +122,7 @@ STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file) {
 
 int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *out,
                                         const char *file) {
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     return 0;
   }
@@ -130,22 +130,22 @@ int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *out,
 }
 
 int SSL_use_certificate_file(SSL *ssl, const char *file, int type) {
-  SSLContext *ctx = FromOpaque(SSL_get_SSL_CTX(ssl));
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
 
   int reason_code;
-  UniquePtr<X509> x;
+  bssl::UniquePtr<X509> x;
   if (type == SSL_FILETYPE_ASN1) {
     reason_code = ERR_R_ASN1_LIB;
     x.reset(d2i_X509_bio(in.get(), nullptr));
   } else if (type == SSL_FILETYPE_PEM) {
     reason_code = ERR_R_PEM_LIB;
-    x.reset(PEM_read_bio_X509(in.get(), nullptr, ctx->default_passwd_callback,
-                              ctx->default_passwd_callback_userdata));
+    x.reset(PEM_read_bio_X509(in.get(), nullptr,
+                              ssl->ctx->default_passwd_callback,
+                              ssl->ctx->default_passwd_callback_userdata));
   } else {
     OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_SSL_FILETYPE);
     return 0;
@@ -160,23 +160,22 @@ int SSL_use_certificate_file(SSL *ssl, const char *file, int type) {
 }
 
 int SSL_use_RSAPrivateKey_file(SSL *ssl, const char *file, int type) {
-  SSLContext *ctx = FromOpaque(SSL_get_SSL_CTX(ssl));
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
 
   int reason_code;
-  UniquePtr<RSA> rsa;
+  bssl::UniquePtr<RSA> rsa;
   if (type == SSL_FILETYPE_ASN1) {
     reason_code = ERR_R_ASN1_LIB;
     rsa.reset(d2i_RSAPrivateKey_bio(in.get(), nullptr));
   } else if (type == SSL_FILETYPE_PEM) {
     reason_code = ERR_R_PEM_LIB;
     rsa.reset(PEM_read_bio_RSAPrivateKey(
-        in.get(), nullptr, ctx->default_passwd_callback,
-        ctx->default_passwd_callback_userdata));
+        in.get(), nullptr, ssl->ctx->default_passwd_callback,
+        ssl->ctx->default_passwd_callback_userdata));
   } else {
     OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_SSL_FILETYPE);
     return 0;
@@ -190,20 +189,19 @@ int SSL_use_RSAPrivateKey_file(SSL *ssl, const char *file, int type) {
 }
 
 int SSL_use_PrivateKey_file(SSL *ssl, const char *file, int type) {
-  SSLContext *ctx = FromOpaque(SSL_get_SSL_CTX(ssl));
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
 
   int reason_code;
-  UniquePtr<EVP_PKEY> pkey;
+  bssl::UniquePtr<EVP_PKEY> pkey;
   if (type == SSL_FILETYPE_PEM) {
     reason_code = ERR_R_PEM_LIB;
-    pkey.reset(PEM_read_bio_PrivateKey(in.get(), nullptr,
-                                       ctx->default_passwd_callback,
-                                       ctx->default_passwd_callback_userdata));
+    pkey.reset(PEM_read_bio_PrivateKey(
+        in.get(), nullptr, ssl->ctx->default_passwd_callback,
+        ssl->ctx->default_passwd_callback_userdata));
   } else if (type == SSL_FILETYPE_ASN1) {
     reason_code = ERR_R_ASN1_LIB;
     pkey.reset(d2i_PrivateKey_bio(in.get(), nullptr));
@@ -221,23 +219,21 @@ int SSL_use_PrivateKey_file(SSL *ssl, const char *file, int type) {
 }
 
 int SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type) {
-  auto *ctx_impl = FromOpaque(ctx);
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
 
   int reason_code;
-  UniquePtr<X509> x;
+  bssl::UniquePtr<X509> x;
   if (type == SSL_FILETYPE_ASN1) {
     reason_code = ERR_R_ASN1_LIB;
     x.reset(d2i_X509_bio(in.get(), nullptr));
   } else if (type == SSL_FILETYPE_PEM) {
     reason_code = ERR_R_PEM_LIB;
-    x.reset(PEM_read_bio_X509(in.get(), nullptr,
-                              ctx_impl->default_passwd_callback,
-                              ctx_impl->default_passwd_callback_userdata));
+    x.reset(PEM_read_bio_X509(in.get(), nullptr, ctx->default_passwd_callback,
+                              ctx->default_passwd_callback_userdata));
   } else {
     OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_SSL_FILETYPE);
     return 0;
@@ -252,23 +248,22 @@ int SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type) {
 }
 
 int SSL_CTX_use_RSAPrivateKey_file(SSL_CTX *ctx, const char *file, int type) {
-  auto *ctx_impl = FromOpaque(ctx);
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
 
   int reason_code;
-  UniquePtr<RSA> rsa;
+  bssl::UniquePtr<RSA> rsa;
   if (type == SSL_FILETYPE_ASN1) {
     reason_code = ERR_R_ASN1_LIB;
     rsa.reset(d2i_RSAPrivateKey_bio(in.get(), nullptr));
   } else if (type == SSL_FILETYPE_PEM) {
     reason_code = ERR_R_PEM_LIB;
     rsa.reset(PEM_read_bio_RSAPrivateKey(
-        in.get(), nullptr, ctx_impl->default_passwd_callback,
-        ctx_impl->default_passwd_callback_userdata));
+        in.get(), nullptr, ctx->default_passwd_callback,
+        ctx->default_passwd_callback_userdata));
   } else {
     OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_SSL_FILETYPE);
     return 0;
@@ -282,20 +277,19 @@ int SSL_CTX_use_RSAPrivateKey_file(SSL_CTX *ctx, const char *file, int type) {
 }
 
 int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type) {
-  auto *ctx_impl = FromOpaque(ctx);
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
 
   int reason_code;
-  UniquePtr<EVP_PKEY> pkey;
+  bssl::UniquePtr<EVP_PKEY> pkey;
   if (type == SSL_FILETYPE_PEM) {
     reason_code = ERR_R_PEM_LIB;
-    pkey.reset(PEM_read_bio_PrivateKey(
-        in.get(), nullptr, ctx_impl->default_passwd_callback,
-        ctx_impl->default_passwd_callback_userdata));
+    pkey.reset(PEM_read_bio_PrivateKey(in.get(), nullptr,
+                                       ctx->default_passwd_callback,
+                                       ctx->default_passwd_callback_userdata));
   } else if (type == SSL_FILETYPE_ASN1) {
     reason_code = ERR_R_ASN1_LIB;
     pkey.reset(d2i_PrivateKey_bio(in.get(), nullptr));
@@ -316,16 +310,15 @@ int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type) {
 // by a sequence of CA certificates that should be sent to the peer in the
 // Certificate message.
 int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file) {
-  auto *ctx_impl = FromOpaque(ctx);
-  UniquePtr<BIO> in(BIO_new_file(file, "rb"));
+  bssl::UniquePtr<BIO> in(BIO_new_file(file, "rb"));
   if (in == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_BUF_LIB);
     return 0;
   }
 
-  UniquePtr<X509> x(PEM_read_bio_X509_AUX(
-      in.get(), nullptr, ctx_impl->default_passwd_callback,
-      ctx_impl->default_passwd_callback_userdata));
+  bssl::UniquePtr<X509> x(
+      PEM_read_bio_X509_AUX(in.get(), nullptr, ctx->default_passwd_callback,
+                            ctx->default_passwd_callback_userdata));
   if (x == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_PEM_LIB);
     return 0;
@@ -338,9 +331,9 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file) {
   // If we could set up our certificate, now proceed to the CA certificates.
   SSL_CTX_clear_chain_certs(ctx);
   for (;;) {
-    UniquePtr<X509> ca(
-        PEM_read_bio_X509(in.get(), nullptr, ctx_impl->default_passwd_callback,
-                          ctx_impl->default_passwd_callback_userdata));
+    bssl::UniquePtr<X509> ca(
+        PEM_read_bio_X509(in.get(), nullptr, ctx->default_passwd_callback,
+                          ctx->default_passwd_callback_userdata));
     if (ca == nullptr) {
       break;
     }
@@ -359,17 +352,17 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file) {
 }
 
 void SSL_CTX_set_default_passwd_cb(SSL_CTX *ctx, pem_password_cb *cb) {
-  FromOpaque(ctx)->default_passwd_callback = cb;
+  ctx->default_passwd_callback = cb;
 }
 
 pem_password_cb *SSL_CTX_get_default_passwd_cb(const SSL_CTX *ctx) {
-  return FromOpaque(ctx)->default_passwd_callback;
+  return ctx->default_passwd_callback;
 }
 
 void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX *ctx, void *data) {
-  FromOpaque(ctx)->default_passwd_callback_userdata = data;
+  ctx->default_passwd_callback_userdata = data;
 }
 
 void *SSL_CTX_get_default_passwd_cb_userdata(const SSL_CTX *ctx) {
-  return FromOpaque(ctx)->default_passwd_callback_userdata;
+  return ctx->default_passwd_callback_userdata;
 }

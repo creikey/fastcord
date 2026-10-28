@@ -74,9 +74,7 @@ IMPLEMENT_ASN1_FUNCTIONS_const(GENERAL_NAMES)
 
 IMPLEMENT_ASN1_DUP_FUNCTION_const(GENERAL_NAME)
 
-namespace {
-
-int edipartyname_cmp(const EDIPARTYNAME *a, const EDIPARTYNAME *b) {
+static int edipartyname_cmp(const EDIPARTYNAME *a, const EDIPARTYNAME *b) {
   // nameAssigner is optional and may be NULL.
   if (a->nameAssigner == nullptr) {
     if (b->nameAssigner != nullptr) {
@@ -94,7 +92,7 @@ int edipartyname_cmp(const EDIPARTYNAME *a, const EDIPARTYNAME *b) {
 }
 
 // Returns 0 if they are equal, != 0 otherwise.
-int othername_cmp(const OTHERNAME *a, const OTHERNAME *b) {
+static int othername_cmp(const OTHERNAME *a, const OTHERNAME *b) {
   int result = -1;
 
   if (!a || !b) {
@@ -108,8 +106,6 @@ int othername_cmp(const OTHERNAME *a, const OTHERNAME *b) {
   result = ASN1_TYPE_cmp(a->value, b->value);
   return result;
 }
-
-}  // namespace
 
 // Returns 0 if they are equal, != 0 otherwise.
 int bssl::GENERAL_NAME_cmp(const GENERAL_NAME *a, const GENERAL_NAME *b) {

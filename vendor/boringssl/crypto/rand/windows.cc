@@ -14,11 +14,9 @@
 
 #include <openssl/rand.h>
 
-// IWYU pragma: begin_keep
 #include "../bcm_support.h"
 #include "../internal.h"
 #include "internal.h"
-// IWYU pragma: end_keep
 
 #if defined(OPENSSL_RAND_WINDOWS)
 
@@ -58,13 +56,11 @@ void bssl::CRYPTO_sysrand(uint8_t *out, size_t requested) {
 
 #else
 
-namespace {
-
 // See: https://learn.microsoft.com/en-us/windows/win32/seccng/processprng
 typedef BOOL(WINAPI *ProcessPrngFunction)(PBYTE pbData, SIZE_T cbData);
-ProcessPrngFunction g_processprng_fn = nullptr;
+static ProcessPrngFunction g_processprng_fn = nullptr;
 
-void init_processprng() {
+static void init_processprng() {
   HMODULE hmod = LoadLibraryW(L"bcryptprimitives");
   if (hmod == nullptr) {
     abort();
@@ -74,8 +70,6 @@ void init_processprng() {
     abort();
   }
 }
-
-}  // namespace
 
 void bssl::CRYPTO_init_sysrand() {
   static CRYPTO_once_t once = CRYPTO_ONCE_INIT;

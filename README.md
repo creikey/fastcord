@@ -167,17 +167,6 @@ empty SCID, no token) match exactly.
   frames follow nghttp3's scheduling, not Chrome's. Fix: an nghttp3 patch.
 - No 0-RTT requests on resumed QUIC sessions (the hello still offers early data, as Chrome's does).
   Fix: replay-safe GETs through `ngtcp2_conn_open_bidi_stream` before the handshake completes.
-- TLS signature_algorithms carries a GREASE value: BoringSSL ce9c15c (vendored) adds one, the revision
-  Chrome 148 pins (d8be2b4a, 2026-04-06) does not. Fix: re-vendor BoringSSL at d8be2b4a; every API
-  `src/tls` and ngtcp2 use exists there except `SSL_CTX_set1_tls13_ciphers` (see the next entry).
-- ECH GREASE uses ChaCha20-Poly1305 where Chrome uses AES-128-GCM on AES-capable CPUs, and the TLS 1.3
-  cipher order is forced: BoringSSL is built with `OPENSSL_NO_ASM`, so `EVP_has_aes_hardware()` is 0,
-  and `src/tls` overrides the order with `SSL_CTX_set1_tls13_ciphers`. Fix: build BoringSSL's assembly
-  and drop the override.
-- HTTP/2 headers, priority and window updates follow Chrome (`h2.jai`, `hpack.jai`), except: DATA
-  for a stream nghttp2 already closed is given back by nghttp2 itself (its own threshold, not Chrome's),
-  and an unanswered PING never closes the connection as Chrome's does. Fix: track those in
-  `h2.jai` if a server is seen to care.
 
 ## Releasing
 

@@ -25,16 +25,14 @@
 
 using namespace bssl;
 
-namespace {
-
-const BIT_STRING_BITNAME ns_cert_type_table[] = {
+static const BIT_STRING_BITNAME ns_cert_type_table[] = {
     {0, "SSL Client", "client"}, {1, "SSL Server", "server"},
     {2, "S/MIME", "email"},      {3, "Object Signing", "objsign"},
     {4, "Unused", "reserved"},   {5, "SSL CA", "sslCA"},
     {6, "S/MIME CA", "emailCA"}, {7, "Object Signing CA", "objCA"},
     {-1, nullptr, nullptr}};
 
-const BIT_STRING_BITNAME key_usage_type_table[] = {
+static const BIT_STRING_BITNAME key_usage_type_table[] = {
     {0, "Digital Signature", "digitalSignature"},
     {1, "Non Repudiation", "nonRepudiation"},
     {2, "Key Encipherment", "keyEncipherment"},
@@ -46,9 +44,8 @@ const BIT_STRING_BITNAME key_usage_type_table[] = {
     {8, "Decipher Only", "decipherOnly"},
     {-1, nullptr, nullptr}};
 
-STACK_OF(CONF_VALUE) *i2v_ASN1_BIT_STRING(const X509V3_EXT_METHOD *method,
-                                          void *ext,
-                                          STACK_OF(CONF_VALUE) *ret) {
+static STACK_OF(CONF_VALUE) *i2v_ASN1_BIT_STRING(
+    const X509V3_EXT_METHOD *method, void *ext, STACK_OF(CONF_VALUE) *ret) {
   const ASN1_BIT_STRING *bits = reinterpret_cast<ASN1_BIT_STRING *>(ext);
   const BIT_STRING_BITNAME *bnam;
   for (bnam = reinterpret_cast<const BIT_STRING_BITNAME *>(method->usr_data);
@@ -60,9 +57,9 @@ STACK_OF(CONF_VALUE) *i2v_ASN1_BIT_STRING(const X509V3_EXT_METHOD *method,
   return ret;
 }
 
-void *v2i_ASN1_BIT_STRING(const X509V3_EXT_METHOD *method,
-                          const X509V3_CTX *ctx,
-                          const STACK_OF(CONF_VALUE) *nval) {
+static void *v2i_ASN1_BIT_STRING(const X509V3_EXT_METHOD *method,
+                                 const X509V3_CTX *ctx,
+                                 const STACK_OF(CONF_VALUE) *nval) {
   ASN1_BIT_STRING *bs;
   if (!(bs = ASN1_BIT_STRING_new())) {
     return nullptr;
@@ -90,23 +87,12 @@ void *v2i_ASN1_BIT_STRING(const X509V3_EXT_METHOD *method,
   return bs;
 }
 
-}  // namespace
-
-#define EXT_BITSTRING(nid, table)  \
-  {nid,                            \
-   0,                              \
-   ASN1_ITEM_ref(ASN1_BIT_STRING), \
-   0,                              \
-   0,                              \
-   0,                              \
-   0,                              \
-   0,                              \
-   0,                              \
-   i2v_ASN1_BIT_STRING,            \
-   v2i_ASN1_BIT_STRING,            \
-   nullptr,                        \
-   nullptr,                        \
-   (void *)(table)}
+#define EXT_BITSTRING(nid, table)                                             \
+  {                                                                           \
+    nid, 0, ASN1_ITEM_ref(ASN1_BIT_STRING), 0, 0, 0, 0, 0, 0,                 \
+        i2v_ASN1_BIT_STRING, v2i_ASN1_BIT_STRING, nullptr, nullptr,           \
+    (void *)(table)                                                           \
+  }
 
 const X509V3_EXT_METHOD bssl::v3_nscert =
     EXT_BITSTRING(NID_netscape_cert_type, ns_cert_type_table);

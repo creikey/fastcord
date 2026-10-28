@@ -17,8 +17,8 @@
 #include <openssl/asn1.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
-#include <openssl/md5.h>
 #include <openssl/mem.h>
+#include <openssl/md5.h>
 #include <openssl/obj.h>
 #include <openssl/sha.h>
 #include <openssl/stack.h>
@@ -72,12 +72,14 @@ X509_NAME *X509_get_subject_name(const X509 *a) {
   return const_cast<X509Name *>(&impl->subject);
 }
 
-ASN1_INTEGER *X509_get_serialNumber(X509 *x509) {
-  return FromOpaque(x509)->serialNumber.get();
+ASN1_INTEGER *X509_get_serialNumber(X509 *a) {
+  auto *impl = FromOpaque(a);
+  return &impl->serialNumber;
 }
 
 const ASN1_INTEGER *X509_get0_serialNumber(const X509 *x509) {
-  return FromOpaque(x509)->serialNumber.get();
+  const auto *impl = FromOpaque(x509);
+  return &impl->serialNumber;
 }
 
 uint32_t X509_subject_name_hash(const X509 *x) {
@@ -99,27 +101,27 @@ uint32_t X509_subject_name_hash_old(const X509 *x) {
 int X509_cmp(const X509 *a, const X509 *b) {
   const auto *a_impl = FromOpaque(a);
   const auto *b_impl = FromOpaque(b);
-  // Fill in the `cert_hash` fields.
+  // Fill in the |cert_hash| fields.
   //
-  // TODO(davidben): This may fail, in which case the hash will be all
+  // TODO(davidben): This may fail, in which case the the hash will be all
   // zeros. This produces a consistent comparison (failures are sticky), but
   // not a good one. OpenSSL now returns -2, but this is not a consistent
   // comparison and may cause misbehaving sorts by transitivity. For now, we
   // retain the old OpenSSL behavior, which was to ignore the error. See
   // https://crbug.com/boringssl/355.
-  x509v3_cache_extensions(a_impl);
-  x509v3_cache_extensions(b_impl);
+  x509v3_cache_extensions((X509Impl *)a_impl);
+  x509v3_cache_extensions((X509Impl *)b_impl);
 
   return OPENSSL_memcmp(a_impl->cert_hash, b_impl->cert_hash,
                         SHA256_DIGEST_LENGTH);
 }
 
 int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b) {
-  const X509NameCache *a_cache = x509_name_get_cache(a);
+  const X509_NAME_CACHE *a_cache = x509_name_get_cache(a);
   if (a_cache == nullptr) {
     return -2;
   }
-  const X509NameCache *b_cache = x509_name_get_cache(b);
+  const X509_NAME_CACHE *b_cache = x509_name_get_cache(b);
   if (b_cache == nullptr) {
     return -2;
   }
@@ -143,7 +145,7 @@ int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b) {
 }
 
 uint32_t X509_NAME_hash(const X509_NAME *x) {
-  const X509NameCache *cache = x509_name_get_cache(x);
+  const X509_NAME_CACHE *cache = x509_name_get_cache(x);
   if (cache == nullptr) {
     return 0;
   }
@@ -156,7 +158,7 @@ uint32_t X509_NAME_hash(const X509_NAME *x) {
 // this is reasonably efficient.
 
 uint32_t X509_NAME_hash_old(const X509_NAME *x) {
-  const X509NameCache *cache = x509_name_get_cache(x);
+  const X509_NAME_CACHE *cache = x509_name_get_cache(x);
   if (cache == nullptr) {
     return 0;
   }
@@ -214,7 +216,7 @@ ASN1_BIT_STRING *X509_get0_pubkey_bitstr(const X509 *x) {
   }
   // This function is not const-correct for OpenSSL compatibility.
   auto *impl = FromOpaque(x);
-  return const_cast<ASN1_BIT_STRING *>(impl->key.public_key.get());
+  return const_cast<ASN1_BIT_STRING *>(&impl->key.public_key);
 }
 
 int X509_check_private_key(const X509 *x, const EVP_PKEY *k) {
@@ -238,6 +240,13 @@ int X509_check_private_key(const X509 *x, const EVP_PKEY *k) {
 // Not strictly speaking an "up_ref" as a STACK doesn't have a reference
 // count but it has the same effect by duping the STACK and upping the ref of
 // each X509 structure.
-STACK_OF(X509) *X509_chain_up_ref(const STACK_OF(X509) *chain) {
-  return sk_X509_deep_copy(chain, X509_dup_ref, X509_free);
+STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *chain) {
+  STACK_OF(X509) *ret = sk_X509_dup(chain);
+  if (ret == nullptr) {
+    return nullptr;
+  }
+  for (size_t i = 0; i < sk_X509_num(ret); i++) {
+    X509_up_ref(sk_X509_value(ret, i));
+  }
+  return ret;
 }

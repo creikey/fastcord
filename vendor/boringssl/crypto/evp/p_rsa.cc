@@ -46,7 +46,7 @@ extern const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth;
 extern const EVP_PKEY_CTX_METHOD rsa_pkey_meth;
 extern const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth;
 
-int rsa_pub_encode(CBB *out, const EvpPkey *key) {
+static int rsa_pub_encode(CBB *out, const EvpPkey *key) {
   // See RFC 3279, section 2.3.1.
   const RSA *rsa = reinterpret_cast<const RSA *>(key->pkey);
   CBB spki, algorithm, null, key_bitstring;
@@ -66,9 +66,9 @@ int rsa_pub_encode(CBB *out, const EvpPkey *key) {
   return 1;
 }
 
-bssl::evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
-                                         EvpPkey *out, CBS *params,
-                                         CBS *key) {
+static bssl::evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
+                                                EvpPkey *out, CBS *params,
+                                                CBS *key) {
   // See RFC 3279, section 2.3.1.
 
   // The parameters must be NULL.
@@ -89,8 +89,8 @@ bssl::evp_decode_result_t rsa_pub_decode(const EVP_PKEY_ALG *alg,
   return evp_decode_ok;
 }
 
-bool rsa_pub_equal(const EvpPkey *a, const EvpPkey *b) {
-  // We currently assume that all `EVP_PKEY_RSA_PSS` keys have the same
+static bool rsa_pub_equal(const EvpPkey *a, const EvpPkey *b) {
+  // We currently assume that all |EVP_PKEY_RSA_PSS| keys have the same
   // parameters, so this vacuously compares parameters. If we ever support
   // multiple PSS parameter sets, we probably should compare them too. Note,
   // however, that OpenSSL does not compare parameters here.
@@ -100,7 +100,7 @@ bool rsa_pub_equal(const EvpPkey *a, const EvpPkey *b) {
          BN_cmp(RSA_get0_e(b_rsa), RSA_get0_e(a_rsa)) == 0;
 }
 
-bool rsa_pub_present(const EvpPkey *pk) {
+static bool rsa_pub_present(const EvpPkey *pk) {
   const RSA *pk_rsa = reinterpret_cast<const RSA *>(pk->pkey);
   // An RSA public key should always have n and e. It's possible for a (private)
   // key to have n and d, but not e, so we must explicitly check for the
@@ -108,7 +108,7 @@ bool rsa_pub_present(const EvpPkey *pk) {
   return RSA_get0_n(pk_rsa) != nullptr && RSA_get0_e(pk_rsa) != nullptr;
 }
 
-bool rsa_pub_copy(EvpPkey *out, const EvpPkey *pkey) {
+static bool rsa_pub_copy(EvpPkey *out, const EvpPkey *pkey) {
   const RSAImpl *pk_rsa = reinterpret_cast<const RSAImpl *>(pkey->pkey);
   const BIGNUM *pk_n = RSA_get0_n(pk_rsa);
   const BIGNUM *pk_e = RSA_get0_e(pk_rsa);
@@ -126,7 +126,7 @@ bool rsa_pub_copy(EvpPkey *out, const EvpPkey *pkey) {
   return true;
 }
 
-int rsa_priv_encode(CBB *out, const EvpPkey *key) {
+static int rsa_priv_encode(CBB *out, const EvpPkey *key) {
   const RSA *rsa = reinterpret_cast<const RSA *>(key->pkey);
   CBB pkcs8, algorithm, null, private_key;
   if (!CBB_add_asn1(out, &pkcs8, CBS_ASN1_SEQUENCE) ||
@@ -145,9 +145,9 @@ int rsa_priv_encode(CBB *out, const EvpPkey *key) {
   return 1;
 }
 
-bssl::evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
-                                          EvpPkey *out, CBS *params,
-                                          CBS *key) {
+static bssl::evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
+                                                 EvpPkey *out, CBS *params,
+                                                 CBS *key) {
   // Per RFC 8017, A.1, the parameters have type NULL.
   CBS null;
   if (!CBS_get_asn1(params, &null, CBS_ASN1_NULL) || CBS_len(&null) != 0 ||
@@ -166,12 +166,12 @@ bssl::evp_decode_result_t rsa_priv_decode(const EVP_PKEY_ALG *alg,
   return evp_decode_ok;
 }
 
-bool rsa_priv_present(const EvpPkey *pk) {
+static bool rsa_priv_present(const EvpPkey *pk) {
   const RSA *pk_rsa = reinterpret_cast<const RSA *>(pk->pkey);
   return RSA_get0_n(pk_rsa) != nullptr && RSA_get0_d(pk_rsa) != nullptr;
 }
 
-bssl::evp_decode_result_t rsa_decode_pss_params(
+static bssl::evp_decode_result_t rsa_decode_pss_params(
     rsa_pss_params_t expected, CBS *params) {
   if (CBS_len(params) == 0) {
     return evp_decode_unsupported;
@@ -186,7 +186,7 @@ bssl::evp_decode_result_t rsa_decode_pss_params(
   return pss_params == expected ? evp_decode_ok : evp_decode_unsupported;
 }
 
-int rsa_pub_encode_pss(CBB *out, const EvpPkey *key) {
+static int rsa_pub_encode_pss(CBB *out, const EvpPkey *key) {
   const RSAImpl *rsa = reinterpret_cast<const RSAImpl *>(key->pkey);
   CBB spki, algorithm, key_bitstring;
   if (!CBB_add_asn1(out, &spki, CBS_ASN1_SEQUENCE) ||
@@ -205,34 +205,28 @@ int rsa_pub_encode_pss(CBB *out, const EvpPkey *key) {
   return 1;
 }
 
-void evp_pkey_set0_pss(EvpPkey *out, const EVP_PKEY_ALG *alg,
-                       UniquePtr<RSA> rsa) {
-  BSSL_CHECK(alg->pkey_method->pkey_id == EVP_PKEY_RSA_PSS);
-  const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
-  FromOpaque(rsa.get())->pss_params = alg_pss->pss_params;
-  evp_pkey_set0(out, alg->method, rsa.release());
-}
-
-bssl::evp_decode_result_t rsa_pub_decode_pss(const EVP_PKEY_ALG *alg,
-                                             EvpPkey *out, CBS *params,
-                                             CBS *key) {
+static bssl::evp_decode_result_t rsa_pub_decode_pss(const EVP_PKEY_ALG *alg,
+                                                    EvpPkey *out, CBS *params,
+                                                    CBS *key) {
   const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
   evp_decode_result_t ret = rsa_decode_pss_params(alg_pss->pss_params, params);
   if (ret != evp_decode_ok) {
     return ret;
   }
 
-  UniquePtr<RSA> rsa(RSA_public_key_from_bytes(CBS_data(key), CBS_len(key)));
+  UniquePtr<RSAImpl> rsa(
+      FromOpaque(RSA_public_key_from_bytes(CBS_data(key), CBS_len(key))));
   if (rsa == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
   }
 
-  evp_pkey_set0_pss(out, alg, std::move(rsa));
+  rsa->pss_params = alg_pss->pss_params;
+  evp_pkey_set0(out, &rsa_pss_asn1_meth, rsa.release());
   return evp_decode_ok;
 }
 
-int rsa_priv_encode_pss(CBB *out, const EvpPkey *key) {
+static int rsa_priv_encode_pss(CBB *out, const EvpPkey *key) {
   const RSAImpl *rsa = reinterpret_cast<const RSAImpl *>(key->pkey);
   CBB pkcs8, algorithm, private_key;
   if (!CBB_add_asn1(out, &pkcs8, CBS_ASN1_SEQUENCE) ||
@@ -251,83 +245,45 @@ int rsa_priv_encode_pss(CBB *out, const EvpPkey *key) {
   return 1;
 }
 
-bssl::evp_decode_result_t rsa_priv_decode_pss(const EVP_PKEY_ALG *alg,
-                                              EvpPkey *out, CBS *params,
-                                              CBS *key) {
+static bssl::evp_decode_result_t rsa_priv_decode_pss(const EVP_PKEY_ALG *alg,
+                                                     EvpPkey *out, CBS *params,
+                                                     CBS *key) {
   const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
   evp_decode_result_t ret = rsa_decode_pss_params(alg_pss->pss_params, params);
   if (ret != evp_decode_ok) {
     return ret;
   }
 
-  UniquePtr<RSA> rsa(RSA_private_key_from_bytes(CBS_data(key), CBS_len(key)));
+  UniquePtr<RSAImpl> rsa(
+      FromOpaque(RSA_private_key_from_bytes(CBS_data(key), CBS_len(key))));
   if (rsa == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return evp_decode_error;
   }
 
-  evp_pkey_set0_pss(out, alg, std::move(rsa));
+  rsa->pss_params = alg_pss->pss_params;
+  evp_pkey_set0(out, &rsa_pss_asn1_meth, rsa.release());
   return evp_decode_ok;
 }
 
-int rsa_opaque(const EvpPkey *pkey) {
+static int rsa_opaque(const EvpPkey *pkey) {
   const RSA *rsa = reinterpret_cast<const RSA *>(pkey->pkey);
   return RSA_is_opaque(rsa);
 }
 
-int int_rsa_size(const EvpPkey *pkey) {
+static int int_rsa_size(const EvpPkey *pkey) {
   const RSA *rsa = reinterpret_cast<const RSA *>(pkey->pkey);
   return RSA_size(rsa);
 }
 
-int rsa_bits(const EvpPkey *pkey) {
+static int rsa_bits(const EvpPkey *pkey) {
   const RSA *rsa = reinterpret_cast<const RSA *>(pkey->pkey);
   return RSA_bits(rsa);
 }
 
-void int_rsa_free(EvpPkey *pkey) {
+static void int_rsa_free(EvpPkey *pkey) {
   RSA_free(reinterpret_cast<RSA *>(pkey->pkey));
   pkey->pkey = nullptr;
-}
-
-int rsa_pss_params_missing(const EvpPkey *pkey) {
-  const RSA *rsa = reinterpret_cast<const RSA *>(pkey->pkey);
-  return rsa == nullptr || FromOpaque(rsa)->pss_params == rsa_pss_none;
-}
-
-int rsa_pss_params_copy(EvpPkey *to, const EvpPkey *from) {
-  const RSA *from_key = reinterpret_cast<const RSA *>(from->pkey);
-  if (from_key == nullptr) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_NO_KEY_SET);
-    return 0;
-  }
-  rsa_pss_params_t pss_params = FromOpaque(from_key)->pss_params;
-  if (pss_params == rsa_pss_none) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_MISSING_PARAMETERS);
-    return 0;
-  }
-  if (to->pkey == nullptr) {
-    to->pkey = RSA_new();
-    if (to->pkey == nullptr) {
-      return 0;
-    }
-  }
-  FromOpaque(reinterpret_cast<RSA *>(to->pkey))->pss_params = pss_params;
-  return 1;
-}
-
-bool rsa_pss_params_equal(const EvpPkey *a, const EvpPkey *b) {
-  const RSA *a_rsa = reinterpret_cast<const RSA *>(a->pkey);
-  const RSA *b_rsa = reinterpret_cast<const RSA *>(b->pkey);
-  if (a_rsa == nullptr || b_rsa == nullptr) {
-    return false;
-  }
-  rsa_pss_params_t a_pss_params = FromOpaque(a_rsa)->pss_params;
-  rsa_pss_params_t b_pss_params = FromOpaque(b_rsa)->pss_params;
-  if (a_pss_params == rsa_pss_none || b_pss_params == rsa_pss_none) {
-    return false;
-  }
-  return a_pss_params == b_pss_params;
 }
 
 const EVP_PKEY_ASN1_METHOD rsa_asn1_meth = {
@@ -401,9 +357,9 @@ const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth = {
     int_rsa_size,
     rsa_bits,
 
-    rsa_pss_params_missing,
-    rsa_pss_params_copy,
-    rsa_pss_params_equal,
+    /*param_missing=*/nullptr,
+    /*param_copy=*/nullptr,
+    /*param_equal=*/nullptr,
 
     int_rsa_free,
 };
@@ -422,17 +378,17 @@ struct RSA_PKEY_CTX {
   // PSS salt length
   int saltlen = RSA_PSS_SALTLEN_DIGEST;
   // restrict_pss_params, if true, indicates that the PSS signing/verifying
-  // parameters are restricted by the key's parameters. `md` and `mgf1md` may
-  // not change, and `saltlen` must be at least `md`'s hash length.
+  // parameters are restricted by the key's parameters. |md| and |mgf1md| may
+  // not change, and |saltlen| must be at least |md|'s hash length.
   bool restrict_pss_params = false;
   Array<uint8_t> oaep_label;
 };
 
-bool is_pss_only(const EvpPkeyCtx *ctx) {
+static bool is_pss_only(const EvpPkeyCtx *ctx) {
   return ctx->pmeth->pkey_id == EVP_PKEY_RSA_PSS;
 }
 
-int pkey_rsa_init(EvpPkeyCtx *ctx, const EVP_PKEY_ALG *alg) {
+static int pkey_rsa_init(EvpPkeyCtx *ctx, const EVP_PKEY_ALG *alg) {
   RSA_PKEY_CTX *rctx = New<RSA_PKEY_CTX>();
   if (!rctx) {
     return 0;
@@ -462,7 +418,7 @@ int pkey_rsa_init(EvpPkeyCtx *ctx, const EVP_PKEY_ALG *alg) {
   return 1;
 }
 
-int pkey_rsa_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
+static int pkey_rsa_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
   RSA_PKEY_CTX *dctx, *sctx;
   if (!pkey_rsa_init(dst, nullptr)) {
     return 0;
@@ -489,12 +445,12 @@ int pkey_rsa_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
   return 1;
 }
 
-void pkey_rsa_cleanup(EvpPkeyCtx *ctx) {
+static void pkey_rsa_cleanup(EvpPkeyCtx *ctx) {
   Delete(reinterpret_cast<RSA_PKEY_CTX *>(ctx->data));
 }
 
-int pkey_rsa_sign(EvpPkeyCtx *ctx, uint8_t *sig, size_t *siglen,
-                  const uint8_t *tbs, size_t tbslen) {
+static int pkey_rsa_sign(EvpPkeyCtx *ctx, uint8_t *sig, size_t *siglen,
+                         const uint8_t *tbs, size_t tbslen) {
   RSA_PKEY_CTX *rctx = reinterpret_cast<RSA_PKEY_CTX *>(ctx->data);
   RSA *rsa = reinterpret_cast<RSA *>(ctx->pkey->pkey);
   const size_t key_len = EVP_PKEY_size(ctx->pkey.get());
@@ -531,8 +487,8 @@ int pkey_rsa_sign(EvpPkeyCtx *ctx, uint8_t *sig, size_t *siglen,
   return RSA_sign_raw(rsa, siglen, sig, *siglen, tbs, tbslen, rctx->pad_mode);
 }
 
-int pkey_rsa_verify(EvpPkeyCtx *ctx, const uint8_t *sig, size_t siglen,
-                    const uint8_t *tbs, size_t tbslen) {
+static int pkey_rsa_verify(EvpPkeyCtx *ctx, const uint8_t *sig, size_t siglen,
+                           const uint8_t *tbs, size_t tbslen) {
   RSA_PKEY_CTX *rctx = reinterpret_cast<RSA_PKEY_CTX *>(ctx->data);
   RSA *rsa = reinterpret_cast<RSA *>(ctx->pkey->pkey);
 
@@ -566,9 +522,9 @@ int pkey_rsa_verify(EvpPkeyCtx *ctx, const uint8_t *sig, size_t siglen,
   return 1;
 }
 
-int pkey_rsa_verify_recover(EvpPkeyCtx *ctx, uint8_t *out,
-                            size_t *out_len, const uint8_t *sig,
-                            size_t sig_len) {
+static int pkey_rsa_verify_recover(EvpPkeyCtx *ctx, uint8_t *out,
+                                   size_t *out_len, const uint8_t *sig,
+                                   size_t sig_len) {
   RSA_PKEY_CTX *rctx = reinterpret_cast<RSA_PKEY_CTX *>(ctx->data);
   RSA *rsa = reinterpret_cast<RSA *>(ctx->pkey->pkey);
   const size_t key_len = EVP_PKEY_size(ctx->pkey.get());
@@ -626,8 +582,8 @@ int pkey_rsa_verify_recover(EvpPkeyCtx *ctx, uint8_t *out,
   return 1;
 }
 
-int pkey_rsa_encrypt(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
-                     const uint8_t *in, size_t inlen) {
+static int pkey_rsa_encrypt(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
+                            const uint8_t *in, size_t inlen) {
   RSA_PKEY_CTX *rctx = reinterpret_cast<RSA_PKEY_CTX *>(ctx->data);
   RSA *rsa = reinterpret_cast<RSA *>(ctx->pkey->pkey);
   const size_t key_len = EVP_PKEY_size(ctx->pkey.get());
@@ -658,8 +614,8 @@ int pkey_rsa_encrypt(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
   return RSA_encrypt(rsa, outlen, out, *outlen, in, inlen, rctx->pad_mode);
 }
 
-int pkey_rsa_decrypt(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
-                     const uint8_t *in, size_t inlen) {
+static int pkey_rsa_decrypt(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
+                            const uint8_t *in, size_t inlen) {
   RSA_PKEY_CTX *rctx = reinterpret_cast<RSA_PKEY_CTX *>(ctx->data);
   RSA *rsa = reinterpret_cast<RSA *>(ctx->pkey->pkey);
   const size_t key_len = EVP_PKEY_size(ctx->pkey.get());
@@ -692,7 +648,7 @@ int pkey_rsa_decrypt(EvpPkeyCtx *ctx, uint8_t *out, size_t *outlen,
   return RSA_decrypt(rsa, outlen, out, key_len, in, inlen, rctx->pad_mode);
 }
 
-int check_padding_md(const EVP_MD *md, int padding) {
+static int check_padding_md(const EVP_MD *md, int padding) {
   if (!md) {
     return 1;
   }
@@ -705,7 +661,7 @@ int check_padding_md(const EVP_MD *md, int padding) {
   return 1;
 }
 
-int is_known_padding(int padding_mode) {
+static int is_known_padding(int padding_mode) {
   switch (padding_mode) {
     case RSA_PKCS1_PADDING:
     case RSA_NO_PADDING:
@@ -717,7 +673,7 @@ int is_known_padding(int padding_mode) {
   }
 }
 
-int pkey_rsa_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
+static int pkey_rsa_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
   RSA_PKEY_CTX *rctx = reinterpret_cast<RSA_PKEY_CTX *>(ctx->data);
   switch (type) {
     case EVP_PKEY_CTRL_RSA_PADDING:
@@ -759,7 +715,7 @@ int pkey_rsa_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
             return 0;
           }
           // All our PSS restrictions accept saltlen == hashlen, so allow
-          // `RSA_PSS_SALTLEN_DIGEST`. Reject `RSA_PSS_SALTLEN_AUTO` for
+          // |RSA_PSS_SALTLEN_DIGEST|. Reject |RSA_PSS_SALTLEN_AUTO| for
           // simplicity.
           if (rctx->restrict_pss_params && p1 != RSA_PSS_SALTLEN_DIGEST) {
             OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PSS_SALTLEN);
@@ -849,8 +805,8 @@ int pkey_rsa_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
         OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PADDING_MODE);
         return 0;
       }
-      // `EVP_PKEY_CTRL_RSA_OAEP_LABEL` takes ownership of `label`'s underlying
-      // buffer (via `Reset`), but only on success.
+      // |EVP_PKEY_CTRL_RSA_OAEP_LABEL| takes ownership of |label|'s underlying
+      // buffer (via |Reset|), but only on success.
       auto *label = reinterpret_cast<Span<uint8_t> *>(p2);
       rctx->oaep_label.Reset(label->data(), label->size());
       return 1;
@@ -870,7 +826,7 @@ int pkey_rsa_ctrl(EvpPkeyCtx *ctx, int type, int p1, void *p2) {
   }
 }
 
-int pkey_rsa_keygen(EvpPkeyCtx *ctx, EvpPkey *pkey) {
+static int pkey_rsa_keygen(EvpPkeyCtx *ctx, EvpPkey *pkey) {
   RSA_PKEY_CTX *rctx = reinterpret_cast<RSA_PKEY_CTX *>(ctx->data);
   if (!rctx->pub_exp) {
     rctx->pub_exp.reset(BN_new());
@@ -917,11 +873,11 @@ const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth = {
     pkey_rsa_init,
     pkey_rsa_copy,
     pkey_rsa_cleanup,
-    // In OpenSSL, `EVP_PKEY_RSA_PSS` supports key generation and fills in PSS
+    // In OpenSSL, |EVP_PKEY_RSA_PSS| supports key generation and fills in PSS
     // parameters based on a separate set of keygen-targetted setters:
-    // `EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen`,
-    // `EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md`, and
-    // `EVP_PKEY_CTX_rsa_pss_key_digest`. We do not currently implement this
+    // |EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen|,
+    // |EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md|, and
+    // |EVP_PKEY_CTX_rsa_pss_key_digest|. We do not currently implement this
     // because we only support one parameter set.
     /*keygen=*/nullptr,
     pkey_rsa_sign,
@@ -978,72 +934,12 @@ EVP_PKEY *EVP_RSA_gen(unsigned bits) {
   return pkey;
 }
 
-EVP_PKEY *EVP_PKEY_from_rsa_public_key(const EVP_PKEY_ALG *alg,
-                                       const uint8_t *in, size_t len) {
-  if (alg->pkey_method->pkey_id != EVP_PKEY_RSA &&
-      alg->pkey_method->pkey_id != EVP_PKEY_RSA_PSS) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
-    return nullptr;
+int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key) {
+  if (EVP_PKEY_assign_RSA(pkey, key)) {
+    RSA_up_ref(key);
+    return 1;
   }
-  UniquePtr<RSA> rsa(RSA_public_key_from_bytes(in, len));
-  if (rsa == nullptr) {
-    return nullptr;
-  }
-  UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  // Use the PSS-specific setter if needed, to fill in `rsa->pss_params`.
-  if (alg->pkey_method->pkey_id == EVP_PKEY_RSA) {
-    evp_pkey_set0(FromOpaque(ret.get()), alg->method, rsa.release());
-  } else {
-    evp_pkey_set0_pss(FromOpaque(ret.get()), alg, std::move(rsa));
-  }
-  return ret.release();
-}
-
-EVP_PKEY *EVP_PKEY_from_rsa_private_key(const EVP_PKEY_ALG *alg,
-                                        const uint8_t *in, size_t len) {
-  if (alg->pkey_method->pkey_id != EVP_PKEY_RSA &&
-      alg->pkey_method->pkey_id != EVP_PKEY_RSA_PSS) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
-    return nullptr;
-  }
-  UniquePtr<RSA> rsa(RSA_private_key_from_bytes(in, len));
-  if (rsa == nullptr) {
-    return nullptr;
-  }
-  UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  // Use the PSS-specific setter if needed, to fill in `rsa->pss_params`.
-  if (alg->pkey_method->pkey_id == EVP_PKEY_RSA) {
-    evp_pkey_set0(FromOpaque(ret.get()), alg->method, rsa.release());
-  } else {
-    evp_pkey_set0_pss(FromOpaque(ret.get()), alg, std::move(rsa));
-  }
-  return ret.release();
-}
-
-int EVP_PKEY_marshal_rsa_public_key(CBB *cbb, const EVP_PKEY *key) {
-  const RSA *rsa = EVP_PKEY_get0_RSA(key);
-  if (rsa == nullptr) {
-    return 0;
-  }
-  return RSA_marshal_public_key(cbb, rsa);
-}
-
-int EVP_PKEY_marshal_rsa_private_key(CBB *cbb, const EVP_PKEY *key) {
-  const RSA *rsa = EVP_PKEY_get0_RSA(key);
-  if (rsa == nullptr) {
-    return 0;
-  }
-  return RSA_marshal_private_key(cbb, rsa);
-}
-
-int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, const RSA *key) {
-  return EVP_PKEY_assign_RSA(pkey, RSA_dup_ref(key));
+  return 0;
 }
 
 int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key) {
@@ -1096,18 +992,18 @@ int EVP_PKEY_CTX_get_rsa_padding(EVP_PKEY_CTX *ctx, int *out_padding) {
 }
 
 int EVP_PKEY_CTX_set_rsa_pss_keygen_md(EVP_PKEY_CTX *ctx, const EVP_MD *md) {
-  // We currently do not support keygen with `EVP_PKEY_RSA_PSS`.
+  // We currently do not support keygen with |EVP_PKEY_RSA_PSS|.
   return 0;
 }
 
 int EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(EVP_PKEY_CTX *ctx, int salt_len) {
-  // We currently do not support keygen with `EVP_PKEY_RSA_PSS`.
+  // We currently do not support keygen with |EVP_PKEY_RSA_PSS|.
   return 0;
 }
 
 int EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(EVP_PKEY_CTX *ctx,
                                             const EVP_MD *md) {
-  // We currently do not support keygen with `EVP_PKEY_RSA_PSS`.
+  // We currently do not support keygen with |EVP_PKEY_RSA_PSS|.
   return 0;
 }
 

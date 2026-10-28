@@ -31,7 +31,6 @@ new_ctx :: (quic: bool) -> *SSL_CTX {
 	nsig := ifx quic then SIGALGS.count else SIGALGS.count - 1;
 	ok := SSL_CTX_set_min_proto_version(ctx, xx ifx quic then TLS1_3_VERSION else TLS1_2_VERSION) == 1
 		&& SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1
-		&& SSL_CTX_set1_tls13_ciphers(ctx, TLS13_CIPHERS.data, null, xx TLS13_CIPHERS.count) == 1
 		&& SSL_CTX_set_strict_cipher_list(ctx, CHROME_TLS12_CIPHERS) == 1
 		&& SSL_CTX_set1_group_ids(ctx, GROUPS.data, xx GROUPS.count) == 1
 		&& SSL_CTX_set_verify_algorithm_prefs(ctx, SIGALGS.data, xx nsig) == 1
@@ -318,9 +317,6 @@ close :: (s: *Session) {
 
 // Chrome's TLS 1.2 suites, in its order.
 CHROME_TLS12_CIPHERS :: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA:AES256-SHA";
-// BoringSSL puts AES first only when it detects AES hardware, which an OPENSSL_NO_ASM build never
-// does; Chrome on any current machine sends this order.
-TLS13_CIPHERS := u16.[0x1301, 0x1302, 0x1303];
 GROUPS := u16.[0x11ec, 0x001d, 0x0017, 0x0018]; // X25519MLKEM768, X25519, P-256, P-384.
 // Chrome's signature algorithms; its QUIC hello adds rsa_pkcs1_sha1 (0x0201) at the end.
 SIGALGS := u16.[0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601, 0x0201];

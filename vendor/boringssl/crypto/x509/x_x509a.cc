@@ -44,9 +44,7 @@ IMPLEMENT_ASN1_FUNCTIONS_const(X509_CERT_AUX)
 
 BSSL_NAMESPACE_END
 
-namespace {
-
-X509_CERT_AUX *aux_get(X509Impl *x) {
+static X509_CERT_AUX *aux_get(X509Impl *x) {
   if (!x) {
     return nullptr;
   }
@@ -56,13 +54,11 @@ X509_CERT_AUX *aux_get(X509Impl *x) {
   return x->aux;
 }
 
-}  // namespace
-
 int X509_alias_set1(X509 *x, const uint8_t *name, ossl_ssize_t len) {
   auto *impl = FromOpaque(x);
   X509_CERT_AUX *aux;
   // TODO(davidben): Empty aliases are not meaningful in PKCS#12, and the
-  // getters cannot quite represent them. Also erase the object if `len` is
+  // getters cannot quite represent them. Also erase the object if |len| is
   // zero.
   if (!name) {
     if (!impl || !impl->aux || !impl->aux->alias) {
@@ -85,7 +81,7 @@ int X509_keyid_set1(X509 *x, const uint8_t *id, ossl_ssize_t len) {
   auto *impl = FromOpaque(x);
   X509_CERT_AUX *aux;
   // TODO(davidben): Empty key IDs are not meaningful in PKCS#12, and the
-  // getters cannot quite represent them. Also erase the object if `len` is
+  // getters cannot quite represent them. Also erase the object if |len| is
   // zero.
   if (!id) {
     if (!impl || !impl->aux || !impl->aux->keyid) {

@@ -103,15 +103,6 @@ int X509_CRL_up_ref(X509_CRL *crl) {
   return 1;
 }
 
-X509_CRL *X509_CRL_dup_ref(const X509_CRL *crl) {
-  if (crl == nullptr) {
-    return nullptr;
-  }
-  auto *ptr = const_cast<X509_CRL *>(crl);
-  CRYPTO_refcount_inc(&ptr->references);
-  return ptr;
-}
-
 long X509_CRL_get_version(const X509_CRL *crl) {
   return ASN1_INTEGER_get(crl->crl->version);
 }
@@ -227,5 +218,10 @@ int X509_CRL_set1_signature_algo(X509_CRL *crl, const X509_ALGOR *algo) {
 
 int X509_CRL_set1_signature_value(X509_CRL *crl, const uint8_t *sig,
                                   size_t sig_len) {
-  return ASN1_STRING_set(crl->signature, sig, sig_len);
+  if (!ASN1_STRING_set(crl->signature, sig, sig_len)) {
+    return 0;
+  }
+  crl->signature->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
+  crl->signature->flags |= ASN1_STRING_FLAG_BITS_LEFT;
+  return 1;
 }
