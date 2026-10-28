@@ -476,8 +476,10 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "click"; #through; case "dclick"; #through; case "tclick";
 		n := ifx f[0] == "click" then 1 else (ifx f[0] == "dclick" then 2 else 3);
 		p := Vector2.{num(f[1]), num(f[2])};
+		mods: platform.Mod;
+		if f.count > 3 && f[3] == "alt" mods = .Alt; // click <x> <y> [alt]
 		platform.inject_event(.{kind = .Mouse_Move, pos = p});
-		platform.inject_event(.{kind = .Mouse_Down, pos = p, button = .Left, click_count = n});
+		platform.inject_event(.{kind = .Mouse_Down, pos = p, button = .Left, click_count = n, mods = mods});
 		platform.inject_event(.{kind = .Mouse_Up, pos = p, button = .Left, click_count = n});
 	case "go_home";
 		go_home();

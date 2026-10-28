@@ -59,7 +59,7 @@
 - [ ] Channels: check whether channels without VIEW_CHANNEL are listed and openable; the sidebar and `guild_channels_sorted` never check permissions (needs a READY capture to confirm hidden channels are sent).
 - [ ] Channels: channel rows have no right-click menu (Mark As Read, Mute, Notification Settings, Edit, Copy Link, Invite, Duplicate, Delete); category rows have none either, so the "Delete Category" code is unreachable.
 - [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
-- [ ] Keybinds: no Ctrl+Shift+M (mute) or Ctrl+Shift+D (deafen).
+- [ ] Keybinds: no Ctrl+E (emoji picker), Ctrl+G (GIF picker) or Ctrl+S (sticker picker) in the composer; the pickers open only from their buttons (`view_pickers.jai` `picker_open`).
 - [ ] Keybinds: no user-defined global keybinds (official Keybinds page: Toggle Mute, Toggle Deafen, Push to Talk, Push to Mute, Toggle Streamer Mode, ...) that work while fastcord is unfocused. Needs a system-wide hook (Windows `RegisterHotKey` / low-level keyboard hook).
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
 - [ ] Bug (Windows): files that already exist are never rewritten, so the rotated token, cookies, etags, identity, media cache and alt-svc data go stale. After a username change in fastcord, the next launch can land on the login screen. `write_file_atomic` (`cookies.jai`) moves a `.tmp` over the file with Jai's `file_move` (`MoveFileW`), which fails if the destination exists, and leaves the `.tmp` behind. Use `MoveFileExW(..., MOVEFILE_REPLACE_EXISTING)`; `settings_store.jai` already works around it.
@@ -97,6 +97,7 @@
 - [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
 - [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
+- [ ] Voice: every volume slider goes from 0 to 400% (the official max is 200%). That covers output volume, per-user volume, stream volume, the video player and input volume (now 0-100). Clamps are in `src/app/view_voice_settings.jai`. Add a limiter so the boost doesn't clip harshly. Keep values above 200% local if synced settings would reject them.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Chat: messages that mention you (you, @everyone/@here, your role) get no yellow highlight and left bar.
@@ -120,10 +121,11 @@
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
 - [ ] Voice: the sidebar has no N/limit counter on voice channels, and stage channels list no one.
 - [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
+- [ ] Tray: the icon doesn't show call state. Like the official client, in a voice call it should be a gray circle that turns green while you talk. Check the bundle for whether muted and deafened show red. The icon is set in `src/platform/platform_windows.jai`. Update it only when the state changes.
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
-- [ ] Edit: the edit box's emoji button and the "cancel" / "save" links do nothing (`view_message_actions.jai`).
+- [ ] Edit: the inline edit box has no `:emoji:` or `@mention` autocomplete (only the composer calls `emoji_autocomplete` / `mention_autocomplete`, `view_chat.jai`), so `@name` typed in an edit stays plain text.
 - [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
 - [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
 - [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
@@ -311,4 +313,7 @@
 - [x] Markdown: numbered lists (`1. item`) render with their numbers, counting up from the first item's, nested ones included.
 - [x] Windows: the window's resize edges grab 8pt deep instead of 2pt; nothing is drawn for them.
 - [x] Edit: Up in an empty composer, the hover pencil and Edit Message skip system notices and pending messages (`can_edit`).
+- [x] Edit: the edit box's emoji button opens an emoji-only picker that inserts into the edit, and the "cancel" / "save" links work (`tests/ui/edit_box_controls.txt`).
+- [x] Keybinds: Ctrl+Shift+M mutes and Ctrl+Shift+D deafens from anywhere, the composer included (`tests/ui/mute_deafen_keys.txt`).
+- [x] Messages: Alt+click on a message marks it unread, like the menu's Mark Unread (`tests/ui/alt_click_unread.txt`).
 - [x] Scrolling: the wheel over a popout (inbox, menus) scrolls it where it covers another scroll box such as the member list; `ui.signal` now skips scroll boxes behind an overlay.
