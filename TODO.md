@@ -217,7 +217,7 @@
 - [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
 - [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
 - [ ] Status: you can't set or clear a custom status (`dc.set_custom_status` is never called); yours shows without its emoji and ignores its expiry.
-- [ ] Bug: message times are an hour off across a DST change. The UTC offset is read once at startup (`app_main.jai`) and applied to every date, so older history, midnight day dividers, and a session spanning the change are wrong.
+- [ ] Bug: message times are an hour off across a DST change. The UTC offset is read once at startup (`app_main.jai`) and applied to every date, so older history, midnight day dividers, and a session spanning the change are wrong. Worse, it also goes out: a date across the change typed into Insert Timestamp (`timestamp_gen.jai`, which subtracts today's offset) or an event's date and time (`view_events.jai` stepper) is sent an hour off, so every reader sees the wrong time. Convert each instant with the zone's rules for that instant (Windows `SystemTimeToTzSpecificLocalTimeEx` / `TzSpecificLocalTimeToSystemTimeEx`, POSIX `localtime_r` / `mktime`), and test both directions on a fixed zone such as `TZ=America/New_York` across 2026-11-01.
 - [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.
 - [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
