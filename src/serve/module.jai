@@ -2233,13 +2233,20 @@ create_emoji :: (c: *Conn, req: http.Request) -> bool {
 	return json_reply(c, 201, emoji);
 }
 
-// PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname. A member has one name here, so the nick
-// replaces it, and members see it as their name with no nick; an empty nick has nothing to fall back to.
+// PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname, and /members/{user} for the owner on
+// anyone. A member has one name here, so the nick replaces it, and members see it as their name with no
+// nick; an empty nick has nothing to fall back to.
 rename :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
 	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	target := user;
+	if !ends_with(req.path, "/members/@me") {
+		ok: bool;
+		target, ok = string_to_int(slice(req.path, find_index_from_right(req.path, #char "/") + 1, req.path.count), T = s64);
+		if !ok return json_error(c, 404, 10013, "Unknown User");
+	}
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	nick: etf.Value;
 	if err == .None && v.kind == .Map nick, _ = etf.map_get(v.map, "nick");
@@ -2247,11 +2254,13 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 	if !name || name.count > 32 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
 	{
 		locks.guard(*s.db_mu);
-		if !sqlite.run(s.db, "UPDATE users SET name = ? WHERE id = ?;", name, user) return json_error(c, 500, 0, "500: Internal Server Error");
+		if target != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !sqlite.run(s.db, "UPDATE users SET name = ? WHERE id = ? AND left = 0;", name, target) return json_error(c, 500, 0, "500: Internal Server Error");
+		if sqlite.changes(s.db) != 1 return json_error(c, 404, 10007, "Unknown Member");
 	}
 	m := etf.map_builder(4,, temp);
 	etf.map_put(*m, "guild_id", snow(s.guild));
-	etf.map_put(*m, "user", user_value(s, user, name));
+	etf.map_put(*m, "user", user_value(s, target, name));
 	etf.map_put(*m, "nick", .{});
 	no_roles: []etf.Value;
 	etf.map_put(*m, "roles", etf.vlist(no_roles));
@@ -2290,6 +2299,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 	parts := split(req.path, "/",, temp); // "", api, v9, guilds, {id}, members|bans, {user}
 	if parts.count != 7 return json_error(c, 404, 0, "404: Not Found");
 	ban := parts[5] == "bans";
+	if !ban && req.method == "PATCH" return rename(c, req);
 	if !(ban && (req.method == "PUT" || req.method == "DELETE")) && !(!ban && req.method == "DELETE") return json_error(c, 405, 0, "405: Method Not Allowed");
 	target, tok := string_to_int(parts[6], T = s64);
 	history := 0;

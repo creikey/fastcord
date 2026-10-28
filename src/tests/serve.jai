@@ -724,6 +724,13 @@ main :: () {
 	discord.client_destroy(cl4);
 	status, body = rest("GET", messages, "", token);
 	check(status == 200 && contains(body, "\"Renamed\"") && !contains(body, "\"Other\""), tprint("old messages show the new name: %", body));
+	// The owner renames anyone; a member only themselves.
+	owner_path := tprint("/api/v9/guilds/%/members/%", gid, field(welcome.list[0], "author", "id").s);
+	status, body = rest("PATCH", owner_path, "{\"nick\": \"Boss\"}", other_token);
+	check(status == 403, tprint("a member can't rename another: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/%", gid, other_id), "{\"nick\": \"Tidied\"}", token);
+	check(status == 200 && contains(body, "\"Tidied\""), tprint("the owner renames a member: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/%", gid, other_id), "{\"nick\": \"Renamed\"}", token);
 
 	// Server Settings: only the owner renames the server, and every member's guild follows.
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"name\": \"Taken Over\"}", other_token);
