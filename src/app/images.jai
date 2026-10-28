@@ -370,10 +370,13 @@ save_download :: (url: string, data: []u8) {
 	dot := find_index_from_right(name, #char ".");
 	stem, ext := name, "";
 	if dot > 0 stem, ext = slice(name, 0, dot), slice(name, dot, name.count - dot);
-	path := tprint("%/Downloads/%", env_var("HOME"), name);
+	#if OS == .WINDOWS dir := platform.downloads_dir(); // HOME is normally unset on Windows
+	else               dir := tprint("%/Downloads", env_var("HOME"));
+	if !dir return;
+	path := tprint("%/%", dir, name);
 	for 1..999 {
 		if !file_exists(path) break;
-		path = tprint("%/Downloads/% (%)%", env_var("HOME"), stem, it, ext);
+		path = tprint("%/% (%)%", dir, stem, it, ext);
 	}
 	write_entire_file(path, data.data, data.count);
 }

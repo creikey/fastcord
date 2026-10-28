@@ -58,6 +58,15 @@ open_url :: (url: string) {
     ShellExecuteW(null, wide("open"), wide(url), null, null, win.SW_SHOWNORMAL);
 }
 
+// The user's Downloads folder (wherever they moved it), "" if Windows has none.
+downloads_dir :: (allocator := temp) -> string {
+    FOLDERID_Downloads := win.GUID.{0x374DE290, 0x123F, 0x4565, .[0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B]};
+    p: *u16;
+    if SHGetKnownFolderPath(*FOLDERID_Downloads, 0, null, *p) < 0 return "";
+    defer CoTaskMemFree(p);
+    return utf16_to_utf8(p, -1, allocator);
+}
+
 // The window has no system title bar or border (WM_NCCALCSIZE gives it all to the content). The app draws
 // its own title bar and says what Windows should do at a point (content coordinates): Caption drags the
 // window, double-click maximizes and right-click opens the system menu; Maximize shows the snap layouts.
@@ -290,6 +299,8 @@ ImmGetCompositionStringW :: (himc: *void, index: u32, buf: *void, len: u32) -> s
 ImmSetCompositionWindow :: (himc: *void, form: *COMPOSITIONFORM) -> s32 #foreign imm32;
 CoInitializeEx :: (reserved: *void, coinit: u32) -> win.HRESULT #foreign ole32;
 CoUninitialize :: () #foreign ole32;
+CoTaskMemFree :: (p: *void) #foreign ole32;
+SHGetKnownFolderPath :: (id: *win.GUID, flags: u32, token: *void, path: **u16) -> win.HRESULT #foreign shell32;
 CoCreateInstance :: (clsid: *win.GUID, outer: *void, ctx: u32, iid: *win.GUID, out: **void) -> win.HRESULT #foreign ole32;
 OleInitialize :: (reserved: *void) -> win.HRESULT #foreign ole32;
 RegisterDragDrop :: (hwnd: win.HWND, target: *void) -> win.HRESULT #foreign ole32;

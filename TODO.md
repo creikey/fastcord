@@ -79,7 +79,7 @@
 - [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
 - [ ] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes aren't rendered; the quote body only gets inline parsing.
 - [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
-- [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
+- [ ] Media: Save Image gives no feedback: the file lands in Downloads silently, and a failed fetch or write says nothing (`images.jai` `save_download`). The desktop client asks where to save with the system Save dialog.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
@@ -307,3 +307,4 @@
 - [x] Search: clicking the search bar again while results are open no longer crashes. Shaped glyphs now live in the UI frame arena, not temp, since last frame's layouts are hit-tested on a press (`tests/ui/search_reclick.txt`).
 - [x] Build: `- dev` builds in about 19 s, not 87 s. LLVM splits the program into modules and compiles them in parallel, and unused procedures are dropped; bench latency is unchanged (`build.jai` `compile`).
 - [x] Scrolling: Page Up / Page Down scroll the message list by 87.5% of the view, even from the composer (`tests/ui/page_scroll.txt`).
+- [x] Media: Save Image on Windows saves to the Downloads known folder (`SHGetKnownFolderPath`), not `$HOME/Downloads`, since HOME is normally unset there.
