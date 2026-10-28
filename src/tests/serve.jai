@@ -117,6 +117,81 @@ main :: () {
 	check(status == 200 && begins_with(body, "{\"token\": \""), tprint("join: % %", status, body));
 	status, body = login(k, "", "");
 	check(status == 200, tprint("a member logs in without a code: % %", status, body));
+	tv, _ := etf.from_json(body);
+	tok, _ := etf.map_get(tv.map, "token");
+	token := tok.s;
+
+	// The gateway: Identify with the token, then READY lists the guild and #general.
+	gs := dial(pin, serve.ALPN);
+	ws: *http.Ws_Conn;
+	if gs {
+		req := http.Request.{method = "GET", path = "/?encoding=etf&v=9", authority = id,
+			headers = .[.{"Upgrade", "websocket"}, .{"Connection", "Upgrade"}, .{"Sec-WebSocket-Version", "13"}, .{"Sec-WebSocket-Key", ""}]};
+		ws = http.ws_connect(tls.stream(gs), req);
+	}
+	check(ws != null, "gateway");
+	recv_event :: (ws: *http.Ws_Conn) -> etf.Value {
+		msg: [..]u8;
+		while true {
+			msg.count = 0;
+			_, err := http.ws_recv(ws, *msg);
+			if err != .None return .{};
+			v, derr := etf.decode(msg);
+			op, _ := etf.map_get(v.map, "op");
+			if op.i == 0 return v;
+		}
+		return .{};
+	}
+	field :: (root: etf.Value, path: ..string) -> etf.Value {
+		v := root;
+		for path { if v.kind != .Map return .{}; v = etf.map_get(v.map, it); }
+		return v;
+	}
+	channel: string;
+	if ws {
+		d := etf.map_builder();
+		etf.map_put(*d, "token", etf.vstring(token));
+		m := etf.map_builder();
+		etf.map_put(*m, "op", etf.vint(2));
+		etf.map_put(*m, "d", etf.vmap(etf.map_done(*d)));
+		http.ws_send(ws, .Binary, etf.encode(etf.vmap(etf.map_done(*m))));
+		ready := recv_event(ws);
+		guilds := field(ready, "d", "guilds");
+		check(field(ready, "t").s == "READY" && field(ready, "d", "user", "username").s == "Tester" && guilds.list.count == 1, "READY");
+		if guilds.list.count {
+			chans := field(guilds.list[0], "channels");
+			check(chans.list.count == 1 && field(chans.list[0], "name").s == "general", "READY has #general");
+			if chans.list.count channel = field(chans.list[0], "id").s;
+		}
+	}
+
+	rest :: (method: string, path: string, body: string, token: string) -> int, string #expand {
+		session := dial(`pin, serve.ALPN);
+		if !session return -1, "";
+		defer tls.close(session);
+		h: http.H1_Conn;
+		http.h1_init(*h, tls.stream(session));
+		defer http.h1_destroy(*h, false);
+		req := http.Request.{method = method, path = path, authority = `id, body = cast([]u8) body,
+			headers = .[.{"authorization", token}, .{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}]};
+		resp, err := http.h1_round_trip(*h, req);
+		if err != .None return -2, "";
+		return resp.status, copy_string(cast(string) resp.body,, temp);
+	}
+	messages := tprint("/api/v9/channels/%/messages", channel);
+	status, body = rest("GET", messages, "", "bad");
+	check(status == 401, tprint("REST needs a token: %", status));
+	status, body = rest("POST", messages,"{\"content\": \"hello\", \"nonce\": \"123\"}", token);
+	check(status == 200 && contains(body, "\"nonce\":\"123\""),tprint("send: % %", status, body));
+	if ws {
+		ev := recv_event(ws);
+		check(field(ev, "t").s == "MESSAGE_CREATE" && field(ev, "d", "content").s == "hello" && field(ev, "d", "author", "username").s == "Tester", "MESSAGE_CREATE");
+		http.ws_close_stream(ws);
+	}
+	status, body = rest("GET", tprint("%?limit=50", messages), "", token);
+	list, _ := etf.from_json(body);
+	check(status == 200 && list.kind == .List && list.list.count == 1 && field(list.list[0], "content").s == "hello", tprint("fetch: % %", status, body));
+	print("message: %\n", body);
 	status, body = login(other, "", "Other");
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 

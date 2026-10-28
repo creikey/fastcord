@@ -27,6 +27,8 @@ Server :: struct {
 	mu: locks.Mutex; // Guards conns.
 	conns: [..]*Conn;
 	seq: u32; // atomic; the low bits of snowflakes
+	guild: s64; // The guild ID the client sees.
+	name: string;
 }
 
 Conn :: struct {
@@ -35,6 +37,9 @@ Conn :: struct {
 	s: netio.Stream;
 	thread: *Thread;
 	done: bool; // atomic; the thread has finished with s.
+	ws: *http.Ws_Conn; // Under server.mu: set once Identify succeeds, so broadcasts reach it.
+	mu: locks.Mutex;   // Orders this gateway's dispatches: seq and their sends.
+	seq: int;
 }
 
 // open makes the server file if needed: its ID, TLS key and certificate live in it, so the invite stays
@@ -71,6 +76,9 @@ open :: (path: string) -> *Server, bool {
 	} else {
 		memcpy(s.id.data, id.data, 16);
 	}
+	s.guild = string_to_int(cast(string) meta_get(s, "guild_id"), T = s64);
+	s.name = copy_string(cast(string) meta_get(s, "name"));
+	if !s.guild { close(s); return null, false; }
 	k: [32]u8;
 	memcpy(k.data, key.data, 32);
 	s.pin = crypto.blake3(cert);
@@ -146,6 +154,7 @@ stop :: (s: *Server) {
 close :: (s: *Server) {
 	if s.ctx tls.SSL_CTX_free(s.ctx);
 	sqlite.close(s.db);
+	free(s.name);
 	free(s);
 }
 
@@ -322,8 +331,191 @@ serve_conn :: (c: *Conn) {
 			if !login(c, session, req) return;
 			continue;
 		}
+		if begins_with(req.path, "/api/v9/channels/") {
+			if !channel_messages(c, req) return;
+			continue;
+		}
 		if !json_error(c, 404, 0, "404: Not Found") return;
 	}
+}
+
+// session_user is the member a token (as sent in Identify or the authorization header) logs in as, or 0.
+session_user :: (s: *Server, token: string) -> id: s64, name: string {
+	t: [32]u8;
+	if !unhex(token, t) return 0, "";
+	h := crypto.blake3(t);
+	locks.guard(*s.db_mu);
+	st := sqlite.prepare(s.db, "SELECT u.id, u.name FROM sessions s JOIN users u ON u.id = s.user WHERE s.token_hash = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, cast([]u8) h);
+	if sqlite.step(st) != .Row return 0, "";
+	return sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 0 + 1),, temp);
+}
+
+snow :: (id: s64) -> etf.Value { return etf.vstring(tprint("%", id)); }
+
+user_value :: (id: s64, name: string) -> etf.Value {
+	m := etf.map_builder(5,, temp);
+	etf.map_put(*m, "id", snow(id));
+	etf.map_put(*m, "username", etf.vstring(name));
+	etf.map_put(*m, "global_name", etf.vstring(name));
+	etf.map_put(*m, "discriminator", etf.vstring("0"));
+	etf.map_put(*m, "avatar", .{});
+	return etf.vmap(etf.map_done(*m));
+}
+
+// iso is a snowflake's creation time as Discord writes timestamps.
+iso :: (id: s64) -> string {
+	t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo((id >> 22) + DISCORD_EPOCH_MS), .UTC);
+	two :: (x: int) -> string { return tprint("%", formatInt(x, minimum_digits = 2)); }
+	return tprint("%-%-%T%:%:%.%+00:00", t.year, two(t.month_starting_at_0 + 1), two(t.day_of_month_starting_at_0 + 1),
+		two(t.hour), two(t.minute), two(t.second), formatInt(t.millisecond, minimum_digits = 3));
+}
+
+message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, nonce := "") -> etf.Value {
+	m := etf.map_builder(14,, temp);
+	etf.map_put(*m, "id", snow(id));
+	etf.map_put(*m, "type", etf.vint(0));
+	etf.map_put(*m, "channel_id", snow(channel));
+	etf.map_put(*m, "guild_id", snow(s.guild));
+	etf.map_put(*m, "author", user_value(author, author_name));
+	etf.map_put(*m, "content", etf.vstring(content));
+	etf.map_put(*m, "timestamp", etf.vstring(iso(id)));
+	etf.map_put(*m, "edited_timestamp", .{});
+	etf.map_put(*m, "flags", etf.vint(0));
+	etf.map_put(*m, "attachments", etf.vlist(.[]));
+	etf.map_put(*m, "embeds", etf.vlist(.[]));
+	etf.map_put(*m, "mentions", etf.vlist(.[]));
+	if nonce etf.map_put(*m, "nonce", etf.vstring(nonce));
+	return etf.vmap(etf.map_done(*m));
+}
+
+// Until roles land (Hosting 4) everyone may read, write, react, embed, attach and make invites.
+EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 26);
+
+ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
+	locks.guard(*s.db_mu);
+	channels: [..]etf.Value;
+	channels.allocator = temp;
+	st := sqlite.prepare(s.db, "SELECT c.id, c.name, c.position, (SELECT max(id) FROM messages WHERE channel = c.id) FROM channels c ORDER BY c.position;");
+	while sqlite.step(st) == .Row {
+		m := etf.map_builder(5,, temp);
+		etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
+		etf.map_put(*m, "type", etf.vint(0));
+		etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 1),, temp)));
+		etf.map_put(*m, "position", etf.vint(sqlite.col_int(st, 2)));
+		if !sqlite.col_is_null(st, 3) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 3)));
+		array_add(*channels, etf.vmap(etf.map_done(*m)));
+	}
+	sqlite.finalize(st);
+	members := 0;
+	st = sqlite.prepare(s.db, "SELECT count(*) FROM users;");
+	if sqlite.step(st) == .Row members = sqlite.col_int(st, 0);
+	sqlite.finalize(st);
+
+	everyone := etf.map_builder(4,, temp);
+	etf.map_put(*everyone, "id", snow(s.guild));
+	etf.map_put(*everyone, "name", etf.vstring("@everyone"));
+	etf.map_put(*everyone, "position", etf.vint(0));
+	etf.map_put(*everyone, "permissions", etf.vstring(tprint("%", EVERYONE_PERMISSIONS)));
+	roles := NewArray(1, etf.Value,, temp);
+	roles[0] = etf.vmap(etf.map_done(*everyone));
+
+	g := etf.map_builder(6,, temp);
+	etf.map_put(*g, "id", snow(s.guild));
+	etf.map_put(*g, "name", etf.vstring(s.name));
+	etf.map_put(*g, "member_count", etf.vint(members));
+	etf.map_put(*g, "channels", etf.vlist(channels));
+	etf.map_put(*g, "roles", etf.vlist(roles));
+	guilds := NewArray(1, etf.Value,, temp);
+	guilds[0] = etf.vmap(etf.map_done(*g));
+
+	d := etf.map_builder(4,, temp);
+	etf.map_put(*d, "v", etf.vint(9));
+	etf.map_put(*d, "user", user_value(user, name));
+	etf.map_put(*d, "guilds", etf.vlist(guilds));
+	etf.map_put(*d, "session_id", etf.vstring(tprint("%", user)));
+	return etf.vmap(etf.map_done(*d));
+}
+
+// dispatch sends an op 0 event with the connection's next sequence number.
+dispatch :: (c: *Conn, t: string, d: etf.Value) -> bool {
+	locks.guard(*c.mu);
+	c.seq += 1;
+	return send(c.ws, 0, d, c.seq, t);
+}
+
+// broadcast dispatches to every identified gateway connection.
+// @Speed: A client that stops reading stalls everyone's events until its send times out; queue per connection.
+broadcast :: (s: *Server, t: string, d: etf.Value) {
+	locks.guard(*s.mu);
+	for s.conns if it.ws dispatch(it, t, d);
+}
+
+// GET and POST /api/v9/channels/{id}/messages, for members (authorization: <token>).
+channel_messages :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user, name := session_user(s, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	path, query := req.path, "";
+	q := find_index_from_left(path, #char "?");
+	if q >= 0 { query = slice(path, q + 1, path.count - q - 1); path = slice(path, 0, q); }
+	rest := advance(path, "/api/v9/channels/".count);
+	parts := split(rest, "/",, temp);
+	channel, ok := string_to_int(parts[0], T = s64);
+	if parts.count != 2 || parts[1] != "messages" || !ok return json_error(c, 404, 0, "404: Not Found");
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT 1 FROM channels WHERE id = ?;");
+		sqlite.bind(st, 1, channel);
+		ok = sqlite.step(st) == .Row;
+		sqlite.finalize(st);
+	}
+	if !ok return json_error(c, 404, 10003, "Unknown Channel");
+
+	sb: String_Builder;
+	sb.allocator = temp;
+	if req.method == "GET" {
+		limit, before := 50, 0;
+		for split(query, "&",, temp) {
+			kv := split(it, "=",, temp);
+			if kv.count != 2 continue;
+			if kv[0] == "limit" limit = clamp(string_to_int(kv[1]), 1, 100);
+			if kv[0] == "before" before = string_to_int(kv[1], T = s64);
+		}
+		list: [..]etf.Value;
+		list.allocator = temp;
+		{
+			locks.guard(*s.db_mu);
+			st := sqlite.prepare(s.db, "SELECT m.id, m.author, u.name, m.content FROM messages m JOIN users u ON u.id = m.author WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;");
+			sqlite.bind_all(st, channel, before, before, limit);
+			while sqlite.step(st) == .Row {
+				array_add(*list, message_value(s, sqlite.col_int(st, 0), channel, sqlite.col_int(st, 1), copy_string(sqlite.col_text(st, 2),, temp), copy_string(sqlite.col_text(st, 3),, temp)));
+			}
+			sqlite.finalize(st);
+		}
+		etf.to_json(etf.vlist(list), *sb);
+	} else if req.method == "POST" {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		content, _ := etf.map_get(v.map, "content");
+		nonce, _ := etf.map_get(v.map, "nonce");
+		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		id := snowflake(s);
+		{
+			locks.guard(*s.db_mu);
+			if !sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content) VALUES(?, ?, ?, ?);", id, channel, user, content.s) {
+				return json_error(c, 500, 0, "500: Internal Server Error");
+			}
+		}
+		m := message_value(s, id, channel, user, name, content.s, ifx nonce.kind == .String then nonce.s else "");
+		etf.to_json(m, *sb);
+		broadcast(s, "MESSAGE_CREATE", m);
+	} else {
+		return json_error(c, 405, 0, "405: Method Not Allowed");
+	}
+	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
 }
 
 gateway :: (c: *Conn, req: http.Request) {
@@ -339,7 +531,12 @@ gateway :: (c: *Conn, req: http.Request) {
 	netio.set_timeout(c.s, HEARTBEAT_INTERVAL_MS * 2);
 
 	ws := http.ws_attach(c.s, .{server = true, max_message = 1 << 20});
-	defer http.ws_destroy(ws);
+	defer {
+		locks.lock(*c.server.mu);
+		c.ws = null;
+		locks.unlock(*c.server.mu);
+		http.ws_destroy(ws);
+	}
 
 	hello := etf.map_builder(,, temp);
 	etf.map_put(*hello, "heartbeat_interval", etf.vint(HEARTBEAT_INTERVAL_MS));
@@ -355,23 +552,41 @@ gateway :: (c: *Conn, req: http.Request) {
 		v, derr := etf.decode(msg,, temp);
 		if derr != .None || v.kind != .Map { http.ws_close(ws, 4002, "Error while decoding payload."); return; }
 		op, _ := etf.map_get(v.map, "op");
+		d, _ := etf.map_get(v.map, "d");
 		if op.kind != .Int { http.ws_close(ws, 4002, "Error while decoding payload."); return; }
 		if op.i == {
-			case 1;
+			case 1; #through;
+			case 40; // The official client heartbeats with op 40 (with QoS data).
 				if !send(ws, 11, .{}) return;
-			case;
-				http.ws_close(ws, 4001, "Unknown opcode.");
-				return;
+			case 2;
+				if c.ws { http.ws_close(ws, 4005, "Already authenticated."); return; }
+				token: etf.Value;
+				if d.kind == .Map token, _ = etf.map_get(d.map, "token");
+				user, name := session_user(c.server, ifx token.kind == .String then token.s else "");
+				if !user { http.ws_close(ws, 4004, "Authentication failed."); return; }
+				// Registered before READY is built and sent under c.mu, so a message posted meanwhile
+				// arrives after READY instead of being lost. Lock order: server.mu, then c.mu.
+				locks.lock(*c.server.mu);
+				c.ws = ws;
+				locks.lock(*c.mu);
+				locks.unlock(*c.server.mu);
+				c.seq += 1;
+				ok := send(ws, 0, ready_value(c.server, user, name), c.seq, "READY");
+				locks.unlock(*c.mu);
+				if !ok return;
+			case 6; // No resume: an invalid session makes the client identify again.
+				if !send(ws, 9, etf.vbool(false)) return;
+			case; // Voice states, guild subscriptions and the rest are Discord-only; ignore them.
 		}
 	}
 }
 
-send :: (ws: *http.Ws_Conn, op: int, d: etf.Value) -> bool {
+send :: (ws: *http.Ws_Conn, op: int, d: etf.Value, seq := 0, t := "") -> bool {
 	m := etf.map_builder(4,, temp);
 	etf.map_put(*m, "op", etf.vint(op));
 	etf.map_put(*m, "d", d);
-	etf.map_put(*m, "s", .{});
-	etf.map_put(*m, "t", .{});
+	etf.map_put(*m, "s", ifx seq then etf.vint(seq) else .{});
+	etf.map_put(*m, "t", ifx t then etf.vatom(t) else .{});
 	bytes, err := etf.encode(etf.vmap(etf.map_done(*m)),, temp);
 	return err == .None && http.ws_send(ws, .Binary, bytes) == .None;
 }
