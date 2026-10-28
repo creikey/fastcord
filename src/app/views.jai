@@ -639,6 +639,7 @@ chat_header :: (ch: *dc.Channel) {
 			if sig.clicked && name == "bell" && !dc.is_thread(ch) { bell_popout_toggle(ch.id, b.rect); }
 			if sig.clicked && name == "group" { app.view.show_members = !app.view.show_members; }
 			if sig.clicked && name == "user-circle" { app.view.hide_dm_profile = !app.view.hide_dm_profile; }
+			if name == "pin" header_pin_rect = b.rect;
 			if sig.clicked && name == "pin" { pins_toggle(ch.id, b.rect); }
 			if sig.clicked && name == "phone-call" { dm_call_toggle(ch); }
 			if sig.clicked && name == "thread" { threads_browser_toggle(ch.id, b.rect); }
@@ -1106,8 +1107,9 @@ join_voice :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 }
 
 // Alt+Up/Down: the previous / next channel in the open server (or DM at home); with Shift, the
-// previous / next unread one. Ctrl+Alt+Up/Down: the previous / next server. Both wrap around.
-navigate_step :: (dir: int, unread: bool, servers: bool) {
+// previous / next unread one, with Ctrl+Shift the previous / next one with mentions.
+// Ctrl+Alt+Up/Down: the previous / next server. All wrap around.
+navigate_step :: (dir: int, unread: bool, servers: bool, mentions := false) {
 	s := store();
 	ids: [..]dc.Snowflake;
 	ids.allocator = temp;
@@ -1132,6 +1134,12 @@ navigate_step :: (dir: int, unread: bool, servers: bool) {
 		for ids if it == cur || dc.channel_unread(s, it) array_add(*kept, it);
 		ids = kept;
 	}
+	if mentions {
+		kept: [..]dc.Snowflake;
+		kept.allocator = temp;
+		for ids if it == cur || channel_mentions(it) > 0 array_add(*kept, it);
+		ids = kept;
+	}
 	if !ids return;
 	found, i := array_find(ids, cur);
 	n := ids.count;
@@ -1140,6 +1148,8 @@ navigate_step :: (dir: int, unread: bool, servers: bool) {
 	if servers select_guild(ids[next]);
 	else select_channel(app.view.guild, ids[next]);
 }
+
+header_pin_rect: ui.Rect;
 
 overlays :: () {
 	// Escape is a global keybind in the official client (MARK_CHANNEL_READ, or
@@ -1158,8 +1168,19 @@ overlays :: () {
 	profile_full_overlay();
 	for * e: app.ui.events {
 		// Alt+arrows also move the composer's caret first; the editor has no Alt+Up meaning, so they still count.
-		if e.kind == .Key_Down && (e.key == .Up || e.key == .Down) && (e.mods & .Alt) && e.mods != .Alt | .Shift | PRIMARY_MOD && !modal_open() && !app.settings_open {
-			navigate_step(ifx e.key == .Up then -1 else 1, (e.mods & .Shift) != 0, (e.mods & PRIMARY_MOD) != 0);
+		if e.kind == .Key_Down && (e.key == .Up || e.key == .Down) && (e.mods & .Alt) && !modal_open() && !app.settings_open {
+			all := e.mods == .Alt | .Shift | PRIMARY_MOD;
+			navigate_step(ifx e.key == .Up then -1 else 1, (e.mods & .Shift) != 0 && !all, (e.mods & PRIMARY_MOD) != 0 && !all, mentions = all);
+			e.consumed = true;
+		}
+		// The composer takes Ctrl+I / Ctrl+U first while text is selected.
+		if !e.consumed && e.kind == .Key_Down && e.mods == PRIMARY_MOD && (e.key == .I || e.key == .P || e.key == .U) && !modal_open() && !app.settings_open {
+			ch := dc.channel_get(store(), app.view.channel);
+			if e.key == .I inbox_toggle();
+			else if !ch {}
+			else if e.key == .P pins_toggle(ch.id, header_pin_rect);
+			else if ch.kind == .DM app.view.hide_dm_profile = !app.view.hide_dm_profile;
+			else app.view.show_members = !app.view.show_members;
 			e.consumed = true;
 		}
 		if !e.consumed && e.kind == .Key_Down && e.key == .K && (e.mods & PRIMARY_MOD) != 0 {

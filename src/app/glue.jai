@@ -163,6 +163,8 @@ map_key :: (k: platform.Key) -> ui.Key_Code {
 		return .B;
 	case .I;
 		return .I;
+	case .P;
+		return .P;
 	case .None;
 		return .None;
 	}

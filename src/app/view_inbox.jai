@@ -42,10 +42,15 @@ Inbox_State :: struct {
 }
 
 inbox: Inbox_State;
+button_rect: ui.Rect;
 UNREAD_PITCH :: 48;
 #scope_export
 
 INBOX_W :: 480;
+
+inbox_toggle :: () {
+	if inbox.open { inbox.open = false; } else { inbox_open(button_rect); }
+}
 
 inbox_button :: () {
 	b := ui.box("inbox", .Clickable);
@@ -53,9 +58,8 @@ inbox_button :: () {
 	sig := ui.signal(b);
 	set_icon(b, "inbox", ifx sig.hovering || inbox.open then T("--interactive-icon-hover") else T("--icon-muted"));
 	if sig.hovering && !inbox.open { tooltip_below("Inbox", b.rect); }
-	if sig.clicked {
-		if inbox.open { inbox.open = false; } else { inbox_open(b.rect); }
-	}
+	button_rect = b.rect;
+	if sig.clicked inbox_toggle();
 	// unread mentions badge at the icon's bottom-right
 	// (counted like the rail's badges: read-state counts or loaded unread mentions)
 	s := store();

@@ -44,7 +44,8 @@
 - [ ] Badges: the taskbar badge counts mentions in servers you left and DMs you closed (read states are never dropped), plus stale counts in read channels. Replying from another device leaves a stale red badge, because your own message doesn't zero `mention_count` (`store.jai`, `CLIENT_RULES.md`).
 - [ ] Channels: collapsed categories are local only; the account's `collapsed_channels` is parsed but unused and collapsing sends nothing.
 - [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
-- [ ] Keybinds: missing Ctrl+Alt+Shift+Up/Down (channels with mentions), Ctrl+I (inbox), Ctrl+P (pins), Ctrl+U (upload) and the Ctrl+/ shortcut list.
+- [ ] Keybinds: no Ctrl+/ list of keyboard shortcuts.
+- [ ] Keybinds: missing Ctrl+Alt+A (return to the connected voice channel) and Shift+Page Up (jump to the oldest unread message).
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
@@ -343,3 +344,4 @@
 - [x] Composer: a long draft stops growing at half the window and scrolls inside the form, keeping the caret in view (`view_chat.jai` `composer`, `tests/ui/message_length.txt`).
 - [x] Composer: Ctrl+B / Ctrl+I / Ctrl+U wrap the selection in `**`, `*`, `__` or unwrap it (`view_chat.jai` `markdown_key`, `tests/ui/composer_format_keys.txt`).
 - [x] Keybinds: Alt+Up/Down step through the server's channels (or DMs at home), Alt+Shift+Up/Down to the previous / next unread one, Ctrl+Alt+Up/Down through the servers, all wrapping (`views.jai` `navigate_step`, `tests/ui/rail/channel_keys.txt`).
+- [x] Keybinds: Ctrl+I toggles the inbox, Ctrl+P the pins, Ctrl+U the member list (the profile panel in DMs), Ctrl+Alt+Shift+Up/Down steps through channels with mentions (`views.jai` `overlays`, `tests/ui/shortcut_toggles.txt`).
