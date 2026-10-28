@@ -32,15 +32,16 @@ image_get :: (url: string, visible := true) -> *Remote_Image {
 	key := copy_string(url);
 	im = table_set(*images, key, .{state = .Loading, last_use = app.frame});
 	// offline: a worker reads FASTCORD_MEDIA_DIR (no data)
-	if app.client != null dc.fetch_media(app.client, .{url = key, kind = .Image, visible = visible});
+	c := media_client(key);
+	if c != null dc.fetch_media(c, .{url = key, kind = .Image, visible = visible});
 	else decode_submit(.{kind = .Image, url = copy_string(key)});
 	return im;
 }
 
 // Called each frame: finished loads go to the decode workers, decoded images become textures.
 images_receive :: () {
-	if app.client != null for * r: dc.client_take_media(app.client) {
-		defer dc.media_result_free(app.client, r);
+	for c: connections() for * r: dc.client_take_media(c) {
+		defer dc.media_result_free(c, r);
 		if media_action_receive(r) continue;
 		if blob_receive(r) {
 			app.ui.animating = true;

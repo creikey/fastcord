@@ -100,7 +100,7 @@ sound_play :: (name: string) {
 		s := New(Sound);
 		s.play_when_ready = true;
 		table_set(*snd.sounds, copy_string(url), s);
-		dc.fetch_media(app.client, dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
+		dc.fetch_media(media_client(url), dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
 		return;
 	}
 	s := found.*;

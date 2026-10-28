@@ -441,7 +441,7 @@ twemoji_get :: (hash: string, visible := true) -> *Twemoji {
 	url := twemoji_url(key);
 	if app.client != null {
 		// an <img src="/assets/<hash>.svg"> load, like the client's emoji images
-		dc.fetch_media(app.client, .{url = url, kind = .Image, visible = visible});
+		dc.fetch_media(media_client(url), .{url = url, kind = .Image, visible = visible});
 	} else {
 		data, ok := offline_media(url);
 		if ok twemoji_receive(url, 200, data);

@@ -130,6 +130,18 @@ hosted_restore :: (invites: []string) {
 // Whether the selected connection is a self-hosted server, which has no DMs or friends yet.
 on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != ""; }
 
+// The client to load url through. A hosted client sends every request to its own server, so only URLs on
+// that server (host = its ID, as serve writes them) go through it; Discord's CDN and assets go through Discord's.
+media_client :: (url: string) -> *dc.Client {
+	host := url;
+	if begins_with(host, "https://") host = advance(host, "https://".count);
+	slash := find_index_from_left(host, #char "/");
+	if slash >= 0 host.count = slash;
+	for hosted if it.client && it.inv.id_hex == host return it.client;
+	if app.client && app.client.cfg.hosted.host && app.discord return app.discord;
+	return app.client;
+}
+
 // The client that owns guild gid, if a hosted one does.
 hosted_client_of :: (gid: dc.Snowflake) -> *dc.Client {
 	for hosted if it.client && dc.guild_get(*it.client.store, gid) return it.client;
