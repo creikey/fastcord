@@ -67,6 +67,7 @@ init_null :: () {
 	st.master_bits = f32_bits(1);
 	for * st.slots ring_init(*it.ring, SAMPLE_RATE * CHANNELS * SOURCE_SECONDS);
 	ring_init(*st.capture, SAMPLE_RATE * CAPTURE_SECONDS);
+	ring_init(*st.render, SAMPLE_RATE / 4);
 	st.initialized = true;
 }
 
@@ -88,6 +89,7 @@ shutdown :: () {
 	}
 	for * st.slots ring_destroy(*it.ring);
 	ring_destroy(*st.capture);
+	ring_destroy(*st.render);
 	st = .{};
 }
 
@@ -209,34 +211,51 @@ mix :: (out: []float32) {
 	}
 	// Clip to avoid harsh wraparound when sources sum > 1.
 	for * out it.* = clamp(it.*, -1, 1);
+	if st.render_on {
+		mono: [512]float32;
+		for f: 0..(frames - 1) / mono.count {
+			n := min(frames - f * mono.count, mono.count);
+			for 0..n-1 mono[it] = (out[(f * mono.count + it) * 2] + out[(f * mono.count + it) * 2 + 1]) * .5;
+			ring_write(*st.render, .{n, mono.data});
+		}
+	}
 	if any_data atomic_store(*st.idle_frames, 0);
 	else atomic_add(*st.idle_frames, cast(u64) frames);
 }
 
-// Capture (mono f32 @48 kHz).
-// voice_processing: macOS VoiceProcessingIO (echo cancellation, AGC, noise
-// suppression); output is routed through the same unit so the canceller hears it.
-// Without it (the settings mic meter) macOS opens only the input device, at its own
-// rate, so other apps aren't ducked and Bluetooth headsets stay in A2DP. A
-// voice-processing start replaces a running plain capture.
-capture_start :: (voice_processing := true) -> bool {
+// Capture (mono f32 @48 kHz), with no OS voice processing: the voice module does echo cancellation,
+// noise suppression and AGC itself. call: a call's capture, which also keeps the speaker mix for the
+// echo canceller (render_read); the settings mic meter doesn't.
+capture_start :: (call := true) -> bool {
 	if !st.device_ok return false;
-	if st.capturing && (st.capture_vp || !voice_processing) return true;
-	if st.capturing capture_stop();
-	st.capture_vp = voice_processing;
+	if call {
+		atomic_store(*st.render.r, atomic_load(*st.render.w));
+		st.render_on = true;
+	}
+	if st.capturing return true;
 	atomic_store(*st.capture.r, atomic_load(*st.capture.w));
 	locks.lock(*st.device_mu);
-	st.capturing = device_capture_start(voice_processing);
+	st.capturing = device_capture_start();
 	locks.unlock(*st.device_mu);
 	return st.capturing;
 }
 
 capture_stop :: () {
+	st.render_on = false;
 	if !st.capturing return;
 	locks.lock(*st.device_mu);
 	device_capture_stop();
 	locks.unlock(*st.device_mu);
 	st.capturing = false;
+}
+
+// render_read: the next mono frames of what the speakers played, for the echo canceller; zeros when the
+// output is idle. The output runs on its own device's clock, so a backlog past 100 ms is dropped.
+render_read :: (out: []float32) {
+	r := *st.render;
+	if ring_readable(r) > SAMPLE_RATE / 10 atomic_store(*r.r, atomic_load(*r.w) - SAMPLE_RATE / 50);
+	n := ring_read(r, out);
+	for n..out.count-1 out[it] = 0;
 }
 
 capture_available :: () -> int { return ring_readable(*st.capture); }
@@ -287,7 +306,8 @@ State :: struct {
 	idle_frames: u64; // atomic, frames mixed with no source data
 	capture: Ring;
 	capturing: bool;
-	capture_vp: bool; // the running capture has voice processing
+	render: Ring; // the speaker mix, mono, while render_on
+	render_on: bool; // a call is capturing
 	rate_changed: bool; // atomic: set by the device's sample-rate listener, handled by update
 	ctx: #Context;
 	latency: float64;

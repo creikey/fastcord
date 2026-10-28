@@ -12,8 +12,7 @@ Voice_Settings :: struct {
 	output_volume: float32; // 0..200
 	auto_sens: bool;
 	threshold_db: float32; // -100..0
-	processing: audio.Voice_Processing;
-	rnnoise: bool;
+	echo, noise, agc: bool; // Voice Processing
 	user_volume: Table(dc.Snowflake, float32); // 0..200 %
 	user_muted: Table(dc.Snowflake, bool);
 	// UI state
@@ -52,9 +51,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.output_volume = clamp(p.output_volume, 0, 200);
 	vs.auto_sens = p.auto_sens;
 	vs.threshold_db = clamp(p.threshold_db, -100, 0);
-	vs.processing = .{p.echo, p.noise, p.agc};
-	audio.set_voice_processing(vs.processing);
-	vs.rnnoise = p.rnnoise;
+	vs.echo, vs.noise, vs.agc = p.echo, p.noise, p.agc;
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
 	for enum_names(platform.Key) if it == p.ptt_key vs.ptt_key = cast(platform.Key) enum_values_as_s64(platform.Key)[it_index];
 	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
@@ -80,10 +77,7 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.output_volume = vs.output_volume;
 	p.auto_sens = vs.auto_sens;
 	p.threshold_db = vs.threshold_db;
-	p.echo = vs.processing.echo_cancellation;
-	p.noise = vs.processing.noise_suppression;
-	p.agc = vs.processing.auto_gain_control;
-	p.rnnoise = vs.rnnoise;
+	p.echo, p.noise, p.agc = vs.echo, vs.noise, vs.agc;
 	p.mode = ifx vs.ptt_mode then "PUSH_TO_TALK" else "VOICE_ACTIVITY";
 	p.ptt_key = tprint("%", vs.ptt_key);
 	p.ptt_delay_ms = cast(int) vs.ptt_delay_ms;
@@ -105,7 +99,7 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		voice.set_push_to_talk(conn, vs.ptt_mode, vs.ptt_held, cast(int)(vs.ptt_delay_ms));
 		voice.set_input_gain(conn, vs.input_volume / 100);
 		voice.set_input_sensitivity(conn, vs.auto_sens, vs.threshold_db);
-		voice.set_noise_suppression(conn, vs.rnnoise);
+		voice.set_processing(conn, vs.echo, vs.noise, vs.agc);
 		for v, uid: vs.user_volume { voice.set_user_volume(conn, cast(u64)(uid), v / 100); }
 		for m, uid: vs.user_muted { voice.set_user_mute(conn, cast(u64)(uid), m); }
 	}
@@ -233,18 +227,11 @@ voice_settings_page :: () {
 				}
 				spacer(.Y, 32);
 				section_title("VOICE PROCESSING");
-				p := vs.processing;
-				changed := toggle_row("echo", "Echo Cancellation", "", *p.echo_cancellation);
+				toggle_row("echo", "Echo Cancellation", "", *vs.echo);
 				spacer(.Y, 8);
-				changed |= toggle_row("noise", "Noise Suppression", "Suppress background noise from your mic.", *p.noise_suppression);
+				toggle_row("noise", "Noise Suppression", "Suppress background noise from your mic.", *vs.noise);
 				spacer(.Y, 8);
-				changed |= toggle_row("agc", "Automatic Gain Control", "", *p.auto_gain_control);
-				spacer(.Y, 8);
-				toggle_row("rnnoise", "RNNoise", "Open-source noise suppression run by fastcord. Works with the switches above off.", *vs.rnnoise);
-				if changed {
-					vs.processing = p;
-					audio.set_voice_processing(p);
-				}
+				toggle_row("agc", "Automatic Gain Control", "", *vs.agc);
 				spacer(.Y, 40);
 			}
 		}
@@ -358,7 +345,7 @@ vs_init :: () {
 	vs.output_volume = 100;
 	vs.auto_sens = true;
 	vs.threshold_db = voice.VAD_DEFAULT_THRESHOLD;
-	vs.processing = audio.Voice_Processing.{true, true, true};
+	vs.echo, vs.noise, vs.agc = true, true, true;
 	vs.meter_db = -127;
 	vs.meter_shown = 0;
 	vs.ptt_delay_ms = 20;

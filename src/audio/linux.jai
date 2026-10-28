@@ -3,9 +3,6 @@
 // capture: f32 mono by a thread blocking in snd_pcm_readi. Xruns recover with snd_pcm_recover; a device
 // that fails to recover (unplugged) is reopened. Without libasound device_init fails and the app runs
 // without audio. Not compiled on macOS or Windows.
-//
-// Voice processing is not applied: ALSA has no voice DSP (a PipeWire echo-cancel source can be picked as
-// the input device when the sound server exposes one as a card).
 
 #scope_export
 
@@ -14,12 +11,6 @@ Device_Info :: struct {
 	name: string;
 	uid: string; // the ALSA PCM name
 	is_default: bool;
-}
-
-Voice_Processing :: struct {
-	echo_cancellation: bool;
-	noise_suppression: bool;
-	auto_gain_control: bool;
 }
 
 // list_devices: each sound card's "sysdefault" PCM that can play (or record). Cached: name hints probe
@@ -50,8 +41,6 @@ select_device :: (input: bool, id: u32) {
 	apply_device_selection();
 }
 
-set_voice_processing :: (p: Voice_Processing) {}
-software_agc :: () -> bool { return false; }
 device_rate_changed :: () {}
 
 // apply_device_selection reopens a running stream whose device is no longer the selected one.
@@ -95,7 +84,7 @@ device_stop :: () {
 	st.running = false;
 }
 
-device_capture_start :: (voice_processing: bool) -> bool { return start_stream(*lx.inp); }
+device_capture_start :: () -> bool { return start_stream(*lx.inp); }
 device_capture_stop :: () { stop_stream(*lx.inp); }
 
 #scope_file

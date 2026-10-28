@@ -523,11 +523,13 @@ build_c_target :: () -> bool {
             a: [..]string;
             cc(*a, !ends_with(f, ".c"));
             array_add(*a, ..extra);
-            // per-file SIMD (libwebp picks them at run time)
+            // per-file SIMD (libwebp and WebRTC pick them at run time; WebRTC's x86 files don't guard themselves)
             if MAC_ARCH != "aarch64" {
                 if ends_with(f, "_sse41.c") array_add(*a, "-msse4.1");
                 if ends_with(f, "_avx2.c") array_add(*a, "-mavx2");
-            }
+                if ends_with(f, "_avx2.cc") array_add(*a, "-mavx2", "-mfma"); // as WebRTC's own build
+                if ends_with(f, "_neon.cc") continue;
+            } else if ends_with(f, "_avx2.cc") || ends_with(f, "_sse.cc") || ends_with(f, "_sse2.cc") continue;
             array_add(*a, "-o", tprint("%/%.o", dir, path_filename(f)), f);
             array_add(*jobs, a);
         }

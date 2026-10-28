@@ -1,8 +1,8 @@
 # RNNoise
 
-Optional noise suppression on the mic in calls ("RNNoise" in Voice & Video), on every platform and
-independent of the OS's voice processing. `include/` and `src/` are upstream's files, unmodified (only
-the library's sources and the headers they include; the training and dump tools are left out):
+Noise suppression on the mic in calls (Voice & Video > Noise Suppression), on every platform. `include/`
+and `src/` are upstream's files, unmodified (only the library's sources and the headers they include; the
+training and dump tools are left out):
 
 - Source: https://github.com/xiph/rnnoise, release v0.2, `rnnoise-0.2.tar.gz`
 - sha256 (tarball): 90fce4b00b9ff24c08dbfe31b82ffd43bae383d85c5535676d28b0a2b11c0d37

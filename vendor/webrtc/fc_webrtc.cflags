@@ -1,0 +1,1 @@
+-Ivendor/webrtc -Ivendor/webrtc/fc_shim -include vendor/webrtc/fc_webrtc_config.h -Wno-deprecated-declarations

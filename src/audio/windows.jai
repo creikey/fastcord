@@ -14,19 +14,11 @@ Device_Info :: struct {
 	is_default: bool;
 }
 
-Voice_Processing :: struct {
-	echo_cancellation: bool;
-	noise_suppression: bool;
-	auto_gain_control: bool;
-}
-
 // No device choice yet: the settings page offers only "Default".
 list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info { return .[]; }
 
 selected_device :: (input: bool) -> u32 { return 0; }
 select_device :: (input: bool, id: u32) {}
-set_voice_processing :: (p: Voice_Processing) {}
-software_agc :: () -> bool { return false; }
 device_rate_changed :: () {}
 apply_device_selection :: () {}
 
@@ -58,8 +50,7 @@ device_stop :: () {
 	st.running = false;
 }
 
-device_capture_start :: (voice_processing: bool) -> bool {
-	// TODO: voice processing via IAudioClient2::SetClientProperties(AUDIO_STREAM_CATEGORY_Communications)
+device_capture_start :: () -> bool {
 	if !open_stream(*wa.inp, true) return false;
 	start_stream(*wa.inp);
 	return true;

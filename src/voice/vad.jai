@@ -41,7 +41,7 @@ frame_level_db :: (pcm: []float32) -> float32 {
     return cast(float32) (20 * log(sqrt(acc / pcm.count) + 0.000000001) / log(10.0));
 }
 
-// Software AGC for captures the OS doesn't process (macOS AUHAL): follows the level of speech
+// Software AGC (Voice Processing > Automatic Gain Control): follows the level of speech
 // (frames above AGC_FLOOR_DB, fast up, slow down) and eases a gain of 0..AGC_MAX_GAIN_DB toward
 // AGC_TARGET_DB, capped so no frame clips.
 AGC_TARGET_DB :: -24.0;

@@ -74,7 +74,7 @@
 - [ ] Voice: a voice channel's text chat can't be opened; clicking always joins.
 - [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
 - [ ] Voice: no soundboard and no Activities; full channels aren't blocked.
-- [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the RNNoise toggle can't be heard or seen there (`view_voice_settings.jai` meter path).
+- [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the Voice Processing switches can't be heard or seen there (`view_voice_settings.jai` meter path).
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
 - [ ] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes aren't rendered; the quote body only gets inline parsing.
@@ -246,7 +246,6 @@
 - [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
 - [ ] GIFs (fastcord-only): search Tenor as well as Klipy and merge the results. Discord's `/gifs/search` now returns Klipy only (`expressions.jai` `gifs_search` sends no provider). Either query Tenor's own API directly (needs an API key; check it's still offered), or add `provider=tenor` to Discord's endpoint if it still honours it. That second route makes fastcord's traffic differ from the official client's, so prefer the direct one. Sent Tenor links already embed fine.
 - [ ] Security: any server sticker's Lottie JSON can crash or hang fastcord on the UI thread. NaN or infinite sizes (`s:[1e30,1e30]`, `"w":0,"h":0`) pass the clamps and `cast(int)` to INT64_MIN, indexing `acc[...]` far out of bounds (`lottie/raster.jai`, `render.jai`). Precomps referencing themselves are guarded only by depth 16, so 2 layers branch to 2^17 renders, each allocating a frame-sized buffer. Huge `shapes` / `masksProperties` arrays reserve large structs per element. Cap and validate at load (`lottie/load.jai`).
-- [ ] Voice (macOS): with echo cancellation and noise suppression off the call captures through plain AUHAL with DefaultOutput, so a chosen output device is ignored then; and an input device not at 48 kHz still falls back to VPIO bypass, about 27 dB quieter (needs an AudioConverter resample in `input_cb`).
 - [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
 - [ ] Voice: channel statuses never show; op 43 asks for them but the `CHANNEL_INFO` reply is ignored (`actions.jai`).
 - [ ] Windows: TLS chain validation through CryptoAPI is untested on a real machine (`tls/trust_windows.jai`).
@@ -265,7 +264,6 @@
 - [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
 - [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
 - [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
-- [ ] Windows, Linux: no echo cancellation or AGC in voice (`set_voice_processing` stubs); noise suppression only through the RNNoise toggle.
 - [ ] Markdown: timestamp styles `T`, `D`, `f`, `F` and `R` (relative, "in 3 hours") fall back to one format (`view_chat.jai` `format_unix`).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
@@ -309,3 +307,4 @@
 - [x] Scrolling: Page Up / Page Down scroll the message list by 87.5% of the view, even from the composer (`tests/ui/page_scroll.txt`).
 - [x] Media: Save Image on Windows saves to the Downloads known folder (`SHGetKnownFolderPath`), not `$HOME/Downloads`, since HOME is normally unset there.
 - [x] Voice (macOS): AGC alone no longer starts VPIO, whose echo canceller zeroed the mic for ~10 s while others talked (seen live: the send rate fell to 0); plain capture gets a software AGC, reopens when another app changes the mic's sample rate, and `FASTCORD_VOICE_DEBUG=1` traces the send side every 2 s.
+- [x] Voice: echo cancellation, noise suppression and AGC run in software on every platform, as in the official client: WebRTC's echo canceller (AEC3, `vendor/webrtc`) on fastcord's own speaker mix, RNNoise behind the Noise Suppression switch, and the software AGC. macOS no longer uses VoiceProcessingIO, so the three switches work apart, a chosen output device is honoured in calls too, and a mic not at 48 kHz is resampled (AudioConverter) instead of falling back to a quiet bypass (`tests/voice_aec.jai`).

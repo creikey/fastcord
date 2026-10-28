@@ -174,7 +174,7 @@ Conn :: struct {
     audio_started: bool;
     capture_on: bool;
     mic_waits: int;             // ticks in a row without a whole mic frame (audio thread)
-    denoise_on: bool;           // RNNoise on the mic (under mu)
+    echo_on, denoise_on, agc_on: bool;  // the voice processing switches (under mu)
     diag: struct {              // send side, summed for the debug trace every 2 s (audio thread)
         frames, padded, voiced, enc_drops: int;
         min_avail, max_avail: int;
@@ -182,8 +182,9 @@ Conn :: struct {
     };
     udp_errors: u64;            // atomic: failed sendto
     udp_errno: s32;             // the last failure's errno
+    aec: *void;                 // WebRTC echo canceller state, made on first use (audio thread)
     denoiser: *void;            // RNNoise state, made on first use (audio thread)
-    agc: Agc;                   // software AGC when the OS doesn't do it (audio thread)
+    agc: Agc;                   // (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
     input_db: float32 = -127;   // level of the last mic frame (after gain)
     vad_open: bool;
@@ -286,6 +287,7 @@ voice_disconnect :: (c: *Conn) {
     array_free(c.experiments);
     free(c.external_ip);
     c.codec.encoder_destroy(c.encoder);
+    if c.aec fc_aec_destroy(c.aec);
     if c.denoiser fc_rnnoise_destroy(c.denoiser);
     DAVE.session_destroy(*c.dave);
     free(c.info.endpoint);
@@ -364,10 +366,11 @@ set_input_gain :: (c: *Conn, gain: float32) {
     c.input_gain = clamp(gain, 0, 2);
 }
 
-// set_noise_suppression: RNNoise on the mic, independent of the OS's voice processing.
-set_noise_suppression :: (c: *Conn, on: bool) {
+// set_processing: the Voice Processing switches, all done here on every platform: WebRTC's echo
+// canceller (the official client's too), RNNoise for noise (it has Krisp) and our AGC.
+set_processing :: (c: *Conn, echo: bool, noise: bool, agc: bool) {
     locks.guard(*c.mu);
-    c.denoise_on = on;
+    c.echo_on, c.denoise_on, c.agc_on = echo, noise, agc;
 }
 
 // input_level: last mic frame level in dBFS and whether the VAD is open (for meters).
@@ -863,7 +866,7 @@ on_session_description :: (c: *Conn, d: etf.Value) {
     if !c.audio_started {
         c.audio_started = true;
         if !c.opts.no_audio_devices && !c.info.stream {
-            c.capture_on = audio.capture_start(true);  // with the chosen devices and DSP switches
+            c.capture_on = audio.capture_start(true);
         }
         c.next_rtcp_ms = now_ms() + 1000;
         c.audio_th = start_thread(c, audio_thread_proc);
@@ -1219,14 +1222,24 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     locks.lock(*c.mu);
     muted := c.self_mute || c.self_deaf;
     gain := c.input_gain;
-    denoise := c.denoise_on;
+    echo, denoise, agc := c.echo_on && c.capture_on, c.denoise_on, c.agc_on && c.capture_on;
     locks.unlock(*c.mu);
-    if denoise {
-        if !c.denoiser c.denoiser = fc_rnnoise_create();
-        // 10 ms frames; RNNoise delays its output by one
-        if c.denoiser for 0..1 fc_rnnoise_process(c.denoiser, pcm.data + it * SAMPLES_PER_FRAME / 2);
+    // in 10 ms frames, in the order of WebRTC's pipeline: echo, then noise, then gain
+    for 0..1 {
+        half := pcm.data + it * SAMPLES_PER_FRAME / 2;
+        if echo {
+            if !c.aec c.aec = fc_aec_create();
+            played: [SAMPLES_PER_FRAME / 2]float32;
+            audio.render_read(played);
+            fc_aec_render(c.aec, played.data);
+            fc_aec_capture(c.aec, half);
+        }
+        if denoise {
+            if !c.denoiser c.denoiser = fc_rnnoise_create();
+            fc_rnnoise_process(c.denoiser, half);  // delays its output by one frame
+        }
     }
-    if c.capture_on && audio.software_agc() agc_process(*c.agc, pcm);
+    if agc agc_process(*c.agc, pcm);
     if gain != 1 for * pcm it.* = clamp(it.* * gain, -1, 1);
     active, db := vad_process(*c.vad, pcm);
     {
@@ -1558,6 +1571,10 @@ send_pli :: (c: *Conn, media_ssrc: u32) {
 }
 
 vendor :: #library,no_dll "../../build/fc_vendor";
+fc_aec_create :: () -> *void #foreign vendor;
+fc_aec_destroy :: (a: *void) #foreign vendor;
+fc_aec_render :: (a: *void, pcm: *float32) #foreign vendor;
+fc_aec_capture :: (a: *void, pcm: *float32) #foreign vendor;
 fc_rnnoise_create :: () -> *void #foreign vendor;
 fc_rnnoise_destroy :: (st: *void) #foreign vendor;
 fc_rnnoise_process :: (st: *void, pcm: *float32) -> float32 #foreign vendor;
