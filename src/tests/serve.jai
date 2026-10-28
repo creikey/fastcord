@@ -192,12 +192,18 @@ main :: () {
 		return resp.status, copy_string(cast(string) resp.body,, temp);
 	}
 	messages := tprint("/api/v9/channels/%/messages", channel);
+	// The owner's join posted a welcome; drop it so the counts below start from nothing.
+	status, body = rest("GET", messages, "", token);
+	welcome, _ := etf.from_json(body);
+	check(status == 200 && welcome.list.count == 1 && field(welcome.list[0], "type").i == 7 && field(welcome.list[0], "author", "username").s == "Tester", tprint("the join's welcome message: %", body));
+	if welcome.list.count rest("DELETE", tprint("%/%", messages, field(welcome.list[0], "id").s), "", token);
 	status, body = rest("GET", messages, "", "bad");
 	check(status == 401, tprint("REST needs a token: %", status));
 	status, body = rest("POST", messages,"{\"content\": \"hello\", \"nonce\": \"123\"}", token);
 	check(status == 200 && contains(body, "\"nonce\":\"123\""),tprint("send: % %", status, body));
 	if ws {
 		ev := recv_event(ws);
+		if field(ev, "t").s == "MESSAGE_DELETE" ev = recv_event(ws); // The welcome's.
 		check(field(ev, "t").s == "MESSAGE_CREATE" && field(ev, "d", "content").s == "hello" && field(ev, "d", "author", "username").s == "Tester", "MESSAGE_CREATE");
 		http.ws_close_stream(ws);
 	}
@@ -379,6 +385,8 @@ main :: () {
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 	other_token, ostatus, omessage := serve.member_login(member_invite, other, "Other");
 	check(member_ok && other_token.count == 64, tprint("join with a member's invite: % %", ostatus, omessage));
+	status, body = rest("GET", tprint("%?limit=1", messages), "", token);
+	check(contains(body, "\"type\":7") && contains(body, "\"Other\""), tprint("a member's join posts a welcome: %", body));
 	status, body = rest("POST", tprint("/api/v9/channels/%/invites", cid), "{\"max_age\": 1}", token);
 	short, _ := etf.from_json(body);
 	check(status == 200 && field(short, "expires_at").kind == .String, tprint("an invite with an expiry: % %", status, body));

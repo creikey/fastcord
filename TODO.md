@@ -40,7 +40,7 @@
   - Done: pins. The owner pins and unpins (up to 50 per channel); MESSAGE_UPDATE and CHANNEL_PINS_UPDATE follow, and `GET .../messages/pins` lists them newest first. Pinning posts the "pinned a message" system message (type 6, `message_reference` to the pin), which can be deleted but not edited.
   - Done: search (`GET /guilds/{id}/messages/search`): whole-word content from an FTS5 index kept by triggers, `author_id`, `mentions`, `channel_id`, `pinned` and `has:link`, 25 a page.
   - Done: Leave Server (`DELETE /users/@me/guilds/{id}`). The member stays as their messages' author but loses their sessions and gateways (GUILD_DELETE), and needs an invite to return; the owner can't leave. The app then drops the connection and its saved invite (`hosted_frame`).
-  - A new member's join posts nothing: Discord's "X joined the server" welcome message (type 7, in the first text channel, with its Wave button) is missing, so nobody notices someone arrived. Post it from `login` when a new member is added.
+  - Done: a join (new, or back after leaving) posts the "joined the server" message (type 7) in the first text channel, sent to every gateway; search skips system messages.
   - Next: edits recomputing mentions. The member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead. A slow gateway reader stalls everyone's events (`serve` `broadcast`).
   - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
   - Done: Change Nickname (`PATCH /guilds/{id}/members/@me`) renames the member, since a hosted member has one name; GUILD_MEMBER_UPDATE and the member list follow, and old messages show the new name.

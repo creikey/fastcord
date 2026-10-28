@@ -393,11 +393,12 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 
 	token: [32]u8;
 	crypto.random_bytes(token);
+	hello: etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		if !sqlite.exec(s.db, "BEGIN IMMEDIATE;") return json_error(c, 500, 0, "500: Internal Server Error");
 		user: s64;
-		gone := false;
+		gone, joined := false, false;
 		st := sqlite.prepare(s.db, "SELECT id, left FROM users WHERE root = ?;");
 		sqlite.bind(st, 1, cast([]u8) root);
 		if sqlite.step(st) == .Row user, gone = sqlite.col_int(st, 0), sqlite.col_int(st, 1) != 0;
@@ -418,9 +419,16 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 				if !sqlite.run(s.db, "UPDATE users SET left = 0 WHERE id = ?;", user) user = 0;
 			} else {
 				user = snowflake(s);
+				joined = true;
 				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name) VALUES(?, ?, ?, ?);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
 				if user && owner && !meta_put(s, "owner", tprint("%", user)) user = 0;
 			}
+		}
+		if user && (joined || gone) {
+			welcome := snowflake(s);
+			ok := sqlite.run(s.db, tprint("INSERT INTO messages(id, channel, author, content, type) SELECT ?, id, ?, '', % FROM channels WHERE type = % ORDER BY position, id LIMIT 1;", JOINED, TEXT), welcome, user);
+			if !ok user = 0;
+			else if sqlite.changes(s.db) hello = message_locked(s, welcome, nested = false);
 		}
 		token_hash := crypto.blake3(token);
 		if user && !sqlite.run(s.db, "INSERT INTO sessions(token_hash, user) VALUES(?, ?);", cast([]u8) token_hash, user) user = 0;
@@ -428,6 +436,7 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 		sqlite.exec(s.db, ifx status then "ROLLBACK;" else "COMMIT;");
 		if status return json_error(c, status, code, message);
 	}
+	if hello.kind == .Map broadcast(s, "MESSAGE_CREATE", hello);
 	body := tprint("{\"token\": \"%\"}", hex(token,, temp));
 	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) body) == .None;
 }
@@ -595,6 +604,7 @@ MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce
 // Message types: a "pinned a message" notice is a system message whose reply column holds the pinned one.
 DEFAULT :: 0;
 PINNED :: 6;
+JOINED :: 7;
 
 // row_message reads a MESSAGE_SELECT row; the caller holds db_mu. A reply's target is looked up one level
 // deep, as Discord sends it.
@@ -1463,7 +1473,7 @@ search :: (c: *Conn, req: http.Request) -> bool {
 	authors.allocator, mentioned.allocator, channels.allocator = temp, temp, temp;
 	where: String_Builder;
 	where.allocator = temp;
-	append(*where, " WHERE 1");
+	print_to_builder(*where, " WHERE m.type = %", DEFAULT);
 	offset := 0;
 	for split(ifx q >= 0 then slice(req.path, q + 1, req.path.count - q - 1) else "", "&",, temp) {
 		kv := split(it, "=",, temp);
