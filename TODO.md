@@ -192,6 +192,7 @@
 - [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
 - [ ] Voice: no soundboard; full channels aren't blocked.
 - [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the Voice Processing switches can't be heard or seen there (`view_voice_settings.jai` meter path).
+- [ ] Localisation: translate the whole UI into every language the official client offers (its Language settings list, about 30), with Discord's own strings from the bundle so wording matches, and follow the account's `locale` setting.
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Rail: the server header menu lacks Server Settings, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` `guild_menu`); none of those pages exist yet.
 - [ ] Media: Save Image goes straight to Downloads (`images.jai` `save_download`); the desktop client asks where to save with the system Save dialog.
