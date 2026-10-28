@@ -271,12 +271,25 @@ main :: () {
 
 	g := discord.guild_get(*cl.store, gid);
 	check(g && g.owner_id == cl.store.me, "READY names the owner");
-	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"Off Topic\", \"type\": 0}", token);
-	made, _ := etf.from_json(body);
-	check(status == 201 && field(made, "name").s == "off-topic", tprint("create a channel: % %", status, body));
-	new_id := string_to_int(field(made, "id").s, T = u64);
-	for 1..300 { if discord.channel_get(*cl.store, new_id) break; pump(); }
-	check(discord.channel_get(*cl.store, new_id) != null, "CHANNEL_CREATE");
+	// The client's own Create Channel flow, as the app runs it: no Discord-only parity fetches go out.
+	discord.open_create_channel(cl, gid);
+	discord.create_channel(cl, gid, .Guild_Text, "Off Topic", 0);
+	new_id: u64;
+	aux, created := 0, false;
+	for 1..300 {
+		pump();
+		for * discord.feature_take(cl) {
+			discord.guild_admin_apply(cl, it);
+			if it.op == .Guild_Aux aux += 1;
+			if it.op == .Channel_Create && it.ok { created = true; new_id = discord.fsnow(discord.vmap(it.body), "id"); }
+			discord.feature_result_free(it);
+		}
+		if created && discord.channel_get(*cl.store, new_id) break;
+	}
+	ch := discord.channel_get(*cl.store, new_id);
+	check(created && ch && ch.name == "off-topic", "create a channel, and CHANNEL_CREATE");
+	for 1..50 { pump(); for * discord.feature_take(cl) { if it.op == .Guild_Aux aux += 1; discord.feature_result_free(it); } }
+	check(aux == 0, tprint("no Discord-only fetches when hosted: %", aux));
 	status, body = rest("PATCH", tprint("/api/v9/channels/%", new_id), "{\"topic\": \"anything\"}", token);
 	check(status == 200 && contains(body, "\"topic\":\"anything\""), tprint("edit a channel: % %", status, body));
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", new_id), "", token);

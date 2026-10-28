@@ -252,7 +252,7 @@ fetch_event_counts :: (c: *Client, guild_id: Snowflake, event_id: Snowflake) {
 // event_preview_counts: the wizard's Review step renders a preview card with
 // event id -1 and asks for its counts; Discord answers 400 (as for the client).
 event_preview_counts :: (c: *Client, guild_id: Snowflake) {
-	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/scheduled-events/-1/users/counts", guild_id), channel_id = guild_id);
+	aux_get(c, tprint("/guilds/%/scheduled-events/-1/users/counts", guild_id), guild_id);
 }
 
 // The wizard's result. entity .Voice (channel_id) or .External (location, end_ms).
@@ -453,9 +453,15 @@ truncate_runes :: (s: string, n: int) -> string {
 
 // ---- channels: REST (traffic/create_channel.jsonl) ----
 
+// aux_get sends a GET the official client makes only for parity; its answer is unused. A self-hosted
+// server has none of these routes, so it never gets them.
+aux_get :: (c: *Client, path: string, guild_id: Snowflake) {
+	if !c.cfg.hosted.host feature_submit(c, .Guild_Aux, "GET", path, channel_id = guild_id);
+}
+
 // open_create_channel: the Create Channel modal opened: GET /guilds/{id}/profile, science open_modal.
 open_create_channel :: (c: *Client, guild_id: Snowflake) {
-	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/profile", guild_id), channel_id = guild_id);
+	aux_get(c, tprint("/guilds/%/profile", guild_id), guild_id);
 	analytics_track(c, "open_modal", tprint("\"type\":\"Create Channel\",%", guild_track_props(c, guild_id, route_channel_of(c))));
 }
 
@@ -463,13 +469,13 @@ open_create_channel :: (c: *Client, guild_id: Snowflake) {
 // science settings_pane_viewed.
 open_channel_settings :: (c: *Client, ch: *Channel) {
 	if !ch || !ch.guild_id return;
-	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/regions", ch.guild_id), channel_id = ch.guild_id);
+	aux_get(c, tprint("/guilds/%/regions", ch.guild_id), ch.guild_id);
 	analytics_track(c, "settings_pane_viewed", tprint("\"settings_type\":\"channel\",\"origin_pane\":null,\"destination_pane\":\"OVERVIEW\",\"location\":null,%", guild_track_props(c, ch.guild_id, ch.id)));
 }
 
 // open_delete_channel: the Delete Channel confirm opened: GET /guilds/{id}/roles/member-counts.
 open_delete_channel :: (c: *Client, guild_id: Snowflake) {
-	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/roles/member-counts", guild_id), channel_id = guild_id);
+	aux_get(c, tprint("/guilds/%/roles/member-counts", guild_id), guild_id);
 }
 
 // POST /guilds/{id}/channels {"type","name","permission_overwrites":[],"parent_id"} -> 201.
@@ -536,7 +542,7 @@ delete_channel :: (c: *Client, channel_id: Snowflake) {
 // templates (their "unsynced" state): GET /guilds/{id}/templates (MANAGE_GUILD only).
 refresh_templates :: (c: *Client, guild_id: Snowflake) {
 	if !guild_id || (guild_permissions(*c.store, guild_id) & PERM_MANAGE_GUILD) == 0 return;
-	feature_submit(c, .Guild_Aux, "GET", tprint("/guilds/%/templates", guild_id), channel_id = guild_id);
+	aux_get(c, tprint("/guilds/%/templates", guild_id), guild_id);
 }
 
 // ---- results and timers ----
