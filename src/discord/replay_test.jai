@@ -1124,6 +1124,25 @@ mark_unread_and_pins :: (t: *T) {
 	expect(t, !rs.manual, "leaving the channel ends the hold");
 }
 
+// A message's `thread` (an archived thread started from it) reaches the Store and the thread
+// table, so the chat can show its thread card.
+message_thread_object :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	msgs := messages_get(*c.store, R_TEXT);
+	if !expect(t, msgs.count >= 1, "fixture messages") return;
+	mid := msgs[msgs.count - 1].id + (1 << 22);
+	d, _ := etf.from_json(tprint("{\"id\":\"%1\",\"channel_id\":\"%2\",\"guild_id\":\"%3\",\"type\":0,\"flags\":32,\"content\":\"hi\",\"author\":{\"id\":\"1\",\"username\":\"x\"},\"mentions\":[],\"mention_everyone\":false,\"thread\":{\"id\":\"%1\",\"type\":11,\"guild_id\":\"%3\",\"parent_id\":\"%2\",\"name\":\"old talk\",\"message_count\":7,\"thread_metadata\":{\"archived\":true}}}", mid, R_TEXT, R_GUILD));
+	client_inject_dispatch(c, "MESSAGE_CREATE", d);
+	replay_settle(*run, 100);
+	th := channel_get(*c.store, mid);
+	expect(t, th != null && is_thread(th) && th.parent_id == R_TEXT && th.name == "old talk", "the thread is in the Store");
+	tm := thread_meta(mid);
+	expect(t, tm != null && tm.message_count == 7 && tm.archived, "the thread's count and archived state are known");
+}
+
 // Read-state acks (ReadState.ack, no capture): a channel with mentions is acked at once,
 // otherwise after 3 s; acks before the timer fires join it and keep the first location.
 ack_timing :: (t: *T) {
@@ -1142,6 +1161,14 @@ ack_timing :: (t: *T) {
 	_, rs := table_find(*c.store.read_states, R_TEXT);
 	expect_value(t, rs.mention_count, 1);
 	client_set_focused(c, true);
+	// focused but scrolled up: still not acked ("Not at bottom")
+	set_route_scrolled_up(c, true);
+	d, _ = etf.from_json(tprint("{\"id\":\"%\",\"channel_id\":\"%\",\"guild_id\":\"%\",\"type\":0,\"content\":\"hi\",\"author\":{\"id\":\"1\",\"username\":\"x\"},\"mentions\":[{\"id\":\"%\"}],\"mention_everyone\":false}", mid + (1 << 22), R_TEXT, R_GUILD, c.store.me));
+	client_inject_dispatch(c, "MESSAGE_CREATE", d);
+	replay_settle(*run, 100);
+	_, rs = table_find(*c.store.read_states, R_TEXT);
+	expect(t, rs.mention_count == 2 && c.pending_acks.count == 0, "a message while scrolled up isn't acked");
+	set_route_scrolled_up(c, false);
 	replay_mark(*run);
 	ack_message(c, R_TEXT, msgs[msgs.count - 2].id, location = ACK_INCOMING_MESSAGE);
 	replay_pump(*run, 300);
@@ -1153,6 +1180,58 @@ ack_timing :: (t: *T) {
 	expect_value(t, r_count(*run, "POST", "/ack"), 1);
 	replay_pump(*run, 1500);
 	expect_value(t, r_count(*run, "POST", "/ack"), 2);
+}
+
+// Joining a voice channel acks its text chat unless it holds mentions ("Ack - Voice Channel Select").
+voice_select_ack :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	ch := channel_get(*c.store, R_VOICE);
+	if !expect(t, ch != null, "voice channel") return;
+	rs := find_or_add(*c.store.read_states, R_VOICE);
+	ch.last_message_id = rs.last_message_id + (1 << 22);
+	rs.mention_count = 1;
+	voice_join(c, R_GUILD, R_VOICE);
+	found := false;
+	for c.pending_acks if it.channel_id == R_VOICE found = true;
+	expect(t, !found, "mentions keep the voice chat unread");
+	rs = table_find_pointer(*c.store.read_states, R_VOICE);
+	rs.mention_count = 0;
+	voice_join(c, R_GUILD, R_VOICE);
+	for c.pending_acks if it.channel_id == R_VOICE && it.location.object == ACK_VOICE_CHANNEL_SELECT.object found = true;
+	expect(t, found, "joining acks the voice chat");
+}
+
+// Who reacted (reaction pill hover): one GET of the first 100 reactors, of the pill's type.
+reactors_fetch :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	msgs := messages_get(*c.store, R_TEXT);
+	if !expect(t, msgs.count >= 1, "fixture messages") return;
+	replay_mark(*run);
+	fetch_reactors(c, R_TEXT, msgs[0].id, "🔥", 0, false, 1);
+	replay_settle(*run, 300);
+	locks.lock(*run.r.mu);
+	key := "";
+	for run.r.ours if begins_with(it.key, "GET") && contains(it.key, "/reactions/") key = copy_string(it.key,, temp);
+	locks.unlock(*run.r.mu);
+	expect(t, ends_with(key, "/reactions/%F0%9F%94%A5?limit&type"), tprint("reactors request: %", key));
+	fetch_reactors(c, R_TEXT, msgs[0].id, "🔥", 0, false, 2, after = c.store.me);
+	remove_user_reaction(c, R_TEXT, msgs[0].id, "🔥", 0, false, c.store.me);
+	replay_settle(*run, 300);
+	locks.lock(*run.r.mu);
+	page, del := "", "";
+	for run.r.ours {
+		if begins_with(it.key, "GET") && contains(it.key, "after") page = copy_string(it.key,, temp);
+		if begins_with(it.key, "DELETE") && contains(it.key, "/reactions/") del = copy_string(it.key,, temp);
+	}
+	locks.unlock(*run.r.mu);
+	expect(t, ends_with(page, "?limit&after&type"), tprint("next page: %", page));
+	expect(t, ends_with(del, "/reactions/%F0%9F%94%A5/0/{id}?burst"), tprint("remove: %", del));
 }
 
 parity_gif_send :: (t: *T) {
@@ -2568,6 +2647,37 @@ username_rules :: (t: *T) {
 	expect_value(t, username_rule_error("a"), "This must be 2-32 characters.");
 	expect_value(t, username_rule_error("a..b"), "Username cannot contain repeating dots.");
 	expect_value(t, username_rule_error("no spaces"), "Please only use numbers, letters, underscores _ , or periods.");
+}
+
+// An older session's late leave (after a gateway reconnect) must not drop us from the list;
+// our account joining on another computer takes the call over.
+voice_state_stale_leave :: (t: *T) {
+	s: Store;
+	store_init(*s, temp);
+	vsu :: (s: *Store, channel: string, session: string) {
+		b := etf.map_builder(3,, temp);
+		etf.map_put(*b, "user_id", etf.vstring("7"));
+		etf.map_put(*b, "channel_id", ifx channel then etf.vstring(channel) else .{});
+		etf.map_put(*b, "session_id", etf.vstring(session));
+		store_apply_dispatch(s, "VOICE_STATE_UPDATE", etf.vmap(etf.map_done(*b)), 0);
+	}
+	vsu(*s, "9", "old");
+	vsu(*s, "9", "new");
+	vsu(*s, "", "old");
+	vs := table_find_pointer(*s.voice_states, 7);
+	expect(t, vs != null && vs.session_id == "new", "the old session's leave is ignored");
+	vsu(*s, "", "new");
+	expect(t, table_find_pointer(*s.voice_states, 7) == null, "the current session's leave removes us");
+	// our account joins a call on another computer: the call moves there (the app hangs up)
+	s.me = 7;
+	s.session_id = "ours";
+	vsu(*s, "9", "ours");
+	expect_value(t, s.voice_elsewhere, 0);
+	vsu(*s, "5", "other");
+	vs = table_find_pointer(*s.voice_states, 7);
+	expect(t, vs != null && vs.channel_id == 5 && s.voice_elsewhere == 1, "another device's join takes the call");
+	vsu(*s, "5", "other");
+	expect_value(t, s.voice_elsewhere, 1);
 }
 
 // HTTPUtils' per-URL hold: after a 429, requests queued for the URL go one per response, in order.

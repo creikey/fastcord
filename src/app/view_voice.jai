@@ -7,6 +7,7 @@
 //   voice_panel draws the "Voice Connected" section above the user panel.
 
 VOICE_PANEL_H :: 56;
+VOICE_BUTTONS_H :: 40; // the Video / Screen row under it
 
 voice_set_headless :: (h: bool) { vc.headless = h; }
 
@@ -48,6 +49,12 @@ call_join_incoming :: (cid: dc.Snowflake) {
 	vc.sent_deaf = app.self_deaf;
 }
 
+// Ctrl+Alt+A or a click on the voice panel's channel: open the connected call.
+voice_return :: () {
+	ch := dc.channel_get(store(), app.voice_channel);
+	if ch select_channel(ch.guild_id, ch.id);
+}
+
 voice_leave_channel :: () {
 	if app.client != null && app.voice_channel != 0 { dc.voice_leave(app.client); }
 	app.voice_channel = 0;
@@ -66,7 +73,6 @@ voice_audio_ready :: () -> bool { return vc.audio_ready; }
 
 voice_frame :: () {
 	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready);
-	defer video_frame();
 	if app.client == null { return; }
 	if !vc.auto_checked && app.client.store.ready {
 		vc.auto_checked = true;
@@ -79,8 +85,21 @@ voice_frame :: () {
 		dc.client_set_rtc_state(app.client, .Disconnected);
 		return;
 	}
+	// A new gateway session (reconnect without resume) leaves voice on READY: join again, so
+	// our voice state comes back and the connection moves to the new session.
+	rejoin := vc.synced && vc.readies != store().readies;
+	// Our account joined a call on another device: Discord moved the call there. Hang up here
+	// without op 4 (a null channel would end the other device's call too).
+	if vc.synced && vc.voice_elsewhere != store().voice_elsewhere {
+		app.voice_channel = 0;
+		voice_drop();
+		return;
+	}
+	vc.synced = true;
+	vc.readies = store().readies;
+	vc.voice_elsewhere = store().voice_elsewhere;
 	// mute / deafen -> connection + op 4 (deafen implies mute, like the client)
-	if app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
+	if rejoin || app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
 		vc.sent_mute = app.self_mute;
 		vc.sent_deaf = app.self_deaf;
 		dc.voice_set_state(app.client, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
@@ -141,7 +160,10 @@ voice_frame :: () {
 
 voice_is_speaking :: (uid: dc.Snowflake) -> bool { return table_contains(*vc.speaking, uid); }
 
-voice_panel_height :: () -> float32 { return ifx app.voice_channel != 0 then cast(float32) VOICE_PANEL_H else 0; }
+voice_panel_height :: () -> float32 {
+	if app.voice_channel == 0 return 0;
+	return cast(float32) VOICE_PANEL_H + (ifx video.SUPPORTED then cast(float32) VOICE_BUTTONS_H else 0);
+}
 
 // Avatar with the green "speaking" ring (inset 2 px green + 1 px surface gap).
 voice_avatar :: (id: string, uid: dc.Snowflake, size: float32, surface: ui.Color) -> *ui.Box {
@@ -204,6 +226,7 @@ voice_panel :: () {
 		info.style.radius = all4(8);
 		info.style.bg_hot = T("--background-mod-subtle");
 		isig := ui.signal(info);
+		if isig.clicked voice_return();
 		{ ui.parent(info); defer ui.pop_parent();
 			spacer(.X, 6);
 			icon("sig", sig_icon, 20, color);
@@ -258,12 +281,46 @@ voice_panel :: () {
 		}
 		spacer(.X, 8);
 	}
+	if video.SUPPORTED {
+		can_video := vc.conn != null && voice.state(vc.conn) == .Connected;
+		br := row("vbuttons");
+		br.semantic_size = .[ui.pct(1), ui.px(VOICE_BUTTONS_H)];
+		{ ui.parent(br); defer ui.pop_parent();
+			spacer(.X, 8);
+			if voice_panel_button("video", "video", "Video", camera_on(), can_video) camera_toggle();
+			spacer(.X, 8);
+			if voice_panel_button("screen", "screen-stream", "Screen", screen_sharing(), can_video) {
+				if screen_sharing() go_live_stop();
+				else { video.screen_targets_refresh(); vid.picker_open = true; }
+			}
+			spacer(.X, 8);
+		}
+	}
 	div := ui.box("div", .Draw_Background);
 	div.semantic_size = .[ui.pct(1), ui.px(1)];
 	div.style.bg = T("--border-subtle");
 }
 
 voice_reset_for_test :: () { vc = .{headless = true}; }
+
+voice_panel_button :: (id: string, icon_name: string, text: string, on: bool, enabled: bool) -> bool {
+	b := row(id, ifx enabled then ui.Box_Flags.Clickable | .Draw_Background | .Hot_Animation else .Draw_Background);
+	b.semantic_size = .[ui.fill(), ui.px(32)];
+	b.style.radius = all4(8);
+	b.style.bg = ifx on then T("--status-positive") else T("--background-mod-subtle");
+	b.style.bg_hot = ifx on then with_alpha(T("--status-positive"), 0.85) else T("--background-mod-normal");
+	b.cross_align = .Center;
+	sig := ui.signal(b);
+	col := ifx on then ui.Color.{1, 1, 1, 1} else ifx enabled then T("--interactive-text-default") else T("--text-muted");
+	{ ui.parent(b); defer ui.pop_parent();
+		filler(.X);
+		icon("i", icon_name, 18, col);
+		spacer(.X, 6);
+		label(text, .Semibold, 14, col, 18);
+		filler(.X);
+	}
+	return enabled && sig.clicked;
+}
 
 // The ring popout of an incoming DM call (fixture dm_call, B's view): avatar,
 // name, "Incoming Call...", Decline (red) and Join Call (green). Join sends op 4
@@ -343,6 +400,9 @@ Voice_App :: struct {
 	headless: bool; // no audio devices (screenshots / CI never open the mic)
 	auto_join: dc.Snowflake; // FASTCORD_JOIN_VOICE=<channel id>
 	auto_checked: bool;
+	synced: bool; // readies and voice_elsewhere below hold the store's values for this call
+	readies: u64; // store().readies when we last sent op 4 for the call
+	voice_elsewhere: u64; // store().voice_elsewhere when the call started
 	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
 }
 
@@ -356,6 +416,7 @@ voice_drop :: () {
 	}
 	vc.channel = 0;
 	vc.version = 0;
+	vc.synced = false;
 	table_reset_keeping_memory(*vc.speaking);
 }
 

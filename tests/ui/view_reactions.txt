@@ -1,0 +1,12 @@
+# The message menu's View Reactions lists the reactions, super reactions first; Escape closes it.
+resize 1600 900
+wait 10
+rclick 700 211
+wait 5
+click_text "View Reactions"
+wait 10
+expect_visible "Loading..."
+shot build/ui-view_reactions.png
+key escape
+wait 5
+expect_not_visible "Loading..."

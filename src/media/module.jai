@@ -16,7 +16,12 @@ locks :: #import "locks";
 	#load "decode_darwin.jai";
 }
 #if OS == .WINDOWS #load "decode_windows.jai";
-#if OS != .MACOS #load "decode_none.jai";
+#if OS == .LINUX #load "decode_linux.jai";
+#if OS != .MACOS {
+	yuv :: #import "yuv";
+	#load "frame_nv12.jai";
+	#load "decode_none.jai";
+}
 #load "demux.jai";
 #load "mkv.jai";
 #load "mp4.jai";

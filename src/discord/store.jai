@@ -8,6 +8,8 @@ Store :: struct {
 	changed: u64;
 	connection: Connection_State;
 	ready: bool;
+	readies: u64; // READY count: a new one is a new gateway session (voice must rejoin)
+	voice_elsewhere: u64; // joins by our account from other sessions (another device took the call)
 	session_id: string;
 	me: Snowflake;
 	users: Table(Snowflake, User);
@@ -134,6 +136,7 @@ free_attachment :: (s: *Store, at: *Attachment) {
 	free_str(at.url, a);
 	free_str(at.proxy_url, a);
 	free_str(at.waveform, a);
+	free_str(at.description, a);
 }
 
 free_embed :: (s: *Store, e: *Embed) {
@@ -402,6 +405,7 @@ parse_attachment :: (m: etf.Map, a: Allocator) -> Attachment {
 		height = fint(m, "height"),
 		duration_secs = cast(float32) vf64(vget(m, "duration_secs")),
 		waveform = clone_str(fstr(m, "waveform"), a),
+		description = clone_str(fstr(m, "description"), a),
 		flags = cast(u64) fint(m, "flags")
 	};
 }
@@ -453,6 +457,13 @@ parse_reactions :: (s: *Store, msg: *Message, l: []V) {
 		};
 		cd := fmap(rm, "count_details");
 		if cd r.burst_count = fint(cd, "burst");
+		bc := flist(rm, "burst_colors");
+		if bc {
+			h := vstr(bc[0]);
+			if begins_with(h, "#") h = advance(h, 1);
+			v, ok := string_to_int(h, 16);
+			if ok r.burst_color = cast(u32) v;
+		}
 		array_add(*msg.reactions, r);
 	}
 }
@@ -498,6 +509,14 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	rau := fmap(fmap(m, "referenced_message"), "author");
 	if rau parse_user_into(s, rau);
 	gid := fsnow(m, "guild_id");
+	// The thread started from this message (its id is the message's): archived ones are known only from here.
+	th := fmap(m, "thread");
+	if th {
+		parse_channel_into(s, th, gid);
+		locks.lock(*extras_mu);
+		note_thread(th, s.me,, context.default_allocator);
+		locks.unlock(*extras_mu);
+	}
 	mm := fmap(m, "member");
 	if mm && gid && msg.author_id {
 		// MESSAGE_CREATE members omit `user`; attach to the author.
@@ -651,8 +670,13 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 	}
 	if uid == 0 return;
 	old := table_find_pointer(*s.voice_states, uid);
-	if old free_str(old.session_id, s.allocator);
 	cid := fsnow(m, "channel_id");
+	// a late leave for an older session (ours before a gateway reconnect) doesn't end the newer one
+	sid := fstr(m, "session_id");
+	// our account joined a call on another device: Discord keeps one call per user, so ours ended
+	if uid == s.me && cid && sid && sid != s.session_id && !(old && sid == old.session_id) s.voice_elsewhere += 1;
+	if cid == 0 && old && sid && old.session_id && sid != old.session_id return;
+	if old free_str(old.session_id, s.allocator);
 	if cid == 0 {
 		table_remove(*s.voice_states, uid);
 		return;
@@ -661,7 +685,7 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 		user_id = uid,
 		channel_id = cid,
 		guild_id = gid,
-		session_id = clone_str(fstr(m, "session_id"), s.allocator),
+		session_id = clone_str(sid, s.allocator),
 		self_mute = fbool(m, "self_mute"),
 		self_deaf = fbool(m, "self_deaf"),
 		mute = fbool(m, "mute"),
@@ -681,6 +705,7 @@ apply_relationship :: (s: *Store, m: etf.Map) {
 	if added r.* = .{user_id = uid};
 	if vhas(m, "type") r.kind = cast(Relationship_Type) fint(m, "type");
 	if vhas(m, "nickname") set_str(s, *r.nickname, fstr(m, "nickname"));
+	if vhas(m, "user_ignored") r.ignored = fbool(m, "user_ignored");
 	if vhas(m, "since") set_str(s, *r.since, fstr(m, "since"));
 }
 
@@ -810,6 +835,7 @@ apply_merged_members :: (s: *Store, d: etf.Map, guilds: []V) {
 }
 
 apply_ready :: (s: *Store, d: etf.Map) {
+	s.readies += 1;
 	set_str(s, *s.session_id, fstr(d, "session_id"));
 	set_str(s, *s.resume_gateway_url, fstr(d, "resume_gateway_url"));
 	set_str(s, *s.analytics_token, fstr(d, "analytics_token"));
@@ -1079,6 +1105,16 @@ remove_messages :: (s: *Store, cid: Snowflake) {
 	if !l return;
 	free_message_list(s, l);
 	table_remove(*s.messages, cid);
+}
+
+// drop_message: forget one message locally (a failed send the user discards); nothing is sent.
+drop_message :: (s: *Store, cid: Snowflake, id: Snowflake) {
+	l := table_find_pointer(*s.messages, cid);
+	i := ifx l then message_index(l, id) else -1;
+	if i < 0 return;
+	free_message(s, *l.messages[i]);
+	array_ordered_remove_by_index(*l.messages, i);
+	s.changed += 1;
 }
 
 remove_guild :: (s: *Store, gid: Snowflake) {

@@ -1,0 +1,7 @@
+# The voice panel has Video and Screen buttons under the connection status.
+wait 5
+in_voice 1546820558950371411
+wait 10
+expect_visible "Video"
+expect_visible "Screen"
+shot

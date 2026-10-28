@@ -808,7 +808,7 @@ emoji_select :: (item: Pk_Emoji, keep_open: bool) {
 		}
 	} else {
 		frec_use(*frecency.emoji, key);
-		ui.editor_insert(*chat_state(pk.channel).editor, text);
+		ui.editor_insert(ifx pk.mode == .Edit then *ma.edit_editor else *chat_state(pk.channel).editor, text);
 	}
 	if !keep_open picker_close();
 }

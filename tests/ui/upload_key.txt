@@ -1,0 +1,6 @@
+# Ctrl+Shift+U in the composer opens the file picker (empty when headless) and types nothing.
+wait 5
+click 600 684
+key u shift cmd
+wait 5
+expect_input ""

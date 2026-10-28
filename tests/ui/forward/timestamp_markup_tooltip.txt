@@ -1,0 +1,7 @@
+# Hovering a <t:…> timestamp in a message shows its full date in a tooltip.
+wait 10
+move 610 610
+wait 5
+move 611 610
+wait 5
+expect_visible "Monday, October 26, 2026 4:00 PM"

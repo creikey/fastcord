@@ -13,6 +13,13 @@
 // (fixtures open_guild_and_channel, open_dm); quick switcher / create flows don't.
 // source: the route change's source (transitionTo's `source`), reported as
 // channel_opened's location (e.g. "Thread Browser").
+set_route_scrolled_up :: (c: *Client, up: bool) {
+	if c.route_scrolled_up == up return;
+	locks.lock(*c.route_mu);
+	c.route_scrolled_up = up;
+	locks.unlock(*c.route_mu);
+}
+
 select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, message_limit := 50, prefetch := false, source := "") {
 	prev_referer := ifx prefetch then copy_string(client_route_referer(c),, temp) else "";
 	locks.lock(*c.route_mu);
@@ -24,6 +31,7 @@ select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messa
 	}
 	c.route_guild = guild_id;
 	c.route_channel = channel_id;
+	c.route_scrolled_up = false;
 	locks.unlock(*c.route_mu);
 	if guild_id && guild_id != prev_guild {
 		subscribe_guild(c, guild_id);
@@ -411,6 +419,23 @@ edit_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, conte
 	job_submit(c, j);
 }
 
+// suppress_embeds: PATCH the message's flags with SUPPRESS_EMBEDS (1 << 2) added; the reply replaces the message.
+suppress_embeds :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, flags: u64) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kint(*w, "flags", cast(s64) (flags | 4));
+	json_obj_end(*w);
+	j := job_new(.Api, .Edit_Message);
+	j.method = "PATCH";
+	j.path = job_str(j, channel_path(channel_id, "/messages/", snowflake_string(message_id)));
+	j.body = cast([]u8) job_str(j, json_string(*w));
+	j.content_type = "application/json";
+	j.retries = 1;
+	j.result = .{op = .Edit_Message, channel_id = channel_id, message_id = message_id};
+	job_submit(c, j);
+}
+
 // delete_message: DELETE (no retries).
 delete_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
 	j := job_new(.Api, .Delete_Message);
@@ -605,6 +630,7 @@ ACK_NEW_MESSAGES_BANNER :: Ack_Location.{"New Messages Banner", "Mark Channel as
 ACK_INCOMING_MESSAGE :: Ack_Location.{"Channel", "Ack - Incoming Message", "ack_automatic"};
 ACK_CHANNEL_SCROLL :: Ack_Location.{"Channel", "Ack - Channel Scroll", "ack_automatic"};
 ACK_WINDOW_FOCUS :: Ack_Location.{"Channel", "Ack - Window Focus", "ack_automatic"};
+ACK_VOICE_CHANNEL_SELECT :: Ack_Location.{"Channel", "Ack - Voice Channel Select", "ack_semi_automatic"};
 
 // ack_message moves the read state at once and schedules the POST like ReadState.ack():
 // one timer per channel, due in 3 s, or at once when `immediate` or the channel had
@@ -864,7 +890,7 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		if rt && rt.gateway == 0 rt.gateway = now_ms();
 		gid := fsnow(d, "guild_id");
 		locks.lock(*c.route_mu);
-		viewing := c.route_channel == fsnow(d, "channel_id");
+		viewing := c.route_channel == fsnow(d, "channel_id") && !c.route_scrolled_up; // shouldAutomaticallyAck: "Not at bottom"
 		locks.unlock(*c.route_mu);
 		cid, mid := fsnow(d, "channel_id"), fsnow(d, "id");
 		if fsnow(fmap(d, "author"), "id") == c.store.me return;
@@ -930,6 +956,12 @@ voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute
 	// the voice channel's text view opens with the call
 	analytics_channel_opened(c, guild_id, channel_id, selected_guild = false);
 	if track analytics_join_voice(c, guild_id, channel_id);
+	// Joining acks the channel's text chat unless it holds mentions.
+	ch := channel_get(*c.store, channel_id);
+	rs := table_find_pointer(*c.store.read_states, channel_id);
+	if ch && ch.last_message_id > (ifx rs then rs.last_message_id else 0) && !(rs && rs.mention_count > 0) {
+		ack_message(c, channel_id, ch.last_message_id, location = ACK_VOICE_CHANNEL_SELECT);
+	}
 	l := message_list(*c.store, channel_id);
 	if !l.loaded && !l.loading fetch_messages(c, channel_id, 0, initial_message_limit(viewport_h(c)));
 	if guild_id {

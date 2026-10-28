@@ -639,6 +639,8 @@ chat_header :: (ch: *dc.Channel) {
 			if sig.clicked && name == "bell" && !dc.is_thread(ch) { bell_popout_toggle(ch.id, b.rect); }
 			if sig.clicked && name == "group" { app.view.show_members = !app.view.show_members; }
 			if sig.clicked && name == "user-circle" { app.view.hide_dm_profile = !app.view.hide_dm_profile; }
+			if name == "pin" header_pin_rect = b.rect;
+			if name == "thread" header_thread_rect = b.rect;
 			if sig.clicked && name == "pin" { pins_toggle(ch.id, b.rect); }
 			if sig.clicked && name == "phone-call" { dm_call_toggle(ch); }
 			if sig.clicked && name == "thread" { threads_browser_toggle(ch.id, b.rect); }
@@ -849,6 +851,19 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					set_icon(cog, "settings", ifx cs.hovering then T("--interactive-icon-active") else T("--interactive-icon-hover"));
 					if cs.clicked { channel_settings_open(ch); }
 				}
+			}
+			mentions := ifx selected || notify_prefs.lotus then 0 else channel_mentions(ch.id);
+			if mentions > 0 {
+				spacer(.X, 4);
+				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
+				b := ui.box(tprint("%##chanbadge", text), .Draw_Background | .Draw_Text);
+				b.semantic_size = .[ui.px(max(16.0, cast(float32)(text.count) * 7 + 8)), ui.px(16)];
+				b.style.bg = T("--status-danger");
+				b.style.radius = all4(8);
+				b.style.font = F(.Bold);
+				b.style.font_size = 12;
+				b.style.text_color = .{1, 1, 1, 1};
+				b.style.text_align = .Center;
 			}
 			spacer(.X, 8);
 		}
@@ -1092,6 +1107,140 @@ join_voice :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 	app.view.channel = cid;
 }
 
+// Alt+Up/Down: the previous / next channel in the open server (or DM at home); with Shift, the
+// previous / next unread one, with Ctrl+Shift the previous / next one with mentions.
+// Ctrl+Alt+Up/Down: the previous / next server. All wrap around.
+navigate_step :: (dir: int, unread: bool, servers: bool, mentions := false) {
+	s := store();
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	cur := app.view.channel;
+	if servers {
+		for e: rail_entries() array_add(*ids, ..e.guilds);
+		cur = app.view.guild;
+	} else if app.view.guild == 0 {
+		array_add(*ids, ..dc.private_channels_sorted(s));
+	} else {
+		now := wall_ms();
+		for cid: dc.guild_channels_sorted(s, app.view.guild) {
+			ch := dc.channel_get(s, cid);
+			if !ch || dc.is_thread(ch) || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement && ch.kind != .Guild_Forum) continue;
+			if unread && cid != cur && (!dc.channel_unread(s, cid) || dc.channel_effectively_muted(s, app.view.guild, cid, now)) continue;
+			array_add(*ids, cid);
+		}
+	}
+	if unread && app.view.guild == 0 && !servers {
+		kept: [..]dc.Snowflake;
+		kept.allocator = temp;
+		for ids if it == cur || dc.channel_unread(s, it) array_add(*kept, it);
+		ids = kept;
+	}
+	if mentions {
+		kept: [..]dc.Snowflake;
+		kept.allocator = temp;
+		for ids if it == cur || channel_mentions(it) > 0 array_add(*kept, it);
+		ids = kept;
+	}
+	if !ids return;
+	found, i := array_find(ids, cur);
+	n := ids.count;
+	next := ifx !found then (ifx dir > 0 then 0 else n - 1) else (i + dir + n) % n;
+	if ids[next] == cur return;
+	if servers select_guild(ids[next]);
+	else select_channel(app.view.guild, ids[next]);
+}
+
+header_pin_rect, header_thread_rect: ui.Rect;
+shortcuts_open: bool;
+
+// Ctrl+/: the keyboard shortcuts fastcord handles, in two columns of key caps.
+shortcuts_modal :: () {
+	MOD :: #run ifx OS == .MACOS then "Cmd" else "Ctrl";
+	SHORTCUTS :: string.[
+		"Find or start a conversation", #run tprint("%+K", MOD),
+		"Back / forward", #run tprint("%+[ / %+]", MOD, MOD),
+		"Previous / next channel", "Alt+Up / Alt+Down",
+		"Previous / next unread channel", "Alt+Shift+Up / Down",
+		"Previous / next channel with mentions", #run tprint("%+Alt+Shift+Up / Down", MOD),
+		"Previous / next server", #run tprint("%+Alt+Up / Down", MOD),
+		"Return to the connected call", #run tprint("%+Alt+A", MOD),
+		"Toggle inbox", #run tprint("%+I", MOD),
+		"Toggle pins", #run tprint("%+P", MOD),
+		"Toggle member list", #run tprint("%+U", MOD),
+		"Mark channel read", "Escape",
+		"Mark server read", "Shift+Escape",
+		"Jump to oldest unread message", "Shift+Page Up",
+		"Scroll chat", "Page Up / Page Down",
+		"Edit your last message", "Up",
+		"Mark a message unread", "Alt+Click",
+		"Toggle mute", #run tprint("%+Shift+M", MOD),
+		"Toggle deafen", #run tprint("%+Shift+D", MOD),
+		"Emoji / GIF / sticker picker", #run tprint("%+E / G / S", MOD),
+		"Upload a file", #run tprint("%+Shift+U", MOD),
+		"Bold / italic / underline", #run tprint("%+B / I / U", MOD),
+		"Keyboard shortcuts", #run tprint("%+/", MOD),
+	];
+	scrim := ui.box("sc_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	scrim.style.bg = .{0, 0, 0, 0.7};
+	if ui.signal(scrim).clicked {
+		shortcuts_open = false;
+		return;
+	}
+	W :: 560;
+	PAD :: 24;
+	d := ui.box("scmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	d.semantic_size = .[ui.px(W), ui.children()];
+	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
+	d.style.border = 1;
+	d.style.radius = all4(12);
+	d.layout_axis = .Y;
+	ui.signal(d);
+	ui.push_parent(d);
+	defer ui.pop_parent();
+	spacer(.Y, PAD);
+	tr := row("t");
+	tr.semantic_size = .[ui.pct(1), ui.px(24)];
+	{ ui.parent(tr); defer ui.pop_parent();
+		spacer(.X, PAD);
+		label("Keyboard Shortcuts", .Semibold, 20, T("--text-strong"), 24);
+	}
+	spacer(.Y, 16);
+	sc := ui.box("list", .Scroll_Y | .Clip);
+	sc.semantic_size = .[ui.pct(1), ui.px(clamp(sc.content_size.y, 32, max(app.ui.window.y - 160, 32)))];
+	sc.layout_axis = .Y;
+	ui.signal(sc);
+	{ ui.parent(sc); defer ui.pop_parent();
+		for i: 0..SHORTCUTS.count / 2 - 1 {
+			r := row(tprint("sc%", i));
+			r.semantic_size = .[ui.pct(1), ui.px(36)];
+			r.cross_align = .Center;
+			ui.parent(r); defer ui.pop_parent();
+			spacer(.X, PAD);
+			label(SHORTCUTS[2 * i], .Normal, 15, T("--text-default"), 20);
+			filler(.X);
+			k := ui.box(tprint("%##keys", SHORTCUTS[2 * i + 1]), .Draw_Background | .Draw_Text);
+			k.semantic_size = .[ui.text_size(16), ui.px(24)];
+			k.style.bg = T("--background-mod-strong");
+			k.style.radius = all4(4);
+			k.style.font = F(.Semibold);
+			k.style.font_size = 13;
+			k.style.text_color = T("--text-strong");
+			k.style.text_align = .Center;
+			spacer(.X, PAD);
+		}
+	}
+	spacer(.Y, PAD - 8);
+	for * e: app.ui.events {
+		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
+			e.consumed = true;
+			shortcuts_open = false;
+		}
+	}
+}
+
 overlays :: () {
 	// Escape is a global keybind in the official client (MARK_CHANNEL_READ, or
 	// POP_LAYER over settings); it is tracked whatever layer it closes.
@@ -1105,10 +1254,29 @@ overlays :: () {
 			dc.analytics_keyboard_shortcut(app.client, ifx app.settings_open then "POP_LAYER" else "MARK_CHANNEL_READ", "esc");
 		}
 	} } }
-	picker_overlay();
 	group_dm_overlay();
 	profile_full_overlay();
 	for * e: app.ui.events {
+		// Alt+arrows also move the composer's caret first; the editor has no Alt+Up meaning, so they still count.
+		if e.kind == .Key_Down && (e.key == .Up || e.key == .Down) && (e.mods & .Alt) && !modal_open() && !app.settings_open {
+			all := e.mods == .Alt | .Shift | PRIMARY_MOD;
+			navigate_step(ifx e.key == .Up then -1 else 1, (e.mods & .Shift) != 0 && !all, (e.mods & PRIMARY_MOD) != 0 && !all, mentions = all);
+			e.consumed = true;
+		}
+		if !e.consumed && e.kind == .Key_Down && e.key == .A && e.mods == PRIMARY_MOD | .Alt && !modal_open() && !app.settings_open {
+			voice_return();
+			e.consumed = true;
+		}
+		// The composer takes Ctrl+I / Ctrl+U first while text is selected.
+		if !e.consumed && e.kind == .Key_Down && e.mods == PRIMARY_MOD && (e.key == .I || e.key == .P || e.key == .U) && !modal_open() && !app.settings_open {
+			ch := dc.channel_get(store(), app.view.channel);
+			if e.key == .I inbox_toggle();
+			else if !ch {}
+			else if e.key == .P pins_toggle(ch.id, header_pin_rect);
+			else if ch.kind == .DM app.view.hide_dm_profile = !app.view.hide_dm_profile;
+			else app.view.show_members = !app.view.show_members;
+			e.consumed = true;
+		}
 		if !e.consumed && e.kind == .Key_Down && e.key == .K && (e.mods & PRIMARY_MOD) != 0 {
 			if !sw.open && app.client != null {
 				dc.analytics_keyboard_shortcut(app.client, "QUICKSWITCHER_SHOW", "mod+k");
@@ -1117,13 +1285,23 @@ overlays :: () {
 			switcher_toggle();
 			e.consumed = true;
 		}
+		if !e.consumed && e.kind == .Key_Down && e.key == .Slash && e.mods == PRIMARY_MOD && !(modal_open() && !shortcuts_open) {
+			shortcuts_open = !shortcuts_open;
+			e.consumed = true;
+		}
+		if !e.consumed && e.kind == .Key_Down && (e.key == .M || e.key == .D) && e.mods == PRIMARY_MOD | .Shift {
+			if e.key == .M toggle_self_mute();
+			else app.self_deaf = !app.self_deaf;
+			e.consumed = true;
+		}
 	}
 	if sw.open { quick_switcher(); }
-	if ma.menu_msg != 0 { message_menu(); }
 	if edit_menu_state.open { edit_menu(); }
-	if ma.confirming != 0 { confirm_modal(); }
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
+	if tsg.channel != 0 { timestamp_gen_modal(); }
+	if shortcuts_open { shortcuts_modal(); }
+	if view_reactions.msg != 0 { view_reactions_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
 	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
 	media_overlays(); // view_media.jai: image viewer, media context menu
@@ -1137,8 +1315,13 @@ overlays :: () {
 	pins_popout();
 	threads_browser_popout();
 	inbox_popout();
+	picker_overlay(); // above the popouts, whose cards' menus open it too
 	guild_menu_overlays();
+	rail_folder_overlays();
 	search_suggestions();
+	// above the pins and inbox popouts, whose cards open them too
+	if ma.menu_msg != 0 { message_menu(); }
+	if ma.confirming != 0 { confirm_modal(); }
 	events_modal();
 	guild_admin_overlays();
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
@@ -1158,6 +1341,7 @@ go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
 		// the "NEW" divider and new-messages bar start again from the read state on every visit
 		cs := table_find_pointer(*app.chats, cid);
 		if cs cs.opened = false;
+		replies_switch(app.view.channel, cid);
 	}
 	app.view.guild = gid;
 	app.view.channel = cid;

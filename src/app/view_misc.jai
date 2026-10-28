@@ -658,6 +658,10 @@ appearance_page :: () {
 				}
 			}
 			spacer(.Y, 48);
+			if set_toggle_row("smooth", "Smooth Scrolling", "Ease the chat and lists toward where you scroll. Off, they jump there at once (always, when your device asks for reduced motion).", !smooth_scroll_off) {
+				smooth_scroll_off = !smooth_scroll_off;
+			}
+			spacer(.Y, 48);
 			div := ui.box("smdiv", .Draw_Background);
 			div.semantic_size = .[ui.pct(1), ui.px(1)];
 			div.style.bg = T("--border-subtle");

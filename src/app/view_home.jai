@@ -151,6 +151,19 @@ dm_row :: (ch: *dc.Channel) {
 					label(tprint("% Member%", n, ifx n == 1 then "" else "s"), .Medium, 12, T("--text-muted"), 16);
 				}
 			}
+			mentions := channel_mentions(ch.id);
+			if mentions > 0 && !selected && !sig.hovering && !notify_prefs.lotus {
+				text := ifx mentions > 99 then "99+" else tprint("%", mentions);
+				b := ui.box(tprint("%##count", text), .Draw_Background | .Draw_Text);
+				b.semantic_size = .[ui.px(max(16.0, cast(float32) text.count * 7 + 8)), ui.px(16)];
+				b.style.bg = T("--status-danger");
+				b.style.radius = all4(8);
+				b.style.font = F(.Bold);
+				b.style.font_size = 12;
+				b.style.text_color = .{1, 1, 1, 1};
+				b.style.text_align = .Center;
+				spacer(.X, 6);
+			}
 			if selected || sig.hovering {
 				// close DM / leave group: DELETE /channels/{id}
 				x := ui.box("close", .Clickable);

@@ -9,6 +9,12 @@ set_capture_hidden :: (hidden: bool) {
 // gfx registers the swap chain's frame-latency waitable object; every rendered frame waits on it once (vsync pacing).
 set_frame_wait_handle :: (h: *void) { w.frame_wait = h; }
 
+// True while drawing the frame for a WM_SIZE inside the modal resize loop.
+is_size_frame :: () -> bool { return w.size_frame; }
+
+// A dropped Present never retires, so the waitable won't signal for it; the next frame must not wait on it.
+present_dropped :: () { w.frame_ready = true; }
+
 // True when Windows' app mode is dark (HKCU\...\Themes\Personalize AppsUseLightTheme = 0). ok is false
 // headless or when unset.
 system_dark_mode :: () -> dark: bool, ok: bool {
@@ -157,6 +163,7 @@ os_wait :: (timeout: float64) {
         animating := atomic_load(*s.frame_requested);
         if s.quit return;
         if !animating && pending_count() > 0 return;
+        if animating && w.frame_ready return;
         ms := win.INFINITE;
         if timeout >= 0 {
             remaining := timeout - (time_now() - start);
@@ -386,6 +393,8 @@ TME_LEAVE :: 2;
 TME_NONCLIENT :: 0x10;
 SPI_GETHIGHCONTRAST :: 0x0042;
 SPI_GETCLIENTAREAANIMATION :: 0x1042;
+SPI_GETWHEELSCROLLLINES :: 0x0068;
+SPI_GETWHEELSCROLLCHARS :: 0x006C;
 WM_FC_WAKE :: WM_USER + 1;
 WM_FC_TRAY :: WM_USER + 2;
 TIMER_ANIM :: 1;
@@ -424,6 +433,7 @@ w: struct {
     frame_ready: bool; // os_wait already took this frame's signal from frame_wait
     high_surrogate: u16;
     in_size_move: bool;
+    size_frame: bool;
     tracking_mouse: bool;
     tracking_nc: bool;
     over_max_button: bool;
@@ -877,7 +887,11 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
         case win.WM_SIZE;
             update_size();
             push_event(.{kind = .Resize, pos = s.size, time = time_now()});
-            if w.in_size_move run_frame_callback();
+            if w.in_size_move {
+                w.size_frame = true;
+                run_frame_callback();
+                w.size_frame = false;
+            }
             return 0;
         case win.WM_GETMINMAXINFO;
             mm := cast(*MINMAXINFO) lp;
@@ -905,8 +919,8 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             if !IsZoomed(hwnd) {
                 r: win.RECT;
                 win.GetClientRect(hwnd, *r);
-                // Edges 2pt deep, rounded up to whole pixels; corners reach 16pt along each edge.
-                e := cast(s32) (2 * s.scale + 0.99);
+                // Edges 8pt deep, rounded up to whole pixels; corners reach 16pt along each edge.
+                e := cast(s32) (8 * s.scale + 0.99);
                 c := cast(s32) (16 * s.scale);
                 l, t, rt, b := pt.x < e, pt.y < e, pt.x >= r.right - e, pt.y >= r.bottom - e;
                 if l || t || rt || b {
@@ -1055,7 +1069,17 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
         case win.WM_XBUTTONUP;   mouse_button_event(.Mouse_Up, ifx ((wp >> 16) & 0xffff) == 1 then .X1 else .X2, lp); return 1;
         case win.WM_MOUSEWHEEL; #through;
         case win.WM_MOUSEHWHEEL;
-            delta := cast(s16) ((wp >> 16) & 0xffff) / 120.0 * 40; // Chrome: 40px per notch
+            // Chromium on Windows: the system's lines (or chars) per notch at 100/3 px each; "one screen
+            // at a time" (0xffffffff) steps 87.5% of the view, Blink's page step.
+            lines: u32 = 3;
+            SystemParametersInfoW(xx ifx msg == win.WM_MOUSEWHEEL then SPI_GETWHEELSCROLLLINES else SPI_GETWHEELSCROLLCHARS, 0, *lines, 0);
+            step := cast(float32) lines * 100 / 3;
+            if lines == 0xffff_ffff {
+                r: win.RECT;
+                win.GetClientRect(hwnd, *r);
+                step = (ifx msg == win.WM_MOUSEWHEEL then r.bottom - r.top else r.right - r.left) / s.scale * 0.875;
+            }
+            delta := cast(s16) ((wp >> 16) & 0xffff) / 120.0 * step;
             pt := win.POINT.{lparam_x(lp), lparam_y(lp)};
             win.ScreenToClient(hwnd, *pt);
             e := Event.{kind = .Scroll, pos = .{pt.x / s.scale, pt.y / s.scale}, mods = current_mods(), time = time_now()};

@@ -1,0 +1,10 @@
+# Ctrl+/ opens the keyboard shortcut list; Escape closes it.
+wait 5
+key / cmd
+wait 5
+expect_visible "Keyboard Shortcuts"
+expect_visible "Ctrl+Alt+A"
+shot build/ui-shortcut_list.png
+key escape
+wait 5
+expect_not_visible "Keyboard Shortcuts"

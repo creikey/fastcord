@@ -278,6 +278,7 @@ frame :: () {
 		voice_frame();
 		login_check_auth();
 	}
+	video_frame();
 	req_frame();
 	t_media := platform.time_now();
 	watchdog_phase(.Media);
@@ -411,6 +412,8 @@ key_by_name :: (name: string) -> platform.Key {
 		return .Left_Bracket;
 	case "]";
 		return .Right_Bracket;
+	case "/";
+		return .Slash;
 	}
 	if name.count == 1 && name[0] >= #char "a" && name[0] <= #char "z" return cast(platform.Key) (cast(int) platform.Key.A + name[0] - #char "a");
 	return .None;
@@ -472,12 +475,16 @@ script_command :: (path: string, f: []string, t: *float64) {
 		bench_pause();
 		return;
 	case "move";
-		platform.inject_event(.{kind = .Mouse_Move, pos = .{num(f[1]), num(f[2])}});
+		ev := platform.Event.{kind = .Mouse_Move, pos = .{num(f[1]), num(f[2])}};
+		if f.count > 3 && f[3] == "shift" ev.mods = .Shift; // move <x> <y> [shift]
+		platform.inject_event(ev);
 	case "click"; #through; case "dclick"; #through; case "tclick";
 		n := ifx f[0] == "click" then 1 else (ifx f[0] == "dclick" then 2 else 3);
 		p := Vector2.{num(f[1]), num(f[2])};
+		mods: platform.Mod;
+		if f.count > 3 && f[3] == "alt" mods = .Alt; // click <x> <y> [alt]
 		platform.inject_event(.{kind = .Mouse_Move, pos = p});
-		platform.inject_event(.{kind = .Mouse_Down, pos = p, button = .Left, click_count = n});
+		platform.inject_event(.{kind = .Mouse_Down, pos = p, button = .Left, click_count = n, mods = mods});
 		platform.inject_event(.{kind = .Mouse_Up, pos = p, button = .Left, click_count = n});
 	case "go_home";
 		go_home();
@@ -531,6 +538,9 @@ script_command :: (path: string, f: []string, t: *float64) {
 		return;
 	case "resize";
 		platform.set_headless_size(cast(int) num(f[1]), cast(int) num(f[2]));
+	case "in_voice";
+		// in_voice <channel id>: show the voice panel as if joined (fixtures have no voice connection)
+		app.voice_channel = dc.parse_snowflake(f[1]);
 	case "theme";
 		th, ok := theme_by_name(f[1]);
 		if ok theme_load(*app.theme, th);
@@ -682,6 +692,18 @@ script_command :: (path: string, f: []string, t: *float64) {
 		if got != want {
 			fail("%: expect_clipboard failed\n  want \"%\"\n  got  \"%\"", path, want, got);
 		}
+		return;
+	case "failed_send";
+		// failed_send <word>: our own message in the open channel whose send failed (fixtures can't send)
+		s := store();
+		msg := dc.new_message(s);
+		msg.id = 1564185900000000000;
+		msg.channel_id = app.view.channel;
+		msg.author_id = s.me;
+		msg.content = dc.clone_str(f[1], s.allocator);
+		msg.failed = true;
+		dc.insert_message(dc.message_list(s, app.view.channel), msg);
+		s.changed += 1;
 		return;
 	case "net";
 		// net hold|fail|ok: how offline requests end (requests.jai)

@@ -1,0 +1,4 @@
+# Home: an unread DM row shows its red unread count, like the DM avatar on the rail.
+wait 5
+go_home
+wait 20

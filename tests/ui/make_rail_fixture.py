@@ -4,7 +4,7 @@
 # Run: python3 -I tests/ui/make_rail_fixture.py
 import base64, json, os
 here = os.path.dirname(os.path.abspath(__file__))
-lines = [json.loads(l) for l in open(os.path.join(here, 'chat.jsonl'))]
+lines = [json.loads(l) for l in open(os.path.join(here, 'chat.jsonl'), encoding='utf-8')]
 ready = next(o['etf']['d'] for o in lines if o['etf'].get('t') in ('READY', {'$atom': 'READY'}))
 me = ready['user']['id']
 EPOCH = 1420070400000
@@ -24,7 +24,9 @@ for i, gid in enumerate(G):
 # guild 2 has an unread @mention, guild 3 just unread
 for i, (gi, mention) in enumerate([(1, True), (3, False)]):
     out.append(ev('MESSAGE_CREATE', {'id': sf(base_ms + 5000 * 1000, 70 + i), 'channel_id': G[gi] + 1, 'guild_id': G[gi], 'author': users[1],
-        'content': ('<@%d> look at this' % me) if mention else 'hello', 'timestamp': '', 'edited_timestamp': None, 'type': 0, 'attachments': [], 'embeds': [],
+        'content': ('<@%d> look at this' % me) if mention else 'hello', 'timestamp': '', 'edited_timestamp': None, 'type': 0, 'attachments': [],
+        # the mention carries a two-image post, so the inbox's narrow card must shrink its mosaic
+        'embeds': [{'type': 'rich', 'url': 'https://x.com/p/1', 'image': {'url': 'https://pbs.twimg.com/%d.png' % k, 'width': 640, 'height': 360}} for k in range(2)] if mention else [],
         'mentions': [{'id': me, 'username': 'dingus'}] if mention else [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
 # folder "Code" with Odin Lang + Rust Gamedev (red), Pixel Art Club + Night Owls loose
 def varint(v):
@@ -51,6 +53,6 @@ for k, (cid, kind, rec, unread) in enumerate(dms):
 # friends so the Create DM popout has people to list; Nelly has a friend nickname
 for k, u in enumerate(users):
     out.append(ev('RELATIONSHIP_ADD', {'id': u['id'], 'type': 1, 'user': u, 'nickname': 'Lil Bean' if k == 1 else None, 'since': '2026-01-01T00:00:00+00:00'}))
-with open(os.path.join(here, 'rail.jsonl'), 'w') as f:
+with open(os.path.join(here, 'rail.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     for o in out: f.write(json.dumps(o) + '\n')
 print('wrote rail.jsonl', len(out))

@@ -1,16 +1,6 @@
 // Camera capture (Media Foundation source reader) and screen capture (DXGI desktop duplication, scaled
 // and converted to NV12 by the D3D11 video processor). Each capture runs on its own thread, which opens
-// the device too, so starting one never blocks the caller. Frames are mf.Nv12.
-
-Capture :: struct {
-	on_frame: Frame_Proc;
-	user: *void;
-	thread: Thread;
-	mu: locks.Mutex; // held around on_frame, so capture_stop knows no callback runs after it returns
-	quit: bool; // atomic
-	width, height, fps: int; // camera: requested; screen: output
-	target: Screen_Target;
-}
+// the device too, so starting one never blocks the caller. Frames are yuv.Nv12.
 
 // Enumerating devices can take a while, so this only knows what the last camera_start found: until then,
 // assume there is one.
@@ -18,7 +8,7 @@ camera_supported :: () -> bool { return atomic_load(*camera_count) != 0; }
 
 camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30) -> *Capture {
 	c := New(Capture);
-	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps};
+	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps, camera = true};
 	start(c, camera_thread);
 	return c;
 }
@@ -63,85 +53,10 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 	return c;
 }
 
-// A synthetic source for live tests (FASTCORD_VIDEO_TEST): eight colour bars scrolling left and a white
-// square moving across, at fps. Never touches a camera or the screen.
-pattern_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30) -> *Capture {
-	c := New(Capture);
-	c.* = .{on_frame = on_frame, user = user, width = width & ~1, height = height & ~1, fps = max(fps, 1)};
-	start(c, (t: *Thread) -> s64 {
-		c := cast(*Capture) t.data;
-		BARS :: [3]u8.[.[235, 128, 128], .[210, 16, 146], .[170, 166, 16], .[145, 54, 34], .[106, 202, 222], .[81, 90, 240], .[41, 240, 110], .[16, 128, 128]]; // Y Cb Cr
-		w, h := c.width, c.height;
-		next := current_time_monotonic();
-		n := 0;
-		while !atomic_load(*c.quit) {
-			f := mf.nv12_create(w, h);
-			shift, bx, by := n * 8, (n * 12) % max(w - h / 4, 1), h / 2 - h / 8;
-			uv := f.data.data + w * h;
-			for y: 0..h - 1 for x: 0..w - 1 {
-				bar := BARS[((x + shift) * 8 / w) % 8];
-				box := x >= bx && x < bx + h / 4 && y >= by && y < by + h / 4;
-				f.data[y * w + x] = ifx box then 235 else bar[0];
-				if (x | y) & 1 continue;
-				uv[(y / 2) * w + x] = ifx box then 128 else bar[1];
-				uv[(y / 2) * w + x + 1] = ifx box then 128 else bar[2];
-			}
-			emit(c, f);
-			mf.nv12_release(f);
-			n += 1;
-			next += milliseconds_to_apollo(1000 / c.fps);
-			left := to_milliseconds(next - current_time_monotonic());
-			if left > 0 sleep_milliseconds(xx left);
-		}
-		return 0;
-	});
-	return c;
-}
-
-// Waits at most for a frame callback already running. The thread itself can stay blocked for long (a
-// camera's ReadSample, opening or shutting down the device), so it is freed later, once it has exited.
-capture_stop :: (c: *Capture) {
-	if !c return;
-	locks.lock(*c.mu);
-	atomic_store(*c.quit, true);
-	locks.unlock(*c.mu);
-	array_add(*stopped, c);
-	reap();
-}
-
 #scope_file
 
 camera_count: s32 = -1; // unknown
 screens: [..]Screen_Target;
-stopped: [..]*Capture; // threads still exiting; UI thread only
-
-reap :: () {
-	i := 0;
-	while i < stopped.count {
-		c := stopped[i];
-		if thread_is_done(*c.thread) {
-			thread_deinit(*c.thread);
-			free(c);
-			array_unordered_remove_by_index(*stopped, i);
-		} else {
-			i += 1;
-		}
-	}
-}
-
-start :: (c: *Capture, proc: Thread_Proc) {
-	reap();
-	thread_init(*c.thread, proc);
-	c.thread.data = c;
-	thread_start(*c.thread);
-}
-
-emit :: (c: *Capture, f: *mf.Nv12) {
-	locks.lock(*c.mu);
-	if !atomic_load(*c.quit) c.on_frame(c.user, f, f.width, f.height);
-	locks.unlock(*c.mu);
-	reset_temporary_storage();
-}
 
 // The video capture devices (release each, then CoTaskMemFree the array); updates camera_count.
 cameras :: () -> **void, int {
@@ -162,16 +77,39 @@ camera_thread :: (t: *Thread) -> s64 {
 	com := mf.com_enter();
 	defer mf.com_leave(com);
 	acts, n := cameras();
-	if !n return 0;
-	act := acts[0];
-	for 1..n - 1 mf.release(acts[it]);
+	if !n { c.error = "No camera found."; return 0; }
+	// Virtual cameras (NDI, for one) are root-enumerated, often listed before the real ones, and may
+	// never deliver a frame until some app feeds them, so take the first real device.
+	is_virtual :: (act: *void) -> bool {
+		s: *u16;
+		len: u32;
+		if mf.com(act, 13, #type (*void, *GUID, **u16, *u32) -> HRESULT #c_call)(act, *mf.MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK, *s, *len) < 0 return false;
+		defer mf.CoTaskMemFree(s);
+		PREFIX :: "\\\\?\\root#";
+		if len < PREFIX.count return false;
+		for 0..PREFIX.count - 1 {
+			ch := s[it];
+			if ch >= #char "A" && ch <= #char "Z" ch += 32;
+			if ch != PREFIX[it] return false;
+		}
+		return true;
+	}
+	pick := 0;
+	for 0..n - 1 if !is_virtual(acts[it]) { pick = it; break; }
+	act := acts[pick];
+	for 0..n - 1 if it != pick mf.release(acts[it]);
 	mf.CoTaskMemFree(acts);
 	defer {
 		mf.com(act, 34, #type (*void) -> HRESULT #c_call)(act); // IMFActivate::ShutdownObject
 		mf.release(act);
 	}
 	source: *void;
-	if mf.com(act, 33, #type (*void, *GUID, **void) -> HRESULT #c_call)(act, *mf.IID_IMFMediaSource, *source) < 0 return 0;
+	hr := mf.com(act, 33, #type (*void, *GUID, **void) -> HRESULT #c_call)(act, *mf.IID_IMFMediaSource, *source);
+	if hr < 0 {
+		print("camera: opening device % of % failed (hr %)\n", pick, n, hr, to_standard_error = true);
+		c.error = "Couldn't open the camera. Another app may be using it.";
+		return 0;
+	}
 	attrs: *void;
 	mf.MFCreateAttributes(*attrs, 2);
 	if attrs {
@@ -179,10 +117,14 @@ camera_thread :: (t: *Thread) -> s64 {
 		mf.set_u32(attrs, *mf.MF_LOW_LATENCY, 1);
 	}
 	reader: *void;
-	hr := mf.MFCreateSourceReaderFromMediaSource(source, attrs, *reader);
+	hr = mf.MFCreateSourceReaderFromMediaSource(source, attrs, *reader);
 	mf.release(attrs);
 	mf.release(source);
-	if hr < 0 return 0;
+	if hr < 0 {
+		print("camera: source reader failed (hr %)\n", hr, to_standard_error = true);
+		c.error = "Couldn't open the camera.";
+		return 0;
+	}
 	defer mf.release(reader);
 
 	STREAM :: mf.MF_SOURCE_READER_FIRST_VIDEO_STREAM;
@@ -212,7 +154,11 @@ camera_thread :: (t: *Thread) -> s64 {
 	out := mf.video_type(*mf.MFVideoFormat_NV12, w, h);
 	ok := out && set_type(reader, out);
 	mf.release(out);
-	if !ok return 0;
+	if !ok {
+		print("camera: no NV12 output at %x%\n", w, h, to_standard_error = true);
+		c.error = "The camera's video format isn't supported.";
+		return 0;
+	}
 
 	// The current output type: visible size, padded height and stride.
 	read_type :: (reader: *void) -> int, int, int, int {
@@ -227,13 +173,18 @@ camera_thread :: (t: *Thread) -> s64 {
 		idx, flags: u32;
 		ts: s64;
 		s: *void;
-		if mf.com(reader, 9, #type (*void, u32, u32, *u32, *u32, *s64, **void) -> HRESULT #c_call)(reader, STREAM, 0, *idx, *flags, *ts, *s) < 0 break;
-		if flags & (mf.MF_SOURCE_READERF_ERROR | mf.MF_SOURCE_READERF_ENDOFSTREAM) { mf.release(s); break; }
+		hr = mf.com(reader, 9, #type (*void, u32, u32, *u32, *u32, *s64, **void) -> HRESULT #c_call)(reader, STREAM, 0, *idx, *flags, *ts, *s);
+		if hr < 0 || flags & (mf.MF_SOURCE_READERF_ERROR | mf.MF_SOURCE_READERF_ENDOFSTREAM) {
+			print("camera: capture stopped (hr %, flags %)\n", hr, flags, to_standard_error = true);
+			c.error = "The camera stopped. Another app may have taken it.";
+			mf.release(s);
+			break;
+		}
 		if flags & mf.MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED frame_w, frame_h, pad_h, stride = read_type(reader);
 		if !s continue;
 		f := mf.nv12_from_sample(s, frame_w, frame_h, pad_h, stride);
 		mf.release(s);
-		if f { emit(c, f); mf.nv12_release(f); }
+		if f { emit(c, f); yuv.nv12_release(f); }
 	}
 	return 0;
 }
@@ -243,8 +194,8 @@ DXGI_ERROR_WAIT_TIMEOUT :: cast(HRESULT) 0x887A0027;
 
 screen_thread :: (t: *Thread) -> s64 {
 	c := cast(*Capture) t.data;
-	last: *mf.Nv12;
-	defer mf.nv12_release(last);
+	last: *yuv.Nv12;
+	defer yuv.nv12_release(last);
 	// A session lasts until the duplication is lost (mode change, secure desktop, display off).
 	while !atomic_load(*c.quit) {
 		if !screen_session(c, *last) && !atomic_load(*c.quit) {
@@ -255,7 +206,7 @@ screen_thread :: (t: *Thread) -> s64 {
 	return 0;
 }
 
-screen_session :: (c: *Capture, last: **mf.Nv12) -> bool {
+screen_session :: (c: *Capture, last: **yuv.Nv12) -> bool {
 	factory: *IDXGIFactory1;
 	if FAILED(CreateDXGIFactory1(uid(IDXGIFactory1_UUID), cast(**void) *factory)) return false;
 	defer IUnknown_Release(factory);
@@ -336,7 +287,7 @@ screen_session :: (c: *Capture, last: **mf.Nv12) -> bool {
 			// LastPresentTime is 0 when only the pointer moved: the last image still stands.
 			if info.LastPresentTime.QuadPart != 0 || !last.* {
 				f := convert(c, ctx, vdev, vctx, venum, vp, oview, nv12, staging, res);
-				if f { mf.nv12_release(last.*); last.* = f; }
+				if f { yuv.nv12_release(last.*); last.* = f; }
 			}
 			IUnknown_Release(res);
 			IDXGIOutputDuplication_ReleaseFrame(dup);
@@ -348,7 +299,7 @@ screen_session :: (c: *Capture, last: **mf.Nv12) -> bool {
 }
 
 convert :: (c: *Capture, ctx: *ID3D11DeviceContext, vdev: *ID3D11VideoDevice, vctx: *ID3D11VideoContext, venum: *ID3D11VideoProcessorEnumerator,
-	vp: *ID3D11VideoProcessor, oview: *ID3D11VideoProcessorOutputView, nv12: *ID3D11Texture2D, staging: *ID3D11Texture2D, res: *IDXGIResource) -> *mf.Nv12 {
+	vp: *ID3D11VideoProcessor, oview: *ID3D11VideoProcessorOutputView, nv12: *ID3D11Texture2D, staging: *ID3D11Texture2D, res: *IDXGIResource) -> *yuv.Nv12 {
 	tex: *ID3D11Texture2D;
 	if FAILED(IUnknown_QueryInterface(res, *uid(ID3D11Texture2D_UUID), cast(**void) *tex)) return null;
 	defer IUnknown_Release(tex);
@@ -364,7 +315,7 @@ convert :: (c: *Capture, ctx: *ID3D11DeviceContext, vdev: *ID3D11VideoDevice, vc
 	if FAILED(ID3D11DeviceContext_Map(ctx, staging, 0, .READ, 0, *m)) return null;
 	p := cast(*u8) m.pData;
 	pitch := cast(int) m.RowPitch;
-	f := mf.nv12_from_planes(c.width, c.height, p, p + pitch * c.height, pitch);
+	f := yuv.nv12_from_planes(c.width, c.height, p, p + pitch * c.height, pitch);
 	ID3D11DeviceContext_Unmap(ctx, staging, 0);
 	return f;
 }

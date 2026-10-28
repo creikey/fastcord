@@ -291,6 +291,58 @@ mentions_convert :: (text: string, ch: *dc.Channel) -> string {
 	return builder_to_string(*b,, temp);
 }
 
+// The inverse for the edit box: <@id>, <@&id> and <:name:id> as "@username", "@Role" and
+// ":name:", outside code (temp). Each stays raw unless mentions_convert or
+// emoji_convert_shortcodes would turn it back into the same markup, so a save never changes it.
+mentions_readable :: (text: string, ch: *dc.Channel) -> string {
+	if find_index_from_left(text, #char "<") < 0 return text;
+	b: String_Builder;
+	b.allocator = temp;
+	i := 0;
+	fence, tick := false, false;
+	while i < text.count {
+		rest := advance(text, i);
+		if begins_with(rest, "```") {
+			fence = !fence;
+			append(*b, "```");
+			i += 3;
+			continue;
+		}
+		c := text[i];
+		if c == #char "`" && !fence tick = !tick;
+		close := ifx c == #char "<" && !fence && !tick then find_index_from_left(rest, #char ">") else -1;
+		if close > 0 {
+			token := slice(rest, 0, close + 1);
+			inner := slice(rest, 1, close - 1);
+			readable := "";
+			at_word_start := i == 0 || is_space(text[i - 1]);
+			if begins_with(inner, "@&") {
+				id, ok := dc.parse_u64(advance(inner, 2));
+				g := ifx ok && ch.guild_id then dc.guild_get(store(), ch.guild_id);
+				if g for g.roles if it.id == id readable = tprint("@%", it.name);
+				if !at_word_start || mentions_convert(readable, ch) != token readable = "";
+			} else if begins_with(inner, "@") {
+				id, ok := dc.parse_u64(advance(inner, ifx begins_with(inner, "@!") then 2 else 1));
+				u := ifx ok then dc.user_get(store(), id);
+				if u readable = tprint("@%", u.username);
+				if !at_word_start || mentions_convert(readable, ch) != tprint("<@%>", id) readable = "";
+			} else if begins_with(inner, ":") || begins_with(inner, "a:") {
+				parts := split(inner, ":",, temp);
+				if parts.count == 3 readable = tprint(":%:", parts[1]);
+				if emoji_convert_shortcodes(readable, ch.id) != token readable = "";
+			}
+			if readable {
+				append(*b, readable);
+				i += token.count;
+				continue;
+			}
+		}
+		append(*b, c);
+		i += 1;
+	}
+	return builder_to_string(*b,, temp);
+}
+
 #scope_file
 
 // Members not loaded yet: ask the gateway for the query's matches once it has been still for

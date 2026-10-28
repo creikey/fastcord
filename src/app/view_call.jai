@@ -158,17 +158,38 @@ screen_picker :: () {
 	}
 }
 
+Tile_Draw :: struct {
+	img: media.Video_Image;
+	cover: bool;
+}
+
+// Video "cover"-fitted for cameras (cropped to fill), "contain"-fitted for streams.
+tile_video_draw :: (b: *ui.Box, user: *void) {
+	d := cast(*Tile_Draw) user;
+	r := cast,force(gfx.Rect) b.rect;
+	bw, bh := r.x1 - r.x0, r.y1 - r.y0;
+	iw, ih := cast(float32) d.img.size[0], cast(float32) d.img.size[1];
+	if iw <= 0 || ih <= 0 || bw <= 0 || bh <= 0 return;
+	white := gfx.Color.{1, 1, 1, b.opacity};
+	if d.cover {
+		src := gfx.Rect.{0, 0, iw, ih};
+		if iw / ih > bw / bh { cw := ih * bw / bh; src.x0 = (iw - cw) / 2; src.x1 = src.x0 + cw; }
+		else { ch := iw * bh / bw; src.y0 = (ih - ch) / 2; src.y1 = src.y0 + ch; }
+		gfx.push_rect(.{dst = r, src = src, tex = d.img.y, tex2 = d.img.cbcr, yuv = d.img.yuv, colors = .[white, white, white, white], radii = b.style.radius});
+		return;
+	}
+	sc := min(bw / iw, bh / ih);
+	w, h := iw * sc, ih * sc;
+	x0, y0 := r.x0 + (bw - w) / 2, r.y0 + (bh - h) / 2;
+	gfx.video(.{x0, y0, x0 + w, y0 + h}, d.img.y, d.img.cbcr, d.img.yuv, 0, white);
+}
+
 #scope_file
 
 cv: struct {
 	focus_user: dc.Snowflake;
 	focus_stream: bool;
 };
-
-Tile_Draw :: struct {
-	img: media.Video_Image;
-	cover: bool;
-}
 
 // The grid shape that makes 16:9 tiles largest; the last row is centered.
 place_tiles :: (tiles: []Call_Tile, aw: float32, ah: float32) {
@@ -283,27 +304,6 @@ call_tile :: (t: Call_Tile, x: float32, y: float32, w: float32, h: float32) {
 		ring.style.border = 2;
 		ring.style.border_color = T("--status-positive");
 	}
-}
-
-// Video "cover"-fitted for cameras (cropped to fill), "contain"-fitted for streams.
-tile_video_draw :: (b: *ui.Box, user: *void) {
-	d := cast(*Tile_Draw) user;
-	r := cast,force(gfx.Rect) b.rect;
-	bw, bh := r.x1 - r.x0, r.y1 - r.y0;
-	iw, ih := cast(float32) d.img.size[0], cast(float32) d.img.size[1];
-	if iw <= 0 || ih <= 0 || bw <= 0 || bh <= 0 return;
-	white := gfx.Color.{1, 1, 1, b.opacity};
-	if d.cover {
-		src := gfx.Rect.{0, 0, iw, ih};
-		if iw / ih > bw / bh { cw := ih * bw / bh; src.x0 = (iw - cw) / 2; src.x1 = src.x0 + cw; }
-		else { ch := iw * bh / bw; src.y0 = (ih - ch) / 2; src.y1 = src.y0 + ch; }
-		gfx.push_rect(.{dst = r, src = src, tex = d.img.y, tex2 = d.img.cbcr, yuv = d.img.yuv, colors = .[white, white, white, white], radii = b.style.radius});
-		return;
-	}
-	sc := min(bw / iw, bh / ih);
-	w, h := iw * sc, ih * sc;
-	x0, y0 := r.x0 + (bw - w) / 2, r.y0 + (bh - h) / 2;
-	gfx.video(.{x0, y0, x0 + w, y0 + h}, d.img.y, d.img.cbcr, d.img.yuv, 0, white);
 }
 
 call_controls :: (cid: dc.Snowflake) {

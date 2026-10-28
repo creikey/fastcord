@@ -1,0 +1,6 @@
+# An image attachment with alt text shows an ALT badge in its corner; hovering it shows the text.
+wait 20
+expect_not_visible "a dancing cat"
+move 468 390
+wait 2
+expect_visible "a dancing cat"

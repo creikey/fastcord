@@ -175,8 +175,16 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     }
     prof.zone("gfx.present");
     if dx.swap {
-        hr := IDXGISwapChain_Present(dx.swap, 1, 0);
-        if FAILED(hr) {
+        // Sync interval 1 holds each resize frame to a vblank, so a fast drag replays stale sizes one refresh
+        // at a time. Interval 0 on a flip swap chain still doesn't tear: DWM shows the newest frame, and
+        // DO_NOT_WAIT drops the frame instead of blocking the drag when the queue is full.
+        DXGI_PRESENT_DO_NOT_WAIT :: 0x8;
+        DXGI_ERROR_WAS_STILL_DRAWING :: cast,no_check(HRESULT) 0x887A000A;
+        size_frame := platform.is_size_frame();
+        hr := IDXGISwapChain_Present(dx.swap, xx ifx size_frame then 0 else 1, xx ifx size_frame then DXGI_PRESENT_DO_NOT_WAIT else 0);
+        if hr == DXGI_ERROR_WAS_STILL_DRAWING {
+            platform.present_dropped();
+        } else if FAILED(hr) {
             g.diag.present_fails += 1;
             note_failure(hr);
         }

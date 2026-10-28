@@ -14,11 +14,8 @@ notify_tick :: () {
 	if app.client == null return;
 	s := store();
 	for * m: app_new_messages() {
-		if m.flags & SUPPRESS_NOTIFICATIONS continue;
 		if app.focused && m.channel_id == app.view.channel continue;
 		if s.settings.status == .Dnd || streamer_disable_notifications() continue;
-		r := table_find_pointer(*s.relationships, m.author_id);
-		if r && r.kind == .Blocked continue;
 		if !message_notifies(m) || notify_prefs.desktop_off || notify_prefs.lotus continue;
 		notify_message(s, m);
 	}

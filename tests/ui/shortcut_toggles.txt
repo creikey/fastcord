@@ -1,0 +1,21 @@
+# Ctrl+P toggles the pins popout, Ctrl+I the inbox, Ctrl+U the member list.
+wait 5
+key p cmd
+wait 5
+expect_visible "Pinned Messages"
+key p cmd
+wait 5
+expect_not_visible "Pinned Messages"
+key i cmd
+wait 5
+expect_visible "Inbox"
+key i cmd
+wait 5
+expect_not_visible "Inbox"
+resize 1600 900
+wait 5
+shot build/ui-shortcut_toggles_members.png
+key u cmd
+wait 5
+wait 5
+shot build/ui-shortcut_toggles.png

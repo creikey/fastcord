@@ -1,0 +1,7 @@
+# Hovering a message's header time shows the full date in a tooltip, as the client does.
+wait 5
+move 518 447
+wait 5
+move 519 447
+wait 5
+expect_visible "Monday, October 26, 2026 7:54 AM"

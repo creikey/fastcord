@@ -30,6 +30,7 @@ Token_Kind :: enum u8 {
 	Everyone; // @everyone / @here
 	Custom_Emoji; // name, id, animated
 	Timestamp; // id = unix seconds, name = format letter
+	Command; // name = "/name sub" for </name sub:id>, or a server page's label for <id:customize> etc.
 }
 
 Token :: struct {
@@ -48,10 +49,13 @@ Md_Block :: struct {
 	lang: string; // code block language
 	code: string; // code block body
 	depth: int; // list nesting
+	number: int; // ordered list item's number; 0 = bullet
+	quoted: bool; // inside a "> " / ">>> " quote (its paragraphs are .Quote)
 }
 
-// Parses into temp.
-md_parse :: (src: string) -> []Md_Block {
+// Parses into temp. A quote's body is parsed again with quoted set, as the client's blockQuote rule
+// does: headings, lists and code blocks work inside, nested quotes don't.
+md_parse :: (src: string, quoted := false) -> []Md_Block {
 	push_allocator(temp);
 	blocks: [..]Md_Block;
 	array_reserve(*blocks, 4);
@@ -67,6 +71,17 @@ md_parse :: (src: string) -> []Md_Block {
 	add :: (kind: Block_Kind, text: string, depth := 0) #expand {
 		flush();
 		array_add(*`blocks, .{kind = kind, tokens = md_inline(text), depth = depth});
+	}
+	add_quote :: (text: string) #expand {
+		flush();
+		inner := md_parse(text, quoted = true);
+		if !inner array_add(*`blocks, .{kind = .Quote, quoted = true});
+		for inner {
+			b := it;
+			if b.kind == .Paragraph b.kind = .Quote;
+			b.quoted = true;
+			array_add(*`blocks, b);
+		}
 	}
 	rest := src;
 	while rest {
@@ -96,11 +111,11 @@ md_parse :: (src: string) -> []Md_Block {
 		nl := find_index_from_left(rest, #char "\n");
 		line := ifx nl < 0 then rest else span(rest, 0, nl);
 		next := ifx nl < 0 then "" else span(rest, nl + 1, rest.count);
-		if begins_with(line, ">>> ") {
+		if !quoted && begins_with(line, ">>> ") {
 			// quotes the rest of the message
-			add(.Quote, trim_right(span(rest, 4, rest.count), "\n"));
+			add_quote(trim_right(span(rest, 4, rest.count), "\n"));
 			break;
-		} else if is_quote_line(line) {
+		} else if !quoted && is_quote_line(line) {
 			// consecutive "> " lines are one blockquote (one bar), as in the client
 			sb: String_Builder;
 			while true {
@@ -115,7 +130,7 @@ md_parse :: (src: string) -> []Md_Block {
 				next = ifx nl < 0 then "" else span(next, nl + 1, next.count);
 				append(*sb, "\n");
 			}
-			add(.Quote, builder_to_string(*sb));
+			add_quote(builder_to_string(*sb));
 		} else if begins_with(line, "### ") {
 			add(.Heading3, span(line, 4, line.count));
 		} else if begins_with(line, "## ") {
@@ -125,9 +140,14 @@ md_parse :: (src: string) -> []Md_Block {
 		} else if begins_with(line, "-# ") {
 			add(.Subtext, span(line, 3, line.count));
 		} else if is_list_line(line) {
-			indent := 0;
-			while indent < line.count && line[indent] == #char " " indent += 1;
-			add(.List_Item, span(line, indent + 2, line.count), indent / 2);
+			indent, body, number := list_marker(line);
+			add(.List_Item, span(line, body, line.count), indent / 2);
+			if number {
+				// an ordered list counts up from its first item's number, as in the client
+				prev := ifx blocks.count >= 2 then *blocks[blocks.count - 2] else null;
+				same_list := prev && prev.kind == .List_Item && prev.number && prev.depth == indent / 2;
+				blocks[blocks.count - 1].number = ifx same_list then prev.number + 1 else number;
+			}
 		} else {
 			here := src.count - rest.count;
 			if para_hi <= para_lo para_lo = here;
@@ -243,8 +263,24 @@ span :: (s: string, lo: int, hi: int) -> string {
 }
 
 is_list_line :: (line: string) -> bool {
-	l := trim_left(line, " ");
-	return begins_with(l, "- ") || begins_with(l, "* ");
+	_, body := list_marker(line);
+	return body > 0;
+}
+
+// "- ", "* " or "<digits>. " after leading spaces: the indent, where the item's text starts
+// (0 = not a list line) and an ordered item's number (0 for bullets).
+list_marker :: (line: string) -> indent: int, body: int, number: int {
+	i := 0;
+	while i < line.count && line[i] == #char " " i += 1;
+	indent := i;
+	if i + 1 < line.count && (line[i] == #char "-" || line[i] == #char "*") && line[i + 1] == #char " " return indent, i + 2, 0;
+	number := 0;
+	while i < line.count && i - indent < 9 && line[i] >= #char "0" && line[i] <= #char "9" {
+		number = number * 10 + line[i] - #char "0";
+		i += 1;
+	}
+	if i == indent || i + 1 >= line.count || line[i] != #char "." || line[i + 1] != #char " " return indent, 0, 0;
+	return indent, i + 2, max(number, 1);
 }
 
 Md_Parser :: struct {
@@ -327,8 +363,19 @@ inline_into :: (p: *Md_Parser, src: string) {
 		if c == #char "h" && (begins_with(here, "https://") || begins_with(here, "http://")) && (i == 0 || !is_alnum(src[i - 1])) {
 			end := i;
 			while end < src.count && src[end] != #char " " && src[end] != #char "\n" && src[end] != #char "<" end += 1;
-			// trailing punctuation is not part of the URL
-			while end > i && find_index_from_left(".,:;!?)'\"", src[end - 1]) >= 0 end -= 1;
+			// trailing punctuation is not part of the URL, except a ")" closing a "(" inside it (Foo_(bar))
+			while end > i {
+				t := src[end - 1];
+				if t == #char ")" {
+					opens, closes := 0, 0;
+					for k: i..end - 1 {
+						if src[k] == #char "(" opens += 1;
+						if src[k] == #char ")" closes += 1;
+					}
+					if closes <= opens break;
+				} else if find_index_from_left(".,:;!?'\"", t) < 0 break;
+				end -= 1;
+			}
 			emit(p, .Text, pending());
 			emit(p, .Link, span(src, i, end));
 			take(end);
@@ -442,11 +489,28 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 		v, ok := dc.parse_u64(secs);
 		if !ok return 0, false;
 		tok = .{kind = .Timestamp, id = v, name = ifx found then style else "f", text = whole};
+	} else if begins_with(inner, "/") {
+		colon := find_index_from_right(inner, #char ":");
+		if colon <= 1 return 0, false;
+		id, ok := dc.parse_u64(span(inner, colon + 1, inner.count));
+		if !ok return 0, false;
+		tok = .{kind = .Command, id = id, name = span(inner, 0, colon), text = whole};
 	} else if begins_with(inner, "https://") || begins_with(inner, "http://") {
 		// <url> suppresses embeds but still links
 		tok = .{kind = .Link, text = inner};
 	} else {
-		return 0, false;
+		// <id:customize> and friends: the server's own pages
+		found, gid, page := split_from_left(inner, #char ":");
+		_, ok := dc.parse_u64(gid);
+		label: string;
+		if page == {
+		case "customize"; label = "Channels & Roles";
+		case "browse"; label = "Browse Channels";
+		case "guide"; #through; case "home"; label = "Server Guide";
+		case "linked-roles"; label = "Linked Roles";
+		}
+		if !found || !ok || label == "" return 0, false;
+		tok = .{kind = .Command, name = label, text = whole};
 	}
 	emit(p, .Text, pending);
 	tok.styles = p.styles;

@@ -192,6 +192,16 @@ Key_Code :: enum u16 {
 	Z;
 	K;
 	F;
+	M;
+	D;
+	E;
+	G;
+	S;
+	U;
+	B;
+	I;
+	P;
+	Slash;
 	Left_Bracket;
 	Right_Bracket;
 	Other;
@@ -321,6 +331,7 @@ State :: struct {
 	next_hot: Key;
 	cursor: Cursor;
 	animating: bool;
+	instant_scroll: bool; // scroll boxes jump to their target instead of easing
 	overlay_under_mouse: bool; // last frame's overlay (popout, modal, menu) covers the mouse
 	animating_loc: Source_Code_Location; // last animate() still in motion (debugging idle wakeups)
 	scroll_consumed: bool;
@@ -659,8 +670,8 @@ signal :: (b: *Box) -> Signal {
 	sig.dragging = s.active == b.key;
 	if sig.dragging sig.drag_delta = s.mouse - s.press_pos;
 
-	// scrolling: the innermost scrollable under the mouse takes the wheel
-	if (b.flags & SCROLL) && !s.scroll_consumed && contains(visible_rect(b), s.mouse) {
+	// scrolling: the innermost scrollable under the mouse takes the wheel; one behind an open overlay doesn't
+	if (b.flags & SCROLL) && !s.scroll_consumed && mouse_over(b) {
 		for * e: s.events {
 			if e.kind != .Scroll || e.consumed continue;
 			if b.flags & .Scroll_Y b.view_off_target.y -= e.delta.y;
@@ -1210,7 +1221,8 @@ layout_position :: (b: *Box) {
 		for axis: AXES {
 			max_off := max(0.0, content.component[axis] - b.fixed_size.component[axis]);
 			b.view_off_target.component[axis] = clamp(b.view_off_target.component[axis], 0, max_off);
-			animate(*b.view_off.component[axis], b.view_off_target.component[axis], 40);
+			if context.ui.instant_scroll b.view_off.component[axis] = b.view_off_target.component[axis];
+			else animate(*b.view_off.component[axis], b.view_off_target.component[axis], 40);
 			b.view_off.component[axis] = clamp(b.view_off.component[axis], 0, max_off);
 		}
 	}

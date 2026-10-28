@@ -1,0 +1,17 @@
+# Ctrl+B / I / U wrap the selection in **, * and __ and keep the text selected; pressed again they unwrap
+# it, and Ctrl+B inside *** leaves the italic.
+wait 5
+click 600 684
+type hello world
+key a cmd
+key b cmd
+key i cmd
+wait 2
+expect_visible "***hello world***"
+key b cmd
+wait 2
+expect_visible "*hello world*"
+key u cmd
+wait 2
+expect_visible "*__hello world__*"
+shot build/ui-composer_format_keys.png

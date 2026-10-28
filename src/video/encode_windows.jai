@@ -79,9 +79,9 @@ encoder_create :: (codec: Video_Codec, width: int, height: int, fps: int, bitrat
 	return e;
 }
 
-// pixbuf: an mf.Nv12 of the encoder's size; others are dropped.
+// pixbuf: an yuv.Nv12 of the encoder's size; others are dropped.
 encoder_encode :: (e: *Encoder, pixbuf: *void, pts_90k: u32, force_keyframe := false) {
-	f := cast(*mf.Nv12) pixbuf;
+	f := cast(*yuv.Nv12) pixbuf;
 	if f.width != e.width || f.height != e.height return;
 	com := mf.com_enter();
 	defer mf.com_leave(com);

@@ -791,14 +791,15 @@ mouse_button :: (b: *XButtonEvent, down: bool) {
         case 8; btn = .X1;
         case 9; btn = .X2;
         case 4; #through; case 5; #through; case 6; #through; case 7;
-            // wheel notches are buttons 4-7 (up, down, left, right); Chrome: 40px per notch
+            // wheel notches are buttons 4-7 (up, down, left, right); Chromium on X11: 53px per notch
+            // (kWheelScrollAmount in ui/events/x/events_x_utils.cc)
             if !down return;
             e := Event.{kind = .Scroll, pos = pos, mods = mods, time = now};
             if b.button == {
-                case 4; e.delta.y = 40;
-                case 5; e.delta.y = -40;
-                case 6; e.delta.x = 40;
-                case 7; e.delta.x = -40;
+                case 4; e.delta.y = 53;
+                case 5; e.delta.y = -53;
+                case 6; e.delta.x = 53;
+                case 7; e.delta.x = -53;
             }
             push_event(e);
             return;

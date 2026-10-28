@@ -173,6 +173,7 @@ Attachment :: struct {
 	height: int;
 	duration_secs: float32; // voice messages
 	waveform: string;
+	description: string; // alt text
 	flags: u64;
 }
 
@@ -198,6 +199,7 @@ Reaction :: struct {
 	burst_count: int;
 	me: bool;
 	me_burst: bool;
+	burst_color: u32; // 0xRRGGBB from burst_colors[0], 0 if none
 }
 
 Message :: struct {
@@ -257,6 +259,7 @@ Voice_State :: struct {
 Relationship :: struct {
 	user_id: Snowflake;
 	kind: Relationship_Type;
+	ignored: bool;
 	nickname: string;
 	since: string;
 }

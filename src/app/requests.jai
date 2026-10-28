@@ -141,27 +141,35 @@ skel :: (id: string, w: float32, h: float32, round := false) -> *ui.Box {
 req_toast :: () {
 	if toast.text == "" return;
 	if app.ui.time > toast.until {
+		free(toast.text);
 		toast = .{};
 		return;
 	}
 	app.wake_at = ifx app.wake_at > 0 then min(app.wake_at, toast.until) else toast.until;
 	t := ui.box("reqtoast", .Draw_Background | .Draw_Text | .Floating_X | .Floating_Y | .Overlay);
 	t.semantic_size = .[ui.text_size(16), ui.px(36)];
-	t.text = toast.text;
+	t.text = copy_string(toast.text,, temp); // toast_show may free it before this frame draws
 	t.style.font = F(.Medium);
 	t.style.font_size = 14;
 	t.style.text_align = .Center;
 	t.style.text_color = .{1, 1, 1, 1};
-	t.style.bg = T("--status-danger");
+	t.style.bg = ifx toast.ok then T("--status-positive") else T("--status-danger");
 	t.style.radius = all4(8);
 	w := t.rect.x1 - t.rect.x0;
 	t.fixed_pos = .{(app.ui.window.x - w) / 2, app.ui.window.y - 36 - 96};
+}
+
+// A short notice in the same place: green when ok (a done action), red when not.
+toast_show :: (text: string, ok: bool) {
+	free(toast.text);
+	toast = .{text = copy_string(text), until = app.ui.time + 5, ok = ok};
 }
 
 req_reset_for_test :: () {
 	for reqs free(it.key);
 	array_reset(*reqs);
 	req_offline = .Hold;
+	free(toast.text);
 	toast = .{};
 }
 
@@ -182,7 +190,7 @@ Req :: struct {
 reqs: [..]Req;
 req_seq: u64;
 toast: Req_Toast;
-Req_Toast :: struct { text: string; until: float64; }
+Req_Toast :: struct { text: string; until: float64; ok: bool; }
 
 req_find :: (key: string) -> *Req {
 	for * reqs if it.key == key return it;
@@ -190,6 +198,5 @@ req_find :: (key: string) -> *Req {
 }
 
 req_toast_show :: (status: int) {
-	toast.text = ifx status == 429 then "You're doing that too fast. Try again in a moment." else "Something went wrong. Try again.";
-	toast.until = app.ui.time + 5;
+	toast_show(ifx status == 429 then "You're doing that too fast. Try again in a moment." else "Something went wrong. Try again.", false);
 }

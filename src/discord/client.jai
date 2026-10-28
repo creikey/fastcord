@@ -115,6 +115,7 @@ Client :: struct {
 	route_mu: locks.Mutex;
 	route_guild: Snowflake;
 	route_channel: Snowflake;
+	route_scrolled_up: bool; // the open chat isn't at its newest message: incoming ones aren't acked
 	// ack token chain (POST .../ack returns the next token)
 	ack_mu: locks.Mutex;
 	ack_token: string;

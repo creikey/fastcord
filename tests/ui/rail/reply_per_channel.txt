@@ -1,0 +1,14 @@
+# A pending reply stays with its channel: gone in another channel, back on return.
+wait 5
+rclick 700 490
+wait 5
+click_text "Reply"
+wait 5
+expect_visible "Replying to"
+open 1600000000000001003
+wait 10
+expect_not_visible "Replying to"
+open 1546820603343016006
+wait 10
+expect_visible "Replying to"
+shot build/ui-rail_reply_per_channel.png

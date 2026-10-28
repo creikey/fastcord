@@ -1,0 +1,6 @@
+# Super (burst) reactions draw as their own pills, tinted by burst_colors, before the normal ones: the
+# second message's 🔥 shows a burst pill (1) and a normal pill (1), and ⭐ only a burst pill (2, yours).
+wait 5
+key pageup
+wait 5
+shot build/ui-super_reactions.png

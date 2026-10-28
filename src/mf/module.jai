@@ -1,43 +1,10 @@
-// Media Foundation and COM for Windows video: the codec MFTs (media's decoder, video's encoder), camera
-// capture, and Nv12, the CPU frame that stands in for macOS's CVPixelBuffer between them. Windows only.
+// Media Foundation and COM for Windows video: the codec MFTs (media's decoder, video's encoder) and camera
+// capture, which trade yuv.Nv12 frames. Windows only.
 
 #import "Basic";
 #import "Atomics";
 #import "Windows";
-
-// An NV12 frame: Y (width * height) then interleaved CbCr (width * height / 2), rows tightly packed,
-// even sides. Refcounted; frames cross threads (capture -> encoder and preview, decoder -> UI).
-Nv12 :: struct {
-	refs: s32;
-	width, height: int;
-	data: []u8;
-	allocator: Allocator;
-}
-
-nv12_create :: (width: int, height: int) -> *Nv12 {
-	w, h := width & ~1, height & ~1;
-	n := w * h * 3 / 2;
-	f := cast(*Nv12) alloc(size_of(Nv12) + n);
-	f.* = .{refs = 1, width = w, height = h, allocator = context.allocator};
-	f.data = .{n, cast(*u8) (f + 1)};
-	return f;
-}
-
-nv12_retain :: (f: *Nv12) -> *Nv12 { atomic_add(*f.refs, 1); return f; }
-
-nv12_release :: (f: *Nv12) {
-	if f && atomic_add(*f.refs, -1) == 1 free(f,, f.allocator);
-}
-
-// Copies a w x h picture whose planes start at y and uv with the given row pitch.
-nv12_from_planes :: (w: int, h: int, y: *u8, uv: *u8, pitch: int) -> *Nv12 {
-	f := nv12_create(w, h);
-	dst := f.data.data;
-	for r: 0..f.height - 1 memcpy(dst + r * f.width, y + r * pitch, f.width);
-	dst += f.width * f.height;
-	for r: 0..f.height / 2 - 1 memcpy(dst + r * f.width, uv + r * pitch, f.width);
-	return f;
-}
+#import "yuv";
 
 // startup: MFStartup once per process (never shut down). Any thread.
 startup :: () -> bool {
@@ -355,6 +322,7 @@ MF_LOW_LATENCY := GUID.{0x9c27891a, 0xed7a, 0x40e1, .[0x88, 0xe8, 0xb2, 0x27, 0x
 MFSampleExtension_CleanPoint := GUID.{0x9cdf01d8, 0xa0f0, 0x43ba, .[0xb0, 0x77, 0xea, 0xa0, 0x6c, 0xbd, 0x72, 0x8a]};
 MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE := GUID.{0xc60ac5fe, 0x252a, 0x478f, .[0xa0, 0xef, 0xbc, 0x8f, 0xa5, 0xf7, 0xca, 0xd3]};
 MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID := GUID.{0x8ac3587a, 0x4ae7, 0x42d8, .[0x99, 0xe0, 0x0a, 0x60, 0x13, 0xee, 0xf9, 0x0f]};
+MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK := GUID.{0x58f0aad8, 0x22bf, 0x4f8a, .[0xbb, 0x3d, 0xd2, 0xc4, 0x97, 0x8c, 0x6e, 0x2f]};
 MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING := GUID.{0x0f81da2c, 0xb537, 0x4672, .[0xa8, 0xb2, 0xa6, 0x81, 0xb1, 0x73, 0x07, 0xa3]};
 CODECAPI_AVEncCommonRateControlMode := GUID.{0x1c0608e9, 0x370c, 0x4710, .[0x8a, 0x58, 0xcb, 0x61, 0x81, 0xc4, 0x24, 0x23]};
 CODECAPI_AVEncCommonMeanBitRate := GUID.{0xf7222374, 0x2144, 0x4815, .[0xb5, 0x50, 0xa3, 0x7f, 0x8e, 0x12, 0xee, 0x52]};

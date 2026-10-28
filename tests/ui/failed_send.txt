@@ -1,0 +1,12 @@
+# A message whose send failed turns red with "Message failed to send. Retry Delete"; Delete drops it.
+# Retry needs a client, so fixture runs can't exercise it.
+wait 5
+failed_send oops
+wait 10
+expect_visible "Message failed to send."
+expect_visible "Retry"
+shot build/ui-failed_send.png
+click_text "Delete"
+wait 5
+expect_not_visible "Message failed to send."
+expect_not_visible "oops"

@@ -1,0 +1,3 @@
+# A message that mentions you (filler 22: @Dingus Battle) gets the mentioned background and a gold left bar.
+wait 10
+shot build/ui-mention_highlight.png

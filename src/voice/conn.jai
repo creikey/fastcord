@@ -186,6 +186,7 @@ Conn :: struct {
     denoiser: *void;            // RNNoise state, made on first use (audio thread)
     agc: Agc;                   // (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
+    input_limiter: audio.Limiter;
     input_db: float32 = -127;   // level of the last mic frame (after gain)
     vad_open: bool;
     ptt_mode: bool;     // push-to-talk instead of voice activity
@@ -201,6 +202,8 @@ Conn :: struct {
     vmu: locks.Mutex;                 // the send side below (encoder thread vs. RTCP)
     video_on: bool;
     video_announce: bool;  // op 12 due (timer thread)
+    cant_encode: u8;       // a bit per Video_Codec the server picked but we can't encode
+    codecs_due: bool;      // op 14 due (timer thread)
     video_w, video_h, video_fps, video_bitrate: int;
     video_seq: u16;
     video_packets, video_octets, video_last_ts: u32;
@@ -336,7 +339,7 @@ user_settings :: (c: *Conn, user_id: u64) -> *User_Settings {
 
 set_user_volume :: (c: *Conn, user_id: u64, volume: float32) {
     locks.guard(*c.mu);
-    user_settings(c, user_id).volume = clamp(volume, 0, 2);
+    user_settings(c, user_id).volume = clamp(volume, 0, 4);
 }
 
 set_user_mute :: (c: *Conn, user_id: u64, muted: bool) {
@@ -360,10 +363,10 @@ set_push_to_talk :: (c: *Conn, enabled: bool, pressed: bool, release_delay_ms :=
     c.ptt_pressed = pressed;
 }
 
-// set_input_gain: input volume, 0..2 (Settings > Voice > Input Volume).
+// set_input_gain: input volume, 0..4 (Settings > Voice > Input Volume).
 set_input_gain :: (c: *Conn, gain: float32) {
     locks.guard(*c.mu);
-    c.input_gain = clamp(gain, 0, 2);
+    c.input_gain = clamp(gain, 0, 4);
 }
 
 // set_processing: the Voice Processing switches, all done here on every platform: WebRTC's echo
@@ -934,15 +937,20 @@ timer_thread_proc :: (t: *Thread) -> s64 {
         // HELLO timeout / HEARTBEAT ACK TIMEOUT: close(4000) and resume
         if hello_timeout || timeout close_ws(c, CLOSE_FORCE);
         if beat send_heartbeat(c);
-        msg: string;
+        msg, codecs: string;
         {
             locks.guard(*c.vmu);
             if c.video_announce && c.video_ssrc && c.ws_open {
                 c.video_announce = false;
                 msg = msg_video(c.ssrc, c.video_ssrc, c.rtx_ssrc, c.video_on, c.video_w, c.video_h, c.video_fps, c.video_bitrate);
             }
+            if c.codecs_due && c.ws_open {
+                c.codecs_due = false;
+                codecs = msg_codecs(c.cant_encode);
+            }
         }
         if msg send_text(c, msg);
+        if codecs send_text(c, codecs);
         reset_temporary_storage();
     }
     return 0;
@@ -981,7 +989,7 @@ udp_resolve :: (host: string, port: int) -> Udp_Addr, bool {
 
 udp_send :: (c: *Conn, b: []u8) {
     if sendto(c.udp, b.data, xx b.count, 0, cast(*sockaddr) c.server_ep.bytes.data, xx c.server_ep.len) < 0 {
-        c.udp_errno = xx errno();
+        c.udp_errno = xx get_last_socket_error();
         atomic_add(*c.udp_errors, 1);
     }
 }
@@ -1240,7 +1248,10 @@ tx_tick :: (c: *Conn, pcm: []float32) {
         }
     }
     if agc agc_process(*c.agc, pcm);
-    if gain != 1 for * pcm it.* = clamp(it.* * gain, -1, 1);
+    if gain != 1 {
+        for * pcm it.* *= gain;
+        audio.limit(*c.input_limiter, pcm, 1);
+    }
     active, db := vad_process(*c.vad, pcm);
     {
         locks.guard(*c.mu);
@@ -1416,6 +1427,16 @@ set_video :: (c: *Conn, on: bool, width := 1280, height := 720, fps := 30, bitra
     c.video_on = on;
     c.video_w, c.video_h, c.video_fps, c.video_bitrate = width, height, fps, bitrate;
     c.video_announce = true;
+}
+
+// cannot_encode: the call's video codec has no encoder here. Once per codec, op 14 asks the server for another
+// (timer thread), as the official client does after its encoder fails; the answer changes video_codec.
+cannot_encode :: (c: *Conn, codec: Video_Codec) {
+    locks.guard(*c.vmu);
+    bit := cast(u8) (1 << cast(int) codec);
+    if c.cant_encode & bit return;
+    c.cant_encode |= bit;
+    c.codecs_due = true;
 }
 
 // video_codec: what SESSION_DESCRIPTION negotiated for this call (.None before it).

@@ -1,0 +1,12 @@
+# Starting an edit (Up) and then switching channel leaves the new channel's composer typable.
+wait 5
+click 600 684
+key up
+wait 5
+open 1600000000000001003
+wait 10
+click 600 684
+type zebra
+wait 5
+expect_visible "zebra"
+shot build/ui-rail_edit_then_switch.png

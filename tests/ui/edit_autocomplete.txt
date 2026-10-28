@@ -1,0 +1,17 @@
+# The inline edit box has the composer's autocompletes: ":fir" offers emoji, Enter picks one (and
+# doesn't save the edit), and "@di" offers us (the fixture's only member), Enter inserting "@dingus ".
+wait 5
+click 600 684
+key up
+wait 5
+type ok :fir
+wait 5
+expect_visible "EMOJI MATCHING"
+key enter
+wait 5
+expect_input "👍ok 🔥 "
+type @di
+wait 5
+key enter
+wait 5
+expect_input "👍ok 🔥 @dingus "

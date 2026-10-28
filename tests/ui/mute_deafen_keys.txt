@@ -1,0 +1,7 @@
+# Ctrl+Shift+M mutes and Ctrl+Shift+D deafens from anywhere, the composer included, without typing.
+wait 5
+click 600 684
+key m shift cmd
+key d shift cmd
+wait 5
+expect_input ""

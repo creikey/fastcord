@@ -1,0 +1,16 @@
+# Spoilered attachments (SPOILER_ name) are covered with a "SPOILER" pill until clicked: an image
+# blurred, a file as a blank card.
+wait 20
+key pageup
+key pageup
+key pageup
+wait 30
+expect_visible "SPOILER"
+expect_not_visible "SPOILER_notes.txt"
+shot build/ui-spoiler_attachment-covered.png
+click_text "SPOILER"
+wait 10
+click_text "SPOILER"
+wait 10
+expect_not_visible "SPOILER"
+expect_visible "SPOILER_notes.txt"

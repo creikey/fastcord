@@ -188,6 +188,24 @@ update :: () {
 	device_rate_changed();
 }
 
+// Peak limiter for boosted audio (volumes up to 400%): the gain drops at once to keep the loudest
+// sample at the ceiling, then recovers over ~100 ms, so loud passages duck instead of clipping.
+Limiter :: struct { gain: float32 = 1; }
+
+limit :: (l: *Limiter, buf: []float32, channels: int) {
+	CEIL :: 0.98;
+	RELEASE :: 1.0 / (0.1 * SAMPLE_RATE);
+	for f: 0..buf.count / channels - 1 {
+		frame := buf.data + f * channels;
+		peak: float32;
+		for 0..channels - 1 peak = max(peak, max(frame[it], -frame[it]));
+		target := ifx peak > CEIL then CEIL / peak else 1;
+		if target < l.gain l.gain = target;
+		else l.gain += (target - l.gain) * RELEASE;
+		if l.gain < 1 for 0..channels - 1 frame[it] *= l.gain;
+	}
+}
+
 // The mixer. Called on the device thread (or by tests with init_null).
 // out: interleaved stereo f32, count = frames*2.
 mix :: (out: []float32) {
@@ -209,8 +227,7 @@ mix :: (out: []float32) {
 		atomic_store(*r.r, rd + cast(u64) n);
 		atomic_add(*sl.played, cast(u64) (n / CHANNELS));
 	}
-	// Clip to avoid harsh wraparound when sources sum > 1.
-	for * out it.* = clamp(it.*, -1, 1);
+	limit(*st.limiter, out, CHANNELS);
 	if st.render_on {
 		mono: [512]float32;
 		for f: 0..(frames - 1) / mono.count {
@@ -303,6 +320,7 @@ State :: struct {
 	running: bool; // output unit started
 	slots: [MAX_SOURCES]Slot;
 	master_bits: u32; // atomic f32
+	limiter: Limiter; // device thread
 	idle_frames: u64; // atomic, frames mixed with no source data
 	capture: Ring;
 	capturing: bool;

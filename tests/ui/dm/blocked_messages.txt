@@ -1,0 +1,11 @@
+# A blocked user's run of messages is one "3 blocked messages — Show messages" row; Show reveals them.
+open 1800000000000000004
+wait 30
+expect_visible "3 blocked messages —"
+expect_not_visible "hello 1"
+expect_visible "Blocked message"
+shot build/ui-dm_blocked_messages-hidden.png
+click_text "Show messages"
+wait 10
+expect_visible "hello 1"
+shot build/ui-dm_blocked_messages.png

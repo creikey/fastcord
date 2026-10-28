@@ -1,16 +1,36 @@
 Message_Actions :: struct {
 	replying: dc.Snowflake; // message being replied to (composer bar)
 	reply_mention: bool; // "@ ON" toggle
+	parked_replies: Table(dc.Snowflake, Parked_Reply); // other channels' pending replies, by channel
 	editing: dc.Snowflake; // message in inline edit mode
 	edit_editor: ui.Editor;
 	confirming: dc.Snowflake; // message of the confirmation modal (delete / pin / unpin)
 	confirm: Confirm;
 	menu_msg: dc.Snowflake; // context menu target
+	// A search, pins or inbox card's message, for find_message (not in the chat's list). Only read when
+	// loose_id matches: the card's list may since have been freed.
+	loose: *dc.Message;
+	loose_id: dc.Snowflake;
 	menu_pos: ui.Vec2;
 	menu_t: float32;
 }
 
+Parked_Reply :: struct {
+	id: dc.Snowflake;
+	mention: bool;
+}
+
 ma: Message_Actions;
+
+// On a channel switch: park the open channel's pending reply and bring back the new one's.
+replies_switch :: (from: dc.Snowflake, to: dc.Snowflake) {
+	if ma.replying != 0 table_set(*ma.parked_replies, from, .{ma.replying, ma.reply_mention});
+	else table_remove(*ma.parked_replies, from);
+	_, r := table_find(*ma.parked_replies, to);
+	ma.replying = r.id;
+	ma.reply_mention = r.mention;
+	table_remove(*ma.parked_replies, to);
+}
 
 mime_for :: (name: string) -> string {
 	ext := name;
@@ -47,9 +67,15 @@ mime_for :: (name: string) -> string {
 // Hover toolbar at the message's top-right: react, reply, (edit), more.
 message_toolbar :: (m: *dc.Message) {
 	s := store();
-	own := m.author_id == s.me && !m.forwarded; // a forward can't be edited
+	own := can_edit(m);
 	quick := quick_reactions();
-	names := ifx own then string.["reaction", "pencil", "more-horizontal"] else string.["reaction", "arrow-angle-left-up", "more-horizontal"];
+	names: [..]string;
+	names.allocator = temp;
+	array_add(*names, "reaction", ifx own then "pencil" else "arrow-angle-left-up");
+	if can_thread_from(m) array_add(*names, "thread");
+	array_add(*names, "more-horizontal");
+	// Shift adds a red trash can that deletes without asking
+	if (app.ui_mods & .Shift) && can_manage_message(m) && !m.pending array_add(*names, "trash");
 	// official: 3px padding, 28px buttons, a 1px divider with 4px gaps after the quick reactions
 	w := 2 * TOOLBAR_PAD + cast(float32) (quick.count + names.count) * TOOLBAR_BTN + (ifx quick then 9 else 0);
 	bar := row("toolbar", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Clickable);
@@ -95,8 +121,12 @@ message_toolbar :: (m: *dc.Message) {
 			sig := ui.signal(b);
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 4);
-				icon("i", name, 20, ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+				c := ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default");
+				if name == "trash" c = T("--status-danger");
+				icon("i", name, 20, c);
 			}
+			if name == "trash" && sig.hovering tooltip_below("Delete", b.rect);
+			if name == "thread" && sig.hovering tooltip_below("Create Thread", b.rect);
 			if sig.clicked {
 				if name == {
 				case "arrow-angle-left-up";
@@ -107,10 +137,20 @@ message_toolbar :: (m: *dc.Message) {
 					open_message_menu(m, .{b.rect.x0, b.rect.y1 + 4});
 				case "reaction";
 					app.reaction_target = m.id;
+				case "trash";
+					delete_now(m);
+				case "thread";
+					thread_from_message(m, header_thread_rect);
 				}
 			}
 		}
 	}
+}
+
+// A thread can start from this message: a guild text or announcement channel, no thread on it yet (HAS_THREAD).
+can_thread_from :: (m: *dc.Message) -> bool {
+	ch := dc.channel_get(store(), m.channel_id);
+	return ch && ch.guild_id && !dc.is_thread(ch) && (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && !(m.flags & 32) && !m.pending && can_create_thread(m.channel_id);
 }
 
 TOOLBAR_PAD :: 3;
@@ -149,9 +189,15 @@ start_reply :: (m: *dc.Message) {
 	app.ui.focus = 0;
 }
 
+// Yours, sent, not a forward, and a plain message or reply (type 0 or 19), not a system notice.
+can_edit :: (m: *dc.Message) -> bool {
+	return m.author_id == store().me && !m.forwarded && !m.pending && (m.kind == 0 || m.kind == 19);
+}
+
 start_edit :: (m: *dc.Message) {
 	ma.editing = m.id;
-	ui.editor_set_text(*ma.edit_editor, m.content);
+	ch := dc.channel_get(store(), m.channel_id);
+	ui.editor_set_text(*ma.edit_editor, ifx ch then mentions_readable(m.content, ch) else m.content);
 }
 
 // location: how it was opened, as message_popout_menu_opened_desktop names it
@@ -182,8 +228,8 @@ find_message :: (id: dc.Snowflake) -> *dc.Message {
 	if id == 0 return null;
 	s := store();
 	l := table_find_pointer(*s.messages, app.view.channel);
-	if !l return null;
-	for * l.messages if it.id == id return it;
+	if l for * l.messages if it.id == id return it;
+	if ma.loose_id == id return ma.loose;
 	return null;
 }
 
@@ -197,35 +243,38 @@ edit_box :: (m: *dc.Message) {
 	box.style.border = 1;
 	box.style.radius = all4(8);
 	box.cross_align = .Start;
+	res: ui.Edit_Result;
+	ch := dc.channel_get(store(), m.channel_id);
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 16);
-		res := text_field("edit", *ma.edit_editor, "", true, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, markdown = true);
+		// the open emoji picker has the keyboard (its search field)
+		open := picker_is_open() && pk.mode == .Edit;
+		// the composer's autocompletes, floating over the box and taking their keys first
+		if ch {
+			emoji_autocomplete(ch, *ma.edit_editor, !open);
+			mention_autocomplete(ch, *ma.edit_editor, !open);
+		}
+		res = text_field("edit", *ma.edit_editor, "", !open, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, markdown = true);
+		if res == .Changed && ch emoji_autocomplete_close_colon(ch, *ma.edit_editor);
 		emo := ui.box("emoji", .Clickable);
 		emo.semantic_size = .[ui.px(20), ui.px(COMPOSER_H)];
 		emo.layout_axis = .Y;
+		esig := ui.signal(emo);
 		{ ui.parent(emo); defer ui.pop_parent();
 			spacer(.Y, (COMPOSER_H - 20) / 2);
-			icon("i", "reaction", 20, T("--interactive-icon-default"));
+			icon("i", "reaction", 20, ifx esig.hovering || open then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+		}
+		if esig.clicked {
+			if open picker_close();
+			else picker_open(.Edit, .Emoji, m.channel_id, m.id, emo.rect);
 		}
 		spacer(.X, 10);
-		if res == {
-		case .Submit;
-			text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
-			if text == "" {
-				ma.confirming, ma.confirm = m.id, Confirm.Delete;
-			} else if text != m.content && net_action() {
-				dc.edit_message(app.client, m.channel_id, m.id, text);
-			}
-			ma.editing = 0;
-		case .Escape;
-			ma.editing = 0;
-		case .None; #through; case .Changed; #through; case .Moved;
-		}
 	}
+	save, cancel := res == .Submit, res == .Escape;
 	hint := row("edithint");
 	hint.semantic_size = .[ui.pct(1), ui.px(22)];
 	{ ui.parent(hint); defer ui.pop_parent();
-		// one rich-text run so the spaces between the parts survive
+		// one rich-text run so the spaces between the parts survive; "cancel" and "save" are spans 1 and 3
 		h := ui.box("hint");
 		h.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 		h.style.line_height = 16;
@@ -236,6 +285,29 @@ edit_box :: (m: *dc.Message) {
 		spans[2] = .{text = " • enter to ", font = F(.Normal), size = 12};
 		spans[3] = .{text = "save", font = F(.Normal), size = 12, color = T("--text-link")};
 		ui.set_spans(h, spans);
+		if !app.ui.overlay_under_mouse {
+			over := ui.span_at(h.prev_layout, app.ui.mouse);
+			if over == 1 || over == 3 app.ui.cursor = .Pointer;
+			for * e: app.ui.events {
+				if e.consumed || e.kind != .Mouse_Down || e.button != .Left continue;
+				si := ui.span_at(h.prev_layout, e.pos);
+				if si == 1 cancel = true;
+				if si == 3 save = true;
+				if si == 1 || si == 3 e.consumed = true;
+			}
+		}
+	}
+	if save {
+		text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
+		if text != "" && ch text = mentions_convert(emoji_convert_shortcodes(text, ch.id), ch);
+		if text == "" {
+			ma.confirming, ma.confirm = m.id, Confirm.Delete;
+		} else if text != m.content && net_action() {
+			dc.edit_message(app.client, m.channel_id, m.id, text);
+		}
+		ma.editing = 0;
+	} else if cancel {
+		ma.editing = 0;
 	}
 }
 
@@ -243,8 +315,12 @@ edit_box :: (m: *dc.Message) {
 reply_preview :: (m: *dc.Message) {
 	s := store();
 	ref := find_message(m.referenced_id);
-	r := row("replyref");
+	r := row("replyref", ifx ref then ui.Box_Flags.Clickable else 0);
 	r.semantic_size = .[ui.pct(1), ui.px(22)];
+	if ref {
+		r.hover_cursor = .Pointer;
+		if ui.signal(r).clicked jump_to_message(ref.channel_id, ref.id);
+	}
 	{ ui.parent(r); defer ui.pop_parent();
 		// the spine: only the top and left edges of a rounded box (clipped)
 		clip := ui.box("spineclip", .Clip | .Floating_X | .Floating_Y);
@@ -259,6 +335,11 @@ reply_preview :: (m: *dc.Message) {
 		}
 		if ref == null {
 			label("Original message was deleted", .Normal, 14, T("--text-muted"), 18);
+			return;
+		}
+		hide := hidden_kind(ref);
+		if hide != "" {
+			label(ifx hide == "blocked" then "Blocked message" else "Ignored message", .Normal, 14, T("--text-muted"), 18);
 			return;
 		}
 		avatar_box("av", ref.author_id, 16);
@@ -382,13 +463,17 @@ message_menu :: () {
 	sel := ui.has_selection();
 	if sel array_add(*items, .{label = "Copy", icon = "copy"});
 	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel});
-	if own && !m.forwarded array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
-	array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
+	if m.reactions array_add(*items, .{label = "View Reactions", icon = "reaction"});
+	// a card outside the chat (search, pins) has no inline editor or composer to reply from
+	in_chat := m != ma.loose;
+	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
+	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
+	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
 	array_add(*items, .{label = "Mark Unread", icon = "chat-mark-unread"}, .{label = "Copy Message Link", icon = "link"});
-	if own array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = true});
+	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = true});
 	quick := ifx sel then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
 	h := 2 * MENU_PAD + 2 + cast(float32) items.count * MENU_ROW_H + (ifx quick then MENU_QUICK + 8 else 0);
@@ -480,6 +565,10 @@ message_menu :: () {
 					app.copy_selection = true; // after end(): the selection text needs this frame's boxes
 				case "Add Reaction";
 					app.reaction_target = m.id;
+				case "Create Thread";
+					thread_from_message(m, header_thread_rect);
+				case "View Reactions";
+					view_reactions.msg, view_reactions.sel = m.id, 0;
 				case "Edit Message";
 					start_edit(m);
 				case "Reply";
@@ -511,7 +600,21 @@ delete_now :: (m: *dc.Message) {
 	if net_action() dc.delete_message(app.client, m.channel_id, m.id);
 }
 
-Confirm :: enum u8 { Delete; Pin; Unpin; }
+Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; }
+
+// Yours, or in a server channel where you have MANAGE_MESSAGES.
+can_manage_message :: (m: *dc.Message) -> bool {
+	s := store();
+	if m.author_id == s.me return true;
+	ch := dc.channel_get(s, m.channel_id);
+	return ch && ch.guild_id && (dc.channel_permissions(s, ch.id) & dc.PERM_MANAGE_MESSAGES);
+}
+
+// The hover X's "Remove all embeds": hidden at once, for everyone once the PATCH lands.
+remove_embeds_now :: (m: *dc.Message) {
+	if net_action() dc.suppress_embeds(app.client, m.channel_id, m.id, m.flags);
+	m.flags |= 4;
+}
 
 // PUT / DELETE .../messages/pins/{id}; a failure shows the client's notice (features_receive).
 pin_now :: (m: *dc.Message, pin: bool) {
@@ -519,7 +622,11 @@ pin_now :: (m: *dc.Message, pin: bool) {
 }
 
 confirm_now :: (m: *dc.Message) {
-	if ma.confirm == .Delete delete_now(m); else pin_now(m, ma.confirm == .Pin);
+	if ma.confirm == {
+	case .Delete; delete_now(m);
+	case .Remove_Embeds; remove_embeds_now(m);
+	case; pin_now(m, ma.confirm == .Pin);
+	}
 }
 
 // The message confirmations (MessageActionCreators.confirmDelete / confirmPin / confirmUnpin):
@@ -537,6 +644,8 @@ confirm_modal :: () {
 		question = ifx ch && ch.guild_id then tprint("Hey, just double checking that you want to pin this message to #% for posterity and greatness?", ch.name) else "Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?";
 	} else if ma.confirm == .Unpin {
 		title, question, tip, ok = "Unpin Message", "You sure you want to remove this pinned message?", "unpin message", "Remove it please!";
+	} else if ma.confirm == .Remove_Embeds {
+		title, question, tip, ok = "Remove Embeds", "Are you sure you want to remove all embeds on this message? This will remove them for everyone.", "remove embeds", "Remove All Embeds";
 	}
 	scrim := ui.box("del_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];

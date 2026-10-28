@@ -46,8 +46,11 @@ SPEAKING_SOUNDSHARE :: 2;
 SPEAKING_PRIORITY :: 4;
 
 // Codec list exactly as the desktop client sends it in SELECT_PROTOCOL. Windows doesn't offer to send
-// H.265: it has no encoder for it (src/video), and the server picks one codec for the whole call.
-CODECS_JSON :: #run ifx OS == .WINDOWS then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true", "\"rtx_payload_type\":104,\"encode\":false") else CODECS_DESKTOP;
+// H.265: it has no encoder for it (src/video), and the server picks one codec for the whole call. Linux
+// has no H.265 at all (src/media decodes H.264 only).
+CODECS_JSON :: #run ifx OS == .WINDOWS then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true", "\"rtx_payload_type\":104,\"encode\":false")
+	else ifx OS == .LINUX then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":false,\"decode\":false")
+	else CODECS_DESKTOP;
 CODECS_DESKTOP :: "[{\"name\":\"opus\",\"type\":\"audio\",\"priority\":1000,\"payload_type\":120},{\"name\":\"AV1\",\"type\":\"video\",\"priority\":1000,\"payload_type\":101,\"rtx_payload_type\":102,\"encode\":false,\"decode\":true},{\"name\":\"H265\",\"type\":\"video\",\"priority\":2000,\"payload_type\":103,\"rtx_payload_type\":104,\"encode\":true,\"decode\":true},{\"name\":\"H264\",\"type\":\"video\",\"priority\":3000,\"payload_type\":105,\"rtx_payload_type\":106,\"encode\":true,\"decode\":true},{\"name\":\"VP8\",\"type\":\"video\",\"priority\":4000,\"payload_type\":107,\"rtx_payload_type\":108,\"encode\":true,\"decode\":true}]";
 
 // Experiments from READY the client opts into (RTCConnection._chooseExperiments).
@@ -99,6 +102,17 @@ msg_identify :: (server_id: u64, channel_id: u64, user_id: u64, session_id: stri
 msg_video :: (audio_ssrc: u32, video_ssrc: u32, rtx_ssrc: u32, on: bool, width: int, height: int, fps: int, bitrate: int) -> string {
     return tprint("{\"op\":12,\"d\":{\"audio_ssrc\":%,\"video_ssrc\":%,\"rtx_ssrc\":%,\"streams\":[{\"type\":\"video\",\"rid\":\"100\",\"ssrc\":%,\"active\":%,\"quality\":100,\"rtx_ssrc\":%,\"max_bitrate\":%,\"max_framerate\":%,\"max_resolution\":{\"type\":\"fixed\",\"width\":%,\"height\":%}}]}}",
         audio_ssrc, ifx on then video_ssrc else 0, ifx on then rtx_ssrc else 0, video_ssrc, ifx on then "true" else "false", rtx_ssrc, bitrate, fps, width, height);
+}
+
+// msg_codecs: op 14 from the client, the codec list again with the codecs our encoder can't do (a bit per
+// Video_Codec) marked encode:false. The official client sends it when its encoder fails; the server answers
+// with op 14 and a new video_codec.
+msg_codecs :: (cant_encode: u8) -> string {
+    codecs := CODECS_JSON;
+    for VIDEO_PT if it && cant_encode & (1 << it_index) {
+        codecs = replace(codecs, tprint("\"rtx_payload_type\":%,\"encode\":true", it + 1), tprint("\"rtx_payload_type\":%,\"encode\":false", it + 1),, temp);
+    }
+    return tprint("{\"op\":14,\"d\":{\"codecs\":%}}", codecs);
 }
 
 msg_resume :: (token: string, session_id: string, server_id: u64, channel_id: u64, seq_ack: s64) -> string {

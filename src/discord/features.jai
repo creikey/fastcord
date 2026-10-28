@@ -518,6 +518,7 @@ Feature_Op :: enum u8 {
 	Mark_Unread;
 	Pin;
 	Unpin;
+	Reactors;
 }
 
 Feature_Result :: struct {
@@ -683,6 +684,25 @@ fetch_pins :: (c: *Client, channel_id: Snowflake, before_iso := "", tag: u64 = 0
 	query_add_int(*q, "limit", 25);
 	if before_iso query_add(*q, "before", before_iso);
 	f_submit(c, .{op = .Pins, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 2});
+}
+
+// Who reacted: GET /channels/{c}/messages/{m}/reactions/{emoji}?limit=100[&after=<user id>]&type=0|1 (1 = super reactions).
+fetch_reactors :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake, burst: bool, tag: u64, after: Snowflake = 0) {
+	q: Query;
+	query_init(*q, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/reactions/", emoji_route(emoji_name, emoji_id)));
+	query_add_int(*q, "limit", 100);
+	if after query_add(*q, "after", snowflake_string(after));
+	query_add_int(*q, "type", ifx burst then 1 else 0);
+	f_submit(c, .{op = .Reactors, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 1});
+}
+
+// A moderator removing someone's reaction: DELETE .../reactions/{emoji}/{0|1}/{user id}?burst=. The count
+// follows from MESSAGE_REACTION_REMOVE.
+remove_user_reaction :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake, burst: bool, user_id: Snowflake) {
+	q: Query;
+	query_init(*q, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/reactions/", emoji_route(emoji_name, emoji_id), ifx burst then "/1/" else "/0/", snowflake_string(user_id)));
+	query_add_bool(*q, "burst", burst);
+	f_submit(c, .{op = .Guild_Aux, channel_id = channel_id, method = "DELETE", path = query_string(*q)});
 }
 
 // POST /channels/{id}/pins/ack (no body).

@@ -163,6 +163,14 @@ rail_view :: () {
 	rail_drag(entries);
 }
 
+// Folder right-click menu (Mark Folder As Read, Folder Settings) and the Folder Settings modal (name, colour).
+rail_folder_overlays :: () {
+	if fm.menu != 0 folder_menu();
+	if fm.modal != 0 folder_modal();
+}
+
+folder_modal_open :: () -> bool { return fm.modal != 0; }
+
 rail_reset_for_test :: () {rs = .{};}
 rail_state_for_test :: () -> string {
 	sb: String_Builder;
@@ -335,21 +343,13 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 			pill.style.radius = .[0, 4, 0, 4];
 			if h < 0.5 { pill.flags &= ~ui.Box_Flag.Draw_Background; }
 			if !open { mention_badge(mentions, 0); }
-			if sig.hovering && !rs.drag_active {
-				name := e.name;
-				if name == "" {
-					names: [..]string;
-					names.allocator = temp;
-					for gid: e.guilds {
-						g := dc.guild_get(store(), gid);
-						if g != null { array_add(*names, g.name); }
-					}
-					name = join(..names, ", ",, temp);
-				}
-				tooltip_right(name);
-			}
+			if sig.hovering && !rs.drag_active { tooltip_right(ifx e.name then e.name else folder_guild_names(e.guilds)); }
 		}
 		if sig.clicked && !rs.drag_active { table_set(*rs.open, e.id, !open); }
+		if sig.right_clicked && !rs.drag_active {
+			fm.menu = e.id;
+			fm.pos = app.ui.mouse;
+		}
 		drag_source(sig, entry, -1);
 		if rs.drag_active && rs.drag_entry == entry && rs.drag_inner < 0 { pk_fade(group, 0); }
 		array_add(*rs.targets, .{slot.rect, entry, -1});
@@ -530,6 +530,174 @@ rail_save :: (entries: []Rail_Entry) {
 	s.settings.guild_folders = nf;
 
 	s.changed += 1;
+}
+
+folder_guild_names :: (guilds: []dc.Snowflake) -> string {
+	names: [..]string;
+	names.allocator = temp;
+	for guilds {
+		g := dc.guild_get(store(), it);
+		if g != null { array_add(*names, g.name); }
+	}
+	return join(..names, ", ",, temp);
+}
+
+// The client's folder colour swatches; 0 is the default (no colour set).
+FOLDER_COLORS :: u32.[0, 0x1ABC9C, 0x2ECC71, 0x3498DB, 0x9B59B6, 0xE91E63, 0xF1C40F, 0xE67E22, 0xE74C3C, 0x95A5A6, 0x607D8B,
+	0x11806A, 0x1F8B4C, 0x206694, 0x71368A, 0xAD1457, 0xC27C0E, 0xA84300, 0x992D22, 0x979C9F, 0x546E7A];
+
+Folder_Menu :: struct {
+	menu: s64; // folder whose right-click menu is open
+	pos: ui.Vec2;
+	modal: s64; // folder in the Folder Settings modal
+	ed: ui.Editor;
+	color: u32; // 0 = default
+}
+
+fm: Folder_Menu;
+
+folder_find :: (entries: []Rail_Entry, id: s64) -> *Rail_Entry {
+	for * entries if it.id == id return it;
+	return null;
+}
+
+folder_menu :: () {
+	entries := rail_entries();
+	e := folder_find(entries, fm.menu);
+	if e == null || outside_pressed("fctx_scrim") || escape_pressed() {
+		fm.menu = 0;
+		return;
+	}
+	unread := false;
+	for e.guilds if guild_has_unread(it) unread = true;
+	W :: cast(float32) GM_CTX_W;
+	menu := menu_panel("fctx", fm.pos, W);
+	h := menu.rect.y1 - menu.rect.y0;
+	menu.fixed_pos = .{clamp(fm.pos.x, 8, app.ui.window.x - W - 8), clamp(fm.pos.y, 8, max(8.0, app.ui.window.y - h - 8))};
+	ui.parent(menu); defer ui.pop_parent();
+	spacer(.Y, 8);
+	if menu_item("read", "Mark Folder As Read", disabled = !unread).clicked {
+		if net_action() for e.guilds if guild_has_unread(it) dc.ack_guild(app.client, it);
+		fm.menu = 0;
+	}
+	menu_sep("s1");
+	if menu_item("settings", "Folder Settings").clicked {
+		fm.modal = e.id;
+		fm.color = ifx e.has_color then cast(u32) e.color else 0;
+		ui.editor_set_text(*fm.ed, e.name);
+		fm.menu = 0;
+	}
+	spacer(.Y, 8);
+}
+
+folder_modal :: () {
+	entries := rail_entries();
+	e := folder_find(entries, fm.modal);
+	scrim := ui.box("fset_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	scrim.style.bg = .{0, 0, 0, 0.7};
+	if e == null || ui.signal(scrim).clicked {
+		fm.modal = 0;
+		return;
+	}
+	W :: 440;
+	PAD :: 24;
+	SW :: 26; // swatch
+	d := ui.box("fsetmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	d.semantic_size = .[ui.px(W), ui.children()];
+	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
+	d.style.border = 1;
+	d.style.radius = all4(12);
+	d.layout_axis = .Y;
+	ui.signal(d);
+	ui.push_parent(d);
+	defer ui.pop_parent();
+	text_row :: (id: string, text: string, font: Font_Id, size: float32, lh: float32, color: ui.Color) {
+		r := row(id);
+		r.semantic_size = .[ui.pct(1), ui.px(lh)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, PAD);
+		label(text, font, size, color, lh);
+	}
+	save := false;
+	spacer(.Y, PAD);
+	text_row("t", "Folder Settings", .Semibold, 20, 24, T("--text-strong"));
+	spacer(.Y, 20);
+	text_row("lname", "Folder Name", .Semibold, 14, 18, T("--text-strong"));
+	spacer(.Y, 8);
+	ir := row("inrow");
+	ir.semantic_size = .[ui.pct(1), ui.px(40)];
+	{ ui.parent(ir); defer ui.pop_parent();
+		spacer(.X, PAD);
+		field := row("input", .Draw_Background | .Draw_Border | .Clickable);
+		field.semantic_size = .[ui.fill(), ui.px(40)];
+		field.style.bg = T("--input-background-default");
+		field.style.border_color = T("--input-border-active");
+		field.style.border = 1;
+		field.style.radius = all4(8);
+		field.hover_cursor = .IBeam;
+		{ ui.parent(field); defer ui.pop_parent();
+			spacer(.X, 12);
+			res := text_field("field", *fm.ed, folder_guild_names(e.guilds), true, 16, 20, 10, T("--input-placeholder-text-default"));
+			if res == .Submit save = true;
+			if res == .Escape fm.modal = 0;
+			spacer(.X, 12);
+		}
+		spacer(.X, PAD);
+	}
+	spacer(.Y, 20);
+	text_row("lcolor", "Folder Color", .Semibold, 14, 18, T("--text-strong"));
+	spacer(.Y, 8);
+	half := FOLDER_COLORS.count / 2 + 1;
+	for line: 0..1 {
+		if line spacer(.Y, 8);
+		sr := row(tprint("swrow%", line));
+		sr.semantic_size = .[ui.pct(1), ui.px(SW)];
+		sr.style.child_gap = 8;
+		ui.parent(sr); defer ui.pop_parent();
+		spacer(.X, PAD - 8);
+		lo := ifx line == 0 then 0 else half;
+		hi := ifx line == 0 then half else FOLDER_COLORS.count;
+		for i: lo..hi-1 {
+			c := FOLDER_COLORS[i];
+			sw := ui.box(tprint("sw%", i), .Clickable | .Draw_Background | .Draw_Border);
+			sw.semantic_size = .[ui.px(SW), ui.px(SW)];
+			sw.style.radius = all4(4);
+			sw.style.bg = rgb_u32(ifx c then c else FOLDER_DEFAULT_COLOR);
+			sw.style.border_color = T("--text-strong");
+			sw.style.border = ifx fm.color == c then 2.0 else 0;
+			sw.hover_cursor = .Pointer;
+			if ui.signal(sw).clicked fm.color = c;
+		}
+	}
+	spacer(.Y, PAD);
+	btns := row("btns", .Draw_Background);
+	btns.semantic_size = .[ui.pct(1), ui.px(70)];
+	btns.style.bg = T("--background-base-lower");
+	btns.style.radius = .[0, 0, 12, 12];
+	{ ui.parent(btns); defer ui.pop_parent();
+		filler(.X);
+		b := ui.box("Done##done", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+		b.semantic_size = .[ui.px(96), ui.px(38)];
+		b.style.radius = all4(8);
+		b.style.font = F(.Medium);
+		b.style.font_size = 14;
+		b.style.text_align = .Center;
+		b.style.text_color = .{1, 1, 1, 1};
+		b.style.bg = T("--background-brand");
+		b.style.bg_hot = with_alpha(T("--background-brand"), 0.85);
+		if ui.signal(b).clicked save = true;
+		spacer(.X, PAD);
+	}
+	if escape_pressed() fm.modal = 0;
+	if save && fm.modal != 0 {
+		e.name = trim(ui.editor_text(*fm.ed));
+		e.color, e.has_color = fm.color, fm.color != 0;
+		rail_save(entries);
+		fm.modal = 0;
+	}
 }
 
 temp_list :: (ids: ..dc.Snowflake) -> [..]dc.Snowflake {

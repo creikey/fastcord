@@ -1,0 +1,8 @@
+# An embed's images shrink to a narrow message card (the inbox's Mentions; search and pins share
+# the card) instead of overflowing it.
+wait 5
+click 1219 16
+wait 20
+click_text "Mentions"
+wait 30
+shot build/ui-embed_narrow.png

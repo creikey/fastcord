@@ -64,7 +64,17 @@ blob_receive :: (r: *dc.Media_Result) -> bool {
 // (search results).
 attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 	for * a, i: m.attachments {
-		if is_video(a) && a.width > 0 && a.height > 0 {
+		if !is_audio(a) && a.width > 0 && a.height > 0 && is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id) {
+			w := cast(float32) a.width;
+			h := cast(float32) a.height;
+			sc := min(1.0, min(max_w / w, 300 / h));
+			if spoiler_cover(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc) table_set(*revealed_spoilers, a.id, true);
+			spacer(.Y, 4);
+		} else if is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id) {
+			// a file or audio clip: the card's size, with nothing of it shown
+			if spoiler_cover(tprint("file%", i), "", min(432.0, max_w + 32), 72) table_set(*revealed_spoilers, a.id, true);
+			spacer(.Y, 4);
+		} else if is_video(a) && a.width > 0 && a.height > 0 {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
@@ -83,6 +93,21 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			sig := ui.signal(img);
 			if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url);
 			if sig.right_clicked media_menu_open(a.url, a.url);
+			if a.description {
+				ui.parent(img);
+				alt := row("alt", .Draw_Background | .Floating_X | .Floating_Y);
+				alt.semantic_size = .[ui.children(), ui.px(20)];
+				alt.fixed_pos = .{6, h * sc - 26};
+				alt.style.bg = .{0, 0, 0, 0.6};
+				alt.style.radius = all4(4);
+				{ ui.parent(alt); defer ui.pop_parent();
+					spacer(.X, 6);
+					label("ALT", .Bold, 11, .{1, 1, 1, 1}, 20);
+					spacer(.X, 6);
+				}
+				ui.pop_parent();
+				if ui.mouse_over(alt) tooltip_below(a.description, alt.rect);
+			}
 			spacer(.Y, 4);
 		} else {
 			f := row(tprint("file%", i), .Draw_Background | .Draw_Border);
@@ -97,10 +122,25 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 				spacer(.X, 8);
 				col := ui.box("fcol");
 				col.semantic_size = .[ui.fill(), ui.children()];
+				download := false;
 				{ ui.parent(col); defer ui.pop_parent();
-					label(a.filename, .Normal, 16, T("--text-link"), 20);
+					name := label(a.filename, .Normal, 16, T("--text-link"), 20);
+					name.flags |= .Clickable;
+					name.hover_cursor = .Pointer;
+					download = ui.signal(name).clicked;
 					label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
 				}
+				dl := ui.box("dl", .Clickable);
+				dl.semantic_size = .[ui.px(32), ui.px(32)];
+				dl.hover_cursor = .Pointer;
+				sig := ui.signal(dl);
+				{ ui.parent(dl); defer ui.pop_parent();
+					ic := icon("i", "download", 24, T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default"), .Floating_X | .Floating_Y);
+					ic.fixed_pos = .{4, 4};
+				}
+				if sig.hovering tooltip_below("Download", dl.rect);
+				if sig.clicked || download media_save(a.url);
+				spacer(.X, 12);
 			}
 			spacer(.Y, 4);
 		}
@@ -108,6 +148,31 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 }
 
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
+is_spoiler :: (a: *dc.Attachment) -> bool { return begins_with(a.filename, "SPOILER_") || (a.flags & 8) != 0; }
+
+// A spoilered attachment: the image blurred (url "" for a file: a plain box) under a "SPOILER" pill until
+// clicked. True when clicked.
+spoiler_cover :: (id: string, url: string, w: float32, h: float32) -> bool {
+	b := ui.box(id, .Draw_Background | .Clickable);
+	b.semantic_size = .[ui.px(w), ui.px(h)];
+	b.style.radius = all4(8);
+	b.style.bg = T("--background-mod-strong");
+	set_remote_image(b, url, blur = true);
+	b.hover_cursor = .Pointer;
+	sig := ui.signal(b);
+	ui.parent(b); defer ui.pop_parent();
+	pill := row("spoiler", .Draw_Background | .Floating_X | .Floating_Y);
+	pill.semantic_size = .[ui.px(88), ui.px(32)];
+	pill.fixed_pos = .{(w - 88) / 2, (h - 32) / 2};
+	pill.style.bg = ifx sig.hovering then ui.Color.{0, 0, 0, 0.9} else .{0, 0, 0, 0.6};
+	pill.style.radius = all4(16);
+	{ ui.parent(pill); defer ui.pop_parent();
+		filler(.X);
+		label("SPOILER", .Bold, 15, .{1, 1, 1, 1}, 32);
+		filler(.X);
+	}
+	return sig.clicked;
+}
 is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "audio/"); }
 
 // Video attachment or embed video: poster with a play button and the control bar (play, time, seek,
@@ -185,8 +250,9 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 		hover_vol := ui.contains(vg.rect, app.ui.mouse);
 		{ ui.parent(vg); defer ui.pop_parent();
 			if hover_vol {
-				v := slider("vs", ifx video_muted then 0 else video_volume, ui.px(64));
-				if v >= 0 video_volume_set(v, v == 0);
+				// 0-400% (the client stops at 100%); the mixer's limiter keeps the boost from clipping
+				v := slider("vs", ifx video_muted then 0 else video_volume / 4, ui.px(96));
+				if v >= 0 video_volume_set(v * 4, v == 0);
 				spacer(.X, 4);
 			}
 			if video_button("mute", ifx video_muted || video_volume == 0 then "speaker-slash" else "voice-normal") video_volume_set(ifx video_volume == 0 then 1 else video_volume, !video_muted);
@@ -305,26 +371,63 @@ audio_attachment :: (a: *dc.Attachment) {
 			}
 		}
 		spacer(.X, 12);
+		pos, dur: float64;
+		if playing && ip.player != null {
+			pos = media.player_position(ip.player);
+			dur = media.player_duration(ip.player);
+			if is_playing app.ui.animating = true;
+		} else {
+			dur = cast(float64) a.duration_secs;
+		}
+		wave, ok := base64_decode(a.waveform,, temp);
+		if ok && wave.count {
+			voice_waveform(wave, ifx dur > 0 then cast(float32) (pos / dur) else 0, ip, dur);
+			spacer(.X, 12);
+			label(fmt_clock(ifx playing then max(dur - pos, 0) else dur), .Mono, 12, T("--text-muted"), 16);
+			spacer(.X, 16);
+			return;
+		}
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		{ ui.parent(col); defer ui.pop_parent();
 			label(a.filename, .Medium, 14, T("--text-link"), 18);
-			pos, dur: float64;
-			if playing && ip.player != null {
-				pos = media.player_position(ip.player);
-				dur = media.player_duration(ip.player);
-				if is_playing app.ui.animating = true;
-			} else {
-				dur = cast(float64) a.duration_secs;
-			}
 			label(tprint("% / %", fmt_clock(pos), fmt_clock(dur)), .Normal, 12, T("--text-muted"), 16);
 		}
 		spacer(.X, 12);
 	}
 }
 
+// A voice message's amplitudes (0-255) as rounded bars, the played part in the brand colour; pressing
+// or dragging seeks once the clip is loaded.
+voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64) {
+	BARS :: 48;
+	PITCH :: 5.0;
+	w := ui.box("wave", .Clickable);
+	w.semantic_size = .[ui.px(BARS * PITCH), ui.px(32)];
+	w.hover_cursor = .Pointer;
+	sig := ui.signal(w);
+	if (sig.pressed || sig.dragging) && ip && ip.player && dur > 0 {
+		f := clamp((app.ui.mouse.x - w.rect.x0) / (BARS * PITCH), 0, 1);
+		media.player_seek(ip.player, cast(float64) f * dur);
+	}
+	ui.parent(w); defer ui.pop_parent();
+	for i: 0..BARS - 1 {
+		lo := i * wave.count / BARS;
+		hi := max((i + 1) * wave.count / BARS, lo + 1);
+		peak: u8;
+		for j: lo..hi - 1 peak = max(peak, wave[j]);
+		h := max(4.0, 28.0 * peak / 255.0);
+		b := ui.box(tprint("b%", i), .Draw_Background | .Floating_X | .Floating_Y);
+		b.semantic_size = .[ui.px(3), ui.px(h)];
+		b.fixed_pos = .{i * PITCH, (32 - h) / 2};
+		b.style.radius = all4(1.5);
+		b.style.bg = ifx (i + 0.5) / BARS <= frac then T("--background-brand") else T("--icon-muted");
+	}
+}
+
 // Link embeds: colored left bar, provider/author/title/description, image or thumbnail.
 embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
+	if m.flags & 4 return; // SUPPRESS_EMBEDS
 	for * e, i: m.embeds {
 		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
 			// bare media links render as the media itself; GIFV (Tenor, Klipy) as its looping video
@@ -396,7 +499,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						wrap.semantic_size = .[ui.pct(1), ui.children()];
 						wrap.cross_align = .Start;
 						{ ui.parent(wrap); defer ui.pop_parent();
-							if blk.kind == .Quote {
+							if blk.quoted {
 								wrap.custom_draw = quote_bar_draw;
 								spacer(.X, 12);
 							}
@@ -416,13 +519,13 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					spacer(.Y, 16);
 					w := cast(float32) ifx e.video_w > 0 then e.video_w else e.thumbnail_w;
 					h := cast(float32) ifx e.video_h > 0 then e.video_h else e.thumbnail_h;
-					sc := min(1.0, min(400 / w, 300 / h));
+					sc := min(1.0, min(max_w / w, 300 / h));
 					video_player(embed_player_key(m, i), e.video_url, e.thumbnail_url, w * sc, h * sc);
 				} else if poster {
 					spacer(.Y, 16);
 					w := cast(float32) e.thumbnail_w;
 					h := cast(float32) e.thumbnail_h;
-					sc := min(400 / w, 300 / h);
+					sc := min(max_w / w, 300 / h);
 					th := media_box("poster", e.thumbnail_url, "", w * sc, h * sc);
 					th.style.radius = all4(4);
 					{ ui.parent(th); defer ui.pop_parent();
@@ -441,24 +544,26 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					spacer(.Y, 16);
 					w := cast(float32) e.image_w;
 					h := cast(float32) e.image_h;
-					sc := min(1.0, min(400 / w, 300 / h));
+					sc := min(1.0, min(max_w / w, 300 / h));
 					embed_image("img", e, w * sc, h * sc);
 				} else if images {
 					// the client's mosaic: 2 side by side, 3 as one tall left and two right, 4 in a 2x2
 					spacer(.Y, 16);
 					grid := row("grid");
-					grid.semantic_size = .[ui.px(400), ui.px(300)];
+					gw := min(400.0, max_w);
+					gh := gw * 0.75;
+					grid.semantic_size = .[ui.px(gw), ui.px(gh)];
 					ui.parent(grid); defer ui.pop_parent();
-					cw := 198.0;
+					cw := (gw - 4) / 2;
 					for col: 0..1 {
 						if col spacer(.X, 4);
 						c := ui.box(tprint("c%", col));
-						c.semantic_size = .[ui.px(cw), ui.px(300)];
+						c.semantic_size = .[ui.px(cw), ui.px(gh)];
 						c.layout_axis = .Y;
 						ui.parent(c); defer ui.pop_parent();
 						// column 0: image 0 (and 2 of 4); column 1: image 1 (and 2 of 3, 3 of 4)
 						second := ifx images.count == 4 then col + 2 else ifx images.count == 3 && col == 1 then 2 else -1;
-						ch := ifx second >= 0 then 148.0 else 300.0;
+						ch := ifx second >= 0 then (gh - 4) / 2 else gh;
 						embed_image(tprint("g%", col), images[col], cw, ch, cover = true);
 						if second >= 0 {
 							spacer(.Y, 4);
@@ -606,9 +711,13 @@ media_action_receive :: (r: *dc.Media_Result) -> bool {
 	if r.status == 200 && r.data {
 		decode_submit(.{kind = ifx r.tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(r.url), data = r.data});
 		r.data = .[];
+	} else if r.tag == MEDIA_TAG_SAVE {
+		toast_show("Couldn't save the image.", false);
 	}
 	return true;
 }
+
+media_save :: (url: string) { media_action(MEDIA_TAG_SAVE, url); }
 
 media_reset_for_test :: () {
 	close_viewer();
@@ -671,11 +780,11 @@ media_menu :: () {
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
 		if can_copy && menu_item("copy-image", "Copy Image", lead = "image").clicked {
-			media_action(MEDIA_TAG_COPY);
+			media_action(MEDIA_TAG_COPY, mm.image);
 			close = true;
 		}
 		if can_save && menu_item("save-image", "Save Image", lead = "image").clicked {
-			media_action(MEDIA_TAG_SAVE);
+			media_action(MEDIA_TAG_SAVE, mm.image);
 			close = true;
 		}
 		if can_copy || can_save menu_sep("s1");
@@ -694,9 +803,8 @@ media_menu :: () {
 
 // The client's saveImage/copyImage URL: media.discordapp.net becomes cdn.discordapp.com, the size and format
 // parameters go, and format=png is asked for when the path has no extension.
-media_action :: (tag: u64) {
-	u := mm.image;
-	q := find_index_from_left(u, #char "?");
+media_action :: (tag: u64, u: string) {
+	q :=find_index_from_left(u, #char "?");
 	path, query := u, "";
 	if q >= 0 path, query = slice(u, 0, q), slice(u, q + 1, u.count - q - 1);
 	if url_host(path) == "media.discordapp.net" path = replace(path, "//media.discordapp.net/", "//cdn.discordapp.com/",, temp);
