@@ -255,6 +255,20 @@ main :: () {
 		status, body = rest("GET", messages, "", token);
 		check(!contains(body, "reactions"), tprint("reaction removed: %", body));
 
+		// Pins: the owner pins through the client; the message updates and the list has it.
+		epoch := discord.pins_epoch(cid);
+		discord.pin_message(cl, cid, hello, true);
+		for 1..300 { if stored()[0].pinned && discord.pins_epoch(cid) != epoch break; pump(); }
+		check(stored()[0].pinned && discord.pins_epoch(cid) != epoch, "pin: MESSAGE_UPDATE and CHANNEL_PINS_UPDATE");
+		status, body = rest("GET", tprint("%/pins", messages), "", token);
+		pinned, _ := etf.from_json(body);
+		items := field(pinned, "items");
+		check(status == 200 && items.kind == .List && items.list.count == 1 && field(items.list[0], "message", "content").s == "hello"
+			&& field(items.list[0], "pinned_at").kind == .String, tprint("pins list: % %", status, body));
+		discord.pin_message(cl, cid, hello, false);
+		for 1..300 { if !stored()[0].pinned break; pump(); }
+		check(!stored()[0].pinned, "unpin");
+
 		// A read mark survives a new session: the next READY carries it.
 		discord.ack_message(cl, cid, hello, immediate = true);
 		for 1..100 pump();

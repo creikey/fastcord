@@ -55,6 +55,7 @@ open :: (path: string) -> *Server, bool {
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
@@ -303,7 +304,7 @@ CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
@@ -508,7 +509,7 @@ iso :: (id: s64) -> string {
 // edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
-		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false) -> etf.Value {
+		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx reply then 19 else 0));
@@ -531,12 +532,13 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "embeds", etf.vlist(.[]));
 	etf.map_put(*m, "mentions", ifx mentions.kind == .List then mentions else etf.vlist(.[]));
 	etf.map_put(*m, "mention_everyone", etf.vbool(everyone));
+	etf.map_put(*m, "pinned", etf.vbool(pinned));
 	if nonce etf.map_put(*m, "nonce", etf.vstring(nonce));
 	if reactions.kind == .List && reactions.list.count etf.map_put(*m, "reactions", reactions);
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at FROM messages m JOIN users u ON u.id = m.author";
 
 // row_message reads a MESSAGE_SELECT row; the caller holds db_mu. A reply's target is looked up one level
 // deep, as Discord sends it.
@@ -579,7 +581,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0);
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8));
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -791,7 +793,17 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
 	if ok && parts.count == 2 && parts[1] == "invites" && req.method == "POST" return create_invite(c, req, user, name, channel);
+	// Opening the pins popout acks them; unread pins aren't tracked, so there is nothing to store.
+	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return http.h1_write_response(c.s, 204, .[], .[]) == .None;
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
+	if parts.count >= 3 && parts[2] == "pins" {
+		if parts.count == 3 && req.method == "GET" return list_pins(c, channel);
+		message: s64;
+		mok := false;
+		if parts.count == 4 message, mok = string_to_int(parts[3], T = s64);
+		if !mok || (req.method != "PUT" && req.method != "DELETE") return json_error(c, 404, 0, "404: Not Found");
+		return pin(c, user, channel, message, req.method == "PUT");
+	}
 	if parts.count >= 3 {
 		message, mok := string_to_int(parts[2], T = s64);
 		if !mok return json_error(c, 404, 0, "404: Not Found");
@@ -1116,6 +1128,66 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 		for s.conns if it.ws && it.user == user dispatch(it, "MESSAGE_ACK", ev);
 	}
 	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) "{\"token\": null}") == .None;
+}
+
+MAX_PINS :: 50; // Per channel, as Discord had it; so the pins list never needs paging.
+
+// PUT/DELETE /api/v9/channels/{id}/messages/pins/{id}: until roles land (Hosting 4) only the owner pins.
+// The message (now pinned or not) follows as MESSAGE_UPDATE, then CHANNEL_PINS_UPDATE.
+pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
+	s := c.server;
+	m: etf.Value;
+	last := "";
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		st := sqlite.prepare(s.db, "SELECT (SELECT count(*) FROM messages WHERE channel = ?1 AND pinned_at IS NOT NULL) FROM messages WHERE id = ?2 AND channel = ?1;");
+		sqlite.bind_all(st, channel, message);
+		found := sqlite.step(st) == .Row;
+		pins := ifx found then sqlite.col_int(st, 0) else 0;
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10008, "Unknown Message");
+		if on && pins >= MAX_PINS return json_error(c, 400, 30003, "Maximum number of pins reached (50)");
+		ok := ifx on then sqlite.run(s.db, "UPDATE messages SET pinned_at = ? WHERE id = ? AND pinned_at IS NULL;", snowflake(s), message)
+			else sqlite.run(s.db, "UPDATE messages SET pinned_at = NULL WHERE id = ?;", message);
+		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+		if !sqlite.changes(s.db) return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+		m = message_locked(s, message, nested = false);
+		st = sqlite.prepare(s.db, "SELECT max(pinned_at) FROM messages WHERE channel = ?;");
+		sqlite.bind(st, 1, channel);
+		if sqlite.step(st) == .Row && !sqlite.col_is_null(st, 0) last = iso(sqlite.col_int(st, 0));
+		sqlite.finalize(st);
+	}
+	broadcast(s, "MESSAGE_UPDATE", m);
+	d := etf.map_builder(3,, temp);
+	etf.map_put(*d, "channel_id", snow(channel));
+	etf.map_put(*d, "guild_id", snow(s.guild));
+	etf.map_put(*d, "last_pin_timestamp", ifx last then etf.vstring(last) else .{});
+	broadcast(s, "CHANNEL_PINS_UPDATE", etf.vmap(etf.map_done(*d)));
+	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+}
+
+// GET /api/v9/channels/{id}/messages/pins: newest pin first, all of them (MAX_PINS).
+list_pins :: (c: *Conn, channel: s64) -> bool {
+	s := c.server;
+	items: [..]etf.Value;
+	items.allocator = temp;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, tprint("% WHERE m.channel = ? AND m.pinned_at IS NOT NULL ORDER BY m.pinned_at DESC;", MESSAGE_SELECT));
+		sqlite.bind(st, 1, channel);
+		while sqlite.step(st) == .Row {
+			item := etf.map_builder(2,, temp);
+			etf.map_put(*item, "pinned_at", etf.vstring(iso(sqlite.col_int(st, 8))));
+			etf.map_put(*item, "message", row_message(s, st));
+			array_add(*items, etf.vmap(etf.map_done(*item)));
+		}
+		sqlite.finalize(st);
+	}
+	d := etf.map_builder(2,, temp);
+	etf.map_put(*d, "items", etf.vlist(items));
+	etf.map_put(*d, "has_more", etf.vbool(false));
+	return json_reply(c, 200, etf.vmap(etf.map_done(*d)));
 }
 
 json_reply :: (c: *Conn, status: int, v: etf.Value) -> bool {
