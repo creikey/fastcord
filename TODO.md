@@ -200,6 +200,14 @@
 - [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
 - [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
+- [ ] Accessibility: blind users can't use fastcord at all. The official client (Chromium) works with Narrator, NVDA and VoiceOver. fastcord's immediate-mode UI exposes nothing to UI Automation (Windows), NSAccessibility (macOS) or AT-SPI (Linux), so a screen reader sees an empty window.
+  - Build an accessibility tree each frame from the widget IDs `src/ui` already has: role (button, link, list item, text, edit field), name, value, state and bounds. Diff it against the last frame and report only the changes, as AccessKit does. AccessKit is Rust, so use it as a design reference, not a dependency.
+  - New messages are announced as a live region.
+  - It also needs keyboard focus across the whole UI, with Tab / Shift+Tab and a visible focus ring. Today Tab only works inside the composer and the pickers.
+- [ ] Process: fuzz every parser that reads bytes from the network. None is fuzzed today, and the Security items above are the bugs this keeps finding.
+  - Add a `jai build.jai - fuzz <target>` build that feeds mutated inputs to one parser with bounds checks on. Seed it from the test fixtures (`tests/data`, `tests/scenarios`), run it for a time budget, and save crashing inputs under `tests/fuzz/` as regression tests.
+  - Targets: ETF, protobuf, `markdown.jai`, `imagefmt`, the media demuxers, Lottie, HTTP/2 frames, voice RTP/RTCP and DAVE.
+  - Add `-serve`'s gateway and REST input and E2E's `fc-` packets as they land: those face strangers on the internet.
 - [ ] Crash reporter: add one, modelled on Happenlance's subprocess crash reporter (`C:\Work\Happenlance\Happenlance\src\crash_handler.cpp`, Phillip's machine only).
 - [ ] Attachments: text and code files (`.txt`, `.md`, `.py`, `.c`, `.json`, `.log`, ...) render as a plain file card ("burst.txt, 416 bytes") instead of the official inline preview. That's a code box with syntax highlighting (`highlight.jai`), the first lines with expand/collapse, and the filename, size and download in its header. Never built, not a stale build: no text preview code in `src/app`.
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
