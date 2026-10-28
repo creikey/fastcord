@@ -448,7 +448,7 @@ settings tabs other than Overview.
 | Telemetry | Settings modal `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner; allow-listed in parity_settings_open / parity_open_account_settings. |
 | Telemetry | Discover: no `global_discovery_*` | fastcord's compass opens the web page, not the in-app discovery entry point (allow-listed in parity_discover). |
 | Telemetry | New thread: `channel_opened` without `channel_view: "Split View"` | fastcord opens the new thread as the main view (see Threads below): its main-view event goes out on create and throttles the popout's reopen (allow-listed in parity_threads_browser; the main-view shape is checked by parity_thread_open_main). |
-| Telemetry | `user_profile_action` only for profiles without bio, pronouns, badges, activity or guild identity | The official enum values of the profile property lists are not known. |
+| Telemetry | `user_profile_action` without `communication_probability` / `communication_rank` and the cosmetic SKU ids | fastcord doesn't load user affinities; the SKUs are not modelled. |
 | Telemetry | `custom_status_updated.prompt_type` is null | fastcord's custom status modal shows no prompt. |
 | Telemetry | No `VIEW_WIDGETS_EMPTY_STATE` profile action | No widgets section. |
 | Telemetry | `client_performance_cpu` / `_memory` | CPU: our own process, measured. Memory: Electron's processes, synthesized (`Synth`). |

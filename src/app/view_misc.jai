@@ -95,8 +95,9 @@ open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Ot
 	if source == {
 	case .Message_Author;
 		dc.profile_view_begin(app.client, .Popout, uid, app.view.guild, app.view.channel, message_id);
-	case .Account_Panel;
-		dc.profile_view_begin(app.client, .Account_Popout, uid, 0, 0, 0);
+	case .Account_Panel; // its own requests (type=account_popout, identities, widgets), not a popout's
+		dc.open_account_popout(app.client);
+		return;
 	case .Other;
 	}
 	dc.fetch_profile(app.client, uid, app.view.guild);

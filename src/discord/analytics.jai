@@ -285,6 +285,7 @@ SCI_THROTTLES :: Sci_Throttle.[
 	.{"text_in_voice_opened", 86_400_000, .["channel_id"]},
 	.{"member_list_viewed", 900_000, .["channel_id"]},
 	.{"dm_list_viewed", 900_000, .["channel_id"]},
+	.{"explicit_media_redactable_messages_loaded", 60_000, .["guild_id", "channel_id"]},
 	.{"keyboard_shortcut_used", 120_000, .["shortcut_name", "location_object", "source_class_list"]},
 	.{"quickswitcher_opened", 10_000, .[]},
 	.{"audio_input_initialized", 300_000, .[]},
