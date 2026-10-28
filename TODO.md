@@ -128,6 +128,7 @@
   - On macOS, report the real OS version and architecture.
   - Everywhere, read the timezone from the system, and take the locale from the user's Discord language setting.
   - Log the Windows capture in `traffic/CLIENT_RULES.md`.
+- [ ] Traffic (account risk): the reported client never ages. `client_build_number` 649389, `client_version` 0.0.419 and Chrome 148 are constants in `identity.jai`, while the official client picks up new web builds often and new hosts now and then. Months after a release, every install reports a build no real client still runs. Add a release step, or a test that fails when the build is too old, that reads the live build number from discord.com's web assets and the host version from Discord's update server. Bump Chrome and Electron only with a new capture, since the user agent must match the TLS and HTTP/2 fingerprint.
 - [ ] Search: results are always newest first, with no Newest / Oldest / Most Relevant switch, and the `before:`, `after:` and `during:` date filters are missing (`search_messages` in `discord/features.jai` hardcodes `sort_by=timestamp`, `sort_order=desc`).
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
