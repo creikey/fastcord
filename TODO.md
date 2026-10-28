@@ -77,7 +77,7 @@
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
-- [ ] Links: message links (`discord.com/channels/<g>/<c>/<m>`, also `ptb.` / `canary.` / `discordapp.com`) open in the browser instead of jumping to the message in fastcord (`view_chat.jai`: only invites are handled in-app).
+- [ ] Links: a bare link to a channel or message shows the raw URL; the official client draws it as a mention-style chip ("#channel > message icon") naming the channel.
 - [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
 - [ ] Sounds: the message sound plays for blocked users and `@silent` messages, though desktop notifications skip both (`sounds.jai` `message_notifies`).
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
@@ -332,3 +332,4 @@
 - [x] Attachments: spoilered files and audio clips are a blank card under a "SPOILER" pill until clicked (`tests/ui/media/spoiler_attachment.txt`).
 - [x] Scrolling (fastcord-only): Appearance > "Smooth Scrolling" (on by default, saved in settings.json); off, or when the system asks for reduced motion, the chat and every scroll box jump straight to their target (`ui.State.instant_scroll`, `tests/ui/smooth_scroll_setting.txt`).
 - [x] Media: voice messages draw their waveform (played part in the brand colour, press or drag to seek) and the remaining time instead of the file name (`voice_waveform`, `tests/ui/media/voice_message.txt`).
+- [x] Links: `discord.com/channels/<g>/<c>[/<m>]` links (also `ptb.` / `canary.` / `discordapp.com`) to a channel fastcord has jump to it, or to the message, in-app; others still open the browser (`message_link` in `view_chat.jai`, `tests/ui/forward/message_link.txt`).

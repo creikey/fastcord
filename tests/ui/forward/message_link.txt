@@ -1,0 +1,7 @@
+# A discord.com message link (here masked, on ptb.) jumps to the message in fastcord instead of the browser.
+wait 10
+expect_not_visible "filler message 4 to push the new line out of view"
+click 625 314
+wait 60
+expect_visible "filler message 4 to push the new line out of view"
+shot build/ui-message_link.png

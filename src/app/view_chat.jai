@@ -519,7 +519,11 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 		case .Link;
 			url := ifx tk.url then tk.url else tk.text;
 			code := invite_link_code(url);
-			if code != "" invite_link_clicked(code, message_id); else open_url(url);
+			ch, msg := message_link(url);
+			if code != "" invite_link_clicked(code, message_id);
+			else if ch && msg jump_to_message(ch.id, msg);
+			else if ch select_channel(ch.guild_id, ch.id);
+			else open_url(url);
 		case .User_Mention;
 			r := ui.Rect.{e.pos.x, e.pos.y - 10, e.pos.x + 1, e.pos.y + 10};
 			open_profile(tk.id, r);
@@ -685,6 +689,30 @@ Chat_Toolbar :: struct { msg: dc.Snowflake; rect: ui.Rect; }
 chat_toolbar, chat_toolbar_prev: Chat_Toolbar;
 
 // A blockquote's 4px rounded bar down the left of its row.
+// A discord.com/channels/<guild or @me>/<channel>[/<message>] link to a channel we have; else null.
+message_link :: (url: string) -> *dc.Channel, dc.Snowflake {
+	u := url;
+	if !(begins_with_nocase(u, "https://") || begins_with_nocase(u, "http://")) return null, 0;
+	advance(*u, find_index_from_left(u, "//") + 2);
+	slash := find_index_from_left(u, #char "/");
+	if slash < 0 return null, 0;
+	host := to_lower_copy(slice(u, 0, slash),, temp);
+	if begins_with(host, "ptb.") advance(*host, 4);
+	else if begins_with(host, "canary.") advance(*host, 7);
+	if host != "discord.com" && host != "discordapp.com" return null, 0;
+	advance(*u, slash);
+	if !begins_with(u, "/channels/") return null, 0;
+	parts := split(advance(u, "/channels/".count), "/",, temp);
+	if parts.count < 2 return null, 0;
+	cid, ok := string_to_int(parts[1], T = u64);
+	if !ok return null, 0;
+	ch := dc.channel_get(store(), cid);
+	if !ch return null, 0;
+	mid: u64;
+	if parts.count >= 3 mid = string_to_int(parts[2], T = u64);
+	return ch, mid;
+}
+
 quote_bar_draw :: (b: *ui.Box, user: *void) {
 	c := T("--border-strong");
 	c.w *= b.opacity;
