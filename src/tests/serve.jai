@@ -587,6 +587,22 @@ main :: () {
 	status, body = rest("DELETE", tprint("%/%", messages, field(spam, "id").s), "", other_token);
 	check(status == 204, tprint("a member deletes their own message: % %", status, body));
 
+	// One address holds at most 16 connections: past that, the server hangs up at once.
+	held: [..]netio.Stream;
+	refused := false;
+	for 1..20 {
+		t, derr := netio.dial_tcp("127.0.0.1", port);
+		if derr != .None break;
+		st := netio.tcp_stream(t);
+		array_add(*held, st);
+		netio.set_timeout(st, 300);
+		b: [1]u8;
+		_, rerr := netio.read(st, b);
+		if rerr != .Timeout { refused = true; break; }
+	}
+	check(refused && held.count > 1 && held.count <= 17, tprint("connections per address are capped: %", held.count));
+	for held netio.close(it);
+
 	serve.stop(s);
 	print("% failed\n", failed);
 	exit(xx ifx failed then 1 else 0);

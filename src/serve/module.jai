@@ -16,6 +16,10 @@ tls :: #import "tls";
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
 LOGIN_DEADLINE_S :: 10;
+// A member holds up to 3 connections (2 REST, 1 gateway), so this fits a household of several.
+MAX_CONNS_PER_ADDRESS :: 16;
+MAX_CONNS :: 1024;
+IPV4_MAPPED :: u8.[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF];
 
 Server :: struct {
 	db: *sqlite.DB;
@@ -513,11 +517,22 @@ accept_loop :: (s: *Server) {
 			continue;
 		}
 		backoff = 0;
+		locks.lock(*s.mu);
+		reap(s);
+		// One address may hold MAX_CONNS_PER_ADDRESS, counting an IPv6 /64 as one address, since a home
+		// gets a whole /64 to pick from.
+		mapped := memcmp(tcp.peer.data, IPV4_MAPPED.data, IPV4_MAPPED.count) == 0;
+		prefix := ifx mapped then 16 else 8;
+		same := 0;
+		for s.conns if memcmp(it.tcp.peer.data, tcp.peer.data, prefix) == 0 same += 1;
+		if same >= MAX_CONNS_PER_ADDRESS || s.conns.count >= MAX_CONNS {
+			locks.unlock(*s.mu);
+			netio.close(netio.tcp_stream(tcp));
+			continue;
+		}
 		c := New(Conn);
 		c.server, c.tcp, c.s = s, tcp, netio.tcp_stream(tcp);
 		c.accepted = current_time_monotonic();
-		locks.lock(*s.mu);
-		reap(s);
 		array_add(*s.conns, c);
 		c.thread = spawn(c, serve_conn);
 		locks.unlock(*s.mu);

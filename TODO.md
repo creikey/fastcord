@@ -80,7 +80,7 @@
   - Done: reactions must be valid UTF-8 with a non-ASCII character (no plain words), at most 20 distinct per message (30010); message content, topics, and channel and member names must be valid UTF-8 without control characters (`text_ok`). A reaction can still be any non-ASCII text, not only a real emoji.
   - No rate limits on send, edit, typing or login. Every write is an fsync under `db_mu`. A login body can be replayed on the same connection, costing an SLH-DSA verify each time. Add per-member and per-IP budgets, and make login single-use per connection. A fastcord member holds up to 3 connections, so size a per-IP connection cap for a household of several (say 16).
   - Done: a connection that hasn't logged in (or shown a member's token) within 10 s is cut off when the next connection arrives (`accept_loop` `reap`).
-  - Connections are unlimited, one thread each. Cap them per IP and in total.
+  - Done: at most 16 connections per address (an IPv6 /64 counts as one) and 1024 in total; past that the server hangs up at once (`accept_loop`, `netio.Tcp.peer`).
   - Done: when accept fails (the fd limit), `accept_loop` reaps finished connections and backs off (10 ms doubling to 1 s) instead of spinning.
   - Sessions never expire and every login adds one. Add expiry, logout, and an owner's Kick that revokes sessions.
   - Every Identify, disconnect and op 37 resends the full member list to every connection (already in Hosting 2's Next).
