@@ -175,7 +175,6 @@
 - [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
-- [ ] Bug: after a jump to a loaded message near the top of the history (a reply click, maybe search), a ~130px blank band sits above the top rows and stays; filler messages 0–2 should fill it. Repro: `tests/ui/forward/reply_jump.txt`'s PNG (`jump_to_message`, `message_list` in `view_chat.jai`).
 - [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
 - [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
