@@ -124,6 +124,7 @@ DAVE active.
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
 | Camera on/off: op 4 with `self_video` set, otherwise unchanged (mute / deafen toggles keep it) | guess | `VoiceStateStore`, `selfVideo` | `dc.voice_set_state`, `video_call.jai` `send_voice_state` |
+| While deafened the mic button shows muted; clicking it undeafens and unmutes (undeafening alone restores the mute from before) | guess | `toggleSelfMute` | `views.jai` `toggle_self_mute` |
 | Voice op 12 VIDEO when our video starts / stops: `audio_ssrc`, `video_ssrc`, `rtx_ssrc` (0 when off), one `streams` entry `{type:"video", rid:"100", ssrc, active, quality:100, rtx_ssrc, max_bitrate, max_framerate, max_resolution:{type:"fixed",width,height}}`; SSRCs from READY `streams[0]` | guess (open-source Go Live streamers) | `VIDEO` opcode in the RTC connection | `voice.msg_video`, `voice.set_video` |
 | Server op 12 maps `user_id` to `video_ssrc` / each active `streams[].ssrc`; inactive or 0 = stopped | guess | same | `conn.jai` `on_remote_video` |
 | Voice op 15 MEDIA_SINK_WANTS `{"any":100}` after SESSION_DESCRIPTION (all video at full quality) | guess | `MEDIA_SINK_WANTS` | `conn.jai` `MSG_MEDIA_SINK_WANTS_ANY` |
@@ -299,7 +300,7 @@ module were read.
 
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
-| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open and Quit (the client's also has Mute, Deafen, voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
+| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open, Mute and Deafen (checked while on; Mute shows checked while deafened) and Quit (the client's also has voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
 
 ## Login and logout
 

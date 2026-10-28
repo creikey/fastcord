@@ -33,7 +33,6 @@
 - [ ] Security: array bounds and null checks are off in the shipped `app` and `dev` builds. Jai's `set_optimization` turns them off for anything but debug (`build.jai`), so every out-of-bounds bug below is silent memory corruption, not a crash. The style guide says never drop checks globally: turn them on for `app` and `dev`, and add `#no_abc` only on loops the bench shows are hot.
 - [ ] Check: voice may reconnect without limit after close codes like 4006, 4011 or 4015 (`view_voice.jai` retries with nothing bounding it).
 - [ ] Scrolling (fastcord-only): a "Smooth scrolling" checkbox in Appearance. When off, wheel and keyboard scrolling jump straight to the target instead of easing (`ui.animate(*cs.scroll_from_bottom, ...)` in `view_chat.jai`, `view_off_target` in `ui/core.jai`). Reduced motion should imply it.
-- [ ] Voice: while deafened the mic button shows unmuted, and clicking it only flips `self_mute` instead of undeafening (`views.jai`).
 - [ ] Bug: an image, emoji, video, audio clip or sound that fails to load once (offline, sleep, 429, 5xx) stays broken until restart. `.Failed` is permanent in `images.jai`, `view_media.jai`, `emoji.jai` and `sounds.jai`, with no retry in `discord/media.jai`.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
 - [ ] Accounts: support full account switching; today it assumes a single token.
@@ -50,7 +49,6 @@
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Reuse that menu so Shift-clicking Delete Message skips the confirm prompt there too, as it already does in chat. Pins likely have the same gap.
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
-- [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
@@ -300,4 +298,7 @@
 - [x] Voice: a speaking user's name turns white in the sidebar; occupants show mute and deafen icons (red when server-imposed).
 - [x] Voice: optional RNNoise noise suppression on the mic (Voice & Video toggle, saved), on every platform and independent of the OS DSP (`vendor/rnnoise`, `tx_tick`).
 - [x] Act on press: buttons, rows, tabs and menu items fire on mouse-down, and that press's release goes nowhere else. `.Click_On_Release` keeps release for resize handles, folder icons (drag reorder) and destructive menu items and confirm buttons.
+- [x] Voice: while deafened the mic button (sidebar panel and call view) shows muted, and clicking it undeafens and unmutes.
+- [x] Replies: the quoted preview keeps the author name at full width and cuts the original's text with an ellipsis after it, instead of drawing a long URL over the name.
+- [x] Tray (Windows): the tray menu has Mute and Deafen, checked while on, so you can mute while the window is hidden.
 - [x] Voice: long names of sidebar voice occupants are cut with "…" so their mute, deafen, video and LIVE icons stay visible.

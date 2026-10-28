@@ -299,12 +299,17 @@ frame :: () {
 			array_add(*drops, e.text);
 		case .Drag_Enter; #through; case .Drag_Leave;
 			attachments_drag_event(e);
+		case .Tray_Mute;
+			toggle_self_mute();
+		case .Tray_Deafen;
+			app.self_deaf = !app.self_deaf;
 		case .Focus_Gained; #through; case .Focus_Lost;
 			app.focused = e.kind == .Focus_Gained;
 			app.focus_gained = app.focused;
 			if app.client != null dc.client_set_focused(app.client, app.focused);
 		}
 	}
+	platform.set_tray_voice(app.self_mute || app.self_deaf, app.self_deaf);
 	// one batch per drop (the 10-file cap applies to the batch)
 	if drops.count > 0 && app.view.channel != 0 && !app.needs_login stage_paths(app.view.channel, drops, "drag_and_drop");
 	evs := map_events(platform.events());
