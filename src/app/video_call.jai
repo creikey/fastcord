@@ -225,6 +225,12 @@ video_frame :: () {
 	for vid.cams show_pending(*it.pending, *it.img, *it.shown_ms);
 	for vid.streams show_pending(*it.pending, *it.img, *it.shown_ms);
 	locks.unlock(*vid.mu);
+	err := video.capture_error(vid.camera.capture);
+	if err {
+		camera_stop();
+		send_voice_state();
+		toast_show(err, false);
+	}
 	for s: (*Sender).[*vid.camera, *vid.screen] {
 		locks.lock(*s.mu);
 		ms: s64;

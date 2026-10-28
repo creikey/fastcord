@@ -77,7 +77,7 @@ camera_thread :: (t: *Thread) -> s64 {
 	com := mf.com_enter();
 	defer mf.com_leave(com);
 	acts, n := cameras();
-	if !n { print("camera: no capture devices\n", to_standard_error = true); return 0; }
+	if !n { c.error = "No camera found."; return 0; }
 	// Virtual cameras (NDI, for one) are root-enumerated, often listed before the real ones, and may
 	// never deliver a frame until some app feeds them, so take the first real device.
 	is_virtual :: (act: *void) -> bool {
@@ -105,7 +105,11 @@ camera_thread :: (t: *Thread) -> s64 {
 	}
 	source: *void;
 	hr := mf.com(act, 33, #type (*void, *GUID, **void) -> HRESULT #c_call)(act, *mf.IID_IMFMediaSource, *source);
-	if hr < 0 { print("camera: opening device % of % failed (hr %)\n", pick, n, hr, to_standard_error = true); return 0; }
+	if hr < 0 {
+		print("camera: opening device % of % failed (hr %)\n", pick, n, hr, to_standard_error = true);
+		c.error = "Couldn't open the camera. Another app may be using it.";
+		return 0;
+	}
 	attrs: *void;
 	mf.MFCreateAttributes(*attrs, 2);
 	if attrs {
@@ -116,7 +120,11 @@ camera_thread :: (t: *Thread) -> s64 {
 	hr = mf.MFCreateSourceReaderFromMediaSource(source, attrs, *reader);
 	mf.release(attrs);
 	mf.release(source);
-	if hr < 0 { print("camera: source reader failed (hr %)\n", hr, to_standard_error = true); return 0; }
+	if hr < 0 {
+		print("camera: source reader failed (hr %)\n", hr, to_standard_error = true);
+		c.error = "Couldn't open the camera.";
+		return 0;
+	}
 	defer mf.release(reader);
 
 	STREAM :: mf.MF_SOURCE_READER_FIRST_VIDEO_STREAM;
@@ -146,7 +154,11 @@ camera_thread :: (t: *Thread) -> s64 {
 	out := mf.video_type(*mf.MFVideoFormat_NV12, w, h);
 	ok := out && set_type(reader, out);
 	mf.release(out);
-	if !ok { print("camera: no NV12 output at %x%\n", w, h, to_standard_error = true); return 0; }
+	if !ok {
+		print("camera: no NV12 output at %x%\n", w, h, to_standard_error = true);
+		c.error = "The camera's video format isn't supported.";
+		return 0;
+	}
 
 	// The current output type: visible size, padded height and stride.
 	read_type :: (reader: *void) -> int, int, int, int {
@@ -164,6 +176,7 @@ camera_thread :: (t: *Thread) -> s64 {
 		hr = mf.com(reader, 9, #type (*void, u32, u32, *u32, *u32, *s64, **void) -> HRESULT #c_call)(reader, STREAM, 0, *idx, *flags, *ts, *s);
 		if hr < 0 || flags & (mf.MF_SOURCE_READERF_ERROR | mf.MF_SOURCE_READERF_ENDOFSTREAM) {
 			print("camera: capture stopped (hr %, flags %)\n", hr, flags, to_standard_error = true);
+			c.error = "The camera stopped. Another app may have taken it.";
 			mf.release(s);
 			break;
 		}

@@ -9,6 +9,7 @@ Capture :: struct {
 	quit: bool; // atomic
 	width, height, fps: int; // camera: requested; screen: output
 	target: Screen_Target;
+	error: string; // set by the thread before it gives up; a literal
 }
 
 // A synthetic source for live tests (FASTCORD_VIDEO_TEST): eight colour bars scrolling left and a white
@@ -44,6 +45,12 @@ pattern_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 72
 		return 0;
 	});
 	return c;
+}
+
+// Why the capture ended on its own ("" while it runs, or once capture_stop asked it to).
+capture_error :: (c: *Capture) -> string {
+	if !c || atomic_load(*c.quit) || !thread_is_done(*c.thread) return "";
+	return ifx c.error then c.error else "The camera stopped.";
 }
 
 // Waits at most for a frame callback already running. The thread itself can stay blocked for long (a

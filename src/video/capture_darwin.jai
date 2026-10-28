@@ -150,6 +150,8 @@ screen_start :: (target: Screen_Target, on_frame: Frame_Proc, user: *void, fps :
 	return c;
 }
 
+capture_error :: (c: *Capture) -> string { return ""; }
+
 capture_stop :: (c: *Capture) {
 	if !c return;
 	if c.pattern {

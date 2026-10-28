@@ -137,7 +137,7 @@
 - [ ] Group DMs: right-clicking a row does nothing; leaving with the X has no confirmation.
 - [ ] GIFs: test search live against the official client: results and their order for the same queries, typing and debounce feel, suggestions, empty and error states, and scrolling a long result list. Fix whatever falls short.
 - [ ] Voice: when a moderator moves you, `app.voice_channel` keeps the old channel, so the panel shows the old name and the next mute goes to it (`view_voice.jai`).
-- [ ] Video: when the camera thread exits without a frame (device busy, or one that never delivers), the camera button stays lit (`camera_on` is just `vid.camera.capture != null`) with no preview and no message. Turn it off and say why.
+- [ ] Video (Windows): a camera that opens but never sends a frame (an idle NDI virtual camera, when it's the only device) leaves the button lit with no preview: `ReadSample` returns stream ticks forever. Give up after a few seconds without a frame and say so.
 - [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
@@ -361,3 +361,4 @@
 - [x] Messages: the message menu's Create Thread opens the thread form named after the message's first line and starts the thread from it (POST .../messages/{id}/threads; `view_threads_browser.jai` `thread_from_message`, `tests/ui/thread_from_message.txt`).
 - [x] Video: when the call's `video_codec` can't be encoded here (H.265 on Windows and Linux, VP8, AV1), fastcord sends voice op 14 with that codec `encode:false`, as the official client does, and sends H.264 until the server's op 14 picks another codec (`voice.cannot_encode`, `on_capture_frame`). Checked live: the server answers op 14 with a new `video_codec`, and H.264 at PT 105 passes through a call set to another codec.
 - [x] Bug (Windows): the camera button did nothing on machines with a virtual camera (NDI) listed first: capture always opened device 0, which never delivered a frame. It now takes the first device whose symbolic link isn't root-enumerated (`\\?\root#`), and logs capture failures to stderr (`capture_windows.jai` `camera_thread`).
+- [x] Video: when camera capture ends on its own (no camera, device busy or taken by another app, unsupported format), the camera turns off and a toast says why (`video.capture_error`, `video_frame`). Reasons are specific on Windows, generic on Linux; macOS doesn't report yet.
