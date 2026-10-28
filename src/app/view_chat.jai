@@ -1662,6 +1662,17 @@ typing_line :: (channel_id: dc.Snowflake) {
 	label(msg, .Medium, 14, T("--text-default"), 24);
 }
 
+// The length Discord checks: JavaScript's, in UTF-16 units (an emoji outside the BMP counts 2).
+utf16_length :: (s: string) -> int {
+	n := 0;
+	for i: 0..s.count-1 {
+		c := s[i];
+		if (c & 0xC0) == 0x80 continue;
+		n += ifx c >= 0xF0 then 2 else 1;
+	}
+	return n;
+}
+
 composer :: (ch: *dc.Channel, cs: *Chat_State) {
 	s := store();
 	outer := row("composer_outer");
@@ -1733,14 +1744,26 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			ui.pop_parent();
 			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"), markdown = true);
 			if res == .Changed emoji_autocomplete_close_colon(ch, *cs.editor);
-			if res == .Submit {
+			// The length limit: 4000 with Nitro, else 2000; the count shows in the last 200 and an over-long send is held.
+			me := dc.user_get(s, s.me);
+			limit := ifx me && me.premium_type == 2 then 4000 else 2000;
+			length := utf16_length(ui.editor_text(*cs.editor));
+			if res == .Submit && length > limit {
+				toast_show(tprint("Your message is too long (% / %).", length, limit), false);
+			} else if res == .Submit {
 				text := trim(ui.editor_text(*cs.editor), " \t\n\r\x0b\x0c");
 				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) cs.scroll_target = 0;
 				ui.editor_set_text(*cs.editor, "");
+				length = 0;
 			} else if res == .Escape {
 				ma.replying = 0;
 			} else if res == .Changed && app.client != null && ui.editor_text(*cs.editor) != "" {
 				dc.typing_keystroke(app.client, ch.id);
+			}
+			if limit - length < 200 {
+				left := limit - length;
+				label(tprint("%##charcount", left), .Medium, 14, ifx left < 0 then T("--text-feedback-critical") else T("--text-muted"), 18);
+				spacer(.X, 4);
 			}
 			clk := ui.box("clock", .Clickable);
 			clk.semantic_size = .[ui.px(40), ui.px(COMPOSER_H)];

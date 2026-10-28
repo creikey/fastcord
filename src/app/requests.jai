@@ -141,13 +141,14 @@ skel :: (id: string, w: float32, h: float32, round := false) -> *ui.Box {
 req_toast :: () {
 	if toast.text == "" return;
 	if app.ui.time > toast.until {
+		free(toast.text);
 		toast = .{};
 		return;
 	}
 	app.wake_at = ifx app.wake_at > 0 then min(app.wake_at, toast.until) else toast.until;
 	t := ui.box("reqtoast", .Draw_Background | .Draw_Text | .Floating_X | .Floating_Y | .Overlay);
 	t.semantic_size = .[ui.text_size(16), ui.px(36)];
-	t.text = toast.text;
+	t.text = copy_string(toast.text,, temp); // toast_show may free it before this frame draws
 	t.style.font = F(.Medium);
 	t.style.font_size = 14;
 	t.style.text_align = .Center;
@@ -160,13 +161,15 @@ req_toast :: () {
 
 // A short notice in the same place: green when ok (a done action), red when not.
 toast_show :: (text: string, ok: bool) {
-	toast = .{text = text, until = app.ui.time + 5, ok = ok};
+	free(toast.text);
+	toast = .{text = copy_string(text), until = app.ui.time + 5, ok = ok};
 }
 
 req_reset_for_test :: () {
 	for reqs free(it.key);
 	array_reset(*reqs);
 	req_offline = .Hold;
+	free(toast.text);
 	toast = .{};
 }
 
