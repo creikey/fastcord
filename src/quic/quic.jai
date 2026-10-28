@@ -3,8 +3,8 @@
 MAX_FIELD_SECTION :: 262144;
 MAX_RESPONSE :: 256 << 20;
 
-// H3_SETTINGS are the SETTINGS fc_ngtcp2.c sends, as {id, value}, in nghttp3's order.
-H3_SETTINGS :: [2]u64.[.[0x06, MAX_FIELD_SECTION], .[0x01, 65536], .[0x07, 100], .[0x33, 1]];
+// H3_SETTINGS are the SETTINGS fc_ngtcp2.c sends, as {id, value}, in Chrome's order; a GREASE setting follows.
+H3_SETTINGS :: [2]u64.[.[0x01, 65536], .[0x06, MAX_FIELD_SECTION], .[0x07, 100], .[0x33, 1]];
 
 // Conn is one HTTP/3 connection. It and its I/O thread's memory are on the heap.
 Conn :: struct {
@@ -21,7 +21,8 @@ Conn :: struct {
 	host: string;
 	streams: Table(s64, *Stream);
 	err: http.Error;             // why the connection ended; .None while it is up
-	ready: bool;
+	ready: bool;                 // HTTP/3 is up: replay-safe requests may go, in 0-RTT on a resumed session
+	confirmed: bool;             // the handshake is done: any request may go
 	goaway: bool;
 	stop: bool;
 }
@@ -46,10 +47,11 @@ connect :: (host: string, port := 443) -> *Conn, http.Error {
 	c.sock, c.wake_sock, c.peer, c.ssl = sock, wake_sock, peer, ssl;
 	c.local = udp_local(peer, local_port, loopback = true);
 	c.host = copy_string(host);
-	c.ev = .{c, on_header, on_data, on_done, on_goaway};
+	c.ev = .{c, on_header, on_data, on_done, on_goaway, on_rejected};
 	rtt := cached_rtt_us(host) * 1000;
 	ip := udp_ip(*peer);
-	c.q = fc_quic_new(ssl, xx ifx ip.count == 4 then 4 else 6, ip.data, xx udp_port(peer), xx local_port, now_ns(), rtt, *c.ev);
+	ztp := cached_0rtt(host,, temp);
+	c.q = fc_quic_new(ssl, xx ifx ip.count == 4 then 4 else 6, ip.data, xx udp_port(peer), xx local_port, now_ns(), rtt, ztp.data, xx ztp.count, *c.ev);
 	if !c.q {
 		destroy(c);
 		return null, .Out_Of_Memory;
@@ -114,6 +116,8 @@ request :: (c: *Conn, req: http.Request) -> http.Response, http.Error {
 	}
 	if !has_priority field(*fields, "priority", prio);
 
+	// Like Chrome, only replay-safe methods go in 0-RTT; the rest wait for the handshake.
+	safe := array_find(string.["GET", "HEAD", "OPTIONS", "TRACE"], req.method);
 	st := Stream.{resp = http.make_response(.Http3)};
 	id: s64;
 	lock(c);
@@ -121,17 +125,23 @@ request :: (c: *Conn, req: http.Request) -> http.Response, http.Error {
 	while true {
 		if c.err != .None return .{}, c.err;
 		if c.goaway return .{}, .Goaway;
-		rv := fc_quic_submit(c.q, fields.data, xx fields.count, req.body.data, xx req.body.count, prio.data, xx prio.count, *id);
-		if rv == 0 break;
+		rv := ERR_STREAM_ID_BLOCKED;
+		if c.ready && (safe || c.confirmed) rv = fc_quic_submit(c.q, fields.data, xx fields.count, req.body.data, xx req.body.count, prio.data, xx prio.count, *id);
+		if rv == 0 {
+			table_set(*c.streams, id, *st);
+			wake(c);
+			while !st.done && !st.retry && c.err == .None locks.cond_wait(*c.cond, *c.mu);
+			c.ctx = *context;
+			table_remove(*c.streams, id);
+			if !st.retry break;
+			// The server refused 0-RTT: send it again on 1-RTT.
+			st.retry = false;
+			continue;
+		}
 		if rv != ERR_STREAM_ID_BLOCKED return .{}, .Bad_Request;
 		locks.cond_wait(*c.cond, *c.mu);
 		c.ctx = *context;
 	}
-	table_set(*c.streams, id, *st);
-	wake(c);
-	while !st.done && c.err == .None locks.cond_wait(*c.cond, *c.mu);
-	c.ctx = *context;
-	table_remove(*c.streams, id);
 	if st.cancel && c.err == .None {
 		fc_quic_cancel(c.q, id);
 		wake(c);
@@ -149,7 +159,7 @@ close :: (c: *Conn) {
 	locks.unlock(*c.mu);
 	wake(c);
 	locks.join(c.io,, Context_Base.default_allocator);
-	if c.ready remember_rtt(c.host, fc_quic_srtt(c.q) / 1000);
+	if c.confirmed remember_rtt(c.host, fc_quic_srtt(c.q) / 1000);
 	destroy(c);
 }
 
@@ -160,6 +170,34 @@ chrome_transport_params :: (initial_rtt_us: u64) -> []u8 {
 	buf: [256]u8;
 	n := fc_quic_chrome_tp(buf.data, initial_rtt_us);
 	return array_copy(array_view(buf, 0, xx n));
+}
+
+// first_flight returns, for tests, the datagrams a new connection to host sends before hearing back, from
+// context.allocator. Nothing goes on the network.
+first_flight :: (host: string) -> [][]u8 {
+	out: [..][]u8;
+	ssl := tls.new_ssl(quic_ctx(), .{alpn = string.["h3"], server_name = host}, true);
+	if !ssl return out;
+	ev := Events.{null, on_header, on_data, on_done, on_goaway, on_rejected};
+	ip := u8.[127, 0, 0, 1];
+	q := fc_quic_new(ssl, 4, ip.data, 443, 50000, now_ns(), 0, null, 0, *ev);
+	if !q return out;
+	buf: [2048]u8;
+	while true {
+		n := fc_quic_write(q, buf.data, buf.count, now_ns());
+		if n <= 0 break;
+		array_add(*out, array_copy(array_view(buf, 0, n)));
+	}
+	fc_quic_del(q);
+	return out;
+}
+
+// h3_preview returns, for tests, what HTTP/3 sends on a new connection carrying n GETs whose PRIORITY_UPDATE is
+// prio: records [stream id: 1 byte][length: 2 bytes, big-endian][bytes] in send order, from context.allocator.
+h3_preview :: (prio: string, n: int) -> []u8 {
+	buf: [4096]u8;
+	used := fc_h3_preview(prio.data, xx prio.count, xx n, buf.data, buf.count);
+	return array_copy(array_view(buf, 0, max(used, 0)));
 }
 
 // transport_params is what c's ClientHello carried, valid until close(c).
@@ -210,6 +248,7 @@ Events :: struct {
 	data: (user: *void, id: s64, p: *u8, n: u64) #c_call;
 	done: (user: *void, id: s64, fin: s32, code: u64) #c_call;
 	goaway: (user: *void) #c_call;
+	rejected: (user: *void) #c_call;
 }
 
 Field :: struct {
@@ -219,7 +258,7 @@ Field :: struct {
 	vlen: u64;
 }
 
-fc_quic_new :: (ssl: *tls.SSL, family: s32, addr: *u8, port: s32, local_port: s32, now: u64, initial_rtt: u64, ev: *Events) -> *Fc_Quic #foreign lib;
+fc_quic_new :: (ssl: *tls.SSL, family: s32, addr: *u8, port: s32, local_port: s32, now: u64, initial_rtt: u64, ztp: *u8, ztplen: u64, ev: *Events) -> *Fc_Quic #foreign lib;
 fc_quic_del :: (q: *Fc_Quic) #foreign lib;
 fc_quic_read :: (q: *Fc_Quic, pkt: *u8, n: u64, now: u64) -> s32 #foreign lib;
 fc_quic_write :: (q: *Fc_Quic, buf: *u8, cap: u64, now: u64) -> int #foreign lib;
@@ -232,6 +271,8 @@ fc_quic_ready :: (q: *Fc_Quic) -> s32 #foreign lib;
 fc_quic_srtt :: (q: *Fc_Quic) -> u64 #foreign lib;
 fc_quic_chrome_tp :: (buf: *u8, rtt_us: u64) -> u64 #foreign lib;
 fc_quic_tp :: (q: *Fc_Quic, n: *u64) -> *u8 #foreign lib;
+fc_quic_0rtt_tp :: (q: *Fc_Quic, buf: *u8, cap: u64) -> u64 #foreign lib;
+fc_h3_preview :: (prio: *u8, plen: u64, n: s32, buf: *u8, cap: u64) -> int #foreign lib;
 ngtcp2_crypto_boringssl_configure_client_context :: (ctx: *tls.SSL_CTX) -> s32 #foreign lib;
 
 ERR_STREAM_ID_BLOCKED :: -206;
@@ -247,6 +288,7 @@ Stream :: struct {
 	err: http.Error;
 	done: bool;
 	cancel: bool;   // we gave up on it: reset it once the C call that found out returns
+	retry: bool;    // sent in refused 0-RTT: submit it again
 	interim: bool;  // inside a 1xx header section
 	field_bytes: int;
 }
@@ -318,6 +360,7 @@ io_loop :: (t: *Thread) -> s64 {
 			if n <= 0 { fail_locked(c, xx n); break; }
 			udp_send(c.sock, array_view(buf, 0, n), c.peer);
 		}
+		update_ready(c);
 		if c.err != .None || c.stop {
 			n := fc_quic_close_packet(c.q, buf.data, buf.count, now);
 			if n > 0 udp_send(c.sock, array_view(buf, 0, n), c.peer);
@@ -335,12 +378,25 @@ io_loop :: (t: *Thread) -> s64 {
 		if n <= 0 || !same_addr(from, c.peer) continue;
 		lock(c);
 		if c.err == .None fail_locked(c, fc_quic_read(c.q, buf.data, xx n, now_ns()));
-		if !c.ready && c.err == .None && fc_quic_ready(c.q) c.ready = true;
+		update_ready(c);
 		// New stream credit, handshake progress or a failure: let waiting requests look again.
 		locks.cond_broadcast(*c.cond);
 		locks.unlock(*c.mu);
 	}
 	return 0;
+}
+
+// update_ready follows fc_quic_ready (caller holds c.mu) and keeps the server's 0-RTT transport parameters
+// once the handshake is done.
+update_ready :: (c: *Conn) {
+	r := fc_quic_ready(c.q);
+	if r == 2 && !c.confirmed {
+		buf: [256]u8;
+		remember_0rtt(c.host, array_view(buf, 0, xx fc_quic_0rtt_tp(c.q, buf.data, buf.count)));
+	}
+	if c.err != .None || (c.ready == (r > 0) && c.confirmed == (r == 2)) return;
+	c.ready, c.confirmed = r > 0, r == 2;
+	locks.cond_broadcast(*c.cond);
 }
 
 // The on_* procs run inside a C call with c.mu held. Their pointers are valid only during the call.
@@ -398,6 +454,14 @@ on_goaway :: (user: *void) #c_call {
 	push_context c.ctx.* { locks.cond_broadcast(*c.cond); }
 }
 
+on_rejected :: (user: *void) #c_call {
+	c := cast(*Conn) user;
+	push_context c.ctx.* {
+		for c.streams it.retry = true; // no response can have started
+		locks.cond_broadcast(*c.cond);
+	}
+}
+
 give_up :: (c: *Conn, st: *Stream, err: http.Error) {
 	st.err, st.done, st.cancel = err, true, true;
 	locks.cond_broadcast(*c.cond);
@@ -405,6 +469,22 @@ give_up :: (c: *Conn, st: *Stream, err: http.Error) {
 
 rtt_cache_mu: locks.Mutex;
 rtt_cache: Table(string, u64); // heap
+zero_rtt_cache: Table(string, []u8); // heap, under rtt_cache_mu: each server's last 0-RTT transport parameters
+
+cached_0rtt :: (host: string) -> []u8 {
+	locks.guard(*rtt_cache_mu);
+	_, p := table_find(*zero_rtt_cache, host);
+	return array_copy(p);
+}
+
+remember_0rtt :: (host: string, p: []u8) {
+	if !p return;
+	locks.guard(*rtt_cache_mu);
+	push_allocator(Context_Base.default_allocator);
+	old := table_find_pointer(*zero_rtt_cache, host);
+	if old { array_free(old.*); old.* = array_copy(p); }
+	else table_add(*zero_rtt_cache, copy_string(host), array_copy(p));
+}
 
 remember_rtt :: (host: string, us: u64) {
 	if !us return;

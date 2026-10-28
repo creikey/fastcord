@@ -29,6 +29,8 @@ typedef struct fc_quic_events {
     // fin=1: the response ended cleanly. fin=0: the stream closed; code is the peer's or our reset code.
     void (*done)(void *user, int64_t id, int fin, uint64_t code);
     void (*goaway)(void *user);
+    // The server refused 0-RTT: every open request is gone and must be submitted again once fc_quic_ready.
+    void (*rejected)(void *user);
 } fc_quic_events;
 
 // A request body, copied at submit and freed when its stream closes or the connection is deleted.
@@ -49,8 +51,8 @@ typedef struct fc_quic {
     int failed;
     size_t burst;
     uint64_t rtt_us;
-    uint8_t tp[256];
-    size_t tplen;
+    uint8_t tp[256], ztp[256];
+    size_t tplen, ztplen;
     fc_quic_events ev;
     fc_body *bodies;
 } fc_quic;
@@ -243,7 +245,9 @@ static nghttp3_ssize h3_read_body(nghttp3_conn *h3, int64_t id, nghttp3_vec *vec
 
 // ngtcp2 -> nghttp3, as in ngtcp2's examples/http3_client_proto_codec.cc.
 
-static int setup_h3(fc_quic *q) {
+// h3_new makes a client nghttp3_conn on Chrome's streams: control 2 then QPACK decoder 6 and encoder 10, as
+// QUICHE opens them (the patched nghttp3 sends a QPACK stream's type only with its first instruction).
+static int h3_new(nghttp3_conn **h3, void *user, int64_t ctrl, int64_t dec, int64_t enc) {
     static const nghttp3_callbacks cb = {
         .stream_close = h3_stream_close,
         .recv_data = h3_recv_data,
@@ -257,7 +261,8 @@ static int setup_h3(fc_quic *q) {
         .rand = h3_rand,
     };
     // Chrome's SETTINGS: a 64 KiB QPACK decoder table, 256 KiB header sections, 100 blocked streams,
-    // HTTP datagrams. Its encoder never inserts into the dynamic table, and neither does this one.
+    // HTTP datagrams, plus (the patched nghttp3) a GREASE setting and GREASE frame. Its encoder never inserts
+    // into the dynamic table, and neither does this one.
     nghttp3_settings s;
     nghttp3_settings_default(&s);
     s.max_field_section_size = 262144;
@@ -265,17 +270,25 @@ static int setup_h3(fc_quic *q) {
     s.qpack_encoder_max_dtable_capacity = 0;
     s.qpack_blocked_streams = 100;
     s.h3_datagram = 1;
+    if (nghttp3_conn_client_new(h3, &cb, &s, nghttp3_mem_default(), user)) return -1;
+    return nghttp3_conn_bind_control_stream(*h3, ctrl) || nghttp3_conn_bind_qpack_streams(*h3, enc, dec) ? -1 : 0;
+}
+
+static int setup_h3(fc_quic *q) {
     int64_t ctrl, enc, dec;
     if (ngtcp2_conn_get_streams_uni_left2(q->conn) < 3) return -1;
-    if (nghttp3_conn_client_new(&q->h3, &cb, &s, nghttp3_mem_default(), q)) return -1;
-    if (ngtcp2_conn_open_uni_stream(q->conn, &ctrl, NULL) || nghttp3_conn_bind_control_stream(q->h3, ctrl)) return -1;
-    if (ngtcp2_conn_open_uni_stream(q->conn, &enc, NULL) || ngtcp2_conn_open_uni_stream(q->conn, &dec, NULL)) return -1;
-    return nghttp3_conn_bind_qpack_streams(q->h3, enc, dec) ? -1 : 0;
+    if (ngtcp2_conn_open_uni_stream(q->conn, &ctrl, NULL) || ngtcp2_conn_open_uni_stream(q->conn, &dec, NULL) ||
+        ngtcp2_conn_open_uni_stream(q->conn, &enc, NULL)) {
+        return -1;
+    }
+    return h3_new(&q->h3, q, ctrl, dec, enc);
 }
 
 // client_initial is ngtcp2_crypto_client_initial_cb with Chrome's transport parameter bytes in place of
 // ngtcp2's encoding. ngtcp2_crypto_derive_and_install_initial_key is exported but declared only in the
 // backend's crypto/shared.h.
+// When the hello offers early data and the server's transport parameters from the last connection are known,
+// HTTP/3 starts in 0-RTT, as Chrome's does on a resumed session.
 static int client_initial(ngtcp2_conn *conn, void *user) {
     fc_quic *q = user;
     q->tplen = fc_quic_chrome_tp(q->tp, q->rtt_us);
@@ -283,13 +296,37 @@ static int client_initial(ngtcp2_conn *conn, void *user) {
         SSL_set_quic_transport_params(q->ssl, q->tp, q->tplen) != 1 || ngtcp2_crypto_read_write_crypto_data(conn, NGTCP2_ENCRYPTION_LEVEL_INITIAL, NULL, 0)) {
         return NGTCP2_ERR_CALLBACK_FAILURE;
     }
+    if (q->ztplen && SSL_in_early_data(q->ssl) && !ngtcp2_conn_decode_and_set_0rtt_transport_params(conn, q->ztp, q->ztplen) && setup_h3(q)) {
+        return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
     return 0;
 }
 
 static int recv_rx_key(ngtcp2_conn *conn, ngtcp2_encryption_level level, void *user) {
+    fc_quic *q = user;
     (void)conn;
-    if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return 0;
-    return setup_h3(user) ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+    if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT || q->h3) return 0;
+    return setup_h3(q) ? NGTCP2_ERR_CALLBACK_FAILURE : 0;
+}
+
+static void free_bodies(fc_quic *q) {
+    for (fc_body *b = q->bodies, *next; b; b = next) {
+        next = b->next;
+        free(b);
+    }
+    q->bodies = NULL;
+}
+
+// The server refused 0-RTT: ngtcp2 dropped every stream, so HTTP/3 starts again on 1-RTT (recv_rx_key) and
+// Jai resubmits its requests, as Chrome resends them.
+static int early_data_rejected(ngtcp2_conn *conn, void *user) {
+    fc_quic *q = user;
+    (void)conn;
+    nghttp3_conn_del(q->h3);
+    q->h3 = NULL;
+    free_bodies(q);
+    q->ev.rejected(q->ev.user);
+    return 0;
 }
 
 static int recv_stream_data(ngtcp2_conn *conn, uint32_t flags, int64_t id, uint64_t offset, const uint8_t *p, size_t n, void *user, void *sud) {
@@ -368,17 +405,15 @@ void fc_quic_del(fc_quic *q) {
     nghttp3_conn_del(q->h3);
     ngtcp2_conn_del(q->conn);
     SSL_free(q->ssl);
-    for (fc_body *b = q->bodies, *next; b; b = next) {
-        next = b->next;
-        free(b);
-    }
+    free_bodies(q);
     free(q);
 }
 
 // fc_quic_new takes ownership of ssl (an SSL from src/tls's new_ssl on a context passed to
 // ngtcp2_crypto_boringssl_configure_client_context) and frees it, even on failure. family is 4 or 6; addr
-// holds 4 or 16 bytes. The ClientHello goes out with the first fc_quic_write.
-fc_quic *fc_quic_new(SSL *ssl, int family, const uint8_t *addr, int port, int local_port, uint64_t now, uint64_t initial_rtt, const fc_quic_events *ev) {
+// holds 4 or 16 bytes. ztp is fc_quic_0rtt_tp's from the last connection to this server, if any (at most
+// 256 bytes). The ClientHello goes out with the first fc_quic_write.
+fc_quic *fc_quic_new(SSL *ssl, int family, const uint8_t *addr, int port, int local_port, uint64_t now, uint64_t initial_rtt, const uint8_t *ztp, size_t ztplen, const fc_quic_events *ev) {
     static const ngtcp2_callbacks cb = {
         .client_initial = client_initial,
         .recv_crypto_data = ngtcp2_crypto_recv_crypto_data_cb,
@@ -400,6 +435,7 @@ fc_quic *fc_quic_new(SSL *ssl, int family, const uint8_t *addr, int port, int lo
         .get_new_connection_id2 = new_cid,
         .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
         .stream_close2 = stream_close,
+        .tls_early_data_rejected = early_data_rejected,
     };
     fc_quic *q = calloc(1, sizeof *q);
     if (!q) {
@@ -409,6 +445,7 @@ fc_quic *fc_quic_new(SSL *ssl, int family, const uint8_t *addr, int port, int lo
     q->ssl = ssl;
     q->rtt_us = initial_rtt / 1000;
     q->ev = *ev;
+    if (ztplen && ztplen <= sizeof q->ztp) memcpy(q->ztp, ztp, q->ztplen = ztplen);
     q->ref.get_conn = get_conn;
     q->ref.user_data = q;
     SSL_set_app_data(ssl, &q->ref);
@@ -577,8 +614,16 @@ int fc_quic_submit(fc_quic *q, const fc_field *f, size_t n, const uint8_t *body,
 // fc_quic_cancel abandons a request, resetting both directions with H3_REQUEST_CANCELLED.
 void fc_quic_cancel(fc_quic *q, int64_t id) { ngtcp2_conn_shutdown_stream(q->conn, 0, id, NGHTTP3_H3_REQUEST_CANCELLED); }
 
-// fc_quic_ready: the handshake is done (the certificate passed src/tls's checks) and HTTP/3 is set up.
-int fc_quic_ready(fc_quic *q) { return ngtcp2_conn_get_handshake_completed(q->conn) && q->h3; }
+// fc_quic_ready: 0 while HTTP/3 is not set up, 1 while it runs in 0-RTT (replay-safe requests only), 2 once the
+// handshake is done (the certificate passed src/tls's checks).
+int fc_quic_ready(fc_quic *q) { return !q->h3 ? 0 : ngtcp2_conn_get_handshake_completed(q->conn) ? 2 : 1; }
+
+// fc_quic_0rtt_tp writes the server's transport parameters that the next connection's 0-RTT needs; 0 before the
+// handshake is done.
+size_t fc_quic_0rtt_tp(fc_quic *q, uint8_t *buf, size_t cap) {
+    ngtcp2_ssize n = ngtcp2_conn_get_handshake_completed(q->conn) ? ngtcp2_conn_encode_0rtt_transport_params2(q->conn, buf, cap) : 0;
+    return n > 0 ? (size_t)n : 0;
+}
 
 // fc_quic_tp is the transport parameters q's ClientHello carried; valid until fc_quic_del.
 const uint8_t *fc_quic_tp(fc_quic *q, size_t *n) {
@@ -592,3 +637,36 @@ uint64_t fc_quic_srtt(fc_quic *q) {
     return ci.smoothed_rtt;
 }
 
+// fc_h3_preview writes into buf, for tests, what a new connection's HTTP/3 layer sends before any response:
+// n GET requests carrying PRIORITY_UPDATE prio, on streams 0, 4, ..., as records [stream id: 1 byte]
+// [length: 2 bytes, big-endian][bytes] in send order. Returns the bytes used, or -1.
+ngtcp2_ssize fc_h3_preview(const uint8_t *prio, size_t plen, int n, uint8_t *buf, size_t cap) {
+    static const uint8_t m[] = ":method", g[] = "GET", a[] = ":authority", h[] = "discord.com", sc[] = ":scheme", hs[] = "https", pa[] = ":path", sl[] = "/";
+    const nghttp3_nv nv[] = {{(uint8_t *)m, (uint8_t *)g, 7, 3, 0}, {(uint8_t *)a, (uint8_t *)h, 10, 11, 0}, {(uint8_t *)sc, (uint8_t *)hs, 7, 5, 0}, {(uint8_t *)pa, (uint8_t *)sl, 5, 1, 0}};
+    nghttp3_conn *h3 = NULL;
+    size_t used = 0;
+    int ok = !h3_new(&h3, NULL, 2, 6, 10);
+    for (int i = 0; ok && i < n; i++) {
+        ok = !nghttp3_conn_submit_request(h3, 4 * i, nv, 4, NULL, NULL) && !nghttp3_conn_set_client_stream_priority(h3, 4 * i, prio, plen);
+    }
+    for (int i = 0; ok && i < 64; i++) {
+        int64_t id;
+        int fin;
+        nghttp3_vec vec[16];
+        nghttp3_ssize nvec = nghttp3_conn_writev_stream(h3, &id, &fin, vec, 16);
+        if (nvec < 0 || id < 0) {
+            ok = nvec == 0;
+            break;
+        }
+        size_t len = (size_t)nghttp3_vec_len(vec, (size_t)nvec);
+        if (used + 3 + len > cap) ok = 0;
+        else if (len) {
+            buf[used] = (uint8_t)id, buf[used + 1] = (uint8_t)(len >> 8), buf[used + 2] = (uint8_t)len;
+            used += 3;
+            for (nghttp3_ssize j = 0; j < nvec; j++) memcpy(buf + used, vec[j].base, vec[j].len), used += vec[j].len;
+        }
+        ok = ok && !nghttp3_conn_add_write_offset(h3, id, len);
+    }
+    nghttp3_conn_del(h3);
+    return ok ? (ngtcp2_ssize)used : -1;
+}

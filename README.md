@@ -153,20 +153,18 @@ Keep the UI immediate-mode. Make each pass cheaper instead of caching results ac
 ## Fingerprint regressions
 
 Where our traffic still differs from the official client (Chrome 148 captures in the repo), and why.
-QUIC transport parameters, ALPN and the Initial datagram envelope (two 1250-byte datagrams, 8-byte DCID,
-empty SCID, no token) match exactly.
+QUIC transport parameters, ALPN and the Initial datagrams match exactly: two 1250-byte datagrams with an 8-byte
+DCID, empty SCID, no token and a 2-byte Length, packets 1 and 2 numbered with 1 then 2 bytes, and QUICHE's chaos
+protection inside (the ClientHello's head and tail in packet 1, its middle in packet 2, CRYPTO frames split
+among PINGs and PADDING; `quic_chrome_initials`). HTTP/3 starts as Chrome's does: sorted SETTINGS plus a GREASE
+setting and frame, QPACK streams silent until used, each PRIORITY_UPDATE just before its request's HEADERS
+(`quic_h3_control_stream`), and replay-safe requests in 0-RTT on resumed sessions. The ngtcp2 and nghttp3
+patches that do this are listed in their `vendor/*/README.md`.
 
-- QUIC Initial contents: Chrome fragments its CRYPTO frames and interleaves PING and PADDING frames
-  ("chaos protection"), and numbers its first packets with 1- then 2-byte packet numbers; ngtcp2 builds
-  its own frame layout and packet-number lengths and offers no setting for either. Fix: a patch to
-  ngtcp2's packet builder, or upstream support for Chrome-style CRYPTO scrambling.
-- HTTP/3 SETTINGS: nghttp3 writes 06, 01, 07, 33; Chrome writes 01, 06, 07, 33 plus a GREASE setting,
-  and a GREASE frame on the control stream. nghttp3 fixes the order and has no GREASE option. Fix: an
-  nghttp3 patch or upstream option.
-- QPACK encoder/decoder streams: nghttp3 opens both at setup; Chrome's timing differs. PRIORITY_UPDATE
-  frames follow nghttp3's scheduling, not Chrome's. Fix: an nghttp3 patch.
-- No 0-RTT requests on resumed QUIC sessions (the hello still offers early data, as Chrome's does).
-  Fix: replay-safe GETs through `ngtcp2_conn_open_bidi_stream` before the handshake completes.
+- QUIC packet numbers: QUICHE numbers every packet from one counter across the Initial, Handshake and 1-RTT
+  spaces (`QuicPacketCreator::NextSendingPacketNumber`); ngtcp2 counts each space from 1 and skips 1-RTT
+  numbers at random. Only the server sees them (they are header-protected). Fix: an ngtcp2 patch sharing
+  `tx.last_pkt_num` across spaces.
 
 ## Releasing
 
