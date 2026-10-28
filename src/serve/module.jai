@@ -38,6 +38,7 @@ Conn :: struct {
 	thread: *Thread;
 	done: bool; // atomic; the thread has finished with s.
 	ws: *http.Ws_Conn; // Under server.mu: set once Identify succeeds, so broadcasts reach it.
+	user: s64;         // Under server.mu, with ws.
 	mu: locks.Mutex;   // Orders this gateway's dispatches: seq and their sends.
 	seq: int;
 }
@@ -522,6 +523,73 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	return etf.vmap(etf.map_done(*d));
 }
 
+// member_list_value is the whole member list as one GUILD_MEMBER_LIST_UPDATE SYNC: Online, then Offline,
+// each by name. Online means an identified gateway is open. Takes server.mu, then db_mu.
+// @Speed: Past a few hundred members, sync only the ranges a client subscribed to and send INSERT/DELETE.
+member_list_value :: (s: *Server) -> etf.Value {
+	online: [..]s64;
+	online.allocator = temp;
+	locks.lock(*s.mu);
+	for s.conns if it.ws && it.user array_add_if_unique(*online, it.user);
+	locks.unlock(*s.mu);
+
+	Row :: struct { id: s64; name: string; }
+	on, off: [..]Row;
+	on.allocator, off.allocator = temp, temp;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT id, name FROM users ORDER BY name COLLATE NOCASE, id;");
+		while sqlite.step(st) == .Row {
+			r := Row.{sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp)};
+			array_add(ifx array_find(online, r.id) then *on else *off, r);
+		}
+		sqlite.finalize(st);
+	}
+	items: [..]etf.Value;
+	groups: [..]etf.Value;
+	items.allocator, groups.allocator = temp, temp;
+	add_group :: (id: string, rows: []Row) #expand {
+		g := etf.map_builder(2,, temp);
+		etf.map_put(*g, "id", etf.vstring(id));
+		etf.map_put(*g, "count", etf.vint(rows.count));
+		gv := etf.vmap(etf.map_done(*g));
+		array_add(*`groups, gv);
+		if !rows return;
+		item := etf.map_builder(1,, temp);
+		etf.map_put(*item, "group", gv);
+		array_add(*`items, etf.vmap(etf.map_done(*item)));
+		for rows {
+			p := etf.map_builder(1,, temp);
+			etf.map_put(*p, "status", etf.vstring(id));
+			m := etf.map_builder(2,, temp);
+			etf.map_put(*m, "user", user_value(it.id, it.name));
+			etf.map_put(*m, "presence", etf.vmap(etf.map_done(*p)));
+			wrap := etf.map_builder(1,, temp);
+			etf.map_put(*wrap, "member", etf.vmap(etf.map_done(*m)));
+			array_add(*`items, etf.vmap(etf.map_done(*wrap)));
+		}
+	}
+	add_group("online", on);
+	add_group("offline", off);
+
+	range := NewArray(2, etf.Value,, temp);
+	range[0], range[1] = etf.vint(0), etf.vint(max(items.count - 1, 0));
+	op := etf.map_builder(3,, temp);
+	etf.map_put(*op, "op", etf.vstring("SYNC"));
+	etf.map_put(*op, "range", etf.vlist(range));
+	etf.map_put(*op, "items", etf.vlist(items));
+	ops := NewArray(1, etf.Value,, temp);
+	ops[0] = etf.vmap(etf.map_done(*op));
+	d := etf.map_builder(6,, temp);
+	etf.map_put(*d, "id", etf.vstring("everyone"));
+	etf.map_put(*d, "guild_id", snow(s.guild));
+	etf.map_put(*d, "member_count", etf.vint(on.count + off.count));
+	etf.map_put(*d, "online_count", etf.vint(on.count));
+	etf.map_put(*d, "groups", etf.vlist(groups));
+	etf.map_put(*d, "ops", etf.vlist(ops));
+	return etf.vmap(etf.map_done(*d));
+}
+
 // dispatch sends an op 0 event with the connection's next sequence number.
 dispatch :: (c: *Conn, t: string, d: etf.Value) -> bool {
 	locks.guard(*c.mu);
@@ -687,9 +755,12 @@ gateway ::(c: *Conn, req: http.Request) {
 	ws := http.ws_attach(c.s, .{server = true, max_message = 1 << 20});
 	defer {
 		locks.lock(*c.server.mu);
+		was := c.user;
 		c.ws = null;
+		c.user = 0;
 		locks.unlock(*c.server.mu);
 		http.ws_destroy(ws);
+		if was broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
 	}
 
 	hello := etf.map_builder(,, temp);
@@ -722,15 +793,19 @@ gateway ::(c: *Conn, req: http.Request) {
 				// arrives after READY instead of being lost. Lock order: server.mu, then c.mu.
 				locks.lock(*c.server.mu);
 				c.ws = ws;
+				c.user = user;
 				locks.lock(*c.mu);
 				locks.unlock(*c.server.mu);
 				c.seq += 1;
 				ok := send(ws, 0, ready_value(c.server, user, name), c.seq, "READY");
 				locks.unlock(*c.mu);
 				if !ok return;
+				broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
+			case 37; // Guild subscriptions: there is one guild and one list, so any subscription gets all of it.
+				if c.ws && !dispatch(c, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server)) return;
 			case 6; // No resume: an invalid session makes the client identify again.
 				if !send(ws, 9, etf.vbool(false)) return;
-			case; // Voice states, guild subscriptions and the rest are Discord-only; ignore them.
+			case; // Voice states and the rest are Discord-only; ignore them.
 		}
 	}
 }

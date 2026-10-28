@@ -171,6 +171,8 @@ main :: () {
 			check(chans.list.count == 1 && field(chans.list[0], "name").s == "general", "READY has #general");
 			if chans.list.count channel = field(chans.list[0], "id").s;
 		}
+		members_ev := recv_event(ws);
+		check(field(members_ev, "t").s == "GUILD_MEMBER_LIST_UPDATE" && field(members_ev, "d", "online_count").i == 1, "member list after READY");
 	}
 
 	rest :: (method: string, path: string, body: string, token: string) -> int, string #expand {
@@ -242,6 +244,11 @@ main :: () {
 		pump();
 	}
 	check(typing_ok, "TYPING_START");
+	gid := cl.store.guild_order[0];
+	discord.subscribe_member_list(cl, gid, cid, ([2]int).[.[0, 99]]);
+	ml: *discord.Member_List;
+	for 1..300 { ml = table_find_pointer(*cl.store.member_lists, gid); if ml && ml.online_count == 1 break; pump(); }
+	check(ml && ml.online_count == 1 && ml.items.count == 2 && ml.items[1].user_id == cl.store.me, tprint("member list: %", ifx ml then ml.items.count else -1));
 	discord.client_destroy(cl);
 	status, body = rest("PATCH", tprint("%/1", messages), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("edit an unknown message: %", status));
