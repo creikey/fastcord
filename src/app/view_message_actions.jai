@@ -71,7 +71,9 @@ message_toolbar :: (m: *dc.Message) {
 	quick := quick_reactions();
 	names: [..]string;
 	names.allocator = temp;
-	array_add(*names, "reaction", ifx own then "pencil" else "arrow-angle-left-up", "more-horizontal");
+	array_add(*names, "reaction", ifx own then "pencil" else "arrow-angle-left-up");
+	if can_thread_from(m) array_add(*names, "thread");
+	array_add(*names, "more-horizontal");
 	// Shift adds a red trash can that deletes without asking
 	if (app.ui_mods & .Shift) && can_manage_message(m) && !m.pending array_add(*names, "trash");
 	// official: 3px padding, 28px buttons, a 1px divider with 4px gaps after the quick reactions
@@ -124,6 +126,7 @@ message_toolbar :: (m: *dc.Message) {
 				icon("i", name, 20, c);
 			}
 			if name == "trash" && sig.hovering tooltip_below("Delete", b.rect);
+			if name == "thread" && sig.hovering tooltip_below("Create Thread", b.rect);
 			if sig.clicked {
 				if name == {
 				case "arrow-angle-left-up";
@@ -136,10 +139,18 @@ message_toolbar :: (m: *dc.Message) {
 					app.reaction_target = m.id;
 				case "trash";
 					delete_now(m);
+				case "thread";
+					thread_from_message(m, header_thread_rect);
 				}
 			}
 		}
 	}
+}
+
+// A thread can start from this message: a guild text or announcement channel, no thread on it yet (HAS_THREAD).
+can_thread_from :: (m: *dc.Message) -> bool {
+	ch := dc.channel_get(store(), m.channel_id);
+	return ch && ch.guild_id && !dc.is_thread(ch) && (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && !(m.flags & 32) && !m.pending && can_create_thread(m.channel_id);
 }
 
 TOOLBAR_PAD :: 3;
@@ -457,8 +468,7 @@ message_menu :: () {
 	in_chat := m != ma.loose;
 	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
 	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
-	mch := dc.channel_get(s, m.channel_id);
-	if in_chat && mch && mch.guild_id && !dc.is_thread(mch) && (mch.kind == .Guild_Text || mch.kind == .Guild_Announcement) && !(m.flags & 32) && !m.pending && can_create_thread(m.channel_id) array_add(*items, .{label = "Create Thread", icon = "thread"});
+	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});

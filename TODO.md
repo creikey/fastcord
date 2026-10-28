@@ -81,7 +81,7 @@
 - [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
 - [ ] Media: Save Image goes straight to Downloads (`images.jai` `save_download`); the desktop client asks where to save with the system Save dialog.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
-- [ ] Messages: no "Create Thread" button in the hover toolbar (the message menu has it).
+- [ ] Threads: a message that started a thread shows no thread card under it (thread name, message count, last message; click opens the thread). `message.thread` isn't parsed (`model.jai` `Message`).
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
@@ -366,3 +366,4 @@
 - [x] Video: a camera that opens but sends no frame within 8 s (an idle NDI virtual camera blocks in `ReadSample` forever) is turned off with "The camera isn't sending any video." (`capture_error`, `capture_nv12.jai`). Its stuck thread is left behind, never freed.
 - [x] Settings: Voice & Video has a Camera section: Test Video previews the camera (the call's own camera while it's on), and stops when the page closes (`view_voice_settings.jai` `camera_test_section`, `video_call.jai` `camera_test_toggle`, `tests/ui/camera_test.txt`). `video_frame` now runs without a client too.
 - [x] Voice: the voice panel has Video and Screen buttons under the connection status, as the call view's camera and Go Live controls (`view_voice.jai` `voice_panel_button`, `tests/ui/voice_panel_buttons.txt`; script command `in_voice`).
+- [x] Messages: the hover toolbar has a Create Thread button, shown where the message menu offers it (`view_message_actions.jai` `can_thread_from`, `tests/ui/thread_from_toolbar.txt`).

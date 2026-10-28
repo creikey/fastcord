@@ -1,0 +1,9 @@
+# The hover toolbar's Create Thread button opens the thread form named after the message.
+resize 1600 900
+wait 10
+move 700 211
+wait 5
+click 1259 176
+wait 10
+expect_visible "THREAD NAME"
+shot build/ui-thread_from_toolbar.png
