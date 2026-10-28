@@ -1096,6 +1096,16 @@ remove_messages :: (s: *Store, cid: Snowflake) {
 	table_remove(*s.messages, cid);
 }
 
+// drop_message: forget one message locally (a failed send the user discards); nothing is sent.
+drop_message :: (s: *Store, cid: Snowflake, id: Snowflake) {
+	l := table_find_pointer(*s.messages, cid);
+	i := ifx l then message_index(l, id) else -1;
+	if i < 0 return;
+	free_message(s, *l.messages[i]);
+	array_ordered_remove_by_index(*l.messages, i);
+	s.changed += 1;
+}
+
 remove_guild :: (s: *Store, gid: Snowflake) {
 	g := table_find_pointer(*s.guilds, gid);
 	if !g return;

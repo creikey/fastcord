@@ -1213,6 +1213,7 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				thread_summary_pill(m);
 				if m.attachments && !m.forwarded attachments_view(m);
 				if m.pending upload_progress_view(m);
+				if m.failed failed_send_note(m);
 				if m.embeds && !m.forwarded && !(m.flags & 4) {
 					// your own embeds get the client's hover X, "Remove all embeds" (Shift skips the confirm)
 					er := row("embeds");
@@ -1395,6 +1396,30 @@ new_member_badge :: (m: *dc.Message) {
 	spacer(.X, 4);
 	b := icon("newmember", "new-member", 20, T("--text-feedback-positive"), .Clickable);
 	if ui.signal(b).hovering tooltip_below("I'm new here, say hi!", b.rect);
+}
+
+// Under a message whose send failed: Retry sends a fresh copy (same text and reply), Delete forgets it locally.
+failed_send_note :: (m: *dc.Message) {
+	r := row("failednote");
+	r.semantic_size = .[ui.pct(1), ui.px(20)];
+	ui.parent(r); defer ui.pop_parent();
+	label("Message failed to send.", .Normal, 12, T("--text-feedback-critical"), 16);
+	link :: (text: string) -> bool {
+		spacer(.X, 6);
+		b := label(text, .Medium, 12, T("--text-link"), 16);
+		b.flags |= .Clickable;
+		b.hover_cursor = .Pointer;
+		return ui.signal(b).clicked;
+	}
+	retry := m.content != "" && !m.attachments && link("Retry");
+	discard := link("Delete");
+	if discard dc.drop_message(store(), m.channel_id, m.id);
+	if !retry || !net_action() return;
+	text := copy_string(m.content,, temp);
+	cid, reply := m.channel_id, m.referenced_id;
+	dc.drop_message(store(), cid, m.id);
+	ch := dc.channel_get(store(), cid);
+	dc.send_message(app.client, cid, text, .{reply_to = reply, reply_guild_id = ifx ch then ch.guild_id});
 }
 
 // terms: search words to highlight (search result cards).

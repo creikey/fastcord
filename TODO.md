@@ -105,7 +105,7 @@
 - [ ] Voice: left-clicking a participant does nothing; their menu lacks server mute/deafen, disconnect, move and profile.
 - [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
 - [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
-- [ ] Messages: a message that fails to send just turns red (`rest.jai` sets `failed`); there's no "failed to send" note and no Retry or Delete for it, as the client offers, so the text can only be copied out by hand.
+- [ ] Messages: a failed upload (a message with attachments) offers only Delete, not Retry, since the staged files are gone once sent (`view_chat.jai` `failed_send_note`); keep them until the send succeeds so Retry can re-upload.
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
 - [ ] Voice: the sidebar has no N/limit counter on voice channels, and stage channels list no one.
 - [ ] Tray: the icon doesn't show call state. Like the official client, in a voice call it should be a gray circle that turns green while you talk. Check the bundle for whether muted and deafened show red. The icon is set in `src/platform/platform_windows.jai`. Update it only when the state changes.
@@ -340,3 +340,4 @@
 - [x] Reactions: pills wrap onto more lines when they would run off the right, sized from last frame's width (`view_chat.jai` `reactions_view`, `tests/ui/dm/reactions_wrap.txt`).
 - [x] Bug: re-identifying dropped you from voice (op 4 with a null channel after every READY): you vanished from the channel's member list while "Voice Connected" stayed. A fresh READY now rejoins the call.
 - [x] Rail: right-clicking a folder opens Mark Folder As Read and Folder Settings, a modal that renames and recolours it through `guild_folders` (`view_rail_folders.jai`, `tests/ui/rail/folder_settings.txt`).
+- [x] Messages: a failed send shows "Message failed to send." with Retry (same text and reply) and Delete (local) under the red message (`view_chat.jai` `failed_send_note`, `tests/ui/failed_send.txt`).

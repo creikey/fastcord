@@ -687,6 +687,18 @@ script_command :: (path: string, f: []string, t: *float64) {
 			fail("%: expect_clipboard failed\n  want \"%\"\n  got  \"%\"", path, want, got);
 		}
 		return;
+	case "failed_send";
+		// failed_send <word>: our own message in the open channel whose send failed (fixtures can't send)
+		s := store();
+		msg := dc.new_message(s);
+		msg.id = 1564185900000000000;
+		msg.channel_id = app.view.channel;
+		msg.author_id = s.me;
+		msg.content = dc.clone_str(f[1], s.allocator);
+		msg.failed = true;
+		dc.insert_message(dc.message_list(s, app.view.channel), msg);
+		s.changed += 1;
+		return;
 	case "net";
 		// net hold|fail|ok: how offline requests end (requests.jai)
 		if f[1] == {
