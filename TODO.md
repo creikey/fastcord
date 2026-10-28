@@ -77,7 +77,7 @@
 - [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
 - [ ] Go Live viewer (fastcord-only): zoom and pan into a stream, with the zoomed view filling the viewer's own shape, not the stream's. Zoomed into a 21:9 ultrawide stream in a 16:9 viewer, you see a 16:9 slice of it with no bars, not a 21:9 crop. Scroll to zoom at the cursor, drag to pan, double-click or Escape to reset. Clamp panning to the frame; letterbox only when zoomed out to fit. Today streams are only "contain"-fitted (`view_call.jai`).
 - [ ] Channels: check whether channels without VIEW_CHANNEL are listed and openable; the sidebar and `guild_channels_sorted` never check permissions (needs a READY capture to confirm hidden channels are sent).
-- [ ] Channels: the channel and category row menus lack Notification Settings, Duplicate Channel and (categories) Create Text Channel (`view_guild_menu.jai` `channel_menu`).
+- [ ] Channels: the channel row menu lacks Duplicate Channel (`view_guild_menu.jai` `channel_menu`); capture its `POST /guilds/{id}/channels` body first.
 - [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
 - [ ] Keybinds: no user-defined global keybinds (official Keybinds page: Toggle Mute, Toggle Deafen, Push to Talk, Push to Mute, Toggle Streamer Mode, ...) that work while fastcord is unfocused. Needs a system-wide hook (Windows `RegisterHotKey` / low-level keyboard hook).
 - [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
@@ -391,3 +391,4 @@
 - [x] Developer Mode: Copy Message ID, Copy Server ID (server icon menu), Copy Channel ID (thread menu) and Copy User ID show when it is on (`tests/ui/developer_mode_ids.txt`). Channel rows get theirs with their context menu (Channels item above).
 - [x] Channels: channel and category rows have a right-click menu: Mark As Read, Invite People, Copy Link, Collapse Category, Collapse All Categories, Mute, Edit, Delete (now reachable for categories) and Copy ID (`tests/ui/channel_menu.txt`).
 - [x] CI: no build on push or pull request; CI and releases run only on request (`gh workflow run release.yml -f version=vX.Y.Z`, README "Releasing").
+- [x] Channels: the channel and category row menus have Notification Settings (default / All / @mentions / Nothing), and categories Create Channel (`tests/ui/channel_menu.txt`).

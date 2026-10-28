@@ -6,6 +6,9 @@ wait 10
 expect_visible "Copy Link"
 expect_visible "Mute Channel"
 expect_visible "Delete Channel"
+move_text "Notification Settings"
+wait 10
+expect_visible "Use Category Default"
 shot
 key escape
 wait 10
@@ -14,6 +17,7 @@ rclick_text "Voice Channels"
 wait 10
 expect_visible "Collapse All Categories"
 expect_visible "Delete Category"
+expect_visible "Create Channel"
 click_text "Collapse Category"
 wait 10
 expect_not_visible "General"

@@ -1075,7 +1075,7 @@ thread_menu :: () {
 	if close gm.thread_menu = 0;
 }
 
-// Sidebar channel and category row menu. Not yet: Notification Settings, Duplicate Channel, Create Text Channel.
+// Sidebar channel and category row menu. Not yet: Duplicate Channel.
 channel_menu :: () {
 	s := store();
 	ch := dc.channel_get(s, gm.chan_menu);
@@ -1103,9 +1103,16 @@ channel_menu :: () {
 	menu := menu_panel("cmenu", pos, W);
 	h := menu.rect.y1 - menu.rect.y0;
 	menu.fixed_pos = .{clamp(pos.x, 8, app.ui.window.x - W - 8), clamp(pos.y, 8, max(8.0, app.ui.window.y - h - 8))};
-	hover_mute := false;
+	hover_sub := Sub.None;
 	hover_any := false;
 	sig: ui.Signal;
+	level := dc.channel_notify_level(s, gid, ch.id);
+	// what "default" resolves to: the category's override, else the server's level
+	def := dc.guild_notify_level(s, gid);
+	if ch.parent_id != 0 {
+		cl := dc.channel_notify_level(s, gid, ch.parent_id);
+		if cl != dc.NOTIFY_INHERIT def = cl;
+	}
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
 		sig = menu_item("read", "Mark As Read", disabled = !unread);
@@ -1154,10 +1161,15 @@ channel_menu :: () {
 			} else if sig.hovering hover_any = true;
 		} else {
 			item := menu_item("mute", tprint("Mute %", what), .Chevron, open = gm.chan_sub == .Mute);
-			if item.hovering hover_mute = true;
+			if item.hovering hover_sub = .Mute;
 			if item.clicked gm.chan_sub = .Mute;
 			if item.hovering || item.clicked gm.chan_sub_y = item.box.rect.y0;
 		}
+		shown := ifx level == dc.NOTIFY_INHERIT then def else level;
+		nt := menu_item("notify", "Notification Settings", .Chevron, sub = NOTIFY_NAMES[clamp(shown, 0, 2)], open = gm.chan_sub == .Notify);
+		if nt.hovering hover_sub = .Notify;
+		if nt.clicked gm.chan_sub = .Notify;
+		if nt.hovering || nt.clicked gm.chan_sub_y = nt.box.rect.y0;
 		if can_manage_channel(ch) {
 			menu_sep("s3");
 			sig = menu_item("edit", tprint("Edit %", what));
@@ -1165,6 +1177,13 @@ channel_menu :: () {
 				channel_settings_open(ch);
 				close = true;
 			} else if sig.hovering hover_any = true;
+			if cat {
+				sig = menu_item("create", "Create Channel");
+				if sig.clicked {
+					create_channel_open(gid, ch.id);
+					close = true;
+				} else if sig.hovering hover_any = true;
+			}
 			sig = menu_item("delete", tprint("Delete %", what), danger = true);
 			if sig.clicked {
 				channel_delete_open(ch);
@@ -1181,13 +1200,31 @@ channel_menu :: () {
 		}
 		spacer(.Y, 8);
 	}
-	if hover_mute gm.chan_sub = .Mute;
+	if hover_sub != .None gm.chan_sub = hover_sub;
 	if hover_any gm.chan_sub = .None;
-	if gm.chan_sub == .Mute {
+	if gm.chan_sub == {
+	case .Mute;
 		secs := mute_submenu("cmute", .{sub_x(menu), sub_y(gm.chan_sub_y, 6 * GM_ROW_H + 16)});
 		if secs != 0 {
 			if net_action() dc.set_channel_muted(app.client, gid, ch.id, true, secs, now);
 			close = true;
+		}
+	case .Notify;
+		p := menu_panel("cnotify", .{sub_x(menu), sub_y(gm.chan_sub_y, 4 * GM_ROW_H + 16)}, GM_SUB_W);
+		{ ui.parent(p); defer ui.pop_parent();
+			spacer(.Y, 8);
+			def_text := ifx ch.parent_id != 0 then "Use Category Default" else "Use Server Default";
+			if menu_item("default", def_text, ifx level == dc.NOTIFY_INHERIT then .Radio_On else .Radio_Off, sub = NOTIFY_NAMES[clamp(def, 0, 2)]).clicked && level != dc.NOTIFY_INHERIT {
+				if net_action() dc.set_channel_notify_level(app.client, gid, ch.id, dc.NOTIFY_INHERIT);
+				close = true;
+			}
+			for name, i: NOTIFY_NAMES {
+				if menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off).clicked && level != i {
+					if net_action() dc.set_channel_notify_level(app.client, gid, ch.id, i);
+					close = true;
+				}
+			}
+			spacer(.Y, 8);
 		}
 	}
 	if close gm.chan_menu = 0;
