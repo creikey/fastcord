@@ -49,6 +49,9 @@ Conn :: struct {
 	closing: bool;
 	out_ws: *http.Ws_Conn; // The writer's socket, fixed for its life (unlike ws).
 	writer: *Thread;
+	reply_status: int; // The reply respond kept, 0 when none.
+	reply_body: string;
+	reply_json: bool;
 }
 
 OUT_MAX :: 8 << 20;
@@ -373,8 +376,23 @@ unhex :: (s: string, out: []u8) -> bool {
 }
 
 json_error :: (c: *Conn, status: int, code: int, message: string) -> bool {
-	body := tprint("{\"message\": \"%\", \"code\": %}", message, code);
-	return http.h1_write_response(c.s, status, JSON_HEADERS, cast([]u8) body) == .None;
+	return respond(c, status, tprint("{\"message\": \"%\", \"code\": %}", message, code));
+}
+
+// respond keeps a handler's reply for serve_conn to write once the handler returns. Handlers often answer
+// while holding db_mu, and a client that doesn't read its replies would otherwise stall every member on
+// that lock until the write times out. body lives in temp, which lasts until the next request.
+respond :: (c: *Conn, status: int, body := "", json := true) -> bool {
+	c.reply_status, c.reply_body, c.reply_json = status, body, json;
+	return true;
+}
+
+flush_reply :: (c: *Conn) -> bool {
+	status := c.reply_status;
+	if !status return true;
+	c.reply_status = 0;
+	if c.reply_json return http.h1_write_response(c.s, status, JSON_HEADERS, cast([]u8) c.reply_body) == .None;
+	return http.h1_write_response(c.s, status, .[], cast([]u8) c.reply_body) == .None;
 }
 
 JSON_HEADERS :: http.Header.[.{"Content-Type", "application/json"}];
@@ -448,7 +466,7 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 	}
 	if hello.kind == .Map broadcast(s, "MESSAGE_CREATE", hello);
 	body := tprint("{\"token\": \"%\"}", hex(token,, temp));
-	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) body) == .None;
+	return respond(c, 200, body);
 }
 
 spawn :: (data: $D, proc: (D)) -> *Thread {
@@ -495,6 +513,7 @@ serve_conn :: (c: *Conn) {
 	http.h1_init(*h, c.s, .{max_header_bytes = 16 << 10, max_headers = 64, max_body = 1 << 20});
 	defer http.h1_destroy(*h, false);
 	while true {
+		if !flush_reply(c) return; // The last request's, now that its handler has let go of every lock.
 		reset_temporary_storage();
 		req, err := http.h1_read_request(*h);
 		defer http.request_destroy(*req);
@@ -937,7 +956,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
 	if ok && parts.count == 2 && parts[1] == "invites" && req.method == "POST" return create_invite(c, req, user, name, channel);
 	// Opening the pins popout acks them; unread pins aren't tracked, so there is nothing to store.
-	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return respond(c, 204, json = false);
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count >= 3 && parts[2] == "pins" {
 		if parts.count == 3 && req.method == "GET" return list_pins(c, channel);
@@ -973,7 +992,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		etf.map_put(*d, "timestamp", etf.vint(to_seconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970)));
 		etf.map_put(*d, "member", etf.vmap(etf.map_done(*member)));
 		broadcast(s, "TYPING_START", etf.vmap(etf.map_done(*d)));
-		return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+		return respond(c, 204, json = false);
 	}
 
 	sb: String_Builder;
@@ -1064,7 +1083,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
-	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
+	return respond(c, 200, builder_to_string(*sb,, temp));
 }
 
 // PATCH and DELETE /api/v9/channels/{id}/messages/{id}. Until roles land (Hosting 4) only the author may
@@ -1112,7 +1131,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		sb.allocator = temp;
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_UPDATE", m);
-		return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
+		return respond(c, 200, builder_to_string(*sb,, temp));
 	} else if req.method == "DELETE" {
 		{
 			locks.guard(*s.db_mu);
@@ -1125,7 +1144,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		etf.map_put(*d, "channel_id", snow(channel));
 		etf.map_put(*d, "guild_id", snow(s.guild));
 		broadcast(s, "MESSAGE_DELETE", etf.vmap(etf.map_done(*d)));
-		return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+		return respond(c, 204, json = false);
 	}
 	return json_error(c, 405, 0, "405: Method Not Allowed");
 }
@@ -1237,7 +1256,7 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 		}
 	}
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	return respond(c, 204, json = false);
 }
 
 // PATCH /api/v9/channels/{id} {name?, topic?} and DELETE /api/v9/channels/{id}, for the owner. The last
@@ -1370,7 +1389,7 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 	status := store_ack(s, user, channel, message, count, is_manual);
 	if status == 404 return json_error(c, 404, 10003, "Unknown Channel");
 	if status return json_error(c, 500, 0, "500: Internal Server Error");
-	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) "{\"token\": null}") == .None;
+	return respond(c, 200, "{\"token\": null}");
 }
 
 // POST /api/v9/read-states/ack-bulk {read_states: [{channel_id, message_id}]}: Mark As Read for many
@@ -1393,7 +1412,7 @@ ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 		message, mok := string_to_int(m.s, T = s64);
 		if cok && mok && store_ack(s, user, channel, message, 0, false) == 500 return json_error(c, 500, 0, "500: Internal Server Error");
 	}
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	return respond(c, 204, json = false);
 }
 
 // PATCH /api/v9/users/@me/guilds/settings {guilds: {"<id>": {...}}}: mute and notification settings,
@@ -1625,7 +1644,7 @@ pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 		ok := ifx on then sqlite.run(s.db, "UPDATE messages SET pinned_at = ? WHERE id = ? AND pinned_at IS NULL;", snowflake(s), message)
 			else sqlite.run(s.db, "UPDATE messages SET pinned_at = NULL WHERE id = ?;", message);
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
-		if !sqlite.changes(s.db) return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+		if !sqlite.changes(s.db) return respond(c, 204, json = false);
 		m = message_locked(s, message, nested = false);
 		if on {
 			notice_id := snowflake(s);
@@ -1645,7 +1664,7 @@ pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 	etf.map_put(*d, "guild_id", snow(s.guild));
 	etf.map_put(*d, "last_pin_timestamp", ifx last then etf.vstring(last) else .{});
 	broadcast(s, "CHANNEL_PINS_UPDATE", etf.vmap(etf.map_done(*d)));
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	return respond(c, 204, json = false);
 }
 
 // GET /api/v9/channels/{id}/messages/pins: newest pin first, all of them (MAX_PINS).
@@ -1675,7 +1694,7 @@ json_reply :: (c: *Conn, status: int, v: etf.Value) -> bool {
 	sb: String_Builder;
 	sb.allocator = temp;
 	etf.to_json(v, *sb);
-	return http.h1_write_response(c.s, status, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
+	return respond(c, status, builder_to_string(*sb,, temp));
 }
 
 // PUT .../reactions/{emoji}/@me and DELETE .../reactions/{emoji}/{type}/@me. Unicode emoji only, since a
@@ -1717,7 +1736,7 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		etf.map_put(*d, "type", etf.vint(0));
 		broadcast(s, ifx add then "MESSAGE_REACTION_ADD" else "MESSAGE_REACTION_REMOVE", etf.vmap(etf.map_done(*d)));
 	}
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	return respond(c, 204, json = false);
 }
 
 percent_decode :: (s: string) -> string {
