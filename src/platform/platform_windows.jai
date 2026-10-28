@@ -905,8 +905,8 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             if !IsZoomed(hwnd) {
                 r: win.RECT;
                 win.GetClientRect(hwnd, *r);
-                // Edges 2pt deep, rounded up to whole pixels; corners reach 16pt along each edge.
-                e := cast(s32) (2 * s.scale + 0.99);
+                // Edges 8pt deep, rounded up to whole pixels; corners reach 16pt along each edge.
+                e := cast(s32) (8 * s.scale + 0.99);
                 c := cast(s32) (16 * s.scale);
                 l, t, rt, b := pt.x < e, pt.y < e, pt.x >= r.right - e, pt.y >= r.bottom - e;
                 if l || t || rt || b {

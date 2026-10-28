@@ -309,3 +309,4 @@
 - [x] Voice (macOS): AGC alone no longer starts VPIO, whose echo canceller zeroed the mic for ~10 s while others talked (seen live: the send rate fell to 0); plain capture gets a software AGC, reopens when another app changes the mic's sample rate, and `FASTCORD_VOICE_DEBUG=1` traces the send side every 2 s.
 - [x] Markdown: a bare URL keeps a closing `)` that balances a `(` inside it (`wiki/Foo_(bar)`); an unbalanced one, as in `(https://x.com/a)`, is still dropped.
 - [x] Markdown: numbered lists (`1. item`) render with their numbers, counting up from the first item's, nested ones included.
+- [x] Windows: the window's resize edges grab 8pt deep instead of 2pt; nothing is drawn for them.
