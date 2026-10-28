@@ -207,7 +207,6 @@
 - [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
 - [ ] Undo: relationships: Remove Friend, Unblock, Block, Ignore or cancel a friend request, all sent at once today with no confirm except Block.
 - [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
-- [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
 - [ ] Profiles: notes can't be seen or edited ("Click to add a note" is a static label; `fetch_note` has no result handler).
 - [ ] Calls: a DM has no in-call view (participant tiles, Ring for absent members, ongoing-call banner).
 - [ ] Undo: Mark As Read (server menu, Shift+Escape, Inbox "Mark All as Read", Inbox row check, the new-messages bar, threads) should restore the previous read states on undo, using the Mark Unread ack; Inbox mention "x" should hold its DELETE.
@@ -389,3 +388,4 @@
 - [x] GIFs (fastcord-only): search Tenor as well as Klipy. Dropped: Google shut the Tenor API down on 2026-06-30 (no new keys since January), which is why Discord's `/gifs/search` went Klipy-only. Sent Tenor links still embed.
 - [x] Voice: `src/tests/voice_aec.jai` links on Windows (it now names msvcprt, which the app gets via tls).
 - [x] Channels: collapsing a category is account state: the sidebar reads `channel_overrides[].collapsed` and a click PATCHes it (`set_category_collapsed`; `tests/ui/category_collapse.txt`). The local `settings.json` `collapsed` list is gone.
+- [x] Developer Mode: Copy Message ID, Copy Server ID (server icon menu), Copy Channel ID (thread menu) and Copy User ID show when it is on (`tests/ui/developer_mode_ids.txt`). Channel rows get theirs with their context menu (Channels item above).

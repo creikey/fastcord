@@ -541,6 +541,9 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "in_voice";
 		// in_voice <channel id>: show the voice panel as if joined (fixtures have no voice connection)
 		app.voice_channel = dc.parse_snowflake(f[1]);
+	case "developer_mode";
+		// the account's Developer Mode (off in the fixtures): the menus' Copy ... ID items
+		store().settings.developer_mode = true;
 	case "theme";
 		th, ok := theme_by_name(f[1]);
 		if ok theme_load(*app.theme, th);

@@ -474,6 +474,7 @@ message_menu :: () {
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
 	array_add(*items, .{label = "Mark Unread", icon = "chat-mark-unread"}, .{label = "Copy Message Link", icon = "link"});
 	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = true});
+	if s.settings.developer_mode array_add(*items, .{label = "Copy Message ID", icon = "id", sep = true});
 	quick := ifx sel then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
 	h := 2 * MENU_PAD + 2 + cast(float32) items.count * MENU_ROW_H + (ifx quick then MENU_QUICK + 8 else 0);
@@ -585,6 +586,8 @@ message_menu :: () {
 					ch := dc.channel_get(s, m.channel_id);
 					g := ifx ch != null && ch.guild_id != 0 then tprint("%", ch.guild_id) else "@me";
 					clipboard_set(tprint("https://discord.com/channels/%/%/%", g, m.channel_id, m.id));
+				case "Copy Message ID";
+					clipboard_set(tprint("%", cast(u64) m.id));
 				case "Delete Message";
 					if app.ui_mods & .Shift delete_now(m); else ma.confirming, ma.confirm = m.id, Confirm.Delete;
 				}

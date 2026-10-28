@@ -1,0 +1,22 @@
+# Copy ... ID menu items appear only with the account's Developer Mode on, and copy the ID.
+wait 30
+rclick 700 151
+wait 10
+expect_not_visible "Copy Message ID"
+key escape
+wait 10
+developer_mode
+rclick 700 151
+wait 10
+click_text "Copy Message ID"
+wait 10
+expect_clipboard "1564182629580800004"
+rclick 476 129
+wait 10
+expect_visible "Copy User ID"
+key escape
+wait 10
+rclick 36 110
+wait 10
+expect_visible "Copy Server ID"
+shot

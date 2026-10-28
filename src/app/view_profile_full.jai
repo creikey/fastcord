@@ -559,7 +559,8 @@ user_context_menu :: () {
 	}
 	sn := server_nick_menu_item(uid);
 	if sn != "" { array_add(*items, sn); }
-	array_add(*items, "Copy Username", "Copy User ID");
+	array_add(*items, "Copy Username");
+	if s.settings.developer_mode { array_add(*items, "Copy User ID"); }
 	W :: cast(float32) 188;
 	H := cast(float32) items.count * 32 + 16;
 	p := pf.menu_pos;

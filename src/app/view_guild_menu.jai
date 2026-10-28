@@ -537,6 +537,14 @@ guild_context_menu :: () {
 				close = true;
 			} else if sig.hovering hover_any = true;
 		}
+		if s.settings.developer_mode {
+			menu_sep("s5");
+			sig = menu_item("copyid", "Copy Server ID", .Icon, "id");
+			if sig.clicked {
+				clipboard_set(tprint("%", cast(u64) gid));
+				close = true;
+			} else if sig.hovering hover_any = true;
+		}
 		spacer(.Y, 8);
 	}
 	// hovering a submenu row opens it; hovering another row closes it
@@ -1037,6 +1045,10 @@ thread_menu :: () {
 		}
 		if menu_item("link", "Copy Link", .Icon, "link").clicked {
 			clipboard_set(tprint("https://discord.com/channels/%/%", th.guild_id, th.id));
+			close = true;
+		}
+		if s.settings.developer_mode && menu_item("copyid", "Copy Channel ID", .Icon, "id").clicked {
+			clipboard_set(tprint("%", cast(u64) th.id));
 			close = true;
 		}
 		if can_delete_thread(th) {

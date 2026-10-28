@@ -2,6 +2,7 @@
 # card, which stays open; a press inside the card closes only the menu.
 # The status row opens the status menu (hover), a status's chevron its
 # durations; choosing keeps both open, as the client does.
+developer_mode
 wait 5
 click 112 683
 wait 20
