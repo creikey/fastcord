@@ -1,0 +1,19 @@
+# Alt+Down / Alt+Up step through the server's channels, Alt+Shift+Down jumps to the next unread one, and
+# Ctrl+Alt+Down moves to the next server in the rail.
+wait 5
+click 36 255
+wait 20
+expect_visible "Welcome to #rules!"
+key down alt
+wait 20
+expect_visible "Welcome to #general!"
+key up alt
+wait 20
+expect_visible "Welcome to #rules!"
+key down alt shift
+wait 20
+expect_visible "Welcome to #general!"
+key down alt cmd
+wait 20
+shot build/ui-rail_channel_keys.png
+expect_visible "Odin Lang"

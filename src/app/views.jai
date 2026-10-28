@@ -1105,6 +1105,42 @@ join_voice :: (gid: dc.Snowflake, cid: dc.Snowflake) {
 	app.view.channel = cid;
 }
 
+// Alt+Up/Down: the previous / next channel in the open server (or DM at home); with Shift, the
+// previous / next unread one. Ctrl+Alt+Up/Down: the previous / next server. Both wrap around.
+navigate_step :: (dir: int, unread: bool, servers: bool) {
+	s := store();
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	cur := app.view.channel;
+	if servers {
+		for e: rail_entries() array_add(*ids, ..e.guilds);
+		cur = app.view.guild;
+	} else if app.view.guild == 0 {
+		array_add(*ids, ..dc.private_channels_sorted(s));
+	} else {
+		now := wall_ms();
+		for cid: dc.guild_channels_sorted(s, app.view.guild) {
+			ch := dc.channel_get(s, cid);
+			if !ch || dc.is_thread(ch) || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement && ch.kind != .Guild_Forum) continue;
+			if unread && cid != cur && (!dc.channel_unread(s, cid) || dc.channel_effectively_muted(s, app.view.guild, cid, now)) continue;
+			array_add(*ids, cid);
+		}
+	}
+	if unread && app.view.guild == 0 && !servers {
+		kept: [..]dc.Snowflake;
+		kept.allocator = temp;
+		for ids if it == cur || dc.channel_unread(s, it) array_add(*kept, it);
+		ids = kept;
+	}
+	if !ids return;
+	found, i := array_find(ids, cur);
+	n := ids.count;
+	next := ifx !found then (ifx dir > 0 then 0 else n - 1) else (i + dir + n) % n;
+	if ids[next] == cur return;
+	if servers select_guild(ids[next]);
+	else select_channel(app.view.guild, ids[next]);
+}
+
 overlays :: () {
 	// Escape is a global keybind in the official client (MARK_CHANNEL_READ, or
 	// POP_LAYER over settings); it is tracked whatever layer it closes.
@@ -1121,6 +1157,11 @@ overlays :: () {
 	group_dm_overlay();
 	profile_full_overlay();
 	for * e: app.ui.events {
+		// Alt+arrows also move the composer's caret first; the editor has no Alt+Up meaning, so they still count.
+		if e.kind == .Key_Down && (e.key == .Up || e.key == .Down) && (e.mods & .Alt) && e.mods != .Alt | .Shift | PRIMARY_MOD && !modal_open() && !app.settings_open {
+			navigate_step(ifx e.key == .Up then -1 else 1, (e.mods & .Shift) != 0, (e.mods & PRIMARY_MOD) != 0);
+			e.consumed = true;
+		}
 		if !e.consumed && e.kind == .Key_Down && e.key == .K && (e.mods & PRIMARY_MOD) != 0 {
 			if !sw.open && app.client != null {
 				dc.analytics_keyboard_shortcut(app.client, "QUICKSWITCHER_SHOW", "mod+k");
