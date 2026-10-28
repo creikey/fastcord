@@ -1,4 +1,4 @@
-# Run with -fixture:tests/ui/fc_invite.jsonl. An fc:// invite in a message is a link with a card under
+# Runs on fc_invite_card.jsonl. An fc:// invite in a message is a link with a card under
 # it; nothing is contacted until Join. Clicking the link opens Join a Server filled in, still unjoined.
 wait 5
 settle 1

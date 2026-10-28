@@ -589,8 +589,7 @@ message_menu :: () {
 					if net_action() dc.mark_unread(app.client, m.channel_id, m.id);
 				case "Copy Message Link";
 					ch := dc.channel_get(s, m.channel_id);
-					g := ifx ch != null && ch.guild_id != 0 then tprint("%", ch.guild_id) else "@me";
-					clipboard_set(tprint("https://discord.com/channels/%/%/%", g, m.channel_id, m.id));
+					clipboard_set(channel_link(ifx ch then ch.guild_id else 0, m.channel_id, m.id));
 				case "Copy Message ID";
 					clipboard_set(tprint("%", cast(u64) m.id));
 				case "Delete Message";

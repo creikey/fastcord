@@ -77,7 +77,8 @@ Headless app runs render offscreen and write a PNG, driven by a script of input 
 (`click`, `dclick`, `down`/`move`/`up`, `rclick`, `type`, `key enter cmd`, `scroll`, `wait`, `shot`,
 `expect_selection`, `expect_clipboard`; attachments: `stage <path>...`, `drop <path>...`,
 `paste_image <png>`, `paste_files <path>...`, `drag_enter`/`drag_leave`, `wait_attachments`,
-`expect_attachments`, `upload_limit <bytes>`, `expect_notice`):
+`expect_attachments`, `upload_limit <bytes>`, `expect_notice`). The `ui` suite runs a `tests/ui` script on
+`chat.jsonl`, or on the `.jsonl` of the same name beside it:
 
 ```sh
 ./build/fastcord-dev -shot:out.png -dpi:1 -fixture:tests/ui/chat.jsonl \

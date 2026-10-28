@@ -1073,7 +1073,7 @@ thread_menu :: () {
 			menu_sep("s1");
 		}
 		if menu_item("link", "Copy Link", .Icon, "link").clicked {
-			clipboard_set(tprint("https://discord.com/channels/%/%", th.guild_id, th.id));
+			clipboard_set(channel_link(th.guild_id, th.id));
 			close = true;
 		}
 		if s.settings.developer_mode && menu_item("copyid", "Copy Channel ID", .Icon, "id").clicked {
@@ -1164,7 +1164,7 @@ channel_menu :: () {
 			} else if sig.hovering hover_any = true;
 			sig = menu_item("link", "Copy Link");
 			if sig.clicked {
-				clipboard_set(tprint("https://discord.com/channels/%/%", gid, ch.id));
+				clipboard_set(channel_link(gid, ch.id));
 				close = true;
 			} else if sig.hovering hover_any = true;
 		}

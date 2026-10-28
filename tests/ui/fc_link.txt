@@ -1,0 +1,9 @@
+# Runs on fc_link.jsonl. An fc:// channel link to a server you haven't joined holds no
+# invite, so clicking it says so instead of opening Join a Server, and draws no invite card.
+wait 5
+settle 1
+expect_not_visible "You've been invited to a self-hosted server"
+click 600 588
+wait 5
+expect_visible "You aren't in that server. Ask a member for an invite."
+expect_not_visible "Join a Server"

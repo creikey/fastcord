@@ -127,6 +127,67 @@ hosted_restore :: (invites: []string) {
 	for invites if hosted_join(it) hosted[hosted.count - 1].joined = true;
 }
 
+// The link Copy Link copies: discord.com's for Discord, and for a hosted server an fc:// link that keeps the
+// invite's pin and address, then /channels/<server ID>/<channel>[/<message>]. gid 0 is a DM.
+channel_link :: (gid: dc.Snowflake, cid: dc.Snowflake, mid: dc.Snowflake = 0) -> string {
+	tail := ifx mid then tprint("/%/%", cid, mid) else tprint("/%", cid);
+	c := hosted_client_of(gid);
+	for hosted if c && it.client == c {
+		authority := advance(it.invite, "fc://".count);
+		authority.count = find_index_from_left(authority, #char "/");
+		return tprint("fc://%/channels/%%", authority, it.inv.id_hex, tail);
+	}
+	return tprint("https://discord.com/channels/%%", ifx gid then tprint("%", gid) else "@me", tail);
+}
+
+// parse_fc_link reads an fc:// channel or message link: the joined server it names (null if none) and the
+// channel and message. ok is false when url isn't one.
+parse_fc_link :: (url: string) -> h: *Hosted_Server, cid: dc.Snowflake, mid: dc.Snowflake, ok: bool {
+	if !begins_with(url, "fc://") return null, 0, 0, false;
+	path := advance(url, "fc://".count);
+	slash := find_index_from_left(path, #char "/");
+	if slash < 0 return null, 0, 0, false;
+	path = advance(path, slash);
+	if !begins_with(path, "/channels/") return null, 0, 0, false;
+	parts := split(trim_right(advance(path, "/channels/".count), "/"), "/",, temp);
+	if parts.count < 2 || parts.count > 3 return null, 0, 0, false;
+	cid, ok := string_to_int(parts[1], T = u64);
+	if !ok return null, 0, 0, false;
+	mid: u64;
+	if parts.count == 3 {
+		mid, ok = string_to_int(parts[2], T = u64);
+		if !ok return null, 0, 0, false;
+	}
+	for hosted if it.inv.id_hex == to_lower_copy(parts[0],, temp) return it, cid, mid, true;
+	return null, cid, mid, true;
+}
+
+// open_fc_link follows an fc:// channel or message link on a server already joined, switching to its
+// connection. False when url isn't one; a server not joined gets a toast, since the link holds no invite.
+open_fc_link :: (url: string) -> bool {
+	h, cid, mid, ok := parse_fc_link(url);
+	if !ok return false;
+	if !h {
+		toast_show("You aren't in that server. Ask a member for an invite.", false);
+		return true;
+	}
+	if !h.client || !h.client.store.ready {
+		toast_show(tprint("Not connected to % yet.", h.inv.host), false);
+		return true;
+	}
+	keep := app.client;
+	app.client = h.client;
+	ch := dc.channel_get(store(), cid);
+	if !ch {
+		app.client = keep;
+		toast_show("That channel isn't on this server anymore.", false);
+		return true;
+	}
+	if mid jump_to_message(cid, mid);
+	else select_channel(ch.guild_id, cid);
+	return true;
+}
+
 // Whether the selected connection is a self-hosted server, which has no DMs or friends yet.
 on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != ""; }
 

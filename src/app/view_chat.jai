@@ -556,6 +556,7 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 			code := invite_link_code(url);
 			ch, msg := message_link(url);
 			if code != "" invite_link_clicked(code, message_id);
+			else if open_fc_link(url) {}
 			else if begins_with(url, "fc://") add_server_join_with(url);
 			else if ch && msg jump_to_message(ch.id, msg);
 			else if ch select_channel(ch.guild_id, ch.id);
@@ -725,8 +726,15 @@ Chat_Toolbar :: struct { msg: dc.Snowflake; rect: ui.Rect; }
 chat_toolbar, chat_toolbar_prev: Chat_Toolbar;
 
 // A blockquote's 4px rounded bar down the left of its row.
-// A discord.com/channels/<guild or @me>/<channel>[/<message>] link to a channel we have; else null.
+// A discord.com/channels/<guild or @me>/<channel>[/<message>] link to a channel we have, or an fc:// one
+// to a channel on a joined server; else null.
 message_link :: (url: string) -> *dc.Channel, dc.Snowflake {
+	h, fc_cid, fc_mid, fc := parse_fc_link(url);
+	if fc {
+		if !h || !h.client return null, 0;
+		ch := dc.channel_get(*h.client.store, fc_cid);
+		return ch, ifx ch then fc_mid else 0;
+	}
 	u := url;
 	if !(begins_with_nocase(u, "https://") || begins_with_nocase(u, "http://")) return null, 0;
 	advance(*u, find_index_from_left(u, "//") + 2);

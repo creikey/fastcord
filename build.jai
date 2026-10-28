@@ -241,8 +241,10 @@ ui_scripts :: () -> bool {
         array_add(*j.args, BIN, tprint("-shot:build/ui-%.png", path_strip_extension(path_filename(script))), "-dpi:1", "-now:1793016000",
             tprint("-fixture:%", fixture), "-channel:1546820603343016006", tprint("-script:%", script));
     }
-    for file_list("tests/ui") if ends_with(it, ".txt") && !ends_with(it, "sweep.txt") && !ends_with(it, "sweep_allow.txt")
-        add(*jobs, path_strip_extension(path_filename(it)), "tests/ui/chat.jsonl", it);
+    for file_list("tests/ui") if ends_with(it, ".txt") && !ends_with(it, "sweep.txt") && !ends_with(it, "sweep_allow.txt") {
+        own := tprint("%.jsonl", path_strip_extension(it));  // a script's own fixture, else the chat one
+        add(*jobs, path_strip_extension(path_filename(it)), ifx file_exists(own) then own else "tests/ui/chat.jsonl", it);
+    }
     for file_list("tests/ui/rail") if ends_with(it, ".txt")
         add(*jobs, tprint("rail_%", path_strip_extension(path_filename(it))), "tests/ui/rail.jsonl", it);
     for file_list("tests/ui/dm") if ends_with(it, ".txt")
