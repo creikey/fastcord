@@ -8,6 +8,7 @@ Store :: struct {
 	changed: u64;
 	connection: Connection_State;
 	ready: bool;
+	readies: u64; // READY count: a new one is a new gateway session (voice must rejoin)
 	session_id: string;
 	me: Snowflake;
 	users: Table(Snowflake, User);
@@ -660,8 +661,11 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 	}
 	if uid == 0 return;
 	old := table_find_pointer(*s.voice_states, uid);
-	if old free_str(old.session_id, s.allocator);
 	cid := fsnow(m, "channel_id");
+	// a late leave for an older session (ours before a gateway reconnect) doesn't end the newer one
+	sid := fstr(m, "session_id");
+	if cid == 0 && old && sid && old.session_id && sid != old.session_id return;
+	if old free_str(old.session_id, s.allocator);
 	if cid == 0 {
 		table_remove(*s.voice_states, uid);
 		return;
@@ -670,7 +674,7 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 		user_id = uid,
 		channel_id = cid,
 		guild_id = gid,
-		session_id = clone_str(fstr(m, "session_id"), s.allocator),
+		session_id = clone_str(sid, s.allocator),
 		self_mute = fbool(m, "self_mute"),
 		self_deaf = fbool(m, "self_deaf"),
 		mute = fbool(m, "mute"),
@@ -820,6 +824,7 @@ apply_merged_members :: (s: *Store, d: etf.Map, guilds: []V) {
 }
 
 apply_ready :: (s: *Store, d: etf.Map) {
+	s.readies += 1;
 	set_str(s, *s.session_id, fstr(d, "session_id"));
 	set_str(s, *s.resume_gateway_url, fstr(d, "resume_gateway_url"));
 	set_str(s, *s.analytics_token, fstr(d, "analytics_token"));

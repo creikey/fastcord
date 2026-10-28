@@ -91,7 +91,7 @@
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
-- [ ] Bug: re-identifying drops you from voice (op 4 with a null channel after every READY), and if your own voice state is gone the panel stays on "RTC Connecting". A sleep over 60 s also ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
+- [ ] Bug: a sleep over 60 s ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
 - [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
 - [ ] Undo: dragging the last server out of a rail folder deletes the folder with its name and colour; let undo restore it.
 - [ ] Voice: clicking the panel opens nothing, so there's no connection info (packet loss, server, E2EE privacy and verification codes, which `voice/conn.jai` already has); the channel name doesn't go to the channel; no noise-suppression quick toggle.
@@ -339,3 +339,4 @@
 - [x] Chat: messages that mention you (by name, @everyone / @here, or one of your roles) get the mentioned background and a gold left bar (`mentions_me` in `view_chat.jai`, `tests/ui/forward/mention_highlight.txt`).
 - [x] Markdown: slash-command mentions `</name sub:id>` and server page links `<id:customize|browse|guide|linked-roles>` draw as mention chips (`markdown.jai` `try_entity`, `tests/ui/forward/command_mentions.txt`).
 - [x] Reactions: super (burst) reactions get their own pill before the normal ones, tinted by `burst_colors[0]`; clicking your own takes it back (`view_chat.jai` `reactions_view`, `tests/ui/super_reactions.txt`).
+- [x] Bug: re-identifying dropped you from voice (op 4 with a null channel after every READY): you vanished from the channel's member list while "Voice Connected" stayed. A fresh READY now rejoins the call.

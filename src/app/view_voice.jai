@@ -79,8 +79,12 @@ voice_frame :: () {
 		dc.client_set_rtc_state(app.client, .Disconnected);
 		return;
 	}
+	// A new gateway session (reconnect without resume) leaves voice on READY: join again, so
+	// our voice state comes back and the connection moves to the new session.
+	rejoin := vc.readies != 0 && vc.readies != store().readies;
+	vc.readies = store().readies;
 	// mute / deafen -> connection + op 4 (deafen implies mute, like the client)
-	if app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
+	if rejoin || app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
 		vc.sent_mute = app.self_mute;
 		vc.sent_deaf = app.self_deaf;
 		dc.voice_set_state(app.client, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
@@ -343,6 +347,7 @@ Voice_App :: struct {
 	headless: bool; // no audio devices (screenshots / CI never open the mic)
 	auto_join: dc.Snowflake; // FASTCORD_JOIN_VOICE=<channel id>
 	auto_checked: bool;
+	readies: u64; // store().readies when we last sent op 4 for the call
 	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
 }
 
@@ -356,6 +361,7 @@ voice_drop :: () {
 	}
 	vc.channel = 0;
 	vc.version = 0;
+	vc.readies = 0;
 	table_reset_keeping_memory(*vc.speaking);
 }
 

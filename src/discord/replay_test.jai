@@ -2570,6 +2570,27 @@ username_rules :: (t: *T) {
 	expect_value(t, username_rule_error("no spaces"), "Please only use numbers, letters, underscores _ , or periods.");
 }
 
+// A gateway reconnect gives us a new voice session; the old session's leave arriving after
+// the rejoin must not drop us from the channel's member list.
+voice_state_stale_leave :: (t: *T) {
+	s: Store;
+	store_init(*s, temp);
+	vsu :: (s: *Store, channel: string, session: string) {
+		b := etf.map_builder(3,, temp);
+		etf.map_put(*b, "user_id", etf.vstring("7"));
+		etf.map_put(*b, "channel_id", ifx channel then etf.vstring(channel) else .{});
+		etf.map_put(*b, "session_id", etf.vstring(session));
+		store_apply_dispatch(s, "VOICE_STATE_UPDATE", etf.vmap(etf.map_done(*b)), 0);
+	}
+	vsu(*s, "9", "old");
+	vsu(*s, "9", "new");
+	vsu(*s, "", "old");
+	vs := table_find_pointer(*s.voice_states, 7);
+	expect(t, vs != null && vs.session_id == "new", "the old session's leave is ignored");
+	vsu(*s, "", "new");
+	expect(t, table_find_pointer(*s.voice_states, 7) == null, "the current session's leave removes us");
+}
+
 // HTTPUtils' per-URL hold: after a 429, requests queued for the URL go one per response, in order.
 rate_limit_queue :: (t: *T) {
 	R :: struct { r: *Rate_Limiter; n: int; done: *[3]s64; }
