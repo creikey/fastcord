@@ -1,28 +1,33 @@
 Mat :: vector.Mat;
 
-// Player renders frames of one animation at a fixed pixel size. It must not move after player_init.
+// Player renders frames of any animation at a fixed pixel size. It must not move after player_init.
 Player :: struct {
-	anim: *Animation;
 	w, h: int;
+	anim: *Animation; // the frame being rendered
 	view: Mat; // animation space -> pixels (xMidYMid meet)
 	rz: vector.Rasterizer;
 	frame: Flat_Pool; // per-frame geometry
 	out: []u8; // last rendered frame, straight RGBA8
 	depth: int; // precomp nesting guard
+	free: [..]Canvas; // layer buffers, all zero
+	mask: []float32; // apply_masks' scratch
 }
 
-player_init :: (p: *Player, anim: *Animation, w: int, h: int, allocator := context.allocator) {
-	p.* = .{anim = anim, w = w, h = h};
+player_init :: (p: *Player, w: int, h: int) {
+	p.* = .{w = w, h = h};
 	vector.rasterizer_init(*p.rz, w, h);
-	s := min(cast(float32) w / anim.w, cast(float32) h / anim.h);
-	p.view = .[s, 0, 0, s, (cast(float32) w - anim.w * s) / 2, (cast(float32) h - anim.h * s) / 2];
-	p.out = NewArray(w * h * 4, u8,, allocator);
+	p.out = NewArray(w * h * 4, u8);
+	p.mask = NewArray(w * h, float32);
+	p.free.allocator = context.allocator;
 }
 
-player_destroy :: (p: *Player, allocator := context.allocator) {
+player_destroy :: (p: *Player) {
 	vector.rasterizer_destroy(*p.rz);
 	fini(*p.frame);
-	array_free(p.out,, allocator);
+	array_free(p.out);
+	array_free(p.mask);
+	for p.free  array_free(it.px,, p.free.allocator);
+	array_free(p.free);
 	p.* = .{};
 }
 
@@ -37,13 +42,17 @@ frame_at :: (anim: *Animation, seconds: float64) -> float32 {
 
 // render renders frame number `frame` (fractional allowed) and returns the
 // player's straight-alpha RGBA8 buffer (w*h*4, valid until the next call).
-render :: (p: *Player, frame: float32) -> []u8 {
+render :: (p: *Player, anim: *Animation, frame: float32) -> []u8 {
+	p.anim = anim;
+	s := min(cast(float32) p.w / anim.w, cast(float32) p.h / anim.h);
+	p.view = .[s, 0, 0, s, (cast(float32) p.w - anim.w * s) / 2, (cast(float32) p.h - anim.h * s) / 2];
 	vector.rasterizer_reset(*p.rz);
 	reset(*p.frame);
 	push_allocator(.{flat_pool_allocator_proc, *p.frame}); // all geometry below lives until the next frame
-	canvas := vector.rasterizer_buffer(*p.rz, 4);
-	render_comp(p, *p.anim.root, frame, p.view, canvas);
-	vector.premul_to_rgba8(canvas, p.out);
+	canvas := take(p);
+	render_comp(p, *anim.root, frame, p.view, *canvas);
+	vector.premul_to_rgba8(canvas.px, p.out);
+	give(p, canvas);
 	return p.out;
 }
 
@@ -101,45 +110,75 @@ layer_world :: (c: *Comp, l: *Layer, frame: float32, depth := 0) -> Mat {
 	return m;
 }
 
-composite :: (dst: []float32, src: []float32, alpha: float32) {
-	for i: 0..dst.count/4-1 {
-		o := i * 4;
-		a := src[o + 3] * alpha;
+// A premultiplied RGBA f32 layer buffer, zero outside box.
+Canvas :: struct {
+	px: []float32;
+	box: vector.Box;
+}
+
+take :: (p: *Player) -> Canvas {
+	if p.free return pop(*p.free);
+	return .{px = NewArray(p.w * p.h * 4, float32,, p.free.allocator)};
+}
+
+give :: (p: *Player, c: Canvas) {
+	b := c.box;
+	for y: b.y0..b.y1-1  memset(c.px.data + (y * p.w + b.x0) * 4, 0, (b.x1 - b.x0) * 4 * size_of(float32));
+	array_add(*p.free, .{px = c.px});
+}
+
+// Composites cov * color (straight) into buf.
+fill :: (p: *Player, buf: *Canvas, color: Vector4, cov: []float32) {
+	vector.solid_fill_premul(color, cov, buf.px, p.w, p.rz.cov_box);
+	buf.box = vector.box_union(buf.box, p.rz.cov_box);
+}
+
+composite :: (p: *Player, dst: *Canvas, src: *Canvas, alpha: float32) {
+	dst.box = vector.box_union(dst.box, src.box);
+	b := src.box;
+	for y: b.y0..b.y1-1  for x: b.x0..b.x1-1 {
+		o := (y * p.w + x) * 4;
+		a := src.px[o + 3] * alpha;
 		if a <= 0 continue;
 		k := 1 - a;
-		dst[o] = src[o] * alpha + dst[o] * k;
-		dst[o + 1] = src[o + 1] * alpha + dst[o + 1] * k;
-		dst[o + 2] = src[o + 2] * alpha + dst[o + 2] * k;
-		dst[o + 3] = a + dst[o + 3] * k;
+		d, s := dst.px.data, src.px.data;
+		d[o] = s[o] * alpha + d[o] * k;
+		d[o + 1] = s[o + 1] * alpha + d[o + 1] * k;
+		d[o + 2] = s[o + 2] * alpha + d[o + 2] * k;
+		d[o + 3] = a + d[o + 3] * k;
 	}
 }
 
-render_comp :: (p: *Player, c: *Comp, frame: float32, m: Mat, dst: []float32) {
+render_comp :: (p: *Player, c: *Comp, frame: float32, m: Mat, dst: *Canvas) {
 	for < i: 0..c.layers.count-1 {
 		l := *c.layers[i];
 		if l.td || l.hidden || l.ty == 3 continue;
 		if !(frame >= l.ip && frame < l.op) continue;
 		buf, op := render_layer(p, c, l, frame, m);
-		if buf.count == 0 continue;
+		if buf.px.count == 0 continue;
 		if l.tt > 0 && i > 0 && c.layers[i - 1].td {
 			ml := *c.layers[i - 1];
-			mask_buf: []float32;
+			mask_buf: Canvas;
 			mop: float32 = 1;
 			if frame >= ml.ip && frame < ml.op  mask_buf, mop = render_layer(p, c, ml, frame, m);
 			luma := l.tt == 3 || l.tt == 4;
 			inv := l.tt == 2 || l.tt == 4;
-			for j: 0..buf.count/4-1 {
-				o := j * 4;
+			mb := mask_buf.px;
+			b := buf.box;
+			for y: b.y0..b.y1-1  for x: b.x0..b.x1-1 {
+				o := (y * p.w + x) * 4;
 				f: float32 = 0;
-				if mask_buf.count {
-					if luma  f = (0.2125 * mask_buf[o] + 0.7154 * mask_buf[o + 1] + 0.0721 * mask_buf[o + 2]) * mop;
-					else     f = mask_buf[o + 3] * mop;
+				if mb.count {
+					if luma  f = (0.2125 * mb[o] + 0.7154 * mb[o + 1] + 0.0721 * mb[o + 2]) * mop;
+					else     f = mb[o + 3] * mop;
 				}
 				if inv  f = 1 - f;
-				for k: 0..3  buf[o + k] *= f;
+				for k: 0..3  buf.px[o + k] *= f;
 			}
+			if mb.count  give(p, mask_buf);
 		}
-		composite(dst, buf, op);
+		composite(p, dst, *buf, op);
+		give(p, buf);
 	}
 }
 
@@ -155,57 +194,59 @@ rect_coverage :: (p: *Player, w: float32, h: float32, m: Mat) -> []float32 {
 }
 
 // Multiplies the premultiplied RGBA buf by per-pixel coverage.
-multiply :: (buf: []float32, cov: []float32) {
-	for cov  for k: 0..3  buf[it_index * 4 + k] *= it;
+multiply :: (p: *Player, buf: *Canvas, cov: []float32) {
+	b := buf.box;
+	for y: b.y0..b.y1-1  for x: b.x0..b.x1-1 {
+		i := y * p.w + x;
+		for k: 0..3  buf.px[i * 4 + k] *= cov[i];
+	}
 }
 
-// Renders one layer (content + masks) into a new premultiplied buffer; returns
+// Renders one layer (content + masks) into a taken buffer (give it back); returns
 // it with the layer opacity to composite with.
-render_layer :: (p: *Player, c: *Comp, l: *Layer, frame: float32, m: Mat) -> []float32, float32 {
+render_layer :: (p: *Player, c: *Comp, l: *Layer, frame: float32, m: Mat) -> Canvas, float32 {
 	_, opacity := transform_matrix(*l.ks, frame);
-	if opacity <= 0 return .[], 0;
+	if opacity <= 0 return .{}, 0;
+	if l.ty != 0 && l.ty != 1 && l.ty != 4 return .{}, 0;
+	if l.ty == 0 && (l.ref < 0 || p.depth > 16) return .{}, 0; // depth: self-referencing precomps
 	lm := mat_mul(m, layer_world(c, l, frame));
-	buf := vector.rasterizer_buffer(*p.rz, 4);
+	buf := take(p);
 	if l.ty == {
 	case 0;
-		if l.ref < 0 return .[], 0;
 		pc := *p.anim.assets[l.ref];
-		if p.depth > 16 return .[], 0; // self-referencing precomps
 		p.depth += 1;
-		render_comp(p, pc, precomp_time(l, frame), lm, buf);
+		render_comp(p, pc, precomp_time(l, frame), lm, *buf);
 		p.depth -= 1;
 		// precomps are clipped to their bounds
-		multiply(buf, rect_coverage(p, ifx l.w > 0 then l.w else pc.w, ifx l.h > 0 then l.h else pc.h, lm));
+		multiply(p, *buf, rect_coverage(p, ifx l.w > 0 then l.w else pc.w, ifx l.h > 0 then l.h else pc.h, lm));
 	case 1;
-		vector.solid_fill_premul(l.solid_color, rect_coverage(p, l.w, l.h, lm), buf);
+		fill(p, *buf, l.solid_color, rect_coverage(p, l.w, l.h, lm));
 	case 4;
-		draw_shapes(p, l.shapes, frame, lm, buf);
-	case;
-		return .[], 0;
+		draw_shapes(p, l.shapes, frame, lm, *buf);
 	}
-	if l.masks.count  apply_masks(p, l, frame, lm, buf);
+	if l.masks.count  apply_masks(p, l, frame, lm, *buf);
 	return buf, opacity;
 }
 
-apply_masks :: (p: *Player, l: *Layer, t: float32, lm: Mat, buf: []float32) {
-	acc: []float32;
+// Only buf's box matters: it is zero elsewhere.
+apply_masks :: (p: *Player, l: *Layer, t: float32, lm: Mat, buf: *Canvas) {
+	acc := p.mask;
+	b := buf.box;
+	first := true;
 	for * mk: l.masks {
 		if mk.mode == #char "n" continue;
 		path := shape_to_path(eval_shape(*mk.path, t), false);
 		cov := vector.fill_coverage(*p.rz, path.verbs, path.points, lm, .Nonzero);
 		o := ev1(*mk.opacity, t, 100) / 100;
-		for * cov {
-			it.* *= o;
-			if mk.inverted  it.* = 1 - it.*;
-		}
-		if acc.count == 0 {
-			acc = vector.rasterizer_buffer(*p.rz, 1);
-			if mk.mode == #char "s"  for * acc  it.* = 1 - cov[it_index];
-			else                     memcpy(acc.data, cov.data, acc.count * size_of(float32));
-			continue;
-		}
-		for * v: acc {
-			c := cov[it_index];
+		for y: b.y0..b.y1-1  for x: b.x0..b.x1-1 {
+			i := y * p.w + x;
+			c := cov[i] * o;
+			if mk.inverted  c = 1 - c;
+			v := *acc[i];
+			if first {
+				v.* = ifx mk.mode == #char "s" then 1 - c else c;
+				continue;
+			}
 			if mk.mode == {
 				case #char "a"; v.* = v.* + c - v.* * c;
 				case #char "s"; v.* *= 1 - c;
@@ -215,8 +256,9 @@ apply_masks :: (p: *Player, l: *Layer, t: float32, lm: Mat, buf: []float32) {
 				case #char "f"; v.* = abs(v.* - c);
 			}
 		}
+		first = false;
 	}
-	if acc.count  multiply(buf, acc);
+	if !first  multiply(p, buf, acc);
 }
 
 // ---------------------------------------------------------------------------
@@ -357,7 +399,7 @@ walk_items :: (items: []Item, t: float32, m: Mat, opacity: float32, geo: *[..]*S
 	}
 }
 
-draw_shapes :: (p: *Player, items: []Item, t: float32, m: Mat, buf: []float32) {
+draw_shapes :: (p: *Player, items: []Item, t: float32, m: Mat, buf: *Canvas) {
 	geo: [..]*Slot;
 	draws: [..]Draw;
 	walk_items(items, t, m, 1, *geo, *draws);
@@ -388,10 +430,11 @@ draw_shapes :: (p: *Player, items: []Item, t: float32, m: Mat, buf: []float32) {
 			c := Vector4.{0, 0, 0, 1};
 			eval(*item.color, t, c.component);
 			c[3] = op;
-			vector.solid_fill_premul(c, cov, buf);
+			fill(p, buf, c, cov);
 		} else {
 			g := build_gradient(item, t, op);
-			vector.gradient_fill_premul(*g, d.m, cov, buf, p.w, p.h);
+			vector.gradient_fill_premul(*g, d.m, cov, buf.px, p.w, p.rz.cov_box);
+			buf.box = vector.box_union(buf.box, p.rz.cov_box);
 		}
 	}
 }

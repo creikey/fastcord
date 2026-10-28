@@ -44,6 +44,7 @@ rasterize_premul :: (icon: *Icon, w: int, h: int, canvas: []float32, current_col
 	rasterizer_init(*rz, w, h);
 	defer rasterizer_destroy(*rz);
 	view := view_transform(icon, w, h);
+	full := Box.{0, 0, w, h};
 	cc := Vector4.{cast(float32) current_color[0] / 255, cast(float32) current_color[1] / 255, cast(float32) current_color[2] / 255, cast(float32) current_color[3] / 255};
 	for * op: icon.ops {
 		if op.group >= 0 continue;
@@ -58,12 +59,12 @@ rasterize_premul :: (icon: *Icon, w: int, h: int, canvas: []float32, current_col
 				b := op.bbox;
 				m = mat_mul(m, .[b[2] - b[0], 0, 0, b[3] - b[1], b[0], b[1]]);
 			}
-			gradient_fill_premul(g, mat_mul(m, g.transform), cov, canvas, w, h);
+			gradient_fill_premul(g, mat_mul(m, g.transform), cov, canvas, w, full);
 		} else if op.current_color {
-			solid_fill_premul(cc, cov, canvas);
+			solid_fill_premul(cc, cov, canvas, w, full);
 		} else {
 			c := op.color;
-			solid_fill_premul(.{cast(float32) c[0] / 255, cast(float32) c[1] / 255, cast(float32) c[2] / 255, 1}, cov, canvas);
+			solid_fill_premul(.{cast(float32) c[0] / 255, cast(float32) c[1] / 255, cast(float32) c[2] / 255, 1}, cov, canvas, w, full);
 		}
 		rasterizer_reset(*rz);
 	}
@@ -89,25 +90,41 @@ Stroke :: struct {
 	miter_limit: float32;
 }
 
+// Box is a pixel rectangle [x0, x1) x [y0, y1); empty when x1 <= x0 or y1 <= y0.
+Box :: struct {
+	x0, y0, x1, y1: int;
+}
+
+box_union :: (a: Box, b: Box) -> Box {
+	if a.x1 <= a.x0 || a.y1 <= a.y0 return b;
+	if b.x1 <= b.x0 || b.y1 <= b.y0 return a;
+	return .{min(a.x0, b.x0), min(a.y0, b.y0), max(a.x1, b.x1), max(a.y1, b.y1)};
+}
+
 // Rasterizer is reusable scratch for path coverage at a fixed size. Buffers it
 // returns stay valid until rasterizer_reset / rasterizer_destroy. It must not move after init.
+// Work is limited to the cells a path touches (dirty), so small paths on a big canvas stay cheap.
 Rasterizer :: struct {
 	w, h, stride: int;
-	acc: []float32; // h rows of stride cells
+	acc: []float32; // h rows of stride cells, zero outside dirty
+	dirty: Box; // cells of acc written since the last integrate
+	cov: []float32; // fill_coverage / stroke_coverage's result, zero outside cov_box
+	cov_box: Box;
 	pts: [..]Vector2;
 	polys: [..]Poly;
-	pool: Flat_Pool; // holds all of the above and every buffer handed out
+	pool: Flat_Pool; // holds pts, polys and every buffer handed out
 }
 
 rasterizer_init :: (rz: *Rasterizer, w: int, h: int) {
-	rz.w, rz.h, rz.stride = w, h, w + 2;
+	rz.* = .{w = w, h = h, stride = w + 2};
+	rz.acc = NewArray(rz.stride * h, float32);
+	rz.cov = NewArray(w * h, float32);
 	rasterizer_reset(rz);
 }
 
 rasterizer_reset :: (rz: *Rasterizer) {
 	reset(*rz.pool);
 	a := rasterizer_allocator(rz);
-	rz.acc = NewArray(rz.stride * rz.h, float32,, a);
 	pts: [..]Vector2;
 	polys: [..]Poly;
 	rz.pts, rz.polys = pts, polys;
@@ -116,6 +133,8 @@ rasterizer_reset :: (rz: *Rasterizer) {
 
 rasterizer_destroy :: (rz: *Rasterizer) {
 	fini(*rz.pool);
+	array_free(rz.acc);
+	array_free(rz.cov);
 	rz.* = .{};
 }
 
@@ -126,26 +145,35 @@ rasterizer_buffer :: (rz: *Rasterizer, n := 1) -> []float32 {
 	return NewArray(rz.w * rz.h * n, float32,, rasterizer_allocator(rz));
 }
 
-// fill_coverage returns w*h coverage (0..1) of the path under transform m.
+// fill_coverage returns w*h coverage (0..1) of the path under transform m: rz.cov, valid until the
+// next fill_coverage / stroke_coverage, zero outside rz.cov_box.
 fill_coverage :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, rule: Fill_Rule) -> []float32 {
 	flatten_path(rz, verbs, points, m);
 	for rz.polys  emit_loop(rz, poly_points(rz, it));
-	cov := rasterizer_buffer(rz);
-	integrate(rz, cov, rule);
-	return cov;
+	return scratch_coverage(rz, rule);
 }
 
-// stroke_coverage returns w*h coverage of the path stroked under transform m.
+// stroke_coverage is fill_coverage for the path stroked under transform m.
 stroke_coverage :: (rz: *Rasterizer, verbs: []Verb, points: []Vector2, m: Mat, s: Stroke) -> []float32 {
 	flatten_path(rz, verbs, points, m);
 	hw := s.width * sqrt(abs(m[0] * m[3] - m[1] * m[2])) / 2;
 	for rz.polys  stroke_poly(rz, poly_points(rz, it), it.closed, hw, s.cap, s.join, max(s.miter_limit, 1));
-	cov := rasterizer_buffer(rz);
-	integrate(rz, cov, .Nonzero);
-	return cov;
+	return scratch_coverage(rz, .Nonzero);
 }
 
 #scope_module
+
+// Math's floor and ceil are software (cephes) and, in split-module dev builds, calls. These are exact
+// for finite values in int range, which every coordinate here is once clipped to the canvas.
+floor_fast :: inline (x: float32) -> float32 { f := cast(float32) cast(int) x; return ifx f > x then f - 1 else f; }
+ceil_fast :: inline (x: float32) -> float32 { f := cast(float32) cast(int) x; return ifx f < x then f + 1 else f; }
+
+scratch_coverage :: (rz: *Rasterizer, rule: Fill_Rule) -> []float32 {
+	b := rz.cov_box;
+	for y: b.y0..b.y1-1  memset(rz.cov.data + y * rz.w + b.x0, 0, (b.x1 - b.x0) * size_of(float32));
+	rz.cov_box = integrate(rz, rz.cov, rule);
+	return rz.cov;
+}
 
 // rasterize_f32 returns float coverage (allocated with context.allocator).
 rasterize_f32 :: (icon: *Icon, w: int, h: int, layers: Layer) -> []float32 {
@@ -522,20 +550,24 @@ acc_line_inside :: (r: *Rasterizer, p0: Vector2, p1: Vector2) {
 	dxdy := (b.x - a.x) / (b.y - a.y);
 	x := a.x;
 	y0 := cast(int)(a.y);
-	y1 := min(r.h, cast(int)(ceil(b.y)));
+	y1 := min(r.h, cast(int)(ceil_fast(b.y)));
 	acc := r.acc;
+	xmin, xmax := r.stride, 0;
 	for y: y0..y1-1 {
 		ls := y * r.stride;
-		dy := min(cast(float32)(y + 1), b.y) - max(cast(float32)(y), a.y);
+		yt, yb := cast(float32) y, cast(float32)(y + 1);
+		dy := (ifx yb < b.y then yb else b.y) - (ifx yt > a.y then yt else a.y);
 		xnext := x + dxdy * dy;
 		d := dy * dir;
 		x0, x1 := x, xnext;
 		if x0 > x1 { x0, x1 = x1, x0; }
-		x0f := floor(x0);
+		x0f := floor_fast(x0);
 		x0i := cast(int)(x0f);
-		x1c := ceil(x1);
+		x1c := ceil_fast(x1);
 		x1i := cast(int)(x1c);
+		if x0i < xmin  xmin = x0i;
 		if x1i <= x0i + 1 {
+			if x0i + 2 > xmax  xmax = x0i + 2;
 			xmf := 0.5 * (x + xnext) - x0f;
 			acc[ls + x0i] += d - d * xmf;
 			acc[ls + x0i + 1] += d * xmf;
@@ -556,28 +588,42 @@ acc_line_inside :: (r: *Rasterizer, p0: Vector2, p1: Vector2) {
 				acc[ls + x1i - 1] += d * (1 - a2 - am);
 			}
 			acc[ls + x1i] += d * am;
+			if x1i + 1 > xmax  xmax = x1i + 1;
 		}
 		x = xnext;
 	}
+	// float drift can put x0i at -1: the previous row's padding, which integrate never reads
+	if y1 > y0  r.dirty = box_union(r.dirty, .{max(xmin, 0), y0, xmax, y1});
 }
 
-// integrate turns accumulated cells into coverage and clears the accumulator.
-integrate :: (r: *Rasterizer, cov: []float32, rule: Fill_Rule) {
-	for y: 0..r.h-1 {
-		row := array_view(r.acc, y * r.stride, r.stride);
-		out := array_view(cov, y * r.w, r.w);
+// integrate turns accumulated cells into coverage and clears the accumulator. It writes only the
+// dirty rows, from the first dirty column to the last, or to the right edge where a row's winding
+// stays open (its right side was clipped). It returns that box: cov must already be zero outside it.
+integrate :: (r: *Rasterizer, cov: []float32, rule: Fill_Rule) -> Box {
+	d := r.dirty;
+	r.dirty = .{};
+	if d.x1 <= d.x0 || d.y1 <= d.y0 return .{};
+	x1 := min(d.x1, r.w);
+	b := Box.{d.x0, d.y0, x1, d.y1};
+	for y: d.y0..d.y1-1 {
+		row := r.acc.data + y * r.stride;
+		out := cov.data + y * r.w;
 		sum: float32 = 0;
-		for x: 0..r.w-1 {
-			sum += row[x];
-			v := abs(sum);
+		v: float32;
+		for x: d.x0..r.w-1 {
+			if x < x1  sum += row[x];
+			else if sum == 0 break;
+			v = abs(sum);
 			if rule == .Nonzero {
-				out[x] = min(v, 1);
+				out[x] = ifx v < 1 then v else 1;
 			} else {
-				v = v - 2 * floor(v / 2);
+				v = v - 2 * floor_fast(v / 2);
 				out[x] = ifx v > 1 then 2 - v else v;
 			}
+			if x >= x1  b.x1 = r.w;
 		}
-		for * c: row { c.* = 0; }
+		memset(row + d.x0, 0, (d.x1 - d.x0) * size_of(float32));
 	}
+	return b;
 }
 

@@ -101,11 +101,12 @@ gradient_color :: (g: *Gradient, t_in: float32) -> Vector4 {
 
 // gradient_fill_premul composites `cov * gradient` (src-over) into a premultiplied
 // RGBA f32 canvas. m maps gradient space to pixel space.
-gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w: int, h: int) {
+// Only box (where cov can be nonzero) is visited; w is the row length.
+gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w: int, box: Box) {
 	inv, ok := mat_invert(m);
 	if !ok { return; }
-	for y: 0..h-1 {
-		for x: 0..w-1 {
+	for y: box.y0..box.y1-1 {
+		for x: box.x0..box.x1-1 {
 			i := y * w + x;
 			c := cov[i];
 			if c <= 0 { continue; }
@@ -119,11 +120,22 @@ gradient_fill_premul :: (g: *Gradient, m: Mat, cov: []float32, dst: []float32, w
 	}
 }
 
-// solid_fill_premul composites `cov * color` (straight RGBA 0..1) into dst.
-solid_fill_premul :: (color: Vector4, cov: []float32, dst: []float32) {
-	for c, i: cov {
+// solid_fill_premul composites `cov * color` (straight RGBA 0..1) into dst, visiting only box.
+solid_fill_premul :: (color: Vector4, cov: []float32, dst: []float32, w: int, box: Box) {
+	r, g, b, ca := color.x, color.y, color.z, color.w;
+	d := dst.data;
+	for y: box.y0..box.y1-1  for x: box.x0..box.x1-1 {
+		i := y * w + x;
+		c := cov.data[i];
 		if c <= 0 { continue; }
-		blend_premul(dst, i * 4, color, color[3] * c);
+		// blend_premul, spelled out: Vector4's [] is a call in split-module builds
+		a := ca * c;
+		k := 1 - a;
+		o := i * 4;
+		d[o] = r * a + d[o] * k;
+		d[o + 1] = g * a + d[o + 1] * k;
+		d[o + 2] = b * a + d[o + 2] * k;
+		d[o + 3] = a + d[o + 3] * k;
 	}
 }
 

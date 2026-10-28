@@ -267,7 +267,7 @@ Decode_Job :: struct {
 	data: []u8; // heap, owned; empty: read the URL from FASTCORD_MEDIA_DIR
 	id: dc.Snowflake; // Lottie
 	px: int;
-	anim: *lottie.Animation; // Lottie_Still; read-only while shared
+	anim: *lottie.Animation; // Lottie_Still, Lottie_Frame; read-only while shared
 	player: *lottie.Player; // Lottie_Frame; the worker's until the result is uploaded
 	frame: float32;
 }
@@ -361,15 +361,15 @@ decode_run :: (j: Decode_Job) -> Decoded {
 		d.anim = lottie.load(data);
 	case .Lottie_Still;
 		p: lottie.Player;
-		lottie.player_init(*p, j.anim, j.px, j.px);
+		lottie.player_init(*p, j.px, j.px);
 		d.frames = NewArray(1, []u8);
-		d.frames[0] = array_copy(lottie.render(*p, j.anim.ip));
+		d.frames[0] = array_copy(lottie.render(*p, j.anim, j.anim.ip));
 		gfx.premultiply_in_place(d.frames[0]);
 		d.size = .{j.px, j.px};
 		lottie.player_destroy(*p);
 	case .Lottie_Frame;
 		d.frames = NewArray(1, []u8);
-		d.frames[0] = array_copy(lottie.render(j.player, j.frame));
+		d.frames[0] = array_copy(lottie.render(j.player, j.anim, j.frame));
 		d.size = .{j.px, j.px};
 	case .Fetch;
 		if !j.data d.data = array_copy(data);

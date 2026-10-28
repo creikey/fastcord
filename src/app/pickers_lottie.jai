@@ -105,14 +105,14 @@ lottie_draw :: (b: *ui.Box, user: *void) {
 				else ls.player = New(lottie.Player);
 				if ls.tex != 0 gfx.texture_destroy(ls.tex);
 				ls.tex = 0;
-				lottie.player_init(ls.player, ls.anim, px, px);
+				lottie.player_init(ls.player, px, px);
 				ls.px = px;
 				ls.frame = -1;
 			}
 			frame := lottie.frame_at(ls.anim, app.ui.time);
 			if frame != ls.frame {
 				ls.rendering = true;
-				decode_submit(.{kind = .Lottie_Frame, id = d.id, px = px, player = ls.player, frame = frame});
+				decode_submit(.{kind = .Lottie_Frame, id = d.id, px = px, anim = ls.anim, player = ls.player, frame = frame});
 			}
 		}
 		if ls.tex != 0 && ls.px == px {
