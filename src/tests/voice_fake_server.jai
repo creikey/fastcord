@@ -552,9 +552,10 @@ test_fake_voice_server :: () {
 }
 
 // ---------------------------------------------------------------------------
-// Test 2: resume. The server drops the TCP connection after SESSION_DESCRIPTION; the client must
-// reconnect and send RESUME (op 7) with seq_ack, then accept RESUMED (op 9) and be Connected again
-// without a new IDENTIFY.
+// Test 2: resume. The server closes with 4014 (disconnected: kicked or moved) after
+// SESSION_DESCRIPTION; like RTCControlSocket the client must reconnect and send RESUME (op 7) with
+// seq_ack, then accept RESUMED (op 9) and be Connected again without a new IDENTIFY. The server then
+// closes with 4006 (session no longer valid), which ends the connection without a retry.
 
 Resume_Fake :: struct {
     listen, udp: s32;
@@ -588,7 +589,8 @@ resume_gw :: (t: *Thread) -> s64 {
     }
     send_text(*s, "{\"op\":4,\"d\":{\"secret_key\":[7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7],\"mode\":\"aead_xchacha20_poly1305_rtpsize\",\"dave_protocol_version\":1,\"audio_codec\":\"opus\"},\"seq\":3}");
     sleep_milliseconds(200);
-    close(s.sock);  // abrupt drop (1006)
+    send_frame(*s, 8, u8.[0x0f, 0xae]);  // close 4014
+    close(s.sock);
 
     s2, _, ok2 := upgrade(f.listen);
     if !ok2 { f.failure = "upgrade 2"; return 0; }
@@ -596,6 +598,8 @@ resume_gw :: (t: *Thread) -> s64 {
     m, mok := next_text(*s2);
     if mok f.resume_msg = copy_string(m);
     send_text(*s2, "{\"op\":9,\"d\":null}");
+    sleep_milliseconds(300);
+    send_frame(*s2, 8, u8.[0x0f, 0xa6]);  // close 4006: not resumable
     while true {
         _, more := next_text(*s2);
         if !more break;
@@ -629,8 +633,11 @@ test_fake_voice_resume :: () {
         .{dial = plain_dial, no_audio_devices = true});
     expect(voice.wait_state(c, .Connected, 3000), "first connect");
     expect(voice.wait_state(c, .Resuming, 3000), "resuming after drop");
-    expect(voice.wait_state(c, .Connected, 5000), "resumed");
+    expect(voice.wait_state(c, .Connected, 5000), "resumed after 4014");
     expect(voice.get_stats(c).reconnects == 1, "one reconnect");
+    expect(voice.wait_state(c, .Disconnected, 3000), "4006 ends the connection");
+    _, code := voice.state(c);
+    expect(code == voice.CLOSE_INVALID_SESSION && voice.get_stats(c).reconnects == 1, "close % without a retry", code);
     voice.voice_disconnect(c);
     atomic_store(*f.stop, true);
     join_threads(threads);

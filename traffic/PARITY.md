@@ -444,7 +444,7 @@ settings tabs other than Overview.
 | settings-proto/2 PATCH | Not sent | Frecency (emoji/gif usage) writes are not modelled. |
 | Profile widgets | applications/public, games, oauth2/tokens after a full profile | Driven by profile widget data, not modelled. |
 | Quick switcher | Exact autocomplete query set, HTTP-cache revalidation | Throttle model approximated. Chrome revalidates cached autocomplete GETs. |
-| Voice | `rtc_connected` QoS, voice UDP | RTC/voice connection is `src/voice`'s job. |
+| Voice | voice UDP, `preferred_regions` order | The voice media is native in the official client (not in the captures). `preferred_regions` follow the probe's geographic order, not a UDP latency ranking. Since the last live session, fastcord's own voice connection reports RTC_CONNECTED: the QoS heartbeat gains `rtc_connected` and op 31 (with the soundboard GET) goes just before it, as in the fixtures (offline: `voice_rtc_qos`, `parity_join_voice`, `parity_dm_call`; not yet checked live). |
 | GCS upload | `upload_id` in the fixture | tools/scrub now scrubs it. The committed fixture predates that and needs a re-scrub. |
 | conn ids | `0` / `false` | Chrome-internal. |
 | Launch | `/app?_=<ms>` document and `version.stable.json`: not in the fixtures | The captures drop Document and `/assets/` loads, and the official cold start is a reload of `/channels/@me`; the launch order comes from the official netlogs (CLIENT_RULES "Gateway, startup, identity"). tools/scrub drops our `/app?_=` too. Checked offline by `app_document_build`. |

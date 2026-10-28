@@ -35,6 +35,7 @@ Replay :: struct {
 	used: [..]bool;
 	ours: [..]Replay_Req;
 	sends: [..]Replay_Send;
+	beats: [..]string; // QoS heartbeats since the mark: "<sends before it>:<reasons>"
 	science: [..]Sci_Batch; // our /science POSTs since the mark
 	marked: bool;
 	fail: string; // requests whose URL contains it are answered fail_status (failure paths)
@@ -84,7 +85,7 @@ fnv32a :: (s: string) -> u32 {
 replay_load :: (r: *Replay, scenario: string, acct := "a") -> bool {
 	push_allocator(pool_allocator(*r.pool));
 	// appended to from worker threads later (under mu): keep them in the pool too
-	r.ours.allocator, r.sends.allocator, r.science.allocator = context.allocator, context.allocator, context.allocator;
+	r.ours.allocator, r.sends.allocator, r.science.allocator, r.beats.allocator = context.allocator, context.allocator, context.allocator, context.allocator;
 	text, ok := read_entire_file(tprint("traffic/%.jsonl", scenario)); // tests run from the repo root
 	if !ok return false;
 	for line: split(text, "\n") {
@@ -298,10 +299,17 @@ fnum :: (m: etf.Map, k: string) -> s64 {
 
 replay_sink :: (data: *void, op: Op, d: V) {
 	r := cast(*Replay) data;
-	if op == .Heartbeat || op == .Qos_Heartbeat return;
+	if op == .Heartbeat return;
 	locks.lock(*r.mu);
 	defer locks.unlock(*r.mu);
 	if !r.marked return;
+	if op == .Qos_Heartbeat {
+		reasons: [..]string;
+		reasons.allocator = temp;
+		for vlist(vget(fmap(vmap(d), "qos"), "reasons")) array_add(*reasons, vstr(it));
+		array_add(*r.beats, sprint("%:%", r.sends.count, join(..reasons, ","),, pool_allocator(*r.pool)));
+		return;
+	}
 	array_add(*r.sends, .{xx op, copy_string(shape_text(d),, pool_allocator(*r.pool))});
 }
 
@@ -419,7 +427,7 @@ replay_pump :: (run: *Replay_Run, ms: int) {
 replay_mark :: (run: *Replay_Run) {
 	locks.lock(*run.r.mu);
 	run.r.marked = true;
-	run.r.ours.count, run.r.sends.count, run.r.science.count = 0, 0, 0;
+	run.r.ours.count, run.r.sends.count, run.r.science.count, run.r.beats.count = 0, 0, 0, 0;
 	locks.unlock(*run.r.mu);
 }
 
@@ -1343,6 +1351,8 @@ parity_join_voice :: (t: *T) {
 	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
 	replay_mark(*run);
 	voice_join(run.c, R_GUILD, R_VOICE);
+	replay_settle(*run, 300);
+	client_set_rtc_state(run.c, .Rtc_Connected); // the app's voice connection (src/voice is not run offline)
 	replay_settle(*run, 900);
 	// op 4 preferred_region(s) come from the live RTC probe; settings-proto/2: frecency write (not modelled)
 	// science: the voice engine's events (permission prompt, RTC connection, codec,
@@ -2484,6 +2494,7 @@ parity_dm_call :: (t: *T) {
 	if !replay_begin(*run3, t, "dm_call", 0, R_DM) { return; }
 	replay_pump(*run3, 1500);
 	client_set_rtc_state(run3.c, .Rtc_Connected); // A is in the call
+	replay_settle(*run3, 300); // its soundboard fetch
 	replay_mark(*run3);
 	analytics_call_disconnect(run3.c, 0, R_DM); // the app: the voice panel's Disconnect
 	voice_leave(run3.c);
@@ -2651,6 +2662,162 @@ username_rules :: (t: *T) {
 
 // An older session's late leave (after a gateway reconnect) must not drop us from the list;
 // our account joining on another computer takes the call over.
+// RTC_CONNECTED: op 31 (once a session), then the QoS heartbeat with "rtc_connected" right away
+// when the QoS was inactive (window unfocused); leaving drops the reason.
+voice_rtc_qos :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	run.c.focused = false; // unfocused: the QoS is inactive until RTC_CONNECTED
+	gateway_set_active(run.c.gw, qos_from_state(false, false));
+	replay_mark(*run);
+	voice_join(run.c, R_GUILD, R_VOICE);
+	client_set_rtc_state(run.c, .Rtc_Connecting);
+	client_set_rtc_state(run.c, .Rtc_Connected);
+	client_set_rtc_state(run.c, .Rtc_Connected);
+	locks.lock(*run.r.mu);
+	ops := tprint("%", run.r.sends.count);
+	for run.r.sends ops = tprint("%,%", ops, it.op);
+	beats := join(..run.r.beats, ";",, temp);
+	locks.unlock(*run.r.mu);
+	expect_value(t, ops, "2,4,31");
+	expect_value(t, beats, "2:rtc_connected");
+	client_set_rtc_state(run.c, .Disconnected);
+	client_set_focused(run.c, true);
+	client_set_rtc_state(run.c, .Rtc_Connected);
+	locks.lock(*run.r.mu);
+	n31 := 0;
+	for run.r.sends if it.op == 31 n31 += 1;
+	locks.unlock(*run.r.mu);
+	expect_value(t, n31, 1);
+	g := run.c.gw;
+	expect_value(t, join(..array_view(g.qos_upcoming.reasons, 0, g.qos_upcoming.n), ",",, temp), "foregrounded,rtc_connected");
+}
+
+r_sent_ops :: (run: *Replay_Run) -> string {
+	locks.lock(*run.r.mu);
+	defer locks.unlock(*run.r.mu);
+	ops: [..]string;
+	ops.allocator = temp;
+	for run.r.sends array_add(*ops, tprint("%", it.op));
+	return join(..ops, ",",, temp);
+}
+
+// While the socket is down a voice join and a member-list subscription aren't sent; RESUMED sends
+// op 3 and op 4 (SelfPresenceStore, VoiceStateStore forceUpdate) and every guild's subscription (op 37).
+gateway_resume_replay :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	replay_settle(*run, 300);
+	replay_mark(*run);
+	run.c.gw.state = .Closed; // the socket dropped
+	voice_join(run.c, R_GUILD, R_VOICE);
+	subscribe_member_list(run.c, R_GUILD, R_TEXT, .[.[0, 99]]);
+	client_poll(run.c);
+	expect_value(t, r_sent_ops(*run), "");
+	run.c.gw.state = .Established;
+	client_inject_dispatch(run.c, "RESUMED", .{});
+	client_poll(run.c);
+	expect_value(t, r_sent_ops(*run), "3,4,37");
+	locks.lock(*run.r.mu);
+	op4, op37 := run.r.sends[1].shape, run.r.sends[2].shape;
+	locks.unlock(*run.r.mu);
+	expect(t, contains(op4, "channel_id:str"), op4);
+	expect(t, contains(op37, tprint("%:{typing:bool,threads:bool,activities:bool,members:[],member_updates:bool,channels:{%:[[num]]}", R_GUILD, R_TEXT)), op37);
+	// a leave while down: the next RESUMED leaves
+	run.c.gw.state = .Closed;
+	voice_leave(run.c);
+	run.c.gw.state = .Established;
+	client_inject_dispatch(run.c, "RESUMED", .{});
+	client_poll(run.c);
+	locks.lock(*run.r.mu);
+	op4 = run.r.sends[4].shape;
+	locks.unlock(*run.r.mu);
+	expect(t, contains(op4, "channel_id:null"), op4);
+}
+
+// A fresh READY (a new session) replaces the session state instead of merging into it, and the
+// open channel's messages are fetched again and replace what was loaded.
+ready_replaces_state :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	replay_settle(*run, 300);
+	s := *run.c.store;
+	expect(t, guild_get(s, R_GUILD) != null, "the fixture's guild");
+	table_set(*s.guilds, 42, .{id = 42}); // a server left while the session was gone
+	table_set(*s.voice_states, 43, .{user_id = 43, channel_id = R_VOICE}); // a ghost occupant
+	l := message_list(s, R_TEXT);
+	expect(t, l.loaded, "the route's page is loaded");
+	ghost := array_add(*l.messages);
+	ghost.id = 1; // a message deleted while the session was gone
+	ready: V;
+	for run.r.events if fstr(it, "k") == "ws_recv" && fstr(it, "ev") == "READY" { ready = vget(it, "d"); break; }
+	replay_mark(*run);
+	client_inject_dispatch(run.c, "READY", ready);
+	client_poll(run.c);
+	expect(t, guild_get(s, 42) == null && guild_get(s, R_GUILD) != null, "guilds replaced");
+	expect(t, table_find_pointer(*s.voice_states, 43) == null, "voice states replaced");
+	expect(t, message_list(s, R_TEXT).stale, "the loaded channel goes stale");
+	replay_pump(*run, 1200); // the page answers after its recorded latency
+	l = message_list(s, R_TEXT);
+	expectf(t, l.loaded && !l.stale && !(l.messages.count > 0 && l.messages[0].id == 1), "refetched and replaced: % % % %", l.loaded, l.stale, l.messages.count, ifx l.messages.count then l.messages[0].id else 0);
+	locks.lock(*run.r.mu);
+	fetched := false;
+	for run.r.ours if contains(it.key, "/messages?limit") fetched = true;
+	locks.unlock(*run.r.mu);
+	expect(t, fetched, "the open channel's page is requested again");
+}
+
+// A moderator moves us: the call follows (and a later READY / RESUMED op 4 asks for the new channel);
+// our own join doesn't count until the server confirmed it; removal ends the call.
+voice_moved :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	vsu :: (c: *Client, channel: Snowflake) {
+		b := etf.map_builder(4,, temp);
+		etf.map_put(*b, "user_id", etf.vstring(snowflake_string(c.store.me)));
+		etf.map_put(*b, "guild_id", etf.vstring(snowflake_string(R_GUILD)));
+		etf.map_put(*b, "channel_id", ifx channel then etf.vstring(snowflake_string(channel)) else .{});
+		etf.map_put(*b, "session_id", etf.vstring(c.store.session_id));
+		store_apply_dispatch(*c.store, "VOICE_STATE_UPDATE", etf.vmap(etf.map_done(*b)), 0);
+	}
+	seen: Snowflake;
+	voice_join(c, R_GUILD, R_VOICE);
+	expect_value(t, voice_followed(c, R_VOICE, *seen), R_VOICE); // not confirmed yet
+	vsu(c, R_VOICE);
+	expect_value(t, voice_followed(c, R_VOICE, *seen), R_VOICE);
+	vsu(c, R_TEXT2); // moved
+	expect_value(t, voice_followed(c, R_VOICE, *seen), R_TEXT2);
+	expect_value(t, c.voice_self.channel_id, R_TEXT2);
+	expect_value(t, voice_followed(c, R_TEXT2, *seen), R_TEXT2);
+	vsu(c, 0); // disconnected by a moderator
+	expect_value(t, voice_followed(c, R_TEXT2, *seen), 0);
+	expect_value(t, c.voice_self.channel_id, 0);
+}
+
+// Quitting sends what is still waiting: an ack in its 3 s delay and the settings write in its 10 s.
+quit_flushes_work :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "switch_theme", R_GUILD, R_TEXT) { return; }
+	replay_mark(*run);
+	ack_message(run.c, R_TEXT, 1564256109777387634);
+	set_theme(run.c, .Light);
+	client_poll(run.c);
+	client_destroy(run.c);
+	keys: [..]string;
+	keys.allocator = temp;
+	for run.r.ours array_add(*keys, it.key);
+	all := join(..keys, " ",, temp);
+	expect(t, contains(all, "POST discord.com/api/v9/channels/{id}/messages/{id}/ack"), all);
+	expect(t, contains(all, "PATCH discord.com/api/v9/users/@me/settings-proto/1"), all);
+	fini(*run.r.pool);
+	fini(*run.donor.pool);
+}
+
 voice_state_stale_leave :: (t: *T) {
 	s: Store;
 	store_init(*s, temp);

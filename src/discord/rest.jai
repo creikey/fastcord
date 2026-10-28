@@ -548,8 +548,21 @@ client_apply_rest :: (c: *Client, e: *Event) {
 			l.failed = !r.ok;
 			if r.ok {
 				items := vlist(e.data);
+				// a refetch after a fresh READY: the page is the channel's present, so messages deleted
+				// meanwhile and the gap before it go (our unsent messages stay)
+				refetch := l.stale && r.before == 0;
+				if refetch {
+					l.stale = false;
+					n := 0;
+					for * l.messages {
+						if it.pending || it.failed l.messages[n] = it.*;
+						else free_message(s, it);
+						if it.pending || it.failed n += 1;
+					}
+					l.messages.count = n;
+				}
 				for items upsert_message(s, vmap(it));
-				first := !l.loaded;
+				first := !l.loaded && !refetch;
 				l.loaded = true;
 				if r.before != 0 || items.count > 0 l.has_more_before = items.count >= r.limit;
 				if items.count < r.limit l.has_more_before = false;

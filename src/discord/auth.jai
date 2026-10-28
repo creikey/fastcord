@@ -604,6 +604,7 @@ client_session_reset :: (c: *Client) {
 	locks.lock(*c.job_mu);
 	c.ready_ms = 0;
 	c.ready_subscribed_guild = 0;
+	c.rtc_probe_at = 0;
 	locks.unlock(*c.job_mu);
 	c.pending_guild_open = 0;
 	c.guild_open_promotions = false;
@@ -619,9 +620,7 @@ client_session_reset :: (c: *Client) {
 	c.session_guild_set_done = false;
 	c.account_popout_opened = false;
 	c.soundboard_loaded = false;
-	table_reset(*c.subs.guilds);
-	for c.subs.channels array_free(it);
-	table_reset(*c.subs.channels);
+	subscriptions_clear(c);
 	c.subs.pending.count = 0;
 	c.pending_acks.count = 0;
 	locks.lock(*c.ack_mu);

@@ -104,7 +104,45 @@ init :: (title: string, width: int, height: int) -> bool {
     common_init();
     if !os_init(title, width, height) return false;
     s.initialized = true;
+    quit_on_signals();
     return true;
+}
+
+// set_exit_callback: the app's exit work (leave voice, close the gateway, save), run at once when the
+// OS ends the session (Windows log off, restart, shutdown), which kills the process right after.
+set_exit_callback :: (cb: ()) { s.exit_callback = cb; }
+
+// Ctrl-C, SIGTERM (kill) and the console's close quit like closing the window, so the app's exit work
+// runs. A second signal ends the process at once.
+#if OS != .WINDOWS {
+    posix :: #import "POSIX";
+    quit_pipe: [2]s32;
+    quit_signaled: s32;
+
+    quit_on_signals :: () {
+        if posix.pipe(*quit_pipe) != 0 return;
+        sa: posix.sigaction_t;
+        // async-signal-safe: a write to the pipe; a thread turns it into a Quit
+        sa.sa_handler = (sig: s32) #c_call {
+            if quit_signaled posix._exit(128 + sig);
+            quit_signaled = 1;
+            b: u8 = 1;
+            posix.write(quit_pipe[1], *b, 1);
+        };
+        sa.sa_flags = posix.SA_RESTART; // other threads' blocking calls go on
+        posix.sigaction(posix.SIGINT, *sa, null);
+        posix.sigaction(posix.SIGTERM, *sa, null);
+        t := New(Thread);
+        thread_init(t, (t: *Thread) -> s64 {
+            b: u8;
+            while posix.read(quit_pipe[0], *b, 1) != 1 {}
+            s.quit = true;
+            push_event(.{kind = .Quit, time = time_now()});
+            request_frame();
+            return 0;
+        });
+        thread_start(t);
+    }
 }
 
 // No window, no display. gfx renders to an offscreen target of width*dpi x height*dpi pixels; read it back
@@ -318,6 +356,7 @@ State :: struct {
     initialized: bool;
     headless: bool;
     quit: bool;
+    exit_callback: ();
     size: Vector2; // points
     scale: float32 = 1;
     refresh_hz: float32 = 60;

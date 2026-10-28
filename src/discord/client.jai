@@ -127,6 +127,7 @@ Client :: struct {
 	route_guild: Snowflake;
 	route_channel: Snowflake;
 	route_scrolled_up: bool; // the open chat isn't at its newest message: incoming ones aren't acked
+	voice_self: Voice_Self; // VoiceStateStore: the op 4 state READY and RESUMED send again (under route_mu)
 	// ack token chain (POST .../ack returns the next token)
 	ack_mu: locks.Mutex;
 	ack_token: string;
@@ -156,6 +157,7 @@ Client :: struct {
 	quick_switcher: Quick_Switcher;
 	members_requested: Snowflake_Pair_Set; // (guild, user) asked for with op 8
 	rtc_regions: string; // comma list from the latency probe (under id.mu; persisted)
+	rtc_probe_at: s64; // the next latency probe (under job_mu; 0: none)
 	quest_app_ids: []Snowflake;
 	start_route_guild: Snowflake; // route the window opened on (startup table selection)
 	start_route_channel: Snowflake;
@@ -189,8 +191,8 @@ Client :: struct {
 	invite_previews: Table(string, Invite_Preview); // invite links in messages (invite_preview_key -> resolved guild)
 	pending_join_guild: Snowflake;
 	pending_join_channel: Snowflake;
-	soundboard_loaded: bool;
-	pending_soundboard_at: s64; // guilds whose open-time requests ran this session
+	soundboard_loaded: bool; // the soundboard sounds were fetched this session (first RTC_CONNECTED)
+	rtc_connected: bool; // our voice connection is RTC_CONNECTED (the QoS heartbeat's "rtc_connected")
 	// traffic observers (tooling): see every gateway frame
 	on_gateway_send: (data: *void, op: Op, d: V);
 	on_gateway_recv: (data: *void, op: Op, t: string, d: V);
@@ -214,6 +216,7 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	if c.cfg.workers <= 0 c.cfg.workers = 16; // Chrome issues the startup burst (13 requests) concurrently
 	c.allocator = context.allocator;
 	c.token = copy_string(cfg.token);
+	c.voice_self.self_mute = cfg.voice_self_mute;
 	c.launch_ms = now_ms();
 	c.focused = true;
 	identity_init(*c.id, ifx cfg.platform.os then cfg.platform else DEFAULT_PLATFORM, c.allocator);
@@ -274,7 +277,6 @@ client_start :: (c: *Client) {
 	}
 	if !c.cfg.disable_startup {
 		schedule_startup(c, .Launch);
-		schedule_rtc_probe(c, c.launch_ms);
 	}
 	if c.cfg.gateway_sink {
 		c.gw = gateway_create(c); // never connects: gateway_send hands frames to the sink
@@ -287,6 +289,7 @@ client_start :: (c: *Client) {
 
 client_destroy :: (c: *Client) {
 	push_allocator(c.allocator);
+	client_flush_on_quit(c);
 	if c.gw gateway_stop(c.gw);
 	auth_shutdown(c);
 	locks.lock(*c.job_mu);
@@ -335,8 +338,8 @@ client_destroy :: (c: *Client) {
 	auth_destroy(c);
 	analytics_destroy(*c.analytics);
 	social_destroy(c);
+	subscriptions_clear(c);
 	deinit(*c.subs.guilds);
-	for c.subs.channels array_free(it);
 	deinit(*c.subs.channels);
 	array_free(c.subs.pending);
 	free(c.ack_token);
@@ -349,6 +352,25 @@ client_destroy :: (c: *Client) {
 	free(installation_id);
 	free(heartbeat.uuid);
 	free(c);
+}
+
+// client_flush_on_quit: what the user did still reaches Discord when the client goes (quit, log out):
+// acks waiting out their delay and the debounced settings write go now, and requests already due get
+// up to 2 s before the workers stop. Later timers (startup loads) are dropped.
+client_flush_on_quit :: (c: *Client) {
+	now := now_ms();
+	for * c.pending_acks it.due = 0;
+	flush_due_acks(c, now);
+	if c.settings_edit.due c.settings_edit.due = now;
+	flush_settings(c, now);
+	locks.lock(*c.job_mu);
+	while now_ms() < now + 2000 {
+		busy := c.jobs_running > 0;
+		for c.jobs if it.not_before <= now busy = true;
+		if !busy break;
+		locks.cond_wait_with_timeout(*c.job_cond, *c.job_mu, 20);
+	}
+	locks.unlock(*c.job_mu);
 }
 
 // ---- events ----
@@ -412,7 +434,7 @@ client_poll :: (c: *Client) -> bool {
 	status_expiry_tick(c, now);
 	flush_settings(c, now);
 	flush_presence(c);
-	flush_soundboard(c, now);
+	rtc_probe_tick(c, now);
 	guild_admin_tick(c, now);
 	auth_tick(c, now);
 	flush_user_menu(c, now);
@@ -448,7 +470,7 @@ client_set_focused :: (c: *Client, focused: bool) {
 	c.focused = focused;
 	identity_set_app_state(*c.id, ifx focused then .Focused else .Unfocused);
 	if focused identity_touch_heartbeat(*c.id, now_ms());
-	if c.gw gateway_set_active(c.gw, qos_from_state(focused, false));
+	if c.gw gateway_set_active(c.gw, qos_from_state(focused, c.rtc_connected));
 }
 
 // flush_presence: SelfPresenceStore on IDLE / AFK. With the default AFK timeout (600 s) both flip at
@@ -550,6 +572,8 @@ client_on_ready :: (c: *Client) {
 	locks.lock(*c.job_mu);
 	first := c.ready_ms == 0;
 	c.ready_ms = now_ms();
+	// RTCLatencyTestManager: POST_CONNECTION_OPEN (2 s after every READY), then 1-31 s later
+	if !c.cfg.disable_startup c.rtc_probe_at = c.ready_ms + 3000 + cast(s64) (random_get_zero_to_one_open() * 30_000);
 	locks.unlock(*c.job_mu);
 	if first && auth_on_ready(c, c.ready_ms) return; // logged in from the login page: its own burst
 	if first && !c.cfg.disable_startup {
