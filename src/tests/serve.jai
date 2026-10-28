@@ -777,6 +777,14 @@ main :: () {
 	onces := 0;
 	if page_v.kind == .List for page_v.list if field(it, "content").s == "once" onces += 1;
 	check(onces == 1, tprint("a repeated nonce posts once: %", body));
+	// Length counts UTF-16 units like Discord, so 1400 three-byte characters fit and 2001 ASCII ones don't.
+	cjk, ascii: String_Builder;
+	for 1..1400 append(*cjk, "漢");
+	for 1..2001 append(*ascii, "a");
+	status, body = rest("POST", slow_messages, tprint("{\"content\": \"%\"}", builder_to_string(*cjk)), token);
+	check(status == 200, tprint("1400 CJK characters send: %", status));
+	status, body = rest("POST", slow_messages, tprint("{\"content\": \"%\"}", builder_to_string(*ascii)), token);
+	check(status == 400 && contains(body, "BASE_TYPE_MAX_LENGTH"), tprint("2001 characters don't: % %", status, body));
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", slow), "", token);
 	check(status == 200, tprint("delete the slow channel: % %", status, body));
 

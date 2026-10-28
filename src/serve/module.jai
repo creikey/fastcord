@@ -1437,8 +1437,9 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		has_files := atts.kind == .List && atts.list.count > 0;
 		if atts.kind == .List && atts.list.count > MAX_UPLOADS return json_error(c, 400, 50035, "Invalid Form Body");
 		if content.kind == .Nil && has_files content = etf.vstring("");
-		if content.kind != .String || (!trim(content.s) && !has_files) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		if content.kind != .String || (!trim(content.s) && !has_files) return json_error(c, 400, 50006, "Cannot send an empty message");
 		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
+		if utf16_units(content.s) > MAX_CONTENT return content_too_long(c);
 		if nonce.kind == .String && nonce.s.count > 25 return json_error(c, 400, 50035, "Invalid Form Body");
 		ref, _ := etf.map_get(v.map, "message_reference");
 		reply: s64;
@@ -1593,8 +1594,9 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 
 	if req.method == "PATCH" {
 		content, _ := etf.map_get(v.map, "content");
-		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		if content.kind != .String || !trim(content.s) return json_error(c, 400, 50006, "Cannot send an empty message");
 		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
+		if utf16_units(content.s) > MAX_CONTENT return content_too_long(c);
 		m: etf.Value;
 		{
 			locks.guard(*s.db_mu);
@@ -2715,6 +2717,23 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 
 // text_ok: s is well-formed UTF-8 (no overlongs, surrogates or bytes past U+10FFFF) with no control
 // characters, other than newlines and tabs where lines is set.
+// Discord caps content in UTF-16 units, as JavaScript counts: a character outside the BMP counts 2.
+// Count only after text_ok has checked the UTF-8.
+MAX_CONTENT :: 2000;
+utf16_units :: (s: string) -> int {
+	n := 0;
+	for i: 0..s.count-1 {
+		b := s[i];
+		if (b & 0xC0) == 0x80 continue;
+		n += ifx b >= 0xF0 then 2 else 1;
+	}
+	return n;
+}
+
+content_too_long :: (c: *Conn) -> bool {
+	return respond(c, 400, tprint("{\"message\": \"Invalid Form Body\", \"code\": 50035, \"errors\": {\"content\": {\"_errors\": [{\"code\": \"BASE_TYPE_MAX_LENGTH\", \"message\": \"Must be % or fewer in length.\"}]}}}", MAX_CONTENT));
+}
+
 text_ok :: (s: string, lines := false) -> bool {
 	i := 0;
 	while i < s.count {
