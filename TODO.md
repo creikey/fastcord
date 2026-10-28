@@ -190,7 +190,7 @@
 - [ ] macOS, Linux: the profiler's sampling timer is a stub, and the hang watchdog writes only a hint, not the other threads' stacks.
 - [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
 - [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
-- [ ] Search: clicking the search bar again while results are open crashes.
+- [ ] Search: the suggestions popout has no search history; the client lists your recent searches under "History" with a clear button (`view_search.jai` keeps none).
 - [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
 - [ ] Links: right-clicking a link gives no Copy Link / Open Link menu, and outside links open with no "Leaving Discord" warning.
 - [ ] Channels: no drag to reorder channels and categories.
@@ -305,3 +305,4 @@
 - [x] Voice: long names of sidebar voice occupants are cut with "…" so their mute, deafen, video and LIVE icons stay visible.
 - [x] Search: result highlights skip hidden `||spoilers||` (search and pins), so a match no longer reveals one.
 - [x] Search: the results panel's close button shows (it asked for a nonexistent "x" icon).
+- [x] Search: clicking the search bar again while results are open no longer crashes. Shaped glyphs now live in the UI frame arena, not temp, since last frame's layouts are hit-tested on a press (`tests/ui/search_reclick.txt`).

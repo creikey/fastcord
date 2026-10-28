@@ -941,6 +941,8 @@ box_make_key :: (k: Key, flags: Box_Flags) -> *Box {
 	s.stats.keyed_boxes += 1;
 	b.first, b.last, b.next, b.prev, b.parent = null, null, null, null, null;
 	b.child_count = 0;
+	// A box skipped for a frame or more holds a layout from a frame arena that has since been reset.
+	if b.last_frame_touched + 1 != s.frame b.text_layout = null;
 	b.last_frame_touched = s.frame;
 	b.flags = flags;
 	b.text = "";
