@@ -88,6 +88,13 @@
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
+- [ ] Traffic (account risk): every Windows and macOS install identifies as one captured Mac. `host_platform` returns `DEFAULT_PLATFORM` (`discord/identity.jai`): Mac OS X 27.0.0 on arm64, the macOS user agent and `sec-ch-ua-platform`, timezone America/Los_Angeles and locale en-US, whatever the real machine.
+  - A Windows user shows up in Settings > Devices and in new-login emails as a Mac. Their TCP/IP stack, with TTL 128 and Windows TCP options, contradicts a macOS user agent to any passive OS fingerprint.
+  - Everyone outside Los Angeles sends a timezone that contradicts their IP. Discord's server-side strings ignore the user's language.
+  - Capture the official Windows client and add a `windows_platform` beside `linux_platform`, reporting the real OS version.
+  - On macOS, report the real OS version and architecture.
+  - Everywhere, read the timezone from the system, and take the locale from the user's Discord language setting.
+  - Log the Windows capture in `traffic/CLIENT_RULES.md`.
 - [ ] Search: results are always newest first, with no Newest / Oldest / Most Relevant switch, and the `before:`, `after:` and `during:` date filters are missing (`search_messages` in `discord/features.jai` hardcodes `sort_by=timestamp`, `sort_order=desc`).
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
