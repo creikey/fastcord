@@ -43,6 +43,7 @@ Persisted_Sounds :: struct {
 Persisted_Notify :: struct {
 	desktop_off: bool;
 	badge_off: bool;
+	lotus: bool; // fastcord's Lotus Mode: no sounds, notifications, badges or unread marks
 }
 
 Persisted :: struct {

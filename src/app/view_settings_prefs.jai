@@ -105,6 +105,10 @@ SOUND_ROWS :: [2]string.[
 notifications_page :: () {
 	if set_page_begin("notifpage") {
 		set_heading("Notifications");
+		if set_toggle_row("lotus", "Lotus Mode", "Silence every sound and notification and hide all badges and unread marks, so fastcord never asks for your attention.", notify_prefs.lotus) {
+			notify_prefs.lotus = !notify_prefs.lotus;
+		}
+		set_divider();
 		if set_toggle_row("desktop", "Enable Desktop Notifications", "Show a system notification for messages that would notify you (DMs, mentions, servers set to all messages).", !notify_prefs.desktop_off) {
 			notify_prefs.desktop_off = !notify_prefs.desktop_off;
 		}

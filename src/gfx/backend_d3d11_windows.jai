@@ -163,7 +163,7 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
         for * srvs  it.* = ifx it_index < b.n_slots then cast(*D3D_Tex, g.textures[b.slots[it_index]].native).srv else white;
         ID3D11DeviceContext_PSSetShaderResources(dx.ctx, 3, max(b.n_slots, 1), srvs.data);
         dt2 := cast(*D3D_Tex, g.textures[ifx b.tex2 then b.tex2 else g.white].native);
-        ID3D11DeviceContext_PSSetShaderResources(dx.ctx, 2, 1, *dt2.srv);
+        ID3D11DeviceContext_PSSetShaderResources(dx.ctx, 19, 1, *dt2.srv);
         ID3D11DeviceContext_DrawInstanced(dx.ctx, 4, b.count, 0, 0);
     }
     prof.zone_end(zb);

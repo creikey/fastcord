@@ -125,7 +125,9 @@ struct Inst {
 	float4 clip;
 };
 StructuredBuffer<Inst> insts : register(t1);
-Texture2D tex2 : register(t2);
+// After texs, not t2: on this laptop (Intel UHD + RTX 4050) an optimised build sampled t2 as white,
+// turning every video magenta, though the bound view and its texture were right.
+Texture2D tex2 : register(t19);
 Texture2D texs[16] : register(t3);
 SamplerState smp : register(s0);
 

@@ -86,7 +86,7 @@ sounds_reset_prefs_for_test :: () {
 }
 
 sound_disabled :: (name: string) -> bool {
-	return snd.disable_all || streamer_disable_sounds() || sound_own_disabled(name);
+	return snd.disable_all || notify_prefs.lotus || streamer_disable_sounds() || sound_own_disabled(name);
 }
 
 // sound_play: SoundUtils.playSound(name, 0.4). Loads on first use.

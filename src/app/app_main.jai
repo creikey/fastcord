@@ -227,6 +227,7 @@ main :: () {
 	update_start();
 	streamer_start();
 	platform.set_frame_callback(frame);
+	#if OS == .WINDOWS platform.set_window_hit_callback(window_hit);
 	frame();
 	while !platform.should_quit() {
 		timeout: float64 = -1.0;

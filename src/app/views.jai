@@ -196,6 +196,14 @@ build_ui :: () {
 	app.ui.scrollbar_auto_thumb = T("--scrollbar-auto-thumb");
 	app.ui.scrollbar_auto_track = T("--scrollbar-auto-track");
 	if app.needs_login {
+		#if OS == .WINDOWS if !platform.is_headless() {
+			b := row("titlebar");
+			b.semantic_size = .[ui.pct(1), ui.px(TITLE_BAR_H)];
+			ui.parent(b);
+			filler(.X);
+			caption_buttons();
+			ui.pop_parent();
+		}
 		login_view();
 		return;
 	}
@@ -228,12 +236,14 @@ build_ui :: () {
 }
 
 title_bar :: () {
+	side_w: float32 = TITLE_SIDE_W;
+	#if OS == .WINDOWS if !platform.is_headless() side_w += 3 * CAPTION_BUTTON_W;
 	b := row("titlebar");
 	b.semantic_size = .[ui.pct(1), ui.px(TITLE_BAR_H)];
 	{ ui.parent(b); defer ui.pop_parent();
 		// equal-width sides keep the title centered on the window
 		left := row("left");
-		left.semantic_size = .[ui.px(TITLE_SIDE_W), ui.pct(1)];
+		left.semantic_size = .[ui.px(side_w), ui.pct(1)];
 		{ ui.parent(left); defer ui.pop_parent();
 			spacer(.X, 85);
 			for fwd: (bool.[false, true]) {
@@ -292,13 +302,81 @@ title_bar :: () {
 		filler(.X);
 		update_button();
 		right := row("right");
-		right.semantic_size = .[ui.px(TITLE_SIDE_W), ui.pct(1)];
+		right.semantic_size = .[ui.px(side_w), ui.pct(1)];
 		{ ui.parent(right); defer ui.pop_parent();
 			filler(.X);
 			inbox_button(); // view_inbox.jai
 			spacer(.X, 16);
 			help_button();
 			spacer(.X, 14);
+			#if OS == .WINDOWS if !platform.is_headless() caption_buttons();
+		}
+	}
+}
+
+#if OS == .WINDOWS {
+	CAPTION_BUTTON_W :: 46; // Windows 11's own caption buttons
+
+	caption_max_key: ui.Key;
+
+	// We own the window frame (platform_windows.jai): the title bar's empty space drags the window.
+	window_hit :: (p: Vector2) -> platform.Window_Hit {
+		if p.y >= TITLE_BAR_H return .Client;
+		k := ui.hit_box(p);
+		if k == 0 return .Caption;
+		return ifx k == caption_max_key then .Maximize else .Client;
+	}
+
+	// Minimize, maximize or restore, and close, drawn as Windows draws them.
+	caption_buttons :: () {
+		Glyph :: enum u8 { Minimize; Maximize; Restore; Close; }
+		Glyph_Draw :: struct { glyph: Glyph; color: ui.Color; }
+		glyph_draw :: (b: *ui.Box, user: *void) {
+			d := cast(*Glyph_Draw) user;
+			c := cast(gfx.Color) d.color;
+			c.w *= b.opacity;
+			x := floor((b.rect.x0 + b.rect.x1) / 2 - 5);
+			y := floor((b.rect.y0 + b.rect.y1) / 2 - 5);
+			if d.glyph == {
+				case .Minimize; gfx.rect(.{x, y + 5, x + 10, y + 6}, c);
+				case .Maximize; gfx.rect_border(.{x, y, x + 10, y + 10}, c, 1);
+				case .Restore;
+					gfx.rect_border(.{x, y + 2, x + 8, y + 10}, c, 1);
+					gfx.rect(.{x + 2, y, x + 10, y + 1}, c);
+					gfx.rect(.{x + 9, y + 1, x + 10, y + 8}, c);
+			}
+		}
+		set_glyph :: (b: *ui.Box, glyph: Glyph, color: ui.Color) {
+			d := New(Glyph_Draw,, temp);
+			d.* = .{glyph, color};
+			b.custom_draw = glyph_draw;
+			b.custom_user = d;
+		}
+		for id: string.["minimize", "maximize", "close"] {
+			b := row(id, .Clickable | .Draw_Background);
+			b.semantic_size = .[ui.px(CAPTION_BUTTON_W), ui.pct(1)];
+			sig := ui.signal(b);
+			c := ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default");
+			b.style.bg = ifx sig.hovering then T("--background-mod-subtle") else .{};
+			if id == {
+				case "minimize";
+					if sig.clicked platform.window_minimize();
+					set_glyph(b, .Minimize, c);
+				case "maximize";
+					caption_max_key = b.key;
+					if sig.clicked platform.window_toggle_maximize();
+					set_glyph(b, ifx platform.window_maximized() then .Restore else .Maximize, c);
+				case "close";
+					if sig.hovering {
+						b.style.bg = .{0.769, 0.169, 0.110, 1}; // #C42B1C, Windows' close red
+						c = .{1, 1, 1, 1};
+					}
+					if sig.clicked platform.window_close();
+					ui.parent(b); defer ui.pop_parent();
+					filler(.X);
+					icon("x", "x-large", 16, c);
+					filler(.X);
+			}
 		}
 	}
 }
@@ -438,7 +516,7 @@ my_guild_permissions :: (gid: dc.Snowflake) -> u64 {
 guild_unread_shown :: (gid: dc.Snowflake) -> bool {
 	s := store();
 	g := dc.guild_get(s, gid);
-	if g == null { return false; }
+	if g == null || notify_prefs.lotus { return false; }
 	now := wall_ms();
 	if dc.guild_is_muted(s, gid, now) { return false; }
 	for id: g.channels {
@@ -774,7 +852,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			}
 			spacer(.X, 8);
 		}
-		if unread && !selected {
+		if unread && !selected && !notify_prefs.lotus {
 			dot := ui.box("unread", .Draw_Background | .Floating_X | .Floating_Y);
 			dot.semantic_size = .[ui.px(4), ui.px(8)];
 			dot.fixed_pos = .{0, 13};
@@ -795,9 +873,13 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					spacer(.X, 44);
 					voice_avatar("av", uid, 24, T("--background-base-lower"));
 					spacer(.X, 8);
-					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, T("--channels-default"), 18);
+					name_color := ifx voice_is_speaking(uid) then T("--interactive-text-active") else T("--channels-default");
+					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, name_color, 18);
 					filler(.X);
 					if vs.self_video { icon("cam", "video", 16, T("--channels-default")); spacer(.X, 4); }
+					// Server mute and deafen are drawn red, like the official client.
+					if vs.mute || vs.self_mute { icon("mute", "microphone-slash", 16, ifx vs.mute then T("--status-danger") else T("--channels-default")); spacer(.X, 4); }
+					if vs.deaf || vs.self_deaf { icon("deaf", "headphones-slash", 16, ifx vs.deaf then T("--status-danger") else T("--channels-default")); spacer(.X, 4); }
 					if vs.self_stream {
 						live := row("live", .Draw_Background);
 						live.semantic_size = .[ui.children(), ui.px(16)];

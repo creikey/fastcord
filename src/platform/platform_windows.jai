@@ -58,9 +58,20 @@ open_url :: (url: string) {
     ShellExecuteW(null, wide("open"), wide(url), null, null, win.SW_SHOWNORMAL);
 }
 
+// The window has no system title bar or border (WM_NCCALCSIZE gives it all to the content). The app draws
+// its own title bar and says what Windows should do at a point (content coordinates): Caption drags the
+// window, double-click maximizes and right-click opens the system menu; Maximize shows the snap layouts.
+Window_Hit :: enum u8 { Client; Caption; Maximize; }
+set_window_hit_callback :: (cb: (p: Vector2) -> Window_Hit) { w.hit_callback = cb; }
+
+window_minimize :: () { win.ShowWindow(w.hwnd, win.SW_MINIMIZE); }
+window_maximized :: () -> bool { return w.hwnd && IsZoomed(w.hwnd) != 0; }
+window_toggle_maximize :: () { win.ShowWindow(w.hwnd, xx ifx window_maximized() then win.SW_RESTORE else win.SW_MAXIMIZE); }
+window_close :: () { PostMessageW(w.hwnd, win.WM_CLOSE, 0, 0); }
+
 #scope_module
 
-os_init :: (title: string, width: int, height: int) -> bool {
+os_init ::(title: string, width: int, height: int) -> bool {
     SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     w.instance = win.GetModuleHandleW(null);
     dpi := GetDpiForSystem();
@@ -82,13 +93,16 @@ os_init :: (title: string, width: int, height: int) -> bool {
     };
     if win.RegisterClassExW(*wc) == 0 return false;
 
-    style :: win.WS_OVERLAPPEDWINDOW;
+    // WS_OVERLAPPEDWINDOW keeps snapping, the min/max animations and the system menu; WM_NCCALCSIZE makes
+    // the whole window content, so the window is the content size.
     scale := cast(float32) dpi / 96;
-    r := win.RECT.{0, 0, xx (width * scale), xx (height * scale)};
-    AdjustWindowRectExForDpi(*r, style, 0, 0, dpi);
     CW_USEDEFAULT :: cast,no_check(s32) 0x8000_0000;
-    w.hwnd = win.CreateWindowExW(0, class_name, wide(title), style, CW_USEDEFAULT, CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, null, null, w.instance, null);
+    w.hwnd = win.CreateWindowExW(0, class_name, wide(title), win.WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, xx (width * scale), xx (height * scale), null, null, w.instance, null);
     if !w.hwnd return false;
+    // Without a frame DWM drops the shadow; a 1px frame extended under the content brings it back.
+    margins := MARGINS.{1, 1, 1, 1};
+    DwmExtendFrameIntoClientArea(w.hwnd, *margins);
+    win.SetWindowPos(w.hwnd, null, 0, 0, 0, 0, win.SWP_FRAMECHANGED | win.SWP_NOMOVE | win.SWP_NOSIZE | win.SWP_NOZORDER | win.SWP_NOACTIVATE);
     // IDropTarget gives drag enter/leave (the "Upload to #channel" overlay); WM_DROPFILES is the fallback.
     if !drop_target_register(w.hwnd) win.DragAcceptFiles(w.hwnd, .TRUE);
     update_size();
@@ -251,13 +265,13 @@ imm32 :: #system_library "imm32";
 ole32 :: #system_library "ole32";
 shell32 :: #system_library "shell32";
 gdi32 :: #system_library "gdi32";
+dwmapi :: #system_library "dwmapi";
 
 // Not in Jai's Windows module. BOOL results are s32 here so they test as ints.
 MsgWaitForMultipleObjectsEx :: (nCount: u32, pHandles: **void, dwMilliseconds: u32, dwWakeMask: u32, dwFlags: u32) -> u32 #foreign user32;
 GetDoubleClickTime :: () -> u32 #foreign user32;
 SetWindowDisplayAffinity :: (hwnd: win.HWND, dwAffinity: u32) -> s32 #foreign user32;
 SetProcessDpiAwarenessContext :: (value: win.DPI_AWARENESS_CONTEXT) -> s32 #foreign user32;
-AdjustWindowRectExForDpi :: (rect: *win.RECT, style: u32, menu: s32, ex_style: u32, dpi: u32) -> s32 #foreign user32;
 GetDpiForSystem :: () -> u32 #foreign user32;
 GetDpiForWindow :: (hwnd: win.HWND) -> u32 #foreign user32;
 EnumDisplaySettingsW :: (device: *u16, mode: u32, dm: *DEVMODEW) -> s32 #foreign user32;
@@ -296,6 +310,10 @@ TrackPopupMenu :: (menu: win.HMENU, flags: u32, x: s32, y: s32, reserved: s32, h
 DestroyMenu :: (menu: win.HMENU) -> s32 #foreign user32;
 SetForegroundWindow :: (hwnd: win.HWND) -> s32 #foreign user32;
 IsIconic :: (hwnd: win.HWND) -> s32 #foreign user32;
+IsZoomed :: (hwnd: win.HWND) -> s32 #foreign user32;
+DwmExtendFrameIntoClientArea :: (hwnd: win.HWND, margins: *MARGINS) -> win.HRESULT #foreign dwmapi;
+
+MARGINS :: struct { left, right, top, bottom: s32; }
 
 NOTIFYICONDATAW :: struct {
     cbSize: u32;
@@ -340,8 +358,20 @@ TPM_RETURNCMD :: 0x0100;
 WM_USER :: 0x0400;
 WM_MOUSELEAVE :: 0x02A3;
 QS_ALLINPUT :: 0x04FF;
+WM_NCMOUSELEAVE :: 0x02A2;
 HTCLIENT :: 1;
+HTCAPTION :: 2;
+HTMAXBUTTON :: 9;
+HTLEFT :: 10;
+HTRIGHT :: 11;
+HTTOP :: 12;
+HTTOPLEFT :: 13;
+HTTOPRIGHT :: 14;
+HTBOTTOM :: 15;
+HTBOTTOMLEFT :: 16;
+HTBOTTOMRIGHT :: 17;
 TME_LEAVE :: 2;
+TME_NONCLIENT :: 0x10;
 SPI_GETHIGHCONTRAST :: 0x0042;
 SPI_GETCLIENTAREAANIMATION :: 0x1042;
 WM_FC_WAKE :: WM_USER + 1;
@@ -383,6 +413,9 @@ w: struct {
     high_surrogate: u16;
     in_size_move: bool;
     tracking_mouse: bool;
+    tracking_nc: bool;
+    over_max_button: bool;
+    hit_callback: (p: Vector2) -> Window_Hit;
     last_click_time: float64;
     last_click_pos: Vector2;
     last_click_btn: Mouse_Button;
@@ -766,6 +799,13 @@ lparam_y :: (lp: win.LPARAM) -> s32 { return cast(s16) ((lp >> 16) & 0xffff); }
 
 lparam_pos :: (lp: win.LPARAM) -> Vector2 { return .{lparam_x(lp) / s.scale, lparam_y(lp) / s.scale}; }
 
+// A non-client message's screen point as a client message's lParam.
+screen_to_client :: (hwnd: win.HWND, lp: win.LPARAM) -> win.LPARAM {
+    pt := win.POINT.{lparam_x(lp), lparam_y(lp)};
+    win.ScreenToClient(hwnd, *pt);
+    return cast(win.LPARAM) (((cast(s64) pt.y & 0xffff) << 16) | (cast(s64) pt.x & 0xffff));
+}
+
 mouse_button_event :: (kind: Event_Kind, btn: Mouse_Button, lp: win.LPARAM) {
     pos := lparam_pos(lp);
     now := time_now();
@@ -824,10 +864,76 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             mm := cast(*MINMAXINFO) lp;
             dpi := GetDpiForWindow(hwnd);
             sc := cast(float32) dpi / 96;
-            r := win.RECT.{0, 0, xx (MIN_WINDOW_W * sc), xx (MIN_WINDOW_H * sc)};
-            AdjustWindowRectExForDpi(*r, win.WS_OVERLAPPEDWINDOW, 0, 0, dpi);
-            mm.ptMinTrackSize = .{r.right - r.left, r.bottom - r.top};
+            mm.ptMinTrackSize = .{xx (MIN_WINDOW_W * sc), xx (MIN_WINDOW_H * sc)};
             return 0;
+        case win.WM_NCCALCSIZE;
+            // A maximized window hangs over the monitor by its resize frame; keep the content on screen.
+            if wp && IsZoomed(hwnd) {
+                r := cast(*win.RECT) lp; // NCCALCSIZE_PARAMS.rgrc[0]
+                dpi := GetDpiForWindow(hwnd);
+                pad := GetSystemMetricsForDpi(win.SM_CXPADDEDBORDER, dpi);
+                fx := GetSystemMetricsForDpi(win.SM_CXFRAME, dpi) + pad;
+                fy := GetSystemMetricsForDpi(win.SM_CYFRAME, dpi) + pad;
+                r.left += fx;
+                r.right -= fx;
+                r.top += fy;
+                r.bottom -= fy;
+            }
+            return 0;
+        case win.WM_NCHITTEST;
+            pt := win.POINT.{lparam_x(lp), lparam_y(lp)};
+            win.ScreenToClient(hwnd, *pt);
+            if !IsZoomed(hwnd) {
+                r: win.RECT;
+                win.GetClientRect(hwnd, *r);
+                // Edges 2pt deep, rounded up to whole pixels; corners reach 16pt along each edge.
+                e := cast(s32) (2 * s.scale + 0.99);
+                c := cast(s32) (16 * s.scale);
+                l, t, rt, b := pt.x < e, pt.y < e, pt.x >= r.right - e, pt.y >= r.bottom - e;
+                if l || t || rt || b {
+                    cl, ct, cr, cb := pt.x < c, pt.y < c, pt.x >= r.right - c, pt.y >= r.bottom - c;
+                    if (t && cl) || (l && ct) return HTTOPLEFT;
+                    if (t && cr) || (rt && ct) return HTTOPRIGHT;
+                    if (b && cl) || (l && cb) return HTBOTTOMLEFT;
+                    if (b && cr) || (rt && cb) return HTBOTTOMRIGHT;
+                    if t return HTTOP;
+                    if b return HTBOTTOM;
+                    return ifx l then HTLEFT else HTRIGHT;
+                }
+            }
+            if w.hit_callback {
+                hit := w.hit_callback(.{pt.x / s.scale, pt.y / s.scale});
+                if hit == .Caption return HTCAPTION;
+                if hit == .Maximize return HTMAXBUTTON;
+            }
+            return HTCLIENT;
+        // Over HTMAXBUTTON the mouse sends non-client messages; hand them to the app's button as content
+        // input, and keep the press from DefWindowProc, which would track a system button of its own.
+        case win.WM_NCMOUSEMOVE;
+            if wp == HTMAXBUTTON {
+                if !w.tracking_nc {
+                    tme := TRACKMOUSEEVENT.{cbSize = size_of(TRACKMOUSEEVENT), dwFlags = TME_LEAVE | TME_NONCLIENT, hwndTrack = hwnd};
+                    TrackMouseEvent(*tme);
+                    w.tracking_nc = true;
+                }
+                w.over_max_button = true;
+                push_event(.{kind = .Mouse_Move, pos = lparam_pos(screen_to_client(hwnd, lp)), mods = current_mods(), time = time_now()});
+            } else if w.over_max_button {
+                w.over_max_button = false;
+                push_event(.{kind = .Mouse_Leave, time = time_now()});
+            }
+        case WM_NCMOUSELEAVE;
+            w.tracking_nc = false;
+            if w.over_max_button {
+                w.over_max_button = false;
+                push_event(.{kind = .Mouse_Leave, time = time_now()});
+            }
+        case win.WM_NCLBUTTONDOWN; #through;
+        case win.WM_NCLBUTTONUP;
+            if wp == HTMAXBUTTON {
+                mouse_button_event(ifx msg == win.WM_NCLBUTTONDOWN then .Mouse_Down else .Mouse_Up, .Left, screen_to_client(hwnd, lp));
+                return 0;
+            }
         case win.WM_DPICHANGED;
             r := cast(*win.RECT) lp;
             win.SetWindowPos(hwnd, null, r.left, r.top, r.right - r.left, r.bottom - r.top, win.SWP_NOZORDER | win.SWP_NOACTIVATE);

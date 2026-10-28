@@ -66,7 +66,7 @@ inbox_button :: () {
 		if rs != null && rs.last_message_id >= ch.last_message_id { continue; }
 		total += channel_mentions_of(s, ch, rs);
 	}
-	if total <= 0 { return; }
+	if total <= 0 || notify_prefs.lotus { return; }
 	{ ui.parent(b); defer ui.pop_parent();
 		text := ifx total > 99 then "99+" else tprint("%", total);
 		w := max(cast(float32)(14), cast(float32)(text.count) * 6 + 6);

@@ -43,6 +43,9 @@ the Jai is written. This file lists what is easy to miss.
   anchor to search for in the bundle, and where fastcord implements it. It is reviewed on every
   Discord update.
 - Prefer the fewest lines where possible: no speculative API surface, delete dead paths.
+- Add as few files to `<state>` as possible: put new persisted state in an existing file
+  (`settings.json`, later `fastcord.db`). Add a new file only when its secrecy differs from every
+  existing one, such as the token or E2E keys, which must never share a file with plain settings.
 - Formats from the network (images, compression, codecs) go through vetted libraries, not hand-written
   decoders: Wuffs first, else the reference C library. Vendor upstream files unmodified in
   `vendor/<lib>/` with a small `fc_<lib>.c` wrapper and a README (URL, version, sha256, licence);
