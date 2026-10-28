@@ -9,7 +9,8 @@ App :: struct {
 	dt: float32; // this frame's step (app.ui.dt is 0 after the second, drawn UI pass)
 	frame: u64;
 	view: View_State;
-	client: *dc.Client; // nil when offline (fixture / tests)
+	client: *dc.Client; // nil when offline (fixture / tests); a self-hosted server's while one of its guilds is open
+	discord: *dc.Client; // Discord's own client (hosted.jai)
 	needs_login: bool; // no token, or Discord rejected it: show the intro (view_login.jai)
 	connect_pending: bool; // connect() waits for the previous client's teardown (teardown.jai)
 	login_error: string;
@@ -259,8 +260,9 @@ main :: () {
 app_exit :: () {
 	voice_leave_channel();
 	voice_shutdown();
-	client_release(app.client);
-	app.client = null;
+	client_release(app.discord);
+	for hosted if it.client client_release(it.client);
+	app.client, app.discord = null, null;
 	teardown_wait();
 }
 
@@ -284,6 +286,7 @@ frame :: () {
 
 	t_poll := platform.time_now();
 	if app.connect_pending && !teardown_busy() connect();
+	hosted_frame();
 	if app.client != null {
 		analytics_env_sync();
 		dc.client_poll(app.client);
@@ -837,6 +840,7 @@ connect :: () {
 		if ok token = trim(data);
 	}
 	app.client = dc.client_create(.{token = copy_string(token), state_dir = state_dir, platform = dc.host_platform(), wakeup = (_: *void) { platform.request_frame(); }});
+	app.discord = app.client;
 	analytics_env_sync(force = true); // before the first event (gateway_connected)
 	dc.client_start(app.client);
 	if token == "" app.needs_login = true;

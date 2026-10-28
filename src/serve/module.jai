@@ -119,8 +119,91 @@ login_message :: (session: *tls.Session, server_id: [16]u8) -> []u8, bool {
 	return m, true;
 }
 
+// An fc:// invite, as invite_url writes it. host and code point into the parsed string.
+Invite :: struct {
+	pin: [32]u8;
+	host: string;
+	port: int;
+	id: [16]u8;
+	id_hex: string; // The server ID as SNI sends it.
+	code: string;
+}
+
+parse_invite :: (url: string) -> Invite, bool {
+	inv: Invite;
+	if !begins_with(url, "fc://") return inv, false;
+	rest := advance(url, "fc://".count);
+	if rest.count < 65 || rest[64] != #char "@" || !unhex(slice(rest, 0, 64), inv.pin) return inv, false;
+	rest = advance(rest, 65);
+	slash := find_index_from_left(rest, #char "/");
+	if slash < 0 return inv, false;
+	hostport := slice(rest, 0, slash);
+	colon := find_index_from_right(hostport, #char ":");
+	if colon <= 0 return inv, false;
+	inv.host = slice(hostport, 0, colon);
+	if begins_with(inv.host, "[") && ends_with(inv.host, "]") inv.host = slice(inv.host, 1, inv.host.count - 2);
+	port, ok := string_to_int(advance(hostport, colon + 1));
+	if !ok || port <= 0 || port > 65535 return inv, false;
+	inv.port = port;
+	rest = trim_right(advance(rest, slash + 1), "/");
+	slash = find_index_from_left(rest, #char "/");
+	if slash != 32 || !unhex(slice(rest, 0, 32), inv.id) return inv, false;
+	inv.id_hex = slice(rest, 0, 32);
+	inv.code = advance(rest, 33);
+	for inv.code if !is_alnum(it) return inv, false;
+	return inv, inv.host.count > 0;
+}
+
+// member_login is the member's half of POST /api/v9/fc/login: dial the invite's server under its pin, sign
+// over this connection's exporter, and get a session token (context.allocator). On failure the token is
+// empty and status and message say why (status 0: the server couldn't be reached). Blocks for the
+// round trip and about half a second of SLH-DSA signing, so never call it on the UI thread.
+member_login :: (inv: Invite, k: keys.Keypair, name: string) -> token: string, status: int, message: string {
+	tcp, derr := netio.dial_tcp(inv.host, inv.port);
+	if derr != .None return "", 0, "Couldn't reach the server.";
+	under := netio.tcp_stream(tcp);
+	session, _, terr := tls.connect(under, .{alpn = .[ALPN], server_name = hex(inv.id,, temp), pin = inv.pin});
+	if !session {
+		netio.close(under);
+		return "", 0, ifx terr == .Untrusted_Certificate then "The server's certificate doesn't match the invite." else "Couldn't reach the server.";
+	}
+	defer tls.close(session);
+	msg, ok := login_message(session, inv.id);
+	if !ok return "", 0, "Couldn't reach the server.";
+	sig := crypto.slhdsa_sign(k.signing, LOGIN_CONTEXT, msg,, temp);
+	p := keys.proof(k, .Signing);
+	proof := NewArray(2, etf.Value,, temp);
+	proof[0], proof[1] = etf.vstring(hex(p[0],, temp)), etf.vstring(hex(p[1],, temp));
+	b := etf.map_builder(6,, temp);
+	etf.map_put(*b, "root", etf.vstring(hex(k.root,, temp)));
+	etf.map_put(*b, "signing_pub", etf.vstring(hex(k.signing_pub,, temp)));
+	etf.map_put(*b, "proof", etf.vlist(proof));
+	etf.map_put(*b, "sig", etf.vstring(base64_encode(cast(string) sig,, temp)));
+	etf.map_put(*b, "code", etf.vstring(inv.code));
+	etf.map_put(*b, "name", etf.vstring(name));
+	sb: String_Builder;
+	sb.allocator = temp;
+	etf.to_json(etf.vmap(etf.map_done(*b)), *sb);
+	body := builder_to_string(*sb,, temp);
+
+	h: http.H1_Conn;
+	http.h1_init(*h, tls.stream(session),, temp);
+	defer http.h1_destroy(*h, false);
+	req := http.Request.{method = "POST", path = "/api/v9/fc/login", authority = hex(inv.id,, temp), body = cast([]u8) body,
+		headers = .[.{"content-type", "application/json"}, .{"content-length", tprint("%", body.count)}]};
+	resp, err := http.h1_round_trip(*h, req,, temp);
+	if err != .None return "", 0, "Couldn't reach the server.";
+	v, _ := etf.from_json(cast(string) resp.body,, temp);
+	field := ifx resp.status == 200 then "token" else "message";
+	f: etf.Value;
+	if v.kind == .Map f = etf.map_get(v.map, field);
+	text := ifx f.kind == .String then f.s else "";
+	if resp.status != 200 || !text return "", resp.status, ifx resp.status != 200 && text then copy_string(text) else "The server refused the login.";
+	return copy_string(text), 200, "";
+}
+
 id_hex :: (s: *Server, allocator := temp) -> string { return hex(s.id,, allocator); }
-pin_hex :: (s: *Server, allocator := temp) -> string { return hex(s.pin,, allocator); }
+pin_hex ::(s: *Server, allocator := temp) -> string { return hex(s.pin,, allocator); }
 
 // listen accepts connections on a thread until stop. Port 0 picks a free port: see s.listener.port.
 listen :: (s: *Server, port: int) -> bool {

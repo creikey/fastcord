@@ -330,7 +330,10 @@ step_join :: () {
 		filler(.X);
 		if (set_button(ifx busy then "Joining…##joinsrv" else "Join Server##joinsrv", .Primary, !busy) || res == .Submit && !busy) {
 			input := ui.editor_text(*asv.invite_ed);
-			if dc.invite_code_from_input(input) == "" {
+			if begins_with(trim(input), "fc://") {
+				ok, why := hosted_join(trim(input));
+				if ok add_server_step(.Closed); else set_err(why);
+			} else if dc.invite_code_from_input(input) == "" {
 				set_err("Please enter a valid invite link or invite code.");
 			} else if net_action() {
 				set_err("");

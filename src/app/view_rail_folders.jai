@@ -134,6 +134,12 @@ rail_view :: () {
 	rail.layout_axis = .Y;
 	rail.scrollbar = .None; // the official guild list scrolls without a visible bar
 	ui.signal(rail);
+	// Each connection's slots are drawn under its own client, so store() reads the right one; a click
+	// that moves the route makes that connection app.client.
+	active := app.client;
+	if app.discord app.client = app.discord;
+	moved :: (g: dc.Snowflake, c: dc.Snowflake) -> bool { return app.view.guild != g || app.view.channel != c; }
+	g0, c0 := app.view.guild, app.view.channel;
 	entries := rail_entries();
 	{ ui.parent(rail); defer ui.pop_parent();
 		home := rail_item("home", app.view.guild == 0, "", "logo", 0);
@@ -156,11 +162,21 @@ rail_view :: () {
 			ui.id_scope(ifx e.id != 0 then cast(u64)(e.id) else cast(u64)(e.guilds[0])); defer ui.pop_seed();
 			if e.id != 0 { rail_folder(e, i); } else { rail_guild(e.guilds[0], i, -1); }
 		}
+		if moved(g0, c0) active = app.client;
+		for h: hosted {
+			if !h.client || !h.client.store.ready continue;
+			app.client = h.client;
+			g1, c1 := app.view.guild, app.view.channel;
+			for gid: h.client.store.guild_order rail_hosted_guild(gid, active == h.client);
+			if moved(g1, c1) active = h.client;
+			app.client = ifx app.discord then app.discord else active;
+		}
 		if rail_item("add", add_server_is_open(), "", "circle-plus", 0).clicked { add_server_open(); } // view_add_server.jai
 		if rail_item("discover", false, "", "compass", 0).clicked { discover_open(); }
 		spacer(.Y, USER_PANEL_H + 16);
 	}
 	rail_drag(entries);
+	app.client = active;
 }
 
 // Folder right-click menu (Mark Folder As Read, Folder Settings) and the Folder Settings modal (name, colour).
@@ -258,6 +274,17 @@ rail_guild :: (gid: dc.Snowflake, entry: int, inner: int) {
 	drag_source(sig, entry, inner);
 	if rs.drag_active && rs.drag_entry == entry && rs.drag_inner == inner { pk_fade(slot, 0); }
 	array_add(*rs.targets, .{slot.rect, entry, inner});
+}
+
+// A self-hosted server's guild: no folders, drag or context menu yet.
+rail_hosted_guild :: (gid: dc.Snowflake, active: bool) {
+	g := dc.guild_get(store(), gid);
+	if g == null { return; }
+	ui.id_scope(cast(u64)(gid)); defer ui.pop_seed();
+	sig := rail_item("hosted", active && app.view.guild == gid, guild_initials(g.name), "", gid);
+	if sig.box == null { return; }
+	if sig.hovering { tooltip_right(g.name); }
+	if sig.clicked { select_guild(gid); }
 }
 
 folder_color :: (e: *Rail_Entry) -> ui.Color {

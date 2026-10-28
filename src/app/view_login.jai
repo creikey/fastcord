@@ -834,9 +834,9 @@ clean_token :: (s: string) -> string {
 // Called each frame while connected: a rejected token (gateway close 4004)
 // drops it and opens the login page on a fresh logged-out session.
 login_check_auth :: () {
-	if app.client == null || app.client.store.connection != .Auth_Failed { return; }
-	client_release(app.client);
-	app.client = null;
+	if app.discord == null || app.discord.store.connection != .Auth_Failed { return; }
+	client_release(app.discord);
+	app.client, app.discord = null, null;
 	file_delete(tprint("%/token", app_state_dir()));
 	login_reset();
 	app.needs_login = true;
@@ -935,9 +935,9 @@ login_with_token :: (token: string) {
 	app.needs_login = false;
 	app.ui.focus = 0;
 	lg.mode = .Form;
-	if app.client != null {
-		client_release(app.client);
-		app.client = null;
+	if app.discord != null {
+		client_release(app.discord);
+		app.client, app.discord = null, null;
 	}
 	connect();
 }

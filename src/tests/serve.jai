@@ -119,9 +119,15 @@ main :: () {
 	check(status == 200 && begins_with(body, "{\"token\": \""), tprint("join: % %", status, body));
 	status, body = login(k, "", "");
 	check(status == 200, tprint("a member logs in without a code: % %", status, body));
-	tv, _ := etf.from_json(body);
-	tok, _ := etf.map_get(tv.map, "token");
-	token := tok.s;
+	inv, inv_ok := serve.parse_invite(serve.invite_url(s, "::1", port, code));
+	check(inv_ok && inv.host == "::1" && inv.port == port && inv.code == code, "parse an IPv6 invite");
+	inv, inv_ok = serve.parse_invite(serve.invite_url(s, "127.0.0.1", port, code));
+	token, lstatus, lmessage := serve.member_login(inv, k, "");
+	check(inv_ok && token.count == 64, tprint("member_login: % %", lstatus, lmessage));
+	wrong := inv;
+	wrong.pin[0] ^= 1;
+	_, lstatus, lmessage = serve.member_login(wrong, k, "");
+	check(lstatus == 0 && contains(lmessage, "certificate"), tprint("member_login: a wrong pin: % %", lstatus, lmessage));
 
 	// The gateway: Identify with the token, then READY lists the guild and #general.
 	gs := dial(pin, serve.ALPN);
