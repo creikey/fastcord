@@ -53,6 +53,13 @@ format_timestamp :: (id: dc.Snowflake, short := false) -> string {
 	return tprint("%/%/% %", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, t.year, clock);
 }
 
+// "Tuesday, October 27, 2026 3:04 PM" (moment's LLLL): the tooltip on message times and "(edited)".
+full_timestamp :: (unix_ms: s64) -> string {
+	DAYS :: string.["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+	t := utc_calendar(unix_ms + local_utc_offset_ms());
+	return tprint("%, % %, % %:% %", DAYS[t.day_of_week_starting_at_0], MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year, hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
+}
+
 // Unix ms now (or the -now: override).
 wall_ms :: () -> s64 { return ifx app.now_override_ms then app.now_override_ms else dc.now_ms(); }
 
@@ -1024,7 +1031,8 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				gutter.cross_align = .Center;
 				{ ui.parent(gutter); defer ui.pop_parent();
 					filler(.X);
-					label(format_timestamp(m.id, true), .Medium, 11, T("--text-muted"), MSG_LINE_H);
+					gt := label(format_timestamp(m.id, true), .Medium, 11, T("--text-muted"), MSG_LINE_H);
+					if ui.mouse_over(gt) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), gt.rect);
 					spacer(.X, 8);
 				}
 			}
@@ -1182,6 +1190,7 @@ message_header :: (m: *dc.Message) {
 		ts.flags |= .Selectable_Text;
 		ts.sel_order = m.id * 8 + 1;
 		ts.sel_join = " — ";
+		if ui.mouse_over(ts) tooltip_below(full_timestamp(dc.snowflake_time_ms(m.id)), ts.rect);
 	}
 }
 
@@ -1281,11 +1290,17 @@ message_body :: (m: *dc.Message) {
 				}
 				ui.set_spans(b, spans);
 				b.sel_order = m.id * 8 + 2 + cast(u64) bi % 4;
+				if edited_inline && b.prev_layout && ui.mouse_over(b) && ui.span_at(b.prev_layout, app.ui.mouse) == spans.count - 1 {
+					tooltip_below(full_timestamp(dc.iso_to_ms(m.edited_timestamp)), .{app.ui.mouse.x, app.ui.mouse.y, app.ui.mouse.x, app.ui.mouse.y + 8});
+				}
 			}
 			handle_span_clicks(b, blk.tokens, m.id);
 		}
 	}
-	if m.edited_timestamp && !edited_inline label("(edited)", .Normal, 10, T("--text-muted"), 22);
+	if m.edited_timestamp && !edited_inline {
+		ed := label("(edited)", .Normal, 10, T("--text-muted"), 22);
+		if ui.mouse_over(ed) tooltip_below(full_timestamp(dc.iso_to_ms(m.edited_timestamp)), ed.rect);
+	}
 }
 
 // A forwarded message: the snapshot's content behind a quote bar, under "Forwarded", and
