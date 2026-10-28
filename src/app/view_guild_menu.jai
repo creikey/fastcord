@@ -308,7 +308,7 @@ guild_menu_state_for_test :: () -> string {
 
 can_delete_thread :: (th: *dc.Channel) -> bool {
 	if th == null || !dc.is_thread(th) return false;
-	if th.owner_id == store().me return true;
+	if th.owner_id == store().me && !on_hosted() return true; // -serve lets only the server's owner delete threads.
 	return (dc.channel_permissions(store(), th.id) & dc.PERM_MANAGE_THREADS) != 0;
 }
 
@@ -459,7 +459,7 @@ guild_menu :: () {
 				close = true;
 			}
 		}
-		if dc.can_create_events(s, gid) && menu_item("createevent", "Create Event", lead = "calendar", h = GM_HDR_ROW_H).clicked {
+		if !on_hosted() && dc.can_create_events(s, gid) && menu_item("createevent", "Create Event", lead = "calendar", h = GM_HDR_ROW_H).clicked {
 			create_event_open(gid);
 			close = true;
 		}

@@ -723,8 +723,10 @@ channel_sidebar :: (gid: dc.Snowflake) {
 	ui.signal(list);
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 12);
-		if guild_action_row("events", "calendar", events_row_label(gid)).clicked { events_open(gid); }
-		spacer(.Y, 11);
+		if !on_hosted() { // -serve has no scheduled events yet.
+			if guild_action_row("events", "calendar", events_row_label(gid)).clicked { events_open(gid); }
+			spacer(.Y, 11);
+		}
 		sep := row("sep");
 		sep.semantic_size = .[ui.pct(1), ui.px(1)];
 		{ ui.parent(sep); defer ui.pop_parent();

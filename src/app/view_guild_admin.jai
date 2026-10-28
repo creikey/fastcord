@@ -16,7 +16,7 @@ can_manage_channel :: (ch: *dc.Channel) -> bool {
 }
 
 can_upload_emoji :: (gid: dc.Snowflake) -> bool {
-	return gid != 0 && (dc.guild_permissions(store(), gid) & (dc.PERM_CREATE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_GUILD_EXPRESSIONS)) != 0;
+	return gid != 0 && !on_hosted() && (dc.guild_permissions(store(), gid) & (dc.PERM_CREATE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_GUILD_EXPRESSIONS)) != 0;
 }
 
 // ---- entry points ----
