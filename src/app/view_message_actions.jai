@@ -273,10 +273,15 @@ reply_preview :: (m: *dc.Message) {
 			c, ok := member_color(ch.guild_id, ref.author_id);
 			if ok name_color = c;
 		}
-		label(ifx pinged then tprint("@%", name) else name, .Medium, 14, name_color, 18);
+		shown := ifx pinged then tprint("@%", name) else name;
+		nb := label(shown, .Medium, 14, name_color, 18);
+		nb.semantic_size[ui.Axis.X] = ui.text_size();
 		spacer(.X, 4);
 		content := first_line(ref.content);
 		if content == "" && ref.attachments content = "Click to see attachment";
+		// Last frame's row width; the avatar, name and spacers are fixed, so the rest is the content's.
+		avail := r.rect.x1 - r.rect.x0 - 16 - 4 - ui.layout_text(F(.Medium), 14, shown, -1).width - 4;
+		if r.rect.x1 > r.rect.x0 content = ellipsize(content, .Normal, 14, max(avail, 0));
 		c := label(content, .Normal, 14, T("--text-default"), 18);
 		c.flags |= .Clip;
 		c.semantic_size[ui.Axis.X] = ui.text_size(0, 0);

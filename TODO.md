@@ -50,7 +50,6 @@
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Reuse that menu so Shift-clicking Delete Message skips the confirm prompt there too, as it already does in chat. Pins likely have the same gap.
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
-- [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
@@ -301,3 +300,4 @@
 - [x] Voice: optional RNNoise noise suppression on the mic (Voice & Video toggle, saved), on every platform and independent of the OS DSP (`vendor/rnnoise`, `tx_tick`).
 - [x] Act on press: buttons, rows, tabs and menu items fire on mouse-down, and that press's release goes nowhere else. `.Click_On_Release` keeps release for resize handles, folder icons (drag reorder) and destructive menu items and confirm buttons.
 - [x] Voice: while deafened the mic button (sidebar panel and call view) shows muted, and clicking it undeafens and unmutes.
+- [x] Replies: the quoted preview keeps the author name at full width and cuts the original's text with an ellipsis after it, instead of drawing a long URL over the name.
