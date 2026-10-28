@@ -175,7 +175,9 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     }
     prof.zone("gfx.present");
     if dx.swap {
-        hr := IDXGISwapChain_Present(dx.swap, 1, 0);
+        // Sync interval 1 holds each resize frame to a vblank, so a fast drag replays stale sizes one refresh
+        // at a time. Interval 0 on a flip swap chain still doesn't tear: DWM shows the newest frame.
+        hr := IDXGISwapChain_Present(dx.swap, xx ifx platform.is_size_frame() then 0 else 1, 0);
         if FAILED(hr) {
             g.diag.present_fails += 1;
             note_failure(hr);

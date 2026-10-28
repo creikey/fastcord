@@ -9,6 +9,9 @@ set_capture_hidden :: (hidden: bool) {
 // gfx registers the swap chain's frame-latency waitable object; every rendered frame waits on it once (vsync pacing).
 set_frame_wait_handle :: (h: *void) { w.frame_wait = h; }
 
+// True while drawing the frame for a WM_SIZE inside the modal resize loop.
+is_size_frame :: () -> bool { return w.size_frame; }
+
 // True when Windows' app mode is dark (HKCU\...\Themes\Personalize AppsUseLightTheme = 0). ok is false
 // headless or when unset.
 system_dark_mode :: () -> dark: bool, ok: bool {
@@ -424,6 +427,7 @@ w: struct {
     frame_ready: bool; // os_wait already took this frame's signal from frame_wait
     high_surrogate: u16;
     in_size_move: bool;
+    size_frame: bool;
     tracking_mouse: bool;
     tracking_nc: bool;
     over_max_button: bool;
@@ -877,7 +881,11 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
         case win.WM_SIZE;
             update_size();
             push_event(.{kind = .Resize, pos = s.size, time = time_now()});
-            if w.in_size_move run_frame_callback();
+            if w.in_size_move {
+                w.size_frame = true;
+                run_frame_callback();
+                w.size_frame = false;
+            }
             return 0;
         case win.WM_GETMINMAXINFO;
             mm := cast(*MINMAXINFO) lp;
