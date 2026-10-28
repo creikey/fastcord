@@ -469,6 +469,10 @@ main :: () {
 	check(found(tprint("author_id=%&content=hi", other_id)) == 1, "search filters combine");
 	check(found("content=%22unbalanced") == 0, "search quotes typed text");
 	check(found("has=link") == 0, "search has");
+	repeated: String_Builder;
+	for 1..600 append(*repeated, "pinned=true&has=link&");
+	append(*repeated, "content=hello");
+	check(found(builder_to_string(*repeated,, temp)) == 0, "a search repeating its filters still runs, each filter once");
 
 	// Leaving: the owner can't; Other's client loses the guild, their token dies, and only an invite
 	// brings them back.

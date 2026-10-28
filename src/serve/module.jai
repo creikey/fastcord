@@ -1579,6 +1579,7 @@ store_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_
 }
 
 SEARCH_PAGE :: 25;
+MAX_SEARCH_IDS :: 25; // Per kind (authors, mentions, channels).
 
 // GET /api/v9/guilds/{id}/messages/search?content=&author_id=&mentions=&channel_id=&has=&pinned=&offset=,
 // newest first, 25 a page, as {total_results, messages: [[message], ...]}. Repeated keys of one kind
@@ -1600,22 +1601,26 @@ search :: (c: *Conn, req: http.Request) -> bool {
 	where.allocator = temp;
 	print_to_builder(*where, " WHERE m.type = %", DEFAULT);
 	offset := 0;
+	// Each filter adds to the query at most once and ids are capped, so one request line can't build a
+	// query that scans every message thousands of times over under db_mu.
+	pinned, has_link, has_other, has_content := false, false, false, false;
+	add_id :: (ids: *[..]s64, n: s64, ok: bool) { if ok && ids.count < MAX_SEARCH_IDS array_add_if_unique(ids, n); }
 	for split(ifx q >= 0 then slice(req.path, q + 1, req.path.count - q - 1) else "", "&",, temp) {
 		kv := split(it, "=",, temp);
 		if kv.count != 2 continue;
 		value := percent_decode(replace(kv[1], "+", " ",, temp));
 		n, n_ok := string_to_int(value, T = s64);
 		if kv[0] == {
-			case "author_id";  if n_ok array_add(*authors, n);
-			case "mentions";   if n_ok array_add(*mentioned, n);
-			case "channel_id"; if n_ok array_add(*channels, n);
+			case "author_id";  add_id(*authors, n, n_ok);
+			case "mentions";   add_id(*mentioned, n, n_ok);
+			case "channel_id"; add_id(*channels, n, n_ok);
 			case "offset";     if n_ok offset = clamp(n, 0, 5000);
-			case "pinned";     if value == "true" append(*where, " AND m.pinned_at IS NOT NULL");
-			case "has";
-				// Hosted messages carry no attachments, embeds or stickers yet; only links can be had.
-				if value == "link" append(*where, " AND (m.content LIKE '%http://%' OR m.content LIKE '%https://%')");
-				else append(*where, " AND 0");
+			case "pinned";     if value == "true" pinned = true;
+			// Hosted messages carry no attachments, embeds or stickers yet; only links can be had.
+			case "has";        if value == "link" has_link = true; else has_other = true;
 			case "content";
+				if has_content continue;
+				has_content = true;
 				// Each word quoted, so FTS5 query syntax in what was typed is matched literally.
 				terms: String_Builder;
 				terms.allocator = temp;
@@ -1627,6 +1632,9 @@ search :: (c: *Conn, req: http.Request) -> bool {
 				}
 		}
 	}
+	if pinned append(*where, " AND m.pinned_at IS NOT NULL");
+	if has_link append(*where, " AND (m.content LIKE '%http://%' OR m.content LIKE '%https://%')");
+	if has_other append(*where, " AND 0");
 	any_of :: (open: string, ids: []s64, close := ")") #expand {
 		if !ids return;
 		append(*`where, open);
