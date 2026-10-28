@@ -910,6 +910,15 @@ main :: () {
 	check(kept && kept.muted && kept.message_notifications == discord.NOTIFY_MENTIONS && array_find(kept.muted_channels, cid),
 		tprint("notification settings are kept: %", ifx kept then kept.* else .{}));
 	discord.client_destroy(cl5);
+	// A batch with repeats and unknown channels is taken whole; the last entry for a channel wins.
+	status, body = rest("POST", "/api/v9/read-states/ack-bulk", tprint("{\"read_states\": [{\"channel_id\": \"%1\", \"message_id\": \"1\"}, {\"channel_id\": \"12345\", \"message_id\": \"1\"}, {\"channel_id\": \"%1\", \"message_id\": \"%2\"}]}", cid, unread_id), other_token);
+	check(status == 204, tprint("ack-bulk with repeats: % %", status, body));
+	cl5 = discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl5);
+	for 1..1000 { if cl5.store.ready break; discord.client_poll(cl5); sleep_milliseconds(10); }
+	has_rs, rs = table_find(*cl5.store.read_states, cid);
+	check(has_rs && rs.last_message_id == unread_id, tprint("the last entry for a channel wins: % %", has_rs, rs.last_message_id));
+	discord.client_destroy(cl5);
 
 	// Two connections at once: each takes only the new messages that came on it, so the app checks a
 	// message against the store it belongs to.

@@ -2518,6 +2518,9 @@ ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 	list: etf.Value;
 	if err == .None && v.kind == .Map list, _ = etf.map_get(v.map, "read_states");
 	if list.kind != .List || list.list.count > 1000 return json_error(c, 400, 50035, "Invalid Form Body");
+	// One entry per channel, the last one sent winning; unknown channels are dropped below.
+	acks: Table(s64, s64);
+	acks.allocator = temp;
 	for list.list {
 		if it.kind != .Map continue;
 		ch, _ := etf.map_get(it.map, "channel_id");
@@ -2525,8 +2528,20 @@ ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 		if ch.kind != .String || m.kind != .String continue;
 		channel, cok := string_to_int(ch.s, T = s64);
 		message, mok := string_to_int(m.s, T = s64);
-		if cok && mok && store_ack(s, user, channel, message, 0, false) == 500 return json_error(c, 500, 0, "500: Internal Server Error");
+		if cok && mok table_set(*acks, channel, message);
 	}
+	// All in one transaction, so marking a whole server read costs one fsync, not one per channel.
+	{
+		locks.guard(*s.db_mu);
+		ok := sqlite.exec(s.db, "BEGIN;");
+		for message, channel: acks {
+			if !ok break;
+			if channel_type_locked(s, channel) < 0 { remove message; continue; }
+			ok = sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, 0);", user, channel, message);
+		}
+		if !(ok && sqlite.exec(s.db, "COMMIT;")) { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+	}
+	for message, channel: acks send_ack(s, user, channel, message, 0, false);
 	return respond(c, 204, json = false);
 }
 
@@ -2634,6 +2649,12 @@ store_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_
 		if channel_locked(s, channel).kind == .Nil return 404;
 		if !sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, ?);", user, channel, message, count) return 500;
 	}
+	send_ack(s, user, channel, message, count, is_manual);
+	return 0;
+}
+
+// send_ack tells a member's gateways that a channel's read state changed.
+send_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_manual: bool) {
 	d := etf.map_builder(5,, temp);
 	etf.map_put(*d, "channel_id", snow(channel));
 	etf.map_put(*d, "message_id", snow(message));
@@ -2645,7 +2666,6 @@ store_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_
 		locks.guard(*s.mu);
 		for s.conns if it.ws && it.user == user dispatch(it, "MESSAGE_ACK", ev);
 	}
-	return 0;
 }
 
 SEARCH_PAGE :: 25;
