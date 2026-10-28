@@ -484,7 +484,8 @@ gateway_connect :: (g: *Gateway) {
 	for * hdrs if it.name == "Sec-WebSocket-Key" it.value = base64_encode(cast(string) key_raw,, temp);
 	req := http.Request.{method = "GET", scheme = "https", authority = host, path = path, headers = hdrs};
 	if c.on_ws_open c.on_ws_open(c.observer_data, url, req.headers);
-	ws, resp, err := http.ws_connect(stream, req, .{},, c.allocator);
+	// Serve drops a member rather than queue more than 8 MiB (OUT_MAX), so no message from it is larger.
+	ws, resp, err := http.ws_connect(stream, req, .{max_message = ifx hosted then 8 << 20 else 0},, c.allocator);
 	if err != .None {
 		http.response_destroy(*resp);
 		netio.close(stream);
