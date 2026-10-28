@@ -14,6 +14,7 @@ Hosted_Server :: struct {
 	client: *dc.Client;
 	joined: bool;      // A member already: restored from settings, or logged in once.
 	retry_at: float64; // When a failed login of a joined server is tried again; 0 when none is due.
+	forget: bool;      // Remove Server: dropped, without contacting it, once a login in flight ends.
 	backoff: float64;
 	// What mirror_presence last told status_client, which a re-login replaces.
 	status_sent: dc.Status;
@@ -43,6 +44,24 @@ hosted_join :: (url: string) -> bool, string {
 // hosted_frame finishes logins and keeps every connection that isn't app.client polled.
 hosted_frame :: () {
 	for h: hosted {
+		if h.forget && (!h.thread || thread_is_done(h.thread)) {
+			if h.thread {
+				thread_deinit(h.thread);
+				free(h.thread);
+			}
+			free(h.token);
+			if h.client {
+				if app.client == h.client {
+					app.client = app.discord;
+					go_home();
+				}
+				client_release(h.client);
+			}
+			hosted_free(h);
+			remove h;
+			continue;
+		}
+		if h.forget continue;
 		if h.thread && thread_is_done(h.thread) {
 			// Reaped without locks.join, which flags any join on the UI thread; this one can't wait.
 			thread_deinit(h.thread);
@@ -126,8 +145,9 @@ hosted_frame :: () {
 }
 
 hosted_invites :: () -> []string {
-	out := NewArray(hosted.count, string,, temp);
-	for hosted out[it_index] = it.invite;
+	out: [..]string;
+	out.allocator = temp;
+	for hosted if !it.forget array_add(*out, it.invite);
 	return out;
 }
 
@@ -144,7 +164,7 @@ hosted_restore :: (invites: []string, names: *Table(string, string)) {
 hosted_names :: () -> Table(string, string) {
 	out: Table(string, string);
 	out.allocator = temp;
-	for hosted if it.title table_set(*out, it.inv.id_hex, it.title);
+	for hosted if it.title && !it.forget table_set(*out, it.inv.id_hex, it.title);
 	return out;
 }
 

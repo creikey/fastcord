@@ -1,0 +1,14 @@
+# A saved self-hosted server that is down can be removed from its right-click menu without the server
+# answering; a login still in flight finishes first (Windows takes about 2 s to refuse the connection).
+wait 5
+hosted_saved fc://0000000000000000000000000000000000000000000000000000000000000000@127.0.0.1:1/00000000000000000000000000000000/code Dingus Battle Two
+wait 5
+rclick_text "DBT"
+wait 5
+expect_visible "Retry Now"
+click_text "Remove Server"
+wait 5
+expect_not_visible "Remove Server"
+settle 3
+expect_not_visible "DBT"
+expect_not_visible "Couldn't reach Dingus Battle Two: Couldn't reach the server. Retrying."

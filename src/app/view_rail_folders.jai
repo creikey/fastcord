@@ -164,6 +164,7 @@ rail_view :: () {
 		}
 		if moved(g0, c0) active = app.client;
 		for h: hosted {
+			if h.forget continue;
 			if !h.client || !h.client.store.ready {
 				if h.joined rail_hosted_down(h);
 				continue;
@@ -185,6 +186,7 @@ rail_view :: () {
 // Folder right-click menu (Mark Folder As Read, Folder Settings) and the Folder Settings modal (name, colour).
 rail_folder_overlays :: () {
 	if fm.menu != 0 folder_menu();
+	if fm.down down_menu();
 	if fm.modal != 0 folder_modal();
 }
 
@@ -235,6 +237,7 @@ rail_hosted_down :: (h: *Hosted_Server) {
 	sig := rail_item("down", false, guild_initials(h.title), ifx h.title then "" else "server", 0);
 	if sig.box sig.box.style.text_color = T("--text-muted");
 	if sig.clicked && h.retry_at h.retry_at = platform.time_now();
+	if sig.right_clicked fm.down, fm.down_pos = h, app.ui.mouse;
 	if !sig.hovering return;
 	why := ifx h.thread || !h.retry_at then "Connecting…" else ifx h.error then h.error else "Couldn't reach the server.";
 	ui.parent(ui.top_parent().last); defer ui.pop_parent();
@@ -597,6 +600,8 @@ Folder_Menu :: struct {
 	modal: s64; // folder in the Folder Settings modal
 	ed: ui.Editor;
 	color: u32; // 0 = default
+	down: *Hosted_Server; // self-hosted server, down, whose right-click menu is open
+	down_pos: ui.Vec2;
 }
 
 fm: Folder_Menu;
@@ -631,6 +636,32 @@ folder_menu :: () {
 		fm.color = ifx e.has_color then cast(u32) e.color else 0;
 		ui.editor_set_text(*fm.ed, e.name);
 		fm.menu = 0;
+	}
+	spacer(.Y, 8);
+}
+
+// A down server's menu: retry now, or remove it for good without asking it, since it may never answer.
+down_menu :: () {
+	h := fm.down;
+	found := array_find(hosted, h);
+	if !found || h.forget || (h.client && h.client.store.ready) || outside_pressed("dctx_scrim") || escape_pressed() {
+		fm.down = null;
+		return;
+	}
+	W :: cast(float32) GM_CTX_W;
+	menu := menu_panel("dctx", fm.down_pos, W);
+	mh := menu.rect.y1 - menu.rect.y0;
+	menu.fixed_pos = .{clamp(fm.down_pos.x, 8, app.ui.window.x - W - 8), clamp(fm.down_pos.y, 8, max(8.0, app.ui.window.y - mh - 8))};
+	ui.parent(menu); defer ui.pop_parent();
+	spacer(.Y, 8);
+	if menu_item("retry", "Retry Now", disabled = h.thread != null || !h.retry_at).clicked {
+		h.retry_at = platform.time_now();
+		fm.down = null;
+	}
+	menu_sep("s1");
+	if menu_item("remove", "Remove Server", danger = true).clicked {
+		h.forget = true;
+		fm.down = null;
 	}
 	spacer(.Y, 8);
 }
