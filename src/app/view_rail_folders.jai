@@ -103,7 +103,7 @@ unread_dms :: () -> []dc.Snowflake {
 // Red count pill at the icon's bottom-right, ringed in the rail background.
 // Call with the 72-wide slot as parent; icon_y is the icon's top in the slot.
 mention_badge :: (n: int, icon_y: float32) {
-	if n <= 0 { return; }
+	if n <= 0 || notify_prefs.lotus { return; }
 	text := ifx n > 99 then "99+" else tprint("%", n);
 	w := max(cast(float32)(BADGE_H), cast(float32)(text.count) * 7 + 8);
 	ring := ui.box("badgering", .Draw_Background | .Floating_X | .Floating_Y);
@@ -139,7 +139,7 @@ rail_view :: () {
 		home := rail_item("home", app.view.guild == 0, "", "logo", 0);
 		if home.clicked { go_home(); }
 		{ ui.parent(rail.last); defer ui.pop_parent(); mention_badge(pending_count(), 0); }
-		for cid: unread_dms() {
+		if !notify_prefs.lotus for cid: unread_dms() {
 			ui.id_scope(cast(u64)(cid)); defer ui.pop_seed();
 			rail_dm(cid);
 		}

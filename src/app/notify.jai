@@ -19,13 +19,13 @@ notify_tick :: () {
 		if s.settings.status == .Dnd || streamer_disable_notifications() continue;
 		r := table_find_pointer(*s.relationships, m.author_id);
 		if r && r.kind == .Blocked continue;
-		if !message_notifies(m) || notify_prefs.desktop_off continue;
+		if !message_notifies(m) || notify_prefs.desktop_off || notify_prefs.lotus continue;
 		notify_message(s, m);
 	}
 	// dock badge: unread mentions
 	total := 0;
 	for s.read_states total += max(it.mention_count, 0);
-	if notify_prefs.badge_off total = 0; // Settings > Notifications > Unread Message Badge
+	if notify_prefs.badge_off || notify_prefs.lotus total = 0; // Settings > Notifications > Unread Message Badge
 	if !ns.badge_set || total != ns.badge {
 		ns.badge = total;
 		ns.badge_set = true;

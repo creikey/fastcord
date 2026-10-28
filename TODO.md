@@ -180,7 +180,7 @@
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
 - [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
 - [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
-- [ ] Lotus Mode (fastcord-only): one setting that silences every notification sound and hides all notification badges and the white unread dots beside channels and servers, so the client never grabs attention.
+- [ ] Channels: a channel with unread mentions shows no red mention count at the right of its row in the channel list (`channel_row` in `views.jai`).
 - [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Crash reporter: add one, modelled on Happenlance's subprocess crash reporter (`C:\Work\Happenlance\Happenlance\src\crash_handler.cpp`, Phillip's machine only).
@@ -274,3 +274,4 @@
 - [x] Windows Resize: every rendered frame waits once on the swap chain's frame-latency waitable (`os_frame_wait`), including frames for input and inside the modal resize loop, so signals no longer pile up.
 - [x] Windows Resize: the swap chain uses `DXGI_SCALING_STRETCH`, so DWM stretches the last frame while resizing instead of leaving gaps.
 - [x] Voice (macOS): the mic no longer cuts out or goes quiet: VPIO's devices are pinned to 10 ms buffers (it ran them at 4096 frames, 85 ms bursts, which the send loop zero-padded and dropped), the audio thread sends only whole mic frames, and a call with every DSP switch off captures through AUHAL instead of VPIO bypass (27 dB quieter).
+- [x] Lotus Mode (fastcord-only): one switch in Settings > Notifications silences every sound and desktop notification and hides the dock/tray badge, the rail's mention badges, unread DM avatars and unread pills, the inbox badge and the channel list's unread dots. Unread channel names stay bold.

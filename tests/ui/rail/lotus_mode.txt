@@ -1,0 +1,14 @@
+# Lotus Mode (Settings > Notifications, fastcord-only): turning it on hides the rail's mention badges,
+# unread DM avatars and unread pills, and the channel list's unread dots.
+wait 5
+shot build/ui-lotus_mode-off.png
+click 338 683
+wait 20
+click_text "Notifications"
+wait 20
+expect_visible "Lotus Mode"
+click_text "Lotus Mode"
+wait 10
+shot build/ui-lotus_mode-settings.png
+key escape
+wait 20

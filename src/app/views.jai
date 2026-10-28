@@ -438,7 +438,7 @@ my_guild_permissions :: (gid: dc.Snowflake) -> u64 {
 guild_unread_shown :: (gid: dc.Snowflake) -> bool {
 	s := store();
 	g := dc.guild_get(s, gid);
-	if g == null { return false; }
+	if g == null || notify_prefs.lotus { return false; }
 	now := wall_ms();
 	if dc.guild_is_muted(s, gid, now) { return false; }
 	for id: g.channels {
@@ -774,7 +774,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			}
 			spacer(.X, 8);
 		}
-		if unread && !selected {
+		if unread && !selected && !notify_prefs.lotus {
 			dot := ui.box("unread", .Draw_Background | .Floating_X | .Floating_Y);
 			dot.semantic_size = .[ui.px(4), ui.px(8)];
 			dot.fixed_pos = .{0, 13};
