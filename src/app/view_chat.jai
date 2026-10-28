@@ -452,11 +452,24 @@ spoiler_revealed :: (toks: []Token, i: int) -> bool {
 	return table_find_pointer(*revealed_spoilers, spoiler_key(toks, i)) != null;
 }
 
-// Clicks on links / mentions in a paragraph, against last frame's layout of the
-// box (spans carry their token index in id).
-handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0) {
+EDITED_SPAN : u64 : 0xffff_ffff_ffff_fff0; // the trailing " (edited)" span's id; no token index reaches it
+
+// Clicks on links / mentions in a paragraph, and the hover tooltips of <t:> times and
+// "(edited)", against last frame's layout of the box (spans carry their token index in id).
+handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, edited_ms: s64 = 0) {
 	tl := b.prev_layout;
 	if tl == null || !tl.spans return;
+	if ui.mouse_over(b) {
+		si := ui.span_at(tl, app.ui.mouse);
+		id := ifx si >= 0 && si < tl.spans.count then tl.spans[si].id else EDITED_SPAN + 1;
+		p := app.ui.mouse;
+		r := ui.Rect.{p.x, p.y, p.x, p.y + 8};
+		if id == EDITED_SPAN && edited_ms {
+			tooltip_below(full_timestamp(edited_ms), r);
+		} else if id < cast(u64) toks.count && toks[id].kind == .Timestamp {
+			tooltip_below(full_timestamp(cast(s64) toks[id].id * 1000), r);
+		}
+	}
 	for e: app.ui.events {
 		if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() || ui.overlay_at(e.pos) continue;
 		si := ui.span_at(tl, e.pos);
@@ -1284,17 +1297,14 @@ message_body :: (m: *dc.Message) {
 					// "(edited)" rides at the end of the last paragraph, like the client
 					edited := NewArray(spans.count + 1, ui.Span,, temp);
 					memcpy(edited.data, spans.data, spans.count * size_of(ui.Span));
-					edited[spans.count] = .{text = " (edited)", font = F(.Normal), size = 10, color = T("--text-muted")};
+					edited[spans.count] = .{text = " (edited)", font = F(.Normal), size = 10, color = T("--text-muted"), id = EDITED_SPAN};
 					spans = edited;
 					edited_inline = true;
 				}
 				ui.set_spans(b, spans);
 				b.sel_order = m.id * 8 + 2 + cast(u64) bi % 4;
-				if edited_inline && b.prev_layout && ui.mouse_over(b) && ui.span_at(b.prev_layout, app.ui.mouse) == spans.count - 1 {
-					tooltip_below(full_timestamp(dc.iso_to_ms(m.edited_timestamp)), .{app.ui.mouse.x, app.ui.mouse.y, app.ui.mouse.x, app.ui.mouse.y + 8});
-				}
 			}
-			handle_span_clicks(b, blk.tokens, m.id);
+			handle_span_clicks(b, blk.tokens, m.id, ifx edited_inline then dc.iso_to_ms(m.edited_timestamp) else 0);
 		}
 	}
 	if m.edited_timestamp && !edited_inline {

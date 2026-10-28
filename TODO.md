@@ -175,7 +175,7 @@
 - [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
-- [ ] Markdown: hovering a `<t:…>` timestamp in a message shows no tooltip with the full date, as the client does (`.Timestamp` tokens in `markdown.jai`; `full_timestamp` in `view_chat.jai` has the format).
+- [ ] Composer (fastcord-only): a timestamp generator. Pick a date and time and a style, preview it as it will render, and insert the `<t:…:style>` markup into the composer, so no website is needed for one.
 - [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
 - [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
@@ -319,3 +319,4 @@
 - [x] Keybinds: Ctrl+E, Ctrl+G and Ctrl+S in the composer toggle the emoji, GIF and sticker pickers (`tests/ui/picker_keys.txt`).
 - [x] Keybinds: Ctrl+Shift+U in the composer opens the file picker, like the "+" button (`tests/ui/upload_key.txt`).
 - [x] Chat: hovering a message's time (header or the grouped-row gutter) or "(edited)" shows the full date, "Monday, October 26, 2026 7:54 AM" (`tests/ui/timestamp_tooltip.txt`).
+- [x] Markdown: hovering a `<t:…>` timestamp in a message shows its full date (`tests/ui/forward/timestamp_markup_tooltip.txt`).
