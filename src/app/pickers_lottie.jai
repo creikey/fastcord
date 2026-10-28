@@ -1,7 +1,7 @@
 // Lottie stickers (format_type 3): the json comes from discord.com/stickers/{id}.json
 // (a cors fetch, like the client's lottie loader), rendered with the lottie module. Parsing and the
-// still first frame (one per drawn size) run on the decode workers (images.jai); only an animating
-// sticker (hover, or in a message) is re-rendered here, every frame it is drawn.
+// still first frame (one per drawn size) run on the decode workers (images.jai). An animating sticker
+// (hover, or in a message) renders its next frame there too, one at a time, so the UI thread only uploads it.
 
 Lottie_State :: enum u8 {
 	Loading;
@@ -13,7 +13,8 @@ Lottie_Sticker :: struct {
 	state: Lottie_State;
 	anim: *lottie.Animation;
 	stills: [..]Lottie_Still;
-	player: lottie.Player; // the animating copy
+	player: *lottie.Player; // the animating copy (heap: the table may move); a worker's while rendering
+	rendering: bool;
 	px: int;
 	tex: gfx.Texture;
 	frame: float32; // last rendered frame (-1 = none)
@@ -44,6 +45,14 @@ lottie_decoded :: (d: *Decoded) {
 		if pickers_debug() print("[pickers] lottie %: ok=%\n", d.id, d.ok, to_standard_error = true);
 		ls.anim = d.anim;
 		ls.state = ifx d.ok then .Ready else .Failed;
+		return;
+	}
+	if d.kind == .Lottie_Frame {
+		ls.rendering = false;
+		if !d.ok || d.px != ls.px return;
+		if ls.tex == 0 ls.tex = gfx.texture_from_rgba(d.px, d.px, d.frames[0]);
+		else gfx.texture_update(ls.tex, 0, 0, d.px, d.px, d.frames[0]);
+		ls.frame = d.frame;
 		return;
 	}
 	for * ls.stills if it.px == d.px && it.tex == 0 && d.ok it.tex = gfx.texture_create(d.px, d.px, .RGBA8, d.frames[0], premultiplied_alpha = true);
@@ -88,30 +97,34 @@ lottie_draw :: (b: *ui.Box, user: *void) {
 	px := cast(int) floor((b.rect.x1 - b.rect.x0) * max(gfx.scale(), 1) + 0.5);
 	if px <= 0 return;
 	c := gfx.Color.{1, 1, 1, b.opacity};
-	if !d.animate {
-		for ls.stills if it.px == px {
-			if it.tex gfx.push_rect(.{dst = cast,force(gfx.Rect) b.rect, tex = it.tex, colors = .[c, c, c, c]});
+	if d.animate {
+		app.ui.animating = true;
+		if !ls.rendering {
+			if ls.px != px {
+				if ls.player lottie.player_destroy(ls.player);
+				else ls.player = New(lottie.Player);
+				if ls.tex != 0 gfx.texture_destroy(ls.tex);
+				ls.tex = 0;
+				lottie.player_init(ls.player, ls.anim, px, px);
+				ls.px = px;
+				ls.frame = -1;
+			}
+			frame := lottie.frame_at(ls.anim, app.ui.time);
+			if frame != ls.frame {
+				ls.rendering = true;
+				decode_submit(.{kind = .Lottie_Frame, id = d.id, px = px, player = ls.player, frame = frame});
+			}
+		}
+		if ls.tex != 0 && ls.px == px {
+			gfx.push_rect(.{dst = cast,force(gfx.Rect) b.rect, tex = ls.tex, colors = .[c, c, c, c]});
 			return;
 		}
-		array_add(*ls.stills, .{px = px});
-		decode_submit(.{kind = .Lottie_Still, id = d.id, px = px, anim = ls.anim});
+	}
+	// still, and the animation's stand-in until its first frame is in
+	for ls.stills if it.px == px {
+		if it.tex gfx.push_rect(.{dst = cast,force(gfx.Rect) b.rect, tex = it.tex, colors = .[c, c, c, c]});
 		return;
 	}
-	if ls.px != px {
-		if ls.px != 0 lottie.player_destroy(*ls.player);
-		if ls.tex != 0 gfx.texture_destroy(ls.tex);
-		ls.tex = 0;
-		lottie.player_init(*ls.player, ls.anim, px, px);
-		ls.px = px;
-		ls.frame = -1;
-	}
-	frame := lottie.frame_at(ls.anim, app.ui.time);
-	if frame != ls.frame || ls.tex == 0 {
-		pixels := lottie.render(*ls.player, frame);
-		if ls.tex == 0 ls.tex = gfx.texture_from_rgba(px, px, pixels);
-		else gfx.texture_update(ls.tex, 0, 0, px, px, pixels);
-		ls.frame = frame;
-	}
-	app.ui.animating = true;
-	gfx.push_rect(.{dst = cast,force(gfx.Rect) b.rect, tex = ls.tex, colors = .[c, c, c, c]});
+	array_add(*ls.stills, .{px = px});
+	decode_submit(.{kind = .Lottie_Still, id = d.id, px = px, anim = ls.anim});
 }

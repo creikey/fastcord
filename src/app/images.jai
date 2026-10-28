@@ -255,6 +255,7 @@ Decode_Kind :: enum u8 {
 	Image;
 	Lottie_Load;
 	Lottie_Still; // first frame of a loaded animation at px x px
+	Lottie_Frame; // one frame of an animating sticker, into its player
 	Fetch; // offline: a blob's bytes from FASTCORD_MEDIA_DIR
 	Copy_Image; // the media menu's actions, with the downloaded bytes
 	Save_Image;
@@ -267,6 +268,8 @@ Decode_Job :: struct {
 	id: dc.Snowflake; // Lottie
 	px: int;
 	anim: *lottie.Animation; // Lottie_Still; read-only while shared
+	player: *lottie.Player; // Lottie_Frame; the worker's until the result is uploaded
+	frame: float32;
 }
 
 Decoded :: struct {
@@ -364,6 +367,10 @@ decode_run :: (j: Decode_Job) -> Decoded {
 		gfx.premultiply_in_place(d.frames[0]);
 		d.size = .{j.px, j.px};
 		lottie.player_destroy(*p);
+	case .Lottie_Frame;
+		d.frames = NewArray(1, []u8);
+		d.frames[0] = array_copy(lottie.render(j.player, j.frame));
+		d.size = .{j.px, j.px};
 	case .Fetch;
 		if !j.data d.data = array_copy(data);
 	case .Copy_Image;
@@ -433,7 +440,7 @@ decode_upload :: () {
 			d.data = .[];
 		} else if d.kind == .Save_Image {
 			toast_show(ifx d.saved then "Image saved to Downloads." else "Couldn't save the image.", d.saved);
-		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still {
+		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still || d.kind == .Lottie_Frame {
 			budget -= d.size.x * d.size.y * 4;
 			lottie_decoded(d);
 		} else if im && !d.ok {
