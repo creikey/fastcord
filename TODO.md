@@ -221,7 +221,6 @@
 - [ ] Profiles: no badges, connections, activity, rich presence or Spotify; `Presence.activity` is parsed but unused.
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
-- [ ] Composer: a long draft grows the composer past the top of the window, hiding the messages and the header (`tests/ui/message_length.txt` shows it); cap its height and scroll inside it, as the client does.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), and watching more than one stream.
 - [ ] Go Live: no stream settings. Resolution and frame rate are fixed (`SCREEN_FPS` 30, `SCREEN_MAX_H` 1080 in `src/app/video_call.jai`). Add the official picker's resolution (720p, 1080p, source) and frame rate (15, 30, 60). Also add a stream-audio mute toggle, once soundshare exists, and let the streamer change these settings mid-stream.
 - [ ] Notifications: a channel's own notification level (All / Only @mentions / Nothing) is ignored for sounds and notifications; only the server level is read (`sounds.jai`). The channel, category, server chain already exists in `analytics_events.jai`.
@@ -341,3 +340,4 @@
 - [x] Media: Save Image shows a toast: green "Image saved to Downloads." or red "Couldn't save the image." when the fetch or write fails (`images.jai` `decode_upload`, `requests.jai` `toast_show`, `tests/ui/media/save_image.txt`).
 - [x] Channels: a channel with unread mentions shows the red mention count at the right of its row (`views.jai` `channel_row`, `tests/ui/rail/channel_mentions.txt`).
 - [x] Composer: the length limit (2000, 4000 with Nitro, in UTF-16 units) counts down in the last 200 characters, red when over, and an over-long Enter keeps the draft with a toast (`view_chat.jai` `composer`, `tests/ui/message_length.txt`).
+- [x] Composer: a long draft stops growing at half the window and scrolls inside the form, keeping the caret in view (`view_chat.jai` `composer`, `tests/ui/message_length.txt`).

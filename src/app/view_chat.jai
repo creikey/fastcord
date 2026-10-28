@@ -1709,6 +1709,11 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				icon("i", "plus-large", 24, ifx plus_hov then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			}
 			spacer(.X, 24);
+			// The text scrolls inside the form once it is half the window high, like the client's max-height: 50vh.
+			sc := ui.box("inscroll", .Scroll_Y | .Clip);
+			sc.semantic_size = .[ui.fill(), ui.px(clamp(sc.content_size.y, cast(float32) COMPOSER_H, max(cast(float32) COMPOSER_H, app.ui.window.y / 2)))];
+			sc.layout_axis = .Y;
+			ui.signal(sc);
 			placeholder := ifx ch.kind == .DM then tprint("Message @%", dm_name(ch)) else tprint("Message #%", ch.name);
 			if ch.kind == .Group_DM placeholder = tprint("Message %", dm_name(ch));
 			// Up in an empty composer edits your last message, like the client
@@ -1724,7 +1729,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 					}
 				}
 			}
-			input_focused := (app.ui.focus == box.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open();
+			input_focused := (app.ui.focus == box.key || app.ui.focus == sc.key || app.ui.focus == 0) && ma.editing == 0 && !sw.open && !modal_open();
 			// Cmd/Ctrl+V with files or a bitmap on the clipboard stages them instead of pasting text
 			if input_focused {
 				for * e: app.ui.events {
@@ -1742,7 +1747,22 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			emoji_autocomplete(ch, *cs.editor, input_focused);
 			mention_autocomplete(ch, *cs.editor, input_focused);
 			ui.pop_parent();
+			ui.push_parent(sc);
 			res := text_field("input", *cs.editor, placeholder, input_focused, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, placeholder_color = T("--channel-text-area-placeholder"), markdown = true);
+			ui.pop_parent();
+			if res != .None {
+				// Keep the caret in view: last frame's layout places its line (the end of the text: the bottom).
+				ed := *cs.editor;
+				tl := sc.last.prev_layout;
+				h := sc.rect.y1 - sc.rect.y0;
+				if ed.caret >= ed.buf.count {
+					sc.view_off_target.y = sc.content_size.y;
+				} else if tl {
+					y := (COMPOSER_H - MSG_LINE_H) / 2 + cast(float32) ui.line_of(tl, ed.caret) * tl.line_h;
+					if y < sc.view_off_target.y sc.view_off_target.y = y;
+					if y + tl.line_h > sc.view_off_target.y + h sc.view_off_target.y = y + tl.line_h - h + (COMPOSER_H - MSG_LINE_H) / 2;
+				}
+			}
 			if res == .Changed emoji_autocomplete_close_colon(ch, *cs.editor);
 			// The length limit: 4000 with Nitro, else 2000; the count shows in the last 200 and an over-long send is held.
 			me := dc.user_get(s, s.me);
