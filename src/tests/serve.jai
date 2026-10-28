@@ -6,6 +6,7 @@
 #import "String";
 #import "Base64";
 #import "Hash_Table";
+#import "Thread";
 crypto :: #import "crypto";
 discord :: #import "discord";
 keys :: #import "keys";
@@ -269,6 +270,52 @@ main :: () {
 	list, _ := etf.from_json(body);
 	check(status == 200 && list.kind == .List && list.list.count == 1 && field(list.list[0], "content").s == "hello", tprint("fetch: % %", status, body));
 	print("message: %\n", body);
+
+	// Link previews: a page behind a redirect, from a server on this machine (which only tests may reach).
+	check(!netio.is_public_address(u8.[127, 0, 0, 1]) && !netio.is_public_address(u8.[192, 168, 1, 1]) && !netio.is_public_address(u8.[100, 64, 0, 1])
+		&& !netio.is_public_address(u8.[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 10, 0, 0, 1]) && !netio.is_public_address(u8.[0xFE, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+		&& netio.is_public_address(u8.[1, 1, 1, 1]) && netio.is_public_address(u8.[0x26, 0x06, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11]), "only public addresses are fetched");
+	{
+		pages, lerr := netio.listen_tcp(0);
+		check(lerr == .None, "page server");
+		page_server :: (thread: *Thread) -> s64 {
+			l := cast(*netio.Listener) thread.data;
+			for 0..1 {
+				t, err := netio.accept_tcp(l);
+				if err != .None return 0;
+				h: http.H1_Conn;
+				http.h1_init(*h, netio.tcp_stream(t));
+				req, rerr := http.h1_read_request(*h);
+				if req.path == "/start" {
+					http.h1_write_response(netio.tcp_stream(t), 302, .[.{"location", "/page"}, .{"content-length", "0"}], .[]);
+				} else {
+					body := "<html><head><title>Plain</title><!-- <meta property=\"og:title\" content=\"hidden\"> --><meta property=\"og:title\" content=\"Tom &amp; Jerry\"><meta name=description content=\"A  cat\nand a mouse.\"><meta property=\"og:site_name\" content=\"Cartoons\"></head><body>x</body></html>";
+					http.h1_write_response(netio.tcp_stream(t), 200, .[.{"content-type", "text/html; charset=utf-8"}, .{"content-length", tprint("%", body.count)}], cast([]u8) body);
+				}
+				http.h1_destroy(*h);
+			}
+			return 0;
+		}
+		server := New(Thread); // locks.join frees it.
+		thread_init(server, page_server);
+		server.data = pages;
+		thread_start(server);
+		s.unfurl_any_address = true;
+		status, body = rest("POST", messages, tprint("{\"content\": \"look at http://127.0.0.1:%/start.\"}", pages.port), token);
+		sent, _ := etf.from_json(body);
+		got: etf.Value;
+		for 1..100 {
+			sleep_milliseconds(50);
+			_, one := rest("GET", tprint("%?limit=1", messages), "", token);
+			list, _ := etf.from_json(one);
+			if list.kind == .List && list.list.count && field(list.list[0], "embeds").list.count { got = field(list.list[0], "embeds").list[0]; break; }
+		}
+		check(field(got, "title").s == "Tom & Jerry" && field(got, "description").s == "A cat and a mouse." && field(got, "provider", "name").s == "Cartoons"
+			&& field(got, "url").s == tprint("http://127.0.0.1:%/start", pages.port), tprint("a link gets a preview: %", got));
+		netio.close_listener(pages);
+		locks.join(server);
+		rest("DELETE", tprint("%/%", messages, field(sent, "id").s), "", token);
+	}
 
 	// The real client on the plain profile: READY, the first page, then a message sent through it.
 	cid := string_to_int(channel, T = u64);

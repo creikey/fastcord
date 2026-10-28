@@ -14,6 +14,8 @@ netio :: #import "netio";
 sqlite :: #import "sqlite";
 tls :: #import "tls";
 
+#load "unfurl.jai";
+
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
 LOGIN_DEADLINE_S :: 10;
@@ -33,6 +35,12 @@ Server :: struct {
 	mu: locks.Mutex; // Guards conns and activities.
 	conns: [..]*Conn;
 	activities: [..]Member_Activities; // Kept past a member's last gateway, for when they're back.
+	unfurl_mu: locks.Mutex; // Guards unfurl_jobs and unfurl_stop.
+	unfurl_wake: locks.Cond;
+	unfurl_jobs: [..]Unfurl_Job;
+	unfurl_stop: bool;
+	unfurl_thread: *Thread;
+	unfurl_any_address: bool; // Tests only: let link previews fetch from this machine.
 	seq: u32; // atomic; the low bits of snowflakes
 	guild: s64; // The guild ID the client sees.
 	name: string;
@@ -284,6 +292,7 @@ listen :: (s: *Server, port: int) -> bool {
 	if err != .None return false;
 	s.listener = l;
 	s.accept_thread = spawn(s, accept_loop);
+	s.unfurl_thread = spawn(s, unfurler);
 	return true;
 }
 
@@ -293,6 +302,11 @@ stop :: (s: *Server) {
 		netio.close_listener(s.listener);
 		locks.join(s.accept_thread);
 		free(s.listener);
+		locks.lock(*s.unfurl_mu);
+		s.unfurl_stop = true;
+		locks.cond_signal(*s.unfurl_wake);
+		locks.unlock(*s.unfurl_mu);
+		locks.join(s.unfurl_thread);
 	}
 	// The accept thread has returned, so nothing else touches conns now.
 	for s.conns netio.shutdown(netio.tcp_stream(it.tcp)); // Not it.s: its thread may be replacing it.
@@ -307,7 +321,7 @@ stop :: (s: *Server) {
 	close(s);
 }
 
-#scope_file
+#scope_module
 
 close :: (s: *Server) {
 	if s.ctx tls.SSL_CTX_free(s.ctx);
@@ -347,6 +361,8 @@ CREATE TABLE IF NOT EXISTS uploads(token TEXT PRIMARY KEY, user INTEGER NOT NULL
 CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY, message INTEGER NOT NULL, key TEXT NOT NULL, filename TEXT NOT NULL, content_type TEXT NOT NULL,
 	size INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, description TEXT NOT NULL, data BLOB NOT NULL);
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
+CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
+	provider TEXT NOT NULL, color INTEGER NOT NULL, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
@@ -677,7 +693,7 @@ iso :: (id: s64) -> string {
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
 		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
-		kind := DEFAULT, attachments := etf.Value.{}) -> etf.Value {
+		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx kind != DEFAULT then kind else ifx reply then 19 else 0));
@@ -697,7 +713,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "edited_timestamp", ifx edited then etf.vstring(iso(edited)) else .{});
 	etf.map_put(*m, "flags", etf.vint(0));
 	etf.map_put(*m, "attachments", ifx attachments.kind == .List then attachments else etf.vlist(.[]));
-	etf.map_put(*m, "embeds", etf.vlist(.[]));
+	etf.map_put(*m, "embeds", ifx embeds.kind == .List then embeds else etf.vlist(.[]));
 	etf.map_put(*m, "mentions", ifx mentions.kind == .List then mentions else etf.vlist(.[]));
 	etf.map_put(*m, "mention_everyone", etf.vbool(everyone));
 	etf.map_put(*m, "pinned", etf.vbool(pinned));
@@ -755,7 +771,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id));
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id));
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -1272,6 +1288,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		}
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_CREATE", m);
+		queue_unfurl(s, id, content.s);
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
@@ -1314,6 +1331,10 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 				&& sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ?, everyone = ? WHERE id = ?;", content.s, snowflake(s), cast(int) everyone, message)
 				&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ? AND user IS NOT (SELECT r.author FROM messages m JOIN messages r ON r.id = m.reply WHERE m.id = ?);", message, message);
 			for mention_ids(content.s) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+			// Previews of links the edit removed go now; the worker refreshes the rest.
+			links: [MAX_LINKS]string;
+			for link_urls(content.s) links[it_index] = it;
+			ok = ok && sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND url NOT IN (coalesce(?, ''), coalesce(?, ''), coalesce(?, ''));", message, links[0], links[1], links[2]);
 			if !ok || !sqlite.exec(s.db, "COMMIT;") {
 				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1324,6 +1345,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		sb.allocator = temp;
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_UPDATE", m);
+		queue_unfurl(s, message, content.s);
 		return respond(c, 200, builder_to_string(*sb,, temp));
 	} else if req.method == "DELETE" {
 		{
@@ -1332,6 +1354,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 			sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", message);
 			sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", message);
 			sqlite.run(s.db, "DELETE FROM attachments WHERE message = ?;", message);
+			sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", message);
 		}
 		d := etf.map_builder(3,, temp);
 		etf.map_put(*d, "id", snow(message));
@@ -1585,6 +1608,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& sqlite.run(s.db, "DELETE FROM reactions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
 			&& sqlite.run(s.db, "DELETE FROM mentions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
 			&& sqlite.run(s.db, "DELETE FROM attachments WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
+			&& sqlite.run(s.db, "DELETE FROM embeds WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
 			&& sqlite.run(s.db, "DELETE FROM uploads WHERE channel = ?;", channel)
 			&& sqlite.run(s.db, "DELETE FROM messages WHERE channel = ?;", channel)
 			&& sqlite.run(s.db, "DELETE FROM read_states WHERE channel = ?;", channel)

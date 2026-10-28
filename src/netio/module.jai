@@ -49,8 +49,10 @@ Tcp :: struct {
 	peer: [16]u8; // An accepted connection's address, IPv4 as ::ffff:a.b.c.d.
 }
 
-// dial_tcp resolves host and connects to its first IPv4 address, else its first IPv6 one.
-dial_tcp :: (host: string, port: int, loc := #caller_location) -> *Tcp, Error {
+// dial_tcp resolves host and connects to its first IPv4 address, else its first IPv6 one. public_only
+// skips every address that isn't on the public internet (is_public_address), for a server fetching a URL
+// someone else chose; the check is on the address it then connects to, so DNS can't swap it after.
+dial_tcp :: (host: string, port: int, public_only := false, loc := #caller_location) -> *Tcp, Error {
 	locks.may_block("TCP dial", loc);
 	#if OS == .WINDOWS socket_init(); // WSAStartup: reference counted, cheap next to a dial
 	hints: addrinfo;
@@ -62,8 +64,13 @@ dial_tcp :: (host: string, port: int, loc := #caller_location) -> *Tcp, Error {
 	ai: *addrinfo;
 	p := res;
 	while p {
-		if p.ai_family == AF_INET { ai = p; break; }
-		if p.ai_family == AF_INET6 && !ai ai = p;
+		// Both sockaddr layouts put the address at a fixed offset: 4 for IPv4, 8 for IPv6.
+		addr := cast(*u8) p.ai_addr;
+		usable := !public_only
+			|| (p.ai_family == AF_INET && is_public_address(.{4, addr + 4}))
+			|| (p.ai_family == AF_INET6 && is_public_address(.{16, addr + 8}));
+		if usable && p.ai_family == AF_INET { ai = p; break; }
+		if usable && p.ai_family == AF_INET6 && !ai ai = p;
 		p = p.ai_next;
 	}
 	if !ai return null, .Dial;
@@ -79,6 +86,33 @@ dial_tcp :: (host: string, port: int, loc := #caller_location) -> *Tcp, Error {
 	t.sock = sock;
 	tcp_set_timeout(t, DIAL_IO_TIMEOUT_MS);
 	return t, .None;
+}
+
+// is_public_address: an IPv4 (4 bytes) or IPv6 (16 bytes) address that is globally routable. Refused:
+// this host, private and carrier-grade NAT ranges, link-local, multicast and reserved ones, and IPv6 forms
+// that embed a refused IPv4 address (mapped, compatible, NAT64).
+is_public_address :: (a: []u8) -> bool {
+	if a.count == 16 {
+		zero10 := true;
+		for 0..9 if a[it] zero10 = false;
+		if zero10 && ((a[10] == 0xFF && a[11] == 0xFF) || (a[10] == 0 && a[11] == 0)) return is_public_address(.{4, a.data + 12});
+		if a[0] == 0x00 && a[1] == 0x64 && a[2] == 0xFF && a[3] == 0x9B return is_public_address(.{4, a.data + 12});
+		if (a[0] & 0xFE) == 0xFC return false;                  // fc00::/7, unique local.
+		if a[0] == 0xFE && (a[1] & 0xC0) == 0x80 return false;  // fe80::/10, link-local.
+		if a[0] == 0xFF return false;                           // Multicast.
+		if a[0] == 0x20 && a[1] == 0x01 && a[2] == 0x0D && a[3] == 0xB8 return false; // Documentation.
+		return (a[0] & 0xE0) == 0x20;                           // 2000::/3, global unicast.
+	}
+	if a.count != 4 return false;
+	b0, b1 := a[0], a[1];
+	if b0 == 0 || b0 == 10 || b0 == 127 || b0 >= 224 return false;
+	if b0 == 100 && (b1 & 0xC0) == 64 return false;           // 100.64/10, carrier-grade NAT.
+	if b0 == 169 && b1 == 254 return false;                   // Link-local.
+	if b0 == 172 && (b1 & 0xF0) == 16 return false;           // 172.16/12.
+	if b0 == 192 && b1 == 168 return false;
+	if b0 == 192 && b1 == 0 && a[2] == 0 return false;        // 192.0.0/24, protocol assignments.
+	if b0 == 198 && (b1 & 0xFE) == 18 return false;           // 198.18/15, benchmarking.
+	return true;
 }
 
 tcp_stream :: (t: *Tcp) -> Stream {
