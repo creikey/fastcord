@@ -115,8 +115,11 @@ main :: () {
 	check(status == 404, tprint("a wrong code is refused: % %", status, body));
 	status, body = login(k, code, "Tester", relay = true);
 	check(status == 401, tprint("a signature from another connection is refused: % %", status, body));
-	status, body = login(k, code, "Tester");
+	owner_code := serve.owner_invite(s,, context.default_allocator);
+	check(owner_code && owner_code != code, "a new server has an owner invite");
+	status, body = login(k, owner_code, "Tester");
 	check(status == 200 && begins_with(body, "{\"token\": \""), tprint("join: % %", status, body));
+	check(serve.owner_invite(s) == "", "the owner invite works once");
 	status, body = login(k, "", "");
 	check(status == 200, tprint("a member logs in without a code: % %", status, body));
 	inv, inv_ok := serve.parse_invite(serve.invite_url(s, "::1", port, code));
@@ -265,6 +268,23 @@ main :: () {
 	ml: *discord.Member_List;
 	for 1..300 { ml = table_find_pointer(*cl.store.member_lists, gid); if ml && ml.online_count == 1 break; pump(); }
 	check(ml && ml.online_count == 1 && ml.items.count == 2 && ml.items[1].user_id == cl.store.me, tprint("member list: %", ifx ml then ml.items.count else -1));
+
+	g := discord.guild_get(*cl.store, gid);
+	check(g && g.owner_id == cl.store.me, "READY names the owner");
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"Off Topic\", \"type\": 0}", token);
+	made, _ := etf.from_json(body);
+	check(status == 201 && field(made, "name").s == "off-topic", tprint("create a channel: % %", status, body));
+	new_id := string_to_int(field(made, "id").s, T = u64);
+	for 1..300 { if discord.channel_get(*cl.store, new_id) break; pump(); }
+	check(discord.channel_get(*cl.store, new_id) != null, "CHANNEL_CREATE");
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", new_id), "{\"topic\": \"anything\"}", token);
+	check(status == 200 && contains(body, "\"topic\":\"anything\""), tprint("edit a channel: % %", status, body));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", new_id), "", token);
+	check(status == 200, tprint("delete a channel: % %", status, body));
+	for 1..300 { if !discord.channel_get(*cl.store, new_id) break; pump(); }
+	check(discord.channel_get(*cl.store, new_id) == null, "CHANNEL_DELETE");
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", cid), "", token);
+	check(status == 400, tprint("the last channel stays: %", status));
 	discord.client_destroy(cl);
 	status, body = rest("PATCH", tprint("%/1", messages), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("edit an unknown message: %", status));
@@ -281,6 +301,11 @@ main :: () {
 	check(status == 400, tprint("a reply to an unknown message is refused: %", status));
 	status, body = login(other, "", "Other");
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
+	status, body = login(other, code, "Other");
+	other_token: string;
+	if status == 200 other_token = slice(body, "{\"token\": \"".count, 64);
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"mine\"}", other_token);
+	check(status == 403, tprint("only the owner makes channels: % %", status, body));
 
 	serve.stop(s);
 	print("% failed\n", failed);

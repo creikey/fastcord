@@ -158,6 +158,8 @@ main :: () {
 		if !ok fail("could not open the server file %", opt.serve);
 		if !serve.listen(s, opt.port) fail("could not listen on port %", opt.port);
 		print("Serving % on port %. Invite (put your address in place of localhost):\n%\n", opt.serve, s.listener.port, serve.invite_url(s, "localhost", s.listener.port, serve.first_invite(s)));
+		owner := serve.owner_invite(s);
+		if owner print("Join with this one yourself first, to own the server (it works once):\n%\n", serve.invite_url(s, "localhost", s.listener.port, owner));
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
 	headless := opt.shot != "" || bench.on;
