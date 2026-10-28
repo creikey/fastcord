@@ -83,6 +83,15 @@ voice_frame :: () {
 	// our voice state comes back and the connection moves to the new session.
 	rejoin := vc.readies != 0 && vc.readies != store().readies;
 	vc.readies = store().readies;
+	// Our voice state gone while the call is still up (an older session of ours expiring, after a
+	// quit that skipped app_exit, drops it): join again after a grace. A kick closes the call first.
+	if vc.conn != null && voice.state(vc.conn) == .Connected && !table_find_pointer(*store().voice_states, store().me) {
+		now := platform.time_now();
+		if vc.state_lost_at == 0 vc.state_lost_at = now;
+		else if now - vc.state_lost_at > 3 { rejoin = true; vc.state_lost_at = 0; }
+	} else {
+		vc.state_lost_at = 0;
+	}
 	// mute / deafen -> connection + op 4 (deafen implies mute, like the client)
 	if rejoin || app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
 		vc.sent_mute = app.self_mute;
@@ -348,6 +357,7 @@ Voice_App :: struct {
 	auto_join: dc.Snowflake; // FASTCORD_JOIN_VOICE=<channel id>
 	auto_checked: bool;
 	readies: u64; // store().readies when we last sent op 4 for the call
+	state_lost_at: float64; // when our own voice state went missing mid-call (0: present)
 	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
 }
 
@@ -362,6 +372,7 @@ voice_drop :: () {
 	vc.channel = 0;
 	vc.version = 0;
 	vc.readies = 0;
+	vc.state_lost_at = 0;
 	table_reset_keeping_memory(*vc.speaking);
 }
 
