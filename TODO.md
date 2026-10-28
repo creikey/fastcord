@@ -44,7 +44,6 @@
 - [ ] Badges: the taskbar badge counts mentions in servers you left and DMs you closed (read states are never dropped), plus stale counts in read channels. Replying from another device leaves a stale red badge, because your own message doesn't zero `mention_count` (`store.jai`, `CLIENT_RULES.md`).
 - [ ] Channels: collapsed categories are local only; the account's `collapsed_channels` is parsed but unused and collapsing sends nothing.
 - [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
-- [ ] Keybinds: no Ctrl+/ list of keyboard shortcuts.
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
@@ -348,3 +347,4 @@
 - [x] Bug: the composer no longer stays dead after you start an edit and then switch channel or the message is deleted; the composer drops an edit whose message left the open channel (`tests/ui/rail/edit_then_switch.txt`).
 - [x] Composer: a pending reply stays with its channel: hidden in other channels, back with its @ toggle on return (`view_message_actions.jai` `replies_switch`, `tests/ui/rail/reply_per_channel.txt`).
 - [x] Keybinds: Escape in the composer (with no reply open) marks the open channel read and drops the "NEW" divider and bar (`view_chat.jai` `composer`, `tests/ui/forward/escape_mark_read.txt`).
+- [x] Keybinds: Ctrl+/ opens a Keyboard Shortcuts modal listing every shortcut fastcord handles (`views.jai` `shortcuts_modal`, `tests/ui/shortcut_list.txt`).

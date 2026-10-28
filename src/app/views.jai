@@ -1150,6 +1150,95 @@ navigate_step :: (dir: int, unread: bool, servers: bool, mentions := false) {
 }
 
 header_pin_rect: ui.Rect;
+shortcuts_open: bool;
+
+// Ctrl+/: the keyboard shortcuts fastcord handles, in two columns of key caps.
+shortcuts_modal :: () {
+	MOD :: #run ifx OS == .MACOS then "Cmd" else "Ctrl";
+	SHORTCUTS :: string.[
+		"Find or start a conversation", #run tprint("%+K", MOD),
+		"Back / forward", #run tprint("%+[ / %+]", MOD, MOD),
+		"Previous / next channel", "Alt+Up / Alt+Down",
+		"Previous / next unread channel", "Alt+Shift+Up / Down",
+		"Previous / next channel with mentions", #run tprint("%+Alt+Shift+Up / Down", MOD),
+		"Previous / next server", #run tprint("%+Alt+Up / Down", MOD),
+		"Return to the connected call", #run tprint("%+Alt+A", MOD),
+		"Toggle inbox", #run tprint("%+I", MOD),
+		"Toggle pins", #run tprint("%+P", MOD),
+		"Toggle member list", #run tprint("%+U", MOD),
+		"Mark channel read", "Escape",
+		"Mark server read", "Shift+Escape",
+		"Jump to oldest unread message", "Shift+Page Up",
+		"Scroll chat", "Page Up / Page Down",
+		"Edit your last message", "Up",
+		"Mark a message unread", "Alt+Click",
+		"Toggle mute", #run tprint("%+Shift+M", MOD),
+		"Toggle deafen", #run tprint("%+Shift+D", MOD),
+		"Emoji / GIF / sticker picker", #run tprint("%+E / G / S", MOD),
+		"Upload a file", #run tprint("%+Shift+U", MOD),
+		"Bold / italic / underline", #run tprint("%+B / I / U", MOD),
+		"Keyboard shortcuts", #run tprint("%+/", MOD),
+	];
+	scrim := ui.box("sc_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	scrim.style.bg = .{0, 0, 0, 0.7};
+	if ui.signal(scrim).clicked {
+		shortcuts_open = false;
+		return;
+	}
+	W :: 560;
+	PAD :: 24;
+	d := ui.box("scmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	d.semantic_size = .[ui.px(W), ui.children()];
+	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
+	d.style.border = 1;
+	d.style.radius = all4(12);
+	d.layout_axis = .Y;
+	ui.signal(d);
+	ui.push_parent(d);
+	defer ui.pop_parent();
+	spacer(.Y, PAD);
+	tr := row("t");
+	tr.semantic_size = .[ui.pct(1), ui.px(24)];
+	{ ui.parent(tr); defer ui.pop_parent();
+		spacer(.X, PAD);
+		label("Keyboard Shortcuts", .Semibold, 20, T("--text-strong"), 24);
+	}
+	spacer(.Y, 16);
+	sc := ui.box("list", .Scroll_Y | .Clip);
+	sc.semantic_size = .[ui.pct(1), ui.px(clamp(sc.content_size.y, 32, max(app.ui.window.y - 160, 32)))];
+	sc.layout_axis = .Y;
+	ui.signal(sc);
+	{ ui.parent(sc); defer ui.pop_parent();
+		for i: 0..SHORTCUTS.count / 2 - 1 {
+			r := row(tprint("sc%", i));
+			r.semantic_size = .[ui.pct(1), ui.px(36)];
+			r.cross_align = .Center;
+			ui.parent(r); defer ui.pop_parent();
+			spacer(.X, PAD);
+			label(SHORTCUTS[2 * i], .Normal, 15, T("--text-default"), 20);
+			filler(.X);
+			k := ui.box(tprint("%##keys", SHORTCUTS[2 * i + 1]), .Draw_Background | .Draw_Text);
+			k.semantic_size = .[ui.text_size(16), ui.px(24)];
+			k.style.bg = T("--background-mod-strong");
+			k.style.radius = all4(4);
+			k.style.font = F(.Semibold);
+			k.style.font_size = 13;
+			k.style.text_color = T("--text-strong");
+			k.style.text_align = .Center;
+			spacer(.X, PAD);
+		}
+	}
+	spacer(.Y, PAD - 8);
+	for * e: app.ui.events {
+		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
+			e.consumed = true;
+			shortcuts_open = false;
+		}
+	}
+}
 
 overlays :: () {
 	// Escape is a global keybind in the official client (MARK_CHANNEL_READ, or
@@ -1195,6 +1284,10 @@ overlays :: () {
 			switcher_toggle();
 			e.consumed = true;
 		}
+		if !e.consumed && e.kind == .Key_Down && e.key == .Slash && e.mods == PRIMARY_MOD && !(modal_open() && !shortcuts_open) {
+			shortcuts_open = !shortcuts_open;
+			e.consumed = true;
+		}
 		if !e.consumed && e.kind == .Key_Down && (e.key == .M || e.key == .D) && e.mods == PRIMARY_MOD | .Shift {
 			if e.key == .M toggle_self_mute();
 			else app.self_deaf = !app.self_deaf;
@@ -1206,6 +1299,7 @@ overlays :: () {
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
 	if tsg.channel != 0 { timestamp_gen_modal(); }
+	if shortcuts_open { shortcuts_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
 	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
 	media_overlays(); // view_media.jai: image viewer, media context menu
