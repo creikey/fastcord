@@ -58,6 +58,8 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
+	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN max_age INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN expires INTEGER NOT NULL DEFAULT 0;");
 
 	id := meta_get(s, "id");
 	key := meta_get(s, "tls_key");
@@ -121,9 +123,12 @@ first_invite :: (s: *Server, allocator := temp) -> string {
 }
 
 // owner_invite is the unused code that makes its first user the owner, or "" once the server has one.
+// An invite works while it has uses left (-1: unlimited) and hasn't expired (expires is Unix seconds, 0: never).
+INVITE_LIVE :: "uses_left != 0 AND (expires = 0 OR expires > unixepoch())";
+
 owner_invite :: (s: *Server, allocator := temp) -> string {
 	locks.guard(*s.db_mu);
-	st := sqlite.prepare(s.db, "SELECT code FROM invites WHERE owner = 1 AND uses_left != 0 LIMIT 1;");
+	st := sqlite.prepare(s.db, tprint("SELECT code FROM invites WHERE owner = 1 AND % LIMIT 1;", INVITE_LIVE));
 	defer sqlite.finalize(st);
 	if sqlite.step(st) != .Row return "";
 	return copy_string(sqlite.col_text(st, 0),, allocator);
@@ -299,7 +304,8 @@ CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NO
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER);
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
-CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER);
+CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER,
+	max_age INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL DEFAULT 0);
 SQL
 
 DISCORD_EPOCH_MS :: 1420070400000;
@@ -367,11 +373,11 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 		if !user {
 			name := trim(field("name"));
 			owner := false;
-			st = sqlite.prepare(s.db, "SELECT owner FROM invites WHERE code = ? AND uses_left != 0;");
+			st = sqlite.prepare(s.db, tprint("SELECT owner FROM invites WHERE code = ? AND %;", INVITE_LIVE));
 			sqlite.bind(st, 1, field("code"));
 			if sqlite.step(st) == .Row owner = sqlite.col_int(st, 0) != 0;
 			sqlite.finalize(st);
-			if !sqlite.run(s.db, "UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND uses_left != 0;", field("code")) || sqlite.changes(s.db) != 1 {
+			if !sqlite.run(s.db, tprint("UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND %;", INVITE_LIVE), field("code")) || sqlite.changes(s.db) != 1 {
 				status, code, message = 404, 10006, "Unknown Invite";
 			} else if !name || name.count > 32 {
 				status, code, message = 400, 50035, "Invalid Form Body";
@@ -949,32 +955,41 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 
 // POST /api/v9/channels/{id}/invites {max_uses?, validate?}: any member makes an invite. validate names
 // the invite this member got before; while it still works, that one is returned instead of a new one.
-// Invites don't expire yet, so max_age is ignored and reported as 0.
+// max_age is in seconds, 0 for never, up to the 30 days the modal asks for.
 create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64) -> bool {
 	s := c.server;
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 	uses, _ := etf.map_get(v.map, "max_uses");
+	age, _ := etf.map_get(v.map, "max_age");
 	validate, _ := etf.map_get(v.map, "validate");
 	max_uses := ifx uses.kind == .Int then uses.i else 0;
-	if max_uses < 0 || max_uses > 100 return json_error(c, 400, 50035, "Invalid Form Body");
+	max_age := ifx age.kind == .Int then age.i else 86400;
+	if max_uses < 0 || max_uses > 100 || max_age < 0 || max_age > 2592000 return json_error(c, 400, 50035, "Invalid Form Body");
 	code := "";
+	expires := 0;
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		ch = channel_locked(s, channel);
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
 		if validate.kind == .String {
-			st := sqlite.prepare(s.db, "SELECT code FROM invites WHERE code = ? AND inviter = ? AND channel = ? AND uses_left != 0;");
+			st := sqlite.prepare(s.db, tprint("SELECT code, max_age, expires FROM invites WHERE code = ? AND inviter = ? AND channel = ? AND %;", INVITE_LIVE));
 			sqlite.bind_all(st, validate.s, user, channel);
-			if sqlite.step(st) == .Row code = copy_string(sqlite.col_text(st, 0),, temp);
+			if sqlite.step(st) == .Row {
+				code = copy_string(sqlite.col_text(st, 0),, temp);
+				max_age = sqlite.col_int(st, 1);
+				expires = sqlite.col_int(st, 2);
+			}
 			sqlite.finalize(st);
 		}
 		if !code {
 			bytes: [6]u8;
 			crypto.random_bytes(bytes);
 			code = hex(bytes,, temp);
-			if !sqlite.run(s.db, "INSERT INTO invites(code, uses_left, inviter, channel) VALUES(?, ?, ?, ?);", code, ifx max_uses then max_uses else -1, user, channel) {
+			expires = ifx max_age then to_seconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) + max_age else 0;
+			if !sqlite.run(s.db, "INSERT INTO invites(code, uses_left, inviter, channel, max_age, expires) VALUES(?, ?, ?, ?, ?, ?);",
+					code, ifx max_uses then max_uses else -1, user, channel, max_age, expires) {
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
 		}
@@ -989,7 +1004,8 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	etf.map_put(*m, "guild", etf.vmap(etf.map_done(*g)));
 	etf.map_put(*m, "channel", ch);
 	etf.map_put(*m, "inviter", user_value(user, name));
-	etf.map_put(*m, "max_age", etf.vint(0));
+	etf.map_put(*m, "max_age", etf.vint(max_age));
+	etf.map_put(*m, "expires_at", ifx expires then etf.vstring(iso(((expires * 1000) - DISCORD_EPOCH_MS) << 22)) else .{});
 	etf.map_put(*m, "max_uses", etf.vint(max_uses));
 	etf.map_put(*m, "temporary", etf.vbool(false));
 	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));

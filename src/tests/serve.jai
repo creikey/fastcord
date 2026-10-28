@@ -322,6 +322,14 @@ main :: () {
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 	other_token, ostatus, omessage := serve.member_login(member_invite, other, "Other");
 	check(member_ok && other_token.count == 64, tprint("join with a member's invite: % %", ostatus, omessage));
+	status, body = rest("POST", tprint("/api/v9/channels/%/invites", cid), "{\"max_age\": 1}", token);
+	short, _ := etf.from_json(body);
+	check(status == 200 && field(short, "expires_at").kind == .String, tprint("an invite with an expiry: % %", status, body));
+	sleep_milliseconds(2100);
+	expired := member_invite;
+	expired.code = field(short, "code").s;
+	_, ostatus, omessage = serve.member_login(expired, keys.generate("Late"), "Late");
+	check(ostatus == 404, tprint("an expired invite is refused: % %", ostatus, omessage));
 	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"mine\"}", other_token);
 	check(status == 403, tprint("only the owner makes channels: % %", status, body));
 
