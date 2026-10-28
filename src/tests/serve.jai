@@ -606,6 +606,38 @@ main :: () {
 	status, body = rest("DELETE", tprint("%/%", messages, field(spam, "id").s), "", other_token);
 	check(status == 204, tprint("a member deletes their own message: % %", status, body));
 
+	// A hosted client sends its server only its own token and the body's type, whatever URL it fetches:
+	// every request reaches the pinned server, and no cookie goes out, even one its jar holds for discord.com.
+	{
+		fake, lerr := netio.listen_tcp(0);
+		check(lerr == .None, "fake server listens");
+		hc := discord.client_create(.{token = "hosted-token", disable_gateway = true, hosted = .{host = "127.0.0.1", port = fake.port, pin = pin, server_id = id}});
+		discord.cookie_set_from_header(*hc.jar, "discord.com", "/", "__dcfduid=SECRET; Path=/; Domain=discord.com", discord.now_ms());
+		discord.client_start(hc);
+		for url: string.["https://discord.com/api/v9/users/@me", "https://cdn.discordapp.com/attachments/1/2/a.png", "a message page"] {
+			if it_index < 2 discord.fetch_media(hc, .{url = url, kind = .Fetch});
+			else discord.fetch_messages(hc, 1);
+			t, aerr := netio.accept_tcp(fake);
+			if aerr != .None { check(false, "fake server accepts"); break; }
+			session, _, _ := tls.accept(netio.tcp_stream(t), s.ctx);
+			if !session { check(false, "fake server handshakes"); netio.close(netio.tcp_stream(t)); break; }
+			h: http.H1_Conn;
+			http.h1_init(*h, tls.stream(session));
+			req, rerr := http.h1_read_request(*h);
+			clean := rerr == .None;
+			for req.headers {
+				if equal_nocase(it.name, "authorization") { if it.value != "hosted-token" clean = false; }
+				else if equal_nocase(it.name, "cookie") || contains(it.value, "SECRET") clean = false;
+			}
+			check(clean, tprint("a hosted fetch of % carries only the hosted token: % %", url, rerr, req.headers));
+			http.h1_write_response(tls.stream(session), 404, .[.{"connection", "close"}], .[]);
+			http.request_destroy(*req);
+			http.h1_destroy(*h);
+		}
+		discord.client_destroy(hc);
+		netio.close_listener(fake);
+	}
+
 	// One address holds at most 16 connections: past that, the server hangs up at once.
 	held: [..]netio.Stream;
 	refused := false;
