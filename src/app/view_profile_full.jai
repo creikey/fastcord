@@ -263,12 +263,12 @@ profile_actions :: (uid: dc.Snowflake) {
 	bar.fixed_pos = .{PF_W - PF_PAD - w, PF_PAD};
 	bar.style.child_gap = 8;
 	{ ui.parent(bar); defer ui.pop_parent();
-		if !friend {
+		if !friend && !on_hosted() {
 			pending := rel && rel.kind == .Outgoing_Request;
 			add := action_button(ifx pending then "Pending" else "Add Friend", "user-plus", 120, false, rel_req("Add Friend", uid));
 			if add && !pending && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "User Profile"); req_end(); }
 		}
-		if action_button("Message", "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
+		if !on_hosted() && action_button("Message", "chat", 110, true, dm_req(uid)) && open_dm_with(uid, "User Profile") { pf.user = 0; }
 		more := ui.box("more", .Clickable | .Draw_Background | .Hot_Animation);
 		more.semantic_size = .[ui.px(32), ui.px(32)];
 		more.style.radius = all4(8);
@@ -550,10 +550,10 @@ user_context_menu :: () {
 	items: [..]string;
 	items.allocator = temp;
 	array_add(*items, "Profile");
-	if uid != s.me { array_add(*items, "Message"); }
+	if uid != s.me && !on_hosted() { array_add(*items, "Message"); }
 	fn := friend_nick_menu_item(uid);
 	if fn != "" { array_add(*items, fn); }
-	if uid != s.me {
+	if uid != s.me && !on_hosted() {
 		rel := table_find_pointer(*s.relationships, uid);
 		if !rel || rel.kind == .None || rel.kind == .Implicit { array_add(*items, "Add Friend"); }
 	}

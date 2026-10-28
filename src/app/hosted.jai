@@ -127,6 +127,9 @@ hosted_restore :: (invites: []string) {
 	for invites if hosted_join(it) hosted[hosted.count - 1].joined = true;
 }
 
+// Whether the selected connection is a self-hosted server, which has no DMs or friends yet.
+on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != ""; }
+
 // The client that owns guild gid, if a hosted one does.
 hosted_client_of :: (gid: dc.Snowflake) -> *dc.Client {
 	for hosted if it.client && dc.guild_get(*it.client.store, gid) return it.client;
