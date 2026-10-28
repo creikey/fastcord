@@ -92,10 +92,12 @@ Options :: struct {
 	sweep: string; // headless: dead-control sweep over the screens in this spec (tests/ui/sweep.txt)
 	sweep_only: string; // -sweep-only:<screen> limits the sweep to one screen
 	sweep_out: string; // report directory (default build/sweep)
+	serve: string; // run a self-hosted server from this file instead of the app
+	port: int;
 }
 
 parse_options :: () -> Options {
-	o := Options.{width = 1280, height = 720, dpi = 2, theme = .Dark};
+	o := Options.{width = 1280, height = 720, dpi = 2, theme = .Dark, port = 4433};
 	args := get_command_line_arguments();
 	for a: array_view(args, 1) {
 		v: string;
@@ -136,6 +138,10 @@ parse_options :: () -> Options {
 			o.sweep_only = v;
 		} else if flag("-sweep-out:") {
 			o.sweep_out = v;
+		} else if flag("-serve:") {
+			o.serve = v;
+		} else if flag("-port:") {
+			o.port = parse_int_prefix(v);
 		} else {
 			bench_parse_flag(a);
 		}
@@ -146,6 +152,13 @@ parse_options :: () -> Options {
 main :: () {
 	dc.record_process_start(); // once, before the first client
 	opt := parse_options();
+	if opt.serve {
+		s, ok := serve.open(opt.serve);
+		if !ok fail("could not open the server file %", opt.serve);
+		if !serve.listen(s, opt.port) fail("could not listen on port %", opt.port);
+		print("Serving % on port %, server ID %, certificate pin %\n", opt.serve, s.listener.port, serve.id_hex(s), serve.pin_hex(s));
+		while true sleep_milliseconds(1000 * 60 * 60);
+	}
 	headless := opt.shot != "" || bench.on;
 	sw, sh := settings_load(headless);
 	if sw >= 400 && sh >= 300 {

@@ -47,7 +47,79 @@ h1_round_trip :: (c: *H1_Conn, req: Request) -> Response, Error {
 	return resp, err;
 }
 
+// The server side, for self-hosted servers: h1_init on the accepted stream, then h1_read_request and
+// h1_write_response in turn. Requests carry a Content-Length body or none (no chunked uploads).
+h1_read_request :: (c: *H1_Conn) -> Request, Error {
+	req: Request;
+	fields := NewArray(c.limits.max_headers, Phr_Header,, temp);
+	last := 0;
+	while true {
+		buf := array_view(c.r.buf, c.r.start, c.r.end - c.r.start);
+		method, path: *u8;
+		method_len, path_len: u64;
+		minor: s32;
+		n := cast(u64) fields.count;
+		ret := phr_parse_request(buf.data, xx buf.count, *method, *method_len, *path, *path_len, *minor, fields.data, *n, xx last);
+		if ret == -1 return req, .Protocol;
+		if ret > 0 {
+			push_allocator(c.allocator);
+			req.method = copy_string(to_string(method, xx method_len));
+			req.path = copy_string(to_string(path, xx path_len));
+			headers := NewArray(xx n, Header);
+			for array_view(fields, 0, xx n) {
+				if !it.name return req, .Protocol; // obs-fold
+				headers[it_index] = copy_header(to_string(it.name, xx it.name_len), to_string(it.value, xx it.value_len), c.allocator);
+			}
+			req.headers = headers;
+			c.r.start += ret;
+			if header_get(req.headers, "transfer-encoding") return req, .Protocol;
+			_, has_cl := header_get(req.headers, "content-length");
+			if has_cl {
+				len, ok := parse_content_length(req.headers);
+				if !ok return req, .Protocol;
+				if len > c.limits.max_body return req, .Too_Large;
+				body: [..]u8;
+				err := read_body_n(*c.r, *body, len);
+				req.body = body;
+				if err != .None return req, err;
+			}
+			return req, .None;
+		}
+		last = buf.count;
+		if last >= c.limits.max_header_bytes return req, .Too_Large;
+		if c.r.start == 0 && c.r.end == c.r.buf.count reader_grow(*c.r, min(2 * c.r.buf.count, c.limits.max_header_bytes));
+		err := fill(*c.r);
+		if err != .None return req, err;
+	}
+	return req, .None;
+}
+
+h1_write_response :: (s: netio.Stream, status: int, headers: []Header, body: []u8, reason := "") -> Error {
+	b: String_Builder;
+	b.allocator = temp;
+	print_to_builder(*b, "HTTP/1.1 % %\r\n", status, ifx reason then reason else ifx status < 400 then "OK" else "Error");
+	for headers {
+		if !valid_token(it.name) || !valid_value(it.value) return .Bad_Request;
+		print_to_builder(*b, "%: %\r\n", it.name, it.value);
+	}
+	if status != 101 print_to_builder(*b, "Content-Length: %\r\n", body.count);
+	append(*b, "\r\n");
+	append(*b, body.data, body.count);
+	return map_net_error(netio.write(s, cast([]u8) builder_to_string(*b,, temp)));
+}
+
+request_destroy :: (r: *Request) {
+	free_string(r.method);
+	free_string(r.path);
+	for r.headers { free_string(it.name); free_string(it.value); }
+	array_free(r.headers);
+	array_free(r.body);
+	r.* = .{};
+}
+
 #scope_module
+
+phr_parse_request :: (buf: *u8, len: u64, method: **u8, method_len: *u64, path: **u8, path_len: *u64, minor_version: *s32, headers: *Phr_Header, num_headers: *u64, last_len: u64) -> s32 #foreign vendor;
 
 Phr_Header :: struct {
 	name: *u8;

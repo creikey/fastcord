@@ -16,6 +16,8 @@
 #include <openssl/nid.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
 #include <string.h>
 
 void fc_rand_bytes(uint8_t *p, size_t n) { RAND_bytes(p, n); }
@@ -131,6 +133,38 @@ int fc_p256_verify(const uint8_t *pub, size_t pub_len, const uint8_t *msg, size_
     int ok = EC_POINT_oct2point(EC_KEY_get0_group(k), p, pub, pub_len, NULL) && EC_KEY_set_public_key(k, p) &&
              ECDSA_verify(0, h, 32, sig, slen, k) == 1;
     EC_POINT_free(p);
+    EC_KEY_free(k);
+    return ok;
+}
+
+// A self-signed certificate for a self-hosted server's P-256 key, valid for 100 years. Clients pin its
+// hash, so no field but the key matters. out must hold 1024 bytes; returns the DER length or 0.
+size_t fc_selfsigned_cert(const uint8_t priv[32], uint8_t *out) {
+    EC_KEY *k = fc__key(priv);
+    EVP_PKEY *pk = EVP_PKEY_new();
+    X509 *x = X509_new();
+    size_t n = 0;
+    if (k && pk && x && EVP_PKEY_set1_EC_KEY(pk, k)) {
+        X509_NAME *name = X509_get_subject_name(x);
+        int ok = X509_set_version(x, X509_VERSION_3) && ASN1_INTEGER_set(X509_get_serialNumber(x), 1) &&
+                 X509_gmtime_adj(X509_getm_notBefore(x), -86400) && X509_time_adj_ex(X509_getm_notAfter(x), 36500, 0, NULL) &&
+                 X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (const uint8_t *)"fastcord", -1, -1, 0) &&
+                 X509_set_issuer_name(x, name) && X509_set_pubkey(x, pk) && X509_sign(x, pk, EVP_sha256());
+        int len = ok ? i2d_X509(x, NULL) : 0;
+        if (len > 0 && len <= 1024) { uint8_t *p = out; i2d_X509(x, &p); n = (size_t)len; }
+    }
+    X509_free(x);
+    EVP_PKEY_free(pk);
+    EC_KEY_free(k);
+    return n;
+}
+
+int fc_ssl_ctx_use_p256(SSL_CTX *ctx, const uint8_t priv[32], const uint8_t *cert, size_t cert_len) {
+    EC_KEY *k = fc__key(priv);
+    EVP_PKEY *pk = EVP_PKEY_new();
+    int ok = k && pk && EVP_PKEY_set1_EC_KEY(pk, k) && SSL_CTX_use_certificate_ASN1(ctx, cert_len, cert) &&
+             SSL_CTX_use_PrivateKey(ctx, pk) && SSL_CTX_check_private_key(ctx);
+    EVP_PKEY_free(pk);
     EC_KEY_free(k);
     return ok;
 }

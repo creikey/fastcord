@@ -84,6 +84,53 @@ tcp_stream :: (t: *Tcp) -> Stream {
 	return .{data = t, read = tcp_read, write = tcp_write, close = tcp_close, shutdown = tcp_shutdown, set_timeout = tcp_set_timeout};
 }
 
+Listener :: struct {
+	sock: Socket;
+	port: int;
+	shut: bool; // atomic
+}
+
+// listen_tcp listens on every IPv6 and IPv4 address. Port 0 picks a free port: see Listener.port.
+listen_tcp :: (port: int) -> *Listener, Error {
+	#if OS == .WINDOWS socket_init();
+	sock := socket(AF_INET6, .STREAM, .TCP);
+	if sock == INVALID_SOCKET return null, .Dial;
+	zero, one: s32 = 0, 1;
+	setsockopt(sock, xx IPPROTO.IPV6, IPV6_V6ONLY, xx *zero, size_of(s32));
+	#if OS != .WINDOWS setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, *one, size_of(s32));
+	any: [16]u8;
+	if bind(sock, any, cast(u16) port) != 0 || listen(sock, 128) != 0 { close_and_reset(*sock); return null, .Dial; }
+	a: sockaddr_in6;
+	#if OS == .WINDOWS n: s32 = size_of(sockaddr_in6);
+	else n: socklen_t = size_of(sockaddr_in6);
+	getsockname(sock, cast(*sockaddr) *a, *n);
+	l := New(Listener);
+	l.sock, l.port = sock, ntohs(a.sin6_port);
+	return l, .None;
+}
+
+// accept_tcp blocks until a client connects. It fails with .Closed once close_listener has run.
+accept_tcp :: (l: *Listener) -> *Tcp, Error {
+	sock := accept(l.sock, null, null);
+	if atomic_load(*l.shut) { if sock != INVALID_SOCKET close_and_reset(*sock); return null, .Closed; }
+	if sock == INVALID_SOCKET return null, .Io;
+	one: s32 = 1;
+	#if OS == .MACOS setsockopt(sock, SOL_SOCKET, SO_NOSIGPIPE, *one, size_of(s32));
+	setsockopt(sock, xx IPPROTO.TCP, TCP_NODELAY, xx *one, size_of(s32));
+	t := New(Tcp);
+	t.sock = sock;
+	tcp_set_timeout(t, DIAL_IO_TIMEOUT_MS);
+	return t, .None;
+}
+
+// close_listener wakes a thread blocked in accept_tcp; free the Listener once that thread has returned.
+close_listener :: (l: *Listener) {
+	if atomic_exchange(*l.shut, true) return;
+	#if OS == .WINDOWS shutdown(l.sock, SD_BOTH);
+	else shutdown(l.sock, .RDWR);
+	close_and_reset(*l.sock);
+}
+
 #scope_file
 
 #import "Basic";

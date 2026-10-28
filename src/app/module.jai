@@ -22,6 +22,7 @@ gfx :: #import "gfx";
 http :: #import "http";
 imagefmt :: #import "imagefmt";
 keys :: #import "keys";
+serve :: #import "serve";
 locks :: #import "locks";
 lottie :: #import "lottie";
 media :: #import "media";

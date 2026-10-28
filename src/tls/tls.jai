@@ -6,6 +6,9 @@ Config :: struct {
 	server_name: string;
 	// Tests only: accepts any certificate.
 	insecure_skip_verify: bool;
+	// Self-hosted servers: the BLAKE3 hash of the one leaf certificate to accept (32 bytes), with no
+	// certificate authority or name check.
+	pin: []u8;
 }
 
 // Error is the detailed failure reason; netio.Error is what the Stream reports.
@@ -61,8 +64,16 @@ new_ssl :: (ctx: *SSL_CTX, cfg: Config, quic: bool) -> *SSL {
 	ok := d && SSL_set_ex_data(ssl, host_index, d) == 1;
 	if d && !ok OPENSSL_free(d);
 	if !ok { SSL_free(ssl); return null; }
-	at := ifx cfg.insecure_skip_verify then INSECURE.count else 0;
-	memcpy(d.host.data, INSECURE.data, at);
+	// A pinned connection keys its sessions by the pin too, so it never resumes one whose certificate had
+	// another hash.
+	prefix := ifx cfg.insecure_skip_verify then INSECURE else "";
+	if cfg.pin.count == 32 {
+		d.pinned = true;
+		memcpy(d.pin.data, cfg.pin.data, 32);
+		prefix = tprint("pin % ", hex(cfg.pin));
+	} else if cfg.pin.count ok = false;
+	at := prefix.count;
+	memcpy(d.host.data, prefix.data, at);
 	memcpy(d.host.data + at, cfg.server_name.data, cfg.server_name.count);
 	d.host_count = at + cfg.server_name.count;
 	if !is_ip_literal(cfg.server_name) ok = SSL_set_tlsext_host_name(ssl, d.host.data + at) == 1;
@@ -81,6 +92,7 @@ new_ssl :: (ctx: *SSL_CTX, cfg: Config, quic: bool) -> *SSL {
 	SSL_set_enable_ech_grease(ssl, 1);
 	if quic SSL_set_early_data_enabled(ssl, 1);
 	if cfg.insecure_skip_verify SSL_set_custom_verify(ssl, SSL_VERIFY_PEER, (ssl: *SSL, alert: *u8) -> s32 #c_call { return ssl_verify_ok; });
+	if d.pinned SSL_set_custom_verify(ssl, SSL_VERIFY_PEER, verify_pin);
 	sess := cache_take(host_of(d), quic);
 	if sess {
 		ok = ok && SSL_set_session(ssl, sess) == 1;
@@ -123,6 +135,79 @@ connect :: (under: netio.Stream, cfg: Config) -> *Session, netio.Error, Error {
 	ensure_init();
 	ssl := new_ssl(tcp_ctx, cfg, false);
 	if !ssl return null, .Tls, .Internal;
+	s, ne, e := start(ssl, under);
+	return s, ne, e;
+}
+
+// Self-hosted servers (`fastcord -serve`) are the server side: TLS 1.3 only, X25519MLKEM768 first, a
+// self-signed P-256 certificate that clients pin by hash, and exactly one ALPN protocol.
+
+// selfsigned_cert makes the DER certificate for a P-256 private key (crypto.p256_generate).
+selfsigned_cert :: (key: [32]u8) -> []u8 {
+	buf: [1024]u8;
+	n := cast(int) fc_selfsigned_cert(key.data, buf.data);
+	return array_copy(array_view(buf, 0, n));
+}
+
+// server_ctx returns null on failure. Contexts live as long as the server: nothing frees them.
+server_ctx :: (key: [32]u8, cert: []u8, alpn: string) -> *SSL_CTX {
+	ensure_init();
+	if !alpn.count || alpn.count > 255 return null;
+	ctx := SSL_CTX_new(TLS_method());
+	if !ctx return null;
+	wire := NewArray(1 + alpn.count, u8,, context.default_allocator);
+	wire[0] = xx alpn.count;
+	memcpy(wire.data + 1, alpn.data, alpn.count);
+	ok := SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) == 1
+		&& SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1
+		&& SSL_CTX_set1_group_ids(ctx, GROUPS.data, xx GROUPS.count) == 1
+		&& fc_ssl_ctx_use_p256(ctx, key.data, cert.data, xx cert.count) == 1;
+	if !ok { SSL_CTX_free(ctx); return null; }
+	SSL_CTX_set_alpn_select_cb(ctx, (ssl: *SSL, out: **u8, out_len: *u8, in: *u8, in_len: u32, arg: *void) -> s32 #c_call {
+		want := cast(*u8) arg;
+		i: u32 = 0;
+		while i < in_len {
+			n := in[i];
+			if n == want[0] && i + 1 + n <= in_len && memcmp(in + i + 1, want + 1, n) == 0 {
+				out.*, out_len.* = in + i + 1, n;
+				return SSL_TLSEXT_ERR_OK;
+			}
+			i += 1 + n;
+		}
+		return SSL_TLSEXT_ERR_ALERT_FATAL;
+	}, wire.data);
+	return ctx;
+}
+
+// accept runs the server side of the handshake over under; a client that didn't negotiate the context's
+// ALPN protocol is refused. Like connect, the session owns under on success and leaves it open on failure.
+accept :: (under: netio.Stream, ctx: *SSL_CTX) -> *Session, netio.Error, Error {
+	ssl := SSL_new(ctx);
+	if !ssl return null, .Tls, .Internal;
+	d := cast(*Ssl_Data) OPENSSL_zalloc(size_of(Ssl_Data));
+	if !d || SSL_set_ex_data(ssl, host_index, d) != 1 { OPENSSL_free(d); SSL_free(ssl); return null, .Tls, .Internal; }
+	SSL_set_accept_state(ssl);
+	s, ne, e := start(ssl, under);
+	if s && !negotiated_alpn(s) {
+		destroy(s);
+		return null, .Tls, .Protocol;
+	}
+	return s, ne, e;
+}
+
+// server_name is the SNI the client sent, or "". Valid until close.
+server_name :: (s: *Session) -> string {
+	p := SSL_get_servername(s.ssl, 0);
+	return ifx p then to_string(p) else "";
+}
+
+// exporter fills out from the TLS exporter (RFC 8446 7.5), binding a login to this one connection.
+exporter :: (s: *Session, label: string, ctx: []u8, out: []u8) -> bool {
+	locks.guard(*s.mu);
+	return SSL_export_keying_material(s.ssl, out.data, xx out.count, label.data, xx label.count, ctx.data, xx ctx.count, 1) == 1;
+}
+
+start :: (ssl: *SSL, under: netio.Stream) -> *Session, netio.Error, Error {
 	s := New(Session);
 	s.ssl, s.under, s.allocator = ssl, under, context.allocator;
 	s.out.allocator, s.sending.allocator = context.allocator, context.allocator;
@@ -247,7 +332,28 @@ INSECURE :: "insecure ";
 Ssl_Data :: struct {
 	ctx: *#Context;
 	host_count: int;
-	host: [INSECURE.count + 256]u8; // NUL-terminated
+	host: [72 + 256]u8; // NUL-terminated, after "insecure " or "pin <hex> ".
+	pinned: bool;
+	pin: [32]u8;
+}
+
+hex :: (b: []u8) -> string {
+	DIGITS :: "0123456789abcdef";
+	s := alloc_string(b.count * 2,, temp);
+	for b { s[it_index * 2] = DIGITS[it >> 4]; s[it_index * 2 + 1] = DIGITS[it & 15]; }
+	return s;
+}
+
+verify_pin :: (ssl: *SSL, out_alert: *u8) -> s32 #c_call {
+	d := cast(*Ssl_Data) SSL_get_ex_data(ssl, host_index);
+	push_context d.ctx.* {
+		certs := SSL_get0_peer_certificates(ssl);
+		if !certs || OPENSSL_sk_num(certs) < 1 return ssl_verify_invalid;
+		b := cast(*CRYPTO_BUFFER) OPENSSL_sk_value(certs, 0);
+		h := crypto.blake3(.{cast(s64) CRYPTO_BUFFER_len(b), CRYPTO_BUFFER_data(b)});
+		if !crypto.constant_time_equal(h, d.pin) return ssl_verify_invalid;
+		return ssl_verify_ok;
+	}
 }
 
 host_of :: (d: *Ssl_Data) -> string { return to_string(d.host.data, d.host_count); }

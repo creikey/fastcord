@@ -43,6 +43,7 @@ Ws_Conn :: struct {
 Ws_Options :: struct {
 	max_message: int;    // 0 -> 64 MiB
 	allow_deflate: bool; // accept the server's permessage-deflate (see the header comment)
+	server: bool;        // the accepting side: the peer's frames must be masked, ours are not
 }
 
 // ws_connect performs the opening handshake on s and returns the connection plus the 101 response
@@ -99,7 +100,8 @@ ws_attach :: (s: netio.Stream, opts := Ws_Options.{}) -> *Ws_Conn {
 	c.inbox.allocator, c.stored.allocator = context.allocator, context.allocator;
 	reader_init(*c.r, s);
 	cb := Wslay_Callbacks.{recv = ws_recv_cb, send = ws_send_cb, genmask = ws_genmask_cb, on_msg_recv = ws_on_msg_cb};
-	assert(wslay_event_context_client_init(*c.wslay, *cb, c) == 0, "wslay: out of memory");
+	init := ifx opts.server then wslay_event_context_server_init else wslay_event_context_client_init;
+	assert(init(*c.wslay, *cb, c) == 0, "wslay: out of memory");
 	c.max_message = ifx opts.max_message > 0 then opts.max_message else 64 << 20;
 	wslay_event_config_set_max_recv_msg_length(c.wslay, xx c.max_message);
 	return c;
@@ -231,6 +233,7 @@ WSLAY_ERR_NO_MORE_MSG :: -302;
 WSLAY_RSV1_BIT :: 1 << 2;
 
 wslay_event_context_client_init :: (ctx: **Wslay_Ctx, cb: *Wslay_Callbacks, user: *void) -> s32 #foreign vendor;
+wslay_event_context_server_init :: (ctx: **Wslay_Ctx, cb: *Wslay_Callbacks, user: *void) -> s32 #foreign vendor;
 wslay_event_context_free :: (ctx: *Wslay_Ctx) #foreign vendor;
 wslay_event_config_set_max_recv_msg_length :: (ctx: *Wslay_Ctx, val: u64) #foreign vendor;
 wslay_event_recv :: (ctx: *Wslay_Ctx) -> s32 #foreign vendor;

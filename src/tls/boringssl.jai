@@ -49,6 +49,15 @@ SSL_CTX_set_custom_verify :: (ctx: *SSL_CTX, mode: s32, cb: Verify_Callback) #fo
 SSL_new :: (ctx: *SSL_CTX) -> *SSL #foreign bssl;
 SSL_free :: (ssl: *SSL) #foreign bssl;
 SSL_set_connect_state :: (ssl: *SSL) #foreign bssl;
+SSL_set_accept_state :: (ssl: *SSL) #foreign bssl;
+Alpn_Select_Callback :: #type (ssl: *SSL, out: **u8, out_len: *u8, in: *u8, in_len: u32, arg: *void) -> s32 #c_call;
+SSL_CTX_set_alpn_select_cb :: (ctx: *SSL_CTX, cb: Alpn_Select_Callback, arg: *void) #foreign bssl;
+SSL_TLSEXT_ERR_OK :: 0;
+SSL_TLSEXT_ERR_ALERT_FATAL :: 2;
+SSL_get_servername :: (ssl: *SSL, type: s32) -> *u8 #foreign bssl;
+SSL_export_keying_material :: (ssl: *SSL, out: *u8, out_len: u64, label: *u8, label_len: u64, ctx: *u8, ctx_len: u64, use_ctx: s32) -> s32 #foreign bssl;
+fc_selfsigned_cert :: (priv: *u8, out: *u8) -> u64 #foreign bssl;
+fc_ssl_ctx_use_p256 :: (ctx: *SSL_CTX, priv: *u8, cert: *u8, cert_len: u64) -> s32 #foreign bssl;
 SSL_set_bio :: (ssl: *SSL, rbio: *BIO, wbio: *BIO) #foreign bssl;
 SSL_set_tlsext_host_name :: (ssl: *SSL, name: *u8) -> s32 #foreign bssl;
 SSL_set_alpn_protos :: (ssl: *SSL, protos: *u8, n: u64) -> s32 #foreign bssl;
