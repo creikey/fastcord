@@ -48,6 +48,7 @@
   - Local access to the file can always set a new owner.
   - `VACUUM INTO` runs before migrations and for backups and forks, never a plain file copy.
 - [ ] Hosting 4: uploads and a CDN, roles and permissions, then voice forwarded by the server (an SFU, selective forwarding unit).
+  - Once channels can be hidden, every read path must check them: message pages, pins, mention counts, read states, typing, gateway broadcasts and the member list. Search is the easy one to miss, since it spans every channel at once. Add a test that a member who can't see a channel gets nothing from it on any path.
 - [ ] Security (serve): anyone on the internet can crash or freeze a `fastcord -serve` server. A review on 2026-10-28 found no authorization or SQL-injection bugs, but these, most serious first:
   - Out of memory before login. `decode_items` (`etf/decode.jai`) allocates a list's full declared count before decoding a single item. One 1 MB gateway frame of nested list headers, about 128 deep with counts near 1M, commits about 4 GB, and a compressed frame (tag 80, inflated to 64 MiB) is worse. Grow the array as items arrive, or cap total allocation per frame at a small multiple of the frame's size.
   - The global `db_mu` is held while writing to the socket: `json_error` runs inside `locks.guard(*s.db_mu)`, at login and in the send, edit and reaction paths. A client that sends error-producing requests and never reads the replies blocks a write for up to 20 s with the lock held, which freezes every member. Build the reply under the lock, write it after.
@@ -59,6 +60,7 @@
   - Sessions never expire and every login adds one. Add expiry, logout, and an owner's Kick that revokes sessions.
   - Every Identify, disconnect and op 37 resends the full member list to every connection (already in Hosting 2's Next).
   - Low priority: names aren't unique, so a member can take the owner's name. An edit racing the author's own delete broadcasts a null `MESSAGE_UPDATE`.
+  - Search (`search`) costs the attacker one request. Every repeated `has=` or `pinned=` adds another AND, so a 256 KiB query string builds an expression about 29,000 deep. `fc_sqlite.c` sets `SQLITE_MAX_EXPR_DEPTH 0`, which turns SQLite's depth check off, so this may overflow the stack. Either way the scan runs under `db_mu` and freezes every member, and `has=link` is a LIKE over every message. Take each filter once, cap the ids per kind, rate-limit search, and restore the default depth limit.
   - Add a fuzz target for the server's HTTP, WebSocket, JSON and ETF input (the fuzzing item).
 - [ ] Security (hosted client): a self-hosted server can attack everyone who joins it. Until now the client's only input was Discord. A hosted server runs through the same `dc.Client`, gateway, ETF decoder and store (`app/hosted.jai`, `Config.hosted`), all written trusting Discord's shapes. Anyone can host a server and hand out invites.
   - The ETF memory bomb in Security (serve) crashes every member of a hostile server, so fix it in the shared decoder.
