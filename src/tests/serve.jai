@@ -263,6 +263,19 @@ main :: () {
 		for 1..100 pump();
 		status, body = rest("GET", messages, "", token);
 		check(!contains(body, "reactions"), tprint("reaction removed: %", body));
+		react := tprint("%/%/reactions", messages, hello);
+		status, body = rest("PUT", tprint("%/lol/@me", react), "", token);
+		check(status == 400, tprint("a word isn't an emoji: %", status));
+		status, body = rest("POST", messages, "{\"content\": \"a\\u0000b\"}", token);
+		check(status == 400, tprint("control characters are refused: %", status));
+		// U+1F600 onwards: 20 distinct emoji fit on a message, the 21st doesn't.
+		for i: 0..20 {
+			status, body = rest("PUT", tprint("%/\%F0\%9F\%98\%%/@me", react, formatInt(0x80 + i, base = 16)), "", token);
+			if status != 204 break;
+		}
+		check(status == 400 && contains(body, "30010"), tprint("at most 20 distinct reactions: % %", status, body));
+		for i: 0..20 rest("DELETE", tprint("%/\%F0\%9F\%98\%%/@me", react, formatInt(0x80 + i, base = 16)), "", token);
+		for 1..100 pump();
 
 		// Pins: the owner pins through the client; the message updates and the list has it.
 		epoch := discord.pins_epoch(cid);

@@ -441,7 +441,7 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			sqlite.finalize(st);
 			if !sqlite.run(s.db, tprint("UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND %;", INVITE_LIVE), field("code")) || sqlite.changes(s.db) != 1 {
 				status, code, message = 404, 10006, "Unknown Invite";
-			} else if !name || name.count > 32 {
+			} else if !name || name.count > 32 || !text_ok(name) {
 				status, code, message = 400, 50035, "Invalid Form Body";
 			} else if gone {
 				if !sqlite.run(s.db, "UPDATE users SET left = 0 WHERE id = ?;", user) user = 0;
@@ -1047,6 +1047,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		content, _ := etf.map_get(v.map, "content");
 		nonce, _ := etf.map_get(v.map, "nonce");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
 		if nonce.kind == .String && nonce.s.count > 25 return json_error(c, 400, 50035, "Invalid Form Body");
 		ref, _ := etf.map_get(v.map, "message_reference");
 		reply: s64;
@@ -1124,6 +1125,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		content, _ := etf.map_get(v.map, "content");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
 		m: etf.Value;
 		{
 			locks.guard(*s.db_mu);
@@ -1186,7 +1188,7 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	if parent_v.kind == .String parent, has_parent = string_to_int(parent_v.s, T = s64);
 	// Categories keep the name as typed; text channels get Discord's lowercase-dashed form.
 	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
-	if !name || name.count > 100 || (kind != TEXT && kind != CATEGORY) || (has_parent && kind != TEXT) return json_error(c, 400, 50035, "Invalid Form Body");
+	if !name || name.count > 100 || !text_ok(name) || (kind != TEXT && kind != CATEGORY) || (has_parent && kind != TEXT) return json_error(c, 400, 50035, "Invalid Form Body");
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
@@ -1220,7 +1222,7 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 	nick: etf.Value;
 	if err == .None && v.kind == .Map nick, _ = etf.map_get(v.map, "nick");
 	name := ifx nick.kind == .String then trim(nick.s) else "";
-	if !name || name.count > 32 return json_error(c, 400, 50035, "Invalid Form Body");
+	if !name || name.count > 32 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
 	{
 		locks.guard(*s.db_mu);
 		if !sqlite.run(s.db, "UPDATE users SET name = ? WHERE id = ?;", name, user) return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1289,7 +1291,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		kind := channel_type_locked(s, channel);
 		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
 		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
-		if (has_name && (!name || name.count > 100)) || (has_topic && topic.kind == .String && topic.s.count > 1024) return json_error(c, 400, 50035, "Invalid Form Body");
+		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
 			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel));
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1637,6 +1639,7 @@ search :: (c: *Conn, req: http.Request) -> bool {
 }
 
 MAX_PINS :: 50; // Per channel, as Discord had it; so the pins list never needs paging.
+MAX_REACTIONS :: 20; // Distinct emoji per message, as on Discord.
 
 // PUT/DELETE /api/v9/channels/{id}/messages/pins/{id}: until roles land (Hosting 4) only the owner pins.
 // The message (now pinned or not) follows as MESSAGE_UPDATE, then CHANNEL_PINS_UPDATE.
@@ -1722,7 +1725,13 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		return json_error(c, 404, 0, "404: Not Found");
 	}
 	emoji := percent_decode(rest[0]);
-	if !emoji || emoji.count > 64 || contains(emoji, ":") return json_error(c, 400, 10014, "Unknown Emoji");
+	// Every Unicode emoji has a byte past ASCII (keycaps end in U+20E3), so plain words are refused.
+	emoji_ok := emoji && emoji.count <= 64 && text_ok(emoji) && !contains(emoji, ":");
+	if emoji_ok {
+		emoji_ok = false;
+		for 0..emoji.count - 1 if emoji[it] >= 0x80 emoji_ok = true;
+	}
+	if !emoji_ok return json_error(c, 400, 10014, "Unknown Emoji");
 	changed := false;
 	{
 		locks.guard(*s.db_mu);
@@ -1731,6 +1740,14 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		found := sqlite.step(st) == .Row;
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
+		if add {
+			st = sqlite.prepare(s.db, "SELECT count(DISTINCT emoji), sum(emoji = ?) FROM reactions WHERE message = ?;");
+			sqlite.bind_all(st, emoji, message);
+			kinds, has := 0, 0;
+			if sqlite.step(st) == .Row kinds, has = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
+			sqlite.finalize(st);
+			if !has && kinds >= MAX_REACTIONS return json_error(c, 400, 30010, "Maximum number of reactions reached (20)");
+		}
 		sql := ifx add then "INSERT OR IGNORE INTO reactions(message, emoji, user) VALUES(?, ?, ?);" else "DELETE FROM reactions WHERE message = ? AND emoji = ? AND user = ?;";
 		if !sqlite.run(s.db, sql, message, emoji, user) return json_error(c, 500, 0, "500: Internal Server Error");
 		changed = sqlite.changes(s.db) > 0;
@@ -1750,6 +1767,35 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		broadcast(s, ifx add then "MESSAGE_REACTION_ADD" else "MESSAGE_REACTION_REMOVE", etf.vmap(etf.map_done(*d)));
 	}
 	return respond(c, 204, json = false);
+}
+
+// text_ok: s is well-formed UTF-8 (no overlongs, surrogates or bytes past U+10FFFF) with no control
+// characters, other than newlines and tabs where lines is set.
+text_ok :: (s: string, lines := false) -> bool {
+	i := 0;
+	while i < s.count {
+		b := s[i];
+		if b < 0x80 {
+			if (b < 0x20 || b == 0x7F) && !(lines && (b == #char "\n" || b == #char "\t")) return false;
+			i += 1;
+			continue;
+		}
+		n, cp: int;
+		if b >= 0xC2 && b <= 0xDF      n, cp = 2, b & 0x1F;
+		else if b >= 0xE0 && b <= 0xEF n, cp = 3, b & 0x0F;
+		else if b >= 0xF0 && b <= 0xF4 n, cp = 4, b & 0x07;
+		else return false;
+		if i + n > s.count return false;
+		for 1..n - 1 {
+			cb := s[i + it];
+			if cb & 0xC0 != 0x80 return false;
+			cp = (cp << 6) | (cb & 0x3F);
+		}
+		if (n == 3 && cp < 0x800) || (n == 4 && (cp < 0x10000 || cp > 0x10FFFF)) || (cp >= 0xD800 && cp <= 0xDFFF) return false;
+		if cp >= 0x80 && cp < 0xA0 return false; // C1 controls.
+		i += n;
+	}
+	return true;
 }
 
 percent_decode :: (s: string) -> string {
