@@ -223,6 +223,78 @@ invite_counts :: (p: dc.Invite_Preview) {
 	label(tprint("% Member%", p.members, ifx p.members == 1 then "" else "s"), .Normal, 14, T("--text-muted"), 18);
 }
 
+// ---- fc:// invites (self-hosted servers) ----
+
+// fc_invites: the distinct fc:// invites in a message's text (temp).
+fc_invites :: (content: string) -> []string {
+	out: [..]string;
+	out.allocator = temp;
+	rest := content;
+	while rest {
+		i := find_index_of_any_from_left(rest, " \n\t<>()");
+		word := trim_right(ifx i < 0 then rest else slice(rest, 0, i), ".,:;!?'\"");
+		if begins_with(word, "fc://") {
+			_, ok := serve.parse_invite(word);
+			if ok array_add_if_unique(*out, word);
+		}
+		if i < 0 break;
+		advance(*rest, i + 1);
+	}
+	return out;
+}
+
+// A card per fc:// invite. Nothing reaches the server until Join is clicked: resolving its name on sight
+// would show every reader's IP to whoever posted the link.
+fc_invite_cards_view :: (m: *dc.Message) {
+	if m.flags & 4 return; // SUPPRESS_EMBEDS
+	for url: fc_invites(m.content) {
+		inv := serve.parse_invite(url);
+		h: *Hosted_Server;
+		for hosted if it.inv.id_hex == inv.id_hex h = it;
+		spacer(.Y, 4);
+		card := ui.box(tprint("fcinvite%", it_index), .Draw_Background | .Draw_Border);
+		card.semantic_size = .[ui.px(432), ui.children()];
+		card.layout_axis = .Y;
+		card.style.bg = T("--embed-background");
+		card.style.border_color = T("--border-subtle");
+		card.style.border = 1;
+		card.style.radius = all4(12);
+		ui.parent(card); defer ui.pop_parent();
+		body := row("body");
+		body.semantic_size = .[ui.pct(1), ui.children()];
+		ui.parent(body); defer ui.pop_parent();
+		spacer(.X, 16);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			spacer(.Y, 16);
+			label(ifx m.author_id == store().me then "You sent an invite to a self-hosted server" else "You've been invited to a self-hosted server", .Medium, 14, T("--text-muted"), 18);
+			spacer(.Y, 8);
+			ready := h && h.client && h.client.store.ready && h.client.store.guild_order.count;
+			name := "";
+			if ready {
+				g := dc.guild_get(*h.client.store, h.client.store.guild_order[0]);
+				if g name = g.name;
+			}
+			label(ifx name then name else tprint("%:%", inv.host, inv.port), .Semibold, 20, T("--text-strong"), 24);
+			spacer(.Y, 16);
+			text := ifx ready then "Go to Server" else ifx h then "Joining…" else "Join Server";
+			if wide_button("join", text, T("--status-positive-background")) {
+				if ready {
+					app.client = h.client;
+					select_guild(h.client.store.guild_order[0]);
+				} else if !h {
+					ok, why := hosted_join(url);
+					if !ok toast_show(why, false);
+				}
+			}
+			spacer(.Y, 16);
+		}
+		spacer(.X, 16);
+	}
+}
+
 wide_button :: (id: string, text: string, bg: ui.Color) -> bool {
 	b := row(id, .Clickable | .Draw_Background | .Hot_Animation);
 	b.semantic_size = .[ui.pct(1), ui.px(40)];

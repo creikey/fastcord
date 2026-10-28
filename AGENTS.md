@@ -64,3 +64,9 @@ the Jai is written. This file lists what is easy to miss.
   (unified diff, paths under `<lib>/`): `build.jai` copies the library to `build/patched/<lib>`,
   applies the patches in name order with `git apply` and compiles that copy. List each patch and its
   purpose in the library's README, and re-make the patches on every update.
+- Parsers fastcord writes for untrusted input (anything from the network, a file or another user)
+  never use regular expressions. Parse with recursive descent over a lexer, preferably a table-driven
+  DFA or straight-line scanning code. Each must run in time linear in its input: no backtracking and
+  no scan ahead for a closer from every opener (markdown's `find_close` is the quadratic example).
+  Cap recursion depth (like `etf`'s `MAX_DEPTH`) and every count and size before allocating. Dev tools
+  reading the repo's own files may use regex.

@@ -55,6 +55,7 @@ New_Message :: struct {
 	attachments: int;
 	embeds: int;
 	sticker: bool;
+	store: *Store; // The connection it came on; take_new_messages hands each client only its own.
 }
 
 // The side tables are process-wide (the app runs one client). Several clients
@@ -142,7 +143,7 @@ note_joined :: (thread_id: Snowflake, joined := true) {
 	if tm tm.joined = joined;
 }
 
-note_message :: (d: etf.Map, me: Snowflake) {
+note_message :: (s: *Store, d: etf.Map, me: Snowflake) {
 	cid := fsnow(d, "channel_id");
 	tm := table_find_pointer(*extras.threads, cid);
 	if tm {
@@ -172,7 +173,8 @@ note_message :: (d: etf.Map, me: Snowflake) {
 		mention_everyone = fbool(d, "mention_everyone"),
 		attachments = flist(d, "attachments").count,
 		embeds = flist(d, "embeds").count,
-		sticker = flist(d, "sticker_items").count > 0
+		sticker = flist(d, "sticker_items").count > 0,
+		store = s
 	};
 	for flist(d, "mentions") if fsnow(vmap(it), "id") == me nm.mentions_me = true;
 	for flist(d, "mention_roles") array_add(*nm.mention_roles, vsnow(it));
@@ -198,6 +200,12 @@ extras_retain :: () {
 extras_release :: (c: *Client) {
 	locks.lock(*extras_mu);
 	if extras_clients > 0 extras_clients -= 1;
+	push_allocator(context.default_allocator);
+	for extras.new_msgs if it.store == *c.store {
+		free(it.content);
+		array_free(it.mention_roles);
+		remove it;
+	}
 	locks.unlock(*extras_mu);
 }
 
@@ -255,7 +263,7 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 		case "GUILD_MEMBER_UPDATE";
 			if fsnow(fmap(d, "user"), "id") == me note_roles(fsnow(d, "guild_id"), flist(d, "roles"));
 		case "MESSAGE_CREATE";
-			note_message(d, me);
+			note_message(s, d, me);
 	}
 }
 
@@ -348,13 +356,23 @@ extras_destroy :: () {
 	extras = .{};
 }
 
-// take_new_messages returns MESSAGE_CREATEs (from others) since the last call.
-// Free with new_messages_free.
+// take_new_messages returns c's MESSAGE_CREATEs (from others) since the last call; other
+// connections' stay queued for them. Free with new_messages_free.
 take_new_messages :: (c: *Client, allocator := temp) -> []New_Message {
 	locks.lock(*extras_mu);
 	defer locks.unlock(*extras_mu);
-	out := array_copy(extras.new_msgs,, allocator);
-	extras.new_msgs.count = 0;
+	out: [..]New_Message;
+	out.allocator = allocator;
+	k := 0;
+	for extras.new_msgs {
+		if it.store == *c.store {
+			array_add(*out, it);
+		} else {
+			extras.new_msgs[k] = it;
+			k += 1;
+		}
+	}
+	extras.new_msgs.count = k;
 	return out;
 }
 

@@ -15,6 +15,11 @@ tls :: #import "tls";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
+LOGIN_DEADLINE_S :: 10;
+// A member holds up to 3 connections (2 REST, 1 gateway), so this fits a household of several.
+MAX_CONNS_PER_ADDRESS :: 16;
+MAX_CONNS :: 1024;
+IPV4_MAPPED :: u8.[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF];
 
 Server :: struct {
 	db: *sqlite.DB;
@@ -39,9 +44,24 @@ Conn :: struct {
 	done: bool; // atomic; the thread has finished with s.
 	ws: *http.Ws_Conn; // Under server.mu: set once Identify succeeds, so broadcasts reach it.
 	user: s64;         // Under server.mu, with ws.
-	mu: locks.Mutex;   // Orders this gateway's dispatches: seq and their sends.
+	mu: locks.Mutex;   // Orders this gateway's dispatches: seq and their queueing.
 	seq: int;
+	// Under mu: encoded dispatches the writer thread hasn't sent yet, so one member who stops reading
+	// can't stall everyone else's events.
+	out: [..][]u8;
+	out_bytes: int;
+	wake: locks.Cond;
+	closing: bool;
+	out_ws: *http.Ws_Conn; // The writer's socket, fixed for its life (unlike ws).
+	writer: *Thread;
+	accepted: Apollo_Time;
+	authed: bool; // atomic; set by a login or a member's token.
+	reply_status: int; // The reply respond kept, 0 when none.
+	reply_body: string;
+	reply_json: bool;
 }
+
+OUT_MAX :: 8 << 20;
 
 // open makes the server file if needed: its ID, TLS key and certificate live in it, so the invite stays
 // valid for as long as the file does. A new server is named after the file and gets #general and an
@@ -54,9 +74,11 @@ open :: (path: string) -> *Server, bool {
 	if !sqlite.exec(db, SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
@@ -125,10 +147,10 @@ invite_url :: (pin: [32]u8, host: string, port: int, id_hex: string, code: strin
 	return sprint("fc://%@%:%/%/%", hex(pin,, temp), h, port, id_hex, code,, allocator);
 }
 
-// first_invite is the oldest invite's code, the one the console prints.
+// first_invite is the oldest working invite's code, the one the console prints, or "" if none works.
 first_invite :: (s: *Server, allocator := temp) -> string {
 	locks.guard(*s.db_mu);
-	st := sqlite.prepare(s.db, "SELECT code FROM invites WHERE owner = 0 ORDER BY rowid LIMIT 1;");
+	st := sqlite.prepare(s.db, tprint("SELECT code FROM invites WHERE owner = 0 AND % ORDER BY rowid LIMIT 1;", INVITE_LIVE));
 	defer sqlite.finalize(st);
 	if sqlite.step(st) != .Row return "";
 	return copy_string(sqlite.col_text(st, 0),, allocator);
@@ -311,10 +333,11 @@ meta_put :: (s: *Server, k: string, v: string) -> bool { return meta_put(s, k, c
 // Users, channels and messages have Discord-shaped snowflake IDs, since the client reads times from them.
 SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user);
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
@@ -362,8 +385,23 @@ unhex :: (s: string, out: []u8) -> bool {
 }
 
 json_error :: (c: *Conn, status: int, code: int, message: string) -> bool {
-	body := tprint("{\"message\": \"%\", \"code\": %}", message, code);
-	return http.h1_write_response(c.s, status, JSON_HEADERS, cast([]u8) body) == .None;
+	return respond(c, status, tprint("{\"message\": \"%\", \"code\": %}", message, code));
+}
+
+// respond keeps a handler's reply for serve_conn to write once the handler returns. Handlers often answer
+// while holding db_mu, and a client that doesn't read its replies would otherwise stall every member on
+// that lock until the write times out. body lives in temp, which lasts until the next request.
+respond :: (c: *Conn, status: int, body := "", json := true) -> bool {
+	c.reply_status, c.reply_body, c.reply_json = status, body, json;
+	return true;
+}
+
+flush_reply :: (c: *Conn) -> bool {
+	status := c.reply_status;
+	if !status return true;
+	c.reply_status = 0;
+	if c.reply_json return http.h1_write_response(c.s, status, JSON_HEADERS, cast([]u8) c.reply_body) == .None;
+	return http.h1_write_response(c.s, status, .[], cast([]u8) c.reply_body) == .None;
 }
 
 JSON_HEADERS :: http.Header.[.{"Content-Type", "application/json"}];
@@ -392,17 +430,21 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 
 	token: [32]u8;
 	crypto.random_bytes(token);
+	hello: etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		if !sqlite.exec(s.db, "BEGIN IMMEDIATE;") return json_error(c, 500, 0, "500: Internal Server Error");
 		user: s64;
-		gone := false;
-		st := sqlite.prepare(s.db, "SELECT id, left FROM users WHERE root = ?;");
+		gone, joined, banned := false, false, false;
+		st := sqlite.prepare(s.db, "SELECT id, left, banned FROM users WHERE root = ?;");
 		sqlite.bind(st, 1, cast([]u8) root);
-		if sqlite.step(st) == .Row user, gone = sqlite.col_int(st, 0), sqlite.col_int(st, 1) != 0;
+		if sqlite.step(st) == .Row user, gone, banned = sqlite.col_int(st, 0), sqlite.col_int(st, 1) != 0, sqlite.col_int(st, 2) != 0;
 		sqlite.finalize(st);
 		status, code, message := 0, 0, "";
-		if !user || gone {
+		if banned {
+			status, code, message = 403, 40007, "The user is banned from this guild.";
+			user = 0;
+		} else if !user || gone {
 			name := trim(field("name"));
 			owner := false;
 			st = sqlite.prepare(s.db, tprint("SELECT owner FROM invites WHERE code = ? AND %;", INVITE_LIVE));
@@ -411,24 +453,36 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			sqlite.finalize(st);
 			if !sqlite.run(s.db, tprint("UPDATE invites SET uses_left = uses_left - (uses_left > 0) WHERE code = ? AND %;", INVITE_LIVE), field("code")) || sqlite.changes(s.db) != 1 {
 				status, code, message = 404, 10006, "Unknown Invite";
-			} else if !name || name.count > 32 {
+			} else if !name || name.count > 32 || !text_ok(name) {
 				status, code, message = 400, 50035, "Invalid Form Body";
 			} else if gone {
 				if !sqlite.run(s.db, "UPDATE users SET left = 0 WHERE id = ?;", user) user = 0;
 			} else {
 				user = snowflake(s);
+				joined = true;
 				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name) VALUES(?, ?, ?, ?);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
 				if user && owner && !meta_put(s, "owner", tprint("%", user)) user = 0;
 			}
 		}
+		if user && (joined || gone) {
+			welcome := snowflake(s);
+			ok := sqlite.run(s.db, tprint("INSERT INTO messages(id, channel, author, content, type) SELECT ?, id, ?, '', % FROM channels WHERE type = % ORDER BY position, id LIMIT 1;", JOINED, TEXT), welcome, user);
+			if !ok user = 0;
+			else if sqlite.changes(s.db) hello = message_locked(s, welcome, nested = false);
+		}
 		token_hash := crypto.blake3(token);
 		if user && !sqlite.run(s.db, "INSERT INTO sessions(token_hash, user) VALUES(?, ?);", cast([]u8) token_hash, user) user = 0;
+		// Every start of a client logs in afresh and never reuses its token, so only a member's newest
+		// sessions stay.
+		if user && !sqlite.run(s.db, tprint("DELETE FROM sessions WHERE user = ?1 AND rowid NOT IN (SELECT rowid FROM sessions WHERE user = ?1 ORDER BY rowid DESC LIMIT %);", MAX_SESSIONS), user) user = 0;
 		if !user && !status status, code, message = 500, 0, "500: Internal Server Error";
 		sqlite.exec(s.db, ifx status then "ROLLBACK;" else "COMMIT;");
 		if status return json_error(c, status, code, message);
 	}
+	atomic_store(*c.authed, true);
+	if hello.kind == .Map broadcast(s, "MESSAGE_CREATE", hello);
 	body := tprint("{\"token\": \"%\"}", hex(token,, temp));
-	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) body) == .None;
+	return respond(c, 200, body);
 }
 
 spawn :: (data: $D, proc: (D)) -> *Thread {
@@ -441,20 +495,52 @@ spawn :: (data: $D, proc: (D)) -> *Thread {
 }
 
 accept_loop :: (s: *Server) {
+	// Finished connections are reaped here, so a long-running server holds only live ones.
+	// A connection that hasn't logged in within LOGIN_DEADLINE_S is cut off, so idle or trickling sockets
+	// can't pile up. This runs as connections arrive, which is when such a pile-up costs anything.
+	reap :: (s: *Server) {
+		now := current_time_monotonic();
+		for s.conns {
+			if atomic_load(*it.done) {
+				locks.join(it.thread);
+				netio.close(it.s);
+				free(it);
+				remove it;
+			} else if !atomic_load(*it.authed) && now - it.accepted > seconds_to_apollo(LOGIN_DEADLINE_S) {
+				netio.shutdown(netio.tcp_stream(it.tcp));
+			}
+		}
+	}
+	backoff := 0;
 	while true {
 		tcp, err := netio.accept_tcp(s.listener);
 		if err == .Closed break;
-		if err != .None continue;
+		if err != .None {
+			// Out of file descriptors, most likely: free the finished ones and wait, rather than spin.
+			locks.lock(*s.mu);
+			reap(s);
+			locks.unlock(*s.mu);
+			backoff = clamp(backoff * 2, 10, 1000);
+			sleep_milliseconds(xx backoff);
+			continue;
+		}
+		backoff = 0;
+		locks.lock(*s.mu);
+		reap(s);
+		// One address may hold MAX_CONNS_PER_ADDRESS, counting an IPv6 /64 as one address, since a home
+		// gets a whole /64 to pick from.
+		mapped := memcmp(tcp.peer.data, IPV4_MAPPED.data, IPV4_MAPPED.count) == 0;
+		prefix := ifx mapped then 16 else 8;
+		same := 0;
+		for s.conns if memcmp(it.tcp.peer.data, tcp.peer.data, prefix) == 0 same += 1;
+		if same >= MAX_CONNS_PER_ADDRESS || s.conns.count >= MAX_CONNS {
+			locks.unlock(*s.mu);
+			netio.close(netio.tcp_stream(tcp));
+			continue;
+		}
 		c := New(Conn);
 		c.server, c.tcp, c.s = s, tcp, netio.tcp_stream(tcp);
-		locks.lock(*s.mu);
-		// Finished connections are reaped here, so a long-running server holds only live ones.
-		for s.conns if atomic_load(*it.done) {
-			locks.join(it.thread);
-			netio.close(it.s);
-			free(it);
-			remove it;
-		}
+		c.accepted = current_time_monotonic();
 		array_add(*s.conns, c);
 		c.thread = spawn(c, serve_conn);
 		locks.unlock(*s.mu);
@@ -475,6 +561,7 @@ serve_conn :: (c: *Conn) {
 	http.h1_init(*h, c.s, .{max_header_bytes = 16 << 10, max_headers = 64, max_body = 1 << 20});
 	defer http.h1_destroy(*h, false);
 	while true {
+		if !flush_reply(c) return; // The last request's, now that its handler has let go of every lock.
 		reset_temporary_storage();
 		req, err := http.h1_read_request(*h);
 		defer http.request_destroy(*req);
@@ -519,12 +606,22 @@ serve_conn :: (c: *Conn) {
 			if !leave(c, req) return;
 			continue;
 		}
+		if (req.method == "GET" && req.path == tprint("/api/v9/guilds/%/invites", c.server.guild)) || (req.method == "DELETE" && begins_with(req.path, "/api/v9/invites/")) {
+			if !manage_invites(c, req) return;
+			continue;
+		}
+		if begins_with(req.path, tprint("/api/v9/guilds/%/members/", c.server.guild)) || begins_with(req.path, tprint("/api/v9/guilds/%/bans/", c.server.guild)) {
+			if !moderate(c, req) return;
+			continue;
+		}
 		if !json_error(c, 404, 0, "404: Not Found") return;
 	}
 }
 
 // session_user is the member a token (as sent in Identify or the authorization header) logs in as, or 0.
-session_user :: (s: *Server, token: string) -> id: s64, name: string {
+// A token that names a member also marks c as logged in, which spares it the login deadline.
+session_user :: (c: *Conn, token: string) -> id: s64, name: string {
+	s := c.server;
 	t: [32]u8;
 	if !unhex(token, t) return 0, "";
 	h := crypto.blake3(t);
@@ -533,6 +630,7 @@ session_user :: (s: *Server, token: string) -> id: s64, name: string {
 	defer sqlite.finalize(st);
 	sqlite.bind(st, 1, cast([]u8) h);
 	if sqlite.step(st) != .Row return 0, "";
+	atomic_store(*c.authed, true);
 	return sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 0 + 1),, temp);
 }
 
@@ -559,17 +657,18 @@ iso :: (id: s64) -> string {
 // edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
-		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false) -> etf.Value {
+		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
+		kind := DEFAULT) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
-	etf.map_put(*m, "type", etf.vint(ifx reply then 19 else 0));
+	etf.map_put(*m, "type", etf.vint(ifx kind != DEFAULT then kind else ifx reply then 19 else 0));
 	if reply {
 		ref := etf.map_builder(3,, temp);
 		etf.map_put(*ref, "message_id", snow(reply));
 		etf.map_put(*ref, "channel_id", snow(channel));
 		etf.map_put(*ref, "guild_id", snow(s.guild));
 		etf.map_put(*m, "message_reference", etf.vmap(etf.map_done(*ref)));
-		etf.map_put(*m, "referenced_message", referenced);
+		if kind == DEFAULT etf.map_put(*m, "referenced_message", referenced);
 	}
 	etf.map_put(*m, "channel_id", snow(channel));
 	etf.map_put(*m, "guild_id", snow(s.guild));
@@ -588,7 +687,12 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type FROM messages m JOIN users u ON u.id = m.author";
+
+// Message types: a "pinned a message" notice is a system message whose reply column holds the pinned one.
+DEFAULT :: 0;
+PINNED :: 6;
+JOINED :: 7;
 
 // row_message reads a MESSAGE_SELECT row; the caller holds db_mu. A reply's target is looked up one level
 // deep, as Discord sends it.
@@ -597,8 +701,9 @@ MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce
 row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, nonce := "") -> etf.Value {
 	id := sqlite.col_int(st, 0);
 	reply := sqlite.col_int(st, 6);
+	kind := sqlite.col_int(st, 9);
 	referenced, reactions: etf.Value;
-	if reply && !nested referenced = message_locked(s, reply);
+	if reply && !nested && kind == DEFAULT referenced = message_locked(s, reply);
 	mentioned: [..]etf.Value;
 	mentioned.allocator = temp;
 	q := sqlite.prepare(s.db, "SELECT u.id, u.name FROM mentions x JOIN users u ON u.id = x.user WHERE x.message = ?;");
@@ -631,7 +736,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8));
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind);
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -841,11 +946,53 @@ member_list_value :: (s: *Server) -> etf.Value {
 dispatch :: (c: *Conn, t: string, d: etf.Value) -> bool {
 	locks.guard(*c.mu);
 	c.seq += 1;
-	return send(c.ws, 0, d, c.seq, t);
+	return queue(c, frame(0, d, c.seq, t));
+}
+
+// queue hands bytes to c's writer; c.mu is held. A member whose backlog passes OUT_MAX has stopped
+// reading, so it is disconnected instead of queued for without bound; its client reconnects.
+queue :: (c: *Conn, bytes: []u8) -> bool {
+	if c.closing || !bytes return false;
+	if c.out_bytes + bytes.count > OUT_MAX {
+		c.closing = true;
+		netio.shutdown(netio.tcp_stream(c.tcp));
+		locks.cond_signal(*c.wake);
+		return false;
+	}
+	array_add(*c.out, array_copy(bytes,, context.default_allocator));
+	c.out_bytes += bytes.count;
+	locks.cond_signal(*c.wake);
+	return true;
+}
+
+writer :: (c: *Conn) {
+	batch: [..][]u8;
+	defer array_free(batch);
+	while true {
+		locks.lock(*c.mu);
+		while !c.out.count && !c.closing locks.cond_wait(*c.wake, *c.mu);
+		stop := c.closing;
+		spare := batch;
+		batch = c.out;
+		c.out = spare;
+		c.out_bytes = 0;
+		locks.unlock(*c.mu);
+		for batch {
+			if !stop && http.ws_send(c.out_ws, .Binary, it) != .None {
+				stop = true;
+				locks.lock(*c.mu);
+				c.closing = true;
+				locks.unlock(*c.mu);
+				netio.shutdown(netio.tcp_stream(c.tcp));
+			}
+			free(it.data,, context.default_allocator);
+		}
+		batch.count = 0;
+		if stop return;
+	}
 }
 
 // broadcast dispatches to every identified gateway connection.
-// @Speed: A client that stops reading stalls everyone's events until its send times out; queue per connection.
 broadcast :: (s: *Server, t: string, d: etf.Value) {
 	locks.guard(*s.mu);
 	for s.conns if it.ws dispatch(it, t, d);
@@ -855,7 +1002,7 @@ broadcast :: (s: *Server, t: string, d: etf.Value) {
 channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user, name := session_user(s, token);
+	user, name := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	path, query := req.path, "";
 	q := find_index_from_left(path, #char "?");
@@ -868,7 +1015,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
 	if ok && parts.count == 2 && parts[1] == "invites" && req.method == "POST" return create_invite(c, req, user, name, channel);
 	// Opening the pins popout acks them; unread pins aren't tracked, so there is nothing to store.
-	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return respond(c, 204, json = false);
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count >= 3 && parts[2] == "pins" {
 		if parts.count == 3 && req.method == "GET" return list_pins(c, channel);
@@ -904,7 +1051,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		etf.map_put(*d, "timestamp", etf.vint(to_seconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970)));
 		etf.map_put(*d, "member", etf.vmap(etf.map_done(*member)));
 		broadcast(s, "TYPING_START", etf.vmap(etf.map_done(*d)));
-		return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+		return respond(c, 204, json = false);
 	}
 
 	sb: String_Builder;
@@ -946,6 +1093,8 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		content, _ := etf.map_get(v.map, "content");
 		nonce, _ := etf.map_get(v.map, "nonce");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
+		if nonce.kind == .String && nonce.s.count > 25 return json_error(c, 400, 50035, "Invalid Form Body");
 		ref, _ := etf.map_get(v.map, "message_reference");
 		reply: s64;
 		if ref.kind == .Map {
@@ -994,23 +1143,24 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
-	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
+	return respond(c, 200, builder_to_string(*sb,, temp));
 }
 
 // PATCH and DELETE /api/v9/channels/{id}/messages/{id}. Until roles land (Hosting 4) only the author may
 // edit a message, and only the author or the owner delete it.
 one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64, message: s64) -> bool {
 	s := c.server;
-	author, owner := 0, 0;
+	author, owner, kind := 0, 0, DEFAULT;
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, "SELECT author FROM messages WHERE id = ? AND channel = ?;");
+		st := sqlite.prepare(s.db, "SELECT author, type FROM messages WHERE id = ? AND channel = ?;");
 		sqlite.bind_all(st, message, channel);
-		if sqlite.step(st) == .Row author = sqlite.col_int(st, 0);
+		if sqlite.step(st) == .Row author, kind = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
 		sqlite.finalize(st);
 		owner = owner_id(s);
 	}
 	if !author return json_error(c, 404, 10008, "Unknown Message");
+	if req.method == "PATCH" && kind != DEFAULT return json_error(c, 400, 50021, "Cannot execute action on a system message");
 	if author != user {
 		if req.method == "PATCH" return json_error(c, 403, 50005, "Cannot edit a message authored by another user");
 		if user != owner return json_error(c, 403, 50013, "Missing Permissions");
@@ -1021,10 +1171,19 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		content, _ := etf.map_get(v.map, "content");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
 		m: etf.Value;
 		{
 			locks.guard(*s.db_mu);
-			if !sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ? WHERE id = ?;", content.s, snowflake(s), message) {
+			// Mentions follow the new text, as on Discord, but an edit pings nobody: read-state counts stay.
+			// A reply's ping of its original author is kept.
+			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
+			ok := sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ?, everyone = ? WHERE id = ?;", content.s, snowflake(s), cast(int) everyone, message)
+				&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ? AND user IS NOT (SELECT r.author FROM messages m JOIN messages r ON r.id = m.reply WHERE m.id = ?);", message, message);
+			for mention_ids(content.s) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+			if !ok || !sqlite.exec(s.db, "COMMIT;") {
+				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
 			m = message_locked(s, message, nested = false);
@@ -1033,7 +1192,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		sb.allocator = temp;
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_UPDATE", m);
-		return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
+		return respond(c, 200, builder_to_string(*sb,, temp));
 	} else if req.method == "DELETE" {
 		{
 			locks.guard(*s.db_mu);
@@ -1046,7 +1205,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		etf.map_put(*d, "channel_id", snow(channel));
 		etf.map_put(*d, "guild_id", snow(s.guild));
 		broadcast(s, "MESSAGE_DELETE", etf.vmap(etf.map_done(*d)));
-		return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+		return respond(c, 204, json = false);
 	}
 	return json_error(c, 405, 0, "405: Method Not Allowed");
 }
@@ -1062,7 +1221,7 @@ channel_name :: (raw: string) -> string {
 create_channel :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
@@ -1075,7 +1234,7 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	if parent_v.kind == .String parent, has_parent = string_to_int(parent_v.s, T = s64);
 	// Categories keep the name as typed; text channels get Discord's lowercase-dashed form.
 	name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
-	if !name || name.count > 100 || (kind != TEXT && kind != CATEGORY) || (has_parent && kind != TEXT) return json_error(c, 400, 50035, "Invalid Form Body");
+	if !name || name.count > 100 || !text_ok(name) || (kind != TEXT && kind != CATEGORY) || (has_parent && kind != TEXT) return json_error(c, 400, 50035, "Invalid Form Body");
 	ch: etf.Value;
 	{
 		locks.guard(*s.db_mu);
@@ -1103,13 +1262,13 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 rename :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	nick: etf.Value;
 	if err == .None && v.kind == .Map nick, _ = etf.map_get(v.map, "nick");
 	name := ifx nick.kind == .String then trim(nick.s) else "";
-	if !name || name.count > 32 return json_error(c, 400, 50035, "Invalid Form Body");
+	if !name || name.count > 32 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
 	{
 		locks.guard(*s.db_mu);
 		if !sqlite.run(s.db, "UPDATE users SET name = ? WHERE id = ?;", name, user) return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1131,20 +1290,109 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 leave :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	{
 		locks.guard(*s.db_mu);
 		if owner_id(s) == user return json_error(c, 400, 50055, "Invalid Guild");
-		ok := sqlite.exec(s.db, "BEGIN;")
-			&& sqlite.run(s.db, "UPDATE users SET left = 1 WHERE id = ?;", user)
-			&& sqlite.run(s.db, "DELETE FROM sessions WHERE user = ?;", user)
-			&& sqlite.exec(s.db, "COMMIT;");
-		if !ok {
-			sqlite.exec(s.db, "ROLLBACK;");
-			return json_error(c, 500, 0, "500: Internal Server Error");
-		}
+		if !remove_member_locked(s, user, banned = false) return json_error(c, 500, 0, "500: Internal Server Error");
 	}
+	removed(s, user);
+	return respond(c, 204, json = false);
+}
+
+// DELETE /guilds/{id}/members/{user} kicks, PUT /guilds/{id}/bans/{user} bans and DELETE unbans, for the
+// owner. Both end the member's sessions and gateways as a leave does; a ban is on their key, so no invite
+// lets them back until it's lifted.
+moderate :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	parts := split(req.path, "/",, temp); // "", api, v9, guilds, {id}, members|bans, {user}
+	if parts.count != 7 return json_error(c, 404, 0, "404: Not Found");
+	ban := parts[5] == "bans";
+	if !(ban && (req.method == "PUT" || req.method == "DELETE")) && !(!ban && req.method == "DELETE") return json_error(c, 405, 0, "405: Method Not Allowed");
+	target, tok := string_to_int(parts[6], T = s64);
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !tok || target == user return json_error(c, 403, 50013, "Missing Permissions");
+		left, banned := 1, 0;
+		st := sqlite.prepare(s.db, "SELECT left, banned FROM users WHERE id = ?;");
+		sqlite.bind(st, 1, target);
+		found := sqlite.step(st) == .Row;
+		if found left, banned = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10013, "Unknown User");
+		if ban && req.method == "DELETE" {
+			if !banned return json_error(c, 404, 10026, "Unknown Ban");
+			if !sqlite.run(s.db, "UPDATE users SET banned = 0 WHERE id = ?;", target) return json_error(c, 500, 0, "500: Internal Server Error");
+			return respond(c, 204, json = false);
+		}
+		if !ban && left return json_error(c, 404, 10007, "Unknown Member");
+		if !remove_member_locked(s, target, ban) return json_error(c, 500, 0, "500: Internal Server Error");
+	}
+	removed(s, target);
+	return respond(c, 204, json = false);
+}
+
+// GET /guilds/{id}/invites lists the working invites, for the owner. DELETE /invites/{code} revokes one,
+// for the owner or whoever made it; the row stays, used up, so the code never works again.
+manage_invites :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	locks.guard(*s.db_mu);
+	owner := owner_id(s) == user;
+	if req.method == "DELETE" {
+		code := slice(req.path, "/api/v9/invites/".count, req.path.count - "/api/v9/invites/".count);
+		st := sqlite.prepare(s.db, tprint("SELECT inviter FROM invites WHERE code = ? AND owner = 0 AND %;", INVITE_LIVE));
+		sqlite.bind(st, 1, code);
+		found := sqlite.step(st) == .Row;
+		inviter := ifx found then sqlite.col_int(st, 0) else 0;
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10006, "Unknown Invite");
+		if !owner && inviter != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !sqlite.run(s.db, "UPDATE invites SET uses_left = 0 WHERE code = ?;", code) return json_error(c, 500, 0, "500: Internal Server Error");
+		return respond(c, 200, tprint("{\"code\": \"%\", \"guild_id\": \"%\"}", code, s.guild));
+	}
+	if !owner return json_error(c, 403, 50013, "Missing Permissions");
+	list: [..]etf.Value;
+	list.allocator = temp;
+	st := sqlite.prepare(s.db, tprint("SELECT code, uses_left, inviter, channel, max_age, expires FROM invites WHERE owner = 0 AND % ORDER BY rowid;", INVITE_LIVE));
+	defer sqlite.finalize(st);
+	while sqlite.step(st) == .Row {
+		m := etf.map_builder(7,, temp);
+		etf.map_put(*m, "code", etf.vstring(copy_string(sqlite.col_text(st, 0),, temp)));
+		etf.map_put(*m, "guild_id", snow(s.guild));
+		uses_left := sqlite.col_int(st, 1);
+		// Only the uses left are kept, so max_uses counts from now: 0 means unlimited, as on Discord.
+		etf.map_put(*m, "max_uses", etf.vint(ifx uses_left > 0 then uses_left else 0));
+		inviter, channel := sqlite.col_int(st, 2), sqlite.col_int(st, 3);
+		etf.map_put(*m, "inviter_id", ifx inviter then snow(inviter) else .{});
+		etf.map_put(*m, "channel_id", ifx channel then snow(channel) else .{});
+		etf.map_put(*m, "max_age", etf.vint(sqlite.col_int(st, 4)));
+		expires := sqlite.col_int(st, 5);
+		etf.map_put(*m, "expires_at", ifx expires then etf.vstring(iso(((expires * 1000) - DISCORD_EPOCH_MS) << 22)) else .{});
+		array_add(*list, etf.vmap(etf.map_done(*m)));
+	}
+	return json_reply(c, 200, etf.vlist(list));
+}
+
+// remove_member_locked marks user gone (and banned) and ends their sessions; db_mu is held.
+remove_member_locked :: (s: *Server, user: s64, banned: bool) -> bool {
+	ok := sqlite.exec(s.db, "BEGIN;")
+		&& sqlite.run(s.db, "UPDATE users SET left = 1, banned = banned OR ? WHERE id = ?;", cast(s64) banned, user)
+		&& sqlite.run(s.db, "DELETE FROM sessions WHERE user = ?;", user)
+		&& sqlite.exec(s.db, "COMMIT;");
+	if !ok sqlite.exec(s.db, "ROLLBACK;");
+	return ok;
+}
+
+// removed tells a member's gateways their guild is gone, and everyone else the member list changed.
+removed :: (s: *Server, user: s64) {
 	g := etf.map_builder(1,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
 	gone := etf.vmap(etf.map_done(*g));
@@ -1158,7 +1406,6 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 		}
 	}
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
 }
 
 // PATCH /api/v9/channels/{id} {name?, topic?} and DELETE /api/v9/channels/{id}, for the owner. The last
@@ -1178,7 +1425,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		kind := channel_type_locked(s, channel);
 		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
 		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
-		if (has_name && (!name || name.count > 100)) || (has_topic && topic.kind == .String && topic.s.count > 1024) return json_error(c, 400, 50035, "Invalid Form Body");
+		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
 			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel));
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1291,7 +1538,7 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 	status := store_ack(s, user, channel, message, count, is_manual);
 	if status == 404 return json_error(c, 404, 10003, "Unknown Channel");
 	if status return json_error(c, 500, 0, "500: Internal Server Error");
-	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) "{\"token\": null}") == .None;
+	return respond(c, 200, "{\"token\": null}");
 }
 
 // POST /api/v9/read-states/ack-bulk {read_states: [{channel_id, message_id}]}: Mark As Read for many
@@ -1299,7 +1546,7 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	list: etf.Value;
@@ -1314,7 +1561,7 @@ ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 		message, mok := string_to_int(m.s, T = s64);
 		if cok && mok && store_ack(s, user, channel, message, 0, false) == 500 return json_error(c, 500, 0, "500: Internal Server Error");
 	}
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	return respond(c, 204, json = false);
 }
 
 // PATCH /api/v9/users/@me/guilds/settings {guilds: {"<id>": {...}}}: mute and notification settings,
@@ -1323,7 +1570,7 @@ ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 patch_guild_settings :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	guilds, patch: etf.Value;
@@ -1436,6 +1683,7 @@ store_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_
 }
 
 SEARCH_PAGE :: 25;
+MAX_SEARCH_IDS :: 25; // Per kind (authors, mentions, channels).
 
 // GET /api/v9/guilds/{id}/messages/search?content=&author_id=&mentions=&channel_id=&has=&pinned=&offset=,
 // newest first, 25 a page, as {total_results, messages: [[message], ...]}. Repeated keys of one kind
@@ -1443,7 +1691,7 @@ SEARCH_PAGE :: 25;
 search :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	viewer := session_user(s, token);
+	viewer := session_user(c, token);
 	if !viewer return json_error(c, 401, 0, "401: Unauthorized");
 	q := find_index_from_left(req.path, #char "?");
 	if req.path.count > tprint("/api/v9/guilds/%/messages/search", s.guild).count && q < 0 return json_error(c, 404, 0, "404: Not Found");
@@ -1455,24 +1703,28 @@ search :: (c: *Conn, req: http.Request) -> bool {
 	authors.allocator, mentioned.allocator, channels.allocator = temp, temp, temp;
 	where: String_Builder;
 	where.allocator = temp;
-	append(*where, " WHERE 1");
+	print_to_builder(*where, " WHERE m.type = %", DEFAULT);
 	offset := 0;
+	// Each filter adds to the query at most once and ids are capped, so one request line can't build a
+	// query that scans every message thousands of times over under db_mu.
+	pinned, has_link, has_other, has_content := false, false, false, false;
+	add_id :: (ids: *[..]s64, n: s64, ok: bool) { if ok && ids.count < MAX_SEARCH_IDS array_add_if_unique(ids, n); }
 	for split(ifx q >= 0 then slice(req.path, q + 1, req.path.count - q - 1) else "", "&",, temp) {
 		kv := split(it, "=",, temp);
 		if kv.count != 2 continue;
 		value := percent_decode(replace(kv[1], "+", " ",, temp));
 		n, n_ok := string_to_int(value, T = s64);
 		if kv[0] == {
-			case "author_id";  if n_ok array_add(*authors, n);
-			case "mentions";   if n_ok array_add(*mentioned, n);
-			case "channel_id"; if n_ok array_add(*channels, n);
+			case "author_id";  add_id(*authors, n, n_ok);
+			case "mentions";   add_id(*mentioned, n, n_ok);
+			case "channel_id"; add_id(*channels, n, n_ok);
 			case "offset";     if n_ok offset = clamp(n, 0, 5000);
-			case "pinned";     if value == "true" append(*where, " AND m.pinned_at IS NOT NULL");
-			case "has";
-				// Hosted messages carry no attachments, embeds or stickers yet; only links can be had.
-				if value == "link" append(*where, " AND (m.content LIKE '%http://%' OR m.content LIKE '%https://%')");
-				else append(*where, " AND 0");
+			case "pinned";     if value == "true" pinned = true;
+			// Hosted messages carry no attachments, embeds or stickers yet; only links can be had.
+			case "has";        if value == "link" has_link = true; else has_other = true;
 			case "content";
+				if has_content continue;
+				has_content = true;
 				// Each word quoted, so FTS5 query syntax in what was typed is matched literally.
 				terms: String_Builder;
 				terms.allocator = temp;
@@ -1484,6 +1736,9 @@ search :: (c: *Conn, req: http.Request) -> bool {
 				}
 		}
 	}
+	if pinned append(*where, " AND m.pinned_at IS NOT NULL");
+	if has_link append(*where, " AND (m.content LIKE '%http://%' OR m.content LIKE '%https://%')");
+	if has_other append(*where, " AND 0");
 	any_of :: (open: string, ids: []s64, close := ")") #expand {
 		if !ids return;
 		append(*`where, open);
@@ -1526,12 +1781,14 @@ search :: (c: *Conn, req: http.Request) -> bool {
 }
 
 MAX_PINS :: 50; // Per channel, as Discord had it; so the pins list never needs paging.
+MAX_REACTIONS :: 20; // Distinct emoji per message, as on Discord.
+MAX_SESSIONS :: 16; // Per member: one per running client, so this many devices at once.
 
 // PUT/DELETE /api/v9/channels/{id}/messages/pins/{id}: until roles land (Hosting 4) only the owner pins.
 // The message (now pinned or not) follows as MESSAGE_UPDATE, then CHANNEL_PINS_UPDATE.
 pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 	s := c.server;
-	m: etf.Value;
+	m, notice: etf.Value;
 	last := "";
 	{
 		locks.guard(*s.db_mu);
@@ -1546,20 +1803,27 @@ pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 		ok := ifx on then sqlite.run(s.db, "UPDATE messages SET pinned_at = ? WHERE id = ? AND pinned_at IS NULL;", snowflake(s), message)
 			else sqlite.run(s.db, "UPDATE messages SET pinned_at = NULL WHERE id = ?;", message);
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
-		if !sqlite.changes(s.db) return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+		if !sqlite.changes(s.db) return respond(c, 204, json = false);
 		m = message_locked(s, message, nested = false);
+		if on {
+			notice_id := snowflake(s);
+			if sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, type) VALUES(?, ?, ?, '', ?, ?);", notice_id, channel, user, message, PINNED) {
+				notice = message_locked(s, notice_id, nested = false);
+			}
+		}
 		st = sqlite.prepare(s.db, "SELECT max(pinned_at) FROM messages WHERE channel = ?;");
 		sqlite.bind(st, 1, channel);
 		if sqlite.step(st) == .Row && !sqlite.col_is_null(st, 0) last = iso(sqlite.col_int(st, 0));
 		sqlite.finalize(st);
 	}
 	broadcast(s, "MESSAGE_UPDATE", m);
+	if notice.kind == .Map broadcast(s, "MESSAGE_CREATE", notice);
 	d := etf.map_builder(3,, temp);
 	etf.map_put(*d, "channel_id", snow(channel));
 	etf.map_put(*d, "guild_id", snow(s.guild));
 	etf.map_put(*d, "last_pin_timestamp", ifx last then etf.vstring(last) else .{});
 	broadcast(s, "CHANNEL_PINS_UPDATE", etf.vmap(etf.map_done(*d)));
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	return respond(c, 204, json = false);
 }
 
 // GET /api/v9/channels/{id}/messages/pins: newest pin first, all of them (MAX_PINS).
@@ -1589,7 +1853,7 @@ json_reply :: (c: *Conn, status: int, v: etf.Value) -> bool {
 	sb: String_Builder;
 	sb.allocator = temp;
 	etf.to_json(v, *sb);
-	return http.h1_write_response(c.s, status, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
+	return respond(c, status, builder_to_string(*sb,, temp));
 }
 
 // PUT .../reactions/{emoji}/@me and DELETE .../reactions/{emoji}/{type}/@me. Unicode emoji only, since a
@@ -1604,7 +1868,13 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		return json_error(c, 404, 0, "404: Not Found");
 	}
 	emoji := percent_decode(rest[0]);
-	if !emoji || emoji.count > 64 || contains(emoji, ":") return json_error(c, 400, 10014, "Unknown Emoji");
+	// Every Unicode emoji has a byte past ASCII (keycaps end in U+20E3), so plain words are refused.
+	emoji_ok := emoji && emoji.count <= 64 && text_ok(emoji) && !contains(emoji, ":");
+	if emoji_ok {
+		emoji_ok = false;
+		for 0..emoji.count - 1 if emoji[it] >= 0x80 emoji_ok = true;
+	}
+	if !emoji_ok return json_error(c, 400, 10014, "Unknown Emoji");
 	changed := false;
 	{
 		locks.guard(*s.db_mu);
@@ -1613,6 +1883,14 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		found := sqlite.step(st) == .Row;
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
+		if add {
+			st = sqlite.prepare(s.db, "SELECT count(DISTINCT emoji), sum(emoji = ?) FROM reactions WHERE message = ?;");
+			sqlite.bind_all(st, emoji, message);
+			kinds, has := 0, 0;
+			if sqlite.step(st) == .Row kinds, has = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
+			sqlite.finalize(st);
+			if !has && kinds >= MAX_REACTIONS return json_error(c, 400, 30010, "Maximum number of reactions reached (20)");
+		}
 		sql := ifx add then "INSERT OR IGNORE INTO reactions(message, emoji, user) VALUES(?, ?, ?);" else "DELETE FROM reactions WHERE message = ? AND emoji = ? AND user = ?;";
 		if !sqlite.run(s.db, sql, message, emoji, user) return json_error(c, 500, 0, "500: Internal Server Error");
 		changed = sqlite.changes(s.db) > 0;
@@ -1631,7 +1909,36 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		etf.map_put(*d, "type", etf.vint(0));
 		broadcast(s, ifx add then "MESSAGE_REACTION_ADD" else "MESSAGE_REACTION_REMOVE", etf.vmap(etf.map_done(*d)));
 	}
-	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	return respond(c, 204, json = false);
+}
+
+// text_ok: s is well-formed UTF-8 (no overlongs, surrogates or bytes past U+10FFFF) with no control
+// characters, other than newlines and tabs where lines is set.
+text_ok :: (s: string, lines := false) -> bool {
+	i := 0;
+	while i < s.count {
+		b := s[i];
+		if b < 0x80 {
+			if (b < 0x20 || b == 0x7F) && !(lines && (b == #char "\n" || b == #char "\t")) return false;
+			i += 1;
+			continue;
+		}
+		n, cp: int;
+		if b >= 0xC2 && b <= 0xDF      n, cp = 2, b & 0x1F;
+		else if b >= 0xE0 && b <= 0xEF n, cp = 3, b & 0x0F;
+		else if b >= 0xF0 && b <= 0xF4 n, cp = 4, b & 0x07;
+		else return false;
+		if i + n > s.count return false;
+		for 1..n - 1 {
+			cb := s[i + it];
+			if cb & 0xC0 != 0x80 return false;
+			cp = (cp << 6) | (cb & 0x3F);
+		}
+		if (n == 3 && cp < 0x800) || (n == 4 && (cp < 0x10000 || cp > 0x10FFFF)) || (cp >= 0xD800 && cp <= 0xDFFF) return false;
+		if cp >= 0x80 && cp < 0xA0 return false; // C1 controls.
+		i += n;
+	}
+	return true;
 }
 
 percent_decode :: (s: string) -> string {
@@ -1663,12 +1970,21 @@ gateway :: (c: *Conn, req: http.Request) {
 	netio.set_timeout(c.s, HEARTBEAT_INTERVAL_MS * 2);
 
 	ws := http.ws_attach(c.s, .{server = true, max_message = 1 << 20});
+	c.out_ws = ws;
+	c.writer = spawn(c, writer);
 	defer {
 		locks.lock(*c.server.mu);
 		was := c.user;
 		c.ws = null;
 		c.user = 0;
 		locks.unlock(*c.server.mu);
+		locks.lock(*c.mu);
+		c.closing = true;
+		locks.cond_signal(*c.wake);
+		locks.unlock(*c.mu);
+		locks.join(c.writer);
+		for c.out free(it.data,, context.default_allocator);
+		array_free(c.out);
 		http.ws_destroy(ws);
 		if was broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
 	}
@@ -1684,6 +2000,8 @@ gateway :: (c: *Conn, req: http.Request) {
 		msg.count = 0;
 		type, err := http.ws_recv(ws, *msg);
 		if err != .None || type != .Binary return;
+		// A compressed term would inflate up to 64 MiB from one small frame, and clients never send one.
+		if msg.count > 1 && msg[1] == xx etf.Tag.Compressed { http.ws_close(ws, 4002, "Error while decoding payload."); return; }
 		v, derr := etf.decode(msg,, temp);
 		if derr != .None || v.kind != .Map { http.ws_close(ws, 4002, "Error while decoding payload."); return; }
 		op, _ := etf.map_get(v.map, "op");
@@ -1697,7 +2015,7 @@ gateway :: (c: *Conn, req: http.Request) {
 				if c.ws { http.ws_close(ws, 4005, "Already authenticated."); return; }
 				token: etf.Value;
 				if d.kind == .Map token, _ = etf.map_get(d.map, "token");
-				user, name := session_user(c.server, ifx token.kind == .String then token.s else "");
+				user, name := session_user(c, ifx token.kind == .String then token.s else "");
 				if !user { http.ws_close(ws, 4004, "Authentication failed."); return; }
 				// Registered before READY is built and sent under c.mu, so a message posted meanwhile
 				// arrives after READY instead of being lost. Lock order: server.mu, then c.mu.
@@ -1707,7 +2025,7 @@ gateway :: (c: *Conn, req: http.Request) {
 				locks.lock(*c.mu);
 				locks.unlock(*c.server.mu);
 				c.seq += 1;
-				ok := send(ws, 0, ready_value(c.server, user, name), c.seq, "READY");
+				ok := queue(c, frame(0, ready_value(c.server, user, name), c.seq, "READY"));
 				locks.unlock(*c.mu);
 				if !ok return;
 				broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
@@ -1720,12 +2038,21 @@ gateway :: (c: *Conn, req: http.Request) {
 	}
 }
 
-send :: (ws: *http.Ws_Conn, op: int, d: etf.Value, seq := 0, t := "") -> bool {
+// frame encodes a gateway payload in temp; empty if it can't be encoded.
+frame :: (op: int, d: etf.Value, seq := 0, t := "") -> []u8 {
 	m := etf.map_builder(4,, temp);
 	etf.map_put(*m, "op", etf.vint(op));
 	etf.map_put(*m, "d", d);
 	etf.map_put(*m, "s", ifx seq then etf.vint(seq) else .{});
 	etf.map_put(*m, "t", ifx t then etf.vatom(t) else .{});
 	bytes, err := etf.encode(etf.vmap(etf.map_done(*m)),, temp);
-	return err == .None && http.ws_send(ws, .Binary, bytes) == .None;
+	if err != .None return .[];
+	return bytes;
+}
+
+// send writes straight from the reader thread, for replies that carry no seq (Hello, heartbeat acks).
+// Ws_Conn serializes its writes, so this can't interleave with the writer's frames.
+send :: (ws: *http.Ws_Conn, op: int, d: etf.Value) -> bool {
+	bytes := frame(op, d);
+	return bytes && http.ws_send(ws, .Binary, bytes) == .None;
 }

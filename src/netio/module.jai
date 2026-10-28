@@ -46,6 +46,7 @@ Tcp :: struct {
 	sock: Socket;
 	closed: bool;
 	shut: bool; // atomic
+	peer: [16]u8; // An accepted connection's address, IPv4 as ::ffff:a.b.c.d.
 }
 
 // dial_tcp resolves host and connects to its first IPv4 address, else its first IPv6 one.
@@ -111,7 +112,10 @@ listen_tcp :: (port: int) -> *Listener, Error {
 
 // accept_tcp blocks until a client connects. It fails with .Closed once close_listener has run.
 accept_tcp :: (l: *Listener) -> *Tcp, Error {
-	sock := accept(l.sock, null, null);
+	a: sockaddr_in6;
+	#if OS == .WINDOWS n: s32 = size_of(sockaddr_in6);
+	else n: socklen_t = size_of(sockaddr_in6);
+	sock := accept(l.sock, cast(*sockaddr) *a, *n);
 	if atomic_load(*l.shut) { if sock != INVALID_SOCKET close_and_reset(*sock); return null, .Closed; }
 	if sock == INVALID_SOCKET return null, .Io;
 	one: s32 = 1;
@@ -119,6 +123,7 @@ accept_tcp :: (l: *Listener) -> *Tcp, Error {
 	setsockopt(sock, xx IPPROTO.TCP, TCP_NODELAY, xx *one, size_of(s32));
 	t := New(Tcp);
 	t.sock = sock;
+	memcpy(t.peer.data, *a.sin6_addr, 16);
 	tcp_set_timeout(t, DIAL_IO_TIMEOUT_MS);
 	return t, .None;
 }

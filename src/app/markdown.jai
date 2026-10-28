@@ -301,7 +301,7 @@ DELIMS :: struct {
 }.[.{"***", .Bold}, .{"**", .Bold}, .{"__", .Underline}, .{"~~", .Strike}, .{"||", .Spoiler}, .{"*", .Italic}, .{"_", .Italic}];
 
 // Bytes that can start an inline rule in inline_into; every other byte is plain text.
-MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for cast([]u8) "\\`<h@*_~|[" t[it] = true; return t; };
+MD_SPECIAL :: #run -> [256]bool { t: [256]bool; for cast([]u8) "\\`<hf@*_~|[" t[it] = true; return t; };
 
 inline_into :: (p: *Md_Parser, src: string) {
 	i := 0;
@@ -360,7 +360,7 @@ inline_into :: (p: *Md_Parser, src: string) {
 			}
 		}
 		// bare links
-		if c == #char "h" && (begins_with(here, "https://") || begins_with(here, "http://")) && (i == 0 || !is_alnum(src[i - 1])) {
+		if (c == #char "h" && (begins_with(here, "https://") || begins_with(here, "http://")) || c == #char "f" && begins_with(here, "fc://")) && (i == 0 || !is_alnum(src[i - 1])) {
 			end := i;
 			while end < src.count && src[end] != #char " " && src[end] != #char "\n" && src[end] != #char "<" end += 1;
 			// trailing punctuation is not part of the URL, except a ")" closing a "(" inside it (Foo_(bar))

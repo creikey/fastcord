@@ -164,7 +164,10 @@ rail_view :: () {
 		}
 		if moved(g0, c0) active = app.client;
 		for h: hosted {
-			if !h.client || !h.client.store.ready continue;
+			if !h.client || !h.client.store.ready {
+				if h.joined rail_hosted_down(h);
+				continue;
+			}
 			app.client = h.client;
 			g1, c1 := app.view.guild, app.view.channel;
 			for gid: h.client.store.guild_order rail_hosted_guild(gid, active == h.client);
@@ -224,6 +227,18 @@ Rail_State :: struct {
 }
 
 rs: Rail_State;
+
+// A saved server that isn't connected yet, or is down: greyed out, with the host and why on hover. A click
+// retries now instead of waiting out the backoff.
+rail_hosted_down :: (h: *Hosted_Server) {
+	ui.id_scope(cast(u64) h); defer ui.pop_seed();
+	sig := rail_item("down", false, "", "server", 0);
+	if sig.clicked && h.retry_at h.retry_at = platform.time_now();
+	if !sig.hovering return;
+	why := ifx h.thread || !h.retry_at then "Connecting…" else ifx h.error then h.error else "Couldn't reach the server.";
+	ui.parent(ui.top_parent().last); defer ui.pop_parent();
+	tooltip_right(tprint("% · %", h.inv.host, why));
+}
 
 rail_dm :: (cid: dc.Snowflake) {
 	s := store();

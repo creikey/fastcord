@@ -24,10 +24,14 @@ Decoder :: struct {
     data: []u8;
     pos: int;
     depth: int;
+    // Values that lists, tuples and maps may still allocate. Each item of a valid term takes at least a byte
+    // of its own, so a valid term never runs out, but nested headers that each claim a huge count would
+    // otherwise allocate every count before reading one item.
+    budget: int;
 }
 
 decode_all :: (data: []u8, pos: int) -> Value, Error {
-    d := Decoder.{data = data, pos = pos};
+    d := Decoder.{data = data, pos = pos, budget = data.count};
     v, err := decode_term(*d);
     if err == .None && d.pos != data.count err = .Trailing_Data;
     if err != .None return .{}, err;
@@ -152,6 +156,8 @@ decode_term :: (d: *Decoder) -> Value, Error {
         if !need(d, 4) return .{}, .Truncated;
         n := rd_u32(d);
         if n > (d.data.count - d.pos) / 2 return .{}, .Truncated;
+        d.budget -= 2 * n;
+        if d.budget < 0 return .{}, .Too_Large;
         pairs := NewArray(n, Pair);
         for * pairs {
             err: Error;
@@ -166,6 +172,8 @@ decode_term :: (d: *Decoder) -> Value, Error {
 }
 
 decode_items :: (d: *Decoder, n: int) -> []Value, Error {
+    d.budget -= n;
+    if d.budget < 0 return .[], .Too_Large;
     items := NewArray(n, Value);
     for * items {
         err: Error;

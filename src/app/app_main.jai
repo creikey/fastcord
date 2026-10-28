@@ -162,12 +162,16 @@ main :: () {
 	dc.record_process_start(); // once, before the first client
 	opt := parse_options();
 	if opt.serve {
+		serve_console();
 		s, ok := serve.open(opt.serve);
 		if !ok fail("could not open the server file %", opt.serve);
 		if !serve.listen(s, opt.port) fail("could not listen on port %", opt.port);
-		print("Serving % on port %. Invite (put your address in place of localhost):\n%\n", opt.serve, s.listener.port, serve.invite_url(s, "localhost", s.listener.port, serve.first_invite(s)));
+		first := serve.first_invite(s);
+		if first say("Serving % on port %. Invite (put your address in place of localhost):\n%\n", opt.serve, s.listener.port, serve.invite_url(s, "localhost", s.listener.port, first));
+		else say("Serving % on port %. No invite works any more: members make new ones from the Invite button.\n", opt.serve, s.listener.port);
 		owner := serve.owner_invite(s);
-		if owner print("Join with this one yourself first, to own the server (it works once):\n%\n", serve.invite_url(s, "localhost", s.listener.port, owner));
+		if owner say("Join with this one yourself first, to own the server (it works once):\n%\n", serve.invite_url(s, "localhost", s.listener.port, owner));
+		say("Press Ctrl-C or close this console to stop the server.\n");
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
 	headless := opt.shot != "" || bench.on;
@@ -207,7 +211,7 @@ main :: () {
 		if opt.live > 0 && opt.channel != "" app.start_guild, app.start_channel = dc.parse_snowflake(opt.guild), dc.parse_snowflake(opt.channel);
 		connect();
 	}
-	if !headless identity_start();
+	identity_start(keep = !headless);
 	if (app.client == null || dc.client_logged_out(app.client)) && opt.fixture == "" app.needs_login = true;
 
 	if headless && opt.sweep != "" exit(cast(s32) sweep_run(opt));
@@ -953,9 +957,33 @@ unpaced := -1; // bench_unpaced, read once
 
 // Prints the message to stderr and exits with status 1.
 fail :: (what: string, args: ..Any) {
+	#if OS == .WINDOWS if serve_out { say(what, ..args); say("\n"); exit(1); }
 	print(what, ..args, to_standard_error = true);
 	print("\n", to_standard_error = true);
 	exit(1);
+}
+
+// A release exe has no console, so -serve's invites would go nowhere: serve_console attaches to the
+// terminal it was started from, or opens a console of its own. The runtime looked up its output handles at
+// startup, before either existed, so print can't reach them; say writes to the console directly.
+#if OS == .WINDOWS serve_out: Windows.HANDLE;
+
+serve_console :: () {
+	#if OS == .WINDOWS {
+		if Windows.GetStdHandle(Windows.STD_OUTPUT_HANDLE) return; // a console build, or redirected
+		if !Windows.AttachConsole(Windows.ATTACH_PARENT_PROCESS) Windows.AllocConsole();
+		serve_out = Windows.GetStdHandle(Windows.STD_OUTPUT_HANDLE);
+	}
+}
+
+say :: (format: string, args: ..Any) {
+	s := tprint(format, ..args);
+	#if OS == .WINDOWS if serve_out {
+		n: u32;
+		Windows.WriteFile(serve_out, s.data, xx s.count, *n, null);
+		return;
+	}
+	write_string(s);
 }
 
 // Odin's strconv.parse_int: the leading digits ("12px" -> 12, "" -> 0).

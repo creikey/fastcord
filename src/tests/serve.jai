@@ -9,6 +9,7 @@
 crypto :: #import "crypto";
 discord :: #import "discord";
 keys :: #import "keys";
+locks :: #import "locks";
 etf :: #import "etf";
 http :: #import "http";
 netio :: #import "netio";
@@ -22,6 +23,21 @@ main :: () {
 	failed := 0;
 	check :: (ok: bool, what: string) #expand {
 		if !ok { print("FAIL: %\n", what); `failed += 1; }
+	}
+
+	{
+		bomb := NewArray(1 << 20, u8,, temp);
+		for * bomb it.* = 106;
+		bomb[0] = 131;
+		p := 1;
+		for 1..128 {
+			n := bomb.count - p - 6;
+			bomb[p] = 108;
+			for i: 0..3 bomb[p + 1 + i] = cast(u8) (n >> (24 - 8 * i));
+			p += 5;
+		}
+		_, err := etf.decode(bomb,, temp);
+		check(err == .Too_Large, tprint("nested list headers claiming huge counts are refused before allocating: %", err));
 	}
 
 	delete_directory(DIR);
@@ -192,12 +208,20 @@ main :: () {
 		return resp.status, copy_string(cast(string) resp.body,, temp);
 	}
 	messages := tprint("/api/v9/channels/%/messages", channel);
+	// The owner's join posted a welcome; drop it so the counts below start from nothing.
+	status, body = rest("GET", messages, "", token);
+	welcome, _ := etf.from_json(body);
+	check(status == 200 && welcome.list.count == 1 && field(welcome.list[0], "type").i == 7 && field(welcome.list[0], "author", "username").s == "Tester", tprint("the join's welcome message: %", body));
+	if welcome.list.count rest("DELETE", tprint("%/%", messages, field(welcome.list[0], "id").s), "", token);
 	status, body = rest("GET", messages, "", "bad");
 	check(status == 401, tprint("REST needs a token: %", status));
+	status, body = rest("POST", messages, "{\"content\": \"long\", \"nonce\": \"12345678901234567890123456\"}", token);
+	check(status == 400, tprint("a nonce over 25 bytes is refused: %", status));
 	status, body = rest("POST", messages,"{\"content\": \"hello\", \"nonce\": \"123\"}", token);
 	check(status == 200 && contains(body, "\"nonce\":\"123\""),tprint("send: % %", status, body));
 	if ws {
 		ev := recv_event(ws);
+		if field(ev, "t").s == "MESSAGE_DELETE" ev = recv_event(ws); // The welcome's.
 		check(field(ev, "t").s == "MESSAGE_CREATE" && field(ev, "d", "content").s == "hello" && field(ev, "d", "author", "username").s == "Tester", "MESSAGE_CREATE");
 		http.ws_close_stream(ws);
 	}
@@ -254,6 +278,19 @@ main :: () {
 		for 1..100 pump();
 		status, body = rest("GET", messages, "", token);
 		check(!contains(body, "reactions"), tprint("reaction removed: %", body));
+		react := tprint("%/%/reactions", messages, hello);
+		status, body = rest("PUT", tprint("%/lol/@me", react), "", token);
+		check(status == 400, tprint("a word isn't an emoji: %", status));
+		status, body = rest("POST", messages, "{\"content\": \"a\\u0000b\"}", token);
+		check(status == 400, tprint("control characters are refused: %", status));
+		// U+1F600 onwards: 20 distinct emoji fit on a message, the 21st doesn't.
+		for i: 0..20 {
+			status, body = rest("PUT", tprint("%/\%F0\%9F\%98\%%/@me", react, formatInt(0x80 + i, base = 16)), "", token);
+			if status != 204 break;
+		}
+		check(status == 400 && contains(body, "30010"), tprint("at most 20 distinct reactions: % %", status, body));
+		for i: 0..20 rest("DELETE", tprint("%/\%F0\%9F\%98\%%/@me", react, formatInt(0x80 + i, base = 16)), "", token);
+		for 1..100 pump();
 
 		// Pins: the owner pins through the client; the message updates and the list has it.
 		epoch := discord.pins_epoch(cid);
@@ -265,6 +302,17 @@ main :: () {
 		items := field(pinned, "items");
 		check(status == 200 && items.kind == .List && items.list.count == 1 && field(items.list[0], "message", "content").s == "hello"
 			&& field(items.list[0], "pinned_at").kind == .String, tprint("pins list: % %", status, body));
+		// The "pinned a message" notice: a type 6 message pointing at the pin, which can't be edited.
+		for 1..300 { if stored().count == 3 break; pump(); }
+		notice := ifx stored().count == 3 then *stored()[2] else null;
+		check(notice && notice.kind == 6 && notice.referenced_id == hello && notice.author_id == cl.store.me, "the pinned-a-message notice");
+		if notice {
+			status, body = rest("PATCH", tprint("%/%", messages, notice.id), "{\"content\": \"x\"}", token);
+			check(status == 400, tprint("a system message can't be edited: % %", status, body));
+			status, body = rest("DELETE", tprint("%/%", messages, notice.id), "", token);
+			for 1..300 { if stored().count == 2 break; pump(); }
+			check(status == 204 && stored().count == 2, tprint("delete the notice: %", status));
+		}
 		discord.pin_message(cl, cid, hello, false);
 		for 1..300 { if !stored()[0].pinned break; pump(); }
 		check(!stored()[0].pinned, "unpin");
@@ -350,6 +398,21 @@ main :: () {
 	again := discord.create_invite(cl, cid,, context.default_allocator);
 	check(made.ok && made.code.count == 12 && made.guild_id == gid && again.code == made.code, tprint("create an invite: % % %", made.status, made.code, again.code));
 	member_invite, member_ok := serve.parse_invite(serve.invite_url(pin, "127.0.0.1", port, id, made.code));
+
+	// A dropped gateway can't resume here, so the client identifies afresh, and the fresh READY refetches
+	// the open channel: a message sent while it was away still shows up.
+	discord.select_channel(cl, gid, cid);
+	for 1..100 pump();
+	readies := cl.store.readies;
+	locks.lock(*s.mu);
+	for s.conns if it.ws netio.shutdown(netio.tcp_stream(it.tcp));
+	locks.unlock(*s.mu);
+	status, body = rest("POST", messages, "{\"content\": \"while away\"}", token);
+	last :: () -> string #expand { m := stored(); return ifx m.count then m[m.count - 1].content else ""; }
+	for 1..1500 { if cl.store.readies > readies && last() == "while away" break; pump(); }
+	check(cl.store.readies > readies && last() == "while away", tprint("a reconnect catches up: % %", cl.store.readies - readies, last()));
+	away, _ := etf.from_json(body);
+	rest("DELETE", tprint("%/%", messages, field(away, "id").s), "", token);
 	discord.client_destroy(cl);
 	status, body = rest("PATCH", tprint("%/1", messages), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("edit an unknown message: %", status));
@@ -368,6 +431,8 @@ main :: () {
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 	other_token, ostatus, omessage := serve.member_login(member_invite, other, "Other");
 	check(member_ok && other_token.count == 64, tprint("join with a member's invite: % %", ostatus, omessage));
+	status, body = rest("GET", tprint("%?limit=1", messages), "", token);
+	check(contains(body, "\"type\":7") && contains(body, "\"Other\""), tprint("a member's join posts a welcome: %", body));
 	status, body = rest("POST", tprint("/api/v9/channels/%/invites", cid), "{\"max_age\": 1}", token);
 	short, _ := etf.from_json(body);
 	check(status == 200 && field(short, "expires_at").kind == .String, tprint("an invite with an expiry: % %", status, body));
@@ -394,6 +459,16 @@ main :: () {
 	has_rs, rs := table_find(*cl3.store.read_states, cid);
 	check(cl3.store.ready && has_rs && rs.mention_count == 1, tprint("the pinged member's mention count: % %", has_rs, rs.mention_count));
 	discord.client_destroy(cl3);
+	status, body = rest("POST", messages, "{\"content\": \"soon\"}", token);
+	later, _ := etf.from_json(body);
+	later_url := tprint("%/%", messages, field(later, "id").s);
+	status, body = rest("PATCH", later_url, tprint("{\"content\": \"<@%> @everyone\"}", other_id), token);
+	edited, _ := etf.from_json(body);
+	check(status == 200 && field(edited, "mentions").list.count == 1 && field(edited, "mention_everyone").b, tprint("an edit adds mentions: % %", status, body));
+	status, body = rest("PATCH", later_url, "{\"content\": \"nobody\"}", token);
+	edited, _ = etf.from_json(body);
+	check(status == 200 && field(edited, "mentions").list.count == 0 && !field(edited, "mention_everyone").b, tprint("an edit drops mentions: % %", status, body));
+	rest("DELETE", later_url, "", token);
 
 	// Search: the channel now holds "hello", the reply edited to "hi", Other's "hi all" and the ping.
 	found :: (query: string) -> s64 #expand {
@@ -409,6 +484,10 @@ main :: () {
 	check(found(tprint("author_id=%&content=hi", other_id)) == 1, "search filters combine");
 	check(found("content=%22unbalanced") == 0, "search quotes typed text");
 	check(found("has=link") == 0, "search has");
+	repeated: String_Builder;
+	for 1..600 append(*repeated, "pinned=true&has=link&");
+	append(*repeated, "content=hello");
+	check(found(builder_to_string(*repeated,, temp)) == 0, "a search repeating its filters still runs, each filter once");
 
 	// Leaving: the owner can't; Other's client loses the guild, their token dies, and only an invite
 	// brings them back.
@@ -491,6 +570,32 @@ main :: () {
 		tprint("notification settings are kept: %", ifx kept then kept.* else .{}));
 	discord.client_destroy(cl5);
 
+	// Two connections at once: each takes only the new messages that came on it, so the app checks a
+	// message against the store it belongs to.
+	{
+		ca := discord.client_create(.{token = token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+		cb := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+		discord.client_start(ca);
+		discord.client_start(cb);
+		for 1..1000 { if ca.store.ready && cb.store.ready break; discord.client_poll(ca); discord.client_poll(cb); sleep_milliseconds(10); }
+		discord.take_new_messages(ca);
+		discord.take_new_messages(cb);
+		rest("POST", messages, "{\"content\": \"for b\"}", token);
+		got_b: []discord.New_Message;
+		for 1..300 {
+			discord.client_poll(ca);
+			discord.client_poll(cb);
+			got_a := discord.take_new_messages(ca);
+			check(got_a.count == 0, "a connection takes no other connection's messages");
+			got_b = discord.take_new_messages(cb);
+			if got_b.count break;
+			sleep_milliseconds(10);
+		}
+		check(got_b.count == 1 && got_b[0].store == *cb.store && got_b[0].content == "for b", tprint("the message reaches its own connection: %", got_b.count));
+		discord.client_destroy(ca);
+		discord.client_destroy(cb);
+	}
+
 	// The owner deletes anyone's message; a member deletes only their own.
 	status, body = rest("POST", messages, "{\"content\": \"spam\"}", other_token);
 	spam, _ := etf.from_json(body);
@@ -500,6 +605,106 @@ main :: () {
 	check(status == 403, tprint("a member can't delete the owner's message: % %", status, body));
 	status, body = rest("DELETE", tprint("%/%", messages, field(spam, "id").s), "", other_token);
 	check(status == 204, tprint("a member deletes their own message: % %", status, body));
+
+	// The owner kicks and bans: either ends the member's sessions; an invite brings a kicked member back,
+	// but not a banned one until the ban is lifted. Members can't moderate.
+	{
+		members := tprint("/api/v9/guilds/%/members/%", gid, other_id);
+		bans := tprint("/api/v9/guilds/%/bans/%", gid, other_id);
+		status, body = rest("DELETE", tprint("/api/v9/guilds/%/members/%", gid, field(said, "author", "id").s), "", other_token);
+		check(status == 403, tprint("a member can't kick: % %", status, body));
+		status, body = rest("DELETE", members, "", token);
+		check(status == 204, tprint("the owner kicks: % %", status, body));
+		status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
+		check(status == 401, tprint("a kick ends the member's session: % %", status, body));
+		status, body = rest("DELETE", members, "", token);
+		check(status == 404, tprint("a kicked member can't be kicked again: % %", status, body));
+		other_token, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+		check(ostatus == 200, tprint("an invite brings a kicked member back: % %", ostatus, omessage));
+		status, body = rest("PUT", bans, "{}", token);
+		check(status == 204, tprint("the owner bans: % %", status, body));
+		status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
+		check(status == 401, tprint("a ban ends the member's session: % %", status, body));
+		_, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+		check(ostatus == 403, tprint("a banned member's key can't rejoin: % %", ostatus, omessage));
+		status, body = rest("DELETE", bans, "", token);
+		check(status == 204, tprint("the owner lifts the ban: % %", status, body));
+		other_token, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+		check(ostatus == 200, tprint("an invite works again once the ban is lifted: % %", ostatus, omessage));
+	}
+
+	// The owner lists working invites and revokes one; a member can't do either to someone else's.
+	{
+		status, body = rest("GET", tprint("/api/v9/guilds/%/invites", gid), "", other_token);
+		check(status == 403, tprint("a member can't list invites: % %", status, body));
+		status, body = rest("GET", tprint("/api/v9/guilds/%/invites", gid), "", token);
+		check(status == 200 && contains(body, made.code), tprint("the owner lists invites: % %", status, body));
+		status, body = rest("DELETE", tprint("/api/v9/invites/%", made.code), "", other_token);
+		check(status == 403, tprint("a member can't revoke another's invite: % %", status, body));
+		status, body = rest("DELETE", tprint("/api/v9/invites/%", made.code), "", token);
+		check(status == 200, tprint("the owner revokes an invite: % %", status, body));
+		_, ostatus, omessage = serve.member_login(member_invite, keys.generate("Latecomer"), "Latecomer");
+		check(ostatus == 404, tprint("a revoked invite lets nobody in: % %", ostatus, omessage));
+		status, body = rest("GET", tprint("/api/v9/guilds/%/invites", gid), "", token);
+		check(status == 200 && !contains(body, made.code), tprint("a revoked invite isn't listed: % %", status, body));
+	}
+
+	// A member keeps only their newest sessions: logging in that many times more ends the first one.
+	{
+		status, body = rest("GET", tprint("%?limit=1", messages), "", token);
+		check(status == 200, tprint("the first session works: % %", status, body));
+		for 1..16 serve.member_login(inv, k, ""); // MAX_SESSIONS
+		status, body = rest("GET", tprint("%?limit=1", messages), "", token);
+		check(status == 401, tprint("the oldest session ends past the cap: % %", status, body));
+	}
+
+	// A hosted client sends its server only its own token and the body's type, whatever URL it fetches:
+	// every request reaches the pinned server, and no cookie goes out, even one its jar holds for discord.com.
+	{
+		fake, lerr := netio.listen_tcp(0);
+		check(lerr == .None, "fake server listens");
+		hc := discord.client_create(.{token = "hosted-token", disable_gateway = true, hosted = .{host = "127.0.0.1", port = fake.port, pin = pin, server_id = id}});
+		discord.cookie_set_from_header(*hc.jar, "discord.com", "/", "__dcfduid=SECRET; Path=/; Domain=discord.com", discord.now_ms());
+		discord.client_start(hc);
+		for url: string.["https://discord.com/api/v9/users/@me", "https://cdn.discordapp.com/attachments/1/2/a.png", "a message page"] {
+			if it_index < 2 discord.fetch_media(hc, .{url = url, kind = .Fetch});
+			else discord.fetch_messages(hc, 1);
+			t, aerr := netio.accept_tcp(fake);
+			if aerr != .None { check(false, "fake server accepts"); break; }
+			session, _, _ := tls.accept(netio.tcp_stream(t), s.ctx);
+			if !session { check(false, "fake server handshakes"); netio.close(netio.tcp_stream(t)); break; }
+			h: http.H1_Conn;
+			http.h1_init(*h, tls.stream(session));
+			req, rerr := http.h1_read_request(*h);
+			clean := rerr == .None;
+			for req.headers {
+				if equal_nocase(it.name, "authorization") { if it.value != "hosted-token" clean = false; }
+				else if equal_nocase(it.name, "cookie") || contains(it.value, "SECRET") clean = false;
+			}
+			check(clean, tprint("a hosted fetch of % carries only the hosted token: % %", url, rerr, req.headers));
+			http.h1_write_response(tls.stream(session), 404, .[.{"connection", "close"}], .[]);
+			http.request_destroy(*req);
+			http.h1_destroy(*h);
+		}
+		discord.client_destroy(hc);
+		netio.close_listener(fake);
+	}
+
+	// One address holds at most 16 connections: past that, the server hangs up at once.
+	held: [..]netio.Stream;
+	refused := false;
+	for 1..20 {
+		t, derr := netio.dial_tcp("127.0.0.1", port);
+		if derr != .None break;
+		st := netio.tcp_stream(t);
+		array_add(*held, st);
+		netio.set_timeout(st, 300);
+		b: [1]u8;
+		_, rerr := netio.read(st, b);
+		if rerr != .Timeout { refused = true; break; }
+	}
+	check(refused && held.count > 1 && held.count <= 17, tprint("connections per address are capped: %", held.count));
+	for held netio.close(it);
 
 	serve.stop(s);
 	print("% failed\n", failed);

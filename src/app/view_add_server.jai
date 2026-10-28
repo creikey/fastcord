@@ -28,6 +28,12 @@ add_server_is_open :: () -> bool { return asv.step != .Closed; }
 
 add_server_open :: () { add_server_step(.Choose); }
 
+// add_server_join_with opens Join a Server filled in with an invite, for the user to confirm.
+add_server_join_with :: (invite: string) {
+	add_server_step(.Join);
+	ui.editor_set_text(*asv.invite_ed, invite);
+}
+
 // Rail "Discover": server discovery lives on the website (no in-app directory).
 discover_open :: () { open_url("https://discord.com/servers"); }
 
@@ -332,7 +338,12 @@ step_join :: () {
 			input := ui.editor_text(*asv.invite_ed);
 			if begins_with(trim(input), "fc://") {
 				ok, why := hosted_join(trim(input));
-				if ok add_server_step(.Closed); else set_err(why);
+				if ok {
+					add_server_step(.Closed);
+					ui.editor_set_text(*asv.invite_ed, "");
+				} else {
+					set_err(why);
+				}
 			} else if dc.invite_code_from_input(input) == "" {
 				set_err("Please enter a valid invite link or invite code.");
 			} else if net_action() {

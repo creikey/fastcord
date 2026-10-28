@@ -54,9 +54,10 @@ hosted_round_trip :: (data: *void, host: string, req_in: http.Request) -> http.R
 		resp, err := http.h1_round_trip(conn, req);
 		if err == .None && conn.reusable {
 			locks.lock(*c.hosted_mu);
-			array_add(*c.hosted_idle, conn);
+			kept := c.hosted_idle.count < 2;
+			if kept array_add(*c.hosted_idle, conn);
 			locks.unlock(*c.hosted_mu);
-			return resp, err;
+			if kept return resp, err;
 		}
 		http.h1_destroy(conn);
 		free(conn,, c.allocator);

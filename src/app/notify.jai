@@ -12,16 +12,21 @@ SUPPRESS_NOTIFICATIONS :: (cast(u64) 1) << 12;
 
 notify_tick :: () {
 	if app.client == null return;
-	s := store();
+	s := *connections()[0].store; // Discord's: its status is the one you set.
 	for * m: app_new_messages() {
-		if app.focused && m.channel_id == app.view.channel continue;
+		mc := message_client(m);
+		if app.focused && m.channel_id == app.view.channel && mc == app.client continue;
 		if s.settings.status == .Dnd || streamer_disable_notifications() continue;
 		if !message_notifies(m) || notify_prefs.desktop_off || notify_prefs.lotus continue;
-		notify_message(s, m);
+		// name_in and the rest read app.client, so it is the message's connection while it's shown.
+		prev := app.client;
+		app.client = mc;
+		notify_message(*mc.store, m);
+		app.client = prev;
 	}
-	// dock badge: unread mentions
+	// dock badge: unread mentions, on every connection
 	total := 0;
-	for s.read_states total += max(it.mention_count, 0);
+	for c: connections() for c.store.read_states total += max(it.mention_count, 0);
 	if notify_prefs.badge_off || notify_prefs.lotus total = 0; // Settings > Notifications > Unread Message Badge
 	if !ns.badge_set || total != ns.badge {
 		ns.badge = total;
