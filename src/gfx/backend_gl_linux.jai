@@ -30,7 +30,7 @@ backend_init :: () -> bool {
     units: s32;
     gl.GetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, *units);
     if units < TEX_SLOTS + 1 { log_error("gfx: % fragment texture units, need %", units, TEX_SLOTS + 1); return false; }
-    st.program = link_program();
+    st.program = link_program(GLSL_VERTEX_SRC, GLSL_FRAGMENT_SRC);
     if !st.program return false;
 
     // All state is set once here; backend_submit only changes attribute offsets and texture bindings.
@@ -61,6 +61,7 @@ backend_init :: () -> bool {
     gl.PixelStorei(GL_UNPACK_ALIGNMENT, 1);
     gl.PixelStorei(GL_PACK_ALIGNMENT, 1);
     for * st.timers  gl.GenQueries(1, *it.query);
+    if units > SCENE_UNIT + 4  scene_init();
     return true;
 }
 
@@ -82,10 +83,23 @@ backend_shutdown :: () {
     st = .{};
 }
 
-// Scenes need render targets and the scene shaders, which this backend doesn't have yet: the app
-// rasterizes vector art on the CPU here (scenes_supported is false), so `scenes` is always empty.
-backend_scenes_supported :: () -> bool { return false; }
-backend_target_create :: (w: s32, h: s32) -> *void { return null; }
+backend_scenes_supported :: () -> bool { return st.scene_program != 0; }
+
+backend_target_create :: (w: s32, h: s32) -> *void {
+    if !st.scene_program return null;
+    return backend_texture_create(w, h, .RGBA8, .[]);
+}
+
+// Draws s into target t now and reads it back (premultiplied RGBA8, top row first): gfx.scene_selftest.
+backend_scene_test :: (t: Texture, s: *vector.Scene) -> []u8 {
+    run_scene(t, s);
+    gl.BindFramebuffer(GL_FRAMEBUFFER, st.scene_fbo);
+    gl.FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cast(u32) cast(u64) g.textures[t].native, 0);
+    px := NewArray(s.w * s.h * 4, u8);
+    gl.ReadPixels(0, 0, xx s.w, xx s.h, GL_RGBA, GL_UNSIGNED_BYTE, px.data); // scenes draw unflipped: row 0 first
+    main_state();
+    return px;
+}
 
 backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32, scenes: []Scene_Draw) {
     if fb[0] <= 0 || fb[1] <= 0 return;
@@ -95,6 +109,10 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
     if timer.pending  timer = null; // still in flight from GPU_TIMERS frames ago: skip timing this frame
     else gl.BeginQuery(GL_TIME_ELAPSED, timer.query);
     // Re-specifying the store each frame lets the driver orphan the old one (no wait on the GPU).
+    if scenes.count {
+        for scenes  run_scene(it.target, it.scene);
+        main_state();
+    }
     if insts  gl.BufferData(GL_ARRAY_BUFFER, insts.count * size_of(Instance), insts.data, GL_STREAM_DRAW);
     gl.Viewport(0, 0, fb[0], fb[1]);
     cc := premul(clear);
@@ -189,6 +207,7 @@ RTLD_NOLOAD :: 4;
 
 INST_ATTRS :: size_of(Instance) / 16; // nine float4s, shader locations 0..8
 UPLOAD_UNIT :: TEX_SLOTS + 1;         // texture uploads bind here, away from the units draws use
+SCENE_UNIT :: UPLOAD_UNIT + 1;        // scenes: segs, grads, ramps (texture buffers), then the src and matte layers
 
 // GPU time per frame from GL_TIME_ELAPSED queries, read back GPU_TIMERS frames later so nothing waits.
 GPU_TIMERS :: 6;
@@ -207,7 +226,115 @@ st: struct {
     size: [2]s32;                 // of the FBO
     bound: [TEX_SLOTS + 1]u32;    // texture name per unit, to skip redundant binds
     timers: [GPU_TIMERS]Gpu_Timer;
+
+    scene_program: u32;           // 0: no scenes
+    scene_viewport_loc: s32;
+    scene_vao, scene_inst_buf, scene_fbo: u32;
+    scene_bufs, scene_tbos: [3]u32; // segs, grads, ramps
+    scene_layers: [..]Scene_Layers;
+    scene_ops: [..]Scene_Op;
 };
+
+// A scene size's nested layer textures (vector.SCENE_SLOTS, RGBA8).
+Scene_Layers :: struct {
+    w, h: s32;
+    tex: [vector.SCENE_SLOTS]u32;
+}
+
+scene_init :: () {
+    p := link_program(GLSL_SCENE_VERTEX_SRC, GLSL_SCENE_FRAGMENT_SRC);
+    if !p return;
+    gl.UseProgram(p);
+    names :: string.["segs\0", "grads\0", "ramps\0", "src_layer\0", "matte_layer\0"];
+    for names  gl.Uniform1i(gl.GetUniformLocation(p, it.data), xx (SCENE_UNIT + it_index));
+    st.scene_viewport_loc = gl.GetUniformLocation(p, "viewport");
+    gl.GenVertexArrays(1, *st.scene_vao);
+    gl.BindVertexArray(st.scene_vao);
+    gl.GenBuffers(1, *st.scene_inst_buf);
+    gl.BindBuffer(GL_ARRAY_BUFFER, st.scene_inst_buf);
+    for 0..3 {
+        gl.EnableVertexAttribArray(xx it);
+        gl.VertexAttribDivisor(xx it, 1);
+    }
+    gl.GenFramebuffers(1, *st.scene_fbo);
+    gl.GenBuffers(3, st.scene_bufs.data);
+    gl.GenTextures(3, st.scene_tbos.data);
+    formats :: u32.[GL_RGBA32F, GL_RGBA32F, GL_RGBA8];
+    for 0..2 {
+        gl.BindBuffer(GL_TEXTURE_BUFFER, st.scene_bufs[it]);
+        gl.BufferData(GL_TEXTURE_BUFFER, 16, null, GL_STREAM_DRAW);
+        gl.ActiveTexture(GL_TEXTURE0 + SCENE_UNIT + cast(u32) it);
+        gl.BindTexture(GL_TEXTURE_BUFFER, st.scene_tbos[it]);
+        gl.TexBuffer(GL_TEXTURE_BUFFER, formats[it], st.scene_bufs[it]);
+    }
+    st.scene_program = p;
+    main_state();
+}
+
+// The main pass's state, after scenes changed it.
+main_state :: () {
+    gl.UseProgram(st.program);
+    gl.BindVertexArray(st.vao);
+    gl.BindBuffer(GL_ARRAY_BUFFER, st.inst_buf);
+    gl.BindFramebuffer(GL_FRAMEBUFFER, ifx st.surface then 0 else st.fbo);
+    gl.BlendEquation(GL_FUNC_ADD);
+    gl.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+run_scene :: (t: Texture, s: *vector.Scene) {
+    target := cast(u32) cast(u64) g.textures[t].native;
+    w, h := cast(s32) s.w, cast(s32) s.h;
+    if g.textures[t].w != w || g.textures[t].h != h return;
+    layers: *Scene_Layers;
+    for * st.scene_layers  if it.w == w && it.h == h  layers = it;
+    if !layers {
+        layers = array_add(*st.scene_layers);
+        layers.w, layers.h = w, h;
+        for * layers.tex  it.* = cast(u32) cast(u64) backend_texture_create(w, h, .RGBA8, .[]);
+    }
+    scene_plan(s, *st.scene_ops);
+
+    gl.UseProgram(st.scene_program);
+    gl.BindVertexArray(st.scene_vao);
+    gl.BindBuffer(GL_ARRAY_BUFFER, st.scene_inst_buf);
+    if s.insts  gl.BufferData(GL_ARRAY_BUFFER, s.insts.count * size_of(vector.Scene_Inst), s.insts.data, GL_STREAM_DRAW);
+    upload :: (i: int, data: *void, bytes: int) {
+        gl.BindBuffer(GL_TEXTURE_BUFFER, st.scene_bufs[i]);
+        if bytes  gl.BufferData(GL_TEXTURE_BUFFER, bytes, data, GL_STREAM_DRAW);
+    }
+    upload(0, s.segs.data, s.segs.count * size_of(vector.Edge));
+    upload(1, s.grads.data, s.grads.count * size_of(vector.Scene_Grad));
+    upload(2, s.ramps.data, s.ramps.count);
+    gl.BindFramebuffer(GL_FRAMEBUFFER, st.scene_fbo);
+    gl.Viewport(0, 0, w, h);
+    gl.Uniform2f(st.scene_viewport_loc, xx w, xx h);
+    gl.ClearColor(0, 0, 0, 0);
+    layer :: (slot: s32) -> u32 #expand { return ifx slot == 0 then `target else `layers.tex[slot - 1]; }
+    for op: st.scene_ops {
+        gl.FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, layer(op.slot), 0);
+        if op.clear {
+            gl.Clear(GL_COLOR_BUFFER_BIT);
+            continue;
+        }
+        if op.blend == {
+            case .Over;     gl.BlendEquation(GL_FUNC_ADD); gl.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            case .Multiply; gl.BlendEquation(GL_FUNC_ADD); gl.BlendFunc(GL_ZERO, GL_SRC_COLOR);
+            case .Replace;  gl.BlendEquation(GL_FUNC_ADD); gl.BlendFunc(GL_ONE, GL_ZERO);
+            case .Add;      gl.BlendEquation(GL_FUNC_ADD); gl.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR);
+            case .Sub;      gl.BlendEquation(GL_FUNC_ADD); gl.BlendFunc(GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+            case .Max;      gl.BlendEquation(GL_MAX);
+            case .Min;      gl.BlendEquation(GL_MIN);
+        }
+        for slot, k: s32.[op.src, op.matte] {
+            if slot < 1 continue;
+            gl.ActiveTexture(GL_TEXTURE0 + SCENE_UNIT + 3 + cast(u32) k);
+            gl.BindTexture(GL_TEXTURE_2D, layer(slot));
+        }
+        base := cast(int) op.first * size_of(vector.Scene_Inst);
+        for 0..3  gl.VertexAttribPointer(xx it, 4, GL_FLOAT, GL_FALSE, size_of(vector.Scene_Inst), cast(*void) (base + it * 16));
+        gl.DrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, op.count);
+    }
+}
 
 timer_read :: (t: *Gpu_Timer) {
     if !t.pending return;
@@ -328,7 +455,7 @@ window_visual :: () -> u64 {
     return visual_id(a.visual);
 }
 
-link_program :: () -> u32 {
+link_program :: (vs_src: string, fs_src: string) -> u32 {
     compile :: (kind: u32, src: string) -> u32 {
         s := gl.CreateShader(kind);
         text, count := src.data, cast(s32) src.count;
@@ -346,8 +473,8 @@ link_program :: () -> u32 {
         }
         return s;
     }
-    vs := compile(GL_VERTEX_SHADER, GLSL_VERTEX_SRC);
-    fs := compile(GL_FRAGMENT_SHADER, GLSL_FRAGMENT_SRC);
+    vs := compile(GL_VERTEX_SHADER, vs_src);
+    fs := compile(GL_FRAGMENT_SHADER, fs_src);
     if !vs || !fs return 0;
     p := gl.CreateProgram();
     gl.AttachShader(p, vs);
@@ -406,6 +533,7 @@ gl: struct {
     Enable: (cap: u32) #c_call;
     Disable: (cap: u32) #c_call;
     BlendFunc: (sfactor: u32, dfactor: u32) #c_call;
+    BlendEquation: (mode: u32) #c_call;
     Viewport: (x: s32, y: s32, width: s32, height: s32) #c_call;
     ClearColor: (r: float32, g: float32, b: float32, a: float32) #c_call;
     Clear: (mask: u32) #c_call;
@@ -452,6 +580,8 @@ gl: struct {
     GenFramebuffers: (n: s32, framebuffers: *u32) #c_call;
     BindFramebuffer: (target: u32, framebuffer: u32) #c_call;
     FramebufferRenderbuffer: (target: u32, attachment: u32, rbtarget: u32, renderbuffer: u32) #c_call;
+    FramebufferTexture2D: (target: u32, attachment: u32, textarget: u32, texture: u32, level: s32) #c_call;
+    TexBuffer: (target: u32, internalformat: u32, buffer: u32) #c_call;
     CheckFramebufferStatus: (target: u32) -> u32 #c_call;
     GenRenderbuffers: (n: s32, renderbuffers: *u32) #c_call;
     BindRenderbuffer: (target: u32, renderbuffer: u32) #c_call;
@@ -484,6 +614,14 @@ EGL_PLATFORM_SURFACELESS_MESA :: 0x31DD;
 EGL_PLATFORM_DEVICE_EXT :: 0x313F;
 
 // gl.h / glcorearb.h
+GL_ZERO :: 0;
+GL_SRC_COLOR :: 0x0300;
+GL_ONE_MINUS_SRC_COLOR :: 0x0301;
+GL_FUNC_ADD :: 0x8006;
+GL_MIN :: 0x8007;
+GL_MAX :: 0x8008;
+GL_RGBA32F :: 0x8814;
+GL_TEXTURE_BUFFER :: 0x8C2A;
 GL_NO_ERROR :: 0;
 GL_FALSE :: 0;
 GL_TRIANGLE_STRIP :: 0x0005;

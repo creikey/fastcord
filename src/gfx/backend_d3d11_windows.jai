@@ -5,8 +5,8 @@ backend_init :: () -> bool {
     hr := D3D11CreateDevice(null, .HARDWARE, null, .BGRA_SUPPORT, levels.data, 1, D3D11_SDK_VERSION, *dx.device, null, *dx.ctx);
     if FAILED(hr) return false;
 
-    vsb := compile("vs_main", "vs_5_0");
-    psb := compile("ps_main", "ps_5_0");
+    vsb := compile(HLSL_SHADER_SRC, "vs_main", "vs_5_0");
+    psb := compile(HLSL_SHADER_SRC, "ps_main", "ps_5_0");
     defer { free(vsb); free(psb); }
     if !vsb || !psb return false;
     ID3D11Device_CreateVertexShader(dx.device, vsb.data, xx vsb.count, null, *dx.vs);
@@ -66,6 +66,7 @@ backend_init :: () -> bool {
             platform.set_frame_wait_handle(IDXGISwapChain2_GetFrameLatencyWaitableObject(dx.swap2));
         }
     }
+    scene_init();
     return true;
 }
 
@@ -103,6 +104,12 @@ backend_shutdown :: () {
         safe_release(it.t0);
         safe_release(it.t1);
     }
+    for dx.scene_bufs { safe_release(it.srv); safe_release(it.buf); }
+    for dx.scene_blend  safe_release(it);
+    for dx.scene_layers  for t: it.tex  backend_texture_destroy(t);
+    array_free(dx.scene_layers);
+    safe_release(dx.scene_ps);
+    safe_release(dx.scene_vs);
     safe_release(dx.sampler);
     safe_release(dx.raster);
     safe_release(dx.blend);
@@ -113,10 +120,33 @@ backend_shutdown :: () {
     dx = .{};
 }
 
-// Scenes need render targets and the scene shaders, which this backend doesn't have yet: the app
-// rasterizes vector art on the CPU here (scenes_supported is false), so `scenes` is always empty.
-backend_scenes_supported :: () -> bool { return false; }
-backend_target_create :: (w: s32, h: s32) -> *void { return null; }
+backend_scenes_supported :: () -> bool { return dx.scene_ps != null; }
+
+backend_target_create :: (w: s32, h: s32) -> *void {
+    if !dx.scene_ps return null;
+    return layer_texture(w, h);
+}
+
+// Draws s into target t now and reads it back (premultiplied RGBA8, top row first): gfx.scene_selftest.
+backend_scene_test :: (t: Texture, s: *vector.Scene) -> []u8 {
+    run_scene(t, s);
+    ID3D11DeviceContext_OMSetRenderTargets(dx.ctx, 0, null, null);
+    w, h := s.w, s.h;
+    td := D3D11_TEXTURE2D_DESC.{
+        Width = xx w, Height = xx h, MipLevels = 1, ArraySize = 1,
+        Format = .R8G8B8A8_UNORM, SampleDesc = .{Count = 1}, Usage = .STAGING, CPUAccessFlags = .READ,
+    };
+    staging: *ID3D11Texture2D;
+    if FAILED(ID3D11Device_CreateTexture2D(dx.device, *td, null, *staging)) return .[];
+    defer IUnknown_Release(staging);
+    ID3D11DeviceContext_CopyResource(dx.ctx, staging, cast(*D3D_Tex, g.textures[t].native).tex);
+    mapped: D3D11_MAPPED_SUBRESOURCE;
+    if FAILED(ID3D11DeviceContext_Map(dx.ctx, staging, 0, .READ, 0, *mapped)) return .[];
+    defer ID3D11DeviceContext_Unmap(dx.ctx, staging, 0);
+    px := NewArray(w * h * 4, u8);
+    for y: 0..h-1  memcpy(px.data + y * w * 4, cast(*u8) mapped.pData + y * mapped.RowPitch, w * 4);
+    return px;
+}
 
 backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32, scenes: []Scene_Draw) {
     if fb[0] <= 0 || fb[1] <= 0 return;
@@ -129,6 +159,10 @@ backend_submit :: (insts: []Instance, batches: []Batch, clear: Color, fb: [2]s32
         ID3D11DeviceContext_End(dx.ctx, timer.t0);
     } else {
         timer = null; // still in flight from GPU_TIMERS frames ago: skip timing this frame
+    }
+    if scenes.count {
+        for scenes  run_scene(it.target, it.scene);
+        ID3D11DeviceContext_OMSetRenderTargets(dx.ctx, 0, null, null); // targets are read as textures next
     }
     ensure_instances(insts.count);
     if insts {
@@ -230,6 +264,7 @@ backend_texture_update :: (native: *void, format: Texture_Format, x: s32, y: s32
 backend_texture_destroy :: (native: *void) {
     dt := cast(*D3D_Tex) native;
     if dt == null return;
+    if dt.rtv  IUnknown_Release(dt.rtv);
     IUnknown_Release(dt.srv);
     IUnknown_Release(dt.tex);
     free(dt);
@@ -268,6 +303,7 @@ backend_read_pixels :: (allocator: Allocator) -> []u8, int, int {
 D3D_Tex :: struct {
     tex: *ID3D11Texture2D;
     srv: *ID3D11ShaderResourceView;
+    rtv: *ID3D11RenderTargetView; // scene targets and layers
 }
 
 // GPU time per frame from timestamp queries, read back GPU_TIMERS frames later so nothing waits.
@@ -298,7 +334,152 @@ dx: struct {
     swap_flags: DXGI_SWAP_CHAIN_FLAG;
     timers: [GPU_TIMERS]Gpu_Timer;
     idle_query: *ID3D11Query;
+
+    scene_vs: *ID3D11VertexShader;
+    scene_ps: *ID3D11PixelShader; // null: no scenes
+    scene_blend: [7]*ID3D11BlendState; // by Scene_Blend
+    scene_bufs: [4]Dyn_Buf; // instances, segs, grads, ramps
+    scene_layers: [..]Scene_Layers;
+    scene_ops: [..]Scene_Op;
 };
+
+// A structured buffer rewritten every scene (WRITE_DISCARD), grown as needed.
+Dyn_Buf :: struct {
+    buf: *ID3D11Buffer;
+    srv: *ID3D11ShaderResourceView;
+    cap: int; // elements
+}
+
+// A scene size's nested layer textures (vector.SCENE_SLOTS, RGBA8).
+Scene_Layers :: struct {
+    w, h: s32;
+    tex: [vector.SCENE_SLOTS]*D3D_Tex;
+}
+
+scene_init :: () {
+    vsb := compile(HLSL_SCENE_SRC, "vs_scene", "vs_5_0");
+    psb := compile(HLSL_SCENE_SRC, "ps_scene", "ps_5_0");
+    defer { free(vsb); free(psb); }
+    if !vsb || !psb return;
+    for Scene_Blend.[.Over, .Multiply, .Replace, .Add, .Sub, .Max, .Min] {
+        src, dst, op := D3D11_BLEND.ONE, D3D11_BLEND.INV_SRC_ALPHA, D3D11_BLEND_OP.ADD;
+        if it == {
+            case .Multiply; src = .ZERO; dst = .SRC_COLOR;
+            case .Replace;  dst = .ZERO;
+            case .Add;      dst = .INV_SRC_COLOR;
+            case .Sub;      src = .ZERO; dst = .INV_SRC_COLOR;
+            case .Max;      dst = .ONE; op = .MAX;
+            case .Min;      dst = .ONE; op = .MIN;
+        }
+        bd: D3D11_BLEND_DESC;
+        bd.RenderTarget[0] = .{BlendEnable = 1, SrcBlend = src, DestBlend = dst, BlendOp = op, SrcBlendAlpha = src, DestBlendAlpha = dst, BlendOpAlpha = op,
+            RenderTargetWriteMask = cast(u8) D3D11_COLOR_WRITE_ENABLE.ALL};
+        if FAILED(ID3D11Device_CreateBlendState(dx.device, *bd, *dx.scene_blend[cast(int) it])) return;
+    }
+    if FAILED(ID3D11Device_CreateVertexShader(dx.device, vsb.data, xx vsb.count, null, *dx.scene_vs)) return;
+    ID3D11Device_CreatePixelShader(dx.device, psb.data, xx psb.count, null, *dx.scene_ps);
+}
+
+layer_texture :: (w: s32, h: s32) -> *D3D_Tex {
+    td := D3D11_TEXTURE2D_DESC.{
+        Width = xx w, Height = xx h, MipLevels = 1, ArraySize = 1, Format = .R8G8B8A8_UNORM,
+        SampleDesc = .{Count = 1}, Usage = .DEFAULT, BindFlags = D3D11_BIND_FLAG.SHADER_RESOURCE | D3D11_BIND_FLAG.RENDER_TARGET,
+    };
+    dt := New(D3D_Tex);
+    ok := SUCCEEDED(ID3D11Device_CreateTexture2D(dx.device, *td, null, *dt.tex))
+       && SUCCEEDED(ID3D11Device_CreateShaderResourceView(dx.device, dt.tex, null, *dt.srv))
+       && SUCCEEDED(ID3D11Device_CreateRenderTargetView(dx.device, dt.tex, null, *dt.rtv));
+    if !ok {
+        safe_release(dt.rtv);
+        safe_release(dt.srv);
+        safe_release(dt.tex);
+        free(dt);
+        return null;
+    }
+    zero := float32.[0, 0, 0, 0];
+    ID3D11DeviceContext_ClearRenderTargetView(dx.ctx, dt.rtv, *zero);
+    return dt;
+}
+
+upload :: (b: *Dyn_Buf, data: *void, count: int, stride: int) -> bool {
+    if b.cap < max(count, 1) || !b.buf {
+        safe_release(b.srv);
+        safe_release(b.buf);
+        b.srv, b.buf = null, null;
+        b.cap = max(count, b.cap * 2, 1024);
+        bd := D3D11_BUFFER_DESC.{ByteWidth = cast(u32) (b.cap * stride), Usage = .DYNAMIC, BindFlags = .SHADER_RESOURCE,
+            CPUAccessFlags = .WRITE, MiscFlags = .BUFFER_STRUCTURED, StructureByteStride = cast(u32) stride};
+        if FAILED(ID3D11Device_CreateBuffer(dx.device, *bd, null, *b.buf)) return false;
+        srvd := D3D11_SHADER_RESOURCE_VIEW_DESC.{Format = .UNKNOWN, ViewDimension = .BUFFER};
+        srvd.Buffer.NumElements = cast(u32) b.cap;
+        if FAILED(ID3D11Device_CreateShaderResourceView(dx.device, b.buf, *srvd, *b.srv)) return false;
+    }
+    if !count return true;
+    mapped: D3D11_MAPPED_SUBRESOURCE;
+    if FAILED(ID3D11DeviceContext_Map(dx.ctx, b.buf, 0, .WRITE_DISCARD, 0, *mapped)) return false;
+    memcpy(mapped.pData, data, count * stride);
+    ID3D11DeviceContext_Unmap(dx.ctx, b.buf, 0);
+    return true;
+}
+
+run_scene :: (t: Texture, s: *vector.Scene) {
+    target := cast(*D3D_Tex) g.textures[t].native;
+    w, h := cast(s32) s.w, cast(s32) s.h;
+    if !target || !target.rtv || g.textures[t].w != w || g.textures[t].h != h return;
+    layers: *Scene_Layers;
+    for * dx.scene_layers  if it.w == w && it.h == h  layers = it;
+    if !layers {
+        layers = array_add(*dx.scene_layers);
+        layers.w, layers.h = w, h;
+        for * layers.tex  it.* = layer_texture(w, h);
+    }
+    for layers.tex  if !it return;
+    scene_plan(s, *dx.scene_ops);
+    if !upload(*dx.scene_bufs[0], s.insts.data, s.insts.count, size_of(vector.Scene_Inst))
+    || !upload(*dx.scene_bufs[1], s.segs.data, s.segs.count, size_of(vector.Edge))
+    || !upload(*dx.scene_bufs[2], s.grads.data, s.grads.count * 4, 16)
+    || !upload(*dx.scene_bufs[3], s.ramps.data, s.ramps.count / 4, 4) return;
+
+    ID3D11DeviceContext_IASetPrimitiveTopology(dx.ctx, .TRIANGLESTRIP);
+    ID3D11DeviceContext_VSSetShader(dx.ctx, dx.scene_vs, null, 0);
+    ID3D11DeviceContext_PSSetShader(dx.ctx, dx.scene_ps, null, 0);
+    ID3D11DeviceContext_VSSetShaderResources(dx.ctx, 0, 1, *dx.scene_bufs[0].srv);
+    data: [3]*ID3D11ShaderResourceView;
+    for 1..3  data[it - 1] = dx.scene_bufs[it].srv;
+    ID3D11DeviceContext_PSSetShaderResources(dx.ctx, 1, 3, data.data);
+    ID3D11DeviceContext_VSSetConstantBuffers(dx.ctx, 0, 1, *dx.cbuf);
+    ID3D11DeviceContext_RSSetState(dx.ctx, dx.raster);
+    vp := D3D11_VIEWPORT.{Width = cast(float32) w, Height = cast(float32) h, MaxDepth = 1};
+    ID3D11DeviceContext_RSSetViewports(dx.ctx, 1, *vp);
+    sr := D3D11_RECT.{0, 0, w, h};
+    ID3D11DeviceContext_RSSetScissorRects(dx.ctx, 1, *sr);
+    layer :: (slot: s32) -> *D3D_Tex #expand { return ifx slot == 0 then `target else `layers.tex[slot - 1]; }
+    Uniforms :: struct { viewport: [2]float32; base: u32; pad: u32; }
+    for op: dx.scene_ops {
+        if op.clear {
+            zero := float32.[0, 0, 0, 0];
+            ID3D11DeviceContext_ClearRenderTargetView(dx.ctx, layer(op.slot).rtv, *zero);
+            continue;
+        }
+        // the layers read last time may be drawn into now: unbind them before binding the target
+        none: [2]*ID3D11ShaderResourceView;
+        ID3D11DeviceContext_PSSetShaderResources(dx.ctx, 4, 2, none.data);
+        ID3D11DeviceContext_OMSetRenderTargets(dx.ctx, 1, *layer(op.slot).rtv, null);
+        ID3D11DeviceContext_OMSetBlendState(dx.ctx, dx.scene_blend[cast(int) op.blend], null, 0xffffffff);
+        read: [2]*ID3D11ShaderResourceView;
+        if op.src >= 1    read[0] = layer(op.src).srv;
+        if op.matte >= 1  read[1] = layer(op.matte).srv;
+        ID3D11DeviceContext_PSSetShaderResources(dx.ctx, 4, 2, read.data);
+        mapped: D3D11_MAPPED_SUBRESOURCE;
+        if SUCCEEDED(ID3D11DeviceContext_Map(dx.ctx, dx.cbuf, 0, .WRITE_DISCARD, 0, *mapped)) {
+            cast(*Uniforms, mapped.pData).* = .{viewport = .[cast(float32) w, cast(float32) h], base = cast(u32) op.first};
+            ID3D11DeviceContext_Unmap(dx.ctx, dx.cbuf, 0);
+        }
+        ID3D11DeviceContext_DrawInstanced(dx.ctx, 4, xx op.count, 0, 0);
+    }
+    none: [2]*ID3D11ShaderResourceView;
+    ID3D11DeviceContext_PSSetShaderResources(dx.ctx, 4, 2, none.data);
+}
 
 timer_read :: (t: *Gpu_Timer) {
     if !t.pending return;
@@ -315,8 +496,8 @@ timer_read :: (t: *Gpu_Timer) {
     }
 }
 
-compile :: (entry: string, target: string) -> string {
-    code, errs, hr := D3DCompile(HLSL_SHADER_SRC, "fc_shader", .[], null, entry, target, 0, 0);
+compile :: (src: string, entry: string, target: string) -> string {
+    code, errs, hr := D3DCompile(src, "fc_shader", .[], null, entry, target, 0, 0);
     defer free(errs);
     if FAILED(hr) {
         if errs  log_error("gfx: hlsl: %", errs);

@@ -126,6 +126,10 @@ init :: () -> bool {
     g.white = texture_create(1, 1, .RGBA8, white);
     text_init();
     g.initialized = true;
+    if backend_scenes_supported() && !scene_selftest() {
+        log_error("gfx: vector scenes drew wrong pixels; rasterizing on the CPU instead");
+        g.scenes_off = true;
+    }
     return true;
 }
 
@@ -263,7 +267,7 @@ target_create :: (w: int, h: int) -> Texture {
 }
 
 // Whether this backend draws vector scenes on the GPU; when not, callers rasterize on the CPU.
-scenes_supported :: () -> bool { return backend_scenes_supported(); }
+scenes_supported :: () -> bool { return backend_scenes_supported() && !g.scenes_off; }
 
 // Draws scene s into target (from target_create, the scene's size) before the frame's own drawing, so
 // this frame shows it. s must stay unchanged until end_frame returns.
@@ -358,6 +362,7 @@ g: struct {
     instances: [..]Instance;
     batches: [..]Batch;
     scenes: [..]Scene_Draw;
+    scenes_off: bool; // scene_selftest failed
     clip_stack: [..][4]s32;
     textures: [..]Tex_Slot; // index = Texture handle; [0] is the 1x1 white texture
     free_textures: [..]Texture;
@@ -493,4 +498,125 @@ format_bpp :: (f: Texture_Format) -> int {
 destroy_now :: (d: Pending_Destroy) {
     if d.release      d.release(d.user);
     else if d.native  backend_texture_destroy(d.native);
+}
+
+// ---- vector scenes without framebuffer fetch (D3D11, GL) ----
+// Those backends keep each nested layer in its own texture and blend with fixed-function blending, so a
+// scene becomes a list of draws, each into one layer (slot) with one blend state. Fills compute their own
+// coverage (no accumulator), so consecutive fills into the same slot with the same blend are one draw.
+
+Scene_Blend :: enum u8 {
+    Over;     // One, InvSrcAlpha
+    Multiply; // Zero, SrcColor (clips, intersect masks, mask apply)
+    Replace;  // One, Zero (a first mask)
+    Add;      // One, InvSrcColor
+    Sub;      // Zero, InvSrcColor
+    Max;
+    Min;
+}
+
+Scene_Op :: struct {
+    clear: bool;  // clear slot to transparent; else draw instances first .. first + count
+    slot: s32;    // the layer drawn into (0 = the target)
+    blend: Scene_Blend;
+    first, count: s32;
+    src, matte: s32; // slots a Composite / Mask_Apply reads (-1 none)
+}
+
+// Fills ops with s's draws, clearing each layer before it is drawn into or read again.
+scene_plan :: (s: *vector.Scene, ops: *[..]Scene_Op) {
+    ops.count = 0;
+    dirty: [vector.SCENE_SLOTS + 1]bool;
+    for * dirty  it.* = true;
+    draw :: (op: Scene_Op) #expand {
+        // a layer is cleared before it is drawn into or read (an empty one is read as it was left)
+        for slot: s32.[op.slot, op.src, op.matte]  if slot >= 0 && `dirty[slot] {
+            array_add(`ops, .{clear = true, slot = slot});
+            `dirty[slot] = false;
+        }
+        last := ifx `ops.count then *`ops.data[`ops.count - 1] else null;
+        if last && !last.clear && op.src < 0 && last.src < 0 && last.slot == op.slot && last.blend == op.blend && last.first + last.count == op.first {
+            last.count += 1;
+            return;
+        }
+        array_add(`ops, op);
+    }
+    for in, i: s.insts {
+        kind := cast(vector.Scene_Kind) in.c[0];
+        top := cast(s32) in.c[1];
+        if kind == {
+        case .Fill;
+            blend: Scene_Blend;
+            if cast(vector.Scene_Mode) (cast(int) in.c[2] / 2) == {
+                case .Over;     blend = .Over;
+                case .Multiply; blend = .Multiply;
+                case .Mask_Set; #through;
+                case .Mask_Set_Sub; blend = .Replace;
+                case .Mask_Add; blend = .Add;
+                case .Mask_Sub; blend = .Sub;
+                case .Mask_Intersect; blend = .Multiply;
+                case .Mask_Darken; blend = .Min;
+                case; blend = .Max; // lighten; difference |m - c| has no blend state: drawn as lighten
+            }
+            draw(.{slot = top, blend = blend, first = xx i, count = 1, src = -1, matte = -1});
+        case .Composite;
+            matted := in.a[1] != 0;
+            src := ifx matted then top - 1 else top;
+            if src < 1 continue;
+            draw(.{slot = src - 1, blend = .Over, first = xx i, count = 1, src = src, matte = ifx matted then top else -1});
+            dirty[src] = true;
+            if matted  dirty[top] = true;
+        case .Mask_Apply;
+            if top < 1 continue;
+            draw(.{slot = top - 1, blend = .Multiply, first = xx i, count = 1, src = top, matte = -1});
+            dirty[top] = true;
+        }
+    }
+    if dirty[0]  array_add(ops, .{clear = true, slot = 0}); // empty scene
+}
+
+// Draws a small scene of known pixels: a red square with half-covered edges, a blue square in a layer
+// masked to x < 12 and composited at half opacity. False when the GPU gets them wrong (more than 2/255).
+scene_selftest :: () -> bool {
+    W :: 16;
+    t := target_create(W, W);
+    if !t return false;
+    defer texture_destroy(t);
+    rz: vector.Rasterizer;
+    vector.rasterizer_init(*rz, W, W);
+    defer vector.rasterizer_destroy(*rz);
+    s: vector.Scene;
+    defer vector.scene_free(*s);
+    rect :: (s: *vector.Scene, rz: *vector.Rasterizer, x0: float32, y0: float32, x1: float32, y1: float32, mode: vector.Scene_Mode, a: [4]float32, all := false) {
+        p: vector.Path;
+        defer { array_free(p.verbs); array_free(p.points); }
+        vector.path_move(*p, .{x0, y0});
+        vector.path_line(*p, .{x1, y0});
+        vector.path_line(*p, .{x1, y1});
+        vector.path_line(*p, .{x0, y1});
+        vector.path_close(*p);
+        vector.scene_path(s, rz, p.verbs, p.points, vector.MAT_IDENTITY, .Nonzero, null, mode, a, quad_all = all);
+    }
+    vector.scene_begin(*s, W, W);
+    rect(*s, *rz, 2.5, 2.5, 10, 10, .Over, .[1, 0, 0, 1]);
+    vector.scene_layer_begin(*s);
+    rect(*s, *rz, 6, 6, 14, 14, .Over, .[0, 0, 1, 1]);
+    vector.scene_layer_begin(*s);
+    rect(*s, *rz, 0, 0, 12, 16, .Mask_Set, .[1, 0, 0, 0], true);
+    vector.scene_mask_apply(*s);
+    vector.scene_composite(*s, 0.5);
+    px := backend_scene_test(t, *s);
+    defer array_free(px);
+    if px.count != W * W * 4 return false;
+    Probe :: struct { x, y: int; rgba: [4]int; }
+    probes :: Probe.[
+        .{5, 5, .[255, 0, 0, 255]},     // red
+        .{2, 5, .[128, 0, 0, 128]},     // red, half covered
+        .{8, 8, .[128, 0, 128, 255]},   // blue at half opacity over red
+        .{12, 8, .[0, 0, 0, 0]},        // blue, masked out
+        .{11, 12, .[0, 0, 128, 128]},   // blue alone
+        .{15, 0, .[0, 0, 0, 0]},
+    ];
+    for probes  for k: 0..3  if abs(cast(int) px[(it.y * W + it.x) * 4 + k] - it.rgba[k]) > 2 return false;
+    return true;
 }

@@ -52,6 +52,31 @@ backend_init :: () -> bool {
 // coverage in tile memory: Apple GPUs. Intel and AMD Macs rasterize on the CPU instead.
 backend_scenes_supported :: () -> bool { return mt.scene_pipeline != null; }
 
+// Draws s into target t now and reads it back (premultiplied RGBA8, top row first): gfx.scene_selftest.
+backend_scene_test :: (t: Texture, s: *vector.Scene) -> []u8 {
+    pool := objc.new_obj("NSAutoreleasePool");
+    defer msg(Void, pool, "drain");
+    ring: Ring_Slot;
+    defer if ring.buf  msg(Void, ring.buf, "release");
+    w, h := s.w, s.h;
+    out := msg(Id, mt.device, "newBufferWithLength:options:", cast(u64) (w * h * 4), cast(u64) 0);
+    defer msg(Void, out, "release");
+    cmd := msg(Id, mt.queue, "commandBuffer");
+    sd := Scene_Draw.{t, s};
+    encode_scenes(cmd, *ring, .[sd]);
+    blit := msg(Id, cmd, "blitCommandEncoder");
+    Origin :: struct { x, y, z: u64; }
+    Size :: struct { w, h, d: u64; }
+    msg(Void, blit, "copyFromTexture:sourceSlice:sourceLevel:sourceOrigin:sourceSize:toBuffer:destinationOffset:destinationBytesPerRow:destinationBytesPerImage:",
+        cast(Id) g.textures[t].native, cast(u64) 0, cast(u64) 0, Origin.{}, Size.{cast(u64) w, cast(u64) h, 1}, out, cast(u64) 0, cast(u64) (w * 4), cast(u64) (w * h * 4));
+    msg(Void, blit, "endEncoding");
+    msg(Void, cmd, "commit");
+    msg(Void, cmd, "waitUntilCompleted");
+    px := NewArray(w * h * 4, u8);
+    memcpy(px.data, msg(*void, out, "contents"), px.count);
+    return px;
+}
+
 backend_target_create :: (w: s32, h: s32) -> *void {
     if !mt.scene_pipeline return null;
     pool := objc.new_obj("NSAutoreleasePool");

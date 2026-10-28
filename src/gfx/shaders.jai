@@ -562,3 +562,289 @@ fragment SOut fs_scene(SVOut in [[stage_in]],
 }
 __END
 ;
+
+// The same scenes for GL (and, in HLSL below, D3D11), which can't read the framebuffer: gfx.scene_plan
+// turns a scene into draws into one layer texture at a time with fixed-function blending, so a Fill
+// outputs what its blend state needs (paint * coverage for Over, coverage for Multiply, the mask value
+// for the mask blends), a Composite its source layer (times a matte) and a Mask_Apply the mask's alpha.
+// Scenes draw unflipped (pixel row 0 = texture row 0), like uploaded textures. segs, grads and ramps
+// are texture buffers; src and matte the layers a Composite or Mask_Apply reads.
+
+GLSL_SCENE_VERTEX_SRC :: #string __END
+#version 330 core
+layout(location = 0) in vec4 ia;
+layout(location = 1) in vec4 ib;
+layout(location = 2) in vec4 ic;
+layout(location = 3) in vec4 id;
+uniform vec2 viewport;
+flat out vec4 va, vc, vd;
+
+void main() {
+	vec2 corner = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));
+	vec2 p = mix(ib.xy, ib.zw, corner);
+	gl_Position = vec4(p / viewport * 2.0 - 1.0, 0.0, 1.0);
+	va = ia; vc = ic; vd = id;
+}
+__END
+;
+
+GLSL_SCENE_FRAGMENT_SRC :: #string __END
+#version 330 core
+flat in vec4 va, vc, vd;
+uniform samplerBuffer segs;
+uniform samplerBuffer grads;
+uniform samplerBuffer ramps;
+uniform sampler2D src_layer;
+uniform sampler2D matte_layer;
+out vec4 frag;
+
+float G(float u) { return u <= 0.0 ? u : (u >= 1.0 ? 0.5 : u - 0.5 * u * u); }
+
+float right_of(float u0, float u1) {
+	if (max(u0, u1) <= 0.0) return 1.0;
+	if (min(u0, u1) >= 1.0) return 0.0;
+	if (abs(u1 - u0) < 1e-3) return clamp(1.0 - 0.5 * (u0 + u1), 0.0, 1.0);
+	return (G(u1) - G(u0)) / (u1 - u0);
+}
+
+float edge_area(vec4 e, vec2 px) {
+	vec2 a = e.xy, b = e.zw;
+	float dir = 1.0;
+	if (a.y > b.y) { vec2 t = a; a = b; b = t; dir = -1.0; }
+	float y0 = max(a.y, px.y), y1 = min(b.y, px.y + 1.0);
+	if (y1 <= y0) return 0.0;
+	float dxdy = (b.x - a.x) / (b.y - a.y);
+	float x0 = a.x + (y0 - a.y) * dxdy, x1 = a.x + (y1 - a.y) * dxdy;
+	return dir * (y1 - y0) * right_of(x0 - px.x, x1 - px.x);
+}
+
+vec4 ramp_at(int g, float t) {
+	float x = clamp(t * 256.0 - 0.5, 0.0, 255.0);
+	int i0 = int(floor(x));
+	int i1 = min(i0 + 1, 255);
+	return mix(texelFetch(ramps, g * 256 + i0), texelFetch(ramps, g * 256 + i1), x - float(i0));
+}
+
+vec4 gradient(int g, vec2 p) {
+	vec4 m0 = texelFetch(grads, g * 4), m1 = texelFetch(grads, g * 4 + 1), pp = texelFetch(grads, g * 4 + 2), rr = texelFetch(grads, g * 4 + 3);
+	vec2 q = vec2(m0.x * p.x + m0.z * p.y + m1.x, m0.y * p.x + m0.w * p.y + m1.y);
+	vec2 p0 = pp.xy, p1 = pp.zw;
+	float r = rr.x, fr = rr.y;
+	float t;
+	if (m1.z < 0.5) {
+		vec2 d = p1 - p0;
+		float l2 = dot(d, d);
+		t = l2 <= 0.0 ? 0.0 : dot(q - p0, d) / l2;
+	} else {
+		vec2 f = p1, cd = p0 - p1, qf = q - f;
+		float dr = r - fr;
+		float A = dot(cd, cd) - dr * dr;
+		float B = dot(qf, cd) + fr * dr;
+		float C = dot(qf, qf) - fr * fr;
+		if (abs(A) < 1e-9) {
+			if (abs(B) < 1e-12) return vec4(0.0);
+			t = C / (2.0 * B);
+			if (fr + t * dr < 0.0) return vec4(0.0);
+		} else {
+			float disc = B * B - A * C;
+			if (disc < 0.0) return vec4(0.0);
+			float s = sqrt(disc);
+			float hi = max((B + s) / A, (B - s) / A), lo = min((B + s) / A, (B - s) / A);
+			if (fr + hi * dr >= 0.0) t = hi;
+			else if (fr + lo * dr >= 0.0) t = lo;
+			else return vec4(0.0);
+		}
+	}
+	float spread = m1.w;
+	if (spread < 0.5) t = clamp(t, 0.0, 1.0);
+	else if (spread < 1.5) { t = abs(t); float k = floor(t); t -= k; if (mod(k, 2.0) == 1.0) t = 1.0 - t; }
+	else t = t - floor(t);
+	return ramp_at(g, t);
+}
+
+void main() {
+	vec2 px = floor(gl_FragCoord.xy);
+	ivec2 ip = ivec2(px);
+	int kind = int(vc.x);
+	if (kind == 0) {
+		int first = int(vd.x), n = int(vd.y);
+		float acc = 0.0;
+		for (int i = 0; i < n; i++) acc += edge_area(texelFetch(segs, first + i), px);
+		float v = abs(acc);
+		float cov;
+		int rm = int(vc.z);
+		if ((rm & 1) == 0) cov = min(v, 1.0);
+		else { v = v - 2.0 * floor(v / 2.0); cov = v > 1.0 ? 2.0 - v : v; }
+		int mode = rm >> 1;
+		if (mode == 0) {
+			vec4 col = va;
+			int g = int(vc.w);
+			if (g >= 0) col = gradient(g, gl_FragCoord.xy);
+			float al = col.a * cov;
+			frag = vec4(col.rgb * al, al);
+		} else if (mode == 1) {
+			frag = vec4(cov);
+		} else {
+			float c = cov * va.x;
+			if (va.y > 0.5) c = 1.0 - c;
+			frag = vec4(mode == 3 ? 1.0 - c : c);
+		}
+	} else if (kind == 1) {
+		vec4 s = texelFetch(src_layer, ip, 0);
+		int mk = int(va.y);
+		if (mk != 0) {
+			vec4 mt = texelFetch(matte_layer, ip, 0);
+			float f = (mk >= 3 ? dot(mt.rgb, vec3(0.2125, 0.7154, 0.0721)) : mt.a) * va.z;
+			if (mk == 2 || mk == 4) f = 1.0 - f;
+			s *= f;
+		}
+		frag = s * va.x;
+	} else {
+		frag = vec4(texelFetch(src_layer, ip, 0).a);
+	}
+}
+__END
+;
+
+HLSL_SCENE_SRC :: #string __END
+
+struct SInst { float4 a; float4 b; float4 c; float4 d; };
+StructuredBuffer<SInst> insts : register(t0);
+StructuredBuffer<float4> segs : register(t1);
+StructuredBuffer<float4> grads : register(t2);
+StructuredBuffer<uint> ramps : register(t3); // RGBA8, r in the low byte
+Texture2D src_layer : register(t4);
+Texture2D matte_layer : register(t5);
+cbuffer Uniforms : register(b0) { float2 viewport; uint base_instance; uint pad; };
+
+struct SVOut {
+	float4 pos : SV_Position;
+	nointerpolation float4 a : A;
+	nointerpolation float4 c : C;
+	nointerpolation float4 d : D;
+};
+
+SVOut vs_scene(uint vid : SV_VertexID, uint iid : SV_InstanceID) {
+	SInst i = insts[iid + base_instance];
+	float2 corner = float2(float(vid & 1u), float(vid >> 1u));
+	float2 p = lerp(i.b.xy, i.b.zw, corner);
+	SVOut o;
+	o.pos = float4(p / viewport * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
+	o.a = i.a;
+	o.c = i.c;
+	o.d = i.d;
+	return o;
+}
+
+float G(float u) { return u <= 0.0 ? u : (u >= 1.0 ? 0.5 : u - 0.5 * u * u); }
+
+float right_of(float u0, float u1) {
+	if (max(u0, u1) <= 0.0) return 1.0;
+	if (min(u0, u1) >= 1.0) return 0.0;
+	if (abs(u1 - u0) < 1e-3) return saturate(1.0 - 0.5 * (u0 + u1));
+	return (G(u1) - G(u0)) / (u1 - u0);
+}
+
+float edge_area(float4 e, float2 px) {
+	float2 a = e.xy, b = e.zw;
+	float dir = 1.0;
+	if (a.y > b.y) { float2 t = a; a = b; b = t; dir = -1.0; }
+	float y0 = max(a.y, px.y), y1 = min(b.y, px.y + 1.0);
+	if (y1 <= y0) return 0.0;
+	float dxdy = (b.x - a.x) / (b.y - a.y);
+	float x0 = a.x + (y0 - a.y) * dxdy, x1 = a.x + (y1 - a.y) * dxdy;
+	return dir * (y1 - y0) * right_of(x0 - px.x, x1 - px.x);
+}
+
+float4 ramp_texel(int i) {
+	uint v = ramps[i];
+	return float4(v & 255u, (v >> 8) & 255u, (v >> 16) & 255u, v >> 24) / 255.0;
+}
+
+float4 ramp_at(int g, float t) {
+	float x = clamp(t * 256.0 - 0.5, 0.0, 255.0);
+	int i0 = int(floor(x));
+	int i1 = min(i0 + 1, 255);
+	return lerp(ramp_texel(g * 256 + i0), ramp_texel(g * 256 + i1), x - float(i0));
+}
+
+float4 gradient(int g, float2 p) {
+	float4 m0 = grads[g * 4], m1 = grads[g * 4 + 1], pp = grads[g * 4 + 2], rr = grads[g * 4 + 3];
+	float2 q = float2(m0.x * p.x + m0.z * p.y + m1.x, m0.y * p.x + m0.w * p.y + m1.y);
+	float2 p0 = pp.xy, p1 = pp.zw;
+	float r = rr.x, fr = rr.y;
+	float t;
+	if (m1.z < 0.5) {
+		float2 dd = p1 - p0;
+		float l2 = dot(dd, dd);
+		t = l2 <= 0.0 ? 0.0 : dot(q - p0, dd) / l2;
+	} else {
+		float2 f = p1, cd = p0 - p1, qf = q - f;
+		float dr = r - fr;
+		float A = dot(cd, cd) - dr * dr;
+		float B = dot(qf, cd) + fr * dr;
+		float C = dot(qf, qf) - fr * fr;
+		if (abs(A) < 1e-9) {
+			if (abs(B) < 1e-12) return float4(0, 0, 0, 0);
+			t = C / (2.0 * B);
+			if (fr + t * dr < 0.0) return float4(0, 0, 0, 0);
+		} else {
+			float disc = B * B - A * C;
+			if (disc < 0.0) return float4(0, 0, 0, 0);
+			float s = sqrt(disc);
+			float hi = max((B + s) / A, (B - s) / A), lo = min((B + s) / A, (B - s) / A);
+			if (fr + hi * dr >= 0.0) t = hi;
+			else if (fr + lo * dr >= 0.0) t = lo;
+			else return float4(0, 0, 0, 0);
+		}
+	}
+	float spread = m1.w;
+	if (spread < 0.5) t = saturate(t);
+	else if (spread < 1.5) { t = abs(t); float k = floor(t); t -= k; if (fmod(k, 2.0) == 1.0) t = 1.0 - t; }
+	else t = t - floor(t);
+	return ramp_at(g, t);
+}
+
+float4 ps_scene(SVOut i) : SV_Target {
+	float2 px = floor(i.pos.xy);
+	int3 ip = int3(int2(px), 0);
+	int kind = int(i.c.x);
+	if (kind == 0) {
+		int first = int(i.d.x), n = int(i.d.y);
+		float acc = 0.0;
+		for (int k = 0; k < n; k++) acc += edge_area(segs[first + k], px);
+		float v = abs(acc);
+		float cov;
+		int rm = int(i.c.z);
+		if ((rm & 1) == 0) cov = min(v, 1.0);
+		else { v = v - 2.0 * floor(v / 2.0); cov = v > 1.0 ? 2.0 - v : v; }
+		int mode = rm >> 1;
+		if (mode == 0) {
+			float4 col = i.a;
+			int g = int(i.c.w);
+			if (g >= 0) col = gradient(g, i.pos.xy);
+			float al = col.a * cov;
+			return float4(col.rgb * al, al);
+		}
+		if (mode == 1) return float4(cov, cov, cov, cov);
+		float c = cov * i.a.x;
+		if (i.a.y > 0.5) c = 1.0 - c;
+		if (mode == 3) c = 1.0 - c;
+		return float4(c, c, c, c);
+	}
+	if (kind == 1) {
+		float4 s = src_layer.Load(ip);
+		int mk = int(i.a.y);
+		if (mk != 0) {
+			float4 mt = matte_layer.Load(ip);
+			float f = (mk >= 3 ? dot(mt.rgb, float3(0.2125, 0.7154, 0.0721)) : mt.a) * i.a.z;
+			if (mk == 2 || mk == 4) f = 1.0 - f;
+			s *= f;
+		}
+		return s * i.a.x;
+	}
+	float m = src_layer.Load(ip).a;
+	return float4(m, m, m, m);
+}
+__END
+;
