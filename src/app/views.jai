@@ -1127,8 +1127,17 @@ navigate_step :: (dir: int, unread: bool, servers: bool, mentions := false) {
 	ids: [..]dc.Snowflake;
 	ids.allocator = temp;
 	cur := app.view.channel;
+	owners: [..]*dc.Client; // Per server: the connection it is on, in the rail's order.
+	owners.allocator = temp;
 	if servers {
-		for e: rail_entries() array_add(*ids, ..e.guilds);
+		keep := app.client;
+		if app.discord app.client = app.discord;
+		for e: rail_entries() for e.guilds { array_add(*ids, it); array_add(*owners, app.client); }
+		app.client = keep;
+		for h: hosted {
+			if !h.client || !h.client.store.ready continue;
+			for h.client.store.guild_order { array_add(*ids, it); array_add(*owners, h.client); }
+		}
 		cur = app.view.guild;
 	} else if app.view.guild == 0 {
 		array_add(*ids, ..dc.private_channels_sorted(s));
@@ -1158,7 +1167,7 @@ navigate_step :: (dir: int, unread: bool, servers: bool, mentions := false) {
 	n := ids.count;
 	next := ifx !found then (ifx dir > 0 then 0 else n - 1) else (i + dir + n) % n;
 	if ids[next] == cur return;
-	if servers select_guild(ids[next]);
+	if servers { app.client = owners[next]; select_guild(ids[next]); }
 	else select_channel(app.view.guild, ids[next]);
 }
 
