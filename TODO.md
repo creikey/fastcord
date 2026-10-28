@@ -44,7 +44,9 @@
   - Done: attaching a file in a hosted channel (picker, drop, paste) is refused with a toast until Hosting 4 serves uploads (`attachments.jai` `uploads_unserved`).
   - Done: the sticker button, its Ctrl+S and the picker's Stickers tab are hidden on hosted servers, which can't serve Discord's stickers.
   - A saved server that is down shows only a generic server icon and its host, since `settings.json` keeps just the invite: with two servers on one host they look the same. Keep the server's name (and its folder position) with the invite, and draw its acronym greyed out.
-  - Next: the member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead. A slow gateway reader stalls everyone's events (`serve` `broadcast`).
+  - Next: the member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead.
+  - Done: each gateway has its own send queue and writer thread, so a member who stops reading no longer stalls everyone's events; past 8 MB of backlog they are disconnected and reconnect (`serve` `queue`, `writer`).
+  - Messages sent while a hosted connection was down never appear: `serve` has no resume (op 6 gets Invalid Session), so the client identifies afresh, and READY refetches the open channel only when it was never loaded (`actions.jai` READY), leaving a gap. On a non-resumed READY, mark cached channels stale and refetch the open one (or add resume with a replay buffer to `serve`).
   - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
   - Done: Change Nickname (`PATCH /guilds/{id}/members/@me`) renames the member, since a hosted member has one name; GUILD_MEMBER_UPDATE and the member list follow, and old messages show the new name.
   - Done: the owner deletes any member's message (Discord's Manage Messages); members still delete only their own.

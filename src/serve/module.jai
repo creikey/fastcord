@@ -39,9 +39,19 @@ Conn :: struct {
 	done: bool; // atomic; the thread has finished with s.
 	ws: *http.Ws_Conn; // Under server.mu: set once Identify succeeds, so broadcasts reach it.
 	user: s64;         // Under server.mu, with ws.
-	mu: locks.Mutex;   // Orders this gateway's dispatches: seq and their sends.
+	mu: locks.Mutex;   // Orders this gateway's dispatches: seq and their queueing.
 	seq: int;
+	// Under mu: encoded dispatches the writer thread hasn't sent yet, so one member who stops reading
+	// can't stall everyone else's events.
+	out: [..][]u8;
+	out_bytes: int;
+	wake: locks.Cond;
+	closing: bool;
+	out_ws: *http.Ws_Conn; // The writer's socket, fixed for its life (unlike ws).
+	writer: *Thread;
 }
+
+OUT_MAX :: 8 << 20;
 
 // open makes the server file if needed: its ID, TLS key and certificate live in it, so the invite stays
 // valid for as long as the file does. A new server is named after the file and gets #general and an
@@ -858,11 +868,53 @@ member_list_value :: (s: *Server) -> etf.Value {
 dispatch :: (c: *Conn, t: string, d: etf.Value) -> bool {
 	locks.guard(*c.mu);
 	c.seq += 1;
-	return send(c.ws, 0, d, c.seq, t);
+	return queue(c, frame(0, d, c.seq, t));
+}
+
+// queue hands bytes to c's writer; c.mu is held. A member whose backlog passes OUT_MAX has stopped
+// reading, so it is disconnected instead of queued for without bound; its client reconnects.
+queue :: (c: *Conn, bytes: []u8) -> bool {
+	if c.closing || !bytes return false;
+	if c.out_bytes + bytes.count > OUT_MAX {
+		c.closing = true;
+		netio.shutdown(netio.tcp_stream(c.tcp));
+		locks.cond_signal(*c.wake);
+		return false;
+	}
+	array_add(*c.out, array_copy(bytes,, context.default_allocator));
+	c.out_bytes += bytes.count;
+	locks.cond_signal(*c.wake);
+	return true;
+}
+
+writer :: (c: *Conn) {
+	batch: [..][]u8;
+	defer array_free(batch);
+	while true {
+		locks.lock(*c.mu);
+		while !c.out.count && !c.closing locks.cond_wait(*c.wake, *c.mu);
+		stop := c.closing;
+		spare := batch;
+		batch = c.out;
+		c.out = spare;
+		c.out_bytes = 0;
+		locks.unlock(*c.mu);
+		for batch {
+			if !stop && http.ws_send(c.out_ws, .Binary, it) != .None {
+				stop = true;
+				locks.lock(*c.mu);
+				c.closing = true;
+				locks.unlock(*c.mu);
+				netio.shutdown(netio.tcp_stream(c.tcp));
+			}
+			free(it.data,, context.default_allocator);
+		}
+		batch.count = 0;
+		if stop return;
+	}
 }
 
 // broadcast dispatches to every identified gateway connection.
-// @Speed: A client that stops reading stalls everyone's events until its send times out; queue per connection.
 broadcast :: (s: *Server, t: string, d: etf.Value) {
 	locks.guard(*s.mu);
 	for s.conns if it.ws dispatch(it, t, d);
@@ -1696,12 +1748,21 @@ gateway :: (c: *Conn, req: http.Request) {
 	netio.set_timeout(c.s, HEARTBEAT_INTERVAL_MS * 2);
 
 	ws := http.ws_attach(c.s, .{server = true, max_message = 1 << 20});
+	c.out_ws = ws;
+	c.writer = spawn(c, writer);
 	defer {
 		locks.lock(*c.server.mu);
 		was := c.user;
 		c.ws = null;
 		c.user = 0;
 		locks.unlock(*c.server.mu);
+		locks.lock(*c.mu);
+		c.closing = true;
+		locks.cond_signal(*c.wake);
+		locks.unlock(*c.mu);
+		locks.join(c.writer);
+		for c.out free(it.data,, context.default_allocator);
+		array_free(c.out);
 		http.ws_destroy(ws);
 		if was broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
 	}
@@ -1740,7 +1801,7 @@ gateway :: (c: *Conn, req: http.Request) {
 				locks.lock(*c.mu);
 				locks.unlock(*c.server.mu);
 				c.seq += 1;
-				ok := send(ws, 0, ready_value(c.server, user, name), c.seq, "READY");
+				ok := queue(c, frame(0, ready_value(c.server, user, name), c.seq, "READY"));
 				locks.unlock(*c.mu);
 				if !ok return;
 				broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
@@ -1753,12 +1814,21 @@ gateway :: (c: *Conn, req: http.Request) {
 	}
 }
 
-send :: (ws: *http.Ws_Conn, op: int, d: etf.Value, seq := 0, t := "") -> bool {
+// frame encodes a gateway payload in temp; empty if it can't be encoded.
+frame :: (op: int, d: etf.Value, seq := 0, t := "") -> []u8 {
 	m := etf.map_builder(4,, temp);
 	etf.map_put(*m, "op", etf.vint(op));
 	etf.map_put(*m, "d", d);
 	etf.map_put(*m, "s", ifx seq then etf.vint(seq) else .{});
 	etf.map_put(*m, "t", ifx t then etf.vatom(t) else .{});
 	bytes, err := etf.encode(etf.vmap(etf.map_done(*m)),, temp);
-	return err == .None && http.ws_send(ws, .Binary, bytes) == .None;
+	if err != .None return .[];
+	return bytes;
+}
+
+// send writes straight from the reader thread, for replies that carry no seq (Hello, heartbeat acks).
+// Ws_Conn serializes its writes, so this can't interleave with the writer's frames.
+send :: (ws: *http.Ws_Conn, op: int, d: etf.Value) -> bool {
+	bytes := frame(op, d);
+	return bytes && http.ws_send(ws, .Binary, bytes) == .None;
 }
