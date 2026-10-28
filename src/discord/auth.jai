@@ -344,9 +344,11 @@ auth_apply :: (c: *Client, e: *Event) {
 		case .Login;
 			analytics_network_action(c, "network_action_user_login", r.status, body, "/auth/login", "post");
 			auth_login_result(c, r.status, body, false);
+			if fstr(body, "token") analytics_client_heartbeat(c); // the scheduler starts with the session
 		case .Mfa;
 			analytics_network_action(c, "network_action_user_login_mfa", r.status, body, tprint("/auth/mfa/%", mfa_kind_name(a.mfa_kind)), "post");
 			auth_login_result(c, r.status, body, true);
+			if fstr(body, "token") analytics_client_heartbeat(c);
 		case .Sms_Send;
 			ev := Auth_Event.{kind = .Sms_Sent, phone = fstr(body, "phone")};
 			if !r.ok ev.message = auth_message(r.status, body);
@@ -629,6 +631,8 @@ client_session_reset :: (c: *Client) {
 	locks.unlock(*c.ack_mu);
 	locks.lock(*c.analytics.mu);
 	c.analytics.user_id = 0;
+	for v, k: c.analytics.exposed free(k,, c.analytics.allocator);
+	table_reset(*c.analytics.exposed); // logging out clears the exposure log with local storage
 	locks.unlock(*c.analytics.mu);
 	store_destroy(*c.store);
 	store_init(*c.store, c.allocator);

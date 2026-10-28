@@ -33,7 +33,14 @@ Analytics :: struct {
 	accessibility_known: bool;
 	rtc_state: Rtc_State; // the voice connection's state (client_set_rtc_state)
 	roundtrip_sample: float64; // send_message_roundtrip sample rate (MessageRoundtripTrackerStore: 10%)
-	next_client_hb: s64;
+	synth: Synth; // Electron's memory, which fastcord models (see Synth)
+	gateway_seen: bool; // the AccessibilityStore's bits join at gateway_connected
+	identify_ms: s64; // the launch's fast-connect IDENTIFY (0 after READY)
+	pending_connected: string; // gateway_connected waiting for that IDENTIFY
+	ready_frame: struct { wire, raw, unpack_ms: s64; }; // the gateway reader's READY frame
+	ready_unpack_ms: s64;
+	first_render_at: s64; // app_ui_viewed due (UI thread)
+	next_client_hb: s64; // 0 = the heartbeat scheduler has not started
 	next_ad_hb: s64;
 	ad_session: string;
 	ad_created: s64;
@@ -46,6 +53,11 @@ Analytics :: struct {
 	picker: Picker_Search;
 	profile: Profile_View;
 	join_voice_id: string;
+	voice: Voice_Session; // the voice connection's telemetry (UI thread)
+	// READY's apex_experiments: evaluation ids (user, installation) and murmur3(name) -> variation
+	eval_user, eval_installation: string;
+	variations: Table(u32, s64);
+	exposed: Table(string, bool); // exposures already tracked ("<evaluation>|<location>|<experiment>", persisted)
 	gdm_entry: Gdm_Entry;
 	gdm_searches: int;
 	gdm_pending: bool;
@@ -62,8 +74,8 @@ Shown_Notification :: struct {
 
 Analytics_Timer :: struct {
 	at: s64;
-	event_type: string; // static strings only
-	props: string;
+	event_type: string; // static strings only; "" = the pre-CONNECTION_OPEN coachmark
+	props: string; // owned (a.allocator)
 }
 
 Roundtrip :: struct {
@@ -82,6 +94,8 @@ analytics_init :: (a: *Analytics, allocator := context.allocator) {
 	a.roundtrips.allocator = allocator;
 	a.throttled.allocator = allocator;
 	a.shown.allocator = allocator;
+	a.variations.allocator = allocator;
+	a.exposed.allocator = allocator;
 	a.enabled = true;
 	a.uuid_random = cast(u32) random_get();
 	a.uuid_created = now_ms();
@@ -89,13 +103,81 @@ analytics_init :: (a: *Analytics, allocator := context.allocator) {
 	a.ad_session = uuid4(,, allocator);
 	a.ad_created = now_ms();
 	a.roundtrip_sample = 0.1;
+	synth_init(*a.synth);
 }
+
+// ---- synthesized values ----
+// The official client reports its Electron processes' memory and Chromium's JS
+// heap; fastcord is one native process. Those values are synthesized, modelled
+// on the fixtures' setup windows (traffic/CLIENT_RULES.md "Analytics"): four
+// processes in electron_process_memory_private_and_shared (slots 1, 2 = the
+// renderer, 3, 5; the others -1, KB in 16 KB steps), client_performance_memory =
+// their sum, the renderer's used JS heap 17-29 % of it. One sample per 10 s:
+// the renderer follows our own resident memory's growth (x3) plus a slow drift
+// (+~15 %/h, capped at 1.25 GB), every slot carries 1-2 % noise, and a call
+// adds ~170 MB (fixture dm_call).
+Synth :: struct {
+	rng: u64;
+	base: [4]float64;
+	rss0: s64; // our own resident KB at the first sample
+	proc: [4]s64;
+	heap: s64;
+	sampled_ms: s64;
+	sampled_uptime: s64; // uptime_process_renderer of the last sample
+	high_total, high_heap, high_uptime: s64;
+}
+
+synth_init :: (s: *Synth) {
+	b: [8]u8;
+	crypto.random_bytes(b);
+	s.rng = (cast(*u64) b.data).* | 1;
+	s.base = .[synth_between(s, 230_000, 300_000), synth_between(s, 600_000, 800_000), synth_between(s, 110_000, 165_000), synth_between(s, 200_000, 266_000)];
+}
+
+// synth_rand: xorshift64*, [0, 1). Its own state: Random's is not seeded per launch.
+synth_rand :: (s: *Synth) -> float64 {
+	s.rng ^= s.rng >> 12;
+	s.rng ^= s.rng << 25;
+	s.rng ^= s.rng >> 27;
+	return cast(float64) ((s.rng * 2685821657736338717) >> 11) / cast(float64) (1 << 53);
+}
+
+synth_between :: (s: *Synth, lo: float64, hi: float64) -> float64 { return lo + (hi - lo) * synth_rand(s); }
+
+synth_gauss :: (s: *Synth) -> float64 {
+	return sqrt(-2 * log(max(synth_rand(s), 0.000000001))) * cos(2 * PI * synth_rand(s));
+}
+
+// synth_memory: take a new sample when the last is 10 s old (a.mu held); the total.
+synth_memory :: (s: *Synth, now: s64, in_call: bool) -> s64 {
+	if s.sampled_ms == 0 || now - s.sampled_ms >= 10_000 {
+		rss, ok := process_memory_kb();
+		if s.sampled_ms == 0 s.rss0 = rss;
+		else s.base[1] = min(s.base[1] * (1 + 0.0004 + 0.004 * synth_gauss(s)), 1_250_000);
+		CALL :: float64.[90_000, 60_000, 20_000, 0];
+		for * s.proc {
+			v := s.base[it_index] * (1 + (ifx it_index == 1 then 0.02 else 0.01) * synth_gauss(s));
+			if it_index == 1 && ok v += 3 * cast(float64) max(rss - s.rss0, 0);
+			if in_call v += CALL[it_index];
+			it.* = (cast(s64) v) / 16 * 16;
+		}
+		s.heap = cast(s64) (cast(float64) s.proc[1] * synth_between(s, 0.17, 0.29));
+		s.sampled_ms = now;
+		s.sampled_uptime = process_uptime_seconds();
+		total := synth_total(s);
+		if total > s.high_total s.high_total, s.high_heap, s.high_uptime = total, s.heap, s.sampled_uptime;
+	}
+	return synth_total(s);
+}
+
+synth_total :: (s: *Synth) -> s64 { return s.proc[0] + s.proc[1] + s.proc[2] + s.proc[3]; }
 
 analytics_destroy :: (a: *Analytics) {
 	push_allocator(a.allocator);
 	for a.queue free(it);
 	array_free(a.queue);
 	free(a.ad_session);
+	for a.timers free(it.props);
 	array_free(a.timers);
 	deinit(*a.roundtrips);
 	for v, k: a.throttled free(k);
@@ -106,6 +188,13 @@ analytics_destroy :: (a: *Analytics) {
 	free(a.profile.session);
 	free(a.profile.source_session);
 	free(a.join_voice_id);
+	voice_session_reset(a);
+	free(a.pending_connected);
+	free(a.eval_user);
+	free(a.eval_installation);
+	deinit(*a.variations);
+	for v, k: a.exposed free(k);
+	deinit(*a.exposed);
 }
 
 // client_uuid_next: the next client_uuid (see the top), in temp.
@@ -127,20 +216,19 @@ client_uuid_next :: (a: *Analytics) -> string {
 analytics_track :: (c: *Client, event_type: string, props_json: string) {
 	a := *c.analytics;
 	if !a.enabled return;
-	// Events are dropped, never sent with invented values: memory must be
-	// measurable and the app must have reported viewport + accessibility state.
-	mem_kb, mok := process_memory_kb();
+	// Events wait for the app's viewport and accessibility state (dropped before).
 	cpu, cok := process_cpu_percent();
 	locks.lock(*a.mu);
 	known := a.viewport_w > 0 && a.accessibility_known;
 	locks.unlock(*a.mu);
-	if !mok || !cok || !known return;
+	if !cok || !known return;
 	now := now_ms();
 	hb := identity_heartbeat_snapshot(*c.id);
 	locks.lock(*a.mu);
 	defer locks.unlock(*a.mu);
 	if analytics_throttled(a, event_type, props_json, now) return;
 	a.seq += 1;
+	if event_type == "gateway_connected" a.gateway_seen = true;
 	b: [..]u8;
 	b.allocator = temp;
 	put :: (key: string, value: Any) #expand { append_string(*`b, tprint(",\"%\":%", key, value)); }
@@ -154,11 +242,12 @@ analytics_track :: (c: *Client, event_type: string, props_json: string) {
 	if hb.uuid put_str("client_heartbeat_session_id", hb.uuid);
 	put("event_sequence_number", a.seq);
 	if props_json append_string(*b, tprint(",%", props_json));
-	// expandEventProperties — only measured values; see analytics_unknowable.
+	// expandEventProperties: our own CPU use, Electron's memory synthesized (Synth)
 	put("client_performance_cpu", js_number(cpu));
-	put("client_performance_memory", mem_kb);
+	put("client_performance_memory", synth_memory(*a.synth, now, a.rtc_state == .Rtc_Connected));
 	put("cpu_core_count", get_number_of_processors());
-	put("accessibility_features", a.accessibility);
+	// the AccessibilityStore's bits join on its first change, before gateway_connected
+	put("accessibility_features", ifx a.gateway_seen then a.accessibility else a.accessibility & ~cast(u64) (A11Y_REDUCED_MOTION | A11Y_FORCED_COLORS_FROM_USER_SETTINGS));
 	put_str("rendered_locale", c.id.platform.locale);
 	put("uptime_app", (now - c.launch_ms) / 1000);
 	put("uptime_process_renderer", process_uptime_seconds());
@@ -308,7 +397,32 @@ analytics_gateway_connected :: (c: *Client, failed_attempts: int, url: string, i
 	json_kbool(*w, "is_fast_connect", is_fast_connect);
 	json_kint(*w, "duration_ms_since_first_connect_attempt", since_first);
 	json_kint(*w, "duration_ms_since_connect_attempt_start", since_attempt);
-	aw_track(c, "gateway_connected", *w);
+	json_obj_end(*w);
+	props := json_body(json_string(*w));
+	if !is_fast_connect {
+		analytics_track(c, "gateway_connected", props);
+		return;
+	}
+	// The launch's app adopts fast-connect's socket after its IDENTIFY (fixtures:
+	// IDENTIFY +90-200 ms), then checks the pre-CONNECTION_OPEN coachmark.
+	a := *c.analytics;
+	locks.lock(*a.mu);
+	if a.identify_ms == 0 {
+		free(a.pending_connected,, a.allocator);
+		a.pending_connected = copy_string(props,, a.allocator);
+		locks.unlock(*a.mu);
+		return;
+	}
+	locks.unlock(*a.mu);
+	analytics_track(c, "gateway_connected", props);
+	analytics_before_connection_open(c);
+}
+
+// analytics_ready_frame: the gateway reader's READY frame (wire and inflated bytes, ETF unpack time).
+analytics_ready_frame :: (c: *Client, wire: int, raw: int, unpack_ms: s64) {
+	locks.lock(*c.analytics.mu);
+	c.analytics.ready_frame = .{wire, raw, unpack_ms};
+	locks.unlock(*c.analytics.mu);
 }
 
 // js_number: a double as JSON.stringify writes it (integers without a fraction,
@@ -331,15 +445,19 @@ json_body :: (obj: string) -> string {
 analytics_tick :: (c: *Client, now: s64) {
 	a := *c.analytics;
 	if !a.enabled return;
-	i := 0;
-	while i < a.timers.count {
-		tm := a.timers[i];
-		if tm.at > now {
-			i += 1;
-			continue;
+	while true { // timers are added from the gateway thread too
+		tm: Analytics_Timer;
+		locks.lock(*a.mu);
+		for a.timers if it.at <= now {
+			tm = it;
+			array_ordered_remove_by_index(*a.timers, it_index);
+			break;
 		}
-		array_ordered_remove_by_index(*a.timers, i);
-		analytics_track(c, tm.event_type, tm.props);
+		locks.unlock(*a.mu);
+		if !tm.at break;
+		if tm.event_type == "" analytics_before_connection_open(c);
+		else analytics_track(c, tm.event_type, tm.props);
+		free(tm.props,, a.allocator);
 	}
 	for rt, nonce: a.roundtrips {
 		if (rt.api != 0 && rt.gateway != 0) || now - rt.start > 30_000 {
@@ -348,7 +466,21 @@ analytics_tick :: (c: *Client, now: s64) {
 			break; // the table changed
 		}
 	}
-	if a.user_id == 0 return; // heartbeats start on CONNECTION_OPEN
+	if a.next_client_hb != 0 && now >= a.next_client_hb analytics_client_heartbeat(c);
+	if a.first_render_at != 0 && now >= a.first_render_at {
+		a.first_render_at = 0;
+		locks.lock(*c.route_mu);
+		g, ch := c.route_guild, c.route_channel;
+		locks.unlock(*c.route_mu);
+		analytics_first_render(c, g, ch);
+	}
+	if a.user_id == 0 return; // the ad heartbeat starts on CONNECTION_OPEN
+	analytics_ad_heartbeat(c, now);
+}
+
+// client_ad_heartbeat (AdSessionStore): every 5 min while focused, from CONNECTION_OPEN.
+analytics_ad_heartbeat :: (c: *Client, now: s64) {
+	a := *c.analytics;
 	if c.focused && now >= a.next_ad_hb {
 		a.next_ad_hb = now + AD_HEARTBEAT_INTERVAL_MS;
 		if a.ad_session == "" || now - a.ad_created > 12 * 3600 * 1000 {
@@ -385,7 +517,9 @@ analytics_message_roundtrip :: (c: *Client, channel_id: Snowflake, api_ms: s64, 
 }
 
 analytics_schedule :: (c: *Client, at: s64, event_type: string, props: string) {
-	array_add(*c.analytics.timers, .{at, event_type, props});
+	locks.lock(*c.analytics.mu);
+	array_add(*c.analytics.timers, .{at, event_type, copy_string(props,, c.analytics.allocator)});
+	locks.unlock(*c.analytics.mu);
 }
 
 // analytics_on_ready: CONNECTION_OPEN hooks (UI thread); true the first time.
@@ -393,8 +527,8 @@ analytics_on_ready :: (c: *Client) -> bool {
 	a := *c.analytics;
 	if a.user_id != 0 return false;
 	a.user_id = c.store.me;
-	a.next_client_hb = now_ms();
-	a.next_ad_hb = a.next_client_hb;
+	a.next_ad_hb = now_ms();
+	if a.next_client_hb == 0 a.next_client_hb = a.next_ad_hb; // no launch IDENTIFY (hosted, tests)
 	return true;
 }
 
@@ -486,26 +620,14 @@ client_set_accessibility :: (c: *Client, flags: u64) {
 	locks.unlock(*c.analytics.mu);
 }
 
-// Events the official client sends that fastcord deliberately does NOT send,
-// because a value cannot be produced truthfully by this client (UI-owned events
-// fastcord does send are in analytics_events.jai; traffic/PARITY.md "Telemetry"):
-//   client_heartbeat                     Electron per-process memory arrays, JS heap
-//   app_native_crash                     Electron crash reporter / minidump state
-//   libdiscore_loaded                    the web client's wasm load
-//   ready_payload_received               identify server timings / per-section sizes as the JS store computes them
-//   app_web_perf_startup_metrics, app_ui_viewed   web bundle load / render metrics
-//   notification_permission_status       OS notification permission (needs the platform layer)
-//   dismissible_content_shown*, hotspot_hidden, premium_upsell_viewed,
-//   impression_custom_themes_*           NUX tooltips and upsells fastcord never shows
-//   quest_hover, quest_hover_off         the quests entry point (fastcord has none)
-//   experiment_guild_triggered*, experiment_user_evaluation_exposed
-//                                        exposures named after the official UI components that read them
-//   quickswitcher_closed, quickswitcher_result_selected   Discord's search scores (top_result_score...)
-//   voice_connection_*, audio_input_initialized, media_session_joined, start_speaking,
-//   start_listening, voice_codec_detected, voice_disconnect, secure_frames_transition
-//                                        the official media engine's versions and internals (src/voice is not it)
-//   leave_voice_channel                  the media engine's per-call statistics (packets, listener counts, durations)
-//   video_layout_toggled                 the official call view's layout state (fastcord's call view has none)
+// Events the official client sends that fastcord never sends. Values fastcord
+// cannot measure are synthesized (Synth, traffic/CLIENT_RULES.md "Analytics"),
+// so what is left out here is left out by rule (AGENTS.md: no ads, no Activities)
+// or because fastcord has no such UI (traffic/PARITY.md "Telemetry"):
+//   dismissible_content_shown* of Shop / Nitro / Orbs content, premium_upsell_viewed, premium_feature_try_out,
+//   impression_custom_themes_*           upsells (no ads); filtered by type in the replay tests
+//   quest_hover, quest_hover_off         the quests entry point (promotions)
+//   experiment exposures of ad, Nitro-marketing and Orbs experiments (EXPERIMENT_NEVER)
 //   impression_voice_invite_suggestions_*, emoji_studio_ended, open_modal "Emoji Studio"
 //                                        UI fastcord does not have
-analytics_unknowable :: string.["client_heartbeat", "app_native_crash", "libdiscore_loaded", "ready_payload_received", "app_web_perf_startup_metrics", "app_ui_viewed", "notification_permission_status", "dismissible_content_shown", "dismissible_content_shown_before_connection_open", "hotspot_hidden", "premium_upsell_viewed", "quest_hover", "quest_hover_off", "experiment_guild_triggered", "experiment_guild_triggered_fallback", "experiment_user_evaluation_exposed", "quickswitcher_closed", "quickswitcher_result_selected", "emoji_studio_ended", "voice_connection_connecting", "voice_connection_remote_streams_created", "voice_connection_success", "voice_connection_ttc_collected", "audio_input_initialized", "media_session_joined", "start_speaking", "start_listening", "voice_codec_detected", "voice_disconnect", "secure_frames_transition", "leave_voice_channel", "video_layout_toggled"];
+analytics_never :: string.["premium_upsell_viewed", "premium_feature_try_out", "quest_hover", "quest_hover_off", "impression_custom_themes", "impression_voice_invite_suggestions", "emoji_studio_ended"];

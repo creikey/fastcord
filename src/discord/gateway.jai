@@ -524,6 +524,7 @@ gateway_connect :: (g: *Gateway) {
 		d := ifx c.cfg.fast_identify_delay_ms != 0 then c.cfg.fast_identify_delay_ms else 300;
 		if d > 0 sleep_milliseconds(xx d);
 		gateway_send(g, .Identify, identify_fast_connect_value(*c.id, client_token(c)));
+		analytics_launch_identify(c);
 	} else {
 		g.fast_connect_done = true;
 		resume_or_identify_locked(g);
@@ -655,7 +656,9 @@ gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
 	else if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None return false;
 	if !g.inflated return true;
 	pool := New(Flat_Pool);
+	t0 := current_time_monotonic();
 	v, derr := etf.decode(g.inflated,, pool_allocator(pool));
+	if derr == .None && fstr(vmap(v), "t") == "READY" analytics_ready_frame(g.c, frame.count, g.inflated.count, to_milliseconds(current_time_monotonic() - t0));
 	keep := derr == .None && gateway_handle_payload(g, gen, v, pool);
 	if !keep {
 		fini(pool);

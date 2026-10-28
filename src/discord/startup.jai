@@ -140,7 +140,12 @@ schedule_startup :: (c: *Client, anchor: Startup_Anchor) {
 		j.not_before = base + e.at_ms;
 		if anchor == .Ready && route == .Home && e.at_ms >= 2000 j.not_before += 230;
 		// PremiumManager tracks the fetch as it starts (fixtures: batch +21-49 ms)
-		if begins_with(e.path, "/users/@me/billing/user-offer") analytics_schedule(c, j.not_before, "fetch_user_offer_started", "\"call_location\":\"PremiumManager\"");
+		if begins_with(e.path, "/users/@me/billing/user-offer") {
+			analytics_schedule(c, j.not_before, "fetch_user_offer_started", "\"call_location\":\"PremiumManager\"");
+			// NotificationPermissionStore reads the OS permission in the same step; fastcord
+			// asks for it on its first notification (synthesized: enabled)
+			analytics_schedule(c, j.not_before, "notification_permission_status", "\"os_enabled\":true");
+		}
 		job_submit(c, j);
 	}
 }

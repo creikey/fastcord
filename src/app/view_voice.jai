@@ -150,6 +150,7 @@ voice_frame :: () {
 			}
 		}
 	}
+	voice_analytics_frame();
 	table_reset_keeping_memory(*vc.speaking);
 	if vc.conn != null {
 		for voice.speaking_users(vc.conn,, temp) table_set(*vc.speaking, cast(dc.Snowflake) it, true);

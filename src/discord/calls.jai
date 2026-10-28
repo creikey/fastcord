@@ -96,6 +96,7 @@ call_decline :: (c: *Client, channel_id: Snowflake) {
 dm_call_start :: (c: *Client, channel_id: Snowflake, self_mute := false, self_deaf := false) {
 	if !call_get(c, channel_id) c.social.ring_on_create = channel_id;
 	voice_join(c, 0, channel_id, self_mute, self_deaf, track = false);
+	analytics_exposed(c, "voice call initiated");
 	analytics_join_voice(c, 0, channel_id);
 }
 
@@ -113,6 +114,7 @@ call_accept :: (c: *Client, channel_id: Snowflake, self_mute := false, self_deaf
 	json_kstr(*b, "location", "incoming call modal");
 	aw_track(c, "call_button_clicked", *b);
 	analytics_join_voice(c, 0, channel_id);
+	c.analytics.voice.ring = true; // the ring's connection carries no join_voice_id
 	call := call_get(c, channel_id);
 	if call call.dismissed = true;
 }

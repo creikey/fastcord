@@ -52,7 +52,7 @@ The tests cover these windows:
   open_thread_from_popout, delete_thread_menu, delete_thread, delete_thread_confirm
 - back/forward: history_back_key, history_forward_key, history_back_button, history_forward_button
 - discover (documents the gap): open_discover, leave_discover
-- other: open_gif_picker, join_voice, close_dm, create_guild_submit, start_group_dm
+- other: open_gif_picker, join_voice, leave_voice, close_dm, create_guild_submit, start_group_dm
 - server notifications (also compare `/science`: event types in order and their
   property names in order, per-event decorations left out; `Replay_Run.science`):
   open_guild_menu, guild_mark_read, guild_mute_15m, guild_unmute,
@@ -136,12 +136,13 @@ Allow-list entries for telemetry:
   (e.g. one `profile_action`);
 - `science:batching`.
 
-`R_SCI_NEVER` (applied by `replay_check` to every window) lists events fastcord
-never sends: NUX / upsell / quest events, experiment exposures and the official
-media engine's voice events (`voice_connection_*`, `start_speaking`,
-`leave_voice_channel`...); they and the other unsendable events are in
-`analytics_unknowable` (analytics.jai) with the reason. `send_message_roundtrip`
-is sampled at 10 % and disabled offline.
+`R_SCI_NEVER` (applied by `replay_check` to every window) lists what fastcord
+never sends by rule (AGENTS.md: no ads): Shop / Nitro / Orbs dismissible content
+(by `type`), `premium_upsell_viewed`, `premium_feature_try_out`, Nitro theme
+impressions, the quests entry point's hovers, and exposures of ad, Nitro-marketing,
+Orbs and quests experiments (by `exposure_location`). `analytics_never`
+(analytics.jai) names the same events with UI fastcord does not have.
+`send_message_roundtrip` is sampled at 10 % and disabled offline.
 
 Every event needs the window's viewport and the accessibility flags: the
 library drops events until both are reported. The app reports them right after
@@ -175,9 +176,14 @@ analytics_<event> :: (c: *Client, ...) {
   `set_status` -> `user_status_updated`), from a response (`Job.on_done`, worker
   thread: `analytics_track` is locked), or from the app where the UI event
   happens (`dc.message_menu_opened`, `dc.expression_picker_opened`...).
-- Every value must be measured by fastcord (store state, our own timings, ids we
-  generated). If one cannot be, the event is not sent: add it to
-  `analytics_unknowable` with the reason instead.
+- Use fastcord's own value wherever it has an equivalent (store state, our own
+  timings and sizes, ids we generated, its voice connection's steps and counts).
+  A value only the official client can measure (Electron's processes and JS heap,
+  the web bundle, its media engine's internals) is synthesized realistically:
+  drawn from the range the fixtures show, evolving plausibly over the session
+  (`Synth` in analytics.jai), or derived from our own timing. Record each
+  synthesized value in `traffic/CLIENT_RULES.md` "Analytics". Ads, Nitro and
+  quest promotion events are never sent (`analytics_never`, `R_SCI_NEVER`).
 - Add the event to the feature's offline test (the window's official events are
   then compared automatically), mirroring the app's calls in the test.
 
@@ -192,6 +198,11 @@ Events sent now, by scenario:
 | status / custom status / theme | user_status_updated, custom_status_updated, client_theme_updated |
 | channel / guild / DM open | channel_opened (guild, DM, group DM, voice, thread; throttled), guild_viewed; the launch route's on READY |
 | voice / DM calls | channel_opened, join_voice_channel, permissions_requested (app, mic opened), network_action_embedded_activities_fetch_shelf (calls: guild_id "" / null), ring_call_accepted, call_button_clicked; `client_rtc_state` from the app's voice connection |
+| voice connection (app: `voice_analytics_frame` from src/voice's timeline) | video_layout_toggled (caller of a DM call), voice_connection_connecting, audio_input_initialized, voice_connection_remote_streams_created, voice_connection_success, voice_connection_ttc_collected, media_session_joined, secure_frames_transition, start_speaking, start_listening; on leave hotspot_hidden, leave_voice_channel, voice_codec_detected, voice_disconnect |
+| launch | libdiscore_loaded, app_native_crash, client_heartbeat (at the fast-connect IDENTIFY, then every 15 min; on login), gateway_connected + dismissible_content_shown_before_connection_open (after that IDENTIFY), ready_payload_received (every READY), app_ui_viewed + app_web_perf_startup_metrics (READY +60 ms), notification_permission_status (with fetch_user_offer_started) |
+| experiments | experiment_user / installation_evaluation_exposed for READY's apex assignments: app open, the READY stores and first render, dm/gdm list rendered, voice call initiated, PrivateChannelCallDuration, experimentStoreUpdate (guild joined), the new guild's setup progress; once per evaluation, location and experiment (persisted) |
+| quick switcher | quickswitcher_closed, quickswitcher_result_selected |
+| emoji pickers | hotspot_hidden FAVORITE_EMOJI_TOOLTIP (pick: once, a reaction pick twice; close) |
 | create guild | network_action_guild_create, nuo_transition |
 | group DM | open_popout, private_channel_invite_modal_opened, create_dm_user_list_clicked, channel_opened, gdm_edit_interacted |
 | DM list right click | impression_dm_list_right_click_menu_shown, application_command_performance |
@@ -412,7 +423,7 @@ after save and delete. Science per window (types, property keys and order, value
 | open_events_empty / open_events_one | impression_modal_root_legacy (GuildEventsModal), open_modal (Guild Events Modal) | same |
 | create_event_open | impression_modal_root_legacy (ScheduleEventModal) | same |
 | open_create_channel | open_modal (Create Channel) | same |
-| create_channel_submit | network_action_channel_create, channel_opened | network_action_channel_create (channel_opened is in `analytics_unknowable`) |
+| create_channel_submit | network_action_channel_create, channel_opened | network_action_channel_create (the new channel's channel_opened is not sent yet) |
 | channel_settings_open | settings_pane_viewed | same |
 | other windows | none | none |
 
@@ -430,14 +441,16 @@ settings tabs other than Overview.
 
 | Area | Difference | Reason |
 |---|---|---|
-| Telemetry | Not sent: NUX / upsell / quest events, experiment exposures, Electron and web-bundle metrics (`/metrics/v2` too), media-engine voice events and `leave_voice_channel`, `video_layout_toggled`, quick switcher scores | No truthful value in this client (`analytics_unknowable`). |
+| Telemetry | Not sent: Shop / Nitro / Orbs dismissible content and upsells, quest hovers, ad and Nitro-marketing experiment exposures | No ads (AGENTS.md; `analytics_never`, `R_SCI_NEVER`). |
+| Telemetry | Not sent: legacy experiment triggers (`experiment_guild_triggered*`, `experiment_user_triggered`), `session_start_client`, the web-vitals INP `app_web_perf_startup_metrics`, `/metrics/v2` | Not modelled yet (allow-listed where a window has them). |
+| Telemetry | Electron memory, JS heap, crash reporter, web-bundle sizes and script costs, the media engine's versions, internal timings and audio statistics | Synthesized from the fixtures (traffic/CLIENT_RULES.md "Analytics"). |
 | Telemetry | Settings modal `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner; allow-listed in parity_settings_open / parity_open_account_settings. |
 | Telemetry | Discover: no `global_discovery_*` | fastcord's compass opens the web page, not the in-app discovery entry point (allow-listed in parity_discover). |
 | Telemetry | New thread: `channel_opened` without `channel_view: "Split View"` | fastcord opens the new thread as the main view (see Threads below): its main-view event goes out on create and throttles the popout's reopen (allow-listed in parity_threads_browser; the main-view shape is checked by parity_thread_open_main). |
 | Telemetry | `user_profile_action` only for profiles without bio, pronouns, badges, activity or guild identity | The official enum values of the profile property lists are not known. |
 | Telemetry | `custom_status_updated.prompt_type` is null | fastcord's custom status modal shows no prompt. |
 | Telemetry | No `VIEW_WIDGETS_EMPTY_STATE` profile action | No widgets section. |
-| Telemetry | `client_performance_cpu` / `_memory` | Our own process, measured (values differ by nature). |
+| Telemetry | `client_performance_cpu` / `_memory` | CPU: our own process, measured. Memory: Electron's processes, synthesized (`Synth`). |
 | ETag values | detectables `If-None-Match` differ | Server content changed since the capture. |
 | op 41 | `initialization_timestamp` | Per-install value. |
 | op 40 | Heartbeats in windows | First heartbeat at `random() * interval` in both clients. |
@@ -451,14 +464,14 @@ settings tabs other than Overview.
 | Inbox science | `ack_messages.guild_unread_statuses` reports every guild's unread setting as 1 (all messages) | The unread-setting resolution is not modelled (CLIENT_RULES guess). |
 | Threads | New thread opens as the main view, not a side view | The Referer is `/channels/{g}/{thread}` instead of `.../{parent}/threads/{thread}`. Returning to the parent re-renders it, which adds integrations to close_thread_view (allow-listed). |
 | Threads | First-view thread ack (`flags: 2`) | Fastcord acks only unread channels in a focused window (allow-listed in delete_thread_menu). |
-| History science | `dismissible_content_shown` | The Friends-surface marketing card is not built (R_SCI_NEVER). |
+| History science | `dismissible_content_shown` | The Friends-surface Shop marketing card: no ads (R_SCI_NEVER). |
 | Discover | No `discoverable-guilds`, `discovery/categories` or CDN splashes and icons; no integrations on return | The compass opens https://discord.com/servers in the browser and the app never leaves the channel (allow-listed in parity_discover). |
 | Jump to an unloaded channel | Normal page plus `around=`, instead of `around=` alone | Not captured as an action window. Only the loaded-channel jump is tested. |
 | Settings open | `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner: in `settings` but not in `streamer_mode`'s identical open. |
 | Edit Profiles | `games?game_ids`, `applications/public`, `oauth2/tokens` | Driven by profile widget data (as for full profiles). |
 | DM row menu | hover prefetch `messages?limit=10`, `settings-proto/2` | DM-row hover prefetch and the session's lazy settings-proto/2 load are not modelled. `friend_add_context_menu` has no READY for A: the test borrows A's READY from `friend_request_send` (A and B not friends either). |
 | Friend accept | B's `GET relationships` | The Pending tab's refresh is not modelled (its clicked / viewed science is). |
-| DM calls | RTC science (`voice_connection_*`, `start_speaking`, `leave_voice_channel`, ...), `settings-proto/2` | The official media engine's internals (R_SCI_NEVER); the settings-proto/2 load is the session's lazy load. The tests report the app's `client_rtc_state` (awaiting endpoint, then connected). |
+| DM calls | `settings-proto/2` | The session's lazy load. The tests report what the app reports of src/voice (not run offline): `client_rtc_state` and the connection's steps (`r_voice_connect`). |
 | DM calls | Declining a ring, caller hang-up before answer | Not recorded. Decline dismisses the ring locally and sends nothing. |
 | Streamer Mode | Username truncation ("c…") in DM list / invite suggestions | UI only; not implemented yet. |
 | Account (`account_edits`) | `open_account_popout`, `logout`, `login_submit` windows not tested | The multi-account switcher is not built; real login and Log Out are implemented on their own branch. The username windows are tested. |

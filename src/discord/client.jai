@@ -507,6 +507,7 @@ client_load_state :: (c: *Client) {
 			case "installation_id"; c.id.installation_id = copy_string(v,, c.allocator);
 			case "verified";        c.account_verified = v == "1";
 			case "rtc_regions";     c.rtc_regions = copy_string(v,, c.allocator);
+			case "exposed";         table_set(*c.analytics.exposed, copy_string(v,, c.allocator), true);
 			case "heartbeat_session";
 				f := split(v, "\t",, temp);
 				if f.count == 3 {
@@ -533,6 +534,9 @@ client_save_state :: (c: *Client) {
 	locks.lock(*c.id.mu);
 	print_to_builder(*sb, "verified\t%\n", ifx c.account_verified then "1" else "0");
 	if c.rtc_regions print_to_builder(*sb, "rtc_regions\t%\n", c.rtc_regions);
+	locks.lock(*c.analytics.mu);
+	for v, k: c.analytics.exposed print_to_builder(*sb, "exposed\t%\n", k);
+	locks.unlock(*c.analytics.mu);
 	if c.id.installation_id print_to_builder(*sb, "installation_id\t%\n", c.id.installation_id);
 	using c.id.heartbeat;
 	if uuid print_to_builder(*sb, "heartbeat_session\t%\t%\t%\n", uuid, created_at, last_used);
