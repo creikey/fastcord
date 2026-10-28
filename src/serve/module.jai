@@ -479,20 +479,33 @@ spawn :: (data: $D, proc: (D)) -> *Thread {
 }
 
 accept_loop :: (s: *Server) {
-	while true {
-		tcp, err := netio.accept_tcp(s.listener);
-		if err == .Closed break;
-		if err != .None continue;
-		c := New(Conn);
-		c.server, c.tcp, c.s = s, tcp, netio.tcp_stream(tcp);
-		locks.lock(*s.mu);
-		// Finished connections are reaped here, so a long-running server holds only live ones.
+	// Finished connections are reaped here, so a long-running server holds only live ones.
+	reap :: (s: *Server) {
 		for s.conns if atomic_load(*it.done) {
 			locks.join(it.thread);
 			netio.close(it.s);
 			free(it);
 			remove it;
 		}
+	}
+	backoff := 0;
+	while true {
+		tcp, err := netio.accept_tcp(s.listener);
+		if err == .Closed break;
+		if err != .None {
+			// Out of file descriptors, most likely: free the finished ones and wait, rather than spin.
+			locks.lock(*s.mu);
+			reap(s);
+			locks.unlock(*s.mu);
+			backoff = clamp(backoff * 2, 10, 1000);
+			sleep_milliseconds(xx backoff);
+			continue;
+		}
+		backoff = 0;
+		c := New(Conn);
+		c.server, c.tcp, c.s = s, tcp, netio.tcp_stream(tcp);
+		locks.lock(*s.mu);
+		reap(s);
 		array_add(*s.conns, c);
 		c.thread = spawn(c, serve_conn);
 		locks.unlock(*s.mu);

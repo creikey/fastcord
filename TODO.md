@@ -77,7 +77,7 @@
   - Reactions per message are unlimited and accept any 64 bytes, NUL and invalid UTF-8 included. Allow only real emoji, at most 20 distinct per message as Discord does. Check UTF-8 on all content and names too.
   - No rate limits on send, edit, typing or login. Every write is an fsync under `db_mu`. A login body can be replayed on the same connection, costing an SLH-DSA verify each time. Add per-member and per-IP budgets, and make login single-use per connection. A fastcord member holds up to 3 connections, so size a per-IP connection cap for a household of several (say 16).
   - Connections are unlimited, one thread each, and a client that never logs in stays open. Cap connections per IP and in total, and close sockets that don't log in within about 10 s.
-  - After hitting the fd limit, `accept_loop` spins without reaping finished connections and may never accept again. Reap on error and back off.
+  - Done: when accept fails (the fd limit), `accept_loop` reaps finished connections and backs off (10 ms doubling to 1 s) instead of spinning.
   - Sessions never expire and every login adds one. Add expiry, logout, and an owner's Kick that revokes sessions.
   - Every Identify, disconnect and op 37 resends the full member list to every connection (already in Hosting 2's Next).
   - Low priority: names aren't unique, so a member can take the owner's name. An edit racing the author's own delete broadcasts a null `MESSAGE_UPDATE`.
