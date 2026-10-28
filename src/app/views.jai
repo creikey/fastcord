@@ -1117,6 +1117,11 @@ overlays :: () {
 			switcher_toggle();
 			e.consumed = true;
 		}
+		if !e.consumed && e.kind == .Key_Down && (e.key == .M || e.key == .D) && e.mods == PRIMARY_MOD | .Shift {
+			if e.key == .M toggle_self_mute();
+			else app.self_deaf = !app.self_deaf;
+			e.consumed = true;
+		}
 	}
 	if sw.open { quick_switcher(); }
 	if ma.menu_msg != 0 { message_menu(); }
