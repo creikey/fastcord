@@ -1105,7 +1105,6 @@ overlays :: () {
 			dc.analytics_keyboard_shortcut(app.client, ifx app.settings_open then "POP_LAYER" else "MARK_CHANNEL_READ", "esc");
 		}
 	} } }
-	picker_overlay();
 	group_dm_overlay();
 	profile_full_overlay();
 	for * e: app.ui.events {
@@ -1141,6 +1140,7 @@ overlays :: () {
 	pins_popout();
 	threads_browser_popout();
 	inbox_popout();
+	picker_overlay(); // above the popouts, whose cards' menus open it too
 	guild_menu_overlays();
 	search_suggestions();
 	// above the pins and inbox popouts, whose cards open them too

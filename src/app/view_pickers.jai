@@ -213,7 +213,8 @@ picker_overlay :: () {
 		}
 	}
 	if !pk.open return;
-	if pk.channel != app.view.channel || (pk.mode == .Edit && ma.editing != pk.message) {
+	loose := pk.mode == .Reaction && pk.message == ma.loose_id; // a search, pins or inbox card's message
+	if (pk.channel != app.view.channel && !loose) || (pk.mode == .Edit && ma.editing != pk.message) {
 		pk.open = false;
 		pk.closing = false;
 		if pk.mode == .Reaction app.reaction_target = 0;
