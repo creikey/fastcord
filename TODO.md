@@ -159,7 +159,6 @@
 - [ ] Forums: no way to create a post ("Search or create a post..." is a plain label, `view_threads.jai`); no sort or tag filter; archived posts load only the first page.
 - [ ] Profiles: per-server avatars, bios, banners and pronouns never show (`guild_member_avatar_url` is unused); animated avatars never animate.
 - [ ] Gateway: dispatches without a handler are dropped (`store.jai` default case). Matter most: `PASSIVE_UPDATE_V1/V2` and `CHANNEL_UNREAD_UPDATE` (stale unreads and voice states in unsubscribed servers), `MESSAGE_REACTION_ADD_MANY` (lost reactions in big servers). Also `VOICE_CHANNEL_STATUS_UPDATE`, `GUILD_BAN_*`, `INVITE_*`, `WEBHOOKS_UPDATE`, `STAGE_INSTANCE_*`, `USER_NOTE_UPDATE`, `RECENT_MENTION_DELETE`, `GUILD_SOUNDBOARD_SOUNDS_UPDATE`.
-- [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
 - [ ] Bug (Windows): once, a headless live run with the camera on, while watching another camera, never exited after its final screenshot (`app_exit` after `video_shutdown`); five more runs of the same exit were clean. Take every thread's stack the next time it happens (lldb -p).
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
@@ -348,3 +347,4 @@
 - [x] Keybinds: Ctrl+Alt+A (or a click on the voice panel) opens the connected call; Shift+Page Up jumps to the oldest unread message (`view_voice.jai` `voice_return`, `tests/ui/forward/oldest_unread_key.txt`).
 - [x] Bug: the composer no longer stays dead after you start an edit and then switch channel or the message is deleted; the composer drops an edit whose message left the open channel (`tests/ui/rail/edit_then_switch.txt`).
 - [x] Composer: a pending reply stays with its channel: hidden in other channels, back with its @ toggle on return (`view_message_actions.jai` `replies_switch`, `tests/ui/rail/reply_per_channel.txt`).
+- [x] Keybinds: Escape in the composer (with no reply open) marks the open channel read and drops the "NEW" divider and bar (`view_chat.jai` `composer`, `tests/ui/forward/escape_mark_read.txt`).

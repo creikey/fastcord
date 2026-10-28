@@ -1803,8 +1803,14 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				if composer_send(ch, mentions_convert(emoji_convert_shortcodes(text, ch.id), ch)) cs.scroll_target = 0;
 				ui.editor_set_text(*cs.editor, "");
 				length = 0;
-			} else if res == .Escape {
+			} else if res == .Escape && ma.replying != 0 {
 				ma.replying = 0;
+			} else if res == .Escape {
+				// MARK_CHANNEL_READ: ack the newest message and drop the "NEW" divider and bar.
+				msgs := dc.messages_get(s, ch.id);
+				rs := table_find_pointer(*s.read_states, ch.id);
+				if msgs && app.client && (!rs || rs.manual || rs.last_message_id < msgs[msgs.count - 1].id) dc.ack_message(app.client, ch.id, msgs[msgs.count - 1].id, true);
+				cs.unread_after = 0;
 			} else if res == .Changed && app.client != null && ui.editor_text(*cs.editor) != "" {
 				dc.typing_keystroke(app.client, ch.id);
 			}

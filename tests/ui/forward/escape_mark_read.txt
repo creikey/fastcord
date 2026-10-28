@@ -1,0 +1,11 @@
+# Escape marks the open channel read: the new-messages bar and the "NEW" divider go.
+wait 10
+expect_visible "Mark As Read"
+key escape
+wait 10
+expect_not_visible "Mark As Read"
+move 600 300
+scroll 0 1800
+wait 60
+expect_not_visible "NEW"
+shot build/ui-forward_escape_mark_read.png
