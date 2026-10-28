@@ -96,7 +96,6 @@
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
-- [ ] Markdown: numbered lists `1. item` aren't parsed (`markdown.jai`).
 - [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
@@ -309,3 +308,4 @@
 - [x] Media: Save Image on Windows saves to the Downloads known folder (`SHGetKnownFolderPath`), not `$HOME/Downloads`, since HOME is normally unset there.
 - [x] Voice (macOS): AGC alone no longer starts VPIO, whose echo canceller zeroed the mic for ~10 s while others talked (seen live: the send rate fell to 0); plain capture gets a software AGC, reopens when another app changes the mic's sample rate, and `FASTCORD_VOICE_DEBUG=1` traces the send side every 2 s.
 - [x] Markdown: a bare URL keeps a closing `)` that balances a `(` inside it (`wiki/Foo_(bar)`); an unbalanced one, as in `(https://x.com/a)`, is still dropped.
+- [x] Markdown: numbered lists (`1. item`) render with their numbers, counting up from the first item's, nested ones included.

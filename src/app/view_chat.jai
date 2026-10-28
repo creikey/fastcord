@@ -1249,7 +1249,8 @@ message_body :: (m: *dc.Message) {
 					spacer(.X, 16);
 				case .List_Item;
 					spacer(.X, 6 + cast(float32) blk.depth * 20);
-					label(ifx blk.depth == 0 then "•" else "◦", .Normal, size, color, line_h);
+					marker := ifx blk.number then tprint("%.", blk.number) else ifx blk.depth == 0 then "•" else "◦";
+					label(marker, .Normal, size, color, line_h);
 					spacer(.X, 8);
 				}
 				// keyed per block: ids resolve against the message's id_scope, not the

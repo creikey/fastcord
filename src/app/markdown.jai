@@ -48,6 +48,7 @@ Md_Block :: struct {
 	lang: string; // code block language
 	code: string; // code block body
 	depth: int; // list nesting
+	number: int; // ordered list item's number; 0 = bullet
 }
 
 // Parses into temp.
@@ -125,9 +126,14 @@ md_parse :: (src: string) -> []Md_Block {
 		} else if begins_with(line, "-# ") {
 			add(.Subtext, span(line, 3, line.count));
 		} else if is_list_line(line) {
-			indent := 0;
-			while indent < line.count && line[indent] == #char " " indent += 1;
-			add(.List_Item, span(line, indent + 2, line.count), indent / 2);
+			indent, body, number := list_marker(line);
+			add(.List_Item, span(line, body, line.count), indent / 2);
+			if number {
+				// an ordered list counts up from its first item's number, as in the client
+				prev := ifx blocks.count >= 2 then *blocks[blocks.count - 2] else null;
+				same_list := prev && prev.kind == .List_Item && prev.number && prev.depth == indent / 2;
+				blocks[blocks.count - 1].number = ifx same_list then prev.number + 1 else number;
+			}
 		} else {
 			here := src.count - rest.count;
 			if para_hi <= para_lo para_lo = here;
@@ -243,8 +249,24 @@ span :: (s: string, lo: int, hi: int) -> string {
 }
 
 is_list_line :: (line: string) -> bool {
-	l := trim_left(line, " ");
-	return begins_with(l, "- ") || begins_with(l, "* ");
+	_, body := list_marker(line);
+	return body > 0;
+}
+
+// "- ", "* " or "<digits>. " after leading spaces: the indent, where the item's text starts
+// (0 = not a list line) and an ordered item's number (0 for bullets).
+list_marker :: (line: string) -> indent: int, body: int, number: int {
+	i := 0;
+	while i < line.count && line[i] == #char " " i += 1;
+	indent := i;
+	if i + 1 < line.count && (line[i] == #char "-" || line[i] == #char "*") && line[i + 1] == #char " " return indent, i + 2, 0;
+	number := 0;
+	while i < line.count && i - indent < 9 && line[i] >= #char "0" && line[i] <= #char "9" {
+		number = number * 10 + line[i] - #char "0";
+		i += 1;
+	}
+	if i == indent || i + 1 >= line.count || line[i] != #char "." || line[i + 1] != #char " " return indent, 0, 0;
+	return indent, i + 2, max(number, 1);
 }
 
 Md_Parser :: struct {
