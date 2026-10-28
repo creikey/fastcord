@@ -413,6 +413,16 @@ main :: () {
 	has_rs, rs := table_find(*cl3.store.read_states, cid);
 	check(cl3.store.ready && has_rs && rs.mention_count == 1, tprint("the pinged member's mention count: % %", has_rs, rs.mention_count));
 	discord.client_destroy(cl3);
+	status, body = rest("POST", messages, "{\"content\": \"soon\"}", token);
+	later, _ := etf.from_json(body);
+	later_url := tprint("%/%", messages, field(later, "id").s);
+	status, body = rest("PATCH", later_url, tprint("{\"content\": \"<@%> @everyone\"}", other_id), token);
+	edited, _ := etf.from_json(body);
+	check(status == 200 && field(edited, "mentions").list.count == 1 && field(edited, "mention_everyone").b, tprint("an edit adds mentions: % %", status, body));
+	status, body = rest("PATCH", later_url, "{\"content\": \"nobody\"}", token);
+	edited, _ = etf.from_json(body);
+	check(status == 200 && field(edited, "mentions").list.count == 0 && !field(edited, "mention_everyone").b, tprint("an edit drops mentions: % %", status, body));
+	rest("DELETE", later_url, "", token);
 
 	// Search: the channel now holds "hello", the reply edited to "hi", Other's "hi all" and the ping.
 	found :: (query: string) -> s64 #expand {

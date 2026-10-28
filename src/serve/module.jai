@@ -1042,7 +1042,15 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		m: etf.Value;
 		{
 			locks.guard(*s.db_mu);
-			if !sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ? WHERE id = ?;", content.s, snowflake(s), message) {
+			// Mentions follow the new text, as on Discord, but an edit pings nobody: read-state counts stay.
+			// A reply's ping of its original author is kept.
+			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
+			ok := sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ?, everyone = ? WHERE id = ?;", content.s, snowflake(s), cast(int) everyone, message)
+				&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ? AND user IS NOT (SELECT r.author FROM messages m JOIN messages r ON r.id = m.reply WHERE m.id = ?);", message, message);
+			for mention_ids(content.s) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+			if !ok || !sqlite.exec(s.db, "COMMIT;") {
+				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
 			m = message_locked(s, message, nested = false);
