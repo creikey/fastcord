@@ -467,6 +467,23 @@ main :: () {
 		check(got == tprint("% % ", all[1], all[2]), tprint("after: %", got));
 	}
 
+	// Mark As Read (ack-bulk) is kept: a later session starts with the channel read.
+	status, body = rest("POST", messages, "{\"content\": \"unread\"}", token);
+	unread, _ := etf.from_json(body);
+	unread_id := string_to_int(field(unread, "id").s, T = discord.Snowflake);
+	cl5 := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl5);
+	for 1..1000 { if cl5.store.ready break; discord.client_poll(cl5); sleep_milliseconds(10); }
+	acked := discord.ack_guild(cl5, gid);
+	for 1..100 { discord.client_poll(cl5); sleep_milliseconds(10); }
+	discord.client_destroy(cl5);
+	cl5 = discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl5);
+	for 1..1000 { if cl5.store.ready break; discord.client_poll(cl5); sleep_milliseconds(10); }
+	has_rs, rs = table_find(*cl5.store.read_states, cid);
+	check(acked >= 1 && has_rs && rs.last_message_id == unread_id, tprint("Mark As Read is kept: % % %", acked, has_rs, rs.last_message_id));
+	discord.client_destroy(cl5);
+
 	// The owner deletes anyone's message; a member deletes only their own.
 	status, body = rest("POST", messages, "{\"content\": \"spam\"}", other_token);
 	spam, _ := etf.from_json(body);

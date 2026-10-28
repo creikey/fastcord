@@ -502,6 +502,10 @@ serve_conn :: (c: *Conn) {
 			if !create_channel(c, req) return;
 			continue;
 		}
+		if req.method == "POST" && req.path == "/api/v9/read-states/ack-bulk" {
+			if !ack_bulk(c, req) return;
+			continue;
+		}
 		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%/members/@me", c.server.guild) {
 			if !rename(c, req) return;
 			continue;
@@ -1269,12 +1273,42 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 	}
 	is_manual := manual.kind == .Bool && manual.b;
 	count := ifx is_manual && mentions.kind == .Int then clamp(mentions.i, 0, 1000) else 0;
+	status := store_ack(s, user, channel, message, count, is_manual);
+	if status == 404 return json_error(c, 404, 10003, "Unknown Channel");
+	if status return json_error(c, 500, 0, "500: Internal Server Error");
+	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) "{\"token\": null}") == .None;
+}
+
+// POST /api/v9/read-states/ack-bulk {read_states: [{channel_id, message_id}]}: Mark As Read for many
+// channels at once. Unknown channels are skipped.
+ack_bulk :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(s, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	list: etf.Value;
+	if err == .None && v.kind == .Map list, _ = etf.map_get(v.map, "read_states");
+	if list.kind != .List || list.list.count > 1000 return json_error(c, 400, 50035, "Invalid Form Body");
+	for list.list {
+		if it.kind != .Map continue;
+		ch, _ := etf.map_get(it.map, "channel_id");
+		m, _ := etf.map_get(it.map, "message_id");
+		if ch.kind != .String || m.kind != .String continue;
+		channel, cok := string_to_int(ch.s, T = s64);
+		message, mok := string_to_int(m.s, T = s64);
+		if cok && mok && store_ack(s, user, channel, message, 0, false) == 500 return json_error(c, 500, 0, "500: Internal Server Error");
+	}
+	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+}
+
+// store_ack saves a member's read state for a channel and tells their other gateways. 0, or 404 for no
+// such channel, or 500.
+store_ack :: (s: *Server, user: s64, channel: s64, message: s64, count: int, is_manual: bool) -> int {
 	{
 		locks.guard(*s.db_mu);
-		if channel_locked(s, channel).kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
-		if !sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, ?);", user, channel, message, count) {
-			return json_error(c, 500, 0, "500: Internal Server Error");
-		}
+		if channel_locked(s, channel).kind == .Nil return 404;
+		if !sqlite.run(s.db, "INSERT OR REPLACE INTO read_states(user, channel, last, mentions) VALUES(?, ?, ?, ?);", user, channel, message, count) return 500;
 	}
 	d := etf.map_builder(5,, temp);
 	etf.map_put(*d, "channel_id", snow(channel));
@@ -1287,7 +1321,7 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 		locks.guard(*s.mu);
 		for s.conns if it.ws && it.user == user dispatch(it, "MESSAGE_ACK", ev);
 	}
-	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) "{\"token\": null}") == .None;
+	return 0;
 }
 
 SEARCH_PAGE :: 25;
