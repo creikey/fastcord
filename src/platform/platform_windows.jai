@@ -12,6 +12,9 @@ set_frame_wait_handle :: (h: *void) { w.frame_wait = h; }
 // True while drawing the frame for a WM_SIZE inside the modal resize loop.
 is_size_frame :: () -> bool { return w.size_frame; }
 
+// A dropped Present never retires, so the waitable won't signal for it; the next frame must not wait on it.
+present_dropped :: () { w.frame_ready = true; }
+
 // True when Windows' app mode is dark (HKCU\...\Themes\Personalize AppsUseLightTheme = 0). ok is false
 // headless or when unset.
 system_dark_mode :: () -> dark: bool, ok: bool {
@@ -160,6 +163,7 @@ os_wait :: (timeout: float64) {
         animating := atomic_load(*s.frame_requested);
         if s.quit return;
         if !animating && pending_count() > 0 return;
+        if animating && w.frame_ready return;
         ms := win.INFINITE;
         if timeout >= 0 {
             remaining := timeout - (time_now() - start);
