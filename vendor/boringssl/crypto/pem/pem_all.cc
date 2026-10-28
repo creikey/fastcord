@@ -23,8 +23,9 @@
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 
-#include "internal.h"
-
+static RSA *pkey_get_rsa(EVP_PKEY *key, RSA **rsa);
+static DSA *pkey_get_dsa(EVP_PKEY *key, DSA **dsa);
+static EC_KEY *pkey_get_eckey(EVP_PKEY *key, EC_KEY **eckey);
 
 IMPLEMENT_PEM_rw(X509_REQ, X509_REQ, PEM_STRING_X509_REQ, X509_REQ)
 
@@ -32,13 +33,11 @@ IMPLEMENT_PEM_write(X509_REQ_NEW, X509_REQ, PEM_STRING_X509_REQ_OLD, X509_REQ)
 IMPLEMENT_PEM_rw(X509_CRL, X509_CRL, PEM_STRING_X509_CRL, X509_CRL)
 IMPLEMENT_PEM_rw(PKCS7, PKCS7, PEM_STRING_PKCS7, PKCS7)
 
-namespace {
-
 // We treat RSA or DSA private keys as a special case. For private keys we
 // read in an EVP_PKEY structure with PEM_read_bio_PrivateKey() and extract
 // the relevant private key: this means can handle "traditional" and PKCS#8
 // formats transparently.
-RSA *pkey_get_rsa(EVP_PKEY *key, RSA **rsa) {
+static RSA *pkey_get_rsa(EVP_PKEY *key, RSA **rsa) {
   if (!key) {
     return nullptr;
   }
@@ -58,8 +57,6 @@ RSA *pkey_get_rsa(EVP_PKEY *key, RSA **rsa) {
   return rtmp;
 }
 
-}  // namespace
-
 RSA *PEM_read_bio_RSAPrivateKey(BIO *bp, RSA **rsa, pem_password_cb *cb,
                                 void *u) {
   bssl::UniquePtr<EVP_PKEY> pkey(PEM_read_bio_PrivateKey(bp, nullptr, cb, u));
@@ -71,16 +68,13 @@ RSA *PEM_read_RSAPrivateKey(FILE *fp, RSA **rsa, pem_password_cb *cb, void *u) {
   return pkey_get_rsa(pkey.get(), rsa);
 }
 
-IMPLEMENT_PEM_write_cb(RSAPrivateKey, RSA, PEM_STRING_RSA, RSAPrivateKey)
+IMPLEMENT_PEM_write_cb_const(RSAPrivateKey, RSA, PEM_STRING_RSA, RSAPrivateKey)
 
 
-IMPLEMENT_PEM_rw(RSAPublicKey, RSA, PEM_STRING_RSA_PUBLIC, RSAPublicKey)
+IMPLEMENT_PEM_rw_const(RSAPublicKey, RSA, PEM_STRING_RSA_PUBLIC, RSAPublicKey)
 IMPLEMENT_PEM_rw(RSA_PUBKEY, RSA, PEM_STRING_PUBLIC, RSA_PUBKEY)
-
 #ifndef OPENSSL_NO_DSA
-namespace {
-
-DSA *pkey_get_dsa(EVP_PKEY *key, DSA **dsa) {
+static DSA *pkey_get_dsa(EVP_PKEY *key, DSA **dsa) {
   DSA *dtmp;
   if (!key) {
     return nullptr;
@@ -97,8 +91,6 @@ DSA *pkey_get_dsa(EVP_PKEY *key, DSA **dsa) {
   return dtmp;
 }
 
-}  // namespace
-
 DSA *PEM_read_bio_DSAPrivateKey(BIO *bp, DSA **dsa, pem_password_cb *cb,
                                 void *u) {
   EVP_PKEY *pktmp;
@@ -106,7 +98,7 @@ DSA *PEM_read_bio_DSAPrivateKey(BIO *bp, DSA **dsa, pem_password_cb *cb,
   return pkey_get_dsa(pktmp, dsa);  // will free pktmp
 }
 
-IMPLEMENT_PEM_write_cb(DSAPrivateKey, DSA, PEM_STRING_DSA, DSAPrivateKey)
+IMPLEMENT_PEM_write_cb_const(DSAPrivateKey, DSA, PEM_STRING_DSA, DSAPrivateKey)
 
 IMPLEMENT_PEM_rw(DSA_PUBKEY, DSA, PEM_STRING_PUBLIC, DSA_PUBKEY)
 DSA *PEM_read_DSAPrivateKey(FILE *fp, DSA **dsa, pem_password_cb *cb, void *u) {
@@ -115,12 +107,9 @@ DSA *PEM_read_DSAPrivateKey(FILE *fp, DSA **dsa, pem_password_cb *cb, void *u) {
   return pkey_get_dsa(pktmp, dsa);  // will free pktmp
 }
 
-IMPLEMENT_PEM_rw(DSAparams, DSA, PEM_STRING_DSAPARAMS, DSAparams)
+IMPLEMENT_PEM_rw_const(DSAparams, DSA, PEM_STRING_DSAPARAMS, DSAparams)
 #endif
-
-namespace {
-
-EC_KEY *pkey_get_eckey(EVP_PKEY *key, EC_KEY **eckey) {
+static EC_KEY *pkey_get_eckey(EVP_PKEY *key, EC_KEY **eckey) {
   EC_KEY *dtmp;
   if (!key) {
     return nullptr;
@@ -136,8 +125,6 @@ EC_KEY *pkey_get_eckey(EVP_PKEY *key, EC_KEY **eckey) {
   }
   return dtmp;
 }
-
-}  // namespace
 
 EC_KEY *PEM_read_bio_ECPrivateKey(BIO *bp, EC_KEY **key, pem_password_cb *cb,
                                   void *u) {
@@ -158,6 +145,6 @@ EC_KEY *PEM_read_ECPrivateKey(FILE *fp, EC_KEY **eckey, pem_password_cb *cb,
 }
 
 
-IMPLEMENT_PEM_rw(DHparams, DH, PEM_STRING_DHPARAMS, DHparams)
+IMPLEMENT_PEM_rw_const(DHparams, DH, PEM_STRING_DHPARAMS, DHparams)
 
 IMPLEMENT_PEM_rw(PUBKEY, EVP_PKEY, PEM_STRING_PUBLIC, PUBKEY)

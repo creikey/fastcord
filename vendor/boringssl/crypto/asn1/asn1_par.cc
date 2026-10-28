@@ -30,7 +30,7 @@ const char *ASN1_tag2str(int tag) {
       "ENUMERATED",
       "<ASN1 11>",
       "UTF8STRING",
-      "RELATIVE-OID",
+      "<ASN1 13>",
       "<ASN1 14>",
       "<ASN1 15>",
       "SEQUENCE",

@@ -23,8 +23,9 @@
 //   - HEADERS blocks from hpack.jai, with the PRIORITY flag: exclusive, weight from Request.priority,
 //     parent from Http2PriorityDependencies; split at 16383-byte frames
 //   - receive windows acked once more than half is unacked or 5 s after the last update, counted per
-//     8 KiB read
-//   - a PING before HEADERS or DATA when nothing was read for 10 s
+//     8 KiB read; DATA for a stream already closed counts toward the connection's too
+//   - a PING before HEADERS or DATA when nothing was read for 10 s; if it stays unanswered and nothing
+//     is read for 10 s, GOAWAY (PROTOCOL_ERROR, "Failed ping.") and the connection closes
 
 Setting :: struct {
 	id: s32;
@@ -61,6 +62,7 @@ H2_Conn :: struct {
 	acked_at: Apollo_Time;             // under mu
 	last_read: Apollo_Time;            // under mu
 	ping_in_flight: bool;              // under mu
+	ping_at: Apollo_Time;              // under mu: when the PING in flight went out
 	next_ping: u64;                    // under mu
 	reading: bool;
 	users: int;                        // threads inside public h2_* calls (h2_close waits for 0)
@@ -86,6 +88,7 @@ h2_connect :: (s: netio.Stream, cfg := H2_Config.{}) -> *H2_Conn, Error {
 	c.next_ping = 1;
 	cbs: *Ng_Callbacks;
 	if nghttp2_session_callbacks_new(*cbs) != 0 assert(false, "nghttp2: out of memory");
+	nghttp2_session_callbacks_set_on_begin_frame_callback(cbs, on_begin_frame);
 	nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, on_frame_recv);
 	nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, on_data_chunk);
 	nghttp2_session_callbacks_set_on_stream_close_callback(cbs, on_stream_close);
@@ -289,11 +292,13 @@ NG_FLAG_PRIORITY :: 0x20;
 NG_DATA_FLAG_EOF :: 0x1;
 NG_ERR_TEMPORAL_CALLBACK_FAILURE :: -521;
 NG_ERR_START_STREAM_NOT_ALLOWED :: -516;
+NG_PROTOCOL_ERROR :: 1;
 NG_REFUSED_STREAM :: 7;
 NG_CANCEL :: 8;
 
 nghttp2_session_callbacks_new :: (cbs: **Ng_Callbacks) -> s32 #foreign vendor;
 nghttp2_session_callbacks_del :: (cbs: *Ng_Callbacks) #foreign vendor;
+nghttp2_session_callbacks_set_on_begin_frame_callback :: (cbs: *Ng_Callbacks, cb: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call) #foreign vendor;
 nghttp2_session_callbacks_set_on_frame_recv_callback :: (cbs: *Ng_Callbacks, cb: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call) #foreign vendor;
 nghttp2_session_callbacks_set_on_data_chunk_recv_callback :: (cbs: *Ng_Callbacks, cb: (s: *Ng_Session, flags: u8, id: s32, data: *u8, n: u64, user: *void) -> s32 #c_call) #foreign vendor;
 nghttp2_session_callbacks_set_on_stream_close_callback :: (cbs: *Ng_Callbacks, cb: (s: *Ng_Session, id: s32, code: u32, user: *void) -> s32 #c_call) #foreign vendor;
@@ -309,6 +314,8 @@ nghttp2_submit_settings :: (s: *Ng_Session, flags: u8, iv: *Setting, niv: u64) -
 nghttp2_submit_window_update :: (s: *Ng_Session, flags: u8, id: s32, increment: s32) -> s32 #foreign vendor;
 nghttp2_submit_request2 :: (s: *Ng_Session, pri_spec: *void, nva: *Ng_Nv, nvlen: u64, data: *Ng_Data_Provider, stream_user: *void) -> s32 #foreign vendor;
 nghttp2_submit_rst_stream :: (s: *Ng_Session, flags: u8, id: s32, code: u32) -> s32 #foreign vendor;
+nghttp2_submit_goaway :: (s: *Ng_Session, flags: u8, last_id: s32, code: u32, data: *u8, n: u64) -> s32 #foreign vendor;
+nghttp2_session_get_effective_recv_data_length :: (s: *Ng_Session) -> s32 #foreign vendor;
 nghttp2_session_terminate_session :: (s: *Ng_Session, code: u32) -> s32 #foreign vendor;
 nghttp2_session_mem_recv2 :: (s: *Ng_Session, data: *u8, n: u64) -> int #foreign vendor;
 nghttp2_session_mem_send2 :: (s: *Ng_Session, data: **u8) -> int #foreign vendor;
@@ -362,20 +369,30 @@ finish :: (c: *H2_Conn, st: *H2_Stream, err: Error, code: u32) {
 
 // give_back returns received bytes to the windows as Chrome's IncreaseRecvWindowSize does: a
 // WINDOW_UPDATE once more than half the window is unacked or 5 s passed since the last one; the
-// connection's first.
+// connection's first. The connection's count is every DATA byte nghttp2 has read: padding, and DATA for
+// a stream it already closed (no callback sees that), which Chrome's SpdySession also gives back at
+// once. Called before each frame and after each read too, so those land in Chrome's order; should
+// nghttp2 have acked such DATA itself (half the window of it unacked), its count is followed.
 give_back :: (c: *H2_Conn, st: *H2_Stream, id: s32, n: int) {
 	now := current_time_monotonic();
-	c.unacked += n;
-	if c.unacked > CHROME_CONNECTION_WINDOW / 2 || now - c.acked_at >= seconds_to_apollo(5) {
-		nghttp2_submit_window_update(c.session, 0, 0, xx c.unacked);
-		c.unacked, c.acked_at = 0, now;
+	unacked := cast(int) nghttp2_session_get_effective_recv_data_length(c.session);
+	if unacked > c.unacked && (unacked > CHROME_CONNECTION_WINDOW / 2 || now - c.acked_at >= seconds_to_apollo(5)) {
+		nghttp2_submit_window_update(c.session, 0, 0, xx unacked);
+		unacked, c.acked_at = 0, now;
 	}
+	c.unacked = unacked;
 	if !st return;
 	st.unacked += n;
 	if st.unacked > CHROME_STREAM_WINDOW / 2 || now - st.acked_at >= seconds_to_apollo(5) {
 		nghttp2_submit_window_update(c.session, 0, id, xx st.unacked);
 		st.unacked, st.acked_at = 0, now;
 	}
+}
+
+on_begin_frame :: (s: *Ng_Session, f: *Ng_Frame_Hd, user: *void) -> s32 #c_call {
+	c := cast(*H2_Conn) user;
+	push_context c.ctx.* { give_back(c, null, 0, 0); }
+	return 0;
 }
 
 on_header :: (s: *Ng_Session, f: *Ng_Frame_Hd, name: *u8, namelen: u64, value: *u8, valuelen: u64, flags: u8, user: *void) -> s32 #c_call {
@@ -572,6 +589,7 @@ preface_ping :: (c: *H2_Conn) {
 	array_add(*c.out, 0, 0, 8, NG_FRAME_PING, 0, 0, 0, 0, 0);
 	for i: 0..7 array_add(*c.out, cast(u8) (c.next_ping >> (56 - 8 * i)));
 	c.ping_in_flight = true;
+	c.ping_at = current_time_monotonic();
 	c.next_ping += 1;
 }
 
@@ -583,6 +601,7 @@ read_once :: (c: *H2_Conn) -> Error {
 	lock(c);
 	c.last_read = current_time_monotonic();
 	rv := nghttp2_session_mem_recv2(c.session, c.rbuf.data, xx n);
+	if rv >= 0 give_back(c, null, 0, 0);
 	locks.unlock(*c.mu);
 	ferr := flush(c); // on a connection error this sends nghttp2's GOAWAY
 	if rv < 0 return .Protocol;
@@ -626,11 +645,31 @@ drive_until :: (c: *H2_Conn, st: *H2_Stream) {
 			c.reading = false;
 			if err != .None fail_conn_locked(c, err);
 			locks.cond_broadcast(*c.cond);
+		} else if c.ping_in_flight {
+			// Chrome's CheckPingStatus, run by a waiter since the reader is blocked in read
+			left := to_milliseconds(max(c.ping_at, c.last_read) + seconds_to_apollo(10) - current_time_monotonic());
+			if left <= 0 failed_ping(c);
+			else locks.cond_wait_with_timeout(*c.cond, *c.mu, left);
+			c.ctx = *context;
 		} else {
 			locks.cond_wait(*c.cond, *c.mu);
 			c.ctx = *context;
 		}
 	}
+}
+
+// failed_ping is Chrome's DoDrainSession(ERR_HTTP2_PING_FAILED): GOAWAY, then the connection closes.
+// Called and returns with c.mu held.
+failed_ping :: (c: *H2_Conn) {
+	WHY :: "Failed ping.";
+	nghttp2_submit_goaway(c.session, 0, 0, NG_PROTOCOL_ERROR, WHY.data, WHY.count);
+	c.ping_in_flight = false;
+	locks.unlock(*c.mu);
+	flush(c);
+	netio.shutdown(c.s); // wakes the reader
+	lock(c);
+	fail_conn_locked(c, .Timeout);
+	locks.cond_broadcast(*c.cond);
 }
 
 // ---- requests ----

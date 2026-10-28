@@ -28,6 +28,46 @@
 
 using namespace bssl;
 
+static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_INFO_ACCESS(
+    const X509V3_EXT_METHOD *method, void *ext, STACK_OF(CONF_VALUE) *ret);
+static void *v2i_AUTHORITY_INFO_ACCESS(const X509V3_EXT_METHOD *method,
+                                       const X509V3_CTX *ctx,
+                                       const STACK_OF(CONF_VALUE) *nval);
+
+const X509V3_EXT_METHOD bssl::v3_info = {
+    NID_info_access,
+    X509V3_EXT_MULTILINE,
+    ASN1_ITEM_ref(AUTHORITY_INFO_ACCESS),
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    i2v_AUTHORITY_INFO_ACCESS,
+    v2i_AUTHORITY_INFO_ACCESS,
+    nullptr,
+    nullptr,
+    nullptr,
+};
+
+const X509V3_EXT_METHOD bssl::v3_sinfo = {
+    NID_sinfo_access,
+    X509V3_EXT_MULTILINE,
+    ASN1_ITEM_ref(AUTHORITY_INFO_ACCESS),
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    i2v_AUTHORITY_INFO_ACCESS,
+    v2i_AUTHORITY_INFO_ACCESS,
+    nullptr,
+    nullptr,
+    nullptr,
+};
+
 ASN1_SEQUENCE(ACCESS_DESCRIPTION) = {
     ASN1_SIMPLE(ACCESS_DESCRIPTION, method, ASN1_OBJECT),
     ASN1_SIMPLE(ACCESS_DESCRIPTION, location, GENERAL_NAME),
@@ -41,11 +81,8 @@ ASN1_ITEM_TEMPLATE_END(AUTHORITY_INFO_ACCESS)
 
 IMPLEMENT_ASN1_FUNCTIONS_const(AUTHORITY_INFO_ACCESS)
 
-namespace {
-
-STACK_OF(CONF_VALUE) *i2v_AUTHORITY_INFO_ACCESS(const X509V3_EXT_METHOD *method,
-                                                void *ext,
-                                                STACK_OF(CONF_VALUE) *ret) {
+static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_INFO_ACCESS(
+    const X509V3_EXT_METHOD *method, void *ext, STACK_OF(CONF_VALUE) *ret) {
   const AUTHORITY_INFO_ACCESS *ainfo =
       reinterpret_cast<const AUTHORITY_INFO_ACCESS *>(ext);
   ACCESS_DESCRIPTION *desc;
@@ -83,9 +120,9 @@ err:
   return nullptr;
 }
 
-void *v2i_AUTHORITY_INFO_ACCESS(const X509V3_EXT_METHOD *method,
-                                const X509V3_CTX *ctx,
-                                const STACK_OF(CONF_VALUE) *nval) {
+static void *v2i_AUTHORITY_INFO_ACCESS(const X509V3_EXT_METHOD *method,
+                                       const X509V3_CTX *ctx,
+                                       const STACK_OF(CONF_VALUE) *nval) {
   UniquePtr<AUTHORITY_INFO_ACCESS> ainfo(sk_ACCESS_DESCRIPTION_new_null());
   if (ainfo == nullptr) {
     return nullptr;
@@ -123,39 +160,3 @@ void *v2i_AUTHORITY_INFO_ACCESS(const X509V3_EXT_METHOD *method,
   }
   return ainfo.release();
 }
-
-}  // namespace
-
-const X509V3_EXT_METHOD bssl::v3_info = {
-    NID_info_access,
-    X509V3_EXT_MULTILINE,
-    ASN1_ITEM_ref(AUTHORITY_INFO_ACCESS),
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    i2v_AUTHORITY_INFO_ACCESS,
-    v2i_AUTHORITY_INFO_ACCESS,
-    nullptr,
-    nullptr,
-    nullptr,
-};
-
-const X509V3_EXT_METHOD bssl::v3_sinfo = {
-    NID_sinfo_access,
-    X509V3_EXT_MULTILINE,
-    ASN1_ITEM_ref(AUTHORITY_INFO_ACCESS),
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    i2v_AUTHORITY_INFO_ACCESS,
-    v2i_AUTHORITY_INFO_ACCESS,
-    nullptr,
-    nullptr,
-    nullptr,
-};

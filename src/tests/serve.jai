@@ -254,6 +254,30 @@ main :: () {
 		for 1..100 pump();
 		status, body = rest("GET", messages, "", token);
 		check(!contains(body, "reactions"), tprint("reaction removed: %", body));
+
+		// Pins: the owner pins through the client; the message updates and the list has it.
+		epoch := discord.pins_epoch(cid);
+		discord.pin_message(cl, cid, hello, true);
+		for 1..300 { if stored()[0].pinned && discord.pins_epoch(cid) != epoch break; pump(); }
+		check(stored()[0].pinned && discord.pins_epoch(cid) != epoch, "pin: MESSAGE_UPDATE and CHANNEL_PINS_UPDATE");
+		status, body = rest("GET", tprint("%/pins", messages), "", token);
+		pinned, _ := etf.from_json(body);
+		items := field(pinned, "items");
+		check(status == 200 && items.kind == .List && items.list.count == 1 && field(items.list[0], "message", "content").s == "hello"
+			&& field(items.list[0], "pinned_at").kind == .String, tprint("pins list: % %", status, body));
+		discord.pin_message(cl, cid, hello, false);
+		for 1..300 { if !stored()[0].pinned break; pump(); }
+		check(!stored()[0].pinned, "unpin");
+
+		// A read mark survives a new session: the next READY carries it.
+		discord.ack_message(cl, cid, hello, immediate = true);
+		for 1..100 pump();
+		cl2 := discord.client_create(.{token = token, hosted = cl.cfg.hosted});
+		discord.client_start(cl2);
+		for 1..1000 { if cl2.store.ready break; discord.client_poll(cl2); sleep_milliseconds(10); }
+		has_rs, rs := table_find(*cl2.store.read_states, cid);
+		check(cl2.store.ready && has_rs && rs.last_message_id == hello, tprint("read state in READY: % %", has_rs, rs.last_message_id));
+		discord.client_destroy(cl2);
 	}
 	discord.send_typing(cl, cid);
 	typing_ok := false;
@@ -332,6 +356,22 @@ main :: () {
 	check(ostatus == 404, tprint("an expired invite is refused: % %", ostatus, omessage));
 	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"mine\"}", other_token);
 	check(status == 403, tprint("only the owner makes channels: % %", status, body));
+
+	// Mentions: Other's ID from a message of theirs, then the owner pings them and @everyone.
+	status, body = rest("POST", messages, "{\"content\": \"hi all\"}", other_token);
+	said, _ := etf.from_json(body);
+	other_id := field(said, "author", "id").s;
+	status, body = rest("POST", messages, tprint("{\"content\": \"<@%> and <@!1> and @everyone\"}", other_id), token);
+	pinged, _ := etf.from_json(body);
+	ms := field(pinged, "mentions");
+	check(status == 200 && ms.kind == .List && ms.list.count == 1 && field(ms.list[0], "id").s == other_id && field(pinged, "mention_everyone").b,
+		tprint("mentions: % %", status, body));
+	cl3 := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl3);
+	for 1..1000 { if cl3.store.ready break; discord.client_poll(cl3); sleep_milliseconds(10); }
+	has_rs, rs := table_find(*cl3.store.read_states, cid);
+	check(cl3.store.ready && has_rs && rs.mention_count == 1, tprint("the pinged member's mention count: % %", has_rs, rs.mention_count));
+	discord.client_destroy(cl3);
 
 	serve.stop(s);
 	print("% failed\n", failed);

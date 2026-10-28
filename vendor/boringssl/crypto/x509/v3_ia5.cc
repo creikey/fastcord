@@ -28,9 +28,7 @@
 
 using namespace bssl;
 
-namespace {
-
-char *i2s_ASN1_IA5STRING(const X509V3_EXT_METHOD *method, void *ext) {
+static char *i2s_ASN1_IA5STRING(const X509V3_EXT_METHOD *method, void *ext) {
   const ASN1_IA5STRING *ia5 = reinterpret_cast<const ASN1_IA5STRING *>(ext);
   char *tmp;
   if (!ia5 || !ia5->length) {
@@ -44,8 +42,8 @@ char *i2s_ASN1_IA5STRING(const X509V3_EXT_METHOD *method, void *ext) {
   return tmp;
 }
 
-void *s2i_ASN1_IA5STRING(const X509V3_EXT_METHOD *method,
-                         const X509V3_CTX *ctx, const char *str) {
+static void *s2i_ASN1_IA5STRING(const X509V3_EXT_METHOD *method,
+                                const X509V3_CTX *ctx, const char *str) {
   ASN1_IA5STRING *ia5;
   if (!str) {
     OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_NULL_ARGUMENT);
@@ -62,8 +60,6 @@ void *s2i_ASN1_IA5STRING(const X509V3_EXT_METHOD *method,
 err:
   return nullptr;
 }
-
-}  // namespace
 
 #define EXT_IA5STRING(nid)                                                 \
   {                                                                        \

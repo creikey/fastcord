@@ -441,18 +441,25 @@ ZIG_NAME :: #run tprint("zig-%-%", ZIG_HOST, ZIG_VERSION);
 #if OS == .WINDOWS ZIG :: #run tprint("build\\zig\\%\\zig.exe", ZIG_NAME);  // CreateProcess wants backslashes
 else               ZIG :: #run tprint("build/zig/%/zig", ZIG_NAME);
 
-fetch_zig :: () -> bool {
-    if file_exists(ZIG) return true;
-    make_directory_if_it_does_not_exist("build/zig");
-    archive := tprint("build/zig/%.%", ZIG_NAME, ZIG_ARCHIVE);
+// BoringSSL's Windows assembly is NASM source: the pinned NASM, its sha256 taken at pinning (nasm.us
+// publishes none).
+NASM_VERSION :: "3.01";
+NASM_SHA256 :: "e0ba5157007abc7b1a65118a96657a961ddf55f7e3f632ee035366dfce039ca4";
+NASM :: #run tprint("build\\nasm\\nasm-%\\nasm.exe", NASM_VERSION);
+
+// fetch downloads a pinned tool's archive once into dir, checks its sha256 and unpacks it.
+fetch :: (exe: string, dir: string, url: string, sha256: string) -> bool {
+    if file_exists(exe) return true;
+    make_directory_if_it_does_not_exist(dir);
+    archive := tprint("%/%", dir, path_filename(url));
     print("downloading %\n", archive);
-    if run_command("curl", "-fsSL", "-o", archive, tprint("https://ziglang.org/download/%/%.%", ZIG_VERSION, ZIG_NAME, ZIG_ARCHIVE)).exit_code != 0 return false;
+    if run_command("curl", "-fsSL", "-o", archive, url).exit_code != 0 return false;
     #if OS == .WINDOWS r, out := run_command("certutil", "-hashfile", archive, "SHA256", capture_and_return_output = true);
     else               r, out := run_command("shasum", "-a", "256", archive, capture_and_return_output = true);
-    ok := r.exit_code == 0 && contains(to_lower_copy(out,, temp), ZIG_SHA256);
-    if !ok log_error("% does not match sha256 %", archive, ZIG_SHA256);
+    ok := r.exit_code == 0 && contains(to_lower_copy(out,, temp), sha256);
+    if !ok log_error("% does not match sha256 %", archive, sha256);
     // tar unpacks the Windows zip too (bsdtar ships with Windows 10+).
-    ok = ok && run_command("tar", "-xf", archive, "-C", "build/zig").exit_code == 0 && file_exists(ZIG);
+    ok = ok && run_command("tar", "-xf", archive, "-C", dir).exit_code == 0 && file_exists(exe);
     file_delete(archive);
     return ok;
 }
@@ -479,7 +486,8 @@ cc :: (a: *[..]string, cpp: bool) {
 }
 
 build_c :: () -> bool {
-    if !fetch_zig() return false;
+    if !fetch(ZIG, "build/zig", tprint("https://ziglang.org/download/%/%.%", ZIG_VERSION, ZIG_NAME, ZIG_ARCHIVE), ZIG_SHA256) return false;
+    #if OS == .WINDOWS if !LINUX && !fetch(NASM, "build/nasm", tprint("https://www.nasm.us/pub/nasm/releasebuilds/%/win64/nasm-%-win64.zip", NASM_VERSION, NASM_VERSION), NASM_SHA256) return false;
     #if OS == .MACOS if !LINUX {
         r, out := run_command("xcrun", "--show-sdk-path", capture_and_return_output = true);
         if r.exit_code != 0 return false;
@@ -515,13 +523,22 @@ build_c_target :: () -> bool {
         if !stale(stamp, path_strip_filename(list)) continue;
         dir := list_dir(list);
         make_directory_if_it_does_not_exist(dir, recursive = true);
+        for file_list(dir) file_delete(it);  // objects of files the list no longer names
         text := read_entire_file(list);
         extra := cflags(path_strip_extension(list));
         for line: split(text, "\n") {
             f := trim(line);
             if !f continue;
             a: [..]string;
-            cc(*a, !ends_with(f, ".c"));
+            // assembly guards itself by OS and CPU, so every file is built and the others come out empty
+            if ends_with(f, ".asm") {
+                #if OS != .WINDOWS continue;
+                if LINUX continue;
+                array_add(*a, NASM, "-f", "win64", "-o", tprint("%/%.o", dir, path_filename(f)), f);
+                array_add(*jobs, a);
+                continue;
+            }
+            cc(*a, !ends_with(f, ".c") && !ends_with(f, ".S"));
             array_add(*a, ..extra);
             // per-file SIMD (libwebp and WebRTC pick them at run time; WebRTC's x86 files don't guard themselves)
             if MAC_ARCH != "aarch64" {

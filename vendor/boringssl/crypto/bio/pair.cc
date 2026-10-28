@@ -108,17 +108,27 @@ static int bio_free(BIO *bio) {
 
 static int bio_read(BIO *bio, char *buf, int size_) {
   size_t size = size_;
+  size_t rest;
+  struct bio_bio_st *b, *peer_b;
 
   BIO_clear_retry_flags(bio);
 
-  bio_bio_st *b = reinterpret_cast<bio_bio_st *>(BIO_get_data(bio));
+  if (!BIO_get_init(bio)) {
+    return 0;
+  }
+
+  b = reinterpret_cast<bio_bio_st *>(BIO_get_data(bio));
   assert(b != nullptr);
   assert(b->peer != nullptr);
-  bio_bio_st *peer_b = reinterpret_cast<bio_bio_st *>(BIO_get_data(b->peer));
+  peer_b = reinterpret_cast<bio_bio_st *>(BIO_get_data(b->peer));
   assert(peer_b != nullptr);
   assert(peer_b->buf != nullptr);
 
   peer_b->request = 0;  // will be set in "retry_read" situation
+
+  if (buf == nullptr || size == 0) {
+    return 0;
+  }
 
   if (peer_b->len == 0) {
     if (peer_b->closed) {
@@ -142,7 +152,7 @@ static int bio_read(BIO *bio, char *buf, int size_) {
   }
 
   // now read "size" bytes
-  size_t rest = size;
+  rest = size;
 
   assert(rest > 0);
   // one or two iterations
@@ -176,15 +186,22 @@ static int bio_read(BIO *bio, char *buf, int size_) {
     rest -= chunk;
   } while (rest);
 
-  // `size` is bounded by the buffer size, which fits in `int`.
+  // |size| is bounded by the buffer size, which fits in |int|.
   return (int)size;
 }
 
-static int bio_write_ex(BIO *bio, const char *buf, size_t num,
-                        size_t *out_written) {
+static int bio_write(BIO *bio, const char *buf, int num_) {
+  size_t num = num_;
+  size_t rest;
+  struct bio_bio_st *b;
+
   BIO_clear_retry_flags(bio);
 
-  struct bio_bio_st *b = reinterpret_cast<bio_bio_st *>(BIO_get_data(bio));
+  if (!BIO_get_init(bio) || buf == nullptr || num == 0) {
+    return 0;
+  }
+
+  b = reinterpret_cast<bio_bio_st *>(BIO_get_data(bio));
   assert(b != nullptr);
   assert(b->peer != nullptr);
   assert(b->buf != nullptr);
@@ -193,14 +210,14 @@ static int bio_write_ex(BIO *bio, const char *buf, size_t num,
   if (b->closed) {
     // we already closed
     OPENSSL_PUT_ERROR(BIO, BIO_R_BROKEN_PIPE);
-    return 0;
+    return -1;
   }
 
   assert(b->len <= b->size);
 
   if (b->len == b->size) {
     BIO_set_retry_write(bio);  // buffer is full
-    return 0;
+    return -1;
   }
 
   // we can write
@@ -209,7 +226,7 @@ static int bio_write_ex(BIO *bio, const char *buf, size_t num,
   }
 
   // now write "num" bytes
-  size_t rest = num;
+  rest = num;
 
   assert(rest > 0);
   // one or two iterations
@@ -242,8 +259,8 @@ static int bio_write_ex(BIO *bio, const char *buf, size_t num,
     buf += chunk;
   } while (rest);
 
-  *out_written = num;
-  return 1;
+  // |num| is bounded by the buffer size, which fits in |int|.
+  return (int)num;
 }
 
 static int bio_make_pair(BIO *bio1, BIO *bio2, size_t writebuf1_len,
@@ -305,7 +322,7 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr) {
     // Specific control codes first:
     case BIO_C_GET_WRITE_BUF_SIZE:
       // TODO(crbug.com/412584975): This can overflow on 64-bit Windows. Do we
-      // need it? It implements `BIO_get_write_buf_size`, but we don't have the
+      // need it? It implements |BIO_get_write_buf_size|, but we don't have the
       // wrapper.
       return static_cast<long>(b->size);
 
@@ -383,8 +400,8 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr) {
 
 static const BIO_METHOD methods_biop = {
     BIO_TYPE_BIO,
-    /*bwrite=*/nullptr,
-    bio_write_ex,
+    "BIO pair",
+    bio_write,
     bio_read,
     /*gets=*/nullptr,
     bio_ctrl,

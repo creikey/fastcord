@@ -32,6 +32,7 @@ jobs:
           path: |
             build/zig
             build/zig-cache
+            build/nasm
             build/*.o
             build/*.stamp
             build/*.a
@@ -46,7 +47,7 @@ jobs:
       # proves they match vendor/ and build.jai.
       - name: Mark cached C current
         if: steps.c-cache.outputs.cache-hit == 'true'
-        run: find build -type f -not -path 'build/zig/*' -not -path 'build/zig-cache/*' -exec touch {} +
+        run: find build -type f -not -path 'build/zig/*' -not -path 'build/zig-cache/*' -not -path 'build/nasm/*' -exec touch {} +
 
       - name: Fetch Jai
         if: env.JAI_PASSWORD != ''

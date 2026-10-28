@@ -22,13 +22,9 @@
 
 using namespace bssl;
 
-namespace {
-
 // g_buffering_enabled is one if fork-unsafe buffering has been enabled and zero
 // otherwise.
-bssl::Atomic<uint32_t> g_buffering_enabled;
-
-}  // namespace
+static bssl::Atomic<uint32_t> g_buffering_enabled;
 
 #if !defined(OPENSSL_WINDOWS)
 void RAND_enable_fork_unsafe_buffering(int fd) {

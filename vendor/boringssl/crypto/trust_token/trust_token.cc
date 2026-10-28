@@ -279,13 +279,13 @@ int TRUST_TOKEN_CLIENT_add_key(TRUST_TOKEN_CLIENT *ctx, size_t *out_key_index,
   return 1;
 }
 
-int TRUST_TOKEN_CLIENT_set_srr_key(TRUST_TOKEN_CLIENT *ctx,
-                                   const EVP_PKEY *key) {
+int TRUST_TOKEN_CLIENT_set_srr_key(TRUST_TOKEN_CLIENT *ctx, EVP_PKEY *key) {
   if (!ctx->method->has_srr) {
     return 1;
   }
   EVP_PKEY_free(ctx->srr_key);
-  ctx->srr_key = EVP_PKEY_dup_ref(key);
+  EVP_PKEY_up_ref(key);
+  ctx->srr_key = key;
   return 1;
 }
 
@@ -488,6 +488,7 @@ void TRUST_TOKEN_ISSUER_free(TRUST_TOKEN_ISSUER *ctx) {
     return;
   }
   EVP_PKEY_free(ctx->srr_key);
+  OPENSSL_free(ctx->metadata_key);
   Delete(ctx);
 }
 
@@ -515,10 +516,25 @@ int TRUST_TOKEN_ISSUER_add_key(TRUST_TOKEN_ISSUER *ctx, const uint8_t *key,
   return 1;
 }
 
-int TRUST_TOKEN_ISSUER_set_srr_key(TRUST_TOKEN_ISSUER *ctx,
-                                   const EVP_PKEY *key) {
+int TRUST_TOKEN_ISSUER_set_srr_key(TRUST_TOKEN_ISSUER *ctx, EVP_PKEY *key) {
   EVP_PKEY_free(ctx->srr_key);
-  ctx->srr_key = EVP_PKEY_dup_ref(key);
+  EVP_PKEY_up_ref(key);
+  ctx->srr_key = key;
+  return 1;
+}
+
+int TRUST_TOKEN_ISSUER_set_metadata_key(TRUST_TOKEN_ISSUER *ctx,
+                                        const uint8_t *key, size_t len) {
+  if (len < 32) {
+    OPENSSL_PUT_ERROR(TRUST_TOKEN, TRUST_TOKEN_R_INVALID_METADATA_KEY);
+  }
+  OPENSSL_free(ctx->metadata_key);
+  ctx->metadata_key_len = 0;
+  ctx->metadata_key = reinterpret_cast<uint8_t *>(OPENSSL_memdup(key, len));
+  if (ctx->metadata_key == nullptr) {
+    return 0;
+  }
+  ctx->metadata_key_len = len;
   return 1;
 }
 
