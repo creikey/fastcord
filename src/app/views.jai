@@ -32,7 +32,6 @@ View_State :: struct {
 	channel: dc.Snowflake; // selected channel in the current guild, or DM channel at home
 	last_channel: Table(dc.Snowflake, dc.Snowflake); // guild -> last selected channel
 	friends_tab: Friends_Tab;
-	collapsed: Table(dc.Snowflake, bool); // collapsed categories
 	hide_muted: Table(dc.Snowflake, bool); // guild -> "Hide Muted Channels" (device-local)
 	hide_members: bool;
 	hide_dm_profile: bool; // 1:1 DM user profile column (header toggle)
@@ -739,8 +738,7 @@ channel_sidebar :: (gid: dc.Snowflake) {
 					category_row(ch);
 					continue;
 				}
-				_, parent_collapsed := table_find(*app.view.collapsed, ch.parent_id);
-				if ch.parent_id != 0 && parent_collapsed && cid != app.view.channel { continue; }
+				if ch.parent_id != 0 && cid != app.view.channel && dc.category_collapsed(s, gid, ch.parent_id) { continue; }
 				if dc.is_thread(ch) { continue; } // drawn under their parent
 				channel_row(ch, gid);
 				sidebar_thread_rows(ch, gid);
@@ -780,8 +778,11 @@ category_row :: (ch: *dc.Channel) {
 	r := row("cat", .Clickable);
 	r.semantic_size = .[ui.pct(1), ui.px(CATEGORY_ROW_H)];
 	sig := ui.signal(r);
-	_, collapsed := table_find(*app.view.collapsed, ch.id);
-	if sig.clicked { table_set(*app.view.collapsed, ch.id, !collapsed); }
+	collapsed := dc.category_collapsed(store(), ch.guild_id, ch.id);
+	if sig.clicked {
+		if net_action() dc.set_category_collapsed(app.client, ch.guild_id, ch.id, !collapsed);
+		else dc.store_set_collapsed(store(), ch.guild_id, ch.id, !collapsed);
+	}
 	color := ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
 	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 16);

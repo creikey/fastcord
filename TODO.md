@@ -67,7 +67,6 @@
 - [ ] Invites: no "Edit invite link" (expiry, max uses, temporary); always 30 days, unlimited. No friend list with Invite buttons.
 - [ ] Servers: Discovery opens the web page (`view_add_server.jai`); Create Server has no templates, purpose step or icon upload.
 - [ ] Badges: the taskbar badge counts mentions in servers you left and DMs you closed (read states are never dropped), plus stale counts in read channels. Replying from another device leaves a stale red badge, because your own message doesn't zero `mention_count` (`store.jai`, `CLIENT_RULES.md`).
-- [ ] Channels: collapsed categories are local only; the account's `collapsed_channels` is parsed but unused and collapsing sends nothing.
 - [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
@@ -389,3 +388,4 @@
 - [x] Window: remember the window's size, position and maximised state across launches (Windows).
 - [x] GIFs (fastcord-only): search Tenor as well as Klipy. Dropped: Google shut the Tenor API down on 2026-06-30 (no new keys since January), which is why Discord's `/gifs/search` went Klipy-only. Sent Tenor links still embed.
 - [x] Voice: `src/tests/voice_aec.jai` links on Windows (it now names msvcprt, which the app gets via tls).
+- [x] Channels: collapsing a category is account state: the sidebar reads `channel_overrides[].collapsed` and a click PATCHes it (`set_category_collapsed`; `tests/ui/category_collapse.txt`). The local `settings.json` `collapsed` list is gone.

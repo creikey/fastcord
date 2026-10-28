@@ -1,0 +1,11 @@
+# Clicking a category header collapses it (account state: channel_overrides.collapsed), hiding its
+# channels; a second click expands it again.
+wait 5
+expect_visible "General"
+click_text "Voice Channels"
+wait 5
+expect_not_visible "General"
+shot
+click_text "Voice Channels"
+wait 5
+expect_visible "General"

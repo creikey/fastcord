@@ -290,6 +290,25 @@ set_channel_notify_level :: (c: *Client, gid: Snowflake, cid: Snowflake, level: 
 	track_channel_settings(c, gid, cid, notify_label(level), tprint("\"channel_is_overridden_old\":%,\"channel_message_notification_settings_old\":%", old_over, notify_name_json(old)));
 }
 
+category_collapsed :: (s: *Store, gid: Snowflake, cid: Snowflake) -> bool {
+	gs := guild_settings_get(s, gid);
+	return gs != null && array_find(gs.collapsed_channels, cid);
+}
+
+store_set_collapsed :: (s: *Store, gid: Snowflake, cid: Snowflake, collapsed: bool) {
+	gs := ensure_settings(s, gid);
+	if collapsed array_add_if_unique(*gs.collapsed_channels, cid);
+	else array_unordered_remove_by_value(*gs.collapsed_channels, cid);
+	s.changed += 1;
+}
+
+// Collapsing a category is account state (channel_overrides.collapsed), so it follows you to other
+// devices. No capture covers it: the write follows the other override keys, with no science event.
+set_category_collapsed :: (c: *Client, gid: Snowflake, cid: Snowflake, collapsed: bool) {
+	patch_guild_settings(c, gid, tprint("{\"channel_overrides\":{\"%\":{\"collapsed\":%}}}", cid, collapsed));
+	store_set_collapsed(*c.store, gid, cid, collapsed);
+}
+
 // No capture covers the suppress switches: the write follows the same endpoint;
 // no science event is sent (its label is unknown, and values are never invented).
 set_guild_suppress_everyone :: (c: *Client, gid: Snowflake, on: bool) {

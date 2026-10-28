@@ -281,7 +281,7 @@ sweep_measure :: () -> u64 {
 		sw.open, ma.menu_msg, ma.confirming, ma.editing, ma.replying, ma.reply_mention, staged_count(app.view.channel), att.mod_key, att.notice, att.drag,
 		pk.open, pk.tab, pins_state_for_test(), gdm_state_for_test(), pf_state_for_test(), rail_state_for_test(),
 		search_state_for_test(), guild_menu_state_for_test(), viewer_url, block_confirm.user, vs.open_dropdown, vs.menu_user,
-		app.theme.name, platform.clipboard_get(), app.ext_actions, app.view.collapsed,
+		app.theme.name, platform.clipboard_get(), app.ext_actions,
 		events_state_for_test(), guild_admin_state_for_test(),
 	);
 	// without the network-attempt count: a press that only tried the network shows nothing

@@ -1,6 +1,6 @@
 // Local (device) settings, persisted like the official client's localStorage
 // stores (MediaEngineStore, SoundpackStore, NotificationSettingsStore,
-// collapsed categories, SelectedChannelStore, window bounds) to
+// SelectedChannelStore, window bounds) to
 // <state>/settings.json, written atomically (tmp + rename) when changed.
 //
 // Synced to the server instead (settings-proto, library side): theme
@@ -53,7 +53,6 @@ Persisted :: struct {
 	notify: Persisted_Notify;
 	voice: Persisted_Voice;
 	sounds: Persisted_Sounds;
-	collapsed: []string; // category ids
 	hide_muted: []string; // guild ids with "Hide Muted Channels" on
 	last_channel: Table(string, string); // guild ("0" = home) -> channel
 	window_width: int;
@@ -250,10 +249,6 @@ apply_persisted :: (p: *Persisted) {
 	}
 	if p.sidebar_width > 0 app.view.sidebar_w = clamp(p.sidebar_width, SIDEBAR_MIN_W, SIDEBAR_MAX_W);
 	if p.member_list_width > 0 app.view.member_w = clamp(p.member_list_width, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W);
-	for p.collapsed {
-		n, ok := dc.parse_u64(it);
-		if ok table_set(*app.view.collapsed, cast(dc.Snowflake) n, true);
-	}
 	for p.hide_muted {
 		n, ok := dc.parse_u64(it);
 		if ok table_set(*app.view.hide_muted, cast(dc.Snowflake) n, true);
@@ -275,10 +270,9 @@ snapshot :: () -> string {
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);
 	sounds_snapshot(*p.sounds);
-	col, hm: [..]string;
-	for on, id: app.view.collapsed if on array_add(*col, tprint("%", cast(u64) id));
+	hm: [..]string;
 	for on, id: app.view.hide_muted if on array_add(*hm, tprint("%", cast(u64) id));
-	p.collapsed, p.hide_muted = col, hm;
+	p.hide_muted = hm;
 	for c, g: app.view.last_channel if c != 0 table_set(*p.last_channel, tprint("%", cast(u64) g), tprint("%", cast(u64) c));
 	ws := platform.window_size();
 	p.window_width = cast(int) ws.x;
