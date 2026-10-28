@@ -81,17 +81,27 @@ picker_is_open :: () -> bool { return pk.open && !pk.closing; }
 
 // Composer hook: one call per composer button ("gif", "sticker", "reaction").
 // Returns whether the button should draw highlighted.
-picker_composer_button :: (name: string, sig: ui.Signal, rect: ui.Rect, channel_id: dc.Snowflake) -> bool {
+picker_composer_button :: (name: string, sig: ui.Signal, rect: ui.Rect, channel_id: dc.Snowflake, keys: bool) -> bool {
 	tab: Picker_Tab;
+	key: ui.Key_Code;
 	if name == {
 	case "gif";
 		tab = .Gif;
+		key = .G;
 	case "sticker";
 		tab = .Sticker;
+		key = .S;
 	case "reaction";
 		tab = .Emoji;
+		key = .E;
 	case;
 		return sig.hovering;
+	}
+	clicked := sig.clicked;
+	if keys for * e: app.ui.events {
+		if e.consumed || e.kind != .Key_Down || e.key != key || e.mods != PRIMARY_MOD continue;
+		clicked = true;
+		e.consumed = true;
 	}
 	// the popout aligns to the composer box (the buttons' parent), like the client's positionTargetRef
 	p := sig.box.parent;
@@ -104,7 +114,7 @@ picker_composer_button :: (name: string, sig: ui.Signal, rect: ui.Rect, channel_
 	}
 	pk.buttons[tab] = rect;
 	active := picker_is_open() && pk.mode == .Composer && pk.tab == tab && pk.channel == channel_id;
-	if sig.clicked {
+	if clicked {
 		if active {
 			picker_close();
 		} else {
@@ -170,6 +180,8 @@ picker_capture_input :: () {
 	}
 	for * e, i: app.ui.events {
 		if e.consumed continue;
+		// Ctrl+E / G / S reach the composer's buttons, which toggle or switch the picker
+		if pk.mode == .Composer && e.kind == .Key_Down && e.mods == PRIMARY_MOD && (e.key == .E || e.key == .G || e.key == .S) continue;
 		if e.kind == .Key_Down || e.kind == .Text || (e.kind == .Scroll && over) {
 			e.consumed = true;
 			array_add(*pk.captured, i);

@@ -1475,7 +1475,7 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				b.semantic_size = .[ui.px(40), ui.px(COMPOSER_H)];
 				b.layout_axis = .Y;
 				b.cross_align = .Center;
-				hov := picker_composer_button(name, ui.signal(b), b.rect, ch.id);
+				hov := picker_composer_button(name, ui.signal(b), b.rect, ch.id, input_focused || (picker_is_open() && pk.mode == .Composer && pk.channel == ch.id));
 				{ ui.parent(b); defer ui.pop_parent();
 					spacer(.Y, (COMPOSER_H - 24) / 2);
 					icon("i", name, 24, ifx hov then T("--interactive-icon-hover") else T("--interactive-icon-default"));

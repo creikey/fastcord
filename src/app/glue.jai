@@ -151,6 +151,12 @@ map_key :: (k: platform.Key) -> ui.Key_Code {
 		return .M;
 	case .D;
 		return .D;
+	case .E;
+		return .E;
+	case .G;
+		return .G;
+	case .S;
+		return .S;
 	case .None;
 		return .None;
 	}

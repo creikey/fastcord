@@ -1,0 +1,14 @@
+# Ctrl+E opens the emoji picker from the composer (its search takes the typing) and closes it again;
+# Ctrl+G opens the GIF picker.
+wait 5
+click 600 684
+key e cmd
+wait 10
+type fire
+wait 5
+expect_input "fire"
+key e cmd
+wait 10
+expect_input ""
+key g cmd
+wait 10
