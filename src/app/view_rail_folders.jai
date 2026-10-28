@@ -291,7 +291,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 		sig: ui.Signal;
 		{ ui.parent(slot); defer ui.pop_parent();
 			pill := ui.box("pill", .Draw_Background | .Floating_X | .Floating_Y);
-			ic := ui.box("ficon", .Clickable | .Draw_Background | .Floating_X | .Floating_Y | .Hot_Animation);
+			ic := ui.box("ficon", .Clickable | .Click_On_Release | .Draw_Background | .Floating_X | .Floating_Y | .Hot_Animation);
 			ic.semantic_size = .[ui.px(GUILD_ICON), ui.px(GUILD_ICON)];
 			ic.fixed_pos = .{RAIL_ICON_X, 0};
 			ic.style.radius = all4(FOLDER_RADIUS);

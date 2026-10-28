@@ -56,7 +56,7 @@ view_init :: (v: *View_State) {
 // .sidebarResizeHandle: 4px wide, ew-resize, --background-mod-strong while hovered or dragged).
 // Dragging sets width (clamped, whole points); returns true when the drag ends.
 resize_handle :: (id: string, x: float32, width: *float32, lo: float32, hi: float32, grows_left := false) -> bool {
-	b := ui.box(id, .Clickable | .Floating_X | .Floating_Y | .Draw_Background | .Hot_Animation | .Active_Animation);
+	b := ui.box(id, .Clickable | .Click_On_Release | .Floating_X | .Floating_Y | .Draw_Background | .Hot_Animation | .Active_Animation);
 	b.semantic_size = .[ui.px(4), ui.pct(1)];
 	b.fixed_pos = .{x, 0};
 	b.hover_cursor = .Resize_H;

@@ -1064,7 +1064,7 @@ block_confirm_modal :: () {
 			cancel.style.bg = T("--background-mod-normal");
 			cancel.style.bg_hot = T("--background-mod-strong");
 			if ui.signal(cancel).clicked { block_confirm = .{}; }
-			ok := ui.box("Block##b", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			ok := ui.box("Block##b", .Clickable | .Click_On_Release | .Draw_Background | .Draw_Text | .Hot_Animation);
 			ok.semantic_size = .[ui.fill(), ui.px(40)];
 			ok.style.radius = all4(8);
 			ok.style.font = F(.Medium);

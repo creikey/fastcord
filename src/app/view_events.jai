@@ -108,6 +108,7 @@ wide_button :: (id: string, text: string, kind: Adm_Button, enabled := true) -> 
 	case .Danger;
 		b.style.bg = T("--status-danger");
 		b.style.text_color = .{1, 1, 1, 1};
+		b.flags |= .Click_On_Release;
 	case;
 		b.style.bg = T("--background-mod-strong");
 		b.style.text_color = T("--text-strong");
