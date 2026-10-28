@@ -36,6 +36,7 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 | `src/tool_capture*`, `src/tool_scrub`, `src/tool_trafficdiff`, `src/discord_parity` | Recording the official client (DevTools protocol), scrubbing captures, diffing traffic, the live session runner. |
 | `traffic/` | Committed scrubbed captures of the official client, one per scenario. |
 | `tests/` | Scenarios (`scenarios/*.scn`), UI scripts (`ui/`), benches (`bench/`). |
+| `tools/` | Dev scripts; `python3 -I tools/commits_live.py` opens a live commits-per-minute graph of `main`. |
 
 ## Build and run
 
