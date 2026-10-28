@@ -343,6 +343,22 @@ main :: () {
 	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"mine\"}", other_token);
 	check(status == 403, tprint("only the owner makes channels: % %", status, body));
 
+	// Mentions: Other's ID from a message of theirs, then the owner pings them and @everyone.
+	status, body = rest("POST", messages, "{\"content\": \"hi all\"}", other_token);
+	said, _ := etf.from_json(body);
+	other_id := field(said, "author", "id").s;
+	status, body = rest("POST", messages, tprint("{\"content\": \"<@%> and <@!1> and @everyone\"}", other_id), token);
+	pinged, _ := etf.from_json(body);
+	ms := field(pinged, "mentions");
+	check(status == 200 && ms.kind == .List && ms.list.count == 1 && field(ms.list[0], "id").s == other_id && field(pinged, "mention_everyone").b,
+		tprint("mentions: % %", status, body));
+	cl3 := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl3);
+	for 1..1000 { if cl3.store.ready break; discord.client_poll(cl3); sleep_milliseconds(10); }
+	has_rs, rs := table_find(*cl3.store.read_states, cid);
+	check(cl3.store.ready && has_rs && rs.mention_count == 1, tprint("the pinged member's mention count: % %", has_rs, rs.mention_count));
+	discord.client_destroy(cl3);
+
 	serve.stop(s);
 	print("% failed\n", failed);
 	exit(xx ifx failed then 1 else 0);

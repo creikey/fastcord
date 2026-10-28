@@ -54,6 +54,7 @@ open :: (path: string) -> *Server, bool {
 	if !sqlite.exec(db, SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
@@ -302,8 +303,9 @@ CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
+CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
 CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER,
 	max_age INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL DEFAULT 0);
@@ -506,7 +508,7 @@ iso :: (id: s64) -> string {
 // edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
-		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}) -> etf.Value {
+		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx reply then 19 else 0));
@@ -527,22 +529,30 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "flags", etf.vint(0));
 	etf.map_put(*m, "attachments", etf.vlist(.[]));
 	etf.map_put(*m, "embeds", etf.vlist(.[]));
-	etf.map_put(*m, "mentions", etf.vlist(.[]));
+	etf.map_put(*m, "mentions", ifx mentions.kind == .List then mentions else etf.vlist(.[]));
+	etf.map_put(*m, "mention_everyone", etf.vbool(everyone));
 	if nonce etf.map_put(*m, "nonce", etf.vstring(nonce));
 	if reactions.kind == .List && reactions.list.count etf.map_put(*m, "reactions", reactions);
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0) FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone FROM messages m JOIN users u ON u.id = m.author";
 
 // row_message reads a MESSAGE_SELECT row; the caller holds db_mu. A reply's target is looked up one level
 // deep, as Discord sends it.
 // With a viewer it also lists reactions, whose `me` is per member, so only fetches carry them; events
 // leave them out and the client keeps its own.
-row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0) -> etf.Value {
-	id, reply := sqlite.col_int(st, 0), sqlite.col_int(st, 6);
+row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, nonce := "") -> etf.Value {
+	id := sqlite.col_int(st, 0);
+	reply := sqlite.col_int(st, 6);
 	referenced, reactions: etf.Value;
 	if reply && !nested referenced = message_locked(s, reply);
+	mentioned: [..]etf.Value;
+	mentioned.allocator = temp;
+	q := sqlite.prepare(s.db, "SELECT u.id, u.name FROM mentions x JOIN users u ON u.id = x.user WHERE x.message = ?;");
+	sqlite.bind(q, 1, id);
+	while sqlite.step(q) == .Row array_add(*mentioned, user_value(sqlite.col_int(q, 0), copy_string(sqlite.col_text(q, 1),, temp)));
+	sqlite.finalize(q);
 	if viewer {
 		list: [..]etf.Value;
 		list.allocator = temp;
@@ -569,16 +579,36 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0) 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, reactions = reactions);
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0);
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
-message_locked :: (s: *Server, id: s64, nested := true) -> etf.Value {
+message_locked :: (s: *Server, id: s64, nested := true, nonce := "") -> etf.Value {
 	st := sqlite.prepare(s.db, tprint("% WHERE m.id = ?;", MESSAGE_SELECT));
 	defer sqlite.finalize(st);
 	sqlite.bind(st, 1, id);
 	if sqlite.step(st) != .Row return .{};
-	return row_message(s, st, nested);
+	return row_message(s, st, nested, nonce = nonce);
+}
+
+// mention_ids are the user IDs in <@id> and <@!id> tags, unchecked.
+mention_ids :: (content: string) -> [..]s64 {
+	out: [..]s64;
+	out.allocator = temp;
+	rest := content;
+	while true {
+		i := find_index_from_left(rest, "<@");
+		if i < 0 break;
+		rest = advance(rest, i + 2);
+		if rest && rest[0] == #char "!" rest = advance(rest, 1);
+		n := 0;
+		while n < rest.count && rest[n] >= #char "0" && rest[n] <= #char "9" n += 1;
+		if n && n < rest.count && rest[n] == #char ">" {
+			id, ok := string_to_int(slice(rest, 0, n), T = s64);
+			if ok array_add_if_unique(*out, id);
+		}
+	}
+	return out;
 }
 
 // Until roles land (Hosting 4) everyone may read, write, react, embed, attach and make invites.
@@ -825,7 +855,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			else if rid.kind == .Int reply = rid.i;
 		}
 		id := snowflake(s);
-		referenced: etf.Value;
+		referenced, m: etf.Value;
 		{
 			locks.guard(*s.db_mu);
 			if reply {
@@ -834,11 +864,32 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 					return json_error(c, 400, 50035, "Invalid Form Body");
 				}
 			}
-			if !sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply) VALUES(?, ?, ?, ?, ?);", id, channel, user, content.s, reply) {
+			// Until roles land (Hosting 4) only the owner may ping @everyone or @here.
+			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
+			ids := mention_ids(content.s);
+			// A reply pings the replied-to author unless the sender turned that off.
+			am, _ := etf.map_get(v.map, "allowed_mentions");
+			replied: etf.Value;
+			if am.kind == .Map replied, _ = etf.map_get(am.map, "replied_user");
+			if reply && !(replied.kind == .Bool && !replied.b) {
+				author, _ := etf.map_get(etf.map_get(referenced.map, "author").map, "id");
+				array_add_if_unique(*ids, string_to_int(author.s, T = s64));
+			}
+			ok := sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone) VALUES(?, ?, ?, ?, ?, ?);", id, channel, user, content.s, reply, cast(int) everyone);
+			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ?;", id, it);
+			// Members who can't see the message yet count it as a mention until they read past it.
+			ok = ok && sqlite.run(s.db, #string SQL
+				INSERT INTO read_states(user, channel, last, mentions)
+				SELECT u.id, ?, 0, 1 FROM users u WHERE u.id != ? AND (? OR u.id IN (SELECT user FROM mentions WHERE message = ?))
+				ON CONFLICT(user, channel) DO UPDATE SET mentions = mentions + 1;
+			SQL, channel, user, cast(int) everyone, id) && sqlite.exec(s.db, "COMMIT;");
+			if !ok {
+				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
+			m = message_locked(s, id, nested = false, nonce = ifx nonce.kind == .String then nonce.s else "");
 		}
-		m := message_value(s, id, channel, user, name, content.s, 0, reply, referenced, ifx nonce.kind == .String then nonce.s else "");
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_CREATE", m);
 	} else {
@@ -888,6 +939,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 			locks.guard(*s.db_mu);
 			if !sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", message) return json_error(c, 500, 0, "500: Internal Server Error");
 			sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", message);
+			sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", message);
 		}
 		d := etf.map_builder(3,, temp);
 		etf.map_put(*d, "id", snow(message));
@@ -962,6 +1014,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		if last return json_error(c, 400, 50035, "Cannot delete the last channel");
 		ok := sqlite.exec(s.db, "BEGIN;")
 			&& sqlite.run(s.db, "DELETE FROM reactions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
+			&& sqlite.run(s.db, "DELETE FROM mentions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
 			&& sqlite.run(s.db, "DELETE FROM messages WHERE channel = ?;", channel)
 			&& sqlite.run(s.db, "DELETE FROM read_states WHERE channel = ?;", channel)
 			&& sqlite.run(s.db, "DELETE FROM channels WHERE id = ?;", channel)
