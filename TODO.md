@@ -132,7 +132,6 @@
 - [ ] Status: you can't set or clear a custom status (`dc.set_custom_status` is never called); yours shows without its emoji and ignores its expiry.
 - [ ] Bug: message times are an hour off across a DST change. The UTC offset is read once at startup (`app_main.jai`) and applied to every date, so older history, midnight day dividers, and a session spanning the change are wrong.
 - [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.
-- [ ] Markdown: a bare URL loses a balanced closing `)`, e.g. `https://en.wikipedia.org/wiki/Foo_(bar)` (`markdown.jai` trailing-punctuation trim).
 - [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
 - [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
 - [ ] Composer: no spellcheck (red underline and suggestions on right-click).
@@ -309,3 +308,4 @@
 - [x] Scrolling: Page Up / Page Down scroll the message list by 87.5% of the view, even from the composer (`tests/ui/page_scroll.txt`).
 - [x] Media: Save Image on Windows saves to the Downloads known folder (`SHGetKnownFolderPath`), not `$HOME/Downloads`, since HOME is normally unset there.
 - [x] Voice (macOS): AGC alone no longer starts VPIO, whose echo canceller zeroed the mic for ~10 s while others talked (seen live: the send rate fell to 0); plain capture gets a software AGC, reopens when another app changes the mic's sample rate, and `FASTCORD_VOICE_DEBUG=1` traces the send side every 2 s.
+- [x] Markdown: a bare URL keeps a closing `)` that balances a `(` inside it (`wiki/Foo_(bar)`); an unbalanced one, as in `(https://x.com/a)`, is still dropped.

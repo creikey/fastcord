@@ -327,8 +327,19 @@ inline_into :: (p: *Md_Parser, src: string) {
 		if c == #char "h" && (begins_with(here, "https://") || begins_with(here, "http://")) && (i == 0 || !is_alnum(src[i - 1])) {
 			end := i;
 			while end < src.count && src[end] != #char " " && src[end] != #char "\n" && src[end] != #char "<" end += 1;
-			// trailing punctuation is not part of the URL
-			while end > i && find_index_from_left(".,:;!?)'\"", src[end - 1]) >= 0 end -= 1;
+			// trailing punctuation is not part of the URL, except a ")" closing a "(" inside it (Foo_(bar))
+			while end > i {
+				t := src[end - 1];
+				if t == #char ")" {
+					opens, closes := 0, 0;
+					for k: i..end - 1 {
+						if src[k] == #char "(" opens += 1;
+						if src[k] == #char ")" closes += 1;
+					}
+					if closes <= opens break;
+				} else if find_index_from_left(".,:;!?'\"", t) < 0 break;
+				end -= 1;
+			}
 			emit(p, .Text, pending());
 			emit(p, .Link, span(src, i, end));
 			take(end);
