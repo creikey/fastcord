@@ -95,6 +95,7 @@ open :: (path: string) -> *Server, bool {
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN ban_reason TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_type TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_data BLOB;");
@@ -402,7 +403,7 @@ meta_put :: (s: *Server, k: string, v: string) -> bool { return meta_put(s, k, c
 // Users, channels and messages have Discord-shaped snowflake IDs, since the client reads times from them.
 SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, avatar TEXT, avatar_type TEXT, avatar_data BLOB);
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, ban_reason TEXT, avatar TEXT, avatar_type TEXT, avatar_data BLOB);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user);
 CREATE TABLE IF NOT EXISTS uploads(token TEXT PRIMARY KEY, user INTEGER NOT NULL, channel INTEGER NOT NULL, filename TEXT NOT NULL, size INTEGER NOT NULL,
@@ -752,6 +753,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if begins_with(req.path, tprint("/api/v9/guilds/%/members/", c.server.guild)) || begins_with(req.path, tprint("/api/v9/guilds/%/bans/", c.server.guild)) {
 			if !moderate(c, req) return;
+			continue;
+		}
+		if req.method == "GET" && (req.path == tprint("/api/v9/guilds/%/bans", c.server.guild) || begins_with(req.path, tprint("/api/v9/guilds/%/bans?", c.server.guild))) {
+			if !list_bans(c, req) return;
 			continue;
 		}
 		if !json_error(c, 404, 0, "404: Not Found") return;
@@ -2275,7 +2280,8 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 // DELETE /guilds/{id}/members/{user} kicks, PUT /guilds/{id}/bans/{user} {delete_message_seconds?} bans and
 // DELETE unbans, for the owner. Both end the member's sessions and gateways as a leave does; a ban is on
 // their key, so no invite lets them back until it's lifted. A ban can also delete what they sent in the
-// last week at most, as on Discord, sent to each channel as one MESSAGE_DELETE_BULK.
+// last week at most, as on Discord, sent to each channel as one MESSAGE_DELETE_BULK. The ban keeps the
+// reason from X-Audit-Log-Reason for the ban list.
 moderate :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -2296,6 +2302,9 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 			history = cast(int) secs.i;
 		}
 	}
+	reason, _ := http.header_get(req.headers, "x-audit-log-reason");
+	reason = trim(percent_decode(reason));
+	if !text_ok(reason) || utf16_units(reason) > 512 return json_error(c, 400, 50035, "Invalid Form Body");
 	Gone :: struct { channel: s64; ids: [..]s64; }
 	gone: [..]Gone;
 	gone.allocator = temp;
@@ -2312,7 +2321,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 		if !found return json_error(c, 404, 10013, "Unknown User");
 		if ban && req.method == "DELETE" {
 			if !banned return json_error(c, 404, 10026, "Unknown Ban");
-			if !sqlite.run(s.db, "UPDATE users SET banned = 0 WHERE id = ?;", target) return json_error(c, 500, 0, "500: Internal Server Error");
+			if !sqlite.run(s.db, "UPDATE users SET banned = 0, ban_reason = NULL WHERE id = ?;", target) return json_error(c, 500, 0, "500: Internal Server Error");
 			return respond(c, 204, json = false);
 		}
 		if !ban && left return json_error(c, 404, 10007, "Unknown Member");
@@ -2340,6 +2349,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 			if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 		}
 		if !remove_member_locked(s, target, ban) return json_error(c, 500, 0, "500: Internal Server Error");
+		if ban sqlite.run(s.db, "UPDATE users SET ban_reason = nullif(?, '') WHERE id = ?;", reason, target);
 	}
 	removed(s, target);
 	for g: gone {
@@ -2353,6 +2363,42 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 		broadcast(s, "MESSAGE_DELETE_BULK", etf.vmap(etf.map_done(*d)));
 	}
 	return respond(c, 204, json = false);
+}
+
+// GET /guilds/{id}/bans[?limit=&after=] lists banned members by ID, with the reason given, for the owner.
+list_bans :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	limit, after := 1000, 0;
+	q := find_index_from_left(req.path, #char "?");
+	for split(ifx q >= 0 then slice(req.path, q + 1, req.path.count - q - 1) else "", "&",, temp) {
+		kv := split(it, "=",, temp);
+		if kv.count != 2 continue;
+		n, ok := string_to_int(kv[1], T = s64);
+		if kv[0] == "limit" {
+			if !ok || n < 1 || n > 1000 return json_error(c, 400, 50035, "Invalid Form Body");
+			limit = cast(int) n;
+		} else if kv[0] == "after" {
+			if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+			after = n;
+		}
+	}
+	locks.guard(*s.db_mu);
+	if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+	list: [..]etf.Value;
+	list.allocator = temp;
+	st := sqlite.prepare(s.db, "SELECT id, name, ban_reason FROM users WHERE banned = 1 AND id > ? ORDER BY id LIMIT ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind_all(st, after, limit);
+	while sqlite.step(st) == .Row {
+		m := etf.map_builder(2,, temp);
+		etf.map_put(*m, "user", user_value(s, sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp)));
+		etf.map_put(*m, "reason", ifx sqlite.col_is_null(st, 2) then etf.Value.{} else etf.vstring(copy_string(sqlite.col_text(st, 2),, temp)));
+		array_add(*list, etf.vmap(etf.map_done(*m)));
+	}
+	return json_reply(c, 200, etf.vlist(list));
 }
 
 // GET /guilds/{id}/invites lists the working invites, for the owner. DELETE /invites/{code} revokes one,

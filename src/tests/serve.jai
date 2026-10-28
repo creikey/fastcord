@@ -1042,6 +1042,10 @@ main :: () {
 		check(status == 204, tprint("the owner bans: % %", status, body));
 		status, body = rest("GET", tprint("%?limit=5", messages), "", token);
 		check(status == 200 && !contains(body, "flood"), tprint("a ban deletes the member's last hour of messages: %", body));
+		status, body = rest("GET", tprint("/api/v9/guilds/%/bans", gid), "", token);
+		check(status == 200 && contains(body, tprint("\"id\":\"%\"", other_id)) && contains(body, "\"reason\":null"), tprint("the owner lists bans: % %", status, body));
+		status, body = rest("GET", tprint("/api/v9/guilds/%/bans?limit=0", gid), "", token);
+		check(status == 400, tprint("a ban list's limit is checked: % %", status, body));
 		status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
 		check(status == 401, tprint("a ban ends the member's session: % %", status, body));
 		_, ostatus, omessage = serve.member_login(member_invite, other, "Other");
