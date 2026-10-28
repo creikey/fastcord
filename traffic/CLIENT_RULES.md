@@ -135,6 +135,8 @@ DAVE active.
 | Go Live: op 18 `{type:"guild"/"call", guild_id, channel_id, preferred_region:null}`; op 20 `{stream_key}` to watch; op 19 `{stream_key}` to end ours or stop watching; keys `guild:<g>:<c>:<u>` / `call:<c>:<u>` | guess | `STREAM_CREATE`, `STREAM_WATCH`, `STREAM_DELETE` | `dc.stream_create`, `dc.stream_watch`, `dc.stream_delete` |
 | A stream's voice connection: STREAM_CREATE `rtc_server_id` as `server_id`, STREAM_SERVER_UPDATE endpoint + token, our voice session id; IDENTIFY with `streams:[{type:"screen",rid:"100",quality:100}]`; the streamer sends no audio (no soundshare yet) | guess | same | `dc.stream_server_info`, `voice.Voice_Server_Info.stream` |
 | Camera 1280x720 30 fps 2.5 Mbps; screen ≤ 720p 30 fps 4 Mbps (the non-Nitro limit) | guess | — | `video_call.jai` |
+| Windows advertises H265 (PT 103) with `encode:false` (it only encodes H.264), so the SFU picks H264 when fastcord on Windows sends; decoding H265 stays on when an HEVC decoder MFT exists | guess | `CODECS_JSON` | `voice/gateway.jai` `CODECS_JSON` |
+| Windows H.264: Constrained Baseline (else Baseline), CBR, GOP 2 s, no B-frames, low latency; screen colour BT.709 limited range from 720 p up, BT.601 below (as on macOS) | guess | — | `video/encode_windows.jai`, `video/capture_windows.jai` `screen_session` |
 | Clicking a voice channel joins it and opens its call view (no separate channel select) | inferred | — | `views.jai` `join_voice` |
 | Call view: black, 16:9 tiles with 8 px gaps in the grid that makes them largest, last row centered; avatar on the banner / accent / dominant color, green 2 px border while speaking; streams first with a LIVE badge and "Watch Stream"; click focuses a tile | inferred (screenshot) | — | `view_call.jai` |
 

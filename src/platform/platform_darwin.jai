@@ -123,6 +123,8 @@ os_wake :: () {
     post_wake(0);
 }
 
+os_frame_wait :: () {}
+
 os_wait :: (timeout: float64) {
     // End the app frame's autorelease pool.
     if m.pool {

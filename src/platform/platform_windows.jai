@@ -6,8 +6,7 @@ set_capture_hidden :: (hidden: bool) {
     if w.hwnd SetWindowDisplayAffinity(w.hwnd, xx ifx hidden then 0x11 else 0);
 }
 
-// gfx registers the swap chain's frame-latency waitable object; wait_events waits on it (vsync pacing) when
-// a frame was requested.
+// gfx registers the swap chain's frame-latency waitable object; every rendered frame waits on it once (vsync pacing).
 set_frame_wait_handle :: (h: *void) { w.frame_wait = h; }
 
 // True when Windows' app mode is dark (HKCU\...\Themes\Personalize AppsUseLightTheme = 0). ok is false
@@ -78,6 +77,7 @@ os_init :: (title: string, width: int, height: int) -> bool {
         lpfnWndProc = xx wndproc,
         hInstance = w.instance,
         hCursor = win.LoadCursorA(null, win.IDC_ARROW),
+        hbrBackground = win.GetStockObject(win.BLACK_BRUSH),
         lpszClassName = class_name,
     };
     if win.RegisterClassExW(*wc) == 0 return false;
@@ -116,6 +116,17 @@ os_wake :: () {
     PostMessageW(w.hwnd, WM_FC_WAKE, 0, 0);
 }
 
+// Each Present signals the waitable once. A frame that skips the wait leaves a signal behind, so later
+// waits return early and frames queue up behind the GPU, adding a frame of input lag.
+os_frame_wait :: () {
+    if w.frame_ready {
+        w.frame_ready = false;
+        return;
+    }
+    if !w.frame_wait || IsIconic(w.hwnd) return;
+    win.WaitForSingleObject(w.frame_wait, 100);
+}
+
 os_wait :: (timeout: float64) {
     start := time_now();
     while true {
@@ -143,6 +154,7 @@ os_wait :: (timeout: float64) {
         // vsync (the swap chain is ready for the next frame), the frame timer, or the timeout
         if (animating && ((n && r == win.WAIT_OBJECT_0) || (!n && r == win.WAIT_TIMEOUT))) ||
            (r == win.WAIT_TIMEOUT && timeout >= 0 && time_now() - start >= timeout) {
+            w.frame_ready = n && r == win.WAIT_OBJECT_0;
             pump();
             return;
         }
@@ -367,6 +379,7 @@ w: struct {
     hwnd: win.HWND;
     instance: win.HINSTANCE;
     frame_wait: *void; // swap chain frame-latency waitable (set by gfx)
+    frame_ready: bool; // os_wait already took this frame's signal from frame_wait
     high_surrogate: u16;
     in_size_move: bool;
     tracking_mouse: bool;
@@ -929,8 +942,6 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             for hdrop_paths(hdrop, temp) push_event(.{kind = .File_Drop, text = it, time = time_now()});
             win.DragFinish(hdrop);
             return 0;
-        case win.WM_ERASEBKGND;
-            return 1;
     }
     return win.DefWindowProcW(hwnd, msg, wp, lp);
 }
