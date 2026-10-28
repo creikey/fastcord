@@ -120,6 +120,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN nonce TEXT;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN webhook INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN username TEXT;");
+	sqlite.exec(db, "ALTER TABLE embeds ADD COLUMN rich TEXT;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
 	st := sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
@@ -393,7 +394,7 @@ CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY, message INTEGER N
 	size INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, description TEXT NOT NULL, data BLOB NOT NULL);
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
-	provider TEXT NOT NULL, color INTEGER NOT NULL, PRIMARY KEY(message, position));
+	provider TEXT NOT NULL, color INTEGER NOT NULL, rich TEXT, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0,
 	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT);
@@ -984,7 +985,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id), sqlite.col_int(st, 10),
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id, (sqlite.col_int(st, 10) & SUPPRESS_EMBEDS) != 0), sqlite.col_int(st, 10),
 		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0);
 }
 
@@ -1701,7 +1702,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		{
 			locks.guard(*s.db_mu);
 			ok := sqlite.run(s.db, tprint("UPDATE messages SET flags = (flags & ~%) | ? WHERE id = ?;", SUPPRESS_EMBEDS), ifx suppress then SUPPRESS_EMBEDS else 0, message)
-				&& (!suppress || sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", message));
+				&& (!suppress || sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND rich IS NULL;", message));
 			if !ok return json_error(c, 500, 0, "500: Internal Server Error");
 			m = message_locked(s, message, nested = false);
 			content, _ = etf.map_get(m.map, "content");
@@ -1736,7 +1737,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 			// Previews of links the edit removed go now; the worker refreshes the rest.
 			links: [MAX_LINKS]string;
 			for link_urls(content.s) links[it_index] = it;
-			ok = ok && sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND url NOT IN (coalesce(?, ''), coalesce(?, ''), coalesce(?, ''));", message, links[0], links[1], links[2]);
+			ok = ok && sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND rich IS NULL AND url NOT IN (coalesce(?, ''), coalesce(?, ''), coalesce(?, ''));", message, links[0], links[1], links[2]);
 			if !ok || !sqlite.exec(s.db, "COMMIT;") {
 				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1952,14 +1953,19 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 	if req.method != "GET" && req.method != "DELETE" && !(req.method == "POST" && by_token) return json_error(c, 405, 0, "405: Method Not Allowed");
 
 	content, username: string;
+	embeds: []string;
 	everyone := false;
 	if req.method == "POST" {
 		v, err := etf.from_json(cast(string) req.body,, temp);
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		content_v, _ := etf.map_get(v.map, "content");
 		name_v, has_name := etf.map_get(v.map, "username");
-		if content_v.kind != .String || !trim(content_v.s) return json_error(c, 400, 50006, "Cannot send an empty message");
-		content = content_v.s;
+		embeds_v, _ := etf.map_get(v.map, "embeds");
+		embeds_ok: bool;
+		embeds, embeds_ok = webhook_embeds(embeds_v);
+		if !embeds_ok || (content_v.kind != .String && content_v.kind != .Nil) return json_error(c, 400, 50035, "Invalid Form Body");
+		if content_v.kind == .String content = content_v.s;
+		if !trim(content) && !embeds.count return json_error(c, 400, 50006, "Cannot send an empty message");
 		if !text_ok(content, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
 		if utf16_units(content) > MAX_CONTENT return content_too_long(c);
 		if has_name && name_v.kind != .Nil {
@@ -1990,6 +1996,7 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 			ok := sqlite.exec(s.db, "BEGIN;")
 				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone, webhook, username) VALUES(?, ?, ?, ?, ?, 1, nullif(?, ''));", message, channel, id, content, cast(int) everyone, username);
 			for mention_ids(content) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+			for embeds if ok ok = sqlite.run(s.db, "INSERT INTO embeds(message, position, url, title, description, provider, color, rich) VALUES(?, ?, '', '', '', '', 0, ?);", message, it_index, it);
 			ok = ok && sqlite.run(s.db, COUNT_MENTIONS, channel, id, cast(int) everyone, message) && sqlite.exec(s.db, "COMMIT;");
 			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 			m = message_locked(s, message, nested = false);

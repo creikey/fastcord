@@ -809,6 +809,13 @@ main :: () {
 	posted, _ := etf.from_json(body);
 	check(status == 200 && field(posted, "webhook_id").s == field(hook, "id").s && field(posted, "author", "bot").b && field(posted, "author", "username").s == "Builder",
 		tprint("a webhook posts: % %", status, body));
+	status, body = rest("POST", tprint("%?wait=true", hook_url), "{\"embeds\": [{\"title\": \"Deploy\", \"color\": 3066993, \"image\": {\"url\": \"https://x.test/a.png\"}, \"fields\": [{\"name\": \"Env\", \"value\": \"prod\", \"inline\": true}], \"footer\": {\"text\": \"ci\"}, \"timestamp\": \"2026-10-29T01:00:00.000Z\"}]}", "");
+	check(status == 200 && contains(body, "\"type\":\"rich\"") && contains(body, "\"title\":\"Deploy\"") && contains(body, "\"value\":\"prod\"") && contains(body, "\"text\":\"ci\"") && !contains(body, "a.png"),
+		tprint("a webhook posts embeds alone, without images: % %", status, body));
+	status, body = rest("POST", hook_url, "{\"embeds\": [{\"title\": \"x\", \"color\": 16777216}]}", "");
+	check(status == 400, tprint("a webhook's bad embed is refused: % %", status, body));
+	status, body = rest("POST", hook_url, "{\"embeds\": [{\"image\": {\"url\": \"https://x.test/a.png\"}}]}", "");
+	check(status == 400, tprint("a webhook's empty embed is refused: % %", status, body));
 	status, body = rest("GET", tprint("/api/v9/guilds/%/webhooks", gid), "", token);
 	listed, _ := etf.from_json(body);
 	check(status == 200 && listed.kind == .List && listed.list.count == 1, tprint("the owner lists webhooks: % %", status, body));
@@ -816,8 +823,8 @@ main :: () {
 	check(status == 204, tprint("a webhook is deleted by its URL: % %", status, body));
 	status, body = rest("POST", hook_url, "{\"content\": \"too late\"}", "");
 	check(status == 404, tprint("a deleted webhook posts nothing: % %", status, body));
-	status, body = rest("GET", tprint("%?limit=1", messages), "", token);
-	check(contains(body, "\"username\":\"Builder\""), tprint("a deleted webhook's messages stay: %", body));
+	status, body = rest("GET", tprint("%?limit=2", messages), "", token);
+	check(contains(body, "\"username\":\"Builder\"") && contains(body, "\"title\":\"Deploy\""), tprint("a deleted webhook's messages stay: %", body));
 
 	// Avatars: a member sets one, their messages carry it, it's served under its hash, and null removes it.
 	status, body = rest("PATCH", "/api/v9/users/@me", "{\"avatar\": \"data:image/png;base64,bm90IGFuIGltYWdl\"}", other_token);

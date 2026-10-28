@@ -7,6 +7,7 @@
 #scope_module
 
 MAX_LINKS :: 3;
+MAX_EMBEDS :: 10;
 UNFURL_QUEUE :: 64;
 UNFURL_TIMEOUT_MS :: 5000;
 MAX_PAGE :: 2 << 20;
@@ -73,10 +74,10 @@ unfurler :: (s: *Server) {
 			if sqlite.step(st) == .Row && !(sqlite.col_int(st, 1) & SUPPRESS_EMBEDS) content = copy_string(sqlite.col_text(st, 0),, temp);
 			sqlite.finalize(st);
 			now := link_urls(content);
-			ok := sqlite.exec(s.db, "BEGIN;") && sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", j.message);
+			ok := sqlite.exec(s.db, "BEGIN;") && sqlite.run(s.db, "DELETE FROM embeds WHERE message = ? AND rich IS NULL;", j.message);
 			for found if ok && array_find(now, it.url) {
 				ok = sqlite.run(s.db, "INSERT INTO embeds(message, position, url, title, description, provider, color) VALUES(?, ?, ?, coalesce(?, ''), coalesce(?, ''), coalesce(?, ''), ?);",
-					j.message, it_index, it.url, it.page.title, it.page.description, it.page.site, it.page.color);
+					j.message, MAX_EMBEDS + it_index, it.url, it.page.title, it.page.description, it.page.site, it.page.color);
 			}
 			if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); continue; }
 			if content m = message_locked(s, j.message, nested = false);
@@ -89,15 +90,21 @@ free_job :: (j: *Unfurl_Job) {
 	for 0..j.count - 1 free(j.urls[it],, context.default_allocator);
 }
 
-// embeds_locked lists a message's previews as Discord sends them; the caller holds db_mu.
-embeds_locked :: (s: *Server, message: s64) -> etf.Value {
+// embeds_locked lists a message's embeds as Discord sends them, a webhook's own before its link previews,
+// leaving the webhook's out when the message suppresses embeds; the caller holds db_mu.
+embeds_locked :: (s: *Server, message: s64, suppressed := false) -> etf.Value {
 	list: [..]etf.Value;
 	list.allocator = temp;
-	st := sqlite.prepare(s.db, "SELECT url, title, description, provider, color FROM embeds WHERE message = ? ORDER BY position;");
+	st := sqlite.prepare(s.db, "SELECT url, title, description, provider, color, rich FROM embeds WHERE message = ? AND (rich IS NULL OR ? = 0) ORDER BY position;");
 	defer sqlite.finalize(st);
-	sqlite.bind(st, 1, message);
+	sqlite.bind_all(st, message, cast(int) suppressed);
 	while sqlite.step(st) == .Row {
 		text :: (i: int) -> string #expand { return copy_string(sqlite.col_text(`st, i),, temp); }
+		if !sqlite.col_is_null(st, 5) {
+			v, err := etf.from_json(text(5),, temp);
+			if err == .None && v.kind == .Map array_add(*list, v);
+			continue;
+		}
 		e := etf.map_builder(6,, temp);
 		etf.map_put(*e, "type", etf.vstring("link"));
 		etf.map_put(*e, "url", etf.vstring(text(0)));
@@ -113,6 +120,93 @@ embeds_locked :: (s: *Server, message: s64) -> etf.Value {
 		array_add(*list, etf.vmap(etf.map_done(*e)));
 	}
 	return etf.vlist(list);
+}
+
+// webhook_embeds checks a webhook post's `embeds` against Discord's limits and keeps what fastcord stores:
+// title, description, url, color, timestamp, author and footer text, and fields, each embed re-encoded as
+// JSON for the embeds table's `rich` column. Images are left out, since members would load them from
+// wherever the poster points (see the file comment). In temp.
+webhook_embeds :: (v: etf.Value) -> []string, bool {
+	out: [..]string;
+	out.allocator = temp;
+	if v.kind == .Nil return out, true;
+	if v.kind != .List || v.list.count > MAX_EMBEDS return out, false;
+	total := 0;
+	text :: (m: etf.Map, key: string, max: int, total: *int, lines := false) -> etf.Value, bool {
+		v, found := etf.map_get(m, key);
+		if !found || v.kind == .Nil return .{}, true;
+		if v.kind != .String || !text_ok(v.s, lines) || utf16_units(v.s) > max return .{}, false;
+		total.* += utf16_units(v.s);
+		return ifx trim(v.s) then v else .{}, true;
+	}
+	sub :: (m: etf.Map, key: string, max: int, total: *int) -> etf.Value, bool {
+		v, found := etf.map_get(m, key);
+		if !found || v.kind == .Nil return .{}, true;
+		if v.kind != .Map return .{}, false;
+		name, ok := text(v.map, ifx key == "footer" then "text" else "name", max, total);
+		if !ok || name.kind == .Nil return .{}, ok;
+		r := etf.map_builder(1,, temp);
+		etf.map_put(*r, ifx key == "footer" then "text" else "name", name);
+		return etf.vmap(etf.map_done(*r)), true;
+	}
+	for e: v.list {
+		if e.kind != .Map return out, false;
+		r := etf.map_builder(9,, temp);
+		etf.map_put(*r, "type", etf.vstring("rich"));
+		has := false;
+		for key: string.["title", "description"] {
+			t, ok := text(e.map, key, ifx key == "title" then 256 else 4096, *total, lines = key == "description");
+			if !ok return out, false;
+			if t.kind != .Nil { etf.map_put(*r, key, t); has = true; }
+		}
+		for key: string.["author", "footer"] {
+			t, ok := sub(e.map, key, ifx key == "author" then 256 else 2048, *total);
+			if !ok return out, false;
+			if t.kind != .Nil { etf.map_put(*r, key, t); has = true; }
+		}
+		url, has_url := etf.map_get(e.map, "url");
+		if has_url && url.kind != .Nil {
+			if url.kind != .String || url.s.count > 2048 || !text_ok(url.s) || contains(url.s, " ") return out, false;
+			if !begins_with(url.s, "https://") && !begins_with(url.s, "http://") return out, false;
+			etf.map_put(*r, "url", url);
+		}
+		color, has_color := etf.map_get(e.map, "color");
+		if has_color && color.kind != .Nil {
+			if color.kind != .Int || color.i < 0 || color.i > 0xFFFFFF return out, false;
+			etf.map_put(*r, "color", color);
+		}
+		ts, has_ts := etf.map_get(e.map, "timestamp");
+		if has_ts && ts.kind != .Nil {
+			if ts.kind != .String || !ts.s || ts.s.count > 40 return out, false;
+			for 0..ts.s.count - 1 if !is_digit(ts.s[it]) && !array_find(cast([]u8) "-:T.+Z", ts.s[it]) return out, false;
+			etf.map_put(*r, "timestamp", ts);
+		}
+		fields, has_fields := etf.map_get(e.map, "fields");
+		if has_fields && fields.kind != .Nil {
+			if fields.kind != .List || fields.list.count > 25 return out, false;
+			kept: [..]etf.Value;
+			kept.allocator = temp;
+			for f: fields.list {
+				if f.kind != .Map return out, false;
+				name, ok := text(f.map, "name", 256, *total);
+				value, ok2 := text(f.map, "value", 1024, *total, lines = true);
+				side, _ := etf.map_get(f.map, "inline");
+				if !ok || !ok2 || name.kind == .Nil || value.kind == .Nil || (side.kind != .Nil && side.kind != .Bool) return out, false;
+				fm := etf.map_builder(3,, temp);
+				etf.map_put(*fm, "name", name);
+				etf.map_put(*fm, "value", value);
+				etf.map_put(*fm, "inline", etf.vbool(side.kind == .Bool && side.b));
+				array_add(*kept, etf.vmap(etf.map_done(*fm)));
+			}
+			if kept.count { etf.map_put(*r, "fields", etf.vlist(kept)); has = true; }
+		}
+		if !has || total > 6000 return out, false;
+		sb: String_Builder;
+		sb.allocator = temp;
+		etf.to_json(etf.vmap(etf.map_done(*r)), *sb);
+		array_add(*out, builder_to_string(*sb,, temp));
+	}
+	return out, true;
 }
 
 // link_urls finds up to MAX_LINKS distinct http(s) links in a message, as Discord embeds them: not inside
