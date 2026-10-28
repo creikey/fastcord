@@ -51,6 +51,8 @@ select_device :: (input: bool, id: u32) {
 }
 
 set_voice_processing :: (p: Voice_Processing) {}
+software_agc :: () -> bool { return false; }
+device_rate_changed :: () {}
 
 // apply_device_selection reopens a running stream whose device is no longer the selected one.
 apply_device_selection :: () {

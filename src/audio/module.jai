@@ -178,8 +178,13 @@ source_write_pos :: (s: Source) -> u64 {
 	return ifx sl then atomic_load(*sl.ring.w) / CHANNELS;
 }
 
-// Kept for API compatibility; idle shutdown is automatic.
-update :: () {}
+// update: reopens a capture whose device changed its sample rate (another app's voice processing
+// does that mid-call). Cheap when nothing changed; idle shutdown is automatic.
+update :: () {
+	if !atomic_exchange(*st.rate_changed, false) return;
+	locks.guard(*st.device_mu);
+	device_rate_changed();
+}
 
 // The mixer. Called on the device thread (or by tests with init_null).
 // out: interleaved stereo f32, count = frames*2.
@@ -283,6 +288,7 @@ State :: struct {
 	capture: Ring;
 	capturing: bool;
 	capture_vp: bool; // the running capture has voice processing
+	rate_changed: bool; // atomic: set by the device's sample-rate listener, handled by update
 	ctx: #Context;
 	latency: float64;
 	device_mu: locks.Mutex; // start/stop

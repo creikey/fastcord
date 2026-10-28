@@ -8,7 +8,9 @@
 // meter, or a call with every DSP switch off) is a separate input-only AUHAL unit and leaves
 // output alone: VPIO with kAUVoiceIOProperty_BypassVoiceProcessing delivers the MacBook mic about
 // 27 dB quieter than AUHAL does (measured), so bypass is only the fallback for input devices not
-// at 48 kHz, which AUHAL would not resample.
+// at 48 kHz, which AUHAL would not resample. AGC alone doesn't start VPIO: its echo canceller comes
+// along and, half duplex, zeroed the mic for seconds while others talked (seen live), so AUHAL
+// capture gets the voice module's software AGC instead (software_agc).
 
 #scope_export
 
@@ -93,6 +95,9 @@ select_device :: (input: bool, id: u32) {
 	apply_device_selection();
 }
 
+// software_agc: the call's capture runs without VPIO but AGC is on, so the caller applies it.
+software_agc :: () -> bool { return mac.call && mac.in_unit != null && processing.auto_gain_control; }
+
 set_voice_processing :: (p: Voice_Processing) {
 	processing = p;
 	apply_device_selection();
@@ -153,6 +158,10 @@ device_capture_stop :: () {
 	mac.call = false;
 }
 
+device_rate_changed :: () {
+	if mac.in_unit && device_rate(mac.rate_dev) != mac.in_rate apply_selection();
+}
+
 #scope_file
 
 AudioToolbox :: #library,system,link_always "AudioToolbox";
@@ -189,6 +198,7 @@ AudioOutputUnitStop :: (unit: AudioUnit) -> OSStatus #foreign AudioToolbox;
 AudioObjectGetPropertyDataSize :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: *u32) -> OSStatus #foreign CoreAudio;
 AudioObjectSetPropertyData :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: u32, data: *void) -> OSStatus #foreign CoreAudio;
 AudioObjectGetPropertyData :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, qsize: u32, qdata: *void, size: *u32, data: *void) -> OSStatus #foreign CoreAudio;
+AudioObjectRemovePropertyListener :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, listener: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call, user: *void) -> OSStatus #foreign CoreAudio;
 AudioObjectAddPropertyListener :: (obj: AudioObjectID, addr: *AudioObjectPropertyAddress, listener: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call, user: *void) -> OSStatus #foreign CoreAudio;
 CFRelease :: (ref: *void) #foreign CoreFoundation;
 CFStringGetCString :: (s: *void, buf: *u8, size: int, encoding: u32) -> bool #foreign CoreFoundation;
@@ -213,6 +223,8 @@ mac: struct {
 	out_unit: AudioUnit; // DefaultOutput or VPIO while capturing
 	in_unit: AudioUnit; // input-only AUHAL while capturing without voice processing
 	vpio: bool;
+	in_rate: float64; // the input-only unit's device rate when opened
+	rate_dev: u32; // the device whose rate we listen to
 	call: bool; // a call's capture: VPIO or AUHAL by the DSP switches
 	in_buf: []float32;
 };
@@ -302,6 +314,14 @@ open_input_unit :: () -> AudioUnit {
 	dev := ifx sel_input != 0 then sel_input else default_device(true);
 	f := stereo_f32(1);
 	f.mSampleRate = device_rate(dev);
+	mac.in_rate = f.mSampleRate;
+	// AUHAL doesn't follow a rate change: update() reopens the unit, at the new rate or with VPIO
+	if dev != mac.rate_dev {
+		a := AudioObjectPropertyAddress.{fourcc("nsrt"), fourcc("glob"), 0};
+		if mac.rate_dev AudioObjectRemovePropertyListener(mac.rate_dev, *a, rate_changed, null);
+		AudioObjectAddPropertyListener(dev, *a, rate_changed, null);
+		mac.rate_dev = dev;
+	}
 	icb := AURenderCallbackStruct.{input_cb, null};
 	ok := AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, SCOPE_INPUT, 1, *on, 4) == 0
 		&& AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, SCOPE_OUTPUT, 0, *off, 4) == 0
@@ -327,7 +347,7 @@ apply_selection :: () {
 	}
 	in_dev := ifx sel_input != 0 then sel_input else default_device(true);
 	out_dev := ifx sel_output != 0 then sel_output else default_device(false);
-	dsp := processing.echo_cancellation || processing.noise_suppression || processing.auto_gain_control;
+	dsp := processing.echo_cancellation || processing.noise_suppression;
 	if mac.in_unit close_input_unit();
 	if !dsp && device_rate(in_dev) == SAMPLE_RATE {
 		if mac.vpio use_vpio(false);
@@ -342,6 +362,7 @@ apply_selection :: () {
 	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 1, *in_dev, 4);
 	AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, SCOPE_GLOBAL, 0, *out_dev, 4);
 	// echo cancellation and noise suppression can't be switched apart, and AGC needs the DSP running
+	// (bypass here is only the fallback for an input not at 48 kHz)
 	bypass: u32 = xx !dsp;
 	AudioUnitSetProperty(unit, kAUVoiceIOProperty_BypassVoiceProcessing, SCOPE_GLOBAL, 0, *bypass, 4);
 	agc: u32 = xx processing.auto_gain_control;
@@ -381,6 +402,11 @@ device_rate :: (dev: AudioObjectID) -> float64 {
 	sz: u32 = 8;
 	AudioObjectGetPropertyData(dev, *addr, 0, null, *sz, *rate);
 	return rate;
+}
+
+rate_changed :: (obj: AudioObjectID, n: u32, addrs: *AudioObjectPropertyAddress, user: *void) -> OSStatus #c_call {
+	atomic_store(*st.rate_changed, true);
+	return 0;
 }
 
 close_input_unit :: () {

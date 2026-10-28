@@ -26,6 +26,8 @@ list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
 selected_device :: (input: bool) -> u32 { return 0; }
 select_device :: (input: bool, id: u32) {}
 set_voice_processing :: (p: Voice_Processing) {}
+software_agc :: () -> bool { return false; }
+device_rate_changed :: () {}
 apply_device_selection :: () {}
 
 #scope_module

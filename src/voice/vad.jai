@@ -41,6 +41,29 @@ frame_level_db :: (pcm: []float32) -> float32 {
     return cast(float32) (20 * log(sqrt(acc / pcm.count) + 0.000000001) / log(10.0));
 }
 
+// Software AGC for captures the OS doesn't process (macOS AUHAL): follows the level of speech
+// (frames above AGC_FLOOR_DB, fast up, slow down) and eases a gain of 0..AGC_MAX_GAIN_DB toward
+// AGC_TARGET_DB, capped so no frame clips.
+AGC_TARGET_DB :: -24.0;
+AGC_MAX_GAIN_DB :: 18.0;
+AGC_FLOOR_DB :: -55.0;
+
+Agc :: struct {
+    level_db: float32 = AGC_TARGET_DB;
+    gain_db: float32;
+}
+
+agc_process :: (a: *Agc, pcm: []float32) {
+    db := frame_level_db(pcm);
+    if db > AGC_FLOOR_DB a.level_db += (db - a.level_db) * ifx db > a.level_db then 0.1 else 0.01;
+    a.gain_db += (clamp(AGC_TARGET_DB - a.level_db, 0, AGC_MAX_GAIN_DB) - a.gain_db) * 0.05;
+    g := pow(10.0, a.gain_db / 20);
+    peak: float32;
+    for pcm peak = max(peak, abs(it));
+    if peak * g > 0.98 g = 0.98 / peak;
+    for * pcm it.* *= g;
+}
+
 // audio level for the RTP ssrc-audio-level extension: 0..127 = -dBov.
 audio_level_byte :: (db: float32) -> u8 { return cast(u8) clamp(-db, 0, 127); }
 

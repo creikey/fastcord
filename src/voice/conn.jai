@@ -175,7 +175,15 @@ Conn :: struct {
     capture_on: bool;
     mic_waits: int;             // ticks in a row without a whole mic frame (audio thread)
     denoise_on: bool;           // RNNoise on the mic (under mu)
+    diag: struct {              // send side, summed for the debug trace every 2 s (audio thread)
+        frames, padded, voiced, enc_drops: int;
+        min_avail, max_avail: int;
+        at_ms: s64;
+    };
+    udp_errors: u64;            // atomic: failed sendto
+    udp_errno: s32;             // the last failure's errno
     denoiser: *void;            // RNNoise state, made on first use (audio thread)
+    agc: Agc;                   // software AGC when the OS doesn't do it (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
     input_db: float32 = -127;   // level of the last mic frame (after gain)
     vad_open: bool;
@@ -969,7 +977,10 @@ udp_resolve :: (host: string, port: int) -> Udp_Addr, bool {
 }
 
 udp_send :: (c: *Conn, b: []u8) {
-    sendto(c.udp, b.data, xx b.count, 0, cast(*sockaddr) c.server_ep.bytes.data, xx c.server_ep.len);
+    if sendto(c.udp, b.data, xx b.count, 0, cast(*sockaddr) c.server_ep.bytes.data, xx c.server_ep.len) < 0 {
+        c.udp_errno = xx errno();
+        atomic_add(*c.udp_errors, 1);
+    }
 }
 
 udp_thread_proc :: (t: *Thread) -> s64 {
@@ -1124,9 +1135,11 @@ audio_thread_proc :: (t: *Thread) -> s64 {
     next := current_time_monotonic();
     while !stopped(c) {
         next += milliseconds_to_apollo(20);
+        if c.capture_on audio.update();  // the mic's sample rate changed under us
         for 1..mic_frames_due(c) tx_tick(c, pcm);
         rx_tick(c, out);
         if now_ms() >= c.next_rtcp_ms send_rtcp(c);
+        if c.debug diag_trace(c);
         reset_temporary_storage();
         left := to_nanoseconds(next - current_time_monotonic());
         if left > 0 accurate_sleep_until(next);
@@ -1155,12 +1168,28 @@ accurate_sleep_until :: (deadline: Apollo_Time) {
     while to_nanoseconds(deadline - current_time_monotonic()) > 0 {}
 }
 
+// diag_trace: the send side every 2 s (FASTCORD_VOICE_DEBUG=1), to tell a mic that stops
+// delivering from frames the VAD gates, DAVE drops or the socket refuses.
+diag_trace :: (c: *Conn) {
+    now := now_ms();
+    if !c.diag.at_ms { c.diag = .{at_ms = now, min_avail = S64_MAX}; return; }
+    if now - c.diag.at_ms < 2000 return;
+    d := c.diag;
+    st := DAVE.session_status(*c.dave,, temp);
+    dbg(c, "send: mic frames=% padded=% avail=%..% voiced=% db=% | dave v% active=% epoch=% enc_drops=% | udp_errors=% errno=% rtt=%",
+        d.frames, d.padded, d.min_avail, d.max_avail, d.voiced, cast(int) c.input_db, st.protocol_version, st.e2ee_active,
+        st.epoch, d.enc_drops, atomic_load(*c.udp_errors), c.udp_errno, c.stats.rtt_ms);
+    c.diag = .{at_ms = now, min_avail = S64_MAX};
+}
+
 // mic_frames_due: frames to send this 20 ms tick. The mic runs on the device's clock, so only
 // whole frames go out (a short read padded with zeros cuts out mid-word); a tick without one
 // waits, which leaves a frame of cushion, and a backlog drains at two frames a tick.
 mic_frames_due :: (c: *Conn) -> int {
     if c.opts.no_audio_devices || !c.capture_on return 1;
     a := audio.capture_available();
+    c.diag.min_avail = min(c.diag.min_avail, a);
+    c.diag.max_avail = max(c.diag.max_avail, a);
     if a < SAMPLES_PER_FRAME {
         c.mic_waits += 1;
         return xx (c.mic_waits > 5);  // device stopped: send padded frames, so speaking still ends
@@ -1178,7 +1207,9 @@ read_mic :: (c: *Conn, pcm: []float32) {
         if audio.capture_available() > 10 * SAMPLES_PER_FRAME
             while audio.capture_available() > 3 * SAMPLES_PER_FRAME audio.capture_read(pcm);
         n = audio.capture_read(pcm);
+        if n < pcm.count c.diag.padded += 1;
     }
+    c.diag.frames += 1;
     for n..pcm.count-1 pcm[it] = 0;
 }
 
@@ -1195,6 +1226,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
         // 10 ms frames; RNNoise delays its output by one
         if c.denoiser for 0..1 fc_rnnoise_process(c.denoiser, pcm.data + it * SAMPLES_PER_FRAME / 2);
     }
+    if c.capture_on && audio.software_agc() agc_process(*c.agc, pcm);
     if gain != 1 for * pcm it.* = clamp(it.* * gain, -1, 1);
     active, db := vad_process(*c.vad, pcm);
     {
@@ -1204,6 +1236,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
         if c.ptt_mode active = c.ptt_pressed || now_ms() < c.ptt_until_ms;
     }
     if muted active = false;
+    c.diag.voiced += xx active;
     frame_ts := c.ts;
     c.ts += SAMPLES_PER_FRAME;
     if active {
@@ -1260,7 +1293,10 @@ send_opus :: (c: *Conn, opus: []u8, ts: u32, level: u8, voice: bool) {
     if !c.udp_open return;
     frame: [MAX_OPUS_PACKET + DAVE.MAX_SUPPLEMENTAL]u8;
     fl := DAVE.session_encrypt(*c.dave, opus, frame);
-    if fl <= 0 return;
+    if fl <= 0 {
+        c.diag.enc_drops += 1;
+        return;
+    }
     pkt: [MAX_OPUS_PACKET + 128]u8;
     sealed: [MAX_OPUS_PACKET + 160]u8;
     plen, aad := build_audio_rtp(pkt, c.seq, ts, c.ssrc, level, voice, array_view(frame, 0, fl));
