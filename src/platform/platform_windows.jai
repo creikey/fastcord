@@ -78,6 +78,7 @@ os_init :: (title: string, width: int, height: int) -> bool {
         lpfnWndProc = xx wndproc,
         hInstance = w.instance,
         hCursor = win.LoadCursorA(null, win.IDC_ARROW),
+        hbrBackground = win.GetStockObject(win.BLACK_BRUSH),
         lpszClassName = class_name,
     };
     if win.RegisterClassExW(*wc) == 0 return false;
@@ -929,8 +930,6 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             for hdrop_paths(hdrop, temp) push_event(.{kind = .File_Drop, text = it, time = time_now()});
             win.DragFinish(hdrop);
             return 0;
-        case win.WM_ERASEBKGND;
-            return 1;
     }
     return win.DefWindowProcW(hwnd, msg, wp, lp);
 }
