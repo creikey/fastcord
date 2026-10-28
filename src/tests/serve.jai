@@ -708,6 +708,25 @@ main :: () {
 	check(renamed && renamed.name == "Hangout", "GUILD_UPDATE renames the server for members");
 	discord.client_destroy(member_cl);
 
+	// Slowmode: the owner sets it in Channel Settings; a member's second message comes too soon, the owner's doesn't.
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"slow\", \"type\": 0}", token);
+	slow_v, _ := etf.from_json(body);
+	slow := field(slow_v, "id").s;
+	slow_messages := tprint("/api/v9/channels/%/messages", slow);
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", slow), "{\"rate_limit_per_user\": 60, \"nsfw\": true}", other_token);
+	check(status == 403, tprint("only the owner sets slowmode: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", slow), "{\"rate_limit_per_user\": 60, \"nsfw\": true}", token);
+	check(status == 200 && contains(body, "\"rate_limit_per_user\":60") && contains(body, "\"nsfw\":true"), tprint("the owner sets slowmode: % %", status, body));
+	status, body = rest("POST", slow_messages, "{\"content\": \"first\"}", other_token);
+	check(status == 200, tprint("slowmode lets the first message through: % %", status, body));
+	status, body = rest("POST", slow_messages, "{\"content\": \"second\"}", other_token);
+	check(status == 429 && contains(body, "20016") && contains(body, "retry_after"), tprint("slowmode holds the second: % %", status, body));
+	status, body = rest("POST", slow_messages, "{\"content\": \"owner\"}", token);
+	status, body = rest("POST", slow_messages, "{\"content\": \"owner again\"}", token);
+	check(status == 200, tprint("the owner isn't slowed: % %", status, body));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", slow), "", token);
+	check(status == 200, tprint("delete the slow channel: % %", status, body));
+
 	// Pages around and after a message, newest first like every page.
 	ids :: (query: string) -> string #expand {
 		status, body := rest("GET", tprint("%?%", messages, query), "", token);

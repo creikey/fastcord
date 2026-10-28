@@ -96,6 +96,8 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN owner INTEGER;");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN slowmode INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN nsfw INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
@@ -366,7 +368,7 @@ CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY, message INTEGER N
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
 	provider TEXT NOT NULL, color INTEGER NOT NULL, PRIMARY KEY(message, position));
-CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER);
+CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
@@ -832,17 +834,19 @@ TEXT :: 0;
 CATEGORY :: 4;
 THREAD :: 11; // Public, under a text channel; one started from a message takes that message's ID.
 
-CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END FROM channels c";
+CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw FROM channels c";
 
 row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Value {
 	kind := sqlite.col_int(st, 5);
-	m := etf.map_builder(8,, temp);
+	m := etf.map_builder(10,, temp);
 	etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
 	etf.map_put(*m, "type", etf.vint(kind));
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 1),, temp)));
 	etf.map_put(*m, "position", etf.vint(sqlite.col_int(st, 2)));
 	if kind == TEXT etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
+	if kind == TEXT || kind == THREAD etf.map_put(*m, "rate_limit_per_user", etf.vint(sqlite.col_int(st, 9)));
+	if kind == TEXT etf.map_put(*m, "nsfw", etf.vbool(sqlite.col_int(st, 10) != 0));
 	if !sqlite.col_is_null(st, 4) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 4)));
 	etf.map_put(*m, "parent_id", ifx sqlite.col_is_null(st, 6) then etf.Value.{} else snow(sqlite.col_int(st, 6)));
 	if kind == THREAD {
@@ -1307,6 +1311,17 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 					return json_error(c, 400, 50035, "Invalid Form Body");
 				}
 			}
+			// Slowmode spaces each member's messages; the owner is exempt, as MANAGE_MESSAGES holders are on Discord.
+			if owner_id(s) != user {
+				st := sqlite.prepare(s.db, "SELECT slowmode, (SELECT max(id) FROM messages WHERE channel = ?1 AND author = ?2 AND type = 0) FROM channels WHERE id = ?1;");
+				sqlite.bind_all(st, channel, user);
+				wait_ms := 0;
+				if sqlite.step(st) == .Row && sqlite.col_int(st, 0) > 0 && !sqlite.col_is_null(st, 1) {
+					wait_ms = sqlite.col_int(st, 0) * 1000 - ((id >> 22) - (sqlite.col_int(st, 1) >> 22));
+				}
+				sqlite.finalize(st);
+				if wait_ms > 0 return respond(c, 429, tprint("{\"message\": \"This action cannot be performed due to slowmode rate limit.\", \"code\": 20016, \"retry_after\": %, \"global\": false}", formatFloat(wait_ms / 1000.0, trailing_width = 3)));
+			}
 			// Until roles land (Hosting 4) only the owner may ping @everyone or @here.
 			everyone := (contains(content.s, "@everyone") || contains(content.s, "@here")) && owner_id(s) == user;
 			ids := mention_ids(content.s);
@@ -1745,15 +1760,20 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		raw, has_name := etf.map_get(v.map, "name");
 		topic, has_topic := etf.map_get(v.map, "topic");
+		slow, has_slow := etf.map_get(v.map, "rate_limit_per_user");
+		nsfw, has_nsfw := etf.map_get(v.map, "nsfw");
+		if (has_slow && !(slow.kind == .Int && slow.i >= 0 && slow.i <= 21600)) || (has_nsfw && nsfw.kind != .Bool) return json_error(c, 400, 50035, "Invalid Form Body");
 		locks.guard(*s.db_mu);
 		kind = channel_type_locked(s, channel);
 		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
 		// A thread's starter may rename it too.
-		if owner_id(s) != user && !(kind == THREAD && !has_topic && thread_owner_locked(s, channel) == user) return json_error(c, 403, 50013, "Missing Permissions");
+		if owner_id(s) != user && !(kind == THREAD && !has_topic && !has_slow && !has_nsfw && thread_owner_locked(s, channel) == user) return json_error(c, 403, 50013, "Missing Permissions");
 		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD then trim(raw.s) else channel_name(raw.s);
 		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
-			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel));
+			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel))
+			&& (!has_slow || sqlite.run(s.db, "UPDATE channels SET slowmode = ? WHERE id = ?;", slow.i, channel))
+			&& (!has_nsfw || sqlite.run(s.db, "UPDATE channels SET nsfw = ? WHERE id = ?;", cast(int) nsfw.b, channel));
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
 		ch = channel_locked(s, channel);
 	} else if req.method == "DELETE" {
