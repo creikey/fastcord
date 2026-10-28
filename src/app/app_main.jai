@@ -310,6 +310,7 @@ frame :: () {
 		if ch select_channel(ch.guild_id, ch.id);
 	}
 	hosted_frame();
+	encrypted_frame();
 	if app.client != null {
 		analytics_env_sync();
 		dc.client_poll(app.client);

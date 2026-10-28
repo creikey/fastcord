@@ -627,16 +627,18 @@ chat_header :: (ch: *dc.Channel) {
 			}
 		}
 		filler(.X);
-		tools := string.["thread", "bell", "pin", "group"];
+		tools: []string = string.["thread", "bell", "pin", "group"];
 		if ch.guild_id == 0 { tools = .["phone-call", "pin", "group-plus", "user-circle"]; }
 		if ch.kind == .Group_DM { tools = .["phone-call", "pin", "group-plus", "group"]; } // member list toggle
+		encrypted := encrypted_dm(ch) && encrypted_channel(ch.id).encrypted;
+		if encrypted_dm(ch) { tools = .["lock", "phone-call", "pin", "group-plus", "user-circle"]; }
 		for name: tools {
 			b := ui.box(name, .Clickable);
 			b.semantic_size = .[ui.px(HEADER_TOOL_W), ui.px(24)];
 			b.layout_axis = .X;
 			b.cross_align = .Center;
 			sig := ui.signal(b);
-			active := (name == "group" && !app.view.hide_members) || (name == "user-circle" && !app.view.hide_dm_profile) || (name == "phone-call" && app.voice_channel == ch.id);
+			active := (name == "group" && !app.view.hide_members) || (name == "user-circle" && !app.view.hide_dm_profile) || (name == "phone-call" && app.voice_channel == ch.id) || (name == "lock" && encrypted);
 			color := ifx sig.hovering || active then T("--interactive-icon-hover") else T("--icon-muted");
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, (HEADER_TOOL_W - 20) / 2);
@@ -645,6 +647,8 @@ chat_header :: (ch: *dc.Channel) {
 			if sig.clicked && name == "bell" && !dc.is_thread(ch) { bell_popout_toggle(ch.id, b.rect); }
 			if sig.clicked && name == "group" { app.view.hide_members = !app.view.hide_members; }
 			if sig.clicked && name == "user-circle" { app.view.hide_dm_profile = !app.view.hide_dm_profile; }
+			if name == "lock" && sig.hovering tooltip_below(ifx encrypted then "Turn off encryption" else "Encrypt this DM", b.rect);
+			if sig.clicked && name == "lock" { encrypted_toggle(ch); }
 			if name == "pin" header_pin_rect = b.rect;
 			if name == "thread" header_thread_rect = b.rect;
 			if sig.clicked && name == "pin" { pins_toggle(ch.id, b.rect); }

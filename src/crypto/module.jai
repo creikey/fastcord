@@ -31,7 +31,7 @@ pbkdf2_sha256 :: (password: []u8, salt: []u8, iterations: u32, out: []u8) -> boo
 }
 
 // AEAD with 16-byte tags kept apart from the ciphertext. AES-GCM picks 128 or 256 from the key size.
-Aead_Kind :: enum s32 { AES_GCM :: 0; XCHACHA20_POLY1305 :: 1; }
+Aead_Kind :: enum s32 { AES_GCM :: 0; XCHACHA20_POLY1305 :: 1; CHACHA20_POLY1305 :: 2; }
 Aead :: struct { ctx: [72]u64; }  // BoringSSL's EVP_AEAD_CTX (576 bytes, 8-aligned)
 aead_init :: (a: *Aead, kind: Aead_Kind, key: []u8) -> bool {
     assert(fc_aead_size() <= size_of(type_of(a.ctx)));
@@ -133,8 +133,45 @@ x25519_public :: (priv: [32]u8) -> [32]u8 {
     return pub;
 }
 
+// x25519 is false for a low-order peer key, whose shared secret is all zeros.
+x25519 :: (priv: [32]u8, pub: []u8) -> [32]u8, bool {
+    out: [32]u8;
+    if pub.count != 32 return out, false;
+    ok := X25519(out.data, priv.data, pub.data) == 1;
+    return out, ok;
+}
+
+MLKEM768_PUBLIC_BYTES :: 1184;
+MLKEM768_CIPHERTEXT_BYTES :: 1088;
+// The private key is its 64-byte seed.
+mlkem768_generate :: () -> seed: [64]u8, pub: [MLKEM768_PUBLIC_BYTES]u8 {
+    seed: [64]u8;
+    pub: [MLKEM768_PUBLIC_BYTES]u8;
+    fc_mlkem768_generate(pub.data, seed.data);
+    return seed, pub;
+}
+// mlkem768_encap is false for a public key that isn't validly encoded.
+mlkem768_encap :: (pub: []u8) -> ct: [MLKEM768_CIPHERTEXT_BYTES]u8, secret: [32]u8, ok: bool {
+    ct: [MLKEM768_CIPHERTEXT_BYTES]u8;
+    ss: [32]u8;
+    if pub.count != MLKEM768_PUBLIC_BYTES return ct, ss, false;
+    ok := fc_mlkem768_encap(pub.data, ct.data, ss.data) == 1;
+    return ct, ss, ok;
+}
+// A wrong ciphertext doesn't fail: ML-KEM returns a pseudorandom secret instead (implicit rejection).
+mlkem768_decap :: (seed: [64]u8, ct: []u8) -> [32]u8, bool {
+    ss: [32]u8;
+    if ct.count != MLKEM768_CIPHERTEXT_BYTES return ss, false;
+    ok := fc_mlkem768_decap(seed.data, ct.data, ss.data) == 1;
+    return ss, ok;
+}
+
 #scope_file
 bssl :: #library,no_dll "../../build/fc_vendor";
+X25519 :: (out: *u8, priv: *u8, pub: *u8) -> s32 #foreign bssl;
+fc_mlkem768_generate :: (pub: *u8, seed: *u8) #foreign bssl;
+fc_mlkem768_encap :: (pub: *u8, ct: *u8, ss: *u8) -> s32 #foreign bssl;
+fc_mlkem768_decap :: (seed: *u8, ct: *u8, ss: *u8) -> s32 #foreign bssl;
 fc_blake3 :: (p: *void, n: u64, out: *u8) #foreign bssl;
 fc_blake3_derive :: (ctx: *u8, p: *void, n: u64, out: *u8) #foreign bssl;
 SLHDSA_SHA2_128S_generate_key :: (pub: *u8, priv: *u8) #foreign bssl;

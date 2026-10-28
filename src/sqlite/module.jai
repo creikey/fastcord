@@ -37,7 +37,8 @@ reset :: (st: *Stmt) { sqlite3_reset(st); sqlite3_clear_bindings(st); }
 
 // bind takes 1-based parameter indices, as SQLite does. Strings and blobs are copied.
 bind :: (st: *Stmt, i: int, v: s64) -> bool { return sqlite3_bind_int64(st, xx i, v) == OK; }
-bind :: (st: *Stmt, i: int, v: string) -> bool { return sqlite3_bind_text(st, xx i, v.data, xx v.count, TRANSIENT) == OK; }
+// An empty string with a null data pointer would bind as NULL, not ''.
+bind :: (st: *Stmt, i: int, v: string) -> bool { return sqlite3_bind_text(st, xx i, ifx v.data then v.data else *empty_text, xx v.count, TRANSIENT) == OK; }
 bind :: (st: *Stmt, i: int, v: []u8) -> bool { return sqlite3_bind_blob(st, xx i, v.data, xx v.count, TRANSIENT) == OK; }
 bind_null :: (st: *Stmt, i: int) -> bool { return sqlite3_bind_null(st, xx i) == OK; }
 
@@ -105,6 +106,7 @@ OPEN_READWRITE :: 0x2;
 OPEN_CREATE :: 0x4;
 OPEN_NOMUTEX :: 0x8000;
 TRANSIENT :: cast(*void) -1;
+empty_text: u8;
 
 lib :: #library,no_dll "../../build/fc_vendor";
 sqlite3_open_v2 :: (path: *u8, db: **DB, flags: s32, vfs: *u8) -> s32 #foreign lib;

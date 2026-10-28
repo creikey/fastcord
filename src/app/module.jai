@@ -51,6 +51,7 @@ voice :: #import "voice";
 #load "glue.jai";
 #load "highlight.jai";
 #load "identity.jai";
+#load "encrypted.jai";
 #load "hosted.jai";
 #load "icons.jai";
 #load "images.jai";

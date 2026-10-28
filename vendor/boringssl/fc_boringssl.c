@@ -11,8 +11,10 @@
 #include <openssl/evp.h>
 #include <openssl/hkdf.h>
 #include <openssl/hmac.h>
+#include <openssl/bytestring.h>
 #include <openssl/md5.h>
 #include <openssl/mem.h>
+#include <openssl/mlkem.h>
 #include <openssl/nid.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -46,7 +48,7 @@ int fc_pbkdf2_sha256(const uint8_t *pass, size_t plen, const uint8_t *salt, size
 // AEAD: kind 0 = AES-GCM (key size picks 128/256), 1 = XChaCha20-Poly1305. The context lives in the caller's blob.
 size_t fc_aead_size(void) { return sizeof(EVP_AEAD_CTX); }
 int fc_aead_init(void *ctx, int kind, const uint8_t *key, size_t klen) {
-    const EVP_AEAD *a = kind == 1 ? EVP_aead_xchacha20_poly1305() : klen == 32 ? EVP_aead_aes_256_gcm() : EVP_aead_aes_128_gcm();
+    const EVP_AEAD *a = kind == 2 ? EVP_aead_chacha20_poly1305() : kind == 1 ? EVP_aead_xchacha20_poly1305() : klen == 32 ? EVP_aead_aes_256_gcm() : EVP_aead_aes_128_gcm();
     return EVP_AEAD_CTX_init((EVP_AEAD_CTX *)ctx, a, key, klen, 16, NULL);
 }
 void fc_aead_reset(void *ctx) { EVP_AEAD_CTX_cleanup((EVP_AEAD_CTX *)ctx); }
@@ -157,6 +159,30 @@ size_t fc_selfsigned_cert(const uint8_t priv[32], uint8_t *out) {
     EVP_PKEY_free(pk);
     EC_KEY_free(k);
     return n;
+}
+
+// ML-KEM-768. The private key is kept as its 64-byte seed, so no opaque struct crosses into Jai.
+void fc_mlkem768_generate(uint8_t pub[MLKEM768_PUBLIC_KEY_BYTES], uint8_t seed[MLKEM_SEED_BYTES]) {
+    struct MLKEM768_private_key priv;
+    MLKEM768_generate_key(pub, seed, &priv);
+    OPENSSL_cleanse(&priv, sizeof priv);
+}
+
+int fc_mlkem768_encap(const uint8_t pub[MLKEM768_PUBLIC_KEY_BYTES], uint8_t ct[MLKEM768_CIPHERTEXT_BYTES], uint8_t ss[MLKEM_SHARED_SECRET_BYTES]) {
+    struct MLKEM768_public_key pk;
+    CBS cbs;
+    CBS_init(&cbs, pub, MLKEM768_PUBLIC_KEY_BYTES);
+    if (!MLKEM768_parse_public_key(&pk, &cbs) || CBS_len(&cbs) != 0) return 0;
+    MLKEM768_encap(ct, ss, &pk);
+    return 1;
+}
+
+int fc_mlkem768_decap(const uint8_t seed[MLKEM_SEED_BYTES], const uint8_t ct[MLKEM768_CIPHERTEXT_BYTES], uint8_t ss[MLKEM_SHARED_SECRET_BYTES]) {
+    struct MLKEM768_private_key priv;
+    if (!MLKEM768_private_key_from_seed(&priv, seed, MLKEM_SEED_BYTES)) return 0;
+    int ok = MLKEM768_decap(ss, ct, MLKEM768_CIPHERTEXT_BYTES, &priv);
+    OPENSSL_cleanse(&priv, sizeof priv);
+    return ok;
 }
 
 int fc_ssl_ctx_use_p256(SSL_CTX *ctx, const uint8_t priv[32], const uint8_t *cert, size_t cert_len) {
