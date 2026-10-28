@@ -54,7 +54,6 @@
 - [ ] Search: results are always newest first, with no Newest / Oldest / Most Relevant switch, and the `before:`, `after:` and `during:` date filters are missing (`search_messages` in `discord/features.jai` hardcodes `sort_by=timestamp`, `sort_order=desc`).
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
-- [ ] DMs: rows in the Home DM list show only bold for unread, not the red count the official client shows (`view_home.jai`).
 - [ ] Go Live viewer (fastcord-only): zoom and pan into a stream, with the zoomed view filling the viewer's own shape, not the stream's. Zoomed into a 21:9 ultrawide stream in a 16:9 viewer, you see a 16:9 slice of it with no bars, not a 21:9 crop. Scroll to zoom at the cursor, drag to pan, double-click or Escape to reset. Clamp panning to the frame; letterbox only when zoomed out to fit. Today streams are only "contain"-fitted (`view_call.jai`).
 - [ ] Channels: check whether channels without VIEW_CHANNEL are listed and openable; the sidebar and `guild_channels_sorted` never check permissions (needs a READY capture to confirm hidden channels are sent).
 - [ ] Channels: channel rows have no right-click menu (Mark As Read, Mute, Notification Settings, Edit, Copy Link, Invite, Duplicate, Delete); category rows have none either, so the "Delete Category" code is unreachable.
@@ -325,3 +324,4 @@
 - [x] Edit: editing a message shows `@name`, `@role` and `:name:` instead of their raw `<@id>`, `<@&id>` and `<:name:id>`, and saving converts them back (`tests/ui/forward/edit_readable.txt`).
 - [x] Attachments: images with alt text (`description`) show an ALT badge in the corner; hovering it shows the text (`tests/ui/media/alt_text.txt`).
 - [x] Attachments: file cards have a download button, and clicking the filename downloads too; both save to Downloads like Save Image (`tests/ui/media/file_card.txt`).
+- [x] DMs: unread rows in the Home DM list show a red unread count at the right, hidden while hovered or selected (the close button sits there) and in Lotus Mode (`tests/ui/rail/dm_unread_count.txt`).
