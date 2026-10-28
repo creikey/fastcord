@@ -548,7 +548,9 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	rest := advance(path, "/api/v9/channels/".count);
 	parts := split(rest, "/",, temp);
 	channel, ok := string_to_int(parts[0], T = s64);
-	if parts.count < 2 || parts.count > 3 || parts[1] != "messages" || !ok return json_error(c, 404, 0, "404: Not Found");
+	typing := parts.count == 2 && parts[1] == "typing";
+	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
+	if !ok || (!typing && (parts.count < 2 || parts.count > 3 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count == 3 {
 		message, mok := string_to_int(parts[2], T = s64);
 		if !mok return json_error(c, 404, 0, "404: Not Found");
@@ -562,6 +564,18 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		sqlite.finalize(st);
 	}
 	if !ok return json_error(c, 404, 10003, "Unknown Channel");
+	if typing {
+		member := etf.map_builder(1,, temp);
+		etf.map_put(*member, "user", user_value(user, name));
+		d := etf.map_builder(5,, temp);
+		etf.map_put(*d, "channel_id", snow(channel));
+		etf.map_put(*d, "guild_id", snow(s.guild));
+		etf.map_put(*d, "user_id", snow(user));
+		etf.map_put(*d, "timestamp", etf.vint(to_seconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970)));
+		etf.map_put(*d, "member", etf.vmap(etf.map_done(*member)));
+		broadcast(s, "TYPING_START", etf.vmap(etf.map_done(*d)));
+		return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	}
 
 	sb: String_Builder;
 	sb.allocator = temp;

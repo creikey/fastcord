@@ -234,6 +234,14 @@ main :: () {
 		for 1..300 { if stored().count == 1 break; pump(); }
 		check(stored().count == 1, "client delete");
 	}
+	discord.send_typing(cl, cid);
+	typing_ok := false;
+	for 1..300 {
+		has_t, t := table_find(*cl.store.typing, cid);
+		if has_t && t.count && t[0].user_id == cl.store.me { typing_ok = true; break; }
+		pump();
+	}
+	check(typing_ok, "TYPING_START");
 	discord.client_destroy(cl);
 	status, body = rest("PATCH", tprint("%/1", messages), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("edit an unknown message: %", status));
