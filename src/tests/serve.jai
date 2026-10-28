@@ -407,6 +407,25 @@ main :: () {
 	status, body = rest("GET", messages, "", other_token);
 	check(other_token.count == 64 && status == 200, tprint("rejoin by invite: % % %", ostatus, omessage, status));
 
+	// Change Nickname renames the member everywhere, old messages included; an empty one is refused.
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/@me", gid), "{\"nick\": \" \"}", other_token);
+	check(status == 400, tprint("an empty nickname is refused: % %", status, body));
+	cl4 := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl4);
+	for 1..1000 { if cl4.store.ready break; discord.client_poll(cl4); sleep_milliseconds(10); }
+	discord.set_server_nickname(cl4, gid, cl4.store.me, "Renamed");
+	for 1..1000 {
+		m := discord.member_get(*cl4.store, gid, cl4.store.me);
+		if discord.user_name(*cl4.store, cl4.store.me) == "Renamed" && m && !m.nick break;
+		discord.client_poll(cl4);
+		sleep_milliseconds(10);
+	}
+	m := discord.member_get(*cl4.store, gid, cl4.store.me);
+	check(discord.user_name(*cl4.store, cl4.store.me) == "Renamed" && m && !m.nick, "Change Nickname renames the member");
+	discord.client_destroy(cl4);
+	status, body = rest("GET", messages, "", token);
+	check(status == 200 && contains(body, "\"Renamed\"") && !contains(body, "\"Other\""), tprint("old messages show the new name: %", body));
+
 	// Pages around and after a message, newest first like every page.
 	ids :: (query: string) -> string #expand {
 		status, body := rest("GET", tprint("%?%", messages, query), "", token);

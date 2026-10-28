@@ -500,6 +500,10 @@ serve_conn :: (c: *Conn) {
 			if !create_channel(c, req) return;
 			continue;
 		}
+		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%/members/@me", c.server.guild) {
+			if !rename(c, req) return;
+			continue;
+		}
 		if req.method == "DELETE" && req.path == tprint("/api/v9/users/@me/guilds/%", c.server.guild) {
 			if !leave(c, req) return;
 			continue;
@@ -1042,6 +1046,34 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	}
 	broadcast(s, "CHANNEL_CREATE", ch);
 	return json_reply(c, 201, ch);
+}
+
+// PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname. A member has one name here, so the nick
+// replaces it, and members see it as their name with no nick; an empty nick has nothing to fall back to.
+rename :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(s, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	nick: etf.Value;
+	if err == .None && v.kind == .Map nick, _ = etf.map_get(v.map, "nick");
+	name := ifx nick.kind == .String then trim(nick.s) else "";
+	if !name || name.count > 32 return json_error(c, 400, 50035, "Invalid Form Body");
+	{
+		locks.guard(*s.db_mu);
+		if !sqlite.run(s.db, "UPDATE users SET name = ? WHERE id = ?;", name, user) return json_error(c, 500, 0, "500: Internal Server Error");
+	}
+	m := etf.map_builder(4,, temp);
+	etf.map_put(*m, "guild_id", snow(s.guild));
+	etf.map_put(*m, "user", user_value(user, name));
+	etf.map_put(*m, "nick", .{});
+	no_roles: []etf.Value;
+	etf.map_put(*m, "roles", etf.vlist(no_roles));
+	member := etf.vmap(etf.map_done(*m));
+	broadcast(s, "GUILD_MEMBER_UPDATE", member);
+	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
+	return json_reply(c, 200, member);
 }
 
 // DELETE /api/v9/users/@me/guilds/{id}: a member leaves. They stay in users so their messages keep an
