@@ -938,6 +938,58 @@ parity_frecency_proto :: (t: *T) {
 	expectf(t, checked == 23, "% PATCHes checked", checked);
 }
 
+// Pending frecency usage outlives the launch (the stores persist pendingUsages), so the next
+// launch's startup run loads the proto and writes it, as every official launch does (GET at
+// READY + 0-10 s, the PATCH right after its response). Channel selects alone don't load it.
+frecency_persisted :: (t: *T) {
+	Rec :: struct { mu: locks.Mutex; methods: [..]string; }
+	rec: Rec;
+	rt :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
+		r := cast(*Rec) data;
+		locks.lock(*r.mu);
+		if contains(req.path, "settings-proto/2") array_add(*r.methods, ifx req.method == "GET" then "GET" else "PATCH");
+		locks.unlock(*r.mu);
+		resp := http.make_response(.Http3,, context.default_allocator);
+		resp.status = 200;
+		append_string(*resp.body, "{\"settings\":\"\"}");
+		return resp, .None;
+	}
+	dir := "build/test_frecency_state";
+	file_delete(tprint("%/identity.tsv", dir));
+	cfg := Config.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true, round_tripper = .{*rec, rt}};
+	launch :: (t: *T, cfg: Config, rec: *Rec, want: int, use: (c: *Client)) -> []Frecency_Use {
+		c := client_create(cfg);
+		client_start(c);
+		saved := array_copy(c.store.frecency.pending,, temp);
+		for * saved it.key = copy_string(it.key,, temp);
+		f := *c.store.frecency;
+		f.startup_ms, f.periodic_ms = 1, 7_200_000;
+		c.store.connection = .Ready; // POST_CONNECTION_OPEN: R(true) 1 ms later
+		start := mono_ms();
+		while mono_ms() - start < 1000 {
+			client_poll(c);
+			locks.lock(*rec.mu);
+			n := rec.methods.count;
+			locks.unlock(*rec.mu);
+			if f.timer_at - now_ms() > 60_000 && n >= want && !f.saving && !f.loading break; // R ran
+			sleep_milliseconds(5);
+		}
+		use(c);
+		client_destroy(c);
+		return saved;
+	}
+	launch(t, cfg, *rec, 0, (c: *Client) { frecency_select(c, 1, 2); });
+	expect_value(t, rec.methods.count, 0);
+	got := launch(t, cfg, *rec, 0, (c: *Client) { frecency_use(c, .Reaction, "thumbsup"); });
+	expect(t, rec.methods.count == 0 && got.count == 2 && got[0].kind == .Guild_Channel && got[0].key == "2", "restored channel selects; alone they don't load at startup");
+	got = launch(t, cfg, *rec, 2, (c: *Client) {});
+	expect(t, got.count == 4 && got[2].kind == .Reaction && got[2].key == "thumbsup" && got[3].kind == .Emoji, "a reaction is restored as both uses");
+	expect(t, rec.methods.count == 2 && rec.methods[0] == "GET" && rec.methods[1] == "PATCH", "the startup run loads and writes the restored usage");
+	got = launch(t, cfg, *rec, 2, (c: *Client) {});
+	expect_value(t, got.count, 0); // written: nothing pending
+	array_free(rec.methods);
+}
+
 parity_add_reaction :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }

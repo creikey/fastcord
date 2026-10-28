@@ -128,7 +128,7 @@ checked by `parity_send_message`, `parity_join_voice`, `parity_close_dm`, `parit
 | A reaction (optimistic MESSAGE_REACTION_ADD) is a use of both emoji maps; key = custom emoji id, else the emoji's unique name | code | `MESSAGE_REACTION_ADD:function(e){if(!e.optimistic)` | `frecency_use` |
 | The reaction map goes out computed (score = Σ weights 100/70/50/30/10/1 for ≤3/15/30/45/80/more days over the newest 10 uses; frecency = trunc(1000·(total/max_total·0.2 + score/1000·0.8))), the emoji and guild/channel maps as loaded (frecency -1, score kept): the reaction bar computes before every captured write | code (formula) + inferred (when) | `calculateMaxTotalUse:!0` | `frecency_compute_reactions` |
 | The session's lazy load: READY + 5.13 s on guild and DM routes, skipped when already loaded or loading; the component that triggers it is not identified | inferred | fixtures (guild and DM starts: READY + 4.9-6.0 s) | `frecency_tick` |
-| Pending usage is persisted by the official stores (`FrecencyStore`, `EmojiStoreV2`) and written at the next start; fastcord keeps it in memory | known gap | `persistKey="FrecencyStore"` | TODO.md |
+| Pending usage outlives the launch: the stores persist `pendingUsages` (`FrecencyStore`, `EmojiStoreV2` with `emojiReactionPendingUsages`, `StickersPersistedStoreV2`) until a write's response clears them, so the next launch's R(true) loads and PATCHes them (every recorded official launch loads by READY + 10 s; with emoji pending it writes ~1 s later). Saved at quit, not per use; LOGOUT clears them | code | `persistKey="FrecencyStore"`, `emojiReactionPendingUsages:[]` | `client_save_state` / `client_load_state` (`frecency` lines in identity.tsv); `frecency_persisted` |
 
 ## Gateway, startup, identity
 

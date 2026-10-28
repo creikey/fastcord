@@ -532,6 +532,9 @@ client_load_state :: (c: *Client) {
 			case "web_build";       identity_load_build(*c.id, parse_s64(v));
 			case "locale";          c.id.platform.locale = discord_locale(v);
 			case "exposed";         table_set(*c.analytics.exposed, copy_string(v,, c.allocator), true);
+			case "frecency"; // FrecencyUserSettings pending usage (persisted by its stores, written next launch)
+				f := split(v, "\t",, temp);
+				if f.count == 3 array_add(*c.store.frecency.pending, .{xx parse_s64(f[0]), copy_string(f[2],, c.store.allocator), parse_s64(f[1])},, c.store.allocator);
 			case "heartbeat_session";
 				f := split(v, "\t",, temp);
 				if f.count == 3 {
@@ -564,6 +567,7 @@ client_save_state :: (c: *Client) {
 	if c.id.installation_id print_to_builder(*sb, "installation_id\t%\n", c.id.installation_id);
 	if c.id.web_build print_to_builder(*sb, "web_build\t%\n", c.id.web_build);
 	if c.store.settings.locale print_to_builder(*sb, "locale\t%\n", c.store.settings.locale); // the cached settings' (CACHE_LOADED)
+	for c.store.frecency.pending print_to_builder(*sb, "frecency\t%\t%\t%\n", cast(int) it.kind, it.at, it.key);
 	using c.id.heartbeat;
 	if uuid print_to_builder(*sb, "heartbeat_session\t%\t%\t%\n", uuid, created_at, last_used);
 	locks.unlock(*c.id.mu);
