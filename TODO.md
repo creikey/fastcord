@@ -79,7 +79,8 @@
   - Done: a message `nonce` over 25 bytes is refused (400 50035), as Discord does.
   - Done: reactions must be valid UTF-8 with a non-ASCII character (no plain words), at most 20 distinct per message (30010); message content, topics, and channel and member names must be valid UTF-8 without control characters (`text_ok`). A reaction can still be any non-ASCII text, not only a real emoji.
   - No rate limits on send, edit, typing or login. Every write is an fsync under `db_mu`. A login body can be replayed on the same connection, costing an SLH-DSA verify each time. Add per-member and per-IP budgets, and make login single-use per connection. A fastcord member holds up to 3 connections, so size a per-IP connection cap for a household of several (say 16).
-  - Connections are unlimited, one thread each, and a client that never logs in stays open. Cap connections per IP and in total, and close sockets that don't log in within about 10 s.
+  - Done: a connection that hasn't logged in (or shown a member's token) within 10 s is cut off when the next connection arrives (`accept_loop` `reap`).
+  - Connections are unlimited, one thread each. Cap them per IP and in total.
   - Done: when accept fails (the fd limit), `accept_loop` reaps finished connections and backs off (10 ms doubling to 1 s) instead of spinning.
   - Sessions never expire and every login adds one. Add expiry, logout, and an owner's Kick that revokes sessions.
   - Every Identify, disconnect and op 37 resends the full member list to every connection (already in Hosting 2's Next).

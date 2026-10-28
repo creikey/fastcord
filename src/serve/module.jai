@@ -15,6 +15,7 @@ tls :: #import "tls";
 
 ALPN :: "fc/1";
 HEARTBEAT_INTERVAL_MS :: 41_250;
+LOGIN_DEADLINE_S :: 10;
 
 Server :: struct {
 	db: *sqlite.DB;
@@ -49,6 +50,8 @@ Conn :: struct {
 	closing: bool;
 	out_ws: *http.Ws_Conn; // The writer's socket, fixed for its life (unlike ws).
 	writer: *Thread;
+	accepted: Apollo_Time;
+	authed: bool; // atomic; set by a login or a member's token.
 	reply_status: int; // The reply respond kept, 0 when none.
 	reply_body: string;
 	reply_json: bool;
@@ -464,6 +467,7 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 		sqlite.exec(s.db, ifx status then "ROLLBACK;" else "COMMIT;");
 		if status return json_error(c, status, code, message);
 	}
+	atomic_store(*c.authed, true);
 	if hello.kind == .Map broadcast(s, "MESSAGE_CREATE", hello);
 	body := tprint("{\"token\": \"%\"}", hex(token,, temp));
 	return respond(c, 200, body);
@@ -480,12 +484,19 @@ spawn :: (data: $D, proc: (D)) -> *Thread {
 
 accept_loop :: (s: *Server) {
 	// Finished connections are reaped here, so a long-running server holds only live ones.
+	// A connection that hasn't logged in within LOGIN_DEADLINE_S is cut off, so idle or trickling sockets
+	// can't pile up. This runs as connections arrive, which is when such a pile-up costs anything.
 	reap :: (s: *Server) {
-		for s.conns if atomic_load(*it.done) {
-			locks.join(it.thread);
-			netio.close(it.s);
-			free(it);
-			remove it;
+		now := current_time_monotonic();
+		for s.conns {
+			if atomic_load(*it.done) {
+				locks.join(it.thread);
+				netio.close(it.s);
+				free(it);
+				remove it;
+			} else if !atomic_load(*it.authed) && now - it.accepted > seconds_to_apollo(LOGIN_DEADLINE_S) {
+				netio.shutdown(netio.tcp_stream(it.tcp));
+			}
 		}
 	}
 	backoff := 0;
@@ -504,6 +515,7 @@ accept_loop :: (s: *Server) {
 		backoff = 0;
 		c := New(Conn);
 		c.server, c.tcp, c.s = s, tcp, netio.tcp_stream(tcp);
+		c.accepted = current_time_monotonic();
 		locks.lock(*s.mu);
 		reap(s);
 		array_add(*s.conns, c);
@@ -576,7 +588,9 @@ serve_conn :: (c: *Conn) {
 }
 
 // session_user is the member a token (as sent in Identify or the authorization header) logs in as, or 0.
-session_user :: (s: *Server, token: string) -> id: s64, name: string {
+// A token that names a member also marks c as logged in, which spares it the login deadline.
+session_user :: (c: *Conn, token: string) -> id: s64, name: string {
+	s := c.server;
 	t: [32]u8;
 	if !unhex(token, t) return 0, "";
 	h := crypto.blake3(t);
@@ -585,6 +599,7 @@ session_user :: (s: *Server, token: string) -> id: s64, name: string {
 	defer sqlite.finalize(st);
 	sqlite.bind(st, 1, cast([]u8) h);
 	if sqlite.step(st) != .Row return 0, "";
+	atomic_store(*c.authed, true);
 	return sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 0 + 1),, temp);
 }
 
@@ -956,7 +971,7 @@ broadcast :: (s: *Server, t: string, d: etf.Value) {
 channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user, name := session_user(s, token);
+	user, name := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	path, query := req.path, "";
 	q := find_index_from_left(path, #char "?");
@@ -1175,7 +1190,7 @@ channel_name :: (raw: string) -> string {
 create_channel :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
@@ -1216,7 +1231,7 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 rename :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	nick: etf.Value;
@@ -1244,7 +1259,7 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 leave :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	{
 		locks.guard(*s.db_mu);
@@ -1412,7 +1427,7 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	list: etf.Value;
@@ -1436,7 +1451,7 @@ ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 patch_guild_settings :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(s, token);
+	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	guilds, patch: etf.Value;
@@ -1556,7 +1571,7 @@ SEARCH_PAGE :: 25;
 search :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
-	viewer := session_user(s, token);
+	viewer := session_user(c, token);
 	if !viewer return json_error(c, 401, 0, "401: Unauthorized");
 	q := find_index_from_left(req.path, #char "?");
 	if req.path.count > tprint("/api/v9/guilds/%/messages/search", s.guild).count && q < 0 return json_error(c, 404, 0, "404: Not Found");
@@ -1870,7 +1885,7 @@ gateway :: (c: *Conn, req: http.Request) {
 				if c.ws { http.ws_close(ws, 4005, "Already authenticated."); return; }
 				token: etf.Value;
 				if d.kind == .Map token, _ = etf.map_get(d.map, "token");
-				user, name := session_user(c.server, ifx token.kind == .String then token.s else "");
+				user, name := session_user(c, ifx token.kind == .String then token.s else "");
 				if !user { http.ws_close(ws, 4004, "Authentication failed."); return; }
 				// Registered before READY is built and sent under c.mu, so a message posted meanwhile
 				// arrives after READY instead of being lost. Lock order: server.mu, then c.mu.
