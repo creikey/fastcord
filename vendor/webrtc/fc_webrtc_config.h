@@ -5,6 +5,9 @@
 #define WEBRTC_WIN 1
 #define NOMINMAX 1
 #define _USE_MATH_DEFINES 1
+#define WIN32_LEAN_AND_MEAN 1
+// Upstream's Windows clock uses winmm's timeGetTime; fc_webrtc.cc supplies one instead.
+#define WEBRTC_EXCLUDE_SYSTEM_TIME 1
 #else
 #define WEBRTC_POSIX 1
 #if defined(__APPLE__)

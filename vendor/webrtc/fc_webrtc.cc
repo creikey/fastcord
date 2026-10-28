@@ -6,6 +6,15 @@
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/high_pass_filter.h"
 
+#if defined(WEBRTC_EXCLUDE_SYSTEM_TIME)
+#include <chrono>
+#include "rtc_base/system_time.h"
+
+int64_t rtc::SystemTimeNanos() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+#endif
+
 using namespace webrtc;
 
 namespace {

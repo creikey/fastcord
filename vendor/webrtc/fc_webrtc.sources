@@ -59,7 +59,7 @@ vendor/webrtc/modules/audio_processing/aec3/filter_analyzer.cc
 vendor/webrtc/modules/audio_processing/aec3/frame_blocker.cc
 vendor/webrtc/modules/audio_processing/aec3/fullband_erle_estimator.cc
 vendor/webrtc/modules/audio_processing/aec3/matched_filter.cc
-vendor/webrtc/modules/audio_processing/aec3/matched_filter_avx2.cc
+vendor/webrtc/fc_matched_filter_avx2.cc
 vendor/webrtc/modules/audio_processing/aec3/matched_filter_lag_aggregator.cc
 vendor/webrtc/modules/audio_processing/aec3/moving_average.cc
 vendor/webrtc/modules/audio_processing/aec3/multi_channel_content_detector.cc

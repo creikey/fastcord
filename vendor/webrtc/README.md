@@ -17,8 +17,11 @@ RNNoise (`vendor/rnnoise`), AGC is `src/voice/vad.jai`.
 
 Ours:
 - `fc_webrtc.cc`: create, destroy, feed 10 ms of what the speakers played, cancel the echo in 10 ms of mic,
-  with the high-pass filter and band split AudioProcessingImpl runs around AEC3.
+  with the high-pass filter and band split AudioProcessingImpl runs around AEC3. On Windows it also supplies
+  `rtc::SystemTimeNanos`, so upstream's clock doesn't pull in winmm.
 - `fc_webrtc_config.h`: upstream's meson `-D` flags, chosen per target, force-included by `fc_webrtc.cflags`.
+- `fc_matched_filter_avx2.cc`: builds upstream's `matched_filter_avx2.cc` with `_MSC_VER` unset, since zig's
+  clang sets it on Windows but lacks MSVC's `m256_f32` vector members.
 - `fc_shim/`: `pthread_spis.h` and `CoreServices/CoreServices.h`, which WebRTC's macOS code includes and
   zig's macOS headers lack; each supplies only the names WebRTC uses.
 - `fc_webrtc.sources`: the files `build.jai` compiles into `build/fc_vendor.a`. The `_neon`, `_sse`,
