@@ -151,6 +151,11 @@ decode :: (b: []u8) -> Keypair, bool {
 	return k, ok;
 }
 
+// wrap_secret seals bytes to this OS user (DPAPI on Windows), as the key files are; unwrap_secret returns
+// its input unchanged when it isn't wrapped. Free a result only if its data differs from the input's.
+wrap_secret :: wrap;
+unwrap_secret :: unwrap;
+
 // Storage: <dir>/<root>.key, a second copy in <dir>/copy/, and <dir>/trash/ for removed keys.
 // fastcord never deletes a key file. dir lives beside <state>, never inside it, so resetting
 // settings or deleting <state> leaves the keys alone.

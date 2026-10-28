@@ -42,9 +42,9 @@ database :: (dir: string) {
 	puts: [3]Put;
 	for *puts {
 		it.value = it_index + 1;
-		it.run = (db: *sqlite.DB, j: *e2e.Job) {
+		it.run = (d: *e2e.Db, j: *e2e.Job) {
 			p := cast(*Put) j;
-			p.ok = sqlite.run(db, "INSERT OR REPLACE INTO meta(key, value) VALUES('n', ?);", p.value);
+			p.ok = sqlite.run(d.sql, "INSERT OR REPLACE INTO meta(key, value) VALUES('n', ?);", p.value);
 		};
 		e2e.submit(d, it);
 	}
@@ -57,9 +57,9 @@ database :: (dir: string) {
 
 	d = e2e.start(path);
 	g: Get;
-	g.run = (db: *sqlite.DB, j: *e2e.Job) {
+	g.run = (d: *e2e.Db, j: *e2e.Job) {
 		g := cast(*Get) j;
-		st := sqlite.prepare(db, "SELECT value FROM meta WHERE key = 'n';");
+		st := sqlite.prepare(d.sql, "SELECT value FROM meta WHERE key = 'n';");
 		if sqlite.step(st) == .Row { g.found = true; g.value = sqlite.col_int(st, 0); }
 		sqlite.finalize(st);
 	};
@@ -279,8 +279,29 @@ conversation :: (dir: string) {
 	s = ask(*a, .Send, "after restart");
 	got := ask(*b, .Receive, s.packet, a.user, next_message);
 	check(got.result == .Ok && got.out_text == "after restart", "session survives a restart");
+
+	// At rest: secrets are sealed under the database key, each bound to its row.
+	again := ask(*b, .Receive, s.packet, a.user, next_message);
+	check(again.result == .Ok && again.out_text == "after restart", "a refetch reads the sealed plaintext");
+	sql(b.d, "UPDATE plaintexts SET sealed = (SELECT sealed FROM plaintexts AS p WHERE p.hash != plaintexts.hash LIMIT 1);");
+	again = ask(*b, .Receive, s.packet, a.user, next_message);
+	check(again.result == .Failed, "a sealed value moved to another row doesn't open");
 	stop(a.d);
 	stop(b.d);
+	for name: string.["a.db", "b.db"]
+		check(!contains(read_entire_file(tprint("%/%", dir, name)), "after restart"), tprint("no plaintext in %", name));
+
+	// A key that won't unwrap (a <state> copied from another machine) sets the file aside for a new one.
+	a.d = e2e.start(tprint("%/a.db", dir));
+	sql(a.d, "UPDATE meta SET value = X'00' WHERE key = 'db_key';");
+	stop(a.d);
+	a.d = e2e.start(tprint("%/a.db", dir));
+	r = ask(*a, .Load);
+	check(!r.failed && r.result == .Ok && !r.has_session, "a sealed database is replaced by an empty one");
+	aside := false;
+	for file_list(dir) if contains(it, "a.db.sealed-") aside = true;
+	check(aside, "the sealed database is kept beside it");
+	stop(a.d);
 }
 
 Sql :: struct { #as using job: e2e.Job; text: string; value: s64; }
@@ -288,9 +309,9 @@ Sql :: struct { #as using job: e2e.Job; text: string; value: s64; }
 sql :: (d: *e2e.Db, text: string) -> s64 {
 	j: Sql;
 	j.text = text;
-	j.run = (db: *sqlite.DB, j: *e2e.Job) {
+	j.run = (d: *e2e.Db, j: *e2e.Job) {
 		q := cast(*Sql) j;
-		st := sqlite.prepare(db, q.text);
+		st := sqlite.prepare(d.sql, q.text);
 		if sqlite.step(st) == .Row q.value = sqlite.col_int(st, 0);
 		sqlite.finalize(st);
 	};
