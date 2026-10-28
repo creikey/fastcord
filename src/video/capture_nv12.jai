@@ -10,6 +10,9 @@ Capture :: struct {
 	width, height, fps: int; // camera: requested; screen: output
 	target: Screen_Target;
 	error: string; // set by the thread before it gives up; a literal
+	camera: bool;
+	got_frame: bool; // atomic
+	started: Apollo_Time;
 }
 
 // A synthetic source for live tests (FASTCORD_VIDEO_TEST): eight colour bars scrolling left and a white
@@ -49,7 +52,10 @@ pattern_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 72
 
 // Why the capture ended on its own ("" while it runs, or once capture_stop asked it to).
 capture_error :: (c: *Capture) -> string {
-	if !c || atomic_load(*c.quit) || !thread_is_done(*c.thread) return "";
+	if !c || atomic_load(*c.quit) return "";
+	// Some cameras (an idle NDI source) open fine, then block in ReadSample forever.
+	if c.camera && !atomic_load(*c.got_frame) && current_time_monotonic() - c.started > seconds_to_apollo(8) return "The camera isn't sending any video.";
+	if !thread_is_done(*c.thread) return "";
 	return ifx c.error then c.error else "The camera stopped.";
 }
 
@@ -84,6 +90,7 @@ reap :: () {
 
 start :: (c: *Capture, proc: Thread_Proc) {
 	reap();
+	c.started = current_time_monotonic();
 	thread_init(*c.thread, proc);
 	c.thread.data = c;
 	thread_start(*c.thread);
@@ -92,6 +99,7 @@ start :: (c: *Capture, proc: Thread_Proc) {
 emit :: (c: *Capture, f: *yuv.Nv12) {
 	locks.lock(*c.mu);
 	if !atomic_load(*c.quit) c.on_frame(c.user, f, f.width, f.height);
+	atomic_store(*c.got_frame, true);
 	locks.unlock(*c.mu);
 	reset_temporary_storage();
 }

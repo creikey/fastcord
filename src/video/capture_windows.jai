@@ -8,7 +8,7 @@ camera_supported :: () -> bool { return atomic_load(*camera_count) != 0; }
 
 camera_start :: (on_frame: Frame_Proc, user: *void, width := 1280, height := 720, fps := 30) -> *Capture {
 	c := New(Capture);
-	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps};
+	c.* = .{on_frame = on_frame, user = user, width = width, height = height, fps = fps, camera = true};
 	start(c, camera_thread);
 	return c;
 }
