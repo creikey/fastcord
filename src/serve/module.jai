@@ -316,6 +316,7 @@ CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NO
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
+CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
 CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER,
@@ -500,6 +501,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
 			if !create_channel(c, req) return;
+			continue;
+		}
+		if req.method == "PATCH" && req.path == "/api/v9/users/@me/guilds/settings" {
+			if !patch_guild_settings(c, req) return;
 			continue;
 		}
 		if req.method == "POST" && req.path == "/api/v9/read-states/ack-bulk" {
@@ -746,8 +751,18 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	etf.map_put(*read_state, "partial", etf.vbool(false));
 	etf.map_put(*read_state, "version", etf.vint(0));
 
-	d := etf.map_builder(5,, temp);
+	settings: [..]etf.Value;
+	settings.allocator = temp;
+	mine := guild_settings_locked(s, user);
+	if mine.kind == .Map array_add(*settings, mine);
+	guild_settings := etf.map_builder(3,, temp);
+	etf.map_put(*guild_settings, "entries", etf.vlist(settings));
+	etf.map_put(*guild_settings, "partial", etf.vbool(false));
+	etf.map_put(*guild_settings, "version", etf.vint(0));
+
+	d := etf.map_builder(6,, temp);
 	etf.map_put(*d, "read_state", etf.vmap(etf.map_done(*read_state)));
+	etf.map_put(*d, "user_guild_settings", etf.vmap(etf.map_done(*guild_settings)));
 	etf.map_put(*d, "v", etf.vint(9));
 	etf.map_put(*d, "user", user_value(user, name));
 	etf.map_put(*d, "guilds", etf.vlist(guilds));
@@ -1300,6 +1315,102 @@ ack_bulk :: (c: *Conn, req: http.Request) -> bool {
 		if cok && mok && store_ack(s, user, channel, message, 0, false) == 500 return json_error(c, 500, 0, "500: Internal Server Error");
 	}
 	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+}
+
+// PATCH /api/v9/users/@me/guilds/settings {guilds: {"<id>": {...}}}: mute and notification settings,
+// kept per member as the whole user_guild_settings entry. Fields the patch names replace the stored ones;
+// channel_overrides comes keyed by channel ID and is merged into the entry's list per channel.
+patch_guild_settings :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(s, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	guilds, patch: etf.Value;
+	if err == .None && v.kind == .Map guilds, _ = etf.map_get(v.map, "guilds");
+	if guilds.kind == .Map patch, _ = etf.map_get(guilds.map, tprint("%", s.guild));
+	if guilds.kind != .Map || (patch.kind != .Map && patch.kind != .Nil) return json_error(c, 400, 50035, "Invalid Form Body");
+
+	entry: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		old := guild_settings_locked(s, user);
+		if patch.kind == .Map {
+			old_map := ifx old.kind == .Map then old.map else .[];
+			e := merge(old_map, patch.map, "guild_id", "channel_overrides");
+			etf.map_put(*e, "guild_id", snow(s.guild));
+			overrides: [..]etf.Value;
+			overrides.allocator = temp;
+			was, _ := etf.map_get(old_map, "channel_overrides");
+			changes, _ := etf.map_get(patch.map, "channel_overrides");
+			if was.kind == .List for was.list {
+				if it.kind != .Map continue;
+				id, _ := etf.map_get(it.map, "channel_id");
+				change: etf.Value;
+				if id.kind == .String && changes.kind == .Map change, _ = etf.map_get(changes.map, id.s);
+				if change.kind != .Map { array_add(*overrides, it); continue; }
+				o := merge(it.map, change.map, "channel_id", "");
+				etf.map_put(*o, "channel_id", id);
+				array_add(*overrides, etf.vmap(etf.map_done(*o)));
+			}
+			if changes.kind == .Map for changes.map {
+				if it.key.kind != .String || it.value.kind != .Map || !string_to_int(it.key.s, T = s64) continue;
+				known := false;
+				if was.kind == .List for o: was.list if o.kind == .Map {
+					id, _ := etf.map_get(o.map, "channel_id");
+					if id.kind == .String && id.s == it.key.s known = true;
+				}
+				if known continue;
+				o := merge(.[], it.value.map, "channel_id", "");
+				etf.map_put(*o, "channel_id", it.key);
+				array_add(*overrides, etf.vmap(etf.map_done(*o)));
+			}
+			etf.map_put(*e, "channel_overrides", etf.vlist(overrides));
+			entry = etf.vmap(etf.map_done(*e));
+			sb: String_Builder;
+			sb.allocator = temp;
+			etf.to_json(entry, *sb);
+			if !sqlite.run(s.db, "INSERT OR REPLACE INTO guild_settings(user, settings) VALUES(?, ?);", user, builder_to_string(*sb,, temp)) {
+				return json_error(c, 500, 0, "500: Internal Server Error");
+			}
+		} else {
+			entry = old;
+		}
+	}
+	list: [..]etf.Value;
+	list.allocator = temp;
+	if entry.kind == .Map {
+		array_add(*list, entry);
+		locks.guard(*s.mu);
+		for s.conns if it.ws && it.user == user dispatch(it, "USER_GUILD_SETTINGS_UPDATE", entry);
+	}
+	return json_reply(c, 200, etf.vlist(list));
+}
+
+// merge is old's pairs with patch's on top, leaving out keys skip_a and skip_b of both, as a builder
+// the caller can add to.
+merge :: (old: etf.Map, patch: etf.Map, skip_a: string, skip_b: string) -> etf.Map_Builder {
+	b := etf.map_builder(old.count + patch.count + 2,, temp);
+	for old {
+		if it.key.kind != .String || it.key.s == skip_a || it.key.s == skip_b continue;
+		_, replaced := etf.map_get(patch, it.key.s);
+		if !replaced array_add(*b.pairs, it);
+	}
+	for patch {
+		if it.key.kind != .String || it.key.s == skip_a || it.key.s == skip_b continue;
+		array_add(*b.pairs, it);
+	}
+	return b;
+}
+
+// A member's user_guild_settings entry, or Nil if they never changed one. The caller holds db_mu.
+guild_settings_locked :: (s: *Server, user: s64) -> etf.Value {
+	st := sqlite.prepare(s.db, "SELECT settings FROM guild_settings WHERE user = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, user);
+	if sqlite.step(st) != .Row return .{};
+	v, err := etf.from_json(copy_string(sqlite.col_text(st, 0),, temp),, temp);
+	return ifx err == .None then v else .{};
 }
 
 // store_ack saves a member's read state for a channel and tells their other gateways. 0, or 404 for no

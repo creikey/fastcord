@@ -41,7 +41,7 @@
   - Done: the owner deletes any member's message (Discord's Manage Messages); members still delete only their own.
   - Done: categories (type 4). The owner creates them and channels inside them (`parent_id`); deleting one leaves its channels uncategorized, and categories take no messages. Create Channel offers only Text on a hosted server.
   - Done: Mark As Read (`POST /read-states/ack-bulk`) stores every channel's read state and sends MESSAGE_ACK to the member's other sessions.
-  - Muting a hosted server or channel, or changing its notification settings, sends `PATCH /users/@me/guilds/settings`, which `-serve` answers with 404 and READY never carries, so it is lost at the next start. Store it per member and send `user_guild_settings` in READY.
+  - Done: mute and notification settings (`PATCH /users/@me/guilds/settings`) are kept per member, merged per field and per channel override, sent back as USER_GUILD_SETTINGS_UPDATE and in READY's `user_guild_settings`.
   - Add a test that runs the hosted client's views against a `-serve` instance and fails on every 404. Each request a hosted guild makes should be served or skipped like `aux_get`. Pins, search and profiles all 404 today.
 - [ ] Hosting 3: one instance hosts many server files on one port, choosing the server by its ID through TLS SNI. The owner runs Server Settings, plus a host tab, from their own client anywhere. It can't be bricked:
   - A second file with an already-loaded ID is refused, with Fork (new ID, same content) offered instead.

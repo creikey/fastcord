@@ -475,6 +475,10 @@ main :: () {
 	discord.client_start(cl5);
 	for 1..1000 { if cl5.store.ready break; discord.client_poll(cl5); sleep_milliseconds(10); }
 	acked := discord.ack_guild(cl5, gid);
+	// Notification settings, too: each change merges into what the server keeps.
+	discord.set_guild_muted(cl5, gid, true);
+	discord.set_channel_muted(cl5, gid, cid, true);
+	discord.set_guild_notify_level(cl5, gid, discord.NOTIFY_MENTIONS);
 	for 1..100 { discord.client_poll(cl5); sleep_milliseconds(10); }
 	discord.client_destroy(cl5);
 	cl5 = discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
@@ -482,6 +486,9 @@ main :: () {
 	for 1..1000 { if cl5.store.ready break; discord.client_poll(cl5); sleep_milliseconds(10); }
 	has_rs, rs = table_find(*cl5.store.read_states, cid);
 	check(acked >= 1 && has_rs && rs.last_message_id == unread_id, tprint("Mark As Read is kept: % % %", acked, has_rs, rs.last_message_id));
+	kept := table_find_pointer(*cl5.store.guild_settings, gid);
+	check(kept && kept.muted && kept.message_notifications == discord.NOTIFY_MENTIONS && array_find(kept.muted_channels, cid),
+		tprint("notification settings are kept: %", ifx kept then kept.* else .{}));
 	discord.client_destroy(cl5);
 
 	// The owner deletes anyone's message; a member deletes only their own.
