@@ -427,6 +427,35 @@ main :: () {
 	}
 	status, body = rest("POST", messages, "{\"content\": \"x\", \"message_reference\": {\"message_id\": \"1\"}}", token);
 	check(status == 400, tprint("a reply to an unknown message is refused: %", status));
+	{
+		png, _ := base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",, temp);
+		status, body = rest("POST", tprint("/api/v9/channels/%/attachments", channel), tprint("{\"files\": [{\"id\": \"0\", \"filename\": \"dot.png\", \"file_size\": %, \"original_content_type\": \"image/png\"}]}", png.count), token);
+		slot, _ := etf.from_json(body);
+		up := field(slot, "attachments");
+		check(status == 200 && up.kind == .List && up.list.count == 1, tprint("an upload slot: % %", status, body));
+		if up.kind == .List && up.list.count {
+			url, name := field(up.list[0], "upload_url").s, field(up.list[0], "upload_filename").s;
+			path := slice(url, find_index_from_left(url, "/upload/"), url.count);
+			status, body = rest("PUT", path, "short", "");
+			check(status == 404, tprint("a PUT of the wrong size is refused: %", status));
+			status, body = rest("PUT", path, png, "");
+			check(status == 200, tprint("the PUT is taken: % %", status, body));
+			status, body = rest("POST", messages, tprint("{\"attachments\": [{\"id\": \"0\", \"filename\": \"dot.png\", \"uploaded_filename\": \"%\", \"is_spoiler\": true}]}", name), token);
+			sent, _ := etf.from_json(body);
+			files := field(sent, "attachments");
+			check(status == 200 && files.kind == .List && files.list.count == 1 && field(files.list[0], "width").i == 1 && field(files.list[0], "filename").s == "SPOILER_dot.png", tprint("a message with a file: % %", status, body));
+			status, body = rest("POST", messages, tprint("{\"attachments\": [{\"id\": \"0\", \"filename\": \"dot.png\", \"uploaded_filename\": \"%\"}]}", name), token);
+			check(status == 400, tprint("an upload sends only once: %", status));
+			if files.kind == .List && files.list.count {
+				got := field(files.list[0], "url").s;
+				status, body = rest("GET", slice(got, find_index_from_left(got, "/attachments/"), got.count), "", "");
+				check(status == 200 && body == png, tprint("the file reads back: % %", status, body.count));
+				rest("DELETE", tprint("%/%", messages, field(sent, "id").s), "", token);
+				status, body = rest("GET", slice(got, find_index_from_left(got, "/attachments/"), got.count), "", "");
+				check(status == 404, tprint("a deleted message's file is gone: %", status));
+			}
+		}
+	}
 	status, body = login(other, "", "Other");
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 	other_token, ostatus, omessage := serve.member_login(member_invite, other, "Other");

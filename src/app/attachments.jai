@@ -228,7 +228,7 @@ staged_count :: (channel_id: dc.Snowflake) -> int {
 
 // Files from the picker, a drop or a paste: one loading card each, read on a worker.
 stage_paths :: (channel_id: dc.Snowflake, paths: []string, origin: string) {
-	if channel_id == 0 || !paths || uploads_unserved() return;
+	if channel_id == 0 || !paths return;
 	l := staged_list(channel_id);
 	if too_many_files(l.count, paths.count) {
 		att.notice = .Too_Many;
@@ -248,7 +248,6 @@ stage_paths :: (channel_id: dc.Snowflake, paths: []string, origin: string) {
 // otherwise the text field pastes text.
 paste_attachments :: (channel_id: dc.Snowflake) -> bool {
 	kind := platform.clipboard_kind();
-	if (kind == .Files || kind == .Image) && uploads_unserved() return true;
 	if kind == {
 	case .Files;
 		att_spawn(.{kind = .Paste_Files, channel = channel_id});
@@ -263,13 +262,6 @@ paste_attachments :: (channel_id: dc.Snowflake) -> bool {
 	case .Text; #through; case .None;
 	}
 	return false;
-}
-
-// A self-hosted server has no upload slots until Hosting 4, so a file would never send.
-uploads_unserved :: () -> bool {
-	if !app.client || app.client.cfg.hosted.host == "" return false;
-	toast_show("Uploads aren't available on this server yet.", false);
-	return true;
 }
 
 // Remove (trash): the uploaded file is deleted from the bucket too.

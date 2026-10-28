@@ -50,6 +50,27 @@ h1_round_trip :: (c: *H1_Conn, req: Request) -> Response, Error {
 // The server side, for self-hosted servers: h1_init on the accepted stream, then h1_read_request and
 // h1_write_response in turn. Requests carry a Content-Length body or none (no chunked uploads).
 h1_read_request :: (c: *H1_Conn) -> Request, Error {
+	req, err := h1_read_request_head(c);
+	if err == .None err = h1_read_request_body(c, *req, c.limits.max_body);
+	return req, err;
+}
+
+// h1_read_request_body reads the body h1_read_request_head left, if it is at most max_body bytes, so a
+// server can pick the limit from the head (a large upload to a URL it handed out).
+h1_read_request_body :: (c: *H1_Conn, req: *Request, max_body: int) -> Error {
+	_, has_cl := header_get(req.headers, "content-length");
+	if !has_cl return .None;
+	len, ok := parse_content_length(req.headers);
+	if !ok return .Protocol;
+	if len > max_body return .Too_Large;
+	body: [..]u8;
+	body.allocator = c.allocator;
+	err := read_body_n(*c.r, *body, len);
+	req.body = body;
+	return err;
+}
+
+h1_read_request_head :: (c: *H1_Conn) -> Request, Error {
 	req: Request;
 	fields := NewArray(c.limits.max_headers, Phr_Header,, temp);
 	last := 0;
@@ -73,16 +94,6 @@ h1_read_request :: (c: *H1_Conn) -> Request, Error {
 			req.headers = headers;
 			c.r.start += ret;
 			if header_get(req.headers, "transfer-encoding") return req, .Protocol;
-			_, has_cl := header_get(req.headers, "content-length");
-			if has_cl {
-				len, ok := parse_content_length(req.headers);
-				if !ok return req, .Protocol;
-				if len > c.limits.max_body return req, .Too_Large;
-				body: [..]u8;
-				err := read_body_n(*c.r, *body, len);
-				req.body = body;
-				if err != .None return req, err;
-			}
 			return req, .None;
 		}
 		last = buf.count;
