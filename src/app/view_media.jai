@@ -70,6 +70,10 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			sc := min(1.0, min(max_w / w, 300 / h));
 			if spoiler_cover(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc) table_set(*revealed_spoilers, a.id, true);
 			spacer(.Y, 4);
+		} else if is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id) {
+			// a file or audio clip: the card's size, with nothing of it shown
+			if spoiler_cover(tprint("file%", i), "", min(432.0, max_w + 32), 72) table_set(*revealed_spoilers, a.id, true);
+			spacer(.Y, 4);
 		} else if is_video(a) && a.width > 0 && a.height > 0 {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
@@ -146,7 +150,8 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
 is_spoiler :: (a: *dc.Attachment) -> bool { return begins_with(a.filename, "SPOILER_") || (a.flags & 8) != 0; }
 
-// A spoilered image or video: the image blurred under a "SPOILER" pill until clicked. True when clicked.
+// A spoilered attachment: the image blurred (url "" for a file: a plain box) under a "SPOILER" pill until
+// clicked. True when clicked.
 spoiler_cover :: (id: string, url: string, w: float32, h: float32) -> bool {
 	b := ui.box(id, .Draw_Background | .Clickable);
 	b.semantic_size = .[ui.px(w), ui.px(h)];

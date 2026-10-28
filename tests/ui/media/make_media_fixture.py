@@ -56,8 +56,11 @@ note = {'id': sf(base_ms - 20000, 9), 'filename': 'notes.txt', 'size': 416, 'con
 spoiler = {'id': sf(base_ms - 15000, 9), 'filename': 'SPOILER_poster.webp', 'size': 2000, 'content_type': 'image/webp', 'width': 320, 'height': 180,
            'url': 'https://cdn.discordapp.com/attachments/%d/%d/poster.webp%s' % (CH, sf(base_ms - 15000, 9), Q),
            'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/poster.webp%s' % (CH, sf(base_ms - 15000, 9), Q)}
+spoiler_file = {'id': sf(base_ms - 15000, 10), 'filename': 'SPOILER_notes.txt', 'size': 416, 'content_type': 'text/plain; charset=utf-8',
+                'url': 'https://cdn.discordapp.com/attachments/%d/%d/SPOILER_notes.txt%s' % (CH, sf(base_ms - 15000, 10), Q),
+                'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/SPOILER_notes.txt%s' % (CH, sf(base_ms - 15000, 10), Q)}
 old_msgs = [msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [note], [imdb]),
-            msg(sf(base_ms - 15000, 6), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', [spoiler], [yt]),
+            msg(sf(base_ms - 15000, 6), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', [spoiler, spoiler_file], [yt]),
             msg(sf(base_ms - 10000, 7), POST, [], grid)]
 with open(os.path.join(here, 'media.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     f.writelines(head)
