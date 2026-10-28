@@ -91,7 +91,6 @@
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
-- [ ] Layout: hiding the member list or the DM profile panel doesn't survive a restart (`app.view.show_members`, `hide_dm_profile` aren't in `settings.json`); the official client remembers both.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
 - [ ] Bug: a sleep over 60 s ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
@@ -369,3 +368,4 @@
 - [x] Media: the video player's volume slider goes to 400% (100% at a quarter), through the mixer's limiter (`view_media.jai`).
 - [x] Media: the video player's volume and mute are saved in `settings.json` (`video_volume`, `video_muted`).
 - [x] Voice: echo cancellation, noise suppression and AGC run in software on every platform, as in the official client: WebRTC's echo canceller (AEC3, `vendor/webrtc`) on fastcord's own speaker mix, RNNoise behind the Noise Suppression switch, and the software AGC. macOS no longer uses VoiceProcessingIO, so the three switches work apart, a chosen output device is honoured in calls too, and a mic not at 48 kHz is resampled (AudioConverter) instead of falling back to a quiet bypass (`tests/voice_aec.jai`).
+- [x] Layout: the member list and DM profile panel toggles survive a restart (`settings.json` `members_hidden`, `dm_profile_hidden`; `app.view.hide_members` replaces `show_members` so zero means shown).

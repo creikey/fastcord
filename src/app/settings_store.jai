@@ -63,6 +63,8 @@ Persisted :: struct {
 	streamer: Streamer_Settings;
 	video_volume: float32 = 1; // the video player's, 0..4
 	video_muted: bool;
+	members_hidden: bool; // the member list toggle (shown by default)
+	dm_profile_hidden: bool;
 }
 
 // theme to apply after theme_load at startup (main applies opt.theme first)
@@ -237,6 +239,8 @@ apply_persisted :: (p: *Persisted) {
 	streamer_settings = p.streamer;
 	video_volume = clamp(p.video_volume, 0, 4);
 	video_muted = p.video_muted;
+	app.view.hide_members = p.members_hidden;
+	app.view.hide_dm_profile = p.dm_profile_hidden;
 	if p.sidebar_width > 0 app.view.sidebar_w = clamp(p.sidebar_width, SIDEBAR_MIN_W, SIDEBAR_MAX_W);
 	if p.member_list_width > 0 app.view.member_w = clamp(p.member_list_width, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W);
 	for p.collapsed {
@@ -277,6 +281,8 @@ snapshot :: () -> string {
 	p.streamer = streamer_settings;
 	p.video_volume = video_volume;
 	p.video_muted = video_muted;
+	p.members_hidden = app.view.hide_members;
+	p.dm_profile_hidden = app.view.hide_dm_profile;
 	return marshal_pretty(p);
 }
 

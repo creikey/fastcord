@@ -34,7 +34,7 @@ View_State :: struct {
 	friends_tab: Friends_Tab;
 	collapsed: Table(dc.Snowflake, bool); // collapsed categories
 	hide_muted: Table(dc.Snowflake, bool); // guild -> "Hide Muted Channels" (device-local)
-	show_members: bool;
+	hide_members: bool;
 	hide_dm_profile: bool; // 1:1 DM user profile column (header toggle)
 	add_friend: ui.Editor;
 	friends_search: ui.Editor; // Friends page search (filters the list)
@@ -47,7 +47,6 @@ View_State :: struct {
 
 view_init :: (v: *View_State) {
 	v.friends_tab = .Online;
-	v.show_members = true;
 	if v.sidebar_w == 0 v.sidebar_w = SIDEBAR_W;
 	if v.member_w == 0 v.member_w = MEMBER_LIST_W;
 }
@@ -581,7 +580,7 @@ page :: () {
 			// side columns only when the chat keeps a usable width (narrow windows
 			// used to squeeze the composer until its placeholder wrapped per letter)
 			room := app.ui.window.x - RAIL_W - app.view.sidebar_w - CHAT_MIN_W;
-			if search_panel_open() { search_panel(); } else if room < app.view.member_w + 1 {} else if ch.guild_id != 0 && app.view.show_members && !dc.is_thread(ch) { member_list(ch); } else if ch.kind == .Group_DM && app.view.show_members { group_dm_members(ch); } else if ch.kind == .DM && !app.view.hide_dm_profile && ch.recipient_ids.count == 1 && room >= DMP_COL_W { dm_profile_panel(ch.recipient_ids[0]); }
+			if search_panel_open() { search_panel(); } else if room < app.view.member_w + 1 {} else if ch.guild_id != 0 && !app.view.hide_members && !dc.is_thread(ch) { member_list(ch); } else if ch.kind == .Group_DM && !app.view.hide_members { group_dm_members(ch); } else if ch.kind == .DM && !app.view.hide_dm_profile && ch.recipient_ids.count == 1 && room >= DMP_COL_W { dm_profile_panel(ch.recipient_ids[0]); }
 		}
 	}
 }
@@ -630,14 +629,14 @@ chat_header :: (ch: *dc.Channel) {
 			b.layout_axis = .X;
 			b.cross_align = .Center;
 			sig := ui.signal(b);
-			active := (name == "group" && app.view.show_members) || (name == "user-circle" && !app.view.hide_dm_profile) || (name == "phone-call" && app.voice_channel == ch.id);
+			active := (name == "group" && !app.view.hide_members) || (name == "user-circle" && !app.view.hide_dm_profile) || (name == "phone-call" && app.voice_channel == ch.id);
 			color := ifx sig.hovering || active then T("--interactive-icon-hover") else T("--icon-muted");
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, (HEADER_TOOL_W - 20) / 2);
 				icon("i", ifx name == "bell" then bell_icon_name(ch) else name, 20, color);
 			}
 			if sig.clicked && name == "bell" && !dc.is_thread(ch) { bell_popout_toggle(ch.id, b.rect); }
-			if sig.clicked && name == "group" { app.view.show_members = !app.view.show_members; }
+			if sig.clicked && name == "group" { app.view.hide_members = !app.view.hide_members; }
 			if sig.clicked && name == "user-circle" { app.view.hide_dm_profile = !app.view.hide_dm_profile; }
 			if name == "pin" header_pin_rect = b.rect;
 			if name == "thread" header_thread_rect = b.rect;
@@ -1274,7 +1273,7 @@ overlays :: () {
 			else if !ch {}
 			else if e.key == .P pins_toggle(ch.id, header_pin_rect);
 			else if ch.kind == .DM app.view.hide_dm_profile = !app.view.hide_dm_profile;
-			else app.view.show_members = !app.view.show_members;
+			else app.view.hide_members = !app.view.hide_members;
 			e.consumed = true;
 		}
 		if !e.consumed && e.kind == .Key_Down && e.key == .K && (e.mods & PRIMARY_MOD) != 0 {

@@ -276,7 +276,7 @@ sweep_measure :: () -> u64 {
 		return builder_to_string(*sb,, temp);
 	}
 	state := join(
-		app.view.guild, app.view.channel, app.view.friends_tab, app.view.show_members, app.view.hide_dm_profile,
+		app.view.guild, app.view.channel, app.view.friends_tab, app.view.hide_members, app.view.hide_dm_profile,
 		app.settings_open, app.profile_user, settings_page, app.self_mute, app.self_deaf, app.ui.focus, ed,
 		sw.open, ma.menu_msg, ma.confirming, ma.editing, ma.replying, ma.reply_mention, staged_count(app.view.channel), att.mod_key, att.notice, att.drag,
 		pk.open, pk.tab, pins_state_for_test(), gdm_state_for_test(), pf_state_for_test(), rail_state_for_test(),
