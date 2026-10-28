@@ -1453,6 +1453,11 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 					if e.consumed || e.kind != .Key_Down || e.key != .V || (e.mods & (.Shift | .Alt)) || !(e.mods & PRIMARY_MOD) continue;
 					if paste_attachments(ch.id) e.consumed = true;
 				}
+				for * e: app.ui.events {
+					if e.consumed || e.kind != .Key_Down || e.key != .U || e.mods != PRIMARY_MOD | .Shift continue;
+					e.consumed = true;
+					stage_paths(ch.id, pick_files(), "file_picker");
+				}
 			}
 			// the emoji and mention autocompletes float over the whole form and take their keys first
 			ui.push_parent(stack);
