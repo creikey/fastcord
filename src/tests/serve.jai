@@ -235,6 +235,10 @@ main :: () {
 		discord.delete_message(cl, cid, mid);
 		for 1..300 { if stored().count == 1 break; pump(); }
 		check(stored().count == 1, "client delete");
+		hello := stored()[0].id;
+		discord.send_message(cl, cid, "a reply", .{reply_to = hello, reply_guild_id = cl.store.guild_order[0]});
+		for 1..300 { if stored().count == 2 && !stored()[1].pending break; pump(); }
+		check(stored().count == 2 && !stored()[1].pending && stored()[1].kind == 19 && stored()[1].referenced_id == hello, "client reply");
 	}
 	discord.send_typing(cl, cid);
 	typing_ok := false;
@@ -254,11 +258,15 @@ main :: () {
 	check(status == 404, tprint("edit an unknown message: %", status));
 	status, body = rest("GET", messages, "", token);
 	list, _ = etf.from_json(body);
-	check(status == 200 && list.kind == .List && list.list.count == 1, tprint("the client's delete reached the server: % %", status, body));
+	check(status == 200 && list.kind == .List && list.list.count == 2 && field(list.list[0], "referenced_message", "content").s == "hello",
+		tprint("the client's delete and reply reached the server: % %", status, body));
 	if list.list.count {
 		status, body = rest("PATCH", tprint("%/%", messages, field(list.list[0], "id").s), "{\"content\": \"hi\"}", token);
-		check(status == 200 && contains(body, "\"content\":\"hi\"") && !contains(body, "\"edited_timestamp\":null"), tprint("edit: % %", status, body));
+		edited, _ := etf.from_json(body);
+		check(status == 200 && field(edited, "content").s == "hi" && field(edited, "edited_timestamp").kind == .String && field(edited, "type").i == 19, tprint("edit: % %", status, body));
 	}
+	status, body = rest("POST", messages, "{\"content\": \"x\", \"message_reference\": {\"message_id\": \"1\"}}", token);
+	check(status == 400, tprint("a reply to an unknown message is refused: %", status));
 	status, body = login(other, "", "Other");
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 

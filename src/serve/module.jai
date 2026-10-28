@@ -52,6 +52,7 @@ open :: (path: string) -> *Server, bool {
 	s := New(Server);
 	s.db = db;
 	if !sqlite.exec(db, SCHEMA) { close(s); return null, false; }
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;"); // Files made before replies; fails once it exists.
 
 	id := meta_get(s, "id");
 	key := meta_get(s, "tls_key");
@@ -268,7 +269,7 @@ CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER);
 CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL);
 SQL
 
@@ -456,11 +457,21 @@ iso :: (id: s64) -> string {
 		two(t.hour), two(t.minute), two(t.second), formatInt(t.millisecond, minimum_digits = 3));
 }
 
-// edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited.
-message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0, nonce := "") -> etf.Value {
-	m := etf.map_builder(14,, temp);
+// edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
+// carries the message it answers as referenced, or null once that is deleted.
+message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
+		reply: s64 = 0, referenced := etf.Value.{}, nonce := "") -> etf.Value {
+	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
-	etf.map_put(*m, "type", etf.vint(0));
+	etf.map_put(*m, "type", etf.vint(ifx reply then 19 else 0));
+	if reply {
+		ref := etf.map_builder(3,, temp);
+		etf.map_put(*ref, "message_id", snow(reply));
+		etf.map_put(*ref, "channel_id", snow(channel));
+		etf.map_put(*ref, "guild_id", snow(s.guild));
+		etf.map_put(*m, "message_reference", etf.vmap(etf.map_done(*ref)));
+		etf.map_put(*m, "referenced_message", referenced);
+	}
 	etf.map_put(*m, "channel_id", snow(channel));
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "author", user_value(author, author_name));
@@ -473,6 +484,27 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "mentions", etf.vlist(.[]));
 	if nonce etf.map_put(*m, "nonce", etf.vstring(nonce));
 	return etf.vmap(etf.map_done(*m));
+}
+
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0) FROM messages m JOIN users u ON u.id = m.author";
+
+// row_message reads a MESSAGE_SELECT row; the caller holds db_mu. A reply's target is looked up one level
+// deep, as Discord sends it.
+row_message :: (s: *Server, st: *sqlite.Stmt, nested := false) -> etf.Value {
+	reply := sqlite.col_int(st, 6);
+	referenced: etf.Value;
+	if reply && !nested referenced = message_locked(s, reply);
+	return message_value(s, sqlite.col_int(st, 0), sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced);
+}
+
+// message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
+message_locked :: (s: *Server, id: s64, nested := true) -> etf.Value {
+	st := sqlite.prepare(s.db, tprint("% WHERE m.id = ?;", MESSAGE_SELECT));
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, id);
+	if sqlite.step(st) != .Row return .{};
+	return row_message(s, st, nested);
 }
 
 // Until roles land (Hosting 4) everyone may read, write, react, embed, attach and make invites.
@@ -659,11 +691,9 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		list.allocator = temp;
 		{
 			locks.guard(*s.db_mu);
-			st := sqlite.prepare(s.db, "SELECT m.id, m.author, u.name, m.content, coalesce(m.edited, 0) FROM messages m JOIN users u ON u.id = m.author WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;");
+			st := sqlite.prepare(s.db, tprint("% WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;", MESSAGE_SELECT));
 			sqlite.bind_all(st, channel, before, before, limit);
-			while sqlite.step(st) == .Row {
-				array_add(*list, message_value(s, sqlite.col_int(st, 0), channel, sqlite.col_int(st, 1), copy_string(sqlite.col_text(st, 2),, temp), copy_string(sqlite.col_text(st, 3),, temp), sqlite.col_int(st, 4)));
-			}
+			while sqlite.step(st) == .Row array_add(*list, row_message(s, st));
 			sqlite.finalize(st);
 		}
 		etf.to_json(etf.vlist(list), *sb);
@@ -673,14 +703,28 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		content, _ := etf.map_get(v.map, "content");
 		nonce, _ := etf.map_get(v.map, "nonce");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		ref, _ := etf.map_get(v.map, "message_reference");
+		reply: s64;
+		if ref.kind == .Map {
+			rid, _ := etf.map_get(ref.map, "message_id");
+			if rid.kind == .String reply = string_to_int(rid.s, T = s64);
+			else if rid.kind == .Int reply = rid.i;
+		}
 		id := snowflake(s);
+		referenced: etf.Value;
 		{
 			locks.guard(*s.db_mu);
-			if !sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content) VALUES(?, ?, ?, ?);", id, channel, user, content.s) {
+			if reply {
+				referenced = message_locked(s, reply);
+				if referenced.kind != .Map || etf.map_get(referenced.map, "channel_id").s != tprint("%", channel) {
+					return json_error(c, 400, 50035, "Invalid Form Body");
+				}
+			}
+			if !sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply) VALUES(?, ?, ?, ?, ?);", id, channel, user, content.s, reply) {
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
 		}
-		m := message_value(s, id, channel, user, name, content.s, nonce = ifx nonce.kind == .String then nonce.s else "");
+		m := message_value(s, id, channel, user, name, content.s, 0, reply, referenced, ifx nonce.kind == .String then nonce.s else "");
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_CREATE", m);
 	} else {
@@ -712,14 +756,14 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		content, _ := etf.map_get(v.map, "content");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
-		edited := snowflake(s);
+		m: etf.Value;
 		{
 			locks.guard(*s.db_mu);
-			if !sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ? WHERE id = ?;", content.s, edited, message) {
+			if !sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ? WHERE id = ?;", content.s, snowflake(s), message) {
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
+			m = message_locked(s, message, nested = false);
 		}
-		m := message_value(s, message, channel, user, name, content.s, edited);
 		sb: String_Builder;
 		sb.allocator = temp;
 		etf.to_json(m, *sb);
