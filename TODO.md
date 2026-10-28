@@ -241,7 +241,8 @@
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
 - [ ] Composer: no character counter near the 2000/4000 limit, and over-long sends aren't blocked.
-- [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
+- [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), and watching more than one stream.
+- [ ] Go Live: no stream settings. Resolution and frame rate are fixed (`SCREEN_FPS` 30, `SCREEN_MAX_H` 1080 in `src/app/video_call.jai`). Add the official picker's resolution (720p, 1080p, source) and frame rate (15, 30, 60). Also add a stream-audio mute toggle, once soundshare exists, and let the streamer change these settings mid-stream.
 - [ ] Notifications: a channel's own notification level (All / Only @mentions / Nothing) is ignored for sounds and notifications; only the server level is read (`sounds.jai`). The channel, category, server chain already exists in `analytics_events.jai`.
 - [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
 - [ ] GIFs (fastcord-only): search Tenor as well as Klipy and merge the results. Discord's `/gifs/search` now returns Klipy only (`expressions.jai` `gifs_search` sends no provider). Either query Tenor's own API directly (needs an API key; check it's still offered), or add `provider=tenor` to Discord's endpoint if it still honours it. That second route makes fastcord's traffic differ from the official client's, so prefer the direct one. Sent Tenor links already embed fine.
