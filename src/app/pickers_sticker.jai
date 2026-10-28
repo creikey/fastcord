@@ -274,7 +274,7 @@ sticker_nav :: (secs: []St_Section, h: float32, searching: bool) {
 				gi.style.text_color = T("--text-default");
 				g := dc.guild_get(store(), sc.guild);
 				if g {
-					if g.icon != "" set_remote_image(gi, dc.guild_icon_url(sc.guild, g.icon, 64));
+					if g.icon != "" set_remote_image(gi, guild_icon_url(sc.guild, g.icon, 64));
 					else gi.text = guild_initials(g.name);
 				}
 			} else {

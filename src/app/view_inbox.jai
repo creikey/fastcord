@@ -446,7 +446,7 @@ unread_header :: (gid: dc.Snowflake) {
 		gi.style.font_size = 9;
 		gi.text = guild_initials(g.name);
 		if g.icon != "" {
-			set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 48));
+			set_remote_image(gi, guild_icon_url(g.id, g.icon, 48));
 			gi.text = "";
 		}
 	} else {

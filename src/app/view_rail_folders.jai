@@ -366,7 +366,7 @@ rail_folder :: (e: *Rail_Entry, entry: int) {
 						m.style.font_size = 6;
 						m.style.text_align = .Center;
 						m.style.text_color = T("--text-default");
-						if g.icon != "" { set_remote_image(m, dc.guild_icon_url(gid, g.icon, 32)); } else { m.text = guild_initials(g.name); }
+						if g.icon != "" { set_remote_image(m, guild_icon_url(gid, g.icon, 32)); } else { m.text = guild_initials(g.name); }
 						m.opacity = 1 - t;
 					}
 				}
@@ -457,7 +457,7 @@ rail_drag :: (entries: [..]Rail_Entry) {
 			gid := ifx rs.drag_inner >= 0 && rs.drag_inner < e.guilds.count then e.guilds[rs.drag_inner] else (ifx e.id == 0 then e.guilds[0] else 0);
 			g := dc.guild_get(store(), gid);
 			if g != null {
-				if g.icon != "" { set_remote_image(ghost, dc.guild_icon_url(gid, g.icon, 96)); } else { ghost.text = guild_initials(g.name); }
+				if g.icon != "" { set_remote_image(ghost, guild_icon_url(gid, g.icon, 96)); } else { ghost.text = guild_initials(g.name); }
 				ghost.style.font = F(.Medium);
 				ghost.style.font_size = guild_acronym_size(ghost.text.count);
 				ghost.style.text_align = .Center;

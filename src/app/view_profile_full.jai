@@ -409,7 +409,7 @@ profile_about :: (uid: dc.Snowflake, u: *dc.User, prof: Pf_Profile) {
 			gi.style.text_color = T("--text-default");
 			g := dc.guild_get(store(), pf.guild);
 			if g != null {
-				if g.icon != "" { set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 32)); } else { gi.text = guild_initials(g.name); }
+				if g.icon != "" { set_remote_image(gi, guild_icon_url(g.id, g.icon, 32)); } else { gi.text = guild_initials(g.name); }
 			}
 			spacer(.X, 8);
 			label(short_date(dc.iso_to_ms(prof.guild_joined)), .Normal, 14, T("--text-default"), 18);
@@ -478,7 +478,7 @@ profile_mutual_servers :: (prof: Pf_Profile) {
 				gi.style.font_size = 14;
 				gi.style.text_align = .Center;
 				gi.style.text_color = T("--text-default");
-				if g.icon != "" { set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 80)); } else { gi.text = guild_initials(g.name); }
+				if g.icon != "" { set_remote_image(gi, guild_icon_url(g.id, g.icon, 80)); } else { gi.text = guild_initials(g.name); }
 				spacer(.X, 12);
 				col := ui.box("col");
 				col.semantic_size = .[ui.fill(), ui.children()];

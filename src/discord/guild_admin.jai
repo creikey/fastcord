@@ -548,6 +548,15 @@ edit_guild_name :: (c: *Client, guild_id: Snowflake, name: string) {
 	feature_submit(c, .Guild_Edit, "PATCH", tprint("/guilds/%", guild_id), json_string(*w), channel_id = guild_id);
 }
 
+// The serve's cap (`ICON_MAX_BYTES`), which keeps the base64 body under its 1 MiB request limit.
+HOSTED_ICON_MAX_BYTES :: 512 * 1024;
+
+// PATCH /guilds/{id} {"icon": data URI} from an image file (read off the UI thread), or "" to remove it.
+edit_guild_icon :: (c: *Client, guild_id: Snowflake, path: string) {
+	if path feature_submit(c, .Guild_Edit, "PATCH", tprint("/guilds/%", guild_id), channel_id = guild_id, file = path);
+	else feature_submit(c, .Guild_Edit, "PATCH", tprint("/guilds/%", guild_id), "{\"icon\":null}", channel_id = guild_id);
+}
+
 // After a channel is created, saved or deleted the client refreshes the guild's
 // templates (their "unsynced" state): GET /guilds/{id}/templates (MANAGE_GUILD only).
 refresh_templates :: (c: *Client, guild_id: Snowflake) {
@@ -663,11 +672,20 @@ image_mime :: (path: string) -> string {
 // file_job_body (feature worker thread): reads the image at path and builds
 // {"image":"data:<mime>;base64,..","name":<name>} plus X-Discord-Original-MD5, all in temp.
 // status: 0 ok, -1 unreadable / not an image, -2 over EMOJI_MAX_BYTES.
-file_job_body :: (path: string, name: string) -> string, []http.Header, int {
+file_job_body :: (path: string, name: string, op: Feature_Op) -> string, []http.Header, int {
 	mime := image_mime(path);
 	if !mime return "", .[], -1;
 	data, ok := read_entire_file(path, log_errors = false,, temp);
 	if !ok || !data return "", .[], -1;
+	if op == .Guild_Edit {
+		if data.count > HOSTED_ICON_MAX_BYTES return "", .[], -2;
+		w: Json;
+		json_init(*w);
+		json_obj(*w);
+		json_kstr(*w, "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
+		json_obj_end(*w);
+		return json_string(*w), .[], 0;
+	}
 	if data.count > EMOJI_MAX_BYTES return "", .[], -2;
 	digest := crypto.md5(cast([]u8) data);
 	sb: String_Builder;

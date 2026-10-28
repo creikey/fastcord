@@ -509,7 +509,7 @@ category_nav :: (secs: []Em_Section, h: float32, searching: bool) {
 				gi.style.text_color = T("--text-default");
 				g := dc.guild_get(store(), sc.guild);
 				if g {
-					if g.icon != "" set_remote_image(gi, dc.guild_icon_url(sc.guild, g.icon, 64));
+					if g.icon != "" set_remote_image(gi, guild_icon_url(sc.guild, g.icon, 64));
 					else gi.text = guild_initials(g.name);
 				}
 				if active {
@@ -566,7 +566,7 @@ section_header :: (sc: *Em_Section, id: string, y: float32, w: float32) {
 			gi.style.radius = all4(4);
 			gi.style.bg = T("--background-mod-subtle");
 			g := dc.guild_get(store(), sc.guild);
-			if g != null && g.icon != "" set_remote_image(gi, dc.guild_icon_url(sc.guild, g.icon, 32));
+			if g != null && g.icon != "" set_remote_image(gi, guild_icon_url(sc.guild, g.icon, 32));
 		} else {
 			icon("hi", sc.icon, EM_HEADER_ICON, c);
 		}
@@ -757,7 +757,7 @@ emoji_inspector :: (secs: []Em_Section) {
 			gi.semantic_size = .[ui.px(32), ui.px(32)];
 			gi.style.radius = all4(10);
 			gi.style.bg = T("--background-mod-subtle");
-			if g.icon != "" set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 64));
+			if g.icon != "" set_remote_image(gi, guild_icon_url(g.id, g.icon, 64));
 		}
 		spacer(.X, 16);
 	}

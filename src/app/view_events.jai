@@ -172,7 +172,7 @@ event_invite_card :: (id: string, key: string, p: dc.Invite_Preview, m: *dc.Mess
 		gi.style.font_size = 16;
 		gi.text = guild_initials(p.name);
 		if p.icon != "" {
-			set_remote_image(gi, dc.guild_icon_url(p.guild_id, p.icon, 128));
+			set_remote_image(gi, guild_icon_url(p.guild_id, p.icon, 128));
 			gi.text = "";
 		}
 		spacer(.X, 12);

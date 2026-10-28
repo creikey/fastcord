@@ -297,7 +297,7 @@ title_bar :: () {
 			gi.style.font_size = 6;
 			gi.text = guild_initials(g.name);
 			if g.icon != "" {
-				set_remote_image(gi, dc.guild_icon_url(g.id, g.icon, 32));
+				set_remote_image(gi, guild_icon_url(g.id, g.icon, 32));
 				gi.text = "";
 			}
 		} else {
@@ -478,7 +478,7 @@ rail_item :: (id: string, selected: bool, text: string, icon_name: string, guild
 			ic.style.bg_hot = ifx selected then ic.style.bg else T("--background-brand");
 			g := dc.guild_get(store(), guild_id);
 			if g != null && g.icon != "" {
-				set_remote_image(ic, dc.guild_icon_url(guild_id, g.icon, 96));
+				set_remote_image(ic, guild_icon_url(guild_id, g.icon, 96));
 				ic.text = "";
 			}
 		}

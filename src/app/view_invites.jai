@@ -200,7 +200,7 @@ guild_tile :: (p: dc.Invite_Preview, size: float32, pos: Vector2) {
 	gi.style.font_size = size * 0.3;
 	gi.text = guild_initials(p.name);
 	if p.icon != "" {
-		set_remote_image(gi, dc.guild_icon_url(p.guild_id, p.icon, 128));
+		set_remote_image(gi, guild_icon_url(p.guild_id, p.icon, 128));
 		gi.text = "";
 	}
 }

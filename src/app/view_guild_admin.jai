@@ -63,7 +63,7 @@ server_settings_open :: (gid: dc.Snowflake) {
 	if g == null return;
 	adm.modal = .Server_Settings;
 	adm.guild = gid;
-	adm.busy = false;
+	adm.busy, adm.icon_busy = false, false;
 	ui.editor_set_text(*adm.name, g.name);
 	set_error("");
 	adm.focus_field = true;
@@ -149,10 +149,15 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 		}
 	case .Guild_Edit;
 		if adm.modal != .Server_Settings || r.channel_id != adm.guild return;
+		icon := adm.icon_busy;
+		adm.icon_busy = false;
 		if r.ok {
-			admin_close();
+			if !icon admin_close(); // An icon change keeps the page open; GUILD_UPDATE shows it.
+			adm.busy = false;
 			return;
 		}
+		if icon && r.status == -1 { set_error("That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images."); return; }
+		if icon && r.status == -2 { set_error("That image is too large. Server icons must be under 512 KB."); return; }
 	case .Channel_Delete;
 		if adm.modal != .Delete_Channel || r.channel_id != adm.channel return;
 		if r.ok {
@@ -337,6 +342,7 @@ Admin_State :: struct {
 	slow_open: bool; // settings: the Slowmode dropdown is open
 	slow_anchor: ui.Rect;
 	in_settings: bool; // the delete confirm returns to the settings page
+	icon_busy: bool; // Server Settings: an icon upload or removal is in flight.
 }
 
 adm: Admin_State;
@@ -580,6 +586,41 @@ server_settings_modal :: () {
 		return;
 	}
 	submit := false;
+	spacer(.Y, 24);
+	ir := row("iconrow");
+	ir.semantic_size = .[ui.pct(1), ui.px(80)];
+	ir.cross_align = .Center;
+	{ ui.parent(ir); defer ui.pop_parent();
+		spacer(.X, 25);
+		ic := ui.box("icon", .Draw_Background | .Draw_Text);
+		ic.semantic_size = .[ui.px(80), ui.px(80)];
+		ic.style.radius = all4(40);
+		ic.style.bg = T("--background-mod-subtle");
+		ic.style.text_color = T("--text-default");
+		ic.style.text_align = .Center;
+		ic.style.font = F(.Medium);
+		ic.style.font_size = 20;
+		ic.text = guild_initials(g.name);
+		if g.icon {
+			set_remote_image(ic, guild_icon_url(g.id, g.icon, 160));
+			ic.text = "";
+		}
+		spacer(.X, 16);
+		if adm_button("upload", ifx adm.icon_busy then "Uploading..." else "Upload Image", .Primary, !adm.icon_busy && !adm.busy) {
+			paths := pick_files();
+			if paths.count && net_action() {
+				adm.icon_busy = true;
+				set_error("");
+				dc.edit_guild_icon(app.client, adm.guild, paths[0]);
+			}
+		}
+		spacer(.X, 8);
+		if g.icon && adm_button("removeicon", "Remove", .Secondary, !adm.icon_busy && !adm.busy) && net_action() {
+			adm.icon_busy = true;
+			set_error("");
+			dc.edit_guild_icon(app.client, adm.guild, "");
+		}
+	}
 	spacer(.Y, 24);
 	nl := row("namelbl");
 	nl.semantic_size = .[ui.pct(1), ui.px(20)];

@@ -622,7 +622,7 @@ serve_conn :: (c: *Conn) {
 			if !login(c, session, req) return;
 			continue;
 		}
-		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") {
+		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") {
 			if !files(c, req) return;
 			continue;
 		}
@@ -639,7 +639,7 @@ serve_conn :: (c: *Conn) {
 			continue;
 		}
 		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%", c.server.guild) {
-			if !rename_guild(c, req) return;
+			if !edit_guild(c, req) return;
 			continue;
 		}
 		if req.method == "PATCH" && req.path == "/api/v9/users/@me/guilds/settings" {
@@ -934,9 +934,10 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	roles := NewArray(1, etf.Value,, temp);
 	roles[0] = etf.vmap(etf.map_done(*everyone));
 
-	g := etf.map_builder(6,, temp);
+	g := etf.map_builder(7,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
 	etf.map_put(*g, "name", etf.vstring(copy_string(s.name,, temp)));
+	etf.map_put(*g, "icon", guild_icon_locked(s));
 	etf.map_put(*g, "member_count", etf.vint(members));
 	owner := owner_id(s);
 	if owner etf.map_put(*g, "owner_id", snow(owner));
@@ -1585,28 +1586,72 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 	return json_reply(c, 201, etf.vmap(etf.map_done(*m)));
 }
 
-// PATCH /api/v9/guilds/{id} {name}: the owner renames the server. s.name changes under db_mu, so readers
-// copy it while holding that lock.
-rename_guild :: (c: *Conn, req: http.Request) -> bool {
+ICON_MAX_BYTES :: 512 * 1024;
+
+// The server icon's hash, or null; the caller holds db_mu.
+guild_icon_locked :: (s: *Server) -> etf.Value {
+	hash := cast(string) meta_get(s, "icon");
+	return ifx hash then etf.vstring(hash) else .{};
+}
+
+// PATCH /api/v9/guilds/{id} {name?, icon?}: the owner renames the server or sets its icon, a `data:` URI
+// (null removes it). The image is kept as sent, checked by its magic bytes, not decoded. s.name changes
+// under db_mu, so readers copy it while holding that lock.
+edit_guild :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
 	user := session_user(c, token);
 	if !user return json_error(c, 401, 0, "401: Unauthorized");
 	v, err := etf.from_json(cast(string) req.body,, temp);
-	raw: etf.Value;
-	if err == .None && v.kind == .Map raw, _ = etf.map_get(v.map, "name");
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	raw, has_name := etf.map_get(v.map, "name");
+	icon_v, has_icon := etf.map_get(v.map, "icon");
+	if !has_name && !has_icon return json_error(c, 400, 50035, "Invalid Form Body");
 	name := ifx raw.kind == .String then trim(raw.s) else "";
-	if name.count < 2 || name.count > 100 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
+	if has_name && (name.count < 2 || name.count > 100 || !text_ok(name)) return json_error(c, 400, 50035, "Invalid Form Body");
+	icon: []u8;
+	format: imagefmt.Format;
+	if has_icon && icon_v.kind != .Nil {
+		uri := ifx icon_v.kind == .String then icon_v.s else "";
+		comma := find_index_from_left(uri, #char ",");
+		if !begins_with(uri, "data:image/") || comma < 0 || !ends_with(slice(uri, 0, comma), ";base64") || uri.count - comma > ICON_MAX_BYTES / 3 * 4 + 8 {
+			return json_error(c, 400, 50035, "Invalid Form Body");
+		}
+		data, ok := base64_decode(advance(uri, comma + 1),, temp);
+		icon = cast([]u8) data;
+		format = imagefmt.sniff(icon);
+		if !ok || icon.count > ICON_MAX_BYTES || format == .Unknown return json_error(c, 400, 50035, "Invalid Form Body");
+	}
+	g := etf.map_builder(3,, temp);
+	etf.map_put(*g, "id", snow(s.guild));
 	{
 		locks.guard(*s.db_mu);
 		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		if !meta_put(s, "name", name) return json_error(c, 500, 0, "500: Internal Server Error");
-		free(s.name);
-		s.name = copy_string(name);
+		if has_name {
+			if !meta_put(s, "name", name) return json_error(c, 500, 0, "500: Internal Server Error");
+			free(s.name);
+			s.name = copy_string(name);
+		}
+		if has_icon {
+			ok := true;
+			if icon {
+				hash: [16]u8;
+				crypto.random_bytes(hash);
+				TYPES :: string.["", "image/png", "image/gif", "image/jpeg", "image/webp"];
+				ok = sqlite.exec(s.db, "BEGIN;")
+					&& meta_put(s, "icon", tprint("%1%2", ifx format == .GIF then "a_" else "", hex(hash,, temp)))
+					&& meta_put(s, "icon_type", TYPES[cast(int) format])
+					&& meta_put(s, "icon_data", icon)
+					&& sqlite.exec(s.db, "COMMIT;");
+				if !ok sqlite.exec(s.db, "ROLLBACK;");
+			} else {
+				ok = sqlite.run(s.db, "DELETE FROM meta WHERE k IN ('icon', 'icon_type', 'icon_data');");
+			}
+			if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		etf.map_put(*g, "name", etf.vstring(copy_string(s.name,, temp)));
+		etf.map_put(*g, "icon", guild_icon_locked(s));
 	}
-	g := etf.map_builder(2,, temp);
-	etf.map_put(*g, "id", snow(s.guild));
-	etf.map_put(*g, "name", etf.vstring(name));
 	guild := etf.vmap(etf.map_done(*g));
 	broadcast(s, "GUILD_UPDATE", guild);
 	return json_reply(c, 200, guild);
@@ -1858,9 +1903,11 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	expires := 0;
 	ch: etf.Value;
 	guild_name: string;
+	guild_icon: etf.Value;
 	{
 		locks.guard(*s.db_mu);
 		guild_name = copy_string(s.name,, temp);
+		guild_icon = guild_icon_locked(s);
 		ch = channel_locked(s, channel);
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
 		if validate.kind == .String {
@@ -1884,9 +1931,10 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 			}
 		}
 	}
-	g := etf.map_builder(2,, temp);
+	g := etf.map_builder(3,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
 	etf.map_put(*g, "name", etf.vstring(guild_name));
+	etf.map_put(*g, "icon", guild_icon);
 	m := etf.map_builder(9,, temp);
 	etf.map_put(*m, "code", etf.vstring(code));
 	etf.map_put(*m, "type", etf.vint(0));
@@ -1993,6 +2041,22 @@ files :: (c: *Conn, req: http.Request) -> bool {
 			return json_error(c, 404, 0, "404: Not Found");
 		}
 		return respond(c, 200, json = false);
+	}
+	// GET /icons/{guild}/{hash}.{ext}: the server icon, whatever the extension and size asked for, as
+	// Discord's CDN converts; the random hash is what makes it unguessable, like an attachment's key.
+	if begins_with(path, "/icons/") {
+		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
+		parts := split(advance(path, "/icons/".count), "/",, temp);
+		if parts.count != 2 || parts[0] != tprint("%", s.guild) return json_error(c, 404, 0, "404: Not Found");
+		hash := parts[1];
+		dot := find_index_from_left(hash, #char ".");
+		if dot >= 0 hash.count = dot;
+		locks.guard(*s.db_mu);
+		if !hash || hash != cast(string) meta_get(s, "icon") return json_error(c, 404, 0, "404: Not Found");
+		c.reply_status, c.reply_json = 200, false;
+		c.reply_type = cast(string) meta_get(s, "icon_type");
+		c.reply_body = cast(string) meta_get(s, "icon_data");
+		return true;
 	}
 	if begins_with(path, "/attachments/") {
 		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");

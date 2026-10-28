@@ -708,6 +708,23 @@ main :: () {
 	check(renamed && renamed.name == "Hangout", "GUILD_UPDATE renames the server for members");
 	discord.client_destroy(member_cl);
 
+	// Server icon: the owner sets one as a data URI, it is served under its hash, and null removes it.
+	PNG_1PX :: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"icon\": \"data:image/png;base64,bm90IGFuIGltYWdl\"}", token);
+	check(status == 400, tprint("an icon that isn't an image is refused: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"icon\": \"data:image/png;base64,%\"}", PNG_1PX), other_token);
+	check(status == 403, tprint("only the owner sets the icon: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"icon\": \"data:image/png;base64,%\"}", PNG_1PX), token);
+	icon_v, _ := etf.from_json(body);
+	icon_hash := field(icon_v, "icon").s;
+	check(status == 200 && icon_hash.count == 32 && field(icon_v, "name").s == "Hangout", tprint("the owner sets the icon: % %", status, body));
+	status, body = rest("GET", tprint("/icons/%/%.png?size=96", gid, icon_hash), "", "");
+	check(status == 200 && begins_with(body, "\x89PNG"), tprint("the icon is served: %", status));
+	status, body = rest("GET", tprint("/icons/%/0123.png", gid), "", "");
+	check(status == 404, tprint("a wrong icon hash 404s: %", status));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"icon\": null}", token);
+	check(status == 200 && contains(body, "\"icon\":null"), tprint("null removes the icon: % %", status, body));
+
 	// Slowmode: the owner sets it in Channel Settings; a member's second message comes too soon, the owner's doesn't.
 	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"slow\", \"type\": 0}", token);
 	slow_v, _ := etf.from_json(body);

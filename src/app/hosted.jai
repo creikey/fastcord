@@ -142,6 +142,13 @@ media_client :: (url: string) -> *dc.Client {
 	return app.client;
 }
 
+// A guild's icon: a hosted server serves its own, under its ID as host so media_client routes it there.
+guild_icon_url :: (gid: dc.Snowflake, hash: string, size := 96, animate := false) -> string {
+	if !hash return "";
+	for hosted if it.client && dc.guild_get(*it.client.store, gid) return tprint("https://%/icons/%/%.png?size=%", it.inv.id_hex, gid, hash, size);
+	return dc.guild_icon_url(gid, hash, size, animate);
+}
+
 // The client that owns guild gid, if a hosted one does.
 hosted_client_of :: (gid: dc.Snowflake) -> *dc.Client {
 	for hosted if it.client && dc.guild_get(*it.client.store, gid) return it.client;

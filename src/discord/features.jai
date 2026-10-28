@@ -609,7 +609,7 @@ f_worker :: (_: *void) {
 		if !j.client.quit {
 			body, file_status := j.body, 0;
 			extra: []http.Header;
-			if j.file body, extra, file_status = file_job_body(j.file, j.body);
+			if j.file body, extra, file_status = file_job_body(j.file, j.body, j.op);
 			r: Api_Response;
 			if file_status == 0 r = api_call(j.client, j.method, j.path, cast([]u8) body, ifx body then "application/json" else "", j.context_b64, extra, j.retries, 1);
 			res := Feature_Result.{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena, client = j.client};
