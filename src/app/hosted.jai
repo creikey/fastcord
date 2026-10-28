@@ -14,7 +14,9 @@ Hosted_Server :: struct {
 	joined: bool;      // A member already: restored from settings, or logged in once.
 	retry_at: float64; // When a failed login of a joined server is tried again; 0 when none is due.
 	backoff: float64;
-	status_sent: dc.Status;     // What mirror_status last told status_client, which a re-login replaces.
+	// What mirror_presence last told status_client, which a re-login replaces.
+	status_sent: dc.Status;
+	custom_sent: string;
 	status_client: *dc.Client;
 }
 
@@ -91,10 +93,12 @@ hosted_frame :: () {
 			}
 		}
 		if h.client && h.client.store.connection == .Ready && app.discord && app.discord.store.settings.status != .Offline {
-			want := app.discord.store.settings.status;
-			if want != h.status_sent || h.client != h.status_client {
-				dc.mirror_status(h.client, want);
-				h.status_sent, h.status_client = want, h.client;
+			st := *app.discord.store.settings;
+			custom := tprint("%\0%\0%", st.custom_status_text, st.custom_status_emoji, st.custom_status_emoji_id);
+			if st.status != h.status_sent || custom != h.custom_sent || h.client != h.status_client {
+				dc.mirror_presence(h.client, app.discord);
+				free(h.custom_sent);
+				h.status_sent, h.custom_sent, h.status_client = st.status, copy_string(custom), h.client;
 			}
 		}
 		if h.client && h.client != app.client dc.client_poll(h.client);
@@ -135,6 +139,7 @@ hosted_free :: (h: *Hosted_Server) {
 	free(h.invite);
 	free(h.name);
 	free(h.error);
+	free(h.custom_sent);
 	free(h);
 }
 

@@ -211,6 +211,27 @@ main :: () {
 		presence(ws, "online");
 		ev = recv_event(ws);
 		check(field(ev, "d", "online_count").i == 1, "back online");
+		{
+			a := etf.map_builder();
+			etf.map_put(*a, "type", etf.vint(4));
+			etf.map_put(*a, "name", etf.vstring("Custom Status"));
+			etf.map_put(*a, "state", etf.vstring("hacking"));
+			acts := NewArray(1, etf.Value);
+			acts[0] = etf.vmap(etf.map_done(*a));
+			p := etf.map_builder();
+			etf.map_put(*p, "status", etf.vstring("online"));
+			etf.map_put(*p, "activities", etf.vlist(acts));
+			m := etf.map_builder();
+			etf.map_put(*m, "op", etf.vint(3));
+			etf.map_put(*m, "d", etf.vmap(etf.map_done(*p)));
+			http.ws_send(ws, .Binary, etf.encode(etf.vmap(etf.map_done(*m))));
+			ev = recv_event(ws);
+			items = field(ev, "d", "ops");
+			if items.kind == .List && items.list.count items = field(items.list[0], "items");
+			shown: etf.Value;
+			if items.kind == .List && items.list.count == 2 shown = field(items.list[1], "member", "presence", "activities");
+			check(shown.kind == .List && shown.list.count == 1 && field(shown.list[0], "state").s == "hacking", "a custom status shows in the member list");
+		}
 	}
 
 	rest :: (method: string, path: string, body: string, token: string) -> int, string #expand {

@@ -30,8 +30,9 @@ Server :: struct {
 	ctx: *tls.SSL_CTX;
 	listener: *netio.Listener;
 	accept_thread: *Thread;
-	mu: locks.Mutex; // Guards conns.
+	mu: locks.Mutex; // Guards conns and activities.
 	conns: [..]*Conn;
+	activities: [..]Member_Activities; // Kept past a member's last gateway, for when they're back.
 	seq: u32; // atomic; the low bits of snowflakes
 	guild: s64; // The guild ID the client sees.
 	name: string;
@@ -301,6 +302,8 @@ stop :: (s: *Server) {
 		free(it);
 	}
 	array_free(s.conns);
+	for * s.activities set_activities(it, .[]);
+	array_free(s.activities);
 	close(s);
 }
 
@@ -894,25 +897,68 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 STATUSES :: string.["online", "idle", "dnd", "invisible"];
 INVISIBLE :: 3;
 
-// set_status gives a member's gateways the status a presence names, since on Discord the status is the
-// account's, not a session's; c is the gateway it came from. A presence without a known status gives c
-// the one the member already has. True if the member list changed. The caller holds server.mu.
-set_status_locked :: (s: *Server, c: *Conn, presence: etf.Value) -> bool {
-	v: etf.Value;
-	if presence.kind == .Map v, _ = etf.map_get(presence.map, "status");
+MAX_ACTIVITIES :: 4;
+Activity :: struct { type: int; name: string; state: string; } // Strings from the default allocator.
+Member_Activities :: struct { user: s64; list: [MAX_ACTIVITIES]Activity; count: int; }
+
+// set_presence gives a member's gateways the status a presence names, since on Discord the status is
+// the account's, not a session's; c is the gateway it came from. A presence without a known status
+// gives c the one the member already has. Its activities (a custom status, "Playing X") replace the
+// member's, except an Identify's empty list: fastcord identifies with none and sends them in an op 3
+// after READY, so a reconnect mustn't wipe them. True if the member list changed. The caller holds
+// server.mu.
+set_presence_locked :: (s: *Server, c: *Conn, presence: etf.Value, identify := false) -> bool {
+	v, acts: etf.Value;
+	if presence.kind == .Map {
+		v, _ = etf.map_get(presence.map, "status");
+		acts, _ = etf.map_get(presence.map, "activities");
+	}
+	changed := false;
+	if acts.kind == .List && !(identify && !acts.list.count) {
+		parsed: [MAX_ACTIVITIES]Activity;
+		n := 0;
+		for a: acts.list {
+			if n == MAX_ACTIVITIES break;
+			if a.kind != .Map continue;
+			type, _ := etf.map_get(a.map, "type");
+			name, _ := etf.map_get(a.map, "name");
+			state, _ := etf.map_get(a.map, "state");
+			ok_text :: (v: etf.Value) -> bool { return v.kind == .Nil || (v.kind == .String && v.s.count <= 128 && text_ok(v.s)); }
+			if type.kind != .Int || type.i < 0 || type.i > 5 || name.kind != .String || !ok_text(name) || !ok_text(state) continue;
+			parsed[n] = .{type.i, name.s, ifx state.kind == .String then state.s else ""};
+			n += 1;
+		}
+		m: *Member_Activities;
+		for * s.activities if it.user == c.user m = it;
+		if !m {
+			m = array_add(*s.activities);
+			m.user = c.user;
+		}
+		changed = set_activities(m, array_view(parsed, 0, n));
+	}
 	found, status := false, 0;
 	if v.kind == .String found, status = array_find(STATUSES, v.s);
 	if !found {
-		for s.conns if it != c && it.ws && it.user == c.user { c.status = it.status; return false; }
 		c.status = 0;
-		return false;
+		for s.conns if it != c && it.ws && it.user == c.user { c.status = it.status; break; }
+		return changed;
 	}
-	changed := false;
 	for s.conns if it.ws && it.user == c.user && it.status != status {
 		it.status = status;
 		changed = true;
 	}
 	return changed;
+}
+
+// set_activities replaces m's list with copies of list; true if it differs.
+set_activities :: (m: *Member_Activities, list: []Activity) -> bool {
+	same := m.count == list.count;
+	for list if same && (it.type != m.list[it_index].type || it.name != m.list[it_index].name || it.state != m.list[it_index].state) same = false;
+	if same return false;
+	for 0..m.count - 1 { free(m.list[it].name,, context.default_allocator); free(m.list[it].state,, context.default_allocator); }
+	for list m.list[it_index] = .{it.type, copy_string(it.name,, context.default_allocator), copy_string(it.state,, context.default_allocator)};
+	m.count = list.count;
+	return true;
 }
 
 // member_list_value is the whole member list as one GUILD_MEMBER_LIST_UPDATE SYNC: Online, then Offline,
@@ -921,11 +967,22 @@ set_status_locked :: (s: *Server, c: *Conn, presence: etf.Value) -> bool {
 member_list_value :: (s: *Server) -> etf.Value {
 	online: [..]s64;
 	statuses: [..]int;
-	online.allocator, statuses.allocator = temp, temp;
+	activities: [..]etf.Value;
+	online.allocator, statuses.allocator, activities.allocator = temp, temp, temp;
 	locks.lock(*s.mu);
-	for s.conns if it.ws && it.user && it.status != INVISIBLE && !array_find(online, it.user) {
-		array_add(*online, it.user);
-		array_add(*statuses, it.status);
+	for c: s.conns if c.ws && c.user && c.status != INVISIBLE && !array_find(online, c.user) {
+		array_add(*online, c.user);
+		array_add(*statuses, c.status);
+		list: [..]etf.Value;
+		list.allocator = temp;
+		for m: s.activities if m.user == c.user for a: array_view(m.list, 0, m.count) {
+			v := etf.map_builder(3,, temp);
+			etf.map_put(*v, "type", etf.vint(a.type));
+			etf.map_put(*v, "name", etf.vstring(copy_string(a.name,, temp)));
+			if a.state etf.map_put(*v, "state", etf.vstring(copy_string(a.state,, temp)));
+			array_add(*list, etf.vmap(etf.map_done(*v)));
+		}
+		array_add(*activities, etf.vlist(list));
 	}
 	locks.unlock(*s.mu);
 
@@ -955,9 +1012,10 @@ member_list_value :: (s: *Server) -> etf.Value {
 		etf.map_put(*item, "group", gv);
 		array_add(*`items, etf.vmap(etf.map_done(*item)));
 		for rows {
-			p := etf.map_builder(1,, temp);
+			p := etf.map_builder(2,, temp);
 			found, at := array_find(`online, it.id);
 			etf.map_put(*p, "status", etf.vstring(ifx found then STATUSES[`statuses[at]] else "offline"));
+			if found etf.map_put(*p, "activities", `activities[at]);
 			m := etf.map_builder(2,, temp);
 			etf.map_put(*m, "user", user_value(it.id, it.name));
 			etf.map_put(*m, "presence", etf.vmap(etf.map_done(*p)));
@@ -2262,7 +2320,7 @@ gateway :: (c: *Conn, req: http.Request) {
 				locks.lock(*c.server.mu);
 				c.ws = ws;
 				c.user = user;
-				set_status_locked(c.server, c, presence);
+				set_presence_locked(c.server, c, presence, identify = true);
 				locks.lock(*c.mu);
 				locks.unlock(*c.server.mu);
 				c.seq += 1;
@@ -2275,7 +2333,7 @@ gateway :: (c: *Conn, req: http.Request) {
 			case 3;
 				if !c.ws continue;
 				locks.lock(*c.server.mu);
-				changed := set_status_locked(c.server, c, d);
+				changed := set_presence_locked(c.server, c, d);
 				locks.unlock(*c.server.mu);
 				if changed broadcast(c.server, "GUILD_MEMBER_LIST_UPDATE", member_list_value(c.server));
 			case 6; // No resume: an invalid session makes the client identify again.

@@ -186,10 +186,18 @@ set_status :: (c: *Client, s: Status, duration_ms: s64 = 0, expired := false) {
 	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
 }
 
-// mirror_status: a self-hosted server's client takes the status picked on Discord's, which owns the
-// setting, and tells its server at once; later Identifies carry it (flush_presence).
-mirror_status :: (c: *Client, s: Status) {
-	c.store.settings.status = s;
+// mirror_presence: a self-hosted server's client takes the status and custom status set on Discord's
+// client, which owns the settings, and tells its server at once; later Identifies carry the status
+// (flush_presence).
+mirror_presence :: (c: *Client, from: *Client) {
+	st, src := *c.store.settings, *from.store.settings;
+	st.status = src.status;
+	free_str(st.custom_status_text, c.allocator);
+	free_str(st.custom_status_emoji, c.allocator);
+	st.custom_status_text = clone_str(src.custom_status_text, c.allocator);
+	st.custom_status_emoji = clone_str(src.custom_status_emoji, c.allocator);
+	st.custom_status_emoji_id = src.custom_status_emoji_id;
+	st.custom_status_expires_ms = src.custom_status_expires_ms;
 	c.store.changed += 1;
 	if c.gw gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
 }
