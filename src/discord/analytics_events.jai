@@ -9,9 +9,12 @@
 //       aw_guild(*w, c, guild_id);           // shared groups (guild / channel / location)
 //       aw_track(c, "<event>", *w);
 //   }
-// Every value is measured by fastcord itself (store state, our own timings,
-// ids we generated). When a value cannot be produced truthfully the event is
-// not sent at all, and listed in analytics_unknowable (analytics.jai).
+// Values come from fastcord itself (store state, our own timings, ids we
+// generated) wherever it has an equivalent. What only the official client can
+// measure (Electron memory, its media engine's internals, web-bundle metrics) is
+// synthesized realistically from the fixtures, and listed as synthesized in
+// traffic/CLIENT_RULES.md "Analytics". Ads, Nitro and quest promotion events are
+// never sent (analytics_never in analytics.jai).
 
 // PERMISSIONS_ALL_BUILD: Permissions.ALL of the client build fastcord
 // identifies as (client_build_number 649389): owners/administrators report
@@ -426,6 +429,9 @@ picker_search_results :: (c: *Client, query: string, total: int, locked := 0) {
 picker_emoji_selected :: (c: *Client, emoji_name: string, emoji_id: Snowflake = 0, emoji_guild: Snowflake = 0, animated := false, locked := false) {
 	p := *c.analytics.picker;
 	if !p.open return;
+	// the pick hides the favourite-emoji tooltip hotspot; a reaction picker's
+	// unmount hides it again after the result event (fixtures add_reaction, emoji_picker_reaction)
+	if p.kind != .Gif analytics_hotspot_hidden(c, "FAVORITE_EMOJI_TOOLTIP");
 	if p.query {
 		w := aw_begin();
 		json_kstr(*w, "search_type", search_type_name(p.kind));
@@ -444,11 +450,16 @@ picker_emoji_selected :: (c: *Client, emoji_name: string, emoji_id: Snowflake = 
 		json_kstr(*w, "location_object", "Emoji");
 		aw_track(c, "search_result_selected", *w);
 	}
+	if p.kind == .Reaction analytics_hotspot_hidden(c, "FAVORITE_EMOJI_TOOLTIP");
 	picker_reset(c);
 }
 
-// picker_closed: the picker went away without a pick.
-picker_closed :: (c: *Client) { picker_reset(c); }
+// picker_closed: the picker went away without a pick (fixture emoji_picker_add_emoji/close_add_emoji).
+picker_closed :: (c: *Client) {
+	p := *c.analytics.picker;
+	if p.open && p.kind != .Gif analytics_hotspot_hidden(c, "FAVORITE_EMOJI_TOOLTIP");
+	picker_reset(c);
+}
 
 // ---- composer autocomplete ----
 // channel_autocomplete_open / _selected (the autocomplete's analytics module):
@@ -948,6 +959,9 @@ analytics_join_voice :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake)
 	json_kint(*w, "video_stream_count", 0);
 	json_kbool(*w, "video_enabled", false);
 	aw_track(c, "join_voice_channel", *w);
+	if !guild_id analytics_exposed(c, "PrivateChannelCallDuration", "2026-10-gdm-duration-timer");
+	voice_session_reset(*c.analytics);
+	c.analytics.voice.guild_id, c.analytics.voice.channel_id, c.analytics.voice.join_ms, c.analytics.voice.ring = guild_id, channel_id, now_ms(), false;
 }
 
 // analytics_shelf_fetched: network_action_embedded_activities_fetch_shelf (worker
@@ -982,6 +996,619 @@ analytics_permissions_requested :: (c: *Client, kind: string) {
 	w := aw_begin();
 	json_kstr(*w, "type", kind);
 	aw_track(c, "permissions_requested", *w);
+}
+
+// ---- the voice connection (the official media engine's events) ----
+// The app reports src/voice's connection steps (src/app/analytics_env.jai
+// voice_analytics_frame). Ids, hosts, ports, packet and byte counts, step
+// timings, speech and ping are fastcord's own; the engine's versions, its
+// internal timings and audio-processing statistics are synthesized from the
+// fixtures (join_voice_channel, voice_with_b, dm_call; CLIENT_RULES "Analytics").
+
+VOICE_BACKEND_VERSION :: "0.22.2";
+RTC_WORKER_BACKEND_VERSION :: "1.7.1";
+
+Voice_Devices :: struct {
+	input, output, camera: string; // names, "" = none ("Default (<name>)" is the official form)
+	inputs, outputs, cameras: int;
+}
+
+// Voice_Sample: the connection as the app sees it, once per frame.
+Voice_Sample :: struct {
+	speaking, hearing, muted, deafened: bool;
+	packets_sent, packets_received, packets_lost, bytes_sent, bytes_received: s64;
+	ping_ms: int;
+	jitter_ms: float64;
+	target_frames: int;
+	members: int; // E2EE group size
+}
+
+Voice_Session :: struct {
+	rtc_id, media_session, hostname: string; // owned (Analytics.allocator)
+	devices: Voice_Devices; // strings owned
+	ring: bool; // joined from an incoming call's ring (no join_voice_id)
+	guild_id, channel_id: Snowflake;
+	port: int;
+	join_ms, created_ms, ws_ms, ready_ms, select_ms, connected_ms: s64;
+	last: Voice_Sample;
+	last_ms, sampled_ms: s64;
+	speaking_ms, listening_ms, participation_ms, muted_ms, deafened_ms: s64;
+	speech_start: s64;
+	speech_events, speech_100, speech_500: int;
+	speech_100_ms, speech_500_ms: s64;
+	first_speech: [3]s64; // ms from connect to the first 1 ms / 100 ms / 1000 ms of speech
+	ping_sum, ping_n: s64;
+	cpu: [..]float64; // one sample per second (UI thread)
+	mem: [..]s64;
+	max_states, total_states: int;
+	seen: [..]Snowflake;
+	alone_since: s64; // connected with nobody else in the channel (secure_frames_transition alone_wait_duration)
+	members: int;
+	peer_left_ms: s64; // a transition began when a peer left and was not executed
+	transitions: int;
+}
+
+// voice_session_reset: forget the connection (the joined channel is kept).
+voice_session_reset :: (a: *Analytics) {
+	v := *a.voice;
+	g, ch, join, ring := v.guild_id, v.channel_id, v.join_ms, v.ring;
+	push_allocator(a.allocator);
+	free(v.rtc_id);
+	free(v.media_session);
+	free(v.hostname);
+	free(v.devices.input);
+	free(v.devices.output);
+	free(v.devices.camera);
+	array_free(v.cpu);
+	array_free(v.mem);
+	array_free(v.seen);
+	v.* = .{guild_id = g, channel_id = ch, join_ms = join, ring = ring};
+}
+
+aw_voice_ids :: (w: *Json, v: *Voice_Session, ch: *Channel) {
+	aw_ksnow_or_null(w, "guild_id", v.guild_id);
+	json_ksnow(w, "channel_id", v.channel_id);
+	json_kint(w, "channel_type", ifx ch then cast(s64) ch.kind else 2);
+	json_kstr(w, "rtc_connection_id", v.rtc_id);
+	json_kstr(w, "context", "default");
+	json_kstr(w, "voice_backend_version", VOICE_BACKEND_VERSION);
+	json_kstr(w, "rtc_worker_backend_version", RTC_WORKER_BACKEND_VERSION);
+}
+
+voice_others :: (c: *Client, channel_id: Snowflake) -> int {
+	n := 0;
+	for vs, uid: c.store.voice_states if vs.channel_id == channel_id && uid != c.store.me n += 1;
+	return n;
+}
+
+// analytics_voice_connecting: the app opened a voice connection (voice_connection_connecting;
+// the caller's video_layout_toggled first, as the official call view mounts).
+analytics_voice_connecting :: (c: *Client, rtc_id: string, hostname: string, devices: Voice_Devices, muted: bool) {
+	a := *c.analytics;
+	v := *a.voice;
+	voice_session_reset(a);
+	s := *c.store;
+	ring := v.ring;
+	if !v.join_ms v.join_ms = now_ms();
+	v.rtc_id = copy_string(rtc_id,, a.allocator);
+	v.hostname = copy_string(hostname,, a.allocator);
+	v.devices = devices;
+	v.devices.input = copy_string(devices.input,, a.allocator);
+	v.devices.output = copy_string(devices.output,, a.allocator);
+	v.devices.camera = copy_string(devices.camera,, a.allocator);
+	v.created_ms = now_ms();
+	v.cpu.allocator, v.mem.allocator, v.seen.allocator = a.allocator, a.allocator, a.allocator;
+	ch := channel_get(s, v.channel_id);
+	private := v.guild_id == 0;
+	if private && !ring {
+		l := aw_begin();
+		json_kstr(*l, "video_layout", "minimum");
+		json_ksnow(*l, "channel_id", v.channel_id);
+		json_kint(*l, "channel_type", ifx ch then cast(s64) ch.kind else 1);
+		json_knull(*l, "guild_id");
+		json_knull(*l, "media_session_id");
+		json_kint(*l, "voice_state_count", voice_others(c, v.channel_id));
+		json_kint(*l, "video_stream_count", 0);
+		json_kbool(*l, "video_enabled", false);
+		json_knull(*l, "game_name");
+		json_knull(*l, "game_id");
+		aw_track(c, "video_layout_toggled", *l);
+	}
+	dev :: (w: *Json, k: string, name: string, n: int) {
+		if name json_kstr(w, k, tprint("Default (%)", name)); else json_knull(w, k);
+		json_kint(w, tprint("%_count", k), n);
+	}
+	w := aw_begin();
+	dev(*w, "input_device", devices.input, devices.inputs);
+	dev(*w, "output_device", devices.output, devices.outputs);
+	if devices.camera json_kstr(*w, "camera_device", devices.camera); else json_knull(*w, "camera_device");
+	json_kint(*w, "camera_device_count", devices.cameras);
+	aw_ksnow_or_null(*w, "guild_id", v.guild_id);
+	json_ksnow(*w, "channel_id", v.channel_id);
+	json_kstr(*w, "rtc_connection_id", v.rtc_id);
+	json_kstr(*w, "hostname", v.hostname);
+	json_kint(*w, "connect_count", 1);
+	json_kstr(*w, "context", "default");
+	json_kint(*w, "channel_type", ifx ch then cast(s64) ch.kind else 2);
+	json_kbool(*w, "is_muted", muted);
+	if ring json_knull(*w, "join_voice_id"); else json_kstr(*w, "join_voice_id", a.join_voice_id);
+	json_kint(*w, "connection_serial", 0);
+	aw_track(c, "voice_connection_connecting", *w);
+}
+
+// audio_input_initialized: the official engine opens the microphone while the
+// connection authenticates; fastcord reports it as its voice socket opens (and
+// opens the microphone at SESSION_DESCRIPTION).
+analytics_audio_input_initialized :: (c: *Client) {
+	v := *c.analytics.voice;
+	if !v.rtc_id || !v.devices.input return;
+	// the official engine's state names run a step ahead of our connection's here
+	client_set_rtc_state(c, .Rtc_Connecting);
+	m := aw_begin();
+	json_kstr(*m, "device_name", tprint("default (%)", v.devices.input));
+	json_kint(*m, "time_to_initialized_ms", 0);
+	json_kstr(*m, "rtc_connection_id", v.rtc_id);
+	aw_track(c, "audio_input_initialized", *m);
+}
+
+// analytics_voice_ready: the voice gateway's READY (voice_connection_remote_streams_created).
+analytics_voice_ready :: (c: *Client, ws_ms: s64, ready_ms: s64, port: int) {
+	v := *c.analytics.voice;
+	if !v.rtc_id return;
+	v.ws_ms, v.ready_ms, v.port = ws_ms, ready_ms, port;
+	client_set_rtc_state(c, .Rtc_Connected);
+	w := aw_begin();
+	aw_voice_ids(*w, v, channel_get(*c.store, v.channel_id));
+	json_kint(*w, "number_of_users", voice_others(c, v.channel_id));
+	json_kint(*w, "duration_ms", ready_ms - v.created_ms);
+	aw_track(c, "voice_connection_remote_streams_created", *w);
+}
+
+// analytics_voice_connected: SESSION_DESCRIPTION (voice_connection_success,
+// voice_connection_ttc_collected, media_session_joined). RTC states map to our
+// steps: awaiting endpoint = join to connection, authenticating = socket open,
+// connecting = to READY, rtc connecting = to SESSION_DESCRIPTION.
+analytics_voice_connected :: (c: *Client, select_ms: s64, connected_ms: s64, media_session_id: string) {
+	a := *c.analytics;
+	v := *a.voice;
+	if !v.rtc_id return;
+	v.select_ms, v.connected_ms = select_ms, connected_ms;
+	v.media_session = copy_string(media_session_id,, a.allocator);
+	v.alone_since = ifx voice_others(c, v.channel_id) == 0 then connected_ms else 0;
+	ch := channel_get(*c.store, v.channel_id);
+	locks.lock(*c.id.mu);
+	region := copy_string(c.rtc_regions,, temp); // the latency probe's order, best first
+	locks.unlock(*c.id.mu);
+	found, best := split_from_left(region, #char ",");
+	if found region = best;
+	if !region region = "us-west";
+	w := aw_begin();
+	aw_voice_ids(*w, v, ch);
+	json_kstr(*w, "hostname", v.hostname);
+	json_kint(*w, "port", v.port);
+	json_kstr(*w, "protocol", "udp");
+	json_kstr(*w, "address_family", "ipv4");
+	json_kstr(*w, "cloudflare_best_region", region);
+	json_kint(*w, "connect_time", connected_ms - v.join_ms);
+	json_kint(*w, "connect_count", 1);
+	json_kstr(*w, "audio_subsystem", "standard");
+	json_kstr(*w, "audio_layer", "platformDefaultAudio");
+	json_kbool(*w, "automatic_audio_subsystem", true);
+	json_knull(*w, "media_session_id");
+	if v.ring json_knull(*w, "join_voice_id"); else json_kstr(*w, "join_voice_id", a.join_voice_id);
+	json_kbool(*w, "is_camera_enabled", false);
+	json_kbool(*w, "video_supported", true);
+	json_kint(*w, "state_awaiting_endpoint_ms", v.created_ms - v.join_ms);
+	json_kint(*w, "state_authenticating_ms", max(v.ws_ms - v.created_ms, 0));
+	json_kint(*w, "state_connecting_ms", max(v.ready_ms - v.ws_ms, 0));
+	json_kint(*w, "state_disconnected_ms", 0);
+	json_kint(*w, "state_ice_checking_ms", 0);
+	json_kint(*w, "state_no_route_ms", 0);
+	json_kint(*w, "state_rtc_connecting_ms", max(connected_ms - v.ready_ms, 0));
+	json_kint(*w, "state_rtc_disconnected_ms", 0);
+	aw_track(c, "voice_connection_success", *w);
+	locks.lock(*a.mu);
+	r: [5]float64;
+	for * r it.* = synth_between(*a.synth, 0, 1);
+	locks.unlock(*a.mu);
+	t := aw_begin();
+	json_kstr(*t, "rtc_connection_id", v.rtc_id);
+	json_kstr(*t, "hostname", v.hostname);
+	json_kstr(*t, "address_family", "ipv4");
+	json_kint(*t, "time_1_creation_to_connect", v.created_ms - v.join_ms);
+	json_kint(*t, "time_2_media_engine_connect", 5 + cast(s64) (4 * r[0]));
+	json_kint(*t, "time_3_media_engine_create_native_connection", cast(s64) (1.5 * r[1]));
+	json_kint(*t, "time_4_media_engine_connect_to_socket", max(v.ws_ms - v.created_ms, 0));
+	json_knull(*t, "time_5_scheduling_connected_callback");
+	aw_kf64(*t, "time_6_state_connected_to_end_measure", cast(float64) (connected_ms - select_ms) + 0.1 * floor(10 * r[2]));
+	json_kint(*t, "connect_count", 1);
+	aw_kf64(*t, "rtc_connecting_native_connect", cast(float64) (select_ms - v.ready_ms) + 0.1 * floor(10 * r[3]));
+	aw_kf64(*t, "rtc_connecting_native_codecs", 14 + floor(80 * r[4]) / 10);
+	aw_kf64(*t, "rtc_connecting_native_crypto_modes", 0.5);
+	aw_kf64(*t, "select_protocol_duration_ms", cast(float64) (connected_ms - select_ms) + 0.1 * floor(10 * r[0]));
+	aw_track(c, "voice_connection_ttc_collected", *t);
+	m := aw_begin();
+	aw_voice_ids(*m, v, ch);
+	json_kstr(*m, "media_session_id", v.media_session);
+	aw_track(c, "media_session_joined", *m);
+}
+
+// start_speaking / start_listening: the first time we speak or hear someone in
+// the channel (throttled per server, SCI_THROTTLES).
+analytics_voice_speech :: (c: *Client, listening: bool) {
+	v := *c.analytics.voice;
+	if !v.rtc_id return;
+	s := *c.store;
+	w := aw_begin();
+	if listening {
+		json_kbool(*w, "mute", v.last.muted);
+		json_kbool(*w, "anyone_priority", false);
+	} else {
+		json_kstr(*w, "mode", "VOICE_ACTIVITY");
+		json_kbool(*w, "priority", false);
+	}
+	json_ksnow(*w, "channel", v.channel_id);
+	aw_ksnow_or_null(*w, "server", v.guild_id);
+	json_ksnow(*w, "channel_id", v.channel_id);
+	aw_ksnow_or_null(*w, "guild_id", v.guild_id);
+	json_kstr(*w, "rtc_connection_id", v.rtc_id);
+	json_kstr(*w, "media_session_id", v.media_session);
+	json_kint(*w, "voice_state_count", voice_others(c, v.channel_id) + 1);
+	for string.["game_platform", "game_name", "game_exe_name", "game_id", "game_distributor", "game_distributor_game_id", "game_metadata"] json_knull(*w, it);
+	if !listening {
+		json_kint(*w, "packets_sent", v.last.packets_sent);
+		json_kint(*w, "packets_sent_lost", 0);
+		json_kint(*w, "packets_received", v.last.packets_received);
+		json_kint(*w, "packets_received_lost", v.last.packets_lost);
+		for string.["num_nacks_sent", "fec_packets_received", "fec_packets_discarded"] json_kint(*w, it, 0);
+	}
+	if v.guild_id && guild_get(s, v.guild_id) aw_guild(*w, c, v.guild_id, with_id = false);
+	aw_channel(*w, c, v.channel_id, with_id = false);
+	aw_track(c, ifx listening then "start_listening" else "start_speaking", *w);
+}
+
+// analytics_voice_frame: the app's per-frame sample; speech and presence
+// statistics for voice_disconnect / leave_voice_channel, and the E2EE group's
+// transitions (secure_frames_transition: we joined others (commit) or others
+// joined us (welcome); sizes and durations synthesized around our timings).
+analytics_voice_frame :: (c: *Client, x: Voice_Sample) {
+	a := *c.analytics;
+	v := *a.voice;
+	if !v.rtc_id || !v.connected_ms return;
+	now := now_ms();
+	dt := ifx v.last_ms then now - v.last_ms else 0;
+	if v.last.speaking v.speaking_ms += dt;
+	if v.last.hearing v.listening_ms += dt;
+	if v.last.speaking || v.last.hearing v.participation_ms += dt;
+	if v.last.muted v.muted_ms += dt;
+	if v.last.deafened v.deafened_ms += dt;
+	if x.speaking && !v.last.speaking v.speech_start = now;
+	if !x.speaking && v.last.speaking && v.speech_start {
+		len := now - v.speech_start;
+		v.speech_events += 1;
+		if len >= 100 { v.speech_100 += 1; v.speech_100_ms += len; }
+		if len >= 500 { v.speech_500 += 1; v.speech_500_ms += len; }
+	}
+	if x.speaking && v.speech_start {
+		spoken := v.speaking_ms + now - v.speech_start;
+		for ms, i: s64.[1, 100, 1000] if !v.first_speech[i] && spoken >= ms v.first_speech[i] = now - v.connected_ms;
+	}
+	if x.speaking && !v.last.speaking && v.speech_events == 0 analytics_voice_speech(c, false);
+	if x.hearing && !v.last.hearing && v.listening_ms == 0 analytics_voice_speech(c, true);
+	if now - v.sampled_ms >= 1000 {
+		v.sampled_ms = now;
+		cpu, ok := process_cpu_percent();
+		if ok array_add(*v.cpu, cpu);
+		locks.lock(*a.mu);
+		array_add(*v.mem, synth_memory(*a.synth, now, true));
+		locks.unlock(*a.mu);
+		if x.ping_ms > 0 { v.ping_sum += x.ping_ms; v.ping_n += 1; }
+		states := 1;
+		for vs, uid: c.store.voice_states if vs.channel_id == v.channel_id && uid != c.store.me {
+			states += 1;
+			if !array_find(v.seen, uid) array_add(*v.seen, uid);
+		}
+		v.max_states = max(v.max_states, states);
+	}
+	if x.members > v.members && x.members >= 2 {
+		analytics_secure_frames(c, x.members);
+		v.peer_left_ms = 0;
+	} else if x.members < v.members && v.members >= 2 {
+		v.peer_left_ms = now;
+	}
+	v.members = max(x.members, ifx v.peer_left_ms then v.members else x.members);
+	v.last, v.last_ms = x, now;
+}
+
+// secure_frames_transition: an E2EE group change (members >= 2), or members
+// == 0 for the one left unexecuted when we leave.
+analytics_secure_frames :: (c: *Client, members: int) {
+	a := *c.analytics;
+	v := *a.voice;
+	now := now_ms();
+	locks.lock(*a.mu);
+	r: [4]float64;
+	for * r it.* = synth_between(*a.synth, 0, 1);
+	locks.unlock(*a.mu);
+	w := aw_begin();
+	aw_voice_ids(*w, v, channel_get(*c.store, v.channel_id));
+	json_kstr(*w, "media_session_id", v.media_session);
+	json_ksnow(*w, "sender_user_id", c.store.me);
+	json_kint(*w, "transition_id", 0);
+	json_kint(*w, "protocol_version", 1);
+	if members == 0 {
+		json_kint(*w, "prepare_wait_duration", cast(s64) (2 * r[0]));
+		json_kint(*w, "prepare_duration", 1);
+		json_kbool(*w, "incomplete", true);
+		json_kint(*w, "active_transition_count", 1);
+		json_kint(*w, "time_since_creation", now - v.peer_left_ms);
+		aw_track(c, "secure_frames_transition", *w);
+		return;
+	}
+	alone := v.alone_since != 0; // others joined us (welcome), else we joined them (commit)
+	wait := ifx alone then now - v.alone_since else 0;
+	since := ifx alone then wait + cast(s64) (8 * r[0]) else 25 + cast(s64) (10 * r[0]);
+	json_kint(*w, "start_to_init_duration", v.connected_ms - v.join_ms - 300 + cast(s64) (60 * r[1]));
+	json_kint(*w, "init_duration", cast(s64) (2 * r[2]));
+	json_kint(*w, "last_proposals_duration", 1 + cast(s64) (2 * r[3]));
+	proposals := 497 + cast(s64) (3 * r[0]);
+	json_kint(*w, "total_proposals_size", proposals);
+	json_kint(*w, "total_commit_welcome_size", 1159 + cast(s64) (4 * r[1]));
+	if alone { // others joined: their commit came with a welcome for us
+		json_kint(*w, "welcome_wait_duration", since - 1);
+		json_kint(*w, "welcome_duration", 1 + cast(s64) (2 * r[2]));
+		json_kint(*w, "welcome_size", 956 + cast(s64) (3 * r[3]));
+		json_kbool(*w, "welcome_error", false);
+	} else {
+		json_kint(*w, "commit_wait_duration", since - 2);
+		json_kint(*w, "commit_duration", 1);
+		json_kint(*w, "commit_size", 203 + cast(s64) (2 * r[2]));
+		json_kbool(*w, "commit_error", false);
+	}
+	json_kint(*w, "active_transition_count", 1);
+	json_kint(*w, "time_since_creation", since);
+	json_kint(*w, "users_added_count", members);
+	json_kint(*w, "users_removed_count", 0);
+	json_kint(*w, "roster_size_after", members);
+	json_kint(*w, "alone_wait_duration", wait);
+	json_kint(*w, "time_to_dave_group_excluding_wait", v.connected_ms - v.join_ms + cast(s64) (40 * r[3]));
+	aw_track(c, "secure_frames_transition", *w);
+	v.transitions += 1;
+	v.alone_since = 0;
+}
+
+// analytics_voice_leave: VOICE_CHANNEL_SELECT null (hotspot_hidden), then the
+// connection's summary: leave_voice_channel, voice_codec_detected, voice_disconnect.
+analytics_voice_leave :: (c: *Client) {
+	a := *c.analytics;
+	v := *a.voice;
+	if v.rtc_id && v.peer_left_ms analytics_secure_frames(c, 0);
+	client_set_rtc_state(c, .Disconnected); // RTCConnectionStore resets on VOICE_CHANNEL_SELECT
+	analytics_hotspot_hidden(c, "VOICE_PANEL_INTRODUCTION");
+	if !v.rtc_id {
+		voice_session_reset(a);
+		return;
+	}
+	now := now_ms();
+	ch := channel_get(*c.store, v.channel_id);
+	duration := now - v.created_ms;
+	others := voice_others(c, v.channel_id);
+	total := 1 + v.seen.count;
+	locks.lock(*a.mu);
+	extra := cast(s64) synth_between(*a.synth, 400, 1400);
+	bwe := cast(s64) synth_between(*a.synth, 700_000, 2_300_000);
+	level := synth_between(*a.synth, -135, -75);
+	locks.unlock(*a.mu);
+	l := aw_begin();
+	json_ksnow(*l, "channel_id", v.channel_id);
+	json_kint(*l, "channel_type", ifx ch then cast(s64) ch.kind else 2);
+	json_kint(*l, "channel_bitrate", ifx ch && ch.bitrate > 0 then ch.bitrate else 64000);
+	aw_ksnow_or_null(*l, "guild_id", v.guild_id);
+	json_kstr(*l, "rtc_connection_id", v.rtc_id);
+	json_kstr(*l, "game_name", "");
+	json_kint(*l, "duration", duration);
+	json_knull(*l, "game_platform");
+	json_knull(*l, "game_id");
+	json_kstr(*l, "media_session_id", v.media_session);
+	json_kint(*l, "voice_state_count", others);
+	json_kint(*l, "video_stream_count", 0);
+	json_kbool(*l, "video_enabled", false);
+	json_kint(*l, "max_voice_state_count", max(v.max_states, 1));
+	json_kint(*l, "total_voice_state_count", total);
+	json_kint(*l, "max_listener_count", max(v.max_states, 1));
+	json_kint(*l, "total_listener_count", total);
+	json_kint(*l, "max_speaker_count", max(v.max_states, 1));
+	json_kint(*l, "total_speaker_count", total);
+	// the call view: a guild voice channel shows the grid, a DM call its focus view
+	json_kint(*l, "view_mode_grid_duration_ms", ifx v.guild_id then duration + extra else 2);
+	json_kint(*l, "view_mode_focus_duration_ms", ifx v.guild_id then 0 else duration + extra);
+	json_kint(*l, "view_mode_toggle_count", ifx v.guild_id then 0 else 2);
+	aw_track(c, "leave_voice_channel", *l);
+	k := aw_begin();
+	#if OS == .MACOS {
+		DECODERS :: string.["Webrtc VP8 libvpx", "Webrtc AV1 dav1d", "Apple H.264 (HW)", "Apple HEVC (HW)", "Apple AV1 (HW)"];
+		ENCODERS :: string.["Apple 24-bit RGB", "Apple 32-bit ARGB", "Apple ProRes 422", "Apple ProRes 422 HQ", "Apple ProRes 422 LT", "Apple ProRes 422 Proxy", "Apple ProRes 4444", "Apple ProRes 4444 XQ", "AppleProResHW 422", "AppleProResHW 422 HQ", "AppleProResHW 422 LT", "AppleProResHW 422 Proxy", "AppleProResHW 4444", "AppleProResHW 4444 XQ", "Apple Depth (HEVC)-Apple HEVC (HW)", "Apple Depth (HEVC)-Apple HEVC (SW)", "Apple Disparity (HEVC)-Apple HEVC (HW)", "Apple Disparity (HEVC)-Apple HEVC (SW)", "Apple H.263 (SW)", "Apple H.264 (HW)", "Apple H.264 (SW)", "Apple HEVC (HW)", "Apple HEVC (SW)", "Apple JPEG", "JPEG (HW)", "Apple Muxed Alpha-Apple HEVC (HW)", "Apple Muxed Alpha-Apple HEVC (SW)"];
+	} else { // guess: WebRTC's software codecs and the OS's hardware H.264
+		DECODERS :: string.["Webrtc VP8 libvpx", "Webrtc AV1 dav1d", "Webrtc H.264 (HW)"];
+		ENCODERS :: string.["Webrtc VP8 libvpx", "Webrtc H.264 (HW)"];
+	}
+	aw_strs(*k, "available_video_decoders", DECODERS);
+	aw_strs(*k, "available_video_encoders", ENCODERS);
+	json_kstr(*k, "rtc_connection_id", v.rtc_id);
+	json_kstr(*k, "media_session_id", v.media_session);
+	aw_track(c, "voice_codec_detected", *k);
+	analytics_voice_disconnect(c, ch, duration, bwe, level);
+	voice_session_reset(a);
+}
+
+analytics_voice_disconnect :: (c: *Client, ch: *Channel, duration: s64, bwe: s64, level: float64) {
+	v := *c.analytics.voice;
+	x := v.last;
+	heard := x.packets_received > 0;
+	pct :: (xs: []$T, p: int) -> T { return ifx xs then xs[min(xs.count * p / 100, xs.count - 1)] else 0; }
+	cpu := array_copy(v.cpu,, temp);
+	quick_sort(cpu, (a: float64, b: float64) -> s64 { return ifx a < b then -1 else ifx a > b then 1 else 0; });
+	mem := array_copy(v.mem,, temp);
+	quick_sort(mem, (a: s64, b: s64) -> s64 { return a - b; });
+	w := aw_begin();
+	aw_voice_ids(*w, v, ch);
+	json_kstr(*w, "hostname", v.hostname);
+	json_kint(*w, "port", v.port);
+	json_kstr(*w, "protocol", "udp");
+	json_kbool(*w, "reconnect", false);
+	json_kstr(*w, "reason", "Force Close");
+	json_kint(*w, "duration", duration + 1);
+	json_kint(*w, "num_local_voice_user_mutes", 0);
+	json_kint(*w, "num_local_voice_volumes", 0);
+	json_kint(*w, "packets_sent", x.packets_sent);
+	json_kint(*w, "packets_sent_lost", 0);
+	json_kint(*w, "packets_received", x.packets_received);
+	json_kint(*w, "packets_received_lost", x.packets_lost);
+	json_kint(*w, "num_nacks_sent", 0);
+	fec := x.packets_received / 12;
+	json_kint(*w, "fec_packets_received", fec);
+	json_kint(*w, "fec_packets_discarded", fec * 15 / 16);
+	json_kint(*w, "bytes_sent", x.bytes_sent);
+	json_kint(*w, "bytes_received", x.bytes_received);
+	json_kint(*w, "outbound_bandwidth_estimate", bwe);
+	json_kint(*w, "audio_target_bitrate", 64000);
+	// jitter buffer statistics: from our jitter buffer when audio came in, else null
+	jb := cast(s64) x.jitter_ms;
+	target := x.target_frames * 20;
+	stat :: (w: *Json, prefix: string, heard: bool, mean: s64, p75: s64, p95: s64, p99: s64, mx: s64) {
+		values := s64.[mean, p75, p95, p99, mx];
+		for string.["mean", "p75", "p95", "p99", "max"] {
+			k := tprint("%_%", prefix, it);
+			if heard json_kint(w, k, values[it_index]); else json_knull(w, k);
+		}
+	}
+	stat(*w, "audio_jitter_buffer", heard, jb / 4, jb / 20, jb * 7 / 4, jb * 2, jb * 9 / 4);
+	stat(*w, "audio_jitter_target", heard, target, target, target, target * 2, target * 2);
+	stat(*w, "audio_jitter_delay", heard, target + 80, target + 85, target + 90, target + 130, target + 150);
+	stat(*w, "relative_reception_delay", heard, 0, 0, 0, 0, 0);
+	stat(*w, "relative_playout_delay", heard, 0, 0, 0, 0, 0);
+	secs := (duration + 500) / 1000;
+	for string.["wifi", "cellular", "ethernet", "bluetooth", "other", "unknown", "none"] json_kint(*w, tprint("duration_connection_type_%", it), ifx it == "unknown" then secs else 0);
+	for string.["2g", "3g", "4g", "5g", "unknown"] json_kint(*w, tprint("duration_effective_connection_speed_%", it), ifx it == "4g" then secs else 0);
+	for p: int.[25, 50, 75, 90, 95] aw_kf64(*w, tprint("client_performance_cpu_percentile%", p), pct(cpu, p));
+	cpu_sum: float64;
+	for cpu cpu_sum += it;
+	aw_kf64(*w, "client_performance_cpu_mean", ifx cpu then cpu_sum / cast(float64) cpu.count else 0);
+	for p: int.[25, 50, 75, 90, 95] json_kint(*w, tprint("client_performance_memory_percentile%", p), pct(mem, p));
+	mem_sum: s64;
+	for mem mem_sum += it;
+	json_kint(*w, "client_performance_memory_min", ifx mem then mem[0] else 0);
+	json_kint(*w, "client_performance_memory_max", ifx mem then mem[mem.count - 1] else 0);
+	aw_kf64(*w, "client_performance_memory_mean", ifx mem then cast(float64) mem_sum / cast(float64) mem.count else 0);
+	// NetEq frame operations (20 ms frames of received audio)
+	frames := ifx heard then duration / 12 else 0;
+	normal := x.packets_received * 85 / 100;
+	ops := s64.[max(frames - normal, 0), normal, normal / 40, normal / 80, normal / 3, normal / 40, 0];
+	for string.["silent", "normal", "merged", "expanded", "accelerated", "preemptive_expanded", "cng"] json_kint(*w, tprint("frame_op_%", it), ops[it_index]);
+	json_kint(*w, "decryption_failures", 0);
+	json_kint(*w, "routing_failures", 0);
+	dave := v.transitions > 0;
+	dec := ifx dave then x.packets_received * 2 / 3 else 0;
+	enc := ifx dave then x.packets_sent * 9 / 2 else 0;
+	json_kint(*w, "decrypt_passthrough_count", 0);
+	json_kint(*w, "decrypt_success_count", dec);
+	json_kint(*w, "decrypt_failure_count", dec / 5);
+	json_kint(*w, "decrypt_duration", dec * 5);
+	json_kint(*w, "decrypt_attempts", dec);
+	for string.["decrypt_missing_key_count", "decrypt_invalid_nonce_count", "decrypt_failure_after_success_count", "encrypt_passthrough_count"] json_kint(*w, it, 0);
+	json_kint(*w, "encrypt_success_count", enc);
+	json_kint(*w, "encrypt_failure_count", 0);
+	json_kint(*w, "encrypt_duration", enc * 4);
+	json_kint(*w, "encrypt_attempts", enc);
+	json_kint(*w, "encrypt_max_attempts", ifx dave then 1 else 0);
+	json_kint(*w, "encrypt_missing_key_count", 0);
+	json_kint(*w, "input_device_time_from_connect_to_first_audio_ms", 60 + v.port % 50);
+	json_kint(*w, "output_device_time_from_connect_to_first_audio_ms", 3 + v.port % 5);
+	// our microphone's level distribution: quiet floor to speech peaks (synthesized around level)
+	for p: string.["p1", "p5", "p10", "p25", "p50", "p75", "p90", "p95", "p99", "max", "mean"] {
+		db := level - 50;
+		if p == "mean" db = level - 30;
+		else if it_index >= 4 db += 60 * min(cast(float64) (it_index - 3) / 3, 1);
+		aw_kf64(*w, tprint("outbound_audio_level_db_%", p), db);
+	}
+	json_kint(*w, "duration_listening_ms", v.listening_ms);
+	json_kint(*w, "duration_speaking_ms", v.speaking_ms);
+	json_kint(*w, "duration_participation_ms", v.participation_ms);
+	json_kint(*w, "duration_connected_ms", duration);
+	json_kint(*w, "duration_muted_ms", v.muted_ms);
+	json_kint(*w, "duration_deafened_ms", v.deafened_ms);
+	json_kint(*w, "duration_noise_cancellation_enabled_ms", duration);
+	json_kint(*w, "duration_spatial_ms", 0);
+	json_kint(*w, "speech_event_count", v.speech_events);
+	for string.["time_to_first_1ms_speech_ms", "time_to_first_100ms_speech_ms", "time_to_first_1000ms_speech_ms"] {
+		if v.first_speech[it_index] json_kint(*w, it, v.first_speech[it_index]); else json_knull(*w, it);
+	}
+	json_kint(*w, "duration_speaking_gte_100ms_ms", v.speech_100_ms);
+	json_kint(*w, "speech_event_count_gte_100ms", v.speech_100);
+	if v.speech_500 {
+		json_kint(*w, "duration_speaking_gte_500ms_ms", v.speech_500_ms);
+		json_kint(*w, "speech_event_count_gte_500ms", v.speech_500);
+	}
+	json_kint(*w, "duration_listening", (v.listening_ms + 500) / 1000);
+	json_kint(*w, "duration_speaking", (v.speaking_ms + 500) / 1000);
+	json_kint(*w, "duration_participation", (v.participation_ms + 500) / 1000);
+	json_kint(*w, "duration_connected", secs);
+	used :: (w: *Json, k: string, ms: s64) {
+		json_key(w, tprint("%_ids", k));
+		json_raw(w, ifx ms then "[\"default\"]" else "[]");
+		json_key(w, tprint("%_ms", k));
+		json_raw(w, ifx ms then tprint("[%]", ms) else "[]");
+	}
+	used(*w, "duration_input_device_used", v.speaking_ms);
+	used(*w, "duration_output_device_used", v.listening_ms);
+	dev :: (w: *Json, k: string, name: string, n: int) {
+		if name json_kstr(w, k, tprint("Default (%)", name)); else json_knull(w, k);
+		json_kint(w, tprint("%_count", k), n);
+	}
+	dev(*w, "input_device", v.devices.input, v.devices.inputs);
+	dev(*w, "output_device", v.devices.output, v.devices.outputs);
+	for string.["ptt_queue_latency_max", "ptt_queue_latency_mean", "ptt_queue_latency_p50", "ptt_queue_latency_p95", "ptt_queue_latency_samples", "num_noise_cancellation_changes"] json_kint(*w, it, 0);
+	json_kstr(*w, "media_session_id", v.media_session);
+	json_kint(*w, "channel_bitrate", ifx ch && ch.bitrate > 0 then ch.bitrate else 64000);
+	json_kstr(*w, "cloudflare_best_region", "us-west");
+	json_kint(*w, "connect_count", 1);
+	json_kint(*w, "ping_average", ifx v.ping_n then v.ping_sum / v.ping_n else 0);
+	json_kint(*w, "ping_bad_count", 0);
+	json_kint(*w, "ping_timeout", 0);
+	json_kbool(*w, "input_detected", v.speech_events > 0 || x.speaking);
+	json_kbool(*w, "no_input_detected_notice", false);
+	json_kstr(*w, "audio_input_mode", "VOICE_ACTIVITY");
+	json_kbool(*w, "automatic_audio_input_sensitivity_enabled", true);
+	json_kint(*w, "audio_input_sensitivity", -60);
+	json_kbool(*w, "echo_cancellation_enabled", true);
+	json_kbool(*w, "sidechain_compression_enabled", true);
+	json_kbool(*w, "noise_suppression_enabled", false);
+	json_kbool(*w, "noise_cancellation_enabled", true);
+	json_kint(*w, "noise_canceller_error", 0);
+	json_kbool(*w, "automatic_gain_control_enabled", true);
+	json_kint(*w, "voice_output_volume", 100);
+	json_kint(*w, "voice_input_volume", 100);
+	json_kstr(*w, "encryption_mode", "aead_aes256_gcm_rtpsize");
+	json_kint(*w, "channel_count", 1);
+	json_knull(*w, "device_performance_class");
+	json_kint(*w, "num_fast_udp_reconnects", 0);
+	json_kstr(*w, "audio_subsystem", "standard");
+	json_kstr(*w, "audio_layer", "platformDefaultAudio");
+	json_kbool(*w, "automatic_audio_subsystem", true);
+	json_kint(*w, "audio_capture_sample_rate_mismatch_percent", 0);
+	json_kstr(*w, "krisp_sdk_version", "9.9.3.891");
+	json_kint(*w, "secure_frames_max_concurrent_transitions", ifx dave then 1 else 0);
+	json_kint(*w, "secure_frames_transition_prepare_count", ifx v.peer_left_ms then 1 else 0);
+	json_kint(*w, "secure_frames_transition_execute_count", 0);
+	json_kbool(*w, "vad_use_advanced_voice_activity", true);
+	json_kbool(*w, "soundshare_experimental", false);
+	if v.ring json_knull(*w, "join_voice_id"); else json_kstr(*w, "join_voice_id", c.analytics.join_voice_id);
+	json_kbool(*w, "bypass_system_input_processing", true);
+	json_kstr(*w, "system_microphone_mode", "standard");
+	json_kstr(*w, "output_audio_route_type", "unknown");
+	json_knull(*w, "battery_usage");
+	json_kstr(*w, "krisp_nc_model", "krisp-nc-o-med-v7.kef");
+	aw_track(c, "voice_disconnect", *w);
 }
 
 // ---- guild creation ----
@@ -1139,6 +1766,75 @@ analytics_quickswitcher_opened :: (c: *Client, guild_id: Snowflake, channel_id: 
 	aw_track(c, "quickswitcher_opened", *w);
 }
 
+// Quick switcher results as the official QuickSwitcher types them.
+Qs_Kind :: enum u8 { User; Group_Dm; Text_Channel; Voice_Channel; Guild; }
+Qs_Result :: struct {
+	kind: Qs_Kind;
+	id: Snowflake; // the DM's user, the channel or the guild
+	guild_id: Snowflake;
+	score: float64; // fastcord's own match score, mapped below
+}
+
+// analytics_quickswitcher_closed: quickswitcher_closed, then
+// quickswitcher_result_selected when a result was chosen (selected >= 0).
+// The official search scores are synthesized: each type's empty-query score
+// from the fixtures (USER 12000-15099, TEXT_CHANNEL 20000) raised by our own
+// match score; result counts are reported only for a typed query, as officially.
+analytics_quickswitcher_closed :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, query: string, max_query: int, results: []Qs_Result, selected := -1) {
+	TYPES :: string.["USER", "GROUP_DM", "TEXT_CHANNEL", "VOICE_CHANNEL", "GUILD"];
+	BASE :: float64.[12000, 12000, 20000, 20000, 10000];
+	score :: (r: Qs_Result) -> float64 #expand { return BASE[r.kind] + 1000 * r.score; }
+	digits := 0;
+	for cast([]u8) query if is_digit(it) digits += 1;
+	w := aw_begin();
+	if channel_id {
+		json_ksnow(*w, "current_channel_id", channel_id);
+		aw_ksnow_or_null(*w, "current_guild_id", guild_id);
+	} else {
+		aw_ksnow_or_null(*w, "current_guild_id", guild_id);
+	}
+	json_kstr(*w, "query_mode", "GENERAL");
+	json_kint(*w, "query_length", query.count);
+	json_kint(*w, "max_query_length", max_query);
+	json_kbool(*w, "is_email_like", contains(query, "@") && contains(query, "."));
+	json_kbool(*w, "is_phone_like", query.count >= 7 && digits * 10 >= query.count * 7);
+	json_kbool(*w, "is_username_like", query.count >= 2 && !contains(query, " ") && !begins_with(query, "#"));
+	json_kstr(*w, "query", query);
+	top := ifx results then results[0] else .{kind = .User};
+	json_kstr(*w, "top_result_type", TYPES[top.kind]);
+	aw_kf64(*w, "top_result_score", ifx results then score(top) else 0);
+	counts: [5]int;
+	if query for results counts[it.kind] += 1;
+	json_kint(*w, "num_results_total", ifx query then results.count else 0);
+	json_kint(*w, "num_results_users", counts[0]);
+	json_kint(*w, "num_results_text_channels", counts[2]);
+	json_kint(*w, "num_results_voice_channels", counts[3]);
+	json_kint(*w, "num_results_guilds", counts[4]);
+	json_kint(*w, "num_results_group_dms", counts[1]);
+	if channel_id {
+		ch := channel_get(*c.store, channel_id);
+		json_kint(*w, "current_channel_type", ifx ch then cast(s64) ch.kind else 0);
+	}
+	json_obj_end(*w);
+	props := json_body(json_string(*w));
+	analytics_track(c, "quickswitcher_closed", props);
+	if selected < 0 || selected >= results.count return;
+	r := results[selected];
+	s := aw_begin();
+	json_kstr(*s, "selected_type", TYPES[r.kind]);
+	aw_kf64(*s, "selected_score", score(r));
+	json_kint(*s, "selected_index", selected);
+	if r.kind == {
+		case .User;  json_ksnow(*s, "selected_user_id", r.id);
+		case .Guild; json_ksnow(*s, "selected_guild_id", r.id);
+		case;
+			if r.guild_id json_ksnow(*s, "selected_guild_id", r.guild_id);
+			json_ksnow(*s, "selected_channel_id", r.id);
+	}
+	json_obj_end(*s);
+	analytics_track(c, "quickswitcher_result_selected", tprint("%,%", props, json_body(json_string(*s))));
+}
+
 // keyboard_shortcut_used: a global keybind (Escape closes a layer: "CLOSE_*").
 analytics_keyboard_shortcut :: (c: *Client, name: string, combo: string) {
 	w := aw_begin();
@@ -1208,5 +1904,370 @@ analytics_app_notice :: (c: *Client, event: string, notice_type: string, guild_i
 	json_kstr(*w, "notice_type", notice_type);
 	if guild_id != 0 json_ksnow(*w, "guild_id", guild_id);
 	aw_track(c, event, *w);
+}
+
+// ---- experiment exposures ----
+// The official client tracks an exposure when a store or component reads an
+// experiment (apex: experiment_*_evaluation_exposed). Only experiments READY
+// assigns us are reported, with READY's evaluation id and variation (murmur3 of
+// the name, the entry's second element), once per evaluation id, location and
+// experiment, remembered across launches (identity.tsv): the fixtures' launches
+// show them only after a login or a new evaluation. Exposures of ad, Nitro
+// marketing, Orbs and quests experiments are never sent (no ads).
+
+// analytics_ready_experiments: READY's apex_experiments (unit 1 = user, 2 = installation).
+analytics_ready_experiments :: (c: *Client, data: V) {
+	a := *c.analytics;
+	locks.lock(*a.mu);
+	table_reset(*a.variations);
+	for unit: fmap(fmap(vmap(data), "apex_experiments"), "assignments") {
+		for e: vmap(unit.value) {
+			m := vmap(e.value);
+			id := fstr(m, "evaluation_id");
+			if vstr(unit.key) == "2" { free(a.eval_installation,, a.allocator); a.eval_installation = copy_string(id,, a.allocator); continue; }
+			free(a.eval_user,, a.allocator);
+			a.eval_user = copy_string(id,, a.allocator);
+			for flist(m, "assignments") {
+				x := vlist(it);
+				if x.count >= 2 table_set(*a.variations, cast(u32) vint(x[0]), vint(x[1]));
+			}
+		}
+	}
+	locks.unlock(*a.mu);
+	// the stores that read experiments as CONNECTION_OPEN is handled (fixture account_edits/login_submit)
+	analytics_exposed(c, "app open");
+	analytics_exposed(c, "app open", installation = true);
+	analytics_exposed(c, "MediaEngineStore.getSettings", "2026-09-stream-zero-vad-leading");
+	analytics_exposed(c, "OnlineFriendsStore", "2026-09-friends-sidebar");
+	analytics_exposed(c, "FriendRequestsStore", "2026-09-friends-sidebar");
+}
+
+// the components that read experiments on the first render after READY
+analytics_exposures_after_ready :: (c: *Client) {
+	analytics_exposed(c, "getDcfNewUserCooldown", "2026-08-dcf-new-user-cooldown");
+	analytics_exposed(c, "OverlayTextChatAutomaticLifecycleManager", "2025-11-overlay-chat");
+	analytics_exposed(c, "useActiveGuildTheme", "2026-05-server-theme-user");
+	analytics_exposed(c, "useDcfNewUserCooldown", "2026-08-dcf-new-user-cooldown");
+	analytics_exposed(c, "AppTitleBar", "2026-09-friends-sidebar");
+	analytics_exposed(c, "GuildTooltip", "2026-10-guild-tooltip-lazy-content");
+	locks.lock(*c.route_mu);
+	home := c.route_guild == 0 && c.route_channel == 0;
+	locks.unlock(*c.route_mu);
+	if home {
+		analytics_exposed(c, "dm/gdm list rendered");
+		analytics_exposed(c, "dm/gdm list rendered", installation = true);
+	}
+	analytics_exposed(c, "ActivityPanelGameCard", "2026-02-join-game-community-cta");
+}
+
+// analytics_exposed: experiment_user_evaluation_exposed (or the installation's)
+// at location; experiment "" = the evaluation itself (no variation).
+analytics_exposed :: (c: *Client, location: string, experiment := "", installation := false, delay_ms := 0) {
+	a := *c.analytics;
+	locks.lock(*a.mu);
+	id := copy_string(ifx installation then a.eval_installation else a.eval_user,, temp);
+	assigned, variation := table_find(*a.variations, murmur3_32(experiment));
+	key := tprint("%|%|%", id, location, experiment);
+	seen := table_contains(*a.exposed, key);
+	if id && !seen && (!experiment || assigned) table_set(*a.exposed, copy_string(key,, a.allocator), true);
+	locks.unlock(*a.mu);
+	if !id || seen || (experiment && !assigned) return;
+	w := aw_begin();
+	json_kstr(*w, "evaluation_id", id);
+	if experiment json_kstr(*w, "experiment", experiment);
+	json_kstr(*w, "exposure_location", location);
+	json_kstr(*w, "unit_type", ifx installation then "installation" else "user");
+	if installation {
+		locks.lock(*c.id.mu);
+		inst := copy_string(c.id.installation_id,, temp);
+		locks.unlock(*c.id.mu);
+		json_kstr(*w, "installation_id", inst);
+	}
+	if experiment json_kint(*w, "tracked_variation_id", variation);
+	event := ifx installation then "experiment_installation_evaluation_exposed" else "experiment_user_evaluation_exposed";
+	if !delay_ms {
+		aw_track(c, event, *w);
+		return;
+	}
+	json_obj_end(*w);
+	analytics_schedule(c, now_ms() + delay_ms, event, json_body(json_string(*w)));
+}
+
+// murmur3_32: MurmurHash3 x86 32-bit, seed 0 (the apex assignment key of an experiment name).
+murmur3_32 :: (s: string) -> u32 {
+	rotl :: (x: u32, r: u32) -> u32 { return (x << r) | (x >> (32 - r)); }
+	C1 :: 0xcc9e2d51;
+	C2 :: 0x1b873593;
+	h: u32;
+	n := s.count / 4 * 4;
+	i := 0;
+	while i < n {
+		k := (cast(u32) s[i]) | ((cast(u32) s[i + 1]) << 8) | ((cast(u32) s[i + 2]) << 16) | ((cast(u32) s[i + 3]) << 24);
+		k = rotl(k * C1, 15) * C2;
+		h = rotl(h ^ k, 13) * 5 + 0xe6546b64;
+		i += 4;
+	}
+	k: u32;
+	for < j: n..s.count - 1 k = (k << 8) | cast(u32) s[j];
+	if s.count > n h ^= rotl(k * C1, 15) * C2;
+	h ^= cast(u32) s.count;
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+	return h;
+}
+
+// ---- launch and session ----
+// The official client's startup telemetry (fixture cold_start and every setup
+// window). Electron, crash-reporter and web-bundle values are synthesized
+// (traffic/CLIENT_RULES.md "Analytics"); timings and sizes are fastcord's own.
+
+// analytics_launch_identify: the launch's fast-connect IDENTIFY went out. The
+// official client loads libdiscore and reads the crash reporter around it,
+// then starts the heartbeat scheduler (fixtures: IDENTIFY -6, +15, +22 ms).
+analytics_launch_identify :: (c: *Client) {
+	a := *c.analytics;
+	now := now_ms();
+	locks.lock(*a.mu);
+	a.identify_ms = now;
+	synth_memory(*a.synth, now, false);
+	s := a.synth;
+	locks.unlock(*a.mu);
+	w := aw_begin();
+	json_kbool(*w, "success", true);
+	json_key(*w, "experimental_features");
+	json_raw(*w, "[]");
+	aw_track(c, "libdiscore_loaded", *w);
+	// app_native_crash: no crash; the memory sampler's last and highest sample
+	n := aw_begin();
+	json_kbool(*n, "electron_crash_reporter_did_crash", false);
+	for string.["minidump_exception_type", "minidump_exception_module_name", "minidump_relative_crash_address", "minidump_exception_module_version", "minidump_exception_module_code_id", "minidump_exception_thread_name", "minidump_exception_stacktrace", "minidump_code_integrity_bytes_different", "minidump_code_integrity_bytes_compared", "minidump_code_integrity_flags", "minidump_code_integrity_reloc_bytes_different", "minidump_code_integrity_nearest_difference_from_instruction_pointer"] json_knull(*n, it);
+	json_kbool(*n, "did_crash", false);
+	for string.["renderer_crash_reason", "renderer_crash_exit_code", "child_process_crash_type", "child_process_crash_reason", "child_process_crash_exit_code"] json_knull(*n, it);
+	for string.["had_rtc_connection", "was_sending_video", "was_sending_stream", "was_receiving_video", "was_receiving_stream"] json_kbool(*n, it, false);
+	for string.["video_media_session_id", "stream_media_session_id", "intentional_crash_reason", "crashed_build_number"] json_knull(*n, it);
+	json_kint(*n, "last_memory_usage_kb", synth_total(*s));
+	json_kint(*n, "last_used_js_heap_size_kb", s.heap);
+	json_kint(*n, "last_memory_usage_uptime", s.sampled_uptime);
+	json_kint(*n, "highest_memory_usage_kb", s.high_total);
+	json_kint(*n, "highest_used_js_heap_size_kb", s.high_heap);
+	json_kint(*n, "highest_memory_usage_uptime", s.high_uptime);
+	aw_track(c, "app_native_crash", *n);
+	analytics_client_heartbeat(c);
+	locks.lock(*a.mu);
+	pending := a.pending_connected;
+	a.pending_connected = "";
+	at := now + cast(s64) synth_between(*a.synth, 90, 200);
+	locks.unlock(*a.mu);
+	if pending {
+		analytics_schedule(c, at, "gateway_connected", pending);
+		analytics_schedule(c, at, "", "");
+		free(pending,, a.allocator);
+	}
+}
+
+// client_heartbeat: ClientHeartbeatScheduler, at launch, on login and every 15 min.
+analytics_client_heartbeat :: (c: *Client) {
+	a := *c.analytics;
+	now := now_ms();
+	hb := identity_heartbeat_snapshot(*c.id);
+	locks.lock(*a.mu);
+	synth_memory(*a.synth, now, a.rtc_state == .Rtc_Connected);
+	m := a.synth;
+	a.next_client_hb = now + CLIENT_HEARTBEAT_INTERVAL_MS;
+	locks.unlock(*a.mu);
+	idle := atomic_load(*c.idle_since); // IdleStore: 0 while active, so the "duration" is the epoch time
+	w := aw_begin();
+	json_kint(*w, "client_heartbeat_initialization_timestamp", ifx hb.created_at then hb.created_at else now);
+	json_kint(*w, "client_heartbeat_version", 31);
+	json_kint(*w, "client_heartbeat_renderer_memory", m.proc[1]);
+	json_kint(*w, "client_heartbeat_renderer_memory_used_heap", m.heap);
+	json_key(*w, "electron_process_memory_private");
+	json_raw(*w, "[-1,-1,-1,-1,-1,-1,-1]");
+	json_key(*w, "electron_process_memory_private_and_shared");
+	json_raw(*w, tprint("[-1,%,%,%,-1,%,-1]", m.proc[0], m.proc[1], m.proc[2], m.proc[3]));
+	json_kbool(*w, "is_idle", idle != 0);
+	json_kint(*w, "idle_duration_ms", now - idle);
+	json_kbool(*w, "is_afk", false);
+	json_kbool(*w, "is_system_suspended", false);
+	json_kbool(*w, "is_system_locked", false);
+	aw_track(c, "client_heartbeat", *w);
+}
+
+// dismissible_content_shown_before_connection_open: the "For Later" coachmark
+// checked before CONNECTION_OPEN, with the route's guild (the Shop and Orbs
+// upsells checked with it are never sent: no ads).
+analytics_before_connection_open :: (c: *Client) {
+	locks.lock(*c.route_mu);
+	g := c.route_guild;
+	locks.unlock(*c.route_mu);
+	w := aw_begin();
+	json_kstr(*w, "content_type", "FOR_LATER_POPOUT_COACHMARK");
+	json_knull(*w, "group_name");
+	json_knull(*w, "latest_version");
+	aw_ksnow_or_null(*w, "guild_id", g);
+	json_knull(*w, "snowflake_id");
+	aw_track(c, "dismissible_content_shown_before_connection_open", *w);
+}
+
+// ready_payload_received: READY's sizes and timings. Wire sizes and the unpack
+// time are the gateway reader's (Analytics.ready_frame; READY's ETF size when
+// injected), server timings come from READY's _trace, section sizes are their
+// JSON lengths. The identify timings repeat the official arithmetic, which mixes
+// performance.now() (our launch standing for the page load) with Date.now().
+analytics_ready_payload :: (c: *Client, data: V, is_reconnect: bool) {
+	a := *c.analytics;
+	now := now_ms();
+	d := vmap(data);
+	locks.lock(*a.mu);
+	f := a.ready_frame;
+	a.ready_frame = .{};
+	a.ready_unpack_ms = f.unpack_ms;
+	identify := a.identify_ms;
+	a.identify_ms = 0;
+	ident_bytes := cast(s64) synth_between(*a.synth, 1020, 1110);
+	locks.unlock(*a.mu);
+	if f.raw == 0 {
+		bytes, err := etf.encode(data,, temp);
+		if err == .None f.raw = bytes.count + 1;
+		f.wire = f.raw * 33 / 100; // the fixtures' zstd-stream ratio
+	}
+	jlen :: (v: V) -> int {
+		sb: String_Builder;
+		sb.allocator = temp;
+		etf.to_json(v, *sb);
+		return builder_string_length(*sb);
+	}
+	// _trace: JSON strings of ["gateway-...", {micros, calls: [name, {micros, calls}, ...]}]
+	find :: (calls: []V, name: string) -> int {
+		for i: 0..calls.count - 2 {
+			if calls[i].kind == .String && calls[i].s == name return fint(vmap(calls[i + 1]), "micros");
+			if calls[i + 1].kind == .Map {
+				r := find(flist(vmap(calls[i + 1]), "calls"), name);
+				if r >= 0 return r;
+			}
+		}
+		return -1;
+	}
+	total, api, guilds := 0, -1, -1;
+	for flist(d, "_trace") {
+		t, err := etf.from_json(vstr(it),, temp);
+		if err != .None || t.kind != .List || t.list.count < 2 continue;
+		if total == 0 total = fint(vmap(t.list[1]), "micros");
+		if api < 0 api = find(t.list, "start_session");
+		if guilds < 0 guilds = find(t.list, "guilds_connect");
+	}
+	TOP :: string.["presences", "users", "read_state", "private_channels", "user_settings_proto", "experiments", "user_guild_settings", "relationships"];
+	TOP_NAMES :: string.["presences_size", "users_size", "read_states_size", "private_channels_size", "user_settings_size", "experiments_size", "user_guild_settings_size", "relationships_size"];
+	GUILD :: string.["channels", "members", "presences", "roles", "emojis", "threads", "stickers", "guild_scheduled_events", "features"];
+	GUILD_NAMES :: string.["guild_channels_size", "guild_members_size", "guild_presences_size", "guild_roles_size", "guild_emojis_size", "guild_threads_size", "guild_stickers_size", "guild_events_size", "guild_features_size"];
+	top: [TOP.count]int;
+	for TOP top[it_index] = jlen(vget(d, it));
+	top[5] += jlen(vget(d, "guild_experiments"));
+	gs: [GUILD.count]int;
+	guilds_len, channels, categories := 0, 0, 0;
+	for g: flist(d, "guilds") {
+		gm := vmap(g);
+		guilds_len += jlen(g);
+		for GUILD gs[it_index] += jlen(vget(gm, it));
+		for flist(gm, "channels") {
+			channels += 1;
+			if fint(vmap(it), "type") == 4 categories += 1;
+		}
+	}
+	rest, grest := jlen(data) - guilds_len, guilds_len;
+	for top rest -= it;
+	for gs grest -= it;
+	conn := ifx c.gw then c.gw.attempt_start else 0;
+	if conn == 0 conn = now - 1000;
+	fast := identify != 0; // the launch's fast-connect IDENTIFY
+	if !fast identify = conn + 160; // sent on HELLO
+	frac := 0.1 * cast(float64) (mono_ms() % 10);
+	perf := cast(float64) (identify - c.launch_ms) + frac; // performance.now() at the identify
+	w := aw_begin();
+	json_kint(*w, "compressed_byte_size", f.wire);
+	json_kint(*w, "uncompressed_byte_size", f.raw);
+	json_kstr(*w, "compression_algorithm", "zstd-stream");
+	json_kstr(*w, "packing_algorithm", "etf");
+	json_kint(*w, "unpack_duration_ms", f.unpack_ms);
+	json_kint(*w, "identify_total_server_duration_ms", total / 1000);
+	json_kint(*w, "identify_api_duration_ms", max(api, 0) / 1000);
+	json_kint(*w, "identify_guilds_duration_ms", max(guilds, 0) / 1000);
+	json_kint(*w, "num_guilds", flist(d, "guilds").count);
+	json_kint(*w, "num_guild_channels", channels);
+	json_kint(*w, "num_guild_category_channels", categories);
+	for TOP_NAMES json_kint(*w, it, top[it_index]);
+	json_kint(*w, "remaining_data_size", max(rest, 0));
+	for GUILD_NAMES json_kint(*w, it, gs[it_index]);
+	json_kint(*w, "guild_remaining_data_size", max(grest, 0));
+	json_kint(*w, "size_metrics_duration_ms", now_ms() - now);
+	aw_kf64(*w, "duration_ms_since_identify_start", perf - cast(float64) now);
+	aw_kf64(*w, "duration_ms_since_connection_start", perf - cast(float64) (identify - conn) - cast(float64) now);
+	aw_kf64(*w, "duration_ms_since_emit_start", cast(float64) now - perf + cast(float64) (identify - conn + 160));
+	json_kbool(*w, "is_reconnect", is_reconnect);
+	json_kbool(*w, "is_fast_connect", fast);
+	json_kbool(*w, "did_force_clear_guild_hashes", false);
+	// the fast-connect IDENTIFY is sent before the app loads: no sizes; otherwise its JSON and packed sizes
+	json_kint(*w, "identify_uncompressed_byte_size", ifx fast then 0 else ident_bytes);
+	json_kint(*w, "identify_compressed_byte_size", ifx fast then 0 else ident_bytes * 63 / 100);
+	json_kbool(*w, "had_cache_at_startup", false);
+	json_kbool(*w, "used_cache_at_startup", false);
+	aw_track(c, "ready_payload_received", *w);
+}
+
+// app_ui_viewed and app_web_perf_startup_metrics ("tti"): the first render
+// after READY (fixtures: READY +60 ms). The web bundle's sizes and script costs
+// are synthesized from build 649389's fixtures (web.057e7776e1c6251b.js...);
+// duration_ms_since_app_opened is our launch to now.
+analytics_first_render :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake) {
+	a := *c.analytics;
+	locks.lock(*a.mu);
+	j := synth_between(*a.synth, 0.97, 1.03);
+	render := cast(s64) synth_between(*a.synth, 650, 1250);
+	evals := cast(s64) synth_between(*a.synth, 75, 95);
+	unpack := a.ready_unpack_ms;
+	locks.unlock(*a.mu);
+	home := guild_id == 0 && channel_id == 0;
+	load_id := analytics_load_id();
+	w := aw_begin();
+	json_kint(*w, "total_compressed_byte_size", cast(s64) (5_170_000 * j));
+	json_kint(*w, "total_uncompressed_byte_size", cast(s64) (19_130_000 * j));
+	json_kint(*w, "total_transfer_byte_size", 0);
+	json_kint(*w, "js_compressed_byte_size", ifx home then 760625 else 701207);
+	json_kint(*w, "js_uncompressed_byte_size", ifx home then 2348196 else 2033590);
+	json_kint(*w, "js_transfer_byte_size", 0);
+	json_kint(*w, "css_compressed_byte_size", ifx home then 27091 else 42125);
+	json_kint(*w, "css_uncompressed_byte_size", ifx home then 87044 else 251265);
+	json_kint(*w, "css_transfer_byte_size", 0);
+	json_kstr(*w, "load_id", load_id);
+	json_kstr(*w, "screen_name", ifx home then "friends" else ifx guild_id then "guild_channel" else "private_channel");
+	json_kint(*w, "duration_ms_since_app_opened", now_ms() - c.launch_ms);
+	json_kbool(*w, "app_hardware_acceleration_enabled", true);
+	aw_track(c, "app_ui_viewed", *w);
+	p := aw_begin();
+	json_kstr(*p, "load_id", load_id);
+	json_kstr(*p, "metric_name", "tti");
+	json_kstr(*p, "url_root_path", ifx guild_id || channel_id then "channels" else "channels/@me");
+	json_kstr(*p, "ready_packing_algorithm", "etf");
+	json_kint(*p, "ready_unpack_duration_ms", unpack);
+	json_kbool(*p, "was_authenticated", true);
+	json_kint(*p, "time_first_render_after_ready_end", render);
+	json_kbool(*p, "script_cost_loaf_supported", true);
+	json_kint(*p, "script_cost_unattributed_eval_ms", 0);
+	json_kint(*p, "script_cost_total_count", ifx home then 437 else 1120);
+	n := ifx home then 3 else 4;
+	json_kint(*p, "script_cost_reported_count", n);
+	nums :: (w: *Json, k: string, v: []s64) { json_key(w, k); json_arr(w); for v json_int(w, it); json_arr_end(w); }
+	bools :: (w: *Json, k: string, v: []bool) { json_key(w, k); json_arr(w); for v json_bool(w, it); json_arr_end(w); }
+	aw_strs(*p, "script_cost_url", array_view(string.["/assets/web.057e7776e1c6251b.js", "/assets/556707.bb1a25f3c212ce8f.js", "/assets/b3931ca213b9d0ec.js", "/assets/f1f07381693dcba1.js"], 0, n));
+	nums(*p, "script_cost_download_ms", array_view(s64.[evals * 2 + 20, 0, 0, 0], 0, n));
+	nums(*p, "script_cost_transfer_size_bytes", array_view(s64.[0, 0, 0, 0], 0, n));
+	bools(*p, "script_cost_from_cache", array_view(bool.[true, false, true, true], 0, n));
+	nums(*p, "script_cost_initial_eval_ms", array_view(s64.[0, 0, evals / 2, evals * 4 / 9], 0, n));
+	nums(*p, "script_cost_total_eval_ms", array_view(s64.[evals, evals * 2 + 25, evals / 2, evals * 4 / 9], 0, n));
+	bools(*p, "script_cost_eval_attributed", array_view(bool.[true, true, true, true], 0, n));
+	aw_track(c, "app_web_perf_startup_metrics", *p);
 }
 

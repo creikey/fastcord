@@ -157,6 +157,7 @@ voice_frame :: () {
 		vc.retry_at = dc.now_ms() + dc.backoff_fail(*vc.backoff);
 		request_wake(platform.time_now() + cast(float64) (vc.retry_at - dc.now_ms()) / 1000 + 0.01);
 	}
+	voice_analytics_frame();
 	table_reset_keeping_memory(*vc.speaking);
 	if vc.conn != null {
 		for voice.speaking_users(vc.conn,, temp) table_set(*vc.speaking, cast(dc.Snowflake) it, true);

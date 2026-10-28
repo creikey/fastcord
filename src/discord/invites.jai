@@ -488,6 +488,7 @@ joined_guild_created :: (c: *Client, d: etf.Map) -> bool {
 	if pg == gid c.pending_join_guild, c.pending_join_channel = 0, 0;
 	locks.unlock(*c.invite_mu);
 	if !pg || pg != gid return false;
+	analytics_exposed(c, "experimentStoreUpdate", "2026-04-desktop-tti-v8-cache"); // the joined guild's experiments reach the store
 	cc := table_find_pointer(*c.store.channels, ch);
 	if !cc || cc.guild_id != gid {
 		ch = 0;

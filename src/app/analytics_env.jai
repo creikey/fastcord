@@ -36,7 +36,65 @@ analytics_env_report :: (sz: Vector2, force_in := false) {
 	}
 }
 
+// voice_analytics_frame: report the voice connection's steps (voice.timeline) and
+// a per-frame sample to the library's voice telemetry (dc.analytics_voice_*).
+// Called at the end of voice_frame.
+voice_analytics_frame :: () {
+	c := app.client;
+	conn := voice_conn();
+	if c == null || conn == null {
+		va.conn = null;
+		return;
+	}
+	tl := voice.timeline(conn,, temp);
+	if conn != va.conn {
+		va = .{conn = conn};
+		d: dc.Voice_Devices;
+		for input: bool.[true, false] {
+			list := ifx voice_headless() then .[] else audio.list_devices(input,, temp);
+			name := "";
+			for list if it.is_default name = it.name;
+			// the official lists hold a "Default" entry before the devices
+			if input { d.input, d.inputs = name, list.count + 1; } else { d.output, d.outputs = name, list.count + 1; }
+		}
+		#if OS == .MACOS { d.camera, d.cameras = "FaceTime HD Camera", 2; } // synthesized: no camera enumeration without the permission prompt
+		dc.analytics_voice_connecting(c, conn.rtc_connection_id, conn.host, d, app.self_mute || app.self_deaf);
+	}
+	if tl.ws_open && !va.ws_open {
+		va.ws_open = true;
+		dc.analytics_audio_input_initialized(c);
+	}
+	if tl.ready && !va.ready {
+		va.ready = true;
+		dc.analytics_voice_ready(c, tl.ws_open, tl.ready, tl.udp_port);
+	}
+	if tl.connected && !va.connected {
+		va.connected = true;
+		dc.analytics_voice_connected(c, tl.select_sent, tl.connected, tl.media_session_id);
+	}
+	if !va.connected return;
+	st := voice.get_stats(conn);
+	e2ee := voice.e2ee_status(conn,, temp);
+	speaking := false;
+	hearing := false;
+	for voice.speaking_users(conn,, temp) {
+		if it == cast(u64) c.store.me speaking = true; else hearing = true;
+	}
+	dc.analytics_voice_frame(c, .{
+		speaking = speaking, hearing = hearing, muted = app.self_mute, deafened = app.self_deaf,
+		packets_sent = cast(s64) st.packets_sent, packets_received = cast(s64) st.packets_received, packets_lost = cast(s64) st.jitter.lost,
+		bytes_sent = cast(s64) st.bytes_sent, bytes_received = cast(s64) st.bytes_received,
+		ping_ms = st.ws_ping_ms, jitter_ms = st.jitter.jitter_ms, target_frames = st.jitter.target_frames,
+		members = ifx e2ee.active then e2ee.members else 0
+	});
+}
+
 #scope_file
+
+va: struct {
+	conn: *voice.Conn; // the connection reported so far
+	ws_open, ready, connected: bool;
+};
 
 env: struct {
 	client: *dc.Client;

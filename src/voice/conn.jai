@@ -78,6 +78,14 @@ Stats :: struct {
     jitter: Jitter_Stats;  // summed over remote users
 }
 
+// Timeline: when each connection step happened (epoch ms, 0 = not yet), for the
+// app's telemetry (discord.analytics_voice_*). Read with timeline(c).
+Timeline :: struct {
+    created, ws_open, ready, select_sent, connected: s64;
+    udp_port: int;
+    media_session_id: string; // from SESSION_DESCRIPTION (owned by the connection)
+}
+
 User_Settings :: struct {
     volume: float32 = 1;  // 0..2, 1 = unchanged
     muted: bool;
@@ -169,6 +177,7 @@ Conn :: struct {
     silence_left: int;
     next_rtcp_ms: s64;
     stats: Stats;
+    tl: Timeline;        // under mu
 
     ws_th, timer_th, udp_th, audio_th: *Thread;
     udp_started: bool;
@@ -262,6 +271,7 @@ voice_connect :: (info: Voice_Server_Info, opts := Options.{}) -> *Conn {
     c.ts = get_u32(rb, 2);
     DAVE.session_init(*c.dave, info.user_id, info.channel_id, info.stage);
     c.state = .Connecting;
+    c.tl.created = now_ms();
     env := getenv("FASTCORD_VOICE_DEBUG");
     c.debug = env && to_string(env) == "1";
     c.ws_th = start_thread(c, ws_thread_proc);
@@ -302,7 +312,22 @@ voice_disconnect :: (c: *Conn) {
     free(c.info.user_agent);
     free(c.info.accept_language);
     free(c.rtc_connection_id);
+    free(c.tl.media_session_id);
     free(c);
+}
+
+// timeline: a copy (media_session_id in context.allocator).
+timeline :: (c: *Conn) -> Timeline {
+    locks.guard(*c.mu);
+    t := c.tl;
+    t.media_session_id = copy_string(t.media_session_id);
+    return t;
+}
+
+// note: the first time a step happens (mu not held).
+note :: (c: *Conn, at: *s64) {
+    locks.guard(*c.mu);
+    if !at.* at.* = now_ms();
 }
 
 state :: (c: *Conn) -> Conn_State, int {
@@ -597,6 +622,7 @@ ws_session :: (c: *Conn, resume: bool) -> int {
         // voice_disconnect found no socket to shut down while this one was connecting.
         if stopped(c) netio.shutdown(stream);
     }
+    note(c, *c.tl.ws_open);
     {
         locks.guard(*c.hb_mu);
         c.hello_deadline_ms = now_ms() + 20_000;
@@ -780,6 +806,7 @@ send_heartbeat :: (c: *Conn) {
 }
 
 on_ready :: (c: *Conn, d: etf.Value) {
+    note(c, *c.tl.ready);
     c.ssrc = cast,no_check(u32) jint(jget(d, "ssrc"), 0);
     for jarr(jget(d, "streams")) {
         locks.guard(*c.vmu);
@@ -801,6 +828,11 @@ on_ready :: (c: *Conn, d: etf.Value) {
     set_state(c, .Discovering);
     if c.mode == .None || !ip || port == 0 return;
     if !udp_setup(c, ip, port) return;
+    {
+        locks.guard(*c.mu);
+        c.tl.udp_port = port;
+    }
+    note(c, *c.tl.select_sent);
     send_text(c, msg_select_protocol(c.external_ip, c.external_port, c.mode, c.rtc_connection_id, c.experiments));
 }
 
@@ -855,6 +887,10 @@ on_session_description :: (c: *Conn, d: etf.Value) {
         transport_init(*c.tx_crypto, mode, key);
         transport_init(*c.rx_crypto, mode, key);
         c.have_key = true;
+        if !c.tl.connected {
+            c.tl.connected = now_ms();
+            c.tl.media_session_id = copy_string(jstr(jget(d, "media_session_id")));
+        }
     }
     crypto.zero(*key);
     dv := jint(jget(d, "dave_protocol_version"));

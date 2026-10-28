@@ -5,6 +5,7 @@ Switcher :: struct {
 	editor: ui.Editor;
 	sel: int;
 	t: float32;
+	max_query: int; // the longest query while open (quickswitcher_closed)
 }
 
 sw: Switcher;
@@ -51,10 +52,38 @@ fuzzy_score :: (query: string, text: string) -> int {
 }
 
 switcher_toggle :: () {
-	sw.open = !sw.open;
+	if sw.open {
+		switcher_close(switcher_items(trim(ui.editor_text(*sw.editor))));
+		return;
+	}
+	sw.open = true;
 	sw.t = 0;
 	sw.sel = 0;
+	sw.max_query = 0;
 	ui.editor_set_text(*sw.editor, "");
+}
+
+// switcher_close: dismissed, or a result chosen (selected): the switcher's telemetry, then closed.
+switcher_close :: (items: []Switch_Item = .[], selected := -1) {
+	sw.open = false;
+	if app.client == null { return; }
+	res := NewArray(items.count, dc.Qs_Result,, temp);
+	for items {
+		r := *res[it_index];
+		r.id, r.score = it.id, cast(float64) it.score / 2;
+		ch := dc.channel_get(store(), it.id);
+		if it.kind == {
+		case .DM;
+			if ch != null && ch.kind == .DM && ch.recipient_ids.count > 0 { r.kind = .User; r.id = ch.recipient_ids[0]; } else { r.kind = .Group_Dm; }
+		case .Channel;
+			r.kind = .Text_Channel;
+			if ch != null && (ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice) { r.kind = .Voice_Channel; }
+			r.guild_id = it.guild;
+		case .Guild;
+			r.kind = .Guild;
+		}
+	}
+	dc.analytics_quickswitcher_closed(app.client, app.view.guild, app.view.channel, trim(ui.editor_text(*sw.editor)), sw.max_query, res, selected);
 }
 
 // The 12 best matches, best first; equal scores keep DMs, servers, channels order (a stable sort's top 12).
@@ -93,7 +122,9 @@ switcher_items :: (query: string) -> []Switch_Item {
 	return top;
 }
 
-switcher_activate :: (item: Switch_Item) {
+switcher_activate :: (items: []Switch_Item, index: int) {
+	switcher_close(items, index);
+	item := items[index];
 	if item.kind == {
 	case .DM;
 		select_channel(0, item.id);
@@ -102,8 +133,6 @@ switcher_activate :: (item: Switch_Item) {
 	case .Guild;
 		select_guild(item.id);
 	}
-
-	sw.open = false;
 }
 
 quick_switcher :: () {
@@ -111,12 +140,13 @@ quick_switcher :: () {
 	scrim := ui.box("sw_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
 	scrim.style.bg = .{0, 0, 0, 0.7 * sw.t};
-	if ui.signal(scrim).clicked {
-		sw.open = false;
-		return;
-	}
 	query := trim(ui.editor_text(*sw.editor));
 	items := switcher_items(query);
+	sw.max_query = max(sw.max_query, query.count);
+	if ui.signal(scrim).clicked {
+		switcher_close(items);
+		return;
+	}
 	sw.sel = clamp(sw.sel, 0, max(items.count - 1, 0));
 	for * e: app.ui.events {
 		if e.kind != .Key_Down || e.consumed { continue; }
@@ -128,7 +158,7 @@ quick_switcher :: () {
 			sw.sel = max(sw.sel - 1, 0);
 			e.consumed = true;
 		case .Escape;
-			sw.open = false;
+			switcher_close(items);
 			e.consumed = true;
 		}
 	}
@@ -156,7 +186,7 @@ quick_switcher :: () {
 			{ ui.parent(field); defer ui.pop_parent();
 				spacer(.X, 12);
 				res := text_field("q", *sw.editor, "Where would you like to go?", true, 24, 30);
-				if res == .Submit && items.count > 0 { switcher_activate(items[sw.sel]); }
+				if res == .Submit && items.count > 0 { switcher_activate(items, sw.sel); }
 				if res == .Changed { sw.sel = 0; }
 				spacer(.X, 12);
 			}
@@ -170,7 +200,7 @@ quick_switcher :: () {
 			if sig.hovering && app.ui.mouse != app.ui.mouse_prev { sw.sel = i; }
 			sel := i == sw.sel;
 			if sel { ir.style.bg = T("--background-mod-normal"); }
-			if sig.clicked { switcher_activate(item); }
+			if sig.clicked { switcher_activate(items, i); }
 			{ ui.parent(ir); defer ui.pop_parent();
 				spacer(.X, 28);
 				if item.kind == {

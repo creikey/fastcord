@@ -10,8 +10,9 @@
 # The live recordings come from one long session (build/parity session), while each official fixture
 # was recorded right after its own launch. An unmatched official event is marked "earlier" when
 # fastcord sent the same thing earlier in the session (session-once loads: command indexes, picker
-# data), and "design" when it is a telemetry event fastcord never sends because its values can't be
-# measured honestly (analytics_unknowable in src/discord/analytics.jai).
+# data), and "design" when it is a telemetry event fastcord never sends by rule: ads, Nitro and quest
+# promotion, UI it does not have (analytics_never in src/discord/analytics.jai). Values it cannot
+# measure are synthesized, so those events are sent.
 #
 #   python3 -I tools/parity_viz.py            (writes site/parity.json)
 import json, os, re, sys
@@ -84,9 +85,9 @@ def session_order(ours_dir):
     return sorted((n for n in os.listdir(ours_dir) if n.endswith('.jsonl')), key=when)
 
 
-def unknowable():
+def never_sent():
     src = open(os.path.join(ROOT, 'src', 'discord', 'analytics.jai')).read()
-    return set(re.findall(r'"(\w+)"', re.search(r'analytics_unknowable :: string\.\[(.*?)\];', src).group(1)))
+    return set(re.findall(r'"(\w+)"', re.search(r'analytics_never :: string\.\[(.*?)\];', src).group(1)))
 
 
 def main():
@@ -95,7 +96,7 @@ def main():
     def tok(s):
         if s not in index: index[s] = len(tokens); tokens.append(s)
         return index[s]
-    never = unknowable()
+    never = never_sent()
     seen, earlier = set(), {}  # tokens fastcord sent before each scenario's first action window
     for name in session_order(ours_dir):
         evs = events(os.path.join(ours_dir, name), windows=False)
@@ -117,7 +118,7 @@ def main():
             'f': [[t, k, tok(x)] for t, k, x in b],
             'm': pairs,
             'e': [i for i, (t, k, x) in enumerate(a) if i not in hit and x in earlier.get(name, ())],
-            'x': [i for i, (t, k, x) in enumerate(a) if i not in hit and k == 2 and x in never and x not in earlier.get(name, ())],
+            'x': [i for i, (t, k, x) in enumerate(a) if i not in hit and k == 2 and any(x.startswith(n) for n in never) and x not in earlier.get(name, ())],
         })
     out = {'tokens': tokens, 'scenarios': scenarios}
     dst = os.path.join(ROOT, 'site', 'parity.json')

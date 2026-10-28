@@ -813,18 +813,27 @@ r_type :: (c: *Client, channel: Snowflake, text: string) {
 	for 1..text.count typing_keystroke(c, channel);
 }
 
-// Telemetry fastcord never sends (traffic/PARITY.md "Telemetry"): every window allows these (replay_check).
-//   dismissible_content_shown, hotspot_hidden: Discord's NUX tooltips / upsells; fastcord shows none.
-//   quest_hover, quest_hover_off: the quests entry point on the home page; fastcord has none
-//     (and the hovers are the capture driver's mouse path, not the action).
-//   experiment_*: exposures of experiments read by official UI components (their names are the location).
-//   premium_upsell_viewed, impression_custom_themes_*: Nitro upsells.
-//   voice_connection_*, audio_input_initialized, media_session_joined, start_speaking,
-//   start_listening, secure_frames_transition, voice_codec_detected, voice_disconnect,
-//   leave_voice_channel: the official media engine's internals and statistics
-//   (versions, device lists, RTC timings, packet counts); src/voice is not that engine.
-//   video_layout_toggled: the official call view's layout state; fastcord's has no layouts.
-R_SCI_NEVER :: string.["science:dismissible_content_shown", "science:hotspot_hidden", "science:quest_hover", "science:experiment_", "science:premium_upsell_viewed", "science:impression_custom_themes", "science:voice_connection_", "science:audio_input_initialized", "science:media_session_joined", "science:start_speaking", "science:start_listening", "science:secure_frames_transition", "science:voice_codec_detected", "science:voice_disconnect", "science:leave_voice_channel", "science:video_layout_toggled"];
+// Telemetry fastcord never sends (traffic/PARITY.md "Telemetry", analytics_never):
+// every window allows these (replay_check). No ads (AGENTS.md):
+//   dismissible content of the Shop, Nitro and Orbs (by type), premium_upsell_viewed,
+//   impression_custom_themes_* (Nitro themes), quest_hover / quest_hover_off (the quests
+//   entry point; the hovers are the capture driver's mouse path anyway),
+//   exposures of ad / Nitro-marketing / Orbs / quests experiments (by location).
+R_SCI_NEVER :: string.[
+	"science:quest_hover", "science:premium_upsell_viewed", "science:impression_custom_themes",
+	"science:dismissible_content_shown/type=\"COLLECTIBLES_SHOP_ENTRY_MARKETING\"",
+	"science:dismissible_content_shown/type=\"CUSTOM_CALL_SOUNDS_PICKER_UPSELL\"",
+	"science:dismissible_content_shown/type=\"WISHLIST_NUX_TOOLTIP_AND_MODAL\"",
+	"science:dismissible_content_shown/type=\"USER_PROFILE_PREMIUM_AND_SHOP_ENTRY_POINTS\"",
+	"science:premium_feature_try_out",
+	"science:dismissible_content_shown/type=\"DISPLAY_NAME_STYLES_FLYWHEEL_EDIT_PROFILE_NEW_BADGE\"",
+	"science:dismissible_content_shown_before_connection_open/content_type=\"PREMIUM_ORBS_UPSELL_POPOVER\"",
+	"science:dismissible_content_shown_before_connection_open/content_type=\"WISHLIST_SHOP_BUTTON_POPOVER\"",
+	"science:experiment_user_evaluation_exposed/exposure_location=\"NitroTabButton\"",
+	"science:experiment_user_evaluation_exposed/exposure_location=\"useNoFillAd\"",
+	"science:experiment_user_evaluation_exposed/exposure_location=\"Account\"",
+	"science:experiment_user_evaluation_exposed/exposure_location=\"GlobalDiscoverySidebar\""
+];
 
 // The FrecencyUserSettingsManager's startup run (READY + 10 ms-10 s, one random draw per
 // session) fell in the window after the session's lazy load: r_frecency_load before the mark,
@@ -1416,15 +1425,60 @@ parity_join_voice :: (t: *T) {
 	r_frecency_load(*run);
 	replay_mark(*run);
 	voice_join(run.c, R_GUILD, R_VOICE);
-	replay_settle(*run, 300);
-	client_set_rtc_state(run.c, .Rtc_Connected); // the app's voice connection (src/voice is not run offline)
+	r_voice_connect(*run, R_MACBOOK);
 	r_frecency_run(*run); // writes the voice channel too (VOICE_CHANNEL_SELECT)
 	replay_settle(*run, 900);
 	// op 4 preferred_region(s) come from the live RTC probe
-	// science: the voice engine's events (permission prompt, RTC connection, codec,
-	// speaking) need src/voice connected, which the offline replay does not run;
-	// fastcord has no voice invite suggestions
-	replay_check(*run, "join_voice", string.["op 4", ".client_rtc_state", "science:permissions_requested", "science:impression_voice_invite_suggestions"]);
+	// science: fastcord has no voice invite suggestions
+	replay_check(*run, "join_voice", string.["op 4", ".client_rtc_state", "science:impression_voice_invite_suggestions"]);
+}
+
+parity_leave_voice :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	voice_join(run.c, R_GUILD, R_VOICE);
+	r_voice_connect(*run, R_MACBOOK);
+	for 1..16 { // three bursts of speech
+		replay_pump(*run, 100);
+		analytics_voice_frame(run.c, .{speaking = it % 4 != 0, packets_sent = 5 * it, ping_ms = 48, members = 1});
+	}
+	analytics_voice_frame(run.c, .{packets_sent = 93, bytes_sent = 2511, ping_ms = 48, members = 1});
+	replay_settle(*run, 300);
+	replay_mark(*run);
+	analytics_call_disconnect(run.c, R_GUILD, R_VOICE); // the app: the voice panel's Disconnect
+	voice_leave(run.c);
+	client_set_rtc_state(run.c, .Disconnected);
+	replay_settle(*run, 300);
+	// science: the web-vitals INP metric the official renderer reports now and then (no web page here)
+	replay_check(*run, "leave_voice", string.["science:app_web_perf_startup_metrics"]);
+}
+
+// r_voice_connect: what the app reports of src/voice's connection (not run
+// offline): the microphone prompt, the connection's steps, then our speech.
+// devices: the official captures' (a MacBook's, or AirPods in dm_call).
+R_MACBOOK :: Voice_Devices.{input = "MacBook Pro Microphone", output = "MacBook Pro Speakers", camera = "FaceTime HD Camera", inputs = 5, outputs = 5, cameras = 4};
+R_AIRPODS :: Voice_Devices.{input = "Cameron’s AirPods Max", output = "Cameron’s AirPods Max", camera = "FaceTime HD Camera", inputs = 8, outputs = 9, cameras = 4};
+
+r_voice_connect :: (run: *Replay_Run, devices: Voice_Devices, speak := true, prompt := true, members := 1, speak_after := 600) {
+	c := run.c;
+	replay_pump(run, 250);
+	if prompt analytics_permissions_requested(c, "audio"); // the app opens the microphone on VOICE_SERVER_UPDATE
+	client_set_rtc_state(c, .Awaiting_Endpoint);
+	replay_pump(run, 150);
+	t0 := now_ms();
+	analytics_voice_connecting(c, "8c6ad1a8-2f8d-4c1e-9d5e-3a1b2c3d4e5f", "c-lax10-0bb324b8.discord.media", devices, false);
+	replay_pump(run, 150);
+	analytics_audio_input_initialized(c);
+	replay_pump(run, 150);
+	analytics_voice_ready(c, t0 + 20, now_ms(), 19339);
+	replay_pump(run, 150);
+	analytics_voice_connected(c, now_ms() - 120, now_ms(), "0f3a6b8c9d2e4f1a7b5c6d8e9f0a1b2c");
+	client_set_rtc_state(c, .Rtc_Connected);
+	if !speak return;
+	replay_pump(run, 40);
+	analytics_voice_frame(c, .{members = members}); // members 2: the E2EE group formed
+	replay_settle(run, speak_after);
+	analytics_voice_frame(c, .{speaking = true, packets_sent = 10, members = members});
 }
 
 parity_close_dm :: (t: *T) {
@@ -1452,8 +1506,9 @@ parity_create_guild :: (t: *T) {
 	replay_dispatches(*run, "create_guild_submit", "GUILD_CREATE");
 	replay_settle(*run, 900);
 	// op 8: the scrubbed fixture aliases the new guild's channel to the test channel,
-	// whose authors are not members of the new guild here
-	replay_check(*run, "create_guild_submit", string.["op 8"]);
+	// whose authors are not members of the new guild here; science: the legacy guild
+	// experiments' triggers need their population filters evaluated (not modelled)
+	replay_check(*run, "create_guild_submit", string.["op 8", "science:experiment_guild_triggered"]);
 }
 
 parity_start_group_dm :: (t: *T) {
@@ -1544,10 +1599,13 @@ parity_quick_switcher_open :: (t: *T) {
 	analytics_keyboard_shortcut(run.c, "QUICKSWITCHER_SHOW", "mod+k");
 	analytics_quickswitcher_opened(run.c, R_GUILD, R_TEXT);
 	replay_settle(*run, 300);
-	// the switcher's close / result events carry Discord's search scores (not sent);
-	// opening a DM from it is select_channel (parity_open_dm), with the DM list's
-	// view (dm_list_viewed) and the profile it shows
-	replay_check(*run, "switch_to_dm", string.["science:quickswitcher_closed", "science:quickswitcher_result_selected", "science:dm_list_viewed", "science:channel_opened", "science:user_profile_action"], science_only = true);
+	// the app: Enter on the first result, the DM with B (empty query)
+	dm := channel_get(*run.c.store, R_DM);
+	analytics_quickswitcher_closed(run.c, R_GUILD, R_TEXT, "", 0, .[.{kind = .User, id = ifx dm && dm.recipient_ids then dm.recipient_ids[0] else 1, score = 3}], 0);
+	replay_settle(*run, 300);
+	// opening the DM is select_channel (parity_open_dm), with the DM list's view
+	// (dm_list_viewed) and the profile it shows
+	replay_check(*run, "switch_to_dm", string.["science:dm_list_viewed", "science:channel_opened", "science:user_profile_action"], science_only = true);
 }
 
 parity_friends_add_tab :: (t: *T) {
@@ -2534,15 +2592,15 @@ parity_dm_call :: (t: *T) {
 	replay_pump(*run, 1500); // the DM's open-time profile loads
 	replay_mark(*run);
 	dm_call_start(run.c, R_DM);
-	// the app reports its voice connection's state (src/voice is not run offline):
-	// waiting for the endpoint, then connected
 	client_set_rtc_state(run.c, .Awaiting_Endpoint);
 	replay_settle(*run, 200);
 	replay_dispatches(*run, "start_call");
 	client_poll(run.c);
-	analytics_permissions_requested(run.c, "audio"); // the app opens the microphone on VOICE_SERVER_UPDATE
-	client_set_rtc_state(run.c, .Rtc_Connected);
-	replay_settle(*run, 2400); // the two shelf loads answer ~1.2 s and ~1.9 s later
+	r_voice_connect(*run, R_AIRPODS, speak = false); // the app reports src/voice's connection (not run offline)
+	replay_settle(*run, 1800); // the two shelf loads answer ~1.2 s and ~1.9 s later
+	analytics_voice_frame(run.c, .{members = 1});
+	analytics_voice_frame(run.c, .{speaking = true, packets_sent = 10, members = 1});
+	replay_settle(*run, 300);
 	// op 4 preferred_region(s): the live RTC probe; messages?before: history paging after the
 	// call message; settings-proto/2: the session's lazy load
 	replay_check(*run, "start_call", string.["op 4", "/messages?before", "settings-proto/2"]);
@@ -2555,17 +2613,23 @@ parity_dm_call :: (t: *T) {
 	call_accept(run2.c, R_DM);
 	client_set_rtc_state(run2.c, .Awaiting_Endpoint);
 	replay_dispatches(*run2, "b_join_from_ring");
-	replay_settle(*run2, 200);
-	analytics_permissions_requested(run2.c, "audio"); // the app opens the microphone
-	client_set_rtc_state(run2.c, .Rtc_Connected);
-	replay_settle(*run2, 1500);
+	r_voice_connect(*run2, R_AIRPODS, members = 2, speak_after = 40); // A is in the call: B commits into its E2EE group
+	replay_pump(*run2, 250);
+	analytics_voice_frame(run2.c, .{hearing = true, packets_received = 20, members = 2});
+	replay_settle(*run2, 400);
 	expect_value(t, incoming_call(run2.c), cast(Snowflake) 0);
 	replay_check(*run2, "b_join_from_ring", string.["op 4"]);
 	run3: Replay_Run;
 	if !replay_begin(*run3, t, "dm_call", 0, R_DM) { return; }
 	replay_pump(*run3, 1500);
-	client_set_rtc_state(run3.c, .Rtc_Connected); // A is in the call
-	replay_settle(*run3, 300); // its soundboard fetch
+	dm_call_start(run3.c, R_DM); // A is in the call with B, both speaking now and then
+	replay_dispatches(*run3, "start_call");
+	r_voice_connect(*run3, R_AIRPODS, speak = false, prompt = false);
+	for 1..16 {
+		replay_pump(*run3, 100);
+		analytics_voice_frame(run3.c, .{speaking = it % 4 != 0, hearing = it % 4 == 0, packets_sent = 20 * it, packets_received = 12 * it, jitter_ms = 30, target_frames = 2, ping_ms = 18, members = 2});
+	}
+	replay_settle(*run3, 300);
 	replay_mark(*run3);
 	analytics_call_disconnect(run3.c, 0, R_DM); // the app: the voice panel's Disconnect
 	voice_leave(run3.c);
@@ -2630,8 +2694,8 @@ parity_login_submit :: (t: *T) {
 	replay_check(*run, "login_submit", string.[
 		// the Friends activity feed (games the friends play) is not modelled
 		"applications/public", "/games?",
-		// not sent by fastcord (analytics_unknowable / not modelled)
-		"science:client_heartbeat", "science:session_start_client", "science:ready_payload_received", "science:game_profile_entry_point_available"
+		// not modelled: the session-start event and the Friends activity feed's game profiles
+		"science:session_start_client", "science:game_profile_entry_point_available"
 	]);
 }
 

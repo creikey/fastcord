@@ -903,7 +903,13 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 	calls_dispatch(c, name, data);
 	if name == {
 	case "READY";
+		launch := c.analytics.identify_ms != 0; // this launch's first READY (fast connect)
 		first := analytics_on_ready(c);
+		analytics_ready_experiments(c, data);
+		analytics_ready_payload(c, data, !first);
+		analytics_ad_heartbeat(c, now_ms()); // AdSessionStore's CONNECTION_OPEN handler runs here
+		analytics_exposures_after_ready(c);
+		if launch c.analytics.first_render_at = now_ms() + 60; // app_ui_viewed (fixtures: READY +60 ms)
 		note_webp_experiment(c, data);
 		c.account_verified = fbool(fmap(vmap(data), "user"), "verified");
 		// The window reopens on its last route: the guild is subscribed and its
@@ -968,6 +974,10 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 			}
 		}
 		guild_created_followups(c, gid);
+		// a new guild shows its setup progress: the sidebar's action rows, then the
+		// channel's welcome area (fixture create_guild)
+		analytics_exposed(c, "useGuildActionRows", "2026-09-server-onboarding-setup-progress");
+		analytics_exposed(c, "useWelcomeAreaSteps", "2026-09-server-onboarding-setup-progress", delay_ms = 650);
 		// the new guild renders at once: op 43 and its guild-open set go out with the
 		// page fetch, the subscription right after (fixture create_guild)
 		select_channel(c, gid, ch, initial_message_limit(viewport_h(c)), prefetch = true);
@@ -1105,6 +1115,7 @@ voice_followed :: (c: *Client, call: Snowflake, seen: *Snowflake) -> Snowflake {
 
 voice_leave :: (c: *Client) {
 	voice_update(c, 0, 0, c.cfg.voice_self_mute, false);
+	analytics_voice_leave(c);
 	frecency_select(c, 0, 0); // VOICE_CHANNEL_SELECT
 }
 
