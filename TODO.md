@@ -91,7 +91,7 @@
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
-- [ ] Media: the video player's volume and mute reset to 100% on every start (`view_media.jai` `video_volume` isn't saved); keep them in `settings.json`.
+- [ ] Layout: hiding the member list or the DM profile panel doesn't survive a restart (`app.view.show_members`, `hide_dm_profile` aren't in `settings.json`); the official client remembers both.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
 - [ ] Bug: a sleep over 60 s ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
@@ -369,3 +369,4 @@
 - [x] Threads: a message's `thread` object (sent with history, even for archived threads) now reaches the Store and the thread table, so the thread card under the message shows for threads the gateway never listed (`store.jai` `parse_message_fields`, test `message_thread_object`).
 - [x] Voice: output, input and per-user volume go to 400% (official max 200%, input 100%). A peak limiter (`audio.limit`: instant attack, ~100 ms release) replaces the hard clip in the mixer and on the mic gain. These values are local (`settings.json`), so nothing synced rejects them.
 - [x] Media: the video player's volume slider goes to 400% (100% at a quarter), through the mixer's limiter (`view_media.jai`).
+- [x] Media: the video player's volume and mute are saved in `settings.json` (`video_volume`, `video_muted`).
