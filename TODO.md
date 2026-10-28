@@ -85,7 +85,6 @@
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
-- [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
 - [ ] Voice: every volume slider goes from 0 to 400% (the official max is 200%). That covers output volume, per-user volume, stream volume, the video player and input volume (now 0-100). Clamps are in `src/app/view_voice_settings.jai`. Add a limiter so the boost doesn't clip harshly. Keep values above 200% local if synced settings would reject them.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
@@ -348,3 +347,4 @@
 - [x] Composer: a pending reply stays with its channel: hidden in other channels, back with its @ toggle on return (`view_message_actions.jai` `replies_switch`, `tests/ui/rail/reply_per_channel.txt`).
 - [x] Keybinds: Escape in the composer (with no reply open) marks the open channel read and drops the "NEW" divider and bar (`view_chat.jai` `composer`, `tests/ui/forward/escape_mark_read.txt`).
 - [x] Keybinds: Ctrl+/ opens a Keyboard Shortcuts modal listing every shortcut fastcord handles (`views.jai` `shortcuts_modal`, `tests/ui/shortcut_list.txt`).
+- [x] Read states: a message arriving in the open channel while you are scrolled up is no longer acked; it counts as unread until you scroll to the bottom (`Client.route_scrolled_up`, `replay_test.jai` `ack_timing`).

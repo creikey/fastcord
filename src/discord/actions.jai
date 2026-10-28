@@ -13,6 +13,13 @@
 // (fixtures open_guild_and_channel, open_dm); quick switcher / create flows don't.
 // source: the route change's source (transitionTo's `source`), reported as
 // channel_opened's location (e.g. "Thread Browser").
+set_route_scrolled_up :: (c: *Client, up: bool) {
+	if c.route_scrolled_up == up return;
+	locks.lock(*c.route_mu);
+	c.route_scrolled_up = up;
+	locks.unlock(*c.route_mu);
+}
+
 select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, message_limit := 50, prefetch := false, source := "") {
 	prev_referer := ifx prefetch then copy_string(client_route_referer(c),, temp) else "";
 	locks.lock(*c.route_mu);
@@ -24,6 +31,7 @@ select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messa
 	}
 	c.route_guild = guild_id;
 	c.route_channel = channel_id;
+	c.route_scrolled_up = false;
 	locks.unlock(*c.route_mu);
 	if guild_id && guild_id != prev_guild {
 		subscribe_guild(c, guild_id);
@@ -881,7 +889,7 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 		if rt && rt.gateway == 0 rt.gateway = now_ms();
 		gid := fsnow(d, "guild_id");
 		locks.lock(*c.route_mu);
-		viewing := c.route_channel == fsnow(d, "channel_id");
+		viewing := c.route_channel == fsnow(d, "channel_id") && !c.route_scrolled_up; // shouldAutomaticallyAck: "Not at bottom"
 		locks.unlock(*c.route_mu);
 		cid, mid := fsnow(d, "channel_id"), fsnow(d, "id");
 		if fsnow(fmap(d, "author"), "id") == c.store.me return;

@@ -1142,6 +1142,14 @@ ack_timing :: (t: *T) {
 	_, rs := table_find(*c.store.read_states, R_TEXT);
 	expect_value(t, rs.mention_count, 1);
 	client_set_focused(c, true);
+	// focused but scrolled up: still not acked ("Not at bottom")
+	set_route_scrolled_up(c, true);
+	d, _ = etf.from_json(tprint("{\"id\":\"%\",\"channel_id\":\"%\",\"guild_id\":\"%\",\"type\":0,\"content\":\"hi\",\"author\":{\"id\":\"1\",\"username\":\"x\"},\"mentions\":[{\"id\":\"%\"}],\"mention_everyone\":false}", mid + (1 << 22), R_TEXT, R_GUILD, c.store.me));
+	client_inject_dispatch(c, "MESSAGE_CREATE", d);
+	replay_settle(*run, 100);
+	_, rs = table_find(*c.store.read_states, R_TEXT);
+	expect(t, rs.mention_count == 2 && c.pending_acks.count == 0, "a message while scrolled up isn't acked");
+	set_route_scrolled_up(c, false);
 	replay_mark(*run);
 	ack_message(c, R_TEXT, msgs[msgs.count - 2].id, location = ACK_INCOMING_MESSAGE);
 	replay_pump(*run, 300);

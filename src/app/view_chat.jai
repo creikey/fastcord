@@ -93,6 +93,7 @@ chat_view :: (channel_id: dc.Snowflake) {
 	}
 	// Ack what's on screen while focused, not idle and scrolled to the bottom, like the client.
 	msgs := dc.messages_get(s, channel_id);
+	if app.client dc.set_route_scrolled_up(app.client, cs.scroll_from_bottom >= 2);
 	if app.client && app.focused && !app.client.idle_sent && msgs && cs.scroll_from_bottom < 2 && !held {
 		// ack({messageId: undefined}) acks the read state's lastMessageId: the channel's newest
 		newest := ch.last_message_id;
