@@ -235,7 +235,7 @@
 - [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
 - [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
-- [ ] Bug: the composer stops taking typing in every channel after you start an edit (pencil or Up), then switch channel or the message is deleted. `ma.editing` gates `input_focused` (`view_chat.jai`) and is only cleared inside `edit_box`, which draws only while that row is on screen; `go_to` and MESSAGE_DELETE never clear it.
+- [ ] Composer: a pending reply is dropped when you switch channel (`ma.replying` is global; `reply_bar` clears it once the message isn't in the open channel). The client keeps one per channel and restores it on return.
 - [ ] macOS: the Metal backend never sets `gpu_ns`, so the bench has no GPU time there.
 - [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
@@ -347,3 +347,4 @@
 - [x] Keybinds: Ctrl+I toggles the inbox, Ctrl+P the pins, Ctrl+U the member list (the profile panel in DMs), Ctrl+Alt+Shift+Up/Down steps through channels with mentions (`views.jai` `overlays`, `tests/ui/shortcut_toggles.txt`).
 - [x] Video (Windows): the real camera checked live (c922): fastcord on Linux showed it at 1280x720 with the right colours and ~26 fps, through camera off and on again, with DAVE. Not yet compared against the official client.
 - [x] Keybinds: Ctrl+Alt+A (or a click on the voice panel) opens the connected call; Shift+Page Up jumps to the oldest unread message (`view_voice.jai` `voice_return`, `tests/ui/forward/oldest_unread_key.txt`).
+- [x] Bug: the composer no longer stays dead after you start an edit and then switch channel or the message is deleted; the composer drops an edit whose message left the open channel (`tests/ui/rail/edit_then_switch.txt`).

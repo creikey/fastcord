@@ -1742,6 +1742,8 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			ui.signal(sc);
 			placeholder := ifx ch.kind == .DM then tprint("Message @%", dm_name(ch)) else tprint("Message #%", ch.name);
 			if ch.kind == .Group_DM placeholder = tprint("Message %", dm_name(ch));
+			// An edit whose message left this channel (switched away, deleted) would hold the composer forever.
+			if ma.editing != 0 && find_message(ma.editing) == null ma.editing = 0;
 			// Up in an empty composer edits your last message, like the client
 			if ui.editor_text(*cs.editor) == "" && ma.editing == 0 {
 				for * e: app.ui.events {
