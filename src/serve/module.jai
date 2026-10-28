@@ -118,6 +118,8 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN max_age INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN expires INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN nonce TEXT;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN webhook INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN username TEXT;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
 	st := sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
@@ -394,7 +396,9 @@ CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT
 	provider TEXT NOT NULL, color INTEGER NOT NULL, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0,
 	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT);
+-- A webhook posts as a users row of its own, left = 1, so its messages join like any member's.
+CREATE TABLE IF NOT EXISTS webhooks(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL, token TEXT NOT NULL, creator INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
@@ -664,6 +668,16 @@ serve_conn :: (c: *Conn) {
 			if !channel_messages(c, req) return;
 			continue;
 		}
+		if begins_with(req.path, "/api/webhooks/") || begins_with(req.path, "/api/v9/webhooks/") || begins_with(req.path, "/api/v10/webhooks/") {
+			if !webhook(c, req) return;
+			continue;
+		}
+		if req.method == "GET" && req.path == tprint("/api/v9/guilds/%/webhooks", c.server.guild) {
+			token, _ := http.header_get(req.headers, "authorization");
+			user := session_user(c, token);
+			if !(ifx user then channel_webhooks(c, req, user, 0) else json_error(c, 401, 0, "401: Unauthorized")) return;
+			continue;
+		}
 		if req.method == "GET" && begins_with(req.path, tprint("/api/v9/guilds/%/messages/search", c.server.guild)) {
 			if !search(c, req) return;
 			continue;
@@ -738,14 +752,15 @@ session_user :: (c: *Conn, token: string) -> id: s64, name: string {
 
 snow :: (id: s64) -> etf.Value { return etf.vstring(tprint("%", id)); }
 
-user_value :: (s: *Server, id: s64, name: string) -> etf.Value {
+user_value :: (s: *Server, id: s64, name: string, bot := false) -> etf.Value {
 	avatar: etf.Value;
 	{
 		locks.guard(*s.avatar_mu);
 		hash := table_find_pointer(*s.avatars, id);
 		if hash avatar = etf.vstring(copy_string(hash.*,, temp));
 	}
-	m := etf.map_builder(5,, temp);
+	m := etf.map_builder(6,, temp);
+	if bot etf.map_put(*m, "bot", etf.vbool(true));
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "username", etf.vstring(name));
 	etf.map_put(*m, "global_name", etf.vstring(name));
@@ -881,8 +896,9 @@ iso :: (id: s64) -> string {
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
 		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
-		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}) -> etf.Value {
-	m := etf.map_builder(16,, temp);
+		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}, webhook := false) -> etf.Value {
+	m := etf.map_builder(17,, temp);
+	if webhook etf.map_put(*m, "webhook_id", snow(author));
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx kind != DEFAULT then kind else ifx reply then 19 else 0));
 	if reply {
@@ -895,7 +911,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	}
 	etf.map_put(*m, "channel_id", snow(channel));
 	etf.map_put(*m, "guild_id", snow(s.guild));
-	etf.map_put(*m, "author", user_value(s, author, author_name));
+	etf.map_put(*m, "author", user_value(s, author, author_name, bot = webhook));
 	etf.map_put(*m, "content", etf.vstring(content));
 	etf.map_put(*m, "timestamp", etf.vstring(iso(id)));
 	etf.map_put(*m, "edited_timestamp", ifx edited then etf.vstring(iso(edited)) else .{});
@@ -911,7 +927,15 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11) FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, coalesce(m.username, u.name), m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11), m.webhook FROM messages m JOIN users u ON u.id = m.author";
+
+// Members who can't see a new message yet count it as a mention until they read past it.
+// Takes the channel, the author, whether it pings everyone, and the message.
+COUNT_MENTIONS :: #string SQL
+	INSERT INTO read_states(user, channel, last, mentions)
+	SELECT u.id, ?, 0, 1 FROM users u WHERE u.left = 0 AND u.id != ? AND (? OR u.id IN (SELECT user FROM mentions WHERE message = ?))
+	ON CONFLICT(user, channel) DO UPDATE SET mentions = mentions + 1;
+SQL
 
 SUPPRESS_EMBEDS :: 1 << 2;
 HAS_THREAD :: 1 << 5;
@@ -961,7 +985,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
 		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id), sqlite.col_int(st, 10),
-		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id));
+		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0);
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -1447,6 +1471,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	// Opening the pins popout acks them; unread pins aren't tracked, so there is nothing to store.
 	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return respond(c, 204, json = false);
 	if ok && parts.count == 2 && parts[1] == "threads" && req.method == "POST" return create_thread(c, req, user, channel, 0);
+	if ok && parts.count == 2 && parts[1] == "webhooks" return channel_webhooks(c, req, user, channel);
 	if ok && parts.count == 3 && parts[1] == "threads" && parts[2] == "search" && req.method == "GET" return thread_search(c, user, channel, query);
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count >= 3 && parts[2] == "pins" {
@@ -1622,12 +1647,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 400, 50035, "Invalid Form Body");
 			}
-			// Members who can't see the message yet count it as a mention until they read past it.
-			ok = ok && sqlite.run(s.db, #string SQL
-				INSERT INTO read_states(user, channel, last, mentions)
-				SELECT u.id, ?, 0, 1 FROM users u WHERE u.left = 0 AND u.id != ? AND (? OR u.id IN (SELECT user FROM mentions WHERE message = ?))
-				ON CONFLICT(user, channel) DO UPDATE SET mentions = mentions + 1;
-			SQL, channel, user, cast(int) everyone, id) && sqlite.exec(s.db, "COMMIT;");
+			ok = ok && sqlite.run(s.db, COUNT_MENTIONS, channel, user, cast(int) everyone, id) && sqlite.exec(s.db, "COMMIT;");
 			if !ok {
 				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 500, 0, "500: Internal Server Error");
@@ -1839,6 +1859,150 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 ICON_MAX_BYTES :: 512 * 1024;
 
 // The server icon's hash, or null; the caller holds db_mu.
+MAX_WEBHOOKS :: 15; // Per channel, as on Discord.
+WEBHOOK_SELECT :: "SELECT w.id, w.channel, u.name, w.token, w.creator, c.name FROM webhooks w JOIN users u ON u.id = w.id JOIN users c ON c.id = w.creator";
+
+// row_webhook reads a WEBHOOK_SELECT row as Discord's webhook object; the token only for the owner.
+row_webhook :: (s: *Server, st: *sqlite.Stmt, with_token: bool) -> etf.Value {
+	m := etf.map_builder(9,, temp);
+	etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
+	etf.map_put(*m, "type", etf.vint(1));
+	etf.map_put(*m, "guild_id", snow(s.guild));
+	etf.map_put(*m, "channel_id", snow(sqlite.col_int(st, 1)));
+	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 2),, temp)));
+	etf.map_put(*m, "avatar", .{});
+	etf.map_put(*m, "application_id", .{});
+	if with_token {
+		etf.map_put(*m, "token", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
+		etf.map_put(*m, "user", user_value(s, sqlite.col_int(st, 4), copy_string(sqlite.col_text(st, 5),, temp)));
+	}
+	return etf.vmap(etf.map_done(*m));
+}
+
+// GET and POST /api/v9/channels/{id}/webhooks {name}, and GET /guilds/{id}/webhooks (channel 0): the
+// owner lists a channel's or the server's webhooks, tokens included, and makes new ones.
+channel_webhooks :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
+	s := c.server;
+	name := "";
+	if req.method == "POST" {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		name_v: etf.Value;
+		if err == .None && v.kind == .Map name_v, _ = etf.map_get(v.map, "name");
+		name = ifx name_v.kind == .String then trim(name_v.s) else "";
+		if !name || name.count > 80 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
+	} else if req.method != "GET" {
+		return json_error(c, 405, 0, "405: Method Not Allowed");
+	}
+	result: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if channel && channel_type_locked(s, channel) != TEXT return json_error(c, 404, 10003, "Unknown Channel");
+		if req.method == "POST" {
+			st := sqlite.prepare(s.db, "SELECT count(*) FROM webhooks WHERE channel = ?;");
+			sqlite.bind_all(st, channel);
+			n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
+			sqlite.finalize(st);
+			if n >= MAX_WEBHOOKS return json_error(c, 400, 30007, tprint("Maximum number of webhooks reached (%)", MAX_WEBHOOKS));
+			id := snowflake(s);
+			root, secret: [32]u8;
+			crypto.random_bytes(root);
+			crypto.random_bytes(secret);
+			ok := sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name, left) VALUES(?, ?, x'', ?, 1);", id, cast([]u8) root, name)
+				&& sqlite.run(s.db, "INSERT INTO webhooks(id, channel, token, creator) VALUES(?, ?, ?, ?);", id, channel, hex(secret,, temp), user)
+				&& sqlite.exec(s.db, "COMMIT;");
+			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			st = sqlite.prepare(s.db, tprint("% WHERE w.id = ?;", WEBHOOK_SELECT));
+			sqlite.bind_all(st, id);
+			if sqlite.step(st) == .Row result = row_webhook(s, st, true);
+			sqlite.finalize(st);
+		} else {
+			list: [..]etf.Value;
+			list.allocator = temp;
+			st := sqlite.prepare(s.db, tprint("% WHERE ?1 = 0 OR w.channel = ?1 ORDER BY w.id;", WEBHOOK_SELECT));
+			sqlite.bind_all(st, channel);
+			while sqlite.step(st) == .Row array_add(*list, row_webhook(s, st, true));
+			sqlite.finalize(st);
+			result = etf.vlist(list);
+		}
+	}
+	return json_reply(c, ifx req.method == "POST" then 201 else 200, result);
+}
+
+// /api/webhooks/{id}/{token} (also under v9 and v10): POST {content, username?}[?wait=true] posts as the
+// webhook, GET describes it and DELETE removes it, for anyone holding the token, as on Discord, so tools
+// outside the app (CI, feeds, alerts) can post. /api/v9/webhooks/{id} does GET and DELETE for the owner.
+// A deleted webhook's messages stay, under its name.
+webhook :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	path, query := req.path, "";
+	q := find_index_from_left(path, #char "?");
+	if q >= 0 { query = slice(path, q + 1, path.count - q - 1); path = slice(path, 0, q); }
+	parts := split(advance(path, find_index_from_left(path, "webhooks/") + "webhooks/".count), "/",, temp);
+	id, ok := string_to_int(parts[0], T = s64);
+	if !ok || parts.count > 2 || (parts.count == 2 && !parts[1]) return json_error(c, 404, 0, "404: Not Found");
+	by_token := parts.count == 2;
+	user: s64;
+	if !by_token {
+		token, _ := http.header_get(req.headers, "authorization");
+		user = session_user(c, token);
+		if !user return json_error(c, 401, 0, "401: Unauthorized");
+	}
+	if req.method != "GET" && req.method != "DELETE" && !(req.method == "POST" && by_token) return json_error(c, 405, 0, "405: Method Not Allowed");
+
+	content, username: string;
+	everyone := false;
+	if req.method == "POST" {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		content_v, _ := etf.map_get(v.map, "content");
+		name_v, has_name := etf.map_get(v.map, "username");
+		if content_v.kind != .String || !trim(content_v.s) return json_error(c, 400, 50006, "Cannot send an empty message");
+		content = content_v.s;
+		if !text_ok(content, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
+		if utf16_units(content) > MAX_CONTENT return content_too_long(c);
+		if has_name && name_v.kind != .Nil {
+			username = ifx name_v.kind == .String then trim(name_v.s) else "";
+			if !username || username.count > 80 || !text_ok(username) return json_error(c, 400, 50035, "Invalid Form Body");
+		}
+		everyone = contains(content, "@everyone") || contains(content, "@here");
+	}
+	result, m: etf.Value;
+	channel, message: s64;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, tprint("% WHERE w.id = ?;", WEBHOOK_SELECT));
+		sqlite.bind_all(st, id);
+		found := sqlite.step(st) == .Row;
+		if found {
+			channel = sqlite.col_int(st, 1);
+			if by_token found = crypto.constant_time_equal(cast([]u8) parts[1], cast([]u8) copy_string(sqlite.col_text(st, 3),, temp));
+			result = row_webhook(s, st, !by_token);
+		}
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10015, "Unknown Webhook");
+		if !by_token && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if req.method == "DELETE" {
+			if !sqlite.run(s.db, "DELETE FROM webhooks WHERE id = ?;", id) return json_error(c, 500, 0, "500: Internal Server Error");
+		} else if req.method == "POST" {
+			message = snowflake(s);
+			ok := sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, everyone, webhook, username) VALUES(?, ?, ?, ?, ?, 1, nullif(?, ''));", message, channel, id, content, cast(int) everyone, username);
+			for mention_ids(content) if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", message, it);
+			ok = ok && sqlite.run(s.db, COUNT_MENTIONS, channel, id, cast(int) everyone, message) && sqlite.exec(s.db, "COMMIT;");
+			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			m = message_locked(s, message, nested = false);
+		}
+	}
+	if req.method == "DELETE" return respond(c, 204, json = false);
+	if req.method == "GET" return json_reply(c, 200, result);
+	broadcast(s, "MESSAGE_CREATE", m);
+	queue_unfurl(s, message, content);
+	if contains(query, "wait=true") return json_reply(c, 200, m);
+	return respond(c, 204, json = false);
+}
+
 guild_icon_locked :: (s: *Server) -> etf.Value {
 	hash := cast(string) meta_get(s, "icon");
 	return ifx hash then etf.vstring(hash) else .{};
@@ -2192,6 +2356,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& sqlite.run(s.db, tprint("DELETE FROM attachments WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM embeds WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM uploads WHERE channel IN %;", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM webhooks WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM messages WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM read_states WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM channels WHERE id IN %;", doomed), channel)
