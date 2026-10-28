@@ -475,6 +475,7 @@ client_set_rtc_state :: (c: *Client, s: Rtc_State) {
 	locks.lock(*c.analytics.mu);
 	c.analytics.rtc_state = s;
 	locks.unlock(*c.analytics.mu);
+	voice_rtc_changed(c, s == .Rtc_Connected);
 }
 
 // client_set_accessibility: the AccessibilityStore bitmask (OS color scheme,

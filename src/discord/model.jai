@@ -292,6 +292,7 @@ Message_List :: struct {
 	loading: bool;
 	failed: bool; // the last page request failed (LOAD_MESSAGES_FAILURE: "Messages Failed To Load")
 	has_more_before: bool;
+	stale: bool; // loaded before a fresh READY: the next first page replaces the messages
 }
 
 Member_List_Item :: struct {

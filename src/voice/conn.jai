@@ -128,6 +128,7 @@ Conn :: struct {
     next_hb_ms: s64;
     hb_acked: bool;
     last_ack_ms: s64;
+    expedite_ms: s64;    // an expedited heartbeat's ACK deadline (waking from sleep), 0: none
     hello_deadline_ms: s64;
     hb_mu: locks.Mutex;  // heartbeat fields above (gateway <-> timer thread)
     session_ok: bool;    // READY/RESUMED seen on the current socket (backoff.succeed)
@@ -213,6 +214,8 @@ Conn :: struct {
 dbg :: (c: *Conn, format: string, args: ..Any) {
     if c.debug print("[voice %] %\n", c.info.user_id, tprint(format, ..args), to_standard_error = true);
 }
+
+WAKE_GAP_MS :: 15_000; // a timer gap this long means the machine slept
 
 now_ms :: () -> s64 { return to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970); }
 
@@ -513,10 +516,11 @@ close_ws :: (c: *Conn, code: int) {
     }
 }
 
+// RTCControlSocket.handleClose disconnects at once on 4004, 4006, 4011 and 4015; 4014 (kicked or moved)
+// and 4022 go through the resume backoff like any other close. The DAVE codes are our own closes.
 terminal_close :: (code: int) -> bool {
     found := array_find(int.[CLOSE_AUTHENTICATION_FAILED, CLOSE_INVALID_SESSION, CLOSE_SERVER_NOT_FOUND, CLOSE_SERVER_CRASH,
-        CLOSE_DISCONNECTED, CLOSE_CALL_TERMINATED, CLOSE_REPEATED_MLS_INVALID, CLOSE_DAVE_DOWNGRADE_REFUSED,
-        CLOSE_DAVE_INVALID_MESSAGE, CLOSE_UNRESUMABLE], code);
+        CLOSE_REPEATED_MLS_INVALID, CLOSE_DAVE_DOWNGRADE_REFUSED, CLOSE_DAVE_INVALID_MESSAGE, CLOSE_UNRESUMABLE], code);
     return found;
 }
 
@@ -550,8 +554,11 @@ ws_thread_proc :: (t: *Thread) -> s64 {
             locks.guard(*c.mu);
             c.stats.reconnects += 1;
         }
+        // resetBackoff: waking from sleep (a gap in this loop) reconnects at once
+        last := now_ms();
         for 1..delay / 50 {
-            if stopped(c) break;
+            if stopped(c) || now_ms() - last > WAKE_GAP_MS break;
+            last = now_ms();
             sleep_milliseconds(50);
         }
     }
@@ -686,6 +693,7 @@ handle_json :: (c: *Conn, text: string) {
         locks.guard(*c.hb_mu);
         c.last_ack_ms = now;
         c.hb_acked = true;
+        c.expedite_ms = 0;
       case OP_SPEAKING;
         uid := jsnow(jget(d, "user_id"));
         ssrc := cast,no_check(u32) jint(jget(d, "ssrc"), 0);
@@ -913,9 +921,14 @@ destroy_user :: (c: *Conn, u: *Remote_User) {
 
 timer_thread_proc :: (t: *Thread) -> s64 {
     c := cast(*Conn) t.data;
+    last := now_ms();
     while !stopped(c) {
         sleep_milliseconds(25);
         now := now_ms();
+        // A gap over WAKE_GAP_MS is the machine waking from sleep: RTCConnection's powerMonitor
+        // "resume" sends expeditedHeartbeat(5000): a heartbeat now, no ACK in 5 s = timeout.
+        woke := now - last > WAKE_GAP_MS;
+        last = now;
         hello_timeout, beat, timeout: bool;
         {
             locks.guard(*c.hb_mu);
@@ -923,12 +936,22 @@ timer_thread_proc :: (t: *Thread) -> s64 {
                 c.hello_deadline_ms = 0;
                 hello_timeout = true;
             }
-            if c.hb_interval_ms > 0 && now >= c.next_hb_ms {
+            if woke && c.hb_interval_ms > 0 {
+                c.hb_acked = false;
+                c.expedite_ms = now + 5000;
+                beat = true;
+            } else if c.expedite_ms != 0 && now >= c.expedite_ms {
+                c.expedite_ms = 0;
+                if !c.hb_acked {
+                    c.hb_interval_ms = 0;
+                    timeout = true;
+                }
+            } else if c.hb_interval_ms > 0 && now >= c.next_hb_ms {
                 c.next_hb_ms = now + c.hb_interval_ms;
                 if c.hb_acked {
                     c.hb_acked = false;
                     beat = true;
-                } else {
+                } else if c.expedite_ms == 0 {
                     c.hb_interval_ms = 0;
                     timeout = true;
                 }

@@ -243,6 +243,7 @@ main :: () {
 
 	update_start();
 	streamer_start();
+	platform.set_exit_callback(() { settings_save(); app_exit(); });
 	platform.set_frame_callback(frame);
 	#if OS == .WINDOWS platform.set_window_hit_callback(window_hit);
 	frame();
@@ -258,8 +259,11 @@ main :: () {
 }
 
 // app_exit leaves voice and closes the gateway (code 1000) before the process ends; a dropped
-// socket leaves the session resumable, so Discord keeps us in the call for minutes.
+// socket leaves the session resumable, so Discord keeps us in the call for minutes. Runs once (a
+// Windows session end runs it from the window procedure, then the main loop ends).
 app_exit :: () {
+	if app_exited return;
+	app_exited = true;
 	voice_leave_channel();
 	voice_shutdown();
 	client_release(app.discord);
@@ -267,6 +271,8 @@ app_exit :: () {
 	app.client, app.discord = null, null;
 	teardown_wait();
 }
+
+app_exited: bool;
 
 frame :: () {
 	// Freed at the start, not the end: box texts and layouts of the last frame

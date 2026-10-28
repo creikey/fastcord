@@ -2,8 +2,9 @@
 //   join_voice (views.jai) sends op 4 and sets app.voice_channel;
 //   voice_frame (every frame) connects once VOICE_STATE_UPDATE +
 //   VOICE_SERVER_UPDATE arrived, reconnects when the server moves (new
-//   voice_server_info version), mirrors mute/deafen to the connection and
-//   op 4, and tears down on leave / terminal close codes.
+//   voice_server_info version) or the connection drops (with backoff), follows
+//   a moderator's move, mirrors mute/deafen to the connection and op 4, and
+//   tears down on leave or when the server removes our voice state.
 //   voice_panel draws the "Voice Connected" section above the user panel.
 
 VOICE_PANEL_H :: 56;
@@ -85,8 +86,8 @@ voice_frame :: () {
 		dc.client_set_rtc_state(app.client, .Disconnected);
 		return;
 	}
-	// A new gateway session (reconnect without resume) leaves voice on READY: join again, so
-	// our voice state comes back and the connection moves to the new session.
+	// A new gateway session (reconnect without resume): its READY's op 4 rejoined the call
+	// (VoiceStateStore), and the connection moves to the new session's VOICE_SERVER_UPDATE.
 	rejoin := vc.synced && vc.readies != store().readies;
 	// Our account joined a call on another device: Discord moved the call there. Hang up here
 	// without op 4 (a null channel would end the other device's call too).
@@ -98,8 +99,19 @@ voice_frame :: () {
 	vc.synced = true;
 	vc.readies = store().readies;
 	vc.voice_elsewhere = store().voice_elsewhere;
+	// The server moved us (a moderator): the call follows; removed us (kicked, channel deleted, call
+	// ended): it ends here without an op 4.
+	if rejoin vc.seen_channel = 0;
+	followed := dc.voice_followed(app.client, app.voice_channel, *vc.seen_channel);
+	if followed != app.voice_channel {
+		app.voice_channel = followed;
+		if !followed {
+			voice_drop();
+			return;
+		}
+	}
 	// mute / deafen -> connection + op 4 (deafen implies mute, like the client)
-	if rejoin || app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
+	if app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
 		vc.sent_mute = app.self_mute;
 		vc.sent_deaf = app.self_deaf;
 		dc.voice_set_state(app.client, vc.guild, app.voice_channel, app.self_mute || app.self_deaf, app.self_deaf, camera_on());
@@ -112,7 +124,7 @@ voice_frame :: () {
 	info, ver, ok := dc.voice_server_info(app.client);
 	// Channel move or server migration: drop the old connection, then connect once its teardown is done.
 	if ok && vc.conn != null && ver != vc.version && cast(dc.Snowflake)(info.channel_id) == app.voice_channel { voice_drop(); }
-	if ok && vc.conn == null && !teardown_busy() && cast(dc.Snowflake)(info.channel_id) == app.voice_channel {
+	if ok && vc.conn == null && !teardown_busy() && cast(dc.Snowflake)(info.channel_id) == app.voice_channel && dc.now_ms() >= vc.retry_at {
 		if !vc.headless {
 			// opening the microphone asks the OS for it (permissions_requested)
 			dc.analytics_permissions_requested(app.client, "audio");
@@ -134,21 +146,16 @@ voice_frame :: () {
 		voice.set_self_mute(vc.conn, app.self_mute || app.self_deaf);
 		voice.set_self_deaf(vc.conn, app.self_deaf);
 	}
-	dc.client_set_rtc_state(app.client, voice_rtc_state()); // client_rtc_state while in voice
-	if vc.conn != null {
-		st, code := voice.state(vc.conn);
-		if st == .Disconnected {
-			voice_release(vc.conn);
-			vc.conn = null;
-			if code == {
-			case voice.CLOSE_DISCONNECTED; #through; case voice.CLOSE_CALL_TERMINATED; #through; case voice.CLOSE_AUTHENTICATION_FAILED;
-				// kicked / moved out / call ended: we are no longer in the channel
-				app.voice_channel = 0;
-			case;
-				// the next VOICE_SERVER_UPDATE (new version) reconnects; until then retry once
-				vc.version = 0;
-			}
-		}
+	rtc := voice_rtc_state();
+	dc.client_set_rtc_state(app.client, rtc); // client_rtc_state while in voice
+	if rtc == .Rtc_Connected dc.backoff_succeed(*vc.backoff);
+	if vc.conn != null && voice.state(vc.conn) == .Disconnected {
+		// RTCConnection._handleDisconnect: whatever the code, connect again (a fresh IDENTIFY) after
+		// Backoff(1 s, 10 s); our voice state going away (above) is what ends the call.
+		voice_release(vc.conn);
+		vc.conn = null;
+		vc.retry_at = dc.now_ms() + dc.backoff_fail(*vc.backoff);
+		request_wake(platform.time_now() + cast(float64) (vc.retry_at - dc.now_ms()) / 1000 + 0.01);
 	}
 	table_reset_keeping_memory(*vc.speaking);
 	if vc.conn != null {
@@ -403,6 +410,9 @@ Voice_App :: struct {
 	synced: bool; // readies and voice_elsewhere below hold the store's values for this call
 	readies: u64; // store().readies when we last sent op 4 for the call
 	voice_elsewhere: u64; // store().voice_elsewhere when the call started
+	seen_channel: dc.Snowflake; // our voice state's channel last frame (0: none, or not yet confirmed)
+	backoff := dc.Backoff.{min_ms = 1000, max_ms = 10000, jitter = true, current = 1000}; // RTCConnection._backoff
+	retry_at: s64; // no new connection before this (dc.now_ms)
 	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
 }
 
@@ -417,6 +427,9 @@ voice_drop :: () {
 	vc.channel = 0;
 	vc.version = 0;
 	vc.synced = false;
+	vc.seen_channel = 0;
+	vc.retry_at = 0;
+	dc.backoff_succeed(*vc.backoff);
 	table_reset_keeping_memory(*vc.speaking);
 }
 

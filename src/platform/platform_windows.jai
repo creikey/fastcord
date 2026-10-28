@@ -103,6 +103,20 @@ window_placement_restore :: (p: Window_Placement) {
 
 #scope_module
 
+SetConsoleCtrlHandler :: (handler: (ctrl: u32) -> s32 #c_call, add: s32) -> s32 #foreign kernel32;
+
+quit_on_signals :: () {
+    SetConsoleCtrlHandler((ctrl: u32) -> s32 #c_call {
+        c := s.ctx; push_context,defer_pop c;
+        s.quit = true;
+        push_event(.{kind = .Quit, time = time_now()});
+        request_frame();
+        // Close, log off and shutdown end the process when this returns: give the exit work time.
+        if ctrl >= 2 win.Sleep(10_000);
+        return 1;
+    }, 1);
+}
+
 os_init ::(title: string, width: int, height: int) -> bool {
     SetProcessDpiAwarenessContext(win.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     w.instance = win.GetModuleHandleW(null);
@@ -916,6 +930,15 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             ev := lp & 0xffff;
             if ev == win.WM_LBUTTONUP window_show();
             else if ev == win.WM_RBUTTONUP tray_menu();
+            return 0;
+        case win.WM_QUERYENDSESSION;
+            return 1;
+        case win.WM_ENDSESSION;
+            // The session ends (log off, restart, shutdown): the process is killed once this returns.
+            if wp && s.exit_callback {
+                s.quit = true;
+                s.exit_callback();
+            }
             return 0;
         case win.WM_CLOSE;
             if w.tray {

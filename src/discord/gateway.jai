@@ -10,7 +10,8 @@
 //     payload consumed per send (handleActiveStateChange semantics).
 //   - after every received message, a heartbeat is sent if the last one is
 //     older than interval + 5 s (_sendHeartbeatIfDue).
-//   - READY: op 4 (voice state reset), op 41 (time-spent session), heartbeat.
+//   - READY: op 4 (VoiceStateStore's state), op 41 (time-spent session), heartbeat.
+//   - RESUMED: op 3 and op 4 again, then every guild subscription (client_after_dispatch).
 //   - close: 4004 stops; otherwise Backoff(1 s, 60 s) with jitter; after more
 //     than 4 consecutive failures the session is reset (fresh IDENTIFY).
 //   - RESUME only if a session exists and the last ACK is ≤ 3 min old.
@@ -146,7 +147,7 @@ gateway_create :: (c: *Client) -> *Gateway {
 	g := New(Gateway,, c.allocator);
 	g.c = c;
 	g.backoff = backoff_make(1000, 60000);
-	g.state = .Closed;
+	g.state = ifx c.cfg.gateway_sink then .Established else .Closed; // a sink never connects: always established
 	g.presence_status = .Online;
 	g.inflated.allocator = c.allocator;
 	g.outbox.allocator = c.allocator;
@@ -756,7 +757,12 @@ gateway_handle_payload :: (g: *Gateway, gen: int, v: V, pool: *Flat_Pool) -> boo
 gateway_on_ready_locked :: (g: *Gateway) {
 	c := g.c;
 	locks.unlock(*g.mu);
-	gateway_send(g, .Voice_State_Update, voice_state_value(0, 0, c.cfg.voice_self_mute, false, false, 2));
+	// CONNECTION_OPEN: VoiceStateStore commits its state: no channel at launch, the call we're in
+	// on a later READY (a new session), or a join made while the socket was down
+	locks.lock(*c.route_mu);
+	vs := c.voice_self;
+	locks.unlock(*c.route_mu);
+	gateway_send(g, .Voice_State_Update, voice_self_value(c, vs));
 	// Reopening on a route: GuildSubscriptions re-sends the guild's full
 	// subscription state on CONNECTION_OPEN; a private channel route connects the call (op 13).
 	locks.lock(*c.route_mu);
@@ -766,16 +772,8 @@ gateway_on_ready_locked :: (g: *Gateway) {
 		locks.lock(*c.job_mu);
 		c.ready_subscribed_guild = rg;
 		locks.unlock(*c.job_mu);
-		gb := etf.map_builder(7,, temp);
-		etf.map_put(*gb, "typing", etf.vbool(true));
-		etf.map_put(*gb, "threads", etf.vbool(true));
-		etf.map_put(*gb, "activities", etf.vbool(true));
-		etf.map_put(*gb, "members", etf.vlist(.[]));
-		etf.map_put(*gb, "member_updates", etf.vbool(false));
-		etf.map_put(*gb, "channels", etf.vmap(.[]));
-		etf.map_put(*gb, "thread_member_lists", etf.vlist(.[]));
 		sb := etf.map_builder(1,, temp);
-		etf.map_put(*sb, tprint("%", rg), etf.vmap(etf.map_done(*gb)));
+		etf.map_put(*sb, tprint("%", rg), guild_subscription_value(.[]));
 		db := etf.map_builder(1,, temp);
 		etf.map_put(*db, "subscriptions", etf.vmap(etf.map_done(*sb)));
 		gateway_send(g, .Guild_Subscriptions_Bulk, etf.vmap(etf.map_done(*db)));
@@ -914,6 +912,13 @@ gateway_expedited_heartbeat_locked :: (g: *Gateway, timeout_ms: s64) {
 		g.expedited_deadline = now_ms() + timeout_ms;
 	}
 	locks.cond_broadcast(*g.cond);
+}
+
+// gateway_established: isSessionEstablished (SESSION_ESTABLISHED or RESUMING), when the stores
+// commit their state; what they skip goes out with READY or RESUMED.
+gateway_established :: (g: *Gateway) -> bool {
+	st := gateway_state(g);
+	return st == .Established || st == .Resuming;
 }
 
 gateway_state :: (g: *Gateway) -> Gw_State {

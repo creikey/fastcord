@@ -130,7 +130,20 @@ subscriptions_flush :: (c: *Client) {
 		}
 		c.subs.pending.count = 0;
 	}
-	if !c.gw return;
+	// what each guild's member list follows, for RESUMED (one channel at a time)
+	for p: c.subs.pending if p.channel_id {
+		l := find_or_add(*c.subs.channels, p.guild_id);
+		for l.* array_free(it.ranges);
+		l.count = 0;
+		l.allocator = c.allocator;
+		r := array_add(l);
+		r.channel_id = p.channel_id;
+		r.ranges.allocator = c.allocator;
+		array_add(*r.ranges, ..p.ranges);
+	}
+	// GUILD_SUBSCRIPTIONS_FLUSH goes out only while the session is established; what it held is
+	// re-sent with READY (the route's guild) and RESUMED (every guild)
+	if !c.gw || !gateway_established(c.gw) return;
 	push_allocator(temp);
 	subs := etf.map_builder(c.subs.pending.count);
 	for p: c.subs.pending {
@@ -142,10 +155,8 @@ subscriptions_flush :: (c: *Client) {
 		}
 		if p.member_ids etf.map_put(*g, "members", snowflake_list(p.member_ids));
 		if p.channel_id {
-			rl := NewArray(p.ranges.count, V);
-			for r, i: p.ranges rl[i] = etf.vlist(array_copy(V.[etf.vint(r[0]), etf.vint(r[1])]));
 			ch := etf.map_builder(1);
-			etf.map_put(*ch, snowflake_string(p.channel_id), etf.vlist(rl));
+			etf.map_put(*ch, snowflake_string(p.channel_id), ranges_value(p.ranges));
 			etf.map_put(*g, "channels", etf.vmap(etf.map_done(*ch)));
 		}
 		etf.map_put(*subs, snowflake_string(p.guild_id), etf.vmap(etf.map_done(*g)));
@@ -153,6 +164,56 @@ subscriptions_flush :: (c: *Client) {
 	d := etf.map_builder(1);
 	etf.map_put(*d, "subscriptions", etf.vmap(etf.map_done(*subs)));
 	gateway_send(c.gw, .Guild_Subscriptions_Bulk, etf.vmap(etf.map_done(*d)));
+}
+
+ranges_value :: (ranges: [][2]int) -> V {
+	rl := NewArray(ranges.count, V,, temp);
+	for r, i: ranges rl[i] = etf.vlist(array_copy(V.[etf.vint(r[0]), etf.vint(r[1])],, temp));
+	return etf.vlist(rl);
+}
+
+// guild_subscription_value: a guild's whole subscription state, as GuildSubscriptions sends it on
+// CONNECTION_OPEN and CONNECTION_RESUMED (temp).
+guild_subscription_value :: (channels: []Member_Range) -> V {
+	push_allocator(temp);
+	gb := etf.map_builder(7);
+	etf.map_put(*gb, "typing", etf.vbool(true));
+	etf.map_put(*gb, "threads", etf.vbool(true));
+	etf.map_put(*gb, "activities", etf.vbool(true));
+	etf.map_put(*gb, "members", etf.vlist(.[]));
+	etf.map_put(*gb, "member_updates", etf.vbool(false));
+	ch := etf.map_builder(channels.count);
+	for channels etf.map_put(*ch, snowflake_string(it.channel_id), ranges_value(it.ranges));
+	etf.map_put(*gb, "channels", etf.vmap(etf.map_done(*ch)));
+	etf.map_put(*gb, "thread_member_lists", etf.vlist(.[]));
+	return etf.vmap(etf.map_done(*gb));
+}
+
+// subscriptions_resend: CONNECTION_RESUMED re-sends every subscribed guild in one op 37.
+subscriptions_resend :: (c: *Client) {
+	push_allocator(temp);
+	subs := etf.map_builder(c.subs.guilds.count + c.subs.channels.count);
+	for v, gid: c.subs.guilds {
+		chs: []Member_Range;
+		l := table_find_pointer(*c.subs.channels, gid);
+		if l chs = l.*;
+		etf.map_put(*subs, snowflake_string(gid), guild_subscription_value(chs));
+	}
+	for l, gid: c.subs.channels if !table_contains(*c.subs.guilds, gid) etf.map_put(*subs, snowflake_string(gid), guild_subscription_value(l));
+	if !subs.pairs return;
+	d := etf.map_builder(1);
+	etf.map_put(*d, "subscriptions", etf.vmap(etf.map_done(*subs)));
+	gateway_send(c.gw, .Guild_Subscriptions_Bulk, etf.vmap(etf.map_done(*d)));
+}
+
+// subscriptions_clear forgets every subscription (logout; a fresh READY keeps only its route's guild).
+subscriptions_clear :: (c: *Client) {
+	table_reset(*c.subs.guilds);
+	for l: c.subs.channels {
+		for l array_free(it.ranges);
+		array_free(l);
+	}
+	table_reset(*c.subs.channels);
 }
 
 // snowflake_list: ids as a list of decimal strings, in temp (how the client sends ids over ETF).
@@ -192,40 +253,57 @@ search_guild_members :: (c: *Client, guild_id: Snowflake, query: string) {
 	gateway_send(c.gw, .Request_Guild_Members, etf.vmap(etf.map_done(*b)));
 }
 
+// VoiceStateStore's state: what op 4 last asked for. Kept while the gateway is down (shouldCommit is
+// isSessionEstablished) and sent again with READY and RESUMED, so a join or leave is never lost.
+Voice_Self :: struct {
+	guild_id, channel_id: Snowflake;
+	self_mute, self_deaf, self_video: bool;
+}
+
+// voice_self_value: op 4 for a voice state; joining adds RTCRegionStore's preferred regions
+// (latency probe order, top 5).
+voice_self_value :: (c: *Client, vs: Voice_Self) -> V {
+	v := voice_state_value(vs.guild_id, vs.channel_id, vs.self_mute, vs.self_deaf, vs.self_video, 2);
+	if !vs.channel_id return v;
+	// copied under the lock: the probe's worker replaces rtc_regions
+	locks.lock(*c.id.mu);
+	joined := copy_string(c.rtc_regions,, temp);
+	locks.unlock(*c.id.mu);
+	if !joined return v;
+	regions := split(joined, ",",, temp);
+	list := NewArray(min(regions.count, 5), V,, temp);
+	for * list it.* = etf.vstring(regions[it_index]);
+	ext: [..]etf.Pair;
+	ext.allocator = temp;
+	array_add(*ext, ..vmap(v));
+	array_add(*ext, .{etf.vstring("preferred_region"), etf.vstring(regions[0])}, .{etf.vstring("preferred_regions"), etf.vlist(list)});
+	return etf.vmap(ext);
+}
+
 // voice_join / voice_leave: op 4 as VoiceStateStore sends it.
 voice_update :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute: bool, self_deaf: bool, self_video := false) {
 	if !c.gw return;
-	v := voice_state_value(guild_id, channel_id, self_mute, self_deaf, self_video, 2);
-	// joining: RTCRegionStore's preferred regions (latency probe order, top 5)
-	if channel_id {
-		// copied under the lock: the probe's worker replaces rtc_regions
-		locks.lock(*c.id.mu);
-		joined := copy_string(c.rtc_regions,, temp);
-		locks.unlock(*c.id.mu);
-		if joined {
-			regions := split(joined, ",",, temp);
-			list := NewArray(min(regions.count, 5), V,, temp);
-			for * list it.* = etf.vstring(regions[it_index]);
-			ext: [..]etf.Pair;
-			ext.allocator = temp;
-			array_add(*ext, ..vmap(v));
-			array_add(*ext, .{etf.vstring("preferred_region"), etf.vstring(regions[0])}, .{etf.vstring("preferred_regions"), etf.vlist(list)});
-			v = etf.vmap(ext);
-		}
-	}
-	gateway_send(c.gw, .Voice_State_Update, v);
+	vs := Voice_Self.{guild_id, channel_id, self_mute, self_deaf, self_video};
+	locks.lock(*c.route_mu);
+	c.voice_self = vs;
+	locks.unlock(*c.route_mu);
+	if gateway_established(c.gw) gateway_send(c.gw, .Voice_State_Update, voice_self_value(c, vs));
 }
 
-// schedule_rtc_probe: GET latency.discord.media/rtc?v=2 (RTCRegionStore);
-// the fixtures see it 3-25 s after start. The response's region order is what
-// op 4 sends as preferred_regions (persisted for the next launch).
-schedule_rtc_probe :: (c: *Client, base: s64) {
+// rtc_probe_tick: GET latency.discord.media/rtc?v=2 (RTCLatencyTestManager): 3-33 s after every
+// READY (client_on_ready), then every 6 hours. The response's region order is what op 4 sends as
+// preferred_regions (persisted for the next launch).
+rtc_probe_tick :: (c: *Client, now: s64) {
+	locks.lock(*c.job_mu);
+	due := c.rtc_probe_at && now >= c.rtc_probe_at;
+	if due c.rtc_probe_at = now + 6 * 3600_000;
+	locks.unlock(*c.job_mu);
+	if !due return;
 	j := job_new(.Web, .Startup);
 	j.method = "GET";
 	j.host = "latency.discord.media";
 	j.path = "/rtc?v=2";
 	j.site = .Cross_Site;
-	j.not_before = base + 8000 + cast(s64) ((cast(u32) random_get()) % 17000);
 	j.on_body = (c: *Client, body: V) {
 		regions: [..]string;
 		regions.allocator = temp;
@@ -841,6 +919,9 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 			l := message_list(*c.store, ch);
 			if !l.loaded && !l.loading fetch_messages(c, ch, 0, initial_message_limit(viewport_h(c)));
 		}
+		// CONNECTION_OPEN: GuildSubscriptions drops the other guilds' subscriptions (a later visit
+		// subscribes again); the route's guild went out with READY
+		if !first subscriptions_clear(c);
 		if g {
 			locks.lock(*c.job_mu);
 			already := c.ready_subscribed_guild == g;
@@ -849,6 +930,17 @@ client_after_dispatch :: (c: *Client, name: string, data: V) {
 			else subscribe_guild(c, g);
 			c.pending_guild_open = g;
 			c.guild_open_promotions = true;
+		}
+	case "RESUMED";
+		// SelfPresenceStore and VoiceStateStore force-commit (op 3, op 4), then GuildSubscriptions
+		// re-sends every guild (op 37): what changed while the socket was down reaches the server
+		if c.gw {
+			gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
+			locks.lock(*c.route_mu);
+			vs := c.voice_self;
+			locks.unlock(*c.route_mu);
+			gateway_send(c.gw, .Voice_State_Update, voice_self_value(c, vs));
+			subscriptions_resend(c);
 		}
 	case "GUILD_DELETE";
 		// left (or removed): a rejoin subscribes again and refetches
@@ -948,8 +1040,7 @@ voice_server_info :: (c: *Client) -> Voice_Server_Info, u64, bool {
 }
 
 // voice_join: op 4 (flags 2) plus what selecting a voice channel loads: its
-// text-in-voice page, the activity shelf (~155 ms), soundboard sounds with
-// op 31 for every guild (~700 ms, once per session).
+// text-in-voice page and the activity shelf (~155 ms).
 // track = false: the caller sends join_voice_channel itself, after its own events (DM calls).
 voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute := false, self_deaf := false, track := true) {
 	voice_update(c, guild_id, channel_id, self_mute, self_deaf);
@@ -972,21 +1063,42 @@ voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute
 		j.on_done = analytics_shelf_fetched;
 		job_submit(c, j);
 	}
-	if !c.soundboard_loaded {
-		c.soundboard_loaded = true;
-		c.pending_soundboard_at = now_ms() + 705;
-		api_get_later(c, "/soundboard-default-sounds", 705);
-	}
 }
 
-// flush_soundboard: op 31 REQUEST_SOUNDBOARD_SOUNDS for all guilds (READY order).
-flush_soundboard :: (c: *Client, now: s64) {
-	if c.pending_soundboard_at == 0 || now < c.pending_soundboard_at return;
-	c.pending_soundboard_at = 0;
-	if !c.gw return;
-	b := etf.map_builder(1,, temp);
-	etf.map_put(*b, "guild_ids", snowflake_list(c.store.guild_order));
-	gateway_send(c.gw, .Request_Soundboard_Sounds, etf.vmap(etf.map_done(*b)));
+// voice_rtc_changed: RTC_CONNECTION_STATE (client_set_rtc_state). The QoS heartbeat's reasons follow
+// RTC_CONNECTED; the first RTC_CONNECTED of a session fetches the soundboard: the default sounds and
+// op 31 for every guild (READY order), op 31 before the QoS heartbeat (fixtures join_voice_channel,
+// voice_with_b, dm_call).
+voice_rtc_changed :: (c: *Client, connected: bool) {
+	if c.rtc_connected == connected return;
+	c.rtc_connected = connected;
+	if connected && !c.soundboard_loaded {
+		c.soundboard_loaded = true;
+		api_get_later(c, "/soundboard-default-sounds", 0);
+		if c.gw {
+			b := etf.map_builder(1,, temp);
+			etf.map_put(*b, "guild_ids", snowflake_list(c.store.guild_order));
+			gateway_send(c.gw, .Request_Soundboard_Sounds, etf.vmap(etf.map_done(*b)));
+		}
+	}
+	if c.gw gateway_set_active(c.gw, qos_from_state(c.focused, connected));
+}
+
+// voice_followed: VOICE_STATE_UPDATES for our own call (RTCConnectionStore, GatewayConnectionStore).
+// `seen` is our voice state's channel at the last call. Once the server confirmed the channel we asked
+// for (`call`), so our own joins and moves don't count, a change is the server's: moved by a moderator
+// (the call and VoiceStateStore's state follow, nothing is sent) or removed (0: kicked, channel
+// deleted, call ended). Returns the call's channel.
+voice_followed :: (c: *Client, call: Snowflake, seen: *Snowflake) -> Snowflake {
+	vs := table_find_pointer(*c.store.voice_states, c.store.me);
+	now_in := ifx vs then vs.channel_id else 0;
+	defer seen.* = now_in;
+	if !seen.* || seen.* != call || now_in == call return call;
+	locks.lock(*c.route_mu);
+	c.voice_self.channel_id = now_in;
+	c.voice_self.guild_id = ifx now_in then vs.guild_id else 0;
+	locks.unlock(*c.route_mu);
+	return now_in;
 }
 
 voice_leave :: (c: *Client) { voice_update(c, 0, 0, c.cfg.voice_self_mute, false); }

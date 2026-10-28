@@ -835,6 +835,7 @@ apply_merged_members :: (s: *Store, d: etf.Map, guilds: []V) {
 }
 
 apply_ready :: (s: *Store, d: etf.Map) {
+	if s.readies store_reset_session(s); // a new session: its READY is the whole state, not a delta
 	s.readies += 1;
 	set_str(s, *s.session_id, fstr(d, "session_id"));
 	set_str(s, *s.resume_gateway_url, fstr(d, "resume_gateway_url"));
@@ -1461,44 +1462,41 @@ typing_users :: (s: *Store, channel_id: Snowflake) -> []Typing {
 }
 
 // store_destroy frees everything the store owns.
-store_destroy :: (s: *Store) {
+// store_reset_session: what a fresh READY replaces (the official stores reset on CONNECTION_OPEN): servers,
+// channels, members, presences, friends, read states, voice states. Users stay cached; loaded message
+// lists go stale, so the next view refetches them (MessageStore CONNECTION_OPEN: ready = false).
+store_reset_session :: (s: *Store) {
 	push_allocator(s.allocator);
-	deinit(*s.reaction_echoes);
-	extras_destroy();
 	a := s.allocator;
-	for * s.users free_user(s, it);
-	deinit(*s.users);
 	for * s.guilds free_guild(s, it);
-	deinit(*s.guilds);
-	array_free(s.guild_order);
+	table_reset(*s.guilds);
+	s.guild_order.count = 0;
 	for * s.channels free_channel(s, it);
-	deinit(*s.channels);
-	array_free(s.private_channels);
+	table_reset(*s.channels);
+	s.private_channels.count = 0;
 	for * gm: s.members {
 		for * gm free_member(s, it);
 		deinit(gm);
 	}
-	deinit(*s.members);
-	for * s.messages free_message_list(s, it);
-	deinit(*s.messages);
+	table_reset(*s.members);
 	for s.presences free_str(it.activity, a);
-	deinit(*s.presences);
+	table_reset(*s.presences);
 	for s.relationships {
 		free_str(it.nickname, a);
 		free_str(it.since, a);
 	}
-	deinit(*s.relationships);
-	deinit(*s.read_states);
+	table_reset(*s.relationships);
+	table_reset(*s.read_states);
 	for s.guild_settings {
 		array_free(it.muted_channels);
 		array_free(it.collapsed_channels);
 		array_free(it.overrides);
 	}
-	deinit(*s.guild_settings);
+	table_reset(*s.guild_settings);
 	for s.voice_states free_str(it.session_id, a);
-	deinit(*s.voice_states);
+	table_reset(*s.voice_states);
 	for s.typing array_free(it);
-	deinit(*s.typing);
+	table_reset(*s.typing);
 	for ml: s.member_lists {
 		for ml.items free_str(it.group_id, a);
 		array_free(ml.items);
@@ -1506,6 +1504,36 @@ store_destroy :: (s: *Store) {
 		array_free(ml.groups);
 		free_str(ml.id, a);
 	}
+	table_reset(*s.member_lists);
+	for * s.streams stream_free(s, it);
+	s.streams.count = 0;
+	for * s.messages if it.loaded {
+		it.loaded = false;
+		it.stale = true;
+	}
+}
+
+store_destroy :: (s: *Store) {
+	push_allocator(s.allocator);
+	store_reset_session(s);
+	deinit(*s.reaction_echoes);
+	extras_destroy();
+	a := s.allocator;
+	for * s.users free_user(s, it);
+	deinit(*s.users);
+	deinit(*s.guilds);
+	array_free(s.guild_order);
+	deinit(*s.channels);
+	array_free(s.private_channels);
+	deinit(*s.members);
+	for * s.messages free_message_list(s, it);
+	deinit(*s.messages);
+	deinit(*s.presences);
+	deinit(*s.relationships);
+	deinit(*s.read_states);
+	deinit(*s.guild_settings);
+	deinit(*s.voice_states);
+	deinit(*s.typing);
 	deinit(*s.member_lists);
 	for s.sessions {
 		free_str(it.session_id, a);
@@ -1525,7 +1553,6 @@ store_destroy :: (s: *Store) {
 	array_free(st.guild_positions);
 	free_str(s.voice_server.token, a);
 	free_str(s.voice_server.endpoint, a);
-	for * s.streams stream_free(s, it);
 	array_free(s.streams);
 	free_str(s.session_id, a);
 	free_str(s.resume_gateway_url, a);

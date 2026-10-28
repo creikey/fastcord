@@ -2,6 +2,7 @@
 #import "Math";
 #import "String";
 #import "Atomics";
+#import "Thread";
 #import "Flat_Pool";
 #import "Unicode";
 locks :: #import "locks";
