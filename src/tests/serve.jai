@@ -270,6 +270,10 @@ main :: () {
 	list, _ := etf.from_json(body);
 	check(status == 200 && list.kind == .List && list.list.count == 1 && field(list.list[0], "content").s == "hello", tprint("fetch: % %", status, body));
 	print("message: %\n", body);
+	status, body = rest("POST", messages, "{\"content\": \"shh\", \"flags\": 4098}", token);
+	check(status == 200 && contains(body, "\"flags\":4096"), tprint("@silent is kept and other flags dropped: % %", status, body));
+	silent, _ := etf.from_json(body);
+	rest("DELETE", tprint("%/%", messages, field(silent, "id").s), "", token);
 
 	// Link previews: a page behind a redirect, from a server on this machine (which only tests may reach).
 	check(!netio.is_public_address(u8.[127, 0, 0, 1]) && !netio.is_public_address(u8.[192, 168, 1, 1]) && !netio.is_public_address(u8.[100, 64, 0, 1])

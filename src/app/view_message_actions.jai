@@ -420,13 +420,20 @@ composer_send :: (ch: *dc.Channel, text: string) -> bool {
 		return true;
 	}
 	opts: dc.Send_Options;
+	// "@silent " in front sends it without a sound or push for anyone; the prefix itself isn't sent.
+	body := text;
+	if begins_with(body, "@silent ") || body == "@silent" {
+		body = trim_left(advance(body, "@silent".count));
+		opts.flags |= SUPPRESS_NOTIFICATIONS;
+		if body == "" && !atts return false;
+	}
 	if ma.replying != 0 {
 		opts.reply_to = ma.replying;
 		opts.reply_guild_id = ch.guild_id;
 		opts.mention_replied = ma.reply_mention;
 	}
 	opts.attachments = atts;
-	nonce := dc.send_message(app.client, ch.id, text, opts);
+	nonce := dc.send_message(app.client, ch.id, body, opts);
 	ma.replying = 0;
 	attachments_sent(ch.id, ifx atts then nonce else 0);
 	return true;

@@ -968,6 +968,7 @@ COUNT_MENTIONS :: #string SQL
 SQL
 
 SUPPRESS_EMBEDS :: 1 << 2;
+SUPPRESS_NOTIFICATIONS :: 1 << 12; // @silent: no sound or push, though it still counts as a mention.
 HAS_THREAD :: 1 << 5;
 
 // Message types: a "pinned a message" notice is a system message whose reply column holds the pinned one.
@@ -1582,6 +1583,10 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		nonce, _ := etf.map_get(v.map, "nonce");
 		atts, _ := etf.map_get(v.map, "attachments");
 		has_files := atts.kind == .List && atts.list.count > 0;
+		flags_v, _ := etf.map_get(v.map, "flags");
+		if flags_v.kind != .Int && flags_v.kind != .Nil return json_error(c, 400, 50035, "Invalid Form Body");
+		// A send may set only these, as on Discord; any other bit is dropped.
+		flags := flags_v.i & (SUPPRESS_EMBEDS | SUPPRESS_NOTIFICATIONS);
 		if atts.kind == .List && atts.list.count > MAX_UPLOADS return json_error(c, 400, 50035, "Invalid Form Body");
 		if content.kind == .Nil && has_files content = etf.vstring("");
 		if content.kind != .String || (!trim(content.s) && !has_files) return json_error(c, 400, 50006, "Cannot send an empty message");
@@ -1651,7 +1656,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				array_add_if_unique(*ids, string_to_int(author.s, T = s64));
 			}
 			ok := sqlite.exec(s.db, "BEGIN;")
-				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''));", id, channel, user, content.s, reply, cast(int) everyone, nonce_s);
+				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce, flags) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''), ?);", id, channel, user, content.s, reply, cast(int) everyone, nonce_s, flags);
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;
 			if has_files for a: atts.list {
@@ -1688,7 +1693,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		etf.to_json(m, *sb);
 		if thread.kind == .Map broadcast(s, "THREAD_UPDATE", thread);
 		broadcast(s, "MESSAGE_CREATE", m);
-		queue_unfurl(s, id, content.s);
+		if !(flags & SUPPRESS_EMBEDS) queue_unfurl(s, id, content.s);
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
