@@ -259,7 +259,7 @@
 - [ ] Windows, Linux: no echo cancellation or AGC in voice (`set_voice_processing` stubs); noise suppression only through the RNNoise toggle.
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
-- [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show"; ignored users (`Relationship.ignored`) likewise instead of "1 ignored message".
+- [ ] Replies: a reply to a blocked or ignored user's message quotes its text and author in full; the client shows "Blocked message" in the quote line (`reply_preview` path in `view_chat.jai`).
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
@@ -334,3 +334,4 @@
 - [x] Links: `discord.com/channels/<g>/<c>[/<m>]` links (also `ptb.` / `canary.` / `discordapp.com`) to a channel fastcord has jump to it, or to the message, in-app; others still open the browser (`message_link` in `view_chat.jai`, `tests/ui/forward/message_link.txt`).
 - [x] Sounds: the message sound now skips blocked authors and `@silent` messages like desktop notifications do (both checks moved into `message_notifies`).
 - [x] Relationships: a relationship's `user_ignored` flag (Ignore, set from the official client) is parsed, and ignored users no longer ring or notify (`message_notifies`).
+- [x] Chat: a run of messages from a blocked or ignored user collapses into one "3 blocked messages — Show messages" row; Show reveals them for the session (`hidden_row` in `view_chat.jai`, `tests/ui/dm/blocked_messages.txt`).

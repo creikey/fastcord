@@ -901,14 +901,21 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 				// consecutive call notices stack with no group gap
 				if is_notice(m.kind) grouped = prev != null && prev.kind == m.kind && !new_day && !show_new;
 				ui.id_scope(m.id); defer ui.pop_seed();
-				row := message_row(m, grouped, new_day, show_new);
-				if show_new new_top = row.rect.y0;
+				// a run of blocked or ignored authors' messages is one collapsed row, measured on its first
+				hide := hidden_kind(m);
+				row: *ui.Box;
+				if hide == "" {
+					row = message_row(m, grouped, new_day, show_new);
+				} else if new_day || show_new || prev == null || hidden_kind(prev) != hide {
+					row = hidden_row(msgs, i, hide, new_day, show_new, cs.unread_after);
+				}
+				if row && show_new new_top = row.rect.y0;
 				// remember measured height (from last frame's layout); a changed height moves the
 				// rows and the scroll range, so lay out again rather than idle on a stale frame
 				// (a short DM used to stay drawn with its newest message pushed under the list).
 				// Not before the list has a width: a zero-width row wraps every character.
-				if row.rect.y1 > row.rect.y0 && row.rect.x1 > row.rect.x0 {
-					h := row.rect.y1 - row.rect.y0;
+				if !row || (row.rect.y1 > row.rect.y0 && row.rect.x1 > row.rect.x0) {
+					h := ifx row then row.rect.y1 - row.rect.y0 else 0;
 					ok, old := table_find(*cs.heights, m.id);
 					if !ok || abs(old - h) > 0.5 {
 						cs.height_sum += h;
@@ -923,6 +930,48 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		typing_line(channel_id);
 		new_messages_bar(channel_id, msgs, lw, cs, new_top < list.rect.y0);
 	}
+}
+
+shown_hidden: Table(dc.Snowflake, bool); // blocked or ignored authors' messages revealed this session
+
+// "blocked" or "ignored" while m's author is and the message isn't revealed, else "".
+hidden_kind :: (m: *dc.Message) -> string {
+	r := table_find_pointer(*store().relationships, m.author_id);
+	if !r || table_contains(*shown_hidden, m.id) return "";
+	if r.kind == .Blocked return "blocked";
+	if r.ignored return "ignored";
+	return "";
+}
+
+// "3 blocked messages — Show messages" in place of the run of hidden messages starting at msgs[i].
+hidden_row :: (msgs: []dc.Message, i: int, kind: string, new_day: bool, show_new: bool, unread_after: dc.Snowflake) -> *ui.Box {
+	n := 1;
+	while i + n < msgs.count {
+		a, b := *msgs[i + n - 1], *msgs[i + n];
+		if hidden_kind(b) != kind || day_of(a.id) != day_of(b.id) || (unread_after && a.id <= unread_after && b.id > unread_after) break;
+		n += 1;
+	}
+	r0 := ui.box("msg");
+	r0.semantic_size = .[ui.pct(1), ui.children()];
+	r0.layout_axis = .Y;
+	ui.parent(r0); defer ui.pop_parent();
+	if new_day || show_new divider_row(msgs[i].id, new_day, show_new);
+	else spacer(.Y, MSG_GROUP_GAP - 2);
+	r := row("hidden");
+	r.semantic_size = .[ui.pct(1), ui.px(22)];
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, 72);
+	s := ifx n == 1 then "" else "s";
+	label(tprint("% % message% —", n, kind, s), .Normal, 14, T("--text-muted"), 18);
+	spacer(.X, 4);
+	b := ui.box(tprint("Show message%", s), .Clickable | .Draw_Text);
+	b.semantic_size = .[ui.text_size(0), ui.px(18)];
+	b.style.font = F(.Normal);
+	b.style.font_size = 14;
+	b.style.text_color = T("--text-link");
+	b.hover_cursor = .Pointer;
+	if ui.signal(b).clicked for j: i..i + n - 1 table_set(*shown_hidden, msgs[j].id, true);
+	return r0;
 }
 
 // "N new messages since 3:04 PM ... Mark As Read" over the list's top: the messages after the
