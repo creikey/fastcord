@@ -56,6 +56,8 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
+	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
 
 	id := meta_get(s, "id");
 	key := meta_get(s, "tls_key");
@@ -101,8 +103,12 @@ open :: (path: string) -> *Server, bool {
 
 // invite_url is what a member pastes into fastcord to join: the pin, where to connect and which server.
 invite_url :: (s: *Server, host: string, port: int, code: string, allocator := temp) -> string {
+	return invite_url(s.pin, host, port, hex(s.id,, temp), code,, allocator);
+}
+
+invite_url :: (pin: [32]u8, host: string, port: int, id_hex: string, code: string, allocator := temp) -> string {
 	h := ifx contains(host, ":") then tprint("[%]", host) else host;
-	return sprint("fc://%@%:%/%/%", hex(s.pin,, temp), h, port, hex(s.id,, temp), code,, allocator);
+	return sprint("fc://%@%:%/%/%", hex(pin,, temp), h, port, id_hex, code,, allocator);
 }
 
 // first_invite is the oldest invite's code, the one the console prints.
@@ -293,7 +299,7 @@ CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NO
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER);
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
-CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER);
 SQL
 
 DISCORD_EPOCH_MS :: 1420070400000;
@@ -729,6 +735,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	typing := parts.count == 2 && parts[1] == "typing";
 	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
+	if ok && parts.count == 2 && parts[1] == "invites" && req.method == "POST" return create_invite(c, req, user, name, channel);
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count >= 3 {
 		message, mok := string_to_int(parts[2], T = s64);
@@ -938,6 +945,54 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	}
 	broadcast(s, ifx req.method == "PATCH" then "CHANNEL_UPDATE" else "CHANNEL_DELETE", ch);
 	return json_reply(c, 200, ch);
+}
+
+// POST /api/v9/channels/{id}/invites {max_uses?, validate?}: any member makes an invite. validate names
+// the invite this member got before; while it still works, that one is returned instead of a new one.
+// Invites don't expire yet, so max_age is ignored and reported as 0.
+create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	uses, _ := etf.map_get(v.map, "max_uses");
+	validate, _ := etf.map_get(v.map, "validate");
+	max_uses := ifx uses.kind == .Int then uses.i else 0;
+	if max_uses < 0 || max_uses > 100 return json_error(c, 400, 50035, "Invalid Form Body");
+	code := "";
+	ch: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		ch = channel_locked(s, channel);
+		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
+		if validate.kind == .String {
+			st := sqlite.prepare(s.db, "SELECT code FROM invites WHERE code = ? AND inviter = ? AND channel = ? AND uses_left != 0;");
+			sqlite.bind_all(st, validate.s, user, channel);
+			if sqlite.step(st) == .Row code = copy_string(sqlite.col_text(st, 0),, temp);
+			sqlite.finalize(st);
+		}
+		if !code {
+			bytes: [6]u8;
+			crypto.random_bytes(bytes);
+			code = hex(bytes,, temp);
+			if !sqlite.run(s.db, "INSERT INTO invites(code, uses_left, inviter, channel) VALUES(?, ?, ?, ?);", code, ifx max_uses then max_uses else -1, user, channel) {
+				return json_error(c, 500, 0, "500: Internal Server Error");
+			}
+		}
+	}
+	g := etf.map_builder(2,, temp);
+	etf.map_put(*g, "id", snow(s.guild));
+	etf.map_put(*g, "name", etf.vstring(s.name));
+	m := etf.map_builder(9,, temp);
+	etf.map_put(*m, "code", etf.vstring(code));
+	etf.map_put(*m, "type", etf.vint(0));
+	etf.map_put(*m, "guild_id", snow(s.guild));
+	etf.map_put(*m, "guild", etf.vmap(etf.map_done(*g)));
+	etf.map_put(*m, "channel", ch);
+	etf.map_put(*m, "inviter", user_value(user, name));
+	etf.map_put(*m, "max_age", etf.vint(0));
+	etf.map_put(*m, "max_uses", etf.vint(max_uses));
+	etf.map_put(*m, "temporary", etf.vbool(false));
+	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
 }
 
 json_reply :: (c: *Conn, status: int, v: etf.Value) -> bool {

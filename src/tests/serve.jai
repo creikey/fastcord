@@ -298,6 +298,12 @@ main :: () {
 	check(discord.channel_get(*cl.store, new_id) == null, "CHANNEL_DELETE");
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", cid), "", token);
 	check(status == 400, tprint("the last channel stays: %", status));
+
+	// A member's invite, as the Invite modal makes it; opening the modal again gets the same one.
+	made := discord.create_invite(cl, cid,, context.default_allocator);
+	again := discord.create_invite(cl, cid,, context.default_allocator);
+	check(made.ok && made.code.count == 12 && made.guild_id == gid && again.code == made.code, tprint("create an invite: % % %", made.status, made.code, again.code));
+	member_invite, member_ok := serve.parse_invite(serve.invite_url(pin, "127.0.0.1", port, id, made.code));
 	discord.client_destroy(cl);
 	status, body = rest("PATCH", tprint("%/1", messages), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("edit an unknown message: %", status));
@@ -314,9 +320,8 @@ main :: () {
 	check(status == 400, tprint("a reply to an unknown message is refused: %", status));
 	status, body = login(other, "", "Other");
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
-	status, body = login(other, code, "Other");
-	other_token: string;
-	if status == 200 other_token = slice(body, "{\"token\": \"".count, 64);
+	other_token, ostatus, omessage := serve.member_login(member_invite, other, "Other");
+	check(member_ok && other_token.count == 64, tprint("join with a member's invite: % %", ostatus, omessage));
 	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"mine\"}", other_token);
 	check(status == 403, tprint("only the owner makes channels: % %", status, body));
 
