@@ -1129,6 +1129,7 @@ overlays :: () {
 	if ma.confirming != 0 { confirm_modal(); }
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
+	if tsg.channel != 0 { timestamp_gen_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
 	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
 	media_overlays(); // view_media.jai: image viewer, media context menu

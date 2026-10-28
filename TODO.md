@@ -175,7 +175,7 @@
 - [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
-- [ ] Composer (fastcord-only): a timestamp generator. Pick a date and time and a style, preview it as it will render, and insert the `<t:…:style>` markup into the composer, so no website is needed for one.
+- [ ] Chat: relative `<t:…:R>` times ("in 4 hours") and "Yesterday at" headers go stale while the window is idle: nothing wakes a redraw when they'd change (`request_wake` in `app_main.jai`).
 - [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
 - [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
@@ -320,3 +320,4 @@
 - [x] Chat: hovering a message's time (header or the grouped-row gutter) or "(edited)" shows the full date, "Monday, October 26, 2026 7:54 AM" (`tests/ui/timestamp_tooltip.txt`).
 - [x] Markdown: hovering a `<t:…>` timestamp in a message shows its full date (`tests/ui/forward/timestamp_markup_tooltip.txt`).
 - [x] Markdown: `<t:>` timestamps render all seven styles, `R` as moment's "in 4 hours" / "a day ago" (`tests/ui/forward/timestamp_styles.txt`).
+- [x] Composer (fastcord-only): a clock button opens "Insert Timestamp": type a local date and time ("2026-10-28", "4pm"), see all seven styles previewed, click one to insert its `<t:…:style>` markup; Enter inserts `f`, Tab switches fields (`timestamp_gen.jai`, `tests/ui/timestamp_gen.txt`).

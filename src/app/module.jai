@@ -43,6 +43,7 @@ voice :: #import "voice";
 #load "emoji_autocomplete.jai";
 #load "mention_autocomplete.jai";
 #load "friend_nickname.jai";
+#load "timestamp_gen.jai";
 #load "glue.jai";
 #load "highlight.jai";
 #load "icons.jai";

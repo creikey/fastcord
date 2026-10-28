@@ -673,7 +673,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 
 // Any overlay that takes keyboard input away from the composer.
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0 || tsg.channel != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
@@ -688,6 +688,11 @@ quote_bar_draw :: (b: *ui.Box, user: *void) {
 	gfx.rect(.{b.rect.x0, b.rect.y0, b.rect.x0 + 4, b.rect.y1}, cast(gfx.Color) c, 2);
 }
 
+// ms is already shifted to local time, so the UTC breakdown is the local one.
+utc_calendar :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + seconds_to_apollo(ms / 1000)); }
+hour12 :: (t: Calendar_Time) -> int { h := t.hour % 12; return ifx h then h else 12; }
+am_pm :: (t: Calendar_Time) -> string { return ifx t.hour >= 12 then "PM" else "AM"; }
+
 #scope_file
 
 stamps: struct {
@@ -696,11 +701,6 @@ stamps: struct {
 };
 
 MONTHS :: string.["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-// ms is already shifted to local time, so the UTC breakdown is the local one.
-utc_calendar :: (ms: s64) -> Calendar_Time { return to_calendar(dc.UNIX_EPOCH + seconds_to_apollo(ms / 1000)); }
-hour12 :: (t: Calendar_Time) -> int { h := t.hour % 12; return ifx h then h else 12; }
-am_pm :: (t: Calendar_Time) -> string { return ifx t.hour >= 12 then "PM" else "AM"; }
 
 // Groups with the previous message: same author, within 7 minutes, plain message type, not a reply.
 continues_group :: (prev: *dc.Message, m: *dc.Message) -> bool {
@@ -1528,6 +1528,17 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 				ma.replying = 0;
 			} else if res == .Changed && app.client != null && ui.editor_text(*cs.editor) != "" {
 				dc.typing_keystroke(app.client, ch.id);
+			}
+			clk := ui.box("clock", .Clickable);
+			clk.semantic_size = .[ui.px(40), ui.px(COMPOSER_H)];
+			clk.layout_axis = .Y;
+			clk.cross_align = .Center;
+			{ ui.parent(clk); defer ui.pop_parent();
+				csig := ui.signal(clk);
+				if csig.clicked timestamp_gen_open(ch.id);
+				if csig.hovering tooltip_below("Insert Timestamp", clk.rect);
+				spacer(.Y, (COMPOSER_H - 24) / 2);
+				icon("i", "clock", 24, ifx csig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
 			}
 			for name: (string.["gif", "sticker", "reaction"]) {
 				b := ui.box(name, .Clickable);
