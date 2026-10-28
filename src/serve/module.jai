@@ -2777,12 +2777,17 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 	s := c.server;
 	me := rest.count && (rest[rest.count - 1] == "@me" || rest[rest.count - 1] == "%40me");
 	add := req.method == "PUT" && rest.count == 2 && me;
-	drop := req.method == "DELETE" && (rest.count == 2 || rest.count == 3) && me;
+	// Removal is .../{emoji}/@me, or .../{emoji}/{user} and .../{emoji}/{0|1}/{user} for the owner's moderation.
+	drop := req.method == "DELETE" && (rest.count == 2 || (rest.count == 3 && (rest[1] == "0" || rest[1] == "1")));
 	list := req.method == "GET" && rest.count == 1;
-	if !add && !drop && !list {
-		if req.method == "DELETE" && rest.count == 3 return json_error(c, 403, 50013, "Missing Permissions");
-		return json_error(c, 404, 0, "404: Not Found");
+	target := user;
+	if drop && !me {
+		id, ok, after := string_to_int(rest[rest.count - 1], T = s64);
+		drop = ok && !after && id > 0;
+		target = id;
 	}
+	if !add && !drop && !list return json_error(c, 404, 0, "404: Not Found");
+	if drop && rest.count == 3 && rest[1] == "1" return respond(c, 204, json = false);
 	emoji := percent_decode(rest[0]);
 	// A custom emoji comes as name:id and is stored so; every Unicode emoji has a byte past ASCII (keycaps
 	// end in U+20E3), so plain words are refused.
@@ -2818,6 +2823,7 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		found := sqlite.step(st) == .Row;
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
+		if target != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
 		if list {
 			// Who reacted, by user ID as Discord orders them, a page after `after`; no one gives super reactions here.
 			limit, after, burst := 25, 0, false;
@@ -2847,12 +2853,12 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 			if !has && kinds >= MAX_REACTIONS return json_error(c, 400, 30010, "Maximum number of reactions reached (20)");
 		}
 		sql := ifx add then "INSERT OR IGNORE INTO reactions(message, emoji, user) VALUES(?, ?, ?);" else "DELETE FROM reactions WHERE message = ? AND emoji = ? AND user = ?;";
-		if !sqlite.run(s.db, sql, message, emoji, user) return json_error(c, 500, 0, "500: Internal Server Error");
+		if !sqlite.run(s.db, sql, message, emoji, target) return json_error(c, 500, 0, "500: Internal Server Error");
 		changed = sqlite.changes(s.db) > 0;
 	}
 	if changed {
 		d := etf.map_builder(7,, temp);
-		etf.map_put(*d, "user_id", snow(user));
+		etf.map_put(*d, "user_id", snow(target));
 		etf.map_put(*d, "channel_id", snow(channel));
 		etf.map_put(*d, "message_id", snow(message));
 		etf.map_put(*d, "guild_id", snow(s.guild));

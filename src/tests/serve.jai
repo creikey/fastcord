@@ -751,6 +751,12 @@ main :: () {
 	check(status == 200 && reactors.kind == .List && reactors.list.count == 1 && field(reactors.list[0], "id").s == other_id, tprint("who reacted: % %", status, body));
 	status, body = rest("GET", tprint("%/blob\%3A%?after=%", react_path, emoji_id, other_id), "", token);
 	check(status == 200 && body == "[]", tprint("no one reacted after the last: % %", status, body));
+	status, body = rest("DELETE", tprint("%/blob\%3A%/0/%", react_path, emoji_id, field(react_v, "author", "id").s), "", other_token);
+	check(status == 403, tprint("a member can't remove others' reactions: % %", status, body));
+	status, body = rest("DELETE", tprint("%/blob\%3A%/0/%?burst=false", react_path, emoji_id, other_id), "", token);
+	check(status == 204, tprint("the owner removes a member's reaction: % %", status, body));
+	status, body = rest("GET", tprint("%/blob\%3A%", react_path, emoji_id), "", token);
+	check(status == 200 && body == "[]", tprint("the removed reaction is gone: % %", status, body));
 
 	// Avatars: a member sets one, their messages carry it, it's served under its hash, and null removes it.
 	status, body = rest("PATCH", "/api/v9/users/@me", "{\"avatar\": \"data:image/png;base64,bm90IGFuIGltYWdl\"}", other_token);
