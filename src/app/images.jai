@@ -262,6 +262,7 @@ Decode_Job :: struct {
 Decoded :: struct {
 	using job: Decode_Job;
 	ok: bool;
+	saved: bool; // Save_Image: the file was written
 	size: Int2;
 	frames: [][]u8; // premultiplied RGBA, heap
 	durations: []int;
@@ -358,7 +359,8 @@ decode_run :: (j: Decode_Job) -> Decoded {
 	case .Copy_Image;
 		if data platform.clipboard_set_image(data);
 	case .Save_Image;
-		if data save_download(j.url, data);
+		// Offline (fixture) runs read the bytes from FASTCORD_MEDIA_DIR and never write to the real Downloads.
+		d.saved = data && (!j.data || save_download(j.url, data));
 	}
 	if j.kind != .Fetch {
 		array_free(d.data);
@@ -369,7 +371,7 @@ decode_run :: (j: Decode_Job) -> Decoded {
 }
 
 // Save Image: ~/Downloads/<name from the URL>, " (n)" before the extension when taken (worker thread).
-save_download :: (url: string, data: []u8) {
+save_download :: (url: string, data: []u8) -> bool {
 	name := url;
 	q := find_index_from_left(name, #char "?");
 	if q >= 0 name.count = q;
@@ -380,13 +382,13 @@ save_download :: (url: string, data: []u8) {
 	if dot > 0 stem, ext = slice(name, 0, dot), slice(name, dot, name.count - dot);
 	#if OS == .WINDOWS dir := platform.downloads_dir(); // HOME is normally unset on Windows
 	else               dir := tprint("%/Downloads", env_var("HOME"));
-	if !dir return;
+	if !dir return false;
 	path := tprint("%/%", dir, name);
 	for 1..999 {
 		if !file_exists(path) break;
 		path = tprint("%/% (%)%", dir, stem, it, ext);
 	}
-	write_entire_file(path, data.data, data.count);
+	return write_entire_file(path, data.data, data.count);
 }
 
 decode_free :: (d: *Decoded) {
@@ -419,6 +421,8 @@ decode_upload :: () {
 		if d.kind == .Fetch {
 			blob_decoded(d.url, d.data);
 			d.data = .[];
+		} else if d.kind == .Save_Image {
+			toast_show(ifx d.saved then "Image saved to Downloads." else "Couldn't save the image.", d.saved);
 		} else if d.kind == .Lottie_Load || d.kind == .Lottie_Still {
 			budget -= d.size.x * d.size.y * 4;
 			lottie_decoded(d);

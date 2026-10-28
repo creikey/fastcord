@@ -1,0 +1,8 @@
+# Save Image says how it went: a green "Image saved to Downloads." toast (offline runs write nothing).
+wait 20
+rclick 520 340
+wait 2
+click_text "Save Image"
+wait 10
+expect_visible "Image saved to Downloads."
+shot build/ui-media_save_image.png

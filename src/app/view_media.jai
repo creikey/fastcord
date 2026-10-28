@@ -710,6 +710,8 @@ media_action_receive :: (r: *dc.Media_Result) -> bool {
 	if r.status == 200 && r.data {
 		decode_submit(.{kind = ifx r.tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(r.url), data = r.data});
 		r.data = .[];
+	} else if r.tag == MEDIA_TAG_SAVE {
+		toast_show("Couldn't save the image.", false);
 	}
 	return true;
 }

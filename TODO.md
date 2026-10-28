@@ -72,7 +72,7 @@
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
 - [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
 - [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
-- [ ] Media: Save Image gives no feedback: the file lands in Downloads silently, and a failed fetch or write says nothing (`images.jai` `save_download`). The desktop client asks where to save with the system Save dialog.
+- [ ] Media: Save Image goes straight to Downloads (`images.jai` `save_download`); the desktop client asks where to save with the system Save dialog.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
@@ -341,3 +341,4 @@
 - [x] Bug: re-identifying dropped you from voice (op 4 with a null channel after every READY): you vanished from the channel's member list while "Voice Connected" stayed. A fresh READY now rejoins the call.
 - [x] Rail: right-clicking a folder opens Mark Folder As Read and Folder Settings, a modal that renames and recolours it through `guild_folders` (`view_rail_folders.jai`, `tests/ui/rail/folder_settings.txt`).
 - [x] Messages: a failed send shows "Message failed to send." with Retry (same text and reply) and Delete (local) under the red message (`view_chat.jai` `failed_send_note`, `tests/ui/failed_send.txt`).
+- [x] Media: Save Image shows a toast: green "Image saved to Downloads." or red "Couldn't save the image." when the fetch or write fails (`images.jai` `decode_upload`, `requests.jai` `toast_show`, `tests/ui/media/save_image.txt`).
