@@ -5,12 +5,18 @@ the Jai is written. This file lists what is easy to miss.
 
 - `TODO.md` tracks all work. Read it before starting; add new tasks in the same change. When you finish
   one, don't delete it: mark it `[x]` and move it to the bottom, so the file also records what's done.
+  An item a rule rules out is marked `[-] Cancelled (<reason>):` and kept above the ticked ones.
   For every item you check off, look for one new item to add in the same commit: a bug, or a gap from
   the official client that a daily user would notice. Confirm it in the code and check it isn't already
   listed. If a short search finds nothing that clears that bar, add nothing and say so: fastcord is
   near complete there, and filler (rare settings, cosmetic nits, telemetry) only bloats the list.
-- No ads, ever: never show Nitro upsells, the Shop, Boost prompts or any other Discord promotion, even
-  when copying official UI.
+- Hard rules, even when copying official UI:
+  - No ads, ever: never show Nitro upsells, the Shop, Boost prompts or any other Discord promotion.
+  - No Activities: never implement the in-call apps and games (the Embedded App SDK) or their buttons.
+    Rich presence ("Playing X", Spotify status) is a different thing and is fine.
+  - Nothing that needs a webview, ever: no embedded browser, iframe or HTML renderer. Where the
+    official client uses one (YouTube players, captchas, OAuth pages), open the system browser or
+    offer a native path instead.
 - When you notice a missing feature or a gap from the official client, add it to `TODO.md` without
   being asked, even if it is outside your task.
 - Trunk-based: all work lands on `main`. No feature branches or worktrees; don't push other branches.
