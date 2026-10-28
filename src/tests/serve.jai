@@ -739,6 +739,42 @@ main :: () {
 	status, body = rest("GET", messages, "", other_token);
 	check(other_token.count == 64 && status == 200, tprint("rejoin by invite: % % %", ostatus, omessage, status));
 
+	// Scheduled events: the owner makes one, members mark Interested, and it runs from scheduled to done.
+	{
+		events := tprint("/api/v9/guilds/%/scheduled-events", gid);
+		start := serve.iso_ms(to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) + 3_600_000);
+		end := serve.iso_ms(to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) + 7_200_000);
+		create := tprint("{\"name\": \"Game night\", \"description\": \"bring snacks\", \"privacy_level\": 2, \"scheduled_start_time\": \"%\", \"scheduled_end_time\": \"%\", \"entity_type\": 3, \"entity_metadata\": {\"location\": \"the park\"}, \"recurrence_rule\": null}", start, end);
+		status, body = rest("POST", events, create, other_token);
+		check(status == 403, tprint("only the owner makes events: %", status));
+		status, body = rest("POST", events, replace(create, "\"entity_type\": 3", "\"entity_type\": 2",, temp), token);
+		check(status == 400, tprint("an event needs a place here, with no voice channels: %", status));
+		status, body = rest("POST", events, create, token);
+		ev, _ := etf.from_json(body);
+		eid := field(ev, "id").s;
+		check(status == 200 && field(ev, "status").i == 1 && field(ev, "user_count").i == 1 && field(ev, "entity_metadata", "location").s == "the park"
+			&& field(ev, "scheduled_start_time").s == start, tprint("make an event: % %", status, body));
+		status, body = rest("PUT", tprint("%/%/users/@me", events, eid), "{\"response\":1}", other_token);
+		check(status == 200, tprint("mark Interested: % %", status, body));
+		status, body = rest("GET", tprint("%/%/users/counts", events, eid), "", other_token);
+		check(status == 200 && contains(body, "\"guild_scheduled_event_count\": 2"), tprint("the interested count: % %", status, body));
+		status, body = rest("GET", "/api/v9/users/@me/scheduled-events?guild_ids=1", "", other_token);
+		check(status == 200 && contains(body, eid), tprint("a member's own Interested marks: % %", status, body));
+		status, body = rest("GET", tprint("%/-1/users/counts", events), "", token);
+		check(status == 400, tprint("the wizard's preview counts are refused, as on Discord: %", status));
+		status, body = rest("PATCH", tprint("%/%", events, eid), "{\"status\": 3}", token);
+		check(status == 400, tprint("a scheduled event can't end before it starts: %", status));
+		status, body = rest("PATCH", tprint("%/%", events, eid), "{\"status\": 2}", other_token);
+		check(status == 403, tprint("only the owner or creator starts it: %", status));
+		status, body = rest("PATCH", tprint("%/%", events, eid), "{\"status\": 2}", token);
+		check(status == 200 && contains(body, "\"status\":2"), tprint("start an event: % %", status, body));
+		status, body = rest("GET", events, "", other_token);
+		check(status == 200 && contains(body, eid), tprint("list events: % %", status, body));
+		status, body = rest("DELETE", tprint("%/%", events, eid), "", token);
+		check(status == 204, tprint("cancel an event: %", status));
+		status, body = rest("GET", tprint("%/%/users/counts", events, eid), "", token);
+		check(status == 404, tprint("a deleted event is gone: %", status));
+	}
 	// Change Nickname renames the member everywhere, old messages included; an empty one goes back to the
 	// name they joined with.
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/@me", gid), "{\"nick\": \"Temp\"}", other_token);

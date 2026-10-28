@@ -459,7 +459,7 @@ guild_menu :: () {
 				close = true;
 			}
 		}
-		if !on_hosted() && dc.can_create_events(s, gid) && menu_item("createevent", "Create Event", lead = "calendar", h = GM_HDR_ROW_H).clicked {
+		if dc.can_create_events(s, gid) && menu_item("createevent", "Create Event", lead = "calendar", h = GM_HDR_ROW_H).clicked {
 			create_event_open(gid);
 			close = true;
 		}

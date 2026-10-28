@@ -418,6 +418,9 @@ CREATE TABLE IF NOT EXISTS uploads(token TEXT PRIMARY KEY, user INTEGER NOT NULL
 CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY, message INTEGER NOT NULL, key TEXT NOT NULL, filename TEXT NOT NULL, content_type TEXT NOT NULL,
 	size INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, description TEXT NOT NULL, data BLOB NOT NULL);
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
+CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, creator INTEGER NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL, location TEXT NOT NULL,
+	start INTEGER NOT NULL, end INTEGER NOT NULL, status INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS rsvps(event INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(event, user));
 CREATE TABLE IF NOT EXISTS snapshot_files(message INTEGER NOT NULL, attachment INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS snapshot_files_message ON snapshot_files(message);
 CREATE INDEX IF NOT EXISTS snapshot_files_attachment ON snapshot_files(attachment);
@@ -770,9 +773,334 @@ serve_conn :: (c: *Conn) {
 			if !list_bans(c, req) return;
 			continue;
 		}
+		if begins_with(req.path, tprint("/api/v9/guilds/%/scheduled-events", c.server.guild)) || begins_with(req.path, "/api/v9/users/@me/scheduled-events")
+				|| (req.method == "POST" && begins_with(req.path, tprint("/api/v9/guilds/%/ack/", c.server.guild))) {
+			if !scheduled_events(c, req) return;
+			continue;
+		}
 		if !json_error(c, 404, 0, "404: Not Found") return;
 	}
 }
+
+// Scheduled events. Until roles land (Hosting 4) only the owner creates them, the owner or the creator
+// edits, starts, ends and cancels them, and anyone marks themselves Interested. Hosted servers have no
+// voice or stage channels, so every event takes place Somewhere Else (entity type 3).
+MAX_EVENTS :: 100; // Scheduled and active at once, as on Discord.
+EXTERNAL :: 3;
+EVENT_SCHEDULED :: 1;
+EVENT_ACTIVE :: 2;
+EVENT_COMPLETED :: 3;
+EVENT_CANCELED :: 4;
+
+EVENT_SELECT :: "SELECT e.id, e.creator, u.name, e.name, e.description, e.location, e.start, e.end, e.status, (SELECT count(*) FROM rsvps r WHERE r.event = e.id) FROM events e JOIN users u ON u.id = e.creator";
+
+// iso_ms writes unix milliseconds as Discord writes timestamps.
+iso_ms :: (unix_ms: s64) -> string {
+	t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo(unix_ms), .UTC);
+	two :: (x: int) -> string { return tprint("%", formatInt(x, minimum_digits = 2)); }
+	return tprint("%-%-%T%:%:%.%+00:00", t.year, two(t.month_starting_at_0 + 1), two(t.day_of_month_starting_at_0 + 1),
+		two(t.hour), two(t.minute), two(t.second), formatInt(t.millisecond, minimum_digits = 3));
+}
+
+// parse_iso reads a UTC ISO 8601 time ("2026-10-26T23:00:00.650Z", or "+00:00" for the "Z") as unix
+// milliseconds; other offsets are refused rather than guessed at.
+parse_iso :: (text: string) -> s64, bool {
+	FORMAT :: "dddd-dd-ddTdd:dd:dd";
+	if text.count < FORMAT.count return 0, false;
+	f: [6]int;
+	n := 0;
+	for i: 0..FORMAT.count - 1 {
+		ch := text[i];
+		if FORMAT[i] == #char "d" {
+			if ch < #char "0" || ch > #char "9" return 0, false;
+			f[n] = f[n] * 10 + ch - #char "0";
+		} else {
+			if ch != FORMAT[i] return 0, false;
+			n += 1;
+		}
+	}
+	y, m, d, h, mi, sec := f[0], f[1], f[2], f[3], f[4], f[5];
+	i := FORMAT.count;
+	ms := 0;
+	if i < text.count && text[i] == #char "." {
+		i += 1;
+		digits := 0;
+		while i < text.count && text[i] >= #char "0" && text[i] <= #char "9" && digits < 9 {
+			if digits < 3 ms = ms * 10 + text[i] - #char "0";
+			i += 1;
+			digits += 1;
+		}
+		if digits == 0 return 0, false;
+		while digits < 3 { ms *= 10; digits += 1; }
+	}
+	rest := advance(text, i);
+	if rest != "Z" && rest != "+00:00" return 0, false;
+	if y < 1970 || m < 1 || m > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || sec > 59 return 0, false;
+	// days_from_civil (Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms").
+	yy := y - ifx m <= 2 then 1 else 0;
+	era := yy / 400;
+	yoe := yy - era * 400;
+	doy := (153 * (m + ifx m > 2 then -3 else 9) + 2) / 5 + d - 1;
+	days := era * 146097 + yoe * 365 + yoe / 4 - yoe / 100 + doy - 719468;
+	return ((cast(s64) days * 86400 + h * 3600 + mi * 60 + sec) * 1000 + ms), true;
+}
+
+row_event :: (s: *Server, st: *sqlite.Stmt) -> etf.Value {
+	creator := sqlite.col_int(st, 1);
+	m := etf.map_builder(16,, temp);
+	etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
+	etf.map_put(*m, "guild_id", snow(s.guild));
+	etf.map_put(*m, "channel_id", .{});
+	etf.map_put(*m, "creator_id", snow(creator));
+	etf.map_put(*m, "creator", user_value(s, creator, copy_string(sqlite.col_text(st, 2),, temp)));
+	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
+	etf.map_put(*m, "description", etf.vstring(copy_string(sqlite.col_text(st, 4),, temp)));
+	etf.map_put(*m, "scheduled_start_time", etf.vstring(iso_ms(sqlite.col_int(st, 6))));
+	etf.map_put(*m, "scheduled_end_time", etf.vstring(iso_ms(sqlite.col_int(st, 7))));
+	etf.map_put(*m, "privacy_level", etf.vint(2));
+	etf.map_put(*m, "status", etf.vint(sqlite.col_int(st, 8)));
+	etf.map_put(*m, "entity_type", etf.vint(EXTERNAL));
+	etf.map_put(*m, "entity_id", .{});
+	meta := etf.map_builder(1,, temp);
+	etf.map_put(*meta, "location", etf.vstring(copy_string(sqlite.col_text(st, 5),, temp)));
+	etf.map_put(*m, "entity_metadata", etf.vmap(etf.map_done(*meta)));
+	etf.map_put(*m, "user_count", etf.vint(sqlite.col_int(st, 9)));
+	etf.map_put(*m, "recurrence_rule", .{});
+	return etf.vmap(etf.map_done(*m));
+}
+
+// event_locked is an event as sent to clients, or null; the caller holds db_mu.
+event_locked :: (s: *Server, id: s64) -> etf.Value {
+	st := sqlite.prepare(s.db, tprint("% WHERE e.id = ?;", EVENT_SELECT));
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, id);
+	if sqlite.step(st) != .Row return .{};
+	return row_event(s, st);
+}
+
+// events_locked lists the scheduled and active events, for READY and the list route.
+events_locked :: (s: *Server) -> etf.Value {
+	list: [..]etf.Value;
+	list.allocator = temp;
+	st := sqlite.prepare(s.db, tprint("% WHERE e.status IN (%, %) ORDER BY e.start, e.id;", EVENT_SELECT, EVENT_SCHEDULED, EVENT_ACTIVE));
+	while sqlite.step(st) == .Row array_add(*list, row_event(s, st));
+	sqlite.finalize(st);
+	return etf.vlist(list);
+}
+
+rsvp_value :: (s: *Server, event: s64, user: s64) -> etf.Value {
+	m := etf.map_builder(4,, temp);
+	etf.map_put(*m, "guild_scheduled_event_id", snow(event));
+	etf.map_put(*m, "user_id", snow(user));
+	etf.map_put(*m, "guild_id", snow(s.guild));
+	etf.map_put(*m, "response", etf.vint(1));
+	return etf.vmap(etf.map_done(*m));
+}
+
+// /api/v9/guilds/{id}/scheduled-events[/{event}[/users[/@me | /counts]]], GET /users/@me/scheduled-events
+// (the member's own Interested marks) and POST /guilds/{id}/ack/1/{event}, which needs nothing kept.
+scheduled_events :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	path := req.path;
+	q := find_index_from_left(path, #char "?");
+	if q >= 0 path = slice(path, 0, q);
+	if begins_with(path, tprint("/api/v9/guilds/%/ack/", s.guild)) return respond(c, 204, json = false);
+	if path == "/api/v9/users/@me/scheduled-events" {
+		list: [..]etf.Value;
+		list.allocator = temp;
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT event FROM rsvps WHERE user = ? ORDER BY event LIMIT 1000;");
+		sqlite.bind(st, 1, user);
+		while sqlite.step(st) == .Row array_add(*list, rsvp_value(s, sqlite.col_int(st, 0), user));
+		sqlite.finalize(st);
+		return json_reply(c, 200, etf.vlist(list));
+	}
+	parts := split(advance(path, tprint("/api/v9/guilds/%/scheduled-events", s.guild).count), "/",, temp);
+	// parts[0] is "" (the path ends at scheduled-events or goes on with a slash).
+	if parts.count == 1 && parts[0] == "" {
+		if req.method == "GET" {
+			locks.guard(*s.db_mu);
+			return json_reply(c, 200, events_locked(s));
+		}
+		if req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		str :: (key: string) -> string, bool #expand {
+			f, _ := etf.map_get(v.map, key);
+			return ifx f.kind == .String then f.s else "", f.kind == .String || f.kind == .Nil;
+		}
+		name, ok_name := str("name");
+		description, ok_desc := str("description");
+		start_s, _ := str("scheduled_start_time");
+		end_s, _ := str("scheduled_end_time");
+		kind, _ := etf.map_get(v.map, "entity_type");
+		meta, _ := etf.map_get(v.map, "entity_metadata");
+		location: string;
+		if meta.kind == .Map {
+			l, _ := etf.map_get(meta.map, "location");
+			if l.kind == .String location = trim(l.s);
+		}
+		name = trim(name);
+		start, ok_start := parse_iso(start_s);
+		end, ok_end := parse_iso(end_s);
+		now := now_ms(s) + DISCORD_EPOCH_MS;
+		if !ok_name || !ok_desc || !name || name.count > 100 || !text_ok(name) || description.count > 1000 || !text_ok(description, lines = true)
+			|| kind.kind != .Int || kind.i != EXTERNAL || !location || location.count > 100 || !text_ok(location)
+			|| !ok_start || !ok_end || start < now - 60_000 || end <= start || end - start > 366 * 86_400_000 {
+			return json_error(c, 400, 50035, "Invalid Form Body");
+		}
+		event: etf.Value;
+		id := snowflake(s);
+		{
+			locks.guard(*s.db_mu);
+			if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+			st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM events WHERE status IN (%, %);", EVENT_SCHEDULED, EVENT_ACTIVE));
+			n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
+			sqlite.finalize(st);
+			if n >= MAX_EVENTS return json_error(c, 400, 30038, tprint("Maximum number of guild events reached (%)", MAX_EVENTS));
+			ok := sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, tprint("INSERT INTO events(id, creator, name, description, location, start, end, status) VALUES(?, ?, ?, ?, ?, ?, ?, %);", EVENT_SCHEDULED), id, user, name, description, location, start, end)
+				&& sqlite.run(s.db, "INSERT INTO rsvps(event, user) VALUES(?, ?);", id, user)
+				&& sqlite.exec(s.db, "COMMIT;");
+			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			event = event_locked(s, id);
+		}
+		broadcast(s, "GUILD_SCHEDULED_EVENT_CREATE", event);
+		broadcast(s, "GUILD_SCHEDULED_EVENT_USER_ADD", rsvp_value(s, id, user));
+		return json_reply(c, 200, event);
+	}
+	if parts.count < 2 || parts[0] != "" return json_error(c, 404, 0, "404: Not Found");
+	id, ok_id := string_to_int(parts[1], T = s64);
+	if !ok_id || id <= 0 return json_error(c, 400, 50035, "Invalid Form Body");
+	event: etf.Value;
+	creator: s64;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT creator FROM events WHERE id = ?;");
+		sqlite.bind(st, 1, id);
+		if sqlite.step(st) == .Row creator = sqlite.col_int(st, 0);
+		sqlite.finalize(st);
+	}
+	if !creator return json_error(c, 404, 10070, "Unknown Guild Scheduled Event");
+	if parts.count == 4 && parts[2] == "users" && parts[3] == "counts" && req.method == "GET" {
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT count(*) FROM rsvps WHERE event = ?;");
+		sqlite.bind(st, 1, id);
+		n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
+		sqlite.finalize(st);
+		return respond(c, 200, tprint("{\"guild_scheduled_event_count\": %, \"guild_scheduled_event_exception_counts\": {}}", n));
+	}
+	if parts.count == 3 && parts[2] == "users" && req.method == "GET" {
+		list: [..]etf.Value;
+		list.allocator = temp;
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT u.id, u.name FROM rsvps r JOIN users u ON u.id = r.user WHERE r.event = ? AND u.left = 0 ORDER BY u.id LIMIT 100;");
+		sqlite.bind(st, 1, id);
+		while sqlite.step(st) == .Row {
+			m := etf.map_builder(2,, temp);
+			etf.map_put(*m, "guild_scheduled_event_id", snow(id));
+			etf.map_put(*m, "user", user_value(s, sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp)));
+			array_add(*list, etf.vmap(etf.map_done(*m)));
+		}
+		sqlite.finalize(st);
+		return json_reply(c, 200, etf.vlist(list));
+	}
+	if parts.count == 4 && parts[2] == "users" && parts[3] == "@me" && (req.method == "PUT" || req.method == "DELETE") {
+		adding := req.method == "PUT";
+		changed: bool;
+		{
+			locks.guard(*s.db_mu);
+			ok := ifx adding then sqlite.run(s.db, "INSERT OR IGNORE INTO rsvps(event, user) VALUES(?, ?);", id, user)
+				else sqlite.run(s.db, "DELETE FROM rsvps WHERE event = ? AND user = ?;", id, user);
+			if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+			changed = sqlite.changes(s.db) > 0;
+		}
+		if changed broadcast(s, ifx adding then "GUILD_SCHEDULED_EVENT_USER_ADD" else "GUILD_SCHEDULED_EVENT_USER_REMOVE", rsvp_value(s, id, user));
+		if adding return json_reply(c, 200, rsvp_value(s, id, user));
+		return respond(c, 204, json = false);
+	}
+	if parts.count != 2 return json_error(c, 404, 0, "404: Not Found");
+	if req.method == "GET" {
+		locks.guard(*s.db_mu);
+		return json_reply(c, 200, event_locked(s, id));
+	}
+	if req.method == "DELETE" {
+		{
+			locks.guard(*s.db_mu);
+			if owner_id(s) != user && creator != user return json_error(c, 403, 50013, "Missing Permissions");
+			event = event_locked(s, id);
+			ok := sqlite.exec(s.db, "BEGIN;")
+				&& sqlite.run(s.db, "DELETE FROM rsvps WHERE event = ?;", id)
+				&& sqlite.run(s.db, "DELETE FROM events WHERE id = ?;", id)
+				&& sqlite.exec(s.db, "COMMIT;");
+			if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+		}
+		broadcast(s, "GUILD_SCHEDULED_EVENT_DELETE", event);
+		return respond(c, 204, json = false);
+	}
+	if req.method != "PATCH" return json_error(c, 405, 0, "405: Method Not Allowed");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user && creator != user return json_error(c, 403, 50013, "Missing Permissions");
+		st := sqlite.prepare(s.db, "SELECT name, description, location, start, end, status FROM events WHERE id = ?;");
+		sqlite.bind(st, 1, id);
+		if sqlite.step(st) != .Row { sqlite.finalize(st); return json_error(c, 404, 10070, "Unknown Guild Scheduled Event"); }
+		name := copy_string(sqlite.col_text(st, 0),, temp);
+		description := copy_string(sqlite.col_text(st, 1),, temp);
+		location := copy_string(sqlite.col_text(st, 2),, temp);
+		start, end, status := sqlite.col_int(st, 3), sqlite.col_int(st, 4), sqlite.col_int(st, 5);
+		sqlite.finalize(st);
+		bad := false;
+		for v.map {
+			key := it.key.s;
+			val := it.value;
+			if key == {
+			case "name";
+				if val.kind != .String || !trim(val.s) || trim(val.s).count > 100 || !text_ok(trim(val.s)) bad = true;
+				if !bad name = trim(val.s);
+			case "description";
+				if (val.kind != .String && val.kind != .Nil) || (val.kind == .String && (val.s.count > 1000 || !text_ok(val.s, lines = true))) bad = true;
+				if !bad description = ifx val.kind == .String then val.s else "";
+			case "scheduled_start_time";
+				t, ok := parse_iso(ifx val.kind == .String then val.s else "");
+				if !ok || status != EVENT_SCHEDULED bad = true;
+				start = t;
+			case "scheduled_end_time";
+				t, ok := parse_iso(ifx val.kind == .String then val.s else "");
+				if !ok bad = true;
+				end = t;
+			case "entity_metadata";
+				l: etf.Value;
+				if val.kind == .Map l, _ = etf.map_get(val.map, "location");
+				if l.kind != .String || !trim(l.s) || trim(l.s).count > 100 || !text_ok(trim(l.s)) bad = true;
+				if !bad location = trim(l.s);
+			case "status";
+				// Scheduled goes to active or canceled, and active to completed, as on Discord.
+				next := ifx val.kind == .Int then val.i else 0;
+				if !((status == EVENT_SCHEDULED && (next == EVENT_ACTIVE || next == EVENT_CANCELED)) || (status == EVENT_ACTIVE && next == EVENT_COMPLETED) || next == status) bad = true;
+				status = next;
+			case "entity_type";
+				if val.kind != .Int || val.i != EXTERNAL bad = true;
+			case "privacy_level"; #through;
+			case "channel_id"; #through;
+			case "recurrence_rule";
+			case; bad = true;
+			}
+		}
+		if bad || end <= start || end - start > 366 * 86_400_000 return json_error(c, 400, 50035, "Invalid Form Body");
+		if !sqlite.run(s.db, "UPDATE events SET name = ?, description = ?, location = ?, start = ?, end = ?, status = ? WHERE id = ?;", name, description, location, start, end, status, id) {
+			return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		event = event_locked(s, id);
+	}
+	broadcast(s, "GUILD_SCHEDULED_EVENT_UPDATE", event);
+	return json_reply(c, 200, event);
+}
 
 // session_user is the member a token (as sent in Identify or the authorization header) logs in as, or 0.
 // A token that names a member also marks c as logged in, which spares it the login deadline.
@@ -939,12 +1267,7 @@ user_profile :: (c: *Conn, req: http.Request) -> bool {
 }
 
 // iso is a snowflake's creation time as Discord writes timestamps.
-iso :: (id: s64) -> string {
-	t := to_calendar(APOLLO_TIME_FOR_JAN_1_1970 + milliseconds_to_apollo((id >> 22) + DISCORD_EPOCH_MS), .UTC);
-	two :: (x: int) -> string { return tprint("%", formatInt(x, minimum_digits = 2)); }
-	return tprint("%-%-%T%:%:%.%+00:00", t.year, two(t.month_starting_at_0 + 1), two(t.day_of_month_starting_at_0 + 1),
-		two(t.hour), two(t.minute), two(t.second), formatInt(t.millisecond, minimum_digits = 3));
-}
+iso :: (id: s64) -> string { return iso_ms((id >> 22) + DISCORD_EPOCH_MS); }
 
 // edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
 // carries the message it answers as referenced, or null once that is deleted. A forward's snapshot is
@@ -1313,6 +1636,7 @@ ready_value ::(s: *Server, user: s64, name: string) -> etf.Value {
 	if owner etf.map_put(*g, "owner_id", snow(owner));
 	etf.map_put(*g, "channels", etf.vlist(channels));
 	etf.map_put(*g, "threads", etf.vlist(threads));
+	etf.map_put(*g, "guild_scheduled_events", events_locked(s));
 	etf.map_put(*g, "roles", etf.vlist(roles));
 	guilds := NewArray(1, etf.Value,, temp);
 	guilds[0] = etf.vmap(etf.map_done(*g));
