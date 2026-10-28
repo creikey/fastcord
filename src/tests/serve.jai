@@ -622,6 +622,34 @@ main :: () {
 	append(*repeated, "content=hello");
 	check(found(builder_to_string(*repeated,, temp)) == 0, "a search repeating its filters still runs, each filter once");
 
+	// Threads: a member starts one, posts in it and renames it; one from a message takes its ID, once.
+	status, body = rest("POST", tprint("/api/v9/channels/%/threads", channel), "{\"name\": \"Plans\", \"type\": 11, \"auto_archive_duration\": 4320}", other_token);
+	thread, _ := etf.from_json(body);
+	thread_id := field(thread, "id").s;
+	check(status == 201 && field(thread, "type").i == 11 && field(thread, "parent_id").s == channel && field(thread, "member").kind == .Map,
+		tprint("a member starts a thread: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages", thread_id), "{\"content\": \"in the thread\"}", other_token);
+	check(status == 200, tprint("a message in a thread: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", thread_id), "{\"name\": \"Big Plans\"}", other_token);
+	check(status == 200 && field(etf.from_json(body), "name").s == "Big Plans", tprint("the starter renames a thread: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages/%/threads", channel, pinged_id), "{\"name\": \"About that\"}", other_token);
+	from_message, _ := etf.from_json(body);
+	check(status == 201 && field(from_message, "id").s == pinged_id, tprint("a thread from a message: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages/%/threads", channel, pinged_id), "{\"name\": \"Again\"}", other_token);
+	check(status == 400, tprint("one thread per message: % %", status, body));
+	status, body = rest("GET", tprint("%?around=%&limit=1", messages, pinged_id), "", token);
+	page, _ := etf.from_json(body);
+	check(status == 200 && page.kind == .List && page.list.count == 1 && field(page.list[0], "thread", "id").s == pinged_id,
+		tprint("the starter message carries its thread: % %", status, body));
+	status, body = rest("GET", tprint("/api/v9/channels/%/threads/search?archived=true&limit=25", channel), "", other_token);
+	check(status == 200, tprint("the thread browser's archived list: % %", status, body));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", thread_id), "", other_token);
+	check(status == 403, tprint("only the owner deletes threads: % %", status, body));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", thread_id), "", token);
+	check(status == 200, tprint("the owner deletes a thread: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages", thread_id), "{\"content\": \"gone\"}", other_token);
+	check(status == 404, tprint("a deleted thread takes no messages: % %", status, body));
+
 	// Leaving: the owner can't; Other's client loses the guild, their token dies, and only an invite
 	// brings them back.
 	status, body = rest("DELETE", tprint("/api/v9/users/@me/guilds/%", gid), "", token);

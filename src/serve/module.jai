@@ -95,6 +95,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN owner INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
@@ -365,7 +366,7 @@ CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY, message INTEGER N
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
 	provider TEXT NOT NULL, color INTEGER NOT NULL, PRIMARY KEY(message, position));
-CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
+CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
@@ -704,7 +705,7 @@ iso :: (id: s64) -> string {
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
 		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
-		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0) -> etf.Value {
+		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx kind != DEFAULT then kind else ifx reply then 19 else 0));
@@ -722,7 +723,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "content", etf.vstring(content));
 	etf.map_put(*m, "timestamp", etf.vstring(iso(id)));
 	etf.map_put(*m, "edited_timestamp", ifx edited then etf.vstring(iso(edited)) else .{});
-	etf.map_put(*m, "flags", etf.vint(flags));
+	etf.map_put(*m, "flags", etf.vint(ifx thread.kind == .Map then flags | HAS_THREAD else flags));
 	etf.map_put(*m, "attachments", ifx attachments.kind == .List then attachments else etf.vlist(.[]));
 	etf.map_put(*m, "embeds", ifx embeds.kind == .List then embeds else etf.vlist(.[]));
 	etf.map_put(*m, "mentions", ifx mentions.kind == .List then mentions else etf.vlist(.[]));
@@ -730,12 +731,14 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "pinned", etf.vbool(pinned));
 	if nonce etf.map_put(*m, "nonce", etf.vstring(nonce));
 	if reactions.kind == .List && reactions.list.count etf.map_put(*m, "reactions", reactions);
+	if thread.kind == .Map etf.map_put(*m, "thread", thread);
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11) FROM messages m JOIN users u ON u.id = m.author";
 
 SUPPRESS_EMBEDS :: 1 << 2;
+HAS_THREAD :: 1 << 5;
 
 // Message types: a "pinned a message" notice is a system message whose reply column holds the pinned one.
 DEFAULT :: 0;
@@ -784,7 +787,8 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id), sqlite.col_int(st, 10));
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id), sqlite.col_int(st, 10),
+		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id));
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -817,24 +821,55 @@ mention_ids :: (content: string) -> [..]s64 {
 }
 
 // Until roles land (Hosting 4) everyone may read, write, react, embed, attach and make invites.
-EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 26);
+EVERYONE_PERMISSIONS :: (1 << 0) | (1 << 6) | (1 << 10) | (1 << 11) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 18) | (1 << 26) | (1 << 35) | (1 << 38);
 
 // Channel types, as Discord numbers them.
 TEXT :: 0;
 CATEGORY :: 4;
+THREAD :: 11; // Public, under a text channel; one started from a message takes that message's ID.
 
-CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent FROM channels c";
+CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END FROM channels c";
 
-row_channel :: (s: *Server, st: *sqlite.Stmt) -> etf.Value {
+row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Value {
+	kind := sqlite.col_int(st, 5);
 	m := etf.map_builder(8,, temp);
 	etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
-	etf.map_put(*m, "type", etf.vint(sqlite.col_int(st, 5)));
+	etf.map_put(*m, "type", etf.vint(kind));
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 1),, temp)));
 	etf.map_put(*m, "position", etf.vint(sqlite.col_int(st, 2)));
-	if sqlite.col_int(st, 5) == TEXT etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
+	if kind == TEXT etf.map_put(*m, "topic", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
 	if !sqlite.col_is_null(st, 4) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 4)));
 	etf.map_put(*m, "parent_id", ifx sqlite.col_is_null(st, 6) then etf.Value.{} else snow(sqlite.col_int(st, 6)));
+	if kind == THREAD {
+		count := sqlite.col_int(st, 8);
+		etf.map_put(*m, "owner_id", snow(sqlite.col_int(st, 7)));
+		etf.map_put(*m, "message_count", etf.vint(count));
+		etf.map_put(*m, "total_message_sent", etf.vint(count));
+		md := etf.map_builder(5,, temp);
+		etf.map_put(*md, "archived", etf.vbool(false));
+		etf.map_put(*md, "locked", etf.vbool(false));
+		etf.map_put(*md, "auto_archive_duration", etf.vint(4320));
+		etf.map_put(*md, "archive_timestamp", etf.vstring(iso(sqlite.col_int(st, 0))));
+		etf.map_put(*md, "create_timestamp", etf.vstring(iso(sqlite.col_int(st, 0))));
+		etf.map_put(*m, "thread_metadata", etf.vmap(etf.map_done(*md)));
+		if member.kind != .Nil etf.map_put(*m, "member", member);
+	}
+	return etf.vmap(etf.map_done(*m));
+}
+
+// A thread's `member` entry for user, who has joined it by starting it or posting in it; null if not.
+// The caller holds db_mu.
+thread_member_locked :: (s: *Server, thread: s64, user: s64) -> etf.Value {
+	st := sqlite.prepare(s.db, "SELECT 1 FROM channels WHERE id = ?1 AND (owner = ?2 OR EXISTS (SELECT 1 FROM messages WHERE channel = ?1 AND author = ?2));");
+	defer sqlite.finalize(st);
+	sqlite.bind_all(st, thread, user);
+	if sqlite.step(st) != .Row return .{};
+	m := etf.map_builder(4,, temp);
+	etf.map_put(*m, "id", snow(thread));
+	etf.map_put(*m, "user_id", snow(user));
+	etf.map_put(*m, "join_timestamp", etf.vstring(iso(thread)));
+	etf.map_put(*m, "flags", etf.vint(0));
 	return etf.vmap(etf.map_done(*m));
 }
 
@@ -845,6 +880,15 @@ channel_locked :: (s: *Server, id: s64) -> etf.Value {
 	sqlite.bind(st, 1, id);
 	if sqlite.step(st) != .Row return .{};
 	return row_channel(s, st);
+}
+
+// Who started a thread, or 0. The caller holds db_mu.
+thread_owner_locked :: (s: *Server, id: s64) -> s64 {
+	st := sqlite.prepare(s.db, "SELECT coalesce(owner, 0) FROM channels WHERE id = ?;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, id);
+	if sqlite.step(st) != .Row return 0;
+	return sqlite.col_int(st, 0);
 }
 
 // A channel's type, or -1 if there is no such channel. The caller holds db_mu.
@@ -858,10 +902,13 @@ channel_type_locked :: (s: *Server, id: s64) -> int {
 
 ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	locks.guard(*s.db_mu);
-	channels: [..]etf.Value;
-	channels.allocator = temp;
+	channels, threads: [..]etf.Value;
+	channels.allocator, threads.allocator = temp, temp;
 	st := sqlite.prepare(s.db, tprint("% ORDER BY c.position, c.id;", CHANNEL_SELECT));
-	while sqlite.step(st) == .Row array_add(*channels, row_channel(s, st));
+	while sqlite.step(st) == .Row {
+		if sqlite.col_int(st, 5) != THREAD { array_add(*channels, row_channel(s, st)); continue; }
+		array_add(*threads, row_channel(s, st, thread_member_locked(s, sqlite.col_int(st, 0), user)));
+	}
 	sqlite.finalize(st);
 	members := 0;
 	st = sqlite.prepare(s.db, "SELECT count(*) FROM users WHERE left = 0;");
@@ -883,6 +930,7 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	owner := owner_id(s);
 	if owner etf.map_put(*g, "owner_id", snow(owner));
 	etf.map_put(*g, "channels", etf.vlist(channels));
+	etf.map_put(*g, "threads", etf.vlist(threads));
 	etf.map_put(*g, "roles", etf.vlist(roles));
 	guilds := NewArray(1, etf.Value,, temp);
 	guilds[0] = etf.vmap(etf.map_done(*g));
@@ -1149,6 +1197,11 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if ok && parts.count == 2 && parts[1] == "attachments" && req.method == "POST" return request_uploads(c, req, user, channel);
 	// Opening the pins popout acks them; unread pins aren't tracked, so there is nothing to store.
 	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return respond(c, 204, json = false);
+	if ok && parts.count == 2 && parts[1] == "threads" && req.method == "POST" return create_thread(c, req, user, channel, 0);
+	// Threads are never archived here, so the browser's archived list is always empty.
+	if ok && parts.count == 3 && parts[1] == "threads" && parts[2] == "search" && req.method == "GET" {
+		return respond(c, 200, "{\"threads\":[],\"members\":[],\"has_more\":false,\"total_results\":0}");
+	}
 	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
 	if parts.count >= 3 && parts[2] == "pins" {
 		if parts.count == 3 && req.method == "GET" return list_pins(c, channel);
@@ -1164,11 +1217,12 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		if parts.count == 3 return one_message(c, req, user, name, channel, message);
 		if parts[3] == "reactions" return reaction(c, req, user, channel, message, array_view(parts, 4));
 		if parts[3] == "ack" && parts.count == 4 && req.method == "POST" return ack(c, req, user, channel, message);
+		if parts[3] == "threads" && parts.count == 4 && req.method == "POST" return create_thread(c, req, user, channel, message);
 		return json_error(c, 404, 0, "404: Not Found");
 	}
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type = %;", TEXT));
+		st := sqlite.prepare(s.db, tprint("SELECT 1 FROM channels WHERE id = ? AND type IN (%, %);", TEXT, THREAD));
 		sqlite.bind(st, 1, channel);
 		ok = sqlite.step(st) == .Row;
 		sqlite.finalize(st);
@@ -1454,6 +1508,47 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	return json_reply(c, 201, ch);
 }
 
+// POST /channels/{id}/threads {name, type: 11} and POST /channels/{id}/messages/{message}/threads {name}:
+// any member starts a public thread under a text channel. One started from a message takes its ID, so a
+// message has at most one, and the message then carries it as `thread`.
+create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: s64) -> bool {
+	s := c.server;
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	raw, _ := etf.map_get(v.map, "name");
+	kind_v, has_kind := etf.map_get(v.map, "type");
+	name := ifx raw.kind == .String then trim(raw.s) else "";
+	if !name || name.count > 100 || !text_ok(name) || (has_kind && !(kind_v.kind == .Int && kind_v.i == THREAD)) return json_error(c, 400, 50035, "Invalid Form Body");
+	thread, starter, member: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		if channel_type_locked(s, parent) != TEXT return json_error(c, 404, 10003, "Unknown Channel");
+		id := message;
+		if message {
+			st := sqlite.prepare(s.db, "SELECT (SELECT 1 FROM messages WHERE id = ?1 AND channel = ?2), (SELECT 1 FROM channels WHERE id = ?1);");
+			sqlite.bind_all(st, message, parent);
+			sqlite.step(st);
+			found, taken := !sqlite.col_is_null(st, 0), !sqlite.col_is_null(st, 1);
+			sqlite.finalize(st);
+			if !found return json_error(c, 404, 10008, "Unknown Message");
+			if taken return json_error(c, 400, 160004, "A thread has already been created for this message");
+		} else {
+			id = snowflake(s);
+		}
+		if !sqlite.run(s.db, "INSERT INTO channels(id, name, position, type, parent, owner) VALUES(?, ?, 0, ?, ?, ?);", id, name, THREAD, parent, user) return json_error(c, 500, 0, "500: Internal Server Error");
+		thread = channel_locked(s, id);
+		member = thread_member_locked(s, id, user);
+		if message starter = message_locked(s, message);
+	}
+	broadcast(s, "THREAD_CREATE", thread);
+	if message broadcast(s, "MESSAGE_UPDATE", starter);
+	// The starter's own copy says it has joined, as Discord's reply does.
+	m := etf.map_builder(thread.map.count + 1,, temp);
+	for thread.map etf.map_put(*m, it.key.s, it.value);
+	etf.map_put(*m, "member", member);
+	return json_reply(c, 201, etf.vmap(etf.map_done(*m)));
+}
+
 // PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname. A member has one name here, so the nick
 // replaces it, and members see it as their name with no nick; an empty nick has nothing to fall back to.
 rename :: (c: *Conn, req: http.Request) -> bool {
@@ -1610,18 +1705,21 @@ removed :: (s: *Server, user: s64) {
 edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	s := c.server;
 	ch: etf.Value;
-	orphans: [..]etf.Value;
-	orphans.allocator = temp;
+	orphans, gone_threads: [..]etf.Value;
+	orphans.allocator, gone_threads.allocator = temp, temp;
+	starter: etf.Value; // A deleted thread's starter message, which loses its `thread`.
+	kind := -1;
 	if req.method == "PATCH" {
 		v, err := etf.from_json(cast(string) req.body,, temp);
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		raw, has_name := etf.map_get(v.map, "name");
 		topic, has_topic := etf.map_get(v.map, "topic");
 		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		kind := channel_type_locked(s, channel);
+		kind = channel_type_locked(s, channel);
 		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
-		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY then trim(raw.s) else channel_name(raw.s);
+		// A thread's starter may rename it too.
+		if owner_id(s) != user && !(kind == THREAD && !has_topic && thread_owner_locked(s, channel) == user) return json_error(c, 403, 50013, "Missing Permissions");
+		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD then trim(raw.s) else channel_name(raw.s);
 		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
 			&& (!has_topic || sqlite.run(s.db, "UPDATE channels SET topic = ? WHERE id = ?;", ifx topic.kind == .String then topic.s else "", channel));
@@ -1632,36 +1730,46 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
 		ch = channel_locked(s, channel);
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
-		kind := channel_type_locked(s, channel);
+		kind = channel_type_locked(s, channel);
 		st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM channels WHERE type = %;", TEXT));
 		last := kind == TEXT && sqlite.step(st) == .Row && sqlite.col_int(st, 0) <= 1;
 		sqlite.finalize(st);
 		if last return json_error(c, 400, 50035, "Cannot delete the last channel");
-		// A deleted category's channels stay, uncategorized, as on Discord.
-		st = sqlite.prepare(s.db, "SELECT id FROM channels WHERE parent = ?;");
+		// A deleted category's channels stay, uncategorized, as on Discord; a text channel's threads go with it.
+		st = sqlite.prepare(s.db, "SELECT id, type FROM channels WHERE parent = ?;");
 		sqlite.bind(st, 1, channel);
 		ids: [..]s64;
 		ids.allocator = temp;
-		while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
+		while sqlite.step(st) == .Row {
+			if sqlite.col_int(st, 1) == THREAD array_add(*gone_threads, channel_locked(s, sqlite.col_int(st, 0)));
+			else array_add(*ids, sqlite.col_int(st, 0));
+		}
 		sqlite.finalize(st);
+		// ?1 is the channel; doomed is it and its threads.
+		doomed :: "(SELECT id FROM channels WHERE id = ?1 OR (parent = ?1 AND type = 11))";
 		ok := sqlite.exec(s.db, "BEGIN;")
-			&& sqlite.run(s.db, "UPDATE channels SET parent = NULL WHERE parent = ?;", channel)
-			&& sqlite.run(s.db, "DELETE FROM reactions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
-			&& sqlite.run(s.db, "DELETE FROM mentions WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
-			&& sqlite.run(s.db, "DELETE FROM attachments WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
-			&& sqlite.run(s.db, "DELETE FROM embeds WHERE message IN (SELECT id FROM messages WHERE channel = ?);", channel)
-			&& sqlite.run(s.db, "DELETE FROM uploads WHERE channel = ?;", channel)
-			&& sqlite.run(s.db, "DELETE FROM messages WHERE channel = ?;", channel)
-			&& sqlite.run(s.db, "DELETE FROM read_states WHERE channel = ?;", channel)
-			&& sqlite.run(s.db, "DELETE FROM channels WHERE id = ?;", channel)
+			&& sqlite.run(s.db, "UPDATE channels SET parent = NULL WHERE parent = ?1 AND type != 11;", channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM reactions WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM mentions WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM attachments WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM embeds WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM uploads WHERE channel IN %;", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM messages WHERE channel IN %;", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM read_states WHERE channel IN %;", doomed), channel)
+			&& sqlite.run(s.db, tprint("DELETE FROM channels WHERE id IN %;", doomed), channel)
 			&& sqlite.exec(s.db, "COMMIT;");
 		if !ok { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
 		for ids array_add(*orphans, channel_locked(s, it));
+		if kind == THREAD starter = message_locked(s, channel);
 	} else {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
-	broadcast(s, ifx req.method == "PATCH" then "CHANNEL_UPDATE" else "CHANNEL_DELETE", ch);
+	thread := kind == THREAD;
+	if req.method == "PATCH" broadcast(s, ifx thread then "THREAD_UPDATE" else "CHANNEL_UPDATE", ch);
+	else broadcast(s, ifx thread then "THREAD_DELETE" else "CHANNEL_DELETE", ch);
+	for gone_threads broadcast(s, "THREAD_DELETE", it);
 	for orphans broadcast(s, "CHANNEL_UPDATE", it);
+	if starter.kind == .Map broadcast(s, "MESSAGE_UPDATE", starter);
 	return json_reply(c, 200, ch);
 }
 
