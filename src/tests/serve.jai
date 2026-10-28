@@ -185,7 +185,9 @@ main :: () {
 		http.ws_send(ws, .Binary, etf.encode(etf.vmap(etf.map_done(*m))));
 		ready := recv_event(ws);
 		guilds := field(ready, "d", "guilds");
-		check(field(ready, "t").s == "READY" && field(ready, "d", "user", "username").s == "Tester" && guilds.list.count == 1, "READY");
+		check(field(ready, "t").s == "READY" && field(ready, "d", "user", "global_name").s == "Tester" && guilds.list.count == 1, "READY");
+		handle := field(ready, "d", "user", "username").s;
+		check(handle.count == 8 && handle != "Tester", tprint("a member's username is a handle from their key, not their chosen name: %", handle));
 		if guilds.list.count {
 			chans := field(guilds.list[0], "channels");
 			check(chans.list.count == 1 && field(chans.list[0], "name").s == "general", "READY has #general");
@@ -252,7 +254,7 @@ main :: () {
 	// The owner's join posted a welcome; drop it so the counts below start from nothing.
 	status, body = rest("GET", messages, "", token);
 	welcome, _ := etf.from_json(body);
-	check(status == 200 && welcome.list.count == 1 && field(welcome.list[0], "type").i == 7 && field(welcome.list[0], "author", "username").s == "Tester", tprint("the join's welcome message: %", body));
+	check(status == 200 && welcome.list.count == 1 && field(welcome.list[0], "type").i == 7 && field(welcome.list[0], "author", "global_name").s == "Tester", tprint("the join's welcome message: %", body));
 	if welcome.list.count rest("DELETE", tprint("%/%", messages, field(welcome.list[0], "id").s), "", token);
 	status, body = rest("GET", messages, "", "bad");
 	check(status == 401, tprint("REST needs a token: %", status));
@@ -263,7 +265,7 @@ main :: () {
 	if ws {
 		ev := recv_event(ws);
 		if field(ev, "t").s == "MESSAGE_DELETE" ev = recv_event(ws); // The welcome's.
-		check(field(ev, "t").s == "MESSAGE_CREATE" && field(ev, "d", "content").s == "hello" && field(ev, "d", "author", "username").s == "Tester", "MESSAGE_CREATE");
+		check(field(ev, "t").s == "MESSAGE_CREATE" && field(ev, "d", "content").s == "hello" && field(ev, "d", "author", "global_name").s == "Tester", "MESSAGE_CREATE");
 		http.ws_close_stream(ws);
 	}
 	status, body = rest("GET", tprint("%?limit=50", messages), "", token);
@@ -714,7 +716,7 @@ main :: () {
 	// name they joined with.
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/@me", gid), "{\"nick\": \"Temp\"}", other_token);
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/@me", gid), "{\"nick\": \" \"}", other_token);
-	check(status == 200 && contains(body, "\"username\":\"Other\""), tprint("an empty nickname resets to the joined name: % %", status, body));
+	check(status == 200 && contains(body, "\"global_name\":\"Other\""), tprint("an empty nickname resets to the joined name: % %", status, body));
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/@me", gid), "{\"nick\": 5}", other_token);
 	check(status == 400, tprint("a nickname that isn't text is refused: % %", status, body));
 	cl4 := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});

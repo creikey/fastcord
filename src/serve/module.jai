@@ -48,10 +48,11 @@ Server :: struct {
 	clock_offset_ms: s64; // Tests only: added to the clock snowflakes read.
 	guild: s64; // The guild ID the client sees.
 	name: string;
-	// Members' avatar hashes, for those who set one, so user_value needs no query. A leaf lock: nothing
-	// else is taken while it's held, so it may be taken under any other.
+	// Members' avatar hashes, for those who set one, and every member's handle, so user_value needs no
+	// query. A leaf lock: nothing else is taken while it's held, so it may be taken under any other.
 	avatar_mu: locks.Mutex;
 	avatars: Table(s64, string);
+	handles: Table(s64, [8]u8);
 }
 
 Conn :: struct {
@@ -166,6 +167,9 @@ open :: (path: string) -> *Server, bool {
 	sqlite.finalize(st);
 	st = sqlite.prepare(db, "SELECT id, avatar FROM users WHERE avatar IS NOT NULL;");
 	while sqlite.step(st) == .Row table_set(*s.avatars, sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1)));
+	sqlite.finalize(st);
+	st = sqlite.prepare(db, "SELECT u.id, u.root FROM users u WHERE NOT EXISTS(SELECT 1 FROM webhooks w WHERE w.id = u.id);");
+	while sqlite.step(st) == .Row table_set(*s.handles, sqlite.col_int(st, 0), member_handle(sqlite.col_blob(st, 1)));
 	sqlite.finalize(st);
 	// Until someone claims the server, a one-use owner invite exists; the host joins with it first.
 	if !meta_get(s, "owner") && !owner_invite(s) {
@@ -378,6 +382,7 @@ close :: (s: *Server) {
 	free(s.name);
 	for s.avatars free(it);
 	deinit(*s.avatars);
+	deinit(*s.handles);
 	free(s);
 }
 
@@ -560,6 +565,7 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 				user = snowflake(s);
 				joined = true;
 				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name, joined_name) VALUES(?, ?, ?, ?, ?4);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
+				else { locks.guard(*s.avatar_mu); table_set(*s.handles, user, member_handle(root)); }
 				if user && owner && !meta_put(s, "owner", tprint("%", user)) user = 0;
 			}
 		}
@@ -782,17 +788,31 @@ session_user :: (c: *Conn, token: string) -> id: s64, name: string {
 
 snow :: (id: s64) -> etf.Value { return etf.vstring(tprint("%", id)); }
 
+// member_handle is a member's unique, unchosen username: 8 base32 characters (40 bits) of a hash of
+// their root. Names are free to pick, so this is what tells two members of the same name apart, as
+// Discord's unique @username does.
+member_handle :: (root: []u8) -> [8]u8 {
+	h := crypto.blake3_derive("fastcord 2026-10-29 serve member handle", root);
+	bits := (cast(u64) h[0] << 32) | (cast(u64) h[1] << 24) | (cast(u64) h[2] << 16) | (cast(u64) h[3] << 8) | h[4];
+	out: [8]u8;
+	for 0..7 out[it] = "abcdefghijklmnopqrstuvwxyz234567"[(bits >> (35 - 5 * it)) & 31];
+	return out;
+}
+
 user_value :: (s: *Server, id: s64, name: string, bot := false) -> etf.Value {
 	avatar: etf.Value;
+	username := name;
 	{
 		locks.guard(*s.avatar_mu);
 		hash := table_find_pointer(*s.avatars, id);
 		if hash avatar = etf.vstring(copy_string(hash.*,, temp));
+		handle := table_find_pointer(*s.handles, id);
+		if handle && !bot username = copy_string(string.{8, handle.data},, temp);
 	}
 	m := etf.map_builder(6,, temp);
 	if bot etf.map_put(*m, "bot", etf.vbool(true));
 	etf.map_put(*m, "id", snow(id));
-	etf.map_put(*m, "username", etf.vstring(name));
+	etf.map_put(*m, "username", etf.vstring(username));
 	etf.map_put(*m, "global_name", etf.vstring(name));
 	etf.map_put(*m, "discriminator", etf.vstring("0"));
 	etf.map_put(*m, "avatar", avatar);
