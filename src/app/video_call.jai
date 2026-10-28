@@ -449,7 +449,10 @@ on_capture_frame :: (user: *void, pixbuf: *void, width: int, height: int) {
 	}
 	platform.request_frame();
 	codec := voice.video_codec(s.conn);
-	if codec != .H264 && codec != .H265 return; // not negotiated yet (or VP8 / AV1, which we don't encode)
+	if codec == .None return; // not negotiated yet
+	// The server picks one codec for the whole call, also one we can't encode (H.265 on Windows and Linux,
+	// VP8, AV1): send H.264 then. Receivers pick the decoder by payload type, and every client decodes H.264.
+	if codec != .H264 && !(codec == .H265 && video.encoder_supported(.H265)) codec = .H264;
 	if s.enc && s.codec != codec { video.encoder_destroy(s.enc); s.enc = null; }
 	if !s.enc {
 		vcodec := ifx codec == .H265 then video.Video_Codec.H265 else .H264;

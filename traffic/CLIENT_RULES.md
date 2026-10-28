@@ -131,6 +131,7 @@ DAVE active.
 | Voice op 15 MEDIA_SINK_WANTS `{"any":100}` after SESSION_DESCRIPTION (all video at full quality) | guess | `MEDIA_SINK_WANTS` | `conn.jai` `MSG_MEDIA_SINK_WANTS_ANY` |
 | Video codec = SESSION_DESCRIPTION / SESSION_UPDATE `video_codec`; H264 (PT 105) and H265 (PT 103) are sent and decoded; VP8 / AV1 frames are dropped | guess | `CODECS_JSON` | `voice/video.jai`, `video_call.jai` |
 | SELECT_PROTOCOL `codecs`: the desktop list, with H265 `encode:false` on Windows (no encoder) and `encode:false, decode:false` on Linux (no H.265 at all), so the SFU keeps a call with them on H.264 | guess | `CODECS_JSON` | `voice/gateway.jai` `CODECS_JSON` |
+| Sending video when the call's `video_codec` is one fastcord can't encode here (H265 on Windows and Linux, VP8, AV1): H264 (PT 105) instead of nothing; receivers pick the decoder by payload type | guess | `CODECS_JSON` | `video_call.jai` `on_capture_frame` |
 | Video RTP: 90 kHz, marker on the frame's last packet, RFC 6184 mode 1 (single NAL / FU-A) and RFC 7798 FU, 1100-byte payloads, no RTX, no NACK handling; keyframes on PLI / FIR; receivers send a PLI (≤ 2/s) until a keyframe | guess, works live | WebRTC defaults | `voice/video.jai`, `conn.jai` |
 | Video RTP extension block: one element, id 5 with L=1 (2 zero bytes) — the SFU drops every video packet carrying the RFC 8285 3-byte playout-delay (L=2) | checked live | — | `conn.jai` `send_video` |
 | The server also sends op 15 `{"any":100}` (and on a stream connection `pixelCounts`) to clients | captured live | — | ignored |

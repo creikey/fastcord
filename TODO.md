@@ -348,3 +348,4 @@
 - [x] Keybinds: Ctrl+/ opens a Keyboard Shortcuts modal listing every shortcut fastcord handles (`views.jai` `shortcuts_modal`, `tests/ui/shortcut_list.txt`).
 - [x] Read states: a message arriving in the open channel while you are scrolled up is no longer acked; it counts as unread until you scroll to the bottom (`Client.route_scrolled_up`, `replay_test.jai` `ack_timing`).
 - [x] Read states: joining a voice channel acks its text chat unless it holds mentions (`actions.jai` `voice_join`, `replay_test.jai` `voice_select_ack`).
+- [x] Bug (Windows): a camera turned on in a call whose codec is H.265 (the server's pick when everyone else can take it) was never sent, so every viewer, official client included, saw it loading forever. Without an encoder for the call's codec, fastcord now sends H.264 (`on_capture_frame`).
