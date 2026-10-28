@@ -49,6 +49,7 @@
   - Done: Mark As Read (`POST /read-states/ack-bulk`) stores every channel's read state and sends MESSAGE_ACK to the member's other sessions.
   - Done: mute and notification settings (`PATCH /users/@me/guilds/settings`) are kept per member, merged per field and per channel override, sent back as USER_GUILD_SETTINGS_UPDATE and in READY's `user_guild_settings`.
   - Add a test that runs the hosted client's views against a `-serve` instance and fails on every 404. Each request a hosted guild makes should be served or skipped like `aux_get`. Pins, search and profiles all 404 today.
+  - A hosted client is sized for Discord. It starts 16 REST workers (`client.jai`) and opens a TLS connection for each concurrent request, then keeps every one idle (`netwrap.jai` `hosted_round_trip`), while the server spends a thread per connection. Each member can hold 17 connections, and ten hosted servers cost fastcord 160 idle threads. Give hosted clients a few workers and one or two connections, and size the per-IP cap planned in Security (serve) for households sharing one address.
 - [ ] Hosting 3: one instance hosts many server files on one port, choosing the server by its ID through TLS SNI. The owner runs Server Settings, plus a host tab, from their own client anywhere. It can't be bricked:
   - A second file with an already-loaded ID is refused, with Fork (new ID, same content) offered instead.
   - The owner is set when the client creates the server. A headless `fastcord -serve -new <name>` prints a one-time owner code to the host's console only.
