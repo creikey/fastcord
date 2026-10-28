@@ -9,7 +9,7 @@
   - Done: new messages carry the store they came on, `take_new_messages` hands each client only its own, and the app gathers them from every connection (`connections`, `message_client`), so a Discord DM while a hosted server is open no longer reads the wrong store. Notifications, the message sound and the taskbar badge cover every connection; Do Not Disturb follows Discord's status.
   - The other side tables in `discord/features.jai` (`extras`: threads, forum tags, pins epochs, your roles) are still process-wide and keyed only by snowflake, so they mix connections; harmless while hosted servers have no threads or roles, but move `extras` into each `Client` before Hosting 4.
   - Done: a first join that fails is dropped (`tests/ui/hosted_join_fail.txt`), as is a saved server that answers Unknown Invite; one that is down is retried with backoff (5 s doubling to 5 min), with one toast. Headless runs get a throwaway identity, so hosted logins work in tests.
-  - A saved server that is down shows nothing on the rail until a retry succeeds. Show it greyed out, with the host and the last error on hover.
+  - Done: a saved server that isn't connected shows a greyed server icon on the rail, with the host and the last error on hover; a click retries now (`rail_hosted_down`).
   - Done: single-line inputs (`set_input`) grow with wrapped text instead of drawing over the labels around them, so a long `fc://` invite fits the Join a Server field.
 - [ ] Keys, the rest (needed by Hosting 2; `FEDERATED.md` §26):
   - Key changes are rotate records in the identity's log (Federation 1), never a new root. Only the recovery key signs rotate records, for any key. An everyday key can't rotate itself or any other key, so a thief who steals it can't rotate your keys on every server. There are no revoke records, only rotations.
@@ -43,7 +43,7 @@
   - Done: a join (new, or back after leaving) posts the "joined the server" message (type 7) in the first text channel, sent to every gateway; search skips system messages.
   - Done: attaching a file in a hosted channel (picker, drop, paste) is refused with a toast until Hosting 4 serves uploads (`attachments.jai` `uploads_unserved`).
   - Done: the sticker button, its Ctrl+S and the picker's Stickers tab are hidden on hosted servers, which can't serve Discord's stickers.
-  - Reacting with a custom emoji on a hosted server fails: the reaction picker offers your Discord servers' emoji, and `serve` `reaction` refuses any with a colon (400 Unknown Emoji), so the click is lost. Offer only Unicode emoji in the reaction picker (and the hover bar's quick reactions) on hosted servers.
+  - A saved server that is down shows only a generic server icon and its host, since `settings.json` keeps just the invite: with two servers on one host they look the same. Keep the server's name (and its folder position) with the invite, and draw its acronym greyed out.
   - Next: the member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead. A slow gateway reader stalls everyone's events (`serve` `broadcast`).
   - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
   - Done: Change Nickname (`PATCH /guilds/{id}/members/@me`) renames the member, since a hosted member has one name; GUILD_MEMBER_UPDATE and the member list follow, and old messages show the new name.
