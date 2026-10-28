@@ -118,6 +118,7 @@
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
 - [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
 - [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
+- [ ] Timeouts: being timed out in a server shows nothing. Nothing reads the member's `communication_disabled_until`, so the composer stays open, sent messages turn red, and reactions and voice joins fail silently. A timeout leaves only View Channel and Read Message History, so apply it in `permissions.jai`, and show a bar with the time left in place of the composer.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
 - [ ] Traffic (account risk): every Windows and macOS install identifies as one captured Mac. `host_platform` returns `DEFAULT_PLATFORM` (`discord/identity.jai`): Mac OS X 27.0.0 on arm64, the macOS user agent and `sec-ch-ua-platform`, timezone America/Los_Angeles and locale en-US, whatever the real machine.
   - A Windows user shows up in Settings > Devices and in new-login emails as a Mac. Their TCP/IP stack, with TTL 128 and Windows TCP options, contradicts a macOS user agent to any passive OS fingerprint.
