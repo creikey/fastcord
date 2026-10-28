@@ -1124,6 +1124,25 @@ mark_unread_and_pins :: (t: *T) {
 	expect(t, !rs.manual, "leaving the channel ends the hold");
 }
 
+// A message's `thread` (an archived thread started from it) reaches the Store and the thread
+// table, so the chat can show its thread card.
+message_thread_object :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	msgs := messages_get(*c.store, R_TEXT);
+	if !expect(t, msgs.count >= 1, "fixture messages") return;
+	mid := msgs[msgs.count - 1].id + (1 << 22);
+	d, _ := etf.from_json(tprint("{\"id\":\"%1\",\"channel_id\":\"%2\",\"guild_id\":\"%3\",\"type\":0,\"flags\":32,\"content\":\"hi\",\"author\":{\"id\":\"1\",\"username\":\"x\"},\"mentions\":[],\"mention_everyone\":false,\"thread\":{\"id\":\"%1\",\"type\":11,\"guild_id\":\"%3\",\"parent_id\":\"%2\",\"name\":\"old talk\",\"message_count\":7,\"thread_metadata\":{\"archived\":true}}}", mid, R_TEXT, R_GUILD));
+	client_inject_dispatch(c, "MESSAGE_CREATE", d);
+	replay_settle(*run, 100);
+	th := channel_get(*c.store, mid);
+	expect(t, th != null && is_thread(th) && th.parent_id == R_TEXT && th.name == "old talk", "the thread is in the Store");
+	tm := thread_meta(mid);
+	expect(t, tm != null && tm.message_count == 7 && tm.archived, "the thread's count and archived state are known");
+}
+
 // Read-state acks (ReadState.ack, no capture): a channel with mentions is acked at once,
 // otherwise after 3 s; acks before the timer fires join it and keep the first location.
 ack_timing :: (t: *T) {

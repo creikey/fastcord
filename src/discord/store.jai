@@ -509,6 +509,14 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	rau := fmap(fmap(m, "referenced_message"), "author");
 	if rau parse_user_into(s, rau);
 	gid := fsnow(m, "guild_id");
+	// The thread started from this message (its id is the message's): archived ones are known only from here.
+	th := fmap(m, "thread");
+	if th {
+		parse_channel_into(s, th, gid);
+		locks.lock(*extras_mu);
+		note_thread(th, s.me,, context.default_allocator);
+		locks.unlock(*extras_mu);
+	}
 	mm := fmap(m, "member");
 	if mm && gid && msg.author_id {
 		// MESSAGE_CREATE members omit `user`; attach to the author.
