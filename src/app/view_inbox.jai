@@ -62,13 +62,15 @@ inbox_button :: () {
 	if sig.clicked inbox_toggle();
 	// unread mentions badge at the icon's bottom-right
 	// (counted like the rail's badges: read-state counts or loaded unread mentions)
-	s := store();
 	total := 0;
-	for * ch, id: s.channels {
-		if ch.last_message_id == 0 { continue; }
-		rs := table_find_pointer(*s.read_states, id);
-		if rs != null && rs.last_message_id >= ch.last_message_id { continue; }
-		total += channel_mentions_of(s, ch, rs);
+	for c: inbox_clients() {
+		s := ifx c then *c.store else store();
+		for * ch, id: s.channels {
+			if ch.last_message_id == 0 { continue; }
+			rs := table_find_pointer(*s.read_states, id);
+			if rs != null && rs.last_message_id >= ch.last_message_id { continue; }
+			total += channel_mentions_of(s, ch, rs);
+		}
 	}
 	if total <= 0 || notify_prefs.lotus { return; }
 	{ ui.parent(b); defer ui.pop_parent();
@@ -169,10 +171,13 @@ inbox_popout :: () {
 					}
 					if msig.hovering { tooltip_below("Mark All as Read", mb.rect); }
 					if msig.clicked && net_action() {
-						ids: [..]dc.Snowflake;
-						ids.allocator = temp;
-						for rows { if it.channel != 0 { array_add(*ids, it.channel); } }
-						dc.ack_channels(app.client, ids);
+						for c: inbox_clients() {
+							if !c continue;
+							ids: [..]dc.Snowflake;
+							ids.allocator = temp;
+							for rows { if it.channel != 0 && it.client == c { array_add(*ids, it.channel); } }
+							if ids.count dc.ack_channels(c, ids);
+						}
 					}
 				}
 				spacer(.X, 12);
@@ -289,35 +294,46 @@ empty_note :: (text: string) {
 // ---- Unreads ----
 
 Unread_Row :: struct {
+	client: *dc.Client; // The connection it is on.
 	guild: dc.Snowflake;
 	channel: dc.Snowflake; // 0: the guild's header
 }
 
+// Every connection, so Unreads and the badge cover self-hosted servers too; null alone when offline.
+inbox_clients :: () -> []*dc.Client {
+	cs := connections();
+	if cs.count return cs;
+	return NewArray(1, *dc.Client,, temp);
+}
+
 unread_rows :: () -> []Unread_Row {
-	s := store();
 	Keyed :: struct {
 		key, guild, id: dc.Snowflake;
+		client: *dc.Client;
 	}
 	list: [..]Keyed;
 	list.allocator = temp;
-	for * ch, id: s.channels {
-		if ch.last_message_id == 0 || ch.kind == .Guild_Category { continue; }
-		rs := table_find_pointer(*s.read_states, id);
-		if rs && rs.last_message_id >= ch.last_message_id { continue; }
-		if dc.is_thread(ch) {
-			tm := dc.thread_meta(id);
-			if tm == null || !tm.joined || tm.archived { continue; }
-		}
-		if ch.guild_id != 0 {
-			gs := table_find_pointer(*s.guild_settings, ch.guild_id);
-			if gs {
-				if gs.muted { continue; }
-				muted := false;
-				for m: gs.muted_channels { if m == id || (m == ch.parent_id && m != 0) { muted = true; } }
-				if muted { continue; }
+	for c: inbox_clients() {
+		s := ifx c then *c.store else store();
+		for * ch, id: s.channels {
+			if ch.last_message_id == 0 || ch.kind == .Guild_Category { continue; }
+			rs := table_find_pointer(*s.read_states, id);
+			if rs && rs.last_message_id >= ch.last_message_id { continue; }
+			if dc.is_thread(ch) {
+				tm := dc.thread_meta(id);
+				if tm == null || !tm.joined || tm.archived { continue; }
 			}
+			if ch.guild_id != 0 {
+				gs := table_find_pointer(*s.guild_settings, ch.guild_id);
+				if gs {
+					if gs.muted { continue; }
+					muted := false;
+					for m: gs.muted_channels { if m == id || (m == ch.parent_id && m != 0) { muted = true; } }
+					if muted { continue; }
+				}
+			}
+			array_add(*list, .{ch.last_message_id, ch.guild_id, id, c});
 		}
-		array_add(*list, .{ch.last_message_id, ch.guild_id, id});
 	}
 	for i: 1..list.count-1 {
 		j := i;
@@ -327,20 +343,23 @@ unread_rows :: () -> []Unread_Row {
 		}
 	}
 	// guilds in order of their newest unread channel
-	guilds: [..]dc.Snowflake;
+	guilds: [..]Unread_Row;
 	guilds.allocator = temp;
-	for list { array_add_if_unique(*guilds, it.guild); }
+	for list {
+		seen := false;
+		for g: guilds if g.guild == it.guild && g.client == it.client seen = true;
+		if !seen array_add(*guilds, .{client = it.client, guild = it.guild});
+	}
 	out: [..]Unread_Row;
 	out.allocator = temp;
 	for g: guilds {
-		array_add(*out, .{guild = g});
-		for list { if it.guild == g { array_add(*out, .{guild = g, channel = it.id}); } }
+		array_add(*out, g);
+		for list { if it.guild == g.guild && it.client == g.client { array_add(*out, .{client = it.client, guild = it.guild, channel = it.id}); } }
 	}
 	return out;
 }
 
 unreads_list :: () {
-	s := store();
 	rows := unread_rows();
 	list := ui.box("unreads", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
@@ -354,19 +373,27 @@ unreads_list :: () {
 		return;
 	}
 	w := ui.list_window(list, UNREAD_PITCH, rows.count);
+	keep := app.client;
 	for i: w.first..w.last-1 {
 		r := rows[i];
 		ui.id_scope(cast(u64)(ifx r.channel != 0 then r.channel else r.guild) * 2 + cast(u64) (ifx r.channel != 0 then 1 else 0)); defer ui.pop_seed();
+		// Each row draws and acks under its own connection; opening one switches to it.
+		if r.client app.client = r.client;
+		defer app.client = keep;
 		if r.channel == 0 {
 			unread_header(r.guild);
 			continue;
 		}
-		ch := dc.channel_get(s, r.channel);
+		ch := dc.channel_get(store(), r.channel);
 		if ch == null {
 			spacer(.Y, UNREAD_PITCH);
 			continue;
 		}
-		unread_row(ch);
+		if unread_row(ch) {
+			keep = app.client;
+			select_channel(ch.guild_id, ch.id);
+			inbox.open = false;
+		}
 	}
 	ui.list_window_end(w);
 }
@@ -401,7 +428,7 @@ unread_header :: (gid: dc.Snowflake) {
 	label(ellipsize(name, .Semibold, 16, INBOX_W - 80), .Semibold, 16, T("--text-strong"), 20);
 }
 
-unread_row :: (ch: *dc.Channel) {
+unread_row :: (ch: *dc.Channel) -> clicked: bool {
 	s := store();
 	outer := row("ur");
 	outer.semantic_size = .[ui.pct(1), ui.px(UNREAD_PITCH)];
@@ -477,10 +504,7 @@ unread_row :: (ch: *dc.Channel) {
 		spacer(.X, 10);
 	}
 	spacer(.X, 8);
-	if sig.clicked {
-		select_channel(ch.guild_id, ch.id);
-		inbox.open = false;
-	}
+	return sig.clicked;
 }
 
 // One line of content with <@id> user mentions shown as @name.
