@@ -5,14 +5,17 @@ DB :: struct {}
 Stmt :: struct {}
 
 // open makes the file if needed, in WAL mode with synchronous=FULL: a commit is on disk before it returns.
-open :: (path: string) -> *DB, bool {
+// exclusive holds the file locked against every other connection until close; it must be set before WAL
+// is entered to take effect at once.
+open :: (path: string, exclusive := false) -> *DB, bool {
 	db: *DB;
 	if sqlite3_open_v2(temp_c_string(path), *db, OPEN_READWRITE | OPEN_CREATE | OPEN_NOMUTEX, null) != OK {
 		sqlite3_close_v2(db);
 		return null, false;
 	}
 	sqlite3_busy_timeout(db, 5000);
-	ok := exec(db, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;");
+	ok := (!exclusive || exec(db, "PRAGMA locking_mode=EXCLUSIVE;"))
+		&& exec(db, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;");
 	if !ok { sqlite3_close_v2(db); return null, false; }
 	return db, true;
 }

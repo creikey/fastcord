@@ -277,7 +277,9 @@ app_exit :: () {
 	client_release(app.discord);
 	for hosted if it.client client_release(it.client);
 	app.client, app.discord = null, null;
+	if e2e_db e2e.stop(e2e_db);
 	teardown_wait();
+	while e2e_db && !e2e.stopped(e2e_db) sleep_milliseconds(1);
 }
 
 app_exited: bool;
