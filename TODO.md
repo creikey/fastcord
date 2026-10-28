@@ -91,7 +91,7 @@
 - [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
 - [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
-- [ ] Voice: every volume slider goes from 0 to 400% (the official max is 200%). That covers output volume, per-user volume, stream volume, the video player and input volume (now 0-100). Clamps are in `src/app/view_voice_settings.jai`. Add a limiter so the boost doesn't clip harshly. Keep values above 200% local if synced settings would reject them.
+- [ ] Media: the video player's volume slider still stops at 100% (`view_media.jai` `video_volume`, 0..1); let it boost to 400% like the voice sliders, through `audio.limit`.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
 - [ ] Bug: a sleep over 60 s ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
@@ -367,3 +367,4 @@
 - [x] Voice: the voice panel has Video and Screen buttons under the connection status, as the call view's camera and Go Live controls (`view_voice.jai` `voice_panel_button`, `tests/ui/voice_panel_buttons.txt`; script command `in_voice`).
 - [x] Messages: the hover toolbar has a Create Thread button, shown where the message menu offers it (`view_message_actions.jai` `can_thread_from`, `tests/ui/thread_from_toolbar.txt`).
 - [x] Threads: a message's `thread` object (sent with history, even for archived threads) now reaches the Store and the thread table, so the thread card under the message shows for threads the gateway never listed (`store.jai` `parse_message_fields`, test `message_thread_object`).
+- [x] Voice: output, input and per-user volume go to 400% (official max 200%, input 100%). A peak limiter (`audio.limit`: instant attack, ~100 ms release) replaces the hard clip in the mixer and on the mic gain. These values are local (`settings.json`), so nothing synced rejects them.

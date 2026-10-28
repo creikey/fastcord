@@ -185,6 +185,7 @@ Conn :: struct {
     denoiser: *void;            // RNNoise state, made on first use (audio thread)
     agc: Agc;                   // software AGC when the OS doesn't do it (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
+    input_limiter: audio.Limiter;
     input_db: float32 = -127;   // level of the last mic frame (after gain)
     vad_open: bool;
     ptt_mode: bool;     // push-to-talk instead of voice activity
@@ -336,7 +337,7 @@ user_settings :: (c: *Conn, user_id: u64) -> *User_Settings {
 
 set_user_volume :: (c: *Conn, user_id: u64, volume: float32) {
     locks.guard(*c.mu);
-    user_settings(c, user_id).volume = clamp(volume, 0, 2);
+    user_settings(c, user_id).volume = clamp(volume, 0, 4);
 }
 
 set_user_mute :: (c: *Conn, user_id: u64, muted: bool) {
@@ -360,10 +361,10 @@ set_push_to_talk :: (c: *Conn, enabled: bool, pressed: bool, release_delay_ms :=
     c.ptt_pressed = pressed;
 }
 
-// set_input_gain: input volume, 0..2 (Settings > Voice > Input Volume).
+// set_input_gain: input volume, 0..4 (Settings > Voice > Input Volume).
 set_input_gain :: (c: *Conn, gain: float32) {
     locks.guard(*c.mu);
-    c.input_gain = clamp(gain, 0, 2);
+    c.input_gain = clamp(gain, 0, 4);
 }
 
 // set_noise_suppression: RNNoise on the mic, independent of the OS's voice processing.
@@ -1234,7 +1235,10 @@ tx_tick :: (c: *Conn, pcm: []float32) {
         if c.denoiser for 0..1 fc_rnnoise_process(c.denoiser, pcm.data + it * SAMPLES_PER_FRAME / 2);
     }
     if c.capture_on && audio.software_agc() agc_process(*c.agc, pcm);
-    if gain != 1 for * pcm it.* = clamp(it.* * gain, -1, 1);
+    if gain != 1 {
+        for * pcm it.* *= gain;
+        audio.limit(*c.input_limiter, pcm, 1);
+    }
     active, db := vad_process(*c.vad, pcm);
     {
         locks.guard(*c.mu);

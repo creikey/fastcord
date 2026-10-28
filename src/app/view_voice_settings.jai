@@ -1,20 +1,20 @@
 // Settings > Voice & Video and the per-user voice context menu.
 //
 // Defaults follow the official client (MediaEngineStore): input volume 100,
-// output volume 100 (0-200 %), input sensitivity automatic (manual threshold
+// output volume 100 (0-200 %; fastcord goes to 400 %), input sensitivity automatic (manual threshold
 // -60 dB), echo cancellation / noise suppression / AGC on. The mic level
 // meter only runs while the page is open, and never in headless runs.
 
 settings_page := "Appearance"; // selected page of the settings modal
 
 Voice_Settings :: struct {
-	input_volume: float32; // 0..100
-	output_volume: float32; // 0..200
+	input_volume: float32; // 0..400
+	output_volume: float32; // 0..400
 	auto_sens: bool;
 	threshold_db: float32; // -100..0
 	processing: audio.Voice_Processing;
 	rnnoise: bool;
-	user_volume: Table(dc.Snowflake, float32); // 0..200 %
+	user_volume: Table(dc.Snowflake, float32); // 0..400 %
 	user_muted: Table(dc.Snowflake, bool);
 	// UI state
 	open_dropdown: int; // 0 none, 1 input, 2 output
@@ -48,8 +48,8 @@ vs_reset_for_test :: () {
 
 voice_settings_restore :: (p: *Persisted_Voice) {
 	vs_init();
-	vs.input_volume = clamp(p.input_volume, 0, 100);
-	vs.output_volume = clamp(p.output_volume, 0, 200);
+	vs.input_volume = clamp(p.input_volume, 0, 400);
+	vs.output_volume = clamp(p.output_volume, 0, 400);
 	vs.auto_sens = p.auto_sens;
 	vs.threshold_db = clamp(p.threshold_db, -100, 0);
 	vs.processing = .{p.echo, p.noise, p.agc};
@@ -64,7 +64,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	if id != 0 audio.select_device(false, id);
 	for v, k: p.user_volume {
 		n, ok := dc.parse_u64(k);
-		if ok table_set(*vs.user_volume, cast(dc.Snowflake) n, clamp(v, 0, 200));
+		if ok table_set(*vs.user_volume, cast(dc.Snowflake) n, clamp(v, 0, 400));
 	}
 	for v, k: p.user_muted {
 		n, ok := dc.parse_u64(k);
@@ -207,9 +207,9 @@ voice_settings_page :: () {
 							spacer(.Y, 20);
 							section_title(ifx input then "INPUT VOLUME" else "OUTPUT VOLUME");
 							if input {
-								slider("invol", *vs.input_volume, 0, 100, 320, percent(vs.input_volume));
+								slider("invol", *vs.input_volume, 0, 400, 320, percent(vs.input_volume));
 							} else {
-								slider("outvol", *vs.output_volume, 0, 200, 320, percent(vs.output_volume));
+								slider("outvol", *vs.output_volume, 0, 400, 320, percent(vs.output_volume));
 							}
 						}
 						if input spacer(.X, 20);
@@ -256,7 +256,7 @@ voice_settings_page :: () {
 }
 
 // ---------------------------------------------------------------------------
-// Right-click on a voice participant: volume 0-200 % and mute.
+// Right-click on a voice participant: volume 0-400 % and mute.
 
 open_voice_user_menu :: (uid: dc.Snowflake, at: ui.Vec2) {
 	if uid == store().me return;
@@ -311,7 +311,7 @@ voice_user_menu :: () {
 			spacer(.X, 12);
 			p := table_find_pointer(*vs.user_volume, uid);
 			v := ifx p then p.* else 100.0;
-			if slider("uvol", *v, 0, 200, W - 24, percent(v)) table_set(*vs.user_volume, uid, v);
+			if slider("uvol", *v, 0, 400, W - 24, percent(v)) table_set(*vs.user_volume, uid, v);
 		}
 		spacer(.Y, 4);
 		sep := ui.box("sep", .Draw_Background);
