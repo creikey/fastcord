@@ -86,6 +86,7 @@ free_user :: (s: *Store, u: *User) {
 	free_str(u.banner, a);
 	free_str(u.bio, a);
 	free_str(u.pronouns, a);
+	free_str(u.badges, a);
 }
 
 free_channel :: (s: *Store, c: *Channel) {
@@ -651,11 +652,9 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 	if old free_str(old.activity, s.allocator);
 	for flist(m, "activities") {
 		am := vmap(it);
+		if it_index < 8 p.activity_types |= cast(u32) ((fint(am, "type") + 1) & 0xF) << (4 * it_index);
 		txt := ifx fint(am, "type") == 4 then fstr(am, "state") else fstr(am, "name");
-		if txt {
-			p.activity = clone_str(txt, s.allocator);
-			break;
-		}
+		if txt && !p.activity p.activity = clone_str(txt, s.allocator);
 	}
 	table_set(*s.presences, uid, p);
 }
@@ -790,6 +789,10 @@ apply_settings_proto :: (s: *Store, b64: string) {
 		f, found = protobuf.find_path(raw, 7, 12, 1);
 		st.friend_online_off = !found || f.value == 0;
 	}
+	for harm: 0..1 for kind: 0..2 {
+		f, found = protobuf.find_path(raw, 6, cast(u32) ifx harm then 32 else 29, cast(u32) kind + 1);
+		st.media_redaction[harm][kind] = ifx found then f.value else 0;
+	}
 	gf, has_folders := protobuf.find(raw, 14);
 	if !has_folders return;
 	for * st.guild_folders {
@@ -844,6 +847,8 @@ apply_ready :: (s: *Store, d: etf.Map) {
 	set_str(s, *s.qos_token, fstr(d, "qos_token"));
 	set_str(s, *s.country_code, fstr(d, "country_code"));
 	s.me = parse_user_into(s, fmap(d, "user"));
+	nsfw := vget(fmap(d, "user"), "nsfw_allowed");
+	s.settings.nsfw_blocked = nsfw.kind == .Bool && !nsfw.b;
 	for flist(d, "users") parse_user_into(s, vmap(it));
 	guilds := flist(d, "guilds");
 	for guilds parse_guild_into(s, vmap(it));

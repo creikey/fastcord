@@ -562,6 +562,10 @@ client_apply_rest :: (c: *Client, e: *Event) {
 					l.messages.count = n;
 				}
 				for items upsert_message(s, vmap(it));
+				locks.lock(*c.route_mu);
+				on_route := c.route_channel == r.channel_id;
+				locks.unlock(*c.route_mu);
+				if on_route analytics_redactable_page(c, r.channel_id, items);
 				first := !l.loaded && !refetch;
 				l.loaded = true;
 				if r.before != 0 || items.count > 0 l.has_more_before = items.count >= r.limit;
@@ -619,6 +623,7 @@ client_apply_rest :: (c: *Client, e: *Event) {
 					u := find_or_add(*s.users, uid);
 					if vhas(prof, "bio") { free_str(u.bio, s.allocator); u.bio = clone_str(fstr(prof, "bio"), s.allocator); }
 					if vhas(prof, "pronouns") { free_str(u.pronouns, s.allocator); u.pronouns = clone_str(fstr(prof, "pronouns"), s.allocator); }
+					profile_props_apply(s, u, m);
 					if vhas(m, "mutual_guilds") u.mutual_guilds = flist(m, "mutual_guilds").count;
 					if vhas(m, "mutual_friends") u.mutual_friends = flist(m, "mutual_friends").count;
 					else if vhas(m, "mutual_friends_count") u.mutual_friends = fint(m, "mutual_friends_count");

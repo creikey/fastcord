@@ -832,7 +832,8 @@ R_SCI_NEVER :: string.[
 	"science:experiment_user_evaluation_exposed/exposure_location=\"NitroTabButton\"",
 	"science:experiment_user_evaluation_exposed/exposure_location=\"useNoFillAd\"",
 	"science:experiment_user_evaluation_exposed/exposure_location=\"Account\"",
-	"science:experiment_user_evaluation_exposed/exposure_location=\"GlobalDiscoverySidebar\""
+	"science:experiment_user_evaluation_exposed/exposure_location=\"GlobalDiscoverySidebar\"",
+	"science:experiment_user_evaluation_exposed/experiment=\"2026-07-orbchievements\""
 ];
 
 // The FrecencyUserSettingsManager's startup run (READY + 10 ms-10 s, one random draw per
@@ -936,6 +937,58 @@ parity_frecency_proto :: (t: *T) {
 		}
 	}
 	expectf(t, checked == 23, "% PATCHes checked", checked);
+}
+
+// Pending frecency usage outlives the launch (the stores persist pendingUsages), so the next
+// launch's startup run loads the proto and writes it, as every official launch does (GET at
+// READY + 0-10 s, the PATCH right after its response). Channel selects alone don't load it.
+frecency_persisted :: (t: *T) {
+	Rec :: struct { mu: locks.Mutex; methods: [..]string; }
+	rec: Rec;
+	rt :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
+		r := cast(*Rec) data;
+		locks.lock(*r.mu);
+		if contains(req.path, "settings-proto/2") array_add(*r.methods, ifx req.method == "GET" then "GET" else "PATCH");
+		locks.unlock(*r.mu);
+		resp := http.make_response(.Http3,, context.default_allocator);
+		resp.status = 200;
+		append_string(*resp.body, "{\"settings\":\"\"}");
+		return resp, .None;
+	}
+	dir := "build/test_frecency_state";
+	file_delete(tprint("%/identity.tsv", dir));
+	cfg := Config.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true, round_tripper = .{*rec, rt}};
+	launch :: (t: *T, cfg: Config, rec: *Rec, want: int, use: (c: *Client)) -> []Frecency_Use {
+		c := client_create(cfg);
+		client_start(c);
+		saved := array_copy(c.store.frecency.pending,, temp);
+		for * saved it.key = copy_string(it.key,, temp);
+		f := *c.store.frecency;
+		f.startup_ms, f.periodic_ms = 1, 7_200_000;
+		c.store.connection = .Ready; // POST_CONNECTION_OPEN: R(true) 1 ms later
+		start := mono_ms();
+		while mono_ms() - start < 1000 {
+			client_poll(c);
+			locks.lock(*rec.mu);
+			n := rec.methods.count;
+			locks.unlock(*rec.mu);
+			if f.timer_at - now_ms() > 60_000 && n >= want && !f.saving && !f.loading break; // R ran
+			sleep_milliseconds(5);
+		}
+		use(c);
+		client_destroy(c);
+		return saved;
+	}
+	launch(t, cfg, *rec, 0, (c: *Client) { frecency_select(c, 1, 2); });
+	expect_value(t, rec.methods.count, 0);
+	got := launch(t, cfg, *rec, 0, (c: *Client) { frecency_use(c, .Reaction, "thumbsup"); });
+	expect(t, rec.methods.count == 0 && got.count == 2 && got[0].kind == .Guild_Channel && got[0].key == "2", "restored channel selects; alone they don't load at startup");
+	got = launch(t, cfg, *rec, 2, (c: *Client) {});
+	expect(t, got.count == 4 && got[2].kind == .Reaction && got[2].key == "thumbsup" && got[3].kind == .Emoji, "a reaction is restored as both uses");
+	expect(t, rec.methods.count == 2 && rec.methods[0] == "GET" && rec.methods[1] == "PATCH", "the startup run loads and writes the restored usage");
+	got = launch(t, cfg, *rec, 2, (c: *Client) {});
+	expect_value(t, got.count, 0); // written: nothing pending
+	array_free(rec.methods);
 }
 
 parity_add_reaction :: (t: *T) {
@@ -1569,7 +1622,77 @@ parity_open_dm :: (t: *T) {
 	replay_mark(*run);
 	select_channel(run.c, 0, R_DM, 10, prefetch = true);
 	replay_settle(*run, 1200);
-	replay_check(*run, "open_dm", science_only = true);
+	replay_check(*run, "open_dm", science_only = true, keep = true);
+	// The lists' values (ProfileProperty, activity types, badge ids): B's profile has since gained
+	// a bio, which the official client reports as [6] (recorded 2026-10-28); and in full.
+	c := run.c;
+	r_profile_props :: (c: *Client, user: Snowflake, guild: Snowflake, json: string) -> string {
+		v, _ := etf.from_json(json,, temp);
+		profile_props_apply(*c.store, user_get(*c.store, user), vmap(v));
+		view := Profile_View.{layout = .Sidebar, user_id = user, guild_id = guild, session = "s"};
+		profile_action(c, *view, .["user profile sidebar"], "VIEW");
+		a := *c.analytics;
+		locks.lock(*a.mu);
+		defer locks.unlock(*a.mu);
+		ev := peek(a.queue);
+		i := find_index_from_left(ev, "\"profile_properties\"");
+		return slice(ev, i, find_index_from_left(ev, ",\"user_status\"") - i);
+	}
+	got := r_profile_props(c, R_B, 0, "{\"user\":{\"id\":\"1564202918369042442\"},\"user_profile\":{\"bio\":\"hi\",\"pronouns\":\"\"}}");
+	expect_value(t, got, "\"profile_properties\":[6],\"guild_profile_properties\":[],\"profile_activity_types\":[],\"profile_badges\":[]");
+	apply_presence(*c.store, vmap(etf.from_json("{\"user\":{\"id\":\"1564202918369042442\"},\"status\":\"online\",\"activities\":[{\"type\":4,\"state\":\"x\"},{\"type\":0,\"name\":\"g\"}]}",, temp)));
+	got = r_profile_props(c, R_B, R_GUILD, "{\"user\":{\"id\":\"1564202918369042442\",\"avatar\":\"a_1\",\"avatar_decoration_data\":{\"asset\":\"x\"}},\"user_profile\":{\"bio\":\"hi\",\"banner\":\"b\",\"theme_colors\":[null,1],\"profile_effect\":null},\"guild_member\":{\"nick\":\"n\"},\"guild_member_profile\":{\"pronouns\":\"p\"},\"badges\":[{\"id\":\"premium\"}],\"guild_badges\":[{\"id\":\"g\"}]}");
+	expect_value(t, got, "\"profile_properties\":[3,4,6,7,8],\"guild_profile_properties\":[0,1],\"profile_activity_types\":[4,0],\"profile_badges\":[\"premium\",\"g\"]");
+	replay_end(*run);
+}
+
+// explicit_media_redactable_messages_loaded: the fixture occurrences in the test guild (all at
+// startup, outside the tested windows; the others' media in A's own guild is scrubbed) are
+// rebuilt from the session's message pages: the first page of the channel with other people's
+// media counts (attachments, embeds, those not scanned yet), later ones are throttled. The
+// accounts don't allow NSFW, so their unset settings blur guild media too. A's startup in the
+// test channel holds only A's own media: no event.
+explicit_media_redactable :: (t: *T) {
+	checked := 0;
+	for sa: string.["send_dm b", "mark_as_read b", "join_leave_server b", "voice_with_b b", "open_dm a"] {
+		scenario, acct := slice(sa, 0, sa.count - 2), slice(sa, sa.count - 1, 1);
+		run: Replay_Run;
+		if !replay_begin(*run, t, scenario, 0, 0, acct) continue;
+		push_allocator(temp);
+		official := "";
+		pages: [..]V;
+		ids: [..]s64;
+		channel: Snowflake;
+		for e: run.r.events {
+			k, url := fstr(e, "k"), fstr(e, "url");
+			if k == "req" && contains(url, "/messages?") && fstr(e, "method") == "GET" array_add(*ids, fnum(e, "id"));
+			if k == "resp" && array_find(ids, fnum(e, "id")) array_add(*pages, vget(e, "body")); // later ones: throttled
+			if k != "req" || !r_is_science(url) || official continue;
+			bv, _ := r_body_value(vget(e, "body"));
+			for ev: flist(vmap(bv), "events") if fstr(vmap(ev), "type") == "explicit_media_redactable_messages_loaded" {
+				p := fmap(vmap(ev), "properties");
+				channel = fsnow(p, "channel_id");
+				official = tprint("\"channel_id\":\"%\",\"guild_id\":%,\"num_of_attachments\":%,\"num_of_attachments_pending_scan\":%,\"num_of_embeds\":%,\"num_of_embeds_pending_scan\":%", channel, ifx fsnow(p, "guild_id") then tprint("\"%\"", fsnow(p, "guild_id")) else "null", fint(p, "num_of_attachments"), fint(p, "num_of_attachments_pending_scan"), fint(p, "num_of_embeds"), fint(p, "num_of_embeds_pending_scan"));
+			}
+		}
+		if !official channel = R_TEXT;
+		ours := "";
+		for pages {
+			items := vlist(it);
+			if !items.count || fsnow(vmap(items[0]), "channel_id") != channel continue;
+			analytics_redactable_page(run.c, channel, items);
+			checked += 1;
+		}
+		a := *run.c.analytics;
+		locks.lock(*a.mu);
+		n := 0;
+		for a.queue if contains(it, "explicit_media_redactable_messages_loaded") { n += 1; ours = it; }
+		locks.unlock(*a.mu);
+		if official expectf(t, n == 1 && contains(ours, official), "%: one event (% queued)\n  official: %\n  ours:     %", sa, n, official, ours);
+		else expectf(t, n == 0, "%: no event for our own media, % queued", sa, n);
+		replay_end(*run);
+	}
+	expect(t, checked >= 9, "pages fed");
 }
 
 parity_set_online :: (t: *T) {

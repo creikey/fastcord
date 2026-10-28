@@ -74,6 +74,10 @@ User :: struct {
 	// from GET /users/{id}/profile (with_mutual_guilds / with_mutual_friends)
 	mutual_guilds: int; // -1 until a profile with mutual guilds arrived
 	mutual_friends: int; // -1 until known
+	// the last profile response, as user_profile_action reports it: ProfileProperty bits (user and
+	// guild member) and the badge ids (a JSON array, "" = no profile yet)
+	profile_props, guild_profile_props: u16;
+	badges: string;
 }
 
 display_name :: (u: *User) -> string { return ifx u.global_name then u.global_name else u.username; }
@@ -237,6 +241,7 @@ Presence :: struct {
 	mobile: Status;
 	web: Status;
 	activity: string; // custom status text / "Playing X"
+	activity_types: u32; // each activity's type + 1, a nibble each in order (user_profile_action)
 }
 
 Read_State :: struct {
@@ -347,6 +352,11 @@ User_Settings :: struct {
 	timezone_offset: int; // minutes
 	developer_mode: bool;
 	friend_online_off: bool; // NotificationSettings.notify_friends_on_launch = false
+	// TextAndImages explicit (29) and gore (32) content settings for guilds, friend DMs and other
+	// DMs (0 unset, 1 show, 2 blur, 3 block); unset ones default by nsfw_blocked (READY user's
+	// nsfw_allowed == false)
+	media_redaction: [2][3]u64;
+	nsfw_blocked: bool;
 	guild_folders: [..]Guild_Folder;
 	guild_positions: [..]Snowflake;
 }

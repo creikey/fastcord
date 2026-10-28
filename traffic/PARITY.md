@@ -448,14 +448,14 @@ settings tabs other than Overview.
 | Telemetry | Settings modal `impression_modal_root_legacy` (variant `renderModalSpinner`) | The settings chunk's lazy-load spinner; allow-listed in parity_settings_open / parity_open_account_settings. |
 | Telemetry | Discover: no `global_discovery_*` | fastcord's compass opens the web page, not the in-app discovery entry point (allow-listed in parity_discover). |
 | Telemetry | New thread: `channel_opened` without `channel_view: "Split View"` | fastcord opens the new thread as the main view (see Threads below): its main-view event goes out on create and throttles the popout's reopen (allow-listed in parity_threads_browser; the main-view shape is checked by parity_thread_open_main). |
-| Telemetry | `user_profile_action` only for profiles without bio, pronouns, badges, activity or guild identity | The official enum values of the profile property lists are not known. |
+| Telemetry | `user_profile_action` without `communication_probability` / `communication_rank` and the cosmetic SKU ids | fastcord doesn't load user affinities; the SKUs are not modelled. |
 | Telemetry | `custom_status_updated.prompt_type` is null | fastcord's custom status modal shows no prompt. |
 | Telemetry | No `VIEW_WIDGETS_EMPTY_STATE` profile action | No widgets section. |
 | Telemetry | `client_performance_cpu` / `_memory` | CPU: our own process, measured. Memory: Electron's processes, synthesized (`Synth`). |
 | ETag values | detectables `If-None-Match` differ | Server content changed since the capture. |
 | op 41 | `initialization_timestamp` | Per-install value. |
 | op 40 | Heartbeats in windows | First heartbeat at `random() * interval` in both clients. |
-| settings-proto/2 PATCH | Fewer uses at startup; emoji uses tracked on insert | Frecency writes are modelled byte for byte (`parity_frecency_proto`, CLIENT_RULES "Frecency writes"), but pending usage isn't persisted across restarts, and emoji uses are tracked when inserted rather than when the message is sent. Application-command, application and sound frecency are not written. |
+| settings-proto/2 PATCH | Emoji uses tracked on insert | Frecency writes are modelled byte for byte (`parity_frecency_proto`, CLIENT_RULES "Frecency writes") and pending usage persists to the next launch's startup write (`frecency_persisted`), but emoji uses are tracked when inserted rather than when the message is sent. Application-command, application and sound frecency are not written. |
 | Profile widgets | applications/public, games, oauth2/tokens after a full profile | Driven by profile widget data, not modelled. |
 | Quick switcher | Exact autocomplete query set, HTTP-cache revalidation | Throttle model approximated. Chrome revalidates cached autocomplete GETs. |
 | Voice | voice UDP, `preferred_regions` order | The voice media is native in the official client (not in the captures). `preferred_regions` follow the probe's geographic order, not a UDP latency ranking. Since the last live session, fastcord's own voice connection reports RTC_CONNECTED: the QoS heartbeat gains `rtc_connected` and op 31 (with the soundboard GET) goes just before it, as in the fixtures (offline: `voice_rtc_qos`, `parity_join_voice`, `parity_dm_call`; not yet checked live). |

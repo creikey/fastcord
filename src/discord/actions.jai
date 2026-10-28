@@ -1328,7 +1328,7 @@ api_get_later :: (c: *Client, path: string, delay_ms: s64) {
 // via: the popout element clicked to open it ("avatar"), "" when not from a popout.
 open_full_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, via := "avatar") {
 	v := *c.analytics.profile;
-	if via && v.layout == .Popout && v.user_id == user_id && v.session != "" && profile_shows_nothing_extra(c, user_id, v.guild_id) {
+	if via && v.layout == .Popout && v.user_id == user_id && v.session != "" {
 		profile_action(c, v, string.["username", "user profile popout", via], "PRESS_VIEW_PROFILE");
 	}
 	profile_view_begin(c, .Modal, user_id, guild_id, ifx v.user_id == user_id then v.channel_id else 0, ifx v.user_id == user_id then v.message_id else 0);

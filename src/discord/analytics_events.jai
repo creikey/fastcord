@@ -517,6 +517,62 @@ autocomplete_emoji_selected :: (c: *Client, channel_id: Snowflake, name: string,
 	aw_track(c, "channel_autocomplete_selected", *w);
 }
 
+// ---- explicit media ----
+
+// analytics_redactable_page: explicit_media_redactable_messages_loaded when a page of the current
+// channel loads (ExplicitMediaManager LOAD_MESSAGES_SUCCESS). It counts the media of messages
+// (and their replied-to messages) with attachments, embeds or components whose author is not us
+// and whose media the explicit or gore setting for this kind of channel blurs or blocks. Media
+// without a current content scan is pending. Throttled 60 s per channel (SCI_THROTTLES).
+analytics_redactable_page :: (c: *Client, channel_id: Snowflake, items: []V) {
+	s := *c.store;
+	ch := channel_get(s, channel_id);
+	if !ch return;
+	redacts :: (s: *Store, ch: *Channel, m: etf.Map) -> bool {
+		author := fsnow(fmap(m, "author"), "id");
+		if !m.count || author == s.me return false;
+		if !flist(m, "attachments").count && !flist(m, "embeds").count && !flist(m, "components").count return false;
+		kind := 0; // guilds, friend DMs, other DMs
+		if !ch.guild_id {
+			_, rel := table_find(*s.relationships, author);
+			kind = ifx rel.kind == .Friend then 1 else 2;
+		}
+		// unset: blur everywhere when NSFW isn't allowed, else block other DMs (explicit: the legacy
+		// filter's default, gore: always)
+		for harm: s.settings.media_redaction {
+			v := harm[kind];
+			if v == 2 || v == 3 || (v == 0 && (s.settings.nsfw_blocked || kind == 2)) return true;
+		}
+		return false;
+	}
+	unscanned :: (m: etf.Map) -> bool { return !vhas(m, "content_scan_version") || fint(m, "content_scan_version") < EXPLICIT_SCAN_VERSION; }
+	EXPLICIT_SCAN_VERSION :: 4; // ExplicitMediaStore.validContentScanVersion (READY: 4)
+	n: [4]int; // attachments, pending, embeds, pending
+	seen: [..]Snowflake;
+	seen.allocator = temp;
+	for items for m: etf.Map.[vmap(it), fmap(vmap(it), "referenced_message")] {
+		if !redacts(s, ch, m) || array_find(seen, fsnow(m, "id")) continue;
+		array_add(*seen, fsnow(m, "id"));
+		for flist(m, "attachments") {
+			n[0] += 1;
+			if unscanned(vmap(it)) n[1] += 1;
+		}
+		for flist(m, "embeds") {
+			e := vmap(it);
+			n[2] += 1;
+			empty := false; // a zero-size image, thumbnail or video is never scanned
+			for k: string.["image", "thumbnail", "video"] if vhas(e, k) && !fint(fmap(e, k), "width") && !fint(fmap(e, k), "height") empty = true;
+			if unscanned(e) && !empty n[3] += 1;
+		}
+	}
+	if !seen.count return;
+	w := aw_begin();
+	json_ksnow(*w, "channel_id", channel_id);
+	aw_ksnow_or_null(*w, "guild_id", ch.guild_id);
+	for k: string.["num_of_attachments", "num_of_attachments_pending_scan", "num_of_embeds", "num_of_embeds_pending_scan"] json_kint(*w, k, n[it_index]);
+	aw_track(c, "explicit_media_redactable_messages_loaded", *w);
+}
+
 // ---- profiles ----
 
 Profile_Layout :: enum u8 {
@@ -566,21 +622,33 @@ profile_view_begin :: (c: *Client, layout: Profile_Layout, user_id: Snowflake, g
 	a.profile = .{pending = true, layout = layout, user_id = user_id, guild_id = guild_id, channel_id = channel_id, message_id = message_id, session = uuid4(,, c.allocator), source_session = src, wait = wait, mutuals_known = known};
 }
 
-// profile_shows_nothing_extra: true when the profile has none of the optional
-// sections (bio, pronouns, badges, activity, guild identity). Then the
-// properties lists are truthfully empty; otherwise fastcord does not know the
-// official enum values for them and the event is not sent.
-profile_shows_nothing_extra :: (c: *Client, user_id: Snowflake, guild_id: Snowflake) -> bool {
-	s := *c.store;
-	u := user_get(s, user_id);
-	if !u || u.bio || u.pronouns || u.flags != 0 || u.premium_type != 0 return false;
-	p := table_find_pointer(*s.presences, user_id);
-	if p && p.activity return false;
-	if guild_id != 0 {
-		m := member_get(s, guild_id, user_id);
-		if m && (m.nick || m.avatar) return false;
+// profile_props_apply: a profile response's ProfileProperty bits (NICKNAME 0, PRONOUNS 1, AVATAR 2,
+// ANIMATED_AVATAR 3, BANNER 4, ANIMATED_BANNER 5, BIO 6, THEME 7, AVATAR_DECORATION 8,
+// PROFILE_EFFECT 9; listed in that order) for the user and the guild member (their nick and guild
+// profile, no avatar), and the badge ids of both (UserProfile.getBadges).
+profile_props_apply :: (s: *Store, u: *User, m: etf.Map) {
+	props :: (user: etf.Map, profile: etf.Map, member: etf.Map) -> u16 {
+		b: u16;
+		set :: (b: *u16, on: bool, bit: int) { if on b.* |= cast(u16) (1 << bit); }
+		set(*b, fstr(member, "nick") != "", 0);
+		set(*b, fstr(profile, "pronouns") != "", 1);
+		set(*b, fstr(user, "avatar") != "", ifx begins_with(fstr(user, "avatar"), "a_") then 3 else 2);
+		set(*b, fstr(profile, "banner") != "", ifx begins_with(fstr(profile, "banner"), "a_") then 5 else 4);
+		set(*b, fstr(profile, "bio") != "", 6);
+		for flist(profile, "theme_colors") set(*b, it.kind != .Nil, 7);
+		set(*b, fmap(user, "avatar_decoration_data").count > 0, 8);
+		set(*b, fmap(profile, "profile_effect").count > 0, 9);
+		return b;
 	}
-	return true;
+	u.profile_props = props(fmap(m, "user"), fmap(m, "user_profile"), .{});
+	u.guild_profile_props = props(.{}, fmap(m, "guild_member_profile"), fmap(m, "guild_member"));
+	w: Json;
+	json_init(*w);
+	json_arr(*w);
+	for k: string.["badges", "guild_badges"] for flist(m, k) json_str(*w, fstr(vmap(it), "id"));
+	json_arr_end(*w);
+	free_str(u.badges, s.allocator);
+	u.badges = clone_str(json_string(*w), s.allocator);
 }
 
 // user_status_string: "online-desktop" etc., from the user's presence.
@@ -610,7 +678,6 @@ analytics_on_profile :: (c: *Client, user_id: Snowflake) {
 	v.wait -= 1;
 	if v.wait > 0 return;
 	v.pending = false;
-	if !profile_shows_nothing_extra(c, user_id, v.guild_id) return;
 	stack: []string;
 	if v.layout == {
 		case .Popout;         stack = string.["username", "user profile popout"];
@@ -639,12 +706,28 @@ profile_action :: (c: *Client, v: *Profile_View, stack: []string, action: string
 	json_kstr(*w, "profile_layout", profile_layout_name(v.layout));
 	json_kstr(*w, "profile_session_id", v.session);
 	if v.source_session json_kstr(*w, "source_profile_session_id", v.source_session);
-	for k: string.["profile_properties", "guild_profile_properties", "profile_activity_types", "profile_badges"] {
-		json_key(*w, k);
-		json_raw(*w, "[]");
-	}
-	json_kstr(*w, "user_status", user_status_string(c, v.user_id));
 	u := user_get(s, v.user_id);
+	p := table_find_pointer(*s.presences, v.user_id);
+	for bits: u16.[ifx u then u.profile_props, ifx u && v.guild_id then u.guild_profile_props] {
+		json_key(*w, ifx it_index then "guild_profile_properties" else "profile_properties");
+		json_arr(*w);
+		for 0..9 if bits & cast(u16) (1 << it) json_int(*w, it);
+		json_arr_end(*w);
+	}
+	// ours: the local presence, whose one activity is the custom status (type 4)
+	types := ifx p then p.activity_types;
+	if v.user_id == s.me types = xx ifx s.settings.custom_status_text || s.settings.custom_status_emoji then 5;
+	json_key(*w, "profile_activity_types");
+	json_arr(*w);
+	for 0..7 {
+		t := (types >> (4 * it)) & 0xF;
+		if !t break;
+		json_int(*w, t - 1);
+	}
+	json_arr_end(*w);
+	json_key(*w, "profile_badges");
+	json_raw(*w, ifx u && u.badges then u.badges else "[]");
+	json_kstr(*w, "user_status", user_status_string(c, v.user_id));
 	json_kbool(*w, "is_guild_profile", v.guild_id != 0);
 	json_kbool(*w, "is_bot_profile", u && u.bot);
 	json_kbool(*w, "is_private_to_viewer", false);
