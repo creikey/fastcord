@@ -91,6 +91,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN flags INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN topic TEXT NOT NULL DEFAULT '';");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN type INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN parent INTEGER;");
@@ -364,7 +365,7 @@ CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
 	provider TEXT NOT NULL, color INTEGER NOT NULL, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
@@ -693,7 +694,7 @@ iso :: (id: s64) -> string {
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
 		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
-		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}) -> etf.Value {
+		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx kind != DEFAULT then kind else ifx reply then 19 else 0));
@@ -711,7 +712,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "content", etf.vstring(content));
 	etf.map_put(*m, "timestamp", etf.vstring(iso(id)));
 	etf.map_put(*m, "edited_timestamp", ifx edited then etf.vstring(iso(edited)) else .{});
-	etf.map_put(*m, "flags", etf.vint(0));
+	etf.map_put(*m, "flags", etf.vint(flags));
 	etf.map_put(*m, "attachments", ifx attachments.kind == .List then attachments else etf.vlist(.[]));
 	etf.map_put(*m, "embeds", ifx embeds.kind == .List then embeds else etf.vlist(.[]));
 	etf.map_put(*m, "mentions", ifx mentions.kind == .List then mentions else etf.vlist(.[]));
@@ -722,7 +723,9 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags FROM messages m JOIN users u ON u.id = m.author";
+
+SUPPRESS_EMBEDS :: 1 << 2;
 
 // Message types: a "pinned a message" notice is a system message whose reply column holds the pinned one.
 DEFAULT :: 0;
@@ -771,7 +774,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		reactions = etf.vlist(list);
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id));
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id), sqlite.col_int(st, 10));
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -1310,14 +1313,42 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 	}
 	if !author return json_error(c, 404, 10008, "Unknown Message");
 	if req.method == "PATCH" && kind != DEFAULT return json_error(c, 400, 50021, "Cannot execute action on a system message");
+	v: etf.Value;
+	if req.method == "PATCH" {
+		body, err := etf.from_json(cast(string) req.body,, temp);
+		if err != .None || body.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		v = body;
+	}
+	flags, has_flags := etf.map_get(v.map, "flags");
+	_, has_content := etf.map_get(v.map, "content");
+	if req.method == "PATCH" && has_flags && !has_content {
+		// Remove Embeds: the author, or as with MANAGE_MESSAGES the owner, sets SUPPRESS_EMBEDS, the one flag
+		// a client may change.
+		if author != user && user != owner return json_error(c, 403, 50013, "Missing Permissions");
+		if flags.kind != .Int return json_error(c, 400, 50035, "Invalid Form Body");
+		suppress := (flags.i & SUPPRESS_EMBEDS) != 0;
+		m, content: etf.Value;
+		{
+			locks.guard(*s.db_mu);
+			ok := sqlite.run(s.db, tprint("UPDATE messages SET flags = (flags & ~%) | ? WHERE id = ?;", SUPPRESS_EMBEDS), ifx suppress then SUPPRESS_EMBEDS else 0, message)
+				&& (!suppress || sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", message));
+			if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+			m = message_locked(s, message, nested = false);
+			content, _ = etf.map_get(m.map, "content");
+		}
+		if !suppress queue_unfurl(s, message, content.s);
+		sb: String_Builder;
+		sb.allocator = temp;
+		etf.to_json(m, *sb);
+		broadcast(s, "MESSAGE_UPDATE", m);
+		return respond(c, 200, builder_to_string(*sb,, temp));
+	}
 	if author != user {
 		if req.method == "PATCH" return json_error(c, 403, 50005, "Cannot edit a message authored by another user");
 		if user != owner return json_error(c, 403, 50013, "Missing Permissions");
 	}
 
 	if req.method == "PATCH" {
-		v, err := etf.from_json(cast(string) req.body,, temp);
-		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 		content, _ := etf.map_get(v.map, "content");
 		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
 		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");

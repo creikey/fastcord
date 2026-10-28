@@ -67,9 +67,10 @@ unfurler :: (s: *Server) {
 		{
 			locks.guard(*s.db_mu);
 			// The message may have gone, or been edited to other links, while its pages loaded.
-			st := sqlite.prepare(s.db, "SELECT content FROM messages WHERE id = ?;");
+			st := sqlite.prepare(s.db, "SELECT content, flags FROM messages WHERE id = ?;");
 			sqlite.bind(st, 1, j.message);
-			content := ifx sqlite.step(st) == .Row then copy_string(sqlite.col_text(st, 0),, temp) else "";
+			content := "";
+			if sqlite.step(st) == .Row && !(sqlite.col_int(st, 1) & SUPPRESS_EMBEDS) content = copy_string(sqlite.col_text(st, 0),, temp);
 			sqlite.finalize(st);
 			now := link_urls(content);
 			ok := sqlite.exec(s.db, "BEGIN;") && sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", j.message);

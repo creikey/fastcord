@@ -314,6 +314,9 @@ main :: () {
 			&& field(got, "url").s == tprint("http://127.0.0.1:%/start", pages.port), tprint("a link gets a preview: %", got));
 		netio.close_listener(pages);
 		locks.join(server);
+		status, body = rest("PATCH", tprint("%/%", messages, field(sent, "id").s), "{\"flags\": 4}", token);
+		hidden, _ := etf.from_json(body);
+		check(status == 200 && field(hidden, "flags").i == 4 && field(hidden, "embeds").list.count == 0 && field(hidden, "content").s != "", tprint("Remove Embeds: % %", status, body));
 		rest("DELETE", tprint("%/%", messages, field(sent, "id").s), "", token);
 	}
 
