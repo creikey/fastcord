@@ -291,15 +291,17 @@ rail_guild :: (gid: dc.Snowflake, entry: int, inner: int) {
 	array_add(*rs.targets, .{slot.rect, entry, inner});
 }
 
-// A self-hosted server's guild: no folders, drag or context menu yet.
+// A self-hosted server's guild: no folders or drag yet.
 rail_hosted_guild :: (gid: dc.Snowflake, active: bool) {
 	g := dc.guild_get(store(), gid);
 	if g == null { return; }
 	ui.id_scope(cast(u64)(gid)); defer ui.pop_seed();
 	sig := rail_item("hosted", active && app.view.guild == gid, guild_initials(g.name), "", gid);
 	if sig.box == null { return; }
+	{ ui.parent(ui.top_parent().last); defer ui.pop_parent(); mention_badge(guild_mentions(gid), 0); }
 	if sig.hovering { tooltip_right(g.name); }
 	if sig.clicked { select_guild(gid); }
+	if sig.right_clicked { guild_context_open(gid, app.ui.mouse); }
 }
 
 folder_color :: (e: *Rail_Entry) -> ui.Color {

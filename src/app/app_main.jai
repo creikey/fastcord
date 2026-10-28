@@ -929,8 +929,20 @@ open_dm_with :: (uid: dc.Snowflake, location: string) -> bool {
 
 dm_req :: (uid: dc.Snowflake) -> string { return tprint("dm:%", uid); }
 
+// Every connection's results, with app.client pointing at the one they came on: a menu on a hosted server
+// that isn't selected also waits on its replies.
 handle_results :: () {
-	for r: dc.client_take_results(app.client) {
+	keep := app.client;
+	for c: connections() {
+		app.client = c;
+		handle_results_of(c);
+		if app.client != c keep = app.client; // A result moved the view (an opened DM): keep that.
+	}
+	app.client = keep;
+}
+
+handle_results_of :: (c: *dc.Client) {
+	for r: dc.client_take_results(c) {
 		if r.op == {
 		case .Open_Dm;
 			if r.ok && r.id != 0 && app.pending_dm_user != 0 {

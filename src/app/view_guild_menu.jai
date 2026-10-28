@@ -105,16 +105,17 @@ guild_menu_overlays :: () {
 	if gm.thread_menu != 0 thread_menu();
 	if gm.chan_menu != 0 channel_menu();
 	if gm.menu_guild != 0 guild_menu();
-	if gm.ctx_guild != 0 guild_context_menu();
+	// The rail's menu and the modals it opens may be on a guild of another connection than the selected one.
+	if gm.ctx_guild != 0 { keep := use_guild_client(gm.ctx_guild); guild_context_menu(); app.client = keep; }
 	if gm.bell_channel != 0 bell_popout();
-	if gm.nm_guild != 0 notify_modal();
+	if gm.nm_guild != 0 { keep := use_guild_client(gm.nm_guild); notify_modal(); app.client = keep; }
 	if gm.leaving != 0 && dc.guild_get(store(), gm.leaving) == null {
 		// the client routes to Friends once the guild is gone (fixture join_leave_server)
 		if app.view.guild == gm.leaving go_home();
 		gm.leaving = 0;
 	}
-	if gm.leave_guild != 0 leave_modal();
-	if gm.inv_guild != 0 invite_modal();
+	if gm.leave_guild != 0 { keep := use_guild_client(gm.leave_guild); leave_modal(); app.client = keep; }
+	if gm.inv_guild != 0 { keep := use_guild_client(gm.inv_guild); invite_modal(); app.client = keep; }
 }
 
 // ---- shared menu pieces ----

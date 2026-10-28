@@ -133,6 +133,16 @@ hosted_client_of :: (gid: dc.Snowflake) -> *dc.Client {
 	return null;
 }
 
+// use_guild_client points app.client at the connection gid belongs to, for a menu or modal opened on a
+// guild that isn't selected; it returns the client to put back afterwards.
+use_guild_client :: (gid: dc.Snowflake) -> *dc.Client {
+	keep := app.client;
+	c := hosted_client_of(gid);
+	if c app.client = c;
+	else if app.discord && dc.guild_get(*app.discord.store, gid) app.client = app.discord;
+	return keep;
+}
+
 #scope_file
 
 hosted_free :: (h: *Hosted_Server) {
