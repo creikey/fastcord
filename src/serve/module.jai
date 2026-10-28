@@ -62,6 +62,13 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN max_age INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN expires INTEGER NOT NULL DEFAULT 0;");
+	st := sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
+	indexed := sqlite.step(st) == .Row;
+	sqlite.finalize(st);
+	if !sqlite.exec(db, SEARCH_SCHEMA) || (!indexed && !sqlite.exec(db, "INSERT INTO message_text(message_text) VALUES('rebuild');")) {
+		close(s);
+		return null, false;
+	}
 
 	id := meta_get(s, "id");
 	key := meta_get(s, "tls_key");
@@ -312,6 +319,22 @@ CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT 
 	max_age INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL DEFAULT 0);
 SQL
 
+// Search's full-text index over message content, kept in step by triggers (the external-content
+// pattern from the FTS5 docs). Pin and other column updates don't touch it.
+SEARCH_SCHEMA :: #string SQL
+CREATE VIRTUAL TABLE IF NOT EXISTS message_text USING fts5(content, content='messages', content_rowid='id');
+CREATE TRIGGER IF NOT EXISTS message_text_insert AFTER INSERT ON messages BEGIN
+	INSERT INTO message_text(rowid, content) VALUES(new.id, new.content);
+END;
+CREATE TRIGGER IF NOT EXISTS message_text_delete AFTER DELETE ON messages BEGIN
+	INSERT INTO message_text(message_text, rowid, content) VALUES('delete', old.id, old.content);
+END;
+CREATE TRIGGER IF NOT EXISTS message_text_update AFTER UPDATE OF content ON messages BEGIN
+	INSERT INTO message_text(message_text, rowid, content) VALUES('delete', old.id, old.content);
+	INSERT INTO message_text(rowid, content) VALUES(new.id, new.content);
+END;
+SQL
+
 DISCORD_EPOCH_MS :: 1420070400000;
 
 snowflake :: (s: *Server) -> s64 {
@@ -463,6 +486,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if begins_with(req.path, "/api/v9/channels/") {
 			if !channel_messages(c, req) return;
+			continue;
+		}
+		if req.method == "GET" && begins_with(req.path, tprint("/api/v9/guilds/%/messages/search", c.server.guild)) {
+			if !search(c, req) return;
 			continue;
 		}
 		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
@@ -1128,6 +1155,96 @@ ack :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64) -> b
 		for s.conns if it.ws && it.user == user dispatch(it, "MESSAGE_ACK", ev);
 	}
 	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) "{\"token\": null}") == .None;
+}
+
+SEARCH_PAGE :: 25;
+
+// GET /api/v9/guilds/{id}/messages/search?content=&author_id=&mentions=&channel_id=&has=&pinned=&offset=,
+// newest first, 25 a page, as {total_results, messages: [[message], ...]}. Repeated keys of one kind
+// match any of them; different kinds must all match. Content matches whole words, all of them.
+search :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	viewer := session_user(s, token);
+	if !viewer return json_error(c, 401, 0, "401: Unauthorized");
+	q := find_index_from_left(req.path, #char "?");
+	if req.path.count > tprint("/api/v9/guilds/%/messages/search", s.guild).count && q < 0 return json_error(c, 404, 0, "404: Not Found");
+
+	Param :: struct { text: bool; i: s64; s: string; }
+	params: [..]Param;
+	params.allocator = temp;
+	authors, mentioned, channels: [..]s64;
+	authors.allocator, mentioned.allocator, channels.allocator = temp, temp, temp;
+	where: String_Builder;
+	where.allocator = temp;
+	append(*where, " WHERE 1");
+	offset := 0;
+	for split(ifx q >= 0 then slice(req.path, q + 1, req.path.count - q - 1) else "", "&",, temp) {
+		kv := split(it, "=",, temp);
+		if kv.count != 2 continue;
+		value := percent_decode(replace(kv[1], "+", " ",, temp));
+		n, n_ok := string_to_int(value, T = s64);
+		if kv[0] == {
+			case "author_id";  if n_ok array_add(*authors, n);
+			case "mentions";   if n_ok array_add(*mentioned, n);
+			case "channel_id"; if n_ok array_add(*channels, n);
+			case "offset";     if n_ok offset = clamp(n, 0, 5000);
+			case "pinned";     if value == "true" append(*where, " AND m.pinned_at IS NOT NULL");
+			case "has";
+				// Hosted messages carry no attachments, embeds or stickers yet; only links can be had.
+				if value == "link" append(*where, " AND (m.content LIKE '%http://%' OR m.content LIKE '%https://%')");
+				else append(*where, " AND 0");
+			case "content";
+				// Each word quoted, so FTS5 query syntax in what was typed is matched literally.
+				terms: String_Builder;
+				terms.allocator = temp;
+				for w: split(value, " ",, temp) if w print_to_builder(*terms, "\"%\" ", replace(w, "\"", "\"\"",, temp));
+				match := builder_to_string(*terms,, temp);
+				if match {
+					append(*where, " AND m.id IN (SELECT rowid FROM message_text WHERE message_text MATCH ?)");
+					array_add(*params, .{text = true, s = match});
+				}
+		}
+	}
+	any_of :: (open: string, ids: []s64, close := ")") #expand {
+		if !ids return;
+		append(*`where, open);
+		for ids {
+			append(*`where, ifx it_index then ", ?" else "?");
+			array_add(*`params, .{i = it});
+		}
+		append(*`where, close);
+	}
+	any_of(" AND m.author IN (", authors);
+	any_of(" AND m.channel IN (", channels);
+	any_of(" AND EXISTS (SELECT 1 FROM mentions x WHERE x.message = m.id AND x.user IN (", mentioned, "))");
+	filter := builder_to_string(*where,, temp);
+
+	bind_params :: (st: *sqlite.Stmt) #expand {
+		for `params if it.text sqlite.bind(st, it_index + 1, it.s); else sqlite.bind(st, it_index + 1, it.i);
+	}
+	total := 0;
+	found: [..]etf.Value;
+	found.allocator = temp;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, tprint("SELECT count(*) FROM messages m%;", filter));
+		bind_params(st);
+		if sqlite.step(st) == .Row total = sqlite.col_int(st, 0);
+		sqlite.finalize(st);
+		st = sqlite.prepare(s.db, tprint("% % ORDER BY m.id DESC LIMIT % OFFSET %;", MESSAGE_SELECT, filter, SEARCH_PAGE, offset));
+		bind_params(st);
+		while sqlite.step(st) == .Row {
+			one := NewArray(1, etf.Value,, temp);
+			one[0] = row_message(s, st, viewer = viewer);
+			array_add(*found, etf.vlist(one));
+		}
+		sqlite.finalize(st);
+	}
+	d := etf.map_builder(2,, temp);
+	etf.map_put(*d, "total_results", etf.vint(total));
+	etf.map_put(*d, "messages", etf.vlist(found));
+	return json_reply(c, 200, etf.vmap(etf.map_done(*d)));
 }
 
 MAX_PINS :: 50; // Per channel, as Discord had it; so the pins list never needs paging.

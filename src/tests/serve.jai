@@ -373,6 +373,21 @@ main :: () {
 	check(cl3.store.ready && has_rs && rs.mention_count == 1, tprint("the pinged member's mention count: % %", has_rs, rs.mention_count));
 	discord.client_destroy(cl3);
 
+	// Search: the channel now holds "hello", the reply edited to "hi", Other's "hi all" and the ping.
+	found :: (query: string) -> s64 #expand {
+		status, body := rest("GET", tprint("/api/v9/guilds/%/messages/search?%&sort_by=timestamp&sort_order=desc", gid, query), "", token);
+		v, _ := etf.from_json(body);
+		if status != 200 { print("search %: % %\n", query, status, body); return -1; }
+		return field(v, "total_results").i;
+	}
+	check(found("content=hello") == 1, "search content");
+	check(found("content=hi") == 2, "search content edited, and words only");
+	check(found(tprint("author_id=%", other_id)) == 1, "search author");
+	check(found(tprint("mentions=%", other_id)) == 1, "search mentions");
+	check(found(tprint("author_id=%&content=hi", other_id)) == 1, "search filters combine");
+	check(found("content=%22unbalanced") == 0, "search quotes typed text");
+	check(found("has=link") == 0, "search has");
+
 	serve.stop(s);
 	print("% failed\n", failed);
 	exit(xx ifx failed then 1 else 0);
