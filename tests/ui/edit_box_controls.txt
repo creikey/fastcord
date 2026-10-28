@@ -1,0 +1,17 @@
+# The inline edit box's controls: the emoji button opens an emoji-only picker that inserts into the
+# edit (its search keeps the typing), and the "cancel" link closes the editor.
+wait 5
+click 600 684
+key up
+wait 5
+expect_input "👍"
+click 955 569
+wait 20
+type fire
+wait 10
+click 520 375
+wait 20
+expect_input "👍🔥"
+click 517 609
+wait 10
+expect_input ""

@@ -49,6 +49,7 @@ PICKER_TAB_LABELS :: string.["GIFs", "Stickers", "Emoji"];
 Picker_Mode :: enum u8 {
 	Composer;
 	Reaction;
+	Edit; // the inline message editor's emoji button: emoji only, inserts into the edit box
 }
 
 Picker_State :: struct {
@@ -200,7 +201,7 @@ picker_overlay :: () {
 		}
 	}
 	if !pk.open return;
-	if pk.channel != app.view.channel {
+	if pk.channel != app.view.channel || (pk.mode == .Edit && ma.editing != pk.message) {
 		pk.open = false;
 		pk.closing = false;
 		if pk.mode == .Reaction app.reaction_target = 0;

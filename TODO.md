@@ -125,7 +125,7 @@
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
 - [ ] Profiles: the popout shows no roles, with no add/remove role.
-- [ ] Edit: the edit box's emoji button and the "cancel" / "save" links do nothing (`view_message_actions.jai`).
+- [ ] Edit: the inline edit box has no `:emoji:` or `@mention` autocomplete (only the composer calls `emoji_autocomplete` / `mention_autocomplete`, `view_chat.jai`), so `@name` typed in an edit stays plain text.
 - [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
 - [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
 - [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
@@ -313,3 +313,4 @@
 - [x] Markdown: numbered lists (`1. item`) render with their numbers, counting up from the first item's, nested ones included.
 - [x] Windows: the window's resize edges grab 8pt deep instead of 2pt; nothing is drawn for them.
 - [x] Edit: Up in an empty composer, the hover pencil and Edit Message skip system notices and pending messages (`can_edit`).
+- [x] Edit: the edit box's emoji button opens an emoji-only picker that inserts into the edit, and the "cancel" / "save" links work (`tests/ui/edit_box_controls.txt`).

@@ -202,35 +202,31 @@ edit_box :: (m: *dc.Message) {
 	box.style.border = 1;
 	box.style.radius = all4(8);
 	box.cross_align = .Start;
+	res: ui.Edit_Result;
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 16);
-		res := text_field("edit", *ma.edit_editor, "", true, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, markdown = true);
+		// the open emoji picker has the keyboard (its search field)
+		open := picker_is_open() && pk.mode == .Edit;
+		res = text_field("edit", *ma.edit_editor, "", !open, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, markdown = true);
 		emo := ui.box("emoji", .Clickable);
 		emo.semantic_size = .[ui.px(20), ui.px(COMPOSER_H)];
 		emo.layout_axis = .Y;
+		esig := ui.signal(emo);
 		{ ui.parent(emo); defer ui.pop_parent();
 			spacer(.Y, (COMPOSER_H - 20) / 2);
-			icon("i", "reaction", 20, T("--interactive-icon-default"));
+			icon("i", "reaction", 20, ifx esig.hovering || open then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+		}
+		if esig.clicked {
+			if open picker_close();
+			else picker_open(.Edit, .Emoji, m.channel_id, m.id, emo.rect);
 		}
 		spacer(.X, 10);
-		if res == {
-		case .Submit;
-			text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
-			if text == "" {
-				ma.confirming, ma.confirm = m.id, Confirm.Delete;
-			} else if text != m.content && net_action() {
-				dc.edit_message(app.client, m.channel_id, m.id, text);
-			}
-			ma.editing = 0;
-		case .Escape;
-			ma.editing = 0;
-		case .None; #through; case .Changed; #through; case .Moved;
-		}
 	}
+	save, cancel := res == .Submit, res == .Escape;
 	hint := row("edithint");
 	hint.semantic_size = .[ui.pct(1), ui.px(22)];
 	{ ui.parent(hint); defer ui.pop_parent();
-		// one rich-text run so the spaces between the parts survive
+		// one rich-text run so the spaces between the parts survive; "cancel" and "save" are spans 1 and 3
 		h := ui.box("hint");
 		h.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 		h.style.line_height = 16;
@@ -241,6 +237,28 @@ edit_box :: (m: *dc.Message) {
 		spans[2] = .{text = " • enter to ", font = F(.Normal), size = 12};
 		spans[3] = .{text = "save", font = F(.Normal), size = 12, color = T("--text-link")};
 		ui.set_spans(h, spans);
+		if !app.ui.overlay_under_mouse {
+			over := ui.span_at(h.prev_layout, app.ui.mouse);
+			if over == 1 || over == 3 app.ui.cursor = .Pointer;
+			for * e: app.ui.events {
+				if e.consumed || e.kind != .Mouse_Down || e.button != .Left continue;
+				si := ui.span_at(h.prev_layout, e.pos);
+				if si == 1 cancel = true;
+				if si == 3 save = true;
+				if si == 1 || si == 3 e.consumed = true;
+			}
+		}
+	}
+	if save {
+		text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
+		if text == "" {
+			ma.confirming, ma.confirm = m.id, Confirm.Delete;
+		} else if text != m.content && net_action() {
+			dc.edit_message(app.client, m.channel_id, m.id, text);
+		}
+		ma.editing = 0;
+	} else if cancel {
+		ma.editing = 0;
 	}
 }
 
