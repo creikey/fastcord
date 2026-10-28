@@ -112,10 +112,25 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 				spacer(.X, 8);
 				col := ui.box("fcol");
 				col.semantic_size = .[ui.fill(), ui.children()];
+				download := false;
 				{ ui.parent(col); defer ui.pop_parent();
-					label(a.filename, .Normal, 16, T("--text-link"), 20);
+					name := label(a.filename, .Normal, 16, T("--text-link"), 20);
+					name.flags |= .Clickable;
+					name.hover_cursor = .Pointer;
+					download = ui.signal(name).clicked;
 					label(human_size(a.size), .Normal, 12, T("--text-muted"), 16);
 				}
+				dl := ui.box("dl", .Clickable);
+				dl.semantic_size = .[ui.px(32), ui.px(32)];
+				dl.hover_cursor = .Pointer;
+				sig := ui.signal(dl);
+				{ ui.parent(dl); defer ui.pop_parent();
+					ic := icon("i", "download", 24, T(ifx sig.hovering then "--interactive-icon-hover" else "--interactive-icon-default"), .Floating_X | .Floating_Y);
+					ic.fixed_pos = .{4, 4};
+				}
+				if sig.hovering tooltip_below("Download", dl.rect);
+				if sig.clicked || download media_save(a.url);
+				spacer(.X, 12);
 			}
 			spacer(.Y, 4);
 		}
@@ -625,6 +640,8 @@ media_action_receive :: (r: *dc.Media_Result) -> bool {
 	return true;
 }
 
+media_save :: (url: string) { media_action(MEDIA_TAG_SAVE, url); }
+
 media_reset_for_test :: () {
 	close_viewer();
 	fullscreen_video = 0;
@@ -686,11 +703,11 @@ media_menu :: () {
 	{ ui.parent(menu); defer ui.pop_parent();
 		spacer(.Y, 8);
 		if can_copy && menu_item("copy-image", "Copy Image", lead = "image").clicked {
-			media_action(MEDIA_TAG_COPY);
+			media_action(MEDIA_TAG_COPY, mm.image);
 			close = true;
 		}
 		if can_save && menu_item("save-image", "Save Image", lead = "image").clicked {
-			media_action(MEDIA_TAG_SAVE);
+			media_action(MEDIA_TAG_SAVE, mm.image);
 			close = true;
 		}
 		if can_copy || can_save menu_sep("s1");
@@ -709,9 +726,8 @@ media_menu :: () {
 
 // The client's saveImage/copyImage URL: media.discordapp.net becomes cdn.discordapp.com, the size and format
 // parameters go, and format=png is asked for when the path has no extension.
-media_action :: (tag: u64) {
-	u := mm.image;
-	q := find_index_from_left(u, #char "?");
+media_action :: (tag: u64, u: string) {
+	q :=find_index_from_left(u, #char "?");
 	path, query := u, "";
 	if q >= 0 path, query = slice(u, 0, q), slice(u, q + 1, u.count - q - 1);
 	if url_host(path) == "media.discordapp.net" path = replace(path, "//media.discordapp.net/", "//cdn.discordapp.com/",, temp);

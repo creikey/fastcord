@@ -159,7 +159,7 @@
 - [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
 - [ ] Window: size, position and maximised state aren't remembered; every launch opens at the default size where the OS puts it (the official client restores them).
 - [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
-- [ ] Attachments: file cards have no download button, and the link-coloured filename does nothing.
+- [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
 - [ ] Replies: clicking the quoted original message should jump to it.
@@ -324,3 +324,4 @@
 - [x] Edit: the inline edit box has the composer's `:emoji:` and `@mention` autocompletes, and saving converts `:name:` and `@name` like a send (`tests/ui/edit_autocomplete.txt`).
 - [x] Edit: editing a message shows `@name`, `@role` and `:name:` instead of their raw `<@id>`, `<@&id>` and `<:name:id>`, and saving converts them back (`tests/ui/forward/edit_readable.txt`).
 - [x] Attachments: images with alt text (`description`) show an ALT badge in the corner; hovering it shows the text (`tests/ui/media/alt_text.txt`).
+- [x] Attachments: file cards have a download button, and clicking the filename downloads too; both save to Downloads like Save Image (`tests/ui/media/file_card.txt`).

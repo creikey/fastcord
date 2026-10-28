@@ -1,0 +1,11 @@
+# A plain file attachment is a card with its name and size; the name and the download icon both save it.
+wait 20
+key pageup
+key pageup
+key pageup
+wait 30
+expect_visible "notes.txt"
+expect_visible "416 bytes"
+move 850 337
+wait 2
+expect_visible "Download"

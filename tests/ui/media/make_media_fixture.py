@@ -48,7 +48,11 @@ yt = {'type': 'video', 'url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'ti
 POST = 'https://x.com/someone/status/1'
 grid = [dict({'type': 'rich', 'url': POST, 'image': {'url': 'https://pbs.twimg.com/%d/poster.webp' % k, 'proxy_url': IMG + '%d/poster.webp' % k, 'width': 640, 'height': 360, 'flags': 0}},
              **({'description': 'Four images', 'author': {'name': 'Someone (@someone)'}} if k == 0 else {})) for k in range(4)]
-old_msgs = [msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [], [imdb]),
+# a plain file: a card with the name and a download button
+note = {'id': sf(base_ms - 20000, 9), 'filename': 'notes.txt', 'size': 416, 'content_type': 'text/plain; charset=utf-8',
+        'url': 'https://cdn.discordapp.com/attachments/%d/%d/notes.txt%s' % (CH, sf(base_ms - 20000, 9), Q),
+        'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/notes.txt%s' % (CH, sf(base_ms - 20000, 9), Q)}
+old_msgs = [msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [note], [imdb]),
             msg(sf(base_ms - 15000, 6), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', [], [yt]),
             msg(sf(base_ms - 10000, 7), POST, [], grid)]
 with open(os.path.join(here, 'media.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
