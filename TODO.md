@@ -219,7 +219,7 @@
 - [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
 - [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
 - [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
-- [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
+- [ ] Attachments: a spoilered image or video is covered by its flat dominant colour (`spoiler_cover` in `view_media.jai`), where the client shows the image blurred. Draw a blurred copy instead (e.g. a small downscale drawn stretched, as the composer's staged spoilers do), and cover spoilered file cards too.
 - [ ] Bug: scrolled up reading history, every new message, embed or reaction below pushes the text you're reading upward; `scroll_from_bottom` stays fixed while content grows below (`view_chat.jai`). Anchor to the row under the viewport instead.
 - [ ] Unreads: the server rail pill lights up from threads you haven't joined and from archived threads. They have no read state, so they count as unread, and the pill stays lit until "Mark As Read" (`views.jai` `guild_unread_shown` loops every thread). The Inbox already filters these.
 - [ ] Replies: the quoted preview only searches loaded history, so a reply to an older message says "Original message was deleted" (`referenced_message` isn't stored). The quote is raw text (`<@id>` and markdown unrendered), and sticker- or embed-only originals get no placeholder.
@@ -329,3 +329,4 @@
 - [x] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes render as such behind the quote bar, in messages and embed descriptions (`tests/ui/forward/quote_blocks.txt`).
 - [x] Search, pins and inbox: message cards render the chat's blocks (quote bar, headings, lists, subtext, code boxes, clickable links and "(edited)"), with search terms still highlighted.
 - [x] Bug (Windows): watching an H.265 camera or stream (the SFU's usual choice) crashed the app. Microsoft's HEVC decoder MFT dereferences null when the input type has no frame size; live decoders now start from a placeholder size (`decode_windows.jai`, test `src/tests/video_call_windows.jai`).
+- [x] Attachments: spoilered images and videos (`SPOILER_` name or flag 8) are covered with a "SPOILER" pill until clicked (`tests/ui/media/spoiler_attachment.txt`).

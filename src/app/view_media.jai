@@ -64,7 +64,13 @@ blob_receive :: (r: *dc.Media_Result) -> bool {
 // (search results).
 attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 	for * a, i: m.attachments {
-		if is_video(a) && a.width > 0 && a.height > 0 {
+		if !is_audio(a) && a.width > 0 && a.height > 0 && is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id) {
+			w := cast(float32) a.width;
+			h := cast(float32) a.height;
+			sc := min(1.0, min(max_w / w, 300 / h));
+			if spoiler_cover(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), w * sc, h * sc) table_set(*revealed_spoilers, a.id, true);
+			spacer(.Y, 4);
+		} else if is_video(a) && a.width > 0 && a.height > 0 {
 			w := cast(float32) a.width;
 			h := cast(float32) a.height;
 			sc := min(1.0, min(max_w / w, 300 / h));
@@ -138,6 +144,31 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 }
 
 is_video ::(a: *dc.Attachment) -> bool { return begins_with(a.content_type, "video/"); }
+is_spoiler :: (a: *dc.Attachment) -> bool { return begins_with(a.filename, "SPOILER_") || (a.flags & 8) != 0; }
+
+// A spoilered image or video: its dominant colour (the image still loads, as in the client) under a
+// "SPOILER" pill until clicked. True when clicked.
+spoiler_cover :: (id: string, url: string, w: float32, h: float32) -> bool {
+	im := image_get(url);
+	b := ui.box(id, .Draw_Background | .Clickable);
+	b.semantic_size = .[ui.px(w), ui.px(h)];
+	b.style.radius = all4(8);
+	b.style.bg = ifx im && im.state == .Ready && im.dominant.w > 0 then im.dominant else T("--background-mod-strong");
+	b.hover_cursor = .Pointer;
+	sig := ui.signal(b);
+	ui.parent(b); defer ui.pop_parent();
+	pill := row("spoiler", .Draw_Background | .Floating_X | .Floating_Y);
+	pill.semantic_size = .[ui.px(88), ui.px(32)];
+	pill.fixed_pos = .{(w - 88) / 2, (h - 32) / 2};
+	pill.style.bg = ifx sig.hovering then ui.Color.{0, 0, 0, 0.9} else .{0, 0, 0, 0.6};
+	pill.style.radius = all4(16);
+	{ ui.parent(pill); defer ui.pop_parent();
+		filler(.X);
+		label("SPOILER", .Bold, 15, .{1, 1, 1, 1}, 32);
+		filler(.X);
+	}
+	return sig.clicked;
+}
 is_audio :: (a: *dc.Attachment) -> bool { return begins_with(a.content_type, "audio/"); }
 
 // Video attachment or embed video: poster with a play button and the control bar (play, time, seek,

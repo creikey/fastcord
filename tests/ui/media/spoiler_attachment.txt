@@ -1,0 +1,11 @@
+# A spoilered image attachment (SPOILER_ name) is covered with a "SPOILER" pill until clicked.
+wait 20
+key pageup
+key pageup
+key pageup
+wait 30
+expect_visible "SPOILER"
+shot build/ui-spoiler_attachment-covered.png
+click_text "SPOILER"
+wait 10
+expect_not_visible "SPOILER"
