@@ -229,6 +229,15 @@ open_fc_link :: (url: string) -> bool {
 	return true;
 }
 
+// A custom emoji's image: from the joined server whose guild has it, else Discord's CDN.
+emoji_url :: (id: dc.Snowflake, animated: bool, size := 48) -> string {
+	for h: hosted if h.client for gid: h.client.store.guild_order {
+		g := dc.guild_get(*h.client.store, gid);
+		if g for g.emojis if it.id == id return tprint("https://%/emojis/%.webp?size=%", h.inv.id_hex, id, size);
+	}
+	return dc.custom_emoji_url(id, animated, size);
+}
+
 // Whether the selected connection is a self-hosted server, which has no DMs or friends yet.
 on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != ""; }
 

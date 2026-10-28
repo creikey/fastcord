@@ -398,6 +398,7 @@ CREATE TRIGGER IF NOT EXISTS mention_dismissals_delete AFTER DELETE ON messages 
 	DELETE FROM mention_dismissals WHERE message = old.id;
 END;
 CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
+CREATE TABLE IF NOT EXISTS emojis(id INTEGER PRIMARY KEY, name TEXT NOT NULL, animated INTEGER NOT NULL, type TEXT NOT NULL, data BLOB NOT NULL, user INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL, owner INTEGER NOT NULL DEFAULT 0, inviter INTEGER, channel INTEGER,
 	max_age INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL DEFAULT 0);
 SQL
@@ -644,7 +645,7 @@ serve_conn :: (c: *Conn) {
 			if !login(c, session, req) return;
 			continue;
 		}
-		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") {
+		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") || begins_with(req.path, "/emojis/") {
 			if !files(c, req) return;
 			continue;
 		}
@@ -654,6 +655,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "GET" && begins_with(req.path, tprint("/api/v9/guilds/%/messages/search", c.server.guild)) {
 			if !search(c, req) return;
+			continue;
+		}
+		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/emojis", c.server.guild) {
+			if !create_emoji(c, req) return;
 			continue;
 		}
 		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
@@ -924,18 +929,15 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 	if viewer {
 		list: [..]etf.Value;
 		list.allocator = temp;
-		r := sqlite.prepare(s.db, "SELECT emoji, count(*), max(user = ?) FROM reactions WHERE message = ? GROUP BY emoji ORDER BY min(rowid);");
+		r := sqlite.prepare(s.db, "SELECT emoji, count(*), max(user = ?), (SELECT animated FROM emojis e WHERE instr(emoji, ':') > 0 AND e.id = CAST(substr(emoji, instr(emoji, ':') + 1) AS INTEGER)) FROM reactions WHERE message = ? GROUP BY emoji ORDER BY min(rowid);");
 		sqlite.bind_all(r, viewer, id);
 		while sqlite.step(r) == .Row {
 			count := sqlite.col_int(r, 1);
-			e := etf.map_builder(2,, temp);
-			etf.map_put(*e, "id", .{});
-			etf.map_put(*e, "name", etf.vstring(copy_string(sqlite.col_text(r, 0),, temp)));
 			details := etf.map_builder(2,, temp);
 			etf.map_put(*details, "burst", etf.vint(0));
 			etf.map_put(*details, "normal", etf.vint(count));
 			m := etf.map_builder(6,, temp);
-			etf.map_put(*m, "emoji", etf.vmap(etf.map_done(*e)));
+			etf.map_put(*m, "emoji", reaction_emoji(copy_string(sqlite.col_text(r, 0),, temp), sqlite.col_int(r, 3) != 0));
 			etf.map_put(*m, "count", etf.vint(count));
 			etf.map_put(*m, "count_details", etf.vmap(etf.map_done(*details)));
 			etf.map_put(*m, "burst_count", etf.vint(0));
@@ -1085,10 +1087,11 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	roles := NewArray(1, etf.Value,, temp);
 	roles[0] = etf.vmap(etf.map_done(*everyone));
 
-	g := etf.map_builder(7,, temp);
+	g := etf.map_builder(8,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
 	etf.map_put(*g, "name", etf.vstring(copy_string(s.name,, temp)));
 	etf.map_put(*g, "icon", guild_icon_locked(s));
+	etf.map_put(*g, "emojis", emoji_list_locked(s));
 	etf.map_put(*g, "member_count", etf.vint(members));
 	owner := owner_id(s);
 	if owner etf.map_put(*g, "owner_id", snow(owner));
@@ -1801,6 +1804,72 @@ edit_guild :: (c: *Conn, req: http.Request) -> bool {
 	return json_reply(c, 200, guild);
 }
 
+EMOJI_MAX_BYTES :: 256 * 1024; // Discord's cap per emoji.
+MAX_EMOJIS :: 50; // Static and animated each, as a server without boosts has on Discord.
+
+// emoji_value is one custom emoji as Discord sends it in a guild's list.
+emoji_value :: (id: s64, name: string, animated: bool) -> etf.Value {
+	e := etf.map_builder(6,, temp);
+	etf.map_put(*e, "id", snow(id));
+	etf.map_put(*e, "name", etf.vstring(name));
+	etf.map_put(*e, "animated", etf.vbool(animated));
+	etf.map_put(*e, "available", etf.vbool(true));
+	etf.map_put(*e, "require_colons", etf.vbool(true));
+	etf.map_put(*e, "managed", etf.vbool(false));
+	return etf.vmap(etf.map_done(*e));
+}
+
+// The server's custom emoji, oldest first; the caller holds db_mu.
+emoji_list_locked :: (s: *Server) -> etf.Value {
+	list: [..]etf.Value;
+	list.allocator = temp;
+	st := sqlite.prepare(s.db, "SELECT id, name, animated FROM emojis ORDER BY id;");
+	defer sqlite.finalize(st);
+	while sqlite.step(st) == .Row array_add(*list, emoji_value(sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp), sqlite.col_int(st, 2) != 0));
+	return etf.vlist(list);
+}
+
+// POST /api/v9/guilds/{id}/emojis {name, image}: the owner adds a custom emoji, a `data:` URI kept as sent
+// (a GIF is animated), and every member gets GUILD_EMOJIS_UPDATE with the whole list, as from Discord.
+create_emoji :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+	name_v, _ := etf.map_get(v.map, "name");
+	image_v, _ := etf.map_get(v.map, "image");
+	name := ifx name_v.kind == .String then name_v.s else "";
+	name_ok := name.count >= 2 && name.count <= 32;
+	for name if !is_alnum(it) && it != #char "_" name_ok = false;
+	if !name_ok return json_error(c, 400, 50035, "Invalid Form Body");
+	image, format, ok := image_data_uri(ifx image_v.kind == .String then image_v.s else "", EMOJI_MAX_BYTES);
+	if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+	animated := format == .GIF;
+	emoji, list: etf.Value;
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		st := sqlite.prepare(s.db, "SELECT count(*) FROM emojis WHERE animated = ?;");
+		sqlite.bind_all(st, cast(int) animated);
+		n := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
+		sqlite.finalize(st);
+		if n >= MAX_EMOJIS return json_error(c, 400, 30008, tprint("Maximum number of emojis reached (%)", MAX_EMOJIS));
+		id := snowflake(s);
+		if !sqlite.run(s.db, "INSERT INTO emojis(id, name, animated, type, data, user) VALUES(?, ?, ?, ?, ?, ?);", id, name, cast(int) animated, IMAGE_TYPES[cast(int) format], image, user) {
+			return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		emoji = emoji_value(id, name, animated);
+		list = emoji_list_locked(s);
+	}
+	d := etf.map_builder(2,, temp);
+	etf.map_put(*d, "guild_id", snow(s.guild));
+	etf.map_put(*d, "emojis", list);
+	broadcast(s, "GUILD_EMOJIS_UPDATE", etf.vmap(etf.map_done(*d)));
+	return json_reply(c, 201, emoji);
+}
+
 // PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname. A member has one name here, so the nick
 // replaces it, and members see it as their name with no nick; an empty nick has nothing to fall back to.
 rename :: (c: *Conn, req: http.Request) -> bool {
@@ -2215,6 +2284,25 @@ files :: (c: *Conn, req: http.Request) -> bool {
 		st := sqlite.prepare(s.db, "SELECT avatar_type, avatar_data FROM users WHERE id = ? AND avatar = ?;");
 		defer sqlite.finalize(st);
 		sqlite.bind_all(st, user, hash);
+		if sqlite.step(st) != .Row return json_error(c, 404, 0, "404: Not Found");
+		c.reply_status, c.reply_json = 200, false;
+		c.reply_type = copy_string(sqlite.col_text(st, 0),, temp);
+		c.reply_body = copy_string(cast(string) sqlite.col_blob(st, 1),, temp);
+		return true;
+	}
+	// GET /emojis/{id}.{ext}: a custom emoji, whatever the extension and size asked for. Like Discord's, an
+	// emoji is public to whoever knows its ID.
+	if begins_with(path, "/emojis/") {
+		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
+		name := advance(path, "/emojis/".count);
+		dot := find_index_from_left(name, #char ".");
+		if dot >= 0 name.count = dot;
+		id, ok := string_to_int(name, T = s64);
+		if !ok return json_error(c, 404, 0, "404: Not Found");
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT type, data FROM emojis WHERE id = ?;");
+		defer sqlite.finalize(st);
+		sqlite.bind_all(st, id);
 		if sqlite.step(st) != .Row return json_error(c, 404, 0, "404: Not Found");
 		c.reply_status, c.reply_json = 200, false;
 		c.reply_type = copy_string(sqlite.col_text(st, 0),, temp);
@@ -2668,8 +2756,23 @@ json_reply :: (c: *Conn, status: int, v: etf.Value) -> bool {
 	return respond(c, status, builder_to_string(*sb,, temp));
 }
 
-// PUT .../reactions/{emoji}/@me and DELETE .../reactions/{emoji}/{type}/@me. Unicode emoji only, since a
-// hosted server has no custom ones yet; members may remove only their own reactions.
+// A reaction's emoji from its stored key: a Unicode emoji, or name:id for a custom one.
+reaction_emoji :: (key: string, animated: bool) -> etf.Value {
+	e := etf.map_builder(3,, temp);
+	colon := find_index_from_left(key, #char ":");
+	if colon < 0 {
+		etf.map_put(*e, "id", .{});
+		etf.map_put(*e, "name", etf.vstring(key));
+	} else {
+		etf.map_put(*e, "id", etf.vstring(advance(key, colon + 1)));
+		etf.map_put(*e, "name", etf.vstring(slice(key, 0, colon)));
+		etf.map_put(*e, "animated", etf.vbool(animated));
+	}
+	return etf.vmap(etf.map_done(*e));
+}
+
+// PUT .../reactions/{emoji}/@me and DELETE .../reactions/{emoji}/{type}/@me, with a Unicode emoji or one of
+// the server's custom ones; members may remove only their own reactions.
 reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64, rest: []string) -> bool {
 	s := c.server;
 	me := rest.count && (rest[rest.count - 1] == "@me" || rest[rest.count - 1] == "%40me");
@@ -2680,9 +2783,17 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		return json_error(c, 404, 0, "404: Not Found");
 	}
 	emoji := percent_decode(rest[0]);
-	// Every Unicode emoji has a byte past ASCII (keycaps end in U+20E3), so plain words are refused.
-	emoji_ok := emoji && emoji.count <= 64 && text_ok(emoji) && !contains(emoji, ":");
-	if emoji_ok {
+	// A custom emoji comes as name:id and is stored so; every Unicode emoji has a byte past ASCII (keycaps
+	// end in U+20E3), so plain words are refused.
+	custom_id: s64;
+	animated := false;
+	colon := find_index_from_left(emoji, #char ":");
+	emoji_ok := emoji && emoji.count <= 64 && text_ok(emoji);
+	if emoji_ok && colon >= 0 {
+		id, ok, rest_of := string_to_int(advance(emoji, colon + 1), T = s64);
+		emoji_ok = ok && !rest_of && id > 0;
+		custom_id = id;
+	} else if emoji_ok {
 		emoji_ok = false;
 		for 0..emoji.count - 1 if emoji[it] >= 0x80 emoji_ok = true;
 	}
@@ -2690,6 +2801,17 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 	changed := false;
 	{
 		locks.guard(*s.db_mu);
+		if custom_id {
+			st := sqlite.prepare(s.db, "SELECT name, animated FROM emojis WHERE id = ?;");
+			sqlite.bind_all(st, custom_id);
+			found := sqlite.step(st) == .Row;
+			if found {
+				emoji = tprint("%:%", sqlite.col_text(st, 0), custom_id);
+				animated = sqlite.col_int(st, 1) != 0;
+			}
+			sqlite.finalize(st);
+			if !found return json_error(c, 400, 10014, "Unknown Emoji");
+		}
 		st := sqlite.prepare(s.db, "SELECT 1 FROM messages WHERE id = ? AND channel = ?;");
 		sqlite.bind_all(st, message, channel);
 		found := sqlite.step(st) == .Row;
@@ -2708,15 +2830,12 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		changed = sqlite.changes(s.db) > 0;
 	}
 	if changed {
-		e := etf.map_builder(2,, temp);
-		etf.map_put(*e, "id", .{});
-		etf.map_put(*e, "name", etf.vstring(emoji));
 		d := etf.map_builder(7,, temp);
 		etf.map_put(*d, "user_id", snow(user));
 		etf.map_put(*d, "channel_id", snow(channel));
 		etf.map_put(*d, "message_id", snow(message));
 		etf.map_put(*d, "guild_id", snow(s.guild));
-		etf.map_put(*d, "emoji", etf.vmap(etf.map_done(*e)));
+		etf.map_put(*d, "emoji", reaction_emoji(emoji, animated));
 		etf.map_put(*d, "burst", etf.vbool(false));
 		etf.map_put(*d, "type", etf.vint(0));
 		broadcast(s, ifx add then "MESSAGE_REACTION_ADD" else "MESSAGE_REACTION_REMOVE", etf.vmap(etf.map_done(*d)));

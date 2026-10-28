@@ -122,7 +122,7 @@ emoji_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 					e := ui.box("e");
 					e.semantic_size = .[ui.px(AC_EMOJI), ui.px(AC_EMOJI)];
 					if item.uni >= 0 set_twemoji(e, emoji_toned(item.uni, frecency.skin_tone));
-					else set_remote_image(e, dc.custom_emoji_url(item.id, false, 48));
+					else set_remote_image(e, emoji_url(item.id, false, 48));
 					spacer(.X, 12);
 					label(tprint(":%:", item.name), .Medium, 14, T(ifx i == eac.sel then "--interactive-text-active" else "--interactive-text-default"), 18);
 					fill := ui.box("fill");

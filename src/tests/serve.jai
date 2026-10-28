@@ -725,6 +725,28 @@ main :: () {
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"icon\": null}", token);
 	check(status == 200 && contains(body, "\"icon\":null"), tprint("null removes the icon: % %", status, body));
 
+	// Custom emoji: the owner adds one, it is served, and members react with it as name:id.
+	emoji_path := tprint("/api/v9/guilds/%/emojis", gid);
+	status, body = rest("POST", emoji_path, tprint("{\"name\": \"blob\", \"image\": \"data:image/png;base64,%\"}", PNG_1PX), other_token);
+	check(status == 403, tprint("only the owner adds emoji: % %", status, body));
+	status, body = rest("POST", emoji_path, tprint("{\"name\": \"no way\", \"image\": \"data:image/png;base64,%\"}", PNG_1PX), token);
+	check(status == 400, tprint("an emoji name has no spaces: % %", status, body));
+	status, body = rest("POST", emoji_path, tprint("{\"name\": \"blob\", \"image\": \"data:image/png;base64,%\"}", PNG_1PX), token);
+	emoji_v, _ := etf.from_json(body);
+	emoji_id := field(emoji_v, "id").s;
+	check(status == 201 && field(emoji_v, "name").s == "blob" && emoji_id != "", tprint("the owner adds an emoji: % %", status, body));
+	status, body = rest("GET", tprint("/emojis/%.webp?size=48", emoji_id), "", "");
+	check(status == 200 && begins_with(body, "\x89PNG"), tprint("the emoji is served: %", status));
+	status, body = rest("POST", messages, "{\"content\": \"react here\"}", token);
+	react_v, _ := etf.from_json(body);
+	react_path := tprint("/api/v9/channels/%/messages/%/reactions", field(react_v, "channel_id").s, field(react_v, "id").s);
+	status, body = rest("PUT", tprint("%/blob\%3A%/@me", react_path, emoji_id), "", other_token);
+	check(status == 204, tprint("a member reacts with a custom emoji: % %", status, body));
+	status, body = rest("PUT", tprint("%/blob\%3A1/@me", react_path), "", other_token);
+	check(status == 400, tprint("an unknown custom emoji is refused: % %", status, body));
+	status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
+	check(contains(body, tprint("\"emoji\":{\"id\":\"%\",\"name\":\"blob\",\"animated\":false}", emoji_id)), tprint("the reaction names the custom emoji: %", body));
+
 	// Avatars: a member sets one, their messages carry it, it's served under its hash, and null removes it.
 	status, body = rest("PATCH", "/api/v9/users/@me", "{\"avatar\": \"data:image/png;base64,bm90IGFuIGltYWdl\"}", other_token);
 	check(status == 400, tprint("an avatar that isn't an image is refused: % %", status, body));

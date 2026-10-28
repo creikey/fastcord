@@ -246,7 +246,7 @@ pk_emoji_box :: (id: string, item: Pk_Emoji, size: float32, hovered: bool) -> *u
 	if item.uni < 0 {
 		b := ui.box(id);
 		b.semantic_size = .[ui.px(size), ui.px(size)];
-		set_remote_image(b, dc.custom_emoji_url(item.id, item.animated && hovered, 48));
+		set_remote_image(b, emoji_url(item.id, item.animated && hovered, 48));
 		return b;
 	}
 	tone := frecency.skin_tone;

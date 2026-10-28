@@ -200,7 +200,7 @@ emoji_inline :: (id: string, e: dc.Emoji, size: float32) -> *ui.Box {
 	if e.id != 0 {
 		b := ui.box(id);
 		b.semantic_size = .[ui.px(size), ui.px(size)];
-		set_remote_image(b, dc.custom_emoji_url(e.id, e.animated, 48));
+		set_remote_image(b, emoji_url(e.id, e.animated, 48));
 		return b;
 	}
 	return label(e.name, .Normal, size * 0.9, .{1, 1, 1, 1}, size);
@@ -217,7 +217,7 @@ draw_custom_emoji :: (sp: ui.Span, r: ui.Rect, opacity: float32) {
 	if draw_unicode_emoji_span(sp, r, opacity) return;
 	id := cast(dc.Snowflake)(cast(u64)(sp.user));
 	if id == 0 return;
-	im := image_get(dc.custom_emoji_url(id, false, 48));
+	im := image_get(emoji_url(id, false, 48));
 	tex := image_texture(im);
 	if tex == 0 return;
 	c := gfx.Color.{1, 1, 1, opacity};
