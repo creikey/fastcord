@@ -1,0 +1,10 @@
+vendor/rnnoise/src/denoise.c
+vendor/rnnoise/src/rnn.c
+vendor/rnnoise/src/pitch.c
+vendor/rnnoise/src/kiss_fft.c
+vendor/rnnoise/src/celt_lpc.c
+vendor/rnnoise/src/nnet.c
+vendor/rnnoise/src/nnet_default.c
+vendor/rnnoise/src/parse_lpcnet_weights.c
+vendor/rnnoise/src/rnnoise_data.c
+vendor/rnnoise/src/rnnoise_tables.c

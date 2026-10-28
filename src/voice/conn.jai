@@ -174,6 +174,8 @@ Conn :: struct {
     audio_started: bool;
     capture_on: bool;
     mic_waits: int;             // ticks in a row without a whole mic frame (audio thread)
+    denoise_on: bool;           // RNNoise on the mic (under mu)
+    denoiser: *void;            // RNNoise state, made on first use (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
     input_db: float32 = -127;   // level of the last mic frame (after gain)
     vad_open: bool;
@@ -276,6 +278,7 @@ voice_disconnect :: (c: *Conn) {
     array_free(c.experiments);
     free(c.external_ip);
     c.codec.encoder_destroy(c.encoder);
+    if c.denoiser fc_rnnoise_destroy(c.denoiser);
     DAVE.session_destroy(*c.dave);
     free(c.info.endpoint);
     free(c.info.token);
@@ -351,6 +354,12 @@ set_push_to_talk :: (c: *Conn, enabled: bool, pressed: bool, release_delay_ms :=
 set_input_gain :: (c: *Conn, gain: float32) {
     locks.guard(*c.mu);
     c.input_gain = clamp(gain, 0, 2);
+}
+
+// set_noise_suppression: RNNoise on the mic, independent of the OS's voice processing.
+set_noise_suppression :: (c: *Conn, on: bool) {
+    locks.guard(*c.mu);
+    c.denoise_on = on;
 }
 
 // input_level: last mic frame level in dBFS and whether the VAD is open (for meters).
@@ -1179,7 +1188,13 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     locks.lock(*c.mu);
     muted := c.self_mute || c.self_deaf;
     gain := c.input_gain;
+    denoise := c.denoise_on;
     locks.unlock(*c.mu);
+    if denoise {
+        if !c.denoiser c.denoiser = fc_rnnoise_create();
+        // 10 ms frames; RNNoise delays its output by one
+        if c.denoiser for 0..1 fc_rnnoise_process(c.denoiser, pcm.data + it * SAMPLES_PER_FRAME / 2);
+    }
     if gain != 1 for * pcm it.* = clamp(it.* * gain, -1, 1);
     active, db := vad_process(*c.vad, pcm);
     {
@@ -1505,3 +1520,8 @@ send_pli :: (c: *Conn, media_ssrc: u32) {
     locks.guard(*c.mu);
     c.stats.plis_sent += 1;
 }
+
+vendor :: #library,no_dll "../../build/fc_vendor";
+fc_rnnoise_create :: () -> *void #foreign vendor;
+fc_rnnoise_destroy :: (st: *void) #foreign vendor;
+fc_rnnoise_process :: (st: *void, pcm: *float32) -> float32 #foreign vendor;

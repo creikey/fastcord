@@ -13,6 +13,7 @@ Voice_Settings :: struct {
 	auto_sens: bool;
 	threshold_db: float32; // -100..0
 	processing: audio.Voice_Processing;
+	rnnoise: bool;
 	user_volume: Table(dc.Snowflake, float32); // 0..200 %
 	user_muted: Table(dc.Snowflake, bool);
 	// UI state
@@ -53,6 +54,7 @@ voice_settings_restore :: (p: *Persisted_Voice) {
 	vs.threshold_db = clamp(p.threshold_db, -100, 0);
 	vs.processing = .{p.echo, p.noise, p.agc};
 	audio.set_voice_processing(vs.processing);
+	vs.rnnoise = p.rnnoise;
 	vs.ptt_mode = p.mode == "PUSH_TO_TALK";
 	for enum_names(platform.Key) if it == p.ptt_key vs.ptt_key = cast(platform.Key) enum_values_as_s64(platform.Key)[it_index];
 	vs.ptt_delay_ms = clamp(cast(float32) p.ptt_delay_ms, 0, 2000);
@@ -81,6 +83,7 @@ voice_settings_snapshot :: (p: *Persisted_Voice) {
 	p.echo = vs.processing.echo_cancellation;
 	p.noise = vs.processing.noise_suppression;
 	p.agc = vs.processing.auto_gain_control;
+	p.rnnoise = vs.rnnoise;
 	p.mode = ifx vs.ptt_mode then "PUSH_TO_TALK" else "VOICE_ACTIVITY";
 	p.ptt_key = tprint("%", vs.ptt_key);
 	p.ptt_delay_ms = cast(int) vs.ptt_delay_ms;
@@ -102,6 +105,7 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 		voice.set_push_to_talk(conn, vs.ptt_mode, vs.ptt_held, cast(int)(vs.ptt_delay_ms));
 		voice.set_input_gain(conn, vs.input_volume / 100);
 		voice.set_input_sensitivity(conn, vs.auto_sens, vs.threshold_db);
+		voice.set_noise_suppression(conn, vs.rnnoise);
 		for v, uid: vs.user_volume { voice.set_user_volume(conn, cast(u64)(uid), v / 100); }
 		for m, uid: vs.user_muted { voice.set_user_mute(conn, cast(u64)(uid), m); }
 	}
@@ -235,6 +239,8 @@ voice_settings_page :: () {
 				changed |= toggle_row("noise", "Noise Suppression", "Suppress background noise from your mic.", *p.noise_suppression);
 				spacer(.Y, 8);
 				changed |= toggle_row("agc", "Automatic Gain Control", "", *p.auto_gain_control);
+				spacer(.Y, 8);
+				toggle_row("rnnoise", "RNNoise", "Open-source noise suppression run by fastcord. Works with the switches above off.", *vs.rnnoise);
 				if changed {
 					vs.processing = p;
 					audio.set_voice_processing(p);

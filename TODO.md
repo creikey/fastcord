@@ -127,7 +127,8 @@
 - [ ] Windows: gg sans never loads, so text falls back to Segoe UI (`text_dwrite_windows.jai` `native_font_load_memory` needs IDWriteFactory5's in-memory loader).
 - [ ] Windows, Linux: no compressed-audio decoding (`media/decode_none.jai`), so Ogg Opus voice messages and AAC video soundtracks play no sound; Linux also decodes no video frames. Windows: Media Foundation.
 - [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
-- [ ] Windows, Linux: no echo cancellation, noise suppression or AGC in voice (`set_voice_processing` stubs).
+- [ ] Windows, Linux: no echo cancellation or AGC in voice (`set_voice_processing` stubs); noise suppression only through the RNNoise toggle.
+- [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the RNNoise toggle can't be heard or seen there (`view_voice_settings.jai` meter path).
 - [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
 - [ ] macOS: the Metal backend never sets `gpu_ns`, so the bench has no GPU time there.
@@ -234,3 +235,4 @@
 - [x] Windows Resize: every rendered frame waits once on the swap chain's frame-latency waitable (`os_frame_wait`), including frames for input and inside the modal resize loop, so signals no longer pile up.
 - [x] Windows Resize: the swap chain uses `DXGI_SCALING_STRETCH`, so DWM stretches the last frame while resizing instead of leaving gaps.
 - [x] Voice (macOS): the mic no longer cuts out or goes quiet: VPIO's devices are pinned to 10 ms buffers (it ran them at 4096 frames, 85 ms bursts, which the send loop zero-padded and dropped), the audio thread sends only whole mic frames, and a call with every DSP switch off captures through AUHAL instead of VPIO bypass (27 dB quieter).
+- [x] Voice: optional RNNoise noise suppression on the mic (Voice & Video toggle, saved), on every platform and independent of the OS DSP (`vendor/rnnoise`, `tx_tick`).

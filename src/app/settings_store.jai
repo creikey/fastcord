@@ -24,6 +24,7 @@ Persisted_Voice :: struct {
 	echo: bool;
 	noise: bool;
 	agc: bool;
+	rnnoise: bool; // RNNoise on the mic (fastcord's own; the client offers Krisp)
 	mode: string; // "VOICE_ACTIVITY" | "PUSH_TO_TALK"
 	ptt_key: string; // platform.Key name
 	ptt_delay_ms: int;
