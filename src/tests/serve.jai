@@ -606,6 +606,33 @@ main :: () {
 	status, body = rest("DELETE", tprint("%/%", messages, field(spam, "id").s), "", other_token);
 	check(status == 204, tprint("a member deletes their own message: % %", status, body));
 
+	// The owner kicks and bans: either ends the member's sessions; an invite brings a kicked member back,
+	// but not a banned one until the ban is lifted. Members can't moderate.
+	{
+		members := tprint("/api/v9/guilds/%/members/%", gid, other_id);
+		bans := tprint("/api/v9/guilds/%/bans/%", gid, other_id);
+		status, body = rest("DELETE", tprint("/api/v9/guilds/%/members/%", gid, field(said, "author", "id").s), "", other_token);
+		check(status == 403, tprint("a member can't kick: % %", status, body));
+		status, body = rest("DELETE", members, "", token);
+		check(status == 204, tprint("the owner kicks: % %", status, body));
+		status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
+		check(status == 401, tprint("a kick ends the member's session: % %", status, body));
+		status, body = rest("DELETE", members, "", token);
+		check(status == 404, tprint("a kicked member can't be kicked again: % %", status, body));
+		other_token, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+		check(ostatus == 200, tprint("an invite brings a kicked member back: % %", ostatus, omessage));
+		status, body = rest("PUT", bans, "{}", token);
+		check(status == 204, tprint("the owner bans: % %", status, body));
+		status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
+		check(status == 401, tprint("a ban ends the member's session: % %", status, body));
+		_, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+		check(ostatus == 403, tprint("a banned member's key can't rejoin: % %", ostatus, omessage));
+		status, body = rest("DELETE", bans, "", token);
+		check(status == 204, tprint("the owner lifts the ban: % %", status, body));
+		other_token, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+		check(ostatus == 200, tprint("an invite works again once the ban is lifted: % %", ostatus, omessage));
+	}
+
 	// A member keeps only their newest sessions: logging in that many times more ends the first one.
 	{
 		status, body = rest("GET", tprint("%?limit=1", messages), "", token);

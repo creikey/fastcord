@@ -56,9 +56,9 @@ hosted_frame :: () {
 					if app.client == old app.client = h.client;
 					client_release(old);
 				}
-			} else if !h.joined || h.status == 404 {
-				// A first join that fails, or a server that no longer knows us and whose invite is dead, is
-				// dropped, so settings.json doesn't keep it and a corrected invite can be pasted.
+			} else if !h.joined || h.status == 404 || h.status == 403 {
+				// A first join that fails, a server that no longer knows us and whose invite is dead, or one
+				// that banned us, is dropped, so settings.json doesn't keep it and a corrected invite can be pasted.
 				toast_show(tprint("Couldn't join %: %", h.inv.host, h.error), false);
 				if h.client {
 					if app.client == h.client {

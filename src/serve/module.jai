@@ -74,6 +74,7 @@ open :: (path: string) -> *Server, bool {
 	if !sqlite.exec(db, SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
@@ -332,7 +333,7 @@ meta_put :: (s: *Server, k: string, v: string) -> bool { return meta_put(s, k, c
 // Users, channels and messages have Discord-shaped snowflake IDs, since the client reads times from them.
 SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user);
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER);
@@ -434,13 +435,16 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 		locks.guard(*s.db_mu);
 		if !sqlite.exec(s.db, "BEGIN IMMEDIATE;") return json_error(c, 500, 0, "500: Internal Server Error");
 		user: s64;
-		gone, joined := false, false;
-		st := sqlite.prepare(s.db, "SELECT id, left FROM users WHERE root = ?;");
+		gone, joined, banned := false, false, false;
+		st := sqlite.prepare(s.db, "SELECT id, left, banned FROM users WHERE root = ?;");
 		sqlite.bind(st, 1, cast([]u8) root);
-		if sqlite.step(st) == .Row user, gone = sqlite.col_int(st, 0), sqlite.col_int(st, 1) != 0;
+		if sqlite.step(st) == .Row user, gone, banned = sqlite.col_int(st, 0), sqlite.col_int(st, 1) != 0, sqlite.col_int(st, 2) != 0;
 		sqlite.finalize(st);
 		status, code, message := 0, 0, "";
-		if !user || gone {
+		if banned {
+			status, code, message = 403, 40007, "The user is banned from this guild.";
+			user = 0;
+		} else if !user || gone {
 			name := trim(field("name"));
 			owner := false;
 			st = sqlite.prepare(s.db, tprint("SELECT owner FROM invites WHERE code = ? AND %;", INVITE_LIVE));
@@ -600,6 +604,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "DELETE" && req.path == tprint("/api/v9/users/@me/guilds/%", c.server.guild) {
 			if !leave(c, req) return;
+			continue;
+		}
+		if begins_with(req.path, tprint("/api/v9/guilds/%/members/", c.server.guild)) || begins_with(req.path, tprint("/api/v9/guilds/%/bans/", c.server.guild)) {
+			if !moderate(c, req) return;
 			continue;
 		}
 		if !json_error(c, 404, 0, "404: Not Found") return;
@@ -1283,15 +1291,60 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 	{
 		locks.guard(*s.db_mu);
 		if owner_id(s) == user return json_error(c, 400, 50055, "Invalid Guild");
-		ok := sqlite.exec(s.db, "BEGIN;")
-			&& sqlite.run(s.db, "UPDATE users SET left = 1 WHERE id = ?;", user)
-			&& sqlite.run(s.db, "DELETE FROM sessions WHERE user = ?;", user)
-			&& sqlite.exec(s.db, "COMMIT;");
-		if !ok {
-			sqlite.exec(s.db, "ROLLBACK;");
-			return json_error(c, 500, 0, "500: Internal Server Error");
-		}
+		if !remove_member_locked(s, user, banned = false) return json_error(c, 500, 0, "500: Internal Server Error");
 	}
+	removed(s, user);
+	return respond(c, 204, json = false);
+}
+
+// DELETE /guilds/{id}/members/{user} kicks, PUT /guilds/{id}/bans/{user} bans and DELETE unbans, for the
+// owner. Both end the member's sessions and gateways as a leave does; a ban is on their key, so no invite
+// lets them back until it's lifted.
+moderate :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	parts := split(req.path, "/",, temp); // "", api, v9, guilds, {id}, members|bans, {user}
+	if parts.count != 7 return json_error(c, 404, 0, "404: Not Found");
+	ban := parts[5] == "bans";
+	if !(ban && (req.method == "PUT" || req.method == "DELETE")) && !(!ban && req.method == "DELETE") return json_error(c, 405, 0, "405: Method Not Allowed");
+	target, tok := string_to_int(parts[6], T = s64);
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !tok || target == user return json_error(c, 403, 50013, "Missing Permissions");
+		left, banned := 1, 0;
+		st := sqlite.prepare(s.db, "SELECT left, banned FROM users WHERE id = ?;");
+		sqlite.bind(st, 1, target);
+		found := sqlite.step(st) == .Row;
+		if found left, banned = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10013, "Unknown User");
+		if ban && req.method == "DELETE" {
+			if !banned return json_error(c, 404, 10026, "Unknown Ban");
+			if !sqlite.run(s.db, "UPDATE users SET banned = 0 WHERE id = ?;", target) return json_error(c, 500, 0, "500: Internal Server Error");
+			return respond(c, 204, json = false);
+		}
+		if !ban && left return json_error(c, 404, 10007, "Unknown Member");
+		if !remove_member_locked(s, target, ban) return json_error(c, 500, 0, "500: Internal Server Error");
+	}
+	removed(s, target);
+	return respond(c, 204, json = false);
+}
+
+// remove_member_locked marks user gone (and banned) and ends their sessions; db_mu is held.
+remove_member_locked :: (s: *Server, user: s64, banned: bool) -> bool {
+	ok := sqlite.exec(s.db, "BEGIN;")
+		&& sqlite.run(s.db, "UPDATE users SET left = 1, banned = banned OR ? WHERE id = ?;", cast(s64) banned, user)
+		&& sqlite.run(s.db, "DELETE FROM sessions WHERE user = ?;", user)
+		&& sqlite.exec(s.db, "COMMIT;");
+	if !ok sqlite.exec(s.db, "ROLLBACK;");
+	return ok;
+}
+
+// removed tells a member's gateways their guild is gone, and everyone else the member list changed.
+removed :: (s: *Server, user: s64) {
 	g := etf.map_builder(1,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
 	gone := etf.vmap(etf.map_done(*g));
@@ -1305,7 +1358,6 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 		}
 	}
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
-	return respond(c, 204, json = false);
 }
 
 // PATCH /api/v9/channels/{id} {name?, topic?} and DELETE /api/v9/channels/{id}, for the owner. The last
