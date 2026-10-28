@@ -785,6 +785,16 @@ main :: () {
 	check(status == 200, tprint("1400 CJK characters send: %", status));
 	status, body = rest("POST", slow_messages, tprint("{\"content\": \"%\"}", builder_to_string(*ascii)), token);
 	check(status == 400 && contains(body, "BASE_TYPE_MAX_LENGTH"), tprint("2001 characters don't: % %", status, body));
+	// A clock that steps back an hour still gives out rising IDs, so new messages sort last.
+	status, body = rest("POST", slow_messages, "{\"content\": \"before the step\"}", token);
+	before_v, _ := etf.from_json(body);
+	s.clock_offset_ms = -60 * 60 * 1000;
+	status, body = rest("POST", slow_messages, "{\"content\": \"after the step\"}", token);
+	s.clock_offset_ms = 0;
+	after_v, _ := etf.from_json(body);
+	before_id := string_to_int(field(before_v, "id").s, T = s64);
+	after_id := string_to_int(field(after_v, "id").s, T = s64);
+	check(status == 200 && before_id > 0 && after_id > before_id, tprint("IDs rise when the clock steps back: % % %", status, before_id, after_id));
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", slow), "", token);
 	check(status == 200, tprint("delete the slow channel: % %", status, body));
 

@@ -42,7 +42,8 @@ Server :: struct {
 	unfurl_stop: bool;
 	unfurl_thread: *Thread;
 	unfurl_any_address: bool; // Tests only: let link previews fetch from this machine.
-	seq: u32; // atomic; the low bits of snowflakes
+	last_id: s64; // Atomic: the last snowflake issued, so IDs keep rising when the clock steps back.
+	clock_offset_ms: s64; // Tests only: added to the clock snowflakes read.
 	guild: s64; // The guild ID the client sees.
 	name: string;
 	// Members' avatar hashes, for those who set one, so user_value needs no query. A leaf lock: nothing
@@ -149,6 +150,9 @@ open :: (path: string) -> *Server, bool {
 	s.guild = string_to_int(cast(string) meta_get(s, "guild_id"), T = s64);
 	s.name = copy_string(cast(string) meta_get(s, "name"));
 	if !s.guild { close(s); return null, false; }
+	st = sqlite.prepare(db, "SELECT max((SELECT coalesce(max(id), 0) FROM users), (SELECT coalesce(max(id), 0) FROM channels), (SELECT coalesce(max(id), 0) FROM attachments), (SELECT coalesce(max(max(id), coalesce(max(edited), 0), coalesce(max(pinned_at), 0)), 0) FROM messages));");
+	if sqlite.step(st) == .Row s.last_id = max(s.guild, sqlite.col_int(st, 0));
+	sqlite.finalize(st);
 	st = sqlite.prepare(db, "SELECT id, avatar FROM users WHERE avatar IS NOT NULL;");
 	while sqlite.step(st) == .Row table_set(*s.avatars, sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1)));
 	sqlite.finalize(st);
@@ -418,8 +422,13 @@ DISCORD_EPOCH_MS :: 1420070400000;
 NONCE_WINDOW_MS :: 5 * 60 * 1000;
 
 snowflake :: (s: *Server) -> s64 {
-	ms := to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) - DISCORD_EPOCH_MS;
-	return (ms << 22) | (atomic_add(*s.seq, 1) & 0xfff);
+	ms := to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) - DISCORD_EPOCH_MS + s.clock_offset_ms;
+	while true {
+		last := atomic_read(*s.last_id);
+		id := max(ms << 22, last + 1);
+		if compare_and_swap(*s.last_id, last, id) return id;
+	}
+	return 0;
 }
 
 unhex :: (s: string, out: []u8) -> bool {
