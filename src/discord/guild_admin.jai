@@ -689,3 +689,30 @@ api_error_message :: (body: V) -> string {
 	}
 	return fstr(m, "message");
 }
+
+// kick_member and ban_member: the user menu's Kick and Ban. The reason rides in X-Audit-Log-Reason,
+// URI-encoded as the client's HTTP layer sends it; Discord applies the result through GUILD_MEMBER_REMOVE.
+kick_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: string) {
+	j := job_new(.Api, .None);
+	j.method = "DELETE";
+	j.path = job_str(j, tprint("/guilds/%/members/%", guild_id, user_id));
+	audit_reason(j, reason);
+	job_submit(c, j);
+}
+
+ban_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: string) {
+	j := job_new(.Api, .None);
+	j.method = "PUT";
+	j.path = job_str(j, tprint("/guilds/%/bans/%", guild_id, user_id));
+	j.body = cast([]u8) job_str(j, "{\"delete_message_seconds\":0}");
+	j.content_type = "application/json";
+	audit_reason(j, reason);
+	job_submit(c, j);
+}
+
+audit_reason :: (j: *Job, reason: string) {
+	r := trim(reason);
+	if !r return;
+	j.extra = NewArray(1, http.Header,, job_alloc(j));
+	j.extra[0] = .{"x-audit-log-reason", job_str(j, uri_component(r))};
+}

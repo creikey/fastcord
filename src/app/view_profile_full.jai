@@ -559,6 +559,7 @@ user_context_menu :: () {
 	}
 	sn := server_nick_menu_item(uid);
 	if sn != "" { array_add(*items, sn); }
+	moderation_menu_items(uid, *items);
 	array_add(*items, "Copy Username");
 	if s.settings.developer_mode { array_add(*items, "Copy User ID"); }
 	W :: cast(float32) 188;
@@ -593,9 +594,12 @@ user_context_menu :: () {
 			sig := ui.signal(r);
 			{ ui.parent(r); defer ui.pop_parent();
 				spacer(.X, 8);
-				label(it, .Medium, 14, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
+				danger := begins_with(it, "Kick ") || begins_with(it, "Ban ");
+				label(it, .Medium, 14, ifx danger then T("--text-feedback-critical") else ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
 			}
-			if sig.clicked {
+			if sig.clicked && moderation_menu_click(uid, it) {
+				pf.menu_user = 0;
+			} else if sig.clicked {
 				if it == {
 				case "Profile";
 					profile_full_open(uid, app.view.guild);

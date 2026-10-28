@@ -1,0 +1,12 @@
+# Run with -fixture:tests/ui/chat.jsonl. The owner's user menu on another member offers Kick and Ban; each
+# opens a confirm with a reason.
+wait 5
+settle 1
+rclick 468 130
+settle 1
+expect_visible "Kick robin"
+expect_visible "Ban robin"
+click_text "Kick robin"
+settle 1
+expect_visible "Kick 'robin' from Server"
+expect_visible "Reason for Kick"

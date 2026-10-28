@@ -54,6 +54,7 @@ voice :: #import "voice";
 #load "icons.jai";
 #load "images.jai";
 #load "markdown.jai";
+#load "moderation.jai";
 #load "notify.jai";
 #load "pickers_data.jai";
 #load "pickers_emoji.jai";

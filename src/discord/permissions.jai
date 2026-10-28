@@ -121,6 +121,20 @@ can_set_nickname :: (s: *Store, guild_id: Snowflake, user_id: Snowflake) -> bool
 	perms := guild_permissions(s, guild_id);
 	if user_id == s.me return has_permission(perms, PERM_CHANGE_NICKNAME) || has_permission(perms, PERM_MANAGE_NICKNAMES);
 	if !has_permission(perms, PERM_MANAGE_NICKNAMES) return false;
+	return outranks(s, g, user_id);
+}
+
+// can_moderate: may we kick (PERM_KICK_MEMBERS) or ban (PERM_BAN_MEMBERS) user_id? Never ourselves or the
+// owner; otherwise the permission and, unless we own the guild, a highest role above theirs.
+can_moderate :: (s: *Store, guild_id: Snowflake, user_id: Snowflake, perm: u64) -> bool {
+	g := guild_get(s, guild_id);
+	if !g || user_id == s.me || !has_permission(guild_permissions(s, guild_id), perm) return false;
+	return outranks(s, g, user_id);
+}
+
+// outranks: we own g, or our highest role sits above user_id's (who isn't the owner).
+outranks :: (s: *Store, g: *Guild, user_id: Snowflake) -> bool {
+	guild_id := g.id;
 	if g.owner_id == s.me return true;
 	if g.owner_id == user_id return false;
 	highest :: (g: *Guild, roles: []Snowflake) -> int {
