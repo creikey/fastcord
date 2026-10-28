@@ -24,6 +24,7 @@
 
 GATEWAY_DEFAULT_URL :: "wss://gateway.discord.gg";
 GATEWAY_QUERY :: "/?encoding=etf&v=9&compress=zstd-stream";
+GATEWAY_QUERY_PLAIN :: "/?encoding=etf&v=9"; // self-hosted servers: uncompressed frames
 
 Op :: enum s64 {
 	Dispatch :: 0;
@@ -460,13 +461,23 @@ gateway_connect :: (g: *Gateway) {
 	path := advance(url, "wss://".count + host.count);
 	client_push_state(c, .Connecting);
 
-	stream, _, ok := dial_tls_stream(host, .["http/1.1"]);
+	stream: netio.Stream;
+	ok: bool;
+	hosted := c.cfg.hosted.host != "";
+	if hosted {
+		host, path = c.cfg.hosted.server_id, GATEWAY_QUERY_PLAIN;
+		stream, ok = dial_hosted(c.cfg.hosted);
+	} else {
+		stream, _, ok = dial_tls_stream(host, .["http/1.1"]);
+	}
 	if !ok {
 		gateway_on_closed(g, g.gen, false, 0);
 		return;
 	}
 	now := now_ms();
-	hdrs := gateway_ws_headers(c.id.platform, host, cookie_header(*c.jar, host, path, true, now));
+	hdrs: []http.Header;
+	if hosted hdrs = array_copy(http.Header.[.{"Upgrade", "websocket"}, .{"Connection", "Upgrade"}, .{"Sec-WebSocket-Version", "13"}, .{"Sec-WebSocket-Key", ""}],, temp);
+	else hdrs = gateway_ws_headers(c.id.platform, host, cookie_header(*c.jar, host, path, true, now));
 	key_raw: [16]u8;
 	crypto.random_bytes(key_raw);
 	for * hdrs if it.name == "Sec-WebSocket-Key" it.value = base64_encode(cast(string) key_raw,, temp);
@@ -640,7 +651,8 @@ gateway_schedule_teardown :: (g: *Gateway, gen: int, code: int) {
 // gateway_handle_frame: inflate (zstd-stream), unpack, act. Returns false on a decode error.
 gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
 	g.inflated.count = 0;
-	if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None return false;
+	if g.c.cfg.hosted.host array_add(*g.inflated, ..frame);
+	else if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None return false;
 	if !g.inflated return true;
 	pool := New(Flat_Pool);
 	v, derr := etf.decode(g.inflated,, pool_allocator(pool));

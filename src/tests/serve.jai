@@ -5,7 +5,9 @@
 #import "File_Utilities";
 #import "String";
 #import "Base64";
+#import "Hash_Table";
 crypto :: #import "crypto";
+discord :: #import "discord";
 keys :: #import "keys";
 etf :: #import "etf";
 http :: #import "http";
@@ -192,6 +194,32 @@ main :: () {
 	list, _ := etf.from_json(body);
 	check(status == 200 && list.kind == .List && list.list.count == 1 && field(list.list[0], "content").s == "hello", tprint("fetch: % %", status, body));
 	print("message: %\n", body);
+
+	// The real client on the plain profile: READY, the first page, then a message sent through it.
+	cid := string_to_int(channel, T = u64);
+	cl := discord.client_create(.{token = token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl);
+	pump :: () #expand { discord.client_poll(`cl); sleep_milliseconds(10); }
+	stored :: () -> []discord.Message #expand {
+		ok, l := table_find(*`cl.store.messages, `cid);
+		if !ok return .[];
+		return l.messages;
+	}
+	for 1..1000 { if cl.store.ready break; pump(); }
+	name := "";
+	if cl.store.guild_order.count {
+		has_g, g := table_find(*cl.store.guilds, cl.store.guild_order[0]);
+		if has_g name = g.name;
+	}
+	check(cl.store.ready && name == "server", tprint("client READY: % %", cl.store.ready, name));
+	discord.fetch_messages(cl, cid);
+	for 1..1000 { if stored().count == 1 break; pump(); }
+	check(stored().count == 1 && stored()[0].content == "hello", "client fetch");
+	discord.send_message(cl, cid, "from the client");
+	// The send's response and MESSAGE_CREATE both settle the optimistic message into one.
+	for 1..300 pump();
+	check(stored().count == 2 && stored()[1].content == "from the client" && stored()[1].author_id == cl.store.me, tprint("client send: %", stored().count));
+	discord.client_destroy(cl);
 	status, body = login(other, "", "Other");
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 

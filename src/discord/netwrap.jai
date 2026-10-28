@@ -12,3 +12,56 @@ dial_tls_stream :: (host: string, alpn: []string) -> netio.Stream, string, bool 
 	}
 	return tls.stream(sess), tls.negotiated_alpn(sess), true;
 }
+
+HOSTED_ALPN :: "fc/1";
+
+// dial_hosted: TCP + TLS 1.3 to a self-hosted server, accepting only its pinned certificate.
+dial_hosted :: (h: Hosted) -> netio.Stream, bool {
+	tcp, derr := netio.dial_tcp(h.host, h.port);
+	if derr != .None return .{}, false;
+	under := netio.tcp_stream(tcp);
+	sess, terr := tls.connect(under, .{alpn = .[HOSTED_ALPN], server_name = h.server_id, pin = h.pin});
+	if terr != .None {
+		netio.close(under);
+		return .{}, false;
+	}
+	return tls.stream(sess), true;
+}
+
+// hosted_round_trip carries REST to cfg.hosted over keep-alive HTTP/1.1. Only the token and the body's
+// type go out: the browser's headers, cookies and super properties are Discord's business alone.
+hosted_round_trip :: (data: *void, host: string, req_in: http.Request) -> http.Response, http.Error {
+	c := cast(*Client) data;
+	h: [..]http.Header;
+	h.allocator = temp;
+	for req_in.headers if equal_nocase(it.name, "authorization") || equal_nocase(it.name, "content-type") array_add(*h, it);
+	if req_in.method != "GET" && req_in.method != "HEAD" array_add(*h, .{"content-length", tprint("%", req_in.body.count)});
+	req := req_in;
+	req.headers = h;
+	req.authority = c.cfg.hosted.server_id;
+	for attempt: 0..1 {
+		conn: *http.H1_Conn;
+		locks.lock(*c.hosted_mu);
+		if c.hosted_idle.count conn = pop(*c.hosted_idle);
+		locks.unlock(*c.hosted_mu);
+		reused := conn != null;
+		if !conn {
+			s, ok := dial_hosted(c.cfg.hosted);
+			if !ok return .{}, .Io;
+			conn = New(http.H1_Conn,, c.allocator);
+			http.h1_init(conn, s,, c.allocator);
+		}
+		resp, err := http.h1_round_trip(conn, req);
+		if err == .None && conn.reusable {
+			locks.lock(*c.hosted_mu);
+			array_add(*c.hosted_idle, conn);
+			locks.unlock(*c.hosted_mu);
+			return resp, err;
+		}
+		http.h1_destroy(conn);
+		free(conn,, c.allocator);
+		// The server may have closed an idle connection before reading: try once more on a new one.
+		if !(reused && err == .Closed) return resp, err;
+	}
+	return .{}, .Io;
+}

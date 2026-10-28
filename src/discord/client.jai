@@ -30,6 +30,17 @@ Config :: struct {
 	disable_remote_auth: bool; // no QR code socket on the login page (tests)
 	initial_guild_id: Snowflake; // the route the window opens on (referer)
 	initial_channel_id: Snowflake;
+	hosted: Hosted; // a self-hosted server instead of Discord (zero: Discord)
+}
+
+// A self-hosted server (`fastcord -serve`), spoken to with the plain profile: REST and the gateway go to
+// host:port under the pinned certificate on ALPN fc/1, with the server ID as SNI. No compression, cookies,
+// browser headers, super properties, telemetry or startup burst.
+Hosted :: struct {
+	host: string;
+	port: int;
+	pin: [32]u8;      // BLAKE3 of the server's certificate, from the invite.
+	server_id: string; // 32 hex digits, from the invite.
 }
 
 // ---- events (network threads -> UI thread) ----
@@ -191,6 +202,8 @@ Client :: struct {
 	on_ws_close: (data: *void, code: int);
 	observer_data: *void;
 	auth: Auth; // login / logout (auth.jai)
+	hosted_mu: locks.Mutex;
+	hosted_idle: [..]*http.H1_Conn; // keep-alive connections to cfg.hosted (netwrap.jai)
 }
 
 client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
@@ -209,6 +222,12 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c.transport.override = cfg.round_tripper;
 	c.transport.h3 = cfg.h3;
 	c.transport.use_h3 = !cfg.disable_h3;
+	if cfg.hosted.host {
+		c.transport.override = .{c, hosted_round_trip};
+		c.transport.use_h3 = false;
+		c.cfg.disable_startup, c.cfg.disable_analytics, c.cfg.disable_remote_auth = true, true, true;
+		c.hosted_idle.allocator = c.allocator;
+	}
 	rate_limiter_init(*c.limiter, c.allocator);
 	store_init(*c.store, c.allocator);
 	feature_pool_retain(c);
@@ -286,6 +305,8 @@ client_destroy :: (c: *Client) {
 	for * c.events event_free(it);
 	array_free(c.events);
 	transport_destroy(*c.transport);
+	for c.hosted_idle { http.h1_destroy(it); free(it); }
+	array_free(c.hosted_idle);
 	cookie_jar_destroy(*c.jar);
 	rate_limiter_destroy(*c.limiter);
 	array_free(c.results);
