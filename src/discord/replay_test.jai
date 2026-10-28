@@ -1201,6 +1201,18 @@ reactors_fetch :: (t: *T) {
 	for run.r.ours if begins_with(it.key, "GET") && contains(it.key, "/reactions/") key = copy_string(it.key,, temp);
 	locks.unlock(*run.r.mu);
 	expect(t, ends_with(key, "/reactions/%F0%9F%94%A5?limit&type"), tprint("reactors request: %", key));
+	fetch_reactors(c, R_TEXT, msgs[0].id, "🔥", 0, false, 2, after = c.store.me);
+	remove_user_reaction(c, R_TEXT, msgs[0].id, "🔥", 0, false, c.store.me);
+	replay_settle(*run, 300);
+	locks.lock(*run.r.mu);
+	page, del := "", "";
+	for run.r.ours {
+		if begins_with(it.key, "GET") && contains(it.key, "after") page = copy_string(it.key,, temp);
+		if begins_with(it.key, "DELETE") && contains(it.key, "/reactions/") del = copy_string(it.key,, temp);
+	}
+	locks.unlock(*run.r.mu);
+	expect(t, ends_with(page, "?limit&after&type"), tprint("next page: %", page));
+	expect(t, ends_with(del, "/reactions/%F0%9F%94%A5/0/{id}?burst"), tprint("remove: %", del));
 }
 
 parity_gif_send :: (t: *T) {

@@ -1665,6 +1665,7 @@ reactors: struct {
 	burst: bool;
 	users: [..]dc.Snowflake;
 	loaded: bool;
+	paging: bool; // a later page is on its way
 	hover_key: u64; // the pill hovered, and since when: the fetch waits for a short hover
 	hover_since: float64;
 };
@@ -1721,7 +1722,9 @@ reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, 
 #scope_export
 
 reactors_receive :: (r: *dc.Feature_Result) {
-	if r.tag != reactors.seq || !r.ok return;
+	if r.tag != reactors.seq return;
+	reactors.paging = false;
+	if !r.ok return;
 	for dc.vlist(r.body) array_add(*reactors.users, dc.parse_user_into(store(), dc.vmap(it)));
 	reactors.loaded = true;
 }
@@ -1798,6 +1801,13 @@ view_reactions_modal :: () {
 	right.semantic_size = .[ui.fill(), ui.pct(1)];
 	right.layout_axis = .Y;
 	ui.signal(right);
+	// The next 100 once scrolled near the end of a full page.
+	if reactors.loaded && !reactors.paging && reactors.users.count > 0 && reactors.users.count % 100 == 0 && app.client && right.content_size.y > 0 && right.view_off.y + (right.rect.y1 - right.rect.y0) > right.content_size.y - 200 {
+		reactors.paging = true;
+		dc.fetch_reactors(app.client, m.channel_id, m.id, sel_emoji.name, sel_emoji.id, sel_burst, reactors.seq, after = peek(reactors.users));
+	}
+	moderate := can_manage_message(m) && dc.channel_get(store(), m.channel_id) && dc.channel_get(store(), m.channel_id).guild_id != 0;
+	drop := -1;
 	ui.parent(right); defer ui.pop_parent();
 	spacer(.Y, 8);
 	if !reactors.loaded {
@@ -1808,9 +1818,11 @@ view_reactions_modal :: () {
 		label("Loading...", .Normal, 14, T("--text-muted"), 18);
 	}
 	for uid, i: reactors.users {
-		r := row(tprint("vu%", i));
+		r := row(tprint("vu%", i), .Clickable | .Draw_Background | .Hot_Animation);
 		r.semantic_size = .[ui.pct(1), ui.px(44)];
 		r.cross_align = .Center;
+		r.style.bg_hot = T("--background-mod-subtle");
+		hovered := ui.signal(r).hovering;
 		ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 16);
 		avatar_box("av", uid, 24);
@@ -1821,6 +1833,20 @@ view_reactions_modal :: () {
 			spacer(.X, 6);
 			label(u.username, .Normal, 13, T("--text-muted"), 18);
 		}
+		if moderate && hovered {
+			filler(.X);
+			x := ui.box("remove", .Clickable);
+			x.semantic_size = .[ui.px(16), ui.px(16)];
+			xs := ui.signal(x);
+			set_icon(x, "x-small", ifx xs.hovering then T("--status-danger") else T("--interactive-icon-default"));
+			if xs.hovering tooltip_below("Remove Reaction", x.rect);
+			if xs.clicked drop = i;
+			spacer(.X, 16);
+		}
+	}
+	if drop >= 0 && net_action() {
+		dc.remove_user_reaction(app.client, m.channel_id, m.id, sel_emoji.name, sel_emoji.id, sel_burst, reactors.users[drop]);
+		array_ordered_remove_by_index(*reactors.users, drop);
 	}
 	for * e: app.ui.events {
 		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
