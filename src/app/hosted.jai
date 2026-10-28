@@ -48,6 +48,19 @@ hosted_frame :: () {
 			}
 		}
 		if h.client && h.client != app.client dc.client_poll(h.client);
+		// Leave Server ends in GUILD_DELETE for the server's one guild; forget the server with it, so the
+		// next start doesn't rejoin through the saved invite.
+		if h.client && h.client.store.ready && !h.client.store.guild_order.count {
+			if app.client == h.client {
+				app.client = app.discord;
+				go_home();
+			}
+			client_release(h.client);
+			free(h.invite);
+			free(h.name);
+			free(h);
+			remove h;
+		}
 	}
 	if app.discord && app.discord != app.client dc.client_poll(app.discord);
 }

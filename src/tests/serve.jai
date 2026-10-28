@@ -323,6 +323,28 @@ main :: () {
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", cid), "", token);
 	check(status == 400, tprint("the last channel stays: %", status));
 
+	// Categories: a channel made inside one carries parent_id, a category takes no messages, and deleting
+	// it leaves its channels uncategorized.
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"Big Stuff\", \"type\": 4}", token);
+	cat, _ := etf.from_json(body);
+	cat_id := field(cat, "id").s;
+	check(status == 201 && field(cat, "name").s == "Big Stuff" && field(cat, "type").i == 4, tprint("create a category: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), tprint("{\"name\": \"inside\", \"type\": 0, \"parent_id\": \"%\"}", cat_id), token);
+	inside, _ := etf.from_json(body);
+	inside_id := field(inside, "id").s;
+	check(status == 201 && field(inside, "parent_id").s == cat_id, tprint("create a channel in a category: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), tprint("{\"name\": \"x\", \"type\": 2}"), token);
+	check(status == 400, tprint("no voice channels yet: %", status));
+	status, body = rest("POST", tprint("/api/v9/channels/%/messages", cat_id), "{\"content\": \"x\"}", token);
+	check(status == 404, tprint("a category takes no messages: %", status));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", cat_id), "", token);
+	check(status == 200, tprint("delete a category: % %", status, body));
+	in_id := string_to_int(inside_id, T = discord.Snowflake);
+	for 1..300 { ic := discord.channel_get(*cl.store, in_id); if ic && !ic.parent_id break; pump(); }
+	ic := discord.channel_get(*cl.store, in_id);
+	check(ic && !ic.parent_id, "a deleted category's channels stay, uncategorized");
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", inside_id), "", token);
+
 	// A member's invite, as the Invite modal makes it; opening the modal again gets the same one.
 	made := discord.create_invite(cl, cid,, context.default_allocator);
 	again := discord.create_invite(cl, cid,, context.default_allocator);
@@ -387,6 +409,97 @@ main :: () {
 	check(found(tprint("author_id=%&content=hi", other_id)) == 1, "search filters combine");
 	check(found("content=%22unbalanced") == 0, "search quotes typed text");
 	check(found("has=link") == 0, "search has");
+
+	// Leaving: the owner can't; Other's client loses the guild, their token dies, and only an invite
+	// brings them back.
+	status, body = rest("DELETE", tprint("/api/v9/users/@me/guilds/%", gid), "", token);
+	check(status == 400, tprint("the owner can't leave: % %", status, body));
+	cl3 = discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl3);
+	for 1..1000 { if cl3.store.ready break; discord.client_poll(cl3); sleep_milliseconds(10); }
+	discord.leave_guild(cl3, gid);
+	for 1..1000 { if !cl3.store.guild_order.count break; discord.client_poll(cl3); sleep_milliseconds(10); }
+	check(cl3.store.ready && !cl3.store.guild_order.count, "leaving deletes the guild on the member's gateway");
+	discord.client_destroy(cl3);
+	status, body = rest("GET", messages, "", other_token);
+	check(status == 401, tprint("a member who left loses their session: %", status));
+	status, body = login(other, "", "Other");
+	check(status == 404, tprint("a member who left needs an invite: % %", status, body));
+	other_token, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+	status, body = rest("GET", messages, "", other_token);
+	check(other_token.count == 64 && status == 200, tprint("rejoin by invite: % % %", ostatus, omessage, status));
+
+	// Change Nickname renames the member everywhere, old messages included; an empty one is refused.
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%/members/@me", gid), "{\"nick\": \" \"}", other_token);
+	check(status == 400, tprint("an empty nickname is refused: % %", status, body));
+	cl4 := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl4);
+	for 1..1000 { if cl4.store.ready break; discord.client_poll(cl4); sleep_milliseconds(10); }
+	discord.set_server_nickname(cl4, gid, cl4.store.me, "Renamed");
+	for 1..1000 {
+		m := discord.member_get(*cl4.store, gid, cl4.store.me);
+		if discord.user_name(*cl4.store, cl4.store.me) == "Renamed" && m && !m.nick break;
+		discord.client_poll(cl4);
+		sleep_milliseconds(10);
+	}
+	m := discord.member_get(*cl4.store, gid, cl4.store.me);
+	check(discord.user_name(*cl4.store, cl4.store.me) == "Renamed" && m && !m.nick, "Change Nickname renames the member");
+	discord.client_destroy(cl4);
+	status, body = rest("GET", messages, "", token);
+	check(status == 200 && contains(body, "\"Renamed\"") && !contains(body, "\"Other\""), tprint("old messages show the new name: %", body));
+
+	// Pages around and after a message, newest first like every page.
+	ids :: (query: string) -> string #expand {
+		status, body := rest("GET", tprint("%?%", messages, query), "", token);
+		v, _ := etf.from_json(body);
+		if status != 200 || v.kind != .List return tprint("% %", status, body);
+		b: String_Builder;
+		b.allocator = temp;
+		for v.list print_to_builder(*b, "% ", field(it, "id").s);
+		return builder_to_string(*b,, temp);
+	}
+	all := split(ids("limit=50"), " ",, temp);
+	check(all.count >= 5, "enough messages to page");
+	if all.count >= 5 {
+		got := ids(tprint("around=%&limit=3", all[1]));
+		check(got == tprint("% % % ", all[0], all[1], all[2]), tprint("around: %", got));
+		got = ids(tprint("after=%&limit=2", all[3]));
+		check(got == tprint("% % ", all[1], all[2]), tprint("after: %", got));
+	}
+
+	// Mark As Read (ack-bulk) is kept: a later session starts with the channel read.
+	status, body = rest("POST", messages, "{\"content\": \"unread\"}", token);
+	unread, _ := etf.from_json(body);
+	unread_id := string_to_int(field(unread, "id").s, T = discord.Snowflake);
+	cl5 := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl5);
+	for 1..1000 { if cl5.store.ready break; discord.client_poll(cl5); sleep_milliseconds(10); }
+	acked := discord.ack_guild(cl5, gid);
+	// Notification settings, too: each change merges into what the server keeps.
+	discord.set_guild_muted(cl5, gid, true);
+	discord.set_channel_muted(cl5, gid, cid, true);
+	discord.set_guild_notify_level(cl5, gid, discord.NOTIFY_MENTIONS);
+	for 1..100 { discord.client_poll(cl5); sleep_milliseconds(10); }
+	discord.client_destroy(cl5);
+	cl5 = discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl5);
+	for 1..1000 { if cl5.store.ready break; discord.client_poll(cl5); sleep_milliseconds(10); }
+	has_rs, rs = table_find(*cl5.store.read_states, cid);
+	check(acked >= 1 && has_rs && rs.last_message_id == unread_id, tprint("Mark As Read is kept: % % %", acked, has_rs, rs.last_message_id));
+	kept := table_find_pointer(*cl5.store.guild_settings, gid);
+	check(kept && kept.muted && kept.message_notifications == discord.NOTIFY_MENTIONS && array_find(kept.muted_channels, cid),
+		tprint("notification settings are kept: %", ifx kept then kept.* else .{}));
+	discord.client_destroy(cl5);
+
+	// The owner deletes anyone's message; a member deletes only their own.
+	status, body = rest("POST", messages, "{\"content\": \"spam\"}", other_token);
+	spam, _ := etf.from_json(body);
+	status, body = rest("DELETE", tprint("%/%", messages, field(said, "id").s), "", token);
+	check(status == 204, tprint("the owner deletes a member's message: % %", status, body));
+	status, body = rest("DELETE", tprint("%/%", messages, field(pinged, "id").s), "", other_token);
+	check(status == 403, tprint("a member can't delete the owner's message: % %", status, body));
+	status, body = rest("DELETE", tprint("%/%", messages, field(spam, "id").s), "", other_token);
+	check(status == 204, tprint("a member deletes their own message: % %", status, body));
 
 	serve.stop(s);
 	print("% failed\n", failed);
