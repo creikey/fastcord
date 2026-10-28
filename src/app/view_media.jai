@@ -517,13 +517,13 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					spacer(.Y, 16);
 					w := cast(float32) ifx e.video_w > 0 then e.video_w else e.thumbnail_w;
 					h := cast(float32) ifx e.video_h > 0 then e.video_h else e.thumbnail_h;
-					sc := min(1.0, min(400 / w, 300 / h));
+					sc := min(1.0, min(max_w / w, 300 / h));
 					video_player(embed_player_key(m, i), e.video_url, e.thumbnail_url, w * sc, h * sc);
 				} else if poster {
 					spacer(.Y, 16);
 					w := cast(float32) e.thumbnail_w;
 					h := cast(float32) e.thumbnail_h;
-					sc := min(400 / w, 300 / h);
+					sc := min(max_w / w, 300 / h);
 					th := media_box("poster", e.thumbnail_url, "", w * sc, h * sc);
 					th.style.radius = all4(4);
 					{ ui.parent(th); defer ui.pop_parent();
@@ -542,24 +542,26 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					spacer(.Y, 16);
 					w := cast(float32) e.image_w;
 					h := cast(float32) e.image_h;
-					sc := min(1.0, min(400 / w, 300 / h));
+					sc := min(1.0, min(max_w / w, 300 / h));
 					embed_image("img", e, w * sc, h * sc);
 				} else if images {
 					// the client's mosaic: 2 side by side, 3 as one tall left and two right, 4 in a 2x2
 					spacer(.Y, 16);
 					grid := row("grid");
-					grid.semantic_size = .[ui.px(400), ui.px(300)];
+					gw := min(400.0, max_w);
+					gh := gw * 0.75;
+					grid.semantic_size = .[ui.px(gw), ui.px(gh)];
 					ui.parent(grid); defer ui.pop_parent();
-					cw := 198.0;
+					cw := (gw - 4) / 2;
 					for col: 0..1 {
 						if col spacer(.X, 4);
 						c := ui.box(tprint("c%", col));
-						c.semantic_size = .[ui.px(cw), ui.px(300)];
+						c.semantic_size = .[ui.px(cw), ui.px(gh)];
 						c.layout_axis = .Y;
 						ui.parent(c); defer ui.pop_parent();
 						// column 0: image 0 (and 2 of 4); column 1: image 1 (and 2 of 3, 3 of 4)
 						second := ifx images.count == 4 then col + 2 else ifx images.count == 3 && col == 1 then 2 else -1;
-						ch := ifx second >= 0 then 148.0 else 300.0;
+						ch := ifx second >= 0 then (gh - 4) / 2 else gh;
 						embed_image(tprint("g%", col), images[col], cw, ch, cover = true);
 						if second >= 0 {
 							spacer(.Y, 4);
