@@ -2272,9 +2272,10 @@ leave :: (c: *Conn, req: http.Request) -> bool {
 	return respond(c, 204, json = false);
 }
 
-// DELETE /guilds/{id}/members/{user} kicks, PUT /guilds/{id}/bans/{user} bans and DELETE unbans, for the
-// owner. Both end the member's sessions and gateways as a leave does; a ban is on their key, so no invite
-// lets them back until it's lifted.
+// DELETE /guilds/{id}/members/{user} kicks, PUT /guilds/{id}/bans/{user} {delete_message_seconds?} bans and
+// DELETE unbans, for the owner. Both end the member's sessions and gateways as a leave does; a ban is on
+// their key, so no invite lets them back until it's lifted. A ban can also delete what they sent in the
+// last week at most, as on Discord, sent to each channel as one MESSAGE_DELETE_BULK.
 moderate :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -2285,6 +2286,19 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 	ban := parts[5] == "bans";
 	if !(ban && (req.method == "PUT" || req.method == "DELETE")) && !(!ban && req.method == "DELETE") return json_error(c, 405, 0, "405: Method Not Allowed");
 	target, tok := string_to_int(parts[6], T = s64);
+	history := 0;
+	if ban && req.method == "PUT" && req.body.count {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		secs, has := etf.map_get(v.map, "delete_message_seconds");
+		if has && secs.kind != .Nil {
+			if secs.kind != .Int || secs.i < 0 || secs.i > 604800 return json_error(c, 400, 50035, "Invalid Form Body");
+			history = cast(int) secs.i;
+		}
+	}
+	Gone :: struct { channel: s64; ids: [..]s64; }
+	gone: [..]Gone;
+	gone.allocator = temp;
 	{
 		locks.guard(*s.db_mu);
 		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
@@ -2302,9 +2316,42 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 			return respond(c, 204, json = false);
 		}
 		if !ban && left return json_error(c, 404, 10007, "Unknown Member");
+		if history {
+			st = sqlite.prepare(s.db, "SELECT id, channel FROM messages WHERE author = ? AND id >= ? ORDER BY channel, id;");
+			sqlite.bind_all(st, target, (now_ms(s) - history * 1000) << 22);
+			while sqlite.step(st) == .Row {
+				channel := sqlite.col_int(st, 1);
+				if !gone.count || gone[gone.count - 1].channel != channel {
+					g := array_add(*gone);
+					g.channel = channel;
+					g.ids.allocator = temp;
+				}
+				array_add(*gone[gone.count - 1].ids, sqlite.col_int(st, 0));
+			}
+			sqlite.finalize(st);
+			ok := sqlite.exec(s.db, "BEGIN;");
+			for g: gone for g.ids if ok {
+				ok = sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", it)
+					&& sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", it)
+					&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", it)
+					&& sqlite.run(s.db, "DELETE FROM attachments WHERE message = ?;", it)
+					&& sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", it);
+			}
+			if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+		}
 		if !remove_member_locked(s, target, ban) return json_error(c, 500, 0, "500: Internal Server Error");
 	}
 	removed(s, target);
+	for g: gone {
+		ids: [..]etf.Value;
+		ids.allocator = temp;
+		for g.ids array_add(*ids, snow(it));
+		d := etf.map_builder(3,, temp);
+		etf.map_put(*d, "ids", etf.vlist(ids));
+		etf.map_put(*d, "channel_id", snow(g.channel));
+		etf.map_put(*d, "guild_id", snow(s.guild));
+		broadcast(s, "MESSAGE_DELETE_BULK", etf.vmap(etf.map_done(*d)));
+	}
 	return respond(c, 204, json = false);
 }
 

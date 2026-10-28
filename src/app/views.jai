@@ -1340,7 +1340,10 @@ overlays :: () {
 	if edit_menu_state.open { edit_menu(); }
 	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
-	if modr.user != 0 { moderation_modal(); }
+	if modr.user != 0 {
+		moderation_modal();
+		if modr.user != 0 && modr.history_open ban_history_list();
+	}
 	if tsg.channel != 0 { timestamp_gen_modal(); }
 	if shortcuts_open { shortcuts_modal(); }
 	if view_reactions.msg != 0 { view_reactions_modal(); }

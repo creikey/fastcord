@@ -735,11 +735,11 @@ kick_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: str
 	job_submit(c, j);
 }
 
-ban_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: string) {
+ban_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: string, delete_message_seconds := 0) {
 	j := job_new(.Api, .None);
 	j.method = "PUT";
 	j.path = job_str(j, tprint("/guilds/%/bans/%", guild_id, user_id));
-	j.body = cast([]u8) job_str(j, "{\"delete_message_seconds\":0}");
+	j.body = cast([]u8) job_str(j, tprint("{\"delete_message_seconds\":%}", delete_message_seconds));
 	j.content_type = "application/json";
 	audit_reason(j, reason);
 	job_submit(c, j);

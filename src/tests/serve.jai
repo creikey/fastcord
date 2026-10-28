@@ -1035,8 +1035,13 @@ main :: () {
 		check(status == 404, tprint("a kicked member can't be kicked again: % %", status, body));
 		other_token, ostatus, omessage = serve.member_login(member_invite, other, "Other");
 		check(ostatus == 200, tprint("an invite brings a kicked member back: % %", ostatus, omessage));
-		status, body = rest("PUT", bans, "{}", token);
+		status, body = rest("POST", messages, "{\"content\": \"flood\"}", other_token);
+		status, body = rest("PUT", bans, "{\"delete_message_seconds\": 604801}", token);
+		check(status == 400, tprint("a ban deletes a week of messages at most: % %", status, body));
+		status, body = rest("PUT", bans, "{\"delete_message_seconds\": 3600}", token);
 		check(status == 204, tprint("the owner bans: % %", status, body));
+		status, body = rest("GET", tprint("%?limit=5", messages), "", token);
+		check(status == 200 && !contains(body, "flood"), tprint("a ban deletes the member's last hour of messages: %", body));
 		status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
 		check(status == 401, tprint("a ban ends the member's session: % %", status, body));
 		_, ostatus, omessage = serve.member_login(member_invite, other, "Other");

@@ -10,3 +10,20 @@ click_text "Kick robin"
 settle 1
 expect_visible "Kick 'robin' from Server"
 expect_visible "Reason for Kick"
+# Ban also offers to delete their recent messages, from a dropdown.
+key escape
+settle 1
+rclick 468 130
+settle 1
+click_text "Ban robin"
+settle 1
+expect_visible "Delete Message History"
+click_text "Don't Delete Any"
+settle 1
+click_text "Previous 24 Hours"
+settle 1
+expect_not_visible "Previous 7 Days"
+expect_visible "Previous 24 Hours"
+click_text "Previous 24 Hours"
+settle 1
+expect_visible "Previous 7 Days"

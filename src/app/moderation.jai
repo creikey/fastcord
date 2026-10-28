@@ -6,7 +6,15 @@ Moderation :: struct {
 	guild: dc.Snowflake;
 	ban: bool;
 	ed: ui.Editor;
+	history: int; // Ban: an index into BAN_HISTORY, how much of their recent messages goes too.
+	history_open: bool;
+	history_anchor: ui.Rect;
 }
+
+BAN_HISTORY :: struct { secs: int; name: string; }.[
+	.{0, "Don't Delete Any"}, .{3600, "Previous Hour"}, .{21600, "Previous 6 Hours"}, .{43200, "Previous 12 Hours"},
+	.{86400, "Previous 24 Hours"}, .{259200, "Previous 3 Days"}, .{604800, "Previous 7 Days"},
+];
 
 modr: Moderation;
 
@@ -25,6 +33,7 @@ moderation_menu_click :: (uid: dc.Snowflake, item: string) -> bool {
 	ban := begins_with(item, "Ban ");
 	if !ban && !begins_with(item, "Kick ") return false;
 	modr.user, modr.guild, modr.ban = uid, app.view.guild, ban;
+	modr.history, modr.history_open = 0, false;
 	ui.editor_set_text(*modr.ed, "");
 	return true;
 }
@@ -110,10 +119,37 @@ moderation_modal :: () {
 			spacer(.X, 12);
 			res := text_field("field", *modr.ed, "", true, 16, 20, 10, T("--input-placeholder-text-default"));
 			if res == .Submit confirm = true;
-			if res == .Escape modr.user = 0;
+			if res == .Escape && !modr.history_open modr.user = 0;
 			spacer(.X, 12);
 		}
 		spacer(.X, PAD);
+	}
+	if modr.ban {
+		spacer(.Y, 16);
+		text_row("hlbl", "Delete Message History", .Semibold, 14, 18, T("--text-strong"));
+		spacer(.Y, 8);
+		hr := row("histrow");
+		hr.semantic_size = .[ui.pct(1), ui.px(40)];
+		{ ui.parent(hr); defer ui.pop_parent();
+			spacer(.X, PAD);
+			dd := row("history", .Draw_Background | .Draw_Border | .Clickable);
+			dd.semantic_size = .[ui.fill(), ui.px(40)];
+			dd.style.bg = T("--input-background-default");
+			dd.style.border = 1;
+			dd.style.border_color = ifx modr.history_open then T("--input-border-active") else T("--input-border-default");
+			dd.style.radius = all4(8);
+			dd.hover_cursor = .Pointer;
+			if ui.signal(dd).clicked modr.history_open = !modr.history_open;
+			modr.history_anchor = dd.rect;
+			{ ui.parent(dd); defer ui.pop_parent();
+				spacer(.X, 12);
+				label(BAN_HISTORY[modr.history].name, .Normal, 16, T("--text-strong"), 20);
+				filler(.X);
+				icon("chev", ifx modr.history_open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
+				spacer(.X, 12);
+			}
+			spacer(.X, PAD);
+		}
 	}
 	spacer(.Y, PAD);
 	btns := row("btns", .Draw_Background);
@@ -130,15 +166,63 @@ moderation_modal :: () {
 	if confirm && modr.user != 0 {
 		reason := ui.editor_text(*modr.ed);
 		if net_action() {
-			if modr.ban dc.ban_member(app.client, modr.guild, modr.user, reason);
+			if modr.ban dc.ban_member(app.client, modr.guild, modr.user, reason, BAN_HISTORY[modr.history].secs);
 			else dc.kick_member(app.client, modr.guild, modr.user, reason);
 		}
 		modr.user = 0;
 	}
-	for * e: app.ui.events {
+	if !modr.history_open for * e: app.ui.events {
 		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
 			e.consumed = true;
 			modr.user = 0;
 		}
+	}
+}
+
+// The Delete Message History dropdown's list, over the modal. Drawn after it, outside its box, since a
+// floating box's position is relative to its parent.
+ban_history_list :: () {
+	r := modr.history_anchor;
+	if r.x1 <= r.x0 return;
+	for * e: app.ui.events {
+		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
+			e.consumed = true;
+			modr.history_open = false;
+		}
+	}
+	if outside_pressed("hist_out") {
+		modr.history_open = false;
+		return;
+	}
+	h := cast(float32) BAN_HISTORY.count * 36 + 8;
+	list := ui.box("histlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable);
+	list.semantic_size = .[ui.px(r.x1 - r.x0), ui.px(h)];
+	list.fixed_pos = .{r.x0, ifx r.y1 + 4 + h > app.ui.window.y then r.y0 - 4 - h else r.y1 + 4};
+	list.layout_axis = .Y;
+	list.style.bg = T("--background-surface-higher");
+	list.style.border = 1;
+	list.style.border_color = T("--border-subtle");
+	list.style.radius = all4(8);
+	list.style.shadow_color = .{0, 0, 0, 0.24};
+	list.style.shadow_blur = 16;
+	list.style.shadow_offset = .{0, 8};
+	ui.signal(list);
+	ui.parent(list); defer ui.pop_parent();
+	spacer(.Y, 4);
+	for opt, i: BAN_HISTORY {
+		ui.id_scope(cast(u64) i + 1);
+		defer ui.pop_seed();
+		sel := i == modr.history;
+		item := row("opt", .Clickable | .Draw_Background | .Hot_Animation);
+		item.semantic_size = .[ui.pct(1), ui.px(36)];
+		item.style.bg = ifx sel then T("--background-mod-normal") else .{};
+		item.style.bg_hot = T("--background-mod-normal");
+		if ui.signal(item).clicked {
+			modr.history = i;
+			modr.history_open = false;
+		}
+		ui.parent(item); defer ui.pop_parent();
+		spacer(.X, 12);
+		label(opt.name, ifx sel then .Semibold else .Normal, 16, T("--text-strong"), 20);
 	}
 }
