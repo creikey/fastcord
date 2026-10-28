@@ -676,6 +676,14 @@ script_command :: (path: string, f: []string, t: *float64) {
 		}
 		if att.notice != want script_fail(path, "expect_notice: want %, got %", want, att.notice);
 		return;
+	case "hosted_saved";
+		// hosted_saved <fc:// invite> <name...>: a server restored from settings.json under its saved name
+		names: Table(string, string);
+		inv := serve.parse_invite(f[1]);
+		table_set(*names, inv.id_hex, join(..array_view(f, 2), separator = " ",, temp));
+		hosted_restore(.[f[1]], *names);
+		deinit(*names);
+		return;
 	case "type";
 		platform.inject_event(.{kind = .Text, text = join_args(f)});
 	case "burst";

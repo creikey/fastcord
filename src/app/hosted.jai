@@ -6,6 +6,7 @@ Hosted_Server :: struct {
 	invite: string;    // The fc:// URL; inv points into it.
 	inv: serve.Invite;
 	name: string;      // The member name sent on the first join.
+	title: string;     // The server's name when last connected, kept in settings.json for while it is down.
 	thread: *Thread;   // The login, running until it finishes.
 	token: string;     // Set by the login thread before it finishes, with status and error.
 	status: int;       // The server's HTTP answer; 0 if it couldn't be reached.
@@ -76,7 +77,7 @@ hosted_frame :: () {
 				continue;
 			} else {
 				// A server we're in that is down or refusing for now: try again later, saying so once.
-				if !h.backoff toast_show(tprint("Couldn't reach %: %. Retrying.", h.inv.host, h.error), false);
+				if !h.backoff toast_show(tprint("Couldn't reach %: %% Retrying.", ifx h.title then h.title else h.inv.host, h.error, ifx ends_with(h.error, ".") then "" else "."), false);
 				h.backoff = clamp(h.backoff * 2, 5, 300);
 				h.retry_at = platform.time_now() + h.backoff;
 			}
@@ -102,6 +103,13 @@ hosted_frame :: () {
 			}
 		}
 		if h.client && h.client != app.client dc.client_poll(h.client);
+		if h.client && h.client.store.ready && h.client.store.guild_order.count {
+			g := dc.guild_get(*h.client.store, h.client.store.guild_order[0]);
+			if g && g.name != h.title {
+				free(h.title);
+				h.title = copy_string(g.name);
+			}
+		}
 		// Leave Server ends in GUILD_DELETE for the server's one guild; forget the server with it, so the
 		// next start doesn't rejoin through the saved invite.
 		if h.client && h.client.store.ready && !h.client.store.guild_order.count {
@@ -123,8 +131,21 @@ hosted_invites :: () -> []string {
 	return out;
 }
 
-hosted_restore :: (invites: []string) {
-	for invites if hosted_join(it) hosted[hosted.count - 1].joined = true;
+// names: each server's last known name by server ID, drawn while it is down.
+hosted_restore :: (invites: []string, names: *Table(string, string)) {
+	for invites if hosted_join(it) {
+		h := hosted[hosted.count - 1];
+		h.joined = true;
+		title := table_find_pointer(names, h.inv.id_hex);
+		if title h.title = copy_string(title.*);
+	}
+}
+
+hosted_names :: () -> Table(string, string) {
+	out: Table(string, string);
+	out.allocator = temp;
+	for hosted if it.title table_set(*out, it.inv.id_hex, it.title);
+	return out;
 }
 
 // The link Copy Link copies: discord.com's for Discord, and for a hosted server an fc:// link that keeps the
@@ -231,6 +252,7 @@ use_guild_client :: (gid: dc.Snowflake) -> *dc.Client {
 hosted_free :: (h: *Hosted_Server) {
 	free(h.invite);
 	free(h.name);
+	free(h.title);
 	free(h.error);
 	free(h.custom_sent);
 	free(h);

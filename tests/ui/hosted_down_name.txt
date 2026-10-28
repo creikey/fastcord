@@ -1,0 +1,11 @@
+# A saved self-hosted server that can't be reached keeps its saved name: its initials on the rail, greyed
+# out, and the name in the tooltip and the retry toast, not a generic icon and its host. Windows takes
+# about 2 s to refuse the connection.
+wait 5
+hosted_saved fc://0000000000000000000000000000000000000000000000000000000000000000@127.0.0.1:1/00000000000000000000000000000000/code Dingus Battle Two
+wait 5
+expect_visible "DBT"
+settle 3.5
+expect_visible "Couldn't reach Dingus Battle Two: Couldn't reach the server. Retrying."
+move_text "DBT"
+wait 10

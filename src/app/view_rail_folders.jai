@@ -232,12 +232,13 @@ rs: Rail_State;
 // retries now instead of waiting out the backoff.
 rail_hosted_down :: (h: *Hosted_Server) {
 	ui.id_scope(cast(u64) h); defer ui.pop_seed();
-	sig := rail_item("down", false, "", "server", 0);
+	sig := rail_item("down", false, guild_initials(h.title), ifx h.title then "" else "server", 0);
+	if sig.box sig.box.style.text_color = T("--text-muted");
 	if sig.clicked && h.retry_at h.retry_at = platform.time_now();
 	if !sig.hovering return;
 	why := ifx h.thread || !h.retry_at then "Connecting…" else ifx h.error then h.error else "Couldn't reach the server.";
 	ui.parent(ui.top_parent().last); defer ui.pop_parent();
-	tooltip_right(tprint("% · %", h.inv.host, why));
+	tooltip_right(tprint("% · %", ifx h.title then h.title else h.inv.host, why));
 }
 
 rail_dm :: (cid: dc.Snowflake) {
