@@ -73,7 +73,7 @@
 - [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
 - [ ] Media: Save Image goes straight to Downloads (`images.jai` `save_download`); the desktop client asks where to save with the system Save dialog.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
-- [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
+- [ ] Messages: no "Create Thread" button in the hover toolbar (the message menu has it).
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
@@ -351,3 +351,4 @@
 - [x] Reactions: hovering a pill shows who reacted ("A, B and 3 others reacted with :x:"), from GET .../reactions/{emoji}?limit=100&type= (`view_chat.jai` `reactors_tooltip`, `replay_test.jai` `reactors_fetch`).
 - [x] Reactions: the message menu's View Reactions lists each reaction (super ones first) and who reacted; the who-reacted tooltip waits for a 0.3 s hover (`view_chat.jai` `view_reactions_modal`, `tests/ui/view_reactions.txt`).
 - [x] Reactions: View Reactions loads the next 100 reactors when scrolled near the end, and moderators get an X on hover that removes someone's reaction (`features.jai` `remove_user_reaction`, `replay_test.jai` `reactors_fetch`).
+- [x] Messages: the message menu's Create Thread opens the thread form named after the message's first line and starts the thread from it (POST .../messages/{id}/threads; `view_threads_browser.jai` `thread_from_message`, `tests/ui/thread_from_message.txt`).

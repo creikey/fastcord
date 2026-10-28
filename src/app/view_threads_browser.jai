@@ -36,6 +36,33 @@ threads_browser_toggle :: (channel_id: dc.Snowflake, anchor: ui.Rect) {
 	}
 }
 
+// Public threads need CREATE_PUBLIC_THREADS and SEND_MESSAGES in the parent.
+can_create_thread :: (channel_id: dc.Snowflake) -> bool {
+	perms := dc.channel_permissions(store(), channel_id);
+	return (perms & dc.PERM_CREATE_PUBLIC_THREADS) != 0 && (perms & dc.PERM_SEND_MESSAGES) != 0;
+}
+
+// The message menu's Create Thread: the browser's create form, named after the message's first line.
+thread_from_message :: (m: *dc.Message, anchor: ui.Rect) {
+	if tb.channel != m.channel_id {
+		tb.channel = m.channel_id;
+		tb.requested, tb.loading, tb.has_more, tb.offset = false, false, false, 0;
+	}
+	tb.open = true;
+	tb.anchor = anchor;
+	tb.tab = .Active;
+	create_form_open("Message");
+	tb.from_msg = m.id;
+	name := m.content;
+	nl := find_index_from_left(name, #char "\n");
+	if nl >= 0 name.count = nl;
+	if name.count > 40 {
+		name.count = 40;
+		while name.count > 0 && (name[name.count] & 0xC0) == 0x80 name.count -= 1;
+	}
+	ui.editor_set_text(*tb.name, name);
+}
+
 threads_browser_receive :: (r: *dc.Feature_Result) {
 	if r.op == .Thread_Create {
 		thread_created(r);
@@ -219,23 +246,19 @@ Threads_Browser :: struct {
 	busy: bool;
 	tag: u64;
 	pending: string; // heap: first message of the thread being created
+	from_msg: dc.Snowflake; // the message the thread starts from (message menu), or 0
 }
 
 tb: Threads_Browser;
 
-// Public threads need CREATE_PUBLIC_THREADS and SEND_MESSAGES in the parent.
-can_create_thread :: (channel_id: dc.Snowflake) -> bool {
-	perms := dc.channel_permissions(store(), channel_id);
-	return (perms & dc.PERM_CREATE_PUBLIC_THREADS) != 0 && (perms & dc.PERM_SEND_MESSAGES) != 0;
-}
-
-create_form_open :: () {
+create_form_open :: (location := "Thread Browser Toolbar") {
 	tb.creating = true;
+	tb.from_msg = 0;
 	tb.busy = false;
 	ui.editor_set_text(*tb.name, "");
 	ui.editor_set_text(*tb.first, "");
 	tb.focus = 1;
-	if app.client != null dc.track_thread_creation_started(app.client, tb.channel, "Thread Browser Toolbar");
+	if app.client != null dc.track_thread_creation_started(app.client, tb.channel, location);
 }
 
 create_form :: () {
@@ -319,7 +342,7 @@ create_form :: () {
 	tb.tag += 1;
 	free(tb.pending);
 	tb.pending = copy_string(trim(ui.editor_text(*tb.first)));
-	dc.create_thread(app.client, tb.channel, name, tag = tb.tag);
+	dc.create_thread(app.client, tb.channel, name, location = ifx tb.from_msg then "Message" else "Thread Browser Toolbar", tag = tb.tag, message_id = tb.from_msg);
 }
 
 // The thread exists (201): open it and send the first message.

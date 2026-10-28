@@ -457,6 +457,8 @@ message_menu :: () {
 	in_chat := m != ma.loose;
 	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
 	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
+	mch := dc.channel_get(s, m.channel_id);
+	if in_chat && mch && mch.guild_id && !dc.is_thread(mch) && (mch.kind == .Guild_Text || mch.kind == .Guild_Announcement) && !(m.flags & 32) && !m.pending && can_create_thread(m.channel_id) array_add(*items, .{label = "Create Thread", icon = "thread"});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
 	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
@@ -553,6 +555,8 @@ message_menu :: () {
 					app.copy_selection = true; // after end(): the selection text needs this frame's boxes
 				case "Add Reaction";
 					app.reaction_target = m.id;
+				case "Create Thread";
+					thread_from_message(m, header_thread_rect);
 				case "View Reactions";
 					view_reactions.msg, view_reactions.sel = m.id, 0;
 				case "Edit Message";

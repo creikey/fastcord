@@ -60,17 +60,18 @@ THREAD_AUTO_ARCHIVE_MINUTES :: 4320;
 
 // create_thread: the thread browser's "Create" form (Enter). The reply (201) is
 // the thread channel; the app opens it and sends the first message with
-// location "thread_creation" (send_message).
-create_thread :: (c: *Client, parent_id: Snowflake, name: string, location := "Thread Browser Toolbar", tag: u64 = 0) {
+// location "thread_creation" (send_message). With message_id it starts the thread
+// from that message: POST /channels/{id}/messages/{mid}/threads, without a type.
+create_thread :: (c: *Client, parent_id: Snowflake, name: string, location := "Thread Browser Toolbar", tag: u64 = 0, message_id: Snowflake = 0) {
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "name", name);
-	json_kint(*w, "type", cast(s64) Channel_Type.Public_Thread);
+	if !message_id json_kint(*w, "type", cast(s64) Channel_Type.Public_Thread);
 	json_kint(*w, "auto_archive_duration", THREAD_AUTO_ARCHIVE_MINUTES);
 	json_kstr(*w, "location", location);
 	json_obj_end(*w);
-	f_submit(c, .{op = .Thread_Create, tag = tag, channel_id = parent_id, method = "POST", path = channel_path(parent_id, "/threads"), body = json_string(*w)});
+	f_submit(c, .{op = .Thread_Create, tag = tag, channel_id = parent_id, method = "POST", path = ifx message_id then channel_path(parent_id, "/messages/", snowflake_string(message_id), "/threads") else channel_path(parent_id, "/threads"), body = json_string(*w)});
 }
 
 // apply_created_thread puts the created thread (POST reply) into the store,
