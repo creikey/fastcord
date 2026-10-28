@@ -688,6 +688,26 @@ main :: () {
 	status, body = rest("GET", messages, "", token);
 	check(status == 200 && contains(body, "\"Renamed\"") && !contains(body, "\"Other\""), tprint("old messages show the new name: %", body));
 
+	// Server Settings: only the owner renames the server, and every member's guild follows.
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"name\": \"Taken Over\"}", other_token);
+	check(status == 403, tprint("only the owner renames the server: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"name\": \" x \"}", token);
+	check(status == 400, tprint("a one-letter server name is refused: % %", status, body));
+	member_cl := discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(member_cl);
+	for 1..1000 { if member_cl.store.ready break; discord.client_poll(member_cl); sleep_milliseconds(10); }
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"name\": \" Hangout \"}", token);
+	check(status == 200 && contains(body, "\"Hangout\""), tprint("the owner renames the server: % %", status, body));
+	for 1..1000 {
+		g := discord.guild_get(*member_cl.store, gid);
+		if g && g.name == "Hangout" break;
+		discord.client_poll(member_cl);
+		sleep_milliseconds(10);
+	}
+	renamed := discord.guild_get(*member_cl.store, gid);
+	check(renamed && renamed.name == "Hangout", "GUILD_UPDATE renames the server for members");
+	discord.client_destroy(member_cl);
+
 	// Pages around and after a message, newest first like every page.
 	ids :: (query: string) -> string #expand {
 		status, body := rest("GET", tprint("%?%", messages, query), "", token);

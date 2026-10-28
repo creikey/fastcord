@@ -538,6 +538,16 @@ delete_channel :: (c: *Client, channel_id: Snowflake) {
 	feature_submit(c, .Channel_Delete, "DELETE", channel_path(channel_id), channel_id = channel_id);
 }
 
+// PATCH /guilds/{id} {"name"}: only self-hosted servers offer it so far; GUILD_UPDATE applies it.
+edit_guild_name :: (c: *Client, guild_id: Snowflake, name: string) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "name", name);
+	json_obj_end(*w);
+	feature_submit(c, .Guild_Edit, "PATCH", tprint("/guilds/%", guild_id), json_string(*w), channel_id = guild_id);
+}
+
 // After a channel is created, saved or deleted the client refreshes the guild's
 // templates (their "unsynced" state): GET /guilds/{id}/templates (MANAGE_GUILD only).
 refresh_templates :: (c: *Client, guild_id: Snowflake) {

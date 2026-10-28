@@ -57,6 +57,23 @@ channel_settings_open :: (ch: *dc.Channel) {
 	if app.client != null dc.open_channel_settings(app.client, ch);
 }
 
+// server_settings_open: the owner's Server Settings on a self-hosted server, which so far holds only the name.
+server_settings_open :: (gid: dc.Snowflake) {
+	g := dc.guild_get(store(), gid);
+	if g == null return;
+	adm.modal = .Server_Settings;
+	adm.guild = gid;
+	adm.busy = false;
+	ui.editor_set_text(*adm.name, g.name);
+	set_error("");
+	adm.focus_field = true;
+}
+
+can_edit_server :: (gid: dc.Snowflake) -> bool {
+	g := dc.guild_get(store(), gid);
+	return on_hosted() && g != null && g.owner_id == store().me;
+}
+
 // channel_delete_open: Delete Channel / Category / Thread from a sidebar row menu. The
 // official confirm loads the guild's role member counts as it opens.
 channel_delete_open :: (th: *dc.Channel) {
@@ -128,6 +145,12 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 		if adm.modal != .Channel_Settings || r.channel_id != adm.channel return;
 		if r.ok {
 			adm.busy = false; // the page stays open, now saved
+			return;
+		}
+	case .Guild_Edit;
+		if adm.modal != .Server_Settings || r.channel_id != adm.guild return;
+		if r.ok {
+			admin_close();
 			return;
 		}
 	case .Channel_Delete;
@@ -276,6 +299,8 @@ guild_admin_overlays :: () {
 	case .Delete_Channel;
 		if adm.in_settings channel_settings_page();
 		delete_channel_modal();
+	case .Server_Settings;
+		server_settings_modal();
 	case .Notice;
 		notice_modal();
 	}
@@ -288,6 +313,7 @@ Admin_Modal :: enum u8 {
 	Create_Channel;
 	Channel_Settings;
 	Delete_Channel;
+	Server_Settings;
 	Notice;
 }
 
@@ -544,6 +570,51 @@ create_channel_modal :: () {
 		adm.busy = true;
 		set_error("");
 		dc.create_channel(app.client, adm.guild, adm.kind, dc.channel_name_normalize(name, text_named(adm.kind)), adm.channel);
+	}
+}
+
+server_settings_modal :: () {
+	g := dc.guild_get(store(), adm.guild);
+	if g == null || !adm_modal_begin("serversettings", 440, "Server Settings") {
+		admin_close();
+		return;
+	}
+	submit := false;
+	spacer(.Y, 24);
+	nl := row("namelbl");
+	nl.semantic_size = .[ui.pct(1), ui.px(20)];
+	{ ui.parent(nl); defer ui.pop_parent();
+		spacer(.X, 25);
+		label("Server Name", .Semibold, 16, T("--text-strong"), 20);
+	}
+	spacer(.Y, 8);
+	res := modal_field("name", *adm.name, g.name);
+	if res == .Submit submit = true;
+	if res == .Escape adm.modal = .None;
+	error_line();
+	spacer(.Y, 24);
+	name := trim(ui.editor_text(*adm.name));
+	ok := name.count >= 2 && name.count <= 100 && name != g.name && !adm.busy;
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
+	btns.style.child_gap = 8;
+	{ ui.parent(btns); defer ui.pop_parent();
+		spacer(.X, 25 - 8);
+		if wide_button("cancel", "Cancel", .Secondary) adm.modal = .None;
+		if wide_button("save", ifx adm.busy then "Saving..." else "Save Changes", .Primary, ok) submit = true;
+		spacer(.X, 25 - 8);
+	}
+	spacer(.Y, 24);
+	adm_modal_end();
+	if adm_escape() adm.modal = .None;
+	if adm.modal == .None {
+		admin_close();
+		return;
+	}
+	if submit && ok && net_action() {
+		adm.busy = true;
+		set_error("");
+		dc.edit_guild_name(app.client, adm.guild, name);
 	}
 }
 

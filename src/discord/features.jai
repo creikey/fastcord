@@ -532,6 +532,7 @@ Feature_Op :: enum u8 {
 	Channel_Create;
 	Channel_Edit;
 	Channel_Delete;
+	Guild_Edit;
 	Emoji_Upload;
 	Mark_Unread;
 	Pin;

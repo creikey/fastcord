@@ -445,6 +445,10 @@ guild_menu :: () {
 			invite_open(gid, 0, dc.INVITE_LOC_HEADER);
 			close = true;
 		}
+		if can_edit_server(gid) && menu_item("serversettings", "Server Settings", lead = "pencil", h = GM_HDR_ROW_H).clicked {
+			server_settings_open(gid);
+			close = true;
+		}
 		if can_manage_channels(gid) {
 			if menu_item("createchan", "Create Channel", lead = "circle-plus", h = GM_HDR_ROW_H).clicked {
 				create_channel_open(gid, 0);

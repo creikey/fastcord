@@ -633,6 +633,10 @@ serve_conn :: (c: *Conn) {
 			if !create_channel(c, req) return;
 			continue;
 		}
+		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%", c.server.guild) {
+			if !rename_guild(c, req) return;
+			continue;
+		}
 		if req.method == "PATCH" && req.path == "/api/v9/users/@me/guilds/settings" {
 			if !patch_guild_settings(c, req) return;
 			continue;
@@ -925,7 +929,7 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 
 	g := etf.map_builder(6,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
-	etf.map_put(*g, "name", etf.vstring(s.name));
+	etf.map_put(*g, "name", etf.vstring(copy_string(s.name,, temp)));
 	etf.map_put(*g, "member_count", etf.vint(members));
 	owner := owner_id(s);
 	if owner etf.map_put(*g, "owner_id", snow(owner));
@@ -1549,6 +1553,33 @@ create_thread :: (c: *Conn, req: http.Request, user: s64, parent: s64, message: 
 	return json_reply(c, 201, etf.vmap(etf.map_done(*m)));
 }
 
+// PATCH /api/v9/guilds/{id} {name}: the owner renames the server. s.name changes under db_mu, so readers
+// copy it while holding that lock.
+rename_guild :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	raw: etf.Value;
+	if err == .None && v.kind == .Map raw, _ = etf.map_get(v.map, "name");
+	name := ifx raw.kind == .String then trim(raw.s) else "";
+	if name.count < 2 || name.count > 100 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !meta_put(s, "name", name) return json_error(c, 500, 0, "500: Internal Server Error");
+		free(s.name);
+		s.name = copy_string(name);
+	}
+	g := etf.map_builder(2,, temp);
+	etf.map_put(*g, "id", snow(s.guild));
+	etf.map_put(*g, "name", etf.vstring(name));
+	guild := etf.vmap(etf.map_done(*g));
+	broadcast(s, "GUILD_UPDATE", guild);
+	return json_reply(c, 200, guild);
+}
+
 // PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname. A member has one name here, so the nick
 // replaces it, and members see it as their name with no nick; an empty nick has nothing to fall back to.
 rename :: (c: *Conn, req: http.Request) -> bool {
@@ -1789,8 +1820,10 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	code := "";
 	expires := 0;
 	ch: etf.Value;
+	guild_name: string;
 	{
 		locks.guard(*s.db_mu);
+		guild_name = copy_string(s.name,, temp);
 		ch = channel_locked(s, channel);
 		if ch.kind == .Nil return json_error(c, 404, 10003, "Unknown Channel");
 		if validate.kind == .String {
@@ -1816,7 +1849,7 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	}
 	g := etf.map_builder(2,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
-	etf.map_put(*g, "name", etf.vstring(s.name));
+	etf.map_put(*g, "name", etf.vstring(guild_name));
 	m := etf.map_builder(9,, temp);
 	etf.map_put(*m, "code", etf.vstring(code));
 	etf.map_put(*m, "type", etf.vint(0));
