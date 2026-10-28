@@ -239,6 +239,18 @@ main :: () {
 		discord.send_message(cl, cid, "a reply", .{reply_to = hello, reply_guild_id = cl.store.guild_order[0]});
 		for 1..300 { if stored().count == 2 && !stored()[1].pending break; pump(); }
 		check(stored().count == 2 && !stored()[1].pending && stored()[1].kind == 19 && stored()[1].referenced_id == hello, "client reply");
+		discord.add_reaction(cl, cid, hello, "👍");
+		for 1..100 pump();
+		status, body = rest("GET", messages, "", token);
+		fetched, _ := etf.from_json(body);
+		r := field(fetched.list[fetched.list.count - 1], "reactions");
+		check(r.kind == .List && r.list.count == 1 && field(r.list[0], "emoji", "name").s == "👍" && field(r.list[0], "count").i == 1 && field(r.list[0], "me").b,
+			tprint("reaction: %", body));
+		check(stored()[0].reactions.count == 1 && stored()[0].reactions[0].count == 1, "client reaction");
+		discord.remove_reaction(cl, cid, hello, "👍");
+		for 1..100 pump();
+		status, body = rest("GET", messages, "", token);
+		check(!contains(body, "reactions"), tprint("reaction removed: %", body));
 	}
 	discord.send_typing(cl, cid);
 	typing_ok := false;

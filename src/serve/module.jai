@@ -270,6 +270,7 @@ CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NU
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER);
+CREATE TABLE IF NOT EXISTS reactions(message INTEGER NOT NULL, emoji TEXT NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, emoji, user));
 CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, uses_left INTEGER NOT NULL);
 SQL
 
@@ -460,7 +461,7 @@ iso :: (id: s64) -> string {
 // edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
 // carries the message it answers as referenced, or null once that is deleted.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
-		reply: s64 = 0, referenced := etf.Value.{}, nonce := "") -> etf.Value {
+		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}) -> etf.Value {
 	m := etf.map_builder(16,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx reply then 19 else 0));
@@ -483,6 +484,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "embeds", etf.vlist(.[]));
 	etf.map_put(*m, "mentions", etf.vlist(.[]));
 	if nonce etf.map_put(*m, "nonce", etf.vstring(nonce));
+	if reactions.kind == .List && reactions.list.count etf.map_put(*m, "reactions", reactions);
 	return etf.vmap(etf.map_done(*m));
 }
 
@@ -490,12 +492,39 @@ MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, u.name, m.content, coalesce
 
 // row_message reads a MESSAGE_SELECT row; the caller holds db_mu. A reply's target is looked up one level
 // deep, as Discord sends it.
-row_message :: (s: *Server, st: *sqlite.Stmt, nested := false) -> etf.Value {
-	reply := sqlite.col_int(st, 6);
-	referenced: etf.Value;
+// With a viewer it also lists reactions, whose `me` is per member, so only fetches carry them; events
+// leave them out and the client keeps its own.
+row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0) -> etf.Value {
+	id, reply := sqlite.col_int(st, 0), sqlite.col_int(st, 6);
+	referenced, reactions: etf.Value;
 	if reply && !nested referenced = message_locked(s, reply);
-	return message_value(s, sqlite.col_int(st, 0), sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
-		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced);
+	if viewer {
+		list: [..]etf.Value;
+		list.allocator = temp;
+		r := sqlite.prepare(s.db, "SELECT emoji, count(*), max(user = ?) FROM reactions WHERE message = ? GROUP BY emoji ORDER BY min(rowid);");
+		sqlite.bind_all(r, viewer, id);
+		while sqlite.step(r) == .Row {
+			count := sqlite.col_int(r, 1);
+			e := etf.map_builder(2,, temp);
+			etf.map_put(*e, "id", .{});
+			etf.map_put(*e, "name", etf.vstring(copy_string(sqlite.col_text(r, 0),, temp)));
+			details := etf.map_builder(2,, temp);
+			etf.map_put(*details, "burst", etf.vint(0));
+			etf.map_put(*details, "normal", etf.vint(count));
+			m := etf.map_builder(6,, temp);
+			etf.map_put(*m, "emoji", etf.vmap(etf.map_done(*e)));
+			etf.map_put(*m, "count", etf.vint(count));
+			etf.map_put(*m, "count_details", etf.vmap(etf.map_done(*details)));
+			etf.map_put(*m, "burst_count", etf.vint(0));
+			etf.map_put(*m, "me", etf.vbool(sqlite.col_int(r, 2) != 0));
+			etf.map_put(*m, "me_burst", etf.vbool(false));
+			array_add(*list, etf.vmap(etf.map_done(*m)));
+		}
+		sqlite.finalize(r);
+		reactions = etf.vlist(list);
+	}
+	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
+		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, reactions = reactions);
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -650,11 +679,13 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	channel, ok := string_to_int(parts[0], T = s64);
 	typing := parts.count == 2 && parts[1] == "typing";
 	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
-	if !ok || (!typing && (parts.count < 2 || parts.count > 3 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
-	if parts.count == 3 {
+	if !ok || (!typing && (parts.count < 2 || parts[1] != "messages")) return json_error(c, 404, 0, "404: Not Found");
+	if parts.count >= 3 {
 		message, mok := string_to_int(parts[2], T = s64);
 		if !mok return json_error(c, 404, 0, "404: Not Found");
-		return one_message(c, req, user, name, channel, message);
+		if parts.count == 3 return one_message(c, req, user, name, channel, message);
+		if parts[3] == "reactions" return reaction(c, req, user, channel, message, array_view(parts, 4));
+		return json_error(c, 404, 0, "404: Not Found");
 	}
 	{
 		locks.guard(*s.db_mu);
@@ -693,7 +724,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			locks.guard(*s.db_mu);
 			st := sqlite.prepare(s.db, tprint("% WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;", MESSAGE_SELECT));
 			sqlite.bind_all(st, channel, before, before, limit);
-			while sqlite.step(st) == .Row array_add(*list, row_message(s, st));
+			while sqlite.step(st) == .Row array_add(*list, row_message(s, st, viewer = user));
 			sqlite.finalize(st);
 		}
 		etf.to_json(etf.vlist(list), *sb);
@@ -773,6 +804,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		{
 			locks.guard(*s.db_mu);
 			if !sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", message) return json_error(c, 500, 0, "500: Internal Server Error");
+			sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", message);
 		}
 		d := etf.map_builder(3,, temp);
 		etf.map_put(*d, "id", snow(message));
@@ -784,7 +816,65 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 	return json_error(c, 405, 0, "405: Method Not Allowed");
 }
 
-gateway ::(c: *Conn, req: http.Request) {
+// PUT .../reactions/{emoji}/@me and DELETE .../reactions/{emoji}/{type}/@me. Unicode emoji only, since a
+// hosted server has no custom ones yet; members may remove only their own reactions.
+reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64, rest: []string) -> bool {
+	s := c.server;
+	me := rest.count && (rest[rest.count - 1] == "@me" || rest[rest.count - 1] == "%40me");
+	add := req.method == "PUT" && rest.count == 2 && me;
+	drop := req.method == "DELETE" && (rest.count == 2 || rest.count == 3) && me;
+	if !add && !drop {
+		if req.method == "DELETE" && rest.count == 3 return json_error(c, 403, 50013, "Missing Permissions");
+		return json_error(c, 404, 0, "404: Not Found");
+	}
+	emoji := percent_decode(rest[0]);
+	if !emoji || emoji.count > 64 || contains(emoji, ":") return json_error(c, 400, 10014, "Unknown Emoji");
+	changed := false;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT 1 FROM messages WHERE id = ? AND channel = ?;");
+		sqlite.bind_all(st, message, channel);
+		found := sqlite.step(st) == .Row;
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10008, "Unknown Message");
+		sql := ifx add then "INSERT OR IGNORE INTO reactions(message, emoji, user) VALUES(?, ?, ?);" else "DELETE FROM reactions WHERE message = ? AND emoji = ? AND user = ?;";
+		if !sqlite.run(s.db, sql, message, emoji, user) return json_error(c, 500, 0, "500: Internal Server Error");
+		changed = sqlite.changes(s.db) > 0;
+	}
+	if changed {
+		e := etf.map_builder(2,, temp);
+		etf.map_put(*e, "id", .{});
+		etf.map_put(*e, "name", etf.vstring(emoji));
+		d := etf.map_builder(7,, temp);
+		etf.map_put(*d, "user_id", snow(user));
+		etf.map_put(*d, "channel_id", snow(channel));
+		etf.map_put(*d, "message_id", snow(message));
+		etf.map_put(*d, "guild_id", snow(s.guild));
+		etf.map_put(*d, "emoji", etf.vmap(etf.map_done(*e)));
+		etf.map_put(*d, "burst", etf.vbool(false));
+		etf.map_put(*d, "type", etf.vint(0));
+		broadcast(s, ifx add then "MESSAGE_REACTION_ADD" else "MESSAGE_REACTION_REMOVE", etf.vmap(etf.map_done(*d)));
+	}
+	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+}
+
+percent_decode :: (s: string) -> string {
+	out := alloc_string(s.count,, temp);
+	n, i := 0, 0;
+	while i < s.count {
+		if s[i] == #char "%" && i + 2 < s.count {
+			v, ok := string_to_int(slice(s, i + 1, 2), 16);
+			if ok { out[n] = cast(u8) v; n += 1; i += 3; continue; }
+		}
+		out[n] = s[i];
+		n += 1;
+		i += 1;
+	}
+	out.count = n;
+	return out;
+}
+
+gateway :: (c: *Conn, req: http.Request) {
 	key, has_key := http.header_get(req.headers, "sec-websocket-key");
 	// The plain profile sends no compress parameter; a client asking for zstd would fail to read us.
 	if !has_key || !begins_with(req.path, "/?") || !contains(req.path, "encoding=etf") || contains(req.path, "compress=") {
