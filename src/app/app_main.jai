@@ -403,6 +403,10 @@ key_by_name :: (name: string) -> platform.Key {
 		return .Home;
 	case "end";
 		return .End;
+	case "pageup";
+		return .Page_Up;
+	case "pagedown";
+		return .Page_Down;
 	case "[";
 		return .Left_Bracket;
 	case "]";
