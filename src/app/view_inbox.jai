@@ -26,8 +26,17 @@ Inbox_Tab :: enum u8 {
 }
 
 Mention :: struct {
+	client: *dc.Client; // The connection it came on.
 	guild_id: dc.Snowflake;
 	msg: dc.Message;
+}
+
+// Each connection's Recent Mentions pages; the tab shows them merged, newest first.
+Mention_Source :: struct {
+	client: *dc.Client;
+	loading: bool;
+	has_more: bool;
+	oldest: dc.Snowflake; // The last page's oldest message, the next page's `before`.
 }
 
 Inbox_State :: struct {
@@ -35,8 +44,7 @@ Inbox_State :: struct {
 	tab: Inbox_Tab;
 	anchor: ui.Rect;
 	requested: bool; // first mentions page asked for
-	loading: bool;
-	has_more: bool;
+	sources: [..]Mention_Source;
 	items: [..]Mention; // in pool
 	pool: Flat_Pool;
 }
@@ -101,18 +109,23 @@ inbox_receive :: (r: *dc.Feature_Result) {
 	if r.op == {
 	case .Mentions;
 		if r.tag == dc.MENTIONS_DUP_TAG { return; }
-		inbox.loading = false;
+		src := mention_source(app.client);
+		src.loading = false;
 		if !r.ok { return; }
 		// a reply to an older page after a reset (first page = tag 0) is dropped
-		if r.tag != 0 && (inbox.items.count == 0 || cast(u64)(peek(inbox.items).msg.id) != r.tag) { return; }
+		if r.tag != 0 && cast(u64) src.oldest != r.tag { return; }
 		alloc := dc.pool_allocator(*inbox.pool);
 		inbox.items.allocator = alloc;
 		list := dc.vlist(r.body);
 		for mv: list {
 			mm := dc.vmap(mv);
-			array_add(*inbox.items, .{guild_id = dc.fsnow(mm, "guild_id"), msg = dc.parse_loose_message(store(), mm, alloc)});
+			item := Mention.{client = app.client, guild_id = dc.fsnow(mm, "guild_id"), msg = dc.parse_loose_message(store(), mm, alloc)};
+			if !src.oldest || item.msg.id < src.oldest src.oldest = item.msg.id;
+			at := inbox.items.count;
+			while at > 0 && inbox.items[at - 1].msg.id < item.msg.id at -= 1;
+			array_insert_at(*inbox.items, item, at);
 		}
-		inbox.has_more = list.count >= 25;
+		src.has_more = list.count >= 25;
 		app.ui.animating = true;
 	case .Mention_Delete;
 	}
@@ -227,6 +240,7 @@ inbox_popout :: () {
 
 inbox_reset_for_test :: () {
 	fini(*inbox.pool);
+	array_free(inbox.sources);
 	inbox = .{};
 }
 
@@ -251,8 +265,22 @@ mentions_first_page :: () {
 		local_mentions();
 		return;
 	}
-	inbox.loading = true;
-	dc.open_mentions(app.client);
+	for c: connections() {
+		mention_source(c).loading = true;
+		dc.open_mentions(c);
+	}
+}
+
+mention_source :: (c: *dc.Client) -> *Mention_Source {
+	for * inbox.sources if it.client == c return it;
+	src := array_add(*inbox.sources);
+	src.client = c;
+	return src;
+}
+
+mentions_loading :: () -> bool {
+	for inbox.sources if it.loading return true;
+	return false;
 }
 
 // Offline (fixtures): the loaded messages that mention us, newest first, so
@@ -267,7 +295,7 @@ local_mentions :: () {
 			if m.author_id == s.me || !(m.mention_everyone || array_find(m.mentions, s.me)) { continue; }
 			mm := m;
 			mm.content = copy_string(m.content,, alloc);
-			array_add(*inbox.items, .{guild_id = ifx ch != null then ch.guild_id else 0, msg = mm});
+			array_add(*inbox.items, .{client = app.client, guild_id = ifx ch != null then ch.guild_id else 0, msg = mm});
 		}
 	}
 	items := inbox.items;
@@ -538,16 +566,20 @@ snippet_text :: (s: *dc.Store, line: string) -> string {
 // ---- Mentions ----
 
 mentions_list :: () {
-	s := store();
 	list := ui.box("mentions", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
 	sig := ui.signal(list);
+	keep := app.client;
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
-		if inbox.items.count == 0 { empty_note(ifx inbox.loading then "Loading..." else "Nobody has mentioned you recently."); }
+		if inbox.items.count == 0 { empty_note(ifx mentions_loading() then "Loading..." else "Nobody has mentioned you recently."); }
 		removed := -1;
 		for * item, i: inbox.items {
+			// Each mention draws under its own connection; Jump switches to it.
+			if item.client app.client = item.client;
+			defer app.client = keep;
+			s := store();
 			{ ui.id_scope(cast(u64)(item.msg.id)); defer ui.pop_seed();
 				ch := dc.channel_get(s, item.msg.channel_id);
 				hr := row("mhdr");
@@ -588,6 +620,7 @@ mentions_list :: () {
 					spacer(.X, 12);
 				}
 				if loose_message_card(*item.msg, .[], true) {
+					keep = app.client;
 					jump_to_message(item.msg.channel_id, item.msg.id);
 					if app.client != null { dc.track_jump(app.client, "Recent Mentions", item.msg.channel_id, item.msg.id); }
 					inbox.open = false;
@@ -598,10 +631,12 @@ mentions_list :: () {
 		spacer(.Y, 8);
 	}
 	// load more near the end
-	if inbox.has_more && !inbox.loading && app.client != null && inbox.items.count > 0 && sig.hovering {
+	if !mentions_loading() && inbox.items.count > 0 && sig.hovering {
 		if list.content_size.y > 0 && list.view_off.y + (list.rect.y1 - list.rect.y0) > list.content_size.y - 200 {
-			inbox.loading = true;
-			dc.fetch_mentions(app.client, peek(inbox.items).msg.id);
+			for * inbox.sources if it.has_more && it.client {
+				it.loading = true;
+				dc.fetch_mentions(it.client, it.oldest);
+			}
 		}
 	}
 }

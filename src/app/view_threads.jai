@@ -299,9 +299,20 @@ thread_header_prefix :: (ch: *dc.Channel) {
 
 // ---- feature results (pins, search, forum, jumps) ----
 
+// Every connection's, with app.client pointing at the one they came on (as handle_results does), so an
+// unselected server's replies, such as its Recent Mentions, are taken too.
 features_receive :: () {
-	if app.client == null return;
-	for * r: dc.feature_take(app.client) {
+	keep := app.client;
+	for c: connections() {
+		app.client = c;
+		features_receive_of(c);
+		if app.client != c keep = app.client;
+	}
+	app.client = keep;
+}
+
+features_receive_of :: (c: *dc.Client) {
+	for * r: dc.feature_take(c) {
 		defer dc.feature_result_free(r);
 		if r.op == {
 		case .Forum_Posts; #through; case .Thread_Search;
