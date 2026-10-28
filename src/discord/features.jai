@@ -518,6 +518,7 @@ Feature_Op :: enum u8 {
 	Mark_Unread;
 	Pin;
 	Unpin;
+	Reactors;
 }
 
 Feature_Result :: struct {
@@ -683,6 +684,15 @@ fetch_pins :: (c: *Client, channel_id: Snowflake, before_iso := "", tag: u64 = 0
 	query_add_int(*q, "limit", 25);
 	if before_iso query_add(*q, "before", before_iso);
 	f_submit(c, .{op = .Pins, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 2});
+}
+
+// Who reacted: GET /channels/{c}/messages/{m}/reactions/{emoji}?limit=100&type=0|1 (1 = super reactions).
+fetch_reactors :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, emoji_name: string, emoji_id: Snowflake, burst: bool, tag: u64) {
+	q: Query;
+	query_init(*q, channel_path(channel_id, "/messages/", snowflake_string(message_id), "/reactions/", emoji_route(emoji_name, emoji_id)));
+	query_add_int(*q, "limit", 100);
+	query_add_int(*q, "type", ifx burst then 1 else 0);
+	f_submit(c, .{op = .Reactors, tag = tag, channel_id = channel_id, method = "GET", path = query_string(*q), retries = 1});
 }
 
 // POST /channels/{id}/pins/ack (no body).

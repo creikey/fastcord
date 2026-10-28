@@ -76,7 +76,7 @@
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
-- [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
+- [ ] Reactions: no "View Reactions" list (message menu), and the who-reacted tooltip fetches as soon as a pill is hovered, with no hover delay or cache.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
 - [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
 - [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
@@ -349,3 +349,4 @@
 - [x] Read states: a message arriving in the open channel while you are scrolled up is no longer acked; it counts as unread until you scroll to the bottom (`Client.route_scrolled_up`, `replay_test.jai` `ack_timing`).
 - [x] Read states: joining a voice channel acks its text chat unless it holds mentions (`actions.jai` `voice_join`, `replay_test.jai` `voice_select_ack`).
 - [x] Bug (Windows): a camera turned on in a call whose codec is H.265 (the server's pick when everyone else can take it) was never sent, so every viewer, official client included, saw it loading forever. Without an encoder for the call's codec, fastcord now sends H.264 (`on_capture_frame`).
+- [x] Reactions: hovering a pill shows who reacted ("A, B and 3 others reacted with :x:"), from GET .../reactions/{emoji}?limit=100&type= (`view_chat.jai` `reactors_tooltip`, `replay_test.jai` `reactors_fetch`).

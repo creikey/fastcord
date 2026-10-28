@@ -1642,6 +1642,7 @@ reactions_view :: (m: *dc.Message) {
 				label(tprint("%", count), .Semibold, 14, ifx me then T("--reaction-text-reacted-default") else T("--reaction-text-default"), 16);
 				spacer(.X, 6);
 			}
+			if sig.hovering reactors_tooltip(m, re, burst, count, pill.rect);
 			if sig.clicked {
 				if !burst react(m, re.emoji, "Message Inline Button", toggle = true);
 				else if me && net_action() dc.remove_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id, burst = true, location = "Message Inline Button");
@@ -1653,6 +1654,71 @@ reactions_view :: (m: *dc.Message) {
 	}
 	spacer(.Y, 2);
 }
+
+// Who reacted, under a hovered reaction pill: the first page of reactors is fetched once per
+// hovered pill; the tooltip shows when it arrives.
+reactors: struct {
+	seq: u64;
+	msg: dc.Snowflake;
+	emoji_id: dc.Snowflake;
+	emoji_name: string; // heap
+	burst: bool;
+	names: [..]string; // heap
+	loaded: bool;
+};
+
+reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, r: ui.Rect) {
+	if reactors.msg != m.id || reactors.emoji_id != re.emoji.id || reactors.emoji_name != re.emoji.name || reactors.burst != burst {
+		reactors.seq += 1;
+		reactors.msg, reactors.emoji_id, reactors.burst = m.id, re.emoji.id, burst;
+		free(reactors.emoji_name);
+		reactors.emoji_name = copy_string(re.emoji.name);
+		for reactors.names free(it);
+		array_reset_keeping_memory(*reactors.names);
+		reactors.loaded = false;
+		if app.client dc.fetch_reactors(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id, burst, reactors.seq);
+	}
+	if !reactors.loaded || !reactors.names return;
+	shown := min(reactors.names.count, 3);
+	who: String_Builder;
+	who.allocator = temp;
+	for i: 0..shown - 1 {
+		if i > 0 append(*who, ifx i == shown - 1 && count <= shown then " and " else ", ");
+		append(*who, reactors.names[i]);
+	}
+	if count > shown print_to_builder(*who, " and % other%", count - shown, ifx count - shown == 1 then "" else "s");
+	tip := row("reactorstip", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
+	tip.semantic_size = .[ui.children(), ui.px(40)];
+	tip.cross_align = .Center;
+	p := ui.top_parent();
+	tip.fixed_pos = .{r.x0 - p.rect.x0, r.y1 + 8 - p.rect.y0};
+	tip.style.bg = T("--background-surface-highest");
+	tip.style.radius = all4(8);
+	tip.style.shadow_color = .{0, 0, 0, 0.3};
+	tip.style.shadow_blur = 8;
+	ui.parent(tip); defer ui.pop_parent();
+	spacer(.X, 10);
+	emoji_box("e", re.emoji, 24);
+	spacer(.X, 8);
+	label(tprint("% reacted with %", builder_to_string(*who,, temp), ifx re.emoji.id then tprint(":%:", re.emoji.name) else re.emoji.name), .Semibold, 14, T("--text-strong"), 18);
+	spacer(.X, 12);
+}
+
+#scope_export
+
+reactors_receive :: (r: *dc.Feature_Result) {
+	if r.tag != reactors.seq || !r.ok return;
+	for dc.vlist(r.body) {
+		u := dc.vmap(it);
+		name := name_in(dc.fsnow(u, "id"), r.channel_id, "");
+		if !name name = dc.fstr(u, "global_name");
+		if !name name = dc.fstr(u, "username");
+		array_add(*reactors.names, copy_string(name));
+	}
+	reactors.loaded = true;
+}
+
+#scope_file
 
 TYPING_H :: 24;
 

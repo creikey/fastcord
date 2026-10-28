@@ -1185,6 +1185,24 @@ voice_select_ack :: (t: *T) {
 	expect(t, found, "joining acks the voice chat");
 }
 
+// Who reacted (reaction pill hover): one GET of the first 100 reactors, of the pill's type.
+reactors_fetch :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	msgs := messages_get(*c.store, R_TEXT);
+	if !expect(t, msgs.count >= 1, "fixture messages") return;
+	replay_mark(*run);
+	fetch_reactors(c, R_TEXT, msgs[0].id, "🔥", 0, false, 1);
+	replay_settle(*run, 300);
+	locks.lock(*run.r.mu);
+	key := "";
+	for run.r.ours if begins_with(it.key, "GET") && contains(it.key, "/reactions/") key = copy_string(it.key,, temp);
+	locks.unlock(*run.r.mu);
+	expect(t, ends_with(key, "/reactions/%F0%9F%94%A5?limit&type"), tprint("reactors request: %", key));
+}
+
 parity_gif_send :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "gif_send", R_GUILD, R_TEXT) { return; }

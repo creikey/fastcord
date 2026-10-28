@@ -312,6 +312,8 @@ features_receive :: () {
 		case .Pins_Ack; #through; case .Mark_Unread;
 		case .Pin;
 			if !r.ok show_notice("Error", "An error occurred, please try again.");
+		case .Reactors;
+			reactors_receive(r); // view_chat.jai
 		case .Unpin;
 			if !r.ok show_notice("The Pin Is Stuck!", "Discord failed to unpin that message for some reason. Sorry about that.");
 		case .Around;
