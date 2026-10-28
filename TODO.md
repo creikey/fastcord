@@ -235,7 +235,18 @@
 - [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
 - [ ] Friends: rows show only Online/Idle, never the custom status or activity; the "Friends" item in the DM sidebar has no pending-request badge.
 - [ ] Voice: the device dropdown in Voice & Video doesn't close on an outside click, Escape or page switch.
-- [ ] Profiles: no badges, connections, activity, rich presence or Spotify; `Presence.activity` is parsed but unused.
+- [ ] Profiles: no badges or connections.
+- [ ] Activities: fastcord doesn't show what people are doing, and doesn't tell anyone what you're doing. It keeps one string per user: `store.jai` takes the first activity's name and drops the rest, and nothing draws even that. Every op 3 it sends has an empty `activities` list (`gateway.jai`). What it takes, in the order that matters most:
+  - Seeing others: parse every activity: type, name, details, state, timestamps, assets, party, buttons and Spotify's `sync_id`.
+    - Show them where the official client does. In the profile popout and full profile, a rich presence card: large and small art, "elapsed" or "left" time, and buttons. One line in member-list and DM rows: "Playing X", "Listening to Spotify", "Streaming".
+    - Fill the Friends page's Active Now column, which today only ever shows its empty state.
+    - Art comes from app assets and `mp:` external assets through the CDN.
+  - Spotify: the green card with album art, title, artist and a live progress bar (from `timestamps`). Clicking the song opens it in Spotify. Leave out Listen Along (it needs Premium on both sides) unless it turns out cheap.
+  - Your own rich presence: games and apps built on Discord's SDK talk to the running client over a local pipe (`discord-ipc-0`: a named pipe on Windows, a Unix socket elsewhere). With only fastcord running, their rich presence and game invites silently vanish. Serve the `SET_ACTIVITY` subset of that protocol and send it in op 3 exactly as the official client does.
+  - Game detection: "Playing X" from the running process list, matched against Discord's detectable-apps list. Settings > Activity Privacy needs Registered Games, to add a game it missed or hide one.
+  - Your Spotify status: needs the Spotify connection (Settings > Connections), then follow what Spotify is playing, the way the official client does, and send it as a Listening activity.
+  - Privacy: the "Share my activity" switch and its per-server overrides decide all of it. Defaults match the official client.
+  - Everything sent here is traffic the official client sends: capture it first, and log the rules in `traffic/CLIENT_RULES.md`.
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), and watching more than one stream.
