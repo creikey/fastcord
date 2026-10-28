@@ -28,6 +28,7 @@ Store :: struct {
 	member_lists: Table(Snowflake, Member_List); // guild -> member sidebar
 	sessions: [..]Session_Info;
 	settings: User_Settings;
+	frecency: Frecency_State; // FrecencyUserSettings (settings-proto/2) uses and writes, expressions.jai
 	voice_server: Voice_Server;
 	streams: [..]Go_Live_Stream;
 	resume_gateway_url: string;
@@ -1497,6 +1498,7 @@ store_destroy :: (s: *Store) {
 	deinit(*s.guild_settings);
 	for s.voice_states free_str(it.session_id, a);
 	deinit(*s.voice_states);
+	frecency_free(s);
 	for s.typing array_free(it);
 	deinit(*s.typing);
 	for ml: s.member_lists {

@@ -46,7 +46,7 @@ Inbox_Tab :: enum u8 {
 	Unreads :: 2;
 }
 
-#scope_file
+#scope_module
 
 pb_new :: () -> protobuf.Writer {
 	w: protobuf.Writer;
@@ -304,6 +304,7 @@ set_guild_folders :: (c: *Client, folders: []Guild_Folder) {
 
 // flush_settings: persistChanges when the save timer fires.
 flush_settings :: (c: *Client, now: s64) {
+	frecency_tick(c, now); // settings-proto/2 (expressions.jai)
 	e := *c.settings_edit;
 	if e.due == 0 || now < e.due return;
 	delta := settings_delta_proto(e);

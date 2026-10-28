@@ -293,7 +293,8 @@ one long session they already happened earlier, as they would for a real user.
   exclusions, saved messages, storefront and config_0. The evidence is 33
   fixtures (2057–2109 ms and 2295–2329 ms after READY), against 2.7–4.4 s after
   the gateway open.
-- settings-proto/2 is loaded at READY + 5.13 s.
+- settings-proto/2 is loaded at READY + 5.13 s (guild and DM routes), unless already loaded.
+  Frecency writes follow the FrecencyUserSettingsManager timer (CLIENT_RULES "Frecency writes").
 - The 16 workers send the 13-request burst concurrently.
 - Detectables preflights go first, and their GETs follow at their place in the
   burst.
@@ -441,7 +442,7 @@ settings tabs other than Overview.
 | ETag values | detectables `If-None-Match` differ | Server content changed since the capture. |
 | op 41 | `initialization_timestamp` | Per-install value. |
 | op 40 | Heartbeats in windows | First heartbeat at `random() * interval` in both clients. |
-| settings-proto/2 PATCH | Not sent | Frecency (emoji/gif usage) writes are not modelled. |
+| settings-proto/2 PATCH | Fewer uses at startup; emoji uses tracked on insert | Frecency writes are modelled byte for byte (`parity_frecency_proto`, CLIENT_RULES "Frecency writes"), but pending usage isn't persisted across restarts, and emoji uses are tracked when inserted rather than when the message is sent. Application-command, application and sound frecency are not written. |
 | Profile widgets | applications/public, games, oauth2/tokens after a full profile | Driven by profile widget data, not modelled. |
 | Quick switcher | Exact autocomplete query set, HTTP-cache revalidation | Throttle model approximated. Chrome revalidates cached autocomplete GETs. |
 | Voice | `rtc_connected` QoS, voice UDP | RTC/voice connection is `src/voice`'s job. |

@@ -93,6 +93,24 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 | Collapsing a category is account state: `PATCH /users/@me/guilds/settings {"guilds":{"<gid>":{"channel_overrides":{"<cid>":{"collapsed":b}}}}}`, read back from `channel_overrides[].collapsed`; no science event | guess | search `collapsed:` near `updateChannelOverrideSettings` | `guild_settings.jai` `set_category_collapsed`, `views.jai` `category_row` |
 | "Until I turn it back on" mute sends `selected_time_window: -1`, `end_time: null` | guess | mute config builder | same |
 
+## Frecency writes (settings-proto/2)
+
+Byte-exact against all 23 fixture PATCHes (`parity_frecency_proto`); the write in a window is
+checked by `parity_send_message`, `parity_join_voice`, `parity_close_dm`, `parity_create_channel`.
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| Nothing is written per use. The manager's one timer runs R(true) `10+random*10 s` after POST_CONNECTION_OPEN and CONNECTION_RESUMED (one draw per page load), then R(false) every `2 h + random*10 min`; CONNECTION_CLOSED runs R(false) at once. APP_STATE_UPDATE has no dispatch site on desktop (mobile only) | code | `FrecencyUserSettingsManager:{actions:`, `10+Math.random()*(10*` | `src/discord/expressions.jai` `frecency_tick`, `frecency_run` |
+| R: if the proto isn't loaded and a store has pending usage (guild/channel usage alone not in R(true)), GET it first; then, if loaded, PATCH right away (`markDirtyIfHasPendingChange`, delay 0); a load in flight is not waited for | code | `_.A.hasPendingUsage()&&!e` | same |
+| PATCH body `{"settings": base64}` (`required_data_version` only for offline edits, never set here); the delta holds every map whose store has pending usage, whole, in field order: 4 stickers, 6 and 13 together (EmojiStore), 12 guilds and channels (application commands 7, applications 9, played sounds 11: not modelled); over 100 entries the latest-used 100, newest first | code | `beforeSendCallbacks.push`, `required_data_version:e.offlineEditDataVersion`, `sortBy(n,e=>{let[t,n]=e;return n.recentUses[` | `frecency_delta`, `frecency_encode_map` |
+| Map order is the JS object's (`Object.entries`): array-index keys (`"100"`) ascending first, then insertion order: the server's, new keys last. FrecencyItem: total_uses, packed recent_uses, frecency (int32, -1 as 10 bytes), score; zeros omitted | code | module 761821 `function S(e,t)` | same |
+| `track`: total + 1, the use appended (a pending use replayed with its timestamp re-sorts), the newest 10 kept, frecency -1. Every proto update rebuilds each history from the proto with frecency -1 and replays the store's pending usage; the PATCH's response (`wasSaved`) clears it first. Empty emoji / reaction histories are seeded (`thumbsup, eyes, …` / `100, 100, thumbsup, …`) without pending usage | code | `overwriteHistory(e,t)`, `"watermelon","fork_and_knife"` | `frecency_overwrite`, `frecency_track` |
+| Guilds and channels: CHANNEL_SELECT and VOICE_CHANNEL_SELECT track the channel, then the guild, each only when it differs from the last selected one (one state for text and voice; null resets it) | code | `static persistKey="FrecencyStore"` | `frecency_select` (`select_channel`, `voice_join`, `voice_leave`) |
+| A reaction (optimistic MESSAGE_REACTION_ADD) is a use of both emoji maps; key = custom emoji id, else the emoji's unique name | code | `MESSAGE_REACTION_ADD:function(e){if(!e.optimistic)` | `frecency_use` |
+| The reaction map goes out computed (score = Σ weights 100/70/50/30/10/1 for ≤3/15/30/45/80/more days over the newest 10 uses; frecency = trunc(1000·(total/max_total·0.2 + score/1000·0.8))), the emoji and guild/channel maps as loaded (frecency -1, score kept): the reaction bar computes before every captured write | code (formula) + inferred (when) | `calculateMaxTotalUse:!0` | `frecency_compute_reactions` |
+| The session's lazy load: READY + 5.13 s on guild and DM routes, skipped when already loaded or loading; the component that triggers it is not identified | inferred | fixtures (guild and DM starts: READY + 4.9-6.0 s) | `frecency_tick` |
+| Pending usage is persisted by the official stores (`FrecencyStore`, `EmojiStoreV2`) and written at the next start; fastcord keeps it in memory | known gap | `persistKey="FrecencyStore"` | TODO.md |
+
 ## Gateway, startup, identity
 
 | Rule | Kind | Anchor | fastcord |

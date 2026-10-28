@@ -11,7 +11,7 @@
 //   POST /gifs/select {"id","q"}                        (after sending a GIF)
 //   GET  /sticker-packs?locale=
 //   GET  /guilds/{id}/top-emojis
-//   GET  /users/@me/settings-proto/2                    (FrecencyUserSettings, lazy)
+//   GET  /users/@me/settings-proto/2                    (FrecencyUserSettings, lazy; library-owned, see below)
 //
 // media_format is the GIFPickerViewStore's selected format: "webm" except on
 // Linux ("tinywebp"). Query keys are in the client's object-literal order.
@@ -270,8 +270,13 @@ guild_top_emojis :: (c: *Client, guild_id: Snowflake, tag: u64 = 0) {
 	expr_get(c, .Top_Emojis, tprint("/guilds/%/top-emojis", guild_id), "", ifx guild_id == 0 then tag else guild_id);
 }
 
-frecency_settings_fetch :: (c: *Client, tag: u64 = 0) {
-	expr_get(c, .Frecency, "/users/@me/settings-proto/2", "", tag);
+// frecency_settings_fetch: a picker wants the proto (loadIfNecessary). It comes back as an
+// Expr_Result .Frecency at once when loaded, else when the one load in flight answers.
+frecency_settings_fetch :: (c: *Client) {
+	f := *c.store.frecency;
+	f.picker_waiting = true;
+	if f.loaded frecency_to_picker(c, true);
+	else frecency_load(c);
 }
 
 // expr_fetch_media: bytes of a media URL (Fetch kind for lottie json, Image for svg).
@@ -286,6 +291,7 @@ expr_fetch_media :: (c: *Client, url: string, kind := Media_Kind.Fetch, tag: u64
 //   4 sticker_frecency {1 map<fixed64,FrecencyItem>}
 //   5 favorite_emojis {1 repeated string}
 //   6 emoji_frecency {1 map<string,FrecencyItem>}
+//   12 guild_and_channel_frecency {1 map<fixed64,FrecencyItem>}
 //   13 emoji_reaction_frecency (same shape as 6)
 //   FrecencyItem {1 total_uses u32, 2 recent_uses repeated u64 (packed), 3 frecency i32, 4 score i32}
 
@@ -310,6 +316,7 @@ Frecency_Settings :: struct {
 	emoji: []Frecency_Item;
 	emoji_reaction: []Frecency_Item;
 	sticker: []Frecency_Item;
+	guild_channel: []Frecency_Item;
 	favorite_emojis: []string;
 	favorite_stickers: []Snowflake;
 	favorite_gifs: []Favorite_Gif;
@@ -426,11 +433,403 @@ frecency_settings_decode :: (b64: string, allocator := context.allocator) -> Fre
 				}
 				fs.favorite_emojis = names;
 			case 6;  fs.emoji = decode_item_map(f.bytes);
+			case 12; fs.guild_channel = decode_item_map(f.bytes);
 			case 13; fs.emoji_reaction = decode_item_map(f.bytes);
 		}
 	}
 	return fs, true;
 }
+
+// ---- FrecencyUserSettings writes (FrecencyUserSettingsManager, bundle module 416380) ----
+// A use goes into its store's usageHistory and pending usages: FrecencyStore (guilds and
+// channels, on CHANNEL_SELECT / VOICE_CHANNEL_SELECT), EmojiStore (emoji; a reaction is a use
+// of both its maps), StickersStore. Nothing is written per use. The manager's one timer runs
+// R(startup) 10 ms-10 s after each READY / RESUMED (one draw per run), then every 2 h + 0-10 min,
+// and R(false) runs at once when the gateway closes. R loads the proto if it isn't loaded and
+// there is pending usage (guild/channel usage alone doesn't count in the startup run); loaded,
+// it PATCHes {"settings": delta}, the delta holding every map with pending usage, whole, in
+// field order: 4 stickers, 6 + 13 emoji (one store), 12 guilds and channels. The response is
+// the full proto: it replaces the histories and clears the pending usage. Map order is the JS
+// object's: integer-like keys ascending, then insertion order (the server's, new keys last).
+
+Frecency_Kind :: enum u8 {
+	Sticker;
+	Emoji;
+	Guild_Channel;
+	Reaction;
+}
+
+Frecency_Use :: struct {
+	kind: Frecency_Kind;
+	key: string;
+	at: s64;
+}
+
+// In c.store (per account, UI thread); its allocations are in the store's allocator.
+Frecency_State :: struct {
+	loaded: bool;
+	loading: bool;
+	write_on_load: bool; // R started the load
+	saving: bool; // PATCH in flight
+	picker_waiting: bool; // a picker asked for the proto
+	history: [4][..]Frecency_Item; // usageHistory by Frecency_Kind, in insertion order
+	pending: [..]Frecency_Use;
+	proto: string; // the server's last full proto (base64), for the pickers
+	channel, guild: Snowflake; // FrecencyStore's last selected (0 = none)
+	timer_at: s64; // the manager's timer (0 = none) and its R argument
+	timer_startup: bool;
+	load_at: s64; // the session's lazy load
+	readies: u64;
+	connected: bool;
+	startup_ms, periodic_ms: s64; // drawn once, as the bundle does at module load
+}
+
+FRECENCY_FIELD :: u32.[4, 6, 12, 13];
+FRECENCY_SETTINGS_TYPE :: 2; // Rest_Result.tag of the settings-proto/2 jobs
+FRECENCY_LOAD_MS :: 5130; // the lazy load: READY + 4.9-5.2 s in the fixtures (guild and DM routes)
+FRECENCY_MAX_SAMPLES :: 10;
+FRECENCY_MAX_ENTRIES :: 100; // per map in the PATCH (application commands: 500, not modelled)
+EMOJI_FRECENCY_SEED :: string.["thumbsup", "eyes", "laughing", "watermelon", "fork_and_knife", "yum", "weary", "tired_face", "poop", "100"];
+REACTION_FRECENCY_SEED :: string.["100", "100", "thumbsup", "thumbsup", "thumbsdown", "thumbsdown", "heart", "point_up", "eyes", "weary", "laughing", "white_check_mark", "x"];
+
+// frecency_use: a sticker sent, an emoji sent or reacted with (key: custom emoji id or the emoji's
+// unique name, e.g. "thumbsup"). A reaction is also an emoji use (EmojiStore MESSAGE_REACTION_ADD).
+frecency_use :: (c: *Client, kind: Frecency_Kind, key: string) {
+	if !key return;
+	use :: (c: *Client, kind: Frecency_Kind, key: string, at: s64) {
+		f := *c.store.frecency;
+		push_allocator(c.store.allocator);
+		frecency_track(*f.history[kind], key, at);
+		array_add(*f.pending, .{kind, copy_string(key), at});
+	}
+	now := now_ms();
+	use(c, kind, key, now);
+	if kind == .Reaction use(c, .Emoji, key, now);
+}
+
+// frecency_select: FrecencyStore on CHANNEL_SELECT / VOICE_CHANNEL_SELECT: a channel or guild other
+// than the last selected one is a use (0: home, a DM's guild, leaving voice).
+frecency_select :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake) {
+	f := *c.store.frecency;
+	if channel_id != f.channel {
+		f.channel = channel_id;
+		if channel_id frecency_use(c, .Guild_Channel, snowflake_string(channel_id));
+	}
+	if guild_id != f.guild {
+		f.guild = guild_id;
+		if guild_id frecency_use(c, .Guild_Channel, snowflake_string(guild_id));
+	}
+}
+
+// frecency_load: loadIfNecessary.
+frecency_load :: (c: *Client) {
+	f := *c.store.frecency;
+	if f.loaded || f.loading return;
+	f.loading = true;
+	frecency_job(c, "GET", "");
+}
+
+// frecency_tick (client_poll): the manager's connection hooks and timer, and the lazy load.
+frecency_tick :: (c: *Client, now: s64) {
+	s := *c.store;
+	f := *s.frecency;
+	if c.quit || c.cfg.hosted.host return; // a self-hosted server has no settings protos
+	if !f.startup_ms {
+		f.startup_ms = 10 + cast(s64) (random_get_zero_to_one() * 10_000);
+		f.periodic_ms = 7_200_000 + cast(s64) (random_get_zero_to_one() * 600_000);
+	}
+	open := s.connection == .Ready;
+	if s.readies != f.readies || (open && !f.connected) { // POST_CONNECTION_OPEN / CONNECTION_RESUMED
+		if f.readies == 0 && !c.cfg.disable_startup && client_route_kind(c.start_route_guild, c.start_route_channel) != .Home {
+			locks.lock(*c.job_mu);
+			f.load_at = c.ready_ms + FRECENCY_LOAD_MS;
+			locks.unlock(*c.job_mu);
+		}
+		f.readies = s.readies;
+		f.connected = true;
+		f.timer_at, f.timer_startup = now + f.startup_ms, true;
+	} else if f.connected && !open { // CONNECTION_CLOSED
+		f.connected = false;
+		frecency_run(c, false);
+	}
+	if f.load_at && now >= f.load_at {
+		f.load_at = 0;
+		frecency_load(c);
+	}
+	if f.timer_at && now >= f.timer_at frecency_run(c, f.timer_startup);
+}
+
+// frecency_apply: a settings-proto/2 response (USER_SETTINGS_PROTO_UPDATE): the load, or the
+// PATCH's full proto (wasSaved: the pending usage is written). Each store then overwrites its
+// history from the proto (frecency -1: not computed) and replays its pending usage.
+frecency_apply :: (c: *Client, ok: bool, b64: string) {
+	s := *c.store;
+	f := *s.frecency;
+	saved := f.loaded;
+	if saved f.saving = false;
+	else f.loading = false;
+	push_allocator(s.allocator);
+	ok = ok && frecency_overwrite(f, b64, saved, now_ms());
+	if f.picker_waiting frecency_to_picker(c, ok);
+	if !ok return;
+	if f.write_on_load {
+		f.write_on_load = false;
+		frecency_write(c);
+	}
+}
+
+// frecency_maps: the proto's usage maps by Frecency_Kind.
+frecency_maps :: (fs: Frecency_Settings) -> [4][]Frecency_Item {
+	m: [4][]Frecency_Item;
+	m[0], m[1], m[2], m[3] = fs.sticker, fs.emoji, fs.guild_channel, fs.emoji_reaction;
+	return m;
+}
+
+// frecency_overwrite: the stores' sync with a new proto (allocations: context.allocator).
+frecency_overwrite :: (f: *Frecency_State, b64: string, saved: bool, now: s64) -> bool {
+	fs, ok := frecency_settings_decode(b64, temp);
+	if !ok return false;
+	if saved {
+		for f.pending free(it.key);
+		f.pending.count = 0;
+	}
+	f.loaded = true;
+	free(f.proto);
+	f.proto = copy_string(b64);
+	server := frecency_maps(fs);
+	for * h, k: f.history {
+		frecency_free_items(h);
+		for server[k] {
+			item := it;
+			item.key = copy_string(it.key);
+			uses: [..]s64;
+			for u: it.recent_uses if u > 0 array_add(*uses, u);
+			item.recent_uses = uses;
+			item.frecency = -1;
+			array_add(h, item);
+		}
+		replayed := false;
+		for f.pending if it.kind == xx k {
+			frecency_track(h, it.key, it.at, sorted = true);
+			replayed = true;
+		}
+		// EmojiStore seeds an empty history (not a pending usage)
+		if server[k].count || replayed continue;
+		if k == xx Frecency_Kind.Emoji for EMOJI_FRECENCY_SEED frecency_track(h, it, now);
+		if k == xx Frecency_Kind.Reaction for REACTION_FRECENCY_SEED frecency_track(h, it, now);
+	}
+	return true;
+}
+
+frecency_free :: (s: *Store) {
+	f := *s.frecency;
+	push_allocator(s.allocator);
+	for * f.history {
+		frecency_free_items(it);
+		array_free(it.*);
+	}
+	for f.pending free(it.key);
+	array_free(f.pending);
+	free_str(f.proto, s.allocator);
+	f.* = .{};
+}
+
+#scope_file
+
+frecency_job :: (c: *Client, method: string, body: string) {
+	j := job_new(.Api, .Settings);
+	j.result.tag = FRECENCY_SETTINGS_TYPE;
+	j.method = method;
+	j.path = "/users/@me/settings-proto/2";
+	if body {
+		j.body = cast([]u8) job_str(j, body);
+		j.content_type = "application/json";
+		j.retry_429 = 1; // retried after min(30 s, Retry-After)
+	}
+	job_submit(c, j);
+}
+
+// frecency_run: the manager's R(startup).
+frecency_run :: (c: *Client, startup: bool) {
+	f := *c.store.frecency;
+	f.timer_at, f.timer_startup = now_ms() + f.periodic_ms, false;
+	if f.loaded {
+		frecency_write(c);
+		return;
+	}
+	for f.pending if (it.kind != .Guild_Channel || !startup) && !f.loading {
+		f.write_on_load = true;
+		frecency_load(c);
+		break;
+	}
+}
+
+// frecency_write: markDirtyIfHasPendingChange, then persistChanges (no delay).
+frecency_write :: (c: *Client) {
+	f := *c.store.frecency;
+	if !f.loaded || f.saving || !f.pending.count return;
+	push_allocator(c.store.allocator);
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "settings", base64_encode(cast(string) frecency_delta(f, now_ms()),, temp));
+	json_obj_end(*w);
+	f.saving = true;
+	f.timer_at, f.timer_startup = now_ms() + f.periodic_ms, false; // processProto: the periodic run restarts
+	frecency_job(c, "PATCH", json_string(*w));
+}
+
+#scope_module
+
+// frecency_delta: the PATCH's proto (temp): each map with pending usage, whole, in field order.
+frecency_delta :: (f: *Frecency_State, now: s64) -> []u8 {
+	has: [4]bool;
+	for f.pending has[it.kind] = true;
+	emoji := has[Frecency_Kind.Emoji] || has[Frecency_Kind.Reaction];
+	has[Frecency_Kind.Emoji], has[Frecency_Kind.Reaction] = emoji, emoji;
+	root := pb_new();
+	for * h, k: f.history {
+		if !has[k] continue;
+		if k == xx Frecency_Kind.Reaction frecency_compute_reactions(h, now);
+		m := pb_new();
+		frecency_encode_map(*m, h.*, fixed_keys = k == xx Frecency_Kind.Sticker || k == xx Frecency_Kind.Guild_Channel);
+		pb_msg(*root, FRECENCY_FIELD[k], m);
+	}
+	return root.buf;
+}
+
+#scope_file
+
+// frecency_track: Frecency.track. A pending usage replayed with its timestamp sorts the uses.
+frecency_track :: (h: *[..]Frecency_Item, key: string, at: s64, sorted := false) {
+	for * h.* {
+		if it.key != key continue;
+		it.frecency = -1;
+		it.total_uses += 1;
+		uses: [..]s64;
+		array_add(*uses, ..it.recent_uses);
+		array_add(*uses, at);
+		if sorted quick_sort(uses, (a: s64, b: s64) -> int { return ifx a < b then -1 else ifx a > b then 1 else 0; });
+		while uses.count > FRECENCY_MAX_SAMPLES array_ordered_remove_by_index(*uses, 0);
+		array_free(it.recent_uses);
+		it.recent_uses = uses;
+		return;
+	}
+	uses := NewArray(1, s64);
+	uses[0] = at;
+	array_add(h, .{key = copy_string(key), total_uses = 1, recent_uses = uses, frecency = -1});
+}
+
+frecency_free_items :: (h: *[..]Frecency_Item) {
+	for h.* {
+		free(it.key);
+		array_free(it.recent_uses);
+	}
+	h.count = 0;
+}
+
+// frecency_compute_reactions: Frecency.compute of EmojiStore's reaction history (bonus 100,
+// calculateMaxTotalUse): every fixture's write carries these computed values (the reaction bar
+// reads them), while emoji and guild/channel entries go as loaded (frecency -1).
+frecency_compute_reactions :: (h: *[..]Frecency_Item, now: s64) {
+	max_total := 0;
+	for h.* max_total = max(max_total, it.total_uses);
+	i := 0;
+	while i < h.count {
+		it := *h.*[i];
+		i += 1;
+		if it.frecency != -1 continue;
+		score := 0;
+		for u: it.recent_uses {
+			if it_index >= FRECENCY_MAX_SAMPLES break;
+			days := (now - u) / 86_400_000;
+			score += ifx days <= 3 then 100 else ifx days <= 15 then 70 else ifx days <= 30 then 50 else ifx days <= 45 then 30 else ifx days <= 80 then 10 else 1;
+		}
+		it.score = score;
+		it.frecency = cast(int) (1000 * (cast(float64) it.total_uses / max_total * 0.2 + cast(float64) score / 1000 * 0.8));
+		if score continue;
+		i -= 1;
+		free(it.key);
+		array_free(it.recent_uses);
+		array_ordered_remove_by_index(h, i);
+	}
+}
+
+// frecency_encode_map: a map<key, FrecencyItem> as protobuf-ts writes the object (S in module 761821).
+frecency_encode_map :: (w: *protobuf.Writer, items: []Frecency_Item, fixed_keys: bool) {
+	order: [..]int;
+	order.allocator = temp;
+	for items array_add(*order, it_index);
+	if order.count > FRECENCY_MAX_ENTRIES {
+		// sortBy(last use) (stable), reversed, then the oldest dropped
+		last :: (it: Frecency_Item) -> s64 { return ifx it.recent_uses.count then it.recent_uses[it.recent_uses.count - 1] else S64_MAX; }
+		for i: 1..order.count - 1 {
+			j := i;
+			while j > 0 && last(items[order[j - 1]]) > last(items[order[j]]) {
+				order[j - 1], order[j] = order[j], order[j - 1];
+				j -= 1;
+			}
+		}
+		for i: 0..order.count / 2 - 1 order[i], order[order.count - 1 - i] = order[order.count - 1 - i], order[i];
+		order.count = FRECENCY_MAX_ENTRIES;
+	}
+	// a JS object lists array-index keys ("100") first, ascending
+	index_key :: (k: string) -> u64, bool {
+		if !k || k.count > 10 || (k.count > 1 && k[0] == #char "0") return 0, false;
+		v: u64;
+		for cast([]u8) k {
+			if !is_digit(it) return 0, false;
+			v = v * 10 + it - #char "0";
+		}
+		return v, v < 0xFFFF_FFFF;
+	}
+	sorted: [..]int;
+	sorted.allocator = temp;
+	for order {
+		v, ok := index_key(items[it].key);
+		if !ok continue;
+		at := sorted.count;
+		while at > 0 && index_key(items[sorted[at - 1]].key) > v at -= 1;
+		array_insert_at(*sorted, it, at);
+	}
+	for order {
+		_, ok := index_key(items[it].key);
+		if !ok array_add(*sorted, it);
+	}
+	for i: sorted {
+		it := items[i];
+		entry := pb_new();
+		if fixed_keys pb_fixed64(*entry, 1, string_to_int(it.key, T = u64));
+		else protobuf.write_string(*entry, 1, it.key);
+		v := pb_new();
+		if it.total_uses protobuf.write_uint(*v, 1, xx it.total_uses);
+		if it.recent_uses.count {
+			p := pb_new();
+			for it.recent_uses protobuf.write_varint(*p, xx it);
+			pb_msg(*v, 2, p);
+		}
+		if it.frecency protobuf.write_uint(*v, 3, cast,no_check(u64) it.frecency); // int32: negatives as 10 bytes
+		if it.score protobuf.write_uint(*v, 4, cast,no_check(u64) it.score);
+		pb_msg(*entry, 2, v);
+		pb_msg(w, 1, entry);
+	}
+}
+
+// frecency_to_picker hands the loaded proto to the pickers as an Expr_Result.
+frecency_to_picker :: (c: *Client, ok: bool) {
+	c.store.frecency.picker_waiting = false;
+	arena := New(Flat_Pool,, c.allocator);
+	body: V;
+	{
+		push_allocator(pool_allocator(arena));
+		m := etf.map_builder(1);
+		etf.map_put(*m, "settings", etf.vstring(copy_string(c.store.frecency.proto)));
+		body = etf.vmap(etf.map_done(*m));
+	}
+	expr_deliver(expr_pool_of(c, true), .{op = .Frecency, ok = ok, status = ifx ok then 200 else 0, body = body, arena = arena});
+}
+
+#scope_export
 
 // ---- full profile modal (UserProfileModalActionCreators) ----
 // Opening the modal: GET /users/{id}/profile?type=modal&with_mutual_guilds=true

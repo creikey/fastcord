@@ -605,9 +605,8 @@ client_apply_rest :: (c: *Client, e: *Event) {
 				analytics_on_profile(c, r.user_id);
 			}
 		case .Settings;
-			if r.ok {
-				sp := fstr(vmap(e.data), "settings");
-				if sp apply_settings_proto(s, sp);
-			}
+			sp := ifx r.ok then fstr(vmap(e.data), "settings") else "";
+			if r.tag == FRECENCY_SETTINGS_TYPE frecency_apply(c, r.ok, sp);
+			else if sp apply_settings_proto(s, sp);
 	}
 }
