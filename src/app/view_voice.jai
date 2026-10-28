@@ -88,13 +88,18 @@ voice_frame :: () {
 	// A new gateway session (reconnect without resume) leaves voice on READY: join again, so
 	// our voice state comes back and the connection moves to the new session.
 	rejoin := vc.readies != 0 && vc.readies != store().readies;
+	if rejoin print("[voice] new gateway session: op 4 again\n", to_standard_error = true);
 	vc.readies = store().readies;
 	// Our voice state gone while the call is still up (an older session of ours expiring, after a
 	// quit that skipped app_exit, drops it): join again after a grace. A kick closes the call first.
 	if vc.conn != null && voice.state(vc.conn) == .Connected && !table_find_pointer(*store().voice_states, store().me) {
 		now := platform.time_now();
 		if vc.state_lost_at == 0 vc.state_lost_at = now;
-		else if now - vc.state_lost_at > 3 { rejoin = true; vc.state_lost_at = 0; }
+		else if now - vc.state_lost_at > 3 {
+			print("[voice] own state missing for 3 s while connected: op 4 again\n", to_standard_error = true);
+			rejoin = true;
+			vc.state_lost_at = 0;
+		}
 	} else {
 		vc.state_lost_at = 0;
 	}
