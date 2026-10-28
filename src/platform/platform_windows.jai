@@ -84,6 +84,23 @@ window_maximized :: () -> bool { return w.hwnd && IsZoomed(w.hwnd) != 0; }
 window_toggle_maximize :: () { win.ShowWindow(w.hwnd, xx ifx window_maximized() then win.SW_RESTORE else win.SW_MAXIMIZE); }
 window_close :: () { PostMessageW(w.hwnd, win.WM_CLOSE, 0, 0); }
 
+// The window's restored rect (screen pixels; also while maximized or minimized) and whether it is maximized.
+Window_Placement :: struct { x, y, width, height: s32; maximized: bool; }
+
+window_placement :: () -> Window_Placement, bool {
+    wp := WINDOWPLACEMENT.{length = size_of(WINDOWPLACEMENT)};
+    if !w.hwnd || GetWindowPlacement(w.hwnd, *wp) == 0 return .{}, false;
+    r := wp.rcNormalPosition;
+    maxed := IsZoomed(w.hwnd) != 0 || (IsIconic(w.hwnd) != 0 && (wp.flags & WPF_RESTORETOMAXIMIZED) != 0);
+    return .{r.left, r.top, r.right - r.left, r.bottom - r.top, maxed}, true;
+}
+
+// Before init: where the window opens. Windows moves a rect that is off every monitor back onto one.
+window_placement_restore :: (p: Window_Placement) {
+    w.restore = p;
+    w.has_restore = true;
+}
+
 #scope_module
 
 os_init ::(title: string, width: int, height: int) -> bool {
@@ -120,9 +137,19 @@ os_init ::(title: string, width: int, height: int) -> bool {
     win.SetWindowPos(w.hwnd, null, 0, 0, 0, 0, win.SWP_FRAMECHANGED | win.SWP_NOMOVE | win.SWP_NOSIZE | win.SWP_NOZORDER | win.SWP_NOACTIVATE);
     // IDropTarget gives drag enter/leave (the "Upload to #channel" overlay); WM_DROPFILES is the fallback.
     if !drop_target_register(w.hwnd) win.DragAcceptFiles(w.hwnd, .TRUE);
+    show := win.SW_SHOW;
+    if w.has_restore && w.restore.width > 0 && w.restore.height > 0 {
+        r := w.restore;
+        wp := WINDOWPLACEMENT.{length = size_of(WINDOWPLACEMENT), showCmd = win.SW_HIDE};
+        wp.rcNormalPosition = .{r.x, r.y, r.x + r.width, r.y + r.height};
+        SetWindowPlacement(w.hwnd, *wp);
+        if r.maximized show = win.SW_SHOWMAXIMIZED;
+    }
     update_size();
     update_refresh();
-    win.ShowWindow(w.hwnd, win.SW_SHOW);
+    win.ShowWindow(w.hwnd, xx show);
+    // The first ShowWindow may take the launcher's STARTUPINFO show command instead of ours.
+    if show == win.SW_SHOWMAXIMIZED && IsZoomed(w.hwnd) == 0 win.ShowWindow(w.hwnd, win.SW_SHOWMAXIMIZED);
     win.UpdateWindow(w.hwnd);
     w.taskbar_created = RegisterWindowMessageW(wide("TaskbarCreated"));
     w.tray = tray_notify(NIM_ADD);
@@ -290,6 +317,8 @@ SetWindowDisplayAffinity :: (hwnd: win.HWND, dwAffinity: u32) -> s32 #foreign us
 SetProcessDpiAwarenessContext :: (value: win.DPI_AWARENESS_CONTEXT) -> s32 #foreign user32;
 GetDpiForSystem :: () -> u32 #foreign user32;
 GetDpiForWindow :: (hwnd: win.HWND) -> u32 #foreign user32;
+GetWindowPlacement :: (hwnd: win.HWND, wp: *WINDOWPLACEMENT) -> s32 #foreign user32;
+SetWindowPlacement :: (hwnd: win.HWND, wp: *WINDOWPLACEMENT) -> s32 #foreign user32;
 EnumDisplaySettingsW :: (device: *u16, mode: u32, dm: *DEVMODEW) -> s32 #foreign user32;
 PostMessageW :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> s32 #foreign user32;
 SetTimer :: (hwnd: win.HWND, id: u64, elapse_ms: u32, func: *void) -> u64 #foreign user32;
@@ -405,6 +434,16 @@ COMPOSITIONFORM :: struct {
     rcArea: win.RECT;
 }
 
+WINDOWPLACEMENT :: struct {
+    length: u32;
+    flags: u32;
+    showCmd: u32;
+    ptMinPosition: win.POINT;
+    ptMaxPosition: win.POINT;
+    rcNormalPosition: win.RECT;
+}
+WPF_RESTORETOMAXIMIZED :: 0x2;
+
 MINMAXINFO :: struct { ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize: win.POINT; }
 
 TRACKMOUSEEVENT :: struct {
@@ -428,6 +467,8 @@ DEVMODEW :: struct {
 
 w: struct {
     hwnd: win.HWND;
+    restore: Window_Placement; // set before init by window_placement_restore
+    has_restore: bool;
     instance: win.HINSTANCE;
     frame_wait: *void; // swap chain frame-latency waitable (set by gfx)
     frame_ready: bool; // os_wait already took this frame's signal from frame_wait

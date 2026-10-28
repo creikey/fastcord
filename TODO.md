@@ -166,7 +166,7 @@
 - [ ] Notifications: a channel can only be muted from the open channel's header bell.
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
 - [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
-- [ ] Window: size, position and maximised state aren't remembered; every launch opens at the default size where the OS puts it (the official client restores them).
+- [ ] Window: macOS and Linux don't remember the window's size, position and maximised state (Windows does, via `Persisted.window`).
 - [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
 - [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
@@ -387,3 +387,4 @@
 - [x] Voice: echo cancellation, noise suppression and AGC run in software on every platform, as in the official client: WebRTC's echo canceller (AEC3, `vendor/webrtc`) on fastcord's own speaker mix, RNNoise behind the Noise Suppression switch, and the software AGC. macOS no longer uses VoiceProcessingIO, so the three switches work apart, a chosen output device is honoured in calls too, and a mic not at 48 kHz is resampled (AudioConverter) instead of falling back to a quiet bypass (`tests/voice_aec.jai`).
 - [x] Layout: the member list and DM profile panel toggles survive a restart (`settings.json` `members_hidden`, `dm_profile_hidden`; `app.view.hide_members` replaces `show_members` so zero means shown).
 - [x] Selection: dragging across a message with more than 4 blocks (list items, paragraphs) selects one contiguous range; block order no longer wraps at 4 (`Box.sel_sub`, `tests/ui/code/select_list.txt`).
+- [x] Window: remember the window's size, position and maximised state across launches (Windows).

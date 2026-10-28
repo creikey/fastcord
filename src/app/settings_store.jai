@@ -65,7 +65,10 @@ Persisted :: struct {
 	video_muted: bool;
 	members_hidden: bool; // the member list toggle (shown by default)
 	dm_profile_hidden: bool;
+	window: Persisted_Window; // Windows: the restored rect and maximized state
 }
+
+Persisted_Window :: struct { x, y, width, height: int; maximized: bool; } // screen pixels; width 0 = none
 
 // theme to apply after theme_load at startup (main applies opt.theme first)
 app_theme_pending: Theme_Name;
@@ -241,6 +244,10 @@ apply_persisted :: (p: *Persisted) {
 	video_muted = p.video_muted;
 	app.view.hide_members = p.members_hidden;
 	app.view.hide_dm_profile = p.dm_profile_hidden;
+	#if OS == .WINDOWS {
+		pw := p.window;
+		if pw.width > 0 && pw.height > 0 platform.window_placement_restore(.{xx pw.x, xx pw.y, xx pw.width, xx pw.height, pw.maximized});
+	}
 	if p.sidebar_width > 0 app.view.sidebar_w = clamp(p.sidebar_width, SIDEBAR_MIN_W, SIDEBAR_MAX_W);
 	if p.member_list_width > 0 app.view.member_w = clamp(p.member_list_width, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W);
 	for p.collapsed {
@@ -283,6 +290,10 @@ snapshot :: () -> string {
 	p.video_muted = video_muted;
 	p.members_hidden = app.view.hide_members;
 	p.dm_profile_hidden = app.view.hide_dm_profile;
+	#if OS == .WINDOWS {
+		wp, ok := platform.window_placement();
+		if ok p.window = .{wp.x, wp.y, wp.width, wp.height, wp.maximized};
+	}
 	return marshal_pretty(p);
 }
 
