@@ -1085,6 +1085,18 @@ history_retry :: (channel_id: dc.Snowflake, l: *dc.Message_List) {
 	}
 }
 
+// The message pings you: by name, @everyone / @here, or one of your roles in its server.
+mentions_me :: (m: *dc.Message) -> bool {
+	s := store();
+	if m.mention_everyone || array_find(m.mentions, s.me) return true;
+	if find_index_from_left(m.content, "<@&") < 0 return false;
+	ch := dc.channel_get(s, m.channel_id);
+	if !ch || !ch.guild_id return false;
+	mem := dc.member_get(s, ch.guild_id, s.me);
+	if mem for r: mem.roles if contains(m.content, tprint("<@&%>", r)) return true;
+	return false;
+}
+
 // One message: either a group start (avatar, name, time) or a continuation.
 message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) -> *ui.Box {
 	s := store();
@@ -1113,6 +1125,13 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 		if hovered app.chat_hover = m.id;
 		if (hovered || ma.menu_msg == m.id) && !editing li.style.bg = T("--message-background-hover");
 		highlighted := ma.replying == m.id || jump_highlighted(m.id);
+		if !highlighted && mentions_me(m) {
+			li.style.bg = T(ifx hovered then "--message-mentioned-background-hover" else "--message-mentioned-background-default");
+			li.style.radius = .[0, 4, 4, 0];
+			bar := ui.box("mnbar", .Draw_Background | .Floating_X | .Floating_Y);
+			bar.semantic_size = .[ui.px(2), ui.px(li.rect.y1 - li.rect.y0)];
+			bar.style.bg = T("--status-warning");
+		}
 		if highlighted {
 			li.style.bg = T("--message-highlight-background-default");
 			li.style.radius = .[0, 4, 4, 0];

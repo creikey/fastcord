@@ -90,7 +90,6 @@
 - [ ] Voice: every volume slider goes from 0 to 400% (the official max is 200%). That covers output volume, per-user volume, stream volume, the video player and input volume (now 0-100). Clamps are in `src/app/view_voice_settings.jai`. Add a limiter so the boost doesn't clip harshly. Keep values above 200% local if synced settings would reject them.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
-- [ ] Chat: messages that mention you (you, @everyone/@here, your role) get no yellow highlight and left bar.
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
 - [ ] Bug: re-identifying drops you from voice (op 4 with a null channel after every READY), and if your own voice state is gone the panel stays on "RTC Connecting". A sleep over 60 s also ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
 - [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
@@ -338,3 +337,4 @@
 - [x] Embeds: with MANAGE_MESSAGES in a server channel the "Remove all embeds" X shows on other people's messages too (`can_manage_message`, `tests/ui/media/remove_embeds_mod.txt`).
 - [x] Moderation: with MANAGE_MESSAGES in a server channel the message menu offers "Delete Message" on other people's messages (`can_manage_message`, `tests/ui/forward/delete_others.txt`).
 - [x] Messages: holding Shift over a message you may delete adds a red trash can to the hover toolbar that deletes it without confirmation (`tests/ui/forward/shift_delete.txt`; scripts gained `move <x> <y> shift`).
+- [x] Chat: messages that mention you (by name, @everyone / @here, or one of your roles) get the mentioned background and a gold left bar (`mentions_me` in `view_chat.jai`, `tests/ui/forward/mention_highlight.txt`).
