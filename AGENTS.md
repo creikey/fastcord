@@ -64,6 +64,8 @@ the Jai is written. This file lists what is easy to miss.
   (unified diff, paths under `<lib>/`): `build.jai` copies the library to `build/patched/<lib>`,
   applies the patches in name order with `git apply` and compiles that copy. List each patch and its
   purpose in the library's README, and re-make the patches on every update.
+- Every server is untrusted, Discord included: check what Discord sends (sizes, counts, IDs, URLs)
+  as strictly as what a self-hosted server sends, with no path that trusts Discord's shapes.
 - Parsers fastcord writes for untrusted input (anything from the network, a file or another user)
   never use regular expressions. Parse with recursive descent over a lexer, preferably a table-driven
   DFA or straight-line scanning code. Each must run in time linear in its input: no backtracking and
