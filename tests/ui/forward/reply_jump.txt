@@ -1,0 +1,5 @@
+# Clicking a reply's quoted line jumps up to the original message (filler message 5).
+wait 10
+click 650 418
+wait 60
+expect_visible "Robin"

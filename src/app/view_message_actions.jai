@@ -266,8 +266,12 @@ edit_box :: (m: *dc.Message) {
 reply_preview :: (m: *dc.Message) {
 	s := store();
 	ref := find_message(m.referenced_id);
-	r := row("replyref");
+	r := row("replyref", ifx ref then ui.Box_Flags.Clickable else 0);
 	r.semantic_size = .[ui.pct(1), ui.px(22)];
+	if ref {
+		r.hover_cursor = .Pointer;
+		if ui.signal(r).clicked jump_to_message(ref.channel_id, ref.id);
+	}
 	{ ui.parent(r); defer ui.pop_parent();
 		// the spine: only the top and left edges of a rounded box (clipped)
 		clip := ui.box("spineclip", .Clip | .Floating_X | .Floating_Y);
