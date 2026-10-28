@@ -181,6 +181,7 @@
 - [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
 - [ ] macOS, Linux: the profiler's sampling timer is a stub, and the hang watchdog writes only a hint, not the other threads' stacks.
 - [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
+- [ ] Video (Windows): H.265 is always advertised as decodable (`CODECS_JSON` in `voice/gateway.jai`), but HEVC needs the HEVC Video Extensions from the Store; without them the SFU may still send H.265 and every camera stays black. Advertise H.265 decode only when `media.video_codec_supported(.HEVC)`.
 - [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
 - [ ] Search: the suggestions popout has no search history; the client lists your recent searches under "History" with a clear button (`view_search.jai` keeps none).
 - [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
@@ -327,3 +328,4 @@
 - [x] Inbox / pins / search: "Add Reaction" from a card's message menu opens the emoji picker above the popout, also for a message in another channel (`tests/ui/rail/loose_card_menu.txt`).
 - [x] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes render as such behind the quote bar, in messages and embed descriptions (`tests/ui/forward/quote_blocks.txt`).
 - [x] Search, pins and inbox: message cards render the chat's blocks (quote bar, headings, lists, subtext, code boxes, clickable links and "(edited)"), with search terms still highlighted.
+- [x] Bug (Windows): watching an H.265 camera or stream (the SFU's usual choice) crashed the app. Microsoft's HEVC decoder MFT dereferences null when the input type has no frame size; live decoders now start from a placeholder size (`decode_windows.jai`, test `src/tests/video_call_windows.jai`).

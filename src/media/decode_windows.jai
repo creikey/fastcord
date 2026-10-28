@@ -47,7 +47,9 @@ video_decoder_create :: (t: *Track, first_packet: []u8 = .[]) -> *Video_Decoder,
 // HEVC: VPS, SPS, PPS), as they arrive in-band; samples are then AVCC with 4-byte lengths.
 video_decoder_create_from_params :: (codec: Codec, params: [][]u8) -> *Video_Decoder, bool {
 	if (codec != .H264 && codec != .HEVC) || !params.count || !video_codec_supported(codec) return null, false;
-	vd := decoder_create(codec, 0, 0);
+	// The size is a placeholder until the parameter sets arrive (the decoder then reports a stream change); the
+	// HEVC MFT dereferences null on an input type without one.
+	vd := decoder_create(codec, 1280, 720);
 	if !vd return null, false;
 	for params { array_add(*vd.prefix, 0, 0, 0, 1); array_add(*vd.prefix, ..it); }
 	vd.nal_len = 4;
