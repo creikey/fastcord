@@ -47,12 +47,26 @@ hosted_frame :: () {
 				h.joined, h.backoff, h.retry_at = true, 0, 0;
 				cfg := dc.Config.{token = h.token, wakeup = (_: *void) { platform.request_frame(); }};
 				cfg.hosted = .{host = h.inv.host, port = h.inv.port, pin = h.inv.pin, server_id = h.inv.id_hex};
+				old := h.client;
 				h.client = dc.client_create(cfg);
 				dc.client_start(h.client);
+				free(h.token);
+				h.token = "";
+				if old {
+					if app.client == old app.client = h.client;
+					client_release(old);
+				}
 			} else if !h.joined || h.status == 404 {
 				// A first join that fails, or a server that no longer knows us and whose invite is dead, is
 				// dropped, so settings.json doesn't keep it and a corrected invite can be pasted.
 				toast_show(tprint("Couldn't join %: %", h.inv.host, h.error), false);
+				if h.client {
+					if app.client == h.client {
+						app.client = app.discord;
+						go_home();
+					}
+					client_release(h.client);
+				}
 				hosted_free(h);
 				remove h;
 				continue;
@@ -63,6 +77,9 @@ hosted_frame :: () {
 				h.retry_at = platform.time_now() + h.backoff;
 			}
 		}
+		// The server ended this session (past its per-member cap, or by a kick): log in again by key, keeping
+		// the old client on screen until the new one replaces it.
+		if h.client && h.client.store.connection == .Auth_Failed && !h.thread && !h.retry_at hosted_start(h);
 		if h.retry_at && !h.thread {
 			if platform.time_now() >= h.retry_at {
 				h.retry_at = 0;
