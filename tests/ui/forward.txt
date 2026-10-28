@@ -1,0 +1,19 @@
+# Forward: the message menu opens the picker, which lists channels to post in and filters by search.
+wait 30
+rclick 700 151
+wait 10
+click_text "Forward"
+wait 10
+expect_visible "Forward To"
+expect_visible "Add an optional message..."
+expect_not_visible "Copy Message Link"
+type ding
+wait 10
+expect_visible "#dingus-battle"
+type zzz
+wait 10
+expect_visible "No results"
+shot build/ui-forward-picker.png
+key escape
+wait 10
+expect_not_visible "Forward To"

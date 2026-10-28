@@ -276,6 +276,25 @@ main :: () {
 	check(status == 200 && contains(body, "\"flags\":4096"), tprint("@silent is kept and other flags dropped: % %", status, body));
 	silent, _ := etf.from_json(body);
 	rest("DELETE", tprint("%/%", messages, field(silent, "id").s), "", token);
+	// A forward keeps a frozen copy of the original, which later edits don't change.
+	{
+		hello_id := field(list.list[0], "id").s;
+		forward_body := tprint("{\"content\": \"\", \"message_reference\": {\"channel_id\": \"%\", \"message_id\": \"%\", \"type\": 1}}", channel, hello_id);
+		status, body = rest("POST", messages, forward_body, token);
+		fwd_msg, _ := etf.from_json(body);
+		snaps := field(fwd_msg, "message_snapshots");
+		check(status == 200 && field(fwd_msg, "message_reference", "type").i == 1 && snaps.kind == .List && snaps.list.count == 1 && field(snaps.list[0], "message", "content").s == "hello",
+			tprint("forward: % %", status, body));
+		status, body = rest("PATCH", tprint("%/%", messages, hello_id), "{\"content\": \"changed\"}", token);
+		status, body = rest("GET", tprint("%?limit=1", messages), "", token);
+		check(contains(body, "\"content\":\"hello\"") && contains(body, "\"message_snapshots\""), tprint("a forward keeps the original as it was: % %", status, body));
+		status, body = rest("POST", messages, tprint("{\"content\": \"\", \"message_reference\": {\"channel_id\": \"%\", \"message_id\": \"%\", \"type\": 1}}", channel, field(fwd_msg, "id").s), token);
+		check(status == 400, tprint("a forward can't be forwarded again: %", status));
+		status, body = rest("POST", messages, tprint("{\"content\": \"note\", \"message_reference\": {\"channel_id\": \"%\", \"message_id\": \"%\", \"type\": 1}}", channel, hello_id), token);
+		check(status == 400, tprint("a forward has no content of its own: %", status));
+		rest("PATCH", tprint("%/%", messages, hello_id), "{\"content\": \"hello\"}", token);
+		rest("DELETE", tprint("%/%", messages, field(fwd_msg, "id").s), "", token);
+	}
 
 	// Link previews: a page behind a redirect, from a server on this machine (which only tests may reach).
 	check(!netio.is_public_address(u8.[127, 0, 0, 1]) && !netio.is_public_address(u8.[192, 168, 1, 1]) && !netio.is_public_address(u8.[100, 64, 0, 1])

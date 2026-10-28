@@ -72,6 +72,7 @@ message_toolbar :: (m: *dc.Message) {
 	names: [..]string;
 	names.allocator = temp;
 	array_add(*names, "reaction", ifx own then "pencil" else "arrow-angle-left-up");
+	if can_forward(m) array_add(*names, "arrow-angle-right-up");
 	if can_thread_from(m) array_add(*names, "thread");
 	array_add(*names, "more-horizontal");
 	// Shift adds a red trash can that deletes without asking
@@ -127,10 +128,13 @@ message_toolbar :: (m: *dc.Message) {
 			}
 			if name == "trash" && sig.hovering tooltip_below("Delete", b.rect);
 			if name == "thread" && sig.hovering tooltip_below("Create Thread", b.rect);
+			if name == "arrow-angle-right-up" && sig.hovering tooltip_below("Forward", b.rect);
 			if sig.clicked {
 				if name == {
 				case "arrow-angle-left-up";
 					start_reply(m);
+				case "arrow-angle-right-up";
+					forward_open(m);
 				case "pencil";
 					start_edit(m);
 				case "more-horizontal";
@@ -480,6 +484,7 @@ message_menu :: () {
 	in_chat := m != ma.loose;
 	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
 	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
+	if can_forward(m) array_add(*items, .{label = "Forward", icon = "arrow-angle-right-up", sep = !in_chat});
 	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"});
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
 	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
@@ -586,6 +591,8 @@ message_menu :: () {
 					start_edit(m);
 				case "Reply";
 					start_reply(m);
+				case "Forward";
+					forward_open(m);
 				case "Copy Text";
 					clipboard_set(shown_text(m.id, m.channel_id, m.content));
 				case "Pin Message"; #through;

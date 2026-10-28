@@ -1345,6 +1345,7 @@ overlays :: () {
 		if modr.user != 0 && modr.history_open ban_history_list();
 	}
 	if tsg.channel != 0 { timestamp_gen_modal(); }
+	if fwd.msg != 0 { forward_modal(); }
 	if shortcuts_open { shortcuts_modal(); }
 	if view_reactions.msg != 0 { view_reactions_modal(); }
 	if app.profile_user != 0 { profile_popout(); }

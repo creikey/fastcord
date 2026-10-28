@@ -48,6 +48,7 @@ voice :: #import "voice";
 #load "mention_autocomplete.jai";
 #load "friend_nickname.jai";
 #load "timestamp_gen.jai";
+#load "forward.jai";
 #load "glue.jai";
 #load "highlight.jai";
 #load "identity.jai";

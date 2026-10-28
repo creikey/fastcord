@@ -124,6 +124,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN nonce TEXT;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN webhook INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN username TEXT;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN snapshot TEXT;");
 	sqlite.exec(db, "ALTER TABLE embeds ADD COLUMN rich TEXT;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
@@ -421,7 +422,7 @@ CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT
 	provider TEXT NOT NULL, color INTEGER NOT NULL, rich TEXT, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0,
 	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT, snapshot TEXT);
 -- A webhook posts as a users row of its own, left = 1, so its messages join like any member's.
 CREATE TABLE IF NOT EXISTS webhooks(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL, token TEXT NOT NULL, creator INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
@@ -943,11 +944,28 @@ iso :: (id: s64) -> string {
 }
 
 // edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited. A reply (type 19)
-// carries the message it answers as referenced, or null once that is deleted.
+// carries the message it answers as referenced, or null once that is deleted. A forward's snapshot is
+// the JSON forward_snapshot made: {channel_id, message_id, message}.
 message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0,
 		reply: s64 = 0, referenced := etf.Value.{}, nonce := "", reactions := etf.Value.{}, mentions := etf.Value.{}, everyone := false, pinned := false,
-		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}, webhook := false) -> etf.Value {
-	m := etf.map_builder(17,, temp);
+		kind := DEFAULT, attachments := etf.Value.{}, embeds := etf.Value.{}, flags := 0, thread := etf.Value.{}, webhook := false, snapshot := "") -> etf.Value {
+	m := etf.map_builder(19,, temp);
+	if snapshot {
+		v, err := etf.from_json(snapshot,, temp);
+		if err == .None && v.kind == .Map {
+			ref := etf.map_builder(4,, temp);
+			etf.map_put(*ref, "type", etf.vint(1));
+			etf.map_put(*ref, "message_id", etf.map_get(v.map, "message_id"));
+			etf.map_put(*ref, "channel_id", etf.map_get(v.map, "channel_id"));
+			etf.map_put(*ref, "guild_id", snow(s.guild));
+			etf.map_put(*m, "message_reference", etf.vmap(etf.map_done(*ref)));
+			snap := etf.map_builder(1,, temp);
+			etf.map_put(*snap, "message", etf.map_get(v.map, "message"));
+			snaps := NewArray(1, etf.Value,, temp);
+			snaps[0] = etf.vmap(etf.map_done(*snap));
+			etf.map_put(*m, "message_snapshots", etf.vlist(snaps));
+		}
+	}
 	if webhook etf.map_put(*m, "webhook_id", snow(author));
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(ifx kind != DEFAULT then kind else ifx reply then 19 else 0));
@@ -977,7 +995,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	return etf.vmap(etf.map_done(*m));
 }
 
-MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, coalesce(m.username, u.name), m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11), m.webhook FROM messages m JOIN users u ON u.id = m.author";
+MESSAGE_SELECT :: "SELECT m.id, m.channel, m.author, coalesce(m.username, u.name), m.content, coalesce(m.edited, 0), coalesce(m.reply, 0), m.everyone, m.pinned_at, m.type, m.flags, (SELECT 1 FROM channels t WHERE t.id = m.id AND t.type = 11), m.webhook , m.snapshot FROM messages m JOIN users u ON u.id = m.author";
 
 // Members who can't see a new message yet count it as a mention until they read past it.
 // Takes the channel, the author, whether it pings everyone, and the message.
@@ -1036,7 +1054,31 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 	}
 	return message_value(s, id, sqlite.col_int(st, 1), sqlite.col_int(st, 2), copy_string(sqlite.col_text(st, 3),, temp),
 		copy_string(sqlite.col_text(st, 4),, temp), sqlite.col_int(st, 5), reply, referenced, nonce, reactions, etf.vlist(mentioned), sqlite.col_int(st, 7) != 0, !sqlite.col_is_null(st, 8), kind, attachments_locked(s, id), embeds_locked(s, id, (sqlite.col_int(st, 10) & SUPPRESS_EMBEDS) != 0), sqlite.col_int(st, 10),
-		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0);
+		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0, copy_string(sqlite.col_text(st, 13),, temp));
+}
+
+// forward_snapshot freezes what a forward of source shows, as Discord's message_snapshots do: later edits
+// and deletes of the original don't change it. "" if source can't be forwarded from channel. The caller
+// holds db_mu.
+forward_snapshot :: (s: *Server, source: s64, channel: s64) -> string {
+	v := message_locked(s, source);
+	if v.kind != .Map || etf.map_get(v.map, "channel_id").s != tprint("%", channel) return "";
+	_, forwarded := etf.map_get(v.map, "message_snapshots");
+	kind, _ := etf.map_get(v.map, "type");
+	if forwarded || (kind.i != DEFAULT && kind.i != 19) return "";
+	m := etf.map_builder(8,, temp);
+	for key: string.["type", "content", "embeds", "attachments", "timestamp", "edited_timestamp", "flags", "mentions"] {
+		f, _ := etf.map_get(v.map, key);
+		etf.map_put(*m, key, ifx key == "flags" then etf.vint(f.i & ~HAS_THREAD) else f);
+	}
+	out := etf.map_builder(3,, temp);
+	etf.map_put(*out, "channel_id", snow(channel));
+	etf.map_put(*out, "message_id", snow(source));
+	etf.map_put(*out, "message", etf.vmap(etf.map_done(*m)));
+	sb: String_Builder;
+	sb.allocator = temp;
+	etf.to_json(etf.vmap(etf.map_done(*out)), *sb);
+	return builder_to_string(*sb,, temp);
 }
 
 // message_locked is message id as sent to clients, or null if there is none; the caller holds db_mu.
@@ -1608,18 +1650,27 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		// A send may set only these, as on Discord; any other bit is dropped.
 		flags := flags_v.i & (SUPPRESS_EMBEDS | SUPPRESS_NOTIFICATIONS);
 		if atts.kind == .List && atts.list.count > MAX_UPLOADS return json_error(c, 400, 50035, "Invalid Form Body");
-		if content.kind == .Nil && has_files content = etf.vstring("");
-		if content.kind != .String || (!trim(content.s) && !has_files) return json_error(c, 400, 50006, "Cannot send an empty message");
+		ref, _ := etf.map_get(v.map, "message_reference");
+		ref_id, ref_channel, ref_type: etf.Value;
+		if ref.kind == .Map {
+			ref_id, _ = etf.map_get(ref.map, "message_id");
+			ref_channel, _ = etf.map_get(ref.map, "channel_id");
+			ref_type, _ = etf.map_get(ref.map, "type");
+		}
+		// A forward (type 1) carries the original in its snapshot, and nothing of its own.
+		forward := ref_type.kind == .Int && ref_type.i == 1;
+		if forward && (has_files || (content.kind == .String && content.s) || ref_id.kind != .String || ref_channel.kind != .String) return json_error(c, 400, 50035, "Invalid Form Body");
+		if content.kind == .Nil && (has_files || forward) content = etf.vstring("");
+		if content.kind != .String || (!trim(content.s) && !has_files && !forward) return json_error(c, 400, 50006, "Cannot send an empty message");
 		if !text_ok(content.s, lines = true) return json_error(c, 400, 50035, "Invalid Form Body");
 		if utf16_units(content.s) > MAX_CONTENT return content_too_long(c);
 		if nonce.kind == .String && nonce.s.count > 25 return json_error(c, 400, 50035, "Invalid Form Body");
-		ref, _ := etf.map_get(v.map, "message_reference");
 		reply: s64;
-		if ref.kind == .Map {
-			rid, _ := etf.map_get(ref.map, "message_id");
-			if rid.kind == .String reply = string_to_int(rid.s, T = s64);
-			else if rid.kind == .Int reply = rid.i;
+		if !forward {
+			if ref_id.kind == .String reply = string_to_int(ref_id.s, T = s64);
+			else if ref_id.kind == .Int reply = ref_id.i;
 		}
+		snapshot := "";
 		id := snowflake(s);
 		nonce_s := ifx nonce.kind == .String then nonce.s else "";
 		referenced, m, thread: etf.Value;
@@ -1644,6 +1695,10 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				if referenced.kind != .Map || etf.map_get(referenced.map, "channel_id").s != tprint("%", channel) {
 					return json_error(c, 400, 50035, "Invalid Form Body");
 				}
+			}
+			if forward {
+				snapshot = forward_snapshot(s, string_to_int(ref_id.s, T = s64), string_to_int(ref_channel.s, T = s64));
+				if !snapshot return json_error(c, 400, 50035, "Invalid Form Body");
 			}
 			// A message reopens an archived thread, unless it's locked: then only the owner may post.
 			st := sqlite.prepare(s.db, tprint("SELECT archived, locked FROM channels WHERE id = ? AND type = %;", THREAD));
@@ -1676,7 +1731,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				array_add_if_unique(*ids, string_to_int(author.s, T = s64));
 			}
 			ok := sqlite.exec(s.db, "BEGIN;")
-				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce, flags) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''), ?);", id, channel, user, content.s, reply, cast(int) everyone, nonce_s, flags);
+				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce, flags, snapshot) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''), ?, nullif(?, ''));", id, channel, user, content.s, reply, cast(int) everyone, nonce_s, flags, snapshot);
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;
 			if has_files for a: atts.list {

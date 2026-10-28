@@ -346,6 +346,10 @@ fetch_messages :: (c: *Client, channel_id: Snowflake, before: Snowflake = 0, lim
 
 Send_Options :: struct {
 	reply_to: Snowflake; // message id
+	// A forward (message_reference type 1) of this message from forward_channel; content must be empty.
+	forward_message: Snowflake;
+	forward_channel: Snowflake;
+	forward_guild: Snowflake; // 0 for DMs
 	reply_guild_id: Snowflake; // guild of the replied channel (0 for DMs)
 	mention_replied: bool; // false -> allowed_mentions {parse:[...], replied_user:false}
 	tts: bool;
@@ -363,7 +367,15 @@ write_message_body_prefix :: (w: *Json, channel_id: Snowflake, content: string, 
 	json_kstr(w, "content", content);
 	json_kstr(w, "nonce", snowflake_string(nonce));
 	json_kbool(w, "tts", opts.tts);
-	if opts.reply_to {
+	if opts.forward_message {
+		json_key(w, "message_reference");
+		json_obj(w);
+		if opts.forward_guild json_ksnow(w, "guild_id", opts.forward_guild);
+		json_ksnow(w, "channel_id", opts.forward_channel);
+		json_ksnow(w, "message_id", opts.forward_message);
+		json_kint(w, "type", 1);
+		json_obj_end(w);
+	} else if opts.reply_to {
 		json_key(w, "message_reference");
 		json_obj(w);
 		if opts.reply_guild_id json_ksnow(w, "guild_id", opts.reply_guild_id);
@@ -419,6 +431,18 @@ send_message :: (c: *Client, channel_id: Snowflake, content: string, opts := Sen
 	msg.referenced_id = opts.reply_to;
 	msg.pending = true;
 	msg.kind = ifx opts.reply_to then 19 else 0;
+	if opts.forward_message {
+		msg.forwarded = true;
+		msg.forward_channel_id = opts.forward_channel;
+		msg.forward_message_id = opts.forward_message;
+		src := message_list(s, opts.forward_channel);
+		i := message_index(src, opts.forward_message);
+		if i >= 0 {
+			free_str(msg.content, s.allocator);
+			msg.content = clone_str(src.messages[i].content, s.allocator);
+			msg.forward_timestamp = clone_str(src.messages[i].timestamp, s.allocator);
+		}
+	}
 	insert_message(message_list(s, channel_id), msg);
 	s.changed += 1;
 	typing_local_stop(c, channel_id);
