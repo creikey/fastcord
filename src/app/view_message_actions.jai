@@ -452,6 +452,7 @@ message_menu :: () {
 	sel := ui.has_selection();
 	if sel array_add(*items, .{label = "Copy", icon = "copy"});
 	array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel});
+	if m.reactions array_add(*items, .{label = "View Reactions", icon = "reaction"});
 	// a card outside the chat (search, pins) has no inline editor or composer to reply from
 	in_chat := m != ma.loose;
 	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
@@ -552,6 +553,8 @@ message_menu :: () {
 					app.copy_selection = true; // after end(): the selection text needs this frame's boxes
 				case "Add Reaction";
 					app.reaction_target = m.id;
+				case "View Reactions";
+					view_reactions.msg, view_reactions.sel = m.id, 0;
 				case "Edit Message";
 					start_edit(m);
 				case "Reply";

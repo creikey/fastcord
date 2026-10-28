@@ -715,7 +715,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 
 // Any overlay that takes keyboard input away from the composer.
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0 || tsg.channel != 0 || folder_modal_open() || shortcuts_open;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0 || tsg.channel != 0 || folder_modal_open() || shortcuts_open || view_reactions.msg != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
@@ -1642,7 +1642,7 @@ reactions_view :: (m: *dc.Message) {
 				label(tprint("%", count), .Semibold, 14, ifx me then T("--reaction-text-reacted-default") else T("--reaction-text-default"), 16);
 				spacer(.X, 6);
 			}
-			if sig.hovering reactors_tooltip(m, re, burst, count, pill.rect);
+			if sig.hovering reactors_tooltip(m, re, burst, count, pill);
 			if sig.clicked {
 				if !burst react(m, re.emoji, "Message Inline Button", toggle = true);
 				else if me && net_action() dc.remove_reaction(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id, burst = true, location = "Message Inline Button");
@@ -1663,30 +1663,44 @@ reactors: struct {
 	emoji_id: dc.Snowflake;
 	emoji_name: string; // heap
 	burst: bool;
-	names: [..]string; // heap
+	users: [..]dc.Snowflake;
 	loaded: bool;
+	hover_key: u64; // the pill hovered, and since when: the fetch waits for a short hover
+	hover_since: float64;
 };
 
-reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, r: ui.Rect) {
-	if reactors.msg != m.id || reactors.emoji_id != re.emoji.id || reactors.emoji_name != re.emoji.name || reactors.burst != burst {
-		reactors.seq += 1;
-		reactors.msg, reactors.emoji_id, reactors.burst = m.id, re.emoji.id, burst;
-		free(reactors.emoji_name);
-		reactors.emoji_name = copy_string(re.emoji.name);
-		for reactors.names free(it);
-		array_reset_keeping_memory(*reactors.names);
-		reactors.loaded = false;
-		if app.client dc.fetch_reactors(app.client, m.channel_id, m.id, re.emoji.name, re.emoji.id, burst, reactors.seq);
+// Fetch the first page of who reacted with emoji (burst: super reactions) unless it's the one held.
+reactors_want :: (channel_id: dc.Snowflake, msg: dc.Snowflake, emoji: dc.Emoji, burst: bool) {
+	if reactors.msg == msg && reactors.emoji_id == emoji.id && reactors.emoji_name == emoji.name && reactors.burst == burst return;
+	reactors.seq += 1;
+	reactors.msg, reactors.emoji_id, reactors.burst = msg, emoji.id, burst;
+	free(reactors.emoji_name);
+	reactors.emoji_name = copy_string(emoji.name);
+	array_reset_keeping_memory(*reactors.users);
+	reactors.loaded = false;
+	if app.client dc.fetch_reactors(app.client, channel_id, msg, emoji.name, emoji.id, burst, reactors.seq);
+}
+
+reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, pill: *ui.Box) {
+	if reactors.hover_key != pill.key {
+		reactors.hover_key = pill.key;
+		reactors.hover_since = app.ui.time;
 	}
-	if !reactors.loaded || !reactors.names return;
-	shown := min(reactors.names.count, 3);
+	if app.ui.time - reactors.hover_since < 0.3 {
+		app.ui.animating = true;
+		return;
+	}
+	reactors_want(m.channel_id, m.id, re.emoji, burst);
+	if !reactors.loaded || !reactors.users return;
+	shown := min(reactors.users.count, 3);
 	who: String_Builder;
 	who.allocator = temp;
 	for i: 0..shown - 1 {
 		if i > 0 append(*who, ifx i == shown - 1 && count <= shown then " and " else ", ");
-		append(*who, reactors.names[i]);
+		append(*who, name_in(reactors.users[i], m.channel_id));
 	}
 	if count > shown print_to_builder(*who, " and % other%", count - shown, ifx count - shown == 1 then "" else "s");
+	r := pill.rect;
 	tip := row("reactorstip", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
 	tip.semantic_size = .[ui.children(), ui.px(40)];
 	tip.cross_align = .Center;
@@ -1708,14 +1722,112 @@ reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, 
 
 reactors_receive :: (r: *dc.Feature_Result) {
 	if r.tag != reactors.seq || !r.ok return;
-	for dc.vlist(r.body) {
-		u := dc.vmap(it);
-		name := name_in(dc.fsnow(u, "id"), r.channel_id, "");
-		if !name name = dc.fstr(u, "global_name");
-		if !name name = dc.fstr(u, "username");
-		array_add(*reactors.names, copy_string(name));
-	}
+	for dc.vlist(r.body) array_add(*reactors.users, dc.parse_user_into(store(), dc.vmap(it)));
 	reactors.loaded = true;
+}
+
+// The message menu's View Reactions: the message's reactions down the left (super reactions first),
+// who reacted with the selected one on the right.
+view_reactions: struct {
+	msg: dc.Snowflake;
+	sel: int;
+};
+
+view_reactions_modal :: () {
+	m := find_message(view_reactions.msg);
+	if !m || !m.reactions {
+		view_reactions.msg = 0;
+		return;
+	}
+	scrim := ui.box("vr_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
+	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
+	scrim.style.bg = .{0, 0, 0, 0.7};
+	if ui.signal(scrim).clicked {
+		view_reactions.msg = 0;
+		return;
+	}
+	W :: 520;
+	H :: 440;
+	d := ui.box("vrmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Clip);
+	d.semantic_size = .[ui.px(W), ui.px(H)];
+	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - H) / 2};
+	d.style.bg = T("--modal-background");
+	d.style.border_color = T("--border-subtle");
+	d.style.border = 1;
+	d.style.radius = all4(12);
+	d.layout_axis = .X;
+	ui.signal(d);
+	ui.push_parent(d);
+	defer ui.pop_parent();
+	left := ui.box("emojis", .Scroll_Y | .Clip | .Draw_Background);
+	left.semantic_size = .[ui.px(150), ui.pct(1)];
+	left.layout_axis = .Y;
+	left.style.bg = T("--background-base-lower");
+	ui.signal(left);
+	n := 0;
+	sel_emoji: dc.Emoji;
+	sel_burst: bool;
+	{ ui.parent(left); defer ui.pop_parent();
+		spacer(.Y, 8);
+		for burst: bool.[true, false] for * re, i: m.reactions {
+			count := ifx burst then re.burst_count else re.count;
+			if count <= 0 continue;
+			selected := n == view_reactions.sel;
+			if selected sel_emoji, sel_burst = re.emoji, burst;
+			r := row(tprint("vr%_%", i, burst), .Clickable | .Draw_Background | .Hot_Animation);
+			r.semantic_size = .[ui.pct(1), ui.px(36)];
+			r.cross_align = .Center;
+			r.style.bg = ifx selected then T("--background-mod-strong") else .{};
+			r.style.bg_hot = ifx selected then r.style.bg else T("--background-mod-subtle");
+			if ui.signal(r).clicked view_reactions.sel = n;
+			{ ui.parent(r); defer ui.pop_parent();
+				spacer(.X, 16);
+				emoji_box("e", re.emoji, 20);
+				spacer(.X, 8);
+				label(tprint("%", count), .Semibold, 14, ifx burst then rgb_u32(re.burst_color) else T("--text-default"), 18);
+			}
+			n += 1;
+		}
+	}
+	if view_reactions.sel >= n {
+		view_reactions.sel = 0;
+		return;
+	}
+	reactors_want(m.channel_id, m.id, sel_emoji, sel_burst);
+	right := ui.box("users", .Scroll_Y | .Clip);
+	right.semantic_size = .[ui.fill(), ui.pct(1)];
+	right.layout_axis = .Y;
+	ui.signal(right);
+	ui.parent(right); defer ui.pop_parent();
+	spacer(.Y, 8);
+	if !reactors.loaded {
+		r := row("loading");
+		r.semantic_size = .[ui.pct(1), ui.px(40)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 16);
+		label("Loading...", .Normal, 14, T("--text-muted"), 18);
+	}
+	for uid, i: reactors.users {
+		r := row(tprint("vu%", i));
+		r.semantic_size = .[ui.pct(1), ui.px(44)];
+		r.cross_align = .Center;
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 16);
+		avatar_box("av", uid, 24);
+		spacer(.X, 12);
+		label(name_in(uid, m.channel_id), .Medium, 15, T("--text-strong"), 20);
+		u := dc.user_get(store(), uid);
+		if u {
+			spacer(.X, 6);
+			label(u.username, .Normal, 13, T("--text-muted"), 18);
+		}
+	}
+	for * e: app.ui.events {
+		if !e.consumed && e.kind == .Key_Down && e.key == .Escape {
+			e.consumed = true;
+			view_reactions.msg = 0;
+		}
+	}
 }
 
 #scope_file

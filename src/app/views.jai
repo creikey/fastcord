@@ -1300,6 +1300,7 @@ overlays :: () {
 	if fnick.user != 0 { friend_nick_modal(); }
 	if tsg.channel != 0 { timestamp_gen_modal(); }
 	if shortcuts_open { shortcuts_modal(); }
+	if view_reactions.msg != 0 { view_reactions_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
 	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
 	media_overlays(); // view_media.jai: image viewer, media context menu
