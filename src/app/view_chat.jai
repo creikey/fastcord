@@ -727,6 +727,17 @@ am_pm :: (t: Calendar_Time) -> string { return ifx t.hour >= 12 then "PM" else "
 // A search, pins or inbox card's text: the chat's blocks, with the search terms highlighted.
 card_body :: (m: *dc.Message, terms: []string) { message_body(m, terms); }
 
+shown_hidden: Table(dc.Snowflake, bool); // blocked or ignored authors' messages revealed this session
+
+// "blocked" or "ignored" while m's author is and the message isn't revealed, else "".
+hidden_kind :: (m: *dc.Message) -> string {
+	r := table_find_pointer(*store().relationships, m.author_id);
+	if !r || table_contains(*shown_hidden, m.id) return "";
+	if r.kind == .Blocked return "blocked";
+	if r.ignored return "ignored";
+	return "";
+}
+
 #scope_file
 
 stamps: struct {
@@ -930,17 +941,6 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 		typing_line(channel_id);
 		new_messages_bar(channel_id, msgs, lw, cs, new_top < list.rect.y0);
 	}
-}
-
-shown_hidden: Table(dc.Snowflake, bool); // blocked or ignored authors' messages revealed this session
-
-// "blocked" or "ignored" while m's author is and the message isn't revealed, else "".
-hidden_kind :: (m: *dc.Message) -> string {
-	r := table_find_pointer(*store().relationships, m.author_id);
-	if !r || table_contains(*shown_hidden, m.id) return "";
-	if r.kind == .Blocked return "blocked";
-	if r.ignored return "ignored";
-	return "";
 }
 
 // "3 blocked messages — Show messages" in place of the run of hidden messages starting at msgs[i].

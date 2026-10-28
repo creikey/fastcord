@@ -301,6 +301,11 @@ reply_preview :: (m: *dc.Message) {
 			label("Original message was deleted", .Normal, 14, T("--text-muted"), 18);
 			return;
 		}
+		hide := hidden_kind(ref);
+		if hide != "" {
+			label(ifx hide == "blocked" then "Blocked message" else "Ignored message", .Normal, 14, T("--text-muted"), 18);
+			return;
+		}
 		avatar_box("av", ref.author_id, 16);
 		spacer(.X, 4);
 		name := name_in(ref.author_id, ref.channel_id);

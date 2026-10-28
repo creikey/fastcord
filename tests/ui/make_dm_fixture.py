@@ -21,6 +21,11 @@ for k, (u, rel, n) in enumerate([(users[0], 1, 1), (users[1], 0, 0), (users[2], 
     for m in range(n):
         out.append(ev('MESSAGE_CREATE', {'id': sf(t0 + m * 1000, 90 + k * 4 + m), 'channel_id': cid, 'author': u, 'content': 'hello %d' % m,
             'timestamp': '', 'edited_timestamp': None, 'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
+# a reply to grump's middle message: its quote line says "Blocked message"
+me = out[0]['etf']['d']['user']
+out.append(ev('MESSAGE_CREATE', {'id': sf(base_ms + 1000 * 1000 + 5000, 120), 'channel_id': 1800000000000000004, 'author': me, 'content': 'replying anyway',
+    'timestamp': '', 'edited_timestamp': None, 'type': 19, 'message_reference': {'channel_id': 1800000000000000004, 'message_id': sf(base_ms + 1000 * 1000 + 1000, 90 + 3 * 4 + 1)},
+    'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
 with open(os.path.join(here, 'dm.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     for o in out: f.write(json.dumps(o) + '\n')
 print('wrote dm.jsonl', len(out))
