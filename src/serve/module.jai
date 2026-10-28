@@ -963,21 +963,22 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 }
 
 // PATCH and DELETE /api/v9/channels/{id}/messages/{id}. Until roles land (Hosting 4) only the author may
-// edit or delete a message.
+// edit a message, and only the author or the owner delete it.
 one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64, message: s64) -> bool {
 	s := c.server;
-	author := 0;
+	author, owner := 0, 0;
 	{
 		locks.guard(*s.db_mu);
 		st := sqlite.prepare(s.db, "SELECT author FROM messages WHERE id = ? AND channel = ?;");
 		sqlite.bind_all(st, message, channel);
 		if sqlite.step(st) == .Row author = sqlite.col_int(st, 0);
 		sqlite.finalize(st);
+		owner = owner_id(s);
 	}
 	if !author return json_error(c, 404, 10008, "Unknown Message");
 	if author != user {
 		if req.method == "PATCH" return json_error(c, 403, 50005, "Cannot edit a message authored by another user");
-		return json_error(c, 403, 50013, "Missing Permissions");
+		if user != owner return json_error(c, 403, 50013, "Missing Permissions");
 	}
 
 	if req.method == "PATCH" {

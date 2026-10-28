@@ -445,6 +445,16 @@ main :: () {
 		check(got == tprint("% % ", all[1], all[2]), tprint("after: %", got));
 	}
 
+	// The owner deletes anyone's message; a member deletes only their own.
+	status, body = rest("POST", messages, "{\"content\": \"spam\"}", other_token);
+	spam, _ := etf.from_json(body);
+	status, body = rest("DELETE", tprint("%/%", messages, field(said, "id").s), "", token);
+	check(status == 204, tprint("the owner deletes a member's message: % %", status, body));
+	status, body = rest("DELETE", tprint("%/%", messages, field(pinged, "id").s), "", other_token);
+	check(status == 403, tprint("a member can't delete the owner's message: % %", status, body));
+	status, body = rest("DELETE", tprint("%/%", messages, field(spam, "id").s), "", other_token);
+	check(status == 204, tprint("a member deletes their own message: % %", status, body));
+
 	serve.stop(s);
 	print("% failed\n", failed);
 	exit(xx ifx failed then 1 else 0);

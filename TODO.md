@@ -38,7 +38,8 @@
   - Next: the "pinned a message" system message (type 6), and edits recomputing mentions. The member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead. A slow gateway reader stalls everyone's events (`serve` `broadcast`).
   - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
   - Done: Change Nickname (`PATCH /guilds/{id}/members/@me`) renames the member, since a hosted member has one name; GUILD_MEMBER_UPDATE and the member list follow, and old messages show the new name.
-  - The owner can't delete other members' messages: `one_message` answers 403 to anyone but the author, so spam stays up until roles land in Hosting 4. Let the owner delete any message (Discord's Manage Messages), and the client shows Delete for them.
+  - Done: the owner deletes any member's message (Discord's Manage Messages); members still delete only their own.
+  - On a hosted server, Create Channel still offers Voice (and the header menu Create Category), which `-serve` refuses with 400 (`create_channel` takes type 0 only). Serve categories, and hide Voice there until Hosting 4.
   - Add a test that runs the hosted client's views against a `-serve` instance and fails on every 404. Each request a hosted guild makes should be served or skipped like `aux_get`. Pins, search and profiles all 404 today.
 - [ ] Hosting 3: one instance hosts many server files on one port, choosing the server by its ID through TLS SNI. The owner runs Server Settings, plus a host tab, from their own client anywhere. It can't be bricked:
   - A second file with an already-loaded ID is refused, with Fork (new ID, same content) offered instead.
