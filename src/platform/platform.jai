@@ -44,6 +44,8 @@ Event_Kind :: enum u8 {
     Composition; // IME marked text changed; text = current marked string ("" = composition ended), composition_sel = selected byte range in text
     Drag_Enter;  // files are dragged over the window (pos = where)
     Drag_Leave;  // the drag left the window, was cancelled or dropped (after its File_Drop events)
+    Tray_Mute;   // the tray menu's Mute or Deafen was picked (Windows)
+    Tray_Deafen;
 }
 
 Event :: struct {
@@ -248,6 +250,9 @@ set_cursor :: (c: Cursor) {
 // press-and-hold accent popups appear next to it.
 set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = .{x, y, w, h}; }
 
+// Checkmarks on the tray menu's Mute and Deafen items (Windows).
+set_tray_voice :: (mute: bool, deaf: bool) { s.tray_mute, s.tray_deaf = mute, deaf; }
+
 // Called from inside OS modal loops (live resize) with events swapped in; run one frame.
 // Also re-captures the caller's context: frames run from OS callbacks (live resize) push it,
 // so they see what the app added (context.ui) after init.
@@ -320,6 +325,8 @@ State :: struct {
     frame_requested: bool; // atomic
     frame_callback: ();
     ime_rect: Vector4; // x, y, w, h in points (caret rect)
+    tray_mute: bool;
+    tray_deaf: bool;
     time_override: float64 = -1; // headless deterministic time; < 0 = real
     time_base: Apollo_Time;
     ctx: #Context; // the UI thread's, for OS callbacks

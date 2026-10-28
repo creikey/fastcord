@@ -300,7 +300,7 @@ module were read.
 
 | Rule | Kind | Anchor in the client | fastcord |
 |---|---|---|---|
-| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open and Quit (the client's also has Mute, Deafen, voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
+| Closing the window hides it to the tray (the client's "Minimize to Tray", on by default; fastcord has no setting); a left click on the tray icon shows it; the right-click menu has Open, Mute and Deafen (checked while on; Mute shows checked while deafened) and Quit (the client's also has voice settings and update check); the icon gets a red dot while there are unread mentions | guess | desktop core `app.asar` (not the web bundle) | `platform_windows.jai` `tray_menu`, `set_badge` |
 
 ## Login and logout
 
