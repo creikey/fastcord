@@ -491,29 +491,35 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 				}
 				if e.description != "" {
 					spacer(.Y, 8);
-					// a box per block so quotes get their bar and links their clicks (span ids are
-					// token indices within one block)
-					for blk, bi: md_parse(e.description) {
-						if bi > 0 spacer(.Y, 4);
-						wrap := row(tprint("dblk%", bi));
-						wrap.semantic_size = .[ui.pct(1), ui.children()];
-						wrap.cross_align = .Start;
-						{ ui.parent(wrap); defer ui.pop_parent();
-							if blk.quoted {
-								wrap.custom_draw = quote_bar_draw;
-								spacer(.X, 12);
-							}
-							d := ui.box("d", .Wrap_Text | .Selectable_Text);
-							d.semantic_size = .[ui.fill(), ui.text_size()];
-							d.style.line_height = 18;
-							d.style.text_color = T("--text-default");
-							d.sel_order = cast(u64) m.id * 8 + 7;
-							d.sel_sub = cast(u32) bi;
-							if blk.kind == .Code_Block ui.set_spans(d, .[.{text = blk.code, font = F(.Mono), size = 12}]);
-							else ui.set_spans(d, tokens_to_spans(blk.tokens, .Normal, 14, m));
-							handle_span_clicks(d, blk.tokens, m.id);
+					embed_markdown("d", e.description, m, 0);
+				}
+				fi := 0;
+				if e.fields.count spacer(.Y, 8);
+				while fi < e.fields.count {
+					// Up to 3 inline fields in a row share it evenly; any other field takes a row alone.
+					n := 1;
+					if e.fields[fi].is_inline while n < 3 && fi + n < e.fields.count && e.fields[fi + n].is_inline n += 1;
+					fr := row(tprint("frow%", fi));
+					fr.semantic_size = .[ui.pct(1), ui.children()];
+					fr.cross_align = .Start;
+					{ ui.parent(fr); defer ui.pop_parent();
+						for k: 0..n - 1 {
+							f := *e.fields[fi + k];
+							if k spacer(.X, 8);
+							fc := ui.box(tprint("f%", fi + k));
+							fc.semantic_size = .[ui.fill(), ui.children()];
+							fc.layout_axis = .Y;
+							ui.parent(fc); defer ui.pop_parent();
+							name := ui.box("n", .Wrap_Text);
+							name.semantic_size = .[ui.pct(1), ui.text_size()];
+							name.style.line_height = 18;
+							ui.set_spans(name, ui.Span.[.{text = f.name, font = F(.Semibold), size = 14, color = T("--text-strong")}]);
+							spacer(.Y, 2);
+							embed_markdown("v", f.value, m, (fi + k + 1) * 1000);
 						}
 					}
+					spacer(.Y, 8);
+					fi += n;
 				}
 				if video {
 					// a proxied video (FxTwitter, Reddit…) plays in the card; YouTube's iframe url doesn't
@@ -572,6 +578,18 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						}
 					}
 				}
+				footer := e.footer;
+				if e.timestamp_ms {
+					when := format_time_ms(e.timestamp_ms);
+					footer = ifx footer then tprint("% • %", footer, when) else when;
+				}
+				if footer {
+					spacer(.Y, 8);
+					ft := ui.box("footer", .Wrap_Text);
+					ft.semantic_size = .[ui.pct(1), ui.text_size()];
+					ft.style.line_height = 16;
+					ui.set_spans(ft, ui.Span.[.{text = footer, font = F(.Medium), size = 12, color = T("--text-default")}]);
+				}
 				spacer(.Y, 16);
 			}
 			if e.thumbnail_url != "" && e.image_url == "" && e.thumbnail_w > 0 && !video && !poster {
@@ -587,6 +605,31 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 			spacer(.X, 16);
 		}
 		spacer(.Y, 4);
+	}
+}
+
+// An embed's markdown (its description, a field's value): a box per block so quotes get their bar and
+// links their clicks, since span ids are token indices within one block. sub orders selection.
+embed_markdown :: (id: string, text: string, m: *dc.Message, sub: int) {
+	for blk, bi: md_parse(text) {
+		if bi > 0 spacer(.Y, 4);
+		wrap := row(tprint("%blk%", id, bi));
+		wrap.semantic_size = .[ui.pct(1), ui.children()];
+		wrap.cross_align = .Start;
+		ui.parent(wrap); defer ui.pop_parent();
+		if blk.quoted {
+			wrap.custom_draw = quote_bar_draw;
+			spacer(.X, 12);
+		}
+		d := ui.box(id, .Wrap_Text | .Selectable_Text);
+		d.semantic_size = .[ui.fill(), ui.text_size()];
+		d.style.line_height = 18;
+		d.style.text_color = T("--text-default");
+		d.sel_order = cast(u64) m.id * 8 + 7;
+		d.sel_sub = cast(u32) (sub + bi);
+		if blk.kind == .Code_Block ui.set_spans(d, .[.{text = blk.code, font = F(.Mono), size = 12}]);
+		else ui.set_spans(d, tokens_to_spans(blk.tokens, .Normal, 14, m));
+		handle_span_clicks(d, blk.tokens, m.id);
 	}
 }
 

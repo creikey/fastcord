@@ -152,6 +152,9 @@ free_embed :: (s: *Store, e: *Embed) {
 	free_str(e.video_url, a);
 	free_str(e.provider, a);
 	free_str(e.author_name, a);
+	for e.fields { free_str(it.name, a); free_str(it.value, a); }
+	if e.fields.data free(e.fields.data,, a);
+	free_str(e.footer, a);
 }
 
 free_message :: (s: *Store, m: *Message) {
@@ -413,6 +416,8 @@ parse_attachment :: (m: etf.Map, a: Allocator) -> Attachment {
 	};
 }
 
+MAX_EMBED_FIELDS :: 25; // Discord's own limit.
+
 parse_embed :: (m: etf.Map, a: Allocator) -> Embed {
 	e := Embed.{
 		kind = clone_str(fstr(m, "type"), a),
@@ -443,6 +448,17 @@ parse_embed :: (m: etf.Map, a: Allocator) -> Embed {
 	if p e.provider = clone_str(fstr(p, "name"), a);
 	au := fmap(m, "author");
 	if au e.author_name = clone_str(fstr(au, "name"), a);
+	ft := fmap(m, "footer");
+	if ft e.footer = clone_str(fstr(ft, "text"), a);
+	e.timestamp_ms = iso_to_ms(fstr(m, "timestamp"));
+	fields := flist(m, "fields");
+	if fields.count {
+		e.fields = NewArray(min(fields.count, MAX_EMBED_FIELDS), Embed_Field,, a);
+		for * e.fields {
+			f := vmap(fields[it_index]);
+			it.* = .{clone_str(fstr(f, "name"), a), clone_str(fstr(f, "value"), a), fbool(f, "inline")};
+		}
+	}
 	return e;
 }
 

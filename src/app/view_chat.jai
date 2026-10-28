@@ -41,8 +41,10 @@ chat_state :: (channel_id: dc.Snowflake) -> *Chat_State { return find_or_add(*ap
 local_utc_offset_ms :: () -> s64 { return app.utc_offset_ms; }
 
 // "3:04 PM" today, "Yesterday at 3:04 PM", or "10/24/2026 3:04 PM" — the client's calendar format.
-format_timestamp :: (id: dc.Snowflake, short := false) -> string {
-	ms := dc.snowflake_time_ms(id) + local_utc_offset_ms();
+format_timestamp :: (id: dc.Snowflake, short := false) -> string { return format_time_ms(dc.snowflake_time_ms(id), short); }
+
+format_time_ms :: (unix_ms: s64, short := false) -> string {
+	ms := unix_ms + local_utc_offset_ms();
 	t := utc_calendar(ms);
 	clock := tprint("%:%\u202f%", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t)); // narrow no-break space, as Intl formats it
 	if short return clock;

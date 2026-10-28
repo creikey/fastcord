@@ -195,6 +195,15 @@ Embed :: struct {
 	video_w, video_h: int;
 	provider: string;
 	author_name: string;
+	fields: []Embed_Field;
+	footer: string;
+	timestamp_ms: s64;
+}
+
+Embed_Field :: struct {
+	name: string;
+	value: string;
+	is_inline: bool;
 }
 
 Reaction :: struct {
