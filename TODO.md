@@ -88,7 +88,7 @@
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
 - [ ] Bug: a sleep over 60 s ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
-- [ ] Bug: Ctrl-C or SIGTERM in a terminal skips `app_exit` (no signal handling in `src/platform`), so voice isn't left and the gateway session lingers: Discord shows you in the call for minutes, and its expiry drops the next run's voice state.
+- [ ] Bug: Ctrl-C or SIGTERM in a terminal skips `app_exit` (no signal handling in `src/platform`), so voice isn't left and the gateway session lingers: Discord shows you in the call for minutes.
 - [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
 - [ ] Undo: dragging the last server out of a rail folder deletes the folder with its name and colour; let undo restore it.
 - [ ] Voice: clicking the panel opens nothing, so there's no connection info (packet loss, server, E2EE privacy and verification codes, which `voice/conn.jai` already has); the channel name doesn't go to the channel; no noise-suppression quick toggle.
@@ -330,7 +330,7 @@
 - [x] Markdown: slash-command mentions `</name sub:id>` and server page links `<id:customize|browse|guide|linked-roles>` draw as mention chips (`markdown.jai` `try_entity`, `tests/ui/forward/command_mentions.txt`).
 - [x] Reactions: super (burst) reactions get their own pill before the normal ones, tinted by `burst_colors[0]`; clicking your own takes it back (`view_chat.jai` `reactions_view`, `tests/ui/super_reactions.txt`).
 - [x] Reactions: pills wrap onto more lines when they would run off the right, sized from last frame's width (`view_chat.jai` `reactions_view`, `tests/ui/dm/reactions_wrap.txt`).
-- [x] Bug: re-identifying dropped you from voice (op 4 with a null channel after every READY): you vanished from the channel's member list while "Voice Connected" stayed. A fresh READY now rejoins the call, and so does losing our voice state for 3 s while the voice connection is up.
+- [x] Bug: re-identifying dropped you from voice (op 4 with a null channel after every READY): you vanished from the channel's member list while "Voice Connected" stayed. A fresh READY now rejoins the call. Also: joining a call with the same account on another computer moved the call there, but fastcord kept its connection and panel; it now hangs up locally.
 - [x] Rail: right-clicking a folder opens Mark Folder As Read and Folder Settings, a modal that renames and recolours it through `guild_folders` (`view_rail_folders.jai`, `tests/ui/rail/folder_settings.txt`).
 - [x] Messages: a failed send shows "Message failed to send." with Retry (same text and reply) and Delete (local) under the red message (`view_chat.jai` `failed_send_note`, `tests/ui/failed_send.txt`).
 - [x] Media: Save Image shows a toast: green "Image saved to Downloads." or red "Couldn't save the image." when the fetch or write fails (`images.jai` `decode_upload`, `requests.jai` `toast_show`, `tests/ui/media/save_image.txt`).

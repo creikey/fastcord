@@ -2630,8 +2630,8 @@ username_rules :: (t: *T) {
 	expect_value(t, username_rule_error("no spaces"), "Please only use numbers, letters, underscores _ , or periods.");
 }
 
-// A gateway reconnect gives us a new voice session; the old session's leave arriving after
-// the rejoin must not drop us from the channel's member list.
+// An older session's late leave (after a gateway reconnect) must not drop us from the list;
+// our account joining on another computer takes the call over.
 voice_state_stale_leave :: (t: *T) {
 	s: Store;
 	store_init(*s, temp);
@@ -2649,6 +2649,16 @@ voice_state_stale_leave :: (t: *T) {
 	expect(t, vs != null && vs.session_id == "new", "the old session's leave is ignored");
 	vsu(*s, "", "new");
 	expect(t, table_find_pointer(*s.voice_states, 7) == null, "the current session's leave removes us");
+	// our account joins a call on another computer: the call moves there (the app hangs up)
+	s.me = 7;
+	s.session_id = "ours";
+	vsu(*s, "9", "ours");
+	expect_value(t, s.voice_elsewhere, 0);
+	vsu(*s, "5", "other");
+	vs = table_find_pointer(*s.voice_states, 7);
+	expect(t, vs != null && vs.channel_id == 5 && s.voice_elsewhere == 1, "another device's join takes the call");
+	vsu(*s, "5", "other");
+	expect_value(t, s.voice_elsewhere, 1);
 }
 
 // HTTPUtils' per-URL hold: after a 429, requests queued for the URL go one per response, in order.

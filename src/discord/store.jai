@@ -9,6 +9,7 @@ Store :: struct {
 	connection: Connection_State;
 	ready: bool;
 	readies: u64; // READY count: a new one is a new gateway session (voice must rejoin)
+	voice_elsewhere: u64; // joins by our account from other sessions (another device took the call)
 	session_id: string;
 	me: Snowflake;
 	users: Table(Snowflake, User);
@@ -664,11 +665,8 @@ apply_voice_state :: (s: *Store, m: etf.Map, guild_hint: Snowflake = 0) {
 	cid := fsnow(m, "channel_id");
 	// a late leave for an older session (ours before a gateway reconnect) doesn't end the newer one
 	sid := fstr(m, "session_id");
-	// diagnostics for our own voice state going missing mid-call (TODO.md); session ids cut to 4 chars
-	if uid == s.me {
-		tail :: (x: string) -> string { return ifx x.count > 4 then slice(x, x.count - 4, 4) else x; }
-		print("[voice] own state: channel % session % (stored % %, gateway %)\n", cid, tail(sid), ifx old then old.channel_id else 0, tail(ifx old then old.session_id else ""), tail(s.session_id), to_standard_error = true);
-	}
+	// our account joined a call on another device: Discord keeps one call per user, so ours ended
+	if uid == s.me && cid && sid && sid != s.session_id && !(old && sid == old.session_id) s.voice_elsewhere += 1;
 	if cid == 0 && old && sid && old.session_id && sid != old.session_id return;
 	if old free_str(old.session_id, s.allocator);
 	if cid == 0 {

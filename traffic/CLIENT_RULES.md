@@ -104,7 +104,7 @@ Captured: open_status_menu, set_idle, set_online (no duration). Durations and ex
 | `installation_id_v3` from READY `apex_experiments.installation` | code | `AuthenticationStore` CONNECTION_OPEN | `gateway.jai` |
 | `client_launch_id`; fast-connect.js has its own launch id | code | super-properties module | `src/discord/identity.jai` |
 | After READY: op 4 (VoiceStateStore reset), op 41 | code | `VoiceStateStore` | `gateway.jai` |
-| A fresh READY while in a call: op 4 into the call again (the reset op 4 left it), so the voice state and connection move to the new session; a leave whose `session_id` isn't the stored one is ignored; our voice state missing for 3 s while the voice connection is up also rejoins (the client would treat it as a disconnect) | guess | `VoiceStateStore`, `RTCConnectionStore` CONNECTION_OPEN | `view_voice.jai` `voice_frame`, `store.jai` `apply_voice_state` |
+| A fresh READY while in a call: op 4 into the call again (the reset op 4 left it), so the voice state and connection move to the new session; a leave whose `session_id` isn't the stored one is ignored; a join by our account from another session (another device) ends our call locally, with no op 4 (one call per user; the client shows it disconnected) | guess | `VoiceStateStore`, `RTCConnectionStore` CONNECTION_OPEN | `view_voice.jai` `voice_frame`, `store.jai` `apply_voice_state` |
 | op 4 `preferred_region(s)` = RTC latency probe order, top 5 | code | `RTCRegionStore` | `src/discord/actions.jai` |
 | Initial page size: `clamp(ceil(1.05 * ceil(max(h-145,400) / (compact ? 65 : 91) * (16 / font_px))), 10, 100)` | code | message fetch limit | `actions.jai` `initial_message_limit` |
 | Typing: `TypingStore TYPING_START_LOCAL` timing | code | `TypingStore` | `actions.jai` |

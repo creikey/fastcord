@@ -87,22 +87,17 @@ voice_frame :: () {
 	}
 	// A new gateway session (reconnect without resume) leaves voice on READY: join again, so
 	// our voice state comes back and the connection moves to the new session.
-	rejoin := vc.readies != 0 && vc.readies != store().readies;
-	if rejoin print("[voice] new gateway session: op 4 again\n", to_standard_error = true);
-	vc.readies = store().readies;
-	// Our voice state gone while the call is still up (an older session of ours expiring, after a
-	// quit that skipped app_exit, drops it): join again after a grace. A kick closes the call first.
-	if vc.conn != null && voice.state(vc.conn) == .Connected && !table_find_pointer(*store().voice_states, store().me) {
-		now := platform.time_now();
-		if vc.state_lost_at == 0 vc.state_lost_at = now;
-		else if now - vc.state_lost_at > 3 {
-			print("[voice] own state missing for 3 s while connected: op 4 again\n", to_standard_error = true);
-			rejoin = true;
-			vc.state_lost_at = 0;
-		}
-	} else {
-		vc.state_lost_at = 0;
+	rejoin := vc.synced && vc.readies != store().readies;
+	// Our account joined a call on another device: Discord moved the call there. Hang up here
+	// without op 4 (a null channel would end the other device's call too).
+	if vc.synced && vc.voice_elsewhere != store().voice_elsewhere {
+		app.voice_channel = 0;
+		voice_drop();
+		return;
 	}
+	vc.synced = true;
+	vc.readies = store().readies;
+	vc.voice_elsewhere = store().voice_elsewhere;
 	// mute / deafen -> connection + op 4 (deafen implies mute, like the client)
 	if rejoin || app.self_mute != vc.sent_mute || app.self_deaf != vc.sent_deaf {
 		vc.sent_mute = app.self_mute;
@@ -368,8 +363,9 @@ Voice_App :: struct {
 	headless: bool; // no audio devices (screenshots / CI never open the mic)
 	auto_join: dc.Snowflake; // FASTCORD_JOIN_VOICE=<channel id>
 	auto_checked: bool;
+	synced: bool; // readies and voice_elsewhere below hold the store's values for this call
 	readies: u64; // store().readies when we last sent op 4 for the call
-	state_lost_at: float64; // when our own voice state went missing mid-call (0: present)
+	voice_elsewhere: u64; // store().voice_elsewhere when the call started
 	speaking: Table(dc.Snowflake, bool); // this frame's speaking set
 }
 
@@ -383,8 +379,7 @@ voice_drop :: () {
 	}
 	vc.channel = 0;
 	vc.version = 0;
-	vc.readies = 0;
-	vc.state_lost_at = 0;
+	vc.synced = false;
 	table_reset_keeping_memory(*vc.speaking);
 }
 
