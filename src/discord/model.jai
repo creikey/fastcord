@@ -258,6 +258,7 @@ Voice_State :: struct {
 Relationship :: struct {
 	user_id: Snowflake;
 	kind: Relationship_Type;
+	ignored: bool;
 	nickname: string;
 	since: string;
 }

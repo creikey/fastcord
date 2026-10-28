@@ -79,7 +79,6 @@
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
 - [ ] Links: a bare link to a channel or message shows the raw URL; the official client draws it as a mention-style chip ("#channel > message icon") naming the channel.
 - [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
-- [ ] Relationships: a relationship's `user_ignored` flag (Ignore, set from the official client) isn't parsed, so ignored users still ring and notify and their messages show as normal.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
 - [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
 - [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
@@ -260,7 +259,7 @@
 - [ ] Windows, Linux: no echo cancellation or AGC in voice (`set_voice_processing` stubs); noise suppression only through the RNNoise toggle.
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
-- [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
+- [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show"; ignored users (`Relationship.ignored`) likewise instead of "1 ignored message".
 - [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
@@ -334,3 +333,4 @@
 - [x] Media: voice messages draw their waveform (played part in the brand colour, press or drag to seek) and the remaining time instead of the file name (`voice_waveform`, `tests/ui/media/voice_message.txt`).
 - [x] Links: `discord.com/channels/<g>/<c>[/<m>]` links (also `ptb.` / `canary.` / `discordapp.com`) to a channel fastcord has jump to it, or to the message, in-app; others still open the browser (`message_link` in `view_chat.jai`, `tests/ui/forward/message_link.txt`).
 - [x] Sounds: the message sound now skips blocked authors and `@silent` messages like desktop notifications do (both checks moved into `message_notifies`).
+- [x] Relationships: a relationship's `user_ignored` flag (Ignore, set from the official client) is parsed, and ignored users no longer ring or notify (`message_notifies`).

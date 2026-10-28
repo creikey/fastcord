@@ -683,6 +683,7 @@ apply_relationship :: (s: *Store, m: etf.Map) {
 	if added r.* = .{user_id = uid};
 	if vhas(m, "type") r.kind = cast(Relationship_Type) fint(m, "type");
 	if vhas(m, "nickname") set_str(s, *r.nickname, fstr(m, "nickname"));
+	if vhas(m, "user_ignored") r.ignored = fbool(m, "user_ignored");
 	if vhas(m, "since") set_str(s, *r.since, fstr(m, "since"));
 }
 
