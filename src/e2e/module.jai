@@ -78,8 +78,9 @@ destroy :: (d: *Db) {
 // ---- Requests: the E2E operations, each one job on the database thread ----
 
 Op :: enum u8 {
-	Load;          // channel -> encrypted, has_session
+	Load;          // channel -> encrypted, has_session, and the peer's has_peer, peer_root, verified, key_changed
 	Set_Encrypted; // channel, encrypted
+	Set_Verified;  // peer, peer_root, verified: marks the root verified or not, and clears key_changed
 	Hello;         // channel, me -> packet
 	Accept;        // channel, peer, me, me_user, text = the Hello packet -> packet
 	Send;          // channel, me, text = plaintext -> packet, or result No_Session / Too_Long
@@ -109,6 +110,8 @@ Request :: struct {
 	channel, peer, author, message: u64;
 	text: string;
 	encrypted: bool;
+	verified: bool;
+	peer_root: [32]u8;
 
 	result: Result;
 	content: Content;
@@ -116,6 +119,8 @@ Request :: struct {
 	packet: string;
 	has_session: bool;
 	accepted: bool;
+	has_peer: bool;
+	key_changed: bool; // Load: the peer's root replaced an earlier one. Receive: a Hello with a root other than the peer's.
 	outbox: [..]Outbox_Item;
 }
 
@@ -166,6 +171,9 @@ DROP TABLE plaintexts;
 CREATE TABLE plaintexts(hash BLOB PRIMARY KEY, message INTEGER NOT NULL, sealed BLOB NOT NULL) WITHOUT ROWID;
 DELETE FROM outbox;
 SQL,
+	// Each peer's latest identity root: verified once safety numbers were compared, changed when a new root
+	// replaced the one before.
+	"CREATE TABLE peers(user INTEGER PRIMARY KEY, root BLOB NOT NULL, verified INTEGER NOT NULL DEFAULT 0, changed INTEGER NOT NULL DEFAULT 0);",
 ];
 
 // A session keeps at most this many skipped message keys; the oldest go first.
@@ -187,8 +195,19 @@ run_request :: (d: *Db, r: *Request) {
 		case .Load;
 			r.encrypted = query_int(db, "SELECT encrypted FROM channels WHERE id = ?;", r.channel) == 1;
 			r.has_session = query_int(db, "SELECT 1 FROM sessions WHERE channel = ? LIMIT 1;", r.channel) == 1;
+			st := sqlite.prepare(db, "SELECT p.user, p.root, p.verified, p.changed FROM sessions s JOIN peers p ON p.user = s.peer WHERE s.channel = ? ORDER BY s.updated DESC LIMIT 1;");
+			if sqlite.bind_all(st, r.channel) && sqlite.step(st) == .Row && sqlite.col_blob(st, 1).count == 32 {
+				r.has_peer, r.peer = true, cast(u64) sqlite.col_int(st, 0);
+				memcpy(r.peer_root.data, sqlite.col_blob(st, 1).data, 32);
+				r.verified, r.key_changed = sqlite.col_int(st, 2) != 0, sqlite.col_int(st, 3) != 0;
+			}
+			sqlite.finalize(st);
 		case .Set_Encrypted;
 			if !set_encrypted(db, r.channel, r.encrypted) r.result = .Failed;
+		case .Set_Verified;
+			// Only the root the person compared: one that changed meanwhile stays unverified and flagged.
+			if !sqlite.run(db, "UPDATE peers SET verified = ?, changed = 0 WHERE user = ? AND root = ?;", r.verified, r.peer, cast([]u8) r.peer_root)
+				r.result = .Failed;
 		case .Hello;
 			prune_prekeys(db);
 			p: Packet;
@@ -259,7 +278,7 @@ commit_sent :: (d: *Db, r: *Request, s: *Session, new: bool, peer_root: [32]u8, 
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
 		&& store_plaintext(d, hash, 0, content, text)
 		&& sqlite.run(db, "INSERT INTO outbox(hash, channel, packet) VALUES(?, ?, ?);", cast([]u8) hash, r.channel, r.packet)
-		&& (!new || set_encrypted(db, r.channel, true))
+		&& (!new || (set_encrypted(db, r.channel, true) && note_peer(db, r.peer, peer_root)))
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { log_error("e2e: cannot save a sent message: %", sqlite.errmsg(db)); sqlite.exec(db, "ROLLBACK;"); }
 	return ok;
@@ -299,6 +318,7 @@ receive :: (d: *Db, r: *Request) {
 			if !ok { r.result = .Undecryptable; return; }
 			r.result = .Hello;
 			r.accepted = query_int(db, "SELECT 1 FROM sessions WHERE hello_id = ? LIMIT 1;", cast([]u8) hello.id) == 1;
+			r.key_changed = query_int(db, "SELECT 1 FROM peers WHERE user = ? AND root != ?;", r.author, cast([]u8) hello.root) == 1;
 		case .Init;
 			i, ok := parse_init(bytes(*p));
 			if !ok || r.author == r.me_user { r.result = .Undecryptable; return; }
@@ -324,6 +344,7 @@ receive :: (d: *Db, r: *Request) {
 				&& store_skipped(d, s.id, skipped)
 				&& store_plaintext(d, hash, r.message, r.content, r.out_text)
 				&& set_encrypted(db, r.channel, true)
+				&& note_peer(db, r.author, i.root)
 				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)
 				&& sqlite.exec(db, "COMMIT;");
 			crypto.zero(cast([]u8) pt);
@@ -408,6 +429,13 @@ store_skipped :: (d: *Db, session: [16]u8, skipped: []Skipped) -> bool {
 	if !skipped.count return true;
 	return sqlite.run(d.sql, "DELETE FROM skipped WHERE session = ?1 AND rowid NOT IN (SELECT rowid FROM skipped WHERE session = ?1 ORDER BY rowid DESC LIMIT ?2);",
 		cast([]u8) session, MAX_SKIPPED_STORED);
+}
+
+// note_peer records the root a new session was made with. A root other than the peer's last one loses
+// any verification and is flagged until the person verifies or dismisses it.
+note_peer :: (db: *sqlite.DB, user: u64, root: [32]u8) -> bool {
+	return sqlite.run(db, "INSERT INTO peers(user, root) VALUES(?, ?) ON CONFLICT(user) DO UPDATE SET root = excluded.root, verified = 0, changed = 1 WHERE peers.root != excluded.root;",
+		user, cast([]u8) root);
 }
 
 set_encrypted :: (db: *sqlite.DB, channel: u64, on: bool) -> bool {

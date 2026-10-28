@@ -278,6 +278,38 @@ conversation :: (dir: string) {
 	check(r.result == .Undecryptable, "an init made for another DM doesn't open");
 	next_message += 1;
 
+	// Safety numbers: both sides see the same digits, and a peer's new root is flagged.
+	la := ask(*a, .Load);
+	lb := ask(*b, .Load);
+	eq :: (x: [$N]u8, y: [N]u8) -> bool { return memcmp(x.data, y.data, N) == 0; }
+	check(la.has_peer && la.peer == b.user && eq(la.peer_root, b.me.root) && !la.verified && !la.key_changed, "A knows B's root");
+	check(lb.has_peer && eq(lb.peer_root, a.me.root), "B knows A's root");
+	sn := e2e.safety_number(a.me.root, b.me.root);
+	check(eq(sn, e2e.safety_number(b.me.root, a.me.root)), "safety number is the same from both sides");
+	for sn check(it >= #char "0" && it <= #char "9", "safety number is digits");
+	v := e2e.request(.Set_Verified);
+	v.peer, v.peer_root, v.verified = b.user, b.me.root, true;
+	e2e.submit(a.d, v);
+	wait(v);
+	check(ask(*a, .Load).verified, "verified sticks");
+	b2 := Client.{d = e2e.start(tprint("%/b2.db", dir)), me = e2e.identity_of(keys.generate("B2")), user = b.user};
+	check(!eq(e2e.safety_number(a.me.root, b2.me.root), sn), "a new root makes a new safety number");
+	NEW_DM :: 102;
+	h2 := ask(*b2, .Hello, channel = NEW_DM);
+	r = ask(*a, .Receive, h2.packet, b.user, next_message, channel = NEW_DM);
+	check(r.result == .Hello && r.key_changed, "a Hello with B's new root is flagged");
+	next_message += 1;
+	ask(*a, .Accept, h2.packet, peer = b.user, channel = NEW_DM);
+	la = ask(*a, .Load, channel = NEW_DM);
+	check(eq(la.peer_root, b2.me.root) && la.key_changed && !la.verified, "accepting B's new root drops verification and flags it");
+	v = e2e.request(.Set_Verified);
+	v.peer, v.peer_root, v.verified = b.user, b2.me.root, false;
+	e2e.submit(a.d, v);
+	wait(v);
+	la = ask(*a, .Load, channel = NEW_DM);
+	check(!la.key_changed && !la.verified, "dismissing clears the flag");
+	stop(b2.d);
+
 	// Prekeys: an unanswered Hello's go after a week.
 	stale := ask(*b, .Hello);
 	sql(b.d, "UPDATE prekeys SET created = created - 8 * 86400000;");

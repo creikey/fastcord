@@ -7,6 +7,7 @@ Shown :: struct {
 	content: e2e.Content;
 	text: string;
 	accepted: bool;
+	key_changed: bool; // A Hello whose root isn't the one this peer had.
 	pending: bool;
 	generation: int; // ee.generation when a No_Session result came back.
 }
@@ -16,6 +17,11 @@ Encrypted_Channel :: struct {
 	has_session: bool;
 	loaded: bool;
 	pending: bool;
+	has_peer: bool; // The peer's identity root, once a session exists.
+	peer: dc.Snowflake;
+	peer_root: [32]u8;
+	verified: bool;
+	key_changed: bool;
 }
 
 Encrypted_State :: struct {
@@ -43,13 +49,14 @@ encrypted_frame :: () {
 		if r.op == {
 			case .Load;
 				ch.encrypted, ch.has_session, ch.loaded, ch.pending = r.encrypted, r.has_session, true, false;
+				ch.has_peer, ch.peer, ch.peer_root, ch.verified, ch.key_changed = r.has_peer, r.peer, r.peer_root, r.verified, r.key_changed;
 			case .Receive;
 				sh := find_or_add(*ee.shown, r.message);
 				free(sh.text);
-				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), accepted = r.accepted, generation = ee.generation};
+				sh.* = .{result = r.result, content = r.content, text = copy_string(r.out_text), accepted = r.accepted, key_changed = r.key_changed, generation = ee.generation};
 				if r.result == .Ok && r.content == .Accept && r.author != r.me_user {
 					ee.generation += 1;
-					ch.encrypted, ch.has_session = true, true;
+					ch.encrypted, ch.has_session, ch.loaded = true, true, false; // Reload for the peer's root.
 				}
 			case .Hello;
 				if r.result != .Ok { toast_show("Couldn't turn on encryption.", false); continue; }
@@ -58,7 +65,7 @@ encrypted_frame :: () {
 			case .Accept;
 				if r.result != .Ok { toast_show("Couldn't accept encryption.", false); continue; }
 				ee.generation += 1;
-				ch.encrypted, ch.has_session = true, true;
+				ch.encrypted, ch.has_session, ch.loaded = true, true, false;
 				send_packet(r, .Ok, "", .Accept);
 			case .Send;
 				if r.result != .Ok { toast_show("Couldn't encrypt the message.", false); continue; }
@@ -159,7 +166,13 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	r.cross_align = .Center;
 	ui.parent(r); defer ui.pop_parent();
-	label(tprint("% wants to encrypt this DM.", name), .Normal, MSG_FONT, T("--text-default"), MSG_LINE_H);
+	if sh.key_changed {
+		icon("warn", "warning", 16, T("--status-warning"));
+		spacer(.X, 6);
+		label(tprint("% wants to encrypt this DM with a new key. Compare safety numbers after accepting.", name), .Normal, MSG_FONT, T("--text-default"), MSG_LINE_H);
+	} else {
+		label(tprint("% wants to encrypt this DM.", name), .Normal, MSG_FONT, T("--text-default"), MSG_LINE_H);
+	}
 	spacer(.X, 12);
 	if adm_button("accept", "Accept", .Primary) && identity_ready() && net_action() {
 		sh.accepted = true;
@@ -170,9 +183,96 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	return true, "";
 }
 
+// encrypted_verify marks the peer's current root verified or not; either one dismisses a key change.
+encrypted_verify :: (dm_id: dc.Snowflake, verified: bool) {
+	ch := find_or_add(*ee.channels, dm_id);
+	if !ch.has_peer || !e2e_db return;
+	r := e2e.request(.Set_Verified, dm_id);
+	r.peer, r.peer_root, r.verified = ch.peer, ch.peer_root, verified;
+	ch.verified, ch.key_changed = verified, false;
+	e2e_submit(r);
+}
+
+// encrypted_profile is the safety number section of a 1:1 DM's profile panel (E2E 4): 60 digits both
+// people should see alike, compared in person or on a call, then marked Verified.
+encrypted_profile :: (dm: *dc.Channel, pad: float32) {
+	if !encrypted_dm(dm) || !identity_ready() return;
+	ch := encrypted_channel(dm.id);
+	if !ch.has_peer return;
+	line ::(id: string, pad: float32) -> *ui.Box {
+		r := row(id);
+		r.semantic_size = .[ui.pct(1), ui.children()];
+		r.cross_align = .Center;
+		ui.push_parent(r);
+		spacer(.X, pad);
+		return r;
+	}
+	spacer(.Y, 20);
+	line("sn_h", pad);
+	label("Safety Number", .Semibold, 12, T("--text-strong"), 16);
+	if ch.verified {
+		spacer(.X, 6);
+		icon("ok", "checkmark-small-bold", 14, T("--text-feedback-positive"));
+		label("Verified", .Medium, 12, T("--text-feedback-positive"), 16);
+	}
+	ui.pop_parent();
+	spacer(.Y, 6);
+	digits := e2e.safety_number(idk.list[0].root, ch.peer_root);
+	for l: 0..2 {
+		line(tprint("sn%", l), pad);
+		b := label(tprint("% % % %", to_string(*digits[l * 20], 5), to_string(*digits[l * 20 + 5], 5), to_string(*digits[l * 20 + 10], 5), to_string(*digits[l * 20 + 15], 5)),
+			.Mono, 14, T("--text-default"), 20);
+		b.flags |= .Selectable_Text;
+		ui.pop_parent();
+	}
+	spacer(.Y, 6);
+	line("sn_note", pad);
+	p := ui.box(tprint("Compare these with %, in person or on a call. If they match, no one can read this DM in between.##note", dm_name(dm)), .Draw_Text | .Wrap_Text);
+	p.semantic_size = .[ui.fill(), ui.text_size()];
+	p.style.font = F(.Normal);
+	p.style.font_size = 12;
+	p.style.line_height = 16;
+	p.style.text_color = T("--text-muted");
+	spacer(.X, pad);
+	ui.pop_parent();
+	spacer(.Y, 8);
+	line("sn_b", pad);
+	if adm_button("verify", ifx ch.verified then "Unverify" else "Mark as Verified", ifx ch.verified then .Secondary else .Primary) encrypted_verify(dm.id, !ch.verified);
+	ui.pop_parent();
+}
+
+// encrypted_warning sits atop the composer while the peer's identity root is new and unconfirmed.
+encrypted_warning :: (dm: *dc.Channel) {
+	if !encrypted_dm(dm) return;
+	ch := encrypted_channel(dm.id);
+	if !ch.key_changed return;
+	bar := row("keychanged");
+	bar.semantic_size = .[ui.pct(1), ui.px(54)];
+	bar.cross_align = .Center;
+	{ ui.parent(bar); defer ui.pop_parent();
+		spacer(.X, 16);
+		icon("warn", "warning", 18, T("--status-warning"));
+		spacer(.X, 8);
+		p := ui.box(tprint("%'s encryption key changed. Compare safety numbers before trusting new messages.##text", dm_name(dm)), .Draw_Text | .Wrap_Text);
+		p.semantic_size = .[ui.fill(), ui.text_size()];
+		p.style.font = F(.Normal);
+		p.style.font_size = 14;
+		p.style.line_height = 18;
+		p.style.text_color = T("--text-default");
+		spacer(.X, 12);
+		if adm_button("compare", "Compare", .Primary) app.view.hide_dm_profile = false;
+		spacer(.X, 8);
+		if adm_button("dismiss", "Dismiss", .Secondary) encrypted_verify(dm.id, false);
+		spacer(.X, 12);
+	}
+	sep := ui.box("keysep", .Draw_Background);
+	sep.semantic_size = .[ui.pct(1), ui.px(1)];
+	sep.style.bg = T("--border-subtle");
+}
+
 #scope_file
 
-identity_ready :: () -> bool { return atomic_load(*idk.done) != 0 && idk.list.count > 0; }
+identity_ready ::() -> bool { return atomic_load(*idk.done) != 0 && idk.list.count > 0; }
 
 my_identity :: () -> e2e.Identity { return e2e.identity_of(idk.list[0]); }
 

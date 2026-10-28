@@ -208,6 +208,28 @@ parse_hello :: (p: []u8) -> Hello, bool {
 	return h, keys.verify_proof(h.root, .Exchange, h.ik, proof);
 }
 
+// A safety number is 60 digits, 30 per identity root, the lower root's first so both people see the same.
+// Each half is six 5-byte big-endian chunks of a hash of the root, each mod 100000, as Signal's numeric
+// fingerprint makes them. A forged root matching all 30 digits costs about 2^100 tries.
+SAFETY_CONTEXT :: "fastcord 2026-10-29 safety number v1";
+
+safety_number :: (a: [32]u8, b: [32]u8) -> [60]u8 {
+	roots: [2][32]u8;
+	roots[0], roots[1] = a, b;
+	if memcmp(a.data, b.data, 32) > 0 roots[0], roots[1] = b, a;
+	out: [60]u8;
+	for root, half: roots {
+		h := crypto.blake3_derive(SAFETY_CONTEXT, root);
+		for c: 0..5 {
+			v: u64;
+			for 0..4 v = (v << 8) | h[c * 5 + it];
+			v %= 100000;
+			for < 0..4 { out[half * 30 + c * 5 + it] = #char "0" + cast(u8) (v % 10); v /= 10; }
+		}
+	}
+	return out;
+}
+
 // ---- PQXDH (Signal's PQXDH spec, revision 3) ----
 
 // accept runs PQXDH as Alice (section 3.3) against a peer's Hello and writes the Init packet carrying
