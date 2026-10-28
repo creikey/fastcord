@@ -658,7 +658,7 @@ gateway_handle_frame :: (g: *Gateway, gen: int, frame: []u8) -> bool {
 		// A compressed term inflates up to 64 MiB from one small frame, and serve never sends one.
 		if frame.count > 1 && frame[1] == xx etf.Tag.Compressed return false;
 		array_add(*g.inflated, ..frame);
-	} else if zstd.stream_decode(*g.zs, frame, *g.inflated) != .None return false;
+	} else if zstd.stream_decode(*g.zs, frame, *g.inflated, etf.MAX_INFLATED) != .None return false;
 	if !g.inflated return true;
 	pool := New(Flat_Pool);
 	t0 := current_time_monotonic();

@@ -44,9 +44,10 @@ stream_destroy :: (d: *Stream_Decoder) {
 
 // stream_decode feeds the next chunk, appending all output decodable so far to out.
 // Errors are sticky: after one, the decoder must be destroyed and re-initialised.
-stream_decode :: (d: *Stream_Decoder, input: []u8, out: *[..]u8) -> Error {
+// out may hold at most max_out bytes, counting what was in it already; past that, Output_Too_Large.
+stream_decode :: (d: *Stream_Decoder, input: []u8, out: *[..]u8, max_out := S64_MAX) -> Error {
     if d.err != .None return d.err;
-    d.err = run(d.dctx, input, out, S64_MAX);
+    d.err = run(d.dctx, input, out, max_out);
     return d.err;
 }
 

@@ -509,11 +509,14 @@ run_upload :: (c: *Client, j: *Job) {
 	push_result(c, j, r);
 }
 
-// split_url: "https://host/path" -> host, path.
+// split_url: "https://host/path" -> host, path. The host must be a bare name, so a URL from a server can't
+// slip in userinfo, a port or a query (`https://cdn.discordapp.com@other.example/`).
 split_url :: (url: string) -> string, string, bool {
 	if !begins_with(url, "https://") return "", "", false;
 	rest := advance(url, "https://".count);
 	found, host := split_from_left(rest, #char "/");
+	if !host return "", "", false;
+	for host if !is_alnum(it) && it != #char "." && it != #char "-" return "", "", false;
 	return host, ifx found then advance(rest, host.count) else "/", true;
 }
 
