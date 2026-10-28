@@ -968,6 +968,10 @@ Recovery then requires a new identity and an out-of-band reestablishment of trus
 
 Do not silently promise recovery that the cryptographic design cannot guarantee.
 
+### 13.7 Starting policy: rotate records only
+
+The first version has no revoke records, only rotate records, and only the recovery key may sign one. See section 26.
+
 ---
 
 ## 14. Proof-Carrying Invitations and Resolution
@@ -1732,3 +1736,35 @@ Maintain clear boundaries between the naming protocol and the application-layer 
 For every major mechanism, specify its threat model, trust assumptions, failure cases, resource bounds, and interaction with the rest of the architecture.
 
 **The eventual objective is a protocol whose correctness and trust relationships can be independently verified, rather than a protocol whose safety depends on the reputation of its infrastructure operators.**
+
+---
+
+## 26. Starting UX for User Keys
+
+These notes, from October 28, 2026, set how keys work for users at first, before the federated infrastructure exists. Self-hosting ships first; the PKI plugs in later.
+
+### 26.1 Keypairs are accounts
+
+- At startup, the client generates a keypair if it has none.
+- Joining a self-hosted server sends the user's public key along with the invite code. That uses up the invite code, and the key becomes the account on that server. There are no passwords.
+- If the user already has a keypair, joining reuses it rather than generating a new one.
+- Users can manage their keypairs from the menu and from settings.
+
+### 26.2 Durable keys
+
+- Generated keys are very durable. Neither fastcord bugs nor deleting settings files or folders should easily delete or corrupt them.
+- Still to work out: easy syncing of keypairs between devices.
+- Possibly: good integration with password managers, and passkey support. Passkeys are P-256, classical and usually non-exportable, so they can serve as an extra login key but not as the identity.
+
+### 26.3 Recovery through the server admin
+
+- Server admins can see and manage the public keys of their server's members. They never see members' private keys.
+- A user who loses a private key generates a new keypair and contacts the server admin out of band. The admin may grant the new key the permissions of the old, lost one. The user then regains access to their old messages, to edit or delete them, and to the same channels.
+- This happens only if the admin decides to do it, and the admin can revoke it later.
+- There seems to be no way around this. It also means an admin can link any key to any account on their server, which is the same trust the host already holds by reading server channels. End-to-end encrypted DMs are unaffected: the peer still sees the root-changed warning.
+
+### 26.4 No self-rotation and no revoke records
+
+- An everyday private key cannot sign a rotate record. Otherwise a thief who stole it could rotate the user's keys on every server at once. Only the recovery key signs rotations.
+- There are no revoke records, only rotate records.
+- Open question: should a private key be able to revoke itself? That would let users kill a stolen key everywhere at once. It would also let a thief who exfiltrated the key deny the user service. A thief holding the key can already impersonate the user, so self-revocation adds little to what the attacker can do. PGP's revocation certificates are the precedent for allowing it. Undecided.
