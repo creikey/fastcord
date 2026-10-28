@@ -873,9 +873,13 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					spacer(.X, 44);
 					voice_avatar("av", uid, 24, T("--background-base-lower"));
 					spacer(.X, 8);
-					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, T("--channels-default"), 18);
+					name_color := ifx voice_is_speaking(uid) then T("--interactive-text-active") else T("--channels-default");
+					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, name_color, 18);
 					filler(.X);
 					if vs.self_video { icon("cam", "video", 16, T("--channels-default")); spacer(.X, 4); }
+					// Server mute and deafen are drawn red, like the official client.
+					if vs.mute || vs.self_mute { icon("mute", "microphone-slash", 16, ifx vs.mute then T("--status-danger") else T("--channels-default")); spacer(.X, 4); }
+					if vs.deaf || vs.self_deaf { icon("deaf", "headphones-slash", 16, ifx vs.deaf then T("--status-danger") else T("--channels-default")); spacer(.X, 4); }
 					if vs.self_stream {
 						live := row("live", .Draw_Background);
 						live.semantic_size = .[ui.children(), ui.px(16)];

@@ -41,7 +41,6 @@
 - [ ] Security: finish the parser audit. Not yet reviewed: `src/http` (h1, h2, content, pipe, reader), `voice/gateway.jai`, `jitter.jai`, `voice_dave/session.jai`, and `voice_mls` (`messages.jai` has an O(n²) loop and count-driven `NewArray`; `tree.jai` asserts on network data). Also `src/qr`, `src/inflate`, and the permessage-deflate and wslay message caps. Cleared already: protobuf, ETF and JSON depth and size caps, the `voice_mls` wire reader, RTP, the video depacketizers, WAV, MP3, Opus and markdown.
 - [ ] Bug: quitting loses work. Pending acks (3 s delay) and queued jobs are freed unsent (`client.jai` `client_destroy`). `flush_settings` (10 s delay) never runs at quit, so status, custom status, theme and folder edits are lost. Windows shutdown, logoff and restart skip `app_exit` entirely (no `WM_QUERYENDSESSION` / `WM_ENDSESSION`), so your voice state lingers on Discord for minutes.
 - [ ] CI: slim the Jai zip on the Fly server (drop `modules/Bindings_Generator`, ~360 MB of libclang) so each run downloads less.
-- [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
 - [ ] Video: fastcord's own real camera (AVFoundation) and screen capture (ScreenCaptureKit) are untested live; the live tests used the synthetic pattern.
 - [ ] Invites: no "Edit invite link" (expiry, max uses, temporary); always 30 days, unlimited. No friend list with Invite buttons.
 - [ ] Servers: Discovery opens the web page (`view_add_server.jai`); Create Server has no templates, purpose step or icon upload.
@@ -123,7 +122,7 @@
 - [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
 - [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
-- [ ] Voice: occupants in the sidebar show no mute, deafen, LIVE or video icons (`Voice_State` has them), there's no N/limit counter, and stage channels list no one.
+- [ ] Voice: the sidebar has no N/limit counter on voice channels, and stage channels list no one.
 - [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
@@ -298,3 +297,4 @@
 - [x] Voice (macOS): the mic no longer cuts out or goes quiet: VPIO's devices are pinned to 10 ms buffers (it ran them at 4096 frames, 85 ms bursts, which the send loop zero-padded and dropped), the audio thread sends only whole mic frames, and a call with every DSP switch off captures through AUHAL instead of VPIO bypass (27 dB quieter).
 - [x] Lotus Mode (fastcord-only): one switch in Settings > Notifications silences every sound and desktop notification and hides the dock/tray badge, the rail's mention badges, unread DM avatars and unread pills, the inbox badge and the channel list's unread dots. Unread channel names stay bold.
 - [x] Windows: fastcord draws its own window frame. No system title bar or border: fastcord's title bar is the real one (drag, double-click to maximize, right-click system menu, snap layouts on the maximize button), with minimize, maximize and close buttons, and resize edges 2px wide (a little thicker than Windows 11's 1px), scaled with DPI.
+- [x] Voice: a speaking user's name turns white in the sidebar; occupants show mute and deafen icons (red when server-imposed).
