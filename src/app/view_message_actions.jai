@@ -203,11 +203,18 @@ edit_box :: (m: *dc.Message) {
 	box.style.radius = all4(8);
 	box.cross_align = .Start;
 	res: ui.Edit_Result;
+	ch := dc.channel_get(store(), m.channel_id);
 	{ ui.parent(box); defer ui.pop_parent();
 		spacer(.X, 16);
 		// the open emoji picker has the keyboard (its search field)
 		open := picker_is_open() && pk.mode == .Edit;
+		// the composer's autocompletes, floating over the box and taking their keys first
+		if ch {
+			emoji_autocomplete(ch, *ma.edit_editor, !open);
+			mention_autocomplete(ch, *ma.edit_editor, !open);
+		}
 		res = text_field("edit", *ma.edit_editor, "", !open, pad_y = (COMPOSER_H - MSG_LINE_H) / 2, markdown = true);
+		if res == .Changed && ch emoji_autocomplete_close_colon(ch, *ma.edit_editor);
 		emo := ui.box("emoji", .Clickable);
 		emo.semantic_size = .[ui.px(20), ui.px(COMPOSER_H)];
 		emo.layout_axis = .Y;
@@ -251,6 +258,7 @@ edit_box :: (m: *dc.Message) {
 	}
 	if save {
 		text := trim(ui.editor_text(*ma.edit_editor), " \t\n\r\x0b\x0c");
+		if text != "" && ch text = mentions_convert(emoji_convert_shortcodes(text, ch.id), ch);
 		if text == "" {
 			ma.confirming, ma.confirm = m.id, Confirm.Delete;
 		} else if text != m.content && net_action() {
