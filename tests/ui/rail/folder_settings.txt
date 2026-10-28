@@ -1,0 +1,21 @@
+# Right-clicking the folder opens Mark Folder As Read / Folder Settings; the modal renames the folder to
+# "Games" and makes it blue (the 4th swatch), shown by the rail's tooltip and closed icon.
+wait 5
+rclick 36 302
+wait 5
+expect_visible "Mark Folder As Read"
+shot build/ui-rail_folder_settings-menu.png
+click_text "Folder Settings"
+wait 5
+expect_visible "Folder Color"
+key a cmd
+type Games
+click 559 386
+wait 3
+shot build/ui-rail_folder_settings-modal.png
+click_text "Done"
+wait 10
+expect_not_visible "Folder Color"
+move 36 302
+wait 10
+shot build/ui-rail_folder_settings-renamed.png

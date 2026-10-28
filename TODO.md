@@ -108,7 +108,6 @@
 - [ ] Messages: a message that fails to send just turns red (`rest.jai` sets `failed`); there's no "failed to send" note and no Retry or Delete for it, as the client offers, so the text can only be copied out by hand.
 - [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
 - [ ] Voice: the sidebar has no N/limit counter on voice channels, and stage channels list no one.
-- [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
 - [ ] Tray: the icon doesn't show call state. Like the official client, in a voice call it should be a gray circle that turns green while you talk. Check the bundle for whether muted and deafened show red. The icon is set in `src/platform/platform_windows.jai`. Update it only when the state changes.
 - [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
 - [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
@@ -340,3 +339,4 @@
 - [x] Reactions: super (burst) reactions get their own pill before the normal ones, tinted by `burst_colors[0]`; clicking your own takes it back (`view_chat.jai` `reactions_view`, `tests/ui/super_reactions.txt`).
 - [x] Reactions: pills wrap onto more lines when they would run off the right, sized from last frame's width (`view_chat.jai` `reactions_view`, `tests/ui/dm/reactions_wrap.txt`).
 - [x] Bug: re-identifying dropped you from voice (op 4 with a null channel after every READY): you vanished from the channel's member list while "Voice Connected" stayed. A fresh READY now rejoins the call.
+- [x] Rail: right-clicking a folder opens Mark Folder As Read and Folder Settings, a modal that renames and recolours it through `guild_folders` (`view_rail_folders.jai`, `tests/ui/rail/folder_settings.txt`).

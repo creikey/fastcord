@@ -698,7 +698,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 
 // Any overlay that takes keyboard input away from the composer.
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0 || tsg.channel != 0;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || fnick.user != 0 || tsg.channel != 0 || folder_modal_open();
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the
