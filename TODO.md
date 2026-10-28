@@ -308,6 +308,7 @@
 - [ ] Undo: relationships: Remove Friend, Unblock, Block, Ignore or cancel a friend request, all sent at once today with no confirm except Block.
 - [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
 - [ ] Profiles: notes can't be seen or edited ("Click to add a note" is a static label; `fetch_note` has no result handler).
+- [ ] Calls: no picture-in-picture. Opening a text channel during a call hides every stream and camera, so you can't watch a friend's stream while you chat. The official client keeps the focused video in a small floating player over the app. You can drag it to a corner, and a click returns to the call. Streams also have Pop Out, into a window of their own.
 - [ ] Calls: a DM has no in-call view (participant tiles, Ring for absent members, ongoing-call banner).
 - [ ] Undo: Mark As Read (server menu, Shift+Escape, Inbox "Mark All as Read", Inbox row check, the new-messages bar, threads) should restore the previous read states on undo, using the Mark Unread ack; Inbox mention "x" should hold its DELETE.
 - [ ] Bug: when the open channel is deleted elsewhere, or you're kicked or banned from the open server, the view falls back to the Friends page with an empty sidebar (`app.view` keeps the dead ids; only your own leave/delete navigates away).
