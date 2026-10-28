@@ -910,6 +910,10 @@ main :: () {
 	check(kept && kept.muted && kept.message_notifications == discord.NOTIFY_MENTIONS && array_find(kept.muted_channels, cid),
 		tprint("notification settings are kept: %", ifx kept then kept.* else .{}));
 	discord.client_destroy(cl5);
+	// Settings keep only Discord's fields, and overrides only for channels that exist, once each.
+	status, body = rest("PATCH", "/api/v9/users/@me/guilds/settings", tprint("{\"guilds\": {\"%\": {\"junk\": \"xxxx\", \"muted\": 5, \"suppress_everyone\": true, \"channel_overrides\": {\"12345\": {\"muted\": true}, \"%\": {\"junk\": 1, \"collapsed\": true}}}}}", gid, cid), other_token);
+	check(status == 200 && !contains(body, "junk") && !contains(body, "12345") && contains(body, "\"suppress_everyone\":true") && contains(body, "\"muted\":true") && contains(body, "\"collapsed\":true"),
+		tprint("settings keep only known fields: % %", status, body));
 	// A batch with repeats and unknown channels is taken whole; the last entry for a channel wins.
 	status, body = rest("POST", "/api/v9/read-states/ack-bulk", tprint("{\"read_states\": [{\"channel_id\": \"%1\", \"message_id\": \"1\"}, {\"channel_id\": \"12345\", \"message_id\": \"1\"}, {\"channel_id\": \"%1\", \"message_id\": \"%2\"}]}", cid, unread_id), other_token);
 	check(status == 204, tprint("ack-bulk with repeats: % %", status, body));

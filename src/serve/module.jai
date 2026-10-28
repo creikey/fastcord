@@ -2565,33 +2565,36 @@ patch_guild_settings :: (c: *Conn, req: http.Request) -> bool {
 		old := guild_settings_locked(s, user);
 		if patch.kind == .Map {
 			old_map := ifx old.kind == .Map then old.map else .[];
-			e := merge(old_map, patch.map, "guild_id", "channel_overrides");
+			e := merge(settings_fields(old_map, channel = false), settings_fields(patch.map, channel = false), "", "");
 			etf.map_put(*e, "guild_id", snow(s.guild));
-			overrides: [..]etf.Value;
-			overrides.allocator = temp;
+			// Overrides are kept only for channels that exist, one per channel, so a member's row stays
+			// as small as the server; one deleted since goes at the next change.
+			channels: Table(string, bool);
+			channels.allocator = temp;
+			st := sqlite.prepare(s.db, "SELECT id FROM channels;");
+			while sqlite.step(st) == .Row table_set(*channels, tprint("%", sqlite.col_int(st, 0)), true);
+			sqlite.finalize(st);
+			kept: Table(string, etf.Value);
+			kept.allocator = temp;
 			was, _ := etf.map_get(old_map, "channel_overrides");
 			changes, _ := etf.map_get(patch.map, "channel_overrides");
 			if was.kind == .List for was.list {
 				if it.kind != .Map continue;
 				id, _ := etf.map_get(it.map, "channel_id");
-				change: etf.Value;
-				if id.kind == .String && changes.kind == .Map change, _ = etf.map_get(changes.map, id.s);
-				if change.kind != .Map { array_add(*overrides, it); continue; }
-				o := merge(it.map, change.map, "channel_id", "");
-				etf.map_put(*o, "channel_id", id);
-				array_add(*overrides, etf.vmap(etf.map_done(*o)));
+				if id.kind == .String && table_contains(*channels, id.s) table_set(*kept, id.s, it);
 			}
 			if changes.kind == .Map for changes.map {
-				if it.key.kind != .String || it.value.kind != .Map || !string_to_int(it.key.s, T = s64) continue;
-				known := false;
-				if was.kind == .List for o: was.list if o.kind == .Map {
-					id, _ := etf.map_get(o.map, "channel_id");
-					if id.kind == .String && id.s == it.key.s known = true;
-				}
-				if known continue;
-				o := merge(.[], it.value.map, "channel_id", "");
-				etf.map_put(*o, "channel_id", it.key);
-				array_add(*overrides, etf.vmap(etf.map_done(*o)));
+				if it.key.kind != .String || it.value.kind != .Map || !table_contains(*channels, it.key.s) continue;
+				before := table_find_pointer(*kept, it.key.s);
+				o := merge(ifx before && before.kind == .Map then before.map else .[], it.value.map, "", "");
+				table_set(*kept, it.key.s, etf.vmap(etf.map_done(*o)));
+			}
+			overrides: [..]etf.Value;
+			overrides.allocator = temp;
+			for o, id: kept {
+				f := merge(settings_fields(o.map, channel = true), .[], "", "");
+				etf.map_put(*f, "channel_id", etf.vstring(id));
+				array_add(*overrides, etf.vmap(etf.map_done(*f)));
 			}
 			etf.map_put(*e, "channel_overrides", etf.vlist(overrides));
 			entry = etf.vmap(etf.map_done(*e));
@@ -2617,6 +2620,51 @@ patch_guild_settings :: (c: *Conn, req: http.Request) -> bool {
 
 // merge is old's pairs with patch's on top, leaving out keys skip_a and skip_b of both, as a builder
 // the caller can add to.
+// settings_fields keeps the user_guild_settings fields Discord has, with their types, once each: a
+// guild's, or a channel override's when channel is set (without channel_id).
+settings_fields :: (m: etf.Map, channel: bool) -> etf.Map {
+	b := etf.map_builder(12,, temp);
+	for m {
+		if it.key.kind != .String continue;
+		k, v := it.key.s, it.value;
+		dup := false;
+		for p: b.pairs if p.key.s == k dup = true;
+		if dup continue;
+		ok := false;
+		if k == {
+			case "muted";
+				ok = v.kind == .Bool;
+			case "collapsed";
+				ok = channel && v.kind == .Bool;
+			case "suppress_everyone"; #through;
+			case "suppress_roles"; #through;
+			case "mobile_push"; #through;
+			case "hide_muted_channels"; #through;
+			case "mute_scheduled_events";
+				ok = !channel && v.kind == .Bool;
+			case "message_notifications";
+				ok = v.kind == .Int && v.i >= 0 && v.i <= 3;
+			case "notify_highlights";
+				ok = !channel && v.kind == .Int && v.i >= 0 && v.i <= 2;
+			case "flags";
+				ok = v.kind == .Int && v.i >= 0 && v.i <= 0xFFFF_FFFF;
+			case "mute_config";
+				if v.kind == .Nil { ok = true; }
+				else if v.kind == .Map {
+					w, _ := etf.map_get(v.map, "selected_time_window");
+					end, _ := etf.map_get(v.map, "end_time");
+					c := etf.map_builder(2,, temp);
+					if w.kind == .Int etf.map_put(*c, "selected_time_window", w);
+					etf.map_put(*c, "end_time", ifx end.kind == .String && end.s.count <= 40 && text_ok(end.s) then end else etf.Value.{});
+					v = etf.vmap(etf.map_done(*c));
+					ok = true;
+				}
+		}
+		if ok etf.map_put(*b, k, v);
+	}
+	return etf.map_done(*b);
+}
+
 merge :: (old: etf.Map, patch: etf.Map, skip_a: string, skip_b: string) -> etf.Map_Builder {
 	b := etf.map_builder(old.count + patch.count + 2,, temp);
 	for old {
