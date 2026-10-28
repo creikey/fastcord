@@ -157,6 +157,8 @@ os_wake :: () {
     write(xs.wake_fd, *one, 8);
 }
 
+os_frame_wait :: () {}
+
 // Pumps X events until there is something to do: events, a requested frame (EGL's swap waits for vsync,
 // so no sleep here), a wake from another thread, or the timeout.
 os_wait :: (timeout: float64) {

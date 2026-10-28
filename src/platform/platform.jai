@@ -139,7 +139,10 @@ set_headless_size :: (width: int, height: int) {
 // Blocks until at least one event, until timeout (0 = poll, <0 = forever),
 // or (if request_frame was called) until the next display refresh.
 wait_events :: (timeout_seconds: float64) {
-    if !s.headless os_wait(timeout_seconds);
+    if !s.headless {
+        os_wait(timeout_seconds);
+        os_frame_wait();
+    }
     atomic_store(*s.frame_requested, false);
     swap_queues();
 }
@@ -377,6 +380,7 @@ run_frame_callback :: () {
     if !s.frame_callback return;
     atomic_store(*s.frame_requested, false);
     swap_queues();
+    os_frame_wait();
     s.frame_callback();
 }
 

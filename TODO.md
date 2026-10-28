@@ -120,8 +120,7 @@
 - [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
 - [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
 - [ ] Chat: NSFW channels open with no age-gate screen.
-- [ ] Windows Resize: make sure every frame uses the DXGI 1.3 frame-latency waitable swap chain. `backend_d3d11_windows.jai` already creates it (`FRAME_LATENCY_WAITABLE_OBJECT`, `SetMaximumFrameLatency(1)`, flags kept on `ResizeBuffers`). But `platform_windows.jai` waits on the handle only while animating, so frames presented otherwise (input, resize) skip the wait and the extra signals pile up. Wait once before each rendered frame, including inside the modal resize loop.
-- [ ] Windows Resize: use `DXGI_SCALING_STRETCH` instead of `.NONE` in the swap chain desc (`backend_d3d11_windows.jai`). While resizing, DWM then stretches the last frame to the new size instead of leaving it at its old size with gaps, so smooth resize looks less janky.
+- [ ] Window: size, position and maximised state aren't remembered; every launch opens at the default size where the OS puts it (the official client restores them).
 - [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
 - [ ] Windows: no toast notifications or taskbar unread badge (`notify_show` / `set_badge` are stubs). Linux has no badge either.
 - [ ] Windows, Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty).
@@ -230,3 +229,5 @@
 - [x] Video: checked live with the test accounts both ways: the official client shows fastcord's camera and Go Live, and fastcord decodes the official client's camera (1280x720) and Go Live (H265, DAVE).
 - [x] Video: calls and Go Live on Windows: camera (Media Foundation source reader), screen sharing (DXGI desktop duplication, D3D11 video processor to NV12), H.264 encoding and H.264 / HEVC decoding through Media Foundation MFTs (`src/mf`, `video/*_windows.jai`, `media/decode_windows.jai`); video attachments and embeds now play on Windows too.
 - [x] Bug (Windows): turning the camera off in a call hung the program; `capture_stop` no longer waits on the UI thread for the capture thread to exit (fix untested with a real camera).
+- [x] Windows Resize: every rendered frame waits once on the swap chain's frame-latency waitable (`os_frame_wait`), including frames for input and inside the modal resize loop, so signals no longer pile up.
+- [x] Windows Resize: the swap chain uses `DXGI_SCALING_STRETCH`, so DWM stretches the last frame while resizing instead of leaving gaps.
