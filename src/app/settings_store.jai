@@ -80,6 +80,7 @@ smooth_scroll_off: bool;
 system_reduce_motion: bool; // polled by settings_frame; implies no smooth scrolling
 
 app_state_dir :: (allocator := temp) -> string {
+	if env_var("FASTCORD_STATE") return copy_string(env_var("FASTCORD_STATE"),, allocator); // a test account's state (site videos)
 	return app_data_dir("state", allocator);
 }
 

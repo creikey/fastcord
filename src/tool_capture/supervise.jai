@@ -127,7 +127,7 @@ launch_instance :: (inst: Instance) -> bool {
     p: Process;
     ok := create_process(*p, "/bin/sh", "-c", SCRIPT, "sh", tprint("%/.secrets/discord-%.log", REPO, inst.name),
         tprint("%/.secrets/discord-profile-%", REPO, inst.name), DISCORD_BIN, tprint("--remote-debugging-port=%", inst.port),
-        tprint("--log-net-log=%", netlog), kill_process_if_parent_exits = false);
+        tprint("--log-net-log=%", netlog));
     if !ok {
         sup_log("launch % failed", inst.name);
         return false;

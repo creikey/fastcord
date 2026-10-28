@@ -1,0 +1,49 @@
+# Site video: fastcord performing the official scenario tests/scenarios/send_message.scn as test account A, at the
+# capture driver's pace (tools/site_video.py runs it live with FASTCORD_FRAMES/RECORD). 1280x720 @1x.
+after_ready 0
+open 1564405699197407414
+after_ready 8.6
+mark send_message
+wait 150
+click 640 683
+wait 10
+burst h
+wait 8
+burst e
+wait 8
+burst l
+wait 8
+burst l
+wait 8
+burst o
+wait 8
+burst " "
+wait 8
+burst f
+wait 8
+burst r
+wait 8
+burst o
+wait 8
+burst m
+wait 8
+burst " "
+wait 8
+burst f
+wait 8
+burst a
+wait 8
+burst s
+wait 8
+burst t
+wait 8
+burst c
+wait 8
+burst o
+wait 8
+burst r
+wait 8
+burst d
+wait 8
+key enter
+settle 2.5

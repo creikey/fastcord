@@ -139,9 +139,33 @@ run_scenario :: (path: string, out_path: string) -> bool {
     });
     wd.data = *d;
     thread_start(wd);
+    // FC_VIDEO=1: grab ~15 JPEG frames a second of each page for the site's side-by-side videos,
+    // named by the recording's clock (rt_now) so they line up with the traffic.
+    vt: *Thread;
+    if getenv("FC_VIDEO") {
+        vt = New(Thread);
+        thread_init(vt, (t: *Thread) -> s64 {
+            d := cast(*Driver) t.data;
+            while !atomic_load(*d.done) {
+                start := current_time_monotonic();
+                for d.accts if it {
+                    shot, ok := cdp.call_value(it.c, "Page.captureScreenshot", "{\"format\":\"jpeg\",\"quality\":70}", it.page_session, 2_000);
+                    if ok write_entire_file(tprint("%/%/video/%_%.jpg", SCREENS_DIR, d.name, it.acct, cast(int) rt_now(d.out)), base64_decode(cdp.str(shot, "data"),, temp));
+                }
+                reset_temporary_storage();
+                left := 66 - to_milliseconds(current_time_monotonic() - start);
+                if left > 0 sleep_milliseconds(xx left);
+            }
+            return 0;
+        });
+        vt.data = *d;
+        make_directory_if_it_does_not_exist(tprint("%/%/video", SCREENS_DIR, name), recursive = true);
+        thread_start(vt);
+    }
     defer {
         atomic_store(*d.done, true);
         locks.join(wd);
+        if vt locks.join(vt);
     }
     scenario_start := current_time_monotonic();
     // The test windows are usually behind other windows; make the page behave as focused

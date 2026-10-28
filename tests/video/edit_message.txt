@@ -1,0 +1,127 @@
+# Site video: fastcord performing the official scenario tests/scenarios/edit_message.scn as test account A, at the
+# capture driver's pace (tools/site_video.py runs it live with FASTCORD_FRAMES/RECORD). 1280x720 @1x.
+after_ready 0
+open 1564405699197407414
+after_ready 9.5
+wait 150
+click 640 683
+wait 10
+burst s
+wait 8
+burst e
+wait 8
+burst t
+wait 8
+burst u
+wait 8
+burst p
+wait 8
+burst " "
+wait 8
+burst m
+wait 8
+burst e
+wait 8
+burst s
+wait 8
+burst s
+wait 8
+burst a
+wait 8
+burst g
+wait 8
+burst e
+wait 8
+burst " "
+wait 8
+burst f
+wait 8
+burst o
+wait 8
+burst r
+wait 8
+burst " "
+wait 8
+burst t
+wait 8
+burst h
+wait 8
+burst e
+wait 8
+burst " "
+wait 8
+burst n
+wait 8
+burst e
+wait 8
+burst x
+wait 8
+burst t
+wait 8
+burst " "
+wait 8
+burst s
+wait 8
+burst t
+wait 8
+burst e
+wait 8
+burst p
+wait 8
+key enter
+settle 1.7
+mark edit_message
+wait 60
+rclick_text "setup message for the next step"
+wait 50
+click_text "Edit Message"
+wait 36
+key a cmd
+burst t
+wait 8
+burst h
+wait 8
+burst i
+wait 8
+burst s
+wait 8
+burst " "
+wait 8
+burst m
+wait 8
+burst e
+wait 8
+burst s
+wait 8
+burst s
+wait 8
+burst a
+wait 8
+burst g
+wait 8
+burst e
+wait 8
+burst " "
+wait 8
+burst w
+wait 8
+burst a
+wait 8
+burst s
+wait 8
+burst " "
+wait 8
+burst e
+wait 8
+burst d
+wait 8
+burst i
+wait 8
+burst t
+wait 8
+burst e
+wait 8
+burst d
+wait 8
+key enter
+settle 2.5

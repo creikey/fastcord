@@ -210,6 +210,7 @@ main :: () {
 		while platform.time_now() - start < opt.live {
 			platform.wait_events(1.0 / 60);
 			frame();
+			site_video_frame();
 			if !opened && opt.channel != "" && app.client != null && app.client.store.ready {
 				ch := dc.channel_get(store(), dc.parse_snowflake(opt.channel));
 				if ch select_channel(ch.guild_id, ch.id);
@@ -751,6 +752,17 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "wait";
 		for 1..max(cast(int) num(f[1]), 1) script_frame(t);
 		return;
+	case "after_ready";
+		// after_ready <seconds>: real frames until READY plus that long (live runs: act at the same
+		// point of the session as the official recording)
+		while !app.client || !app.client.store.ready script_frame(t);
+		if !site_video.ready_at site_video.ready_at = dc.now_ms();
+		while dc.now_ms() - site_video.ready_at < cast(s64)(num(f[1]) * 1000) script_frame(t);
+		return;
+	case "mark";
+		// mark <name>: an action window in the FASTCORD_RECORD recording
+		if site_video.rec dc.recorder_mark(site_video.rec, "a", f[1]);
+		return;
 	case "settle";
 		// Real seconds of 60 Hz frames, so network loads and image decodes can finish (live runs).
 		start := current_time_monotonic();
@@ -765,7 +777,31 @@ script_command :: (path: string, f: []string, t: *float64) {
 	script_frame(t);
 }
 
+// FASTCORD_FRAMES=<dir>: scripts run in real time and ~15 frames a second are saved as
+// <dir>/<ms>.png, ms on the FASTCORD_RECORD clock, for the site's side-by-side videos.
+site_video: struct { rec: *dc.Recorder; last: s64; ready_at: s64; }
+
+site_video_frame :: () {
+	dir := env_var("FASTCORD_FRAMES");
+	if !dir || !site_video.rec return;
+	ms := dc.now_ms() - site_video.rec.start;
+	if ms - site_video.last < 66 return;
+	site_video.last = ms;
+	pixels, w, h := gfx.read_pixels(temp);
+	gfx.write_png(tprint("%/%.png", dir, ms), pixels, w, h);
+}
+
 script_frame :: (t: *float64) {
+	if env_var("FASTCORD_FRAMES") {
+		// real time (live runs set no time override): one frame per 1/60 s, so the video plays at 1x
+		start := current_time_monotonic();
+		platform.wait_events(0);
+		frame();
+		site_video_frame();
+		left_ns := 1_000_000_000 / 60 - to_nanoseconds(current_time_monotonic() - start);
+		if left_ns > 0 sleep_ns(left_ns);
+		return;
+	}
 	t.* += 1.0 / 60;
 	platform.set_time_override(t.*);
 	decode_settle(); // decodes finish between frames, so runs are deterministic (outside the timing)
@@ -843,6 +879,12 @@ connect :: () {
 	}
 	app.client = dc.client_create(.{token = copy_string(token), state_dir = state_dir, platform = dc.host_platform(), wakeup = (_: *void) { platform.request_frame(); }});
 	app.discord = app.client;
+	// FASTCORD_RECORD=<.secrets/raw/x.jsonl>: record our traffic like build/parity does (site videos)
+	if env_var("FASTCORD_RECORD") {
+		ok: bool;
+		site_video.rec, ok = dc.recorder_open(env_var("FASTCORD_RECORD"));
+		if ok dc.recorder_attach(site_video.rec, app.client, "a");
+	}
 	analytics_env_sync(force = true); // before the first event (gateway_connected)
 	dc.client_start(app.client);
 	if token == "" app.needs_login = true;

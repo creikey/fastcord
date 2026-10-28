@@ -1,0 +1,23 @@
+# Site video: fastcord performing the official scenario tests/scenarios/status_change.scn as test account A, at the
+# capture driver's pace (tools/site_video.py runs it live with FASTCORD_FRAMES/RECORD). 1280x720 @1x.
+after_ready 0
+go_home
+after_ready 9.65
+mark open_status_menu
+wait 60
+click 100 683
+wait 72
+click_text "Online"
+wait 72
+mark set_idle
+click_text "Idle"
+settle 2.5
+mark set_online
+click 100 683
+wait 72
+click_text "Idle"
+wait 72
+click_text "Online"
+settle 2.5
+key escape
+wait 30

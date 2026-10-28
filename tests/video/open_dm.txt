@@ -1,0 +1,9 @@
+# Site video: fastcord performing the official scenario tests/scenarios/open_dm.scn as test account A, at the
+# capture driver's pace (tools/site_video.py runs it live with FASTCORD_FRAMES/RECORD). 1280x720 @1x.
+after_ready 0
+go_home
+after_ready 10.8
+mark open_dm
+wait 60
+click_text "bobbles"
+settle 3
