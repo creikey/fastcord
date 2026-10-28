@@ -74,7 +74,7 @@
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
   .card a { color: var(--brand-hi); }
   .parity { padding: 40px 0 24px; }
-  .parity .sub { color: var(--muted); text-align: center; max-width: 640px; margin: 0 auto 24px; }
+  .parity .sub, .e2e .sub { color: var(--muted); text-align: center; max-width: 640px; margin: 0 auto 24px; }
   .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 20px; }
   .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; min-width: 150px; text-align: center; }
   .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
@@ -157,6 +157,7 @@
   .steps span b { color: var(--text); font-weight: 600; }
   .subhead { font-size: clamp(22px, 3.4vw, 28px); letter-spacing: -0.02em; margin: 0 0 6px; text-align: center; }
   .first { padding: 40px 0 48px; }
+  .e2e { padding: 40px 0 8px; }
   @media (max-width: 640px) {
     .why, .steps { grid-template-columns: 1fr; gap: 8px; }
     .why div { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; text-align: left; }
@@ -236,6 +237,18 @@
     <div class="lanes"><svg id="plane" viewBox="0 0 1000 150" role="img" aria-label="Request timeline of both clients"></svg>
       <div class="tip" id="ptip">Hover a dot to see the request.</div></div>
     <div class="legend"><span><i style="background:var(--brand-hi)"></i>REST request</span><span><i style="background:#e8a33d"></i>Gateway message</span><span><i style="background:#3db8a6"></i>Telemetry event</span><span><i style="border:1.5px solid var(--brand-hi)"></i>Sent earlier in the session</span><span><i style="border:1.5px solid var(--muted)"></i>Only in one client</span></div>
+  </section>
+
+  <section class="e2e" id="encryption">
+    <h3 class="subhead">Encrypted DMs</h3>
+    <p class="sub">For private conversations we recommend <a href="https://signal.org">Signal</a>. When both people use Fastcord, a DM can also be end-to-end encrypted with Signal's published protocols, so Discord relays it but can't read it.</p>
+    <div class="steps">
+      <div><b>PQXDH</b><span>Signal's post-quantum key agreement, with X25519 and ML-KEM-768.</span></div>
+      <div><b>Double Ratchet</b><span>A new key for every message, with ChaCha20-Poly1305.</span></div>
+      <div><b>Safety numbers</b><span>Compare 60 digits to confirm who you're talking to.</span></div>
+    </div>
+    <p class="fine">From the next release, for text in one-on-one DMs. Discord still sees who you message and when. Prekeys signed with SLH-DSA, the Triple Ratchet and encrypted attachments come next.</p>
+    <p class="fine">In progress: self-hosted servers, with federated routing between them so no central service is needed.</p>
   </section>
 
   <section class="first">

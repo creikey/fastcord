@@ -17,6 +17,10 @@ the Jai is written. This file lists what is easy to miss.
   - Nothing that needs a webview, ever: no embedded browser, iframe or HTML renderer. Where the
     official client uses one (YouTube players, captchas, OAuth pages), open the system browser or
     offer a native path instead.
+- The website (`site/index.html`) states what fastcord does today. When a change alters something it
+  claims (E2E's protocols and limits, self-hosting, platforms, sizes), update the page in the same
+  commit: once the Triple Ratchet lands, the page says Triple Ratchet. Its copy stays plain and
+  understated, and never claims what the latest release doesn't have.
 - When you notice a missing feature or a gap from the official client, add it to `TODO.md` without
   being asked, even if it is outside your task.
 - Trunk-based: all work lands on `main`. No feature branches or worktrees; don't push other branches.
