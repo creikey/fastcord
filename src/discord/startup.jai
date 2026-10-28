@@ -50,6 +50,7 @@ Startup_Flag :: enum_flags u8 {
 	Verified_Only; // account signal: READY user.verified (persisted for the next launch)
 	Unverified_Only;
 	Preflight_Only; // Detectables: only the CORS preflight; the request is its own entry later
+	Affinities; // UserAffinitiesV2Store: only when its data is stale (affinities_stale), checked when due
 }
 
 STARTUP_REQUESTS :: Startup_Entry.[
@@ -60,8 +61,8 @@ STARTUP_REQUESTS :: Startup_Entry.[
 	.{.Launch, 776, .Api_Get, "", "/quests/decision?placement=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, "{\"connection_type\":\"unknown\"}", ALL_ROUTES, (Startup_Flag.Verified_Only), "ads decision"},
 	.{.Ready, 0, .Web_Get, "status.discord.com", "/api/v2/scheduled-maintenances/upcoming.json", "", .Same_Site, "", ALL_ROUTES, 0, ""},
 	.{.Ready, 2, .Api_Get, "", "/users/%40me/badges", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
-	.{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Unverified_Only), "B (unverified) only"},
-	.{.Ready, 2062, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Unverified_Only), ""},
+	.{.Ready, 1, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Affinities), "when stale (a 404, as B's, never refreshes)"},
+	.{.Ready, 2062, .Api_Get, "", "/users/@me/affinities/v2/users", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Affinities), ""},
 	.{.Ready, 2385, .Api_Get, "", "/users/@me/referrals/eligibility", "", .Same_Origin, "", (Route_Kind.Home), (Startup_Flag.Unverified_Only), "re-polled ~320 ms after the cluster"},
 	// DevTools shows both preflights first, then the requests in fetch order
 	.{.Ready, 2060, .Detectables, "cdn.discordapp.com", "/detectables/games-v1.json", "", .Cross_Site, "", ALL_ROUTES, (Startup_Flag.Etag | Startup_Flag.Preflight_Only), ""},
@@ -189,6 +190,7 @@ schedule_startup :: (c: *Client, anchor: Startup_Anchor) {
 			if e.ctx_json j.context_b64 = job_str(j, context_b64(e.ctx_json));
 			j.no_super_props = (e.flags & .No_Super_Props) != 0;
 			j.etag = (e.flags & .Etag) != 0;
+			if e.flags & .Affinities affinities_job(j);
 		}
 		j.not_before = base + e.at_ms;
 		if anchor == .Ready && route == .Home && e.at_ms >= 2000 j.not_before += 230;

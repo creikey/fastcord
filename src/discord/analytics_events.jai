@@ -185,12 +185,14 @@ message_menu_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, 
 	json_kstr(*w, "location", location);
 	aw_track(c, "message_popout_menu_opened_desktop", *w);
 	if guild_id != 0 {
-		miss := !table_contains(*c.command_index_guilds, guild_id);
-		analytics_command_cache_fetch(c, miss, c.command_index_guilds.count);
-		open_message_context_menu(c, guild_id);
-		analytics_command_cache_fetch(c, miss, c.command_index_guilds.count);
+		// a miss is tracked as the index fetch starts (open_message_context_menu's on_start), a hit at once
+		if table_contains(*c.command_index_guilds, guild_id) {
+			analytics_command_cache_fetch(c, false, c.command_index_guilds.count);
+			analytics_command_cache_fetch(c, false, c.command_index_guilds.count);
+		}
+		open_message_context_menu(c, guild_id, message_menu = true);
 	} else {
-		open_message_context_menu(c, 0);
+		open_message_context_menu(c, 0, message_menu = true);
 	}
 }
 
@@ -735,6 +737,11 @@ profile_action :: (c: *Client, v: *Profile_View, stack: []string, action: string
 	_, rel := table_find(*s.relationships, v.user_id); // kind 0 when there is none
 	json_kint(*w, "relationship_type", xx rel.kind);
 	if rel.since json_kstr(*w, "related_since", rel.since);
+	aff, has_aff := affinity_get(c, v.user_id);
+	if has_aff {
+		json_key(*w, "communication_probability"); json_raw(*w, aff.probability);
+		json_kint(*w, "communication_rank", aff.rank);
+	}
 	if v.layout == .Sidebar && v.mutuals_known && u {
 		json_kint(*w, "num_mutual_friends", u.mutual_friends);
 		json_kint(*w, "num_mutual_guilds", u.mutual_guilds);

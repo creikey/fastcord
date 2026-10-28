@@ -55,6 +55,8 @@ Job :: struct {
 	track_props: string; // on_done's event properties, built on the UI thread (job pool)
 	on_response: (c: *Client, j: *Job, status: int, body: V); // worker-side, after any response, with the body
 	started_ms: float64; // when the request was dispatched (on_done timings)
+	on_start: (c: *Client, j: *Job); // worker-side, as an Api request is dispatched (science tracked at fetch start)
+	skip_if: (c: *Client) -> bool; // worker-side, when due: true drops the job unsent (a store's shouldFetch)
 	js_lower_auth: bool; // page code set "authorization" (lowercase): only DevTools' view differs
 	media: Media_Request;
 }
@@ -128,6 +130,7 @@ worker_proc :: (c: *Client) {
 }
 
 run_job :: (c: *Client, j: *Job) {
+	if j.skip_if && j.skip_if(c) return;
 	if j.kind == {
 		case .Api;
 			run_api(c, j);
@@ -255,6 +258,7 @@ run_api :: (c: *Client, j: *Job) {
 	if j.etag extra = cache_control_headers(c, url);
 	context.tl_js_lower_auth = j.js_lower_auth;
 	j.started_ms = context.tl_dispatch_ms;
+	if j.on_start j.on_start(c, j);
 	r := api_call(c, j.method, j.path, j.body, j.content_type, j.context_b64, extra, j.retries, j.retry_429, j.no_auth, j.no_super_props, j.referer);
 	context.tl_js_lower_auth = false;
 	if j.etag && r.status == 200 {

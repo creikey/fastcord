@@ -607,6 +607,9 @@ client_session_reset :: (c: *Client) {
 	c.ready_ms = 0;
 	c.ready_subscribed_guild = 0;
 	c.rtc_probe_at = 0;
+	c.affinities.fetched_ms = 0; // the login fetches them again (fixture login_submit)
+	for c.affinities.users free(it.probability,, c.allocator);
+	table_reset(*c.affinities.users);
 	locks.unlock(*c.job_mu);
 	c.pending_guild_open = 0;
 	c.guild_open_promotions = false;
@@ -698,6 +701,7 @@ auth_on_ready :: (c: *Client, ready: s64) -> bool {
 			if e.ctx j.context_b64 = job_str(j, context_b64(e.ctx));
 			if e.referer j.referer = job_str(j, e.referer);
 			j.result.tag = xx e.action;
+			if e.path == "/users/@me/affinities/v2/users" affinities_job(j);
 		}
 		path := e.path;
 		if contains(path, "{visible}") {

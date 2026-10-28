@@ -8,9 +8,16 @@ pickers_first_open :: () {
 	if !frecency.loaded_server dc.frecency_settings_fetch(app.client);
 }
 
-// Per open: the guild's top emojis once per session, like the client's picker.
+// Per open: the guild's top emojis once per session, like the client's picker. The session's first
+// open also loads the subscriptions and our own profile (dc.open_emoji_picker, fixture add_reaction).
 pickers_on_open_guild :: (gid: dc.Snowflake) {
-	if app.client == null || gid == 0 || table_contains(*top_emojis_fetched, gid) return;
+	if app.client == null return;
+	if !app.client.emoji_picker_opened {
+		if gid table_add(*top_emojis_fetched, gid, true);
+		dc.open_emoji_picker(app.client, gid);
+		return;
+	}
+	if gid == 0 || table_contains(*top_emojis_fetched, gid) return;
 	table_add(*top_emojis_fetched, gid, true);
 	dc.guild_top_emojis(app.client, gid);
 }

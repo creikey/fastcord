@@ -159,12 +159,13 @@ select_guild :: (gid: dc.Snowflake) {
 }
 
 // source: where the route change came from, as channel_opened reports it ("Thread Browser").
-select_channel :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
+// prefetch: a sidebar row (channel or DM): the official mousedown preload (dc.select_channel).
+select_channel :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "", prefetch := false) {
 	if gid != app.view.guild || cid != app.view.channel {
 		history_push(*app.view.back, .[app.view.guild, app.view.channel]);
 		array_reset_keeping_memory(*app.view.fwd);
 	}
-	go_to(gid, cid, source);
+	go_to(gid, cid, source, prefetch);
 }
 
 HISTORY_MAX :: 50;
@@ -827,7 +828,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 			if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
 				join_voice(gid, ch.id);
 			} else {
-				select_channel(gid, ch.id);
+				select_channel(gid, ch.id, prefetch = true);
 			}
 		}
 		color := T("--channels-default");
@@ -1247,14 +1248,15 @@ shortcuts_modal :: () {
 
 overlays :: () {
 	// Escape is a global keybind in the official client (MARK_CHANNEL_READ, or
-	// POP_LAYER over settings); it is tracked whatever layer it closes.
+	// POP_LAYER over settings); it is tracked whatever layer it closes, but MARK_CHANNEL_READ only with a
+	// channel open (on Home it isn't tracked: site recording status_change).
 	// Shift+Escape is MARK_SERVER_READ: the open guild's Mark As Read.
 	if app.client != null { for e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape {
 		if e.mods == .Shift && !app.settings_open {
 			dc.analytics_keyboard_shortcut(app.client, "MARK_SERVER_READ", "shift+esc");
 			gid := app.view.guild;
 			if gid != 0 && guild_has_unread(gid) && net_action() dc.ack_guild(app.client, gid, source = "");
-		} else {
+		} else if app.settings_open || app.view.channel != 0 {
 			dc.analytics_keyboard_shortcut(app.client, ifx app.settings_open then "POP_LAYER" else "MARK_CHANNEL_READ", "esc");
 		}
 	} } }
@@ -1339,7 +1341,7 @@ history_push :: (h: *[..][2]dc.Snowflake, place: [2]dc.Snowflake) {
 	array_add(h, place);
 }
 
-go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
+go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "", prefetch := false) {
 	was_home := app.view.guild == 0 && app.view.channel == 0;
 	if cid != app.view.channel {
 		// the "NEW" divider and new-messages bar start again from the read state on every visit
@@ -1352,7 +1354,7 @@ go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
 	table_set(*app.view.last_channel, gid, cid);
 	if app.client != null {
 		limit := dc.initial_message_limit(cast(int)(app.ui.window.y));
-		dc.select_channel(app.client, gid, cid, limit, source = source);
+		dc.select_channel(app.client, gid, cid, limit, prefetch = prefetch, source = source);
 		if gid == 0 && cid == 0 && !was_home { dc.friends_page_viewed(app.client); } // the Friends page renders
 	}
 }

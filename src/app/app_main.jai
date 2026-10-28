@@ -13,6 +13,11 @@ App :: struct {
 	discord: *dc.Client; // Discord's own client (hosted.jai)
 	needs_login: bool; // no token, or Discord rejected it: show the intro (view_login.jai)
 	connect_pending: bool; // connect() waits for the previous client's teardown (teardown.jai)
+	// The route the window reopens on, as the official client restores its last URL: the saved one
+	// (settings.json), or -guild:/-channel: on live runs. The library's startup follows it; the view
+	// opens it once READY is in.
+	start_guild, start_channel: dc.Snowflake;
+	start_pending: bool;
 	login_error: string;
 	offline_store: dc.Store;
 	chats: Table(dc.Snowflake, Chat_State);
@@ -87,7 +92,8 @@ Options :: struct {
 	theme: Theme_Name;
 	script: string; // e2e script of injected input (tests/ui/*.txt)
 	fixture: string; // offline: load the store from a recorded gateway fixture
-	channel: string; // open this channel id at start (with fixture)
+	channel: string; // open this channel id at start (with fixture; on live runs the start route)
+	guild: string; // live runs: the start route's guild
 	live: float64; // headless: connect for real and run this many seconds before the shot
 	now: s64; // unix seconds treated as "now" for timestamps (deterministic UI tests)
 	sweep: string; // headless: dead-control sweep over the screens in this spec (tests/ui/sweep.txt)
@@ -131,6 +137,8 @@ parse_options :: () -> Options {
 			o.live = string_to_float64(v);
 		} else if flag("-channel:") {
 			o.channel = v;
+		} else if flag("-guild:") {
+			o.guild = v;
 		} else if flag("-now:") {
 			o.now = parse_int_prefix(v);
 		} else if flag("-sweep:") {
@@ -196,6 +204,7 @@ main :: () {
 	} else if opt.sweep != "" {
 		// every screen loads its own fixture
 	} else if !headless || opt.live > 0 {
+		if opt.live > 0 && opt.channel != "" app.start_guild, app.start_channel = dc.parse_snowflake(opt.guild), dc.parse_snowflake(opt.channel);
 		connect();
 	}
 	if !headless identity_start();
@@ -206,16 +215,10 @@ main :: () {
 	if headless && opt.live > 0 {
 		// Real time: let the gateway connect and REST land, then capture.
 		start := platform.time_now();
-		opened := false;
 		while platform.time_now() - start < opt.live {
 			platform.wait_events(1.0 / 60);
 			frame();
 			site_video_frame();
-			if !opened && opt.channel != "" && app.client != null && app.client.store.ready {
-				ch := dc.channel_get(store(), dc.parse_snowflake(opt.channel));
-				if ch select_channel(ch.guild_id, ch.id);
-				opened = true;
-			}
 		}
 		run_script(opt.script);
 		bench_finish();
@@ -295,6 +298,11 @@ frame :: () {
 
 	t_poll := platform.time_now();
 	if app.connect_pending && !teardown_busy() connect();
+	if app.start_pending && app.client && app.client.store.ready {
+		app.start_pending = false;
+		ch := dc.channel_get(store(), app.start_channel);
+		if ch select_channel(ch.guild_id, ch.id);
+	}
 	hosted_frame();
 	if app.client != null {
 		analytics_env_sync();
@@ -756,6 +764,11 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "scroll";
 		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = true});
 	case "wait";
+		if env_var("FASTCORD_FRAMES") { // real time: frames that save a PNG run long
+			start := current_time_monotonic();
+			while to_float64_seconds(current_time_monotonic() - start) < num(f[1]) / 60 script_frame(t);
+			return;
+		}
 		for 1..max(cast(int) num(f[1]), 1) script_frame(t);
 		return;
 	case "after_ready";
@@ -883,7 +896,9 @@ connect :: () {
 		data, ok := read_entire_file(tprint("%/token", state_dir), log_errors = false,, temp);
 		if ok token = trim(data);
 	}
-	app.client = dc.client_create(.{token = copy_string(token), state_dir = state_dir, platform = dc.host_platform(), wakeup = (_: *void) { platform.request_frame(); }});
+	app.client = dc.client_create(.{token = copy_string(token), state_dir = state_dir, platform = dc.host_platform(), wakeup = (_: *void) { platform.request_frame(); },
+		initial_guild_id = app.start_guild, initial_channel_id = app.start_channel});
+	app.start_pending = app.start_channel != 0;
 	app.discord = app.client;
 	// FASTCORD_RECORD=<.secrets/raw/x.jsonl>: record our traffic like build/parity does (site videos)
 	if env_var("FASTCORD_RECORD") {

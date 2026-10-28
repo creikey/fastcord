@@ -157,8 +157,10 @@ Client :: struct {
 	quick_switcher: Quick_Switcher;
 	members_requested: Snowflake_Pair_Set; // (guild, user) asked for with op 8
 	rtc_regions: string; // comma list from the latency probe (under id.mu; persisted)
+	affinities: Affinities; // UserAffinitiesV2Store (persisted; under job_mu)
 	rtc_probe_at: s64; // the next latency probe (under job_mu; 0: none)
 	quest_app_ids: []Snowflake;
+	pending_private_prefetch: bool; // pending_private_open came from a sidebar row (select_channel prefetch)
 	start_route_guild: Snowflake; // route the window opened on (startup table selection)
 	start_route_channel: Snowflake;
 	etag_mu: locks.Mutex;
@@ -529,6 +531,10 @@ client_load_state :: (c: *Client) {
 			case "installation_id"; c.id.installation_id = copy_string(v,, c.allocator);
 			case "verified";        c.account_verified = v == "1";
 			case "rtc_regions";     c.rtc_regions = copy_string(v,, c.allocator);
+			case "affinities_at";   c.affinities.fetched_ms = parse_s64(v);
+			case "affinity";
+				f := split(v, "\t",, temp);
+				if f.count == 3 table_set(*c.affinities.users, cast(Snowflake) parse_s64(f[0]), .{copy_string(f[1],, c.allocator), parse_s64(f[2])});
 			case "web_build";       identity_load_build(*c.id, parse_s64(v));
 			case "locale";          c.id.platform.locale = discord_locale(v);
 			case "exposed";         table_set(*c.analytics.exposed, copy_string(v,, c.allocator), true);
@@ -561,6 +567,10 @@ client_save_state :: (c: *Client) {
 	locks.lock(*c.id.mu);
 	print_to_builder(*sb, "verified\t%\n", ifx c.account_verified then "1" else "0");
 	if c.rtc_regions print_to_builder(*sb, "rtc_regions\t%\n", c.rtc_regions);
+	locks.lock(*c.job_mu);
+	if c.affinities.fetched_ms print_to_builder(*sb, "affinities_at\t%\n", c.affinities.fetched_ms);
+	for a, u: c.affinities.users print_to_builder(*sb, "affinity\t%\t%\t%\n", u, a.probability, a.rank);
+	locks.unlock(*c.job_mu);
 	locks.lock(*c.analytics.mu);
 	for v, k: c.analytics.exposed print_to_builder(*sb, "exposed\t%\n", k);
 	locks.unlock(*c.analytics.mu);

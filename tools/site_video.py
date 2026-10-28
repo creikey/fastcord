@@ -14,7 +14,7 @@ import json, os, re, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SEC = os.path.join(ROOT, '.secrets') if os.path.isdir(os.path.join(ROOT, '.secrets')) else '/Users/creikey/Documents/fastcord/.secrets'
-TTEXT = '1564405699197407414'
+TGUILD, TTEXT = '1564227669971832975', '1564405699197407414'
 # media (CDN images, the image proxy, sticker files) depends on each client's disk cache, not on behaviour
 IGNORE = ('/assets/', 'collectibles-shop', 'latency.discord.media', '/cdn-cgi/', 'cdn.discordapp.com', 'media.discordapp.net', 'images-ext-', '/stickers/')
 LEAD_MS, TAIL_MS, MAX_MS = 700, 600, 16000
@@ -34,8 +34,11 @@ def fastcord(s):
     for f in os.listdir(frames): os.remove(os.path.join(frames, f))
     env = dict(os.environ, FASTCORD_STATE=os.path.join(SEC, 'video-state-a'), FASTCORD_FRAMES=frames,
                FASTCORD_RECORD=os.path.join(SEC, 'raw', f'fc_video_{s}.jsonl'))
-    run(os.path.join(ROOT, 'build', 'fastcord-dev'), f'-shot:{SEC}/video/{s}.png', '-dpi:1', '-live:0.2',
-        f'-channel:{TTEXT}', f'-script:{ROOT}/tests/video/{s}.txt', env=env, cwd=ROOT)
+    script = os.path.join(ROOT, 'tests', 'video', f'{s}.txt')
+    # the start route, as the official instance reopened it: the test channel, or Home for go_home scripts
+    route = [] if 'go_home' in open(script).read() else [f'-guild:{TGUILD}', f'-channel:{TTEXT}']
+    run(os.path.join(ROOT, 'build', 'fastcord-dev'), f'-shot:{SEC}/video/{s}.png', '-dpi:1', '-live:0.2', *route,
+        f'-script:{script}', env=env, cwd=ROOT)
     for x in ('', '.netlog-a'):  # raw recordings hold the token
         if os.path.exists(env['FASTCORD_RECORD'] + x): os.chmod(env['FASTCORD_RECORD'] + x, 0o600)
 
@@ -96,18 +99,31 @@ def window(evs):
     return out, [(round(t - t0), n) for t, n in marks], t0
 
 
+# Why an event can be in one recording only, for the shapes where the cause is known (shown on the site).
+PROMO = ('Promotion', 'Promotion (Shop, Quests, Orbs): Fastcord never sends these')
+TIMER = ('Background timer', 'Background save of recent channels and emoji, on a random 0-10 s timer after launch')
+WHY = {
+    'quest_hover': PROMO, 'quest_hover_off': PROMO, 'dismissible_content_shown': PROMO, 'experiment_user_evaluation_exposed': PROMO,
+    'send_message_roundtrip': ('Sampled', 'Sampled: both clients send it for 1 in 10 messages'),
+    'GET /api/v9/users/@me/settings-proto/2': TIMER, 'PATCH /api/v9/users/@me/settings-proto/2': TIMER,
+    'op 40': ('Background timer', 'Sent on its own background timer'),
+    'GET /api/v9/channels/:id/messages?before&limit': ('Fills the window', 'A second page of older messages, loaded when the first one does not fill the window'),
+    'search_result_viewed': ('Typing rhythm', 'Sent each time typing pauses, so it follows the typist\'s rhythm'),
+}
+
+
+def why(evs, hit):
+    return {i: WHY[e['l']] for i, e in enumerate(evs) if i not in hit and e['l'] in WHY}
+
+
 def align(a, b):
-    n, m = len(a), len(b)
-    L = [[0] * (m + 1) for _ in range(n + 1)]
-    for i in range(n - 1, -1, -1):
-        for j in range(m - 1, -1, -1):
-            L[i][j] = L[i+1][j+1] + 1 if a[i]['l'] == b[j]['l'] else max(L[i+1][j], L[i][j+1])
-    i = j = 0
-    pairs = []
-    while i < n and j < m:
-        if a[i]['l'] == b[j]['l']: pairs.append([i, j]); i += 1; j += 1
-        elif L[i+1][j] >= L[i][j+1]: i += 1
-        else: j += 1
+    """Pairs each official event with the unpaired fastcord event of the same shape nearest in time (within
+    2.5 s, human pacing). Order is not required: events a few ms apart (a science batch and a GET) leave in either order."""
+    pairs, used = [], set()
+    for i, e in enumerate(a):
+        best = min((j for j, f in enumerate(b) if j not in used and f['l'] == e['l'] and abs(f['t'] - e['t']) <= 2500),
+                   key=lambda j: abs(b[j]['t'] - e['t']), default=None)
+        if best is not None: used.add(best); pairs.append([i, best])
     return pairs
 
 
@@ -143,7 +159,10 @@ def build(names):
         encode([(int(n[2:-4]), os.path.join(vo, n)) for n in os.listdir(vo) if n.startswith('a_')], at0, dur, os.path.join(ROOT, 'site', 'video', f'{s}-official.mp4'))
         vf = os.path.join(SEC, 'video', 'frames', s)
         encode([(int(n[:-4]), os.path.join(vf, n)) for n in os.listdir(vf) if n.endswith('.png')], bt0, dur, os.path.join(ROOT, 'site', 'video', f'{s}-fastcord.mp4'))
-        scen.append({'n': s, 'title': TITLES.get(s, s), 'lead': LEAD_MS, 'dur': dur, 'o': a, 'f': b, 'om': am, 'fm': bm, 'm': align(a, b)})
+        m = align(a, b)
+        # promotion events are only ever official-side; everything else in WHY can fall on either side
+        wo, wf = why(a, {p[0] for p in m}), why(b, {p[1] for p in m})
+        scen.append({'n': s, 'title': TITLES.get(s, s), 'lead': LEAD_MS, 'dur': dur, 'o': a, 'f': b, 'om': am, 'fm': bm, 'm': m, 'wo': wo, 'wf': wf})
         print(f'{s}: official {len(a)}, fastcord {len(b)}, matched {len(scen[-1]["m"])}', file=sys.stderr)
     dst = os.path.join(ROOT, 'site', 'parity_video.json')
     with open(dst, 'w') as fh: json.dump({'scenarios': scen}, fh, separators=(',', ':'))

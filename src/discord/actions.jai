@@ -38,7 +38,7 @@ select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messa
 		if prefetch c.subs.not_before = now_ms() + 2;
 		c.pending_guild_open = guild_id;
 	}
-	if !guild_id && channel_id c.pending_private_open = channel_id;
+	if !guild_id && channel_id { c.pending_private_open = channel_id; c.pending_private_prefetch = prefetch; }
 	if !guild_id && !channel_id home_open(c);
 	if channel_id {
 		l := message_list(*c.store, channel_id);
@@ -1234,10 +1234,12 @@ on_channel_page :: (c: *Client, channel_id: Snowflake, got: int, full: bool) {
 		}
 		if ch.kind == .DM && ch.recipient_ids.count == 1 {
 			u := ch.recipient_ids[0];
-			// the profile sidebar renders with the third (sidebar) profile response
-			profile_view_begin(c, .Sidebar, u, 0, channel_id, 0, wait = 3);
+			// the profile sidebar renders with the last (sidebar) profile response
+			profile_view_begin(c, .Sidebar, u, 0, channel_id, 0, wait = ifx c.pending_private_prefetch then 2 else 3);
 			fetch_profile_ex(c, u, .{mutual_guilds = false, mutual_friends = false, mutual_friends_count = false});
-			fetch_profile_ex(c, u, .{mutual_guilds = true, mutual_friends = false, mutual_friends_count = false, delay_ms = 223});
+			// the mutual-guilds-only fetch: not on a sidebar open (fixtures open_dm, close_dm: two
+			// profiles; quick_switcher_nav, start_group_dm: three)
+			if !c.pending_private_prefetch fetch_profile_ex(c, u, .{mutual_guilds = true, mutual_friends = false, mutual_friends_count = false, delay_ms = 223});
 			fetch_note(c, u, 223);
 			fetch_profile_ex(c, u, .{kind = "sidebar", mutual_guilds = true, mutual_friends = true, mutual_friends_count = false, delay_ms = 476});
 		}
@@ -1342,17 +1344,24 @@ open_full_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, via :
 }
 
 // open_message_context_menu: right-clicking a message loads the application
-// command indexes (guild once per guild, user once per session), about 80 ms
-// after the menu opens: after its science batch (fixtures add_reaction 38 ms,
-// site recording 72 ms after the batch, which leaves 30 ms after the click).
+// command indexes (guild once per guild, user once per session). From the message
+// menu they leave about 80 ms after it opens, after its science batch (fixture
+// add_reaction 38 ms, site recording 72 ms after the batch, which leaves 30 ms after
+// the click), and a guild miss tracks its two cache_fetch events as the fetch starts.
 COMMAND_INDEX_DELAY_MS :: 80;
-open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
+open_message_context_menu :: (c: *Client, guild_id: Snowflake, message_menu := false) {
+	delay: s64 = ifx message_menu then COMMAND_INDEX_DELAY_MS else 0;
 	if guild_id && !table_contains(*c.command_index_guilds, guild_id) {
 		table_set(*c.command_index_guilds, guild_id, true);
 		j := job_new(.Api, .None);
 		j.method = "GET";
 		j.path = job_str(j, tprint("/guilds/%/application-command-index", guild_id));
-		j.not_before = now_ms() + COMMAND_INDEX_DELAY_MS;
+		j.not_before = now_ms() + delay;
+		if message_menu j.on_start = (c: *Client, j: *Job) { // the two cache_fetch misses, around the fetch's start
+			n := c.command_index_guilds.count;
+			analytics_command_cache_fetch(c, true, n - 1);
+			analytics_command_cache_fetch(c, true, n);
+		};
 		j.on_done = analytics_command_index_loaded;
 		job_submit(c, j);
 	}
@@ -1361,7 +1370,7 @@ open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
 		j := job_new(.Api, .None);
 		j.method = "GET";
 		j.path = "/users/@me/application-command-index";
-		j.not_before = now_ms() + COMMAND_INDEX_DELAY_MS;
+		j.not_before = now_ms() + delay;
 		j.on_done = analytics_command_index_loaded;
 		job_submit(c, j);
 	}
@@ -1371,17 +1380,56 @@ open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
 open_emoji_picker :: (c: *Client, guild_id: Snowflake) {
 	if c.emoji_picker_opened return;
 	c.emoji_picker_opened = true;
-	if guild_id {
-		j := job_new(.Api, .None);
-		j.method = "GET";
-		j.path = job_str(j, tprint("/guilds/%/top-emojis", guild_id));
-		job_submit(c, j);
-	}
+	if guild_id guild_top_emojis(c, guild_id); // through the picker pool: the UI gets the result
 	b := job_new(.Api, .None);
 	b.method = "GET";
 	b.path = "/users/@me/billing/subscriptions?sync_level=2";
 	job_submit(c, b);
 	fetch_profile_ex(c, c.store.me, .{});
+}
+
+// ---- UserAffinitiesV2Store (bundle module 427358) ----
+// Persisted. shouldFetch: no fetch in flight and more than 8 h since the last success; a
+// failure (B's 404) leaves lastFetched, so it is asked again at the next trigger. Each
+// user's communication_probability / _rank go into user_profile_action.
+Affinity :: struct { probability: string; rank: s64; } // probability: JSON number text, as received
+Affinities :: struct {
+	users: Table(Snowflake, Affinity);
+	fetched_ms: s64;
+	fetching: bool;
+}
+AFFINITIES_STALE_MS :: 8 * 3_600_000;
+
+affinities_job :: (j: *Job) {
+	j.skip_if = (c: *Client) -> bool {
+		locks.lock(*c.job_mu);
+		defer locks.unlock(*c.job_mu);
+		a := *c.affinities;
+		if a.fetching || now_ms() - a.fetched_ms <= AFFINITIES_STALE_MS return true;
+		a.fetching = true;
+		return false;
+	};
+	j.on_response = (c: *Client, j: *Job, status: int, body: V) {
+		locks.lock(*c.job_mu);
+		defer locks.unlock(*c.job_mu);
+		a := *c.affinities;
+		a.fetching = false;
+		if status != 200 return;
+		a.fetched_ms = now_ms();
+		for a.users free(it.probability,, c.allocator);
+		table_reset(*a.users);
+		for flist(vmap(body), "user_affinities") {
+			m := vmap(it);
+			table_set(*a.users, fsnow(m, "other_user_id"), .{copy_string(js_number(vf64(vget(m, "communication_probability"))),, c.allocator), fint(m, "communication_rank")});
+		}
+	};
+}
+
+affinity_get :: (c: *Client, user_id: Snowflake) -> Affinity, bool {
+	locks.lock(*c.job_mu);
+	defer locks.unlock(*c.job_mu);
+	ok, a := table_find(*c.affinities.users, user_id);
+	return .{copy_string(a.probability,, temp), a.rank}, ok;
 }
 
 // home_open: the friends/home surface's first render in a session (when the
@@ -1399,7 +1447,7 @@ home_open :: (c: *Client) {
 	c.home_opened = true;
 	if client_route_kind(c.start_route_guild, c.start_route_channel) == .Home return; // startup table covers it
 	api_get_later(c, "/users/@me/referrals/eligibility", 0);
-	if !c.account_verified api_get_later(c, "/users/@me/affinities/v2/users", 0);
+	{ j := job_new(.Api, .None); j.method = "GET"; j.path = "/users/@me/affinities/v2/users"; affinities_job(j); job_submit(c, j); }
 	locks.lock(*c.job_mu);
 	ready := c.ready_ms;
 	locks.unlock(*c.job_mu);

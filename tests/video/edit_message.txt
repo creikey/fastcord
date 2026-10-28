@@ -1,7 +1,5 @@
 # Site video: fastcord performing the official scenario tests/scenarios/edit_message.scn as test account A, at the
 # capture driver's pace (tools/site_video.py runs it live with FASTCORD_FRAMES/RECORD). 1280x720 @1x.
-after_ready 0
-open 1564405699197407414
 after_ready 9.5
 wait 150
 click 640 683

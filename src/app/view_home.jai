@@ -129,7 +129,7 @@ dm_row :: (ch: *dc.Channel) {
 		item.style.bg = ifx selected then T("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
 		sig := ui.signal(item);
-		if sig.clicked { select_channel(0, ch.id); }
+		if sig.clicked { select_channel(0, ch.id, prefetch = true); }
 		// 1:1 DM rows: the user menu (Add Friend, friend nickname, ...)
 		if sig.right_clicked && ch.kind == .DM && ch.recipient_ids.count > 0 { open_user_menu(ch.recipient_ids[0], app.ui.mouse, dm_row = true); }
 		unread := dc.channel_unread(store(), ch.id);
