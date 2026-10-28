@@ -393,6 +393,8 @@ TME_LEAVE :: 2;
 TME_NONCLIENT :: 0x10;
 SPI_GETHIGHCONTRAST :: 0x0042;
 SPI_GETCLIENTAREAANIMATION :: 0x1042;
+SPI_GETWHEELSCROLLLINES :: 0x0068;
+SPI_GETWHEELSCROLLCHARS :: 0x006C;
 WM_FC_WAKE :: WM_USER + 1;
 WM_FC_TRAY :: WM_USER + 2;
 TIMER_ANIM :: 1;
@@ -1067,7 +1069,17 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
         case win.WM_XBUTTONUP;   mouse_button_event(.Mouse_Up, ifx ((wp >> 16) & 0xffff) == 1 then .X1 else .X2, lp); return 1;
         case win.WM_MOUSEWHEEL; #through;
         case win.WM_MOUSEHWHEEL;
-            delta := cast(s16) ((wp >> 16) & 0xffff) / 120.0 * 40; // Chrome: 40px per notch
+            // Chromium on Windows: the system's lines (or chars) per notch at 100/3 px each; "one screen
+            // at a time" (0xffffffff) steps 87.5% of the view, Blink's page step.
+            lines: u32 = 3;
+            SystemParametersInfoW(xx ifx msg == win.WM_MOUSEWHEEL then SPI_GETWHEELSCROLLLINES else SPI_GETWHEELSCROLLCHARS, 0, *lines, 0);
+            step := cast(float32) lines * 100 / 3;
+            if lines == 0xffff_ffff {
+                r: win.RECT;
+                win.GetClientRect(hwnd, *r);
+                step = (ifx msg == win.WM_MOUSEWHEEL then r.bottom - r.top else r.right - r.left) / s.scale * 0.875;
+            }
+            delta := cast(s16) ((wp >> 16) & 0xffff) / 120.0 * step;
             pt := win.POINT.{lparam_x(lp), lparam_y(lp)};
             win.ScreenToClient(hwnd, *pt);
             e := Event.{kind = .Scroll, pos = .{pt.x / s.scale, pt.y / s.scale}, mods = current_mods(), time = time_now()};
