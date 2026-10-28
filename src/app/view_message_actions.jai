@@ -558,7 +558,13 @@ delete_now :: (m: *dc.Message) {
 	if net_action() dc.delete_message(app.client, m.channel_id, m.id);
 }
 
-Confirm :: enum u8 { Delete; Pin; Unpin; }
+Confirm :: enum u8 { Delete; Pin; Unpin; Remove_Embeds; }
+
+// The hover X's "Remove all embeds": hidden at once, for everyone once the PATCH lands.
+remove_embeds_now :: (m: *dc.Message) {
+	if net_action() dc.suppress_embeds(app.client, m.channel_id, m.id, m.flags);
+	m.flags |= 4;
+}
 
 // PUT / DELETE .../messages/pins/{id}; a failure shows the client's notice (features_receive).
 pin_now :: (m: *dc.Message, pin: bool) {
@@ -566,7 +572,11 @@ pin_now :: (m: *dc.Message, pin: bool) {
 }
 
 confirm_now :: (m: *dc.Message) {
-	if ma.confirm == .Delete delete_now(m); else pin_now(m, ma.confirm == .Pin);
+	if ma.confirm == {
+	case .Delete; delete_now(m);
+	case .Remove_Embeds; remove_embeds_now(m);
+	case; pin_now(m, ma.confirm == .Pin);
+	}
 }
 
 // The message confirmations (MessageActionCreators.confirmDelete / confirmPin / confirmUnpin):
@@ -584,6 +594,8 @@ confirm_modal :: () {
 		question = ifx ch && ch.guild_id then tprint("Hey, just double checking that you want to pin this message to #% for posterity and greatness?", ch.name) else "Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?";
 	} else if ma.confirm == .Unpin {
 		title, question, tip, ok = "Unpin Message", "You sure you want to remove this pinned message?", "unpin message", "Remove it please!";
+	} else if ma.confirm == .Remove_Embeds {
+		title, question, tip, ok = "Remove Embeds", "Are you sure you want to remove all embeds on this message? This will remove them for everyone.", "remove embeds", "Remove All Embeds";
 	}
 	scrim := ui.box("del_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];

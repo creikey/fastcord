@@ -426,6 +426,7 @@ voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64
 
 // Link embeds: colored left bar, provider/author/title/description, image or thumbnail.
 embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
+	if m.flags & 4 return; // SUPPRESS_EMBEDS
 	for * e, i: m.embeds {
 		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
 			// bare media links render as the media itself; GIFV (Tenor, Klipy) as its looping video

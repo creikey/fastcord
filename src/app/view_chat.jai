@@ -1188,7 +1188,30 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				thread_summary_pill(m);
 				if m.attachments && !m.forwarded attachments_view(m);
 				if m.pending upload_progress_view(m);
-				if m.embeds && !m.forwarded embeds_view(m);
+				if m.embeds && !m.forwarded && !(m.flags & 4) {
+					// your own embeds get the client's hover X, "Remove all embeds" (Shift skips the confirm)
+					er := row("embeds");
+					er.semantic_size = .[ui.pct(1), ui.children()];
+					er.cross_align = .Start;
+					ui.parent(er); defer ui.pop_parent();
+					ec := ui.box("ecol");
+					ec.semantic_size = .[ui.children(), ui.children()];
+					ec.layout_axis = .Y;
+					{ ui.parent(ec); defer ui.pop_parent(); embeds_view(m); }
+					if m.author_id == s.me && app.chat_hover == m.id && !m.pending {
+						spacer(.X, 4);
+						x := ui.box("rmembeds", .Clickable);
+						x.semantic_size = .[ui.px(16), ui.px(16)];
+						x.hover_cursor = .Pointer;
+						xs := ui.signal(x);
+						set_icon(x, "x-small", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+						if xs.hovering tooltip_below("Remove all embeds", x.rect);
+						if xs.clicked {
+							if app.ui_mods & .Shift remove_embeds_now(m);
+							else ma.confirming, ma.confirm = m.id, Confirm.Remove_Embeds;
+						}
+					}
+				}
 				if m.content && !m.forwarded invite_cards_view(m);
 				if m.reactions reactions_view(m);
 			}

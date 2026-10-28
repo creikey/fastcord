@@ -411,6 +411,23 @@ edit_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, conte
 	job_submit(c, j);
 }
 
+// suppress_embeds: PATCH the message's flags with SUPPRESS_EMBEDS (1 << 2) added; the reply replaces the message.
+suppress_embeds :: (c: *Client, channel_id: Snowflake, message_id: Snowflake, flags: u64) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kint(*w, "flags", cast(s64) (flags | 4));
+	json_obj_end(*w);
+	j := job_new(.Api, .Edit_Message);
+	j.method = "PATCH";
+	j.path = job_str(j, channel_path(channel_id, "/messages/", snowflake_string(message_id)));
+	j.body = cast([]u8) job_str(j, json_string(*w));
+	j.content_type = "application/json";
+	j.retries = 1;
+	j.result = .{op = .Edit_Message, channel_id = channel_id, message_id = message_id};
+	job_submit(c, j);
+}
+
 // delete_message: DELETE (no retries).
 delete_message :: (c: *Client, channel_id: Snowflake, message_id: Snowflake) {
 	j := job_new(.Api, .Delete_Message);

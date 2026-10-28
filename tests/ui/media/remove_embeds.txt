@@ -1,0 +1,16 @@
+# Hovering your own message shows an X beside its embeds; it asks first, then removes them
+# (PATCH flags with SUPPRESS_EMBEDS).
+wait 20
+move 600 520
+wait 5
+move 779 444
+wait 5
+expect_visible "Remove all embeds"
+click 779 444
+wait 10
+expect_visible "Remove Embeds"
+shot build/ui-remove_embeds-confirm.png
+click_text "Remove All Embeds"
+wait 10
+expect_not_visible "Remove Embeds"
+shot build/ui-remove_embeds.png
