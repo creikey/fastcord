@@ -265,7 +265,6 @@
 - [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
 - [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
 - [ ] Windows, Linux: no echo cancellation or AGC in voice (`set_voice_processing` stubs); noise suppression only through the RNNoise toggle.
-- [ ] Markdown: timestamp styles `T`, `D`, `f`, `F` and `R` (relative, "in 3 hours") fall back to one format (`view_chat.jai` `format_unix`).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
 - [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
@@ -320,3 +319,4 @@
 - [x] Keybinds: Ctrl+Shift+U in the composer opens the file picker, like the "+" button (`tests/ui/upload_key.txt`).
 - [x] Chat: hovering a message's time (header or the grouped-row gutter) or "(edited)" shows the full date, "Monday, October 26, 2026 7:54 AM" (`tests/ui/timestamp_tooltip.txt`).
 - [x] Markdown: hovering a `<t:…>` timestamp in a message shows its full date (`tests/ui/forward/timestamp_markup_tooltip.txt`).
+- [x] Markdown: `<t:>` timestamps render all seven styles, `R` as moment's "in 4 hours" / "a day ago" (`tests/ui/forward/timestamp_styles.txt`).

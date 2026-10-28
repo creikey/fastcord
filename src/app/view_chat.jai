@@ -430,13 +430,42 @@ markdown_key :: (ed: *ui.Editor, e: ui.Input_Event) -> bool {
 
 format_unix :: (secs: s64, style: string) -> string {
 	t := utc_calendar(secs * 1000 + local_utc_offset_ms());
+	clock := tprint("%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
+	date := tprint("% %, %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year);
 	if style == {
 	case "t";
-		return tprint("%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
+		return clock;
+	case "T";
+		return tprint("%:%:% %", hour12(t), formatInt(t.minute, minimum_digits = 2), formatInt(t.second, minimum_digits = 2), am_pm(t));
 	case "d";
 		return tprint("%/%/%", t.month_starting_at_0 + 1, t.day_of_month_starting_at_0 + 1, t.year);
+	case "D";
+		return date;
+	case "F";
+		return full_timestamp(secs * 1000);
+	case "R";
+		return relative_time(secs - wall_ms() / 1000);
 	}
-	return tprint("% %, % %:% %", MONTHS[t.month_starting_at_0], t.day_of_month_starting_at_0 + 1, t.year, hour12(t), formatInt(t.minute, minimum_digits = 2), am_pm(t));
+	return tprint("% %", date, clock);
+}
+
+// moment's fromNow, which the client's "R" style uses: "in 3 hours", "a minute ago".
+relative_time :: (delta_secs: s64) -> string {
+	s := abs(delta_secs);
+	m, h, d := (s + 30) / 60, (s + 1800) / 3600, (s + 43200) / 86400;
+	text: string;
+	if s < 45 text = "a few seconds";
+	else if s < 90 text = "a minute";
+	else if m < 45 text = tprint("% minutes", m);
+	else if m < 90 text = "an hour";
+	else if h < 22 text = tprint("% hours", h);
+	else if h < 36 text = "a day";
+	else if d < 26 text = tprint("% days", d);
+	else if d < 45 text = "a month";
+	else if d < 320 text = tprint("% months", (d + 15) / 30);
+	else if d < 548 text = "a year";
+	else text = tprint("% years", (d + 182) / 365);
+	return ifx delta_secs > 0 then tprint("in %", text) else tprint("% ago", text);
 }
 
 // Spoilers revealed by a click, keyed by where their run of tokens starts in the
