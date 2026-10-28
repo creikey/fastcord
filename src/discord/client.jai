@@ -215,7 +215,9 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	c := New(Client);
 	c.cfg = cfg;
 	c.cfg.fast_connect = !cfg.disable_fast_connect;
-	if c.cfg.workers <= 0 c.cfg.workers = 16; // Chrome issues the startup burst (13 requests) concurrently
+	// Chrome issues Discord's startup burst (13 requests) concurrently. A hosted server has no burst, and each
+	// worker can hold a connection and a server thread, so two do.
+	if c.cfg.workers <= 0 c.cfg.workers = ifx cfg.hosted.host then 2 else 16;
 	c.allocator = context.allocator;
 	c.token = copy_string(cfg.token);
 	c.voice_self.self_mute = cfg.voice_self_mute;
