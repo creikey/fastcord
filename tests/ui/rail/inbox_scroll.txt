@@ -1,0 +1,9 @@
+# Wheel over the open inbox scrolls it, also where it covers the member list (a scroll box
+# signalled before the popup): the Pixel Art Club row comes into view.
+resize 1280 380
+wait 5
+click 1219 16
+wait 20
+move 1100 250
+scroll 0 -400
+wait 30

@@ -659,8 +659,8 @@ signal :: (b: *Box) -> Signal {
 	sig.dragging = s.active == b.key;
 	if sig.dragging sig.drag_delta = s.mouse - s.press_pos;
 
-	// scrolling: the innermost scrollable under the mouse takes the wheel
-	if (b.flags & SCROLL) && !s.scroll_consumed && contains(visible_rect(b), s.mouse) {
+	// scrolling: the innermost scrollable under the mouse takes the wheel; one behind an open overlay doesn't
+	if (b.flags & SCROLL) && !s.scroll_consumed && mouse_over(b) {
 		for * e: s.events {
 			if e.kind != .Scroll || e.consumed continue;
 			if b.flags & .Scroll_Y b.view_off_target.y -= e.delta.y;

@@ -311,3 +311,4 @@
 - [x] Markdown: numbered lists (`1. item`) render with their numbers, counting up from the first item's, nested ones included.
 - [x] Windows: the window's resize edges grab 8pt deep instead of 2pt; nothing is drawn for them.
 - [x] Edit: Up in an empty composer, the hover pencil and Edit Message skip system notices and pending messages (`can_edit`).
+- [x] Scrolling: the wheel over a popout (inbox, menus) scrolls it where it covers another scroll box such as the member list; `ui.signal` now skips scroll boxes behind an overlay.
