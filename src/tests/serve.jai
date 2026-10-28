@@ -9,6 +9,7 @@
 crypto :: #import "crypto";
 discord :: #import "discord";
 keys :: #import "keys";
+locks :: #import "locks";
 etf :: #import "etf";
 http :: #import "http";
 netio :: #import "netio";
@@ -367,6 +368,21 @@ main :: () {
 	again := discord.create_invite(cl, cid,, context.default_allocator);
 	check(made.ok && made.code.count == 12 && made.guild_id == gid && again.code == made.code, tprint("create an invite: % % %", made.status, made.code, again.code));
 	member_invite, member_ok := serve.parse_invite(serve.invite_url(pin, "127.0.0.1", port, id, made.code));
+
+	// A dropped gateway can't resume here, so the client identifies afresh, and the fresh READY refetches
+	// the open channel: a message sent while it was away still shows up.
+	discord.select_channel(cl, gid, cid);
+	for 1..100 pump();
+	readies := cl.store.readies;
+	locks.lock(*s.mu);
+	for s.conns if it.ws netio.shutdown(netio.tcp_stream(it.tcp));
+	locks.unlock(*s.mu);
+	status, body = rest("POST", messages, "{\"content\": \"while away\"}", token);
+	last :: () -> string #expand { m := stored(); return ifx m.count then m[m.count - 1].content else ""; }
+	for 1..1500 { if cl.store.readies > readies && last() == "while away" break; pump(); }
+	check(cl.store.readies > readies && last() == "while away", tprint("a reconnect catches up: % %", cl.store.readies - readies, last()));
+	away, _ := etf.from_json(body);
+	rest("DELETE", tprint("%/%", messages, field(away, "id").s), "", token);
 	discord.client_destroy(cl);
 	status, body = rest("PATCH", tprint("%/1", messages), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("edit an unknown message: %", status));
