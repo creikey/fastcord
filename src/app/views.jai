@@ -1245,6 +1245,7 @@ go_to :: (gid: dc.Snowflake, cid: dc.Snowflake, source := "") {
 		// the "NEW" divider and new-messages bar start again from the read state on every visit
 		cs := table_find_pointer(*app.chats, cid);
 		if cs cs.opened = false;
+		replies_switch(app.view.channel, cid);
 	}
 	app.view.guild = gid;
 	app.view.channel = cid;

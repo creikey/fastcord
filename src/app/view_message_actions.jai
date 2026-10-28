@@ -1,6 +1,7 @@
 Message_Actions :: struct {
 	replying: dc.Snowflake; // message being replied to (composer bar)
 	reply_mention: bool; // "@ ON" toggle
+	parked_replies: Table(dc.Snowflake, Parked_Reply); // other channels' pending replies, by channel
 	editing: dc.Snowflake; // message in inline edit mode
 	edit_editor: ui.Editor;
 	confirming: dc.Snowflake; // message of the confirmation modal (delete / pin / unpin)
@@ -14,7 +15,22 @@ Message_Actions :: struct {
 	menu_t: float32;
 }
 
+Parked_Reply :: struct {
+	id: dc.Snowflake;
+	mention: bool;
+}
+
 ma: Message_Actions;
+
+// On a channel switch: park the open channel's pending reply and bring back the new one's.
+replies_switch :: (from: dc.Snowflake, to: dc.Snowflake) {
+	if ma.replying != 0 table_set(*ma.parked_replies, from, .{ma.replying, ma.reply_mention});
+	else table_remove(*ma.parked_replies, from);
+	_, r := table_find(*ma.parked_replies, to);
+	ma.replying = r.id;
+	ma.reply_mention = r.mention;
+	table_remove(*ma.parked_replies, to);
+}
 
 mime_for :: (name: string) -> string {
 	ext := name;
