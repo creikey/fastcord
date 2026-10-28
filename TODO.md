@@ -67,6 +67,7 @@
   - Done: a hosted client runs 2 REST workers and keeps at most 2 idle connections, so a member holds at most 3 connections (with the gateway), not 17.
 - [ ] Hosting 3: one instance hosts many server files on one port, choosing the server by its ID through TLS SNI. The owner runs Server Settings, plus a host tab, from their own client anywhere. It can't be bricked:
   - A second file with an already-loaded ID is refused, with Fork (new ID, same content) offered instead.
+  - The same file served by two processes isn't refused today: `sqlite.open` takes no exclusive lock, so a second `-serve` on another port (a manual run beside the service, say) splits members between two servers that never see each other's messages, and their snowflake counters can issue the same ID. Open serve's file with `PRAGMA locking_mode=EXCLUSIVE` (or an OS lock on it) and say "this server is already running".
   - The owner is set when the client creates the server. A headless `fastcord -serve -new <name>` prints a one-time owner code to the host's console only.
   - Address, port or certificate changes revert after 2 minutes unless the owner reconnects and confirms.
   - Ownership transfer takes effect only once the new owner signs to accept it.
