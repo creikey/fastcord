@@ -161,7 +161,7 @@
 - [ ] Gateway: dispatches without a handler are dropped (`store.jai` default case). Matter most: `PASSIVE_UPDATE_V1/V2` and `CHANNEL_UNREAD_UPDATE` (stale unreads and voice states in unsubscribed servers), `MESSAGE_REACTION_ADD_MANY` (lost reactions in big servers). Also `VOICE_CHANNEL_STATUS_UPDATE`, `GUILD_BAN_*`, `INVITE_*`, `WEBHOOKS_UPDATE`, `STAGE_INSTANCE_*`, `USER_NOTE_UPDATE`, `RECENT_MENTION_DELETE`, `GUILD_SOUNDBOARD_SOUNDS_UPDATE`.
 - [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
 - [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
-- [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
+- [ ] Bug (Windows): once, a headless live run with the camera on, while watching another camera, never exited after its final screenshot (`app_exit` after `video_shutdown`); five more runs of the same exit were clean. Take every thread's stack the next time it happens (lldb -p).
 - [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
@@ -345,3 +345,4 @@
 - [x] Composer: Ctrl+B / Ctrl+I / Ctrl+U wrap the selection in `**`, `*`, `__` or unwrap it (`view_chat.jai` `markdown_key`, `tests/ui/composer_format_keys.txt`).
 - [x] Keybinds: Alt+Up/Down step through the server's channels (or DMs at home), Alt+Shift+Up/Down to the previous / next unread one, Ctrl+Alt+Up/Down through the servers, all wrapping (`views.jai` `navigate_step`, `tests/ui/rail/channel_keys.txt`).
 - [x] Keybinds: Ctrl+I toggles the inbox, Ctrl+P the pins, Ctrl+U the member list (the profile panel in DMs), Ctrl+Alt+Shift+Up/Down steps through channels with mentions (`views.jai` `overlays`, `tests/ui/shortcut_toggles.txt`).
+- [x] Video (Windows): the real camera checked live (c922): fastcord on Linux showed it at 1280x720 with the right colours and ~26 fps, through camera off and on again, with DAVE. Not yet compared against the official client.
