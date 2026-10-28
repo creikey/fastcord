@@ -245,7 +245,6 @@
 - [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
 - [ ] Bug: the composer stops taking typing in every channel after you start an edit (pencil or Up), then switch channel or the message is deleted. `ma.editing` gates `input_focused` (`view_chat.jai`) and is only cleared inside `edit_box`, which draws only while that row is on screen; `go_to` and MESSAGE_DELETE never clear it.
 - [ ] macOS: the Metal backend never sets `gpu_ns`, so the bench has no GPU time there.
-- [ ] Moderation: "Delete Message" shows only on your own messages; MANAGE_MESSAGES should allow deleting others'.
 - [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
@@ -338,3 +337,4 @@
 - [x] Embeds: images, videos, posters and the image mosaic shrink to `max_w`, so search, pins and inbox cards no longer overflow (`tests/ui/rail/embed_narrow.txt`).
 - [x] Embeds: your own messages get the hover X beside their embeds; it confirms (Shift skips), hides them at once and PATCHes `flags` with SUPPRESS_EMBEDS (`dc.suppress_embeds`, `tests/ui/media/remove_embeds.txt`).
 - [x] Embeds: with MANAGE_MESSAGES in a server channel the "Remove all embeds" X shows on other people's messages too (`can_manage_message`, `tests/ui/media/remove_embeds_mod.txt`).
+- [x] Moderation: with MANAGE_MESSAGES in a server channel the message menu offers "Delete Message" on other people's messages (`can_manage_message`, `tests/ui/forward/delete_others.txt`).

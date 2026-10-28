@@ -1,0 +1,6 @@
+# With MANAGE_MESSAGES (you own the server) the message menu offers Delete Message on Robin's message too.
+wait 10
+rclick 600 610
+wait 10
+expect_visible "Delete Message"
+shot build/ui-delete_others.png
