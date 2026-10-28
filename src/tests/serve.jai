@@ -633,6 +633,22 @@ main :: () {
 		check(ostatus == 200, tprint("an invite works again once the ban is lifted: % %", ostatus, omessage));
 	}
 
+	// The owner lists working invites and revokes one; a member can't do either to someone else's.
+	{
+		status, body = rest("GET", tprint("/api/v9/guilds/%/invites", gid), "", other_token);
+		check(status == 403, tprint("a member can't list invites: % %", status, body));
+		status, body = rest("GET", tprint("/api/v9/guilds/%/invites", gid), "", token);
+		check(status == 200 && contains(body, made.code), tprint("the owner lists invites: % %", status, body));
+		status, body = rest("DELETE", tprint("/api/v9/invites/%", made.code), "", other_token);
+		check(status == 403, tprint("a member can't revoke another's invite: % %", status, body));
+		status, body = rest("DELETE", tprint("/api/v9/invites/%", made.code), "", token);
+		check(status == 200, tprint("the owner revokes an invite: % %", status, body));
+		_, ostatus, omessage = serve.member_login(member_invite, keys.generate("Latecomer"), "Latecomer");
+		check(ostatus == 404, tprint("a revoked invite lets nobody in: % %", ostatus, omessage));
+		status, body = rest("GET", tprint("/api/v9/guilds/%/invites", gid), "", token);
+		check(status == 200 && !contains(body, made.code), tprint("a revoked invite isn't listed: % %", status, body));
+	}
+
 	// A member keeps only their newest sessions: logging in that many times more ends the first one.
 	{
 		status, body = rest("GET", tprint("%?limit=1", messages), "", token);

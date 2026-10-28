@@ -147,10 +147,10 @@ invite_url :: (pin: [32]u8, host: string, port: int, id_hex: string, code: strin
 	return sprint("fc://%@%:%/%/%", hex(pin,, temp), h, port, id_hex, code,, allocator);
 }
 
-// first_invite is the oldest invite's code, the one the console prints.
+// first_invite is the oldest working invite's code, the one the console prints, or "" if none works.
 first_invite :: (s: *Server, allocator := temp) -> string {
 	locks.guard(*s.db_mu);
-	st := sqlite.prepare(s.db, "SELECT code FROM invites WHERE owner = 0 ORDER BY rowid LIMIT 1;");
+	st := sqlite.prepare(s.db, tprint("SELECT code FROM invites WHERE owner = 0 AND % ORDER BY rowid LIMIT 1;", INVITE_LIVE));
 	defer sqlite.finalize(st);
 	if sqlite.step(st) != .Row return "";
 	return copy_string(sqlite.col_text(st, 0),, allocator);
@@ -604,6 +604,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "DELETE" && req.path == tprint("/api/v9/users/@me/guilds/%", c.server.guild) {
 			if !leave(c, req) return;
+			continue;
+		}
+		if (req.method == "GET" && req.path == tprint("/api/v9/guilds/%/invites", c.server.guild)) || (req.method == "DELETE" && begins_with(req.path, "/api/v9/invites/")) {
+			if !manage_invites(c, req) return;
 			continue;
 		}
 		if begins_with(req.path, tprint("/api/v9/guilds/%/members/", c.server.guild)) || begins_with(req.path, tprint("/api/v9/guilds/%/bans/", c.server.guild)) {
@@ -1331,6 +1335,50 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 	}
 	removed(s, target);
 	return respond(c, 204, json = false);
+}
+
+// GET /guilds/{id}/invites lists the working invites, for the owner. DELETE /invites/{code} revokes one,
+// for the owner or whoever made it; the row stays, used up, so the code never works again.
+manage_invites :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	locks.guard(*s.db_mu);
+	owner := owner_id(s) == user;
+	if req.method == "DELETE" {
+		code := slice(req.path, "/api/v9/invites/".count, req.path.count - "/api/v9/invites/".count);
+		st := sqlite.prepare(s.db, tprint("SELECT inviter FROM invites WHERE code = ? AND owner = 0 AND %;", INVITE_LIVE));
+		sqlite.bind(st, 1, code);
+		found := sqlite.step(st) == .Row;
+		inviter := ifx found then sqlite.col_int(st, 0) else 0;
+		sqlite.finalize(st);
+		if !found return json_error(c, 404, 10006, "Unknown Invite");
+		if !owner && inviter != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !sqlite.run(s.db, "UPDATE invites SET uses_left = 0 WHERE code = ?;", code) return json_error(c, 500, 0, "500: Internal Server Error");
+		return respond(c, 200, tprint("{\"code\": \"%\", \"guild_id\": \"%\"}", code, s.guild));
+	}
+	if !owner return json_error(c, 403, 50013, "Missing Permissions");
+	list: [..]etf.Value;
+	list.allocator = temp;
+	st := sqlite.prepare(s.db, tprint("SELECT code, uses_left, inviter, channel, max_age, expires FROM invites WHERE owner = 0 AND % ORDER BY rowid;", INVITE_LIVE));
+	defer sqlite.finalize(st);
+	while sqlite.step(st) == .Row {
+		m := etf.map_builder(7,, temp);
+		etf.map_put(*m, "code", etf.vstring(copy_string(sqlite.col_text(st, 0),, temp)));
+		etf.map_put(*m, "guild_id", snow(s.guild));
+		uses_left := sqlite.col_int(st, 1);
+		// Only the uses left are kept, so max_uses counts from now: 0 means unlimited, as on Discord.
+		etf.map_put(*m, "max_uses", etf.vint(ifx uses_left > 0 then uses_left else 0));
+		inviter, channel := sqlite.col_int(st, 2), sqlite.col_int(st, 3);
+		etf.map_put(*m, "inviter_id", ifx inviter then snow(inviter) else .{});
+		etf.map_put(*m, "channel_id", ifx channel then snow(channel) else .{});
+		etf.map_put(*m, "max_age", etf.vint(sqlite.col_int(st, 4)));
+		expires := sqlite.col_int(st, 5);
+		etf.map_put(*m, "expires_at", ifx expires then etf.vstring(iso(((expires * 1000) - DISCORD_EPOCH_MS) << 22)) else .{});
+		array_add(*list, etf.vmap(etf.map_done(*m)));
+	}
+	return json_reply(c, 200, etf.vlist(list));
 }
 
 // remove_member_locked marks user gone (and banned) and ends their sessions; db_mu is held.
