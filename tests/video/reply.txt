@@ -71,7 +71,7 @@ wait 8
 key enter
 settle 1.7
 mark reply
-wait 60
+wait 18
 rclick_text "setup message for the next step"
 wait 50
 click_text "Reply"

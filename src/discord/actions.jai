@@ -1342,13 +1342,17 @@ open_full_profile :: (c: *Client, user_id: Snowflake, guild_id: Snowflake, via :
 }
 
 // open_message_context_menu: right-clicking a message loads the application
-// command indexes (guild once per guild, user once per session).
+// command indexes (guild once per guild, user once per session), about 80 ms
+// after the menu opens: after its science batch (fixtures add_reaction 38 ms,
+// site recording 72 ms after the batch, which leaves 30 ms after the click).
+COMMAND_INDEX_DELAY_MS :: 80;
 open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
 	if guild_id && !table_contains(*c.command_index_guilds, guild_id) {
 		table_set(*c.command_index_guilds, guild_id, true);
 		j := job_new(.Api, .None);
 		j.method = "GET";
 		j.path = job_str(j, tprint("/guilds/%/application-command-index", guild_id));
+		j.not_before = now_ms() + COMMAND_INDEX_DELAY_MS;
 		j.on_done = analytics_command_index_loaded;
 		job_submit(c, j);
 	}
@@ -1357,6 +1361,7 @@ open_message_context_menu :: (c: *Client, guild_id: Snowflake) {
 		j := job_new(.Api, .None);
 		j.method = "GET";
 		j.path = "/users/@me/application-command-index";
+		j.not_before = now_ms() + COMMAND_INDEX_DELAY_MS;
 		j.on_done = analytics_command_index_loaded;
 		job_submit(c, j);
 	}

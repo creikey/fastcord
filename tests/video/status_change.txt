@@ -7,7 +7,7 @@ mark open_status_menu
 wait 60
 click 100 683
 wait 72
-click_text "Online"
+move_text "Online"
 wait 72
 mark set_idle
 click_text "Idle"
@@ -15,7 +15,7 @@ settle 2.5
 mark set_online
 click 100 683
 wait 72
-click_text "Idle"
+move_text "Idle"
 wait 72
 click_text "Online"
 settle 2.5

@@ -96,7 +96,8 @@ open_profile :: (uid: dc.Snowflake, anchor: ui.Rect, source := Profile_Source.Ot
 	case .Message_Author;
 		dc.profile_view_begin(app.client, .Popout, uid, app.view.guild, app.view.channel, message_id);
 	case .Account_Panel;
-		dc.profile_view_begin(app.client, .Account_Popout, uid, 0, 0, 0);
+		dc.open_account_popout(app.client); // its own profile fetch and follow-ups (fixture status_change)
+		return;
 	case .Other;
 	}
 	dc.fetch_profile(app.client, uid, app.view.guild);

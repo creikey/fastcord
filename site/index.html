@@ -190,7 +190,7 @@
       </div>
       <div class="vid fc"><h3><i></i>Fastcord</h3><video id="vf" muted playsinline loop preload="metadata"></video><div class="vbar" id="bf"></div></div>
     </div>
-    <p class="fine" id="dfine">Only shapes are shown, never values: method and path with ids folded, header names in the order they left the machine (from Chrome's and Fastcord's network logs), JSON field names, gateway opcodes, telemetry event names and property names. Heartbeats are left out because both clients send them on their own schedule.</p>
+    <p class="fine" id="dfine">Only shapes are shown, never values: method and path with ids folded, header names in the order they left the machine (from Chrome's and Fastcord's network logs), JSON field names, gateway opcodes, telemetry event names and property names. Left out: heartbeats (each client sends them on its own schedule) and image or sticker downloads (they depend on what each client has cached). Differences that remain are shown as they are, unmatched rows included. One under review: the official app, recorded in a background test window, skipped read acks that Fastcord sent.</p>
   </section>
 
   <section class="parity" id="traffic">

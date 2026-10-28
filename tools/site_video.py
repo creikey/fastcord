@@ -15,7 +15,8 @@ import json, os, re, subprocess, sys, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SEC = os.path.join(ROOT, '.secrets') if os.path.isdir(os.path.join(ROOT, '.secrets')) else '/Users/creikey/Documents/fastcord/.secrets'
 TTEXT = '1564405699197407414'
-IGNORE = ('/assets/', 'collectibles-shop', 'latency.discord.media', '/cdn-cgi/', 'cdn.discordapp.com', 'media.discordapp.net')
+# media (CDN images, the image proxy, sticker files) depends on each client's disk cache, not on behaviour
+IGNORE = ('/assets/', 'collectibles-shop', 'latency.discord.media', '/cdn-cgi/', 'cdn.discordapp.com', 'media.discordapp.net', 'images-ext-', '/stickers/')
 LEAD_MS, TAIL_MS, MAX_MS = 700, 600, 16000
 W = 960
 TITLES = {'send_message': 'Send a message', 'add_reaction': 'Add a reaction', 'edit_message': 'Edit a message',

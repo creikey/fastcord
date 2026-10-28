@@ -185,7 +185,7 @@ quick_reactions :: () -> []dc.Emoji {
 
 start_reply :: (m: *dc.Message) {
 	ma.replying = m.id;
-	ma.reply_mention = true;
+	ma.reply_mention = m.author_id != store().me; // no ping for your own message (CLIENT_RULES "Replies")
 	app.ui.focus = 0;
 }
 
