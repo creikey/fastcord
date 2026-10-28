@@ -83,7 +83,7 @@
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
 - [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
 - [ ] Search: clicking the search bar again while results are open crashes.
-- [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Pins likely have the same gap.
+- [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Reuse that menu so Shift-clicking Delete Message skips the confirm prompt there too, as it already does in chat. Pins likely have the same gap.
 - [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
 - [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
 - [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
