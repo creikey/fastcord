@@ -565,9 +565,17 @@ main :: () {
 				got := field(files.list[0], "url").s;
 				status, body = rest("GET", slice(got, find_index_from_left(got, "/attachments/"), got.count), "", "");
 				check(status == 200 && body == png, tprint("the file reads back: % %", status, body.count));
+				file_path := slice(got, find_index_from_left(got, "/attachments/"), got.count);
+				// A forward keeps the original's file after the original is deleted; it goes with the forward.
+				status, body = rest("POST", messages, tprint("{\"content\": \"\", \"message_reference\": {\"channel_id\": \"%\", \"message_id\": \"%\", \"type\": 1}}", channel, field(sent, "id").s), token);
+				forwarded, _ := etf.from_json(body);
+				check(status == 200, tprint("forward a file: % %", status, body));
 				rest("DELETE", tprint("%/%", messages, field(sent, "id").s), "", token);
-				status, body = rest("GET", slice(got, find_index_from_left(got, "/attachments/"), got.count), "", "");
-				check(status == 404, tprint("a deleted message's file is gone: %", status));
+				status, body = rest("GET", file_path, "", "");
+				check(status == 200 && body == png, tprint("a forward keeps its original's file: %", status));
+				rest("DELETE", tprint("%/%", messages, field(forwarded, "id").s), "", token);
+				status, body = rest("GET", file_path, "", "");
+				check(status == 404, tprint("a deleted message's file is gone once nothing forwards it: %", status));
 			}
 		}
 	}

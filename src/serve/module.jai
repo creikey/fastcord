@@ -418,6 +418,9 @@ CREATE TABLE IF NOT EXISTS uploads(token TEXT PRIMARY KEY, user INTEGER NOT NULL
 CREATE TABLE IF NOT EXISTS attachments(id INTEGER PRIMARY KEY, message INTEGER NOT NULL, key TEXT NOT NULL, filename TEXT NOT NULL, content_type TEXT NOT NULL,
 	size INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, description TEXT NOT NULL, data BLOB NOT NULL);
 CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
+CREATE TABLE IF NOT EXISTS snapshot_files(message INTEGER NOT NULL, attachment INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS snapshot_files_message ON snapshot_files(message);
+CREATE INDEX IF NOT EXISTS snapshot_files_attachment ON snapshot_files(attachment);
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
 	provider TEXT NOT NULL, color INTEGER NOT NULL, rich TEXT, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0,
@@ -1057,6 +1060,19 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 		ifx sqlite.col_is_null(st, 11) then etf.Value.{} else channel_locked(s, id), sqlite.col_int(st, 12) != 0, copy_string(sqlite.col_text(st, 13),, temp));
 }
 
+// drop_files deletes the files of the messages in set (SQL listing message IDs, which may use ?1), run
+// before those messages' rows go. A forward's snapshot keeps its original's files alive, as on Discord, so
+// a file goes only once its own message and every forward naming it are gone.
+drop_files :: (s: *Server, set: string, arg: s64) -> bool {
+	DROP :: #string SQL
+		DELETE FROM attachments WHERE (message IN ({set}) OR id IN (SELECT attachment FROM snapshot_files WHERE message IN ({set})))
+			AND (message IN ({set}) OR NOT EXISTS(SELECT 1 FROM messages m WHERE m.id = attachments.message))
+			AND NOT EXISTS(SELECT 1 FROM snapshot_files f WHERE f.attachment = attachments.id AND f.message NOT IN ({set}));
+	SQL
+	return sqlite.run(s.db, replace(DROP, "{set}", set,, temp), arg)
+		&& sqlite.run(s.db, tprint("DELETE FROM snapshot_files WHERE message IN (%);", set), arg);
+}
+
 // forward_snapshot freezes what a forward of source shows, as Discord's message_snapshots do: later edits
 // and deletes of the original don't change it. "" if source can't be forwarded from channel. The caller
 // holds db_mu.
@@ -1671,6 +1687,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			else if ref_id.kind == .Int reply = ref_id.i;
 		}
 		snapshot := "";
+		source: s64;
 		id := snowflake(s);
 		nonce_s := ifx nonce.kind == .String then nonce.s else "";
 		referenced, m, thread: etf.Value;
@@ -1697,7 +1714,8 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				}
 			}
 			if forward {
-				snapshot = forward_snapshot(s, string_to_int(ref_id.s, T = s64), string_to_int(ref_channel.s, T = s64));
+				source = string_to_int(ref_id.s, T = s64);
+				snapshot = forward_snapshot(s, source, string_to_int(ref_channel.s, T = s64));
 				if !snapshot return json_error(c, 400, 50035, "Invalid Form Body");
 			}
 			// A message reopens an archived thread, unless it's locked: then only the owner may post.
@@ -1732,6 +1750,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			}
 			ok := sqlite.exec(s.db, "BEGIN;")
 				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce, flags, snapshot) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''), ?, nullif(?, ''));", id, channel, user, content.s, reply, cast(int) everyone, nonce_s, flags, snapshot);
+			if forward && ok ok = sqlite.run(s.db, "INSERT INTO snapshot_files(message, attachment) SELECT ?, id FROM attachments WHERE message = ?;", id, source);
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;
 			if has_files for a: atts.list {
@@ -1865,7 +1884,7 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 			if !sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", message) return json_error(c, 500, 0, "500: Internal Server Error");
 			sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", message);
 			sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", message);
-			sqlite.run(s.db, "DELETE FROM attachments WHERE message = ?;", message);
+			drop_files(s, "?1", message);
 			sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", message);
 		}
 		d := etf.map_builder(3,, temp);
@@ -2177,7 +2196,7 @@ webhook :: (c: *Conn, req: http.Request) -> bool {
 				if !sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", message) return json_error(c, 500, 0, "500: Internal Server Error");
 				sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", message);
 				sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", message);
-				sqlite.run(s.db, "DELETE FROM attachments WHERE message = ?;", message);
+				drop_files(s, "?1", message);
 				sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", message);
 			}
 			if req.method != "DELETE" m = message_locked(s, message, nested = false);
@@ -2467,7 +2486,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 				ok = sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", it)
 					&& sqlite.run(s.db, "DELETE FROM reactions WHERE message = ?;", it)
 					&& sqlite.run(s.db, "DELETE FROM mentions WHERE message = ?;", it)
-					&& sqlite.run(s.db, "DELETE FROM attachments WHERE message = ?;", it)
+					&& drop_files(s, "?1", it)
 					&& sqlite.run(s.db, "DELETE FROM embeds WHERE message = ?;", it);
 			}
 			if !ok || !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
@@ -2670,7 +2689,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& sqlite.run(s.db, "UPDATE channels SET parent = NULL WHERE parent = ?1 AND type != 11;", channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM reactions WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM mentions WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
-			&& sqlite.run(s.db, tprint("DELETE FROM attachments WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
+			&& drop_files(s, tprint("SELECT id FROM messages WHERE channel IN %", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM embeds WHERE message IN (SELECT id FROM messages WHERE channel IN %);", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM uploads WHERE channel IN %;", doomed), channel)
 			&& sqlite.run(s.db, tprint("DELETE FROM webhooks WHERE channel IN %;", doomed), channel)
