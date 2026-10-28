@@ -472,7 +472,9 @@ script_command :: (path: string, f: []string, t: *float64) {
 		bench_pause();
 		return;
 	case "move";
-		platform.inject_event(.{kind = .Mouse_Move, pos = .{num(f[1]), num(f[2])}});
+		ev := platform.Event.{kind = .Mouse_Move, pos = .{num(f[1]), num(f[2])}};
+		if f.count > 3 && f[3] == "shift" ev.mods = .Shift; // move <x> <y> [shift]
+		platform.inject_event(ev);
 	case "click"; #through; case "dclick"; #through; case "tclick";
 		n := ifx f[0] == "click" then 1 else (ifx f[0] == "dclick" then 2 else 3);
 		p := Vector2.{num(f[1]), num(f[2])};

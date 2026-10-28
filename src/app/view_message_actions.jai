@@ -53,7 +53,11 @@ message_toolbar :: (m: *dc.Message) {
 	s := store();
 	own := can_edit(m);
 	quick := quick_reactions();
-	names := ifx own then string.["reaction", "pencil", "more-horizontal"] else string.["reaction", "arrow-angle-left-up", "more-horizontal"];
+	names: [..]string;
+	names.allocator = temp;
+	array_add(*names, "reaction", ifx own then "pencil" else "arrow-angle-left-up", "more-horizontal");
+	// Shift adds a red trash can that deletes without asking
+	if (app.ui_mods & .Shift) && can_manage_message(m) && !m.pending array_add(*names, "trash");
 	// official: 3px padding, 28px buttons, a 1px divider with 4px gaps after the quick reactions
 	w := 2 * TOOLBAR_PAD + cast(float32) (quick.count + names.count) * TOOLBAR_BTN + (ifx quick then 9 else 0);
 	bar := row("toolbar", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Clickable);
@@ -99,8 +103,11 @@ message_toolbar :: (m: *dc.Message) {
 			sig := ui.signal(b);
 			{ ui.parent(b); defer ui.pop_parent();
 				spacer(.X, 4);
-				icon("i", name, 20, ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+				c := ifx sig.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default");
+				if name == "trash" c = T("--status-danger");
+				icon("i", name, 20, c);
 			}
+			if name == "trash" && sig.hovering tooltip_below("Delete", b.rect);
 			if sig.clicked {
 				if name == {
 				case "arrow-angle-left-up";
@@ -111,6 +118,8 @@ message_toolbar :: (m: *dc.Message) {
 					open_message_menu(m, .{b.rect.x0, b.rect.y1 + 4});
 				case "reaction";
 					app.reaction_target = m.id;
+				case "trash";
+					delete_now(m);
 				}
 			}
 		}

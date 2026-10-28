@@ -1,0 +1,9 @@
+# Holding Shift over a message adds a red trash can to its hover toolbar (here on Robin's message, as
+# the server's owner).
+wait 10
+move 600 600 shift
+wait 5
+move 967 575 shift
+wait 5
+expect_visible "Delete"
+shot build/ui-shift_delete.png

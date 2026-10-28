@@ -168,7 +168,6 @@
 - [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
 - [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
 - [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
-- [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
 - [ ] Messages: a failed send turns red, but there's no error text and no Retry or Delete.
 - [ ] Check (account risk): a member list that stays empty may send op 37 every frame (`view_home.jai` resubscribes while `items.count == 0`), which could exceed the gateway's 120 events per minute and get the connection closed. Count op 37 frames on a channel whose list comes back empty.
 - [ ] Bug: a message whose send failed gets a duplicate when the server's echo arrives late; the failure clears `pending` and `upsert_message` matches the nonce only on pending messages (`store.jai`).
@@ -338,3 +337,4 @@
 - [x] Embeds: your own messages get the hover X beside their embeds; it confirms (Shift skips), hides them at once and PATCHes `flags` with SUPPRESS_EMBEDS (`dc.suppress_embeds`, `tests/ui/media/remove_embeds.txt`).
 - [x] Embeds: with MANAGE_MESSAGES in a server channel the "Remove all embeds" X shows on other people's messages too (`can_manage_message`, `tests/ui/media/remove_embeds_mod.txt`).
 - [x] Moderation: with MANAGE_MESSAGES in a server channel the message menu offers "Delete Message" on other people's messages (`can_manage_message`, `tests/ui/forward/delete_others.txt`).
+- [x] Messages: holding Shift over a message you may delete adds a red trash can to the hover toolbar that deletes it without confirmation (`tests/ui/forward/shift_delete.txt`; scripts gained `move <x> <y> shift`).
