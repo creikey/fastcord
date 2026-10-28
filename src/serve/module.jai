@@ -1381,7 +1381,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		message, mok := string_to_int(parts[2], T = s64);
 		if !mok return json_error(c, 404, 0, "404: Not Found");
 		if parts.count == 3 return one_message(c, req, user, name, channel, message);
-		if parts[3] == "reactions" return reaction(c, req, user, channel, message, array_view(parts, 4));
+		if parts[3] == "reactions" return reaction(c, req, user, channel, message, array_view(parts, 4), query);
 		if parts[3] == "ack" && parts.count == 4 && req.method == "POST" return ack(c, req, user, channel, message);
 		if parts[3] == "threads" && parts.count == 4 && req.method == "POST" return create_thread(c, req, user, channel, message);
 		return json_error(c, 404, 0, "404: Not Found");
@@ -2773,12 +2773,13 @@ reaction_emoji :: (key: string, animated: bool) -> etf.Value {
 
 // PUT .../reactions/{emoji}/@me and DELETE .../reactions/{emoji}/{type}/@me, with a Unicode emoji or one of
 // the server's custom ones; members may remove only their own reactions.
-reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64, rest: []string) -> bool {
+reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64, rest: []string, query: string) -> bool {
 	s := c.server;
 	me := rest.count && (rest[rest.count - 1] == "@me" || rest[rest.count - 1] == "%40me");
 	add := req.method == "PUT" && rest.count == 2 && me;
 	drop := req.method == "DELETE" && (rest.count == 2 || rest.count == 3) && me;
-	if !add && !drop {
+	list := req.method == "GET" && rest.count == 1;
+	if !add && !drop && !list {
 		if req.method == "DELETE" && rest.count == 3 return json_error(c, 403, 50013, "Missing Permissions");
 		return json_error(c, 404, 0, "404: Not Found");
 	}
@@ -2817,6 +2818,26 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		found := sqlite.step(st) == .Row;
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
+		if list {
+			// Who reacted, by user ID as Discord orders them, a page after `after`; no one gives super reactions here.
+			limit, after, burst := 25, 0, false;
+			for split(query, "&",, temp) {
+				kv := split(it, "=",, temp);
+				if kv.count != 2 continue;
+				if kv[0] == "limit" limit = clamp(string_to_int(kv[1]), 1, 100);
+				if kv[0] == "after" after = string_to_int(kv[1], T = s64);
+				if kv[0] == "type" burst = kv[1] == "1";
+			}
+			users: [..]etf.Value;
+			users.allocator = temp;
+			if !burst {
+				st = sqlite.prepare(s.db, "SELECT r.user, u.name FROM reactions r JOIN users u ON u.id = r.user WHERE r.message = ? AND r.emoji = ? AND r.user > ? ORDER BY r.user LIMIT ?;");
+				sqlite.bind_all(st, message, emoji, after, limit);
+				while sqlite.step(st) == .Row array_add(*users, user_value(s, sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp)));
+				sqlite.finalize(st);
+			}
+			return json_reply(c, 200, etf.vlist(users));
+		}
 		if add {
 			st = sqlite.prepare(s.db, "SELECT count(DISTINCT emoji), sum(emoji = ?) FROM reactions WHERE message = ?;");
 			sqlite.bind_all(st, emoji, message);

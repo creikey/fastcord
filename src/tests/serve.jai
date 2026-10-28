@@ -746,6 +746,11 @@ main :: () {
 	check(status == 400, tprint("an unknown custom emoji is refused: % %", status, body));
 	status, body = rest("GET", tprint("%?limit=1", messages), "", other_token);
 	check(contains(body, tprint("\"emoji\":{\"id\":\"%\",\"name\":\"blob\",\"animated\":false}", emoji_id)), tprint("the reaction names the custom emoji: %", body));
+	status, body = rest("GET", tprint("%/blob\%3A%?limit=100&type=0", react_path, emoji_id), "", token);
+	reactors, _ := etf.from_json(body);
+	check(status == 200 && reactors.kind == .List && reactors.list.count == 1 && field(reactors.list[0], "id").s == other_id, tprint("who reacted: % %", status, body));
+	status, body = rest("GET", tprint("%/blob\%3A%?after=%", react_path, emoji_id, other_id), "", token);
+	check(status == 200 && body == "[]", tprint("no one reacted after the last: % %", status, body));
 
 	// Avatars: a member sets one, their messages carry it, it's served under its hash, and null removes it.
 	status, body = rest("PATCH", "/api/v9/users/@me", "{\"avatar\": \"data:image/png;base64,bm90IGFuIGltYWdl\"}", other_token);
