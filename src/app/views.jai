@@ -874,7 +874,14 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					voice_avatar("av", uid, 24, T("--background-base-lower"));
 					spacer(.X, 8);
 					name_color := ifx voice_is_speaking(uid) then T("--interactive-text-active") else T("--channels-default");
-					label(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, name_color, 18);
+					// Room for the icons after the name; the name is cut with "…" to fit, like the official client.
+					icons_w: float32 = 16;
+					if vs.self_video icons_w += 20;
+					if vs.mute || vs.self_mute icons_w += 20;
+					if vs.deaf || vs.self_deaf icons_w += 20;
+					if vs.self_stream icons_w += 12 + ui.layout_text(F(.Bold), 11, "LIVE", -1).width;
+					name := ellipsize(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, app.view.sidebar_w - 76 - 8 - icons_w);
+					label(tprint("%##name", name), .Medium, 14, name_color, 18);
 					filler(.X);
 					if vs.self_video { icon("cam", "video", 16, T("--channels-default")); spacer(.X, 4); }
 					// Server mute and deafen are drawn red, like the official client.

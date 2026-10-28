@@ -300,3 +300,4 @@
 - [x] Voice: a speaking user's name turns white in the sidebar; occupants show mute and deafen icons (red when server-imposed).
 - [x] Voice: optional RNNoise noise suppression on the mic (Voice & Video toggle, saved), on every platform and independent of the OS DSP (`vendor/rnnoise`, `tx_tick`).
 - [x] Act on press: buttons, rows, tabs and menu items fire on mouse-down, and that press's release goes nowhere else. `.Click_On_Release` keeps release for resize handles, folder icons (drag reorder) and destructive menu items and confirm buttons.
+- [x] Voice: long names of sidebar voice occupants are cut with "…" so their mute, deafen, video and LIVE icons stay visible.

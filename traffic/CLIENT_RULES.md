@@ -138,7 +138,7 @@ DAVE active.
 | Windows advertises H265 (PT 103) with `encode:false` (it only encodes H.264), so the SFU picks H264 when fastcord on Windows sends; decoding H265 stays on when an HEVC decoder MFT exists | guess | `CODECS_JSON` | `voice/gateway.jai` `CODECS_JSON` |
 | Windows H.264: Constrained Baseline (else Baseline), CBR, GOP 2 s, no B-frames, low latency; screen colour BT.709 limited range from 720 p up, BT.601 below (as on macOS) | guess | — | `video/encode_windows.jai`, `video/capture_windows.jai` `screen_session` |
 | Clicking a voice channel joins it and opens its call view (no separate channel select) | inferred | — | `views.jai` `join_voice` |
-| Sidebar voice occupant: name `--interactive-text-active` while speaking, else `--channels-default`; mic-slash when muted, headphones-slash when deafened (both when deafened, as deafen implies mute), red when server-imposed | guess | `voiceUser` | `views.jai` `channel_row` |
+| Sidebar voice occupant: name `--interactive-text-active` while speaking, else `--channels-default`; mic-slash when muted, headphones-slash when deafened (both when deafened, as deafen implies mute), red when server-imposed; the name is cut with "…" so the icons always fit | guess | `voiceUser` | `views.jai` `channel_row` |
 | Call view: black, 16:9 tiles with 8 px gaps in the grid that makes them largest, last row centered; avatar on the banner / accent / dominant color, green 2 px border while speaking; streams first with a LIVE badge and "Watch Stream"; click focuses a tile | inferred (screenshot) | — | `view_call.jai` |
 
 ## HTTP, retries, rate limits
