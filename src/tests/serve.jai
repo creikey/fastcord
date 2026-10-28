@@ -225,7 +225,25 @@ main :: () {
 	// The send's response and MESSAGE_CREATE both settle the optimistic message into one.
 	for 1..300 pump();
 	check(stored().count == 2 && stored()[1].content == "from the client" && stored()[1].author_id == cl.store.me, tprint("client send: %", stored().count));
+	if stored().count == 2 {
+		mid := stored()[1].id;
+		discord.edit_message(cl, cid, mid, "edited");
+		for 1..300 { if stored()[1].content == "edited" break; pump(); }
+		check(stored()[1].content == "edited", "client edit");
+		discord.delete_message(cl, cid, mid);
+		for 1..300 { if stored().count == 1 break; pump(); }
+		check(stored().count == 1, "client delete");
+	}
 	discord.client_destroy(cl);
+	status, body = rest("PATCH", tprint("%/1", messages), "{\"content\": \"x\"}", token);
+	check(status == 404, tprint("edit an unknown message: %", status));
+	status, body = rest("GET", messages, "", token);
+	list, _ = etf.from_json(body);
+	check(status == 200 && list.kind == .List && list.list.count == 1, tprint("the client's delete reached the server: % %", status, body));
+	if list.list.count {
+		status, body = rest("PATCH", tprint("%/%", messages, field(list.list[0], "id").s), "{\"content\": \"hi\"}", token);
+		check(status == 200 && contains(body, "\"content\":\"hi\"") && !contains(body, "\"edited_timestamp\":null"), tprint("edit: % %", status, body));
+	}
 	status, body = login(other, "", "Other");
 	check(status == 404, tprint("a stranger without a code is refused: % %", status, body));
 

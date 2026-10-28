@@ -455,7 +455,8 @@ iso :: (id: s64) -> string {
 		two(t.hour), two(t.minute), two(t.second), formatInt(t.millisecond, minimum_digits = 3));
 }
 
-message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, nonce := "") -> etf.Value {
+// edited is a snowflake minted at the edit, so iso gives its time; 0 if never edited.
+message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: string, content: string, edited: s64 = 0, nonce := "") -> etf.Value {
 	m := etf.map_builder(14,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "type", etf.vint(0));
@@ -464,7 +465,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	etf.map_put(*m, "author", user_value(author, author_name));
 	etf.map_put(*m, "content", etf.vstring(content));
 	etf.map_put(*m, "timestamp", etf.vstring(iso(id)));
-	etf.map_put(*m, "edited_timestamp", .{});
+	etf.map_put(*m, "edited_timestamp", ifx edited then etf.vstring(iso(edited)) else .{});
 	etf.map_put(*m, "flags", etf.vint(0));
 	etf.map_put(*m, "attachments", etf.vlist(.[]));
 	etf.map_put(*m, "embeds", etf.vlist(.[]));
@@ -547,7 +548,12 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	rest := advance(path, "/api/v9/channels/".count);
 	parts := split(rest, "/",, temp);
 	channel, ok := string_to_int(parts[0], T = s64);
-	if parts.count != 2 || parts[1] != "messages" || !ok return json_error(c, 404, 0, "404: Not Found");
+	if parts.count < 2 || parts.count > 3 || parts[1] != "messages" || !ok return json_error(c, 404, 0, "404: Not Found");
+	if parts.count == 3 {
+		message, mok := string_to_int(parts[2], T = s64);
+		if !mok return json_error(c, 404, 0, "404: Not Found");
+		return one_message(c, req, user, name, channel, message);
+	}
 	{
 		locks.guard(*s.db_mu);
 		st := sqlite.prepare(s.db, "SELECT 1 FROM channels WHERE id = ?;");
@@ -571,10 +577,10 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 		list.allocator = temp;
 		{
 			locks.guard(*s.db_mu);
-			st := sqlite.prepare(s.db, "SELECT m.id, m.author, u.name, m.content FROM messages m JOIN users u ON u.id = m.author WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;");
+			st := sqlite.prepare(s.db, "SELECT m.id, m.author, u.name, m.content, coalesce(m.edited, 0) FROM messages m JOIN users u ON u.id = m.author WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;");
 			sqlite.bind_all(st, channel, before, before, limit);
 			while sqlite.step(st) == .Row {
-				array_add(*list, message_value(s, sqlite.col_int(st, 0), channel, sqlite.col_int(st, 1), copy_string(sqlite.col_text(st, 2),, temp), copy_string(sqlite.col_text(st, 3),, temp)));
+				array_add(*list, message_value(s, sqlite.col_int(st, 0), channel, sqlite.col_int(st, 1), copy_string(sqlite.col_text(st, 2),, temp), copy_string(sqlite.col_text(st, 3),, temp), sqlite.col_int(st, 4)));
 			}
 			sqlite.finalize(st);
 		}
@@ -592,7 +598,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
 		}
-		m := message_value(s, id, channel, user, name, content.s, ifx nonce.kind == .String then nonce.s else "");
+		m := message_value(s, id, channel, user, name, content.s, nonce = ifx nonce.kind == .String then nonce.s else "");
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_CREATE", m);
 	} else {
@@ -601,7 +607,58 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
 }
 
-gateway :: (c: *Conn, req: http.Request) {
+// PATCH and DELETE /api/v9/channels/{id}/messages/{id}. Until roles land (Hosting 4) only the author may
+// edit or delete a message.
+one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64, message: s64) -> bool {
+	s := c.server;
+	author := 0;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT author FROM messages WHERE id = ? AND channel = ?;");
+		sqlite.bind_all(st, message, channel);
+		if sqlite.step(st) == .Row author = sqlite.col_int(st, 0);
+		sqlite.finalize(st);
+	}
+	if !author return json_error(c, 404, 10008, "Unknown Message");
+	if author != user {
+		if req.method == "PATCH" return json_error(c, 403, 50005, "Cannot edit a message authored by another user");
+		return json_error(c, 403, 50013, "Missing Permissions");
+	}
+
+	if req.method == "PATCH" {
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
+		content, _ := etf.map_get(v.map, "content");
+		if content.kind != .String || !trim(content.s) || content.s.count > 4000 return json_error(c, 400, 50006, "Cannot send an empty message");
+		edited := snowflake(s);
+		{
+			locks.guard(*s.db_mu);
+			if !sqlite.run(s.db, "UPDATE messages SET content = ?, edited = ? WHERE id = ?;", content.s, edited, message) {
+				return json_error(c, 500, 0, "500: Internal Server Error");
+			}
+		}
+		m := message_value(s, message, channel, user, name, content.s, edited);
+		sb: String_Builder;
+		sb.allocator = temp;
+		etf.to_json(m, *sb);
+		broadcast(s, "MESSAGE_UPDATE", m);
+		return http.h1_write_response(c.s, 200, JSON_HEADERS, cast([]u8) builder_to_string(*sb,, temp)) == .None;
+	} else if req.method == "DELETE" {
+		{
+			locks.guard(*s.db_mu);
+			if !sqlite.run(s.db, "DELETE FROM messages WHERE id = ?;", message) return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		d := etf.map_builder(3,, temp);
+		etf.map_put(*d, "id", snow(message));
+		etf.map_put(*d, "channel_id", snow(channel));
+		etf.map_put(*d, "guild_id", snow(s.guild));
+		broadcast(s, "MESSAGE_DELETE", etf.vmap(etf.map_done(*d)));
+		return http.h1_write_response(c.s, 204, .[], .[]) == .None;
+	}
+	return json_error(c, 405, 0, "405: Method Not Allowed");
+}
+
+gateway ::(c: *Conn, req: http.Request) {
 	key, has_key := http.header_get(req.headers, "sec-websocket-key");
 	// The plain profile sends no compress parameter; a client asking for zstd would fail to read us.
 	if !has_key || !begins_with(req.path, "/?") || !contains(req.path, "encoding=etf") || contains(req.path, "compress=") {
