@@ -250,8 +250,9 @@ video_player :: (key: dc.Snowflake, url: string, poster: string, w: float32, h: 
 		hover_vol := ui.contains(vg.rect, app.ui.mouse);
 		{ ui.parent(vg); defer ui.pop_parent();
 			if hover_vol {
-				v := slider("vs", ifx video_muted then 0 else video_volume, ui.px(64));
-				if v >= 0 video_volume_set(v, v == 0);
+				// 0-400% (the client stops at 100%); the mixer's limiter keeps the boost from clipping
+				v := slider("vs", ifx video_muted then 0 else video_volume / 4, ui.px(96));
+				if v >= 0 video_volume_set(v * 4, v == 0);
 				spacer(.X, 4);
 			}
 			if video_button("mute", ifx video_muted || video_volume == 0 then "speaker-slash" else "voice-normal") video_volume_set(ifx video_volume == 0 then 1 else video_volume, !video_muted);
