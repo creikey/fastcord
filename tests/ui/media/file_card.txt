@@ -9,6 +9,6 @@ key pageup
 wait 30
 expect_visible "notes.txt"
 expect_visible "416 bytes"
-move 850 394
+move 850 458
 wait 2
 expect_visible "Download"

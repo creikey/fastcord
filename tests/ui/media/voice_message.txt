@@ -1,0 +1,14 @@
+# A voice message draws its waveform and length instead of the file name.
+wait 20
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+key pageup
+wait 30
+expect_not_visible "voice-message.ogg"
+expect_visible "0:14"
+shot build/ui-voice_message.png

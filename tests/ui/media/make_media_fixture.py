@@ -2,7 +2,7 @@
 # like traffic/gif_send.jsonl) and its media: dance.gif, poster.webp (a PNG; files are sniffed), clip.mp4 is
 # tests/ui/attach/clip.mp4. The UI scripts here run with FASTCORD_MEDIA_DIR=tests/ui/media.
 # Run: python3 -I tests/ui/media/make_media_fixture.py
-import json, os, shutil, struct, zlib
+import base64, json, math, os, shutil, struct, zlib
 here = os.path.dirname(os.path.abspath(__file__))
 head = open(os.path.join(here, '..', 'chat.jsonl'), encoding='utf-8').readlines()[:2]
 CH, GUILD = 1546820603343016006, 1546820558300258304
@@ -59,7 +59,16 @@ spoiler = {'id': sf(base_ms - 15000, 9), 'filename': 'SPOILER_poster.webp', 'siz
 spoiler_file = {'id': sf(base_ms - 15000, 10), 'filename': 'SPOILER_notes.txt', 'size': 416, 'content_type': 'text/plain; charset=utf-8',
                 'url': 'https://cdn.discordapp.com/attachments/%d/%d/SPOILER_notes.txt%s' % (CH, sf(base_ms - 15000, 10), Q),
                 'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/SPOILER_notes.txt%s' % (CH, sf(base_ms - 15000, 10), Q)}
-old_msgs = [msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [note], [imdb]),
+# a voice message: waveform bars and the length instead of a file name
+wave = bytes(int(127 + 120 * math.sin(i / 5.0) * math.sin(i / 37.0)) for i in range(256))
+voice = {'id': sf(base_ms - 25000, 9), 'filename': 'voice-message.ogg', 'size': 30000, 'content_type': 'audio/ogg',
+         'duration_secs': 14.2, 'waveform': base64.b64encode(wave).decode(),
+         'url': 'https://cdn.discordapp.com/attachments/%d/%d/voice-message.ogg%s' % (CH, sf(base_ms - 25000, 9), Q),
+         'proxy_url': 'https://media.discordapp.net/attachments/%d/%d/voice-message.ogg%s' % (CH, sf(base_ms - 25000, 9), Q)}
+voice_msg = msg(sf(base_ms - 25000, 8), '', [voice], [])
+voice_msg['etf']['d']['flags'] = 8192
+old_msgs = [voice_msg,
+            msg(sf(base_ms - 20000, 5), 'https://www.imdb.com/title/tt1231583/', [note], [imdb]),
             msg(sf(base_ms - 15000, 6), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', [spoiler, spoiler_file], [yt]),
             msg(sf(base_ms - 10000, 7), POST, [], grid)]
 with open(os.path.join(here, 'media.jsonl'), 'w', encoding='utf-8', newline='\n') as f:

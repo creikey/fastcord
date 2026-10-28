@@ -370,21 +370,57 @@ audio_attachment :: (a: *dc.Attachment) {
 			}
 		}
 		spacer(.X, 12);
+		pos, dur: float64;
+		if playing && ip.player != null {
+			pos = media.player_position(ip.player);
+			dur = media.player_duration(ip.player);
+			if is_playing app.ui.animating = true;
+		} else {
+			dur = cast(float64) a.duration_secs;
+		}
+		wave, ok := base64_decode(a.waveform,, temp);
+		if ok && wave.count {
+			voice_waveform(wave, ifx dur > 0 then cast(float32) (pos / dur) else 0, ip, dur);
+			spacer(.X, 12);
+			label(fmt_clock(ifx playing then max(dur - pos, 0) else dur), .Mono, 12, T("--text-muted"), 16);
+			spacer(.X, 16);
+			return;
+		}
 		col := ui.box("col");
 		col.semantic_size = .[ui.fill(), ui.children()];
 		{ ui.parent(col); defer ui.pop_parent();
 			label(a.filename, .Medium, 14, T("--text-link"), 18);
-			pos, dur: float64;
-			if playing && ip.player != null {
-				pos = media.player_position(ip.player);
-				dur = media.player_duration(ip.player);
-				if is_playing app.ui.animating = true;
-			} else {
-				dur = cast(float64) a.duration_secs;
-			}
 			label(tprint("% / %", fmt_clock(pos), fmt_clock(dur)), .Normal, 12, T("--text-muted"), 16);
 		}
 		spacer(.X, 12);
+	}
+}
+
+// A voice message's amplitudes (0-255) as rounded bars, the played part in the brand colour; pressing
+// or dragging seeks once the clip is loaded.
+voice_waveform :: (wave: string, frac: float32, ip: *Inline_Player, dur: float64) {
+	BARS :: 48;
+	PITCH :: 5.0;
+	w := ui.box("wave", .Clickable);
+	w.semantic_size = .[ui.px(BARS * PITCH), ui.px(32)];
+	w.hover_cursor = .Pointer;
+	sig := ui.signal(w);
+	if (sig.pressed || sig.dragging) && ip && ip.player && dur > 0 {
+		f := clamp((app.ui.mouse.x - w.rect.x0) / (BARS * PITCH), 0, 1);
+		media.player_seek(ip.player, cast(float64) f * dur);
+	}
+	ui.parent(w); defer ui.pop_parent();
+	for i: 0..BARS - 1 {
+		lo := i * wave.count / BARS;
+		hi := max((i + 1) * wave.count / BARS, lo + 1);
+		peak: u8;
+		for j: lo..hi - 1 peak = max(peak, wave[j]);
+		h := max(4.0, 28.0 * peak / 255.0);
+		b := ui.box(tprint("b%", i), .Draw_Background | .Floating_X | .Floating_Y);
+		b.semantic_size = .[ui.px(3), ui.px(h)];
+		b.fixed_pos = .{i * PITCH, (32 - h) / 2};
+		b.style.radius = all4(1.5);
+		b.style.bg = ifx (i + 0.5) / BARS <= frac then T("--background-brand") else T("--icon-muted");
 	}
 }
 

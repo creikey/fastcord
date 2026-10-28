@@ -12,6 +12,7 @@
 #import "Sort";
 #import "Random";
 #import "Unicode";
+#import "Base64";
 #import "Process";
 audio :: #import "audio";
 crypto :: #import "crypto";
