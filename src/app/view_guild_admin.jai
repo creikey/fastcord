@@ -52,9 +52,9 @@ channel_settings_open :: (ch: *dc.Channel) {
 	if app.client != null dc.open_channel_settings(app.client, ch);
 }
 
-// thread_delete_open: "Delete Thread" from the sidebar thread menu. The
+// channel_delete_open: Delete Channel / Category / Thread from a sidebar row menu. The
 // official confirm loads the guild's role member counts as it opens.
-thread_delete_open :: (th: *dc.Channel) {
+channel_delete_open :: (th: *dc.Channel) {
 	if th == null return;
 	adm.modal = .Delete_Channel;
 	adm.guild = th.guild_id;
@@ -62,7 +62,7 @@ thread_delete_open :: (th: *dc.Channel) {
 	adm.kind = th.kind;
 	adm.busy = false;
 	adm.from_menu = true;
-	adm.del_parent = th.parent_id;
+	adm.del_parent = ifx dc.is_thread(th) then th.parent_id else 0;
 	set_error("");
 	if net_action() dc.fetch_role_member_counts(app.client, th.guild_id);
 }

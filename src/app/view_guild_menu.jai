@@ -94,9 +94,16 @@ thread_menu_open :: (tid: dc.Snowflake, at: ui.Vec2) {
 	gm.thread_pos = at;
 }
 
+channel_menu_open :: (cid: dc.Snowflake, at: ui.Vec2) {
+	gm.chan_menu = cid;
+	gm.chan_pos = at;
+	gm.chan_sub = .None;
+}
+
 // Overlay pass entry (views.jai overlays()).
 guild_menu_overlays :: () {
 	if gm.thread_menu != 0 thread_menu();
+	if gm.chan_menu != 0 channel_menu();
 	if gm.menu_guild != 0 guild_menu();
 	if gm.ctx_guild != 0 guild_context_menu();
 	if gm.bell_channel != 0 bell_popout();
@@ -344,6 +351,11 @@ Guild_Menu_State :: struct {
 	// sidebar thread row menu
 	thread_menu: dc.Snowflake;
 	thread_pos: ui.Vec2;
+	// sidebar channel / category row menu
+	chan_menu: dc.Snowflake;
+	chan_pos: ui.Vec2;
+	chan_sub: Sub;
+	chan_sub_y: float32;
 }
 
 gm: Guild_Menu_State;
@@ -1054,11 +1066,129 @@ thread_menu :: () {
 		if can_delete_thread(th) {
 			menu_sep("s2");
 			if menu_item("delete", "Delete Thread", .Icon, "trash", danger = true).clicked {
-				thread_delete_open(th);
+				channel_delete_open(th);
 				close = true;
 			}
 		}
 		spacer(.Y, 8);
 	}
 	if close gm.thread_menu = 0;
+}
+
+// Sidebar channel and category row menu. Not yet: Notification Settings, Duplicate Channel, Create Text Channel.
+channel_menu :: () {
+	s := store();
+	ch := dc.channel_get(s, gm.chan_menu);
+	if ch == null || outside_pressed("cmenu_scrim") || escape_pressed() {
+		gm.chan_menu = 0;
+		return;
+	}
+	gid := ch.guild_id;
+	cat := ch.kind == .Guild_Category;
+	what := ifx cat then "Category" else "Channel";
+	now := wall_ms();
+	close := false;
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	if cat {
+		for dc.guild_channels_sorted(s, gid) {
+			c := dc.channel_get(s, it);
+			if c && c.parent_id == ch.id array_add(*ids, it);
+		}
+	} else array_add(*ids, ch.id);
+	unread := false;
+	for ids if dc.channel_unread(s, it) unread = true;
+	W :: cast(float32) GM_CTX_W;
+	pos := gm.chan_pos;
+	menu := menu_panel("cmenu", pos, W);
+	h := menu.rect.y1 - menu.rect.y0;
+	menu.fixed_pos = .{clamp(pos.x, 8, app.ui.window.x - W - 8), clamp(pos.y, 8, max(8.0, app.ui.window.y - h - 8))};
+	hover_mute := false;
+	hover_any := false;
+	sig: ui.Signal;
+	{ ui.parent(menu); defer ui.pop_parent();
+		spacer(.Y, 8);
+		sig = menu_item("read", "Mark As Read", disabled = !unread);
+		if sig.clicked {
+			if net_action() for ids {
+				c := dc.channel_get(s, it);
+				if dc.channel_unread(s, it) dc.ack_message(app.client, it, c.last_message_id, true);
+			}
+			close = true;
+		} else if sig.hovering hover_any = true;
+		menu_sep("s1");
+		if cat {
+			collapsed := dc.category_collapsed(s, gid, ch.id);
+			sig = menu_item("collapse", "Collapse Category", ifx collapsed then .Check_On else .Check_Off);
+			if sig.clicked {
+				category_set_collapsed(gid, ch.id, !collapsed);
+				close = true;
+			} else if sig.hovering hover_any = true;
+			sig = menu_item("collapseall", "Collapse All Categories");
+			if sig.clicked {
+				for dc.guild_channels_sorted(s, gid) {
+					c := dc.channel_get(s, it);
+					if c && c.kind == .Guild_Category && !dc.category_collapsed(s, gid, it) category_set_collapsed(gid, it, true);
+				}
+				close = true;
+			} else if sig.hovering hover_any = true;
+		} else {
+			sig = menu_item("invite", "Invite People");
+			if sig.clicked {
+				invite_open(gid, ch.id, dc.INVITE_LOC_CHANNELS);
+				close = true;
+			} else if sig.hovering hover_any = true;
+			sig = menu_item("link", "Copy Link");
+			if sig.clicked {
+				clipboard_set(tprint("https://discord.com/channels/%/%", gid, ch.id));
+				close = true;
+			} else if sig.hovering hover_any = true;
+		}
+		menu_sep("s2");
+		if dc.channel_is_muted(s, gid, ch.id, now) {
+			o := dc.channel_override_get(s, gid, ch.id);
+			sig = menu_item("mute", tprint("Unmute %", what), sub = muted_until(ifx o then o.mute_end_ms else 0));
+			if sig.clicked {
+				if net_action() dc.set_channel_muted(app.client, gid, ch.id, false, now_ms = now);
+				close = true;
+			} else if sig.hovering hover_any = true;
+		} else {
+			item := menu_item("mute", tprint("Mute %", what), .Chevron, open = gm.chan_sub == .Mute);
+			if item.hovering hover_mute = true;
+			if item.clicked gm.chan_sub = .Mute;
+			if item.hovering || item.clicked gm.chan_sub_y = item.box.rect.y0;
+		}
+		if can_manage_channel(ch) {
+			menu_sep("s3");
+			sig = menu_item("edit", tprint("Edit %", what));
+			if sig.clicked {
+				channel_settings_open(ch);
+				close = true;
+			} else if sig.hovering hover_any = true;
+			sig = menu_item("delete", tprint("Delete %", what), danger = true);
+			if sig.clicked {
+				channel_delete_open(ch);
+				close = true;
+			} else if sig.hovering hover_any = true;
+		}
+		if s.settings.developer_mode {
+			menu_sep("s4");
+			sig = menu_item("copyid", tprint("Copy % ID", what), .Icon, "id");
+			if sig.clicked {
+				clipboard_set(tprint("%", cast(u64) ch.id));
+				close = true;
+			} else if sig.hovering hover_any = true;
+		}
+		spacer(.Y, 8);
+	}
+	if hover_mute gm.chan_sub = .Mute;
+	if hover_any gm.chan_sub = .None;
+	if gm.chan_sub == .Mute {
+		secs := mute_submenu("cmute", .{sub_x(menu), sub_y(gm.chan_sub_y, 6 * GM_ROW_H + 16)});
+		if secs != 0 {
+			if net_action() dc.set_channel_muted(app.client, gid, ch.id, true, secs, now);
+			close = true;
+		}
+	}
+	if close gm.chan_menu = 0;
 }

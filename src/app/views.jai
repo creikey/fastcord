@@ -772,6 +772,11 @@ guild_action_row :: (id: string, icon_name: string, text: string) -> ui.Signal {
 	return sig;
 }
 
+category_set_collapsed :: (gid: dc.Snowflake, cid: dc.Snowflake, collapsed: bool) {
+	if net_action() dc.set_category_collapsed(app.client, gid, cid, collapsed);
+	else dc.store_set_collapsed(store(), gid, cid, collapsed);
+}
+
 // Category: 16px gap, then a 24px row (14px medium name, chevron, "create channel" plus).
 category_row :: (ch: *dc.Channel) {
 	spacer(.Y, CATEGORY_GAP);
@@ -779,10 +784,8 @@ category_row :: (ch: *dc.Channel) {
 	r.semantic_size = .[ui.pct(1), ui.px(CATEGORY_ROW_H)];
 	sig := ui.signal(r);
 	collapsed := dc.category_collapsed(store(), ch.guild_id, ch.id);
-	if sig.clicked {
-		if net_action() dc.set_category_collapsed(app.client, ch.guild_id, ch.id, !collapsed);
-		else dc.store_set_collapsed(store(), ch.guild_id, ch.id, !collapsed);
-	}
+	if sig.clicked category_set_collapsed(ch.guild_id, ch.id, !collapsed);
+	if sig.right_clicked channel_menu_open(ch.id, app.ui.mouse);
 	color := ifx sig.hovering then T("--interactive-text-hover") else T("--channels-default");
 	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 16);
@@ -818,6 +821,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 		item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
 		sig := ui.signal(item);
 		sig.hovering ||= ui.mouse_over(item); // stays hovered over its invite / settings buttons
+		if sig.right_clicked channel_menu_open(ch.id, app.ui.mouse);
 		if sig.hovering && !selected { item.style.bg = item.style.bg_hot; }
 		if sig.clicked {
 			if ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice {
