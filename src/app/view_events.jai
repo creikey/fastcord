@@ -18,6 +18,12 @@ events_open :: (gid: dc.Snowflake) {
 	if app.client != null dc.open_guild_events(app.client, gid);
 }
 
+// Create Event straight from a menu, without the Events list behind it.
+create_event_open :: (gid: dc.Snowflake) {
+	evu.guild = gid;
+	wizard_open();
+}
+
 events_modal_open :: () -> bool { return evu.open || evu.wiz_open || evu.share_event != 0 || evu.confirm_event != 0; }
 
 events_reset_for_test :: () {

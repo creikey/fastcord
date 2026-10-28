@@ -1,0 +1,17 @@
+# Server header dropdown: Create Category opens the create modal without the channel type list;
+# Create Event opens the event wizard.
+wait 5
+click 200 57
+wait 10
+click_text "Create Category"
+wait 10
+expect_visible "Category Name"
+expect_not_visible "Channel Type"
+shot
+key escape
+wait 10
+click 200 57
+wait 10
+click_text "Create Event"
+wait 10
+expect_visible "Where is your event?"

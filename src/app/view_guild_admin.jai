@@ -21,6 +21,11 @@ can_upload_emoji :: (gid: dc.Snowflake) -> bool {
 
 // ---- entry points ----
 
+create_category_open :: (gid: dc.Snowflake) {
+	create_channel_open(gid, 0);
+	adm.kind = .Guild_Category;
+}
+
 create_channel_open :: (gid: dc.Snowflake, category_id: dc.Snowflake) {
 	adm.modal = .Create_Channel;
 	adm.guild = gid;
@@ -445,70 +450,73 @@ create_channel_modal :: () {
 	W :: 480;
 	cat := dc.channel_get(store(), adm.channel);
 	sub := ifx cat then tprint("in %", cat.name) else "";
-	if !adm_modal_begin("createchan", W, "Create Channel", sub) {
+	is_cat := adm.kind == .Guild_Category;
+	if !adm_modal_begin("createchan", W, ifx is_cat then "Create Category" else "Create Channel", sub) {
 		admin_close();
 		return;
 	}
 	submit := false;
 	spacer(.Y, 24);
-	lr := row("typelbl");
-	lr.semantic_size = .[ui.pct(1), ui.px(20)];
-	{ ui.parent(lr); defer ui.pop_parent();
-		spacer(.X, 25);
-		label("Channel Type", .Semibold, 16, T("--text-strong"), 20);
-	}
-	spacer(.Y, 8);
-	Opt :: struct {
-		kind: dc.Channel_Type;
-		icon, title: string;
-		desc: string;
-	}
-	opts := Opt.[
-		.{.Guild_Text, "hashmark", "Text", "Send messages, images, GIFs, emoji, opinions, and puns"},
-		.{.Guild_Voice, "voice-normal", "Voice", "Hang out together with voice, video, and screen share"},
-		.{.Guild_Forum, "forum", "Forum", "Create a space for organized discussions"}
-	];
-	for o: opts {
-		selected := adm.kind == o.kind;
-		r := row(tprint("type_%", o.title), .Clickable);
-		r.semantic_size = .[ui.pct(1), ui.px(58)];
-		r.cross_align = .Start;
-		r.hover_cursor = .Pointer;
-		if ui.signal(r).clicked && !selected {
-			adm.kind = o.kind;
-			normalize_name_field(adm.kind);
-		}
-		{ ui.parent(r); defer ui.pop_parent();
+	if !is_cat {
+		lr := row("typelbl");
+		lr.semantic_size = .[ui.pct(1), ui.px(20)];
+		{ ui.parent(lr); defer ui.pop_parent();
 			spacer(.X, 25);
-			radio_dot(selected);
-			spacer(.X, 12);
-			col := ui.box("col");
-			col.semantic_size = .[ui.fill(), ui.children()];
-			col.layout_axis = .Y;
-			{ ui.parent(col); defer ui.pop_parent();
-				tr := row("t");
-				tr.semantic_size = .[ui.pct(1), ui.px(20)];
-				{ ui.parent(tr); defer ui.pop_parent();
-					icon("ic", o.icon, 20, T("--text-strong"));
-					spacer(.X, 6);
-					label(o.title, .Medium, 16, T("--text-strong"), 20);
-				}
-				spacer(.Y, 4);
-				label(o.desc, .Normal, 14, T("--text-default"), 18);
+			label("Channel Type", .Semibold, 16, T("--text-strong"), 20);
+		}
+		spacer(.Y, 8);
+		Opt :: struct {
+			kind: dc.Channel_Type;
+			icon, title: string;
+			desc: string;
+		}
+		opts := Opt.[
+			.{.Guild_Text, "hashmark", "Text", "Send messages, images, GIFs, emoji, opinions, and puns"},
+			.{.Guild_Voice, "voice-normal", "Voice", "Hang out together with voice, video, and screen share"},
+			.{.Guild_Forum, "forum", "Forum", "Create a space for organized discussions"}
+		];
+		for o: opts {
+			selected := adm.kind == o.kind;
+			r := row(tprint("type_%", o.title), .Clickable);
+			r.semantic_size = .[ui.pct(1), ui.px(58)];
+			r.cross_align = .Start;
+			r.hover_cursor = .Pointer;
+			if ui.signal(r).clicked && !selected {
+				adm.kind = o.kind;
+				normalize_name_field(adm.kind);
 			}
-			spacer(.X, 25);
+			{ ui.parent(r); defer ui.pop_parent();
+				spacer(.X, 25);
+				radio_dot(selected);
+				spacer(.X, 12);
+				col := ui.box("col");
+				col.semantic_size = .[ui.fill(), ui.children()];
+				col.layout_axis = .Y;
+				{ ui.parent(col); defer ui.pop_parent();
+					tr := row("t");
+					tr.semantic_size = .[ui.pct(1), ui.px(20)];
+					{ ui.parent(tr); defer ui.pop_parent();
+						icon("ic", o.icon, 20, T("--text-strong"));
+						spacer(.X, 6);
+						label(o.title, .Medium, 16, T("--text-strong"), 20);
+					}
+					spacer(.Y, 4);
+					label(o.desc, .Normal, 14, T("--text-default"), 18);
+				}
+				spacer(.X, 25);
+			}
 		}
+		spacer(.Y, 8);
 	}
-	spacer(.Y, 8);
 	nl := row("namelbl");
 	nl.semantic_size = .[ui.pct(1), ui.px(20)];
 	{ ui.parent(nl); defer ui.pop_parent();
 		spacer(.X, 25);
-		label("Channel Name", .Semibold, 16, T("--text-strong"), 20);
+		label(ifx is_cat then "Category Name" else "Channel Name", .Semibold, 16, T("--text-strong"), 20);
 	}
 	spacer(.Y, 8);
-	icon_name := ifx adm.kind == .Guild_Voice then "voice-normal" else ifx adm.kind == .Guild_Forum then "forum" else "hashmark";
-	res := modal_field("name", *adm.name, "new-channel", icon_name);
+	icon_name := ifx adm.kind == .Guild_Voice then "voice-normal" else ifx adm.kind == .Guild_Forum then "forum" else ifx is_cat then "" else "hashmark";
+	res := modal_field("name", *adm.name, ifx is_cat then "New Category" else "new-channel", icon_name);
 	if res == .Changed normalize_name_field(adm.kind);
 	if res == .Submit submit = true;
 	if res == .Escape adm.modal = .None;
@@ -521,7 +529,7 @@ create_channel_modal :: () {
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
 		if wide_button("cancel", "Cancel", .Secondary) adm.modal = .None;
-		if wide_button("create", ifx adm.busy then "Creating..." else "Create Channel", .Primary, name != "" && !adm.busy) submit = true;
+		if wide_button("create", ifx adm.busy then "Creating..." else ifx is_cat then "Create Category" else "Create Channel", .Primary, name != "" && !adm.busy) submit = true;
 		spacer(.X, 25 - 8);
 	}
 	spacer(.Y, 24);

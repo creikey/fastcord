@@ -93,7 +93,7 @@
 - [ ] Voice: no soundboard and no Activities; full channels aren't blocked.
 - [ ] Voice: the Voice & Video mic meter outside a call shows the raw mic, so the Voice Processing switches can't be heard or seen there (`view_voice_settings.jai` meter path).
 - [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
-- [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
+- [ ] Rail: the server header menu lacks Server Settings, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` `guild_menu`); none of those pages exist yet.
 - [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
 - [ ] Media: Save Image goes straight to Downloads (`images.jai` `save_download`); the desktop client asks where to save with the system Save dialog.
 - [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
@@ -392,3 +392,4 @@
 - [x] Channels: channel and category rows have a right-click menu: Mark As Read, Invite People, Copy Link, Collapse Category, Collapse All Categories, Mute, Edit, Delete (now reachable for categories) and Copy ID (`tests/ui/channel_menu.txt`).
 - [x] CI: no build on push or pull request; CI and releases run only on request (`gh workflow run release.yml -f version=vX.Y.Z`, README "Releasing").
 - [x] Channels: the channel and category row menus have Notification Settings (default / All / @mentions / Nothing), and categories Create Channel (`tests/ui/channel_menu.txt`).
+- [x] Rail: the server header menu has Create Category (the create modal without the type list) and Create Event (the event wizard) (`tests/ui/guild_menu_create.txt`).

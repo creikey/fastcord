@@ -445,6 +445,14 @@ guild_menu :: () {
 				create_channel_open(gid, 0);
 				close = true;
 			}
+			if menu_item("createcat", "Create Category", lead = "folder", h = GM_HDR_ROW_H).clicked {
+				create_category_open(gid);
+				close = true;
+			}
+		}
+		if dc.can_create_events(s, gid) && menu_item("createevent", "Create Event", lead = "calendar", h = GM_HDR_ROW_H).clicked {
+			create_event_open(gid);
+			close = true;
 		}
 		menu_sep("s1");
 		if menu_item("notify", "Notification Settings", lead = "bell", h = GM_HDR_ROW_H).clicked {
