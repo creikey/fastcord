@@ -651,6 +651,10 @@ serve_conn :: (c: *Conn) {
 			if !create_channel(c, req) return;
 			continue;
 		}
+		if req.method == "GET" && begins_with(req.path, "/api/v9/users/") && req.path.count > "/api/v9/users/".count && is_digit(req.path["/api/v9/users/".count]) {
+			if !user_profile(c, req) return;
+			continue;
+		}
 		if req.method == "PATCH" && req.path == "/api/v9/users/@me" {
 			if !edit_me(c, req) return;
 			continue;
@@ -791,6 +795,54 @@ edit_me :: (c: *Conn, req: http.Request) -> bool {
 }
 
 AVATAR_MAX_BYTES :: 512 * 1024;
+
+// GET /api/v9/users/{id}/profile: what this server knows of a member, in Discord's shape. A member's ID
+// is made when they first join, so it is also their join time; this server is the one mutual guild, and
+// there are no friends, bios or badges here. GET /users/{id}/relationships (mutual friends) is empty.
+user_profile :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	viewer := session_user(c, token);
+	if !viewer return json_error(c, 401, 0, "401: Unauthorized");
+	path := req.path;
+	q := find_index_from_left(path, #char "?");
+	if q >= 0 path.count = q;
+	parts := split(advance(path, "/api/v9/users/".count), "/",, temp);
+	id, ok := string_to_int(parts[0], T = s64);
+	if !ok || parts.count != 2 || (parts[1] != "profile" && parts[1] != "relationships") return json_error(c, 404, 0, "404: Not Found");
+	if parts[1] == "relationships" return respond(c, 200, "[]");
+	name: string;
+	{
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT name FROM users WHERE id = ? AND left = 0;");
+		defer sqlite.finalize(st);
+		sqlite.bind(st, 1, id);
+		if sqlite.step(st) != .Row return json_error(c, 404, 10013, "Unknown User");
+		name = copy_string(sqlite.col_text(st, 0),, temp);
+	}
+	empty: []etf.Value;
+	member := etf.map_builder(3,, temp);
+	etf.map_put(*member, "joined_at", etf.vstring(iso(id)));
+	etf.map_put(*member, "nick", .{});
+	etf.map_put(*member, "roles", etf.vlist(empty));
+	mutual := etf.map_builder(2,, temp);
+	etf.map_put(*mutual, "id", snow(s.guild));
+	etf.map_put(*mutual, "nick", .{});
+	mutuals := NewArray(1, etf.Value,, temp);
+	mutuals[0] = etf.vmap(etf.map_done(*mutual));
+	profile := etf.map_builder(2,, temp);
+	etf.map_put(*profile, "bio", etf.vstring(""));
+	etf.map_put(*profile, "pronouns", etf.vstring(""));
+	m := etf.map_builder(7,, temp);
+	etf.map_put(*m, "user", user_value(s, id, name));
+	etf.map_put(*m, "user_profile", etf.vmap(etf.map_done(*profile)));
+	etf.map_put(*m, "guild_member", etf.vmap(etf.map_done(*member)));
+	etf.map_put(*m, "mutual_guilds", etf.vlist(ifx id == viewer then empty else mutuals));
+	etf.map_put(*m, "mutual_friends", etf.vlist(empty));
+	etf.map_put(*m, "badges", etf.vlist(empty));
+	etf.map_put(*m, "guild_badges", etf.vlist(empty));
+	return json_reply(c, 200, etf.vmap(etf.map_done(*m)));
+}
 
 // iso is a snowflake's creation time as Discord writes timestamps.
 iso :: (id: s64) -> string {

@@ -736,6 +736,15 @@ main :: () {
 	check(status == 200 && contains(body, tprint("\"avatar\":\"%\"", avatar_hash)), tprint("messages carry the avatar: %", body));
 	status, body = rest("GET", tprint("/avatars/%/%.png?size=80", other_id, avatar_hash), "", "");
 	check(status == 200 && begins_with(body, "\x89PNG"), tprint("the avatar is served: %", status));
+	// Profiles: what the server knows, with the join time and this server as the mutual one.
+	status, body = rest("GET", tprint("/api/v9/users/%/profile?type=popout&with_mutual_guilds=true&guild_id=%", other_id, gid), "", token);
+	prof_v, _ := etf.from_json(body);
+	check(status == 200 && field(prof_v, "user", "avatar").s == avatar_hash && field(prof_v, "guild_member", "joined_at").s != "" && contains(body, tprint("\"mutual_guilds\":[{\"id\":\"%\"", gid)),
+		tprint("a member's profile: % %", status, body));
+	status, body = rest("GET", tprint("/api/v9/users/%/relationships", other_id), "", token);
+	check(status == 200 && body == "[]", tprint("no mutual friends: % %", status, body));
+	status, body = rest("GET", "/api/v9/users/1/profile", "", token);
+	check(status == 404, tprint("an unknown user's profile 404s: %", status));
 	status, body = rest("PATCH", "/api/v9/users/@me", "{\"avatar\": null}", other_token);
 	check(status == 200 && contains(body, "\"avatar\":null"), tprint("null removes the avatar: % %", status, body));
 	status, body = rest("GET", tprint("/avatars/%/%.png", other_id, avatar_hash), "", "");
