@@ -90,6 +90,7 @@ scene_begin :: (s: *Scene, w: int, h: int) {
 }
 
 scene_free :: (s: *Scene) {
+	if !s.allocator.proc return; // never begun: nothing allocated
 	push_allocator(s.allocator);
 	array_free(s.insts);
 	array_free(s.segs);

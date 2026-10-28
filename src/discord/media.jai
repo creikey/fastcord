@@ -309,6 +309,7 @@ sticker_url :: (sticker_id: Snowflake, format_type: int, size := 160, allocator 
 	if format_type == {
 		case 3; return sprint("%/stickers/%.json", API_ORIGIN, sticker_id,, allocator);
 		case 4; return sprint("%/stickers/%.gif?size=%", MEDIA_PROXY, sticker_id, size,, allocator);
+		case 2; return sprint("%/stickers/%.png?size=%", MEDIA_PROXY, sticker_id, size,, allocator); // APNG: .webp would be a still
 	}
 	return sprint("%/stickers/%.webp?size=%", MEDIA_PROXY, sticker_id, size,, allocator);
 }

@@ -291,6 +291,7 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 | Invites (`InstantInviteActionCreators`) | code | same | `src/discord/invites.jai` |
 | Invite from the server icon right-click menu uses context location "Guild Header" | guess | not captured | `src/app/view_guild_menu.jai` |
 | Sticker picker: every visible sticker animates while the window is focused, as with the client's default "Always animate" sticker setting (fastcord has no setting; messages animate the same way) | guess | `StickerAnimationSettings` | `src/app/pickers_sticker.jai` (`sticker_box` animate) |
+| Picker APNG stickers (format 2) load as `.png?size=160`, like message stickers (`getStickerAssetUrl`); `.webp` from the media proxy is a still | guess | `getStickerAssetUrl` | `src/discord/media.jai` `sticker_url` |
 | Inbox "Mark All as Read" = `POST /read-states/ack-bulk` | guess | not captured | `inbox.jai` |
 | Thread browser Archived tab sends `thread_browser_tab_changed` | guess | not captured | `view_threads_browser.jai` |
 | External-location event body (`scheduled_end_time`, `entity_metadata.location`), Start Event (`PATCH {"status":2}`) | guess | not captured | `src/discord/guild_admin.jai` |

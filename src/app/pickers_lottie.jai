@@ -21,14 +21,19 @@ Lottie_Sticker :: struct {
 	stills: [..]Lottie_Still;
 	jobs: int; // decode jobs that use anim, in flight
 	seen: float64; // app.ui.time it was last drawn
-	// animating (heap: the table may move; a worker's while rendering)
-	rendering: bool;
+	animators: [..]*Lottie_Animator; // one per size it animates at (the picker and a message can differ)
+}
+
+// A sticker animating at one size (heap: the table may move, and a worker writes it while rendering).
+Lottie_Animator :: struct {
 	px: int;
+	seen: float64;
+	rendering: bool;
 	tex: gfx.Texture; // the GPU's render target, or the CPU's uploaded frames
 	shown: bool; // tex holds a frame
-	frame: float32; // last frame asked for (-1 = none)
-	player: *lottie.Player; // CPU
-	scenes: *[2]vector.Scene; // GPU: the worker records into scenes[next] while the UI draws the other
+	frame: float32 = -1; // last frame asked for
+	player: lottie.Player; // CPU
+	scenes: [2]vector.Scene; // GPU: the worker records into scenes[next] while the UI draws the other
 	next: int;
 	ready: bool; // scenes[1 - next] is new: draw it into tex
 }
@@ -61,19 +66,18 @@ lottie_decoded :: (d: *Decoded) {
 		ls.state = ifx d.ok then .Ready else .Failed;
 		return;
 	}
-	if d.kind == .Lottie_Frame {
-		ls.rendering = false;
-		if !d.ok || d.px != ls.px return;
-		if ls.tex == 0 ls.tex = gfx.texture_from_rgba(d.px, d.px, d.frames[0]);
-		else gfx.texture_update(ls.tex, 0, 0, d.px, d.px, d.frames[0]);
-		ls.shown = true;
-		return;
-	}
-	if d.kind == .Lottie_Scene {
-		ls.rendering = false;
-		if d.px != ls.px return;
-		ls.ready = true;
-		ls.next = 1 - ls.next;
+	if d.kind == .Lottie_Frame || d.kind == .Lottie_Scene {
+		a := animator(ls, d.px);
+		if !a return;
+		a.rendering = false;
+		if d.kind == .Lottie_Scene {
+			a.ready = true;
+			a.next = 1 - a.next;
+		} else if d.ok {
+			if a.tex == 0 a.tex = gfx.texture_from_rgba(d.px, d.px, d.frames[0]);
+			else gfx.texture_update(a.tex, 0, 0, d.px, d.px, d.frames[0]);
+			a.shown = true;
+		}
 		return;
 	}
 	for * ls.stills if it.px == d.px && it.tex == 0 && d.ok it.tex = gfx.texture_create(d.px, d.px, .RGBA8, d.frames[0], premultiplied_alpha = true);
@@ -84,18 +88,18 @@ lottie_sweep :: () {
 	gone: [..]dc.Snowflake;
 	gone.allocator = temp;
 	for * ls, id: lottie_stickers {
-		if ls.state == .Loading || ls.jobs > 0 || ls.rendering || app.ui.time - ls.seen < LOTTIE_KEEP continue;
+		// sizes no longer drawn
+		i := 0;
+		while i < ls.animators.count {
+			a := ls.animators[i];
+			if a.rendering || app.ui.time - a.seen < LOTTIE_KEEP { i += 1; continue; }
+			animator_free(a);
+			array_unordered_remove_by_index(*ls.animators, i);
+		}
+		if ls.state == .Loading || ls.jobs > 0 || ls.animators.count || app.ui.time - ls.seen < LOTTIE_KEEP continue;
 		for s: ls.stills  if s.tex  gfx.texture_destroy(s.tex);
 		array_free(ls.stills);
-		if ls.tex  gfx.texture_destroy(ls.tex);
-		if ls.player {
-			lottie.player_destroy(ls.player);
-			free(ls.player);
-		}
-		if ls.scenes {
-			for * ls.scenes.*  vector.scene_free(it);
-			free(ls.scenes);
-		}
+		array_free(ls.animators);
 		lottie.destroy(ls.anim);
 		array_add(*gone, id);
 	}
@@ -119,10 +123,22 @@ lottie_sticker_draw :: (b: *ui.Box, id: dc.Snowflake, animate: bool) {
 
 #scope_file
 
+animator :: (ls: *Lottie_Sticker, px: int) -> *Lottie_Animator {
+	for ls.animators  if it.px == px return it;
+	return null;
+}
+
+animator_free :: (a: *Lottie_Animator) {
+	if a.tex  gfx.texture_destroy(a.tex);
+	if a.player.w  lottie.player_destroy(*a.player);
+	for * a.scenes  vector.scene_free(it);
+	free(a);
+}
+
 lottie_get :: (id: dc.Snowflake) -> *Lottie_Sticker {
 	ls, added := find_or_add(*lottie_stickers, id);
 	if !added return ls;
-	ls.* = .{state = .Loading, frame = -1, seen = app.ui.time};
+	ls.* = .{state = .Loading, seen = app.ui.time};
 	// offline: a worker reads the json from FASTCORD_MEDIA_DIR
 	if app.client != null dc.expr_fetch_media(app.client, dc.sticker_url(id, 3), .Fetch, id);
 	else decode_submit(.{kind = .Lottie_Load, id = id, url = dc.sticker_url(id, 3, allocator = context.allocator)});
@@ -145,38 +161,32 @@ lottie_draw :: (b: *ui.Box, user: *void) {
 	if d.animate {
 		app.ui.animating = true;
 		gpu := gfx.scenes_supported();
-		if !ls.rendering && ls.px != px {
-			if ls.tex  gfx.texture_destroy(ls.tex);
-			ls.tex = 0;
-			ls.shown, ls.ready = false, false;
-			ls.px = px;
-			ls.frame = -1;
-			if gpu {
-				ls.tex = gfx.target_create(px, px);
-				if !ls.scenes  ls.scenes = New([2]vector.Scene);
-			} else {
-				if ls.player  lottie.player_destroy(ls.player);
-				else ls.player = New(lottie.Player);
-				lottie.player_init(ls.player, px, px);
-			}
+		a := animator(ls, px);
+		if !a {
+			a = New(Lottie_Animator);
+			a.px = px;
+			if gpu  a.tex = gfx.target_create(px, px);
+			else    lottie.player_init(*a.player, px, px);
+			array_add(*ls.animators, a);
 		}
-		if ls.ready && ls.tex {
-			gfx.draw_scene(ls.tex, *ls.scenes.*[1 - ls.next]);
-			ls.ready = false;
-			ls.shown = true;
+		a.seen = app.ui.time;
+		if a.ready && a.tex {
+			gfx.draw_scene(a.tex, *a.scenes[1 - a.next]);
+			a.ready = false;
+			a.shown = true;
 		}
-		if !ls.rendering && ls.px == px {
+		if !a.rendering {
 			frame := lottie.frame_at(ls.anim, app.ui.time);
-			if frame != ls.frame {
-				ls.frame = frame;
-				ls.rendering = true;
+			if frame != a.frame {
+				a.frame = frame;
+				a.rendering = true;
 				ls.jobs += 1;
-				if gpu  decode_submit(.{kind = .Lottie_Scene, id = d.id, px = px, anim = ls.anim, scene = *ls.scenes.*[ls.next], frame = frame});
-				else    decode_submit(.{kind = .Lottie_Frame, id = d.id, px = px, anim = ls.anim, player = ls.player, frame = frame});
+				if gpu  decode_submit(.{kind = .Lottie_Scene, id = d.id, px = px, anim = ls.anim, scene = *a.scenes[a.next], frame = frame});
+				else    decode_submit(.{kind = .Lottie_Frame, id = d.id, px = px, anim = ls.anim, player = *a.player, frame = frame});
 			}
 		}
-		if ls.shown && ls.px == px {
-			gfx.push_rect(.{dst = cast,force(gfx.Rect) b.rect, tex = ls.tex, colors = .[c, c, c, c]});
+		if a.shown {
+			gfx.push_rect(.{dst = cast,force(gfx.Rect) b.rect, tex = a.tex, colors = .[c, c, c, c]});
 			return;
 		}
 	}
