@@ -1163,6 +1163,28 @@ ack_timing :: (t: *T) {
 	expect_value(t, r_count(*run, "POST", "/ack"), 2);
 }
 
+// Joining a voice channel acks its text chat unless it holds mentions ("Ack - Voice Channel Select").
+voice_select_ack :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	ch := channel_get(*c.store, R_VOICE);
+	if !expect(t, ch != null, "voice channel") return;
+	rs := find_or_add(*c.store.read_states, R_VOICE);
+	ch.last_message_id = rs.last_message_id + (1 << 22);
+	rs.mention_count = 1;
+	voice_join(c, R_GUILD, R_VOICE);
+	found := false;
+	for c.pending_acks if it.channel_id == R_VOICE found = true;
+	expect(t, !found, "mentions keep the voice chat unread");
+	rs = table_find_pointer(*c.store.read_states, R_VOICE);
+	rs.mention_count = 0;
+	voice_join(c, R_GUILD, R_VOICE);
+	for c.pending_acks if it.channel_id == R_VOICE && it.location.object == ACK_VOICE_CHANNEL_SELECT.object found = true;
+	expect(t, found, "joining acks the voice chat");
+}
+
 parity_gif_send :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "gif_send", R_GUILD, R_TEXT) { return; }

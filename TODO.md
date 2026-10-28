@@ -87,7 +87,6 @@
 - [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
 - [ ] Voice: every volume slider goes from 0 to 400% (the official max is 200%). That covers output volume, per-user volume, stream volume, the video player and input volume (now 0-100). Clamps are in `src/app/view_voice_settings.jai`. Add a limiter so the boost doesn't clip harshly. Keep values above 200% local if synced settings would reject them.
 - [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
-- [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
 - [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
 - [ ] Bug: a sleep over 60 s ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
 - [ ] Bug: Ctrl-C or SIGTERM in a terminal skips `app_exit` (no signal handling in `src/platform`), so voice isn't left and the gateway session lingers: Discord shows you in the call for minutes, and its expiry drops the next run's voice state.
@@ -348,3 +347,4 @@
 - [x] Keybinds: Escape in the composer (with no reply open) marks the open channel read and drops the "NEW" divider and bar (`view_chat.jai` `composer`, `tests/ui/forward/escape_mark_read.txt`).
 - [x] Keybinds: Ctrl+/ opens a Keyboard Shortcuts modal listing every shortcut fastcord handles (`views.jai` `shortcuts_modal`, `tests/ui/shortcut_list.txt`).
 - [x] Read states: a message arriving in the open channel while you are scrolled up is no longer acked; it counts as unread until you scroll to the bottom (`Client.route_scrolled_up`, `replay_test.jai` `ack_timing`).
+- [x] Read states: joining a voice channel acks its text chat unless it holds mentions (`actions.jai` `voice_join`, `replay_test.jai` `voice_select_ack`).

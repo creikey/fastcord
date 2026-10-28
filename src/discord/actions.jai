@@ -630,6 +630,7 @@ ACK_NEW_MESSAGES_BANNER :: Ack_Location.{"New Messages Banner", "Mark Channel as
 ACK_INCOMING_MESSAGE :: Ack_Location.{"Channel", "Ack - Incoming Message", "ack_automatic"};
 ACK_CHANNEL_SCROLL :: Ack_Location.{"Channel", "Ack - Channel Scroll", "ack_automatic"};
 ACK_WINDOW_FOCUS :: Ack_Location.{"Channel", "Ack - Window Focus", "ack_automatic"};
+ACK_VOICE_CHANNEL_SELECT :: Ack_Location.{"Channel", "Ack - Voice Channel Select", "ack_semi_automatic"};
 
 // ack_message moves the read state at once and schedules the POST like ReadState.ack():
 // one timer per channel, due in 3 s, or at once when `immediate` or the channel had
@@ -955,6 +956,12 @@ voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute
 	// the voice channel's text view opens with the call
 	analytics_channel_opened(c, guild_id, channel_id, selected_guild = false);
 	if track analytics_join_voice(c, guild_id, channel_id);
+	// Joining acks the channel's text chat unless it holds mentions.
+	ch := channel_get(*c.store, channel_id);
+	rs := table_find_pointer(*c.store.read_states, channel_id);
+	if ch && ch.last_message_id > (ifx rs then rs.last_message_id else 0) && !(rs && rs.mention_count > 0) {
+		ack_message(c, channel_id, ch.last_message_id, location = ACK_VOICE_CHANNEL_SELECT);
+	}
 	l := message_list(*c.store, channel_id);
 	if !l.loaded && !l.loading fetch_messages(c, channel_id, 0, initial_message_limit(viewport_h(c)));
 	if guild_id {
