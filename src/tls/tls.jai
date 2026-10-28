@@ -148,15 +148,21 @@ selfsigned_cert :: (key: [32]u8) -> []u8 {
 	return array_copy(array_view(buf, 0, n));
 }
 
-// server_ctx returns null on failure. Contexts live as long as the server: nothing frees them.
-server_ctx :: (key: [32]u8, cert: []u8, alpn: string) -> *SSL_CTX {
+// server_ctx returns null on failure. Contexts live as long as the server: nothing frees them. A client
+// that doesn't offer alpn gets fallback when it offers that instead.
+server_ctx :: (key: [32]u8, cert: []u8, alpn: string, fallback := "") -> *SSL_CTX {
 	ensure_init();
-	if !alpn.count || alpn.count > 255 return null;
+	if !alpn.count || alpn.count > 255 || fallback.count > 255 return null;
 	ctx := SSL_CTX_new(TLS_method());
 	if !ctx return null;
-	wire := NewArray(1 + alpn.count, u8,, context.default_allocator);
+	// Each protocol length-prefixed, ended by a 0 length.
+	wire := NewArray(2 + alpn.count + ifx fallback then 1 + fallback.count else 0, u8,, context.default_allocator);
 	wire[0] = xx alpn.count;
 	memcpy(wire.data + 1, alpn.data, alpn.count);
+	if fallback {
+		wire[1 + alpn.count] = xx fallback.count;
+		memcpy(wire.data + 2 + alpn.count, fallback.data, fallback.count);
+	}
 	ok := SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) == 1
 		&& SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) == 1
 		&& SSL_CTX_set1_group_ids(ctx, GROUPS.data, xx GROUPS.count) == 1
@@ -164,30 +170,33 @@ server_ctx :: (key: [32]u8, cert: []u8, alpn: string) -> *SSL_CTX {
 	if !ok { SSL_CTX_free(ctx); return null; }
 	SSL_CTX_set_alpn_select_cb(ctx, (ssl: *SSL, out: **u8, out_len: *u8, in: *u8, in_len: u32, arg: *void) -> s32 #c_call {
 		want := cast(*u8) arg;
-		i: u32 = 0;
-		while i < in_len {
-			n := in[i];
-			if n == want[0] && i + 1 + n <= in_len && memcmp(in + i + 1, want + 1, n) == 0 {
-				out.*, out_len.* = in + i + 1, n;
-				return SSL_TLSEXT_ERR_OK;
+		while want[0] {
+			i: u32 = 0;
+			while i < in_len {
+				n := in[i];
+				if n == want[0] && i + 1 + n <= in_len && memcmp(in + i + 1, want + 1, n) == 0 {
+					out.*, out_len.* = in + i + 1, n;
+					return SSL_TLSEXT_ERR_OK;
+				}
+				i += 1 + n;
 			}
-			i += 1 + n;
+			want += 1 + want[0];
 		}
 		return SSL_TLSEXT_ERR_ALERT_FATAL;
 	}, wire.data);
 	return ctx;
 }
 
-// accept runs the server side of the handshake over under; a client that didn't negotiate the context's
-// ALPN protocol is refused. Like connect, the session owns under on success and leaves it open on failure.
-accept :: (under: netio.Stream, ctx: *SSL_CTX) -> *Session, netio.Error, Error {
+// accept runs the server side of the handshake over under; a client that negotiated no ALPN protocol is
+// refused unless none_ok. Like connect, the session owns under on success and leaves it open on failure.
+accept :: (under: netio.Stream, ctx: *SSL_CTX, none_ok := false) -> *Session, netio.Error, Error {
 	ssl := SSL_new(ctx);
 	if !ssl return null, .Tls, .Internal;
 	d := cast(*Ssl_Data) OPENSSL_zalloc(size_of(Ssl_Data));
 	if !d || SSL_set_ex_data(ssl, host_index, d) != 1 { OPENSSL_free(d); SSL_free(ssl); return null, .Tls, .Internal; }
 	SSL_set_accept_state(ssl);
 	s, ne, e := start(ssl, under);
-	if s && !negotiated_alpn(s) {
+	if s && !none_ok && !negotiated_alpn(s) {
 		destroy(s);
 		return null, .Tls, .Protocol;
 	}

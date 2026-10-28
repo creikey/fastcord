@@ -69,7 +69,7 @@ main :: () {
 	bad := pin;
 	bad[0] ^= 1;
 	check(dial(bad, serve.ALPN) == null, "a wrong pin is refused");
-	check(dial(pin, "http/1.1") == null, "a wrong ALPN is refused");
+	check(dial(pin, "h2") == null, "a wrong ALPN is refused");
 
 	session := dial(pin, serve.ALPN);
 	check(session != null, "pinned connect");
@@ -816,6 +816,23 @@ main :: () {
 	check(status == 400, tprint("a webhook's bad embed is refused: % %", status, body));
 	status, body = rest("POST", hook_url, "{\"embeds\": [{\"image\": {\"url\": \"https://x.test/a.png\"}}]}", "");
 	check(status == 400, tprint("a webhook's empty embed is refused: % %", status, body));
+	// curl and CI tools speak plain HTTP/1.1: they reach webhooks and nothing else.
+	plain_rest :: (method: string, path: string, body: string) -> int #expand {
+		session := dial(`pin, "http/1.1");
+		if !session return -1;
+		defer tls.close(session);
+		h: http.H1_Conn;
+		http.h1_init(*h, tls.stream(session));
+		defer http.h1_destroy(*h, false);
+		req := http.Request.{method = method, path = path, authority = "example.org", body = cast([]u8) body,
+			headers = .[.{"authorization", `token}, .{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}]};
+		resp, err := http.h1_round_trip(*h, req);
+		return ifx err == .None then resp.status else -2;
+	}
+	status = plain_rest("POST", hook_url, "{\"content\": \"from curl\"}");
+	check(status == 204, tprint("a plain HTTP/1.1 client posts to a webhook: %", status));
+	status = plain_rest("GET", messages, "");
+	check(status == 404, tprint("a plain HTTP/1.1 client reaches nothing else, token or not: %", status));
 	status, body = rest("POST", tprint("%?wait=true", hook_url), "{\"content\": \"deploying\"}", "");
 	progress, _ := etf.from_json(body);
 	own_url := tprint("%/messages/%", hook_url, field(progress, "id").s);
@@ -835,7 +852,7 @@ main :: () {
 	check(status == 204, tprint("a webhook is deleted by its URL: % %", status, body));
 	status, body = rest("POST", hook_url, "{\"content\": \"too late\"}", "");
 	check(status == 404, tprint("a deleted webhook posts nothing: % %", status, body));
-	status, body = rest("GET", tprint("%?limit=2", messages), "", token);
+	status, body = rest("GET", tprint("%?limit=3", messages), "", token);
 	check(contains(body, "\"username\":\"Builder\"") && contains(body, "\"title\":\"Deploy\""), tprint("a deleted webhook's messages stay: %", body));
 
 	// Avatars: a member sets one, their messages carry it, it's served under its hash, and null removes it.

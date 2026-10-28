@@ -30,6 +30,7 @@ Server :: struct {
 	db_mu: locks.Mutex; // A connection's statements run on one thread at a time.
 	id: [16]u8;     // Sent as SNI and part of every invite, so one host can serve several servers.
 	pin: [32]u8;     // BLAKE3 of the certificate: what invites carry and clients check.
+	spki: [32]u8;    // SHA-256 of the certificate's public key: curl's --pinnedpubkey, for webhooks.
 	ctx: *tls.SSL_CTX;
 	listener: *netio.Listener;
 	accept_thread: *Thread;
@@ -173,10 +174,26 @@ open :: (path: string) -> *Server, bool {
 	k: [32]u8;
 	memcpy(k.data, key.data, 32);
 	s.pin = crypto.blake3(cert);
-	s.ctx = tls.server_ctx(k, cert, ALPN);
+	s.spki = crypto.sha256(p256_spki(cert));
+	s.ctx = tls.server_ctx(k, cert, ALPN, "http/1.1");
 	crypto.zero(k);
 	if !s.ctx { close(s); return null, false; }
 	return s, true;
+}
+
+// p256_spki finds the SubjectPublicKeyInfo of a P-256 key in our own certificate (selfsigned_cert): its
+// fixed DER header and the 65-byte uncompressed point.
+p256_spki :: (cert: []u8) -> []u8 {
+	HEAD :: u8.[0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, 0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00, 0x04];
+	for 0..cert.count - 91 if memcmp(cert.data + it, HEAD.data, HEAD.count) == 0 return array_view(cert, it, 91);
+	assert(false, "no P-256 key in the server's certificate");
+	return .[];
+}
+
+// webhook_pin is curl's `--pinnedpubkey` value for this server, so tools outside fastcord can post to its
+// webhooks without trusting whoever sits in the path (its certificate is self-signed, so they also pass -k).
+webhook_pin :: (s: *Server) -> string {
+	return tprint("sha256//%", base64_encode(cast(string) s.spki,, temp));
 }
 
 // invite_url is what a member pastes into fastcord to join: the pin, where to connect and which server.
@@ -631,11 +648,13 @@ accept_loop :: (s: *Server) {
 // Its stream is closed by whoever reaps it (accept_loop or stop), so a shutdown never races a close.
 serve_conn :: (c: *Conn) {
 	defer atomic_store(*c.done, true);
-	session, _, _ := tls.accept(c.s, c.server.ctx);
+	session, _, _ := tls.accept(c.s, c.server.ctx, none_ok = true);
 	if !session return;
 	c.s = tls.stream(session);
+	// Anything but fastcord (curl, CI runners, monitoring) reaches webhooks and nothing else, by any name.
+	plain := tls.negotiated_alpn(session) != ALPN;
 	name := tls.server_name(session);
-	if name && name != id_hex(c.server) return;
+	if name && name != id_hex(c.server) && !plain return;
 
 	h: http.H1_Conn;
 	http.h1_init(*h, c.s, .{max_header_bytes = 16 << 10, max_headers = 64, max_body = 1 << 20});
@@ -651,6 +670,10 @@ serve_conn :: (c: *Conn) {
 		if err != .None {
 			if err == .Too_Large http.h1_write_response(c.s, 413, .[], .[]);
 			else if err == .Protocol http.h1_write_response(c.s, 400, .[], .[]);
+			return;
+		}
+		if plain && !begins_with(req.path, "/api/webhooks/") && !begins_with(req.path, "/api/v9/webhooks/") && !begins_with(req.path, "/api/v10/webhooks/") {
+			http.h1_write_response(c.s, 404, .[], .[]);
 			return;
 		}
 		if http.header_has_token(req.headers, "upgrade", "websocket") {

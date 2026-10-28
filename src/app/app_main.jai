@@ -172,6 +172,7 @@ main :: () {
 		else say("Serving % on port %. No invite works any more: members make new ones from the Invite button.\n", opt.serve, s.listener.port);
 		owner := serve.owner_invite(s);
 		if owner say("Join with this one yourself first, to own the server (it works once):\n%\n", serve.invite_url(s, "localhost", s.listener.port, owner));
+		say("Webhooks take posts from curl and other tools pinned to this server: curl -k --pinnedpubkey % ...\n", serve.webhook_pin(s));
 		say("Press Ctrl-C or close this console to stop the server.\n");
 		while true sleep_milliseconds(1000 * 60 * 60);
 	}
