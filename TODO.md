@@ -144,6 +144,13 @@
 - [ ] Server settings: none at all (overview, roles, emoji, stickers, AutoMod, audit log, bans, integrations, webhooks, invites).
 - [ ] Windows: no toast notifications or taskbar unread badge (`notify_show` / `set_badge` are stubs). Linux has no badge either.
 - [ ] Zoom: Ctrl+= / Ctrl+- / Ctrl+0 zoom the whole UI in, out and back to 100%, and a "Zoom Level" slider sits in the settings page where the official client has it (check whether that's Appearance or Accessibility before building). Match the official steps and range, the browser zoom levels from 50% to 200%, by checking the bundle. Scale on top of the DPI scale and persist it. Today none of it exists (no `.Equals` / `.Minus` handling in `src/app` or `src/ui`).
+- [ ] Embeds (fastcord-only): play YouTube cards in fastcord's own video player through yt-dlp. This replaces the cancelled webview player; there's no webview. Opt in on first play, which downloads yt-dlp plus a JavaScript runtime. Never ship them in the fastcord download. "Open in YouTube" stays the default.
+  - yt-dlp has needed an external JS runtime for YouTube since 2025.11.12. Deno is the default and sandboxed, about 100 MB. QuickJS is small but has no sandbox, and yt-dlp disables it by default. So the cost is the yt-dlp binary (about 18 MB, Unlicense) plus Deno.
+  - Run it as a subprocess off the UI thread. Take the format URLs from `yt-dlp -j` and stream them with fastcord's own HTTP client and player: H.264 video up to 1080p, with separate AAC or Opus audio kept in sync. Waiting for a full download first is too slow.
+  - Needs the compressed-audio item below first, so the soundtrack isn't silent.
+  - YouTube breaks yt-dlp every few weeks, so it updates itself from GitHub. Check its `SHA2-256SUMS` against the GPG signature, with the signing key pinned in fastcord, before running a new binary.
+  - On any failure, including YouTube's "confirm you're not a bot" checks, fall back to opening the browser.
+  - The cost is to YouTube's terms of service and the user's IP, not to their Discord account: no traffic to Discord changes.
 - [ ] Windows, Linux: no compressed-audio decoding (`media/decode_none.jai`), so Ogg Opus voice messages and AAC video soundtracks play no sound; Linux decodes H.264 video only (openh264), so HEVC, VP9 and AV1 attachments show no picture. Windows: Media Foundation.
 - [ ] Notifications: the taskbar/dock badge counts only mentions, not friend requests.
 - [ ] Check: a REST 401 (token revoked, password changed) seems handled nowhere while the gateway stays up, so the UI keeps failing with toasts instead of returning to login. Confirm by revoking the token from another session.
