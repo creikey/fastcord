@@ -641,8 +641,38 @@ main :: () {
 	page, _ := etf.from_json(body);
 	check(status == 200 && page.kind == .List && page.list.count == 1 && field(page.list[0], "thread", "id").s == pinged_id,
 		tprint("the starter message carries its thread: % %", status, body));
-	status, body = rest("GET", tprint("/api/v9/channels/%/threads/search?archived=true&limit=25", channel), "", other_token);
-	check(status == 200, tprint("the thread browser's archived list: % %", status, body));
+	search := tprint("/api/v9/channels/%/threads/search?archived=true&limit=25", channel);
+	archived_ids :: () -> string #expand {
+		status, body = rest("GET", search, "", other_token);
+		v, _ := etf.from_json(body);
+		ids: String_Builder;
+		for field(v, "threads").list print_to_builder(*ids, "%,", field(it, "id").s);
+		return builder_to_string(*ids,, temp);
+	}
+	thread_path := tprint("/api/v9/channels/%", thread_id);
+	thread_messages := tprint("%/messages", thread_path);
+	check(archived_ids() == "" && status == 200, tprint("no archived threads yet: % %", status, body));
+	status, body = rest("PATCH", thread_path, "{\"archived\": true}", other_token);
+	check(status == 200 && field(etf.from_json(body), "thread_metadata", "archived").b, tprint("the starter archives a thread: % %", status, body));
+	check(archived_ids() == tprint("%,", thread_id), tprint("an archived thread is listed: %", body));
+	status, body = rest("POST", thread_messages, "{\"content\": \"back again\"}", other_token);
+	check(status == 200 && archived_ids() == "", tprint("a message reopens an archived thread: % %", status, body));
+	status, body = rest("PATCH", thread_path, "{\"locked\": true, \"archived\": true}", other_token);
+	check(status == 403, tprint("only the owner locks a thread: % %", status, body));
+	status, body = rest("PATCH", thread_path, "{\"locked\": true, \"archived\": true, \"auto_archive_duration\": 60}", token);
+	thread_v, _ := etf.from_json(body);
+	check(status == 200 && field(thread_v, "thread_metadata", "locked").b && field(thread_v, "thread_metadata", "auto_archive_duration").i == 60, tprint("the owner locks a thread: % %", status, body));
+	status, body = rest("PATCH", thread_path, "{\"archived\": false}", other_token);
+	check(status == 403, tprint("the starter can't reopen a locked thread: % %", status, body));
+	status, body = rest("POST", thread_messages, "{\"content\": \"let me in\"}", other_token);
+	check(status == 400 && contains(body, "50083"), tprint("a locked thread takes no messages from members: % %", status, body));
+	status, body = rest("PATCH", thread_path, "{\"locked\": false, \"archived\": false}", token);
+	check(status == 200 && archived_ids() == "", tprint("the owner reopens a locked thread: % %", status, body));
+	// An hour without activity archives it, now that its auto_archive_duration is 60 minutes.
+	s.clock_offset_ms = 61 * 60 * 1000;
+	s.next_sweep = 0;
+	check(contains(archived_ids(), tprint("%,", thread_id)), tprint("an idle thread archives itself: %", body));
+	s.clock_offset_ms = 0;
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", thread_id), "", other_token);
 	check(status == 403, tprint("only the owner deletes threads: % %", status, body));
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", thread_id), "", token);
