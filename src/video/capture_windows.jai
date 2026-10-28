@@ -77,16 +77,35 @@ camera_thread :: (t: *Thread) -> s64 {
 	com := mf.com_enter();
 	defer mf.com_leave(com);
 	acts, n := cameras();
-	if !n return 0;
-	act := acts[0];
-	for 1..n - 1 mf.release(acts[it]);
+	if !n { print("camera: no capture devices\n", to_standard_error = true); return 0; }
+	// Virtual cameras (NDI, for one) are root-enumerated, often listed before the real ones, and may
+	// never deliver a frame until some app feeds them, so take the first real device.
+	is_virtual :: (act: *void) -> bool {
+		s: *u16;
+		len: u32;
+		if mf.com(act, 13, #type (*void, *GUID, **u16, *u32) -> HRESULT #c_call)(act, *mf.MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK, *s, *len) < 0 return false;
+		defer mf.CoTaskMemFree(s);
+		PREFIX :: "\\\\?\\root#";
+		if len < PREFIX.count return false;
+		for 0..PREFIX.count - 1 {
+			ch := s[it];
+			if ch >= #char "A" && ch <= #char "Z" ch += 32;
+			if ch != PREFIX[it] return false;
+		}
+		return true;
+	}
+	pick := 0;
+	for 0..n - 1 if !is_virtual(acts[it]) { pick = it; break; }
+	act := acts[pick];
+	for 0..n - 1 if it != pick mf.release(acts[it]);
 	mf.CoTaskMemFree(acts);
 	defer {
 		mf.com(act, 34, #type (*void) -> HRESULT #c_call)(act); // IMFActivate::ShutdownObject
 		mf.release(act);
 	}
 	source: *void;
-	if mf.com(act, 33, #type (*void, *GUID, **void) -> HRESULT #c_call)(act, *mf.IID_IMFMediaSource, *source) < 0 return 0;
+	hr := mf.com(act, 33, #type (*void, *GUID, **void) -> HRESULT #c_call)(act, *mf.IID_IMFMediaSource, *source);
+	if hr < 0 { print("camera: opening device % of % failed (hr %)\n", pick, n, hr, to_standard_error = true); return 0; }
 	attrs: *void;
 	mf.MFCreateAttributes(*attrs, 2);
 	if attrs {
@@ -94,10 +113,10 @@ camera_thread :: (t: *Thread) -> s64 {
 		mf.set_u32(attrs, *mf.MF_LOW_LATENCY, 1);
 	}
 	reader: *void;
-	hr := mf.MFCreateSourceReaderFromMediaSource(source, attrs, *reader);
+	hr = mf.MFCreateSourceReaderFromMediaSource(source, attrs, *reader);
 	mf.release(attrs);
 	mf.release(source);
-	if hr < 0 return 0;
+	if hr < 0 { print("camera: source reader failed (hr %)\n", hr, to_standard_error = true); return 0; }
 	defer mf.release(reader);
 
 	STREAM :: mf.MF_SOURCE_READER_FIRST_VIDEO_STREAM;
@@ -127,7 +146,7 @@ camera_thread :: (t: *Thread) -> s64 {
 	out := mf.video_type(*mf.MFVideoFormat_NV12, w, h);
 	ok := out && set_type(reader, out);
 	mf.release(out);
-	if !ok return 0;
+	if !ok { print("camera: no NV12 output at %x%\n", w, h, to_standard_error = true); return 0; }
 
 	// The current output type: visible size, padded height and stride.
 	read_type :: (reader: *void) -> int, int, int, int {
@@ -142,8 +161,12 @@ camera_thread :: (t: *Thread) -> s64 {
 		idx, flags: u32;
 		ts: s64;
 		s: *void;
-		if mf.com(reader, 9, #type (*void, u32, u32, *u32, *u32, *s64, **void) -> HRESULT #c_call)(reader, STREAM, 0, *idx, *flags, *ts, *s) < 0 break;
-		if flags & (mf.MF_SOURCE_READERF_ERROR | mf.MF_SOURCE_READERF_ENDOFSTREAM) { mf.release(s); break; }
+		hr = mf.com(reader, 9, #type (*void, u32, u32, *u32, *u32, *s64, **void) -> HRESULT #c_call)(reader, STREAM, 0, *idx, *flags, *ts, *s);
+		if hr < 0 || flags & (mf.MF_SOURCE_READERF_ERROR | mf.MF_SOURCE_READERF_ENDOFSTREAM) {
+			print("camera: capture stopped (hr %, flags %)\n", hr, flags, to_standard_error = true);
+			mf.release(s);
+			break;
+		}
 		if flags & mf.MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED frame_w, frame_h, pad_h, stride = read_type(reader);
 		if !s continue;
 		f := mf.nv12_from_sample(s, frame_w, frame_h, pad_h, stride);
