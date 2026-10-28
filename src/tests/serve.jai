@@ -388,6 +388,25 @@ main :: () {
 	check(found("content=%22unbalanced") == 0, "search quotes typed text");
 	check(found("has=link") == 0, "search has");
 
+	// Leaving: the owner can't; Other's client loses the guild, their token dies, and only an invite
+	// brings them back.
+	status, body = rest("DELETE", tprint("/api/v9/users/@me/guilds/%", gid), "", token);
+	check(status == 400, tprint("the owner can't leave: % %", status, body));
+	cl3 = discord.client_create(.{token = other_token, hosted = .{host = "127.0.0.1", port = port, pin = pin, server_id = id}});
+	discord.client_start(cl3);
+	for 1..1000 { if cl3.store.ready break; discord.client_poll(cl3); sleep_milliseconds(10); }
+	discord.leave_guild(cl3, gid);
+	for 1..1000 { if !cl3.store.guild_order.count break; discord.client_poll(cl3); sleep_milliseconds(10); }
+	check(cl3.store.ready && !cl3.store.guild_order.count, "leaving deletes the guild on the member's gateway");
+	discord.client_destroy(cl3);
+	status, body = rest("GET", messages, "", other_token);
+	check(status == 401, tprint("a member who left loses their session: %", status));
+	status, body = login(other, "", "Other");
+	check(status == 404, tprint("a member who left needs an invite: % %", status, body));
+	other_token, ostatus, omessage = serve.member_login(member_invite, other, "Other");
+	status, body = rest("GET", messages, "", other_token);
+	check(other_token.count == 64 && status == 200, tprint("rejoin by invite: % % %", ostatus, omessage, status));
+
 	serve.stop(s);
 	print("% failed\n", failed);
 	exit(xx ifx failed then 1 else 0);

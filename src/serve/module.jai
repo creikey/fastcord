@@ -53,6 +53,7 @@ open :: (path: string) -> *Server, bool {
 	s.db = db;
 	if !sqlite.exec(db, SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
@@ -308,7 +309,7 @@ meta_put :: (s: *Server, k: string, v: string) -> bool { return meta_put(s, k, c
 // Users, channels and messages have Discord-shaped snowflake IDs, since the client reads times from them.
 SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER);
@@ -392,12 +393,13 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 		locks.guard(*s.db_mu);
 		if !sqlite.exec(s.db, "BEGIN IMMEDIATE;") return json_error(c, 500, 0, "500: Internal Server Error");
 		user: s64;
-		st := sqlite.prepare(s.db, "SELECT id FROM users WHERE root = ?;");
+		gone := false;
+		st := sqlite.prepare(s.db, "SELECT id, left FROM users WHERE root = ?;");
 		sqlite.bind(st, 1, cast([]u8) root);
-		if sqlite.step(st) == .Row user = sqlite.col_int(st, 0);
+		if sqlite.step(st) == .Row user, gone = sqlite.col_int(st, 0), sqlite.col_int(st, 1) != 0;
 		sqlite.finalize(st);
 		status, code, message := 0, 0, "";
-		if !user {
+		if !user || gone {
 			name := trim(field("name"));
 			owner := false;
 			st = sqlite.prepare(s.db, tprint("SELECT owner FROM invites WHERE code = ? AND %;", INVITE_LIVE));
@@ -408,6 +410,8 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 				status, code, message = 404, 10006, "Unknown Invite";
 			} else if !name || name.count > 32 {
 				status, code, message = 400, 50035, "Invalid Form Body";
+			} else if gone {
+				if !sqlite.run(s.db, "UPDATE users SET left = 0 WHERE id = ?;", user) user = 0;
 			} else {
 				user = snowflake(s);
 				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name) VALUES(?, ?, ?, ?);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
@@ -494,6 +498,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
 			if !create_channel(c, req) return;
+			continue;
+		}
+		if req.method == "DELETE" && req.path == tprint("/api/v9/users/@me/guilds/%", c.server.guild) {
+			if !leave(c, req) return;
 			continue;
 		}
 		if !json_error(c, 404, 0, "404: Not Found") return;
@@ -674,7 +682,7 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	while sqlite.step(st) == .Row array_add(*channels, row_channel(s, st));
 	sqlite.finalize(st);
 	members := 0;
-	st = sqlite.prepare(s.db, "SELECT count(*) FROM users;");
+	st = sqlite.prepare(s.db, "SELECT count(*) FROM users WHERE left = 0;");
 	if sqlite.step(st) == .Row members = sqlite.col_int(st, 0);
 	sqlite.finalize(st);
 
@@ -738,7 +746,7 @@ member_list_value :: (s: *Server) -> etf.Value {
 	on.allocator, off.allocator = temp, temp;
 	{
 		locks.guard(*s.db_mu);
-		st := sqlite.prepare(s.db, "SELECT id, name FROM users ORDER BY name COLLATE NOCASE, id;");
+		st := sqlite.prepare(s.db, "SELECT id, name FROM users WHERE left = 0 ORDER BY name COLLATE NOCASE, id;");
 		while sqlite.step(st) == .Row {
 			r := Row.{sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1),, temp)};
 			array_add(ifx array_find(online, r.id) then *on else *off, r);
@@ -916,11 +924,11 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			}
 			ok := sqlite.exec(s.db, "BEGIN;")
 				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone) VALUES(?, ?, ?, ?, ?, ?);", id, channel, user, content.s, reply, cast(int) everyone);
-			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ?;", id, it);
+			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			// Members who can't see the message yet count it as a mention until they read past it.
 			ok = ok && sqlite.run(s.db, #string SQL
 				INSERT INTO read_states(user, channel, last, mentions)
-				SELECT u.id, ?, 0, 1 FROM users u WHERE u.id != ? AND (? OR u.id IN (SELECT user FROM mentions WHERE message = ?))
+				SELECT u.id, ?, 0, 1 FROM users u WHERE u.left = 0 AND u.id != ? AND (? OR u.id IN (SELECT user FROM mentions WHERE message = ?))
 				ON CONFLICT(user, channel) DO UPDATE SET mentions = mentions + 1;
 			SQL, channel, user, cast(int) everyone, id) && sqlite.exec(s.db, "COMMIT;");
 			if !ok {
@@ -1021,6 +1029,41 @@ create_channel :: (c: *Conn, req: http.Request) -> bool {
 	}
 	broadcast(s, "CHANNEL_CREATE", ch);
 	return json_reply(c, 201, ch);
+}
+
+// DELETE /api/v9/users/@me/guilds/{id}: a member leaves. They stay in users so their messages keep an
+// author, but lose their sessions and gateways, and need an invite to come back. The owner can't leave.
+leave :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user := session_user(s, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) == user return json_error(c, 400, 50055, "Invalid Guild");
+		ok := sqlite.exec(s.db, "BEGIN;")
+			&& sqlite.run(s.db, "UPDATE users SET left = 1 WHERE id = ?;", user)
+			&& sqlite.run(s.db, "DELETE FROM sessions WHERE user = ?;", user)
+			&& sqlite.exec(s.db, "COMMIT;");
+		if !ok {
+			sqlite.exec(s.db, "ROLLBACK;");
+			return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+	}
+	g := etf.map_builder(1,, temp);
+	etf.map_put(*g, "id", snow(s.guild));
+	gone := etf.vmap(etf.map_done(*g));
+	{
+		// Unregistered, their gateways get no more events, and their next Identify fails without a session.
+		locks.guard(*s.mu);
+		for s.conns if it.ws && it.user == user {
+			dispatch(it, "GUILD_DELETE", gone);
+			it.ws = null;
+			it.user = 0;
+		}
+	}
+	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
+	return http.h1_write_response(c.s, 204, .[], .[]) == .None;
 }
 
 // PATCH /api/v9/channels/{id} {name?, topic?} and DELETE /api/v9/channels/{id}, for the owner. The last
