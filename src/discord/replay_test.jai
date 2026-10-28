@@ -826,6 +826,24 @@ r_type :: (c: *Client, channel: Snowflake, text: string) {
 //   video_layout_toggled: the official call view's layout state; fastcord's has no layouts.
 R_SCI_NEVER :: string.["science:dismissible_content_shown", "science:hotspot_hidden", "science:quest_hover", "science:experiment_", "science:premium_upsell_viewed", "science:impression_custom_themes", "science:voice_connection_", "science:audio_input_initialized", "science:media_session_joined", "science:start_speaking", "science:start_listening", "science:secure_frames_transition", "science:voice_codec_detected", "science:voice_disconnect", "science:leave_voice_channel", "science:video_layout_toggled"];
 
+// The FrecencyUserSettingsManager's startup run (READY + 10 ms-10 s, one random draw per
+// session) fell in the window after the session's lazy load: r_frecency_load before the mark,
+// r_frecency_run in the window. It writes the channel selects pending since the setup.
+r_frecency_load :: (run: *Replay_Run) {
+	frecency_load(run.c);
+	for 1..400 {
+		client_poll(run.c);
+		if run.c.store.frecency.loaded break;
+		sleep_milliseconds(5);
+	}
+	run.c.store.frecency.timer_at = 0;
+}
+
+r_frecency_run :: (run: *Replay_Run) {
+	f := *run.c.store.frecency;
+	f.timer_at, f.timer_startup = now_ms(), true;
+}
+
 // the official picker flow: menu "Add Reaction" -> picker -> search -> pick
 r_react_via_menu :: (run: *Replay_Run, msg: Snowflake, query: string, results: []int) {
 	c := run.c;
@@ -856,13 +874,59 @@ r_search :: (run: *Replay_Run, query: string, results: []int) {
 parity_send_message :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "send_message", R_GUILD, R_TEXT) { return; }
+	r_frecency_load(*run);
 	replay_mark(*run);
 	r_type(run.c, R_TEXT, "hello from the official client");
 	replay_pump(*run, 1700); // the typing timer fires while the text is typed
+	r_frecency_run(*run);
 	send_message(run.c, R_TEXT, "hello from the official client");
 	replay_dispatches(*run, "send_message", "MESSAGE_CREATE");
 	replay_settle(*run, 600);
-	replay_check(*run, "send_message", string.["settings-proto/2"]); // frecency write (not modelled)
+	replay_check(*run, "send_message");
+}
+
+// FrecencyUserSettings writes byte for byte: every fixture PATCH of settings-proto/2 is rebuilt
+// from the session's GET and the uses the official client had pending (the PATCH's totals over
+// the GET's, the newest of its recent uses).
+parity_frecency_proto :: (t: *T) {
+	push_allocator(temp);
+	checked := 0;
+	for scenario: string.["send_message", "add_custom_reaction", "add_reaction", "close_dm", "create_channel", "create_guild", "delete_message", "emoji_picker_add_emoji", "emoji_picker_reaction", "guild_notifications", "inbox", "invite_people", "join_leave_server", "join_voice_channel", "open_profile_popout", "remove_reaction", "reply", "scroll_history", "send_dm", "upload_custom_emoji", "voice_with_b"] for acct: string.["a", "b"] {
+		r: Replay;
+		if !replay_load(*r, scenario, acct) continue;
+		get_id: s64 = -1;
+		get := "";
+		for e: r.events {
+			k, url := fstr(e, "k"), fstr(e, "url");
+			if k == "req" && contains(url, "settings-proto/2") && fstr(e, "method") == "GET" get_id = fnum(e, "id");
+			if k == "resp" && fnum(e, "id") == get_id {
+				bv, _ := r_body_value(vget(e, "body"));
+				get = fstr(vmap(bv), "settings");
+			}
+			if k != "req" || !contains(url, "settings-proto/2") || fstr(e, "method") != "PATCH" || !get continue;
+			bv, _ := r_body_value(vget(e, "body"));
+			patch := fstr(vmap(bv), "settings");
+			olds := frecency_maps(frecency_settings_decode(get));
+			news := frecency_maps(frecency_settings_decode(patch));
+			f: Frecency_State;
+			for items, kind: news for items {
+				n := it.total_uses;
+				for o: olds[kind] if o.key == it.key n -= o.total_uses;
+				for i: it.recent_uses.count - n..it.recent_uses.count - 1 {
+					use := Frecency_Use.{xx kind, it.key, it.recent_uses[i]};
+					at := f.pending.count;
+					while at > 0 && f.pending[at - 1].at > use.at at -= 1;
+					array_insert_at(*f.pending, use, at);
+				}
+			}
+			now := peek(f.pending).at;
+			frecency_overwrite(*f, get, false, now);
+			got := base64_encode(cast(string) frecency_delta(*f, now));
+			expectf(t, got == patch, "%/%: PATCH at % differs\n  official: %\n  ours:     %", scenario, acct, fnum(e, "t"), patch, got);
+			checked += 1;
+		}
+	}
+	expectf(t, checked == 23, "% PATCHes checked", checked);
 }
 
 parity_add_reaction :: (t: *T) {
@@ -1349,27 +1413,32 @@ parity_switch_theme :: (t: *T) {
 parity_join_voice :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "join_voice_channel", R_GUILD, R_TEXT) { return; }
+	r_frecency_load(*run);
 	replay_mark(*run);
 	voice_join(run.c, R_GUILD, R_VOICE);
 	replay_settle(*run, 300);
 	client_set_rtc_state(run.c, .Rtc_Connected); // the app's voice connection (src/voice is not run offline)
+	r_frecency_run(*run); // writes the voice channel too (VOICE_CHANNEL_SELECT)
 	replay_settle(*run, 900);
-	// op 4 preferred_region(s) come from the live RTC probe; settings-proto/2: frecency write (not modelled)
+	// op 4 preferred_region(s) come from the live RTC probe
 	// science: the voice engine's events (permission prompt, RTC connection, codec,
 	// speaking) need src/voice connected, which the offline replay does not run;
 	// fastcord has no voice invite suggestions
-	replay_check(*run, "join_voice", string.["op 4", "settings-proto/2", ".client_rtc_state", "science:permissions_requested", "science:impression_voice_invite_suggestions"]);
+	replay_check(*run, "join_voice", string.["op 4", ".client_rtc_state", "science:permissions_requested", "science:impression_voice_invite_suggestions"]);
 }
 
 parity_close_dm :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "close_dm", 0, 0) { return; }
+	frecency_select(run.c, 0, R_DM); // the session opened on the DM
+	r_frecency_load(*run);
 	replay_mark(*run);
 	private_channel_menu_opened(run.c);
 	replay_settle(*run, 300);
 	close_private_channel(run.c, R_DM);
+	r_frecency_run(*run);
 	replay_settle(*run, 500);
-	replay_check(*run, "close_dm", string.["settings-proto/2"]);
+	replay_check(*run, "close_dm");
 }
 
 parity_create_guild :: (t: *T) {
@@ -1776,12 +1845,12 @@ parity_upload_options :: (t: *T) {
 	// is uploaded as a smaller lossless WebP, as the official client did (6302 -> 758)
 	expect_value(t, c.webp_variation, 1);
 	expect(t, sent > 0 && sent < png.count);
-	replay_check(*run, "stage_file", string.["settings-proto/2"], keep = true);
+	replay_check(*run, "stage_file", keep = true);
 
 	replay_mark(*run);
 	analytics_media_draft_edited(c, "spoilered", true);
 	replay_settle(*run, 300);
-	replay_check(*run, "spoiler_toggle", string.["settings-proto/2"], keep = true); // the frecency GET is periodic
+	replay_check(*run, "spoiler_toggle", string.["settings-proto/2"], keep = true); // the frecency lazy load (offline: never)
 
 	replay_mark(*run);
 	analytics_media_draft_edited(c, "has_alt_text", true);
@@ -1972,7 +2041,7 @@ parity_threads_browser :: (t: *T) {
 
 	// the official side view closes (the parent stayed the route); fastcord left the
 	// parent for the thread, so returning renders it again (integrations, see
-	// guild_channel_notice_check). settings-proto/2: the periodic frecency load.
+	// guild_channel_notice_check). settings-proto/2: the frecency lazy load.
 	replay_mark(*run);
 	select_channel(c, R_GUILD, R_TEXT2, 10);
 	replay_settle(*run, 400);
@@ -2179,11 +2248,13 @@ parity_create_channel :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "create_channel", R_GUILD, R_TEXT) { return; }
 	defer replay_end(*run);
-	// opening the modal: GET profile (settings-proto/2 is an unrelated frecency write)
+	// opening the modal: GET profile
+	r_frecency_load(*run);
 	replay_mark(*run);
 	open_create_channel(run.c, R_GUILD);
+	r_frecency_run(*run);
 	r_apply_features(*run, 300);
-	replay_compare(*run, "open_create_channel", string.["settings-proto/2"]);
+	replay_compare(*run, "open_create_channel");
 	// Create Channel: POST -> 201, templates; the app opens the new channel
 	replay_mark(*run);
 	create_channel(run.c, R_GUILD, .Guild_Text, "fc-temp", R_TEXT_CATEGORY);
@@ -2489,7 +2560,7 @@ parity_dm_call :: (t: *T) {
 	client_set_rtc_state(run2.c, .Rtc_Connected);
 	replay_settle(*run2, 1500);
 	expect_value(t, incoming_call(run2.c), cast(Snowflake) 0);
-	replay_check(*run2, "b_join_from_ring", string.["op 4", "settings-proto/2"]);
+	replay_check(*run2, "b_join_from_ring", string.["op 4"]);
 	run3: Replay_Run;
 	if !replay_begin(*run3, t, "dm_call", 0, R_DM) { return; }
 	replay_pump(*run3, 1500);

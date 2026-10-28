@@ -46,7 +46,7 @@ Inbox_Tab :: enum u8 {
 	Unreads :: 2;
 }
 
-#scope_file
+#scope_module
 
 pb_new :: () -> protobuf.Writer {
 	w: protobuf.Writer;
@@ -309,6 +309,7 @@ flush_settings :: (c: *Client, now: s64) {
 		l := discord_locale(c.store.settings.locale);
 		if l != c.id.platform.locale identity_set_locale(*c.id, l);
 	}
+	frecency_tick(c, now); // settings-proto/2 (expressions.jai)
 	e := *c.settings_edit;
 	if e.due == 0 || now < e.due return;
 	delta := settings_delta_proto(e);

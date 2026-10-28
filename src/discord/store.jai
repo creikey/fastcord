@@ -28,6 +28,7 @@ Store :: struct {
 	member_lists: Table(Snowflake, Member_List); // guild -> member sidebar
 	sessions: [..]Session_Info;
 	settings: User_Settings;
+	frecency: Frecency_State; // FrecencyUserSettings (settings-proto/2) uses and writes, expressions.jai
 	voice_server: Voice_Server;
 	streams: [..]Go_Live_Stream;
 	resume_gateway_url: string;
@@ -1516,6 +1517,7 @@ store_reset_session :: (s: *Store) {
 store_destroy :: (s: *Store) {
 	push_allocator(s.allocator);
 	store_reset_session(s);
+	frecency_free(s);
 	deinit(*s.reaction_echoes);
 	extras_destroy();
 	a := s.allocator;

@@ -80,7 +80,6 @@ STARTUP_REQUESTS :: Startup_Entry.[
 	.{.Ready, 2063, .Api_Get, "", "/promotions?locale={locale}&platform=0", "", .Same_Origin, "", (Route_Kind.Home | Route_Kind.Private), 0, "guild route: part of the guild-open set"},
 	.{.Ready, 2063, .Api_Get, "", "/users/@me/saved-messages?bookmark_ids=true", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
 	.{.Ready, 2063, .Api_Get, "", "/partner-sdk/storefront-config", "", .Same_Origin, "", ALL_ROUTES, 0, ""},
-	.{.Ready, 5130, .Api_Get, "", "/users/@me/settings-proto/2", "", .Same_Origin, "", (Route_Kind.Guild), 0, "FrecencyUserSettings lazy load (fixtures: mode READY +4.9-5.2 s, later after UI use)"},
 	.{.Launch, 7577, .Api_Get, "", "/quests/get-decisions?placement=3&num_decisions_requested=1&client_heartbeat_session_id={hb}&client_ad_session_id={ad}", "", .Same_Origin, "{\"connection_type\":\"unknown\"}", ALL_ROUTES, 0, "ads decision"},
 	.{.Launch, 16571, .Web_Get, "cdn.discordapp.com", "/bad-domains/current_revision.txt", "", .Cross_Site, "", ALL_ROUTES, 0, "from coldstart_a/b (outside fixture windows)"}
 ];

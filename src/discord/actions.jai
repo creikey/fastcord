@@ -47,6 +47,7 @@ select_channel :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, messa
 		analytics_channel_opened(c, guild_id, channel_id, location = source);
 	}
 	if guild_id && guild_id != prev_guild analytics_guild_viewed(c, guild_id, channel_id);
+	frecency_select(c, guild_id, channel_id); // CHANNEL_SELECT
 }
 
 // initial_message_limit reproduces the client's page size for a channel open:
@@ -1044,6 +1045,7 @@ voice_server_info :: (c: *Client) -> Voice_Server_Info, u64, bool {
 // track = false: the caller sends join_voice_channel itself, after its own events (DM calls).
 voice_join :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, self_mute := false, self_deaf := false, track := true) {
 	voice_update(c, guild_id, channel_id, self_mute, self_deaf);
+	frecency_select(c, guild_id, channel_id); // VOICE_CHANNEL_SELECT
 	// the voice channel's text view opens with the call
 	analytics_channel_opened(c, guild_id, channel_id, selected_guild = false);
 	if track analytics_join_voice(c, guild_id, channel_id);
@@ -1101,7 +1103,10 @@ voice_followed :: (c: *Client, call: Snowflake, seen: *Snowflake) -> Snowflake {
 	return now_in;
 }
 
-voice_leave :: (c: *Client) { voice_update(c, 0, 0, c.cfg.voice_self_mute, false); }
+voice_leave :: (c: *Client) {
+	voice_update(c, 0, 0, c.cfg.voice_self_mute, false);
+	frecency_select(c, 0, 0); // VOICE_CHANNEL_SELECT
+}
 
 // voice_set_state: op 4 in the current channel without the join side effects
 // (mute / deafen / camera toggles).

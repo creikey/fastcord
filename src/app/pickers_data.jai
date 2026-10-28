@@ -153,6 +153,8 @@ frec_use :: (m: *Table(string, Frec_Entry), key: string) {
 	e.total += 1;
 	array_add(*e.recent, dc.now_ms());
 	if e.recent.count > FRECENCY_MAX_RECENT array_ordered_remove_by_index(*e.recent, 0);
+	// the library's copy is what the server gets (settings-proto/2)
+	if app.client != null dc.frecency_use(app.client, ifx m == *frecency.reaction then .Reaction else ifx m == *frecency.sticker then .Sticker else .Emoji, key);
 	frecency.dirty = true;
 	frecency_save();
 }
