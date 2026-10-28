@@ -201,7 +201,7 @@
     <div class="lanes"><svg id="plane" viewBox="0 0 1000 150" role="img" aria-label="Request timeline of both clients"></svg>
       <div class="tip" id="ptip">Hover a dot to see the request.</div></div>
     <div class="legend"><span><i style="background:var(--brand-hi)"></i>REST request</span><span><i style="background:#e8a33d"></i>Gateway message</span><span><i style="background:#3db8a6"></i>Telemetry event</span><span><i style="border:1.5px solid var(--brand-hi)"></i>Fastcord sent it earlier in the session</span><span><i style="border:1.5px solid var(--muted)"></i>Only in one client</span></div>
-    <p class="fine">Each official recording starts right after a fresh launch; Fastcord ran every scenario in one 14-minute session, as a person would, so one-time loads (command lists, emoji data) show up earlier for it. Fastcord leaves out telemetry it can't measure truthfully (quest, upsell and experiment events), shown faint. Every action is also replayed offline against the official recording from the same starting state, request by request and header by header.</p>
+    <p class="fine">Every scenario, from the last full session (32 scenarios, October 27, 2026, before the fixes shown above). Each official recording starts right after a fresh launch; Fastcord ran every scenario in one 14-minute session, as a person would, so one-time loads (command lists, emoji data) show up earlier for it. Events shown faint are ones Fastcord did not send in that session. Every action is also replayed offline against the official recording from the same starting state, request by request and header by header.</p>
   </section>
 
   <p class="note">Windows: unzip and run <b>Fastcord.exe</b>. It isn't code-signed yet, so SmartScreen may warn the first time: click <b>More info → Run anyway</b>.</p>
@@ -232,8 +232,8 @@
       const t = ([i, j]) => Math.min(i < 0 ? 1e9 : s.o[i].t, j < 0 ? 1e9 : s.f[j].t);
       return out.sort((a, b) => t(a) - t(b)).map(p => ({p, t: t(p)}));
     };
-    const verdict = (a, b) => {
-      if (!a || !b) return {ok: false, txt: a ? "Only the official client sent this" : "Only Fastcord sent this"};
+    const verdict = (a, b, w) => {
+      if (!a || !b) return {ok: false, txt: (a ? "Only the official client sent this" : "Only Fastcord sent this") + (w ? ". " + w[1] : "")};
       const bits = [];
       if (a.k === 0) bits.push(a.p === b.p ? a.p.toUpperCase() : `${a.p} vs ${b.p}`, same(a.h, b.h) ? `${a.h.length} headers, same order` : "header order differs");
       if (a.d.length || b.d.length) bits.push(same(a.d, b.d) ? `${a.d.length} fields, same order` : "fields differ");
@@ -241,7 +241,7 @@
     };
     const detail = (s, [i, j], row) => {
       for (const r of rows.children) r.classList.toggle("sel", r === row);
-      const a = s.o[i], b = s.f[j], v = verdict(a, b), e = a || b;
+      const a = s.o[i], b = s.f[j], v = verdict(a, b, (s.wo || {})[i] || (s.wf || {})[j]), e = a || b;
       const list = (x, y) => {
         const n = Math.max(x.length, y.length); let h = "";
         for (let k = 0; k < n; k++) h += `<div class="${x[k] !== y[k] ? "x" : ""}">${esc(x[k] || "")}</div><div class="${x[k] !== y[k] ? "x" : ""}">${esc(y[k] || "")}</div>`;
@@ -264,9 +264,9 @@
         const t = (now - t0) / SLOW - 300;  // a short beat before the action starts
         clock.textContent = (t < 0 ? "−" : "+") + (Math.abs(t) / 1000).toFixed(3) + " s";
         while (next < ps.length && ps[next].t <= t) {
-          const {p: [i, j]} = ps[next++], a = s.o[i], b = s.f[j], v = verdict(a, b), row = document.createElement("div");
+          const {p: [i, j]} = ps[next++], a = s.o[i], b = s.f[j], w = (s.wo || {})[i] || (s.wf || {})[j], v = verdict(a, b, w), row = document.createElement("div");
           row.className = "row";
-          const pk = (e, side) => e ? `<div class="pkt k${e.k} ${side}" title="${esc(label(e))}">${esc(label(e))}<br><small>+${e.t} ms${e.k === 0 ? " · " + e.p : ""}</small></div>` : `<div class="pkt none ${side}">—</div>`;
+          const pk = (e, side) => e ? `<div class="pkt k${e.k} ${side}" title="${esc(label(e))}">${esc(label(e))}<br><small>+${e.t} ms${e.k === 0 ? " · " + e.p : ""}</small></div>` : `<div class="pkt none ${side}" title="${w ? esc(w[1]) : ""}">${w ? esc(w[0]) : "—"}</div>`;
           row.innerHTML = pk(a, "l") + `<div class="eq ${v.ok ? "" : "ne"}" title="${esc(v.txt)}">${v.ok ? "=" : a && b ? "≈" : "·"}</div>` + pk(b, "r");
           row.onclick = () => detail(s, [i, j], row);
           rows.append(row); rows.scrollTop = rows.scrollHeight;
