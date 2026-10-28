@@ -1266,9 +1266,16 @@ message_body :: (m: *dc.Message) {
 		if m.failed color = T("--text-feedback-critical");
 		if blk.kind == {
 		case .Code_Block;
-			cb := ui.box(tprint("code%", bi), .Draw_Background | .Draw_Border | .Draw_Text | .Selectable_Text | .Wrap_Text);
+			if blk.quoted {
+				wrap := row(tprint("blk%", bi));
+				wrap.semantic_size = .[ui.pct(1), ui.children()];
+				wrap.custom_draw = quote_bar_draw;
+				ui.parent(wrap);
+				spacer(.X, 16);
+			}
+			cb :=ui.box(tprint("code%", bi), .Draw_Background | .Draw_Border | .Draw_Text | .Selectable_Text | .Wrap_Text);
 			ui.set_spans(cb, code_spans(blk.code, blk.lang, F(.Mono), 14));
-			cb.semantic_size = .[ui.pct(1), ui.text_size()];
+			cb.semantic_size = .[ifx blk.quoted then ui.fill() else ui.pct(1), ui.text_size()];
 			cb.style.bg = T("--background-base-lowest");
 			cb.style.border_color = T("--border-subtle");
 			cb.style.border = 1;
@@ -1279,6 +1286,7 @@ message_body :: (m: *dc.Message) {
 			cb.style.padding = .{8, 8};
 			cb.style.text_color = T("--text-code");
 			cb.sel_order = m.id * 8 + 2 + cast(u64) bi % 4;
+			if blk.quoted ui.pop_parent();
 		case .Paragraph; #through; case .Quote; #through; case .Heading1; #through; case .Heading2; #through; case .Heading3; #through; case .Subtext; #through; case .List_Item;
 			size: float32 = MSG_FONT;
 			font := Font_Id.Normal;
@@ -1300,12 +1308,12 @@ message_body :: (m: *dc.Message) {
 			wrap.cross_align = .Start;
 			b: *ui.Box;
 			{ ui.parent(wrap); defer ui.pop_parent();
-				if blk.kind == {
-				case .Quote;
+				if blk.quoted {
 					// the bar spans the whole (wrapped, multi-line) quote: drawn over the row's rect
 					wrap.custom_draw = quote_bar_draw;
 					spacer(.X, 16);
-				case .List_Item;
+				}
+				if blk.kind == .List_Item {
 					spacer(.X, 6 + cast(float32) blk.depth * 20);
 					marker := ifx blk.number then tprint("%.", blk.number) else ifx blk.depth == 0 then "•" else "◦";
 					label(marker, .Normal, size, color, line_h);

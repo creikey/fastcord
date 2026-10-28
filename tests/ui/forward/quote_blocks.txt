@@ -1,0 +1,7 @@
+# Headings, lists and code blocks inside a "> " quote render as such, all behind the quote bar.
+wait 10
+key pageup
+key pageup
+wait 30
+expect_visible "Quoted heading"
+shot build/ui-quote_blocks.png

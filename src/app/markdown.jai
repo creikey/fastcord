@@ -49,10 +49,12 @@ Md_Block :: struct {
 	code: string; // code block body
 	depth: int; // list nesting
 	number: int; // ordered list item's number; 0 = bullet
+	quoted: bool; // inside a "> " / ">>> " quote (its paragraphs are .Quote)
 }
 
-// Parses into temp.
-md_parse :: (src: string) -> []Md_Block {
+// Parses into temp. A quote's body is parsed again with quoted set, as the client's blockQuote rule
+// does: headings, lists and code blocks work inside, nested quotes don't.
+md_parse :: (src: string, quoted := false) -> []Md_Block {
 	push_allocator(temp);
 	blocks: [..]Md_Block;
 	array_reserve(*blocks, 4);
@@ -68,6 +70,17 @@ md_parse :: (src: string) -> []Md_Block {
 	add :: (kind: Block_Kind, text: string, depth := 0) #expand {
 		flush();
 		array_add(*`blocks, .{kind = kind, tokens = md_inline(text), depth = depth});
+	}
+	add_quote :: (text: string) #expand {
+		flush();
+		inner := md_parse(text, quoted = true);
+		if !inner array_add(*`blocks, .{kind = .Quote, quoted = true});
+		for inner {
+			b := it;
+			if b.kind == .Paragraph b.kind = .Quote;
+			b.quoted = true;
+			array_add(*`blocks, b);
+		}
 	}
 	rest := src;
 	while rest {
@@ -97,11 +110,11 @@ md_parse :: (src: string) -> []Md_Block {
 		nl := find_index_from_left(rest, #char "\n");
 		line := ifx nl < 0 then rest else span(rest, 0, nl);
 		next := ifx nl < 0 then "" else span(rest, nl + 1, rest.count);
-		if begins_with(line, ">>> ") {
+		if !quoted && begins_with(line, ">>> ") {
 			// quotes the rest of the message
-			add(.Quote, trim_right(span(rest, 4, rest.count), "\n"));
+			add_quote(trim_right(span(rest, 4, rest.count), "\n"));
 			break;
-		} else if is_quote_line(line) {
+		} else if !quoted && is_quote_line(line) {
 			// consecutive "> " lines are one blockquote (one bar), as in the client
 			sb: String_Builder;
 			while true {
@@ -116,7 +129,7 @@ md_parse :: (src: string) -> []Md_Block {
 				next = ifx nl < 0 then "" else span(next, nl + 1, next.count);
 				append(*sb, "\n");
 			}
-			add(.Quote, builder_to_string(*sb));
+			add_quote(builder_to_string(*sb));
 		} else if begins_with(line, "### ") {
 			add(.Heading3, span(line, 4, line.count));
 		} else if begins_with(line, "## ") {

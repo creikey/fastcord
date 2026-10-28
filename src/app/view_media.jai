@@ -426,7 +426,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						wrap.semantic_size = .[ui.pct(1), ui.children()];
 						wrap.cross_align = .Start;
 						{ ui.parent(wrap); defer ui.pop_parent();
-							if blk.kind == .Quote {
+							if blk.quoted {
 								wrap.custom_draw = quote_bar_draw;
 								spacer(.X, 12);
 							}
