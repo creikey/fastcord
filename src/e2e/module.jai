@@ -209,7 +209,7 @@ run_request :: (d: *Db, r: *Request) {
 			if !ok || r.peer == 0 || r.me_user == 0 { r.result = .Failed; return; }
 			p: Packet;
 			s: Session;
-			s, ok = accept(r.me, hello, .{r.channel, r.me_user, r.peer}, .[xx Content.Accept], *p);
+			s, ok = accept(r.me, hello, .{r.channel, r.me_user, r.peer}, pad(.Accept, "", INIT_PLAINTEXT), *p);
 			defer crypto.zero(*s);
 			if !ok { r.result = .Failed; return; }
 			r.packet = encode_text(bytes(*p),, context.default_allocator);
@@ -225,9 +225,8 @@ run_request :: (d: *Db, r: *Request) {
 			if !found { r.result = .No_Session; return; }
 			p: Packet;
 			p.count = 0;
-			pt := NewArray(r.text.count + 1, u8,, temp);
-			pt[0] = xx Content.Text;
-			memcpy(pt.data + 1, r.text.data, r.text.count);
+			pt := pad(.Text, r.text);
+			defer crypto.zero(pt);
 			head: [2]u8 = .[VERSION, xx Kind.Msg];
 			memcpy(p.data.data, head.data, 2);
 			memcpy(p.data.data + 2, s.id.data, 16);
@@ -274,7 +273,7 @@ receive :: (d: *Db, r: *Request) {
 		first := cast(u64) sqlite.col_int(st, 0);
 		b := sqlite.col_blob(st, 1);
 		pt := NewArray(max(b.count - SEAL_BYTES, 0), u8,, temp);
-		ok := unseal(d, ad("plaintexts", hash), b, pt) && take_plaintext(r, pt);
+		ok := unseal(d, ad("plaintexts", hash), b, pt) && take_plaintext(r, pt, stored = true);
 		crypto.zero(pt);
 		sqlite.finalize(st);
 		if !ok { r.result = .Failed; return; }
@@ -378,9 +377,12 @@ receive :: (d: *Db, r: *Request) {
 	}
 }
 
-// take_plaintext splits off the Content byte. Text must be UTF-8, since it goes to the markdown parser.
-take_plaintext :: (r: *Request, pt: []u8) -> bool {
-	if pt.count < 1 || pt[0] > xx Content.Accept return false;
+// take_plaintext splits off the Content byte, and the padding of one just decrypted. Text must be UTF-8,
+// since it goes to the markdown parser.
+take_plaintext :: (r: *Request, padded: []u8, stored := false) -> bool {
+	pt, ok := padded, true;
+	if !stored pt, ok = unpad(padded);
+	if !ok || pt.count < 1 || pt[0] > xx Content.Accept return false;
 	r.content = xx pt[0];
 	text := to_string(pt.data + 1, pt.count - 1);
 	if !valid_utf8(text) || (r.content == .Accept && text.count) return false;

@@ -13,7 +13,7 @@
 // hello_id is BLAKE3 of the whole Hello packet; a session's ID is BLAKE3 of the Init up to its header.
 // Prekeys are unsigned until E2E 5: this stops Discord reading DMs, not swapping keys in the first one.
 
-VERSION :: 2;
+VERSION :: 3;
 MAX_PACKET :: 1497; // 1996 base64url characters, so "fc-" + packet fits one 2000-character message.
 PREFIX :: "fc-";
 
@@ -27,7 +27,31 @@ TAG_BYTES :: 16;
 HELLO_BYTES :: 2 + 32 + 32 + 64 + 32 + crypto.MLKEM768_PUBLIC_BYTES;
 INIT_PREFIX_BYTES :: 2 + 32 + 32 + 32 + 64 + 32 + crypto.MLKEM768_CIPHERTEXT_BYTES;
 MSG_PREFIX_BYTES :: 2 + 16;
-MAX_TEXT_BYTES :: MAX_PACKET - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES - 1; // 1 for the Content byte.
+MAX_PLAINTEXT :: MAX_PACKET - MSG_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES;
+MAX_TEXT_BYTES :: MAX_PLAINTEXT - 2; // The Content byte and the padding's 0x80.
+INIT_PLAINTEXT :: MAX_PACKET - INIT_PREFIX_BYTES - HEADER_BYTES - TAG_BYTES;
+
+// A ratchet plaintext is the Content byte, the text, then ISO/IEC 7816-4 padding (0x80, then zeros) up to
+// a multiple of PAD_BLOCK, as Signal pads: Discord sees a message's length to the block, not the byte.
+PAD_BLOCK :: 160;
+
+pad :: (content: Content, text: string, limit := MAX_PLAINTEXT) -> []u8 {
+	n := min(limit, (text.count + 2 + PAD_BLOCK - 1) / PAD_BLOCK * PAD_BLOCK);
+	assert(text.count + 2 <= n);
+	pt := NewArray(n, u8,, temp);
+	pt[0] = xx content;
+	memcpy(pt.data + 1, text.data, text.count);
+	pt[text.count + 1] = 0x80;
+	return pt;
+}
+
+// unpad returns the Content byte and text, or false when the padding is malformed.
+unpad :: (pt: []u8) -> []u8, bool {
+	n := pt.count;
+	while n > 0 && pt[n - 1] == 0 n -= 1;
+	if n < 2 || pt[n - 1] != 0x80 return .[], false;
+	return array_view(pt, 0, n - 1), true;
+}
 
 // Double Ratchet, Signal spec section 3.5: the most message keys one message may skip over.
 MAX_SKIP :: 1000;

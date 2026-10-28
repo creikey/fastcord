@@ -182,6 +182,21 @@ conversation :: (dir: string) {
 	check(long.result == .Too_Long, "text over the packet limit refused");
 	full := ask(*a, .Send, repeat("x", e2e.MAX_TEXT_BYTES));
 	check(full.result == .Ok && full.packet.count <= 2000, "longest text fits one message");
+	short1 := ask(*a, .Send, "ok");
+	short2 := ask(*a, .Send, repeat("y", e2e.PAD_BLOCK - 2));
+	block2 := ask(*a, .Send, repeat("y", e2e.PAD_BLOCK - 1));
+	check(short1.packet.count == short2.packet.count && block2.packet.count > short2.packet.count, "lengths are padded to the block");
+	for string.["", "\x80\x00", "x\x00\x00", "x\x80y"] {
+		_, ok := e2e.unpad(cast([]u8) it);
+		check(!ok, tprint("bad padding % refused", it_index));
+	}
+	sent := (*e2e.Request).[short1, short2, block2];
+	lengths := int.[2, e2e.PAD_BLOCK - 2, e2e.PAD_BLOCK - 1];
+	for sent {
+		got := ask(*b, .Receive, it.packet, a.user, next_message);
+		check(got.result == .Ok && got.out_text.count == lengths[it_index], "padded text opens");
+		next_message += 1;
+	}
 
 	// The carrier: each packet is dropped, duplicated as another message, held back, forged or delivered.
 	pending: [..]Delivery;
