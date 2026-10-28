@@ -1,160 +1,6 @@
 # TODO
 
 - [ ] MOST URGENT: act on press. Buttons, rows, tabs and menu items fire on mouse release (`sig.clicked` in `ui/core.jai`, about 250 uses in `src/app`); fire them on mouse-down instead, to cut a click's latency. Keep release only where a press can turn into a drag (text selection, drag reorder, scrollbars, resize handles) or where cancelling by sliding off matters (destructive actions).
-- [ ] When soundboard support is added, add a toggle that makes soundboards play through your call's mic instead of through discord's separate soundboard channel
-- [ ] Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
-- [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
-- [ ] Bug: the composer stops taking typing in every channel after you start an edit (pencil or Up), then switch channel or the message is deleted. `ma.editing` gates `input_focused` (`view_chat.jai`) and is only cleared inside `edit_box`, which draws only while that row is on screen; `go_to` and MESSAGE_DELETE never clear it.
-- [ ] Bug (Windows): files that already exist are never rewritten, so the rotated token, cookies, etags, identity, media cache and alt-svc data go stale. After a username change in fastcord, the next launch can land on the login screen. `write_file_atomic` (`cookies.jai`) moves a `.tmp` over the file with Jai's `file_move` (`MoveFileW`), which fails if the destination exists, and leaves the `.tmp` behind. Use `MoveFileExW(..., MOVEFILE_REPLACE_EXISTING)`; `settings_store.jai` already works around it.
-- [ ] Bug: after sleep or an outage over 3 minutes, the client re-identifies (a fresh READY) and shows stale state. That's also the path after an op 9 with d=false or 5 failed resumes (`gateway.jai`). Loaded channels keep a silent gap of missed messages, edits, deletes and reactions. Servers you left or were removed from, removed friends, offline friends shown online, and ghost voice occupants all stay. `apply_ready` merges additively, and channels refetch only when `!l.loaded`.
-- [ ] Bug: after a re-identify, typing indicators, threads and activities stop for every server visited earlier, and the member sidebar freezes. `subscribe_guild` skips servers already in `c.subs.guilds`, and the member list resubscribes only when empty (`actions.jai`, `view_home.jai`).
-- [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
-- [ ] Bug: re-identifying drops you from voice (op 4 with a null channel after every READY), and if your own voice state is gone the panel stays on "RTC Connecting". A sleep over 60 s also ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
-- [ ] Bug: after sleep or a Wi-Fi change, REST can hang for tens of seconds to minutes, and quitting can hang the same way. HTTP/2 streams have no timeout (`transport.jai` `set_timeout(stream, 0)`), the preface PING is never checked and there's no keepalive. All 16 workers can block on the dead connection, `.Io` errors aren't retried, and `client_destroy` joins workers before closing the transport with no timeout. An uncapped 429 `Retry-After` also sleeps the worker and blocks quit (`rest.jai`).
-- [ ] Bug: quitting loses work. Pending acks (3 s delay) and queued jobs are freed unsent (`client.jai` `client_destroy`). `flush_settings` (10 s delay) never runs at quit, so status, custom status, theme and folder edits are lost. Windows shutdown, logoff and restart skip `app_exit` entirely (no `WM_QUERYENDSESSION` / `WM_ENDSESSION`), so your voice state lingers on Discord for minutes.
-- [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
-- [ ] Check: a REST 401 (token revoked, password changed) seems handled nowhere while the gateway stays up, so the UI keeps failing with toasts instead of returning to login. Confirm by revoking the token from another session.
-- [ ] Check (account risk): a member list that stays empty may send op 37 every frame (`view_home.jai` resubscribes while `items.count == 0`), which could exceed the gateway's 120 events per minute and get the connection closed. Count op 37 frames on a channel whose list comes back empty.
-- [ ] Check: voice may reconnect without limit after close codes like 4006, 4011 or 4015 (`view_voice.jai` retries with nothing bounding it).
-- [ ] Bug: scrolled up reading history, every new message, embed or reaction below pushes the text you're reading upward; `scroll_from_bottom` stays fixed while content grows below (`view_chat.jai`). Anchor to the row under the viewport instead.
-- [ ] Bug: an image, emoji, video, audio clip or sound that fails to load once (offline, sleep, 429, 5xx) stays broken until restart. `.Failed` is permanent in `images.jai`, `view_media.jai`, `emoji.jai` and `sounds.jai`, with no retry in `discord/media.jai`.
-- [ ] Bug: memory and disk grow without limit over a long session. Textures are never freed (`Remote_Image.last_use` is written but never read; one texture per GIF frame). Played videos and audio keep their bytes and decoders (`blobs`, `players` in `view_media.jai`). Every MESSAGE_CREATE is stored, even for channels never opened, and message lists are never trimmed. The disk cache (`<state>/cache`) has no size limit. `message_list` also does a hash lookup per loaded message per frame, so frames slow down as the session goes on.
-- [ ] Bug: message times are an hour off across a DST change. The UTC offset is read once at startup (`app_main.jai`) and applied to every date, so older history, midnight day dividers, and a session spanning the change are wrong.
-- [ ] Bug: when the open channel is deleted elsewhere, or you're kicked or banned from the open server, the view falls back to the Friends page with an empty sidebar (`app.view` keeps the dead ids; only your own leave/delete navigates away).
-- [ ] Bug: a message whose send failed gets a duplicate when the server's echo arrives late; the failure clears `pending` and `upsert_message` matches the nonce only on pending messages (`store.jai`).
-- [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
-- [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
-- [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
-- [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
-- [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.
-- [ ] Undo: Mark As Read (server menu, Shift+Escape, Inbox "Mark All as Read", Inbox row check, the new-messages bar, threads) should restore the previous read states on undo, using the Mark Unread ack; Inbox mention "x" should hold its DELETE.
-- [ ] Undo: relationships: Remove Friend, Unblock, Block, Ignore or cancel a friend request, all sent at once today with no confirm except Block.
-- [ ] Undo: closing a DM and leaving a group DM (the row's "x" leaves a group DM with no confirm at all, `view_home.jai`).
-- [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
-- [ ] Undo: the trash on a staged upload deletes the uploaded file at once; keep the card restorable and hold the remote delete.
-- [ ] Undo: dragging the last server out of a rail folder deletes the folder with its name and colour; let undo restore it.
-- [ ] Undo: one-click toggles that lose state: Unmute (drops a timed mute's end), notification-level radios, and event "Interested".
-- [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
-- [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
-- [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
-- [ ] No lost typing: closing a dialog keeps what was typed until it's submitted. Covers Create Event, New Thread, Create Channel, the Group DM picker, Modify Attachment, account edit and friend nickname; restore it on reopen. Profile and Channel Settings "Reset" become undoable.
-- [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
-- [ ] Accounts: support full account switching; today it assumes a single token.
-- [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
-- [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
-- [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
-- [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
-- [ ] GIFs (fastcord-only): search Tenor as well as Klipy and merge the results. Discord's `/gifs/search` now returns Klipy only (`expressions.jai` `gifs_search` sends no provider). Either query Tenor's own API directly (needs an API key; check it's still offered), or add `provider=tenor` to Discord's endpoint if it still honours it. That second route makes fastcord's traffic differ from the official client's, so prefer the direct one. Sent Tenor links already embed fine.
-- [ ] GIFs: test search live against the official client: results and their order for the same queries, typing and debounce feel, suggestions, empty and error states, and scrolling a long result list. Fix whatever falls short.
-- [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
-- [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
-- [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
-- [ ] Messages: "Forward" in the message menu; forwards are only displayed.
-- [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
-- [ ] Polls: render poll messages and let the user vote; today they show nothing.
-- [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
-- [ ] Links: message links (`discord.com/channels/<g>/<c>/<m>`, also `ptb.` / `canary.` / `discordapp.com`) open in the browser instead of jumping to the message in fastcord (`view_chat.jai`: only invites are handled in-app).
-- [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
-- [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
-- [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
-- [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
-- [ ] Video: fastcord's own real camera (AVFoundation) and screen capture (ScreenCaptureKit) are untested live; the live tests used the synthetic pattern.
-- [ ] Go Live viewer (fastcord-only): zoom and pan into a stream, with the zoomed view filling the viewer's own shape, not the stream's. Zoomed into a 21:9 ultrawide stream in a 16:9 viewer, you see a 16:9 slice of it with no bars, not a 21:9 crop. Scroll to zoom at the cursor, drag to pan, double-click or Escape to reset. Clamp panning to the frame; letterbox only when zoomed out to fit. Today streams are only "contain"-fitted (`view_call.jai`).
-- [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
-- [ ] Video: a dev build started from an app without a camera usage description (e.g. an IDE's terminal) is killed by macOS on the first AVFoundation call; check the authorization status first and say why the camera can't start.
-- [ ] Video: Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
-- [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
-- [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
-- [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
-- [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
-- [ ] Video: VP8 / AV1 calls show no video (only H.264 / H.265 are decoded and sent); no NACK / RTX retransmission or bandwidth estimation (fixed bitrates).
-- [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
-- [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
-- [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
-- [ ] Composer: no spellcheck (red underline and suggestions on right-click).
-- [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
-- [ ] Lotus Mode (fastcord-only): one setting that silences every notification sound and hides all notification badges and the white unread dots beside channels and servers, so the client never grabs attention.
-- [ ] Connection: when the gateway drops, nothing shows it; the app silently goes stale while `gateway.jai` reconnects (no UI reads `Gw_State`). Show the official client's "Connecting..." / offline state.
-- [ ] Free emoji (fastcord-only, like Vencord's FakeNitro): let a non-Nitro user send any emoji, including the picker's locked ones (`pickers_emoji.jai`), from any server. Send it as a masked CDN link (`[name](https://cdn.discordapp.com/emojis/<id>.webp?size=48&name=<name>)`, `.gif`/`animated=true` when animated), so official clients show the image. Copy the exact format from Vencord's `src/plugins/fakeNitro` so Vencord users see real emoji. On receipt, draw those links as inline emoji (the official client shows a link and an image embed), so FakeNitro and fastcord messages look native. Real emoji stay real when the user can use them.
-- [ ] Replies: clicking the quoted original message should jump to it.
-- [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
-- [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
-- [ ] Chat: welcome messages aren't shown properly.
-- [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
-- [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
-- [ ] Search: clicking the search bar again while results are open crashes.
-- [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Reuse that menu so Shift-clicking Delete Message skips the confirm prompt there too, as it already does in chat. Pins likely have the same gap.
-- [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
-- [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
-- [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
-- [ ] CI: slim the Jai zip on the Fly server (drop `modules/Bindings_Generator`, ~360 MB of libclang) so each run downloads less.
-- [ ] Crash reporter: add one, modelled on Happenlance's subprocess crash reporter (`C:\Work\Happenlance\Happenlance\src\crash_handler.cpp`, Phillip's machine only).
-- [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
-- [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
-- [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
-- [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
-- [ ] Markdown: numbered lists `1. item` aren't parsed (`markdown.jai`).
-- [ ] Markdown: slash-command mentions `</name:id>` and `<id:customize|browse|guide>` stay raw text (`markdown.jai` `try_entity`).
-- [ ] Markdown: timestamp styles `T`, `D`, `f`, `F` and `R` (relative, "in 3 hours") fall back to one format (`view_chat.jai` `format_unix`).
-- [ ] Markdown: a bare URL loses a balanced closing `)`, e.g. `https://en.wikipedia.org/wiki/Foo_(bar)` (`markdown.jai` trailing-punctuation trim).
-- [ ] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes aren't rendered; the quote body only gets inline parsing.
-- [ ] Chat: messages that mention you (you, @everyone/@here, your role) get no yellow highlight and left bar.
-- [ ] Chat: "(edited)" and the header timestamp have no tooltip with the full date.
-- [ ] Links: right-clicking a link gives no Copy Link / Open Link menu, and outside links open with no "Leaving Discord" warning.
-- [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
-- [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
-- [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
-- [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
-- [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
-- [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
-- [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
-- [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
-- [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
-- [ ] Attachments: text and code files (`.txt`, `.md`, `.py`, `.c`, `.json`, `.log`, ...) render as a plain file card ("burst.txt, 416 bytes") instead of the official inline preview. That's a code box with syntax highlighting (`highlight.jai`), the first lines with expand/collapse, and the filename, size and download in its header. Never built, not a stale build: no text preview code in `src/app`.
-- [ ] Attachments: file cards have no download button, and the link-coloured filename does nothing.
-- [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
-- [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
-- [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
-- [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
-- [ ] Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
-- [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
-- [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
-- [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
-- [ ] Reactions: super (burst) reactions look like normal ones; `burst_count` / `me_burst` are parsed but unused.
-- [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
-- [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
-- [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
-- [ ] Moderation: "Delete Message" shows only on your own messages; MANAGE_MESSAGES should allow deleting others'.
-- [ ] Messages: the menu lacks Report, Apps, Speak Message, Publish (announcement channels) and Remove All Reactions.
-- [ ] Messages: a failed send turns red, but there's no error text and no Retry or Delete.
-- [ ] Edit: the edit box's emoji button and the "cancel" / "save" links do nothing (`view_message_actions.jai`).
-- [ ] Edit: saving skips `emoji_convert_shortcodes`, so a typed `:smile:` is sent literally.
-- [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
-- [ ] Replies: the quoted preview only searches loaded history, so a reply to an older message says "Original message was deleted" (`referenced_message` isn't stored). The quote is raw text (`<@id>` and markdown unrendered), and sticker- or embed-only originals get no placeholder.
-- [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
-- [ ] Scrolling: Page Up / Page Down don't scroll the message list.
-- [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
-- [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
-- [ ] Composer: no character counter near the 2000/4000 limit, and over-long sends aren't blocked.
-- [ ] Composer: no formatting toolbar on selection and no Ctrl+B / Ctrl+I / Ctrl+U.
-- [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
-- [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
-- [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
-- [ ] Chat: NSFW channels open with no age-gate screen.
-- [ ] Window: size, position and maximised state aren't remembered; every launch opens at the default size where the OS puts it (the official client restores them).
-- [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
-- [ ] Windows: no toast notifications or taskbar unread badge (`notify_show` / `set_badge` are stubs). Linux has no badge either.
-- [ ] Windows, Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty).
-- [ ] Windows: gg sans never loads, so text falls back to Segoe UI (`text_dwrite_windows.jai` `native_font_load_memory` needs IDWriteFactory5's in-memory loader).
-- [ ] Windows, Linux: no compressed-audio decoding (`media/decode_none.jai`), so Ogg Opus voice messages and AAC video soundtracks play no sound; Linux also decodes no video frames. Windows: Media Foundation.
-- [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
-- [ ] Windows, Linux: no echo cancellation, noise suppression or AGC in voice (`set_voice_processing` stubs).
-- [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
-- [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
-- [ ] macOS: the Metal backend never sets `gpu_ns`, so the bench has no GPU time there.
-- [ ] macOS, Linux: the profiler's sampling timer is a stub, and the hang watchdog writes only a hint, not the other threads' stacks.
-- [ ] Windows: TLS chain validation through CryptoAPI is untested on a real machine (`tls/trust_windows.jai`).
-- [ ] Security: array bounds and null checks are off in the shipped `app` and `dev` builds. Jai's `set_optimization` turns them off for anything but debug (`build.jai`), so every out-of-bounds bug below is silent memory corruption, not a crash. The style guide says never drop checks globally: turn them on for `app` and `dev`, and add `#no_abc` only on loops the bench shows are hot.
 - [ ] Security: the media demuxers trust sizes from the file, so any user's crafted attachment can crash or corrupt fastcord when it's viewed or played.
   - MP4 (`media/mp4.jai`): `mdhd` v1, the `stsc` / `stco` / `co64` counts, `tfhd` optional fields, `tfdt` v1 (guarded by `>= 8`, needs 12) and `trun` samples read past the box. A 64-bit largesize near `S64_MAX` wraps `pos + size` (`moov` / `moof` abort in `NewArray`; a child box becomes a huge slice).
   - MKV (`mkv.jai`): a Cluster Timecode or BlockDuration over 64 KiB trips the `reader_peek` assert, aborting the process. An unknown or all-ones element size wraps `hdr + size` negative (in the EBML header and BlockGroup children).
@@ -162,96 +8,250 @@
   - Packet sizes are truncated to s32 (`demux.jai`), so a negative size reads as Ok and a huge one aborts.
   - A PCM track at sample rate 1 resamples each input frame to about 48000 (`decode_none.jai`), asking for gigabytes.
   - Hangs and blowups: `stsz` or `trun` counts in the millions or billions (`trun` with no per-sample flags never advances), `finalize_tracks`' insertion sort goes O(n²) on descending timestamps, Ogg with many serials is O(n²), and MKV Xiph lacing amplifies about 47x.
-- [ ] Security: any server sticker's Lottie JSON can crash or hang fastcord on the UI thread. NaN or infinite sizes (`s:[1e30,1e30]`, `"w":0,"h":0`) pass the clamps and `cast(int)` to INT64_MIN, indexing `acc[...]` far out of bounds (`lottie/raster.jai`, `render.jai`). Precomps referencing themselves are guarded only by depth 16, so 2 layers branch to 2^17 renders, each allocating a frame-sized buffer. Huge `shapes` / `masksProperties` arrays reserve large structs per element. Cap and validate at load (`lottie/load.jai`).
-- [ ] Check (security): a call participant may be able to corrupt memory before authentication with a crafted DAVE frame. `off + sz > interleaved.count` is u64 math that wraps, and the negative `cast(int) sz` then feeds `memcpy` (`voice_dave/frame.jai`). A sender-chosen nonce also forces up to ~256 HKDF steps per frame, and `r.keys` grows without a cap. Video FU-A reassembly (`voice/video.jai`) has no size cap either.
-- [ ] Security: finish the parser audit. Not yet reviewed: `src/http` (h1, h2, content, pipe, reader), `voice/gateway.jai`, `jitter.jai`, `voice_dave/session.jai`, and `voice_mls` (`messages.jai` has an O(n²) loop and count-driven `NewArray`; `tree.jai` asserts on network data). Also `src/qr`, `src/inflate`, and the permessage-deflate and wslay message caps. Cleared already: protobuf, ETF and JSON depth and size caps, the `voice_mls` wire reader, RTP, the video depacketizers, WAV, MP3, Opus and markdown.
-- [ ] Gateway: dispatches without a handler are dropped (`store.jai` default case). Matter most: `PASSIVE_UPDATE_V1/V2` and `CHANNEL_UNREAD_UPDATE` (stale unreads and voice states in unsubscribed servers), `MESSAGE_REACTION_ADD_MANY` (lost reactions in big servers). Also `VOICE_CHANNEL_STATUS_UPDATE`, `GUILD_BAN_*`, `INVITE_*`, `WEBHOOKS_UPDATE`, `STAGE_INSTANCE_*`, `USER_NOTE_UPDATE`, `RECENT_MENTION_DELETE`, `GUILD_SOUNDBOARD_SOUNDS_UPDATE`.
-- [ ] Voice: channel statuses never show; op 43 asks for them but the `CHANNEL_INFO` reply is ignored (`actions.jai`).
-- [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
-- [ ] HTTP/2: closing a connection gives up after 5 s and leaks it while a reader is still blocked (`http/h2.jai`).
-- [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
-- [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
-- [ ] Servers: Discovery opens the web page (`view_add_server.jai`); Create Server has no templates, purpose step or icon upload.
-- [ ] Channels: check whether channels without VIEW_CHANNEL are listed and openable; the sidebar and `guild_channels_sorted` never check permissions (needs a READY capture to confirm hidden channels are sent).
-- [ ] Channels: rows have no red mention-count badge; only the rail shows mentions.
-- [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
-- [ ] Channels: collapsed categories are local only; the account's `collapsed_channels` is parsed but unused and collapsing sends nothing.
-- [ ] Channels: no drag to reorder channels and categories.
-- [ ] Channels: channel rows have no right-click menu (Mark As Read, Mute, Notification Settings, Edit, Copy Link, Invite, Duplicate, Delete); category rows have none either, so the "Delete Category" code is unreachable.
-- [ ] Voice: occupants in the sidebar show no mute, deafen, LIVE or video icons (`Voice_State` has them), there's no N/limit counter, and stage channels list no one.
-- [ ] Voice: a voice channel's text chat can't be opened; clicking always joins.
-- [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
-- [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
-- [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
-- [ ] Forums: no way to create a post ("Search or create a post..." is a plain label, `view_threads.jai`); no sort or tag filter; archived posts load only the first page.
-- [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
-- [ ] Channel settings: only Overview; no NSFW switch, bitrate, user limit, Permissions, Invites or Webhooks (`Channel_Form` already carries some).
-- [ ] Create Channel: no Announcement, Stage or Media types, no Private Channel option, no Create Category.
-- [ ] Server settings: none at all (overview, roles, emoji, stickers, AutoMod, audit log, bans, integrations, webhooks, invites).
-- [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
-- [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
-- [ ] Member list: rows lack the owner crown, BOT/APP tag, custom status or activity line and role icons.
-- [ ] Profiles: the popout shows no roles, with no add/remove role.
-- [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
-- [ ] Invites: no "Edit invite link" (expiry, max uses, temporary); always 30 days, unlimited. No friend list with Invite buttons.
-- [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
-- [ ] Notifications: "Hide Muted Channels" is local; check whether the official client syncs `hide_muted_channels`.
-- [ ] Notifications: a channel can only be muted from the open channel's header bell.
-- [ ] Events: no Edit Event or End Event; the wizard has no Stage location or cover image.
-- [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
-- [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
-- [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
-- [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
-- [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
-- [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
-- [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
-- [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
-- [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
-- [ ] Friends: rows show only Online/Idle, never the custom status or activity; the "Friends" item in the DM sidebar has no pending-request badge.
-- [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
-- [ ] Profiles: notes can't be seen or edited ("Click to add a note" is a static label; `fetch_note` has no result handler).
-- [ ] Profiles: no badges, connections, activity, rich presence or Spotify; `Presence.activity` is parsed but unused.
-- [ ] Profiles: others' custom statuses never show (popout, member list, DM rows, friends); no mobile-online icon (`Presence.mobile` unused).
-- [ ] Profiles: per-server avatars, bios, banners and pronouns never show (`guild_member_avatar_url` is unused); animated avatars never animate.
-- [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
-- [ ] Status: you can't set or clear a custom status (`dc.set_custom_status` is never called); yours shows without its emoji and ignores its expiry.
-- [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
-- [ ] Group DMs: right-clicking a row does nothing; leaving with the X has no confirmation.
-- [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
-- [ ] Sounds: the message sound plays for blocked users and `@silent` messages, though desktop notifications skip both (`sounds.jai` `message_notifies`).
-- [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
-- [ ] Calls: a DM has no in-call view (participant tiles, Ring for absent members, ongoing-call banner).
-- [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
-- [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
-- [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
-- [ ] Zoom: Ctrl+= / Ctrl+- / Ctrl+0 zoom the whole UI in, out and back to 100%, and a "Zoom Level" slider sits in the settings page where the official client has it (check whether that's Appearance or Accessibility before building). Match the official steps and range, the browser zoom levels from 50% to 200%, by checking the bundle. Scale on top of the DPI scale and persist it. Today none of it exists (no `.Equals` / `.Minus` handling in `src/app` or `src/ui`).
-- [ ] Appearance: no compact mode, chat font scaling, message spacing, or accessibility options (reduced motion, saturation, role colours).
-- [ ] Scrolling: one wheel notch scrolls too little on Windows: 40px, Chrome's macOS value (`platform_windows.jai` WM_MOUSEWHEEL, "Chrome: 40px per notch"). Chromium on Windows scrolls `SPI_GETWHEELSCROLLLINES` (default 3) x 100/3 px, i.e. 100px per notch. Read that system setting, including "one screen at a time" (`WHEEL_PAGESCROLL`). Check Linux's 40px against Chrome there too.
+- [ ] Bug: memory and disk grow without limit over a long session. Textures are never freed (`Remote_Image.last_use` is written but never read; one texture per GIF frame). Played videos and audio keep their bytes and decoders (`blobs`, `players` in `view_media.jai`). Every MESSAGE_CREATE is stored, even for channels never opened, and message lists are never trimmed. The disk cache (`<state>/cache`) has no size limit. `message_list` also does a hash lookup per loaded message per frame, so frames slow down as the session goes on.
+- [ ] Video: a dev build started from an app without a camera usage description (e.g. an IDE's terminal) is killed by macOS on the first AVFoundation call; check the authorization status first and say why the camera can't start.
+- [ ] Security: array bounds and null checks are off in the shipped `app` and `dev` builds. Jai's `set_optimization` turns them off for anything but debug (`build.jai`), so every out-of-bounds bug below is silent memory corruption, not a crash. The style guide says never drop checks globally: turn them on for `app` and `dev`, and add `#no_abc` only on loops the bench shows are hot.
+- [ ] Check: voice may reconnect without limit after close codes like 4006, 4011 or 4015 (`view_voice.jai` retries with nothing bounding it).
 - [ ] Scrolling (fastcord-only): a "Smooth scrolling" checkbox in Appearance. When off, wheel and keyboard scrolling jump straight to the target instead of easing (`ui.animate(*cs.scroll_from_bottom, ...)` in `view_chat.jai`, `view_off_target` in `ui/core.jai`). Reduced motion should imply it.
-- [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
-- [ ] Keybinds: no Ctrl+Shift+M (mute) or Ctrl+Shift+D (deafen).
-- [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
-- [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
-- [ ] Voice: the device dropdown in Voice & Video doesn't close on an outside click, Escape or page switch.
-- [ ] Voice: a chosen audio device that is unplugged stays selected by its dead id (`sel_input`/`sel_output` in `audio/darwin.jai`), so the page shows "Default" while capture keeps the old device instead of falling back.
-- [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
 - [ ] Voice: while deafened the mic button shows unmuted, and clicking it only flips `self_mute` instead of undeafening (`views.jai`).
-- [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
-- [ ] Voice: left-clicking a participant does nothing; their menu lacks server mute/deafen, disconnect, move and profile.
-- [ ] Voice: when a moderator moves you, `app.voice_channel` keeps the old channel, so the panel shows the old name and the next mute goes to it (`view_voice.jai`).
-- [ ] Voice: clicking the panel opens nothing, so there's no connection info (packet loss, server, E2EE privacy and verification codes, which `voice/conn.jai` already has); the channel name doesn't go to the channel; no noise-suppression quick toggle.
-- [ ] Voice: no soundboard and no Activities; full channels aren't blocked.
-- [ ] Voice (macOS): with every voice-processing switch off the call captures through plain AUHAL with DefaultOutput, so a chosen output device is ignored then; and an input device not at 48 kHz still falls back to VPIO bypass, about 27 dB quieter (needs an AudioConverter resample in `input_cb`).
-- [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
-- [ ] Notifications: the taskbar/dock badge counts only mentions, not friend requests.
-- [ ] Notifications: sounds and desktop notifications check mutes raw (`sounds.jai` `message_notifies`). An expired timed mute stays silent until restart, and channels in a muted category or threads in a muted channel still ping. A direct @mention in a muted channel or server doesn't notify, though fastcord's own settings text promises it does. Use `mute_active` / `channel_effectively_muted`. The same raw check drops expired-mute servers from Inbox Unreads (`view_inbox.jai`); sidebar thread rows ignore mutes (`view_threads.jai`).
-- [ ] Notifications: a channel's own notification level (All / Only @mentions / Nothing) is ignored for sounds and notifications; only the server level is read (`sounds.jai`). The channel, category, server chain already exists in `analytics_events.jai`.
-- [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
-- [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
-- [ ] Unreads: the server rail pill lights up from threads you haven't joined and from archived threads. They have no read state, so they count as unread, and the pill stays lit until "Mark As Read" (`views.jai` `guild_unread_shown` loops every thread). The Inbox already filters these.
+- [ ] Bug: an image, emoji, video, audio clip or sound that fails to load once (offline, sleep, 429, 5xx) stays broken until restart. `.Failed` is permanent in `images.jai`, `view_media.jai`, `emoji.jai` and `sounds.jai`, with no retry in `discord/media.jai`.
+- [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
+- [ ] Accounts: support full account switching; today it assumes a single token.
+- [ ] Security: finish the parser audit. Not yet reviewed: `src/http` (h1, h2, content, pipe, reader), `voice/gateway.jai`, `jitter.jai`, `voice_dave/session.jai`, and `voice_mls` (`messages.jai` has an O(n²) loop and count-driven `NewArray`; `tree.jai` asserts on network data). Also `src/qr`, `src/inflate`, and the permessage-deflate and wslay message caps. Cleared already: protobuf, ETF and JSON depth and size caps, the `voice_mls` wire reader, RTP, the video depacketizers, WAV, MP3, Opus and markdown.
+- [ ] Bug: quitting loses work. Pending acks (3 s delay) and queued jobs are freed unsent (`client.jai` `client_destroy`). `flush_settings` (10 s delay) never runs at quit, so status, custom status, theme and folder edits are lost. Windows shutdown, logoff and restart skip `app_exit` entirely (no `WM_QUERYENDSESSION` / `WM_ENDSESSION`), so your voice state lingers on Discord for minutes.
+- [ ] CI: slim the Jai zip on the Fly server (drop `modules/Bindings_Generator`, ~360 MB of libclang) so each run downloads less.
+- [ ] Voice: a speaking user's name should turn from grey to white, not only their avatar green.
+- [ ] Video: fastcord's own real camera (AVFoundation) and screen capture (ScreenCaptureKit) are untested live; the live tests used the synthetic pattern.
+- [ ] Invites: no "Edit invite link" (expiry, max uses, temporary); always 30 days, unlimited. No friend list with Invite buttons.
+- [ ] Servers: Discovery opens the web page (`view_add_server.jai`); Create Server has no templates, purpose step or icon upload.
 - [ ] Badges: the taskbar badge counts mentions in servers you left and DMs you closed (read states are never dropped), plus stale counts in read channels. Replying from another device leaves a stale red badge, because your own message doesn't zero `mention_count` (`store.jai`, `CLIENT_RULES.md`).
-- [ ] DMs: rows in the Home DM list show only bold for unread, not the red count the official client shows (`view_home.jai`).
+- [ ] Channels: collapsed categories are local only; the account's `collapsed_channels` is parsed but unused and collapsing sends nothing.
+- [ ] Call view: the header still shows the text channel's tools; no popout / fullscreen, no text-in-voice side panel, no soundboard or activities buttons.
+- [ ] Keybinds: missing Alt+Up/Down, Ctrl+Alt+Up/Down, Alt+Shift+Up/Down (unread), Ctrl+Alt+Shift+Up/Down (mentions), Ctrl+I, Ctrl+P, Ctrl+U and the Ctrl+/ shortcut list.
+- [ ] Windows: audio device choice lists only "Default" (`audio/windows.jai` stubs).
+- [ ] Search: right-clicking a result does nothing; it should open the message menu as in chat. `loose_message_card` (`view_pins.jai`, shared with pins) handles no right-click; the menu is opened by `view_message_actions.jai`. Reuse that menu so Shift-clicking Delete Message skips the confirm prompt there too, as it already does in chat. Pins likely have the same gap.
+- [ ] Group DMs: "Add Friends to DM" does nothing (`add_group_recipient` / `remove_group_recipient` are unused); no rename, new icon, Remove from Group or Transfer Ownership.
+- [ ] Replies: the quoted preview line draws the original's text (a long Klipy/Tenor URL) over the author name instead of after it; it should start after the name and be truncated with an ellipsis.
+- [ ] Moderation: the user menu has no Kick, Ban, Timeout, Roles, Mention, Invite to Server or local Mute.
 - [ ] Traffic: close the 7 fingerprint gaps against Chrome listed in README.md (QUIC, HTTP/3, QPACK, 0-RTT, BoringSSL GREASE, ECH, HTTP/2 PING).
+- [ ] Search: result highlights break through spoiler tags. `highlight_spans` (`view_pins.jai`) marks matching terms inside a hidden `||spoiler||`, revealing it. Skip hidden spoiler spans until revealed (also in pins).
+- [ ] Composer: "+" opens the file picker directly, not the Upload / Create Thread / Create Poll / Apps menu; no voice-message recording.
+- [ ] Bug: failed REST calls are silent and lose data. A failed ack (`retries` 0) leaves the channel unread on the server and after restart. A failed settings PATCH reverts on the next READY. A failed message edit throws away the typed text (`ma.editing` is cleared before the result). A failed delete shows nothing.
+- [ ] DMs: rows in the Home DM list show only bold for unread, not the red count the official client shows (`view_home.jai`).
+- [ ] Go Live viewer (fastcord-only): zoom and pan into a stream, with the zoomed view filling the viewer's own shape, not the stream's. Zoomed into a 21:9 ultrawide stream in a 16:9 viewer, you see a 16:9 slice of it with no bars, not a 21:9 crop. Scroll to zoom at the cursor, drag to pan, double-click or Escape to reset. Clamp panning to the frame; letterbox only when zoomed out to fit. Today streams are only "contain"-fitted (`view_call.jai`).
+- [ ] Channels: check whether channels without VIEW_CHANNEL are listed and openable; the sidebar and `guild_channels_sorted` never check permissions (needs a READY capture to confirm hidden channels are sent).
+- [ ] Channels: channel rows have no right-click menu (Mark As Read, Mute, Notification Settings, Edit, Copy Link, Invite, Duplicate, Delete); category rows have none either, so the "Delete Category" code is unreachable.
+- [ ] Settings: missing pages: Privacy & Safety, Authorized Apps, Devices, Connections, Chat, Keybinds, Language & Time, Accessibility, Advanced, Activity Privacy, Windows settings.
+- [ ] Keybinds: no Ctrl+Shift+M (mute) or Ctrl+Shift+D (deafen).
+- [ ] Mentions: the "@" autocomplete lacks `@game` / `@time`, fuzzy matches and pills in the composer (`traffic/CLIENT_RULES.md` "Composer mentions").
+- [ ] Bug (Windows): files that already exist are never rewritten, so the rotated token, cookies, etags, identity, media cache and alt-svc data go stale. After a username change in fastcord, the next launch can land on the login screen. `write_file_atomic` (`cookies.jai`) moves a `.tmp` over the file with Jai's `file_move` (`MoveFileW`), which fails if the destination exists, and leaves the `.tmp` behind. Use `MoveFileExW(..., MOVEFILE_REPLACE_EXISTING)`; `settings_store.jai` already works around it.
+- [ ] Scrolling: one wheel notch scrolls too little on Windows: 40px, Chrome's macOS value (`platform_windows.jai` WM_MOUSEWHEEL, "Chrome: 40px per notch"). Chromium on Windows scrolls `SPI_GETWHEELSCROLLLINES` (default 3) x 100/3 px, i.e. 100px per notch. Read that system setting, including "one screen at a time" (`WHEEL_PAGESCROLL`). Check Linux's 40px against Chrome there too.
+- [ ] Attachments: alt text (`description`) isn't parsed or shown with an ALT badge.
+- [ ] Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
+- [ ] Bug: after sleep or a Wi-Fi change, REST can hang for tens of seconds to minutes, and quitting can hang the same way. HTTP/2 streams have no timeout (`transport.jai` `set_timeout(stream, 0)`), the preface PING is never checked and there's no keepalive. All 16 workers can block on the dead connection, `.Io` errors aren't retried, and `client_destroy` joins workers before closing the transport with no timeout. An uncapped 429 `Retry-After` also sleeps the worker and blocks quit (`rest.jai`).
+- [ ] Notifications: "Hide Muted Channels" is local; check whether the official client syncs `hide_muted_channels`.
+- [ ] Appearance: no compact mode, chat font scaling, message spacing, or accessibility options (reduced motion, saturation, role colours).
+- [ ] Notifications: sounds and desktop notifications check mutes raw (`sounds.jai` `message_notifies`). An expired timed mute stays silent until restart, and channels in a muted category or threads in a muted channel still ping. A direct @mention in a muted channel or server doesn't notify, though fastcord's own settings text promises it does. Use `mute_active` / `channel_effectively_muted`. The same raw check drops expired-mute servers from Inbox Unreads (`view_inbox.jai`); sidebar thread rows ignore mutes (`view_threads.jai`).
+- [ ] Linux: presence never goes idle (`procinfo_linux.jai` `system_idle_ms`), and the IME window isn't placed at the caret.
+- [ ] Voice: a voice channel's text chat can't be opened; clicking always joins.
+- [ ] GIFs: favourites can be browsed but not changed: no star on hover in the picker, results or chat GIFs to add or remove one, and nothing writes `/users/@me/settings-proto/2` (`favorite_gifs` is read-only in `pickers_data.jai`). In the Favorites view, clicking a filled star only empties it; the GIF stays in place until the user leaves the view or closes the picker, so a second click undoes a mistake. Write the change to the server only then, and skip the write if the star was toggled back. This keeps act-on-press non-destructive.
+- [ ] Voice: no soundboard and no Activities; full channels aren't blocked.
+- [ ] Locale: no language picker; times are always 12-hour AM/PM, hard-coded in several views, ignoring the locale and 24-hour setting.
+- [ ] Rail: the server icon menu lacks Server Settings, Create Category, Create Event, Privacy Settings and Edit Per-server Profile (`view_guild_menu.jai` header).
+- [ ] Markdown: headings, lists and code blocks inside `>` / `>>>` quotes aren't rendered; the quote body only gets inline parsing.
+- [ ] Scrolling: Page Up / Page Down don't scroll the message list.
+- [ ] Bug: actions taken while the gateway socket is down are silently lost. `gateway_send` returns false and every caller ignores it, and `subscriptions_flush` clears its queue even on failure. So subscriptions drop, a voice join shows "RTC Connecting" forever, and a voice leave is lost, leaving you in the call server-side.
+- [ ] Media: Save Image writes to `$HOME/Downloads`, but HOME is normally unset on Windows, so it saves to `/Downloads` or fails (`images.jai`); use the Known Folder.
+- [ ] GIFs: some Klipy GIFs fail to load while Tenor ones work (seen on Windows).
+- [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
+- [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
+- [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
+- [ ] Links: message links (`discord.com/channels/<g>/<c>/<m>`, also `ptb.` / `canary.` / `discordapp.com`) open in the browser instead of jumping to the message in fastcord (`view_chat.jai`: only invites are handled in-app).
+- [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
+- [ ] Sounds: the message sound plays for blocked users and `@silent` messages, though desktop notifications skip both (`sounds.jai` `message_notifies`).
+- [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
+- [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
+- [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
+- [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
+- [ ] No lost typing: closing a dialog keeps what was typed until it's submitted. Covers Create Event, New Thread, Create Channel, the Group DM picker, Modify Attachment, account edit and friend nickname; restore it on reopen. Profile and Channel Settings "Reset" become undoable.
+- [ ] Windows: gg sans never loads, so text falls back to Segoe UI (`text_dwrite_windows.jai` `native_font_load_memory` needs IDWriteFactory5's in-memory loader).
+- [ ] Chat: the new-member sprout ("I'm new here, say hi!") is clickable but does nothing (`view_chat.jai` `new_member_badge`). Copy the official click behaviour from the bundle (search `useIsNewMember`); the join notice's "Wave to say hi!" button is missing too.
+- [ ] Notifications: role pings get no red badge live (only user and @everyone mentions are counted; `CLIENT_RULES.md` notes it), and their desktop notification shows the raw `<@&id>` (`notify.jai`).
+- [ ] Embeds: fields, footer, timestamp, author icon/URL and provider URL aren't modelled (`model.jai` `Embed`).
+- [ ] Markdown: numbered lists `1. item` aren't parsed (`markdown.jai`).
+- [ ] Read states: a message arriving in the open channel is acked even when scrolled up; the client skips it then ("Not at bottom" in `shouldAutomaticallyAck`; `actions.jai` MESSAGE_CREATE has no scroll position).
+- [ ] Voice: Voice & Video lacks a mic test, attenuation, QoS, Reset Voice Settings and soundboard volume; the mic and headphone chevrons open the page instead of a quick device menu.
+- [ ] Read states: joining a voice channel doesn't ack its text chat; the client acks it when it has no mentions (`eQ`, "Ack - Voice Channel Select", ack_semi_automatic).
+- [ ] Chat: messages that mention you (you, @everyone/@here, your role) get no yellow highlight and left bar.
+- [ ] Check: returning to a channel you left scrolled up reopens it scrolled up (`go_to` resets only `opened`); the auto-ack needs the bottom, so the channel stays unread. Confirm, then match the official client.
+- [ ] Bug: re-identifying drops you from voice (op 4 with a null channel after every READY), and if your own voice state is gone the panel stays on "RTC Connecting". A sleep over 60 s also ends the voice connection for good (`voice/conn.jai` gives up as unresumable).
+- [ ] Composer: slash commands with a `/` autocomplete; the guild command index is fetched (`actions.jai`) but only logged for analytics.
+- [ ] Undo: dragging the last server out of a rail folder deletes the folder with its name and colour; let undo restore it.
+- [ ] Voice: clicking the panel opens nothing, so there's no connection info (packet loss, server, E2EE privacy and verification codes, which `voice/conn.jai` already has); the channel name doesn't go to the channel; no noise-suppression quick toggle.
+- [ ] Bug: after sleep or an outage over 3 minutes, the client re-identifies (a fresh READY) and shows stale state. That's also the path after an op 9 with d=false or 5 failed resumes (`gateway.jai`). Loaded channels keep a silent gap of missed messages, edits, deletes and reactions. Servers you left or were removed from, removed friends, offline friends shown online, and ghost voice occupants all stay. `apply_ready` merges additively, and channels refetch only when `!l.loaded`.
+- [ ] Undo: one-click toggles that lose state: Unmute (drops a timed mute's end), notification-level radios, and event "Interested".
+- [ ] Video: Linux (V4L2, PipeWire portal, VA-API or a software codec): `src/video/none.jai` and `src/media/decode_none.jai` are stubs.
+- [ ] Uploads: a pasted image's progress bar sits still. `run_draft_upload` (`discord/uploads.jai`) sets `u.sent` only when the upload ends, so the bar stays at its minimum, then vanishes. Report bytes sent during the PUT. Also check that pasted uploads complete at all.
+- [ ] Undo: the trash on a staged upload deletes the uploaded file at once; keep the card restorable and hold the remote delete.
+- [ ] Voice: a chosen audio device that is unplugged stays selected by its dead id (`sel_input`/`sel_output` in `audio/darwin.jai`), so the page shows "Default" while capture keeps the old device instead of falling back.
+- [ ] Reactions: super (burst) reactions look like normal ones; `burst_count` / `me_burst` are parsed but unused.
+- [ ] Scrolling: middle-click autoscroll, as in browsers on Windows: a middle click drops an anchor icon, then moving the mouse above or below it scrolls that way, faster the farther away; any click or Escape ends it.
+- [ ] Voice: left-clicking a participant does nothing; their menu lacks server mute/deafen, disconnect, move and profile.
+- [ ] Undo: messages: Delete Message (including an emptied edit), Unpin Message, and the Shift-hover trash can.
+- [ ] Text editing: on Windows and Linux, Home / End jump to the start / end of the whole message, not the current line, in multi-line text. Ctrl+Home / Ctrl+End should do the whole message (`ui/textedit.jai`: `.Home` / `.End` ignore lines off macOS).
+- [ ] Edit: Up in an empty composer can open the editor on your own system message (call, pin) or a pending one.
+- [ ] System messages: boosts, tier-ups, channel follows, thread created, thread starter, discovery, invite reminder, AutoMod, stage events, role-subscription purchases and incident alerts render as an empty message (`view_chat.jai` `is_notice` covers only types 1-7 and 67).
+- [ ] Voice: occupants in the sidebar show no mute, deafen, LIVE or video icons (`Voice_State` has them), there's no N/limit counter, and stage channels list no one.
+- [ ] Rail: folders have no right-click menu or Folder Settings (rename, colour).
+- [ ] Tray: Linux has no tray icon (StatusNotifierItem over D-Bus) and macOS doesn't keep running when the window closes (hide it; the Dock icon reopens it), so closing quits there. Windows has the tray.
+- [ ] Settings: keep every fastcord setting in one place so deleting them all is easy (may already be done).
+- [ ] Profiles: the popout shows no roles, with no add/remove role.
+- [ ] Edit: the edit box's emoji button and the "cancel" / "save" links do nothing (`view_message_actions.jai`).
+- [ ] Undo: Leave Server, Delete Channel / Category / Thread and Cancel Event (confirm modals today).
+- [ ] Media: the video volume and mute reset on restart; the client keeps them (`view_media.jai` `video_volume`).
+- [ ] System messages: missed calls say "started a call", not "You missed a call from X"; the pin notice's "a message" and "pinned messages" aren't clickable.
+- [ ] Settings: Profiles can't change avatar, banner or banner colour; no per-server profiles.
+- [ ] Status: you can't set or clear a custom status (`dc.set_custom_status` is never called); yours shows without its emoji and ignores its expiry.
+- [ ] Bug: message times are an hour off across a DST change. The UTC offset is read once at startup (`app_main.jai`) and applied to every date, so older history, midnight day dividers, and a session spanning the change are wrong.
+- [ ] Undo: clicking your own reaction removes it at once (`react()` toggle); hold the DELETE so a second click within a few seconds cancels it with nothing sent.
+- [ ] Markdown: a bare URL loses a balanced closing `)`, e.g. `https://en.wikipedia.org/wiki/Foo_(bar)` (`markdown.jai` trailing-punctuation trim).
+- [ ] App: no "Open fastcord on startup" option and no `discord://` link handler.
+- [ ] Settings: My Account can't change password, email or phone, manage 2FA, or disable or delete the account.
+- [ ] Composer: no spellcheck (red underline and suggestions on right-click).
+- [ ] Media: the image viewer has no previous/next across a message's media and no "Open in Browser".
+- [ ] Server settings: none at all (overview, roles, emoji, stickers, AutoMod, audit log, bans, integrations, webhooks, invites).
+- [ ] Windows: no toast notifications or taskbar unread badge (`notify_show` / `set_badge` are stubs). Linux has no badge either.
+- [ ] Zoom: Ctrl+= / Ctrl+- / Ctrl+0 zoom the whole UI in, out and back to 100%, and a "Zoom Level" slider sits in the settings page where the official client has it (check whether that's Appearance or Accessibility before building). Match the official steps and range, the browser zoom levels from 50% to 200%, by checking the bundle. Scale on top of the DPI scale and persist it. Today none of it exists (no `.Equals` / `.Minus` handling in `src/app` or `src/ui`).
+- [ ] Windows, Linux: no compressed-audio decoding (`media/decode_none.jai`), so Ogg Opus voice messages and AAC video soundtracks play no sound; Linux also decodes no video frames. Windows: Media Foundation.
+- [ ] Notifications: the taskbar/dock badge counts only mentions, not friend requests.
+- [ ] Check: a REST 401 (token revoked, password changed) seems handled nowhere while the gateway stays up, so the UI keeps failing with toasts instead of returning to login. Confirm by revoking the token from another session.
+- [ ] Bug (for creikey): jumping to an old message from search, then scrolling down, leaps straight to the present. Seen: 5/13/2025 messages followed directly by October 28, 2026, with everything between missing. `apply_around` (`features.jai`) merges the `around=` page into history with no gap marker and no `after=` paging (`Message_List` has only `has_more_before`). Track a gap after the jumped-to page and load newer pages with `after=` while scrolling down, as the official client does; show "Jump to Present" meanwhile.
+- [ ] Group DMs: right-clicking a row does nothing; leaving with the X has no confirmation.
+- [ ] GIFs: test search live against the official client: results and their order for the same queries, typing and debounce feel, suggestions, empty and error states, and scrolling a long result list. Fix whatever falls short.
+- [ ] Voice: when a moderator moves you, `app.voice_channel` keeps the old channel, so the panel shows the old name and the next mute goes to it (`view_voice.jai`).
+- [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
+- [ ] Polls: render poll messages and let the user vote; today they show nothing.
+- [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
+- [ ] History: no "You're viewing older messages / Jump to Present" bar and no jump-to-bottom button.
+- [ ] Markdown: slash-command mentions `</name:id>` and `<id:customize|browse|guide>` stay raw text (`markdown.jai` `try_entity`).
+- [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
+- [ ] Messages: "Forward" in the message menu; forwards are only displayed.
+- [ ] Chat: NSFW channels open with no age-gate screen.
+- [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
+- [ ] Notifications: a channel can only be muted from the open channel's header bell.
+- [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
+- [ ] Calls: no incoming or outgoing ringtone; Decline only hides the popup locally, so other devices keep ringing.
+- [ ] Window: size, position and maximised state aren't remembered; every launch opens at the default size where the OS puts it (the official client restores them).
+- [ ] Windows: the file dialog is a stub (`platform_windows.jai` `open_file_dialog`, needs IFileOpenDialog), so the composer "+" and the server-icon picker do nothing.
+- [ ] Attachments: file cards have no download button, and the link-coloured filename does nothing.
+- [ ] Chat: welcome messages aren't shown properly.
+- [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
+- [ ] Replies: clicking the quoted original message should jump to it.
+- [ ] Edit: saving skips `emoji_convert_shortcodes`, so a typed `:smile:` is sent literally.
+- [ ] Composer: no formatting toolbar on selection and no Ctrl+B / Ctrl+I / Ctrl+U.
+- [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
+- [ ] Forums: no way to create a post ("Search or create a post..." is a plain label, `view_threads.jai`); no sort or tag filter; archived posts load only the first page.
+- [ ] Profiles: per-server avatars, bios, banners and pronouns never show (`guild_member_avatar_url` is unused); animated avatars never animate.
+- [ ] Gateway: dispatches without a handler are dropped (`store.jai` default case). Matter most: `PASSIVE_UPDATE_V1/V2` and `CHANNEL_UNREAD_UPDATE` (stale unreads and voice states in unsubscribed servers), `MESSAGE_REACTION_ADD_MANY` (lost reactions in big servers). Also `VOICE_CHANNEL_STATUS_UPDATE`, `GUILD_BAN_*`, `INVITE_*`, `WEBHOOKS_UPDATE`, `STAGE_INSTANCE_*`, `USER_NOTE_UPDATE`, `RECENT_MENTION_DELETE`, `GUILD_SOUNDBOARD_SOUNDS_UPDATE`.
+- [ ] Keybinds: Escape doesn't mark the open channel read, as the official client does; it only sends the analytics event (`views.jai` `overlays`). Shift+Escape marks the whole server read (done).
+- [ ] Attachments: several images in one message stack at 400x300 each instead of the mosaic grid.
+- [ ] Video (Windows): the real camera is untested live (opening it switches on the webcam); check mode choice, frame rate and colours against the official client.
+- [ ] Composer: `#channel` autocomplete; only `:emoji` is handled (`emoji_autocomplete.jai`).
+- [ ] Threads: no Join / Leave Thread and no thread member list; the thread menu lacks Mute, Notification Settings, Close/Lock and Edit Tags.
+- [ ] Chat: "(edited)" and the header timestamp have no tooltip with the full date.
+- [ ] Reactions: the row is a fixed 30px high and never wraps, so many reactions run off the right (`view_chat.jai` `reactions_view`).
+- [ ] Voice: server mute and deafen are never shown, in the panel or beside participants.
+- [ ] Messages: holding Shift while hovering a message should add a red trash can to the hover toolbar that deletes it without confirmation, as the official client does. Today Shift only skips the confirmation from the "..." menu (`view_message_actions.jai`).
+- [ ] Messages: a failed send turns red, but there's no error text and no Retry or Delete.
+- [ ] Check (account risk): a member list that stays empty may send op 37 every frame (`view_home.jai` resubscribes while `items.count == 0`), which could exceed the gateway's 120 events per minute and get the connection closed. Count op 37 frames on a channel whose list comes back empty.
+- [ ] Bug: a message whose send failed gets a duplicate when the server's echo arrives late; the failure clears `pending` and `upsert_message` matches the nonce only on pending messages (`store.jai`).
+- [ ] Member list: don't show the grey offline dot in a server's member sidebar, as the official client doesn't.
+- [ ] HTTP/2: closing a connection gives up after 5 s and leaks it while a reader is still blocked (`http/h2.jai`).
+- [ ] Undo, not confirm (fastcord-only): one shared mechanism for destructive actions. Apply the change locally at once and hold the server write ~5 s behind an "Undo" toast (and Ctrl+Z); flush pending writes on quit. Then drop the confirm modals it replaces, and drop the destructive-action exception from act on press. Today Delete and Unpin modals confirm on Enter, and Shift-click skips them.
+- [ ] macOS, Linux: the profiler's sampling timer is a stub, and the hang watchdog writes only a hint, not the other threads' stacks.
+- [ ] CI: turn the offline parity tests back on (the `Test` step in `.github/workflows/ci-build.yml` is `if: false`).
+- [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
+- [ ] Search: clicking the search bar again while results are open crashes.
+- [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
+- [ ] Links: right-clicking a link gives no Copy Link / Open Link menu, and outside links open with no "Leaving Discord" warning.
+- [ ] Channels: no drag to reorder channels and categories.
+- [ ] Windows, Linux: "Copy Image" does nothing (`os_clipboard_set_image` is empty).
+- [ ] Navigation: mouse back/forward buttons do nothing; Windows reports X1/X2 but `glue.jai` drops them.
+- [ ] Apps: slash-command and context-menu replies lack the "X used /command" header; bot and webhook authors lack the APP/BOT tag (`u.bot` is parsed but unused).
+- [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
+- [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
+- [ ] Lotus Mode (fastcord-only): one setting that silences every notification sound and hides all notification badges and the white unread dots beside channels and servers, so the client never grabs attention.
+- [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
+- [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
+- [ ] Crash reporter: add one, modelled on Happenlance's subprocess crash reporter (`C:\Work\Happenlance\Happenlance\src\crash_handler.cpp`, Phillip's machine only).
+- [ ] Attachments: text and code files (`.txt`, `.md`, `.py`, `.c`, `.json`, `.log`, ...) render as a plain file card ("burst.txt, 416 bytes") instead of the official inline preview. That's a code box with syntax highlighting (`highlight.jai`), the first lines with expand/collapse, and the filename, size and download in its header. Never built, not a stale build: no text preview code in `src/app`.
+- [ ] Media: zoom in the image viewer (click or scroll wheel); it only fits the image to the window.
+- [ ] Undo: relationships: Remove Friend, Unblock, Block, Ignore or cancel a friend request, all sent at once today with no confirm except Block.
+- [ ] Composer: no disabled state without SEND_MESSAGES ("You do not have permission..."), "+" ignores ATTACH_FILES, and archived or locked threads aren't read-only.
+- [ ] Developer Mode: the setting is read (`store.jai`) but unused; add "Copy Message ID", "Copy Channel ID" and "Copy Server ID" to the menus when it is on.
+- [ ] Profiles: notes can't be seen or edited ("Click to add a note" is a static label; `fetch_note` has no result handler).
+- [ ] Calls: a DM has no in-call view (participant tiles, Ring for absent members, ongoing-call banner).
+- [ ] Undo: Mark As Read (server menu, Shift+Escape, Inbox "Mark All as Read", Inbox row check, the new-messages bar, threads) should restore the previous read states on undo, using the Mark Unread ack; Inbox mention "x" should hold its DELETE.
+- [ ] Bug: when the open channel is deleted elsewhere, or you're kicked or banned from the open server, the view falls back to the Friends page with an empty sidebar (`app.view` keeps the dead ids; only your own leave/delete navigates away).
+- [ ] Check (security): a call participant may be able to corrupt memory before authentication with a crafted DAVE frame. `off + sz > interleaved.count` is u64 math that wraps, and the negative `cast(int) sz` then feeds `memcpy` (`voice_dave/frame.jai`). A sender-chosen nonce also forces up to ~256 HKDF steps per frame, and `r.keys` grows without a cap. Video FU-A reassembly (`voice/video.jai`) has no size cap either.
+- [ ] Video: VP8 / AV1 calls show no video (only H.264 / H.265 are decoded and sent); no NACK / RTX retransmission or bandwidth estimation (fixed bitrates).
+- [ ] Messages: the menu lacks Report, Apps, Speak Message, Publish (announcement channels) and Remove All Reactions.
+- [ ] Member list: rows lack the owner crown, BOT/APP tag, custom status or activity line and role icons.
+- [ ] Channel settings: only Overview; no NSFW switch, bitrate, user limit, Permissions, Invites or Webhooks (`Channel_Form` already carries some).
+- [ ] Free emoji (fastcord-only, like Vencord's FakeNitro): let a non-Nitro user send any emoji, including the picker's locked ones (`pickers_emoji.jai`), from any server. Send it as a masked CDN link (`[name](https://cdn.discordapp.com/emojis/<id>.webp?size=48&name=<name>)`, `.gif`/`animated=true` when animated), so official clients show the image. Copy the exact format from Vencord's `src/plugins/fakeNitro` so Vencord users see real emoji. On receipt, draw those links as inline emoji (the official client shows a link and an image embed), so FakeNitro and fastcord messages look native. Real emoji stay real when the user can use them.
+- [ ] Undo: closing a DM and leaving a group DM (the row's "x" leaves a group DM with no confirm at all, `view_home.jai`).
+- [ ] Events: no Edit Event or End Event; the wizard has no Stage location or cover image.
+- [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
+- [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
+- [ ] Create Channel: no Announcement, Stage or Media types, no Private Channel option, no Create Category.
+- [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
+- [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
+- [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
+- [ ] Attachments: spoilered attachments (`SPOILER_` name or flag 8) show unblurred.
+- [ ] Bug: scrolled up reading history, every new message, embed or reaction below pushes the text you're reading upward; `scroll_from_bottom` stays fixed while content grows below (`view_chat.jai`). Anchor to the row under the viewport instead.
+- [ ] Unreads: the server rail pill lights up from threads you haven't joined and from archived threads. They have no read state, so they count as unread, and the pill stays lit until "Mark As Read" (`views.jai` `guild_unread_shown` loops every thread). The Inbox already filters these.
+- [ ] Replies: the quoted preview only searches loaded history, so a reply to an older message says "Original message was deleted" (`referenced_message` isn't stored). The quote is raw text (`<@id>` and markdown unrendered), and sticker- or embed-only originals get no placeholder.
+- [ ] Connection: when the gateway drops, nothing shows it; the app silently goes stale while `gateway.jai` reconnects (no UI reads `Gw_State`). Show the official client's "Connecting..." / offline state.
+- [ ] Bug: after a re-identify, typing indicators, threads and activities stop for every server visited earlier, and the member sidebar freezes. `subscribe_guild` skips servers already in `c.subs.guilds`, and the member list resubscribes only when empty (`actions.jai`, `view_home.jai`).
+- [ ] When soundboard support is added, add a toggle that makes soundboards play through your call's mic instead of through discord's separate soundboard channel
+- [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
+- [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
+- [ ] Friends: rows show only Online/Idle, never the custom status or activity; the "Friends" item in the DM sidebar has no pending-request badge.
+- [ ] Voice: the device dropdown in Voice & Video doesn't close on an outside click, Escape or page switch.
+- [ ] Profiles: no badges, connections, activity, rich presence or Spotify; `Presence.activity` is parsed but unused.
+- [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
+- [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
+- [ ] Composer: no character counter near the 2000/4000 limit, and over-long sends aren't blocked.
+- [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), watching more than one stream, and the stream's quality settings.
+- [ ] Notifications: a channel's own notification level (All / Only @mentions / Nothing) is ignored for sounds and notifications; only the server level is read (`sounds.jai`). The channel, category, server chain already exists in `analytics_events.jai`.
+- [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
+- [ ] GIFs (fastcord-only): search Tenor as well as Klipy and merge the results. Discord's `/gifs/search` now returns Klipy only (`expressions.jai` `gifs_search` sends no provider). Either query Tenor's own API directly (needs an API key; check it's still offered), or add `provider=tenor` to Discord's endpoint if it still honours it. That second route makes fastcord's traffic differ from the official client's, so prefer the direct one. Sent Tenor links already embed fine.
+- [ ] Security: any server sticker's Lottie JSON can crash or hang fastcord on the UI thread. NaN or infinite sizes (`s:[1e30,1e30]`, `"w":0,"h":0`) pass the clamps and `cast(int)` to INT64_MIN, indexing `acc[...]` far out of bounds (`lottie/raster.jai`, `render.jai`). Precomps referencing themselves are guarded only by depth 16, so 2 layers branch to 2^17 renders, each allocating a frame-sized buffer. Huge `shapes` / `masksProperties` arrays reserve large structs per element. Cap and validate at load (`lottie/load.jai`).
+- [ ] Voice (macOS): with every voice-processing switch off the call captures through plain AUHAL with DefaultOutput, so a chosen output device is ignored then; and an input device not at 48 kHz still falls back to VPIO bypass, about 27 dB quieter (needs an AudioConverter resample in `input_cb`).
+- [ ] Settings sync: `USER_SETTINGS_PROTO_UPDATE` type 2 (favourite GIFs, emoji frecency) is ignored, so other devices' changes need a restart.
+- [ ] Voice: channel statuses never show; op 43 asks for them but the `CHANNEL_INFO` reply is ignored (`actions.jai`).
+- [ ] Windows: TLS chain validation through CryptoAPI is untested on a real machine (`tls/trust_windows.jai`).
+- [ ] Reactions: the controls ignore the ADD_REACTIONS permission; no modals for TOO_MANY_REACTIONS or the burst "Oops!" (`CLIENT_RULES.md`).
+- [ ] Channels: rows have no red mention-count badge; only the rail shows mentions.
+- [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
+- [ ] Undo: hanging up voice, from the panel, call view or DM phone button. Offer "Rejoin" for a few seconds, restoring camera and screen share.
+- [ ] Bug: the composer stops taking typing in every channel after you start an edit (pencil or Up), then switch channel or the message is deleted. `ma.editing` gates `input_focused` (`view_chat.jai`) and is only cleared inside `edit_box`, which draws only while that row is on screen; `go_to` and MESSAGE_DELETE never clear it.
+- [ ] macOS: the Metal backend never sets `gpu_ns`, so the bench has no GPU time there.
+- [ ] Moderation: "Delete Message" shows only on your own messages; MANAGE_MESSAGES should allow deleting others'.
+- [ ] Channels: a collapsed category also hides its unread and occupied voice channels; only the selected one stays (`views.jai`).
+- [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
+- [ ] Media: a video's fullscreen fills the window, not the screen (no native fullscreen on any platform) (`view_media.jai` `video_fullscreen`).
+- [ ] Friends: the Pending tab hides when you only have outgoing requests (`pending_count` counts incoming only), so you can't see or cancel them; it isn't split into Received and Sent.
+- [ ] Profiles: others' custom statuses never show (popout, member list, DM rows, friends); no mobile-online icon (`Presence.mobile` unused).
+- [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
+- [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
+- [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
+- [ ] Windows, Linux: no echo cancellation, noise suppression or AGC in voice (`set_voice_processing` stubs).
+- [ ] Markdown: timestamp styles `T`, `D`, `f`, `F` and `R` (relative, "in 3 hours") fall back to one format (`view_chat.jai` `format_unix`).
+- [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
+- [ ] Media: the audio player has no seek bar or volume; the video player lacks download.
+- [ ] Chat: messages from blocked users show in full instead of a collapsed "1 blocked message — Show".
+- [ ] Servers: no rules screen, onboarding, Server Guide or Browse Channels / Channels & Roles.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
