@@ -245,6 +245,10 @@ voice_settings_page :: () {
 					vs.processing = p;
 					audio.set_voice_processing(p);
 				}
+				if video.SUPPORTED {
+					spacer(.Y, 32);
+					camera_test_section();
+				}
 				spacer(.Y, 40);
 			}
 		}
@@ -387,6 +391,41 @@ ptt_input :: () {
 
 // ---------------------------------------------------------------------------
 // Widgets
+
+camera_test_section :: () {
+	section_title("CAMERA");
+	img := camera_test_image();
+	pv := ui.box("campreview", .Draw_Background);
+	pv.semantic_size = .[ui.px(660), ui.px(660 * 9 / 16)];
+	pv.style.radius = all4(8);
+	pv.style.bg = T("--background-base-lowest");
+	pv.layout_axis = .Y;
+	pv.cross_align = .Center;
+	if img.y {
+		d := New(Tile_Draw,, temp);
+		d.* = .{img, false};
+		pv.custom_draw = tile_video_draw;
+		pv.custom_user = d;
+	}
+	if camera_on() return;
+	{ ui.parent(pv); defer ui.pop_parent();
+		filler(.Y);
+		on := vid.preview.capture != null;
+		b := row("camtest", .Clickable | .Draw_Background | .Hot_Animation);
+		b.semantic_size = .[ui.children(), ui.px(38)];
+		b.style.radius = all4(8);
+		b.style.bg = ifx on then T("--background-surface-highest") else T("--background-brand");
+		b.style.bg_hot = with_alpha(b.style.bg, 0.85);
+		if ui.signal(b).clicked camera_test_toggle();
+		{ ui.parent(b); defer ui.pop_parent();
+			spacer(.X, 16);
+			label(ifx on then "Stop Video" else "Test Video", .Semibold, 14, .{1, 1, 1, 1}, 18);
+			spacer(.X, 16);
+		}
+		spacer(.Y, ifx on then 16.0 else 0);
+		if !on filler(.Y);
+	}
+}
 
 section_title :: (text: string) {
 	label(text, .Bold, 12, T("--text-muted"), 16);

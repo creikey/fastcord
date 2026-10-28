@@ -139,7 +139,7 @@
 - [ ] Group DMs: right-clicking a row does nothing; leaving with the X has no confirmation.
 - [ ] GIFs: test search live against the official client: results and their order for the same queries, typing and debounce feel, suggestions, empty and error states, and scrolling a long result list. Fix whatever falls short.
 - [ ] Voice: when a moderator moves you, `app.voice_channel` keeps the old channel, so the panel shows the old name and the next mute goes to it (`view_voice.jai`).
-- [ ] Settings: Voice & Video has no video section (`view_voice_settings.jai`): no "Test Video" camera preview to check the camera before joining a call.
+- [ ] Voice: the voice panel (bottom left, while connected) has no Video and Screen buttons; the camera and Go Live are only reachable from the call view (`view_voice.jai`).
 - [ ] Video: camera and screen device pickers (the default camera only; screens and windows are listed by name, no thumbnails), and stopping the share from the macOS menu bar isn't noticed.
 - [ ] Polls: render poll messages and let the user vote; today they show nothing.
 - [ ] Group DMs: the owner crown is placed by guessing 8.2 px per character (`view_group_dm.jai`); no "beginning of history" header; 5 of the 8 default icon colours fall back to the brand colour.
@@ -365,3 +365,4 @@
 - [x] Bug (Windows): the camera button did nothing on machines with a virtual camera (NDI) listed first: capture always opened device 0, which never delivered a frame. It now takes the first device whose symbolic link isn't root-enumerated (`\\?\root#`), and logs capture failures to stderr (`capture_windows.jai` `camera_thread`).
 - [x] Video: when camera capture ends on its own (no camera, device busy or taken by another app, unsupported format), the camera turns off and a toast says why (`video.capture_error`, `video_frame`). Reasons are specific on Windows, generic on Linux; macOS doesn't report yet.
 - [x] Video: a camera that opens but sends no frame within 8 s (an idle NDI virtual camera blocks in `ReadSample` forever) is turned off with "The camera isn't sending any video." (`capture_error`, `capture_nv12.jai`). Its stuck thread is left behind, never freed.
+- [x] Settings: Voice & Video has a Camera section: Test Video previews the camera (the call's own camera while it's on), and stops when the page closes (`view_voice_settings.jai` `camera_test_section`, `video_call.jai` `camera_test_toggle`, `tests/ui/camera_test.txt`). `video_frame` now runs without a client too.

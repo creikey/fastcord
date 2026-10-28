@@ -278,6 +278,7 @@ frame :: () {
 		voice_frame();
 		login_check_auth();
 	}
+	video_frame();
 	req_frame();
 	t_media := platform.time_now();
 	watchdog_phase(.Media);

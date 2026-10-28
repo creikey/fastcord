@@ -1,0 +1,13 @@
+# Settings > Voice & Video: Test Video shows the camera (headless: the test pattern) and Stop Video ends it.
+wait 5
+click 338 683
+wait 20
+click_text "Voice & Video"
+wait 20
+move 800 500
+scroll 0 -3000
+wait 10
+click_text "Test Video"
+settle 0.3
+expect_visible "Stop Video"
+shot

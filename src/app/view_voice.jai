@@ -72,7 +72,6 @@ voice_audio_ready :: () -> bool { return vc.audio_ready; }
 
 voice_frame :: () {
 	voice_settings_frame(vc.conn, vc.headless, vc.audio_ready);
-	defer video_frame();
 	if app.client == null { return; }
 	if !vc.auto_checked && app.client.store.ready {
 		vc.auto_checked = true;

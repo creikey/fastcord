@@ -49,6 +49,7 @@ Video_App :: struct {
 	streams: Table(u64, *Remote_Video); // streamer -> Go Live video
 	camera: Sender;
 	screen: Sender;
+	preview: Sender; // Settings > Voice & Video "Test Video"; never sends
 	// our Go Live
 	own_key: string;
 	own_conn: *voice.Conn;
@@ -83,6 +84,7 @@ camera_toggle :: () {
 		camera_stop();
 	} else {
 		if vc_conn() == null || (!video_test("camera") && !video.camera_supported()) return;
+		sender_stop(*vid.preview); // one capture per camera: a second open takes it from the first
 		dc.analytics_permissions_requested(app.client, "video");
 		s := *vid.camera;
 		sender_init(s, vc_conn(), CAMERA_FPS, CAMERA_BITRATE);
@@ -158,6 +160,22 @@ video_stop_all :: () {
 	vid.picker_open = false;
 }
 
+// The Voice & Video page's camera test. Headless runs get the test pattern, never the real camera.
+camera_test_toggle :: () {
+	if vid.preview.capture { sender_stop(*vid.preview); return; }
+	headless := platform.is_headless();
+	if camera_on() || (!headless && !video.camera_supported()) return;
+	s := *vid.preview;
+	sender_init(s, null, CAMERA_FPS, 0);
+	if headless s.capture = video.pattern_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
+	else s.capture = video.camera_start(on_capture_frame, s, CAMERA_W, CAMERA_H, CAMERA_FPS);
+}
+
+// What the camera test shows: the call's camera while it's on, else the test's.
+camera_test_image :: () -> media.Video_Image {
+	return ifx camera_on() then vid.camera.img else ifx vid.preview.capture then vid.preview.img else .{};
+}
+
 // The image to draw for a user's camera or stream (y == 0: none).
 camera_image :: (uid: dc.Snowflake) -> media.Video_Image {
 	if uid == store().me return ifx camera_on() then vid.camera.img else .{};
@@ -231,7 +249,12 @@ video_frame :: () {
 		send_voice_state();
 		toast_show(err, false);
 	}
-	for s: (*Sender).[*vid.camera, *vid.screen] {
+	if vid.preview.capture {
+		err = video.capture_error(vid.preview.capture);
+		if err toast_show(err, false);
+		if err || !app.settings_open || settings_page != "Voice & Video" sender_stop(*vid.preview);
+	}
+	for s: (*Sender).[*vid.camera, *vid.screen, *vid.preview] {
 		locks.lock(*s.mu);
 		ms: s64;
 		show_pending(*s.pending, *s.img, *ms);
@@ -241,6 +264,7 @@ video_frame :: () {
 
 video_shutdown :: () {
 	video_stop_all();
+	sender_stop(*vid.preview);
 	for vid.cams remote_free(it);
 	for vid.streams remote_free(it);
 	deinit(*vid.cams);
@@ -454,6 +478,7 @@ on_capture_frame :: (user: *void, pixbuf: *void, width: int, height: int) {
 		s.pending = media.video_frame_from_pixbuf(pixbuf);
 	}
 	platform.request_frame();
+	if !s.conn return; // the camera test
 	codec := voice.video_codec(s.conn);
 	if codec == .None return; // not negotiated yet
 	// The server picks one codec for the whole call, also one we can't encode (H.265 on Windows and Linux,
