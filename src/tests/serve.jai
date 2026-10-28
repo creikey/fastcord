@@ -656,6 +656,7 @@ main :: () {
 	check(status == 200 && field(etf.from_json(body), "thread_metadata", "archived").b, tprint("the starter archives a thread: % %", status, body));
 	check(archived_ids() == tprint("%,", thread_id), tprint("an archived thread is listed: %", body));
 	status, body = rest("POST", thread_messages, "{\"content\": \"back again\"}", other_token);
+	back_id := field(etf.from_json(body), "id").s;
 	check(status == 200 && archived_ids() == "", tprint("a message reopens an archived thread: % %", status, body));
 	status, body = rest("PATCH", thread_path, "{\"locked\": true, \"archived\": true}", other_token);
 	check(status == 403, tprint("only the owner locks a thread: % %", status, body));
@@ -666,6 +667,12 @@ main :: () {
 	check(status == 403, tprint("the starter can't reopen a locked thread: % %", status, body));
 	status, body = rest("POST", thread_messages, "{\"content\": \"let me in\"}", other_token);
 	check(status == 400 && contains(body, "50083"), tprint("a locked thread takes no messages from members: % %", status, body));
+	status, body = rest("PATCH", tprint("%/%", thread_messages, back_id), "{\"content\": \"edited\"}", other_token);
+	check(status == 400 && contains(body, "50083"), tprint("an archived thread's messages take no edits: % %", status, body));
+	status, body = rest("PUT", tprint("%/%/reactions/\%F0\%9F\%91\%8D/@me", thread_messages, back_id), "", other_token);
+	check(status == 400 && contains(body, "50083"), tprint("an archived thread's messages take no reactions: % %", status, body));
+	status, body = rest("PUT", tprint("%/pins/%", thread_messages, back_id), "", token);
+	check(status == 400 && contains(body, "50083"), tprint("an archived thread's messages can't be pinned: % %", status, body));
 	status, body = rest("PATCH", thread_path, "{\"locked\": false, \"archived\": false}", token);
 	check(status == 200 && archived_ids() == "", tprint("the owner reopens a locked thread: % %", status, body));
 	// An hour without activity archives it, now that its auto_archive_duration is 60 minutes.

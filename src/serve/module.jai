@@ -1075,6 +1075,15 @@ channel_type_locked :: (s: *Server, id: s64) -> int {
 	return sqlite.col_int(st, 0);
 }
 
+// Whether a channel is an archived thread, whose messages take no edits, pins or reactions until it's
+// reopened. The caller holds db_mu.
+archived_locked :: (s: *Server, id: s64) -> bool {
+	st := sqlite.prepare(s.db, "SELECT 1 FROM channels WHERE id = ? AND archived = 1;");
+	defer sqlite.finalize(st);
+	sqlite.bind(st, 1, id);
+	return sqlite.step(st) == .Row;
+}
+
 // archive_idle archives threads with no activity (start, message or unarchive) for their
 // auto_archive_duration, and tells everyone. Gateway heartbeats and the thread browser run it, at most
 // once a minute, so no timer thread is needed.
@@ -1641,6 +1650,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s64, message: s64) -> bool {
 	s := c.server;
 	author, owner, kind := 0, 0, DEFAULT;
+	archived := false;
 	{
 		locks.guard(*s.db_mu);
 		st := sqlite.prepare(s.db, "SELECT author, type FROM messages WHERE id = ? AND channel = ?;");
@@ -1648,8 +1658,10 @@ one_message :: (c: *Conn, req: http.Request, user: s64, name: string, channel: s
 		if sqlite.step(st) == .Row author, kind = sqlite.col_int(st, 0), sqlite.col_int(st, 1);
 		sqlite.finalize(st);
 		owner = owner_id(s);
+		archived = archived_locked(s, channel);
 	}
 	if !author return json_error(c, 404, 10008, "Unknown Message");
+	if archived return json_error(c, 400, 50083, "Thread is archived");
 	if req.method == "PATCH" && kind != DEFAULT return json_error(c, 400, 50021, "Cannot execute action on a system message");
 	v: etf.Value;
 	if req.method == "PATCH" {
@@ -2753,6 +2765,7 @@ pin :: (c: *Conn, user: s64, channel: s64, message: s64, on: bool) -> bool {
 		pins := ifx found then sqlite.col_int(st, 0) else 0;
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
+		if archived_locked(s, channel) return json_error(c, 400, 50083, "Thread is archived");
 		if on && pins >= MAX_PINS return json_error(c, 400, 30003, "Maximum number of pins reached (50)");
 		ok := ifx on then sqlite.run(s.db, "UPDATE messages SET pinned_at = ? WHERE id = ? AND pinned_at IS NULL;", snowflake(s), message)
 			else sqlite.run(s.db, "UPDATE messages SET pinned_at = NULL WHERE id = ?;", message);
@@ -2924,6 +2937,7 @@ reaction :: (c: *Conn, req: http.Request, user: s64, channel: s64, message: s64,
 		sqlite.finalize(st);
 		if !found return json_error(c, 404, 10008, "Unknown Message");
 		if target != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if !list && archived_locked(s, channel) return json_error(c, 400, 50083, "Thread is archived");
 		if list {
 			// Who reacted, by user ID as Discord orders them, a page after `after`; no one gives super reactions here.
 			limit, after, burst := 25, 0, false;
