@@ -76,7 +76,6 @@
 - [ ] Messages: "Create Thread" from a message's menu and hover toolbar.
 - [ ] App: launching fastcord twice opens a second client; focus the running window instead (no single-instance check in `src/platform` or `src/app`). On Windows, relaunching to reopen a window closed to the tray hits this.
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
-- [ ] Reactions: View Reactions shows only the first 100 reactors (no paging with `after=`), and moderators have no X to remove someone's reaction.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
 - [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
 - [ ] Voice: push to talk works only while the window is focused, can't use mouse buttons and can't record combos.
@@ -351,3 +350,4 @@
 - [x] Bug (Windows): a camera turned on in a call whose codec is H.265 (the server's pick when everyone else can take it) was never sent, so every viewer, official client included, saw it loading forever. Without an encoder for the call's codec, fastcord now sends H.264 (`on_capture_frame`).
 - [x] Reactions: hovering a pill shows who reacted ("A, B and 3 others reacted with :x:"), from GET .../reactions/{emoji}?limit=100&type= (`view_chat.jai` `reactors_tooltip`, `replay_test.jai` `reactors_fetch`).
 - [x] Reactions: the message menu's View Reactions lists each reaction (super ones first) and who reacted; the who-reacted tooltip waits for a 0.3 s hover (`view_chat.jai` `view_reactions_modal`, `tests/ui/view_reactions.txt`).
+- [x] Reactions: View Reactions loads the next 100 reactors when scrolled near the end, and moderators get an X on hover that removes someone's reaction (`features.jai` `remove_user_reaction`, `replay_test.jai` `reactors_fetch`).
