@@ -82,6 +82,8 @@ chat_view :: (channel_id: dc.Snowflake) {
 	ch := dc.channel_get(s, channel_id);
 	if ch == null return;
 	cs := chat_state(channel_id);
+	// at local midnight "3:04 PM" becomes "Yesterday at 3:04 PM" and the day dividers move on
+	request_wake(platform.time_now() + cast(float64) (86400 - (wall_ms() + local_utc_offset_ms()) / 1000 % 86400) + 1);
 	rs := table_find_pointer(*s.read_states, channel_id);
 	last_read := ifx rs then rs.last_message_id else 0;
 	held := rs != null && rs.manual; // Mark Unread: the "NEW" line moves there and nothing is acked
@@ -444,6 +446,7 @@ format_unix :: (secs: s64, style: string) -> string {
 	case "F";
 		return full_timestamp(secs * 1000);
 	case "R";
+		request_wake(platform.time_now() + 30); // "in 4 hours" moves on while the window is idle
 		return relative_time(secs - wall_ms() / 1000);
 	}
 	return tprint("% %", date, clock);
