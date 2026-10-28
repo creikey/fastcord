@@ -559,6 +559,11 @@ user_context_menu :: () {
 	}
 	sn := server_nick_menu_item(uid);
 	if sn != "" { array_add(*items, sn); }
+	if uid == s.me && on_hosted() {
+		array_add(*items, "Change Avatar");
+		u := dc.user_get(s, uid);
+		if u && u.avatar { array_add(*items, "Remove Avatar"); }
+	}
 	moderation_menu_items(uid, *items);
 	array_add(*items, "Copy Username");
 	if s.settings.developer_mode { array_add(*items, "Copy User ID"); }
@@ -611,6 +616,11 @@ user_context_menu :: () {
 					if req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "ContextMenu"); req_end(); } else { table_set(*s.relationships, uid, .{user_id = uid, kind = .Outgoing_Request}); } // offline (fixture) runs
 				case "Change Nickname";
 					server_nick_open(uid, app.view.guild);
+				case "Change Avatar";
+					paths := pick_files();
+					if paths.count && net_action() { dc.edit_my_avatar(app.client, paths[0]); }
+				case "Remove Avatar";
+					if net_action() { dc.edit_my_avatar(app.client, ""); }
 				case "Copy Username";
 					u := dc.user_get(s, uid);
 					if u != null { clipboard_set(u.username); }

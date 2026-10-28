@@ -725,6 +725,22 @@ main :: () {
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"icon\": null}", token);
 	check(status == 200 && contains(body, "\"icon\":null"), tprint("null removes the icon: % %", status, body));
 
+	// Avatars: a member sets one, their messages carry it, it's served under its hash, and null removes it.
+	status, body = rest("PATCH", "/api/v9/users/@me", "{\"avatar\": \"data:image/png;base64,bm90IGFuIGltYWdl\"}", other_token);
+	check(status == 400, tprint("an avatar that isn't an image is refused: % %", status, body));
+	status, body = rest("PATCH", "/api/v9/users/@me", tprint("{\"avatar\": \"data:image/png;base64,%\"}", PNG_1PX), other_token);
+	avatar_v, _ := etf.from_json(body);
+	avatar_hash := field(avatar_v, "avatar").s;
+	check(status == 200 && avatar_hash.count == 32 && field(avatar_v, "id").s == other_id,tprint("a member sets an avatar: % %", status, body));
+	status, body = rest("GET", tprint("%?limit=100", messages), "", token);
+	check(status == 200 && contains(body, tprint("\"avatar\":\"%\"", avatar_hash)), tprint("messages carry the avatar: %", body));
+	status, body = rest("GET", tprint("/avatars/%/%.png?size=80", other_id, avatar_hash), "", "");
+	check(status == 200 && begins_with(body, "\x89PNG"), tprint("the avatar is served: %", status));
+	status, body = rest("PATCH", "/api/v9/users/@me", "{\"avatar\": null}", other_token);
+	check(status == 200 && contains(body, "\"avatar\":null"), tprint("null removes the avatar: % %", status, body));
+	status, body = rest("GET", tprint("/avatars/%/%.png", other_id, avatar_hash), "", "");
+	check(status == 404, tprint("a removed avatar 404s: %", status));
+
 	// Slowmode: the owner sets it in Channel Settings; a member's second message comes too soon, the owner's doesn't.
 	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"slow\", \"type\": 0}", token);
 	slow_v, _ := etf.from_json(body);

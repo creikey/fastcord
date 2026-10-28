@@ -4,6 +4,7 @@
 #import "Thread";
 #import "String";
 #import "Base64";
+#import "Hash_Table";
 crypto :: #import "crypto";
 etf :: #import "etf";
 http :: #import "http";
@@ -44,6 +45,10 @@ Server :: struct {
 	seq: u32; // atomic; the low bits of snowflakes
 	guild: s64; // The guild ID the client sees.
 	name: string;
+	// Members' avatar hashes, for those who set one, so user_value needs no query. A leaf lock: nothing
+	// else is taken while it's held, so it may be taken under any other.
+	avatar_mu: locks.Mutex;
+	avatars: Table(s64, string);
 }
 
 Conn :: struct {
@@ -87,6 +92,9 @@ open :: (path: string) -> *Server, bool {
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar TEXT;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_type TEXT;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_data BLOB;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN reply INTEGER;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN everyone INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN pinned_at INTEGER;");
@@ -141,6 +149,9 @@ open :: (path: string) -> *Server, bool {
 	s.guild = string_to_int(cast(string) meta_get(s, "guild_id"), T = s64);
 	s.name = copy_string(cast(string) meta_get(s, "name"));
 	if !s.guild { close(s); return null, false; }
+	st = sqlite.prepare(db, "SELECT id, avatar FROM users WHERE avatar IS NOT NULL;");
+	while sqlite.step(st) == .Row table_set(*s.avatars, sqlite.col_int(st, 0), copy_string(sqlite.col_text(st, 1)));
+	sqlite.finalize(st);
 	// Until someone claims the server, a one-use owner invite exists; the host joins with it first.
 	if !meta_get(s, "owner") && !owner_invite(s) {
 		code: [16]u8;
@@ -334,6 +345,8 @@ close :: (s: *Server) {
 	if s.ctx tls.SSL_CTX_free(s.ctx);
 	sqlite.close(s.db);
 	free(s.name);
+	for s.avatars free(it);
+	deinit(*s.avatars);
 	free(s);
 }
 
@@ -360,7 +373,7 @@ meta_put :: (s: *Server, k: string, v: string) -> bool { return meta_put(s, k, c
 // Users, channels and messages have Discord-shaped snowflake IDs, since the client reads times from them.
 SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, avatar TEXT, avatar_type TEXT, avatar_data BLOB);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user);
 CREATE TABLE IF NOT EXISTS uploads(token TEXT PRIMARY KEY, user INTEGER NOT NULL, channel INTEGER NOT NULL, filename TEXT NOT NULL, size INTEGER NOT NULL,
@@ -622,7 +635,7 @@ serve_conn :: (c: *Conn) {
 			if !login(c, session, req) return;
 			continue;
 		}
-		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") {
+		if begins_with(req.path, "/upload/") || begins_with(req.path, "/attachments/") || begins_with(req.path, "/api/v9/attachments/") || begins_with(req.path, "/icons/") || begins_with(req.path, "/avatars/") {
 			if !files(c, req) return;
 			continue;
 		}
@@ -636,6 +649,10 @@ serve_conn :: (c: *Conn) {
 		}
 		if req.method == "POST" && req.path == tprint("/api/v9/guilds/%/channels", c.server.guild) {
 			if !create_channel(c, req) return;
+			continue;
+		}
+		if req.method == "PATCH" && req.path == "/api/v9/users/@me" {
+			if !edit_me(c, req) return;
 			continue;
 		}
 		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%", c.server.guild) {
@@ -692,15 +709,88 @@ session_user :: (c: *Conn, token: string) -> id: s64, name: string {
 
 snow :: (id: s64) -> etf.Value { return etf.vstring(tprint("%", id)); }
 
-user_value :: (id: s64, name: string) -> etf.Value {
+user_value :: (s: *Server, id: s64, name: string) -> etf.Value {
+	avatar: etf.Value;
+	{
+		locks.guard(*s.avatar_mu);
+		hash := table_find_pointer(*s.avatars, id);
+		if hash avatar = etf.vstring(copy_string(hash.*,, temp));
+	}
 	m := etf.map_builder(5,, temp);
 	etf.map_put(*m, "id", snow(id));
 	etf.map_put(*m, "username", etf.vstring(name));
 	etf.map_put(*m, "global_name", etf.vstring(name));
 	etf.map_put(*m, "discriminator", etf.vstring("0"));
-	etf.map_put(*m, "avatar", .{});
+	etf.map_put(*m, "avatar", avatar);
 	return etf.vmap(etf.map_done(*m));
 }
+
+// image_data_uri reads a `data:image/...;base64,` URI of at most max bytes, checked by its magic bytes and
+// never decoded; the bytes are in temp.
+image_data_uri :: (uri: string, max: int) -> []u8, imagefmt.Format, bool {
+	comma := find_index_from_left(uri, #char ",");
+	if !begins_with(uri, "data:image/") || comma < 0 || !ends_with(slice(uri, 0, comma), ";base64") || uri.count - comma > max / 3 * 4 + 8 return .[], .Unknown, false;
+	data, ok := base64_decode(advance(uri, comma + 1),, temp);
+	bytes := cast([]u8) data;
+	format := imagefmt.sniff(bytes);
+	if !ok || bytes.count > max || format == .Unknown return .[], .Unknown, false;
+	return bytes, format, true;
+}
+
+IMAGE_TYPES :: string.["", "image/png", "image/gif", "image/jpeg", "image/webp"];
+
+// A new image's hash: random, so its URL can't be guessed, and "a_" for a GIF as Discord marks animated ones.
+image_hash :: (format: imagefmt.Format) -> string {
+	b: [16]u8;
+	crypto.random_bytes(b);
+	return tprint("%1%2", ifx format == .GIF then "a_" else "", hex(b,, temp));
+}
+
+// PATCH /api/v9/users/@me {avatar}: a member sets their avatar on this server, a `data:` URI, or null to
+// remove it. It is theirs here only: nothing ties it to their Discord account.
+edit_me :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	token, _ := http.header_get(req.headers, "authorization");
+	user, name := session_user(c, token);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	v, err := etf.from_json(cast(string) req.body,, temp);
+	avatar_v: etf.Value;
+	has_avatar := false;
+	if err == .None && v.kind == .Map avatar_v, has_avatar = etf.map_get(v.map, "avatar");
+	if !has_avatar return json_error(c, 400, 50035, "Invalid Form Body");
+	data: []u8;
+	format: imagefmt.Format;
+	if avatar_v.kind != .Nil {
+		ok: bool;
+		data, format, ok = image_data_uri(ifx avatar_v.kind == .String then avatar_v.s else "", AVATAR_MAX_BYTES);
+		if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+	}
+	hash := ifx data then image_hash(format) else "";
+	{
+		locks.guard(*s.db_mu);
+		ok := ifx data
+			then sqlite.run(s.db, "UPDATE users SET avatar = ?, avatar_type = ?, avatar_data = ? WHERE id = ?;", hash, IMAGE_TYPES[cast(int) format], data, user)
+			else sqlite.run(s.db, "UPDATE users SET avatar = NULL, avatar_type = NULL, avatar_data = NULL WHERE id = ?;", user);
+		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
+		locks.guard(*s.avatar_mu);
+		old := table_find_pointer(*s.avatars, user);
+		if old free(old.*);
+		if hash table_set(*s.avatars, user, copy_string(hash));
+		else table_remove(*s.avatars, user);
+	}
+	me := user_value(s, user, name);
+	m := etf.map_builder(4,, temp);
+	etf.map_put(*m, "guild_id", snow(s.guild));
+	etf.map_put(*m, "user", me);
+	etf.map_put(*m, "nick", .{});
+	no_roles: []etf.Value;
+	etf.map_put(*m, "roles", etf.vlist(no_roles));
+	broadcast(s, "GUILD_MEMBER_UPDATE", etf.vmap(etf.map_done(*m)));
+	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
+	return json_reply(c, 200, me);
+}
+
+AVATAR_MAX_BYTES :: 512 * 1024;
 
 // iso is a snowflake's creation time as Discord writes timestamps.
 iso :: (id: s64) -> string {
@@ -728,7 +818,7 @@ message_value :: (s: *Server, id: s64, channel: s64, author: s64, author_name: s
 	}
 	etf.map_put(*m, "channel_id", snow(channel));
 	etf.map_put(*m, "guild_id", snow(s.guild));
-	etf.map_put(*m, "author", user_value(author, author_name));
+	etf.map_put(*m, "author", user_value(s, author, author_name));
 	etf.map_put(*m, "content", etf.vstring(content));
 	etf.map_put(*m, "timestamp", etf.vstring(iso(id)));
 	etf.map_put(*m, "edited_timestamp", ifx edited then etf.vstring(iso(edited)) else .{});
@@ -768,7 +858,7 @@ row_message :: (s: *Server, st: *sqlite.Stmt, nested := false, viewer: s64 = 0, 
 	mentioned.allocator = temp;
 	q := sqlite.prepare(s.db, "SELECT u.id, u.name FROM mentions x JOIN users u ON u.id = x.user WHERE x.message = ?;");
 	sqlite.bind(q, 1, id);
-	while sqlite.step(q) == .Row array_add(*mentioned, user_value(sqlite.col_int(q, 0), copy_string(sqlite.col_text(q, 1),, temp)));
+	while sqlite.step(q) == .Row array_add(*mentioned, user_value(s, sqlite.col_int(q, 0), copy_string(sqlite.col_text(q, 1),, temp)));
 	sqlite.finalize(q);
 	if viewer {
 		list: [..]etf.Value;
@@ -977,7 +1067,7 @@ ready_value :: (s: *Server, user: s64, name: string) -> etf.Value {
 	etf.map_put(*d, "read_state", etf.vmap(etf.map_done(*read_state)));
 	etf.map_put(*d, "user_guild_settings", etf.vmap(etf.map_done(*guild_settings)));
 	etf.map_put(*d, "v", etf.vint(9));
-	etf.map_put(*d, "user", user_value(user, name));
+	etf.map_put(*d, "user", user_value(s, user, name));
 	etf.map_put(*d, "guilds", etf.vlist(guilds));
 	etf.map_put(*d, "session_id", etf.vstring(tprint("%", user)));
 	return etf.vmap(etf.map_done(*d));
@@ -1106,7 +1196,7 @@ member_list_value :: (s: *Server) -> etf.Value {
 			etf.map_put(*p, "status", etf.vstring(ifx found then STATUSES[`statuses[at]] else "offline"));
 			if found etf.map_put(*p, "activities", `activities[at]);
 			m := etf.map_builder(2,, temp);
-			etf.map_put(*m, "user", user_value(it.id, it.name));
+			etf.map_put(*m, "user", user_value(`s, it.id, it.name));
 			etf.map_put(*m, "presence", etf.vmap(etf.map_done(*p)));
 			wrap := etf.map_builder(1,, temp);
 			etf.map_put(*wrap, "member", etf.vmap(etf.map_done(*m)));
@@ -1242,7 +1332,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if !ok return json_error(c, 404, 10003, "Unknown Channel");
 	if typing {
 		member := etf.map_builder(1,, temp);
-		etf.map_put(*member, "user", user_value(user, name));
+		etf.map_put(*member, "user", user_value(s, user, name));
 		d := etf.map_builder(5,, temp);
 		etf.map_put(*d, "channel_id", snow(channel));
 		etf.map_put(*d, "guild_id", snow(s.guild));
@@ -1612,15 +1702,9 @@ edit_guild :: (c: *Conn, req: http.Request) -> bool {
 	icon: []u8;
 	format: imagefmt.Format;
 	if has_icon && icon_v.kind != .Nil {
-		uri := ifx icon_v.kind == .String then icon_v.s else "";
-		comma := find_index_from_left(uri, #char ",");
-		if !begins_with(uri, "data:image/") || comma < 0 || !ends_with(slice(uri, 0, comma), ";base64") || uri.count - comma > ICON_MAX_BYTES / 3 * 4 + 8 {
-			return json_error(c, 400, 50035, "Invalid Form Body");
-		}
-		data, ok := base64_decode(advance(uri, comma + 1),, temp);
-		icon = cast([]u8) data;
-		format = imagefmt.sniff(icon);
-		if !ok || icon.count > ICON_MAX_BYTES || format == .Unknown return json_error(c, 400, 50035, "Invalid Form Body");
+		ok: bool;
+		icon, format, ok = image_data_uri(ifx icon_v.kind == .String then icon_v.s else "", ICON_MAX_BYTES);
+		if !ok return json_error(c, 400, 50035, "Invalid Form Body");
 	}
 	g := etf.map_builder(3,, temp);
 	etf.map_put(*g, "id", snow(s.guild));
@@ -1635,12 +1719,9 @@ edit_guild :: (c: *Conn, req: http.Request) -> bool {
 		if has_icon {
 			ok := true;
 			if icon {
-				hash: [16]u8;
-				crypto.random_bytes(hash);
-				TYPES :: string.["", "image/png", "image/gif", "image/jpeg", "image/webp"];
 				ok = sqlite.exec(s.db, "BEGIN;")
-					&& meta_put(s, "icon", tprint("%1%2", ifx format == .GIF then "a_" else "", hex(hash,, temp)))
-					&& meta_put(s, "icon_type", TYPES[cast(int) format])
+					&& meta_put(s, "icon", image_hash(format))
+					&& meta_put(s, "icon_type", IMAGE_TYPES[cast(int) format])
 					&& meta_put(s, "icon_data", icon)
 					&& sqlite.exec(s.db, "COMMIT;");
 				if !ok sqlite.exec(s.db, "ROLLBACK;");
@@ -1675,7 +1756,7 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 	}
 	m := etf.map_builder(4,, temp);
 	etf.map_put(*m, "guild_id", snow(s.guild));
-	etf.map_put(*m, "user", user_value(user, name));
+	etf.map_put(*m, "user", user_value(s, user, name));
 	etf.map_put(*m, "nick", .{});
 	no_roles: []etf.Value;
 	etf.map_put(*m, "roles", etf.vlist(no_roles));
@@ -1941,7 +2022,7 @@ create_invite :: (c: *Conn, req: http.Request, user: s64, name: string, channel:
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "guild", etf.vmap(etf.map_done(*g)));
 	etf.map_put(*m, "channel", ch);
-	etf.map_put(*m, "inviter", user_value(user, name));
+	etf.map_put(*m, "inviter", user_value(s, user, name));
 	etf.map_put(*m, "max_age", etf.vint(max_age));
 	etf.map_put(*m, "expires_at", ifx expires then etf.vstring(iso(((expires * 1000) - DISCORD_EPOCH_MS) << 22)) else .{});
 	etf.map_put(*m, "max_uses", etf.vint(max_uses));
@@ -2056,6 +2137,25 @@ files :: (c: *Conn, req: http.Request) -> bool {
 		c.reply_status, c.reply_json = 200, false;
 		c.reply_type = cast(string) meta_get(s, "icon_type");
 		c.reply_body = cast(string) meta_get(s, "icon_data");
+		return true;
+	}
+	// GET /avatars/{user}/{hash}.{ext}: a member's avatar, served the same way as the icon.
+	if begins_with(path, "/avatars/") {
+		if req.method != "GET" return json_error(c, 405, 0, "405: Method Not Allowed");
+		parts := split(advance(path, "/avatars/".count), "/",, temp);
+		user, ok := string_to_int(parts[0], T = s64);
+		if !ok || parts.count != 2 return json_error(c, 404, 0, "404: Not Found");
+		hash := parts[1];
+		dot := find_index_from_left(hash, #char ".");
+		if dot >= 0 hash.count = dot;
+		locks.guard(*s.db_mu);
+		st := sqlite.prepare(s.db, "SELECT avatar_type, avatar_data FROM users WHERE id = ? AND avatar = ?;");
+		defer sqlite.finalize(st);
+		sqlite.bind_all(st, user, hash);
+		if sqlite.step(st) != .Row return json_error(c, 404, 0, "404: Not Found");
+		c.reply_status, c.reply_json = 200, false;
+		c.reply_type = copy_string(sqlite.col_text(st, 0),, temp);
+		c.reply_body = copy_string(cast(string) sqlite.col_blob(st, 1),, temp);
 		return true;
 	}
 	if begins_with(path, "/attachments/") {

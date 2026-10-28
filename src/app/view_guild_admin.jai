@@ -147,6 +147,11 @@ guild_admin_receive :: (r: *dc.Feature_Result) {
 			adm.busy = false; // the page stays open, now saved
 			return;
 		}
+	case .Avatar_Edit;
+		if r.status == -1 show_notice("Couldn't change avatar", "That file couldn't be read. Avatars must be PNG, JPEG, GIF or WEBP images.");
+		else if r.status == -2 show_notice("Couldn't change avatar", "That image is too large. Avatars must be under 512 KB.");
+		else if !r.ok show_notice("Couldn't change avatar", result_error(r));
+		return;
 	case .Guild_Edit;
 		if adm.modal != .Server_Settings || r.channel_id != adm.guild return;
 		icon := adm.icon_busy;

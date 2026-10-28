@@ -112,6 +112,7 @@ avatar_url_for :: (uid: dc.Snowflake, size: float32) -> string {
 	}
 	if u == null return dc.default_avatar_url(uid, "0");
 	if u.avatar == "" return dc.default_avatar_url(uid, u.discriminator);
+	for hosted if it.client && it.client == app.client return tprint("https://%/avatars/%/%.png?size=%", it.inv.id_hex, uid, u.avatar, sz);
 	return dc.avatar_url(uid, u.avatar, sz);
 }
 

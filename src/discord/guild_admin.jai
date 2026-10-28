@@ -548,7 +548,14 @@ edit_guild_name :: (c: *Client, guild_id: Snowflake, name: string) {
 	feature_submit(c, .Guild_Edit, "PATCH", tprint("/guilds/%", guild_id), json_string(*w), channel_id = guild_id);
 }
 
-// The serve's cap (`ICON_MAX_BYTES`), which keeps the base64 body under its 1 MiB request limit.
+// PATCH /users/@me {"avatar": data URI} from an image file, or null for "". Only hosted servers offer it:
+// Discord's needs its own profile editor.
+edit_my_avatar :: (c: *Client, path: string) {
+	if path feature_submit(c, .Avatar_Edit, "PATCH", "/users/@me", file = path);
+	else feature_submit(c, .Avatar_Edit, "PATCH", "/users/@me", "{\"avatar\":null}");
+}
+
+// The serve's caps (`ICON_MAX_BYTES`, `AVATAR_MAX_BYTES`), which keep the base64 body under its 1 MiB request limit.
 HOSTED_ICON_MAX_BYTES :: 512 * 1024;
 
 // PATCH /guilds/{id} {"icon": data URI} from an image file (read off the UI thread), or "" to remove it.
@@ -677,12 +684,12 @@ file_job_body :: (path: string, name: string, op: Feature_Op) -> string, []http.
 	if !mime return "", .[], -1;
 	data, ok := read_entire_file(path, log_errors = false,, temp);
 	if !ok || !data return "", .[], -1;
-	if op == .Guild_Edit {
+	if op == .Guild_Edit || op == .Avatar_Edit {
 		if data.count > HOSTED_ICON_MAX_BYTES return "", .[], -2;
 		w: Json;
 		json_init(*w);
 		json_obj(*w);
-		json_kstr(*w, "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
+		json_kstr(*w, ifx op == .Avatar_Edit then "avatar" else "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
 		json_obj_end(*w);
 		return json_string(*w), .[], 0;
 	}
