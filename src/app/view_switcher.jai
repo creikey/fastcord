@@ -18,6 +18,7 @@ Switch_Kind :: enum u8 {
 
 Switch_Item :: struct {
 	kind: Switch_Kind;
+	client: *dc.Client; // The connection it is on.
 	id: dc.Snowflake; // channel or guild
 	guild: dc.Snowflake;
 	name: string;
@@ -67,9 +68,15 @@ switcher_toggle :: () {
 switcher_close :: (items: []Switch_Item = .[], selected := -1) {
 	sw.open = false;
 	if app.client == null { return; }
-	res := NewArray(items.count, dc.Qs_Result,, temp);
+	// Only the selected connection's results go into its telemetry, so Discord never hears of a hosted
+	// server's channels.
+	res: [..]dc.Qs_Result;
+	res.allocator = temp;
+	picked := -1;
 	for items {
-		r := *res[it_index];
+		if it.client != app.client continue;
+		if it_index == selected picked = res.count;
+		r := array_add(*res);
 		r.id, r.score = it.id, cast(float64) it.score / 2;
 		ch := dc.channel_get(store(), it.id);
 		if it.kind == {
@@ -83,7 +90,7 @@ switcher_close :: (items: []Switch_Item = .[], selected := -1) {
 			r.kind = .Guild;
 		}
 	}
-	dc.analytics_quickswitcher_closed(app.client, app.view.guild, app.view.channel, trim(ui.editor_text(*sw.editor)), sw.max_query, res, selected);
+	dc.analytics_quickswitcher_closed(app.client, app.view.guild, app.view.channel, trim(ui.editor_text(*sw.editor)), sw.max_query, res, picked);
 }
 
 // The 12 best matches, best first; equal scores keep DMs, servers, channels order (a stable sort's top 12).
@@ -100,23 +107,30 @@ switcher_items :: (query: string) -> []Switch_Item {
 		array_insert_at(top, item, at);
 		if top.count > MAX { top.count = MAX; }
 	}
-	s := store();
-	for cid: s.private_channels {
-		ch := dc.channel_get(s, cid);
-		if ch == null { continue; }
-		name := dm_name(ch);
-		sc := fuzzy_score(query, name);
-		add(*top, .{kind = .DM, id = cid, name = name, score = ifx sc >= 0 then sc + 5 else -1});
-	}
-	for gid: guild_order() {
-		g := dc.guild_get(s, gid);
-		if g == null { continue; }
-		if query != "" { add(*top, .{kind = .Guild, id = gid, name = g.name, score = fuzzy_score(query, g.name)}); }
-		for cid: dc.guild_channels_sorted(s, gid) {
+	keep := app.client;
+	defer app.client = keep;
+	clients := connections();
+	if !clients.count clients = .[app.client];
+	for c: clients {
+		app.client = c;
+		s := store();
+		for cid: s.private_channels {
 			ch := dc.channel_get(s, cid);
-			if ch == null || ch.kind == .Guild_Category { continue; }
-			sc := fuzzy_score(query, ch.name);
-			add(*top, .{kind = .Channel, id = cid, guild = gid, name = ch.name, sub = g.name, score = ifx sc >= 0 then sc + (ifx dc.channel_unread(s, cid) then 3 else 0) else -1});
+			if ch == null { continue; }
+			name := dm_name(ch);
+			sc := fuzzy_score(query, name);
+			add(*top, .{kind = .DM, client = c, id = cid, name = name, score = ifx sc >= 0 then sc + 5 else -1});
+		}
+		for gid: guild_order() {
+			g := dc.guild_get(s, gid);
+			if g == null { continue; }
+			if query != "" { add(*top, .{kind = .Guild, client = c, id = gid, name = g.name, score = fuzzy_score(query, g.name)}); }
+			for cid: dc.guild_channels_sorted(s, gid) {
+				ch := dc.channel_get(s, cid);
+				if ch == null || ch.kind == .Guild_Category { continue; }
+				sc := fuzzy_score(query, ch.name);
+				add(*top, .{kind = .Channel, client = c, id = cid, guild = gid, name = ch.name, sub = g.name, score = ifx sc >= 0 then sc + (ifx dc.channel_unread(s, cid) then 3 else 0) else -1});
+			}
 		}
 	}
 	return top;
@@ -125,6 +139,7 @@ switcher_items :: (query: string) -> []Switch_Item {
 switcher_activate :: (items: []Switch_Item, index: int) {
 	switcher_close(items, index);
 	item := items[index];
+	app.client = item.client;
 	if item.kind == {
 	case .DM;
 		select_channel(0, item.id);
@@ -202,6 +217,9 @@ quick_switcher :: () {
 			if sel { ir.style.bg = T("--background-mod-normal"); }
 			if sig.clicked { switcher_activate(items, i); }
 			{ ui.parent(ir); defer ui.pop_parent();
+				keep := app.client;
+				app.client = item.client;
+				defer app.client = keep;
 				spacer(.X, 28);
 				if item.kind == {
 				case .DM;
