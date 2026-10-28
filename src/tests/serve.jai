@@ -407,6 +407,25 @@ main :: () {
 	status, body = rest("GET", messages, "", other_token);
 	check(other_token.count == 64 && status == 200, tprint("rejoin by invite: % % %", ostatus, omessage, status));
 
+	// Pages around and after a message, newest first like every page.
+	ids :: (query: string) -> string #expand {
+		status, body := rest("GET", tprint("%?%", messages, query), "", token);
+		v, _ := etf.from_json(body);
+		if status != 200 || v.kind != .List return tprint("% %", status, body);
+		b: String_Builder;
+		b.allocator = temp;
+		for v.list print_to_builder(*b, "% ", field(it, "id").s);
+		return builder_to_string(*b,, temp);
+	}
+	all := split(ids("limit=50"), " ",, temp);
+	check(all.count >= 5, "enough messages to page");
+	if all.count >= 5 {
+		got := ids(tprint("around=%&limit=3", all[1]));
+		check(got == tprint("% % % ", all[0], all[1], all[2]), tprint("around: %", got));
+		got = ids(tprint("after=%&limit=2", all[3]));
+		check(got == tprint("% % ", all[1], all[2]), tprint("after: %", got));
+	}
+
 	serve.stop(s);
 	print("% failed\n", failed);
 	exit(xx ifx failed then 1 else 0);

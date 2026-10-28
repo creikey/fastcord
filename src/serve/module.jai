@@ -871,19 +871,32 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	sb: String_Builder;
 	sb.allocator = temp;
 	if req.method == "GET" {
-		limit, before := 50, 0;
+		limit, before, after, around := 50, 0, 0, 0;
 		for split(query, "&",, temp) {
 			kv := split(it, "=",, temp);
 			if kv.count != 2 continue;
 			if kv[0] == "limit" limit = clamp(string_to_int(kv[1]), 1, 100);
 			if kv[0] == "before" before = string_to_int(kv[1], T = s64);
+			if kv[0] == "after" after = string_to_int(kv[1], T = s64);
+			if kv[0] == "around" around = string_to_int(kv[1], T = s64);
 		}
 		list: [..]etf.Value;
 		list.allocator = temp;
 		{
 			locks.guard(*s.db_mu);
-			st := sqlite.prepare(s.db, tprint("% WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;", MESSAGE_SELECT));
-			sqlite.bind_all(st, channel, before, before, limit);
+			// Pages are newest first whichever way they extend; around takes the message itself and older ones
+			// for the larger half, newer ones for the rest.
+			st: *sqlite.Stmt;
+			if around {
+				st = sqlite.prepare(s.db, tprint("SELECT * FROM (% WHERE m.channel = ? AND m.id > ? ORDER BY m.id LIMIT ?) UNION ALL SELECT * FROM (% WHERE m.channel = ? AND m.id <= ? ORDER BY m.id DESC LIMIT ?) ORDER BY 1 DESC;", MESSAGE_SELECT, MESSAGE_SELECT));
+				sqlite.bind_all(st, channel, around, limit / 2, channel, around, limit - limit / 2);
+			} else if after {
+				st = sqlite.prepare(s.db, tprint("SELECT * FROM (% WHERE m.channel = ? AND m.id > ? ORDER BY m.id LIMIT ?) ORDER BY 1 DESC;", MESSAGE_SELECT));
+				sqlite.bind_all(st, channel, after, limit);
+			} else {
+				st = sqlite.prepare(s.db, tprint("% WHERE m.channel = ? AND (? = 0 OR m.id < ?) ORDER BY m.id DESC LIMIT ?;", MESSAGE_SELECT));
+				sqlite.bind_all(st, channel, before, before, limit);
+			}
 			while sqlite.step(st) == .Row array_add(*list, row_message(s, st, viewer = user));
 			sqlite.finalize(st);
 		}

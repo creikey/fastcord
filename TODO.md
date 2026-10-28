@@ -36,7 +36,8 @@
   - Done: search (`GET /guilds/{id}/messages/search`): whole-word content from an FTS5 index kept by triggers, `author_id`, `mentions`, `channel_id`, `pinned` and `has:link`, 25 a page.
   - Done: Leave Server (`DELETE /users/@me/guilds/{id}`). The member stays as their messages' author but loses their sessions and gateways (GUILD_DELETE), and needs an invite to return; the owner can't leave. The app then drops the connection and its saved invite (`hosted_frame`).
   - Next: the "pinned a message" system message (type 6), and edits recomputing mentions. The member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead. A slow gateway reader stalls everyone's events (`serve` `broadcast`).
-  - Bug: message pages read only `limit` and `before` (`channel_messages`), so `around` and `after` are ignored. Jumping to an older message, from a reply's original or a message link, gets the newest page and the jump gives up. Serve both.
+  - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
+  - A member's name is fixed at their first join (their Discord name then), and nothing changes it: `-serve` has no `PATCH /guilds/{id}/members/@me` for a server nickname, so a rename on Discord or a wish for another name there never reaches the hosted server.
   - Add a test that runs the hosted client's views against a `-serve` instance and fails on every 404. Each request a hosted guild makes should be served or skipped like `aux_get`. Pins, search and profiles all 404 today.
 - [ ] Hosting 3: one instance hosts many server files on one port, choosing the server by its ID through TLS SNI. The owner runs Server Settings, plus a host tab, from their own client anywhere. It can't be bricked:
   - A second file with an already-loaded ID is refused, with Fork (new ID, same content) offered instead.
