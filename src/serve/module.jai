@@ -103,8 +103,10 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN max_age INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN expires INTEGER NOT NULL DEFAULT 0;");
+	sqlite.exec(db, "ALTER TABLE messages ADD COLUMN nonce TEXT;");
 	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_everyone ON messages(id) WHERE everyone = 1;");
-	st :=sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
+	sqlite.exec(db, "CREATE INDEX IF NOT EXISTS messages_nonce ON messages(author, nonce) WHERE nonce IS NOT NULL;");
+	st := sqlite.prepare(db, "SELECT 1 FROM sqlite_master WHERE name = 'message_text';");
 	indexed := sqlite.step(st) == .Row;
 	sqlite.finalize(st);
 	if !sqlite.exec(db, SEARCH_SCHEMA) || (!indexed && !sqlite.exec(db, "INSERT INTO message_text(message_text) VALUES('rebuild');")) {
@@ -369,7 +371,7 @@ CREATE INDEX IF NOT EXISTS attachments_message ON attachments(message);
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
 	provider TEXT NOT NULL, color INTEGER NOT NULL, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT);
 CREATE TABLE IF NOT EXISTS read_states(user INTEGER NOT NULL, channel INTEGER NOT NULL, last INTEGER NOT NULL, mentions INTEGER NOT NULL, PRIMARY KEY(user, channel));
 CREATE TABLE IF NOT EXISTS guild_settings(user INTEGER PRIMARY KEY, settings TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mentions(message INTEGER NOT NULL, user INTEGER NOT NULL, PRIMARY KEY(message, user));
@@ -400,6 +402,7 @@ END;
 SQL
 
 DISCORD_EPOCH_MS :: 1420070400000;
+NONCE_WINDOW_MS :: 5 * 60 * 1000;
 
 snowflake :: (s: *Server) -> s64 {
 	ms := to_milliseconds(current_time_consensus() - APOLLO_TIME_FOR_JAN_1_1970) - DISCORD_EPOCH_MS;
@@ -1302,9 +1305,23 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 			else if rid.kind == .Int reply = rid.i;
 		}
 		id := snowflake(s);
+		nonce_s := ifx nonce.kind == .String then nonce.s else "";
 		referenced, m: etf.Value;
 		{
 			locks.guard(*s.db_mu);
+			// A resend whose first reply was lost (the client retries on network errors and 5xx) gets the
+			// message it already made, as Discord's enforce_nonce does, rather than posting it twice.
+			if nonce_s {
+				st := sqlite.prepare(s.db, "SELECT id FROM messages WHERE author = ? AND nonce = ? AND channel = ? AND id > ?;");
+				sqlite.bind_all(st, user, nonce_s, channel, id - (NONCE_WINDOW_MS << 22));
+				sent := ifx sqlite.step(st) == .Row then sqlite.col_int(st, 0) else 0;
+				sqlite.finalize(st);
+				if sent {
+					m = message_locked(s, sent, nested = false, nonce = nonce_s);
+					etf.to_json(m, *sb);
+					return respond(c, 200, builder_to_string(*sb,, temp));
+				}
+			}
 			if reply {
 				referenced = message_locked(s, reply);
 				if referenced.kind != .Map || etf.map_get(referenced.map, "channel_id").s != tprint("%", channel) {
@@ -1334,7 +1351,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				array_add_if_unique(*ids, string_to_int(author.s, T = s64));
 			}
 			ok := sqlite.exec(s.db, "BEGIN;")
-				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone) VALUES(?, ?, ?, coalesce(?, ''), ?, ?);", id, channel, user, content.s, reply, cast(int) everyone);
+				&& sqlite.run(s.db, "INSERT INTO messages(id, channel, author, content, reply, everyone, nonce) VALUES(?, ?, ?, coalesce(?, ''), ?, ?, nullif(?, ''));", id, channel, user, content.s, reply, cast(int) everyone, nonce_s);
 			for ids if ok ok = sqlite.run(s.db, "INSERT OR IGNORE INTO mentions(message, user) SELECT ?, id FROM users WHERE id = ? AND left = 0;", id, it);
 			bad_file := false;
 			if has_files for a: atts.list {
@@ -1370,7 +1387,7 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 				sqlite.exec(s.db, "ROLLBACK;");
 				return json_error(c, 500, 0, "500: Internal Server Error");
 			}
-			m = message_locked(s, id, nested = false, nonce = ifx nonce.kind == .String then nonce.s else "");
+			m = message_locked(s, id, nested = false, nonce = nonce_s);
 		}
 		etf.to_json(m, *sb);
 		broadcast(s, "MESSAGE_CREATE", m);

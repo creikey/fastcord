@@ -72,7 +72,7 @@
   - Next: the member list is resent whole on every change; past a few hundred members, send INSERT/DELETE for the subscribed ranges instead.
   - Done: each gateway has its own send queue and writer thread, so a member who stops reading no longer stalls everyone's events; past 8 MB of backlog they are disconnected and reconnect (`serve` `queue`, `writer`).
   - Done: messages sent while a hosted gateway was down show up after it reconnects. `serve` has no resume, and a fresh READY marks cached channels stale and refetches the open one (`store_reset_session`); the serve test drops the gateway to check it.
-  - A send can post twice. The client retries a send up to 3 times on any network error or 5xx (`send_message` `retries = 3`, `api_call`, as the official client does), and serve stores every POST, so when a reply is lost on a flaky home link everyone sees the message twice. Have serve answer with the existing message when the same member sends the same nonce within a few minutes (Discord's `enforce_nonce`), and test it by replaying a send.
+  - Done: a resend can't post twice. Serve keeps each message's nonce and answers a repeat from the same member in the same channel within 5 minutes with the message it already made, before slowmode is checked (`NONCE_WINDOW_MS`).
   - Done: message pages take `around` and `after` as well as `before`, so jumps to an older message (a reply's original, a message link) land.
   - Done: Change Nickname (`PATCH /guilds/{id}/members/@me`) renames the member, since a hosted member has one name; GUILD_MEMBER_UPDATE and the member list follow, and old messages show the new name.
   - Done: the owner deletes any member's message (Discord's Manage Messages); members still delete only their own.
@@ -307,6 +307,7 @@
 - [ ] Replies: on a hovered reply, the quoted author name and URL draw through the hover toolbar (quick reactions and message options); the toolbar should cover them.
 - [ ] Messages: "Forward" in the message menu; forwards are only displayed.
 - [ ] Chat: NSFW channels open with no age-gate screen.
+- [ ] Messages: there's no Forward. The official client's message menu and hover bar forward a message to other channels and DMs with an optional note (`message_reference` type 1, shown as `message_snapshots`); fastcord only renders forwards it receives. Add the action and its picker, and serve forwards between a hosted server's channels.
 - [ ] Video: frames go out as one unpaced burst on the same UDP socket as the mic (`send_video`, no pacer or audio priority); on a slow uplink a keyframe can delay or drop voice packets.
 - [ ] Notifications: a channel can only be muted from the open channel's header bell.
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.

@@ -724,6 +724,17 @@ main :: () {
 	status, body = rest("POST", slow_messages, "{\"content\": \"owner\"}", token);
 	status, body = rest("POST", slow_messages, "{\"content\": \"owner again\"}", token);
 	check(status == 200, tprint("the owner isn't slowed: % %", status, body));
+	// A resend with the same nonce, as after a lost reply, gets the first message back, even under slowmode.
+	status, body = rest("POST", slow_messages, "{\"content\": \"once\", \"nonce\": \"1234567890\"}", token);
+	first_v, _ := etf.from_json(body);
+	status, body = rest("POST", slow_messages, "{\"content\": \"once\", \"nonce\": \"1234567890\"}", token);
+	again_v, _ := etf.from_json(body);
+	check(status == 200 && field(again_v, "id").s == field(first_v, "id").s && field(again_v, "nonce").s == "1234567890", tprint("a repeated nonce returns the first message: % %", status, body));
+	status, body = rest("GET", tprint("%?limit=100", slow_messages), "", token);
+	page_v, _ := etf.from_json(body);
+	onces := 0;
+	if page_v.kind == .List for page_v.list if field(it, "content").s == "once" onces += 1;
+	check(onces == 1, tprint("a repeated nonce posts once: %", body));
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", slow), "", token);
 	check(status == 200, tprint("delete the slow channel: % %", status, body));
 
