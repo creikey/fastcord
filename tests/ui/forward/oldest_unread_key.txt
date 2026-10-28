@@ -1,0 +1,7 @@
+# Shift+Page Up jumps to the oldest unread message, like clicking the new-messages bar.
+wait 10
+key pageup shift
+wait 60
+expect_visible "Forwarded"
+expect_not_visible "Mark As Read"
+shot build/ui-forward_oldest_unread_key.png

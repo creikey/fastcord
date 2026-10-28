@@ -816,6 +816,16 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	// Page Up / Page Down scroll the list from anywhere in the channel, the composer included
 	if !modal_open() && !picker_is_open() {
 		for * e: app.ui.events {
+			if e.kind == .Key_Down && !e.consumed && e.mods == .Shift && e.key == .Page_Up {
+				// Shift+Page Up: the oldest unread message, or the last read one when that isn't loaded.
+				first: dc.Snowflake;
+				if cs.unread_after != 0 && msgs.count > 0 {
+					first = cs.unread_after;
+					if msgs[0].id <= cs.unread_after for msgs if it.id > cs.unread_after { first = it.id; break; }
+				}
+				if first != 0 jump_to_message(channel_id, first);
+				e.consumed = true;
+			}
 			if e.kind != .Key_Down || e.consumed || e.mods != 0 || (e.key != .Page_Up && e.key != .Page_Down) continue;
 			page := view_h * 0.875; // Chromium's page step
 			cs.scroll_target += ifx e.key == .Page_Up then page else -page;

@@ -48,6 +48,12 @@ call_join_incoming :: (cid: dc.Snowflake) {
 	vc.sent_deaf = app.self_deaf;
 }
 
+// Ctrl+Alt+A or a click on the voice panel's channel: open the connected call.
+voice_return :: () {
+	ch := dc.channel_get(store(), app.voice_channel);
+	if ch select_channel(ch.guild_id, ch.id);
+}
+
 voice_leave_channel :: () {
 	if app.client != null && app.voice_channel != 0 { dc.voice_leave(app.client); }
 	app.voice_channel = 0;
@@ -208,6 +214,7 @@ voice_panel :: () {
 		info.style.radius = all4(8);
 		info.style.bg_hot = T("--background-mod-subtle");
 		isig := ui.signal(info);
+		if isig.clicked voice_return();
 		{ ui.parent(info); defer ui.pop_parent();
 			spacer(.X, 6);
 			icon("sig", sig_icon, 20, color);

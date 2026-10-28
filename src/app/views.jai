@@ -1173,6 +1173,10 @@ overlays :: () {
 			navigate_step(ifx e.key == .Up then -1 else 1, (e.mods & .Shift) != 0 && !all, (e.mods & PRIMARY_MOD) != 0 && !all, mentions = all);
 			e.consumed = true;
 		}
+		if !e.consumed && e.kind == .Key_Down && e.key == .A && e.mods == PRIMARY_MOD | .Alt && !modal_open() && !app.settings_open {
+			voice_return();
+			e.consumed = true;
+		}
 		// The composer takes Ctrl+I / Ctrl+U first while text is selected.
 		if !e.consumed && e.kind == .Key_Down && e.mods == PRIMARY_MOD && (e.key == .I || e.key == .P || e.key == .U) && !modal_open() && !app.settings_open {
 			ch := dc.channel_get(store(), app.view.channel);
