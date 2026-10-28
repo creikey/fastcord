@@ -1,10 +1,10 @@
-// Round-trips synthetic NV12 frames through video's encoder and media's decoder (Media Foundation).
-// jai build.jai - run src/tests/video_encode_windows.jai && build/video_encode_windows
+// Round-trips synthetic NV12 frames through video's encoder and media's decoder (Windows: Media Foundation, Linux: openh264).
+// jai build.jai - run src/tests/video_roundtrip.jai && build/video_roundtrip
 #import "Basic";
 video :: #import "video";
 media :: #import "media";
 voice :: #import "voice";
-mf :: #import "mf";
+yuv :: #import "yuv";
 
 W :: 640;
 H :: 360;
@@ -24,8 +24,8 @@ on_output :: (user: *void, annexb: []u8, keyframe: bool, pts_90k: u32) {
 	array_add(*packets, .{array_copy(annexb), keyframe, pts_90k});
 }
 
-make_frame :: (t: int) -> *mf.Nv12 {
-	f := mf.nv12_create(W, H);
+make_frame :: (t: int) -> *yuv.Nv12 {
+	f := yuv.nv12_create(W, H);
 	for y: 0..H - 1 for x: 0..W - 1 f.data[y * W + x] = cast,trunc(u8) (16 + (x + y + t * 4) % 220);
 	for i: W * H..f.data.count - 1 f.data[i] = cast,trunc(u8) (128 + (i / 2 + t) % 32);
 	return f;
@@ -39,7 +39,7 @@ main :: () {
 	for t: 0..FRAMES - 1 {
 		f := make_frame(t);
 		video.encoder_encode(e, f, cast(u32) (t * 3000), force_keyframe = t == 30);
-		mf.nv12_release(f);
+		yuv.nv12_release(f);
 	}
 	video.encoder_destroy(e);
 
@@ -84,11 +84,11 @@ main :: () {
 			// Output order is input order (no B-frames), so frame `decoded` is source frame `decoded`.
 			if it.width != W || it.height != H { bad_size += 1; }
 			else {
-				got := cast(*mf.Nv12) it.pixbuf;
+				got := cast(*yuv.Nv12) it.pixbuf;
 				src := make_frame(decoded);
 				diff := 0;
 				for i: 0..got.data.count - 1 diff += max(got.data[i], src.data[i]) - min(got.data[i], src.data[i]);
-				mf.nv12_release(src);
+				yuv.nv12_release(src);
 				expect(diff / got.data.count < 4, "frame % differs from its source by % per byte", decoded, diff / got.data.count);
 			}
 			decoded += 1;

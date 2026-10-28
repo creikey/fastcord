@@ -46,8 +46,11 @@ SPEAKING_SOUNDSHARE :: 2;
 SPEAKING_PRIORITY :: 4;
 
 // Codec list exactly as the desktop client sends it in SELECT_PROTOCOL. Windows doesn't offer to send
-// H.265: it has no encoder for it (src/video), and the server picks one codec for the whole call.
-CODECS_JSON :: #run ifx OS == .WINDOWS then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true", "\"rtx_payload_type\":104,\"encode\":false") else CODECS_DESKTOP;
+// H.265: it has no encoder for it (src/video), and the server picks one codec for the whole call. Linux
+// has no H.265 at all (src/media decodes H.264 only).
+CODECS_JSON :: #run ifx OS == .WINDOWS then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true", "\"rtx_payload_type\":104,\"encode\":false")
+	else ifx OS == .LINUX then replace(CODECS_DESKTOP, "\"rtx_payload_type\":104,\"encode\":true,\"decode\":true", "\"rtx_payload_type\":104,\"encode\":false,\"decode\":false")
+	else CODECS_DESKTOP;
 CODECS_DESKTOP :: "[{\"name\":\"opus\",\"type\":\"audio\",\"priority\":1000,\"payload_type\":120},{\"name\":\"AV1\",\"type\":\"video\",\"priority\":1000,\"payload_type\":101,\"rtx_payload_type\":102,\"encode\":false,\"decode\":true},{\"name\":\"H265\",\"type\":\"video\",\"priority\":2000,\"payload_type\":103,\"rtx_payload_type\":104,\"encode\":true,\"decode\":true},{\"name\":\"H264\",\"type\":\"video\",\"priority\":3000,\"payload_type\":105,\"rtx_payload_type\":106,\"encode\":true,\"decode\":true},{\"name\":\"VP8\",\"type\":\"video\",\"priority\":4000,\"payload_type\":107,\"rtx_payload_type\":108,\"encode\":true,\"decode\":true}]";
 
 // Experiments from READY the client opts into (RTCConnection._chooseExperiments).

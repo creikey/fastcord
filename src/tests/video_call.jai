@@ -1,6 +1,6 @@
 // The call view's video paths without a network: an Annex B file (one access unit per AUD, as a remote
 // camera arrives) through media's decoder as on_remote_frame feeds it, and the real camera into the encoder.
-// jai build.jai - run src/tests/video_call_windows.jai && build/video_call_windows [file.h264|file.h265 ...] [camera]
+// jai build.jai - run src/tests/video_call.jai && build/video_call [file.h264|file.h265 ...] [camera]
 #import "Basic";
 #import "File";
 #import "String";
@@ -9,7 +9,7 @@
 video :: #import "video";
 media :: #import "media";
 voice :: #import "voice";
-mf :: #import "mf";
+yuv :: #import "yuv";
 
 failures := 0;
 expect :: (ok: bool, what: string, args: ..Any) {
@@ -79,7 +79,7 @@ decode_file :: (path: string) {
 			w, h = it.width, it.height;
 			decoded += 1;
 			// the call view's next step: the frame's planes become textures
-			n := cast(*mf.Nv12) it.pixbuf;
+			n := cast(*yuv.Nv12) it.pixbuf;
 			expect(n.data.count == n.width * n.height * 3 / 2, "% frame size", path);
 			if decoded == 45 write_entire_file(tprint("%.%x%.nv12", path, n.width, n.height), n.data.data, n.data.count); // to look at
 			media.video_frame_release(it);
@@ -95,10 +95,13 @@ Cam :: struct {
 	w, h: int;
 	enc: *video.Encoder;
 	packets: s32;
+	encode_ms: float64;
+	start: Apollo_Time;
 }
 
 camera :: () {
 	c: Cam;
+	c.start = current_time_monotonic();
 	cap := video.camera_start((user: *void, pixbuf: *void, width: int, height: int) {
 		c := cast(*Cam) user;
 		if !c.enc {
@@ -107,14 +110,19 @@ camera :: () {
 				atomic_add(*(cast(*Cam) user).packets, 1);
 			}, user);
 		}
+		t := current_time_monotonic();
 		if c.enc video.encoder_encode(c.enc, pixbuf, cast(u32) (c.frames * 3000));
+		c.encode_ms += to_float64_seconds(current_time_monotonic() - t) * 1000;
+		if c.frames == 45 { f := cast(*yuv.Nv12) pixbuf; write_entire_file(tprint("build/camera.%x%.nv12", f.width, f.height), f.data.data, f.data.count); } // to look at
 		atomic_add(*c.frames, 1);
 	}, *c);
 	expect(cap != null, "camera_start");
 	for 1..50 { sleep_milliseconds(100); if atomic_load(*c.frames) >= 60 break; }
 	video.capture_stop(cap);
 	sleep_milliseconds(200);
-	print("camera: % frames at %x%, % encoded packets, camera_supported=%\n", c.frames, c.w, c.h, c.packets, video.camera_supported());
+	secs := to_float64_seconds(current_time_monotonic() - c.start);
+	print("camera: % frames at %x% (% fps, opening included), % encoded packets, % ms per encode, camera_supported=%\n",
+		c.frames, c.w, c.h, formatFloat(c.frames / secs, trailing_width = 1), c.packets, formatFloat(c.encode_ms / max(c.frames, 1), trailing_width = 1), video.camera_supported());
 	expect(c.frames >= 30, "camera delivered % frames", c.frames);
 	expect(c.packets >= c.frames - 3, "encoded % of % camera frames", c.packets, c.frames);
 	video.encoder_destroy(c.enc);

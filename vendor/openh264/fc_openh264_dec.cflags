@@ -1,0 +1,1 @@
+-w -I vendor/openh264/fc -I vendor/openh264/codec/api/wels -I vendor/openh264/codec/common/inc -I vendor/openh264/codec/decoder/core/inc -I vendor/openh264/codec/decoder/plus/inc

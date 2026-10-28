@@ -1,9 +1,9 @@
 // Video for calls and Go Live: camera and screen capture (NV12) and a realtime H.264/H.265 encoder that
-// emits Annex B. macOS (AVFoundation, ScreenCaptureKit, VideoToolbox) and Windows (Media Foundation, DXGI
-// desktop duplication; H.264 only); on Linux every entry point reports unsupported.
+// emits Annex B. macOS (AVFoundation, ScreenCaptureKit, VideoToolbox), Windows (Media Foundation, DXGI
+// desktop duplication; H.264 only) and Linux (V4L2 cameras, openh264; H.264 only, no screen capture yet).
 
 // A captured frame, valid only during the call: macOS a CVPixelBuffer ('420v' or '420f'), Windows an
-// mf.Nv12. Called on the capture's queue or thread with a temp that is reset after each call.
+// yuv.Nv12. Called on the capture's queue or thread with a temp that is reset after each call.
 Frame_Proc :: #type (user: *void, pixbuf: *void, width: int, height: int);
 
 // Annex B with a 4-byte start code before every NAL; keyframes lead with the parameter sets (H.264: SPS,
@@ -13,7 +13,7 @@ Encoded_Proc :: #type (user: *void, annexb: []u8, keyframe: bool, pts_90k: u32);
 
 Video_Codec :: enum u8 { H264; H265; }
 
-SUPPORTED :: OS == .MACOS || OS == .WINDOWS; // capture and encoding exist on this platform
+SUPPORTED :: OS == .MACOS || OS == .WINDOWS || OS == .LINUX; // capture and encoding exist on this platform
 
 Screen_Target :: struct {
 	is_window: bool;
@@ -27,10 +27,13 @@ Screen_Target :: struct {
 	#load "encode_darwin.jai";
 	#load "pattern_darwin.jai";
 } else #if OS == .WINDOWS {
+	#load "capture_nv12.jai";
 	#load "capture_windows.jai";
 	#load "encode_windows.jai";
-} else {
-	#load "none.jai";
+} else #if OS == .LINUX {
+	#load "capture_nv12.jai";
+	#load "capture_linux.jai";
+	#load "encode_linux.jai";
 }
 
 #scope_module
@@ -41,11 +44,18 @@ Screen_Target :: struct {
 #import "Atomics";
 locks :: #import "locks";
 
+#if OS != .MACOS yuv :: #import "yuv";
+
 #if OS == .WINDOWS {
 	#import "Windows";
 	#import "d3d11";
 	#import "dxgi";
 	mf :: #import "mf";
+}
+
+#if OS == .LINUX {
+	#import "POSIX";
+	vendor :: #library,no_dll "../../build/fc_vendor";
 }
 
 #if OS == .MACOS {
