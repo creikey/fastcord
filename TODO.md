@@ -32,7 +32,6 @@
 - [ ] Video: a dev build started from an app without a camera usage description (e.g. an IDE's terminal) is killed by macOS on the first AVFoundation call; check the authorization status first and say why the camera can't start.
 - [ ] Security: array bounds and null checks are off in the shipped `app` and `dev` builds. Jai's `set_optimization` turns them off for anything but debug (`build.jai`), so every out-of-bounds bug below is silent memory corruption, not a crash. The style guide says never drop checks globally: turn them on for `app` and `dev`, and add `#no_abc` only on loops the bench shows are hot.
 - [ ] Check: voice may reconnect without limit after close codes like 4006, 4011 or 4015 (`view_voice.jai` retries with nothing bounding it).
-- [ ] Scrolling (fastcord-only): a "Smooth scrolling" checkbox in Appearance. When off, wheel and keyboard scrolling jump straight to the target instead of easing (`ui.animate(*cs.scroll_from_bottom, ...)` in `view_chat.jai`, `view_off_target` in `ui/core.jai`). Reduced motion should imply it.
 - [ ] Bug: an image, emoji, video, audio clip or sound that fails to load once (offline, sleep, 429, 5xx) stays broken until restart. `.Failed` is permanent in `images.jai`, `view_media.jai`, `emoji.jai` and `sounds.jai`, with no retry in `discord/media.jai`.
 - [ ] Media: voice messages render as a plain audio card: the waveform is parsed but not drawn, and there's no speed control.
 - [ ] Accounts: support full account switching; today it assumes a single token.
@@ -331,3 +330,4 @@
 - [x] Attachments: spoilered images and videos (`SPOILER_` name or flag 8) are covered with a "SPOILER" pill until clicked (`tests/ui/media/spoiler_attachment.txt`).
 - [x] Attachments: a spoilered image or video shows blurred under its "SPOILER" pill: the decode worker keeps a 12px copy of the first frame, drawn stretched (`set_remote_image` `blur`).
 - [x] Attachments: spoilered files and audio clips are a blank card under a "SPOILER" pill until clicked (`tests/ui/media/spoiler_attachment.txt`).
+- [x] Scrolling (fastcord-only): Appearance > "Smooth Scrolling" (on by default, saved in settings.json); off, or when the system asks for reduced motion, the chat and every scroll box jump straight to their target (`ui.State.instant_scroll`, `tests/ui/smooth_scroll_setting.txt`).

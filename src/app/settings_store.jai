@@ -50,6 +50,7 @@ Persisted :: struct {
 	version: int;
 	theme: string;
 	theme_follow_os: bool; // Appearance > "Same as Device Theme"
+	smooth_scroll_off: bool; // Appearance > "Smooth Scrolling" (fastcord's own), off
 	notify: Persisted_Notify;
 	voice: Persisted_Voice;
 	sounds: Persisted_Sounds;
@@ -69,6 +70,8 @@ app_theme_pending_set: bool;
 
 notify_prefs: Persisted_Notify;
 theme_follow_os: bool;
+smooth_scroll_off: bool;
+system_reduce_motion: bool; // polled by settings_frame; implies no smooth scrolling
 
 app_state_dir :: (allocator := temp) -> string {
 	return app_data_dir("state", allocator);
@@ -120,11 +123,13 @@ device_by_uid :: (input: bool, uid: string) -> u32 {
 
 // settings_frame: theme sync + save when something changed (checked twice a second).
 settings_frame :: () {
+	app.ui.instant_scroll = smooth_scroll_off || system_reduce_motion;
 	if platform.is_headless() return;
 	theme_sync();
 	now := platform.time_now();
 	if now < st.next_check return;
 	st.next_check = now + 0.5;
+	system_reduce_motion = platform.system_a11y().reduce_motion;
 	theme_follow_os_check();
 	if !app.view.resizing settings_save(); // the official client saves a dragged width when the drag ends
 }
@@ -224,6 +229,7 @@ apply_persisted :: (p: *Persisted) {
 	t, ok := theme_by_name(p.theme);
 	if ok app_theme_pending, app_theme_pending_set = t, true;
 	theme_follow_os = p.theme_follow_os;
+	smooth_scroll_off = p.smooth_scroll_off;
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
 	sounds_restore(*p.sounds);
@@ -251,6 +257,7 @@ snapshot :: () -> string {
 	p.version = SETTINGS_VERSION;
 	p.theme = tprint("%", app.theme.name);
 	p.theme_follow_os = theme_follow_os;
+	p.smooth_scroll_off = smooth_scroll_off;
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);
 	sounds_snapshot(*p.sounds);

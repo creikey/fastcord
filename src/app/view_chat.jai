@@ -802,7 +802,8 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	max_scroll := max(0.0, total - view_h);
 	jump_apply(channel_id, cs, msgs, view_h, BOTTOM_PAD);
 	cs.scroll_target = clamp(cs.scroll_target, 0, max_scroll);
-	ui.animate(*cs.scroll_from_bottom, cs.scroll_target, 40);
+	if app.ui.instant_scroll cs.scroll_from_bottom = cs.scroll_target;
+	else ui.animate(*cs.scroll_from_bottom, cs.scroll_target, 40);
 	cs.scroll_from_bottom = clamp(cs.scroll_from_bottom, 0, max_scroll);
 
 	// load older history when within a screen of the top (not again after a failure:
