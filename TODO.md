@@ -79,7 +79,7 @@
 - [ ] Notifications: Suppress @everyone/@here and Suppress Role @mentions are ignored for sounds, the live mention count (`actions.jai`) and the loaded-message recount (`view_rail_folders.jai`). So a suppressed @everyone shows a red badge that never clears.
 - [ ] Links: a bare link to a channel or message shows the raw URL; the official client draws it as a mention-style chip ("#channel > message icon") naming the channel.
 - [ ] Reactions: no who-reacted tooltip on hover and no "View Reactions" list.
-- [ ] Sounds: the message sound plays for blocked users and `@silent` messages, though desktop notifications skip both (`sounds.jai` `message_notifies`).
+- [ ] Relationships: a relationship's `user_ignored` flag (Ignore, set from the official client) isn't parsed, so ignored users still ring and notify and their messages show as normal.
 - [ ] Linux: no bidi reordering and no COLRv1 / OT-SVG colour glyphs (`text_freetype_linux.jai`).
 - [ ] Embeds: images ignore `max_w`, so they overflow narrow search results; no "Remove Embeds" X on your own messages.
 - [ ] Channels: announcement channels have no Follow button; media channels use the forum list, not the media grid.
@@ -333,3 +333,4 @@
 - [x] Scrolling (fastcord-only): Appearance > "Smooth Scrolling" (on by default, saved in settings.json); off, or when the system asks for reduced motion, the chat and every scroll box jump straight to their target (`ui.State.instant_scroll`, `tests/ui/smooth_scroll_setting.txt`).
 - [x] Media: voice messages draw their waveform (played part in the brand colour, press or drag to seek) and the remaining time instead of the file name (`voice_waveform`, `tests/ui/media/voice_message.txt`).
 - [x] Links: `discord.com/channels/<g>/<c>[/<m>]` links (also `ptb.` / `canary.` / `discordapp.com`) to a channel fastcord has jump to it, or to the message, in-app; others still open the browser (`message_link` in `view_chat.jai`, `tests/ui/forward/message_link.txt`).
+- [x] Sounds: the message sound now skips blocked authors and `@silent` messages like desktop notifications do (both checks moved into `message_notifies`).

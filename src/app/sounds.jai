@@ -169,10 +169,14 @@ app_new_messages :: () -> []dc.New_Message {
 }
 
 // message_notifies: the client's notification rule for one message
-// (message_notifications: 0 all, 1 only mentions, 2 nothing, 3 = guild default).
+// (message_notifications: 0 all, 1 only mentions, 2 nothing, 3 = guild default), shared by the
+// message sound and desktop notifications: never for @silent messages or blocked authors.
 message_notifies :: (m: *dc.New_Message) -> bool {
 	s := store();
 	if m.author_id == s.me || m.author_id == 0 return false;
+	if m.flags & SUPPRESS_NOTIFICATIONS return false;
+	r := table_find_pointer(*s.relationships, m.author_id);
+	if r && r.kind == .Blocked return false;
 	if m.guild_id == 0 return true; // DMs / group DMs
 	level := 1;
 	g := dc.guild_get(s, m.guild_id);
