@@ -96,6 +96,7 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN ban_reason TEXT;");
+	sqlite.exec(db, "ALTER TABLE users ADD COLUMN joined_name TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_type TEXT;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN avatar_data BLOB;");
@@ -403,7 +404,7 @@ meta_put :: (s: *Server, k: string, v: string) -> bool { return meta_put(s, k, c
 // Users, channels and messages have Discord-shaped snowflake IDs, since the client reads times from them.
 SCHEMA :: #string SQL
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, ban_reason TEXT, avatar TEXT, avatar_type TEXT, avatar_data BLOB);
+CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, root BLOB UNIQUE NOT NULL, signing_pub BLOB NOT NULL, name TEXT NOT NULL, left INTEGER NOT NULL DEFAULT 0, banned INTEGER NOT NULL DEFAULT 0, ban_reason TEXT, joined_name TEXT, avatar TEXT, avatar_type TEXT, avatar_data BLOB);
 CREATE TABLE IF NOT EXISTS sessions(token_hash BLOB PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id));
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user);
 CREATE TABLE IF NOT EXISTS uploads(token TEXT PRIMARY KEY, user INTEGER NOT NULL, channel INTEGER NOT NULL, filename TEXT NOT NULL, size INTEGER NOT NULL,
@@ -558,7 +559,7 @@ login :: (c: *Conn, session: *tls.Session, req: http.Request) -> bool {
 			} else {
 				user = snowflake(s);
 				joined = true;
-				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name) VALUES(?, ?, ?, ?);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
+				if !sqlite.run(s.db, "INSERT INTO users(id, root, signing_pub, name, joined_name) VALUES(?, ?, ?, ?, ?4);", user, cast([]u8) root, cast([]u8) pub, name) user = 0;
 				if user && owner && !meta_put(s, "owner", tprint("%", user)) user = 0;
 			}
 		}
@@ -2235,7 +2236,7 @@ create_emoji :: (c: *Conn, req: http.Request) -> bool {
 
 // PATCH /api/v9/guilds/{id}/members/@me {nick}: Change Nickname, and /members/{user} for the owner on
 // anyone. A member has one name here, so the nick replaces it, and members see it as their name with no
-// nick; an empty nick has nothing to fall back to.
+// nick; an empty nick goes back to the name they joined with, as Discord falls back to the username.
 rename :: (c: *Conn, req: http.Request) -> bool {
 	s := c.server;
 	token, _ := http.header_get(req.headers, "authorization");
@@ -2251,12 +2252,18 @@ rename :: (c: *Conn, req: http.Request) -> bool {
 	nick: etf.Value;
 	if err == .None && v.kind == .Map nick, _ = etf.map_get(v.map, "nick");
 	name := ifx nick.kind == .String then trim(nick.s) else "";
-	if !name || name.count > 32 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
+	if (nick.kind != .String && nick.kind != .Nil) || name.count > 32 || !text_ok(name) return json_error(c, 400, 50035, "Invalid Form Body");
 	{
 		locks.guard(*s.db_mu);
 		if target != user && owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		if !sqlite.run(s.db, "UPDATE users SET name = ? WHERE id = ? AND left = 0;", name, target) return json_error(c, 500, 0, "500: Internal Server Error");
+		if !sqlite.run(s.db, "UPDATE users SET name = coalesce(nullif(?, ''), joined_name, name) WHERE id = ? AND left = 0;", name, target) return json_error(c, 500, 0, "500: Internal Server Error");
 		if sqlite.changes(s.db) != 1 return json_error(c, 404, 10007, "Unknown Member");
+		if !name {
+			st := sqlite.prepare(s.db, "SELECT name FROM users WHERE id = ?;");
+			sqlite.bind(st, 1, target);
+			if sqlite.step(st) == .Row name = copy_string(sqlite.col_text(st, 0),, temp);
+			sqlite.finalize(st);
+		}
 	}
 	m := etf.map_builder(4,, temp);
 	etf.map_put(*m, "guild_id", snow(s.guild));
