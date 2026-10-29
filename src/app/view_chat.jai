@@ -2227,6 +2227,52 @@ failed_send_note :: (m: *dc.Message) {
 	if files attachments_retry_moved(old, nonce);
 }
 
+// A message's parsed markdown, kept (on the heap) until no row has drawn that text for MD_KEEP_FRAMES, so
+// a visible message is parsed once, not every frame. Keyed by the text itself: an edit is a new entry.
+Md_Cached :: struct { text: string; blocks: []Md_Block; used: u64; }
+md_cache: Table(u64, Md_Cached);
+md_swept: u64;
+MD_KEEP_FRAMES :: 600;
+
+md_cached :: (text: string) -> []Md_Block {
+	h := fnv1a_hash(text.data, text.count);
+	e := table_find_pointer(*md_cache, h);
+	if e && e.text == text { e.used = app.frame; return e.blocks; }
+	if app.frame - md_swept > MD_KEEP_FRAMES {
+		md_swept = app.frame;
+		stale: [..]u64;
+		stale.allocator = temp;
+		for md_cache if app.frame - it.used > MD_KEEP_FRAMES array_add(*stale, it_index);
+		for stale { old := table_find_pointer(*md_cache, it); md_free(old); table_remove(*md_cache, it); }
+		e = table_find_pointer(*md_cache, h);
+	}
+	if e md_free(e); // a different text with the same hash: replaced
+	entry := Md_Cached.{text = copy_string(text), blocks = md_copy(md_parse(text)), used = app.frame};
+	table_set(*md_cache, h, entry);
+	return entry.blocks;
+}
+
+md_copy :: (blocks: []Md_Block) -> []Md_Block {
+	out := array_copy(blocks);
+	for * b: out {
+		b.lang, b.code = copy_string(b.lang), copy_string(b.code);
+		b.tokens = array_copy(b.tokens);
+		for * b.tokens { it.text, it.name, it.url = copy_string(it.text), copy_string(it.name), copy_string(it.url); }
+	}
+	return out;
+}
+
+md_free :: (e: *Md_Cached) {
+	for b: e.blocks {
+		free(b.lang);
+		free(b.code);
+		for b.tokens { free(it.text); free(it.name); free(it.url); }
+		array_free(b.tokens);
+	}
+	array_free(e.blocks);
+	free(e.text);
+}
+
 // terms: search words to highlight (search result cards).
 message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
 	if m.content == "" return;
@@ -2239,7 +2285,7 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false) {
 		}
 		if handled return;
 	}
-	blocks := md_parse(m.content);
+	blocks := md_cached(m.content);
 	edited_inline := false;
 	for blk, bi: blocks {
 		color := T("--text-default");

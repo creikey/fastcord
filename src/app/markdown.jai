@@ -164,7 +164,7 @@ is_quote_line :: (line: string) -> bool { return begins_with(line, "> ") || line
 // merge = false keeps every token a slice of src, in source order (the composer styles the
 // gaps between them as markdown syntax), and leaves masked links as text, as the composer does.
 md_inline :: (src: string, merge := true) -> []Token {
-	p := Md_Parser.{masked_links = merge};
+	p := Md_Parser.{masked_links = merge, root = src};
 	inline_into(*p, src);
 	if !merge return p.out;
 	// merge adjacent plain text with identical styles
@@ -288,6 +288,35 @@ Md_Parser :: struct {
 	styles: Inline_Style;
 	masked_links: bool;
 	depth: int; // inline_into's nesting
+	// Linear time on hostile text (AGENTS.md's parser rule): root is md_inline's whole text, which every
+	// src inline_into sees is a slice of.
+	root: string;
+	// per DELIMS entry: no closer from no_close_from to the end of the src ending at no_close_end
+	no_close_from, no_close_end: [DELIMS.count]*u8;
+	// each "[" at root offset k closes at bmatch[k] (-1: not on its line), from one stack pass on first use
+	bmatch: []s32;
+}
+
+// The "]" closing the "[" that starts s (s a slice of p.root), -1 if none on that line.
+close_bracket :: (p: *Md_Parser, s: string) -> int {
+	if !p.bmatch {
+		p.bmatch = NewArray(p.root.count, s32,, temp);
+		for * p.bmatch it.* = -1;
+		stack: [..]s32;
+		stack.allocator = temp;
+		i := 0;
+		while i < p.root.count {
+			c := p.root[i];
+			if c == #char "\\" { i += 2; continue; }
+			if c == #char "\n" stack.count = 0;
+			if c == #char "[" array_add(*stack, xx i);
+			if c == #char "]" && stack.count { p.bmatch[stack[stack.count - 1]] = xx i; stack.count -= 1; }
+			i += 1;
+		}
+	}
+	off := s.data - p.root.data;
+	m := p.bmatch[off];
+	return ifx m < 0 || m >= off + s.count then -1 else m - off;
 }
 
 emit :: (p: *Md_Parser, kind: Token_Kind, text: string) {
@@ -352,12 +381,12 @@ inline_into :: (p: *Md_Parser, src: string) {
 		}
 		// masked links: [text](url), text styled as usual and every piece of it a link
 		if c == #char "[" && p.masked_links && p.depth < MD_MAX_DEPTH {
-			n, url := masked_link(here);
+			n, url := masked_link(p, here);
 			if n > 0 {
 				emit(p, .Text, pending());
 				first := p.out.count;
 				p.depth += 1;
-				inline_into(p, span(src, i + 1, i + find_close_bracket(here)));
+				inline_into(p, span(src, i + 1, i + close_bracket(p, here)));
 				p.depth -= 1;
 				for * array_view(p.out, first, p.out.count - first) if it.kind == .Text || it.kind == .Link { it.kind = .Link; it.url = url; }
 				take(i + n);
@@ -396,12 +425,17 @@ inline_into :: (p: *Md_Parser, src: string) {
 		}
 		// style delimiters
 		matched := false;
-		for d: DELIMS {
+		for d, k: DELIMS {
 			if !begins_with(here, d.open) || p.depth >= MD_MAX_DEPTH continue; // deeper styles stay text
 			// underscores only work at word boundaries
 			if d.open == "_" && i > 0 && is_alnum(src[i - 1]) continue;
 			body_start := i + d.open.count;
+			// a search that found no closer from here on rules out every later one in the same src, so
+			// each unmatched delimiter costs one scan, not one per opener
+			src_end := src.data + src.count;
+			if p.no_close_end[k] == src_end && src.data + body_start >= p.no_close_from[k] continue;
 			end := find_close(src, body_start, d.open);
+			if end < 0 p.no_close_from[k], p.no_close_end[k] = src.data + body_start, src_end;
 			if end <= body_start continue;
 			emit(p, .Text, pending());
 			saved := p.styles;
@@ -527,8 +561,8 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> int, bool {
 
 // The client's link rule: [text](url) with balanced brackets in text and an http(s) url,
 // optionally in <> or followed by a "title". Returns the bytes taken and the url.
-masked_link :: (s: string) -> int, string {
-	close := find_close_bracket(s);
+masked_link :: (p: *Md_Parser, s: string) -> int, string {
+	close := close_bracket(p, s);
 	if close <= 1 || close + 1 >= s.count || s[close + 1] != #char "(" return 0, "";
 	depth := 0;
 	j := close + 2;
@@ -546,20 +580,6 @@ masked_link :: (s: string) -> int, string {
 	if begins_with(url, "<") && ends_with(url, ">") url = span(url, 1, url.count - 1);
 	if !begins_with(url, "https://") && !begins_with(url, "http://") return 0, "";
 	return j + 1, url;
-}
-
-// Index of the "]" closing s's leading "[", -1 if none on that line.
-find_close_bracket :: (s: string) -> int {
-	depth, i := 0, 0;
-	while i < s.count {
-		c := s[i];
-		if c == #char "\\" { i += 2; continue; }
-		if c == #char "\n" return -1;
-		if c == #char "[" depth += 1;
-		if c == #char "]" { depth -= 1; if depth == 0 return i; }
-		i += 1;
-	}
-	return -1;
 }
 
 is_ascii_punct :: (c: u8) -> bool {

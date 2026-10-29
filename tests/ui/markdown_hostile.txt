@@ -1,0 +1,7 @@
+# Runs on markdown_hostile.jsonl: messages of ~1900 unmatched *, _, [, ~~ and || draw as typed text without
+# stalling the channel (each delimiter's failed search rules out the later ones, brackets match in one pass,
+# and a message's markdown is parsed once, not every frame), and markdown after them still works.
+wait 5
+settle 1
+repeat 30 move 600 400
+shot build/ui-markdown_hostile.png
