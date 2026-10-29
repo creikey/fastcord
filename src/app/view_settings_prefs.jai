@@ -214,12 +214,25 @@ zoom_snap :: (v: float32) -> int {
 	return best;
 }
 
-// The client's System panel, General category (Windows and Linux; macOS has Login Items instead).
+// The client's System panel (Windows and Linux; macOS has Login Items instead): startup and the close button.
 system_page :: () {
 	#if OS != .MACOS if set_page_begin("systempage") {
 		set_heading("General");
 		on := platform.open_at_login();
-		if set_toggle_row("openatlogin", "Automatically open fastcord when your computer starts up", "", on) platform.set_open_at_login(!on);
+		login :: (on: bool) { #if OS == .WINDOWS platform.set_open_at_login(on, start_minimized); else platform.set_open_at_login(on); }
+		if set_toggle_row("openatlogin", "Automatically open fastcord when your computer starts up", "", on) login(!on);
+		#if OS == .WINDOWS {
+			spacer(.Y, 24);
+			if set_toggle_row("startmin", "Start Minimized", "fastcord starts in the background and stays out of your way.", start_minimized && on, !on) {
+				start_minimized = !start_minimized;
+				login(true);
+			}
+		}
+		spacer(.Y, 24);
+		if set_toggle_row("traymin", "Minimize to Tray", "Hitting X makes fastcord minimize to the system tray instead of closing.", !tray_close_off) {
+			tray_close_off = !tray_close_off;
+			platform.set_close_to_tray(!tray_close_off);
+		}
 		set_page_end();
 	}
 }

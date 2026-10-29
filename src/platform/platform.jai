@@ -309,6 +309,12 @@ set_cursor :: (c: Cursor) {
 // press-and-hold accent popups appear next to it.
 set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = .{x * s.zoom, y * s.zoom, w * s.zoom, h * s.zoom}; }
 
+// Settings > Windows: closing the window hides it to the tray (where there is one) instead of quitting
+// (Minimize to Tray, on by default), and, called before init, it opens hidden there, or minimized
+// without a tray (Start Minimized, from the login item).
+set_close_to_tray :: (on: bool) { s.close_to_tray = on; }
+start_minimized :: () { s.start_hidden = true; }
+
 // Checkmarks on the tray menu's Mute and Deafen items (Windows).
 set_tray_voice :: (mute: bool, deaf: bool) { s.tray_mute, s.tray_deaf = mute, deaf; }
 
@@ -451,6 +457,8 @@ global_event :: (key: Key, button: Mouse_Button, down: bool) {
 }
 
 State :: struct {
+    close_to_tray := true;
+    start_hidden: bool;
     global: Global_Input;
     global_retry: float64;
     global_down: [#run enum_highest_value(Key) + 1]bool; // global input thread's

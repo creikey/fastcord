@@ -52,6 +52,8 @@ Persisted :: struct {
 	theme: string;
 	theme_follow_os: bool; // Appearance > "Same as Device Theme"
 	smooth_scroll_off: bool; // Appearance > "Smooth Scrolling" (fastcord's own), off
+	start_minimized: bool; // System > Start Minimized (Windows)
+	tray_close_off: bool; // System > Minimize to Tray, off
 	zoom: int = 100; // Accessibility > Zoom level, percent (ZOOM_SCALES)
 	notify: Persisted_Notify;
 	voice: Persisted_Voice;
@@ -88,6 +90,7 @@ app_theme_pending_set: bool;
 notify_prefs: Persisted_Notify;
 theme_follow_os: bool;
 smooth_scroll_off: bool;
+start_minimized, tray_close_off: bool;
 system_reduce_motion: bool; // polled by settings_frame; implies no smooth scrolling
 
 app_state_dir :: (allocator := temp) -> string {
@@ -247,6 +250,8 @@ apply_persisted :: (p: *Persisted) {
 	if ok app_theme_pending, app_theme_pending_set = t, true;
 	theme_follow_os = p.theme_follow_os;
 	smooth_scroll_off = p.smooth_scroll_off;
+	start_minimized, tray_close_off = p.start_minimized, p.tray_close_off;
+	platform.set_close_to_tray(!tray_close_off);
 	zoom_set(p.zoom);
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
@@ -285,6 +290,7 @@ snapshot :: () -> string {
 	p.theme = tprint("%", app.theme.name);
 	p.theme_follow_os = theme_follow_os;
 	p.smooth_scroll_off = smooth_scroll_off;
+	p.start_minimized, p.tray_close_off = start_minimized, tray_close_off;
 	p.zoom = zoom_pct;
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);

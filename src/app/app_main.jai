@@ -110,6 +110,7 @@ Options :: struct {
 	serve: string; // run a self-hosted server from this file instead of the app
 	port: int;
 	url: string; // an fc:// or discord:// link to open (the OS's URL handler passes it)
+	start_minimized: bool; // --start-minimized: the login item of Start Minimized
 }
 
 parse_options :: () -> Options {
@@ -160,6 +161,8 @@ parse_options :: () -> Options {
 			o.serve = v;
 		} else if flag("-port:") {
 			o.port = parse_int_prefix(v);
+		} else if a == "--start-minimized" {
+			o.start_minimized = true;
 		} else if begins_with_nocase(a, "fc://") || begins_with_nocase(a, "discord:") {
 			o.url = a;
 		} else {
@@ -200,6 +203,7 @@ main :: () {
 		platform.url_handler_register("discord", if_free = true);
 	}
 	sw, sh := settings_load(headless);
+	if opt.start_minimized && !headless platform.start_minimized();
 	if sw >= 400 && sh >= 300 {
 		// an old save may be below today's minimum window size
 		opt.width = max(sw, platform.MIN_WINDOW_W);

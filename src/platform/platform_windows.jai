@@ -237,15 +237,16 @@ url_handler_register :: (scheme: string, if_free := false) {
     reg_set(command, "", tprint("% \"\%1\"", exe_quoted()));
 }
 
-// Open at login: a value in HKCU's Run key, as the official client's "Automatically open Discord" sets.
+// Open at login: a value in HKCU's Run key, as the official client's "Automatically open Discord" sets;
+// minimized adds --start-minimized (Start Minimized).
 open_at_login :: () -> bool {
     if s.headless return s.headless_login;
     return reg.RegGetValueA(reg.HKEY_CURRENT_USER, RUN_KEY, "fastcord", reg.RRF_RT_REG_SZ, null, null, null) == 0;
 }
 
-set_open_at_login :: (on: bool) {
+set_open_at_login :: (on: bool, minimized := false) {
     if s.headless { s.headless_login = on; return; }
-    if on { reg_set(RUN_KEY, "fastcord", exe_quoted()); return; }
+    if on { reg_set(RUN_KEY, "fastcord", ifx minimized then tprint("% --start-minimized", exe_quoted()) else exe_quoted()); return; }
     k: win.HKEY;
     if RegCreateKeyExW(reg.HKEY_CURRENT_USER, wide(RUN_KEY), 0, null, 0, reg.KEY_WRITE, null, *k, null) != 0 return;
     RegDeleteValueW(k, wide("fastcord"));
@@ -410,6 +411,7 @@ os_init ::(title: string, width: int, height: int) -> bool {
         SetWindowPlacement(w.hwnd, *wp);
         if r.maximized show = win.SW_SHOWMAXIMIZED;
     }
+    if s.start_hidden show = ifx s.close_to_tray then win.SW_HIDE else win.SW_SHOWMINNOACTIVE;
     update_size();
     update_refresh();
     win.ShowWindow(w.hwnd, xx show);
@@ -418,6 +420,7 @@ os_init ::(title: string, width: int, height: int) -> bool {
     win.UpdateWindow(w.hwnd);
     w.taskbar_created = RegisterWindowMessageW(wide("TaskbarCreated"));
     w.tray = tray_notify(NIM_ADD);
+    if show == win.SW_HIDE && !w.tray win.ShowWindow(w.hwnd, win.SW_SHOWMINNOACTIVE); // nowhere to come back from
     return true;
 }
 
@@ -1247,7 +1250,7 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
             }
             return 0;
         case win.WM_CLOSE;
-            if w.tray {
+            if w.tray && s.close_to_tray {
                 win.ShowWindow(hwnd, win.SW_HIDE);
                 return 0;
             }
