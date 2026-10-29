@@ -324,7 +324,7 @@ server_settings_layer :: () {
 		ss.reload_after_modr = false;
 		ss.search_at = wall_ms() + 700; // after the kick or ban lands
 	}
-	covered := ss.confirm != .None || ss.menu_user != 0 || modr.user != 0 || guild_admin_modal_open();
+	covered := ss.confirm != .None || ss.menu_user != 0 || modr.user != 0 || guild_admin_modal_open() || mfa_is_open();
 	if ss.menu_user && escape_pressed() ss.menu_user = 0;
 	if !close && !dirty && !covered && (adm_escape() || ss.field_escape) close = true;
 	ss.field_escape = false; // with unsaved changes the client keeps the page
@@ -1941,7 +1941,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	}
 	spacer(.Y, 24);
 	adm_modal_end();
-	if ss.dd == "" && adm_escape() ss.confirm = .None;
+	if ss.dd == "" && !mfa_is_open() && adm_escape() ss.confirm = .None;
 	if !go || !ok return;
 	reason := trim(ui.editor_text(*ss.reason));
 	id := ss.confirm_id;

@@ -27,7 +27,7 @@
   - Done: Widget (in Engagement, as the client has it): enable, invite channel, server ID and JSON API URL. Still missing: the premade widget snippet.
   - Done: Server Template on Discord (create, sync, delete, copy link).
   - Done: Custom Invite Link (only with `VANITY_URL`), on the Invites page.
-  - Done: Delete Server on Discord (owner only, type the name). Still missing: the MFA code prompt.
+  - Done: Delete Server on Discord (owner only, type the name); an owner with 2FA gets the app's multi-factor prompt (code, backup code or password) and the delete goes again with its token, now that Server Settings' replies are routed.
 - [ ] Hosted server settings: the owner of a self-hosted server manages all of it from Server Settings in the app, from any machine, with no console. Every page above works on hosted servers, plus a host section only hosted servers have:
   - Storage: disk usage of the server file, split by messages, attachments, emoji, stickers, sounds, avatars and the search index, with the disk's free space.
   - Attachments: browse every stored file (name, size, uploader, channel, date, jump to message), delete one or many, and cleanup rules (delete older than N days, larger than N MB), freeing space with `VACUUM` off the request path.
