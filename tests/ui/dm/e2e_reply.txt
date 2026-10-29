@@ -1,0 +1,16 @@
+# E2E: a reply in an encrypted DM is refused with a toast (until E2E 7 carries it), not sent without its
+# reference; the text stays in the composer.
+open 1800000000000000001
+wait 20
+encrypted
+wait 5
+rclick 600 609
+wait 10
+click_text "Reply"
+wait 10
+type secret
+key enter
+expect_drawn "Replies can't be sent encrypted yet."
+wait 10
+expect_input "secret"
+shot build/ui-dm_e2e_reply.png

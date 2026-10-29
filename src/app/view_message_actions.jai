@@ -421,6 +421,7 @@ reply_bar :: () {
 
 // Send what's in the composer: text, reply, staged files.
 composer_send :: (ch: *dc.Channel, text: string) -> bool {
+	if ma.replying != 0 && encrypting(ch) { toast_show("Replies can't be sent encrypted yet.", false); return false; } // until E2E 7
 	if !net_action() return false;
 	atts, ready := attachments_for_send(ch.id);
 	if !ready { return false; } // a file is still being read
