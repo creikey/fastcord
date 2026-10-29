@@ -671,6 +671,21 @@ chat_header :: (ch: *dc.Channel) {
 				}
 			}
 		}
+		if vid.watch_user && app.voice_channel == ch.id {
+			// watching a Go Live stream: LIVE and its quality, as the official call header shows
+			spacer(.X, 12);
+			live := row("live", .Draw_Background);
+			live.semantic_size = .[ui.children(), ui.px(18)];
+			live.style.bg = T("--status-danger");
+			live.style.radius = all4(4);
+			{ ui.parent(live); defer ui.pop_parent();
+				spacer(.X, 5);
+				label("LIVE", .Bold, 11, .{1, 1, 1, 1}, 14);
+				spacer(.X, 5);
+			}
+			q := watched_stream_quality();
+			if q { spacer(.X, 8); label(q, .Medium, 14, T("--text-muted"), 18); }
+		}
 		filler(.X);
 		tools: []string = string.["thread", "bell", "pin", "group"];
 		if ch.guild_id == 0 { tools = .["phone-call", "pin", "group-plus", "user-circle"]; }

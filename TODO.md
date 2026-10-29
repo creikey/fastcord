@@ -448,7 +448,6 @@
 - [ ] Undo: closing a DM and leaving a group DM (closing a DM is immediate; leaving a group asks first, `view_home.jai`).
 - [ ] Events: no Edit Event or End Event; the wizard has no Stage location or cover image.
 - [ ] Embeds: the title (drawn as a link) and links and mentions in the description don't respond to clicks (`view_media.jai`).
-- [ ] Go Live viewer: the official client shows the stream's quality ("720p 30FPS") and a LIVE badge in the call header while watching; fastcord shows neither.
 - [ ] Create Channel: no Announcement, Stage or Media types, no Private Channel option, no Create Category.
 - [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
 - [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
@@ -482,7 +481,6 @@
 - [ ] Composer: no slowmode cooldown, indicator or SLOWMODE_RATE_LIMITED handling.
 - [ ] Stage: no speaker/audience split, Request to Speak or invite to speak.
 - [ ] Video: Go Live stream audio (soundshare), stream previews (`/streams/{key}/preview`), and watching more than one stream.
-- [ ] Go Live: no stream settings. Resolution and frame rate are fixed (`SCREEN_FPS` 30, `SCREEN_MAX_H` 1080 in `src/app/video_call.jai`). Add the official picker's resolution (720p, 1080p, source) and frame rate (15, 30, 60). Also add a stream-audio mute toggle, once soundshare exists, and let the streamer change these settings mid-stream.
 - [ ] Notifications: a channel's own notification level (All / Only @mentions / Nothing) is ignored for sounds and notifications; only the server level is read (`sounds.jai`). The channel, category, server chain already exists in `analytics_events.jai`.
 - [ ] GIFs (fastcord-only): sort favourites most-recently-used first, not by Discord's `order` (`pickers_data.jai` sorts by `order`). Record a GIF's last use when it's sent, locally, and keep favouriting order as the tie-break for never-used ones. Don't write the MRU order back, so official clients keep theirs.
 - [ ] Speed: one message can make a channel lag for everyone viewing it. Every frame re-parses each visible message's markdown (`view_chat.jai` `message_body` calls `md_parse`), and unmatched delimiters make that quadratic. Each unmatched `*`, `_`, `~~` or `||` rescans to the end of the text (`markdown.jai` `find_close`), and each `[` to the end of its line (`find_close_bracket`), so 2,000 `*` in a row cost about 2 million checks per parse. Make matching linear (per delimiter, remember where no closer exists) and keep each message's parsed blocks until its content changes. Add a bench fixture with such messages, and a budget.
@@ -778,3 +776,5 @@
 - [x] Media: the image viewer steps through a message's images (arrows, Left / Right, "2 / 4") and has "Open in Browser" (`viewer_items`, `tests/ui/media/viewer_gallery.txt`).
 - [x] Media: the image viewer zooms: the wheel at the mouse (up to 8x), a click toggles 2x there, and a drag pans the zoomed image (`image_viewer`, `tests/ui/media/viewer_zoom.txt`).
 - [x] Security: array bounds and null checks are on in every build (`build.jai`), so an out-of-bounds bug stops fastcord instead of corrupting memory. Measured with the bench on a busy machine: chat 1.31-1.38 ms latency without them, 1.37-1.43 ms with (within run-to-run noise), gif_scroll 1.65 vs 1.74 ms, sticker_scroll 2.54 vs 2.50 ms; no loop needed `#no_abc`. The dead-control sweep runs through without a panic.
+- [x] Go Live: stream settings in the screen picker: resolution (720p, 1080p, Source) and frame rate (15, 30, 60), above 720p30 only with Nitro on Discord (hidden, never offered) and always on a hosted server; the bitrate follows them, and the Screen button while streaming opens Stream Settings with Stop Streaming, where a change restarts the capture (`go_live_quality`, `go_live_set`; `tests/ui/call/go_live.txt`). The stream-audio toggle waits for soundshare.
+- [x] Go Live viewer: the call header shows LIVE and the watched stream's quality ("720p 30FPS", from the decoded frames) (`watched_stream_quality`; `tests/ui/call/go_live.txt`).

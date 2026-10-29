@@ -423,8 +423,8 @@ voice_panel :: () {
 			if voice_panel_button("video", "video", "Video", camera_on(), can_video) camera_toggle();
 			spacer(.X, 8);
 			if voice_panel_button("screen", "screen-stream", "Screen", screen_sharing(), can_video) {
-				if screen_sharing() go_live_stop();
-				else { video.screen_targets_refresh(); vid.picker_open = true; }
+				if !screen_sharing() video.screen_targets_refresh();
+				vid.picker_open = true; // while streaming: its settings and Stop Streaming
 			}
 			spacer(.X, 8);
 		}

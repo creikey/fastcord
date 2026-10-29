@@ -627,6 +627,12 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "in_voice";
 		// in_voice <channel id>: show the voice panel as if joined (fixtures have no voice connection)
 		app.voice_channel = dc.parse_snowflake(f[1]);
+	case "screen_picker";
+		// the Go Live picker, which needs a connected call to open by its button
+		vid.picker_open = true;
+	case "watching";
+		// watching <user id>: as if watching their Go Live stream (fixtures have no stream connection)
+		vid.watch_user = dc.parse_snowflake(f[1]);
 	case "developer_mode";
 		// the account's Developer Mode (off in the fixtures): the menus' Copy ... ID items
 		store().settings.developer_mode = true;

@@ -101,13 +101,36 @@ screen_picker :: () {
 	hdr.semantic_size = .[ui.pct(1), ui.px(24)];
 	{ ui.parent(hdr); defer ui.pop_parent();
 		spacer(.X, 20);
-		label("Share Your Screen", .Semibold, 20, T("--text-strong"), 24);
+		label(ifx screen_sharing() then "Stream Settings" else "Share Your Screen", .Semibold, 20, T("--text-strong"), 24);
 		filler(.X);
 		x := icon("close", "x-large", 20, T("--interactive-icon-default"), .Clickable);
 		if ui.signal(x).clicked vid.picker_open = false;
 		spacer(.X, 16);
 	}
 	spacer(.Y, 12);
+	go_live_quality();
+	if screen_sharing() {
+		// while streaming: its settings and Stop Streaming
+		spacer(.Y, 16);
+		r := row("stop");
+		r.semantic_size = .[ui.pct(1), ui.px(40)];
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 20);
+		b := row("stopbtn", .Clickable | .Draw_Background | .Hot_Animation);
+		b.semantic_size = .[ui.fill(), ui.px(40)];
+		b.style.radius = all4(8);
+		b.style.bg = T("--status-danger");
+		b.style.bg_hot = with_alpha(T("--status-danger"), 0.85);
+		if ui.signal(b).clicked { vid.picker_open = false; go_live_stop(); }
+		{ ui.parent(b); defer ui.pop_parent();
+			filler(.X);
+			label("Stop Streaming", .Semibold, 14, .{1, 1, 1, 1}, 18);
+			filler(.X);
+		}
+		spacer(.X, 20);
+		return;
+	}
+	spacer(.Y, 8);
 	list := ui.box("targets", .Scroll_Y | .Clip);
 	list.semantic_size = .[ui.pct(1), ui.fill()];
 	list.layout_axis = .Y;
@@ -153,6 +176,45 @@ screen_picker :: () {
 			if sig.clicked {
 				vid.picker_open = false;
 				go_live_start(t);
+			}
+		}
+	}
+}
+
+// go_live_quality: the stream's resolution and frame rate, as chips. Above 720p30 only for who may (go_live_premium).
+go_live_quality :: () {
+	chip :: (text: string, on: bool) -> bool {
+		b := ui.box(text, .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation | .Draw_Text);
+		b.semantic_size = .[ui.px(ui.layout_text(F(.Semibold), 14, text, -1).width + 24), ui.px(30)];
+		b.style.radius = all4(15);
+		b.style.border = 1;
+		b.style.border_color = ifx on then T("--background-brand") else T("--border-subtle");
+		b.style.bg = ifx on then with_alpha(T("--background-brand"), 0.25) else .{};
+		b.style.bg_hot = T("--background-mod-subtle");
+		b.style.font = F(.Semibold);
+		b.style.font_size = 14;
+		b.style.text_color = ifx on then T("--text-strong") else T("--text-default");
+		b.style.text_align = .Center;
+		return ui.signal(b).clicked;
+	}
+	all := go_live_premium();
+	for section: 0..1 {
+		r := row(ifx section == 0 then "res" else "fps");
+		r.semantic_size = .[ui.pct(1), ui.px(38)];
+		r.style.child_gap = 8;
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 12);
+		l := label(ifx section == 0 then "RESOLUTION" else "FRAME RATE", .Semibold, 12, T("--text-muted"), 16);
+		l.semantic_size[ui.Axis.X] = ui.px(96);
+		if section == 0 {
+			for h: int.[720, 1080, 0] {
+				if h != 720 && !all continue;
+				if chip(ifx h then tprint("%p##h%", h, h) else "Source##h0", vid.go_height == h) go_live_set(h, vid.go_fps);
+			}
+		} else {
+			for f: int.[15, 30, 60] {
+				if f == 60 && !all continue;
+				if chip(tprint("% FPS##f%", f, f), vid.go_fps == f) go_live_set(vid.go_height, f);
 			}
 		}
 	}
@@ -342,8 +404,8 @@ call_controls :: (cid: dc.Snowflake) {
 	if control("camera", "video", false, camera_on(), can_video && video.SUPPORTED) camera_toggle();
 	spacer(.X, 8);
 	if control("screen", "screen-stream", false, screen_sharing(), can_video && video.SUPPORTED) {
-		if screen_sharing() go_live_stop();
-		else { video.screen_targets_refresh(); vid.picker_open = true; }
+		if !screen_sharing() video.screen_targets_refresh();
+		vid.picker_open = true; // while streaming: its settings and Stop Streaming
 	}
 	spacer(.X, 8);
 	sbc := control("soundboard", "music", false, sb.open, soundboard_available());

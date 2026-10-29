@@ -11,9 +11,7 @@ CAMERA_W :: 1280;
 CAMERA_H :: 720;
 CAMERA_FPS :: 30;
 CAMERA_BITRATE :: 2_500_000;
-SCREEN_MAX_H :: 720; // Go Live without Nitro: 720p30
-SCREEN_FPS :: 30;
-SCREEN_BITRATE :: 4_000_000;
+SCREEN_BITRATE :: 4_000_000; // at 720p30; other settings scale it (go_live_bitrate)
 
 // A remote video: entries are never freed while the app runs, since a closing
 // connection's UDP thread may still deliver a frame; a call's end only resets them.
@@ -27,6 +25,9 @@ Remote_Video :: struct {
 	pending: media.Video_Frame; // newest decoded frame not yet shown (under vid.mu)
 	img: media.Video_Image;     // UI thread
 	shown_ms: s64;              // UI thread: when img last changed
+	fps_frames: int;            // UI thread: frames shown since fps_since, and the last whole second's rate
+	fps_since: s64;
+	fps: int;
 }
 
 // An outgoing video: the capture's frames are previewed and encoded on its
@@ -56,6 +57,8 @@ Video_App :: struct {
 	own_version: u64;
 	own_target: video.Screen_Target;
 	picker_open: bool;
+	go_height := 720; // Go Live settings: 720, 1080, or 0 for the source's own height
+	go_fps := 30;     // 15, 30 or 60
 	// the stream we watch
 	watch_key: string;
 	watch_user: dc.Snowflake;
@@ -211,11 +214,11 @@ video_frame :: () {
 				st, _ := voice.state(vid.own_conn);
 				if st == .Connected {
 					s := *vid.screen;
-					sender_init(s, vid.own_conn, SCREEN_FPS, SCREEN_BITRATE);
-					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, SCREEN_FPS);
-					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, SCREEN_FPS, SCREEN_MAX_H);
 					w, h := screen_size(vid.own_target);
-					voice.set_video(vid.own_conn, true, w, h, SCREEN_FPS, SCREEN_BITRATE);
+					sender_init(s, vid.own_conn, vid.go_fps, go_live_bitrate(w, h));
+					if video_test("stream") s.capture = video.pattern_start(on_capture_frame, s, vid.own_target.width, vid.own_target.height, vid.go_fps);
+					else s.capture = video.screen_start(vid.own_target, on_capture_frame, s, vid.go_fps, h);
+					voice.set_video(vid.own_conn, true, w, h, vid.go_fps, go_live_bitrate(w, h));
 				} else if st == .Disconnected {
 					go_live_stop();
 				}
@@ -241,7 +244,13 @@ video_frame :: () {
 	for rv, uid: vid.streams if atomic_swap(*rv.want_key, false) && vid.watch_conn voice.request_keyframe(vid.watch_conn, uid);
 
 	for vid.cams show_pending(*it.pending, *it.img, *it.shown_ms);
-	for vid.streams show_pending(*it.pending, *it.img, *it.shown_ms);
+	for vid.streams {
+		before := it.shown_ms;
+		show_pending(*it.pending, *it.img, *it.shown_ms);
+		if it.shown_ms == before continue;
+		it.fps_frames += 1;
+		if it.shown_ms - it.fps_since >= 1000 { it.fps, it.fps_frames, it.fps_since = cast(int) (it.fps_frames * 1000 / max(1, it.shown_ms - it.fps_since)), 0, it.shown_ms; }
+	}
 	locks.unlock(*vid.mu);
 	err := video.capture_error(vid.camera.capture);
 	if err {
@@ -277,6 +286,32 @@ video_shutdown :: () {
 video_test :: (what: string) -> bool {
 	v := env_var("FASTCORD_VIDEO_TEST");
 	return ifx what then contains(v, what) else v != "";
+}
+
+// go_live_premium: the settings above 720p30 are Nitro's on Discord (shown only to who has it, never
+// offered); a hosted server allows them all.
+go_live_premium :: () -> bool {
+	cl := call_client();
+	if !cl return false;
+	if cl.cfg.hosted.host != "" return true;
+	u := dc.user_get(*cl.store, cl.store.me);
+	return u && u.premium_type != 0;
+}
+
+// go_live_set: new settings; a running stream restarts its capture and encoder with them.
+go_live_set :: (height: int, fps: int) {
+	if vid.go_height == height && vid.go_fps == fps return;
+	vid.go_height, vid.go_fps = height, fps;
+	if screen_sharing() && vid.screen.capture sender_stop(*vid.screen); // video_frame starts it again
+}
+
+// watched_stream_quality: "720p 30FPS" for the stream we watch, once frames arrive.
+watched_stream_quality :: () -> string {
+	if !vid.watch_user return "";
+	locks.guard(*vid.mu);
+	found, rv := table_find(*vid.streams, cast(u64) vid.watch_user);
+	if !found || !rv.img.y return "";
+	return ifx rv.fps then tprint("%p %FPS", rv.img.size[1], rv.fps) else tprint("%p", rv.img.size[1]);
 }
 
 #scope_file
@@ -338,11 +373,17 @@ stream_connect :: (info: dc.Voice_Server_Info) -> *voice.Conn {
 	}, o);
 }
 
-// The encoded size for a screen target: its aspect, at most SCREEN_MAX_H tall, even sides.
+// The encoded size for a screen target: its aspect, at most the chosen height (go_height), even sides.
 screen_size :: (t: video.Screen_Target) -> int, int {
 	w, h := max(t.width, 2), max(t.height, 2);
-	if h > SCREEN_MAX_H { w = w * SCREEN_MAX_H / h; h = SCREEN_MAX_H; }
+	if vid.go_height && h > vid.go_height { w = w * vid.go_height / h; h = vid.go_height; }
 	return w & ~1, h & ~1;
+}
+
+// go_live_bitrate: 4 Mbit/s at 720p30, in proportion to pixels and frames, between 1.5 and 6 Mbit/s (a
+// hosted server's cap per member).
+go_live_bitrate :: (w: int, h: int) -> int {
+	return clamp(cast(int) (cast(float64) SCREEN_BITRATE * (w * h) / (1280 * 720) * vid.go_fps / 30), 1_500_000, 6_000_000);
 }
 
 remote_video :: (t: *Table(u64, *Remote_Video), uid: u64) -> *Remote_Video {
@@ -365,6 +406,7 @@ remote_reset :: (rv: *Remote_Video) {
 	locks.guard(*vid.mu);
 	media.video_frame_release(*rv.pending);
 	image_free(*rv.img);
+	rv.fps, rv.fps_frames, rv.fps_since = 0, 0, 0;
 }
 
 remote_free :: (rv: *Remote_Video) {
