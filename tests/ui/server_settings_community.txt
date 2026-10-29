@@ -39,6 +39,11 @@ expect_visible "Untitled question"
 expect_visible "Careful — you have unsaved changes!"
 click_text Reset
 wait 5
+click_text "Server Insights"
+wait 10
+click_text "Open Server Insights"
+wait 5
+expect_opened_url "https://discord.com/developers/servers/1546820558300258304"
 key escape
 wait 10
 click 350 198

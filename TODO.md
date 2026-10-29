@@ -22,7 +22,8 @@
   - Done: Bans (searchable list with reason, Revoke Ban), on Discord and hosted, paged 1000 at a time with Previous / Next (`after=` the page's last user).
   - Done: Enable Community and Community Overview (rules, updates and safety channels, primary language, Disable Community) on Discord.
   - Done: Onboarding on Discord: enable, default channels, and the questions edited: add, delete, title, multiple answers, required, and each answer's title, description, channels and roles (an answer's emoji is kept, not edited) (`tests/ui/server_settings_community.txt`, on a COMMUNITY copy of the chat fixture). Still missing: answer emoji, the Server Guide (welcome message, new member to-dos, resource pages), the requirement checks.
-  - Server Insights (open the official web page in the system browser if no API), Discovery (eligibility checklist, categories, tags).
+  - Done: Server Insights (community servers, View Server Insights): the client's page, a link out to discord.com/developers/servers/{id} in the system browser.
+  - Discovery (eligibility checklist, categories, tags).
   - Done: Widget (in Engagement, as the client has it): enable, invite channel, server ID and JSON API URL. Still missing: the premade widget snippet.
   - Done: Server Template on Discord (create, sync, delete, copy link).
   - Done: Custom Invite Link (only with `VANITY_URL`), on the Invites page.

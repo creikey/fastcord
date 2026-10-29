@@ -33,6 +33,7 @@ Server_Section :: enum u8 {
 	// Community
 	Community;
 	Onboarding;
+	Insights;
 	// Host: hosted servers only (the owner's management of the host itself)
 	Host_Storage;
 	Host_Attachments;
@@ -564,7 +565,7 @@ section_group :: (s: Server_Section) -> int {
 	if s <= .Access return 2;
 	if s <= .Integrations return 3;
 	if s <= .Bans return 4;
-	if s <= .Onboarding return 5;
+	if s <= .Insights return 5;
 	if s <= .Host_Info return 6;
 	return 7;
 }
@@ -587,6 +588,7 @@ section_label :: (s: Server_Section) -> string {
 	case .Bans; return "Bans";
 	case .Community; return "Enable Community";
 	case .Onboarding; return "Onboarding";
+	case .Insights; return "Server Insights";
 	case .Host_Storage; return "Storage";
 	case .Host_Attachments; return "Attachments";
 	case .Host_Limits; return "Limits";
@@ -633,6 +635,7 @@ section_pane :: (s: Server_Section) -> string {
 	case .Community; return "COMMUNITY";
 	case .Onboarding; return "ONBOARDING";
 	case .Templates; return "GUILD_TEMPLATES";
+	case .Insights; return "ANALYTICS";
 	case .Chan_Overview; return "OVERVIEW";
 	case .Chan_Permissions; return "PERMISSIONS";
 	case .Chan_Invites; return "INSTANT_INVITES";
@@ -677,6 +680,8 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // a hosted server has no verification levels, filters or AutoMod
 	case .Onboarding;
 		return has(p, dc.PERM_MANAGE_GUILD) && dc.guild_has_feature(g, "COMMUNITY") && !on_hosted();
+	case .Insights;
+		return has(p, dc.PERM_VIEW_GUILD_ANALYTICS) && dc.guild_has_feature(g, "COMMUNITY") && !on_hosted();
 	case .Templates; #through; case .Access; #through; case .Community;
 		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // Discord's: templates, member verification, Community
 	case .Invites;
@@ -698,7 +703,7 @@ page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
 	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates; #through;
-	case .Community; #through; case .Access; #through; case .Tag; #through; case .Stickers; #through; case .Onboarding; #through;
+	case .Community; #through; case .Access; #through; case .Tag; #through; case .Stickers; #through; case .Onboarding; #through; case .Insights; #through;
 	case .Chan_Overview; #through; case .Chan_Permissions; #through; case .Chan_Invites; #through; case .Chan_Integrations; #through; case .Chan_Delete;
 		return true;
 	}
@@ -741,6 +746,10 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		stickers_page(g);
 	case .Onboarding;
 		onboarding_page(g);
+	case .Insights;
+		// the client's page is a link out too: Insights lives on the developer site, opened in the browser
+		page_subtitle("Server Insights is hosted on a separate website so that it's easier to share links and browse cross platform.");
+		if set_button("Open Server Insights##insights", .Primary) open_url(tprint("https://discord.com/developers/servers/%", g.id));
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	case .Chan_Overview;
