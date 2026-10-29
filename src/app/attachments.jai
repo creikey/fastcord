@@ -62,7 +62,14 @@ Att_State :: struct {
 	mod_focus: int; // 0 filename, 1 description
 	// sent messages still uploading: nonce -> what they carry
 	sending: Table(dc.Snowflake, Att_Sending);
+	// sent messages with staged files, until they land: a failed one is sent again with them (Retry)
+	retry: Table(dc.Snowflake, Att_Retry);
 	limit_override: s64; // UI scripts: a small limit to show the too-large notice
+}
+
+Att_Retry :: struct {
+	channel: dc.Snowflake;
+	files: []dc.Draft_Attachment; // heap copies
 }
 
 Att_Sending :: struct {
@@ -360,6 +367,19 @@ attachments_frame :: () {
 			else if media.player_state(u.player) != .Error request_wake(app.ui.time + 0.05);
 		}
 	}
+	// sent messages with files: once the local message is gone (landed, or a failed one deleted), its
+	// kept uploads go (a landed one's are already released)
+	for r, nonce: att.retry {
+		l := table_find_pointer(*store().messages, r.channel);
+		if l && dc.message_index(l, nonce) >= 0 continue;
+		for r.files {
+			if app.client dc.upload_draft_release(app.client, it.handle);
+			free(it.filename);
+			free(it.description);
+		}
+		free(r.files.data);
+		remove r;
+	}
 	// sent messages: forget the ones that landed
 	for sn, nonce: att.sending {
 		done := true;
@@ -400,9 +420,29 @@ attachments_sent :: (channel_id: dc.Snowflake, nonce: dc.Snowflake) {
 			sn.total += it.size;
 		}
 		table_set(*att.sending, nonce, sn);
+		files := NewArray(l.count, dc.Draft_Attachment);
+		for l.* files[it_index] = .{handle = it.draft, filename = copy_string(it.filename), description = copy_string(it.description), spoiler = it.spoiler};
+		table_set(*att.retry, nonce, .{channel_id, files});
 	}
 	for * l.* staged_free(it);
 	l.count = 0;
+}
+
+// A failed message's files for Retry, if all are still uploaded (temp view; empty: none).
+attachments_retry :: (nonce: dc.Snowflake) -> []dc.Draft_Attachment {
+	r := table_find_pointer(*att.retry, nonce);
+	if !r || !app.client return .[];
+	for r.files {
+		st, _, _, ok := dc.upload_draft_status(app.client, it.handle);
+		if !ok || st != .Done return .[];
+	}
+	return r.files;
+}
+
+// Retry sent the files again under a new nonce.
+attachments_retry_moved :: (old: dc.Snowflake, new: dc.Snowflake) {
+	found, r := table_remove(*att.retry, old);
+	if found table_set(*att.retry, new, r);
 }
 
 attachments_modal_open :: () -> bool { return att.mod_key != 0 || att.notice != .None; }
@@ -691,6 +731,11 @@ attachments_reset_for_test :: () {
 	deinit(*att.by_channel);
 	for att.sending sending_free(it);
 	deinit(*att.sending);
+	for att.retry {
+		for f: it.files { free(f.filename); free(f.description); }
+		free(it.files.data);
+	}
+	deinit(*att.retry);
 	array_free(att.results);
 	ui.editor_set_text(*att.mod_name, "");
 	ui.editor_set_text(*att.mod_desc, "");

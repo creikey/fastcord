@@ -255,13 +255,15 @@ run_draft_send :: (c: *Client, j: *Job) -> bool {
 		mimes[it_index] = copy_string(u.mime,, temp);
 	}
 	locks.unlock(*d.mu);
-	for atts upload_draft_release(c, it.handle);
 	if failed {
+		for atts upload_draft_release(c, it.handle);
 		client_push_event(c, Event.{kind = .Rest, result = Rest_Result.{op = .Send_Message, channel_id = j.result.channel_id, nonce = j.result.nonce, ok = false}});
 		return false;
 	}
 	body := j.message_json(j, attachments_json(atts, uploaded, mimes));
 	r := api_call(c, "POST", j.path, body, "application/json", j.context_b64, .[], 3, 1);
+	// a failed send keeps its uploaded files for Retry (the app releases them once the message is gone)
+	if r.ok for atts upload_draft_release(c, it.handle);
 	j.result.op = .Send_Message;
 	push_result(c, j, r);
 	return false;

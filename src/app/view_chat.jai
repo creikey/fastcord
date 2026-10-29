@@ -1807,15 +1807,19 @@ failed_send_note :: (m: *dc.Message) {
 		b.hover_cursor = .Pointer;
 		return ui.signal(b).clicked;
 	}
-	retry := m.content != "" && !m.attachments && link("Retry");
+	files := attachments_retry(m.id); // a message with files retries with the ones it uploaded
+	retry := ifx m.attachments then files.count > 0 else m.content != "";
+	retry = retry && link("Retry");
 	discard := link("Delete");
 	if discard dc.drop_message(store(), m.channel_id, m.id);
 	if !retry || !net_action() return;
 	text := copy_string(m.content,, temp);
-	cid, reply := m.channel_id, m.referenced_id;
+	cid, reply, old := m.channel_id, m.referenced_id, m.id;
+	files = array_copy(files,, temp);
 	dc.drop_message(store(), cid, m.id);
 	ch := dc.channel_get(store(), cid);
-	dc.send_message(app.client, cid, text, .{reply_to = reply, reply_guild_id = ifx ch then ch.guild_id});
+	nonce := dc.send_message(app.client, cid, text, .{reply_to = reply, reply_guild_id = ifx ch then ch.guild_id, attachments = files});
+	if files attachments_retry_moved(old, nonce);
 }
 
 // terms: search words to highlight (search result cards).
