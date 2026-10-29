@@ -21,7 +21,11 @@ list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
 	locks.guard(*lx.mu);
 	if !load() return out;
 	now := to_milliseconds(current_time_monotonic());
-	if !lx.listed_ms || now - lx.listed_ms > DEVICE_LIST_TTL_MS { refresh_devices(); lx.listed_ms = now; }
+	if !lx.listed_ms || now - lx.listed_ms > DEVICE_LIST_TTL_MS {
+		push_allocator(context.default_allocator); // the devices outlive a caller's temp
+		refresh_devices();
+		lx.listed_ms = now;
+	}
 	for lx.devices if it.input == input
 		array_add(*out, .{id = it.id, name = copy_string(it.name,, allocator), uid = copy_string(it.uid,, allocator)});
 	return out;

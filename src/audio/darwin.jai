@@ -54,6 +54,7 @@ Device_Info :: struct {
 list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
 	listen_devices();
 	if dev.stale {
+		push_allocator(context.default_allocator); // the lists outlive a caller's temp
 		dev.stale = false; // a change during the enumeration marks it stale again
 		for * dev.lists {
 			for it.* { free(it.name); free(it.uid); }

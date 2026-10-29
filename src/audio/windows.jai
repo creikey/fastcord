@@ -19,6 +19,7 @@ Device_Info :: struct {
 list_devices :: (input: bool, allocator := context.allocator) -> []Device_Info {
 	locks.guard(*dl.mu);
 	if atomic_exchange(*dl.stale, false) for * dl.lists {
+		push_allocator(context.default_allocator); // the lists outlive a caller's temp
 		for it.* free(it.name);
 		array_reset(it);
 		enumerate_devices(it_index == 1, it);
