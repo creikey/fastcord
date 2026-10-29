@@ -262,6 +262,175 @@ XIEventMask :: struct { deviceid: s32; mask_len: s32; mask: *u8; }
 XGenericEventCookie :: struct { type: s32; serial: u64; send_event: s32; display: *void; extension: s32; evtype: s32; cookie: u32; data: *void; }
 XIRawEvent :: struct { type: s32; serial: u64; send_event: s32; display: *void; extension: s32; evtype: s32; time: u64; deviceid, sourceid, detail, flags: s32; }
 
+// XI2 normal device events are cookie data, not members of the 192-byte XEvent union.
+XIButtonState :: struct { mask_len: s32; mask: *u8; }
+XIValuatorState :: struct { mask_len: s32; mask: *u8; values: *float64; }
+XIModifierState :: struct { base, latched, locked, effective: s32; }
+XIScrollClassInfo :: struct { type, sourceid, number, scroll_type: s32; increment: float64; flags: s32; }
+XIAnyClassInfo :: struct { type, sourceid: s32; }
+XIDeviceInfo :: struct { deviceid: s32; name: *u8; use, attachment, enabled, num_classes: s32; classes: **XIAnyClassInfo; }
+XIDeviceEvent :: struct {
+    type: s32; serial: u64; send_event: s32; display: *void; extension, evtype: s32; time: u64;
+    deviceid, sourceid, detail: s32; root, event, child: Window;
+    root_x, root_y, event_x, event_y: float64; flags: s32;
+    buttons: XIButtonState; valuators: XIValuatorState; mods, group: XIModifierState;
+}
+XIEnterEvent :: struct {
+    type: s32; serial: u64; send_event: s32; display: *void; extension, evtype: s32; time: u64;
+    deviceid, sourceid, detail: s32; root, event, child: Window;
+    root_x, root_y, event_x, event_y: float64; mode, focus, same_screen: s32;
+    buttons: XIButtonState; mods, group: XIModifierState;
+}
+#assert size_of(XIDeviceInfo) == 40;
+#assert size_of(XIScrollClassInfo) == 32;
+#assert size_of(XIDeviceEvent) == 200;
+#assert size_of(XIEnterEvent) == 184;
+
+XI_Scroll_Axis :: struct {
+    source, number: s32;
+    horizontal, preferred, valid, emitted: bool;
+    increment, last: float64;
+}
+
+// No standard XI2 finger/wheel or momentum metadata exists. Smooth valuators (including high-resolution
+// wheels) are direct input in fractional wheel units; legacy buttons keep their animated 53-point steps.
+xi: struct {
+    lib: *void;
+    on: bool;
+    opcode: s32;
+    axes: [..]XI_Scroll_Axis;
+    QueryVersion: (d: *void, major: *s32, minor: *s32) -> s32 #c_call;
+    QueryDevice: (d: *void, id: s32, count: *s32) -> *XIDeviceInfo #c_call;
+    FreeDeviceInfo: (info: *XIDeviceInfo) #c_call;
+    SelectEvents: (d: *void, w: Window, masks: *XIEventMask, n: s32) -> s32 #c_call;
+};
+
+xi_scroll_class :: (axes: *[..]XI_Scroll_Axis, c: *XIScrollClassInfo) {
+    if c.number < 0 || (c.scroll_type != 1 && c.scroll_type != 2) return;
+    if !(abs(c.increment) > 0 && abs(c.increment) < 1.0e300) return;
+    a := XI_Scroll_Axis.{source = c.sourceid, number = c.number, horizontal = c.scroll_type == 2,
+        preferred = (c.flags & 2) != 0, increment = c.increment};
+    for *old: axes.* if old.source == a.source && old.horizontal == a.horizontal {
+        if a.preferred && !old.preferred old.* = a;
+        return; // one representation per direction, preferring XIScrollFlagPreferred
+    }
+    array_add(axes, a);
+}
+
+xi_scroll_reset :: (axes: []XI_Scroll_Axis) { for *axes it.valid, it.emitted = false, false; }
+
+xi_scroll_delta :: (axes: []XI_Scroll_Axis, source: s32, v: XIValuatorState) -> Vector2 {
+    d: Vector2;
+    if v.mask_len <= 0 || !v.mask || !v.values return d;
+    packed := 0;
+    for byte: 0..v.mask_len-1 for bit: 0..7 {
+        if !(v.mask[byte] & cast(u8) (1 << bit)) continue;
+        value := v.values[packed];
+        packed += 1; // every set bit consumes a value, even unrelated x/y/pressure axes
+        for *a: axes if a.source == source && a.number == byte * 8 + bit {
+            if !(abs(value) < 1.0e300) { a.valid, a.emitted = false, false; continue; }
+            if a.valid {
+                points := -53.0 * ((value - a.last) / a.increment);
+                if abs(points) < 1.0e30 {
+                    amount := cast(float32) points;
+                    if amount != 0 a.emitted = true;
+                    if a.horizontal d.x += amount;
+                    else d.y += amount;
+                }
+            }
+            a.last, a.valid = value, true;
+        }
+    }
+    return d;
+}
+
+xi_scroll_emulated :: (axes: []XI_Scroll_Axis, source: s32, button: s32, flags: s32) -> bool {
+    if !(flags & (1 << 16)) || button < 4 || button > 7 return false;
+    // Before any smooth delta, keep the first compatibility notch: its Motion only seeded a baseline.
+    for axes if it.source == source && it.horizontal == (button >= 6) && it.emitted return true;
+    return false;
+}
+
+xi_devices :: () {
+    array_reset(*xi.axes); // IDs can be reused; no baseline survives a device/class change
+    n: s32;
+    info := xi.QueryDevice(xs.d, 0 /*XIAllDevices*/, *n);
+    if !info return;
+    defer xi.FreeDeviceInfo(info);
+    for i: 0..n-1 {
+        d := *info[i];
+        if !d.enabled || (d.use != 3 && d.use != 5) continue; // not the master's duplicate classes
+        for j: 0..d.num_classes-1 {
+            c := d.classes[j];
+            if c.type == 3 xi_scroll_class(*xi.axes, xx c);
+        }
+    }
+}
+
+xi_init :: () {
+    if !xi.lib xi.lib = dlopen("libXi.so.6", RTLD_NOW);
+    if !xi.lib return;
+    xi.QueryVersion = xx dlsym(xi.lib, "XIQueryVersion");
+    xi.QueryDevice = xx dlsym(xi.lib, "XIQueryDevice");
+    xi.FreeDeviceInfo = xx dlsym(xi.lib, "XIFreeDeviceInfo");
+    xi.SelectEvents = xx dlsym(xi.lib, "XISelectEvents");
+    if !xi.QueryVersion || !xi.QueryDevice || !xi.FreeDeviceInfo || !xi.SelectEvents return;
+    ev, err: s32;
+    if !X.QueryExtension(xs.d, "XInputExtension", *xi.opcode, *ev, *err) return;
+    major: s32 = 2;
+    minor: s32 = 1;
+    if xi.QueryVersion(xs.d, *major, *minor) != 0 || major < 2 || (major == 2 && minor < 1) return;
+    // One pointer delivery path. Core keyboard/IME stay as they were; global PTT uses its own connection.
+    pointer: [2]u8;
+    for 4..8 pointer[it >> 3] |= cast(u8) (1 << (it & 7));
+    mask := XIEventMask.{deviceid = 1 /*XIAllMasterDevices*/, mask_len = pointer.count, mask = pointer.data};
+    if xi.SelectEvents(xs.d, xs.win, *mask, 1) != 0 return;
+    devices: [2]u8;
+    devices[0] = 1 << 1; // XI_DeviceChanged
+    devices[1] = 1 << 3; // XI_HierarchyChanged (11)
+    mask = .{deviceid = 0 /*XIAllDevices*/, mask_len = devices.count, mask = devices.data};
+    if xi.SelectEvents(xs.d, xs.root, *mask, 1) != 0 {
+        pointer = .[0, 0];
+        mask = .{deviceid = 1, mask_len = pointer.count, mask = pointer.data};
+        xi.SelectEvents(xs.d, xs.win, *mask, 1);
+        return;
+    }
+    xi_devices();
+    xi.on = true;
+}
+
+xi_event :: (c: *XGenericEventCookie) {
+    if c.evtype == 1 || c.evtype == 11 { xi_devices(); return; }
+    now := time_now();
+    if c.evtype == 7 || c.evtype == 8 {
+        e := cast(*XIEnterEvent) c.data;
+        if e.event != xs.win return;
+        xi_scroll_reset(xi.axes); // never apply scrolling accumulated outside this window
+        if c.evtype == 7 push_event(.{kind = .Mouse_Move, pos = .{cast(float32) e.event_x / s.scale, cast(float32) e.event_y / s.scale}, mods = mods_of(xx e.mods.effective), time = now});
+        else if e.mode != NotifyGrab {
+            held := false;
+            for i: 0..e.buttons.mask_len-1 if e.buttons.mask[i] held = true;
+            if !held push_event(.{kind = .Mouse_Leave, time = now});
+        }
+        return;
+    }
+    if c.evtype < 4 || c.evtype > 6 return;
+    e := cast(*XIDeviceEvent) c.data;
+    if e.event != xs.win return;
+    pos := Vector2.{cast(float32) e.event_x / s.scale, cast(float32) e.event_y / s.scale};
+    mods := mods_of(xx e.mods.effective);
+    if c.evtype == 6 push_event(.{kind = .Mouse_Move, pos = pos, mods = mods, time = now});
+    // Emulated wheel buttons may carry the same cumulative valuators as Motion. Decode either order
+    // before deciding whether the button is redundant; repeated values never emit a second delta.
+    if c.evtype == 6 || (e.detail >= 4 && e.detail <= 7 && (e.flags & (1 << 16))) {
+        d := xi_scroll_delta(xi.axes, e.sourceid, e.valuators);
+        if d.x || d.y push_event(.{kind = .Scroll, pos = pos, delta = d, precise = true, mods = mods, time = now});
+    }
+    if c.evtype != 6 && !xi_scroll_emulated(xi.axes, e.sourceid, e.detail, e.flags) {
+        pointer_button(xx e.detail, c.evtype == 4, pos, mods);
+    }
+}
+
 os_init :: (title: string, width: int, height: int) -> bool {
     xs.wake_fd = eventfd(0, xx (EFD.NONBLOCK | .CLOEXEC));
     if in_path("gsettings") {
@@ -307,6 +476,7 @@ os_init :: (title: string, width: int, height: int) -> bool {
         0x1 /*CWBackPixmap*/ | 0x10 /*CWBitGravity*/ | 0x800 /*CWEventMask*/, *attrs);
     if !xs.win return false;
     X.SelectInput(xs.d, xs.root, PropertyChangeMask); // RESOURCE_MANAGER (Xft.dpi) changes
+    xi_init();
 
     X.StoreName(xs.d, xs.win, temp_c_string(title));
     X.ChangeProperty(xs.d, xs.win, a._NET_WM_NAME, a.UTF8_STRING, 8, 0, title.data, xx title.count);
@@ -363,6 +533,8 @@ os_shutdown :: () {
     }
     if xs.ic X.DestroyIC(xs.ic);
     if xs.im X.CloseIM(xs.im);
+    xi.on = false;
+    array_reset(*xi.axes);
     if xs.win X.DestroyWindow(xs.d, xs.win);
     X.CloseDisplay(xs.d);
     {
@@ -517,6 +689,8 @@ os_apply_cursor :: () {
 libc :: #system_library "libc";
 setlocale :: (category: s32, locale: *u8) -> *u8 #foreign libc;
 LC_CTYPE :: 0;
+
+#scope_module
 
 // ---- Xlib (x86_64 LP64: long and XID are 8 bytes, int 4)
 
@@ -919,12 +1093,22 @@ pump :: () {
     ev: XEvent;
     while X.Pending(xs.d) > 0 {
         X.NextEvent(xs.d, *ev);
+        if ev.type == 35 /*GenericEvent*/ {
+            c := cast(*XGenericEventCookie) *ev;
+            if xi.on && c.extension == xi.opcode && X.GetEventData(xs.d, c) {
+                xi_event(c);
+                X.FreeEventData(xs.d, c);
+            }
+            continue;
+        }
         if X.FilterEvent(*ev, 0) continue; // the input method's (dead keys, IME composition)
         handle(*ev);
     }
 }
 
 handle :: (ev: *XEvent) {
+    // XI2 supplies the complete pointer stream when available. Ignore the core compatibility copy.
+    if xi.on && (ev.type == ButtonPress || ev.type == ButtonRelease || ev.type == MotionNotify || ev.type == LeaveNotify) return;
     now := time_now();
     if ev.type == {
         case KeyPress;
@@ -1106,12 +1290,12 @@ count_click :: (btn: Mouse_Button, pos: Vector2, now: float64) -> int {
 
 #scope_file
 
-mouse_button :: (b: *XButtonEvent, down: bool) {
-    pos := point(b.x, b.y);
+mouse_button :: (b: *XButtonEvent, down: bool) { pointer_button(b.button, down, point(b.x, b.y), mods_of(b.state)); }
+
+pointer_button :: (button: u32, down: bool, pos: Vector2, mods: Mod) {
     now := time_now();
-    mods := mods_of(b.state);
     btn: Mouse_Button;
-    if b.button == {
+    if button == {
         case 1; btn = .Left;
         case 2; btn = .Middle;
         case 3; btn = .Right;
@@ -1122,7 +1306,7 @@ mouse_button :: (b: *XButtonEvent, down: bool) {
             // (kWheelScrollAmount in ui/events/x/events_x_utils.cc)
             if !down return;
             e := Event.{kind = .Scroll, pos = pos, mods = mods, time = now};
-            if b.button == {
+            if button == {
                 case 4; e.delta.y = 53;
                 case 5; e.delta.y = -53;
                 case 6; e.delta.x = 53;

@@ -303,6 +303,12 @@ wl_clipboard_files :: (allocator: Allocator) -> []string {
     return read_files_wl(allocator);
 }
 
+// Wayland axis 0 is vertical, 1 horizontal (not Vector2's component order).
+wl_scroll_delta :: (axis: [2]float32, v120: [2]s32, discrete: bool) -> Vector2 {
+    if discrete return .{-v120[1] * 53.0 / 120, -v120[0] * 53.0 / 120};
+    return .{-axis[1], -axis[0]};
+}
+
 #scope_file
 
 #import "POSIX";
@@ -685,8 +691,8 @@ pointer_event :: (op: u32, args: *u64, now: float64) {
 
 // A frame's axis events as one Scroll: wheels as Chromium's X11 53px per notch, touchpads in pixels.
 scroll :: (now: float64) {
-    d := ifx wl.discrete then Vector2.{wl.v120[0] * 53.0 / 120, wl.v120[1] * 53.0 / 120} else Vector2.{wl.axis[0], wl.axis[1]};
-    if d.x || d.y push_event(.{kind = .Scroll, pos = wl.pos, delta = .{-d.x, -d.y}, precise = !wl.discrete, mods = wl.mods, time = now});
+    d := wl_scroll_delta(wl.axis, wl.v120, wl.discrete);
+    if d.x || d.y push_event(.{kind = .Scroll, pos = wl.pos, delta = d, precise = !wl.discrete, mods = wl.mods, time = now});
     wl.axis, wl.v120, wl.discrete = .[0, 0], .[0, 0], false;
 }
 

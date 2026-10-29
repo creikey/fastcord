@@ -1182,7 +1182,7 @@ message_list :: (channel_id: dc.Snowflake, cs: *Chat_State) {
 	if ui.mouse_over(list) {
 		for * e: app.ui.events {
 			if e.kind != .Scroll || e.consumed continue;
-			cs.scroll_target += e.delta.y;
+			ui.scroll_input(*cs.scroll_from_bottom, *cs.scroll_target, e.delta.y, e.precise);
 			e.consumed = true;
 		}
 	}

@@ -518,7 +518,7 @@ uploads_bar :: (channel_id: dc.Snowflake) {
 	// a vertical wheel scrolls the row sideways, like the client's overflow-x area
 	for * e: app.ui.events {
 		if e.kind == .Scroll && !e.consumed && e.delta.x == 0 && rect_has(ui.visible_rect(bar), app.ui.mouse) {
-			bar.view_off_target.x -= e.delta.y;
+			ui.scroll_input(*bar.view_off.x, *bar.view_off_target.x, -e.delta.y, e.precise);
 			e.consumed = true;
 		}
 	}

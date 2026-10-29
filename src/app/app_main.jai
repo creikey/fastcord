@@ -1155,7 +1155,18 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		if f[1] == "loading" l.messages.count = 0;
 		return;
 	case "scroll";
-		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = true});
+		// scroll <x> <y> [wheel]: precise by default; wheel exercises animated notch input.
+		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = f.count < 4 || f[3] != "wheel"});
+	case "expect_chat_scroll";
+		cs := table_find_pointer(*app.chats, app.view.channel);
+		if !cs script_fail(path, "expect_chat_scroll: no open chat");
+		if f[1] == "animated" || f[1] == "direct" {
+			direct := abs(cs.scroll_target - cs.scroll_from_bottom) < 0.01;
+			if direct != (f[1] == "direct") script_fail(path, "expect_chat_scroll: got % -> %, expected %", cs.scroll_from_bottom, cs.scroll_target, f[1]);
+		} else if abs(cs.scroll_from_bottom - num(f[1])) > 0.01 || abs(cs.scroll_target - num(f[2])) > 0.01 {
+			script_fail(path, "expect_chat_scroll: got % -> %, expected % -> %", cs.scroll_from_bottom, cs.scroll_target, f[1], f[2]);
+		}
+		return;
 	case "fake_update";
 		// fake_update <tag>: the Update pill shows, with notes, without the network
 		upd.latest = copy_string(f[1]);

@@ -226,6 +226,7 @@ Input_Event :: struct {
 	kind: Input_Event_Kind;
 	pos: Vec2;
 	delta: Vec2;
+	precise: bool; // direct high-resolution input, not an animated wheel target
 	button: Mouse_Button;
 	click_count: int;
 	key: Key_Code;
@@ -698,8 +699,8 @@ signal :: (b: *Box) -> Signal {
 	if (b.flags & SCROLL) && !s.scroll_consumed && mouse_over(b) {
 		for * e: s.events {
 			if e.kind != .Scroll || e.consumed continue;
-			if b.flags & .Scroll_Y b.view_off_target.y -= e.delta.y;
-			if b.flags & .Scroll_X b.view_off_target.x -= e.delta.x;
+			if b.flags & .Scroll_Y scroll_input(*b.view_off.y, *b.view_off_target.y, -e.delta.y, e.precise);
+			if b.flags & .Scroll_X scroll_input(*b.view_off.x, *b.view_off_target.x, -e.delta.x, e.precise);
 			e.consumed = true;
 		}
 	}
@@ -709,6 +710,15 @@ signal :: (b: *Box) -> Signal {
 
 is_focused :: (b: *Box) -> bool { return b.key != 0 && context.ui.focus == b.key; }
 set_focus :: (b: *Box) { context.ui.focus = b.key; }
+
+// Precise input follows the visible position, cancelling any old wheel-animation remainder.
+// Only this scroll consumer changes; programmatic scrolling elsewhere keeps its animation.
+scroll_input :: (off: *float32, target: *float32, delta: float32, precise: bool) {
+	if delta == 0 return;
+	if precise target.* = off.*;
+	target.* += delta;
+	if precise off.* = target.*;
+}
 
 // Frame-rate independent exponential approach. rate is ~1/seconds to settle.
 animate :: (v: *float32, target: float32, rate: float32 = 18, loc := #caller_location) {
