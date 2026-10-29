@@ -39,6 +39,13 @@ acct: struct {
 	pf_hex: ui.Editor; // its "#rrggbb" field
 	pf_pending: int;
 	pf_error: string; // heap
+	// Per-server Profiles: the server picked and its form
+	ps_tab: bool;
+	ps_guild: dc.Snowflake;
+	ps_nick: ui.Editor;
+	ps_bio: ui.Editor;
+	ps_pronouns: ui.Editor;
+	ps_base: [3]string; // heap: the values the editors started from (nick, bio, pronouns)
 };
 #scope_export
 
@@ -660,6 +667,21 @@ profiles_page :: () {
 	defer ui.pop_parent();
 	if set_page_begin("profilespage") {
 		set_heading("Profiles");
+		tabs := row("pftabs");
+		tabs.semantic_size = .[ui.pct(1), ui.px(32)];
+		tabs.style.child_gap = 24;
+		{ ui.parent(tabs); defer ui.pop_parent();
+			for name, i: string.["Main Profile", "Per-server Profiles"] {
+				on := acct.ps_tab == (i == 1);
+				t := label(name, .Medium, 16, ifx on then T("--text-strong") else T("--text-muted"), 24);
+				t.flags |= .Clickable;
+				t.hover_cursor = .Pointer;
+				if ui.signal(t).clicked acct.ps_tab = i == 1;
+			}
+		}
+		spacer(.Y, 20);
+		if acct.ps_tab per_server_form(u);
+		else { // the main profile: the form and its preview
 		cols := row("cols");
 		cols.semantic_size = .[ui.pct(1), ui.children()];
 		cols.cross_align = .Start;
@@ -719,9 +741,115 @@ profiles_page :: () {
 				profile_preview_card(u);
 			}
 		}
+		}
 		set_page_end();
 	}
-	if pf_dirty() || acct.pf_pending > 0 { profile_save_bar(); }
+	if acct.ps_tab {
+		if ps_dirty() per_server_save_bar();
+	} else if pf_dirty() || acct.pf_pending > 0 { profile_save_bar(); }
+}
+
+// Per-server Profiles: a server, then your nickname there; with Nitro also its avatar, About Me and
+// pronouns (hidden, not locked, without it).
+per_server_form :: (u: *dc.User) {
+	s := store();
+	names: [..]string;
+	ids: [..]dc.Snowflake;
+	names.allocator, ids.allocator = temp, temp;
+	cur := -1;
+	for guild_order() {
+		g := dc.guild_get(s, it);
+		if !g continue;
+		if it == acct.ps_guild cur = ids.count;
+		array_add(*names, g.name);
+		array_add(*ids, it);
+	}
+	if !ids.count {
+		set_para("noservers", "You're not in any servers yet.", .Normal, 14, 18, T("--text-muted"));
+		return;
+	}
+	label("Choose a server", .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 8);
+	pick := select_field("psguild", names, cur);
+	if pick >= 0 && ids[pick] != acct.ps_guild per_server_profile_open(ids[pick]); // and its bio and pronouns
+	if !acct.ps_guild return;
+	// the editors follow the server's values (the profile fetch brings bio and pronouns) until edited
+	m0 := dc.member_get(s, acct.ps_guild, s.me);
+	if m0 {
+		pf_follow(*acct.ps_nick, *acct.ps_base[0], m0.nick);
+		pf_follow(*acct.ps_bio, *acct.ps_base[1], m0.bio);
+		pf_follow(*acct.ps_pronouns, *acct.ps_base[2], m0.pronouns);
+	}
+	set_divider();
+	label("Server Nickname", .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 8);
+	set_input("psnick", *acct.ps_nick, ifx u then dc.display_name(u) else "", max_runes = 32);
+	if u == null || u.premium_type == 0 return;
+	set_divider();
+	label("Server Avatar", .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 8);
+	mem := dc.member_get(s, acct.ps_guild, s.me);
+	pf_image_row("psavatar", "Avatar", mem != null && mem.avatar != "", (path: string) { dc.edit_my_avatar(app.client, path, acct.ps_guild); });
+	set_divider();
+	label("Pronouns", .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 8);
+	set_input("pspronouns", *acct.ps_pronouns, "Add your pronouns", max_runes = PROFILE_PRONOUNS_MAX);
+	set_divider();
+	label("About Me", .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 8);
+	set_input("psbio", *acct.ps_bio, "", multiline = true, max_runes = PROFILE_BIO_MAX, min_h = 100);
+}
+
+// The server header menu's Edit Per-server Profile: Settings > Profiles on that server.
+per_server_profile_open :: (gid: dc.Snowflake) {
+	settings_page = "Profiles";
+	app.settings_open = true;
+	acct.ps_tab = true;
+	if acct.ps_guild == gid return;
+	acct.ps_guild = gid;
+	for e, i: (*ui.Editor.[*acct.ps_nick, *acct.ps_bio, *acct.ps_pronouns]) {
+		ui.editor_set_text(e, "");
+		set_error(*acct.ps_base[i], "");
+	}
+	if app.client != null dc.fetch_profile(app.client, store().me, gid);
+}
+
+ps_dirty :: () -> bool {
+	if !acct.ps_guild return false;
+	for e, i: (*ui.Editor.[*acct.ps_nick, *acct.ps_bio, *acct.ps_pronouns]) if ui.editor_text(e) != acct.ps_base[i] return true;
+	return false;
+}
+
+per_server_save_bar :: () {
+	W :: 600;
+	cw := app.ui.window.x - 2 * SET_INSET - SET_NAV_W - 1;
+	ch := app.ui.window.y - 2 * SET_INSET - SET_TITLE_H - 1;
+	w := min(cast(float32)(W), cw - 32);
+	bar := row("pssavebar", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y);
+	bar.semantic_size = .[ui.px(w), ui.px(52)];
+	bar.fixed_pos = .{(cw - w) / 2, ch - 52 - 20};
+	bar.style.bg = T("--background-surface-highest");
+	bar.style.radius = all4(8);
+	bar.style.shadow_color = .{0, 0, 0, 0.3};
+	bar.style.shadow_blur = 12;
+	bar.style.shadow_offset = .{0, 4};
+	ui.push_parent(bar);
+	defer ui.pop_parent();
+	spacer(.X, 16);
+	label("Careful — you have unsaved changes!", .Medium, 15, T("--text-strong"), 20);
+	filler(.X);
+	eds := (*ui.Editor).[*acct.ps_nick, *acct.ps_bio, *acct.ps_pronouns];
+	if set_button("Reset##psreset", .Link, true, 32) for e, i: eds ui.editor_set_text(e, acct.ps_base[i]);
+	spacer(.X, 8);
+	if set_button("Save Changes##pssave", .Positive, true, 32) {
+		nick, bio, pron := trim(ui.editor_text(*acct.ps_nick)), ui.editor_text(*acct.ps_bio), ui.editor_text(*acct.ps_pronouns);
+		if net_action() {
+			if nick != acct.ps_base[0] dc.set_server_nickname(app.client, acct.ps_guild, store().me, nick);
+			if bio != acct.ps_base[1] || pron != acct.ps_base[2] dc.update_guild_profile(app.client, acct.ps_guild, pron, bio);
+		}
+		for e, i: eds set_error(*acct.ps_base[i], ui.editor_text(e)); // saved: the form is clean (errors come back as notices)
+	}
+	spacer(.X, 12);
 }
 #scope_file
 

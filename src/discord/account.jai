@@ -201,6 +201,18 @@ mfa_retry :: (c: *Client, token: string) -> bool {
 	return true;
 }
 
+// update_guild_profile: PATCH /guilds/{id}/profile/@me {"bio", "pronouns"} (USER_GUILD_PROFILE, a
+// per-server profile; Nitro); the result comes back as .Profile_Patch with tag = the guild.
+update_guild_profile :: (c: *Client, guild_id: Snowflake, pronouns: string, bio: string) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "bio", bio);
+	json_kstr(*w, "pronouns", pronouns);
+	json_obj_end(*w);
+	f_submit(c, .{op = .Profile_Patch, tag = cast(u64) guild_id, method = "PATCH", path = tprint("/guilds/%/profile/@me", guild_id), body = json_string(*w)});
+}
+
 // apply_account_result applies a successful .User_Patch / .Profile_Patch body to our user
 // (USER_UPDATE follows on the gateway too). Returns a new token when the response has one
 // (Discord rotates it on username/password changes); "" otherwise.
@@ -222,6 +234,15 @@ apply_account_result :: (s: *Store, r: *Feature_Result) -> string {
 		}
 	case .Profile_Patch; #through;
 	case .Banner_Edit;
+		if r.op == .Profile_Patch && r.tag { // a per-server profile
+			mem := member_get(s, cast(Snowflake) r.tag, s.me);
+			if mem {
+				set_str(s, *mem.bio, fstr(m, "bio"));
+				set_str(s, *mem.pronouns, fstr(m, "pronouns"));
+			}
+			s.changed += 1;
+			return "";
+		}
 		u := table_find_pointer(*s.users, s.me);
 		if u {
 			a := s.allocator;

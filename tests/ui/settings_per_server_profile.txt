@@ -1,0 +1,24 @@
+# Edit Per-server Profile (server header menu) opens Settings > Profiles > Per-server Profiles on that
+# server: edit the nickname there (the save bar shows, Reset drops it); without Nitro only the nickname
+# is offered. Main Profile goes back to the account's own.
+wait 5
+click 200 57
+wait 10
+click_text "Edit Per-server Profile"
+wait 20
+expect_visible "Choose a server"
+expect_visible "Dingus Battle"
+expect_visible "Server Nickname"
+expect_not_visible "Server Avatar"
+click 760 355
+wait 3
+type Dingo
+wait 10
+expect_visible "Careful — you have unsaved changes!"
+shot build/ui-settings_per_server_profile_nick.png
+click_text "Reset"
+wait 10
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "Main Profile"
+wait 10
+expect_visible "About Me"

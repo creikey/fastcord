@@ -712,9 +712,11 @@ edit_guild_name :: (c: *Client, guild_id: Snowflake, name: string) {
 
 // PATCH /users/@me {"avatar": data URI} from an image file, or null for "" (Profiles > Change Avatar;
 // the client crops it to a square first, fastcord sends the file as it is).
-edit_my_avatar :: (c: *Client, path: string) {
-	if path feature_submit(c, .Avatar_Edit, "PATCH", "/users/@me", file = path);
-	else feature_submit(c, .Avatar_Edit, "PATCH", "/users/@me", "{\"avatar\":null}");
+// With a guild: that server's avatar for you, PATCH /guilds/{id}/members/@me (Nitro).
+edit_my_avatar :: (c: *Client, path: string, guild_id: Snowflake = 0) {
+	at := ifx guild_id then tprint("/guilds/%/members/@me", guild_id) else "/users/@me";
+	if path feature_submit(c, .Avatar_Edit, "PATCH", at, file = path);
+	else feature_submit(c, .Avatar_Edit, "PATCH", at, "{\"avatar\":null}");
 }
 
 // PATCH /users/%40me/profile {"banner": data URI} (Nitro), or null for "".
