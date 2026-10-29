@@ -1219,6 +1219,20 @@ r_count :: (run: *Replay_Run, method: string, part: string) -> int {
 // A jump to an old message (around=) shows that stretch alone, behind a gap (hasMoreAfter), not merged
 // into the loaded present; newer pages (after=) close the gap when short or when they reach the present,
 // and Jump to Present drops the stretch.
+// Media privacy: Discord's media loads only from Discord's hosts (and the GIF picker's Tenor).
+media_hosts :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	for string.["cdn.discordapp.com", "media.discordapp.net", "images-ext-1.discordapp.net", "discord.com", "media.tenor.com"]
+		expect(t, media_host_ok(c, it), tprint("% loads", it));
+	for string.["evil.example", "discord.com.evil.example", "notdiscordapp.net", "i.imgur.com", "tenor.com.evil"]
+		expect(t, !media_host_ok(c, it), tprint("% is refused", it));
+	status := media_get(c, "https://evil.example/pixel.png", .Image, true, "");
+	expect_value(t, status, 0);
+}
+
 // Any server's member list ops: negative and huge indexes and ranges change nothing out of bounds.
 member_list_hostile :: (t: *T) {
 	run: Replay_Run;

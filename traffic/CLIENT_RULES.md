@@ -430,6 +430,7 @@ module were read.
 
 | Rule | Kind | Anchor | fastcord |
 |---|---|---|---|
+| Media loads only from Discord's hosts (`discord.com`, `*.discord.com`, `*.discordapp.com`, `*.discordapp.net`) and `media.tenor.com` (the GIF picker's results, which the official client also loads straight from Tenor); any other URL a server sends loads nothing. A hosted server's media all goes to the pinned server | guessed (Tenor), fastcord-only (the refusal) | GIF picker result `src` | `media.jai` `media_host_ok` |
 | Inline attachment image URL: an animated source (GIF) gets no `format` (the proxy sends the GIF); others `format=webp` + `width`/`height` | code | `getSrcWithWidthAndHeight`, `getFormatQuality` (`srcIsAnimated`) | `src/app/images.jai` `attachment_image_url` |
 | GIFV embeds (Tenor, Klipy) play `video.proxy_url` muted and looping, poster = thumbnail; only while on screen | inferred | embed `"type":"gifv"` in `traffic/gif_send.jsonl` | `src/app/view_media.jai` `media_box` |
 | Embeds with a proxied `video` (`proxy_url` on the media proxy, e.g. FxTwitter) draw the video in the card (max 400x300, poster = thumbnail, no side thumbnail) and play it on click with sound; YouTube's iframe `video.url` isn't playable | inferred (screenshot of the official client) | `embedVideo`, `renderVideo` | `src/app/view_media.jai` `embeds_view`, `video_player` |

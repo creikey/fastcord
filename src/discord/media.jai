@@ -220,7 +220,7 @@ media_deliver :: (c: *Client, j: *Job, status: int, from_cache: bool, ctype: str
 // thread. ctype and body are in temp. referer "" picks the route (same origin) or https://discord.com/.
 media_get :: (c: *Client, url: string, kind: Media_Kind, visible: bool, referer: string) -> status: int, from_cache: bool, ctype: string, body: []u8 {
 	host, path, ok := split_url(url);
-	if !ok return 0, false, "", .[];
+	if !ok || !media_host_ok(c, host) return 0, false, "", .[];
 	now := now_ms();
 	entry, cached, have := cache_read(c, url);
 	if have && entry.fresh_until > now return entry.status, true, entry.content_type, cached;
@@ -250,6 +250,16 @@ media_get :: (c: *Client, url: string, kind: Media_Kind, visible: bool, referer:
 		cache_write(c, url, e, resp.body, true);
 	}
 	return resp.status, false, copy_string(ctype,, temp), array_copy(resp.body,, temp);
+}
+
+// media_host_ok: media privacy. A URL a server sends can point anywhere, and fetching it shows the viewer's
+// IP to whoever runs that host, so Discord's media loads only from Discord's own hosts (its CDN and media
+// proxy, which fetches outside images for us) and the GIF picker's Tenor, as the official client's does.
+// A hosted server's requests all reach the pinned server whatever the host (hosted_round_trip).
+media_host_ok :: (c: *Client, host: string) -> bool {
+	if c.cfg.hosted.host return true;
+	return host == "discord.com" || ends_with(host, ".discord.com") || ends_with(host, ".discordapp.com")
+		|| ends_with(host, ".discordapp.net") || host == "media.tenor.com";
 }
 
 // run_media executes a media job on a worker thread.
