@@ -189,7 +189,7 @@ gh workflow run release.yml -f version=v0.5.0
 gh run watch "$(gh run list -w release.yml -L 1 --json databaseId -q '.[0].databaseId')"
 ```
 
-It drafts the release (generated notes), builds `release <tag>` on a Mac runner (the Mac app) and a
+It drafts the release (notes from the commit titles since the last tag, `tools/release_notes.py`), builds `release <tag>` on a Mac runner (the Mac app) and a
 Windows runner (Windows and Linux), uploads the archives, and publishes the release once all three are in.
 The version is the tag; nothing is bumped by hand. `jai build.jai - release v0.5.0` builds the same
 archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-windows.zip` and

@@ -26,11 +26,15 @@ jobs:
     outputs:
       version: ${{ env.VERSION }}
     steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - name: Draft release
         run: |
           case "$VERSION" in v*) ;; *) echo "version must look like v0.5.0"; exit 1;; esac
+          # Notes from commit titles since the last tag: fastcord lands on main without pull requests.
+          python3 -I tools/release_notes.py "$VERSION" > notes.md
           gh release view "$VERSION" >/dev/null 2>&1 \
-            || gh release create "$VERSION" --draft --target "$GITHUB_SHA" --title "$VERSION" --generate-notes
+            || gh release create "$VERSION" --draft --target "$GITHUB_SHA" --title "$VERSION" --notes-file notes.md
 
   windows-linux:
     needs: draft
