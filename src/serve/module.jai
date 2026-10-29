@@ -2918,7 +2918,11 @@ row_webhook :: (s: *Server, st: *sqlite.Stmt, with_token: bool) -> etf.Value {
 	etf.map_put(*m, "guild_id", snow(s.guild));
 	etf.map_put(*m, "channel_id", snow(sqlite.col_int(st, 1)));
 	etf.map_put(*m, "name", etf.vstring(copy_string(sqlite.col_text(st, 2),, temp)));
-	etf.map_put(*m, "avatar", .{});
+	{
+		locks.guard(*s.avatar_mu);
+		hash := table_find_pointer(*s.avatars, sqlite.col_int(st, 0));
+		etf.map_put(*m, "avatar", ifx hash then etf.vstring(copy_string(hash.*,, temp)) else .{});
+	}
 	etf.map_put(*m, "application_id", .{});
 	if with_token {
 		etf.map_put(*m, "token", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));

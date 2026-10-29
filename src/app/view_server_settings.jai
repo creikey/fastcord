@@ -2889,6 +2889,19 @@ webhook_curl :: (h: etf.Map) -> string {
 	return tprint("curl -k --pinnedpubkey '%' -H 'Content-Type: application/json' -d '{\"content\":\"hi\"}' %", pin, webhook_url(h));
 }
 
+// A webhook's avatar: its own image, or the default one.
+hook_avatar :: (h: etf.Map, size: float32) {
+	id, hash := dc.fsnow(h, "id"), dc.fstr(h, "avatar");
+	if !hash || hash.count > 64 { avatar_box("av", id, size); return; }
+	b := ui.box("av", .Draw_Background);
+	b.semantic_size = .[ui.px(size), ui.px(size)];
+	b.style.radius = all4(size / 2);
+	b.style.bg = T("--background-mod-normal");
+	url := dc.avatar_url(id, hash, 128);
+	for hosted if it.client && it.client == app.client url = tprint("https://%/avatars/%/%.png?size=128", it.inv.id_hex, id, hash);
+	set_remote_image(b, url, cover = true);
+}
+
 hook_of :: (id: dc.Snowflake) -> etf.Map {
 	r := reply(.Webhooks);
 	if r for dc.vlist(r.body) if dc.fsnow(dc.vmap(it), "id") == id return dc.vmap(it);
@@ -2945,7 +2958,7 @@ integrations_page :: (g: *dc.Guild) {
 		}
 		{ ui.parent(head); defer ui.pop_parent();
 			spacer(.X, 16);
-			avatar_box("av", id, 40);
+			hook_avatar(h, 40);
 			spacer(.X, 12);
 			col := ui.box("t");
 			col.semantic_size = .[ui.fill(), ui.children()];
@@ -2967,6 +2980,23 @@ integrations_page :: (g: *dc.Guild) {
 			col.semantic_size = .[ui.fill(), ui.children()];
 			col.layout_axis = .Y;
 			{ ui.parent(col); defer ui.pop_parent();
+				ar := row("avrow");
+				ar.semantic_size = .[ui.pct(1), ui.px(80)];
+				ar.style.child_gap = 12;
+				{ ui.parent(ar); defer ui.pop_parent();
+					hook_avatar(h, 80);
+					// saved at once, as the client's avatar upload is
+					if set_button("Change Avatar##hav", .Secondary, !ss.busy) {
+						paths := pick_files();
+						if paths.count && net_action() {
+							ss.busy, ss.after = true, Req.Webhooks;
+							ss_error("");
+							dc.guild_settings_call(app.client, g.id, xx Req.Action, "PATCH", tprint("/webhooks/%", id), file = paths[0]);
+						}
+					}
+					if dc.fstr(h, "avatar") && set_button("Remove##hrm", .Link, !ss.busy) ss_action(g, .Webhooks, "PATCH", tprint("/webhooks/%", id), "{\"avatar\":null}");
+				}
+				spacer(.Y, 16);
 				field_title("Name");
 				if set_input("hname", *ss.hook_name, "", max_runes = 80) == .Escape ss.field_escape = true;
 				spacer(.Y, 16);
@@ -3801,6 +3831,10 @@ settings_result_error :: (r: *dc.Feature_Result) -> string {
 	if r.status == {
 	case 0;
 		return "Couldn't reach the server. Check your connection and try again.";
+	case -1;
+		return "That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.";
+	case -2;
+		return "That image is too large.";
 	case 403;
 		return "You don't have permission to do that.";
 	}

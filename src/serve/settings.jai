@@ -581,6 +581,14 @@ edit_webhook :: (c: *Conn, req: http.Request, user: s64, id: s64) -> bool {
 	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
 	name_v, has_name := etf.map_get(v.map, "name");
 	chan_v, has_chan := etf.map_get(v.map, "channel_id");
+	avatar_v, has_avatar := etf.map_get(v.map, "avatar");
+	avatar: []u8;
+	format: imagefmt.Format;
+	if has_avatar && avatar_v.kind != .Nil {
+		aok: bool;
+		avatar, format, aok = image_data_uri(ifx avatar_v.kind == .String then avatar_v.s else "", AVATAR_MAX_BYTES);
+		if !aok return json_error(c, 400, 50035, "Invalid Form Body");
+	}
 	name := ifx name_v.kind == .String then trim(name_v.s) else "";
 	if has_name && (!name || name.count > 80 || !text_ok(name)) return json_error(c, 400, 50035, "Invalid Form Body");
 	channel, cok := string_to_int(ifx chan_v.kind == .String then chan_v.s else "", T = s64);
@@ -605,6 +613,21 @@ edit_webhook :: (c: *Conn, req: http.Request, user: s64, id: s64) -> bool {
 	if ok && has_chan && channel != old_chan {
 		ok = sqlite.run(s.db, "UPDATE webhooks SET channel = ? WHERE id = ?;", channel, id);
 		array_add(*changes, audit_change("channel_id", snow(old_chan), snow(channel)));
+	}
+	if ok && has_avatar {
+		// a webhook is a users row of its own, so its avatar is kept and served as a member's is
+		hash := ifx avatar then image_hash(format) else "";
+		ok = ifx avatar
+			then sqlite.run(s.db, "UPDATE users SET avatar = ?, avatar_type = ?, avatar_data = ? WHERE id = ?;", hash, IMAGE_TYPES[cast(int) format], avatar, id)
+			else sqlite.run(s.db, "UPDATE users SET avatar = NULL, avatar_type = NULL, avatar_data = NULL WHERE id = ?;", id);
+		if ok {
+			locks.guard(*s.avatar_mu);
+			old := table_find_pointer(*s.avatars, id);
+			if old free(old.*);
+			if hash table_set(*s.avatars, id, copy_string(hash));
+			else table_remove(*s.avatars, id);
+		}
+		array_add(*changes, audit_change("avatar_hash", .{}, ifx hash then etf.vstring(hash) else .{}));
 	}
 	if ok && changes.count audit_locked(s, user, AUDIT_WEBHOOK_UPDATE, id, changes, "");
 	if !ok || !sqlite.exec(s.db, "COMMIT;") {

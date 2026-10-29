@@ -833,12 +833,13 @@ file_job_body :: (path: string, name: string, op: Feature_Op, hosted: bool) -> s
 	if !mime return "", .[], -1;
 	data, ok := read_entire_file(path, log_errors = false,, temp);
 	if !ok || !data return "", .[], -1;
-	if op == .Guild_Edit || op == .Avatar_Edit || op == .Banner_Edit {
+	if op == .Guild_Edit || op == .Avatar_Edit || op == .Banner_Edit || op == .Guild_Settings {
 		if data.count > image_max_bytes(hosted) return "", .[], -2;
 		w: Json;
 		json_init(*w);
 		json_obj(*w);
-		json_kstr(*w, ifx op == .Avatar_Edit then "avatar" else ifx op == .Banner_Edit then "banner" else "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
+		// Server Settings sends one file: a webhook's avatar (PATCH /webhooks/{id})
+		json_kstr(*w, ifx op == .Avatar_Edit || op == .Guild_Settings then "avatar" else ifx op == .Banner_Edit then "banner" else "icon", tprint("data:%;base64,%", mime, base64_encode(data,, temp)));
 		json_obj_end(*w);
 		return json_string(*w), .[], 0;
 	}
