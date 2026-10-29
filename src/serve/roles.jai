@@ -549,7 +549,8 @@ roles :: (c: *Conn, req: http.Request) -> bool {
 				array_add(*events, .{"GUILD_ROLE_DELETE", etf.vmap(etf.map_done(*d))});
 				audit_locked(s, user, AUDIT_ROLE_DELETE, id, .[audit_change("name", etf.vstring(old_name), .{})], reason);
 			} else {
-				if everyone && (has_name || has_color || has_hoist || has_mention) return json_error(c, 400, 50035, "Invalid Form Body");
+				// The client's updateRole sends every key, @everyone's included: only its permissions change.
+				if everyone has_name, has_color, has_hoist, has_mention = false, false, false, false;
 				ok := (!has_name || sqlite.run(s.db, "UPDATE roles SET name = ? WHERE id = ?;", name, id))
 					&& (!has_perms || sqlite.run(s.db, "UPDATE roles SET permissions = ? WHERE id = ?;", cast(s64) perms, id))
 					&& (!has_color || sqlite.run(s.db, "UPDATE roles SET color = ? WHERE id = ?;", color, id))

@@ -288,6 +288,7 @@ Message :: struct {
 	components: *Components; // store-owned, components.jai; null for none
 	pending: bool; // sent by us, not yet acknowledged by the gateway
 	failed: bool;
+	send_error: s32; // why the send failed: Discord's error code (0: unknown)
 }
 
 Presence :: struct {

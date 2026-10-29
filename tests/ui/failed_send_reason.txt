@@ -1,0 +1,7 @@
+# A send Discord refused for having no mutual server (50278) says why above Retry / Delete.
+wait 5
+failed_send hello 50278
+wait 10
+expect_visible "Message failed to send."
+expect_visible "Your message could not be delivered because you don't share a server with the recipient. Add them as a friend, or join a server you're both in, to message them."
+shot build/ui-failed_send_reason.png

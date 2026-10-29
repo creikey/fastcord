@@ -82,6 +82,14 @@ main :: () {
 	check(status == 200 && contains(body, tprint("\"id\":\"%\",\"name\":\"Bugs\"", bug)), tprint("a renamed tag keeps its ID: % %", status, body));
 	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), tprint("{\"name\": \"x\", \"applied_tags\": [\"%\"], \"message\": {\"content\": \"x\"}}", staff), member_token);
 	check(status == 400, tprint("a member can't apply a moderated tag: %", status));
+	// The Overview's whole-form save: Require Tags, sort order, layout and Hide After Inactivity keep.
+	status, body = rest("PATCH", tprint("/api/v9/channels/%", forum), "{\"name\": \"help-desk\", \"type\": 15, \"topic\": \"\", \"bitrate\": 64000, \"user_limit\": 0, \"nsfw\": false, \"flags\": 16, \"rate_limit_per_user\": 0, \"default_auto_archive_duration\": 1440, \"default_sort_order\": 1, \"default_forum_layout\": 2}", owner_token);
+	check(status == 200 && contains(body, "\"flags\":16") && contains(body, "\"default_auto_archive_duration\":1440") && contains(body, "\"default_sort_order\":1") && contains(body, "\"default_forum_layout\":2"), tprint("the forum's settings keep: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), "{\"name\": \"untagged\", \"message\": {\"content\": \"x\"}}", member_token);
+	check(status == 400 && contains(body, "40067"), tprint("Require Tags turns away an untagged post: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), tprint("{\"name\": \"tagged\", \"applied_tags\": [\"%\"], \"message\": {\"content\": \"x\"}}", bug), member_token);
+	check(status == 201 && contains(body, "\"auto_archive_duration\":1440"), tprint("a post hides after the forum's default: % %", status, body));
+	rest("DELETE", tprint("/api/v9/channels/%", id_of(body)), "", owner_token);
 	status, body = rest("POST", tprint("/api/v9/channels/%/threads", forum), tprint("{\"name\": \"Printer on fire\", \"auto_archive_duration\": 4320, \"applied_tags\": [\"%\"], \"message\": {\"content\": \"It is on fire.\"}}", bug), member_token);
 	check(status == 201 && contains(body, tprint("\"applied_tags\":[\"%\"]", bug)), tprint("a post carries its tags: % %", status, body));
 	check(status == 201 && contains(body, "\"message\":{") && contains(body, "\"content\":\"It is on fire.\""), tprint("a member posts: % %", status, body));

@@ -1,0 +1,21 @@
+# Deleting a message on a self-hosted server: hidden at once behind Undo, and it never shows again, not
+# for a frame, while the DELETE goes out after the Undo window and its reply comes back.
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 700 683
+type delete me now
+key enter
+settle 2
+expect_visible "delete me now"
+rclick_text "delete me now"
+settle 1
+click_text "Delete Message"
+settle 0.2
+expect_visible "Message deleted"
+never_visible 7 "delete me now"
+expect_not_visible "Message deleted"
+shot build/ui-hosted_delete.png
+expect_served
