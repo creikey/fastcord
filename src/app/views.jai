@@ -1558,6 +1558,7 @@ overlays :: () {
 	incoming_call_popout(); // view_voice.jai
 	if app.settings_open { settings_modal(); } else { settings_closed(); }
 	account_logout_modal(); // view_settings_account.jai
+	mfa_modal();
 	add_server_overlay(); // view_add_server.jai
 	invite_accept_overlay(); // view_invites.jai
 	voice_user_menu();

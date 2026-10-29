@@ -658,3 +658,153 @@ acct_edit_close :: () {
 	ui.editor_set_text(*acct.pass_ed, "");
 	set_error(*acct.error, "");
 }
+
+// ---- Multi-Factor Authentication (openMFAModal) ----
+// A request answered MFA_REQUIRED waits in the feature worker; this modal asks for a code or the
+// password, POST /mfa/finish turns it into a token, and the request goes again (dc.mfa_retry). Cancel
+// hands the 401 to the request's own handler, which shows its error. SMS and security keys aren't offered.
+
+#scope_file
+mfa: struct {
+	open: bool;
+	ticket: string; // heap
+	methods: [..]string; // heap: "totp", "backup", "password" in the order offered
+	method: int;
+	code: ui.Editor;
+	busy: bool;
+	error: string; // heap
+	held: dc.Feature_Result; // the 401, routed to its handler on Cancel
+};
+
+mfa_close :: (cancelled: bool) {
+	held := mfa.held;
+	mfa.held = .{};
+	mfa.open, mfa.busy = false, false;
+	free(mfa.ticket);
+	mfa.ticket = "";
+	for mfa.methods free(it);
+	array_reset(*mfa.methods);
+	ui.editor_set_text(*mfa.code, "");
+	set_error(*mfa.error, "");
+	if cancelled && held.arena feature_route(*held);
+	dc.feature_result_free(*held);
+}
+#scope_export
+
+// mfa_open: r asks for a multi-factor check; true when the modal took it (it keeps r's body).
+mfa_open :: (r: *dc.Feature_Result) -> bool {
+	m := dc.fmap(dc.vmap(r.body), "mfa");
+	methods: [..]string;
+	methods.allocator = temp;
+	for dc.flist(m, "methods") {
+		t := dc.fstr(dc.vmap(it), "type");
+		if t == "totp" || t == "password" array_add(*methods, t);
+		if t == "totp" && dc.fbool(dc.vmap(it), "backup_codes_allowed") array_add(*methods, "backup");
+	}
+	if !methods.count return false;
+	if mfa.open mfa_close(true);
+	mfa.open = true;
+	mfa.ticket = copy_string(dc.fstr(m, "ticket"));
+	for methods array_add(*mfa.methods, copy_string(it));
+	mfa.method = 0;
+	mfa.held = r.*;
+	r.arena = null; // ours now
+	app.ui.focus = 0;
+	return true;
+}
+
+mfa_is_open :: () -> bool { return mfa.open; }
+
+// Script command `mfa_challenge`: a change answered MFA_REQUIRED (tests).
+mfa_script_challenge :: () {
+	arena := New(Flat_Pool,, context.default_allocator);
+	body := etf.from_json("{\"code\":60003,\"message\":\"Two factor is required for this operation\",\"mfa\":{\"ticket\":\"t\",\"methods\":[{\"type\":\"totp\",\"backup_codes_allowed\":true},{\"type\":\"password\"}]}}",, dc.pool_allocator(arena));
+	r := dc.Feature_Result.{op = .User_Settings, tag = xx US_Req.Action, status = 401, body = body, arena = arena};
+	if !mfa_open(*r) dc.feature_result_free(*r);
+}
+
+// Result of dc.mfa_finish: the token sends the waiting request again.
+mfa_receive :: (r: *dc.Feature_Result) {
+	if !mfa.open return;
+	mfa.busy = false;
+	app.ui.animating = true;
+	tok := dc.fstr(dc.vmap(r.body), "token");
+	if !r.ok || tok == "" {
+		e := dc.api_error_text(r.body);
+		set_error(*mfa.error, ifx e then e else "An error occurred. Please try again.");
+		return;
+	}
+	if app.client != null dc.mfa_retry(app.client, tok);
+	mfa_close(false);
+}
+
+mfa_modal :: () {
+	if !mfa.open return;
+	W :: 440;
+	if !adm_modal_begin("mfa", W, "Multi-Factor Authentication", "This extra step shows it's really you.") {
+		mfa_close(true);
+		return;
+	}
+	kind := mfa.methods[mfa.method];
+	submit := false;
+	body := row("body");
+	body.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(body); defer ui.pop_parent();
+		spacer(.X, 25);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		{ ui.parent(col); defer ui.pop_parent();
+			spacer(.Y, 16);
+			title, hint := "Enter Discord Auth Code", "6-digit authentication code";
+			if kind == "backup" title, hint = "Enter Discord Backup Code", "8-digit backup code";
+			if kind == "password" title, hint = "Password", "";
+			label(to_upper_copy(title,, temp), .Bold, 12, T("--text-muted"), 16);
+			spacer(.Y, 8);
+			res := set_input(tprint("code_%", kind), *mfa.code, hint, password = kind == "password", max_runes = ifx kind == "password" then 0 else 11, autofocus = true);
+			if res == .Submit submit = true;
+			if mfa.error {
+				spacer(.Y, 8);
+				set_para("err", mfa.error, .Normal, 14, 18, T("--text-feedback-critical"));
+			}
+			if mfa.methods.count > 1 {
+				spacer(.Y, 12);
+				l := label("Verify with something else", .Medium, 14, T("--text-link"), 18);
+				l.flags |= .Clickable;
+				l.hover_cursor = .Pointer;
+				if ui.signal(l).clicked {
+					mfa.method = (mfa.method + 1) % mfa.methods.count;
+					ui.editor_set_text(*mfa.code, "");
+					set_error(*mfa.error, "");
+				}
+			}
+		}
+		spacer(.X, 25);
+	}
+	spacer(.Y, 24);
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
+	btns.style.child_gap = 8;
+	cancel := false;
+	{ ui.parent(btns); defer ui.pop_parent();
+		spacer(.X, 25 - 8);
+		if wide_button("cancel", "Cancel", .Secondary) cancel = true;
+		if wide_button("confirm", ifx mfa.busy then "Confirming..." else "Confirm", .Primary, !mfa.busy && trim(ui.editor_text(*mfa.code)) != "") submit = true;
+		spacer(.X, 25 - 8);
+	}
+	spacer(.Y, 24);
+	adm_modal_end();
+	if adm_escape() cancel = true;
+	if cancel {
+		mfa_close(true);
+		return;
+	}
+	data := trim(ui.editor_text(*mfa.code));
+	if submit && data != "" && !mfa.busy && net_action() {
+		mfa.busy = true;
+		set_error(*mfa.error, "");
+		code := ifx kind == "password" then data else replace(data, " ", "",, temp);
+		if kind == "backup" code = replace(code, "-", "",, temp);
+		dc.mfa_finish(app.client, mfa.ticket, kind, code);
+	}
+}

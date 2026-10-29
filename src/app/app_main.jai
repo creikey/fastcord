@@ -789,9 +789,12 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		}
 		if att.notice != want script_fail(path, "expect_notice: want %, got %", want, att.notice);
 		return;
+	case "mfa_challenge";
+		mfa_script_challenge(); // view_settings_account.jai
 	case "settings_reply";
 		// settings_reply <request> <json>: a Server Settings load's reply (view_server_settings.jai)
-		if f.count < 3 || !server_settings_script_reply(f[1], join(..array_view(f, 2), separator = " ",, temp)) script_fail(path, "settings_reply: bad request or JSON");
+		json := join(..array_view(f, 2), separator = " ",, temp);
+		if f.count < 3 || !server_settings_script_reply(f[1], json) && !user_settings_script_reply(f[1], json) script_fail(path, "settings_reply: bad request or JSON");
 		return;
 	case "hosted_saved";
 		// hosted_saved <fc:// invite> <name...>: a server restored from settings.json under its saved name

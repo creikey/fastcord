@@ -544,6 +544,8 @@ Feature_Op :: enum u8 {
 	User_Patch; // account.jai
 	Profile_Patch;
 	Banner_Edit; // PATCH /users/%40me/profile {"banner"} from an image file
+	User_Settings; // a User Settings page's load or change (tag: the page's request kind)
+	Mfa_Finish; // POST /mfa/finish (account.jai mfa_finish)
 	// guild_admin.jai (guild_admin_apply first)
 	Event_Create;
 	Event_Counts;
@@ -595,10 +597,26 @@ F_Job :: struct {
 	context_b64: string; // x-context-properties
 	file: string; // read and encoded on the worker (file_job_body)
 	reason: string; // X-Audit-Log-Reason
+	mfa_token: string; // X-Discord-MFA-Authorization: the retry after a multi-factor check (mfa_retry)
+}
+
+// f_job_copy: the job with its strings on the heap.
+f_job_copy :: (j: F_Job) -> F_Job {
+	push_allocator(context.default_allocator);
+	jj := j;
+	jj.method = copy_string(j.method);
+	jj.path = copy_string(j.path);
+	jj.body = copy_string(j.body);
+	jj.context_b64 = copy_string(j.context_b64);
+	jj.file = copy_string(j.file);
+	jj.reason = copy_string(trim(j.reason));
+	jj.mfa_token = copy_string(j.mfa_token);
+	return jj;
 }
 
 f_job_free :: (j: *F_Job) {
 	push_allocator(context.default_allocator);
+	free(j.mfa_token);
 	free(j.method);
 	free(j.path);
 	free(j.body);
@@ -618,6 +636,8 @@ F_Pool :: struct {
 	owner: *Client;
 	clients: int; // live clients (tests run several at once); the pool and side tables outlive all but the last
 	inflight: [..]*Client; // clients of the jobs being run now
+	mfa_job: F_Job; // the last job a server answered with MFA_REQUIRED (mfa_retry sends it again)
+	has_mfa_job: bool;
 }
 
 fpool: F_Pool;
@@ -649,12 +669,22 @@ f_worker :: (_: *void) {
 				with[extra.count] = .{"x-audit-log-reason", uri_component(j.reason)};
 				extra = with;
 			}
+			if j.mfa_token {
+				with := NewArray(extra.count + 1, http.Header,, temp);
+				for extra with[it_index] = it;
+				with[extra.count] = .{"x-discord-mfa-authorization", j.mfa_token};
+				extra = with;
+			}
 			r: Api_Response;
 			ct := ifx j.op == .Sticker_Upload then multipart_type(body) else ifx body then "application/json" else "";
 			if file_status == 0 r = api_call(j.client, j.method, j.path, cast([]u8) body, ct, j.context_b64, extra, j.retries, 1);
 			res := Feature_Result.{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena, client = j.client};
 			if file_status != 0 res.status = file_status; // the file couldn't be read / is too large
 			locks.lock(*fpool.mu);
+			if mfa_required(*res) && !j.mfa_token {
+				if fpool.has_mfa_job f_job_free(*fpool.mfa_job);
+				fpool.mfa_job, fpool.has_mfa_job = f_job_copy(j), true;
+			}
 			array_add(*fpool.results, res);
 			locks.unlock(*fpool.mu);
 			if j.client.cfg.wakeup j.client.cfg.wakeup(j.client.cfg.wakeup_data);
@@ -674,14 +704,8 @@ f_submit :: (c: *Client, j: F_Job) {
 	defer locks.unlock(*fpool.mu);
 	fpool.owner = c; // the workers serve every client's jobs (j.client); they stop in extras_destroy
 	if !fpool.threads for 1..2 array_add(*fpool.threads, spawn(null, f_worker));
-	jj := j;
+	jj := f_job_copy(j);
 	jj.client = c;
-	jj.method = copy_string(j.method);
-	jj.path = copy_string(j.path);
-	jj.body = copy_string(j.body);
-	jj.context_b64 = copy_string(j.context_b64);
-	jj.file = copy_string(j.file);
-	jj.reason = copy_string(trim(j.reason));
 	array_add(*fpool.jobs, jj);
 	locks.cond_signal(*fpool.cond);
 }

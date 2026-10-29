@@ -1,0 +1,29 @@
+# Settings > Devices: the logged-in devices from GET /auth/sessions, newest first, each with Log Out;
+# then a change answered MFA_REQUIRED opens the Multi-Factor Authentication modal (code, then password).
+wait 5
+click 338 683
+wait 20
+click_text "Devices"
+wait 10
+expect_visible "Loading..."
+settings_reply Sessions {"user_sessions":[{"id_hash":"a1","approx_last_used_time":"2026-10-20T04:37:07.770707+00:00","client_info":{"os":"Mac OS X","platform":"Discord Client","location":"San Diego, California, United States"}},{"id_hash":"b2","approx_last_used_time":"2026-10-28T06:00:40.687091+00:00","client_info":{"os":"Android","platform":"Discord Android","location":"Austin, Texas, United States"}}]}
+wait 5
+expect_visible "Other Devices"
+expect_visible "Android  •  Discord Android"
+expect_visible "Log Out All Known Devices"
+shot build/ui-settings_devices_list.png
+mfa_challenge
+wait 10
+expect_visible "Multi-Factor Authentication"
+expect_visible "ENTER DISCORD AUTH CODE"
+click_text "Verify with something else"
+wait 5
+expect_visible "ENTER DISCORD BACKUP CODE"
+click_text "Verify with something else"
+wait 5
+expect_visible "PASSWORD"
+shot build/ui-settings_devices_mfa.png
+click_text "Cancel"
+wait 5
+expect_not_visible "Multi-Factor Authentication"
+expect_visible "Two factor is required for this operation"

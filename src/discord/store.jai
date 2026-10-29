@@ -34,6 +34,7 @@ Store :: struct {
 	streams: [..]Go_Live_Stream;
 	resume_gateway_url: string;
 	analytics_token: string;
+	auth_session_hash: string; // READY auth_session_id_hash: this login among GET /auth/sessions
 	qos_token: string; // READY qos_token (base64 DerivedQosData) for reconnect IDENTIFY
 	country_code: string;
 	// Our own reaction requests whose gateway echo hasn't come yet, per reaction_key. Those
@@ -980,6 +981,7 @@ apply_ready :: (s: *Store, d: etf.Map) {
 	set_str(s, *s.session_id, fstr(d, "session_id"));
 	set_str(s, *s.resume_gateway_url, fstr(d, "resume_gateway_url"));
 	set_str(s, *s.analytics_token, fstr(d, "analytics_token"));
+	set_str(s, *s.auth_session_hash, fstr(d, "auth_session_id_hash"));
 	set_str(s, *s.qos_token, fstr(d, "qos_token"));
 	set_str(s, *s.country_code, fstr(d, "country_code"));
 	s.me = parse_user_into(s, fmap(d, "user"));

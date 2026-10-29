@@ -539,40 +539,50 @@ features_receive :: () {
 features_receive_of :: (c: *dc.Client) {
 	for * r: dc.feature_take(c) {
 		defer dc.feature_result_free(r);
-		if r.op == {
-		case .Forum_Posts; #through; case .Thread_Search;
-			if r.ok dc.apply_forum_threads(app.client, r.body);
-			app.ui.animating = true;
-		case .Pins;
-			pins_receive(r);
-		case .Pins_Ack; #through; case .Mark_Unread;
-		case .Pin;
-			if !r.ok show_notice("Error", "An error occurred, please try again.");
-		case .Reactors;
-			reactors_receive(r); // view_chat.jai
-		case .Unpin;
-			if !r.ok show_notice("The Pin Is Stuck!", "Discord failed to unpin that message for some reason. Sorry about that.");
-		case .Around;
-			dc.apply_around(app.client, r);
-			app.ui.animating = true;
-		case .Search;
-			search_receive(r);
-		case .Thread_Browse; #through; case .Thread_Create;
-			threads_browser_receive(r);
-		case .Mentions; #through; case .Mention_Delete;
-			inbox_receive(r);
-		case .User_Patch; #through; case .Profile_Patch; #through; case .Banner_Edit;
-			account_receive(r); // view_settings_account.jai
-		case .Event_Create; #through; case .Event_Counts; #through; case .Event_Rsvps; #through; case .Event_Interest; #through; case .Event_Invite; #through; case .Event_Delete; #through; case .Event_Start;
-			events_receive(r); // view_events.jai (dc.guild_admin_apply first)
-		case .Guild_Aux; #through; case .Channel_Order; #through; case .Channel_Create; #through; case .Channel_Edit; #through; case .Channel_Delete; #through; case .Avatar_Edit; #through; case .Emoji_Upload;
-			guild_admin_receive(r);
-		case .Sound_Upload; #through; case .Sound_Edit; #through; case .Sound_Delete;
-			sound_settings_receive(r); // view_server_soundboard.jai
-		case .Guild_Edit; #through; case .Sticker_Upload; #through; case .Guild_Settings;
-			if app.client != null dc.guild_admin_apply(app.client, r);
-			server_settings_receive(r); // view_server_settings.jai
-		}
+		if dc.mfa_required(r) && mfa_open(r) continue; // asks for a code first (view_settings_account.jai)
+		feature_route(r);
+	}
+}
+
+// feature_route hands a finished feature request to the view that sent it.
+feature_route :: (r: *dc.Feature_Result) {
+	if r.op == {
+	case .Forum_Posts; #through; case .Thread_Search;
+		if r.ok dc.apply_forum_threads(app.client, r.body);
+		app.ui.animating = true;
+	case .Pins;
+		pins_receive(r);
+	case .Pins_Ack; #through; case .Mark_Unread;
+	case .Pin;
+		if !r.ok show_notice("Error", "An error occurred, please try again.");
+	case .Reactors;
+		reactors_receive(r); // view_chat.jai
+	case .Unpin;
+		if !r.ok show_notice("The Pin Is Stuck!", "Discord failed to unpin that message for some reason. Sorry about that.");
+	case .Around;
+		dc.apply_around(app.client, r);
+		app.ui.animating = true;
+	case .Search;
+		search_receive(r);
+	case .Thread_Browse; #through; case .Thread_Create;
+		threads_browser_receive(r);
+	case .Mentions; #through; case .Mention_Delete;
+		inbox_receive(r);
+	case .User_Patch; #through; case .Profile_Patch; #through; case .Banner_Edit;
+		account_receive(r); // view_settings_account.jai
+	case .Event_Create; #through; case .Event_Counts; #through; case .Event_Rsvps; #through; case .Event_Interest; #through; case .Event_Invite; #through; case .Event_Delete; #through; case .Event_Start;
+		events_receive(r); // view_events.jai (dc.guild_admin_apply first)
+	case .Guild_Aux; #through; case .Channel_Order; #through; case .Channel_Create; #through; case .Channel_Edit; #through; case .Channel_Delete; #through; case .Avatar_Edit; #through; case .Emoji_Upload;
+		guild_admin_receive(r);
+	case .Sound_Upload; #through; case .Sound_Edit; #through; case .Sound_Delete;
+		sound_settings_receive(r); // view_server_soundboard.jai
+	case .Guild_Edit; #through; case .Sticker_Upload; #through; case .Guild_Settings;
+		if app.client != null dc.guild_admin_apply(app.client, r);
+		server_settings_receive(r); // view_server_settings.jai
+	case .User_Settings;
+		user_settings_receive(r); // view_settings_user.jai
+	case .Mfa_Finish;
+		mfa_receive(r); // view_settings_account.jai
 	}
 }
 

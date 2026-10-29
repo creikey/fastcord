@@ -91,6 +91,55 @@ update_profile :: (c: *Client, pronouns: string, bio: string, accent: s64 = ACCE
 	f_submit(c, .{op = .Profile_Patch, method = "PATCH", path = "/users/%40me/profile", body = json_string(*w)});
 }
 
+// user_settings_call: a User Settings page's request; the result comes back as .User_Settings with tag.
+//   GET /auth/sessions, POST /auth/sessions/logout {"session_id_hashes": [..]}   (Logged-in Devices)
+//   GET /users/@me/connections, DELETE /users/@me/connections/{type}/{id},
+//   GET /connections/{type}/authorize                                            (Connections)
+//   GET /oauth2/tokens, DELETE /oauth2/tokens/{id}                               (Authorized Apps)
+user_settings_call :: (c: *Client, tag: u64, method: string, path: string, body := "") {
+	f_submit(c, .{op = .User_Settings, tag = tag, method = method, path = path, body = body});
+}
+
+// ---- Multi-factor checks (the HTTP layer's MFA_REQUIRED interceptor and openMFAModal) ----
+//
+// A request answered 401 {"code": 60003, "mfa": {"ticket", "methods": [{"type": "totp" | "sms" |
+// "password" | "backup" | "webauthn", ...}]}} is kept by the feature worker. The user proves it
+// (POST /mfa/finish {"ticket", "mfa_type", "data"} -> {"token"}) and the request goes again with
+// X-Discord-MFA-Authorization: <token>, its result coming back under its own op.
+
+mfa_required :: (r: *Feature_Result) -> bool {
+	m := vmap(r.body);
+	return r.status == 401 && fint(m, "code") == 60003 && vhas(m, "mfa");
+}
+
+mfa_finish :: (c: *Client, ticket: string, mfa_type: string, data: string) {
+	w: Json;
+	json_init(*w);
+	json_obj(*w);
+	json_kstr(*w, "ticket", ticket);
+	json_kstr(*w, "mfa_type", mfa_type);
+	json_kstr(*w, "data", data);
+	json_obj_end(*w);
+	f_submit(c, .{op = .Mfa_Finish, method = "POST", path = "/mfa/finish", body = json_string(*w), retries = 2});
+}
+
+// mfa_retry sends the kept request again with the token /mfa/finish returned; false if none is kept.
+mfa_retry :: (c: *Client, token: string) -> bool {
+	locks.lock(*fpool.mu);
+	if !fpool.has_mfa_job {
+		locks.unlock(*fpool.mu);
+		return false;
+	}
+	j := fpool.mfa_job;
+	fpool.has_mfa_job = false;
+	locks.unlock(*fpool.mu);
+	j.mfa_token = token;
+	f_submit(c, j);
+	j.mfa_token = "";
+	f_job_free(*j);
+	return true;
+}
+
 // apply_account_result applies a successful .User_Patch / .Profile_Patch body to our user
 // (USER_UPDATE follows on the gateway too). Returns a new token when the response has one
 // (Discord rotates it on username/password changes); "" otherwise.
