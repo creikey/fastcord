@@ -24,6 +24,8 @@ decode_body :: (r: *Response, max_out := 256 << 20) -> Error {
 		p := trim(next_part(*enc, #char ","));
 		if p && !equal_nocase(p, "identity") array_add(*codings, p);
 	}
+	// each stage may expand to max_out: a long chain of nested gzip bombs is only work
+	if codings.count > 2 return .Unsupported_Encoding;
 	for < codings {
 		fn := find_decoder(it);
 		if !fn return .Unsupported_Encoding;

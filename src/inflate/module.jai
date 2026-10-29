@@ -15,7 +15,11 @@ destroy :: (f: *Inflater) { array_free(f.state); f.state = .[]; }
 feed :: (f: *Inflater, src: []u8, out: *[..]u8, max_out := -1) -> ended: bool, ok: bool {
     s := src;
     while true {
-        if out.allocated - out.count < 4096 array_reserve(out, max(out.allocated * 2, out.count + 16384));
+        if out.allocated - out.count < 4096 {
+            want := max(out.allocated * 2, out.count + 16384);
+            if max_out >= 0 want = min(want, max_out + 16384); // never reserve far past the cap
+            array_reserve(out, want);
+        }
         used, made: u64;
         r := fc_inflate_step(f.state.data, s.data, xx s.count, out.data + out.count, xx (out.allocated - out.count), *used, *made);
         out.count += cast(int) made;

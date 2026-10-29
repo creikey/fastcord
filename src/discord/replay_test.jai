@@ -1219,6 +1219,15 @@ r_count :: (run: *Replay_Run, method: string, part: string) -> int {
 // A jump to an old message (around=) shows that stretch alone, behind a gap (hasMoreAfter), not merged
 // into the loaded present; newer pages (after=) close the gap when short or when they reach the present,
 // and Jump to Present drops the stretch.
+// Content-Encoding: a chain past two codings (nested decompression bombs) is refused before decoding.
+content_encoding_chain :: (t: *T) {
+	r: http.Response;
+	array_add(*r.headers, .{"content-encoding", "gzip, gzip, gzip"});
+	expect(t, http.decode_body(*r) == .Unsupported_Encoding, "three codings are refused");
+	r.headers[0].value = "identity";
+	expect(t, http.decode_body(*r) == .None, "identity is a no-op");
+}
+
 // Media privacy: Discord's media loads only from Discord's hosts (and the GIF picker's Tenor).
 media_hosts :: (t: *T) {
 	run: Replay_Run;
