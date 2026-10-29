@@ -68,6 +68,7 @@ zstd :: #import "zstd";
 #load "settings.jai";
 #load "soundboard.jai";
 #load "settings_panes.jai";
+#load "server_settings.jai";
 #load "startup.jai";
 #load "stickers.jai";
 #load "store.jai";

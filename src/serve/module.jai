@@ -16,6 +16,7 @@ sqlite :: #import "sqlite";
 tls :: #import "tls";
 
 #load "unfurl.jai";
+#load "settings.jai";
 #load "voice.jai";
 #load "soundboard.jai";
 
@@ -103,7 +104,7 @@ open :: (path: string) -> *Server, bool {
 	if !ok return null, false;
 	s := New(Server);
 	s.db = db;
-	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) { close(s); return null, false; }
+	if !sqlite.exec(db, SCHEMA) || !sqlite.exec(db, SOUND_SCHEMA) || !sqlite.exec(db, SETTINGS_SCHEMA) { close(s); return null, false; }
 	// Files made before these columns; each fails harmlessly once it exists.
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN left INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE users ADD COLUMN banned INTEGER NOT NULL DEFAULT 0;");
@@ -763,10 +764,6 @@ serve_conn :: (c: *Conn) {
 			if !edit_me(c, req) return;
 			continue;
 		}
-		if req.method == "PATCH" && req.path == tprint("/api/v9/guilds/%", c.server.guild) {
-			if !edit_guild(c, req) return;
-			continue;
-		}
 		if req.method == "PATCH" && req.path == "/api/v9/users/@me/guilds/settings" {
 			if !patch_guild_settings(c, req) return;
 			continue;
@@ -802,6 +799,11 @@ serve_conn :: (c: *Conn) {
 		if begins_with(req.path, tprint("/api/v9/guilds/%/scheduled-events", c.server.guild)) || begins_with(req.path, "/api/v9/users/@me/scheduled-events")
 				|| (req.method == "POST" && begins_with(req.path, tprint("/api/v9/guilds/%/ack/", c.server.guild))) {
 			if !scheduled_events(c, req) return;
+			continue;
+		}
+		handled, keep := settings_route(c, req); // settings.jai
+		if handled {
+			if !keep return;
 			continue;
 		}
 		if !json_error(c, 404, 0, "404: Not Found") return;
@@ -1674,6 +1676,7 @@ ready_value ::(s: *Server, user: s64, name: string, session: [16]u8) -> etf.Valu
 	etf.map_put(*g, "emojis", emoji_list_locked(s));
 	etf.map_put(*g, "soundboard_sounds", sound_list_locked(s));
 	etf.map_put(*g, "member_count", etf.vint(members));
+	guild_fields_locked(s, *g);
 	owner := owner_id(s);
 	if owner etf.map_put(*g, "owner_id", snow(owner));
 	etf.map_put(*g, "channels", etf.vlist(channels));
@@ -2608,60 +2611,6 @@ guild_icon_locked :: (s: *Server) -> etf.Value {
 	return ifx hash then etf.vstring(hash) else .{};
 }
 
-// PATCH /api/v9/guilds/{id} {name?, icon?}: the owner renames the server or sets its icon, a `data:` URI
-// (null removes it). The image is kept as sent, checked by its magic bytes, not decoded. s.name changes
-// under db_mu, so readers copy it while holding that lock.
-edit_guild :: (c: *Conn, req: http.Request) -> bool {
-	s := c.server;
-	token, _ := http.header_get(req.headers, "authorization");
-	user := session_user(c, token);
-	if !user return json_error(c, 401, 0, "401: Unauthorized");
-	v, err := etf.from_json(cast(string) req.body,, temp);
-	if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
-	raw, has_name := etf.map_get(v.map, "name");
-	icon_v, has_icon := etf.map_get(v.map, "icon");
-	if !has_name && !has_icon return json_error(c, 400, 50035, "Invalid Form Body");
-	name := ifx raw.kind == .String then trim(raw.s) else "";
-	if has_name && (name.count < 2 || name.count > 100 || !text_ok(name)) return json_error(c, 400, 50035, "Invalid Form Body");
-	icon: []u8;
-	format: imagefmt.Format;
-	if has_icon && icon_v.kind != .Nil {
-		ok: bool;
-		icon, format, ok = image_data_uri(ifx icon_v.kind == .String then icon_v.s else "", ICON_MAX_BYTES);
-		if !ok return json_error(c, 400, 50035, "Invalid Form Body");
-	}
-	g := etf.map_builder(3,, temp);
-	etf.map_put(*g, "id", snow(s.guild));
-	{
-		locks.guard(*s.db_mu);
-		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
-		if has_name {
-			if !meta_put(s, "name", name) return json_error(c, 500, 0, "500: Internal Server Error");
-			free(s.name);
-			s.name = copy_string(name);
-		}
-		if has_icon {
-			ok := true;
-			if icon {
-				ok = sqlite.exec(s.db, "BEGIN;")
-					&& meta_put(s, "icon", image_hash(format))
-					&& meta_put(s, "icon_type", IMAGE_TYPES[cast(int) format])
-					&& meta_put(s, "icon_data", icon)
-					&& sqlite.exec(s.db, "COMMIT;");
-				if !ok sqlite.exec(s.db, "ROLLBACK;");
-			} else {
-				ok = sqlite.run(s.db, "DELETE FROM meta WHERE k IN ('icon', 'icon_type', 'icon_data');");
-			}
-			if !ok return json_error(c, 500, 0, "500: Internal Server Error");
-		}
-		etf.map_put(*g, "name", etf.vstring(copy_string(s.name,, temp)));
-		etf.map_put(*g, "icon", guild_icon_locked(s));
-	}
-	guild := etf.vmap(etf.map_done(*g));
-	broadcast(s, "GUILD_UPDATE", guild);
-	return json_reply(c, 200, guild);
-}
-
 EMOJI_MAX_BYTES :: 256 * 1024; // Discord's cap per emoji.
 MAX_EMOJIS :: 50; // Static and animated each, as a server without boosts has on Discord.
 
@@ -2813,9 +2762,8 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 			history = cast(int) secs.i;
 		}
 	}
-	reason, _ := http.header_get(req.headers, "x-audit-log-reason");
-	reason = trim(percent_decode(reason));
-	if !text_ok(reason) || utf16_units(reason) > 512 return json_error(c, 400, 50035, "Invalid Form Body");
+	reason, rok := audit_reason(req);
+	if !rok return json_error(c, 400, 50035, "Invalid Form Body");
 	Gone :: struct { channel: s64; ids: [..]s64; }
 	gone: [..]Gone;
 	gone.allocator = temp;
@@ -2833,6 +2781,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 		if ban && req.method == "DELETE" {
 			if !banned return json_error(c, 404, 10026, "Unknown Ban");
 			if !sqlite.run(s.db, "UPDATE users SET banned = 0, ban_reason = NULL WHERE id = ?;", target) return json_error(c, 500, 0, "500: Internal Server Error");
+			audit_locked(s, user, AUDIT_MEMBER_BAN_REMOVE, target, .[], reason);
 			return respond(c, 204, json = false);
 		}
 		if !ban && left return json_error(c, 404, 10007, "Unknown Member");
@@ -2861,6 +2810,7 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 		}
 		if !remove_member_locked(s, target, ban) return json_error(c, 500, 0, "500: Internal Server Error");
 		if ban sqlite.run(s.db, "UPDATE users SET ban_reason = nullif(?, '') WHERE id = ?;", reason, target);
+		audit_locked(s, user, ifx ban then AUDIT_MEMBER_BAN_ADD else AUDIT_MEMBER_KICK, target, .[], reason);
 	}
 	removed(s, target);
 	for g: gone {

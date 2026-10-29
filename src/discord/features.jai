@@ -550,6 +550,7 @@ Feature_Op :: enum u8 {
 	Pin;
 	Unpin;
 	Reactors;
+	Guild_Settings; // server_settings.jai
 }
 
 Feature_Result :: struct {
@@ -575,6 +576,7 @@ F_Job :: struct {
 	client: *Client;
 	context_b64: string; // x-context-properties
 	file: string; // read and encoded on the worker (file_job_body)
+	reason: string; // X-Audit-Log-Reason
 }
 
 f_job_free :: (j: *F_Job) {
@@ -584,6 +586,7 @@ f_job_free :: (j: *F_Job) {
 	free(j.body);
 	free(j.context_b64);
 	free(j.file);
+	free(j.reason);
 }
 
 // The feature pool outlives the client that started it: its threads, jobs and
@@ -622,6 +625,12 @@ f_worker :: (_: *void) {
 			body, file_status := j.body, 0;
 			extra: []http.Header;
 			if j.file body, extra, file_status = file_job_body(j.file, j.body, j.op);
+			if j.reason {
+				with := NewArray(extra.count + 1, http.Header,, temp);
+				for extra with[it_index] = it;
+				with[extra.count] = .{"x-audit-log-reason", uri_component(j.reason)};
+				extra = with;
+			}
 			r: Api_Response;
 			if file_status == 0 r = api_call(j.client, j.method, j.path, cast([]u8) body, ifx body then "application/json" else "", j.context_b64, extra, j.retries, 1);
 			res := Feature_Result.{op = j.op, tag = j.tag, channel_id = j.channel_id, ok = r.ok, status = r.status, body = r.body, arena = r.arena, client = j.client};
@@ -653,6 +662,7 @@ f_submit :: (c: *Client, j: F_Job) {
 	jj.body = copy_string(j.body);
 	jj.context_b64 = copy_string(j.context_b64);
 	jj.file = copy_string(j.file);
+	jj.reason = copy_string(trim(j.reason));
 	array_add(*fpool.jobs, jj);
 	locks.cond_signal(*fpool.cond);
 }

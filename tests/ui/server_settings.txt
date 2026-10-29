@@ -1,14 +1,18 @@
-# Server Settings (server menu): the full-window layer with its sidebar; editing the name shows the
-# unsaved-changes bar, Escape is held while there are changes, Reset restores, then Escape closes.
+# Server Settings (server menu): the full-window layer with its sidebar; Server Profile (its loaded
+# profile: editing shows the unsaved-changes bar, Escape is held while there are changes, Reset restores)
+# and Engagement (selects, toggles, the notification radios), then Escape closes.
 wait 5
 click 200 57
 wait 10
 click_text "Server Settings"
 wait 10
 expect_visible "Server Profile"
-expect_visible "ESC"
+expect_visible "We couldn't load the profile for this server."
+settings_reply Profile {"id":"1","name":"Dingus Battle","description":"A server about dingus battles","icon_hash":null,"custom_banner_hash":null,"visibility":1,"brand_color_primary":"#e81d1e","traits":[{"label":"Games","position":0},{"label":"Memes","position":1}],"game_application_ids":[]}
+wait 5
+expect_visible "Traits"
 expect_not_visible "Careful — you have unsaved changes!"
-click 900 152
+click 700 212
 wait 5
 type  Two
 wait 5
@@ -16,10 +20,24 @@ expect_visible "Careful — you have unsaved changes!"
 key escape
 wait 5
 expect_visible "Server Profile"
-shot
+shot build/ui-server_settings_profile.png
 click_text Reset
 wait 5
 expect_not_visible "Careful — you have unsaved changes!"
+click_text Engagement
+wait 10
+expect_visible "System Messages Channel"
+expect_visible "Only @mentions"
+click_text "Only @mentions"
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+click_text "No System Messages"
+wait 5
+click_text "#dingus-battle"
+wait 5
+shot build/ui-server_settings_engagement.png
+click_text Reset
+wait 5
 key escape
 wait 10
 expect_not_visible "Server Profile"

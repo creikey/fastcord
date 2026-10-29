@@ -152,6 +152,18 @@ Guild :: struct {
 	features: [..]string;
 	system_channel_id: Snowflake;
 	default_message_notifications: int; // 0 all messages, 1 only mentions
+	description: string;
+	system_channel_flags: int;
+	afk_channel_id: Snowflake;
+	afk_timeout: int; // seconds
+	verification_level: int;
+	explicit_content_filter: int;
+	mfa_level: int;
+	vanity_url_code: string;
+	rules_channel_id: Snowflake;
+	public_updates_channel_id: Snowflake;
+	safety_alerts_channel_id: Snowflake;
+	preferred_locale: string;
 	unavailable: bool;
 	lazy: bool;
 	joined_at: string;

@@ -694,6 +694,10 @@ script_command :: (path: string, f: []string, t: *float64) {
 		}
 		if att.notice != want script_fail(path, "expect_notice: want %, got %", want, att.notice);
 		return;
+	case "settings_reply";
+		// settings_reply <request> <json>: a Server Settings load's reply (view_server_settings.jai)
+		if f.count < 3 || !server_settings_script_reply(f[1], join(..array_view(f, 2), separator = " ",, temp)) script_fail(path, "settings_reply: bad request or JSON");
+		return;
 	case "hosted_saved";
 		// hosted_saved <fc:// invite> <name...>: a server restored from settings.json under its saved name
 		names: Table(string, string);

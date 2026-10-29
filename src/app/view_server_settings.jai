@@ -62,8 +62,8 @@ server_settings_open :: (gid: dc.Snowflake, section := Server_Section.None) {
 			break;
 		}
 	}
-	form_reset(g);
 	if app.client != null dc.open_guild_settings(app.client, gid, section_pane(ss.section));
+	section_enter(g);
 }
 
 server_settings_is_open :: () -> bool { return ss.open; }
@@ -71,12 +71,18 @@ server_settings_is_open :: () -> bool { return ss.open; }
 server_settings_close :: () {
 	ss.open = false;
 	ss.busy, ss.icon_busy = false, false;
+	ss.dd = "";
+	for * ss.replies dc.feature_result_free(it);
+	for * ss.loading it.* = false;
 	ss_error("");
 	app.ui.focus = 0;
 }
 
 server_settings_reset_for_test :: () {
+	server_settings_close();
 	ui.editor_destroy(*ss.name);
+	ui.editor_destroy(*ss.desc);
+	for * ss.traits ui.editor_destroy(it);
 	free(ss.error);
 	ss = .{};
 }
@@ -85,20 +91,29 @@ server_settings_reset_for_test :: () {
 server_settings_receive :: (r: *dc.Feature_Result) {
 	if !ss.open || r.channel_id != ss.guild return;
 	app.ui.animating = true;
-	if r.op == {
-	case .Guild_Edit;
-		icon := ss.icon_busy;
+	g := dc.guild_get(store(), ss.guild);
+	if !g return;
+	if r.op == .Guild_Edit {
 		ss.icon_busy = false;
-		ss.busy = false;
-		if r.ok {
-			g := dc.guild_get(store(), ss.guild);
-			if g && !icon form_reset(g); // saved: the form now matches (GUILD_UPDATE may follow)
-			return;
-		}
-		if icon && r.status == -1 { ss_error("That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images."); return; }
-		if icon && r.status == -2 { ss_error("That image is too large. Server icons must be under 512 KB."); return; }
-		ss_error(settings_result_error(r));
+		if r.ok return; // GUILD_UPDATE shows it
+		if r.status == -1 ss_error("That file couldn't be read. Server icons must be PNG, JPEG, GIF or WEBP images.");
+		else if r.status == -2 ss_error("That image is too large. Server icons must be under 512 KB.");
+		else ss_error(settings_result_error(r));
+		return;
 	}
+	req := cast(Req) r.tag;
+	if req == .Save || req == .Save_Widget {
+		if req == .Save && ss.save_widget && r.ok return; // the widget's reply ends the save
+		ss.busy = false;
+		if !r.ok { ss_error(settings_result_error(r)); return; }
+		if ss.section == .Profile && r.body.kind == .Map keep_reply(.Profile, r); // the saved profile
+		if req == .Save_Widget && r.body.kind == .Map keep_reply(.Widget, r);
+		form_reset(g);
+		return;
+	}
+	if req >= .COUNT return;
+	keep_reply(req, r);
+	form_reset(g);
 }
 
 server_settings_layer :: () {
@@ -205,6 +220,10 @@ server_settings_layer :: () {
 			}
 		}
 	}
+	if ss.dd {
+		dropdown_list();
+		if adm_escape() ss.dd = "";
+	}
 	if !close && !dirty && (adm_escape() || ss.field_escape) close = true;
 	ss.field_escape = false; // with unsaved changes the client keeps the page
 	if close && !dirty {
@@ -216,8 +235,9 @@ server_settings_layer :: () {
 		from := ss.section;
 		ss.section = go;
 		ss_error("");
-		form_reset(g);
+		ss.dd = "";
 		if app.client != null dc.guild_settings_pane(app.client, section_pane(from), section_pane(go), g.id);
+		section_enter(g);
 	}
 	if save && dirty && !ss.busy && net_action() form_save(g);
 }
@@ -229,6 +249,15 @@ SETTINGS_PERMS :: dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_ROLES | dc.PERM_ADMINIST
 
 GROUP_NAMES :: string.["", "Expression", "People", "Apps", "Moderation", "", "Host", ""];
 
+// Requests whose replies the pages read (kept with their arenas until replaced or closed), and saves.
+Req :: enum u8 {
+	Profile; // GET /guilds/{id}/profile
+	Widget; // GET /guilds/{id}/widget
+	COUNT;
+	Save :: 100; // a page's Save Changes
+	Save_Widget;
+}
+
 ss: struct {
 	open: bool;
 	guild: dc.Snowflake;
@@ -237,8 +266,56 @@ ss: struct {
 	icon_busy: bool; // Server Profile: an icon upload or removal is in flight
 	error: string; // heap
 	field_escape: bool; // a page's field took Escape this frame
-	name: ui.Editor; // Server Profile
+	replies: [Req.COUNT]dc.Feature_Result;
+	loading: [Req.COUNT]bool;
+	// Server Profile
+	name: ui.Editor;
+	desc: ui.Editor;
+	traits: [5]ui.Editor;
+	brand: string; // "#rrggbb" or "" (static: BRAND_COLORS, or the profile reply's arena)
+	private: bool;
+	// Engagement
+	eng: dc.Engagement_Form;
+	widget_on: bool;
+	widget_channel: dc.Snowflake;
+	save_widget: bool; // the save in flight also saves the widget
+	// The open select (dropdown_list): its id, anchor, this frame's options, and the pick it made.
+	dd: string;
+	dd_anchor: ui.Rect;
+	dd_options: []string;
+	dd_current: int;
+	dd_pick: int = -1;
+	dd_pick_id: string;
 };
+
+keep_reply :: (req: Req, r: *dc.Feature_Result) {
+	ss.loading[req] = false;
+	dc.feature_result_free(*ss.replies[req]);
+	ss.replies[req] = r.*;
+	r.arena = null; // ours now
+}
+
+reply :: (req: Req) -> *dc.Feature_Result {
+	r := *ss.replies[req];
+	return ifx r.arena != null && r.ok then r else null;
+}
+
+load :: (g: *dc.Guild, req: Req, path: string) {
+	if ss.loading[req] || !net_action() return;
+	ss.loading[req] = true;
+	dc.guild_settings_call(app.client, g.id, xx req, "GET", path);
+}
+
+// A section shown: load what its page reads.
+section_enter :: (g: *dc.Guild) {
+	if ss.section == {
+	case .Profile;
+		load(g, .Profile, tprint("/guilds/%/profile", g.id));
+	case .Engagement;
+		load(g, .Widget, tprint("/guilds/%/widget", g.id));
+	}
+	form_reset(g);
+}
 
 ss_error :: (msg: string) {
 	free(ss.error);
@@ -346,7 +423,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 // The sections fastcord has a page for (see the note at the top).
 page_exists :: (s: Server_Section) -> bool {
 	if s == {
-	case .Profile;
+	case .Profile; #through; case .Engagement;
 		return true;
 	}
 	return false;
@@ -356,7 +433,9 @@ page_exists :: (s: Server_Section) -> bool {
 page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 	if s == {
 	case .Profile;
-		return profile_page(g);
+		return profile_page(g, w);
+	case .Engagement;
+		engagement_page(g);
 	}
 	return false;
 }
@@ -364,27 +443,76 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 form_dirty :: (g: *dc.Guild) -> bool {
 	if ss.section == {
 	case .Profile;
-		return trim(ui.editor_text(*ss.name)) != g.name;
+		r := reply(.Profile);
+		if !r return false;
+		a, b := dc.guild_profile_form(r.body), profile_form(r);
+		if a.name != b.name || a.description != b.description || a.brand_color != b.brand_color || a.visibility != b.visibility return true;
+		for a.traits if it.label != b.traits[it_index].label return true;
+	case .Engagement;
+		return engagement_dirty(g) || widget_dirty();
 	}
 	return false;
 }
 
+engagement_dirty :: (g: *dc.Guild) -> bool {
+	base := dc.engagement_form_of(g);
+	return memcmp(*ss.eng, *base, size_of(dc.Engagement_Form)) != 0;
+}
+
+widget_dirty :: () -> bool {
+	w := reply(.Widget);
+	return w && (ss.widget_on != dc.fbool(dc.vmap(w.body), "enabled") || ss.widget_channel != dc.fsnow(dc.vmap(w.body), "channel_id"));
+}
+
 form_reset :: (g: *dc.Guild) {
-	ui.editor_set_text(*ss.name, g.name);
 	ss_error("");
+	r := reply(.Profile);
+	if r {
+		f := dc.guild_profile_form(r.body);
+		ui.editor_set_text(*ss.name, f.name);
+		ui.editor_set_text(*ss.desc, f.description);
+		for f.traits ui.editor_set_text(*ss.traits[it_index], it.label);
+		ss.brand = f.brand_color;
+		ss.private = f.visibility == 2;
+	}
+	ss.eng = dc.engagement_form_of(g);
+	w := reply(.Widget);
+	if w {
+		ss.widget_on = dc.fbool(dc.vmap(w.body), "enabled");
+		ss.widget_channel = dc.fsnow(dc.vmap(w.body), "channel_id");
+	}
+}
+
+// The Server Profile form as edited, on top of the loaded profile.
+profile_form :: (r: *dc.Feature_Result) -> dc.Guild_Profile_Form {
+	f := dc.guild_profile_form(r.body);
+	f.name = trim(ui.editor_text(*ss.name));
+	f.description = ui.editor_text(*ss.desc);
+	for * f.traits it.label = trim(ui.editor_text(*ss.traits[it_index]));
+	f.brand_color = ss.brand;
+	if f.visibility || ss.private f.visibility = ifx ss.private then 2 else 1;
+	return f;
 }
 
 form_save :: (g: *dc.Guild) {
 	if ss.section == {
 	case .Profile;
-		name := trim(ui.editor_text(*ss.name));
-		if name.count < 2 || name.count > 100 {
+		r := reply(.Profile);
+		if !r return;
+		f := profile_form(r);
+		if f.name.count < 2 || f.name.count > 100 {
 			ss_error("Server name must be between 2 and 100 characters.");
 			return;
 		}
 		ss.busy = true;
 		ss_error("");
-		dc.edit_guild_name(app.client, g.id, name);
+		dc.guild_settings_call(app.client, g.id, xx Req.Save, "PATCH", tprint("/guilds/%/profile", g.id), dc.guild_profile_body(f));
+	case .Engagement;
+		ss.busy = true;
+		ss_error("");
+		ss.save_widget = widget_dirty();
+		if engagement_dirty(g) dc.guild_settings_call(app.client, g.id, xx Req.Save, "PATCH", tprint("/guilds/%", g.id), dc.engagement_body(ss.eng));
+		if ss.save_widget dc.guild_settings_call(app.client, g.id, xx Req.Save_Widget, "PATCH", tprint("/guilds/%/widget", g.id), dc.widget_body(ss.widget_on, ss.widget_channel));
 	}
 }
 
@@ -465,9 +593,178 @@ field_title :: (text: string) {
 	spacer(.Y, 8);
 }
 
+// ---- widgets shared by the pages ----
+
+page_subtitle :: (text: string) {
+	set_para("subtitle", text, .Normal, 14, 18, T("--text-default"));
+	spacer(.Y, 24);
+}
+
+section_heading :: (id: string, title: string, help := "") {
+	label(title, .Semibold, 16, T("--text-strong"), 20);
+	if help {
+		spacer(.Y, 4);
+		set_para(tprint("%_help", id), help, .Normal, 14, 18, T("--text-muted"));
+	}
+	spacer(.Y, 12);
+}
+
+// A select field showing current; returns the option picked this frame (-1 for none). The option list
+// is drawn by dropdown_list at the end of the layer.
+select_field :: (id: string, options: []string, current: int) -> int {
+	open := ss.dd == id;
+	dd := row(id, .Clickable | .Draw_Background | .Draw_Border);
+	dd.semantic_size = .[ui.pct(1), ui.px(40)];
+	dd.style.bg = T("--input-background-default");
+	dd.style.border = 1;
+	dd.style.border_color = ifx open then T("--input-border-active") else T("--input-border-default");
+	dd.style.radius = all4(8);
+	dd.hover_cursor = .Pointer;
+	if ui.signal(dd).clicked ss.dd = ifx open then "" else id;
+	if ss.dd == id {
+		ss.dd_anchor = dd.rect;
+		ss.dd_options = options;
+		ss.dd_current = current;
+	}
+	{ ui.parent(dd); defer ui.pop_parent();
+		spacer(.X, 12);
+		label(ifx current >= 0 && current < options.count then options[current] else "", .Normal, 16, T("--text-strong"), 20);
+		filler(.X);
+		icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
+		spacer(.X, 12);
+	}
+	if ss.dd_pick >= 0 && ss.dd_pick_id == id {
+		pick := ss.dd_pick;
+		ss.dd_pick = -1;
+		return pick;
+	}
+	return -1;
+}
+
+// The open select's option list, under (or over) its field.
+dropdown_list :: () {
+	r := ss.dd_anchor;
+	if r.x1 <= r.x0 || !ss.dd_options.count return;
+	if outside_pressed("dd_out") {
+		ss.dd = "";
+		return;
+	}
+	full := cast(float32)(ss.dd_options.count * 36 + 8);
+	h := min(full, app.ui.window.y - r.y1 - 16);
+	up := h < min(full, 180);
+	if up h = min(full, r.y0 - 16);
+	list := ui.box("ddlist", .Draw_Background | .Draw_Border | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay | .Clickable | .Scroll_Y | .Clip);
+	list.semantic_size = .[ui.px(r.x1 - r.x0), ui.px(h)];
+	list.fixed_pos = .{r.x0, ifx up then r.y0 - 4 - h else r.y1 + 4};
+	list.layout_axis = .Y;
+	list.style.bg = T("--background-surface-higher");
+	list.style.border = 1;
+	list.style.border_color = T("--border-subtle");
+	list.style.radius = all4(8);
+	list.style.shadow_color = .{0, 0, 0, 0.24};
+	list.style.shadow_blur = 16;
+	list.style.shadow_offset = .{0, 8};
+	ui.signal(list);
+	ui.parent(list); defer ui.pop_parent();
+	spacer(.Y, 4);
+	for ss.dd_options {
+		ui.id_scope(cast(u64) it_index + 1);
+		defer ui.pop_seed();
+		sel := it_index == ss.dd_current;
+		item := row("opt", .Clickable | .Draw_Background | .Hot_Animation);
+		item.semantic_size = .[ui.pct(1), ui.px(36)];
+		item.style.bg = ifx sel then T("--background-mod-normal") else .{};
+		item.style.bg_hot = T("--background-mod-normal");
+		if ui.signal(item).clicked {
+			ss.dd_pick, ss.dd_pick_id = it_index, ss.dd;
+			ss.dd = "";
+		}
+		{ ui.parent(item); defer ui.pop_parent();
+			spacer(.X, 12);
+			label(it, ifx sel then .Semibold else .Normal, 16, T("--text-strong"), 20);
+		}
+	}
+	spacer(.Y, 4);
+}
+
+// A radio row ("All Messages"); true when clicked.
+radio_row :: (id: string, text: string, on: bool) -> bool {
+	r := row(id, .Clickable | .Draw_Background | .Hot_Animation);
+	r.semantic_size = .[ui.pct(1), ui.px(44)];
+	r.style.radius = all4(8);
+	r.style.bg = ifx on then T("--background-mod-normal") else T("--background-mod-subtle");
+	r.style.bg_hot = T("--background-mod-normal");
+	r.hover_cursor = .Pointer;
+	sig := ui.signal(r);
+	{ ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 12);
+		radio_dot(on);
+		spacer(.X, 10);
+		label(text, .Medium, 16, T("--text-strong"), 20);
+	}
+	spacer(.Y, 8);
+	return sig.clicked && !on;
+}
+
+// Channels of the guild of the given types, in sidebar order, as select options after `none`.
+channel_options :: (g: *dc.Guild, none: string, voice: bool) -> []string, []dc.Snowflake {
+	names: [..]string;
+	ids: [..]dc.Snowflake;
+	names.allocator, ids.allocator = temp, temp;
+	array_add(*names, none);
+	array_add(*ids, 0);
+	for g.channels {
+		ch := dc.channel_get(store(), it);
+		if !ch continue;
+		is_voice := ch.kind == .Guild_Voice || ch.kind == .Guild_Stage_Voice;
+		if voice != is_voice || (!voice && ch.kind != .Guild_Text) continue;
+		array_add(*names, ifx voice then ch.name else tprint("#%", ch.name));
+		array_add(*ids, ch.id);
+	}
+	return names, ids;
+}
+
+index_of :: (ids: []dc.Snowflake, id: dc.Snowflake) -> int {
+	for ids if it == id return it_index;
+	return 0;
+}
+
+// A read-only value with a Copy button ("Server ID").
+copy_field :: (id: string, value: string) {
+	r := row(id, .Draw_Background | .Draw_Border);
+	r.semantic_size = .[ui.pct(1), ui.px(40)];
+	r.style.bg = T("--input-background-default");
+	r.style.border = 1;
+	r.style.border_color = T("--input-border-default");
+	r.style.radius = all4(8);
+	ui.parent(r); defer ui.pop_parent();
+	spacer(.X, 12);
+	label(value, .Normal, 16, T("--text-default"), 20);
+	filler(.X);
+	if set_button(tprint("Copy##%", id), .Primary, h = 32) clipboard_set(value);
+	spacer(.X, 4);
+}
+
 // ---- Server Profile ----
 
-profile_page :: (g: *dc.Guild) -> bool {
+BRAND_COLORS :: string.["#ff1c90", "#e81d1e", "#e86e1d", "#e8c02f", "#71368a", "#029FFC", "#4fe2ca", "#406601", "#272727"];
+BRAND_NAMES :: string.["Soul", "Volcano", "Marsh", "Thunder", "Rising", "Zephyr", "Cascade", "Earth", "Boulder"];
+
+profile_page :: (g: *dc.Guild, w: float32) -> bool {
+	page_subtitle("Customize how your server appears in invite links and, if enabled, in Server Discovery and Announcement Channel messages");
+	r := reply(.Profile);
+	if !r {
+		if ss.loading[Req.Profile] {
+			label("Loading...", .Normal, 16, T("--text-muted"), 20);
+			return false;
+		}
+		label("Something went wrong", .Semibold, 16, T("--text-strong"), 20);
+		spacer(.Y, 4);
+		set_para("loadfail", "We couldn't load the profile for this server.", .Normal, 14, 18, T("--text-default"));
+		spacer(.Y, 12);
+		if set_button("Retry##retry", .Primary) load(g, .Profile, tprint("/guilds/%/profile", g.id));
+		return false;
+	}
 	save := false;
 	field_title("Name");
 	res := set_input("name", *ss.name, g.name, max_runes = 100);
@@ -509,7 +806,119 @@ profile_page :: (g: *dc.Guild) -> bool {
 			dc.edit_guild_icon(app.client, g.id, "");
 		}
 	}
+	spacer(.Y, 24);
+	field_title("Banner");
+	br := row("banner");
+	br.semantic_size = .[ui.pct(1), ui.px(44)];
+	br.style.child_gap = 8;
+	{ ui.parent(br); defer ui.pop_parent();
+		for -1..BRAND_COLORS.count-1 {
+			color := ifx it < 0 then "" else BRAND_COLORS[it];
+			sel := ss.brand == color || (it >= 0 && to_lower_copy(ss.brand,, temp) == to_lower_copy(color,, temp));
+			sw := ui.box(tprint("sw%", it + 1), .Clickable | .Draw_Background | .Draw_Border);
+			sw.semantic_size = .[ui.px(44), ui.px(44)];
+			sw.style.radius = all4(8);
+			sw.style.bg = ifx it < 0 then T("--background-mod-strong") else hex_color(color);
+			sw.style.border = ifx sel then 3.0 else 0;
+			sw.style.border_color = T("--text-strong");
+			sw.hover_cursor = .Pointer;
+			if ui.signal(sw).clicked ss.brand = color;
+		}
+	}
+	spacer(.Y, 24);
+	section_heading("traits", "Traits", "Add up to 5 traits to show off your server's interests and personality.");
+	tr := row("traits");
+	tr.semantic_size = .[ui.pct(1), ui.children()];
+	tr.style.child_gap = 8;
+	{ ui.parent(tr); defer ui.pop_parent();
+		for * ss.traits {
+			c := ui.box(tprint("t%", it_index + 1));
+			c.semantic_size = .[ui.fill(), ui.children()];
+			c.layout_axis = .Y;
+			ui.parent(c); defer ui.pop_parent();
+			if set_input("in", it, tprint("Trait %", it_index + 1), max_runes = 24) == .Escape ss.field_escape = true;
+		}
+	}
+	spacer(.Y, 24);
+	section_heading("desc", "Description", "How did your server get started? Why should people join?");
+	if set_input("desc", *ss.desc, "Tell the world a bit about this server.", multiline = true, max_runes = 300, min_h = 100) == .Escape ss.field_escape = true;
+	spacer(.Y, 24);
+	if set_toggle_row("private", "Private Profile", "When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite.", ss.private) ss.private = !ss.private;
 	return save;
+}
+
+// "#rrggbb" as a colour (black when malformed).
+hex_color :: (hex: string) -> ui.Color {
+	h := hex;
+	if h.count && h[0] == #char "#" advance(*h, 1);
+	if h.count != 6 return .{0, 0, 0, 1};
+	v, ok := string_to_int(h, 16);
+	if !ok return .{0, 0, 0, 1};
+	return .{((v >> 16) & 0xFF) / 255.0, ((v >> 8) & 0xFF) / 255.0, (v & 0xFF) / 255.0, 1};
+}
+
+// ---- Engagement ----
+
+AFK_TIMEOUTS :: int.[60, 300, 900, 1800, 3600];
+AFK_LABELS :: string.["1 minute", "5 minutes", "15 minutes", "30 minutes", "1 hour"];
+
+engagement_page :: (g: *dc.Guild) {
+	page_subtitle("Manage settings that help keep your server active.");
+	section_heading("sys", "System Messages", "Configure system event messages sent to your server.");
+	field_title("System Messages Channel");
+	names, ids := channel_options(g, "No System Messages", false);
+	pick := select_field("syschan", names, index_of(ids, ss.eng.system_channel_id));
+	if pick >= 0 ss.eng.system_channel_id = ids[pick];
+	spacer(.Y, 8);
+	set_para("syshelp", "This is the channel we send system event messages to.", .Normal, 12, 16, T("--text-muted"));
+	spacer(.Y, 16);
+	Flag :: struct { bit: int; text: string; }
+	// Boost messages (SUPPRESS_PREMIUM_SUBSCRIPTIONS) stay as they are: no boost surfaces (AGENTS.md).
+	flags :: Flag.[
+		.{dc.SYSTEM_SUPPRESS_JOIN, "Send a random welcome message when someone joins this server."},
+		.{dc.SYSTEM_SUPPRESS_JOIN_REPLIES, "Prompt members to reply to welcome messages with a sticker."},
+		.{dc.SYSTEM_SUPPRESS_REMINDERS, "Send helpful tips for server setup."}
+	];
+	for flags {
+		on := (ss.eng.system_channel_flags & it.bit) == 0;
+		if set_toggle_row(tprint("sysflag%", it.bit), it.text, "", on) ss.eng.system_channel_flags ^= it.bit;
+		spacer(.Y, 12);
+	}
+	set_divider();
+	section_heading("notif", "Default Notification Settings", "This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.");
+	if radio_row("notif0", "All Messages", ss.eng.default_message_notifications == 0) ss.eng.default_message_notifications = 0;
+	if radio_row("notif1", "Only @mentions", ss.eng.default_message_notifications == 1) ss.eng.default_message_notifications = 1;
+	if !on_hosted() { // hosted servers have no voice channels yet
+		set_divider();
+		field_title("Inactive Channel");
+		vn, vids := channel_options(g, "No Inactive Channel", true);
+		pick = select_field("afkchan", vn, index_of(vids, ss.eng.afk_channel_id));
+		if pick >= 0 ss.eng.afk_channel_id = vids[pick];
+		spacer(.Y, 16);
+		field_title("Inactive Timeout");
+		cur := 1;
+		for AFK_TIMEOUTS if it == ss.eng.afk_timeout cur = it_index;
+		pick = select_field("afktime", AFK_LABELS, cur);
+		if pick >= 0 ss.eng.afk_timeout = AFK_TIMEOUTS[pick];
+		spacer(.Y, 8);
+		set_para("afkhelp", "Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers.", .Normal, 12, 16, T("--text-muted"));
+	}
+	if reply(.Widget) && !on_hosted() {
+		set_divider();
+		section_heading("widget", "Server Widget", "Embed an HTML widget on your website to display your online members, voice channels, and invite link.");
+		if set_toggle_row("widgeton", "Enable Server Widget", "By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile.", ss.widget_on) ss.widget_on = !ss.widget_on;
+		spacer(.Y, 16);
+		field_title("Invite Channel");
+		wn, wids := channel_options(g, "No Invite", false);
+		pick = select_field("widgetchan", wn, index_of(wids, ss.widget_channel));
+		if pick >= 0 ss.widget_channel = wids[pick];
+		spacer(.Y, 16);
+		field_title("Server ID");
+		copy_field("serverid", tprint("%", g.id));
+		spacer(.Y, 16);
+		field_title("JSON API");
+		copy_field("jsonapi", tprint("https://discord.com/api/guilds/%/widget.json", g.id));
+	}
 }
 
 #scope_export
@@ -525,4 +934,24 @@ settings_result_error :: (r: *dc.Feature_Result) -> string {
 	msg := dc.api_error_message(r.body);
 	if msg != "" return msg;
 	return tprint("Something went wrong (HTTP %).", r.status);
+}
+
+// Script command `settings_reply <request> <json>`: a reply to one of the pages' loads, for UI tests
+// (fixtures carry no REST). false for an unknown request name or bad JSON.
+server_settings_script_reply :: (name: string, json: string) -> bool {
+	for i: 0..cast(int) Req.COUNT - 1 {
+		if tprint("%", cast(Req) i) != name continue;
+		arena := New(Flat_Pool,, context.default_allocator);
+		body, err := etf.from_json(json,, dc.pool_allocator(arena));
+		if err != .None {
+			fini(arena);
+			free(arena,, context.default_allocator);
+			return false;
+		}
+		r := dc.Feature_Result.{op = .Guild_Settings, tag = xx i, channel_id = ss.guild, ok = true, status = 200, body = body, arena = arena};
+		server_settings_receive(*r);
+		dc.feature_result_free(*r);
+		return true;
+	}
+	return false;
 }

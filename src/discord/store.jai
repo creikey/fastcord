@@ -115,6 +115,9 @@ free_guild :: (s: *Store, g: *Guild) {
 	free_str(g.icon, a);
 	free_str(g.banner, a);
 	free_str(g.joined_at, a);
+	free_str(g.description, a);
+	free_str(g.vanity_url_code, a);
+	free_str(g.preferred_locale, a);
 	array_free(g.channels);
 	for * g.roles free_role(s, it);
 	array_free(g.roles);
@@ -318,6 +321,18 @@ parse_guild_props :: (s: *Store, g: *Guild, p: etf.Map) {
 	if vhas(p, "owner_id") g.owner_id = fsnow(p, "owner_id");
 	if vhas(p, "system_channel_id") g.system_channel_id = fsnow(p, "system_channel_id");
 	if vhas(p, "default_message_notifications") g.default_message_notifications = fint(p, "default_message_notifications");
+	if vhas(p, "description") set_str(s, *g.description, fstr(p, "description"));
+	if vhas(p, "system_channel_flags") g.system_channel_flags = fint(p, "system_channel_flags");
+	if vhas(p, "afk_channel_id") g.afk_channel_id = fsnow(p, "afk_channel_id");
+	if vhas(p, "afk_timeout") g.afk_timeout = fint(p, "afk_timeout");
+	if vhas(p, "verification_level") g.verification_level = fint(p, "verification_level");
+	if vhas(p, "explicit_content_filter") g.explicit_content_filter = fint(p, "explicit_content_filter");
+	if vhas(p, "mfa_level") g.mfa_level = fint(p, "mfa_level");
+	if vhas(p, "vanity_url_code") set_str(s, *g.vanity_url_code, fstr(p, "vanity_url_code"));
+	if vhas(p, "rules_channel_id") g.rules_channel_id = fsnow(p, "rules_channel_id");
+	if vhas(p, "public_updates_channel_id") g.public_updates_channel_id = fsnow(p, "public_updates_channel_id");
+	if vhas(p, "safety_alerts_channel_id") g.safety_alerts_channel_id = fsnow(p, "safety_alerts_channel_id");
+	if vhas(p, "preferred_locale") set_str(s, *g.preferred_locale, fstr(p, "preferred_locale"));
 	if vhas(p, "features") {
 		for g.features free_str(it, s.allocator);
 		g.features.count = 0;

@@ -859,6 +859,25 @@ main :: () {
 	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"icon\": null}", token);
 	check(status == 200 && contains(body, "\"icon\":null"), tprint("null removes the icon: % %", status, body));
 
+	// Server Settings pages: Engagement's fields, the Server Profile and the audit log they land in.
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"system_channel_id\": \"1\"}", token);
+	check(status == 400, tprint("a system channel that isn't a text channel here is refused: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"afk_timeout\": 300, \"system_channel_id\": \"%\", \"default_message_notifications\": 1, \"system_channel_flags\": 5}", field(welcome.list[0], "channel_id").s), token);
+	check(status == 200 && contains(body, "\"default_message_notifications\":1") && contains(body, "\"system_channel_flags\":5"), tprint("the owner saves Engagement: % %", status, body));
+	profile_path := tprint("/api/v9/guilds/%/profile", gid);
+	status, body = rest("PATCH", profile_path, "{\"name\": \"Hangout\", \"description\": \"Our place\", \"icon\": null, \"brand_color_primary\": \"#e81d1e\", \"visibility\": 2, \"traits\": [{\"label\": \"Games\", \"position\": 0}]}", other_token);
+	check(status == 403, tprint("only the owner edits the profile: % %", status, body));
+	status, body = rest("PATCH", profile_path, "{\"brand_color_primary\": \"red\"}", token);
+	check(status == 400, tprint("a brand colour that isn't #rrggbb is refused: % %", status, body));
+	status, body = rest("PATCH", profile_path, "{\"name\": \"Hangout\", \"description\": \"Our place\", \"icon\": null, \"brand_color_primary\": \"#e81d1e\", \"visibility\": 2, \"traits\": [{\"label\": \"Games\", \"position\": 0}], \"game_application_ids\": []}", token);
+	check(status == 200 && contains(body, "\"description\":\"Our place\"") && contains(body, "\"brand_color_primary\":\"#e81d1e\"") && contains(body, "\"label\":\"Games\""), tprint("the owner edits the profile: % %", status, body));
+	status, body = rest("GET", profile_path, "", token);
+	check(status == 200 && contains(body, "\"visibility\":2"), tprint("the profile reads back: % %", status, body));
+	status, body = rest("GET", tprint("/api/v9/guilds/%/audit-logs?limit=50", gid), "", other_token);
+	check(status == 403, tprint("only the owner reads the audit log: % %", status, body));
+	status, body = rest("GET", tprint("/api/v9/guilds/%/audit-logs?limit=50", gid), "", token);
+	check(status == 200 && contains(body, "\"key\":\"description\"") && contains(body, "\"key\":\"icon_hash\"") && contains(body, "\"action_type\":1"), tprint("every change is audited: % %", status, body));
+
 	// Custom emoji: the owner adds one, it is served, and members react with it as name:id.
 	emoji_path := tprint("/api/v9/guilds/%/emojis", gid);
 	status, body = rest("POST", emoji_path, tprint("{\"name\": \"blob\", \"image\": \"data:image/png;base64,%\"}", PNG_1PX), other_token);

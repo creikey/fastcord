@@ -286,6 +286,23 @@ guild_admin_overlays :: () {
 	}
 }
 
+// Radio dot (20px), selected = brand ring + dot.
+radio_dot :: (on: bool) {
+	rad := ui.box("radio", .Draw_Border);
+	rad.semantic_size = .[ui.px(20), ui.px(20)];
+	rad.style.radius = all4(10);
+	rad.style.border = 2;
+	rad.style.border_color = ifx on then T("--background-brand") else T("--interactive-icon-default");
+	if on {
+		ui.parent(rad); defer ui.pop_parent();
+		dot := ui.box("dot", .Draw_Background | .Floating_X | .Floating_Y);
+		dot.semantic_size = .[ui.px(10), ui.px(10)];
+		dot.fixed_pos = .{5, 5};
+		dot.style.radius = all4(5);
+		dot.style.bg = T("--background-brand");
+	}
+}
+
 #scope_file
 
 Admin_Modal :: enum u8 {
@@ -431,23 +448,6 @@ error_line :: () {
 		b.style.line_height = 18;
 		b.style.text_color = T("--text-feedback-critical");
 		spacer(.X, 25);
-	}
-}
-
-// Radio dot (20px), selected = brand ring + dot.
-radio_dot :: (on: bool) {
-	rad := ui.box("radio", .Draw_Border);
-	rad.semantic_size = .[ui.px(20), ui.px(20)];
-	rad.style.radius = all4(10);
-	rad.style.border = 2;
-	rad.style.border_color = ifx on then T("--background-brand") else T("--interactive-icon-default");
-	if on {
-		ui.parent(rad); defer ui.pop_parent();
-		dot := ui.box("dot", .Draw_Background | .Floating_X | .Floating_Y);
-		dot.semantic_size = .[ui.px(10), ui.px(10)];
-		dot.fixed_pos = .{5, 5};
-		dot.style.radius = all4(5);
-		dot.style.bg = T("--background-brand");
 	}
 }
 
