@@ -1,0 +1,29 @@
+# Run with -fixture:tests/ui/rail.jsonl. Dragging both servers out of the "Code" folder deletes it;
+# Undo brings the folder back with its name and colour.
+wait 5
+click 36 302
+wait 30
+down 36 350
+move 36 330
+move 36 260
+move 36 245
+wait 2
+up 36 245
+wait 30
+move 36 397
+wait 5
+down 36 397
+wait 2
+move 36 380
+wait 2
+move 36 260
+move 36 245
+wait 2
+up 36 245
+wait 30
+expect_visible "Folder removed"
+shot build/ui-rail_undo_folder_drag.png
+click_text "Undo"
+wait 10
+expect_not_visible "Folder removed"
+shot build/ui-rail_undo_folder_drag_undone.png

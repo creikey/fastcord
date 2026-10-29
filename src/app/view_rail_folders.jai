@@ -526,6 +526,7 @@ rail_apply_drop :: (entries_in: [..]Rail_Entry, tg: Rail_Target, kind: Drop_Kind
 	}
 	// mark removal without shifting indices yet
 	removed_entry := moving_folder || src.guilds.count == 0;
+	folder_lost := !moving_folder && src.id != 0 && src.guilds.count == 0; // before the inserts below move src
 	te := *entries[tg.entry];
 	if kind == .Combine && !moving_folder && tg.inner < 0 && te.id == 0 && te.guilds[0] != gid {
 		// guild onto guild: new folder (random 32-bit id like the client)
@@ -549,7 +550,31 @@ rail_apply_drop :: (entries_in: [..]Rail_Entry, tg: Rail_Target, kind: Drop_Kind
 		if at <= rs.drag_entry { rs.drag_entry += 1; }
 	}
 	if removed_entry { array_ordered_remove_by_index(*entries, rs.drag_entry); }
+	// the last server dragged out of a folder deletes it, name and colour: Undo puts the old rail back
+	// (the settings write waits SETTINGS_DELAY_FREQUENT_MS, so an undo in time sends only the old one)
+	if folder_lost {
+		old := New([..]dc.Guild_Folder);
+		for store().settings.guild_folders {
+			c := array_add(old);
+			c.* = .{id = it.id, name = copy_string(it.name), color = it.color, has_color = it.has_color};
+			array_copy(*c.guild_ids, it.guild_ids);
+		}
+		undo_push("Folder removed", (u: *Undo) { folders_free(u.p); }, (u: *Undo) {
+			entries: [..]Rail_Entry;
+			entries.allocator = temp;
+			for (cast(*[..]dc.Guild_Folder) u.p).* array_add(*entries, .{id = it.id, name = it.name, color = it.color, has_color = it.has_color, guilds = it.guild_ids});
+			rail_save(entries);
+			folders_free(u.p);
+		}, p = old);
+	}
 	rail_save(entries);
+}
+
+folders_free :: (p: *void) {
+	f := cast(*[..]dc.Guild_Folder) p;
+	for f.* { free(it.name); array_free(it.guild_ids); }
+	array_free(f.*);
+	free(f);
 }
 
 // Writes the new order into the store (immediately visible) and settings-proto 1.
