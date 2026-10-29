@@ -705,7 +705,8 @@ member_list :: (ch: *dc.Channel) {
 					}
 					spacer(.Y, 4);
 				} else {
-					member_row(ch.guild_id, item.user_id);
+					g := dc.guild_get(store(), ch.guild_id);
+					member_row(ch.guild_id, item.user_id, g && g.owner_id == item.user_id);
 				}
 			}
 		}
@@ -713,7 +714,8 @@ member_list :: (ch: *dc.Channel) {
 	}
 }
 
-member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
+// owner: the server's (or group DM's) owner, crowned after the name; bots get the APP tag.
+member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 	s := store();
 	outer := row("m");
 	outer.semantic_size = .[ui.pct(1), ui.px(44)];
@@ -738,17 +740,24 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake) {
 			if !ok { color = T("--interactive-text-default"); }
 			if offline { color = with_alpha(color, 0.3); }
 			custom := user_custom_status(uid);
-			if custom {
-				col := ui.box("col");
-				col.semantic_size = .[ui.fill(), ui.children()];
-				col.layout_axis = .Y;
-				ui.parent(col); defer ui.pop_parent();
-				w := item.rect.x1 - item.rect.x0 - 60;
+			u := dc.user_get(s, uid);
+			bot := u && u.bot;
+			col := ui.box("col");
+			col.semantic_size = .[ui.fill(), ui.children()];
+			col.layout_axis = .Y;
+			ui.parent(col); defer ui.pop_parent();
+			w := item.rect.x1 - item.rect.x0 - 60 - (ifx owner then 18 else 0) - (ifx bot then 34 else 0);
+			nr := row("nr");
+			nr.semantic_size = .[ui.pct(1), ui.px(20)];
+			{ ui.parent(nr); defer ui.pop_parent();
 				label(ellipsize(name, .Medium, 16, w), .Medium, 16, color, 20);
-				label(ellipsize(custom, .Medium, 12, w), .Medium, 12, T("--text-muted"), 16);
-			} else {
-				label(name, .Medium, 16, color, 20);
+				if owner {
+					spacer(.X, 4);
+					icon("crown", "crown", 14, T("--text-feedback-warning"));
+				}
+				if bot app_tag();
 			}
+			if custom label(ellipsize(custom, .Medium, 12, w), .Medium, 12, T("--text-muted"), 16);
 		}
 		spacer(.X, 8);
 	}

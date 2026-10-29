@@ -196,18 +196,7 @@ group_dm_members :: (ch: *dc.Channel) {
 		spacer(.Y, 4);
 		for uid: ids {
 			{ ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
-				member_row(0, uid);
-				if uid == ch.owner_id {
-					// crown after the name
-					item := ui.top_parent().last;
-					{ ui.parent(item); defer ui.pop_parent();
-						c := ui.box("crown", .Floating_X | .Floating_Y);
-						c.semantic_size = .[ui.px(14), ui.px(14)];
-						name_w := cast(float32) dc.user_name(s, uid).count * 8.2;
-						c.fixed_pos = .{8 + 8 + 32 + 12 + name_w + 4, 15};
-						set_icon(c, "crown", T("--text-feedback-warning"));
-					}
-				}
+				member_row(0, uid, uid == ch.owner_id);
 			}
 		}
 		spacer(.Y, 16);
