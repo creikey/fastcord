@@ -377,7 +377,6 @@
 - [ ] Friends: the "New Group DM" header icon isn't clickable; Active Now is always the empty card.
 - [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
-- [ ] Composer: no formatting toolbar over a selection (bold, italic, strikethrough, code, spoiler, quote).
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Forums: no way to create a post ("Search or create a post..." is a plain label, `view_threads.jai`); no sort or tag filter; archived posts load only the first page.
 - [ ] Profiles: per-server avatars, bios, banners and pronouns never show (`guild_member_avatar_url` is unused); animated avatars never animate.
@@ -784,3 +783,4 @@
 - [x] Polls: poll messages show their question and answers, take a pick and Vote, then show each answer's share with Remove Vote; closed ones show the results with the winner; the counts follow MESSAGE_POLL_VOTE_ADD/REMOVE, and the author has End Poll Now, on Discord and hosted servers (`polls.jai`, `discord/polls.jai`, `tests/ui/poll.txt`).
 - [x] Calls: a DM call shows tiles for members not in it with Ring (Ringing… while it rings; `POST /call/ring {"recipients":[id]}`), and a DM with a call going on that we are not in shows an "Ongoing call" banner with Join Call (`absent_tile`, `dm_call_banner`; `tests/ui/dm_call.txt`).
 - [x] Tray: in a voice call the Windows tray icon is a gray circle, green while you talk and red while muted or deafened (self or by the server), in the official client's order of states, and is rebuilt only when the state changes (`platform.set_tray_call`). Built on Windows; not seen on a desktop.
+- [x] Composer: a selection in the composer or edit box shows the formatting toolbar (bold, italic, strikethrough, code, spoiler, quote), each toggling its markdown and keeping the selection (`format_toolbar`, `tests/ui/format_toolbar.txt`).

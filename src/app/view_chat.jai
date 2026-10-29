@@ -444,23 +444,92 @@ composer_inline :: (out: *[..]ui.Span, seg: string, base: ui.Span) {
 	}
 }
 
+// The selection wrapped in marker m (**, *, __, ~~, `, ||), or unwrapped when it already is; it stays selected.
+toggle_wrap :: (ed: *ui.Editor, m: string) {
+	text := ui.editor_text(ed);
+	a, b := ui.editor_sel(ed);
+	k := m.count;
+	at :: (text: string, i: int, s: string) -> bool { return i >= 0 && i + s.count <= text.count && slice(text, i, s.count) == s; }
+	// A lone * must not eat half of a bold's **.
+	wrapped := at(text, a - k, m) && at(text, b, m) && !(k == 1 && (at(text, a - 2, "**") || at(text, b, "**")));
+	if wrapped {
+		ui.editor_apply(ed, join(slice(text, 0, a - k), slice(text, a, b - a), slice(text, b + k, text.count - b - k),, temp), b - k, a - k);
+	} else {
+		ui.editor_apply(ed, join(slice(text, 0, a), m, slice(text, a, b - a), m, slice(text, b, text.count - b),, temp), b + k, a + k);
+	}
+}
+
+// "> " added at the start of each selected line, or taken off when every one has it.
+toggle_quote :: (ed: *ui.Editor) {
+	text := ui.editor_text(ed);
+	a, b := ui.editor_sel(ed);
+	s := a;
+	while s > 0 && text[s - 1] != #char "\n" s -= 1;
+	lines := split(slice(text, s, b - s), "\n",, temp);
+	all := true;
+	for lines if !begins_with(it, "> ") all = false;
+	for * lines it.* = ifx all then advance(it.*, 2) else join("> ", it.*,, temp);
+	mid := join(..lines, separator = "\n",, temp);
+	ui.editor_apply(ed, join(slice(text, 0, s), mid, slice(text, b, text.count - b),, temp), s + mid.count, s);
+}
+
+// The composer's toolbar over a finished selection (official: bold, italic, strikethrough, code,
+// spoiler, quote; each toggles its markdown and keeps the selection).
+format_toolbar :: (ed: *ui.Editor, tl: *ui.Text_Layout, f: *ui.Box, selecting: bool) {
+	if !tl || !f.parent || !ui.editor_has_sel(ed) || selecting return;
+	a, b := ui.editor_sel(ed);
+	p0, p1 := ui.caret_pos(tl, a), ui.caret_pos(tl, b);
+	TOOLS :: struct { label: string; icon: string; m: string; }.[
+		.{"B", "", "**"}, .{"I", "", "*"}, .{"S", "", "~~"}, .{"", "angle-brackets", "`"}, .{"", "spoiler", "||"}, .{"\u201c", "", ">"},
+	];
+	W :: cast(float32) TOOLS.count * 32 + 8;
+	x := ifx p0.y == p1.y then (p0.x + p1.x) / 2 - W / 2 else p0.x;
+	pr := f.parent.rect;
+	// on the root: the composer clips its children, and a clipped box takes no clicks
+	ui.push_parent(app.ui.root);
+	defer ui.pop_parent();
+	bar := row("fmtbar", .Floating_X | .Floating_Y | .Overlay | .Draw_Background | .Draw_Border | .Draw_Shadow | .Clickable);
+	bar.semantic_size = .[ui.px(W), ui.px(40)];
+	bar.fixed_pos = .{clamp(x, pr.x0, max(pr.x0, pr.x1 - W)), p0.y - 48};
+	bar.style.bg = T("--background-surface-higher");
+	bar.style.border_color = T("--border-subtle");
+	bar.style.border = 1;
+	bar.style.radius = all4(8);
+	bar.style.shadow_color = .{0, 0, 0, 0.24};
+	bar.style.shadow_blur = 8;
+	ui.signal(bar);
+	ui.parent(bar); defer ui.pop_parent();
+	spacer(.X, 4);
+	for TOOLS {
+		bt := ui.box(tprint("fmt%", it_index), .Clickable | .Draw_Background | .Hot_Animation);
+		bt.semantic_size = .[ui.px(32), ui.px(32)];
+		bt.style.radius = all4(4);
+		bt.style.bg_hot = T("--background-mod-normal");
+		bt.layout_axis = .X;
+		bt.cross_align = .Center;
+		if ui.signal(bt).clicked {
+			if it.m == ">" toggle_quote(ed); else toggle_wrap(ed, it.m);
+		}
+		ui.parent(bt); defer ui.pop_parent();
+		if it.icon {
+			spacer(.X, 6);
+			icon("ic", it.icon, 20, T("--interactive-icon-default"));
+		} else {
+			spacer(.X, 11);
+			l := ui.box("l", .Wrap_Text);
+			l.semantic_size = .[ui.text_size(), ui.px(20)];
+			l.style.line_height = 20;
+			ui.set_spans(l, ui.Span.[.{text = it.label, font = F(ifx it.m == "**" then .Bold else ifx it.m == "*" then .Italic else .Semibold), size = 16, color = T("--interactive-icon-default"), strike = it.m == "~~"}]);
+		}
+	}
+}
+
 // Enter and Tab in a markdown field, as the official composer handles them: Enter adds a
 // newline (instead of sending) inside a ``` block or with Alt; Tab in code lines indents.
 markdown_key :: (ed: *ui.Editor, e: ui.Input_Event) -> bool {
 	// Ctrl+B / I / U on a selection wraps it in **, * or __, or unwraps it when it already is.
 	if (e.key == .B || e.key == .I || e.key == .U) && e.mods == PRIMARY_MOD && ui.editor_has_sel(ed) {
-		m := ifx e.key == .B then "**" else ifx e.key == .I then "*" else "__";
-		text := ui.editor_text(ed);
-		a, b := ui.editor_sel(ed);
-		k := m.count;
-		at :: (text: string, i: int, s: string) -> bool { return i >= 0 && i + s.count <= text.count && slice(text, i, s.count) == s; }
-		// A lone * must not eat half of a bold's **.
-		wrapped := at(text, a - k, m) && at(text, b, m) && !(k == 1 && (at(text, a - 2, "**") || at(text, b, "**")));
-		if wrapped {
-			ui.editor_apply(ed, join(slice(text, 0, a - k), slice(text, a, b - a), slice(text, b + k, text.count - b - k),, temp), b - k, a - k);
-		} else {
-			ui.editor_apply(ed, join(slice(text, 0, a), m, slice(text, a, b - a), m, slice(text, b, text.count - b),, temp), b + k, a + k);
-		}
+		toggle_wrap(ed, ifx e.key == .B then "**" else ifx e.key == .I then "*" else "__");
 		return true;
 	}
 	if e.key == .Enter {
@@ -746,6 +815,7 @@ text_field :: (id: string, ed: *ui.Editor, placeholder: string, focused: bool, f
 		ui.editor_mouse_drag(ed, tl, app.ui.mouse);
 	}
 	if sig.right_clicked open_edit_menu(ed, f);
+	if markdown && focused format_toolbar(ed, tl, f, sig.dragging);
 	if focused {
 		note_focused_editor(ed, f);
 		for * e: app.ui.events {

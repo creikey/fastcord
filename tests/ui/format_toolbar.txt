@@ -1,0 +1,20 @@
+# Selecting text in the composer shows the formatting toolbar; its buttons toggle the markdown around
+# the selection and keep it selected.
+wait 5
+click 600 684
+type hello world
+key a cmd
+wait 3
+shot build/ui-format_toolbar.png
+click 467 644
+wait 3
+expect_input "**hello world**"
+click 467 644
+wait 3
+expect_input "hello world"
+click 595 644
+wait 3
+expect_input "||hello world||"
+click 626 644
+wait 3
+expect_input "> ||hello world||"
