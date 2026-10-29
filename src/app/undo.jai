@@ -10,23 +10,23 @@
 UNDO_S :: 5.0;
 
 Undo :: struct {
-	text: string; // the toast's line (heap)
+	text: string; // the toast's line (heap); "" holds quietly, with no toast (a reaction)
 	client: *dc.Client; // null offline (fixtures): nothing is sent
 	until: float64; // platform.time_now()
 	send: (u: *Undo);
 	revert: (u: *Undo);
 	a, b, c: dc.Snowflake; // what it acts on
-	s: string; // heap, freed with it
+	s, t: string; // heap, freed with it
 	n: s64;
 }
 
 undos: [..]*Undo;
 
 // Holds an action. The caller has already changed what the screen shows (or relies on undo_held).
-undo_push :: (text: string, send: (u: *Undo), revert: (u: *Undo) = null, a: dc.Snowflake = 0, b: dc.Snowflake = 0, c: dc.Snowflake = 0, s := "", n := 0) -> *Undo {
+undo_push :: (text: string, send: (u: *Undo), revert: (u: *Undo) = null, a: dc.Snowflake = 0, b: dc.Snowflake = 0, c: dc.Snowflake = 0, s := "", t := "", n := 0) -> *Undo {
 	app.net_actions += 1;
 	u := New(Undo);
-	u.* = .{text = copy_string(text), client = app.client, until = platform.time_now() + UNDO_S, send = send, revert = revert, a = a, b = b, c = c, s = copy_string(s), n = n};
+	u.* = .{text = copy_string(text), client = app.client, until = platform.time_now() + UNDO_S, send = send, revert = revert, a = a, b = b, c = c, s = copy_string(s), t = copy_string(t), n = n};
 	array_add(*undos, u);
 	request_wake(u.until + 0.01);
 	return u;
@@ -69,8 +69,11 @@ undo_frame :: () {
 
 // The toast for the newest held action: its line and Undo. Ctrl+Z / Cmd+Z that no field took undoes it.
 undo_toast :: () {
-	if !undos return;
-	u := peek(undos);
+	u: *Undo;
+	for < undos if it.text { u = it; break; }
+	if !u return;
+	shown := 0;
+	for undos if it.text shown += 1;
 	t := row("undotoast", .Draw_Background | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	t.semantic_size = .[ui.children(), ui.px(40)];
 	t.style.bg = T("--background-surface-highest");
@@ -85,7 +88,7 @@ undo_toast :: () {
 	{ ui.parent(t); defer ui.pop_parent();
 		spacer(.X, 16);
 		line := u.text;
-		if undos.count > 1 line = tprint("% (% more)", u.text, undos.count - 1);
+		if shown > 1 line = tprint("% (% more)", u.text, shown - 1);
 		label(line, .Medium, 14, T("--text-default"), 18);
 		spacer(.X, 16);
 		b := ui.box("Undo##u", .Clickable | .Draw_Text | .Hot_Animation);
@@ -110,14 +113,17 @@ undo_toast :: () {
 
 undo_send :: (u: *Undo) {
 	u.send(u);
-	free(u.text);
-	free(u.s);
-	free(u);
+	undo_free(u);
 }
 
 undo_drop :: (u: *Undo) {
 	array_ordered_remove_by_value(*undos, u);
+	undo_free(u);
+}
+
+undo_free :: (u: *Undo) {
 	free(u.text);
 	free(u.s);
+	free(u.t);
 	free(u);
 }

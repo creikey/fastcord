@@ -243,14 +243,26 @@ open_message_menu :: (m: *dc.Message, at: ui.Vec2, location := "") {
 }
 // react: add a reaction, or with toggle remove one we have (hover bar, reaction pills).
 // The store shows it at once (dc.add_reaction predicts); location as the client reports it.
+// Removing our own reaction (toggle) shows at once and holds the DELETE (undo.jai, no toast): adding it
+// again within the window cancels the removal with nothing sent.
 react :: (m: *dc.Message, e: dc.Emoji, location: string, toggle := false) {
 	if !net_action() return;
 	if toggle for m.reactions if it.me && dc.emoji_matches(it.emoji, e.id, e.name) {
-		dc.remove_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location);
+		// pushed first: it copies the name, which the store frees with the reaction
+		u := undo_push("", send_unreact, (u: *Undo) {
+			if u.client dc.store_reaction(*u.client.store, u.b, u.a, .{id = u.c, name = u.s, animated = u.n != 0, available = true}, true, true, false);
+		}, a = m.id, b = m.channel_id, c = e.id, s = e.name, t = location, n = xx e.animated);
+		dc.store_reaction(store(), m.channel_id, m.id, .{id = u.c, name = u.s, animated = e.animated, available = true}, true, false, false);
+		return;
+	}
+	for undos if it.send == send_unreact && it.a == m.id && dc.emoji_matches(.{id = it.c, name = it.s}, e.id, e.name) {
+		undo_cancel(it);
 		return;
 	}
 	dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location, animated = e.animated);
 }
+
+send_unreact :: (u: *Undo) { if u.client dc.remove_reaction(u.client, u.b, u.a, u.s, u.c, location = u.t); }
 
 find_message :: (id: dc.Snowflake) -> *dc.Message {
 	if id == 0 return null;

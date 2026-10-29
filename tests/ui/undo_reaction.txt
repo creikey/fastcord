@@ -1,0 +1,30 @@
+# Clicking our own reaction removes it at once but holds the DELETE: clicking it again within 5 s
+# brings it back with nothing sent. On a self-hosted server in this process (a real client).
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 700 683
+type react to me
+key enter
+settle 2
+move 600 600
+settle 1
+shot build/ui-undo_reaction_0.png
+click 763 575
+settle 2
+shot build/ui-undo_reaction_1.png
+click 466 602
+settle 1
+shot build/ui-undo_reaction_2.png
+move 600 600
+settle 1
+click 763 575
+settle 2
+shot build/ui-undo_reaction_3.png
+click 466 602
+wait 330
+settle 2
+shot build/ui-undo_reaction_4.png
+expect_served
