@@ -774,6 +774,23 @@ main :: () {
 		check(status == 204, tprint("cancel an event: %", status));
 		status, body = rest("GET", tprint("%/%/users/counts", events, eid), "", token);
 		check(status == 404, tprint("a deleted event is gone: %", status));
+		// An event starts at its start time and completes at its end by itself.
+		status, body = rest("POST", events, create, token);
+		ev, _ = etf.from_json(body);
+		eid = field(ev, "id").s;
+		sweep :: (ms: s64) #expand {
+			`s.clock_offset_ms += ms;
+			`s.next_sweep = 0;
+			serve.archive_idle(`s);
+		}
+		sweep(5_400_000);
+		status, body = rest("GET", events, "", token);
+		check(contains(body, "\"status\":2"), tprint("an event starts at its start time: %", body));
+		sweep(3_600_000);
+		status, body = rest("GET", events, "", token);
+		check(status == 200 && !contains(body, eid), tprint("an event completes at its end: %", body));
+		s.clock_offset_ms -= 9_000_000;
+		rest("DELETE", tprint("%/%", events, eid), "", token);
 	}
 	// Change Nickname renames the member everywhere, old messages included; an empty one goes back to the
 	// name they joined with.

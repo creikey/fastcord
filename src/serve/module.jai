@@ -1540,6 +1540,8 @@ archived_locked :: (s: *Server, id: s64) -> bool {
 	return sqlite.step(st) == .Row;
 }
 
+// archive_idle also starts events at their start time and completes them at their end, as Discord does
+// for events held Somewhere Else, the only kind here.
 // archive_idle archives threads with no activity (start, message or unarchive) for their
 // auto_archive_duration, and tells everyone. Gateway heartbeats and the thread browser run it, at most
 // once a minute, so no timer thread is needed.
@@ -1547,8 +1549,8 @@ archive_idle :: (s: *Server) {
 	ms := now_ms(s);
 	next := atomic_read(*s.next_sweep);
 	if ms < next || !compare_and_swap(*s.next_sweep, next, ms + 60 * 1000) return;
-	threads: [..]etf.Value;
-	threads.allocator = temp;
+	threads, events: [..]etf.Value;
+	threads.allocator, events.allocator = temp, temp;
 	{
 		locks.guard(*s.db_mu);
 		ids: [..]s64;
@@ -1558,8 +1560,19 @@ archive_idle :: (s: *Server) {
 		while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
 		sqlite.finalize(st);
 		for ids if sqlite.run(s.db, "UPDATE channels SET archived = 1, archived_at = ? WHERE id = ?;", ms << 22, it) array_add(*threads, channel_locked(s, it));
+		ids.count = 0;
+		unix := ms + DISCORD_EPOCH_MS;
+		st = sqlite.prepare(s.db, tprint("SELECT id FROM events WHERE (status = % AND start <= ?1) OR (status IN (%, %) AND end <= ?1);", EVENT_SCHEDULED, EVENT_SCHEDULED, EVENT_ACTIVE));
+		sqlite.bind_all(st, unix);
+		while sqlite.step(st) == .Row array_add(*ids, sqlite.col_int(st, 0));
+		sqlite.finalize(st);
+		for ids {
+			ok := sqlite.run(s.db, tprint("UPDATE events SET status = CASE WHEN end <= ? THEN % ELSE % END WHERE id = ?;", EVENT_COMPLETED, EVENT_ACTIVE), unix, it);
+			if ok array_add(*events, event_locked(s, it));
+		}
 	}
 	for threads broadcast(s, "THREAD_UPDATE", it);
+	for events broadcast(s, "GUILD_SCHEDULED_EVENT_UPDATE", it);
 }
 
 // GET /api/v9/channels/{id}/threads/search?archived=true&limit=&offset=: a text channel's archived threads,
