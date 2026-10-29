@@ -423,7 +423,6 @@
   - Capture the traffic first and log the rules in `traffic/CLIENT_RULES.md`.
 - [ ] Friends: no Message Requests. DMs from people who aren't friends (`is_message_request`) and DMs Discord flagged as spam (`is_spam`) show as ordinary DMs and notify like them. The official client holds them under Friends > Message Requests, with Accept and Ignore, and a separate Spam list. Nothing in `src` reads either flag.
 - [ ] Apps: slash-command and context-menu replies lack the "X used /command" header.
-- [ ] Markdown: role mentions render as the literal "@role", not the role's name in its colour (`view_chat.jai` `.Role_Mention`).
 - [ ] Video (Windows): Go Live shares whole screens only (DXGI desktop duplication); sharing one window needs Windows.Graphics.Capture. The cursor isn't drawn into the stream, and rotated monitors aren't handled (`capture_windows.jai`).
 - [ ] Bug: pressing Enter while a staged file is still being read, or while offline, erases the composer text and sends nothing (`view_chat.jai`: `editor_set_text(*cs.editor, "")` runs even when `composer_send` returns false).
 - [ ] Forwards: the layout (bar, "Forwarded" header, origin footer) is guessed; compare with a real forward in the official client, including one from a DM or a channel we can't see.
@@ -758,3 +757,4 @@
 - [x] Soundboard: Upload a Sound (Server Settings > Soundboard) takes its file by drag and drop onto the page or the dialog as well as Browse (fastcord-only; `sound_settings_drop`).
 - [x] Tests: `tests/ui/shortcut_list.txt` checks labels that read the same on every platform (it expected "Ctrl+Alt+A", which macOS shows as Cmd+Alt+A), and `events_wizard.txt` passes under the suite's `TZ=UTC` (`run_logged`); it failed only when run by hand in a local zone. Both pass on macOS and Windows.
 - [x] Composer: "#" opens a channel autocomplete like "@", "#name" is sent as `<#id>` on send and edit, and the edit box shows `<#id>` as "#name" (`channel_items`, `channel_by_name`; `tests/ui/channel_autocomplete.txt`, `tests/ui/forward/edit_readable.txt`).
+- [x] Markdown: role mentions draw as "@Role" in the role's colour on a tint of it, "@deleted-role" when unknown (`tests/ui/forward/command_mentions.txt`).

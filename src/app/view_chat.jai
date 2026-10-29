@@ -262,7 +262,18 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message,
 			sp.color = T("--mention-foreground");
 			sp.bg_radius = 3;
 			sp.font = F(.Medium);
-			if tk.kind == .Role_Mention sp.text = "@role";
+			if tk.kind == .Role_Mention {
+				// the role's name in its colour on a 10% tint of it, like the official RoleMention
+				c := ifx m then dc.channel_get(s, m.channel_id);
+				g := ifx c && c.guild_id then dc.guild_get(s, c.guild_id);
+				r: *dc.Role;
+				if g for * g.roles if it.id == tk.id { r = it; break; }
+				sp.text = ifx r then tprint("@%", r.name) else "@deleted-role";
+				if r && r.color {
+					sp.color = rgb_u32(r.color);
+					sp.bg = with_alpha(sp.color, 0.1);
+				}
+			}
 		case .Command;
 			sp.text = tk.name;
 			sp.bg = T("--mention-background");

@@ -383,6 +383,7 @@ call's `retries` (the bundle's value for that call: search the endpoint) and, fo
 
 | Rule | Kind | Anchor | fastcord |
 |---|---|---|---|
+| A role mention `<@&id>` draws as "@<role name>" in the role's colour on a 10% tint of it (the default mention colours for a colourless role), "@deleted-role" for a role the server doesn't have | guess (matches the client's look) | — | `view_chat.jai` `message_spans` (`.Role_Mention`) |
 | Consecutive `> ` lines are one blockquote (one bar down all its lines, wrapped ones included); `>>> ` quotes the rest of the message | guess (matches a screenshot of the client) | — | `markdown.jai` `md_parse`, `view_chat.jai` `quote_bar_draw` |
 | Forward = `message_reference.type` 1 (`MessageReferenceTypes.FORWARD`): no reply preview; content, attachments, embeds, stickers come from `message_snapshots[0].message`, under "Forwarded" behind a quote bar, with "#channel • time" of the original below (jumps there); a forward can't be edited | code (type) + guess (layout) | `messageReference?.type===D.SH7.FORWARD` | `store.jai` `parse_message_fields`, `view_chat.jai` `forward_block` |
 
