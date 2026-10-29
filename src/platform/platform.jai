@@ -199,13 +199,20 @@ request_frame :: () {
 
 should_quit :: () -> bool { return s.quit; }
 
-window_size :: () -> Vector2 { return s.size; }
+// Sizes and positions the app sees are in points divided by the zoom (set_zoom), so the whole UI scales.
+window_size :: () -> Vector2 { return s.size / s.zoom; }
+
+// The app's zoom on top of the display's scale (Ctrl+= / Ctrl+-, Zoom level): 1 = 100%.
+set_zoom :: (z: float32) {
+    s.zoom = clamp(z, 0.5, 2);
+    request_frame();
+}
 
 // Where the window sits when not maximized (Windows and X11: screen pixels; macOS: points, origin bottom
 // left) and whether it is maximized; settings.json keeps it. Each platform has window_placement and
 // window_placement_restore, which is called before init and ignores a rect that is off every screen.
 Window_Placement :: struct { x, y, width, height: s32; maximized: bool; }
-dpi_scale :: () -> float32 { return s.scale; }
+dpi_scale :: () -> float32 { return s.scale * s.zoom; }
 framebuffer_size :: () -> [2]s32 {
     return .[cast(s32) (s.size.x * s.scale + 0.5), cast(s32) (s.size.y * s.scale + 0.5)];
 }
@@ -292,7 +299,7 @@ set_cursor :: (c: Cursor) {
 
 // Tell the IME where the text caret is (points, content-area coordinates), so candidate windows /
 // press-and-hold accent popups appear next to it.
-set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = .{x, y, w, h}; }
+set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = .{x * s.zoom, y * s.zoom, w * s.zoom, h * s.zoom}; }
 
 // Checkmarks on the tray menu's Mute and Deafen items (Windows).
 set_tray_voice :: (mute: bool, deaf: bool) { s.tray_mute, s.tray_deaf = mute, deaf; }
@@ -388,6 +395,7 @@ rgba_to_dibv5 :: (rgba: []u8, width: int, height: int, out: []u8) {
 #scope_module
 
 State :: struct {
+    zoom: float32 = 1; // set_zoom
     headless_login: bool; // open_at_login in headless runs, which never touch the OS
     initialized: bool;
     headless: bool;
@@ -440,6 +448,7 @@ swap_queues :: () {
 push_event :: (e: Event) {
     locks.guard(*s.queue_lock);
     ev := e;
+    ev.pos /= s.zoom;
     if ev.text ev.text = copy_string(ev.text,, Allocator.{flat_pool_allocator_proc, *s.pending_pool});
     array_add(*s.pending, ev);
 }

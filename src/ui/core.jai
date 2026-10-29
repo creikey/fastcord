@@ -207,6 +207,9 @@ Key_Code :: enum u16 {
 	Slash;
 	Left_Bracket;
 	Right_Bracket;
+	Equals;
+	Minus;
+	N0;
 	Other;
 }
 

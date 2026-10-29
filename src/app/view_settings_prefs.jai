@@ -138,6 +138,58 @@ notifications_page :: () {
 	}
 }
 
+// The client's Accessibility panel, Visual Density category: only Zoom level so far.
+accessibility_page :: () {
+	if set_page_begin("a11ypage") {
+		set_heading("Visual Density");
+		label("Zoom level", .Medium, 16, T("--text-strong"), 20);
+		spacer(.Y, 4);
+		label(#run tprint("Adjust the size of the interface. You can also change this with % +/-.", ifx OS == .MACOS then "Cmd" else "Ctrl"), .Normal, 14, T("--text-muted"), 18);
+		spacer(.Y, 16);
+		// Applied on release: zooming under a dragged knob would move the track under the mouse.
+		v := ifx zoom_drag > 0 then zoom_drag else cast(float32) zoom_pct;
+		w := set_content_w();
+		if slider("zoom", *v, ZOOM_SCALES[0], ZOOM_SCALES[ZOOM_SCALES.count - 1], w, tprint("%\%", zoom_snap(v))) zoom_drag = v;
+		if zoom_drag > 0 && !app.ui.mouse_down[0] {
+			zoom_set(zoom_snap(zoom_drag));
+			zoom_drag = 0;
+		}
+		r := row("marks");
+		r.semantic_size = .[ui.px(w), ui.px(20)];
+		{ ui.parent(r); defer ui.pop_parent();
+			for ZOOM_SCALES {
+				m := label(tprint("%", it), .Medium, 12, ifx it == zoom_pct then T("--text-strong") else T("--text-muted"), 16);
+				m.flags |= .Floating_X;
+				m.fixed_pos.x = w * (it - ZOOM_SCALES[0]) / (ZOOM_SCALES[ZOOM_SCALES.count - 1] - ZOOM_SCALES[0]) - 8;
+			}
+		}
+		set_page_end();
+	}
+}
+
+// The client's zoom steps (ZOOM_SCALES): mod+plus and mod+minus move one step, mod+0 resets.
+ZOOM_SCALES :: int.[50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200];
+ZOOM_DEFAULT :: 100;
+zoom_pct := ZOOM_DEFAULT;
+zoom_drag: float32;
+
+zoom_set :: (pct: int) {
+	zoom_pct = zoom_snap(xx pct);
+	platform.set_zoom(zoom_pct / 100.0);
+}
+
+zoom_step :: (dir: int) {
+	i := 0;
+	for ZOOM_SCALES if it == zoom_pct i = it_index;
+	zoom_set(ZOOM_SCALES[clamp(i + dir, 0, ZOOM_SCALES.count - 1)]);
+}
+
+zoom_snap :: (v: float32) -> int {
+	best := ZOOM_DEFAULT;
+	for ZOOM_SCALES if abs(it - v) < abs(best - v) best = it;
+	return best;
+}
+
 // The client's System panel, General category (Windows and Linux; macOS has Login Items instead).
 system_page :: () {
 	#if OS != .MACOS if set_page_begin("systempage") {

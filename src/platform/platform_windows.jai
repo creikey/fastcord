@@ -176,7 +176,7 @@ url_handler_register :: (scheme: string, if_free := false) {
     }
     reg_set(key, "", tprint("URL:% link", scheme));
     reg_set(key, "URL Protocol", "");
-    reg_set(command, "", tprint("% \"%%1\"", exe_quoted()));
+    reg_set(command, "", tprint("% \"\%1\"", exe_quoted()));
 }
 
 // Open at login: a value in HKCU's Run key, as the official client's "Automatically open Discord" sets.
@@ -1207,7 +1207,7 @@ wndproc :: (hwnd: win.HWND, msg: u32, wp: win.WPARAM, lp: win.LPARAM) -> win.LRE
                 }
             }
             if w.hit_callback {
-                hit := w.hit_callback(.{pt.x / s.scale, pt.y / s.scale});
+                hit := w.hit_callback(.{pt.x / dpi_scale(), pt.y / dpi_scale()});
                 if hit == .Caption return HTCAPTION;
                 if hit == .Maximize return HTMAXBUTTON;
             }

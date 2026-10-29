@@ -109,6 +109,9 @@ map_key :: (k: platform.Key) -> ui.Key_Code {
 		return .Left_Bracket;
 	case .Right_Bracket;
 		return .Right_Bracket;
+	case .Equals; return .Equals;
+	case .Minus;  return .Minus;
+	case .N0;     return .N0;
 	case .Backspace;
 		return .Backspace;
 	case .Delete;

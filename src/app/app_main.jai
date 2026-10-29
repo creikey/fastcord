@@ -493,6 +493,12 @@ key_by_name :: (name: string) -> platform.Key {
 		return .Right_Bracket;
 	case "/";
 		return .Slash;
+	case "=";
+		return .Equals;
+	case "-";
+		return .Minus;
+	case "0";
+		return .N0;
 	}
 	if name.count == 1 && name[0] >= #char "a" && name[0] <= #char "z" return cast(platform.Key) (cast(int) platform.Key.A + name[0] - #char "a");
 	return .None;

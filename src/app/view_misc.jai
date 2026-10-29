@@ -469,7 +469,7 @@ settings_modal :: () {
 				settings_nav_search(); // view_settings_prefs.jai: filters the items below
 				spacer(.Y, 8);
 				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
-				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"System", "screen"}];
+				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Notifications", "bell"}, .{"Accessibility", "eye"}, .{"System", "screen"}];
 				for items {
 					if it.name == "System" && OS == .MACOS continue; // the client's System panel: Windows and Linux
 					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
@@ -532,6 +532,8 @@ settings_modal :: () {
 					profiles_page();
 				} else if settings_page == "Notifications" {
 					notifications_page(); // view_settings_prefs.jai
+				} else if settings_page == "Accessibility" {
+					accessibility_page();
 				} else if settings_page == "System" {
 					system_page();
 				}

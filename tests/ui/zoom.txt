@@ -1,0 +1,22 @@
+# Zoom: Cmd/Ctrl+= steps up (110%, 125%), Cmd/Ctrl+- down, Cmd/Ctrl+0 resets; Settings > Accessibility shows
+# the Zoom level slider on the client's steps. Ends zoomed to 125% on the Accessibility page.
+wait 5
+key = cmd
+wait 5
+key = cmd
+wait 5
+key - cmd
+wait 5
+key 0 cmd
+wait 5
+click 338 683
+wait 20
+click_text "Accessibility"
+wait 20
+expect_visible "Zoom level"
+expect_visible "175"
+key = cmd
+wait 5
+key = cmd
+wait 20
+expect_visible "Zoom level"

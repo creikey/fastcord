@@ -353,6 +353,58 @@ vs_list_devices :: (input: bool) -> []audio.Device_Info {
 	return out;
 }
 
+// slider: horizontal track, returns true while the value changes (also Accessibility's Zoom level).
+slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fmt_value: string = "") -> bool {
+	track := ui.box(id, .Clickable);
+	track.semantic_size = .[ui.px(w), ui.px(24)];
+	sig := ui.signal(track);
+	changed := false;
+	if sig.pressed || sig.dragging {
+		r := track.rect;
+		if r.x1 > r.x0 {
+			t := clamp((app.ui.mouse.x - r.x0) / (r.x1 - r.x0), 0, 1);
+			nv := lo + t * (hi - lo);
+			if nv != value.* {
+				value.* = nv;
+				changed = true;
+			}
+		}
+	}
+	t := (value.* - lo) / (hi - lo);
+	{ ui.parent(track); defer ui.pop_parent();
+		bar := ui.box("bar", .Draw_Background | .Floating_X | .Floating_Y);
+		bar.semantic_size = .[ui.px(w), ui.px(8)];
+		bar.fixed_pos = .{0, 8};
+		bar.style.bg = T("--background-mod-strong");
+		bar.style.radius = all4(4);
+		fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
+		fill.semantic_size = .[ui.px(max(w * t, 1)), ui.px(8)];
+		fill.fixed_pos = .{0, 8};
+		fill.style.bg = T("--background-brand");
+		fill.style.radius = all4(4);
+		knob := ui.box("knob", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y);
+		knob.semantic_size = .[ui.px(10), ui.px(24)];
+		knob.fixed_pos = .{w * t - 5, 0};
+		knob.style.bg = .{1, 1, 1, 1};
+		knob.style.radius = all4(3);
+		knob.style.shadow_color = .{0, 0, 0, 0.3};
+		knob.style.shadow_blur = 4;
+		if (sig.hovering || sig.dragging) && fmt_value != "" {
+			tip := row("tip", .Draw_Background | .Floating_X | .Floating_Y | .Overlay);
+			tip.semantic_size = .[ui.children(), ui.px(26)];
+			tip.fixed_pos = .{w * t - 24, -32};
+			tip.style.bg = T("--background-surface-highest");
+			tip.style.radius = all4(6);
+			{ ui.parent(tip); defer ui.pop_parent();
+				spacer(.X, 8);
+				label(fmt_value, .Semibold, 13, T("--text-strong"), 16);
+				spacer(.X, 8);
+			}
+		}
+	}
+	return changed;
+}
+
 #scope_file
 
 vs_init :: () {
@@ -430,58 +482,6 @@ camera_test_section :: () {
 section_title :: (text: string) {
 	label(text, .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 8);
-}
-
-// slider: horizontal track, returns true while the value changes.
-slider :: (id: string, value: *float32, lo: float32, hi: float32, w: float32, fmt_value: string = "") -> bool {
-	track := ui.box(id, .Clickable);
-	track.semantic_size = .[ui.px(w), ui.px(24)];
-	sig := ui.signal(track);
-	changed := false;
-	if sig.pressed || sig.dragging {
-		r := track.rect;
-		if r.x1 > r.x0 {
-			t := clamp((app.ui.mouse.x - r.x0) / (r.x1 - r.x0), 0, 1);
-			nv := lo + t * (hi - lo);
-			if nv != value.* {
-				value.* = nv;
-				changed = true;
-			}
-		}
-	}
-	t := (value.* - lo) / (hi - lo);
-	{ ui.parent(track); defer ui.pop_parent();
-		bar := ui.box("bar", .Draw_Background | .Floating_X | .Floating_Y);
-		bar.semantic_size = .[ui.px(w), ui.px(8)];
-		bar.fixed_pos = .{0, 8};
-		bar.style.bg = T("--background-mod-strong");
-		bar.style.radius = all4(4);
-		fill := ui.box("fill", .Draw_Background | .Floating_X | .Floating_Y);
-		fill.semantic_size = .[ui.px(max(w * t, 1)), ui.px(8)];
-		fill.fixed_pos = .{0, 8};
-		fill.style.bg = T("--background-brand");
-		fill.style.radius = all4(4);
-		knob := ui.box("knob", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y);
-		knob.semantic_size = .[ui.px(10), ui.px(24)];
-		knob.fixed_pos = .{w * t - 5, 0};
-		knob.style.bg = .{1, 1, 1, 1};
-		knob.style.radius = all4(3);
-		knob.style.shadow_color = .{0, 0, 0, 0.3};
-		knob.style.shadow_blur = 4;
-		if (sig.hovering || sig.dragging) && fmt_value != "" {
-			tip := row("tip", .Draw_Background | .Floating_X | .Floating_Y | .Overlay);
-			tip.semantic_size = .[ui.children(), ui.px(26)];
-			tip.fixed_pos = .{w * t - 24, -32};
-			tip.style.bg = T("--background-surface-highest");
-			tip.style.radius = all4(6);
-			{ ui.parent(tip); defer ui.pop_parent();
-				spacer(.X, 8);
-				label(fmt_value, .Semibold, 13, T("--text-strong"), 16);
-				spacer(.X, 8);
-			}
-		}
-	}
-	return changed;
 }
 
 device_dropdown :: (which: int, input: bool, w: float32) {

@@ -52,6 +52,7 @@ Persisted :: struct {
 	theme: string;
 	theme_follow_os: bool; // Appearance > "Same as Device Theme"
 	smooth_scroll_off: bool; // Appearance > "Smooth Scrolling" (fastcord's own), off
+	zoom: int = 100; // Accessibility > Zoom level, percent (ZOOM_SCALES)
 	notify: Persisted_Notify;
 	voice: Persisted_Voice;
 	sounds: Persisted_Sounds;
@@ -241,6 +242,7 @@ apply_persisted :: (p: *Persisted) {
 	if ok app_theme_pending, app_theme_pending_set = t, true;
 	theme_follow_os = p.theme_follow_os;
 	smooth_scroll_off = p.smooth_scroll_off;
+	zoom_set(p.zoom);
 	notify_prefs = p.notify;
 	voice_settings_restore(*p.voice);
 	sounds_restore(*p.sounds);
@@ -273,6 +275,7 @@ snapshot :: () -> string {
 	p.theme = tprint("%", app.theme.name);
 	p.theme_follow_os = theme_follow_os;
 	p.smooth_scroll_off = smooth_scroll_off;
+	p.zoom = zoom_pct;
 	p.notify = notify_prefs;
 	voice_settings_snapshot(*p.voice);
 	sounds_snapshot(*p.sounds);

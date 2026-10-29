@@ -1419,6 +1419,12 @@ overlays :: () {
 			switcher_toggle();
 			e.consumed = true;
 		}
+		// The client's mod+plus / mod+minus / mod+0 (zoom), also with Shift, as Electron's accelerators take them.
+		if !e.consumed && e.kind == .Key_Down && (e.key == .Equals || e.key == .Minus || e.key == .N0) && (e.mods == PRIMARY_MOD || e.mods == PRIMARY_MOD | .Shift) {
+			if e.key == .N0 zoom_set(ZOOM_DEFAULT);
+			else zoom_step(ifx e.key == .Equals then 1 else -1);
+			e.consumed = true;
+		}
 		if !e.consumed && e.kind == .Key_Down && e.key == .Slash && e.mods == PRIMARY_MOD && !(modal_open() && !shortcuts_open) {
 			shortcuts_open = !shortcuts_open;
 			e.consumed = true;
