@@ -924,17 +924,28 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		// thread; with bundle, serve also keeps an E2E prekey bundle of theirs.
 		if !script_server || f.count < 2 script_fail(path, "serve_member: needs serve_join and a name");
 		Member :: struct { invite: string; name: string; bundle: bool; }
+		// On the heap: the thread outlives this frame's temp, which each script frame resets.
+		push_allocator(context.default_allocator);
 		m := New(Member);
 		m.invite = serve.invite_url(script_server, "127.0.0.1", script_server.listener.port, serve.first_invite(script_server), allocator = context.default_allocator);
 		m.name, m.bundle = copy_string(f[1]), f.count > 2 && f[2] == "bundle";
-		dc.spawn(m, (m: *Member) {
+		th := dc.spawn(m, (m: *Member) {
 			k := keys.generate(m.name);
-			serve.member_login(serve.parse_invite(m.invite), k, m.name);
+			token, status, message := serve.member_login(serve.parse_invite(m.invite), k, m.name);
+			if !token log_error("serve_member %: % %", m.name, status, message);
 			p: e2e.Packet;
 			p.limit = e2e.MAX_PACKET;
 			e2e.make_hello(e2e.identity_of(k), *p);
 			if m.bundle serve.bundle_for_test(script_server, m.name, fc_text.encode(e2e.bytes(*p)));
 		});
+		// Frames until they're in, with their bundle (at most 60 s): a key and a signed login take seconds on a
+		// busy machine, and the next steps click them and answer the bundle.
+		start := current_time_monotonic();
+		while !thread_is_done(th) && to_float64_seconds(current_time_monotonic() - start) < 60 {
+			script_frame(t);
+			sleep_milliseconds(5);
+		}
+		if !thread_is_done(th) script_fail(path, "serve_member: % never joined", m.name);
 		return;
 	case "expect_served";
 		if !script_server script_fail(path, "expect_served: no serve_join");

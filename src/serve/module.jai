@@ -279,7 +279,7 @@ webhook_pin :: (s: *Server) -> string {
 
 // invite_url is what a member pastes into fastcord to join: the pin, where to connect and which server.
 invite_url :: (s: *Server, host: string, port: int, code: string, allocator := temp) -> string {
-	return invite_url(s.pin, host, port, hex(s.id,, temp), code,, allocator);
+	return invite_url(s.pin, host, port, hex(s.id,, temp), code, allocator);
 }
 
 invite_url :: (pin: [32]u8, host: string, port: int, id_hex: string, code: string, allocator := temp) -> string {
