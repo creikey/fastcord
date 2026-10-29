@@ -1007,7 +1007,8 @@ user_panel :: () {
 					status := ifx s.settings.status == .Invisible then "Invisible" else status_text(user_status(s.me));
 					// a timed status ends in the client's tick: wake for it
 					if s.settings.status_expires_ms request_wake(app.ui.time + cast(float64) max(0, s.settings.status_expires_ms - wall_ms()) / 1000 + 0.05);
-					if s.settings.custom_status_text != "" { status = s.settings.custom_status_text; }
+					custom := custom_status_line();
+					if custom != "" { status = custom; }
 					label(status, .Normal, 12, T("--text-muted"), 14);
 				}
 			}
@@ -1352,6 +1353,7 @@ overlays :: () {
 		if modr.user != 0 && modr.history_open ban_history_list();
 	}
 	if tsg.channel != 0 { timestamp_gen_modal(); }
+	if cstatus.open { custom_status_modal(); }
 	if fwd.msg != 0 { forward_modal(); }
 	if shortcuts_open { shortcuts_modal(); }
 	if view_reactions.msg != 0 { view_reactions_modal(); }

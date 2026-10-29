@@ -309,6 +309,16 @@ account_actions :: () {
 				sm.open = true;
 				sm.row_y = ss.box.rect.y0;
 			}
+			menu_sep("s2");
+			custom := custom_status_line();
+			cs := menu_item("customstatus", ifx custom then custom else "Set Custom Status", lead = "emoji-people");
+			if cs.hovering sm.open = false;
+			if cs.clicked custom_status_open();
+			if custom {
+				cl := menu_item("clearcustom", "Clear Custom Status", lead = "circle-x");
+				if cl.hovering sm.open = false;
+				if cl.clicked set_my_custom_status("", .Dont_Clear);
+			}
 			spacer(.Y, 4);
 		}
 		spacer(.X, 12);
