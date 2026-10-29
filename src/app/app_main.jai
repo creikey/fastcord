@@ -385,6 +385,15 @@ frame :: () {
 		}
 	}
 	platform.set_tray_voice(app.self_mute || app.self_deaf, app.self_deaf);
+	{
+		smute, sdeaf := server_muted();
+		tc := platform.Tray_Call.None;
+		if !app.voice_channel {}
+		else if app.self_deaf || sdeaf tc = .Deafened;
+		else if app.self_mute || smute tc = .Muted;
+		else tc = ifx voice_is_speaking(call_store().me) then .Speaking else .Connected;
+		platform.set_tray_call(tc);
+	}
 	// one batch per drop (the 10-file cap applies to the batch)
 	taken := drops.count > 0 && server_settings_is_open() && sound_settings_drop(drops); // Add Sound's file
 	if !taken && drops.count > 0 && app.view.channel != 0 && !app.needs_login stage_paths(app.view.channel, drops, "drag_and_drop");

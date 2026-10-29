@@ -141,6 +141,15 @@ set_badge :: (text: string) {
     vt(w.taskbar, 18, #type (*void, win.HWND, win.HICON, *u16) -> win.HRESULT #c_call)(w.taskbar, w.hwnd, dot, ifx text then wide("Unread mentions") else null); // SetOverlayIcon
 }
 
+// In a call the tray icon is a circle: gray, green while you talk, red while muted or deafened.
+tray_call_changed :: () {
+    if s.headless || !w.small_size return;
+    if w.tray_call_icon DestroyIcon(w.tray_call_icon);
+    color: u32 = xx ifx s.tray_call == .Speaking then 0x23a55a else ifx s.tray_call == .Connected then 0x80848e else 0xf23f43;
+    w.tray_call_icon = ifx s.tray_call == .None then null else badge_icon(null, color);
+    if w.tray tray_notify(NIM_MODIFY);
+}
+
 // Opens a file or folder with its default app (Explorer, the file manager).
 open_path :: (path: string) { open_url(path); }
 
@@ -371,7 +380,7 @@ os_shutdown :: () {
     w.taskbar = null;
     if w.hwnd win.DestroyWindow(w.hwnd);
     if w.icon_hook UnhookWindowsHookEx(w.icon_hook);
-    for win.HICON.[w.big_icon, w.small_icon, w.tray_badge_icon] if it DestroyIcon(it);
+    for win.HICON.[w.big_icon, w.small_icon, w.tray_badge_icon, w.tray_call_icon] if it DestroyIcon(it);
     w.icon_hook, w.big_icon, w.small_icon, w.tray_badge_icon = null, null, null, null;
     w.hwnd = null;
 }
@@ -744,6 +753,7 @@ w: struct {
     icon_hook: *void;
     small_icon: win.HICON;
     tray_badge_icon: win.HICON; // small_icon with the unread dot, while there are mentions
+    tray_call_icon: win.HICON; // the call state's circle, while in a call (set_tray_call)
 };
 
 // A zero-terminated UTF-16 copy in temp.
@@ -803,7 +813,7 @@ TRAY_DEAF :: 4;
 
 tray_notify :: (op: u32) -> bool {
     nid := NOTIFYICONDATAW.{cbSize = size_of(NOTIFYICONDATAW), hWnd = w.hwnd, uID = 1, uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP, uCallbackMessage = WM_FC_TRAY};
-    nid.hIcon = ifx w.tray_badge_icon then w.tray_badge_icon else w.small_icon;
+    nid.hIcon = ifx w.tray_call_icon then w.tray_call_icon else ifx w.tray_badge_icon then w.tray_badge_icon else w.small_icon;
     tip := wide("Fastcord");
     for 0..nid.szTip.count-2 {
         nid.szTip[it] = tip[it];
@@ -837,9 +847,9 @@ tray_menu :: () {
     }
 }
 
-// base with a red dot in its bottom-right corner, as the official tray icon shows unread mentions; with no
-// base, the dot alone filling the icon (the taskbar overlay).
-badge_icon :: (base: win.HICON) -> win.HICON {
+// base with a dot (red: unread mentions) in its bottom-right corner, as the official tray icon shows them;
+// with no base, the dot alone filling the icon (the taskbar overlay, the call states).
+badge_icon :: (base: win.HICON, color: u32 = 0xf23f43) -> win.HICON {
     n := w.small_size;
     px := NewArray(n * n, u32,, temp);
     if base {
@@ -866,7 +876,7 @@ badge_icon :: (base: win.HICON) -> win.HICON {
         p := *px[y * n + x];
         a := cast(float) (<<p >> 24) / 255;
         oa := cov + a * (1 - cov);
-        <<p = ((cast(u32) (oa * 255 + 0.5)) << 24) | ch(<<p, 16, 0xf2, a, cov, oa) | ch(<<p, 8, 0x3f, a, cov, oa) | ch(<<p, 0, 0x43, a, cov, oa);
+        <<p = ((cast(u32) (oa * 255 + 0.5)) << 24) | ch(<<p, 16, xx (color >> 16), a, cov, oa) | ch(<<p, 8, xx ((color >> 8) & 0xff), a, cov, oa) | ch(<<p, 0, xx (color & 0xff), a, cov, oa);
     }
     mask := NewArray((n + 15) / 16 * 2 * n, u8,, temp);
     out := win.ICONINFO.{fIcon = .TRUE, hbmColor = CreateBitmap(n, n, 1, 32, px.data), hbmMask = CreateBitmap(n, n, 1, 1, mask.data)};

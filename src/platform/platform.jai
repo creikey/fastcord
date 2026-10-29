@@ -304,6 +304,14 @@ set_ime_rect :: (x: float32, y: float32, w: float32, h: float32) { s.ime_rect = 
 // Checkmarks on the tray menu's Mute and Deafen items (Windows).
 set_tray_voice :: (mute: bool, deaf: bool) { s.tray_mute, s.tray_deaf = mute, deaf; }
 
+// The tray icon's call state, as the official client shows it (Windows; macOS and Linux have no tray).
+Tray_Call :: enum u8 { None; Connected; Speaking; Muted; Deafened; }
+set_tray_call :: (c: Tray_Call) {
+    if c == s.tray_call return;
+    s.tray_call = c;
+    #if OS == .WINDOWS tray_call_changed();
+}
+
 // Called from inside OS modal loops (live resize) with events swapped in; run one frame.
 // Also re-captures the caller's context: frames run from OS callbacks (live resize) push it,
 // so they see what the app added (context.ui) after init.
@@ -395,6 +403,7 @@ rgba_to_dibv5 :: (rgba: []u8, width: int, height: int, out: []u8) {
 #scope_module
 
 State :: struct {
+    tray_call: Tray_Call;
     zoom: float32 = 1; // set_zoom
     headless_login: bool; // open_at_login in headless runs, which never touch the OS
     initialized: bool;
