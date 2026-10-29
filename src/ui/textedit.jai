@@ -129,11 +129,12 @@ editor_event :: (e: *Editor, ev: Input_Event, tl: *Text_Layout, clip_get: () -> 
 		case .Down;
 			if cmd move(e, s.count, shift); else move(e, vertical(e, tl, 1), shift, true);
 			return .Moved;
+		// macOS: the whole text; elsewhere the line, and with Ctrl the whole text (as in Chromium)
 		case .Home;
-			move(e, 0, shift);
+			move(e, ifx OS == .MACOS || alt then 0 else line_start_of(tl, s, e.caret), shift);
 			return .Moved;
 		case .End;
-			move(e, s.count, shift);
+			move(e, ifx OS == .MACOS || alt then s.count else line_end_of(tl, s, e.caret), shift);
 			return .Moved;
 		case .Backspace;
 			// Deleting the whole grapheme is the safe default (macOS removes one code point
