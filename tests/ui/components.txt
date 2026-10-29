@@ -1,0 +1,18 @@
+# A bot's components: buttons in their styles (a purchase button is never shown), a link button, a string
+# select whose options open under it, a Components V2 container with text, a separator and a section's
+# button, and an ephemeral message's Dismiss.
+wait 5
+expect_visible "Verify"
+expect_visible "Website"
+expect_visible "Skip"
+expect_visible "Only you can see this · "
+click_text "Pick your roles"
+wait 2
+expect_visible "The red team"
+shot build/ui-components-open.png
+click_text "Pick your roles"
+click_text "Website"
+expect_opened_url "https://example.com/"
+click_text "Dismiss message"
+wait 2
+expect_not_visible "Your settings were saved."

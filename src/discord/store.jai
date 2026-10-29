@@ -43,6 +43,7 @@ Store :: struct {
 	soundboard: [..]Soundboard_Sound; // every guild's sounds and the default ones (soundboard.jai)
 	soundboard_epoch: u64; // bumped when they change
 	effects: [..]Voice_Effect; // sounds others played, for the app (take_voice_effects)
+	interactions: Table(Snowflake, Interaction_State); // message -> our pending or failed component click
 }
 
 reaction_key :: (message_id: Snowflake, e: Emoji, burst: bool) -> u64 {
@@ -53,6 +54,7 @@ reaction_key :: (message_id: Snowflake, e: Emoji, burst: bool) -> u64 {
 store_init :: (s: *Store, allocator := context.allocator) {
 	s.allocator = allocator;
 	s.reaction_echoes.allocator = allocator;
+	s.interactions.allocator = allocator;
 	s.users.allocator = allocator;
 	s.guilds.allocator = allocator;
 	s.guild_order.allocator = allocator;
@@ -214,6 +216,7 @@ free_message :: (s: *Store, m: *Message) {
 	array_free(m.sticker_ids);
 	array_free(m.mentions);
 	free_poll(s, m.poll);
+	free_components(s, m.components);
 }
 
 free_message_list :: (s: *Store, l: *Message_List) {
@@ -647,6 +650,11 @@ parse_message_content :: (s: *Store, msg: *Message, m: etf.Map) {
 		note_sticker_items(s, items);
 	}
 	if vhas(m, "poll") parse_poll(s, msg, fmap(m, "poll"));
+	if vhas(m, "components") {
+		app := fsnow(m, "application_id");
+		if !app app = fsnow(fmap(m, "author"), "id"); // a bot user's ID is its application's
+		parse_components(s, msg, flist(m, "components"), ifx app then app else ifx msg.components then msg.components.app_id else 0);
+	}
 }
 
 new_message :: (s: *Store) -> Message {
@@ -1338,6 +1346,9 @@ store_apply_dispatch :: (s: *Store, name: string, data: V, now: s64) -> bool {
 					array_ordered_remove_by_index(*l.messages, i);
 				}
 			}
+		case "INTERACTION_SUCCESS"; #through;
+		case "INTERACTION_FAILURE";
+			apply_interaction_result(s, d, name == "INTERACTION_SUCCESS");
 		case "MESSAGE_POLL_VOTE_ADD"; #through;
 		case "MESSAGE_POLL_VOTE_REMOVE";
 			apply_poll_vote(s, d, name == "MESSAGE_POLL_VOTE_ADD");

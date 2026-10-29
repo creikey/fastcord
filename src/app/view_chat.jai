@@ -1573,6 +1573,8 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 				if m.content && !m.forwarded invite_cards_view(m);
 				if m.content && !m.forwarded fc_invite_cards_view(m);
 				if m.poll message_poll_view(m);
+				if m.components && !m.forwarded message_components_view(m); // components.jai
+				if m.flags & dc.MESSAGE_EPHEMERAL ephemeral_note(m);
 				if m.reactions reactions_view(m);
 			}
 			spacer(.X, ifx editing then cast(float32) MSG_EDIT_PAD_R else cast(float32) MSG_PAD_R); // the edit form reaches further right
@@ -2467,6 +2469,14 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 }
 
 #scope_export
+
+// Markdown text drawn as message content of m (a component's text display).
+markdown_text :: (m: *dc.Message, text: string) {
+	plain := m.*;
+	plain.content = text;
+	plain.edited_timestamp = "";
+	message_body(*plain, decrypted = true);
+}
 
 // The composer's "+" menu: Upload a File, Create Thread, Create Poll, each where it's allowed.
 plus_menu: struct { channel: dc.Snowflake; anchor: ui.Rect; };
