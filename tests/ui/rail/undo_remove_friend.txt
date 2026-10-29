@@ -1,0 +1,20 @@
+# Run with -fixture:tests/ui/rail.jsonl. A friend's menu offers Remove Friend, Ignore and Block among
+# the rest; Remove Friend takes them off the list at once behind Undo, and Undo puts them back.
+go_home
+wait 10
+click_text "All"
+wait 10
+click 866 224
+wait 10
+expect_visible "Remove Friend"
+expect_visible "Block"
+expect_visible "Add Note"
+shot build/ui-rail_undo_remove_friend_menu.png
+click_text "Remove Friend"
+wait 5
+expect_visible "Friend removed"
+shot build/ui-rail_undo_remove_friend.png
+click_text "Undo"
+wait 5
+expect_not_visible "Friend removed"
+shot build/ui-rail_undo_remove_friend_undone.png

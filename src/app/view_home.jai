@@ -466,7 +466,7 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				more := round_icon_button("more", "more-vertical", T("--interactive-icon-hover"));
 				if more.clicked { open_user_menu(uid, .{more.box.rect.x0, more.box.rect.y1 + 4}); }
 			} else {
-				if round_icon_button("deny", "x-small", T("--status-danger"), rel_req("Ignore", uid)).clicked && req_begin(rel_req("Ignore", uid)) { dc.remove_relationship(app.client, uid); req_end(); }
+				if round_icon_button("deny", "x-small", T("--status-danger")).clicked rel_change(uid, .Remove);
 			}
 			spacer(.X, 10);
 		}
@@ -549,6 +549,39 @@ round_icon_button :: (id: string, icon_name: string, hover_color: ui.Color, req 
 
 // The request key of a relationship button (one per action and user).
 rel_req :: (action: string, uid: dc.Snowflake) -> string { return tprint("rel:%:%", action, uid); }
+
+// Remove Friend, Unblock, Ignore or cancel a request (.Remove: DELETE /users/@me/relationships/{id}),
+// and Block (PUT with type 2): shown at once, sent after the undo window (undo.jai) instead of the
+// client's Block confirm.
+Rel_Change :: enum u8 { Remove; Block; }
+rel_change :: (uid: dc.Snowflake, op: Rel_Change, location := "Friends") {
+	s := store();
+	rel := table_find_pointer(*s.relationships, uid);
+	old := ifx rel then rel.kind else .None;
+	text := "Friend removed";
+	if op == .Block text = "User blocked";
+	else if old == .Blocked text = "User unblocked";
+	else if old == .Incoming_Request text = "Friend request ignored";
+	else if old == .Outgoing_Request text = "Friend request cancelled";
+	if undo_held(rel_send, uid) return;
+	undo_push(text, rel_send, (u: *Undo) {
+		s := ifx u.client then *u.client.store else store();
+		rel := table_find_pointer(*s.relationships, u.a);
+		if !rel return;
+		if u.c == xx dc.Relationship_Type.None table_remove(*s.relationships, u.a);
+		else rel.kind = xx u.c;
+	}, a = uid, c = xx old, s = location, n = xx op);
+	if rel rel.kind = ifx op == .Block then .Blocked else .None;
+	else if op == .Block table_set(*s.relationships, uid, .{user_id = uid, kind = .Blocked});
+}
+
+#scope_file
+rel_send :: (u: *Undo) {
+	if !u.client return;
+	if u.n == xx Rel_Change.Block dc.block_user(u.client, u.a, u.s);
+	else dc.remove_relationship(u.client, u.a, u.s);
+}
+#scope_export
 
 ADD_FRIEND_REQ :: "add_friend";
 add_friend_sent: string; // the name of the last request sent from the Add Friend page
@@ -993,20 +1026,20 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 			}
 			if rel == {
 			case .Friend;
-				if btn("Remove Friend", false, uid) && req_begin(rel_req("Remove Friend", uid)) { dc.remove_relationship(app.client, uid, "DM Header"); req_end(); }
-				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
+				if btn("Remove Friend", false) rel_change(uid, .Remove, "DM Header");
+				if btn("Block", false) rel_change(uid, .Block, "DM Header");
 			case .Blocked;
-				if btn("Unblock", false, uid) && req_begin(rel_req("Unblock", uid)) { dc.remove_relationship(app.client, uid, "DM Header"); req_end(); }
+				if btn("Unblock", false) rel_change(uid, .Remove, "DM Header");
 			case .Outgoing_Request;
 				btn("Friend Request Sent", false);
-				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
+				if btn("Block", false) rel_change(uid, .Block, "DM Header");
 			case .Incoming_Request;
 				if btn("Accept", true, uid) && req_begin(rel_req("Accept", uid)) { dc.accept_friend_request(app.client, uid); req_end(); }
-				if btn("Ignore", false, uid) && req_begin(rel_req("Ignore", uid)) { dc.ignore_friend_request(app.client, uid); req_end(); }
-				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
+				if btn("Ignore", false) rel_change(uid, .Remove);
+				if btn("Block", false) rel_change(uid, .Block, "DM Header");
 			case .None; #through; case .Implicit;
 				if btn("Add Friend", true, uid) && req_begin(rel_req("Add Friend", uid)) { dc.add_relationship(app.client, uid, "DM Header"); req_end(); }
-				if btn("Block", false) { block_confirm = .{uid, "DM Header"}; }
+				if btn("Block", false) rel_change(uid, .Block, "DM Header");
 			}
 		}
 	}
@@ -1042,117 +1075,6 @@ group_dm_icon :: (id: string, ch: *dc.Channel, size: float32) -> *ui.Box {
 		set_icon(inner, "group", .{1, 1, 1, 1});
 	}
 	return g;
-}
-
-// "Block <name>?" confirmation (the client's confirm modal, same frame as Delete Message).
-Block_Confirm :: struct {
-	user: dc.Snowflake;
-	location: string; // X-Context-Properties location of the button that asked
-}
-block_confirm: Block_Confirm;
-
-block_confirm_modal :: () {
-	uid := block_confirm.user;
-	u := dc.user_get(store(), uid);
-	if u == null {
-		block_confirm = .{};
-		return;
-	}
-	name := dc.user_name(store(), uid);
-	scrim := ui.box("block_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
-	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
-	scrim.style.bg = .{0, 0, 0, 0.7};
-	if ui.signal(scrim).clicked {
-		block_confirm = .{};
-		return;
-	}
-	W :: 480;
-	PAD :: 24;
-	confirm := false;
-	d := ui.box("blockmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
-	d.semantic_size = .[ui.px(W), ui.children()];
-	d.fixed_pos = .{(app.ui.window.x - W) / 2, (app.ui.window.y - (d.rect.y1 - d.rect.y0)) / 2};
-	d.style.bg = T("--modal-background");
-	d.style.border_color = T("--border-subtle");
-	d.style.border = 1;
-	d.style.radius = all4(12);
-	d.layout_axis = .Y;
-	ui.signal(d);
-	{ ui.parent(d); defer ui.pop_parent();
-		x := ui.box("close", .Clickable | .Floating_X | .Floating_Y);
-		x.semantic_size = .[ui.px(24), ui.px(24)];
-		x.fixed_pos = .{W - 17 - 24, 17};
-		xs := ui.signal(x);
-		set_icon(x, "x-large", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-		if xs.clicked { block_confirm = .{}; }
-		spacer(.Y, PAD + 1);
-		t := row("t");
-		t.semantic_size = .[ui.pct(1), ui.px(24)];
-		{ ui.parent(t); defer ui.pop_parent();
-			spacer(.X, PAD + 1);
-			label(tprint("Block %?", name), .Semibold, 20, T("--text-strong"), 24);
-		}
-		spacer(.Y, 8);
-		br := row("body");
-		br.semantic_size = .[ui.pct(1), ui.children()];
-		{ ui.parent(br); defer ui.pop_parent();
-			spacer(.X, PAD + 1);
-			b := ui.box("text", .Wrap_Text);
-			b.semantic_size = .[ui.fill(), ui.text_size()];
-			b.style.line_height = 20;
-			b.style.text_color = T("--text-subtle");
-			spans := NewArray(3, ui.Span,, temp);
-			spans[0] = .{text = "Are you sure you want to block ", font = F(.Normal), size = 16};
-			spans[1] = .{text = name, font = F(.Bold), size = 16};
-			spans[2] = .{text = "? Blocking this user will also remove them from your friends list.", font = F(.Normal), size = 16};
-			ui.set_spans(b, spans);
-			spacer(.X, PAD + 1);
-		}
-		spacer(.Y, 24);
-		btns := row("btns");
-		btns.semantic_size = .[ui.pct(1), ui.px(40)];
-		btns.style.child_gap = 8;
-		{ ui.parent(btns); defer ui.pop_parent();
-			spacer(.X, PAD + 1 - 8);
-			cancel := ui.box("Cancel##c", .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
-			cancel.semantic_size = .[ui.fill(), ui.px(40)];
-			cancel.style.radius = all4(8);
-			cancel.style.font = F(.Medium);
-			cancel.style.font_size = 16;
-			cancel.style.text_align = .Center;
-			cancel.style.text_color = T("--text-strong");
-			cancel.style.bg = T("--background-mod-normal");
-			cancel.style.bg_hot = T("--background-mod-strong");
-			if ui.signal(cancel).clicked { block_confirm = .{}; }
-			ok := ui.box("Block##b", .Clickable | .Click_On_Release | .Draw_Background | .Draw_Text | .Hot_Animation);
-			ok.semantic_size = .[ui.fill(), ui.px(40)];
-			ok.style.radius = all4(8);
-			ok.style.font = F(.Medium);
-			ok.style.font_size = 16;
-			ok.style.text_align = .Center;
-			ok.style.text_color = .{1, 1, 1, 1};
-			ok.style.bg = T("--status-danger");
-			ok.style.bg_hot = T("--control-critical-primary-background-hover");
-			if req_button(ok, rel_req("Block", uid)) { confirm = true; }
-			spacer(.X, PAD + 1 - 8);
-		}
-		spacer(.Y, PAD + 1);
-	}
-	for * e: app.ui.events {
-		if e.kind == .Key_Down && e.key == .Escape { block_confirm = .{}; e.consumed = true; }
-		if e.kind == .Key_Down && e.key == .Enter { confirm = true; }
-	}
-	// the modal stays up (Block shows the ellipsis) until the request ends
-	key := rel_req("Block", uid);
-	st := req_state(key);
-	if confirm && st != .Pending {
-		if req_begin(key) { dc.block_user(app.client, uid, block_confirm.location); req_end(); }
-		st = req_state(key);
-	}
-	if st == .Done || st == .Failed {
-		req_clear(key);
-		block_confirm = .{};
-	}
 }
 
 // Top of a guild text channel's history: a 68px circle with the channel icon,

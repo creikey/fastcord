@@ -11,6 +11,17 @@ block_user :: (c: *Client, user_id: Snowflake, location := "ContextMenu") {
 	job_submit(c, j);
 }
 
+// ignore_user: Ignore / Unignore, PUT / DELETE /users/@me/relationships/{id}/ignore with no body; the
+// relationship's user_ignored follows from RELATIONSHIP_UPDATE.
+ignore_user :: (c: *Client, user_id: Snowflake, ignore: bool, location := "ContextMenu") {
+	j := job_new(.Api, .Relationship);
+	j.method = ifx ignore then "PUT" else "DELETE";
+	j.path = job_str(j, tprint("/users/@me/relationships/%/ignore", user_id));
+	j.context_b64 = job_str(j, context_location(location));
+	j.result.user_id = user_id;
+	job_submit(c, j);
+}
+
 // close_private_channel: closing a DM (or leaving a group DM) from the DM list:
 // DELETE /channels/{id}?silent=false. The gateway's CHANNEL_DELETE removes it.
 close_private_channel :: (c: *Client, channel_id: Snowflake) {

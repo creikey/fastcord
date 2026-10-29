@@ -59,6 +59,7 @@ Pf_State :: struct {
 	menu_dm: dc.Snowflake; // opened from this 1:1 DM's row: Mark As Read and Close DM too
 	note: ui.Editor; // the Note field while focused
 	note_focused: bool;
+	note_focus_next: bool; // the user menu's Add Note: the next note field drawn takes the focus
 }
 
 pf: Pf_State;
@@ -364,10 +365,11 @@ note_field :: (uid: dc.Snowflake) {
 	box.hover_cursor = .IBeam;
 	focused := app.ui.focus == box.key;
 	if focused box.style.bg = T("--background-mod-normal");
-	if ui.signal(box).pressed && !focused {
+	if (ui.signal(box).pressed || pf.note_focus_next) && !focused {
 		app.ui.focus = box.key;
 		focused = true;
 	}
+	pf.note_focus_next = false;
 	if focused && !pf.note_focused ui.editor_set_text(*pf.note, note);
 	res: ui.Edit_Result;
 	{ ui.parent(box); defer ui.pop_parent();
@@ -597,13 +599,25 @@ user_context_menu :: () {
 	dm := dc.channel_get(s, pf.menu_dm);
 	if dm && dc.channel_unread(s, dm.id) { array_add(*items, "Mark As Read"); }
 	array_add(*items, "Profile");
-	if uid != s.me && !on_hosted() && !dm { array_add(*items, "Message"); }
+	ch := dc.channel_get(s, app.view.channel);
+	if ch && !dm && !composer_blocked(ch) { array_add(*items, "Mention"); }
+	rel := table_find_pointer(*s.relationships, uid);
+	kind := ifx rel then rel.kind else .None;
+	if uid != s.me && !on_hosted() {
+		if !dm { array_add(*items, "Message"); }
+		if kind != .Blocked { array_add(*items, "Call"); }
+		array_add(*items, "Add Note");
+	}
 	fn := friend_nick_menu_item(uid);
 	if fn != "" { array_add(*items, fn); }
 	if dm { array_add(*items, "Close DM"); }
 	if uid != s.me && !on_hosted() {
-		rel := table_find_pointer(*s.relationships, uid);
-		if !rel || rel.kind == .None || rel.kind == .Implicit { array_add(*items, "Add Friend"); }
+		if kind == .None || kind == .Implicit { array_add(*items, "Add Friend"); }
+		if kind == .Friend { array_add(*items, "Remove Friend"); }
+		if kind == .Incoming_Request { array_add(*items, "Accept Friend Request", "Ignore Friend Request"); }
+		if kind == .Outgoing_Request { array_add(*items, "Cancel Friend Request"); }
+		if kind != .Blocked { array_add(*items, ifx rel && rel.ignored then "Unignore" else "Ignore"); }
+		array_add(*items, ifx kind == .Blocked then "Unblock" else "Block");
 	}
 	sn := server_nick_menu_item(uid);
 	if sn != "" { array_add(*items, sn); }
@@ -661,8 +675,27 @@ user_context_menu :: () {
 					if app.view.channel == dm.id select_channel(0, 0);
 				case "Profile";
 					profile_full_open(uid, app.view.guild);
+				case "Mention";
+					u := dc.user_get(s, uid);
+					if u { ed := *chat_state(ch.id).editor; ui.editor_insert(ed, tprint("@% ", u.username)); }
 				case "Message";
 					open_dm_with(uid, "Context Menu");
+				case "Call";
+					// the DM's call, once the DM is open (a new one opens first: handle_results_of)
+					app.pending_dm_call = true;
+					if open_dm_with(uid, "Context Menu") { app.pending_dm_call = false; c := dc.channel_get(s, app.view.channel); if c dm_call_toggle(c); }
+				case "Add Note";
+					profile_full_open(uid, app.view.guild);
+					pf.note_focus_next = true;
+				case "Remove Friend"; #through; case "Ignore Friend Request"; #through; case "Cancel Friend Request"; #through; case "Unblock";
+					rel_change(uid, .Remove, "ContextMenu");
+				case "Block";
+					rel_change(uid, .Block, "ContextMenu");
+				case "Accept Friend Request";
+					if req_begin(rel_req("Accept", uid)) { dc.accept_friend_request(app.client, uid); req_end(); }
+				case "Ignore"; #through; case "Unignore";
+					if net_action() dc.ignore_user(app.client, uid, it == "Ignore", "ContextMenu");
+					if rel rel.ignored = it == "Ignore";
 				case "Add Friend Nickname"; #through; case "Edit Friend Nickname";
 					friend_nick_open(uid);
 				case "Add Friend";

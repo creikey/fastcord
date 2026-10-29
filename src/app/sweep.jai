@@ -182,7 +182,6 @@ app_reset_state :: () {
 	events_reset_for_test();
 	guild_admin_reset_for_test();
 	server_settings_reset_for_test();
-	block_confirm = .{};
 	edit_menu_state = .{};
 	chat_toolbar, chat_toolbar_prev = .{}, .{};
 	req_reset_for_test();
@@ -282,7 +281,7 @@ sweep_measure :: () -> u64 {
 		app.settings_open, app.profile_user, settings_page, app.self_mute, app.self_deaf, app.ui.focus, ed,
 		sw.open, ma.menu_msg, ma.confirming, ma.editing, ma.replying, ma.reply_mention, staged_count(app.view.channel), att.mod_key, att.notice, att.drag,
 		pk.open, pk.tab, pins_state_for_test(), gdm_state_for_test(), pf_state_for_test(), rail_state_for_test(),
-		search_state_for_test(), guild_menu_state_for_test(), viewer_url, block_confirm.user, vs.open_dropdown, vs.menu_user,
+		search_state_for_test(), guild_menu_state_for_test(), viewer_url, vs.open_dropdown, vs.menu_user,
 		app.theme.name, platform.clipboard_get(), app.ext_actions,
 		events_state_for_test(), guild_admin_state_for_test(),
 	);

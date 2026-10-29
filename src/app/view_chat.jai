@@ -919,7 +919,7 @@ channel_escape :: (ch: *dc.Channel) {
 }
 
 modal_open :: () -> bool {
-	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || block_confirm.user != 0 || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0 || npoll.channel != 0;
+	return sw.open || attachments_modal_open() || ma.confirming != 0 || app.settings_open || viewer_url != "" || invite_modal_open() || invite_accept_open() || add_server_is_open() || events_modal_open() || guild_admin_modal_open() || server_settings_is_open() || fnick.user != 0 || modr.user != 0 || tsg.channel != 0 || cstatus.open || folder_modal_open() || shortcuts_open || view_reactions.msg != 0 || npoll.channel != 0;
 }
 
 // The hover toolbar drawn this pass, and the one from the pass before (rows test the

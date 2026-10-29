@@ -34,6 +34,7 @@ App :: struct {
 	profile_anchor: UI_Rect;
 	profile_open_t: float32;
 	pending_dm_user: dc.Snowflake;
+	pending_dm_call: bool; // the user menu's Call: start the call once that DM opens
 	caret_reset_t: float64;
 	reaction_target: dc.Snowflake; // message whose reaction picker is open
 	ui_mods: UI_Mods; // modifier keys as of the latest event
@@ -1156,6 +1157,9 @@ handle_results_of :: (c: *dc.Client) {
 				select_channel(0, r.id);
 				profile_full_close_for(app.pending_dm_user); // it waited with its Message button pending
 				app.pending_dm_user = 0;
+				ch := dc.channel_get(store(), r.id);
+				if app.pending_dm_call && ch dm_call_toggle(ch);
+				app.pending_dm_call = false;
 			}
 		case .Invite;
 			invite_receive(r);

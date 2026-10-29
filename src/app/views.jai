@@ -1551,7 +1551,6 @@ overlays :: () {
 	server_settings_layer(); // view_server_settings.jai: under the modals that open over it
 	if sw.open { quick_switcher(); }
 	if edit_menu_state.open { edit_menu(); }
-	if block_confirm.user != 0 { block_confirm_modal(); }
 	if fnick.user != 0 { friend_nick_modal(); }
 	if modr.user != 0 {
 		moderation_modal();

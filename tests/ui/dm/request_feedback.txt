@@ -27,11 +27,13 @@ key enter
 wait 5
 expect_not_visible "Hm, didn’t work. Double check that the username is correct."
 shot build/ui-dm_request_feedback-sent.png
-# a failed button elsewhere: the toast
+# Remove Friend shows at once behind Undo (nothing sent yet); Undo brings the button back
 open 1800000000000000001
 wait 10
-net fail
 click_text "Remove Friend"
 wait 5
-expect_visible "Something went wrong. Try again."
+expect_visible "Friend removed"
+expect_visible "Add Friend"
+click_text "Undo"
+wait 5
 expect_visible "Remove Friend"
