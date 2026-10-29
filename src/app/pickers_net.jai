@@ -1,17 +1,23 @@
 // Expression picker network results (discord/expressions.jai) -> picker state.
 
+// The client for the pickers' Discord requests (GIFs, frecency): Discord's even while a hosted server is
+// selected, since a hosted server has neither; null with no Discord login.
+expr_client :: () -> *dc.Client { return ifx on_hosted() then app.discord else app.client; }
+
 pickers_first_open :: () {
 	emoji_db_load();
 	frecency_load_local();
-	if app.client == null return;
+	c := expr_client();
+	if c == null return;
 	// FrecencyUserSettings are loaded lazily (loadIfNecessary) when a picker needs them.
-	if !frecency.loaded_server dc.frecency_settings_fetch(app.client);
+	if !frecency.loaded_server dc.frecency_settings_fetch(c);
 }
 
 // Per open: the guild's top emojis once per session, like the client's picker. The session's first
 // open also loads the subscriptions and our own profile (dc.open_emoji_picker, fixture add_reaction).
+// A hosted server has no top emojis.
 pickers_on_open_guild :: (gid: dc.Snowflake) {
-	if app.client == null return;
+	if app.client == null || on_hosted() return;
 	if !app.client.emoji_picker_opened {
 		if gid table_add(*top_emojis_fetched, gid, true);
 		dc.open_emoji_picker(app.client, gid);
@@ -23,10 +29,12 @@ pickers_on_open_guild :: (gid: dc.Snowflake) {
 }
 
 pickers_poll :: () {
-	if app.client == null return;
-	for * r: dc.expr_take(app.client) {
-		defer dc.expr_result_free(app.client, r);
-		pickers_result(r);
+	for c: (*dc.Client).[app.client, app.discord] {
+		if c == null || (it_index == 1 && c == app.client) continue;
+		for * r: dc.expr_take(c) {
+			defer dc.expr_result_free(c, r);
+			pickers_result(r);
+		}
 	}
 }
 

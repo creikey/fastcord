@@ -485,6 +485,7 @@ picker_header :: (r: ui.Rect) {
 			{ ui.parent(tabs); defer ui.pop_parent();
 				spacer(.X, PK_HEADER_PAD_X);
 				for tab: enum_values_as_enum(Picker_Tab) {
+					if tab == .Gif && !expr_client() && app.client continue; // GIFs come through Discord.
 					sel := pk.tab == tab;
 					b := ui.box(PICKER_TAB_LABELS[tab], .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 					b.semantic_size = .[ui.text_size(PK_TAB_PAD_X), ui.px(PK_TAB_H)];

@@ -427,7 +427,7 @@ section_enter :: (g: *dc.Guild) {
 	case .Profile;
 		load(g, .Profile, tprint("/guilds/%/profile", g.id));
 	case .Engagement;
-		load(g, .Widget, tprint("/guilds/%/widget", g.id));
+		if !on_hosted() load(g, .Widget, tprint("/guilds/%/widget", g.id)); // a hosted server has no widget
 	case .Members;
 		members_search(g);
 	case .Invites;

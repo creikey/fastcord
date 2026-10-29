@@ -105,7 +105,8 @@ sound_play_url :: (url: string, volume: float32, conn: *voice.Conn = null) {
 		s := New(Sound);
 		s.ready_volume, s.ready_conn = volume, conn;
 		table_set(*snd.sounds, copy_string(url), s);
-		dc.fetch_media(media_client(url), dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
+		c := media_client(url);
+		if c dc.fetch_media(c, dc.Media_Request.{url = url, kind = .Audio, tag = SOUND_TAG});
 		return;
 	}
 	s := found.*;

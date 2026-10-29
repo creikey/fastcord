@@ -50,6 +50,11 @@ Server :: struct {
 	unfurl_stop: bool;
 	unfurl_thread: *Thread;
 	unfurl_any_address: bool; // Tests only: let link previews fetch from this machine.
+	// Tests only: with record_misses set, the requests answered with a bare 404 (no route for them), under
+	// misses_mu, a leaf lock.
+	record_misses: bool;
+	misses_mu: locks.Mutex;
+	misses: [..]string;
 	last_id: s64; // Atomic: the last snowflake issued, so IDs keep rising when the clock steps back.
 	next_sweep: s64; // Atomic: when archive_idle next looks for idle threads, in now_ms time.
 	clock_offset_ms: s64; // Tests only: added to the clock snowflakes read.
@@ -103,6 +108,7 @@ Conn :: struct {
 	reply_body: string;
 	reply_json: bool;
 	reply_type: string; // The Content-Type of a file reply, in temp.
+	request: string;    // The request's method and path, in temp, for record_misses.
 }
 
 OUT_MAX :: 8 << 20;
@@ -564,6 +570,10 @@ unhex :: (s: string, out: []u8) -> bool {
 }
 
 json_error :: (c: *Conn, status: int, code: int, message: string) -> bool {
+	if status == 404 && code == 0 && c.server.record_misses {
+		locks.guard(*c.server.misses_mu);
+		array_add(*c.server.misses, copy_string(c.request));
+	}
 	return respond(c, status, tprint("{\"message\": \"%\", \"code\": %}", message, code));
 }
 
@@ -760,6 +770,7 @@ serve_conn :: (c: *Conn) {
 			else if err == .Protocol http.h1_write_response(c.s, 400, .[], .[]);
 			return;
 		}
+		c.request = tprint("% %", req.method, req.path);
 		if plain && !begins_with(req.path, "/api/webhooks/") && !begins_with(req.path, "/api/v9/webhooks/") && !begins_with(req.path, "/api/v10/webhooks/") {
 			http.h1_write_response(c.s, 404, .[], .[]);
 			return;

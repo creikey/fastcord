@@ -60,7 +60,7 @@ gv: Gif_View;
 gif_picker_on_show :: () {
 	if gv.requested return;
 	gv.requested = true;
-	if app.client dc.gifs_trending(app.client);
+	if expr_client() dc.gifs_trending(expr_client());
 	else pickers_offline(.Gif_Trending, "trending");
 }
 
@@ -230,8 +230,8 @@ reset_results :: (kind: Gif_Result_Kind) {
 fire_search :: () {
 	q := gif_query();
 	gv.debounce_at = 0;
-	if q == "" || app.client == null return;
-	dc.gifs_search(app.client, q);
+	if q == "" || expr_client() == null return;
+	dc.gifs_search(expr_client(), q);
 }
 
 Tile :: struct {
@@ -312,10 +312,10 @@ gif_open_tile :: (t: Tile) {
 		// handleSelectItem: search the category name immediately, query shown in the bar
 		ui.editor_set_text(*pk.search[Picker_Tab.Gif], t.name);
 		reset_results(.Category);
-		if app.client != null dc.gifs_search(app.client, t.name);
+		if expr_client() != null dc.gifs_search(expr_client(), t.name);
 	case .Trending;
 		reset_results(.Trending);
-		if app.client != null dc.gifs_trending_gifs(app.client);
+		if expr_client() != null dc.gifs_trending_gifs(expr_client());
 		else pickers_offline(.Gif_Trending_Gifs, "trending-gifs");
 	case .Favorites;
 		reset_results(.Favorites);
@@ -350,9 +350,9 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	top := gv.scroll.y;
 	vh := view.y1 - view.y0;
 	// suggestions when near the end (handleScroll)
-	if footer && app.client != null && items.count > 0 && content_h - top <= GIF_SUGGEST_WITHIN && gv.suggested_for != gv.result_query {
+	if footer && expr_client() != null && items.count > 0 && content_h - top <= GIF_SUGGEST_WITHIN && gv.suggested_for != gv.result_query {
 		gv.suggested_for = gv.result_query;
-		dc.gifs_suggest(app.client, gv.result_query);
+		dc.gifs_suggest(expr_client(), gv.result_query);
 	}
 	{ ui.parent(list); defer ui.pop_parent();
 		if gv.loading && items.count == 0 {
@@ -416,7 +416,7 @@ gif_results :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 						if ui.signal(chip).clicked {
 							ui.editor_set_text(*pk.search[Picker_Tab.Gif], s);
 							reset_results(.Search);
-							if app.client != null dc.gifs_search(app.client, s);
+							if expr_client() != null dc.gifs_search(expr_client(), s);
 						}
 					}
 				}
@@ -442,7 +442,7 @@ gif_select :: (it: Gif_Item, insert: bool) {
 		dc.send_message(app.client, pk.channel, it.url);
 		chat_state(pk.channel).scroll_target = 0;
 	}
-	if app.client != null dc.gif_select(app.client, it.id, gv.result_query);
+	if expr_client() != null dc.gif_select(expr_client(), it.id, gv.result_query);
 	picker_close();
 }
 

@@ -271,6 +271,7 @@ PER_GUILD_REQUESTS :: string.[
 
 // schedule_guild_open: per-guild requests on first open in a session.
 schedule_guild_open :: (c: *Client, guild_id: Snowflake, with_promotions := false) {
+	if c.cfg.hosted.host return; // Discord's background loads; a self-hosted server has none of them.
 	now := now_ms();
 	g := guild_get(*c.store, guild_id);
 	owner := g && g.owner_id == c.store.me && c.store.me != 0;

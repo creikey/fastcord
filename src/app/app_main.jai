@@ -761,6 +761,23 @@ script_command :: (path: string, f: []string, t: *float64) {
 		hosted_restore(.[f[1]], *names);
 		deinit(*names);
 		return;
+	case "serve_join";
+		// serve_join: a self-hosted server in this process, on a fresh file under build/, joined as its owner;
+		// expect_served then fails on every request it had no route for.
+		file := tprint("build/%.serve.db", path_strip_extension(path_filename(path)));
+		for string.["", "-wal", "-shm"] file_delete(tprint("%1%2", file, it));
+		s, ok := serve.open(file);
+		if !ok script_fail(path, "serve_join: can't open %", file);
+		s.record_misses = true;
+		if !serve.listen(s, 0) script_fail(path, "serve_join: can't listen");
+		script_server = s;
+		hosted_join(serve.invite_url(s, "127.0.0.1", s.listener.port, serve.owner_invite(s)));
+		return;
+	case "expect_served";
+		if !script_server script_fail(path, "expect_served: no serve_join");
+		locks.guard(*script_server.misses_mu);
+		if script_server.misses.count script_fail(path, "expect_served: % request(s) had no route: %", script_server.misses.count, script_server.misses);
+		return;
 	case "type";
 		platform.inject_event(.{kind = .Text, text = join_args(f)});
 	case "burst";
@@ -996,6 +1013,7 @@ script_fail :: (path: string, what: string, args: ..Any) {
 }
 
 script_t: float64; // headless clock for scripts run outside run_script (the sweep)
+script_server: *serve.Server; // serve_join's
 
 // Runs script lines, by default on the shared clock (the sweep replays per-screen setup this way).
 script_exec :: (lines: []string, path: string, t := *script_t) {

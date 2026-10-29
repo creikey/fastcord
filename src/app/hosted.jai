@@ -250,14 +250,15 @@ sticker_file_url :: (id: dc.Snowflake, format_type: int, size := 160) -> string 
 on_hosted :: () -> bool { return app.client && app.client.cfg.hosted.host != ""; }
 
 // The client to load url through. A hosted client sends every request to its own server, so only URLs on
-// that server (host = its ID, as serve writes them) go through it; Discord's CDN and assets go through Discord's.
+// that server (host = its ID, as serve writes them) go through it; Discord's CDN and assets go through Discord's,
+// and while a hosted server is selected with no Discord login, nowhere (null): they load offline or not at all.
 media_client :: (url: string) -> *dc.Client {
 	host := url;
 	if begins_with(host, "https://") host = advance(host, "https://".count);
 	slash := find_index_from_left(host, #char "/");
 	if slash >= 0 host.count = slash;
 	for hosted if it.client && it.inv.id_hex == host return it.client;
-	if app.client && app.client.cfg.hosted.host && app.discord return app.discord;
+	if app.client && app.client.cfg.hosted.host return app.discord;
 	return app.client;
 }
 

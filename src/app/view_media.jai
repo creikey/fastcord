@@ -39,7 +39,8 @@ blob_get :: (url: string) -> *Blob {
 	b = find_or_add(*blobs, key);
 	b.state = .Loading;
 	// offline: a decode worker reads FASTCORD_MEDIA_DIR
-	if app.client dc.fetch_media(media_client(key), .{url = key, kind = .Fetch, visible = true});
+	c := ifx app.client then media_client(key);
+	if c dc.fetch_media(c, .{url = key, kind = .Fetch, visible = true});
 	else decode_submit(.{kind = .Fetch, url = copy_string(key)});
 	return b;
 }
@@ -973,7 +974,8 @@ media_action :: (tag: u64, u: string) {
 		save_path_take(url);
 		table_set(*save_paths, copy_string(url), dest);
 	}
-	if app.client dc.fetch_media(media_client(url), .{url = url, kind = .Image, visible = true, tag = tag});
+	c := ifx app.client then media_client(url);
+	if c dc.fetch_media(c, .{url = url, kind = .Image, visible = true, tag = tag});
 	else decode_submit(.{kind = ifx tag == MEDIA_TAG_COPY then Decode_Kind.Copy_Image else .Save_Image, url = copy_string(url), path = save_path_take(url)});
 }
 
