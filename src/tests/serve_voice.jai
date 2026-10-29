@@ -210,10 +210,8 @@ main :: () {
 	for 1..1000 { if atomic_load(*a.heard) > before + 25 && voice.e2ee_status(b.conn,, temp).members == 2 break; pump(); }
 	check(atomic_load(*a.heard) > before + 25, "the member is heard again after rejoining");
 	check(voice.e2ee_status(a.conn,, temp).members == 2 && voice.e2ee_status(b.conn,, temp).active, "and is back in the group");
-	voice.voice_disconnect(b.conn);
-	discord.voice_leave(b.cl);
 
-	// Events in the voice channel: started by hand, they end once everyone has left.
+	// The owner moderates: Server Mute stops the member's audio at serve, and shows in their voice state.
 	rest :: (method: string, path: string, body := "") -> int, etf.Value #expand {
 		`req.method, `req.path, `req.body = method, path, cast([]u8) body;
 		`req.headers = .[.{"authorization", `owner_token}, .{"Content-Type", "application/json"}, .{"Content-Length", tprint("%", body.count)}];
@@ -221,6 +219,35 @@ main :: () {
 		v, _ := etf.from_json(cast(string) r.body,, temp);
 		return r.status, v;
 	}
+	member := tprint("/api/v9/guilds/%/members/%", s.guild, b.cl.store.me);
+	server_muted :: () -> bool #expand { vs := table_find_pointer(*`a.cl.store.voice_states, `b.cl.store.me); return vs && vs.mute; }
+	status := rest("PATCH", member, "{\"mute\": true}");
+	for 1..300 { if server_muted() break; pump(); }
+	check(status == 204 && server_muted(), tprint("server mute: %", status));
+	for 1..50 pump(); // what was in flight
+	before = atomic_load(*a.heard);
+	for 1..100 pump();
+	check(atomic_load(*a.heard) == before, tprint("a server-muted member isn't heard: %", a.heard - before));
+	status = rest("PATCH", member, "{\"mute\": false}");
+	for 1..1000 { if atomic_load(*a.heard) > before + 25 break; pump(); }
+	check(status == 204 && !server_muted() && atomic_load(*a.heard) > before + 25, "and heard again once unmuted");
+	// Move To another voice channel: the member's voice state follows with a new VOICE_SERVER_UPDATE. Disconnect ends it.
+	body = "{\"name\": \"Two\", \"type\": 2}";
+	status, made = rest("POST", tprint("/api/v9/guilds/%/channels", s.guild), body);
+	id_v, _ = etf.map_get(made.map, "id");
+	two := cast(discord.Snowflake) string_to_int(id_v.s, T = u64);
+	_, version := discord.voice_server_info(b.cl);
+	status = rest("PATCH", member, tprint("{\"channel_id\": \"%\"}", two));
+	moved :: () -> bool #expand { vs := table_find_pointer(*`b.cl.store.voice_states, `b.cl.store.me); return vs && vs.channel_id == `two; }
+	for 1..300 { _, v := discord.voice_server_info(b.cl); if moved() && v != version break; pump(); }
+	_, now_version := discord.voice_server_info(b.cl);
+	check(status == 204 && moved() && now_version != version, tprint("move to another channel: %", status));
+	status = rest("PATCH", member, "{\"channel_id\": null}");
+	for 1..300 { if !table_find_pointer(*a.cl.store.voice_states, b.cl.store.me) break; pump(); }
+	check(status == 204 && !table_find_pointer(*a.cl.store.voice_states, b.cl.store.me), tprint("disconnect: %", status));
+	voice.voice_disconnect(b.conn);
+
+	// Events in the voice channel: started by hand, they end once everyone has left.
 	event_status :: (id: string) -> int #expand {
 		status, v := rest("GET", tprint("/api/v9/guilds/%/scheduled-events/%", `s.guild, id));
 		if status != 200 return -status;
@@ -229,7 +256,8 @@ main :: () {
 	}
 	events := tprint("/api/v9/guilds/%/scheduled-events", s.guild);
 	new_event := tprint("{\"name\": \"Hang\", \"privacy_level\": 2, \"scheduled_start_time\": \"2030-01-01T00:00:00.000Z\", \"entity_type\": 2, \"channel_id\": \"%\"}", channel);
-	status, made_event := rest("POST", events, new_event);
+	made_event: etf.Value;
+	status, made_event = rest("POST", events, new_event);
 	id_e, _ := etf.map_get(made_event.map, "id");
 	kind_e, _ := etf.map_get(made_event.map, "entity_type");
 	check(status == 200 && kind_e.i == 2, tprint("create an event in the voice channel: %", status));

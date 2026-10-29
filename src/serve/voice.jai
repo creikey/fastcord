@@ -35,6 +35,7 @@ Voice_State :: struct {
 	gateway: *Conn;  // The member's gateway that joined: its session ID goes out, and its close leaves.
 	token: [16]u8;   // VOICE_SERVER_UPDATE's, which the voice gateway's Identify must show.
 	self_mute, self_deaf, self_video: bool;
+	mute, deaf: bool;     // A moderator's (voice_moderate), until the member leaves voice.
 	stream: s64;          // Go Live: the stream's room, 0 when not streaming. A stream ends with its voice state.
 	stream_token: [16]u8; // STREAM_SERVER_UPDATE's, for the streamer and every viewer.
 }
@@ -52,6 +53,7 @@ Voice_Session :: struct {
 	port: int;
 	proven: bool;
 	speaking: int;  // The last op 5 and op 12, replayed to who connects later.
+	muted, deafened: bool; // The voice state's server mute and deafen: its audio isn't forwarded, or none reaches it.
 	video: bool;
 	window: s64;    // The current second of sending, and what it held.
 	window_packets, window_bytes: int;
@@ -80,8 +82,8 @@ voice_state_value :: (s: *Server, vs: *Voice_State, user: s64 = 0) -> etf.Value 
 	etf.map_put(*m, "self_deaf", etf.vbool(vs && vs.self_deaf));
 	etf.map_put(*m, "self_video", etf.vbool(vs && vs.self_video));
 	etf.map_put(*m, "self_stream", etf.vbool(vs && vs.stream != 0));
-	etf.map_put(*m, "mute", etf.vbool(false));
-	etf.map_put(*m, "deaf", etf.vbool(false));
+	etf.map_put(*m, "mute", etf.vbool(vs && vs.mute));
+	etf.map_put(*m, "deaf", etf.vbool(vs && vs.deaf));
 	return etf.vmap(etf.map_done(*m));
 }
 
@@ -139,6 +141,80 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 	broadcast(s, "VOICE_STATE_UPDATE", state);
 	if server.kind == .Map dispatch(c, "VOICE_SERVER_UPDATE", server);
 	if left_channel end_voice_events(s, left_channel);
+}
+
+// PATCH /api/v9/guilds/{id}/members/{user} {mute?, deaf?, channel_id?}: a moderator's Server Mute and Server
+// Deafen (Mute / Deafen Members in the member's channel), and Disconnect (channel_id null) or Move To (Move
+// Members there, and Connect to the new channel). Serve then stops forwarding the muted member's audio, or
+// any audio to the deafened one. A moved member gets a new VOICE_SERVER_UPDATE, as a move by op 4 does.
+voice_moderate :: (c: *Conn, user: s64, target: s64, v: etf.Map) -> bool {
+	s := c.server;
+	mute, has_mute := etf.map_get(v, "mute");
+	deaf, has_deaf := etf.map_get(v, "deaf");
+	ch, has_ch := etf.map_get(v, "channel_id");
+	if (has_mute && mute.kind != .Bool) || (has_deaf && deaf.kind != .Bool) || (has_ch && ch.kind != .Nil && ch.kind != .String) return json_error(c, 400, 50035, "Invalid Form Body");
+	to: s64;
+	if ch.kind == .String {
+		ok: bool;
+		to, ok = string_to_int(ch.s, T = s64);
+		if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+	}
+	state, server, gone: etf.Value;
+	gateway: *Conn;
+	left: s64;
+	{
+		locks.guard(*s.db_mu);
+		from: s64;
+		{
+			locks.guard(*s.voice_mu);
+			for s.voice_states if it.user == target from = it.channel;
+		}
+		if !from return json_error(c, 400, 40032, "Target user is not connected to voice.");
+		if (has_mute && !can_locked(s, user, P_MUTE_MEMBERS, from)) || (has_deaf && !can_locked(s, user, P_DEAFEN_MEMBERS, from)) || (has_ch && !can_locked(s, user, P_MOVE_MEMBERS, from))
+			return json_error(c, 403, 50013, "Missing Permissions");
+		if to && (channel_type_locked(s, to) != VOICE || !can_locked(s, user, P_MOVE_MEMBERS | P_CONNECT, to) || !can_locked(s, target, P_CONNECT, to))
+			return json_error(c, 403, 50013, "Missing Permissions");
+		locks.guard(*s.voice_mu);
+		vs: *Voice_State;
+		at := -1;
+		for * s.voice_states if it.user == target { vs, at = it, it_index; }
+		if !vs || vs.channel != from return json_error(c, 400, 40032, "Target user is not connected to voice.");
+		if has_mute vs.mute = mute.b;
+		if has_deaf vs.deaf = deaf.b;
+		for s.voice_sessions if it.user == target && it.room == vs.channel { it.muted, it.deafened = vs.mute, vs.deaf; }
+		if has_ch && to != from {
+			left = from;
+			if !to {
+				gone = end_locked(s, vs);
+				state = voice_state_value(s, null, target);
+				array_unordered_remove_by_index(*s.voice_states, at);
+			} else {
+				in_room := 0;
+				for s.voice_states if it.channel == to in_room += 1;
+				if in_room >= MAX_VOICE_ROOM return json_error(c, 400, 50035, "Channel is full");
+				gone = end_locked(s, vs);
+				vs.channel = to;
+				crypto.random_bytes(vs.token);
+				m := etf.map_builder(3,, temp);
+				etf.map_put(*m, "token", etf.vstring(hex(vs.token,, temp)));
+				etf.map_put(*m, "guild_id", snow(s.guild));
+				etf.map_put(*m, "endpoint", etf.vstring(id_hex(s)));
+				server = etf.vmap(etf.map_done(*m));
+				gateway = vs.gateway;
+				state = voice_state_value(s, vs);
+			}
+		} else {
+			state = voice_state_value(s, vs);
+		}
+	}
+	if gone.kind == .Map broadcast(s, "STREAM_DELETE", gone);
+	broadcast(s, "VOICE_STATE_UPDATE", state);
+	if server.kind == .Map {
+		locks.guard(*s.mu); // The gateway may have closed since: only one still connected gets it.
+		for s.conns if it == gateway dispatch(it, "VOICE_SERVER_UPDATE", server);
+	}
+	if left end_voice_events(s, left);
+	return respond(c, 204, json = false);
 }
 
 // end_voice_events completes the events going on in channel once everyone has left it, as Discord does.
@@ -406,6 +482,7 @@ voice_identify :: (c: *Conn, server_id: etf.Value, user_id: etf.Value, session_i
 	if !room return null;
 	vs := New(Voice_Session);
 	vs.conn, vs.user, vs.room = c, user, room;
+	if room == mine.channel vs.muted, vs.deafened = mine.mute, mine.deaf;
 	// Four SSRCs apart, so a member's audio, camera and retransmissions never meet another's.
 	while true {
 		b: [4]u8;
@@ -499,7 +576,9 @@ voice_udp :: (s: *Server) {
 		vs.window_packets += 1;
 		vs.window_bytes += n;
 		if vs.window_packets > MAX_MEDIA_PACKETS || vs.window_bytes > MAX_MEDIA_BYTES continue;
-		for s.voice_sessions if it != vs && it.room == vs.room && it.mode != .None && it.port {
+		audio := !is_rtcp(pkt) && sender == vs.ssrc;
+		if audio && vs.muted continue;
+		for s.voice_sessions if it != vs && it.room == vs.room && it.mode != .None && it.port && !(audio && it.deafened) {
 			// A nonce must never repeat under one key: a member that has had them all connects again, for a new key.
 			if it.nonce == 0xFFFF_FFFF { netio.shutdown(netio.tcp_stream(it.conn.tcp)); continue; }
 			sl := transport_seal(*it.tc, array_view(plain, 0, m), aad, it.nonce, sealed);

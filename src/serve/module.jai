@@ -3013,7 +3013,18 @@ moderate :: (c: *Conn, req: http.Request) -> bool {
 	parts := split(req.path, "/",, temp); // "", api, v9, guilds, {id}, members|bans, {user}
 	if parts.count != 7 return json_error(c, 404, 0, "404: Not Found");
 	ban := parts[5] == "bans";
-	if !ban && req.method == "PATCH" return rename(c, req);
+	if !ban && req.method == "PATCH" {
+		// {mute, deaf, channel_id} moderate someone in voice (voice.jai); the rest renames or sets roles.
+		v, err := etf.from_json(cast(string) req.body,, temp);
+		target, ok := string_to_int(parts[6], T = s64);
+		if ok && err == .None && v.kind == .Map {
+			_, m := etf.map_get(v.map, "mute");
+			_, d := etf.map_get(v.map, "deaf");
+			_, ch := etf.map_get(v.map, "channel_id");
+			if m || d || ch return voice_moderate(c, user, target, v.map);
+		}
+		return rename(c, req);
+	}
 	if !(ban && (req.method == "PUT" || req.method == "DELETE")) && !(!ban && req.method == "DELETE") return json_error(c, 405, 0, "405: Method Not Allowed");
 	target, tok := string_to_int(parts[6], T = s64);
 	history := 0;
