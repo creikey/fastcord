@@ -152,8 +152,7 @@ settings_save :: () {
 	path := tprint("%/%", st.dir, SETTINGS_FILE);
 	tmp := tprint("%.tmp", path);
 	if !write_entire_file(tmp, js) return;
-	#if OS == .WINDOWS file_delete(path); // MoveFileW does not replace
-	if !file_move(tmp, path) return;
+	if !atomic_file_replace_or_just_rename_if_destination_file_does_not_exist(tmp, path) return;
 	free(st.last_json);
 	st.last_json = copy_string(js);
 }

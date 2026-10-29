@@ -954,6 +954,17 @@ parity_frecency_proto :: (t: *T) {
 // Pending frecency usage outlives the launch (the stores persist pendingUsages), so the next
 // launch's startup run loads the proto and writes it, as every official launch does (GET at
 // READY + 0-10 s, the PATCH right after its response). Channel selects alone don't load it.
+// write_file_atomic replaces a file that exists (Windows' MoveFileW refused to) and leaves no .tmp.
+file_atomic_replace :: (t: *T) {
+	dir := "build/test_file_atomic";
+	make_directory_if_it_does_not_exist(dir, recursive = true);
+	path := tprint("%/f", dir);
+	expect(t, write_file_atomic(path, cast([]u8) "old") && write_file_atomic(path, cast([]u8) "new"), "both writes succeed");
+	got, ok := read_entire_file(path,, temp);
+	expect(t, ok && got == "new", "the second write replaced the file");
+	expect(t, !File_Utilities.file_exists(tprint("%.tmp", path)), "no .tmp left behind");
+}
+
 frecency_persisted :: (t: *T) {
 	Rec :: struct { mu: locks.Mutex; methods: [..]string; }
 	rec: Rec;

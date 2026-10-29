@@ -13,6 +13,7 @@
 #import "Hash_Table";
 #import "Thread";
 #import "File";
+File_Utilities :: #import "File_Utilities";
 locks :: #import "locks";
 quic :: #import "quic";
 #load "altsvc.jai";
