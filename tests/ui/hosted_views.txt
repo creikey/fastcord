@@ -47,6 +47,21 @@ settle 2
 key escape
 click 349 158
 settle 2
+click_text "Permissions"
+settle 2
+click_text "Private Channel"
+settle 1
+click_text "Save Changes"
+settle 2
+click_text "Invites"
+settle 2
+click_text "Integrations"
+settle 2
+click_text "New Webhook"
+settle 2
+click 700 205
+settle 2
+shot build/ui-hosted_views-channel.png
 key escape
 settle 1
 # Server Settings, page by page.

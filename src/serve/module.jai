@@ -181,6 +181,8 @@ open :: (path: string) -> *Server, bool {
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN locked INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN archive_after INTEGER NOT NULL DEFAULT 4320;");
 	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN archived_at INTEGER;");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN bitrate INTEGER NOT NULL DEFAULT 64000;");
+	sqlite.exec(db, "ALTER TABLE channels ADD COLUMN user_limit INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN owner INTEGER NOT NULL DEFAULT 0;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN inviter INTEGER;");
 	sqlite.exec(db, "ALTER TABLE invites ADD COLUMN channel INTEGER;");
@@ -504,7 +506,8 @@ CREATE INDEX IF NOT EXISTS snapshot_files_attachment ON snapshot_files(attachmen
 CREATE TABLE IF NOT EXISTS embeds(message INTEGER NOT NULL, position INTEGER NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
 	provider TEXT NOT NULL, color INTEGER NOT NULL, rich TEXT, PRIMARY KEY(message, position));
 CREATE TABLE IF NOT EXISTS channels(id INTEGER PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, topic TEXT NOT NULL DEFAULT '', type INTEGER NOT NULL DEFAULT 0, parent INTEGER, owner INTEGER, slowmode INTEGER NOT NULL DEFAULT 0, nsfw INTEGER NOT NULL DEFAULT 0,
-	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER, tags TEXT);
+	archived INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, archive_after INTEGER NOT NULL DEFAULT 4320, archived_at INTEGER, tags TEXT,
+	bitrate INTEGER NOT NULL DEFAULT 64000, user_limit INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL REFERENCES channels(id), author INTEGER NOT NULL REFERENCES users(id), content TEXT NOT NULL, edited INTEGER, reply INTEGER, everyone INTEGER NOT NULL DEFAULT 0, pinned_at INTEGER, type INTEGER NOT NULL DEFAULT 0, flags INTEGER NOT NULL DEFAULT 0, nonce TEXT, webhook INTEGER NOT NULL DEFAULT 0, username TEXT, snapshot TEXT, stickers TEXT);
 -- A webhook posts as a users row of its own, left = 1, so its messages join like any member's.
 CREATE TABLE IF NOT EXISTS webhooks(id INTEGER PRIMARY KEY, channel INTEGER NOT NULL, token TEXT NOT NULL, creator INTEGER NOT NULL);
@@ -1605,7 +1608,7 @@ FORUM :: 15; // Takes no messages itself: each post is a thread whose starter me
 CROSSPOSTED :: 1 << 0;
 THREAD :: 11; // Public, under a text channel; one started from a message takes that message's ID.
 
-CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw, c.archived, c.locked, c.archive_after, coalesce(c.archived_at, c.id), c.tags FROM channels c";
+CHANNEL_SELECT :: "SELECT c.id, c.name, c.position, c.topic, (SELECT max(id) FROM messages WHERE channel = c.id), c.type, c.parent, coalesce(c.owner, 0), CASE WHEN c.type = 11 THEN (SELECT count(*) FROM messages WHERE channel = c.id) END, c.slowmode, c.nsfw, c.archived, c.locked, c.archive_after, coalesce(c.archived_at, c.id), c.tags, c.bitrate, c.user_limit FROM channels c";
 
 row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Value {
 	kind := sqlite.col_int(st, 5);
@@ -1630,7 +1633,7 @@ row_channel :: (s: *Server, st: *sqlite.Stmt, member := etf.Value.{}) -> etf.Val
 		etf.map_put(*m, "default_forum_layout", etf.vint(0));
 		etf.map_put(*m, "default_thread_rate_limit_per_user", etf.vint(0));
 	}
-	if kind == VOICE || kind == STAGE { etf.map_put(*m, "bitrate", etf.vint(64000)); etf.map_put(*m, "user_limit", etf.vint(0)); }
+	if kind == VOICE || kind == STAGE { etf.map_put(*m, "bitrate", etf.vint(sqlite.col_int(st, 16))); etf.map_put(*m, "user_limit", etf.vint(sqlite.col_int(st, 17))); }
 	if !sqlite.col_is_null(st, 4) etf.map_put(*m, "last_message_id", snow(sqlite.col_int(st, 4)));
 	etf.map_put(*m, "parent_id", ifx sqlite.col_is_null(st, 6) then etf.Value.{} else snow(sqlite.col_int(st, 6)));
 	if kind == THREAD {
@@ -2151,6 +2154,12 @@ channel_messages :: (c: *Conn, req: http.Request) -> bool {
 	if typing && req.method != "POST" return json_error(c, 405, 0, "405: Method Not Allowed");
 	if ok && parts.count == 1 return edit_channel(c, req, user, channel);
 	if ok && parts.count == 2 && parts[1] == "invites" && req.method == "POST" return create_invite(c, req, user, name, channel);
+	if ok && parts.count == 2 && parts[1] == "invites" && req.method == "GET" {
+		locks.guard(*s.db_mu);
+		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
+		if !can_locked(s, user, P_MANAGE_CHANNELS, channel) return json_error(c, 403, 50013, "Missing Permissions");
+		return json_reply(c, 200, invites_locked(s, channel));
+	}
 	if ok && parts.count == 2 && parts[1] == "attachments" && req.method == "POST" return request_uploads(c, req, user, channel);
 	// Opening the pins popout acks them; unread pins aren't tracked, so there is nothing to store.
 	if ok && parts.count == 3 && parts[1] == "pins" && parts[2] == "ack" return respond(c, 204, json = false);
@@ -2777,7 +2786,7 @@ WEBHOOK_SELECT :: "SELECT w.id, w.channel, u.name, w.token, w.creator, c.name FR
 
 // row_webhook reads a WEBHOOK_SELECT row as Discord's webhook object; the token only for the owner.
 row_webhook :: (s: *Server, st: *sqlite.Stmt, with_token: bool) -> etf.Value {
-	m := etf.map_builder(9,, temp);
+	m := etf.map_builder(10,, temp);
 	etf.map_put(*m, "id", snow(sqlite.col_int(st, 0)));
 	etf.map_put(*m, "type", etf.vint(1));
 	etf.map_put(*m, "guild_id", snow(s.guild));
@@ -2788,6 +2797,7 @@ row_webhook :: (s: *Server, st: *sqlite.Stmt, with_token: bool) -> etf.Value {
 	if with_token {
 		etf.map_put(*m, "token", etf.vstring(copy_string(sqlite.col_text(st, 3),, temp)));
 		etf.map_put(*m, "user", user_value(s, sqlite.col_int(st, 4), copy_string(sqlite.col_text(st, 5),, temp)));
+		etf.map_put(*m, "fc_curl_pin", etf.vstring(webhook_pin(s))); // fastcord's own: the app shows a ready curl line
 	}
 	return etf.vmap(etf.map_done(*m));
 }
@@ -3355,9 +3365,15 @@ manage_invites :: (c: *Conn, req: http.Request) -> bool {
 		return respond(c, 200, tprint("{\"code\": \"%\", \"guild_id\": \"%\"}", code, s.guild));
 	}
 	if !owner return json_error(c, 403, 50013, "Missing Permissions");
+	return json_reply(c, 200, invites_locked(s, 0));
+}
+
+// The working invites, of one channel or (0) all; the caller holds db_mu.
+invites_locked :: (s: *Server, only: s64) -> etf.Value {
 	list: [..]etf.Value;
 	list.allocator = temp;
-	st := sqlite.prepare(s.db, tprint("SELECT code, uses_left, inviter, channel, max_age, expires FROM invites WHERE owner = 0 AND % ORDER BY rowid;", INVITE_LIVE));
+	st := sqlite.prepare(s.db, tprint("SELECT code, uses_left, inviter, channel, max_age, expires FROM invites WHERE owner = 0 AND % AND (?1 = 0 OR channel = ?1) ORDER BY rowid;", INVITE_LIVE));
+	sqlite.bind_all(st, only);
 	defer sqlite.finalize(st);
 	while sqlite.step(st) == .Row {
 		m := etf.map_builder(7,, temp);
@@ -3374,7 +3390,7 @@ manage_invites :: (c: *Conn, req: http.Request) -> bool {
 		etf.map_put(*m, "expires_at", ifx expires then etf.vstring(iso(((expires * 1000) - DISCORD_EPOCH_MS) << 22)) else .{});
 		array_add(*list, etf.vmap(etf.map_done(*m)));
 	}
-	return json_reply(c, 200, etf.vlist(list));
+	return etf.vlist(list);
 }
 
 // remove_member_locked marks user gone (and banned) and ends their sessions; db_mu is held.
@@ -3406,8 +3422,11 @@ removed :: (s: *Server, user: s64) {
 	broadcast(s, "GUILD_MEMBER_LIST_UPDATE", member_list_value(s));
 }
 
-// PATCH /api/v9/channels/{id} {name?, topic?} and DELETE /api/v9/channels/{id}, with Manage Channels. The last
-// channel can't be deleted, so the server always has somewhere to talk.
+// PATCH /api/v9/channels/{id} {name?, topic?, rate_limit_per_user?, nsfw?, bitrate?, user_limit?,
+// permission_overwrites?} and DELETE /api/v9/channels/{id}, with Manage Channels (and Manage Roles to replace the
+// overwrites, as Sync Now does). Bitrate (8-96 kbps) and the user limit (0-99) keep only on voice channels: the
+// client's whole-form save sends them for every type. The last channel can't be deleted, so the server always
+// has somewhere to talk.
 edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	s := c.server;
 	ch: etf.Value;
@@ -3415,6 +3434,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 	orphans.allocator, gone_threads.allocator, gone_events.allocator = temp, temp, temp;
 	starter: etf.Value; // A deleted thread's starter message, which loses its `thread`.
 	kind := -1;
+	synced := false; // the overwrites were replaced: who sees the channel may have changed
 	if req.method == "PATCH" {
 		v, err := etf.from_json(cast(string) req.body,, temp);
 		if err != .None || v.kind != .Map return json_error(c, 400, 50035, "Invalid Form Body");
@@ -3427,6 +3447,20 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		after, has_after := etf.map_get(v.map, "auto_archive_duration");
 		tags_v, has_tags := etf.map_get(v.map, "available_tags");
 		applied_v, has_applied := etf.map_get(v.map, "applied_tags");
+		bitrate, has_bitrate := etf.map_get(v.map, "bitrate");
+		limit, has_limit := etf.map_get(v.map, "user_limit");
+		ow_v, has_ows := etf.map_get(v.map, "permission_overwrites");
+		if (has_bitrate && !(bitrate.kind == .Int && bitrate.i >= 8000 && bitrate.i <= 96000)) || (has_limit && !(limit.kind == .Int && limit.i >= 0 && limit.i <= 99)) return json_error(c, 400, 50035, "Invalid Form Body");
+		ows: [..]Overwrite;
+		ows.allocator = temp;
+		if has_ows {
+			if ow_v.kind != .List || ow_v.list.count > MAX_OVERWRITES return json_error(c, 400, 50035, "Invalid Form Body");
+			for ow_v.list {
+				o, ook := overwrite_value(it);
+				if !ook return json_error(c, 400, 50035, "Invalid Form Body");
+				array_add(*ows, o);
+			}
+		}
 		if (has_slow && !(slow.kind == .Int && slow.i >= 0 && slow.i <= 21600)) || (has_nsfw && nsfw.kind != .Bool) return json_error(c, 400, 50035, "Invalid Form Body");
 		if (has_archived && archived.kind != .Bool) || (has_locked && locked.kind != .Bool) || (has_after && !(after.kind == .Int && (after.i == 60 || after.i == 1440 || after.i == 4320 || after.i == 10080))) {
 			return json_error(c, 400, 50035, "Invalid Form Body");
@@ -3434,7 +3468,8 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		locks.guard(*s.db_mu);
 		kind = channel_type_locked(s, channel);
 		if kind < 0 return json_error(c, 404, 10003, "Unknown Channel");
-		if ((has_archived || has_locked || has_after || has_applied) && kind != THREAD) || (has_tags && kind != FORUM) return json_error(c, 400, 50035, "Invalid Form Body");
+		if ((has_archived || has_locked || has_after || has_applied) && kind != THREAD) || (has_tags && kind != FORUM) || (has_ows && kind == THREAD) return json_error(c, 400, 50035, "Invalid Form Body");
+		voice := kind == VOICE || kind == STAGE;
 		was_locked := false;
 		if kind == THREAD {
 			st := sqlite.prepare(s.db, "SELECT locked FROM channels WHERE id = ?;");
@@ -3445,6 +3480,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		// A thread's starter may rename, archive and reopen it too, until someone who manages threads locks it.
 		by_starter := kind == THREAD && !has_topic && !has_slow && !has_nsfw && !has_locked && !was_locked && thread_owner_locked(s, channel) == user;
 		if !can_locked(s, user, ifx kind == THREAD then P_MANAGE_THREADS else P_MANAGE_CHANNELS, channel) && !by_starter return json_error(c, 403, 50013, "Missing Permissions");
+		if has_ows && !can_locked(s, user, P_MANAGE_ROLES, channel) return json_error(c, 403, 50013, "Missing Permissions");
 		name := ifx raw.kind != .String then "" else ifx kind == CATEGORY || kind == THREAD || kind == VOICE || kind == STAGE then trim(raw.s) else channel_name(raw.s);
 		if (has_name && (!name || name.count > 100 || !text_ok(name))) || (has_topic && topic.kind == .String && (topic.s.count > 1024 || !text_ok(topic.s, lines = true))) return json_error(c, 400, 50035, "Invalid Form Body");
 		ok := (!has_name || sqlite.run(s.db, "UPDATE channels SET name = ? WHERE id = ?;", name, channel))
@@ -3452,6 +3488,8 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			&& (!has_slow || sqlite.run(s.db, "UPDATE channels SET slowmode = ? WHERE id = ?;", slow.i, channel))
 			&& (!has_nsfw || sqlite.run(s.db, "UPDATE channels SET nsfw = ? WHERE id = ?;", cast(int) nsfw.b, channel))
 			&& (!has_after || sqlite.run(s.db, "UPDATE channels SET archive_after = ? WHERE id = ?;", after.i, channel))
+			&& (!has_bitrate || !voice || sqlite.run(s.db, "UPDATE channels SET bitrate = ? WHERE id = ?;", bitrate.i, channel))
+			&& (!has_limit || !voice || sqlite.run(s.db, "UPDATE channels SET user_limit = ? WHERE id = ?;", limit.i, channel))
 			&& (!has_locked || sqlite.run(s.db, "UPDATE channels SET locked = ? WHERE id = ?;", cast(int) locked.b, channel))
 			&& (!has_archived || sqlite.run(s.db, "UPDATE channels SET archived = ?1, archived_at = ?2 WHERE id = ?3 AND archived != ?1;", cast(int) archived.b, now_ms(s) << 22, channel));
 		if !ok return json_error(c, 500, 0, "500: Internal Server Error");
@@ -3463,7 +3501,21 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 			if !tags_ok return json_error(c, 400, 50035, "Invalid Form Body");
 			if !sqlite.run(s.db, "UPDATE channels SET tags = nullif(?, '') WHERE id = ?;", tags_json, channel) return json_error(c, 500, 0, "500: Internal Server Error");
 		}
+		if has_ows {
+			p := perms_of_locked(s, user);
+			if !sqlite.exec(s.db, "BEGIN;") || !sqlite.run(s.db, "DELETE FROM overwrites WHERE channel = ?;", channel) { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			for ows {
+				status, code := set_overwrite_locked(s, *p, channel, it);
+				if status {
+					sqlite.exec(s.db, "ROLLBACK;");
+					return json_error(c, status, code, ifx status == 403 then "Missing Permissions" else "Invalid Form Body");
+				}
+			}
+			if !sqlite.exec(s.db, "COMMIT;") { sqlite.exec(s.db, "ROLLBACK;"); return json_error(c, 500, 0, "500: Internal Server Error"); }
+			audit_locked(s, user, AUDIT_OVERWRITE_UPDATE, channel, .[], "");
+		}
 		ch = channel_locked(s, channel);
+		synced = has_ows;
 	} else if req.method == "DELETE" {
 		locks.guard(*s.db_mu);
 		kind = channel_type_locked(s, channel);
@@ -3513,6 +3565,7 @@ edit_channel :: (c: *Conn, req: http.Request, user: s64, channel: s64) -> bool {
 		return json_error(c, 405, 0, "405: Method Not Allowed");
 	}
 	if req.method == "DELETE" && (kind == VOICE || kind == STAGE) voice_leave(s, 0, channel = channel); // After db_mu: it takes s.mu.
+	if synced resync(s);
 	thread := kind == THREAD;
 	if req.method == "PATCH" broadcast(s, ifx thread then "THREAD_UPDATE" else "CHANNEL_UPDATE", ch);
 	else broadcast(s, ifx thread then "THREAD_DELETE" else "CHANNEL_DELETE", ch);

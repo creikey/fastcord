@@ -95,6 +95,8 @@ Role :: struct {
 	managed: bool; // a bot's or integration's: not editable
 }
 
+MAX_OVERWRITES :: 1000; // kept per channel (store.jai): far past any real channel's
+
 Overwrite :: struct {
 	id: Snowflake;
 	kind: u8; // 0 role, 1 member
@@ -115,6 +117,8 @@ Channel :: struct {
 	rate_limit_per_user: int;
 	bitrate: int;
 	user_limit: int;
+	rtc_region: string; // a voice channel's region override ("" = automatic)
+	video_quality_mode: int; // 1 auto, 2 720p; 0 when Discord sent none
 	recipient_ids: [..]Snowflake; // DMs and group DMs
 	icon: string; // group DM icon
 	owner_id: Snowflake;

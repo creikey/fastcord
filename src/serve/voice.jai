@@ -104,6 +104,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 	ch, _ := etf.map_get(d.map, "channel_id");
 	channel: s64;
 	audience := false; // joining a stage without moderating it
+	limit := 0; // the channel's user limit, unless Move Members ignores it
 	if ch.kind == .String {
 		ok: bool;
 		channel, ok = string_to_int(ch.s, T = s64);
@@ -112,6 +113,12 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 		kind := channel_type_locked(s, channel);
 		if (kind != VOICE && kind != STAGE) || !can_locked(s, c.user, P_CONNECT, channel) return; // Connect, and View Channel with it.
 		audience = kind == STAGE && !can_locked(s, c.user, STAGE_MODERATOR, channel);
+		if !can_locked(s, c.user, P_MOVE_MEMBERS, channel) {
+			st := sqlite.prepare(s.db, "SELECT user_limit FROM channels WHERE id = ?;");
+			sqlite.bind_all(st, channel);
+			if sqlite.step(st) == .Row limit = sqlite.col_int(st, 0);
+			sqlite.finalize(st);
+		}
 	} else if ch.kind != .Nil return;
 	flag :: (m: etf.Map, k: string) -> bool { v, _ := etf.map_get(m, k); return v.kind == .Bool && v.b; }
 	state, server, gone: etf.Value;
@@ -132,7 +139,7 @@ voice_state_update :: (c: *Conn, d: etf.Value) {
 			if moved {
 				in_room := 0;
 				for s.voice_states if it.channel == channel && it.user != c.user in_room += 1;
-				if in_room >= MAX_VOICE_ROOM return;
+				if in_room >= MAX_VOICE_ROOM || (limit && in_room >= limit) return;
 				if vs gone = end_locked(s, vs);
 				else vs = array_add(*s.voice_states);
 				vs.user, vs.channel, vs.gateway = c.user, channel, c;

@@ -127,6 +127,7 @@ free_channel :: (s: *Store, c: *Channel) {
 	free_str(c.topic, a);
 	free_str(c.icon, a);
 	free_str(c.status, a);
+	free_str(c.rtc_region, a);
 	array_free(c.recipient_ids);
 	array_free(c.overwrites);
 }
@@ -270,12 +271,15 @@ parse_channel_into :: (s: *Store, m: etf.Map, guild_id: Snowflake = 0) -> Snowfl
 	if vhas(m, "rate_limit_per_user") c.rate_limit_per_user = fint(m, "rate_limit_per_user");
 	if vhas(m, "bitrate") c.bitrate = fint(m, "bitrate");
 	if vhas(m, "user_limit") c.user_limit = fint(m, "user_limit");
+	if vhas(m, "rtc_region") set_str(s, *c.rtc_region, fstr(m, "rtc_region"));
+	if vhas(m, "video_quality_mode") c.video_quality_mode = fint(m, "video_quality_mode");
 	if vhas(m, "owner_id") c.owner_id = fsnow(m, "owner_id");
 	if vhas(m, "flags") c.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "status") set_channel_status(s, c, fstr(m, "status"));
 	if vhas(m, "permission_overwrites") {
 		c.overwrites.count = 0;
 		for flist(m, "permission_overwrites") {
+			if it_index >= MAX_OVERWRITES break;
 			om := vmap(it);
 			array_add(*c.overwrites, .{id = fsnow(om, "id"), kind = cast(u8) fint(om, "type"), allow = cast(u64) fint(om, "allow"), deny = cast(u64) fint(om, "deny")});
 		}

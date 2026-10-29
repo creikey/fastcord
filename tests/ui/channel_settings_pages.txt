@@ -1,0 +1,58 @@
+# Channel Settings' pages (the channel row cog): Overview, Permissions (Private Channel and the
+# advanced overwrite grid, synced with its category), Invites and Integrations from canned replies,
+# then a voice channel's Overview (bitrate, video quality, user limit, region).
+wait 5
+click 350 198
+wait 10
+expect_visible "Overview"
+expect_visible "Permissions"
+expect_visible "Integrations"
+expect_visible "Age-Restricted Channel"
+shot build/ui-channel_settings_overview.png
+click_text "Permissions"
+wait 10
+expect_visible "Advanced permissions"
+expect_visible "ROLES/MEMBERS"
+expect_visible "General Channel Permissions"
+click_text "Private Channel"
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+shot build/ui-channel_settings_permissions.png
+click_text Reset
+wait 5
+expect_not_visible "Careful — you have unsaved changes!"
+click_text "Invites"
+wait 10
+settings_reply Invites [{"code":"chanINV","uses":1,"max_uses":0,"max_age":0,"expires_at":null,"inviter":{"id":"1546820603343016100","username":"robin","global_name":"Robin"}}]
+wait 5
+expect_visible "chanINV"
+expect_not_visible "Pause Invites"
+click_text "Integrations"
+wait 10
+settings_reply Webhooks [{"id":"1546820603343016400","type":1,"channel_id":"1546820603343016006","name":"Captain Hook","token":"tok","user":{"id":"1546820603343016100","username":"robin","global_name":"Robin"}}]
+wait 5
+click_text "Captain Hook"
+wait 5
+expect_visible "Copy Webhook URL"
+expect_not_visible "Bots and Apps"
+shot build/ui-channel_settings_integrations.png
+key escape
+wait 10
+expect_not_visible "Overview"
+rclick 143 272
+wait 5
+click_text "Edit Channel"
+wait 10
+settings_reply Regions [{"id":"us-west","name":"US West","optimal":true,"deprecated":false},{"id":"rotterdam","name":"Rotterdam","optimal":false,"deprecated":false}]
+wait 5
+expect_visible "Bitrate"
+expect_visible "Video Quality"
+click_text "720p"
+wait 5
+expect_visible "Careful — you have unsaved changes!"
+shot build/ui-channel_settings_voice.png
+click_text Reset
+wait 5
+key escape
+wait 10
+expect_not_visible "Bitrate"

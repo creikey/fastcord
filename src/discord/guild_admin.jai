@@ -465,12 +465,21 @@ open_create_channel :: (c: *Client, guild_id: Snowflake) {
 	analytics_track(c, "open_modal", tprint("\"type\":\"Create Channel\",%", guild_track_props(c, guild_id, route_channel_of(c))));
 }
 
-// open_channel_settings: channel settings (Overview) opened: GET /guilds/{id}/regions,
-// science settings_pane_viewed.
-open_channel_settings :: (c: *Client, ch: *Channel) {
+// open_channel_settings: channel settings (Overview) opened: GET /guilds/{id}/regions (its reply a
+// .Guild_Settings result tagged regions_tag when given, for Region Override), science settings_pane_viewed.
+open_channel_settings :: (c: *Client, ch: *Channel, regions_tag: u64 = 0) {
 	if !ch || !ch.guild_id return;
-	aux_get(c, tprint("/guilds/%/regions", ch.guild_id), ch.guild_id);
-	analytics_track(c, "settings_pane_viewed", tprint("\"settings_type\":\"channel\",\"origin_pane\":null,\"destination_pane\":\"OVERVIEW\",\"location\":null,%", guild_track_props(c, ch.guild_id, ch.id)));
+	path := tprint("/guilds/%/regions", ch.guild_id);
+	if regions_tag && !c.cfg.hosted.host guild_settings_call(c, ch.guild_id, regions_tag, "GET", path);
+	else aux_get(c, path, ch.guild_id);
+	channel_settings_pane(c, "", "OVERVIEW", ch);
+}
+
+// channel_settings_pane: a channel settings section shown ("" origin: just opened).
+channel_settings_pane :: (c: *Client, origin: string, dest: string, ch: *Channel) {
+	if !dest return;
+	o := ifx origin then tprint("\"%\"", origin) else "null";
+	analytics_track(c, "settings_pane_viewed", tprint("\"settings_type\":\"channel\",\"origin_pane\":%,\"destination_pane\":\"%\",\"location\":null,%", o, dest, guild_track_props(c, ch.guild_id, ch.id)));
 }
 
 // open_guild_settings: Server Settings opened (bundle GuildSettings componentDidMount): science
@@ -526,13 +535,17 @@ Channel_Form :: struct {
 	nsfw: bool;
 	flags: u64;
 	rate_limit_per_user: int;
+	rtc_region: string; // voice: "" = automatic (sent as null)
+	video_quality_mode: int; // voice: 0 = never set (left out)
 }
 
 channel_form_of :: (ch: *Channel) -> Channel_Form {
-	return .{name = ch.name, kind = ch.kind, topic = ch.topic, bitrate = ifx ch.bitrate > 0 then ch.bitrate else 64000, user_limit = ch.user_limit, nsfw = ch.nsfw, flags = ch.flags, rate_limit_per_user = ch.rate_limit_per_user};
+	return .{name = ch.name, kind = ch.kind, topic = ch.topic, bitrate = ifx ch.bitrate > 0 then ch.bitrate else 64000, user_limit = ch.user_limit, nsfw = ch.nsfw, flags = ch.flags, rate_limit_per_user = ch.rate_limit_per_user,
+		rtc_region = ch.rtc_region, video_quality_mode = ch.video_quality_mode};
 }
 
-// {"name","type","topic","bitrate","user_limit","nsfw","flags","rate_limit_per_user"}
+// {"name","type","topic","bitrate","user_limit","nsfw","flags","rate_limit_per_user"}, and for voice
+// channels "rtc_region" and "video_quality_mode" (saveChannel's order).
 channel_edit_body :: (f: Channel_Form) -> string {
 	w: Json;
 	json_init(*w);
@@ -545,6 +558,11 @@ channel_edit_body :: (f: Channel_Form) -> string {
 	json_kbool(*w, "nsfw", f.nsfw);
 	json_kint(*w, "flags", xx f.flags);
 	json_kint(*w, "rate_limit_per_user", f.rate_limit_per_user);
+	if f.kind == .Guild_Voice || f.kind == .Guild_Stage_Voice {
+		if f.rtc_region json_kstr(*w, "rtc_region", f.rtc_region);
+		else json_knull(*w, "rtc_region");
+		if f.video_quality_mode json_kint(*w, "video_quality_mode", f.video_quality_mode);
+	}
 	json_obj_end(*w);
 	return json_string(*w);
 }

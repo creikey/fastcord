@@ -1,8 +1,10 @@
-// Server Settings: the full-window layer the server menu opens, as the official client's GuildSettings
+// Server Settings and Channel Settings: the full-window layer the server menu opens, as the official client's GuildSettings
 // (bundle `generateSections`): a sidebar of sections under the server's name and the Expression, People,
 // Apps and Moderation headers, then Delete Server; ESC or Escape closes; an unsaved-changes bar with
 // Reset / Save Changes holds the page (no closing or switching sections until it's saved or reset).
 // Each section shows only to members with the permission it needs. Hosted servers add a Host group.
+// Channel Settings (the channel row's cog) is the same layer for one channel (ss.channel): Overview,
+// Permissions, Invites, Integrations and Delete Channel.
 //
 // Adding a page: give it a Server_Section (in sidebar order), a label in section_label, its permission
 // in section_visible, and a case in page_body (and form_dirty / form_reset / form_save when it has a
@@ -42,6 +44,12 @@ Server_Section :: enum u8 {
 	// last group
 	Templates;
 	Delete;
+	// Channel Settings
+	Chan_Overview;
+	Chan_Permissions;
+	Chan_Invites;
+	Chan_Integrations;
+	Chan_Delete;
 }
 
 can_open_server_settings :: (gid: dc.Snowflake) -> bool {
@@ -52,7 +60,9 @@ server_settings_open :: (gid: dc.Snowflake, section := Server_Section.None) {
 	g := dc.guild_get(store(), gid);
 	if g == null return;
 	server_settings_close();
+	for * ss.replies dc.feature_result_free(it);
 	ss.guild = gid;
+	ss.channel = 0;
 	ss.open = true;
 	ss.section = .None;
 	for i: 1..cast(int) Server_Section.Delete {
@@ -66,13 +76,30 @@ server_settings_open :: (gid: dc.Snowflake, section := Server_Section.None) {
 	section_enter(g);
 }
 
+// channel_settings_open: the channel row's cog (and its menu's Edit Channel).
+channel_settings_open :: (ch: *dc.Channel) {
+	g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
+	if g == null return;
+	server_settings_close();
+	for * ss.replies dc.feature_result_free(it);
+	ss.guild, ss.channel, ss.open, ss.section = g.id, ch.id, true, Server_Section.Chan_Overview;
+	if app.client != null dc.open_channel_settings(app.client, ch, xx Req.Regions);
+	section_enter(g);
+}
+
+// channel_settings_saved: the Overview's PATCH answered (guild_admin.jai sends it, for the replay tests).
+channel_settings_saved :: (r: *dc.Feature_Result) {
+	if !ss.open || ss.channel != r.channel_id return;
+	ss.busy = false;
+	if !r.ok ss_error(settings_result_error(r));
+}
+
 server_settings_is_open :: () -> bool { return ss.open; }
 
 server_settings_close :: () {
 	ss.open = false;
 	ss.busy, ss.icon_busy = false, false;
 	ss.dd = "";
-	for * ss.replies dc.feature_result_free(it);
 	for * ss.loading it.* = false;
 	ss_error("");
 	app.ui.focus = 0;
@@ -80,10 +107,13 @@ server_settings_close :: () {
 
 server_settings_reset_for_test :: () {
 	server_settings_close();
+	for * ss.replies dc.feature_result_free(it);
 	ui.editor_destroy(*ss.name);
 	ui.editor_destroy(*ss.desc);
 	for * ss.traits ui.editor_destroy(it);
 	free(ss.error);
+	free(ss.chan_region);
+	array_free(ss.ows);
 	ss = .{};
 }
 
@@ -154,9 +184,15 @@ server_settings_receive :: (r: *dc.Feature_Result) {
 }
 
 server_settings_layer :: () {
-	if !ss.open return;
+	if !ss.open {
+		// freed here, not on close: a close mid-frame leaves boxes pointing into the replies until layout
+		for * ss.replies dc.feature_result_free(it);
+		return;
+	}
 	g := dc.guild_get(store(), ss.guild);
-	if g == null || !can_open_server_settings(g.id) || !section_shown(g, ss.section) {
+	ch := dc.channel_get(store(), ss.channel);
+	allowed := ifx ss.channel then can_manage_channel(ch) else g != null && can_open_server_settings(g.id);
+	if g == null || !allowed || !section_shown(g, ss.section) {
 		server_settings_close();
 		return;
 	}
@@ -188,18 +224,26 @@ server_settings_layer :: () {
 				col.layout_axis = .Y;
 				{ ui.parent(col); defer ui.pop_parent();
 					group := -1;
-					for i: 1..cast(int) Server_Section.Delete {
+					first := ifx ch then Server_Section.Chan_Overview else .Profile;
+					last := ifx ch then Server_Section.Chan_Delete else .Delete;
+					for i: cast(int) first..cast(int) last {
 						sec := cast(Server_Section) i;
 						if !section_shown(g, sec) continue;
 						grp := section_group(sec);
 						if grp != group {
 							if group >= 0 nav_divider(sec);
-							head := ifx grp == 0 then (ifx g.name then g.name else "Server Settings") else GROUP_NAMES[grp];
+							head := GROUP_NAMES[grp];
+							if grp == 0 head = ifx g.name then g.name else "Server Settings";
+							if grp == 8 {
+								cat := dc.channel_get(store(), ch.parent_id);
+								head = ifx cat then tprint("% %", chan_title(ch), to_upper_copy(cat.name,, temp)) else chan_title(ch);
+							}
 							if head nav_header(sec, head);
 							group = grp;
 						}
 						if nav_item(sec, g) && !dirty {
 							if sec == .Delete ss_confirm_open(.Delete_Server, 0, "");
+							else if sec == .Chan_Delete channel_delete_open(ch); // view_guild_admin.jai's confirm
 							else go = sec;
 						}
 					}
@@ -284,7 +328,8 @@ server_settings_layer :: () {
 		ss.section = go;
 		ss_error("");
 		ss.dd = "";
-		if app.client != null dc.guild_settings_pane(app.client, section_pane(from), section_pane(go), g.id);
+		if app.client != null && ch dc.channel_settings_pane(app.client, section_pane(from), section_pane(go), ch);
+		else if app.client != null dc.guild_settings_pane(app.client, section_pane(from), section_pane(go), g.id);
 		section_enter(g);
 	}
 	if save && dirty && !ss.busy && net_action() form_save(g);
@@ -295,7 +340,7 @@ server_settings_layer :: () {
 SETTINGS_PERMS :: dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_ROLES | dc.PERM_ADMINISTRATOR | dc.PERM_BAN_MEMBERS | dc.PERM_MANAGE_NICKNAMES
 	| dc.PERM_CREATE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_WEBHOOKS | dc.PERM_VIEW_AUDIT_LOG | dc.PERM_VIEW_GUILD_ANALYTICS;
 
-GROUP_NAMES :: string.["", "Expression", "People", "Apps", "Moderation", "", "Host", ""];
+GROUP_NAMES :: string.["", "Expression", "People", "Apps", "Moderation", "", "Host", "", "", ""]; // 8: the channel
 
 // Requests whose replies the pages read (kept with their arenas until replaced or closed), and saves.
 Req :: enum u8 {
@@ -315,6 +360,7 @@ Req :: enum u8 {
 	Verification; // GET /guilds/{id}/member-verification (Access: the server rules)
 	Vanity; // GET /guilds/{id}/vanity-url
 	Onboarding; // GET /guilds/{id}/onboarding
+	Regions; // GET /guilds/{id}/regions (Channel Settings: Region Override)
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
@@ -325,6 +371,7 @@ Req :: enum u8 {
 ss: struct {
 	open: bool;
 	guild: dc.Snowflake;
+	channel: dc.Snowflake; // Channel Settings: the channel (0: Server Settings)
 	section: Server_Section;
 	busy: bool; // a save is in flight
 	icon_busy: bool; // Server Profile: an icon upload or removal is in flight
@@ -394,6 +441,12 @@ ss: struct {
 	reason: ui.Editor; // a reason, or the server's name (Delete Server)
 	confirm_pick: int;
 	confirm_ack: bool;
+	// Channel Settings: Overview (ss.name, ss.desc hold the name and topic) and Permissions
+	chan: dc.Channel_Form; // the Overview as edited, but for the name and topic
+	chan_region: string; // heap: chan.rtc_region's
+	ows: [..]dc.Overwrite; // the overwrites as edited
+	ow_id: dc.Snowflake; // the role or member whose permissions are shown
+	ow_adding: bool; // the Add members or roles search is open
 };
 
 ss_set :: (dst: *string, v: string) {
@@ -460,7 +513,14 @@ section_enter :: (g: *dc.Guild) {
 	case .Roles;
 		ss.loading[Req.Role_Counts] = false;
 		load(g, .Role_Counts, tprint("/guilds/%/roles/member-counts", g.id));
+	case .Chan_Invites;
+		ss.loading[Req.Invites] = false;
+		load(g, .Invites, tprint("/channels/%/invites", ss.channel));
+	case .Chan_Integrations;
+		ss.loading[Req.Webhooks] = false;
+		load(g, .Webhooks, tprint("/channels/%/webhooks", ss.channel));
 	}
+	ss.ow_id, ss.ow_adding = g.id, false;
 	ss.role_id, ss.pending_role, ss.hook_id = 0, 0, 0;
 	ui.editor_set_text(*ss.hook_name, "");
 	ui.editor_set_text(*ss.words, "");
@@ -476,6 +536,8 @@ ss_error :: (msg: string) {
 }
 
 section_group :: (s: Server_Section) -> int {
+	if s == .Chan_Delete return 9;
+	if s >= .Chan_Overview return 8;
 	if s <= .Engagement return 0;
 	if s <= .Soundboard return 1;
 	if s <= .Access return 2;
@@ -513,6 +575,13 @@ section_label :: (s: Server_Section) -> string {
 	case .Host_Info; return "Server Info";
 	case .Templates; return "Server Template";
 	case .Delete; return "Delete Server";
+	case .Chan_Overview; return "Overview";
+	case .Chan_Permissions; return "Permissions";
+	case .Chan_Invites; return "Invites";
+	case .Chan_Integrations; return "Integrations";
+	case .Chan_Delete;
+		ch := dc.channel_get(store(), ss.channel);
+		return ifx ch && ch.kind == .Guild_Category then "Delete Category" else "Delete Channel";
 	}
 	return "";
 }
@@ -543,6 +612,10 @@ section_pane :: (s: Server_Section) -> string {
 	case .Community; return "COMMUNITY";
 	case .Onboarding; return "ONBOARDING";
 	case .Templates; return "GUILD_TEMPLATES";
+	case .Chan_Overview; return "OVERVIEW";
+	case .Chan_Permissions; return "PERMISSIONS";
+	case .Chan_Invites; return "INSTANT_INVITES";
+	case .Chan_Integrations; return "INTEGRATIONS";
 	}
 	return ""; // Host sections: hosted servers send no science
 }
@@ -553,6 +626,20 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 	p := dc.guild_permissions(store(), g.id);
 	has :: (p: u64, f: u64) -> bool #expand { return (p & f) != 0; }
 	owner := g.owner_id == store().me;
+	if s >= .Chan_Overview {
+		ch := dc.channel_get(store(), ss.channel);
+		if !ch return false;
+		cp := dc.channel_permissions(store(), ch.id);
+		cat := ch.kind == .Guild_Category;
+		if s == {
+		case .Chan_Permissions; return has(cp, dc.PERM_MANAGE_ROLES);
+		case .Chan_Invites; return !cat;
+		case .Chan_Integrations;
+			// a hosted server's webhooks post only to text and announcement channels
+			return has(cp, dc.PERM_MANAGE_WEBHOOKS) && (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement || (!on_hosted() && (ch.kind == .Guild_Forum || ch.kind == .Guild_Voice)));
+		}
+		return true;
+	}
 	if s == {
 	case .Profile; #through;
 	case .Engagement;
@@ -590,7 +677,8 @@ page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
 	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety; #through; case .Integrations; #through; case .Templates; #through;
-	case .Community; #through; case .Access; #through; case .Tag; #through; case .Stickers; #through; case .Onboarding;
+	case .Community; #through; case .Access; #through; case .Tag; #through; case .Stickers; #through; case .Onboarding; #through;
+	case .Chan_Overview; #through; case .Chan_Permissions; #through; case .Chan_Invites; #through; case .Chan_Integrations; #through; case .Chan_Delete;
 		return true;
 	}
 	return false;
@@ -634,6 +722,14 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		onboarding_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
+	case .Chan_Overview;
+		return chan_overview_page(g);
+	case .Chan_Permissions;
+		chan_permissions_page(g);
+	case .Chan_Invites;
+		invites_page(g);
+	case .Chan_Integrations;
+		integrations_page(g);
 	}
 	return false;
 }
@@ -660,6 +756,12 @@ form_dirty :: (g: *dc.Guild) -> bool {
 		return tag_dirty();
 	case .Onboarding;
 		return onboarding_dirty();
+	case .Chan_Overview;
+		return chan_overview_dirty();
+	case .Chan_Permissions;
+		return ows_dirty();
+	case .Chan_Integrations;
+		return hook_dirty();
 	}
 	return false;
 }
@@ -686,6 +788,7 @@ form_reset :: (g: *dc.Guild) {
 		ss.private = f.visibility == 2;
 	}
 	if ss.section == .Roles role_reset(g);
+	if ss.channel chan_reset();
 	if ss.section == .Onboarding onboarding_reset();
 	ss.comm = community_form_of(g);
 	saved, on := saved_rules();
@@ -748,7 +851,12 @@ form_save :: (g: *dc.Guild) {
 	case .Tag;
 		ss_error("");
 		save_call(g, .Save, "PATCH", tprint("/guilds/%/profile", g.id), tprint("{\"tag\":%}", dc.json_quote(trim(ui.editor_text(*ss.tag)))));
-	case .Integrations;
+	case .Chan_Overview;
+		chan_overview_save();
+	case .Chan_Permissions;
+		ows_save(g);
+	case .Integrations; #through;
+	case .Chan_Integrations;
 		name := trim(ui.editor_text(*ss.hook_name));
 		if !name { ss_error("A webhook needs a name."); return; }
 		ss_action(g, .Webhooks, "PATCH", tprint("/webhooks/%", ss.hook_id), tprint("{\"name\":%,\"channel_id\":\"%\"}", dc.json_quote(name), ss.hook_channel));
@@ -784,7 +892,7 @@ nav_item :: (s: Server_Section, g: *dc.Guild) -> bool {
 	r.style.bg_hot = ifx sel then r.style.bg else T("--background-mod-subtle");
 	r.hover_cursor = .Pointer;
 	sig := ui.signal(r);
-	danger := s == .Delete;
+	danger := s == .Delete || s == .Chan_Delete;
 	c := ifx danger then T("--text-feedback-critical") else ifx sel || sig.hovering then T("--interactive-text-active") else T("--interactive-text-default");
 	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 10);
@@ -1366,11 +1474,12 @@ invites_page :: (g: *dc.Guild) {
 	{ ui.parent(hr); defer ui.pop_parent();
 		label(ifx list.count then "ACTIVE INVITE LINKS" else "NO ACTIVE INVITE LINKS", .Bold, 12, T("--text-muted"), 16);
 		filler(.X);
-		if paused {
+		if ss.channel {} // Channel Settings lists the channel's invites; pausing is the server's
+		else if paused {
 			if set_button("Enable Invites##resume", .Primary, !ss.busy) ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}");
 		} else if set_button("Pause Invites##pause", .Danger, !ss.busy) ss_confirm_open(.Pause_Invites, 0, "");
 	}
-	if paused {
+	if paused && !ss.channel {
 		spacer(.Y, 8);
 		set_para("pausednote", "Invites are paused: nobody can join with an invite link until they're enabled again.", .Normal, 14, 18, T("--text-feedback-warning"));
 	}
@@ -1404,7 +1513,7 @@ invites_page :: (g: *dc.Guild) {
 		{ c := table_cell(3, W[3]); ui.parent(c); defer ui.pop_parent(); label(ifx exp then duration_left(exp - wall_ms()) else "∞", .Normal, 14, T("--text-default"), 18); }
 		if row_icon_button("revoke", "x-small", danger = true) ss_confirm_open(.Revoke_Invite, 0, code);
 	}
-	vanity_block(g);
+	if !ss.channel vanity_block(g);
 }
 
 // "6:23:41" until expiry, or days ("6 days").
@@ -2430,6 +2539,15 @@ webhook_url :: (h: etf.Map) -> string {
 	return tprint("https://discord.com/api/webhooks/%/%", dc.fsnow(h, "id"), dc.fstr(h, "token"));
 }
 
+// A hosted webhook's ready-to-run curl line: serve sends its key's pin (`fc_curl_pin`, curl's
+// --pinnedpubkey) with the token, checked here as sha256// and base64 before it goes in a command.
+webhook_curl :: (h: etf.Map) -> string {
+	pin := dc.fstr(h, "fc_curl_pin");
+	if !on_hosted() || !begins_with(pin, "sha256//") || pin.count > 60 || !dc.fstr(h, "token") return "";
+	for cast([]u8) advance(pin, 8) if !((it >= #char "A" && it <= #char "Z") || (it >= #char "a" && it <= #char "z") || (it >= #char "0" && it <= #char "9") || it == #char "+" || it == #char "/" || it == #char "=") return "";
+	return tprint("curl -k --pinnedpubkey '%' -H 'Content-Type: application/json' -d '{\"content\":\"hi\"}' %", pin, webhook_url(h));
+}
+
 hook_of :: (id: dc.Snowflake) -> etf.Map {
 	r := reply(.Webhooks);
 	if r for dc.vlist(r.body) if dc.fsnow(dc.vmap(it), "id") == id return dc.vmap(it);
@@ -2448,7 +2566,7 @@ hook_open :: (h: etf.Map) {
 }
 
 integrations_page :: (g: *dc.Guild) {
-	page_subtitle("Customize your server with integrations. Manage webhooks, followed channels and apps.");
+	if !ss.channel page_subtitle("Customize your server with integrations. Manage webhooks, followed channels and apps.");
 	if !loading_or(.Webhooks, "Couldn't load the webhooks.") return;
 	hooks := dc.vlist(reply(.Webhooks).body);
 	hr := row("whead");
@@ -2459,8 +2577,9 @@ integrations_page :: (g: *dc.Guild) {
 		label(tprint("Webhooks (%)", n), .Semibold, 16, T("--text-strong"), 20);
 		filler(.X);
 		names, ids := channel_options(g, "", false);
-		if ids.count > 1 && set_button("New Webhook##new", .Primary, !ss.busy && !hook_dirty())
-			ss_action(g, .Webhooks, "POST", tprint("/channels/%/webhooks", ifx g.system_channel_id then g.system_channel_id else ids[1]), tprint("{\"name\":%}", dc.json_quote(WEBHOOK_NAMES[random_get() % 2])));
+		target := ifx ss.channel then ss.channel else ifx g.system_channel_id then g.system_channel_id else ifx ids.count > 1 then ids[1] else 0;
+		if target && set_button("New Webhook##new", .Primary, !ss.busy && !hook_dirty())
+			ss_action(g, .Webhooks, "POST", tprint("/channels/%/webhooks", target), tprint("{\"name\":%}", dc.json_quote(WEBHOOK_NAMES[random_get() % 2])));
 	}
 	set_para("whelp", "Webhooks are a simple way to post messages from other apps and websites into this server.", .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 12);
@@ -2515,11 +2634,19 @@ integrations_page :: (g: *dc.Guild) {
 				pick := select_field("hchan", array_view(names, 1, names.count - 1), max(0, index_of(ids, ss.hook_channel) - 1));
 				if pick >= 0 ss.hook_channel = ids[pick + 1];
 				spacer(.Y, 16);
+				curl := webhook_curl(h);
+				if curl {
+					// tools outside fastcord reach a hosted webhook pinned to the server's key (its certificate is self-signed)
+					field_title("Post from a script");
+					set_para("curl", curl, .Normal, 13, 17, T("--text-default"));
+					spacer(.Y, 16);
+				}
 				br := row("btns");
 				br.semantic_size = .[ui.pct(1), ui.px(38)];
 				br.style.child_gap = 8;
 				{ ui.parent(br); defer ui.pop_parent();
 					if set_button("Copy Webhook URL##copy", .Secondary) clipboard_set(webhook_url(h));
+					if curl && set_button("Copy curl Command##copycurl", .Secondary) clipboard_set(curl);
 					filler(.X);
 					if set_button("Delete Webhook##del", .Danger, !ss.busy) ss_confirm_open(.Delete_Webhook, id, dc.fstr(h, "name"));
 				}
@@ -2553,7 +2680,7 @@ integrations_page :: (g: *dc.Guild) {
 			if row_icon_button("unfollow", "x-small", danger = true) ss_confirm_open(.Delete_Webhook, id, dc.fstr(h, "name"));
 		}
 	}
-	if on_hosted() return;
+	if on_hosted() || ss.channel return;
 	set_divider();
 	label("Bots and Apps", .Semibold, 16, T("--text-strong"), 20);
 	spacer(.Y, 12);
@@ -3057,4 +3184,524 @@ server_settings_script_reply :: (name: string, json: string) -> bool {
 		return true;
 	}
 	return false;
+}
+
+// ---- Channel Settings ----
+
+chan_texty :: (k: dc.Channel_Type) -> bool { return k != .Guild_Voice && k != .Guild_Stage_Voice && k != .Guild_Category; }
+chan_voice :: (k: dc.Channel_Type) -> bool { return k == .Guild_Voice || k == .Guild_Stage_Voice; }
+chan_title :: (ch: *dc.Channel) -> string { return ifx chan_texty(ch.kind) then tprint("# %", ch.name) else ch.name; }
+
+has_topic :: (ch: *dc.Channel) -> bool {
+	return ch.kind == .Guild_Text || ch.kind == .Guild_Announcement || ch.kind == .Guild_Forum || ch.kind == .Guild_Media;
+}
+
+has_slowmode :: (ch: *dc.Channel) -> bool {
+	return ch.kind == .Guild_Text || ch.kind == .Guild_Forum || ch.kind == .Guild_Media || chan_voice(ch.kind);
+}
+
+SLOWMODE_SECS :: int.[0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 21600];
+TOPIC_MAX :: 1024;
+
+// "Off", "5s", "1m", "6h" as the client's slowmode select labels them.
+slowmode_label :: (secs: int) -> string {
+	if secs == 0 return "Off";
+	if secs < 60 return tprint("%s", secs);
+	if secs < 3600 return tprint("%m", secs / 60);
+	return tprint("%h", secs / 3600);
+}
+
+// The bitrate cap by boost level (VIP servers 384 kbps); a hosted server takes up to 96 kbps.
+max_bitrate :: (g: *dc.Guild) -> int {
+	if on_hosted() return 96000;
+	if dc.guild_has_feature(g, "VIP_REGIONS") return 384000;
+	CAPS :: int.[96000, 128000, 256000, 384000];
+	return CAPS[clamp(g.premium_tier, 0, 3)];
+}
+
+// The Overview as edited: the drafts in ss.chan, the name and the topic.
+chan_form :: (ch: *dc.Channel) -> dc.Channel_Form {
+	f := ss.chan;
+	name := trim(ui.editor_text(*ss.name), "- ");
+	f.name = ifx name then dc.channel_name_normalize(name, chan_texty(ch.kind)) else ch.name;
+	f.topic = ifx has_topic(ch) then ui.editor_text(*ss.desc) else ch.topic;
+	return f;
+}
+
+chan_overview_dirty :: () -> bool {
+	ch := dc.channel_get(store(), ss.channel);
+	if !ch return false;
+	a, b := chan_form(ch), dc.channel_form_of(ch);
+	return a.name != b.name || a.topic != b.topic || a.kind != b.kind || a.nsfw != b.nsfw || a.rate_limit_per_user != b.rate_limit_per_user
+		|| a.bitrate != b.bitrate || a.user_limit != b.user_limit || a.rtc_region != b.rtc_region || a.video_quality_mode != b.video_quality_mode;
+}
+
+chan_reset :: () {
+	ch := dc.channel_get(store(), ss.channel);
+	if !ch return;
+	ui.editor_set_text(*ss.name, ch.name);
+	ui.editor_set_text(*ss.desc, ch.topic);
+	ss.chan = dc.channel_form_of(ch);
+	ss.chan.name, ss.chan.topic = "", ""; // the store's strings: chan_form takes the editors'
+	ss_set(*ss.chan_region, ch.rtc_region);
+	ss.chan.rtc_region = ss.chan_region;
+	array_reset(*ss.ows);
+	for ch.overwrites array_add(*ss.ows, it);
+}
+
+// Save Changes: PATCH /channels/{id} with the whole form (guild_admin.jai; channel_settings_saved answers).
+chan_overview_save :: () {
+	ch := dc.channel_get(store(), ss.channel);
+	if !ch return;
+	ss.busy = true;
+	ss_error("");
+	dc.edit_channel(app.client, ch.id, chan_form(ch));
+}
+
+chan_overview_page :: (g: *dc.Guild) -> bool {
+	ch := dc.channel_get(store(), ss.channel);
+	if !ch return false;
+	save := false;
+	field_title(ifx ch.kind == .Guild_Category then "Category Name" else "Channel Name");
+	res := set_input("name", *ss.name, ch.name, max_runes = 100);
+	if res == .Changed && chan_texty(ch.kind) {
+		cur := ui.editor_text(*ss.name);
+		norm := dc.channel_name_normalize(cur, true);
+		if norm != cur ui.editor_set_text(*ss.name, norm);
+	}
+	if res == .Submit save = true;
+	if res == .Escape ss.field_escape = true;
+	if has_topic(ch) {
+		spacer(.Y, 24);
+		field_title(ifx ch.kind == .Guild_Forum || ch.kind == .Guild_Media then "Post Guidelines" else "Channel Topic");
+		tw := ui.box("topicwrap");
+		tw.semantic_size = .[ui.pct(1), ui.children()];
+		tw.layout_axis = .Y;
+		ui.parent(tw); defer ui.pop_parent();
+		if set_input("topic", *ss.desc, "Let everyone know how to use this channel!", multiline = true, max_runes = TOPIC_MAX, min_h = 170) == .Escape ss.field_escape = true;
+		left, t := TOPIC_MAX, ui.editor_text(*ss.desc);
+		while t.count { utf8_next_character(*t); left -= 1; } // the client counts characters
+		cnt := label(tprint("%", left), .Semibold, 14, T("--text-strong"), 18);
+		cnt.flags |= .Floating_X | .Floating_Y;
+		cnt.fixed_pos = .{ss.form_w - 14 - cnt.content_size.x, (tw.rect.y1 - tw.rect.y0) - 18 - 10};
+	}
+	if has_slowmode(ch) {
+		spacer(.Y, 24);
+		field_title("Slowmode");
+		labels := NewArray(SLOWMODE_SECS.count, string,, temp);
+		cur := 0;
+		for SLOWMODE_SECS {
+			labels[it_index] = slowmode_label(it);
+			if it <= ss.chan.rate_limit_per_user cur = it_index;
+		}
+		pick := select_field("slowmode", labels, cur);
+		if pick >= 0 ss.chan.rate_limit_per_user = SLOWMODE_SECS[pick];
+		spacer(.Y, 8);
+		set_para("slowhelp", "Members will be restricted to sending one message and creating one thread per this interval, unless they have the Bypass Slowmode permission.", .Normal, 12, 16, T("--text-default"));
+	}
+	if (ch.kind == .Guild_Text || ch.kind == .Guild_Announcement) && !on_hosted() && (dc.guild_has_feature(g, "NEWS") || dc.guild_has_feature(g, "COMMUNITY")) {
+		set_divider();
+		news := ss.chan.kind == .Guild_Announcement;
+		if set_toggle_row("news", "Announcement Channel", "Post messages that reach servers outside your own. Members can follow this channel, so the posts you publish here appear in their servers.", news)
+			ss.chan.kind = ifx news then .Guild_Text else .Guild_Announcement;
+	}
+	if ch.kind != .Guild_Category && ch.kind != .Guild_Stage_Voice && (chan_texty(ch.kind) || !on_hosted()) {
+		set_divider();
+		if set_toggle_row("nsfw", "Age-Restricted Channel", "Users will need to confirm they are of over the legal age to view in the content in this channel.\nAge-restricted channels are exempt from the explicit content filter.", ss.chan.nsfw)
+			ss.chan.nsfw = !ss.chan.nsfw;
+	}
+	if !chan_voice(ch.kind) return save;
+	set_divider();
+	field_title("Bitrate");
+	kbps := cast(float32) ss.chan.bitrate / 1000;
+	if slider("bitrate", *kbps, 8, cast(float32) max_bitrate(g) / 1000, ss.form_w, tprint("%kbps", cast(int)(kbps + 0.5))) ss.chan.bitrate = cast(int)(kbps + 0.5) * 1000;
+	spacer(.Y, 4);
+	label(tprint("%kbps", ss.chan.bitrate / 1000), .Medium, 14, T("--text-default"), 18);
+	if ss.chan.bitrate > 64000 {
+		spacer(.Y, 8);
+		set_para("bithelp", "ALL THE BITS! Going above 64 kbps may adversely affect people on poor connections.", .Normal, 14, 18, T("--text-feedback-warning"));
+	}
+	if !on_hosted() {
+		set_divider();
+		field_title("Video Quality");
+		hd := ss.chan.video_quality_mode == 2;
+		if radio_row("vq_auto", "Auto", !hd) ss.chan.video_quality_mode = 1;
+		if radio_row("vq_720", "720p", hd) ss.chan.video_quality_mode = 2;
+		set_para("vqhelp", "Sets camera video quality for all channel participants. Choose Auto for optimal performance.", .Normal, 14, 18, T("--text-muted"));
+	}
+	set_divider();
+	field_title("User Limit");
+	n := cast(float32) ss.chan.user_limit;
+	if slider("limit", *n, 0, 99, ss.form_w) ss.chan.user_limit = cast(int)(n + 0.5);
+	spacer(.Y, 4);
+	label(ifx ss.chan.user_limit then tprint("% users", ss.chan.user_limit) else "No limit", .Medium, 14, T("--text-default"), 18);
+	spacer(.Y, 8);
+	set_para("limithelp", "Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel.", .Normal, 14, 18, T("--text-muted"));
+	if on_hosted() return save;
+	set_divider();
+	field_title("Region Override");
+	names, ids: [..]string;
+	names.allocator, ids.allocator = temp, temp;
+	array_add(*names, "Automatic");
+	array_add(*ids, "");
+	r := reply(.Regions);
+	if r for dc.vlist(r.body) {
+		m := dc.vmap(it);
+		id := dc.fstr(m, "id");
+		if id && dc.fstr(m, "name") && (!dc.fbool(m, "deprecated") || id == ss.chan.rtc_region) {
+			array_add(*names, dc.fstr(m, "name"));
+			array_add(*ids, id);
+		}
+	}
+	cur := 0;
+	for ids if it == ss.chan.rtc_region cur = it_index;
+	pick := select_field("region", names, cur);
+	if pick >= 0 {
+		ss_set(*ss.chan_region, ids[pick]);
+		ss.chan.rtc_region = ss.chan_region;
+	}
+	spacer(.Y, 8);
+	set_para("regionhelp", "Everyone in this channel connects to the selected region. Automatic picks the best one for whoever starts the call.", .Normal, 14, 18, T("--text-muted"));
+	return save;
+}
+
+// ---- Channel Settings: Permissions ----
+
+// What making a channel private denies @everyone (the client's accessPermissions).
+chan_access :: (k: dc.Channel_Type) -> u64 { return ifx chan_voice(k) then dc.PERM_VIEW_CHANNEL | dc.PERM_CONNECT else dc.PERM_VIEW_CHANNEL; }
+
+ow_find :: (list: []dc.Overwrite, id: dc.Snowflake) -> *dc.Overwrite {
+	for * list if it.id == id return it;
+	return null;
+}
+
+ows_equal :: (a: []dc.Overwrite, b: []dc.Overwrite) -> bool {
+	if a.count != b.count return false;
+	for a {
+		o := ow_find(b, it.id);
+		if !o || o.allow != it.allow || o.deny != it.deny return false;
+	}
+	return true;
+}
+
+// Whether the draft d differs from the channel's (an @everyone allowing and denying nothing is no change).
+ow_changed :: (ch: *dc.Channel, d: dc.Overwrite) -> bool {
+	o := ow_find(ch.overwrites, d.id);
+	if !o return d.allow || d.deny || d.id != ch.guild_id;
+	return o.allow != d.allow || o.deny != d.deny;
+}
+
+ows_dirty :: () -> bool {
+	ch := dc.channel_get(store(), ss.channel);
+	if !ch return false;
+	for ss.ows if ow_changed(ch, it) return true;
+	for ch.overwrites if !ow_find(ss.ows, it.id) return true;
+	return false;
+}
+
+ow_body :: (o: dc.Overwrite) -> string {
+	return tprint("{\"id\":\"%\",\"type\":%,\"allow\":\"%\",\"deny\":\"%\"}", o.id, o.kind, o.allow, o.deny);
+}
+
+// Save Changes: PUT /channels/{id}/permissions/{target} for each changed overwrite, then DELETE for each
+// removed one (the client's updatePermissionOverwrite / clearPermissionOverwrite).
+ows_save :: (g: *dc.Guild) {
+	ch := dc.channel_get(store(), ss.channel);
+	if !ch return;
+	ss_error("");
+	for ss.ows if ow_changed(ch, it) save_call(g, .Save, "PUT", tprint("/channels/%/permissions/%", ch.id, it.id), ow_body(it));
+	for ch.overwrites if !ow_find(ss.ows, it.id) save_call(g, .Save, "DELETE", tprint("/channels/%/permissions/%", ch.id, it.id), "");
+}
+
+// The draft overwrite of id, added (allowing and denying nothing) when missing.
+ow_draft :: (id: dc.Snowflake, kind: u8) -> *dc.Overwrite {
+	o := ow_find(ss.ows, id);
+	if o return o;
+	array_add(*ss.ows, .{id = id, kind = kind});
+	return *ss.ows[ss.ows.count - 1];
+}
+
+ow_name :: (g: *dc.Guild, o: dc.Overwrite) -> string {
+	if o.kind == 0 {
+		if o.id == g.id return "@everyone";
+		r := role_of(g, o.id);
+		return ifx r then r.name else "deleted-role";
+	}
+	u := dc.user_get(store(), o.id);
+	return ifx u then dc.display_name(u) else tprint("%", o.id);
+}
+
+// The overwrite list as the client shows it: roles top first, then members, @everyone last.
+ows_sorted :: (g: *dc.Guild) -> []dc.Overwrite {
+	out: [..]dc.Overwrite;
+	out.allocator = temp;
+	for roles_sorted(g) {
+		if it.id == g.id continue;
+		o := ow_find(ss.ows, it.id);
+		if o array_add(*out, o.*);
+	}
+	for ss.ows if it.kind == 1 array_add(*out, it);
+	ev := ow_find(ss.ows, g.id);
+	array_add(*out, ifx ev then ev.* else .{id = g.id});
+	return out;
+}
+
+// The role permission sections (PERM_SECTIONS) a channel of type k has, as masks.
+chan_section_mask :: (k: dc.Channel_Type, i: int) -> u64 {
+	ALL : u64 : 0xFFFF_FFFF_FFFF_FFFF;
+	vocal := chan_voice(k) || k == .Guild_Category;
+	if i == {
+	case 0; return dc.PERM_VIEW_CHANNEL | dc.PERM_MANAGE_CHANNELS | dc.PERM_MANAGE_ROLES | dc.PERM_MANAGE_WEBHOOKS;
+	case 1; return dc.PERM_CREATE_INSTANT_INVITE;
+	case 2; #through; case 4; return ALL;
+	case 3; #through; case 5; return ifx vocal then ALL else 0;
+	}
+	return 0;
+}
+
+// The channel's names for the general ones.
+chan_perm_text :: (p: Perm, cat: bool) -> string, string {
+	if p.flag == {
+	case dc.PERM_VIEW_CHANNEL;
+		if cat return "View Channels", "Allows members to view these channels by default. Disabling this for @everyone will make the category private.";
+		return "View Channel", "Allows members to view this channel by default. Disabling this for @everyone will make this channel private.";
+	case dc.PERM_MANAGE_CHANNELS;
+		return ifx cat then "Manage Channels" else "Manage Channel", "Allows members to change this channel's name, description, and settings. They can also delete it.";
+	case dc.PERM_MANAGE_ROLES;
+		return "Manage Permissions", "Allows members to change this channel's permissions.";
+	}
+	return p.title, p.desc;
+}
+
+// Deny / neutral / allow (0, 1, 2); the state picked this frame, else -1.
+tri_state :: (id: string, state: int, enabled: bool) -> int {
+	r := row(id, .Draw_Border | .Clip);
+	r.semantic_size = .[ui.children(), ui.px(28)];
+	r.style.border = 1;
+	r.style.border_color = T("--border-subtle");
+	r.style.radius = all4(6);
+	ui.parent(r); defer ui.pop_parent();
+	pick := -1;
+	for k: 0..2 {
+		on := state == k;
+		b := ui.box(tprint("s%", k), .Clickable | .Draw_Background | .Hot_Animation);
+		b.semantic_size = .[ui.px(30), ui.px(26)];
+		b.style.bg = ifx !on then ui.Color.{} else ifx k == 0 then T("--status-danger") else ifx k == 2 then T("--status-positive") else T("--background-mod-strong");
+		b.style.bg_hot = ifx on then b.style.bg else T("--background-mod-subtle");
+		if enabled b.hover_cursor = .Pointer;
+		else b.flags |= .Disabled;
+		if ui.signal(b).clicked && enabled && !on pick = k;
+		ui.parent(b); defer ui.pop_parent();
+		c := ifx on then ui.Color.{1, 1, 1, 1} else T("--interactive-icon-default");
+		if !enabled c = with_alpha(c, 0.4);
+		if k == 1 {
+			l := label("/", .Bold, 14, c, 26);
+			l.flags |= .Floating_X | .Floating_Y;
+			l.fixed_pos = .{12, 0};
+		} else {
+			i := icon("i", ifx k == 0 then "x-small" else "checkmark-small", 16, c);
+			i.flags |= .Floating_X | .Floating_Y;
+			i.fixed_pos = .{7, 5};
+		}
+	}
+	return pick;
+}
+
+chan_permissions_page :: (g: *dc.Guild) {
+	ch := dc.channel_get(store(), ss.channel);
+	if !ch return;
+	is_cat := ch.kind == .Guild_Category;
+	cat := dc.channel_get(store(), ch.parent_id);
+	if cat && !is_cat {
+		synced := ows_equal(ch.overwrites, cat.overwrites);
+		b := row("sync", .Draw_Background);
+		b.semantic_size = .[ui.pct(1), ui.px(52)];
+		b.style.bg = T("--background-mod-subtle");
+		b.style.radius = all4(8);
+		{ ui.parent(b); defer ui.pop_parent();
+			spacer(.X, 16);
+			icon("ic", ifx synced then "link" else "warning", 16, T("--interactive-icon-default"));
+			spacer(.X, 10);
+			t := ui.box("t", .Wrap_Text);
+			t.semantic_size = .[ui.fill(), ui.text_size()];
+			t.style.line_height = 18;
+			t.style.text_color = T("--text-default");
+			spans := NewArray(2, ui.Span,, temp);
+			spans[0] = .{text = ifx synced then "Permissions synced with category: " else "Permissions not synced with category: ", font = F(.Normal), size = 14};
+			spans[1] = .{text = cat.name, font = F(.Bold), size = 14};
+			ui.set_spans(t, spans);
+			if !synced {
+				spacer(.X, 12);
+				if set_button("Sync Now##sync", .Primary, !ss.busy && !ows_dirty(), 32) {
+					list: [..]string;
+					list.allocator = temp;
+					for cat.overwrites array_add(*list, ow_body(it));
+					ss_action(g, .COUNT, "PATCH", tprint("/channels/%", ch.id), tprint("{\"permission_overwrites\":[%]}", join(..list, ",",, temp)));
+				}
+			}
+			spacer(.X, 12);
+		}
+		spacer(.Y, 20);
+	}
+	access := chan_access(ch.kind);
+	ev := ow_find(ss.ows, g.id);
+	private := ev && (ev.deny & access) == access;
+	help := ifx is_cat then "By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting."
+		else ifx chan_voice(ch.kind) then "By making a channel private, only select members and roles will have access to view or connect to this channel."
+		else "By making a channel private, only select members and roles will be able to view this channel.";
+	if set_toggle_row("private", ifx is_cat then "Private Category" else "Private Channel", help, private) {
+		o := ow_draft(g.id, 0);
+		o.allow &= ~access;
+		if private o.deny &= ~access;
+		else o.deny |= access;
+	}
+	set_divider();
+	label("Advanced permissions", .Semibold, 16, T("--text-strong"), 20);
+	spacer(.Y, 16);
+	if !ow_find(ss.ows, ss.ow_id) ss.ow_id = g.id;
+	cols := row("adv");
+	cols.semantic_size = .[ui.pct(1), ui.children()];
+	cols.cross_align = .Start;
+	ui.parent(cols); defer ui.pop_parent();
+	left := ui.box("targets");
+	left.semantic_size = .[ui.px(200), ui.children()];
+	left.layout_axis = .Y;
+	{ ui.parent(left); defer ui.pop_parent();
+		hr := row("thead");
+		hr.semantic_size = .[ui.pct(1), ui.px(28)];
+		{ ui.parent(hr); defer ui.pop_parent();
+			label("ROLES/MEMBERS", .Bold, 12, T("--text-muted"), 16);
+			filler(.X);
+			if row_icon_button("add", "plus-small") ss.ow_adding = !ss.ow_adding;
+		}
+		spacer(.Y, 4);
+		if ss.ow_adding ow_add_list(g);
+		for ows_sorted(g) {
+			ui.id_scope(cast(u64) it.id);
+			defer ui.pop_seed();
+			sel := it.id == ss.ow_id;
+			r := row("t", .Clickable | .Draw_Background | .Hot_Animation);
+			r.semantic_size = .[ui.pct(1), ui.px(32)];
+			r.style.radius = all4(6);
+			r.style.bg = ifx sel then T("--background-mod-normal") else .{};
+			r.style.bg_hot = ifx sel then r.style.bg else T("--background-mod-subtle");
+			r.hover_cursor = .Pointer;
+			if ui.signal(r).clicked ss.ow_id = it.id;
+			ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 8);
+			if it.kind == 1 avatar_box("av", it.id, 20);
+			else {
+				role := role_of(g, it.id);
+				dot := ui.box("dot", .Draw_Background);
+				dot.semantic_size = .[ui.px(12), ui.px(12)];
+				dot.style.radius = all4(6);
+				dot.style.bg = color_of(ifx role then role.color else 0);
+			}
+			spacer(.X, 8);
+			label(ellipsize(ow_name(g, it), .Medium, 14, 150), .Medium, 14, ifx sel then T("--interactive-text-active") else T("--interactive-text-default"), 18);
+		}
+	}
+	spacer(.X, 24);
+	right := ui.box("perms");
+	right.semantic_size = .[ui.fill(), ui.children()];
+	right.layout_axis = .Y;
+	ui.parent(right); defer ui.pop_parent();
+	cur := ow_find(ss.ows, ss.ow_id);
+	shown := ifx cur then cur.* else dc.Overwrite.{id = g.id};
+	th := row("ptitle");
+	th.semantic_size = .[ui.pct(1), ui.px(28)];
+	{ ui.parent(th); defer ui.pop_parent();
+		label(ow_name(g, shown), .Semibold, 16, T("--text-strong"), 20);
+		filler(.X);
+		if shown.id != g.id && set_button("Remove##rmow", .Link, true, 28) {
+			for ss.ows if it.id == shown.id { array_ordered_remove_by_index(*ss.ows, it_index); break; }
+			ss.ow_id = g.id;
+		}
+	}
+	// what we may grant or deny: what we hold here (the owner and administrators: everything)
+	mine := dc.channel_permissions(store(), ch.id);
+	if g.owner_id == store().me || (dc.guild_permissions(store(), g.id) & dc.PERM_ADMINISTRATOR) mine = 0xFFFF_FFFF_FFFF_FFFF;
+	for sec, si: PERM_SECTIONS {
+		mask := chan_section_mask(ch.kind, si);
+		any := false;
+		for sec.perms if it.flag & mask any = true;
+		if !any continue;
+		spacer(.Y, 16);
+		label(ifx si == 0 then (ifx is_cat then "General Category Permissions" else "General Channel Permissions") else sec.title, .Bold, 12, T("--text-muted"), 16);
+		spacer(.Y, 8);
+		for p: sec.perms {
+			if !(p.flag & mask) continue;
+			ui.id_scope(p.flag);
+			defer ui.pop_seed();
+			title, desc := chan_perm_text(p, is_cat);
+			pr := row("p");
+			pr.semantic_size = .[ui.pct(1), ui.children()];
+			pr.cross_align = .Start;
+			{ ui.parent(pr); defer ui.pop_parent();
+				col := ui.box("t");
+				col.semantic_size = .[ui.fill(), ui.children()];
+				col.layout_axis = .Y;
+				{ ui.parent(col); defer ui.pop_parent();
+					label(title, .Medium, 15, T("--text-strong"), 20);
+					spacer(.Y, 2);
+					set_para("d", desc, .Normal, 13, 17, T("--text-muted"));
+				}
+				spacer(.X, 16);
+				state := ifx shown.deny & p.flag then 0 else ifx shown.allow & p.flag then 2 else 1;
+				pick := tri_state("tri", state, (mine & p.flag) != 0);
+				if pick >= 0 {
+					o := ow_draft(shown.id, shown.kind);
+					o.allow &= ~p.flag;
+					o.deny &= ~p.flag;
+					if pick == 0 o.deny |= p.flag;
+					if pick == 2 o.allow |= p.flag;
+				}
+			}
+			set_divider();
+		}
+	}
+}
+
+// Add members or roles: the roles not listed yet, filtered by the search, then the members it finds
+// (Enter searches, as Manage Members does).
+ow_add_list :: (g: *dc.Guild) {
+	res := set_input("owsearch", *ss.search, "Add members or roles");
+	if res == .Escape ss.ow_adding = false;
+	q := to_lower_copy(trim(ui.editor_text(*ss.search)),, temp);
+	if res == .Submit && q { ss.loading[Req.Members] = false; members_search(g); }
+	spacer(.Y, 4);
+	pick_row :: (id: dc.Snowflake, name: string) -> bool {
+		ui.id_scope(cast(u64) id);
+		defer ui.pop_seed();
+		r := row("a", .Clickable | .Draw_Background | .Hot_Animation);
+		r.semantic_size = .[ui.pct(1), ui.px(28)];
+		r.style.radius = all4(6);
+		r.style.bg_hot = T("--background-mod-subtle");
+		r.hover_cursor = .Pointer;
+		clicked := ui.signal(r).clicked;
+		ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 8);
+		icon("p", "plus-small", 14, T("--interactive-icon-default"));
+		spacer(.X, 6);
+		label(ellipsize(name, .Normal, 14, 150), .Normal, 14, T("--text-default"), 18);
+		return clicked;
+	}
+	picked: dc.Snowflake;
+	kind: u8;
+	for roles_sorted(g) {
+		if it.id == g.id || ow_find(ss.ows, it.id) || (q && !contains(to_lower_copy(it.name,, temp), q)) continue;
+		if pick_row(it.id, it.name) picked, kind = it.id, 0;
+	}
+	found := reply(.Members);
+	if found && q for dc.flist(dc.vmap(found.body), "members") {
+		u := dc.fmap(dc.fmap(dc.vmap(it), "member"), "user");
+		uid := dc.fsnow(u, "id");
+		if !uid || ow_find(ss.ows, uid) continue;
+		if pick_row(uid, user_display(u)) picked, kind = uid, 1;
+	}
+	set_divider();
+	if !picked return;
+	ow_draft(picked, kind);
+	ss.ow_id, ss.ow_adding = picked, false;
+	ui.editor_set_text(*ss.search, "");
 }
