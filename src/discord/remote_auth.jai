@@ -200,6 +200,9 @@ Remote_Auth :: struct {
 	stream: netio.Stream;
 	inbox: [..][]u8; // text messages from the reader thread (client allocator)
 	reader_done: bool;
+	// the ticket login's captcha: the thread waits for remote_auth_captcha
+	captcha_wait: bool;
+	captcha_headers: [..]http.Header; // the solution's (client allocator); none = cancelled
 }
 
 Remote_Auth_View :: struct {
@@ -230,6 +233,7 @@ remote_auth_start :: (c: *Client) {
 	ra.restart = false;
 	if !ra.th {
 		ra.inbox.allocator = c.allocator;
+		ra.captcha_headers.allocator = c.allocator;
 		ra.th = spawn(c, remote_auth_proc);
 	} else {
 		locks.cond_broadcast(*ra.cond);
@@ -275,9 +279,23 @@ remote_auth_stop :: (c: *Client) {
 	if th locks.join(th);
 }
 
+// remote_auth_captcha: the ticket login's captcha was solved (its headers) or cancelled (none).
+remote_auth_captcha :: (c: *Client, headers: []http.Header) {
+	ra := *c.auth.ra;
+	locks.lock(*ra.mu);
+	defer locks.unlock(*ra.mu);
+	if !ra.captcha_wait return;
+	ra.captcha_wait = false;
+	ra_captcha_clear(ra, c.allocator);
+	for headers array_add(*ra.captcha_headers, .{copy_string(it.name,, c.allocator), copy_string(it.value,, c.allocator)});
+	locks.cond_broadcast(*ra.cond);
+}
+
 remote_auth_destroy :: (c: *Client) {
 	remote_auth_stop(c);
 	using ra := *c.auth.ra;
+	ra_captcha_clear(ra, c.allocator);
+	array_free(captcha_headers);
 	push_allocator(c.allocator);
 	free(fingerprint);
 	free(discriminator);
@@ -288,6 +306,14 @@ remote_auth_destroy :: (c: *Client) {
 }
 
 #scope_file
+
+ra_captcha_clear :: (ra: *Remote_Auth, allocator: Allocator) {
+	for ra.captcha_headers {
+		free(it.name,, allocator);
+		free(it.value,, allocator);
+	}
+	ra.captcha_headers.count = 0;
+}
 
 ra_shutdown_socket :: (ra: *Remote_Auth) {
 	locks.lock(*ra.mu);
@@ -517,23 +543,56 @@ ra_session_loop :: (c: *Client, ws: *http.Ws_Conn, s: *Ra_Session, backoff: *Bac
 	return .Fail; // not reached: Jai doesn't treat `while true` as never ending
 }
 
+#scope_module
+
 // POST /users/@me/remote-auth/login {"ticket"} -> encrypted_token; the token
-// goes to the UI thread, which logs in with it (auth_apply).
+// goes to the UI thread, which logs in with it (auth_apply). A captcha (HTTPUtils'
+// interceptor) goes to the UI thread too, and the request goes again with its
+// solution; a cancel fails it. The socket isn't served meanwhile (no heartbeats).
 ra_ticket_login :: (c: *Client, s: *Ra_Session) -> bool {
+	ra := *c.auth.ra;
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
 	json_kstr(*w, "ticket", s.ticket);
 	json_obj_end(*w);
-	r := api_call(c, "POST", "/users/@me/remote-auth/login", w.buf, "application/json", "", .[], 0, 0, no_auth = true);
-	defer if r.arena {
-		fini(r.arena);
-		free(r.arena);
+	extra: []http.Header;
+	while true {
+		r := api_call(c, "POST", "/users/@me/remote-auth/login", w.buf, "application/json", "", extra, 0, 0, no_auth = true);
+		defer if r.arena {
+			fini(r.arena);
+			free(r.arena);
+		}
+		if r.ok {
+			tok, ok := ra_decrypt(s, fstr(vmap(r.body), "encrypted_token"));
+			if !ok return false;
+			defer crypto.zero(tok);
+			auth_push_token(c, cast(string) tok, s.fingerprint, .Remote_Token);
+			return true;
+		}
+		_, captcha := api_error(r);
+		if r.status != 400 || !captcha return false;
+		locks.lock(*ra.mu);
+		ra.captcha_wait = true;
+		ra_captcha_clear(ra, c.allocator);
+		locks.unlock(*ra.mu);
+		// the event takes the body's arena
+		ev := Event.{kind = .Rest, data = r.body, arena = r.arena};
+		ev.result = .{op = .Auth, ok = false, status = r.status, tag = xx Auth_Action.Remote_Captcha};
+		r.arena = null;
+		client_push_event(c, ev);
+		locks.lock(*ra.mu);
+		while ra.captcha_wait && !ra.stop && !ra.restart locks.cond_wait_with_timeout(*ra.cond, *ra.mu, 1000);
+		ra.captcha_wait = false;
+		solved := ra.captcha_headers.count > 0;
+		if solved {
+			h := NewArray(ra.captcha_headers.count, http.Header,, temp);
+			for ra.captcha_headers h[it_index] = .{copy_string(it.name,, temp), copy_string(it.value,, temp)};
+			extra = h;
+		}
+		ra_captcha_clear(ra, c.allocator);
+		locks.unlock(*ra.mu);
+		if !solved return false;
 	}
-	if !r.ok return false;
-	tok, ok := ra_decrypt(s, fstr(vmap(r.body), "encrypted_token"));
-	if !ok return false;
-	defer crypto.zero(tok);
-	auth_push_token(c, cast(string) tok, s.fingerprint, .Remote_Token);
-	return true;
+	return false;
 }

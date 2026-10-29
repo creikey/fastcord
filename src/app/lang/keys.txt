@@ -562,6 +562,7 @@ Couldn't load the applications.
 Couldn't load the audit log.
 Couldn't load the backups.
 Couldn't load the bans.
+Couldn't load the captcha. Check your connection, then close this window and try again.
 Couldn't load the files.
 Couldn't load the invites.
 Couldn't load the log.
@@ -707,8 +708,9 @@ Disconnect
 Disconnect From Voice Channel
 Disconnected
 Discord account
-Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead.
 Discord asked for a captcha, which fastcord can't show. Try on discord.com.
+Discord asked for a captcha, which fastcord couldn't show. Log in to Discord in a browser on this computer and try again, or log in with a token.
+Discord asked for a captcha, which needs %1 to show. Install it, or log in to Discord in a browser on this computer and try again, or log in with a token.
 Discord can filter out some messages that contain spam. These messages go to your Spam inbox.
 Discord didn't accept the saved login. Log in again.
 Discord failed to unpin that message for some reason. Sorry about that.
@@ -1375,6 +1377,7 @@ Play Here##ytyes
 Play Soundboard Through My Mic
 Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.
 Play YouTube videos in fastcord with yt-dlp
+Please confirm you’re not a robot.
 Please enter a valid invite link or invite code.
 Please try again later.
 Polish
@@ -1981,6 +1984,7 @@ Voice Connected
 Voice Disconnected
 Volume
 Vote
+Wait! Are you human?
 Waiting for a server
 Wants to message you
 Watch Stream

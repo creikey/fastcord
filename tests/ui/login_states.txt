@@ -8,7 +8,7 @@ wait 3
 expect_visible "- Login or password is invalid."
 login_state captcha
 wait 3
-expect_visible "Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead."
+expect_visible "Discord asked for a captcha, which needs WebKitGTK to show. Install it, or log in to Discord in a browser on this computer and try again, or log in with a token."
 login_state qr
 wait 3
 expect_visible "Log in with QR Code"

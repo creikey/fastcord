@@ -70,9 +70,21 @@ login_reset :: () {
 // login_events: the library's results (frame(), after client_poll).
 login_events :: () {
 	if app.client == null { return; }
+	outcome, what := captcha_poll();
+	if outcome == .Cancelled || outcome == .Unavailable {
+		lg.busy = false;
+		lg.mfa_busy = false;
+		if outcome == .Unavailable {
+			msg := captcha_unavailable_message(what);
+			if lg.mode == .Mfa { set_str(*lg.mfa_error, msg); } else { set_str(*lg.message, msg); }
+		}
+	}
 	for ev: dc.auth_take_events(app.client) {
 		if ev.kind == {
+		case .Captcha_Required;
+			captcha_show(ev.captcha);
 		case .Logged_In;
+			captcha_end();
 			login_save_token(ev.token);
 			login_reset();
 			app.login_error = "";
@@ -81,11 +93,7 @@ login_events :: () {
 			lg.busy = false;
 			set_str(*lg.login_error, ev.login_error);
 			set_str(*lg.password_error, ev.password_error);
-			if ev.captcha {
-				set_str(*lg.message, L("Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead."));
-			} else {
-				set_str(*lg.message, ev.message);
-			}
+			set_str(*lg.message, ev.message);
 		case .Mfa_Required;
 			lg.busy = false;
 			login_mfa_begin(ev.methods);
@@ -106,6 +114,7 @@ login_events :: () {
 			set_str(*lg.password_error, ev.password_error);
 			set_str(*lg.message, ev.message);
 		case .Logged_Out;
+			captcha_end();
 			login_reset();
 			app.needs_login = true;
 			accounts_logged_out();
@@ -872,7 +881,7 @@ login_test_state :: (state: string) -> bool {
 		set_str(*lg.password_error, L("Login or password is invalid."));
 	case "captcha";
 		lg.mode = .Form;
-		set_str(*lg.message, L("Discord asked for a captcha, which fastcord can't show. Log in with the QR code instead."));
+		set_str(*lg.message, captcha_unavailable_message("WebKitGTK"));
 	case "mfa";
 		login_mfa_begin(.Totp | .Backup);
 	case "mfa_backup";

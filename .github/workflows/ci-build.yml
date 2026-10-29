@@ -119,6 +119,26 @@ jobs:
             shot build/smoke/Fastcord.exe
           fi
 
+      # The captcha's web view end to end (src/app/captcha.jai): hCaptcha's test key solves itself. Linux checks
+      # the install hint first if WebKitGTK is missing, then installs it.
+      - name: Captcha web view
+        if: env.JAI_PASSWORD != '' && inputs.release == ''
+        run: |
+          set -euo pipefail
+          key=10000000-ffff-ffff-ffff-000000000001
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get install -y -qq --no-install-recommends xvfb xauth
+            if ! ldconfig -p | grep -q -e libwebkit2gtk-4 -e libwebkitgtk-6; then
+              out=$(xvfb-run -a build/fastcord-dev -captcha-test:$key || true)
+              echo "$out"
+              echo "$out" | grep -q "Unavailable WebKitGTK"
+              sudo apt-get install -y -qq --no-install-recommends libwebkit2gtk-4.1-0
+            fi
+            xvfb-run -a build/fastcord-dev -captcha-test:$key
+          else
+            build/fastcord-dev -captcha-test:$key
+          fi
+
       - name: Upload
         if: env.JAI_PASSWORD != '' && inputs.release != ''
         run: gh release upload ${{ inputs.release }} dist/fastcord-* --clobber

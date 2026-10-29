@@ -37,6 +37,7 @@ zstd :: #import "zstd";
 #load "analytics_events_promo.jai";
 #load "auth.jai";
 #load "calls.jai";
+#load "captcha.jai";
 #load "client.jai";
 #load "cookies.jai";
 #load "expressions.jai";

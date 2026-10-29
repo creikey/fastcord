@@ -27,12 +27,13 @@ Auth_Event_Kind :: enum u8 {
 	Forgot_Sent; // login: where the instructions went; one_time_login: a login link instead
 	Forgot_Failed; // field errors / message
 	Logged_Out; // the logout finished: show the login page
+	Captcha_Required; // captcha: show it, then auth_captcha_answer or auth_captcha_cancel
 }
 
 // Auth_Event strings are in the temp allocator of the frame that took them.
 Auth_Event :: struct {
 	kind: Auth_Event_Kind;
-	captcha: bool; // Discord asked for a captcha (never solved here)
+	captcha: Captcha;
 	login_error: string; // under EMAIL OR PHONE NUMBER
 	password_error: string; // under PASSWORD
 	message: string; // anything else
@@ -56,6 +57,7 @@ Auth_Action :: enum u64 {
 	Survey;
 	Quests;
 	Promotions;
+	Remote_Captcha; // the QR code's ticket login asked for a captcha (remote_auth.jai)
 }
 
 Auth :: struct {
@@ -76,6 +78,14 @@ Auth :: struct {
 	events: [..]Auth_Event; // pushed and taken on the UI thread
 	arena: Flat_Pool; // event strings until taken
 	ra: Remote_Auth;
+	// the last login, MFA or forgot request, sent again with the captcha's headers once it is solved
+	// (zeroed and dropped on its answer); captcha_for is .Remote_Token for the QR code's
+	retry_path: string;
+	retry_body: []u8;
+	retry_action: Auth_Action;
+	retry_count: int;
+	captcha_for: Auth_Action;
+	captcha: Captcha;
 	gw_stoppers: [..]*Thread; // logouts' gateway teardowns (joined by auth_shutdown)
 }
 
@@ -143,6 +153,7 @@ auth_destroy :: (c: *Client) {
 	free(logout_source);
 	free(mfa_ticket);
 	free(login_instance_id);
+	auth_retry_drop(c);
 }
 
 // auth_cold_start: client_start of a client without a token. The
@@ -227,10 +238,8 @@ auth_login :: (c: *Client, login: string, password: []u8) {
 	json_knull(*w, "gift_code_sku_id");
 	json_obj_end(*w);
 	auth_login_dispatched(c);
-	j := auth_job(c, "/auth/login", w.buf, .Login, retries = 2);
+	auth_submit_kept(c, "/auth/login", w.buf, .Login, 2);
 	crypto.zero(w.buf);
-	j.on_done = (c: *Client, j: *Job, status: int) { crypto.zero(cast([]u8) j.body); };
-	job_submit(c, j);
 }
 
 mfa_kind_name :: (m: Mfa_Method) -> string {
@@ -253,7 +262,7 @@ auth_mfa :: (c: *Client, method: Mfa_Method, code: string) {
 	json_obj_end(*w);
 	a.mfa_kind = method;
 	auth_login_dispatched(c);
-	job_submit(c, auth_job(c, tprint("/auth/mfa/%", mfa_kind_name(method)), w.buf, .Mfa, retries = 2));
+	auth_submit_kept(c, tprint("/auth/mfa/%", mfa_kind_name(method)), w.buf, .Mfa, 2);
 }
 
 // LOGIN: from here until CONNECTION_OPEN events carry no client_uuid (fixture
@@ -281,7 +290,84 @@ auth_forgot :: (c: *Client, login: string) {
 	json_obj(*w);
 	json_kstr(*w, "login", auth_login_value(c, login));
 	json_obj_end(*w);
-	job_submit(c, auth_job(c, "/auth/forgot", w.buf, .Forgot));
+	auth_submit_kept(c, "/auth/forgot", w.buf, .Forgot, 0);
+}
+
+// auth_submit_kept sends a login, MFA or forgot request and keeps a copy of it until its answer, to
+// send again if the answer is a captcha (the password's only copy then; both are zeroed).
+auth_submit_kept :: (c: *Client, path: string, body: []u8, action: Auth_Action, retries: int, extra: []http.Header = .[]) {
+	a := *c.auth;
+	if body.data != a.retry_body.data {
+		auth_retry_drop(c);
+		a.retry_path = copy_string(path,, c.allocator);
+		a.retry_body = array_copy(body,, c.allocator);
+		a.retry_action = action;
+		a.retry_count = retries;
+	}
+	j := auth_job(c, path, body, action, retries);
+	if extra {
+		j.extra = NewArray(extra.count, http.Header,, job_alloc(j));
+		for extra j.extra[it_index] = .{job_str(j, it.name), job_str(j, it.value)};
+	}
+	j.on_done = (c: *Client, j: *Job, status: int) { crypto.zero(cast([]u8) j.body); };
+	job_submit(c, j);
+}
+
+auth_retry_drop :: (c: *Client) {
+	a := *c.auth;
+	crypto.zero(a.retry_body);
+	array_free(a.retry_body,, c.allocator);
+	free_str(a.retry_path, c.allocator);
+	a.retry_body = .[];
+	a.retry_path = "";
+	a.retry_action = .None;
+}
+
+// auth_captcha_check: a 400 with a well-formed captcha asks the app to show it (Captcha_Required)
+// and returns true; any other answer drops the kept request.
+auth_captcha_check :: (c: *Client, status: int, body: etf.Map, action: Auth_Action) -> bool {
+	a := *c.auth;
+	ch, ok := captcha_parse(body);
+	if status != 400 || !ok {
+		if action != .Remote_Token auth_retry_drop(c);
+		return false;
+	}
+	captcha_free(*a.captcha, c.allocator);
+	a.captcha = captcha_copy(ch, c.allocator);
+	a.captcha_for = action;
+	analytics_captcha_opened(c, ch);
+	auth_push(c, .{kind = .Captcha_Required, captcha = ch});
+	return true;
+}
+
+// auth_captcha_answer: the solved captcha's token. The request that asked for it goes again with the
+// captcha's headers: the kept login, MFA or forgot request, or the QR code's ticket login.
+auth_captcha_answer :: (c: *Client, key: string) {
+	a := *c.auth;
+	if !key || !captcha_token_ok(key, 16384) {
+		auth_captcha_cancel(c);
+		return;
+	}
+	headers := captcha_headers(a.captcha, key);
+	if a.captcha_for == .Remote_Token {
+		remote_auth_captcha(c, headers);
+	} else if a.retry_path {
+		auth_submit_kept(c, a.retry_path, a.retry_body, a.retry_action, a.retry_count, headers);
+	}
+	captcha_free(*a.captcha, c.allocator);
+	a.captcha_for = .None;
+}
+
+// auth_captcha_cancel: the captcha was closed unsolved (CaptchaCancelError): the request fails; the
+// QR code starts over.
+auth_captcha_cancel :: (c: *Client) {
+	a := *c.auth;
+	if a.captcha_for == .None return;
+	analytics_captcha_dismissed(c);
+	if a.captcha_for == .Remote_Token remote_auth_captcha(c, .[]);
+	else auth_retry_drop(c);
+	captcha_free(*a.captcha, c.allocator);
+	a.captcha_for = .None;
 }
 
 // auth_login_reset: the MFA step's close / "Go back" (LOGIN_RESET, no request).
@@ -350,10 +436,12 @@ auth_apply :: (c: *Client, e: *Event) {
 			}
 		case .Login;
 			analytics_network_action(c, "network_action_user_login", r.status, body, "/auth/login", "post");
+			if auth_captcha_check(c, r.status, body, .Login) return;
 			auth_login_result(c, r.status, body, false);
 			if fstr(body, "token") analytics_login(c);
 		case .Mfa;
 			analytics_network_action(c, "network_action_user_login_mfa", r.status, body, tprint("/auth/mfa/%", mfa_kind_name(a.mfa_kind)), "post");
+			if auth_captcha_check(c, r.status, body, .Mfa) return;
 			auth_login_result(c, r.status, body, true);
 			if fstr(body, "token") analytics_login(c);
 		case .Sms_Send;
@@ -362,6 +450,7 @@ auth_apply :: (c: *Client, e: *Event) {
 			auth_push(c, ev);
 		case .Forgot;
 			analytics_network_action(c, "network_action_forgot_password", r.status, body, "/auth/forgot", "post");
+			if auth_captcha_check(c, r.status, body, .Forgot) return;
 			if r.ok {
 				auth_push(c, .{kind = .Forgot_Sent, one_time_login = fstr(body, "method") == "one_time_login"});
 			} else {
@@ -371,6 +460,8 @@ auth_apply :: (c: *Client, e: *Event) {
 			}
 		case .Logout;
 			auth_after_logout(c, r.status, body);
+		case .Remote_Captcha;
+			if !auth_captcha_check(c, r.status, body, .Remote_Token) remote_auth_captcha(c, .[]);
 		case .Remote_Token;
 			token := fstr(body, "token");
 			client_login_token(c, token);
@@ -417,11 +508,11 @@ auth_login_result :: (c: *Client, status: int, body: etf.Map, mfa_step: bool) {
 	auth_push(c, ev);
 }
 
-// auth_form_errors: the form's field errors (oldFormErrors), the captcha
-// request, or the response's message.
+// auth_form_errors: the form's field errors (oldFormErrors), or the response's message (a captcha
+// that auth_captcha_check could not show).
 auth_form_errors :: (ev: *Auth_Event, status: int, body: etf.Map) {
 	if vhas(body, "captcha_key") {
-		ev.captcha = true;
+		ev.message = "Discord asked for a captcha fastcord couldn't read. Try again later, or log in with a token.";
 		return;
 	}
 	first :: (body: etf.Map, k: string) -> string {
@@ -455,6 +546,7 @@ auth_push :: (c: *Client, ev: Auth_Event) {
 	e.phone = copy_string(ev.phone);
 	e.login = copy_string(ev.login);
 	e.token = copy_string(ev.token);
+	e.captcha = captcha_copy(ev.captcha, context.allocator);
 	array_add(*c.auth.events, e);
 }
 
@@ -472,6 +564,7 @@ auth_take_events :: (c: *Client) -> []Auth_Event {
 		out[i].phone = copy_string(e.phone);
 		out[i].login = copy_string(e.login);
 		out[i].token = copy_string(e.token);
+		out[i].captcha = captcha_copy(e.captcha, temp);
 		crypto.zero(cast([]u8) e.token);
 	}
 	a.events.count = 0;

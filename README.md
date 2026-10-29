@@ -1,7 +1,7 @@
 # fastcord
 
 A fast, native third-party Discord client written from scratch in Jai. No browser, no
-webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
+webview (but for Discord's captcha, below). Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 
 ## Goals
 
@@ -31,7 +31,7 @@ webview. Metal on macOS, Direct3D 11 on Windows, OpenGL (EGL) on Linux.
 | `src/discord` | Unofficial Discord library: REST, gateway, telemetry, voice, state store. |
 | `src/voice*`, `src/opus`, `src/audio` | Voice: RTP, DAVE/MLS end-to-end encryption, Opus, CoreAudio / WASAPI / ALSA. |
 | `src/video` | Camera and screen capture and the H.264/H.265 encoder for calls and Go Live (macOS: AVFoundation, ScreenCaptureKit, VideoToolbox; Windows: Media Foundation, DXGI; Linux: V4L2 cameras and openh264, no screen capture yet). |
-| `src/platform`, `src/gfx` | Window, input, display link, clipboard; the renderers (Metal, D3D11, OpenGL) and text (CoreText, DirectWrite, FreeType + HarfBuzz). |
+| `src/platform`, `src/gfx` | Window, input, display link, clipboard; the renderers (Metal, D3D11, OpenGL) and text (CoreText, DirectWrite, FreeType + HarfBuzz). `webview*.jai`: the window Discord's captcha opens in, the system's web view (WKWebView, WebView2, WebKitGTK) loaded only then. |
 | `src/ui` | Immediate-mode UI core: keyed boxes, layout, animation, text editing. |
 | `src/app` | The client itself. |
 | `src/tool_capture*`, `src/tool_scrub`, `src/tool_trafficdiff`, `src/discord_parity` | Recording the official client (DevTools protocol), scrubbing captures, diffing traffic, the live session runner. |
@@ -62,7 +62,10 @@ about a minute the first time); `jai build.jai - c` does only that.
 `<state>` is `~/Library/Application Support/fastcord/state` (macOS), `%LOCALAPPDATA%\fastcord\state`
 (Windows) or `${XDG_DATA_HOME:-~/.local/share}/fastcord/state` (Linux). With no token (or a rejected one) the app
 opens the login page: email or phone number and password (with the multi-factor step), or the QR code
-for the mobile app, as the official client does (`src/discord/auth.jai`, `remote_auth.jai`). The token
+for the mobile app, as the official client does (`src/discord/auth.jai`, `remote_auth.jai`). When Discord answers either with a captcha, it opens in a small
+window with the system's web view and the request goes again once solved (`src/app/captcha.jai`;
+`./build/fastcord-dev -captcha-test:10000000-ffff-ffff-ffff-000000000001` checks that window end to end
+with hCaptcha's test key, which solves itself). The token
 it gets is saved there, in `<state>/token`, with up to four more from the account popout's Switch Accounts
 (`src/app/accounts.jai`). A small "Log in with a token" link takes a token copied from a browser instead.
 
@@ -212,7 +215,7 @@ archives into `dist/` locally (macOS: `fastcord-macos.zip`; Windows: `fastcord-w
   a Start menu shortcut, an Apps & Features entry; `platform.install`).
 - Linux: one x86_64 binary for every distribution. It links only glibc (2.17+) and opens everything else at
   run time with `dlopen`: libwayland-client and libxkbcommon (native Wayland), else libX11, libEGL for OpenGL 3.3, fontconfig,
-  libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the tray, the launcher badge), libXss (idle time) and libXi (global keybinds). `tools/package_linux.py` packs it with a desktop entry (the
+  libasound (ALSA, which PipeWire and PulseAudio serve), and when present libdbus (notifications, the tray, the launcher badge), libXss (idle time), libXi (global keybinds) and, only when Discord asks for a captcha, WebKitGTK (`libwebkit2gtk-4.1`, `-4.0` or `libwebkitgtk-6.0`). `tools/package_linux.py` packs it with a desktop entry (the
   `fc://` and `discord://` handler), the icon and `install.sh` (per user in `~/.local`, or system-wide as root). The same binary is
   also the headless server, `fastcord-server-linux-x86_64.tar.gz`, with a systemd unit and a README:
   `-serve` runs before any display library is opened.

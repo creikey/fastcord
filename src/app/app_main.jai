@@ -121,6 +121,7 @@ Options :: struct {
 	start_minimized: bool; // --start-minimized: the login item of Start Minimized
 	uninstall: bool; // --uninstall: Apps & Features' Uninstall (Windows)
 	replace: string; // --replace:<pid>:<path>: the first launch of an install, from the copy at path
+	captcha_test: string; // -captcha-test:<sitekey>: the captcha's web view, end to end (captcha.jai)
 }
 
 parse_options :: () -> Options {
@@ -189,6 +190,8 @@ parse_options :: () -> Options {
 			o.uninstall = true;
 		} else if flag("--replace:") {
 			o.replace = v;
+		} else if flag("-captcha-test:") {
+			o.captcha_test = v;
 		} else if begins_with_nocase(a, "fc://") || begins_with_nocase(a, "discord:") {
 			o.url = a;
 		} else {
@@ -263,7 +266,7 @@ main :: () {
 			if colon > 0 platform.replace_finish(xx parse_int_prefix(slice(opt.replace, 0, colon)), advance(opt.replace, colon + 1));
 		}
 	}
-	if !headless && !platform.instance_claim(app_state_dir(), opt.url) return; // the running one takes it
+	if !headless && !opt.captcha_test && !platform.instance_claim(app_state_dir(), opt.url) return; // the running one takes it
 	app.launch_url = copy_string(opt.url);
 	if !headless {
 		context.logger = log_to_file; // watchdog.jai: <data>/logs/fastcord.log
@@ -284,6 +287,7 @@ main :: () {
 	}
 	ok := ifx headless then platform.init_headless(opt.width, opt.height, opt.dpi) else platform.init("Fastcord", opt.width, opt.height);
 	if !ok fail("platform init failed");
+	if opt.captcha_test exit(captcha_test(opt.captcha_test));
 	if !gfx.init() fail("gfx init failed");
 	app.focused = true;
 	locks.set_ui_thread();

@@ -4420,3 +4420,141 @@ proxy_tunnels :: (t: *T) {
 		else expect_value(t, srv.head, "discord.x");
 	}
 }
+
+// captcha_retry: a login, then a QR ticket login, answered with a captcha (HTTPUtils' interceptor) ask
+// the app to show it; the solution sends the same request again with the X-Captcha-* headers, a cancel
+// fails it, and a malformed challenge is a plain failure.
+captcha_retry :: (t: *T) {
+	Rec :: struct {
+		mu: locks.Mutex;
+		n: int;
+		bad: bool; // answer with a malformed challenge
+		pub: *tls.EVP_PKEY; // the QR session's key: the token comes back encrypted to it
+		heads: [..]string; // per request: its x-captcha-* headers and where they start
+		bodies: [..]string;
+	}
+	CHALLENGE :: "{\"captcha_key\":[\"captcha-required\"],\"captcha_sitekey\":\"a9b5fb07-92ff-493f-86fe-352a2803b3df\",\"captcha_service\":\"hcaptcha\",\"captcha_session_id\":\"5f1d6c0e-0b5d-4d7e-a1f0-3c2d7a9e8b11\",\"captcha_rqdata\":\"Zm9v+/YmFy=\",\"captcha_rqtoken\":\"IkF0b2tlbiI.ZzZ\",\"should_serve_invisible\":true}";
+	rt :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
+		r := cast(*Rec) data;
+		resp := http.make_response(.Http2,, context.default_allocator);
+		resp.status = 200;
+		body := "{}";
+		if ends_with(req.path, "/auth/login") || ends_with(req.path, "/remote-auth/login") {
+			sb: String_Builder;
+			sb.allocator = temp;
+			for req.headers if begins_with(it.name, "x-captcha-") print_to_builder(*sb, "%@%=% ", it_index, it.name, it.value);
+			locks.lock(*r.mu);
+			n := r.n;
+			r.n += 1;
+			array_add(*r.heads, builder_to_string(*sb,, context.default_allocator));
+			array_add(*r.bodies, copy_string(cast(string) req.body,, context.default_allocator));
+			bad, pub := r.bad, r.pub;
+			locks.unlock(*r.mu);
+			if n == 0 {
+				resp.status = 400;
+				body = ifx bad then replace(CHALLENGE, "a9b5fb07", "<script>",, temp) else CHALLENGE;
+			} else if pub {
+				ctx := tls.EVP_PKEY_CTX_new(pub, null);
+				ct: [256]u8;
+				m: u64 = ct.count;
+				tls.EVP_PKEY_encrypt_init(ctx);
+				tls.EVP_PKEY_CTX_set_rsa_padding(ctx, tls.RSA_PKCS1_OAEP_PADDING);
+				tls.EVP_PKEY_CTX_set_rsa_oaep_md(ctx, tls.EVP_sha256());
+				tls.EVP_PKEY_encrypt(ctx, ct.data, *m, "qr-token".data, 8);
+				tls.EVP_PKEY_CTX_free(ctx);
+				body = tprint("{\"encrypted_token\":\"%\"}", base64_encode(cast(string) ct,, temp));
+			} else {
+				body = "{\"token\":\"pw-token\"}";
+			}
+		}
+		append_string(*resp.body, body);
+		return resp, .None;
+	}
+	reset :: (r: *Rec) {
+		locks.lock(*r.mu);
+		r.n = 0;
+		for r.heads free(it);
+		for r.bodies free(it);
+		r.heads.count, r.bodies.count = 0, 0;
+		locks.unlock(*r.mu);
+	}
+	wait_event :: (c: *Client, kind: Auth_Event_Kind) -> Auth_Event, bool {
+		start := mono_ms();
+		while mono_ms() - start < 3000 {
+			client_poll(c);
+			for auth_take_events(c) if it.kind == kind return it, true;
+			sleep_milliseconds(2);
+		}
+		return .{}, false;
+	}
+	rec: Rec;
+	defer {
+		reset(*rec);
+		array_free(rec.heads);
+		array_free(rec.bodies);
+	}
+	c := client_create(.{disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true, round_tripper = .{*rec, rt}});
+	defer client_destroy(c);
+	client_start(c);
+
+	// password: the challenge, then the same body again with the three headers first, in order
+	auth_login(c, "dingus@example.com", cast([]u8) copy_string("hunter2",, temp));
+	ev, ok := wait_event(c, .Captcha_Required);
+	if !expect(t, ok, "a login's captcha asks the app to show it") return;
+	expect(t, ev.captcha.service == .Hcaptcha && ev.captcha.sitekey == "a9b5fb07-92ff-493f-86fe-352a2803b3df" && ev.captcha.rqdata == "Zm9v+/YmFy=" && ev.captcha.invisible, "the challenge's fields");
+	auth_captcha_answer(c, "P1_eyJ0.solved-token_");
+	ev, ok = wait_event(c, .Logged_In);
+	expect(t, ok && ev.token == "pw-token", "the solved login logs in");
+	locks.lock(*rec.mu);
+	expect_value(t, rec.n, 2);
+	if rec.n == 2 {
+		expect_value(t, rec.heads[0], "");
+		expect_value(t, rec.heads[1], "1@x-captcha-key=P1_eyJ0.solved-token_ 2@x-captcha-rqtoken=IkF0b2tlbiI.ZzZ 3@x-captcha-session-id=5f1d6c0e-0b5d-4d7e-a1f0-3c2d7a9e8b11 ");
+		expect(t, rec.bodies[1] == rec.bodies[0] && contains(rec.bodies[1], "\"password\":\"hunter2\""), "the retry sends the kept body");
+	}
+	locks.unlock(*rec.mu);
+	expect(t, c.auth.retry_body.count == 0 && c.auth.captcha_for == .None, "the kept password is dropped once answered");
+
+	// a cancel fails the request and drops the password; a malformed challenge is an error line
+	reset(*rec);
+	auth_login(c, "dingus@example.com", cast([]u8) copy_string("hunter2",, temp));
+	_, ok = wait_event(c, .Captcha_Required);
+	expect(t, ok, "second challenge");
+	auth_captcha_cancel(c);
+	expect(t, c.auth.retry_body.count == 0 && c.auth.captcha_for == .None, "cancel drops the kept request");
+	reset(*rec);
+	rec.bad = true;
+	auth_login(c, "dingus@example.com", cast([]u8) copy_string("hunter2",, temp));
+	ev, ok = wait_event(c, .Login_Failed);
+	expect(t, ok && contains(ev.message, "captcha"), "a challenge with a bad sitekey is never shown");
+	rec.bad = false;
+
+	// the QR code's ticket login waits on its thread, then goes again with the solution
+	for solve: bool.[true, false] {
+		reset(*rec);
+		c.auth.ra.stop = false; // the login page's QR session (the logins above stopped it)
+		s: Ra_Session;
+		if !expect(t, ra_session_init(*s, context.allocator), "key pair") return;
+		s.ticket = copy_string("ticket-1");
+		rec.pub = s.key;
+		Arg :: struct { c: *Client; s: *Ra_Session; ok: bool; }
+		arg := Arg.{c, *s, false};
+		th := spawn(*arg, (a: *Arg) { a.ok = ra_ticket_login(a.c, a.s); });
+		_, ok = wait_event(c, .Captcha_Required);
+		expect(t, ok, "the ticket login's captcha reaches the app");
+		if solve auth_captcha_answer(c, "P1_qr");
+		else auth_captcha_cancel(c);
+		if solve {
+			ev, ok = wait_event(c, .Logged_In);
+			expect(t, ok && ev.token == "qr-token", "the solved ticket login logs in");
+		}
+		locks.join(th);
+		expect(t, arg.ok == solve, "solved logs in, cancelled fails");
+		locks.lock(*rec.mu);
+		expect_value(t, rec.n, ifx solve then 2 else 1);
+		if solve && rec.n == 2 expect(t, begins_with(rec.heads[1], "1@x-captcha-key=P1_qr "), rec.heads[1]);
+		locks.unlock(*rec.mu);
+		rec.pub = null;
+		ra_session_destroy(*s);
+	}
+}

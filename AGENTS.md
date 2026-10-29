@@ -22,9 +22,11 @@ the Jai is written. This file lists what is easy to miss.
     (`analytics_never`, `R_SCI_NEVER`).
   - No self-update, ever: the Update pill only opens the download page. fastcord never downloads, replaces or
   restarts its own binary, and releases carry no update manifest or signing key.
-- Nothing that needs a webview, ever: no embedded browser, iframe or HTML renderer. Where the
-    official client uses one (YouTube players, captchas, OAuth pages), open the system browser or
-    offer a native path instead.
+- Nothing that needs a webview: no embedded browser, iframe or HTML renderer. Where the official
+    client uses one (YouTube players, OAuth pages), open the system browser or offer a native path
+    instead. The one exception is Discord's captcha (`src/app/captcha.jai`): it opens in the system's
+    own web view (`src/platform/webview*.jai`: WKWebView, WebView2, WebKitGTK), which is never linked
+    and is loaded only when Discord asks for a captcha, so nothing else ever needs it.
 - The website (`site/index.html`) states what fastcord does today. When a change alters something it
   claims (E2E's protocols and limits, self-hosting, platforms, sizes), update the page in the same
   commit: once the Triple Ratchet lands, the page says Triple Ratchet. Its copy stays plain and
