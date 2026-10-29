@@ -338,6 +338,7 @@ search_receive :: (r: *dc.Feature_Result) {
 			array_add(*search.results, .{msg = dc.parse_loose_message(store(), dc.vmap(mv), a)});
 		}
 	}
+	sort_results();
 	app.ui.animating = true;
 }
 
@@ -541,6 +542,35 @@ search_run :: (ch: *dc.Channel, text: string) {
 	search.seq += 1;
 	search.loading = app.client != null;
 	if app.client != null { dc.search_messages(app.client, ch.guild_id, ch.id, search.sq, search.seq); }
+	// The carrier holds only ciphertext, so a DM's encrypted texts are searched here too, for plain words.
+	plain := !authors.count && !mentions.count && !has.count && !chans.count && !pinned && !min_id && !max_id;
+	if plain encrypted_search(ch, search.sq.content);
+}
+
+#scope_export
+
+// search_add_decrypted puts an encrypted DM's matching texts (encrypted_search) among the results, in
+// the results' order, for the first page of the search they were asked for.
+search_add_decrypted :: (r: *e2e.Request) {
+	if !search.active || search.offset != 0 || r.text != search.sq.content || dc.parse_snowflake(r.conv.id) != search.scope || !r.hits.count return;
+	a := dc.pool_allocator(*search.pool);
+	for r.hits {
+		m: dc.Message;
+		m.id, m.channel_id, m.author_id = dc.parse_snowflake(it.delivery), search.scope, dc.parse_snowflake(it.author);
+		m.content = copy_string(it.text,, a);
+		array_add(*search.results, .{msg = m});
+	}
+	search.total += r.hits.count;
+	sort_results();
+	app.ui.animating = true;
+}
+
+#scope_file
+
+// sort_results keeps the carrier's results and the decrypted ones in one order, whichever came first.
+sort_results :: () {
+	if search.sort == .Oldest quick_sort(search.results, (x: Result, y: Result) -> int { return ifx x.msg.id < y.msg.id then -1 else ifx x.msg.id > y.msg.id then 1 else 0; });
+	else if search.sort == .Newest quick_sort(search.results, (x: Result, y: Result) -> int { return ifx x.msg.id > y.msg.id then -1 else ifx x.msg.id < y.msg.id then 1 else 0; });
 }
 
 

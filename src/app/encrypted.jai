@@ -87,6 +87,8 @@ encrypted_frame :: () {
 			case .Send;
 				if r.result != .Ok { toast_show("Couldn't encrypt the message.", false); continue; }
 				send_packet(r, .Ok, r.text);
+			case .Search;
+				search_add_decrypted(r); // view_search.jai
 			case .Outbox;
 				// Packets saved before a crash, never handed to their carrier: their keys are spent, so send them now.
 				c := carrier_client(r.conv.carrier);
@@ -276,6 +278,12 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 		}
 	}
 	return true, "";
+}
+
+// encrypted_search asks for a 1:1 DM's opened texts holding every word, for the search panel.
+encrypted_search :: (ch: *dc.Channel, words: string) {
+	if !encrypted_dm(ch) || !e2e_db || !trim(words) return;
+	e2e_submit(e2e.request(.Search, conversation(ch.id), words));
 }
 
 // encrypted_verify marks the peer's current root verified or not; either one dismisses a key change.

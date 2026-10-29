@@ -91,6 +91,7 @@ Op :: enum u8 {
 	Sent;          // packet: handed to its carrier, so it leaves the outbox
 	Receive;       // conv, from, delivery, me, packet -> result, content, out_text
 	Outbox;        // -> outbox: packets committed but never handed to their carrier, to send again after a crash
+	Search;        // conv, text = words -> hits: the conversation's texts holding every word, ignoring ASCII case
 }
 
 Result :: enum u8 {
@@ -104,6 +105,7 @@ Result :: enum u8 {
 }
 
 Outbox_Item :: struct { carrier, conversation, packet: string; }
+Hit :: struct { delivery, author, text: string; } // author: the party that sent it
 
 // The caller fills the inputs, submits, and once done reads the outputs and calls free_request.
 Request :: struct {
@@ -128,6 +130,7 @@ Request :: struct {
 	has_peer: bool;
 	key_changed: bool; // Load: the peer's root replaced an earlier one. Receive: a Hello with a root other than the peer's.
 	outbox: [..]Outbox_Item;
+	hits: [..]Hit;
 }
 
 // request makes a heap Request owning copies of conv, text and packet.
@@ -144,6 +147,8 @@ free_request :: (r: *Request) {
 	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet] free(it);
 	for r.outbox { free(it.carrier); free(it.conversation); free(it.packet); }
 	array_free(r.outbox);
+	for r.hits { free(it.delivery); free(it.author); crypto.zero(xx it.text); free(it.text); }
+	array_free(r.hits);
 	free(r);
 }
 
@@ -196,7 +201,18 @@ CREATE TABLE plaintexts(hash BLOB PRIMARY KEY, delivery BLOB, sealed BLOB NOT NU
 CREATE TABLE outbox(hash BLOB PRIMARY KEY, conversation BLOB NOT NULL, packet BLOB NOT NULL) WITHOUT ROWID;
 CREATE TABLE peers(party BLOB PRIMARY KEY, root BLOB NOT NULL, verified INTEGER NOT NULL DEFAULT 0, changed INTEGER NOT NULL DEFAULT 0) WITHOUT ROWID;
 SQL,
+	// Search: each plaintext's conversation and author, so a conversation's texts can be opened and matched
+	// in memory. No word index: one would hold the words outside the seal.
+	#string SQL
+ALTER TABLE plaintexts ADD COLUMN conversation BLOB;
+ALTER TABLE plaintexts ADD COLUMN author BLOB;
+CREATE INDEX plaintexts_conversation ON plaintexts(conversation);
+SQL,
 ];
+
+// Search opens at most this many of a conversation's texts and returns at most MAX_HITS of them.
+MAX_SEARCHED :: 50000;
+MAX_HITS :: 100;
 
 // A session keeps at most this many skipped message keys; the oldest go first.
 MAX_SKIPPED_STORED :: 2000;
@@ -312,6 +328,25 @@ run_request :: (d: *Db, r: *Request) {
 				array_add(*r.outbox, .{copy_string(slice(c, 0, nul)), copy_string(slice(c, nul + 1, c.count - nul - 1)), copy_string(xx sqlite.col_blob(st, 1))});
 			}
 			sqlite.finalize(st);
+		case .Search;
+			words := split(to_lower_copy(r.text,, temp), " ",, temp);
+			st := sqlite.prepare(db, "SELECT hash, delivery, author, sealed FROM plaintexts WHERE conversation = ? AND delivery IS NOT NULL LIMIT ?;");
+			sqlite.bind_all(st, conv, MAX_SEARCHED);
+			while r.hits.count < MAX_HITS && sqlite.step(st) == .Row {
+				b := sqlite.col_blob(st, 3);
+				if b.count <= SEAL_BYTES continue;
+				pt := NewArray(b.count - SEAL_BYTES, u8,, temp);
+				defer crypto.zero(pt);
+				hash := sqlite.col_blob(st, 0);
+				if hash.count != 32 || !unseal(d, ad("plaintexts", hash), b, pt) || (pt[0] & ~SILENT) != xx Content.Text continue;
+				text := to_string(pt.data + 1, pt.count - 1);
+				lower := to_lower_copy(text,, temp);
+				defer crypto.zero(xx lower);
+				found := true;
+				for words if it.count && !contains(lower, it) { found = false; break; }
+				if found array_add(*r.hits, .{copy_string(xx sqlite.col_blob(st, 1)), copy_string(xx sqlite.col_blob(st, 2)), copy_string(text)});
+			}
+			sqlite.finalize(st);
 	}
 }
 
@@ -326,7 +361,7 @@ commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_ro
 		&& (ifx new then sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 				cast([]u8) s.id, conv, peer, cast([]u8) peer_root, cast([]u8) hello_id, seal(d, ad("sessions", s.id), s), now_ms())
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
-		&& store_plaintext(d, hash, "", content, text, r.silent)
+		&& store_plaintext(d, hash, "", content, text, r.silent, conv, r.conv.me)
 		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet) VALUES(?, ?, ?);", cast([]u8) hash, conv, cast([]u8) r.packet)
 		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root)))
 		&& sqlite.exec(db, "COMMIT;");
@@ -395,7 +430,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				&& sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 					cast([]u8) s.id, conv, from, cast([]u8) i.root, cast([]u8) i.hello_id, seal(d, ad("sessions", s.id), *s), now_ms())
 				&& store_skipped(d, s.id, skipped)
-				&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent)
+				&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent, conv, r.from)
 				&& set_encrypted(db, conv, true)
 				&& note_peer(db, from, i.root)
 				&& sqlite.run(db, "UPDATE prekeys SET answered = ? WHERE hello_id = ? AND answered = 0;", now_ms(), cast([]u8) i.hello_id)
@@ -430,7 +465,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				if !decrypt_skipped(*s, mk, m, pt) || !take_plaintext(r, pt) { r.result = .Undecryptable; return; }
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) h.dh, cast(s64) h.n)
-					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent)
+					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent, conv, r.from)
 					&& sqlite.exec(db, "COMMIT;");
 			} else {
 				next := s;
@@ -441,7 +476,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", id), *next), now_ms(), cast([]u8) id)
 					&& store_skipped(d, id, skipped)
-					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent)
+					&& store_plaintext(d, hash, r.delivery, r.content, r.out_text, r.silent, conv, r.from)
 					&& sqlite.exec(db, "COMMIT;");
 				for * skipped crypto.zero(*it.mk);
 			}
@@ -465,15 +500,15 @@ take_plaintext :: (r: *Request, padded: []u8, stored := false) -> bool {
 }
 
 // A plaintext is sealed as the Content byte then the text, the form take_plaintext reads. delivery is
-// empty (NULL) for our own send until the carrier hands it back.
-store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, content: Content, text: string, silent: bool) -> bool {
+// empty (NULL) for our own send until the carrier hands it back; author is the party that sent it.
+store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, content: Content, text: string, silent: bool, conv: []u8, author: string) -> bool {
 	pt := NewArray(text.count + 1, u8, false,, temp);
 	defer crypto.zero(pt);
 	pt[0] = (cast(u8) content) | (ifx silent then SILENT else 0);
 	memcpy(pt.data + 1, text.data, text.count);
 	sealed := seal(d, ad("plaintexts", hash), pt);
-	if !delivery.count return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, sealed) VALUES(?, ?);", cast([]u8) hash, sealed);
-	return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, delivery, sealed) VALUES(?, ?, ?);", cast([]u8) hash, cast([]u8) delivery, sealed);
+	if !delivery.count return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, sealed, conversation, author) VALUES(?, ?, ?, ?);", cast([]u8) hash, sealed, conv, cast([]u8) author);
+	return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, delivery, sealed, conversation, author) VALUES(?, ?, ?, ?, ?);", cast([]u8) hash, cast([]u8) delivery, sealed, conv, cast([]u8) author);
 }
 
 store_skipped :: (d: *Db, session: [16]u8, skipped: []Skipped) -> bool {

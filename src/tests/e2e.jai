@@ -238,6 +238,13 @@ conversation :: (dir: string, max: int) {
 		got := receive(*b, it.packet, *a);
 		check(got.result == .Ok && got.out_text.count == lengths[it_index], "padded text opens");
 	}
+	// Search opens the conversation's sealed texts in memory: every word, any ASCII case.
+	found := ask(*b, .Search, peer = *a, text = "EARLY");
+	check(found.hits.count == 1 && found.hits[0].text == "early" && found.hits[0].author == a.party && found.hits[0].delivery == early_at, "search finds a received text");
+	found = ask(*a, .Search, peer = *b, text = "mine");
+	check(found.hits.count == 1 && found.hits[0].author == a.party, "and our own, once its echo claimed it");
+	found = ask(*b, .Search, peer = *a, text = "early nothing");
+	check(found.hits.count == 0, "every word must match");
 	r = receive(*b, repeat("z", limit + 1), *a);
 	check(r.result == .Undecryptable, "a delivery over the carrier's largest packet is refused");
 
