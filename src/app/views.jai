@@ -1594,6 +1594,7 @@ overlays :: () {
 	if view_reactions.msg != 0 { view_reactions_modal(); }
 	if app.profile_user != 0 { profile_popout(); }
 	user_context_menu(); // view_profile_full.jai: above the profile popout it may come from
+	user_roles_popout();
 	media_overlays(); // view_media.jai: image viewer, media context menu
 	incoming_call_popout(); // view_voice.jai
 	if app.settings_open { settings_modal(); } else { settings_closed(); }

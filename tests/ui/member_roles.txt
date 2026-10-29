@@ -1,0 +1,11 @@
+# Runs on member_roles.jsonl (make_rail_fixture.py). The owner's user menu on a member offers Roles: a checkbox list of
+# the roles they may give or take.
+wait 5
+settle 1
+rclick 468 130
+settle 1
+click_text "Roles"
+settle 1
+shot build/ui-member_roles.png
+expect_visible "Helper"
+expect_visible "Moderator"

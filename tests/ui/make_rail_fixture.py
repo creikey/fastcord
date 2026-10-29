@@ -59,6 +59,11 @@ out.append(ev('RELATIONSHIP_ADD', {'id': quinn['id'], 'type': 4, 'user': quinn, 
 with open(os.path.join(here, 'rail.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     for o in out: f.write(json.dumps(o) + '\n')
 print('wrote rail.jsonl', len(out))
+# member_roles.jsonl: chat.jsonl (our own server) plus two roles to hand out (the user menu's Roles)
+roles = [ev('GUILD_ROLE_CREATE', {'guild_id': 1546820558300258304, 'role': {'id': 1546820558300258400 + k, 'name': n, 'color': c, 'position': k + 1,
+    'permissions': '0', 'hoist': False, 'mentionable': False, 'managed': False, 'icon': None, 'unicode_emoji': None}}) for k, (n, c) in enumerate([('Helper', 0x2ECC71), ('Moderator', 0xE67E22)])]
+with open(os.path.join(here, 'member_roles.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
+    for o in lines + roles + [ev('GUILD_MEMBER_ADD', {'guild_id': 1546820558300258304, 'user': {'id': 1000000000020971521, 'username': 'robin', 'global_name': 'Robin', 'avatar': None, 'discriminator': '0'}, 'roles': [1546820558300258400], 'joined_at': '2026-01-01T00:00:00+00:00'})]: f.write(json.dumps(o) + '\n')
 # leaving_discord.jsonl: the rail fixture plus a masked link in Sam's DM (the Leaving Discord dialog)
 link = ev('MESSAGE_CREATE', {'id': sf(base_ms + 6500 * 1000, 99), 'channel_id': 1700000000000000002, 'author': users[2],
     'content': 'see [the docs](https://discord.com@example.org/docs) and [ours](https://discord.com/developers)', 'timestamp': '', 'edited_timestamp': None,

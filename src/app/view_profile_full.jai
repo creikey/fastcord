@@ -62,6 +62,8 @@ Pf_State :: struct {
 	note: ui.Editor; // the Note field while focused
 	note_focused: bool;
 	note_focus_next: bool; // the user menu's Add Note: the next note field drawn takes the focus
+	roles_user: dc.Snowflake; // the user menu's Roles list, open for this member of app.view.guild
+	roles_pos: ui.Vec2;
 }
 
 pf: Pf_State;
@@ -684,6 +686,7 @@ user_context_menu :: () {
 		if u && u.avatar { array_add(*items, "Remove Avatar"); }
 	}
 	moderation_menu_items(uid, *items);
+	if app.view.guild && dc.member_get(s, app.view.guild, uid) && roles_assignable(app.view.guild).count && (dc.guild_permissions(s, app.view.guild) & dc.PERM_MANAGE_ROLES) { array_add(*items, "Roles"); }
 	array_add(*items, "Copy Username");
 	if s.settings.developer_mode { array_add(*items, "Copy User ID"); }
 	W :: cast(float32) 188;
@@ -734,6 +737,8 @@ user_context_menu :: () {
 					close_private_now(dm);
 				case "Profile";
 					profile_full_open(uid, app.view.guild);
+				case "Roles";
+					pf.roles_user, pf.roles_pos = uid, .{r.rect.x1 + 4, r.rect.y0};
 				case "Mention";
 					u := dc.user_get(s, uid);
 					if u { ed := *chat_state(ch.id).editor; ui.editor_insert(ed, tprint("@% ", u.username)); }
@@ -777,6 +782,47 @@ user_context_menu :: () {
 		}
 	}
 	for * e: app.ui.events { if e.kind == .Key_Down && e.key == .Escape { pf.menu_user = 0; e.consumed = true; } }
+}
+
+// The roles we may give or take: not @everyone, not a bot's or integration's, below our highest (the
+// owner: all), highest first.
+roles_assignable :: (gid: dc.Snowflake) -> []*dc.Role {
+	s := store();
+	g := dc.guild_get(s, gid);
+	out: [..]*dc.Role;
+	out.allocator = temp;
+	if !g return out;
+	top := 0;
+	for g.roles if array_find(dc.my_roles(s, gid), it.id) top = max(top, it.position);
+	for * g.roles if it.id != gid && !it.managed && (g.owner_id == s.me || it.position < top) array_add(*out, it);
+	quick_sort(out, (a: *dc.Role, b: *dc.Role) -> s64 { return b.position - a.position; });
+	return out;
+}
+
+// The user menu's Roles: a checkbox per assignable role; a click adds or removes it (dc.set_member_role).
+user_roles_popout :: () {
+	if pf.roles_user == 0 return;
+	s := store();
+	m := dc.member_get(s, app.view.guild, pf.roles_user);
+	roles := roles_assignable(app.view.guild);
+	if !m || !roles.count || outside_pressed("roles_out") || escape_pressed() { pf.roles_user = 0; return; }
+	W :: cast(float32) 220;
+	h := min(cast(float32) roles.count * 32 + 16, 400);
+	p := pf.roles_pos;
+	p.x = min(p.x, app.ui.window.x - W - 8);
+	p.y = min(p.y, app.ui.window.y - h - 8);
+	menu := menu_panel("rolesmenu", p, W);
+	menu.semantic_size[ui.Axis.Y] = ui.px(h);
+	menu.flags |= .Scroll_Y | .Clip;
+	ui.parent(menu); defer ui.pop_parent();
+	spacer(.Y, 8);
+	for r: roles {
+		ui.id_scope(cast(u64) r.id); defer ui.pop_seed();
+		has := array_find(m.roles, r.id);
+		sig := menu_item("role", r.name, ifx has then .Check_On else .Check_Off);
+		if sig.clicked && net_action() dc.set_member_role(app.client, app.view.guild, pf.roles_user, r.id, !has);
+	}
+	spacer(.Y, 8);
 }
 
 pf_reset_for_test :: () {pf = .{};}

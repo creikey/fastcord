@@ -966,6 +966,15 @@ ban_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, reason: stri
 	job_submit(c, j);
 }
 
+// set_member_role: the user menu's Roles checkboxes, PUT (add) or DELETE /guilds/{g}/members/{u}/roles/{r},
+// no body; GUILD_MEMBER_UPDATE carries the result.
+set_member_role :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, role_id: Snowflake, add: bool) {
+	j := job_new(.Api, .None);
+	j.method = ifx add then "PUT" else "DELETE";
+	j.path = job_str(j, tprint("/guilds/%/members/%/roles/%", guild_id, user_id, role_id));
+	job_submit(c, j);
+}
+
 // timeout_member: PATCH /guilds/{g}/members/{u} {"communication_disabled_until": ISO time}, or null to
 // remove it, with the reason in X-Audit-Log-Reason; GUILD_MEMBER_UPDATE carries the result.
 timeout_member :: (c: *Client, guild_id: Snowflake, user_id: Snowflake, until_ms: s64, reason: string) {
