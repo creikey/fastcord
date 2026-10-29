@@ -21,6 +21,9 @@ Custom_Status :: struct {
 Settings_Edit :: struct {
 	due: s64; // 0 = nothing pending
 	cats: u64; // bit n: category n of the kept proto is part of the delta, whole (settings_put)
+	sending: u64; // the categories of the PATCH in flight (one at a time)
+	retry_ms: s64; // the wait before resending a failed PATCH: 10 s, doubling to 5 min
+	presence: bool; // the status changed: op 3 goes out with the save
 }
 
 // InboxSettings.current_tab (PreloadedUserSettings field 2): the Inbox popout
@@ -45,10 +48,13 @@ pb_msg :: (w: *protobuf.Writer, num: u32, inner: protobuf.Writer) { protobuf.wri
 
 // settings_delta_proto: the pending delta (temp), the categories in e.cats whole from the kept
 // proto, unknown fields byte for byte.
-settings_delta_proto :: (e: *Settings_Edit, proto: []u8) -> []u8 {
+settings_delta_proto :: (e: *Settings_Edit, proto: []u8) -> []u8 { return pb_categories(proto, e.cats); }
+
+// pb_categories: the top-level fields of proto whose bit is set in mask, whole (temp).
+pb_categories :: (proto: []u8, mask: u64) -> []u8 {
 	out: []u8;
 	for n: 1..63 {
-		if !(e.cats & ((cast(u64) 1) << n)) continue;
+		if !(mask & ((cast(u64) 1) << n)) continue;
 		r := protobuf.Reader.{buf = proto};
 		while true {
 			start := r.pos;
@@ -95,6 +101,7 @@ settings_put :: (c: *Client, cat: u32, num: u32, encoded: []u8, sub: u32 = 0, de
 	assert(cat < 64);
 	settings_proto_edit(*c.store, cat, num, encoded, sub);
 	c.settings_edit.cats |= (cast(u64) 1) << cat;
+	c.store.settings.unsent |= (cast(u64) 1) << cat;
 	settings_mark(c, delay_ms);
 }
 
@@ -164,6 +171,7 @@ set_status :: (c: *Client, s: Status, duration_ms: s64 = 0, expired := false) {
 	settings_put(c, 11, 1, pb_field_string_value(1, status_name(s)));
 	settings_put(c, 11, 4, pb_field_fixed64(4, xx ifx duration_ms > 0 then now + duration_ms else 0));
 	settings_put(c, 11, 5, pb_field_msg(5, pb_field_uint(1, xx created))); // UInt64Value
+	c.settings_edit.presence = true;
 }
 
 // mirror_presence: a self-hosted server's client takes the status and custom status set on Discord's
@@ -201,6 +209,7 @@ set_custom_status :: (c: *Client, cs: Custom_Status) {
 	if cs.expires_at_ms pb_fixed64(*cm, 4, xx cs.expires_at_ms);
 	pb_fixed64(*cm, 5, xx now_ms()); // created_at_ms
 	settings_put(c, 11, 2, ifx clearing then .[] else pb_field_msg(2, cm.buf));
+	c.settings_edit.presence = true;
 }
 
 // presence_value: op 3 (SelfPresenceStore.getLocalPresence) in context.allocator. While idle an
@@ -291,12 +300,15 @@ flush_settings :: (c: *Client, now: s64) {
 	}
 	frecency_tick(c, now); // settings-proto/2 (expressions.jai)
 	e := *c.settings_edit;
-	if e.due == 0 || now < e.due return;
+	if e.due == 0 || now < e.due || e.sending return;
 	delta := settings_delta_proto(e, c.store.settings.proto);
 	// PresenceStore: the gateway presence goes out with the settings write
-	if (e.cats & (1 << 11)) && c.gw gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
-	e.* = .{};
-	if !delta return;
+	if e.presence && c.gw gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
+	e.sending, e.cats, e.due, e.presence = e.cats, 0, 0, false;
+	if !delta {
+		e.sending = 0;
+		return;
+	}
 	w: Json;
 	json_init(*w);
 	json_obj(*w);
@@ -309,4 +321,20 @@ flush_settings :: (c: *Client, now: s64) {
 	j.content_type = "application/json";
 	j.retry_429 = 1; // retried after min(30 s, Retry-After)
 	job_submit(c, j);
+}
+
+// settings_saved: the settings-proto/1 PATCH's answer. A failed one (offline, 429, 5xx) goes again
+// after retry_ms, its categories kept over READY until then; one the server refuses is dropped.
+settings_saved :: (c: *Client, r: *Rest_Result, b64: string) {
+	e, st := *c.settings_edit, *c.store.settings;
+	if !r.ok && (r.status == 0 || r.status == 429 || r.status >= 500) {
+		e.retry_ms = clamp(e.retry_ms * 2, 10_000, 300_000);
+		e.cats |= e.sending;
+		settings_mark(c, e.retry_ms);
+	} else {
+		e.retry_ms = 0;
+		st.unsent &= e.cats; // edits made since the PATCH left stay local
+	}
+	e.sending = 0;
+	if b64 apply_settings_proto(*c.store, b64);
 }

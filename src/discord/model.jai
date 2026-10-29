@@ -407,6 +407,7 @@ User_Settings :: struct {
 	status_created_ms: s64; // StatusSettings.status_created_at_ms
 	status_expires_ms: s64; // StatusSettings.status_expires_at_ms, 0 = forever
 	proto: []u8; // the whole PreloadedUserSettings as last loaded or edited (store allocator)
+	unsent: u64; // bit n: category n holds an edit the server hasn't taken yet, kept over READY
 	locale: string;
 	timezone_offset: int; // minutes
 	developer_mode: bool;

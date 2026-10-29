@@ -906,6 +906,8 @@ apply_settings_proto :: (s: *Store, b64: string, partial := false) {
 		}
 		raw = merged;
 	}
+	// categories with an edit not yet saved keep it (sent again after a failed PATCH)
+	for n: 1..63 if s.settings.unsent & ((cast(u64) 1) << n) raw = protobuf.with_field(raw, xx n, pb_categories(s.settings.proto, (cast(u64) 1) << n),, temp);
 	settings_proto_set(s, raw);
 }
 

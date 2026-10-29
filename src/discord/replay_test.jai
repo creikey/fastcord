@@ -3037,6 +3037,37 @@ settings_whole_category :: (t: *T) {
 	expect(t, c.store.settings.guild_folders.count == 1 && c.store.settings.guild_folders[0].name == "f", "folders applied locally");
 }
 
+// A failed settings-proto PATCH (offline, 5xx) is sent again later, its edit kept over a READY
+// until then; a refused one (4xx) is dropped (CLIENT_RULES "Settings").
+settings_retry :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c, e, st := run.c, *run.c.settings_edit, *run.c.store.settings;
+	set_hour_cycle(c, .H23);
+	flush_settings(c, now_ms());
+	expect(t, e.sending == 1 << 13 && !e.cats, "sending AppearanceSettings");
+	set_developer_mode(c, true);
+	flush_settings(c, now_ms());
+	expect(t, e.sending == 1 << 13 && e.cats == 1 << 13, "one PATCH at a time");
+	fail := Rest_Result.{op = .Settings};
+	settings_saved(c, *fail, "");
+	expect(t, e.cats == 1 << 13 && e.due && e.retry_ms == 10_000 && st.unsent == 1 << 13, "failed: resent later");
+	apply_settings_proto(*c.store, "agIIAg=="); // READY: {appearance: {theme: LIGHT}}
+	expect(t, st.hour_cycle == .H23 && st.developer_mode && st.theme != .Light && !protobuf.find(st.proto, 12).num, "READY keeps the unsent category only");
+	e.due = now_ms();
+	flush_settings(c, now_ms());
+	expect_value(t, protobuf.find_path(pb_categories(st.proto, e.sending), 13, 9).value, 2);
+	ok := Rest_Result.{op = .Settings, ok = true, status = 200};
+	settings_saved(c, *ok, "");
+	expect(t, !st.unsent && !e.retry_ms && !e.sending, "saved");
+	set_hour_cycle(c, .H12);
+	flush_settings(c, now_ms());
+	refused := Rest_Result.{op = .Settings, status = 400};
+	settings_saved(c, *refused, "");
+	expect(t, !st.unsent && !e.cats && !e.due, "refused: dropped");
+}
+
 parity_settings_friend_online_toggle :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "streamer_mode", R_GUILD, R_TEXT) { return; }
