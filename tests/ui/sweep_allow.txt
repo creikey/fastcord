@@ -23,6 +23,10 @@ dead * "picker_header/tabs" already the selected picker tab
 dead * "picker_header/searchrow/search" the picker's search field always has focus while it is open
 dead * "emoji_nav/slot [clock]" jumps to Frequently Used, which is already at the top
 dead * "nav/Appearance/item" already the selected settings page
+dead * "nav/Profiles/item" already the selected settings page
+dead * "me/names/edit 'Edit Profiles'" opens Profiles, already the selected settings page
+dead * "body/col/pftabs 'Main Profile'" already the selected Profiles tab
+dead * "form/bannercolors/def" already the banner's colour (the default, from the avatar)
 dead * "col/swatches/Dark" already the selected theme
 dead * "vcol/mode_va 'Voice Activity'" already the selected input mode
 dead * "devices/outputcol/outvol" the press lands on the current value (slider center = 100%)

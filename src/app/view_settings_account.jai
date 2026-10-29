@@ -63,6 +63,9 @@ account_reset_for_test :: () {
 	acct.editing = .None;
 	acct.reveal_email, acct.reveal_phone, acct.pending, acct.logout_confirm = false, false, false, false;
 	acct.pf_pending = 0;
+	acct.ps_tab, acct.ps_guild = false, 0;
+	for e: (*ui.Editor.[*acct.ps_nick, *acct.ps_bio, *acct.ps_pronouns]) ui.editor_set_text(e, "");
+	for * acct.ps_base { free(it.*); it.* = ""; }
 }
 
 // Results of dc.update_global_name / update_username / update_profile (UI thread).
