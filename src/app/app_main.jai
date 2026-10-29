@@ -259,7 +259,6 @@ main :: () {
 	if (app.client == null || dc.client_logged_out(app.client)) && opt.fixture == "" app.needs_login = true;
 
 	if headless && opt.sweep != "" exit(cast(s32) sweep_run(opt));
-	if headless update_start();
 	if headless && opt.live > 0 {
 		// Real time: let the gateway connect and REST land, then capture.
 		start := platform.time_now();
@@ -1100,6 +1099,11 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		return;
 	case "scroll";
 		platform.inject_event(.{kind = .Scroll, delta = .{num(f[1]), num(f[2])}, precise = true});
+	case "fake_update";
+		// fake_update <tag>: the Update pill shows, with notes, without the network
+		upd.latest = copy_string(f[1]);
+		upd.notes = "## Chat\n- Replies show the message they answer\n\n## Voice\n- Noise suppression stays on after a reconnect";
+		upd.available = true;
 	case "gpu_reset"; // as after a driver update: a new GPU device, every texture empty
 		gfx.simulate_device_loss();
 	case "wait";

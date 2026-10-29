@@ -1,4 +1,5 @@
-# The Update pill (FASTCORD_FAKE_UPDATE) shows the release's notes on hover.
+# The Update pill (fake_update) shows the release's notes on hover.
+fake_update v9.9.9
 wait 3
 expect_not_visible "Replies show the message they answer"
 move_text "Update v9.9.9"

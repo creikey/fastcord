@@ -19,14 +19,6 @@ upd: Update_State;
 
 // Starts a background thread that checks GitHub's latest release now and every few hours.
 update_start :: () {
-	// FASTCORD_FAKE_UPDATE=v9.9.9 shows the button without the network (headless UI tests).
-	fake := env_var("FASTCORD_FAKE_UPDATE");
-	if fake != "" {
-		upd.latest = copy_string(fake);
-		upd.notes = "## Chat\n- Replies show the message they answer\n\n## Voice\n- Noise suppression stays on after a reconnect";
-		upd.available = true;
-		return;
-	}
 	if FASTCORD_VERSION == "dev" || platform.is_headless() return;
 	#if OS == .WINDOWS inst.offer = !install_declined && !platform.is_installed();
 	upd.target = copy_string(selfupdate.target_of(get_path_of_running_executable()));
