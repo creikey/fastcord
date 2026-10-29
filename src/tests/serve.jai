@@ -496,8 +496,14 @@ main :: () {
 	inside, _ := etf.from_json(body);
 	inside_id := field(inside, "id").s;
 	check(status == 201 && field(inside, "parent_id").s == cat_id, tprint("create a channel in a category: % %", status, body));
-	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), tprint("{\"name\": \"x\", \"type\": 13}"), token);
-	check(status == 400, tprint("no stage channels: %", status));
+	// A stage channel keeps its name as typed and carries voice fields; a type the server doesn't know is refused.
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"Town Hall\", \"type\": 13}", token);
+	stage, _ := etf.from_json(body);
+	check(status == 201 && field(stage, "type").i == 13 && field(stage, "name").s == "Town Hall" && field(stage, "bitrate").i == 64000, tprint("create a stage channel: % %", status, body));
+	status, body = rest("DELETE", tprint("/api/v9/channels/%", field(stage, "id").s), "", token);
+	check(status == 200, tprint("delete a stage channel: % %", status, body));
+	status, body = rest("POST", tprint("/api/v9/guilds/%/channels", gid), "{\"name\": \"x\", \"type\": 14}", token);
+	check(status == 400, tprint("an unknown channel type is refused: %", status));
 	status, body = rest("POST", tprint("/api/v9/channels/%/messages", cat_id), "{\"content\": \"x\"}", token);
 	check(status == 404, tprint("a category takes no messages: %", status));
 	status, body = rest("DELETE", tprint("/api/v9/channels/%", cat_id), "", token);
