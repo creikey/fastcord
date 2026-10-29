@@ -341,6 +341,34 @@ edit_box :: (m: *dc.Message) {
 }
 
 // The referenced message preview above a reply: curved spine, small avatar, name, one line of content.
+// An app command's reply: the reply spine, then "<avatar> name used /command" (a context-menu
+// command without the slash), as the client's interaction header.
+command_used_line :: (m: *dc.Message) {
+	r := row("cmdused");
+	r.semantic_size = .[ui.pct(1), ui.px(22)];
+	ui.parent(r); defer ui.pop_parent();
+	clip := ui.box("spineclip", .Clip | .Floating_X | .Floating_Y);
+	clip.semantic_size = .[ui.px(33), ui.px(12)];
+	clip.fixed_pos = .{-MSG_GUTTER + 36, 8};
+	{ ui.parent(clip); defer ui.pop_parent();
+		spine := ui.box("spine", .Draw_Border | .Floating_X | .Floating_Y);
+		spine.semantic_size = .[ui.px(33 + 8), ui.px(12 + 8)];
+		spine.style.border = 2;
+		spine.style.border_color = T("--border-strong");
+		spine.style.radius = .[6, 0, 0, 0];
+	}
+	avatar_box("av", m.command_user, 16);
+	spacer(.X, 4);
+	n := label(name_in(m.command_user, m.channel_id), .Medium, 14, T("--text-muted"), 18);
+	n.flags |= .Clickable;
+	if ui.signal(n).clicked open_profile(m.command_user, n.rect);
+	spacer(.X, 4);
+	label("used", .Normal, 14, T("--text-muted"), 18);
+	spacer(.X, 4);
+	if m.command_name label(ifx m.kind == 23 then m.command_name else tprint("/%", m.command_name), .Medium, 14, T("--text-link"), 18);
+	else label("a command", .Normal, 14, T("--text-muted"), 18);
+}
+
 reply_preview :: (m: *dc.Message) {
 	s := store();
 	ref := find_message(m.referenced_id);

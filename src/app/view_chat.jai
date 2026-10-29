@@ -1477,6 +1477,14 @@ message_row :: (m: *dc.Message, grouped: bool, new_day: bool, show_new: bool) ->
 			}
 		}
 		spacer(.Y, 2);
+		if m.command_user && !m.referenced_id {
+			rr := row("cmdrow");
+			rr.semantic_size = .[ui.pct(1), ui.px(22)];
+			{ ui.parent(rr); defer ui.pop_parent();
+				spacer(.X, MSG_GUTTER);
+				command_used_line(m);
+			}
+		}
 		if m.referenced_id != 0 && m.kind != MSG_PIN && m.kind != MSG_POLL_RESULT { // a pin notice references the pinned message: no reply line
 			rr := row("replyrow");
 			rr.semantic_size = .[ui.pct(1), ui.px(22)];

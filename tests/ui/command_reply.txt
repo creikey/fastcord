@@ -1,0 +1,5 @@
+# Runs on command_reply.jsonl. A slash command's reply shows "Robin used /roll" above it, with the bot's APP tag.
+wait 20
+expect_visible "/roll"
+expect_visible "used"
+shot build/ui-command_reply.png

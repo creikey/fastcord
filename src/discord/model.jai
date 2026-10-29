@@ -253,6 +253,8 @@ Message :: struct {
 	mention_everyone: bool;
 	pinned: bool;
 	referenced_id: Snowflake; // reply target
+	command_user: Snowflake; // an app command's reply (types 20, 23): who used it, and its name
+	command_name: string;
 	// forwarded (message_reference type 1): the origin, and content etc. above come from the snapshot
 	forwarded: bool;
 	forward_channel_id: Snowflake;

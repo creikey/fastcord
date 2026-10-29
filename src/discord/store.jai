@@ -201,6 +201,7 @@ free_message :: (s: *Store, m: *Message) {
 	free_str(m.timestamp, a);
 	free_str(m.edited_timestamp, a);
 	free_str(m.call_ended, a);
+	free_str(m.command_name, a);
 	free_str(m.forward_timestamp, a);
 	free_str(m.nonce, a);
 	free_str(m.webhook_name, a);
@@ -587,6 +588,16 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 		}
 	} else if ref {
 		msg.referenced_id = fsnow(ref, "message_id");
+	}
+	// "X used /command": interaction_metadata (its name when the API sends one), else the older interaction
+	im, old := fmap(m, "interaction_metadata"), fmap(m, "interaction");
+	if im || old {
+		u := fmap(ifx im then im else old, "user");
+		if !u && old u = fmap(old, "user");
+		if u msg.command_user = parse_user_into(s, u);
+		name := ifx im then fstr(im, "name") else "";
+		if !name && old name = fstr(old, "name");
+		set_str(s, *msg.command_name, slice(name, 0, min(name.count, 128)));
 	}
 	// Keep the referenced author resolvable for reply previews.
 	rau := fmap(fmap(m, "referenced_message"), "author");
