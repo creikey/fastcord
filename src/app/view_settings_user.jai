@@ -135,7 +135,44 @@ messaging_page :: () {
 	if set_toggle_row("frmg", "Server members", "Server members can only send you friend requests from servers where you also allow Direct Messages.", mg) {
 		put_flags(ifx mg then flags & ~(MUTUAL_GUILDS | NO_RELATION) else flags | MUTUAL_GUILDS);
 	}
+	spacer(.Y, 40);
+	set_heading("Blocked Users");
+	people_list("blocked", true);
+	spacer(.Y, 40);
+	set_heading("Ignored Users");
+	people_list("ignored", false);
 }
+
+#scope_file
+// people_list: the blocked (or ignored) users, each with Unblock (behind Undo, as on Friends) or Unignore.
+people_list :: (id: string, blocked: bool) {
+	s := store();
+	col := ui.box(id);
+	col.semantic_size = .[ui.pct(1), ui.children()];
+	col.layout_axis = .Y;
+	ui.parent(col); defer ui.pop_parent();
+	n := 0;
+	for r, uid: s.relationships {
+		if !(ifx blocked then r.kind == .Blocked else r.ignored) continue;
+		n += 1;
+		ui.id_scope(cast(u64) uid); defer ui.pop_seed();
+		rr := row("u");
+		rr.semantic_size = .[ui.pct(1), ui.px(48)];
+		{ ui.parent(rr); defer ui.pop_parent();
+			avatar_box("av", uid, 32);
+			spacer(.X, 12);
+			nb := ui.box("nm");
+			nb.semantic_size = .[ui.fill(), ui.children()];
+			{ ui.parent(nb); defer ui.pop_parent(); label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20); }
+			if set_button(ifx blocked then "Unblock##unb" else "Unignore##unb", .Secondary, true, 32) {
+				if blocked rel_change(uid, .Remove, "User Settings");
+				else if net_action() dc.ignore_user(app.client, uid, false, "User Settings");
+			}
+		}
+	}
+	if !n set_para("none", ifx blocked then "You haven't blocked anyone." else "You haven't ignored anyone.", .Normal, 14, 18, T("--text-muted"));
+}
+#scope_export
 
 // Activity Privacy (ACTIVITY_PRIVACY_PANEL): sharing the detected activity (status.show_current_game,
 // 11.3) and who may join it (privacy 8.1 friends, 8.2 voice channel), BoolValues on when unset.

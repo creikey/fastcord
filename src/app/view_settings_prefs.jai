@@ -58,7 +58,7 @@ SETTINGS_TERMS :: [2]string.[
 	.["Account", "username, display name, email, phone, password, two-factor, 2fa, authenticator, backup codes, disable account, delete account"],
 	.["Profiles", "avatar, banner, banner color, about me, bio, pronouns, display name, per-server profiles, server nickname"],
 	.["Data & Privacy", "use data to improve discord, usage statistics, profile privacy, share my full profile, request my data, download data, harvest"],
-	.["Messaging Permissions", "content filters, explicit, spam, direct messages, dms, message requests, friend requests, privacy & safety"],
+	.["Messaging Permissions", "content filters, explicit, spam, direct messages, dms, message requests, friend requests, privacy & safety, blocked users, unblock, ignored users, unignore"],
 	.["Appearance", "theme, dark, light, same as device theme, smooth scrolling"],
 	.["Voice & Video", "microphone, input device, output device, volume, camera, noise suppression, echo cancellation, push to talk, soundboard"],
 	.["Chat", "embeds, link previews, reactions, spoilers"],
