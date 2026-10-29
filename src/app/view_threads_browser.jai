@@ -142,7 +142,7 @@ threads_browser_popout :: () {
 		if !tb.creating {
 			spacer(.X, 12);
 			for t: enum_values_as_enum(TB_Tab) {
-				name := ifx t == .Active then "Active" else "Archived";
+				name := ifx t == .Active then L("Active") else L("Archived");
 				sel := tb.tab == t;
 				tab := row(name, .Clickable | .Draw_Background | .Hot_Animation);
 				tab.semantic_size = .[ui.children(), ui.px(28)];
@@ -198,7 +198,7 @@ threads_browser_popout :: () {
 			r.semantic_size = .[ui.pct(1), ui.px(80)];
 			{ ui.parent(r); defer ui.pop_parent();
 				filler(.X);
-				msg := ifx tb.tab == .Active then "There are no active threads." else "There are no archived threads.";
+				msg := ifx tb.tab == .Active then L("There are no active threads.") else L("There are no archived threads.");
 				label(ifx tb.loading && tb.tab == .Archived then L("Loading...") else msg, .Medium, 14, T("--text-muted"), 18);
 				filler(.X);
 			}

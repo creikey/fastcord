@@ -28,8 +28,8 @@ hosted: [..]*Hosted_Server;
 // or one already joined.
 hosted_join :: (url: string) -> bool, string {
 	inv, ok := serve.parse_invite(url);
-	if !ok return false, "That isn't a valid fastcord invite.";
-	for hosted if it.inv.id_hex == inv.id_hex return false, "You're already in that server.";
+	if !ok return false, L("That isn't a valid fastcord invite.");
+	for hosted if it.inv.id_hex == inv.id_hex return false, L("You're already in that server.");
 	h := New(Hosted_Server);
 	h.invite = copy_string(url);
 	h.inv = serve.parse_invite(h.invite);
@@ -319,7 +319,7 @@ hosted_login :: (h: *Hosted_Server) {
 		token, status, message := serve.member_login(h.inv, idk.list[0], h.name);
 		h.token, h.status, h.error = token, status, copy_string(message);
 	} else {
-		h.error = copy_string("There is no identity key.");
+		h.error = copy_string(L("There is no identity key."));
 	}
 	platform.request_frame();
 }

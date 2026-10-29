@@ -48,7 +48,7 @@ settings_nav_search :: () {
 settings_nav_match :: (name: string) -> bool {
 	q := to_lower_copy(trim(ui.editor_text(*nav.search)),, temp);
 	if q == "" { return true; }
-	if contains(to_lower_copy(name,, temp), q) return true;
+	if contains(to_lower_copy(name,, temp), q) || contains(to_lower_copy(tr(name),, temp), q) return true;
 	for SETTINGS_TERMS if it[0] == name && contains(it[1], q) return true;
 	return false;
 }
@@ -132,22 +132,6 @@ settings_nav_logout :: () {
 
 // ---- Notifications ----
 
-#scope_file
-SOUND_ROWS :: [2]string.[
-	.["message1", "Message"],
-	.["deafen", "Deafen"],
-	.["undeafen", "Undeafen"],
-	.["mute", "Mute"],
-	.["unmute", "Unmute"],
-	.["disconnect", "Voice Disconnected"],
-	.["ptt_start", "PTT Activate"],
-	.["ptt_stop", "PTT Deactivate"],
-	.["user_join", "User Join"],
-	.["user_leave", "User Leave"],
-	.["user_moved", "User Moved"]
-];
-#scope_export
-
 notifications_page :: () {
 	if set_page_begin("notifpage") {
 		set_heading(L("Notifications"));
@@ -175,7 +159,20 @@ notifications_page :: () {
 		all_off := sounds_all_disabled();
 		if set_toggle_row("disableall", L("Disable All Notification Sounds"), "", all_off) { sounds_set_all_disabled(!all_off); }
 		set_divider();
-		for s: SOUND_ROWS {
+		rows := [2]string.[
+			.["message1", L("Message")],
+			.["deafen", L("Deafen")],
+			.["undeafen", L("Undeafen")],
+			.["mute", L("Mute")],
+			.["unmute", L("Unmute")],
+			.["disconnect", L("Voice Disconnected")],
+			.["ptt_start", L("PTT Activate")],
+			.["ptt_stop", L("PTT Deactivate")],
+			.["user_join", L("User Join")],
+			.["user_leave", L("User Leave")],
+			.["user_moved", L("User Moved")]
+		];
+		for s: rows {
 			on := !sound_own_disabled(s[0]) && !all_off;
 			if set_toggle_row(s[0], s[1], "", on, all_off) { sound_set_disabled(s[0], on); }
 			set_divider();
@@ -199,7 +196,7 @@ accessibility_page :: () {
 		set_heading(L("Visual Density"));
 		label(L("Zoom level"), .Medium, 16, T("--text-strong"), 20);
 		spacer(.Y, 4);
-		label(#run tprint("Adjust the size of the interface. You can also change this with % +/-.", ifx OS == .MACOS then "Cmd" else "Ctrl"), .Normal, 14, T("--text-muted"), 18);
+		label(tprint(L("Adjust the size of the interface. You can also change this with % +/-."), ifx OS == .MACOS then "Cmd" else "Ctrl"), .Normal, 14, T("--text-muted"), 18);
 		spacer(.Y, 16);
 		// Applied on release: zooming under a dragged knob would move the track under the mouse.
 		v := ifx zoom_drag > 0 then zoom_drag else cast(float32) zoom_pct;
@@ -228,7 +225,7 @@ accessibility_page :: () {
 		if pick >= 0 a11y.group_spacing = GROUP_SPACINGS[pick];
 		spacer(.Y, 40);
 		set_heading(L("Role Colors"));
-		ROLE_NAMES :: string.["Show role colors in names", "Show role colors next to names", "Don't show role colors"];
+		ROLE_NAMES := array_copy(string.[L("Show role colors in names"), L("Show role colors next to names"), L("Don't show role colors")],, temp); // read again by dropdown_list
 		rpick := select_field("rolecolors", ROLE_NAMES, a11y.role_colors);
 		if rpick >= 0 a11y.role_colors = rpick;
 		spacer(.Y, 40);

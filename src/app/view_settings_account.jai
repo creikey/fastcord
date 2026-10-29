@@ -71,7 +71,7 @@ account_receive :: (r: *dc.Feature_Result) {
 	err := "";
 	if !r.ok {
 		err = dc.api_error_text(r.body);
-		if err == "" { err = ifx r.status == 0 then "Couldn't reach Discord. Try again." else tprint("Something went wrong (HTTP %).", r.status); }
+		if err == "" { err = ifx r.status == 0 then L("Couldn't reach Discord. Try again.") else tprint(L("Something went wrong (HTTP %)."), r.status); }
 	}
 	tok := dc.apply_account_result(*app.client.store, r);
 	if tok != "" {
@@ -95,8 +95,8 @@ account_receive :: (r: *dc.Feature_Result) {
 		return;
 	}
 	if r.op == .Banner_Edit {
-		if r.status == -1 err = "That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.";
-		if r.status == -2 err = "That image is too large. Banners must be under 10 MB.";
+		if r.status == -1 err = L("That file couldn't be read. Banners must be PNG, JPEG, GIF or WEBP images.");
+		if r.status == -2 err = L("That image is too large. Banners must be under 10 MB.");
 		set_error(*acct.pf_error, err);
 	} else if r.op == .Profile_Patch || r.tag == cast(u64)(dc.User_Patch_Tag.Profile_Name) {
 		acct.pf_pending = max(acct.pf_pending - 1, 0);
@@ -247,7 +247,7 @@ my_account_page :: () {
 			panel.style.radius = all4(8);
 			{ ui.parent(panel); defer ui.pop_parent();
 				inset_begin(16, 16);
-				display := ifx u != null && u.global_name != "" then u.global_name else "You haven't added a display name yet.";
+				display := ifx u != null && u.global_name != "" then u.global_name else L("You haven't added a display name yet.");
 				account_field("dname", L("Display Name"), display, .Display_Name);
 				spacer(.Y, 24);
 				account_field("uname", L("Username"), ifx u != null then u.username else "", .Username);
@@ -255,11 +255,11 @@ my_account_page :: () {
 				email := dc.account.email;
 				// Streamer Mode > Hide Personal Information: masked, with no Reveal
 				hide := streamer_hide_personal();
-				shown := ifx email == "" then "You haven't added an email yet." else (ifx acct.reveal_email && !hide then email else mask_email(email));
+				shown := ifx email == "" then L("You haven't added an email yet.") else (ifx acct.reveal_email && !hide then email else mask_email(email));
 				account_secret("email", L("Email"), shown, email != "" && !hide, *acct.reveal_email);
 				spacer(.Y, 24);
 				phone := dc.account.phone;
-				pshown := ifx phone == "" then "You haven't added a phone number yet." else (ifx acct.reveal_phone && !hide then phone else mask_phone(phone));
+				pshown := ifx phone == "" then L("You haven't added a phone number yet.") else (ifx acct.reveal_phone && !hide then phone else mask_phone(phone));
 				account_secret("phone", L("Phone Number"), pshown, phone != "" && !hide, *acct.reveal_phone);
 				inset_end(16, 16);
 			}
@@ -335,10 +335,10 @@ account_modal :: () {
 	}
 	W :: 440;
 	m := acct.modal;
-	title, sub := "Update your password", "Enter your current password and a new password.";
-	if m == .Totp title, sub = "Enable Authenticator App", "Add this key to an authenticator app, then enter the code it shows.";
-	if m == .Disable title, sub = "Disable Account", "Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.";
-	if m == .Delete title, sub = "Delete Account", "Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.";
+	title, sub := L("Update your password"), L("Enter your current password and a new password.");
+	if m == .Totp title, sub = L("Enable Authenticator App"), L("Add this key to an authenticator app, then enter the code it shows.");
+	if m == .Disable title, sub = L("Disable Account"), L("Are you sure that you want to disable your account? This will immediately log you out and make your account inaccessible to anyone.");
+	if m == .Delete title, sub = L("Delete Account"), L("Are you sure that you want to delete your account? This will immediately log you out of your account and you will not be able to log in again.");
 	if !adm_modal_begin("acctmodal", W, title) {
 		acct_modal_close();
 		return;
@@ -393,7 +393,7 @@ account_modal :: () {
 	{ ui.parent(btns); defer ui.pop_parent();
 		spacer(.X, 25 - 8);
 		if wide_button("cancel", L("Cancel"), .Secondary) cancel = true;
-		verb := ifx m == .Totp then "Activate" else ifx m == .Disable then "Disable Account" else ifx m == .Delete then "Delete Account" else "Done";
+		verb := ifx m == .Totp then L("Activate") else ifx m == .Disable then L("Disable Account") else ifx m == .Delete then L("Delete Account") else L("Done");
 		if wide_button("ok", ifx acct.pending then L("Saving…") else verb, ifx m == .Disable || m == .Delete then .Danger else .Primary, ready && !acct.pending) submit = true;
 		spacer(.X, 25 - 8);
 	}
@@ -513,13 +513,13 @@ username_status :: (name: string) -> string, ui.Color {
 	chk := dc.username_check(app.client, name);
 	if chk.state == {
 	case .Available;
-		return "Username is available. Nice!", T("--text-feedback-positive");
+		return L("Username is available. Nice!"), T("--text-feedback-positive");
 	case .Taken;
-		return "Username is unavailable. Try adding numbers, letters, underscores _ , or periods.", T("--text-feedback-critical");
+		return L("Username is unavailable. Try adding numbers, letters, underscores _ , or periods."), T("--text-feedback-critical");
 	case .Error;
 		return chk.message, T("--text-feedback-critical");
 	case .Rate_Limited;
-		return "Too fast! Wait a bit and try again.", T("--text-feedback-critical");
+		return L("Too fast! Wait a bit and try again."), T("--text-feedback-critical");
 	case .Unknown;
 	}
 	return "", .{};
@@ -671,7 +671,7 @@ profiles_page :: () {
 		tabs.semantic_size = .[ui.pct(1), ui.px(32)];
 		tabs.style.child_gap = 24;
 		{ ui.parent(tabs); defer ui.pop_parent();
-			for name, i: string.["Main Profile", "Per-server Profiles"] {
+			for name, i: string.[L("Main Profile"), L("Per-server Profiles")] {
 				on := acct.ps_tab == (i == 1);
 				t := label(name, .Medium, 16, ifx on then T("--text-strong") else T("--text-muted"), 24);
 				t.flags |= .Clickable;
@@ -1042,7 +1042,7 @@ mfa_receive :: (r: *dc.Feature_Result) {
 mfa_modal :: () {
 	if !mfa.open return;
 	W :: 440;
-	if !adm_modal_begin("mfa", W, L("Multi-Factor Authentication"), "This extra step shows it's really you.") {
+	if !adm_modal_begin("mfa", W, L("Multi-Factor Authentication"), L("This extra step shows it's really you.")) {
 		mfa_close(true);
 		return;
 	}
@@ -1057,9 +1057,9 @@ mfa_modal :: () {
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
 			spacer(.Y, 16);
-			title, hint := "Enter Discord Auth Code", "6-digit authentication code";
-			if kind == "backup" title, hint = "Enter Discord Backup Code", "8-digit backup code";
-			if kind == "password" title, hint = "Password", "";
+			title, hint := L("Enter Discord Auth Code"), L("6-digit authentication code");
+			if kind == "backup" title, hint = L("Enter Discord Backup Code"), L("8-digit backup code");
+			if kind == "password" title, hint = L("Password"), "";
 			label(to_upper_copy(title,, temp), .Bold, 12, T("--text-muted"), 16);
 			spacer(.Y, 8);
 			res := set_input(tprint("code_%", kind), *mfa.code, hint, password = kind == "password", max_runes = ifx kind == "password" then 0 else 11, autofocus = true);

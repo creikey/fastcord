@@ -606,10 +606,10 @@ try_entity :: (p: *Md_Parser, s: string, pending: string) -> bool {
 		_, ok := dc.parse_u64(gid);
 		label: string;
 		if page == {
-		case "customize"; label = "Channels & Roles";
-		case "browse"; label = "Browse Channels";
-		case "guide"; #through; case "home"; label = "Server Guide";
-		case "linked-roles"; label = "Linked Roles";
+		case "customize"; label = L("Channels & Roles");
+		case "browse"; label = L("Browse Channels");
+		case "guide"; #through; case "home"; label = L("Server Guide");
+		case "linked-roles"; label = L("Linked Roles");
 		}
 		if !found || !ok || label == "" return false;
 		tok = .{kind = .Command, name = label, text = whole};

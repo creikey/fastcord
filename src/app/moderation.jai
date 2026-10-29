@@ -13,10 +13,10 @@ Moderation :: struct {
 }
 
 Mod_Option :: struct { secs: int; name: string; }
-TIMEOUTS :: Mod_Option.[.{60, "60 Seconds"}, .{300, "5 Minutes"}, .{600, "10 Minutes"}, .{3600, "1 Hour"}, .{86400, "1 Day"}, .{604800, "1 Week"}];
+TIMEOUTS :: Mod_Option.[.{60, "60 Seconds"}, .{300, "5 Minutes"}, .{600, "10 Minutes"}, .{3600, "1 Hour"}, .{86400, "1 Day"}, .{604800, "1 Week"}]; // i18n
 BAN_HISTORY :: Mod_Option.[
-	.{0, "Don't Delete Any"}, .{3600, "Previous Hour"}, .{21600, "Previous 6 Hours"}, .{43200, "Previous 12 Hours"},
-	.{86400, "Previous 24 Hours"}, .{259200, "Previous 3 Days"}, .{604800, "Previous 7 Days"},
+	.{0, "Don't Delete Any"}, .{3600, "Previous Hour"}, .{21600, "Previous 6 Hours"}, .{43200, "Previous 12 Hours"}, // i18n
+	.{86400, "Previous 24 Hours"}, .{259200, "Previous 3 Days"}, .{604800, "Previous 7 Days"}, // i18n
 ];
 
 modr: Moderation;
@@ -27,20 +27,22 @@ moderation_menu_items :: (uid: dc.Snowflake, items: *[..]string) {
 	if gid == 0 return;
 	u := dc.user_get(store(), uid);
 	if u == null return;
-	if dc.can_moderate(store(), gid, uid, dc.PERM_KICK_MEMBERS) array_add(items, tprint("Kick %", u.username));
-	if dc.can_moderate(store(), gid, uid, dc.PERM_BAN_MEMBERS) array_add(items, tprint("Ban %", u.username));
-	if dc.can_moderate(store(), gid, uid, dc.PERM_MODERATE_MEMBERS) array_add(items, ifx dc.timed_out(store(), gid, uid) then "Remove Timeout" else tprint("Timeout %", u.username));
+	if dc.can_moderate(store(), gid, uid, dc.PERM_KICK_MEMBERS) array_add(items, tprint(L("Kick %"), u.username));
+	if dc.can_moderate(store(), gid, uid, dc.PERM_BAN_MEMBERS) array_add(items, tprint(L("Ban %"), u.username));
+	if dc.can_moderate(store(), gid, uid, dc.PERM_MODERATE_MEMBERS) array_add(items, ifx dc.timed_out(store(), gid, uid) then L("Remove Timeout") else tprint(L("Timeout %"), u.username));
 }
 
 // moderation_menu_click opens the confirm for a clicked item; false if the item isn't one of ours.
 moderation_menu_click :: (uid: dc.Snowflake, item: string) -> bool {
-	if item == "Remove Timeout" {
+	if item == L("Remove Timeout") {
 		if net_action() dc.timeout_member(app.client, app.view.guild, uid, 0, "");
 		return true;
 	}
-	ban := begins_with(item, "Ban ");
-	timeout := begins_with(item, "Timeout ");
-	if !ban && !timeout && !begins_with(item, "Kick ") return false;
+	u := dc.user_get(store(), uid);
+	if u == null return false;
+	ban := item == tprint(L("Ban %"), u.username); // the items moderation_menu_items made
+	timeout := item == tprint(L("Timeout %"), u.username);
+	if !ban && !timeout && item != tprint(L("Kick %"), u.username) return false;
 	modr.user, modr.guild, modr.ban, modr.timeout = uid, app.view.guild, ban, timeout;
 	modr.history, modr.history_open = 0, false;
 	ui.editor_set_text(*modr.ed, "");
@@ -64,7 +66,6 @@ moderation_modal :: () {
 	}
 	W :: 440;
 	PAD :: 24;
-	verb := ifx modr.ban then "Ban" else ifx modr.timeout then "Timeout" else "Kick";
 	opts: []Mod_Option = ifx modr.timeout then cast([]Mod_Option) TIMEOUTS else cast([]Mod_Option) BAN_HISTORY;
 	d := ui.box("modrmodal", .Draw_Background | .Draw_Border | .Floating_X | .Floating_Y | .Overlay | .Clickable);
 	d.semantic_size = .[ui.px(W), ui.children()];
@@ -104,15 +105,15 @@ moderation_modal :: () {
 		return ui.signal(b).clicked;
 	}
 	spacer(.Y, PAD);
-	text_row("t", ifx modr.timeout then tprint(L("Timeout %"), u.username) else tprint(L("% '%' from Server"), verb, u.username), .Semibold, 20, 24, T("--text-strong"));
+	text_row("t", ifx modr.timeout then tprint(L("Timeout %"), u.username) else tprint(ifx modr.ban then L("Ban '%' from Server") else L("Kick '%' from Server"), u.username), .Semibold, 20, 24, T("--text-strong"));
 	spacer(.Y, 8);
 	sub := ifx modr.ban
-		then tprint("Are you sure you want to ban @% from %? They won't be able to come back until the ban is lifted.", u.username, g.name)
-		else ifx modr.timeout then "Members in timeout can't send messages, react, join voice or start threads until it ends."
-		else tprint("Are you sure you want to kick @% from %? They will be able to rejoin again with a new invite.", u.username, g.name);
+		then tprint(L("Are you sure you want to ban @%1 from %2? They won't be able to come back until the ban is lifted."), u.username, g.name)
+		else ifx modr.timeout then L("Members in timeout can't send messages, react, join voice or start threads until it ends.")
+		else tprint(L("Are you sure you want to kick @%1 from %2? They will be able to rejoin again with a new invite."), u.username, g.name);
 	text_row("sub", sub, .Normal, 14, 18, T("--text-default"));
 	spacer(.Y, 16);
-	text_row("lbl", tprint(L("Reason for %"), verb), .Semibold, 14, 18, T("--text-strong"));
+	text_row("lbl", ifx modr.ban then L("Reason for Ban") else ifx modr.timeout then L("Reason for Timeout") else L("Reason for Kick"), .Semibold, 14, 18, T("--text-strong"));
 	spacer(.Y, 8);
 	confirm := false;
 	ir := row("inrow");
@@ -154,7 +155,7 @@ moderation_modal :: () {
 			modr.history_anchor = dd.rect;
 			{ ui.parent(dd); defer ui.pop_parent();
 				spacer(.X, 12);
-				label(opts[modr.history].name, .Normal, 16, T("--text-strong"), 20);
+				label(tr(opts[modr.history].name), .Normal, 16, T("--text-strong"), 20);
 				filler(.X);
 				icon("chev", ifx modr.history_open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 				spacer(.X, 12);
@@ -171,7 +172,7 @@ moderation_modal :: () {
 	{ ui.parent(btns); defer ui.pop_parent();
 		filler(.X);
 		if button(L("Cancel##cancel"), 96, T("--background-mod-normal"), T("--background-mod-strong"), T("--text-strong")) modr.user = 0;
-		if button(tprint("%##confirm", verb), 96, T("--status-danger"), with_alpha(T("--status-danger"), 0.85), .{1, 1, 1, 1}) confirm = true;
+		if button(ifx modr.ban then L("Ban##confirm") else ifx modr.timeout then L("Timeout##confirm") else L("Kick##confirm"), 96, T("--status-danger"), with_alpha(T("--status-danger"), 0.85), .{1, 1, 1, 1}) confirm = true;
 		spacer(.X, PAD - 8);
 	}
 	if confirm && modr.user != 0 {
@@ -236,6 +237,6 @@ ban_history_list :: () {
 		}
 		ui.parent(item); defer ui.pop_parent();
 		spacer(.X, 12);
-		label(opt.name, ifx sel then .Semibold else .Normal, 16, T("--text-strong"), 20);
+		label(tr(opt.name), ifx sel then .Semibold else .Normal, 16, T("--text-strong"), 20);
 	}
 }

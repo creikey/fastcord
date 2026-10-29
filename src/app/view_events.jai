@@ -49,8 +49,8 @@ events_state_for_test :: () -> string {
 // "1 Event" / "3 Events" / "Events": the channel list row.
 events_row_label :: (gid: dc.Snowflake) -> string {
 	n := shown_events(gid).count;
-	if n == 0 return "Events";
-	return tprint("% Event%", n, ifx n == 1 then "" else "s");
+	if n == 0 return L("Events");
+	return tprint(Lp("% Event", "% Events", n), n);
 }
 
 events_receive :: (r: *dc.Feature_Result) {
@@ -61,8 +61,8 @@ events_receive :: (r: *dc.Feature_Result) {
 		if !evu.wiz_open return;
 		evu.busy = false;
 		if !r.ok {
-			set_wiz_error(ifx r.status == 0 then "Couldn't reach Discord. Check your connection and try again." else dc.api_error_message(r.body));
-			if evu.error == "" set_wiz_error(tprint("Something went wrong (HTTP %).", r.status));
+			set_wiz_error(ifx r.status == 0 then L("Couldn't reach Discord. Check your connection and try again.") else dc.api_error_message(r.body));
+			if evu.error == "" set_wiz_error(tprint(L("Something went wrong (HTTP %)."), r.status));
 			return;
 		}
 		evu.wiz_open = false;
@@ -298,7 +298,7 @@ event_when :: (ms: s64) -> string {
 // "Starting in 41m" within the hour, else the start time.
 event_start_text :: (ms: s64) -> string {
 	diff := ms - wall_ms();
-	if diff > 0 && diff < 3_600_000 return tprint("Starting in %m", max(1, diff / 60_000));
+	if diff > 0 && diff < 3_600_000 return tprint(L("Starting in %m"), max(1, diff / 60_000));
 	return event_when(ms);
 }
 
@@ -368,7 +368,7 @@ hline :: (id: string, pad: float32 = 0) {
 place_of :: (e: *dc.Scheduled_Event) -> string, string {
 	if e.entity == .Voice || e.entity == .Stage_Instance {
 		ch := dc.channel_get(store(), e.channel_id);
-		return ifx ch then ch.name else "Unknown channel", ifx e.entity == .Voice then "voice-normal" else "stage";
+		return ifx ch then ch.name else L("Unknown channel"), ifx e.entity == .Voice then "voice-normal" else "stage";
 	}
 	return e.location, "location";
 }
@@ -453,7 +453,7 @@ details_modal :: () {
 	info("place", place_icon, place);
 	if e.creator_id {
 		spacer(.Y, 8);
-		info("creator", "user", tprint("Created by %", dc.user_name(store(), e.creator_id, e.guild_id, "unknown")));
+		info("creator", "user", tprint(L("Created by %"), dc.user_name(store(), e.creator_id, e.guild_id, "unknown")));
 	}
 	spacer(.Y, 12);
 	hline("hl2", 16);
@@ -726,7 +726,7 @@ share_modal :: () {
 			spacer(.X, 24);
 			b := ui.box("text", .Draw_Text | .Wrap_Text);
 			b.semantic_size = .[ui.fill(), ui.text_size()];
-			b.text = "Copy the event link below to invite people to your event. This also acts as a server invite link.";
+			b.text = L("Copy the event link below to invite people to your event. This also acts as a server invite link.");
 			b.style.font = F(.Normal);
 			b.style.font_size = 16;
 			b.style.line_height = 20;
@@ -757,9 +757,9 @@ share_modal :: () {
 				shown := url;
 				color := T("--text-strong");
 				if evu.share_loading {
-					shown, color = "Creating an invite...", T("--text-muted");
+					shown, color = L("Creating an invite..."), T("--text-muted");
 				} else if evu.share_failed {
-					shown, color = "Couldn't create an invite.", T("--text-feedback-critical");
+					shown, color = L("Couldn't create an invite."), T("--text-feedback-critical");
 				}
 				label(ellipsize(shown, .Normal, 16, W - 48 - 110), .Normal, 16, color, 20);
 				filler(.X);
@@ -843,7 +843,7 @@ wizard_modal :: () {
 		pr.style.child_gap = 8;
 		{ ui.parent(pr); defer ui.pop_parent();
 			spacer(.X, 16 - 8);
-			NAMES := string.["Location", "Event Info", "Review"];
+			NAMES := string.[L("Location"), L("Event Info"), L("Review")];
 			for name, i: NAMES {
 				cur := cast(int) evu.step == i;
 				col := ui.box(name);

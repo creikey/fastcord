@@ -400,7 +400,7 @@ media_redaction :: (m: *dc.Message, flags: u64) -> Redaction {
 
 // In place of media the Content Filters block.
 blocked_media_note :: (id: string) {
-	label(tprint("Blocked by your content filters##%", id), .Normal, 14, T("--text-muted"), 20);
+	label(tprint(L("Blocked by your content filters##%"), id), .Normal, 14, T("--text-muted"), 20);
 	spacer(.Y, 4);
 }
 
@@ -965,7 +965,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						spacer(.Y, 8);
 						q := ui.box("ytask", .Draw_Text | .Wrap_Text);
 						q.semantic_size = .[ui.px(w * sc), ui.text_size()];
-						ui.set_spans(q, ui.Span.[.{text = "Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this.", font = F(.Normal), size = 13, color = T("--text-muted")}]);
+						ui.set_spans(q, ui.Span.[.{text = L("Play YouTube videos here with yt-dlp? It needs yt-dlp installed, and connects to YouTube from your computer. Settings > Chat can change this."), font = F(.Normal), size = 13, color = T("--text-muted")}]);
 						spacer(.Y, 8);
 						br := row("ytbtns");
 						br.semantic_size = .[ui.children(), ui.px(32)];
@@ -1426,7 +1426,8 @@ media_menu :: () {
 	lext := url_ext(mm.link);
 	image_link := url_host(mm.link) == "cdn.discordapp.com" && array_find(string.["png", "jpg", "jpeg", "webp", "avif", "bmp", "svg"], lext);
 	media_link := !image_link && array_find(string.["png", "jpg", "jpeg", "webp", "avif", "bmp", "svg", "gif", "mp4", "webm", "mov"], lext);
-	what := ifx image_link then "Image Link" else ifx media_link then "Media Link" else "Link";
+	copy_text := ifx image_link then L("Copy Image Link") else ifx media_link then L("Copy Media Link") else L("Copy Link");
+	open_text := ifx image_link then L("Open Image Link") else ifx media_link then L("Open Media Link") else L("Open Link");
 	W :: cast(float32) GM_MENU_W;
 	h := 16 + GM_ROW_H * (2 + cast(float32) (cast(int) can_copy + cast(int) can_save)) + ifx can_copy || can_save then 9.0 else 0;
 	pos := mm.pos;
@@ -1445,11 +1446,11 @@ media_menu :: () {
 			close = true;
 		}
 		if can_copy || can_save menu_sep("s1");
-		if menu_item("copy-native-link", tprint(L("Copy %"), what), lead = "link").clicked {
+		if menu_item("copy-native-link", copy_text, lead = "link").clicked {
 			clipboard_set(mm.link);
 			close = true;
 		}
-		if menu_item("open-native-link", tprint(L("Open %"), what), .Icon, "link-external-small", lead = "window-launch").clicked {
+		if menu_item("open-native-link", open_text, .Icon, "link-external-small", lead = "window-launch").clicked {
 			open_url(mm.link);
 			close = true;
 		}

@@ -9,11 +9,11 @@
 Builtin_Command :: struct { name, description, suffix: string; }
 
 BUILTIN_COMMANDS :: Builtin_Command.[
-	.{"shrug", "Appends ¯\\_(ツ)_/¯ to your message.", "¯\\\\\\_(ツ)\\_/¯"}, // the backslash and both underscores escaped, so markdown shows it as typed
-	.{"tableflip", "Appends (╯°□°)╯︵ ┻━┻ to your message.", "(╯°□°)╯︵ ┻━┻"},
-	.{"unflip", "Appends ┬─┬ノ( º _ ºノ) to your message.", "┬─┬ノ( º _ ºノ)"},
-	.{"me", "Displays text with emphasis.", ""},
-	.{"spoiler", "Marks your message as a spoiler.", ""},
+	.{"shrug", "Appends ¯\\_(ツ)_/¯ to your message.", "¯\\\\\\_(ツ)\\_/¯"}, // i18n; the backslash and both underscores escaped, so markdown shows it as typed
+	.{"tableflip", "Appends (╯°□°)╯︵ ┻━┻ to your message.", "(╯°□°)╯︵ ┻━┻"}, // i18n
+	.{"unflip", "Appends ┬─┬ノ( º _ ºノ) to your message.", "┬─┬ノ( º _ ºノ)"}, // i18n
+	.{"me", "Displays text with emphasis.", ""}, // i18n
+	.{"spoiler", "Marks your message as a spoiler.", ""}, // i18n
 ];
 
 SAC_MAX :: 10;
@@ -64,7 +64,7 @@ slash_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 	Item :: struct { name, description, app: string; }
 	items: [..]Item;
 	items.allocator = temp;
-	for BUILTIN_COMMANDS if begins_with(it.name, q) array_add(*items, .{it.name, it.description, "Built-In"});
+	for BUILTIN_COMMANDS if begins_with(it.name, q) array_add(*items, .{it.name, tr(it.description), L("Built-In")});
 	for dc.commands_for(ch.guild_id) if items.count < SAC_MAX && begins_with(it.name, q) array_add(*items, .{it.name, it.description, it.app_name});
 	if !items return;
 	sac.sel = clamp(sac.sel, 0, items.count - 1);
@@ -162,7 +162,7 @@ command_values :: (ch: *dc.Channel, cmd: dc.App_Command, rest: string) -> []dc.C
 	raw: [..]dc.Command_Value;
 	raw.allocator = temp;
 	if !marks.count && rest && cmd.options.count array_add(*raw, .{cmd.options[0], rest});
-	else if !marks.count && rest return .[], tprint("/% takes no options.", cmd.name);
+	else if !marks.count && rest return .[], tprint(L("/% takes no options."), cmd.name);
 	for marks {
 		o := cmd.options[it.opt];
 		start := it.at + o.name.count + 1;
@@ -172,7 +172,7 @@ command_values :: (ch: *dc.Channel, cmd: dc.App_Command, rest: string) -> []dc.C
 	for o: cmd.options if o.required {
 		found := false;
 		for raw if it.option.name == o.name && it.value found = true;
-		if !found return .[], tprint("/% needs %:", cmd.name, o.name);
+		if !found return .[], tprint(L("/%1 needs %2:"), cmd.name, o.name);
 	}
 	for raw {
 		v := it.value;
@@ -180,13 +180,13 @@ command_values :: (ch: *dc.Channel, cmd: dc.App_Command, rest: string) -> []dc.C
 		if it.option.kind == {
 		case 4;
 			_, ok, left := string_to_int(v);
-			if !ok || left return .[], tprint("%: a whole number", it.option.name);
+			if !ok || left return .[], tprint(L("%: a whole number"), it.option.name);
 		case 10;
 			_, ok, left := string_to_float64(v);
-			if !ok || left return .[], tprint("%: a number", it.option.name);
+			if !ok || left return .[], tprint(L("%: a number"), it.option.name);
 		case 5;
 			v = to_lower_copy(v,, temp);
-			if v != "true" && v != "false" return .[], tprint("%: true or false", it.option.name);
+			if v != "true" && v != "false" return .[], tprint(L("%: true or false"), it.option.name);
 		case 6; #through; case 7; #through; case 8; #through; case 9;
 			// "@name", "#channel" or "@Role" as their IDs
 			m := trim(mentions_convert(v, ch));
@@ -194,7 +194,7 @@ command_values :: (ch: *dc.Channel, cmd: dc.App_Command, rest: string) -> []dc.C
 			else if begins_with(m, "<@") || begins_with(m, "<#") m = advance(m, 2);
 			if ends_with(m, ">") m.count -= 1;
 			id, ok := dc.parse_u64(m);
-			if !ok return .[], tprint("%: pick a %", it.option.name, ifx it.option.kind == 7 then "channel" else ifx it.option.kind == 8 then "role" else "member");
+			if !ok return .[], tprint(ifx it.option.kind == 7 then L("%: pick a channel") else ifx it.option.kind == 8 then L("%: pick a role") else L("%: pick a member"), it.option.name);
 			v = tprint("%", id);
 		}
 		array_add(*out, .{it.option, v});
@@ -224,6 +224,6 @@ command_hint :: (cmd: dc.App_Command) {
 		spacer(.X, 16);
 		label(tprint("%:", o.name), .Medium, 14, ifx o.required then T("--text-strong") else T("--text-default"), 18);
 		spacer(.X, 6);
-		label(ifx o.required then tprint("% (required)", o.description) else o.description, .Normal, 13, T("--text-muted"), 18);
+		label(ifx o.required then tprint(L("% (required)"), o.description) else o.description, .Normal, 13, T("--text-muted"), 18);
 	}
 }

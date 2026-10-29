@@ -27,7 +27,7 @@ sound_settings_page :: (g: *dc.Guild, w: float32) {
 	{ ui.parent(top); defer ui.pop_parent();
 		if set_button(L("Upload Sound##sbupload"), .Primary, create && sounds.count < slots) modal_open_upload("");
 		filler(.X);
-		label(tprint(L("% of % slots used"), sounds.count, slots), .Medium, 14, T("--text-muted"), 18);
+		label(tprint(Lp("%1 of %2 slot used", "%1 of %2 slots used", slots), sounds.count, slots), .Medium, 14, T("--text-muted"), 18);
 	}
 	spacer(.Y, 20);
 	if !sounds.count {
@@ -110,7 +110,7 @@ sound_settings_receive :: (r: *dc.Feature_Result) {
 		set_error(*sbs.error, "");
 		return;
 	}
-	msg := ifx r.status == -1 then "That file couldn't be read as an MP3 or OGG sound." else ifx r.status == -2 then "Sounds must be under 512 KB." else settings_result_error(r);
+	msg := ifx r.status == -1 then L("That file couldn't be read as an MP3 or OGG sound.") else ifx r.status == -2 then L("Sounds must be under 512 KB.") else settings_result_error(r);
 	set_error(ifx r.op == .Sound_Delete then *sbs.error else *sbs.modal_error, msg);
 }
 
@@ -156,7 +156,7 @@ sound_settings_modal :: () {
 				fr.style.radius = all4(8);
 				{ ui.parent(fr); defer ui.pop_parent();
 					spacer(.X, 12);
-					name := ifx sbs.path then path_filename(sbs.path) else "Drop a file here, or browse";
+					name := ifx sbs.path then path_filename(sbs.path) else L("Drop a file here, or browse");
 					label(ellipsize(name, .Normal, 14, W - 160), .Normal, 14, ifx sbs.path then T("--text-default") else T("--text-muted"), 18);
 					filler(.X);
 					if set_button(L("Browse##sbbrowse"), .Secondary, !sbs.busy, 32) {
@@ -201,7 +201,7 @@ sound_settings_modal :: () {
 		if set_button(L("Cancel##sbmcancel"), .Link, !sbs.busy) modal_close();
 		spacer(.X, 8);
 		ready := !sbs.busy && !sbs.probing && (!upload || (sbs.path && sbs.seconds > 0));
-		label_text := ifx sbs.busy then (ifx upload then "Uploading...##sbsubmit" else "Saving...##sbsubmit") else (ifx upload then "Upload##sbsubmit" else "Save Changes##sbsubmit");
+		label_text := ifx sbs.busy then (ifx upload then L("Uploading...##sbsubmit") else L("Saving...##sbsubmit")) else (ifx upload then L("Upload##sbsubmit") else L("Save Changes##sbsubmit"));
 		if (set_button(label_text, .Primary, ready) || (res == .Submit && ready)) && net_action() submit();
 		spacer(.X, 16);
 	}

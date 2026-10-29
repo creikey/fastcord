@@ -408,8 +408,8 @@ encrypted_edit :: (channel_id: dc.Snowflake, id: dc.Snowflake, text: string, del
 shown_text :: (id: dc.Snowflake, channel_id: dc.Snowflake, content: string) -> string {
 	if !encrypted_packet(channel_id, content) return content;
 	sh := table_find_pointer(*ee.shown, id);
-	if sh && !sh.pending && sh.result == .Ok && is_text(sh.content) return ifx sh.text || !sh.files then sh.text else "Sent a file";
-	return "Encrypted message";
+	if sh && !sh.pending && sh.result == .Ok && is_text(sh.content) return ifx sh.text || !sh.files then sh.text else L("Sent a file");
+	return L("Encrypted message");
 }
 
 encrypted_dm :: (ch: *dc.Channel) -> bool { return ch && ch.kind == .DM && ch.recipient_ids.count == 1; }
@@ -507,7 +507,7 @@ encrypted_body :: (m: *dc.Message) -> handled: bool, plaintext: string {
 	muted :: (text: string) { label(text, .Normal, chat_px(MSG_FONT), T("--text-muted"), chat_px(MSG_LINE_H)); }
 	if !sh || sh.pending { muted(L("Encrypted message")); return true, ""; }
 	mine := m.author_id == store().me;
-	name := ifx mine then "You" else author_name(m);
+	name := ifx mine then L("You") else author_name(m);
 	if sh.result == .Ok && is_text(sh.content) {
 		failed := 0;
 		for sh.files { b := table_find_pointer(*blobs, file_key(it)); if b && b.state == .Failed failed += 1; }

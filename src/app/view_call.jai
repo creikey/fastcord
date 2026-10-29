@@ -385,12 +385,12 @@ go_live_quality :: () {
 		if section == 0 {
 			for h: int.[720, 1080, 0] {
 				if h != 720 && !all continue;
-				if chip(ifx h then tprint("%p##h%", h, h) else "Source##h0", vid.go_height == h) go_live_set(h, vid.go_fps);
+				if chip(ifx h then tprint("%p##h%", h, h) else L("Source##h0"), vid.go_height == h) go_live_set(h, vid.go_fps);
 			}
 		} else {
 			for f: int.[15, 30, 60] {
 				if f == 60 && !all continue;
-				if chip(tprint("% FPS##f%", f, f), vid.go_fps == f) go_live_set(vid.go_height, f);
+				if chip(tprint(L("%1 FPS##f%2"), f, f), vid.go_fps == f) go_live_set(vid.go_height, f);
 			}
 		}
 	}
@@ -707,8 +707,8 @@ stage_controls :: (cid: dc.Snowflake) {
 	if !ch || ch.kind != .Guild_Stage_Voice return;
 	me := table_find_pointer(*call_store().voice_states, call_store().me);
 	if !me || me.channel_id != cid return;
-	text := "Move to Audience";
-	if me.suppress text = ifx stage_moderator(cid) then "Speak" else ifx me.requested_to_speak then "Lower Hand" else "Request to Speak";
+	text := L("Move to Audience");
+	if me.suppress text = ifx stage_moderator(cid) then L("Speak") else ifx me.requested_to_speak then L("Lower Hand") else L("Request to Speak");
 	if !me.suppress || stage_moderator(cid) || dc.has_permission(dc.channel_permissions(call_store(), cid), dc.PERM_REQUEST_TO_SPEAK) {
 		spacer(.X, 8);
 		b := row("stage", .Clickable | .Draw_Background | .Hot_Animation);
@@ -755,7 +755,7 @@ stage_audience :: (ids: []dc.Snowflake) {
 				h.style.radius = all4(7);
 			}
 		}
-		if sig.hovering tooltip_below(tprint("%%", dc.user_name(store(), it, vs.guild_id, "unknown"), ifx vs && vs.requested_to_speak then " (requested to speak)" else ""), b.rect, above = true);
+		if sig.hovering tooltip_below(tprint(ifx vs && vs.requested_to_speak then L("% (requested to speak)") else "%", dc.user_name(store(), it, vs.guild_id, "unknown")), b.rect, above = true);
 		spacer(.X, 8);
 	}
 }

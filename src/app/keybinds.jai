@@ -5,7 +5,7 @@
 // (headless, Input Monitoring not granted, no XInput2) they work while the window is focused.
 
 Keybind_Action :: enum u8 { Unassigned; Push_To_Talk; Push_To_Mute; Toggle_Mute; Toggle_Deafen; Toggle_Voice_Mode; Toggle_Streamer_Mode; Toggle_Go_Live; Disconnect; Navigate_Back; Navigate_Forward; }
-KEYBIND_LABELS :: string.["Unassigned", "Push to Talk (Normal)", "Push to Mute", "Toggle Mute", "Toggle Deafen", "Toggle Voice Activity Mode", "Toggle Streamer Mode", "Toggle Go Live Streaming", "Disconnect From Voice Channel", "Navigate Back", "Navigate Forward"];
+KEYBIND_LABELS :: string.["Unassigned", "Push to Talk (Normal)", "Push to Mute", "Toggle Mute", "Toggle Deafen", "Toggle Voice Activity Mode", "Toggle Streamer Mode", "Toggle Go Live Streaming", "Disconnect From Voice Channel", "Navigate Back", "Navigate Forward"]; // i18n
 // settings.json's names: the client's KeybindActions
 KEYBIND_NAMES :: string.["UNASSIGNED", "PUSH_TO_TALK", "PUSH_TO_MUTE", "TOGGLE_MUTE", "TOGGLE_DEAFEN", "TOGGLE_VOICE_MODE", "TOGGLE_STREAMER_MODE", "TOGGLE_GO_LIVE_STREAMING", "DISCONNECT_FROM_VOICE_CHANNEL", "NAVIGATE_BACK", "NAVIGATE_FORWARD"];
 MAX_KEYBINDS :: 64;
@@ -196,11 +196,13 @@ keybinds_page :: () {
 				c.layout_axis = .Y;
 				{ ui.parent(c); defer ui.pop_parent();
 					spacer(.Y, 16);
-					label(ifx part then "KEYBIND" else "ACTION", .Bold, 12, T("--text-muted"), 16);
+					label(ifx part then L("KEYBIND") else L("ACTION"), .Bold, 12, T("--text-muted"), 16);
 					spacer(.Y, 8);
 					if part shortcut_field(i, col_w);
 					else {
-						pick := select_field(ACTION_IDS[i], KEYBIND_LABELS, xx k.action);
+						labels := NewArray(KEYBIND_LABELS.count, string,, temp); // read again by dropdown_list
+						for KEYBIND_LABELS labels[it_index] = tr(it);
+						pick := select_field(ACTION_IDS[i], labels, xx k.action);
 						if pick >= 0 { k.action = xx pick; k.held = false; }
 					}
 					spacer(.Y, 16);
@@ -234,7 +236,7 @@ keybinds_page :: () {
 		r.semantic_size = .[ui.pct(1), ui.px(36)];
 		r.cross_align = .Center;
 		ui.parent(r); defer ui.pop_parent();
-		label(DEFAULT_SHORTCUTS[2 * i], .Normal, 15, T("--text-default"), 20);
+		label(tr(DEFAULT_SHORTCUTS[2 * i]), .Normal, 15, T("--text-default"), 20);
 		filler(.X);
 		key_caps(DEFAULT_SHORTCUTS[2 * i + 1]);
 	}
@@ -249,8 +251,8 @@ shortcut_field :: (i: int, w: float32) {
 	ui.parent(b); defer ui.pop_parent();
 	spacer(.X, 12);
 	name := shortcut_name(kb.list[i].sc);
-	if !name name = "No Keybind Set";
-	if rec name = "Press a shortcut…";
+	if !name name = L("No Keybind Set");
+	if rec name = L("Press a shortcut…");
 	label(name, .Medium, 16, T("--text-default"), 20).flags |= .Clip;
 	filler(.X);
 	label(ifx rec then L("Stop Recording") else L("Record Keybind"), .Semibold, 14, T("--text-strong"), 18);
@@ -276,8 +278,8 @@ global_input_notice :: () {
 	{ ui.parent(c); defer ui.pop_parent();
 		spacer(.Y, 10);
 		set_para("p", ifx kb.global == .No_Permission
-			then "Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord."
-			else "Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows.", .Normal, 14, 18, T("--text-default"));
+			then L("Keybinds only work while fastcord is focused. To use them in other apps, allow fastcord under Input Monitoring in System Settings, then restart fastcord.")
+			else L("Keybinds only work while fastcord is focused: this desktop doesn't let apps see keys pressed in other windows."), .Normal, 14, 18, T("--text-default"));
 		spacer(.Y, 10);
 	}
 	if kb.global == .No_Permission {

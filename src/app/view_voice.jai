@@ -329,7 +329,7 @@ voice_panel :: () {
 	s := call_store();
 	p := row("voicepanel");
 	p.semantic_size = .[ui.pct(1), ui.px(VOICE_PANEL_H)];
-	status := "RTC Connecting";
+	status := L("RTC Connecting");
 	color := T("--text-feedback-warning");
 	sig_icon := "connection-unknown";
 	ping := -1;
@@ -345,7 +345,7 @@ voice_panel :: () {
 		plain = st == .Connected && es.protocol_version == 0 && call_client() && call_client().cfg.hosted.host != "";
 		if st == {
 		case .Connected;
-			status = "Voice Connected";
+			status = L("Voice Connected");
 			color = T("--text-feedback-positive");
 			sig_icon = "connection-fine";
 			if ping > 250 {
@@ -356,7 +356,7 @@ voice_panel :: () {
 				color = T("--text-feedback-warning");
 			}
 		case .Disconnected;
-			status = "Voice Disconnected";
+			status = L("Voice Disconnected");
 			color = T("--text-feedback-critical");
 			sig_icon = "connection-bad";
 		}
@@ -378,7 +378,7 @@ voice_panel :: () {
 			col.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(col); defer ui.pop_parent();
 				label(status, .Semibold, 14, color, 18);
-				where_ := "Voice";
+				where_ := L("Voice");
 				ch := dc.channel_get(s, app.voice_channel);
 				if ch && ch.guild_id != 0 {
 					g := dc.guild_get(s, ch.guild_id);
@@ -404,8 +404,8 @@ voice_panel :: () {
 			tip.style.shadow_offset = .{0, 4};
 			{ ui.parent(tip); defer ui.pop_parent();
 				spacer(.X, 12);
-				text := ifx ping > 0 then tprint("Ping: % ms", ping) else "Ping: measuring…";
-				if e2ee text = tprint("% · End-to-end encrypted", text);
+				text := ifx ping > 0 then tprint(L("Ping: % ms"), ping) else L("Ping: measuring…");
+				if e2ee text = tprint(L("% · End-to-end encrypted"), text);
 				label(text, .Semibold, 14, T("--text-strong"), 18);
 				spacer(.X, 12);
 			}

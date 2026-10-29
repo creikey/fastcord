@@ -244,8 +244,8 @@ server_settings_layer :: () {
 						grp := section_group(sec);
 						if grp != group {
 							if group >= 0 nav_divider(sec);
-							head := GROUP_NAMES[grp];
-							if grp == 0 head = ifx g.name then g.name else "Server Settings";
+							head := tr(GROUP_NAMES[grp]);
+							if grp == 0 head = ifx g.name then g.name else L("Server Settings");
 							if grp == 8 {
 								cat := ifx dc.is_thread(ch) then cast(*dc.Channel) null else dc.channel_get(store(), ch.parent_id);
 								head = ifx cat then tprint("% %", chan_title(ch), to_upper_copy(cat.name,, temp)) else chan_title(ch);
@@ -352,7 +352,7 @@ server_settings_layer :: () {
 SETTINGS_PERMS :: dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_ROLES | dc.PERM_ADMINISTRATOR | dc.PERM_BAN_MEMBERS | dc.PERM_MANAGE_NICKNAMES
 	| dc.PERM_CREATE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_GUILD_EXPRESSIONS | dc.PERM_MANAGE_WEBHOOKS | dc.PERM_VIEW_AUDIT_LOG | dc.PERM_VIEW_GUILD_ANALYTICS;
 
-GROUP_NAMES :: string.["", "Expression", "People", "Apps", "Moderation", "", "Host", "", "", ""]; // 8: the channel
+GROUP_NAMES :: string.["", "Expression", "People", "Apps", "Moderation", "", "Host", "", "", ""]; // i18n (8: the channel)
 
 // Requests whose replies the pages read (kept with their arenas until replaced or closed), and saves.
 Req :: enum u8 {
@@ -585,46 +585,46 @@ section_group :: (s: Server_Section) -> int {
 
 section_label :: (s: Server_Section) -> string {
 	if s == {
-	case .Profile; return "Server Profile";
-	case .Tag; return "Server Tag";
-	case .Engagement; return "Engagement";
-	case .Emoji; return "Emoji";
-	case .Stickers; return "Stickers";
-	case .Soundboard; return "Soundboard";
-	case .Members; return "Members";
-	case .Roles; return "Roles";
-	case .Invites; return "Invites";
-	case .Access; return "Access";
-	case .Integrations; return "Integrations";
-	case .Safety; return "Safety Setup";
-	case .Audit_Log; return "Audit Log";
-	case .Bans; return "Bans";
-	case .Community; return "Enable Community";
-	case .Onboarding; return "Onboarding";
-	case .Insights; return "Server Insights";
-	case .Host_Storage; return "Storage";
-	case .Host_Attachments; return "Attachments";
-	case .Host_Limits; return "Limits";
-	case .Host_Backups; return "Backups";
-	case .Host_Network; return "Network";
-	case .Host_Sessions; return "Sessions";
-	case .Host_Info; return "Server Info";
-	case .Templates; return "Server Template";
-	case .Delete; return "Delete Server";
-	case .Chan_Overview; return "Overview";
-	case .Chan_Permissions; return "Permissions";
-	case .Chan_Invites; return "Invites";
-	case .Chan_Integrations; return "Integrations";
+	case .Profile; return L("Server Profile");
+	case .Tag; return L("Server Tag");
+	case .Engagement; return L("Engagement");
+	case .Emoji; return L("Emoji");
+	case .Stickers; return L("Stickers");
+	case .Soundboard; return L("Soundboard");
+	case .Members; return L("Members");
+	case .Roles; return L("Roles");
+	case .Invites; return L("Invites");
+	case .Access; return L("Access");
+	case .Integrations; return L("Integrations");
+	case .Safety; return L("Safety Setup");
+	case .Audit_Log; return L("Audit Log");
+	case .Bans; return L("Bans");
+	case .Community; return L("Enable Community");
+	case .Onboarding; return L("Onboarding");
+	case .Insights; return L("Server Insights");
+	case .Host_Storage; return L("Storage");
+	case .Host_Attachments; return L("Attachments");
+	case .Host_Limits; return L("Limits");
+	case .Host_Backups; return L("Backups");
+	case .Host_Network; return L("Network");
+	case .Host_Sessions; return L("Sessions");
+	case .Host_Info; return L("Server Info");
+	case .Templates; return L("Server Template");
+	case .Delete; return L("Delete Server");
+	case .Chan_Overview; return L("Overview");
+	case .Chan_Permissions; return L("Permissions");
+	case .Chan_Invites; return L("Invites");
+	case .Chan_Integrations; return L("Integrations");
 	case .Chan_Delete;
 		ch := dc.channel_get(store(), ss.channel);
-		return ifx ch && ch.kind == .Guild_Category then "Delete Category" else ifx ch && dc.is_thread(ch) then "Delete Thread" else "Delete Channel";
+		return ifx ch && ch.kind == .Guild_Category then L("Delete Category") else ifx ch && dc.is_thread(ch) then L("Delete Thread") else L("Delete Channel");
 	}
 	return "";
 }
 
 // Community reads "Community Overview" once the server is one.
 section_title :: (g: *dc.Guild, s: Server_Section) -> string {
-	if s == .Community && dc.guild_has_feature(g, "COMMUNITY") return "Community Overview";
+	if s == .Community && dc.guild_has_feature(g, "COMMUNITY") return L("Community Overview");
 	return section_label(s);
 }
 
@@ -1005,6 +1005,13 @@ section_heading :: (id: string, title: string, help := "") {
 	spacer(.Y, 12);
 }
 
+// tr over a table of names (marked "// i18n"), in temp: select options outlive the page's frame scope.
+tr_list :: (names: []string) -> []string {
+	out := NewArray(names.count, string,, temp);
+	for names out[it_index] = tr(it);
+	return out;
+}
+
 #scope_export
 
 // A choice with a description under it (radio on the left); true when picked.
@@ -1256,7 +1263,7 @@ profile_page :: (g: *dc.Guild, w: float32) -> bool {
 		}
 	}
 	spacer(.Y, 24);
-	section_heading("traits", L("Traits"), "Add up to 5 traits to show off your server's interests and personality.");
+	section_heading("traits", L("Traits"), L("Add up to 5 traits to show off your server's interests and personality."));
 	tr := row("traits");
 	tr.semantic_size = .[ui.pct(1), ui.children()];
 	tr.style.child_gap = 8;
@@ -1270,7 +1277,7 @@ profile_page :: (g: *dc.Guild, w: float32) -> bool {
 		}
 	}
 	spacer(.Y, 24);
-	section_heading("desc", L("Description"), "How did your server get started? Why should people join?");
+	section_heading("desc", L("Description"), L("How did your server get started? Why should people join?"));
 	if set_input("desc", *ss.desc, L("Tell the world a bit about this server."), multiline = true, max_runes = 300, min_h = 100) == .Escape ss.field_escape = true;
 	spacer(.Y, 24);
 	if set_toggle_row("private", L("Private Profile"), L("When enabled, only server members can view profile content. Non-members won't be able to see this content unless they have an invite."), ss.private) ss.private = !ss.private;
@@ -1290,11 +1297,11 @@ hex_color :: (hex: string) -> ui.Color {
 // ---- Engagement ----
 
 AFK_TIMEOUTS :: int.[60, 300, 900, 1800, 3600];
-AFK_LABELS :: string.["1 minute", "5 minutes", "15 minutes", "30 minutes", "1 hour"];
+AFK_LABELS :: string.["1 minute", "5 minutes", "15 minutes", "30 minutes", "1 hour"]; // i18n
 
 engagement_page :: (g: *dc.Guild) {
 	page_subtitle(L("Manage settings that help keep your server active."));
-	section_heading("sys", L("System Messages"), "Configure system event messages sent to your server.");
+	section_heading("sys", L("System Messages"), L("Configure system event messages sent to your server."));
 	field_title(L("System Messages Channel"));
 	names, ids := channel_options(g, L("No System Messages"), false);
 	pick := select_field("syschan", names, index_of(ids, ss.eng.system_channel_id));
@@ -1305,17 +1312,17 @@ engagement_page :: (g: *dc.Guild) {
 	Flag :: struct { bit: int; text: string; }
 	// Boost messages (SUPPRESS_PREMIUM_SUBSCRIPTIONS) stay as they are: no boost surfaces (AGENTS.md).
 	flags :: Flag.[
-		.{dc.SYSTEM_SUPPRESS_JOIN, "Send a random welcome message when someone joins this server."},
-		.{dc.SYSTEM_SUPPRESS_JOIN_REPLIES, "Prompt members to reply to welcome messages with a sticker."},
-		.{dc.SYSTEM_SUPPRESS_REMINDERS, "Send helpful tips for server setup."}
+		.{dc.SYSTEM_SUPPRESS_JOIN, "Send a random welcome message when someone joins this server."}, // i18n
+		.{dc.SYSTEM_SUPPRESS_JOIN_REPLIES, "Prompt members to reply to welcome messages with a sticker."}, // i18n
+		.{dc.SYSTEM_SUPPRESS_REMINDERS, "Send helpful tips for server setup."} // i18n
 	];
 	for flags {
 		on := (ss.eng.system_channel_flags & it.bit) == 0;
-		if set_toggle_row(tprint("sysflag%", it.bit), it.text, "", on) ss.eng.system_channel_flags ^= it.bit;
+		if set_toggle_row(tprint("sysflag%", it.bit), tr(it.text), "", on) ss.eng.system_channel_flags ^= it.bit;
 		spacer(.Y, 12);
 	}
 	set_divider();
-	section_heading("notif", L("Default Notification Settings"), "This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not.");
+	section_heading("notif", L("Default Notification Settings"), L("This will determine whether members who have not explicitly set their notification settings receive a notification for every message sent in this server or not."));
 	if radio_row("notif0", L("All Messages"), ss.eng.default_message_notifications == 0) ss.eng.default_message_notifications = 0;
 	if radio_row("notif1", L("Only @mentions"), ss.eng.default_message_notifications == 1) ss.eng.default_message_notifications = 1;
 	if !on_hosted() { // hosted servers have no voice channels yet
@@ -1328,14 +1335,14 @@ engagement_page :: (g: *dc.Guild) {
 		field_title(L("Inactive Timeout"));
 		cur := 1;
 		for AFK_TIMEOUTS if it == ss.eng.afk_timeout cur = it_index;
-		pick = select_field("afktime", AFK_LABELS, cur);
+		pick = select_field("afktime", tr_list(AFK_LABELS), cur);
 		if pick >= 0 ss.eng.afk_timeout = AFK_TIMEOUTS[pick];
 		spacer(.Y, 8);
 		set_para("afkhelp", L("Automatically move members to this channel and mute them when they have been idle for longer than the inactive timeout. This does not affect browsers."), .Normal, 12, 16, T("--text-muted"));
 	}
 	if reply(.Widget) && !on_hosted() {
 		set_divider();
-		section_heading("widget", L("Server Widget"), "Embed an HTML widget on your website to display your online members, voice channels, and invite link.");
+		section_heading("widget", L("Server Widget"), L("Embed an HTML widget on your website to display your online members, voice channels, and invite link."));
 		if set_toggle_row("widgeton", L("Enable Server Widget"), L("By enabling the widget, your server profile will be visible to others outside of your server members. You can control Profile privacy in Server Settings > Profile."), ss.widget_on) ss.widget_on = !ss.widget_on;
 		spacer(.Y, 16);
 		field_title(L("Invite Channel"));
@@ -1363,7 +1370,7 @@ table_header :: (id: string, cols: []string, weights: []float32) {
 		c := row(tprint("h%", it_index));
 		c.semantic_size = .[ui.px(ss.col_unit * weights[it_index]), ui.px(28)];
 		ui.parent(c); defer ui.pop_parent();
-		label(it, .Bold, 12, T("--text-muted"), 16);
+		label(tr(it), .Bold, 12, T("--text-muted"), 16);
 	}
 	spacer(.X, 36);
 }
@@ -1456,7 +1463,7 @@ loading_or :: (req: Req, failed: string) -> bool {
 // ---- Members ----
 
 TIMEOUTS :: struct { secs: int; name: string; }.[
-	.{60, "60 seconds"}, .{300, "5 minutes"}, .{600, "10 minutes"}, .{3600, "1 hour"}, .{86400, "1 day"}, .{604800, "1 week"},
+	.{60, "60 seconds"}, .{300, "5 minutes"}, .{600, "10 minutes"}, .{3600, "1 hour"}, .{86400, "1 day"}, .{604800, "1 week"}, // i18n
 ];
 
 members_search :: (g: *dc.Guild) {
@@ -1490,10 +1497,11 @@ members_page :: (g: *dc.Guild) {
 	spacer(.Y, 16);
 	if !loading_or(.Members, L("Couldn't load the members.")) return;
 	m := dc.vmap(reply(.Members).body);
-	label(tprint("% members", dc.fint(m, "total_result_count")), .Semibold, 14, T("--text-default"), 18);
+	n := dc.fint(m, "total_result_count");
+	label(tprint(Lp("% member", "% members", n), num_text(n)), .Semibold, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
 	W :: float32.[4, 2, 2, 1];
-	table_header("mhead", .["NAME", "MEMBER SINCE", "JOINED DISCORD", "ROLES"], W);
+	table_header("mhead", .["NAME", "MEMBER SINCE", "JOINED DISCORD", "ROLES"], W); // i18n
 	list := dc.flist(m, "members");
 	if !list.count ss_empty(L("No members found"));
 	last := ifx list.count == MEMBERS_PAGE then dc.fmap(dc.vmap(list[list.count - 1]), "member") else .[];
@@ -1579,7 +1587,7 @@ invites_page :: (g: *dc.Guild) {
 	}
 	spacer(.Y, 12);
 	W :: float32.[3, 2, 1, 2];
-	table_header("ithead", .["INVITER", "INVITE CODE", "USES", "EXPIRES"], W);
+	table_header("ithead", .["INVITER", "INVITE CODE", "USES", "EXPIRES"], W); // i18n
 	for list {
 		inv := dc.vmap(it);
 		code := dc.fstr(inv, "code");
@@ -1612,9 +1620,9 @@ invites_page :: (g: *dc.Guild) {
 
 // "6:23:41" until expiry, or days ("6 days").
 duration_left :: (ms: s64) -> string {
-	if ms <= 0 return "Expired";
+	if ms <= 0 return L("Expired");
 	s := ms / 1000;
-	if s >= 86400 * 2 return tprint("% days", s / 86400);
+	if s >= 86400 * 2 return tprint(Lp("% day", "% days", s / 86400), s / 86400);
 	return tprint("%:%:%", s / 3600, formatInt((s / 60) % 60, minimum_digits = 2), formatInt(s % 60, minimum_digits = 2));
 }
 
@@ -1627,7 +1635,7 @@ bans_page :: (g: *dc.Guild) {
 	list := dc.vlist(reply(.Bans).body);
 	defer pager(g, ifx list.count == BANS_PAGE then dc.fsnow(dc.fmap(dc.vmap(list[list.count - 1]), "user"), "id") else 0, bans_load);
 	q := to_lower_copy(trim(ui.editor_text(*ss.search)),, temp);
-	label(tprint(L("% Bans"), list.count), .Semibold, 14, T("--text-default"), 18);
+	label(tprint(Lp("% Bans", "% Bans", list.count), list.count), .Semibold, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
 	shown := 0;
 	table_units(.[3, 4]);
@@ -1697,10 +1705,10 @@ emoji_page :: (g: *dc.Guild) {
 	for animated: bool.[false, true] {
 		n := 0;
 		for g.emojis if it.animated == animated n += 1;
-		label(tprint(L("% EMOJI — % SLOTS AVAILABLE"), ifx animated then "ANIMATED" else "STATIC", max(0, 50 - n)), .Bold, 12, T("--text-muted"), 16);
+		label(tprint(ifx animated then L("ANIMATED EMOJI — % SLOTS AVAILABLE") else L("STATIC EMOJI — % SLOTS AVAILABLE"), max(0, 50 - n)), .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
 		W :: float32.[1, 3, 3];
-		if n table_header(tprint("ehead%", animated), .["IMAGE", "NAME", "UPLOADED BY"], W);
+		if n table_header(tprint("ehead%", animated), .["IMAGE", "NAME", "UPLOADED BY"], W); // i18n
 		for e: g.emojis {
 			if e.animated != animated continue;
 			ui.id_scope(cast(u64) e.id);
@@ -1753,29 +1761,30 @@ emoji_page :: (g: *dc.Guild) {
 
 // ---- Audit Log ----
 
+// verb: the entry's sentence, %1 who did it and %2 the member it was done to
 AUDIT_ACTIONS :: struct { type: int; name: string; verb: string; }.[
-	.{0, "All Actions", ""},
-	.{1, "Update Server", "updated the server"},
-	.{10, "Create Channel", "created a channel"},
-	.{11, "Update Channel", "updated a channel"},
-	.{12, "Delete Channel", "deleted a channel"},
-	.{20, "Kick Member", "kicked"},
-	.{22, "Ban Member", "banned"},
-	.{23, "Unban Member", "unbanned"},
-	.{24, "Update Member", "updated"},
-	.{25, "Update Member Roles", "updated the roles of"},
-	.{30, "Create Role", "created a role"},
-	.{31, "Update Role", "updated a role"},
-	.{32, "Delete Role", "deleted a role"},
-	.{40, "Create Invite", "created an invite"},
-	.{42, "Delete Invite", "deleted an invite"},
-	.{50, "Create Webhook", "created a webhook"},
-	.{51, "Update Webhook", "updated a webhook"},
-	.{52, "Delete Webhook", "deleted a webhook"},
-	.{60, "Create Emoji", "created an emoji"},
-	.{61, "Update Emoji", "updated an emoji"},
-	.{62, "Delete Emoji", "deleted an emoji"},
-	.{72, "Delete Message", "deleted a message by"},
+	.{0, "All Actions", ""}, // i18n
+	.{1, "Update Server", "%1 updated the server"}, // i18n
+	.{10, "Create Channel", "%1 created a channel"}, // i18n
+	.{11, "Update Channel", "%1 updated a channel"}, // i18n
+	.{12, "Delete Channel", "%1 deleted a channel"}, // i18n
+	.{20, "Kick Member", "%1 kicked %2"}, // i18n
+	.{22, "Ban Member", "%1 banned %2"}, // i18n
+	.{23, "Unban Member", "%1 unbanned %2"}, // i18n
+	.{24, "Update Member", "%1 updated %2"}, // i18n
+	.{25, "Update Member Roles", "%1 updated the roles of %2"}, // i18n
+	.{30, "Create Role", "%1 created a role"}, // i18n
+	.{31, "Update Role", "%1 updated a role"}, // i18n
+	.{32, "Delete Role", "%1 deleted a role"}, // i18n
+	.{40, "Create Invite", "%1 created an invite"}, // i18n
+	.{42, "Delete Invite", "%1 deleted an invite"}, // i18n
+	.{50, "Create Webhook", "%1 created a webhook"}, // i18n
+	.{51, "Update Webhook", "%1 updated a webhook"}, // i18n
+	.{52, "Delete Webhook", "%1 deleted a webhook"}, // i18n
+	.{60, "Create Emoji", "%1 created an emoji"}, // i18n
+	.{61, "Update Emoji", "%1 updated an emoji"}, // i18n
+	.{62, "Delete Emoji", "%1 deleted an emoji"}, // i18n
+	.{72, "Delete Message", "%1 deleted a message by %2"}, // i18n
 ];
 
 audit_load :: (g: *dc.Guild) {
@@ -1792,7 +1801,7 @@ audit_page :: (g: *dc.Guild) {
 	users: [..]string;
 	uids: [..]dc.Snowflake;
 	users.allocator, uids.allocator = temp, temp;
-	array_add(*users, "All Users");
+	array_add(*users, L("All Users"));
 	array_add(*uids, 0);
 	names: Table(dc.Snowflake, etf.Map);
 	names.allocator = temp;
@@ -1821,7 +1830,7 @@ audit_page :: (g: *dc.Guild) {
 			field_title(L("Filter by Action"));
 			acts: [..]string;
 			acts.allocator = temp;
-			for AUDIT_ACTIONS array_add(*acts, it.name);
+			for AUDIT_ACTIONS array_add(*acts, tr(it.name));
 			pick := select_field("auditaction", acts, ss.audit_action);
 			if pick >= 0 { ss.audit_action = pick; array_reset(*ss.cursors); audit_load(g); }
 		}
@@ -1848,14 +1857,15 @@ audit_page :: (g: *dc.Guild) {
 		target_id := dc.fsnow(e, "target_id");
 		has_target, target := table_find(*names, target_id);
 		type := dc.fint(e, "action_type");
-		verb := tprint("action %", type);
-		for AUDIT_ACTIONS if it.type == type && type verb = it.verb;
+		verb := "";
+		for AUDIT_ACTIONS if it.type == type && type verb = tr(it.verb);
 		{ ui.parent(hr); defer ui.pop_parent();
 			spacer(.X, 12);
 			avatar_box("av", dc.fsnow(e, "user_id"), 32);
 			spacer(.X, 10);
-			text := tprint("% %", ifx actor.count then user_display(actor) else "Someone", verb);
-			if has_target && target.count text = tprint("% %", text, user_display(target));
+			who := ifx actor.count then user_display(actor) else L("Someone");
+			whom := ifx has_target && target.count then user_display(target) else "";
+			text := ifx !verb then tprint(L("%1 action %2"), who, type) else ifx contains(verb, "%2") then trim(tprint(verb, who, whom)) else tprint(verb, who);
 			label(text, .Medium, 14, T("--text-strong"), 18);
 			filler(.X);
 			label(snowflake_date(dc.fsnow(e, "id")), .Normal, 12, T("--text-muted"), 16);
@@ -1920,25 +1930,25 @@ ss_confirm_open :: (kind: SS_Confirm, id: dc.Snowflake, text: string) {
 }
 
 PAUSE_HOURS :: int.[1, 2, 4, 6, 12, 24];
-PAUSE_LABELS :: string.["1 hour", "2 hours", "4 hours", "6 hours", "12 hours", "24 hours"];
+PAUSE_LABELS :: string.["1 hour", "2 hours", "4 hours", "6 hours", "12 hours", "24 hours"]; // i18n
 
 ss_confirm_modal :: (g: *dc.Guild) {
 	title, body, button: string;
 	danger := true;
 	t := ss.confirm_text;
 	if ss.confirm == {
-	case .Revoke_Invite; title, body, button = "Revoke Invite", tprint("Are you sure you want to revoke the invite %? Nobody will be able to join with it.", t), "Revoke";
-	case .Revoke_Ban; title, body, button = tprint("'%'", t), "Revoke the ban? They will be able to join again with an invite.", "Revoke Ban";
-	case .Delete_Emoji; title, body, button = "Delete Emoji", tprint("Are you sure you want to delete :%:? This cannot be undone.", t), "Delete";
-	case .Timeout; title, body, button = tprint("Timeout %", t), "Members in timeout can't send messages, react, join voice or speak until it ends.", "Timeout";
-	case .Transfer; title, body, button = "Transfer Ownership", ifx on_hosted() then tprint("% becomes the owner once they accept on their device. You'll stay a member.", t) else tprint("This will transfer ownership of % to %. This cannot be undone!", g.name, t), "Transfer Ownership";
-	case .Delete_Server; title, body, button = tprint("Delete '%'", g.name), tprint("Are you sure you want to delete %? This action cannot be undone.", g.name), "Delete Server";
-	case .Pause_Invites; title, body, button = "Pause Invites", "Nobody can join this server with an invite link until the pause ends or you enable invites again.", "Pause Invites";
-	case .Delete_Role; title, body, button = tprint("Delete '%'", t), "Are you sure you want to delete this role? This action cannot be undone.", "Delete";
-	case .Delete_Rule; title, body, button = "Delete Rule", tprint("Are you sure you want to delete the rule %? This cannot be undone.", t), "Delete";
-	case .Delete_Webhook; title, body, button = "Delete Webhook", tprint("Are you sure you want to delete %? This action cannot be undone.", t), "Delete";
-	case .Delete_Template; title, body, button = "Delete Template", "Are you sure you want to delete this template? Its link will stop working.", "Delete Template";
-	case .Delete_Sticker; title, body, button = "Delete Sticker", tprint("Are you sure you want to delete %? This cannot be undone.", t), "Delete";
+	case .Revoke_Invite; title, body, button = L("Revoke Invite"), tprint(L("Are you sure you want to revoke the invite %? Nobody will be able to join with it."), t), L("Revoke");
+	case .Revoke_Ban; title, body, button = tprint("'%'", t), L("Revoke the ban? They will be able to join again with an invite."), L("Revoke Ban");
+	case .Delete_Emoji; title, body, button = L("Delete Emoji"), tprint(L("Are you sure you want to delete :%:? This cannot be undone."), t), L("Delete");
+	case .Timeout; title, body, button = tprint(L("Timeout %"), t), L("Members in timeout can't send messages, react, join voice or speak until it ends."), L("Timeout");
+	case .Transfer; title, body, button = L("Transfer Ownership"), ifx on_hosted() then tprint(L("% becomes the owner once they accept on their device. You'll stay a member."), t) else tprint(L("This will transfer ownership of %1 to %2. This cannot be undone!"), g.name, t), L("Transfer Ownership");
+	case .Delete_Server; title, body, button = tprint(L("Delete '%'"), g.name), tprint(L("Are you sure you want to delete %? This action cannot be undone."), g.name), L("Delete Server");
+	case .Pause_Invites; title, body, button = L("Pause Invites"), L("Nobody can join this server with an invite link until the pause ends or you enable invites again."), L("Pause Invites");
+	case .Delete_Role; title, body, button = tprint(L("Delete '%'"), t), L("Are you sure you want to delete this role? This action cannot be undone."), L("Delete");
+	case .Delete_Rule; title, body, button = L("Delete Rule"), tprint(L("Are you sure you want to delete the rule %? This cannot be undone."), t), L("Delete");
+	case .Delete_Webhook; title, body, button = L("Delete Webhook"), tprint(L("Are you sure you want to delete %? This action cannot be undone."), t), L("Delete");
+	case .Delete_Template; title, body, button = L("Delete Template"), L("Are you sure you want to delete this template? Its link will stop working."), L("Delete Template");
+	case .Delete_Sticker; title, body, button = L("Delete Sticker"), tprint(L("Are you sure you want to delete %? This cannot be undone."), t), L("Delete");
 	}
 	if !adm_modal_begin("ssconfirm", 440, title) {
 		ss.confirm = .None;
@@ -1962,9 +1972,9 @@ ss_confirm_modal :: (g: *dc.Guild) {
 				if ss.confirm == .Timeout {
 					opts: [..]string;
 					opts.allocator = temp;
-					for TIMEOUTS array_add(*opts, it.name);
+					for TIMEOUTS array_add(*opts, tr(it.name));
 					pick = select_field("cdur", opts, ss.confirm_pick);
-				} else pick = select_field("cdur", PAUSE_LABELS, ss.confirm_pick);
+				} else pick = select_field("cdur", tr_list(PAUSE_LABELS), ss.confirm_pick);
 				if pick >= 0 ss.confirm_pick = pick;
 			}
 			if ss.confirm == .Timeout {
@@ -2043,68 +2053,68 @@ bit :: (n: int) -> u64 #expand { return (cast(u64) 1) << n; }
 
 // The role editor's permissions, in the client's sections and order (Use Activities left out: AGENTS.md).
 PERM_SECTIONS :: Perm_Section.[
-	.{"General Server Permissions", .[
-		.{1 << 10, "View Channels", "Allows members to view channels by default (excluding private channels)."},
-		.{1 << 4, "Manage Channels", "Allows members to create, edit, or delete channels."},
-		.{1 << 28, "Manage Roles", "Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to."},
-		.{1 << 43, "Create Expressions", "Allows members to add custom emoji, stickers, and sounds in this server."},
-		.{1 << 30, "Manage Expressions", "Allows members to edit or remove custom emoji, stickers, and sounds in this server."},
-		.{1 << 7, "View Audit Log", "Allows members to view a record of who made which changes in this server."},
-		.{1 << 19, "View Server Insights", "Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access."},
-		.{1 << 29, "Manage Webhooks", "Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server."},
-		.{1 << 5, "Manage Server", "Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules."},
+	.{"General Server Permissions", .[ // i18n
+		.{1 << 10, "View Channels", "Allows members to view channels by default (excluding private channels)."}, // i18n
+		.{1 << 4, "Manage Channels", "Allows members to create, edit, or delete channels."}, // i18n
+		.{1 << 28, "Manage Roles", "Allows members to create new roles and edit or delete roles lower than their highest role. Also allows members to change permissions of individual channels that they have access to."}, // i18n
+		.{1 << 43, "Create Expressions", "Allows members to add custom emoji, stickers, and sounds in this server."}, // i18n
+		.{1 << 30, "Manage Expressions", "Allows members to edit or remove custom emoji, stickers, and sounds in this server."}, // i18n
+		.{1 << 7, "View Audit Log", "Allows members to view a record of who made which changes in this server."}, // i18n
+		.{1 << 19, "View Server Insights", "Allows members to view Server Insights, which shows data on community growth, engagement, and more. This will allow them to see certain data about channel activity, even for channels they cannot access."}, // i18n
+		.{1 << 29, "Manage Webhooks", "Allows members to create, edit, or delete webhooks, which can post messages from other apps or sites into this server."}, // i18n
+		.{1 << 5, "Manage Server", "Allow members to change this server's name, switch regions, view all invites, add apps to this server and create and update AutoMod rules."}, // i18n
 	]},
-	.{"Membership Permissions", .[
-		.{1 << 0, "Create Invite", "Allows members to invite new people to this server."},
-		.{1 << 26, "Change Nickname", "Allows members to change their own nickname, a custom name for just this server."},
-		.{1 << 27, "Manage Nicknames", "Allows members to change the nicknames of other members."},
-		.{1 << 1, "Kick, Approve, and Reject Members", "Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite."},
-		.{1 << 2, "Ban Members", "Allows members to permanently ban and delete the message history of other members from this server."},
-		.{1 << 40, "Timeout Members", "When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels."},
+	.{"Membership Permissions", .[ // i18n
+		.{1 << 0, "Create Invite", "Allows members to invite new people to this server."}, // i18n
+		.{1 << 26, "Change Nickname", "Allows members to change their own nickname, a custom name for just this server."}, // i18n
+		.{1 << 27, "Manage Nicknames", "Allows members to change the nicknames of other members."}, // i18n
+		.{1 << 1, "Kick, Approve, and Reject Members", "Allows members to remove other members from this server. Kicked members will be able to rejoin if they have another invite."}, // i18n
+		.{1 << 2, "Ban Members", "Allows members to permanently ban and delete the message history of other members from this server."}, // i18n
+		.{1 << 40, "Timeout Members", "When you put a user in timeout they will not be able to send messages in chat, reply within threads, react to messages, or speak in voice or Stage channels."}, // i18n
 	]},
-	.{"Text Channel Permissions", .[
-		.{1 << 11, "Send Messages and Create Posts", "Allow members to send messages in text channels and create posts in forum channels."},
-		.{1 << 38, "Send Messages in Threads and Posts", "Allow members to send messages in threads and in posts on forum channels."},
-		.{1 << 35, "Create Public Threads", "Allow members to create threads that everyone in a channel can view."},
-		.{1 << 36, "Create Private Threads", "Allow members to create invite-only threads."},
-		.{1 << 14, "Embed Links", "Allows links that members share to show embedded content in text channels."},
-		.{1 << 15, "Attach Files", "Allows members to upload files or media in text channels."},
-		.{1 << 6, "Add Reactions", "Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message."},
-		.{1 << 18, "Use External Emoji", "Allows members to use emoji from other servers, if they're a Discord Nitro member."},
-		.{1 << 37, "Use External Stickers", "Allows members to use stickers from other servers, if they're a Discord Nitro member."},
-		.{1 << 17, "Mention @everyone, @here, and All Roles", "Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's \"Allow anyone to mention this role\" permission is disabled."},
-		.{1 << 13, "Manage Messages", "Allows members to delete or remove embeds from messages by other members."},
-		.{1 << 51, "Pin Messages", "Allows members to pin or unpin any message."},
-		.{1 << 52, "Bypass Slowmode", "Allows members to send messages without being affected by slowmode."},
-		.{1 << 34, "Manage Threads and Posts", "Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads."},
-		.{1 << 16, "Read Message History", "Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts."},
-		.{1 << 12, "Send Text-to-Speech Messages", "Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel."},
-		.{1 << 46, "Send Voice Messages", "Allows members to send voice messages."},
-		.{1 << 49, "Create Polls", "Allows members to create polls."},
+	.{"Text Channel Permissions", .[ // i18n
+		.{1 << 11, "Send Messages and Create Posts", "Allow members to send messages in text channels and create posts in forum channels."}, // i18n
+		.{1 << 38, "Send Messages in Threads and Posts", "Allow members to send messages in threads and in posts on forum channels."}, // i18n
+		.{1 << 35, "Create Public Threads", "Allow members to create threads that everyone in a channel can view."}, // i18n
+		.{1 << 36, "Create Private Threads", "Allow members to create invite-only threads."}, // i18n
+		.{1 << 14, "Embed Links", "Allows links that members share to show embedded content in text channels."}, // i18n
+		.{1 << 15, "Attach Files", "Allows members to upload files or media in text channels."}, // i18n
+		.{1 << 6, "Add Reactions", "Allows members to add new emoji reactions to a message. If this permission is disabled, members can still react using any existing reactions on a message."}, // i18n
+		.{1 << 18, "Use External Emoji", "Allows members to use emoji from other servers, if they're a Discord Nitro member."}, // i18n
+		.{1 << 37, "Use External Stickers", "Allows members to use stickers from other servers, if they're a Discord Nitro member."}, // i18n
+		.{1 << 17, "Mention @everyone, @here, and All Roles", "Allows members to use @everyone (everyone in the server) or @here (only online members in that channel). They can also @mention all roles, even if the role's \"Allow anyone to mention this role\" permission is disabled."}, // i18n
+		.{1 << 13, "Manage Messages", "Allows members to delete or remove embeds from messages by other members."}, // i18n
+		.{1 << 51, "Pin Messages", "Allows members to pin or unpin any message."}, // i18n
+		.{1 << 52, "Bypass Slowmode", "Allows members to send messages without being affected by slowmode."}, // i18n
+		.{1 << 34, "Manage Threads and Posts", "Allows members to rename, delete, close, and turn on slow mode for threads and posts. They can also view private threads."}, // i18n
+		.{1 << 16, "Read Message History", "Allows members to read previous messages sent in channels. If this permission is disabled, members only see messages sent when they are online. This does not fully apply to threads and forum posts."}, // i18n
+		.{1 << 12, "Send Text-to-Speech Messages", "Allows members to send text-to-speech messages by starting a message with /tts. These messages can be heard by anyone focused on the channel."}, // i18n
+		.{1 << 46, "Send Voice Messages", "Allows members to send voice messages."}, // i18n
+		.{1 << 49, "Create Polls", "Allows members to create polls."}, // i18n
 	]},
-	.{"Voice Channel Permissions", .[
-		.{1 << 20, "Connect", "Allows members to join voice channels and hear others."},
-		.{1 << 21, "Speak", "Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the \"Mute Members\" permission un-mutes them."},
-		.{1 << 9, "Video", "Allows members to share their video, screen share, or stream a game in this server."},
-		.{1 << 42, "Use Soundboard", "Allows members to send sounds from server soundboard."},
-		.{1 << 45, "Use External Sounds", "Allows members to use sounds from other servers, if they're a Discord Nitro member."},
-		.{1 << 25, "Use Voice Activity", "Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members."},
-		.{1 << 8, "Priority Speaker", "Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered."},
-		.{1 << 22, "Mute Members", "Allows members to mute other members in voice channels for everyone."},
-		.{1 << 23, "Deafen Members", "Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others."},
-		.{1 << 24, "Move Members", "Allows members to disconnect or move other members between voice channels that the member with this permission has access to."},
-		.{1 << 48, "Set Voice Channel Status", "Allows members to create and edit voice channel status."},
+	.{"Voice Channel Permissions", .[ // i18n
+		.{1 << 20, "Connect", "Allows members to join voice channels and hear others."}, // i18n
+		.{1 << 21, "Speak", "Allows members to talk in voice channels. If this permission is disabled, members are default muted until somebody with the \"Mute Members\" permission un-mutes them."}, // i18n
+		.{1 << 9, "Video", "Allows members to share their video, screen share, or stream a game in this server."}, // i18n
+		.{1 << 42, "Use Soundboard", "Allows members to send sounds from server soundboard."}, // i18n
+		.{1 << 45, "Use External Sounds", "Allows members to use sounds from other servers, if they're a Discord Nitro member."}, // i18n
+		.{1 << 25, "Use Voice Activity", "Allows members to speak in voice channels by simply talking. If this permission is disabled, members are required to use Push-to-talk. Good for controlling background noise or noisy members."}, // i18n
+		.{1 << 8, "Priority Speaker", "Allows members to be more easily heard in voice channels. When activated, the volume of others without this permission will be automatically lowered."}, // i18n
+		.{1 << 22, "Mute Members", "Allows members to mute other members in voice channels for everyone."}, // i18n
+		.{1 << 23, "Deafen Members", "Allows members to deafen other members in voice channels, which means they won't be able to speak or hear others."}, // i18n
+		.{1 << 24, "Move Members", "Allows members to disconnect or move other members between voice channels that the member with this permission has access to."}, // i18n
+		.{1 << 48, "Set Voice Channel Status", "Allows members to create and edit voice channel status."}, // i18n
 	]},
-	.{"Apps Permissions", .[
-		.{1 << 31, "Use Application Commands", "Allows members to use commands from applications, including slash commands and context menu commands."},
-		.{1 << 50, "Use External Apps", "Allows apps that members have added to their account to post messages. When disabled, the messages will be private."},
+	.{"Apps Permissions", .[ // i18n
+		.{1 << 31, "Use Application Commands", "Allows members to use commands from applications, including slash commands and context menu commands."}, // i18n
+		.{1 << 50, "Use External Apps", "Allows apps that members have added to their account to post messages. When disabled, the messages will be private."}, // i18n
 	]},
-	.{"Events Permissions", .[
-		.{1 << 44, "Create Events", "Allows members to create events."},
-		.{1 << 33, "Manage Events", "Allows members to edit and cancel events."},
+	.{"Events Permissions", .[ // i18n
+		.{1 << 44, "Create Events", "Allows members to create events."}, // i18n
+		.{1 << 33, "Manage Events", "Allows members to edit and cancel events."}, // i18n
 	]},
-	.{"Advanced Permissions", .[
-		.{1 << 3, "Administrator", "Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant."},
+	.{"Advanced Permissions", .[ // i18n
+		.{1 << 3, "Administrator", "Members with this permission will have every permission and will also bypass all channel specific permissions or restrictions (for example, these members would get access to all private channels). This is a dangerous permission to grant."}, // i18n
 	]},
 ];
 
@@ -2233,7 +2243,7 @@ roles_page :: (g: *dc.Guild) {
 	counts := reply(.Role_Counts);
 	order := role_order(g);
 	W :: float32.[5, 2];
-	table_header("rth", .[tprint("ROLES — %", order.count), "MEMBERS"], W);
+	table_header("rth", .[tprint(L("ROLES — %"), order.count), L("MEMBERS")], W);
 	top := highest_position(g);
 	ss.rdrop = -1;
 	for id, i: order {
@@ -2329,7 +2339,7 @@ role_members_load :: (g: *dc.Guild) {
 	load_body(g, .Role_Members, "POST", tprint("/guilds/%/members-search", g.id), tprint("{\"or_query\":{},\"and_query\":{\"role_ids\":{\"and_query\":[\"%\"]}},\"limit\":250}", ss.role_id));
 }
 
-ROLE_TABS :: string.["Display", "Permissions", "Manage Members"];
+ROLE_TABS :: string.["Display", "Permissions", "Manage Members"]; // i18n
 
 role_edit :: (g: *dc.Guild, r: *dc.Role) {
 	everyone := r.id == g.id;
@@ -2341,7 +2351,7 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 	{ ui.parent(br); defer ui.pop_parent();
 		icon("ic", "arrow-large-left", 16, T("--interactive-icon-default"));
 		spacer(.X, 6);
-		label("BACK", .Bold, 12, T("--text-muted"), 16);
+		label(L("BACK"), .Bold, 12, T("--text-muted"), 16);
 	}
 	spacer(.Y, 12);
 	hr := row("title");
@@ -2365,7 +2375,7 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 			t.hover_cursor = .Pointer;
 			if ui.signal(t).clicked ss.role_tab = it_index;
 			ui.parent(t); defer ui.pop_parent();
-			label(it, .Medium, 16, ifx sel then T("--text-strong") else T("--text-muted"), 20);
+			label(tr(it), .Medium, 16, ifx sel then T("--text-strong") else T("--text-muted"), 20);
 			spacer(.Y, 8);
 			if sel {
 				u := ui.box("u", .Draw_Background);
@@ -2462,13 +2472,13 @@ role_edit :: (g: *dc.Guild, r: *dc.Role) {
 		mine := dc.guild_permissions(store(), g.id);
 		for sec: PERM_SECTIONS {
 			spacer(.Y, 16);
-			label(sec.title, .Bold, 12, T("--text-muted"), 16);
+			label(tr(sec.title), .Bold, 12, T("--text-muted"), 16);
 			spacer(.Y, 12);
 			for p: sec.perms {
 				on := (ss.role_perms & p.flag) != 0;
 				// a member can't grant what they don't have (the owner and administrators can)
 				can := editable && (mine & (p.flag | dc.PERM_ADMINISTRATOR)) != 0;
-				if set_toggle_row(tprint("p%", p.flag), p.title, p.desc, on, !can) ss.role_perms ^= p.flag;
+				if set_toggle_row(tprint("p%", p.flag), tr(p.title), tr(p.desc), on, !can) ss.role_perms ^= p.flag;
 				set_divider();
 			}
 		}
@@ -2536,18 +2546,18 @@ role_members_tab :: (g: *dc.Guild, r: *dc.Role, editable: bool) {
 // ---- Safety Setup ----
 
 VERIFICATION :: struct { name: string; desc: string; }.[
-	.{"None", "Unrestricted"},
-	.{"Low", "Must have a verified email on their Discord account."},
-	.{"Medium", "Must also be registered on Discord for longer than 5 minutes."},
-	.{"High", "Must also be a member of this server for longer than 10 minutes."},
-	.{"Highest", "Must have a verified phone on their Discord account."},
+	.{"None", "Unrestricted"}, // i18n
+	.{"Low", "Must have a verified email on their Discord account."}, // i18n
+	.{"Medium", "Must also be registered on Discord for longer than 5 minutes."}, // i18n
+	.{"High", "Must also be a member of this server for longer than 10 minutes."}, // i18n
+	.{"Highest", "Must have a verified phone on their Discord account."}, // i18n
 ];
 
 // Explicit image filter choices, as the client lists them: value then wording.
 EXPLICIT :: struct { value: int; name: string; desc: string; }.[
-	.{2, "Filter messages from all members", "All messages will be filtered for sensitive image-based media."},
-	.{1, "Filter messages from server members without roles", "Messages from server members without a role will be filtered for sensitive image-based media."},
-	.{0, "Do not filter", "Messages will not be filtered for sensitive image-based media."},
+	.{2, "Filter messages from all members", "All messages will be filtered for sensitive image-based media."}, // i18n
+	.{1, "Filter messages from server members without roles", "Messages from server members without a role will be filtered for sensitive image-based media."}, // i18n
+	.{0, "Do not filter", "Messages will not be filtered for sensitive image-based media."}, // i18n
 ];
 
 AUTOMOD_KEYWORD :: 1;
@@ -2556,15 +2566,15 @@ AUTOMOD_MENTION_SPAM :: 5;
 
 safety_page :: (g: *dc.Guild) {
 	community := dc.guild_has_feature(g, "COMMUNITY");
-	section_heading("verif", L("Verification Level"), "Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.");
+	section_heading("verif", L("Verification Level"), L("Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply."));
 	for VERIFICATION {
-		if radio_choice(tprint("v%", it_index), it.name, ifx community && it_index == 0 then L("This option is not available for Community Servers.") else it.desc, g.verification_level == it_index, !ss.busy && !(community && it_index == 0))
+		if radio_choice(tprint("v%", it_index), tr(it.name), ifx community && it_index == 0 then L("This option is not available for Community Servers.") else tr(it.desc), g.verification_level == it_index, !ss.busy && !(community && it_index == 0))
 			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"verification_level\":%}", it_index));
 	}
 	set_divider();
-	section_heading("explicit", L("Explicit image filter"), "Automatically scan and delete messages sent in this server that contain explicit media.");
+	section_heading("explicit", L("Explicit image filter"), L("Automatically scan and delete messages sent in this server that contain explicit media."));
 	for EXPLICIT {
-		if radio_choice(tprint("x%", it.value), it.name, ifx community && it.value != 2 then L("This option is not available for Community Servers.") else it.desc, g.explicit_content_filter == it.value, !ss.busy && !(community && it.value != 2))
+		if radio_choice(tprint("x%", it.value), tr(it.name), ifx community && it.value != 2 then L("This option is not available for Community Servers.") else tr(it.desc), g.explicit_content_filter == it.value, !ss.busy && !(community && it.value != 2))
 			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"explicit_content_filter\":%}", it.value));
 	}
 	if g.owner_id == store().me {
@@ -2577,7 +2587,7 @@ safety_page :: (g: *dc.Guild) {
 }
 
 automod_section :: (g: *dc.Guild) {
-	section_heading("automod", L("AutoMod"), "Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.");
+	section_heading("automod", L("AutoMod"), L("Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt."));
 	if !loading_or(.Automod, L("Couldn't load the AutoMod rules.")) return;
 	rules := dc.vlist(reply(.Automod).body);
 	has: [7]bool;
@@ -2612,11 +2622,11 @@ automod_section :: (g: *dc.Guild) {
 					meta := dc.fmap(r, "trigger_metadata");
 					desc := "";
 					if t == {
-					case AUTOMOD_KEYWORD; desc = tprint("Blocks messages containing % word%.", dc.flist(meta, "keyword_filter").count, ifx dc.flist(meta, "keyword_filter").count == 1 then "" else "s");
-					case AUTOMOD_SPAM; desc = "Blocks messages suspected to be spam.";
-					case AUTOMOD_MENTION_SPAM; desc = tprint("Blocks messages with more than % mentions.", dc.fint(meta, "mention_total_limit"));
-					case 4; desc = "Blocks words from Discord's commonly flagged lists.";
-					case 6; desc = "Blocks words in member profile names.";
+					case AUTOMOD_KEYWORD; n := dc.flist(meta, "keyword_filter").count; desc = tprint(Lp("Blocks messages containing % word.", "Blocks messages containing % words.", n), n);
+					case AUTOMOD_SPAM; desc = L("Blocks messages suspected to be spam.");
+					case AUTOMOD_MENTION_SPAM; desc = tprint(L("Blocks messages with more than % mentions."), dc.fint(meta, "mention_total_limit"));
+					case 4; desc = L("Blocks words from Discord's commonly flagged lists.");
+					case 6; desc = L("Blocks words in member profile names.");
 					}
 					if desc { spacer(.Y, 2); set_para("d", desc, .Normal, 14, 18, T("--text-muted")); }
 				}
@@ -2673,7 +2683,7 @@ automod_section :: (g: *dc.Guild) {
 
 AUTOMOD_PRESET :: 4;
 AUTOMOD_PROFILE :: 6;
-PRESETS :: struct { id: int; name: string; }.[.{3, "Insults and Slurs"}, .{2, "Sexual Content"}, .{1, "Severe Profanity"}];
+PRESETS :: struct { id: int; name: string; }.[.{3, "Insults and Slurs"}, .{2, "Sexual Content"}, .{1, "Severe Profanity"}]; // i18n
 
 // An AutoMod rule's editable parts (ss.words: its words; ss.rule_allow: allowed words; ss.rule_limit: mentions).
 Rule_Draft :: struct {
@@ -2806,7 +2816,7 @@ rule_editor :: (g: *dc.Guild, r: etf.Map) {
 			spacer(.Y, 12);
 		}
 		if d.trigger == AUTOMOD_PRESET {
-			for PRESETS if set_toggle_row(tprint("pr%", it.id), it.name, "", d.presets[it.id]) d.presets[it.id] = !d.presets[it.id];
+			for PRESETS if set_toggle_row(tprint("pr%", it.id), tr(it.name), "", d.presets[it.id]) d.presets[it.id] = !d.presets[it.id];
 			spacer(.Y, 12);
 		}
 		if d.trigger == AUTOMOD_KEYWORD || d.trigger == AUTOMOD_PROFILE || d.trigger == AUTOMOD_PRESET {
@@ -2839,7 +2849,7 @@ rule_editor :: (g: *dc.Guild, r: etf.Map) {
 			if d.timeout {
 				opts := NewArray(TIMEOUTS.count, string,, temp);
 				cur := 0;
-				for TIMEOUTS { opts[it_index] = it.name; if it.secs == d.timeout_secs cur = it_index; }
+				for TIMEOUTS { opts[it_index] = tr(it.name); if it.secs == d.timeout_secs cur = it_index; }
 				pick := select_field("tdur", opts, cur);
 				if pick >= 0 d.timeout_secs = TIMEOUTS[pick].secs;
 				spacer(.Y, 8);
@@ -2866,7 +2876,7 @@ rule_editor :: (g: *dc.Guild, r: etf.Map) {
 			rnames.allocator = temp;
 			rids: [..]dc.Snowflake;
 			rids.allocator = temp;
-			array_add(*rnames, "Exempt a role");
+			array_add(*rnames, L("Exempt a role"));
 			array_add(*rids, 0);
 			for roles_sorted(g) if it.id != g.id && !array_find(d.exempt_roles, it.id) { array_add(*rnames, it.name); array_add(*rids, it.id); }
 			w := ui.box("rw");
@@ -3022,7 +3032,7 @@ integrations_page :: (g: *dc.Guild) {
 			{ ui.parent(col); defer ui.pop_parent();
 				label(dc.fstr(h, "name"), .Semibold, 16, T("--text-strong"), 20);
 				u := dc.fmap(h, "user");
-				label(tprint(L("Created on % by %"), snowflake_date(id), ifx u.count then user_display(u) else "someone"), .Normal, 12, T("--text-muted"), 16);
+				label(tprint(L("Created on %1 by %2"), snowflake_date(id), ifx u.count then user_display(u) else L("someone")), .Normal, 12, T("--text-muted"), 16);
 			}
 			icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 			spacer(.X, 16);
@@ -3175,12 +3185,12 @@ templates_page :: (g: *dc.Guild) {
 // ---- Community ----
 
 LOCALES :: [2]string.[
-	.["en-US", "English, USA"], .["en-GB", "English, UK"], .["bg", "Bulgarian"], .["zh-CN", "Chinese, China"], .["zh-TW", "Chinese, Taiwan"],
-	.["hr", "Croatian"], .["cs", "Czech"], .["da", "Danish"], .["nl", "Dutch"], .["fi", "Finnish"], .["fr", "French"], .["de", "German"],
-	.["el", "Greek"], .["hi", "Hindi"], .["hu", "Hungarian"], .["id", "Indonesian"], .["it", "Italian"], .["ja", "Japanese"], .["ko", "Korean"],
-	.["lt", "Lithuanian"], .["no", "Norwegian"], .["pl", "Polish"], .["pt-BR", "Portuguese, Brazilian"], .["ro", "Romanian, Romania"],
-	.["ru", "Russian"], .["es-ES", "Spanish"], .["es-419", "Spanish, LATAM"], .["sv-SE", "Swedish"], .["th", "Thai"], .["tr", "Turkish"],
-	.["uk", "Ukrainian"], .["vi", "Vietnamese"],
+	.["en-US", "English, USA"], .["en-GB", "English, UK"], .["bg", "Bulgarian"], .["zh-CN", "Chinese, China"], .["zh-TW", "Chinese, Taiwan"], // i18n
+	.["hr", "Croatian"], .["cs", "Czech"], .["da", "Danish"], .["nl", "Dutch"], .["fi", "Finnish"], .["fr", "French"], .["de", "German"], // i18n
+	.["el", "Greek"], .["hi", "Hindi"], .["hu", "Hungarian"], .["id", "Indonesian"], .["it", "Italian"], .["ja", "Japanese"], .["ko", "Korean"], // i18n
+	.["lt", "Lithuanian"], .["no", "Norwegian"], .["pl", "Polish"], .["pt-BR", "Portuguese, Brazilian"], .["ro", "Romanian, Romania"], // i18n
+	.["ru", "Russian"], .["es-ES", "Spanish"], .["es-419", "Spanish, LATAM"], .["sv-SE", "Swedish"], .["th", "Thai"], .["tr", "Turkish"], // i18n
+	.["uk", "Ukrainian"], .["vi", "Vietnamese"], // i18n
 ];
 
 Community_Form :: struct {
@@ -3221,13 +3231,13 @@ channel_or_create :: (id: dc.Snowflake) -> string { return ifx id then tprint("\
 community_page :: (g: *dc.Guild) {
 	if !dc.guild_has_feature(g, "COMMUNITY") {
 		page_subtitle(L("Are you building a Community? Convert to a Community Server to access additional administrative tools that can help you moderate, run, and grow your server."));
-		section_heading("csafety", L("Safety checks"), "To protect your members, Community servers need these, and enabling sets them:");
+		section_heading("csafety", L("Safety checks"), L("To protect your members, Community servers need these, and enabling sets them:"));
 		set_para("c1", L("• Members must have a verified email on their Discord account."), .Normal, 14, 18, T("--text-default"));
 		set_para("c2", L("• Media from all members is scanned by the explicit image filter."), .Normal, 14, 18, T("--text-default"));
 		set_divider();
 		community_channels(g, true);
 		set_divider();
-		section_heading("cfinish", L("Finishing touches"), "Default notifications become Only @mentions.");
+		section_heading("cfinish", L("Finishing touches"), L("Default notifications become Only @mentions."));
 		if set_toggle_row("agree", L("I agree and understand"), L("Community servers follow Discord's Community Guidelines."), ss.comm.agree) ss.comm.agree = !ss.comm.agree;
 		spacer(.Y, 16);
 		if set_button(L("Enable Community##enable"), .Primary, ss.comm.agree && !ss.busy) {
@@ -3243,13 +3253,13 @@ community_page :: (g: *dc.Guild) {
 	field_title(L("Server Primary Language"));
 	names: [..]string;
 	names.allocator = temp;
-	for LOCALES array_add(*names, it[1]);
+	for LOCALES array_add(*names, tr(it[1]));
 	pick := select_field("locale", names, ss.comm.locale);
 	if pick >= 0 ss.comm.locale = pick;
 	spacer(.Y, 8);
 	set_para("lhelp", L("Discord will prioritize this server in search to users who speak the selected language."), .Normal, 12, 16, T("--text-muted"));
 	set_divider();
-	section_heading("cdisable", L("Disable Community"), "Turns this back into a regular server. Community-only features stop working.");
+	section_heading("cdisable", L("Disable Community"), L("Turns this back into a regular server. Community-only features stop working."));
 	if set_button(L("Disable Community##disable"), .Danger, !ss.busy && !community_dirty(g)) ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"features\":%}", features_json(g, drop = "COMMUNITY")));
 }
 
@@ -3323,7 +3333,7 @@ reviews_applications :: (g: *dc.Guild) -> bool {
 
 access_page :: (g: *dc.Guild) {
 	page_subtitle(L("Keep your server private, or open it up for more people to join."));
-	section_heading("join", L("How can people join your server?"), "");
+	section_heading("join", L("How can people join your server?"), L(""));
 	// the server's access type as the client reads it from its features; switching it is the official client's
 	public := dc.guild_has_feature(g, "COMMUNITY") && dc.guild_has_feature(g, "DISCOVERABLE");
 	apply := !public && dc.guild_has_feature(g, "MEMBER_VERIFICATION_MANUAL_APPROVAL") && dc.guild_has_feature(g, "MEMBER_VERIFICATION_GATE_ENABLED");
@@ -3365,7 +3375,7 @@ access_save :: (g: *dc.Guild) {
 // Apply to Join: the questions (read-only here) and the applications waiting, each approved or rejected
 // with PATCH /guilds/{id}/requests/{request} {action} (the client's updateGuildJoinRequest).
 applications_section :: (g: *dc.Guild) {
-	section_heading("apps", L("Applications"), "People who applied to join, waiting for a moderator.");
+	section_heading("apps", L("Applications"), L("People who applied to join, waiting for a moderator."));
 	v := reply(.Verification);
 	if v for dc.flist(dc.vmap(v.body), "form_fields") {
 		f := dc.vmap(it);
@@ -3457,11 +3467,11 @@ tag_page :: (g: *dc.Guild) {
 vanity_block :: (g: *dc.Guild) {
 	if !dc.guild_has_feature(g, "VANITY_URL") return;
 	set_divider();
-	section_heading("vanity", L("Custom Invite Link"), "Choose a link people can use to join, discord.gg/<code>.");
+	section_heading("vanity", L("Custom Invite Link"), L("Choose a link people can use to join, discord.gg/<code>."));
 	r := reply(.Vanity);
 	if r {
 		uses := dc.fint(dc.vmap(r.body), "uses");
-		if uses { set_para("vuses", tprint(L("Used % times."), uses), .Normal, 12, 16, T("--text-muted")); spacer(.Y, 8); }
+		if uses { set_para("vuses", tprint(Lp("Used % times.", "Used % times.", uses), uses), .Normal, 12, 16, T("--text-muted")); spacer(.Y, 8); }
 	}
 	vr := row("vrow");
 	vr.semantic_size = .[ui.pct(1), ui.children()];
@@ -3481,7 +3491,7 @@ vanity_block :: (g: *dc.Guild) {
 
 stickers_page :: (g: *dc.Guild) {
 	page_subtitle(L("Stickers can be used by anyone in this server. Upload a PNG, APNG, GIF or Lottie JSON file of up to 512 KB; it shows at 320x320."));
-	section_heading("upload", L("Upload Sticker"), "");
+	section_heading("upload", L("Upload Sticker"), L(""));
 	field_title(L("Name"));
 	if set_input("sname", *ss.hook_name, L("Name your sticker"), max_runes = 30) == .Escape ss.field_escape = true;
 	spacer(.Y, 12);
@@ -3512,7 +3522,7 @@ stickers_page :: (g: *dc.Guild) {
 		dc.upload_sticker(app.client, g.id, ss.sticker_file, name, tags, one_line(ui.editor_text(*ss.words)));
 	}
 	set_divider();
-	label(tprint(L("% STICKERS — % SLOTS AVAILABLE"), g.stickers.count, max(0, 5 - g.stickers.count)), .Bold, 12, T("--text-muted"), 16);
+	label(tprint(L("%1 STICKERS — %2 SLOTS AVAILABLE"), g.stickers.count, max(0, 5 - g.stickers.count)), .Bold, 12, T("--text-muted"), 16);
 	spacer(.Y, 12);
 	if !g.stickers.count { ss_empty(L("No stickers yet")); return; }
 	table_units(.[1, 3, 4]);
@@ -3699,7 +3709,7 @@ onboarding_page :: (g: *dc.Guild) {
 	if set_toggle_row("obon", L("Enable Onboarding"), L("New members pick channels and roles from your questions when they join."), on, ss.busy)
 		ss_action(g, .Onboarding, "PUT", tprint("/guilds/%/onboarding", g.id), tprint("{\"enabled\":%}", !on));
 	set_divider();
-	section_heading("obdefault", L("Default Channels"), "Everyone who joins sees these channels, whatever they answer.");
+	section_heading("obdefault", L("Default Channels"), L("Everyone who joins sees these channels, whatever they answer."));
 	for g.channels {
 		ch := dc.channel_get(store(), it);
 		if !ch || (ch.kind != .Guild_Text && ch.kind != .Guild_Announcement && ch.kind != .Guild_Forum && ch.kind != .Guild_Voice) continue;
@@ -3728,7 +3738,7 @@ onboarding_page :: (g: *dc.Guild) {
 		label(ifx ch.kind == .Guild_Voice then ch.name else tprint("#%", ch.name), .Medium, 15, T("--text-strong"), 20);
 	}
 	set_divider();
-	section_heading("obq", L("Questions"), "Ask new members what they're here for; each answer gives them channels and roles.");
+	section_heading("obq", L("Questions"), L("Ask new members what they're here for; each answer gives them channels and roles."));
 	if !ss.ob_prompts.count set_para("noq", L("No questions yet."), .Normal, 14, 18, T("--text-muted"));
 	gone := -1;
 	for * p, pi: ss.ob_prompts {
@@ -3775,7 +3785,7 @@ prompt_card :: (g: *dc.Guild, p: *Ob_Prompt, pi: int) -> bool {
 		{ ui.parent(col); defer ui.pop_parent();
 			title := trim(ui.editor_text(*p.title));
 			label(ifx title then title else L("Untitled question"), .Semibold, 15, T("--text-strong"), 20);
-			label(tprint("% answer%%", p.options.count, ifx p.options.count == 1 then "" else "s", ifx p.required then " · required" else ""), .Normal, 13, T("--text-muted"), 16);
+			label(tprint("%1%2", tprint(Lp("% answer", "% answers", p.options.count), p.options.count), ifx p.required then L(" · required") else ""), .Normal, 13, T("--text-muted"), 16);
 		}
 		icon("chev", ifx open then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 		spacer(.X, 16);
@@ -3874,7 +3884,7 @@ option_editor :: (g: *dc.Guild, o: *Ob_Option) -> bool {
 			names.allocator = temp;
 			chan_ids: [..]dc.Snowflake;
 			chan_ids.allocator = temp;
-			array_add(*names, "Add a channel");
+			array_add(*names, L("Add a channel"));
 			array_add(*chan_ids, 0);
 			for g.channels {
 				ch := dc.channel_get(store(), it);
@@ -3889,7 +3899,7 @@ option_editor :: (g: *dc.Guild, o: *Ob_Option) -> bool {
 			rnames.allocator = temp;
 			rids: [..]dc.Snowflake;
 			rids.allocator = temp;
-			array_add(*rnames, "Add a role");
+			array_add(*rnames, L("Add a role"));
 			array_add(*rids, 0);
 			for roles_sorted(g) if it.id != g.id && !it.managed && !array_find(o.roles, it.id) { array_add(*rnames, it.name); array_add(*rids, it.id); }
 			w = ui.box("rw");
@@ -3954,7 +3964,7 @@ ownership_prompt :: () {
 	r.semantic_size = .[ui.pct(1), ui.children()];
 	{ ui.parent(r); defer ui.pop_parent();
 		spacer(.X, 25);
-		set_para("t", tprint(L("% wants to make you the owner of %. You'll be able to manage everything about it, and they'll stay a member."), ifx owner then dc.display_name(owner) else "The owner", g.name), .Normal, 16, 20, T("--text-default"));
+		set_para("t", tprint(L("%1 wants to make you the owner of %2. You'll be able to manage everything about it, and they'll stay a member."), ifx owner then dc.display_name(owner) else L("The owner"), g.name), .Normal, 16, 20, T("--text-default"));
 		spacer(.X, 25);
 	}
 	spacer(.Y, 24);
@@ -4016,17 +4026,17 @@ osign: Owner_Sign;
 settings_result_error :: (r: *dc.Feature_Result) -> string {
 	if r.status == {
 	case 0;
-		return "Couldn't reach the server. Check your connection and try again.";
+		return L("Couldn't reach the server. Check your connection and try again.");
 	case -1;
-		return "That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.";
+		return L("That file couldn't be read. Images must be PNG, JPEG, GIF or WEBP files.");
 	case -2;
-		return "That image is too large.";
+		return L("That image is too large.");
 	case 403;
-		return "You don't have permission to do that.";
+		return L("You don't have permission to do that.");
 	}
 	msg := dc.api_error_message(r.body);
 	if msg != "" return msg;
-	return tprint("Something went wrong (HTTP %).", r.status);
+	return tprint(L("Something went wrong (HTTP %)."), r.status);
 }
 
 // Script command `settings_reply <request> <json>`: a reply to one of the pages' loads, for UI tests
@@ -4071,10 +4081,10 @@ TOPIC_MAX :: 1024;
 
 // "Off", "5s", "1m", "6h" as the client's slowmode select labels them.
 slowmode_label :: (secs: int) -> string {
-	if secs == 0 return "Off";
-	if secs < 60 return tprint("%s", secs);
-	if secs < 3600 return tprint("%m", secs / 60);
-	return tprint("%h", secs / 3600);
+	if secs == 0 return L("Off");
+	if secs < 60 return tprint(L("%s"), secs);
+	if secs < 3600 return tprint(L("%m"), secs / 60);
+	return tprint(L("%h"), secs / 3600);
 }
 
 // The bitrate cap by boost level (VIP servers 384 kbps); a hosted server takes up to 96 kbps.
@@ -4114,7 +4124,7 @@ tags_free :: () {
 }
 
 ARCHIVE_MINUTES :: int.[60, 1440, 4320, 10080];
-ARCHIVE_LABELS :: string.["1 Hour", "24 Hours", "3 Days", "1 Week"];
+ARCHIVE_LABELS :: string.["1 Hour", "24 Hours", "3 Days", "1 Week"]; // i18n
 MAX_FORUM_TAGS :: 20;
 
 chan_overview_dirty :: () -> bool {
@@ -4216,7 +4226,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 		field_title(L("Hide After Inactivity"));
 		cur := 2; // Discord's default, 3 days
 		for ARCHIVE_MINUTES if it == ss.chan.default_auto_archive_duration cur = it_index;
-		pick := select_field("archive", ARCHIVE_LABELS, cur);
+		pick := select_field("archive", tr_list(ARCHIVE_LABELS), cur);
 		if pick >= 0 ss.chan.default_auto_archive_duration = ARCHIVE_MINUTES[pick];
 		spacer(.Y, 8);
 		set_para("archivehelp", ifx dc.is_thread(ch) then L("The thread stops showing in the channel list after being inactive for this long.") else L("New threads will stop showing in the channel list after being inactive for the specified duration."), .Normal, 12, 16, T("--text-default"));
@@ -4258,7 +4268,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 	n := cast(float32) ss.chan.user_limit;
 	if slider("limit", *n, 0, 99, ss.form_w) ss.chan.user_limit = cast(int)(n + 0.5);
 	spacer(.Y, 4);
-	label(ifx ss.chan.user_limit then tprint("% users", ss.chan.user_limit) else L("No limit"), .Medium, 14, T("--text-default"), 18);
+	label(ifx ss.chan.user_limit then tprint(Lp("% user", "% users", ss.chan.user_limit), ss.chan.user_limit) else L("No limit"), .Medium, 14, T("--text-default"), 18);
 	spacer(.Y, 8);
 	set_para("limithelp", L("Limits the number of users that can connect to this voice channel. Users with the Move Members permission ignore this limit and can move other users into the channel."), .Normal, 14, 18, T("--text-muted"));
 	if on_hosted() return save;
@@ -4266,7 +4276,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 	field_title(L("Region Override"));
 	names, ids: [..]string;
 	names.allocator, ids.allocator = temp, temp;
-	array_add(*names, "Automatic");
+	array_add(*names, L("Automatic"));
 	array_add(*ids, "");
 	r := reply(.Regions);
 	if r for dc.vlist(r.body) {
@@ -4293,7 +4303,7 @@ chan_overview_page :: (g: *dc.Guild) -> bool {
 forum_fields :: (ch: *dc.Channel) {
 	REQUIRE_TAG :: 1 << 4;
 	set_divider();
-	section_heading("tags", L("Tags"), "Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply.");
+	section_heading("tags", L("Tags"), L("Tags let members organize their posts. Members pick them when they post; moderated tags only moderators can apply."));
 	gone := -1;
 	for * ss.chan_tags {
 		ui.id_scope(cast(u64) it_index + 1);
@@ -4437,14 +4447,14 @@ chan_section_mask :: (k: dc.Channel_Type, i: int) -> u64 {
 chan_perm_text :: (p: Perm, cat: bool) -> string, string {
 	if p.flag == {
 	case dc.PERM_VIEW_CHANNEL;
-		if cat return "View Channels", "Allows members to view these channels by default. Disabling this for @everyone will make the category private.";
-		return "View Channel", "Allows members to view this channel by default. Disabling this for @everyone will make this channel private.";
+		if cat return L("View Channels"), L("Allows members to view these channels by default. Disabling this for @everyone will make the category private.");
+		return L("View Channel"), L("Allows members to view this channel by default. Disabling this for @everyone will make this channel private.");
 	case dc.PERM_MANAGE_CHANNELS;
-		return ifx cat then "Manage Channels" else "Manage Channel", "Allows members to change this channel's name, description, and settings. They can also delete it.";
+		return ifx cat then L("Manage Channels") else L("Manage Channel"), L("Allows members to change this channel's name, description, and settings. They can also delete it.");
 	case dc.PERM_MANAGE_ROLES;
-		return "Manage Permissions", "Allows members to change this channel's permissions.";
+		return L("Manage Permissions"), L("Allows members to change this channel's permissions.");
 	}
-	return p.title, p.desc;
+	return tr(p.title), tr(p.desc);
 }
 
 // Deny / neutral / allow (0, 1, 2); the state picked this frame, else -1.
@@ -4501,7 +4511,7 @@ chan_permissions_page :: (g: *dc.Guild) {
 			t.style.line_height = 18;
 			t.style.text_color = T("--text-default");
 			spans := NewArray(2, ui.Span,, temp);
-			spans[0] = .{text = ifx synced then "Permissions synced with category: " else "Permissions not synced with category: ", font = F(.Normal), size = 14};
+			spans[0] = .{text = ifx synced then L("Permissions synced with category: ") else L("Permissions not synced with category: "), font = F(.Normal), size = 14};
 			spans[1] = .{text = cat.name, font = F(.Bold), size = 14};
 			ui.set_spans(t, spans);
 			if !synced {
@@ -4520,9 +4530,9 @@ chan_permissions_page :: (g: *dc.Guild) {
 	access := chan_access(ch.kind);
 	ev := ow_find(ss.ows, g.id);
 	private := ev && (ev.deny & access) == access;
-	help := ifx is_cat then "By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting."
-		else ifx chan_voice(ch.kind) then "By making a channel private, only select members and roles will have access to view or connect to this channel."
-		else "By making a channel private, only select members and roles will be able to view this channel.";
+	help := ifx is_cat then L("By making a category private, only select members and roles will be able to view this category. Linked channels in this category will automatically match to this setting.")
+		else ifx chan_voice(ch.kind) then L("By making a channel private, only select members and roles will have access to view or connect to this channel.")
+		else L("By making a channel private, only select members and roles will be able to view this channel.");
 	if set_toggle_row("private", ifx is_cat then L("Private Category") else L("Private Channel"), help, private) {
 		o := ow_draft(g.id, 0);
 		o.allow &= ~access;
@@ -4601,7 +4611,7 @@ chan_permissions_page :: (g: *dc.Guild) {
 		for sec.perms if it.flag & mask any = true;
 		if !any continue;
 		spacer(.Y, 16);
-		label(ifx si == 0 then (ifx is_cat then "General Category Permissions" else "General Channel Permissions") else sec.title, .Bold, 12, T("--text-muted"), 16);
+		label(ifx si == 0 then (ifx is_cat then L("General Category Permissions") else L("General Channel Permissions")) else tr(sec.title), .Bold, 12, T("--text-muted"), 16);
 		spacer(.Y, 8);
 		for p: sec.perms {
 			if !(p.flag & mask) continue;

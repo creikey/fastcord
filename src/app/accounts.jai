@@ -134,7 +134,7 @@ accounts_frame :: () {
 account_name :: (a: Saved_Account) -> string {
 	if a.global_name return a.global_name;
 	if a.username return a.username;
-	return "Discord account";
+	return L("Discord account");
 }
 
 // account_switch: account i becomes the active one. section and origin name where it was picked.

@@ -87,14 +87,14 @@ emoji_toned :: (idx: int, tone: int) -> int {
 
 emoji_category_title :: (key: string) -> string {
 	if key == {
-		case "people";   return "People";
-		case "nature";   return "Nature";
-		case "food";     return "Food & Drink";
-		case "activity"; return "Activities";
-		case "travel";   return "Travel & Places";
-		case "objects";  return "Objects";
-		case "symbols";  return "Symbols";
-		case "flags";    return "Flags";
+		case "people";   return L("People");
+		case "nature";   return L("Nature");
+		case "food";     return L("Food & Drink");
+		case "activity"; return L("Activities");
+		case "travel";   return L("Travel & Places");
+		case "objects";  return L("Objects");
+		case "symbols";  return L("Symbols");
+		case "flags";    return L("Flags");
 	}
 	return key;
 }

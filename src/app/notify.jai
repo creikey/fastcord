@@ -124,8 +124,8 @@ notify_message :: (s: *dc.Store, m: *dc.New_Message) {
 notification_body :: (s: *dc.Store, m: *dc.New_Message) -> string {
 	if encrypted_packet(m.channel_id, m.content) return shown_text(m.id, m.channel_id, m.content);
 	if m.content == "" {
-		if m.sticker return "Sent a sticker";
-		if m.attachments > 0 return "Uploaded a file";
+		if m.sticker return L("Sent a sticker");
+		if m.attachments > 0 return L("Uploaded a file");
 		return "";
 	}
 	sb: String_Builder;

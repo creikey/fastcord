@@ -304,15 +304,15 @@ MUTE_CHOICES := struct {
 	text: string;
 	seconds: int;
 }.[
-	.{"For 15 Minutes", 15 * 60},
-	.{"For 1 Hour", 3600},
-	.{"For 3 Hours", 3 * 3600},
-	.{"For 8 Hours", 8 * 3600},
-	.{"For 24 Hours", 24 * 3600},
-	.{"Until I turn it back on", dc.MUTE_FOREVER}
+	.{"For 15 Minutes", 15 * 60}, // i18n
+	.{"For 1 Hour", 3600}, // i18n
+	.{"For 3 Hours", 3 * 3600}, // i18n
+	.{"For 8 Hours", 8 * 3600}, // i18n
+	.{"For 24 Hours", 24 * 3600}, // i18n
+	.{"Until I turn it back on", dc.MUTE_FOREVER} // i18n
 ];
 
-NOTIFY_NAMES := string.["All Messages", "Only @mentions", "Nothing"];
+NOTIFY_NAMES := string.["All Messages", "Only @mentions", "Nothing"]; // i18n
 
 // The bell icon for a channel header: crossed out while the channel is muted.
 bell_icon_name :: (ch: *dc.Channel) -> string {
@@ -445,7 +445,7 @@ mute_submenu :: (id: string, pos: ui.Vec2) -> int {
 	{ ui.parent(p); defer ui.pop_parent();
 		spacer(.Y, 8);
 		for c: MUTE_CHOICES {
-			if menu_item(c.text, c.text).clicked seconds = c.seconds;
+			if menu_item(c.text, tr(c.text)).clicked seconds = c.seconds;
 		}
 		spacer(.Y, 8);
 	}
@@ -592,7 +592,7 @@ guild_context_menu :: () {
 			if item.clicked gm.ctx_sub = .Mute;
 			if item.hovering || item.clicked gm.ctx_sub_y = item.box.rect.y0;
 		}
-		nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = NOTIFY_NAMES[clamp(level, 0, 2)], open = gm.ctx_sub == .Notify);
+		nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = tr(NOTIFY_NAMES[clamp(level, 0, 2)]), open = gm.ctx_sub == .Notify);
 		if nt.hovering hover_sub = .Notify;
 		if nt.clicked gm.ctx_sub = .Notify;
 		if nt.hovering || nt.clicked gm.ctx_sub_y = nt.box.rect.y0;
@@ -643,7 +643,7 @@ guild_context_menu :: () {
 		{ ui.parent(p); defer ui.pop_parent();
 			spacer(.Y, 8);
 			for name, i: NOTIFY_NAMES {
-				if menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off).clicked && level != i {
+				if menu_item(name, tr(name), ifx level == i then .Radio_On else .Radio_Off).clicked && level != i {
 					notify_level_now(gid, 0, i);
 					close = true;
 				}
@@ -742,7 +742,7 @@ notify_modal :: () {
 			c := ui.box("c");
 			c.semantic_size = .[ui.fill(), ui.children()];
 			{ ui.parent(c); defer ui.pop_parent();
-				if set_toggle_row("mutetoggle", ellipsize(tprint("Mute %", g.name), .Medium, 16, W - 2 * PAD - 60), L("Muting a server prevents unread indicators and notifications from appearing unless you are mentioned."), muted) {
+				if set_toggle_row("mutetoggle", ellipsize(tprint(L("Mute %"), g.name), .Medium, 16, W - 2 * PAD - 60), L("Muting a server prevents unread indicators and notifications from appearing unless you are mentioned."), muted) {
 					if net_action() dc.set_guild_muted(app.client, gid, !muted, now_ms = now);
 				}
 			}
@@ -779,7 +779,7 @@ notify_modal :: () {
 					dot.style.bg = T("--background-brand");
 				}
 				spacer(.X, 12);
-				label(name, .Medium, 16, ifx on || sig.hovering then T("--text-strong") else T("--text-default"), 20);
+				label(tr(name), .Medium, 16, ifx on || sig.hovering then T("--text-strong") else T("--text-default"), 20);
 			}
 			if sig.clicked && level != i notify_level_now(gid, 0, i);
 		}
@@ -920,7 +920,7 @@ notify_overrides :: (gid: dc.Snowflake, W: float32, PAD: float32) {
 				spacer(.X, PAD);
 				label(L("CHANNEL OR CATEGORY"), .Bold, 12, T("--text-muted"), 16);
 				filler(.X);
-				for string.["ALL", "@MENTIONS", "NOTHING", "MUTE"] {
+				for string.[L("ALL"), L("@MENTIONS"), L("NOTHING"), L("MUTE")] {
 					c := ui.box(tprint("%##c%", it, it_index), .Draw_Text);
 					c.semantic_size = .[ui.px(60), ui.px(16)];
 					c.style.font, c.style.font_size, c.style.text_color = F(.Bold), 10, T("--text-muted");
@@ -1178,7 +1178,7 @@ invite_modal :: () {
 		t.semantic_size = .[ui.pct(1), ui.px(24)];
 		{ ui.parent(t); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label(ellipsize(tprint("Invite friends to %", g.name), .Semibold, 20, W - 2 * PAD - 32), .Semibold, 20, T("--text-strong"), 24);
+			label(ellipsize(tprint(L("Invite friends to %"), g.name), .Semibold, 20, W - 2 * PAD - 32), .Semibold, 20, T("--text-strong"), 24);
 		}
 		ch := dc.channel_get(s, gm.inv_channel);
 		if ch != null {
@@ -1226,8 +1226,8 @@ invite_modal :: () {
 				if url != "" && streamer_hide_invites() text = "https://discord.gg/••••••••";
 				if url == "" {
 					color = T("--text-muted");
-					text = "Creating an invite link…";
-					if gm.inv_failed { text = "Couldn't create an invite link."; } else if !gm.inv_loading { text = "You're offline: no invite link."; }
+					text = L("Creating an invite link…");
+					if gm.inv_failed { text = L("Couldn't create an invite link."); } else if !gm.inv_loading { text = L("You're offline: no invite link."); }
 				}
 				tw := ui.box("tw", .Clip);
 				tw.semantic_size = .[ui.fill(), ui.px(20)];
@@ -1361,16 +1361,15 @@ invite_send_dm :: (dm: dc.Snowflake) {
 }
 
 INV_AGES :: int.[1800, 3600, 21600, 43200, 86400, 604800, 2592000, 0]; // Expire After, seconds (0 = never)
-INV_AGE_NAMES :: string.["30 minutes", "1 hour", "6 hours", "12 hours", "1 day", "7 days", "30 days", "Never"];
 INV_USES :: int.[0, 1, 5, 10, 25, 50, 100]; // Max Number of Uses (0 = no limit)
-INV_USE_NAMES :: string.["No limit", "1 use", "5 uses", "10 uses", "25 uses", "50 uses", "100 uses"];
 
 // The footer, as the client words it: "expires in 7 days", "... in 1 hour, or after 5 uses", "never expire".
 invite_expiry_text :: (st: dc.Invite_Settings) -> string {
-	uses := ifx st.max_uses == 1 then "1 use" else tprint("% uses", st.max_uses);
-	if st.max_age == 0 return ifx st.max_uses then tprint("Your invite link expires after %.", uses) else "Your invite link will never expire.";
-	when := ifx st.max_age < 3600 then "30 minutes" else ifx st.max_age < 86400 then tprint("% hour%", st.max_age / 3600, ifx st.max_age < 7200 then "" else "s") else tprint("% day%", st.max_age / 86400, ifx st.max_age < 172800 then "" else "s");
-	return ifx st.max_uses then tprint("Your invite link expires in %, or after %.", when, uses) else tprint("Your invite link expires in %.", when);
+	uses := tprint(Lp("% use", "% uses", st.max_uses), st.max_uses);
+	if st.max_age == 0 return ifx st.max_uses then tprint(L("Your invite link expires after %."), uses) else L("Your invite link will never expire.");
+	hours, days := st.max_age / 3600, st.max_age / 86400;
+	when := ifx st.max_age < 3600 then L("30 minutes") else ifx st.max_age < 86400 then tprint(Lp("% hour", "% hours", hours), hours) else tprint(Lp("% day", "% days", days), days);
+	return ifx st.max_uses then tprint(L("Your invite link expires in %1, or after %2."), when, uses) else tprint(L("Your invite link expires in %."), when);
 }
 
 // Edit invite link: Expire After, Max Number of Uses, Grant temporary membership; Generate a New Link asks
@@ -1392,9 +1391,11 @@ invite_edit_form :: (W: float32, PAD: float32) {
 		spacer(.X, PAD);
 		return current;
 	}
-	gm.inv_age = field("inv_age", L("EXPIRE AFTER"), INV_AGE_NAMES, gm.inv_age, PAD);
+	ages := array_copy(string.[L("30 minutes"), L("1 hour"), L("6 hours"), L("12 hours"), L("1 day"), L("7 days"), L("30 days"), L("Never")],, temp); // select_field keeps them for its list
+	gm.inv_age = field("inv_age", L("EXPIRE AFTER"), ages, gm.inv_age, PAD);
 	spacer(.Y, 16);
-	gm.inv_uses = field("inv_uses", L("MAX NUMBER OF USES"), INV_USE_NAMES, gm.inv_uses, PAD);
+	uses := array_copy(string.[L("No limit"), L("1 use"), L("5 uses"), L("10 uses"), L("25 uses"), L("50 uses"), L("100 uses")],, temp);
+	gm.inv_uses = field("inv_uses", L("MAX NUMBER OF USES"), uses, gm.inv_uses, PAD);
 	spacer(.Y, 16);
 	tr := row("inv_temp");
 	tr.semantic_size = .[ui.pct(1), ui.children()];
@@ -1478,14 +1479,14 @@ bell_popout :: () {
 			if item.hovering || item.clicked gm.bell_sub_y = item.box.rect.y0;
 		}
 		menu_sep("s1");
-		def_text := ifx has_cat then "Use Category Default" else "Use Server Default";
-		sig = menu_item("default", def_text, ifx level == dc.NOTIFY_INHERIT then .Radio_On else .Radio_Off, sub = NOTIFY_NAMES[clamp(def, 0, 2)]);
+		def_text := ifx has_cat then L("Use Category Default") else L("Use Server Default");
+		sig = menu_item("default", def_text, ifx level == dc.NOTIFY_INHERIT then .Radio_On else .Radio_Off, sub = tr(NOTIFY_NAMES[clamp(def, 0, 2)]));
 		if sig.clicked {
 			if level != dc.NOTIFY_INHERIT notify_level_now(gid, cid, dc.NOTIFY_INHERIT);
 			close = level != dc.NOTIFY_INHERIT;
 		} else if sig.hovering hover_any = true;
 		for name, i: NOTIFY_NAMES {
-			sig = menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off);
+			sig = menu_item(name, tr(name), ifx level == i then .Radio_On else .Radio_Off);
 			if sig.clicked {
 				if level != i notify_level_now(gid, cid, i);
 				close = level != i;
@@ -1556,7 +1557,7 @@ thread_menu :: () {
 				if item.clicked gm.thread_sub = .Mute;
 				if item.hovering || item.clicked gm.thread_sub_y = item.box.rect.y0;
 			}
-			nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = NOTIFY_NAMES[clamp(level, 0, 2)], open = gm.thread_sub == .Notify);
+			nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = tr(NOTIFY_NAMES[clamp(level, 0, 2)]), open = gm.thread_sub == .Notify);
 			if nt.hovering hover_sub = .Notify;
 			if nt.clicked gm.thread_sub = .Notify;
 			if nt.hovering || nt.clicked gm.thread_sub_y = nt.box.rect.y0;
@@ -1610,7 +1611,7 @@ thread_menu :: () {
 		p := menu_panel("tnotify", .{sub_x(menu), sub_y(gm.thread_sub_y, 3 * GM_ROW_H + 16)}, GM_SUB_W);
 		ui.parent(p); defer ui.pop_parent();
 		spacer(.Y, 8);
-		for name, i: NOTIFY_NAMES if menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off).clicked {
+		for name, i: NOTIFY_NAMES if menu_item(name, tr(name), ifx level == i then .Radio_On else .Radio_Off).clicked {
 			if net_action() dc.thread_set_notify(app.client, th.id, i);
 			close = true;
 		}
@@ -1629,7 +1630,6 @@ channel_menu :: () {
 	}
 	gid := ch.guild_id;
 	cat := ch.kind == .Guild_Category;
-	what := ifx cat then "Category" else "Channel";
 	now := wall_ms();
 	close := false;
 	ids: [..]dc.Snowflake;
@@ -1695,25 +1695,25 @@ channel_menu :: () {
 		menu_sep("s2");
 		if dc.channel_is_muted(s, gid, ch.id, now) {
 			o := dc.channel_override_get(s, gid, ch.id);
-			sig = menu_item("mute", tprint(L("Unmute %"), what), sub = muted_until(ifx o then o.mute_end_ms else 0));
+			sig = menu_item("mute", ifx cat then L("Unmute Category") else L("Unmute Channel"), sub = muted_until(ifx o then o.mute_end_ms else 0));
 			if sig.clicked {
 				unmute_now(gid, ch.id);
 				close = true;
 			} else if sig.hovering hover_any = true;
 		} else {
-			item := menu_item("mute", tprint(L("Mute %"), what), .Chevron, open = gm.chan_sub == .Mute);
+			item := menu_item("mute", ifx cat then L("Mute Category") else L("Mute Channel"), .Chevron, open = gm.chan_sub == .Mute);
 			if item.hovering hover_sub = .Mute;
 			if item.clicked gm.chan_sub = .Mute;
 			if item.hovering || item.clicked gm.chan_sub_y = item.box.rect.y0;
 		}
 		shown := ifx level == dc.NOTIFY_INHERIT then def else level;
-		nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = NOTIFY_NAMES[clamp(shown, 0, 2)], open = gm.chan_sub == .Notify);
+		nt := menu_item("notify", L("Notification Settings"), .Chevron, sub = tr(NOTIFY_NAMES[clamp(shown, 0, 2)]), open = gm.chan_sub == .Notify);
 		if nt.hovering hover_sub = .Notify;
 		if nt.clicked gm.chan_sub = .Notify;
 		if nt.hovering || nt.clicked gm.chan_sub_y = nt.box.rect.y0;
 		if can_manage_channel(ch) {
 			menu_sep("s3");
-			sig = menu_item("edit", tprint(L("Edit %"), what));
+			sig = menu_item("edit", ifx cat then L("Edit Category") else L("Edit Channel"));
 			if sig.clicked {
 				channel_settings_open(ch);
 				close = true;
@@ -1725,7 +1725,7 @@ channel_menu :: () {
 					close = true;
 				} else if sig.hovering hover_any = true;
 			}
-			sig = menu_item("delete", tprint(L("Delete %"), what), danger = true);
+			sig = menu_item("delete", ifx cat then L("Delete Category") else L("Delete Channel"), danger = true);
 			if sig.clicked {
 				channel_delete_open(ch);
 				close = true;
@@ -1733,7 +1733,7 @@ channel_menu :: () {
 		}
 		if s.settings.developer_mode {
 			menu_sep("s4");
-			sig = menu_item("copyid", tprint(L("Copy % ID"), what), .Icon, "id");
+			sig = menu_item("copyid", ifx cat then L("Copy Category ID") else L("Copy Channel ID"), .Icon, "id");
 			if sig.clicked {
 				clipboard_set(tprint("%", cast(u64) ch.id));
 				close = true;
@@ -1754,13 +1754,13 @@ channel_menu :: () {
 		p := menu_panel("cnotify", .{sub_x(menu), sub_y(gm.chan_sub_y, 4 * GM_ROW_H + 16)}, GM_SUB_W);
 		{ ui.parent(p); defer ui.pop_parent();
 			spacer(.Y, 8);
-			def_text := ifx ch.parent_id != 0 then "Use Category Default" else "Use Server Default";
-			if menu_item("default", def_text, ifx level == dc.NOTIFY_INHERIT then .Radio_On else .Radio_Off, sub = NOTIFY_NAMES[clamp(def, 0, 2)]).clicked && level != dc.NOTIFY_INHERIT {
+			def_text := ifx ch.parent_id != 0 then L("Use Category Default") else L("Use Server Default");
+			if menu_item("default", def_text, ifx level == dc.NOTIFY_INHERIT then .Radio_On else .Radio_Off, sub = tr(NOTIFY_NAMES[clamp(def, 0, 2)])).clicked && level != dc.NOTIFY_INHERIT {
 				notify_level_now(gid, ch.id, dc.NOTIFY_INHERIT);
 				close = true;
 			}
 			for name, i: NOTIFY_NAMES {
-				if menu_item(name, name, ifx level == i then .Radio_On else .Radio_Off).clicked && level != i {
+				if menu_item(name, tr(name), ifx level == i then .Radio_On else .Radio_Off).clicked && level != i {
 					notify_level_now(gid, ch.id, i);
 					close = true;
 				}

@@ -184,13 +184,14 @@ humanize_duration :: (ms: s64) -> string {
 	secs := ms / 1000;
 	mins := (secs + 30) / 60;
 	hours := (mins + 30) / 60;
-	if secs < 45 return "a few seconds";
-	if secs < 90 return "a minute";
-	if mins < 45 return tprint("% minutes", mins);
-	if mins < 90 return "an hour";
-	if hours < 22 return tprint("% hours", hours);
-	if hours < 36 return "a day";
-	return tprint("% days", (hours + 12) / 24);
+	if secs < 45 return L("a few seconds");
+	if secs < 90 return L("a minute");
+	if mins < 45 return tprint(Lp("% minute", "% minutes", mins), mins);
+	if mins < 90 return L("an hour");
+	if hours < 22 return tprint(Lp("% hour", "% hours", hours), hours);
+	if hours < 36 return L("a day");
+	days := (hours + 12) / 24;
+	return tprint(Lp("% day", "% days", days), days);
 }
 
 author_color :: (m: *dc.Message) -> ui.Color {
@@ -313,7 +314,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message,
 				continue;
 			}
 		case .User_Mention;
-			sp.text = tprint("@%", name_in(tk.id, ifx m then m.channel_id else 0, "unknown-user"));
+			sp.text = tprint("@%", name_in(tk.id, ifx m then m.channel_id else 0, L("unknown-user")));
 			sp.bg = T("--mention-background");
 			sp.color = T("--mention-foreground");
 			sp.bg_radius = 3;
@@ -343,7 +344,7 @@ tokens_to_spans :: (toks: []Token, base: Font_Id, size: float32, m: *dc.Message,
 			sp.font = F(.Medium);
 		case .Channel_Mention;
 			c := dc.channel_get(s, tk.id);
-			sp.text = tprint("#%", ifx c then c.name else "unknown");
+			sp.text = tprint("#%", ifx c then c.name else L("unknown"));
 			sp.bg = T("--mention-background");
 			sp.color = T("--mention-foreground");
 			sp.bg_radius = 3;
@@ -899,7 +900,7 @@ nsfw_gate :: (ch: *dc.Channel) {
 	spacer(.Y, 16);
 	{ r := center("t", 28); ui.parent(r); defer ui.pop_parent(); filler(.X); label(L("Age-Restricted Channel"), .Semibold, 24, T("--text-strong"), 28); filler(.X); }
 	spacer(.Y, 8);
-	body := ifx blocked then "You must be at least 18 years old to view this channel." else "This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.";
+	body := ifx blocked then L("You must be at least 18 years old to view this channel.") else L("This channel contains adult content that may not be suitable for all audiences. You must be 18 or older to view it.");
 	{ r := center("b", 20); ui.parent(r); defer ui.pop_parent(); filler(.X); label(body, .Normal, 16, T("--text-default"), 20); filler(.X); }
 	spacer(.Y, 24);
 	{
@@ -919,9 +920,9 @@ nsfw_gate :: (ch: *dc.Channel) {
 }
 
 human_size :: (n: int) -> string {
-	if n >= 1 << 20 return tprint("% MB", formatFloat(cast(float64) n / (1 << 20), trailing_width = 2, zero_removal = .NO));
-	if n >= 1 << 10 return tprint("% KB", formatFloat(cast(float64) n / (1 << 10), trailing_width = 2, zero_removal = .NO));
-	return tprint("% bytes", n);
+	if n >= 1 << 20 return tprint(L("% MB"), formatFloat(cast(float64) n / (1 << 20), trailing_width = 2, zero_removal = .NO));
+	if n >= 1 << 10 return tprint(L("% KB"), formatFloat(cast(float64) n / (1 << 10), trailing_width = 2, zero_removal = .NO));
+	return tprint(Lp("% byte", "% bytes", n), n);
 }
 
 fract :: (x: float32) -> float32 { return x - cast(float32) cast(int) x; }
@@ -938,7 +939,7 @@ dm_name :: (ch: *dc.Channel) -> string {
 	if !names && ch.kind == .Group_DM {
 		// an unnamed group with nobody else in it: "<owner>'s Group", like the client
 		name := dc.user_name(s, ifx ch.owner_id then ch.owner_id else s.me);
-		if name return tprint("%'s Group", name);
+		if name return tprint(L("%'s Group"), name);
 	}
 	return join(..names, separator = ", ",, temp);
 }
@@ -1054,7 +1055,7 @@ divider_row :: (id: dc.Snowflake, new_day: bool, show_new: bool) {
 			pill.style.radius = .[0, 4, 0, 4];
 			{ ui.parent(pill); defer ui.pop_parent();
 				spacer(.X, 4);
-				label("NEW", .Bold, 10, .{1, 1, 1, 1}, 13);
+				label(L("NEW"), .Bold, 10, .{1, 1, 1, 1}, 13);
 				spacer(.X, 4);
 			}
 		}
@@ -1493,7 +1494,7 @@ new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, 
 	jump := ui.signal(bar).clicked;
 	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 20);
-		label(tprint(L("% new message% since %"), ifx n >= 50 then "50+" else tprint("%", n), ifx n == 1 then "" else "s", format_timestamp(first)), .Medium, 14, .{1, 1, 1, 1}, 18);
+		label(tprint(Lp("%1 new message since %2", "%1 new messages since %2", n), ifx n >= 50 then "50+" else tprint("%", n), format_timestamp(first)), .Medium, 14, .{1, 1, 1, 1}, 18);
 		filler(.X);
 		// .barButtonAlt: 4 x 8 px padding, a hover background, the icon 8 px after the text
 		mr := row("read", .Clickable | .Draw_Background | .Hot_Animation);
@@ -1796,175 +1797,137 @@ system_notice :: (m: *dc.Message) {
 		muted := ui.Span.{font = F(.Normal), size = chat_px(MSG_FONT), color = T("--text-muted")};
 		strong := ui.Span.{font = F(.Medium), size = chat_px(MSG_FONT), color = T("--text-strong")};
 		add :: (spans: *[..]ui.Span, s: ui.Span, text: string) { x := s; x.text = text; array_add(spans, x); }
+		span :: (s: ui.Span, text: string, id := 0) -> ui.Span { x := s; x.text = text; x.id = xx id; return x; }
 		// a user's name: clicking it opens their profile, as in the client
-		name :: (spans: *[..]ui.Span, s: ui.Span, uid: dc.Snowflake, channel_id: dc.Snowflake) {
+		who :: (s: ui.Span, uid: dc.Snowflake, channel_id: dc.Snowflake) -> ui.Span {
 			x := s;
 			x.text = name_in(uid, channel_id);
 			x.user = cast(*void) uid;
-			array_add(spans, x);
+			return x;
 		}
+		// a translated sentence: its text muted, %1 %2 (or % in order) replaced by the given spans
+		fill :: (spans: *[..]ui.Span, muted: ui.Span, format: string, args: ..ui.Span) {
+			f := format;
+			next := 0;
+			while f {
+				i := find_index_from_left(f, #char "%");
+				if i < 0 { add(spans, muted, f); break; }
+				if i add(spans, muted, slice(f, 0, i));
+				advance(*f, i + 1);
+				k := next;
+				if f && f[0] >= #char "1" && f[0] <= #char "9" { k = f[0] - #char "1"; advance(*f, 1); }
+				next = k + 1;
+				if k < args.count array_add(spans, args[k]);
+			}
+		}
+		author := who(strong, m.author_id, m.channel_id);
 		if friend {
 			// the other user's name, whoever sent it; their note (content) is quoted when there is one
 			ch := dc.channel_get(store(), m.channel_id);
 			other := ifx ch && ch.recipient_ids.count then ch.recipient_ids[0] else m.author_id;
 			mine := m.author_id == store().me;
-			if mine { add(*spans, muted, "You accepted "); name(*spans, strong, other, m.channel_id); add(*spans, muted, "'s friend request."); }
-			else { name(*spans, strong, other, m.channel_id); add(*spans, muted, " accepted your friend request."); }
+			fill(*spans, muted, ifx mine then L("You accepted %'s friend request.") else L("% accepted your friend request."), who(strong, other, m.channel_id));
 			if m.content != "" {
-				add(*spans, muted, ifx mine then " They said: " else " You said: ");
-				add(*spans, strong, m.content);
+				add(*spans, muted, " ");
+				fill(*spans, muted, ifx mine then L("They said: %") else L("You said: %"), span(strong, m.content));
 			}
 		} else if m.kind == MSG_RECIPIENT_ADD || m.kind == MSG_RECIPIENT_REMOVE {
 			// the other user is the first mention; removing yourself is leaving
-			name(*spans, strong, m.author_id, m.channel_id);
 			other := ifx m.mentions.count then m.mentions[0] else 0;
-			if m.kind == MSG_RECIPIENT_REMOVE && (other == 0 || other == m.author_id) {
-				add(*spans, muted, " left the group.");
-			} else {
-				add(*spans, muted, ifx m.kind == MSG_RECIPIENT_ADD then " added " else " removed ");
-				name(*spans, strong, other, m.channel_id);
-				add(*spans, muted, ifx m.kind == MSG_RECIPIENT_ADD then " to the group." else " from the group.");
-			}
+			if m.kind == MSG_RECIPIENT_REMOVE && (other == 0 || other == m.author_id) fill(*spans, muted, L("% left the group."), author);
+			else fill(*spans, muted, ifx m.kind == MSG_RECIPIENT_ADD then L("%1 added %2 to the group.") else L("%1 removed %2 from the group."), author, who(strong, other, m.channel_id));
 		} else if m.kind == MSG_NAME_CHANGE {
-			name(*spans, strong, m.author_id, m.channel_id);
-			if m.content == "" { add(*spans, muted, " removed the custom group name."); }
+			if m.content == "" fill(*spans, muted, L("% removed the custom group name."), author);
 			else {
 				ch := dc.channel_get(store(), m.channel_id);
-				add(*spans, muted, ifx ch && ch.kind == .Group_DM then " changed the group name: " else " changed the channel name: ");
-				add(*spans, strong, m.content);
-				add(*spans, muted, ".");
+				fill(*spans, muted, ifx ch && ch.kind == .Group_DM then L("%1 changed the group name: %2.") else L("%1 changed the channel name: %2."), author, span(strong, m.content));
 			}
 		} else if m.kind == MSG_MEMBER_JOIN {
 			// getSystemMessageUserJoin: the message's snowflake time picks one of 13 lines
-			JOIN :: string.[
-				"", " joined the party.", "", " is here.", "Welcome, ", ". We hope you brought pizza.", "A wild ", " appeared.",
-				"", " just landed.", "", " just slid into the server.", "", " just showed up!", "Welcome ", ". Say hi!",
-				"", " hopped into the server.", "Everyone welcome ", "!", "Glad you're here, ", ".", "Good to see you, ", ".",
-				"Yay you made it, ", "!"];
-			i := (dc.snowflake_time_ms(m.id) % (JOIN.count / 2)) * 2;
-			add(*spans, muted, JOIN[i]);
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, JOIN[i + 1]);
+			JOIN := string.[L("% joined the party."), L("% is here."), L("Welcome, %. We hope you brought pizza."), L("A wild % appeared."),
+				L("% just landed."), L("% just slid into the server."), L("% just showed up!"), L("Welcome %. Say hi!"),
+				L("% hopped into the server."), L("Everyone welcome %!"), L("Glad you're here, %."), L("Good to see you, %."),
+				L("Yay you made it, %!")];
+			fill(*spans, muted, JOIN[dc.snowflake_time_ms(m.id) % JOIN.count], author);
 		} else if m.kind == MSG_ICON_CHANGE {
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, " changed the group icon.");
+			fill(*spans, muted, L("% changed the group icon."), author);
 		} else if m.kind == MSG_POLL_RESULT {
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, "'s poll ");
-			add(*spans, strong, poll_result_field(m, "poll_question_text"));
-			add(*spans, muted, " has closed.");
+			fill(*spans, muted, L("%1's poll %2 has closed."), author, span(strong, poll_result_field(m, "poll_question_text")));
 		} else if pin {
 			// "a message" jumps to the pinned message and "pinned messages" opens the pins (span ids 1, 2)
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, " pinned ");
-			add(*spans, strong, "a message");
-			spans[spans.count - 1].id = 1;
-			add(*spans, muted, " to this channel. See all ");
-			add(*spans, strong, "pinned messages");
-			spans[spans.count - 1].id = 2;
-			add(*spans, muted, ".");
+			fill(*spans, muted, L("%1 pinned %2 to this channel. See all %3."), author, span(strong, L("a message"), 1), span(strong, L("pinned messages"), 2));
 		} else if m.kind >= MSG_BOOST && m.kind <= MSG_BOOST + 3 {
 			// the client's strings, without its "Learn more" about Boosts
-			name(*spans, strong, m.author_id, m.channel_id);
 			n := string_to_int(m.content);
-			add(*spans, muted, ifx n > 1 then " just boosted the server " else " just boosted the server!");
-			if n > 1 { add(*spans, strong, tprint("%", n)); add(*spans, muted, " times!"); }
+			if n > 1 fill(*spans, muted, L("%1 just boosted the server %2 times!"), author, span(strong, tprint("%", n)));
+			else fill(*spans, muted, L("% just boosted the server!"), author);
 			if m.kind > MSG_BOOST {
 				ch := dc.channel_get(store(), m.channel_id);
 				g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
-				add(*spans, muted, tprint(" % has achieved ", ifx g then g.name else "The server"));
-				add(*spans, strong, tprint("Level %!", m.kind - MSG_BOOST));
+				add(*spans, muted, " ");
+				fill(*spans, muted, L("%1 has achieved %2"), span(muted, ifx g then g.name else L("The server")), span(strong, tprint(L("Level %!"), m.kind - MSG_BOOST)));
 			}
 		} else if m.kind == MSG_CHANNEL_FOLLOW {
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, " has added ");
-			add(*spans, strong, m.content);
-			add(*spans, muted, " to this channel. Its most important updates will show up here.");
+			fill(*spans, muted, L("%1 has added %2 to this channel. Its most important updates will show up here."), author, span(strong, m.content));
 		} else if m.kind >= MSG_DISCOVERY_FIRST && m.kind <= MSG_DISCOVERY_FIRST + 3 {
-			DISCOVERY :: string.[
-				"This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details.",
-				"This server is eligible for Server Discovery again and has been automatically relisted!",
-				"This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery.",
-				"This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery."];
+			DISCOVERY := string.[
+				L("This server has been removed from Server Discovery because it no longer passes all the requirements. Check Server Settings for more details."),
+				L("This server is eligible for Server Discovery again and has been automatically relisted!"),
+				L("This server has failed Discovery activity requirements for 1 week. If this server fails for 4 weeks in a row, it will be automatically removed from Discovery."),
+				L("This server has failed Discovery activity requirements for 3 weeks in a row. If this server fails for 1 more week, it will be removed from Discovery.")];
 			add(*spans, muted, DISCOVERY[m.kind - MSG_DISCOVERY_FIRST]);
 		} else if m.kind == MSG_THREAD_CREATED {
 			// the thread's name opens it (span id 4), "threads" the threads browser (5)
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, " started a thread: ");
-			add(*spans, strong, m.content);
-			spans[spans.count - 1].id = 4;
-			add(*spans, muted, ". See all ");
-			add(*spans, strong, "threads");
-			spans[spans.count - 1].id = 5;
-			add(*spans, muted, ".");
+			fill(*spans, muted, L("%1 started a thread: %2. See all %3."), author, span(strong, m.content, 4), span(strong, L("threads"), 5));
 		} else if m.kind >= MSG_STAGE_FIRST && m.kind <= MSG_STAGE_FIRST + 4 {
-			STAGE :: string.[" started ", " ended ", " is now a speaker.", " requested to speak.", " changed the Stage topic: "];
-			k := m.kind - MSG_STAGE_FIRST;
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, STAGE[k]);
-			if k == 0 || k == 1 || k == 4 add(*spans, strong, m.content);
+			STAGE := string.[L("%1 started %2"), L("%1 ended %2"), L("%1 is now a speaker."), L("%1 requested to speak."), L("%1 changed the Stage topic: %2")];
+			fill(*spans, muted, STAGE[m.kind - MSG_STAGE_FIRST], author, span(strong, m.content));
 		} else if m.kind == MSG_THREAD_STARTER {
-			add(*spans, muted, "Sorry, we couldn't load the first message in this thread");
+			add(*spans, muted, L("Sorry, we couldn't load the first message in this thread"));
 		} else if m.kind == MSG_AUTOMOD {
 			// the client's AutoMod alert: the rule's fields ride on the embed (decision_outcome "flagged" or not)
 			e := ifx m.embeds.count then *m.embeds[0] else null;
-			add(*spans, strong, "AutoMod");
-			add(*spans, muted, ifx automod_field(e, "decision_outcome") == "flagged" then " has flagged a message in " else " has blocked a message in ");
 			ch := dc.channel_get(store(), automod_channel(m));
-			add(*spans, strong, ifx ch then tprint("#%", ch.name) else "a channel");
-			if ch spans[spans.count - 1].id = 6;
+			where := span(strong, ifx ch then tprint("#%", ch.name) else L("a channel"), ifx ch then 6 else 0);
+			fill(*spans, muted, ifx automod_field(e, "decision_outcome") == "flagged" then L("%1 has flagged a message in %2") else L("%1 has blocked a message in %2"), span(strong, "AutoMod"), where);
 			add(*spans, muted, "\n");
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, ": ");
-			add(*spans, .{font = F(.Normal), size = MSG_FONT, color = T("--text-default")}, ifx e then e.description else "");
+			fill(*spans, muted, L("%1: %2"), author, span(.{font = F(.Normal), size = chat_px(MSG_FONT), color = T("--text-default")}, ifx e then e.description else ""));
 			rule, kw := automod_field(e, "rule_name"), automod_field(e, "keyword");
-			if rule add(*spans, muted, tprint("\nRule: %", rule));
-			if kw add(*spans, muted, tprint(" · Keyword: %", kw));
+			if rule add(*spans, muted, tprint("\n%", tprint(L("Rule: %"), rule)));
+			if kw add(*spans, muted, tprint(" · %", tprint(L("Keyword: %"), kw)));
 		} else if m.kind == MSG_ROLE_SUB {
 			// the client's lines, with the server's name not a link to its subscriptions page
 			ch := dc.channel_get(store(), m.channel_id);
 			g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, ifx m.sub_renewal then " renewed " else " joined ");
-			add(*spans, strong, m.content);
-			if m.sub_months > 0 {
-				add(*spans, muted, " and has been a subscriber of ");
-				add(*spans, strong, ifx g then g.name else "this server");
-				add(*spans, muted, tprint(Lp(" for % month!", " for % months!", m.sub_months), m.sub_months));
-			} else {
-				add(*spans, muted, ifx m.sub_renewal then " in their " else " as a subscriber of ");
-				add(*spans, strong, ifx g then g.name else "this server");
-				add(*spans, muted, ifx m.sub_renewal then " membership!" else "!");
-			}
+			server := span(strong, ifx g then g.name else L("this server"));
+			n := m.sub_months;
+			if n > 0 fill(*spans, muted, ifx m.sub_renewal then Lp("%1 renewed %2 and has been a subscriber of %3 for %4 month!", "%1 renewed %2 and has been a subscriber of %3 for %4 months!", n)
+				else Lp("%1 joined %2 and has been a subscriber of %3 for %4 month!", "%1 joined %2 and has been a subscriber of %3 for %4 months!", n), author, span(strong, m.content), server, span(muted, tprint("%", n)));
+			else fill(*spans, muted, ifx m.sub_renewal then L("%1 renewed %2 in their %3 membership!") else L("%1 joined %2 as a subscriber of %3!"), author, span(strong, m.content), server);
 		} else if m.kind >= MSG_INCIDENT_FIRST && m.kind <= MSG_INCIDENT_FIRST + 3 {
 			// sent as AutoMod: enabling carries the end time as content
 			k := m.kind - MSG_INCIDENT_FIRST;
-			name(*spans, strong, m.author_id, m.channel_id);
 			if k == 0 {
 				until := dc.iso_to_ms(m.content);
-				add(*spans, muted, ifx until > 0 then tprint(" enabled security actions until %.", format_time_ms(until)) else " enabled security actions.");
+				if until > 0 fill(*spans, muted, L("%1 enabled security actions until %2."), author, span(muted, format_time_ms(until)));
+				else fill(*spans, muted, L("% enabled security actions."), author);
 			} else if k == 1 {
-				add(*spans, muted, " disabled security actions.");
+				fill(*spans, muted, L("% disabled security actions."), author);
 			} else {
 				ch := dc.channel_get(store(), m.channel_id);
 				g := ifx ch then dc.guild_get(store(), ch.guild_id) else null;
-				add(*spans, muted, ifx k == 2 then " reported a raid in " else " resolved an Activity Alert in ");
-				add(*spans, strong, ifx g then g.name else "this server");
-				add(*spans, muted, ".");
+				fill(*spans, muted, ifx k == 2 then L("%1 reported a raid in %2.") else L("%1 resolved an Activity Alert in %2."), author, span(strong, ifx g then g.name else L("this server")));
 			}
 		} else if missed {
-			add(*spans, muted, "You missed a call from ");
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, tprint(" that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))));
+			fill(*spans, muted, L("You missed a call from %1 that lasted %2."), author, span(muted, humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))));
 		} else {
-			name(*spans, strong, m.author_id, m.channel_id);
-			add(*spans, muted, ifx m.call_ended then tprint(" started a call that lasted %.", humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))) else " started a call.");
+			if m.call_ended fill(*spans, muted, L("%1 started a call that lasted %2."), author, span(muted, humanize_duration(dc.iso_to_ms(m.call_ended) - dc.iso_to_ms(m.timestamp))));
+			else fill(*spans, muted, L("% started a call."), author);
 			// the client's "Join the call" (span id 3): this message's call is still going and we aren't in it
 			call := ifx app.client then dc.call_get(app.client, m.channel_id) else null;
 			if call && call.message_id == m.id && app.voice_channel != m.channel_id {
 				add(*spans, muted, " ");
-				add(*spans, .{font = F(.Medium), size = MSG_FONT, color = T("--text-link")}, "Join the call");
-				spans[spans.count - 1].id = 3;
+				array_add(*spans, span(.{font = F(.Medium), size = MSG_FONT, color = T("--text-link")}, L("Join the call"), 3));
 			}
 		}
 		add(*spans, .{font = F(.Medium), size = 12, color = T("--chat-text-muted")}, tprint(" %", header_timestamp(m.id)));
@@ -2492,7 +2455,7 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false, name
 					// "(edited)" rides at the end of the last paragraph, like the client
 					edited := NewArray(spans.count + 1, ui.Span,, temp);
 					memcpy(edited.data, spans.data, spans.count * size_of(ui.Span));
-					edited[spans.count] = .{text = " (edited)", font = F(.Normal), size = chat_px(10), color = T("--text-muted"), id = EDITED_SPAN};
+					edited[spans.count] = .{text = tprint(" %", L("(edited)")), font = F(.Normal), size = chat_px(10), color = T("--text-muted"), id = EDITED_SPAN};
 					spans = edited;
 					edited_inline = true;
 				}
@@ -2506,7 +2469,7 @@ message_body :: (m: *dc.Message, terms: []string = .[], decrypted := false, name
 		}
 	}
 	if m.edited_timestamp && !edited_inline {
-		ed := label("(edited)", .Normal, chat_px(10), T("--text-muted"), chat_px(22));
+		ed := label(L("(edited)"), .Normal, chat_px(10), T("--text-muted"), chat_px(22));
 		if ui.mouse_over(ed) tooltip_below(full_timestamp(dc.iso_to_ms(m.edited_timestamp)), ed.rect);
 	}
 }
@@ -2683,13 +2646,15 @@ reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, 
 	reactors_want(m.channel_id, m.id, re.emoji, burst);
 	if !reactors.loaded || !reactors.users return;
 	shown := min(reactors.users.count, 3);
-	who: String_Builder;
-	who.allocator = temp;
-	for i: 0..shown - 1 {
-		if i > 0 append(*who, ifx i == shown - 1 && count <= shown then " and " else ", ");
-		append(*who, name_in(reactors.users[i], m.channel_id));
-	}
-	if count > shown print_to_builder(*who, " and % other%", count - shown, ifx count - shown == 1 then "" else "s");
+	names: [3]string;
+	for i: 0..shown - 1 names[i] = name_in(reactors.users[i], m.channel_id);
+	who_text: string;
+	if count > shown {
+		k := count - shown;
+		who_text = tprint(Lp("%1 and %2 other", "%1 and %2 others", k), join(..array_view(names, 0, shown), separator = ", ",, temp), k);
+	} else if shown == 3 who_text = tprint(L("%1, %2 and %3"), names[0], names[1], names[2]);
+	else if shown == 2 who_text = tprint(L("%1 and %2"), names[0], names[1]);
+	else who_text = names[0];
 	r := pill.rect;
 	tip := row("reactorstip", .Draw_Background | .Draw_Shadow | .Floating_X | .Floating_Y | .Overlay);
 	tip.semantic_size = .[ui.children(), ui.px(40)];
@@ -2704,7 +2669,7 @@ reactors_tooltip :: (m: *dc.Message, re: *dc.Reaction, burst: bool, count: int, 
 	spacer(.X, 10);
 	emoji_box("e", re.emoji, 24);
 	spacer(.X, 8);
-	label(tprint(L("% reacted with %"), builder_to_string(*who,, temp), ifx re.emoji.id then tprint(":%:", re.emoji.name) else re.emoji.name), .Semibold, 14, T("--text-strong"), 18);
+	label(tprint(L("%1 reacted with %2"), who_text, ifx re.emoji.id then tprint(":%:", re.emoji.name) else re.emoji.name), .Semibold, 14, T("--text-strong"), 18);
 	spacer(.X, 12);
 }
 
@@ -2870,13 +2835,13 @@ typing_line :: (channel_id: dc.Snowflake) {
 		msg: string;
 		if names.count == {
 		case 1;
-			msg = tprint("% is typing...", names[0]);
+			msg = tprint(L("% is typing..."), names[0]);
 		case 2;
-			msg = tprint("% and % are typing...", names[0], names[1]);
+			msg = tprint(L("%1 and %2 are typing..."), names[0], names[1]);
 		case 3;
-			msg = tprint("%, %, and % are typing...", names[0], names[1], names[2]);
+			msg = tprint(L("%1, %2, and %3 are typing..."), names[0], names[1], names[2]);
 		case;
-			msg = "Several people are typing...";
+			msg = L("Several people are typing...");
 		}
 		pulsing_dots(T("--text-default")); // requests.jai
 		spacer(.X, 4);
@@ -2888,11 +2853,14 @@ typing_line :: (channel_id: dc.Snowflake) {
 		left := slowmode_left_ms(ch);
 		icon("clk", "clock", 16, T("--text-muted"));
 		spacer(.X, 4);
-		text := ifx left > 0 then tprint("%:%", left / 60_000, formatInt((left / 1000) % 60, minimum_digits = 2)) else "Slowmode is enabled";
+		text := ifx left > 0 then tprint("%:%", left / 60_000, formatInt((left / 1000) % 60, minimum_digits = 2)) else L("Slowmode is enabled");
 		b := label(text, .Medium, 12, T("--text-muted"), 24);
 		if ui.mouse_over(b) {
-			n, unit := ifx slow < 60 then slow else ifx slow < 3600 then slow / 60 else slow / 3600, ifx slow < 60 then "second" else ifx slow < 3600 then "minute" else "hour";
-			tooltip_below(tprint(L("Slowmode is enabled. Members can send one message every % %%."), n, unit, ifx n == 1 then "" else "s"), b.rect, above = true);
+			n := ifx slow < 60 then slow else ifx slow < 3600 then slow / 60 else slow / 3600;
+			every := ifx slow < 60 then Lp("Slowmode is enabled. Members can send one message every % second.", "Slowmode is enabled. Members can send one message every % seconds.", n)
+				else ifx slow < 3600 then Lp("Slowmode is enabled. Members can send one message every % minute.", "Slowmode is enabled. Members can send one message every % minutes.", n)
+				else Lp("Slowmode is enabled. Members can send one message every % hour.", "Slowmode is enabled. Members can send one message every % hours.", n);
+			tooltip_below(tprint(every, n), b.rect, above = true);
 		}
 		if left > 0 request_wake(app.ui.time + (left % 1000 + 1) / 1000.0);
 		spacer(.X, 16);
@@ -2982,10 +2950,10 @@ composer :: (ch: *dc.Channel, cs: *Chat_State) {
 			sc.semantic_size = .[ui.fill(), ui.px(clamp(sc.content_size.y, cast(float32) COMPOSER_H, max(cast(float32) COMPOSER_H, app.ui.window.y / 2)))];
 			sc.layout_axis = .Y;
 			ui.signal(sc);
-			placeholder := ifx ch.kind == .DM then tprint("Message @%", dm_name(ch)) else tprint("Message #%", ch.name);
-			if ch.kind == .Group_DM placeholder = tprint("Message %", dm_name(ch));
-			if encrypting(ch) placeholder = tprint("Message @% (encrypted)", dm_name(ch));
-			else if encrypted_dm(ch) && encrypted_channel(ch.id).has_session placeholder = tprint("Message @% (not encrypted)", dm_name(ch));
+			placeholder := ifx ch.kind == .DM then tprint(L("Message @%"), dm_name(ch)) else tprint(L("Message #%"), ch.name);
+			if ch.kind == .Group_DM placeholder = tprint(L("Message %"), dm_name(ch));
+			if encrypting(ch) placeholder = tprint(L("Message @% (encrypted)"), dm_name(ch));
+			else if encrypted_dm(ch) && encrypted_channel(ch.id).has_session placeholder = tprint(L("Message @% (not encrypted)"), dm_name(ch));
 			// An edit whose message left this channel (switched away, deleted) would hold the composer forever.
 			if ma.editing != 0 && find_message(ma.editing) == null ma.editing = 0;
 			// Up in an empty composer edits your last message, like the client
@@ -3132,21 +3100,21 @@ slowmode_left_ms :: (ch: *dc.Channel) -> s64 {
 // Why the composer can't send here, or "" when it can: Send Messages (in a thread, Send Messages in Threads),
 // and a locked thread needs Manage Threads. A server whose roles haven't arrived blocks nothing.
 composer_blocked :: (ch: *dc.Channel) -> string {
-	if ch.msg_request || ch.spam return "Accept this message request (Friends, Message Requests) to reply.";
+	if ch.msg_request || ch.spam return L("Accept this message request (Friends, Message Requests) to reply.");
 	g := dc.guild_get(store(), ch.guild_id);
 	if !g return "";
 	until := dc.timed_out(store(), ch.guild_id, store().me);
 	if until && g.owner_id != store().me && !(dc.guild_permissions(store(), ch.guild_id) & dc.PERM_ADMINISTRATOR) {
 		request_wake(app.ui.time + cast(float64) (until - dc.now_ms()) / 1000 + 0.05);
-		return tprint("You're timed out until %.", format_time_ms(until));
+		return tprint(L("You're timed out until %."), format_time_ms(until));
 	}
 	if !g.roles.count return "";
 	perms := dc.channel_permissions(store(), ch.id);
 	if dc.is_thread(ch) {
 		tm := dc.thread_meta(store(), ch.id);
-		if tm && tm.locked && !(perms & dc.PERM_MANAGE_THREADS) return "This thread is locked.";
-		if !(perms & dc.PERM_SEND_MESSAGES_IN_THREADS) return "You do not have permission to send messages in this channel.";
-	} else if !(perms & dc.PERM_SEND_MESSAGES) return "You do not have permission to send messages in this channel.";
+		if tm && tm.locked && !(perms & dc.PERM_MANAGE_THREADS) return L("This thread is locked.");
+		if !(perms & dc.PERM_SEND_MESSAGES_IN_THREADS) return L("You do not have permission to send messages in this channel.");
+	} else if !(perms & dc.PERM_SEND_MESSAGES) return L("You do not have permission to send messages in this channel.");
 	return "";
 }
 

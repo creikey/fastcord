@@ -44,7 +44,7 @@ Picker_Tab :: enum u8 {
 }
 
 PICKER_TABS :: #run enum_highest_value(Picker_Tab) + 1;
-PICKER_TAB_LABELS :: string.["GIFs", "Stickers", "Emoji"];
+PICKER_TAB_LABELS :: string.["GIFs", "Stickers", "Emoji"]; // i18n
 
 Picker_Mode :: enum u8 {
 	Composer;
@@ -490,7 +490,7 @@ picker_header :: (r: ui.Rect) {
 				for tab: enum_values_as_enum(Picker_Tab) {
 					if tab == .Gif && !expr_client() && app.client continue; // GIFs come through Discord.
 					sel := pk.tab == tab;
-					b := ui.box(PICKER_TAB_LABELS[tab], .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+					b := ui.box(tr(PICKER_TAB_LABELS[tab]), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 					b.semantic_size = .[ui.text_size(PK_TAB_PAD_X), ui.px(PK_TAB_H)];
 					b.style.font = F(.Semibold);
 					b.style.font_size = PK_TAB_FONT;
@@ -512,9 +512,9 @@ picker_header :: (r: ui.Rect) {
 		srow.semantic_size = .[ui.pct(1), ui.px(PK_SEARCH_H)];
 		{ ui.parent(srow); defer ui.pop_parent();
 			spacer(.X, PK_HEADER_PAD_X);
-			placeholder := ifx pk.mode == .Reaction then "Find the perfect reaction" else "Find the perfect emoji";
-			if pk.tab == .Gif placeholder = "Search Klipy";
-			if pk.tab == .Sticker placeholder = "Find the perfect sticker";
+			placeholder := ifx pk.mode == .Reaction then L("Find the perfect reaction") else L("Find the perfect emoji");
+			if pk.tab == .Gif placeholder = L("Search Klipy");
+			if pk.tab == .Sticker placeholder = L("Find the perfect sticker");
 			res := ui.Edit_Result.None;
 			if pk.tab == .Gif gif_header_back();
 			if !(pk.tab == .Gif && gif_header_title()) res = pk_search_field(*pk.search[pk.tab], placeholder);

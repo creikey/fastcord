@@ -125,7 +125,7 @@ soundboard_overlay :: () {
 		snd := dc.soundboard_sound(s, it);
 		if snd && (snd.guild_id == 0 || snd.guild_id == gid || external) && matches(snd, query) array_add(*fav_list, snd);
 	}
-	shown += section("Favorites", "star", 0, fav_list, favs, can_play);
+	shown += section(L("Favorites"), "star", 0, fav_list, favs, can_play);
 	order: [..]dc.Snowflake;
 	order.allocator = temp;
 	if gid array_add(*order, gid);
@@ -135,12 +135,12 @@ soundboard_overlay :: () {
 		sounds.allocator = temp;
 		for dc.soundboard_list(s, g) if matches(it, query) array_add(*sounds, it);
 		guild := dc.guild_get(s, g);
-		shown += section(ifx guild then guild.name else "Server", "", g, sounds, favs, can_play);
+		shown += section(ifx guild then guild.name else L("Server"), "", g, sounds, favs, can_play);
 	}
 	defaults: [..]*dc.Soundboard_Sound;
 	defaults.allocator = temp;
 	for dc.soundboard_list(s, 0) if matches(it, query) array_add(*defaults, it);
-	shown += section("Default", "music", 0, defaults, favs, can_play);
+	shown += section(L("Default"), "music", 0, defaults, favs, can_play);
 	if !shown {
 		r := row("empty");
 		r.semantic_size = .[ui.pct(1), ui.px(64)];

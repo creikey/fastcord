@@ -201,7 +201,7 @@ inbox_popout :: () {
 		{ ui.parent(tabs); defer ui.pop_parent();
 			spacer(.X, 12);
 			for t: enum_values_as_enum(Inbox_Tab) {
-				name := ifx t == .Unreads then "Unreads" else "Mentions";
+				name := ifx t == .Unreads then L("Unreads") else L("Mentions");
 				sel := inbox.tab == t;
 				tb := row(name, .Clickable | .Draw_Background | .Hot_Animation);
 				tb.semantic_size = .[ui.children(), ui.px(28)];
@@ -425,7 +425,7 @@ unread_header :: (gid: dc.Snowflake) {
 	ui.push_parent(h);
 	defer ui.pop_parent();
 	spacer(.X, 16);
-	name := "Direct Messages";
+	name := L("Direct Messages");
 	g := dc.guild_get(store(), gid);
 	if g != null {
 		name = g.name;
@@ -581,7 +581,7 @@ mentions_list :: () {
 				hr.semantic_size = .[ui.pct(1), ui.px(32)];
 				{ ui.parent(hr); defer ui.pop_parent();
 					spacer(.X, 16);
-					cname := "unknown channel";
+					cname := L("unknown channel");
 					gname := "";
 					if ch != null {
 						cname = ifx ch.kind == .DM || ch.kind == .Group_DM then dm_name(ch) else tprint("#%", ch.name);

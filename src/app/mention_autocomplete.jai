@@ -145,13 +145,13 @@ mention_items :: (ch: *dc.Channel, q: string) -> []Mention_Item {
 	if ch.guild_id {
 		everyone := dc.has_permission(dc.channel_permissions(s, ch.id), dc.PERM_MENTION_EVERYONE);
 		if everyone {
-			if match("everyone", lq, 0) array_add(*exact, .{kind = .Everyone, name = "@everyone", right = "Notify everyone who has permission to view this channel.", insert = "@everyone"});
-			if match("here", lq, 0) array_add(*exact, .{kind = .Here, name = "@here", right = "Notify everyone online who has permission to view this channel.", insert = "@here"});
+			if match("everyone", lq, 0) array_add(*exact, .{kind = .Everyone, name = "@everyone", right = L("Notify everyone who has permission to view this channel."), insert = "@everyone"});
+			if match("here", lq, 0) array_add(*exact, .{kind = .Here, name = "@here", right = L("Notify everyone online who has permission to view this channel."), insert = "@here"});
 		}
 		g := dc.guild_get(s, ch.guild_id);
 		if g for pass: 0..1 for r: g.roles {
 			if r.id == g.id || !(r.mentionable || everyone) || !(match(r.name, lq, pass)) continue;
-			array_add(ifx pass then *fuzzy else *exact, .{kind = .Role, id = r.id, name = tprint("@%", r.name), right = "Notify users with this role who have permission to view this channel.", insert = tprint("@%", r.name), color = ifx r.color then rgb_u32(r.color)});
+			array_add(ifx pass then *fuzzy else *exact, .{kind = .Role, id = r.id, name = tprint("@%", r.name), right = L("Notify users with this role who have permission to view this channel."), insert = tprint("@%", r.name), color = ifx r.color then rgb_u32(r.color)});
 		}
 	}
 	// exact rows first; leftover rows take fuzzy members (after the members), then fuzzy roles (last)
@@ -211,7 +211,7 @@ mention_autocomplete :: (ch: *dc.Channel, ed: *ui.Editor, focused: bool) {
 
 	users := 0;
 	for items if it.kind == .User || it.kind == .Channel users += 1;
-	header := ifx channels then (ifx q == "" then "Channels" else tprint("Channels matching #%", q)) else (ifx q == "" then "Members" else tprint("Members matching @%", q));
+	header := ifx channels then (ifx q == "" then L("Channels") else tprint(L("Channels matching #%"), q)) else (ifx q == "" then L("Members") else tprint(L("Members matching @%"), q));
 	sep := users > 0 && users < items.count;
 	h := cast(float32) (MAC_PAD + MAC_ROW_H * items.count + MAC_PAD + (ifx users > 0 then MAC_HEADER_H else 0) + (ifx sep then MAC_SEP_H else 0));
 	pop := ui.box("mention_ac", .Floating_X | .Floating_Y | .Overlay | .Draw_Background | .Draw_Border | .Draw_Shadow | .Clickable);

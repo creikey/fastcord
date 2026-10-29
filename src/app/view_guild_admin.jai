@@ -43,8 +43,8 @@ create_channel_open :: (gid: dc.Snowflake, category_id: dc.Snowflake) {
 channel_delete_open :: (th: *dc.Channel) {
 	if th == null || undo_hides(th.id) return;
 	if net_action() dc.fetch_role_member_counts(app.client, th.guild_id);
-	what := ifx th.kind == .Guild_Category then "Category" else ifx dc.is_thread(th) then "Thread" else "Channel";
-	undo_push(tprint("% deleted", what), (u: *Undo) { if u.client dc.delete_channel(u.client, u.a); }, a = th.id, hides = true);
+	what := ifx th.kind == .Guild_Category then L("Category deleted") else ifx dc.is_thread(th) then L("Thread deleted") else L("Channel deleted");
+	undo_push(what, (u: *Undo) { if u.client dc.delete_channel(u.client, u.a); }, a = th.id, hides = true);
 	if app.view.channel == th.id select_channel(th.guild_id, ifx dc.is_thread(th) then th.parent_id else 0); // a thread returns to its channel
 	if server_settings_is_open() server_settings_close();
 }
@@ -72,9 +72,9 @@ emoji_upload_busy :: () -> bool { return adm.emoji_busy; }
 guild_admin_modal_open :: () -> bool { return adm.modal != .None; }
 
 // A one-button "Okay" notice (also the message actions' failures: pins).
-show_notice :: (title: string, text: string, button := "Okay") {
+show_notice :: (title: string, text: string, button := "") { // button: "" for Okay
 	adm.modal = .Notice;
-	adm.notice_title, adm.notice_button = title, button;
+	adm.notice_title, adm.notice_button = title, ifx button then button else L("Okay");
 	free(adm.notice);
 	adm.notice = copy_string(text);
 }
@@ -364,17 +364,17 @@ text_named :: (kind: dc.Channel_Type) -> bool {
 result_error :: (r: *dc.Feature_Result) -> string {
 	if r.status == {
 	case 0;
-		return "Couldn't reach Discord. Check your connection and try again.";
+		return L("Couldn't reach Discord. Check your connection and try again.");
 	case -1;
-		return "That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.";
+		return L("That file couldn't be read. Emoji must be a PNG, JPEG, GIF, WEBP or AVIF image.");
 	case -2;
-		return "That file is too large. Emoji must be under 256 KB.";
+		return L("That file is too large. Emoji must be under 256 KB.");
 	case 403;
-		return "You don't have permission to do that.";
+		return L("You don't have permission to do that.");
 	}
 	msg := dc.api_error_message(r.body);
 	if msg != "" return msg;
-	return tprint("Something went wrong (HTTP %).", r.status);
+	return tprint(L("Something went wrong (HTTP %)."), r.status);
 }
 
 // Keeps a text channel name normalised while typing.
@@ -406,7 +406,7 @@ error_line :: () {
 create_channel_modal :: () {
 	W :: 480;
 	cat := dc.channel_get(store(), adm.channel);
-	sub := ifx cat then tprint("in %", cat.name) else "";
+	sub := ifx cat then tprint(L("in %"), cat.name) else "";
 	is_cat := adm.kind == .Guild_Category;
 	if !adm_modal_begin("createchan", W, ifx is_cat then L("Create Category") else L("Create Channel"), sub) {
 		admin_close();
@@ -427,12 +427,12 @@ create_channel_modal :: () {
 			icon, title: string;
 			desc: string;
 		}
-		ALL :: Opt.[
-			.{.Guild_Text, "hashmark", "Text", "Send messages, images, GIFs, emoji, opinions, and puns"},
-			.{.Guild_Voice, "voice-normal", "Voice", "Hang out together with voice, video, and screen share"},
-			.{.Guild_Forum, "forum", "Forum", "Create a space for organized discussions"},
-			.{.Guild_Announcement, "announcements", "Announcement", "Important updates for people in and out of the server"},
-			.{.Guild_Stage_Voice, "stage", "Stage", "Host events with an audience"}
+		ALL := Opt.[
+			.{.Guild_Text, "hashmark", L("Text"), L("Send messages, images, GIFs, emoji, opinions, and puns")},
+			.{.Guild_Voice, "voice-normal", L("Voice"), L("Hang out together with voice, video, and screen share")},
+			.{.Guild_Forum, "forum", L("Forum"), L("Create a space for organized discussions")},
+			.{.Guild_Announcement, "announcements", L("Announcement"), L("Important updates for people in and out of the server")},
+			.{.Guild_Stage_Voice, "stage", L("Stage"), L("Host events with an audience")}
 		];
 		// Announcement and Stage need a Community server, as in the client
 		g := dc.guild_get(store(), adm.guild);
@@ -533,12 +533,18 @@ sync_move_modal :: () {
 		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.style.line_height = 20;
 		b.style.text_color = T("--text-default");
-		spans := NewArray(5, ui.Span,, temp);
-		spans[0] = .{text = "Would you like to sync ", font = F(.Normal), size = 16};
-		spans[1] = .{text = ifx text_named(ch.kind) then tprint("#%", ch.name) else ch.name, font = F(.Bold), size = 16};
-		spans[2] = .{text = " permissions with ", font = F(.Normal), size = 16};
-		spans[3] = .{text = cat.name, font = F(.Bold), size = 16};
-		spans[4] = .{text = "?", font = F(.Normal), size = 16};
+		// the sentence in normal text, its %1 (the channel) and %2 (the category) in bold
+		names := string.[ifx text_named(ch.kind) then tprint("#%", ch.name) else ch.name, cat.name];
+		spans: [..]ui.Span;
+		spans.allocator = temp;
+		rest := L("Would you like to sync %1 permissions with %2?");
+		while rest {
+			p := find_index_from_left(rest, #char "%");
+			if p < 0 || p + 1 >= rest.count { array_add(*spans, .{text = rest, font = F(.Normal), size = 16}); break; }
+			if p array_add(*spans, .{text = slice(rest, 0, p), font = F(.Normal), size = 16});
+			array_add(*spans, .{text = names[ifx rest[p + 1] == #char "2" then 1 else 0], font = F(.Bold), size = 16});
+			advance(*rest, p + 2);
+		}
 		ui.set_spans(b, spans);
 		spacer(.X, 25);
 	}

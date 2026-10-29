@@ -186,7 +186,7 @@ dm_row :: (ch: *dc.Channel) {
 				label(dm_name(ch), ifx unread then .Semibold else .Medium, 16, color, 20);
 				if ch.kind == .Group_DM {
 					n := ch.recipient_ids.count + 1;
-					label(tprint(L("% Member%"), n, ifx n == 1 then "" else "s"), .Medium, 12, T("--text-muted"), 16);
+					label(tprint(Lp("% Member", "% Members", n), n), .Medium, 12, T("--text-muted"), 16);
 				} else if ch.recipient_ids.count > 0 {
 					custom := user_custom_status(ch.recipient_ids[0]);
 					if custom label(ellipsize(custom, .Medium, 12, item.rect.x1 - item.rect.x0 - 90), .Medium, 12, T("--text-muted"), 16);
@@ -262,7 +262,7 @@ friends_page :: () {
 		tabs := struct {
 			name: string;
 			tab: Friends_Tab;
-		}.[.{"Online", .Online}, .{"All", .All}, .{"Pending", .Pending}, .{"Blocked", .Blocked}, .{"Add Friend", .Add_Friend}];
+		}.[.{L("Online"), .Online}, .{L("All"), .All}, .{L("Pending"), .Pending}, .{L("Blocked"), .Blocked}, .{L("Add Friend"), .Add_Friend}];
 		for t: tabs {
 			if t.tab == .Pending && !has_pending() { continue; } // outgoing requests alone keep it, to cancel them
 			if t.tab == .Blocked && !has_blocked() { continue; }
@@ -385,14 +385,14 @@ friends_page :: () {
 		hdr.semantic_size = .[ui.pct(1), ui.px(18)];
 		{ ui.parent(hdr); defer ui.pop_parent();
 			spacer(.X, FRIENDS_PAD_L);
-			title := "Online";
+			title := L("Online");
 			if app.view.friends_tab == {
 			case .All;
-				title = "All friends";
+				title = L("All friends");
 			case .Pending;
-				title = "Received";
+				title = L("Received");
 			case .Blocked;
-				title = "Blocked";
+				title = L("Blocked");
 			case .Online; #through; case .Add_Friend;
 			}
 			n := ifx app.view.friends_tab == .Pending then received else ids.count;
@@ -433,7 +433,7 @@ friends_page :: () {
 			}
 		} else if ids.count == 0 {
 			spacer(.Y, 80);
-			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else ifx app.view.friends_tab == .Blocked then "You can't unblock the Wumpus." else "No one's around right now.";
+			msg := ifx app.view.friends_tab == .Pending then L("There are no pending friend requests.") else ifx app.view.friends_tab == .Blocked then L("You can't unblock the Wumpus.") else L("No one's around right now.");
 			e := row("empty");
 			e.semantic_size = .[ui.pct(1), ui.px(24)];
 			{ ui.parent(e); defer ui.pop_parent();
@@ -515,7 +515,7 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				nr := row("nr");
 				nr.semantic_size = .[ui.pct(1), ui.px(20)];
 				{ ui.parent(nr); defer ui.pop_parent();
-					label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20);
+					label(dc.user_name(s, uid, 0, L("Unknown")), .Semibold, 16, T("--text-strong"), 20);
 					if sig.hovering && u != null {
 						spacer(.X, 4);
 						label(u.username, .Medium, 14, T("--text-muted"), 18);
@@ -526,11 +526,11 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				if sub == "" sub = status_text(user_status(uid));
 				if kind == {
 				case .Incoming_Request;
-					sub = "Incoming Friend Request";
+					sub = L("Incoming Friend Request");
 				case .Outgoing_Request;
-					sub = "Outgoing Friend Request";
+					sub = L("Outgoing Friend Request");
 				case .Blocked;
-					sub = "Blocked";
+					sub = L("Blocked");
 				}
 				label(sub, .Medium, 14, T("--text-muted"), 18);
 			}
@@ -584,7 +584,7 @@ requests_page :: () {
 		spacer(.X, 6);
 		label(L("Message Requests"), .Semibold, 16, T("--text-strong"), 20);
 		spacer(.X, 12);
-		for name, i: string.["Requests", "Spam"] {
+		for name, i: string.[L("Requests"), L("Spam")] {
 			sel := app.view.requests_spam == (i == 1);
 			tb := ui.box(name, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			tb.semantic_size = .[ui.text_size(12), ui.px(32)];
@@ -615,7 +615,7 @@ requests_page :: () {
 	hdr.semantic_size = .[ui.pct(1), ui.px(18)];
 	{ ui.parent(hdr); defer ui.pop_parent();
 		spacer(.X, FRIENDS_PAD_L);
-		label(tprint("% — %", ifx app.view.requests_spam then "Spam" else "Message Requests", ids.count), .Medium, 14, T("--text-default"), 18);
+		label(tprint("% — %", ifx app.view.requests_spam then L("Spam") else L("Message Requests"), ids.count), .Medium, 14, T("--text-default"), 18);
 	}
 	spacer(.Y, 16);
 	for cid: ids {
@@ -713,7 +713,7 @@ active_now_column :: () {
 				col := ui.box("col");
 				col.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(col); defer ui.pop_parent();
-					label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20);
+					label(dc.user_name(s, uid, 0, L("Unknown")), .Semibold, 16, T("--text-strong"), 20);
 					label(user_game(uid), .Normal, 14, T("--text-muted"), 18);
 				}
 				act := rich_activity(uid); // the activity's art on the right, as the client's card has
@@ -793,15 +793,25 @@ rel_req :: (action: string, uid: dc.Snowflake) -> string { return tprint("rel:%:
 // and Block (PUT with type 2): shown at once, sent after the undo window (undo.jai) instead of the
 // client's Block confirm.
 Rel_Change :: enum u8 { Remove; Block; }
+// A translated sentence with one "%" as spans: the text around it in base, the placeholder as arg.
+sentence_spans :: (format: string, base: ui.Span, arg: ui.Span) -> []ui.Span {
+	i := find_index_from_left(format, #char "%");
+	spans := NewArray(3, ui.Span,, temp);
+	spans[0], spans[1], spans[2] = base, arg, base;
+	spans[0].text = ifx i >= 0 then slice(format, 0, i) else format;
+	spans[2].text = ifx i >= 0 then slice(format, i + 1, format.count - i - 1) else "";
+	return spans;
+}
+
 rel_change :: (uid: dc.Snowflake, op: Rel_Change, location := "Friends") {
 	s := store();
 	rel := table_find_pointer(*s.relationships, uid);
 	old := ifx rel then rel.kind else .None;
-	text := "Friend removed";
-	if op == .Block text = "User blocked";
-	else if old == .Blocked text = "User unblocked";
-	else if old == .Incoming_Request text = "Friend request ignored";
-	else if old == .Outgoing_Request text = "Friend request cancelled";
+	text := L("Friend removed");
+	if op == .Block text = L("User blocked");
+	else if old == .Blocked text = L("User unblocked");
+	else if old == .Incoming_Request text = L("Friend request ignored");
+	else if old == .Outgoing_Request text = L("Friend request cancelled");
 	if undo_held(rel_send, uid) return;
 	undo_push(text, rel_send, (u: *Undo) {
 		s := ifx u.client then *u.client.store else store();
@@ -898,17 +908,13 @@ add_friend_view :: () {
 				spacer(.X, 30);
 				if sent == .Failed {
 					code, captcha := req_error(ADD_FRIEND_REQ);
-					label(ifx captcha then CAPTCHA_TEXT else ifx code == 50096 then L("You cannot friend yourself") else L("Hm, didn’t work. Double check that the username is correct."), .Normal, 14, T("--text-feedback-critical"), 18);
+					label(ifx captcha then tr(CAPTCHA_TEXT) else ifx code == 50096 then L("You cannot friend yourself") else L("Hm, didn’t work. Double check that the username is correct."), .Normal, 14, T("--text-feedback-critical"), 18);
 				} else {
 					t := ui.box("ok");
 					t.semantic_size = .[ui.text_size(0, 0), ui.px(18)];
 					t.style.line_height = 18;
 					t.style.text_color = T("--text-feedback-positive");
-					spans := NewArray(3, ui.Span,, temp);
-					spans[0] = .{text = "Success! Your friend request to ", font = F(.Normal), size = 14};
-					spans[1] = .{text = add_friend_sent, font = F(.Bold), size = 14};
-					spans[2] = .{text = " was sent.", font = F(.Normal), size = 14};
-					ui.set_spans(t, spans);
+					ui.set_spans(t, sentence_spans(L("Success! Your friend request to % was sent."), .{font = F(.Normal), size = 14}, .{text = add_friend_sent, font = F(.Bold), size = 14}));
 				}
 			}
 		}
@@ -976,9 +982,9 @@ member_list :: (ch: *dc.Channel) {
 						name := item.group_id;
 						if item.group_id == {
 						case "online";
-							name = "Online";
+							name = L("Online");
 						case "offline";
-							name = "Offline";
+							name = L("Offline");
 						case;
 							g := dc.guild_get(s, ch.guild_id);
 							if g != null {
@@ -1020,7 +1026,7 @@ member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 			av := ifx offline then avatar_box("av", uid, 32) else avatar_with_status("av", uid, 32, ifx sig.hovering then T("--background-base-low") else T("--background-base-lower"));
 			if offline { av.opacity = 0.3; }
 			spacer(.X, 12);
-			name := dc.user_name(s, uid, gid, "unknown");
+			name := dc.user_name(s, uid, gid, L("unknown"));
 			color, ok := member_color(gid, uid);
 			if !ok { color = T("--interactive-text-default"); }
 			if offline { color = with_alpha(color, 0.3); }
@@ -1203,7 +1209,7 @@ dm_profile_panel :: (uid: dc.Snowflake) {
 					if ui.signal(mr).clicked profile_full_open(uid);
 					ui.parent(mr); defer ui.pop_parent();
 					spacer(.X, DMP_PAD);
-					label(tprint("% — %", ifx kind == 0 then "Mutual Servers" else "Mutual Friends", n), .Medium, 14, T("--text-default"), 18);
+					label(tprint("% — %", ifx kind == 0 then L("Mutual Servers") else L("Mutual Friends"), n), .Medium, 14, T("--text-default"), 18);
 					filler(.X);
 					icon("chev", "chevron-small-right", 16, T("--interactive-icon-default"));
 					spacer(.X, DMP_PAD - 4);
@@ -1275,17 +1281,13 @@ dm_welcome :: (ch: *dc.Channel) -> *ui.Box {
 			t.semantic_size = .[ui.text_size(0, 0), ui.px(20)];
 			t.style.line_height = 20;
 			t.style.text_color = T("--text-default");
-			spans := NewArray(3, ui.Span,, temp);
-			spans[0] = .{text = "This is the beginning of your direct message history with ", font = F(.Normal), size = 16};
-			spans[1] = .{text = dc.user_name(store(), uid), font = F(.Bold), size = 16};
-			spans[2] = .{text = ".", font = F(.Normal), size = 16};
-			ui.set_spans(t, spans);
+			ui.set_spans(t, sentence_spans(L("This is the beginning of your direct message history with %."), .{font = F(.Normal), size = 16}, .{text = dc.user_name(store(), uid), font = F(.Bold), size = 16}));
 		}
 		spacer(.Y, 8);
 		{ ui.parent(pad("actions", 32)); defer ui.pop_parent();
 			spacer(.X, 16);
-			mutual := "No servers in common";
-			if u.mutual_guilds > 0 { mutual = tprint("% Mutual Server%", u.mutual_guilds, ifx u.mutual_guilds == 1 then "" else "s"); }
+			mutual := L("No servers in common");
+			if u.mutual_guilds > 0 { mutual = tprint(Lp("% Mutual Server", "% Mutual Servers", u.mutual_guilds), u.mutual_guilds); }
 			label(mutual, .Normal, 14, T("--text-default"), 18);
 			spacer(.X, 12);
 			dot := ui.box("dot", .Draw_Background);
@@ -1392,11 +1394,7 @@ group_dm_welcome :: (ch: *dc.Channel) {
 		b := ui.box("text", .Wrap_Text);
 		b.semantic_size = .[ui.fill(), ui.text_size()];
 		b.style.line_height = 20;
-		ui.set_spans(b, ui.Span.[
-			.{text = "Welcome to the beginning of the ", font = F(.Normal), size = 16, color = T("--text-muted")},
-			.{text = name, font = F(.Semibold), size = 16, color = T("--text-muted")},
-			.{text = " group.", font = F(.Normal), size = 16, color = T("--text-muted")},
-		]);
+		ui.set_spans(b, sentence_spans(L("Welcome to the beginning of the % group."), .{font = F(.Normal), size = 16, color = T("--text-muted")}, .{text = name, font = F(.Semibold), size = 16, color = T("--text-muted")}));
 	}
 }
 

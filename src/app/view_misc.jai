@@ -198,8 +198,8 @@ activity_card :: (a: *dc.Activity, pad: float32) {
 					song.hover_cursor = .Pointer;
 					if ui.signal(song).clicked open_url(tprint("https://open.spotify.com/track/%", a.sync_id));
 				}
-				if a.state line("artist", tprint("by %", a.state), .Normal, T("--text-default"));
-				if a.large_text line("album", tprint("on %", a.large_text), .Normal, T("--text-default"));
+				if a.state line("artist", tprint(L("by %"), a.state), .Normal, T("--text-default"));
+				if a.large_text line("album", tprint(L("on %"), a.large_text), .Normal, T("--text-default"));
 			} else {
 				line("name", a.name, .Semibold, T("--text-strong"));
 				if a.details line("details", a.details, .Normal, T("--text-default"));
@@ -458,12 +458,12 @@ sm: struct {
 };
 
 STATUS_DURATIONS :: struct { text: string; ms: s64; }.[
-	.{"For 15 Minutes", 15 * 60_000},
-	.{"For 1 Hour", 3_600_000},
-	.{"For 8 Hours", 8 * 3_600_000},
-	.{"For 24 Hours", 24 * 3_600_000},
-	.{"For 3 Days", 3 * 24 * 3_600_000},
-	.{"Forever", 0}
+	.{"For 15 Minutes", 15 * 60_000}, // i18n
+	.{"For 1 Hour", 3_600_000}, // i18n
+	.{"For 8 Hours", 8 * 3_600_000}, // i18n
+	.{"For 24 Hours", 24 * 3_600_000}, // i18n
+	.{"For 3 Days", 3 * 24 * 3_600_000}, // i18n
+	.{"Forever", 0} // i18n
 ];
 
 // The client's group under the names: Edit Profile, then "Your Status" with
@@ -532,8 +532,8 @@ status_menu :: (card: *ui.Box) {
 		for st: dc.Status.[.Idle, .Dnd, .Invisible] {
 			desc := "";
 			if st == cur desc = status_until(s.settings.status_expires_ms);
-			if desc == "" && st == .Dnd desc = "You will not receive desktop notifications";
-			if desc == "" && st == .Invisible desc = "You will appear offline";
+			if desc == "" && st == .Dnd desc = L("You will not receive desktop notifications");
+			if desc == "" && st == .Invisible desc = L("You will appear offline");
 			it := menu_item(status_text(st), status_text(st), .Chevron, sub = desc, open = sm.sub == st, lead_status = st);
 			if it.hovering || it.clicked {
 				sm.sub = st;
@@ -549,7 +549,7 @@ status_menu :: (card: *ui.Box) {
 	sub := menu_panel("statusdur", .{sx, clamp(sm.sub_y - 8, 8, max(8.0, app.ui.window.y - (6 * GM_ROW_H + 16) - 8))}, 188);
 	{ ui.parent(sub); defer ui.pop_parent();
 		spacer(.Y, 8);
-		for STATUS_DURATIONS if menu_item(it.text, it.text).clicked set_my_status(sm.sub, it.ms);
+		for STATUS_DURATIONS if menu_item(it.text, tr(it.text)).clicked set_my_status(sm.sub, it.ms);
 		spacer(.Y, 8);
 	}
 }
@@ -588,8 +588,9 @@ SET_SWATCH :: 48;
 SET_SWATCH_PITCH :: 56;
 
 Settings_Item :: struct {
-	name: string;
+	name: string; // English: the page's id
 	icon: string;
+	shown: string;
 }
 
 settings_modal :: () {
@@ -642,7 +643,7 @@ settings_modal :: () {
 				settings_nav_search(); // view_settings_prefs.jai: filters the items below
 				spacer(.Y, 8);
 				// 0.0.419: Streamer Mode is a section of Appearance (its sub-nav), not a page
-				items := Settings_Item.[.{"Account", "user-circle"}, .{"Profiles", "pencil"}, .{"Data & Privacy", "eye-slash"}, .{"Messaging Permissions", "lock"}, .{"Appearance", "paint-palette"}, .{"Voice & Video", "microphone"}, .{"Chat", "chat"}, .{"Notifications", "bell"}, .{"Keybinds", "key"}, .{"Accessibility", "eye"}, .{"System", "screen"}, .{"Language & Time", "clock"}, .{"Devices", "phone"}, .{"Connected Apps", "link"}, .{"Activity Privacy", "game-controller"}, .{"Developer", "angle-brackets"}];
+				items := Settings_Item.[.{"Account", "user-circle", L("Account")}, .{"Profiles", "pencil", L("Profiles")}, .{"Data & Privacy", "eye-slash", L("Data & Privacy")}, .{"Messaging Permissions", "lock", L("Messaging Permissions")}, .{"Appearance", "paint-palette", L("Appearance")}, .{"Voice & Video", "microphone", L("Voice & Video")}, .{"Chat", "chat", L("Chat")}, .{"Notifications", "bell", L("Notifications")}, .{"Keybinds", "key", L("Keybinds")}, .{"Accessibility", "eye", L("Accessibility")}, .{"System", "screen", L("System")}, .{"Language & Time", "clock", L("Language & Time")}, .{"Devices", "phone", L("Devices")}, .{"Connected Apps", "link", L("Connected Apps")}, .{"Activity Privacy", "game-controller", L("Activity Privacy")}, .{"Developer", "angle-brackets", L("Developer")}];
 				for items {
 					if it.name == "System" && OS == .MACOS continue; // the client's System panel: Windows and Linux
 					if !settings_nav_match(it.name) && !(it.name == "Appearance" && settings_nav_match("Streamer Mode")) { continue; }
@@ -663,7 +664,7 @@ settings_modal :: () {
 							spacer(.X, 8);
 							icon("i", it.icon, 20, c);
 							spacer(.X, 8);
-							label(it.name, .Medium, 16, c, 20);
+							label(it.shown, .Medium, 16, c, 20);
 						}
 						spacer(.X, 16);
 					}
@@ -683,7 +684,7 @@ settings_modal :: () {
 				t.semantic_size = .[ui.pct(1), ui.px(SET_TITLE_H)];
 				{ ui.parent(t); defer ui.pop_parent();
 					spacer(.X, 20);
-					label(settings_page, .Semibold, 16, T("--text-strong"), 20);
+					label(tr(settings_page), .Semibold, 16, T("--text-strong"), 20);
 					filler(.X);
 					close := ui.box("close", .Clickable);
 					close.semantic_size = .[ui.px(20), ui.px(20)];
@@ -809,7 +810,7 @@ appearance_subnav :: () {
 			bar.semantic_size = .[ui.px(2), ui.pct(1)];
 			bar.style.bg = T("--border-subtle");
 			spacer(.X, 14);
-			label(sub, .Medium, 16, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 20);
+			label(tr(sub), .Medium, 16, ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 20);
 		}
 		if sig.clicked {
 			settings_page = "Appearance";

@@ -84,8 +84,8 @@ message_poll_view :: (m: *dc.Message) {
 	foot := row("foot");
 	foot.semantic_size = .[ui.pct(1), ui.px(36)];
 	{ ui.parent(foot); defer ui.pop_parent();
-		left := ifx closed then "Poll closed" else poll_time_left(dc.iso_to_ms(p.expiry) - dc.now_ms());
-		label(tprint("% vote% · %", total, ifx total == 1 then "" else "s", left), .Normal, 14, T("--text-muted"), 18);
+		left := ifx closed then L("Poll closed") else poll_time_left(dc.iso_to_ms(p.expiry) - dc.now_ms());
+		label(tprint(Lp("%1 vote · %2", "%1 votes · %2", total), total, left), .Normal, 14, T("--text-muted"), 18);
 		filler(.X);
 		c := app.client; // the connection whose messages are on screen
 		if !closed && voted && poll_button("remove", L("Remove Vote"), false) dc.poll_vote(c, m.channel_id, m.id, .[]);
@@ -101,9 +101,9 @@ message_poll_view :: (m: *dc.Message) {
 }
 
 poll_time_left :: (ms: s64) -> string {
-	if ms >= 86_400_000 return tprint("%d left", ms / 86_400_000);
-	if ms >= 3_600_000 return tprint("%h left", ms / 3_600_000);
-	return tprint("%m left", max(1, ms / 60_000));
+	if ms >= 86_400_000 return tprint(L("%d left"), ms / 86_400_000);
+	if ms >= 3_600_000 return tprint(L("%h left"), ms / 3_600_000);
+	return tprint(L("%m left"), max(1, ms / 60_000));
 }
 
 // ---- A poll's result message (type 46): its embed "poll_result" carries the question, the winner and the counts ----
@@ -148,7 +148,7 @@ poll_result_card :: (m: *dc.Message) {
 				label(tprint(L("Winning answer · %1%2"), (votes * 100 + total / 2) / total, "%"), .Normal, 14, T("--text-muted"), 18);
 			} else {
 				label(ifx total > 0 then L("The results were tied") else L("There was no winner"), .Semibold, 16, T("--text-strong"), 20);
-				label(tprint("% vote%", total, ifx total == 1 then "" else "s"), .Normal, 14, T("--text-muted"), 18);
+				label(tprint(Lp("% vote", "% votes", total), total), .Normal, 14, T("--text-muted"), 18);
 			}
 		}
 		if m.referenced_id && poll_button("view", L("View Poll"), false) jump_to_message(m.channel_id, m.referenced_id);
@@ -160,7 +160,7 @@ poll_result_card :: (m: *dc.Message) {
 // What was typed stays until the poll is posted, so closing the modal loses nothing.
 
 POLL_DURATIONS :: struct { text: string; hours: int; }.[
-	.{"1 hour", 1}, .{"4 hours", 4}, .{"8 hours", 8}, .{"24 hours", 24}, .{"3 days", 72}, .{"1 week", 168}, .{"2 weeks", 336}
+	.{"1 hour", 1}, .{"4 hours", 4}, .{"8 hours", 8}, .{"24 hours", 24}, .{"3 days", 72}, .{"1 week", 168}, .{"2 weeks", 336} // i18n
 ];
 
 New_Poll :: struct {
@@ -276,7 +276,7 @@ poll_create_modal :: () {
 		dur_rect = d.rect;
 		ui.parent(d); defer ui.pop_parent();
 		spacer(.X, 12);
-		label(POLL_DURATIONS[npoll.duration].text, .Normal, 16, T("--text-default"), 20);
+		label(tr(POLL_DURATIONS[npoll.duration].text), .Normal, 16, T("--text-default"), 20);
 		filler(.X);
 		icon("i", ifx npoll.picking then "chevron-small-up" else "chevron-small-down", 20, T("--interactive-icon-default"));
 		spacer(.X, 8);
@@ -327,7 +327,7 @@ poll_create_modal :: () {
 		m := menu_panel("durmenu", .{dur_rect.x0, dur_rect.y1 + 4}, 200);
 		ui.parent(m); defer ui.pop_parent();
 		spacer(.Y, 8);
-		for POLL_DURATIONS if menu_item(tprint("d%", it_index), it.text, ifx it_index == npoll.duration then Item_Right.Radio_On else .Radio_Off).clicked {
+		for POLL_DURATIONS if menu_item(tprint("d%", it_index), tr(it.text), ifx it_index == npoll.duration then Item_Right.Radio_On else .Radio_Off).clicked {
 			npoll.duration = it_index;
 			npoll.picking = false;
 		}

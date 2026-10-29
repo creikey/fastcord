@@ -100,7 +100,7 @@ app_tag :: () {
 	pill.style.radius = all4(3);
 	ui.parent(pill); defer ui.pop_parent();
 	spacer(.X, 4);
-	label("APP", .Semibold, 10, .{1, 1, 1, 1}, 15);
+	label(L("APP"), .Semibold, 10, .{1, 1, 1, 1}, 15);
 	spacer(.X, 4);
 }
 
@@ -364,14 +364,14 @@ title_bar :: () {
 			e.consumed = true;
 		}
 		filler(.X);
-		title := "Friends";
+		title := L("Friends");
 		glyph := "friends";
 		g: *dc.Guild;
 		if app.view.guild != 0 {
 			g = dc.guild_get(store(), app.view.guild);
 			if g != null { title = g.name; }
 		} else if app.view.channel != 0 {
-			title, glyph = "Direct Messages", "logo";
+			title, glyph = L("Direct Messages"), "logo";
 		}
 		if g != null {
 			gi := ui.box("gicon", .Draw_Background | .Draw_Text);
@@ -750,7 +750,7 @@ chat_header :: (ch: *dc.Channel) {
 			live.style.radius = all4(4);
 			{ ui.parent(live); defer ui.pop_parent();
 				spacer(.X, 5);
-				label("LIVE", .Bold, 11, .{1, 1, 1, 1}, 14);
+				label(L("LIVE"), .Bold, 11, .{1, 1, 1, 1}, 14);
 				spacer(.X, 5);
 			}
 			q := watched_stream_quality();
@@ -801,7 +801,7 @@ chat_header :: (ch: *dc.Channel) {
 		} else {
 			search_hint = dm_name(ch);
 		}
-		if !(on_hosted() && ch.guild_id == 0) search_box(ch, tprint("Search %", search_hint)); // serve can't search what it can't read
+		if !(on_hosted() && ch.guild_id == 0) search_box(ch, tprint(L("Search %"), search_hint)); // serve can't search what it can't read
 		spacer(.X, 8);
 	}
 	line := ui.box("hline", .Draw_Background);
@@ -1137,8 +1137,8 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 					if vs.self_video icons_w += 20;
 					if vs.mute || vs.self_mute icons_w += 20;
 					if vs.deaf || vs.self_deaf icons_w += 20;
-					if vs.self_stream icons_w += 12 + ui.layout_text(F(.Bold), 11, "LIVE", -1).width;
-					name := ellipsize(dc.user_name(s, uid, ch.guild_id, "unknown"), .Medium, 14, app.view.sidebar_w - 76 - 8 - icons_w);
+					if vs.self_stream icons_w += 12 + ui.layout_text(F(.Bold), 11, L("LIVE"), -1).width;
+					name := ellipsize(dc.user_name(s, uid, ch.guild_id, L("unknown")), .Medium, 14, app.view.sidebar_w - 76 - 8 - icons_w);
 					label(tprint("%##name", name), .Medium, 14, name_color, 18);
 					filler(.X);
 					if vs.self_video { icon("cam", "video", 16, T("--channels-default")); spacer(.X, 4); }
@@ -1152,7 +1152,7 @@ channel_row :: (ch: *dc.Channel, gid: dc.Snowflake) {
 						live.style.radius = all4(8);
 						{ ui.parent(live); defer ui.pop_parent();
 							spacer(.X, 6);
-							label("LIVE", .Bold, 11, .{1, 1, 1, 1}, 14);
+							label(L("LIVE"), .Bold, 11, .{1, 1, 1, 1}, 14);
 							spacer(.X, 6);
 						}
 					}
@@ -1210,7 +1210,7 @@ user_panel :: () {
 				names.semantic_size = .[ui.fill(), ui.children()];
 				{ ui.parent(names); defer ui.pop_parent();
 					label(dc.display_name(u), .Medium, 14, T("--text-strong"), 18);
-					status := ifx s.settings.status == .Invisible then "Invisible" else status_text(user_status(s.me));
+					status := ifx s.settings.status == .Invisible then L("Invisible") else status_text(user_status(s.me));
 					// a timed status ends in the client's tick: wake for it
 					if s.settings.status_expires_ms request_wake(app.ui.time + cast(float64) max(0, s.settings.status_expires_ms - wall_ms()) / 1000 + 0.05);
 					custom := custom_status_line();
@@ -1287,17 +1287,17 @@ toggle_self_mute :: () {
 status_text :: (st: dc.Status) -> string {
 	if st == {
 	case .Online;
-		return "Online";
+		return L("Online");
 	case .Idle;
-		return "Idle";
+		return L("Idle");
 	case .Dnd;
-		return "Do Not Disturb";
+		return L("Do Not Disturb");
 	case .Invisible;
-		return "Invisible";
+		return L("Invisible");
 	case .Offline;
-		return "Offline";
+		return L("Offline");
 	}
-	return "Online";
+	return L("Online");
 }
 
 status_color :: (st: dc.Status) -> ui.Color {
@@ -1440,28 +1440,50 @@ shortcuts_open: bool;
 // The shortcuts fastcord handles, as pairs of what and keys: the Ctrl+/ modal and Settings > Keybinds.
 SHORTCUT_MOD :: #run ifx OS == .MACOS then "Cmd" else "Ctrl";
 DEFAULT_SHORTCUTS :: string.[
-	"Find or start a conversation", #run tprint("%+K", SHORTCUT_MOD),
-	"Back / forward", #run ifx OS == .MACOS then "Cmd+[ / Cmd+]" else "Alt+Left / Alt+Right",
-	"Previous / next channel", "Alt+Up / Alt+Down",
-	"Previous / next unread channel", "Alt+Shift+Up / Down",
-	"Previous / next channel with mentions", #run tprint("%+Alt+Shift+Up / Down", SHORTCUT_MOD),
-	"Previous / next server", #run tprint("%+Alt+Up / Down", SHORTCUT_MOD),
-	"Return to the connected call", #run tprint("%+Alt+A", SHORTCUT_MOD),
-	"Toggle inbox", #run tprint("%+I", SHORTCUT_MOD),
-	"Toggle pins", #run tprint("%+P", SHORTCUT_MOD),
-	"Toggle member list", #run tprint("%+U", SHORTCUT_MOD),
-	"Mark channel read", "Escape",
-	"Mark server read", "Shift+Escape",
-	"Jump to oldest unread message", "Shift+Page Up",
-	"Scroll chat", "Page Up / Page Down",
-	"Edit your last message", "Up",
-	"Mark a message unread", "Alt+Click",
-	"Toggle mute", #run tprint("%+Shift+M", SHORTCUT_MOD),
-	"Toggle deafen", #run tprint("%+Shift+D", SHORTCUT_MOD),
-	"Emoji / GIF / sticker picker", #run tprint("%+E / G / S", SHORTCUT_MOD),
-	"Upload a file", #run tprint("%+Shift+U", SHORTCUT_MOD),
-	"Bold / italic / underline", #run tprint("%+B / I / U", SHORTCUT_MOD),
-	"Keyboard shortcuts", #run tprint("%+/", SHORTCUT_MOD),
+	"Find or start a conversation", // i18n
+		#run tprint("%+K", SHORTCUT_MOD),
+	"Back / forward", // i18n
+		#run ifx OS == .MACOS then "Cmd+[ / Cmd+]" else "Alt+Left / Alt+Right",
+	"Previous / next channel", // i18n
+		"Alt+Up / Alt+Down",
+	"Previous / next unread channel", // i18n
+		"Alt+Shift+Up / Down",
+	"Previous / next channel with mentions", // i18n
+		#run tprint("%+Alt+Shift+Up / Down", SHORTCUT_MOD),
+	"Previous / next server", // i18n
+		#run tprint("%+Alt+Up / Down", SHORTCUT_MOD),
+	"Return to the connected call", // i18n
+		#run tprint("%+Alt+A", SHORTCUT_MOD),
+	"Toggle inbox", // i18n
+		#run tprint("%+I", SHORTCUT_MOD),
+	"Toggle pins", // i18n
+		#run tprint("%+P", SHORTCUT_MOD),
+	"Toggle member list", // i18n
+		#run tprint("%+U", SHORTCUT_MOD),
+	"Mark channel read", // i18n
+		"Escape",
+	"Mark server read", // i18n
+		"Shift+Escape",
+	"Jump to oldest unread message", // i18n
+		"Shift+Page Up",
+	"Scroll chat", // i18n
+		"Page Up / Page Down",
+	"Edit your last message", // i18n
+		"Up",
+	"Mark a message unread", // i18n
+		"Alt+Click",
+	"Toggle mute", // i18n
+		#run tprint("%+Shift+M", SHORTCUT_MOD),
+	"Toggle deafen", // i18n
+		#run tprint("%+Shift+D", SHORTCUT_MOD),
+	"Emoji / GIF / sticker picker", // i18n
+		#run tprint("%+E / G / S", SHORTCUT_MOD),
+	"Upload a file", // i18n
+		#run tprint("%+Shift+U", SHORTCUT_MOD),
+	"Bold / italic / underline", // i18n
+		#run tprint("%+B / I / U", SHORTCUT_MOD),
+	"Keyboard shortcuts", // i18n
+		#run tprint("%+/", SHORTCUT_MOD),
 ];
 
 // Ctrl+/: the keyboard shortcuts fastcord handles, in two columns of key caps.
@@ -1487,9 +1509,9 @@ shortcuts_modal :: () {
 	ui.push_parent(d);
 	defer ui.pop_parent();
 	spacer(.Y, PAD);
-	tr := row("t");
-	tr.semantic_size = .[ui.pct(1), ui.px(24)];
-	{ ui.parent(tr); defer ui.pop_parent();
+	trow := row("t");
+	trow.semantic_size = .[ui.pct(1), ui.px(24)];
+	{ ui.parent(trow); defer ui.pop_parent();
 		spacer(.X, PAD);
 		label(L("Keyboard Shortcuts"), .Semibold, 20, T("--text-strong"), 24);
 	}
@@ -1505,7 +1527,7 @@ shortcuts_modal :: () {
 			r.cross_align = .Center;
 			ui.parent(r); defer ui.pop_parent();
 			spacer(.X, PAD);
-			label(DEFAULT_SHORTCUTS[2 * i], .Normal, 15, T("--text-default"), 20);
+			label(tr(DEFAULT_SHORTCUTS[2 * i]), .Normal, 15, T("--text-default"), 20);
 			filler(.X);
 			key_caps(DEFAULT_SHORTCUTS[2 * i + 1]);
 			spacer(.X, PAD);

@@ -111,12 +111,12 @@ undo_toast :: () {
 	{ ui.parent(t); defer ui.pop_parent();
 		spacer(.X, 16);
 		line := u.text;
-		if shown > 1 line = tprint("% (% more)", u.text, shown - 1);
+		if shown > 1 line = tprint(L("%1 (%2 more)"), u.text, shown - 1);
 		label(line, .Medium, 14, T("--text-default"), 18);
 		spacer(.X, 16);
 		b := ui.box(L("Undo##u"), .Clickable | .Draw_Text | .Hot_Animation);
 		b.semantic_size = .[ui.text_size(8), ui.px(40)];
-		b.text = "Undo";
+		b.text = L("Undo");
 		b.style.font = F(.Semibold);
 		b.style.font_size = 14;
 		sig := ui.signal(b);

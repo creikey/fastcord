@@ -125,14 +125,14 @@ invite_card :: (id: string, code: string, p: dc.Invite_Preview, m: *dc.Message) 
 				// header, then a title and line (the client's oU / di / oK views)
 				header, title, text: string;
 				if p.state == {
-				case .Loading; header = "Resolving Invite";
+				case .Loading; header = L("Resolving Invite");
 				case .Error;
-					header = ifx mine then "You sent an invite, but..." else "You received an invite, but...";
+					header = ifx mine then L("You sent an invite, but...") else L("You received an invite, but...");
 					title, text = invite_error_info(p);
 				case;
-					header = ifx mine then "You sent an invite, but" else "You've been invited, but";
-					title = "Invalid Invite";
-					text = ifx mine then "Try sending a new invite" else ifx p.state == .Banned then "Uh-oh. Looks like you've been banned." else "Ask for a new invite";
+					header = ifx mine then L("You sent an invite, but") else L("You've been invited, but");
+					title = L("Invalid Invite");
+					text = ifx mine then L("Try sending a new invite") else ifx p.state == .Banned then L("Uh-oh. Looks like you've been banned.") else L("Ask for a new invite");
 				}
 				spacer(.Y, 16);
 				label(header, .Medium, 14, T("--text-muted"), 18);
@@ -170,22 +170,22 @@ invite_error_info :: (p: dc.Invite_Preview) -> title: string, text: string {
 	if p.error_code == {
 	case 30001;
 		u := dc.user_get(store(), store().me);
-		return tprint("You are at the % server limit.", ifx u && u.premium_type > 0 then 200 else 100), "You must leave a server first to join.";
-	case 30019; return "This server is currently full.", "Please try again later.";
-	case 400002; return "This server's features are limited", "Please try again later.";
+		return tprint(L("You are at the % server limit."), ifx u && u.premium_type > 0 then 200 else 100), L("You must leave a server first to join.");
+	case 30019; return L("This server is currently full."), L("Please try again later.");
+	case 400002; return L("This server's features are limited"), L("Please try again later.");
 	}
-	return "Invalid Invite", p.error;
+	return L("Invalid Invite"), p.error;
 }
 
 // The accept modal's line under a failed accept: module 4274 `d`.
 invite_modal_error :: (code: int) -> string {
 	if code == {
-	case 30001; return "You must leave a server first to join.";
-	case 30019; return "This server is currently full. Please try again later.";
-	case 50095; return "This server is not available in your location.";
-	case 40069; return "Invites are currently paused for this server. Please try again later.";
+	case 30001; return L("You must leave a server first to join.");
+	case 30019; return L("This server is currently full. Please try again later.");
+	case 50095; return L("This server is not available in your location.");
+	case 40069; return L("Invites are currently paused for this server. Please try again later.");
 	}
-	return "Unable to accept invite";
+	return L("Unable to accept invite");
 }
 
 guild_tile :: (p: dc.Invite_Preview, size: float32, pos: Vector2) {
@@ -217,10 +217,10 @@ invite_counts :: (p: dc.Invite_Preview) {
 		spacer(.X, 4);
 	}
 	dot("on", T("--status-positive"));
-	label(tprint(L("% Online"), p.online), .Normal, 14, T("--text-muted"), 18);
+	label(tprint(L("% Online"), num_text(p.online)), .Normal, 14, T("--text-muted"), 18);
 	spacer(.X, 12);
 	dot("all", T("--text-muted"));
-	label(tprint(L("% Member%"), p.members, ifx p.members == 1 then "" else "s"), .Normal, 14, T("--text-muted"), 18);
+	label(tprint(Lp("% Member", "% Members", p.members), num_text(p.members)), .Normal, 14, T("--text-muted"), 18);
 }
 
 // ---- fc:// invites (self-hosted servers) ----
@@ -279,7 +279,7 @@ fc_invite_cards_view :: (m: *dc.Message) {
 			}
 			label(ifx name then name else tprint("%:%", inv.host, inv.port), .Semibold, 20, T("--text-strong"), 24);
 			spacer(.Y, 16);
-			text := ifx ready then "Go to Server" else ifx h then "Joining…" else "Join Server";
+			text := ifx ready then L("Go to Server") else ifx h then L("Joining…") else L("Join Server");
 			if wide_button("join", text, T("--status-positive-background")) {
 				if ready {
 					app.client = h.client;

@@ -544,9 +544,9 @@ section_title :: (text: string) {
 device_dropdown :: (which: int, input: bool, w: float32) {
 	devs := dd_devices(which);
 	sel := dd_selected(which, devs);
-	current := ifx which == 3 && vs.camera then vs.camera_name else "Default";
+	current := ifx which == 3 && vs.camera then vs.camera_name else L("Default");
 	for d: devs { if sel != 0 && d.id == sel { current = d.name; } }
-	hint := ifx current == "Default" then default_name(devs) else "";
+	hint := ifx current == L("Default") then default_name(devs) else "";
 	box := row(ifx which == 3 then "camdev" else ifx input then "indev" else "outdev", .Clickable | .Draw_Background | .Draw_Border);
 	box.semantic_size = .[ui.px(w), ui.px(40)];
 	box.style.bg = T("--background-base-lowest");
@@ -633,7 +633,7 @@ device_list :: (which: int, devs: []audio.Device_Info, sel: u32, w: float32, at:
 				vs.open_dropdown = 0;
 			}
 		}
-		opt(which, .{name = "Default"}, sel == 0, default_name(devs));
+		opt(which, .{name = L("Default")}, sel == 0, default_name(devs));
 		for d: devs { { ui.id_scope(cast(u64)(d.id) + 1); defer ui.pop_seed(); opt(which, d, d.id == sel); } }
 	}
 }

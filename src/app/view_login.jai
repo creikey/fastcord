@@ -308,7 +308,7 @@ login_form :: () {
 	field_label("login_label", L("EMAIL OR PHONE NUMBER"), lg.login_error);
 	r1, k1 := login_input("email", *lg.login_ed, false, lg.login_error != "", autofocus = true, prefix = prefix);
 	spacer(.Y, 20);
-	field_label("password_label", "PASSWORD", lg.password_error);
+	field_label("password_label", L("PASSWORD"), lg.password_error);
 	r2, k2 := login_input("password", *lg.password_ed, true, lg.password_error != "");
 	lg.field_keys = .[k1, k2];
 	spacer(.Y, 4);
@@ -557,11 +557,11 @@ login_mfa_box :: () {
 				sub := "";
 				if lg.slide == {
 				case .Select;
-					sub = "This extra step shows it's really you.";
+					sub = L("This extra step shows it's really you.");
 				case .Sms;
-					sub = ifx lg.sms_phone == "" then "Sending..." else tprint("We've sent a message to %.  Please enter the code you received.", lg.sms_phone);
+					sub = ifx lg.sms_phone == "" then L("Sending...") else tprint(L("We've sent a message to %.  Please enter the code you received."), lg.sms_phone);
 				case .Backup_Warn;
-					sub = "Slow down! Are you sure?";
+					sub = L("Slow down! Are you sure?");
 				case .Totp; #through; case .Backup; #through; case .Unsupported;
 				}
 				if sub != "" {
@@ -590,13 +590,13 @@ login_mfa_box :: () {
 mfa_method_name :: (m: dc.Mfa_Method) -> string {
 	if m == {
 	case .Webauthn;
-		return "Use a passkey or security key";
+		return L("Use a passkey or security key");
 	case .Totp;
-		return "Use your authenticator app";
+		return L("Use your authenticator app");
 	case .Sms;
-		return "Use a code sent to your phone";
+		return L("Use a code sent to your phone");
 	case .Backup;
-		return "Use a backup code";
+		return L("Use a backup code");
 	}
 	return "";
 }
@@ -653,7 +653,7 @@ login_mfa_slide_body :: () {
 		spacer(.Y, 8);
 		left := 10 - cast(int)(app.ui.time - lg.backup_t0);
 		if left > 0 {
-			set_para("w2", tprint(L("If you do not have access to any other methods, the button below will activate in % seconds."), left), .Normal, 16, 20, T("--text-default"));
+			set_para("w2", tprint(Lp("If you do not have access to any other methods, the button below will activate in % second.", "If you do not have access to any other methods, the button below will activate in % seconds.", left), left), .Normal, 16, 20, T("--text-default"));
 			request_wake(platform.time_now() + 0.25);
 		} else {
 			set_para("w2", L("If you do not have access to any other methods, use the other button below to proceed."), .Normal, 16, 20, T("--text-default"));
@@ -668,7 +668,7 @@ login_mfa_slide_body :: () {
 		r := row("coderow");
 		r.semantic_size = .[ui.pct(1), ui.px(40)];
 		{ ui.parent(r); defer ui.pop_parent();
-			res, _ := login_input("code", *lg.code_ed, false, lg.mfa_error != "", autofocus = true, placeholder = "6-digit authentication code");
+			res, _ := login_input("code", *lg.code_ed, false, lg.mfa_error != "", autofocus = true, placeholder = L("6-digit authentication code"));
 			submit = res == .Submit;
 			if lg.slide == .Sms {
 				spacer(.X, 8);
@@ -681,7 +681,7 @@ login_mfa_slide_body :: () {
 	case .Backup;
 		need = 8;
 		field_label("cl", L("Enter Discord Backup Code"), lg.mfa_error, false);
-		res, _ := login_input("code", *lg.code_ed, false, lg.mfa_error != "", autofocus = true, placeholder = "8-digit backup code");
+		res, _ := login_input("code", *lg.code_ed, false, lg.mfa_error != "", autofocus = true, placeholder = L("8-digit backup code"));
 		submit = res == .Submit;
 	}
 	if lg.mfa_error != "" {
@@ -771,9 +771,9 @@ login_card_body :: () {
 	spacer(.Y, 20);
 
 	#if OS == .MACOS {
-		devtools := "Open the developer tools (Cmd+Option+I) and choose the Network tab.";
+		devtools := L("Open the developer tools (Cmd+Option+I) and choose the Network tab.");
 	} else {
-		devtools := "Open the developer tools (Ctrl+Shift+I) and choose the Network tab.";
+		devtools := L("Open the developer tools (Ctrl+Shift+I) and choose the Network tab.");
 	}
 	step("1", L("Log in to Discord in your web browser."));
 	step("2", devtools);
@@ -925,7 +925,7 @@ login_save_token :: (token: string) {
 // session (its QR socket) ends first.
 login_with_token :: (token: string) {
 	if !accounts_set_token(token) {
-		app.login_error = "Couldn't save the token.";
+		app.login_error = L("Couldn't save the token.");
 		return;
 	}
 	ui.editor_set_text(*app.view.token_input, "");

@@ -266,7 +266,7 @@ react :: (m: *dc.Message, e: dc.Emoji, location: string, toggle := false) {
 		return;
 	}
 	if !dc.add_reaction(app.client, m.channel_id, m.id, e.name, e.id, location = location, animated = e.animated) {
-		show_notice(L("Oops!"), L("You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one."), "Got It");
+		show_notice(L("Oops!"), L("You can’t react and super react with the same emoji. There’s a lot of emoji to choose from, so maybe try another one."), L("Got It"));
 		return;
 	}
 	frec_use(*frecency.reaction, frec_key_of(e.name, e.id)); // every reaction added is a use, from anywhere
@@ -343,11 +343,16 @@ edit_box :: (m: *dc.Message) {
 		h.semantic_size = .[ui.text_size(0, 0), ui.text_size()];
 		h.style.line_height = 16;
 		h.style.text_color = T("--text-default");
-		spans := NewArray(4, ui.Span,, temp);
-		spans[0] = .{text = "escape to ", font = F(.Normal), size = 12};
-		spans[1] = .{text = "cancel", font = F(.Normal), size = 12, color = T("--text-link")};
-		spans[2] = .{text = " • enter to ", font = F(.Normal), size = 12};
-		spans[3] = .{text = "save", font = F(.Normal), size = 12, color = T("--text-link")};
+		// "%1" and "%2" stay in that order in every language (the spans' ids)
+		f := L("escape to %1 • enter to %2");
+		c1, c2 := find_index_from_left(f, "%1"), find_index_from_left(f, "%2");
+		if c1 < 0 || c2 < c1 { f = "escape to %1 • enter to %2"; c1, c2 = 10, find_index_from_left(f, "%2"); }
+		spans := NewArray(5, ui.Span,, temp);
+		spans[0] = .{text = slice(f, 0, c1), font = F(.Normal), size = 12};
+		spans[1] = .{text = L("cancel"), font = F(.Normal), size = 12, color = T("--text-link")};
+		spans[2] = .{text = slice(f, c1 + 2, c2 - c1 - 2), font = F(.Normal), size = 12};
+		spans[3] = .{text = L("save"), font = F(.Normal), size = 12, color = T("--text-link")};
+		spans[4] = .{text = slice(f, c2 + 2, f.count - c2 - 2), font = F(.Normal), size = 12};
 		ui.set_spans(h, spans);
 		if !app.ui.overlay_under_mouse {
 			over := ui.span_at(h.prev_layout, app.ui.mouse);
@@ -400,7 +405,7 @@ command_used_line :: (m: *dc.Message) {
 	n.flags |= .Clickable;
 	if ui.signal(n).clicked open_profile(m.command_user, n.rect);
 	spacer(.X, 4);
-	label("used", .Normal, 14, T("--text-muted"), 18);
+	label(L("used"), .Normal, 14, T("--text-muted"), 18);
 	spacer(.X, 4);
 	if m.command_name label(ifx m.kind == 23 then m.command_name else tprint("/%", m.command_name), .Medium, 14, T("--text-link"), 18);
 	else label(L("a command"), .Normal, 14, T("--text-muted"), 18);
@@ -453,7 +458,7 @@ reply_preview :: (m: *dc.Message) {
 		nb.semantic_size[ui.Axis.X] = ui.text_size();
 		spacer(.X, 4);
 		content := first_line(shown_text(ref.id, ref.channel_id, ref.content));
-		if content == "" && ref.attachments content = "Click to see attachment";
+		if content == "" && ref.attachments content = L("Click to see attachment");
 		// Last frame's row width; the avatar, name and spacers are fixed, so the rest is the content's.
 		avail := r.rect.x1 - r.rect.x0 - 16 - 4 - ui.layout_text(F(.Medium), 14, shown, -1).width - 4;
 		if r.rect.x1 > r.rect.x0 content = ellipsize(content, .Normal, 14, max(avail, 0));
@@ -579,32 +584,32 @@ message_menu :: () {
 	// official (MessageContextMenu): with text selected, "Copy" heads the menu and the quick reactions go
 	sel := ui.has_selection();
 	// a right-clicked link: its native items first (the client's copy-native-link / open-native-link)
-	if ma.menu_link array_add(*items, .{label = "Copy Link", icon = "link"}, .{label = "Open Link", icon = "window-launch"});
-	if sel array_add(*items, .{label = "Copy", icon = "copy", sep = ma.menu_link != ""});
+	if ma.menu_link array_add(*items, .{label = "Copy Link", icon = "link"}, .{label = "Open Link", icon = "window-launch"}); // i18n
+	if sel array_add(*items, .{label = "Copy", icon = "copy", sep = ma.menu_link != ""}); // i18n
 	reacts := can_add_reactions(m);
-	if reacts array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel || ma.menu_link != ""});
-	if m.reactions array_add(*items, .{label = "View Reactions", icon = "reaction", sep = !reacts && (sel || ma.menu_link != "")});
+	if reacts array_add(*items, .{label = "Add Reaction", icon = "reaction", sub = true, sep = sel || ma.menu_link != ""}); // i18n
+	if m.reactions array_add(*items, .{label = "View Reactions", icon = "reaction", sep = !reacts && (sel || ma.menu_link != "")}); // i18n
 	// a card outside the chat (search, pins) has no inline editor or composer to reply from
 	in_chat := m != ma.loose;
-	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true});
-	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own});
-	if can_forward(m) array_add(*items, .{label = "Forward", icon = "arrow-angle-right-up", sep = !in_chat});
-	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"});
-	if can_publish(m) array_add(*items, .{label = "Publish", icon = "announcements"});
-	if m.poll && m.author_id == s.me && !m.poll.finalized array_add(*items, .{label = "End Poll Now", icon = "clock"});
+	if in_chat && can_edit(m) array_add(*items, .{label = "Edit Message", icon = "pencil", sep = true}); // i18n
+	if in_chat array_add(*items, .{label = "Reply", icon = "arrow-angle-left-up", sep = !own}); // i18n
+	if can_forward(m) array_add(*items, .{label = "Forward", icon = "arrow-angle-right-up", sep = !in_chat}); // i18n
+	if in_chat && can_thread_from(m) array_add(*items, .{label = "Create Thread", icon = "thread"}); // i18n
+	if can_publish(m) array_add(*items, .{label = "Publish", icon = "announcements"}); // i18n
+	if m.poll && m.author_id == s.me && !m.poll.finalized array_add(*items, .{label = "End Poll Now", icon = "clock"}); // i18n
 	// official group order: Copy Text, Pin / Unpin Message, Apps, Mark Unread, Copy Message Link
-	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true});
-	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"});
-	array_add(*items, .{label = "Mark Unread", icon = "chat-mark-unread"}, .{label = "Copy Message Link", icon = "link"});
-	if m.content array_add(*items, .{label = "Speak Message", icon = "voice-normal"});
+	array_add(*items, .{label = "Copy Text", icon = "copy", sep = true}); // i18n
+	if dc.can_pin_message(s, m) array_add(*items, .{label = ifx m.pinned then "Unpin Message" else "Pin Message", icon = "pin"}); // i18n
+	array_add(*items, .{label = "Mark Unread", icon = "chat-mark-unread"}, .{label = "Copy Message Link", icon = "link"}); // i18n
+	if m.content array_add(*items, .{label = "Speak Message", icon = "voice-normal"}); // i18n
 	// MessageContextMenu's last group: Remove All Reactions (MANAGE_MESSAGES in a server channel), then Delete
 	ch := dc.channel_get(s, m.channel_id);
 	remove_all := m.reactions && ch && ch.guild_id && (dc.channel_permissions(s, ch.id) & dc.PERM_MANAGE_MESSAGES);
-	if remove_all array_add(*items, .{label = "Remove Reactions", icon = "reaction", danger = true, sub = true, sep = true}, .{label = "Remove All Reactions", icon = "reaction"});
-	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = !remove_all});
+	if remove_all array_add(*items, .{label = "Remove Reactions", icon = "reaction", danger = true, sub = true, sep = true}, .{label = "Remove All Reactions", icon = "reaction"}); // i18n
+	if can_manage_message(m) array_add(*items, .{label = "Delete Message", icon = "trash", danger = true, sep = !remove_all}); // i18n
 	// Discord's in-app report flow is uncaptured: Report Message copies the link and opens Discord's report form
-	if !own && !on_hosted() array_add(*items, .{label = "Report Message", icon = "flag", danger = true, sep = !remove_all && !can_manage_message(m)});
-	if s.settings.developer_mode array_add(*items, .{label = "Copy Message ID", icon = "id", sep = true});
+	if !own && !on_hosted() array_add(*items, .{label = "Report Message", icon = "flag", danger = true, sep = !remove_all && !can_manage_message(m)}); // i18n
+	if s.settings.developer_mode array_add(*items, .{label = "Copy Message ID", icon = "id", sep = true}); // i18n
 	quick := ifx sel || !reacts then .[] else quick_reactions();
 	// official: 222 wide, 8px padding, 44px quick-reaction squares, 36px rows, 17px dividers
 	h := 2 * MENU_PAD + 2 + cast(float32) items.count * MENU_ROW_H + (ifx quick then MENU_QUICK + 8 else 0);
@@ -682,7 +687,7 @@ message_menu :: () {
 					if sig.hovering { c = ifx it_.danger then ui.Color.{1, 1, 1, 1} else T("--interactive-text-active"); }
 					icon("ic", it_.icon, 20, c);
 					spacer(.X, 8);
-					label(it_.label, .Medium, 14, c, 18);
+					label(tr(it_.label), .Medium, 14, c, 18);
 					filler(.X);
 					if it_.sub icon("chev", "chevron-small-right", 16, c);
 					spacer(.X, 8);
@@ -723,7 +728,7 @@ message_menu :: () {
 					clipboard_set(channel_link(ifx ch then ch.guild_id else 0, m.channel_id, m.id));
 				case "Speak Message";
 					// the client's speakMessage: "<author> said <text>"
-					if !platform.is_headless() platform.speak(tprint("% said %", author_name(m), shown_text(m.id, m.channel_id, m.content)));
+					if !platform.is_headless() platform.speak(tprint(L("%1 said %2"), author_name(m), shown_text(m.id, m.channel_id, m.content)));
 				case "Report Message";
 					ch := dc.channel_get(s, m.channel_id);
 					clipboard_set(channel_link(ifx ch then ch.guild_id else 0, m.channel_id, m.id));
@@ -899,17 +904,17 @@ confirm_modal :: () {
 		ma.confirming = 0;
 		return;
 	}
-	title, question, tip, ok := "Delete Message", "Are you sure you want to delete this message?", "delete message", "Delete";
+	title, question, tip, ok := L("Delete Message"), L("Are you sure you want to delete this message?"), L("delete message"), L("Delete");
 	if ma.confirm == .Pin {
 		ch := dc.channel_get(store(), m.channel_id);
-		title, tip, ok = "Pin It. Pin It Good.", "", "Oh yeah. Pin it";
-		question = ifx ch && ch.guild_id then tprint("Hey, just double checking that you want to pin this message to #% for posterity and greatness?", ch.name) else "Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?";
+		title, tip, ok = L("Pin It. Pin It Good."), "", L("Oh yeah. Pin it");
+		question = ifx ch && ch.guild_id then tprint(L("Hey, just double checking that you want to pin this message to #% for posterity and greatness?"), ch.name) else L("Hey, just double checking that you want to pin this message to the current channel for posterity and greatness?");
 	} else if ma.confirm == .Remove_Reactions {
-		title, question, tip, ok = "Remove All Reactions", "Are you sure you want to remove all the reactions on this message?", "", "Remove";
+		title, question, tip, ok = L("Remove All Reactions"), L("Are you sure you want to remove all the reactions on this message?"), "", L("Remove");
 	} else if ma.confirm == .Remove_Emoji_Reactions {
-		title, question, tip, ok = "Remove Reactions for Emoji", "Are you sure you want to remove all of the reactions for this emoji from this message?", "", "Remove";
+		title, question, tip, ok = L("Remove Reactions for Emoji"), L("Are you sure you want to remove all of the reactions for this emoji from this message?"), "", L("Remove");
 	} else if ma.confirm == .Remove_Embeds {
-		title, question, tip, ok = "Remove Embeds", "Are you sure you want to remove all embeds on this message? This will remove them for everyone.", "remove embeds", "Remove All Embeds";
+		title, question, tip, ok = L("Remove Embeds"), L("Are you sure you want to remove all embeds on this message? This will remove them for everyone."), L("remove embeds"), L("Remove All Embeds");
 	}
 	scrim := ui.box("del_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
@@ -1018,11 +1023,7 @@ confirm_modal :: () {
 				body.semantic_size = .[ui.pct(1), ui.text_size()];
 				body.style.line_height = 16;
 				body.style.text_color = T("--text-default");
-				spans := NewArray(3, ui.Span,, temp);
-				spans[0] = .{text = "You can hold down shift when clicking ", font = F(.Normal), size = 14};
-				spans[1] = .{text = tip, font = F(.Bold), size = 14};
-				spans[2] = .{text = " to bypass this confirmation entirely.", font = F(.Normal), size = 14};
-				ui.set_spans(body, spans);
+				ui.set_spans(body, sentence_spans(L("You can hold down shift when clicking % to bypass this confirmation entirely."), .{font = F(.Normal), size = 14}, .{text = tip, font = F(.Bold), size = 14}));
 			}
 			spacer(.X, PAD + 1);
 		}

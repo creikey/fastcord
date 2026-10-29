@@ -246,9 +246,9 @@ Tile :: struct {
 gif_front_page :: (list: *ui.Box, view: ui.Rect, cols: int, col_w: float32) {
 	tiles: [..]Tile;
 	tiles.allocator = temp;
-	if frecency.favorite_gifs.count > 0 array_add(*tiles, .{"Favorites", gif_render_url(frecency.favorite_gifs[0].src, ""), "star", .Favorites});
+	if frecency.favorite_gifs.count > 0 array_add(*tiles, .{L("Favorites"), gif_render_url(frecency.favorite_gifs[0].src, ""), "star", .Favorites});
 	if gv.trending_preview.src != "" || gv.trending_preview.gif_src != "" {
-		array_add(*tiles, .{"Trending GIFs", gif_render_url(gv.trending_preview.src, gv.trending_preview.gif_src), "analytics", .Trending});
+		array_add(*tiles, .{L("Trending GIFs"), gif_render_url(gv.trending_preview.src, gv.trending_preview.gif_src), "analytics", .Trending});
 	}
 	for gv.categories array_add(*tiles, .{it.name, gif_render_url(it.src, ""), "", .Category});
 	rows := (tiles.count + cols - 1) / cols;

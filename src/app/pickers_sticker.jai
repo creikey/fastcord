@@ -196,7 +196,7 @@ build_sections :: (ignore_query := false) -> []St_Section {
 			p := table_find_pointer(*all, it);
 			if p array_add(*items, p.*);
 		}
-		if items.count > 0 array_add(*secs, .{key = 2, title = "Favorites", icon = "star", items = items});
+		if items.count > 0 array_add(*secs, .{key = 2, title = L("Favorites"), icon = "star", items = items});
 	}
 	{
 		frequent: [..]Pk_Sticker;
@@ -207,7 +207,7 @@ build_sections :: (ignore_query := false) -> []St_Section {
 			p := table_find_pointer(*all, id);
 			if p array_add(*frequent, p.*);
 		}
-		if frequent.count > 0 array_add(*secs, .{key = 3, title = "Frequently Used", icon = "clock", items = frequent});
+		if frequent.count > 0 array_add(*secs, .{key = 3, title = L("Frequently Used"), icon = "clock", items = frequent});
 	}
 	for gid: guilds {
 		g := dc.guild_get(s, gid);

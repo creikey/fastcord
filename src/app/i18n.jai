@@ -20,7 +20,8 @@ Lp :: inline ($one: string, $other: string, n: s64) -> string {
 	return ifx n == 1 then one else other;
 }
 
-// tr: L for a string known only at run time (a table's names); a binary search, so not for long lists.
+// tr: L for a string known only at run time, such as a table's names (mark the table's line "// i18n" so
+// tools/i18n.py extracts it); a binary search, so not for long lists.
 tr :: (s: string) -> string {
 	i := key_index(s);
 	return ifx i >= 0 && i18n.table.count && i18n.table[i] then i18n.table[i] else s;

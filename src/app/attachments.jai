@@ -117,8 +117,8 @@ channel_upload_limit :: (channel_id: dc.Snowflake) -> s64 {
 
 // "Max file size is 10 MB please."
 limit_text :: (limit: s64) -> string {
-	if limit % MB == 0 return tprint("Max file size is % MB please.", limit / MB);
-	return tprint("Max file size is % MB please.", formatFloat(cast(float64) limit / MB, trailing_width = 2, zero_removal = .NO));
+	if limit % MB == 0 return tprint(L("Max file size is % MB please."), limit / MB);
+	return tprint(L("Max file size is % MB please."), formatFloat(cast(float64) limit / MB, trailing_width = 2, zero_removal = .NO));
 }
 
 // Would adding n files go over the cap? (the client rejects the whole batch)
@@ -733,11 +733,11 @@ attachments_overlays :: () {
 		title, line: string;
 		if att.notice == {
 		case .Too_Large;
-			title = "Your files are too powerful";
+			title = L("Your files are too powerful");
 			line = limit_text(channel_upload_limit(app.view.channel));
 		case .Too_Many;
-			title = "Too many uploads!";
-			line = tprint("You can only upload % files at a time!", MAX_ATTACHMENTS);
+			title = L("Too many uploads!");
+			line = tprint(L("You can only upload % files at a time!"), MAX_ATTACHMENTS);
 		}
 		if upload_card_overlay("att_notice", title, line, T("--status-danger"), "file-warning", true) att.notice = .None;
 		for * e: app.ui.events {
@@ -1008,9 +1008,9 @@ staged_card :: (channel_id: dc.Snowflake, u: *Staged) -> bool {
 			danger: bool;
 		}
 		btns := Btn.[
-			.{"spoiler", ifx u.spoiler then "eye-slash" else "eye", ifx u.spoiler then "Remove Spoiler" else "Spoiler Attachment", false},
-			.{"modify", "pencil", "Modify Attachment", false},
-			.{"remove", "trash", "Remove Attachment", true}
+			.{"spoiler", ifx u.spoiler then "eye-slash" else "eye", ifx u.spoiler then L("Remove Spoiler") else L("Spoiler Attachment"), false},
+			.{"modify", "pencil", L("Modify Attachment"), false},
+			.{"remove", "trash", L("Remove Attachment"), true}
 		];
 		for bt: btns {
 			b := ui.box(bt.id, .Clickable | .Draw_Background | .Hot_Animation);

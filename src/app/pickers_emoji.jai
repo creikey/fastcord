@@ -418,7 +418,7 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 			item, ok := key_item(it, *by_id, here, reach);
 			if ok array_add(*items, item);
 		}
-		if items.count > 0 array_add(*secs, .{kind = .Favorites, key = 2, title = "Favorites", icon = "star", items = items});
+		if items.count > 0 array_add(*secs, .{kind = .Favorites, key = 2, title = L("Favorites"), icon = "star", items = items});
 	}
 	{
 		reaction := pk.mode == .Reaction;
@@ -437,7 +437,7 @@ build_sections :: (ignore_query := false) -> []Em_Section {
 				table_set(*seen, k, true);
 			}
 		}
-		if items.count > 0 array_add(*secs, .{kind = .Recent, key = 3, title = "Frequently Used", icon = "clock", items = items});
+		if items.count > 0 array_add(*secs, .{kind = .Recent, key = 3, title = L("Frequently Used"), icon = "clock", items = items});
 	}
 	for gid: emoji_guilds(current_guild()) {
 		g := dc.guild_get(s, gid);

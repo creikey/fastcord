@@ -106,7 +106,7 @@ group_dm_overlay :: () {
 		{ ui.parent(sub); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
 			left := GDM_MAX_OTHERS - others;
-			msg := ifx left == 1 then "You can add 1 more friend." else tprint("You can add % more friends.", left);
+			msg := tprint(Lp("You can add % more friend.", "You can add % more friends.", left), left);
 			label(msg, .Normal, 12, ifx left <= 0 then T("--text-feedback-critical") else T("--text-muted"), 16);
 		}
 		spacer(.Y, 16);
@@ -144,7 +144,7 @@ group_dm_overlay :: () {
 		br.semantic_size = .[ui.pct(1), ui.px(GDM_BUTTON_H)];
 		{ ui.parent(br); defer ui.pop_parent();
 			spacer(.X, GDM_PAD);
-			text := ifx group then "Add to Group DM" else ifx others >= 2 then "Create Group DM" else "Create DM";
+			text := ifx group then L("Add to Group DM") else ifx others >= 2 then L("Create Group DM") else L("Create DM");
 			btn := ui.box(tprint("%##create", text), .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			btn.semantic_size = .[ui.fill(), ui.px(GDM_BUTTON_H)];
 			btn.style.radius = all4(8);
@@ -273,7 +273,7 @@ gdm_search_row :: () {
 			f.text = text;
 			f.style.text_color = T("--text-default");
 			if text == "" {
-				f.text = ifx gdm.selected.count == 0 then "Type the username of a friend" else "";
+				f.text = ifx gdm.selected.count == 0 then L("Type the username of a friend") else "";
 				f.style.text_color = T("--input-placeholder-text-default");
 			}
 			app.ui.focus = f.key;

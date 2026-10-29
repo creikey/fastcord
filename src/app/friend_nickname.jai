@@ -20,7 +20,7 @@ author_name :: (m: *dc.New_Message, unknown := "Unknown") -> string {
 friend_nick_menu_item :: (uid: dc.Snowflake) -> string {
 	r := table_find_pointer(*store().relationships, uid);
 	if !r || r.kind != .Friend { return ""; }
-	return ifx r.nickname != "" then "Edit Friend Nickname" else "Add Friend Nickname";
+	return ifx r.nickname != "" then "Edit Friend Nickname" else "Add Friend Nickname"; // i18n: an id, shown through tr()
 }
 
 // "Change Nickname" in a guild's user menu: our own needs CHANGE_NICKNAME, someone
@@ -30,7 +30,7 @@ server_nick_menu_item :: (uid: dc.Snowflake) -> string {
 	// without the member's roles the hierarchy is unknown: only the owner may then
 	g := dc.guild_get(store(), app.view.guild);
 	if dc.member_get(store(), app.view.guild, uid) == null && (g == null || g.owner_id != store().me) { return ""; }
-	return "Change Nickname";
+	return "Change Nickname"; // i18n: an id, shown through tr()
 }
 
 // One dialog for both: guild == 0 edits the friend nickname, else the server nickname.

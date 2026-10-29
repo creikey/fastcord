@@ -201,12 +201,12 @@ search_suggestions :: () {
 	}
 	items: [..]Item;
 	items.allocator = temp;
-	title := "Search Options";
+	title := L("Search Options");
 	s := store();
 	if begins_with(last, "from:") || begins_with(last, "mentions:") {
 		prefix := ifx begins_with(last, "from:") then "from:" else "mentions:";
 		q := to_lower_copy(advance(last, prefix.count),, temp);
-		title = ifx prefix == "from:" then "From User" else "Mentions User";
+		title = ifx prefix == "from:" then L("From User") else L("Mentions User");
 		gm := ifx ch.guild_id != 0 then table_find_pointer(*s.members, ch.guild_id) else null;
 		n := 0;
 		for * u, uid: s.users {
@@ -219,12 +219,12 @@ search_suggestions :: () {
 			n += 1;
 		}
 	} else if begins_with(last, "has:") {
-		title = "Message Contains";
+		title = L("Message Contains");
 		for h: string.["link", "embed", "poll", "file", "video", "image", "sound", "sticker", "forward"] {
 			if begins_with(h, advance(last, 4)) { array_add(*items, .{h, "", tprint("has:% ", h)}); }
 		}
 	} else if begins_with(last, "in:") {
-		title = "In Channel";
+		title = L("In Channel");
 		q := to_lower_copy(advance(last, 3),, temp);
 		if ch.guild_id != 0 {
 			n := 0;
@@ -238,14 +238,14 @@ search_suggestions :: () {
 			}
 		}
 	} else {
-		array_add(*items, .{"from:", "user", "from:"});
-		array_add(*items, .{"mentions:", "user", "mentions:"});
-		array_add(*items, .{"has:", "link, embed or file", "has:"});
-		array_add(*items, .{"in:", "channel", "in:"});
-		array_add(*items, .{"pinned:", "true or false", "pinned:true "});
-		array_add(*items, .{"before:", "specific date", "before:"});
-		array_add(*items, .{"during:", "specific date", "during:"});
-		array_add(*items, .{"after:", "specific date", "after:"});
+		array_add(*items, .{"from:", L("user"), "from:"});
+		array_add(*items, .{"mentions:", L("user"), "mentions:"});
+		array_add(*items, .{"has:", L("link, embed or file"), "has:"});
+		array_add(*items, .{"in:", L("channel"), "in:"});
+		array_add(*items, .{"pinned:", L("true or false"), "pinned:true "});
+		array_add(*items, .{"before:", L("specific date"), "before:"});
+		array_add(*items, .{"during:", L("specific date"), "during:"});
+		array_add(*items, .{"after:", L("specific date"), "after:"});
 	}
 	history := last == "" && text == "" && search_history.count > 0; // the client's History section under the options
 	if items.count == 0 { return; }
@@ -360,11 +360,11 @@ search_panel :: () {
 		hdr.semantic_size = .[ui.pct(1), ui.px(48)];
 		{ ui.parent(hdr); defer ui.pop_parent();
 			spacer(.X, 16);
-			txt := ifx search.loading then "Searching..." else ifx search.total == 1 then "1 Result" else tprint("% Results", search.total);
+			txt := ifx search.loading then L("Searching...") else tprint(Lp("% Result", "% Results", search.total), search.total);
 			label(txt, .Semibold, 16, T("--text-strong"), 20);
 			filler(.X);
 			// Newest / Oldest / Most Relevant: the search again in that order
-			for name, k: string.["Newest", "Oldest", "Relevant"] {
+			for name, k: string.[L("Newest"), L("Oldest"), L("Relevant")] {
 				sel := cast(int) search.sort == k;
 				b := ui.box(tprint("%##sort%", name, k), .Clickable | .Draw_Text | .Hot_Animation);
 				b.semantic_size = .[ui.text_size(4), ui.px(20)];

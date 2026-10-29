@@ -30,7 +30,7 @@ req_error :: (key: string) -> code: int, captcha: bool {
 }
 
 // Discord asked for a captcha (hCaptcha, bound to discord.com): fastcord has no webview to show it.
-CAPTCHA_TEXT :: "Discord asked for a captcha, which fastcord can't show. Try on discord.com.";
+CAPTCHA_TEXT :: "Discord asked for a captcha, which fastcord can't show. Try on discord.com."; // i18n: shown through tr()
 
 // Forget a finished request (the control shows its normal state again).
 req_clear :: (key: string) {
@@ -211,5 +211,5 @@ req_find :: (key: string) -> *Req {
 }
 
 req_toast_show :: (status: int, captcha := false) {
-	toast_show(ifx captcha then CAPTCHA_TEXT else ifx status == 429 then L("You're doing that too fast. Try again in a moment.") else L("Something went wrong. Try again."), false);
+	toast_show(ifx captcha then tr(CAPTCHA_TEXT) else ifx status == 429 then L("You're doing that too fast. Try again in a moment.") else L("Something went wrong. Try again."), false);
 }

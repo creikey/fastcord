@@ -31,15 +31,15 @@ add_server_open :: () { add_server_step(.Choose); }
 // The client's invite accept errors by code (its d() beside the join failure titles).
 invite_error_text :: (code: int) -> string {
 	if code == {
-	case 30001; return "You must leave a server first to join.";
-	case 30019; return "This server is currently full. Please try again later.";
-	case 50095; return "This server is not available in your location.";
-	case 40069; return "Invites are currently paused for this server. Please try again later.";
-	case 20024; return "You can't join this server because of your age group.";
-	case 20086; return "Confirm your age to join this server.";
-	case 40007; return "You are banned from this server.";
+	case 30001; return L("You must leave a server first to join.");
+	case 30019; return L("This server is currently full. Please try again later.");
+	case 50095; return L("This server is not available in your location.");
+	case 40069; return L("Invites are currently paused for this server. Please try again later.");
+	case 20024; return L("You can't join this server because of your age group.");
+	case 20086; return L("Confirm your age to join this server.");
+	case 40007; return L("You are banned from this server.");
 	}
-	return "Unable to accept invite";
+	return L("Unable to accept invite");
 }
 
 // add_server_join_with opens Join a Server filled in with an invite, for the user to confirm.
@@ -90,7 +90,7 @@ add_server_frame :: () {
 		} else if j.res.status == 0 {
 			set_err(L("Couldn't reach Discord. Try again."));
 		} else if j.res.captcha {
-			set_err(CAPTCHA_TEXT);
+			set_err(tr(CAPTCHA_TEXT));
 		} else if j.res.error_code == 10006 || j.res.status == 404 {
 			set_err(L("The invite is invalid or has expired."));
 		} else {
@@ -256,8 +256,7 @@ step_choose :: () {
 		add_server_step(.Create);
 		s := store();
 		u := dc.user_get(s, s.me);
-		name := ifx u then u.username else "My";
-		ui.editor_set_text(*asv.name_ed, tprint("%'s server", name));
+		ui.editor_set_text(*asv.name_ed, ifx u then tprint(L("%'s server"), u.username) else L("My server"));
 		set_err("");
 	}
 	{ ui.parent(own); defer ui.pop_parent();

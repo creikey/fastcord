@@ -94,7 +94,7 @@ profile_full_avatar_hook :: (av: *ui.Box, uid: dc.Snowflake) {
 			shade.semantic_size = av.semantic_size;
 			shade.style.radius = av.style.radius;
 			shade.style.bg = .{0, 0, 0, 0.5};
-			shade.text = "View Profile";
+			shade.text = L("View Profile");
 			shade.style.font = F(.Bold);
 			shade.style.font_size = 10;
 			shade.style.text_align = .Center;
@@ -350,15 +350,15 @@ profile_tabs :: (uid: dc.Snowflake, prof: Pf_Profile) {
 		spacer(.X, PF_PAD + 8);
 		for t: enum_values_as_enum(Pf_Tab) {
 			if uid == store().me && t != .About { continue; }
-			text := "About Me";
+			text := L("About Me");
 			if t == {
 			case .About;
 			case .Mutual_Servers;
 				n := prof.mutual_guilds.count;
-				text = ifx n == 1 then "1 Mutual Server" else (ifx n > 0 then tprint("% Mutual Servers", n) else "Mutual Servers");
+				text = ifx n > 0 then tprint(Lp("% Mutual Server", "% Mutual Servers", n), n) else L("Mutual Servers");
 			case .Mutual_Friends;
 				n := prof.mutual_count;
-				text = ifx n == 1 then "1 Mutual Friend" else (ifx n > 0 then tprint("% Mutual Friends", n) else "Mutual Friends");
+				text = ifx n > 0 then tprint(Lp("% Mutual Friend", "% Mutual Friends", n), n) else L("Mutual Friends");
 			}
 			sel := pf.tab == t;
 			b := ui.box(tprint("%##tab%", text, cast(int) t), .Clickable);
@@ -557,7 +557,7 @@ empty_state :: (text: string) {
 profile_mutual_servers :: (prof: Pf_Profile) {
 	spacer(.Y, 8);
 	if prof.mutual_guilds.count == 0 {
-		empty_state(ifx prof.loaded || app.client == null then "No servers in common" else "Loading…");
+		empty_state(ifx prof.loaded || app.client == null then L("No servers in common") else L("Loading…"));
 		return;
 	}
 	for mg: prof.mutual_guilds {
@@ -596,7 +596,7 @@ profile_mutual_servers :: (prof: Pf_Profile) {
 profile_mutual_friends :: (uid: dc.Snowflake, prof: Pf_Profile) {
 	spacer(.Y, 8);
 	if prof.friends.count == 0 {
-		empty_state(ifx prof.friends_done || app.client == null then "No friends in common" else "Loading…");
+		empty_state(ifx prof.friends_done || app.client == null then L("No friends in common") else L("Loading…"));
 		return;
 	}
 	for f: prof.friends {
@@ -655,41 +655,41 @@ user_context_menu :: () {
 	items: [..]string;
 	items.allocator = temp;
 	dm := dc.channel_get(s, pf.menu_dm);
-	if dm && dc.channel_unread(s, dm.id) { array_add(*items, "Mark As Read"); }
-	array_add(*items, "Profile");
+	if dm && dc.channel_unread(s, dm.id) { array_add(*items, "Mark As Read"); } // i18n
+	array_add(*items, "Profile"); // i18n
 	ch := dc.channel_get(s, app.view.channel);
-	if ch && !dm && !composer_blocked(ch) { array_add(*items, "Mention"); }
+	if ch && !dm && !composer_blocked(ch) { array_add(*items, "Mention"); } // i18n
 	rel := table_find_pointer(*s.relationships, uid);
 	kind := ifx rel then rel.kind else .None;
-	if uid != s.me && !dm { array_add(*items, "Message"); }
+	if uid != s.me && !dm { array_add(*items, "Message"); } // i18n
 	if uid != s.me && !on_hosted() {
-		if kind != .Blocked { array_add(*items, "Call"); }
-		array_add(*items, "Add Note");
+		if kind != .Blocked { array_add(*items, "Call"); } // i18n
+		array_add(*items, "Add Note"); // i18n
 	}
 	fn := friend_nick_menu_item(uid);
 	if fn != "" { array_add(*items, fn); }
-	if dm { array_add(*items, "Close DM"); }
+	if dm { array_add(*items, "Close DM"); } // i18n
 	gdm_ch := dc.channel_get(s, app.view.channel);
-	if gdm_ch && gdm_ch.kind == .Group_DM && gdm_ch.owner_id == s.me && uid != s.me && array_find(gdm_ch.recipient_ids, uid) { array_add(*items, "Remove From Group"); }
+	if gdm_ch && gdm_ch.kind == .Group_DM && gdm_ch.owner_id == s.me && uid != s.me && array_find(gdm_ch.recipient_ids, uid) { array_add(*items, "Remove From Group"); } // i18n
 	if uid != s.me && !on_hosted() {
-		if kind == .None || kind == .Implicit { array_add(*items, "Add Friend"); }
-		if kind == .Friend { array_add(*items, "Remove Friend"); }
-		if kind == .Incoming_Request { array_add(*items, "Accept Friend Request", "Ignore Friend Request"); }
-		if kind == .Outgoing_Request { array_add(*items, "Cancel Friend Request"); }
-		if kind != .Blocked { array_add(*items, ifx rel && rel.ignored then "Unignore" else "Ignore"); }
-		array_add(*items, ifx kind == .Blocked then "Unblock" else "Block");
+		if kind == .None || kind == .Implicit { array_add(*items, "Add Friend"); } // i18n
+		if kind == .Friend { array_add(*items, "Remove Friend"); } // i18n
+		if kind == .Incoming_Request { array_add(*items, "Accept Friend Request", "Ignore Friend Request"); } // i18n
+		if kind == .Outgoing_Request { array_add(*items, "Cancel Friend Request"); } // i18n
+		if kind != .Blocked { array_add(*items, ifx rel && rel.ignored then "Unignore" else "Ignore"); } // i18n
+		array_add(*items, ifx kind == .Blocked then "Unblock" else "Block"); // i18n
 	}
 	sn := server_nick_menu_item(uid);
 	if sn != "" { array_add(*items, sn); }
 	if uid == s.me && on_hosted() {
-		array_add(*items, "Change Avatar");
+		array_add(*items, "Change Avatar"); // i18n
 		u := dc.user_get(s, uid);
-		if u && u.avatar { array_add(*items, "Remove Avatar"); }
+		if u && u.avatar { array_add(*items, "Remove Avatar"); } // i18n
 	}
 	moderation_menu_items(uid, *items);
-	if app.view.guild && dc.member_get(s, app.view.guild, uid) && roles_assignable(app.view.guild).count && (dc.guild_permissions(s, app.view.guild) & dc.PERM_MANAGE_ROLES) { array_add(*items, "Roles"); }
-	array_add(*items, "Copy Username");
-	if s.settings.developer_mode { array_add(*items, "Copy User ID"); }
+	if app.view.guild && dc.member_get(s, app.view.guild, uid) && roles_assignable(app.view.guild).count && (dc.guild_permissions(s, app.view.guild) & dc.PERM_MANAGE_ROLES) { array_add(*items, "Roles"); } // i18n
+	array_add(*items, "Copy Username"); // i18n
+	if s.settings.developer_mode { array_add(*items, "Copy User ID"); } // i18n
 	W :: cast(float32) 188;
 	H := cast(float32) items.count * 32 + 16;
 	p := pf.menu_pos;
@@ -723,7 +723,7 @@ user_context_menu :: () {
 			{ ui.parent(r); defer ui.pop_parent();
 				spacer(.X, 8);
 				danger := begins_with(it, "Kick ") || begins_with(it, "Ban ") || begins_with(it, "Timeout ");
-				label(it, .Medium, 14, ifx danger then T("--text-feedback-critical") else ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
+				label(tr(it), .Medium, 14, ifx danger then T("--text-feedback-critical") else ifx sig.hovering then T("--interactive-text-active") else T("--interactive-text-default"), 18);
 			}
 			if sig.clicked && moderation_menu_click(uid, it) {
 				pf.menu_user = 0;

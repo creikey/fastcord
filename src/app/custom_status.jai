@@ -13,7 +13,7 @@ cstatus: struct {
 CUSTOM_STATUS_MAX :: 128; // characters
 
 CLEAR_AFTER_CHOICES :: dc.Clear_After.[.Today, .Hours_4, .Hour_1, .Minutes_30, .Dont_Clear];
-CLEAR_AFTER_NAMES :: string.["Today", "4 hours", "1 hour", "30 minutes", "Don't clear"];
+CLEAR_AFTER_NAMES :: string.["Today", "4 hours", "1 hour", "30 minutes", "Don't clear"]; // i18n
 
 custom_status_open :: () {
 	st := *store().settings;
@@ -160,7 +160,9 @@ custom_status_modal :: () {
 		col := ui.box("sel");
 		col.semantic_size = .[ui.fill(), ui.px(40)];
 		{ ui.parent(col); defer ui.pop_parent();
-			pick := select_field("clearafter", CLEAR_AFTER_NAMES, cur);
+			names := NewArray(CLEAR_AFTER_NAMES.count, string,, temp); // read again by dropdown_list
+			for CLEAR_AFTER_NAMES names[it_index] = tr(it);
+			pick := select_field("clearafter", names, cur);
 			if pick >= 0 cstatus.clear_after = CLEAR_AFTER_CHOICES[pick];
 		}
 		spacer(.X, PAD);

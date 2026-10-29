@@ -40,7 +40,7 @@ language_page :: () {
 	}
 	spacer(.Y, 40);
 	set_heading(L("Time format"));
-	FORMATS :: string.["Auto", "12-hour", "24-hour"];
+	FORMATS := array_copy(string.[L("Auto"), L("12-hour"), L("24-hour")],, temp); // read again by dropdown_list after the page
 	h := select_field("hourcycle", FORMATS, cast(int) s.settings.hour_cycle);
 	if h >= 0 && h != cast(int) s.settings.hour_cycle {
 		if net_action() dc.set_hour_cycle(app.client, cast(dc.Hour_Cycle) h);
@@ -79,8 +79,8 @@ messaging_page :: () {
 	set_heading(L("Content Filters"));
 	set_para("cfhelp", L("Choose what happens to images and videos Discord detects as explicit."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 16);
-	FILTER :: string.["Show", "Blur", "Block"];
-	PLACES :: string.["Messages in servers", "Direct messages from friends", "Direct messages from others"];
+	FILTER := array_copy(string.[L("Show"), L("Blur"), L("Block")],, temp); // read again by dropdown_list after the page
+	PLACES := string.[L("Messages in servers"), L("Direct messages from friends"), L("Direct messages from others")];
 	for PLACES {
 		k := cast(u32) it_index + 1;
 		v, set := dc.settings_value(s, 6, 29, k); // explicit_content_settings: 1 guilds, 2 friend DMs, 3 other DMs
@@ -98,7 +98,7 @@ messaging_page :: () {
 	spacer(.Y, 4);
 	set_para("spamhelp", L("Discord can filter out some messages that contain spam. These messages go to your Spam inbox."), .Normal, 14, 18, T("--text-muted"));
 	spacer(.Y, 8);
-	SPAM :: string.["Filter direct messages from everyone", "Filter direct messages from non-friends", "Do not filter direct messages"];
+	SPAM := array_copy(string.[L("Filter direct messages from everyone"), L("Filter direct messages from non-friends"), L("Do not filter direct messages")],, temp); // read again by dropdown_list after the page
 	SPAM_V :: u64.[3, 2, 1]; // DmSpamFilterV2: FRIENDS_AND_NON_FRIENDS, NON_FRIENDS, DISABLED
 	sv, sset := dc.settings_value(s, 6, 27);
 	if !sset || sv == 0 sv = cast(u64) ifx s.settings.nsfw_blocked then 3 else 2; // DEFAULT_UNSET
@@ -163,7 +163,7 @@ people_list :: (id: string, blocked: bool) {
 			spacer(.X, 12);
 			nb := ui.box("nm");
 			nb.semantic_size = .[ui.fill(), ui.children()];
-			{ ui.parent(nb); defer ui.pop_parent(); label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20); }
+			{ ui.parent(nb); defer ui.pop_parent(); label(dc.user_name(s, uid, 0, L("Unknown")), .Semibold, 16, T("--text-strong"), 20); }
 			if set_button(ifx blocked then L("Unblock##unb") else L("Unignore##unb"), .Secondary, true, 32) {
 				if blocked rel_change(uid, .Remove, "User Settings");
 				else if net_action() dc.ignore_user(app.client, uid, false, "User Settings");
@@ -220,8 +220,8 @@ guild_privacy_modal :: () {
 			for field: u32.[3, 16] {
 				ids := dc.settings_ids(s, 8, field);
 				on := !array_find(ids, cast(u64) guild_privacy);
-				title := ifx field == 3 then "Direct Messages" else "Message Requests";
-				help := ifx field == 3 then "Allow direct messages from other members in this server." else "Messages from members you may not know go to Message Requests.";
+				title := ifx field == 3 then L("Direct Messages") else L("Message Requests");
+				help := ifx field == 3 then L("Allow direct messages from other members in this server.") else L("Messages from members you may not know go to Message Requests.");
 				if set_toggle_row(tprint("f%", field), title, help, on) {
 					list: [..]u64;
 					list.allocator = temp;
@@ -317,9 +317,9 @@ us_ready :: (req: US_Req) -> bool {
 }
 
 us_result_error :: (r: *dc.Feature_Result) -> string {
-	if r.status == 0 return "Couldn't reach Discord. Check your connection and try again.";
+	if r.status == 0 return L("Couldn't reach Discord. Check your connection and try again.");
 	e := dc.api_error_text(r.body);
-	return ifx e then e else tprint("Something went wrong (HTTP %).", r.status);
+	return ifx e then e else tprint(L("Something went wrong (HTTP %)."), r.status);
 }
 
 us_error_line :: () {
@@ -449,7 +449,7 @@ device_row :: (v: dc.V, index: int, current: bool) {
 		col.semantic_size = .[ui.fill(), ui.children()];
 		col.layout_axis = .Y;
 		{ ui.parent(col); defer ui.pop_parent();
-			head := ifx os then os else "Unknown";
+			head := ifx os then os else L("Unknown");
 			if plat head = tprint("%  •  %", head, plat);
 			label(head, .Semibold, 16, T("--text-strong"), 20);
 			parts: [..]string;
@@ -457,7 +457,7 @@ device_row :: (v: dc.V, index: int, current: bool) {
 			if loc array_add(*parts, loc);
 			if !current {
 				used := dc.iso_to_ms(dc.fstr(m, "approx_last_used_time"));
-				array_add(*parts, ifx wall_ms() - used < 3_600_000 then "less than an hour ago" else relative_time((used - wall_ms()) / 1000));
+				array_add(*parts, ifx wall_ms() - used < 3_600_000 then L("less than an hour ago") else relative_time((used - wall_ms()) / 1000));
 			}
 			label(join(..parts, separator = " · ",, temp), .Normal, 14, T("--text-muted"), 18);
 		}
@@ -504,7 +504,7 @@ chat_page :: () {
 	set_divider();
 	spacer(.Y, 24);
 	set_heading(L("Spoiler Content"));
-	SPOILERS :: string.["On click", "On servers I moderate", "Always"];
+	SPOILERS := array_copy(string.[L("On click"), L("On servers I moderate"), L("Always")],, temp); // read again by dropdown_list after the page
 	SPOILER_V :: string.["ON_CLICK", "IF_MODERATOR", "ALWAYS"];
 	f, ok := dc.settings_bytes(store(), 6, 4, 1);
 	cur := 0;
@@ -536,9 +536,9 @@ data_privacy_page :: () {
 	spacer(.Y, 12);
 	label(L("Share my full profile with"), .Medium, 16, T("--text-strong"), 20);
 	spacer(.Y, 8);
-	VIS :: string.["Friends & All Servers", "Friends & Small Servers Only", "Friends Only"];
+	VIS := array_copy(string.[L("Friends & All Servers"), L("Friends & Small Servers Only"), L("Friends Only")],, temp); // read again by dropdown_list after the page
 	VIS_V :: u64.[3, 2, 1]; // ProfileVisibility: FRIENDS_AND_ALL_GUILDS, FRIENDS_AND_SMALL_GUILDS, FRIENDS_ONLY
-	HELP :: string.["Your full profile is visible to friends and any server you join.", "Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version.", "Your full profile is visible to friends. Everyone else sees a limited version."];
+	HELP := string.[L("Your full profile is visible to friends and any server you join."), L("Your full profile is visible to friends and any server you join with 200 or fewer members. Everyone else sees a limited version."), L("Your full profile is visible to friends. Everyone else sees a limited version.")];
 	v, _ := dc.settings_value(s, 8, 32);
 	cur := 0; // unset: all servers
 	for VIS_V if it == v cur = it_index;

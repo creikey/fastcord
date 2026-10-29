@@ -2,6 +2,7 @@
 """UI strings (src/app/i18n.jai).
 
   python3 -I tools/i18n.py extract          rewrite src/app/lang/keys.txt from the L(...) / Lp(...) calls
+                                            and the literals on lines marked "// i18n" (tables read by tr)
   python3 -I tools/i18n.py check [--fix]    per language: missing, stale and malformed lines (--fix drops
                                             stale lines and sorts the file in key order)
   python3 -I tools/i18n.py missing <code>   the untranslated keys of one language, one per line
@@ -74,7 +75,13 @@ def scan():
         for f in files:
             if not f.endswith(".jai"):
                 continue
-            text = strip_comments(open(os.path.join(d, f), encoding="utf-8").read())
+            raw = open(os.path.join(d, f), encoding="utf-8").read()
+            text = strip_comments(raw)
+            for line in raw.split("\n"):  # a table of strings shown through tr(): its line says "// i18n"
+                if "// i18n" in line and f != "i18n.jai":
+                    for lit in re.findall(LIT, strip_comments(line)):
+                        if re.search(r"[A-Z]|\w[ .,!?…]", lit):  # not the ids and icon names beside them
+                            keys.add(jai_unescape(lit))
             for m in CALL.finditer(text):
                 a = jai_unescape(m.group(2))
                 if m.group(1) == "Lp":

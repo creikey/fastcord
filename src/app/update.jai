@@ -65,7 +65,7 @@ install_notice :: () {
 		r.style.bg_hot = with_alpha(WHITE, 0.1);
 		{ ui.parent(r); defer ui.pop_parent();
 			spacer(.X, 10);
-			label(b, .Medium, 14, WHITE, 18);
+			label(ifx b == "Install" then L("Install") else L("Not Now"), .Medium, 14, WHITE, 18);
 			spacer(.X, 10);
 		}
 		if !ui.signal(r).clicked continue;

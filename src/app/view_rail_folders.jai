@@ -263,7 +263,7 @@ rail_hosted_down :: (h: *Hosted_Server) {
 	if sig.clicked && h.retry_at h.retry_at = platform.time_now();
 	if sig.right_clicked fm.down, fm.down_pos = h, app.ui.mouse;
 	if !sig.hovering return;
-	why := ifx h.thread || !h.retry_at then "Connecting…" else ifx h.error then h.error else "Couldn't reach the server.";
+	why := ifx h.thread || !h.retry_at then L("Connecting…") else ifx h.error then h.error else L("Couldn't reach the server.");
 	ui.parent(ui.top_parent().last); defer ui.pop_parent();
 	tooltip_right(tprint("% · %", ifx h.title then h.title else h.inv.host, why));
 }

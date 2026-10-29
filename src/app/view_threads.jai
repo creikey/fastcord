@@ -265,7 +265,7 @@ forum_post_created :: (r: *dc.Feature_Result) {
 	app.ui.animating = true;
 	if !r.ok {
 		free(st.error);
-		st.error = copy_string(ifx dc.api_error_message(r.body) then dc.api_error_message(r.body) else "Something went wrong. Try again.");
+		st.error = copy_string(ifx dc.api_error_message(r.body) then dc.api_error_message(r.body) else L("Something went wrong. Try again."));
 		return;
 	}
 	id := dc.apply_created_thread(app.client, r.body);
@@ -496,11 +496,11 @@ forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
 // "5m ago" / "3h ago" / "2d ago" from a snowflake.
 relative_age :: (id: dc.Snowflake) -> string {
 	dt := (wall_ms() - dc.snowflake_time_ms(id)) / 1000;
-	if dt < 60 return "just now";
-	if dt < 3600 return tprint("%m ago", dt / 60);
-	if dt < 86400 return tprint("%h ago", dt / 3600);
-	if dt < 86400 * 30 return tprint("%d ago", dt / 86400);
-	return tprint("%mo ago", dt / (86400 * 30));
+	if dt < 60 return L("just now");
+	if dt < 3600 return tprint(L("%m ago"), dt / 60);
+	if dt < 86400 return tprint(L("%h ago"), dt / 3600);
+	if dt < 86400 * 30 return tprint(L("%d ago"), dt / 86400);
+	return tprint(L("%mo ago"), dt / (86400 * 30));
 }
 
 // Header prefix for threads: "parent ›" before the thread name.
