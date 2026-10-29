@@ -45,6 +45,9 @@ highlight_id: dc.Snowflake;
 highlight_until: float64;
 #scope_export
 
+search_history: [..]string; // recent searches, newest first (owned; settings.json keeps them)
+SEARCH_HISTORY_MAX :: 5;
+
 jump_to_message :: (channel_id: dc.Snowflake, message_id: dc.Snowflake) {
 	s := store();
 	ch := dc.channel_get(s, channel_id);
@@ -233,6 +236,7 @@ search_suggestions :: () {
 		array_add(*items, .{"in:", "channel", "in:"});
 		array_add(*items, .{"pinned:", "true or false", "pinned:true "});
 	}
+	history := last == "" && text == "" && search_history.count > 0; // the client's History section under the options
 	if items.count == 0 { return; }
 	r := search.box_rect;
 	W :: 320;
@@ -270,6 +274,41 @@ search_suggestions :: () {
 					spacer(.X, 6);
 					label(item.detail, .Normal, 14, T("--text-muted"), 18);
 				}
+			}
+		}
+		if history {
+			spacer(.Y, 8);
+			hr := row("histhdr");
+			hr.semantic_size = .[ui.pct(1), ui.px(24)];
+			run := "";
+			{ ui.parent(hr); defer ui.pop_parent();
+				label("History", .Semibold, 12, T("--text-muted"), 24);
+				filler(.X);
+				cl := ui.box("Clear##histclear", .Clickable | .Draw_Text);
+				cl.semantic_size = .[ui.text_size(), ui.px(24)];
+				cl.style.font = F(.Medium);
+				cl.style.font_size = 12;
+				cs := ui.signal(cl);
+				cl.style.text_color = ifx cs.hovering then T("--text-strong") else T("--text-muted");
+				cl.hover_cursor = .Pointer;
+				if cs.clicked { for search_history free(it); array_reset(*search_history); }
+			}
+			for q, i: search_history {
+				ir := row(tprint("h%", i), .Clickable | .Draw_Background | .Hot_Animation);
+				ir.semantic_size = .[ui.pct(1), ui.px(32)];
+				ir.style.radius = all4(4);
+				ir.style.bg_hot = T("--background-mod-subtle");
+				if ui.signal(ir).clicked run = q;
+				ui.parent(ir); defer ui.pop_parent();
+				spacer(.X, 8);
+				icon("ic", "clock", 16, T("--text-muted"));
+				spacer(.X, 8);
+				label(ellipsize(q, .Medium, 14, W - 60), .Medium, 14, T("--text-default"), 18);
+			}
+			if run {
+				q := copy_string(run,, temp);
+				ui.editor_set_text(*search.editor, q);
+				search_run(ch, q);
 			}
 		}
 	}
@@ -397,6 +436,10 @@ rect_has :: (r: ui.Rect, p: ui.Vec2) -> bool {return p.x >= r.x0 && p.x < r.x1 &
 
 search_run :: (ch: *dc.Channel, text: string) {
 	if text == "" { return; }
+	// the history: this search first, once
+	for search_history if it == text { free(it); remove it; }
+	array_insert_at(*search_history, copy_string(text), 0);
+	while search_history.count > SEARCH_HISTORY_MAX { free(pop(*search_history)); }
 	s := store();
 	array_reset(*search.results);
 	array_reset(*search.terms);

@@ -1,0 +1,17 @@
+# A search goes into the suggestions popout's History (shown while the box is empty); Clear empties it.
+wait 5
+click 1150 57
+wait 3
+type spoiler
+key enter
+wait 10
+click 1100 57
+wait 3
+key a cmd
+key backspace
+wait 5
+expect_visible "History"
+shot build/ui-search_history.png
+click_text "Clear"
+wait 5
+expect_not_visible "History"

@@ -59,6 +59,7 @@ Persisted :: struct {
 	voice: Persisted_Voice;
 	sounds: Persisted_Sounds;
 	nsfw_agreed: []string; // guild ids whose age-restricted channels you agreed to see
+	search_history: []string; // recent searches, newest first
 	last_channel: Table(string, string); // guild ("0" = home) -> channel
 	route_guild: string; // the open route, reopened at the next launch (start_guild / start_channel)
 	route_channel: string;
@@ -267,6 +268,7 @@ apply_persisted :: (p: *Persisted) {
 	if pw.width > 0 && pw.height > 0 platform.window_placement_restore(.{xx pw.x, xx pw.y, xx pw.width, xx pw.height, pw.maximized});
 	if p.sidebar_width > 0 app.view.sidebar_w = clamp(p.sidebar_width, SIDEBAR_MIN_W, SIDEBAR_MAX_W);
 	if p.member_list_width > 0 app.view.member_w = clamp(p.member_list_width, MEMBER_LIST_MIN_W, MEMBER_LIST_MAX_W);
+	for p.search_history if it_index < SEARCH_HISTORY_MAX array_add(*search_history, copy_string(it));
 	for p.nsfw_agreed {
 		n, ok := dc.parse_u64(it);
 		if ok table_set(*app.view.nsfw_agreed, cast(dc.Snowflake) n, true);
@@ -298,6 +300,7 @@ snapshot :: () -> string {
 	na: [..]string;
 	for _, id: app.view.nsfw_agreed array_add(*na, tprint("%", cast(u64) id));
 	p.nsfw_agreed = na;
+	p.search_history = search_history;
 	for c, g: app.view.last_channel if c != 0 table_set(*p.last_channel, tprint("%", cast(u64) g), tprint("%", cast(u64) c));
 	if app.view.channel p.route_guild, p.route_channel = tprint("%", cast(u64) app.view.guild), tprint("%", cast(u64) app.view.channel);
 	ws := platform.window_size();
