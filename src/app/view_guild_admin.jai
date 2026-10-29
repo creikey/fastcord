@@ -475,11 +475,17 @@ create_channel_modal :: () {
 			icon, title: string;
 			desc: string;
 		}
-		opts := Opt.[
+		ALL :: Opt.[
 			.{.Guild_Text, "hashmark", "Text", "Send messages, images, GIFs, emoji, opinions, and puns"},
 			.{.Guild_Voice, "voice-normal", "Voice", "Hang out together with voice, video, and screen share"},
-			.{.Guild_Forum, "forum", "Forum", "Create a space for organized discussions"}
+			.{.Guild_Forum, "forum", "Forum", "Create a space for organized discussions"},
+			.{.Guild_Announcement, "announcements", "Announcement", "Important updates for people in and out of the server"},
+			.{.Guild_Stage_Voice, "stage", "Stage", "Host events with an audience"}
 		];
+		// Announcement and Stage need a Community server, as in the client
+		g := dc.guild_get(store(), adm.guild);
+		community := g && array_find(g.features, "COMMUNITY");
+		opts := array_view(ALL, 0, ifx community then ALL.count else 3);
 		for o: opts {
 			selected := adm.kind == o.kind;
 			r := row(tprint("type_%", o.title), .Clickable);
@@ -520,7 +526,14 @@ create_channel_modal :: () {
 		label(ifx is_cat then "Category Name" else "Channel Name", .Semibold, 16, T("--text-strong"), 20);
 	}
 	spacer(.Y, 8);
-	icon_name := ifx adm.kind == .Guild_Voice then "voice-normal" else ifx adm.kind == .Guild_Forum then "forum" else ifx is_cat then "" else "hashmark";
+	icon_name := "hashmark";
+	if adm.kind == {
+	case .Guild_Voice; icon_name = "voice-normal";
+	case .Guild_Forum; icon_name = "forum";
+	case .Guild_Announcement; icon_name = "announcements";
+	case .Guild_Stage_Voice; icon_name = "stage";
+	case .Guild_Category; icon_name = "";
+	}
 	res := modal_field("name", *adm.name, ifx is_cat then "New Category" else "new-channel", icon_name);
 	if res == .Changed normalize_name_field(adm.kind);
 	if res == .Submit submit = true;

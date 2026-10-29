@@ -634,6 +634,12 @@ Fixture: `traffic/account_edits.jsonl` windows `logout` and `login_submit`
 | Create Event wizard: with no voice channel in the guild, the Voice Channel choice is hidden and Somewhere Else is preselected. The official client shows both choices and preselects neither | fastcord-only | `Where is your event?` | `view_events.jai` `wizard_open`, `step_location` |
 | Silent messages: a message with flag 4096 (SUPPRESS_NOTIFICATIONS) shows a crossed-out bell after its header timestamp, tooltip "Suppress Notifications". Size, spacing and tooltip text are guesses | guessed (no capture) | `SUPPRESS_NOTIFICATIONS` | `view_chat.jai` `message_header` |
 
+## Create Channel
+
+| Rule | Kind | Anchor | fastcord |
+|---|---|---|---|
+| The type list is Text, Voice, Forum, then Announcement and Stage only in a server with the COMMUNITY feature; the body is the same `{type, name, permission_overwrites: []…}` for each | guess (which types when; the modal's chunk isn't cached) + code (body) | `let O={type:n,name:A,permission_overwrites:h}` | `view_guild_admin.jai` `create_channel_modal` |
+
 ## Server Settings
 
 | Rule | Kind | Anchor in the client | fastcord |
