@@ -1,5 +1,5 @@
 # Server Settings list pages: Members (with the row menu), Invites (Revoke's confirm, Pause Invites),
-# Bans (Revoke Ban), Emoji and Audit Log, each from a canned reply.
+# Bans (Revoke Ban), Audit Log, Safety Setup and Emoji, each from a canned reply.
 wait 5
 click 200 57
 wait 10
@@ -41,6 +41,13 @@ wait 5
 expect_visible "Robin banned Troll"
 expect_visible "name: Old → Dingus Battle"
 shot build/ui-server_settings_audit.png
+click_text "Safety Setup"
+wait 10
+settings_reply Automod [{"id":"1565281995485870000","guild_id":"1","name":"Block Mention Spam","event_type":1,"trigger_type":5,"trigger_metadata":{"mention_total_limit":20},"actions":[{"type":1,"metadata":{}}],"enabled":true,"creator_id":"1546820603343016100","position":0,"exempt_channels":[],"exempt_roles":[]}]
+wait 5
+expect_visible "Verification Level"
+expect_visible "Must have a verified email on their Discord account."
+shot build/ui-server_settings_safety.png
 click_text "Emoji"
 wait 10
 expect_visible "Upload Emoji"

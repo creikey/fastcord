@@ -294,6 +294,7 @@ Req :: enum u8 {
 	Audit; // GET /guilds/{id}/audit-logs
 	Role_Counts; // GET /guilds/{id}/roles/member-counts
 	Role_Members; // POST /guilds/{id}/members-search for one role
+	Automod; // GET /guilds/{id}/auto-moderation/rules
 	COUNT;
 	Save :: 100; // a page's Save Changes
 	Save_Widget;
@@ -356,6 +357,7 @@ ss: struct {
 	role_mentionable: bool;
 	role_perms: u64;
 	role_order: [..]dc.Snowflake; // the list as reordered, top first; empty when untouched
+	words: ui.Editor; // Safety Setup: Block Custom Words
 	// the open confirm
 	confirm: SS_Confirm;
 	confirm_id: dc.Snowflake;
@@ -407,6 +409,9 @@ section_enter :: (g: *dc.Guild) {
 		load(g, .Emojis, tprint("/guilds/%/emojis", g.id));
 	case .Audit_Log;
 		audit_load(g);
+	case .Safety;
+		ss.loading[Req.Automod] = false;
+		load(g, .Automod, tprint("/guilds/%/auto-moderation/rules", g.id));
 	case .Roles;
 		ss.loading[Req.Role_Counts] = false;
 		load(g, .Role_Counts, tprint("/guilds/%/roles/member-counts", g.id));
@@ -507,7 +512,9 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 		return has(p, dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_ROLES | dc.PERM_KICK_MEMBERS | dc.PERM_BAN_MEMBERS | dc.PERM_MODERATE_MEMBERS | dc.PERM_MANAGE_NICKNAMES);
 	case .Roles;
 		return has(p, dc.PERM_MANAGE_ROLES) && !on_hosted(); // hosted servers have only @everyone so far
-	case .Invites; #through; case .Access; #through; case .Safety; #through; case .Community; #through; case .Onboarding; #through; case .Templates;
+	case .Safety;
+		return has(p, dc.PERM_MANAGE_GUILD) && !on_hosted(); // a hosted server has no verification levels, filters or AutoMod
+	case .Invites; #through; case .Access; #through; case .Community; #through; case .Onboarding; #through; case .Templates;
 		return has(p, dc.PERM_MANAGE_GUILD);
 	case .Integrations;
 		return has(p, dc.PERM_MANAGE_GUILD | dc.PERM_MANAGE_WEBHOOKS);
@@ -525,7 +532,7 @@ section_shown :: (g: *dc.Guild, s: Server_Section) -> bool {
 page_exists :: (s: Server_Section) -> bool {
 	if s == {
 	case .Profile; #through; case .Engagement; #through; case .Members; #through; case .Invites; #through; case .Bans; #through;
-	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles;
+	case .Emoji; #through; case .Audit_Log; #through; case .Delete; #through; case .Soundboard; #through; case .Roles; #through; case .Safety;
 		return true;
 	}
 	return false;
@@ -551,6 +558,8 @@ page_body :: (g: *dc.Guild, s: Server_Section, w: float32) -> bool {
 		audit_page(g);
 	case .Roles;
 		roles_page(g);
+	case .Safety;
+		safety_page(g);
 	case .Soundboard;
 		sound_settings_page(g, w); // view_server_soundboard.jai
 	}
@@ -1556,7 +1565,7 @@ ss_action :: (g: *dc.Guild, after: Req, method: string, path: string, body := ""
 	dc.guild_settings_call(app.client, g.id, xx Req.Action, method, path, body, reason);
 }
 
-SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; }
+SS_Confirm :: enum u8 { None; Revoke_Invite; Revoke_Ban; Delete_Emoji; Timeout; Transfer; Delete_Server; Pause_Invites; Delete_Role; Delete_Rule; }
 
 ss_confirm_open :: (kind: SS_Confirm, id: dc.Snowflake, text: string) {
 	ss.confirm, ss.confirm_id = kind, id;
@@ -1583,6 +1592,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Delete_Server; title, body, button = tprint("Delete '%'", g.name), tprint("Are you sure you want to delete %? This action cannot be undone.", g.name), "Delete Server";
 	case .Pause_Invites; title, body, button = "Pause Invites", "Nobody can join this server with an invite link until the pause ends or you enable invites again.", "Pause Invites";
 	case .Delete_Role; title, body, button = tprint("Delete '%'", t), "Are you sure you want to delete this role? This action cannot be undone.", "Delete";
+	case .Delete_Rule; title, body, button = "Delete Rule", tprint("Are you sure you want to delete the rule %? This cannot be undone.", t), "Delete";
 	}
 	if !adm_modal_begin("ssconfirm", 440, title) {
 		ss.confirm = .None;
@@ -1663,6 +1673,7 @@ ss_confirm_modal :: (g: *dc.Guild) {
 	case .Transfer; ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"owner_id\":\"%\",\"code\":null}", id));
 	case .Delete_Server; ss_action(g, .COUNT, "POST", tprint("/guilds/%/delete", g.id));
 	case .Delete_Role; ss_action(g, .Role_Counts, "DELETE", tprint("/guilds/%/roles/%", g.id, id));
+	case .Delete_Rule; ss_action(g, .Automod, "DELETE", tprint("/guilds/%/auto-moderation/rules/%", g.id, id));
 	case .Pause_Invites;
 		hours := PAUSE_HOURS[ss.confirm_pick];
 		ss_action(g, .COUNT, "PUT", tprint("/guilds/%/incident-actions", g.id), tprint("{\"invites_disabled_until\":\"%\",\"dms_disabled_until\":null,\"lockdown_duration_hours\":%}", dc.ms_to_iso(wall_ms() + hours * 3600_000), hours));
@@ -2103,6 +2114,195 @@ role_members_tab :: (g: *dc.Guild, r: *dc.Role, editable: bool) {
 			ss_action(g, .Role_Members, "PATCH", tprint("/guilds/%/members/%", g.id, uid), tprint("{\"roles\":[%]}", join(..roles, ",",, temp)));
 		}
 	}
+}
+
+// ---- Safety Setup ----
+
+VERIFICATION :: struct { name: string; desc: string; }.[
+	.{"None", "Unrestricted"},
+	.{"Low", "Must have a verified email on their Discord account."},
+	.{"Medium", "Must also be registered on Discord for longer than 5 minutes."},
+	.{"High", "Must also be a member of this server for longer than 10 minutes."},
+	.{"Highest", "Must have a verified phone on their Discord account."},
+];
+
+// Explicit image filter choices, as the client lists them: value then wording.
+EXPLICIT :: struct { value: int; name: string; desc: string; }.[
+	.{2, "Filter messages from all members", "All messages will be filtered for sensitive image-based media."},
+	.{1, "Filter messages from server members without roles", "Messages from server members without a role will be filtered for sensitive image-based media."},
+	.{0, "Do not filter", "Messages will not be filtered for sensitive image-based media."},
+];
+
+// A choice with a description under it (radio on the left); true when picked.
+radio_choice :: (id: string, title: string, desc: string, on: bool, enabled := true) -> bool {
+	r := row(id, .Clickable | .Draw_Background | .Hot_Animation);
+	r.semantic_size = .[ui.pct(1), ui.children()];
+	r.style.radius = all4(8);
+	r.style.bg = ifx on then T("--background-mod-normal") else T("--background-mod-subtle");
+	r.style.bg_hot = T("--background-mod-normal");
+	r.hover_cursor = .Pointer;
+	if !enabled r.flags |= .Disabled;
+	sig := ui.signal(r);
+	{ ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 12);
+		radio_dot(on);
+		spacer(.X, 12);
+		col := ui.box("col");
+		col.semantic_size = .[ui.fill(), ui.children()];
+		col.layout_axis = .Y;
+		ui.parent(col); defer ui.pop_parent();
+		spacer(.Y, 10);
+		label(title, .Medium, 16, T("--text-strong"), 20);
+		spacer(.Y, 2);
+		set_para("d", desc, .Normal, 14, 18, T("--text-muted"));
+		spacer(.Y, 10);
+	}
+	spacer(.Y, 8);
+	return sig.clicked && !on && enabled;
+}
+
+AUTOMOD_KEYWORD :: 1;
+AUTOMOD_SPAM :: 3;
+AUTOMOD_MENTION_SPAM :: 5;
+
+safety_page :: (g: *dc.Guild) {
+	community := dc.guild_has_feature(g, "COMMUNITY");
+	section_heading("verif", "Verification Level", "Members of the server must meet the following criteria before they can send messages in text channels or initiate a direct message conversation. If a member has an assigned role this does not apply.");
+	for VERIFICATION {
+		if radio_choice(tprint("v%", it_index), it.name, ifx community && it_index == 0 then "This option is not available for Community Servers." else it.desc, g.verification_level == it_index, !ss.busy && !(community && it_index == 0))
+			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"verification_level\":%}", it_index));
+	}
+	set_divider();
+	section_heading("explicit", "Explicit image filter", "Automatically scan and delete messages sent in this server that contain explicit media.");
+	for EXPLICIT {
+		if radio_choice(tprint("x%", it.value), it.name, ifx community && it.value != 2 then "This option is not available for Community Servers." else it.desc, g.explicit_content_filter == it.value, !ss.busy && !(community && it.value != 2))
+			ss_action(g, .COUNT, "PATCH", tprint("/guilds/%", g.id), tprint("{\"explicit_content_filter\":%}", it.value));
+	}
+	if g.owner_id == store().me {
+		set_divider();
+		if set_toggle_row("mfa", "Require 2FA for moderator actions", "Moderators must have two-factor authentication enabled to ban, kick, or timeout members and delete messages.", g.mfa_level == 1, ss.busy)
+			ss_action(g, .COUNT, "POST", tprint("/guilds/%/mfa", g.id), tprint("{\"level\":%}", ifx g.mfa_level == 1 then 0 else 1));
+	}
+	set_divider();
+	automod_section(g);
+}
+
+automod_section :: (g: *dc.Guild) {
+	section_heading("automod", "AutoMod", "Set up AutoMod to automatically filter messages in this server with the rules below. Members with Manage Server or Administrator are exempt.");
+	if !loading_or(.Automod, "Couldn't load the AutoMod rules.") return;
+	rules := dc.vlist(reply(.Automod).body);
+	has: [7]bool;
+	for rules {
+		r := dc.vmap(it);
+		t := dc.fint(r, "trigger_type");
+		if t >= 0 && t < has.count has[t] = true;
+		ui.id_scope(cast(u64) dc.fsnow(r, "id"));
+		defer ui.pop_seed();
+		card := ui.box("rule", .Draw_Background);
+		card.semantic_size = .[ui.pct(1), ui.children()];
+		card.layout_axis = .Y;
+		card.style.radius = all4(8);
+		card.style.bg = T("--background-mod-subtle");
+		{ ui.parent(card); defer ui.pop_parent();
+			spacer(.Y, 12);
+			hr := row("h");
+			hr.semantic_size = .[ui.pct(1), ui.children()];
+			{ ui.parent(hr); defer ui.pop_parent();
+				spacer(.X, 16);
+				col := ui.box("t");
+				col.semantic_size = .[ui.fill(), ui.children()];
+				col.layout_axis = .Y;
+				{ ui.parent(col); defer ui.pop_parent();
+					label(dc.fstr(r, "name"), .Semibold, 16, T("--text-strong"), 20);
+					meta := dc.fmap(r, "trigger_metadata");
+					desc := "";
+					if t == {
+					case AUTOMOD_KEYWORD; desc = tprint("Blocks messages containing % word%.", dc.flist(meta, "keyword_filter").count, ifx dc.flist(meta, "keyword_filter").count == 1 then "" else "s");
+					case AUTOMOD_SPAM; desc = "Blocks messages suspected to be spam.";
+					case AUTOMOD_MENTION_SPAM; desc = tprint("Blocks messages with more than % mentions.", dc.fint(meta, "mention_total_limit"));
+					case 4; desc = "Blocks words from Discord's commonly flagged lists.";
+					case 6; desc = "Blocks words in member profile names.";
+					}
+					if desc { spacer(.Y, 2); set_para("d", desc, .Normal, 14, 18, T("--text-muted")); }
+				}
+				spacer(.X, 12);
+				on := dc.fbool(r, "enabled");
+				sw := ui.box("sw", .Clickable);
+				sw.semantic_size = .[ui.px(40), ui.px(24)];
+				sw.hover_cursor = .Pointer;
+				if ui.signal(sw).clicked && !ss.busy ss_action(g, .Automod, "PATCH", tprint("/guilds/%/auto-moderation/rules/%", g.id, dc.fsnow(r, "id")), automod_rule_body(r, !on, true));
+				{ ui.parent(sw); defer ui.pop_parent(); set_switch(on); }
+				spacer(.X, 8);
+				if row_icon_button("del", "trash", danger = true) ss_confirm_open(.Delete_Rule, dc.fsnow(r, "id"), dc.fstr(r, "name"));
+				spacer(.X, 12);
+			}
+			spacer(.Y, 12);
+		}
+		spacer(.Y, 8);
+	}
+	spacer(.Y, 8);
+	if !has[AUTOMOD_KEYWORD] {
+		field_title("Block Custom Words");
+		if set_input("words", *ss.words, "Words to block, separated by commas", multiline = true, max_runes = 6000, min_h = 60) == .Escape ss.field_escape = true;
+		spacer(.Y, 8);
+		words := split_words(ui.editor_text(*ss.words));
+		if set_button("Create Rule##kw", .Primary, words.count > 0 && !ss.busy) {
+			list: [..]string;
+			list.allocator = temp;
+			for words array_add(*list, dc.json_quote(it));
+			ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Custom Words", AUTOMOD_KEYWORD, tprint("{\"keyword_filter\":[%],\"regex_patterns\":[],\"allow_list\":[]}", join(..list, ",",, temp))));
+			ui.editor_set_text(*ss.words, "");
+		}
+		spacer(.Y, 16);
+	}
+	br := row("addrules");
+	br.semantic_size = .[ui.pct(1), ui.px(38)];
+	br.style.child_gap = 8;
+	ui.parent(br); defer ui.pop_parent();
+	if !has[AUTOMOD_MENTION_SPAM] && set_button("Block Mention Spam##ms", .Secondary, !ss.busy)
+		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Mention Spam", AUTOMOD_MENTION_SPAM, "{\"mention_total_limit\":20,\"mention_raid_protection_enabled\":true}"));
+	if !has[AUTOMOD_SPAM] && set_button("Block Suspected Spam Content##sp", .Secondary, !ss.busy)
+		ss_action(g, .Automod, "POST", tprint("/guilds/%/auto-moderation/rules", g.id), automod_new_body(g, "Block Suspected Spam Content", AUTOMOD_SPAM, "{}"));
+}
+
+// Comma or newline separated words, trimmed, at most 1000 (Discord's keyword_filter cap).
+split_words :: (text: string) -> []string {
+	out: [..]string;
+	out.allocator = temp;
+	for part: split(text, ",",, temp) for w: split(part, "\n",, temp) {
+		t := trim(w);
+		if t && out.count < 1000 array_add(*out, t);
+	}
+	return out;
+}
+
+// A rule as the client sends it (`T`): id, name, guild_id, event_type, trigger_type, trigger_metadata,
+// actions, enabled, creator_id, position, exempt_channels, exempt_roles.
+automod_rule_body :: (r: etf.Map, enabled: bool, with_id: bool) -> string {
+	sb: String_Builder;
+	sb.allocator = temp;
+	json :: (sb: *String_Builder, v: dc.V) {
+		if v.kind == .Nil { append(sb, "null"); return; }
+		etf.to_json(v, sb);
+	}
+	append(*sb, "{");
+	if with_id print_to_builder(*sb, "\"id\":\"%\",", dc.fsnow(r, "id"));
+	print_to_builder(*sb, "\"name\":%,\"guild_id\":\"%\",\"event_type\":%,\"trigger_type\":%,\"trigger_metadata\":", dc.json_quote(dc.fstr(r, "name")), dc.fsnow(r, "guild_id"), dc.fint(r, "event_type"), dc.fint(r, "trigger_type"));
+	json(*sb, dc.vget(r, "trigger_metadata"));
+	append(*sb, ",\"actions\":");
+	json(*sb, dc.vget(r, "actions"));
+	print_to_builder(*sb, ",\"enabled\":%,\"creator_id\":\"%\",\"position\":%,\"exempt_channels\":", enabled, dc.fsnow(r, "creator_id"), dc.fint(r, "position"));
+	json(*sb, dc.vget(r, "exempt_channels"));
+	append(*sb, ",\"exempt_roles\":");
+	json(*sb, dc.vget(r, "exempt_roles"));
+	append(*sb, "}");
+	return builder_to_string(*sb,, temp);
+}
+
+// A new rule that blocks the message (action type 1), enabled, exempting nobody.
+automod_new_body :: (g: *dc.Guild, name: string, trigger: int, metadata: string) -> string {
+	return tprint("{\"name\":%,\"guild_id\":\"%\",\"event_type\":1,\"trigger_type\":%,\"trigger_metadata\":%,\"actions\":[{\"type\":1,\"metadata\":{}}],\"enabled\":true,\"exempt_channels\":[],\"exempt_roles\":[]}",
+		dc.json_quote(name), g.id, trigger, metadata);
 }
 
 #scope_export
