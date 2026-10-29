@@ -244,6 +244,7 @@ main :: () {
 	if opt.fixture != "" {
 		_, fok := dc.store_load_fixture(*app.offline_store, opt.fixture);
 		if !fok fail("cannot load fixture %", opt.fixture);
+		bench_startup_ready();
 		if opt.channel != "" {
 			ch := dc.channel_get(*app.offline_store, dc.parse_snowflake(opt.channel));
 			if ch select_channel(ch.guild_id, ch.id);
@@ -487,6 +488,7 @@ frame :: () {
 		if !platform.is_headless() watchdog_gfx();
 		bench_render_end();
 	}
+	bench_startup_frame();
 	if sweep_hook != null sweep_hook(); // while this frame's boxes and temp strings are alive
 	t_end := platform.time_now();
 
@@ -607,6 +609,11 @@ script_command :: (path: string, f: []string, t: *float64, depth := 0) {
 		return;
 	case "bench_off";
 		bench_pause();
+		return;
+	case "startup_report";
+		// the startup bench's line (bench.jai), with resident memory now
+		if !bench.drawn_ns fail("%: startup_report: the open channel never finished drawing its images", path);
+		bench.idle_rss = dc.process_resident_bytes();
 		return;
 	case "move";
 		ev := platform.Event.{kind = .Mouse_Move, pos = .{num(f[1]), num(f[2])}};

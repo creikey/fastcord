@@ -90,6 +90,13 @@ images_receive :: () {
 	gifv_frame();
 }
 
+// Images asked for and not yet drawable (loading, decoding or waiting for upload): the startup bench.
+images_pending :: () -> int {
+	n := 0;
+	for images n += cast(int) (it.state == .Loading);
+	return n;
+}
+
 // The GPU device was lost and made again, so every texture is empty: drop the images (they load again,
 // from the HTTP cache) and the icons and emoji (redrawn on use).
 textures_lost :: () {

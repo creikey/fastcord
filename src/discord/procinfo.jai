@@ -6,6 +6,7 @@
 //   uptime_process_renderer     whole seconds since this process started
 
 record_process_start :: () { process_start = current_time_monotonic(); }
+process_started :: () -> Apollo_Time { return process_start; }
 
 process_uptime_seconds :: () -> s64 { return to_milliseconds(current_time_monotonic() - process_start) / 1000; }
 

@@ -34,6 +34,11 @@ Bench :: struct {
 	render_start: Apollo_Time;
 	gpu_frame: u64;
 	frame_start: Apollo_Time;
+	// startup.txt: wall time from main() (dc.process_start) to the fixture's READY in the store, to the first
+	// frame done on the GPU, and to the first frame that drew the open channel with every image it asked
+	// for loaded; then resident memory once idle (`startup_report`).
+	ready_ns, first_frame_ns, drawn_ns: s64;
+	idle_rss: s64;
 }
 
 bench: Bench;
@@ -200,6 +205,18 @@ bench_frame_begin :: () {
 	if bench.measuring bench.frame_start = current_time_monotonic();
 }
 
+bench_startup_ready :: () { if bench.on bench.ready_ns = ns_since(dc.process_started()); }
+
+// End of each frame until the open channel is drawn with its images: waits for the GPU, so the times are
+// what the window shows.
+bench_startup_frame :: () {
+	if !bench.on || bench.drawn_ns || app.no_render return;
+	gfx.wait_gpu();
+	t := ns_since(dc.process_started());
+	if !bench.first_frame_ns bench.first_frame_ns = t;
+	if app.view.channel && dc.messages_get(store(), app.view.channel).count && images_pending() == 0 bench.drawn_ns = t;
+}
+
 bench_frame_end :: () {
 	if !bench.measuring return;
 	ns := ns_since(bench.frame_start);
@@ -283,6 +300,11 @@ bench_finish :: () {
 		print_to_builder(*out, "{\"name\":\"%\",\"passes\":%,\"latency_ms\":%,\"pass_ms\":%,\"render_ms\":%,\"gpu_ms\":%,\"instances\":%,\"batches\":%,\"frame_ms\":%,\"boxes\":%,\"keyed_boxes\":%,\"text_layouts\":%,\"shape_calls\":%,\"glyphs\":%,\"draw_cmds\":%,\"arena_bytes\":%}\n",
 			sec.name, sec.pass_ns.count, ms_json(lat), ms_json(pass), ms_json(render), ms_json(gpu), sec.instances, sec.batches, ms_json(frame),
 			p.boxes, p.keyed_boxes, p.text_layouts, p.shape_calls, p.glyphs, p.draw_cmds, p.arena_bytes);
+	}
+	if bench.idle_rss {
+		ms :: (ns: s64) -> string { return tprint("%", formatFloat(cast(float64) ns / 1000000, trailing_width = 1, zero_removal = .NO)); }
+		print("startup: READY in % ms, first frame % ms, channel drawn with images % ms, % MB resident once idle\n", ms(bench.ready_ns), ms(bench.first_frame_ns), ms(bench.drawn_ns), bench.idle_rss >> 20);
+		print_to_builder(*out, "{\"name\":\"startup\",\"ready_ms\":%,\"first_frame_ms\":%,\"drawn_ms\":%,\"idle_rss_mb\":%}\n", ms(bench.ready_ns), ms(bench.first_frame_ns), ms(bench.drawn_ns), bench.idle_rss >> 20);
 	}
 	if bench.zones.stats.count > 0 write_string(prof.zones_report(*bench.zones));
 	if bench.out_path != "" && !append_file(bench.out_path, builder_to_string(*out,, temp)) print("cannot write %\n", bench.out_path, to_standard_error = true);

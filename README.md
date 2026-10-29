@@ -79,7 +79,7 @@ Headless app runs render offscreen and write a PNG, driven by a script of input 
 (`click`, `dclick`, `down`/`move`/`up`, `rclick`, `type`, `key enter cmd`, `scroll`, `wait`, `shot`,
 `expect_selection`, `expect_clipboard`; attachments: `stage <path>...`, `drop <path>...`,
 `paste_image <png>`, `paste_files <path>...`, `drag_enter`/`drag_leave`, `wait_attachments`,
-`expect_attachments`, `upload_limit <bytes>`, `expect_notice`; read state: `focus out|in`, `incoming <word>`, `acked`; the gateway: `gateway down|up`; self-hosting: `serve_join [name]` joins a `-serve` run in the same process (a name starts another), `expect_served` fails on any request it had no route for). The `ui` suite runs a `tests/ui` script on
+`expect_attachments`, `upload_limit <bytes>`, `expect_notice`; read state: `focus out|in`, `incoming <word>`, `acked`; visibility: `window hidden|shown`, `expect_built <n>` (frames that built the UI); the gateway: `gateway down|up`; self-hosting: `serve_join [name]` joins a `-serve` run in the same process (a name starts another), `expect_served` fails on any request it had no route for). The `ui` suite runs a `tests/ui` script on
 `chat.jsonl`, or on the `.jsonl` of the same name beside it:
 
 ```sh
@@ -138,6 +138,9 @@ python3 -I tools/folded.py build/bench/chat.folded callers 'box_make_key' 3
   Don't type in such a script: typing sends "is typing" from the account.
 - `tests/bench/budget.json` caps the deterministic counters (boxes, text layouts, draw commands, draw
   calls) per section; `bench` and `check-full` fail when one grows. Timings are never checked: they vary by machine.
+  The exception is `startup.txt` (`bench startup`): from `main()` to READY in the store, to the first frame, and
+  to the open channel drawn with all its images, plus resident memory once idle (`startup_report`), each capped
+  far above any machine's time so only slow work creeping onto the path to the first frame fails it.
 
 Keep the UI immediate-mode. Make each pass cheaper instead of caching results across frames:
 - Declare only what can be seen. `ui.list_window` turns a uniform list into a spacer plus the visible

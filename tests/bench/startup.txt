@@ -1,0 +1,4 @@
+# Cold start on the heavy fixture, opening the bench channel: READY in the store, the first frame, and the
+# channel drawn with all its avatars and emoji, timed from main(); then resident memory once idle.
+settle 3
+startup_report
