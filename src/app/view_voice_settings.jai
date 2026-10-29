@@ -24,6 +24,10 @@ Voice_Settings :: struct {
 	meter_db: float32;
 	meter_shown: float32; // the bar's level (0..1), smoothed toward meter_db every frame
 	meter_open: bool;
+	proc: voice.Mic_Processing; // the meter's and mic test's processing outside a call
+	mic_test: bool; // Let's Check: the processed mic played back
+	test_src: audio.Source;
+	reset_armed: bool; // Reset Voice Settings was clicked once
 	menu_user: dc.Snowflake; // a call participant's menu
 	menu_move: bool; // its Move To list is open
 	dd_anchor: ui.Rect; // open dropdown's rect (popup drawn from overlays)
@@ -111,9 +115,12 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 	if audio_ready audio.set_volume(vs.output_volume / 100);
 
 	page_open := app.settings_open && settings_page == "Voice & Video";
+	if !page_open || headless || conn != null mic_test_stop();
 	if !page_open || headless {
 		if vs.meter_owner && conn == null audio.capture_stop();
 		vs.meter_owner = false;
+		vs.reset_armed = false;
+		voice.mic_processing_free(*vs.proc);
 		return;
 	}
 	if conn != null {
@@ -128,8 +135,17 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 			buf: [960]float32;
 			while audio.capture_available() >= 960 {
 				audio.capture_read(buf);
+				// processed as a call's mic is (voice.mic_process), so the switches can be heard and seen here
+				voice.mic_process(*vs.proc, buf, vs.echo, vs.noise, vs.agc);
 				g := vs.input_volume / 100;
 				for * x: buf { x.* *= g; }
+				if vs.mic_test {
+					// Let's Check: what the mic sends, played back
+					if !vs.test_src vs.test_src = audio.source_create();
+					st: [1920]float32;
+					for buf { st[it_index * 2], st[it_index * 2 + 1] = it, it; }
+					if vs.test_src audio.source_write(vs.test_src, st);
+				}
 				vs.meter_vad.auto_threshold = vs.auto_sens;
 				vs.meter_vad.threshold_db = vs.threshold_db;
 				vs.meter_open, vs.meter_db = voice.vad_process(*vs.meter_vad, buf);
@@ -142,6 +158,27 @@ voice_settings_frame :: (conn: *voice.Conn, headless: bool, audio_ready: bool) {
 	tau: float32 = ifx target > vs.meter_shown then 0.03 else 0.15;
 	vs.meter_shown += (target - vs.meter_shown) * (1 - exp(-app.dt / tau));
 	platform.request_frame();
+}
+
+mic_test_stop :: () {
+	vs.mic_test = false;
+	if vs.test_src audio.source_destroy(vs.test_src);
+	vs.test_src = 0;
+}
+
+// voice_settings_reset: Reset Voice Settings: devices, volumes, input mode, sensitivity and processing back to
+// their defaults. Per-user volumes and mutes stay.
+voice_settings_reset :: () {
+	mic_test_stop();
+	voice.mic_processing_free(*vs.proc);
+	audio.select_device(true, 0);
+	audio.select_device(false, 0);
+	keep_vol, keep_mute := vs.user_volume, vs.user_muted;
+	vs.user_volume, vs.user_muted = .{}, .{};
+	vs_reset_for_test();
+	deinit(*vs.user_volume);
+	deinit(*vs.user_muted);
+	vs.user_volume, vs.user_muted = keep_vol, keep_mute;
 }
 
 toggle_row :: (id: string, text: string, help: string, value: *bool) -> bool {
@@ -226,6 +263,13 @@ voice_settings_page :: () {
 				toggle_row("autosens", "Automatically determine input sensitivity", "", *vs.auto_sens);
 				spacer(.Y, 12);
 				meter_bar();
+				if !voice_conn() {
+					// MIC TEST: Let's Check plays the processed mic back
+					spacer(.Y, 12);
+					if set_button(ifx vs.mic_test then "Stop Testing##mictest" else "Let's Check##mictest", ifx vs.mic_test then .Danger else .Primary, true, 32) {
+						if vs.mic_test mic_test_stop(); else vs.mic_test = true;
+					}
+				}
 				if !vs.auto_sens {
 					spacer(.Y, 8);
 					slider("thresh", *vs.threshold_db, -100, 0, 660, tprint("%dB", formatFloat(vs.threshold_db, trailing_width = 0, zero_removal = .NO)));
@@ -245,6 +289,12 @@ voice_settings_page :: () {
 				if video.SUPPORTED {
 					spacer(.Y, 32);
 					camera_test_section();
+				}
+				spacer(.Y, 32);
+				// Reset Voice Settings, with a second click to confirm
+				if set_button(ifx vs.reset_armed then "Click Again to Reset##vreset" else "Reset Voice Settings##vreset", .Danger, true, 32) {
+					if vs.reset_armed voice_settings_reset();
+					else vs.reset_armed = true;
 				}
 				spacer(.Y, 40);
 			}

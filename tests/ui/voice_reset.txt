@@ -1,0 +1,18 @@
+# Settings > Voice & Video: Let's Check under the meter (the mic test, outside a call), and Reset Voice
+# Settings at the end, which takes a second click.
+wait 5
+click 338 683
+wait 20
+click_text "Voice & Video"
+wait 20
+expect_visible "Let's Check"
+move 700 400
+scroll 0 -3000
+wait 10
+click_text "Reset Voice Settings"
+wait 5
+expect_visible "Click Again to Reset"
+shot build/ui-voice_reset_armed.png
+click_text "Click Again to Reset"
+wait 5
+expect_visible "Reset Voice Settings"

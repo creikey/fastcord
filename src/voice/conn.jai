@@ -203,9 +203,7 @@ Conn :: struct {
     };
     udp_errors: u64;            // atomic: failed sendto
     udp_errno: s32;             // the last failure's errno
-    aec: *void;                 // WebRTC echo canceller state, made on first use (audio thread)
-    denoiser: *void;            // RNNoise state, made on first use (audio thread)
-    agc: Agc;                   // (audio thread)
+    proc: Mic_Processing;       // (audio thread)
     input_gain: float32 = 1;    // software input volume (1 = unchanged)
     mix: [..]float32;           // mono 48 kHz sent after the mic's processing (mix_in; under mu)
     mix_pos: int;
@@ -320,8 +318,7 @@ voice_disconnect :: (c: *Conn) {
     array_free(c.mix);
     free(c.external_ip);
     c.codec.encoder_destroy(c.encoder);
-    if c.aec fc_aec_destroy(c.aec);
-    if c.denoiser fc_rnnoise_destroy(c.denoiser);
+    mic_processing_free(*c.proc);
     DAVE.session_destroy(*c.dave);
     free(c.info.endpoint);
     free(c.info.token);
@@ -428,6 +425,40 @@ set_input_gain :: (c: *Conn, gain: float32) {
 
 // set_processing: the Voice Processing switches, all done here on every platform: WebRTC's echo
 // canceller (the official client's too), RNNoise for noise (it has Krisp) and our AGC.
+// Mic_Processing: the Voice Processing switches' state for one mic: a call's, or Voice & Video's mic test.
+Mic_Processing :: struct {
+    aec: *void;      // WebRTC echo canceller, made on first use
+    denoiser: *void; // RNNoise, made on first use
+    agc: Agc;
+}
+
+// mic_process: one 20 ms frame (SAMPLES_PER_FRAME mono), in 10 ms halves in the order of WebRTC's pipeline:
+// echo, then noise, then gain.
+mic_process :: (p: *Mic_Processing, pcm: []float32, echo: bool, denoise: bool, agc: bool) {
+    assert(pcm.count == SAMPLES_PER_FRAME);
+    for 0..1 {
+        half := pcm.data + it * SAMPLES_PER_FRAME / 2;
+        if echo {
+            if !p.aec p.aec = fc_aec_create();
+            played: [SAMPLES_PER_FRAME / 2]float32;
+            audio.render_read(played);
+            fc_aec_render(p.aec, played.data);
+            fc_aec_capture(p.aec, half);
+        }
+        if denoise {
+            if !p.denoiser p.denoiser = fc_rnnoise_create();
+            fc_rnnoise_process(p.denoiser, half);  // delays its output by one frame
+        }
+    }
+    if agc agc_process(*p.agc, pcm);
+}
+
+mic_processing_free :: (p: *Mic_Processing) {
+    if p.aec fc_aec_destroy(p.aec);
+    if p.denoiser fc_rnnoise_destroy(p.denoiser);
+    p.* = .{};
+}
+
 set_processing :: (c: *Conn, echo: bool, noise: bool, agc: bool) {
     locks.guard(*c.mu);
     c.echo_on, c.denoise_on, c.agc_on = echo, noise, agc;
@@ -1324,22 +1355,7 @@ tx_tick :: (c: *Conn, pcm: []float32) {
     gain := c.input_gain;
     echo, denoise, agc := c.echo_on && c.capture_on, c.denoise_on, c.agc_on && c.capture_on;
     locks.unlock(*c.mu);
-    // in 10 ms frames, in the order of WebRTC's pipeline: echo, then noise, then gain
-    for 0..1 {
-        half := pcm.data + it * SAMPLES_PER_FRAME / 2;
-        if echo {
-            if !c.aec c.aec = fc_aec_create();
-            played: [SAMPLES_PER_FRAME / 2]float32;
-            audio.render_read(played);
-            fc_aec_render(c.aec, played.data);
-            fc_aec_capture(c.aec, half);
-        }
-        if denoise {
-            if !c.denoiser c.denoiser = fc_rnnoise_create();
-            fc_rnnoise_process(c.denoiser, half);  // delays its output by one frame
-        }
-    }
-    if agc agc_process(*c.agc, pcm);
+    mic_process(*c.proc, pcm, echo, denoise, agc);
     if gain != 1 {
         for * pcm it.* *= gain;
         audio.limit(*c.input_limiter, pcm, 1);
