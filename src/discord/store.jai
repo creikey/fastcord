@@ -77,6 +77,7 @@ store_init :: (s: *Store, allocator := context.allocator) {
 	s.sessions.allocator = allocator;
 	s.settings.guild_folders.allocator = allocator;
 	s.settings.guild_positions.allocator = allocator;
+	s.settings.edits.allocator = allocator;
 	s.soundboard.allocator = allocator;
 	s.effects.allocator = allocator;
 }
@@ -966,8 +967,9 @@ apply_settings_proto :: (s: *Store, b64: string, partial := false) {
 		}
 		raw = merged;
 	}
-	// categories with an edit not yet saved keep it (sent again after a failed PATCH)
-	for n: 1..63 if s.settings.unsent & ((cast(u64) 1) << n) raw = protobuf.with_field(raw, xx n, pb_categories(s.settings.proto, (cast(u64) 1) << n),, temp);
+	// edits not yet saved are put again over what came (sent again after a failed PATCH)
+	settings_edits_prune(s);
+	for s.settings.edits raw = proto_with_edit(raw, it.cat, it.num, it.encoded, it.sub);
 	settings_proto_set(s, raw);
 }
 
@@ -1191,6 +1193,16 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 		for * item: ml.items {
 			if !item.is_group continue;
 			for ml.groups if it.id == item.group_id item.count = it.count;
+		}
+		// The groups size the list: a header per non-empty group plus its rows. A shorter list (a member
+		// went online, so the Offline header left) drops its stale tail, which would show as a duplicate.
+		if vhas(d, "groups") {
+			rows := 0;
+			for ml.groups if it.count > 0 rows += 1 + it.count;
+			while ml.items.count > rows {
+				free_str(ml.items[ml.items.count - 1].group_id, s.allocator);
+				ml.items.count -= 1;
+			}
 		}
 	}
 	MAX_MEMBER_LIST_ITEMS :: 1 << 17;

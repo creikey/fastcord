@@ -280,6 +280,7 @@ Message :: struct {
 	forward_channel_id: Snowflake; // also THREAD_CREATED's (type 18) thread
 	forward_message_id: Snowflake;
 	forward_timestamp: string; // the original's timestamp
+	forward_author_id: Snowflake; // an encrypted forward's original author, from inside its packet (the app sets it)
 	flags: u64;
 	nonce: string;
 	webhook_name: string; // a webhook's name for this message alone ("" otherwise); each post may pick its own
@@ -287,6 +288,7 @@ Message :: struct {
 	components: *Components; // store-owned, components.jai; null for none
 	pending: bool; // sent by us, not yet acknowledged by the gateway
 	failed: bool;
+	send_error: s32; // why the send failed: Discord's error code (0: unknown)
 }
 
 Presence :: struct {
@@ -415,6 +417,11 @@ Guild_Folder :: struct {
 // TimestampHourCycle: Language & Time > Time format.
 Hour_Cycle :: enum u8 { Auto :: 0; H12 :: 1; H23 :: 2; }
 
+Settings_Field_Edit :: struct {
+	cat, num, sub: u32;
+	encoded: []u8; // store allocator
+}
+
 User_Settings :: struct {
 	theme: Theme;
 	inbox_tab: Inbox_Tab; // InboxSettings.current_tab
@@ -427,6 +434,7 @@ User_Settings :: struct {
 	status_expires_ms: s64; // StatusSettings.status_expires_at_ms, 0 = forever
 	proto: []u8; // the whole PreloadedUserSettings as last loaded or edited (store allocator)
 	unsent: u64; // bit n: category n holds an edit the server hasn't taken yet, kept over READY
+	edits: [..]Settings_Field_Edit; // the unsent categories' edits, put again on each READY or update
 	locale: string;
 	timezone_offset: int; // minutes
 	developer_mode: bool;

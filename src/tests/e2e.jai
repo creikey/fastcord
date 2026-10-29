@@ -508,6 +508,14 @@ contents :: (a: *Client, b: *Client) {
 	r = land(b, a, s, answer_at);
 	check(r.result == .Ok && r.content == .Edit && r.reply == orig_at && r.out_text == "answer, edited", tprint("an edit keeps the reply (%)", r.result));
 
+	// A forward names the original's author and time inside the packet.
+	fw := e2e.request(.Send, .{CARRIER, CONV, a.party, b.party, limit}, "passed on");
+	fw.me, fw.forward_author, fw.forward_at = a.me, copy_string("carol"), copy_string("2026-10-30T12:00:00+00:00");
+	e2e.submit(a.d, fw);
+	wait(fw);
+	r = land(a, b, fw);
+	check(r.result == .Ok && r.content == .Post && r.forward_author == "carol" && r.forward_at == "2026-10-30T12:00:00+00:00" && r.out_text == "passed on", "a forward carries its original's author and time");
+
 	// Files: the ciphertext goes wherever the carrier keeps files; the message holds key, digest and what it is.
 	data := cast([]u8) repeat("picture bytes ", 1000);
 	f := e2e.File.{width = 640, height = 480, spoiler = true, name = "cat.png", mime = "image/png", description = "a cat"};
@@ -550,7 +558,7 @@ contents :: (a: *Client, b: *Client) {
 	edit := post(a, b, .Edit, "final", target = orig_at);
 	check(edit.result == .Ok, "editing our message");
 	moved := receive(b, edit.packet, a);
-	check(moved.result == .Undecryptable, "an edit moved onto another delivery doesn't open");
+	check(moved.result == .Ok && moved.content == .Edit && moved.target == orig_at, "an edit moved onto another delivery changes only the message it names");
 	edit = post(a, b, .Edit, "final", target = orig_at);
 	r = land(a, b, edit, orig_at);
 	check(r.result == .Ok && r.content == .Edit && r.target == orig_at && r.out_text == "final", "the edit opens in place");
@@ -576,6 +584,65 @@ contents :: (a: *Client, b: *Client) {
 	check(r.result == .Ok && r.content == .Unreact, "and taking it back");
 	check(post(b, a, .React, "", target = orig_at).result == .Failed && post(b, a, .React, "x").result == .Failed, "a reaction needs an emoji and a target");
 
+	// An Edit too long for its target's place goes as a delivery of its own, which changes only its target.
+	detach :: (c: *Client, peer: *Client, target: string, text: string) -> *e2e.Request {
+		r := e2e.request(.Send, .{CARRIER, CONV, c.party, peer.party, limit}, text);
+		r.me, r.content, r.target, r.in_place = c.me, e2e.Content.Edit, copy_string(target), 200;
+		e2e.submit(c.d, r);
+		wait(r);
+		return r;
+	}
+	// deliver: the echo and the peer's copy, as the carrier orders them.
+	deliver :: (from: *Client, to: *Client, s: *e2e.Request, order: s64) -> *e2e.Request {
+		at := copy_string(delivery());
+		fx_receive(from, from, to, CONV, at, s.packet, order);
+		return fx_receive(to, from, from, CONV, at, s.packet, order);
+	}
+	t := post(a, b, .Text, "short");
+	t_at := copy_string(delivery());
+	land(a, b, t, t_at);
+	long := repeat("long ", 100);
+	de := detach(a, b, t_at, long);
+	check(de.result == .Ok && de.detached && de.packet.count > 200, "a long edit is detached");
+	posted := false;
+	for ask(a, .Outbox).outbox if it.packet == de.packet posted = !it.replaces && it.silent;
+	check(posted, "the outbox posts it as a new, silent message");
+	ask(a, .Sent, de.packet);
+	r = deliver(a, b, de, 10);
+	check(r.result == .Ok && r.content == .Edit && r.target == t_at && r.out_text == long, "a detached edit names its target");
+	for c: (*Client).[a, b] {
+		r = fx_receive(c, a, ifx c == a then b else a, CONV, t_at, t.packet);
+		check(r.result == .Ok && r.out_text == long, "its target, refetched, opens as edited");
+	}
+	found = ask(b, .Search, peer = a, text = "long");
+	check(found.hits.count == 1 && found.hits[0].delivery == t_at, "search finds the edit at its target, once");
+	short := detach(a, b, t_at, "short again");
+	check(short.result == .Ok && short.detached, "after one detached edit, every edit of that message is");
+	ask(a, .Sent, short.packet);
+	newer := detach(a, b, t_at, "newest");
+	ask(a, .Sent, newer.packet);
+	deliver(a, b, newer, 30);
+	deliver(a, b, short, 20);
+	r = fx_receive(b, a, a, CONV, t_at, t.packet);
+	check(r.out_text == "newest", "the carrier's latest detached edit wins, whatever order they arrive in");
+	// A detached edit can arrive before its target: the target then opens as edited.
+	t2 := post(a, b, .Text, "first version");
+	t2_at := copy_string(delivery());
+	fx_receive(a, a, b, CONV, t2_at, t2.packet);
+	early_edit := detach(a, b, t2_at, "second version");
+	ask(a, .Sent, early_edit.packet);
+	deliver(a, b, early_edit, 40);
+	r = fx_receive(b, a, a, CONV, t2_at, t2.packet);
+	check(r.result == .Ok && r.out_text == "second version", "a target arriving after its detached edit opens as edited");
+	// A delete takes the detached edits' text with it.
+	del2 := post(a, b, .Delete, target = t_at);
+	land(a, b, del2, t_at);
+	found = ask(b, .Search, peer = a, text = "newest");
+	check(found.hits.count == 0, "a deleted message's detached edits aren't found");
+	check(count(b.d, "SELECT count(*) FROM plaintexts WHERE target IS NOT NULL;") >= 3, "they keep their rows");
+	r = deliver(a, b, newer, 30);
+	check(r.result == .Repeated, "a detached edit replayed as another delivery");
+
 	// The outbox keeps an Edit's target and @silent for a resend after a crash.
 	again := post(a, b, .Text, "to edit");
 	again_at := copy_string(delivery());
@@ -599,12 +666,15 @@ contents :: (a: *Client, b: *Client) {
 		if n junk[0] = xx (2 + random_get() % 5);
 		e2e.parse_body(junk);
 	}
-	for x: string.["\x02", "\x02\x00\x00\x00", "\x03\x00\x00\x00hi", "\x04\x01d\x00\x00x", "\x05\x01d\x00\x00", "\x02\x00\x00\x0b", "\x07\x00\x00\x00", "\x02\x00\x00\x01"] {
+	for x: string.["\x02", "\x02\x00\x00\x00", "\x03\x00\x00\x00hi", "\x04\x01d\x00\x00x", "\x05\x01d\x00\x00", "\x02\x00\x00\x0b", "\x07\x00\x00\x00", "\x02\x00\x00\x01",
+			"\x42\x00\x00\x00\x00\x00", "\x42\x00\x00\x00\x00\x01\x00hi", "\x42\x00\x00\x00\x00\x01a\x01\x0ahi", "\x43\x01d\x00\x00\x00\x01a\x00hi", "\x40hi", "\x41"] {
 		_, ok := e2e.parse_body(xx x);
 		check(!ok, tprint("bad body % refused", it_index));
 	}
 	_, ok := e2e.parse_body(e2e.encode_body(.{content = .Post, files = .[f], text = "ok"}));
 	check(ok, "a good body parses");
+	fwd, fwd_ok := e2e.parse_body(xx "\xc2\x00\x00\x00\x00\x01a\x00hi");
+	check(fwd_ok && fwd.forwarded && fwd.silent && fwd.forward_author == "a" && fwd.forward_at == "" && fwd.text == "hi", "a forward's body parses");
 }
 
 // group: three members over the mock carrier with sender keys (E2E 8). Each pair has a session in the group
@@ -770,9 +840,9 @@ fx_send :: (c: *Client, id: string, peer: *Client, text := "", content := e2e.Co
 	return r;
 }
 
-fx_receive :: (to: *Client, from: *Client, peer: *Client, id: string, at: string, packet: string) -> *e2e.Request {
+fx_receive :: (to: *Client, from: *Client, peer: *Client, id: string, at: string, packet: string, order: s64 = 0) -> *e2e.Request {
 	r := e2e.request(.Receive, .{CARRIER, id, to.party, peer.party, limit}, packet = packet);
-	r.me, r.from, r.delivery = to.me, copy_string(from.party), copy_string(at);
+	r.me, r.from, r.delivery, r.order = to.me, copy_string(from.party), copy_string(at), order;
 	e2e.submit(to.d, r);
 	wait(r);
 	return r;

@@ -101,22 +101,51 @@ settings_put :: (c: *Client, cat: u32, num: u32, encoded: []u8, sub: u32 = 0, de
 	assert(cat < 64);
 	settings_proto_edit(*c.store, cat, num, encoded, sub);
 	c.settings_edit.cats |= (cast(u64) 1) << cat;
-	c.store.settings.unsent |= (cast(u64) 1) << cat;
+	st := *c.store.settings;
+	st.unsent |= (cast(u64) 1) << cat;
+	// The edit itself is kept, not its category: an edit made before READY saw an empty proto, and
+	// keeping that category whole would wipe the rest of it (Developer Mode reset the theme).
+	for st.edits if it.cat == cat && it.num == num && it.sub == sub {
+		free(it.encoded.data,, c.store.allocator);
+		array_ordered_remove_by_index(*st.edits, it_index);
+		break;
+	}
+	array_add(*st.edits, .{cat, num, sub, array_copy(encoded,, c.store.allocator)});
 	settings_mark(c, delay_ms);
 }
 
-// settings_proto_edit: the local half of settings_put (offline runs use it alone). A nested field
-// (`sub` > 0) is field `sub` of message field `num`, the rest of that message kept.
+// settings_proto_edit: the local half of settings_put (offline runs use it alone).
 settings_proto_edit :: (s: *Store, cat: u32, num: u32, encoded: []u8, sub: u32 = 0) {
-	f := protobuf.find(s.settings.proto, cat);
+	settings_proto_set(s, proto_with_edit(s.settings.proto, cat, num, encoded, sub));
+	s.changed += 1;
+}
+
+// proto_with_edit: proto with field `num` of category `cat` set (temp). A nested field (`sub` > 0)
+// is field `sub` of message field `num`, the rest of that message kept.
+proto_with_edit :: (proto: []u8, cat: u32, num: u32, encoded: []u8, sub: u32 = 0) -> []u8 {
+	f := protobuf.find(proto, cat);
 	field := encoded;
 	if sub {
 		inner := protobuf.find(f.bytes, num);
 		field = pb_field_msg(num, protobuf.with_field(inner.bytes, sub, encoded,, temp));
 	}
 	body := protobuf.with_field(f.bytes, num, field,, temp);
-	settings_proto_set(s, protobuf.with_field(s.settings.proto, cat, pb_field_msg(cat, body),, temp));
-	s.changed += 1;
+	return protobuf.with_field(proto, cat, pb_field_msg(cat, body),, temp);
+}
+
+// settings_edits_prune drops the kept edits of categories the server has taken.
+settings_edits_prune :: (s: *Store) {
+	st := *s.settings;
+	n := 0;
+	for st.edits {
+		if st.unsent & ((cast(u64) 1) << it.cat) {
+			st.edits[n] = it;
+			n += 1;
+		} else {
+			free(it.encoded.data,, s.allocator);
+		}
+	}
+	st.edits.count = n;
 }
 
 // settings_ids: a packed repeated fixed64 field at path (guild ids), in temp.
@@ -334,6 +363,7 @@ settings_saved :: (c: *Client, r: *Rest_Result, b64: string) {
 	} else {
 		e.retry_ms = 0;
 		st.unsent &= e.cats; // edits made since the PATCH left stay local
+		settings_edits_prune(*c.store);
 	}
 	e.sending = 0;
 	if b64 apply_settings_proto(*c.store, b64);

@@ -126,7 +126,12 @@ Request :: struct {
 	silent: bool; // Send: sent with @silent. Receive: the sender asked for no sound or notification.
 	content: Content; // Send: what to send (Text upgrades to Post with a reply or files). Receive: what came.
 	target: string; // Edit, Delete, React, Unreact: the delivery they change. An Edit or Delete replaces it, so the carrier rewrites that delivery in place.
+	in_place: int; // Send of an Edit: the largest packet the carrier can put in its target's place (0: any). A longer one, and every later edit of that message, goes as a delivery of its own: detached.
+	detached: bool; // Send: the Edit goes as a new delivery, which the receiving side hides and applies to its target.
+	order: s64; // Receive: the carrier's order of this delivery, later ones larger (0: none). The latest of a message's detached edits wins.
 	reply: string;
+	forward_author: string; // Send: a forward of this author's message, sent at forward_at (opaque). Receive: what the forward named.
+	forward_at: string;
 	files: [..]File; // Strings on the heap.
 	stickers: [..]string;
 	members: [..]string; // Send in a group (E2E 8): its other parties, each given our sender key.
@@ -158,7 +163,7 @@ request :: (op: Op, conv := Conversation.{}, text := "", packet := "") -> *Reque
 
 free_request :: (r: *Request) {
 	crypto.zero(*r.me);
-	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet, r.target, r.reply] free(it);
+	for string.[r.conv.carrier, r.conv.id, r.conv.me, r.conv.peer, r.from, r.delivery, r.text, r.out_text, r.packet, r.target, r.reply, r.forward_author, r.forward_at] free(it);
 	for * r.files { crypto.zero(*it.key); free(it.name); free(it.mime); free(it.description); }
 	array_free(r.files);
 	for r.stickers free(it);
@@ -242,6 +247,8 @@ SQL,
 	// The opaque files a packet goes with (E2E 7's ciphertexts), kept with its outbox entry so a resend
 	// after a crash carries them too.
 	"CREATE TABLE outbox_files(hash BLOB NOT NULL, n INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(hash, n)) WITHOUT ROWID;",
+	// A detached Edit (store_plaintext): the delivery it changes, and the carrier's order of its own.
+	"ALTER TABLE plaintexts ADD COLUMN target BLOB; ALTER TABLE plaintexts ADD COLUMN ord INTEGER NOT NULL DEFAULT 0; CREATE INDEX plaintexts_target ON plaintexts(conversation, target);",
 ];
 
 // The entries that wiped users' sessions and history, before E2E shipped in v0.6.2. Never add to this:
@@ -363,8 +370,8 @@ run_request :: (d: *Db, r: *Request) {
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
 			if !commit_sent(d, r, conv, *s, true, hello.root, hello.id, encode_body(.{content = .Accept})) r.result = .Failed;
 		case .Send;
-			if r.content == .Text && (r.reply.count || r.files.count || r.stickers.count) r.content = .Post;
-			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text, r.stickers});
+			if r.content == .Text && (r.reply.count || r.files.count || r.stickers.count || r.forward_author.count) r.content = .Post;
+			body := encode_body(.{r.content, r.silent, r.target, r.reply, r.files, r.text, r.stickers, r.forward_author.count > 0, r.forward_author, r.forward_at});
 			_, valid := parse_body(body);
 			if !valid || r.content == .Accept { r.result = .Failed; return; }
 			if r.members { group_send(d, r, conv, body); return; }
@@ -391,6 +398,7 @@ run_request :: (d: *Db, r: *Request) {
 			p.count = MSG_PREFIX_BYTES;
 			if !encrypt(*s, pt, *p) { r.result = .Failed; return; }
 			r.packet = copy_string(xx bytes(*p),, context.default_allocator);
+			r.detached = is_detached(db, r, conv, p.count);
 			none: [32]u8;
 			if !commit_sent(d, r, conv, *s, false, none, none, body) r.result = .Failed;
 		case .Sent;
@@ -416,7 +424,7 @@ run_request :: (d: *Db, r: *Request) {
 			sqlite.finalize(st);
 		case .Search;
 			words := split(to_lower_copy(r.text,, temp), " ",, temp);
-			st := sqlite.prepare(db, "SELECT hash, delivery, author, sealed FROM plaintexts WHERE conversation = ? AND delivery IS NOT NULL LIMIT ?;");
+			st := sqlite.prepare(db, "SELECT hash, delivery, author, sealed FROM plaintexts WHERE conversation = ? AND delivery IS NOT NULL AND target IS NULL LIMIT ?;");
 			sqlite.bind_all(st, conv, MAX_SEARCHED);
 			while r.hits.count < MAX_HITS && sqlite.step(st) == .Row {
 				b := sqlite.col_blob(st, 3);
@@ -449,14 +457,25 @@ commit_sent :: (d: *Db, r: *Request, conv: []u8, s: *Session, new: bool, peer_ro
 		&& (ifx new then sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 				cast([]u8) s.id, conv, peer, cast([]u8) peer_root, cast([]u8) hello_id, seal(d, ad("sessions", s.id), s), now_ms())
 			else sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", s.id), s), now_ms(), cast([]u8) s.id))
-		&& store_plaintext(d, hash, ifx replaces(r.content) then r.target else "", body, conv, r.conv.me)
-		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, replaces, silent) VALUES(?, ?, ?, nullif(?, X''), ?);", cast([]u8) hash, conv, cast([]u8) r.packet, cast([]u8) r.target, r.silent)
+		&& store_plaintext(d, hash, in_place_target(r), body, conv, r.conv.me)
+		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, replaces, silent) VALUES(?, ?, ?, nullif(?, X''), ?);", cast([]u8) hash, conv, cast([]u8) r.packet, cast([]u8) in_place_target(r), r.silent || r.detached)
 		&& outbox_files(db, hash, r.uploads)
 		&& (!new || (set_encrypted(db, conv, true) && note_peer(db, peer, peer_root) && forget_own_sender_key(db, r, conv)))
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { log_error("e2e: cannot save a sent message: %", sqlite.errmsg(db)); sqlite.exec(db, "ROLLBACK;"); }
 	return ok;
 }
+
+// is_detached: an Edit too long for its target's place goes as a delivery of its own, and so does every
+// edit of a message after its first detached one, so no in-place edit, ordered by where its target sits,
+// can be taken for newer than one.
+is_detached :: (db: *sqlite.DB, r: *Request, conv: []u8, size: int) -> bool {
+	if r.content != .Edit || r.in_place <= 0 return false;
+	return size > r.in_place || query_int(db, "SELECT 1 FROM plaintexts WHERE conversation = ? AND target = ? LIMIT 1;", conv, cast([]u8) r.target) == 1;
+}
+
+// in_place_target: the delivery our Edit or Delete rewrites in place, which its plaintext claims at once.
+in_place_target :: (r: *Request) -> string { return ifx replaces(r.content) && !r.detached then r.target else ""; }
 
 outbox_files :: (db: *sqlite.DB, hash: [32]u8, files: []string) -> bool {
 	for files if !sqlite.run(db, "INSERT INTO outbox_files(hash, n, data) VALUES(?, ?, ?);", cast([]u8) hash, it_index, cast([]u8) it) return false;
@@ -481,7 +500,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 			r.result = .Repeated; // Our unclaimed packet, reposted by someone else.
 		} else if !first.count {
 			// Our own send coming back from the carrier: it claims the plaintext and leaves the outbox.
-			sqlite.run(db, "UPDATE plaintexts SET delivery = ? WHERE hash = ?;", cast([]u8) r.delivery, cast([]u8) hash);
+			sqlite.run(db, "UPDATE plaintexts SET delivery = ?, ord = ? WHERE hash = ?;", cast([]u8) r.delivery, r.order, cast([]u8) hash);
 			sqlite.run(db, "DELETE FROM outbox WHERE hash = ?;", cast([]u8) hash);
 			sqlite.run(db, "DELETE FROM outbox_files WHERE hash = ?;", cast([]u8) hash);
 		} else if first != r.delivery {
@@ -526,7 +545,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				&& sqlite.run(db, "INSERT INTO sessions(id, conversation, peer, peer_root, hello_id, state, updated) VALUES(?, ?, ?, ?, ?, ?, ?);",
 					cast([]u8) s.id, conv, from, cast([]u8) i.root, cast([]u8) i.hello_id, seal(d, ad("sessions", s.id), *s), now_ms())
 				&& store_skipped(d, s.id, skipped)
-				&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
+				&& store_plaintext(d, hash, r.delivery, body, conv, r.from, r.order, r)
 				&& set_encrypted(db, conv, true)
 				&& note_peer(db, from, i.root)
 				&& forget_own_sender_key(db, r, conv)
@@ -563,7 +582,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				if !decrypt_skipped(*s, mk, m, pt) || !opened(r, pt, *body) { r.result = .Undecryptable; return; }
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) h.dh, cast(s64) h.n)
-					&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
+					&& store_plaintext(d, hash, r.delivery, body, conv, r.from, r.order, r)
 					&& store_sender_key(d, r, conv, from)
 					&& sqlite.exec(db, "COMMIT;");
 			} else {
@@ -575,7 +594,7 @@ receive :: (d: *Db, r: *Request, conv: []u8) {
 				ok = sqlite.exec(db, "BEGIN;")
 					&& sqlite.run(db, "UPDATE sessions SET state = ?, updated = ? WHERE id = ?;", seal(d, ad("sessions", id), *next), now_ms(), cast([]u8) id)
 					&& store_skipped(d, id, skipped)
-					&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
+					&& store_plaintext(d, hash, r.delivery, body, conv, r.from, r.order, r)
 					&& store_sender_key(d, r, conv, from)
 					&& sqlite.exec(db, "COMMIT;");
 				for * skipped crypto.zero(*it.mk);
@@ -593,6 +612,7 @@ take_plaintext :: (r: *Request, pt: []u8) -> bool {
 	b, ok := parse_body(pt);
 	if !ok return false;
 	r.content, r.silent, r.out_text, r.target, r.reply = b.content, b.silent, copy_string(b.text), copy_string(b.target), copy_string(b.reply);
+	r.forward_author, r.forward_at = copy_string(b.forward_author), copy_string(b.forward_at);
 	for b.files {
 		f := array_add(*r.files);
 		f.* = it;
@@ -602,12 +622,13 @@ take_plaintext :: (r: *Request, pt: []u8) -> bool {
 	return true;
 }
 
-// opened takes the plaintext of a packet just decrypted: its padding goes, and an Edit or Delete must name
-// the delivery it arrived as, so the carrier can't move it onto another message.
+// opened takes the plaintext of a packet just decrypted: its padding goes, and a Delete must name the
+// delivery it arrived as, so the carrier can't move it onto another message. An Edit elsewhere is
+// detached: it changes only the target its sender named, and only if they wrote it (store_plaintext).
 opened :: (r: *Request, padded: []u8, body: *[]u8) -> bool {
 	ok: bool;
 	body.*, ok = unpad(padded);
-	return ok && take_plaintext(r, body.*) && (!replaces(r.content) || r.target == r.delivery);
+	return ok && take_plaintext(r, body.*) && (r.content != .Delete || r.target == r.delivery);
 }
 
 replaces :: (c: Content) -> bool { return c == .Edit || c == .Delete; }
@@ -680,10 +701,11 @@ group_send :: (d: *Db, r: *Request, conv: []u8, body: []u8) {
 	defer crypto.zero(pt);
 	ok = ok && group_seal(*k, binding(r.conv, r.conv.me, ""), pt, *p);
 	packet := bytes(*p);
+	r.detached = is_detached(db, r, conv, packet.count);
 	ok = ok && sqlite.run(db, "INSERT OR REPLACE INTO sender_keys(conversation, sender, id, sealed, members, updated) VALUES(?, ?, ?, ?, ?, ?);",
 			conv, me, cast([]u8) k.id, seal(d, ad("sender_keys", k.id), *k), cast([]u8) members, now_ms())
-		&& store_plaintext(d, crypto.blake3(packet), "", body, conv, r.conv.me)
-		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, silent) VALUES(?, ?, ?, ?);", cast([]u8) crypto.blake3(packet), conv, packet, r.silent)
+		&& store_plaintext(d, crypto.blake3(packet), in_place_target(r), body, conv, r.conv.me)
+		&& sqlite.run(db, "INSERT INTO outbox(hash, conversation, packet, replaces, silent) VALUES(?, ?, ?, nullif(?, X''), ?);", cast([]u8) crypto.blake3(packet), conv, packet, cast([]u8) in_place_target(r), r.silent || r.detached)
 		&& outbox_files(db, crypto.blake3(packet), r.uploads)
 		&& sqlite.exec(db, "COMMIT;");
 	if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; for r.packets free(it); r.packets.count = 0; return; }
@@ -733,20 +755,83 @@ receive_group :: (d: *Db, r: *Request, conv: []u8, from: []u8, hash: [32]u8) {
 		&& (ifx skipped_key then sqlite.run(db, "DELETE FROM skipped WHERE session = ? AND dh = ? AND n = ?;", cast([]u8) id, cast([]u8) dh, cast(s64) n)
 			else sqlite.run(db, "UPDATE sender_keys SET sealed = ?, updated = ? WHERE conversation = ? AND sender = ? AND id = ?;", seal(d, ad("sender_keys", id), *next), now_ms(), conv, from, cast([]u8) id)
 				&& store_skipped(d, id, skipped))
-		&& store_plaintext(d, hash, r.delivery, body, conv, r.from)
+		&& store_plaintext(d, hash, r.delivery, body, conv, r.from, r.order, r)
 		&& sqlite.exec(db, "COMMIT;");
 	for * skipped crypto.zero(*it.mk);
 	if !ok { sqlite.exec(db, "ROLLBACK;"); r.result = .Failed; }
 }
 
 // A plaintext is sealed as its Content byte and Body, the form take_plaintext reads. delivery is empty
-// (NULL) for our own send until the carrier hands it back; author is the party that sent it. An Edit or
-// Delete takes the place of what its delivery held before, which is deleted.
-store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, body: []u8, conv: []u8, author: string) -> bool {
-	sealed := seal(d, ad("plaintexts", hash), body);
-	if replaces(xx (body[0] & ~SILENT)) && !sqlite.run(d.sql, "DELETE FROM plaintexts WHERE delivery = ? AND conversation = ?;", cast([]u8) delivery, conv) return false;
-	if !delivery.count return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, sealed, conversation, author) VALUES(?, ?, ?, ?);", cast([]u8) hash, sealed, conv, cast([]u8) author);
-	return sqlite.run(d.sql, "INSERT INTO plaintexts(hash, delivery, sealed, conversation, author) VALUES(?, ?, ?, ?, ?);", cast([]u8) hash, cast([]u8) delivery, sealed, conv, cast([]u8) author);
+// (NULL) for our own send until the carrier hands it back; author is the party that sent it; order is the
+// carrier's order of the delivery. An Edit or Delete in its target's place takes the place of what that
+// delivery held. A detached Edit keeps a row of its own, naming its target, and the target's row is
+// resealed with the latest one's body, so the target, refetched or arriving later, opens as edited. A
+// Delete reseals its target's detached edits as itself, so no text of a deleted message stays. r, when
+// given, is the Receive to hand what was kept.
+store_plaintext :: (d: *Db, hash: [32]u8, delivery: string, body: []u8, conv: []u8, author: string, order: s64 = 0, r: *Request = null) -> bool {
+	db := d.sql;
+	b, ok := parse_body(body);
+	if !ok return false;
+	if b.content == .Edit && b.target != delivery {
+		if !sqlite.run(db, "INSERT INTO plaintexts(hash, delivery, sealed, conversation, author, target, ord) VALUES(?, nullif(?, X''), ?, ?, ?, ?, ?);",
+				cast([]u8) hash, cast([]u8) delivery, seal(d, ad("plaintexts", hash), body), conv, cast([]u8) author, cast([]u8) b.target, order)
+			return false;
+		latest := latest_detached(d, conv, b.target, author);
+		defer crypto.zero(latest);
+		return reseal(d, "SELECT hash, sealed FROM plaintexts WHERE delivery = ? AND conversation = ? AND author = ? AND target IS NULL;", b.target, conv, author, latest);
+	}
+	if b.content == .Delete && !reseal(d, "SELECT hash, sealed FROM plaintexts WHERE target = ? AND conversation = ? AND author = ?;", delivery, conv, author, body) return false;
+	if replaces(b.content) && !sqlite.run(db, "DELETE FROM plaintexts WHERE delivery = ? AND conversation = ? AND target IS NULL;", cast([]u8) delivery, conv) return false;
+	latest: []u8;
+	defer crypto.zero(latest);
+	if !replaces(b.content) && delivery.count latest = latest_detached(d, conv, delivery, author);
+	if latest.count && r {
+		free(r.out_text);
+		free(r.target);
+		free(r.reply);
+		free(r.forward_author);
+		free(r.forward_at);
+		for * r.files { crypto.zero(*it.key); free(it.name); free(it.mime); free(it.description); }
+		r.files.count = 0;
+		for r.stickers free(it);
+		r.stickers.count = 0;
+		if !take_plaintext(r, latest) return false;
+	}
+	return sqlite.run(db, "INSERT INTO plaintexts(hash, delivery, sealed, conversation, author) VALUES(?, nullif(?, X''), ?, ?, ?);",
+		cast([]u8) hash, cast([]u8) delivery, seal(d, ad("plaintexts", hash), ifx latest.count then latest else body), conv, cast([]u8) author);
+}
+
+// latest_detached is the body of author's latest detached Edit of target (temp), ours not yet handed back
+// first, or empty.
+latest_detached :: (d: *Db, conv: []u8, target: string, author: string) -> []u8 {
+	st := sqlite.prepare(d.sql, "SELECT hash, sealed FROM plaintexts WHERE conversation = ? AND target = ? AND author = ? ORDER BY delivery IS NULL DESC, ord DESC LIMIT 1;");
+	defer sqlite.finalize(st);
+	if !sqlite.bind_all(st, conv, cast([]u8) target, cast([]u8) author) || sqlite.step(st) != .Row return .[];
+	b := sqlite.col_blob(st, 1);
+	pt := NewArray(max(b.count - SEAL_BYTES, 0), u8,, temp);
+	if !unseal(d, ad("plaintexts", sqlite.col_blob(st, 0)), b, pt) return .[];
+	return pt;
+}
+
+// reseal gives every row the query (delivery, conversation, author) picks the plaintext body, sealed
+// under its own hash, leaving deleted messages deleted.
+reseal :: (d: *Db, query: string, delivery: string, conv: []u8, author: string, body: []u8) -> bool {
+	if !body.count return true;
+	hashes: [..][32]u8;
+	hashes.allocator = temp;
+	st := sqlite.prepare(d.sql, query);
+	sqlite.bind_all(st, cast([]u8) delivery, conv, cast([]u8) author);
+	while sqlite.step(st) == .Row {
+		h, b := sqlite.col_blob(st, 0), sqlite.col_blob(st, 1);
+		if h.count != 32 || b.count <= SEAL_BYTES continue;
+		pt := NewArray(b.count - SEAL_BYTES, u8,, temp);
+		defer crypto.zero(pt);
+		if !unseal(d, ad("plaintexts", h), b, pt) || (pt[0] & ~FLAGS) == xx Content.Delete continue;
+		array_add(*hashes, (cast(*[32]u8) h.data).*);
+	}
+	sqlite.finalize(st);
+	for hashes if !sqlite.run(d.sql, "UPDATE plaintexts SET sealed = ? WHERE hash = ?;", seal(d, ad("plaintexts", it), body), cast([]u8) it) return false;
+	return true;
 }
 
 store_skipped :: (d: *Db, session: [16]u8, skipped: []Skipped) -> bool {

@@ -2,7 +2,7 @@
 // GTK 3, else libwebkitgtk-6.0 on GTK 4, which newer GNOME installs may carry alone), so fastcord never
 // needs it otherwise. GTK runs on a thread of its own, on its own display
 // connection, from then on (it can be initialised once per process); the UI thread hands it work with
-// g_idle_add. The page is an ephemeral context's; its main frame may load only the page and the captcha
+// g_idle_add. GTK prefers X11 (XWayland on Wayland desktops), then Wayland. The page is an ephemeral context's; its main frame may load only the page and the captcha
 // providers' hosts (WebKitGTK doesn't say which frame a navigation is for), and new windows never open.
 
 #scope_module
@@ -68,6 +68,7 @@ wk: struct {
 // WebKitGTK's handle (dlsym searches its dependencies).
 Gtk :: struct {
     gtk_disable_setlocale: () #c_call;
+    gdk_set_allowed_backends: (backends: *u8) #c_call;
     gtk_window_set_title: (w: *void, title: *u8) #c_call;
     gtk_window_set_default_size: (w: *void, width: s32, height: s32) #c_call;
     gtk_window_present: (w: *void) #c_call;
@@ -138,6 +139,9 @@ wk_thread :: (t: *Thread) -> s64 {
     ok := lib && load_syms(lib, *G, "") && (ifx gtk4 then load_syms(lib, *G4, "") else load_syms(lib, *G3, ""));
     if ok {
         G.gtk_disable_setlocale(); // gtk_init would set the process's C locale (number parsing, formatting)
+        // X11 (XWayland on a Wayland desktop) first: the path tested end to end; native Wayland where there is
+        // no X server. GDK_BACKEND still overrides it.
+        G.gdk_set_allowed_backends("x11,wayland");
         ok = (ifx gtk4 then G4.gtk_init_check() else G3.gtk_init_check(null, null)) != 0;
     }
     locks.lock(*wk.mu);
