@@ -1,6 +1,6 @@
 // PreloadedUserSettings writes (UserSettingsProtoStore.updateAsync):
-// each change builds a *delta* proto (ProtoClass.create() + the edited
-// fields), deltas are merged until the save timer fires, and the save is
+// each change edits the kept proto at once and marks its category; at the
+// save timer the delta is every marked category whole, and the save is
 //   PATCH /users/@me/settings-proto/1 {"settings":"<base64 delta>"}
 // Timer per change kind (UserSettingsDelay): INFREQUENT_USER_ACTION 0 s
 // (status, custom status, theme), FREQUENT_USER_ACTION 10 s (guild folders).
@@ -17,24 +17,10 @@ Custom_Status :: struct {
 	clear_after: Clear_After; // the modal's "Clear after" choice (telemetry)
 }
 
-// The pending delta: each has_* says the field is part of it. Strings and folders are in c.allocator.
+// The pending delta: whole categories of the kept proto, saved at `due`.
 Settings_Edit :: struct {
 	due: s64; // 0 = nothing pending
-	status: Status;
-	has_status: bool;
-	status_ms: s64; // status_created_at_ms
-	status_expires_ms: s64; // status_expires_at_ms (fixed64 4), 0 = forever
-	custom: Custom_Status;
-	has_custom: bool;
-	custom_ms: s64; // CustomStatus.created_at_ms
-	clear_custom: bool;
 	cats: u64; // bit n: category n of the kept proto is part of the delta, whole (settings_put)
-	friend_online: bool; // NotificationSettings.notify_friends_on_launch (12)
-	has_friend_online: bool;
-	folders: []Guild_Folder;
-	has_folders: bool;
-	inbox_tab: Inbox_Tab;
-	has_inbox_tab: bool;
 }
 
 // InboxSettings.current_tab (PreloadedUserSettings field 2): the Inbox popout
@@ -53,81 +39,14 @@ pb_new :: () -> protobuf.Writer {
 	return w;
 }
 
-pb_fixed64 :: (w: *protobuf.Writer, num: u32, v: u64) {
-	protobuf.write_tag(w, num, .I64);
-	for i: 0..7 array_add(*w.buf, cast(u8) (v >> (8 * i)));
-}
-
 pb_msg :: (w: *protobuf.Writer, num: u32, inner: protobuf.Writer) { protobuf.write_bytes(w, num, inner.buf); }
-
-// pb_wrapped writes a wrapper message (StringValue, UInt64Value, ...) holding field 1.
-pb_wrapped_uint :: (w: *protobuf.Writer, num: u32, v: u64) {
-	inner := pb_new();
-	protobuf.write_uint(*inner, 1, v);
-	pb_msg(w, num, inner);
-}
 
 #scope_export
 
-// settings_delta_proto encodes the pending edit as a PreloadedUserSettings delta (temp); the
-// categories in e.cats come whole from the kept proto.
-settings_delta_proto :: (e: *Settings_Edit, proto: []u8 = .[]) -> []u8 {
-	root := pb_new();
-	if e.has_inbox_tab {
-		ib := pb_new(); // InboxSettings (2)
-		if e.inbox_tab != .Unspecified protobuf.write_uint(*ib, 1, cast(u64) e.inbox_tab);
-		pb_msg(*root, 2, ib);
-	}
-	if e.has_status || e.has_custom || e.clear_custom {
-		st := pb_new(); // StatusSettings (11)
-		if e.has_status {
-			sv := pb_new(); // StringValue
-			protobuf.write_string(*sv, 1, status_name(e.status));
-			pb_msg(*st, 1, sv);
-		}
-		if e.has_custom {
-			cs := *e.custom;
-			cm := pb_new(); // CustomStatus (2)
-			if cs.text protobuf.write_string(*cm, 1, cs.text);
-			if cs.emoji_id pb_fixed64(*cm, 2, cs.emoji_id);
-			if cs.emoji_name protobuf.write_string(*cm, 3, cs.emoji_name);
-			if cs.expires_at_ms pb_fixed64(*cm, 4, cast(u64) cs.expires_at_ms);
-			pb_fixed64(*cm, 5, cast(u64) e.custom_ms);
-			pb_msg(*st, 2, cm);
-		}
-		if e.has_status && e.status_expires_ms pb_fixed64(*st, 4, cast(u64) e.status_expires_ms);
-		// clearing: StatusSettings without custom_status (fixture custom_status)
-		if e.has_status && e.status_ms pb_wrapped_uint(*st, 5, cast(u64) e.status_ms);
-		pb_msg(*root, 11, st);
-	}
-	if e.has_friend_online {
-		ns := pb_new(); // NotificationSettings (7)
-		bv := pb_new(); // BoolValue: false is the empty message
-		if e.friend_online protobuf.write_uint(*bv, 1, 1);
-		pb_msg(*ns, 12, bv);
-		pb_msg(*root, 7, ns);
-	}
-	if e.has_folders {
-		gf := pb_new(); // GuildFolders (14)
-		for f: e.folders {
-			fm := pb_new();
-			if f.guild_ids {
-				ids := pb_new();
-				for g: f.guild_ids for i: 0..7 array_add(*ids.buf, cast(u8) (g >> (8 * i)));
-				pb_msg(*fm, 1, ids);
-			}
-			if f.id pb_wrapped_uint(*fm, 2, cast(u64) f.id); // Int64Value
-			if f.name {
-				nm := pb_new();
-				protobuf.write_string(*nm, 1, f.name);
-				pb_msg(*fm, 3, nm);
-			}
-			if f.has_color pb_wrapped_uint(*fm, 4, f.color); // UInt64Value
-			pb_msg(*gf, 1, fm);
-		}
-		pb_msg(*root, 14, gf);
-	}
-	out: []u8 = root.buf;
+// settings_delta_proto: the pending delta (temp), the categories in e.cats whole from the kept
+// proto, unknown fields byte for byte.
+settings_delta_proto :: (e: *Settings_Edit, proto: []u8) -> []u8 {
+	out: []u8;
 	for n: 1..63 {
 		if !(e.cats & ((cast(u64) 1) << n)) continue;
 		r := protobuf.Reader.{buf = proto};
@@ -153,6 +72,15 @@ pb_field_msg :: (num: u32, inner: []u8) -> []u8 {
 	protobuf.write_bytes(*w, num, inner);
 	return w.buf;
 }
+pb_fixed64 :: (w: *protobuf.Writer, num: u32, v: u64) {
+	protobuf.write_tag(w, num, .I64);
+	for i: 0..7 array_add(*w.buf, cast(u8) (v >> (8 * i)));
+}
+pb_field_fixed64 :: (num: u32, v: u64) -> []u8 {
+	w := pb_new();
+	if v pb_fixed64(*w, num, v);
+	return w.buf;
+}
 pb_field_bool_value :: (num: u32, v: bool) -> []u8 { return pb_field_msg(num, pb_field_uint(1, xx v)); }
 pb_field_string_value :: (num: u32, v: string) -> []u8 {
 	w := pb_new();
@@ -164,7 +92,7 @@ pb_field_string_value :: (num: u32, v: string) -> []u8 {
 // updateAsync does: the delta carries the whole category as it now is, with the change
 // (`encoded`: the whole field, empty to unset it), applied locally at once, saved after delay_ms.
 settings_put :: (c: *Client, cat: u32, num: u32, encoded: []u8, sub: u32 = 0, delay_ms := SETTINGS_DELAY_INFREQUENT_MS) {
-	assert(cat < 64 && cat != 2 && cat != 7 && cat != 11 && cat != 14); // those are written from Settings_Edit's own fields
+	assert(cat < 64);
 	settings_proto_edit(*c.store, cat, num, encoded, sub);
 	c.settings_edit.cats |= (cast(u64) 1) << cat;
 	settings_mark(c, delay_ms);
@@ -221,24 +149,6 @@ settings_mark :: (c: *Client, delay_ms: s64) {
 	if e.due == 0 || due < e.due e.due = due;
 }
 
-free_custom :: (c: *Client, e: *Settings_Edit) {
-	if !e.has_custom return;
-	free_str(e.custom.text, c.allocator);
-	free_str(e.custom.emoji_name, c.allocator);
-	e.custom = .{};
-	e.has_custom = false;
-}
-
-free_folders :: (c: *Client, e: *Settings_Edit) {
-	for e.folders {
-		free_str(it.name, c.allocator);
-		array_free(it.guild_ids);
-	}
-	free(e.folders.data,, c.allocator);
-	e.folders = .[];
-	e.has_folders = false;
-}
-
 #scope_export
 
 // set_status: online / idle / dnd / invisible (setStatus). duration_ms > 0 is
@@ -250,16 +160,10 @@ set_status :: (c: *Client, s: Status, duration_ms: s64 = 0, expired := false) {
 	st := *c.store.settings;
 	analytics_status_updated(c, st.status, s, duration_ms, expired);
 	now := now_ms();
-	if s != st.status || st.status_created_ms == 0 st.status_created_ms = now;
-	st.status = s;
-	st.status_expires_ms = ifx duration_ms > 0 then now + duration_ms else 0;
-	e := *c.settings_edit;
-	e.status = s;
-	e.has_status = true;
-	e.status_ms = st.status_created_ms;
-	e.status_expires_ms = st.status_expires_ms;
-	c.store.changed += 1;
-	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
+	created := ifx s != st.status || st.status_created_ms == 0 then now else st.status_created_ms;
+	settings_put(c, 11, 1, pb_field_string_value(1, status_name(s)));
+	settings_put(c, 11, 4, pb_field_fixed64(4, xx ifx duration_ms > 0 then now + duration_ms else 0));
+	settings_put(c, 11, 5, pb_field_msg(5, pb_field_uint(1, xx created))); // UInt64Value
 }
 
 // mirror_presence: a self-hosted server's client takes the status and custom status set on Discord's
@@ -290,32 +194,13 @@ status_expiry_tick :: (c: *Client, now: s64) {
 set_custom_status :: (c: *Client, cs: Custom_Status) {
 	clearing := !cs.text && !cs.emoji_name && !cs.emoji_id;
 	if !clearing analytics_custom_status_updated(c, cs);
-	e := *c.settings_edit;
-	free_custom(c, e);
-	if clearing {
-		e.clear_custom = true;
-	} else {
-		e.custom = .{text = clone_str(cs.text, c.allocator), emoji_id = cs.emoji_id, emoji_name = clone_str(cs.emoji_name, c.allocator), expires_at_ms = cs.expires_at_ms};
-		e.has_custom = true;
-		e.custom_ms = now_ms();
-		e.clear_custom = false;
-	}
-	// The whole StatusSettings is written: current status and its created time.
-	if !e.has_status {
-		e.status = c.store.settings.status;
-		e.has_status = true;
-		e.status_ms = c.store.settings.status_created_ms;
-		e.status_expires_ms = c.store.settings.status_expires_ms;
-	}
-	st := *c.store.settings;
-	free_str(st.custom_status_text, c.allocator);
-	free_str(st.custom_status_emoji, c.allocator);
-	st.custom_status_text = clone_str(cs.text, c.allocator);
-	st.custom_status_emoji = clone_str(cs.emoji_name, c.allocator);
-	st.custom_status_emoji_id = cs.emoji_id;
-	st.custom_status_expires_ms = cs.expires_at_ms;
-	c.store.changed += 1;
-	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
+	cm := pb_new(); // CustomStatus (11.2); clearing leaves it out
+	if cs.text protobuf.write_string(*cm, 1, cs.text);
+	if cs.emoji_id pb_fixed64(*cm, 2, cs.emoji_id);
+	if cs.emoji_name protobuf.write_string(*cm, 3, cs.emoji_name);
+	if cs.expires_at_ms pb_fixed64(*cm, 4, xx cs.expires_at_ms);
+	pb_fixed64(*cm, 5, xx now_ms()); // created_at_ms
+	settings_put(c, 11, 2, ifx clearing then .[] else pb_field_msg(2, cm.buf));
 }
 
 // presence_value: op 3 (SelfPresenceStore.getLocalPresence) in context.allocator. While idle an
@@ -377,29 +262,24 @@ set_locale :: (c: *Client, locale: string) { settings_put(c, 12, 1, pb_field_str
 // set_inbox_tab: switching the Inbox tab (FREQUENT_USER_ACTION: the 10 s
 // timer starts at the first switch and saves the tab current then; fixture
 // inbox: Unreads at +0, Mentions at +6 s, one PATCH with MENTIONS at +10 s).
-set_inbox_tab :: (c: *Client, tab: Inbox_Tab) {
-	c.settings_edit.inbox_tab = tab;
-	c.settings_edit.has_inbox_tab = true;
-	c.store.settings.inbox_tab = tab;
-	c.store.changed += 1;
-	settings_mark(c, SETTINGS_DELAY_FREQUENT_MS);
-}
+set_inbox_tab :: (c: *Client, tab: Inbox_Tab) { settings_put(c, 2, 1, pb_field_uint(1, xx tab), delay_ms = SETTINGS_DELAY_FREQUENT_MS); }
 
-// set_guild_folders replaces the sidebar folders (copied into c.allocator).
+// set_guild_folders replaces the sidebar folders (GuildFolders.folders, 14.1, repeated).
 set_guild_folders :: (c: *Client, folders: []Guild_Folder) {
-	cp := NewArray(folders.count, Guild_Folder,, c.allocator);
-	for f, i: folders {
-		ids: [..]Snowflake;
-		ids.allocator = c.allocator;
-		array_copy(*ids, f.guild_ids);
-		cp[i] = f;
-		cp[i].name = clone_str(f.name, c.allocator);
-		cp[i].guild_ids = ids;
+	gf := pb_new();
+	for f: folders {
+		fm := pb_new();
+		if f.guild_ids {
+			ids := pb_new();
+			for g: f.guild_ids for i: 0..7 array_add(*ids.buf, cast(u8) (g >> (8 * i)));
+			protobuf.write_bytes(*fm, 1, ids.buf);
+		}
+		if f.id protobuf.write_bytes(*fm, 2, pb_field_uint(1, xx f.id)); // Int64Value
+		if f.name array_add(*fm.buf, ..pb_field_string_value(3, f.name));
+		if f.has_color protobuf.write_bytes(*fm, 4, pb_field_uint(1, f.color)); // UInt64Value
+		protobuf.write_bytes(*gf, 1, fm.buf);
 	}
-	free_folders(c, *c.settings_edit);
-	c.settings_edit.folders = cp;
-	c.settings_edit.has_folders = true;
-	settings_mark(c, SETTINGS_DELAY_FREQUENT_MS);
+	settings_put(c, 14, 1, gf.buf, delay_ms = SETTINGS_DELAY_FREQUENT_MS);
 }
 
 // flush_settings: persistChanges when the save timer fires.
@@ -414,9 +294,7 @@ flush_settings :: (c: *Client, now: s64) {
 	if e.due == 0 || now < e.due return;
 	delta := settings_delta_proto(e, c.store.settings.proto);
 	// PresenceStore: the gateway presence goes out with the settings write
-	if (e.has_status || e.has_custom || e.clear_custom) && c.gw gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
-	free_custom(c, e);
-	free_folders(c, e);
+	if (e.cats & (1 << 11)) && c.gw gateway_send(c.gw, .Presence_Update, presence_value(c,, temp));
 	e.* = .{};
 	if !delta return;
 	w: Json;

@@ -922,17 +922,18 @@ settings_proto_set :: (s: *Store, new_proto: []u8) {
 	f: protobuf.Field;
 	found: bool;
 	f, found = protobuf.find_path(raw, 2, 1);
-	if found st.inbox_tab = ifx f.value <= cast(u64) enum_highest_value(Inbox_Tab) then cast(Inbox_Tab) f.value else .Unspecified;
+	st.inbox_tab = ifx found && f.value <= cast(u64) enum_highest_value(Inbox_Tab) then cast(Inbox_Tab) f.value else .Unspecified;
 	f, found = protobuf.find_path(raw, 11, 1, 1);
 	if found st.status = status_from_string(cast(string) f.bytes);
+	// an absent field is the default: a cleared custom status leaves 11.2 out
 	f, found = protobuf.find_path(raw, 11, 2, 1);
-	if found set_str(s, *st.custom_status_text, cast(string) f.bytes);
+	set_str(s, *st.custom_status_text, ifx found then cast(string) f.bytes);
 	f, found = protobuf.find_path(raw, 11, 2, 3);
-	if found set_str(s, *st.custom_status_emoji, cast(string) f.bytes);
+	set_str(s, *st.custom_status_emoji, ifx found then cast(string) f.bytes);
 	f, found = protobuf.find_path(raw, 11, 2, 2);
-	if found st.custom_status_emoji_id = f.value;
+	st.custom_status_emoji_id = ifx found then f.value;
 	f, found = protobuf.find_path(raw, 11, 2, 4);
-	if found st.custom_status_expires_ms = cast(s64) f.value;
+	st.custom_status_expires_ms = ifx found then cast(s64) f.value;
 	f, found = protobuf.find_path(raw, 11, 4);
 	st.status_expires_ms = ifx found then cast(s64) f.value else 0;
 	f, found = protobuf.find_path(raw, 11, 5, 1);

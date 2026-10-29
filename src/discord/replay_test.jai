@@ -1631,15 +1631,16 @@ parity_set_idle :: (t: *T) {
 // expire_duration_minutes, and the expiry going back to Online with
 // location CUSTOM_STATUS_MANAGER.
 parity_status_timed :: (t: *T) {
-	e: Settings_Edit;
-	e.has_status, e.status, e.status_ms, e.status_expires_ms = true, Status.Dnd, 1, 2;
-	want :: u8.[0x5a, 0x14, 0x0a, 0x05, 0x0a, 0x03, #char "d", #char "n", #char "d", 0x21, 2, 0, 0, 0, 0, 0, 0, 0, 0x2a, 0x02, 0x08, 0x01];
-	expect(t, cast(string) settings_delta_proto(*e) == cast(string) want, "StatusSettings delta with status_expires_at_ms");
 	run: Replay_Run;
 	if !replay_begin(*run, t, "status_change", 0, 0) { return; }
 	replay_mark(*run);
 	set_status(run.c, .Dnd, 15 * 60_000);
 	expect(t, run.c.store.settings.status_expires_ms > now_ms(), "expiry set");
+	delta := settings_delta_proto(*run.c.settings_edit, run.c.store.settings.proto);
+	f, ok := protobuf.find_path(delta, 11, 4);
+	expect(t, ok && f.wire == .I64 && cast(s64) f.value == run.c.store.settings.status_expires_ms, "delta: status_expires_at_ms (fixed64)");
+	f, ok = protobuf.find_path(delta, 11, 1, 1);
+	expect(t, ok && cast(string) f.bytes == "dnd", "delta: status");
 	replay_settle(*run, 300);
 	run.c.store.settings.status_expires_ms = now_ms() - 1;
 	replay_settle(*run, 300);
@@ -2980,6 +2981,60 @@ parity_settings_put :: (t: *T) {
 	fs, ok := frecency_settings_decode(f.proto, temp);
 	expect(t, ok && fs.favorite_emojis.count == 1 && fs.favorite_stickers.count == 1 && f.remote == 1, "frecency: partial update merged");
 	replay_end(*run);
+}
+
+// Every typed settings write sends its category whole (updateAsync, CLIENT_RULES "Settings"): an
+// unknown field and the category's other fields survive, byte for byte.
+settings_whole_category :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "settings", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	c := run.c;
+	// per category: a known field fastcord never writes there, and unknown field 99
+	Other :: struct { cat: u32; num: u32; }
+	OTHERS :: Other.[.{2, 2}, .{7, 1}, .{11, 3}, .{14, 2}];
+	for OTHERS {
+		settings_proto_edit(*c.store, it.cat, it.num, ifx it.cat == 14 then pb_field_ids(2, .[5]) else pb_field_bool_value(it.num, true));
+		settings_proto_edit(*c.store, it.cat, 99, pb_field_uint(99, 7));
+	}
+	check :: (t: *T, c: *Client, cat: u32, what: string) -> []u8 {
+		delta := settings_delta_proto(*c.settings_edit, c.store.settings.proto);
+		c.settings_edit = .{};
+		got := protobuf.find(delta, cat);
+		kept := protobuf.find(c.store.settings.proto, cat);
+		u, uok := protobuf.find_path(delta, cat, 99);
+		expectf(t, uok && u.value == 7 && cast(string) got.bytes == cast(string) kept.bytes, "%: the category whole, unknown field kept", what);
+		for OTHERS if it.cat == cat {
+			_, ok := protobuf.find_path(delta, cat, it.num);
+			expectf(t, ok, "%: field %.% kept", what, cat, it.num);
+		}
+		return delta;
+	}
+	c.settings_edit = .{};
+	set_inbox_tab(c, .Unreads);
+	d := check(t, c, 2, "inbox tab");
+	expect_value(t, protobuf.find_path(d, 2, 1).value, 2);
+	set_friend_online_notifications(c, false);
+	d = check(t, c, 7, "friends come online");
+	_, has := protobuf.find_path(d, 7, 12);
+	_, on := protobuf.find_path(d, 7, 12, 1);
+	expect(t, has && !on && c.store.settings.friend_online_off, "friends come online: an empty BoolValue");
+	set_status(c, .Dnd, 60_000);
+	d = check(t, c, 11, "status");
+	expect_value(t, cast(string) protobuf.find_path(d, 11, 1, 1).bytes, "dnd");
+	set_custom_status(c, .{text = "hi"});
+	d = check(t, c, 11, "custom status");
+	expect(t, cast(string) protobuf.find_path(d, 11, 2, 1).bytes == "hi" && cast(string) protobuf.find_path(d, 11, 1, 1).bytes == "dnd", "custom status, status kept");
+	set_custom_status(c, .{});
+	d = check(t, c, 11, "clear custom status");
+	_, has = protobuf.find_path(d, 11, 2);
+	expect(t, !has && c.store.settings.custom_status_text == "", "cleared");
+	ids: [..]Snowflake;
+	ids.allocator = temp;
+	array_add(*ids, 9);
+	set_guild_folders(c, .[.{id = 4, name = "f", guild_ids = ids}]);
+	d = check(t, c, 14, "guild folders");
+	expect(t, c.store.settings.guild_folders.count == 1 && c.store.settings.guild_folders[0].name == "f", "folders applied locally");
 }
 
 parity_settings_friend_online_toggle :: (t: *T) {

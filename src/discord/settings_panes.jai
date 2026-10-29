@@ -146,16 +146,12 @@ analytics_ui_setting :: (c: *Client, key: string) {
 // set_friend_online_notifications: Notifications > "Friends come online"
 // (NotificationSettings field 12, a BoolValue written explicitly both ways).
 set_friend_online_notifications :: (c: *Client, on: bool) {
-	c.settings_edit.friend_online = on;
-	c.settings_edit.has_friend_online = true;
-	c.store.settings.friend_online_off = !on;
-	c.store.changed += 1;
+	settings_put(c, 7, 12, pb_field_bool_value(12, on));
 	analytics_ui_setting(c, "friend_online_notifications");
 	w := aw_begin();
 	json_kstr(*w, "update_type", "account");
 	json_kbool(*w, "friend_online_notifications", on);
 	aw_track(c, "notification_settings_updated", *w);
-	settings_mark(c, SETTINGS_DELAY_INFREQUENT_MS);
 }
 
 // theme_analytics_name: client_theme_updated's theme_name.
