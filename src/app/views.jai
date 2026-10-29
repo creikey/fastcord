@@ -155,6 +155,20 @@ label :: (text: string, font: Font_Id, size: float32, color: ui.Color, line_h: f
 	return b;
 }
 
+// The open server went away (kicked, banned, left from another device) or the open channel was
+// deleted: go where the client goes, home, or the server's first text channel.
+view_gone_check :: () {
+	if !app.client || app.client != app.discord || !app.client.store.ready return; // hosted servers keep their down page
+	s := store();
+	gid, cid := app.view.guild, app.view.channel;
+	if gid && !dc.guild_get(s, gid) {
+		go_home();
+	} else if cid && !dc.channel_get(s, cid) {
+		table_remove(*app.view.last_channel, gid);
+		if gid select_guild(gid); else select_channel(0, 0);
+	}
+}
+
 go_home :: () {
 	_, ch := table_find(*app.view.last_channel, 0);
 	select_channel(0, ch);
@@ -248,6 +262,7 @@ build_ui :: () {
 		return;
 	}
 	prof.zone("app.build_ui");
+	view_gone_check();
 	title_bar();
 	streamer_notice();
 	if call_fullscreen() {
