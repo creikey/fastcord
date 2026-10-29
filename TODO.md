@@ -28,7 +28,7 @@
   - Storage: disk usage of the server file, split by messages, attachments, emoji, stickers, sounds, avatars and the search index, with the disk's free space.
   - Attachments: browse every stored file (name, size, uploader, channel, date, jump to message), delete one or many, and cleanup rules (delete older than N days, larger than N MB), freeing space with `VACUUM` off the request path.
   - Limits: max upload size, per-member and whole-server storage quotas (40005 past them), message history retention.
-  - Transfer Ownership: the owner picks a member; it takes effect only once the new owner's client signs to accept (Hosting 3); the old owner becomes a member.
+  - Done: Transfer Ownership: the owner picks a member (Members' row menu); serve only records the offer (`pending_owner_id`) until that member accepts in the app's prompt (`PUT /guilds/{id}/owner-transfer`, `DELETE` declines); the old owner stays a member. Still missing: the accept signed with the member's identity key (Hosting 3) rather than carried by their session.
   - Backups: rolling `VACUUM INTO` snapshots with integrity check, folder, Back Up Now, Restore (Hosting 3).
   - Network: public address or DNS name invites carry, port, UPnP / NAT-PMP state, reachable-from-outside check (Hosting 3).
   - Sessions and connections: who is online from where, end a session.

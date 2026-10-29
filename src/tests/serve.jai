@@ -883,6 +883,20 @@ main :: () {
 	check(status == 400, tprint("invites pause for at most a day: % %", status, body));
 	status, body = rest("PUT", tprint("/api/v9/guilds/%/incident-actions", gid), "{\"invites_disabled_until\":null,\"dms_disabled_until\":null,\"lockdown_duration_hours\":null}", token);
 	check(status == 200 && contains(body, "\"invites_disabled_until\":null"), tprint("the owner enables invites: % %", status, body));
+	// Transfer Ownership waits for the new owner to accept; then it goes back the same way.
+	transfer := tprint("/api/v9/guilds/%/owner-transfer", gid);
+	status, body = rest("PUT", transfer, "", other_token);
+	check(status == 403, tprint("nobody accepts an ownership never offered: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"owner_id\":\"%\",\"code\":null}", other_id), token);
+	check(status == 200 && contains(body, tprint("\"pending_owner_id\":\"%\"", other_id)), tprint("the owner offers the server: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), "{\"name\": \"Mine Now\"}", other_token);
+	check(status == 403, tprint("an offer alone gives nothing: % %", status, body));
+	status, body = rest("PUT", transfer, "", other_token);
+	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", other_id)), tprint("the member accepts the server: % %", status, body));
+	status, body = rest("PATCH", tprint("/api/v9/guilds/%", gid), tprint("{\"owner_id\":\"%\",\"code\":null}", field(welcome.list[0], "author", "id").s), other_token);
+	check(status == 200, tprint("the new owner offers it back: % %", status, body));
+	status, body = rest("PUT", transfer, "", token);
+	check(status == 200 && contains(body, tprint("\"owner_id\":\"%\"", field(welcome.list[0], "author", "id").s)), tprint("and it comes back: % %", status, body));
 
 	// Custom emoji: the owner adds one, it is served, and members react with it as name:id.
 	emoji_path := tprint("/api/v9/guilds/%/emojis", gid);

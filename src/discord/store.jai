@@ -365,6 +365,7 @@ parse_guild_props :: (s: *Store, g: *Guild, p: etf.Map) {
 	if vhas(p, "safety_alerts_channel_id") g.safety_alerts_channel_id = fsnow(p, "safety_alerts_channel_id");
 	if vhas(p, "preferred_locale") set_str(s, *g.preferred_locale, fstr(p, "preferred_locale"));
 	if vhas(p, "incidents_data") set_str(s, *g.invites_disabled_until, fstr(fmap(p, "incidents_data"), "invites_disabled_until"));
+	if vhas(p, "pending_owner_id") g.pending_owner_id = fsnow(p, "pending_owner_id");
 	if vhas(p, "features") {
 		for g.features free_str(it, s.allocator);
 		g.features.count = 0;

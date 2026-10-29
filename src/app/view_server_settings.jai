@@ -360,6 +360,7 @@ ss: struct {
 	role_mentionable: bool;
 	role_perms: u64;
 	role_order: [..]dc.Snowflake; // the list as reordered, top first; empty when untouched
+	declined: dc.Snowflake; // the guild whose ownership offer was answered or put off this session
 	words: ui.Editor; // Safety Setup: Block Custom Words; Server Template: its description
 	hook_id: dc.Snowflake; // Integrations: the webhook open for editing
 	hook_name: ui.Editor; // its name; Server Template: the title
@@ -2537,6 +2538,45 @@ templates_page :: (g: *dc.Guild) {
 }
 
 #scope_export
+
+// ownership_prompt: on a hosted server, the member the owner offered the server to accepts or declines
+// (PUT / DELETE /guilds/{id}/owner-transfer). Shown over everything until answered.
+ownership_prompt :: () {
+	if !on_hosted() return;
+	g := dc.guild_get(store(), app.view.guild);
+	if !g || g.pending_owner_id != store().me || ss.declined == g.id || modal_open() return;
+	owner := dc.user_get(store(), g.owner_id);
+	if !adm_modal_begin("ownerprompt", 440, "Accept Server Ownership") {
+		ss.declined = g.id;
+		return;
+	}
+	spacer(.Y, 8);
+	r := row("body");
+	r.semantic_size = .[ui.pct(1), ui.children()];
+	{ ui.parent(r); defer ui.pop_parent();
+		spacer(.X, 25);
+		set_para("t", tprint("% wants to make you the owner of %. You'll be able to manage everything about it, and they'll stay a member.", ifx owner then dc.display_name(owner) else "The owner", g.name), .Normal, 16, 20, T("--text-default"));
+		spacer(.X, 25);
+	}
+	spacer(.Y, 24);
+	btns := row("btns");
+	btns.semantic_size = .[ui.pct(1), ui.px(40)];
+	btns.style.child_gap = 8;
+	answer := "";
+	{ ui.parent(btns); defer ui.pop_parent();
+		spacer(.X, 25 - 8);
+		if wide_button("decline", "Decline", .Secondary) answer = "DELETE";
+		if wide_button("accept", "Accept", .Primary) answer = "PUT";
+		spacer(.X, 25 - 8);
+	}
+	spacer(.Y, 24);
+	adm_modal_end();
+	if adm_escape() ss.declined = g.id;
+	if answer && net_action() {
+		ss.declined = g.id;
+		dc.guild_settings_call(app.client, g.id, xx Req.COUNT, answer, tprint("/guilds/%/owner-transfer", g.id));
+	}
+}
 
 // Shared by the settings pages: the readable reason a request failed.
 settings_result_error :: (r: *dc.Feature_Result) -> string {

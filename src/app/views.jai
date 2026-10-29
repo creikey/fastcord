@@ -1466,6 +1466,7 @@ overlays :: () {
 	guild_admin_overlays();
 	sound_settings_modal(); // view_server_soundboard.jai: over the Server Settings layer
 	attachments_overlays(); // attachments.jai: Modify modal, drag target, limit notices
+	ownership_prompt(); // view_server_settings.jai: a hosted server offered to us
 	req_toast(); // requests.jai: a failed request, on top
 	// Escape that no layer took (the composer hands it on): the keybind is global, so it acts on the
 	// open channel wherever the focus is

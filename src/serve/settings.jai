@@ -66,6 +66,7 @@ audit_reason :: (req: http.Request) -> string, bool {
 guild_fields_locked :: (s: *Server, g: *etf.Map_Builder) {
 	for GUILD_FIELDS etf.map_put(g, it.key, guild_field_locked(s, it));
 	etf.map_put(g, "incidents_data", guild_incidents_locked(s));
+	etf.map_put(g, "pending_owner_id", pending_owner_locked(s));
 }
 
 guild_field_locked :: (s: *Server, f: Guild_Field) -> etf.Value {
@@ -86,6 +87,7 @@ settings_route :: (c: *Conn, req: http.Request) -> handled: bool, keep: bool {
 	query := "";
 	if q >= 0 { query = advance(rest, q + 1); rest.count = q; }
 	if rest == "" && req.method == "PATCH" return true, edit_guild(c, req);
+	if rest == "/owner-transfer" && (req.method == "PUT" || req.method == "DELETE") return true, owner_transfer(c, req);
 	if rest == "/profile" && (req.method == "GET" || req.method == "PATCH") return true, guild_profile(c, req);
 	if rest == "/audit-logs" && req.method == "GET" return true, audit_logs(c, req, query);
 	if rest == "/members-search" && req.method == "POST" return true, members_search(c, req);
@@ -225,6 +227,8 @@ edit_guild :: (c: *Conn, req: http.Request) -> bool {
 	reason, rok := audit_reason(req);
 	v, err := etf.from_json(cast(string) req.body,, temp);
 	if err != .None || v.kind != .Map || !rok return json_error(c, 400, 50035, "Invalid Form Body");
+	new_owner, has_owner := etf.map_get(v.map, "owner_id");
+	if has_owner return offer_ownership(c, user, new_owner);
 	raw, has_name := etf.map_get(v.map, "name");
 	icon_v, has_icon := etf.map_get(v.map, "icon");
 	name := ifx raw.kind == .String then trim(raw.s) else "";
@@ -302,6 +306,69 @@ edit_guild :: (c: *Conn, req: http.Request) -> bool {
 		etf.map_put(*g, "name", etf.vstring(copy_string(s.name,, temp)));
 		etf.map_put(*g, "icon", guild_icon_locked(s));
 		guild_fields_locked(s, *g);
+	}
+	guild := etf.vmap(etf.map_done(*g));
+	broadcast(s, "GUILD_UPDATE", guild);
+	return json_reply(c, 200, guild);
+}
+
+// Transfer Ownership: PATCH /guilds/{id} {owner_id} from the owner only offers the server to a member
+// (pending_owner_id in GUILD_UPDATE); it changes hands when that member accepts with PUT
+// /guilds/{id}/owner-transfer, and DELETE declines (or the owner withdraws). The old owner stays a member.
+offer_ownership :: (c: *Conn, user: s64, v: etf.Value) -> bool {
+	s := c.server;
+	target, ok := string_to_int(ifx v.kind == .String then v.s else "", T = s64);
+	if !ok return json_error(c, 400, 50035, "Invalid Form Body");
+	g := etf.map_builder(2,, temp);
+	{
+		locks.guard(*s.db_mu);
+		if owner_id(s) != user return json_error(c, 403, 50013, "Missing Permissions");
+		if target == user {
+			sqlite.run(s.db, "DELETE FROM meta WHERE k = 'pending_owner';");
+		} else {
+			st := sqlite.prepare(s.db, "SELECT 1 FROM users WHERE id = ? AND left = 0 AND banned = 0 AND signing_pub != x'';");
+			sqlite.bind(st, 1, target);
+			member := sqlite.step(st) == .Row;
+			sqlite.finalize(st);
+			if !member return json_error(c, 404, 10013, "Unknown User");
+			if !meta_put(s, "pending_owner", tprint("%", target)) return json_error(c, 500, 0, "500: Internal Server Error");
+			audit_locked(s, user, AUDIT_GUILD_UPDATE, s.guild, .[audit_change("pending_owner_id", .{}, snow(target))], "");
+		}
+		etf.map_put(*g, "id", snow(s.guild));
+		etf.map_put(*g, "pending_owner_id", pending_owner_locked(s));
+	}
+	guild := etf.vmap(etf.map_done(*g));
+	broadcast(s, "GUILD_UPDATE", guild);
+	return json_reply(c, 200, guild);
+}
+
+pending_owner_locked :: (s: *Server) -> etf.Value {
+	p := string_to_int(cast(string) meta_get(s, "pending_owner"), T = s64);
+	return ifx p then snow(p) else .{};
+}
+
+owner_transfer :: (c: *Conn, req: http.Request) -> bool {
+	s := c.server;
+	user := owner_session(c, req);
+	if !user return json_error(c, 401, 0, "401: Unauthorized");
+	g := etf.map_builder(3,, temp);
+	{
+		locks.guard(*s.db_mu);
+		pending := string_to_int(cast(string) meta_get(s, "pending_owner"), T = s64);
+		old := owner_id(s);
+		if !pending || (pending != user && !(req.method == "DELETE" && old == user)) return json_error(c, 403, 50013, "Missing Permissions");
+		ok := sqlite.exec(s.db, "BEGIN;") && sqlite.run(s.db, "DELETE FROM meta WHERE k = 'pending_owner';");
+		if ok && req.method == "PUT" {
+			ok = meta_put(s, "owner", tprint("%", user));
+			audit_locked(s, user, AUDIT_GUILD_UPDATE, s.guild, .[audit_change("owner_id", snow(old), snow(user))], "");
+		}
+		if !ok || !sqlite.exec(s.db, "COMMIT;") {
+			sqlite.exec(s.db, "ROLLBACK;");
+			return json_error(c, 500, 0, "500: Internal Server Error");
+		}
+		etf.map_put(*g, "id", snow(s.guild));
+		etf.map_put(*g, "owner_id", snow(owner_id(s)));
+		etf.map_put(*g, "pending_owner_id", .{});
 	}
 	guild := etf.vmap(etf.map_done(*g));
 	broadcast(s, "GUILD_UPDATE", guild);
