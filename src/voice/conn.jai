@@ -220,6 +220,7 @@ Conn :: struct {
     video_ssrc, rtx_ssrc: u32;
     video_codec: Video_Codec;
     video_rx: Table(u32, *Video_Rx);  // remote video SSRC -> reassembly (under mu)
+    video_rtx: Table(u32, u32);       // a remote stream's RTX SSRC -> its video SSRC (under mu)
     video_users: Table(u64, bool);    // users whose op 12 has an active stream (under mu)
     vmu: locks.Mutex;                 // the send side below (encoder thread vs. RTCP)
     video_on: bool;
@@ -236,6 +237,9 @@ Conn :: struct {
     pcond: locks.Cond;
     paced: [..][]u8;  // heap, oldest first
     paced_bytes: int;
+    // retransmission (RFC 4588): the last RTX_HISTORY packets sent, by sequence number, for NACKs (under vmu)
+    rtx_hist: *[RTX_HISTORY]Sent_Packet;
+    rtx_seq: u16;
 }
 
 dbg :: (c: *Conn, format: string, args: ..Any) {
@@ -312,14 +316,16 @@ voice_disconnect :: (c: *Conn) {
     for th: (*Thread).[c.timer_th, c.udp_th, c.audio_th, c.pacer_th] if th locks.join(th);
     for c.paced free(it.data);
     array_free(c.paced);
+    free(c.rtx_hist);
     if c.capture_on audio.capture_stop();
     if c.udp_open close_and_reset(*c.udp);
     transport_reset(*c.tx_crypto);
     transport_reset(*c.rx_crypto);
     for c.users destroy_user(c, it);
     deinit(*c.users);
-    for c.video_rx { array_free(it.au); array_free(it.av1_obu); free(it); }
+    for c.video_rx { rx_reset(it); free(it); }
     deinit(*c.video_rx);
+    deinit(*c.video_rtx);
     deinit(*c.video_users);
     deinit(*c.user_ssrc);
     deinit(*c.settings);
@@ -1169,6 +1175,22 @@ udp_thread_proc :: (t: *Thread) -> s64 {
             on_video_packet(c, h, vcodec, payload, n, now);
             continue;
         }
+        // a retransmission (RFC 4588): the original sequence number, then the packet's payload
+        vcodec = video_codec_from_pt(h.pt - 1);
+        if vcodec != .None && payload.count >= 2 {
+            found: bool;
+            media_ssrc: u32;
+            {
+                locks.guard(*c.mu);
+                found, media_ssrc = table_find(*c.video_rtx, h.ssrc);
+            }
+            h.ssrc = media_ssrc;
+            if found {
+                h.seq = get_u16(payload, 0);
+                on_video_packet(c, h, vcodec, array_view(payload, 2), n, now);
+                continue;
+            }
+        }
         if h.pt != OPUS_PT {
             locks.guard(*c.mu);
             c.stats.other_pt += 1;
@@ -1226,6 +1248,7 @@ on_rtcp :: (c: *Conn, b: []u8, now: s64) {
     {
         locks.guard(*c.vmu);
         if c.video_on && keyframe_requested(b, c.video_ssrc) atomic_store(*c.keyframe_wanted, true);
+        if c.video_on && c.rtx_ssrc && c.rtx_hist for nacked_seqs(b, c.video_ssrc) retransmit(c, it);
     }
     rep, ok := parse_report(b);
     if !ok {
@@ -1620,6 +1643,10 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
             c.stats.packets_sent += 1;
             c.stats.bytes_sent += xx sl;
         }
+        if !c.rtx_hist c.rtx_hist = New([RTX_HISTORY]Sent_Packet);
+        sp := *c.rtx_hist.*[c.video_seq % RTX_HISTORY];
+        sp.seq, sp.ts, sp.pt, sp.count = c.video_seq, ts, pkt[1], payload.count;
+        memcpy(sp.data.data, payload.data, payload.count);
         c.video_seq += 1;
         c.video_packets += 1;
         c.video_octets += xx payload.count;
@@ -1631,6 +1658,49 @@ send_video :: (c: *Conn, codec: Video_Codec, au: []u8, ts_90k: u32) {
     c.video_last_ts = ts_90k;
     locks.guard(*c.mu);
     c.stats.video_frames_sent += 1;
+}
+
+RTX_HISTORY :: 1024;
+Sent_Packet :: struct {
+    seq: u16;
+    ts: u32;
+    pt: u8;     // with the marker bit
+    count: int; // 0: never sent
+    data: [MAX_VIDEO_PAYLOAD + 3]u8;
+}
+
+// retransmit sends a NACKed packet again on the RTX stream: the RTX payload type (one above the codec's),
+// its own sequence numbers and SSRC, and the original sequence number before the payload (RFC 4588).
+// Under vmu.
+retransmit :: (c: *Conn, seq: u16) {
+    sp := *c.rtx_hist.*[seq % RTX_HISTORY];
+    if !sp.count || sp.seq != seq return;
+    pkt: [MAX_VIDEO_PAYLOAD + 64]u8;
+    sealed: [MAX_VIDEO_PAYLOAD + 96]u8;
+    pkt[0] = 0x90;
+    pkt[1] = (sp.pt & 0x80) | ((sp.pt & 0x7f) + 1);
+    put_u16(pkt, c.rtx_seq, 2);
+    put_u32(pkt, sp.ts, 4);
+    put_u32(pkt, c.rtx_ssrc, 8);
+    pkt[12], pkt[13] = 0xBE, 0xDE;
+    put_u16(pkt, 1, 14);
+    pkt[16], pkt[17], pkt[18], pkt[19] = (EXT_ID_PLAYOUT_DELAY << 4) | 1, 0, 0, 0;
+    put_u16(pkt, seq, 20);
+    memcpy(pkt.data + 22, sp.data.data, sp.count);
+    sl: int;
+    {
+        locks.guard(*c.mu);
+        if !c.have_key return;
+        sl = transport_seal(*c.tx_crypto, array_view(pkt, 0, 22 + sp.count), 16, c.tx_nonce, sealed);
+        c.tx_nonce += 1;
+        c.stats.packets_sent += 1;
+        c.stats.bytes_sent += xx sl;
+    }
+    c.rtx_seq += 1;
+    locks.guard(*c.pmu);
+    array_add(*c.paced, array_copy(array_view(sealed, 0, sl)));
+    c.paced_bytes += sl;
+    locks.cond_signal(*c.pcond);
 }
 
 // pacer_thread_proc sends the queued video packets at PACE_FACTOR x the stream's bitrate, as WebRTC's
@@ -1701,51 +1771,73 @@ on_remote_video :: (c: *Conn, uid: u64, d: etf.Value) {
     locks.guard(*c.mu);
     drop_video_rx(c, uid);
     active := false;
-    add :: (ssrc: s64) #expand {
+    add :: (ssrc: s64, rtx: s64) #expand {
         if ssrc <= 0 return;
         rx := New(Video_Rx);
         rx.ssrc = cast,no_check(u32) ssrc;
         rx.user_id = uid;
         table_set(*c.video_rx, rx.ssrc, rx);
+        if rtx > 0 table_set(*c.video_rtx, cast,no_check(u32) rtx, rx.ssrc);
         active = true;
     }
     streams := jarr(jget(d, "streams"));
-    for streams if jint(jget(it, "active"), 1) != 0 add(jint(jget(it, "ssrc"), 0));
-    if !streams.count add(jint(jget(d, "video_ssrc"), 0));
+    for streams if jint(jget(it, "active"), 1) != 0 add(jint(jget(it, "ssrc"), 0), jint(jget(it, "rtx_ssrc"), 0));
+    if !streams.count add(jint(jget(d, "video_ssrc"), 0), jint(jget(d, "rtx_ssrc"), 0));
     table_set(*c.video_users, uid, active);
 }
 
 drop_video_rx :: (c: *Conn, uid: u64) {
     gone: [..]u32;
     gone.allocator = temp;
-    for c.video_rx if it.user_id == uid { array_add(*gone, it.ssrc); array_free(it.au); array_free(it.av1_obu); free(it); }
+    for c.video_rx if it.user_id == uid { array_add(*gone, it.ssrc); rx_reset(it); free(it); }
     for gone table_remove(*c.video_rx, it);
+    rtx: [..]u32;
+    rtx.allocator = temp;
+    for v, k: c.video_rtx if array_find(gone, v) array_add(*rtx, k);
+    for rtx table_remove(*c.video_rtx, it);
 }
 
 on_video_packet :: (c: *Conn, h: Rtp_Header, codec: Video_Codec, payload: []u8, n: s64, now: s64) {
-    au: []u8;
-    done, pli: bool;
+    frames: [..][]u8;
+    frames.allocator = temp;
+    pli: bool;
     uid: u64;
+    lost: [64]u16;
+    nlost: int;
     {
         locks.guard(*c.mu);
         c.stats.bytes_received += xx n;
         rx := table_find_pointer(*c.video_rx, h.ssrc);
-        if !rx return;  // RTX, or a stream op 12 hasn't announced
+        if !rx return;  // a stream op 12 hasn't announced
         r := rx.*;
         uid = r.user_id;
-        frame, ok := rx_video_packet(r, codec, h.seq, h.ts, h.marker, payload);
+        rx_insert(r, codec, h.seq, h.ts, h.marker, payload);
+        while true {
+            frame, ok := rx_next_frame(r);
+            if !ok break;
+            array_add(*frames, array_copy(frame,, temp)); // copied out: decryption and the callback run unlocked
+        }
         if r.need_key && now - r.last_pli_ms >= PLI_INTERVAL_MS {
             r.last_pli_ms = now;
             pli = true;
         }
-        if ok {
-            // copied out: decryption and the callback run unlocked
-            au = array_copy(frame,, temp);
-            done = true;
+        if now - r.last_nack_ms >= NACK_INTERVAL_MS {
+            nlost = rx_lost(r, lost);
+            if nlost r.last_nack_ms = now;
         }
     }
+    if nlost {
+        pkt: [12 + 16 * 4]u8;
+        send_rtcp_packet(c, array_view(pkt, 0, build_nack(pkt, c.ssrc, h.ssrc, array_view(lost, 0, nlost))));
+    }
     if pli send_pli(c, h.ssrc);
-    if !done return;
+    for frames video_frame_out(c, h.ssrc, uid, codec, it);
+    reset_temporary_storage();
+}
+
+NACK_INTERVAL_MS :: 30;
+
+video_frame_out :: (c: *Conn, ssrc: u32, uid: u64, codec: Video_Codec, au: []u8) {
     plain := NewArray(au.count, u8, false,, temp);
     fl, res := DAVE.session_decrypt(*c.dave, uid, au, plain);
     if res == .Failed return;
@@ -1753,7 +1845,7 @@ on_video_packet :: (c: *Conn, h: Rtp_Header, codec: Video_Codec, payload: []u8, 
     key := is_keyframe(codec, frame);
     {
         locks.guard(*c.mu);
-        rx := table_find_pointer(*c.video_rx, h.ssrc);
+        rx := table_find_pointer(*c.video_rx, ssrc);
         if !rx return;
         if rx.*.need_key && !key return;
         rx.*.need_key = false;
@@ -1761,7 +1853,6 @@ on_video_packet :: (c: *Conn, h: Rtp_Header, codec: Video_Codec, payload: []u8, 
         c.stats.video_frames_received += 1;
     }
     if c.opts.video c.opts.video(c.opts.callback_data, uid, codec, frame, key);
-    reset_temporary_storage();
 }
 
 send_pli :: (c: *Conn, media_ssrc: u32) {

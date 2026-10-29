@@ -1,5 +1,5 @@
 // Video frames through the voice path without a network: libdave clear ranges, DAVE frame encryption,
-// RTP packetization and reassembly (with a lost packet), for H.264 and H.265.
+// RTP packetization and reassembly (a lost packet NACKed and retransmitted, one given up), for H.264 and H.265.
 //   jai build.jai - run src/tests/voice_video.jai && build/voice_video
 #import "Basic";
 voice :: #import "voice";
@@ -42,13 +42,32 @@ main :: () {
         ok &= check(dok && n == frame.count && memcmp(plain.data, frame.data, n) == 0, "% decrypts to the frame", codec);
         ok &= check(voice.is_keyframe(codec, plain), "% keyframe detected", codec);
 
-        // the next frame loses its second packet: dropped, and a keyframe is wanted
+        // the next frame loses its second packet: it waits, NACKing it, and the retransmission completes it
+        rx.need_key = false;
         base := cast(u16) (65530 + got.payloads.count);
         for got.payloads {
             if it_index == 1 continue;
             out, done = voice.rx_video_packet(*rx, codec, base + cast(u16) it_index, 5678, got.lasts[it_index], it);
         }
-        ok &= check(!done && rx.need_key, "% lossy frame dropped", codec);
+        lost: [8]u16;
+        nl := voice.rx_lost(*rx, lost);
+        ok &= check(!done && nl == 1 && lost[0] == base + 1, "% lossy frame waits, % lost", codec, nl);
+        nack: [80]u8;
+        nn := voice.build_nack(nack, 1, 77, array_view(lost, 0, nl));
+        seqs := voice.nacked_seqs(array_view(nack, 0, nn), 77);
+        ok &= check(seqs.count == 1 && seqs[0] == base + 1, "% NACK round trip", codec);
+        out, done = voice.rx_video_packet(*rx, codec, base + 1, 5678, got.lasts[1], got.payloads[1]);
+        ok &= check(done && out.count == fl && memcmp(out.data, enc.data, fl) == 0 && !rx.need_key, "% retransmission completes the frame", codec);
+
+        // a frame whose packet never comes is given up once RX_FRAMES newer ones wait: a keyframe is wanted
+        base += cast(u16) got.payloads.count;
+        for f: 0..voice.RX_FRAMES {
+            for got.payloads {
+                if f == 0 && it_index == 1 continue;
+                out, done = voice.rx_video_packet(*rx, codec, base + cast(u16) (f * got.payloads.count + it_index), cast(u32) (9000 + f * 3000), got.lasts[it_index], it);
+            }
+        }
+        ok &= check(rx.need_key && done, "% lost frame given up, the next ones out", codec);
     }
     // a 3-byte start code input is normalized
     au := u8.[0, 0, 1, 0x67, 1, 2, 0, 0, 0, 1, 0x68, 3, 0, 0, 1, 0x65, 9, 9, 9];

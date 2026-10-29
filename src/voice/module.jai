@@ -5,6 +5,7 @@
 #import "Thread";
 #import "Socket";
 #import "Atomics";
+#import "Sort";
 #if OS == .WINDOWS {
     kernel32 :: #system_library "kernel32";
     GetCurrentThread :: () -> *void #foreign kernel32;

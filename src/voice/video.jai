@@ -189,58 +189,136 @@ packetize :: (codec: Video_Codec, frame: []u8, nals: []Nal, emit: (payload: []u8
 }
 
 // ---------------------------------------------------------------------------
-// Receive: reassemble one access unit per RTP timestamp. Any gap in sequence
-// numbers drops the frame and waits for the next keyframe (asking for one with a PLI).
+// Receive: packets wait per RTP timestamp until their frame is whole (the marker's packet and every
+// sequence number before it since the last frame), in any order, so a retransmission (RTX) can fill a
+// gap. Frames go out in order; one still missing packets when RX_FRAMES newer ones wait is given up,
+// and the stream waits for a keyframe (asking for one with a PLI). rx_lost lists what to NACK.
 
 Video_Rx :: struct {
     ssrc: u32;
     user_id: u64;
     codec: Video_Codec;
-    ts: u32;
-    in_frame: bool;
-    broken: bool;        // a packet of the current frame is missing
-    next_seq: u16;
-    seq_init: bool;
     need_key: bool = true;
     last_pli_ms: s64;
-    au: [..]u8;          // the frame so far: Annex B, VP8's frame, or AV1's OBUs with size fields
-    av1_obu: [..]u8;     // AV1: an OBU element split across packets, so far
+    last_nack_ms: s64;
+    pending: [..]Rx_Frame;  // oldest first
+    end_seq: u16;           // the last frame out (or given up)'s marker packet
+    end_known: bool;
+    max_seq: u16;           // the newest sequence number seen
+    au: [..]u8;             // the last frame out: Annex B, VP8's frame, or AV1's OBUs with size fields
+    av1_obu: [..]u8;        // AV1: an OBU element split across packets, so far
     frames: u64;
 }
 
+Rx_Frame :: struct {
+    ts: u32;
+    codec: Video_Codec;
+    pkts: [..]Rx_Packet;
+    marker_seq: u16;
+    has_marker: bool;
+    bytes: int;
+}
+
+Rx_Packet :: struct { seq: u16; data: []u8; } // data: heap
+
+RX_FRAMES :: 3;
 MAX_VIDEO_FRAME :: 8 << 20; // a frame past this is dropped, whatever the sender claims
 
-// rx_video_packet adds one RTP payload; returns the finished access unit (in
-// rx.au, valid until the next call) when the marker packet completes a frame.
+// rx_video_packet adds one RTP payload and returns the next whole frame, if one is (in rx.au, valid until
+// the next call); more may follow from rx_next_frame.
 rx_video_packet :: (rx: *Video_Rx, codec: Video_Codec, seq: u16, ts: u32, marker: bool, p: []u8) -> []u8, bool {
-    gap := false;
-    if rx.seq_init {
-        d := cast(u16) (seq - rx.next_seq);
-        if d >= 0x8000 return .[], false;  // late or duplicate
-        gap = d != 0;
+    rx_insert(rx, codec, seq, ts, marker, p);
+    au, ok := rx_next_frame(rx);
+    return au, ok;
+}
+
+rx_insert :: (rx: *Video_Rx, codec: Video_Codec, seq: u16, ts: u32, marker: bool, p: []u8) {
+    if rx.end_known && cast(u16) (seq - rx.end_seq - 1) >= 0x8000 return;  // its frame is already out
+    if !rx.end_known && !rx.pending.count rx.max_seq = seq;
+    if cast(u16) (seq - rx.max_seq) < 0x8000 rx.max_seq = seq;
+    f: *Rx_Frame;
+    for * rx.pending if it.ts == ts { f = it; break; }
+    if !f {
+        f = array_add(*rx.pending);
+        f.* = .{ts = ts, codec = codec};
     }
-    rx.seq_init = true;
-    rx.next_seq = seq + 1;
-    if !rx.in_frame || ts != rx.ts {
-        if rx.in_frame rx.need_key = true;  // the previous frame's marker never came
-        rx.in_frame = true;
-        rx.ts = ts;
-        rx.codec = codec;
+    for f.pkts if it.seq == seq return;  // a duplicate
+    if f.bytes + p.count > MAX_VIDEO_FRAME || f.pkts.count >= MAX_VIDEO_FRAME / 64 return;
+    array_add(*f.pkts, .{seq, array_copy(p)});
+    f.bytes += p.count;
+    if marker { f.marker_seq, f.has_marker = seq, true; }
+}
+
+// rx_next_frame: the oldest waiting frame once it's whole, depacketized into rx.au.
+rx_next_frame :: (rx: *Video_Rx) -> []u8, bool {
+    while rx.pending.count {
+        f := *rx.pending[0];
+        start := ifx rx.end_known then rx.end_seq + 1 else rx_first_seq(f);
+        if !f.has_marker || cast(int) cast(u16) (f.marker_seq - start) + 1 != f.pkts.count {
+            // still missing packets: wait for them (a retransmission) while few newer frames wait
+            if rx.pending.count <= RX_FRAMES return .[], false;
+            rx_give_up(rx);
+            continue;
+        }
+        quick_sort(f.pkts, (a: Rx_Packet, b: Rx_Packet) -> s64 { return cast(s64) cast(s16) (a.seq - b.seq); });
         rx.au.count = 0;
         rx.av1_obu.count = 0;
-        rx.broken = gap;  // this frame's first packets may be the lost ones
-    } else if gap {
-        rx.broken = true;
+        rx.codec = f.codec;
+        ok := true;
+        for f.pkts if !it.data.count || !depacketize(rx, f.codec, it.data) { ok = false; break; }
+        rx.end_seq, rx.end_known = f.marker_seq, true;
+        rx_frame_free(rx, 0);
+        if !ok { rx.need_key = true; continue; }
+        return rx.au, true;
     }
-    if !rx.broken && (!p.count || !depacketize(rx, codec, p) || rx.au.count > MAX_VIDEO_FRAME) rx.broken = true;
-    if !marker return .[], false;
-    rx.in_frame = false;
-    if rx.broken {
-        rx.need_key = true;
-        return .[], false;
-    }
-    return rx.au, true;
+    return .[], false;
 }
+
+// rx_lost: the sequence numbers missing between the last frame out and the newest seen (at most out.count).
+rx_lost :: (rx: *Video_Rx, out: []u16) -> int {
+    if !rx.end_known return 0;
+    n := 0;
+    s := rx.end_seq + 1;
+    while cast(u16) (rx.max_seq - s) < 0x8000 && s != rx.max_seq && n < out.count {
+        have := false;
+        for f: rx.pending { for f.pkts if it.seq == s { have = true; break; } if have break; }
+        if !have { out[n] = s; n += 1; }
+        s += 1;
+    }
+    return n;
+}
+
+rx_reset :: (rx: *Video_Rx) {
+    while rx.pending.count rx_frame_free(rx, 0);
+    array_free(rx.pending);
+    array_free(rx.au);
+    array_free(rx.av1_obu);
+}
+
+#scope_file
+
+// The first frame seen: its lowest sequence number starts it.
+rx_first_seq :: (f: *Rx_Frame) -> u16 {
+    first := f.marker_seq;
+    for f.pkts if cast(u16) (first - it.seq) < 0x8000 first = it.seq;
+    return first;
+}
+
+rx_give_up :: (rx: *Video_Rx) {
+    f := *rx.pending[0];
+    if f.has_marker { rx.end_seq, rx.end_known = f.marker_seq, true; }
+    else rx.end_known = false;
+    rx.need_key = true;
+    rx_frame_free(rx, 0);
+}
+
+rx_frame_free :: (rx: *Video_Rx, i: int) {
+    for rx.pending[i].pkts free(it.data.data);
+    array_free(rx.pending[i].pkts);
+    array_ordered_remove_by_index(*rx.pending, i);
+}
+
+#scope_export
 
 depacketize :: (rx: *Video_Rx, codec: Video_Codec, p: []u8) -> bool {
     sc :: (rx: *Video_Rx) { array_add(*rx.au, 0, 0, 0, 1); }
@@ -376,6 +454,51 @@ build_pli :: (out: []u8, sender_ssrc: u32, media_ssrc: u32) -> int {
     put_u32(out, media_ssrc, 8);
     return 12;
 }
+
+// nacked_seqs: the sequence numbers a compound RTCP packet's generic NACKs (205/1, RFC 4585) ask ssrc
+// to send again (in temp).
+nacked_seqs :: (b: []u8, ssrc: u32) -> []u16 {
+    out: [..]u16;
+    out.allocator = temp;
+    i := 0;
+    while i + 12 <= b.count {
+        n := (cast(int) get_u16(b, i + 2) + 1) * 4;
+        if b[i + 1] == RTCP_RTPFB && (b[i] & 0x1f) == 1 && get_u32(b, i + 8) == ssrc {
+            j := i + 12;
+            while j + 4 <= min(i + n, b.count) && out.count < 512 {
+                pid, blp := get_u16(b, j), get_u16(b, j + 2);
+                array_add(*out, pid);
+                for k: 0..15 if blp & (cast(u16) 1 << k) array_add(*out, pid + cast(u16) (k + 1));
+                j += 4;
+            }
+        }
+        i += n;
+    }
+    return out;
+}
+
+// build_nack: one generic NACK for media_ssrc's lost sequence numbers (sorted, at most 16 FCIs).
+build_nack :: (out: []u8, sender_ssrc: u32, media_ssrc: u32, lost: []u16) -> int {
+    out[0] = 0x81;  // V=2, FMT=1
+    out[1] = RTCP_RTPFB;
+    put_u32(out, sender_ssrc, 4);
+    put_u32(out, media_ssrc, 8);
+    n := 12;
+    i := 0;
+    while i < lost.count && n + 4 <= out.count && n < 12 + 16 * 4 {
+        pid := lost[i];
+        blp: u16;
+        i += 1;
+        while i < lost.count && cast(u16) (lost[i] - pid) >= 1 && cast(u16) (lost[i] - pid) <= 16 { blp |= cast(u16) 1 << (lost[i] - pid - 1); i += 1; }
+        put_u16(out, pid, n);
+        put_u16(out, blp, n + 2);
+        n += 4;
+    }
+    put_u16(out, cast(u16) (n / 4 - 1), 2);
+    return n;
+}
+
+RTCP_RTPFB :: cast(u8) 205;
 
 // keyframe_requested: whether a compound RTCP packet carries a PLI or FIR for ssrc.
 keyframe_requested :: (b: []u8, ssrc: u32) -> bool {
