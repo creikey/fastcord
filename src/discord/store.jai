@@ -26,7 +26,7 @@ Store :: struct {
 	guild_settings: Table(Snowflake, Guild_Settings);
 	voice_states: Table(Snowflake, Voice_State); // user -> state (one voice connection per user)
 	typing: Table(Snowflake, [..]Typing); // channel -> typers
-	member_lists: Table(Snowflake, Member_List); // guild -> member sidebar
+	member_lists: Table(string, Member_List); // "<guild>:<list id>" -> member sidebar (member_list_get)
 	sessions: [..]Session_Info;
 	settings: User_Settings;
 	frecency: Frecency_State; // FrecencyUserSettings (settings-proto/2) uses and writes, expressions.jai
@@ -1064,16 +1064,23 @@ group_id_of :: (v: V) -> string, Snowflake {
 	return "", 0;
 }
 
+// A guild keeps one member list per list id ("everyone", or a private channel's member_list_id).
+member_list_get :: (s: *Store, guild_id: Snowflake, list_id := "everyone") -> *Member_List {
+	return table_find_pointer(*s.member_lists, tprint("%:%", guild_id, list_id));
+}
+
 apply_member_list_update :: (s: *Store, d: etf.Map) {
 	gid := fsnow(d, "guild_id");
-	ml, added := find_or_add(*s.member_lists, gid);
-	if added {
-		ml.* = .{};
+	id := fstr(d, "id");
+	ml := member_list_get(s, gid, id);
+	if !ml {
+		// any server's ids: a short string, and a bounded number of lists
+		if id.count > 32 || s.member_lists.count >= 256 return;
+		ml = table_set(*s.member_lists, sprint("%:%", gid, id,, s.allocator), .{});
 		ml.items.allocator = s.allocator;
 		ml.groups.allocator = s.allocator;
+		ml.id = clone_str(id, s.allocator);
 	}
-	id := fstr(d, "id");
-	if ml.id != id set_str(s, *ml.id, id);
 	ml.member_count = fint(d, "member_count");
 	ml.online_count = fint(d, "online_count");
 	if vhas(d, "groups") {
@@ -1681,12 +1688,13 @@ store_reset_session :: (s: *Store) {
 	table_reset(*s.voice_states);
 	for s.typing array_free(it);
 	table_reset(*s.typing);
-	for ml: s.member_lists {
+	for ml, key: s.member_lists {
 		for ml.items free_str(it.group_id, a);
 		array_free(ml.items);
 		for ml.groups free_str(it.id, a);
 		array_free(ml.groups);
 		free_str(ml.id, a);
+		free_str(key, a);
 	}
 	table_reset(*s.member_lists);
 	for * s.streams stream_free(s, it);

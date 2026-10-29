@@ -384,7 +384,6 @@
 - [ ] Video (Windows, Linux): every frame is decoded on the CPU. Windows opens Microsoft's decoder MFTs with no D3D11 device manager (`mf` `transform_find`, synchronous MFTs only, never `MFT_MESSAGE_SET_D3D_MANAGER`), so the GPU's decoder is never used, and Linux decodes with openh264. A 1080p60 stream or a grid of cameras costs cores and battery that the GPU would spare. Give the decoder a DXGI device manager on Windows and use VA-API on Linux, with software as the fallback, and ideally decode into textures the renderer samples directly (the sandbox item's GPU path).
 - [ ] Video (Windows): only H.264 is sent (Microsoft's software encoder MFT, so CPU-heavy at 1080p); use a hardware (async) encoder MFT when present, and send H.265 then (`encode_windows.jai`; `gateway.jai` advertises H.265 `encode:false` on Windows).
 - [ ] Search: the suggestions popout has no search history; the client lists your recent searches under "History" with a clear button (`view_search.jai` keeps none).
-- [ ] Member list: stored per server and resubscribed only when empty, so a private channel likely shows the previous channel's members.
 - [ ] Links: outside links open with no "Leaving Discord" warning (masked links, untrusted domains, "Trust this domain" checkbox).
 - [ ] Channels: dragging a channel whose permissions are synced into another category doesn't ask the client's "Sync Permissions?" (its `lock_permissions`); the channel keeps its own overwrites.
 - [ ] Apps: message components are ignored. Nothing reads a message's `components`, so bot buttons and select menus never show. Verify buttons, role pickers and music-bot controls all go missing, and servers that gate channels behind a Verify button can't be joined. Components V2 messages (flag `IS_COMPONENTS_V2`, 1 << 15) keep everything in components, with no content or embeds, so they render as empty messages.
@@ -452,7 +451,6 @@
   - QUIC can't go through an HTTP proxy, so use HTTP/2 when proxied, as Chromium does.
   - Voice is UDP and can't use an HTTP proxy either. Say so in the call panel rather than failing silently. SOCKS5 UDP ASSOCIATE could carry it later.
   - Never send the proxy's credentials anywhere but the proxy.
-- [ ] Bug: after a re-identify, typing indicators, threads and activities stop for every server visited earlier, and the member sidebar freezes. `subscribe_guild` skips servers already in `c.subs.guilds`, and the member list resubscribes only when empty (`actions.jai`, `view_home.jai`).
 - [ ] Friends: no Blocked list or unblock outside a DM header; no friend suggestions.
 - [ ] Profiles: the user menu lacks Remove Friend, Block/Unblock, Call, Invite to Server, Mention, Add Note and Ignore (a comment in `view_home.jai` claims some exist).
 - [ ] Friends: rows never show an activity ("Playing X"); the "Friends" item in the DM sidebar has no pending-request badge.
@@ -477,7 +475,6 @@
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
 - [ ] Friends: the Pending tab isn't split into Received and Sent.
 - [ ] Bug: jumping to a message (search, pins, reply) can land off target. `jump_apply` estimates unmeasured rows at 26px while rendering uses the measured average, and it stops steering after 8 frames (`view_search.jai`). Also, off-screen row heights aren't invalidated on width change, so scrolling after a resize shifts content.
-- [ ] Member list: only the first 100 rows load; it subscribes `[0, 99]` once and never asks for more ranges while scrolling (`view_home.jai`).
 - [ ] Media: videos (attachments, embeds) download whole before the first frame; stream them with range requests so long clips start at once (`view_media.jai` `blob_get`).
 - [ ] Sounds: soundpacks work and are saved but have no picker; "User Moved" has a toggle but never plays; the "reconnect" sound is unused.
 - [ ] Media: the video player lacks download.
@@ -818,3 +815,6 @@
 - [x] Keybinds: Settings > Keybinds lists user keybinds (Add a Keybind, an action and a recorded shortcut each, remove) that work in every app: Push to Talk, Push to Mute, Toggle Mute, Toggle Deafen, Toggle Voice Activity Mode, Toggle Streamer Mode, Toggle Go Live Streaming, Disconnect From Voice Channel, Navigate Back / Forward, then the built-in shortcuts; Voice & Video's Shortcut is the first Push to Talk keybind (`keybinds.jai`, `tests/ui/keybinds.txt`).
 - [x] Settings > System has the official Start Minimized (Windows: the login item passes `--start-minimized`, and the window opens hidden in the tray, or minimized without one) and Minimize to Tray (on by default; off, the close button quits) toggles (`system_page`, `platform.set_close_to_tray`). Seen on a Windows headless run; the tray behaviour itself is untested on a desktop.
 - [x] GIFs: favourites can be added and removed with a star on hover in the picker, written to `/users/@me/settings-proto/2`; in the Favorites view an emptied star keeps the GIF until the view is left or the picker closes, then one write, none if starred back (`gif_favorite_toggle`, `tests/ui/media/gif_favorites.txt`; offline trending replies in `tests/ui/media/trending*`).
+- [x] Member list: scrolling subscribes the pages around the view the way the client computes them (`[0,99]` plus 100-row pages, half a view either side), unsynced rows draw as placeholders, and only visible rows are declared (`member_list_ranges`, `member_list_rules`).
+- [x] Member list: lists are kept per list id ("everyone", or the hash of a private channel's View Channel overwrites, as `computeMemberListId`), so a private channel shows its own; a guild follows its last 5 channels like GuildSubscriptions' LRU (`member_list_id`, `member_list_get`).
+- [x] Bug: after a re-identify, typing, threads and activities come back (a new READY clears the subscriptions, since acac5edd) and the member sidebar no longer freezes: it re-subscribes every frame it differs, not only when empty.

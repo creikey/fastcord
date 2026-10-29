@@ -453,7 +453,7 @@ main :: () {
 	gid := cl.store.guild_order[0];
 	discord.subscribe_member_list(cl, gid, cid, ([2]int).[.[0, 99]]);
 	ml: *discord.Member_List;
-	for 1..300 { ml = table_find_pointer(*cl.store.member_lists, gid); if ml && ml.online_count == 1 break; pump(); }
+	for 1..300 { ml = discord.member_list_get(*cl.store, gid); if ml && ml.online_count == 1 break; pump(); }
 	check(ml && ml.online_count == 1 && ml.items.count == 2 && ml.items[1].user_id == cl.store.me, tprint("member list: %", ifx ml then ml.items.count else -1));
 
 	g := discord.guild_get(*cl.store, gid);

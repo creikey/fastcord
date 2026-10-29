@@ -1320,9 +1320,8 @@ member_list_hostile :: (t: *T) {
 		v, _ := etf.from_json(tprint("{\"guild_id\":\"%\",\"id\":\"everyone\",\"ops\":[%]}", R_GUILD, it),, temp);
 		apply_member_list_update(s, v.map);
 	}
-	n := 0;
-	for s.member_lists n += it.items.count;
-	expect_value(t, n, 2);
+	ml := member_list_get(s, R_GUILD);
+	expect_value(t, ifx ml then ml.items.count else 0, 2);
 }
 
 history_gap :: (t: *T) {
@@ -4185,4 +4184,31 @@ notify_rules :: (t: *T) {
 	gs.muted = false;
 	ensure_override(gs, TXT).message_notifications = NOTIFY_NOTHING;
 	expect(t, !n(*s, TXT, direct = true), "Nothing");
+}
+
+// The member list's ranges for a scroll position, its list id, and GuildSubscriptions' 5-channel LRU.
+member_list_rules :: (t: *T) {
+	str :: (r: [][2]int) -> string {
+		sb: String_Builder;
+		sb.allocator = temp;
+		for r print_to_builder(*sb, "[%,%]", it[0], it[1]);
+		return builder_to_string(*sb,, temp);
+	}
+	expect_value(t, str(member_list_ranges(0, 800, 44)), "[0,99]");
+	expect_value(t, str(member_list_ranges(4000, 800, 44)), "[0,99][100,199]");
+	expect_value(t, str(member_list_ranges(9000, 800, 44)), "[0,99][100,199][200,299]");
+	expect_value(t, str(member_list_ranges(20000, 800, 44)), "[0,99][400,499]");
+	expect_value(t, murmur3_32(""), 0);
+	expect_value(t, murmur3_32("hello"), 0x248bfa47);
+	s: Store;
+	store_init(*s, temp);
+	G :: cast(Snowflake) 10;
+	g := table_set(*s.guilds, G, .{id = G});
+	array_add(*g.roles, .{id = G, permissions = PERM_VIEW_CHANNEL});
+	pub := table_set(*s.channels, 11, .{id = 11, guild_id = G});
+	expect_value(t, member_list_id(*s, pub), "everyone");
+	priv := table_set(*s.channels, 12, .{id = 12, guild_id = G});
+	array_add(*priv.overwrites, .{id = G, deny = PERM_VIEW_CHANNEL});
+	array_add(*priv.overwrites, .{id = 99, kind = 1, allow = PERM_VIEW_CHANNEL});
+	expect_value(t, member_list_id(*s, priv), tprint("%", murmur3_32("allow:99,deny:10")));
 }

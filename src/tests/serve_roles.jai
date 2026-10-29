@@ -113,7 +113,7 @@ main :: () {
 	check(discord.my_roles(*b.store, cast(discord.Snowflake) s.guild).count == 1, "GUILD_MEMBER_UPDATE carries the member's roles");
 	status, body = rest("PATCH", tprint("%/roles/%", g, staff_role), "{\"hoist\": true}", owner_token);
 	hoisted :: () -> bool #expand {
-		ml := table_find_pointer(*`b.store.member_lists, cast(discord.Snowflake) `s.guild);
+		ml := discord.member_list_get(*`b.store, cast(discord.Snowflake) `s.guild);
 		if ml for ml.groups if it.id == `staff_role && it.count == 1 return true;
 		return false;
 	}

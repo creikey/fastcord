@@ -70,7 +70,7 @@ initial_message_limit :: (window_height: int, compact := false, font_px := 16) -
 
 Subscriptions :: struct {
 	guilds: Table(Snowflake, bool); // typing/activities/threads sent
-	channels: Table(Snowflake, [..]Member_Range); // guild -> channel list ranges (one channel at a time)
+	channels: Table(Snowflake, [..]Member_Range); // guild -> member lists followed, most recent first (at most 5)
 	pending: [..]Pending_Sub;
 	not_before: s64; // prefetching select: op 37 follows the route change (after the fetch)
 }
@@ -78,14 +78,12 @@ Subscriptions :: struct {
 Member_Range :: struct {
 	channel_id: Snowflake;
 	ranges: [..][2]int;
-	sent: bool; // went out in an op 37 of this session
 }
 
 Pending_Sub :: struct {
 	guild_id: Snowflake;
 	feature: bool; // typing/activities/threads
-	channel_id: Snowflake;
-	ranges: [..][2]int;
+	channels: bool; // the guild's member lists changed
 	member_ids: [..]Snowflake;
 }
 
@@ -99,7 +97,6 @@ pending_for :: (c: *Client, guild_id: Snowflake) -> *Pending_Sub {
 	for * c.subs.pending if it.guild_id == guild_id return it;
 	p := array_add(*c.subs.pending);
 	p.guild_id = guild_id;
-	p.ranges.allocator = c.allocator;
 	p.member_ids.allocator = c.allocator;
 	return p;
 }
@@ -112,20 +109,51 @@ subscribe_guild :: (c: *Client, guild_id: Snowflake) {
 	pending_for(c, guild_id).feature = true;
 }
 
-// subscribe_member_list subscribes to the lazy member sidebar of a channel
-// (ranges of 100: [[0,99]], [[0,99],[100,199]], ...). The same channel and ranges again send nothing, as
-// GuildSubscriptions skips an equal subscription: the app asks every frame its list is still empty.
-subscribe_member_list :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, ranges: [][2]int) {
-	l := table_find_pointer(*c.subs.channels, guild_id);
-	if l && l.count == 1 && l.*[0].sent && l.*[0].channel_id == channel_id && l.*[0].ranges.count == ranges.count {
-		same := true;
-		for ranges if l.*[0].ranges[it_index][0] != it[0] || l.*[0].ranges[it_index][1] != it[1] same = false;
-		if same return;
+// subscribe_member_list follows a channel's lazy member sidebar (ranges of 100, member_list_ranges).
+// GuildSubscriptions keeps a guild's last 5 channels (an LRU) and sends them all when one changes; equal
+// ranges again send nothing, nor does a channel select (select) for a channel already followed. The app
+// asks every frame.
+subscribe_member_list :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, ranges: [][2]int, select := false) {
+	l := find_or_add(*c.subs.channels, guild_id);
+	l.allocator = c.allocator;
+	i := -1;
+	for l.* if it.channel_id == channel_id i = it_index;
+	if i >= 0 {
+		r := l.*[i].ranges;
+		same := r.count == ranges.count;
+		if same for ranges if r[it_index][0] != it[0] || r[it_index][1] != it[1] same = false;
+		if select || same return;
+		m := l.*[i];
+		array_ordered_remove_by_index(l, i);
+		array_insert_at(l, m, 0);
+	} else {
+		if l.count == 5 array_free(pop(l).ranges);
+		array_insert_at(l, .{channel_id = channel_id}, 0);
+		l.*[0].ranges.allocator = c.allocator;
 	}
-	p := pending_for(c, guild_id);
-	p.channel_id = channel_id;
-	p.ranges.count = 0;
-	array_add(*p.ranges, ..ranges);
+	l.*[0].ranges.count = 0;
+	array_add(*l.*[0].ranges, ..ranges);
+	pending_for(c, guild_id).channels = true;
+}
+
+// The client's member list ranges for a scroll position (rows of row_h): [0,99] plus the pages
+// covering the view and half a view either side.
+member_list_ranges :: (scroll_y: float, view_h: float, row_h: float) -> [][2]int {
+	rows :: (px: float, row_h: float, add := 0) -> int { return max(0, cast(int) ceil(px / row_h) + add); }
+	out: [..][2]int;
+	out.allocator = temp;
+	half := rows(0.5 * view_h, row_h);
+	first, last := rows(scroll_y, row_h, -half), rows(scroll_y + view_h, row_h, half);
+	if first > 0 {
+		array_add(*out, .[0, 99]);
+		first = max(100, first);
+	}
+	first = first / 100 * 100;
+	while first <= last {
+		array_add(*out, .[first, first + 99]);
+		first += 100;
+	}
+	return out;
 }
 
 // subscribe_members: member presence/updates for specific users (profile popouts).
@@ -139,25 +167,10 @@ subscriptions_flush :: (c: *Client) {
 	if c.subs.not_before && now_ms() < c.subs.not_before return;
 	c.subs.not_before = 0;
 	defer {
-		for c.subs.pending {
-			array_free(it.ranges);
-			array_free(it.member_ids);
-		}
+		for c.subs.pending array_free(it.member_ids);
 		c.subs.pending.count = 0;
 	}
-	// what each guild's member list follows, for RESUMED (one channel at a time)
 	established := c.gw && gateway_established(c.gw);
-	for p: c.subs.pending if p.channel_id {
-		l := find_or_add(*c.subs.channels, p.guild_id);
-		for l.* array_free(it.ranges);
-		l.count = 0;
-		l.allocator = c.allocator;
-		r := array_add(l);
-		r.channel_id = p.channel_id;
-		r.sent = established;
-		r.ranges.allocator = c.allocator;
-		array_add(*r.ranges, ..p.ranges);
-	}
 	// GUILD_SUBSCRIPTIONS_FLUSH goes out only while the session is established; what it held is
 	// re-sent with READY (the route's guild) and RESUMED (every guild)
 	if !established return;
@@ -171,9 +184,10 @@ subscriptions_flush :: (c: *Client) {
 			etf.map_put(*g, "threads", etf.vbool(true));
 		}
 		if p.member_ids etf.map_put(*g, "members", snowflake_list(p.member_ids));
-		if p.channel_id {
-			ch := etf.map_builder(1);
-			etf.map_put(*ch, snowflake_string(p.channel_id), ranges_value(p.ranges));
+		l := table_find_pointer(*c.subs.channels, p.guild_id);
+		if p.channels && l {
+			ch := etf.map_builder(l.count);
+			for l.* etf.map_put(*ch, snowflake_string(it.channel_id), ranges_value(it.ranges));
 			etf.map_put(*g, "channels", etf.vmap(etf.map_done(*ch)));
 		}
 		etf.map_put(*subs, snowflake_string(p.guild_id), etf.vmap(etf.map_done(*g)));
@@ -217,7 +231,6 @@ subscriptions_resend :: (c: *Client) {
 		etf.map_put(*subs, snowflake_string(gid), guild_subscription_value(chs));
 	}
 	for l, gid: c.subs.channels if !table_contains(*c.subs.guilds, gid) etf.map_put(*subs, snowflake_string(gid), guild_subscription_value(l));
-	for l: c.subs.channels for * l it.sent = true;
 	if !subs.pairs return;
 	d := etf.map_builder(1);
 	etf.map_put(*d, "subscriptions", etf.vmap(etf.map_done(*subs)));

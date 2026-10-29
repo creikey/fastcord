@@ -662,31 +662,39 @@ members_column :: (id: string) -> *ui.Box {
 	}
 }
 
+MEMBER_ROW_PITCH :: 44;
+
 member_list :: (ch: *dc.Channel) {
 	s := store();
 	list := members_column("members");
-	ml := table_find_pointer(*s.member_lists, ch.guild_id);
-	if app.client != null && (!ml || ml.items.count == 0) {
-		dc.subscribe_member_list(app.client, ch.guild_id, ch.id, ([2]int).[.[0, 99]]);
+	// the channel's own list (a private channel has its own; serve keeps one), following the scroll
+	ml := dc.member_list_get(s, ch.guild_id, ifx on_hosted() then "everyone" else dc.member_list_id(s, ch));
+	if app.client != null {
+		dc.subscribe_member_list(app.client, ch.guild_id, ch.id, dc.member_list_ranges(list.view_off_target.y, list.rect.y1 - list.rect.y0, MEMBER_ROW_PITCH));
 	}
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 8);
+		skel_row :: (i: int) {
+			r := row("skel");
+			r.semantic_size = .[ui.pct(1), ui.px(MEMBER_ROW_PITCH)];
+			ui.parent(r); defer ui.pop_parent();
+			spacer(.X, 16);
+			skel("av", 32, 32, true);
+			spacer(.X, 12);
+			skel("name", cast(float32) (60 + (i * 37) % 70), 12);
+		}
 		if app.client != null && (!ml || ml.items.count == 0) {
 			// the first GUILD_MEMBER_LIST_UPDATE is on its way: placeholder rows
-			for i: 0..11 {
-				ui.id_scope(cast(u64) i); defer ui.pop_seed();
-				r := row("skel");
-				r.semantic_size = .[ui.pct(1), ui.px(44)];
-				ui.parent(r); defer ui.pop_parent();
-				spacer(.X, 16);
-				skel("av", 32, 32, true);
-				spacer(.X, 12);
-				skel("name", cast(float32) (60 + (i * 37) % 70), 12);
-			}
+			for i: 0..11 { ui.id_scope(cast(u64) i); defer ui.pop_seed(); skel_row(i); }
 		}
-		if ml for item, i: ml.items {
+		// groups and members are one pitch apart (a header is 40 + 4), so only the visible rows are declared
+		w := ui.list_window(list, MEMBER_ROW_PITCH, ifx ml then ml.items.count else 0);
+		if ml for item, j: array_view(ml.items, w.first, w.last - w.first) {
+			i := w.first + j;
 			{ ui.id_scope(cast(u64)(i)); defer ui.pop_seed();
-				if item.is_group {
+				if !item.is_group && !item.user_id {
+					skel_row(i); // a range not synced yet (or invalidated)
+				} else if item.is_group {
 					gr := row("group");
 					gr.semantic_size = .[ui.pct(1), ui.px(40)];
 					gr.cross_align = .End;
@@ -713,6 +721,7 @@ member_list :: (ch: *dc.Channel) {
 				}
 			}
 		}
+		ui.list_window_end(w);
 		spacer(.Y, 16);
 	}
 }
@@ -721,7 +730,7 @@ member_list :: (ch: *dc.Channel) {
 member_row :: (gid: dc.Snowflake, uid: dc.Snowflake, owner := false) {
 	s := store();
 	outer := row("m");
-	outer.semantic_size = .[ui.pct(1), ui.px(44)];
+	outer.semantic_size = .[ui.pct(1), ui.px(MEMBER_ROW_PITCH)];
 	{ ui.parent(outer); defer ui.pop_parent();
 		spacer(.X, 8);
 		item := row("item", .Clickable | .Draw_Background | .Hot_Animation);

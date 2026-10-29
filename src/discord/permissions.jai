@@ -172,5 +172,26 @@ can_pin_message :: (s: *Store, m: *Message) -> bool {
 }
 
 // has_permission: every bit of `want` is set.
+// computeMemberListId: "everyone" when @everyone may view the channel (a thread: its parent) and no
+// overwrite denies it, else the murmurhash3 (seed 0) of its VIEW_CHANNEL overwrites as "allow:<id>" and
+// "deny:<id>", sorted and joined by "," (temp).
+member_list_id :: (s: *Store, ch: *Channel) -> string {
+	if is_thread(ch) && ch.kind != .Private_Thread ch = channel_get(s, ch.parent_id);
+	if !ch return "everyone";
+	g := guild_get(s, ch.guild_id);
+	everyone := false;
+	if g for g.roles if it.id == g.id everyone = (it.permissions & PERM_VIEW_CHANNEL) != 0;
+	parts: [..]string;
+	parts.allocator = temp;
+	for ch.overwrites {
+		if it.deny & PERM_VIEW_CHANNEL everyone = false;
+		if it.allow & PERM_VIEW_CHANNEL array_add(*parts, tprint("allow:%", it.id));
+		else if it.deny & PERM_VIEW_CHANNEL array_add(*parts, tprint("deny:%", it.id));
+	}
+	if everyone && ch.kind != .Private_Thread return "everyone";
+	quick_sort(parts, compare_strings);
+	return tprint("%", murmur3_32(join(..parts, ",",, temp)));
+}
+
 has_permission :: (perms: u64, want: u64) -> bool { return (perms & want) == want; }
 
