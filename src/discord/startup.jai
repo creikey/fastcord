@@ -111,6 +111,15 @@ client_route_kind :: (guild: Snowflake, channel: Snowflake) -> Route_Kind {
 APP_VERSION_CHECK_MS :: 3400;
 
 schedule_app_load :: (c: *Client) {
+	p := identity_platform(*c.id);
+	m := job_new(.Web, .Startup);
+	m.host_manifest = true;
+	m.method = "GET";
+	m.host = "updates.discord.com";
+	os := ifx p.os == "Windows" then "win" else ifx p.os == "Linux" then "linux" else "osx";
+	m.path = job_str(m, tprint("/distributions/app/manifests/latest?channel=stable&platform=%&arch=%", os, p.app_arch));
+	m.not_before = c.launch_ms;
+	job_submit(c, m);
 	j := job_new(.Web, .Startup);
 	j.document = true;
 	j.method = "GET";
@@ -134,6 +143,19 @@ schedule_app_load :: (c: *Client) {
 app_document_loaded :: (c: *Client, html: string) {
 	build := html_build_number(html);
 	if build > 0 identity_learn_build(*c.id, build, adopt = now_ms() < gateway_open_at(c));
+}
+
+// host_manifest_loaded (worker): the updater's latest host version ({"full":{"host_version":[0,0,420]...}}),
+// run from the next launch (identity_load_host).
+host_manifest_loaded :: (c: *Client, body: []u8) {
+	if body.count > 1 << 20 return;
+	v, err := etf.from_json(cast(string) body,, temp);
+	if err != .None return;
+	hv := flist(fmap(vmap(v), "full"), "host_version");
+	if hv.count != 3 return;
+	for hv if it.kind != .Int || it.i < 0 || it.i > 999_999 return;
+	version := tprint("%.%.%", hv[0].i, hv[1].i, hv[2].i);
+	if host_version_parse(version) identity_learn_host(*c.id, version);
 }
 
 // html_build_number: window.GLOBAL_ENV = {..."BUILD_NUMBER":"649389"...}; 0 when absent.

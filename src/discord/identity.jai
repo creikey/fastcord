@@ -29,19 +29,20 @@ Platform_Info :: struct {
 	api_version: int;
 }
 
-// The host app updates through Discord's updater (not captured), so its versions are pinned: bump them
-// together from a new capture's super properties. The web build is only the fallback: each launch learns
-// the current one from the /app document (startup.jai `app_document_loaded`).
+// Pinned from a capture: bump them together from a new capture's super properties. The host and web
+// versions are only fallbacks: each launch learns the current web build from the /app document and the
+// current host version from the updater's manifest (startup.jai `app_document_loaded`, `host_manifest_loaded`).
 HOST_VERSION :: "0.0.419"; // macOS client_version
 NATIVE_BUILD :: 96312; // macOS native_build_number (the updater's metadata_version)
 WEB_BUILD :: 649389; // client_build_number
 CHROME_VERSION :: "148.0.7778.280";
 CHROME_MAJOR :: "148";
 ELECTRON_VERSION :: "42.11.15";
-// Guessed, no capture (traffic/CLIENT_RULES.md "Gateway, startup, identity").
-WINDOWS_HOST_VERSION :: "1.0.9272";
+// The updater's latest host versions on 2026-10-28; native build guessed (traffic/CLIENT_RULES.md "Gateway,
+// startup, identity").
+WINDOWS_HOST_VERSION :: "1.0.9266";
 WINDOWS_NATIVE_BUILD :: 96312;
-LINUX_HOST_VERSION :: "0.0.125";
+LINUX_HOST_VERSION :: "1.0.167";
 
 // electron_user_agent: Chrome's reduced user agent, whose OS token is frozen (every Mac is "Intel Mac OS X
 // 10_15_7", every Windows "Windows NT 10.0; Win64; x64"), with Electron's insertions.
@@ -183,6 +184,7 @@ Identity :: struct {
 	// The super properties went out: client_build_number stays as it is for the launch.
 	build_sealed: bool;
 	web_build: s64; // the last /app document's build (identity.tsv), 0 = none yet
+	host_version: string; // the updater's last host version (identity.tsv), "" = none yet
 	nonces: Nonce_Gen;
 	allocator: Allocator;
 }
@@ -340,6 +342,48 @@ identity_learn_build :: (id: *Identity, build: s64, adopt: bool) {
 identity_load_build :: (id: *Identity, build: s64) {
 	id.web_build = build;
 	id.platform.client_build_number = max(id.platform.client_build_number, build);
+}
+
+// identity_learn_host: the updater's latest host version, persisted for the next launch: the official
+// client installs an update at its next start.
+identity_learn_host :: (id: *Identity, version: string) {
+	locks.lock(*id.mu);
+	free_str(id.host_version, id.allocator);
+	id.host_version = copy_string(version,, id.allocator);
+	locks.unlock(*id.mu);
+}
+
+// identity_load_host: run the persisted host version, unless this fastcord pins a newer one. The user agent
+// names it too ("discord/<version>").
+identity_load_host :: (id: *Identity, version: string) {
+	if !host_version_parse(version) return;
+	id.host_version = copy_string(version,, id.allocator);
+	old := id.platform.client_version;
+	if !host_version_newer(version, old) return;
+	id.platform.client_version = id.host_version;
+	id.platform.browser_user_agent = replace(id.platform.browser_user_agent, join("discord/", old,, temp), join("discord/", version,, temp),, id.allocator);
+}
+
+// host_version_parse: "a.b.c", each part 1-6 digits.
+host_version_parse :: (s: string) -> bool, [3]s64 {
+	v: [3]s64;
+	parts := split(s, ".",, temp);
+	if parts.count != 3 return false, v;
+	for parts {
+		if it.count < 1 || it.count > 6 return false, v;
+		for ch: cast([]u8) it if ch < #char "0" || ch > #char "9" return false, v;
+		v[it_index] = parse_s64(it);
+	}
+	return true, v;
+}
+
+host_version_newer :: (a: string, b: string) -> bool {
+	oka, va := host_version_parse(a);
+	okb, vb := host_version_parse(b);
+	if !oka return false;
+	if !okb return true;
+	for 0..2 if va[it] != vb[it] return va[it] > vb[it];
+	return false;
 }
 
 // identity_set_locale: x-discord-locale (LocaleStore). locale must be static (a DISCORD_LOCALES entry):

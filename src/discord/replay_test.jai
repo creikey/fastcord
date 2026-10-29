@@ -2993,6 +2993,15 @@ gateway_resume_replay :: (t: *T) {
 	op4 = run.r.sends[4].shape;
 	locks.unlock(*run.r.mu);
 	expect(t, contains(op4, "channel_id:null"), op4);
+	// the app asks every frame while the list is empty: an equal subscription sends nothing
+	before := r_sent_ops(*run);
+	for 1..3 { subscribe_member_list(run.c, R_GUILD, R_TEXT, .[.[0, 99]]); client_poll(run.c); }
+	expect_value(t, r_sent_ops(*run), before);
+	subscribe_member_list(run.c, R_GUILD, R_TEXT, .[.[0, 99], .[100, 199]]);
+	client_poll(run.c);
+	subscribe_member_list(run.c, R_GUILD, R_TEXT, .[.[0, 99], .[100, 199]]);
+	client_poll(run.c);
+	expect_value(t, r_sent_ops(*run), join(before, ",37",, temp));
 }
 
 // A fresh READY (a new session) replaces the session state instead of merging into it, and the
@@ -3159,16 +3168,25 @@ platform_locales :: (t: *T) {
 		expect(t, p.browser_user_agent == DEFAULT_USER_AGENT && p.sec_ch_ua_platform == "\"macOS\"", "the macOS user agent is Chrome's frozen one");
 		expect(t, begins_with(p.os_version, p.os_sdk_version) && (p.os_arch == "arm64" || p.os_arch == "x64"), "os_sdk_version is the Darwin major");
 	}
-	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", "1.0.9272") == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9272 Chrome/148.0.7778.280 Electron/42.11.15 Safari/537.36");
+	expect(t, electron_user_agent("Windows NT 10.0; Win64; x64", "1.0.9266") == "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9266 Chrome/148.0.7778.280 Electron/42.11.15 Safari/537.36");
 }
 
 // The /app document at launch: Chrome's navigation headers, GLOBAL_ENV.BUILD_NUMBER adopted before the
 // gateway opens (never after the super properties went out) and persisted; the version check follows.
 app_document_build :: (t: *T) {
-	Rec :: struct { mu: locks.Mutex; paths: [..]string; wire: [..]string; }
+	Rec :: struct { mu: locks.Mutex; paths: [..]string; wire: [..]string; manifest: string; }
 	rec: Rec;
 	rt :: (data: *void, host: string, req: http.Request) -> http.Response, http.Error {
 		r := cast(*Rec) data;
+		if host == "updates.discord.com" {
+			locks.lock(*r.mu);
+			r.manifest = copy_string(req.path,, context.default_allocator);
+			locks.unlock(*r.mu);
+			resp := http.make_response(.Http2,, context.default_allocator);
+			resp.status = 200;
+			append_string(*resp.body, "{\"full\":{\"host_version\":[0,0,421],\"url\":\"x\"},\"required_update\":true}");
+			return resp, .None;
+		}
 		names: [..]string;
 		names.allocator = temp;
 		for req.headers array_add(*names, it.name);
@@ -3190,8 +3208,10 @@ app_document_build :: (t: *T) {
 	client_start(c);
 	schedule_app_load(c);
 	start := mono_ms();
-	while c.id.web_build == 0 && mono_ms() - start < 3000 sleep_milliseconds(5);
+	while (c.id.web_build == 0 || !c.id.host_version) && mono_ms() - start < 3000 sleep_milliseconds(5);
 	expect_value(t, c.id.web_build, 650001);
+	expect(t, c.id.host_version == "0.0.421" && c.id.platform.client_version == HOST_VERSION, "the updater's host version waits for the next launch");
+	expect(t, rec.manifest == "/distributions/app/manifests/latest?channel=stable&platform=osx&arch=arm64", "the updater's manifest check");
 	expect_value(t, c.id.platform.client_build_number, 650001);
 	locks.lock(*rec.mu);
 	expect(t, rec.paths.count == 1 && rec.paths[0] == tprint("/app?_=%", c.launch_ms), "the launch's first request is /app?_=<Date.now()>");
@@ -3212,7 +3232,10 @@ app_document_build :: (t: *T) {
 	c = client_create(.{token = "<token>", state_dir = dir, disable_startup = true, disable_gateway = true, disable_analytics = true, disable_remote_auth = true});
 	expect_value(t, c.id.platform.client_build_number, 650002);
 	expect(t, c.id.platform.locale == "fr", "the cached language is the boot locale");
+	expect(t, c.id.platform.client_version == "0.0.421" && contains(c.id.platform.browser_user_agent, " discord/0.0.421 Chrome/"), "the next launch runs the updated host");
 	client_destroy(c);
+	expect(t, host_version_newer("0.0.421", "0.0.419") && host_version_newer("1.0.10000", "1.0.9266") && !host_version_newer("0.0.418", "0.0.419") && !host_version_newer("0.0.x", "0.0.419") && !host_version_newer("0.0.1.2", "0.0.1"), "host version order");
+	free(rec.manifest);
 	for rec.paths free(it);
 	for rec.wire free(it);
 	array_free(rec.paths);

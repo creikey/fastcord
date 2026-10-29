@@ -72,6 +72,7 @@ Subscriptions :: struct {
 Member_Range :: struct {
 	channel_id: Snowflake;
 	ranges: [..][2]int;
+	sent: bool; // went out in an op 37 of this session
 }
 
 Pending_Sub :: struct {
@@ -106,8 +107,15 @@ subscribe_guild :: (c: *Client, guild_id: Snowflake) {
 }
 
 // subscribe_member_list subscribes to the lazy member sidebar of a channel
-// (ranges of 100: [[0,99]], [[0,99],[100,199]], ...).
+// (ranges of 100: [[0,99]], [[0,99],[100,199]], ...). The same channel and ranges again send nothing, as
+// GuildSubscriptions skips an equal subscription: the app asks every frame its list is still empty.
 subscribe_member_list :: (c: *Client, guild_id: Snowflake, channel_id: Snowflake, ranges: [][2]int) {
+	l := table_find_pointer(*c.subs.channels, guild_id);
+	if l && l.count == 1 && l.*[0].sent && l.*[0].channel_id == channel_id && l.*[0].ranges.count == ranges.count {
+		same := true;
+		for ranges if l.*[0].ranges[it_index][0] != it[0] || l.*[0].ranges[it_index][1] != it[1] same = false;
+		if same return;
+	}
 	p := pending_for(c, guild_id);
 	p.channel_id = channel_id;
 	p.ranges.count = 0;
@@ -132,6 +140,7 @@ subscriptions_flush :: (c: *Client) {
 		c.subs.pending.count = 0;
 	}
 	// what each guild's member list follows, for RESUMED (one channel at a time)
+	established := c.gw && gateway_established(c.gw);
 	for p: c.subs.pending if p.channel_id {
 		l := find_or_add(*c.subs.channels, p.guild_id);
 		for l.* array_free(it.ranges);
@@ -139,12 +148,13 @@ subscriptions_flush :: (c: *Client) {
 		l.allocator = c.allocator;
 		r := array_add(l);
 		r.channel_id = p.channel_id;
+		r.sent = established;
 		r.ranges.allocator = c.allocator;
 		array_add(*r.ranges, ..p.ranges);
 	}
 	// GUILD_SUBSCRIPTIONS_FLUSH goes out only while the session is established; what it held is
 	// re-sent with READY (the route's guild) and RESUMED (every guild)
-	if !c.gw || !gateway_established(c.gw) return;
+	if !established return;
 	push_allocator(temp);
 	subs := etf.map_builder(c.subs.pending.count);
 	for p: c.subs.pending {
@@ -201,6 +211,7 @@ subscriptions_resend :: (c: *Client) {
 		etf.map_put(*subs, snowflake_string(gid), guild_subscription_value(chs));
 	}
 	for l, gid: c.subs.channels if !table_contains(*c.subs.guilds, gid) etf.map_put(*subs, snowflake_string(gid), guild_subscription_value(l));
+	for l: c.subs.channels for * l it.sent = true;
 	if !subs.pairs return;
 	d := etf.map_builder(1);
 	etf.map_put(*d, "subscriptions", etf.vmap(etf.map_done(*subs)));
