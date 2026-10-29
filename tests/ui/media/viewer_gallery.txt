@@ -1,0 +1,27 @@
+# Run with FASTCORD_MEDIA_DIR=tests/ui/media. A message's images open in one viewer: the arrows and
+# Left / Right step through them, with a count; Open in Browser opens the shown one.
+wait 20
+move 600 300
+scroll 0 700
+wait 30
+click 560 240
+wait 30
+expect_visible "1 / 4"
+key right
+wait 5
+expect_visible "2 / 4"
+click 1234 360
+wait 5
+expect_visible "3 / 4"
+shot build/ui-media_viewer_gallery.png
+key left
+key left
+key left
+wait 5
+expect_visible "4 / 4"
+click_text "Open in Browser"
+wait 3
+expect_opened_url "https://images-ext-1.discordapp.net/external/z/https/3/poster.webp"
+key escape
+wait 5
+expect_not_visible "4 / 4"

@@ -22,6 +22,7 @@ viewer_video: string; // GIFV: the looping video
 viewer_link: string; // the media menu's target
 viewer_size: Int2;
 viewer_t: float32;
+viewer_msg: dc.Snowflake; // the message the viewer's image is from: its other images are the gallery
 audio_ready: bool;
 video_volume: float32 = 1;
 video_muted: bool;
@@ -91,7 +92,7 @@ attachments_view :: (m: *dc.Message, max_w: float32 = 400) {
 			sc := min(1.0, min(max_w / w, 300 / h));
 			img := media_box(tprint("att%", i), attachment_image_url(a, cast(int) (w * sc), cast(int) (h * sc)), "", w * sc, h * sc);
 			sig := ui.signal(img);
-			if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url);
+			if sig.clicked open_viewer(ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, link = a.url, msg = m.id);
 			if sig.right_clicked media_menu_open(a.url, a.url);
 			if a.description {
 				ui.parent(img);
@@ -439,7 +440,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 			video := ifx e.kind == "gifv" then e.video_url else "";
 			img := media_box(tprint("emedia%", i), url, video, w * sc, h * sc);
 			sig := ui.signal(img);
-			if sig.clicked open_viewer(url, .{cast(int) w, cast(int) h}, video, e.url);
+			if sig.clicked open_viewer(url, .{cast(int) w, cast(int) h}, video, e.url, m.id);
 			// the client's image items need an <img>: a GIFV video gets the link items only
 			if sig.right_clicked media_menu_open(e.url, ifx video then "" else url);
 			spacer(.Y, 4);
@@ -552,7 +553,7 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 					w := cast(float32) e.image_w;
 					h := cast(float32) e.image_h;
 					sc := min(1.0, min(max_w / w, 300 / h));
-					embed_image("img", e, w * sc, h * sc);
+					embed_image("img", e, w * sc, h * sc, msg = m.id);
 				} else if images {
 					// the client's mosaic: 2 side by side, 3 as one tall left and two right, 4 in a 2x2
 					spacer(.Y, 16);
@@ -571,10 +572,10 @@ embeds_view :: (m: *dc.Message, max_w: float32 = 400) {
 						// column 0: image 0 (and 2 of 4); column 1: image 1 (and 2 of 3, 3 of 4)
 						second := ifx images.count == 4 then col + 2 else ifx images.count == 3 && col == 1 then 2 else -1;
 						ch := ifx second >= 0 then (gh - 4) / 2 else gh;
-						embed_image(tprint("g%", col), images[col], cw, ch, cover = true);
+						embed_image(tprint("g%", col), images[col], cw, ch, cover = true, msg = m.id);
 						if second >= 0 {
 							spacer(.Y, 4);
-							embed_image(tprint("g%", second), images[second], cw, ch, cover = true);
+							embed_image(tprint("g%", second), images[second], cw, ch, cover = true, msg = m.id);
 						}
 					}
 				}
@@ -634,12 +635,12 @@ embed_markdown :: (id: string, text: string, m: *dc.Message, sub: int) {
 }
 
 // An embed's image: opens the viewer, right-click for the media menu; cover crops it to fill w x h.
-embed_image :: (id: string, e: *dc.Embed, w: float32, h: float32, cover := false) {
+embed_image :: (id: string, e: *dc.Embed, w: float32, h: float32, cover := false, msg: dc.Snowflake = 0) {
 	img := media_box(id, e.image_url, "", w, h);
 	img.style.radius = all4(4);
 	if cover set_remote_image(img, e.image_url, cover = true);
 	sig := ui.signal(img);
-	if sig.clicked open_viewer(e.image_url, .{e.image_w, e.image_h});
+	if sig.clicked open_viewer(e.image_url, .{e.image_w, e.image_h}, msg = msg);
 	if sig.right_clicked media_menu_open(e.image_url, e.image_url);
 }
 
@@ -694,7 +695,8 @@ gifv_frame :: () {
 	for * gifvs if it.player && it.seen + 1 < app.frame && media.player_is_playing(it.player) media.player_pause(it.player);
 }
 
-open_viewer :: (url: string, size: Int2, video := "", link := "") {
+open_viewer :: (url: string, size: Int2, video := "", link := "", msg: dc.Snowflake = 0) {
+	viewer_msg = msg;
 	free(viewer_url);
 	free(viewer_video);
 	free(viewer_link);
@@ -709,8 +711,38 @@ media_overlays :: () {
 	if mm.open media_menu();
 }
 
+Viewer_Item :: struct { url: string; size: Int2; video: string; link: string; }
+
+// The images of a message the viewer steps through, in message order: image attachments (not hidden
+// spoilers), bare image and GIFV embeds, and rich embeds' images, as their views open them (temp).
+viewer_items :: (m: *dc.Message) -> []Viewer_Item {
+	out: [..]Viewer_Item;
+	out.allocator = temp;
+	if !m return out;
+	for * a: m.attachments {
+		if is_video(a) || is_audio(a) || a.width <= 0 || a.height <= 0 || (is_spoiler(a) && !table_find_pointer(*revealed_spoilers, a.id)) continue;
+		array_add(*out, .{ifx a.proxy_url then a.proxy_url else a.url, .{a.width, a.height}, "", a.url});
+	}
+	if m.flags & 4 return out; // SUPPRESS_EMBEDS
+	for * e: m.embeds {
+		if e.kind == "gifv" || (e.kind == "image" && e.title == "") {
+			url := ifx e.thumbnail_url != "" then e.thumbnail_url else e.image_url;
+			w, h := max(e.thumbnail_w, e.image_w), max(e.thumbnail_h, e.image_h);
+			if url != "" && w > 0 && h > 0 array_add(*out, .{url, .{cast(int) w, cast(int) h}, ifx e.kind == "gifv" then e.video_url else "", e.url});
+		} else if e.image_url != "" && e.image_w > 0 && e.image_h > 0 {
+			array_add(*out, .{e.image_url, .{e.image_w, e.image_h}, "", e.image_url});
+		}
+	}
+	return out;
+}
+
 // Full-window image viewer: dark scrim, image fit to 80% of the window, click outside or Escape closes.
+// A message with more images gets previous / next arrows (and the Left / Right keys) and a count.
 image_viewer :: () {
+	items := viewer_items(ifx viewer_msg then find_message(viewer_msg));
+	cur := -1;
+	for items if it.url == viewer_url && it.video == viewer_video { cur = it_index; break; }
+	step := 0;
 	ui.animate(*viewer_t, 1, 25);
 	scrim := ui.box("viewer_scrim", .Draw_Background | .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
@@ -731,8 +763,49 @@ image_viewer :: () {
 		img.fixed_pos = .{(app.ui.window.x - w * sc) / 2, (app.ui.window.y - h * sc) / 2};
 		img.opacity = viewer_t;
 		if ui.signal(img).right_clicked media_menu_open(viewer_link, ifx viewer_video then "" else viewer_url);
+		// the client's link under the image
+		ob := ui.box("Open in Browser##ob", .Clickable | .Draw_Text | .Floating_X | .Floating_Y);
+		ob.semantic_size = .[ui.text_size(0), ui.px(20)];
+		ob.fixed_pos = .{(app.ui.window.x - w * sc) / 2, (app.ui.window.y + h * sc) / 2 + 8};
+		ob.style.font = F(.Medium);
+		ob.style.font_size = 14;
+		obs := ui.signal(ob);
+		ob.style.text_color = ifx obs.hovering then ui.Color.{1, 1, 1, 1} else .{1, 1, 1, 0.7};
+		ob.hover_cursor = .Pointer;
+		if obs.clicked open_url(viewer_link);
+		if cur >= 0 && items.count > 1 {
+			for dir: int.[-1, 1] {
+				b := ui.box(ifx dir < 0 then "prev" else "next", .Clickable | .Draw_Background | .Floating_X | .Floating_Y | .Hot_Animation);
+				b.semantic_size = .[ui.px(44), ui.px(44)];
+				b.fixed_pos = .{ifx dir < 0 then 24.0 else app.ui.window.x - 68, (app.ui.window.y - 44) / 2};
+				b.style.radius = all4(22);
+				b.style.bg = .{0, 0, 0, 0.5};
+				b.style.bg_hot = .{0, 0, 0, 0.75};
+				b.layout_axis = .X;
+				b.cross_align = .Center;
+				if ui.signal(b).clicked step = dir;
+				ui.parent(b); defer ui.pop_parent();
+				spacer(.X, 10);
+				icon("ic", ifx dir < 0 then "chevron-small-left" else "chevron-small-right", 24, .{1, 1, 1, 1});
+			}
+			n := row("count");
+			n.flags |= .Floating_X | .Floating_Y;
+			n.semantic_size = .[ui.children(), ui.px(20)];
+			n.fixed_pos = .{app.ui.window.x / 2 - 20, app.ui.window.y - 40};
+			ui.parent(n); defer ui.pop_parent();
+			label(tprint("% / %", cur + 1, items.count), .Medium, 14, .{1, 1, 1, 0.8}, 20);
+		}
 	}
-	if !mm.open for * app.ui.events if it.kind == .Key_Down && it.key == .Escape { close_viewer(); it.consumed = true; }
+	if !mm.open for * app.ui.events {
+		if it.kind != .Key_Down || it.consumed continue;
+		if it.key == .Escape { close_viewer(); it.consumed = true; }
+		if cur >= 0 && items.count > 1 && (it.key == .Left || it.key == .Right) { step = ifx it.key == .Left then -1 else 1; it.consumed = true; }
+	}
+	if step && viewer_url != "" {
+		next := items[(cur + step + items.count) % items.count];
+		open_viewer(next.url, next.size, next.video, next.link, viewer_msg);
+		viewer_t = 1; // no zoom-in between images
+	}
 }
 
 // ---- image / media context menu ----
