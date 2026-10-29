@@ -10,6 +10,7 @@ etf :: #import "etf";
 fc_text :: #import "fc_text";
 http :: #import "http";
 imagefmt :: #import "imagefmt";
+media :: #import "media";
 keys :: #import "keys";
 locks :: #import "locks";
 netio :: #import "netio";
@@ -3910,14 +3911,23 @@ files :: (c: *Conn, req: http.Request) -> bool {
 		if req.method != "PUT" return json_error(c, 405, 0, "405: Method Not Allowed");
 		size := upload_size(s, path);
 		if !size || req.body.count != size return json_error(c, 404, 0, "404: Not Found");
-		// Discord reads an image's size when it's sent; the client lays images out by it.
-		w, h := 0, 0;
+		// Discord reads an image's or a video's size when it's sent; the client lays them out by it, and
+		// shows a video's player only with it and a video/ type.
+		w, h, video := 0, 0, "";
 		if imagefmt.sniff(req.body) != .Unknown {
 			img, ierr := imagefmt.decode_first_frame(req.body, temp, max_pixels = 16 << 20);
 			if ierr == .None w, h = img.width, img.height;
+		} else {
+			src := media.source_from_memory(req.body);
+			info, ok := media.probe(*src);
+			media.source_destroy(*src);
+			if ok && info.has_video && info.width > 0 && info.height > 0 && info.width <= 16384 && info.height <= 16384 {
+				w, h = info.width, info.height;
+				video = ifx info.format == .Matroska then "video/webm" else "video/mp4";
+			}
 		}
 		locks.guard(*s.db_mu);
-		if !sqlite.run(s.db, "UPDATE uploads SET data = ?, width = ?, height = ? WHERE token = ? AND data IS NULL;", req.body, w, h, token) || sqlite.changes(s.db) != 1 {
+		if !sqlite.run(s.db, "UPDATE uploads SET data = ?, width = ?, height = ?, content_type = CASE WHEN ?4 <> '' AND content_type NOT LIKE 'video/%' THEN ?4 ELSE content_type END WHERE token = ?5 AND data IS NULL;", req.body, w, h, video, token) || sqlite.changes(s.db) != 1 {
 			return json_error(c, 404, 0, "404: Not Found");
 		}
 		return respond(c, 200, json = false);

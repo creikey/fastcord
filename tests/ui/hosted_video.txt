@@ -1,0 +1,13 @@
+# A video sent to a self-hosted server in this process shows as a player, not a file card: serve reads its
+# size and type when the upload lands.
+wait 5
+serve_join
+settle 3
+click 36 157
+settle 3
+click 700 683
+stage tests/ui/media/clip.mp4
+wait_attachments
+key enter
+settle 5
+shot build/ui-hosted_video.png

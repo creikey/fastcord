@@ -429,7 +429,6 @@
 - [ ] Friends: the Pending tab isn't split into Received and Sent.
 - [ ] Notifications: the server modal lacks channel overrides, Suppress Highlights, Mute New Events and Mobile Push (parsed, sent only to analytics).
 - [ ] Profiles: your own full profile has no Edit Profile button; the DM side panel lacks About Me, pronouns, mutual servers and friends, and the note.
-- [ ] Hosting: a video sent to a hosted server shows as a plain file card, not a player: serve reads an image's size on arrival (`imagefmt` in `serve/module.jai`) but not a video's, and the client lays a video out only with `width` and `height`. Probe MP4/WebM/MOV dimensions with `media.probe` (or a header-only reader) when the upload lands.
 - [ ] Sounds: soundpacks work and are saved but have no picker (Settings > Notifications).
   - Done: "User Moved" plays when a moderator moves our call, in place of the join sound, and "reconnect" when a stage moderator invites us to speak (`sound_moved`, `sounds_frame`; built, not heard: no script hears sounds).
 - [ ] Media: voice message speed changes the pitch: `player_set_rate` resamples linearly, where the client's `<audio>` keeps it (`preservesPitch`). Time-stretch instead (WSOLA, or a vetted library) for 1.5x / 2x.
@@ -874,3 +873,4 @@
 - [x] Embeds: a link card's side thumbnail opens in the image viewer on click and has the image menu on right-click (`embeds_view`, `tests/ui/media/embed_thumb.txt`).
 - [x] System messages: a thread's starter message shows the parent message by its author (a notice when it can't load), the invite reminder is hidden as in the client, and AutoMod alerts, role-subscription purchases (the server name not linked) and security-action / raid notices read as the client's lines (`system_notice`, `tests/ui/system_notices_more.txt`).
 - [x] Hosted servers: a join posts its message in the system channel Engagement set (none when it set none or turned welcomes off; the first text channel on a server that never set one), and serve has `POST /channels/{id}/greet`, so "Wave to say hi!" works there, replying with a waving hand since serve has no Discord stickers (`greet` in `serve/module.jai`, `tests/ui/hosted_greet.txt`).
+- [x] Hosting: a video sent to a hosted server plays in the chat: serve probes an MP4/MOV/WebM upload when it lands (`media.probe`) for its size, and gives it a `video/` type if the client sent none (`files` in `serve/module.jai`, `tests/ui/hosted_video.txt`).
