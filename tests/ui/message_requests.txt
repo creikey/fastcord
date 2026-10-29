@@ -1,0 +1,27 @@
+# Friends with a message request, a spam DM, a blocked user, an incoming request and a friend playing a
+# game (message_requests.jsonl, from make_rail_fixture.py). Requests stay out of the DM list behind
+# "Message Requests"; Pending splits Received and Sent; Blocked lists blocked users; Active Now shows the game.
+go_home
+wait 10
+expect_not_visible "Stranger"
+expect_visible "Message Requests"
+expect_visible "Playing Factorio"
+shot build/ui-message_requests-friends.png
+click_text "Pending"
+wait 5
+expect_visible "Received — 1"
+expect_visible "Sent — 1"
+shot build/ui-message_requests-pending.png
+click_text "Blocked"
+wait 5
+expect_visible "Troll"
+click_text "Message Requests"
+wait 5
+expect_visible "Stranger"
+expect_not_visible "Spammer"
+shot build/ui-message_requests.png
+click_text "Spam"
+wait 5
+expect_visible "Spammer"
+click_text "Requests"
+wait 5

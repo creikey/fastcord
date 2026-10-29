@@ -218,6 +218,8 @@ message_notifies :: (m: *dc.New_Message) -> bool {
 	if m.flags & SUPPRESS_NOTIFICATIONS return false;
 	r := table_find_pointer(*s.relationships, m.author_id);
 	if r && (r.kind == .Blocked || r.ignored) return false;
+	ch := dc.channel_get(s, m.channel_id);
+	if ch && (ch.msg_request || ch.spam) return false; // message requests wait under Message Requests
 	return dc.channel_notifies(s, m.guild_id, m.channel_id, app.view.channel, m.mentions_me, m.mention_everyone, m.mention_roles, wall_ms());
 }
 

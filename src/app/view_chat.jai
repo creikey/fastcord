@@ -2541,6 +2541,7 @@ slowmode_left_ms :: (ch: *dc.Channel) -> s64 {
 // Why the composer can't send here, or "" when it can: Send Messages (in a thread, Send Messages in Threads),
 // and a locked thread needs Manage Threads. A server whose roles haven't arrived blocks nothing.
 composer_blocked :: (ch: *dc.Channel) -> string {
+	if ch.msg_request || ch.spam return "Accept this message request (Friends, Message Requests) to reply.";
 	g := dc.guild_get(store(), ch.guild_id);
 	if !g return "";
 	until := dc.timed_out(store(), ch.guild_id, store().me);

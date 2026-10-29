@@ -22,6 +22,22 @@ ignore_user :: (c: *Client, user_id: Snowflake, ignore: bool, location := "Conte
 	job_submit(c, j);
 }
 
+// message_request_answer: Accept a message request, PUT /channels/{id}/recipients/@me
+// {"consent_status":2} (shown accepted at once, like MESSAGE_REQUEST_ACCEPT_OPTIMISTIC), or Ignore it,
+// DELETE on the same path (the channel goes with its CHANNEL_DELETE).
+message_request_answer :: (c: *Client, channel_id: Snowflake, accept: bool) {
+	j := job_new(.Api, .None);
+	j.method = ifx accept then "PUT" else "DELETE";
+	j.path = job_str(j, tprint("/channels/%/recipients/@me", channel_id));
+	if accept {
+		j.body = cast([]u8) "{\"consent_status\":2}";
+		j.content_type = "application/json";
+		ch := channel_get(*c.store, channel_id);
+		if ch { ch.msg_request, ch.spam = false, false; c.store.changed += 1; }
+	}
+	job_submit(c, j);
+}
+
 // close_private_channel: closing a DM (or leaving a group DM) from the DM list:
 // DELETE /channels/{id}?silent=false. The gateway's CHANNEL_DELETE removes it.
 close_private_channel :: (c: *Client, channel_id: Snowflake) {

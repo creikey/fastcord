@@ -62,6 +62,7 @@ channel_mentions :: (cid: dc.Snowflake) -> int {
 
 // channel_mentions for a channel already looked up; r may be null (never read).
 channel_mentions_of :: (s: *dc.Store, ch: *dc.Channel, r: *dc.Read_State) -> int {
+	if ch.msg_request || ch.spam return 0; // message requests: the Message Requests count instead
 	last_read := ifx r != null then r.last_message_id else 0;
 	if ch.last_message_id <= last_read { return 0; }
 	dm := ch.kind == .DM || ch.kind == .Group_DM;
@@ -90,7 +91,7 @@ unread_dms :: () -> []dc.Snowflake {
 	out.allocator = temp;
 	for cid: s.private_channels {
 		ch := dc.channel_get(s, cid);
-		if ch == null { continue; }
+		if ch == null || ch.msg_request || ch.spam { continue; }
 		if channel_mentions_of(s, ch, table_find_pointer(*s.read_states, cid)) > 0 { array_add(*out, cid); }
 	}
 	quick_sort(out, (a: dc.Snowflake, b: dc.Snowflake) -> int {

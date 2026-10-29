@@ -132,6 +132,8 @@ Channel :: struct {
 	overwrites: [..]Overwrite;
 	flags: u64;
 	status: string; // a voice channel's status (CHANNEL_INFO, VOICE_CHANNEL_STATUS_UPDATE)
+	msg_request: bool; // a DM from someone who isn't a friend, not yet accepted (is_message_request)
+	spam: bool; // a DM Discord flagged as spam (is_spam)
 }
 
 Emoji :: struct {
@@ -289,6 +291,7 @@ Presence :: struct {
 	activity: string; // custom status text / "Playing X"
 	custom: string; // the custom status (type 4): its unicode emoji, a space, its text; "" for none
 	activity_types: u32; // each activity's type + 1, a nibble each in order (user_profile_action)
+	game: string; // the first activity that isn't a custom status, as a line: "Playing X", "Listening to Spotify"
 }
 
 Read_State :: struct {

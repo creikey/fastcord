@@ -35,9 +35,15 @@ home_sidebar :: () {
 		g0, c0 := app.view.guild, app.view.channel;
 		s := store();
 		spacer(.Y, 8);
-		if dm_nav_item("Friends", app.view.channel == 0).clicked {
+		if dm_nav_item("Friends", app.view.channel == 0 && !app.view.requests, pending_count()).clicked {
 			friends_tab_telemetry("friends_list_clicked");
+			app.view.requests = false;
 			select_channel(0, 0);
+		}
+		reqs := dc.private_channels_sorted(s, requests = true).count;
+		if reqs && dm_nav_item("Message Requests", app.view.channel == 0 && app.view.requests, message_request_count(), "inbox").clicked {
+			select_channel(0, 0);
+			app.view.requests = true;
 		}
 		spacer(.Y, DM_SEP_GAP);
 		sep := row("sep");
@@ -119,7 +125,7 @@ DM_HEADER_H :: 24;
 DM_ROW_H :: 42;
 DM_ROW_PITCH :: 44;
 
-dm_nav_item :: (name: string, selected: bool) -> ui.Signal {
+dm_nav_item :: (name: string, selected: bool, badge := 0, icon_name := "friends") -> ui.Signal {
 	outer := row(name);
 	outer.semantic_size = .[ui.pct(1), ui.px(DM_NAV_PITCH)];
 	sig: ui.Signal;
@@ -131,13 +137,17 @@ dm_nav_item :: (name: string, selected: bool) -> ui.Signal {
 		item.style.bg = ifx selected then T("--background-mod-normal") else .{};
 		item.style.bg_hot = ifx selected then item.style.bg else T("--background-mod-subtle");
 		sig = ui.signal(item);
-		icon_name := "friends";
 		{ ui.parent(item); defer ui.pop_parent();
 			color := ifx selected || sig.hovering then T("--interactive-text-active") else T("--channels-default");
 			spacer(.X, 8);
 			icon("ic", icon_name, 20, color);
 			spacer(.X, 12);
 			label(name, .Medium, 16, color, 20);
+			if badge {
+				filler(.X);
+				count_badge(badge);
+				spacer(.X, 8);
+			}
 		}
 		spacer(.X, 8);
 	}
@@ -252,9 +262,10 @@ friends_page :: () {
 		tabs := struct {
 			name: string;
 			tab: Friends_Tab;
-		}.[.{"Online", .Online}, .{"All", .All}, .{"Pending", .Pending}, .{"Add Friend", .Add_Friend}];
+		}.[.{"Online", .Online}, .{"All", .All}, .{"Pending", .Pending}, .{"Blocked", .Blocked}, .{"Add Friend", .Add_Friend}];
 		for t: tabs {
 			if t.tab == .Pending && !has_pending() { continue; } // outgoing requests alone keep it, to cancel them
+			if t.tab == .Blocked && !has_blocked() { continue; }
 			sel := app.view.friends_tab == t.tab;
 			tb := ui.box(t.name, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
 			tb.semantic_size = .[ui.text_size(12), ui.px(32)];
@@ -314,6 +325,8 @@ friends_page :: () {
 			if rel.kind == .Friend { array_add(*ids, uid); }
 		case .Pending;
 			if rel.kind == .Incoming_Request || rel.kind == .Outgoing_Request { array_add(*ids, uid); }
+		case .Blocked;
+			if rel.kind == .Blocked { array_add(*ids, uid); }
 		case .Add_Friend;
 		}
 	}
@@ -332,6 +345,16 @@ friends_page :: () {
 		ids.count = kept;
 	}
 	sort_users_by_name(ids);
+	// Pending: received requests first, then sent, each under its own header
+	received := 0;
+	if app.view.friends_tab == .Pending {
+		kept: [..]dc.Snowflake;
+		kept.allocator = temp;
+		for ids if relationship(it) == .Incoming_Request array_add(*kept, it);
+		received = kept.count;
+		for ids if relationship(it) != .Incoming_Request array_add(*kept, it);
+		ids = kept;
+	}
 	{ ui.parent(list); defer ui.pop_parent();
 		spacer(.Y, 12);
 		sr := row("searchrow");
@@ -367,18 +390,36 @@ friends_page :: () {
 			case .All;
 				title = "All friends";
 			case .Pending;
-				title = "Pending";
+				title = "Received";
+			case .Blocked;
+				title = "Blocked";
 			case .Online; #through; case .Add_Friend;
 			}
-			label(ifx store_loading() then title else tprint("% — %", title, ids.count), .Medium, 14, T("--text-default"), 18); // no count before READY
+			n := ifx app.view.friends_tab == .Pending then received else ids.count;
+			if app.view.friends_tab != .Pending || received label(ifx store_loading() then title else tprint("% — %", title, n), .Medium, 14, T("--text-default"), 18); // no count before READY
 		}
 		spacer(.Y, 16);
-		w := ui.list_window(list, FRIEND_ROW_H + 1, ids.count);
-		for uid: array_view(ids, w.first, w.last - w.first) {
-			ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
-			friend_row(uid, relationship(uid));
+		if app.view.friends_tab == .Pending {
+			// two short lists: no windowing, and the Sent header between them
+			for uid, i: ids {
+				if i == received {
+					if received spacer(.Y, 16);
+					sh := row("senthdr");
+					sh.semantic_size = .[ui.pct(1), ui.px(18)];
+					{ ui.parent(sh); defer ui.pop_parent(); spacer(.X, FRIENDS_PAD_L); label(tprint("Sent — %", ids.count - received), .Medium, 14, T("--text-default"), 18); }
+					spacer(.Y, 16);
+				}
+				ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
+				friend_row(uid, relationship(uid));
+			}
+		} else {
+			w := ui.list_window(list, FRIEND_ROW_H + 1, ids.count);
+			for uid: array_view(ids, w.first, w.last - w.first) {
+				ui.id_scope(cast(u64)(uid)); defer ui.pop_seed();
+				friend_row(uid, relationship(uid));
+			}
+			ui.list_window_end(w);
 		}
-		ui.list_window_end(w);
 		if store_loading() {
 			for i: 0..5 {
 				ui.id_scope(cast(u64) i); defer ui.pop_seed();
@@ -392,7 +433,7 @@ friends_page :: () {
 			}
 		} else if ids.count == 0 {
 			spacer(.Y, 80);
-			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else "No one's around right now.";
+			msg := ifx app.view.friends_tab == .Pending then "There are no pending friend requests." else ifx app.view.friends_tab == .Blocked then "You can't unblock the Wumpus." else "No one's around right now.";
 			e := row("empty");
 			e.semantic_size = .[ui.pct(1), ui.px(24)];
 			{ ui.parent(e); defer ui.pop_parent();
@@ -407,6 +448,19 @@ friends_page :: () {
 has_pending :: () -> bool {
 	for store().relationships if it.kind == .Incoming_Request || it.kind == .Outgoing_Request return true;
 	return false;
+}
+
+has_blocked :: () -> bool {
+	for store().relationships if it.kind == .Blocked return true;
+	return false;
+}
+
+// Message requests waiting (not the spam ones): the sidebar item's badge.
+message_request_count :: () -> int {
+	s := store();
+	n := 0;
+	for dc.private_channels_sorted(s, requests = true) { ch := dc.channel_get(s, it); if ch && !ch.spam n += 1; }
+	return n;
 }
 
 pending_count :: () -> int {
@@ -468,12 +522,15 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 					}
 				}
 				sub := user_custom_status(uid);
+				if sub == "" sub = user_game(uid);
 				if sub == "" sub = status_text(user_status(uid));
 				if kind == {
 				case .Incoming_Request;
 					sub = "Incoming Friend Request";
 				case .Outgoing_Request;
 					sub = "Outgoing Friend Request";
+				case .Blocked;
+					sub = "Blocked";
 				}
 				label(sub, .Medium, 14, T("--text-muted"), 18);
 			}
@@ -487,6 +544,10 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 				spacer(.X, 10);
 				more := round_icon_button("more", "more-vertical", T("--interactive-icon-hover"));
 				if more.clicked { open_user_menu(uid, .{more.box.rect.x0, more.box.rect.y1 + 4}); }
+			} else if kind == .Blocked {
+				ub := round_icon_button("unblock", "x-small", T("--status-danger"));
+				if ub.hovering tooltip_below("Unblock", ub.box.rect);
+				if ub.clicked rel_change(uid, .Remove);
 			} else {
 				if round_icon_button("deny", "x-small", T("--status-danger")).clicked rel_change(uid, .Remove);
 			}
@@ -496,7 +557,119 @@ friend_row :: (uid: dc.Snowflake, kind: dc.Relationship_Type) {
 	}
 }
 
-// Right column on the friends page: "Active Now" with the empty-state card.
+// A red count pill (the sidebar's Friends and Message Requests).
+count_badge :: (n: int) {
+	text := ifx n > 99 then "99+" else tprint("%", n);
+	b := ui.box(tprint("%##count", text), .Draw_Background | .Draw_Text);
+	b.semantic_size = .[ui.px(max(16.0, cast(float32) text.count * 7 + 8)), ui.px(16)];
+	b.style.bg = T("--status-danger");
+	b.style.radius = all4(8);
+	b.style.font = F(.Bold);
+	b.style.font_size = 12;
+	b.style.text_color = .{1, 1, 1, 1};
+	b.style.text_align = .Center;
+}
+
+// Message Requests: DMs from people who aren't friends (is_message_request), with Discord's spam
+// (is_spam) under its own tab. They stay out of the DM list and never notify. A row opens the DM;
+// Accept and Ignore answer it, Ignore behind Undo (undo.jai).
+requests_page :: () {
+	s := store();
+	h := row("header", .Draw_Background);
+	h.semantic_size = .[ui.pct(1), ui.px(HEADER_H - 1)];
+	h.style.bg = T("--background-base-lower");
+	{ ui.parent(h); defer ui.pop_parent();
+		spacer(.X, 22);
+		icon("ricon", "inbox", 20, T("--channel-icon"));
+		spacer(.X, 6);
+		label("Message Requests", .Semibold, 16, T("--text-strong"), 20);
+		spacer(.X, 12);
+		for name, i: string.["Requests", "Spam"] {
+			sel := app.view.requests_spam == (i == 1);
+			tb := ui.box(name, .Clickable | .Draw_Background | .Draw_Text | .Hot_Animation);
+			tb.semantic_size = .[ui.text_size(12), ui.px(32)];
+			tb.style.radius = all4(8);
+			tb.style.font = F(.Medium);
+			tb.style.font_size = 16;
+			tb.style.text_align = .Center;
+			tb.style.text_color = ifx sel then T("--interactive-text-active") else T("--interactive-text-default");
+			tb.style.bg = ifx sel then T("--background-mod-normal") else .{};
+			tb.style.bg_hot = ifx sel then tb.style.bg else T("--background-mod-subtle");
+			if ui.signal(tb).clicked app.view.requests_spam = i == 1;
+			spacer(.X, 16);
+		}
+	}
+	line := ui.box("hline", .Draw_Background);
+	line.semantic_size = .[ui.pct(1), ui.px(1)];
+	line.style.bg = T("--border-subtle");
+	list := ui.box("requests", .Scroll_Y | .Clip);
+	list.semantic_size = .[ui.pct(1), ui.fill()];
+	list.layout_axis = .Y;
+	ui.signal(list);
+	ui.parent(list); defer ui.pop_parent();
+	ids: [..]dc.Snowflake;
+	ids.allocator = temp;
+	for undo_filter(dc.private_channels_sorted(s, requests = true)) { ch := dc.channel_get(s, it); if ch && ch.spam == app.view.requests_spam array_add(*ids, it); }
+	spacer(.Y, 16);
+	hdr := row("count");
+	hdr.semantic_size = .[ui.pct(1), ui.px(18)];
+	{ ui.parent(hdr); defer ui.pop_parent();
+		spacer(.X, FRIENDS_PAD_L);
+		label(tprint("% — %", ifx app.view.requests_spam then "Spam" else "Message Requests", ids.count), .Medium, 14, T("--text-default"), 18);
+	}
+	spacer(.Y, 16);
+	for cid: ids {
+		ch := dc.channel_get(s, cid);
+		uid := ifx ch.recipient_ids.count then ch.recipient_ids[0] else 0;
+		ui.id_scope(cast(u64) cid); defer ui.pop_seed();
+		outer := row("f");
+		outer.semantic_size = .[ui.pct(1), ui.px(FRIEND_ROW_H)];
+		ui.parent(outer); defer ui.pop_parent();
+		spacer(.X, 14);
+		item := row("item", .Clickable | .Draw_Background | .Hot_Animation);
+		item.semantic_size = .[ui.fill(), ui.px(FRIEND_ROW_H)];
+		item.style.radius = all4(8);
+		item.style.bg_hot = T("--background-mod-subtle");
+		sig := ui.signal(item);
+		if sig.clicked select_channel(0, cid);
+		if sig.right_clicked && uid open_user_menu(uid, app.ui.mouse);
+		{ ui.parent(item); defer ui.pop_parent();
+			spacer(.X, 10);
+			avatar_with_status("av", uid, 32, ifx sig.hovering then T("--background-base-low") else T("--background-base-lower"));
+			spacer(.X, 12);
+			col := ui.box("col");
+			col.semantic_size = .[ui.fill(), ui.children()];
+			{ ui.parent(col); defer ui.pop_parent();
+				label(dm_name(ch), .Semibold, 16, T("--text-strong"), 20);
+				label(ifx ch.spam then "Flagged as spam" else "Wants to message you", .Medium, 14, T("--text-muted"), 18);
+			}
+			acc := round_icon_button("accept", "checkmark-large", T("--status-positive"));
+			if acc.hovering tooltip_below("Accept", acc.box.rect);
+			if acc.clicked {
+				if net_action() dc.message_request_answer(app.client, cid, true);
+				else ch.msg_request, ch.spam = false, false; // offline (fixture) runs
+			}
+			spacer(.X, 10);
+			ign := round_icon_button("ignore", "x-small", T("--status-danger"));
+			if ign.hovering tooltip_below("Ignore", ign.box.rect);
+			if ign.clicked undo_push("Message request ignored", (u: *Undo) { if u.client dc.message_request_answer(u.client, u.a, false); }, a = cid, hides = true);
+			spacer(.X, 10);
+		}
+		spacer(.X, 26);
+	}
+	if !ids {
+		spacer(.Y, 80);
+		e := row("empty");
+		e.semantic_size = .[ui.pct(1), ui.px(24)];
+		ui.parent(e); defer ui.pop_parent();
+		filler(.X);
+		label(ifx app.view.requests_spam then "No spam. Nice." else "No message requests.", .Normal, 16, T("--text-muted"), 20);
+		filler(.X);
+	}
+}
+
+// Right column on the friends page: "Active Now": friends doing something (a game, music), else the
+// empty-state card.
 active_now_column :: () {
 	edge := ui.box("activenow_edge", .Draw_Background);
 	edge.semantic_size = .[ui.px(1), ui.pct(1)];
@@ -513,6 +686,41 @@ active_now_column :: () {
 			label("Active Now", .Semibold, 20, T("--text-strong"), 24);
 		}
 		spacer(.Y, 9);
+		s := store();
+		active: [..]dc.Snowflake;
+		active.allocator = temp;
+		for rel, uid: s.relationships if rel.kind == .Friend && user_game(uid) != "" array_add(*active, uid);
+		sort_users_by_name(active);
+		for uid: active {
+			ui.id_scope(cast(u64) uid); defer ui.pop_seed();
+			ar := row("act");
+			ar.semantic_size = .[ui.pct(1), ui.children()];
+			defer spacer(.Y, 8);
+			ui.parent(ar); defer ui.pop_parent();
+			spacer(.X, 16);
+			card := row("card", .Draw_Background | .Clickable | .Hot_Animation);
+			card.semantic_size = .[ui.fill(), ui.px(56)];
+			card.style.bg = T("--background-base-low");
+			card.style.bg_hot = T("--background-mod-subtle");
+			card.style.radius = all4(8);
+			csig := ui.signal(card);
+			if csig.clicked friend_open_dm(uid);
+			if csig.right_clicked open_user_menu(uid, app.ui.mouse);
+			{ ui.parent(card); defer ui.pop_parent();
+				spacer(.X, 12);
+				avatar_with_status("av", uid, 32, T("--background-base-low"));
+				spacer(.X, 10);
+				col := ui.box("col");
+				col.semantic_size = .[ui.fill(), ui.children()];
+				{ ui.parent(col); defer ui.pop_parent();
+					label(dc.user_name(s, uid, 0, "Unknown"), .Semibold, 16, T("--text-strong"), 20);
+					label(user_game(uid), .Normal, 14, T("--text-muted"), 18);
+				}
+				spacer(.X, 12);
+			}
+			spacer(.X, 16);
+		}
+		if active.count return;
 		cr := row("cardrow");
 		cr.semantic_size = .[ui.pct(1), ui.children()];
 		cr.cross_align = .Start;

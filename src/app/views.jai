@@ -24,6 +24,7 @@ Friends_Tab :: enum u8 {
 	Online;
 	All;
 	Pending;
+	Blocked;
 	Add_Friend;
 }
 
@@ -32,6 +33,8 @@ View_State :: struct {
 	channel: dc.Snowflake; // selected channel in the current guild, or DM channel at home
 	last_channel: Table(dc.Snowflake, dc.Snowflake); // guild -> last selected channel
 	friends_tab: Friends_Tab;
+	requests: bool; // home with no channel: Message Requests instead of Friends
+	requests_spam: bool; // its Spam tab
 	nsfw_agreed: Table(dc.Snowflake, bool); // guilds whose age-restricted channels you agreed to see (device-local)
 	hide_members: bool;
 	hide_dm_profile: bool; // 1:1 DM user profile column (header toggle)
@@ -663,7 +666,7 @@ page :: () {
 	{ ui.parent(p); defer ui.pop_parent();
 		ch := ifx app.view.channel != 0 then dc.channel_get(store(), app.view.channel) else null;
 		if ch == null {
-			friends_page();
+			if app.view.requests requests_page(); else friends_page();
 			return;
 		}
 		chat_header(ch);
@@ -1315,6 +1318,12 @@ user_custom_status :: (uid: dc.Snowflake) -> string {
 	if uid == s.me return custom_status_line();
 	p := table_find_pointer(*s.presences, uid);
 	return ifx p && user_status(uid) != .Offline then p.custom else "";
+}
+
+// What someone is doing ("Playing X", "Listening to Spotify"), "" for nothing or while offline.
+user_game :: (uid: dc.Snowflake) -> string {
+	p := table_find_pointer(*store().presences, uid);
+	return ifx p && user_status(uid) != .Offline then p.game else "";
 }
 
 user_status :: (uid: dc.Snowflake) -> dc.Status {

@@ -302,6 +302,8 @@ parse_channel_into :: (s: *Store, m: etf.Map, guild_id: Snowflake = 0) -> Snowfl
 	if vhas(m, "owner_id") c.owner_id = fsnow(m, "owner_id");
 	if vhas(m, "flags") c.flags = cast(u64) fint(m, "flags");
 	if vhas(m, "status") set_channel_status(s, c, fstr(m, "status"));
+	if vhas(m, "is_message_request") c.msg_request = fbool(m, "is_message_request");
+	if vhas(m, "is_spam") c.spam = fbool(m, "is_spam");
 	if vhas(m, "permission_overwrites") {
 		c.overwrites.count = 0;
 		for flist(m, "permission_overwrites") {
@@ -774,12 +776,15 @@ apply_presence :: (s: *Store, m: etf.Map, user_hint: Snowflake = 0) {
 		p.web = status_from_string(fstr(cs, "web"));
 	}
 	old := table_find_pointer(*s.presences, uid);
-	if old { free_str(old.activity, s.allocator); free_str(old.custom, s.allocator); }
+	if old { free_str(old.activity, s.allocator); free_str(old.custom, s.allocator); free_str(old.game, s.allocator); }
 	for flist(m, "activities") {
 		am := vmap(it);
 		if it_index < 8 p.activity_types |= cast(u32) ((fint(am, "type") + 1) & 0xF) << (4 * it_index);
 		txt := ifx fint(am, "type") == 4 then fstr(am, "state") else fstr(am, "name");
 		if txt && !p.activity p.activity = clone_str(txt, s.allocator);
+		VERBS :: string.["Playing", "Streaming", "Listening to", "Watching", "", "Competing in"];
+		kind := fint(am, "type");
+		if kind >= 0 && kind < VERBS.count && kind != 4 && txt && !p.game p.game = clone_str(tprint("% %", VERBS[kind], slice(txt, 0, min(txt.count, 128))), s.allocator);
 		if fint(am, "type") == 4 && !p.custom {
 			em := fmap(am, "emoji");
 			emoji := ifx em && !fsnow(em, "id") then fstr(em, "name"); // custom emoji images aren't drawn here
@@ -1711,13 +1716,18 @@ guild_channels_sorted :: (s: *Store, guild_id: Snowflake, allocator := temp) -> 
 }
 
 // private_channels_sorted: DMs by last activity, newest first.
-private_channels_sorted :: (s: *Store, allocator := temp) -> []Snowflake {
+private_channels_sorted :: (s: *Store, allocator := temp, requests := false) -> []Snowflake {
 	Keyed :: struct { last, id: Snowflake; }
 	keyed := NewArray(s.private_channels.count, Keyed,, temp);
-	for id, i: s.private_channels {
+	n := 0;
+	for id: s.private_channels {
 		c := table_find_pointer(*s.channels, id);
-		keyed[i] = .{ifx c then max(c.last_message_id, id) else id, id};
+		if c && (c.msg_request || c.spam) != requests continue;
+		if !c && requests continue;
+		keyed[n] = .{ifx c then max(c.last_message_id, id) else id, id};
+		n += 1;
 	}
+	keyed.count = n;
 	quick_sort(keyed, (a: Keyed, b: Keyed) -> s64 { return ifx a.last > b.last then -1 else ifx a.last < b.last then 1 else 0; });
 	ids := NewArray(keyed.count, Snowflake,, allocator);
 	for keyed ids[it_index] = it.id;
@@ -1748,7 +1758,7 @@ store_reset_session :: (s: *Store) {
 		deinit(gm);
 	}
 	table_reset(*s.members);
-	for s.presences { free_str(it.activity, a); free_str(it.custom, a); }
+	for s.presences { free_str(it.activity, a); free_str(it.custom, a); free_str(it.game, a); }
 	table_reset(*s.presences);
 	for s.relationships {
 		free_str(it.nickname, a);

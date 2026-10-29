@@ -59,3 +59,19 @@ out.append(ev('RELATIONSHIP_ADD', {'id': quinn['id'], 'type': 4, 'user': quinn, 
 with open(os.path.join(here, 'rail.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
     for o in out: f.write(json.dumps(o) + '\n')
 print('wrote rail.jsonl', len(out))
+# message_requests.jsonl: the rail fixture plus a message request, a spam DM, a blocked user, an incoming
+# friend request and a friend playing a game (Message Requests, Blocked, Pending, Active Now)
+strangers = [{'id': 1000000000000000020 + k, 'username': n.lower(), 'global_name': n, 'avatar': None, 'discriminator': '0'}
+             for k, n in enumerate(['Stranger', 'Spammer', 'Troll', 'Newbie'])]
+for k, (u, spam) in enumerate([(strangers[0], False), (strangers[1], True)]):
+    cid = 1700000000000000010 + k
+    out.append(ev('CHANNEL_CREATE', {'id': cid, 'type': 1, 'recipients': [u], 'last_message_id': None, 'name': None, 'owner_id': None, 'icon': None,
+        'is_message_request': True, 'is_spam': spam}))
+    out.append(ev('MESSAGE_CREATE', {'id': sf(base_ms + 7000 * 1000 + k * 1000, 120 + k), 'channel_id': cid, 'author': u, 'content': 'hey there',
+        'timestamp': '', 'edited_timestamp': None, 'type': 0, 'attachments': [], 'embeds': [], 'mentions': [], 'mention_everyone': False, 'flags': 0, 'tts': False, 'pinned': False}))
+out.append(ev('RELATIONSHIP_ADD', {'id': strangers[2]['id'], 'type': 2, 'user': strangers[2], 'nickname': None, 'since': '2026-01-03T00:00:00+00:00'}))
+out.append(ev('RELATIONSHIP_ADD', {'id': strangers[3]['id'], 'type': 3, 'user': strangers[3], 'nickname': None, 'since': '2026-01-04T00:00:00+00:00'}))
+out.append(ev('PRESENCE_UPDATE', {'user': {'id': users[3]['id']}, 'status': 'online', 'client_status': {'desktop': 'online'}, 'activities': [{'type': 0, 'name': 'Factorio'}]}))
+with open(os.path.join(here, 'message_requests.jsonl'), 'w', encoding='utf-8', newline='\n') as f:
+    for o in out: f.write(json.dumps(o) + '\n')
+print('wrote message_requests.jsonl', len(out))
