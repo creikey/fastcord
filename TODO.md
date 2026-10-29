@@ -510,6 +510,7 @@
 - [-] Cancelled (AGENTS.md: nothing that needs a webview): Embeds: YouTube (and other iframe) videos open in the browser instead of playing in the card.
 - [-] Cancelled (Google shut the Tenor API down on 2026-06-30, with no new keys since January, which is why Discord's `/gifs/search` went Klipy-only; sent Tenor links still embed): GIFs (fastcord-only): search Tenor as well as Klipy.
 - [-] Cancelled (AGENTS.md: no Activities): Voice and Call view: no Activities (in-call apps and games) and no Activities button.
+- [ ] Composer: Escape cancels a reply only while the composer has focus. The official Escape keybind is global: it ends an edit, else deletes the pending reply, else marks the channel read (`traffic/CLIENT_RULES.md` "Composer reply bar"). After clicking into the message list, Escape in fastcord does nothing to the reply.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
@@ -685,3 +686,5 @@
 - [x] Traffic (account risk): host versions are no longer frozen or invented. Windows reported 1.0.9272, a build that never shipped (latest 1.0.9266), and Linux 0.0.125 where the Linux line is 1.0.167; both now match the updater manifest, and each launch fetches `updates.discord.com/distributions/app/manifests/latest` and runs its `host_version` from the next launch (`app_document_build`).
 - [x] Read states: the "NEW" divider and the new-messages bar follow the official stale-marker rule. Losing focus with the channel read makes the marker stale, and the next message that stays unread becomes the divider, so coming back no longer shows "29 new messages since" an old visit (`tests/ui/forward/stale_marker.txt`).
 - [x] Read states: using the window (click, wheel, typing, focus, channel or voice select) ends idle at once, as IdleStore does, so the at-bottom ack no longer waits up to 10 s for the system idle poll after a long break (`idle_presence`).
+- [x] Composer: the reply bar's X cancels the reply (it read its click twice, and the first `ui.signal` consumed it), and clicking "Replying to <name>" jumps to the message (`tests/ui/forward/reply_bar.txt`).
+- [x] Chat: the new-messages bar has the official box: 32 px tall, inset 8/16 px, a subtle border and shadow, and a padded Mark As Read button with a hover background.

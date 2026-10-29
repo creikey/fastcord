@@ -1055,29 +1055,40 @@ new_messages_bar :: (channel_id: dc.Snowflake, msgs: []dc.Message, lw: float32, 
 		first = it.id;
 	}
 	if n == 0 return;
-	bar := row("newbar", .Floating_X | .Floating_Y | .Draw_Background | .Clickable);
-	bar.semantic_size = .[ui.px(max(lw - MSG_SCROLL_GUTTER - 16, 0)), ui.px(24)];
-	bar.fixed_pos = .{16, 0};
+	// official .barBase + .newMessagesBar: inset 8 px left and 16 px right, 32 px tall with a subtle
+	// border and the low elevation, 16 px side padding; the main button pads its text 4 px more
+	bar := row("newbar", .Floating_X | .Floating_Y | .Draw_Background | .Draw_Border | .Draw_Shadow | .Clickable);
+	bar.semantic_size = .[ui.px(max(lw - 24, 0)), ui.px(32)];
+	bar.fixed_pos = .{8, 0};
 	bar.style.bg = T("--background-brand");
+	bar.style.border_color = T("--border-subtle");
+	bar.style.border = 1;
 	bar.style.radius = .[0, 0, 8, 8];
+	bar.style.shadow_color = .{0, 0, 0, 0.2};
+	bar.style.shadow_offset = .{0, 1};
 	jump := ui.signal(bar).clicked;
 	{ ui.parent(bar); defer ui.pop_parent();
-		spacer(.X, 12);
+		spacer(.X, 20);
 		label(tprint("% new message% since %", ifx n >= 50 then "50+" else tprint("%", n), ifx n == 1 then "" else "s", format_timestamp(first)), .Medium, 14, .{1, 1, 1, 1}, 18);
 		filler(.X);
-		mr := row("read", .Clickable);
-		mr.semantic_size = .[ui.children(), ui.px(24)];
+		// .barButtonAlt: 4 x 8 px padding, a hover background, the icon 8 px after the text
+		mr := row("read", .Clickable | .Draw_Background | .Hot_Animation);
+		mr.semantic_size = .[ui.children(), ui.px(26)];
+		mr.style.bg_hot = T("--control-secondary-background-hover");
+		mr.style.radius = all4(4);
 		if ui.signal(mr).clicked {
 			jump = false;
 			if app.client dc.ack_message(app.client, channel_id, msgs[msgs.count - 1].id, true, dc.ACK_NEW_MESSAGES_BANNER);
 			cs.unread_after = 0;
 		}
 		{ ui.parent(mr); defer ui.pop_parent();
+			spacer(.X, 8);
 			label("Mark As Read", .Semibold, 14, .{1, 1, 1, 1}, 18);
-			spacer(.X, 4);
+			spacer(.X, 8);
 			icon("ic", "chat-mark-unread", 16, .{1, 1, 1, 1});
+			spacer(.X, 8);
 		}
-		spacer(.X, 12);
+		spacer(.X, 16);
 	}
 	if jump jump_to_message(channel_id, first);
 }

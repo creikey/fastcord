@@ -387,10 +387,15 @@ reply_bar :: () {
 	bar.semantic_size = .[ui.pct(1), ui.px(32)];
 	{ ui.parent(bar); defer ui.pop_parent();
 		spacer(.X, 16);
-		name := author_name(m);
-		label("Replying to", .Normal, 14, T("--text-default"), 18);
-		spacer(.X, 4);
-		label(name, .Semibold, 14, T("--text-default"), 18);
+		// "Replying to <name>" goes to the message (the official bar's transitionTo its link)
+		who := row("replyto", .Clickable);
+		who.semantic_size = .[ui.children(), ui.px(32)];
+		if ui.signal(who).clicked jump_to_message(m.channel_id, m.id);
+		{ ui.parent(who); defer ui.pop_parent();
+			label("Replying to", .Normal, 14, T("--text-default"), 18);
+			spacer(.X, 4);
+			label(author_name(m), .Semibold, 14, T("--text-default"), 18);
+		}
 		filler(.X);
 		if m.author_id != s.me {
 			at := ui.box(ifx ma.reply_mention then "@ ON##at" else "@ OFF##at", .Clickable | .Draw_Text);
@@ -403,8 +408,9 @@ reply_bar :: () {
 		}
 		x := ui.box("close", .Clickable);
 		x.semantic_size = .[ui.px(16), ui.px(16)];
-		set_icon(x, "circle-x", ifx ui.signal(x).hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
-		if ui.signal(x).clicked ma.replying = 0;
+		xs := ui.signal(x); // once: a second signal() finds the click already consumed
+		set_icon(x, "circle-x", ifx xs.hovering then T("--interactive-icon-hover") else T("--interactive-icon-default"));
+		if xs.clicked ma.replying = 0;
 		spacer(.X, 17);
 	}
 	sep := ui.box("replysep", .Draw_Background);

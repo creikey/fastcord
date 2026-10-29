@@ -1,0 +1,18 @@
+# The composer's reply bar: "Replying to <name>" jumps back to the message, and its X cancels the reply.
+wait 10
+rclick 700 187
+wait 5
+click_text "Reply"
+wait 5
+expect_visible "Replying to"
+scroll 0 3000
+wait 20
+expect_not_visible "filler message 17 to push the new line out of view"
+click_text "Replying to"
+wait 60
+expect_visible "filler message 17 to push the new line out of view"
+expect_visible "Replying to"
+shot build/ui-reply-bar.png
+click 981 637
+wait 5
+expect_not_visible "Replying to"
