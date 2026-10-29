@@ -1035,6 +1035,7 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 			for ml.groups if it.id == item.group_id item.count = it.count;
 		}
 	}
+	MAX_MEMBER_LIST_ITEMS :: 1 << 17;
 	for opv: flist(d, "ops") {
 		op := vmap(opv);
 		if fstr(op, "op") == {
@@ -1042,6 +1043,8 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 				r := flist(op, "range");
 				start := ifx r.count == 2 then vint(r[0]) else 0;
 				items := flist(op, "items");
+				// any server's indexes: inside the list, which stays under MAX_MEMBER_LIST_ITEMS
+				if start < 0 || start > MAX_MEMBER_LIST_ITEMS - items.count continue;
 				if ml.items.count < start + items.count array_resize(*ml.items, start + items.count);
 				for items {
 					free_str(ml.items[start + it_index].group_id, s.allocator);
@@ -1049,6 +1052,7 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 				}
 			case "INSERT";
 				idx := fint(op, "index");
+				if idx < 0 || ml.items.count >= MAX_MEMBER_LIST_ITEMS continue;
 				item := member_list_item(s, gid, fmap(op, "item"));
 				if idx >= ml.items.count array_add(*ml.items, item);
 				else array_insert_at(*ml.items, item, idx);
@@ -1067,7 +1071,7 @@ apply_member_list_update :: (s: *Store, d: etf.Map) {
 			case "INVALIDATE";
 				r := flist(op, "range");
 				if r.count != 2 continue;
-				k := vint(r[0]);
+				k := max(vint(r[0]), 0);
 				while k <= vint(r[1]) && k < ml.items.count {
 					free_str(ml.items[k].group_id, s.allocator);
 					ml.items[k] = .{};

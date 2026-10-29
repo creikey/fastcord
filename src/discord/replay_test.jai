@@ -1219,6 +1219,30 @@ r_count :: (run: *Replay_Run, method: string, part: string) -> int {
 // A jump to an old message (around=) shows that stretch alone, behind a gap (hasMoreAfter), not merged
 // into the loaded present; newer pages (after=) close the gap when short or when they reach the present,
 // and Jump to Present drops the stretch.
+// Any server's member list ops: negative and huge indexes and ranges change nothing out of bounds.
+member_list_hostile :: (t: *T) {
+	run: Replay_Run;
+	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
+	defer replay_end(*run);
+	s := *run.c.store;
+	item :: "{\"member\":{\"user\":{\"id\":\"5\",\"username\":\"x\"}}}";
+	for string.[
+		tprint("{\"op\":\"SYNC\",\"range\":[-5,10],\"items\":[%]}", item),
+		tprint("{\"op\":\"SYNC\",\"range\":[1000000000000,1000000000099],\"items\":[%]}", item),
+		tprint("{\"op\":\"INSERT\",\"index\":-3,\"item\":%}", item),
+		"{\"op\":\"INVALIDATE\",\"range\":[-100,5]}",
+		"{\"op\":\"UPDATE\",\"index\":-1,\"item\":{}}",
+		"{\"op\":\"DELETE\",\"index\":99999}",
+		tprint("{\"op\":\"SYNC\",\"range\":[0,1],\"items\":[%,%]}", item, item),
+	] {
+		v, _ := etf.from_json(tprint("{\"guild_id\":\"%\",\"id\":\"everyone\",\"ops\":[%]}", R_GUILD, it),, temp);
+		apply_member_list_update(s, v.map);
+	}
+	n := 0;
+	for s.member_lists n += it.items.count;
+	expect_value(t, n, 2);
+}
+
 history_gap :: (t: *T) {
 	run: Replay_Run;
 	if !replay_begin(*run, t, "add_reaction", R_GUILD, R_TEXT) { return; }
