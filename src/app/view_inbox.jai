@@ -349,7 +349,7 @@ unread_rows :: () -> []Unread_Row {
 			rs := table_find_pointer(*s.read_states, id);
 			if rs && rs.last_message_id >= ch.last_message_id { continue; }
 			if dc.is_thread(ch) {
-				tm := dc.thread_meta(id);
+				tm := dc.thread_meta(s, id);
 				if tm == null || !tm.joined || tm.archived { continue; }
 			}
 			if ch.guild_id != 0 && dc.guild_or_channel_muted(s, ch.guild_id, id, now) { continue; }

@@ -408,10 +408,10 @@ main :: () {
 		for 1..100 pump();
 
 		// Pins: the owner pins through the client; the message updates and the list has it.
-		epoch := discord.pins_epoch(cid);
+		epoch := discord.pins_epoch(*cl.store, cid);
 		discord.pin_message(cl, cid, hello, true);
-		for 1..300 { if stored()[0].pinned && discord.pins_epoch(cid) != epoch break; pump(); }
-		check(stored()[0].pinned && discord.pins_epoch(cid) != epoch, "pin: MESSAGE_UPDATE and CHANNEL_PINS_UPDATE");
+		for 1..300 { if stored()[0].pinned && discord.pins_epoch(*cl.store, cid) != epoch break; pump(); }
+		check(stored()[0].pinned && discord.pins_epoch(*cl.store, cid) != epoch, "pin: MESSAGE_UPDATE and CHANNEL_PINS_UPDATE");
 		status, body = rest("GET", tprint("%/pins", messages), "", token);
 		pinned, _ := etf.from_json(body);
 		items := field(pinned, "items");

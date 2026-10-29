@@ -18,6 +18,8 @@ Store :: struct {
 	channels: Table(Snowflake, Channel);
 	private_channels: [..]Snowflake;
 	members: Table(Snowflake, Table(Snowflake, Member)); // guild -> user -> member
+	extras: Extras; // thread metadata, forum tags, our roles (features.jai), under extras_mu
+	extras_mu: locks.Mutex;
 	messages: Table(Snowflake, Message_List); // channel -> messages
 	presences: Table(Snowflake, Presence);
 	relationships: Table(Snowflake, Relationship);
@@ -637,9 +639,9 @@ parse_message_fields :: (s: *Store, msg: *Message, m: etf.Map) {
 	th := fmap(m, "thread");
 	if th {
 		parse_channel_into(s, th, gid);
-		locks.lock(*extras_mu);
-		note_thread(th, s.me,, context.default_allocator);
-		locks.unlock(*extras_mu);
+		locks.lock(*s.extras_mu);
+		note_thread(*s.extras, th, s.me,, context.default_allocator);
+		locks.unlock(*s.extras_mu);
 	}
 	mm := fmap(m, "member");
 	if mm && gid && msg.author_id {
@@ -1803,7 +1805,7 @@ store_destroy :: (s: *Store) {
 	frecency_free(s);
 	soundboard_free(s);
 	deinit(*s.reaction_echoes);
-	extras_destroy();
+	extras_destroy(s);
 	a := s.allocator;
 	for * s.users free_user(s, it);
 	deinit(*s.users);

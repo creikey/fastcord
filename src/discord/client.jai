@@ -246,7 +246,6 @@ client_create :: (cfg: Config, allocator := context.allocator) -> *Client {
 	rate_limiter_init(*c.limiter, c.allocator);
 	store_init(*c.store, c.allocator);
 	feature_pool_retain(c);
-	extras_retain();
 	// Workers and the gateway thread add to these: they keep the client's allocator, never a
 	// thread's temp.
 	c.events.allocator = c.allocator;
@@ -361,7 +360,6 @@ client_destroy :: (c: *Client) {
 	free(c.rtc_regions);
 	for v, k: c.preflights free(k);
 	deinit(*c.preflights);
-	extras_release(c);
 	store_destroy(*c.store);
 	auth_destroy(c);
 	analytics_destroy(*c.analytics);

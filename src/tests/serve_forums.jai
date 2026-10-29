@@ -97,7 +97,7 @@ main :: () {
 	first := "";
 	for 1..300 {
 		for discord.feature_take_for(b) if it.op == .Forum_Posts && it.ok discord.apply_forum_threads(b, it.body);
-		tm := discord.thread_meta(post_id);
+		tm := discord.thread_meta(*b.store, post_id);
 		if tm && tm.first_content { first = tm.first_content; break; }
 		pump();
 	}

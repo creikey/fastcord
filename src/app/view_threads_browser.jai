@@ -110,7 +110,7 @@ threads_browser_popout :: () {
 	joined, active, older: [..]dc.Snowflake;
 	joined.allocator, active.allocator, older.allocator = temp, temp, temp;
 	for id: ids {
-		tm := dc.thread_meta(id);
+		tm := dc.thread_meta(store(), id);
 		if tm == null continue;
 		array_add(ifx tm.archived then *older else ifx tm.joined then *joined else *active, id);
 	}
@@ -393,7 +393,7 @@ thread_section :: (id: string, title: string, ids: []dc.Snowflake) {
 thread_browser_row :: (tid: dc.Snowflake) {
 	s := store();
 	th := dc.channel_get(s, tid);
-	tm := dc.thread_meta(tid);
+	tm := dc.thread_meta(store(), tid);
 	if th == null || tm == null return;
 	outer := row("tr");
 	outer.semantic_size = .[ui.pct(1), ui.px(56)];

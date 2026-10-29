@@ -117,7 +117,7 @@ channel_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Sno
 	Keyed :: struct { key, id: Snowflake; }
 	keyed: [..]Keyed;
 	keyed.allocator = temp;
-	for tm, id: extras.threads {
+	for tm, id: s.extras.threads {
 		if tm.parent_id == parent_id && table_contains(*s.channels, id) array_add(*keyed, .{max(tm.last_message_id, id), id});
 	}
 	// insertion sort, newest first (stable)

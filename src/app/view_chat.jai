@@ -2819,7 +2819,7 @@ composer_blocked :: (ch: *dc.Channel) -> string {
 	if !g.roles.count return "";
 	perms := dc.channel_permissions(store(), ch.id);
 	if dc.is_thread(ch) {
-		tm := dc.thread_meta(ch.id);
+		tm := dc.thread_meta(store(), ch.id);
 		if tm && tm.locked && !(perms & dc.PERM_MANAGE_THREADS) return "This thread is locked.";
 		if !(perms & dc.PERM_SEND_MESSAGES_IN_THREADS) return "You do not have permission to send messages in this channel.";
 	} else if !(perms & dc.PERM_SEND_MESSAGES) return "You do not have permission to send messages in this channel.";

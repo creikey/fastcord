@@ -4,7 +4,7 @@
 //   - thread starter messages carry the thread summary box
 //   - forum channels show the post list; opening a post is a normal channel
 //     select of the thread (its messages use the chat view)
-// Data: dc.extras (thread metadata, forum tags) and the feature REST calls.
+// Data: the Store's extras (thread metadata, forum tags) and the feature REST calls.
 
 // ---- sidebar ----
 
@@ -63,7 +63,7 @@ thread_summary_pill :: (m: *dc.Message) {
 	s := store();
 	th := dc.channel_get(s, m.id); // a thread started from a message has the message's id
 	if !dc.is_thread(th) || th.parent_id != m.channel_id return;
-	tm := dc.thread_meta(th.id);
+	tm := dc.thread_meta(store(), th.id);
 	count := ifx tm != null then tm.message_count else 0;
 	spacer(.Y, 4);
 	box := ui.box("threadpill", .Clickable | .Draw_Background | .Draw_Border | .Hot_Animation);
@@ -122,14 +122,14 @@ forum_view :: (ch: *dc.Channel) {
 		dc.fetch_archived_forum_threads(app.client, ch.id, 0);
 	}
 	all := dc.forum_threads(s, ch.id);
-	tags := dc.forum_tags(ch.id);
+	tags := dc.forum_tags(store(), ch.id);
 	// the search, tag filter and sort, as shown
 	q := to_lower_copy(trim(ui.editor_text(*st.query)),, temp);
 	posts: [..]dc.Snowflake;
 	posts.allocator = temp;
 	for id: all {
 		th := dc.channel_get(s, id);
-		tm := dc.thread_meta(id);
+		tm := dc.thread_meta(store(), id);
 		if !th continue;
 		if q && !contains(to_lower_copy(th.name,, temp), q) continue;
 		if st.filter.count {
@@ -145,7 +145,7 @@ forum_view :: (ch: *dc.Channel) {
 		need: [..]dc.Snowflake;
 		need.allocator = temp;
 		for id: posts {
-			tm := dc.thread_meta(id);
+			tm := dc.thread_meta(store(), id);
 			if tm == null || tm.first_content != "" || table_contains(*st.requested_posts, id) continue;
 			table_set(*st.requested_posts, id, true);
 			array_add(*need, id);
@@ -409,7 +409,7 @@ forum_post_form :: (ch: *dc.Channel, st: *Forum_State, tags: []dc.Forum_Tag) {
 }
 
 forum_card :: (forum: *dc.Channel, th: *dc.Channel, tags: []dc.Forum_Tag) {
-	tm := dc.thread_meta(th.id);
+	tm := dc.thread_meta(store(), th.id);
 	outer := row("cardrow");
 	outer.semantic_size = .[ui.pct(1), ui.children()];
 	{ ui.parent(outer); defer ui.pop_parent();

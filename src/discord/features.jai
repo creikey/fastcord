@@ -61,13 +61,12 @@ New_Message :: struct {
 	attachments: int;
 	embeds: int;
 	sticker: bool;
-	store: *Store; // The connection it came on; take_new_messages hands each client only its own.
+	store: *Store; // The connection it came on.
 }
 
-// The side tables are process-wide (the app runs one client). Several clients
-// at once (the parallel offline tests) share them: changes are serialized by
-// extras_mu, everything in them is on the heap (context.default_allocator, not
-// one client's), and they are freed when the last client goes (extras_destroy).
+// Each Store keeps its own side tables (Store.extras), so two connections' ids never mix. Changes
+// are serialized by Store.extras_mu, everything in them is on the heap (context.default_allocator),
+// and store_destroy frees them (extras_destroy).
 Extras :: struct {
 	threads: Table(Snowflake, Thread_Meta);
 	tags: Table(Snowflake, [..]Forum_Tag); // forum channel -> available_tags
@@ -76,13 +75,9 @@ Extras :: struct {
 	my_roles: Table(Snowflake, [..]Snowflake); // guild -> our role ids
 }
 
-extras: Extras;
-extras_mu: locks.Mutex;
-extras_clients: int;
-
 // ---- dispatch side (extras_mu held, heap allocator pushed) ----
 
-note_thread :: (t: etf.Map, me: Snowflake) {
+note_thread :: (extras: *Extras, t: etf.Map, me: Snowflake) {
 	id := fsnow(t, "id");
 	if id == 0 return;
 	tm, added := find_or_add(*extras.threads, id);
@@ -119,7 +114,7 @@ note_thread_member :: (tm: *Thread_Meta, mm: etf.Map) {
 	if vhas(mm, "mute_config") tm.mute_end_ms = iso_to_ms(fstr(fmap(mm, "mute_config"), "end_time"));
 }
 
-note_tags :: (ch: etf.Map) {
+note_tags :: (extras: *Extras, ch: etf.Map) {
 	if !vhas(ch, "available_tags") return;
 	list := find_or_add(*extras.tags, fsnow(ch, "id"));
 	for list.* {
@@ -133,31 +128,31 @@ note_tags :: (ch: etf.Map) {
 	}
 }
 
-note_guild :: (g: etf.Map, me: Snowflake) {
-	for flist(g, "channels") note_tags(vmap(it));
-	for flist(g, "threads") note_thread(vmap(it), me);
+note_guild :: (extras: *Extras, g: etf.Map, me: Snowflake) {
+	for flist(g, "channels") note_tags(extras, vmap(it));
+	for flist(g, "threads") note_thread(extras, vmap(it), me);
 	gid := fsnow(g, "id");
 	for flist(g, "members") {
 		mm := vmap(it);
 		uid := fsnow(mm, "user_id");
 		u := fmap(mm, "user");
 		if u uid = fsnow(u, "id");
-		if uid == me note_roles(gid, flist(mm, "roles"));
+		if uid == me note_roles(extras, gid, flist(mm, "roles"));
 	}
 }
 
-note_roles :: (gid: Snowflake, roles: []V) {
+note_roles :: (extras: *Extras, gid: Snowflake, roles: []V) {
 	list := find_or_add(*extras.my_roles, gid);
 	list.count = 0;
 	for roles array_add(list, vsnow(it));
 }
 
-note_joined :: (thread_id: Snowflake, joined := true) {
+note_joined :: (extras: *Extras, thread_id: Snowflake, joined := true) {
 	tm := table_find_pointer(*extras.threads, thread_id);
 	if tm tm.joined = joined;
 }
 
-note_message :: (s: *Store, d: etf.Map, me: Snowflake) {
+note_message :: (extras: *Extras, s: *Store, d: etf.Map, me: Snowflake) {
 	cid := fsnow(d, "channel_id");
 	tm := table_find_pointer(*extras.threads, cid);
 	if tm {
@@ -207,60 +202,40 @@ free_thread_meta :: (tm: *Thread_Meta) {
 // extras_on_dispatch: called by client_poll after the Store applied `name`.
 extras_on_dispatch :: (c: *Client, name: string, data: V) { extras_dispatch(*c.store, c.allocator, name, data); }
 
-extras_retain :: () {
-	locks.lock(*extras_mu);
-	extras_clients += 1;
-	locks.unlock(*extras_mu);
-}
-
-// extras_release: c is going away (client_destroy, before store_destroy). Its
-// feature jobs were already ended by feature_pool_release.
-extras_release :: (c: *Client) {
-	locks.lock(*extras_mu);
-	if extras_clients > 0 extras_clients -= 1;
-	push_allocator(context.default_allocator);
-	for extras.new_msgs if it.store == *c.store {
-		free(it.content);
-		free(it.webhook_name);
-		array_free(it.mention_roles);
-		remove it;
-	}
-	locks.unlock(*extras_mu);
-}
-
 // extras_dispatch: the same for a bare Store (offline fixtures).
 extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
-	locks.lock(*extras_mu);
-	defer locks.unlock(*extras_mu);
+	locks.lock(*s.extras_mu);
+	defer locks.unlock(*s.extras_mu);
 	account_dispatch(s, allocator, name, data);
-	push_allocator(context.default_allocator); // the side tables are shared by every live client
+	push_allocator(context.default_allocator); // the side tables' allocator
+	extras := *s.extras;
 	me := s.me;
 	d := vmap(data);
 	events_dispatch(context.default_allocator, me, name, d);
 	if name == {
 		case "READY";
 			guilds := flist(d, "guilds");
-			for guilds note_guild(vmap(it), me);
+			for guilds note_guild(extras, vmap(it), me);
 			// user READY: merged_members[i] holds our member object for guilds[i]
 			for lv, i: flist(d, "merged_members") {
 				if i >= guilds.count break;
 				for vlist(lv) {
 					mm := vmap(it);
-					if fsnow(mm, "user_id") == me note_roles(fsnow(vmap(guilds[i]), "id"), flist(mm, "roles"));
+					if fsnow(mm, "user_id") == me note_roles(extras, fsnow(vmap(guilds[i]), "id"), flist(mm, "roles"));
 				}
 			}
 		case "GUILD_CREATE";
-			note_guild(d, me);
+			note_guild(extras, d, me);
 		case "CHANNEL_CREATE"; #through;
 		case "CHANNEL_UPDATE";
-			note_tags(d);
+			note_tags(extras, d);
 		case "THREAD_CREATE"; #through;
 		case "THREAD_UPDATE";
-			note_thread(d, me);
+			note_thread(extras, d, me);
 			// creating a thread (or being added on create) makes us a member
-			if name == "THREAD_CREATE" && fsnow(d, "owner_id") == me note_joined(fsnow(d, "id"));
+			if name == "THREAD_CREATE" && fsnow(d, "owner_id") == me note_joined(extras, fsnow(d, "id"));
 		case "THREAD_LIST_SYNC";
-			for flist(d, "threads") note_thread(vmap(it), me);
+			for flist(d, "threads") note_thread(extras, vmap(it), me);
 			for flist(d, "members") {
 				mm := vmap(it);
 				if fsnow(mm, "user_id") != me continue;
@@ -283,9 +258,9 @@ extras_dispatch :: (s: *Store, allocator: Allocator, name: string, data: V) {
 		case "CHANNEL_PINS_UPDATE";
 			find_or_add(*extras.pins_epoch, fsnow(d, "channel_id")).* += 1;
 		case "GUILD_MEMBER_UPDATE";
-			if fsnow(fmap(d, "user"), "id") == me note_roles(fsnow(d, "guild_id"), flist(d, "roles"));
+			if fsnow(fmap(d, "user"), "id") == me note_roles(extras, fsnow(d, "guild_id"), flist(d, "roles"));
 		case "MESSAGE_CREATE";
-			note_message(s, d, me);
+			note_message(extras, s, d, me);
 	}
 }
 
@@ -329,14 +304,29 @@ feature_pool_release :: (c: *Client) {
 	locks.unlock(*fpool.mu);
 }
 
-// extras_destroy frees the side tables and stops the feature workers (called
-// from store_destroy, after the client has set quit). Nothing while another
-// client is alive (feature_pool_release).
-extras_destroy :: () {
+// extras_destroy frees s's side tables and, when no client is left (feature_pool_release), stops
+// the feature workers (called from store_destroy, after the client has set quit).
+extras_destroy :: (s: *Store) {
 	push_allocator(context.default_allocator);
-	locks.lock(*extras_mu);
-	defer locks.unlock(*extras_mu);
-	if extras_clients > 0 return; // another client still uses them
+	locks.lock(*s.extras_mu);
+	extras := *s.extras;
+	for * extras.threads free_thread_meta(it);
+	deinit(*extras.threads);
+	for list: extras.tags {
+		for list {
+			free(it.name);
+			free(it.emoji_name);
+		}
+		array_free(list);
+	}
+	deinit(*extras.tags);
+	deinit(*extras.pins_epoch);
+	new_messages_free(null, extras.new_msgs);
+	array_free(extras.new_msgs);
+	for extras.my_roles array_free(it);
+	deinit(*extras.my_roles);
+	extras.* = .{};
+	locks.unlock(*s.extras_mu);
 	locks.lock(*fpool.mu);
 	if fpool.clients > 0 {
 		locks.unlock(*fpool.mu);
@@ -356,46 +346,15 @@ extras_destroy :: () {
 	array_free(fpool.inflight);
 	fpool = .{};
 	events_destroy();
-
-	for * extras.threads free_thread_meta(it);
-	deinit(*extras.threads);
-	for list: extras.tags {
-		for list {
-			free(it.name);
-			free(it.emoji_name);
-		}
-		array_free(list);
-	}
-	deinit(*extras.tags);
-	deinit(*extras.pins_epoch);
-	for extras.new_msgs {
-		free(it.content);
-		free(it.webhook_name);
-		array_free(it.mention_roles);
-	}
-	array_free(extras.new_msgs);
-	for extras.my_roles array_free(it);
-	deinit(*extras.my_roles);
-	extras = .{};
 }
 
-// take_new_messages returns c's MESSAGE_CREATEs (from others) since the last call; other
-// connections' stay queued for them. Free with new_messages_free.
+// take_new_messages returns c's MESSAGE_CREATEs (from others) since the last call. Free with
+// new_messages_free.
 take_new_messages :: (c: *Client, allocator := temp) -> []New_Message {
-	locks.lock(*extras_mu);
-	defer locks.unlock(*extras_mu);
-	out: [..]New_Message;
-	out.allocator = allocator;
-	k := 0;
-	for extras.new_msgs {
-		if it.store == *c.store {
-			array_add(*out, it);
-		} else {
-			extras.new_msgs[k] = it;
-			k += 1;
-		}
-	}
-	extras.new_msgs.count = k;
+	locks.lock(*c.store.extras_mu);
+	defer locks.unlock(*c.store.extras_mu);
+	out := array_copy(c.store.extras.new_msgs,, allocator);
+	c.store.extras.new_msgs.count = 0;
 	return out;
 }
 
@@ -408,23 +367,23 @@ new_messages_free :: (c: *Client, msgs: []New_Message) {
 	}
 }
 
-thread_meta :: (id: Snowflake) -> *Thread_Meta { return table_find_pointer(*extras.threads, id); }
+thread_meta :: (s: *Store, id: Snowflake) -> *Thread_Meta { return table_find_pointer(*s.extras.threads, id); }
 
-forum_tags :: (forum_id: Snowflake) -> []Forum_Tag {
-	_, l := table_find(*extras.tags, forum_id);
+forum_tags :: (s: *Store, forum_id: Snowflake) -> []Forum_Tag {
+	_, l := table_find(*s.extras.tags, forum_id);
 	return l;
 }
 
-pins_epoch :: (channel_id: Snowflake) -> int {
-	_, n := table_find(*extras.pins_epoch, channel_id);
+pins_epoch :: (s: *Store, channel_id: Snowflake) -> int {
+	_, n := table_find(*s.extras.pins_epoch, channel_id);
 	return n;
 }
 
 // my_guild_roles: our role ids in the guild (a temp copy).
-my_guild_roles :: (guild_id: Snowflake) -> []Snowflake {
-	locks.lock(*extras_mu);
-	defer locks.unlock(*extras_mu);
-	_, l := table_find(*extras.my_roles, guild_id);
+my_guild_roles :: (s: *Store, guild_id: Snowflake) -> []Snowflake {
+	locks.lock(*s.extras_mu);
+	defer locks.unlock(*s.extras_mu);
+	_, l := table_find(*s.extras.my_roles, guild_id);
 	return array_copy(l,, temp);
 }
 
@@ -436,7 +395,7 @@ is_thread :: (ch: *Channel) -> bool {
 joined_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snowflake {
 	out: [..]Snowflake;
 	out.allocator = allocator;
-	for tm, id: extras.threads {
+	for tm, id: s.extras.threads {
 		if tm.parent_id == parent_id && tm.joined && !tm.archived && table_contains(*s.channels, id) array_add(*out, id);
 	}
 	for i: 1..out.count-1 {
@@ -453,14 +412,14 @@ joined_threads :: (s: *Store, parent_id: Snowflake, allocator := temp) -> []Snow
 forum_threads :: (s: *Store, forum_id: Snowflake, allocator := temp) -> []Snowflake {
 	out: [..]Snowflake;
 	out.allocator = allocator;
-	for tm, id: extras.threads if tm.parent_id == forum_id array_add(*out, id);
-	key :: (id: Snowflake) -> Snowflake {
-		_, tm := table_find(*extras.threads, id);
+	for tm, id: s.extras.threads if tm.parent_id == forum_id array_add(*out, id);
+	key :: (s: *Store, id: Snowflake) -> Snowflake {
+		_, tm := table_find(*s.extras.threads, id);
 		return max(tm.last_message_id, id);
 	}
 	for i: 1..out.count-1 {
 		j := i;
-		while j > 0 && key(out[j]) > key(out[j - 1]) {
+		while j > 0 && key(s, out[j]) > key(s, out[j - 1]) {
 			swap(*out[j], *out[j - 1]);
 			j -= 1;
 		}
@@ -479,23 +438,23 @@ apply_forum_threads :: (c: *Client, body: V) {
 		cid := parse_channel_into(s, tmap, fsnow(tmap, "guild_id"));
 		g := table_find_pointer(*s.guilds, fsnow(tmap, "guild_id"));
 		if g && cid != 0 && !array_find(g.channels, cid) array_add(*g.channels, cid);
-		locks.lock(*extras_mu);
-		note_thread(tmap, me,, context.default_allocator);
-		locks.unlock(*extras_mu);
+		locks.lock(*s.extras_mu);
+		note_thread(*s.extras, tmap, me,, context.default_allocator);
+		locks.unlock(*s.extras_mu);
 	}
-	locks.lock(*extras_mu);
+	locks.lock(*s.extras_mu);
 	for flist(m, "members") {
 		mm := vmap(it);
-		if fsnow(mm, "user_id") == me note_joined(fsnow(mm, "id"));
+		if fsnow(mm, "user_id") == me note_joined(*s.extras, fsnow(mm, "id"));
 	}
-	locks.unlock(*extras_mu);
+	locks.unlock(*s.extras_mu);
 	note_first :: (c: *Client, msg: etf.Map) {
 		if !msg return;
 		au := fmap(msg, "author");
 		author := ifx au then parse_user_into(*c.store, au) else 0;
-		locks.lock(*extras_mu);
-		defer locks.unlock(*extras_mu);
-		tm := table_find_pointer(*extras.threads, fsnow(msg, "channel_id"));
+		locks.lock(*c.store.extras_mu);
+		defer locks.unlock(*c.store.extras_mu);
+		tm := table_find_pointer(*c.store.extras.threads, fsnow(msg, "channel_id"));
 		if !tm return;
 		if au tm.first_author = author;
 		push_allocator(context.default_allocator); // the side table's
@@ -807,33 +766,33 @@ THREAD_NOTIFY_MENTIONS :: 1 << 2;
 THREAD_NOTIFY_NOTHING :: 1 << 3;
 
 thread_join :: (c: *Client, thread_id: Snowflake, join: bool) {
-	locks.lock(*extras_mu);
-	note_joined(thread_id, join);
-	locks.unlock(*extras_mu);
+	locks.lock(*c.store.extras_mu);
+	note_joined(*c.store.extras, thread_id, join);
+	locks.unlock(*c.store.extras_mu);
 	c.store.changed += 1;
 	f_submit(c, .{op = .Guild_Aux, channel_id = thread_id, method = ifx join then "PUT" else "DELETE", path = channel_path(thread_id, "/thread-members/@me")});
 }
 
 // level: 0 all messages, 1 only @mentions, 2 nothing (the menus' NOTIFY_NAMES order).
 thread_set_notify :: (c: *Client, thread_id: Snowflake, level: int) {
-	locks.lock(*extras_mu);
-	tm := table_find_pointer(*extras.threads, thread_id);
+	locks.lock(*c.store.extras_mu);
+	tm := table_find_pointer(*c.store.extras.threads, thread_id);
 	flags := 0;
 	if tm {
 		tm.member_flags = (tm.member_flags & ~(THREAD_NOTIFY_ALL | THREAD_NOTIFY_MENTIONS | THREAD_NOTIFY_NOTHING)) | (THREAD_NOTIFY_ALL << clamp(level, 0, 2));
 		flags = tm.member_flags;
 	}
-	locks.unlock(*extras_mu);
+	locks.unlock(*c.store.extras_mu);
 	f_submit(c, .{op = .Guild_Aux, channel_id = thread_id, method = "PATCH", path = channel_path(thread_id, "/thread-members/@me/settings"), body = tprint("{\"flags\":%}", flags)});
 }
 
 // seconds: how long (MUTE_FOREVER: until unmuted); muted false unmutes.
 thread_set_muted :: (c: *Client, thread_id: Snowflake, muted: bool, seconds := 0, now_ms: s64 = 0) {
 	end: s64 = ifx muted && seconds != MUTE_FOREVER then now_ms + seconds * 1000 else 0;
-	locks.lock(*extras_mu);
-	tm := table_find_pointer(*extras.threads, thread_id);
+	locks.lock(*c.store.extras_mu);
+	tm := table_find_pointer(*c.store.extras.threads, thread_id);
 	if tm tm.muted, tm.mute_end_ms = muted, end;
-	locks.unlock(*extras_mu);
+	locks.unlock(*c.store.extras_mu);
 	body := ifx !muted then "{\"muted\":false}"
 		else tprint("{\"muted\":true,\"mute_config\":{\"selected_time_window\":%,\"end_time\":%}}", seconds, ifx end then tprint("\"%\"", ms_to_iso(end)) else "null");
 	f_submit(c, .{op = .Guild_Aux, channel_id = thread_id, method = "PATCH", path = channel_path(thread_id, "/thread-members/@me/settings"), body = body});

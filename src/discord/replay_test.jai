@@ -1502,7 +1502,7 @@ message_thread_object :: (t: *T) {
 	replay_settle(*run, 100);
 	th := channel_get(*c.store, mid);
 	expect(t, th != null && is_thread(th) && th.parent_id == R_TEXT && th.name == "old talk", "the thread is in the Store");
-	tm := thread_meta(mid);
+	tm := thread_meta(*c.store, mid);
 	expect(t, tm != null && tm.message_count == 7 && tm.archived, "the thread's count and archived state are known");
 }
 

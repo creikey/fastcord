@@ -633,7 +633,7 @@ guild_has_unread :: (gid: dc.Snowflake) -> bool {
 unread_counts :: (s: *dc.Store, id: dc.Snowflake) -> bool {
 	if !dc.channel_unread(s, id) return false;
 	if !dc.is_thread(dc.channel_get(s, id)) return true;
-	tm := dc.thread_meta(id);
+	tm := dc.thread_meta(store(), id);
 	return tm != null && tm.joined && !tm.archived;
 }
 

@@ -91,7 +91,7 @@ compute_overwrites :: (base: u64, guild_id: Snowflake, user_id: Snowflake, membe
 
 // Our role ids in a guild: the READY / member-update side table, else the Store's member.
 my_roles :: (s: *Store, guild_id: Snowflake) -> []Snowflake {
-	r := my_guild_roles(guild_id);
+	r := my_guild_roles(s, guild_id);
 	if r.data return r; // the side table knows (even "no roles")
 	m := member_get(s, guild_id, s.me);
 	if m return m.roles;

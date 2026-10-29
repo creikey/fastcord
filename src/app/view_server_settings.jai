@@ -4125,7 +4125,7 @@ chan_overview_dirty :: () -> bool {
 	return a.name != b.name || a.topic != b.topic || a.kind != b.kind || a.nsfw != b.nsfw || a.rate_limit_per_user != b.rate_limit_per_user
 		|| a.bitrate != b.bitrate || a.user_limit != b.user_limit || a.rtc_region != b.rtc_region || a.video_quality_mode != b.video_quality_mode
 		|| a.flags != b.flags || a.default_auto_archive_duration != b.default_auto_archive_duration || a.default_forum_layout != b.default_forum_layout
-		|| a.default_sort_order != b.default_sort_order || (is_forum(ch) && a.available_tags != tags_json(dc.forum_tags(ch.id)));
+		|| a.default_sort_order != b.default_sort_order || (is_forum(ch) && a.available_tags != tags_json(dc.forum_tags(store(), ch.id)));
 }
 
 chan_reset :: () {
@@ -4139,10 +4139,10 @@ chan_reset :: () {
 	ss.chan.rtc_region = ss.chan_region;
 	array_reset(*ss.ows);
 	for ch.overwrites array_add(*ss.ows, it);
-	tm := dc.thread_meta(ch.id);
+	tm := dc.thread_meta(store(), ch.id);
 	if dc.is_thread(ch) ss.chan.default_auto_archive_duration = ifx tm then tm.auto_archive_minutes else 0;
 	tags_free();
-	for dc.forum_tags(ch.id) array_add(*ss.chan_tags, .{id = it.id, name = copy_string(it.name), emoji_name = copy_string(it.emoji_name), emoji_id = it.emoji_id, moderated = it.moderated});
+	for dc.forum_tags(store(), ch.id) array_add(*ss.chan_tags, .{id = it.id, name = copy_string(it.name), emoji_name = copy_string(it.emoji_name), emoji_id = it.emoji_id, moderated = it.moderated});
 	ui.editor_set_text(*ss.tag, "");
 }
 
@@ -4161,7 +4161,7 @@ chan_overview_save :: () {
 // changed), "" when none did.
 thread_body :: (ch: *dc.Channel) -> string {
 	f := chan_form(ch);
-	tm := dc.thread_meta(ch.id);
+	tm := dc.thread_meta(store(), ch.id);
 	parts: [..]string;
 	parts.allocator = temp;
 	if f.name != ch.name array_add(*parts, tprint("\"name\":%", dc.json_quote(f.name)));

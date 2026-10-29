@@ -11,7 +11,7 @@ pins_toggle :: (channel_id: dc.Snowflake, anchor: ui.Rect) {
 	}
 	pins.open = true;
 	pins.anchor = anchor;
-	if pins.channel != channel_id || pins.epoch != dc.pins_epoch(channel_id) pins_reload(channel_id);
+	if pins.channel != channel_id || pins.epoch != dc.pins_epoch(store(), channel_id) pins_reload(channel_id);
 	if app.client dc.ack_pins(app.client, channel_id);
 }
 
@@ -36,7 +36,7 @@ pins_popout :: () {
 		pins.open = false;
 		return;
 	}
-	if pins.epoch != dc.pins_epoch(pins.channel) pins_reload(pins.channel);
+	if pins.epoch != dc.pins_epoch(store(), pins.channel) pins_reload(pins.channel);
 	W :: 420;
 	scrim := ui.box("pins_scrim", .Clickable | .Floating_X | .Floating_Y | .Overlay);
 	scrim.semantic_size = .[ui.px(app.ui.window.x), ui.px(app.ui.window.y)];
@@ -251,7 +251,7 @@ pins_reload :: (channel_id: dc.Snowflake) {
 	none: [..]Pin;
 	pins.items = none;
 	pins.channel = channel_id;
-	pins.epoch = dc.pins_epoch(channel_id);
+	pins.epoch = dc.pins_epoch(store(), channel_id);
 	pins.has_more = false;
 	pins.loading = app.client != null;
 	if app.client dc.fetch_pins(app.client, channel_id);

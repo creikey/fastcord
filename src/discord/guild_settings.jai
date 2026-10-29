@@ -140,7 +140,7 @@ channel_is_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> 
 channel_effectively_muted :: (s: *Store, gid: Snowflake, cid: Snowflake, now_ms: s64) -> bool {
 	ch := channel_get(s, cid);
 	if is_thread(ch) {
-		tm := thread_meta(cid);
+		tm := thread_meta(s, cid);
 		if tm && mute_active(tm.muted, tm.mute_end_ms, now_ms) return true;
 		ch = channel_get(s, ch.parent_id);
 		if !ch return false;
@@ -179,7 +179,7 @@ is_mentioned :: (s: *Store, gid: Snowflake, direct: bool, everyone: bool, roles:
 	gs := ifx gid then guild_settings_get(s, gid);
 	if everyone && !(gs && gs.suppress_everyone) return true;
 	if !roles.count || (gs && gs.suppress_roles) return false;
-	mine := my_guild_roles(gid);
+	mine := my_guild_roles(s, gid);
 	for roles if array_find(mine, it) return true;
 	return false;
 }

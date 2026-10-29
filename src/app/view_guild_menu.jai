@@ -101,7 +101,7 @@ thread_menu_open :: (tid: dc.Snowflake, at: ui.Vec2) {
 
 // A thread's muted state: muted, and not past a timed mute's end.
 thread_muted :: (tid: dc.Snowflake) -> bool {
-	tm := dc.thread_meta(tid);
+	tm := dc.thread_meta(store(), tid);
 	return tm && tm.muted && (tm.mute_end_ms == 0 || tm.mute_end_ms > wall_ms());
 }
 
@@ -331,7 +331,7 @@ guild_menu_state_for_test :: () -> string {
 can_edit_thread :: (th: *dc.Channel) -> bool {
 	if th == null || !dc.is_thread(th) return false;
 	if (dc.channel_permissions(store(), th.id) & dc.PERM_MANAGE_THREADS) != 0 return true;
-	tm := dc.thread_meta(th.id);
+	tm := dc.thread_meta(store(), th.id);
 	return th.owner_id == store().me && !(tm && tm.locked);
 }
 
@@ -1330,7 +1330,7 @@ thread_menu :: () {
 		gm.thread_menu = 0;
 		return;
 	}
-	tm := dc.thread_meta(th.id);
+	tm := dc.thread_meta(store(), th.id);
 	joined := tm && tm.joined;
 	W :: cast(float32) GM_MENU_W;
 	pos := gm.thread_pos;

@@ -73,7 +73,7 @@ aw_guild :: (w: *Json, c: *Client, guild_id: Snowflake, with_id := true) {
 	json_kint(w, "guild_num_text_channels", text);
 	json_kint(w, "guild_num_voice_channels", voice);
 	json_kint(w, "guild_num_roles", ifx g then g.roles.count else 0);
-	roles := my_guild_roles(guild_id).count;
+	roles := my_guild_roles(s, guild_id).count;
 	if !roles {
 		m := member_get(s, guild_id, s.me);
 		if m roles = m.roles.count;
@@ -934,7 +934,7 @@ analytics_channel_opened :: (c: *Client, guild_id: Snowflake, channel_id: Snowfl
 	thread := is_thread(ch);
 	can_send := has_permission(channel_permissions(s, channel_id), PERM_SEND_MESSAGES);
 	if thread {
-		tm := thread_meta(channel_id);
+		tm := thread_meta(s, channel_id);
 		if !tm return; // its counts are not known yet
 		json_kint(*w, "thread_approximate_member_count", tm.member_count);
 		json_kint(*w, "thread_approximate_message_count", tm.message_count);
@@ -1962,7 +1962,7 @@ analytics_note_message :: (c: *Client, d: V) {
 	for flist(m, "mentions") if fsnow(vmap(it), "id") == s.me a.last_mention_ms = now;
 	gid := fsnow(m, "guild_id");
 	if gid != 0 {
-		mine := my_guild_roles(gid);
+		mine := my_guild_roles(s, gid);
 		for r: flist(m, "mention_roles") {
 			found := array_find(mine, vsnow(r));
 			if found a.last_role_mention_ms = now;
