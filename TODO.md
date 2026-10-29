@@ -392,8 +392,6 @@
 - [ ] Attachments: downloading a file reuses the Save Image path (`media_save` in `view_media.jai`): the whole file is held in memory and sent with image request headers, with no progress, and a name without an extension gets `format=png` appended. Stream big files to disk as a document download instead.
 - [ ] Chat: welcome messages aren't shown properly.
 - [ ] Sounds: check by ear on Windows and Linux that the UI sounds (now decoded by minimp3) play at the right pitch.
-- [ ] Replies: clicking the quoted original message should jump to it.
-- [ ] Edit: saving skips `emoji_convert_shortcodes`, so a typed `:smile:` is sent literally.
 - [ ] Composer: no formatting toolbar over a selection (bold, italic, strikethrough, code, spoiler, quote).
 - [ ] Events: clicking an event invite card should open the event's details modal (fastcord has none; it opens the Events list); event cards lack the cover image and recurring-event series picker.
 - [ ] Forums: no way to create a post ("Search or create a post..." is a plain label, `view_threads.jai`); no sort or tag filter; archived posts load only the first page.
@@ -476,7 +474,6 @@
 - [ ] Create Channel: no Announcement, Stage or Media types, no Private Channel option, no Create Category.
 - [ ] No lost typing: Escape in an edit discards it, and starting another edit overwrites it silently. Escape or the x drops the reply target, and a new reply replaces it. Keep these recoverable: edit and reply drafts per message and channel, restored on reopen.
 - [ ] No lost typing: composer drafts and staged files live only in memory; persist them so a quit or crash keeps them, as the official client does.
-- [ ] Links: hovering a link in a message shows the I-beam (text) cursor; it should be the hand.
 - [ ] Bug: scrolled up reading history, every new message, embed or reaction below pushes the text you're reading upward; `scroll_from_bottom` stays fixed while content grows below (`view_chat.jai`). Anchor to the row under the viewport instead.
 - [ ] Unreads: the server rail pill lights up from threads you haven't joined and from archived threads. They have no read state, so they count as unread, and the pill stays lit until "Mark As Read" (`views.jai` `guild_unread_shown` loops every thread). The Inbox already filters these.
 - [ ] Inbox: no Bookmarks or Reminders. The official client saves a message from its menu and can remind you of it later, listed in the Inbox's Bookmarks and Reminders tabs. fastcord fetches `GET /users/@me/saved-messages?bookmark_ids=true` at login only for parity (`auth.jai` `LOGIN_BURST`) and drops the result (`view_inbox.jai`). The captured account gets 404 (`x-discord-features: bookmarks`), so it's a staged rollout: capture saving, reminding and the list on an account that has it, and record the rules in `traffic/CLIENT_RULES.md`, before building them.
@@ -548,6 +545,8 @@
 - [-] Cancelled (Google shut the Tenor API down on 2026-06-30, with no new keys since January, which is why Discord's `/gifs/search` went Klipy-only; sent Tenor links still embed): GIFs (fastcord-only): search Tenor as well as Klipy.
 - [-] Cancelled (AGENTS.md: no Activities): Voice and Call view: no Activities (in-call apps and games) and no Activities button.
 - [ ] Tests: `tests/ui/events_wizard.txt` ("1:00 PM") and `tests/ui/shortcut_list.txt` ("Ctrl+Alt+A") fail on macOS, before and after the Escape change; they look timezone- and platform-dependent (`-now` with the local zone, Ctrl vs Cmd labels). Pin the zone and the shortcut platform in the headless run, or make the expectations follow them.
+- [-] Cancelled (duplicate: done, see the ticked reply_jump item): Replies: clicking the quoted original message should jump to it.
+- [-] Cancelled (duplicate: done, see the ticked edit_autocomplete item): Edit: saving skips `emoji_convert_shortcodes`, so a typed `:smile:` is sent literally.
 - [x] Voice: play the join and leave sounds when other users enter or leave the voice channel (they played on macOS only; Windows and Linux now decode the MP3s with minimp3).
 - [x] Mentions: typing `@name` sends plain text that pings no one; send it as a real mention (`<@id>`), with an autocomplete popup for users and roles as you type `@`.
 - [x] Events: invite links to a scheduled event (`?event=<id>`) show the event's card.
@@ -742,3 +741,4 @@
 - [x] Build: `- dev linux` works on an Apple-silicon Mac (the profiler's spin no longer uses x64 `#asm`), and a Linux build no longer breaks the next macOS link: `build/fc_vendor.target` names the target `build/fc_vendor.a` holds, and a build for the other one remakes it.
 - [x] Traffic: when the updater manifest offers a newer host, fastcord fetches (hashes and discards) every installed module's package too, as the official updater does: the manifest's `required_modules` plus the eight the desktop core installs on demand, each the delta from the running host and module version (else full), host first and modules in random order, four downloads at a time on their own connections, each retried once on a bad hash (captured on macOS with a slowed local endpoint; `updater_wire`, `updater_schedule`).
 - [x] Bug (Windows): files that already exist are now rewritten. `write_file_atomic` (`cookies.jai`), `settings_save` and alt-svc's save replace the file with File_Utilities' `atomic_file_replace_or_just_rename_if_destination_file_does_not_exist` (`ReplaceFileW`) instead of `MoveFileW`, and a failed write removes its `.tmp` (test `file_atomic_replace`, passes on Windows and macOS).
+- [x] Links: hovering a link, mention or hidden spoiler in a message shows the hand cursor, not the I-beam (`ui.State.span_cursor`; scripts gained `expect_cursor`, `tests/ui/span_clicks.txt`).

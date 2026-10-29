@@ -547,6 +547,11 @@ handle_span_clicks :: (b: *ui.Box, toks: []Token, message_id: dc.Snowflake = 0, 
 		} else if id < cast(u64) toks.count && toks[id].kind == .Timestamp {
 			tooltip_below(full_timestamp(cast(s64) toks[id].id * 1000), r);
 		}
+		if id < cast(u64) toks.count && !ui.overlay_at(p) {
+			tk := toks[id];
+			if ((tk.styles & .Spoiler) && !spoiler_revealed(toks, cast(int) id)) || tk.kind == .Link || tk.kind == .User_Mention || tk.kind == .Channel_Mention
+				app.ui.span_cursor = .Pointer;
+		}
 	}
 	for e: app.ui.events {
 		if e.kind != .Mouse_Up || e.button != .Left || e.consumed || ui.has_selection() || ui.overlay_at(e.pos) continue;

@@ -612,6 +612,9 @@ script_command :: (path: string, f: []string, t: *float64) {
 	case "expect_profile_open"; #through; case "expect_no_profile_open";
 		if (app.profile_user != 0) != (f[0] == "expect_profile_open") script_fail(path, "% failed", f[0]);
 		return;
+	case "expect_cursor";
+		if tprint("%", ui.cursor()) != f[1] script_fail(path, "expect_cursor % failed: got %", f[1], ui.cursor());
+		return;
 	case "expect_theme";
 		th, ok := theme_by_name(f[1]);
 		if !ok || th != app.theme.name script_fail(path, "expect_theme % failed: got %", f[1], app.theme.name);

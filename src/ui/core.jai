@@ -331,6 +331,7 @@ State :: struct {
 	focus: Key; // keyboard focus
 	next_hot: Key;
 	cursor: Cursor;
+	span_cursor: Cursor; // a link or mention under the mouse in selectable text: wins over the I-beam unless dragging
 	animating: bool;
 	instant_scroll: bool; // scroll boxes jump to their target instead of easing
 	overlay_under_mouse: bool; // last frame's overlay (popout, modal, menu) covers the mouse
@@ -432,6 +433,7 @@ begin :: (window: Vec2, dt: float32, time: float64, events: []Input_Event) {
 	s.animating = false;
 	s.scroll_consumed = false;
 	s.cursor = .Default;
+	s.span_cursor = .Default;
 
 	array_add(*s.style_stack, default_style());
 	root := box_make_key(1, 0);

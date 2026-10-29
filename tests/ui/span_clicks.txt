@@ -4,6 +4,16 @@ wait 30
 move 600 300
 scroll 0 120
 wait 30
+# links and mentions show the hand, plain text the I-beam
+move 840 128
+wait 2
+expect_cursor Pointer
+move 651 293
+wait 2
+expect_cursor Pointer
+move 500 128
+wait 2
+expect_cursor IBeam
 click 840 128
 wait 5
 expect_opened_url "https://discord.com/developers"
